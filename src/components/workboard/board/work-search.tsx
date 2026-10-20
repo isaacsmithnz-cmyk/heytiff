@@ -273,11 +273,6 @@ export function WorkSearchPanel({
                         onClick={() => onStarPhoto(h.remoteId)}
                         aria-pressed={starred.has(h.remoteId)}
                         aria-label={`${starred.has(h.remoteId) ? "Unstar" : "Star"} ${h.caption || h.name}`}
-                        title={
-                          starred.has(h.remoteId)
-                            ? "Starred — click to take it out of the gallery"
-                            : "Star this photo for the gallery"
-                        }
                       >
                         <Icon name="star" size={13} />
                       </button>
@@ -318,8 +313,8 @@ export function WorkSearchPanel({
           the photo bank are round trips. Saying so is the difference between
           "still looking" and "that's all there is" — the two things an empty
           tail can mean. */}
-      {!short && searching && <p className="int-hint">Looking through the rest of ServiceM8…</p>}
-      {!short && photos.searching && <p className="int-hint">Looking through the photo bank…</p>}
+      {!short && searching && <p className="int-hint">Looking through the rest of ServiceM8</p>}
+      {!short && photos.searching && <p className="int-hint">Looking through the photo bank</p>}
     </div>
   );
 }

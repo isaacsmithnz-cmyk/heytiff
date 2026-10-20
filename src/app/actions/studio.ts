@@ -22,6 +22,9 @@ type DesignRow = {
   system_count: number;
   created_at: string;
   updated_at: string;
+  job_number: string | null;
+  client: string | null;
+  thumb_ref: string | null;
 };
 
 function toSummary(r: DesignRow): DesignSummary {
@@ -33,6 +36,9 @@ function toSummary(r: DesignRow): DesignSummary {
     systemCount: r.system_count,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+    jobNumber: r.job_number ?? "",
+    client: r.client ?? "",
+    ...(r.thumb_ref ? { thumbRef: r.thumb_ref } : {}),
   };
 }
 
@@ -40,7 +46,11 @@ export async function listStudioDesigns(): Promise<DesignSummary[]> {
   const { orgId } = await requireOrg("studio");
   const { data, error } = await supabaseAdmin
     .from("studio_designs")
-    .select("id, name, mode, floor_count, system_count, created_at, updated_at")
+    .select(
+      /* the job and a plan to show, read out of the document by PostgREST's
+         JSON paths rather than shipping every document to draw the list */
+      "id, name, mode, floor_count, system_count, created_at, updated_at, job_number:doc->meta->>jobNumber, client:doc->meta->>client, thumb_ref:doc->floors->0->plans->0->>imageRef"
+    )
     .eq("org_id", orgId)
     .order("updated_at", { ascending: false });
   if (error) throw new Error(error.message);

@@ -1,8 +1,7 @@
 "use server";
 
 import { randomUUID } from "crypto";
-import { revalidatePath } from "next/cache";
-import { navHref } from "@/components/shell/nav";
+import { revalidateHome } from "@/lib/shell/revalidate-home";
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
@@ -12,7 +11,7 @@ import { todayInZone } from "@/lib/workboard/dates";
 import { stateFor } from "@/lib/timepay/leave-query";
 import { companyWindow } from "@/lib/calendar/items";
 import { readCalendarLine } from "@/lib/calendar/line-brain";
-import { MAX_OCCURRENCES } from "@/lib/calendar/repeat";
+import { MAX_OCCURRENCES, readRepeatRule, type RepeatRule } from "@/lib/calendar/repeat";
 import { toDay } from "@/lib/calendar/days";
 import {
   DAY_ASKS,
@@ -27,13 +26,16 @@ import {
   lineDates,
   lineDoor,
   linePlan,
+  namesAHoliday,
   onBoxDay,
   openDays,
   outsideLine,
   shutdownOnHolidaysLine,
   takenBackLine,
   withNote,
+  type CalendarLine,
   type Holiday,
+  type LineDates,
   type LinePlanRow,
   type Shutdown,
 } from "@/lib/calendar/line";
@@ -60,6 +62,9 @@ import {
                    day on the box's day; a reply after it is kept on what she
                    filed (`noteOnCalendarEvents`), and Undo takes it off
                    (`undoCalendarLine`).
+     Add an event  `addCalendarEventForm`: the form's fields (kind, name,
+                   days, hours, repeat, where, who, note), filed by the same
+                   rules as Sort it out, with nothing to read.
      Edit          `editCalendarEvent`: this one, or the whole series.
      Delete        `deleteCalendarEvent`: this one, or all of the series. */
 
@@ -84,9 +89,11 @@ const COULDNT_CHANGE = "Couldn't change that on the calendar.";
 const GONE = "That's no longer on the calendar.";
 const NOT_ON_CALENDAR = "That day isn't on the calendar.";
 
-/* By name, not by path: a revalidate aimed at a moved route fails silently
-   (see the note on `refresh` in ./kb). */
-const refresh = () => revalidatePath(navHref("home"));
+/* Every address Home has (lib/shell/revalidate-home): the Calendar is the
+   desk's, at /dashboard/desk, until Schedule takes it in. A revalidate aimed
+   at a moved route fails silently (see the note on `refresh` in ./kb), so
+   the addresses live in one list. */
+const refresh = () => revalidateHome();
 
 /** The caller, when they may write to the calendar; otherwise why not. */
 async function gate(refused: string): Promise<{ orgId: string; userId: string } | { error: string }> {
@@ -249,6 +256,38 @@ export async function fileCalendarLine(
     if (dates.why !== "no-day") return { ok: false, error: outsideLine(dates.why, win.windowEnd) };
     return said.length >= DAY_ASKS ? { ok: false, error: NO_DAY } : { ok: false, ask: WHICH_DAY };
   }
+  const filed = await fileRows(orgId, staffId, l, dates, source === "voice" ? "voice" : "sorted", null);
+  if (!filed.ok) return filed;
+  const { put, skips } = filed;
+
+  refresh();
+  return {
+    ok: true,
+    say: skips ? `${filedLine(l, put)} ${skips}` : filedLine(l, put),
+    plan: linePlan(l, put),
+    door: lineDoor(put),
+    ids: filed.ids,
+    about: lineAbout(l, put),
+  };
+}
+
+type OkDates = Extract<LineDates, { ok: true }>;
+
+/** What filing a line put on: the days it went on, the rows, and the
+    holidays and shutdowns a series skipped, in her words. */
+type Filed = { ok: true; put: OkDates; ids: string[]; skips: string | null } | { ok: false; error: string };
+
+/** A line whose days are counted goes on the calendar, held to it: the
+    filing both Sort it out and the Add an event form use, so the two keep
+    one set of rules. Nothing is refreshed here; the caller does. */
+async function fileRows(
+  orgId: string,
+  staffId: string | null,
+  l: CalendarLine,
+  dates: OkDates,
+  source: "typed" | "sorted" | "voice",
+  note: string | null,
+): Promise<Filed> {
   const first = dates.days[0]!;
   const last = dates.lastDay ?? dates.days.at(-1)!;
 
@@ -297,20 +336,12 @@ export async function fileCalendarLine(
     series_id: series,
     repeat: series ? l.repeat : null,
     created_by: staffId,
-    source: source === "voice" ? "voice" : "sorted",
+    source,
+    ...(note ? { note } : {}),
   }));
   const { data, error } = await supabaseAdmin.from("calendar_events").insert(rows).select("id");
   if (error || !data?.length) return { ok: false, error: COULDNT_ADD };
-
-  refresh();
-  return {
-    ok: true,
-    say: skips ? `${filedLine(l, put)} ${skips}` : filedLine(l, put),
-    plan: linePlan(l, put),
-    door: lineDoor(put),
-    ids: (data as { id: string }[]).map((r) => String(r.id)),
-    about: lineAbout(l, put),
-  };
+  return { ok: true, put, ids: (data as { id: string }[]).map((r) => String(r.id)), skips };
 }
 
 /** The days the calendar already shows the business closed, between two
@@ -581,4 +612,108 @@ export async function deleteCalendarEvent(
 
   refresh();
   return { ok: true, count: (gone.data ?? []).length };
+}
+
+/* ── Add an event ── */
+
+/** What the Add an event form sends: the event's own fields, as the form
+    holds them, and the repeat it picked off the day. */
+export type CalendarEventFields = {
+  kind: "event" | "shutdown";
+  title: string;
+  /** ISO days. `endsOn` is the last day of a range; a repeat is one day. */
+  startsOn: string;
+  endsOn?: string | null;
+  /** Wall-clock "HH:MM", or null for all day. A shutdown has none. */
+  startsAt: string | null;
+  endsAt: string | null;
+  /** An event's repeat, counted from its day; a shutdown never repeats. */
+  repeat: RepeatRule | null;
+  location: string | null;
+  audience: string | null;
+  note: string | null;
+};
+
+export type CalendarFormResult =
+  | {
+      ok: true;
+      /** Every row it put on: one, or a repeat's dates. */
+      ids: string[];
+      /** The first day it went on. */
+      day: string;
+      /** The holidays and shutdowns a series left out, in her words. */
+      skips: string | null;
+    }
+  | { ok: false; error: string };
+
+/** Add an event: the form's fields, filed as Sort it out files what Tiff
+    read, by the same code (`fileRows`), so the two hold the same rules. The
+    gate is `team`, as every write here. The name is as typed or refused,
+    never cut, as Save's; the hours, the last day, where, who and the note
+    are held as Edit holds them. A day outside the calendar's twelve months
+    is refused in the words Tiff uses; a repeat goes on as a series from its
+    day to the window's end, skipping public holidays and shutdowns and
+    naming them; a shutdown whose every day is a public holiday is refused;
+    and a line named only "Public holiday" is never filed, the state's list
+    being on the calendar already. */
+export async function addCalendarEventForm(fields: CalendarEventFields): Promise<CalendarFormResult> {
+  const who = await gate(NO_TEAM);
+  if ("error" in who) return { ok: false, error: who.error };
+  const { orgId, userId } = who;
+  const f = (fields && typeof fields === "object" ? fields : {}) as Partial<CalendarEventFields>;
+
+  const title = typeof f.title === "string" ? f.title.replace(/\s+/g, " ").trim() : "";
+  if (!title) return { ok: false, error: "Give it a name first." };
+  if ([...title].length > TITLE_MAX) return { ok: false, error: `Keep it to ${TITLE_MAX} characters.` };
+  const kind = f.kind === "shutdown" ? "shutdown" : "event";
+
+  const startsOn = typeof f.startsOn === "string" ? f.startsOn : "";
+  if (Number.isNaN(toDay(startsOn))) return { ok: false, error: "Pick the day it's on." };
+  const endsOn = typeof f.endsOn === "string" && f.endsOn ? f.endsOn : startsOn;
+  if (Number.isNaN(toDay(endsOn))) return { ok: false, error: "Pick the day it ends." };
+  if (endsOn < startsOn) return { ok: false, error: "It can't end before it starts." };
+
+  const asked = kind === "event" && f.repeat != null;
+  const repeat = asked ? readRepeatRule(f.repeat) : null;
+  if (asked && !repeat) return { ok: false, error: "That repeat isn't one I can read." };
+
+  const startsAt = kind === "shutdown" ? null : formTime(f.startsAt);
+  const endsAt = kind === "shutdown" ? null : formTime(f.endsAt);
+  if (startsAt === undefined || endsAt === undefined) return { ok: false, error: "That time isn't one I can read." };
+  if (endsAt && !startsAt) return { ok: false, error: "Give it a start time first." };
+  const oneDay = repeat !== null || endsOn === startsOn;
+  if (endsAt && startsAt && oneDay && endsAt <= startsAt) {
+    return { ok: false, error: "It has to finish after it starts." };
+  }
+
+  const [staffId, tz] = await Promise.all([staffProfileIdFor(orgId, userId), getSm8Timezone(orgId)]);
+  const today = todayInZone(tz);
+  const win = companyWindow(today);
+  if (!win) return { ok: false, error: COULDNT_ADD };
+  const frame = { today, ...win };
+
+  const line: CalendarLine = {
+    title,
+    titleInSentence: title,
+    kind: namesAHoliday(title) ? "public_holiday" : kind,
+    day: startsOn,
+    lastDay: repeat || endsOn === startsOn ? null : endsOn,
+    time: startsAt,
+    endTime: endsAt,
+    repeat,
+    repeatWord: null,
+    where: formText(f.location, WHERE_MAX),
+    who: formText(f.audience, WHO_MAX),
+  };
+  const dates = lineDates(line, frame);
+  if (!dates.ok) {
+    return { ok: false, error: dates.why === "no-day" ? "Pick the day it's on." : outsideLine(dates.why, win.windowEnd) };
+  }
+
+  const note = typeof f.note === "string" ? f.note.trim().slice(0, NOTE_MAX).trim() || null : null;
+  const filed = await fileRows(orgId, staffId, line, dates, "typed", note);
+  if (!filed.ok) return filed;
+
+  refresh();
+  return { ok: true, ids: filed.ids, day: filed.put.days[0]!, skips: filed.skips };
 }

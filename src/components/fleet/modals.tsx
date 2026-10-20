@@ -136,7 +136,7 @@ const SCAN_COPY = {
   fuel: {
     prompt: "Snap or upload the receipt",
     hint: "Tiff reads the litres, cost & servo for you",
-    reading: "Tiff is reading the receipt…",
+    reading: "Tiff is reading the receipt",
     kept: "Receipt saved — it'll be filed against this financial year",
     lost: "Couldn't store the photo — the entry will save without it.",
     without: "This entry will save without the receipt photo.",
@@ -147,7 +147,7 @@ const SCAN_COPY = {
   service: {
     prompt: "Snap or upload the service invoice",
     hint: "Tiff reads the work done, the cost & the workshop for you",
-    reading: "Tiff is reading the invoice…",
+    reading: "Tiff is reading the invoice",
     kept: "Service record saved — it'll be filed against this vehicle",
     lost: "Couldn't store the record — the entry will save without it.",
     without: "This entry will save without the service record.",
@@ -185,10 +185,10 @@ export function LogModal({
   onClose: () => void;
 }) {
   const [vehicleId, setVehicleId] = useState(vehicle.id);
-  const [litres, setLitres] = useState("");
+  const [litres, setLitres] = useState(seed?.litres ?? "");
   const [cost, setCost] = useState(seed?.cost ?? "");
   const [odo, setOdo] = useState("");
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState(seed?.note ?? "");
   /* Company card is the default because it is the common case AND the one that
      raises nothing extra — the path with a consequence has to be chosen. A
      docket handed over from My expenses already carries the answer. */
@@ -953,7 +953,7 @@ export function LogRow({
               somebody looks at when the question is "do we have the receipt
               for that fill", months before the Tax screen is opened. */}
           {log.kind === "fuel" && log.hasReceipt && (
-            <span className="dchip2 ok" title="Receipt stored for tax">
+            <span className="dchip2 ok">
               <Icon name="receipt" size={12} />
               Receipt
             </span>

@@ -159,6 +159,23 @@ export async function loadCapacityWindow(
   };
 }
 
+/** One person's place in the day's denominator, by their ServiceM8 uuid, for
+    their page on Team: the same row the crew editor reads, and the same
+    "never set" answer (not counted, the default day). */
+export async function capacityRowFor(
+  orgId: string,
+  staffUuid: string
+): Promise<{ included: boolean; dailyMinutes: number }> {
+  const { data } = await supabaseAdmin
+    .from("schedule_capacity_staff")
+    .select("included, daily_minutes")
+    .eq("org_id", orgId)
+    .eq("sm8_staff_uuid", staffUuid)
+    .maybeSingle();
+  const row = data as { included: boolean; daily_minutes: number } | null;
+  return { included: row?.included ?? false, dailyMinutes: row?.daily_minutes ?? DEFAULT_DAILY_MINUTES };
+}
+
 /** Save the whole list in one go — it is edited as a list, so it is written as
     one, and a partial save would leave the denominator half-changed. */
 export async function saveCapacityAllocation(

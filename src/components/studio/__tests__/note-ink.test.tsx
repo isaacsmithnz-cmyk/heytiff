@@ -90,8 +90,7 @@ describe("the bench", () => {
 
     await user.click(await screen.findByText("New design"));
     await user.type(screen.getByPlaceholderText(/Design name/), "Ink seam");
-    await user.click(screen.getByRole("button", { name: /Continue/ }));
-    await user.click(screen.getByText("Blank canvas"));
+    await user.click(screen.getByRole("button", { name: "Start with a blank canvas" }));
     await user.click(await screen.findByRole("button", { name: "Design" }));
 
     await user.click(screen.getByRole("button", { name: "Note" })); // arms

@@ -185,7 +185,6 @@ function AttentionRow({
             className="wb2-chip"
             disabled={busy}
             onClick={() => onClearFlag(item.id)}
-            title="Stop this flag pulsing — the note that raised it stays in the diary"
           >
             Clear
           </button>
@@ -225,7 +224,6 @@ function AttentionRow({
                 className="wb2-chip"
                 disabled={busy}
                 onClick={() => onDismissNote(asideId)}
-                title="Not work — and it stays dismissed"
               >
                 Not work
               </button>
@@ -301,7 +299,7 @@ function TaskDraft({
           onChange={(e) => setAssigneeId(e.target.value)}
           aria-label="Who the task is for"
         >
-          <option value="">Say who…</option>
+          <option value="">Say who</option>
           {assignable.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}

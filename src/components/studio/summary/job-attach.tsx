@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { Icon } from "@/components/shell/icon";
+import { Tooltip } from "@/components/parts/tooltip";
 import type { DesignDocument } from "@/lib/studio/document";
 import { prefillFromJob, type StudioJobHit } from "@/lib/studio/job-link";
 import { JobSearchField } from "../job-search";
@@ -83,14 +84,11 @@ export function JobAttach({
         <Icon name="tag" size={11} />
         Added from ServiceM8
         {doc.jobLink.jobNumber ? ` ${doc.jobLink.jobNumber}` : ""}
-        <button
-          type="button"
-          className="ds-letter-unlink"
-          onClick={detach}
-          title="This design stops being attached to that job. Anything already added to the job card stays there."
-        >
-          Unlink
-        </button>
+        <Tooltip label="This design stops being attached to that job. Anything already added to the job card stays there.">
+          <button type="button" className="ds-letter-unlink" onClick={detach}>
+            Unlink
+          </button>
+        </Tooltip>
       </span>
     );
   }

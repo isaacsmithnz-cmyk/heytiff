@@ -83,7 +83,7 @@ export function CheckFields({
           value={value.status}
           onChange={(e) => set("status")(e.target.value)}
         >
-          <option value="">Select…</option>
+          <option value="">Select the right to work</option>
           {WORK_RIGHTS.map((s) => (
             <option key={s} value={s}>
               {s}

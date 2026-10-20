@@ -1,35 +1,32 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MyExpensesFace } from "../my-expenses-face";
 import type { Claim } from "@/lib/expenses/claim";
 
-/* THE CLAIMANT'S SCREEN — the half of expenses that had no test at all.
+/* THE CLAIMANT'S SCREEN: the lists of what was filed, what you are owed,
+   cancelling, and the door to Claim an expense. The form itself, with every
+   rule this screen's own form had, is tested where it lives now
+   (components/making/__tests__/expense-form.test.tsx). */
 
-   Two gaps it was shipping with, both of which cost the person money or time:
-
-   1. The file picker lived on the START SCREEN only, and unmounted the moment
-      a draft existed. So "Enter it myself" committed you to a claim with no
-      receipt on it, permanently, and the approver being asked for money had
-      nothing to look at.
-   2. The picker took photos only. The most common receipt for anything bought
-      on account is the supplier's emailed PDF, which the documents bucket has
-      always accepted — only this input was narrower. */
-
-const readReceipt = jest.fn();
-const submit = jest.fn();
 const cancel = jest.fn(async (_id: string) => ({ ok: true }));
-const upload = jest.fn();
 const refresh = jest.fn();
+const formProps = jest.fn();
 
-jest.mock("@/app/actions/expense-ai", () => ({
-  readExpenseReceipt: (...a: unknown[]) => readReceipt(...a),
-}));
 jest.mock("@/app/actions/expenses", () => ({
-  submitClaim: (...a: unknown[]) => submit(...a),
   cancelClaim: (id: string) => cancel(id),
 }));
-jest.mock("@/lib/documents/upload-client", () => ({
-  uploadFile: (...a: unknown[]) => upload(...a),
+/* the form is its own suite's business: here, that the door opens it, on what */
+jest.mock("@/components/making/expense-form", () => ({
+  ExpenseForm: (p: { payer: string; onSaved: (paid: string) => void; onClose: () => void }) => {
+    formProps(p);
+    return (
+      <div role="dialog" aria-label="Claim an expense">
+        <button type="button" onClick={() => p.onSaved("company")}>
+          Saved on the card
+        </button>
+      </div>
+    );
+  },
 }));
 const push = jest.fn();
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
@@ -57,182 +54,47 @@ const claim = (over: Partial<Claim> = {}): Claim =>
   }) as Claim;
 const draw = () => render(<MyExpensesFace claims={[]} today={TODAY} />);
 
-/** The one hidden picker the whole screen shares. */
-const picker = () => document.querySelector('input[type="file"]') as HTMLInputElement;
-
-const photo = () => new File(["x"], "docket.jpg", { type: "image/jpeg" });
-const pdf = () => new File(["x"], "reece-invoice.pdf", { type: "application/pdf" });
-
 beforeEach(() => {
-  sessionStorage.clear();
-  readReceipt.mockReset().mockResolvedValue({ ok: false, reason: "no-key" });
-  submit.mockReset().mockResolvedValue({ ok: true });
   cancel.mockReset().mockResolvedValue({ ok: true });
-  upload.mockReset().mockResolvedValue({ ok: true, file: { documentId: "doc-1" } });
   refresh.mockReset();
-  // jsdom implements neither
-  global.URL.createObjectURL = jest.fn(() => "blob:preview");
-  global.URL.revokeObjectURL = jest.fn();
+  formProps.mockReset();
 });
 
-describe("attaching a receipt", () => {
-  it("offers an attach control after Enter it myself", async () => {
-    /* The regression in one line: this button did not exist, so a hand-typed
-       claim could never carry its docket. */
+/* THE DOOR (rule 52): your name › Expense claims › Claim an expense. */
+describe("the door", () => {
+  it("opens Claim an expense over the screen, as your own money, with the open work", async () => {
     const user = userEvent.setup();
-    draw();
-    await user.click(screen.getByText("Enter it myself"));
-    expect(screen.getByText("No receipt attached")).toBeInTheDocument();
-    expect(screen.getByText("Attach a receipt")).toBeInTheDocument();
+    const jobs = [{ kind: "visit" as const, id: "v1", clientName: "Northgate", label: "Service", jobNumber: "1042" }];
+    render(<MyExpensesFace claims={[]} today={TODAY} jobs={jobs} />);
+    const door = screen.getByRole("button", { name: "Claim an expense" });
+    expect(door).toHaveClass("pt-btn--main");
+    await user.click(door);
+    expect(screen.getByRole("dialog", { name: "Claim an expense" })).toBeInTheDocument();
+    expect(formProps).toHaveBeenLastCalledWith(expect.objectContaining({ payer: "own", today: TODAY, jobs }));
   });
 
-  it("keeps the picker mounted once a draft exists", async () => {
-    // it used to live inside the start screen and unmount with it
+  it("starts a card receipt on the company card, from the Company card face", async () => {
     const user = userEvent.setup();
     draw();
-    expect(picker()).not.toBeNull();
-    await user.click(screen.getByText("Enter it myself"));
-    expect(picker()).not.toBeNull();
+    await user.click(screen.getByRole("tab", { name: /Company card/ }));
+    await user.click(screen.getByRole("button", { name: "File a card receipt" }));
+    expect(formProps).toHaveBeenLastCalledWith(expect.objectContaining({ payer: "company" }));
   });
 
-  it("does NOT re-scan what you attach from the form", async () => {
-    /* The load-bearing rule. By this point the person has typed their own
-       figures; reading the file would replace them with Tiff's, which is the
-       one direction this screen must never move in. */
+  it("lands on the face what you filed lives on", async () => {
     const user = userEvent.setup();
     draw();
-    await user.click(screen.getByText("Enter it myself"));
-    await user.type(screen.getByPlaceholderText("Copper fittings and flux"), "Brazing rods");
-
-    await user.upload(picker(), photo());
-
-    expect(readReceipt).not.toHaveBeenCalled();
-    expect(screen.getByPlaceholderText("Copper fittings and flux")).toHaveValue("Brazing rods");
-    expect(screen.getByText("Replace")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Claim an expense" }));
+    await user.click(screen.getByRole("button", { name: "Saved on the card" }));
+    expect(screen.getByRole("tab", { name: /Company card/ })).toHaveAttribute("aria-selected", "true");
+    expect(refresh).toHaveBeenCalled();
   });
 
-  it("sends the attached file with the claim", async () => {
+  it("is not on Closed, which is history", async () => {
     const user = userEvent.setup();
     draw();
-    await user.click(screen.getByText("Enter it myself"));
-    await user.type(screen.getByPlaceholderText("Copper fittings and flux"), "Brazing rods");
-    await user.type(screen.getByPlaceholderText("0.00"), "48.90");
-    await user.upload(picker(), photo());
-    await user.click(screen.getByText("Send for approval"));
-
-    await waitFor(() => expect(submit).toHaveBeenCalled());
-    expect(upload).toHaveBeenCalledWith(expect.any(File), "receipt");
-    expect(submit.mock.calls[0][0]).toMatchObject({ documentIds: ["doc-1"] });
-  });
-
-  it("lets you take the receipt back off", async () => {
-    const user = userEvent.setup();
-    draw();
-    await user.click(screen.getByText("Enter it myself"));
-    await user.upload(picker(), photo());
-    await user.click(screen.getByText("Remove"));
-    expect(screen.getByText("No receipt attached")).toBeInTheDocument();
-  });
-});
-
-/* ONE TANK, ONE RECORD.
-
-   Fuel had two doors that knew nothing about each other: this screen's Fuel
-   category, which wrote a claim with no vehicle, no litres and no odometer,
-   and Log fuel on My vehicle, which writes the row the tax export reads. The
-   tax screen counts every live fuel log AND every claim carrying no log, so
-   the same docket filed both ways was deducted twice — and on a personal
-   card, paid twice. The door stays; where it lands changes. */
-describe("a fuel docket", () => {
-  const fillFuel = async (user: ReturnType<typeof userEvent.setup>) => {
-    await user.click(screen.getByText("Enter it myself"));
-    await user.selectOptions(screen.getByLabelText("Category"), "fuel");
-    await user.type(screen.getByPlaceholderText("0.00"), "158.40");
-  };
-
-  it("goes to the vehicle instead of raising a claim of its own", async () => {
-    const user = userEvent.setup();
-    draw();
-    await fillFuel(user);
-
-    await user.click(screen.getByText("Log it on the vehicle"));
-
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard/my-vehicle"));
-    expect(submit).not.toHaveBeenCalled();
-    // and the figures go with it, so nothing is typed twice
-    expect(JSON.parse(sessionStorage.getItem("heytiff.fleet.fuel.v1") ?? "{}")).toMatchObject({
-      cost: "158.40",
-      paidWith: "own",
-    });
-  });
-
-  it("takes the docket across as the log's own paper", async () => {
-    const user = userEvent.setup();
-    draw();
-    await fillFuel(user);
-    await user.upload(picker(), photo());
-
-    await user.click(screen.getByText("Log it on the vehicle"));
-
-    await waitFor(() => expect(upload).toHaveBeenCalledWith(expect.any(File), "fuel_receipt"));
-    expect(JSON.parse(sessionStorage.getItem("heytiff.fleet.fuel.v1") ?? "{}")).toMatchObject({
-      receiptDocumentId: "doc-1",
-    });
-  });
-
-  it("leaves every other category filing a claim as it always did", async () => {
-    const user = userEvent.setup();
-    draw();
-    await user.click(screen.getByText("Enter it myself"));
-    await user.type(screen.getByPlaceholderText("Copper fittings and flux"), "Brazing rods");
-    await user.type(screen.getByPlaceholderText("0.00"), "48.90");
-
-    expect(screen.queryByText("Log it on the vehicle")).toBeNull();
-    await user.click(screen.getByText("Send for approval"));
-    await waitFor(() => expect(submit).toHaveBeenCalled());
-  });
-});
-
-describe("PDFs", () => {
-  it("are offered by the picker", () => {
-    // the bucket always took them; only this input was narrower
-    draw();
-    expect(picker().accept).toContain("application/pdf");
-  });
-
-  it("are named rather than previewed", async () => {
-    // there is no thumbnail to draw, and an <img> pointed at a PDF is a broken
-    // image icon where the receipt should be
-    const user = userEvent.setup();
-    draw();
-    await user.click(screen.getByText("Enter it myself"));
-    await user.upload(picker(), pdf());
-
-    expect(screen.getByText("reece-invoice.pdf")).toBeInTheDocument();
-    expect(document.querySelector(".xc-prev")).toBeNull();
-    expect(global.URL.createObjectURL).not.toHaveBeenCalled();
-  });
-
-  it("are scanned like any other receipt from the start screen", async () => {
-    readReceipt.mockResolvedValue({
-      ok: true,
-      total: 214.5,
-      gst: 19.5,
-      supplier: "Reece",
-      date: "2026-08-01",
-      description: "Copper fittings",
-      category: "materials",
-    });
-    const user = userEvent.setup();
-    draw();
-    await user.upload(picker(), pdf());
-
-    await waitFor(() => expect(readReceipt).toHaveBeenCalled());
-    expect(readReceipt.mock.calls[0][1]).toBe("application/pdf");
-    await waitFor(() =>
-      expect(screen.getByPlaceholderText("Copper fittings and flux")).toHaveValue("Copper fittings"),
-    );
-    expect(screen.getByPlaceholderText("Reece")).toHaveValue("Reece");
+    await user.click(screen.getByRole("tab", { name: /Closed/ }));
+    expect(screen.queryByRole("button", { name: "Claim an expense" })).toBeNull();
   });
 });
 
@@ -270,18 +132,6 @@ describe("provenance", () => {
   it("says nothing on a claim somebody typed themselves", () => {
     render(<MyExpensesFace claims={[{ ...fuelClaim, fuelLog: null }]} today={TODAY} />);
     expect(screen.queryByText(/Raised from your fuel log/)).toBeNull();
-  });
-});
-
-describe("object URLs", () => {
-  it("releases the old preview when the receipt is replaced", async () => {
-    // every abandoned preview otherwise stays alive for the life of the page
-    const user = userEvent.setup();
-    draw();
-    await user.click(screen.getByText("Enter it myself"));
-    await user.upload(picker(), photo());
-    await user.upload(picker(), new File(["y"], "second.png", { type: "image/png" }));
-    expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:preview");
   });
 });
 
@@ -358,41 +208,6 @@ describe("cancelling a claim", () => {
   });
 });
 
-describe("the claim form", () => {
-  /* The form knew. "Send for approval" was enabled on a completely empty
-     draft, so the first thing back was a round trip and "Say what the expense
-     was for" — something the button could see before it was pressed. */
-  it("holds Send until it has the two things a claim cannot be without", async () => {
-    const user = userEvent.setup();
-    render(<MyExpensesFace today={TODAY} claims={[]} />);
-    await user.click(screen.getByRole("button", { name: /Enter it myself/ }));
-
-    const send = () => screen.getByRole("button", { name: /Send for approval/ });
-    expect(send()).toBeDisabled();
-    expect(screen.getByText("Say what it was for")).toBeInTheDocument();
-
-    await user.type(screen.getByPlaceholderText("Copper fittings and flux"), "Fittings");
-    expect(send()).toBeDisabled();
-    expect(screen.getByText("Add how much it cost")).toBeInTheDocument();
-
-    await user.type(screen.getByPlaceholderText("0.00"), "45");
-    expect(send()).toBeEnabled();
-  });
-
-  /* "Every date in HeyTiff is picked, never typed" — date-field.tsx. A raw
-     `<input type="date">` renders the browser's own control and, on a phone,
-     answers dd/mm vs mm/dd in whatever the OS locale says. On a form whose
-     date decides which BAS period a GST figure lands in. */
-  it("picks the date with the app's calendar, never a native date input", async () => {
-    const user = userEvent.setup();
-    const { container } = render(<MyExpensesFace today={TODAY} claims={[]} />);
-    await user.click(screen.getByRole("button", { name: /Enter it myself/ }));
-
-    expect(container.querySelector('input[type="date"]')).toBeNull();
-    expect(container.querySelector(".datef")).not.toBeNull();
-  });
-});
-
 /* THE CARD'S TWO FACES. Answered claims — reimbursed, declined, cancelled —
    used to pad the one list forever; they live behind the Closed tab now, and
    the Claims tab counts only what is still moving. */
@@ -415,8 +230,8 @@ describe("the Claims / Closed split", () => {
     await user.click(screen.getByRole("tab", { name: /Closed/ }));
     expect(screen.getByText("Old drill")).toBeInTheDocument();
     expect(screen.queryByText("Brazing rods")).not.toBeInTheDocument();
-    // the capture banner is the working face's, not history's
-    expect(screen.queryByText("Claim something you paid for")).not.toBeInTheDocument();
+    // the door is the working face's, not history's
+    expect(screen.queryByRole("button", { name: "Claim an expense" })).not.toBeInTheDocument();
   });
 });
 
@@ -486,51 +301,6 @@ describe("company-card receipts", () => {
     render(<MyExpensesFace today={TODAY} claims={[card(), card({ id: "cc2" })]} />);
     expect(screen.queryByRole("tab", { name: /Claims — / })).not.toBeInTheDocument();
   });
-
-  it("says what pressing the button will do, on each side", async () => {
-    const user = userEvent.setup();
-    render(<MyExpensesFace today={TODAY} claims={[]} />);
-
-    await user.click(screen.getByRole("button", { name: "Enter it myself" }));
-    expect(screen.getByRole("button", { name: "Send for approval" })).toBeInTheDocument();
-
-    /* Flipping the payer inside the form flips the promise with it — the
-       control exists precisely so somebody who came through the wrong door
-       can fix it without losing what they typed. */
-    await user.click(screen.getByRole("radio", { name: "Company card" }));
-    expect(screen.getByRole("button", { name: "Save the receipt" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Send for approval" })).not.toBeInTheDocument();
-  });
-
-  it("starts a draft on the payer of the face you came from", async () => {
-    const user = userEvent.setup();
-    render(<MyExpensesFace today={TODAY} claims={[]} />);
-    await user.click(screen.getByRole("tab", { name: /Company card/ }));
-    await user.click(screen.getByRole("button", { name: "Enter it myself" }));
-    expect(screen.getByRole("radio", { name: "Company card" })).toHaveAttribute(
-      "aria-checked",
-      "true",
-    );
-    expect(screen.getByRole("button", { name: "Save the receipt" })).toBeInTheDocument();
-  });
-
-  /* WHAT THE SERVER IS ACTUALLY TOLD. Everything above is copy; this is the
-     field that decides whether the business is asked for money. */
-  it("sends the payer through to the server", async () => {
-    const user = userEvent.setup();
-    submit.mockResolvedValue({ ok: true });
-    render(<MyExpensesFace today={TODAY} claims={[]} />);
-
-    await user.click(screen.getByRole("tab", { name: /Company card/ }));
-    await user.click(screen.getByRole("button", { name: "Enter it myself" }));
-    await user.type(screen.getByLabelText(/What was it for/i), "Makita drill");
-    await user.type(screen.getByLabelText(/Total paid/i), "289");
-    await user.click(screen.getByRole("button", { name: "Save the receipt" }));
-
-    await waitFor(() =>
-      expect(submit).toHaveBeenCalledWith(expect.objectContaining({ paidWith: "company" })),
-    );
-  });
 });
 
 /* OWED IS A CLAIMS FACT. Over a list of company dockets it is a figure about
@@ -558,82 +328,7 @@ it("keeps the owed figure off the company-card face", async () => {
    seconds somebody was holding the docket. Optional, and it stays optional —
    a new drill is the van's, not Tuesday's. */
 
-describe("attaching a receipt to a job", () => {
-  const jobs = [
-    {
-      kind: "visit" as const,
-      id: "v1",
-      clientName: "Northgate Realty",
-      label: "Quarterly service",
-      siteLabel: null,
-      jobNumber: "1042",
-    },
-    {
-      kind: "project" as const,
-      id: "p1",
-      clientName: "Acme Industrial",
-      label: "Plant room",
-      siteLabel: null,
-      jobNumber: null,
-    },
-  ];
-
-  it("offers the picker, and sends kind and id — never the label", async () => {
-    const user = userEvent.setup();
-    submit.mockResolvedValue({ ok: true });
-    render(<MyExpensesFace today={TODAY} claims={[]} jobs={jobs} />);
-
-    await user.click(screen.getByRole("button", { name: "Enter it myself" }));
-    expect(screen.getByText("Not against a job")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Pick a job" }));
-    await user.click(screen.getByRole("option", { name: /Northgate Realty/ }));
-    expect(screen.getByText("#1042, Northgate Realty, Quarterly service")).toBeInTheDocument();
-
-    await user.type(screen.getByLabelText(/What was it for/i), "Copper fittings");
-    await user.type(screen.getByLabelText(/Total paid/i), "84.50");
-    await user.click(screen.getByRole("button", { name: "Send for approval" }));
-
-    /* The label the person just read came from the picker; the one that gets
-       STORED is built on the server from the row it finds. Sending it would
-       let a browser write anything into an expense list. */
-    await waitFor(() =>
-      expect(submit).toHaveBeenCalledWith(
-        expect.objectContaining({ job: { kind: "visit", id: "v1" } }),
-      ),
-    );
-  });
-
-  /* "Nothing in particular" is the picker's own escape, and it means the same
-     thing here — this was not for a job. */
-  it("lets you take the job back off", async () => {
-    const user = userEvent.setup();
-    render(<MyExpensesFace today={TODAY} claims={[]} jobs={jobs} />);
-    await user.click(screen.getByRole("button", { name: "Enter it myself" }));
-    await user.click(screen.getByRole("button", { name: "Pick a job" }));
-    await user.click(screen.getByRole("option", { name: /Acme Industrial/ }));
-    expect(screen.getByText("Acme Industrial, Plant room")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Change" }));
-    /* The escape hatch says what it means HERE — the words the picker was
-       born with on the note capture name a destination ("keep it in my
-       notes") that an expense doesn't have. */
-    expect(screen.queryByText(/keep it in my notes/)).not.toBeInTheDocument();
-    await user.click(screen.getByRole("option", { name: "Not for a job in particular" }));
-    expect(screen.getByText("Not against a job")).toBeInTheDocument();
-  });
-
-  /* AN EMPTY LIST HIDES THE CONTROL. A workspace with no open work has nothing
-     to attach to, and a dead row saying so is the hint text this app doesn't
-     write. */
-  it("says nothing at all when there is no open work", async () => {
-    const user = userEvent.setup();
-    render(<MyExpensesFace today={TODAY} claims={[]} jobs={[]} />);
-    await user.click(screen.getByRole("button", { name: "Enter it myself" }));
-    expect(screen.queryByText("Not against a job")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Pick a job" })).not.toBeInTheDocument();
-  });
-
+describe("a receipt on a job", () => {
   it("shows the job on a filed row, on both kinds", async () => {
     const user = userEvent.setup();
     render(

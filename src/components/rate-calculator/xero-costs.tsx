@@ -228,7 +228,7 @@ export function XeroCostsPanel({ s, patch, onFetch }: XeroCostsPanelProps) {
           ))}
         </div>
         <button className="rcx-go" onClick={pull} disabled={busy}>
-          {busy ? "Reading Xero…" : snap ? "Refresh" : "Pull from Xero"}
+          {busy ? "Reading Xero" : snap ? "Refresh" : "Pull from Xero"}
         </button>
       </div>
 

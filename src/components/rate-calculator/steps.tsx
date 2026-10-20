@@ -12,6 +12,7 @@ import React from "react";
 import type { RiskSettings, Multipliers } from "./engine";
 import { costsToXeroPatch, fleetCosted, fleetOnXero, fleetSourceMixed, snapshotTotal, sourceSwitchVisible, type EntryMode } from "./state";
 import { RC } from "./theme";
+import { Tooltip } from "@/components/parts/tooltip";
 import { money, rate0 } from "./format";
 import { QuestionStack, RcIcon, WsEyebrow, WsHelpNote, WsSlider, WsToggle, NumInput, type StackQuestion } from "./ui";
 import { BusinessDetail, StaffDetail, VehiclesDetail, type StepBodyProps } from "./detail";
@@ -326,14 +327,15 @@ export function BusinessStep({ s, patch, calc, showToggle, revealAll, xeroConnec
           <button className={`rcx-srcb${!onXero ? " on" : ""}`} onClick={() => patch({ costsSource: "manual" })}>
             Enter them myself
           </button>
-          <button
-            className={`rcx-srcb${onXero ? " on" : ""}`}
-            onClick={() => patch(costsToXeroPatch(s))}
-            disabled={!xeroConnected}
-            title={xeroConnected ? undefined : "Xero isn't connected"}
-          >
-            Use figures from Xero
-          </button>
+          <Tip label={xeroConnected ? null : "Xero isn't connected"}>
+            <button
+              className={`rcx-srcb${onXero ? " on" : ""}`}
+              onClick={() => patch(costsToXeroPatch(s))}
+              disabled={!xeroConnected}
+            >
+              Use figures from Xero
+            </button>
+          </Tip>
         </div>
       )}
       {onXero && !xeroConnected && (
@@ -468,14 +470,15 @@ export function VehiclesStep({ s, patch, calc, showToggle, revealAll, xeroConnec
           <button className={`rcx-srcb${!onXeroFleet ? " on" : ""}`} onClick={() => patch({ vehicleSource: "manual" })}>
             Enter them myself
           </button>
-          <button
-            className={`rcx-srcb${onXeroFleet ? " on" : ""}`}
-            onClick={() => patch({ vehicleSource: "xero" })}
-            disabled={!xeroConnected && !s.xeroCosts}
-            title={xeroConnected || s.xeroCosts ? undefined : "Xero isn't connected"}
-          >
-            Use figures from Xero
-          </button>
+          <Tip label={xeroConnected || s.xeroCosts ? null : "Xero isn't connected"}>
+            <button
+              className={`rcx-srcb${onXeroFleet ? " on" : ""}`}
+              onClick={() => patch({ vehicleSource: "xero" })}
+              disabled={!xeroConnected && !s.xeroCosts}
+            >
+              Use figures from Xero
+            </button>
+          </Tip>
         </div>
       )}
       {onXeroFleet && !xeroConnected && (
@@ -691,4 +694,9 @@ export function ProfitStep({ s, patch, calc, revealAll }: StepBodyProps) {
       </Body>
     </>
   );
+}
+
+/* A Tooltip only when there is something to say: why Xero's figures are off. */
+function Tip({ label, children }: { label: string | null; children: React.ReactElement<{ "aria-describedby"?: string }> }) {
+  return label ? <Tooltip label={label}>{children}</Tooltip> : children;
 }

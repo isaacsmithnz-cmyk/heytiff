@@ -58,7 +58,7 @@ export function Sm8Chip({ sm8 }: { sm8: Sm8Health | null | undefined }) {
   const freshness = sm8.attention
     ? "ServiceM8 needs attention"
     : sm8.running
-      ? "ServiceM8 syncing…"
+      ? "Syncing with ServiceM8"
       : hydrated
         ? `Synced ${syncedAgo(sm8.syncedAt)}`
         : "Synced";
@@ -66,10 +66,7 @@ export function Sm8Chip({ sm8 }: { sm8: Sm8Health | null | undefined }) {
   /* the dot is the state, in its colour (law 14 allows a dot); the words say
      it for anyone who cannot see the colour */
   return (
-    <span
-      className={"wb2-sm8" + (sm8.attention ? " dan" : sm8.running ? " run" : " synced")}
-      title={sm8.timezone ? `Account clock: ${sm8.timezone}` : undefined}
-    >
+    <span className={"wb2-sm8" + (sm8.attention ? " dan" : sm8.running ? " run" : " synced")}>
       {freshness}
     </span>
   );

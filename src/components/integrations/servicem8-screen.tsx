@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
-import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
+import { ScreenPanel } from "@/components/shell/screen-band";
+import { SettingsHead } from "@/components/settings/settings-head";
+import { connectionFacts } from "@/components/integrations/integrations-index";
 import { auDayOf, fmtAuTime, fmtAuWeekdayDate, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { useHydrated } from "@/lib/use-hydrated";
 import { providerById, SM8_SCOPES, SM8_WRITE_SCOPES, type ScopeEntry } from "@/lib/integrations/providers";
@@ -298,14 +299,10 @@ export function Servicem8Screen({
     <div className="page in full">
       <div className="wrap">
         <div className="stg">
-          <ScreenBand
-            crumb={
-              <Link href="/dashboard/admin/integrations" className="int-back">
-                <Icon name="chevL" size={15} />
-                Integrations
-              </Link>
-            }
-            title="ServiceM8"
+          <SettingsHead
+            back={{ href: "/dashboard/admin/integrations", label: "Integrations" }}
+            heading="ServiceM8"
+            facts={connectionFacts(connection)}
           />
           <ScreenPanel>
           <div className="int-sm8">
@@ -438,7 +435,7 @@ export function Servicem8Screen({
               extraActions={
                 connected && sync ? (
                   <button className="pbtn ghost" onClick={syncNow} disabled={busy}>
-                    {busy ? "Syncing…" : "Sync now"}
+                    {busy ? "Syncing with ServiceM8" : "Sync now"}
                   </button>
                 ) : null
               }
@@ -516,7 +513,7 @@ function SyncLine({ sync }: { sync: Sm8SyncStatusView }) {
      backfill — which is the state that lasts for days and the one the card
      used to hide — then the ordinary "last synced" line. */
   const subtitle = sync.lastRun?.running
-    ? "Syncing now…"
+    ? "Syncing now"
     : reading.length > 0
       ? `Still reading ${nameList(reading.map((o) => o.label))} across — ${num(readingRows)} row${
           readingRows === 1 ? "" : "s"

@@ -9,7 +9,7 @@ import type { EmailChangeOutcome } from "@/app/actions/account";
 import { type StaffProfile } from "@/lib/staff/profile";
 import { dateInputValue, formatAuDate } from "@/lib/au-dates";
 import { preValidate } from "@/lib/staff/pre-validate";
-import { SectionCard, type SectionBodyContext } from "./section-card";
+import { SectionCard, type GroupHead, type SectionBodyContext } from "./section-card";
 import { Detail, DetailPanel, DetailPanels } from "./detail";
 import { DateField, ScaledInput, Seg, SelectInput, TextInput } from "./fields";
 import type { ProfileMode, SaveResult, SaveSection } from "./types";
@@ -66,7 +66,10 @@ export function PersonalCard({
   aliases = [],
   onSaveAliases,
   onSave,
+  group,
 }: {
+  /** drawn as a titled group with its own Edit, on Team's person page */
+  group?: GroupHead;
   profile: StaffProfile | null;
   /* Present only on your OWN card — the action moves whoever the session is,
      so an admin viewing a colleague is handed nothing and the row stays the
@@ -439,8 +442,9 @@ export function PersonalCard({
   return (
     <>
       <SectionCard
-        variant="section"
-        title="Personal details"
+        variant={group ? "group" : "section"}
+        title={group?.title ?? "Personal details"}
+        editLabel={group?.editLabel}
         values={values}
         startEditing={startEditing}
         focusField={focusField}

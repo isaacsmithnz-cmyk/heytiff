@@ -132,7 +132,7 @@ export function ComplianceChooser({
       {failed ? (
         <p className="int-hint">Couldn&apos;t read the licences and insurance. Close the card and open it again.</p>
       ) : choices === null ? (
-        <p className="int-hint">Reading the licences and insurance…</p>
+        <p className="int-hint">Reading the licences and insurance</p>
       ) : (
         <>
           {choices.company && (
@@ -202,7 +202,7 @@ export function ComplianceChooser({
           Cancel
         </button>
         <button type="button" className="pbtn" disabled={ticked.size === 0 || busy} onClick={() => void add()}>
-          {busy ? "Adding…" : "Add to job"}
+          {busy ? "Adding to the job" : "Add to job"}
         </button>
       </div>
     </div>

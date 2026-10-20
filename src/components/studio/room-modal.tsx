@@ -534,7 +534,7 @@ export function RoomModal({
                       type="button"
                       className="ds-rm-badge-reset"
                       onClick={() => setOverridden(false)}
-                      title="Reset to auto"
+                      aria-label="Reset to auto"
                     >
                       ↺ Auto
                     </button>

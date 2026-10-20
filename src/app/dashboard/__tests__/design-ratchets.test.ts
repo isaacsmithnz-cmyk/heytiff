@@ -3,16 +3,17 @@ import path from "node:path";
 
 /* THE NUMBERS ONLY GO DOWN.
 
-   docs/design.md sets four radii, eight type sizes, four weights, no accent
-   (ink does the accent's jobs) and one shadow. The stylesheets were written
-   before any of that existed, so a guard that demanded the scales today would
-   fail on every file and be skipped by everyone. This one counts instead. Each ratchet below records
-   how many times the sheets break a law, as of the day the law was written,
-   and holds the count exactly there.
+   docs/design.md holds v2's rules (18 October 2026): the radii 6, 10, 16
+   and the page's 40, seven type sizes, four weights, the 19 colours, blue
+   only for pressing, and one shadow. The stylesheets were written before
+   any of that existed, so a guard that demanded the rules today would fail
+   on every file and be skipped by everyone. This one counts instead. Each
+   ratchet below records how many times the sheets break a rule, as of the
+   day the rule was written, and holds the count exactly there.
 
    A PR that removes some of them lowers the number in this file. A PR that
    adds one fails here, with the count in the message. The number is therefore
-   always the truth, and reading this file tells you how far the fold has got.
+   always the truth, and reading this file tells you how far the build has got.
    Equality, not "at most": a count that drops without the number following it
    is a change nobody wrote down, which is how the sheets got here.
 
@@ -23,7 +24,7 @@ import path from "node:path";
    One number may go up, and only this way: a counter that was blind to a
    spelling learns it, and work already in the sheets becomes visible. That is
    not a licence — it needs Isaac's word and the reason written into
-   docs/design.md beside the law, the way the shadows ratchet records its
+   docs/design.md beside the rule, the way the shadows ratchet records its
    52 → 57. A baseline raised to let something new in is the thing this file
    exists to stop.
 
@@ -63,7 +64,9 @@ const count = (re: RegExp, css = CSS) => (css.match(re) ?? []).length;
    hit if any of its parts is off the scale. Tokens and calc() are trusted:
    they are how the fold will express the scale, and a `calc(6px - 3.5px)` is
    an inner well concentric with its swatch — geometry, read off the rule. */
-const RADII = new Set(["0", "6px", "10px", "16px", "999px", "50%", "inherit", "initial"]);
+/* 40px joined the scale on 18 October 2026 for the page's two curves (rule
+   46), the one change in v2 that loosens a law; docs/design.md records it. */
+const RADII = new Set(["0", "6px", "10px", "16px", "40px", "999px", "50%", "inherit", "initial"]);
 function offScaleRadii(): number {
   let n = 0;
   for (const m of CSS.matchAll(/border-radius\s*:\s*([^;}]+)/g)) {
@@ -85,12 +88,16 @@ function offScaleRadii(): number {
    The second pass reads the value, not the property, so a drop-shadow parked
    in a custom property counts where it is written; `backdrop-filter` and the
    prefixed spellings come along for free. One declaration is one hit on both
-   passes: a comma-list of shadows is one decision. */
+   passes: a comma-list of shadows is one decision.
+
+   `var(--shadow-overlay)` is the one shadow itself (rule 36), so it
+   is not counted, as the ring token is not (18 October 2026, v2's parts:
+   the Dialog part wears it and the count fell 48 → 13). */
 function shadows(css = CSS): number {
   let n = 0;
   for (const m of css.matchAll(/box-shadow\s*:\s*([^;}]+)/g)) {
     const v = m[1].trim();
-    if (v !== "none" && !/^0 0 0 \d/.test(v) && !/^inset/.test(v) && !/^var\(--ring/.test(v)) n++;
+    if (v !== "none" && !/^0 0 0 \d/.test(v) && !/^inset/.test(v) && !/^var\(--(?:ring|shadow-overlay\)$)/.test(v)) n++;
   }
   for (const _ of css.matchAll(/[\w-]+\s*:\s*[^;}]*drop-shadow\([^;}]*/g)) n++;
   return n;
@@ -167,8 +174,12 @@ const TAILWIND = [
   "#f5f5f5", "#e5e5e5", "#d4d4d4", "#a3a3a3", "#737373", "#525252", "#404040", "#262626", "#171717",
   "#6366f1", "#4f46e5", "#8b5cf6", "#7c3aed", "#3b82f6", "#2563eb", "#10b981", "#059669", "#22c55e", "#16a34a", "#ef4444", "#dc2626", "#f59e0b", "#d97706", "#0ea5e9", "#14b8a6",
 ];
+/* v2's palette shares four values with Tailwind's (red-500, blue-600,
+   green-500, gray-400): the token blocks that declare them, `:root` and
+   Tailwind's own `@theme`, are where colour is meant to come from, so they
+   are not read here (18 October 2026). */
 function tailwindHexes(css = CSS): number {
-  const low = css.toLowerCase();
+  const low = css.replace(/(^|[};\n])\s*(?::root|@theme(?:\s+inline)?)\s*\{[^{}]*\}/g, "$1").toLowerCase();
   let n = 0;
   for (const h of TAILWIND) n += (low.match(new RegExp(h, "g")) ?? []).length;
   return n;
@@ -260,10 +271,11 @@ function small(): number {
   return sizes().filter((n) => n < 12).length;
 }
 
-/* The type scale from docs/design.md: eight sizes, and a rule picks one by
-   role. Relative sizes (`0.86em` on inline code) are not on it and not counted:
-   they follow the text they sit in. */
-const TYPE = new Set([12, 13, 14, 16, 20, 24, 32, 40]);
+/* The type scale from docs/design.md: seven sizes since v2 (40 left it on 18
+   October 2026, when nothing used it), and a rule picks one by role. Relative
+   sizes (`0.86em` on inline code) are not on it and not counted: they follow
+   the text they sit in. */
+const TYPE = new Set([12, 13, 14, 16, 20, 24, 32]);
 function offScaleType(): number {
   return sizes().filter((n) => !TYPE.has(n)).length;
 }
@@ -344,7 +356,13 @@ function namedLoops(): Record<string, number> {
   return out;
 }
 
-const gradients = (css = CSS) => count(/(?:linear|radial|conic)-gradient\(/g, css);
+/* A gradient in `mask-image` paints nothing: a mask is read for its alpha,
+   so it is how text fades out on any ground (rule 50, the Fade part,
+   18 October 2026) and is not counted. Only the longhand is let through;
+   the `mask` shorthand, which every mask in the sheets used before that
+   day, still counts, so no count moved. */
+const MASK_IMAGE = /(?:-webkit-)?mask-image\s*:[^;}]*/g;
+const gradients = (css = CSS) => count(/(?:linear|radial|conic)-gradient\(/g, css.replace(MASK_IMAGE, ""));
 
 /* A pill is counted only while it is drawn as one: a pill, chip, tag or
    badge selector whose own rule gives it a radius. A state word keeps the
@@ -353,6 +371,46 @@ function pills(css = CSS): number {
   let n = 0;
   for (const [sel, body] of blocks(css)) {
     if (/\.[a-z0-9-]*(pill|tag|badge|chip)[a-z0-9-]*/.test(sel) && /border-radius\s*:\s*(?!0\b)/.test(body)) n++;
+  }
+  return n;
+}
+
+/* V2, 18 OCTOBER 2026. Counts for the rules v2 added, each starting where the
+   sheets stood that day (docs/design.md, Guards, "Added with v2").
+
+   Rule 22: the main button is blue with white words, and no button is black.
+   A rule on a button's class (btn, button, cta, primary, `.b.go`) that paints
+   its fill ink counts; its hover, focus and active states are the same
+   button, so they don't count again. */
+const BUTTON_CLASS = /(btn|button|\.b\.go|cta|primary)/i;
+const INK_FILL = /background(?:-color)?\s*:\s*(?:var\(--(?:ink|hd-ink)\)|#000(?:000)?(?![0-9a-f])|#050505|#0a0a0a|black(?![\w-]))/i;
+function inkButtons(): number {
+  let n = 0;
+  for (const [sel, body] of blocks()) if (BUTTON_CLASS.test(sel) && INK_FILL.test(body) && !/:hover|:active|:focus/.test(sel)) n++;
+  return n;
+}
+
+/* Rule 15: nineteen values, and no hex outside them, the token block
+   included. White and ink are two of the 19; blue's word value is its bright
+   one and grey's is the quiet grey, so seventeen hexes cover them all. The
+   Design studio's own sheet keeps its drawing colours until its step and is
+   left out, as the paper sheets are. */
+const PALETTE = new Set([
+  "#ef4444", "#be123c", "#f97316", "#b45309", "#facc15", "#a16207", "#22c55e", "#15803d",
+  "#2563eb", "#a855f7", "#7e22ce", "#ec4899", "#9d174d", "#9ca3af", "#5f6a79", "#050505", "#ffffff",
+]);
+const STUDIO_SHEET = "src/components/studio/studio.css";
+const CSS_BUT_STUDIO = sheets(SRC)
+  .filter((f) => path.relative(process.cwd(), f) !== STUDIO_SHEET)
+  .map((f) => fs.readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, ""))
+  .join("\n");
+function offPalette(): number {
+  let n = 0;
+  for (const m of CSS_BUT_STUDIO.matchAll(/#[0-9a-fA-F]{3,8}\b/g)) {
+    let h = m[0].toLowerCase();
+    if (h.length === 4) h = `#${h[1]}${h[1]}${h[2]}${h[2]}${h[3]}${h[3]}`;
+    else if (h.length === 9) h = h.slice(0, 7);
+    if (h.length !== 7 || !PALETTE.has(h)) n++;
   }
   return n;
 }
@@ -450,19 +508,19 @@ const outside = (ratchet: string) => exempt(CSS, classesFor(ratchet), EXEMPTABLE
 
 const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "type below 12px — the floor", now: small, baseline: 0 },
-  { law: "type off the scale — 12, 13, 14, 16, 20, 24, 32, 40", now: offScaleType, baseline: 0 },
+  { law: "type off the scale — 12, 13, 14, 16, 20, 24, 32", now: offScaleType, baseline: 0 },
   { law: "weight off 400, 500, 600, 700 — 800 is retired", now: heavy, baseline: 0 },
   { law: "`transition: all` — a transition names what moves", now: () => count(/transition\s*:\s*all\b/g), baseline: 0 },
-  { law: "`text-transform: uppercase` — the eyebrow is retired; a registration plate is the one thing set in caps", now: () => count(/text-transform\s*:\s*uppercase/g), baseline: 2 },
-  { law: "radius off the scale — four radii and a circle", now: offScaleRadii, baseline: 0 },
-  { law: "gradients — one accent, flat surfaces; his are named below", now: () => gradients(outside("gradients")), baseline: 38 },
+  { law: "`text-transform: uppercase` — the eyebrow is retired; a registration plate is the one thing set in caps", now: () => count(/text-transform\s*:\s*uppercase/g), baseline: 1 },
+  { law: "radius off the scale — 6, 10, 16, the page's 40, and a circle", now: offScaleRadii, baseline: 0 },
+  { law: "gradients — one accent, flat surfaces; his are named below", now: () => gradients(outside("gradients")), baseline: 32 },
   /* 52 → 57 on 2026-09-21, the one baseline in this file that has ever gone
      up. Nothing was added: the counter learned `filter: drop-shadow()`, and
      five shadows that had been in the sheets since July became visible to it.
      Isaac agreed to the re-base; docs/design.md names the two that stay (the
      photo thumbnail's star, the Studio's close-ready vertex) and records that
      the donut's three go with the Studio's new design. */
-  { law: "shadows that are not a focus ring — one shadow, overlays only", now: () => shadows(outside("shadows")), baseline: 49 },
+  { law: "shadows that are not a focus ring — one shadow, overlays only", now: () => shadows(outside("shadows")), baseline: 13 },
   { law: "bars at the left edge — selection is a fill, state is a word; the one left is the cap on the schedule's blocks", now: () => leftBars(outside("bars at the left edge")), baseline: 1 },
   // round two
   { law: "Tailwind palette hexes — colour comes from the tokens; his are named below", now: () => tailwindHexes(outside("Tailwind palette hexes")), baseline: 0 },
@@ -479,8 +537,8 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
      a rule that lists a `:focus-within` twin beside its `:hover` gives the
      keyboard the same control back (law 24). */
   { law: "hover-revealed controls — shown on focus too, or not hidden", now: () => { let n = 0; for (const [sel, body] of blocks()) if (/:hover/.test(sel) && !/focus-within|focus-visible/.test(sel) && /\bopacity\s*:\s*1\b/.test(body)) n++; return n; }, baseline: 0 },
-  { law: "pill, chip, tag and badge rules drawn as a box — state is a word, a chip is for a filter you tap", now: () => pills(outside("pills")), baseline: 34 },
-  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 29 },
+  { law: "pill, chip, tag and badge rules drawn as a box — state is a word, a chip is for a filter you tap", now: () => pills(outside("pills")), baseline: 32 },
+  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 28 },
   // ink and paper
   /* The OK colour on a selector that is not a state. It began as a count of
      every use (88), then the accent migration named accent-on-state as state
@@ -509,7 +567,16 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
         n += (body.match(/var\(--(?:teal|teal-d|blue|violet|violet-d|hm-teal|tool-accent)\b|#00e5c0|#00a389|#2e68ff|#8a2be2|#007fa8|#0089b8|rgba\(0,\s*229,\s*192,|rgba\(0,\s*163,\s*137,|rgba\(46,\s*104,\s*255,|rgba\(138,\s*43,\s*226,/gi) ?? []).length;
       }
       return n;
-    }, baseline: 161 },
+    }, baseline: 130 },
+  // v2, 18 October 2026: each first set wrong on purpose (-1), then to the count the run printed
+  { law: "main buttons painted ink — the main button is blue (rule 22)", now: inkButtons, baseline: 0 },
+  { law: "colours outside the 19 — the palette, the token block included (rule 15)", now: offPalette, baseline: 68 },
+  { law: "`text-overflow: ellipsis` — text that doesn't fit fades (rule 50)", now: () => count(/text-overflow\s*:\s*ellipsis/g), baseline: 1 },
+  { law: "a typed \"…\" on screen — a wait says what it's doing; text that doesn't fit fades (rule 50)", now: () => countTsx(onScreen("…")), baseline: 2 },
+  { law: "native `<select>` — a field with a chevron opens the app's own menu (rule 34)", now: () => countTsx(/<select\b/g), baseline: 77 },
+  { law: "native time inputs — a clock time opens the wheel (rule 34)", now: () => countTsx(/type="time"/g), baseline: 0 },
+  { law: "native colour inputs — a typed hex with a swatch", now: () => countTsx(/type="color"/g), baseline: 1 },
+  { law: "`title` tooltips — a title is not a label; the tooltip rule replaces them", now: () => countTsx(/\stitle=[{"]/g), baseline: 157 },
 ];
 
 describe("the design ratchets only go down", () => {
@@ -541,6 +608,14 @@ describe("the design ratchets only go down", () => {
 
   it("keeps no glyph-only button that docs/design.md does not name, and names none that has gone", () => {
     expect(iconOnly()).toEqual(namedIconOnly());
+  });
+
+  it("counts no gradient in a mask-image, and every other gradient", () => {
+    const fade = ".pt-x { -webkit-mask-image:linear-gradient(to right, var(--ink) 80%, transparent); mask-image:linear-gradient(var(--ink), var(--ink)), linear-gradient(to right, var(--ink), transparent); }";
+    expect(gradients(fade)).toBe(0);
+    expect(gradients(".x { mask:linear-gradient(red, blue); }")).toBe(1);
+    expect(gradients(".x { background-image:linear-gradient(red, blue); mask-image:none; }")).toBe(1);
+    expect(gradients(".x { --m:radial-gradient(red, blue); }")).toBe(1);
   });
 
   describe("named exemptions", () => {

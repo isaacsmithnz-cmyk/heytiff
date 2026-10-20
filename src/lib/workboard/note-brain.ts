@@ -7,7 +7,8 @@
    This module turns the sentence into a PROPOSAL of those things.
 
    THREE LANES, ONE CALL:
-     ACTION  tasks · bring-items · board flags
+     ACTION  tasks · visits to book (note-visit) · costs (note-cost)
+             · variations (note-variation) · bring-items · board flags
      DATA    progress bullets · commissioning entries · recurring-issue log
              · plain_note, because a note is allowed to just be a note
      ASK     clarify, when intent or assignee is genuinely ambiguous —
@@ -38,6 +39,18 @@ import { HHMM, isRemindKind, type RemindKind } from "@/lib/dashboard/reminders";
 import { RECORD_IN_ENGLISH, RECORD_LANGUAGE } from "@/lib/lang/policy";
 import { englishProposal } from "./note-english";
 import { planRows, type PlanRow } from "./note-draft";
+import {
+  VISITS_MAX,
+  VISIT_PARTS,
+  isVisitPart,
+  visitDay,
+  visitMinutes,
+  visitStart,
+  type ProposedVisit,
+} from "./note-visit";
+import { COSTS_MAX, COST_CATEGORIES, GST_BASES, costFields, costRowLine, type ProposedCost } from "./note-cost";
+import { PAID_WITH } from "@/lib/expenses/claim";
+import { VARIATIONS_MAX, variationFields, variationRowLine, type ProposedVariation } from "./note-variation";
 import type { EarlierTurn, TiffRoom, Turn } from "./note-turns";
 import { looksLikeName } from "@/lib/staff/aliases";
 import { logUsage } from "@/lib/tiff/usage";
@@ -147,6 +160,22 @@ export type ProposedKbEntry = { title: string; body: string };
 
 export type NoteProposal = {
   tasks: ProposedTask[];
+  /** A visit to book on the job (v2 step 6, slice B): "book commissioning
+      for Friday arvo". Booked through Book in's gate when it has a clear
+      time, asked first when it hasn't (note-visit). Empty on every proposal
+      stored before the lane. */
+  visits: ProposedVisit[];
+  /** A cost spent for the job (v2 step 6, slice C): "$85 at Reece for
+      fittings". Filed through the expense form's own action, or asked
+      first when it has no amount (note-cost). Empty on every proposal
+      stored before the lane. */
+  costs: ProposedCost[];
+  /** A change the client wants to the accepted quote (v2 step 6, slice
+      D): "the client wants a return grille added in Bed 2". Started as a
+      variation's draft through the quote page's own `startVariation`, never
+      priced or sent (note-variation). Empty on every proposal stored before
+      the lane. */
+  variations: ProposedVariation[];
   bringItems: string[];
   flags: ProposedFlag[];
   progressBullets: string[];
@@ -228,6 +257,10 @@ export type NoteContext = {
       note by ("and the same for Smith St"), never more to file. Shaped and
       capped by `earlierTurns` before it gets here. */
   earlier?: readonly EarlierTurn[];
+  /** A receipt photo came with the note (v2 step 6, slice C): it is a cost,
+      and its figures are read off the photo by the receipt reader, not by
+      the router. Said after the cache mark, only when it is true. */
+  receipt?: boolean;
 };
 
 export type NoteBrainResult =
@@ -270,6 +303,53 @@ export const NOTE_SCHEMA = {
           "remind_time",
           "remind_kind",
         ],
+        additionalProperties: false,
+      },
+    },
+    /* No nullable field: "" and 0 say not-said, as everywhere here (a
+       schema may carry at most 16 nullable fields). */
+    visits: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          work: str,
+          assignee_hint: str,
+          day: str,
+          start: str,
+          part: { type: "string", enum: [...VISIT_PARTS] },
+          minutes: { type: "integer" },
+        },
+        required: ["work", "assignee_hint", "day", "start", "part", "minutes"],
+        additionalProperties: false,
+      },
+    },
+    /* None nullable either: 0 is no amount and no GST said, "" no day. */
+    costs: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          amount: { type: "number" },
+          gst: { type: "number" },
+          gst_basis: { type: "string", enum: [...GST_BASES] },
+          supplier: str,
+          what_for: str,
+          category: { type: "string", enum: [...COST_CATEGORIES] },
+          day: str,
+          paid_with: { type: "string", enum: [...PAID_WITH] },
+          payer_hint: str,
+        },
+        required: ["amount", "gst", "gst_basis", "supplier", "what_for", "category", "day", "paid_with", "payer_hint"],
+        additionalProperties: false,
+      },
+    },
+    variations: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { what: str },
+        required: ["what"],
         additionalProperties: false,
       },
     },
@@ -321,6 +401,9 @@ export const NOTE_SCHEMA = {
   },
   required: [
     "tasks",
+    "visits",
+    "costs",
+    "variations",
     "bring_items",
     "flags",
     "progress_bullets",
@@ -572,7 +655,11 @@ export function systemPrompt(ctx: NoteContext): string {
 
 /** THE SAME PROMPT IN TWO BLOCKS, and the split is for the bill. The rules
     ahead of the roster are the same bytes for every note from every person
-    (777 tokens, counted 2026-09-29), so the first block is marked for the
+    (777 tokens, counted 2026-09-29; the visits rule of 2026-10-18 added 329
+    characters, about 110 tokens by the same count's ratio, the costs rule
+    of the same day 266 more, about 90, and the variations rule 133 more,
+    about 45, so about 1,025 until it is counted again), so the first
+    block is marked for the
     prompt cache and a second note inside the hour reads it back at a
     twentieth of the price. Everything from `whoBlock` on names people, days and
     jobs and changes per note, so it rides after the mark.
@@ -608,6 +695,17 @@ const ROUTER_RULES = [
   "- tasks: someone must DO something later. 'Tell Lyle to order the",
   "  grilles' is a task for Lyle, not a note. Put the job's own details in",
   "  `detail` so the task stands alone when read next week.",
+  "- visits: a visit to book, 'book commissioning for Friday arvo'. `work`",
+  "  is what they'll do there; the person in `assignee_hint` as for a task;",
+  "  `day` as YYYY-MM-DD; `start` HH:MM only when a clock time is said,",
+  "  else empty, with the part of the day in `part`; `minutes` the length",
+  "  said, else 0. A visit is not also a task.",
+  "- costs: money spent for the job, '$85 at Reece for fittings'. `amount`",
+  "  in dollars as said, else 0; `gst` only a GST figure said, else 0;",
+  "  `gst_basis` plus for 'plus GST'; `day` only if said; `payer_hint`",
+  "  only when someone else paid. A cost is not also a task.",
+  "- variations: the client wants the accepted quote changed, 'add a",
+  "  return grille in Bed 2'. `what` in a few words. Not also a task.",
   "- bring_items: something to physically bring next visit.",
   "- flags: a problem that should be visible on the board until handled.",
   "  urgent = someone is blocked or it is unsafe; warn = needs attention;",
@@ -651,6 +749,7 @@ function noteFacts(ctx: NoteContext): string {
     ...(ctx.speak ? [sayBlock(), ""] : []),
     whenBlock(ctx),
     ...(room ? [`\n${room}`] : []),
+    ...(ctx.receipt ? ["\nA receipt photo came with this note: it is a cost, and its figures are read off the photo."] : []),
     ...(earlier ? [earlier] : []),
     ctx.targetLabel ? `\nThis note is about: ${ctx.targetLabel}.` : "",
     ctx.equipment?.length ? `Equipment on site: ${ctx.equipment.join(", ")}.` : "",
@@ -956,6 +1055,92 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
     });
   }
 
+  /* VISITS, re-derived like tasks: the person resolved against the roster
+     and asked about the same way (two Lyles, or nobody here), the day a
+     real one, the start on Book in's grid, the length one it offers. A
+     visit with no work named is not a visit. */
+  const visits: ProposedVisit[] = [];
+  for (const v of Array.isArray(r.visits) ? r.visits : []) {
+    if (visits.length >= VISITS_MAX) break;
+    const row = (v && typeof v === "object" ? v : {}) as Record<string, unknown>;
+    const work = clean(row.work, TITLE_MAX);
+    if (!work) continue;
+    const assigneeHint = clean(row.assignee_hint, TITLE_MAX);
+    const match = resolveAssignee(assigneeHint, ctx.staff, ctx.author?.id);
+    if (match.kind === "ambiguous" && !clarify) {
+      clarify = { question: `Which ${assigneeHint} did you mean?`, options: shortWhoLabels(match.names) };
+      escalated = true;
+    }
+    if (match.kind === "none" && ctx.askWho && !clarify) {
+      clarify = {
+        question: assigneeHint && looksLikeName(assigneeHint) ? `Who's ${assigneeHint}?` : `Who's going: ${work}?`,
+        options: [...(ctx.author ? ["Me"] : []), ...namesMentioned(said, ctx.staff, ctx.author?.id)],
+      };
+      escalated = true;
+    }
+    visits.push({
+      work,
+      assigneeId: match.kind === "one" ? match.id : null,
+      assigneeHint,
+      day: visitDay(row.day),
+      start: visitStart(row.start),
+      /* the part of the day is read only when no clock time was said */
+      part: isVisitPart(row.part) ? row.part : "day",
+      minutes: visitMinutes(row.minutes),
+    });
+  }
+
+  /* COSTS, re-derived field by field (note-cost): an amount a claim can
+     hold, GST only as said, a real day. The payer is the speaker unless
+     someone else is named, resolved and asked about as a task's person is. */
+  const costs: ProposedCost[] = [];
+  for (const c of Array.isArray(r.costs) ? r.costs : []) {
+    if (costs.length >= COSTS_MAX) break;
+    const row = (c && typeof c === "object" ? c : {}) as Record<string, unknown>;
+    const fields = costFields({
+      amount: row.amount,
+      gst: row.gst,
+      gstBasis: row.gst_basis,
+      supplier: row.supplier,
+      whatFor: row.what_for,
+      category: row.category,
+      day: row.day,
+      paidWith: row.paid_with,
+      payerHint: row.payer_hint,
+    });
+    if (!fields) continue;
+    const match = fields.payerHint ? resolveAssignee(fields.payerHint, ctx.staff, ctx.author?.id) : null;
+    if (match?.kind === "ambiguous" && !clarify) {
+      clarify = { question: `Which ${fields.payerHint} did you mean?`, options: shortWhoLabels(match.names) };
+      escalated = true;
+    }
+    /* a payer nobody here goes by is asked about only where it matters: a
+       company card owes nobody */
+    if (match?.kind === "none" && fields.paidWith === "own" && ctx.askWho && !clarify) {
+      clarify = {
+        question: `Who paid: ${fields.payerHint}?`,
+        options: [...(ctx.author ? ["Me"] : []), ...namesMentioned(said, ctx.staff, ctx.author?.id)],
+      };
+      escalated = true;
+    }
+    costs.push({
+      ...fields,
+      payerId: match?.kind === "one" && match.id !== ctx.author?.id ? match.id : null,
+      /* the speaker named as themselves is the speaker */
+      payerHint: match?.kind === "one" && match.id === ctx.author?.id ? "" : fields.payerHint,
+    });
+  }
+
+  /* VARIATIONS (note-variation): what the client wants changed, in a few
+     words; one a note. Whether the job has an accepted quote to vary, and
+     whether the speaker may start one, is the filer's to say. */
+  const variations: ProposedVariation[] = [];
+  for (const v of Array.isArray(r.variations) ? r.variations : []) {
+    if (variations.length >= VARIATIONS_MAX) break;
+    const fields = variationFields((v && typeof v === "object" ? v : {}) as { what: unknown });
+    if (fields) variations.push(fields);
+  }
+
   const flags: ProposedFlag[] = [];
   for (const f of Array.isArray(r.flags) ? r.flags : []) {
     const row = (f && typeof f === "object" ? f : {}) as Record<string, unknown>;
@@ -1009,6 +1194,9 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
      as it came. */
   return {
     tasks,
+    visits,
+    costs,
+    variations,
     bringItems: cleanList(r.bring_items, TITLE_MAX),
     flags,
     progressBullets: cleanList(r.progress_bullets, BODY_MAX),
@@ -1026,6 +1214,9 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
 export function isEmptyProposal(p: NoteProposal): boolean {
   return (
     p.tasks.length === 0 &&
+    p.visits.length === 0 &&
+    p.costs.length === 0 &&
+    p.variations.length === 0 &&
     p.bringItems.length === 0 &&
     p.flags.length === 0 &&
     p.progressBullets.length === 0 &&
@@ -1092,6 +1283,33 @@ export function rowLine(row: PlanRow, p: NoteProposal, staff: readonly NoteStaff
         .join(" ");
       return `Task for ${who}: ${t.title}${when ? `, ${when}` : ""}`;
     }
+    case "visits": {
+      const v = p.visits[row.index];
+      const who = v.assigneeId
+        ? (staff.find((s) => s.id === v.assigneeId)?.fullName ?? v.assigneeHint) || "someone"
+        : v.assigneeHint
+          ? `"${v.assigneeHint}" (matched to nobody)`
+          : "nobody yet";
+      const when = [
+        v.day || "no day",
+        v.start || `${v.part === "day" ? "" : `${v.part}, `}no clear time`,
+        v.minutes ? `${v.minutes} min` : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      return `Visit for ${who}: ${v.work}, ${when}`;
+    }
+    case "costs": {
+      const c = p.costs[row.index];
+      const payer = c.payerId
+        ? (staff.find((s) => s.id === c.payerId)?.fullName ?? c.payerHint) || "someone"
+        : c.payerHint
+          ? `"${c.payerHint}" (matched to nobody)`
+          : "the speaker";
+      return costRowLine(c, payer);
+    }
+    case "variations":
+      return variationRowLine(p.variations[row.index]);
     case "flags":
       return `Flag (${p.flags[row.index].severity}): ${row.text}`;
     case "issueEntries":

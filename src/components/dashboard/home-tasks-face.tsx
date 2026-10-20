@@ -509,7 +509,7 @@ export function HomeTasksFace({
           boxPointer.current = e.detail > 0;
         }}
       >
-        <TiffBox room="tasks" placeholder="Add a task…" save={save} />
+        <TiffBox room="tasks" placeholder="Add a task" save={save} />
       </div>
       {open.length === 0 && done.length === 0 ? (
         <p className="hd-ls-none">No tasks yet.</p>

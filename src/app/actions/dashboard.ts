@@ -1,10 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateHome } from "@/lib/shell/revalidate-home";
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
-import { staffProfileIdFor } from "@/lib/fleet/query";
+import { listFleetStaff, staffProfileIdFor } from "@/lib/fleet/query";
 import { asNoticeKind, noticeLifecycle } from "@/lib/dashboard/notices";
 import { cleanPollOptions, POLL_ERROR_TEXT } from "@/lib/dashboard/polls";
 import { asRsvpAnswer, isEventTime } from "@/lib/dashboard/events";
@@ -18,6 +18,7 @@ import { getSm8Timezone } from "@/lib/workboard/query";
 import { zonedParts } from "@/lib/dashboard/day-rail";
 import { hhmm, remindAtFrom } from "@/lib/dashboard/reminders";
 import { logTaskEvent } from "@/lib/dashboard/task-events";
+import { taskLinesOf } from "@/lib/dashboard/task-lines";
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { sendTaskDone, takeBackTaskDone } from "./task-sm8";
 
@@ -60,7 +61,7 @@ async function context(): Promise<Ctx | null> {
   return { orgId, staffId: await staffProfileIdFor(orgId, userId) };
 }
 
-const refresh = () => revalidatePath("/dashboard");
+const refresh = () => revalidateHome();
 
 /* Attaching already-uploaded files to a notice.
 
@@ -142,6 +143,90 @@ export async function addTask(title: string): Promise<AddTaskResult> {
   await logTaskEvent(ctx.orgId, taskId, ctx.staffId, { kind: "created", to: ctx.staffId });
   refresh();
   return { ok: true, taskId };
+}
+
+/* ---------------- New › Task (v2, rules 44 and 51) ---------------- */
+
+export type TaskPeople = { me: string | null; people: { id: string; name: string }[] };
+
+/** Who a task may be for: you, and the team when you may give work out. */
+export async function taskPeople(): Promise<TaskPeople> {
+  const ctx = await context();
+  if (!ctx?.staffId) return { me: null, people: [] };
+  if (!(await can("team"))) return { me: ctx.staffId, people: [] };
+  const staff = await listFleetStaff(ctx.orgId);
+  return { me: ctx.staffId, people: staff.map((x) => ({ id: x.id, name: x.name })) };
+}
+
+/** "7:05 AM" (the time wheel's word) as "07:05", or null. */
+function clock24(word: string | null | undefined): string | null {
+  const m = typeof word === "string" ? word.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i) : null;
+  if (!m) return null;
+  let h = Number(m[1]) % 12;
+  if (m[3].toUpperCase() === "PM") h += 12;
+  return `${String(h).padStart(2, "0")}:${m[2]}`;
+}
+
+export type MakeTasksResult = { ok: true; taskIds: string[]; jobKept?: boolean } | { ok: false; error: string };
+
+/** Tasks from New or a job's Add: what needs doing, one task a line (Isaac,
+    18 October: several in one go), and what they share: the job they are
+    for, or none for general tasks; when, a day and maybe a time to have them
+    done by; and who, you unless you may give work and chose someone. Saving
+    says so in a toast whose Undo takes back the lot (deleteTask each).
+
+    THE JOB WAITS ON ITS COLUMN. `tasks.sm8_job_uuid` is docs/migrations/
+    tasks_job.sql, applied at the switch-over. Until then tasks with a job
+    are kept without it rather than lost, and the answer says so. */
+export async function makeTasks(input: {
+  text: string;
+  jobUuid?: string | null;
+  dueDate?: string | null;
+  dueTime?: string | null;
+  forStaffId?: string | null;
+}): Promise<MakeTasksResult> {
+  const ctx = await context();
+  if (!ctx?.staffId) return { ok: false, error: "Not signed in." };
+  const titles = taskLinesOf(input.text);
+  if (titles.length === 0) return { ok: false, error: "Say what needs doing." };
+  const dueDate = input.dueDate && isISODate(input.dueDate) ? input.dueDate : null;
+  if (input.dueDate && !dueDate) return { ok: false, error: "Check the day." };
+  const job = typeof input.jobUuid === "string" && input.jobUuid.trim() ? input.jobUuid.trim().slice(0, 80) : null;
+
+  let assignee = ctx.staffId;
+  if (input.forStaffId && input.forStaffId !== ctx.staffId) {
+    if (!(await can("team"))) return { ok: false, error: "You can't give tasks to other people." };
+    const { data: who } = await supabaseAdmin.from("staff_profiles").select("id").eq("org_id", ctx.orgId).eq("id", input.forStaffId).maybeSingle();
+    if (!who) return { ok: false, error: "That person isn't on the team." };
+    assignee = input.forStaffId;
+  }
+
+  const time = dueDate ? clock24(input.dueTime) : null;
+  const remindAt = dueDate && time ? remindAtFrom(dueDate, time, await getSm8Timezone(ctx.orgId)) : null;
+  const rows: Record<string, unknown>[] = titles.map((title) => ({
+    org_id: ctx.orgId,
+    title,
+    detail: null,
+    assigned_to: assignee,
+    created_by: ctx.staffId,
+    due_date: dueDate,
+    remind_at: remindAt,
+    remind_kind: remindAt ? "by" : null,
+    status: "open",
+  }));
+
+  let jobKept = !!job;
+  let made = await supabaseAdmin.from("tasks").insert(job ? rows.map((r) => ({ ...r, sm8_job_uuid: job })) : rows).select("id");
+  if (made.error && job) {
+    jobKept = false;
+    made = await supabaseAdmin.from("tasks").insert(rows).select("id");
+  }
+  const ids = ((made.data ?? []) as { id: string }[]).map((r) => String(r.id));
+  if (made.error || ids.length === 0) return { ok: false, error: titles.length > 1 ? "Couldn't save those tasks." : "Couldn't save that task." };
+
+  for (const id of ids) await logTaskEvent(ctx.orgId, id, ctx.staffId, { kind: "created", to: assignee });
+  refresh();
+  return { ok: true, taskIds: ids, ...(job ? { jobKept } : {}) };
 }
 
 /** Hand a task to someone else — the Tasks face's "Give it to". Managers
@@ -491,6 +576,9 @@ export async function deleteTask(taskId: string): Promise<DashResult> {
 
 /* ---------------- notices ---------------- */
 
+/** A notice posted, and its id: Write a notice's Undo takes it back down. */
+export type NoticePosted = { ok: true; id: string } | { ok: false; error: string };
+
 export async function postNotice(input: {
   title: string;
   body?: string;
@@ -508,7 +596,7 @@ export async function postNotice(input: {
   eventLocation?: string;
   /** Files already uploaded by this person and not yet on a notice. */
   documentIds?: string[];
-}): Promise<DashResult> {
+}): Promise<NoticePosted> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Not signed in." };
   if (!(await can("team"))) return { ok: false, error: "You can't post notices." };
@@ -599,7 +687,7 @@ export async function postNotice(input: {
     );
   }
   refresh();
-  return { ok: true };
+  return { ok: true, id: data.id as string };
 }
 
 /* Editing is the AUTHOR's alone. A `team` holder can remove a notice but not

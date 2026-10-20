@@ -7,14 +7,14 @@ import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/r
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
 import { TableKit } from "@tiptap/extension-table";
-import { Icon } from "@/components/shell/icon";
-import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
+import { ScreenPanel } from "@/components/shell/screen-band";
+import { SettingsHead } from "@/components/settings/settings-head";
+import { Button } from "@/components/parts/button";
 import { DateField } from "@/components/ui/date-field";
 import { LetterPaper } from "./letter-paper";
-import { lettersHref, letterHref } from "./letters-list";
 import { deleteLetter, saveLetter, type LetterSaveResult } from "@/app/actions/letters";
 import { normaliseBody } from "@/lib/letters/body";
-import { MAX_RECIPIENT, MAX_SUBJECT, MAX_TITLE, letterDate, recipientLines, titleOf, type LetterInput } from "@/lib/letters/letter";
+import { MAX_RECIPIENT, MAX_SUBJECT, MAX_TITLE, letterDate, letterHref, lettersHref, recipientLines, titleOf, type LetterInput } from "@/lib/letters/letter";
 import type { LetterheadFacts } from "@/lib/letters/letterhead";
 import type { SignerChoice } from "@/lib/letters/query";
 import type { Letterhead } from "@/lib/templates/settings";
@@ -214,7 +214,7 @@ export function LetterEditor({
     const id = dirty || !l.id ? await save() : l.id;
     if (!id) return;
     setBusy("pdf");
-    setNote({ text: "Printing the PDF…", bad: false });
+    setNote({ text: "Printing the PDF", bad: false });
     const ok = await downloadPdf(id, `${titleOf(l)}.pdf`);
     setBusy(null);
     setNote(ok ? { text: "PDF downloaded.", bad: false } : { text: "Couldn't print the PDF. Try again.", bad: true });
@@ -239,22 +239,17 @@ export function LetterEditor({
     <div className="page in full lte">
       <div className="wrap">
         <div className="stg">
-          <ScreenBand
-            crumb={
-              <Link href={lettersHref} className="int-back">
-                <Icon name="chevL" size={15} />
-                Letters
-              </Link>
-            }
-            title={titleOf(l) === "Untitled letter" && !l.id ? "New letter" : titleOf(l)}
+          <SettingsHead
+            back={{ href: lettersHref, label: "Letters" }}
+            heading={titleOf(l) === "Untitled letter" && !l.id ? "New letter" : titleOf(l)}
             tools={
               <>
-                <button type="button" className="pbtn ghost" disabled={!!busy} onClick={() => void download()}>
-                  {busy === "pdf" ? "Printing…" : "Download PDF"}
-                </button>
-                <button type="button" className="pbtn" disabled={!!busy || !dirty} onClick={() => void save()}>
-                  {busy === "save" ? "Saving…" : "Save"}
-                </button>
+                <Button kind="second" disabled={!!busy} onClick={() => void download()}>
+                  {busy === "pdf" ? "Printing the PDF" : "Download PDF"}
+                </Button>
+                <Button kind="main" disabled={!!busy || !dirty} onClick={() => void save()}>
+                  {busy === "save" ? "Saving the letter" : "Save"}
+                </Button>
               </>
             }
           />
@@ -360,7 +355,7 @@ export function LetterEditor({
                           Keep
                         </button>
                         <button type="button" className="pbtn ghost dan" disabled={!!busy} onClick={() => void remove()}>
-                          {busy === "delete" ? "Deleting…" : "Delete letter"}
+                          {busy === "delete" ? "Deleting the letter" : "Delete letter"}
                         </button>
                       </div>
                     </>

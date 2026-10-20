@@ -526,11 +526,6 @@ export type JobAttentionRead = {
   assignable: { id: string; name: string }[];
 };
 
-export const EMPTY_ATTENTION: JobAttentionRead = {
-  attention: { items: [], total: 0 },
-  assignable: [],
-};
-
 /** Everything still open on this job.
 
     THE DECIDING HAPPENS ON THE SERVER, which is why this hands back finished

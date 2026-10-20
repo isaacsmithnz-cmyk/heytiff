@@ -22,6 +22,9 @@ const scheduleDay = jest.fn(async (dayISO: string) => ({
   staff: [],
   jobs: [],
 }));
+/* The job's page mode draws its conversation, whose Add photo reaches the
+   documents actions ("use server", which jsdom can't load). */
+jest.mock("@/app/actions/documents", () => ({ deleteDocument: jest.fn(async () => ({ ok: true })) }));
 jest.mock("@/app/actions/workboard", () => ({
   searchAllJobs: (...a: unknown[]) => searchAllJobs(...(a as [])),
   readMirrorJob: (...a: unknown[]) => readMirrorJob(...(a as [])),
@@ -78,6 +81,8 @@ jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refre
    jsdom hasn't got. Mocked here so the board's own suite still boots. */
 const openRecordByName = jest.fn(async (_words: string) => null as { href: string; label: string; line: string } | null);
 jest.mock("@/app/actions/tiff-open", () => ({ openRecordByName: (w: string) => openRecordByName(w) }));
+/* the job page's Overview holds the Tiff modal's conversation, which reads the calendar's line actions */
+jest.mock("@/app/actions/calendar", () => ({ fileCalendarLine: jest.fn(), noteOnCalendarEvents: jest.fn(), undoCalendarLine: jest.fn() }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   routeNote: jest.fn(async () => ({ ok: false, error: "no" })),
   dismissNote: jest.fn(async () => ({ ok: true, summary: "" })),
@@ -91,8 +96,9 @@ jest.mock("@/app/actions/job-notes", () => ({
   dismissJobNote: jest.fn(async () => {}),
 }));
 
-jest.mock("../new-agreement-modal", () => ({
-  NewAgreementModal: (p: { initialJob?: { jobNumber: string | null } | null }) => (
+jest.mock("../agreement-form", () => ({
+  jobOfRow: (r: { id: string; number: string | null }) => ({ remoteId: r.id, jobNumber: r.number }),
+  AgreementForm: (p: { initialJob?: { jobNumber: string | null } | null }) => (
     <div data-testid="agmodal">{p.initialJob?.jobNumber ?? "none"}</div>
   ),
 }));
@@ -732,7 +738,7 @@ describe("promotion", () => {
     );
   });
 
-  it("hands the job straight to the agreement modal, pre-picked", async () => {
+  it("hands the job straight to New agreement, pre-picked", async () => {
     await mountWork({ data: data({ jobs: [mirrorJob({ remoteId: "j-1", jobNumber: "2214" })] }) });
     await openRow();
     const sheet = await screen.findByRole("dialog");

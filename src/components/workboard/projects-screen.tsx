@@ -171,7 +171,7 @@ function CreateProjectModal({
           <input
             value={siteLabel}
             onChange={(e) => setSiteLabel(e.target.value)}
-            placeholder="Unit 2, warehouse…"
+            placeholder="Unit 2, warehouse"
           />
         </label>
         <label className="fl-f span">
@@ -184,7 +184,7 @@ function CreateProjectModal({
           Cancel
         </button>
         <button className="pbtn primary" onClick={submit} disabled={busy || !name.trim()}>
-          {busy ? "Creating…" : "Create project"}
+          {busy ? "Creating the project" : "Create project"}
         </button>
       </div>
     </WbModal>

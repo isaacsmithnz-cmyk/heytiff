@@ -49,6 +49,9 @@ const createProjectFromJob = jest.fn(async () => ({ ok: true as const, id: "p-ne
 const readJobFiles = jest.fn(async (): Promise<JobMediaGroupsRead | null> => null);
 /* Notes always; ledger null for a reader without money — the SERVER decides. */
 const readJobRecord = jest.fn(async (): Promise<JobRecordRead | null> => null);
+/* The job's page mode draws its conversation, whose Add photo reaches the
+   documents actions ("use server", which jsdom can't load). */
+jest.mock("@/app/actions/documents", () => ({ deleteDocument: jest.fn(async () => ({ ok: true })) }));
 jest.mock("@/app/actions/workboard", () => ({
   readMirrorJob: (...a: unknown[]) => readMirrorJob(...(a as [])),
   readClaim: (...a: unknown[]) => readClaim(...(a as [])),
@@ -158,6 +161,8 @@ const routeNote = jest.fn(async () => ({ ok: false, error: "no" }));
 const clearFlag = jest.fn(async () => ({ ok: true }));
 const openRecordByName = jest.fn(async (_words: string) => null as { href: string; label: string; line: string } | null);
 jest.mock("@/app/actions/tiff-open", () => ({ openRecordByName: (w: string) => openRecordByName(w) }));
+/* the job page's Overview holds the Tiff modal's conversation, which reads the calendar's line actions */
+jest.mock("@/app/actions/calendar", () => ({ fileCalendarLine: jest.fn(), noteOnCalendarEvents: jest.fn(), undoCalendarLine: jest.fn() }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   routeNote: (...a: unknown[]) => routeNote(...(a as [])),
   dismissNote: jest.fn(async () => ({ ok: true, summary: "" })),
@@ -2346,7 +2351,7 @@ describe("the Money face", () => {
     await openMoney();
 
     expect(document.querySelector(".wb2-jmoney")).toBeNull();
-    expect(screen.getByText("Reading the figures…")).toBeInTheDocument();
+    expect(screen.getByText("Reading the figures")).toBeInTheDocument();
 
     land(record({ family: familyMoney() }));
     expect(await screen.findByText("$31,340.35")).toBeInTheDocument();
@@ -2571,9 +2576,9 @@ describe("a card opened from a progress claim", () => {
       "aria-selected",
       "true"
     );
-    expect(screen.getByTitle("3 invoices on this job")).toHaveTextContent("#3137");
+    expect(screen.getByRole("button", { name: "#3137, 3 invoices on this job" })).toHaveTextContent("#3137");
     expect(document.querySelector(".wb2-shcrumb")).not.toBeNull();
-    expect(screen.getByTitle(/Payment 1 — Deposit — open it/)).toHaveTextContent("#2380A");
+    expect(screen.getByRole("button", { name: "Open Payment 1 — Deposit" })).toHaveTextContent("#2380A");
     expect(screen.getAllByText("Payment 1 — Deposit").length).toBeGreaterThan(0);
   });
 
@@ -2652,9 +2657,9 @@ describe("the job number lists its claims", () => {
     render(<JobSheet row={row()} {...props} moneyVisible />);
     await detailLanded();
     await waitFor(() =>
-      expect(screen.getByTitle("3 invoices on this job")).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: "#3137, 3 invoices on this job" })).toBeInTheDocument()
     );
-    await userEvent.click(screen.getByTitle("3 invoices on this job"));
+    await userEvent.click(screen.getByRole("button", { name: "#3137, 3 invoices on this job" }));
 
     const pop = document.querySelector(".wb2-shnopop") as HTMLElement;
     expect(within(pop).getByText("#2380A")).toBeInTheDocument();
@@ -2844,7 +2849,7 @@ describe("the band's once-per-job acts", () => {
     );
     await detailLanded();
 
-    await userEvent.click(screen.getByTitle("Open #1021"));
+    await userEvent.click(screen.getByRole("button", { name: "On the maintenance board" }));
     expect(onOpenTracked).toHaveBeenCalledWith({ kind: "visit", id: "v-1", label: "#1021" });
     expect(screen.getByText("On the maintenance board")).toBeInTheDocument();
   });
@@ -3377,7 +3382,7 @@ describe("files on the job", () => {
     expect(within(sec as HTMLElement).getByText("Site induction.pdf")).toBeInTheDocument();
   });
 
-  it("puts a photo's origin in its tooltip, where the name already is", async () => {
+  it("names an uncached photo by its name and origin", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(
       files({ photos: [file({ remoteId: "p-1", origin: "Emailed in" })] })
@@ -3389,7 +3394,8 @@ describe("files on the job", () => {
     await waitFor(() => expect(face("photos").getByText("1 photo")).toBeInTheDocument());
     /* an uncached tile is not a door */
     const tile = document.querySelector(".wb2-mtile") as HTMLElement;
-    expect(tile.getAttribute("title")).toBe("IMG_4021.jpg — emailed in");
+    expect(tile).not.toHaveAttribute("title");
+    expect(tile).toHaveAccessibleName("IMG_4021.jpg — emailed in");
   });
 
   it("puts a video with the photos, as a plate that says where it lives", async () => {
@@ -4162,7 +4168,7 @@ describe("the job's own checklist", () => {
     await openTab("Checklist");
 
     await user.type(screen.getByLabelText("Add to the list"), "Order PAR-40 controller");
-    await user.click(screen.getByRole("button", { name: "Add" }));
+    await user.click(face("checklist").getByRole("button", { name: "Add" }));
 
     /* optimistic first — the row is on the list before the server answers */
     expect(screen.getByText("Order PAR-40 controller")).toBeInTheDocument();
@@ -4187,7 +4193,7 @@ describe("the job's own checklist", () => {
     await user.click(screen.getByRole("button", { name: "Material" }));
     await user.type(screen.getByLabelText("Add to the list"), "Linear bar grille");
     await user.type(screen.getByLabelText("Quantity"), "2");
-    await user.click(screen.getByRole("button", { name: "Add" }));
+    await user.click(face("checklist").getByRole("button", { name: "Add" }));
     await waitFor(() =>
       expect(addJobPicklistItem).toHaveBeenCalledWith("j-1", {
         kind: "material",
@@ -4208,7 +4214,7 @@ describe("the job's own checklist", () => {
     await openTab("Checklist");
 
     await user.type(screen.getByLabelText("Add to the list"), "Ghost row");
-    await user.click(screen.getByRole("button", { name: "Add" }));
+    await user.click(face("checklist").getByRole("button", { name: "Add" }));
     await waitFor(() => expect(screen.queryByText("Ghost row")).not.toBeInTheDocument());
     expect(onToast).toHaveBeenCalledWith("Could not add that row");
   });

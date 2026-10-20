@@ -182,7 +182,7 @@ beforeEach(() => {
 afterEach(() => jest.useRealTimers());
 
 describe("the palette finds jobs", () => {
-  it("finds job 288 asked the way people ask for it, and opens its card", async () => {
+  it("finds job 288 asked the way people ask for it, and goes to its page", async () => {
     searchPalette.mockResolvedValue(finds({ jobs: [job()] }));
     palette();
 
@@ -199,7 +199,7 @@ describe("the palette finds jobs", () => {
 
     press("Enter");
     expect(close).toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith("/dashboard/workboard?job=j-288");
+    expect(push).toHaveBeenCalledWith("/dashboard/jobs/j-288");
   });
 
   it("opens a job from a click as well", async () => {
@@ -209,10 +209,12 @@ describe("the palette finds jobs", () => {
     await settle();
 
     fireEvent.click(screen.getByRole("option", { name: /#288 Kingsford Bakery/ }));
-    expect(push).toHaveBeenCalledWith("/dashboard/workboard?job=j%2Fodd%20id");
+    expect(push).toHaveBeenCalledWith("/dashboard/jobs/j%2Fodd%20id");
   });
 
-  it("inside the frame, opens the job over the screen you are on instead of going to the Workboard", async () => {
+  /* a job is a page now (v2, step 5): inside the frame too it goes there,
+     not into a card over the screen you are on */
+  it("inside the frame, goes to the job's page rather than opening its card", async () => {
     searchPalette.mockResolvedValue(finds({ jobs: [job()] }));
     const open = jest.fn();
     const records: RecordsApi = { hosted: true, open };
@@ -225,8 +227,8 @@ describe("the palette finds jobs", () => {
     await settle();
     press("Enter");
     expect(close).toHaveBeenCalled();
-    expect(open).toHaveBeenCalledWith({ kind: "job", id: "j-288" }, expect.objectContaining({ from: null }));
-    expect(push).not.toHaveBeenCalled();
+    expect(push).toHaveBeenCalledWith("/dashboard/jobs/j-288");
+    expect(open).not.toHaveBeenCalled();
   });
 
   it("says it is searching, and never 'no match', until the jobs have answered", async () => {
@@ -235,9 +237,9 @@ describe("the palette finds jobs", () => {
     palette();
 
     type("job 288");
-    expect(screen.getByText("Searching…")).toBeInTheDocument();
+    expect(screen.getByText(/^Searching screens/)).toBeInTheDocument();
     await settle();
-    expect(screen.getByText("Searching…")).toBeInTheDocument();
+    expect(screen.getByText(/^Searching screens/)).toBeInTheDocument();
     expect(screen.queryByText(/matches/)).toBeNull();
 
     await act(async () => answer.resolve(finds()));
@@ -277,7 +279,7 @@ describe("the palette finds jobs", () => {
     press("ArrowDown");
     expect(jobRow).toHaveClass("on");
     press("Enter");
-    expect(push).toHaveBeenCalledWith("/dashboard/workboard?job=j-9");
+    expect(push).toHaveBeenCalledWith("/dashboard/jobs/j-9");
   });
 
   it("does not ask for one character, or for the word 'job' alone", async () => {
@@ -387,7 +389,7 @@ describe("the palette finds clients and projects", () => {
     press("ArrowDown");
     expect(order[2]).toHaveClass("on");
     press("Enter");
-    expect(push).toHaveBeenCalledWith("/dashboard/workboard?job=j-288");
+    expect(push).toHaveBeenCalledWith("/dashboard/jobs/j-288");
   });
 });
 
@@ -438,7 +440,7 @@ describe("the palette finds staff", () => {
   it("asks for someone with the Team screen alone, and says so in the box", async () => {
     searchPalette.mockResolvedValue(finds({ staff: [person()] }));
     palette(["team"]);
-    expect(box()).toHaveAttribute("placeholder", "Search screens and staff…");
+    expect(box()).toHaveAttribute("placeholder", "Search screens and staff");
 
     type("smith");
     await settle();
@@ -450,7 +452,7 @@ describe("the palette finds staff", () => {
     palette(TEAM_AND_WORK);
     expect(box()).toHaveAttribute(
       "placeholder",
-      "Search screens, staff, clients, projects, jobs and photos…"
+      "Search screens, staff, clients, projects, jobs and photos"
     );
   });
 });
@@ -555,7 +557,7 @@ describe("the palette finds photos", () => {
     palette(["team", "workboard"]);
     expect(box()).toHaveAttribute(
       "placeholder",
-      "Search screens, staff, clients, projects, jobs and photos…"
+      "Search screens, staff, clients, projects, jobs and photos"
     );
   });
 });
@@ -563,7 +565,7 @@ describe("the palette finds photos", () => {
 describe("without the Workboard", () => {
   it("never asks, and says what it did look through", async () => {
     palette([]);
-    expect(box()).toHaveAttribute("placeholder", "Jump to a screen…");
+    expect(box()).toHaveAttribute("placeholder", "Jump to a screen");
 
     type("job 288");
     await settle();
@@ -708,6 +710,10 @@ describe("a palette that acts", () => {
     expect(within(group).getAllByRole("option").map((o) => o.textContent)).toEqual(["Job 7Coogee Strata", "Quarterly service"]);
     fireEvent.click(within(group).getByRole("option", { name: /Quarterly service/ }));
     expect(open).toHaveBeenCalledWith({ kind: "visit", id: "v-8" }, expect.objectContaining({ from: null }));
+    /* a job opened lately goes to its page */
+    fireEvent.click(within(group).getByRole("option", { name: /Job 7/ }));
+    expect(push).toHaveBeenCalledWith("/dashboard/jobs/j-7");
+    expect(open).toHaveBeenCalledTimes(1);
 
     type("coogee");
     expect(screen.queryByRole("group", { name: "Recent" })).toBeNull();

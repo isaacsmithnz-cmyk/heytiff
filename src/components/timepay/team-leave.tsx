@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { Tooltip } from "@/components/parts/tooltip";
 import {
   approveLeave,
   declineLeave,
@@ -149,15 +150,15 @@ function BalanceRow({
     setHours(cell ? String(cell.balanceHours) : "");
   };
 
-  const chip = (kind: BalanceKind, cell: TeamBalanceCell) => (
-    <span
-      className={`dchip2 ${cell ? (cell.available > 0 ? "ok" : "warn") : "mute"}`}
-      title={cell ? `As at ${cell.asAt}, ${SOURCE_LABEL[cell.source]}` : undefined}
-    >
-      {LEAVE_LABEL[kind]},{" "}
-      {cell ? `${fmt(cell.available)}h of ${fmt(cell.balanceHours)}h` : "not set"}
-    </span>
-  );
+  const chip = (kind: BalanceKind, cell: TeamBalanceCell) => {
+    const c = (
+      <span className={`dchip2 ${cell ? (cell.available > 0 ? "ok" : "warn") : "mute"}`}>
+        {LEAVE_LABEL[kind]},{" "}
+        {cell ? `${fmt(cell.available)}h of ${fmt(cell.balanceHours)}h` : "not set"}
+      </span>
+    );
+    return cell ? <Tooltip label={`As at ${cell.asAt}, ${SOURCE_LABEL[cell.source]}`}>{c}</Tooltip> : c;
+  };
 
   const valid = hours.trim() !== "" && Number(hours) >= 0;
   return (
@@ -329,18 +330,19 @@ export function TeamLeave({
                       <div className="lv-calnames">
                         {day.entries.map((e, i) =>
                           e.source === "unavailable" ? (
-                            <span
-                              key={i}
-                              className="dchip2 unavail"
-                              title={
-                                e.note
-                                  ? `Unavailable — ${e.note}`
-                                  : "Unavailable — not booked leave, nothing to approve"
-                              }
-                            >
-                              {e.staffName}
-                              <em>can&rsquo;t work</em>
-                            </span>
+                            e.note ? (
+                              <Tooltip key={i} label={`Unavailable — ${e.note}`}>
+                                <span className="dchip2 unavail">
+                                  {e.staffName}
+                                  <em>can&rsquo;t work</em>
+                                </span>
+                              </Tooltip>
+                            ) : (
+                              <span key={i} className="dchip2 unavail">
+                                {e.staffName}
+                                <em>can&rsquo;t work</em>
+                              </span>
+                            )
                           ) : (
                             <span key={i} className={`dchip2 ${KIND_TONE[e.kind ?? "annual"]}`}>
                               {e.staffName}

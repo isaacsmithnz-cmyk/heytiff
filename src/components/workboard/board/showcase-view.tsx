@@ -229,7 +229,7 @@ export function ShowcaseView({
   if (photos === null)
     return (
       <div className="wb2-show">
-        <p className="int-hint">Opening the gallery…</p>
+        <p className="int-hint">Opening the gallery</p>
       </div>
     );
 
@@ -449,7 +449,6 @@ export function ShowcaseView({
                 onClick={() => toggleStar(p.remoteId)}
                 aria-pressed={starred.has(p.remoteId)}
                 aria-label={`Unstar ${p.caption || p.name}`}
-                title="Starred — click to take it out of the gallery"
               >
                 <Icon name="star" size={13} />
               </button>

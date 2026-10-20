@@ -173,9 +173,9 @@ it("uploads each chosen file in turn, says how far it is, and names the ones tha
   expect(picker).toHaveAttribute("accept", expect.stringContaining("application/pdf"));
   fireEvent.change(picker, { target: { files: [pdf("CoC.pdf"), pdf("big.pdf")] } });
 
-  expect(await screen.findByRole("button", { name: "Uploading 1 of 2…" })).toBeDisabled();
+  expect(await screen.findByRole("button", { name: "Uploading 1 of 2" })).toBeDisabled();
   await act(async () => release.shift()!());
-  expect(await screen.findByRole("button", { name: "Uploading 2 of 2…" })).toBeDisabled();
+  expect(await screen.findByRole("button", { name: "Uploading 2 of 2" })).toBeDisabled();
   await act(async () => release.shift()!());
 
   expect(await screen.findByRole("button", { name: "Upload a document" })).toBeEnabled();

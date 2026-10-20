@@ -133,6 +133,9 @@ const rowsFor = (table: string): Record<string, unknown>[] =>
 
 const confirmed = (over: Record<string, unknown> = {}) => ({
   tasks: [],
+  visits: [],
+  costs: [],
+  variations: [],
   bringItems: [],
   flags: [],
   progressBullets: [],
@@ -155,6 +158,9 @@ const proposalOf = (c: ConfirmedNote): NoteProposal => ({
     remindTime: t.remindTime ?? "",
     remindKind: t.remindKind === "by" ? "by" : "at",
   })),
+  visits: [],
+  costs: [],
+  variations: [],
   bringItems: c.bringItems,
   flags: c.flags.map((f) => ({ message: f.message, severity: f.severity as Severity })),
   progressBullets: c.progressBullets,
@@ -546,6 +552,7 @@ describe("clearFlag", () => {
 describe("the router is grounded — the brain tool layer", () => {
   const PROPOSAL = {
     tasks: [],
+    visits: [],
     bringItems: [],
     flags: [],
     progressBullets: [],
@@ -613,6 +620,7 @@ describe("the router is grounded — the brain tool layer", () => {
 describe("the Debrief is out of the router", () => {
   const PROPOSAL = {
     tasks: [],
+    visits: [],
     bringItems: [],
     flags: [],
     progressBullets: [],

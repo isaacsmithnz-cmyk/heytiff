@@ -452,7 +452,7 @@ describe("RateCalculator — current rates are editable outside onboarding", () 
     const user = userEvent.setup();
     render(<RateCalculator initialState={null} />);
     await dismissOnboarding(user);
-    await user.click(screen.getByTitle("Settings"));
+    await user.click(screen.getByRole("button", { name: "Settings" }));
     expect(screen.getByLabelText("Settings install rate")).toBeInTheDocument();
     expect(screen.getByLabelText("Settings service rate")).toBeInTheDocument();
   });
@@ -521,7 +521,7 @@ describe("RateCalculator — returning user with saved state", () => {
 describe("RateCalculator — start fresh", () => {
   // The reset lives behind the settings gear; arming it takes two presses.
   async function startFresh(user: ReturnType<typeof userEvent.setup>) {
-    await user.click(screen.getByTitle("Settings"));
+    await user.click(screen.getByRole("button", { name: "Settings" }));
     await user.click(screen.getByText("Start fresh", { selector: "button" }));
     await user.click(screen.getByText("Yes, clear everything"));
   }
@@ -554,7 +554,7 @@ describe("RateCalculator — start fresh", () => {
     const user = userEvent.setup();
     render(<RateCalculator initialState={JSON.parse(JSON.stringify(buildBaselineState()))} />);
 
-    await user.click(screen.getByTitle("Settings"));
+    await user.click(screen.getByRole("button", { name: "Settings" }));
     await user.click(screen.getByText("Start fresh", { selector: "button" }));
     await user.click(screen.getByText("Keep my setup"));
 

@@ -138,8 +138,8 @@ describe("an attached design", () => {
        pushed are a record of a push that happened, not a live mirror */
     harness(linked());
     expect(
-      screen.getByRole("button", { name: /unlink/i }).getAttribute("title")
-    ).toMatch(/already added to the job card stays/i);
+      screen.getByRole("button", { name: /unlink/i })
+    ).toHaveAccessibleDescription(/already added to the job card stays/i);
   });
 });
 

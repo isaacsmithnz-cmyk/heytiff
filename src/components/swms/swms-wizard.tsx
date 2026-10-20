@@ -1043,7 +1043,7 @@ export function SwmsWizard({
   let title = prev ? "Revise the SWMS" : "Safe Work Method Statement";
 
   if (ctx === null) {
-    body = <p className="sw-note">Reading the job and the team…</p>;
+    body = <p className="sw-note">Reading the job and the team</p>;
   } else if (ctx === "failed") {
     body = <p className="sw-note">Couldn&apos;t open the SWMS for this job. Close it and try again.</p>;
     foot = (
@@ -1221,7 +1221,7 @@ export function SwmsWizard({
           </button>
         ) : (
           <button type="button" className="pbtn" disabled={busy || problems.length > 0} onClick={issue}>
-            {busy ? "Issuing…" : prev ? `Issue version ${version}` : "Issue the SWMS"}
+            {busy ? "Issuing the SWMS" : prev ? `Issue version ${version}` : "Issue the SWMS"}
           </button>
         )}
       </>
@@ -1239,7 +1239,7 @@ export function SwmsWizard({
             {job?.number && <span className="wb2-shno">{`#${job.number}`}</span>}
             <span className="wb2-jcid">
               <h2 className="wb2-shname">{title}</h2>
-              <p className="wb2-jcaddr">{job?.address ?? (ctx === null ? "Reading the job…" : "No address on the job")}</p>
+              <p className="wb2-jcaddr">{job?.address ?? (ctx === null ? "Reading the job" : "No address on the job")}</p>
             </span>
           </div>
           <button ref={closeRef} type="button" className="wb2-ico" aria-label="Close the SWMS" onClick={askClose}>

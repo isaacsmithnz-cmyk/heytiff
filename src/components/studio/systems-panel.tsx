@@ -32,6 +32,7 @@
    light on dragenter/dragleave counters, never :hover, which does not fire
    during a native drag. */
 
+import { Fade } from "@/components/parts/fade";
 import { VariationButton } from "./variation-menu";
 import { Icon } from "@/components/shell/icon";
 import { useCallback, useRef, useState, type DragEvent } from "react";
@@ -383,7 +384,7 @@ function SystemCard({
         <div className="ds-zp-id">
           <div className="ds-zp-nm">
             <button className="ds-zp-name" aria-expanded={open} onClick={open ? onRest : onOpen}>
-              {sys.name}
+              <Fade>{sys.name}</Fade>
             </button>
             {kind !== "empty" && <span className="ds-zp-kind">{KIND_WORD[kind]}</span>}
           </div>

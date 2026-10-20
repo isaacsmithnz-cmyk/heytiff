@@ -18,11 +18,9 @@
   --hq-scrim: rgba(0, 0, 0, 0.55);
   --hq-ink: var(--paper);
   --hq-mut: var(--on-ink-q);
-  --hq-block: #ff6b5d; /* engine-blocking gap */
-  --hq-ready: #3ddc97;
+  --hq-block: var(--red); /* engine-blocking gap */
+  --hq-ready: var(--green);
   --hq-edit: var(--warn); /* manual override, and what is still to add */
-  --hq-cool: #6aa2ff; /* cooling capacity chip */
-  --hq-heat: #ff8a75; /* heating capacity chip */
 
   min-height: 100vh;
   background: var(--hq-bg);
@@ -667,7 +665,8 @@
   font-size: 13px;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
 }
 .hq-brandcard-stats {
   margin-top: 12px;

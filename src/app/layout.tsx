@@ -3,6 +3,11 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import { metadataBaseFromEnv } from "@/lib/og/base";
 import "./globals.css";
 import "./tokens.css";
+/* v2's parts (src/components/parts), once each for every route */
+import "@/components/parts/controls.css";
+import "@/components/parts/fields.css";
+import "@/components/parts/surfaces.css";
+import "@/components/parts/patterns.css";
 
 // Jakarta is the only typeface in the system — no mono face, by design
 const jakarta = Plus_Jakarta_Sans({
@@ -38,16 +43,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    /* suppressHydrationWarning: the dashboard layout's boot script stamps the
-       remembered sidebar size (`data-rail`) on <html> BEFORE hydration — by
-       design, so a collapsed rail never flashes wide. React would flag that
-       attribute as a server/client mismatch on every load. The suppression is
-       scoped to this one element; children are still checked. */
-    <html
-      lang="en"
-      className={`${jakarta.variable} h-full antialiased`}
-      suppressHydrationWarning
-    >
+    <html lang="en" className={`${jakarta.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

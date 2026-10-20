@@ -5,7 +5,6 @@
    docs/design.md: surface, line, 16px. What the job fills in is the quiet
    colour on a tint, named in brackets. */
 
-.tpl-who { margin: 0 0 16px; font-size: 13px; font-weight: 500; color: var(--gray500); }
 .tpl-work { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; }
 .tpl-well { flex: 999 1 640px; min-width: 0; background: var(--bg); border-radius: var(--r-card); padding: 24px; }
 .tpl-side { flex: 1 1 320px; max-width: 380px; display: flex; flex-direction: column; gap: 16px; }

@@ -243,11 +243,10 @@ it("explains the ServiceM8 gap instead of scoring an account with no mirror", as
   expect(scheduleCapacity).not.toHaveBeenCalled();
 });
 
-it("shows a weekend's cell with NO percentage — the hours live in its title", async () => {
+it("shows a weekend's cell with NO percentage — the hours live in its name", async () => {
   await openCapacity();
   const sat = screen.getByRole("button", { name: /Sat 15 Aug/ });
   expect(sat.textContent).not.toMatch(/%/);
-  expect(sat).toHaveAttribute("title", "4h booked");
   expect(sat).toHaveAccessibleName(/4h booked/);
   // an empty weekend is not even clickable
   expect(screen.queryByRole("button", { name: /Sun 16 Aug/ })).not.toBeInTheDocument();
@@ -266,12 +265,9 @@ it("scores nothing for an unset crew and says so, rather than printing zeros", a
   expect(screen.getByText(/crew hasn't been set/)).toBeInTheDocument();
   // not one percentage anywhere — null is not zero
   expect(screen.queryByText(/\d+%/)).not.toBeInTheDocument();
-  // the booked hours are still real: on the month line and in the day's title
+  // the booked hours are still real: on the month line and in the day's name
   expect(screen.getByText("26h booked")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /Fri 14 Aug/ })).toHaveAttribute(
-    "title",
-    "18h booked"
-  );
+  expect(screen.getByRole("button", { name: /Fri 14 Aug/ })).toHaveAccessibleName(/18h booked/);
   // and the fix is offered to someone who can make it
   expect(screen.getByRole("button", { name: "Set the crew" })).toBeInTheDocument();
 });

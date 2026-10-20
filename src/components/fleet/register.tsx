@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { Tooltip } from "@/components/parts/tooltip";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import type { FleetState } from "./fleet-state";
 import {
@@ -30,6 +31,7 @@ import { VehicleModal, addScreen, logScreen, type Screen } from "./vehicle-modal
 import type { VehicleLink } from "./vehicle-modal/derive";
 import { VehicleForm } from "./vehicle-modal/vehicle-form";
 import { Plate } from "./plate";
+import { vehiclePageHref } from "@/lib/shell/links";
 
 /* Fleet register — the Manager/Owner view: whole fleet, assignment, service
    schedule & valuations (book + Tiff estimate). Mirrors the Team directory's
@@ -252,10 +254,6 @@ export function FleetRegister({
             initial={null}
             staff={staff}
             today={today}
-            onSave={(v, invoiceId, renewal) => {
-              fleet.saveVehicle(v, invoiceId, renewal);
-              setModal({ t: "none" });
-            }}
             onClose={() => setModal({ t: "none" })}
           />
         )}
@@ -281,7 +279,7 @@ export function FleetRegister({
             <Icon name="search" size={17} />
             <input
               className="dsearchin"
-              placeholder="Search rego, name or driver…"
+              placeholder="Search rego, name or driver"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -312,10 +310,9 @@ export function FleetRegister({
             className={`pbtn ghost fl-add fl-valuebtn tiffkey${valuing ? " busy" : ""}`}
             disabled={valuing}
             onClick={runValuation}
-            title="Tiff estimates each vehicle's AU market value — Manager+ only"
           >
             <TiffGlyph working={valuing} />
-            {valuing ? "Tiff is valuing…" : "Value with Tiff"}
+            {valuing ? "Tiff is valuing the vehicles" : "Value with Tiff"}
           </button>
           <button className="pbtn primary fl-add" onClick={() => setModal({ t: "add" })}>
             <Icon name="plus" size={16} />
@@ -347,7 +344,9 @@ export function FleetRegister({
                 className={`dirrow flrow${isSold ? " off" : ""}`}
                 /* the row is where the pointer is, so its mark moves for the whole row */
                 data-tiff-hover=""
-                onClick={() => setModal({ t: "detail", id: v.id })}
+                /* a row opens the vehicle's own page (v2); the card still
+                   opens from the doors that name `?v=` */
+                onClick={() => router.push(vehiclePageHref(v.id))}
               >
                 <span className="dname">
                   <span className={`fl-av ${isSold ? "ok" : worstState(chips)}`}>
@@ -387,30 +386,31 @@ export function FleetRegister({
                 <span className="fl-value">
                   <b>{fmtMoney(v.value)}</b>
                   {!isSold && val && (
-                    <em
-                      className={`fl-tiff${stale ? " stale" : ""}`}
-                      title={
+                    <Tooltip
+                      label={
                         stale
-                          ? "Odometer has moved since Tiff valued this — run Value with Tiff again"
+                          ? "Odometer has moved since Tiff valued this"
                           : `Tiff: ${fmtMoney(val.low)}–${fmtMoney(val.high)}${val.note ? `, ${val.note}` : ""}`
                       }
                     >
-                      <TiffGlyph size={18} quiet />
-                      {fmtMoney(val.point)}
-                      {/* The note was hover-only and Isaac found it by accident.
-                          The ⓘ is the visible door; the detail modal prints the
-                          source in full. */}
-                      <button
-                        className="fl-tiffinfo"
-                        aria-label="How Tiff priced this"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setModal({ t: "detail", id: v.id });
-                        }}
-                      >
-                        <Icon name="info" size={13} />
-                      </button>
-                    </em>
+                      <em className={`fl-tiff${stale ? " stale" : ""}`}>
+                        <TiffGlyph size={18} quiet />
+                        {fmtMoney(val.point)}
+                        {/* The note was hover-only and Isaac found it by accident.
+                            The ⓘ is the visible door; the detail modal prints the
+                            source in full. */}
+                        <button
+                          className="fl-tiffinfo"
+                          aria-label="How Tiff priced this"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(vehiclePageHref(v.id));
+                          }}
+                        >
+                          <Icon name="info" size={13} />
+                        </button>
+                      </em>
+                    </Tooltip>
                   )}
                 </span>
                 <span className="dmorewrap" onClick={(e) => e.stopPropagation()}>
@@ -425,8 +425,8 @@ export function FleetRegister({
                     <div className="dmenu open">
                       <button
                         onClick={() => {
-                          setModal({ t: "detail", id: v.id });
                           setOpenMenu(null);
+                          router.push(vehiclePageHref(v.id));
                         }}
                       >
                         <Icon name="arrowUR" size={15} />
@@ -480,10 +480,6 @@ export function FleetRegister({
           initial={null}
           staff={staff}
           today={today}
-          onSave={(v, invoiceId, renewal) => {
-            fleet.saveVehicle(v, invoiceId, renewal);
-            setModal({ t: "none" });
-          }}
           onClose={() => setModal({ t: "none" })}
         />
       )}
@@ -492,10 +488,6 @@ export function FleetRegister({
           initial={openVehicle}
           staff={staff}
           today={today}
-          onSave={(v, invoiceId) => {
-            fleet.saveVehicle(v, invoiceId);
-            setModal({ t: "detail", id: v.id });
-          }}
           onClose={() => setModal({ t: "detail", id: openVehicle.id })}
         />
       )}

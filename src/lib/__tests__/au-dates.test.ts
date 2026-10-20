@@ -1,3 +1,4 @@
+import { zoneOr, fmtAuTime } from "../au-dates";
 import { auDayOf, auHourNow, auMinutesNow, daysUntil, fmtAuDayMonth, fmtAuWeekdayDayMonth, fmtAuWeekdayDate, fmtAuWeekdayDateLong, todayInAu, parseAuDate, formatAuDate, maskAuDate } from "../au-dates";
 
 /* The date helpers everything else anchors on. `todayInAu` answers "what day is
@@ -178,5 +179,25 @@ describe("maskAuDate — a date of birth shaped as it is typed", () => {
 
   it("hands back what parseAuDate reads", () => {
     expect(parseAuDate(maskAuDate("12081992"))).toBe("1992-08-12");
+  });
+});
+
+/* v2's header keeps the workspace's own clock: the zone its ServiceM8
+   account names, and the AU anchor when there is none or Intl can't read it. */
+describe("a workspace's own clock", () => {
+  // 18 Oct 2026, 22:30 UTC: Monday 9:30 am in Sydney, Monday 6:30 am in Perth
+  const at = new Date(Date.UTC(2026, 9, 18, 22, 30));
+
+  it("reads the day and the time in the workspace's zone", () => {
+    expect(todayInAu(at, "Australia/Perth")).toBe("2026-10-19");
+    expect(fmtAuTime(at, "Australia/Perth")).toBe("6:30 am");
+    expect(todayInAu(at, "Pacific/Auckland")).toBe("2026-10-19");
+    expect(todayInAu(at, "America/Los_Angeles")).toBe("2026-10-18");
+  });
+
+  it("falls back to the AU anchor with no zone, or one Intl doesn't know", () => {
+    expect(fmtAuTime(at, null)).toBe("9:30 am");
+    expect(zoneOr("Not/AZone")).toBe("Australia/Sydney");
+    expect(fmtAuTime(at, "Not/AZone")).toBe("9:30 am");
   });
 });

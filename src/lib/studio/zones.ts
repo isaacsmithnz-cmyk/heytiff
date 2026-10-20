@@ -46,10 +46,6 @@ export const zoneIdsOf = (sys: DesignSystem): string[] =>
 export const claimedZoneIds = (sys: DesignSystem): string[] =>
   Array.isArray(sys.settings.zoneIds) ? listOf(sys, "zoneIds") : [];
 
-/** whether a system belongs to the zones flow at all (a claim list exists,
-    empty or not); older systems have none and keep their older behaviour */
-export const isZoned = (sys: DesignSystem): boolean => Array.isArray(sys.settings.zoneIds);
-
 /** every zone on the plan, in plan order (the document's own order) */
 export const zonesOf = (doc: DesignDocument): RoomObj[] => doc.objects.filter(isRoom);
 

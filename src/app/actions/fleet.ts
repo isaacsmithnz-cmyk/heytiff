@@ -38,10 +38,14 @@ import {
               case. It is still scoped by org, and the odometer guardrail runs
               server-side whatever the modal allowed. */
 
-export type FleetResult = { ok: true } | { ok: false; error: string };
+type Refusal = { ok: false; error: string };
+export type FleetResult = { ok: true } | Refusal;
+/** saveVehicle's answer: the row it wrote, so Add a vehicle's Undo can take
+    a new one back out (removeVehicle) by its id. */
+export type SavedVehicle = { ok: true; id: string } | Refusal;
 
-const DENIED: FleetResult = { ok: false, error: "You don't have access to the fleet register." };
-const GONE: FleetResult = { ok: false, error: "That vehicle is no longer in the register." };
+const DENIED: Refusal = { ok: false, error: "You don't have access to the fleet register." };
+const GONE: Refusal = { ok: false, error: "That vehicle is no longer in the register." };
 
 type Ctx = { orgId: string; staffId: string | null };
 
@@ -86,7 +90,7 @@ export async function saveVehicle(
       honoured on insert: an existing vehicle's renewals go through
       recordRenewal, where the current cache is known and never dragged back. */
   initialRenewal?: Omit<RenewalInput, "vehicleId">,
-): Promise<FleetResult> {
+): Promise<SavedVehicle> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Not signed in." };
   if (!(await can("assets_all"))) return DENIED;
@@ -134,7 +138,7 @@ export async function saveVehicle(
     if (!filed.ok) return filed;
   }
   refresh();
-  return { ok: true };
+  return { ok: true, id: savedId };
 }
 
 /* Same contract as adoptReceipt below: only the uploader's own, confirmed,

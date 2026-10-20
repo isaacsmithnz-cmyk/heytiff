@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import type {
@@ -394,7 +395,7 @@ export function PlansPanel({
       {busy && (
         <div className="ds-plans-busy">
           <div className="ds-plans-busy-t">
-            {busy.kind === "rendering" ? "Reading pages…" : "Uploading plans…"}
+            {busy.kind === "rendering" ? "Reading the pages" : "Uploading the plans"}
           </div>
           <div className="ds-progress">
             <div
@@ -421,7 +422,6 @@ export function PlansPanel({
             {pages && (
               <button
                 className="ds-rp-del ds-pstep-discard"
-                title="Discard this import"
                 aria-label="Discard this import"
                 onClick={discardImport}
               >
@@ -783,7 +783,6 @@ export function PlansPanel({
               <button
                 className="ds-floor-open"
                 onClick={() => onOpenFloor(f.id)}
-                title="Open on the canvas"
               >
                 <Icon name="arrowR" size={14} />
                 Design
@@ -909,7 +908,6 @@ function PlanCard({
       className="ds-plancard"
       data-planidx={idx}
       draggable
-      title="Drag to a floor"
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
     >
@@ -926,7 +924,7 @@ function PlanCard({
           </button>
         )}
       </div>
-      <span className="ds-plancard-name">{name}</span>
+      <Fade className="ds-plancard-name">{name}</Fade>
     </div>
   );
 }
@@ -1404,7 +1402,7 @@ export function NamingLightbox({
             value={names[at]}
             autoFocus
             aria-label="Page name"
-            placeholder="e.g. Ground floor, First floor…"
+            placeholder="e.g. Ground floor, First floor"
             onChange={(e) => onName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key !== "Enter") return;

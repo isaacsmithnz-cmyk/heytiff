@@ -117,7 +117,7 @@ export function DocSearch({
             <input
               className="fl-i"
               autoFocus
-              placeholder="A term, a code, a part number…"
+              placeholder="A term, a code, a part number"
               aria-label="Search inside this document"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -128,7 +128,7 @@ export function DocSearch({
               disabled={busy || query.trim().length < MIN_CHARS}
             >
               <Icon name="search" size={15} />
-              {busy ? "Searching…" : "Search"}
+              {busy ? "Searching the library" : "Search"}
             </button>
           </form>
 

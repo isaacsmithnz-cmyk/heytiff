@@ -41,8 +41,7 @@ async function newDesign(user: ReturnType<typeof userEvent.setup>, store: Design
   render(<Studio store={store} />);
   await user.click(await screen.findByText("New design"));
   await user.type(screen.getByPlaceholderText(/Design name/), "Farran St");
-  await user.click(screen.getByRole("button", { name: /Continue/ }));
-  await user.click(screen.getByText("Blank canvas"));
+  await user.click(screen.getByRole("button", { name: "Start with a blank canvas" }));
 }
 
 describe("save status → retry", () => {

@@ -356,7 +356,7 @@ export function WorkRightsModal({
             </Btn>
             {showFields && (
               <Btn kind="primary" onClick={save} disabled={!canSave}>
-                {pending ? "Saving…" : "Save what you found"}
+                {pending ? "Saving the check" : "Save what you found"}
               </Btn>
             )}
           </span>

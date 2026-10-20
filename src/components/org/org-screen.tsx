@@ -6,6 +6,7 @@ import { useState } from "react";
 import { flushSync } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { ViewTabs } from "@/components/shell/view-tabs";
+import { SettingsHead } from "@/components/settings/settings-head";
 import { AddressField } from "@/components/address/address-field";
 import { CredentialCard } from "@/components/cards/credential-card";
 import { SectionCard } from "@/components/profile/section-card";
@@ -87,6 +88,12 @@ function contactValues(o: OrgSettings): Record<string, string> {
     state: o.state ?? "",
     postcode: o.postcode ?? "",
   };
+}
+
+/** The head's fact line: the business's name and ABN, as far as they're filled in. */
+function orgFacts(org: OrgSettings): string | null {
+  const said = [org.trading_name || org.legal_name, org.abn ? `ABN ${org.abn}` : null].filter(Boolean);
+  return said.length > 0 ? said.join(", ") : null;
 }
 
 export function OrgScreen({
@@ -178,14 +185,9 @@ export function OrgScreen({
             wrapper here let the card grow past the screen, and the outlet,
             which no longer scrolls, clipped everything under the fold. */}
         <div className="stg orgcard2">
-          <div className="wb2-crumbline">
-            <Link href="/dashboard/admin" className="int-back">
-              <Icon name="chevL" size={15} />
-              Admin
-            </Link>
-          </div>
+          <SettingsHead heading="Organisation" facts={orgFacts(org)} />
           <ViewTabs
-            lead={<h1 className="wb2-h1">Organisation</h1>}
+            band
             ariaLabel="Organisation sections"
             idPrefix="orgtab"
             panelPrefix="orgsec"

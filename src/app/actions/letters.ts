@@ -63,7 +63,7 @@ export async function saveLetter(raw: unknown): Promise<LetterSaveResult> {
     if (!mayOpenLetter(existing, ctx)) return { ok: false, error: "Only whoever wrote it, whoever signs it, or the owner can change this letter." };
     const { error } = await supabaseAdmin.from("letters").update(row).eq("org_id", ctx.orgId).eq("id", input.id);
     if (error) return { ok: false, error: "Couldn't save the letter. Try again." };
-    revalidatePath("/dashboard/admin/letters");
+    revalidatePath("/dashboard/documents");
     return { ok: true, id: input.id, updatedAt: now, withSignature };
   }
 
@@ -73,7 +73,7 @@ export async function saveLetter(raw: unknown): Promise<LetterSaveResult> {
     .select("id")
     .single();
   if (error || !data) return { ok: false, error: "Couldn't save the letter. Try again." };
-  revalidatePath("/dashboard/admin/letters");
+  revalidatePath("/dashboard/documents");
   return { ok: true, id: (data as { id: string }).id, updatedAt: now, withSignature };
 }
 
@@ -86,6 +86,6 @@ export async function deleteLetter(id: string): Promise<LetterResult> {
   if (!mayOpenLetter(existing, ctx)) return { ok: false, error: "Only whoever wrote it, whoever signs it, or the owner can delete this letter." };
   const { error } = await supabaseAdmin.from("letters").delete().eq("org_id", ctx.orgId).eq("id", letterId);
   if (error) return { ok: false, error: "Couldn't delete the letter. Try again." };
-  revalidatePath("/dashboard/admin/letters");
+  revalidatePath("/dashboard/documents");
   return { ok: true };
 }

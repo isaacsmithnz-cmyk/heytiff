@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateHome } from "@/lib/shell/revalidate-home";
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
@@ -73,6 +73,6 @@ export async function acknowledgeTask(taskId: string): Promise<AckResult> {
     .eq("assigned_to", ctx.staffId);
   if (error) return { ok: false, error: "Couldn't save that." };
 
-  revalidatePath("/dashboard");
+  revalidateHome();
   return { ok: true };
 }

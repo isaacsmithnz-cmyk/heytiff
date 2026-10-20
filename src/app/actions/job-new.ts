@@ -193,7 +193,11 @@ function sentence(text: string): string {
   return t === "" || /[.!?:;)"'”’]$/.test(t) ? t : `${t}.`;
 }
 
-export type CreateAnswer ={ ok: true; rowId: string; line: JobLine; sm8Url: string | null } | { ok: false; error: string };
+/** `jobUuid` is the job's ServiceM8 uuid, chosen when it was queued: the
+    form opens the job's page on it once the mirror holds it. */
+export type CreateAnswer =
+  | { ok: true; rowId: string; line: JobLine; sm8Url: string | null; jobUuid: string }
+  | { ok: false; error: string };
 
 /** Start the job in ServiceM8. */
 export async function createNewJob(input: CreateNewJob): Promise<CreateAnswer> {
@@ -237,7 +241,7 @@ async function readLine(orgId: string, rowId: string): Promise<CreateAnswer> {
   const row = data as { id: string; status: string; last_error: string | null; remote_uuid: string; job_done: string[] | null; job_number: string | null } | null;
   if (!row) return { ok: false, error: JOB_WORDS.press.unqueued };
   const line = jobLine(row);
-  return { ok: true, rowId, line, sm8Url: (row.job_done ?? []).includes("job") ? sm8JobUrl(row.remote_uuid) : null };
+  return { ok: true, rowId, line, sm8Url: (row.job_done ?? []).includes("job") ? sm8JobUrl(row.remote_uuid) : null, jobUuid: row.remote_uuid };
 }
 
 /** Where a job the form started is up to, for the form to look again. */

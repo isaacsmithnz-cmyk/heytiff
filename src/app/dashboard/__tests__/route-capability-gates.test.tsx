@@ -209,6 +209,22 @@ describe("the knowledge base hands the client what this viewer may do", () => {
     expect((await propsOf()).initialCategory).toBeNull();
   });
 
+  /* the Toolbox shelf (v2) is the tools' own gate, asked here as their pages ask it */
+  it("hands the Toolbox shelf only to someone who holds toolbox", async () => {
+    const shelf = (await propsOf()).toolbox as { today: string } | null;
+    expect(can).toHaveBeenCalledWith("toolbox");
+    expect(shelf?.today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+    can.mockImplementation(async (c: string) => c !== "toolbox");
+    expect((await propsOf()).toolbox).toBeNull();
+    can.mockImplementation(async () => allowed);
+  });
+
+  it("opens on the shelf the URL named, and on nothing it invented", async () => {
+    expect((await propsOf({ view: "toolbox" })).initialView).toBe("toolbox");
+    expect((await propsOf({ view: "nonsense" })).initialView).toBeNull();
+  });
+
   it("nulls the unlimited tier's page ceiling rather than sending Infinity", async () => {
     const props = (await propsOf()).quota as Record<string, unknown>;
     expect(props.pagesAllowed).toBe(2000);

@@ -6,4 +6,4 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Before a stylesheet or anything a person sees
 
-Read `docs/design.md` first. It holds the scales, the laws and the decisions, and `src/app/dashboard/__tests__/design-ratchets.test.ts` holds its numbers: a PR may lower a ratchet, never raise it.
+Read `docs/design.md` first. It holds v2's rules, the palette and the scales, and `src/app/dashboard/__tests__/design-ratchets.test.ts` holds its numbers: a PR may lower a ratchet, never raise it. The history of every design decision before v2 is in `docs/design-log.md`.

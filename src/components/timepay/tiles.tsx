@@ -135,7 +135,8 @@ export function MiniTile({
       <i className="mtd">{ctx.week[i][0].charAt(0)}</i>
       <span
         className={`mt ${cls}${i === ctx.today ? " today" : ""}`}
-        title={`${ctx.week[i][0]} ${ctx.week[i][1]} — ${label}`}
+        role="img"
+        aria-label={`${ctx.week[i][0]} ${ctx.week[i][1]} — ${label}`}
       ></span>
     </span>
   );

@@ -13,7 +13,8 @@ import { namedByRole } from "./unit-name";
    invoice description, and its lines — one per accepted option at its total
    when the customer sees totals only, or every line of its build (labour by
    the person-day) when they see line items. The job's own lines already in ServiceM8 come off (a soft
-   delete; ServiceM8 keeps them inactive). Prices are ServiceM8's way: a unit
+   delete; ServiceM8 keeps them inactive), except an accepted variation's,
+   which were added beside the quote's and stay (sm8-variation-plan.ts). Prices are ServiceM8's way: a unit
    price and unit cost ex GST, on the tax rate the business's own lines use.
 
    A quote with anything left to price isn't sent: what ServiceM8 invoices
@@ -39,6 +40,10 @@ export type SendPlan =
       exGstCents: number;
     }
   | { ok: false; why: string };
+
+/** Said when the job is invoiced: the accepted quote isn't replaced under
+    an invoice, and a change goes on as a variation's own lines. */
+export const INVOICED = "The job is invoiced in ServiceM8, so the accepted quote isn't sent again. A change now is a variation: its lines are added to this job.";
 
 /** Said when no option is marked accepted: the card shows nothing then. */
 export const NONE_ACCEPTED = "No option is marked accepted.";
@@ -100,7 +105,9 @@ export function sendPlan(input: {
   if (accepted.length === 0) return { ok: false, why: NONE_ACCEPTED };
   const status = (job.status ?? "").trim();
   if (!SENDABLE.includes(status)) return { ok: false, why: `The job is ${status ? `a ${status}` : "in no status"} in ServiceM8, so it can't be sent.` };
-  if (job.invoiced) return { ok: false, why: "The job is invoiced in ServiceM8: a change now is a variation, its own job." };
+  /* decision 21 (Isaac, 2026-10-18): a change after this is a variation,
+     its lines added to this same job (sm8-variation-plan.ts) */
+  if (job.invoiced) return { ok: false, why: INVOICED };
   const short = accepted.filter((a) => a.left > 0);
   if (short.length) {
     const n = short.reduce((s, a) => s + a.left, 0);

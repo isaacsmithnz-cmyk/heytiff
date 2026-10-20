@@ -1,13 +1,14 @@
 "use client";
 
-import { Activity, useContext, useEffect, useRef } from "react";
+import { Activity, useContext, useEffect, useRef, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { frontOverlay } from "@/components/overlay/use-overlay";
 import { JobSheet } from "@/components/workboard/board/job-sheet";
 import { toneOf } from "@/components/workboard/board/derive";
 import { jobHref, projectHref } from "@/lib/shell/links";
-import { RecordsContext, WindowsContext, type Win } from "./records-context";
+import { RecordsContext, WindowsContext, titleOf, type Win } from "./records-context";
+import { isPinned, pin, pinsServerSnapshot, pinsSnapshot, subscribePins, unpin } from "@/components/shell/pins-store";
 
 /* A visit's sheet and an agreement's load when one opens: most cards opened
    where you are are jobs, and these carry the maintenance board's actions
@@ -148,9 +149,24 @@ function WindowControls({ win }: { win: Win }) {
     return () => document.removeEventListener("keydown", onKey);
   }, [host, walks, win.key]);
 
-  if (!host || (!next && !host.docked)) return null;
+  const pins = useSyncExternalStore(subscribePins, pinsSnapshot, pinsServerSnapshot);
+  const pinned = isPinned(pins, win.ref);
+
+  if (!host) return null;
   return (
     <span ref={ref} className="wb2-jcwin">
+      {/* PIN (v2, rules 6 and 53): keeps this record in the sidebar's Pinned */}
+      <button
+        type="button"
+        className="pbtn ghost sm"
+        aria-pressed={pinned}
+        onClick={async () => {
+          const ok = pinned ? await unpin(win.ref) : await pin({ ref: win.ref, ...titleOf(win.body) });
+          if (!ok) host.toast(pinned ? "That didn't unpin. Try it again." : "That didn't pin. Try it again.");
+        }}
+      >
+        {pinned ? "Unpin" : "Pin"}
+      </button>
       {next && (
         <button type="button" className="pbtn ghost sm" aria-keyshortcuts="J" onClick={() => host.step(win.key, 1)}>
           Next job

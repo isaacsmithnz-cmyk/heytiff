@@ -1,7 +1,9 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/shell/icon";
+import { Tooltip } from "@/components/parts/tooltip";
 import { Waiting } from "@/components/ui/orb";
 import { useDictation } from "@/components/notes/dictation";
 import { fmtAud } from "@/lib/workboard/project-money";
@@ -67,10 +69,7 @@ function ChecklistRow({
 }) {
   const stamp = item.picked ? tickStamp(item, timezone) : null;
   return (
-    <div
-      className={`wb2-pkrow${item.picked ? " done" : ""}`}
-      title={item.picked ? undefined : provenanceOf(item, timezone)}
-    >
+    <div className={`wb2-pkrow${item.picked ? " done" : ""}`}>
       <label className="wb2-pkbox">
         <input
           type="checkbox"
@@ -79,8 +78,14 @@ function ChecklistRow({
           onChange={(e) => onTick(item.id, e.target.checked)}
         />
       </label>
-      <span className="wb2-pkname">{item.name}</span>
-      {item.sub && <em className="wb2-pksub">{item.sub}</em>}
+      {item.picked ? (
+        <span className="wb2-pkname">{item.name}</span>
+      ) : (
+        <Tooltip label={provenanceOf(item, timezone)}>
+          <span className="wb2-pkname">{item.name}</span>
+        </Tooltip>
+      )}
+      {item.sub && <Fade className="wb2-pksub">{item.sub}</Fade>}
       <span className="wb2-pkend">
         {item.kind === "material" && item.qty && <span className="wb2-pkqty">{item.qty}</span>}
         {stamp && <em className="wb2-pkstamp">{stamp}</em>}
@@ -232,7 +237,7 @@ export function JobChecklistFace({
             setText(e.target.value);
             setSub("");
           }}
-          placeholder="Add to the list…"
+          placeholder="Add to the list"
           aria-label="Add to the list"
         />
         {kind === "material" && (
@@ -290,7 +295,7 @@ export function JobChecklistFace({
                 />
               </span>
               <span className="wb2-pkname">{r.hit?.name ?? r.name}</span>
-              <em className="wb2-pksub">{r.hit ? [r.hit.code, r.hit.supplier].filter(Boolean).join(", ") : `"${r.name}", not in your price book`}</em>
+              <Fade className="wb2-pksub">{r.hit ? [r.hit.code, r.hit.supplier].filter(Boolean).join(", ") : `"${r.name}", not in your price book`}</Fade>
               <span className="wb2-pkend">{r.qty && <span className="wb2-pkqty">{r.qty}</span>}</span>
             </label>
           ))}
@@ -378,7 +383,7 @@ export function JobChecklistFace({
       {!anything && (
         <p className="int-hint">
           {loading && items === null
-            ? "Reading it from the mirror…"
+            ? "Reading the list from the mirror"
             : "Nothing on the checklist yet — type the first row above."}
         </p>
       )}

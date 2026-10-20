@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Icon } from "@/components/shell/icon";
 import { ViewTabs } from "@/components/shell/view-tabs";
+import { SettingsHead } from "@/components/settings/settings-head";
 import type { SupplierView } from "@/lib/quotes/price-book-server";
 import { BookItems } from "./book-items";
 import { PriceBook } from "./price-book-panel";
@@ -30,14 +29,9 @@ export function PriceBookScreen({ suppliers }: { suppliers: SupplierView[] }) {
     <div className="page in full">
       <div className="wrap">
         <div className="stg">
-          <div className="wb2-crumbline">
-            <Link href="/dashboard/admin" className="int-back">
-              <Icon name="chevL" size={15} />
-              Admin
-            </Link>
-          </div>
+          <SettingsHead heading="Price book" />
           <ViewTabs
-            lead={<h1 className="wb2-h1">Price book</h1>}
+            band
             ariaLabel="Price book"
             idPrefix="pbt"
             panelPrefix="pbp"

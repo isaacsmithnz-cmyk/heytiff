@@ -139,7 +139,7 @@ describe("Plans stage", () => {
       expect(img!.getAttribute("href")).toBe(DATA_URL);
     });
     // uncalibrated plan floor: the merged Calibrate pill is present and not yet complete
-    const calibPill = screen.getByTitle("Calibrate — set the scale and north");
+    const calibPill = screen.getByRole("button", { name: /^Calibrated?$/ });
     expect(calibPill).toBeInTheDocument();
     expect(calibPill.className).not.toMatch(/\bdone\b/);
   });
@@ -154,7 +154,7 @@ describe("Plans stage", () => {
     expect(screen.queryByText("Calibrate the plan")).not.toBeInTheDocument();
     // the calibrate tool is now armed — the merged Calibrate pill shows it active
     expect(
-      screen.getByTitle("Calibrate — set the scale and north").className
+      screen.getByRole("button", { name: /^Calibrated?$/ }).className
     ).toMatch(/\bon\b/);
   });
 
@@ -197,7 +197,7 @@ describe("Plans stage", () => {
     const svg = canvas.querySelector("svg")!;
 
     // crop now lives in the Calibrate dropdown (plan-prep), not the tool rail
-    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /^Calibrated?$/ }));
     await user.click(screen.getByRole("button", { name: /Crop/ }));
     // drag a rect inside the 1200×900 sheet (screen ≈ 80,60 → 720,540)
     fireEvent.pointerDown(svg, ptc(200, 150));
@@ -220,11 +220,10 @@ describe("Plans stage", () => {
     await waitFor(() => expect(canvas.querySelector("image.ds-plan")).not.toBeNull());
     await user.click(await screen.findByRole("button", { name: "Skip for now" }));
     const svg = canvas.querySelector("svg")!;
-    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /^Calibrated?$/ }));
     await user.click(screen.getByRole("button", { name: label }));
     return { user, canvas, svg };
   }
-  const openSplit = () => openTool(/Split to new floor/);
   // the 1200×900 sheet fills screen ≈ 80,60 → 720,540
   const drag = (svg: Element, a: [number, number], b: [number, number]) => {
     fireEvent.pointerDown(svg, ptc(...a));
@@ -235,136 +234,6 @@ describe("Plans stage", () => {
     fireEvent.pointerDown(svg, ptc(...at));
     fireEvent.pointerUp(svg, ptc(...at));
   };
-  const LEFT: [[number, number], [number, number]] = [[90, 70], [400, 530]];
-  const RIGHT: [[number, number], [number, number]] = [[410, 70], [710, 530]];
-  const rectOf = (el: Element | null) => {
-    const r = el!.querySelector("clipPath rect")!;
-    return ["x", "y", "width", "height"].map((k) => Number(r.getAttribute(k)));
-  };
-
-  it("Split to new floor: draw what this floor keeps, then the new floor's area, then place it", async () => {
-    const { user, canvas, svg } = await openSplit();
-    drag(svg, ...LEFT);
-
-    // the first area is held and the page outside it fades; the tool waits for
-    // the second area — no panel yet, nothing changed
-    expect(canvas.querySelector(".ds-crop-dim")).not.toBeNull();
-    expect(screen.queryByRole("dialog", { name: "Split the plan" })).toBeNull();
-    expect(canvas.querySelector("image.ds-plan")!.getAttribute("clip-path")).toBeNull();
-
-    drag(svg, ...RIGHT);
-    const panel = await screen.findByRole("dialog", { name: "Split the plan" });
-    expect(canvas.querySelector("image.ds-plan")!.getAttribute("clip-path")).toBeNull();
-    await user.click(within(panel).getByRole("button", { name: "Add floor above" }));
-
-    // this floor keeps the LEFT area, and the other part shows faded
-    await waitFor(() =>
-      expect(canvas.querySelector("image.ds-plan")!.getAttribute("clip-path")).toMatch(/url\(#clip-/)
-    );
-    const [x, , w] = rectOf(canvas);
-    expect(x).toBeLessThan(40);
-    expect(x + w).toBeLessThan(640); // ends in the left half, not the whole page
-    expect(canvas.querySelector("image.ds-plan-ghost")).not.toBeNull();
-    expect(screen.queryByRole("dialog", { name: "Split the plan" })).toBeNull();
-
-    // the new floor sits above Ground floor and the sketch level moved up
-    await user.click(screen.getByRole("button", { name: /^(GF|L1)$/ }));
-    expect(screen.getByRole("button", { name: "Delete Ground floor" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Delete Level 1" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Delete Sketch level" })).toBeInTheDocument();
-  });
-
-  it("the new floor gets the area drawn for it, not a guess at the rest of the page", async () => {
-    const { user, canvas, svg } = await openSplit();
-    // this floor: the LEFT area; the new floor: only the top-right corner —
-    // nothing like "everything not on the left"
-    drag(svg, ...LEFT);
-    drag(svg, [500, 70], [700, 200]);
-    await user.click(await screen.findByRole("button", { name: "Add floor above" }));
-    await waitFor(() => expect(canvas.querySelector("image.ds-plan-ghost")).not.toBeNull());
-
-    // switch to the new floor and read its area
-    await user.click(screen.getByRole("button", { name: /^(GF|L1)$/ }));
-    await user.click(screen.getByRole("button", { name: "L1 Level 1" }));
-    const there = await screen.findByTestId("studio-canvas");
-    await waitFor(() => expect(there.querySelector("clipPath rect")).not.toBeNull());
-    const [, , w, h] = rectOf(there);
-    expect(w).toBeLessThan(450); // the 200-px-wide area, not half the page
-    expect(h).toBeLessThan(300); // the 130-px-tall area, not the full height
-  });
-
-  it("one undo takes the whole split back", async () => {
-    const { user, canvas, svg } = await openSplit();
-    drag(svg, ...LEFT);
-    drag(svg, ...RIGHT);
-    await user.click(await screen.findByRole("button", { name: "Add floor above" }));
-    await waitFor(() => expect(canvas.querySelector("image.ds-plan-ghost")).not.toBeNull());
-
-    fireEvent.keyDown(window, { key: "z", metaKey: true });
-    await waitFor(() => expect(canvas.querySelector("image.ds-plan-ghost")).toBeNull());
-    expect(canvas.querySelector("image.ds-plan")!.getAttribute("clip-path")).toBeNull();
-    await user.click(screen.getByRole("button", { name: /^(GF|L1)$/ }));
-    expect(screen.queryByRole("button", { name: "Delete Level 1" })).toBeNull();
-  });
-
-  it("Add floor below puts the new floor on this level and moves this floor up", async () => {
-    const { user, svg } = await openSplit();
-    drag(svg, ...LEFT);
-    drag(svg, ...RIGHT);
-    await user.click(await screen.findByRole("button", { name: "Add floor below" }));
-    // the switcher now reads this floor as level 1 (it moved up, and its
-    // default name followed), with the new Ground floor beneath
-    await user.click(await screen.findByRole("button", { name: "L1" }));
-    expect(screen.getByRole("button", { name: "Delete Ground floor" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Delete Level 1" })).toBeInTheDocument();
-  });
-
-  it("a freeform area: click each corner and close on the first — for either floor", async () => {
-    const { user, canvas, svg } = await openSplit();
-    // this floor keeps a triangle (closed on its first corner)…
-    click(svg, [100, 80]);
-    click(svg, [380, 80]);
-    click(svg, [100, 500]);
-    expect(canvas.querySelector(".ds-draft polyline")).not.toBeNull(); // corners so far
-    click(svg, [100, 80]); // back on the first corner
-    expect(canvas.querySelector(".ds-draft polyline")).toBeNull();
-    expect(screen.queryByRole("dialog", { name: "Split the plan" })).toBeNull(); // still the second area to draw
-    // …and the new floor a rectangle
-    drag(svg, ...RIGHT);
-    await user.click(await screen.findByRole("button", { name: "Add floor above" }));
-
-    await waitFor(() => expect(canvas.querySelector("clipPath polygon")).not.toBeNull());
-    expect(canvas.querySelector("clipPath polygon")!.getAttribute("points")!.split(" ")).toHaveLength(3);
-    expect(canvas.querySelector("image.ds-plan")!.getAttribute("clip-path")).toMatch(/url\(#clip-/);
-  });
-
-  it("Esc drops a split drag untouched, and Esc after the first area drops the split", async () => {
-    const { canvas, svg } = await openSplit();
-    fireEvent.pointerDown(svg, ptc(...LEFT[0]));
-    fireEvent.pointerMove(svg, ptc(...LEFT[1]));
-    expect(canvas.querySelector(".ds-crop-dim")).not.toBeNull();
-    fireEvent.keyDown(window, { key: "Escape" });
-    fireEvent.pointerUp(svg, ptc(...LEFT[1]));
-    expect(canvas.querySelector(".ds-crop-dim")).toBeNull();
-    expect(screen.queryByRole("dialog", { name: "Split the plan" })).toBeNull();
-    expect(canvas.querySelector("image.ds-plan")!.getAttribute("clip-path")).toBeNull();
-
-    // with the first area drawn, Esc throws the whole split away
-    drag(svg, ...LEFT);
-    expect(canvas.querySelector(".ds-crop-dim")).not.toBeNull();
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(canvas.querySelector(".ds-crop-dim")).toBeNull();
-  });
-
-  it("Cancel leaves the plan as it was", async () => {
-    const { user, canvas, svg } = await openSplit();
-    drag(svg, ...LEFT);
-    drag(svg, ...RIGHT);
-    await user.click(await screen.findByRole("button", { name: "Cancel" }));
-    expect(screen.queryByRole("dialog", { name: "Split the plan" })).toBeNull();
-    expect(canvas.querySelector(".ds-crop-dim")).toBeNull();
-    expect(canvas.querySelector("image.ds-plan")!.getAttribute("clip-path")).toBeNull();
-  });
 
   /* Crop's freeform shape: the same click-the-corners gesture */
   describe("freeform crop", () => {
@@ -417,7 +286,7 @@ describe("Plans stage", () => {
       click(svg, [300, 420]);
       fireEvent.keyDown(window, { key: "Enter" });
       await waitFor(() => expect(canvas.querySelector("clipPath polygon")).not.toBeNull());
-      await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+      await user.click(screen.getByRole("button", { name: /^Calibrated?$/ }));
       await user.click(screen.getByRole("button", { name: /Crop/ }));
       drag(svg, [200, 150], [400, 300]);
       await waitFor(() => expect(canvas.querySelector("clipPath rect")).not.toBeNull());
@@ -432,7 +301,7 @@ describe("Plans stage", () => {
     await waitFor(() => expect(canvas.querySelector("image.ds-plan")).not.toBeNull());
     await user.click(await screen.findByRole("button", { name: "Skip for now" }));
     const svg = canvas.querySelector("svg")!;
-    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /^Calibrated?$/ }));
     await user.click(screen.getByRole("button", { name: /Crop/ }));
     fireEvent.pointerDown(svg, ptc(200, 150));
     fireEvent.pointerMove(svg, ptc(400, 300));
@@ -458,7 +327,7 @@ describe("Plans stage", () => {
     const zFull = readZoom();
 
     // crop to a sub-rect (Crop lives in the Calibrate dropdown now), then re-fit
-    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /^Calibrated?$/ }));
     await user.click(screen.getByRole("button", { name: /Crop/ }));
     fireEvent.pointerDown(svg, ptc(200, 150));
     fireEvent.pointerMove(svg, ptc(400, 300));
@@ -476,7 +345,7 @@ describe("Plans stage", () => {
     await screen.findByTestId("studio-canvas");
     await user.click(await screen.findByRole("button", { name: "Skip for now" }));
 
-    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /^Calibrated?$/ }));
     expect(screen.getByRole("button", { name: /Crop/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Move plans/ })).toBeInTheDocument();
   });

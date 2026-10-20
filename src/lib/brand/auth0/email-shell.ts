@@ -33,22 +33,17 @@ import type { BrandAssets } from "./assets.ts";
 const FONT =
   "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
-/* THE WORDMARK IS LIVE TEXT, AND THE MARK ALONE IS THE IMAGE. This was one
-   PNG of the whole lockup, and Gmail on Android broke it: that client
-   force-inverts a light email to dark and DOES NOT invert images, so the ink
-   "Hey" stayed ink on a card that had become near-black and simply vanished.
-   Seen on a real phone; the `color-scheme` meta below does not stop it.
-
-   Splitting it fixes the cause rather than the symptom. The chevron is a
-   teal-to-blue gradient that reads on white and on near-black alike, so it
-   stays an image. The word is HTML, so a client that inverts the card
-   inverts "Hey" along with it — the same way it already handles the body
-   copy — while "Tiff" keeps its teal, which survives inversion untouched.
+/* THE WORDMARK IS LIVE TEXT, AND THERE IS NO IMAGE (v2, Isaac, 17 October
+   2026: "Mark an email, that's fine" to the word only). The lockup was one
+   PNG, then a gradient chevron PNG beside the word; Gmail on Android force-
+   inverts a light email to dark and does not invert images, so anything ink
+   in an image vanishes there. The word is HTML in one colour (rule 9), so a
+   client that inverts the card inverts all of "HeyTiff" with it, the way it
+   handles the body copy.
 
    THE COST IS THE TYPEFACE, and it is worth paying. Most clients will not
    load a webfont, so the word renders in the system sans rather than
-   Jakarta. A wordmark half a shade off-brand is a smaller failure than a
-   logo nobody can see. */
+   Jakarta. */
 const MARK = 34;
 
 export type Letter = {
@@ -83,7 +78,7 @@ export function renderLetter(letter: Letter, assets: BrandAssets): string {
   @font-face {
     font-family: 'Plus Jakarta Sans';
     font-style: normal;
-    font-weight: 200 800;
+    font-weight: 400 700;
     font-display: swap;
     src: url(${assets.font}) format('woff2');
   }
@@ -109,25 +104,16 @@ export function renderLetter(letter: Letter, assets: BrandAssets): string {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${BRAND.surface};">
   <tr>
     <td align="center" style="padding:40px 12px;">
-      <table role="presentation" class="ht-card" width="560" cellpadding="0" cellspacing="0" border="0" style="width:560px; max-width:560px; background-color:${WHITE}; border:1px solid ${BRAND.line}; border-radius:24px;">
+      <table role="presentation" class="ht-card" width="560" cellpadding="0" cellspacing="0" border="0" style="width:560px; max-width:560px; background-color:${WHITE}; border:1px solid ${BRAND.line}; border-radius:16px;">
 
         <tr>
-          <td class="ht-pad" align="center" style="padding:40px 44px 8px 44px;">
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
-              <tr>
-                <td style="padding-right:9px; font-size:0; line-height:0;">
-                  <img src="${assets.chevron}" width="${MARK}" height="${MARK}" alt="" style="display:block; width:${MARK}px; height:${MARK}px; border:0; outline:none;" />
-                </td>
-                <td style="font-family:${FONT}; font-size:27px; line-height:${MARK}px; font-weight:800; letter-spacing:-0.03em; white-space:nowrap;">
-                  <span style="color:${BRAND.ink};">Hey</span><span style="color:${BRAND.tealDark};">Tiff</span>
-                </td>
-              </tr>
-            </table>
+          <td class="ht-pad" align="center" style="padding:40px 44px 8px 44px; font-family:${FONT}; font-size:27px; line-height:${MARK}px; font-weight:700; letter-spacing:-0.03em; white-space:nowrap; color:${BRAND.ink};">
+            <span>Hey</span><span>Tiff</span>
           </td>
         </tr>
 
         <tr>
-          <td class="ht-pad" style="padding:28px 44px 0 44px; font-family:${FONT}; font-size:24px; line-height:31px; font-weight:800; letter-spacing:-0.02em; color:${BRAND.ink};">
+          <td class="ht-pad" style="padding:28px 44px 0 44px; font-family:${FONT}; font-size:24px; line-height:31px; font-weight:600; letter-spacing:-0.02em; color:${BRAND.ink};">
             ${heading}
           </td>
         </tr>
@@ -168,25 +154,16 @@ export function renderLetter(letter: Letter, assets: BrandAssets): string {
    border-radius and draws it square; that is a squarer button, not a broken
    one, and is the reason no VML fallback is worth its weight here.
 
-   THE 1px BORDER IS THE WHOLE REASON THIS IS STILL A BUTTON IN GMAIL. That
-   client force-inverts the card to near-black and — unlike the text around
-   it — leaves this ink fill roughly where it was, so an unbordered button
-   became black-on-black and read only by its white label. Seen on a real
-   phone, and NOT predicted by the inversion harness, which wrongly flipped
-   the fill to white: a stand-in is evidence about layout, not about what a
-   vendor chooses to invert.
-
-   `--q` is the colour because it is a MID-TONE, and mid-tones are what
-   survive an inversion pass unchanged — the same property that keeps "Tiff"
-   teal beside a wordmark that flips. On the white card it is a barely-there
-   edge on an ink button; on a dark one it is the only thing giving the
-   button a shape. */
+   v2: THE BUTTON IS BLUE WITH WHITE WORDS (rule 22). Blue is a mid-tone,
+   and mid-tones are what survive Gmail's inversion pass: the ink button it
+   replaced needed a grey edge to keep a shape on the darkened card, and a
+   blue one keeps its own. */
 function actionBlock(action: { label: string; href: string }): string {
   return `<tr>
           <td class="ht-pad" style="padding:14px 44px 0 44px;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0">
               <tr>
-                <td align="center" bgcolor="${BRAND.ink}" style="background-color:${BRAND.ink}; border:1px solid ${BRAND.quiet}; border-radius:10px;">
+                <td align="center" bgcolor="${BRAND.press}" style="background-color:${BRAND.press}; border:1px solid ${BRAND.press}; border-radius:10px;">
                   <a href="${action.href}" style="display:inline-block; padding:14px 26px; font-family:${FONT}; font-size:14px; line-height:14px; font-weight:700; color:${WHITE}; text-decoration:none; border-radius:10px;">${escapeHtml(action.label)}</a>
                 </td>
               </tr>
@@ -233,7 +210,7 @@ function codeBlock(code: string): string {
           <td class="ht-pad" style="padding:14px 44px 0 44px;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${BRAND.surface}; border-radius:14px;">
               <tr>
-                <td align="center" style="padding:22px 16px; font-family:${FONT}; font-size:30px; line-height:36px; font-weight:800; letter-spacing:0.22em; text-indent:0.22em; color:${BRAND.ink};">${code}</td>
+                <td align="center" style="padding:22px 16px; font-family:${FONT}; font-size:30px; line-height:36px; font-weight:700; letter-spacing:0.22em; text-indent:0.22em; color:${BRAND.ink};">${code}</td>
               </tr>
             </table>
           </td>

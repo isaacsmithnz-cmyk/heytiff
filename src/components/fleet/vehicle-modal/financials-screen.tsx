@@ -606,7 +606,7 @@ export function FinancialsScreen({
             </div>
             <div className="vm-acts">
               <Btn kind="primary" onClick={saveFinance} disabled={!canSave || pending}>
-                {pending ? "Saving…" : current ? "Replace agreement" : "Add agreement"}
+                {pending ? "Saving the agreement" : current ? "Replace agreement" : "Add agreement"}
               </Btn>
             </div>
           </ScanCard>

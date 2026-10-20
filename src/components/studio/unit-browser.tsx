@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { BuyPrices, moneyText, pairFromCents, useUnitPrices } from "./unit-prices";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
+import { Tooltip } from "@/components/parts/tooltip";
 import type { DataPack, FormFactor, IndoorUnit, Phase } from "@/lib/studio/packs/schema";
 import type { SizingBasis } from "@/lib/studio/loads";
 import {
@@ -94,19 +95,13 @@ function FitChip({
   if (fit === "fits" || loadKw == null) return null;
   const pct = Math.round((capacityKw / loadKw) * 100);
   return fit === "undersized" ? (
-    <em
-      className="ds-ub-under"
-      title={`${capacityKw.toFixed(1)} kW against a ${loadKw.toFixed(1)} kW load — ${pct}%, it won't hold the room`}
-    >
-      undersized
-    </em>
+    <Tooltip label={`${capacityKw.toFixed(1)} kW against a ${loadKw.toFixed(1)} kW load — ${pct}%, it won't hold the room`}>
+      <em className="ds-ub-under">undersized</em>
+    </Tooltip>
   ) : (
-    <em
-      className="ds-ub-over"
-      title={`${capacityKw.toFixed(1)} kW against a ${loadKw.toFixed(1)} kW load — ${pct}%`}
-    >
-      oversized
-    </em>
+    <Tooltip label={`${capacityKw.toFixed(1)} kW against a ${loadKw.toFixed(1)} kW load — ${pct}%`}>
+      <em className="ds-ub-over">oversized</em>
+    </Tooltip>
   );
 }
 
@@ -596,11 +591,6 @@ export function UnitBrowser({
               disabled={!checked && compare.length >= COMPARE_MAX}
               onChange={() => toggleCompare(o, pair)}
               aria-label={`Compare ${o.idu.model}`}
-              title={
-                !checked && compare.length >= COMPARE_MAX
-                  ? `Comparing ${COMPARE_MAX} — remove one first`
-                  : "Add to comparison"
-              }
             />
           </td>
         )}
@@ -634,12 +624,9 @@ export function UnitBrowser({
             <span className="ds-ub-odu">{pair.odu.model}</span>
             <PhaseBadge phase={pair.odu.phase} />
             {o.pairs.length > 1 && (
-              <span
-                className="ds-ub-morepairs"
-                title={`${o.pairs.length - 1} more outdoor pairing${o.pairs.length > 2 ? "s" : ""} — pick in the panel`}
-              >
-                +{o.pairs.length - 1}
-              </span>
+              <Tooltip label={`${o.pairs.length - 1} more outdoor pairing${o.pairs.length > 2 ? "s" : ""}`}>
+                <span className="ds-ub-morepairs">+{o.pairs.length - 1}</span>
+              </Tooltip>
             )}
           </td>
         )}
@@ -654,21 +641,18 @@ export function UnitBrowser({
       <button
         className={phase === null ? "on" : ""}
         onClick={() => setPhase(null)}
-        title="Any supply phase"
       >
         Any
       </button>
       <button
         className={phase === "1" ? "on" : ""}
         onClick={() => setPhase("1")}
-        title="Single phase outdoor units only"
       >
         1φ
       </button>
       <button
         className={phase === "3" ? "on" : ""}
         onClick={() => setPhase("3")}
-        title="Three phase outdoor units only"
       >
         3φ
       </button>
@@ -743,11 +727,6 @@ export function UnitBrowser({
             className={t.formFactor === activeTab ? "on" : ""}
             disabled={t.count === 0}
             onClick={() => setTab(t.formFactor)}
-            title={
-              loadKw == null
-                ? `${t.count} ${t.label.toLowerCase()} unit${t.count === 1 ? "" : "s"}`
-                : `${t.fitCount} of ${t.count} suit a ${loadKw.toFixed(1)} kW load`
-            }
           >
             {t.label}
             {/* the fit count leads — it's the number you're shopping on —
@@ -841,7 +820,6 @@ export function UnitBrowser({
                         key={s.id}
                         className={`sortable${sort === s.sortKey ? " on" : ""}`}
                         onClick={() => setSort(s.sortKey!)}
-                        title={`Sort by ${s.label.toLowerCase()}`}
                       >
                         {s.header}
                         {sort === s.sortKey && (
@@ -1012,10 +990,7 @@ export function UnitBrowser({
    mistaken for the common single-phase case */
 function PhaseBadge({ phase }: { phase: Phase }) {
   return (
-    <span
-      className={`ds-ub-phase${phase === "3" ? " p3" : ""}`}
-      title={phase === "3" ? "Three phase" : "Single phase"}
-    >
+    <span className={`ds-ub-phase${phase === "3" ? " p3" : ""}`}>
       {phase === "3" ? "3φ" : "1φ"}
     </span>
   );
@@ -1137,7 +1112,6 @@ function DetailPanel({
         <button
           className="ds-ub-addbtn"
           onClick={onAdd}
-          title={pair ? `Add ${option.idu.model} + ${pair.odu.model}` : `Add ${option.idu.model}`}
         >
           {addLabel}
         </button>
@@ -1311,7 +1285,6 @@ function ColumnsMenu({
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        title="Choose which spec columns to show"
       >
         <Icon name="settings2" size={14} />
         Columns

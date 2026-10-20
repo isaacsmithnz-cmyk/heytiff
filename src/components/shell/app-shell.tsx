@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { CommandPaletteProvider } from "./command-palette-context";
 import { RecordDock } from "@/components/records/record-dock";
@@ -33,25 +32,9 @@ export function AppShell({
 }) {
   const pathname = usePathname();
 
-  // tab switching for .ptab tabbed pages (Time & Pay, Assets) — matches the
-  // original page's delegated click handler.
-  const onClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLElement;
-    const tab = target.closest<HTMLElement>(".ptab");
-    if (!tab) return;
-    const idx = tab.dataset.ptab;
-    const tabs = tab.parentElement;
-    if (!tabs) return;
-    tabs.querySelectorAll(".ptab").forEach((t) => t.classList.toggle("on", t === tab));
-    const panels = tabs.parentElement?.querySelector(".ptabpanels");
-    panels
-      ?.querySelectorAll<HTMLElement>(".ptabpanel")
-      .forEach((p) => p.classList.toggle("on", p.dataset.ppanel === idx));
-  }, []);
-
   return (
     <CommandPaletteProvider>
-    <div className="fg" onClick={onClick}>
+    <div className="fg">
       <div className="gridbg" />
       {sidebar}
       <div className="main">

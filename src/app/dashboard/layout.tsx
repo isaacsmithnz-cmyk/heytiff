@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { AppShell } from "@/components/shell/app-shell";
-import { RAIL_BOOT } from "@/components/shell/rail-state";
 import { NoteScopeProvider } from "@/components/notes/note-context";
 import { TiffModalProvider } from "@/components/tiff/modal/tiff-host";
 import { isTranscriptionConfigured } from "@/lib/voice/transcribe";
@@ -43,10 +42,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           reads it, and inert until a Tiff button opens it: every screen
           gets the modal, so there is nothing here to await. */}
       <TiffModalProvider>
-        {/* the sidebar's remembered size, applied BEFORE the frame paints — a
-            collapsed rail must never flash wide. Synchronous inline script; the
-            layout stays synchronous with it. */}
-        <script dangerouslySetInnerHTML={{ __html: RAIL_BOOT }} />
         <AppShell
           sidebar={
           <Suspense fallback={<SidebarSkeleton />}>

@@ -368,7 +368,7 @@ export function LogScreen({
       {showFields && (
         <div className="fl-foot bar">
           <Btn kind="primary" onClick={save} disabled={!ready}>
-            {pending ? "Saving…" : SAVE[kind]}
+            {pending ? "Saving the entry" : SAVE[kind]}
           </Btn>
         </div>
       )}

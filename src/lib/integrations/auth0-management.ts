@@ -354,9 +354,3 @@ export async function createPasswordTicket(userId: string): Promise<MgmtResult<s
   }
   return { ok: true, value: body.ticket };
 }
-
-/** Test seam — the module-level token cache would otherwise leak between
-    cases and make the second one pass for the wrong reason. */
-export function __resetManagementTokenCache() {
-  cached = null;
-}

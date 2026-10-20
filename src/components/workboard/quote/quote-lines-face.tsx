@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import type { LineChange } from "@/lib/quotes/lines-server";
 import { againstFirst, missingFromFirst, type QuoteLine } from "@/lib/quotes/lines";
 import { stillUnknown } from "@/lib/quotes/lines-price";
@@ -19,24 +18,26 @@ import type { QuoteNote } from "@/lib/templates/settings";
 import { buildProgress, type PlannedPart } from "@/lib/quotes/build-progress";
 import type { Variation } from "@/lib/quotes/lines-job";
 import { VariationPaper } from "./variation-paper";
+import { VariationSm8 } from "./variation-sm8";
+import type { VariationSendAnswer } from "@/app/actions/quote-sm8";
 import { VersionPaper } from "./version-paper";
 import type { QuoteVersion } from "@/lib/quotes/quote-versions";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 import type { Sm8Quote } from "../board/job-quote-card";
 import { QuoteLineItems, groupKey, sellEachOf } from "./quote-line-items";
 import { QuoteCard, QuoteRail } from "./quote-rail";
-import { QuoteCorner } from "./quote-corner";
+import { QuoteActions } from "./quote-actions";
 
-/* THE QUOTE, TURNED ROUND (the chat-first quote page, Isaac, 2026-10-13):
-   under the progress line, the conversation with Tiff is the main column
-   and the rail beside it says what the quote comes to. The column's tabs
-   are Conversation and Line items; the line items are the quote by hand on
-   its kept lines (quote-line-items.tsx), and View quote lays the paper over
-   both. The rail is the quote's card (quote-rail.tsx), what goes to
-   ServiceM8 and the quote ServiceM8 already holds; the corner holds the
-   next step (quote-corner.tsx). Where Tiff isn't on for the business there
-   is no conversation: the line items are the column, and the rail lists
-   what's To confirm.
+/* THE QUOTE, IN LAYOUT C (Isaac's pick, 18 October 2026; chat first since
+   2026-10-13): the conversation with Tiff fills the left, and the rail
+   beside it starts with the quote's progress, small, then says what the
+   quote comes to, with the quote's buttons under its card (quote-rail.tsx,
+   quote-actions.tsx): View line items swaps the left to the line items (the
+   quote by hand on its kept lines, quote-line-items.tsx) and Back to the
+   conversation swaps it back; View quote lays the paper over the left; and
+   Approve joins them, blue, once the quote is priced. No view tabs. Where
+   Tiff isn't on for the business there is no conversation: the line items
+   are the left, and the rail lists what's To confirm.
 
    This file holds the quote's state, read once and after every change, and
    every act on it. Each edit goes to the route with the version the line
@@ -44,6 +45,10 @@ import { QuoteCorner } from "./quote-corner";
    the price is read again after every change. */
 
 const ROUTE = "/api/workboard/quote-lines";
+
+/** The quote's state word, for the line under the job's name: settle when
+    something is left to settle before it's approved. */
+export type QuoteStage = { word: string; settle: boolean };
 
 export type LinesView = {
   ok: boolean;
@@ -123,7 +128,7 @@ const hoursIn = (lines: QuoteLine[], option: number, contingencyHours: number) =
 export function QuoteLinesFace({
   job,
   price,
-  actionsEl,
+  onStage,
   onPriced,
   onToast,
   send,
@@ -133,10 +138,13 @@ export function QuoteLinesFace({
   onOpenPaper,
   money: moneyGrant = true,
   start = false,
+  openAt = null,
+  sendVariation: sendVariationTo,
 }: {
   job: string;
   price: QuotePrice | null | undefined;
-  actionsEl: HTMLDivElement | null;
+  /** told the quote's state word, for the line under the job's name */
+  onStage?: (stage: QuoteStage | null) => void;
   onToast?: (message: string) => void;
   /** what goes to ServiceM8 once an option is accepted (job-quote-send.tsx) */
   send?: ReactNode;
@@ -158,14 +166,20 @@ export function QuoteLinesFace({
   onPriced: () => void;
   /** opened from the job card to start the quote (?start=1): the reply box takes the keys */
   start?: boolean;
+  /** opened on this option (?option=N): a variation Tiff started */
+  openAt?: number | null;
+  /** an accepted variation's lines to ServiceM8 on the job (decision 21,
+      job-quote-send.tsx); without it, nothing is sent */
+  sendVariation?: (option: number) => Promise<VariationSendAnswer>;
 }) {
   const { view, post, reload } = useQuoteLines(job, true);
-  const [at, setAt] = useState(0);
+  const [at, setAt] = useState(openAt ?? 0);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
-  /* the proposal, previewed in place of the column's tabs (7.1) */
+  /* the proposal, previewed in place of the left (7.1) */
   const [paper, setPaper] = useState(false);
-  /* the column's tab, while Tiff is on for the business */
+  /* what fills the left while Tiff is on for the business: the
+     conversation, or the line items, switched from the rail */
   const [tab, setTab] = useState<"chat" | "lines">("chat");
   /* whether she's on, and what she's cost, once her thread is read */
   const [tiff, setTiff] = useState<{ on: boolean; spentUsd: number | null } | null>(null);
@@ -184,8 +198,8 @@ export function QuoteLinesFace({
      line items, I think have everything collapsed first… so it doesn't take
      up so much space. Collapsed with the total next to it"): none at
      first, and one opened stays open while the page is up. Kept here, not
-     in the line items, which go when the Conversation tab or the paper
-     takes their place. */
+     in the line items, which go when the conversation or the paper takes
+     their place. */
   const [openGroups, setOpenGroups] = useState<ReadonlySet<string>>(() => new Set());
   const showGroups = (keys: string[], on: boolean) =>
     setOpenGroups((was) => {
@@ -218,21 +232,35 @@ export function QuoteLinesFace({
     /* the lines nobody knows yet, and Tiff's questions still open */
     unknown: toConfirmOf(all, asked),
     price: priceState(price),
+    approvedAt: view?.approved ? (view?.proposal?.approvedAt ?? null) : null,
   });
 
-  /* the column: the conversation and the line items, or the line items alone */
+  /* the left: the conversation or the line items, or the line items alone */
   const chat = tiff?.on === true;
   const linesUp = tiff !== null && (!chat || tab === "lines");
-  /* its tabs, a tablist as the app's are (view-tabs.tsx): each names the
-     panel it shows, and the arrow keys walk them */
-  const tabsId = useId();
-  const tabKeys = (e: KeyboardEvent<HTMLButtonElement>) => {
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
-    e.preventDefault();
-    const next = e.key === "Home" ? "chat" : e.key === "End" ? "lines" : tab === "chat" ? "lines" : "chat";
-    setTab(next);
-    document.getElementById(`${tabsId}-${next}`)?.focus();
-  };
+
+  /* the quote's state word, for the line under the job's name: where it has
+     got to, or what's left to settle on the way */
+  const unknownNow = toConfirmOf(all, asked);
+  const sentForReal = !!view?.sent && !view.sent.trial;
+  const stage: QuoteStage | null = !view
+    ? null
+    : accepted.length > 0
+      ? { word: "Accepted", settle: false }
+      : sentForReal
+        ? { word: "Sent", settle: false }
+        : view.approved
+          ? { word: "Approved", settle: false }
+          : unknownNow > 0
+            ? { word: `${unknownNow} to settle`, settle: true }
+            : all.length > 0
+              ? { word: "Draft", settle: false }
+              : { word: "Not started", settle: false };
+  const stageKey = stage ? `${stage.word}|${stage.settle}` : "";
+  const tellStage = useEffectEvent(() => onStage?.(stage));
+  useEffect(() => {
+    tellStage();
+  }, [stageKey]);
 
   const act = async (body: Record<string, unknown>) => {
     setBusy(true);
@@ -310,8 +338,22 @@ export function QuoteLinesFace({
     setBusy(false);
     if (!v?.ok) return setNote(v?.reason ?? "That didn't save. Try again.");
     onPriced();
-    if (op === "variation-accept" && accepting)
+    if (op === "variation-accept" && accepting) {
       onToast?.(v.onJob?.added ? "The variation's new work is on the job's task list, and its new parts on the materials list" : "The variation's new work is on the job's task list");
+      /* accepted: its lines go to ServiceM8 on the original job (decision 21) */
+      await sendVariation(option);
+    }
+  };
+  /* AN ACCEPTED VARIATION TO SERVICEM8, as extra lines on the job (Isaac,
+     2026-10-18, decision 21): pressed on accepting, and again from the rail
+     while it hasn't all gone; what went is kept on the variation */
+  const [variationSent, setVariationSent] = useState<{ option: number; error: string | null } | null>(null);
+  const sendVariation = async (option: number) => {
+    if (!sendVariationTo) return;
+    const a = await sendVariationTo(option).catch((): VariationSendAnswer => ({ ok: false, error: "HeyTiff couldn't send that. Nothing went; try again." }));
+    setVariationSent({ option, error: a.ok ? (a.failed[0] ?? null) : a.error });
+    reload();
+    if (a.ok && a.said) onToast?.(a.said);
   };
 
   const priced = price && price.ok && o ? o : null;
@@ -443,12 +485,6 @@ export function QuoteLinesFace({
       hours={hoursIn(all, at, contingencyHours(o?.build))}
       variation={variation && baseOpt ? { n: variation.n, of: baseOpt, hours: hoursIn(all, base, contingencyHours(baseOpt.build)) } : null}
       building={building}
-      lines={chat ? linesUp && !paper : null}
-      onLines={() => {
-        setPaper(false);
-        setViewing(null);
-        setTab(linesUp && !paper ? "chat" : "lines");
-      }}
     />
   ) : null;
 
@@ -476,67 +512,55 @@ export function QuoteLinesFace({
     />
   );
 
+  /* the quote's buttons, under its card: the left's two views, the paper,
+     and the next step. Approve is the main one, once the option open is
+     priced, every line of it (layout C) */
+  const actions =
+    tiff === null ? null : (
+      <QuoteActions
+        money={money}
+        lines={all.length}
+        busy={busy}
+        chat={chat}
+        linesUp={linesUp && !paper}
+        paper={paper}
+        back={chat && tab === "chat" ? "Back to the conversation" : "Back to the line items"}
+        kept={!!shown}
+        variation={variation}
+        approved={view?.approved ?? false}
+        approver={approver}
+        /* a variation is priced as the difference, and may add no labour */
+        priced={!!priced && lines.length > 0 && (variation ? priced.unpriced.length === 0 : !left)}
+        update={(accepted.length > 0 || !!view?.approved) && !variation}
+        options={options}
+        at={at}
+        accepted={accepted.includes(at)}
+        onLines={() => {
+          setPaper(false);
+          setViewing(null);
+          setTab(linesUp && !paper ? "chat" : "lines");
+        }}
+        onView={() => setPaper(true)}
+        onBack={() => {
+          setPaper(false);
+          setViewing(null);
+        }}
+        onApprove={() => void (variation ? markVariation("variation-approve", variation.option, true) : act({ op: "approve" }))}
+        onUpdate={() => setUpdating("")}
+        onAccept={() => void (variation ? markVariation("variation-accept", variation.option, !variation.acceptedAt) : accept())}
+      />
+    );
+
   return (
     <>
-      {actionsEl &&
-        createPortal(
-          <QuoteCorner
-            money={money}
-            lines={all.length}
-            busy={busy}
-            paper={paper}
-            back={chat && tab === "chat" ? "Back to the conversation" : "Back to the line items"}
-            kept={!!shown}
-            variation={variation}
-            approved={view?.approved ?? false}
-            approver={approver}
-            update={(accepted.length > 0 || !!view?.approved) && !variation}
-            options={options}
-            at={at}
-            accepted={accepted.includes(at)}
-            onView={() => setPaper(true)}
-            onBack={() => {
-              setPaper(false);
-              setViewing(null);
-            }}
-            onApprove={() => void (variation ? markVariation("variation-approve", variation.option, true) : act({ op: "approve" }))}
-            onUpdate={() => setUpdating("")}
-            onAccept={() => void (variation ? markVariation("variation-accept", variation.option, !variation.acceptedAt) : accept())}
-          />,
-          actionsEl
-        )}
-      <section className="hd-day qc-day" aria-label="Where the quote is">
-        <QuoteStepsLine steps={steps} />
-      </section>
       <div className="qc-body">
         <div className="qc-main">
-          {chat && !paper && (
-            <div className="qc-tabs" role="tablist" aria-label="Conversation and line items">
-              {(["chat", "lines"] as const).map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  role="tab"
-                  id={`${tabsId}-${k}`}
-                  aria-controls={`${tabsId}-${k}-panel`}
-                  aria-selected={tab === k}
-                  tabIndex={tab === k ? 0 : -1}
-                  className={tab === k ? "qc-tab on" : "qc-tab"}
-                  onClick={() => setTab(k)}
-                  onKeyDown={tabKeys}
-                >
-                  {k === "chat" ? "Conversation" : "Line items"}
-                </button>
-              ))}
-            </div>
-          )}
           {note && <p className="wb2-sherr qc-note">{note}</p>}
           {/* mounted whatever is up: her work lands, and the page learns
               whether she's on, from here */}
           <TiffPanel
             job={job}
             hidden={paper || tab !== "chat"}
-            panel={chat && !paper ? { id: `${tabsId}-chat-panel`, tab: `${tabsId}-chat` } : undefined}
             start={start}
             onStatus={setTiff}
             onOpen={setAsked}
@@ -592,7 +616,7 @@ export function QuoteLinesFace({
             </div>
           ) : (
             linesUp && (
-              <div className="qc-lines" role={chat ? "tabpanel" : undefined} id={chat ? `${tabsId}-lines-panel` : undefined} aria-labelledby={chat ? `${tabsId}-lines` : undefined}>
+              <div className="qc-lines">
                 <div className="hd-face qp-face ql-face">{lineItems}</div>
               </div>
             )
@@ -630,6 +654,8 @@ export function QuoteLinesFace({
           </>
         )}
         <QuoteRail
+          progress={<QuoteStepsLine steps={steps} />}
+          actions={actions}
           /* the conversation holds what's to confirm, except where there is
              none, or the paper is up in its place: before approving, the
              review stands beside the paper (11.1) */
@@ -639,7 +665,14 @@ export function QuoteLinesFace({
           building={building}
           send={
             <>
-              {money && accepted.length > 0 && send}
+              {money && variation && (
+                <VariationSm8
+                  variation={variation}
+                  error={variationSent?.option === variation.option ? variationSent.error : null}
+                  onSend={() => sendVariation(variation.option)}
+                />
+              )}
+              {money && accepted.length > 0 && !variation && send}
               {money && accepted.length === 0 && view?.approved && sendQuote?.(reload)}
             </>
           }

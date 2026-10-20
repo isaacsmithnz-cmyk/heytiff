@@ -101,7 +101,7 @@ export function XeroPayroll({
     });
   };
 
-  if (loading) return <p className="xp-note">Reading your Xero payroll…</p>;
+  if (loading) return <p className="xp-note">Reading your Xero payroll</p>;
   if (!data) return <p className="xp-note">{error ?? "Couldn't load the Xero payroll list."}</p>;
 
   if (!data.connected) {
@@ -169,7 +169,7 @@ export function XeroPayroll({
             </span>
           )}
           <button className="xp-btn" disabled={checking || busy} onClick={checkPay}>
-            {checking ? "Reading…" : pay ? "Re-check" : "Check pay rates"}
+            {checking ? "Reading the pay rates" : pay ? "Re-check" : "Check pay rates"}
           </button>
         </div>
       )}
@@ -306,7 +306,7 @@ function StaffRow({
           (picking ? (
             <span className="xp-pick">
               <select value={pick} onChange={(e) => setPick(e.target.value)} aria-label={`Xero employee for ${row.name}`}>
-                <option value="">Choose…</option>
+                <option value="">Choose an employee</option>
                 {employees.map((e) => (
                   <option key={e.employeeId} value={e.employeeId}>
                     {e.name}

@@ -6,6 +6,7 @@ import { GATHER_MS } from "@/components/ui/dot-field";
 import { askBrain } from "@/lib/brain/ask-client";
 import { looksLikeMove, looksLikeQuestion } from "@/lib/brain/intent";
 import {
+  answerVisit,
   continueNote,
   dismissNote,
   fileNote,
@@ -19,6 +20,7 @@ import {
   type PublishKbResult,
   type RouteResult,
   type UndoResult,
+  type VisitResult,
 } from "@/app/actions/workboard-notes";
 import {
   fileCalendarLine,
@@ -32,7 +34,7 @@ import { filesNothing } from "@/lib/workboard/note-draft";
 import type { NoteDoor, NoteDoorKind } from "@/lib/workboard/note-applied";
 import { KEPT_AS_SAID, WHICH_JOB, earlierTurns, type EarlierTurn, type TiffRoom } from "@/lib/workboard/note-turns";
 import { notedLine } from "@/lib/calendar/line";
-import { askLine, calendarRows, lastTiff, planView, tiffSince, type PlanRowView } from "./plan-view";
+import { askLine, calendarRows, lastTiff, planView, tiffSince, withVariationCards, type PlanRowView } from "./plan-view";
 import { quietLimit } from "./quiet";
 import { openRecordByName, type OpenResult } from "@/app/actions/tiff-open";
 import { openName, parseMove } from "@/lib/tiff/moves";
@@ -94,7 +96,9 @@ export type Stage = "listening" | "editing" | "thinking" | "asking" | "answering
 
 export type Point = { x: number; y: number };
 
-export type QuickAnswer = { label: string; target?: NoteTarget };
+/** `visit`: an answer to "which time?" (the visit lane), sent to
+    `answerVisit` rather than as a reply. */
+export type QuickAnswer = { label: string; target?: NoteTarget; visit?: { index: number; start: string | null } };
 
 /** A door under Tiff's line: what a note filed, or what went on the calendar. */
 export type TurnDoor = Omit<NoteDoor, "kind"> & { kind: NoteDoorKind | "events" };
@@ -395,16 +399,23 @@ export function useConversation({
       changed.current = true;
       filed.current = [...filed.current, { noteId: n.id, ids: res.doors.flatMap((d) => d.ids) }];
       const gone = new Set(leave.current);
-      const rows = planView(n.proposal, n.staff, false).filter((row) => !gone.has(row.key));
-      return settle(() =>
+      /* a variation's row says what it became, and opens on the quote */
+      const rows = withVariationCards(planView(n.proposal, n.staff, false).filter((row) => !gone.has(row.key)), res.variations);
+      return settle(() => {
         tiffSays(lastTiff(res.turns) || "Done.", "filed", {
           rows,
           doors: res.doors,
           noteId: n.id,
           undo: "ready",
           filed: true,
-        })
-      );
+        });
+        /* A visit with no clear time is asked once the rest is filed
+           (decision 13): "which time?", the person's free starts tapped. */
+        if (res.ask) {
+          n.waiting = true;
+          asks(n, res.ask.question, res.ask.options);
+        }
+      });
     }
     if (res.ask) {
       n.waiting = true;
@@ -452,13 +463,14 @@ export function useConversation({
   const spoken = (ts: readonly ModalTurn[]) =>
     ts.filter((t) => t.text.trim() && !t.streaming).map((t) => ({ who: t.who, text: t.text }));
 
-  const route = async (words: string, source: "voice" | "text", before: readonly ModalTurn[]) => {
+  const route = async (words: string, source: "voice" | "text", before: readonly ModalTurn[], receiptId?: string) => {
     /* A new note after Tiff has already answered or filed something is read
        by what came before it ("and the same for Smith St"); a first note is
        sent exactly as it always was. */
     const prior = earlierTurns(spoken(before));
     const input: Parameters<typeof routeNote>[0] = { transcript: words, target, source, room };
     if (prior.length) input.before = prior;
+    if (receiptId) input.receiptId = receiptId;
     let r: RouteResult;
     try {
       r = await routeNote(input);
@@ -490,11 +502,14 @@ export function useConversation({
     read(res);
   };
 
-  const reply = async (n: Note, words: string) => {
+  const reply = async (n: Note, words: string, receiptId?: string) => {
     n.busy = true;
+    /* the arguments outside the try: the compiler takes no branch inside one */
+    const args: Parameters<typeof continueNote> = [n.id, words, [...leave.current]];
+    if (receiptId) args.push(receiptId);
     let r: RouteResult;
     try {
-      r = await continueNote(n.id, words, [...leave.current]);
+      r = await continueNote(...args);
     } catch {
       n.busy = false;
       if (!alive.current) return walkAway(n.id);
@@ -694,11 +709,19 @@ export function useConversation({
     onward();
   };
 
-  /** Where a reply goes. `before` is the conversation ahead of these words. */
-  const submit = (words: string, source: "voice" | "text", before: readonly ModalTurn[]) => {
+  /** Where a reply goes. `before` is the conversation ahead of these words.
+
+      `receiptId`: a photo sent with the words (the job conversation box's
+      Add photo), uploaded as the expense form uploads a receipt. Words with
+      a photo are a note, never a question or a move: they go to the router,
+      whose cost lane reads the photo with today's receipt reader, or to the
+      note waiting on an answer ("How much was it?" answered with the
+      receipt). */
+  const submit = (words: string, source: "voice" | "text", before: readonly ModalTurn[], receiptId?: string) => {
     if (calendar) return toCalendar(words, source, before);
     const n = note.current;
-    if (n?.waiting) return void reply(n, words);
+    if (n?.waiting) return void reply(n, words, receiptId);
+    if (receiptId) return void route(words, source, before, receiptId);
     /* A MOVE IS NEVER FILED (universal Tiff 1C): "take me to the workboard"
        goes to the ask route, which moves with no model call when it names a
        screen. After a waiting note, so an answer to her question still wins. */
@@ -714,7 +737,7 @@ export function useConversation({
   };
 
   /** Your words become a turn — the live one, if they arrived there. */
-  const commit = (words: string, source: "voice" | "text") => {
+  const commit = (words: string, source: "voice" | "text", receiptId?: string) => {
     listenBack.current = source === "voice";
     const key = live?.key ?? nextKey("you");
     const enter = live ? live.enter : true;
@@ -724,7 +747,7 @@ export function useConversation({
     setDraft("");
     setFixing(false);
     setSpoke(false);
-    submit(words, source, before);
+    submit(words, source, before, receiptId);
   };
 
   /* ── the microphone ── */
@@ -834,15 +857,21 @@ export function useConversation({
     return true;
   };
 
-  /** Send the words in the composer — typed, or fixed by hand. */
-  const send = () => {
+  const sendWords = (receiptId?: string) => {
     const words = draft.trim();
     if (!words) return;
     /* A read-back still in the air would land in the next box. */
     if (dict.transcribing) dict.cancel();
     think();
-    commit(words, spoke ? "voice" : "text");
+    commit(words, spoke ? "voice" : "text", receiptId);
   };
+
+  /** Send the words in the composer — typed, or fixed by hand. It takes no
+      argument: a button hands it its click. */
+  const send = () => sendWords();
+
+  /** The same, with a receipt photo the speaker uploaded going with them. */
+  const sendWithReceipt = (receiptId: string) => sendWords(receiptId.trim() || undefined);
 
   /** The dock's cross: this take is thrown away, the microphone let go,
       and it is back where it was before you talked: the reply box, or her
@@ -938,8 +967,35 @@ export function useConversation({
     addTurn({ who: "you", text: q.label });
     think();
     /* the words you picked go too, so the note keeps them as your turn */
-    if (q.target) void file(n, { retarget: q.target, answer: q.label });
+    if (q.visit) void bookVisit(n, q.label);
+    else if (q.target) void file(n, { retarget: q.target, answer: q.label });
     else void reply(n, q.label);
+  };
+
+  /** "Which time?" answered: the visit is booked on the filed note, or she
+      asks again ("What time?"), or says why it couldn't be. */
+  const bookVisit = async (n: Note, words: string) => {
+    n.busy = true;
+    let r: VisitResult;
+    try {
+      r = await answerVisit(n.id, words);
+    } catch {
+      n.busy = false;
+      return settle(() => tiffSays(NOT_REACHED, "failed"));
+    }
+    n.busy = false;
+    const res = r;
+    if (!alive.current) return;
+    if (res.ok) changed.current = true;
+    const line = (res.turns ? lastTiff(res.turns) : "") || (res.ok ? "Booked." : res.error);
+    return settle(() => {
+      if (res.ask) {
+        n.waiting = true;
+        return asks(n, line || res.ask.question, res.ask.options);
+      }
+      n.waiting = false;
+      tiffSays(line, res.ok ? "filed" : "failed", res.ok && res.visit ? { noteId: n.id } : {});
+    });
   };
 
   /** A row's cross: off the plan, and named to the server on the next call. */
@@ -1073,6 +1129,11 @@ export function useConversation({
     dropAim: () => setAimDropped(true),
     done,
     send,
+    /** Send, with a receipt photo's document id going as `receiptId`. */
+    sendWithReceipt,
+    /** The words in the composer were said, by a microphone the caller
+        holds (the job's conversation box): Send files them as voice. */
+    markSpoken: () => setSpoke(true),
     clear,
     fix,
     typeInstead,

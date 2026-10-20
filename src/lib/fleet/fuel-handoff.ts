@@ -33,6 +33,11 @@ export type FuelHandoff = {
   paidWith: "own" | "company";
   /** The stored docket, already uploaded as the log's own paper. */
   receiptDocumentId: string | null;
+  /** The litres, as the fuel log's own reader (`readFuelReceipt`) read them
+      off the docket in Claim an expense, or as typed there; "" for none. */
+  litres?: string;
+  /** The claim form's note, for the log's. */
+  note?: string;
 };
 
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
@@ -66,6 +71,8 @@ export function consumeFuelHandoff(): FuelHandoff | null {
       purchasedOn: str(parsed.purchasedOn),
       paidWith: parsed.paidWith === "own" ? "own" : "company",
       receiptDocumentId: typeof parsed.receiptDocumentId === "string" ? parsed.receiptDocumentId : null,
+      litres: str(parsed.litres),
+      note: str(parsed.note),
     };
   } catch {
     return null;

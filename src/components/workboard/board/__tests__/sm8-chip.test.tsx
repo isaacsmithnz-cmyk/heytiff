@@ -36,7 +36,7 @@ describe("what the server sends", () => {
       "ServiceM8 needs attention"
     );
     expect(renderToString(<Sm8Chip sm8={health({ running: true })} />)).toContain(
-      "ServiceM8 syncing…"
+      "Syncing with ServiceM8"
     );
   });
 
@@ -60,7 +60,7 @@ describe("once the browser has the clock", () => {
 
   it("says nothing about staleness while a sync is running", () => {
     render(<Sm8Chip sm8={health({ running: true })} />);
-    expect(screen.getByText("ServiceM8 syncing…")).toBeInTheDocument();
+    expect(screen.getByText("Syncing with ServiceM8")).toBeInTheDocument();
   });
 
   it("is absent entirely for a standalone org", () => {

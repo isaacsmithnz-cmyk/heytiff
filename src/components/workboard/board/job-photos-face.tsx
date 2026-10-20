@@ -113,7 +113,7 @@ export function JobPhotosFace({
 
       {photos === null || photos.length === 0 ? (
         <p className="int-hint">
-          {loading && photos === null ? "Reading the files…" : "No photos on this job."}
+          {loading && photos === null ? "Reading the photos" : "No photos on this job."}
         </p>
       ) : (
         days.map((day) => {
@@ -159,7 +159,8 @@ export function JobPhotosFace({
                         key={item.remoteId}
                         className="wb2-mcell"
                         style={shape}
-                        title={`${label} — the video stays in ServiceM8`}
+                        role="img"
+                        aria-label={label}
                       >
                         <span className="wb2-mtile video">
                           <i className="wb2-mplay" aria-hidden>
@@ -185,11 +186,6 @@ export function JobPhotosFace({
                           ? `Unstar ${item.name}`
                           : `Star ${item.name}`
                       }
-                      title={
-                        favourites?.has(item.remoteId)
-                          ? "Starred — in the gallery"
-                          : "Star this photo for the gallery"
-                      }
                     >
                       <Icon name="star" size={13} />
                     </button>
@@ -199,7 +195,6 @@ export function JobPhotosFace({
                       {item.url ? (
                         <button
                           className="wb2-mtile"
-                          title={label}
                           aria-label={`Open ${item.name}`}
                           onClick={() => onOpen(item.remoteId)}
                         >
@@ -213,7 +208,7 @@ export function JobPhotosFace({
                            image, and beats hiding a photo that exists — and
                            it can still be starred: the star is what sends
                            for the bytes. */
-                        <span className="wb2-mtile pending" title={label}>
+                        <span className="wb2-mtile pending" role="img" aria-label={label}>
                           <Icon name="cam" size={16} />
                         </span>
                       )}

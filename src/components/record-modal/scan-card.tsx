@@ -198,7 +198,7 @@ export function ScanCard<R extends { ok: boolean }>({
       {mode === "reading" && (
         <div className="vm-reading" role="status">
           <span className="vm-shimmer" />
-          <span>Reading {fileName ?? "the document"}…</span>
+          <span>Reading {fileName ?? "the document"}</span>
         </div>
       )}
 

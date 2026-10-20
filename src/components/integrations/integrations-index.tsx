@@ -9,7 +9,8 @@
 
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
-import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
+import { ScreenPanel } from "@/components/shell/screen-band";
+import { SettingsHead } from "@/components/settings/settings-head";
 import { PROVIDERS } from "@/lib/integrations/providers";
 import type { ConnectionView } from "@/lib/integrations/connection";
 
@@ -30,7 +31,16 @@ export function statusLabel(conn: ConnectionView | undefined): {
   return { text: conn.tenantName ?? "Connected", tone: "on" };
 }
 
+/** The connection said as a settings page's fact line, "Connected to Acme
+    Pty Ltd". Anything short of connected the page's own body says, with
+    what to do, so the head says nothing. */
+export function connectionFacts(conn: ConnectionView | null | undefined): string | null {
+  if (statusLabel(conn ?? undefined).tone !== "on") return null;
+  return conn?.tenantName ? `Connected to ${conn.tenantName}` : "Connected";
+}
+
 export function IntegrationsIndex({ connections }: IntegrationsIndexProps) {
+  const connected = PROVIDERS.filter((p) => statusLabel(connections[p.id]).tone === "on").length;
   return (
     /* Paper to the frame, the title in the band and the way back above it —
        the same shell the Admin menu that opens this page now wears
@@ -39,15 +49,7 @@ export function IntegrationsIndex({ connections }: IntegrationsIndexProps) {
     <div className="page in full">
       <div className="wrap">
         <div className="stg">
-          <ScreenBand
-            crumb={
-              <Link href="/dashboard/admin" className="int-back">
-                <Icon name="chevL" size={15} />
-                Admin
-              </Link>
-            }
-            title="Integrations"
-          />
+          <SettingsHead heading="Integrations" facts={`${connected} of ${PROVIDERS.length} connected`} />
           <ScreenPanel>
           <p className="int-lede">
             Apps this workspace is connected to. Connecting one lets HeyTiff read what it needs

@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useOverlay } from "@/components/overlay/use-overlay";
 import { Icon } from "@/components/shell/icon";
@@ -261,7 +262,9 @@ export function JobMediaViewer({
       <div className="wb2-mvscrim" onClick={onClose} />
       <div ref={dialog} className="wb2-mv" role="dialog" aria-modal="true" aria-label={item.name}>
         <div className="wb2-mvtop">
-          <b>{item.name}</b>
+          <b>
+            <Fade>{item.name}</Fade>
+          </b>
           <em>{[when, item.origin].filter(Boolean).join(", ")}</em>
           {item.fromClaim && <i className="wb2-chip">{`#${item.fromClaim}`}</i>}
           <span className="wb2-mvsp" />
@@ -276,11 +279,6 @@ export function JobMediaViewer({
               aria-label={
                 favourites?.has(item.remoteId) ? `Unstar ${item.name}` : `Star ${item.name}`
               }
-              title={
-                favourites?.has(item.remoteId)
-                  ? "Starred — in the gallery"
-                  : "Star this photo for the gallery"
-              }
             >
               <Icon name="star" size={14} />
             </button>
@@ -288,7 +286,7 @@ export function JobMediaViewer({
           {items.length > 1 && (
             <em className="wb2-mvcount">{`${index + 1} / ${items.length}`}</em>
           )}
-          <button className="wb2-ico" onClick={onClose} title="Close" aria-label="Close viewer">
+          <button className="wb2-ico" onClick={onClose} aria-label="Close viewer">
             <Icon name="x" size={14} />
           </button>
         </div>
@@ -356,7 +354,6 @@ export function JobMediaViewer({
                 role="tab"
                 aria-selected={i === index}
                 aria-label={it.name}
-                title={it.name}
                 onClick={() => onNav(i)}
               >
                 {it.url ? (

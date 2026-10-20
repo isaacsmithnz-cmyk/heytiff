@@ -1,0 +1,176 @@
+/* THE CONTROLS: buttons, links, ticks, switches, state words and initials
+   (docs/design.md, rules 16 to 18, 22 to 28, 32 and 38).
+
+   Every rule that sets something the `.fg button` reset clears (font,
+   colour, fill, border, cursor) is written with two classes, or a class
+   and an attribute, so at (0,2,0) it beats the reset's (0,1,1) inside the
+   frame, and needs no frame in a portal. Blue is `--press`: blue only
+   means press (rule 17). */
+
+/* ---- Buttons (22 to 28) ---- */
+
+.pt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  margin: 0;
+  border-radius: var(--r-button);
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.pt-btn__icon { display: inline-flex; flex: 0 0 auto; }
+
+/* three heights (28); words 14 at 36 and 44, 13 at 32 */
+.pt-btn.pt-btn--32 { height: 32px; padding: 0 12px; font-family: var(--font); font-size: 13px; line-height: 18px; font-weight: 600; }
+.pt-btn.pt-btn--36 { height: 36px; padding: 0 16px; font-family: var(--font); font-size: 14px; line-height: 20px; font-weight: 600; }
+.pt-btn.pt-btn--44 { height: 44px; padding: 0 16px; font-family: var(--font); font-size: 14px; line-height: 20px; font-weight: 600; }
+
+/* icon-only (27): square, the height of its size */
+.pt-btn.pt-btn--icon { padding: 0; }
+.pt-btn.pt-btn--icon.pt-btn--32 { width: 32px; }
+.pt-btn.pt-btn--icon.pt-btn--36 { width: 36px; }
+.pt-btn.pt-btn--icon.pt-btn--44 { width: 44px; }
+
+/* main (22): blue, white words; its hover keeps the blue */
+.pt-btn.pt-btn--main { background: var(--press); color: var(--white); border: 1px solid var(--press); cursor: pointer; }
+/* second (23): white, a thin outline */
+.pt-btn.pt-btn--second { background: var(--white); color: var(--ink); border: 1px solid var(--edge); cursor: pointer; }
+/* quiet (24): no edge until you point at it */
+.pt-btn.pt-btn--quiet { background: transparent; color: var(--ink); border: 1px solid transparent; cursor: pointer; }
+/* delete (25): a red word on the second button */
+.pt-btn.pt-btn--delete { background: var(--white); color: var(--red-w); border: 1px solid var(--edge); cursor: pointer; }
+/* danger (25): the red block, only in the dialog that asks you to be sure;
+   ink words, as on every solid hue but blue (the palette) */
+.pt-btn.pt-btn--danger { background: var(--red); color: var(--ink); border: 1px solid var(--red); cursor: pointer; }
+
+/* a hover is one change, a fill (23) */
+.pt-btn.pt-btn--second:hover:not(:disabled):not([aria-disabled="true"]),
+.pt-btn.pt-btn--quiet:hover:not(:disabled):not([aria-disabled="true"]),
+.pt-btn.pt-btn--delete:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--hov); }
+
+/* a press moves 1px and changes nothing else */
+.pt-btn:active:not(:disabled):not([aria-disabled="true"]) { transform: translateY(1px); }
+
+.pt-btn:focus-visible { outline: none; box-shadow: var(--ring); }
+
+.pt-btn:disabled,
+.pt-btn[aria-disabled="true"] { opacity: .5; cursor: default; pointer-events: none; }
+
+/* ---- Links (26): ink, underlined, at the size of the text around them ---- */
+
+.pt-link { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.pt-link:focus-visible { outline: none; box-shadow: var(--ring); border-radius: var(--r-control); }
+
+/* ---- Ticks (32): 16, the fields' 6 corner, blue when on ---- */
+
+.pt-tick { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.pt-tick.pt-tick--disabled { opacity: .5; cursor: default; }
+.pt-tick__box { position: relative; display: inline-flex; flex: 0 0 auto; width: 16px; height: 16px; }
+.pt-tick__input {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border: 1px solid var(--grey);
+  border-radius: var(--r-control);
+  background: var(--white);
+  cursor: inherit;
+  transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.pt-tick__input:hover:not(:checked):not(:disabled) { border-color: var(--q); }
+.pt-tick__input:checked { background: var(--press); border-color: var(--press); }
+.pt-tick__input:focus-visible { outline: none; box-shadow: var(--ring); }
+.pt-tick__mark { position: absolute; inset: 0; color: var(--white); pointer-events: none; visibility: hidden; }
+.pt-tick__input:checked + .pt-tick__mark { visibility: visible; }
+.pt-tick__word { font-family: var(--font); font-size: 14px; line-height: 20px; font-weight: 400; color: var(--ink); }
+
+/* ---- Switches (32): a 32 by 20 track, a round knob, blue when on ---- */
+
+.pt-switch[role="switch"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+  text-align: left;
+  cursor: pointer;
+}
+.pt-switch[role="switch"]:disabled { opacity: .5; cursor: default; }
+.pt-switch[role="switch"]:focus-visible { outline: none; }
+.pt-switch__track {
+  position: relative;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: 32px;
+  height: 20px;
+  border-radius: var(--r-pill);
+  background: var(--grey);
+  transition: background-color var(--t-fast) var(--ease);
+}
+.pt-switch__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--r-pill);
+  background: var(--white);
+  transition: transform var(--t-move) var(--ease);
+}
+.pt-switch[role="switch"]:hover:not(:disabled)[aria-checked="false"] .pt-switch__track { background: var(--q); }
+.pt-switch[role="switch"][aria-checked="true"] .pt-switch__track { background: var(--press); }
+.pt-switch[role="switch"][aria-checked="true"] .pt-switch__knob { transform: translateX(12px); }
+.pt-switch[role="switch"]:focus-visible .pt-switch__track { box-shadow: var(--ring); }
+
+/* ---- State (16 to 18): a dot and a word, never a pill ---- */
+
+.pt-dot { display: inline-block; flex: 0 0 auto; width: 8px; height: 8px; border-radius: var(--r-pill); }
+.pt-dot.pt-dot--red { background: var(--red); }
+.pt-dot.pt-dot--orange { background: var(--orange); }
+.pt-dot.pt-dot--yellow { background: var(--yellow); }
+.pt-dot.pt-dot--green { background: var(--green); }
+.pt-dot.pt-dot--blue { background: var(--press); }
+.pt-dot.pt-dot--purple { background: var(--purple); }
+.pt-dot.pt-dot--pink { background: var(--pink); }
+.pt-dot.pt-dot--grey { background: var(--grey); }
+
+.pt-state { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font); font-size: 13px; line-height: 18px; font-weight: 500; }
+.pt-state.pt-state--wrong { color: var(--red-w); }
+.pt-state.pt-state--look { color: var(--orange-w); }
+.pt-state.pt-state--good { color: var(--green-w); }
+.pt-state.pt-state--info { color: var(--q); }
+
+/* ---- People (38): initials on a light grey disc ---- */
+
+.pt-initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: var(--r-pill);
+  background: var(--sel);
+  color: var(--ink);
+  font-family: var(--font);
+  font-weight: 600;
+  user-select: none;
+}
+.pt-initials.pt-initials--24 { width: 24px; height: 24px; font-size: 12px; line-height: 16px; }
+.pt-initials.pt-initials--32 { width: 32px; height: 32px; font-size: 13px; line-height: 18px; }
+.pt-initials.pt-initials--40 { width: 40px; height: 40px; font-size: 16px; line-height: 24px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pt-btn, .pt-tick__input, .pt-switch__track, .pt-switch__knob { transition: none; }
+}

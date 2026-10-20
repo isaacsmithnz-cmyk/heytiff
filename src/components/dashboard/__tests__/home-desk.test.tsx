@@ -15,6 +15,7 @@ import { buildConversations, diaryFeed, type DiaryConversation, type MentionNote
 import { TiffContext, type TiffApi, type TiffLanded } from "@/components/tiff/modal/tiff-context";
 import type { HomeIssue } from "@/lib/dashboard/issues";
 import { FLASH_MS } from "../home-list";
+import { EMPTY_TODO } from "@/lib/dashboard/todo";
 import { typedAbout, type RecordTask, type TaskAbout, type TaskRecord } from "@/lib/dashboard/task-record";
 
 /* THE NEW HOME'S FRAME (H11): the date in the band, "Your day" over Diary
@@ -31,7 +32,7 @@ import { typedAbout, type RecordTask, type TaskAbout, type TaskRecord } from "@/
    diary's box is the real one, and its Tiff button opens only the modal. */
 jest.mock("@/components/notes/note-token", () => ({
   NoteToken: ({ placeholder }: { placeholder?: string }) => (
-    <button aria-label={placeholder ?? "Add to the diary…"} />
+    <button aria-label={placeholder ?? "Add to the diary"} />
   ),
 }));
 const openRecordByName = jest.fn(async (_words: string) => null as { href: string; label: string; line: string } | null);
@@ -301,6 +302,7 @@ const data = (over: Partial<DashboardData> = {}): DashboardData => ({
   today: TODAY,
   rail: rail(),
   desk: deskOf(over.journal ?? []),
+  todo: EMPTY_TODO,
   ...over,
 });
 
@@ -474,7 +476,7 @@ describe("the faces", () => {
     expect(page).not.toBeNull();
     const views = within(face("calendar")).getByRole("group", { name: "View" });
     expect(within(views).getByRole("button", { name: "4 weeks" })).toHaveAttribute("aria-pressed", "true");
-    const add = within(face("calendar")).getByRole("textbox", { name: "Add to today…" });
+    const add = within(face("calendar")).getByRole("textbox", { name: "Add to today" });
     expect(add.closest(".hd-cal-side")).not.toBeNull();
     const row = screen.getByRole("tablist", { name: "Home" });
     expect(row.contains(views)).toBe(false);
@@ -791,8 +793,24 @@ describe("the one door between faces", () => {
   }, WHOLE);
 });
 
-/* The bell's door onto a Done that didn't go to ServiceM8 (two-way phase 2,
-   PR C) opens /dashboard?task=<id>, and the desk is the owner's Home: it
+/* Home's links into the desk, since v2's Home took /dashboard: Today's
+   Calendar names the face (`?face=calendar`), and To do's Reply names an
+   ask (`?ask=<note>`), which opens on the Diary. */
+describe("a face or an ask the address names", () => {
+  it("(F) opens the desk on the face named", () => {
+    render(<DashboardDesk data={data()} face="calendar" />);
+    expect(tab("Calendar")).toHaveAttribute("aria-selected", "true");
+    expect(shownFaces()).toEqual(["calendar"]);
+  }, WHOLE);
+
+  it("(F) opens the desk on the Diary for an ask", () => {
+    render(<DashboardDesk data={data()} askId="00000000-0000-4000-8000-0000000000a1" face="calendar" />);
+    expect(tab("Diary")).toHaveAttribute("aria-selected", "true");
+  }, WHOLE);
+});
+
+/* An alert's door onto a Done that didn't go to ServiceM8 (two-way phase 2,
+   PR C) opens /dashboard/desk?task=<id>, the owner's old Home: it
    opens there on the task, open on the Tasks face, and the task says where
    its Done stands — from the lines read over the face's own tasks
    (`desk.taskLines`), which reach back as far as its Done does. */

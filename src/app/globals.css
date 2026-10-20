@@ -8,20 +8,20 @@
    ============================================================================ */
 @theme {
   /* Brand */
-  --color-brand-teal: #00e5c0; /* primary accent */
-  --color-brand-teal-dark: #00a389; /* teal on light backgrounds / text */
-  --color-brand-teal-bright: #00d0ae; /* teal hover */
-  --color-brand-blue: #2e68ff;
-  --color-brand-violet: #8a2be2;
-  --color-brand-red: #ff3366; /* alerts / important */
-  --color-brand-orange: #ff8a00; /* design-studio accent */
+  --color-brand-teal: #2563eb; /* v2: the teal leaves (rule 9); the old name points at blue, the colour of pressing, until its last use goes */
+  --color-brand-teal-dark: #2563eb;
+  --color-brand-teal-bright: #2563eb; /* a hover keeps its colour (Isaac, 17 October) */
+  --color-brand-blue: #2563eb;
+  --color-brand-violet: #a855f7;
+  --color-brand-red: #ef4444; /* wrong, late, failed: red only means wrong (rule 16) */
+  --color-brand-orange: #f97316;
 
   /* Ink (dark surfaces & primary text) */
   --color-ink: #050505;
-  --color-ink-2: #0a0b10; /* hero / elevated dark */
+  --color-ink-2: #050505; /* v2 has one ink */
 
   /* Light surfaces */
-  --color-surface: #f0f2f5; /* app page background */
+  --color-surface: #ffffff; /* v2: the page is white (rule 1) */
   --color-surface-line: #f0f0f2; /* card / hairline borders */
 
   /* QUIET TEXT, for the screens that live OUTSIDE the app shell — the front

@@ -85,15 +85,15 @@ export function SimControllerCard({
           className={`ds-sim-power${hs?.on ? " on" : ""}`}
           disabled={!active}
           onClick={() => active && runtime.setOn(active.id, !hs?.on)}
-          title={hs?.on ? "Turn the system off" : "Turn the system on"}
           aria-label="Power"
+          aria-pressed={!!hs?.on}
         >
           <PowerIcon />
         </button>
         <span className="ds-sim-title">Simulate</span>
         <span className="ds-sim-clock">{clock}</span>
         {onExit && (
-          <button className="ds-sim-x" onClick={onExit} title="Exit simulation" aria-label="Exit simulation">
+          <button className="ds-sim-x" onClick={onExit} aria-label="Exit simulation">
             ×
           </button>
         )}
@@ -199,7 +199,6 @@ export function SimControllerCard({
         step={1}
         value={state.outdoorC}
         aria-label="Outdoor temperature"
-        title="Outside air temperature"
         onChange={(e) => runtime.setOutdoor(Number(e.target.value))}
       />
 
@@ -207,7 +206,7 @@ export function SimControllerCard({
         <button
           className={`ds-sim-chip${state.paused ? " on" : ""}`}
           onClick={() => runtime.setPaused(!state.paused)}
-          title={state.paused ? "Resume" : "Pause"}
+          aria-label={state.paused ? "Resume" : "Pause"}
         >
           {state.paused ? "▶" : "❚❚"}
         </button>

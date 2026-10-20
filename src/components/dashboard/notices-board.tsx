@@ -6,29 +6,23 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useOverlay } from "@/components/overlay/use-overlay";
 import { Icon } from "@/components/shell/icon";
+import { Tooltip } from "@/components/parts/tooltip";
 import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
-import { DateField } from "@/components/ui/date-field";
+import { Button } from "@/components/parts/button";
+import { NoticeForm } from "@/components/making/notice-form";
 import {
   castPollVote,
   commentOnNotice,
   deleteComment,
   deleteNotice,
-  editNotice,
   markNoticesRead,
-  postNotice,
   reactToNotice,
   setNoticeArchived,
   setRsvp,
 } from "@/app/actions/dashboard";
 import { expiryLabel, partitionNotices } from "@/lib/dashboard/notices";
-import {
-  cleanPollOptions,
-  MAX_POLL_OPTIONS,
-  nextSelection,
-  POLL_ERROR_TEXT,
-  type PollResult,
-} from "@/lib/dashboard/polls";
-import { eventWhen, isEventTime, rsvpSummary } from "@/lib/dashboard/events";
+import { nextSelection, type PollResult } from "@/lib/dashboard/polls";
+import { eventWhen, rsvpSummary } from "@/lib/dashboard/events";
 import {
   nextReaction,
   REACTIONS,
@@ -43,9 +37,7 @@ import {
   type CommentRow,
   type MentionTarget,
 } from "@/lib/dashboard/comments";
-import { deleteDocument } from "@/app/actions/documents";
-import { ALLOWED_TYPES, displayName, fmtBytes, MAX_NOTICE_FILES } from "@/lib/documents/files";
-import { uploadFile, type UploadedFile } from "@/lib/documents/upload-client";
+import { displayName, fmtBytes } from "@/lib/documents/files";
 import type { StoredDocument } from "@/lib/documents/query";
 import type { BoardNotice } from "@/lib/dashboard/board";
 
@@ -223,18 +215,18 @@ function ReactionRow({
   return (
     <div className="nb-reacts">
       {reactions.tallies.map((t) => (
-        <button
-          key={t.emoji}
-          type="button"
-          className={`nb-react${t.mine ? " on" : ""}`}
-          disabled={pending}
-          aria-pressed={t.mine}
-          title={t.names.join(", ")}
-          onClick={() => onReact(nextReaction(reactions.mine, t.emoji))}
-        >
-          <span aria-hidden>{t.emoji}</span>
-          {t.count}
-        </button>
+        <Tooltip key={t.emoji} label={t.names.join(", ")}>
+          <button
+            type="button"
+            className={`nb-react${t.mine ? " on" : ""}`}
+            disabled={pending}
+            aria-pressed={t.mine}
+            onClick={() => onReact(nextReaction(reactions.mine, t.emoji))}
+          >
+            <span aria-hidden>{t.emoji}</span>
+            {t.count}
+          </button>
+        </Tooltip>
       ))}
       <button
         type="button"
@@ -708,6 +700,7 @@ export function NoticesBoard({
   today,
   staff,
   viewerStaffId,
+  embedded = false,
 }: {
   notices: BoardNotice[];
   canManage: boolean;
@@ -715,34 +708,19 @@ export function NoticesBoard({
   today: string;
   staff: MentionTarget[];
   viewerStaffId: string | null;
+  /** Team's Notices view: the board without its own page, band and way
+      back, Write a notice standing over it. Everything else is the board. */
+  embedded?: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  /* WRITE A NOTICE (components/making/notice-form): the board's own button
+     opens it empty, and Edit on a notice of yours opens it filled in. */
+  const [writing, setWriting] = useState<{ notice: BoardNotice | null } | null>(null);
   const [showArchive, setShowArchive] = useState(false);
   // one armed delete at a time — see NoticeCard's delete button
   const [armedRemove, setArmedRemove] = useState<string | null>(null);
-
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [pinned, setPinned] = useState(false);
-  const [expiresAt, setExpiresAt] = useState("");
-  const [kind, setKind] = useState<"notice" | "poll" | "event">("notice");
-  // two empty answers up front: a poll needs two, so ask for two
-  const [options, setOptions] = useState<string[]>(["", ""]);
-  const [multi, setMulti] = useState(false);
-  const [eventDate, setEventDate] = useState("");
-  const [eventTime, setEventTime] = useState("");
-  const [eventLocation, setEventLocation] = useState("");
-  // files land in storage as they're picked, BEFORE the notice exists; posting
-  // is what claims them. An abandoned composer therefore leaves rows nobody can
-  // see rather than a half-attached notice.
-  const [files, setFiles] = useState<UploadedFile[]>([]);
-  const [uploading, setUploading] = useState(false);
-
-  const draftPoll = useMemo(() => cleanPollOptions(options), [options]);
 
   const { active, archived } = useMemo(() => partitionNotices(notices, today), [notices, today]);
 
@@ -757,56 +735,6 @@ export function NoticesBoard({
     const outstanding = active.filter((n) => !n.mine && n.state !== "read").map((n) => n.id);
     if (outstanding.length > 0) void markNoticesRead(outstanding);
   }, [canRead, active]);
-
-  const reset = () => {
-    setTitle("");
-    setBody("");
-    setPinned(false);
-    setExpiresAt("");
-    setKind("notice");
-    setOptions(["", ""]);
-    setMulti(false);
-    setEventDate("");
-    setEventTime("");
-    setEventLocation("");
-    for (const f of files) if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
-    setFiles([]);
-    setEditingId(null);
-    setOpen(false);
-  };
-
-  /* Picking files uploads them straight away — the notice they'll hang off
-     doesn't exist yet, and won't until Post. One failure doesn't cancel the
-     rest of the selection; it just says which one didn't make it. */
-  const pickFiles = async (picked: FileList | null) => {
-    if (!picked || picked.length === 0) return;
-    setError(null);
-    setUploading(true);
-    let room = MAX_NOTICE_FILES - files.length;
-    for (const file of Array.from(picked)) {
-      if (room <= 0) {
-        setError(`You can attach up to ${MAX_NOTICE_FILES} files.`);
-        break;
-      }
-      const res = await uploadFile(file, "notice_attachment");
-      if (!res.ok) {
-        setError(`${displayName(file.name)}: ${res.error}`);
-        continue;
-      }
-      room -= 1;
-      setFiles((prev) => [...prev, res.file]);
-    }
-    setUploading(false);
-  };
-
-  const dropFile = (documentId: string) => {
-    const going = files.find((f) => f.documentId === documentId);
-    if (going?.previewUrl) URL.revokeObjectURL(going.previewUrl);
-    setFiles((prev) => prev.filter((f) => f.documentId !== documentId));
-    // it was already in storage, so taking it out of the composer has to take
-    // it out of the bucket too — otherwise it's billable and invisible
-    void deleteDocument(documentId);
-  };
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, after?: () => void) => {
     setError(null);
@@ -828,17 +756,8 @@ export function NoticesBoard({
     viewerStaffId,
     canRead,
     onEdit: (n) => {
-      setEditingId(n.id);
-      setTitle(n.title);
-      setBody(n.body ?? "");
-      setPinned(n.pinned);
-      setExpiresAt(n.expiresAt ?? "");
-      setKind(n.kind);
-      setEventDate(n.event?.date ?? "");
-      setEventTime(n.event?.time ?? "");
-      setEventLocation(n.event?.location ?? "");
-      setOpen(true);
       setError(null);
+      setWriting({ notice: n });
     },
     onArchive: (n) => run(() => setNoticeArchived(n.id, n.archivedAt === null)),
     onRemove: (id) => run(() => deleteNotice(id)),
@@ -852,47 +771,57 @@ export function NoticesBoard({
     onDeleteComment: (commentId) => run(() => deleteComment(commentId)),
   };
 
-  const composingPoll = kind === "poll" && !editingId;
-  // an event's when/where stays editable after posting — plans move
-  const showingEvent = kind === "event";
+  const board = (
+    <>
+      {error && <div className="tp-err">{error}</div>}
+      {writing && <NoticeForm today={today} notice={writing.notice} onClose={() => setWriting(null)} />}
 
-  const submit = () =>
-    run(
-      () =>
-        editingId
-          ? // an EDIT reaches the wording, and an event's when/where — but
-            // never a poll's answers, which are fixed once people start voting
-            // or the result stops meaning what the early voters agreed to
-            editNotice({
-              noticeId: editingId,
-              title,
-              body: body || undefined,
-              pinned,
-              expiresAt: expiresAt || null,
-              documentIds: files.map((f) => f.documentId),
-              ...(showingEvent
-                ? { eventDate, eventTime: eventTime || undefined, eventLocation }
-                : {}),
-            })
-          : postNotice({
-              title,
-              body: body || undefined,
-              pinned,
-              expiresAt: expiresAt || null,
-              kind,
-              documentIds: files.map((f) => f.documentId),
-              ...(kind === "poll" ? { options, multi } : {}),
-              ...(showingEvent
-                ? { eventDate, eventTime: eventTime || undefined, eventLocation }
-                : {}),
-            }),
-      reset,
+      {active.length === 0 ? (
+        <div className="emptybox">
+          <div className="ei">
+            <Icon name="bell" size={22} />
+          </div>
+          <b>Nothing on the board</b>
+          <em>
+            {canManage
+              ? "Write a notice and everyone will see it here."
+              : "Announcements from your team will appear here."}
+          </em>
+        </div>
+      ) : (
+        active.map((n) => <NoticeCard key={n.id} notice={n} acts={acts} />)
+      )}
+
+      {archived.length > 0 && (
+        <>
+          <button
+            type="button"
+            className="nb-archtoggle"
+            aria-expanded={showArchive}
+            onClick={() => setShowArchive((v) => !v)}
+          >
+            <Icon name={showArchive ? "chevD" : "chevR"} size={14} />
+            Archived, {archived.length}
+          </button>
+          {showArchive && archived.map((n) => <NoticeCard key={n.id} notice={n} acts={acts} />)}
+        </>
+      )}
+    </>
+  );
+
+  if (embedded)
+    return (
+      <div className="tm2-notices">
+        {canManage && (
+          <div className="tm2-tools">
+            <Button kind="second" icon="plus" disabled={pending} onClick={() => setWriting({ notice: null })}>
+              Write a notice
+            </Button>
+          </div>
+        )}
+        {board}
+      </div>
     );
-
-  const blocked =
-    !title.trim() ||
-    (composingPoll && !draftPoll.ok) ||
-    (showingEvent && (!eventDate || (!!eventTime && !isEventTime(eventTime))));
 
   return (
     /* Paper to the frame, the title in the band, and the way back on its own
@@ -909,300 +838,14 @@ export function NoticesBoard({
             }
             title="Noticeboard"
             tools={
-              canManage && !editingId ? (
-                <button
-                  className="pbtn primary"
-                  disabled={pending}
-                  onClick={() => (open ? reset() : setOpen(true))}
-                >
-                  <Icon name="plus" size={14} />
-                  Post a notice
-                </button>
+              canManage ? (
+                <Button kind="main" icon="plus" disabled={pending} onClick={() => setWriting({ notice: null })}>
+                  Write a notice
+                </Button>
               ) : null
             }
           />
-          <ScreenPanel>
-          {error && <div className="tp-err">{error}</div>}
-
-          {open && (
-            <div className="lv-form">
-              {!editingId && (
-                <div className="nb-kinds" role="group" aria-label="What are you posting">
-                  {(["notice", "poll", "event"] as const).map((k) => (
-                    <button
-                      key={k}
-                      type="button"
-                      className={`nb-kind${kind === k ? " on" : ""}`}
-                      aria-pressed={kind === k}
-                      onClick={() => setKind(k)}
-                    >
-                      {k === "notice" ? "Notice" : k === "poll" ? "Poll" : "Event"}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <div className="lv-fnote">
-                <label className="mts-f" style={{ flex: 1 }}>
-                  <span>{composingPoll ? "Question" : showingEvent ? "What's on" : "Title"}</span>
-                  <input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder={
-                      composingPoll
-                        ? "e.g. Which day suits for the toolbox talk?"
-                        : showingEvent
-                          ? "e.g. Toolbox talk"
-                          : "e.g. Depot closed Friday"
-                    }
-                  />
-                </label>
-              </div>
-              <div className="lv-fnote">
-                <label className="mts-f" style={{ flex: 1 }}>
-                  <span>{composingPoll ? "Any detail (optional)" : "Message (optional)"}</span>
-                  {/* A TEXTAREA, because this is the announcement. It was a
-                      one-line `<input>`: "Depot closed Friday — the yard is
-                      being resurfaced, park on Mills St, and take the
-                      compressor home Thursday night" had to be typed into a
-                      box that scrolls sideways and can never hold a paragraph
-                      break. `.nb-body` already renders the stored text with
-                      pre-wrap, so the newlines survive the round trip; nothing
-                      but the composer was stopping anyone writing them. */}
-                  <textarea
-                    className="nb-bodyin"
-                    rows={3}
-                    value={body}
-                    onChange={(e) => setBody(e.target.value)}
-                    placeholder="The details — as many lines as it takes"
-                  />
-                </label>
-              </div>
-
-              {showingEvent && (
-                <div className="lv-fnote" style={{ gap: 12, flexWrap: "wrap" }}>
-                  <label className="mts-f" style={{ flex: "1 1 180px" }}>
-                    <span>Day</span>
-                    <DateField
-                      value={eventDate || null}
-                      today={today}
-                      onChange={(iso) => setEventDate(iso ?? "")}
-                    />
-                  </label>
-                  <label className="mts-f" style={{ flex: "0 1 140px" }}>
-                    <span>Start (optional)</span>
-                    <input
-                      type="time"
-                      value={eventTime}
-                      onChange={(e) => setEventTime(e.target.value)}
-                    />
-                  </label>
-                  <label className="mts-f" style={{ flex: "1 1 220px" }}>
-                    <span>Where (optional)</span>
-                    <input
-                      value={eventLocation}
-                      onChange={(e) => setEventLocation(e.target.value)}
-                      placeholder="e.g. The depot"
-                    />
-                  </label>
-                </div>
-              )}
-
-              {composingPoll && (
-                <div className="nb-optedit">
-                  <span className="nb-optedith">Answers</span>
-                  {options.map((o, i) => (
-                    <div className="nb-optrow" key={i}>
-                      <input
-                        value={o}
-                        placeholder={`Answer ${i + 1}`}
-                        onChange={(e) =>
-                          setOptions((prev) => prev.map((x, j) => (j === i ? e.target.value : x)))
-                        }
-                      />
-                      {options.length > 2 && (
-                        <button
-                          type="button"
-                          className="nb-optdrop"
-                          aria-label={`Remove answer ${i + 1}`}
-                          onClick={() => setOptions((prev) => prev.filter((_, j) => j !== i))}
-                        >
-                          <Icon name="x" size={13} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  {options.length < MAX_POLL_OPTIONS && (
-                    <button
-                      type="button"
-                      className="fl-btn ghost"
-                      onClick={() => setOptions((prev) => [...prev, ""])}
-                    >
-                      <Icon name="plus" size={13} />
-                      Add an answer
-                    </button>
-                  )}
-                  <label
-                    className="mts-f"
-                    style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={multi}
-                      onChange={(e) => setMulti(e.target.checked)}
-                      style={{ width: "auto" }}
-                    />
-                    <span style={{ margin: 0 }}>Allow more than one answer</span>
-                  </label>
-                  {/* only nag once there's something to nag about */}
-                  {!draftPoll.ok && options.some((o) => o.trim()) && (
-                    <div className="dash-mini">{POLL_ERROR_TEXT[draftPoll.error]}</div>
-                  )}
-                </div>
-              )}
-
-              <div className="nb-optedit">
-                <span className="nb-optedith">Photos & files</span>
-                {files.length > 0 && (
-                  <div className="nb-files">
-                    {files.map((f) => (
-                      <div className="nb-pending" key={f.documentId}>
-                        {f.previewUrl ? (
-                          /* eslint-disable-next-line @next/next/no-img-element --
-                             an in-memory object URL; there is nothing to optimise */
-                          <img src={f.previewUrl} alt={displayName(f.fileName)} />
-                        ) : (
-                          <span className="nb-pendingdoc">
-                            <Icon name="file" size={16} />
-                          </span>
-                        )}
-                        <span className="nb-pendingname">
-                          <b>{displayName(f.fileName)}</b>
-                          <em>{fmtBytes(f.sizeBytes)}</em>
-                        </span>
-                        <button
-                          type="button"
-                          className="nb-optdrop"
-                          aria-label={`Remove ${displayName(f.fileName)}`}
-                          onClick={() => dropFile(f.documentId)}
-                        >
-                          <Icon name="x" size={13} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {files.length < MAX_NOTICE_FILES && (
-                  <label className="fl-btn ghost" style={{ cursor: "pointer" }}>
-                    <Icon name="plus" size={13} />
-                    {uploading ? "Uploading…" : "Attach a photo or file"}
-                    <input
-                      type="file"
-                      multiple
-                      accept={Object.keys(ALLOWED_TYPES).join(",")}
-                      disabled={uploading}
-                      style={{ display: "none" }}
-                      onChange={(e) => {
-                        void pickFiles(e.target.files);
-                        e.target.value = "";
-                      }}
-                    />
-                  </label>
-                )}
-                <div className="dash-mini">
-                  Photos and PDFs, up to {MAX_NOTICE_FILES} of them. Only people in your
-                  organisation can open them.
-                </div>
-              </div>
-
-              <div className="lv-fnote">
-                <label className="mts-f" style={{ flex: 1 }}>
-                  <span>
-                    {showingEvent
-                      ? "Comes off the board after (defaults to the day itself)"
-                      : "Comes off the board after (optional)"}
-                  </span>
-                  <DateField
-                    value={expiresAt || null}
-                    today={today}
-                    clearable
-                    placeholder="No date"
-                    onChange={(iso) => setExpiresAt(iso ?? "")}
-                  />
-                </label>
-              </div>
-              <div className="lv-fmeta">
-                <label className="mts-f" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <input
-                    type="checkbox"
-                    checked={pinned}
-                    onChange={(e) => setPinned(e.target.checked)}
-                    style={{ width: "auto" }}
-                  />
-                  <span style={{ margin: 0 }}>Pin to the top</span>
-                </label>
-                <div className="mts-facts">
-                  <button
-                    className="fl-btn primary"
-                    disabled={pending || uploading || blocked}
-                    onClick={submit}
-                  >
-                    <Icon name="send" size={14} />
-                    {editingId
-                      ? "Save changes"
-                      : composingPoll
-                        ? "Post the poll"
-                        : showingEvent
-                          ? "Post the event"
-                          : "Post"}
-                  </button>
-                  <button className="fl-btn ghost" onClick={reset}>
-                    Cancel
-                  </button>
-                </div>
-              </div>
-              {editingId && (
-                <div className="dash-mini">
-                  Rewording marks it Edited. Anyone who only saw the old version drops out of your
-                  read count until they next open the board.
-                  {kind === "poll" && " A poll's answers can't be changed once it's up."}
-                  {showingEvent &&
-                    " Moving the day, time or place counts as rewording it — everyone keeps their RSVP, but they'll see the change."}
-                </div>
-              )}
-            </div>
-          )}
-
-          {active.length === 0 ? (
-            <div className="emptybox">
-              <div className="ei">
-                <Icon name="bell" size={22} />
-              </div>
-              <b>Nothing on the board</b>
-              <em>
-                {canManage
-                  ? "Post a notice and everyone will see it here."
-                  : "Announcements from your team will appear here."}
-              </em>
-            </div>
-          ) : (
-            active.map((n) => <NoticeCard key={n.id} notice={n} acts={acts} />)
-          )}
-
-          {archived.length > 0 && (
-            <>
-              <button
-                type="button"
-                className="nb-archtoggle"
-                aria-expanded={showArchive}
-                onClick={() => setShowArchive((v) => !v)}
-              >
-                <Icon name={showArchive ? "chevD" : "chevR"} size={14} />
-                Archived, {archived.length}
-              </button>
-              {showArchive && archived.map((n) => <NoticeCard key={n.id} notice={n} acts={acts} />)}
-            </>
-          )}
-          </ScreenPanel>
+          <ScreenPanel>{board}</ScreenPanel>
         </div>
       </div>
     </div>

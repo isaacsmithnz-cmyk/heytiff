@@ -1,10 +1,11 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import type { CalItem, CompanyCalendar } from "@/lib/calendar/items";
 import { detail, type DayDetail } from "@/lib/calendar/model";
-import { CalEdit } from "./home-cal-edit";
+import { Button } from "@/components/parts/button";
+import { EventForm } from "@/components/making/event-form";
 import { actionLink, CalSwatch, type Pick } from "./home-cal-parts";
 
 /* THE PANEL, beside Month and Year (his handoff "Calendar"): the one
@@ -45,43 +46,18 @@ export function CalPanel({
       the page says where focus goes. */
   onDeleted?: () => void;
 }) {
-  /* EDIT OPENS THE FORM IN PLACE (./home-cal-edit), for the one thing it
-     was pressed on, and choosing something else closes it: the form is let
-     go as the panel moves on, so choosing that thing again shows it, never
-     the form it had (nor the form's pull on focus). Closed by Save or
-     Cancel, focus goes back to Edit; after a delete there is no Edit left,
-     and the page takes it. */
+  /* EDIT OPENS THE EVENT FORM (components/making/event-form) over the
+     page, for the one thing it was pressed on, and choosing something else
+     lets it go, so choosing that thing again shows it, never the form it
+     had. Closed, the dialog gives focus back to Edit; after a delete there
+     is no Edit left, and the page takes it. */
   const [editing, setEditing] = useState<string | null>(null);
   if (editing !== null && item?.id !== editing) setEditing(null);
-  const editButton = useRef<HTMLButtonElement>(null);
-  const backToEdit = useRef(false);
-  useLayoutEffect(() => {
-    if (editing !== null || !backToEdit.current) return;
-    backToEdit.current = false;
-    editButton.current?.focus({ preventScroll: true });
-  }, [editing]);
 
   const d = item ? detail(item, items, frame) : null;
   if (!item || !d) return null;
   const go = actionLink(item);
   const editable = canEdit && item.action === "edit";
-  if (editable && editing === item.id) {
-    return (
-      <div className="hd-cal-dx" data-c={item.cat}>
-        <CalEdit
-          item={item}
-          items={items}
-          frame={frame}
-          kicker={d.kicker}
-          onDone={(how) => {
-            backToEdit.current = how !== "deleted";
-            if (how === "deleted") onDeleted?.();
-            setEditing(null);
-          }}
-        />
-      </div>
-    );
-  }
   return (
     <div className="hd-cal-dx" data-c={item.cat}>
       <div className="hd-cal-dxh">
@@ -112,26 +88,33 @@ export function CalPanel({
       )}
       {editable && (
         <div className="hd-cal-acts">
-          <button type="button" className="hd-cal-go" ref={editButton} onClick={() => setEditing(item.id)}>
+          <button type="button" className="hd-cal-go" onClick={() => setEditing(item.id)}>
             Edit
           </button>
         </div>
+      )}
+      {editable && editing === item.id && (
+        <EventForm item={item} items={items} frame={frame} onClose={() => setEditing(null)} onDeleted={onDeleted} />
       )}
     </div>
   );
 }
 
 /** A day chosen: the day in full, then what is on it, each a row that picks
-    it, with its swatch, its title and an event's time. */
+    it, with its swatch, its title and an event's time, and, for whoever may
+    add to the calendar, Add an event on that day (rule 52). */
 export function CalDay({
   day,
   fresh,
   onPick,
+  onAdd,
 }: {
   day: DayDetail<CalItem>;
   /** Just added to the day: lit in its list for a moment. */
   fresh: readonly string[] | null;
   onPick: Pick;
+  /** Opens Add an event on this day. */
+  onAdd?: () => void;
 }) {
   return (
     <div className="hd-cal-dx" data-kind="day">
@@ -156,6 +139,13 @@ export function CalDay({
         </ul>
       ) : (
         <p className="hd-cal-none">Nothing on.</p>
+      )}
+      {onAdd && (
+        <div className="hd-cal-acts">
+          <Button size={32} icon="plus" onClick={onAdd}>
+            Add an event
+          </Button>
+        </div>
       )}
     </div>
   );

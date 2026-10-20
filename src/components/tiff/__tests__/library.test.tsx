@@ -120,14 +120,50 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+/* A manager's doings on a row sit in its Actions menu (v2): opened, then
+   the item picked. */
+const openActions = async (title: string) => {
+  await userEvent.click(screen.getByRole("button", { name: `Actions on ${title}` }));
+  return screen.getByRole("menu", { name: `Actions on ${title}` });
+};
+
+describe("the head (v2)", () => {
+  it("is the Library, with how many documents Tiff can read", () => {
+    render(<Library docs={[doc(), doc({ id: "d-2", title: "PUZ install manual" })]} />);
+    expect(screen.getByRole("heading", { level: 1, name: "Library" })).toBeInTheDocument();
+    expect(screen.getByText("2 documents Tiff can read.")).toBeInTheDocument();
+  });
+
+  /* asking the library is Tiff's own page, kept as it is */
+  it("leads to asking the library, for everyone who can read it", () => {
+    render(<Library docs={[doc()]} />);
+    expect(screen.getByRole("link", { name: /Ask the Library/ })).toHaveAttribute("href", "/dashboard/tiff");
+  });
+
+  it("gives a manager Add a document as the one main button", () => {
+    render(<Library docs={[doc()]} canManage />);
+    const add = screen.getByRole("button", { name: "Add a document" });
+    expect(add.className).toContain("pt-btn--main");
+    expect(document.querySelectorAll(".lb2-head .pt-btn--main")).toHaveLength(1);
+  });
+
+  it("gives staff nothing to add", () => {
+    render(<Library docs={[doc()]} />);
+    expect(screen.queryByRole("button", { name: "Add a document" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit tags" })).not.toBeInTheDocument();
+  });
+});
+
 describe("the day-1 state sells the reason before the button", () => {
   it("tells a manager what the library is for, and offers the upload", () => {
     render(<Library docs={[]} quota={quota()} canManage />);
 
     expect(screen.getByText(/Tiff can only answer from what/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Add documents/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add a document" })).toBeInTheDocument();
     // nothing to search or filter yet — the controls would be furniture
     expect(screen.queryByLabelText("Search documents")).not.toBeInTheDocument();
+    // and one Add on the page, the empty state's
+    expect(screen.getAllByRole("button", { name: "Add a document" })).toHaveLength(1);
   });
 
   /* Uploading starts here and nowhere else — the assistant deliberately has no
@@ -137,7 +173,13 @@ describe("the day-1 state sells the reason before the button", () => {
     render(<Library docs={[]} quota={quota()} canManage />);
 
     expect(screen.queryByRole("dialog", { name: "Add documents" })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /Add documents/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Add a document" }));
+    expect(screen.getByRole("dialog", { name: "Add documents" })).toBeInTheDocument();
+  });
+
+  it("opens the same drawer from the head once there are documents", async () => {
+    render(<Library docs={[doc()]} quota={quota()} canManage />);
+    await userEvent.click(screen.getByRole("button", { name: "Add a document" }));
     expect(screen.getByRole("dialog", { name: "Add documents" })).toBeInTheDocument();
   });
 
@@ -146,31 +188,26 @@ describe("the day-1 state sells the reason before the button", () => {
 
     expect(screen.getByText(/Tiff can only answer from what/)).toBeInTheDocument();
     expect(screen.getByText(/Ask a manager to add/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Add documents/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add a document" })).not.toBeInTheDocument();
   });
 
   it("names all four categories so the reason is concrete", () => {
     render(<Library docs={[]} quota={quota()} canManage />);
-    for (const label of [
-      "Installation documents",
-      "Service documents",
-      "Manufacturer specs",
-      "Company SOPs",
-    ]) {
-      expect(screen.getByText(label)).toBeInTheDocument();
-    }
+    expect(
+      screen.getByText(/Installation documents, Service documents, Manufacturer specs and Company SOPs/)
+    ).toBeInTheDocument();
   });
 });
 
 describe("what a row says about itself", () => {
   it("a document being read shows how far through it is", () => {
     render(<Library docs={[doc({ status: "processing", nextPage: 41, pageCount: 220 })]} canManage />);
-    expect(screen.getByText("Reading… 40 of 220 pages")).toBeInTheDocument();
+    expect(screen.getByText("Reading 40 of 220 pages")).toBeInTheDocument();
   });
 
   it("a document not yet opened reads honestly rather than as 0 of 0", () => {
     render(<Library docs={[doc({ status: "processing", nextPage: 1, pageCount: null })]} canManage />);
-    expect(screen.getByText("Reading…")).toBeInTheDocument();
+    expect(screen.getByText("Reading the document")).toBeInTheDocument();
   });
 
   it("a document out of pages says when it comes back, and offers Resume", () => {
@@ -222,20 +259,39 @@ describe("what a row says about itself", () => {
     expect(screen.getByText("12 pages unreadable — scanned images")).toBeInTheDocument();
   });
 
-  /* A pill means "this one needs you". Ready is what almost every row is, so
-     labelling it spends the reader's attention on the rows that don't need
-     any — and leaves the stuck one competing with a page of green. */
-  it("a clean ready document wears no pill at all", () => {
-    const { container } = render(<Library docs={[doc()]} canManage />);
+  /* State is a word (rule 17), on every row: a clean ready document says so
+     in green, and the one that needs a look says it in orange beside it. */
+  it("a clean ready document says Ready, in the good word, never a pill", () => {
+    const { container } = render(<Library docs={[doc()]} />);
+    expect(screen.getByText("Ready").closest(".pt-state")?.className).toContain("pt-state--good");
     expect(container.querySelector(".tk-pill")).toBeNull();
-    expect(screen.queryByText("Ready")).not.toBeInTheDocument();
     // and the row is still plainly usable
     expect(screen.getByRole("button", { name: /Ask Tiff about/ })).toBeInTheDocument();
   });
 
-  it("says nothing about a document's kind — they are all PDFs", () => {
-    const { container } = render(<Library docs={[doc()]} canManage />);
-    expect(container.querySelector(".tk-kind")).toBeNull();
+  it("says a caveat in orange and a failure in red", () => {
+    render(
+      <Library
+        docs={[doc({ scannedPages: 2 }), doc({ id: "d-2", title: "Bad", status: "failed", error: "Broken file" })]}
+      />
+    );
+    expect(screen.getByText("2 pages unreadable — scanned images").closest(".pt-state")?.className).toContain("pt-state--look");
+    expect(screen.getByText("Broken file").closest(".pt-state")?.className).toContain("pt-state--wrong");
+  });
+
+  /* The kind a row names is its category, which says where it sits — never
+     "PDF", which every one of them is. */
+  it("names a document's category as its kind in All, and never PDF", () => {
+    render(<Library docs={[doc()]} canManage />);
+    const row = screen.getByText("City Multi fault codes").closest("li") as HTMLElement;
+    expect(within(row).getByText("Service documents")).toBeInTheDocument();
+    expect(within(row).queryByText("PDF")).toBeNull();
+  });
+
+  it("says when it was added", () => {
+    render(<Library docs={[doc({ uploadedAt: "2026-07-14T02:00:00Z" })]} />);
+    const row = screen.getByText("City Multi fault codes").closest("li") as HTMLElement;
+    expect(within(row).getByText("14 July")).toBeInTheDocument();
   });
 
   it("shows source, edition, when it changed and who added it", () => {
@@ -292,7 +348,7 @@ describe("reading the pages Tiff couldn't", () => {
     mockOcr.running = "d-1";
     render(<Library docs={[scanned()]} canManage />);
 
-    expect(screen.getByText("Reading 3 scanned pages…")).toBeInTheDocument();
+    expect(screen.getByText("Reading 3 scanned pages")).toBeInTheDocument();
     expect(screen.queryByText(/unreadable/)).not.toBeInTheDocument();
     // and nothing to press twice
     expect(screen.queryByRole("button", { name: /Read pages/ })).not.toBeInTheDocument();
@@ -417,6 +473,13 @@ describe("opening a document", () => {
     await userEvent.click(screen.getByRole("button", { name: "City Multi fault codes" }));
     expect(screen.getByRole("dialog", { name: /Search inside/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Edit/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Actions on/ })).not.toBeInTheDocument();
+  });
+
+  /* `?doc=` lands on the document's panel, as a click would */
+  it("opens the document the address named", () => {
+    render(<Library docs={[doc()]} initialDocId="d-1" />);
+    expect(screen.getByRole("dialog", { name: "Search inside City Multi fault codes" })).toBeInTheDocument();
   });
 
   /* Nothing is indexed until the document has been read, and there is no file
@@ -493,7 +556,7 @@ describe("the embedding gap", () => {
     render(<Library docs={[doc()]} quota={quota()} canManage unembedded={106} />);
     await userEvent.click(screen.getByRole("button", { name: "Fill these in" }));
 
-    expect(await screen.findByText("Filling in… 64 of 106")).toBeInTheDocument();
+    expect(await screen.findByText("Filling in 64 of 106 passages")).toBeInTheDocument();
 
     release(batch({ done: 42, remaining: 0 }));
     await waitFor(() => expect(refresh).toHaveBeenCalled());
@@ -554,7 +617,7 @@ describe("asking Tiff about a row", () => {
      manual than the one this button names. The composer turns this into a
      scope it can show and clear, and the search reads that document alone. */
   it("hands the document itself to Tiff, and goes there", async () => {
-    render(<Library docs={[doc()]} canManage />);
+    render(<Library docs={[doc()]} />);
 
     await userEvent.click(
       screen.getByRole("button", { name: "Ask Tiff about City Multi fault codes" })
@@ -566,65 +629,95 @@ describe("asking Tiff about a row", () => {
     expect(push).toHaveBeenCalledWith("/dashboard/tiff");
   });
 
+  /* a manager asks from the row's Actions, the same hand-over */
+  it("is a manager's first action on a ready row", async () => {
+    render(<Library docs={[doc()]} canManage />);
+
+    const menu = await openActions("City Multi fault codes");
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Ask Tiff about it" }));
+
+    expect(JSON.parse(sessionStorage.getItem(ASK_KEY) ?? "{}")).toEqual({
+      doc: { docId: "d-1", title: "City Multi fault codes" },
+    });
+    expect(push).toHaveBeenCalledWith("/dashboard/tiff");
+  });
+
   /* Tiff can't be asked about pages it hasn't read. An affordance that leads
      to a shrug is worse than no affordance. */
-  it("stays off a document Tiff hasn't finished reading", () => {
-    render(
-      <Library
-        docs={[
-          doc({ status: "processing", nextPage: 40 }),
-          doc({ id: "d-2", title: "PUZ install manual", status: "failed", error: "Couldn't be read" }),
-          doc({ id: "d-3", title: "Warranty SOP", status: "paused" }),
-        ]}
-        canManage
-      />
-    );
-
+  it("stays off a document Tiff hasn't finished reading", async () => {
+    const unread = [
+      doc({ status: "processing", nextPage: 40 }),
+      doc({ id: "d-2", title: "PUZ install manual", status: "failed", error: "Couldn't be read" }),
+      doc({ id: "d-3", title: "Warranty SOP", status: "paused" }),
+    ];
+    render(<Library docs={unread} />);
     expect(screen.queryByRole("button", { name: /^Ask Tiff about/ })).not.toBeInTheDocument();
+    cleanup();
+
+    render(<Library docs={unread} canManage />);
+    const menu = await openActions("PUZ install manual");
+    expect(within(menu).queryByRole("menuitem", { name: /Ask Tiff/ })).toBeNull();
   });
 });
 
 describe("who may do what", () => {
-  it("a manager gets edit but not remove", () => {
+  it("a manager gets edit but not remove", async () => {
     render(<Library docs={[doc()]} canManage />);
 
-    expect(screen.getByRole("button", { name: "Edit City Multi fault codes" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Remove City Multi fault codes" })).not.toBeInTheDocument();
+    const menu = await openActions("City Multi fault codes");
+    expect(within(menu).getByRole("menuitem", { name: "Edit details" })).toBeInTheDocument();
+    expect(within(menu).queryByRole("menuitem", { name: "Remove document" })).not.toBeInTheDocument();
   });
 
   it("only the owner gets remove, and the confirm names the document", async () => {
     render(<Library docs={[doc()]} canManage isOwner />);
 
-    await userEvent.click(screen.getByRole("button", { name: "Remove City Multi fault codes" }));
+    const menu = await openActions("City Multi fault codes");
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Remove document" }));
 
-    const dialog = screen.getByRole("dialog", { name: "Remove document" });
-    expect(within(dialog).getByText(/Remove “City Multi fault codes”\?/)).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: /Remove “City Multi fault codes”/ })).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: "Remove “City Multi fault codes”?" });
+    expect(within(dialog).getByRole("button", { name: "Remove “City Multi fault codes”" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Keep it" })).toBeInTheDocument();
   });
 
   it("confirming the removal is what calls the action, not opening the dialog", async () => {
     deleteKbDoc.mockResolvedValue({ ok: true });
     render(<Library docs={[doc()]} canManage isOwner />);
 
-    await userEvent.click(screen.getByRole("button", { name: "Remove City Multi fault codes" }));
+    const menu = await openActions("City Multi fault codes");
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Remove document" }));
     expect(deleteKbDoc).not.toHaveBeenCalled();
 
-    const dialog = screen.getByRole("dialog", { name: "Remove document" });
-    await userEvent.click(within(dialog).getByRole("button", { name: /Remove “City Multi fault codes”/ }));
+    const dialog = screen.getByRole("dialog", { name: "Remove “City Multi fault codes”?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Remove “City Multi fault codes”" }));
 
     await waitFor(() => expect(deleteKbDoc).toHaveBeenCalledWith("d-1"));
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+  });
+
+  it("keeps the dialog open and says why when the removal is refused", async () => {
+    deleteKbDoc.mockResolvedValue({ ok: false, error: "Only the owner can remove documents." });
+    render(<Library docs={[doc()]} canManage isOwner />);
+
+    const menu = await openActions("City Multi fault codes");
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Remove document" }));
+    const dialog = screen.getByRole("dialog", { name: "Remove “City Multi fault codes”?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Remove “City Multi fault codes”" }));
+
+    expect(await within(dialog).findByText("Only the owner can remove documents.")).toBeInTheDocument();
   });
 
   it("staff get no row actions at all — absent, not disabled", () => {
-    const { container } = render(<Library docs={[doc()]} />);
-    expect(container.querySelector(".tk-acts")).toBeNull();
+    render(<Library docs={[doc()]} />);
+    expect(screen.queryByRole("button", { name: /^Actions on/ })).toBeNull();
   });
 
   it("edits go through updateKbDocMeta and refresh the page", async () => {
     updateKbDocMeta.mockResolvedValue({ ok: true });
     render(<Library docs={[doc()]} canManage />);
 
-    await userEvent.click(screen.getByRole("button", { name: "Edit City Multi fault codes" }));
+    const menu = await openActions("City Multi fault codes");
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Edit details" }));
     await userEvent.click(screen.getByRole("button", { name: /Save details/ }));
 
     await waitFor(() =>
@@ -673,7 +766,7 @@ describe("finding a document", () => {
     await userEvent.type(screen.getByLabelText("Search documents"), "zzzz");
 
     expect(screen.getByText("No documents match “zzzz”")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /Clear the search/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Clear the search" }));
     expect(screen.getByText("City Multi fault codes")).toBeInTheDocument();
   });
 
@@ -703,18 +796,48 @@ describe("finding a document", () => {
   it("an empty category beside full ones says what belongs in it", async () => {
     render(<Library docs={library} />);
 
-    await userEvent.click(screen.getByRole("button", { name: /Manufacturer specs/ }));
+    await userEvent.click(screen.getByRole("tab", { name: /Manufacturer specs/ }));
 
-    expect(screen.getByText("Nothing in this category yet.")).toBeInTheDocument();
+    expect(screen.getByText("Nothing in Manufacturer specs yet")).toBeInTheDocument();
     expect(screen.getByText(/Ask a manager to add/)).toBeInTheDocument();
   });
 
-  it("counts every category on its chip, zeros included", () => {
+  it("offers a manager the upload from an empty category", async () => {
+    render(<Library docs={library} canManage />);
+
+    await userEvent.click(screen.getByRole("tab", { name: /Manufacturer specs/ }));
+    expect(screen.getByText(/Tiff can't answer from this category until something lands in it/)).toBeInTheDocument();
+    expect(within(screen.getByRole("tabpanel")).getByRole("button", { name: "Add a document" })).toBeInTheDocument();
+  });
+
+  it("counts every category on its tab, zeros included", () => {
     render(<Library docs={library} />);
 
-    const chips = screen.getByRole("button", { name: /Manufacturer specs/ });
-    expect(chips.textContent).toContain("0");
-    expect(screen.getByRole("button", { name: /Service documents/ }).textContent).toContain("1");
+    const tab = screen.getByRole("tab", { name: /Manufacturer specs/ });
+    expect(tab.textContent).toContain("0");
+    expect(screen.getByRole("tab", { name: /Service documents/ }).textContent).toContain("1");
+    expect(screen.getByRole("tab", { name: /^All/ }).textContent).toContain("3");
+  });
+
+  /* the view rides in the address, so an open tab holds it */
+  it("writes the view into the address", async () => {
+    window.history.replaceState(null, "", "/dashboard/tiff/library");
+    render(<Library docs={library} />);
+
+    await userEvent.click(screen.getByRole("tab", { name: /Company SOPs/ }));
+    expect(window.location.search).toBe("?cat=sops");
+    await userEvent.click(screen.getByRole("tab", { name: /^All/ }));
+    expect(window.location.search).toBe("");
+  });
+
+  /* a category view drops the Kind column: every row would say the same */
+  it("names the kind only where it differs, in All", async () => {
+    render(<Library docs={library} />);
+    expect(screen.getAllByText("Installation documents").length).toBeGreaterThan(1);
+
+    await userEvent.click(screen.getByRole("tab", { name: /Installation documents/ }));
+    const panel = screen.getByRole("tabpanel");
+    expect(within(panel).queryByText("Installation documents")).toBeNull();
   });
 
   /* The count map was a hand-written literal of four keys while the category
@@ -747,7 +870,7 @@ describe("finding a document", () => {
       />
     );
 
-    const chip = screen.getByRole("button", { name: /Field notes/ });
+    const chip = screen.getByRole("tab", { name: /Field notes/ });
     expect(chip.textContent).toContain("2");
     expect(chip.textContent).not.toContain("NaN");
   });
@@ -762,58 +885,73 @@ describe("narrowing by tag", () => {
     doc({ id: "d-3", title: "City Multi fault codes", category: "faults", tags: [TAGS[1], TAGS[2]] }),
   ];
 
-  /* Scoped to the rail on purpose: the same tag name is also a pill on every
-     row that wears it, and an unscoped getByRole would find several buttons
-     called "VRV" — which is the point of the pills, not a bug in them. */
-  const railChip = (name: RegExp) =>
-    within(document.querySelector(".tk-trail") as HTMLElement).getByRole("button", { name });
+  /* The tags are one filter beside the views (v2): a Tags button opening a
+     menu of the tags anything wears, each with its count; a pick turns one
+     on or off. */
+  const tagMenu = async () => {
+    await userEvent.click(screen.getByRole("button", { name: /^Tags/ }));
+    return screen.getByRole("menu", { name: "Narrow by tag" });
+  };
+  const pickTag = async (name: RegExp) => {
+    const menu = await tagMenu();
+    await userEvent.click(within(menu).getByRole("menuitem", { name }));
+  };
 
-  it("puts every tag anything wears on the rail, with its count", () => {
+  it("offers every tag anything wears, with its count", async () => {
     render(<Library docs={library} tags={TAGS} />);
 
-    expect(railChip(/^Daikin/).textContent).toContain("2");
-    expect(railChip(/^VRV/).textContent).toContain("2");
+    const menu = await tagMenu();
+    expect(within(menu).getByRole("menuitem", { name: /^Daikin/ }).textContent).toContain("2");
+    expect(within(menu).getByRole("menuitem", { name: /^VRV/ }).textContent).toContain("2");
   });
 
   /* An org starts with fifty seeded tags and a library with three documents.
      Showing all fifty as filters would bury the four that would do anything —
-     an unused tag belongs in the PICKER, not the rail. */
-  it("keeps a tag nothing wears off the rail", () => {
+     an unused tag belongs in the PICKER, not the filter. */
+  it("keeps a tag nothing wears out of the filter", async () => {
     const unused = tag("t-hitachi", "Hitachi");
     render(<Library docs={library} tags={[...TAGS, unused]} />);
 
-    expect(within(document.querySelector(".tk-trail") as HTMLElement).queryByRole("button", { name: /^Hitachi/ })).not.toBeInTheDocument();
+    const menu = await tagMenu();
+    expect(within(menu).queryByRole("menuitem", { name: /^Hitachi/ })).not.toBeInTheDocument();
   });
 
-  it("shows only what wears the tag", async () => {
+  it("has no tag filter when nothing wears a tag", () => {
+    render(<Library docs={[doc()]} tags={TAGS} />);
+    expect(screen.queryByRole("button", { name: /^Tags/ })).not.toBeInTheDocument();
+  });
+
+  it("shows only what wears the tag, and names it on the button", async () => {
     render(<Library docs={library} tags={TAGS} />);
 
-    await userEvent.click(railChip(/^VRV/));
+    await pickTag(/^VRV/);
 
     expect(screen.getByText("VRV service manual")).toBeInTheDocument();
     expect(screen.getByText("City Multi fault codes")).toBeInTheDocument();
     expect(screen.queryByText("Ducted install guide")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tags: VRV" })).toBeInTheDocument();
   });
 
-  /* AND, not OR: a second chip is "…and VRV", and it has to compose with the
-     category chip above it, which also narrows. An OR would grow the list
-     every time another filter went on. */
+  /* AND, not OR: a second tag is "and VRV", and it has to compose with the
+     category view, which also narrows. An OR would grow the list every time
+     another filter went on. */
   it("narrows further with a second tag rather than widening", async () => {
     render(<Library docs={library} tags={TAGS} />);
 
-    await userEvent.click(railChip(/^Daikin/));
-    await userEvent.click(railChip(/^VRV/));
+    await pickTag(/^Daikin/);
+    await pickTag(/^VRV/);
 
     expect(screen.getByText("VRV service manual")).toBeInTheDocument();
     expect(screen.queryByText("Ducted install guide")).not.toBeInTheDocument();
     expect(screen.queryByText("City Multi fault codes")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tags: 2 tags" })).toBeInTheDocument();
   });
 
-  it("composes with the category filter", async () => {
+  it("composes with the category view", async () => {
     render(<Library docs={library} tags={TAGS} />);
 
-    await userEvent.click(railChip(/^Daikin/));
-    await userEvent.click(screen.getByRole("button", { name: /Installation documents/ }));
+    await pickTag(/^Daikin/);
+    await userEvent.click(screen.getByRole("tab", { name: /Installation documents/ }));
 
     expect(screen.getByText("Ducted install guide")).toBeInTheDocument();
     expect(screen.queryByText("VRV service manual")).not.toBeInTheDocument();
@@ -822,8 +960,8 @@ describe("narrowing by tag", () => {
   it("says which combination found nothing, and offers the way back", async () => {
     render(<Library docs={library} tags={TAGS} />);
 
-    await userEvent.click(railChip(/^VRV/));
-    await userEvent.click(railChip(/^Ducted/));
+    await pickTag(/^VRV/);
+    await pickTag(/^Ducted/);
 
     expect(screen.getByText("No documents wear all of those tags")).toBeInTheDocument();
     expect(screen.getByText(/a document has to wear every one/)).toBeInTheDocument();
@@ -832,30 +970,45 @@ describe("narrowing by tag", () => {
     expect(screen.getByText("VRV service manual")).toBeInTheDocument();
   });
 
-  /* A tag that removed itself from the rail the moment it emptied the list
+  it("clears the tags from beside the filter too", async () => {
+    render(<Library docs={library} tags={TAGS} />);
+
+    await pickTag(/^Ducted/);
+    expect(screen.queryByText("VRV service manual")).not.toBeInTheDocument();
+    await userEvent.click(within(document.querySelector(".lb2-tools") as HTMLElement).getByRole("button", { name: "Clear tags" }));
+    expect(screen.getByText("VRV service manual")).toBeInTheDocument();
+  });
+
+  /* A tag that removed itself from the filter the moment it emptied the list
      could never be pressed again to undo — the filter would be stuck on with
      no control for it. */
   it("keeps a selected tag pressable even when it leaves nothing on screen", async () => {
     render(<Library docs={library} tags={TAGS} />);
 
-    await userEvent.click(railChip(/^VRV/));
-    await userEvent.click(railChip(/^Ducted/));
-    await userEvent.click(railChip(/^Ducted/));
+    await pickTag(/^VRV/);
+    await pickTag(/^Ducted/);
+    await pickTag(/^Ducted/);
 
     expect(screen.getByText("VRV service manual")).toBeInTheDocument();
   });
 
-  it("wears its tags on the row, and a pill is a filter", async () => {
+  it("writes the tags into the address by name", async () => {
+    window.history.replaceState(null, "", "/dashboard/tiff/library");
     render(<Library docs={library} tags={TAGS} />);
 
-    const row = screen.getByText("Ducted install guide").closest(".tk-row") as HTMLElement;
-    await userEvent.click(within(row).getByRole("button", { name: "Daikin" }));
-
-    expect(screen.getByText("VRV service manual")).toBeInTheDocument();
-    expect(screen.queryByText("City Multi fault codes")).not.toBeInTheDocument();
+    await pickTag(/^Daikin/);
+    expect(window.location.search).toBe("?tag=daikin");
   });
 
-  it("collapses a fourth tag into +N rather than turning the row into a cloud", () => {
+  /* pills are only for a person's name (rule 47), so a row says its tags */
+  it("names its tags on the row, in words", () => {
+    render(<Library docs={library} tags={TAGS} />);
+
+    const row = screen.getByText("Ducted install guide").closest("li") as HTMLElement;
+    expect(within(row).getByText("Tagged Daikin and Ducted")).toBeInTheDocument();
+  });
+
+  it("names a fourth tag as one more rather than turning the row into a cloud", () => {
     render(
       <Library
         docs={[doc({ id: "d-9", title: "Everything manual", tags: [...TAGS] })]}
@@ -863,8 +1016,8 @@ describe("narrowing by tag", () => {
       />
     );
 
-    const row = screen.getByText("Everything manual").closest(".tk-row") as HTMLElement;
-    expect(within(row).getByText("+1")).toBeInTheDocument();
+    const row = screen.getByText("Everything manual").closest("li") as HTMLElement;
+    expect(within(row).getByText("Tagged Daikin, Mitsubishi Electric, VRV and 1 more")).toBeInTheDocument();
   });
 });
 
@@ -873,7 +1026,7 @@ describe("tagging a document after the fact", () => {
     updateKbDocMeta.mockResolvedValue({ ok: true });
     render(<Library docs={[doc({ tags: [TAGS[0]] })]} tags={TAGS} canManage />);
 
-    await userEvent.click(screen.getByRole("button", { name: "Edit City Multi fault codes" }));
+    await userEvent.click(within(await openActions("City Multi fault codes")).getByRole("menuitem", { name: "Edit details" }));
 
     const dialog = screen.getByRole("dialog", { name: "Edit document" });
     // one off, one on
@@ -891,7 +1044,7 @@ describe("tagging a document after the fact", () => {
      nothing. */
   it("offers to create only a name no tag already answers to", async () => {
     render(<Library docs={[doc()]} tags={TAGS} canManage />);
-    await userEvent.click(screen.getByRole("button", { name: "Edit City Multi fault codes" }));
+    await userEvent.click(within(await openActions("City Multi fault codes")).getByRole("menuitem", { name: "Edit details" }));
 
     const dialog = screen.getByRole("dialog", { name: "Edit document" });
     const box = within(dialog).getByLabelText("Find or create a tag");
@@ -912,7 +1065,7 @@ describe("tagging a document after the fact", () => {
     updateKbDocMeta.mockResolvedValue({ ok: true });
 
     render(<Library docs={[doc({ tags: [] })]} tags={TAGS} canManage />);
-    await userEvent.click(screen.getByRole("button", { name: "Edit City Multi fault codes" }));
+    await userEvent.click(within(await openActions("City Multi fault codes")).getByRole("menuitem", { name: "Edit details" }));
 
     const dialog = screen.getByRole("dialog", { name: "Edit document" });
     await userEvent.type(within(dialog).getByLabelText("Find or create a tag"), "hydronic");
@@ -930,13 +1083,13 @@ describe("tagging a document after the fact", () => {
 describe("managing the tags themselves", () => {
   it("is a manager's sheet — staff never see the way in", () => {
     render(<Library docs={[doc()]} tags={TAGS} />);
-    expect(screen.queryByRole("button", { name: "Tags" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit tags" })).not.toBeInTheDocument();
   });
 
   it("names how many documents a tag is on before it will remove it", async () => {
     render(<Library docs={[doc()]} tags={TAGS} tagUsage={{ "t-daikin": 14 }} canManage />);
 
-    await userEvent.click(screen.getByRole("button", { name: "Tags" }));
+    await userEvent.click(screen.getByRole("button", { name: "Edit tags" }));
     const sheet = screen.getByRole("dialog", { name: "Manage tags" });
     expect(within(sheet).getByText("14 documents")).toBeInTheDocument();
 
@@ -952,7 +1105,7 @@ describe("managing the tags themselves", () => {
     deleteKbTag.mockResolvedValue({ ok: true });
     render(<Library docs={[doc()]} tags={TAGS} tagUsage={{ "t-daikin": 2 }} canManage />);
 
-    await userEvent.click(screen.getByRole("button", { name: "Tags" }));
+    await userEvent.click(screen.getByRole("button", { name: "Edit tags" }));
     const sheet = screen.getByRole("dialog", { name: "Manage tags" });
     await userEvent.click(within(sheet).getByRole("button", { name: "Remove Daikin" }));
     await userEvent.click(within(sheet).getByRole("button", { name: /Remove “Daikin”$/ }));
@@ -964,7 +1117,7 @@ describe("managing the tags themselves", () => {
     updateKbTag.mockResolvedValue({ ok: true, tag: tag("t-vrv", "VRV Systems", "system") });
     render(<Library docs={[doc()]} tags={TAGS} canManage />);
 
-    await userEvent.click(screen.getByRole("button", { name: "Tags" }));
+    await userEvent.click(screen.getByRole("button", { name: "Edit tags" }));
     const sheet = screen.getByRole("dialog", { name: "Manage tags" });
     await userEvent.click(within(sheet).getByRole("button", { name: "Edit VRV" }));
 
@@ -976,5 +1129,80 @@ describe("managing the tags themselves", () => {
     await waitFor(() =>
       expect(updateKbTag).toHaveBeenCalledWith("t-vrv", expect.objectContaining({ label: "VRV systems" }))
     );
+  });
+});
+
+/* ── the Toolbox shelf (6-revisions.md, 20: the field tools as a shelf) ──── */
+
+describe("the Toolbox view", () => {
+  const TODAY = "2026-10-19";
+
+  it("is a view only for someone who holds the tools", () => {
+    render(<Library docs={[doc()]} />);
+    expect(screen.queryByRole("tab", { name: /Toolbox/ })).not.toBeInTheDocument();
+  });
+
+  it("counts the tools on its tab and lists each, a link into today's tool", async () => {
+    render(<Library docs={[doc()]} toolbox={{ today: TODAY }} />);
+
+    const tab = screen.getByRole("tab", { name: /Toolbox/ });
+    expect(tab.textContent).toContain("4");
+    await userEvent.click(tab);
+
+    expect(screen.getByRole("link", { name: "Heat Load" })).toHaveAttribute("href", "/dashboard/toolbox/heat-load");
+    expect(screen.getByRole("link", { name: "Running Pressures" })).toHaveAttribute("href", "/dashboard/toolbox/running-pressures");
+    expect(screen.getByRole("link", { name: "Fault Finder" })).toHaveAttribute("href", "/dashboard/toolbox/troubleshooting");
+    expect(screen.getByRole("link", { name: "Outdoor Unit Placement" })).toHaveAttribute("href", "/dashboard/toolbox/outdoor-unit");
+    // and the documents are not on the shelf
+    expect(screen.queryByText("City Multi fault codes")).not.toBeInTheDocument();
+  });
+
+  it("searches the tools, not the documents, while it is open", async () => {
+    render(<Library docs={[doc()]} toolbox={{ today: TODAY }} />);
+    await userEvent.click(screen.getByRole("tab", { name: /Toolbox/ }));
+
+    await userEvent.type(screen.getByLabelText("Search tools"), "pressure");
+    expect(screen.getByRole("link", { name: "Running Pressures" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Heat Load" })).not.toBeInTheDocument();
+
+    await userEvent.clear(screen.getByLabelText("Search tools"));
+    await userEvent.type(screen.getByLabelText("Search tools"), "zzzz");
+    expect(screen.getByText("No tools match “zzzz”")).toBeInTheDocument();
+  });
+
+  /* New ages out on the yard's date, as on the Toolbox's own page */
+  it("says New on a tool only while it is new", async () => {
+    render(<Library docs={[doc()]} toolbox={{ today: "2026-07-25" }} />);
+    await userEvent.click(screen.getByRole("tab", { name: /Toolbox/ }));
+    const row = screen.getByRole("link", { name: "Heat Load" }).closest("li") as HTMLElement;
+    expect(within(row).getByText("New")).toBeInTheDocument();
+    cleanup();
+
+    render(<Library docs={[doc()]} toolbox={{ today: TODAY }} />);
+    await userEvent.click(screen.getByRole("tab", { name: /Toolbox/ }));
+    expect(screen.queryByText("New")).not.toBeInTheDocument();
+  });
+
+  it("opens on the shelf when the address asks, and writes it there", async () => {
+    window.history.replaceState(null, "", "/dashboard/tiff/library");
+    render(<Library docs={[doc()]} toolbox={{ today: TODAY }} initialView="toolbox" />);
+    expect(screen.getByRole("tab", { name: /Toolbox/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("link", { name: "Heat Load" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("tab", { name: /^All/ }));
+    await userEvent.click(screen.getByRole("tab", { name: /Toolbox/ }));
+    expect(window.location.search).toBe("?view=toolbox");
+  });
+
+  it("ignores the address's shelf for someone without the tools", () => {
+    render(<Library docs={[doc()]} initialView="toolbox" />);
+    expect(screen.getByText("City Multi fault codes")).toBeInTheDocument();
+  });
+
+  /* an empty library still reaches the tools */
+  it("keeps the shelf on an empty library", async () => {
+    render(<Library docs={[]} toolbox={{ today: TODAY }} />);
+    await userEvent.click(screen.getByRole("tab", { name: /Toolbox/ }));
+    expect(screen.getByRole("link", { name: "Heat Load" })).toBeInTheDocument();
   });
 });

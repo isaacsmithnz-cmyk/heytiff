@@ -78,7 +78,6 @@ export function CredentialCard({
         <button
           className="cred-del"
           type="button"
-          title={`Remove ${typeName}`}
           aria-label={`Remove ${typeName}`}
           disabled={removing}
           onClick={onRemove}

@@ -115,11 +115,13 @@ jest.mock("@/lib/calendar/line-brain", () => ({
 
 import {
   addCalendarEvent,
+  addCalendarEventForm,
   deleteCalendarEvent,
   editCalendarEvent,
   fileCalendarLine,
   noteOnCalendarEvents,
   undoCalendarLine,
+  type CalendarEventFields,
   type CalendarEventPatch,
 } from "../calendar";
 import type { CalendarLine } from "@/lib/calendar/line";
@@ -438,7 +440,7 @@ describe("fileCalendarLine", () => {
   });
 
   /* THE BOX'S DAY (2026-09-26): the Calendar's box adds to a day and says
-     so ("Add to Thu 1 Oct…"), and sends it with the words. A line that
+     so ("Add to Thu 1 Oct"), and sends it with the words. A line that
      names no day goes on it instead of her asking, and her Done names it;
      one that names a day, or a repeat, is read as it says. The reader is
      asked nothing new: the day is filled in after it has read the line. */
@@ -1117,5 +1119,114 @@ describe("deleteCalendarEvent", () => {
     }
     expect(rows).toHaveLength(6);
     expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+/* ── Add an event: the form's fields, filed by Sort it out's rules ── */
+
+describe("addCalendarEventForm", () => {
+  const fields = (over: Partial<CalendarEventFields> = {}): CalendarEventFields => ({
+    kind: "event",
+    title: " Toolbox  talk ",
+    startsOn: "2026-10-08",
+    endsOn: null,
+    startsAt: "07:00",
+    endsAt: "07:30",
+    repeat: null,
+    location: " The depot, Brookvale ",
+    audience: "Everyone",
+    note: " Ladders and harness checks. ",
+    ...over,
+  });
+
+  it("puts the event on as the form says it, in the caller's workspace, typed, and tells Home", async () => {
+    const res = await addCalendarEventForm(fields());
+    expect(res).toEqual({ ok: true, ids: ["ev-new"], day: "2026-10-08", skips: null });
+    expect(inserts).toEqual([
+      {
+        table: "calendar_events",
+        row: {
+          org_id: "org-1",
+          kind: "event",
+          title: "Toolbox talk",
+          starts_on: "2026-10-08",
+          ends_on: "2026-10-08",
+          starts_at: "07:00",
+          ends_at: "07:30",
+          location: "The depot, Brookvale",
+          audience: "Everyone",
+          series_id: null,
+          repeat: null,
+          created_by: "s-me",
+          source: "typed",
+          note: "Ladders and harness checks.",
+        },
+      },
+    ]);
+    expect(revalidatePath).toHaveBeenCalledWith("/dashboard");
+    expect(readCalendarLine).not.toHaveBeenCalled();
+  });
+
+  it("puts a repeat on as one series from its day, skipping the public holidays and naming them", async () => {
+    holidays = holidayRows();
+    const res = await addCalendarEventForm(fields({ startsOn: "2026-09-28", repeat: { every: "week", day: "mon" } }));
+    expect(res).toMatchObject({ ok: true, day: "2026-09-28", skips: expect.stringMatching(/^Skips .*Labour Day/) });
+    const days = inserts.map((i) => i.row.starts_on);
+    expect(days[0]).toBe("2026-09-28");
+    expect(days).not.toContain("2026-10-05");
+    const series = new Set(inserts.map((i) => i.row.series_id));
+    expect(series.size).toBe(1);
+    expect([...series][0]).toEqual(expect.any(String));
+    expect(inserts[0]!.row).toMatchObject({ repeat: { every: "week", day: "mon" }, ends_on: "2026-09-28" });
+    if (res.ok) expect(res.ids).toHaveLength(inserts.length);
+  });
+
+  it("gives a shutdown its days and no hours or repeat, and refuses one whose every day is a public holiday", async () => {
+    holidays = holidayRows();
+    const res = await addCalendarEventForm(
+      fields({ kind: "shutdown", startsOn: "2026-12-23", endsOn: "2027-01-08", repeat: { every: "week", day: "mon" } }),
+    );
+    expect(res).toMatchObject({ ok: true });
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0]!.row).toMatchObject({ kind: "shutdown", starts_on: "2026-12-23", ends_on: "2027-01-08", starts_at: null, ends_at: null, repeat: null });
+
+    inserts.length = 0;
+    const twice = await addCalendarEventForm(fields({ kind: "shutdown", startsOn: "2026-12-25", endsOn: "2026-12-26" }));
+    expect(twice).toMatchObject({ ok: false });
+    expect(inserts).toEqual([]);
+  });
+
+  it("never files a public holiday: the state's list is on the calendar already", async () => {
+    holidays = holidayRows();
+    const res = await addCalendarEventForm(fields({ title: "Public holiday", startsOn: "2026-10-05" }));
+    expect(res).toMatchObject({ ok: false });
+    expect(inserts).toEqual([]);
+  });
+
+  it("holds the fields to Edit's rules and the calendar's twelve months", async () => {
+    expect(await addCalendarEventForm(fields({ title: "  " }))).toEqual({ ok: false, error: "Give it a name first." });
+    expect(await addCalendarEventForm(fields({ title: "x".repeat(121) }))).toEqual({ ok: false, error: "Keep it to 120 characters." });
+    expect(await addCalendarEventForm(fields({ startsOn: "8 Oct" }))).toEqual({ ok: false, error: "Pick the day it's on." });
+    expect(await addCalendarEventForm(fields({ endsOn: "2026-10-01" }))).toEqual({ ok: false, error: "It can't end before it starts." });
+    expect(await addCalendarEventForm(fields({ startsAt: "7am" }))).toEqual({ ok: false, error: "That time isn't one I can read." });
+    expect(await addCalendarEventForm(fields({ startsAt: null }))).toEqual({ ok: false, error: "Give it a start time first." });
+    expect(await addCalendarEventForm(fields({ endsAt: "06:00" }))).toEqual({ ok: false, error: "It has to finish after it starts." });
+    expect(await addCalendarEventForm(fields({ repeat: { every: "daily" } as never }))).toEqual({
+      ok: false,
+      error: "That repeat isn't one I can read.",
+    });
+    expect(await addCalendarEventForm(fields({ startsOn: "2027-09-02" }))).toEqual({
+      ok: false,
+      error: "The calendar runs to Aug 2027, so I haven't put that on it.",
+    });
+    expect(inserts).toEqual([]);
+  });
+
+  it("is for whoever holds team, as every write here", async () => {
+    allowed = new Set();
+    expect(await addCalendarEventForm(fields())).toEqual({ ok: false, error: "You can't add to the calendar." });
+    session = null;
+    expect(await addCalendarEventForm(fields())).toEqual({ ok: false, error: "Not signed in." });
+    expect(inserts).toEqual([]);
   });
 });

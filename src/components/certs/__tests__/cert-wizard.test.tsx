@@ -162,7 +162,7 @@ describe("where the equipment came from", () => {
     await screen.findByRole("tab", { name: "Equipment" });
     await tab("Equipment");
     const eq = panel("equipment");
-    expect(eq.getByText("Tiff is reading the job's description…")).toBeInTheDocument();
+    expect(eq.getByText("Tiff is reading the job's description")).toBeInTheDocument();
     expect(eq.queryByDisplayValue("RZQ250LY1")).toBeNull();
     answer(tiffs2933);
     expect(await eq.findByDisplayValue("RZQ250LY1")).toBeInTheDocument();
@@ -181,7 +181,7 @@ describe("where the equipment came from", () => {
     const eq = panel("equipment");
     await userEvent.type(eq.getAllByLabelText("Model")[0], "MINE");
     answer(tiffs2933);
-    await waitFor(() => expect(eq.queryByText("Tiff is reading the job's description…")).toBeNull());
+    await waitFor(() => expect(eq.queryByText("Tiff is reading the job's description")).toBeNull());
     expect(eq.getByDisplayValue("MINE")).toBeInTheDocument();
     expect(eq.queryByDisplayValue("RZQ250LY1")).toBeNull();
   });

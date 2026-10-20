@@ -17,6 +17,8 @@ jest.mock("@/app/actions/fleet-ai", () => ({
   readRenewalDocument: jest.fn(async () => ({ ok: false, reason: "no-key" })),
   readRegoCertificate: jest.fn(async () => ({ ok: false, reason: "no-key" })),
 }));
+/* The register's vehicle form saves through the fleet action itself (rule 51). */
+jest.mock("@/app/actions/fleet", () => ({ saveVehicle: jest.fn(), removeVehicle: jest.fn() }));
 
 /* Renewals (issue #509, slice 2). The screens themselves are tested in
    vehicle-modal/__tests__; what stays here is the rule the register and the
@@ -125,10 +127,12 @@ function fleetWith(vehicles: Vehicle[]): FleetState {
 
 it("Update rego opens the registration screen from the real register, not just the empty state", async () => {
   global.fetch = jest.fn(async () => ({ ok: false })) as unknown as typeof fetch;
-  render(<FleetRegister fleet={fleetWith([{ ...van, regoDays: 20 }])} staff={[]} today={TODAY} warnDays={30} />);
+  /* the card opens from a link (`?v=`); the register's row opens the vehicle's own page now */
+  render(
+    <FleetRegister fleet={fleetWith([{ ...van, regoDays: 20 }])} staff={[]} today={TODAY} warnDays={30} openLink={{ id: van.id, screen: null }} />,
+  );
   const user = userEvent.setup();
 
-  await user.click(screen.getByText("GOOD VAN")); // the row opens the card
   // the row's chip says the same words, so read the alert off the card itself
   const card = screen.getByRole("dialog");
   expect(within(card).getByText("Rego expires in 2 weeks")).toBeInTheDocument(); // 20 days, the way the pills say it
@@ -147,10 +151,9 @@ it("a vehicle with nothing filed offers Add on every compliance row, and no warn
       fleet={fleetWith([{ ...van, regoDays: null, insuranceDays: null, ctpDays: null }])}
       staff={[]}
       today={TODAY} warnDays={30}
+      openLink={{ id: van.id, screen: null }}
     />,
   );
-  const user = userEvent.setup();
-  await user.click(screen.getByText("GOOD VAN"));
   expect(screen.getAllByText("Add")).toHaveLength(3);
   expect(screen.queryByRole("button", { name: "Update rego" })).not.toBeInTheDocument();
 });

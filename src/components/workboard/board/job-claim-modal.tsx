@@ -101,7 +101,6 @@ export function JobClaimModal({
             ref={closeRef}
             className="wb2-ico"
             onClick={onClose}
-            title="Close"
             aria-label="Close this invoice"
           >
             <Icon name="x" size={14} />
@@ -128,7 +127,7 @@ export function JobClaimModal({
 
         <div className="wb2-clbody">
           {loading && !detail ? (
-            <p className="int-hint">Reading the invoice…</p>
+            <p className="int-hint">Reading the invoice</p>
           ) : (
             <>
               {materials.length > 0 && (

@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateHome } from "@/lib/shell/revalidate-home";
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
@@ -83,6 +83,6 @@ export async function snoozeReminder(taskId: string, preset: string): Promise<Re
     .eq("assigned_to", ctx.staffId);
   if (error) return { ok: false, error: "Couldn't snooze that." };
 
-  revalidatePath("/dashboard");
+  revalidateHome();
   return { ok: true };
 }

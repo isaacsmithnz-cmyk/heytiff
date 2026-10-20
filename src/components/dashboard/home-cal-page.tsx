@@ -3,6 +3,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from "react";
 import { addCalendarEvent } from "@/app/actions/calendar";
 import { Icon } from "@/components/shell/icon";
+import { Button } from "@/components/parts/button";
+import { EventForm } from "@/components/making/event-form";
 import { TiffBox, type BoxSaved } from "@/components/tiff/modal/tiff-box";
 import { useTiff } from "@/components/tiff/modal/tiff-context";
 import type { CalCat, CompanyCalendar } from "@/lib/calendar/items";
@@ -75,8 +77,8 @@ import { CalYear } from "./home-cal-year";
    room, at the top of the right-hand column in every view — over the rail
    beside 4 weeks, over the panel beside Month and Year — and it says the
    day it adds to (`addDayOf`): the day picked, else the first day of the
-   thing picked, else today, the server's, as "Add to Thu 1 Oct…" or "Add
-   to today…". Save, or Enter, puts the words on that day, all day, as
+   thing picked, else today, the server's, as "Add to Thu 1 Oct" or "Add
+   to today". Save, or Enter, puts the words on that day, all day, as
    typed (`addCalendarEvent`); Sort it out and the Tiff button ask Tiff,
    who reads the line for the calendar — "toolbox talk every first
    Thursday" goes on as eleven dates, and a line that names no day goes on
@@ -186,6 +188,8 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
   const [landedSeen, setLandedSeen] = useState(tiff.landed);
   const [landing, setLanding] = useState<readonly string[] | null>(null);
   const [overtaken, setOvertaken] = useState(0);
+  /** Add an event is open, on this day. */
+  const [adding, setAdding] = useState<string | null>(null);
 
   /** The toolbar's: where the page is, or is going. */
   const bar = ahead ?? nav;
@@ -442,6 +446,18 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
     return { ok: true };
   };
 
+  /* ADD AN EVENT (components/making/event-form): the calendar's own button
+     opens it on the day the box adds to, and a day picked opens it on that
+     day. What it put on lands as a Save's does, still (it comes with a
+     dialog closing), every date of a repeat lit. */
+  const added = (ids: string[], day: string) => {
+    hurry(swapRun.current);
+    hurry(panelRun.current);
+    hurryFilter();
+    landGrow.current = false;
+    land(`ev:${ids[0]}`, day, ids.map((id) => `ev:${id}`));
+  };
+
   /* WHAT TIFF PUT ON LANDS HERE AS THE MODAL CLOSES (his calLand): the
      first of it is brought into view as a Save is, chosen unless it is on
      the day picked, and all of it is lit, so a weekly line lights every
@@ -526,8 +542,14 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
               </button>
             ))}
           </div>
+          {cal.canAdd && (
+            <Button kind="main" size={32} icon="plus" onClick={() => setAdding(addTo)}>
+              Add an event
+            </Button>
+          )}
         </div>
       </div>
+      {adding !== null && <EventForm frame={cal} day={adding} onClose={() => setAdding(null)} onAdded={added} />}
 
       <div className="hd-cal-body" ref={body}>
         <div className="hd-cal-v" data-view={nav.view}>
@@ -571,7 +593,7 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
               >
                 <TiffBox
                   room="calendar"
-                  placeholder={addTo === cal.today ? "Add to today…" : `Add to ${fmtDay(addTo)}…`}
+                  placeholder={addTo === cal.today ? "Add to today" : `Add to ${fmtDay(addTo)}`}
                   save={save}
                   day={addTo}
                   enter="save"
@@ -594,7 +616,12 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
                 tabIndex={-1}
               >
                 {shownDay ? (
-                  <CalDay day={shownDay} fresh={fresh} onPick={pickFromDay} />
+                  <CalDay
+                    day={shownDay}
+                    fresh={fresh}
+                    onPick={pickFromDay}
+                    onAdd={cal.canAdd ? () => setAdding(shownDay.day) : undefined}
+                  />
                 ) : (
                   <CalPanel
                     item={item}

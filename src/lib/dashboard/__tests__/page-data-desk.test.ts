@@ -148,6 +148,10 @@ const LIST_READS = {
 };
 const loadHomeList = jest.fn(async (_ctx: unknown) => LIST_READS);
 jest.mock("../home-list-query", () => ({ loadHomeList: (ctx: unknown) => loadHomeList(ctx) }));
+/* To do's own reads (./todo-query) reach the database; what they read is
+   pinned in todo.test and the Home suites, and here they are a name. */
+const loadTodoExtras = jest.fn(async (_ctx: unknown) => ({ reminders: [], assignments: [], notices: [], timesheets: 0 }));
+jest.mock("../todo-query", () => ({ loadTodoExtras: (ctx: unknown) => loadTodoExtras(ctx) }));
 
 /* A task's Done (two-way phase 2, PR C): the bell's item is read only where
    the deployment sends notes — the module isn't even loaded otherwise. The
@@ -450,10 +454,30 @@ describe("what the old Home alone read", () => {
     expect(readTaskDoneLines).not.toHaveBeenCalled();
     expect(jobCandidates).not.toHaveBeenCalled();
     expect(Object.keys(data).sort()).toEqual(
-      ["assignable", "canManage", "chips", "desk", "issues", "journal", "rail", "tasks", "today", "viewerStaffId"],
+      ["assignable", "canManage", "chips", "desk", "issues", "journal", "rail", "tasks", "today", "todo", "viewerStaffId"],
     );
     expect(Object.keys(data.tasks).sort()).toEqual(["mine", "team"]);
     expect(data.desk?.calendar).toBe(CAL);
+  });
+});
+
+/* HOME'S TO DO (v2): its own reads, the bell's two and the notices unread
+   and the timesheets sent in, join the batch, as the viewer, and the page
+   carries what they found. */
+describe("To do's reads", () => {
+  it("(F) are read in the batch, as the viewer, and carried on the page", async () => {
+    loadTodoExtras.mockResolvedValueOnce({ reminders: [{ taskId: "t1", title: "Ring", late: "now" }], assignments: [], notices: [], timesheets: 2 } as never);
+    const data = await loadDashboard();
+    expect(loadTodoExtras).toHaveBeenCalledTimes(1);
+    expect(loadTodoExtras).toHaveBeenCalledWith(expect.objectContaining({ viewerStaffId: "s-me", orgId: expect.any(String) }));
+    expect(data.todo).toEqual({ reminders: [{ taskId: "t1", title: "Ring", late: "now" }], assignments: [], notices: [], timesheets: 2 });
+  });
+
+  it("are no reads at all for a visitor with no workspace", async () => {
+    const { auth0 } = jest.requireMock("@/lib/auth0") as { auth0: { getSession: jest.Mock } };
+    auth0.getSession.mockResolvedValueOnce(null);
+    expect((await loadDashboard()).todo).toEqual({ reminders: [], assignments: [], notices: [], timesheets: 0 });
+    expect(loadTodoExtras).not.toHaveBeenCalled();
   });
 });
 

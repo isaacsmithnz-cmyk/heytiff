@@ -1,0 +1,84 @@
+/* THE PATTERNS (docs/design.md, rules 39 to 42 and 50): the row, the three
+   states and the fade. Each rule that styles a link or a button names two
+   classes, so it beats `.fg button`'s reset (0,1,1) inside the frame. */
+
+/* rule 50: the fade is a mask, which sets alpha and paints nothing, so it
+   holds on any ground; it goes on only while the text overflows */
+.pt-fade { display:block; min-width:0; overflow:hidden; white-space:nowrap; }
+.pt-fade.pt-fade--2 { white-space:normal; max-height:2lh; }
+.pt-fade.pt-fade--on {
+  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
+  mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
+}
+/* two lines: the first is whole, the second fades at its end */
+.pt-fade.pt-fade--2.pt-fade--on {
+  -webkit-mask-image:linear-gradient(var(--ink), var(--ink)), linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
+  mask-image:linear-gradient(var(--ink), var(--ink)), linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
+  -webkit-mask-size:100% calc(100% - 1lh), 100% 1lh;
+  mask-size:100% calc(100% - 1lh), 100% 1lh;
+  -webkit-mask-position:top, bottom;
+  mask-position:top, bottom;
+  -webkit-mask-repeat:no-repeat;
+  mask-repeat:no-repeat;
+}
+
+/* rule 39: a row */
+.pt-rows { list-style:none; margin:0; padding:0; }
+.pt-rows > .pt-row + .pt-row { border-top:1px solid var(--line); }
+.pt-row {
+  position:relative; display:flex; align-items:center; gap:12px;
+  min-height:32px; padding:8px 12px; box-sizing:border-box;
+  font-family:var(--font); color:var(--ink);
+}
+.pt-row.pt-row--click { transition:background-color var(--t-fast) var(--ease); }
+.pt-row.pt-row--click:hover { background-color:var(--hov); }
+.pt-row-lead { flex:none; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.pt-row-text { flex:1; min-width:0; display:flex; flex-direction:column; }
+.pt-row .pt-row-name {
+  display:block; min-width:0; margin:0; padding:0; border:0; background:none;
+  font:600 14px/20px var(--font); color:var(--ink); text-align:start; text-decoration:none;
+}
+.pt-row .pt-row-hit { cursor:pointer; }
+.pt-row .pt-row-hit:focus-visible { outline:none; }
+/* the link's box covers the row; the row's own end sits above it */
+.pt-row .pt-row-hit::after { content:""; position:absolute; inset:0; }
+.pt-row .pt-row-hit:focus-visible::after { box-shadow:var(--ring); }
+.pt-row-line { display:block; min-width:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.pt-row-end { flex:none; position:relative; z-index:var(--z-raised); font-size:13px; line-height:18px; font-weight:500; }
+
+/* rules 40 and 42: nothing there yet, and something gone wrong, sit in the
+   middle of the area they stand for */
+.pt-empty,
+.pt-wrong {
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+  min-height:100%; padding:48px 16px; box-sizing:border-box; text-align:center;
+  font-family:var(--font); color:var(--ink);
+}
+.pt-empty-what { margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.pt-empty-line,
+.pt-wrong-means { margin:0; max-width:48ch; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.pt-empty-act,
+.pt-wrong-act { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:12px; margin-top:12px; }
+.pt-wrong-word { display:flex; align-items:center; gap:8px; margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--red-w); }
+
+/* the two pages' own controls: Try again is the main button (rule 22) and
+   Home is a link (rule 26) */
+/* rule 41: still blocks in the shape of what's coming, nothing looping */
+.pt-load { position:relative; }
+.pt-load-sr { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
+.pt-load-bar { display:block; border-radius:var(--r-control); background:var(--soft); }
+.pt-load-row { display:flex; flex-direction:column; justify-content:center; gap:4px; min-height:32px; padding:8px 12px; box-sizing:border-box; }
+.pt-load-row + .pt-load-row { border-top:1px solid var(--line); }
+.pt-load-name { width:40%; height:12px; }
+.pt-load-line { width:64%; height:8px; }
+.pt-load-row:nth-child(3n + 2) .pt-load-name { width:56%; }
+.pt-load-row:nth-child(3n) .pt-load-name { width:32%; }
+.pt-load--card .pt-load-shape { display:flex; flex-direction:column; gap:16px; }
+.pt-load-card { height:96px; border-radius:var(--r-card); }
+.pt-load--text .pt-load-shape { display:flex; flex-direction:column; gap:12px; }
+.pt-load-text { height:12px; }
+.pt-load-text:last-child { width:64%; }
+
+/* the not-found and error pages: Wrong, centred in the whole page */
+.pt-wrong-page { flex:1; display:flex; flex-direction:column; min-height:100%; background:var(--white); }
+.pt-wrong-page > .pt-wrong { flex:1; }

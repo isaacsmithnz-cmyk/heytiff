@@ -141,6 +141,9 @@ export function saysRepeat(words: readonly string[], reported: string | null | u
 /** A line whose whole name is "Public holiday" says the day is one. */
 const NAMES_A_HOLIDAY = /^public\s+holidays?$/i;
 
+/** Whether a name claims its day is a public holiday. */
+export const namesAHoliday = (title: string): boolean => NAMES_A_HOLIDAY.test(title.trim());
+
 /** The line as its words said it, whatever the reader made of them.
 
     ONLY A REPEAT THE WORDS SAY. "The last Friday of the month" with no

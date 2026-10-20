@@ -218,7 +218,6 @@ export function ProjectTripSheet({
             role="checkbox"
             aria-checked={on}
             disabled={busy || !open}
-            title={on ? "Confirmed — click to reopen" : "Mark confirmed"}
             aria-label={`${label} — ${on ? "confirmed" : "not confirmed"}`}
             onClick={tick}
           >
@@ -227,7 +226,6 @@ export function ProjectTripSheet({
         ) : (
           <span
             className={"wb2-bx derived" + (on ? " on" : "")}
-            title="Ticks itself when someone is assigned"
             aria-hidden="true"
           >
             <Icon name="check" size={12} />
@@ -277,7 +275,6 @@ export function ProjectTripSheet({
             ref={closeRef}
             className="wb2-ico"
             onClick={onClose}
-            title="Close"
             aria-label="Close"
           >
             <Icon name="x" size={14} />
@@ -411,7 +408,6 @@ export function ProjectTripSheet({
                         <button
                           className="wb2-pkx"
                           disabled={busy}
-                          title="Take it off the list"
                           aria-label={`Remove ${i.label}`}
                           onClick={() => run(() => removeVisitBringItem(i.id))}
                         >
@@ -463,7 +459,6 @@ export function ProjectTripSheet({
                         <button
                           className="wb2-pkx show"
                           disabled={busy}
-                          title="Take them off this trip"
                           aria-label={`Unassign ${t.name}`}
                           onClick={() => run(() => unassignVisitTech(visit.id, t.id))}
                         >
@@ -484,7 +479,7 @@ export function ProjectTripSheet({
                       }}
                     >
                       <option value="">
-                        {visit.techs.length ? "Add another…" : "Nobody yet — pick one"}
+                        {visit.techs.length ? "Add another technician" : "Nobody yet — pick one"}
                       </option>
                       {unassigned.map((s) => (
                         <option key={s.id} value={s.id}>
@@ -655,7 +650,7 @@ export function ProjectTripSheet({
             value={notesText}
             onChange={setNotesText}
             rows={3}
-            placeholder="Gate codes, who to ask for, what to watch out for…"
+            placeholder="Gate codes, who to ask for, what to watch out for"
           />
           {/* Save keeps it on the trip; Go hands the same words to the note
               brain, which is what the pill does. */}
@@ -719,7 +714,6 @@ export function ProjectTripSheet({
                     className="wb2-ico"
                     disabled={busy}
                     onClick={() => setClosing(false)}
-                    title="Not yet"
                     aria-label="Not yet — leave it open"
                   >
                     <Icon name="x" size={14} />

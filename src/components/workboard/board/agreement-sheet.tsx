@@ -199,7 +199,7 @@ export function AgreementSheet({
           {windowControls}
           {/* ON THE SHEET, because nothing outside its scrim can be clicked. */}
           <TiffButton where="sheet" />
-          <button ref={closeRef} className="wb2-ico" onClick={onClose} title="Close" aria-label="Close">
+          <button ref={closeRef} className="wb2-ico" onClick={onClose} aria-label="Close">
             <Icon name="x" size={14} />
           </button>
         </div>
@@ -353,11 +353,11 @@ export function AgreementSheet({
               </label>
               <label className="wb2-fl wide">
                 Access notes
-                <NoteToken as="field" label="access notes" value={accessNotes} onChange={setAccessNotes} rows={2} placeholder="keys, roof access, who to ask for…" />
+                <NoteToken as="field" label="access notes" value={accessNotes} onChange={setAccessNotes} rows={2} placeholder="keys, roof access, who to ask for" />
               </label>
               <label className="wb2-fl wide">
                 Site requirements
-                <NoteToken as="field" label="site requirements" value={siteRequirements} onChange={setSiteRequirements} rows={2} placeholder="inductions, white card, PPE…" />
+                <NoteToken as="field" label="site requirements" value={siteRequirements} onChange={setSiteRequirements} rows={2} placeholder="inductions, white card, PPE" />
               </label>
               <label className="wb2-fl wide">
                 Agreement notes
@@ -508,7 +508,6 @@ export function AgreementSheet({
                   <button
                     className="wb2-pkx"
                     disabled={busy}
-                    title="Remove from the list"
                     aria-label={`Remove ${p.label}`}
                     onClick={() => run(() => removePackingItem(p.id))}
                   >
@@ -545,7 +544,6 @@ export function AgreementSheet({
                   <button
                     className="wb2-pkx show"
                     disabled={busy}
-                    title="Remove"
                     aria-label={`Remove ${e.description}`}
                     onClick={() => run(() => removeAgreementEquipment(e.id))}
                   >

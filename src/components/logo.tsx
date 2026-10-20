@@ -1,5 +1,7 @@
-/* HeyTiff brand marks. The chevron is the logo; `gradient` paints it teal→blue,
-   otherwise it inherits `currentColor` (use white on dark, ink on light).
+/* HeyTiff brand marks. The chevron is the logo, in one colour: it takes
+   `currentColor`, white on the ink and ink on paper (v2, rules 8 and 9: "HeyTiff
+   in one colour. The teal leaves the app."). The teal-to-blue gradient it
+   wore until 18 October 2026 is gone, and so is the prop that asked for it.
    Source: public/brand/heytiff-*.svg */
 
 /* THE MARK'S GEOMETRY, AS DATA. The two strokes used to be typed into the JSX
@@ -23,12 +25,10 @@ export const CHEVRON_STROKES = [
 
 export function Chevron({
   size = 24,
-  gradient = false,
   className,
   decorative = false,
 }: {
   size?: number;
-  gradient?: boolean;
   className?: string;
   /** Beside a word that already names the control. The mark defaults to
       `role="img"` with a "HeyTiff" label, which is right when it stands
@@ -37,12 +37,7 @@ export function Chevron({
       nothing. */
   decorative?: boolean;
 }) {
-  // The gradient is a single fixed brand gradient, so a stable constant id is
-  // safe (identical defs never visually collide) and — unlike a render-time
-  // counter — stays identical between server and client, avoiding a hydration
-  // mismatch. Works in both Server and Client Components (no hook needed).
-  const gid = "htGrad";
-  const stroke = gradient ? `url(#${gid})` : "currentColor";
+  const stroke = "currentColor";
   return (
     <svg
       width={size}
@@ -55,14 +50,6 @@ export function Chevron({
       aria-hidden={decorative ? true : undefined}
       className={className}
     >
-      {gradient && (
-        <defs>
-          <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#00E5C0" />
-            <stop offset="1" stopColor="#2E68FF" />
-          </linearGradient>
-        </defs>
-      )}
       {CHEVRON_STROKES.map((s, i) => (
         <path
           key={i}
@@ -81,10 +68,11 @@ export function Chevron({
   );
 }
 
-/* "HeyTiff" wordmark as HTML text (uses the page's Plus Jakarta Sans).
-   `inkColor` is the "Hey" colour; "Tiff" always uses the teal-AA accent. */
+/* "HeyTiff" wordmark as HTML text (uses the page's Plus Jakarta Sans), in
+   one colour (v2, rule 9): `inkColor` colours the whole word, ink by default
+   and white on the ink. The "Tiff" was teal until 18 October 2026. */
 export function Wordmark({
-  inkColor = "#0A0B10",
+  inkColor = "var(--ink, #050505)",
   className,
   style,
 }: {
@@ -95,10 +83,9 @@ export function Wordmark({
   return (
     <span
       className={className}
-      style={{ fontWeight: 800, letterSpacing: "-0.03em", ...style }}
+      style={{ fontWeight: 700, letterSpacing: "-0.03em", color: inkColor, ...style }}
     >
-      <span style={{ color: inkColor }}>Hey</span>
-      <span style={{ color: "#00A389" }}>Tiff</span>
+      Hey<span>Tiff</span>
     </span>
   );
 }

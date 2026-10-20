@@ -34,6 +34,8 @@ function initialsFrom(name: string): string {
 export type ShellData = {
   user: ShellUser;
   orgName: string | null;
+  /** the workspace, for the chrome's own reads (New's Job offer) */
+  orgId: string | null;
 };
 
 /* React-cached: the sidebar, the topbar and the command palette are three
@@ -76,5 +78,6 @@ export const loadShell = cache(async (): Promise<ShellData> => {
       caps: [...caps],
     },
     orgName,
+    orgId: orgId ?? null,
   };
 });

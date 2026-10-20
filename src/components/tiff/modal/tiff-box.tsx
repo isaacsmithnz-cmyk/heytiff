@@ -2,6 +2,7 @@
 
 import { useId, useRef, useState } from "react";
 import { TiffButton } from "@/components/notes/tiff-button";
+import { Button, IconButton } from "@/components/parts/button";
 import type { TiffRoom } from "@/lib/workboard/note-turns";
 import { useTiff } from "./tiff-context";
 
@@ -34,20 +35,41 @@ import { useTiff } from "./tiff-context";
    yes, or the modal opened on them. Anything else leaves them where they
    were — a save that failed says why under the box, and a modal that could
    not open (one is already open, or this viewer does not have it yet) takes
-   nothing. While a save is out the words hold still (read-only, "Saving…"),
+   nothing. While a save is out the words hold still (read-only, "Saving to the diary"),
    so the words that leave are the words that were saved: an edit made
    meanwhile would have kept the saved words in the box, looking unsaved,
    for the next press to file again.
 
    The box is the modal's own reply box, on the page: the same edge, corner,
-   words and 36px buttons, taller here (shell.css, `.tm-entry`). */
+   words and 36px buttons, taller here (shell.css, `.tm-entry`).
+
+   HOME'S BOX (v2, `look="home"`, the board's "What's happening on site?").
+   The same box and the same two ways in, drawn as v2 draws them: the words
+   on their own line at 16 (rule 13), and under them the microphone, icon
+   only (rule 27), which opens the modal listening as the Tiff button does,
+   and a blue Send (rule 22), which is Sort it out: the modal, on the words.
+   Enter is Send. There is no Save: words kept as typed, to nobody, belong
+   to Conversations › Only me (F-017), and until that is built the old
+   desk's diary keeps its own box. Add photo waits for a conversation that
+   takes a photo; the modal takes none today. */
 
 export type BoxSaved = { ok: true } | { ok: false; error: string };
 /** A room's own Save: the words as typed, and whether they were kept. */
 export type BoxSave = (text: string) => Promise<BoxSaved>;
 
+/** Which button opened the modal, for Home's microphone. */
+const HOME_BOX = "home-box";
+
 /** Said when a save throws rather than answering. */
 export const SAVE_FAILED = "Couldn't save that.";
+
+/** Save's wait, said for the room the words are going to (rule 49). */
+const SAVING = {
+  home: "Saving the note",
+  diary: "Saving to the diary",
+  tasks: "Saving the task",
+  calendar: "Saving to the calendar",
+} satisfies Record<TiffRoom, string>;
 
 export function TiffBox({
   room,
@@ -55,6 +77,7 @@ export function TiffBox({
   save,
   day,
   enter = "sort",
+  look = "entry",
 }: {
   room: TiffRoom;
   placeholder: string;
@@ -63,6 +86,8 @@ export function TiffBox({
   day?: string;
   /** What Enter presses: Sort it out, or the room's own Save. */
   enter?: "sort" | "save";
+  /** "home": v2's box on Home, the words over the microphone and Send. */
+  look?: "entry" | "home";
 }) {
   const tiff = useTiff();
   const [text, setText] = useState("");
@@ -117,6 +142,45 @@ export function TiffBox({
     setError(null);
   };
 
+  if (look === "home") {
+    return (
+      <div className="hm-box" ref={box}>
+        <input
+          className="hm-box-in"
+          ref={field}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter" || e.nativeEvent.isComposing || e.keyCode === 229) return;
+            e.preventDefault();
+            sort(sortButton.current ?? e.currentTarget, true);
+          }}
+          placeholder={placeholder}
+          aria-label={placeholder}
+          autoComplete="off"
+        />
+        <div className="hm-box-row">
+          <IconButton
+            glyph="mic"
+            label="Talk to Tiff"
+            aria-haspopup="dialog"
+            aria-expanded={tiff.openedBy === HOME_BOX}
+            onClick={(e) => tiff.open({ from: e.currentTarget, id: HOME_BOX, keyboard: e.detail === 0, room, day })}
+          />
+          <Button
+            kind="main"
+            ref={sortButton}
+            className="hm-box-send"
+            disabled={!typed}
+            onClick={(e) => sort(e.currentTarget, e.detail === 0)}
+          >
+            Send
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="tm-box tm-entry" ref={box}>
@@ -138,14 +202,14 @@ export function TiffBox({
             else sort(sortButton.current ?? e.currentTarget, true);
           }}
           placeholder={placeholder}
-          aria-label={placeholder.replace(/…$/, "")}
+          aria-label={placeholder}
           aria-describedby={error ? errorId : undefined}
           autoComplete="off"
         />
         {typed ? (
           <>
             <button type="button" className="pbtn ghost" disabled={saving} onClick={onSave}>
-              {saving ? "Saving…" : "Save"}
+              {saving ? SAVING[room] : "Save"}
             </button>
             <button
               type="button"

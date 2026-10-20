@@ -85,7 +85,7 @@ function Trail({
     <ol className="ffg-trail">
       {steps.map((s, i) => (
         <li key={s.questionId}>
-          <button type="button" onClick={() => onBack(i)} title="Go back to this step">
+          <button type="button" onClick={() => onBack(i)}>
             <span className="q">{s.ask}</span>
             <span className="a">
               {s.answer}

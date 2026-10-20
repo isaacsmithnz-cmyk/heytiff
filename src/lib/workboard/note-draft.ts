@@ -1,6 +1,9 @@
 import type { ConfirmedNote, NoteTarget } from "@/app/actions/workboard-notes";
 import { isRemindKind, type RemindKind } from "@/lib/dashboard/reminders";
 import type { NoteProposal, ProposedTask, Severity } from "./note-brain";
+import { isVisitPart, visitDay, visitMinutes, visitStart, type ProposedVisit } from "./note-visit";
+import { costFields, costRowText, type ProposedCost } from "./note-cost";
+import { variationFields, type ProposedVariation } from "./note-variation";
 
 /* FROM A PROPOSAL TO WHAT GETS FILED — pure, and on both sides of the wire.
 
@@ -34,6 +37,16 @@ export type Draft = {
     hint: string;
     dueHint: string;
   }[];
+  /** Visits to book. Not filed by `toConfirmed`: `fileNote` books each
+      through Book in's gate, or asks first (note-visit). */
+  visits: (ProposedVisit & { on: boolean })[];
+  /** Costs to record. Not filed by `toConfirmed`: `fileNote` files each
+      through the expense form's own action, or asks first (note-cost). */
+  costs: (ProposedCost & { on: boolean })[];
+  /** Variations to start. Not filed by `toConfirmed`: `fileNote` starts each
+      through the quote page's own `startVariation`, or makes the task its
+      gate says it must be (note-variation). */
+  variations: (ProposedVariation & { on: boolean })[];
   bringItems: { on: boolean; text: string }[];
   flags: { on: boolean; message: string; severity: string }[];
   progressBullets: { on: boolean; text: string }[];
@@ -66,6 +79,9 @@ export function toDraft(p: NoteProposal): Draft {
          that gave a task its urgency never reached the person doing it. */
       dueHint: t.dueHint,
     })),
+    visits: p.visits.map((v) => ({ ...v, on: true })),
+    costs: p.costs.map((c) => ({ ...c, on: true })),
+    variations: p.variations.map((v) => ({ ...v, on: true })),
     bringItems: p.bringItems.map((text) => ({ on: true, text })),
     flags: p.flags.map((f) => ({ on: true, message: f.message, severity: f.severity })),
     progressBullets: p.progressBullets.map((text) => ({ on: true, text })),
@@ -156,6 +172,9 @@ export function targetOf(picked: string): NoteTarget | null {
 
 export const PLAN_LANES = [
   "tasks",
+  "visits",
+  "costs",
+  "variations",
   "flags",
   "issueEntries",
   "bringItems",
@@ -178,6 +197,9 @@ export function planRows(p: NoteProposal): PlanRow[] {
   const add = (lane: PlanLane, texts: string[]) =>
     texts.forEach((text, index) => rows.push({ key: `${lane}:${index}`, lane, index, text }));
   add("tasks", p.tasks.map((t) => t.title));
+  add("visits", p.visits.map((v) => v.work));
+  add("costs", p.costs.map(costRowText));
+  add("variations", p.variations.map((v) => v.what));
   add("flags", p.flags.map((f) => f.message));
   add("issueEntries", p.issueEntries.map((e) => e.body));
   add("bringItems", p.bringItems);
@@ -198,6 +220,9 @@ export const filesNothing = (p: NoteProposal): boolean =>
 export function withoutRows(d: Draft, keys: readonly string[]): Draft {
   const next: Draft = {
     tasks: d.tasks.map((r) => ({ ...r })),
+    visits: d.visits.map((r) => ({ ...r })),
+    costs: d.costs.map((r) => ({ ...r })),
+    variations: d.variations.map((r) => ({ ...r })),
     bringItems: d.bringItems.map((r) => ({ ...r })),
     flags: d.flags.map((r) => ({ ...r })),
     progressBullets: d.progressBullets.map((r) => ({ ...r })),
@@ -260,8 +285,36 @@ export function storedProposal(raw: unknown): NoteProposal | null {
     str(e.body).trim() ? { body: str(e.body), equipmentHint: str(e.equipmentHint) } : null;
   const c = r.clarify && typeof r.clarify === "object" ? (r.clarify as Record<string, unknown>) : null;
 
+  /* re-read through the shaper's own checks: a proposal stored before the
+     lane has none, and one hand-edited is held to the same grid */
+  const visits = list<ProposedVisit>(r.visits, (v) =>
+    str(v.work).trim()
+      ? {
+          work: str(v.work),
+          assigneeId: typeof v.assigneeId === "string" && v.assigneeId ? v.assigneeId : null,
+          assigneeHint: str(v.assigneeHint),
+          day: visitDay(v.day),
+          start: visitStart(v.start),
+          part: isVisitPart(v.part) ? v.part : "day",
+          minutes: visitMinutes(v.minutes),
+        }
+      : null,
+  );
+
+  /* the same, for costs: every figure through the shaper's own checks */
+  const costs = list<ProposedCost>(r.costs, (c) => {
+    const fields = costFields(c as Parameters<typeof costFields>[0]);
+    return fields ? { ...fields, payerId: typeof c.payerId === "string" && c.payerId ? c.payerId : null } : null;
+  });
+
+  /* and for variations: words to change, or none */
+  const variations = list<ProposedVariation>(r.variations, (v) => variationFields(v as { what: unknown }));
+
   return {
     tasks,
+    visits,
+    costs,
+    variations,
     bringItems: strs(r.bringItems),
     flags: list(r.flags, (f) =>
       str(f.message).trim()

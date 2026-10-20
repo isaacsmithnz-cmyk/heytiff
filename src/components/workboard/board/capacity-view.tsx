@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useEffect, useEffectEvent, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuDayMonth, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -372,13 +373,13 @@ export function CapacityView({
             This week
           </button>
         )}
-        <span className="wb2-tbsum">
+        <Fade className="wb2-tbsum">
           {scored && total
             ? `${total.fillPct}% full`
             : current && !scored && windowBooked > 0
               ? `${fmtHoursShort(windowBooked)} booked`
               : ""}
-        </span>
+        </Fade>
         {manage && current && (
           <button type="button" className="wb2-scmcrew" onClick={() => setEditing(true)}>
             <Icon name="users" size={14} />
@@ -431,7 +432,7 @@ export function CapacityView({
       onClose={closeDetail}
     >
       <div className="wb2-scdlist">
-        {!detailNow && <p className="wb2-hint wb2-schload">Reading the day…</p>}
+        {!detailNow && <p className="wb2-hint wb2-schload">Reading the day</p>}
         {detailNow && detailJobs.length === 0 && (
           <p className="wb2-hint wb2-schload">Nothing booked.</p>
         )}
@@ -461,7 +462,9 @@ export function CapacityView({
             }}
           >
             <span className="wb2-scdjh">
-              <b>{row.clientName ?? "Unnamed client"}</b>
+              <b>
+                <Fade>{row.clientName ?? "Unnamed client"}</Fade>
+              </b>
               {row.jobNumber && <u>{row.jobNumber}</u>}
               <em>{fmtHoursShort(row.minutes)}</em>
             </span>
@@ -478,7 +481,7 @@ export function CapacityView({
       {head}
 
       <Split aside={aside}>
-        {loading && !current && <p className="wb2-hint wb2-schload">Reading the weeks…</p>}
+        {loading && !current && <p className="wb2-hint wb2-schload">Reading the weeks</p>}
 
         {days && !scored && (
           <div className="wb2-scmnone">
@@ -512,9 +515,6 @@ export function CapacityView({
                   : d.bookedMinutes > 0
                     ? `${fmtHoursShort(d.bookedMinutes)} booked`
                     : "";
-                const title = [hours || null, d.over ? "over capacity" : null]
-                  .filter(Boolean)
-                  .join(", ");
                 const cls =
                   "wb2-scmc" +
                   (hasPct ? " gauge" : " ns") +
@@ -554,7 +554,7 @@ export function CapacityView({
                 );
                 if (!clickable) {
                   return (
-                    <span key={d.dayISO} className={cls} style={style} title={title || undefined}>
+                    <span key={d.dayISO} className={cls} style={style}>
                       {inner}
                     </span>
                   );
@@ -569,7 +569,6 @@ export function CapacityView({
                     }}
                     className={cls}
                     style={style}
-                    title={title || undefined}
                     aria-pressed={sel}
                     aria-label={`${fmtAuWeekdayDayMonth(d.dayISO)}${
                       hasPct ? `, ${d.fillPct}% full` : ""
@@ -697,7 +696,7 @@ function CrewEditor({
             Cancel
           </button>
           <button type="button" className="fl-btn primary" disabled={saving} onClick={save}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? "Saving the hours" : "Save"}
           </button>
         </div>
       </div>

@@ -1,15 +1,34 @@
 "use client";
 
-import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
+import { Tooltip } from "@/components/parts/tooltip";
 import { navHref } from "@/components/shell/nav";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { useHydrated } from "@/lib/use-hydrated";
 import { kbDocUrl } from "@/app/actions/kb";
 import { askTiff, type AskSourceItem, type AskTurn } from "@/lib/tiff/ask-client";
 import { askPrefill, consumeAskHandoff, type AskHandoff, type AskScope } from "@/lib/tiff/ask-handoff";
+import { loadThreads, STORE_KEY, type TiffMsg, type TiffThread } from "@/lib/tiff/threads";
+import { pullThreads, pushThreads } from "@/lib/tiff/thread-sync";
+import {
+  MISS_STEP,
+  categoryHue,
+  clockOf,
+  dayKeyOf,
+  dayLabel,
+  stepsFromTrace,
+  threadWhen,
+} from "@/lib/tiff/conversations";
+import { Button } from "@/components/parts/button";
+import { Empty, Wrong } from "@/components/parts/states";
+import { Fade } from "@/components/parts/fade";
+import { Initials } from "@/components/parts/initials";
+import { Dot } from "@/components/parts/state";
+import { CvBox } from "@/components/conversations/box";
+import { CvList } from "@/components/conversations/list";
 
 /* THE HANDOFF IS READ ONCE PER MOUNT, as a store rather than in an effect.
 
@@ -90,29 +109,16 @@ import { Waiting } from "@/components/ui/orb";
    is a pure machine in lib/tiff/research-viz.ts, so it can be proven in a test
    that cannot see a single coordinate. Nothing here waits to look busier. */
 
-type Msg = {
-  role: "user" | "tiff";
-  text: string;
-  at: number;
-  /** True when this answer was drawn from the library rather than general knowledge. */
-  researched?: boolean;
-  /** True when research found nothing and the answer is general knowledge anyway. */
-  missed?: boolean;
-  /** Set when a document was named, covered nothing, and the search widened
-      to the rest of the library — the document's title, so an answer read
-      back tomorrow still says which manual it wasn't in. */
-  widenedFrom?: string;
-  /** True when the answer hit the token ceiling and stops mid-thought. */
-  truncated?: boolean;
-  sources?: AskSourceItem[];
-};
-
-type Thread = { id: string; title: string; updatedAt: number; messages: Msg[] };
-
-/* v2: v1 rows are ignored rather than migrated. They are preview-era replies
-   from a model that wasn't connected — there is nothing in them worth
-   carrying, and the shape gained three fields. */
-const STORE_KEY = "heytiff.tiff.threads.v2";
+/* A message and a thread are lib/tiff/threads.ts's, which the server's copy
+   shares (docs/migrations/tiff_threads.sql, NOT YET APPLIED). Threads live in
+   localStorage under `STORE_KEY` as before, a bumped key: messages carry
+   sources and whether they were researched, and v1 rows have neither. v1
+   rows are ignored rather than migrated: they are preview-era replies from a
+   model that wasn't connected. With the table applied the server keeps a
+   copy that follows the person to other devices (lib/tiff/thread-sync.ts);
+   without it, this device's copy is the only one. */
+type Msg = TiffMsg;
+type Thread = TiffThread;
 
 /** Prior turns sent as context. The route caps this again on its side. */
 const HISTORY_TURNS = 8;
@@ -129,17 +135,6 @@ const TITLE_MAX = 60;
    landing, they taught nothing after the first read, and two of the four were
    about a category this workspace might hold nothing in. The box and its
    placeholder are the invitation. */
-
-function loadThreads(): Thread[] {
-  try {
-    const raw = localStorage.getItem(STORE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
 
 function ago(ts: number): string {
   const s = Math.max(0, (Date.now() - ts) / 1000);
@@ -327,6 +322,23 @@ function AnswerText({ text }: { text: string }) {
 
 /* ── the screen ──────────────────────────────────────────────────────────── */
 
+/* TWO LAYOUTS, ONE TIFF. `library` is the Library's ask, as it always was.
+   `conversations` is v2's Conversations place (the board
+   v2-board-conversations): the same threads, the same ask and the same
+   stream, laid out as a list of threads and the open conversation with its
+   box at the foot. The assistant makes the two halves and hands them to
+   `frame`, which puts them on the page beside whatever else the place shows
+   (its title, its views, Only me), so the stream keeps running while
+   another view is up. Nothing about asking is written twice. */
+export type ConversationParts = {
+  /** The threads, newest first: a title in bold over its time in grey. */
+  list: ReactNode;
+  /** The open conversation, or a new one, with the box at its foot. */
+  pane: ReactNode;
+  /** How many threads there are, for the view's count. */
+  count: number;
+};
+
 export function TiffAssistant({
   counts = { install: 0, faults: 0, specs: 0, sops: 0, field: 0 },
   readyCount = 0,
@@ -334,6 +346,11 @@ export function TiffAssistant({
   recentDocs = [],
   docTitles = {},
   voiceEnabled = false,
+  layout = "library",
+  frame,
+  initialThreadId = null,
+  onOpenChange,
+  you = "You",
 }: {
   counts?: Record<KbCategoryKey, number>;
   /** Ready documents across every shelf — nothing can be researched at zero. */
@@ -347,11 +364,21 @@ export function TiffAssistant({
   /** ELEVENLABS_API_KEY is set on this deployment. No key, no mic — the ask
       bar is a plain text field either way. */
   voiceEnabled?: boolean;
+  layout?: "library" | "conversations";
+  /** Conversations: lays the list and the open conversation out on the page. */
+  frame?: (parts: ConversationParts) => ReactNode;
+  /** Conversations: the thread the address opened. */
+  initialThreadId?: string | null;
+  /** Conversations: the open thread changed, so the page can say so in the address. */
+  onOpenChange?: (id: string | null) => void;
+  /** Conversations: the asker's name, beside their own turns. */
+  you?: string;
 }) {
+  const conv = layout === "conversations";
   const hydrated = useHydrated();
   // null = "not touched yet": until the first send, render straight from storage
   const [threadState, setThreadState] = useState<Thread[] | null>(null);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(initialThreadId);
   const handoff = useSyncExternalStore(noHandoffSubscription, askHandoffAtMount, noAskHandoff);
   const prefill = handoff.text;
   /* THE DOCUMENT THIS CONVERSATION IS ABOUT, when a library row sent us here.
@@ -410,6 +437,8 @@ export function TiffAssistant({
   widenedFrom: string | null;
     truncated: boolean;
     sources: AskSourceItem[];
+    /** What she did before answering, off the search's own report. */
+    steps: string[];
   };
   const [live, setLive] = useState<Live | null>(null);
   const liveRef = useRef<Live | null>(null);
@@ -425,6 +454,12 @@ export function TiffAssistant({
   } | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  /** Conversations' box: a textarea, where the Library's bar is one line. */
+  const boxRef = useRef<HTMLTextAreaElement>(null);
+  const focusBox = () => (inputRef.current ?? boxRef.current)?.focus();
+  /* The clock the times are read against, once per visit: a "Today" that
+     turned into "Yesterday" mid-read would be the page moving under you. */
+  const [now] = useState(nowMs);
   const chatRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -518,7 +553,7 @@ export function TiffAssistant({
      focus() on a disabled input does nothing at all. */
   const wasListening = useRef(false);
   useEffect(() => {
-    if (wasListening.current && !listening) inputRef.current?.focus();
+    if (wasListening.current && !listening) focusBox();
     wasListening.current = listening;
   }, [listening]);
 
@@ -548,7 +583,7 @@ export function TiffAssistant({
      putting words in somebody's mouth and spending a question they never
      asked. Read-once, so a refresh doesn't hand it over again. */
   useEffect(() => {
-    if (prefill) inputRef.current?.focus();
+    if (prefill) focusBox();
   }, [prefill]);
   /* The latch belongs to this mount — see askHandoffAtMount. */
   useEffect(() => forgetAskHandoff, []);
@@ -560,6 +595,25 @@ export function TiffAssistant({
     } catch {
       /* storage full/blocked — threads just won't survive a refresh */
     }
+    pushThreads();
+  }, []);
+
+  /* THE SERVER'S COPY, once per visit (lib/tiff/thread-sync.ts). Until
+     docs/migrations/tiff_threads.sql is applied this comes back empty-handed
+     and nothing changes: the threads stay on this device. With it, threads
+     from the person's other devices come down, and on the first visit this
+     browser's own go up, once. */
+  const [kept, setKept] = useState(false);
+  useEffect(() => {
+    let here = true;
+    void pullThreads().then((merged) => {
+      if (!here || !merged) return;
+      setThreadState(merged);
+      setKept(true);
+    });
+    return () => {
+      here = false;
+    };
   }, []);
 
   const appendTo = useCallback(
@@ -574,6 +628,7 @@ export function TiffAssistant({
         } catch {}
         return next;
       });
+      pushThreads();
     },
     []
   );
@@ -623,6 +678,7 @@ export function TiffAssistant({
       ...(state.widenedFrom !== null ? { widenedFrom: state.widenedFrom } : {}),
       ...(state.truncated ? { truncated: true } : {}),
       ...(state.sources.length ? { sources: state.sources } : {}),
+      ...(state.steps.length ? { steps: state.steps } : {}),
     });
   };
 
@@ -648,6 +704,7 @@ export function TiffAssistant({
       widenedFrom: null,
       truncated: false,
       sources: [],
+      steps: [],
     });
 
     void askTiff({
@@ -680,10 +737,11 @@ export function TiffAssistant({
                 KB_CATEGORIES.map((c) => [c.key, event.categories[c.key]?.topDoc])
               ),
             });
+            patchLive((prev) => ({ ...prev, steps: stepsFromTrace(event) }));
             break;
           case "miss":
             showViz({ t: "miss" });
-            patchLive((prev) => ({ ...prev, missed: true }));
+            patchLive((prev) => ({ ...prev, missed: true, steps: [MISS_STEP] }));
             // the banner explaining the miss belongs in the thread, not here
             openHeld();
             break;
@@ -764,7 +822,7 @@ export function TiffAssistant({
          runs leave the bar it was typed in; a general one has nothing to draw
          and opens straight away. Either way the row is already written — the
          hold is a view, not a delay in recording anything. */
-      if (researchMode) {
+      if (researchMode && !conv) {
         holdRef.current = threadId;
         setHoldId(threadId);
       } else {
@@ -804,7 +862,7 @@ export function TiffAssistant({
     if (!opener) return;
     setTyped(opener);
     if (readyCount > 0) setResearchPick(true);
-    inputRef.current?.focus();
+    focusBox();
   };
 
   /* ── leaving a conversation, every way there is ─────────────────────────
@@ -830,6 +888,12 @@ export function TiffAssistant({
      UNCHANGED: the router only dispatches on a pushState that carries a url,
      so a bare entry is invisible to it — no refetch, no remount. */
   const markOpened = (id: string) => {
+    /* Conversations names the open thread in its address instead (the page
+       writes `?open=`), so a link or a refresh opens it again. */
+    if (conv) {
+      onOpenChange?.(id);
+      return;
+    }
     try {
       window.history.pushState({ tiffChat: id }, "");
       pushedRef.current = true;
@@ -843,6 +907,10 @@ export function TiffAssistant({
      triggers finds nothing left to do, which is exactly why the handler below
      is written to be idempotent. */
   const settleHistory = () => {
+    if (conv) {
+      onOpenChange?.(null);
+      return;
+    }
     if (!pushedRef.current) return;
     pushedRef.current = false;
     window.history.back();
@@ -852,6 +920,7 @@ export function TiffAssistant({
      binds ONCE — an effect event says that outright, where an empty dep array
      over a closure reading `leaveThread` needed a disable to keep. */
   const onPop = useEffectEvent((e: PopStateEvent) => {
+    if (conv) return; // no entry of ours: the address is the page's
     const id = (e.state as { tiffChat?: string } | null)?.tiffChat;
     if (typeof id === "string") {
       // forward, onto an entry we own: reopen the thread if it still exists
@@ -882,7 +951,7 @@ export function TiffAssistant({
     leaveThread(false);
     settleHistory();
     setTyped("");
-    inputRef.current?.focus();
+    focusBox();
   };
 
   const openThread = (id: string) => {
@@ -926,6 +995,178 @@ export function TiffAssistant({
     // a miss already went and looked; offering to look again is a taunt
     !lastMsg.missed &&
     Boolean(lastQuestion);
+
+  const dialogs = (
+    <>
+      {peek && <SourcePeek source={peek} onClose={() => setPeek(null)} />}
+      {renaming && (
+        <RenameThread
+          thread={renaming}
+          onSave={(title) => renameThread(renaming.id, title)}
+          onClose={() => setRenaming(null)}
+        />
+      )}
+      {removing && (
+        <DeleteThread
+          thread={removing}
+          kept={kept}
+          onConfirm={() => deleteThread(removing.id)}
+          onClose={() => setRemoving(null)}
+        />
+      )}
+    </>
+  );
+
+  /* ── Conversations (v2): the list and the open conversation ─────────────
+     The board v2-board-conversations. The list is every thread, newest
+     first. The pane is the open one under a "Today" divider: each turn with
+     the asker's initials or Tiff's mark, the name and the time, then the
+     words; her steps ticked in grey; what she read as cards with an Open;
+     where the answer came from in grey; and the box at the foot. Nothing
+     before hydration: the threads are this browser's, so the server has
+     nothing to draw, and a loading list is nothing for half a second
+     anyway (rule 41). */
+  if (conv) {
+    const sorted = [...threads].sort((a, b) => b.updatedAt - a.updatedAt);
+    const list = !hydrated ? null : sorted.length > 0 ? (
+      <CvList
+        label="Your conversations with Tiff"
+        rows={sorted.map((t) => ({ id: t.id, title: t.title, when: threadWhen(t.updatedAt, now) }))}
+        openId={active?.id ?? null}
+        onOpen={openThread}
+      />
+    ) : (
+      <Empty
+        what="No conversations yet"
+        line="Ask Tiff anything and the conversation is kept here."
+        action={
+          <Button kind="second" size={32} onClick={focusBox}>
+            Ask Tiff
+          </Button>
+        }
+      />
+    );
+    const messages = active?.messages ?? [];
+    const pane = (
+      <section className="cv-pane" aria-label={active ? active.title : "New conversation"}>
+        <div className="cv-pane-head">
+          {active && (
+            <>
+              <Button kind="quiet" size={32} aria-label={`Rename “${active.title}”`} onClick={() => setRenaming(active)}>
+                Rename
+              </Button>
+              <Button kind="delete" size={32} aria-label={`Delete “${active.title}”`} onClick={() => setRemoving(active)}>
+                Delete
+              </Button>
+            </>
+          )}
+          <Button kind="second" size={32} icon="plus" onClick={newChat}>
+            New conversation
+          </Button>
+        </div>
+        <div className="cv-scroll" ref={chatRef} onScroll={onChatScroll}>
+          {active ? (
+            <div className="cv-msgs">
+              {messages.map((m, i) => (
+                <CvTurn
+                  key={i}
+                  m={m}
+                  day={i === 0 || dayKeyOf(messages[i - 1].at) !== dayKeyOf(m.at) ? dayLabel(m.at, now) : null}
+                  you={you}
+                  titles={docTitles}
+                  canManage={canManage}
+                  onPeek={setPeek}
+                />
+              ))}
+              {live && live.threadId === active.id && (
+                <article className="cv-msg" aria-busy="true">
+                  <span className="cv-avatar">
+                    <TiffGlyph size={24} working />
+                  </span>
+                  <div className="cv-body">
+                    <p className="cv-meta">
+                      <b>Tiff</b>
+                    </p>
+                    {live.steps.length > 0 && <CvSteps steps={live.steps} />}
+                    {live.text ? (
+                      <div className="cv-text">
+                        <AnswerText text={live.text} />
+                      </div>
+                    ) : (
+                      /* what she is doing now, in ink, under the steps she has done */
+                      <p className="cv-now" role="status">
+                        {workingNote(viz)}
+                      </p>
+                    )}
+                  </div>
+                </article>
+              )}
+              {failure && (
+                <div className="cv-fail">
+                  <Wrong
+                    word="No answer"
+                    means={failure.message}
+                    action={
+                      <Button kind="second" size={32} icon="rotate" onClick={retry}>
+                        Try again
+                      </Button>
+                    }
+                  />
+                </div>
+              )}
+            </div>
+          ) : hydrated ? (
+            <div className="cv-start">
+              <Empty
+                what="Ask Tiff anything"
+                line={
+                  readyCount > 0
+                    ? `She answers from the ${readyCount.toLocaleString("en-AU")} ${plural(readyCount, "document")} in your library, and says when the answer is general knowledge.`
+                    : "Add manuals to the Library and she answers from those too, with the page they came from."
+                }
+                action={null}
+              />
+            </div>
+          ) : null}
+        </div>
+        <CvBox
+          value={input}
+          onChange={setTyped}
+          onSubmit={() => send(input)}
+          label="Ask Tiff"
+          placeholder="Ask Tiff anything"
+          sendWord="Send"
+          waiting={working}
+          dict={voiceEnabled ? dict : null}
+          voiceError={voiceErr}
+          ranOut={ranOut}
+          boxRef={boxRef}
+          before={
+            scope ? (
+              <p className="cv-scope">
+                <Icon name="library" size={14} />
+                <Fade className="cv-scope-doc">{scope.title.trim() || "One document"}</Fade>
+                <Button kind="quiet" size={32} onClick={() => setScope(null)}>
+                  Ask the whole library
+                </Button>
+              </p>
+            ) : undefined
+          }
+        />
+      </section>
+    );
+    return (
+      <>
+        {frame ? frame({ list, pane, count: hydrated ? threads.length : 0 }) : (
+          <>
+            {list}
+            {pane}
+          </>
+        )}
+        {dialogs}
+      </>
+    );
+  }
 
   return (
     /* `tk-lock` closes the height chain so the transcript scrolls INSIDE
@@ -1121,7 +1362,6 @@ export function TiffAssistant({
                     type="button"
                     className="wb2-ico"
                     onClick={dict.cancel}
-                    title="Throw it away"
                     aria-label="Discard the recording"
                   >
                     <Icon name="x" size={14} />
@@ -1161,7 +1401,7 @@ export function TiffAssistant({
                   ref={inputRef}
                   value={input}
                   onChange={(e) => setTyped(e.target.value)}
-                  placeholder={active ? "Ask a follow-up…" : "Ask Tiff anything…"}
+                  placeholder={active ? "Ask a follow-up" : "Ask Tiff anything"}
                   aria-label="Ask Tiff"
                   disabled={listening}
                 />
@@ -1171,7 +1411,6 @@ export function TiffAssistant({
                     className="tmic"
                     onClick={dict.start}
                     disabled={dict.transcribing}
-                    title="Ask it out loud"
                     aria-label="Ask by voice"
                   >
                     <Icon name="mic" size={19} />
@@ -1259,17 +1498,18 @@ export function TiffAssistant({
                 </span>
               ) : (
               <div className="tk-mode" role="group" aria-labelledby="tk-modelbl">
-                <button
-                  type="button"
-                  className={`tk-modeb${research ? " on" : ""}`}
-                  aria-pressed={research}
-                  disabled={!canResearch}
-                  title={canResearch ? undefined : "Add documents to the library first"}
-                  onClick={() => setResearchPick(true)}
-                >
-                  <Icon name="library" size={15} />
-                  Your library
-                </button>
+                <Tip label={canResearch ? null : "Add documents to the library first"}>
+                  <button
+                    type="button"
+                    className={`tk-modeb${research ? " on" : ""}`}
+                    aria-pressed={research}
+                    disabled={!canResearch}
+                    onClick={() => setResearchPick(true)}
+                  >
+                    <Icon name="library" size={15} />
+                    Your library
+                  </button>
+                </Tip>
                 <button
                   type="button"
                   className={`tk-modeb${research ? "" : " on"}`}
@@ -1335,22 +1575,129 @@ export function TiffAssistant({
         />
       </div>
 
-      {peek && <SourcePeek source={peek} onClose={() => setPeek(null)} />}
-      {renaming && (
-        <RenameThread
-          thread={renaming}
-          onSave={(title) => renameThread(renaming.id, title)}
-          onClose={() => setRenaming(null)}
-        />
-      )}
-      {removing && (
-        <DeleteThread
-          thread={removing}
-          onConfirm={() => deleteThread(removing.id)}
-          onClose={() => setRemoving(null)}
-        />
-      )}
+      {dialogs}
     </div>
+  );
+}
+
+/* ── Conversations: one turn, its steps, what she read, where it came from ── */
+
+function CvTurn({
+  m,
+  day,
+  you,
+  titles,
+  canManage,
+  onPeek,
+}: {
+  m: Msg;
+  /** The day's divider, on the first turn of each day. */
+  day: string | null;
+  you: string;
+  titles: Record<string, string>;
+  canManage: boolean;
+  onPeek: (d: SourceDoc) => void;
+}) {
+  const docs = m.sources?.length ? groupSources(m.sources, titles) : [];
+  const mine = m.role === "user";
+  return (
+    <>
+      {day && (
+        <div className="cv-day">
+          <span>{day}</span>
+        </div>
+      )}
+      <article className="cv-msg">
+        <span className="cv-avatar">{mine ? <Initials name={you} size={32} beside /> : <TiffGlyph size={24} />}</span>
+        <div className="cv-body">
+          <p className="cv-meta">
+            <b>{mine ? you : "Tiff"}</b>
+            <span>{clockOf(m.at)}</span>
+          </p>
+          {m.steps && m.steps.length > 0 && <CvSteps steps={m.steps} />}
+          <div className={`cv-text${mine ? " cv-text--mine" : ""}`}>{mine ? <p>{m.text}</p> : <AnswerText text={m.text} />}</div>
+          {m.truncated && <p className="cv-aside">That answer ran to its limit and stops mid-thought. Ask for the rest.</p>}
+          {docs.length > 0 && <CvResults docs={docs} onPeek={onPeek} />}
+          {!mine && <CvSource m={m} docs={docs} canManage={canManage} />}
+        </div>
+      </article>
+    </>
+  );
+}
+
+/** What she did before she answered, each ticked in grey. */
+function CvSteps({ steps }: { steps: string[] }) {
+  return (
+    <ul className="cv-steps" aria-label="What Tiff did">
+      {steps.map((step) => (
+        <li key={step}>
+          <Icon name="check" size={14} />
+          <span>{step}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/* WHAT SHE READ, as the board draws a result: a card with its dot, its
+   name, a grey line and an Open (rule 35: a card is something you act on).
+   The dot is the kind of document, snapped to the eight, beside the kind's
+   own word on the grey line. Open shows the passages she read, with the way
+   to the page itself, as the Library's source chips do. */
+function CvResults({ docs, onPeek }: { docs: SourceDoc[]; onPeek: (d: SourceDoc) => void }) {
+  return (
+    <ul className="cv-results" aria-label="What Tiff read">
+      {docs.map((d) => {
+        const kind = KB_CATEGORIES.find((c) => c.key === d.category)?.label ?? "Document";
+        return (
+          <li key={d.docId} className="cv-result">
+            <Dot hue={categoryHue(d.category)} />
+            <span className="cv-result-id">
+              <Fade className="cv-result-name">{d.title}</Fade>
+              <Fade className="cv-result-line">{`${kind}, ${pagesLabel(d)}`}</Fade>
+            </span>
+            <button type="button" className="cv-open" aria-label={`Open ${d.title}, ${pagesLabel(d)}`} onClick={() => onPeek(d)}>
+              Open
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/* WHERE THE ANSWER CAME FROM, in grey under every answer, the way the
+   Library says it on every message: your documents, the rest of the library
+   when the one you named covered nothing, or general knowledge, said as
+   such. */
+function CvSource({ m, docs, canManage }: { m: Msg; docs: SourceDoc[]; canManage: boolean }) {
+  let words: string;
+  let icon = "file";
+  if (m.widenedFrom !== undefined) {
+    words = m.widenedFrom.trim()
+      ? `Nothing in “${m.widenedFrom.trim()}” covered this, so the answer is from the rest of your library`
+      : "Nothing in that document covered this, so the answer is from the rest of your library";
+  } else if (m.researched) {
+    words =
+      docs.length === 1
+        ? `From ${docs[0].title}, in your library`
+        : docs.length > 1
+          ? `From ${docs.length} documents in your library`
+          : "From your library";
+  } else if (m.missed) {
+    icon = "info";
+    words = canManage
+      ? "General knowledge: nothing in your library covered this. Add the manual that does and ask again."
+      : "General knowledge: nothing in your library covered this. Ask a manager to add the manual that does.";
+  } else {
+    icon = "info";
+    words = "General knowledge, not from your documents";
+  }
+  return (
+    <p className="cv-source">
+      <Icon name={icon} size={14} />
+      <span>{words}</span>
+    </p>
   );
 }
 
@@ -1444,10 +1791,13 @@ function RenameThread({
 
 function DeleteThread({
   thread,
+  kept = false,
   onConfirm,
   onClose,
 }: {
   thread: Thread;
+  /** The server keeps this person's threads, so it goes from their other devices too. */
+  kept?: boolean;
   onConfirm: () => void;
   onClose: () => void;
 }) {
@@ -1477,7 +1827,9 @@ function DeleteThread({
               `${thread.messages.length} ${plural(thread.messages.length, "message")} ${
                 thread.messages.length === 1 ? "goes" : "go"
               } with it. `}
-            Threads live on this device only, so there is no copy elsewhere and no undo.
+            {kept
+              ? "It goes from your other devices too, and there is no undo."
+              : "Threads live on this device only, so there is no copy elsewhere and no undo."}
           </p>
           <div className="fl-foot">
             <button className="fl-btn ghost" onClick={onClose}>
@@ -1539,21 +1891,21 @@ function RecentDocs({
         {docs.map((d) => {
           const cat = KB_CATEGORIES.find((c) => c.key === d.category);
           return (
-            <button
-              key={d.id}
-              type="button"
-              className="tk-nd"
-              style={{ "--tkc": cat?.color ?? "var(--q)" } as React.CSSProperties}
-              aria-label={`Ask Tiff about ${d.title}`}
-              title={d.title}
-              onClick={() => onAsk(d.title)}
-            >
-              <span className="tk-ndt">{d.title}</span>
-              <em>
-                {cat?.label ?? "Document"}
-                {d.pageCount ? `, ${d.pageCount.toLocaleString("en-AU")} pages` : ""}
-              </em>
-            </button>
+            <Tooltip key={d.id} label={d.title}>
+              <button
+                type="button"
+                className="tk-nd"
+                style={{ "--tkc": cat?.color ?? "var(--q)" } as React.CSSProperties}
+                aria-label={`Ask Tiff about ${d.title}`}
+                onClick={() => onAsk(d.title)}
+              >
+                <span className="tk-ndt">{d.title}</span>
+                <em>
+                  {cat?.label ?? "Document"}
+                  {d.pageCount ? `, ${d.pageCount.toLocaleString("en-AU")} pages` : ""}
+                </em>
+              </button>
+            </Tooltip>
           );
         })}
       </div>
@@ -1870,8 +2222,10 @@ function SourceChips({
           >
             <span className="tk-sn">{d.n}</span>
             <span className="tk-sdot" style={{ background: colourOf(d.category) }} />
-            <span className="tk-stl">{d.title}</span>
-            <em>{pagesLabel(d)}</em>
+            <Fade className="tk-stl">{d.title}</Fade>
+            <em>
+              <Fade>{pagesLabel(d)}</Fade>
+            </em>
           </button>
         ))}
       </div>
@@ -1982,4 +2336,9 @@ function SourcePeek({ source, onClose }: { source: SourceDoc; onClose: () => voi
     </div>,
     document.body
   );
+}
+
+/* A Tooltip only when there is something to say: a disabled control's reason. */
+function Tip({ label, children }: { label: string | null; children: React.ReactElement<{ "aria-describedby"?: string }> }) {
+  return label ? <Tooltip label={label}>{children}</Tooltip> : children;
 }

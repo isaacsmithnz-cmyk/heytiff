@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { VrfSchematic } from "./vrf-schematic";
@@ -1861,12 +1862,12 @@ function PipingRail({
                             onSelect(line.alloc.id);
                           }}
                         >
-                          {line.alloc.model}
+                          <Fade>{line.alloc.model}</Fade>
                         </button>
                       ) : (
-                        <span className="ds-sb-head-model other" title={`${line.sys.name}, read-only here`}>
+                        <span className="ds-sb-head-model other">
                           <span className="ds-sb-head-dot" style={{ background: line.sys.colour }} aria-hidden="true" />
-                          {line.alloc.model}
+                          <Fade>{line.alloc.model}</Fade>
                         </span>
                       )}
                       <span className="ds-sb-zone-kw">{kwText(line.kw)}</span>

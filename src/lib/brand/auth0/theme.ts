@@ -44,7 +44,8 @@ export function heytiffTheme(assets: BrandAssets) {
       button_border_radius: 10,
       button_border_weight: 1,
       buttons_style: "rounded",
-      input_border_radius: 10,
+      /* v2: a field's corner is 6 (rule 33) */
+      input_border_radius: 6,
       input_border_weight: 1,
       inputs_style: "rounded",
       /* The app's cards carry `0 8px 24px -14px rgba(10,12,20,.25)` — a lift,
@@ -53,7 +54,8 @@ export function heytiffTheme(assets: BrandAssets) {
       show_widget_shadow: true,
       widget_border_weight: 1,
       /* `.pk-tile` / `.card2` — the app's own tile corner, unrounded-down */
-      widget_corner_radius: 24,
+      /* v2: a card or dialog's corner is 16 (rule 46) */
+      widget_corner_radius: 16,
     },
     colors: {
       body_text: BRAND.body,
@@ -73,7 +75,8 @@ export function heytiffTheme(assets: BrandAssets) {
          wordmark, short of AA for a sentence), and the darker #00735F that
          does clear it is the SUCCESS token. */
       links_focused_components: BRAND.ink,
-      primary_button: BRAND.ink,
+      /* v2: the main button is blue with white words, never black (rule 22) */
+      primary_button: BRAND.press,
       primary_button_label: WHITE,
       secondary_button_border: inputBorderOnWhite,
       secondary_button_label: BRAND.body,
@@ -81,8 +84,10 @@ export function heytiffTheme(assets: BrandAssets) {
       widget_border: BRAND.line,
       /* Focus is a RING — a graphic, where 3:1 is the bar and the accent
          clears it. This is the one place the bright brand teal appears. */
-      base_focus_color: BRAND.tealDark,
-      base_hover_color: BRAND.tealDark,
+      /* v2: focus is a solid ink ring (docs/design.md, Focus) */
+      base_focus_color: BRAND.body,
+      /* a hover keeps its colour (Isaac, 17 October) */
+      base_hover_color: BRAND.press,
     },
     fonts: {
       /* Ratios off `reference_text_size`, not absolutes: Auth0 sizes
@@ -124,7 +129,7 @@ export function heytiffBranding(assets: BrandAssets) {
     logo_url: assets.lockup,
     favicon_url: assets.favicon,
     colors: {
-      primary: BRAND.ink,
+      primary: BRAND.press,
       page_background: BRAND.surface,
     },
     font: { url: assets.font },

@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useEffectEvent, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { Button, IconButton } from "@/components/parts/button";
+import { Dot } from "@/components/parts/state";
+import { Fade } from "@/components/parts/fade";
 import { Icon } from "@/components/shell/icon";
+import { appendSpoken, useDictation } from "@/components/notes/dictation";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { useReplyDraft } from "@/components/notes/use-reply-draft";
+import { fmtAuTime } from "@/lib/au-dates";
 import { planOf, type PlannedPart } from "@/lib/quotes/build-progress";
 import { researchDetailOf } from "@/lib/quotes/research";
 import { latestAsked } from "@/lib/quotes/session/answers";
@@ -16,7 +21,8 @@ import { fmtAud } from "@/lib/workboard/project-money";
    in a light bubble on the right, hers under her name, what she did as she
    did it, and at the foot what's To confirm (her questions, each answer
    priced, then what the page has to confirm), down to the reply box (Isaac,
-   2026-10-11). Before the first message, her moving mark and a hello. What
+   2026-10-11), with the microphone and a blue Send that carries its word
+   (layout C, Q6). Before the first message, her mark and a hello. What
    she has cost is the rail's to say now, to someone who sees money: the
    page is told it, and whether she's on, as she's read.
 
@@ -67,7 +73,6 @@ export function TiffPanel({
   confirm,
   confirmTitle = "To confirm",
   hidden = false,
-  panel,
   start = false,
 }: {
   job: string;
@@ -86,8 +91,6 @@ export function TiffPanel({
   confirmTitle?: string;
   /** the line items or the paper are up: kept mounted, so her work still lands */
   hidden?: boolean;
-  /** the column's Conversation tab, when it has tabs: this is its panel */
-  panel?: { id: string; tab: string };
   /** opened from the job card to start the quote: the reply box takes the keys */
   start?: boolean;
 }) {
@@ -187,6 +190,13 @@ export function TiffPanel({
   /* what you typed and haven't sent is kept, for you, on the next device
      too (Isaac, 2026-10-18); words already typed here are never replaced */
   useReplyDraft("quote", job, typed, (text) => setTyped((now) => now || text), on === true);
+
+  /* the microphone (rule 27): what you say joins what's typed, to read
+     before it's sent */
+  const dict = useDictation({
+    onTranscript: (said) => setTyped((now) => appendSpoken(now, said)),
+    onError: setNote,
+  });
 
   /* from the job card's Create a quote: straight into the box, once */
   useEffect(() => {
@@ -292,14 +302,19 @@ export function TiffPanel({
   const asking = new Set(latestAsked(events));
   const settled = events.filter((e) => e.kind === "question" && asking.has(e.id) && questions[e.id]?.answered);
 
-  /* her name over what she says, once for a run of it, as a chat names a
-     speaker; what she did stands as she did it, a run of steps together */
-  const her = (id: number, says: ReactNode, named: boolean) => (
+  /* her name over what she says, and when, once for a run of it, as a chat
+     names a speaker; what she did stands as she did it, a run of steps together */
+  const timeOf = (at: string) => {
+    const d = at ? new Date(at) : null;
+    return d && !Number.isNaN(d.getTime()) ? fmtAuTime(d) : "";
+  };
+  const her = (id: number, says: ReactNode, named: boolean, at = "") => (
     <div key={id} className="qt-msg tf qc-her">
       {named && (
         <span className="qc-who">
           <TiffGlyph quiet size={24} />
           <b>Tiff</b>
+          {timeOf(at) && <time dateTime={at}>{timeOf(at)}</time>}
         </span>
       )}
       <div className="qc-says">{says}</div>
@@ -328,9 +343,9 @@ export function TiffPanel({
       <div key={`steps-${key}`} className="qt-dids qt-fold">
         {!live && (
           <button type="button" className="qt-foldbtn" aria-expanded={open} onClick={flip}>
+            <Icon name="chevR" size={14} />
             <b>Worked through it</b>
             <span>{`${n} ${n === 1 ? "step" : "steps"}`}</span>
-            <em>{open ? "Hide" : "Show all"}</em>
           </button>
         )}
         {open &&
@@ -370,7 +385,7 @@ export function TiffPanel({
       );
       hers = false;
     } else if (e.kind === "reply") {
-      thread.push(her(e.id, paras(String(e.body.text ?? "")), !hers));
+      thread.push(her(e.id, paras(String(e.body.text ?? "")), !hers, e.at));
       hers = true;
     } else if (research) {
       thread.push(
@@ -396,7 +411,8 @@ export function TiffPanel({
               )}
             </div>
           </div>,
-          !hers
+          !hers,
+          e.at
         )
       );
       hers = true;
@@ -419,7 +435,7 @@ export function TiffPanel({
   endSteps();
 
   return (
-    <div className="qt" hidden={hidden} role={panel ? "tabpanel" : undefined} id={panel?.id} aria-labelledby={panel?.tab}>
+    <div className="qt" hidden={hidden}>
       <div className="qc-thread">
         <div className="qc-col">
           {events.length === 0 && (
@@ -456,7 +472,7 @@ export function TiffPanel({
                       />
                       <span>
                         <b>{s.label}</b>
-                        <small>{s.text.length > 140 ? `${s.text.slice(0, 140)}…` : s.text}</small>
+                        <small><Fade lines={2}>{s.text}</Fade></small>
                       </span>
                     </label>
                   </li>
@@ -508,7 +524,11 @@ export function TiffPanel({
                 return (
                   <div key={q.id} className="qt-qa">
                     <p className="qt-q">
-                      <span className="qt-qn">{numberOf.get(q.id)}</span>
+                      {/* an item to settle: an orange dot and its number (Q5) */}
+                      <span className="qt-qn">
+                        <Dot hue="orange" />
+                        {numberOf.get(q.id)}
+                      </span>
                       {String(q.body.question ?? "")}
                     </p>
                     {put && <p className="qt-put">{`I've put ${put}`}</p>}
@@ -559,17 +579,26 @@ export function TiffPanel({
               className="qt-in"
               rows={2}
               value={typed}
-              placeholder={events.length === 0 ? "Tell Tiff about the job…" : "Reply…"}
+              placeholder={events.length === 0 ? "Tell Tiff about the job" : "Reply"}
               aria-label="Message Tiff"
               onChange={(e) => setTyped(e.target.value)}
               onKeyDown={keys}
             />
-            {/* a composer's send is its glyph, as the note composer's plus is
-                (docs/design.md, the buttons that keep their glyph): grey, as
-                Isaac asked, 2026-10-13 */}
-            <button type="button" className="qt-send" aria-label="Send" disabled={busy || working || !typed.trim()} onClick={sendTyped}>
-              <Icon name="cornerDL" size={18} />
-            </button>
+            <div className="qc-boxfoot">
+              <IconButton
+                glyph="mic"
+                size={32}
+                label={dict.recording || dict.arming ? "Stop and add what you said" : "Say it"}
+                aria-pressed={dict.recording || dict.arming}
+                disabled={dict.transcribing}
+                onClick={() => (dict.recording || dict.arming ? dict.stop() : dict.start())}
+              />
+              {/* Q6: the reply box sends with a blue Send that carries its
+                  word; it fades while she works, one turn at a time */}
+              <Button kind="main" size={32} className="qc-send" disabled={busy || working || !typed.trim()} onClick={sendTyped}>
+                Send
+              </Button>
+            </div>
           </div>
         </div>
       </div>

@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { RecordsContext } from "@/components/records/records-context";
 
 /* Isaac, 2026-10-05: "it should have opened up the proper quote screen not a
    section below"; 2026-10-12, retiring the old builder: every quote is built
@@ -11,6 +12,8 @@ jest.mock("@/app/actions/workboard", () => ({
   readJobRecord: (...a: unknown[]) => readJobRecord(...a),
 }));
 jest.mock("@/app/actions/workboard-media", () => ({ cacheJobFiles: (...a: unknown[]) => cacheJobFiles(...a) }));
+const push = jest.fn();
+jest.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 /* the lines have a suite of their own: here, what the page lays out around
    them and what it hands them */
 jest.mock("../quote-lines-face", () => ({
@@ -18,14 +21,14 @@ jest.mock("../quote-lines-face", () => ({
     price,
     sm8,
     send,
-    actionsEl,
+    onStage,
     onOpenPaper,
     start,
   }: {
     price: { ok: boolean } | null | undefined;
     sm8: { value: string | null; papers: { remoteId: string; name: string }[] };
     send: React.ReactNode;
-    actionsEl: HTMLElement | null;
+    onStage: (s: { word: string; settle: boolean }) => void;
     onOpenPaper: (p: unknown) => void;
     start?: boolean;
   }) => (
@@ -33,7 +36,9 @@ jest.mock("../quote-lines-face", () => ({
       <p>{`Lines, ${sm8.value ?? "no value"}`}</p>
       {start && <p>Starts at the reply box</p>}
       <p>{price === undefined ? "No price" : price ? "Priced" : "Price refused"}</p>
-      <p>{actionsEl ? "Corner ready" : "No corner"}</p>
+      <button type="button" onClick={() => onStage({ word: "4 to settle", settle: true })}>
+        Settle four
+      </button>
       {sm8.papers.map((p) => (
         <button key={p.remoteId} type="button" onClick={() => onOpenPaper(p)}>
           {p.name}
@@ -58,7 +63,7 @@ import { QuoteScreen } from "../quote-screen";
 
 const JOB = "a3539c01-9527-42a6-893b-24376269efbb";
 const paper = { remoteId: "att-q", name: "Quote #2905", fileType: ".pdf", kind: "document", origin: "Quote", takenAt: "2026-09-01 10:00:00", url: "https://files.example/q.pdf", width: null, height: null, fromClaim: null };
-const detail = { jobNumber: "2905", clientName: "Heuvel Construction", address: "44 Leinster Street\nPaddington NSW 2021", geoLine: null, quoteSentOn: "2026-09-01", money: { valueCents: 6_479_000 } } as unknown as Parameters<typeof QuoteScreen>[0]["detail"];
+const detail = { jobNumber: "2905", status: "Work Order", categoryColour: "#2E68FF", clientName: "Heuvel Construction", address: "44 Leinster Street\nPaddington NSW 2021", geoLine: null, quoteSentOn: "2026-09-01", money: { valueCents: 6_479_000 } } as unknown as Parameters<typeof QuoteScreen>[0]["detail"];
 
 /* the quote's engine as the route holds it, and whether a switch goes through */
 let engine = "lines";
@@ -89,18 +94,63 @@ beforeEach(() => {
 
 const posts = () => fetchMock.mock.calls.filter((c) => (c[1] as { method?: string } | undefined)?.method === "POST");
 
-it("lays the quote out full screen in Home's frame: the way back to the job card's Quote, the title and its corner, the lines", async () => {
+/* layout C (Isaac, 18 October 2026): above the conversation only the job's
+   name, one grey line and the section tabs */
+it("heads the page with the job's name, one grey line and the job's section tabs, and no breadcrumb", async () => {
   const { container } = render(<QuoteScreen job={JOB} detail={detail} moneyVisible financials />);
-  /* the job came from the server: the band is final on first paint */
-  expect(screen.getByRole("link", { name: "Job 2905" })).toHaveAttribute("href", `/dashboard/workboard?job=${JOB}&face=quote`);
-  expect(screen.getByRole("heading", { level: 1 })).not.toHaveTextContent(/^Quote$/);
-  expect(container.querySelector(".hd-page")).not.toBeNull();
+  /* the job came from the server: the head is final on first paint */
+  expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Heuvel Construction");
+  expect(screen.getByText("Work order, Job 2905, 44 Leinster Street, Paddington NSW 2021.")).toBeInTheDocument();
+  /* no way back above the name: the open tab and Jobs in the sidebar say where you are */
+  expect(screen.queryByRole("link", { name: "Job 2905" })).toBeNull();
+  expect(container.querySelector(".wb2-crumbline, .int-back")).toBeNull();
+  /* the job's colour, snapped to the eight, beside its line */
+  expect(container.querySelector(".qp-line .pt-dot--blue")).not.toBeNull();
+  const tabs = screen.getByRole("tablist", { name: "The job" });
+  expect(within(tabs).getAllByRole("tab").map((t) => t.querySelector(".pt-stab-word")!.textContent)).toEqual(["Overview", "Quote", "Visits", "Checklist", "Photos", "Documents", "Billing"]);
+  expect(within(tabs).getByRole("tab", { name: "Quote" })).toHaveAttribute("aria-selected", "true");
   expect(await screen.findByText("Lines, $64,790 inc GST")).toBeInTheDocument();
-  expect(screen.getByText("Corner ready")).toBeInTheDocument();
   /* the price is read for the quote's lines, and handed to them */
   await waitFor(() => expect(screen.getByText("Priced")).toBeInTheDocument());
   expect(screen.getByText("Send block, lines-0")).toBeInTheDocument();
   expect(posts()).toHaveLength(0);
+});
+
+it("puts the quote's state word at the end of the grey line, orange while something is left to settle", async () => {
+  render(<QuoteScreen job={JOB} detail={detail} moneyVisible financials />);
+  fireEvent.click(await screen.findByRole("button", { name: "Settle four" }));
+  const word = screen.getByText("4 to settle");
+  expect(word).toHaveClass("qp-stage", "settle");
+  expect(word.closest(".qp-line")).not.toBeNull();
+});
+
+/* a job is a page now (v2, step 5): each other tab goes to the job's own
+   page on that section, not to its card over this page */
+it("takes each other tab to the job's page on that section, and stays on Quote", async () => {
+  const open = jest.fn();
+  render(
+    <RecordsContext.Provider value={{ hosted: true, open }}>
+      <QuoteScreen job={JOB} detail={detail} moneyVisible financials />
+    </RecordsContext.Provider>
+  );
+  await screen.findByText("Lines, $64,790 inc GST");
+  expect(screen.getByRole("tab", { name: "Billing" })).toHaveAttribute("href", `/dashboard/jobs/${JOB}?tab=billing`);
+  expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("href", `/dashboard/jobs/${JOB}`);
+  expect(screen.getByRole("tab", { name: /Photos/ })).toHaveAttribute("href", `/dashboard/jobs/${JOB}?tab=photos`);
+  /* the photos and documents read for the page say what's in them */
+  expect(screen.getByRole("tab", { name: /Documents/ })).toHaveTextContent("Documents1");
+  /* the tab you're on goes nowhere */
+  expect(screen.getByRole("tab", { name: "Quote" })).not.toHaveAttribute("href");
+  fireEvent.click(screen.getByRole("tab", { name: "Quote" }));
+  expect(open).not.toHaveBeenCalled();
+  expect(push).not.toHaveBeenCalled();
+});
+
+it("leaves Billing out of the job's tabs for someone without the money", async () => {
+  render(<QuoteScreen job={JOB} detail={detail} moneyVisible={false} financials={false} />);
+  await screen.findByText("Lines, no value");
+  const tabs = screen.getByRole("tablist", { name: "The job" });
+  expect(within(tabs).getAllByRole("tab").map((t) => t.querySelector(".pt-stab-word")!.textContent)).toEqual(["Overview", "Quote", "Visits", "Checklist", "Photos", "Documents"]);
 });
 
 it("reads no price and no family value for someone without the money grants", async () => {

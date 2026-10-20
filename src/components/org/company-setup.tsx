@@ -153,7 +153,7 @@ export function CompanySetup({
           new business ever sees, and a bare form on white reads as nowhere.
           Decorative — the wordmark beside it already says the name. */}
       <div className="flex items-center gap-2">
-        <Chevron size={26} gradient decorative />
+        <Chevron size={26} decorative />
         <Wordmark className="text-xl" />
       </div>
 
@@ -283,7 +283,7 @@ export function CompanySetup({
                   aria-invalid={bad("state") || undefined}
                   onChange={(e) => set("state")(e.target.value)}
                 >
-                  <option value="">Choose…</option>
+                  <option value="">Choose a state</option>
                   {AU_STATES.map((s) => (
                     <option key={s} value={s}>
                       {s}
@@ -331,7 +331,7 @@ export function CompanySetup({
             disabled={busy !== null}
             className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50"
           >
-            {step === 0 ? "Continue" : busy === "save" ? "Finishing…" : "Finish setup"}
+            {step === 0 ? "Continue" : busy === "save" ? "Finishing setup" : "Finish setup"}
           </button>
         </div>
       </form>
@@ -345,7 +345,7 @@ export function CompanySetup({
         onClick={() => void skip()}
       >
         {busy === "skip"
-          ? "Heading to your dashboard…"
+          ? "Heading to your dashboard"
           : "Skip for now — you can finish any time from Organisation, under Admin"}
       </button>
     </main>

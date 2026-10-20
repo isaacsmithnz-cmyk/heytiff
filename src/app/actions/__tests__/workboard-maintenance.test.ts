@@ -122,6 +122,7 @@ import {
   tagAgreement,
   updateAgreementSchedule,
 } from "../workboard-maintenance";
+import { spawnAgreementFromProject } from "../workboard-projects";
 import { CATEGORY_ACCENTS, tagToneFor } from "@/lib/workboard/tags";
 import { todayInZone } from "@/lib/workboard/dates";
 
@@ -170,6 +171,53 @@ describe("createAgreement", () => {
     caps = new Set(["workboard"]);
     expect((await createAgreement(input)).ok).toBe(false);
     expect(inserts).toHaveLength(0);
+  });
+});
+
+/* At handover the project opens New agreement filled in; what that form
+   sends wins over the project's own, and what it leaves out is the
+   project's, as the one-press handover always had it. */
+describe("spawnAgreementFromProject — with New agreement's fields", () => {
+  const project = {
+    id: "p-1",
+    name: "Bowden St ducted",
+    client_name: "The Bowdens",
+    client_remote_id: null,
+    site_label: "14 Bowden St",
+    site_address: null,
+    agreement_id: null,
+  };
+
+  it("keeps the project's own where the form sent nothing", async () => {
+    rows = { projects: project };
+    const res = await spawnAgreementFromProject("p-1", { intervalMonths: 6, anchorDate: "2027-02-01" });
+    expect(res).toEqual({ ok: true, id: "a-new" });
+    expect(inserts[0]).toMatchObject({
+      table: "maintenance_agreements",
+      payload: { label: "Bowden St ducted", client_name: "The Bowdens", site_label: "14 Bowden St", we_installed: true, interval_months: 6 },
+    });
+    expect(updates.find((u) => u.table === "projects")?.patch).toMatchObject({ agreement_id: "a-new" });
+  });
+
+  it("takes what the form says over the project's", async () => {
+    rows = { projects: project };
+    await spawnAgreementFromProject("p-1", {
+      intervalMonths: 3,
+      anchorDate: "2027-02-01",
+      label: "Ducted, quarterly",
+      siteLabel: "Upstairs",
+      billingContact: "sarah@bowden.au",
+      techsNeeded: 2,
+      weInstalled: false,
+    });
+    expect(inserts[0].payload).toMatchObject({
+      label: "Ducted, quarterly",
+      client_name: "The Bowdens",
+      site_label: "Upstairs",
+      billing_contact: "sarah@bowden.au",
+      techs_needed: 2,
+      we_installed: false,
+    });
   });
 });
 

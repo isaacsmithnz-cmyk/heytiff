@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ViewTabs } from "@/components/shell/view-tabs";
-import { MyTimesheet } from "@/components/timepay/my-timesheet";
 import { MyLeave } from "@/components/timepay/my-leave";
 import { MyExpensesFace } from "@/components/expenses/my-expenses-face";
 import { MyVehicleFace } from "@/components/fleet/my-vehicle-face";
@@ -54,7 +54,14 @@ const TITLE: Record<Tab, string> = {
   notes: "Notes",
 };
 
-export function MeScreen({ initialTab, data }: { initialTab: Tab; data: MeData }) {
+/* THE TIMESHEET IS A PAGE OF ITS OWN in v2 (the board 6-timesheet, Your
+   name › Timesheet), at /dashboard/my-timesheet, so its tab here goes there
+   rather than switching a face. The other four faces are unchanged until
+   their own boards land. */
+const TIMESHEET_PAGE = "/dashboard/my-timesheet";
+
+export function MeScreen({ initialTab, data }: { initialTab: Exclude<Tab, "timesheet">; data: MeData }) {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>(initialTab);
 
   return (
@@ -69,7 +76,7 @@ export function MeScreen({ initialTab, data }: { initialTab: Tab; data: MeData }
             idPrefix="met"
             panelPrefix="mep"
             active={tab}
-            onGo={(k) => setTab(k as Tab)}
+            onGo={(k) => (k === "timesheet" ? router.push(TIMESHEET_PAGE) : setTab(k as Tab))}
             items={TABS.map((t) => ({ ...t }))}
             /* THE TITLE RIDES THE TAB ROW. It stood on a line of its own,
                where anything a single face added to it changed the header's
@@ -104,7 +111,7 @@ export function MeScreen({ initialTab, data }: { initialTab: Tab; data: MeData }
 function face(tab: Tab, data: MeData) {
   switch (tab) {
     case "timesheet":
-      return timesheetFace(data);
+      return null;
     case "leave":
       return leaveFace(data);
     case "expenses":
@@ -123,32 +130,8 @@ function face(tab: Tab, data: MeData) {
   }
 }
 
-/* The empty branches keep the frame they gained in #332: the tabs render above
-   every one of these, so a subcontractor still has a way to Leave. */
-
-function timesheetFace(data: MeData) {
-  const d = data.timesheet;
-  if (!d) {
-    return (
-      <div className="emptybox">
-        <b>No staff record yet</b>
-        <em>Your timesheet appears once your card exists in Team.</em>
-      </div>
-    );
-  }
-  if ("subcontractor" in d) {
-    return (
-      <div className="emptybox">
-        <b>Subcontractors don&rsquo;t keep a timesheet here</b>
-        <em>
-          You invoice for your work rather than being paid through the pay run, so there are no
-          hours to submit. Send your invoice the way you normally do.
-        </em>
-      </div>
-    );
-  }
-  return <MyTimesheet {...d} />;
-}
+/* The empty branch keeps the frame it gained in #332: the tabs render above
+   it, so someone with no staff card still has a way to Expenses. */
 
 function leaveFace(data: MeData) {
   if (!data.leave) {

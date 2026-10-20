@@ -10,11 +10,10 @@ import {
   useSyncExternalStore,
 } from "react";
 import { Icon } from "@/components/shell/icon";
+import { Tooltip } from "@/components/parts/tooltip";
 import type { OrgBrand } from "@/lib/org/brand";
-import { DotField } from "@/components/ui/dot-field";
-import { JobSearchField, type JobSearch } from "./job-search";
+import type { JobSearch } from "./job-search";
 export type { JobSearch };
-import { agoLabel } from "@/lib/format/duration";
 import {
   createDesign,
   newId,
@@ -27,7 +26,6 @@ import { DEFAULT_FLOOR_HEIGHT_M, setFloorHeight } from "@/lib/studio/graph";
 import { NOTE_INKS } from "@/lib/studio/notes";
 import { CLIMATE_ZONES, sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
 import { effectiveClimateZone, effectiveBuildingType } from "@/lib/studio/summary";
-import { openDesignJson, DesignDocumentError } from "@/lib/studio/migrations";
 import { pruneObjects, removedRoomIds } from "@/lib/studio/attach";
 import {
   browserDesignStore,
@@ -101,14 +99,11 @@ import { RoomModal } from "./room-modal";
 import { ReferenceViewer } from "./reference-viewer";
 import { SimPresentMode } from "./sim-present";
 import { SimRuntime } from "@/lib/studio/sim-runtime";
-import {
-  prefillFromJob,
-  type JobPrefill,
-  type StudioJobHit,
-} from "@/lib/studio/job-link";
+import type { JobPrefill } from "@/lib/studio/job-link";
+import { suggestedRooms, withChecks, type PlanReading } from "@/lib/studio/reading";
 import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
 import type { LibraryManifest } from "@/lib/studio/packs/library";
-import { LibraryDoor } from "./library-modal";
+import { DesignHome } from "./home";
 import "./studio.css";
 
 /* The sim flag never changes after load, so there is nothing to subscribe to —
@@ -147,11 +142,6 @@ const TABS = [
   { step: 2, label: "Summary" },
 ] as const;
 
-const MODE_LABEL = { plan: "Floor plans", blank: "Blank canvas" } as const;
-
-/** how many of the recent designs the start screen shows */
-const RECENT_CAP = 5;
-
 /* screen-swap timings — see throughSwap(). Must stay in step with the .2s
    exit transitions on `.dstudio.swapping .ds-home-stack` in studio.css: the
    leaving screen has to be fully gone before the swap lands. */
@@ -161,14 +151,6 @@ const SWAP_OUT_MS = 200;
 const RETRY_BASE_MS = 5_000;
 const RETRY_MAX_MS = 60_000;
 const SWAP_PAINT_MS = 16; // one frame, so the arriving screen has a state to animate from
-
-function timeAgo(iso: string): string {
-  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return agoLabel(Math.floor(s / 86400));
-}
 
 /* menu Export — the .heytiff-design.json download; round-trips through the
    Home screen's "Import design file" (openDesignJson) */
@@ -202,7 +184,10 @@ export function Studio({
   buildStamp,
   brand: servedBrand,
   library,
+  planReader,
 }: {
+  /** Tiff's plan reader; the server's in the app, a stand-in in tests */
+  planReader?: PlanReader;
   store?: DesignStore;
   planImages?: PlanImages;
   packLoader?: PackLoader;
@@ -424,6 +409,34 @@ export function Studio({
       window.removeEventListener("online", onOnline);
     };
   }, [saveState, getStore]);
+
+  /* Tiff reading the plans of the design just started: while she reads, and what she read */
+  const [readingNow, setReadingNow] = useState<{ id: string; state: "reading" | "read" | "failed"; rooms: number } | null>(null);
+  const readPlans = useCallback(
+    async (id: string) => {
+      setReadingNow({ id, state: "reading", rooms: 0 });
+      const reading = await (planReader ?? readPlansOnServer)(id);
+      if (!reading) {
+        setReadingNow({ id, state: "failed", rooms: 0 });
+        return;
+      }
+      setReadingNow({ id, state: "read", rooms: roomsRead(reading) });
+      /* kept on the design: the open one through the same pipeline as every
+         edit, or straight into the store when another design is open by now */
+      if (latestDoc.current?.id === id) {
+        mutate((d) => (d.id === id ? { ...d, reading: withChecks(reading, d) } : d));
+      } else {
+        const stored = await getStore().load(id).catch(() => null);
+        if (stored) await getStore().save({ ...stored, reading: withChecks(reading, stored) }).catch(() => {});
+      }
+    },
+    [planReader, mutate, getStore]
+  );
+
+  const jobSearchFn = useCallback(
+    (q: string) => (jobSearch ?? ((t: string) => studioActions().then((a) => a.searchStudioJobs(t))))(q),
+    [jobSearch]
+  );
 
   const openDesign = useCallback((d: DesignDocument) => {
     setDoc(d);
@@ -694,6 +707,7 @@ export function Studio({
             brand={brand}
             step={step}
             saveState={saveState}
+            reading={readingNow && doc && readingNow.id === doc.id ? readingNow : null}
             onStep={setStep}
             onMutate={mutate}
             onReplace={replaceDoc}
@@ -708,29 +722,32 @@ export function Studio({
             loadVariant={(id) => getStore().load(id)}
           />
         ) : arriving ? null : (
-          <Home
+          <DesignHome
             recents={recents}
             autoNew={homeAutoNew}
             sm8Jobs={sm8Jobs}
-            jobSearch={jobSearch}
+            jobSearch={jobSearchFn}
             openFailed={openFailed}
             library={library}
-            onCreate={(name, mode, job) =>
+            planImages={planImagesInst}
+            onBlank={(name, job) =>
               throughSwap(async () => {
-                const d = createDesign({
-                  name,
-                  mode,
-                  jobNumber: job?.jobNumber,
-                  client: job?.client,
-                  site: job?.site,
-                  job: job
-                    ? { remoteId: job.remoteId, jobNumber: job.jobNumber || null }
-                    : undefined,
-                });
+                const d = newDesignFor(name, "blank", job);
                 await getStore().save(d);
                 return d;
               }, openDesign)
             }
+            onPlans={async (name, job, floors, planImport) => {
+              const d = { ...newDesignFor(name, "plan", job), floors, planImport };
+              await throughSwap(async () => {
+                await getStore().save(d);
+                return d;
+              }, openDesign);
+              /* Tiff reads the plans once the Rooms page can show what she
+                 read; until then a read is paid for and never seen (Isaac,
+                 20 October: off for the launch). A test hands its own reader. */
+              if (planReader || process.env.NEXT_PUBLIC_STUDIO_READING === "1") void readPlans(d.id);
+            }}
             onOpen={(id) =>
               throughSwap(
                 () => getStore().load(id),
@@ -758,402 +775,37 @@ export function Studio({
   );
 }
 
-/* ═════════════ Home ═════════════ */
+/* Tiff's reading of a design's plans, from the server (api/studio/read-plans).
+   Out here so the component never holds a try: null when it couldn't be had. */
+export type PlanReader = (designId: string) => Promise<PlanReading | null>;
+const readPlansOnServer: PlanReader = async (designId) => {
+  try {
+    const res = await fetch("/api/studio/read-plans", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ designId }),
+    });
+    const body = (await res.json()) as { ok: boolean; reading?: PlanReading };
+    return body.ok && body.reading ? body.reading : null;
+  } catch {
+    return null;
+  }
+};
 
-function Home({
-  recents,
-  autoNew,
-  sm8Jobs,
-  jobSearch,
-  openFailed,
-  library,
-  onCreate,
-  onOpen,
-  onDelete,
-  onImport,
-}: {
-  /** null while the list is still being fetched — see the three states below */
-  recents: DesignSummary[] | null;
-  /** the library's door, top right; absent, no door */
-  library?: LibraryManifest;
-  /** arrive with the new-design wizard already open (menu → New) */
-  autoNew?: boolean;
-  /** offer "start from a ServiceM8 job" on the naming step */
-  sm8Jobs?: boolean;
-  jobSearch?: JobSearch;
-  /** a `?design=<id>` link pointed at something that is no longer here */
-  openFailed?: boolean;
-  onCreate: (
-    name: string,
-    mode: "plan" | "blank",
-    job?: JobPrefill
-  ) => void;
-  onOpen: (id: string) => void;
-  onDelete: (id: string) => void;
-  onImport: (doc: DesignDocument) => void;
-}) {
-  // new-design wizard: name the job first, then choose how to start. Home
-  // remounts on every editor exit, so initial state is enough for autoNew.
-  const [step, setStep] = useState<null | "name" | "mode">(
-    autoNew ? "name" : null
-  );
-  const [name, setName] = useState("");
-  const [query, setQuery] = useState("");
-  const [showAll, setShowAll] = useState(false);
-  const [armedDelete, setArmedDelete] = useState<string | null>(null);
-  const [importError, setImportError] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+/** How many rooms she suggests across the design. */
+const roomsRead = (r: PlanReading) =>
+  Object.values(r.floors).flat().reduce((n, sheet) => n + suggestedRooms(sheet).length, 0);
 
-  /* ── the ServiceM8 job behind this design, if it came from one.
-        The field itself is JobSearchField — shared with the Summary sheet's
-        attach control, which picks a job for a design that already exists. ── */
-  const [picked, setPicked] = useState<StudioJobHit | null>(null);
-
-  /* Picking a job names the design and remembers the three fields the Summary
-     sheet prints. The name stays EDITABLE afterwards — the street is a good
-     first answer, not the last word — and editing it doesn't unpick the job,
-     because the job is what the client and site came from. */
-  /* the injected search in tests, the real action in the app */
-  const jobSearchFn = useCallback(
-    (q: string) =>
-      (jobSearch ?? ((s: string) => studioActions().then((a) => a.searchStudioJobs(s))))(q),
-    [jobSearch]
-  );
-
-  const pickJob = (hit: StudioJobHit) => {
-    const fill = prefillFromJob(hit);
-    setPicked(hit);
-    if (fill.name) setName(fill.name);
-  };
-
-  const unpickJob = () => setPicked(null);
-
-  const loading = recents === null;
-  const known = recents ?? [];
-  const matches = known.filter((r) =>
-    r.name.toLowerCase().includes(query.trim().toLowerCase())
-  );
-  /* THE FIVE MOST RECENT, not the archive: the list is newest first from the
-     store, and a card of everything ever drawn pushed the screen down by a
-     row per job (Isaac, 2026-09-15). Search still reaches the rest — it
-     narrows first and then takes the top five — and the button under the
-     list opens the rest in place. It was a line that only counted them,
-     which read as a door and did nothing when pressed. */
-  const beyond = Math.max(0, matches.length - RECENT_CAP);
-  const visible = showAll ? matches : matches.slice(0, RECENT_CAP);
-
-  const trimmed = name.trim();
-  const cancel = () => {
-    setStep(null);
-    setName("");
-    unpickJob();
-  };
-  const create = (mode: "plan" | "blank") =>
-    onCreate(
-      trimmed || "Untitled design",
-      mode,
-      picked ? prefillFromJob(picked) : undefined
-    );
-
-  const importFile = async (file: File) => {
-    setImportError(null);
-    try {
-      const { doc } = openDesignJson(await file.text());
-      onImport(doc);
-    } catch (e) {
-      setImportError(
-        e instanceof DesignDocumentError
-          ? `${e.message}. Import takes design files exported from HeyTiff (.heytiff-design.json).`
-          : "Couldn't read that file"
-      );
-    }
-  };
-
-  return (
-    <div className="ds-home">
-      {/* no `stgp`: the shell's pop-in stagger (.4s plus up to .18s of delays)
-          replays every time Home remounts, so it ran ON TOP of the screen-swap
-          fade and kept things moving for ~600ms after the swap had landed. The
-          fade is the transition now. */}
-      <div className="ds-home-stack">
-        {/* top right, level with the title: "Library, updated …", and the
-            word New when something has arrived — the dialog is behind it */}
-        {library && <LibraryDoor library={library} />}
-        <section className="ds-hero">
-          {step === "name" ? (
-            <>
-              <span className="ds-hero-step">Step 1 of 2</span>
-              <h3 className="ds-hero-etitle">Name your design</h3>
-              <p className="ds-hero-esub">
-                {sm8Jobs
-                  ? "Pull the job in from ServiceM8, or name it yourself — you'll choose how to start next."
-                  : "Give the job a name — you'll choose how to start next."}
-              </p>
-              {/* The ServiceM8 step sits ABOVE the name field because it
-                  ANSWERS it: pick the job and the name is filled in below,
-                  where you can still change it. Underneath, it would read as
-                  an afterthought to something already typed. */}
-              {sm8Jobs && (
-                <div className="ds-sm8">
-                  {picked ? (
-                    <div className="ds-sm8-on">
-                      <Icon name="check" size={14} />
-                      <span className="ds-sm8-onl">
-                        From ServiceM8{" "}
-                        {picked.jobNumber ? <b>job {picked.jobNumber}</b> : <b>job</b>}
-                        {picked.clientName ? `, ${picked.clientName}` : ""}
-                      </span>
-                      <button
-                        type="button"
-                        className="ds-sm8-clear"
-                        onClick={unpickJob}
-                        aria-label="Clear the job — start from a different one"
-                      >
-                        <Icon name="x" size={13} />
-                      </button>
-                    </div>
-                  ) : (
-                    <JobSearchField onPick={pickJob} search={jobSearchFn} />
-                  )}
-                </div>
-              )}
-              <input
-                className="ds-name-input"
-                placeholder="Design name — e.g. 14 Harbour View Rd"
-                value={name}
-                autoFocus
-                onChange={(e) => setName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && trimmed) setStep("mode");
-                  if (e.key === "Escape") cancel();
-                }}
-              />
-              <div className="ds-hero-nav">
-                <button className="ds-hero-back" onClick={cancel}>
-                  <Icon name="chevL" size={14} />
-                  Cancel
-                </button>
-                <button
-                  className="ds-cta sm"
-                  disabled={!trimmed}
-                  onClick={() => setStep("mode")}
-                >
-                  Continue
-                  <Icon name="chevR" size={16} />
-                </button>
-              </div>
-            </>
-          ) : step === "mode" ? (
-            <>
-              <span className="ds-hero-step">Step 2 of 2</span>
-              <h3 className="ds-hero-etitle">How do you want to start?</h3>
-              <p className="ds-hero-esub">
-                Designing <b>{trimmed}</b>
-                {picked?.jobNumber ? `, ServiceM8 job ${picked.jobNumber}` : ""}
-              </p>
-              <div className="ds-opts">
-                <button className="ds-opt" onClick={() => create("plan")}>
-                  <span className="ds-opt-ic">
-                    <Icon name="file" size={20} />
-                  </span>
-                  <span className="ds-opt-n">Upload floor plans</span>
-                  <span className="ds-opt-d">
-                    Bring in PDF or image plans, calibrate the scale and design
-                    to size on the real drawing.
-                  </span>
-                </button>
-                <button className="ds-opt" onClick={() => create("blank")}>
-                  <span className="ds-opt-ic">
-                    <Icon name="square" size={20} />
-                  </span>
-                  <span className="ds-opt-n">Blank canvas</span>
-                  <span className="ds-opt-d">
-                    Sketch a system with no plan — a scaled grid keeps everything
-                    true to size.
-                  </span>
-                </button>
-              </div>
-              <button className="ds-hero-back" onClick={() => setStep("name")}>
-                <Icon name="chevL" size={14} />
-                Back
-              </button>
-            </>
-          ) : (
-            <>
-              <h2>Design Studio</h2>
-              {/* The capture card's cloud, standing still on the landing, with
-                  the button inside it rather than under it. Same instrument the
-                  voice card thinks in — mounted straight into `cloud`, so its
-                  one-time bloom out of the mark plays on arrival and it then
-                  turns and darts on its own clocks for as long as the screen is
-                  open. No `from`: there is no button here for it to have flown
-                  out of.
-
-                  `cols` is the density and `size` the reach — 44 over 760px is
-                  ~300 dots, against the card's ~110. It is the biggest thing on
-                  the screen, so it is drawn like it. */}
-              <span className="ds-cloud">
-                <DotField stage="cloud" size={760} cols={44} />
-              </span>
-              {/* The landing's one action, so it is sized like one: the mark
-                  sits at the far end of a wide button and reads as the arrow
-                  it already is, pointing at what happens next. */}
-              <button
-                className="ds-cta ds-start"
-                onClick={() => setStep("name")}
-              >
-                New design
-                <span className="ds-start-mk">
-                  <Icon name="arrowR" size={20} />
-                </span>
-              </button>
-            </>
-          )}
-        </section>
-
-        {/* the side column, padded at the top to clear the library's door
-            when the Recent list is tall enough to sit against it */}
-        <div className="ds-home-side">
-        <section className="ds-recent">
-          <div className="ds-recent-head">
-            <span className="ds-cardt">Recent designs</span>
-            <div className="ds-recent-tools">
-              {known.length > 0 && (
-                <label className="ds-search">
-                  <Icon name="search" size={16} />
-                  <input
-                    placeholder="Search designs…"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                  />
-                </label>
-              )}
-              <button
-                className="ds-import"
-                title="Restore a design exported from HeyTiff (.heytiff-design.json) — not for floor plans or CAD files"
-                onClick={() => fileRef.current?.click()}
-              >
-                <Icon name="arrowUp" size={14} />
-                Import design file
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="application/json,.json"
-                hidden
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) void importFile(f);
-                  e.target.value = "";
-                }}
-              />
-            </div>
-          </div>
-          {openFailed && (
-            <div className="ds-ierr">
-              That design is no longer here — it may have been deleted. Anything
-              still saved is in the list below.
-            </div>
-          )}
-          {importError && <div className="ds-ierr">{importError}</div>}
-          {loading ? (
-            /* THE SPACE THE LIST IS ABOUT TO OCCUPY, held so the click has
-               somewhere to land — the shell's own `pk-b` sweep, slow and
-               low-contrast because a fast shimmer reads as an error. The
-               status line is for anyone not looking at shapes. */
-            <div className="ds-rlist" aria-busy="true">
-              <span className="ds-sr" role="status">
-                Loading your designs…
-              </span>
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="ds-rcard skel" aria-hidden>
-                  <span className="ds-rthumb ds-skb" />
-                  <span className="ds-rbody">
-                    <div className="ds-skb ds-skb-nm" />
-                    <div className="ds-skb ds-skb-mt" />
-                  </span>
-                  <span className="ds-skb ds-skb-wh" />
-                </div>
-              ))}
-            </div>
-          ) : visible.length > 0 ? (
-            <div className="ds-rlist">
-              {visible.map((r) => (
-                <div
-                  key={r.id}
-                  className="ds-rcard"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => onOpen(r.id)}
-                  onKeyDown={(e) => e.key === "Enter" && onOpen(r.id)}
-                >
-                  <span className="ds-rthumb">
-                    <Icon
-                      name={r.mode === "plan" ? "file" : "square"}
-                      size={19}
-                    />
-                  </span>
-                  <span className="ds-rbody">
-                    <div className="ds-rnm">{r.name}</div>
-                    <div className="ds-rmeta">
-                      {MODE_LABEL[r.mode]}, {r.floorCount}{" "}
-                      {r.floorCount === 1 ? "floor" : "floors"}, {r.systemCount}{" "}
-                      {r.systemCount === 1 ? "system" : "systems"}
-                    </div>
-                  </span>
-                  <span className="ds-rwhen">{timeAgo(r.updatedAt)}</span>
-                  <button
-                    className={`ds-rdel${armedDelete === r.id ? " arm" : ""}`}
-                    aria-label={`Delete ${r.name}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (armedDelete === r.id) {
-                        setArmedDelete(null);
-                        onDelete(r.id);
-                      } else {
-                        setArmedDelete(r.id);
-                      }
-                    }}
-                    onBlur={() => setArmedDelete(null)}
-                  >
-                    {armedDelete === r.id ? (
-                      "Delete?"
-                    ) : (
-                      <Icon name="x" size={15} />
-                    )}
-                  </button>
-                </div>
-              ))}
-              {beyond > 0 && (
-                <button
-                  type="button"
-                  className="ds-rmore"
-                  aria-expanded={showAll}
-                  onClick={() => setShowAll((v) => !v)}
-                >
-                  {showAll
-                    ? "Show fewer designs"
-                    : `Show ${beyond} more ${beyond === 1 ? "design" : "designs"}`}
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="ds-rempty">
-              <div className="ds-rempty-t">
-                {known.length ? "No matches" : "No designs yet"}
-              </div>
-              <div className="ds-rempty-s">
-                {known.length
-                  ? "Nothing matches that search."
-                  : "Your recent work will appear here — start your first design on the left."}
-              </div>
-            </div>
-          )}
-        </section>
-        </div>
-      </div>
-    </div>
-  );
+/* A new design, named, and on its job when it came from one. */
+function newDesignFor(name: string, mode: "plan" | "blank", job?: JobPrefill): DesignDocument {
+  return createDesign({
+    name,
+    mode,
+    jobNumber: job?.jobNumber,
+    client: job?.client,
+    site: job?.site,
+    job: job ? { remoteId: job.remoteId, jobNumber: job.jobNumber || null } : undefined,
+  });
 }
 
 /* ═════════════ Editor ═════════════ */
@@ -1163,6 +815,7 @@ function Editor({
   brand,
   step,
   saveState,
+  reading,
   onStep,
   onMutate,
   onReplace,
@@ -1181,6 +834,8 @@ function Editor({
   brand: OrgBrand;
   step: number;
   saveState: "saved" | "saving" | "local";
+  /** Tiff reading this design's plans, while she reads and once she has */
+  reading?: { state: "reading" | "read" | "failed"; rooms: number } | null;
   onStep: (i: number) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onReplace: (d: DesignDocument) => void;
@@ -1276,11 +931,10 @@ function Editor({
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
-  /* The rail's collapse belongs to the CANVAS: the seam handle shows, and a
-     remembered data-rail takes effect, only while the editor is open (this
-     attribute). Every other screen keeps the full rail — a collapsed strip
-     with no handle there would have stranded people. Unmount lifts it, so
-     leaving the editor restores the frame on its own. */
+  /* The editor says it is open, for the styles that dress the frame round
+     the canvas. Unmount lifts it, so leaving the editor restores the frame
+     on its own. (The sidebar's canvas-only collapse went with v2's rule 27:
+     the sidebar doesn't fold.) */
   useEffect(() => {
     const root = document.documentElement;
     root.setAttribute("data-ds-canvas", "on");
@@ -1856,7 +1510,6 @@ function Editor({
               <button
                 className="ds-save local retry"
                 onClick={onSaveNow}
-                title="This design is saved on this device only — click to save it to the server again"
               >
                 <span className="dot" />
                 Saved locally — retry
@@ -1864,7 +1517,19 @@ function Editor({
             ) : (
               <span className={`ds-save ${saveState}`}>
                 <span className="dot" />
-                {saveState === "saving" ? "Saving…" : "Saved"}
+                {saveState === "saving" ? "Saving the design" : "Saved"}
+              </span>
+            )}
+            {reading && (
+              <span className={`ds-save ds-reading ${reading.state}`} role="status">
+                <span className="dot" />
+                {reading.state === "reading"
+                  ? "Tiff is reading the plans"
+                  : reading.state === "failed"
+                    ? "The plans couldn't be read"
+                    : reading.rooms === 1
+                      ? "Tiff read the plans: 1 room"
+                      : `Tiff read the plans: ${reading.rooms} rooms`}
               </span>
             )}
           </div>
@@ -1906,11 +1571,6 @@ function Editor({
             onClick={() => (fullscreen ? setFullscreen(false) : toFullscreen())}
             aria-label={fullscreen ? "Exit fullscreen" : "Fullscreen"}
             aria-pressed={fullscreen}
-            title={
-              fullscreen
-                ? "Back to the app — Esc does the same"
-                : "Fill the screen — same studio, no app frame"
-            }
           >
             <Icon name={fullscreen ? "x" : "maximize"} size={16} />
           </button>
@@ -2274,14 +1934,12 @@ function StudioMenu({
   const item = (
     icon: string,
     label: string,
-    action: (() => void) | undefined,
-    title?: string
+    action: (() => void) | undefined
   ) => (
     <button
       className="ds-menu-item"
       role="menuitem"
       disabled={!action}
-      title={title}
       onClick={() => {
         setOpen(false);
         action?.();
@@ -2310,20 +1968,12 @@ function StudioMenu({
           {item("save", "Save", onSave)}
           <div className="ds-menu-sep" />
           {item("edit", "Edit plans", onEditPlans)}
-          {item(
-            "library",
-            "Reference sheets",
-            onReference,
-            onReference
-              ? undefined
-              : "Upload plan pages first"
-          )}
+          {item("library", "Reference sheets", onReference)}
           <div className="ds-menu-sep" />
           <div
             className="ds-menu-set"
             role="group"
             aria-label="Load settings"
-            title="Every room load re-derives from these — the whole design updates live"
           >
             <span className="ds-menu-set-t">Load settings</span>
             <label className="ds-menu-set-row">
@@ -2439,7 +2089,6 @@ function RoomTool({
         aria-label="Zone"
         aria-haspopup="menu"
         aria-expanded={open}
-        title="Zone — square or drawn shape"
         onClick={() => setOpen((v) => !v)}
       >
         <Icon name="square" size={15} />
@@ -2509,7 +2158,6 @@ function NoteTool({
         aria-label="Note"
         aria-haspopup="menu"
         aria-expanded={open}
-        title="Note — a cloud round something, with its say in the margin"
         onClick={() => {
           /* the FIRST press arms, and arms alone — the flyout would hang over
              the canvas the armed tool is asking you to drag on. Once armed,
@@ -2536,7 +2184,6 @@ function NoteTool({
               aria-checked={ink === k.hex}
               className={`ds-note-ink${ink === k.hex ? " on" : ""}`}
               style={{ background: k.hex, color: k.hex }}
-              title={k.label}
               aria-label={k.label}
               onClick={() => {
                 onInk(k.hex);
@@ -2613,24 +2260,22 @@ function DrawTool({
       {label}
     </button>
   );
+  const drawBtn = (
+    <button
+      className={`ds-tool${on ? " on" : ""}`}
+      aria-label="Draw"
+      aria-haspopup="menu"
+      aria-expanded={open}
+      disabled={disabled}
+      onClick={() => setOpen((v) => !v)}
+    >
+      <Icon name="pipe" size={15} />
+      Draw
+    </button>
+  );
   return (
     <div className="ds-pal-wrap" ref={wrapRef}>
-      <button
-        className={`ds-tool${on ? " on" : ""}`}
-        aria-label="Draw"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        disabled={disabled}
-        title={
-          disabled
-            ? "Draw — pick a system first"
-            : "Draw — pipe, drain, cable, duct, riser, joint or branch box"
-        }
-        onClick={() => setOpen((v) => !v)}
-      >
-        <Icon name="pipe" size={15} />
-        Draw
-      </button>
+      {disabled ? <Tooltip label="Pick a system first">{drawBtn}</Tooltip> : drawBtn}
       {open && !disabled && (
         <div className="ds-roomfly ds-drawfly" role="menu" aria-label="Draw a line">
           <div className="ds-drawrow">
@@ -2677,7 +2322,6 @@ function DrawTool({
                 className="ds-drawchip"
                 role="menuitem"
                 disabled
-                title="Ductwork arrives at Step 4"
               >
                 Coming — Step 4
               </button>
@@ -2851,7 +2495,6 @@ function CanvasControls({
             setLayersOpen(false);
             setFloorMenuOpen((v) => !v);
           }}
-          title={`${floorDisplayName(floor)} — switch floor`}
         >
           <Icon name="layers" size={13} />
           {formatLevel(floor.level)}
@@ -2913,7 +2556,6 @@ function CanvasControls({
                     <button
                       className="ds-floor-x"
                       onClick={() => setArmedDelFloor(f.id)}
-                      title="Delete this floor and everything on it"
                       aria-label={`Delete ${floorDisplayName(f)}`}
                     >
                       <Icon name="x" size={12} />
@@ -2957,7 +2599,6 @@ function CanvasControls({
             setLayersOpen(false);
             setCalibOpen((v) => !v);
           }}
-          title="Calibrate — set the scale and north"
         >
           <Icon name="ruler" size={13} />
           <span className="ds-ctl-word">
@@ -3010,11 +2651,6 @@ function CanvasControls({
             <button
               className={`ds-calib-item${tool === "measure" ? " on" : ""}`}
               disabled={floor.scaleMmPerUnit == null}
-              title={
-                floor.scaleMmPerUnit == null
-                  ? "Tape measure — calibrate the scale first"
-                  : "Tape measure (K) — drag to read a distance"
-              }
               onClick={() => {
                 onTool("measure");
                 setCalibOpen(false);
@@ -3040,11 +2676,6 @@ function CanvasControls({
                 onTool("crop");
                 setCalibOpen(false);
               }}
-              title={
-                floor.plans.length === 0
-                  ? "Crop — this floor is a blank grid, there's no plan to trim"
-                  : "Crop the plan to the area you're working on (X)"
-              }
             >
               <Icon name="maximize" size={13} />
               <span className="k">Crop</span>
@@ -3055,34 +2686,12 @@ function CanvasControls({
               )}
             </button>
             <button
-              className={`ds-calib-item${tool === "split" ? " on" : ""}`}
-              disabled={floor.plans.length === 0}
-              onClick={() => {
-                onTool("split");
-                setCalibOpen(false);
-              }}
-              title={
-                floor.plans.length === 0
-                  ? "Split to new floor — this floor is a blank grid, there's no plan to split"
-                  : "Keep an area on this floor and give the rest of the page to a new floor"
-              }
-            >
-              <Icon name="layers" size={13} />
-              <span className="k">Split to new floor</span>
-              {floor.plans.length === 0 && <span className="v unset">No plan</span>}
-            </button>
-            <button
               className={`ds-calib-item${tool === "arrange" ? " on" : ""}`}
               disabled={floor.plans.length === 0}
               onClick={() => {
                 onTool("arrange");
                 setCalibOpen(false);
               }}
-              title={
-                floor.plans.length === 0
-                  ? "Move plans — this floor is a blank grid, there are no sheets to move"
-                  : "Reposition the plan sheets on this floor (M)"
-              }
             >
               <Icon name="hand" size={13} />
               <span className="k">Move plans</span>
@@ -3104,7 +2713,6 @@ function CanvasControls({
             setCalibOpen(false);
             setLayersOpen((v) => !v);
           }}
-          title="View — layers, black & white and legend"
         >
           <Icon name="layers" size={14} />
           <span className="ds-ctl-word">View</span>
@@ -3216,11 +2824,6 @@ function CanvasControls({
         <button
           className={`ds-ctl-btn ds-sim-go${simOn ? " on" : ""}`}
           onClick={onToggleSim}
-          title={
-            simOn
-              ? "Exit the simulation"
-              : "Simulate this floor — read-only, nothing in the design changes"
-          }
         >
           <span className="ds-sim-play" aria-hidden>
             {simOn ? "■" : "▶"}
@@ -3229,7 +2832,7 @@ function CanvasControls({
         </button>
       )}
       {next && (
-        <button className="ds-nextchip" onClick={onNext} title="Arm the next move">
+        <button className="ds-nextchip" onClick={onNext}>
           <span className="ds-nextdot" aria-hidden="true" />
           {`Next: ${next.label}`}
         </button>
@@ -3395,23 +2998,40 @@ function DesignPanel({
     );
   }
 
-  const toolButton = (t: (typeof CANVAS_TOOLS)[number]) => (
+  const componentBtn = (
     <button
-      key={t.key}
-      className={`ds-tool${tool === t.key ? " on" : ""}`}
-      title={
-        t.needsSystem && !activeSystemId
-          ? `${t.label} — pick a system first`
-          : t.label
-      }
-      aria-label={t.label}
-      disabled={Boolean(t.needsSystem) && !activeSystemId}
-      onClick={() => onTool(t.key)}
+      className={`ds-tool${tool === "component" ? " on" : ""}`}
+      aria-label="Component"
+      disabled={!airGate.ok}
+      onClick={() => onPalette(!paletteOpen)}
     >
-      <Icon name={t.icon as never} size={15} />
-      {t.short}
+      <Icon name="box" size={15} />
+      Component
     </button>
   );
+
+  const toolButton = (t: (typeof CANVAS_TOOLS)[number]) => {
+    const off = Boolean(t.needsSystem) && !activeSystemId;
+    const b = (
+      <button
+        key={t.key}
+        className={`ds-tool${tool === t.key ? " on" : ""}`}
+        aria-label={t.label}
+        disabled={off}
+        onClick={() => onTool(t.key)}
+      >
+        <Icon name={t.icon as never} size={15} />
+        {t.short}
+      </button>
+    );
+    return off ? (
+      <Tooltip key={t.key} label="Pick a system first">
+        {b}
+      </Tooltip>
+    ) : (
+      b
+    );
+  };
 
   return (
     <div className="ds-design">
@@ -3441,16 +3061,11 @@ function DesignPanel({
               holding a whole verb's width on the bench, and the bar had
               started wrapping on a laptop. */}
           <div className="ds-pal-wrap">
-            <button
-              className={`ds-tool${tool === "component" ? " on" : ""}`}
-              aria-label="Component"
-              disabled={!airGate.ok}
-              title={airGate.ok ? "Component" : `Component — ${airGate.reason}`}
-              onClick={() => onPalette(!paletteOpen)}
-            >
-              <Icon name="box" size={15} />
-              Component
-            </button>
+            {airGate.ok ? (
+              componentBtn
+            ) : (
+              <Tooltip label={`${airGate.reason.charAt(0).toUpperCase()}${airGate.reason.slice(1)}`}>{componentBtn}</Tooltip>
+            )}
             {paletteOpen && airGate.ok && (
               <ComponentPalette onPick={onArmComponent} onClose={() => onPalette(false)} />
             )}
@@ -3463,24 +3078,16 @@ function DesignPanel({
               you draw the design, then you write on it. */}
           <NoteTool tool={tool} onTool={onTool} ink={noteInk} onInk={setArmedInk} />
           <div className="ds-tb-spring" />
-          <button
-            className="ds-tool"
-            onClick={undo}
-            disabled={!hist.undo}
-            aria-label="Undo"
-            title="Undo (⌘Z)"
-          >
-            <Icon name="rotate" size={15} />
-          </button>
-          <button
-            className="ds-tool flip"
-            onClick={redo}
-            disabled={!hist.redo}
-            aria-label="Redo"
-            title="Redo (⇧⌘Z)"
-          >
-            <Icon name="rotate" size={15} />
-          </button>
+          <Tooltip label="Undo, ⌘Z">
+            <button className="ds-tool" onClick={undo} disabled={!hist.undo} aria-label="Undo">
+              <Icon name="rotate" size={15} />
+            </button>
+          </Tooltip>
+          <Tooltip label="Redo, ⇧⌘Z">
+            <button className="ds-tool flip" onClick={redo} disabled={!hist.redo} aria-label="Redo">
+              <Icon name="rotate" size={15} />
+            </button>
+          </Tooltip>
         </div>
         <div className="ds-canvas-body">
           <StudioCanvas
@@ -3571,7 +3178,7 @@ function DesignPanel({
           <div className="ds-legend" role="dialog" aria-label="Legend">
             <div className="ds-legend-h">
               <span>Legend</span>
-              <button onClick={() => onLegend(false)} title="Close" aria-label="Close legend">
+              <button onClick={() => onLegend(false)} aria-label="Close legend">
                 ×
               </button>
             </div>

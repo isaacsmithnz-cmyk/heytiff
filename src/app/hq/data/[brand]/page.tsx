@@ -84,7 +84,7 @@ export default async function HqBrandPage({
             .slice(0, 3)
             .map((e) => `${e.row} — ${e.message}`)
             .join("; ")}
-          {view.validationErrors.length > 3 ? " …" : ""}
+          {view.validationErrors.length > 3 ? `; and ${view.validationErrors.length - 3} more` : ""}
         </div>
       ) : null}
 

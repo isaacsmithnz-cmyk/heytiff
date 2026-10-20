@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { useOverlay } from "@/components/overlay/use-overlay";
 import { createPortal } from "react-dom";
@@ -19,7 +20,6 @@ import type { BoardTech, BoardVisit } from "@/lib/workboard/board-query";
 import {
   calendarToneFor,
   cadenceLabel,
-  GATE_FULL,
   GATE_LABEL,
   hoursLabel,
   missingOf,
@@ -208,7 +208,9 @@ export function DayModal({
           }}
         >
           <div className="wb2-dch">
-            <b>{v.clientName}</b>
+            <b>
+              <Fade>{v.clientName}</Fade>
+            </b>
             {chip}
           </div>
           <div className="wb2-dcs">
@@ -237,7 +239,9 @@ export function DayModal({
         }}
       >
         <div className="wb2-dch">
-          <b>{v.clientName}</b>
+          <b>
+            <Fade>{v.clientName}</Fade>
+          </b>
           <span className={"wb2-chip " + (vTone === "soon" ? "warn" : "dan")}>
             {missing.length} to confirm
           </span>
@@ -271,7 +275,7 @@ export function DayModal({
                     );
                   }}
                 >
-                  <option value="">Crew — assign…</option>
+                  <option value="">Assign the crew</option>
                   {staff.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
@@ -289,7 +293,6 @@ export function DayModal({
                 className="wb2-ck"
                 style={{ "--as": `var(--wb2-${g === "equipment" ? "eq" : "acc"})` } as CSSProperties}
                 disabled={busy}
-                title={`${GATE_FULL[g]} — not confirmed. Press to confirm.`}
                 onClick={(e) => {
                   e.stopPropagation();
                   const key = g === "equipment" ? "equipment_ready" : "access_confirmed";
@@ -322,7 +325,7 @@ export function DayModal({
         <div className="wb2-dmhd" data-tone={tone}>
           <div className="wb2-dmtop">
             <span className="wb2-sect">{when}</span>
-            <button ref={closeRef} className="wb2-ico" onClick={onClose} title="Close" aria-label="Close">
+            <button ref={closeRef} className="wb2-ico" onClick={onClose} aria-label="Close">
               <Icon name="x" size={14} />
             </button>
           </div>

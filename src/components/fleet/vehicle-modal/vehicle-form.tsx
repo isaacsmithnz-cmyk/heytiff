@@ -1,16 +1,24 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
-import type { RenewalInput } from "@/app/actions/fleet";
+import { useContext, useId, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { removeVehicle, saveVehicle, type RenewalInput } from "@/app/actions/fleet";
 import { readPurchaseInvoice, readRegoCertificate, type ReadRegoResult } from "@/app/actions/fleet-ai";
 import { uploadFile } from "@/lib/documents/upload-client";
 import { fileToUprightBase64 } from "@/lib/images/upright";
 import { dateFromDays } from "@/lib/fleet/map";
 import { MAKE_NOT_LISTED, VEHICLE_MAKES, canonicalMake } from "@/lib/fleet/makes";
+import { Dialog } from "@/components/parts/dialog";
+import { Button } from "@/components/parts/button";
+import { Chooser } from "@/components/parts/chooser";
+import { Field, TextArea, TextInput } from "@/components/parts/field";
+import { Fade } from "@/components/parts/fade";
+import { Dot } from "@/components/parts/state";
+import { Tray } from "@/components/parts/tabs";
 import { DateField } from "@/components/ui/date-field";
 import { Icon } from "@/components/shell/icon";
-import { Plate } from "../plate";
+import { WindowsContext } from "@/components/records/records-context";
+import { scanInProgress } from "@/components/record-modal/scan-card";
 import {
   AU_STATES,
   BODY_TYPES,
@@ -26,30 +34,34 @@ import {
   type VehicleStatus,
 } from "../logic";
 import { fmtDay } from "./derive";
-import { Btn, CloseBtn, Eyebrow, Inline } from "@/components/record-modal/parts";
-import { scanInProgress } from "@/components/record-modal/scan-card";
 
-/* Adding or editing a vehicle, in the vehicle modal's language.
+/* ADD A VEHICLE (v2 forms board, forms 8a and 8), and a vehicle's Edit
+   details: one dialog, 720 wide, over the page you're on.
 
-   THE FORM OPENS ON THE CERTIFICATE. A Certificate of Registration carries
-   plate, state, make, model, variant, year, VIN, engine number, weights,
-   seating and the expiry — most of a vehicle record in one photo — and typing
-   all of that off the paper is how a VIN gets a digit wrong. So the first
-   card asks for the certificate; Tiff reads it into the fields below; the
-   person checks the form against the paper and saves. Filling the form by hand
-   is the same form, just without the reading.
+   THE FORM STARTS WITH THE CERTIFICATE. A Certificate of Registration
+   carries the plate, state, make, model, variant, year, VIN, engine number,
+   weights, seating and the expiry, most of a vehicle in one photo, and
+   typing all that off the paper is how a VIN gets a digit wrong. So the
+   form opens on the certificate: dropped, photographed or chosen, read by
+   today's reader (readRegoCertificate), and every section below filled in
+   for checking. Filling it by hand is the same form without the reading.
 
-   EXPIRY DATES LEAVE THE FORM. Registration, insurance and the green slip are
-   RECORDS — a policy row with the paper filed under it — and the vehicle card
-   is where they are read, updated and kept. The one exception is the vehicle's
-   FIRST registration on the way in: the certificate that filled the form also
-   says when the rego runs to, and that becomes the first rego record, with the
-   certificate under it, when the vehicle is saved. Editing an existing vehicle
-   never touches a date; the card does.
+   EXPIRY DATES ARE RECORDS. Registration, insurance and the green slip are
+   a policy row with the paper filed under it, kept on the vehicle. The one
+   exception is the FIRST registration on the way in: the certificate that
+   filled the form says when the rego runs to, and that becomes the first
+   rego record, with the certificate under it, when the vehicle is saved.
+   Editing never touches a date.
 
-   The make is picked, not typed (a free-text make is how one register ended up
-   holding TOYOTA, Toyota and toyota), with "Not listed" for the trailer whose
-   make is a feed code no list carries — the contract the picker tests pin. */
+   The make is picked, not typed (a free-text make is how one register held
+   TOYOTA, Toyota and toyota), with Not listed for the trailer whose make no
+   list carries. A trailer has no engine, so the engine, odometer and
+   distance-service fields go and ATM arrives.
+
+   Saving is today's action, saveVehicle, with the purchase invoice adopted
+   and the first rego filed. It keeps you where you were (rule 51), with a
+   toast: Undo takes a new vehicle back out (removeVehicle, as Remove
+   vehicle does), and puts an edited one back as it was. */
 
 type Fields = {
   name: string;
@@ -97,7 +109,7 @@ function fromVehicle(v: Vehicle, today: string): Fields {
     plate: v.plate,
     plateState: v.plateState ?? "",
     /* An existing row may hold a dirty spelling from before the picker
-       ("TOYOTA", "Byd"). Canonicalise on open so the select can find its row —
+       ("TOYOTA", "Byd"). Canonicalise on open so the chooser finds its row,
        and so saving an untouched vehicle quietly tidies it. */
     make: canonicalMake(v.make) ?? v.make,
     model: v.model,
@@ -180,68 +192,93 @@ const intOrNull = (str: string): number | null => {
 };
 const strOrNull = (str: string): string | null => str.trim() || null;
 
+/** What the paper is, in a few words: "PDF, 220 KB". */
+function paperOf(file: File): string {
+  const kind = file.type === "application/pdf" ? "PDF" : "Photo";
+  const size = file.size < 1024 * 1024 ? `${Math.max(1, Math.round(file.size / 1024))} KB` : `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
+  return `${kind}, ${size}`;
+}
+
 type Cert =
   | { state: "idle" }
   | { state: "reading"; name: string }
-  | { state: "read"; name: string; documentId: string | null; expiresOn: string | null }
+  | { state: "read"; name: string; paper: string; documentId: string | null; expiresOn: string | null }
   /* stored, but nothing read: filed the same as a read one */
-  | { state: "attached"; name: string; documentId: string };
+  | { state: "attached"; name: string; paper: string; documentId: string };
 
 type Invoice =
   | { state: "none" }
   | { state: "reading"; name: string }
-  | { state: "attached"; name: string; documentId: string; read: string | null };
+  | { state: "attached"; name: string; paper: string; documentId: string; read: string | null };
+
+type Wrong = Partial<Record<"plate" | "make" | "regoExpiry", string>>;
+
+const TERMS = [
+  { value: "12", label: "12 months" },
+  { value: "6", label: "6 months" },
+  { value: "3", label: "3 months" },
+] as const;
+
+const MAKE_OPTIONS = [...VEHICLE_MAKES.map((m) => ({ value: m as string, label: m as string })), { value: MAKE_NOT_LISTED, label: "Not listed" }];
+const STATE_OPTIONS = [{ value: "", label: "Not stated" }, ...AU_STATES.map((st) => ({ value: st as string, label: st as string }))];
+const BODY_OPTIONS = BODY_TYPES.map((b) => ({ value: b, label: BODY_TYPE_LABEL[b] }));
+const STATUS_OPTIONS = (Object.keys(STATUS_LABEL) as VehicleStatus[]).map((k) => ({ value: k, label: STATUS_LABEL[k] }));
 
 export function VehicleForm({
   initial,
   staff,
   today,
-  onSave,
   onClose,
+  onSaved,
 }: {
+  /** The vehicle being edited, filled in; null adds one. */
   initial: Vehicle | null;
   staff: FleetStaff[];
   /** The AU calendar date, from the server. The browser's clock is not the
       anchor: the day-counts this form produces are converted back to dates
       server-side against the same day, and the two must agree. */
   today: string;
-  onSave: (v: Vehicle, purchaseInvoiceId?: string, initialRenewal?: Omit<RenewalInput, "vehicleId">) => void;
   onClose: () => void;
+  /** After the save landed, with the vehicle's id: where the door goes next. */
+  onSaved?: (id: string) => void;
 }) {
+  const router = useRouter();
+  const host = useContext(WindowsContext);
   const adding = initial === null;
+  const makeId = useId();
   const [f, setF] = useState<Fields>(() => (initial ? fromVehicle(initial, today) : BLANK));
-  /* Whether the make is being typed rather than picked. This can't be derived
-     from the value: choosing "Not listed" leaves the field empty, which is
-     indistinguishable from not having chosen anything yet. */
+  /* Whether the make is being typed rather than picked. Not derivable from
+     the value: choosing Not listed leaves it empty, which is also what
+     not having chosen looks like. */
   const [makeNotListed, setMakeNotListed] = useState(
     () => !!initial && initial.make.trim() !== "" && canonicalMake(initial.make) === null,
   );
   const [cert, setCert] = useState<Cert>({ state: "idle" });
   const [certWarn, setCertWarn] = useState<string | null>(null);
+  const [over, setOver] = useState(false);
   const [invoice, setInvoice] = useState<Invoice>({ state: "none" });
   const [invoiceExtras, setInvoiceExtras] = useState<
     Partial<Pick<Vehicle, "purchaseExGst" | "purchaseGst" | "purchaseOnRoad" | "purchaseDeposit" | "purchaseOdometer">>
   >({});
+  const [wrong, setWrong] = useState<Wrong>({});
+  const [refused, setRefused] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const certInput = useRef<HTMLInputElement>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
   const invoiceInput = useRef<HTMLInputElement>(null);
 
-  /* Escape closes the form, except while the certificate or the purchase
-     invoice is being read or is in hand: then it does nothing (see
-     scanInProgress). The X still closes. */
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !scanInProgress()) onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const set = (k: keyof Fields) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setF((p) => ({ ...p, [k]: value }));
+    if (k in wrong) setWrong((w) => ({ ...w, [k]: undefined }));
+  };
+  const setValue = (k: keyof Fields) => (value: string | null) => {
+    setF((p) => ({ ...p, [k]: value ?? "" }));
+    if (k in wrong) setWrong((w) => ({ ...w, [k]: undefined }));
+  };
 
-  const set = (k: keyof Fields) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setF((p) => ({ ...p, [k]: e.target.value }));
-  const setDate = (k: keyof Fields) => (iso: string | null) => setF((p) => ({ ...p, [k]: iso ?? "" }));
-
-  /* Body type decides the engine: a trailer has none, and the odometer, fuel
-     and distance-service fields go with it. Nothing else has to be asked. */
+  /* Body type decides the engine: a trailer has none, and the odometer and
+     distance-service fields go with it. */
   const motorised = f.bodyType === "trailer" ? false : initial && !f.bodyType ? initial.motorised : true;
 
   /* ---- the certificate ---- */
@@ -249,37 +286,32 @@ export function VehicleForm({
     if (!file || cert.state === "reading") return;
     setCertWarn(null);
     setCert({ state: "reading", name: file.name });
+    const paper = paperOf(file);
     /* On the way IN the certificate is stored, because it will be filed under
        the vehicle's first rego record. On an existing vehicle nothing is
-       stored: the read fills the form, and the paper belongs under
-       Registration on the card, where it can be filed against the record it
-       actually renews. */
+       stored: the read fills the form, and the paper belongs under the
+       renewal it actually records. */
     const [stored, result] = await Promise.all([
-      adding
-        ? uploadFile(file, "rego_notice").catch(() => ({ ok: false, error: "upload" }) as const)
-        : Promise.resolve(null),
+      adding ? uploadFile(file, "rego_notice").catch(() => ({ ok: false, error: "upload" }) as const) : Promise.resolve(null),
       fileToUprightBase64(file)
         .then((img) => readRegoCertificate(img.data, img.mediaType))
         .catch((): ReadRegoResult => ({ ok: false, reason: "read" })),
     ]);
     const documentId = stored && stored.ok ? stored.file.documentId : null;
-    if (adding && stored && !stored.ok) setCertWarn("The certificate couldn't be stored — the details will save without it.");
+    if (adding && stored && !stored.ok) setCertWarn("The certificate couldn't be stored, so the details will save without it.");
     if (!result.ok) {
-      /* Nothing read: the fields open empty, and the certificate, if it landed,
-         is kept and filed under the first rego record all the same. The shared
-         ScanCard does the same with its paper. */
-      setCert(documentId ? { state: "attached", name: file.name, documentId } : { state: "idle" });
-      setCertWarn((w) => w ?? "Tiff couldn't read that one — fill the form in below.");
+      /* Nothing read: the fields stay as they were, and the certificate, if
+         it landed, is kept and filed under the first rego all the same. */
+      setCert(documentId ? { state: "attached", name: file.name, paper, documentId } : { state: "idle" });
+      setCertWarn((w) => w ?? "Tiff couldn't read that one. Fill the form in below.");
       return;
     }
     fillFromCertificate(result);
-    setCert({ state: "read", name: file.name, documentId, expiresOn: result.expiresOn });
+    setCert({ state: "read", name: file.name, paper, documentId, expiresOn: result.expiresOn });
   };
 
-  /* Only what was read lands; a null leaves what was there. The plate is the
-     exception in one direction only — a blank plate takes the read one, a
-     typed plate is never overwritten by a read, because the plate is what the
-     person is surest of. */
+  /* Only what was read lands; a null leaves what was there. A typed plate is
+     never overwritten by a read: the plate is what the person is surest of. */
   const fillFromCertificate = (r: ReadRegoResult & { ok: true }) => {
     setF((p) => ({
       ...p,
@@ -304,9 +336,10 @@ export function VehicleForm({
       regoIssuer: adding ? (r.issuer ?? p.regoIssuer) : p.regoIssuer,
     }));
     if (r.make) setMakeNotListed(canonicalMake(r.make) === null);
+    setWrong({});
   };
 
-  /* ---- the purchase invoice (issue #509) — unchanged contract ---- */
+  /* ---- the purchase invoice (issue #509), read by today's reader ---- */
   const onInvoicePick = async (file: File | null | undefined) => {
     if (!file || invoice.state === "reading") return;
     setInvoice({ state: "reading", name: file.name });
@@ -329,8 +362,8 @@ export function VehicleForm({
         purchaseSupplier: scan.supplier ?? p.purchaseSupplier,
         purchaseInvoiceNo: scan.invoiceNo ?? p.purchaseInvoiceNo,
       }));
-      /* The rest of the invoice has no field on this form — it is read on the
-         Financials screen — but it was read now, so it is kept and saved. */
+      /* The rest of the invoice has no field here (the vehicle's Money reads
+         it), but it was read now, so it is kept and saved. */
       setInvoiceExtras((x) => ({
         purchaseExGst: scan.exGst ?? x.purchaseExGst,
         purchaseGst: scan.gst ?? x.purchaseGst,
@@ -338,22 +371,21 @@ export function VehicleForm({
         purchaseDeposit: scan.deposit ?? x.purchaseDeposit,
         purchaseOdometer: scan.odometer ?? x.purchaseOdometer,
       }));
-      read = [scan.cost ? fmtMoney(scan.cost) : null, scan.purchasedOn, scan.supplier].filter(Boolean).join(", ");
+      read = [scan.cost ? fmtMoney(scan.cost) : null, scan.purchasedOn ? fmtDay(scan.purchasedOn) : null, scan.supplier]
+        .filter(Boolean)
+        .join(", ");
     }
-    setInvoice({ state: "attached", name: file.name, documentId: up.file.documentId, read });
+    setInvoice({ state: "attached", name: file.name, paper: paperOf(file), documentId: up.file.documentId, read });
   };
 
   /* The certificate in hand, stored and waiting to be filed. Its only home is
      the first rego record, and a rego record is its expiry, so while one is
-     held the expiry is asked for — the date is on the paper. Scan another lets
-     go of both. */
+     held the expiry is asked for. Scan another lets go of both. */
   const certificateId = cert.state === "read" || cert.state === "attached" ? cert.documentId : null;
-  const ready = !!(f.plate.trim() && f.make.trim() && (certificateId === null || f.regoExpiry));
 
-  const save = () => {
-    if (!ready) return;
+  const build = (): Vehicle => {
     const odometer = motorised ? num(f.odometer) : 0;
-    const vehicle: Vehicle = {
+    return {
       // blank id = a new row; the database mints the uuid
       id: initial?.id ?? "",
       name: f.name.trim().toUpperCase(),
@@ -370,29 +402,23 @@ export function VehicleForm({
       purchaseDateDays: f.purchaseDate ? Math.max(0, -daysUntil(f.purchaseDate, today)) : 0,
       purchaseSupplier: f.purchaseSupplier.trim() || null,
       purchaseInvoiceNo: f.purchaseInvoiceNo.trim() || null,
-      // read off the invoice here, or carried from the record — never typed on this form
+      // read off the invoice here, or carried from the record; never typed here
       purchaseExGst: invoiceExtras.purchaseExGst ?? initial?.purchaseExGst ?? null,
       purchaseGst: invoiceExtras.purchaseGst ?? initial?.purchaseGst ?? null,
       purchaseOnRoad: invoiceExtras.purchaseOnRoad ?? initial?.purchaseOnRoad ?? null,
       purchaseDeposit: invoiceExtras.purchaseDeposit ?? initial?.purchaseDeposit ?? null,
       purchaseOdometer: invoiceExtras.purchaseOdometer ?? initial?.purchaseOdometer ?? null,
-      /* The dates are the card's. Editing keeps whatever the vehicle had;
-         adding files the first rego as a RECORD below, and the cache follows. */
+      /* The dates are the vehicle's records. Editing keeps whatever it had;
+         adding files the first rego as a RECORD, and the cache follows. */
       regoDays: initial ? initial.regoDays : f.regoExpiry ? daysUntil(f.regoExpiry, today) : null,
       insuranceDays: initial ? initial.insuranceDays : null,
       ctpDays: initial ? initial.ctpDays : null,
-      /* Blank means "no distance limit", which is the whole point of the
-         column being nullable — defaulting it back to 10,000 would give a
-         trailer a cycle it can never reach. No motor forces it either way. */
+      /* Blank means no distance limit; no motor forces it. */
       serviceIntervalKm: !motorised || !f.intervalKm.trim() ? null : num(f.intervalKm) || null,
       lastServiceOdo: f.lastServiceOdo.trim() ? num(f.lastServiceOdo) : odometer,
       serviceIntervalMonths: f.intervalMonths.trim() ? num(f.intervalMonths) || null : null,
       lastServiceDays: f.lastServiceOn ? -daysUntil(f.lastServiceOn, today) : null,
-      serviceDays: serviceDaysUntil(
-        f.lastServiceOn || null,
-        f.intervalMonths.trim() ? num(f.intervalMonths) || null : null,
-        today,
-      ),
+      serviceDays: serviceDaysUntil(f.lastServiceOn || null, f.intervalMonths.trim() ? num(f.intervalMonths) || null : null, today),
       motorised,
       notes: f.notes.trim() || undefined,
       // the certificate's facts
@@ -409,6 +435,19 @@ export function VehicleForm({
       regoCustomerNo: strOrNull(f.regoCustomerNo),
       photoDocumentId: initial?.photoDocumentId ?? null,
     };
+  };
+
+  const save = async () => {
+    if (saving) return;
+    /* What today's form held its button back for, said on the field (rule 33). */
+    const missing: Wrong = {};
+    if (!f.plate.trim()) missing.plate = "Give the rego plate.";
+    if (!f.make.trim()) missing.make = makeNotListed ? "Type the make." : "Pick a make.";
+    if (certificateId !== null && !f.regoExpiry) missing.regoExpiry = "The certificate is filed under the first rego, so give its expiry.";
+    setWrong(missing);
+    if (Object.keys(missing).length > 0) return;
+
+    const vehicle = build();
     const invoiceId = invoice.state === "attached" ? invoice.documentId : undefined;
     const renewal: Omit<RenewalInput, "vehicleId"> | undefined =
       adding && f.regoExpiry
@@ -423,393 +462,447 @@ export function VehicleForm({
             source: cert.state === "read" ? "scan" : "manual",
           }
         : undefined;
-    onSave(vehicle, invoiceId, renewal);
+
+    setSaving(true);
+    setRefused(null);
+    const res = await saveVehicle(vehicle, invoiceId, renewal);
+    if (!res.ok) {
+      setSaving(false);
+      setRefused(res.error);
+      return;
+    }
+    onClose();
+    onSaved?.(res.id);
+    router.refresh();
+    const before = initial;
+    host?.toast(adding ? `${vehicle.plate} added` : `${vehicle.plate} saved`, async () => {
+      /* a new vehicle goes back out, as Remove vehicle takes one; an edited
+         one is put back as it was opened */
+      if (before) await saveVehicle(before);
+      else await removeVehicle(res.id);
+      router.refresh();
+    });
   };
 
-  const previewType: BodyType = f.bodyType || (motorised ? "van" : "trailer");
+  /* Escape and the scrim leave the form alone while the certificate or the
+     invoice is being read or is in hand (scanInProgress); Cancel still closes. */
+  const softClose = () => {
+    if (!scanInProgress()) onClose();
+  };
 
-  return createPortal(
-    <div className="vm-ov" onClick={() => (scanInProgress() ? undefined : onClose())}>
-      <div className="vm" role="dialog" aria-modal="true" aria-label={adding ? "Add vehicle" : "Edit vehicle"} onClick={(e) => e.stopPropagation()}>
-        <div className="vm-head">
-          <div className="vm-headl">
-            <span className="vm-photo static" aria-hidden>
-              {/* eslint-disable-next-line @next/next/no-img-element -- a local line drawing */}
-              <img src={`/fleet/${previewType}.svg`} alt="" className="placeholder" />
-            </span>
-            <div className="vm-titles">
-              <div className="vm-titlerow">
-                <h2 className="vm-title">{adding ? "Add vehicle" : `Edit ${displayName(initial)}`}</h2>
-                {f.plate.trim() && <Plate plate={f.plate} state={f.plateState || null} size="sm" />}
-              </div>
-              <div className="vm-model">
-                {adding ? "Scan the rego certificate, or fill the form in." : [f.make, f.model, f.year].filter(Boolean).join(" ")}
+  const pickFile = (input: HTMLInputElement | null) => input?.click();
+  const takeDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setOver(false);
+    void scanCertificate(e.dataTransfer.files?.[0]);
+  };
+
+  const team = staff.filter((st) => st.status === "Active" || st.id === f.assignedTo);
+  const driverOptions = [{ value: "", label: "Pool, unassigned" }, ...team.map((st) => ({ value: st.id, label: st.name }))];
+
+  return (
+    <Dialog
+      heading={adding ? "Add a vehicle" : `Edit ${displayName(initial)}`}
+      width={720}
+      onClose={softClose}
+      foot={
+        <>
+          <Button kind="second" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button kind="main" onClick={() => void save()} disabled={saving}>
+            {saving ? (adding ? "Adding the vehicle" : "Saving the changes") : adding ? "Add vehicle" : "Save changes"}
+          </Button>
+        </>
+      }
+    >
+      <form
+        className="mk-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save();
+        }}
+      >
+        {/* ---- the certificate ---- */}
+        <div className="mk-records-group" data-scan-in-progress={cert.state !== "idle" ? "" : undefined}>
+          <p className="mk-records-label">Rego certificate</p>
+          <input
+            ref={certInput}
+            type="file"
+            accept="image/*,application/pdf"
+            aria-label="Scan certificate"
+            hidden
+            onChange={(e) => {
+              void scanCertificate(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
+          <input
+            ref={cameraInput}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            aria-label="Photograph certificate"
+            hidden
+            onChange={(e) => {
+              void scanCertificate(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
+          {cert.state === "idle" && (
+            <div
+              className="mk-records-drop"
+              data-over={over ? "" : undefined}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setOver(true);
+              }}
+              onDragLeave={() => setOver(false)}
+              onDrop={takeDrop}
+            >
+              <p className="mk-records-drop-what">Drop the rego certificate here, a photo or a PDF</p>
+              <div className="mk-records-acts">
+                <Button kind="main" icon="cam" onClick={() => pickFile(cameraInput.current)}>
+                  Take a photo
+                </Button>
+                <Button kind="second" icon="upload" onClick={() => pickFile(certInput.current)}>
+                  Choose a file
+                </Button>
               </div>
             </div>
-          </div>
-          <CloseBtn onClick={onClose} />
-        </div>
-
-        <div className="vm-body">
-          {/* ---- the certificate ---- */}
-          <div className="vm-card vm-record" data-scan-in-progress={cert.state !== "idle" ? "" : undefined}>
-            <div className="vm-cardhead">
-              <Eyebrow>Rego certificate</Eyebrow>
-              {(cert.state === "read" || cert.state === "attached") && (
-                <Inline
-                  muted
+          )}
+          {cert.state === "reading" && <Reading name={cert.name} />}
+          {cert.state === "read" && (
+            <Paper
+              name={cert.name}
+              line={`${cert.paper}. Read into the form.`}
+              end={
+                <Button kind="quiet" size={32} onClick={() => setCert({ state: "idle" })}>
+                  Scan another
+                </Button>
+              }
+            />
+          )}
+          {cert.state === "attached" && (
+            <Paper
+              name={cert.name}
+              line={`${cert.paper}. Kept for the first rego record.`}
+              end={
+                <Button
+                  kind="quiet"
+                  size={32}
                   onClick={() => {
                     setCert({ state: "idle" });
                     setCertWarn(null);
+                    setWrong((w) => ({ ...w, regoExpiry: undefined }));
                   }}
                 >
                   Scan another
-                </Inline>
-              )}
-            </div>
-            <input
-              ref={certInput}
-              type="file"
-              accept="image/*,application/pdf"
-              aria-label="Scan certificate"
-              hidden
-              onChange={(e) => {
-                void scanCertificate(e.target.files?.[0]);
-                e.target.value = "";
-              }}
+                </Button>
+              }
             />
-            {cert.state === "idle" && (
-              <button type="button" className="vm-scan" onClick={() => certInput.current?.click()}>
-                <b>Scan or upload the rego certificate</b>
-                <span>
-                  {adding
-                    ? "Plate, make, model, VIN, engine, weights and the rego expiry are read from it and fill the form below. PDF, JPG or photo."
-                    : "Fills in the details below from the certificate. Nothing is stored here — file the paper under Registration on the vehicle's card."}
-                </span>
-              </button>
-            )}
-            {cert.state === "reading" && (
-              <div className="vm-reading" role="status">
-                <span className="vm-shimmer" />
-                <span>Reading {cert.name}…</span>
-              </div>
-            )}
-            {cert.state === "read" && (
-              <div className="vm-scanned">
-                <span className="vm-scannedl">
-                  <b>{cert.name}</b>
-                  <em>Details read from the certificate — check the form before saving</em>
-                </span>
-                <span className="vm-scannedtag">Scanned</span>
-              </div>
-            )}
-            {cert.state === "attached" && (
-              <div className="vm-attach">
-                <span>Attached: {cert.name}</span>
-              </div>
-            )}
-            {cert.state === "read" && !adding && cert.expiresOn && (
-              <div className="vm-note">
-                The certificate shows registration to {fmtDay(cert.expiresOn)} — record that under Registration on the card.
-              </div>
-            )}
-            {certWarn && <div className="vm-warnline">{certWarn}</div>}
-          </div>
+          )}
+          {cert.state === "read" && !adding && cert.expiresOn && (
+            <p className="mk-records-sub">
+              The certificate shows registration to {fmtDay(cert.expiresOn)}. Record that under Registration on the vehicle.
+            </p>
+          )}
+          {certWarn && (
+            <p className="mk-records-res" role="status">
+              <Dot hue="orange" />
+              {certWarn}
+            </p>
+          )}
+        </div>
 
-          {/* ---- identity ---- */}
-          <Section label="Identity">
-            <Field label="Rego plate" req>
-              <input className="vm-input" placeholder="e.g. MKT482" value={f.plate} onChange={set("plate")} />
-            </Field>
-            <Field label="Registered in" hint="Plates are only unique within a state">
-              <select className="vm-input" value={f.plateState} onChange={set("plateState")}>
-                <option value="">Not stated</option>
-                {AU_STATES.map((st) => (
-                  <option key={st} value={st}>
-                    {st}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Name / fleet no.">
-              <input className="vm-input" placeholder="Optional — e.g. VRF-09" value={f.name} onChange={set("name")} />
-            </Field>
-            {/* Picked, not typed — a free-text make is how one register ends up
-                holding TOYOTA, Toyota and toyota as three marques. "Not listed"
-                still takes anything, because trailers and plant never make a list. */}
-            <Field label="Make" req>
-              <select
-                className="vm-input"
-                value={makeNotListed ? MAKE_NOT_LISTED : (canonicalMake(f.make) ?? "")}
-                onChange={(e) => {
-                  const picked = e.target.value;
+        {/* ---- identity ---- */}
+        <Section label="Identity">
+          <Field label="Rego plate" error={wrong.plate}>
+            <TextInput value={f.plate} invalid={!!wrong.plate} autoComplete="off" onChange={set("plate")} />
+          </Field>
+          <Field label="Registered in">
+            <Chooser options={STATE_OPTIONS} value={f.plateState} placeholder="Not stated" onChange={setValue("plateState")} />
+          </Field>
+          <Field label="Name or fleet number">
+            <TextInput value={f.name} autoComplete="off" onChange={set("name")} />
+          </Field>
+          <Field label="Make" id={makeId} error={wrong.make}>
+            <div className="mk-records-make">
+              <Chooser
+                id={makeId}
+                options={MAKE_OPTIONS}
+                value={makeNotListed ? MAKE_NOT_LISTED : (canonicalMake(f.make) ?? null)}
+                placeholder="Pick a make"
+                invalid={!!wrong.make && !makeNotListed}
+                onChange={(picked) => {
                   const typing = picked === MAKE_NOT_LISTED;
                   setMakeNotListed(typing);
                   setF((p) => ({ ...p, make: typing ? "" : picked }));
-                }}
-              >
-                <option value="">Select a make</option>
-                {VEHICLE_MAKES.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-                <option value={MAKE_NOT_LISTED}>Not listed…</option>
-              </select>
-              {makeNotListed && (
-                <input
-                  className="vm-input"
-                  aria-label="Make not listed"
-                  placeholder="e.g. LG Chiv"
-                  value={f.make}
-                  onChange={set("make")}
-                  autoFocus
-                />
-              )}
-            </Field>
-            <Field label="Model">
-              <input className="vm-input" placeholder="e.g. Hiace ZR" value={f.model} onChange={set("model")} />
-            </Field>
-            <Field label="Variant">
-              <input className="vm-input" placeholder="e.g. MR4W30-" value={f.variant} onChange={set("variant")} />
-            </Field>
-            <Field label="Year">
-              <input className="vm-input" type="number" placeholder="e.g. 2022" value={f.year} onChange={set("year")} />
-            </Field>
-            <Field label="Body type" hint="A trailer has no engine, odometer or fuel">
-              <select className="vm-input" value={f.bodyType} onChange={set("bodyType")}>
-                <option value="">Not stated</option>
-                {BODY_TYPES.map((b) => (
-                  <option key={b} value={b}>
-                    {BODY_TYPE_LABEL[b]}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Colour">
-              <input className="vm-input" placeholder="e.g. White" value={f.colour} onChange={set("colour")} />
-            </Field>
-          </Section>
-
-          {/* ---- the certificate's specs ---- */}
-          <Section label="Specifications">
-            <Field label="VIN / chassis" wide>
-              <input className="vm-input mono" placeholder="17 characters on the certificate" value={f.vin} onChange={set("vin")} />
-            </Field>
-            {motorised && (
-              <Field label="Engine no.">
-                <input className="vm-input" value={f.engineNumber} onChange={set("engineNumber")} />
-              </Field>
-            )}
-            {motorised && (
-              <Field label="Engine capacity (cc)">
-                <input className="vm-input" type="number" placeholder="e.g. 2442" value={f.engineCapacityCc} onChange={set("engineCapacityCc")} />
-              </Field>
-            )}
-            {motorised && (
-              <Field label="Seating">
-                <input className="vm-input" type="number" placeholder="e.g. 4" value={f.seating} onChange={set("seating")} />
-              </Field>
-            )}
-            <Field label="Tare (kg)">
-              <input className="vm-input" type="number" placeholder="e.g. 2180" value={f.tareKg} onChange={set("tareKg")} />
-            </Field>
-            <Field label="GVM (kg)">
-              <input className="vm-input" type="number" placeholder="e.g. 2900" value={f.gvmKg} onChange={set("gvmKg")} />
-            </Field>
-            {!motorised && (
-              <Field label="ATM (kg)">
-                <input className="vm-input" type="number" placeholder="e.g. 2000" value={f.atmKg} onChange={set("atmKg")} />
-              </Field>
-            )}
-            <Field label="Rego customer no." hint="The road authority's number for this registration">
-              <input className="vm-input" value={f.regoCustomerNo} onChange={set("regoCustomerNo")} />
-            </Field>
-          </Section>
-
-          {/* ---- the first registration, on the way in ---- */}
-          {adding ? (
-            <Section label="Registration" note="Filed as the vehicle's first rego record, with the certificate under it. Insurance and the green slip are added on the vehicle's card.">
-              <Field label="Rego expiry" req={certificateId !== null}>
-                <DateField size="lg" clearable today={today} value={f.regoExpiry || null} onChange={setDate("regoExpiry")} />
-              </Field>
-              <Field label="Term">
-                <select className="vm-input" value={f.regoTerm} onChange={set("regoTerm")}>
-                  {[12, 6, 3].map((t) => (
-                    <option key={t} value={String(t)}>
-                      {t} months
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Amount paid ($)">
-                <input className="vm-input" type="number" placeholder="e.g. 1008" value={f.regoPaid} onChange={set("regoPaid")} />
-              </Field>
-              <Field label="Issued by">
-                <input className="vm-input" placeholder="e.g. Transport for NSW" value={f.regoIssuer} onChange={set("regoIssuer")} />
-              </Field>
-            </Section>
-          ) : (
-            <div className="vm-card vm-quiet">
-              <Icon name="shield" size={15} />
-              Registration, insurance and the green slip are managed on the vehicle&apos;s card — open the vehicle and use the compliance list.
-            </div>
-          )}
-
-          {/* ---- service cycle ---- */}
-          <Section label="Service cycle">
-            {/* Asked only of something that has one. A trailer offered an odometer
-                box gets a zero typed into it, and that zero then reads as a
-                measurement on every screen downstream. */}
-            {motorised && (
-              <Field label="Odometer (km)">
-                <input className="vm-input" type="number" placeholder="e.g. 84120" value={f.odometer} onChange={set("odometer")} />
-              </Field>
-            )}
-            {motorised && (
-              <Field label="Service interval (km)">
-                <input className="vm-input" type="number" placeholder="e.g. 10000" value={f.intervalKm} onChange={set("intervalKm")} />
-              </Field>
-            )}
-            {motorised && (
-              <Field label="Last service odo (km)">
-                <input className="vm-input" type="number" placeholder="Blank = current odo" value={f.lastServiceOdo} onChange={set("lastServiceOdo")} />
-              </Field>
-            )}
-            <Field label="Service interval (months)">
-              <input className="vm-input" type="number" placeholder="e.g. 12" value={f.intervalMonths} onChange={set("intervalMonths")} />
-            </Field>
-            <Field label="Last service date">
-              <DateField size="lg" clearable today={today} value={f.lastServiceOn || null} onChange={setDate("lastServiceOn")} />
-            </Field>
-          </Section>
-
-          {/* ---- purchase ---- */}
-          <Section label="Purchase">
-            <Field label="Purchase date">
-              <DateField size="lg" clearable today={today} value={f.purchaseDate || null} onChange={setDate("purchaseDate")} />
-            </Field>
-            <Field label="Purchase price ($)" hint="What you paid for it. It's history, and it anchors Tiff's estimate.">
-              <input className="vm-input" type="number" placeholder="What you paid" value={f.purchasePrice} onChange={set("purchasePrice")} />
-            </Field>
-            <Field label="Book value ($)" hint="What it's worth today — the fleet total adds these up.">
-              <input className="vm-input" type="number" placeholder="What it's worth now" value={f.value} onChange={set("value")} />
-            </Field>
-            <Field label="Supplier">
-              <input className="vm-input" placeholder="Dealer or seller" value={f.purchaseSupplier} onChange={set("purchaseSupplier")} />
-            </Field>
-            <Field label="Invoice no.">
-              <input className="vm-input" placeholder="On the tax invoice" value={f.purchaseInvoiceNo} onChange={set("purchaseInvoiceNo")} />
-            </Field>
-            <div className="vm-ffield wide3" data-scan-in-progress={invoice.state !== "none" ? "" : undefined}>
-              <input
-                ref={invoiceInput}
-                type="file"
-                accept="image/*,application/pdf"
-                aria-label="Attach invoice"
-                hidden
-                onChange={(e) => {
-                  void onInvoicePick(e.target.files?.[0]);
-                  e.target.value = "";
+                  if (!typing) setWrong((w) => ({ ...w, make: undefined }));
                 }}
               />
-              {invoice.state === "attached" ? (
-                <span className="vm-attached">
-                  <Icon name="file" size={13} />
-                  {invoice.name}
-                  {invoice.read && <i> — Tiff read {invoice.read}</i>}
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  className="vm-attachbtn"
-                  disabled={invoice.state === "reading"}
-                  onClick={() => invoiceInput.current?.click()}
-                >
-                  <Icon name="upload" size={13} />
-                  {invoice.state === "reading" ? "Tiff is reading the invoice…" : "Attach the invoice — Tiff reads the price and date"}
-                </button>
+              {makeNotListed && (
+                <TextInput
+                  id={`${makeId}-typed`}
+                  aria-label="Make not listed"
+                  value={f.make}
+                  invalid={!!wrong.make}
+                  autoFocus
+                  onChange={set("make")}
+                />
               )}
             </div>
-          </Section>
+          </Field>
+          <Field label="Model">
+            <TextInput value={f.model} onChange={set("model")} />
+          </Field>
+          <Field label="Variant">
+            <TextInput value={f.variant} onChange={set("variant")} />
+          </Field>
+          <Field label="Year">
+            <TextInput type="number" inputMode="numeric" value={f.year} onChange={set("year")} />
+          </Field>
+          <Field label="Colour">
+            <TextInput value={f.colour} onChange={set("colour")} />
+          </Field>
+          <TrayField label="Body type">
+            <Tray<BodyType | "">
+              options={BODY_OPTIONS}
+              value={f.bodyType}
+              onChange={(b) => setF((p) => ({ ...p, bodyType: b }))}
+              ariaLabel="Body type"
+            />
+          </TrayField>
+        </Section>
 
-          {/* ---- assignment ---- */}
-          <Section label="Assignment">
-            <Field label="Status">
-              <select className="vm-input" value={f.status} onChange={set("status")}>
-                {(Object.keys(STATUS_LABEL) as VehicleStatus[]).map((k) => (
-                  <option key={k} value={k}>
-                    {STATUS_LABEL[k]}
-                  </option>
-                ))}
-              </select>
+        {/* ---- the certificate's specs ---- */}
+        <Section label="Specifications">
+          <Field label="VIN or chassis">
+            <TextInput value={f.vin} autoComplete="off" onChange={set("vin")} />
+          </Field>
+          {motorised && (
+            <Field label="Engine number">
+              <TextInput value={f.engineNumber} autoComplete="off" onChange={set("engineNumber")} />
             </Field>
-            <Field label={motorised ? "Assigned driver" : "Towed by"} wide>
-              <select className="vm-input" value={f.assignedTo} onChange={set("assignedTo")}>
-                <option value="">Pool / unassigned</option>
-                {staff
-                  .filter((st) => st.status === "Active" || st.id === f.assignedTo)
-                  .map((st) => (
-                    <option key={st.id} value={st.id}>
-                      {st.name}
-                    </option>
-                  ))}
-              </select>
+          )}
+          {motorised && (
+            <Field label="Engine capacity (cc)">
+              <TextInput type="number" inputMode="numeric" value={f.engineCapacityCc} onChange={set("engineCapacityCc")} />
             </Field>
-            <Field label="Notes" wide3>
-              <textarea className="vm-input vm-textarea" placeholder="e.g. Pool ute — site runs & tip loads" value={f.notes} onChange={set("notes")} />
+          )}
+          {motorised && (
+            <Field label="Seating">
+              <TextInput type="number" inputMode="numeric" value={f.seating} onChange={set("seating")} />
             </Field>
-          </Section>
-        </div>
+          )}
+          <Field label="Tare (kg)">
+            <TextInput type="number" inputMode="numeric" value={f.tareKg} onChange={set("tareKg")} />
+          </Field>
+          <Field label="GVM (kg)">
+            <TextInput type="number" inputMode="numeric" value={f.gvmKg} onChange={set("gvmKg")} />
+          </Field>
+          {!motorised && (
+            <Field label="ATM (kg)">
+              <TextInput type="number" inputMode="numeric" value={f.atmKg} onChange={set("atmKg")} />
+            </Field>
+          )}
+          <Field label="Rego customer number">
+            <TextInput value={f.regoCustomerNo} autoComplete="off" onChange={set("regoCustomerNo")} />
+          </Field>
+        </Section>
 
-        <div className="fl-foot bar">
-          <Btn kind="primary" onClick={save} disabled={!ready} icon="check">
-            {adding ? "Add vehicle" : "Save changes"}
-          </Btn>
-        </div>
-      </div>
-    </div>,
-    document.body,
+        {/* ---- the first registration, on the way in ---- */}
+        {adding && (
+          <Section label="Registration">
+            <DateBox label="Rego expiry" today={today} value={f.regoExpiry} error={wrong.regoExpiry} onChange={setValue("regoExpiry")} />
+            <Field label="Amount paid">
+              <TextInput type="number" inputMode="decimal" value={f.regoPaid} onChange={set("regoPaid")} />
+            </Field>
+            <Field label="Issued by">
+              <TextInput value={f.regoIssuer} onChange={set("regoIssuer")} />
+            </Field>
+            <TrayField label="Term">
+              <Tray options={TERMS} value={f.regoTerm as (typeof TERMS)[number]["value"]} onChange={(t) => setF((p) => ({ ...p, regoTerm: t }))} ariaLabel="Term" />
+            </TrayField>
+          </Section>
+        )}
+
+        {/* ---- service cycle ---- */}
+        <Section label="Service cycle">
+          {/* Asked only of something that has one: a trailer given an odometer
+              box gets a zero typed in, which reads as a measurement after. */}
+          {motorised && (
+            <Field label="Odometer (km)">
+              <TextInput type="number" inputMode="numeric" value={f.odometer} onChange={set("odometer")} />
+            </Field>
+          )}
+          {motorised && (
+            <Field label="Service interval (km)">
+              <TextInput type="number" inputMode="numeric" value={f.intervalKm} onChange={set("intervalKm")} />
+            </Field>
+          )}
+          {motorised && (
+            <Field label="Last service odometer (km)">
+              <TextInput type="number" inputMode="numeric" value={f.lastServiceOdo} onChange={set("lastServiceOdo")} />
+            </Field>
+          )}
+          <Field label="Service interval (months)">
+            <TextInput type="number" inputMode="numeric" value={f.intervalMonths} onChange={set("intervalMonths")} />
+          </Field>
+          <DateBox label="Last service date" today={today} value={f.lastServiceOn} onChange={setValue("lastServiceOn")} />
+        </Section>
+
+        {/* ---- purchase ---- */}
+        <Section label="Purchase">
+          <DateBox label="Purchase date" today={today} value={f.purchaseDate} onChange={setValue("purchaseDate")} />
+          <Field label="Purchase price">
+            <TextInput type="number" inputMode="decimal" value={f.purchasePrice} onChange={set("purchasePrice")} />
+          </Field>
+          <Field label="Book value">
+            <TextInput type="number" inputMode="decimal" value={f.value} onChange={set("value")} />
+          </Field>
+          <Field label="Supplier">
+            <TextInput value={f.purchaseSupplier} onChange={set("purchaseSupplier")} />
+          </Field>
+          <Field label="Invoice number">
+            <TextInput value={f.purchaseInvoiceNo} autoComplete="off" onChange={set("purchaseInvoiceNo")} />
+          </Field>
+          <div className="mk-records-group mk-records-wide" data-scan-in-progress={invoice.state !== "none" ? "" : undefined}>
+            <p className="mk-records-label">Invoice</p>
+            <input
+              ref={invoiceInput}
+              type="file"
+              accept="image/*,application/pdf"
+              aria-label="Attach invoice"
+              hidden
+              onChange={(e) => {
+                void onInvoicePick(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
+            {invoice.state === "attached" ? (
+              <Paper
+                name={invoice.name}
+                line={invoice.read ? `${invoice.paper}. Read: ${invoice.read}.` : `${invoice.paper}. Kept with the vehicle.`}
+                end={
+                  <Button
+                    kind="quiet"
+                    size={32}
+                    onClick={() => {
+                      setInvoice({ state: "none" });
+                      setInvoiceExtras({});
+                    }}
+                  >
+                    Remove
+                  </Button>
+                }
+              />
+            ) : (
+              <div className="mk-records-acts">
+                <Button kind="second" icon="upload" disabled={invoice.state === "reading"} onClick={() => pickFile(invoiceInput.current)}>
+                  {invoice.state === "reading" ? `Reading ${invoice.name}` : "Attach invoice"}
+                </Button>
+              </div>
+            )}
+          </div>
+        </Section>
+
+        {/* ---- assignment ---- */}
+        <Section label="Assignment">
+          <TrayField label="Status">
+            <Tray options={STATUS_OPTIONS} value={f.status} onChange={(st) => setF((p) => ({ ...p, status: st }))} ariaLabel="Status" />
+          </TrayField>
+          <Field label={motorised ? "Assigned driver" : "Towed by"} className="mk-records-wide">
+            <Chooser options={driverOptions} value={f.assignedTo} placeholder="Pool, unassigned" onChange={setValue("assignedTo")} />
+          </Field>
+          <Field label="Notes" className="mk-records-wide">
+            <TextArea value={f.notes} rows={2} onChange={set("notes")} />
+          </Field>
+        </Section>
+
+        {refused && (
+          <p className="mk-records-res" role="alert">
+            <Dot hue="red" />
+            {refused}
+          </p>
+        )}
+      </form>
+    </Dialog>
   );
 }
 
-/* ---- form atoms ---- */
+/* ---- the form's pieces ---- */
 
-function Section({ label, note, children }: { label: string; note?: string; children: ReactNode }) {
+function Section({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="vm-card">
-      <div className="vm-cardhead">
-        <Eyebrow>{label}</Eyebrow>
-      </div>
-      {note && <div className="vm-note">{note}</div>}
-      <div className="vm-form">{children}</div>
+    <section className="mk-records-sect" aria-label={label}>
+      <h3 className="mk-records-h">{label}</h3>
+      <div className="mk-records-grid">{children}</div>
+    </section>
+  );
+}
+
+/** A tray across the row, named like a field. */
+function TrayField({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="pt-field mk-records-wide">
+      <span className="pt-field-label">{label}</span>
+      <div>{children}</div>
     </div>
   );
 }
 
-function Field({
+/** A day, picked: never typed (the date field), and clearable. */
+function DateBox({
   label,
-  req,
-  hint,
-  wide,
-  wide3,
-  children,
+  value,
+  today,
+  error,
+  onChange,
 }: {
   label: string;
-  req?: boolean;
-  hint?: string;
-  wide?: boolean;
-  wide3?: boolean;
-  children: ReactNode;
+  value: string;
+  today: string;
+  error?: string;
+  onChange: (iso: string | null) => void;
 }) {
+  const id = useId();
   return (
-    <label className={`vm-ffield${wide ? " wide" : ""}${wide3 ? " wide3" : ""}`}>
-      <span className="vm-fl">
-        {label}
-        {req && <i aria-hidden>*</i>}
+    <Field label={label} id={id} error={error}>
+      <DateField id={id} value={value || null} today={today} clearable placeholder="No date" invalid={!!error} onChange={onChange} />
+    </Field>
+  );
+}
+
+/* The reader at work, as the expense claim's is (form 10a): what it is
+   reading, and a skeleton shaped like the lines coming. Still, not a loop. */
+function Reading({ name }: { name: string }) {
+  return (
+    <div className="mk-records-drop" role="status">
+      <p className="mk-records-drop-what">Reading {name}</p>
+      <div className="mk-records-bars" aria-hidden="true">
+        <span className="mk-records-bar" />
+        <span className="mk-records-bar" />
+        <span className="mk-records-bar" />
+      </div>
+    </div>
+  );
+}
+
+/** The paper the form holds: its name, what it is and what became of it. */
+function Paper({ name, line, end }: { name: string; line: string; end: ReactNode }) {
+  return (
+    <div className="mk-records-file">
+      <span className="mk-records-file-icon" aria-hidden="true">
+        <Icon name="file" size={16} />
       </span>
-      {children}
-      {hint && <em className="vm-hint">{hint}</em>}
-    </label>
+      <span className="mk-records-file-text">
+        <span className="mk-records-file-name">
+          <Fade>{name}</Fade>
+        </span>
+        <span className="mk-records-file-line">{line}</span>
+      </span>
+      {end}
+    </div>
   );
 }

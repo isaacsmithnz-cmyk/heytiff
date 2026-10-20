@@ -236,7 +236,7 @@ export function ProjectDetailScreen({
             onOpenTrip={(visitId) => setTripSheet({ visitId, closeOut: false })}
           />
 
-          <FlywheelCard project={project} manage={manage} busy={busy} run={run} />
+          <FlywheelCard project={project} manage={manage} busy={busy} />
           {/* Money and variations are one grant (`workboard_money`). Without it
               the loader returned no budget, no claims and no variations, so the
               cards are ABSENT rather than empty — an empty money card would
@@ -321,7 +321,6 @@ export function ProjectDetailScreen({
                     className={"wb-chip" + (e.manualLeft ? " on" : "")}
                     disabled={busy}
                     onClick={() => run(() => setEquipmentManualLeft(e.id, !e.manualLeft))}
-                    title="Tap when the manual is with the customer"
                   >
                     {e.manualLeft ? "Manual left ✓" : "Manual not left"}
                   </button>
@@ -427,7 +426,7 @@ export function ProjectDetailScreen({
             kind="progress"
             title="Site journal"
             sub="What was done and found, dated as it happened — spoken or typed."
-            placeholder="Rough-in done in the roof, two penetrations to seal Monday…"
+            placeholder="Rough-in done in the roof, two penetrations to seal Monday"
           />
 
           <JournalCard
@@ -438,7 +437,7 @@ export function ProjectDetailScreen({
             kind="commissioning"
             title="Commissioning"
             sub="Readings and settings, as recorded on site — the handover sheet reads these."
-            placeholder="Suction 8.2 bar, superheat 6.1 K, all zones balanced…"
+            placeholder="Suction 8.2 bar, superheat 6.1 K, all zones balanced"
             headerExtra={
               <a
                 className="pbtn ghost"
@@ -829,7 +828,7 @@ function DocumentsCard({
         </div>
         <label className="pbtn ghost" style={{ marginLeft: "auto", cursor: "pointer" }}>
           <Icon name="upload" size={15} />
-          {uploading ? "Uploading…" : "Upload"}
+          {uploading ? "Uploading the file" : "Upload"}
           <input
             type="file"
             accept="image/*,application/pdf"
@@ -1094,7 +1093,7 @@ function TripsCard({
                       key={g}
                       className={"wb2-ckq" + (on ? " on" : "")}
                       style={{ "--as": `var(--wb2-${g === "equipment" ? "eq" : g === "access" ? "acc" : "crew"})` } as CSSProperties}
-                      title={`${GATE_LABEL[g]} — ${on ? "confirmed" : "not yet"}`}
+                      aria-label={`${GATE_LABEL[g]} — ${on ? "confirmed" : "not yet"}`}
                     >
                       {on ? <Icon name="check" size={12} /> : <i />}
                     </span>
@@ -1298,7 +1297,7 @@ function ChecklistSection({
             className="wb-inline"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="New item…"
+            placeholder="New item"
             autoFocus
             onKeyDown={(e) => {
               if (e.key === "Enter" && label.trim()) {
@@ -1581,10 +1580,10 @@ function AttachJobModal({
             <input
               value={query}
               onChange={(e) => doSearch(e.target.value)}
-              placeholder="1042, or “Smith”…"
+              placeholder="1042, or “Smith”"
             />
           </label>
-          {searching && <p className="int-hint">Searching…</p>}
+          {searching && <p className="int-hint">Searching ServiceM8</p>}
           {hits.map((h) => (
             <button
               key={h.remoteId}
@@ -1598,7 +1597,7 @@ function AttachJobModal({
               </span>
               {h.status && <span className="wb-chip">{h.status}</span>}
               {h.linkedTo.length > 0 && (
-                <span className="wb-chip bad" title={h.linkedTo.join(", ")}>
+                <span className="wb-chip bad">
                   on {h.linkedTo.length} project{h.linkedTo.length === 1 ? "" : "s"}
                 </span>
               )}
@@ -1691,7 +1690,7 @@ function AddEquipmentModal({
           }}
         />
       </label>
-      {scanning && <p className="int-hint">Reading the nameplate…</p>}
+      {scanning && <p className="int-hint">Reading the nameplate</p>}
       {scanNote && <p className="int-hint">{scanNote}</p>}
       {photo && (
         <label className="wb2-carry" style={{ marginBottom: 10 }}>

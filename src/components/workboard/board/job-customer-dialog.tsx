@@ -73,14 +73,14 @@ export function JobCustomerDialog({ jobUuid, onClose, onSaved }: { jobUuid: stri
         <div className="wb2-dmhd">
           <div className="wb2-dmtop">
             <h2 className="njob-title">Edit customer</h2>
-            <button className="wb2-ico" onClick={onClose} title="Close" aria-label="Close">
+            <button className="wb2-ico" onClick={onClose} aria-label="Close">
               <Icon name="x" size={14} />
             </button>
           </div>
         </div>
         <div className="wb2-dmbody njob-body">
           {!form ? (
-            error ? <p className="wb2-sherr" style={{ margin: 0 }}>{error}</p> : <p className="njob-line">Reading the customer…</p>
+            error ? <p className="wb2-sherr" style={{ margin: 0 }}>{error}</p> : <p className="njob-line">Reading the customer</p>
           ) : (
             <>
               {form.company && (
@@ -149,7 +149,7 @@ export function JobCustomerDialog({ jobUuid, onClose, onSaved }: { jobUuid: stri
             Cancel
           </button>
           <button className="pbtn" disabled={!form || busy} onClick={() => void save()}>
-            {busy ? "Saving to ServiceM8…" : "Save to ServiceM8"}
+            {busy ? "Saving to ServiceM8" : "Save to ServiceM8"}
           </button>
         </div>
       </div>

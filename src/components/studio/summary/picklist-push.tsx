@@ -101,7 +101,7 @@ export function PicklistPush({
       >
         <Icon name="check" size={13} />
         {state.kind === "busy"
-          ? "Adding…"
+          ? "Adding to the job"
           : /* after a push it is a RE-push: the same button, saying what
                pressing it would do now rather than what it did once */
             `${state.kind === "idle" ? "Add to" : "Update"} job${

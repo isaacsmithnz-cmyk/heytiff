@@ -145,14 +145,46 @@ describe("the composer", () => {
   it("takes the message in a textarea, and keeps the newlines", async () => {
     const user = userEvent.setup();
     draw([]);
-    await user.click(screen.getByRole("button", { name: /Post a notice/ }));
+    await user.click(screen.getByRole("button", { name: "Write a notice" }));
 
-    const body = screen.getByPlaceholderText(/as many lines as it takes/);
+    const body = within(screen.getByRole("dialog")).getByLabelText("Message");
     expect(body.tagName).toBe("TEXTAREA");
 
     await user.type(body, "Yard resurfaced.{enter}{enter}Park on Mills St.");
     expect((body as HTMLTextAreaElement).value).toBe(
       "Yard resurfaced.\n\nPark on Mills St.",
     );
+  });
+});
+
+/* THE DOORS (rule 52): the board's own Write a notice, and Edit on a notice
+   of yours, open the one form, Edit's filled in with the notice. */
+describe("Write a notice", () => {
+  it("opens empty from the board's button, for whoever may post", async () => {
+    const user = userEvent.setup();
+    draw([notice()]);
+    await user.click(screen.getByRole("button", { name: "Write a notice" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("heading", { name: "Write a notice" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("textbox", { name: "Title" })).toHaveValue("");
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("is not offered to someone who can't post", () => {
+    render(<NoticesBoard notices={[]} canManage={false} canRead today={TODAY} staff={[]} viewerStaffId="s1" />);
+    expect(screen.queryByRole("button", { name: "Write a notice" })).toBeNull();
+  });
+
+  it("opens from Edit on a notice of yours with the notice filled in", async () => {
+    const user = userEvent.setup();
+    draw([notice({ body: "Yard resurfaced.", pinned: true, expiresAt: "2026-08-14" })]);
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("heading", { name: "Edit notice" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("textbox", { name: "Title" })).toHaveValue("Depot closed Friday");
+    expect(within(dialog).getByRole("textbox", { name: "Message" })).toHaveValue("Yard resurfaced.");
+    expect(within(dialog).getByRole("checkbox", { name: "Pin to the top" })).toBeChecked();
+    expect(within(dialog).getByLabelText("Comes off the board")).toHaveTextContent("14/08/2026");
   });
 });

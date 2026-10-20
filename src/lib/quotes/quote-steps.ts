@@ -1,9 +1,12 @@
-/* THE QUOTE'S PROGRESS LINE, where Home has "Your day" (Isaac, 2026-10-06,
-   the quote page mock-up he called "much cleaner"): Brief, To confirm,
-   Build-up, Approved, Sent, Accepted, each in its state's colour. Approved,
+/* THE QUOTE'S PROGRESS LINE, small at the top of the quote page's rail
+   (layout C, Isaac's pick on 18 October 2026; it was the band where Home has
+   "Your day", 2026-10-06): Brief, Scope, Priced, Approved, Sent, Accepted
+   (Q7, 17 October), each with its date or what's left to settle. Approved,
    Sent and Accepted are a person's say-so ("You should still be able to manually
    approve"), and Accepted can be marked at any point: a client who says yes
    on the phone skips the two before it. Pure. */
+
+import { auDayOf, fmtAuDayMonth } from "@/lib/au-dates";
 
 export type StepKey = "brief" | "questions" | "buildup" | "approved" | "sent" | "accepted";
 /** done: settled. due: needs something before the quote is whole. next:
@@ -23,8 +26,8 @@ export type PriceState =
 
 const LABELS: Record<StepKey, string> = {
   brief: "Brief",
-  questions: "Questions",
-  buildup: "Build-up",
+  questions: "Scope",
+  buildup: "Priced",
   approved: "Approved",
   sent: "Sent",
   accepted: "Accepted",
@@ -50,8 +53,10 @@ export function linesSteps(input: {
   accepted?: readonly number[];
   approved?: boolean;
   version?: number;
-  /** sent to ServiceM8 as a quote (7.3), or only a trial run of it */
-  sent?: { trial: boolean } | null;
+  /** sent to ServiceM8 as a quote (7.3), or only a trial run of it, and when */
+  sent?: { trial: boolean; at?: string } | null;
+  /** when the approval that stands was given */
+  approvedAt?: string | null;
 }): QuoteStep[] {
   const step = (key: StepKey, state: StepState, words: string): QuoteStep => ({ key, label: LABELS[key], state, words });
   const { lines, unknown, price } = input;
@@ -63,19 +68,22 @@ export function linesSteps(input: {
         : price.kind === "priced" && price.left > 0
           ? step("buildup", "due", `${price.left} to price`)
           : price.kind === "priced"
-            ? step("buildup", "done", "Every line priced")
-            : step("buildup", "next", "Pricing");
+            ? step("buildup", "done", "All priced")
+            : step("buildup", "next", "");
+  /* a day said as the rail has room for it, "17 Oct" */
+  const day = (at: string | null | undefined) => (at ? fmtAuDayMonth(auDayOf(at)) : "");
   return [
     step("brief", lines > 0 ? "done" : "next", "By hand"),
-    /* Unknowns on the page of 7 Oct; To confirm since 10 Oct (Isaac: "an
-       unknown could just be something that we haven't told Tiff yet") */
-    { ...step("questions", unknown > 0 ? "due" : lines > 0 ? "done" : "todo", unknown > 0 ? `${unknown} to confirm` : lines > 0 ? "None" : ""), label: "To confirm" },
+    /* Unknowns on the page of 7 Oct; To confirm from 10 Oct (Isaac: "an
+       unknown could just be something that we haven't told Tiff yet");
+       Scope, with what's left to settle, in layout C */
+    step("questions", unknown > 0 ? "due" : lines > 0 ? "done" : "todo", unknown > 0 ? `${unknown} to settle` : lines > 0 ? "Settled" : ""),
     built,
     /* version 2 on, the version it's at (quote-versions.ts) */
     input.approved
-      ? step("approved", "done", (input.version ?? 1) > 1 ? `Version ${input.version} approved` : "Approved")
+      ? step("approved", "done", (input.version ?? 1) > 1 ? `Version ${input.version} approved` : day(input.approvedAt) || "Approved")
       : step("approved", "todo", (input.version ?? 1) > 1 ? `Version ${input.version}` : ""),
-    input.sent ? step("sent", "done", input.sent.trial ? "Trial run" : "To ServiceM8") : step("sent", "todo", ""),
+    input.sent ? step("sent", "done", input.sent.trial ? "Trial run" : day(input.sent.at) || "To ServiceM8") : step("sent", "todo", ""),
     input.accepted?.length ? step("accepted", "done", acceptedWords(input.accepted)) : step("accepted", "todo", ""),
   ];
 }

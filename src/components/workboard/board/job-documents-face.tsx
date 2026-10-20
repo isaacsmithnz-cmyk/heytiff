@@ -192,7 +192,7 @@ function OurRow({
                 Keep
               </button>
               <button type="button" className="pbtn ghost sm dan" disabled={removing} onClick={() => void remove()}>
-                {removing ? "Deleting…" : "Delete file"}
+                {removing ? "Deleting the file" : "Delete file"}
               </button>
             </>
           ) : (
@@ -284,7 +284,7 @@ function PaperRow({
             disabled={!!busy}
             onClick={() => void run("renew", onRenew)}
           >
-            {busy === "renew" ? "Switching…" : "Use renewal"}
+            {busy === "renew" ? "Switching to the renewal" : "Use renewal"}
           </button>
         )}
         {paper.manage &&
@@ -300,7 +300,7 @@ function PaperRow({
                 disabled={!!busy}
                 onClick={() => void run("remove", onRemove)}
               >
-                {busy === "remove" ? "Removing…" : "Remove from job"}
+                {busy === "remove" ? "Removing from the job" : "Remove from job"}
               </button>
             </>
           ) : (
@@ -367,7 +367,7 @@ function CertRow({
               Keep
             </button>
             <button type="button" className="pbtn ghost sm dan" disabled={deleting} onClick={() => void del()}>
-              {deleting ? "Deleting…" : "Delete certificate"}
+              {deleting ? "Deleting the certificate" : "Delete certificate"}
             </button>
           </>
         ) : (
@@ -670,8 +670,8 @@ export function JobDocumentsFace({
                 <Icon name="upload" size={15} />
                 {sending
                   ? sending.of === 1
-                    ? "Uploading…"
-                    : `Uploading ${sending.at} of ${sending.of}…`
+                    ? "Uploading the file"
+                    : `Uploading ${sending.at} of ${sending.of}`
                   : over
                     ? "Drop to upload"
                     : "Upload a document"}
@@ -864,10 +864,10 @@ export function JobDocumentsFace({
         <p className="int-hint">
           {part === "compliance"
             ? swms === null && papers === null && !swmsFailed && !papersFailed
-              ? "Reading the compliance…"
+              ? "Reading the compliance"
               : "No SWMS, licences or insurance on this job."
             : loading && documents === null
-              ? "Reading the files…"
+              ? "Reading the files"
               : "No documents on this job."}
         </p>
       )}

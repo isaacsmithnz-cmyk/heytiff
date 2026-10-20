@@ -196,11 +196,11 @@ describe("the composer's invitation", () => {
   it("asks for anything on the landing, and a follow-up inside a thread", async () => {
     render(<TiffAssistant />);
 
-    expect(screen.getByPlaceholderText("Ask Tiff anything…")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Ask Tiff anything")).toBeInTheDocument();
 
     await ask("why P8?");
-    expect(screen.getByPlaceholderText("Ask a follow-up…")).toBeInTheDocument();
-    expect(screen.queryByPlaceholderText("Ask Tiff anything…")).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Ask a follow-up")).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Ask Tiff anything")).not.toBeInTheDocument();
   });
 });
 
@@ -229,7 +229,7 @@ describe("where the answer comes from", () => {
     render(<TiffAssistant readyCount={0} />);
 
     expect(libraryMode()).toBeDisabled();
-    expect(libraryMode()).toHaveAttribute("title", "Add documents to the library first");
+    expect(libraryMode()).toHaveAccessibleDescription("Add documents to the library first");
     /* The one hint left on this row, and the only one that ever earned its
        place: a dead segment with no reason given is the single thing here a
        person cannot work out by reading the control. */
@@ -579,7 +579,7 @@ describe("holding the landing while the first question searches", () => {
     await held();
 
     expect(screen.getByRole("heading", { name: "Library" })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Ask Tiff anything…")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Ask Tiff anything")).toBeInTheDocument();
     // and the bar it was typed in is the one reporting the work
     expect(screen.getByLabelText("Send")).toHaveAttribute("aria-busy", "true");
   });
@@ -595,7 +595,7 @@ describe("holding the landing while the first question searches", () => {
 
     expect(screen.queryByRole("heading", { name: "Library" })).not.toBeInTheDocument();
     expect(screen.getByText("P8 is a piping temperature fault.")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Ask a follow-up…")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Ask a follow-up")).toBeInTheDocument();
   });
 
   it("gives way for a miss, which is read in the thread", async () => {

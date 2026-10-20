@@ -126,6 +126,9 @@ export type WindowsApi = {
   /** The jobs opened lately, newest first, for the palette. Kept for the
       visit only: a reload starts it again. */
   recent: readonly RecentRecord[];
+  /** A record opened as a page of its own (a job's page, v2 step 5) joins
+      the recent list, as one opened here does. */
+  remember?: (r: RecentRecord) => void;
   /** Open that job in this card's place. */
   step: (key: string, by: 1 | -1) => void;
   /** Read a card again after a press on it changed it (a visit's, an

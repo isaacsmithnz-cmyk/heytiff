@@ -169,7 +169,7 @@ function ProjectRow({
         <em>{[p.clientName, p.siteLabel].filter(Boolean).join(", ") || "—"}</em>
       </div>
 
-      <div className="wb2-plstage" aria-hidden="true" title={`Stage ${Math.max(idx + 1, 1)} of ${PROJECT_STAGES.length} — ${p.stage}`}>
+      <div className="wb2-plstage" aria-hidden="true">
         {PROJECT_STAGES.map((s, i) => (
           <i key={s} className={i < idx ? "past" : i === idx ? "now" : ""} />
         ))}

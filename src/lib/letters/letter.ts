@@ -57,6 +57,12 @@ export function normaliseLetterInput(raw: unknown): LetterInput {
   };
 }
 
+/** Where the letters are listed: Documents' Letters view (v2). Admin's old
+    list address lands there too. */
+export const lettersHref = "/dashboard/documents?view=letter";
+/** One letter, in its editor; `letterHref("new")` writes one. */
+export const letterHref = (id: string) => `/dashboard/admin/letters/${id}`;
+
 /** What a letter is called in the list. */
 export function titleOf(l: Pick<Letter, "title" | "subject">): string {
   return l.title.trim() || l.subject.trim() || "Untitled letter";

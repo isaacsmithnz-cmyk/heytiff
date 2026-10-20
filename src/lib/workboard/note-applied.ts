@@ -22,6 +22,10 @@
    reads (`v`, `checklistIds`, `picklistIds`, `issueBumps`, `textWrites`,
    `kbTitles`) are not journal groups and never pass through `record`. */
 
+import { visitsOf, type VisitMade } from "./note-visit";
+import { costsOf, type CostMade } from "./note-cost";
+import { startedVariations, variationsOf, type VariationMade } from "./note-variation";
+
 export const APPLIED_V = 2;
 
 /** The rows whose free text a note may append to, and the columns. Undo
@@ -63,6 +67,20 @@ export type AppliedRecord = {
   kbTitles: string[];
   jobNotes: string[];
   noteLines: string[];
+  /** The visits it made (v2 step 6, slice B): a booking through Book in,
+      or a task where it couldn't be one (note-visit). A visit that is a
+      task is in `taskIds` too, and goes with the tasks. */
+  visits: VisitMade[];
+  /** The costs it recorded (v2 step 6, slice C): an expense claim or a
+      company-card receipt through the expense form's action, or a task
+      where it couldn't be the speaker's to file (note-cost). A cost that is
+      a task is in `taskIds` too, and goes with the tasks. */
+  costs: CostMade[];
+  /** The variations it started (v2 step 6, slice D): a draft on the job's
+      accepted quote through the quote page's own `startVariation`, or a
+      task where it couldn't be one (note-variation). A variation that is a
+      task is in `taskIds` too, and goes with the tasks. */
+  variations: VariationMade[];
 };
 
 const strings = (v: unknown): string[] =>
@@ -120,8 +138,24 @@ export function appliedOf(raw: unknown): AppliedRecord {
     kbTitles: strings(r.kbTitles),
     jobNotes: strings(r.jobNotes),
     noteLines: strings(r.noteLines),
+    visits: visitsOf(r.visits),
+    costs: costsOf(r.costs),
+    variations: variationsOf(r.variations),
   };
 }
+
+/** Its variations started and not taken back since: what its Undo takes
+    back, while each is still an empty draft (dropVariation). */
+export const startedOn = (a: AppliedRecord): VariationMade[] => startedVariations(a.variations);
+
+/** Its visits booked through Book in and not taken back since: what its
+    Undo cancels in ServiceM8 (takeBackBooking). */
+export const bookedVisits = (a: AppliedRecord): VisitMade[] =>
+  a.visits.filter((v) => !v.undone && v.rowIds.length > 0);
+
+/** Its costs filed as expense claims and not taken back since: what its
+    Undo cancels (cancelClaim). */
+export const filedCosts = (a: AppliedRecord): CostMade[] => a.costs.filter((c) => !c.undone && !!c.claimId);
 
 /** The issues this note CREATED — the ones Undo deletes. A bump is put back
     instead, so it must never be in here. */
@@ -136,7 +170,7 @@ export function freshIssueIds(a: AppliedRecord): string[] {
    onto what landed. Counted from the record, never from the plan: a row that
    did not land is not a door. */
 
-export type NoteDoorKind = "tasks" | "flags" | "issues" | "bring" | "lines";
+export type NoteDoorKind = "tasks" | "visits" | "costs" | "variations" | "flags" | "issues" | "bring" | "lines";
 
 export type NoteDoor = {
   kind: NoteDoorKind;
@@ -156,6 +190,12 @@ export function doorsOf(a: AppliedRecord): NoteDoor[] {
     if (count > 0) doors.push({ kind, count, label, ids });
   };
   add("tasks", a.taskIds.length, `${plural(a.taskIds.length, "task", "tasks")} filed`, a.taskIds);
+  const booked = bookedVisits(a);
+  add("visits", booked.length, `${plural(booked.length, "visit", "visits")} booked`, booked.flatMap((v) => v.rowIds));
+  const costs = filedCosts(a);
+  add("costs", costs.length, `${plural(costs.length, "cost", "costs")} recorded`, costs.map((c) => c.claimId!));
+  const varied = startedOn(a);
+  add("variations", varied.length, `${plural(varied.length, "variation", "variations")} started`, []);
   add("flags", a.flagIds.length, `${plural(a.flagIds.length, "flag", "flags")} raised`, a.flagIds);
   add("issues", a.issueIds.length, `${plural(a.issueIds.length, "issue", "issues")} logged`, a.issueIds);
   add(
@@ -182,7 +222,10 @@ export function takesBack(a: AppliedRecord): boolean {
       a.checklistIds.length +
       a.picklistIds.length +
       a.textWrites.length +
-      a.kbIds.length >
+      a.kbIds.length +
+      bookedVisits(a).length +
+      filedCosts(a).length +
+      startedOn(a).length >
     0
   );
 }
@@ -302,6 +345,9 @@ export function stillThere(a: AppliedRecord, now: FiledNow): AppliedRecord {
 export function undoSummary(a: AppliedRecord): string {
   const parts = [
     a.taskIds.length && plural(a.taskIds.length, "task", "tasks"),
+    bookedVisits(a).length && plural(bookedVisits(a).length, "visit", "visits"),
+    filedCosts(a).length && plural(filedCosts(a).length, "cost", "costs"),
+    startedOn(a).length && plural(startedOn(a).length, "variation", "variations"),
     a.flagIds.length && plural(a.flagIds.length, "flag", "flags"),
     a.issueIds.length && plural(a.issueIds.length, "issue", "issues"),
     a.bringItems.length && plural(a.bringItems.length, "thing to bring", "things to bring"),

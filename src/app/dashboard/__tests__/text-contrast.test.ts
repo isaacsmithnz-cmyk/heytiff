@@ -135,10 +135,13 @@ describe("the failing literals do not come back", () => {
      #d1d5db` and friends. On 2026-09-10 the tokens landed and every Tailwind
      grey became `--line`, `--tint`, `--q` or `--ink`, so no grey literal is
      left to find as a border either — not because the rule grew teeth, but
-     because the greys were never chosen and now are. The accent fills still
-     make the point. */
-  it("still allows them as fills — this is a text rule, not a ban", () => {
-    expect(code).toMatch(/background[^;]*#(00A389|e0264f|2E68FF)/i);
+     because the greys were never chosen and now are. The accent fills made
+     the point until v2's palette (18 October 2026) moved the last of them,
+     the dusk card's teal primary, onto blue, so a fill of each is written
+     here instead and the same scan has to let it through. */
+  it.each(["#00A389", "#e0264f", "#2E68FF"])("still allows %s as a fill — this is a text rule, not a ban", (lit) => {
+    const fill = `.x { background:${lit}; border-color:${lit}; }`;
+    expect(fill.match(new RegExp(`(^|[^-])color: *${lit}\\b`, "gi")) ?? []).toEqual([]);
   });
 });
 
@@ -175,7 +178,7 @@ function scoped(selectorStart: string, name: string): string {
   return alias ? token(alias[1]!) : raw;
 }
 
-const TP_VARS = ".fg .tpr, .fg .mts2, .fg .lv-cols";
+const TP_VARS = ".fg .tpr, .fg .lv-cols";
 const TP_PRIVATE = ".fg .tpr { font-variant-numeric";
 
 describe("Time & Pay ink on a solid brand fill", () => {
@@ -444,48 +447,8 @@ describe("quiet text on the dark chrome", () => {
     expect(short).toEqual([]);
   });
 
-  /* THE HOVER THAT MADE IT WORSE — the one a resting scan can never see.
-
-     The dark-frame block restyles five things on the search button: `.sf`,
-     `:hover .sf`, `.si`, `:hover .si` and `.kbd`. It missed `:hover .kbd`, so
-     the light-shell rule — `color:var(--ok-t)`, a green picked to be read on
-     WHITE — survived at (0,4,0) against the dark override's (0,3,0), which it
-     beats whatever the source order. And hovering LIFTS the ground, so the
-     state meant to clarify the control took the ⌘K chip from 5.67 to 2.42.
-
-     Asserted structurally as well as numerically: a `:hover` twin must EXIST
-     in the dark block, because the failure was an absence, and an absence is
-     what a colour check cannot see. */
-  it("gives the search chip a dark-frame hover, and it clears on the lifted ground", () => {
-    const dark = CSS.slice(CSS.indexOf("/* topbar controls restyled to read on black */"));
-    const rule = dark.match(/\.fg \.searchbtn:hover \.kbd \{([^}]*)\}/);
-    expect(rule).not.toBeNull();
-
-    const bgRaw = rule![1]!.match(/background: *([^;]+)/)?.[1]?.trim();
-    const fgRaw = rule![1]!.match(/(?<!-)color: *([^;]+)/)?.[1]?.trim();
-    expect(bgRaw).toBeTruthy();
-    expect(fgRaw).toBeTruthy();
-    /* a literal or a token (the chrome wears the on-ink tokens since the
-       sweep); `hex()` wants six digits and the sheet writes `#fff`, expanded
-       here rather than in the sheet */
-    const long = (h: string) =>
-      h.length === 4 ? "#" + [...h.slice(1)].map((c) => c + c).join("") : h;
-    const rgbaOf = (raw: string): [number, number, number, number] => {
-      const t = raw.match(/^var\(--([a-z0-9-]+)\)$/i);
-      const v = t ? token(t[1]!) : raw;
-      const m = v.match(/rgba?\((\d+), *(\d+), *(\d+)(?:, *([\d.]+))?\)/);
-      if (m) return [+m[1]!, +m[2]!, +m[3]!, m[4] === undefined ? 1 : +m[4]];
-      return [...(hex(long(v)) as [number, number, number]), 1];
-    };
-    const bg = rgbaOf(bgRaw!);
-    const fg = rgbaOf(fgRaw!);
-
-    // the hovered field lifts the ground before the chip's own tint lands on it
-    const lifted = over(WHITE, 0.09, CHROME);
-    const chip = over(bg.slice(0, 3), bg[3], lifted);
-    const ink = over(fg.slice(0, 3), fg[3], chip);
-    expect(ratio(ink, chip)).toBeGreaterThanOrEqual(4.5);
-  });
+  /* The search chip's hover on the dark top bar was checked here until v2
+     moved Search into the sidebar as a plain row (rule 4), white on the ink. */
 
   it("proves the light-shell green could not survive being reused on black", () => {
     const lifted = over(WHITE, 0.09, CHROME);
@@ -516,7 +479,7 @@ describe("de-emphasis never multiplies text contrast", () => {
   /* `.dirtab` left this list with the control: the directory switches on
      `shell/view-tabs` now and the fat-tab rules are deleted, so there is no
      selector left to hold to the rule. */
-  it.each([".dirrow.off", ".dirrow.unclaimed"])("%s does not dim itself with opacity", (sel) => {
+  it.each([".dirrow.off", ".tm2-row--left", ".tm2-row--unclaimed"])("%s does not dim itself with opacity", (sel) => {
     const rule = code.match(new RegExp(`\\${sel}\\s*\\{([^}]*)\\}`));
     expect(rule).not.toBeNull();
     expect(rule![1]).not.toMatch(/(^|[^-])opacity: *0?\.\d/);
@@ -530,16 +493,17 @@ describe("de-emphasis never multiplies text contrast", () => {
                                    empty day, 2.89 on a sick one, and 4.17/4.45/
                                    4.47 on the three otherwise clear
        .mts2-tab.* .cd      .45  → 1.87 / 1.96 / 3.22, on a TAB you click
+                                   (My timesheet's strip; gone with its v2
+                                   rebuild, whose rows dim nothing)
        .bkt.zero .rchip     .3   → 1.72, on the chip naming the rate
        .crow.done           .9   → 4.42 and 3.37, for a 10% dim nobody reads as
                                    a signal anyway
 
      `:disabled` is deliberately NOT in this list: WCAG exempts inactive
-     components, and `.mts2-btn:disabled` (4.46 on the primary) is the one pair
+     components, and `.mts2-btn:disabled` (4.46 on the primary) was the one pair
      on either screen still under 4.5. Left as a decision, not an oversight. */
   it.each([
     [".tile .wd", /\.tile \.wd\s*\{([^}]*)\}/],
-    [".mts2-tab.offroster / .ahead labels", /\.mts2-tab\.offroster\.empty \.cd[^{]*\{([^}]*)\}/],
     [".bkt.zero .rchip", /\.bkt\.zero \.rchip\s*\{([^}]*)\}/],
   ])("%s dims by colour, not by multiply", (_name, re) => {
     const rule = code.match(re);
@@ -975,19 +939,9 @@ describe("the Calendar's words clear 4.5:1 on every fill they stand on", () => {
       () => [PAPER, fill(".fg .hd-cal-dli:hover"), fill(".fg .hd-cal-dli[data-fresh]")],
     ],
     ["the day chosen, in full", ".fg .hd-cal-dxt", () => [PAPER]],
-    /* The edit form (H22), on the panel's paper. */
-    ["a field's label", ".fg .hd-cal-edf", () => [PAPER]],
-    ["what a field holds", ".fg .hd-cal-fi", () => [fill(".fg .hd-cal-fi")]],
-    [
-      "a quiet button, at rest and under the pointer",
-      ".fg .hd-cal-edb",
-      () => [fill(".fg .hd-cal-edb"), fill(".fg .hd-cal-edb:hover:not(:disabled)")],
-    ],
-    ["the question before a delete", ".fg .hd-cal-edq", () => [PAPER]],
-    /* While a save or a delete is out, the pressed button says "Saving…"
-       or "Deleting…": quieted by colour, still read. */
-    ["Save, resting while it saves", ".fg .hd-cal-go:disabled", () => [fill(".fg .hd-cal-go:disabled")]],
-    ["a quiet button, resting while a change is out", ".fg .hd-cal-edb:disabled", () => [fill(".fg .hd-cal-edb")]],
+    /* The edit form is the event form now (components/making/event-form),
+       a dialog of the parts. The action, resting: quieted by colour, still read. */
+    ["the action, resting", ".fg .hd-cal-go:disabled", () => [fill(".fg .hd-cal-go:disabled")]],
   ])("the panel: %s", (_label, sel, grounds) => {
     expect(lowest(ink(sel), grounds())).toBeGreaterThanOrEqual(4.5);
   });

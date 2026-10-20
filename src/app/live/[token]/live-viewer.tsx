@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useEffect, useMemo, useState } from "react";
 import type { DesignDocument } from "@/lib/studio/document";
 import type { DataPack } from "@/lib/studio/packs/schema";
@@ -118,7 +119,7 @@ export function LiveViewer({
           <span className="ds-live-brand">
             <BrandMark brand={brand} fallback="HeyTiff" />
           </span>
-          <span className="ds-present-name">{doc.meta.name || "Design"}</span>
+          <Fade className="ds-present-name">{doc.meta.name || "Design"}</Fade>
         </div>
         <SimHeaderStatus runtime={runtime} activeSystemId={activeSystemId} />
         {doc.floors.length > 1 && (
@@ -140,7 +141,6 @@ export function LiveViewer({
         <button
           className="ds-present-exit"
           onClick={onExit}
-          title="Back to the design (Esc)"
         >
           Back to the design
           <span aria-hidden>✕</span>

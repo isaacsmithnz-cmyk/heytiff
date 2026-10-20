@@ -131,12 +131,14 @@ describe("the button itself", () => {
     expect(size("box")).toBe("36");
   });
 
-  it("wears the ink skin on the frame: a paper face, gradient depth", () => {
+  /* v2: the header is on the white page (rule 2), so the header's button
+     wears the paper skin, black on the page (rule 8). */
+  it("wears the paper skin in the header, which is on the white page", () => {
     mount();
     const el = btn();
     expect(el).toHaveClass("tiffbtn-topbar");
-    expect(el.querySelector(".tiffbtn-ly.face path")).toHaveAttribute("stroke", "currentColor");
-    expect(el.querySelector(".tiffbtn-ly:not(.face) path")).toHaveAttribute("stroke", "url(#tiffDepthInk)");
+    expect(el.querySelector(".tiffbtn-ly.face path")).toHaveAttribute("stroke", "url(#tiffFacePaper)");
+    expect(el.querySelector(".tiffbtn-ly:not(.face) path")).toHaveAttribute("stroke", "url(#tiffDepthPaper)");
   });
 
   /* THE GIMBAL (Isaac, 2026-09-25). Two rings, each with its run of light,
@@ -147,7 +149,9 @@ describe("the button itself", () => {
     mount();
     const el = btn();
     expect(el.querySelectorAll(".tiffbtn-gim")).toHaveLength(2);
-    expect(el.querySelectorAll(".tiffbtn-arc circle")).toHaveLength(4);
+    // each gimbal: its faint ring, its run at rest, and its run in colour while Tiff works (v2, rule 8)
+    expect(el.querySelectorAll(".tiffbtn-arc circle")).toHaveLength(6);
+    expect(el.querySelectorAll(".tiffbtn-arc circle.tiffbtn-runw")).toHaveLength(2);
     expect(el.querySelector(".tiffbtn-halo, .tiffbtn-spark, .tiffbtn-core")).toBeNull();
     // the band of light is cut to the logo's own shape, passed in from the one geometry
     expect(el.style.getPropertyValue("--tiffbtn-mask")).toMatch(/^url\("data:image\/svg\+xml,/);

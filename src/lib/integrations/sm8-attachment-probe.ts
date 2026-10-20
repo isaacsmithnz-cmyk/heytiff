@@ -12,11 +12,12 @@
    endpoints are fetched, never written from memory.
 
    PURE ON PURPOSE: the candidate list and the magic-number sniff are the parts
-   worth pinning in a test. Everything that touches the network lives in the
-   route, so the shapes we tried are recorded here even after the probe has
-   served its purpose and the answer is a one-line constant.
+   worth pinning in a test. Everything that touched the network lived in the
+   route (api/integrations/servicem8/attachment-probe, removed 2026-10-18 once
+   the answer was a one-line constant in sm8-attachment-file), so the shapes we
+   tried are recorded here.
 
-   The candidates are PATHS under the API base, not addresses: the route asks
+   The candidates are PATHS under the API base, not addresses: the route asked
    through the one door (sm8-http), which resolves and checks them. */
 
 /** A path shape worth trying, newest guess LAST — the list is walked in order

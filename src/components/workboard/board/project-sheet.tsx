@@ -8,7 +8,6 @@ import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { ViewTabs, type ViewTab } from "@/components/shell/view-tabs";
 import { auDayOf, fmtAuWeekdayDate, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
-import { PROJECT_STAGES, stageIndex } from "@/lib/workboard/stages";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { fmtMinutesAsHours, sm8TimeOf } from "@/lib/workboard/all-jobs";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
@@ -128,7 +127,6 @@ export function ProjectSheet({
     [trips, diary, today]
   );
 
-  const idx = stageIndex(project.stage);
   const finish = project.promisedFinish ? untilLabel(project.promisedFinish, today) : null;
   /* The head counts days somebody actually ATTENDED — a crew booked and
      rained off still lists below, but it is not a day on site. Hours read
@@ -219,10 +217,7 @@ export function ProjectSheet({
               </p>
             </span>
             <span className="wb2-shchips">
-              <span
-                className="wb2-chip"
-                title={`Stage ${Math.max(idx + 1, 1)} of ${PROJECT_STAGES.length}`}
-              >
+              <span className="wb2-chip">
                 {project.stage}
               </span>
               {project.status === "blocked" && (
@@ -241,7 +236,6 @@ export function ProjectSheet({
                     href={href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    title={`${j.role === "primary" ? "The job behind this project" : j.role} — opens it in ServiceM8`}
                   >
                     {`SM8 #${j.jobNumber}`}
                     <Icon name="arrowUR" size={12} />
@@ -257,7 +251,6 @@ export function ProjectSheet({
               <Link
                 className="wb2-chip blue"
                 href={projectHref(project.id)}
-                title="Open the full project"
               >
                 Full project
                 <i className="wb2-shcar" aria-hidden>
@@ -270,7 +263,6 @@ export function ProjectSheet({
               ref={closeRef}
               className="wb2-ico"
               onClick={onClose}
-              title="Close"
               aria-label="Close"
             >
               <Icon name="x" size={14} />
@@ -383,7 +375,7 @@ export function ProjectSheet({
                 {merged.past.length > 0 ? (
                   rowList(merged.past, true)
                 ) : diaryKnown === null && !diaryFailed ? (
-                  <p className="wb2-hint">Reading the ServiceM8 diary…</p>
+                  <p className="wb2-hint">Reading the ServiceM8 diary</p>
                 ) : (
                   <p className="wb2-hint">
                     {linkedJobs.length > 0
@@ -551,7 +543,6 @@ function DiaryRow({
         <button
           className="wb2-mline visit"
           onClick={() => onOpenTrip(trip.id)}
-          title="Open the visit"
         >
           {line}
         </button>

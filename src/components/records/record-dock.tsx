@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useContext } from "react";
 import { Icon } from "@/components/shell/icon";
 import { WindowsContext, titleOf } from "./records-context";
@@ -33,7 +34,7 @@ export function RecordDock() {
               {sub && (
                 <>
                   {" "}
-                  <span>{sub}</span>
+                  <Fade>{sub}</Fade>
                 </>
               )}
             </button>

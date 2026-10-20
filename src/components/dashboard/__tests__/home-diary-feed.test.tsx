@@ -168,7 +168,7 @@ afterEach(() => {
 describe("the column", () => {
   it("is the box, then Today and today's entries, then everything older with no more dividers", () => {
     draw();
-    expect(box()).toHaveAttribute("placeholder", "Add to the diary…");
+    expect(box()).toHaveAttribute("placeholder", "Add to the diary");
     const today = screen.getByRole("region", { name: "Today" });
     expect(within(today).getByRole("heading", { level: 2 })).toHaveClass("hd-dy-day");
     expect(within(today).getAllByRole("listitem").map((li) => li.dataset.entry)).toEqual(["e-today"]);

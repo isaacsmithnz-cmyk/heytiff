@@ -46,28 +46,28 @@ describe("the frame is still", () => {
     expect(blocksFor(SHELL, ".box .glow")).toHaveLength(0);
   });
 
-  it("lights the active item white, with no glow and no bar at its edge", () => {
-    const on = blocksFor(SHELL, ".ni.on .nicon");
+  /* v2 (rule 5): the place you're on is white at 12% with its label in
+     bold, on the row itself; no glow, no bar, nothing that moves. */
+  it("lights the place you're on with white at 12%, with no glow and no bar at its edge", () => {
+    const on = blocksFor(SHELL, ".side .fr-row.on");
     expect(on.length).toBeGreaterThan(0);
     for (const body of on) {
-      expect(body).toMatch(/background\s*:\s*(?:#fff\b|var\(--paper\))/); // paper, by name or by token
-      expect(body).not.toMatch(/box-shadow/);
+      expect(body).toMatch(/background\s*:\s*var\(--on-ink-tint-2\)/);
+      expect(body).not.toMatch(/box-shadow|transform/);
     }
-    expect(blocksFor(SHELL, ".nibg")).toHaveLength(0);
     expect(read("src/components/shell/sidebar.tsx")).not.toMatch(/nibg/);
   });
 
   it("slides and scales nothing on hover or when active", () => {
-    for (const body of blocksFor(SHELL, ".ni:hover")) expect(body).not.toMatch(/transform/);
-    for (const body of blocksFor(SHELL, ".ni.on .nlbl")) expect(body).not.toMatch(/transform/);
+    for (const sel of [".fr-row:hover", ".fr-row.on", ".fr-tab:hover", ".fr-tab.on"])
+      for (const body of blocksFor(SHELL, sel)) expect(body).not.toMatch(/transform/);
   });
 
-  it("gives the avatar a hairline, not a gradient, and no dot", () => {
-    const ring = blocksFor(SHELL, ".av .ring");
-    expect(ring.length).toBeGreaterThan(0);
-    for (const body of ring) expect(body).not.toMatch(/gradient/);
-    expect(blocksFor(SHELL, ".av .st")).toHaveLength(0);
-    expect(read("src/components/shell/topbar.tsx")).not.toMatch(/className="st"/);
+  it("gives your initials a plain white disc: no gradient, no ring, no dot", () => {
+    const disc = blocksFor(SHELL, ".fr-metrig .pt-initials");
+    expect(disc.length).toBeGreaterThan(0);
+    for (const body of disc) expect(body).not.toMatch(/gradient|box-shadow/);
+    expect(read("src/components/shell/sidebar.tsx")).not.toMatch(/className="st"/);
   });
 
   it("leaves the Studio start screen its dot grid and takes its glow field", () => {
@@ -83,13 +83,15 @@ describe("the frame is still", () => {
     expect(read("src/app/page.tsx")).not.toMatch(/blur-\[/);
   });
 
-  /* THE ONE TEAL. The ink-and-paper decision keeps #00E5C0 in exactly one
-     place, the "Tiff" of the wordmark on the rail. The accent pass turned it
-     to ink — black on the near-black rail — because its selector carries no
-     dark word. It is its own token now, and this holds it. */
-  it("the wordmark's Tiff is the brand teal, not ink", () => {
+  /* THE WORDMARK IS ONE COLOUR (v2, rule 9: "HeyTiff in one colour. The
+     teal leaves the app."). The "Tiff" keeps its own token so one change
+     moves it everywhere, and the token takes the colour of the words around
+     it: white on the ink rail, ink on paper. It was the one place the teal
+     lived, #00E5C0, from the ink-and-paper decision until 18 October 2026. */
+  it("the wordmark is one word in one colour, not the teal", () => {
     const css = read("src/app/tokens.css") + "\n" + read("src/app/dashboard/shell.css");
-    expect(css).toMatch(/\.fg \.ht-wm span \{[^}]*color:var\(--wordmark\)/);
-    expect(css).toMatch(/--wordmark:#00E5C0;/);
+    expect(read("src/components/shell/sidebar.tsx")).toMatch(/<span className="fr-wm">HeyTiff<\/span>/);
+    expect(css).toMatch(/--wordmark:currentColor;/);
+    expect(css).not.toMatch(/--wordmark:#00E5C0/i);
   });
 });

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
-import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
+import { ScreenPanel } from "@/components/shell/screen-band";
+import { SettingsHead } from "@/components/settings/settings-head";
 import { markFieldNoteReviewed, removeFieldNote } from "@/app/actions/kb-review";
 import type { FieldNoteRow } from "@/lib/tiff/field-notes";
 import { auDayOf, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -38,14 +38,9 @@ export function KbQueue({ entries }: { entries: FieldNoteRow[] }) {
           {/* The same words as the Admin row that opens this page —
               "Knowledge from the field" there landing on "Field-learned
               knowledge" here read as two different places. */}
-          <ScreenBand
-            crumb={
-              <Link href="/dashboard/admin" className="int-back">
-                <Icon name="chevL" size={15} />
-                Admin
-              </Link>
-            }
-            title="Knowledge from the field"
+          <SettingsHead
+            heading="Knowledge from the field"
+            facts={waiting.length === 0 ? "Nothing new to look over" : `${waiting.length} new to look over`}
           />
           <ScreenPanel>
           <p className="int-lede">
@@ -89,7 +84,6 @@ export function KbQueue({ entries }: { entries: FieldNoteRow[] }) {
                     <button
                       className="pbtn ghost sm"
                       disabled={busy}
-                      title="Take it out of the library"
                       onClick={() => run(e.id, () => removeFieldNote(e.id))}
                     >
                       Take it down

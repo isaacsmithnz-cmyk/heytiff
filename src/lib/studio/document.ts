@@ -161,6 +161,9 @@ export interface PlanImport {
   placed: Record<number, string>;
   chosen: number[]; // indices selected in the "Select pages" grid
   names: Record<number, string>; // per-index typed floor names
+  /** a placed page's own words (pdf text), where they sit on its raster:
+      what Tiff's reading is checked against */
+  words?: Record<number, { text: string; at: { x: number; y: number } }[]>;
 }
 
 /* ── The job this design is FOR (schema v8).
@@ -232,7 +235,12 @@ export interface DesignDocument {
       against. Empty = nothing approved, which is where every design starts and
       where every design returns the moment it is edited. */
   simApprovals: SimApproval[];
+  /** Tiff's reading of the plans (reading.ts), kept once for every screen.
+      Absent = never read: every design before 20 October, every blank one. */
+  reading?: PlanReading | null;
 }
+
+import type { PlanReading } from "./reading";
 
 /* ── Construction ── */
 

@@ -13,6 +13,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
+import { Tooltip } from "@/components/parts/tooltip";
 import {
   baseWm2,
   CLIMATE_ZONES,
@@ -531,16 +532,16 @@ export function HeatLoadCalculator() {
                 </label>
                 <div className="tchips" role="group" aria-label="Orientation">
                   {ORIENTATIONS.map((o) => (
-                    <button
-                      key={o}
-                      type="button"
-                      className={"tchip" + (s.orientation === o && !s.internal ? " on" : "")}
-                      disabled={s.internal}
-                      title={`${ORIENT_LABELS[o]} ×${ORIENT_MULT[o].toFixed(2)}`}
-                      onClick={() => patch({ orientation: o })}
-                    >
-                      {o}
-                    </button>
+                    <Tooltip key={o} label={`${ORIENT_LABELS[o]} ×${ORIENT_MULT[o].toFixed(2)}`}>
+                      <button
+                        type="button"
+                        className={"tchip" + (s.orientation === o && !s.internal ? " on" : "")}
+                        disabled={s.internal}
+                        onClick={() => patch({ orientation: o })}
+                      >
+                        {o}
+                      </button>
+                    </Tooltip>
                   ))}
                 </div>
                 <label className="ttog" style={{ marginTop: 8 }}>

@@ -94,7 +94,7 @@ export function SignatureCard({ focus = false }: { focus?: boolean }) {
                 disabled={!drawing || busy}
                 onClick={() => void keep()}
               >
-                {busy ? "Saving…" : "Save signature"}
+                {busy ? "Saving the signature" : "Save signature"}
               </button>
             </span>
             {error && <div className="carderr">{error}</div>}

@@ -66,7 +66,7 @@ export function DeleteWorkspace({ orgId, name }: { orgId: string; name: string }
           disabled={busy}
         />
         <button className="hq-btn danger" onClick={run} disabled={busy || !matches}>
-          {busy ? "Deleting…" : "Delete workspace"}
+          {busy ? "Deleting the workspace" : "Delete workspace"}
         </button>
       </div>
       {error ? <div className="hq-pop-error">{error}</div> : null}

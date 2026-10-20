@@ -81,9 +81,6 @@ export const SOURCE_LABEL: Record<BalanceSource, string> = {
   quickbooks: "Synced from QuickBooks",
 };
 
-/** Kinds that draw down a balance. Unpaid never does. */
-export const BALANCE_KINDS: BalanceKind[] = ["annual", "personal"];
-
 export function isBalanceKind(k: LeaveKind): k is BalanceKind {
   return k === "annual" || k === "personal";
 }

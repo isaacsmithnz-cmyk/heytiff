@@ -12,7 +12,7 @@ import {
   type DiaryActivityRow,
   type ProjectDiaryDay,
 } from "@/lib/workboard/project-diary";
-import { createAgreement } from "./workboard-maintenance";
+import { createAgreement, type NewAgreement } from "./workboard-maintenance";
 
 /* Projects-side mutations for the redesigned board — the new tables from the
    foundations migration (blocked state, money target, variations, claims,
@@ -935,10 +935,32 @@ export async function setVisitBringPacked(
 /** The commercial point of installing: at handover, one press turns the
     project's own record into the maintenance agreement — client, site and
     every piece of equipment with its serials carry over, and the project
-    remembers the agreement so the prompt retires. */
+    remembers the agreement so the prompt retires.
+
+    The handover opens New agreement filled in from the project (v2 forms
+    board), so whatever that form says rides along: a field it sends wins
+    over the project's own, and one it leaves out is the project's, as
+    before. createAgreement re-checks every one of them. */
 export async function spawnAgreementFromProject(
   projectId: string,
-  input: { intervalMonths: number; anchorDate: string }
+  input: {
+    intervalMonths: number;
+    anchorDate: string;
+  } & Partial<
+    Pick<
+      NewAgreement,
+      | "label"
+      | "clientName"
+      | "siteLabel"
+      | "siteAddress"
+      | "weInstalled"
+      | "accessNotes"
+      | "billingContact"
+      | "techsNeeded"
+      | "hoursEstimate"
+      | "categoryId"
+    >
+  >
 ): Promise<ProjectsResult> {
   const ctx = await context();
   if (!ctx) return NOT_SIGNED_IN;
@@ -965,13 +987,18 @@ export async function spawnAgreementFromProject(
   }
 
   const made = await createAgreement({
-    label: p.name,
-    clientName: p.client_name ?? p.name,
-    siteLabel: p.site_label ?? undefined,
-    siteAddress: p.site_address ?? undefined,
+    label: input.label ?? p.name,
+    clientName: input.clientName ?? p.client_name ?? p.name,
+    siteLabel: input.siteLabel ?? p.site_label ?? undefined,
+    siteAddress: input.siteAddress ?? p.site_address ?? undefined,
     intervalMonths: input.intervalMonths,
     anchorDate: input.anchorDate,
-    weInstalled: true,
+    weInstalled: input.weInstalled ?? true,
+    accessNotes: input.accessNotes,
+    billingContact: input.billingContact,
+    techsNeeded: input.techsNeeded,
+    hoursEstimate: input.hoursEstimate,
+    categoryId: input.categoryId,
     clientRemoteId: p.client_remote_id ?? undefined,
   });
   if (!made.ok || !made.id) return made;

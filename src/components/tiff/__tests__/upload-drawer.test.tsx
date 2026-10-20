@@ -171,7 +171,7 @@ describe("driving the uploads", () => {
         onClose={jest.fn()}
       />
     );
-    expect(screen.getByText("Reading… 20 of 220 pages")).toBeInTheDocument();
+    expect(screen.getByText("Reading 20 of 220 pages")).toBeInTheDocument();
 
     rerender(
       <UploadDrawer
@@ -248,7 +248,7 @@ describe("the drawer stays put while files are going up", () => {
     render(<UploadDrawer progress={{}} onIngest={jest.fn()} onClose={onClose} />);
     await drop([pdf("manual.pdf")]);
     await user.click(screen.getByRole("button", { name: /Upload 1 document/ }));
-    await screen.findByText("Uploading…");
+    await screen.findByText("Uploading the document");
     return user;
   };
 

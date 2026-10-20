@@ -7,7 +7,9 @@
 
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
-import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
+import { ScreenPanel } from "@/components/shell/screen-band";
+import { SettingsHead } from "@/components/settings/settings-head";
+import { StateWord } from "@/components/parts/state";
 import { TEMPLATES, TEMPLATE_GROUPS, templateHref, type TemplateKey } from "./templates-catalogue";
 
 export type TemplateStatus = { text: string; tone: "on" | "warn" };
@@ -15,18 +17,18 @@ export type TemplateStatus = { text: string; tone: "on" | "warn" };
 const ACCENT = "#FF8A00";
 
 export function TemplatesList({ status }: { status: Partial<Record<TemplateKey, TemplateStatus>> }) {
+  const waiting = Object.values(status).filter((s) => s?.tone === "warn").length;
   return (
     <div className="page in full">
       <div className="wrap">
         <div className="stg">
-          <ScreenBand
-            crumb={
-              <Link href="/dashboard/admin" className="int-back">
-                <Icon name="chevL" size={15} />
-                Admin
-              </Link>
+          <SettingsHead
+            heading="Templates"
+            facts={
+              waiting === 0
+                ? `${TEMPLATES.length} templates`
+                : `${TEMPLATES.length} templates, ${waiting} waiting for approval`
             }
-            title="Templates"
           />
           <ScreenPanel>
             {TEMPLATE_GROUPS.map((g) => (
@@ -85,25 +87,13 @@ export function TemplateFrame({
     <div className="page in full">
       <div className="wrap">
         <div className="stg">
-          <ScreenBand
-            crumb={
-              <Link href="/dashboard/admin/templates" className="int-back">
-                <Icon name="chevL" size={15} />
-                Templates
-              </Link>
-            }
-            title={title}
-            tools={
-              status ? (
-                <span className={"int-pill " + status.tone}>
-                  <span className="int-dot" />
-                  {status.text}
-                </span>
-              ) : null
-            }
+          <SettingsHead
+            back={{ href: "/dashboard/admin/templates", label: "Templates" }}
+            heading={title}
+            facts={who}
+            tools={status ? <StateWord tone={status.tone === "on" ? "good" : "look"}>{status.text}</StateWord> : null}
           />
           <ScreenPanel>
-            <p className="tpl-who">{who}</p>
             <div className="tpl-work">
               <div className="tpl-well">{doc}</div>
               <aside className="tpl-side">{side}</aside>

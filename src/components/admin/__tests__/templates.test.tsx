@@ -35,7 +35,8 @@ const props = (over: Partial<ApprovalProps> = {}): ApprovalProps => ({
 describe("the list", () => {
   it("groups every template by who receives it, each a link, and says which wait for approval", () => {
     render(<TemplatesList status={{ certificate: { text: "Waiting for your approval", tone: "warn" }, swms: { text: "Approved", tone: "on" } }} />);
-    expect(screen.getByRole("link", { name: /Admin/ })).toHaveAttribute("href", "/dashboard/admin");
+    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/dashboard/admin");
+    expect(screen.getByText("7 templates, 1 waiting for approval")).toBeInTheDocument();
     expect(screen.getByText("Customers")).toBeInTheDocument();
     expect(screen.getByText("Builders and certifiers")).toBeInTheDocument();
     expect(screen.getByText("Your team")).toBeInTheDocument();

@@ -295,7 +295,6 @@ export const ANNUAL_LEAVE_WEEKS = 4;
 export const DEFAULT_WORKING_WEEKS = 46;
 export const SANITY_CEILING_HR = 1000; // any rate above this = data error
 export const MIN_WEEKS_FOR_CONFIDENCE = 4;
-export const MIN_WEEKS_FOR_TAX_WARNING = 8;
 
 // ─── Helpers ────────────────────────────────────────────────────────────
 const sum = <T,>(arr: T[], fn?: (x: T) => number): number =>

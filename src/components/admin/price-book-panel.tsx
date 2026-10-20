@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useState } from "react";
 import { BUILT_IN_SUPPLIERS, COLUMN_FIELDS, MAX_DISCOUNT_PCT, pricingWords, type ColumnField, type Columns, type DiscountRule } from "@/lib/quotes/price-book";
 import type { SupplierView, ImportSummary } from "@/lib/quotes/price-book-server";
@@ -462,7 +463,9 @@ function MatchColumns({
             {m.preview.rows.map((r, i) => (
               <tr key={i}>
                 {r.map((v, j) => (
-                  <td key={j}>{v == null ? "" : String(v)}</td>
+                  <td key={j}>
+                    <Fade>{v == null ? "" : String(v)}</Fade>
+                  </td>
                 ))}
               </tr>
             ))}

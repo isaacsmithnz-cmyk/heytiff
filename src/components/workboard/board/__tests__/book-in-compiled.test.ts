@@ -9,13 +9,16 @@ import { transformSync } from "@babel/core";
 
    React Compiler skips a component SILENTLY: lint is quiet, the build is
    green and jest passes, and the component runs without its memoisation.
-   The panel re-renders on every select and every day picked, so its proof
-   is the compiler's own report and its cache slots, run here against the
-   source with the plugin the build uses — the notes' check, for the panel,
-   its lines and the Schedule inspector's Clear. (job-sheet.tsx is left out:
-   it skips on main too.) */
+   Book in is the Visit form now (making/visit-form, its engine the hook in
+   making/book-in), and it re-renders on every choice and every day picked,
+   so its proof is the compiler's own report and its cache slots, run here
+   against the source with the plugin the build uses: the notes' check, for
+   the form, its engine, the lines and the Schedule inspector's Clear.
+   (job-sheet.tsx is left out: it skips on main too.) */
 
 const FILES = [
+  "src/components/making/visit-form.tsx",
+  "src/components/making/book-in.ts",
   "src/components/workboard/board/book-in-panel.tsx",
   "src/components/workboard/board/focus-inspector.tsx",
 ];
@@ -49,9 +52,14 @@ describe.each(FILES)("%s", (file) => {
   });
 });
 
-it("names the panel, its lines and the Clear's confirm among what compiled", () => {
-  const names = compile("src/components/workboard/board/book-in-panel.tsx")
-    .events.filter((e) => e.kind === "CompileSuccess")
-    .map((e) => e.fnName);
-  expect(names).toEqual(expect.arrayContaining(["BookInPanel", "Facts", "Confirm", "BookingEntryLine", "BookingStateLine", "ClearConfirm"]));
+it("names the form, its engine, the lines and the Clear's confirm among what compiled", () => {
+  const names = (file: string) =>
+    compile(file)
+      .events.filter((e) => e.kind === "CompileSuccess")
+      .map((e) => e.fnName);
+  expect(names("src/components/making/visit-form.tsx")).toEqual(expect.arrayContaining(["VisitForm", "BookVisit", "NoJob"]));
+  expect(names("src/components/making/book-in.ts")).toEqual(expect.arrayContaining(["useBookIn"]));
+  expect(names("src/components/workboard/board/book-in-panel.tsx")).toEqual(
+    expect.arrayContaining(["BookingEntryLine", "BookingStateLine", "ClearConfirm"]),
+  );
 });

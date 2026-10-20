@@ -131,8 +131,6 @@ export const fmtDayRange = (a: string, b: string): string => dayRangeLabel(must(
 export const fmtDates = (a: string, b: string): string => datesLabel(must(a, "start"), must(b, "end"));
 /** "6:45 am" from "06:45", "06:45:00" or "6:45 am". */
 export const fmtTime = timeLabel;
-/** "6:45 – 7:15 am". */
-export const fmtTimeRange = timeRangeLabel;
 
 /* ── internals: an item with its days as numbers, read once per call ── */
 

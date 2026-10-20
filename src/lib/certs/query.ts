@@ -206,6 +206,36 @@ export async function listJobCerts(orgId: string, jobUuid: string): Promise<Cert
     .eq("org_id", orgId)
     .eq("sm8_job_uuid", jobUuid);
   const ids = ((certs ?? []) as { id: string }[]).map((c) => c.id);
+  return latestCerts(orgId, ids);
+}
+
+/** How many certificates the Documents list reads, newest first. */
+const ORG_CERTS_CAP = 300;
+
+/** A certificate as the Documents list shows it: the job card's summary,
+    with the job it is on. */
+export type OrgCertSummary = CertSummary & { jobUuid: string };
+
+/** Every certificate in the workspace at its latest version, newest first,
+    read as the job card reads a job's (listJobCerts). */
+export async function listOrgCerts(orgId: string): Promise<OrgCertSummary[]> {
+  const { data: certs } = await supabaseAdmin
+    .from("certificates")
+    .select("id, sm8_job_uuid")
+    .eq("org_id", orgId)
+    .order("created_at", { ascending: false })
+    .limit(ORG_CERTS_CAP);
+  const rows = (certs ?? []) as { id: string; sm8_job_uuid: string }[];
+  const jobOf = new Map(rows.map((r) => [r.id, r.sm8_job_uuid]));
+  const latest = await latestCerts(
+    orgId,
+    rows.map((r) => r.id),
+  );
+  return latest.map((c) => ({ ...c, jobUuid: jobOf.get(c.certificateId) ?? "" }));
+}
+
+/** These certificates at their latest versions, newest first. */
+async function latestCerts(orgId: string, ids: string[]): Promise<CertSummary[]> {
   if (!ids.length) return [];
   const { data } = await supabaseAdmin
     .from("certificate_versions")

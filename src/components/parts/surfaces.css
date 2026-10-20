@@ -1,0 +1,257 @@
+/* THE SURFACES: the dialog, the toast and the three kinds of tab (rules 29,
+   30, 31, 36 and 37). Colours from the tokens only. A button here is named by
+   two classes, (0,2,0), so it beats `.fg button`'s reset, (0,1,1), inside the
+   frame as well as outside it; the dialog and the toast are portalled to
+   <body>, where the reset never lands. */
+
+/* ---- the dialog (rule 36) ---- */
+
+.pt-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--scrim);
+  animation: pt-scrim-in var(--t-move) var(--ease) both;
+}
+.pt-scrim .pt-dialog {
+  display: flex;
+  flex-direction: column;
+  width: 400px;
+  max-width: 100%;
+  max-height: 100%;
+  box-sizing: border-box;
+  background: var(--white);
+  color: var(--ink);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-overlay);
+  font-family: var(--font);
+  animation: pt-dialog-in var(--t-move) var(--ease) both;
+}
+.pt-scrim .pt-dialog--560 { width: 560px; }
+.pt-scrim .pt-dialog--720 { width: 720px; }
+.pt-scrim .pt-dialog--960 { width: 960px; }
+/* the lightbox: most of the window, its body scrolling between the title and the foot */
+.pt-scrim .pt-dialog--wide { width: calc(100vw - 96px); max-width: 1440px; height: calc(100vh - 96px); }
+.pt-scrim .pt-dialog--wide .pt-dialog-body { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.pt-scrim .pt-dialog:focus { outline: none; }
+.pt-dialog .pt-dialog-title {
+  margin: 0;
+  padding: 24px 24px 0;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.pt-dialog .pt-dialog-body {
+  padding: 8px 24px 0;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+}
+.pt-dialog .pt-dialog-body p { margin: 0 0 8px; }
+.pt-dialog .pt-dialog-foot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding: 24px;
+}
+
+@keyframes pt-scrim-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pt-dialog-in { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+
+/* ---- the toast (rule 37) ---- */
+
+.pt-toasts {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  pointer-events: none;
+}
+.pt-toasts .pt-toast {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 400px;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 12px 16px;
+  border-radius: var(--r-button);
+  background: var(--ink);
+  color: var(--white);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+  pointer-events: auto;
+  animation: pt-toast-in var(--t-move) var(--ease) both;
+}
+.pt-toast .pt-toast-text { min-width: 0; overflow-wrap: anywhere; }
+.pt-toast .pt-toast-undo {
+  flex: none;
+  margin: 0;
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--r-control);
+  background: transparent;
+  color: var(--white);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pt-toast .pt-toast-undo:focus-visible { outline: none; box-shadow: var(--ring-ink); }
+
+@keyframes pt-toast-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---- the tabs (rules 29 and 31) ---- */
+
+.pt-vtabs,
+.pt-stabs {
+  display: flex;
+  align-items: center;
+  font-family: var(--font);
+}
+.pt-vtabs { gap: 4px; }
+.pt-vtabs .pt-vtab,
+.pt-stabs .pt-stab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.pt-vtabs .pt-vtab {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--r-button);
+  transition: background-color var(--t-fast) var(--ease);
+}
+.pt-vtabs .pt-vtab:hover { background: var(--hov); }
+.pt-vtabs .pt-vtab[aria-selected="true"] { background: var(--sel); }
+.pt-vtab .pt-vtab-n,
+.pt-stab .pt-stab-n { color: var(--q); font-variant-numeric: tabular-nums; }
+
+.pt-stabs {
+  gap: 24px;
+  border-bottom: 1px solid var(--line);
+}
+.pt-stabs .pt-stab {
+  height: 36px;
+  margin-bottom: -1px;
+  padding: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: var(--r-button) var(--r-button) 0 0;
+  transition: border-color var(--t-fast) var(--ease);
+}
+.pt-stabs .pt-stab:hover { border-bottom-color: var(--edge); }
+.pt-stabs .pt-stab[aria-selected="true"] { border-bottom-color: var(--ink); }
+
+.pt-vtabs .pt-vtab:focus-visible,
+.pt-stabs .pt-stab:focus-visible { outline: none; box-shadow: var(--ring); }
+
+.pt-tabs-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---- the tray (rule 30): an edge, never a fill as well ---- */
+
+.pt-tray {
+  display: inline-flex;
+  /* as wide as its words, even as a flex column's child */
+  align-self: flex-start;
+  width: max-content;
+  align-items: stretch;
+  gap: 2px;
+  height: 32px;
+  box-sizing: border-box;
+  padding: 2px;
+  border: 1px solid var(--edge);
+  border-radius: var(--r-button);
+  font-family: var(--font);
+}
+.pt-tray .pt-tray-opt {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--r-control);
+  background: transparent;
+  color: var(--q);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.pt-tray .pt-tray-opt:hover { color: var(--ink); }
+.pt-tray .pt-tray-opt[aria-checked="true"] { background: var(--sel); color: var(--ink); }
+.pt-tray .pt-tray-opt:focus-visible { outline: none; box-shadow: var(--ring); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pt-scrim,
+  .pt-scrim .pt-dialog,
+  .pt-toasts .pt-toast { animation: none; }
+  .pt-vtabs .pt-vtab,
+  .pt-stabs .pt-stab,
+  .pt-tray .pt-tray-opt { transition: none; }
+}
+
+/* ---- a tooltip (the guards: it replaces the browser's `title`) ----
+   Ink, white words at 12, a 6 corner. It waits half a second for a pointer
+   and comes at once for the keyboard; it never takes a press. */
+.pt-tip { position: relative; display: inline-flex; }
+.pt-tip .pt-tip-bubble {
+  position: absolute;
+  left: 50%;
+  z-index: var(--z-toast);
+  width: max-content;
+  max-width: 240px;
+  padding: 4px 8px;
+  border-radius: var(--r-control);
+  background: var(--ink);
+  color: var(--white);
+  font-family: var(--font);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-50%);
+  transition: opacity var(--t-fast) var(--ease);
+}
+.pt-tip.pt-tip--top .pt-tip-bubble { bottom: calc(100% + 8px); }
+.pt-tip.pt-tip--bottom .pt-tip-bubble { top: calc(100% + 8px); }
+.pt-tip:hover .pt-tip-bubble,
+.pt-tip:focus-within .pt-tip-bubble { opacity: 1; transition-delay: 500ms; }
+.pt-tip.pt-tip:focus-within .pt-tip-bubble { transition-delay: 0ms; }
+@media (prefers-reduced-motion: reduce) { .pt-tip .pt-tip-bubble { transition: none; } }

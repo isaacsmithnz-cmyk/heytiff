@@ -66,8 +66,10 @@ describe("IntegrationsIndex", () => {
     expect(screen.getAllByText("Not connected")).toHaveLength(1);
   });
 
-  it("offers a way back to Admin", () => {
-    render(<IntegrationsIndex connections={{}} />);
-    expect(screen.getByText("Admin").closest("a")).toHaveAttribute("href", "/dashboard/admin");
+  it("offers a way back to Settings, and says how many are connected", () => {
+    render(<IntegrationsIndex connections={{ xero: toView(row()) }} />);
+    expect(screen.getByText("Settings").closest("a")).toHaveAttribute("href", "/dashboard/admin");
+    expect(screen.getByRole("heading", { level: 1, name: "Integrations" })).toBeInTheDocument();
+    expect(screen.getByText("1 of 2 connected")).toBeInTheDocument();
   });
 });

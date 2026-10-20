@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Icon } from "@/components/shell/icon";
+import { Tooltip } from "@/components/parts/tooltip";
 import { FaceSwitch } from "@/components/me/face-switch";
 import { NoteToken } from "./note-token";
 import { addMyNote, archiveMyNote, deleteMyNote, editMyNote } from "@/app/actions/my-notes";
@@ -79,7 +80,7 @@ export function MyNotesFace({
         onChange={setDraft}
         onCommit={commit}
         disabled={busy}
-        placeholder="Ring the wholesaler back about the coil pricing…"
+        placeholder="Ring the wholesaler back about the coil pricing"
       />
 
       {notes.length === 0 ? (
@@ -128,18 +129,19 @@ export function MyNotesFace({
                       {n.source === "voice" && ", dictated"}
                     </em>
                   </span>
-                  <button
-                    className="wb2-ico"
-                    title="Edit"
-                    aria-label={`Edit note: ${n.body.slice(0, 40)}`}
-                    disabled={busy}
-                    onClick={() => {
-                      setEditing(n.id);
-                      setText(n.body);
-                    }}
-                  >
-                    <Icon name="edit" size={13} />
-                  </button>
+                  <Tooltip label="Edit">
+                    <button
+                      className="wb2-ico"
+                      aria-label={`Edit note: ${n.body.slice(0, 40)}`}
+                      disabled={busy}
+                      onClick={() => {
+                        setEditing(n.id);
+                        setText(n.body);
+                      }}
+                    >
+                      <Icon name="edit" size={13} />
+                    </button>
+                  </Tooltip>
                   {/* Archive, not delete. Deleting is offered from the
                       archive only, so nothing is destroyed in one click
                       from the list you read every day — the rule the
@@ -152,15 +154,16 @@ export function MyNotesFace({
                       for two states across two screens doing the same
                       thing. Archive won: it is what people expect, and
                       it is shorter on a row of buttons. */}
-                  <button
-                    className="wb2-ico"
-                    title="Archive"
-                    aria-label={`Archive note: ${n.body.slice(0, 40)}`}
-                    disabled={busy}
-                    onClick={() => run(() => archiveMyNote(n.id))}
-                  >
-                    <Icon name="check" size={13} />
-                  </button>
+                  <Tooltip label="Archive">
+                    <button
+                      className="wb2-ico"
+                      aria-label={`Archive note: ${n.body.slice(0, 40)}`}
+                      disabled={busy}
+                      onClick={() => run(() => archiveMyNote(n.id))}
+                    >
+                      <Icon name="check" size={13} />
+                    </button>
+                  </Tooltip>
                 </>
               )}
             </li>
@@ -185,24 +188,26 @@ export function MyNotesFace({
           <li key={n.id} style={{ alignItems: "flex-start", opacity: 0.72 }}>
             <span className="wb2-bdot" aria-hidden="true" />
             <span style={{ flex: 1, minWidth: 0 }}>{n.body}</span>
-            <button
-              className="wb2-ico"
-              title="Put back"
-              aria-label={`Put back note: ${n.body.slice(0, 40)}`}
-              disabled={busy}
-              onClick={() => run(() => archiveMyNote(n.id, false))}
-            >
-              <Icon name="rotate" size={13} />
-            </button>
-            <button
-              className="wb2-ico"
-              title="Delete for good"
-              aria-label={`Delete note: ${n.body.slice(0, 40)}`}
-              disabled={busy}
-              onClick={() => run(() => deleteMyNote(n.id))}
-            >
-              <Icon name="eraser" size={13} />
-            </button>
+            <Tooltip label="Put back">
+              <button
+                className="wb2-ico"
+                aria-label={`Put back note: ${n.body.slice(0, 40)}`}
+                disabled={busy}
+                onClick={() => run(() => archiveMyNote(n.id, false))}
+              >
+                <Icon name="rotate" size={13} />
+              </button>
+            </Tooltip>
+            <Tooltip label="Delete for good">
+              <button
+                className="wb2-ico"
+                aria-label={`Delete note: ${n.body.slice(0, 40)}`}
+                disabled={busy}
+                onClick={() => run(() => deleteMyNote(n.id))}
+              >
+                <Icon name="eraser" size={13} />
+              </button>
+            </Tooltip>
           </li>
         ))}
       </ul>

@@ -120,7 +120,7 @@ export function WatchlistPanel({
         <div className="hq-watch-add">
           <input
             className="hq-watch-input"
-            placeholder="Add something the next extraction should look for…"
+            placeholder="Add something the next extraction should look for"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {

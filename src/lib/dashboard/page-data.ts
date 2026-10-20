@@ -52,6 +52,8 @@ import { sm8QueueStuck } from "@/lib/integrations/sm8-writes";
 import { freshenSm8AfterResponse } from "@/lib/integrations/sm8-freshness";
 import { sm8BookingsAllowed, sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import type { UnsentDone } from "./task-done-query";
+import { EMPTY_TODO, type TodoExtras } from "./todo";
+import { loadTodoExtras } from "./todo-query";
 
 /* Dashboard page loader. The capability scoping and every derivation are pure
    and live in ./assemble, ./day-rail and the new Home's own modules; this
@@ -99,6 +101,10 @@ export type DashboardData = {
   /** The new Home's own reads (./desk-data) — null only for nobody signed
       in, who has no Home to draw. */
   desk: DeskData | null;
+  /** What Home's To do reads beyond the rest (./todo-query): the reminders
+      due and the work given to you, the bell's two reads; the notices you
+      haven't read; and, for an approver, the timesheets sent in. */
+  todo: TodoExtras;
 };
 
 export type HomeRail = {
@@ -198,6 +204,7 @@ const EMPTY: DashboardData = {
   today: todayInAu(),
   rail: EMPTY_RAIL,
   desk: null,
+  todo: EMPTY_TODO,
 };
 
 export async function loadDashboard(): Promise<DashboardData> {
@@ -267,7 +274,7 @@ export async function loadDashboard(): Promise<DashboardData> {
   const railDay = todayInZone(railTz);
   const railNowMin = nowMinInZone(railTz);
 
-  const [chips, tasks, assignable, journal, issues, schedule, sm8Links, desk] = await Promise.all([
+  const [chips, tasks, assignable, journal, issues, schedule, sm8Links, desk, todo] = await Promise.all([
     loadChips(orgId, viewerStaffId, caps, today, isOwner, shared, userId),
     loadTasks(orgId, viewerStaffId, canManage, names),
     // the give-it-to picker only needs names, and only when you can give
@@ -299,6 +306,8 @@ export async function loadDashboard(): Promise<DashboardData> {
       },
       linksP.then(mineOf)
     ),
+    /* To do's own reads, none of which waits on anything above */
+    loadTodoExtras({ orgId, viewerStaffId, caps, today, names }),
   ]);
   const mineUuid = mineOf(sm8Links);
 
@@ -365,6 +374,7 @@ export async function loadDashboard(): Promise<DashboardData> {
       next,
     },
     desk,
+    todo,
   };
 }
 

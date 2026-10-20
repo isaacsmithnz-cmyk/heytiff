@@ -87,7 +87,6 @@ export function TagStrip({
             {manage && (
               <button
                 disabled={busy}
-                title="Remove"
                 aria-label={`Remove ${t.name}`}
                 onClick={() => onRemove(t.id)}
               >
@@ -132,7 +131,6 @@ export function TagStrip({
               key={t}
               type="button"
               className={`wb2-swatch t-${t}` + (t === tone ? " on" : "")}
-              title={TONE_LABEL[t]}
               aria-label={`${TONE_LABEL[t]} — colour for “${typed}”`}
               aria-pressed={t === tone}
               onMouseDown={(e) => {

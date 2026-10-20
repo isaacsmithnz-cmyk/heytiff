@@ -73,12 +73,6 @@ export const CREDENTIAL_DOC_KIND: Record<OrgCredKind, DocumentKind> = {
    made to hold (lib/documents/files.ts). These two are the same owner. */
 export const ORG_CREDENTIAL_DOC_KINDS: readonly DocumentKind[] = ["org_licence", "org_insurance"];
 
-/** What the paper is CALLED, per kind. */
-export const CREDENTIAL_PAPER: Record<OrgCredKind, string> = {
-  licence: "Licence certificate",
-  insurance: "Certificate of currency",
-};
-
 /** The record in force: the LATEST EXPIRY, not the newest upload — the same
     rule the credential's cached expiry_date column follows. */
 export function currentRecord(records: readonly OrgCredentialRecord[]): OrgCredentialRecord | null {

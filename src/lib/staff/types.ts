@@ -19,6 +19,8 @@ export type StaffRow = {
   name: string;
   nickname?: string;
   email: string;
+  /** the card's mobile, as typed; absent on rows built before Team showed it */
+  phone?: string | null;
   /** job_title, or an em dash */
   role: string;
   employmentType: string;

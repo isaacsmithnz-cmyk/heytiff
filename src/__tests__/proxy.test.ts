@@ -238,3 +238,27 @@ describe("a server action", () => {
     expect(middlewareSpy).toHaveBeenCalledTimes(2);
   });
 });
+
+/* `/` is the door signed out and Home signed in (v2, decision 2). */
+describe("the front door's address", () => {
+  afterEach(() => getSessionSpy.mockReset().mockResolvedValue(null));
+
+  test("shows the door to someone signed out", async () => {
+    getSessionSpy.mockResolvedValue(null);
+    const res = await proxy(req("https://go.hey-tiff.com/", "go.hey-tiff.com"));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("location")).toBeNull();
+  });
+
+  test("takes someone signed in to Home", async () => {
+    getSessionSpy.mockResolvedValue({ user: { sub: "u" }, orgId: "o" });
+    const res = await proxy(req("https://go.hey-tiff.com/", "go.hey-tiff.com"));
+    expect(res.headers.get("location")).toBe("https://go.hey-tiff.com/dashboard");
+  });
+
+  test("takes someone signed in with no workspace yet to the start page", async () => {
+    getSessionSpy.mockResolvedValue({ user: { sub: "u" } });
+    const res = await proxy(req("https://go.hey-tiff.com/", "go.hey-tiff.com"));
+    expect(res.headers.get("location")).toBe("https://go.hey-tiff.com/start");
+  });
+});

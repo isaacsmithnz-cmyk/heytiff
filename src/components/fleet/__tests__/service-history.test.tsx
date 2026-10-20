@@ -29,6 +29,9 @@ jest.mock("@/app/actions/fleet-ai", () => ({
   readRegoCertificate: jest.fn(async () => ({ ok: false, reason: "no-key" })),
 }));
 jest.mock("@/lib/documents/upload-client", () => ({ uploadFile: jest.fn() }));
+/* The register's vehicle form saves through the fleet action itself (rule 51),
+   the same "use server" trouble. */
+jest.mock("@/app/actions/fleet", () => ({ saveVehicle: jest.fn(), removeVehicle: jest.fn() }));
 
 const TODAY = "2026-08-25";
 
@@ -262,10 +265,10 @@ it("returns to the service history after logging one, not to the vehicle card", 
   };
   global.fetch = jest.fn(async () => ({ ok: false })) as unknown as typeof fetch;
 
-  render(<FleetRegister fleet={fleet} staff={[]} today={TODAY} warnDays={30} />);
+  /* the card opens from a link (`?v=`); the register's row opens the vehicle's own page now */
+  render(<FleetRegister fleet={fleet} staff={[]} today={TODAY} warnDays={30} openLink={{ id: van.id, screen: null }} />);
   const user = userEvent.setup();
 
-  await user.click(screen.getByText("WORK TRITON"));
   await user.click(screen.getByRole("button", { name: "Service history" })); // the NEXT SERVICE card
   await user.click(screen.getByRole("button", { name: /log service/i }));
   expect(screen.getByRole("heading", { name: "Log service" })).toBeInTheDocument();

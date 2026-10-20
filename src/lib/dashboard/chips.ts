@@ -862,7 +862,8 @@ export function sm8QueueChip(
 /** A task's Done that didn't go to ServiceM8, didn't come out of it, or may
     not have reached it (two-way phase 2, PR C) — for the one person whose
     tick it was, and nobody else (lib/dashboard/task-done-query's
-    myUnsentDones reads only theirs). It opens the task on Home, where the
+    myUnsentDones reads only theirs). It opens the task on the desk (Home's old
+    Tasks face, /dashboard/desk), where the
     Done's line says why and offers Send again or Try again. One per task;
     `bad`, because a note the person thinks went and didn't is the kind of
     thing that is found out on site. */
@@ -878,7 +879,7 @@ export function sm8DoneChip(done: { taskId: string; title: string; op: "post" | 
           ? NOTE_WORDS.bell.doneUnsure
           : NOTE_WORDS.bell.doneNotSent,
     subject: done.title,
-    href: `/dashboard?task=${encodeURIComponent(done.taskId)}`,
+    href: `/dashboard/desk?task=${encodeURIComponent(done.taskId)}`,
     urgency: urgency("bad", 0),
     // a press that didn't go has no day to fall due on, and is no record's
     due: null,

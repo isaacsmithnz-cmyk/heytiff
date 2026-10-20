@@ -147,11 +147,3 @@ export async function changeMySignInEmail(next: string): Promise<EmailChangeOutc
   revalidatePath("/dashboard/profile");
   return { ok: true, email, verificationSent: sent.ok };
 }
-
-/* Re-exported so the screen can render the current address without a second
-   session read, and so the two never disagree about normalisation. */
-export async function mySignInEmail(): Promise<string | null> {
-  const session = await auth0.getSession();
-  const email = session?.user?.email as string | undefined;
-  return email ? normaliseEmail(email) : null;
-}

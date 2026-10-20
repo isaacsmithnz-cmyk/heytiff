@@ -14,7 +14,9 @@
    rate-limited vendor to re-learn something one probe settled permanently,
    and it would bake an unknown into the request a person is waiting on.
    attachmentFileCandidates() remains exported by the probe module: if
-   ServiceM8 ever moves the bytes, re-run the probe and change this line.
+   ServiceM8 ever moves the bytes, walk those candidates again (the probe
+   route that did it once is in git history, removed 2026-10-18) and change
+   this line.
 
    THE SNIFF STAYS, as a guard rather than a search. The redirect lands on a
    CDN with a signed URL, and an expired one, an HTML error page and a JSON

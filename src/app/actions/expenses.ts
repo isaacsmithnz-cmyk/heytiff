@@ -6,6 +6,8 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import { todayInAu } from "@/lib/au-dates";
+import { jobCandidates } from "@/lib/dashboard/job-candidates";
+import type { JobCandidate } from "@/lib/workboard/note-match";
 import {
   buildClaim,
   canTransition,
@@ -41,6 +43,11 @@ import {
    control: everything is re-decided here. */
 
 export type ExpenseResult = { ok: true } | { ok: false; error: string };
+
+/** A submit says which row it made: Tiff's note router files a cost through
+    this same action and keeps the id, so the cost's Undo can cancel it
+    (actions/workboard-notes, v2 step 6, slice C). */
+export type SubmitResult = { ok: true; id: string } | { ok: false; error: string };
 
 /* WHICH JOB, RESOLVED HERE AND NOWHERE ELSE.
 
@@ -147,13 +154,24 @@ const MAX_RECEIPTS = 3;
 
 /* ---------------- your own claim ---------------- */
 
+/** WHAT THE FORM NEEDS WHEN IT OPENS AWAY FROM YOUR EXPENSES: a job's Add ›
+    Cost opens Claim an expense over the job (rule 51), where the page has
+    neither. The open work a receipt can go on is the same `jobCandidates`
+    list My expenses loads (lib/me/page-data), and today is the AU calendar
+    day, the ceiling on a receipt's date. */
+export async function claimFormFacts(): Promise<{ today: string; jobs: JobCandidate[] }> {
+  const session = await auth0.getSession();
+  const orgId = session?.orgId as string | undefined;
+  return { today: todayInAu(), jobs: orgId ? await jobCandidates(orgId) : [] };
+}
+
 export async function submitClaim(
   input: Omit<ClaimInput, "job"> & {
     documentIds?: string[];
     /** kind + id only — the label is built here, from the row. */
     job?: { kind: string; id: string } | null;
   }
-): Promise<ExpenseResult> {
+): Promise<SubmitResult> {
   const ctx = await context();
   if (!ctx?.staffId) return { ok: false, error: "No staff record for this account." };
 
@@ -235,7 +253,7 @@ export async function submitClaim(
   }
 
   refresh();
-  return { ok: true };
+  return { ok: true, id: String((data as { id: string }).id) };
 }
 
 export async function cancelClaim(claimId: string): Promise<ExpenseResult> {

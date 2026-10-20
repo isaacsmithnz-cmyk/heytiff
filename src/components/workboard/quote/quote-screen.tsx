@@ -1,33 +1,43 @@
 "use client";
 
-import { jobHref } from "@/lib/shell/links";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { readJobFiles, readJobRecord, type readMirrorJob } from "@/app/actions/workboard";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
-import { Icon } from "@/components/shell/icon";
+import { Button } from "@/components/parts/button";
+import { Fade } from "@/components/parts/fade";
+import { Dot } from "@/components/parts/state";
+import { SectionTabs, type TabItem } from "@/components/parts/tabs";
+import { jobPageHref } from "@/lib/shell/links";
+import { SECTION_LABEL, sectionsFor } from "@/lib/jobs/job-sections";
 import { Waiting } from "@/components/ui/orb";
+import { jobHue } from "@/lib/workboard/job-hue";
 import { proposalTitle } from "@/lib/quotes/proposal";
 import type { FamilyMoney } from "@/lib/workboard/job-family";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import { JobMediaViewer } from "../board/job-media-viewer";
-import { JobQuoteSend } from "../board/job-quote-send";
+import { JobQuoteSend, sendVariation } from "../board/job-quote-send";
 import { useQuotePrice } from "./quote-parts";
-import { QuoteLinesFace } from "./quote-lines-face";
+import { QuoteLinesFace, type QuoteStage } from "./quote-lines-face";
 import { ToastHost, useBoardToasts } from "../board/toasts";
 import { sm8QuoteOf } from "./sm8-quote-of";
 
 /* THE QUOTE PAGE — one job's quote, full screen inside the Workboard (Isaac,
    2026-10-05: "it should have opened up the proper quote screen not a
-   section below"), in Home's frame (2026-10-06, the mock-up he called "much
-   cleaner"): the way back to the job card, the title with the quote's next
-   step in its corner, then the quote (quote-lines-face.tsx) — the progress
-   line, the conversation with Tiff and the line items, and the rail on the
-   right with the quote's card, what goes to ServiceM8 and ServiceM8's own
-   quote (turned round 2026-10-13, chat first), its price read afresh
-   whenever the quote changes.
+   section below"), in v2's layout C (his pick, 18 October 2026): above the
+   conversation only the job's name, one grey line under it (its kind, its
+   number, its address and the quote's state word) and the job's seven
+   section tabs, Quote the one you're on. No breadcrumb (the open tab and
+   Jobs in the sidebar say where you are), and the job's stages line is
+   Overview's. Under them the quote (quote-lines-face.tsx): the conversation
+   with Tiff, or the line items, filling the left, and the rail on the right
+   with the quote's progress, its card and its buttons, what goes to
+   ServiceM8 and ServiceM8's own quote, its price read afresh whenever the
+   quote changes.
+
+   Each other tab goes to the job's own page on that section (v2, step 5);
+   Billing is there only for whoever sees the money, as on the job's page.
 
    EVERY QUOTE IS BUILT ON ITS LINES (retiring the old builder, Isaac,
    2026-10-12): one still on the old builder is switched to them as it's
@@ -42,12 +52,19 @@ const MAX_QUOTE_ROUNDS = 4;
 
 type Detail = NonNullable<Awaited<ReturnType<typeof readMirrorJob>>["detail"]>;
 
+/** "Work Order" as a sentence says it: "Work order". */
+const kindWords = (status: string | null | undefined) => {
+  const s = (status ?? "").trim().toLowerCase();
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
+};
+
 export function QuoteScreen({
   job,
   detail,
   moneyVisible,
   financials,
   start = false,
+  option = null,
 }: {
   job: string;
   detail: Detail;
@@ -55,12 +72,14 @@ export function QuoteScreen({
   financials: boolean;
   /** from the job card's Create a quote (?start=1): straight into the reply box */
   start?: boolean;
+  /** ?option=N: opened on that option, a variation Tiff started */
+  option?: number | null;
 }) {
   const [media, setMedia] = useState<JobMediaGroupsRead | null>(null);
   const [family, setFamily] = useState<FamilyMoney | null>(null);
   const [paper, setPaper] = useState<JobMediaItem | null>(null);
-  /* the band's corner, where the builder puts the quote's next step */
-  const [actionsEl, setActionsEl] = useState<HTMLDivElement | null>(null);
+  /* the quote's state word, for the line under the name, once its lines are read */
+  const [stage, setStage] = useState<QuoteStage | null>(null);
 
   /* the quote's PDFs, and the family's value where the job bills in claims */
   useEffect(() => {
@@ -106,9 +125,18 @@ export function QuoteScreen({
 
   const { toasts, toast, dismiss } = useBoardToasts();
 
-  /* back to the card, on its Quote face */
-  const back = jobHref(job, "quote");
   const address = detail.address ?? detail.geoLine;
+  /* the job's name, as its card names it */
+  const name = detail.clientName?.trim() || proposalTitle(address);
+  const facts = [kindWords(detail.status), detail.jobNumber ? `Job ${detail.jobNumber}` : "", (address ?? "").split(/\s*\n\s*/).filter(Boolean).join(", ")]
+    .filter(Boolean)
+    .join(", ");
+  const tabs: TabItem[] = sectionsFor(moneyVisible).map((key) => ({
+    key,
+    label: SECTION_LABEL[key],
+    count: key === "photos" ? media?.photos.length : key === "documents" ? media?.documents.length : undefined,
+    ...(key === "quote" ? {} : { href: jobPageHref(job, key) }),
+  }));
   const sm8 = sm8QuoteOf({
     documents: media?.documents ?? null,
     sentOn: detail.quoteSentOn ?? null,
@@ -145,22 +173,27 @@ export function QuoteScreen({
     <div className="page in full">
       <div className="wrap">
         <div className="stg hd-page wb2 wb2-qpage qp">
-          <div className="wb2-crumbline">
-            <Link href={back} className="int-back">
-              <Icon name="chevL" size={14} />
-              {detail.jobNumber ? `Job ${detail.jobNumber}` : "Job card"}
-            </Link>
-          </div>
-          <div className="wb2-vtabs">
-            <h1 className="wb2-h1">{proposalTitle(address)}</h1>
-            <div className="qp-acts" ref={setActionsEl} />
-          </div>
+          <header className="qp-head">
+            <h1 className="qp-name">
+              <Fade>{name}</Fade>
+            </h1>
+            <p className="qp-line">
+              <Dot hue={jobHue(detail.categoryColour, detail.status === "Unsuccessful")} />
+              <Fade className="qp-facts">{facts ? `${facts}.` : ""}</Fade>
+              {stage && <span className={stage.settle ? "qp-stage settle" : "qp-stage"}>{stage.word}</span>}
+            </p>
+            <SectionTabs
+              items={tabs}
+              current="quote"
+              ariaLabel="The job"
+            />
+          </header>
           {onLines ? (
             <QuoteLinesFace
               job={job}
               meta={{ title: proposalTitle(address), client: detail.clientName ?? null, site: address ?? null, jobNumber: detail.jobNumber ?? null }}
               price={price}
-              actionsEl={actionsEl}
+              onStage={setStage}
               onPriced={() => setLinesRev((n) => n + 1)}
               onToast={(m) => toast(m)}
               send={<JobQuoteSend job={job} visible version={`lines-${linesRev}`} />}
@@ -169,21 +202,23 @@ export function QuoteScreen({
               onOpenPaper={(item) => setPaper(item)}
               money={financials}
               start={start}
+              openAt={option}
+              sendVariation={(o) => sendVariation(job, o)}
             />
           ) : onLines === false ? (
-            <div className="hd-body qp-face">
+            <div className="qp-wait">
               <p className="wb2-sherr">The quote couldn&rsquo;t be opened.</p>
-              <div className="wb2-jqacts">
-                <button type="button" className="pbtn ghost" onClick={() => {
-                    setOnLines(undefined);
-                    setTries((n) => n + 1);
-                  }}>
-                  Try again
-                </button>
-              </div>
+              <Button
+                onClick={() => {
+                  setOnLines(undefined);
+                  setTries((n) => n + 1);
+                }}
+              >
+                Try again
+              </Button>
             </div>
           ) : (
-            <div className="hd-body qp-face">
+            <div className="qp-wait">
               <Waiting note="Opening the quote" />
             </div>
           )}

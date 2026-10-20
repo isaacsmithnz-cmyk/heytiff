@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useMemo, type CSSProperties } from "react";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuDayMonth, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -14,7 +15,6 @@ import {
 } from "@/lib/workboard/board-status";
 import {
   cadenceLabel,
-  GATE_FULL,
   GATE_LABEL,
   hoursLabel,
   initialsOf,
@@ -123,9 +123,9 @@ export function UpcomingTab({
             <span>Due</span>
             <span>Day booked</span>
             <span className="wb2-trhd-ck">
-              <em style={{ "--as": "var(--wb2-eq)" } as CSSProperties}>Equip</em>
-              <em style={{ "--as": "var(--wb2-acc)" } as CSSProperties}>Access</em>
-              <em style={{ "--as": "var(--wb2-crew)" } as CSSProperties}>Crew</em>
+              <em style={{ "--as": "var(--wb2-eq)" } as CSSProperties}><Fade>Equip</Fade></em>
+              <em style={{ "--as": "var(--wb2-acc)" } as CSSProperties}><Fade>Access</Fade></em>
+              <em style={{ "--as": "var(--wb2-crew)" } as CSSProperties}><Fade>Crew</Fade></em>
             </span>
           </div>
           {groups.map((g) => (
@@ -204,7 +204,7 @@ function Row({
               )}
               {tech ? (
                 <>
-                  <span className="wb2-av" title={tech.name}>
+                  <span className="wb2-av">
                     {initialsOf(tech.name)}
                   </span>
                   {tech.name}
@@ -242,7 +242,6 @@ function Row({
                 key={g}
                 className={"wb2-ckq" + (on ? " on" : "")}
                 style={{ "--as": `var(--wb2-${g === "equipment" ? "eq" : g === "access" ? "acc" : "crew"})` } as CSSProperties}
-                title={`${GATE_FULL[g]} — ${on ? "confirmed" : "not yet"}`}
                 aria-label={GATE_LABEL[g]}
               >
                 {on ? <Icon name="check" size={12} /> : <i />}

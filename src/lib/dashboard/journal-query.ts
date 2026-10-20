@@ -474,6 +474,83 @@ export async function listDiaryEntries(
   });
 }
 
+/* ── ONE JOB'S NOTES, AS ITS CONVERSATION READS THEM (v2, step 6) ───────
+
+   The diary's read turned on its side: every note filed on one ServiceM8
+   job, whoever said it, rather than every note one person said. The job's
+   diary already shows everyone's words on the job (job-notes-query's
+   `readOurJobNotes`), so nothing here is shown to anyone the job's page
+   does not already show it to; what this adds is what each note MADE and
+   whether Undo would still take it back, by the very rule the diary and
+   `undoNote` use (`undoBlocked`, `stillThere`, `heldBySm8`).
+
+   `record` is the note's filed record, shaped (note-applied's `appliedOf`):
+   the job's page names each thing it made from it. `authorId` says whose
+   words they were, so the page draws the right person and offers Undo only
+   where `undoNote` would let the viewer press it. */
+
+export type JobDiaryEntry = DiaryEntry & { authorId: string | null; record: AppliedRecord };
+
+export async function listJobDiaryEntries(
+  orgId: string,
+  staffId: string | null,
+  jobUuid: string,
+  tz: string | null,
+  limit = DIARY_ENTRY_LIMIT,
+): Promise<JobDiaryEntry[]> {
+  const read = (tombstones: boolean) => {
+    let q = supabaseAdmin
+      .from("workboard_notes")
+      .select(`${DIARY_COLUMNS}, author_id`)
+      .eq("org_id", orgId)
+      .eq("target_kind", "job")
+      .eq("target_id", jobUuid)
+      .in("status", DIARY_STATUSES);
+    if (tombstones) q = q.is("removed_at", null);
+    return q.order("created_at", { ascending: false }).limit(limit);
+  };
+  let { data, error } = await read(true);
+  if (error?.code === "42703" || error?.code === "PGRST204") ({ data, error } = await read(false));
+  const rows = (data ?? []) as unknown as (Row & { author_id?: string | null })[];
+  if (rows.length === 0) return [];
+  const undone = (r: Row) => r.status === "undone";
+  const filed = rows.filter((r) => !undone(r));
+  const [found, held] = await Promise.all([
+    resolveOutcomes(orgId, staffId ?? "", filed, true),
+    heldBySm8(
+      orgId,
+      filed.filter((r) => appliedOf(r.applied).v === APPLIED_V).map((r) => r.id),
+    ),
+  ]);
+  return rows.flatMap((r): JobDiaryEntry[] => {
+    const stamp = naiveInZone(r.created_at, tz);
+    if (!stamp) return [];
+    const when = new Date(r.created_at);
+    const turns = conversationOf(turnsOf(r.turns));
+    const record = appliedOf(r.applied);
+    const base = {
+      ...toEntry(r, found),
+      day: todayInZone(tz, when),
+      at: clockIn(tz, when),
+      stamp,
+      routed: r.proposal !== null && r.proposal !== undefined,
+      turns: lastTiff(turns) ? turns : [],
+      authorId: r.author_id ?? null,
+      record,
+    };
+    if (undone(r)) return [{ ...base, outcomes: [], taskFor: {}, undo: false, undone: true }];
+    const taskFor: Record<string, string | null> = {};
+    for (const id of record.taskIds) if (found.owners.has(id)) taskFor[id] = found.owners.get(id) ?? null;
+    const undo =
+      record.v === APPLIED_V &&
+      !undoBlocked(record, found.now) &&
+      takesBack(stillThere(record, found.now)) &&
+      held !== "all" &&
+      !held.has(r.id);
+    return [{ ...base, taskFor, undo, undone: false }];
+  });
+}
+
 /* A NOTE SERVICEM8 HOLDS TOO: a create was ever queued for it, whatever
    became of it — the rule actions/diary's `editDiaryEntry` refuses by, so
    Edit is drawn only where a press would not be refused. Job notes only,

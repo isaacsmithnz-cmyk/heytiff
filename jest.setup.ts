@@ -186,6 +186,15 @@ jest.mock('@/app/actions/job-note-sm8', () => ({
   readJobNoteStates: jest.fn(async () => null),
 }))
 
+/* A job's Overview, its conversation's read (v2, step 6), for the same
+   reason: the job card imports it for the job page's Overview, and the card
+   is inside the board, Home's day band and the gallery. The default reads
+   nothing — no notes told to Tiff, no tasks — so a suite sees only the
+   diary it handed in. */
+jest.mock('@/app/actions/job-conversation', () => ({
+  readJobConversation: jest.fn(async () => null),
+}))
+
 /* A task's Done to ServiceM8 (two-way phase 2, PR C), for the same reason:
    the dashboard's task actions import it, and Home's Tasks face imports its
    retry for the task line. The defaults do nothing and say nothing — no Done

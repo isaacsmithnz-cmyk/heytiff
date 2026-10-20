@@ -118,6 +118,17 @@ export async function proxy(request: NextRequest) {
     return authResponse;
   }
 
+  /* `/` IS HOME WHEN YOU ARE SIGNED IN (v2, Isaac, 17 October 2026: "Home
+     address, that's fine"). The door stays at `/` for everyone else. Home's
+     page lives at /dashboard until the frame's routes move, so a signed-in
+     visit to `/` goes there; the session read is the cookie the SDK just
+     handled, no database. */
+  if (path === "/") {
+    const session = await auth0.getSession(request);
+    if (session) return NextResponse.redirect(new URL(session.orgId ? "/dashboard" : "/start", request.url));
+    return authResponse;
+  }
+
   if (protectedRoutes.some((route) => path.startsWith(route))) {
     const session = await auth0.getSession(request);
     if (!session) {

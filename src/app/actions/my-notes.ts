@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { revalidateHome } from "@/lib/shell/revalidate-home";
 import { navHref } from "@/components/shell/nav";
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
@@ -53,7 +54,11 @@ const failed = (c: Ctx | { error: string }): c is { error: string } => "error" i
    leaving the screen on stale rows. See the note on `refresh` in ./kb. */
 const refresh = () => {
   revalidatePath(navHref("mynotes"));
-  revalidatePath(navHref("home"));
+  revalidateHome();
+  /* v2's Conversations › Only me reads the same notes. By path: the place has
+     no row in nav.ts, which the shell owns, and it moves into the sidebar
+     there (places.ts) when the shell points at it. */
+  revalidatePath("/dashboard/conversations");
 };
 
 /** Keep a note for yourself. `sourceNoteId` links it back to the routed note

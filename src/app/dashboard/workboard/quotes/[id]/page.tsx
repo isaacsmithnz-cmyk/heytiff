@@ -43,7 +43,12 @@ export default async function WorkboardQuotePage({
   if (!detail) notFound();
   /* the job card's Create a quote links ?start=1: the reply box is ready
      for the brief (the chat-first page, 2026-10-13) */
-  const start = (await searchParams).start === "1";
+  const sp = await searchParams;
+  const start = sp.start === "1";
+  /* ?option=N opens on that option: Tiff's Open on a variation she started
+     (v2 step 6, slice D) */
+  const raw = typeof sp.option === "string" ? Number(sp.option) : NaN;
+  const option = Number.isInteger(raw) && raw >= 0 && raw <= 19 ? raw : null;
 
-  return <QuoteScreen job={target.parentRemoteId} detail={detail} moneyVisible={moneyVisible} financials={financials} start={start} />;
+  return <QuoteScreen job={target.parentRemoteId} detail={detail} moneyVisible={moneyVisible} financials={financials} start={start} option={option} />;
 }

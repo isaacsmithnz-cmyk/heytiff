@@ -34,6 +34,9 @@ const P: NoteProposal = {
       remindKind: "at",
     },
   ],
+  visits: [],
+  costs: [],
+  variations: [],
   bringItems: ["coil cleaner"],
   flags: [{ message: "Roof hatch seized", severity: "urgent" }],
   progressBullets: ["Belts swapped"],
@@ -155,6 +158,9 @@ describe("storedProposal", () => {
 describe("the draft rules", () => {
   const EMPTY: NoteProposal = {
     tasks: [],
+    visits: [],
+    costs: [],
+    variations: [],
     bringItems: [],
     flags: [],
     progressBullets: [],

@@ -36,6 +36,7 @@
    check is to compile the file and look for the `react/compiler-runtime`
    import and `$[` cache slots. Zero slots means skipped. */
 
+import { Fade } from "@/components/parts/fade";
 import {
   useCallback,
   useEffect,
@@ -1433,9 +1434,15 @@ export function StudioCanvas({
 
   useEffect(() => {
     let on = true;
+    /* the sheets this pass is still loading: a pass the floor's plans change
+       under hands them back as it's cleaned up, so the pass that replaces it
+       loads them. Kept in `started`, a sheet whose first load was overtaken
+       never loaded at all. */
+    const mine = new Set<string>();
     for (const sheet of floor.plans) {
       if (started.current.has(sheet.imageRef) || !planImages) continue;
       started.current.add(sheet.imageRef);
+      mine.add(sheet.imageRef);
       void planImages
         .url(sheet.imageRef)
         .then(async (url) => {
@@ -1456,6 +1463,7 @@ export function StudioCanvas({
                size) still gets the URL below — better a hard cut than no plan */
           }
           if (!on) return;
+          mine.delete(sheet.imageRef);
           if (!sheet.width || !sheet.height) {
             setSheetDims((m) => ({
               ...m,
@@ -1473,6 +1481,7 @@ export function StudioCanvas({
     }
     return () => {
       on = false;
+      for (const ref of mine) started.current.delete(ref);
     };
   }, [floor.plans, planImages]);
 
@@ -6245,7 +6254,6 @@ export function StudioCanvas({
                       aria-checked={on}
                       className={`ds-note-ink${on ? " on" : ""}`}
                       style={{ background: ink.hex, color: ink.hex }}
-                      title={ink.label}
                       aria-label={ink.label}
                       onClick={() => {
                         /* BOTH things: recolour this note, and arm the ink for
@@ -6304,7 +6312,6 @@ export function StudioCanvas({
           <span className="ds-tool-hint-t">{toolHint.text}</span>
           <button
             className="ds-tool-hint-x"
-            title="Turn hints off"
             aria-label="Turn tool hints off"
             onClick={() => setHintsOn(false)}
           >
@@ -6320,7 +6327,7 @@ export function StudioCanvas({
             <span className="ds-unitcard-sw" style={{ background: hoverCard.colour }} />
             <span className="ds-unitcard-role">{hoverCard.role}</span>
             {hoverCard.system && (
-              <span className="ds-unitcard-sys">{hoverCard.system}</span>
+              <Fade className="ds-unitcard-sys">{hoverCard.system}</Fade>
             )}
           </div>
           <div className="ds-unitcard-model">{hoverCard.model || "No model yet"}</div>

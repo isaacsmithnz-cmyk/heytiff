@@ -7,7 +7,7 @@
    ═══════════════════════════════════════════════════════════════════════ */
 
 .dstudio {
-  --ds-orange: #ff8a00; /* reserved Design Studio accent (nav.ts) */
+  --ds-orange: var(--orange); /* reserved Design Studio accent (nav.ts) */
   /* the elevated dark for anything that floats over the canvas. Resolved HERE,
      on the root, because the HUD rule below flips `--ink2` to paper for its
      children and a `var(--ink2)` written on that same rule would read the flip. */
@@ -587,7 +587,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-sm8-no {
   flex: 0 0 58px;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
   padding: 4px 4px;
   border-radius:var(--r-control);
@@ -608,8 +607,9 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-sm8-s,
 .dstudio .ds-sm8-d {
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
 }
 .dstudio .ds-sm8-t {
   font-size: 14px;
@@ -660,8 +660,9 @@ html[data-ds-display] .dstudio.editing {
   font-size: 13px;
   font-weight: 600;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
 }
 .dstudio .ds-sm8-onl b {
   color: var(--paper);
@@ -955,7 +956,8 @@ html[data-ds-display] .dstudio.editing {
   color: var(--paper);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
 }
 .dstudio .ds-rmeta {
   font: 700 12px var(--mono);
@@ -2089,7 +2091,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-north.active .ds-north-ring,
 .dstudio .ds-north.active .ds-north-knob { stroke: var(--teal-d); }
-.dstudio .ds-north.active .ds-north-knob { fill: rgba(0, 163, 137, 0.14); }
+.dstudio .ds-north.active .ds-north-knob { fill: rgba(37, 99, 235, 0.14); }
 .dstudio .ds-north-n {
   fill: var(--bad-t);
   font-family: var(--font);
@@ -2252,8 +2254,11 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-floor-row.on .ds-floor-pick .lvl { background: var(--teal-d); color: var(--paper); }
 .dstudio .ds-floor-pick .nm {
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
 }
 /* a floor's height in its menu row: a riser up from it is this tall */
 .dstudio .ds-floor-hgt {
@@ -2376,8 +2381,11 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-var-row.on:hover .ds-var-pick { background: transparent; }
 .dstudio .ds-var-pick .nm {
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
 }
 /* placeholder that keeps unchecked labels aligned with the checked one */
 .dstudio .ds-var-dot { width: 11px; flex: 0 0 auto; }
@@ -2468,7 +2476,6 @@ html[data-ds-display] .dstudio.editing {
   color: var(--q);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 .ds-ref-tabs {
   display: flex;
@@ -2723,14 +2730,14 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-draft polyline,
 .dstudio .ds-draft rect {
-  fill: rgba(0, 229, 192, 0.08);
+  fill: rgba(37, 99, 235, 0.08);
   stroke: var(--teal-d);
   stroke-width: 1.6;
   stroke-dasharray: 6 4;
   vector-effect: non-scaling-stroke;
 }
 .dstudio .ds-draft circle {
-  fill: rgba(0, 229, 192, 0.25);
+  fill: rgba(37, 99, 235, 0.25);
   stroke: var(--teal-d);
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
@@ -2818,7 +2825,7 @@ html[data-ds-display] .dstudio.editing {
   fill: var(--teal);
   stroke: var(--teal-d);
   stroke-width: 2.5;
-  filter: drop-shadow(0 0 6px rgba(0, 229, 192, 0.9));
+  filter: drop-shadow(0 0 6px rgba(37, 99, 235, 0.9));
 }
 .dstudio .ds-draft .ds-draft-dims {
   fill: var(--teal-d);
@@ -3110,7 +3117,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-note-editor textarea:focus {
   outline: none;
-  border-color: rgba(0, 229, 192, 0.65);
+  border-color: rgba(37, 99, 235, 0.65);
   box-shadow: var(--ring);
   background: #fff;
 }
@@ -3215,7 +3222,6 @@ html[data-ds-display] .dstudio.editing {
   font-size: 12px;
   color: var(--gray500);
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .dstudio .ds-unitcard-model {
@@ -3697,7 +3703,6 @@ html[data-ds-display] .dstudio.editing {
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* right: the building yard */
@@ -3768,9 +3773,9 @@ html[data-ds-display] .dstudio.editing {
   gap: 4px;
   min-height: 110px;
   margin: 4px;
-  border: 2px dashed rgba(0, 163, 137, 0.4);
+  border: 2px dashed rgba(37, 99, 235, 0.4);
   border-radius:var(--r-card);
-  background: rgba(0, 229, 192, 0.05);
+  background: rgba(37, 99, 235, 0.05);
   color: var(--teal-d);
   font-size: 13px;
   font-weight: 700;
@@ -3787,12 +3792,12 @@ html[data-ds-display] .dstudio.editing {
   color: var(--gray500);
 }
 .dstudio .ds-yard-first.live {
-  background: rgba(0, 229, 192, 0.06);
+  background: rgba(37, 99, 235, 0.06);
 }
 .dstudio .ds-yard-first.over {
   border-style: solid;
   border-color: var(--teal-d);
-  background: rgba(0, 229, 192, 0.22);
+  background: rgba(37, 99, 235, 0.22);
   box-shadow: inset var(--ring);
 }
 
@@ -3937,7 +3942,7 @@ html[data-ds-display] .dstudio.editing {
   gap: 8px;
   padding: 16px 16px;
   border-bottom: 1px solid #f0f0f2;
-  background: linear-gradient(180deg, rgba(0, 229, 192, 0.06), rgba(0, 229, 192, 0));
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.06), rgba(37, 99, 235, 0));
 }
 .ds-lightbox .ds-lb-heading {
   display: flex;
@@ -3982,9 +3987,9 @@ html[data-ds-display] .dstudio.editing {
   opacity: 0.35;
 }
 .ds-lightbox .ds-lb-select.on {
-  background: #00e5c0;
-  border-color: #00a389;
-  color: #053b34;
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
 }
 .ds-lightbox .ds-lb-select.on svg {
   opacity: 1;
@@ -4051,7 +4056,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .ds-lightbox .ds-lb-nav:not(:disabled):hover {
   color: #0a0b10;
-  border-color: rgba(0, 229, 192, 0.5);
+  border-color: rgba(37, 99, 235, 0.5);
 }
 
 /* naming lightbox extras */
@@ -4060,8 +4065,8 @@ html[data-ds-display] .dstudio.editing {
   font-size: 12px;
   font-weight: 500;
   color: var(--teal-d, #0f766e);
-  background: rgba(0, 229, 192, 0.14);
-  border: 1px solid rgba(0, 229, 192, 0.3);
+  background: rgba(37, 99, 235, 0.14);
+  border: 1px solid rgba(37, 99, 235, 0.3);
   border-radius:var(--r-pill);
   padding: 4px 8px;
 }
@@ -4079,7 +4084,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .ds-lightbox .ds-lb-name:focus {
   outline: none;
-  border-color: rgba(0, 229, 192, 0.65);
+  border-color: rgba(37, 99, 235, 0.65);
   box-shadow: var(--ring);
   background: #fff;
 }
@@ -4447,7 +4452,8 @@ html[data-ds-display] .dstudio.editing {
   color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
 }
 .dstudio .ds-restack-moves { display: flex; gap: 4px; flex: none; }
 .dstudio .ds-restack-moves button {
@@ -5829,7 +5835,6 @@ html[data-ds-display] .dstudio.editing {
   color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 .ds-rm-body {
   padding: 16px 16px 16px;
@@ -6385,8 +6390,6 @@ html[data-ds-display] .dstudio.editing {
   --gray400: #5f6a79;
   --gray500: #57616f;
   --gray700: var(--ink);
-  --teal: #00e5c0;
-  --teal-d: #00a389;
   color: var(--ink);
 }
 .ds-xm.dstudio {
@@ -7281,7 +7284,7 @@ html[data-ds-display] .dstudio.editing {
   border-color: var(--ds-orange);
 }
 .dstudio .ds-sim-chip.on.cool {
-  background: #389ae8;
+  background: var(--blue);
   border-color: #389ae8;
 }
 .dstudio .ds-sim-mode {
@@ -7360,7 +7363,6 @@ html[data-ds-display] .dstudio.editing {
   color: var(--paper);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 .dstudio .ds-present-sys {
   display: inline-flex;
@@ -7447,15 +7449,15 @@ html[data-ds-display] .dstudio.editing {
    can simulate — see SimApproveSwitch */
 .dstudio .ds-simok-t b { font-weight: 600; opacity: 0.72; }
 .dstudio .ds-simok.on {
-  border-color: rgba(0, 229, 192, 0.5);
-  background: rgba(0, 229, 192, 0.16);
-  color: var(--teal, #00e5c0);
+  border-color: rgba(37, 99, 235, 0.5);
+  background: rgba(37, 99, 235, 0.16);
+  color: var(--blue);
 }
-.dstudio .ds-simok.on:hover { background: rgba(0, 229, 192, 0.24); }
+.dstudio .ds-simok.on:hover { background: rgba(37, 99, 235, 0.24); }
 .dstudio .ds-simok.on .ds-simok-box {
-  border-color: var(--teal, #00e5c0);
-  background: var(--teal, #00e5c0);
-  color: #04231f;
+  border-color: var(--blue);
+  background: var(--blue);
+  color: #fff;
 }
 .dstudio .ds-present-stage {
   flex: 1 1 0;
@@ -7612,7 +7614,6 @@ html[data-ds-display] .dstudio.editing {
   color: var(--paper);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
   max-width: 34ch;
 }
 .dstudio .ds-present-stat-comp {
@@ -7737,7 +7738,6 @@ html[data-ds-display] .dstudio.editing {
   border-radius:var(--r-control);
   padding: 8px 8px;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .dstudio .ds-share-meta {
@@ -7926,7 +7926,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-chrome-btn:disabled:hover { background: var(--paper); }
 /* the app's CTA convention: teal ground, ink text (10.25:1) — white on
    --teal-d measured 3.18 and is banned as a pair */
-.dstudio .ds-chrome-btn.cta { background: var(--teal); border-color: var(--teal); color: #04231f; }
+.dstudio .ds-chrome-btn.cta { background: var(--blue); border-color: var(--blue); color: #fff; }
 .dstudio .ds-chrome-btn.cta:hover { background: #2ee9c9; border-color: #2ee9c9; }
 .dstudio .ds-chrome-list {
   list-style: none;
@@ -8939,7 +8939,9 @@ html[data-ds-display] .dstudio.editing {
   color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  flex: 1;
+  -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
 }
 .ds-sb-zone-need,
 .ds-sb-zone-none,
@@ -8966,7 +8968,6 @@ html[data-ds-display] .dstudio.editing {
   text-align: left;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
   cursor: pointer;
   pointer-events: auto;
   transition: background-color var(--t-fast) var(--ease);
@@ -9316,8 +9317,8 @@ html[data-ds-display] .dstudio.editing {
   cursor: default;
 }
 .ds-sb-btn.primary {
-  background: var(--ink);
-  border-color: var(--ink);
+  background: var(--press);
+  border-color: var(--press);
   color: var(--paper);
 }
 .ds-sb-btn.primary:hover {
@@ -9564,7 +9565,6 @@ html[data-ds-display] .dstudio.editing {
   text-align: left;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 /* the card's identity, down the left: the name with what it is beside it on
@@ -9764,12 +9764,12 @@ html[data-ds-display] .dstudio.editing {
   height: 36px;
   border: none;
   border-radius: var(--r-button);
-  background: var(--ink);
+  background: var(--press);
   color: var(--paper);
   font: 600 14px var(--font);
   cursor: pointer;
 }
-.dstudio .ds-zp-primary:hover { background: var(--ink2); }
+.dstudio .ds-zp-primary:hover { background: var(--press); }
 
 /* the rack: units waiting for the plan, each dragged out by its grip */
 .dstudio .ds-zp-rack {
@@ -9809,7 +9809,8 @@ html[data-ds-display] .dstudio.editing {
   color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
 }
 /* the zones nobody has claimed: a section of its own, so the list has a
    start, and a well when it is empty — dropping a zone here is what takes
@@ -10449,8 +10450,8 @@ html[data-ds-display] .dstudio.editing {
   color: var(--bad-t);
 }
 :is(.dstudio, .ds-sb) .ds-schem-act.primary {
-  background: var(--ink);
-  border-color: var(--ink);
+  background: var(--press);
+  border-color: var(--press);
   color: var(--paper);
 }
 :is(.dstudio, .ds-sb) .ds-schem-mount {

@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { LicenceCard } from "@/components/cards/licence-card";
+import { Button } from "@/components/parts/button";
+import { fmtDay } from "@/lib/format/day";
+import { StateWord, type Tone } from "@/components/parts/state";
 import type { StoredDocument } from "@/lib/documents/query";
 import { licenceStatus } from "@/lib/staff/licence";
 import {
@@ -47,7 +50,12 @@ export function ComplianceCard({
   onAttachDoc,
   onRemoveTerm,
   startAdding = false,
+  layout = "wall",
 }: {
+  /** "rows" is Team's person page: a titled group, a row per ticket with
+      its state in words and Renew licence on one running out, and Add a
+      licence on the head. The same modal behind every door. */
+  layout?: "wall" | "rows";
   licences: StaffLicence[];
   /** Whose card this is — the scan action and every write are scoped to it. */
   staffId: string;
@@ -92,6 +100,71 @@ export function ComplianceCard({
 
   const ok = async () => ({ ok: true as const });
 
+  const modal = open && (
+    <LicenceModal
+      key={openId || "new"}
+      licence={editing}
+      staffId={staffId}
+      records={records[openId] ?? []}
+      documents={documents[openId] ?? []}
+      today={today}
+      warnDays={warnDays}
+      onAdd={onAdd}
+      onSaveIdentity={(input) => (editing ? onUpdate(editing.id, input) : onAdd(input))}
+      onDelete={() => (editing ? onRemove(editing.id) : ok())}
+      onRecord={(input) => (editing ? onRecordTerm(editing.id, input) : ok())}
+      onAttach={(termId, documentId, ...details) =>
+        editing ? onAttachDoc(editing.id, termId, documentId, ...details) : ok()
+      }
+      onRemoveTerm={onRemoveTerm}
+      onClose={() => setOpen(null)}
+    />
+  );
+
+  if (layout === "rows")
+    return (
+      <div className="pdlcard psec-group tm2-lics" data-live>
+        <div className="pdlh jump">
+          <span>
+            Licences and tickets
+            {licences.length > 0 && <span className="tm2-hcount"> {licences.length}</span>}
+          </span>
+          <span className="acts">
+            <button className="jumpb" type="button" onClick={() => setOpen("new")}>
+              Add a licence
+            </button>
+          </span>
+        </div>
+        {licences.length === 0 ? (
+          <p className="tm2-none">No licences or tickets yet</p>
+        ) : (
+          <ul className="tm2-licrows">
+            {licences.map((l) => {
+              const word = licenceLine(l, today, warnDays);
+              return (
+                <li key={l.id} className="tm2-licrow">
+                  <span className="tm2-lictext">
+                    <button type="button" className="tm2-licname" onClick={() => setOpen(l)}>
+                      {l.typeName}
+                    </button>
+                    <StateWord tone={word.tone} className="tm2-licline">
+                      {word.text}
+                    </StateWord>
+                  </span>
+                  {(word.tone === "look" || word.tone === "wrong") && (
+                    <Button kind="second" size={32} onClick={() => setOpen(l)}>
+                      Renew licence
+                    </Button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {modal}
+      </div>
+    );
+
   return (
     <div className="psec-body" data-live>
       {/* A line under the tab is a fact or nothing (docs/design.md, law 15).
@@ -122,30 +195,29 @@ export function ComplianceCard({
 
         <button className="licadd-tile" type="button" onClick={() => setOpen("new")}>
           <b>Add a licence or ticket</b>
-          <em>Scan the card — driver licence, ARC, white card…</em>
+          <em>Scan a driver licence, an ARC, a white card or any ticket</em>
         </button>
       </div>
 
-      {open && (
-        <LicenceModal
-          key={openId || "new"}
-          licence={editing}
-          staffId={staffId}
-          records={records[openId] ?? []}
-          documents={documents[openId] ?? []}
-          today={today}
-          warnDays={warnDays}
-          onAdd={onAdd}
-          onSaveIdentity={(input) => (editing ? onUpdate(editing.id, input) : onAdd(input))}
-          onDelete={() => (editing ? onRemove(editing.id) : ok())}
-          onRecord={(input) => (editing ? onRecordTerm(editing.id, input) : ok())}
-          onAttach={(termId, documentId, ...details) =>
-            editing ? onAttachDoc(editing.id, termId, documentId, ...details) : ok()
-          }
-          onRemoveTerm={onRemoveTerm}
-          onClose={() => setOpen(null)}
-        />
-      )}
+      {modal}
     </div>
   );
+}
+
+const STATUS_TONE: Record<string, Tone> = { ok: "good", warn: "look", bad: "wrong", mute: "info" };
+
+/** A ticket's second line: its number, then where it stands in words. */
+export function licenceLine(l: StaffLicence, today: string, warnDays: number): { tone: Tone; text: string } {
+  const status = licenceStatus(l.expiryDate, today, warnDays);
+  const date = l.expiryDate ? fmtDay(l.expiryDate) : null;
+  const where =
+    status.tone === "mute" || !date
+      ? "no expiry"
+      : status.tone === "bad"
+        ? `expired ${date}`
+        : status.tone === "warn"
+          ? `runs out ${date}`
+          : `current to ${date}`;
+  const text = l.licenceNumber ? `${l.licenceNumber}, ${where}` : where.charAt(0).toUpperCase() + where.slice(1);
+  return { tone: STATUS_TONE[status.tone] ?? "info", text };
 }

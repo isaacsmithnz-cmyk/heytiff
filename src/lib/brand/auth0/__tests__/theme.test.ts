@@ -71,13 +71,15 @@ describe("Auth0's published ranges", () => {
 });
 
 describe("the design laws hold", () => {
-  it("the primary button is ink, not the accent", () => {
-    // `.newbtn` in shell.css is `background:var(--ink)` with a white label.
-    // Teal as a big filled button is the single most likely wrong turn here.
-    expect(theme.colors.primary_button).toBe(BRAND.ink);
+  it("the primary button is blue with white words, never black (v2, rule 22)", () => {
+    // docs/design.md rule 22: the main button is blue with white words; there
+    // are no black buttons. Focus is a solid ink ring, and a hover keeps the
+    // button's colour (Isaac, 17 October).
+    expect(theme.colors.primary_button).toBe(BRAND.press);
     expect(theme.colors.primary_button_label).toBe(WHITE);
-    expect(theme.colors.primary_button).not.toBe(BRAND.teal);
-    expect(theme.colors.primary_button).not.toBe(BRAND.tealDark);
+    expect(theme.colors.primary_button).not.toBe(BRAND.ink);
+    expect(theme.colors.base_focus_color).toBe(BRAND.body);
+    expect(theme.colors.base_hover_color).toBe(BRAND.press);
   });
 
   it("no state colour is used anywhere but its own state role", () => {

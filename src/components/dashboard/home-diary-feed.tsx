@@ -30,7 +30,7 @@ import { useDiaryRefresh } from "./use-diary-refresh";
    three tabs and the list"). One column, newest first, as his prototype
    draws it (v12–v33):
 
-     THE BOX at the top: "Add to the diary…", with the Tiff button at its
+     THE BOX at the top: "Add to the diary", with the Tiff button at its
      end (components/tiff/modal/tiff-box, the one entry box). Save keeps
      the words as they were typed (`keepWords`), and the entry lands at the
      top of Today, lit; Sort it out and Enter take them to Tiff; the Tiff
@@ -390,7 +390,7 @@ function Entry({
                   aria-disabled={changing || !draft.trim() || undefined}
                   onClick={() => (draft.trim() ? void saveEdit() : undefined)}
                 >
-                  {changing ? "Saving…" : "Save"}
+                  {changing ? "Saving the entry" : "Save"}
                 </button>
                 <button type="button" className="hd-ls-vb" onClick={closeEdit}>
                   Cancel
@@ -654,7 +654,7 @@ export function HomeDiaryFeed({
   return (
     <div className="hd-dy" ref={root}>
       <div className="hd-dy-box">
-        <TiffBox room="diary" placeholder="Add to the diary…" save={save} />
+        <TiffBox room="diary" placeholder="Add to the diary" save={save} />
       </div>
       <section aria-labelledby={todayId}>
         <h2 className="hd-dy-day" id={todayId}>

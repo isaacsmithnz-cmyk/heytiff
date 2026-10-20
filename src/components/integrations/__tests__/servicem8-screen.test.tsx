@@ -457,7 +457,7 @@ describe("the mirror card, mid-backfill", () => {
         {...ready}
       />
     );
-    expect(screen.getByText("Syncing now…")).toBeInTheDocument();
+    expect(screen.getByText("Syncing now")).toBeInTheDocument();
     expect(screen.queryByText(/Still reading/)).not.toBeInTheDocument();
   });
 });
@@ -546,7 +546,7 @@ describe("the mirror card's clock", () => {
   });
 
   it("keeps the branches that cannot drift on the server", () => {
-    /* "Syncing now…" and the still-reading line are facts about the mirror,
+    /* "Syncing now" and the still-reading line are facts about the mirror,
        identical on both sides. Only the clock branch waits. */
     const running = syncView([JOBS_DONE]);
     const html = renderToString(
@@ -555,7 +555,7 @@ describe("the mirror card's clock", () => {
         sync={{ ...running, lastRun: { ...running.lastRun!, running: true } }}
       />,
     );
-    expect(html).toContain("Syncing now…");
+    expect(html).toContain("Syncing now");
   });
 });
 

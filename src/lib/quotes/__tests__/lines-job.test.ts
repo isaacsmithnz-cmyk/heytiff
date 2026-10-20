@@ -3,7 +3,7 @@
    beside the switch. */
 import { readingFromQuote } from "@/lib/certs/from-quote";
 import type { QuoteLine } from "../lines";
-import { byHandOf, variationMaterials, variationOf, withVariation, withVariationMark, labourTasks, labourVisits, stageNamed, linesDraft, linesHours, linesMaterials, linesUnits, toggleAccepted, withApproval, withoutApproval, withSent, withLoading, withName, withProposal } from "../lines-job";
+import { byHandOf, variationInSm8, variationMaterials, variationOf, variationUntouched, withVariation, withVariationMark, withVariationSent, withoutVariation, labourTasks, labourVisits, stageNamed, linesDraft, linesHours, linesMaterials, linesUnits, toggleAccepted, withApproval, withoutApproval, withSent, withLoading, withName, withProposal } from "../lines-job";
 import type { UnitSpecs } from "../lookups";
 import { acceptedOptions } from "../proposal";
 
@@ -275,4 +275,38 @@ it("reads every option of a quote on its lines, not an old draft's four", () => 
   const draft = linesDraft(lines, [], { ...bh([5]) }, new Map(), 8)!;
   expect(draft.options).toHaveLength(6);
   expect(draft.accepted).toEqual([5]);
+});
+
+/* v2 step 6, slice D: a variation sent to ServiceM8 as extra lines on the
+   job (decision 21), and one Tiff started taken back while still empty */
+describe("a variation's send and its take-back", () => {
+  const started = withVariation({ ...bh([0]), names: ["Main"] }, 1, "return grille in Bed 2", "auth0|me", "2026-10-18T01:00:00.000Z");
+  const v = started.variations[0]!;
+  const copy = [line({ id: "a", name: "Return grille", qty: 1, costCents: 4000 }), line({ id: "b", name: "Flex duct", qty: 3, costCents: 800 })];
+  const asCopied = copy.map((l) => ({ ...l, id: `${l.id}2`, optionIndex: 1, version: 3, position: 9 }));
+
+  it("keeps what went on the variation, and says when all of it is in ServiceM8 for real", () => {
+    const sent = { at: "2026-10-18T03:00:00.000Z", by: "auth0|me", trial: false, jobNumber: "3209", lines: 2, sent: 2, lineUuids: [] };
+    const b = withVariationSent(started, 1, sent);
+    expect(b.variations[0]!.sm8).toEqual(sent);
+    expect(variationInSm8(b.variations[0]!)).toBe(true);
+    expect(variationInSm8({ sm8: { ...sent, trial: true } })).toBe(false);
+    expect(variationInSm8({ sm8: { ...sent, sent: 1 } })).toBe(false);
+    expect(variationInSm8({})).toBe(false);
+  });
+
+  it("is still the empty copy while its lines are the accepted option's, line for line", () => {
+    expect(variationUntouched(v, copy, asCopied)).toBe(true);
+    expect(variationUntouched(v, copy, [asCopied[0]!, { ...asCopied[1]!, qty: 4 }])).toBe(false);
+    expect(variationUntouched(v, copy, asCopied.slice(0, 1))).toBe(false);
+    expect(variationUntouched({ ...v, approvedAt: "2026-10-18T02:00:00.000Z" }, copy, asCopied)).toBe(false);
+    expect(variationUntouched({ ...v, sm8: { at: "x", by: "", trial: true, jobNumber: null, lines: 1, sent: 0, lineUuids: [] } }, copy, asCopied)).toBe(false);
+  });
+
+  it("taken back, its record and its name go, and the next one is Variation 1 again", () => {
+    const back = withoutVariation(started, 1);
+    expect(back.variations).toEqual([]);
+    expect(back.names).toEqual(["Main"]);
+    expect(withVariation(back, 1, "again", "auth0|me", "2026-10-19T00:00:00.000Z").variations[0]!.n).toBe(1);
+  });
 });

@@ -21,6 +21,11 @@ export interface DesignSummary {
   updatedAt: string;
   floorCount: number;
   systemCount: number;
+  /** the job it's for, as the Summary sheet holds it; "" when it isn't on one */
+  jobNumber?: string;
+  client?: string;
+  /** the first floor's first plan, for the list's thumbnail */
+  thumbRef?: string;
 }
 
 export interface DesignStore {
@@ -54,7 +59,16 @@ export function summarize(doc: DesignDocument): DesignSummary {
     updatedAt: doc.meta.updatedAt,
     floorCount: doc.floors.length,
     systemCount: doc.systems.length,
+    jobNumber: doc.meta.jobNumber,
+    client: doc.meta.client,
+    thumbRef: firstPlanRef(doc),
   };
+}
+
+/** The lowest floor's first plan: what a design looks like in a list. */
+export function firstPlanRef(doc: DesignDocument): string | undefined {
+  const floor = [...doc.floors].sort((a, b) => a.level - b.level).find((f) => f.plans.length > 0);
+  return floor?.plans[0].imageRef;
 }
 
 export class LocalDesignStore implements DesignStore {

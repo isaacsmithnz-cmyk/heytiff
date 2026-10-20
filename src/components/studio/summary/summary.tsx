@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Icon } from "@/components/shell/icon";
+import { Tooltip } from "@/components/parts/tooltip";
 import type { DesignDocument } from "@/lib/studio/document";
 import type { OrgBrand } from "@/lib/org/brand";
 import type { DataPack } from "@/lib/studio/packs/schema";
@@ -202,6 +203,12 @@ export function SummaryView({
     ),
   };
 
+  const simBtn = (
+    <button className="ds-chrome-btn cta" onClick={onSimulate} disabled={!simReady.ok}>
+      <span aria-hidden>▶</span> Simulate
+    </button>
+  );
+
   return (
     <div className="ds-panel-card ds-summary">
       {/* ── chrome: everything that is NOT the document. Never prints. ── */}
@@ -234,14 +241,7 @@ export function SummaryView({
               been ticked as fit to show anyone". The way IN to tick it is the
               Simulate pill on the Design step, which is not this sheet. */}
           {simFlag && simApproval.offered && (
-            <button
-              className="ds-chrome-btn cta"
-              onClick={onSimulate}
-              disabled={!simReady.ok}
-              title={simReady.ok ? undefined : simReady.reason}
-            >
-              <span aria-hidden>▶</span> Simulate
-            </button>
+            simReady.ok ? simBtn : <Tooltip label={simReady.reason}>{simBtn}</Tooltip>
           )}
           {/* ONE WAY OUT, called Share (Isaac, 9-28). Share and Export were two
               buttons with two dialogs, and neither asked what the person on

@@ -207,7 +207,7 @@ export function ConnectActions({
               onClick={onDisconnect}
               disabled={busy || !phraseOk}
             >
-              {busy ? "Disconnecting…" : "Yes, disconnect"}
+              {busy ? `Disconnecting ${label}` : "Yes, disconnect"}
             </button>
           </div>
         </div>

@@ -15,11 +15,28 @@ export const staffHref = (id: string) => `/dashboard/team/${encodeURIComponent(i
 export const jobHref = (uuid: string, face?: string) =>
   `/dashboard/workboard?job=${encodeURIComponent(uuid)}${face ? `&face=${encodeURIComponent(face)}` : ""}`;
 
+/** A job's own page (v2, step 5), on the section named — Overview when none
+    is. Beside `jobHref` rather than in its place: the board's rows, Tiff and
+    the old doors still open the card over the Workboard, and the tests that
+    assert those links stand until the board is rebuilt. */
+export const jobPageHref = (uuid: string, section?: string) =>
+  `/dashboard/jobs/${encodeURIComponent(uuid)}${section && section !== "overview" ? `?tab=${encodeURIComponent(section)}` : ""}`;
+
+/** A vehicle's own page (v2, "A vehicle's own page"), on the section named,
+    Overview when none is. The register's rows open it; the old card still
+    opens from the doors that name `/dashboard/assets?v=` (a staff card's
+    plate, Home's Renew, the calendar) until Team is rebuilt. */
+export const vehiclePageHref = (id: string, section?: string) =>
+  `/dashboard/vehicles/${encodeURIComponent(id)}${section && section !== "overview" ? `?tab=${encodeURIComponent(section)}` : ""}`;
+
 /** A client has no page of their own: the Workboard's search, run on their
     name, is every job, visit, project and photo that names them. */
 export const clientHref = (name: string) => `/dashboard/workboard?q=${encodeURIComponent(name)}`;
 
-export const projectHref = (id: string) => `/dashboard/workboard/projects/${encodeURIComponent(id)}`;
+/** The projects, where a job is made a project (and so has a handover sheet). */
+export const projectsHref = "/dashboard/workboard/projects";
+
+export const projectHref = (id: string) =>`/dashboard/workboard/projects/${encodeURIComponent(id)}`;
 
 /** A maintenance visit opens on the board's Maintenance side with its sheet
     up (the page reads `?visit=`). */

@@ -74,7 +74,7 @@ function Strip({
   const busy = disabled || dict.recording || dict.transcribing;
   /* WHEN THE FIELD HANDS ITS BOX TO THE RIVER. Any time there are live words,
      and from the start of a recording that already has something to show —
-     but NOT on an empty field with nothing heard yet, because "Listening…" is
+     but NOT on an empty field with nothing heard yet, because "Listening" is
      the only thing saying so until the first word lands, and a placeholder
      needs the field it belongs to.
 
@@ -110,7 +110,7 @@ function Strip({
             `.wb2-stripin` so it is the same 30px box, and it rides SIDEWAYS.
 
             Only once there is something to show: the field keeps the frame
-            while the box is empty, because "Listening…" is the only thing
+            while the box is empty, because "Listening" is the only thing
             saying so before the first word lands. */}
         {river ? (
           <LiveWords line className="wb2-stripin" label={label} said={value} text={dict.interim} />
@@ -119,7 +119,7 @@ function Strip({
             ref={field}
             className="wb2-stripin"
             value={value}
-            placeholder={dict.recording ? "Listening…" : (placeholder ?? "Add a note, or say it…")}
+            placeholder={dict.recording ? "Listening" : (placeholder ?? "Add a note, or say it")}
             aria-label={label}
             disabled={busy}
             onChange={(e) => onChange(e.target.value)}
@@ -394,7 +394,7 @@ function FieldPosture({
   const addLine = () => (value.trim() === "" ? line.current?.focus() : onCommit?.());
   /* WHEN THE FIELD HANDS ITS BOX TO THE RIVER. Any time there are live words,
      and from the start of a recording that already has something to show —
-     but NOT on an empty field with nothing heard yet, because "Listening…" is
+     but NOT on an empty field with nothing heard yet, because "Listening" is
      the only thing saying so until the first word lands, and a placeholder
      needs the field it belongs to.
 
@@ -419,7 +419,7 @@ function FieldPosture({
             <input
               ref={line}
               className="wb2-fi"
-              placeholder={dict.recording ? "Listening…" : placeholder}
+              placeholder={dict.recording ? "Listening" : placeholder}
               value={value}
               disabled={busy}
               aria-label={label}
@@ -445,7 +445,6 @@ function FieldPosture({
                 type="button"
                 className="wb2-micgo on"
                 onClick={dict.stop}
-                title="Stop and read it back"
                 aria-label={`Stop dictating — ${label}`}
               >
                 <Icon name="square" size={12} />
@@ -454,7 +453,6 @@ function FieldPosture({
                 type="button"
                 className="wb2-dictx"
                 onClick={dict.cancel}
-                title="Throw it away"
                 aria-label={`Discard the recording — ${label}`}
               >
                 <Icon name="x" size={12} />
@@ -468,7 +466,6 @@ function FieldPosture({
                   className="wb2-micgo"
                   onClick={dict.start}
                   disabled={disabled || dict.transcribing}
-                  title="Say it instead"
                   aria-label={`Dictate — ${label}`}
                 >
                   <Icon name="mic" size={14} />
@@ -478,7 +475,6 @@ function FieldPosture({
                 type="button"
                 className={"wb2-addgo" + (value.trim() === "" ? " idle" : "")}
                 disabled={disabled || dict.transcribing}
-                title="Add it"
                 aria-label={`Add — ${label}`}
                 onClick={addLine}
               >
@@ -513,7 +509,7 @@ function FieldPosture({
           ref={box}
           className="wb2-notes"
           rows={rows}
-          placeholder={dict.recording ? "Listening…" : placeholder}
+          placeholder={dict.recording ? "Listening" : placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={busy}
@@ -527,7 +523,6 @@ function FieldPosture({
                 type="button"
                 className="wb2-dictmic on"
                 onClick={dict.stop}
-                title="Stop and read it back"
                 aria-label={`Stop dictating — ${label}`}
               >
                 <Icon name="square" size={13} />
@@ -544,7 +539,6 @@ function FieldPosture({
                 type="button"
                 className="wb2-dictx"
                 onClick={dict.cancel}
-                title="Throw it away"
                 aria-label={`Discard the recording — ${label}`}
               >
                 <Icon name="x" size={12} />
@@ -558,7 +552,6 @@ function FieldPosture({
               className="wb2-dictmic"
               onClick={dict.start}
               disabled={disabled}
-              title="Say it instead"
               aria-label={`Dictate — ${label}`}
             >
               <Icon name="mic" size={13} />

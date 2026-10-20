@@ -15,11 +15,16 @@ import {
   withSupplier,
   withVariation,
   withVariationMark,
+  withVariationSent,
   withoutApproval,
+  withoutVariation,
   withSent,
+  variationUntouched,
   type ByHand,
+  type Variation,
+  type VariationSent,
 } from "./lines-job";
-import { changeLine, copyOption, readEngine, readLines } from "./lines-server";
+import { changeLine, copyOption, readEngine, readLines, removeLine } from "./lines-server";
 import { bookProducts } from "./book-view-server";
 import { bookPrice } from "./session/tools";
 import type { QuoteLine } from "./lines";
@@ -151,6 +156,48 @@ export const markSent = (orgId: string, cardId: string, by: string, trial: boole
 /** A variation approved to go, or accepted by the client; again takes it off. */
 export const markVariation = (orgId: string, cardId: string, option: number, mark: "approvedAt" | "acceptedAt", by: string) =>
   changeByHand(orgId, cardId, by, (b) => withVariationMark(b, option, mark, new Date().toISOString()));
+
+/** What a send of a variation to ServiceM8 did, kept on the variation. */
+export const markVariationSent = (orgId: string, cardId: string, option: number, sent: VariationSent, by: string) =>
+  changeByHand(orgId, cardId, by, (b) => withVariationSent(b, option, sent));
+
+/** Why a variation can't be taken back, said as Tiff says it. */
+export const VARIATION_KEPT = {
+  gone: "That variation isn't on the quote any more.",
+  touched: "That variation has been changed, approved or sent since, so it stays. Take it off on the quote page if it isn't wanted.",
+} as const;
+
+/** Where a variation stands for a take-back: gone from the quote, changed
+    since it was started, or still the empty copy (with its lines). */
+export async function variationDraft(
+  orgId: string,
+  cardId: string,
+  option: number
+): Promise<{ state: "gone" | "touched" } | { state: "empty"; v: Variation; varied: QuoteLine[] }> {
+  const [b, lines] = await Promise.all([readByHand(orgId, cardId), readLines(orgId, cardId)]);
+  const v = b.variations.find((x) => x.option === option);
+  if (!v) return { state: "gone" };
+  const varied = lines.filter((l) => l.optionIndex === option);
+  if (!variationUntouched(v, lines.filter((l) => l.optionIndex === v.of), varied)) return { state: "touched" };
+  return { state: "empty", v, varied };
+}
+
+/** AN EMPTY VARIATION TAKEN BACK (Tiff's Undo, v2 step 6, slice D): only
+    while it is still the copy it was started as (variationUntouched). Its
+    lines come off one at a time, each kept in the quote's history as a
+    removal, then its record and its name. A line changed meanwhile stops
+    it, with what came off so far kept in the history. */
+export async function dropVariation(orgId: string, cardId: string, option: number, by: string): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const r = await variationDraft(orgId, cardId, option);
+  if (r.state !== "empty") return { ok: false, reason: VARIATION_KEPT[r.state] };
+  const { v, varied } = r;
+  for (const l of varied) {
+    const r = await removeLine(orgId, cardId, l.id, l.version, by, `Variation ${v.n} taken back`);
+    if (!r.ok) return { ok: false, reason: r.reason };
+  }
+  const saved = await changeByHand(orgId, cardId, by, (x) => withoutVariation(x, option));
+  return saved.ok ? { ok: true } : saved;
+}
 
 /** Sets option `i`'s loading, or takes it off. */
 export const setLoading = (orgId: string, cardId: string, i: number, loading: unknown, by: string) => changeByHand(orgId, cardId, by, (b) => withLoading(b, i, loading));

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { StateWord } from "@/components/parts/state";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { unsetWords } from "@/lib/quotes/build-settings";
@@ -12,12 +13,13 @@ import { DocRow } from "../board/job-documents-face";
 import type { Sm8Quote } from "../board/job-quote-card";
 
 /* THE RAIL: what the quote comes to, beside the conversation (the
-   chat-first quote page, Isaac, 2026-10-13). Its own scroll, 360 wide: what's
-   To confirm when Tiff isn't on for the business (with her on, it's the
+   chat-first quote page, Isaac, 2026-10-13; layout C, 18 October). Its own
+   scroll, 400 wide: the quote's progress, small, at its top; what's To
+   confirm when Tiff isn't on for the business (with her on, it's the
    conversation's, till the paper stands in its place: then Before you
-   approve is here), the quote's card, what goes to ServiceM8 once it's
-   approved or accepted, the quote ServiceM8 already holds, and what Tiff
-   has cost, to someone who sees money. */
+   approve is here); the quote's card and its buttons under it; what goes
+   to ServiceM8 once it's approved or accepted; the quote ServiceM8 already
+   holds; and what Tiff has cost, to someone who sees money. */
 
 /* the parts' colours, the chart's: a figure in colour always carries its
    name beside it (docs/design.md, charts are drawn in colour) */
@@ -26,10 +28,11 @@ const PART_COLOUR: Record<string, string> = { units: "var(--chart-1)", materials
 /** a variation's figures: the difference it makes */
 const signed = (c: number) => `${c > 0 ? "+" : c < 0 ? "−" : ""}${cents2(Math.abs(c))}`;
 
-/** THE QUOTE (it replaces the head's ledger, 2026-10-10): the total, its
-    three parts and their split, the profit as a bar in the state's colour,
-    then every group in one order, each set adding up to the total
-    (quote-sum.ts). A variation's figures are the difference it makes. */
+/** THE QUOTE (it replaces the head's ledger, 2026-10-10): the total, the
+    screen's one big figure, its three parts and their split, the profit as
+    a figure and a state word with no box (Q4), then every group in one
+    order, each set adding up to the total (quote-sum.ts). A variation's
+    figures are the difference it makes. */
 export function QuoteCard({
   price,
   option,
@@ -38,8 +41,6 @@ export function QuoteCard({
   hours,
   variation,
   building,
-  lines,
-  onLines,
 }: {
   price: QuotePrice | null | undefined;
   /** the option open on the page, priced */
@@ -55,19 +56,9 @@ export function QuoteCard({
   variation: { n: number; of: OptionPrice; hours: number } | null;
   /** Tiff building the quote, part by part, under the total */
   building: ReactNode;
-  /** the line items are up (true), the conversation (false), or there are
-      no tabs to change (null: Tiff isn't on for the business) */
-  lines: boolean | null;
-  onLines: () => void;
 }) {
   const unset = !!price && !price.ok;
   const b = option?.build;
-  const button =
-    lines === null ? null : (
-      <button type="button" className="pbtn ghost qc-wide" onClick={onLines}>
-        {lines ? "Back to the conversation" : "View line items"}
-      </button>
-    );
 
   if (b && variation) {
     const was = variation.of.build;
@@ -97,12 +88,13 @@ export function QuoteCard({
         </ul>
         {profit != null && (
           <div className="qp-profit">
-            <span>Profit</span>
+            <span>
+              Profit
+              {left ? <small>so far</small> : ex !== 0 && <small>{`${Math.round((profit / ex) * 1000) / 10}% of it`}</small>}
+            </span>
             <b>{signed(profit)}</b>
-            {left ? <small>so far</small> : ex !== 0 && <small>{`${Math.round((profit / ex) * 1000) / 10}% of it`}</small>}
           </div>
         )}
-        {button}
       </div>
     );
   }
@@ -117,16 +109,13 @@ export function QuoteCard({
      profit: no state, and no price to meet the target worked out from part
      of the quote (the head said what was left to confirm there, and its red
      sentence waited until nothing was) */
-  const tone = !profit || profit.targetPct == null || left ? "" : profit.short ? "warn" : "ok";
-  const words = !profit
-    ? null
-    : left
-      ? "so far"
-      : profit.targetPct == null
-        ? null
-        : profit.short
-          ? `under your ${profit.targetPct}% target by ${cents2(profit.short.cents)}. ${cents2(profit.short.priceCents)} ex GST would meet it`
-          : `${profit.pct > profit.targetPct ? "over" : "at"} your ${profit.targetPct}%`;
+  const tone = !profit || profit.targetPct == null || left ? null : profit.short ? ("look" as const) : ("good" as const);
+  const words =
+    !profit || left || profit.targetPct == null
+      ? null
+      : profit.short
+        ? `Under your ${profit.targetPct}% target by ${cents2(profit.short.cents)}. ${cents2(profit.short.priceCents)} ex GST would meet it`
+        : `${profit.pct > profit.targetPct ? "Over" : "At"} your ${profit.targetPct}%`;
   return (
     <div className="qp-card">
       <div className="qp-tot">
@@ -154,13 +143,17 @@ export function QuoteCard({
             </div>
           )}
           {profit && (
-            <div className={tone ? `qp-profit ${tone}` : "qp-profit"}>
-              <span>Profit</span>
-              <b>
-                <em>{`${profit.pct}%`}</em>
-                {cents2(profit.profitCents)}
-              </b>
-              {words && <small>{words}</small>}
+            <div className="qp-profit">
+              <span>
+                Profit
+                {left && <small>so far</small>}
+              </span>
+              <b>{`${profit.pct}%, ${cents2(profit.profitCents)}`}</b>
+              {tone && words && (
+                <StateWord tone={tone} className="qp-pword">
+                  {words}
+                </StateWord>
+              )}
             </div>
           )}
           {groups.length > 0 && (
@@ -175,7 +168,6 @@ export function QuoteCard({
           )}
         </>
       )}
-      {button}
     </div>
   );
 }
@@ -202,7 +194,7 @@ export function AlreadyQuoted({ sm8, onOpenPaper }: { sm8: Sm8Quote | null; onOp
   );
   return (
     <section className="qc-rs" aria-label="Already quoted">
-      <h2 className="hd-ls-grp">Already quoted</h2>
+      <h2 className="qc-h">Already quoted</h2>
       {/* the row opens its PDF; a second PDF (a revised quote) follows as a row of its own */}
       {first?.url ? (
         <button type="button" className="qc-row" onClick={() => onOpenPaper?.(first)}>
@@ -219,6 +211,8 @@ export function AlreadyQuoted({ sm8, onOpenPaper }: { sm8: Sm8Quote | null; onOp
 }
 
 export function QuoteRail({
+  progress,
+  actions,
   confirm,
   confirmTitle,
   card,
@@ -228,6 +222,10 @@ export function QuoteRail({
   onOpenPaper,
   spentUsd,
 }: {
+  /** the quote's progress, small, at the rail's top */
+  progress: ReactNode;
+  /** the quote's buttons, under its card */
+  actions: ReactNode;
   /** what's To confirm, or Before you approve on the paper, when the
       conversation isn't there to hold it */
   confirm: ReactNode;
@@ -245,20 +243,22 @@ export function QuoteRail({
 }) {
   return (
     <aside className="qc-rail" aria-label="On this quote">
+      <div>{progress}</div>
       {confirm && (
         <section className="qc-rs" aria-label={confirmTitle}>
-          <h2 className="hd-ls-grp">{confirmTitle}</h2>
+          <h2 className="qc-h">{confirmTitle}</h2>
           {confirm}
         </section>
       )}
       {card ? (
         <section className="qc-rs" aria-label="The quote">
-          <h2 className="hd-ls-grp">The quote</h2>
+          <h2 className="qc-h">The quote</h2>
           {card}
         </section>
       ) : (
         building
       )}
+      {actions}
       {send}
       <AlreadyQuoted sm8={sm8} onOpenPaper={onOpenPaper} />
       {spentUsd != null && <p className="qc-spent">{`Tiff on this quote, ${fmtAud(Math.round(spentUsd * 100))}`}</p>}

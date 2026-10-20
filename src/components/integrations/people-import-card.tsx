@@ -438,7 +438,7 @@ export function PeopleImportCard({
                               setPick((p) => ({ ...p, [person.id]: e.target.value }))
                             }
                           >
-                            <option value="">They&apos;re already here as…</option>
+                            <option value="">Match to someone already here</option>
                             {linkable.map((s) => (
                               <option key={s.staffProfileId} value={s.staffProfileId}>
                                 {s.name}
@@ -495,7 +495,7 @@ export function PeopleImportCard({
             }
           >
             <Icon name="download" size={13} />
-            {busy ? "Importing…" : `Import ${selected.size} selected`}
+            {busy ? "Importing the staff" : `Import ${selected.size} selected`}
           </button>
         </div>
       )}

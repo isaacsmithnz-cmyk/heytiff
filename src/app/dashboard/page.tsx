@@ -1,27 +1,19 @@
-import { DashboardDesk } from "@/components/dashboard/home-desk";
-import { loadDashboard } from "@/lib/dashboard/page-data";
+import { HomeScreen } from "@/components/dashboard/home";
 import { NoteScopeScreen } from "@/components/notes/note-context";
+import { homeView } from "@/lib/dashboard/home-view";
+import { loadDashboard } from "@/lib/dashboard/page-data";
 import { redirectIfSetupPending } from "@/lib/org/setup-gate";
 import { redirectIfOnboardingPending } from "@/lib/staff/onboarding-gate";
 
-/* THE GREETING IS GONE, and with it the viewer's name, the daypart and the
-   date line. It said "Good morning, Isaac" at 56px — the largest type in the
-   app spent on the two facts the reader was surest of. The date and time moved
-   to the frame's clock, where every screen gets them; the page opens on the
-   day's work instead. `getViewerName` and `greetingFor` went with it. */
+/* HOME, v2 (docs/plans/layout-2026-10, the board v2-board-home): Tiff's
+   mark over her box, Today, and To do. Signing in lands here (decision 2).
 
-/* A TASK THE ADDRESS NAMES — `/dashboard?task=<id>`, the bell's door onto a
-   Done that didn't go to ServiceM8 (two-way phase 2, PR C) — opens Home on
-   the Tasks face with that task chosen. Only a task's id shape is passed
-   on; anything else opens Home as ever. A task no longer on the face (past
-   the last five done) opens the face with the first row chosen. */
-const TASK_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-export default async function DashboardHomePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}) {
+   The old Home, the desk, is at /dashboard/desk until its faces have their
+   v2 homes; Today's Calendar and To do's Open and Reply go there. It still
+   reads what the desk reads (loadDashboard), so Home costs what it cost
+   before; Today and To do are worked out from it on the server
+   (lib/dashboard/home-view), dated by the same day. */
+export default async function DashboardHomePage() {
   // A brand-new org's owner goes to first-run setup before an empty Home can
   // read as a broken product. Home only — sign-in lands here, and the gate's
   // header says why it is neither in the proxy nor the (synchronous) layout.
@@ -30,24 +22,8 @@ export default async function DashboardHomePage({
   // shape, same soft landing (lib/staff/onboarding-gate.ts).
   await redirectIfOnboardingPending();
 
-  const [data, search] = await Promise.all([loadDashboard(), searchParams]);
-  const task = search?.task;
-  const taskId = typeof task === "string" && TASK_ID.test(task) ? task : null;
-
-  /* Home is the universal case — nothing here is ABOUT a job, so the default
-     target stays none. The staff roster is whoever can be assigned tasks,
-     which the page already loaded; first names only, because that is what a
-     spoken "tell Dane…" contains.
-
-     NO JOBS. Home pushed the jobs a capture could be pinned to, for the
-     capture card's job picker; the picker went with the old capture UI
-     (2026-09-27), and the Tiff modal asks "Which job is this for?" from its
-     own read on the server, so Home no longer reads them.
-
-     ONE HOME. The new Home — the day, three tabs and the list — is
-     everyone's (2026-09-26). It was built behind a switch, HOME_DESK, that
-     gave it to the owner while the crew kept the old Home; the switch and
-     the old Home went together. */
+  const data = await loadDashboard();
+  const view = homeView(data);
   return (
     <>
       <NoteScopeScreen
@@ -55,7 +31,7 @@ export default async function DashboardHomePage({
           .map((s) => s.name.trim().split(/\s+/)[0])
           .filter((n) => n.length >= 2)}
       />
-      <DashboardDesk data={data} taskId={taskId} />
+      <HomeScreen today={view.today} todo={view.todo} />
     </>
   );
 }

@@ -159,9 +159,6 @@ export const QUIET_HOURS_RULE =
 export const QUIET_HOURS_PENALTY =
   "First time gets a warning. Do it again within 28 days and it's an offence.";
 
-export const RULE_OF_THUMB =
-  "Sit it on the ground behind the front of the building, 450 mm off every fence and a metre clear of the neighbour's bedroom. Keep it under 1.8 m if it's on the ground floor, and make sure it won't be heard over the fence. Miss any one of those and you need council approval.";
-
 export const SOURCE_NOTE =
   "NSW rules — Codes SEPP 2008 cl 2.6 (placement) and the Noise Control Regulation 2017 cl 45 (hours). Your council can add its own screening and noise conditions on top, so check with them before you commit.";
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useEffect, useRef, useState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Icon } from "@/components/shell/icon";
@@ -632,7 +633,7 @@ export function SendCard({
           {/* the print window stays, beside the file: some days a sheet of
               paper is what is wanted */}
           <button className="ds-tbbtn" onClick={() => void startPrint()} disabled={busy || nothing}>
-            {preparing ? "Preparing…" : "Print"}
+            {preparing ? "Preparing to print" : "Print"}
           </button>
           <button
             className="ds-tbbtn ds-act-go"
@@ -640,7 +641,7 @@ export function SendCard({
             disabled={busy || nothing}
           >
             <Icon name="download" size={14} />
-            {nothing ? "Tick something to send" : making ? "Making the PDF…" : "Download PDF"}
+            {nothing ? "Tick something to send" : making ? "Making the PDF" : "Download PDF"}
           </button>
         </>
       );
@@ -655,7 +656,7 @@ export function SendCard({
           {nothing
             ? "Tick something to send"
             : attach.kind === "busy"
-              ? "Attaching…"
+              ? "Attaching to the job"
               : jobRead?.lastAt || attach.kind === "done"
                 ? "Send a new copy"
                 : `Attach to job ${doc.jobLink?.jobNumber ?? ""}`.trim()}
@@ -669,7 +670,7 @@ export function SendCard({
           onClick={makeLink}
           disabled={link.kind === "busy" || nothing}
         >
-          {link.kind === "busy" ? "Working…" : nothing ? "Tick something to send" : "Create live link"}
+          {link.kind === "busy" ? "Creating the live link" : nothing ? "Tick something to send" : "Create live link"}
         </button>
       );
     const active = link;
@@ -955,7 +956,7 @@ export function SendCard({
 
           {dest === "link" && (
             <div className="ds-send-link">
-              {link.kind === "loading" && <span className="ds-act-s">Checking for a live link…</span>}
+              {link.kind === "loading" && <span className="ds-act-s">Checking for a live link</span>}
               {link.kind === "unavailable" && (
                 <span className="ds-act-s">
                   Sharing needs a signed-in session. Open the studio from your dashboard.
@@ -969,7 +970,7 @@ export function SendCard({
               )}
               {link.kind === "active" && (
                 <>
-                  <span className={`ds-share-url${link.expired ? " dead" : ""}`} title={link.url}>
+                  <span className={`ds-share-url${link.expired ? " dead" : ""}`}>
                     {link.url.replace(/^https?:\/\//, "")}
                   </span>
                   {link.expired ? (
@@ -994,7 +995,9 @@ export function SendCard({
 
           {dest === "job" && doc.jobLink && (
             <div className="ds-send-link">
-              <span className="ds-share-url">{pdfName}</span>
+              <span className="ds-share-url">
+                <Fade>{pdfName}</Fade>
+              </span>
               <span className="ds-share-meta">
                 {jobRead?.sm8 === "live"
                   ? `Goes on job ${doc.jobLink.jobNumber ?? ""}'s card here, then to ServiceM8.`
@@ -1088,7 +1091,7 @@ export function SendCard({
                 disabled={pnging || pngFloors.length === 0}
               >
                 {pnging
-                  ? "Drawing…"
+                  ? "Drawing the plans"
                   : `Plans as ${pngFloors.length === 1 ? "an image" : `${pngFloors.length} images`}`}
               </button>
               <button className="ds-send-lnk" onClick={onExportJson}>

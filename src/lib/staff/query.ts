@@ -486,6 +486,7 @@ function toStaffRow(
     name,
     nickname: p.preferred_name || undefined,
     email: ctx.email,
+    phone: typeof p.phone === "string" && p.phone.trim() ? p.phone.trim() : null,
     role: p.job_title || "—",
     employmentType: p.employment_type || "—",
     started: startedLabel(p.start_date),

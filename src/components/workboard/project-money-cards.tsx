@@ -29,9 +29,10 @@ import {
   setProjectDefectsEnd,
   setProjectHoursBudget,
   setProjectPromise,
-  spawnAgreementFromProject,
 } from "@/app/actions/workboard-projects";
 import { DateField } from "@/components/ui/date-field";
+import { useRecords } from "@/components/records/records-context";
+import { AgreementForm } from "./board/agreement-form";
 
 /* The money, scope and dates cards — step 4 of the projects overhaul.
 
@@ -197,20 +198,12 @@ export function MoneyCard({
             <button
               className={"wb2-chip" + (c.status === "paid" ? " ok" : " warn")}
               disabled={busy}
-              title={c.status === "paid" ? "Mark it back to awaiting" : "Mark it paid"}
               onClick={() => run(() => setClaimPaid(c.id, c.status !== "paid"))}
             >
               {c.status === "paid" ? "Paid" : "Awaiting payment"}
             </button>
           ) : (
-            <span
-              className={"wb2-chip" + (c.status === "paid" ? " ok" : " warn")}
-              title={
-                c.source === "manual"
-                  ? undefined
-                  : "Follows ServiceM8 — change it there and it follows here"
-              }
-            >
+            <span className={"wb2-chip" + (c.status === "paid" ? " ok" : " warn")}>
               {c.status === "paid" ? "Paid" : "Awaiting payment"}
             </span>
           )}
@@ -428,7 +421,6 @@ export function VariationsCard({
               <button
                 className="pbtn ghost"
                 disabled={busy}
-                title="Raise its claim row — it becomes part of axis one"
                 onClick={() =>
                   run(() =>
                     addClaim(project.id, {
@@ -446,7 +438,6 @@ export function VariationsCard({
               <button
                 className="pbtn ghost"
                 disabled={busy}
-                title="Back to pending — clears the decision"
                 onClick={() => run(() => decideVariation(v.id, "pending"))}
               >
                 Reopen
@@ -641,7 +632,7 @@ export function ScopeCard({
       {manage && (
         <AddScopeRow
           busy={busy}
-          placeholder={kind === "inclusion" ? "Supply & install…" : "Electrical mains upgrade…"}
+          placeholder={kind === "inclusion" ? "Supply & install" : "Electrical mains upgrade"}
           onAdd={(label) => run(() => addScopeItem(project.id, kind, label))}
         />
       )}
@@ -952,16 +943,13 @@ export function FlywheelCard({
   project,
   manage,
   busy,
-  run,
 }: {
   project: ProjectDetail;
   manage: boolean;
   busy: boolean;
-  run: Run;
 }) {
+  const records = useRecords();
   const [open, setOpen] = useState(false);
-  const [interval, setInterval] = useState("6");
-  const [firstDue, setFirstDue] = useState("");
 
   const atHandover = project.stage === "Handover" || project.stage === "Complete";
 
@@ -1002,44 +990,20 @@ export function FlywheelCard({
           </button>
         )}
       </div>
+      {/* New agreement, filled in from the project; Create is today's
+          handover action, which carries the equipment and serials over */}
       {open && (
-        <div className="wb2-dayrow">
-          <label className="wb2-fl">
-            Every
-            <select className="wb-select" value={interval} onChange={(e) => setInterval(e.target.value)}>
-              <option value="3">3 months</option>
-              <option value="6">6 months</option>
-              <option value="12">12 months</option>
-            </select>
-          </label>
-          <label className="wb2-fl">
-            First service
-            <DateField
-              className="wb2-fi"
-              aria-label="First service due"
-              value={firstDue || null}
-              onChange={(iso) => setFirstDue(iso ?? "")}
-            />
-          </label>
-          <button
-            className="pbtn"
-            disabled={busy || !firstDue}
-            onClick={() => {
-              setOpen(false);
-              run(() =>
-                spawnAgreementFromProject(project.id, {
-                  intervalMonths: parseInt(interval, 10),
-                  anchorDate: firstDue,
-                })
-              );
-            }}
-          >
-            Create the agreement
-          </button>
-          <button className="pbtn ghost" disabled={busy} onClick={() => setOpen(false)}>
-            Not now
-          </button>
-        </div>
+        <AgreementForm
+          project={{
+            id: project.id,
+            name: project.name,
+            clientName: project.clientName,
+            siteLabel: project.siteLabel,
+            siteAddress: project.siteAddress,
+          }}
+          onOpenAgreement={(id) => records.open({ kind: "agreement", id })}
+          onClose={() => setOpen(false)}
+        />
       )}
     </div>
   );

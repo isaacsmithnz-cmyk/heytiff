@@ -8,7 +8,7 @@ jest.mock("@/lib/supabase-server", () => ({
 }));
 jest.mock("@/lib/integrations/links", () => ({ sm8StaffLinkMap: async () => new Map() }));
 
-import { hasStandingSignon, libraryApproval, licencesFor, listJobSwms, loadSwmsDocument, loadSwmsJob, nearbyHospital, ownerName, pendingSignons, raisedIssues } from "../query";
+import { hasStandingSignon, libraryApproval, licencesFor, listJobSwms, listOrgSwms, loadSwmsDocument, loadSwmsJob, nearbyHospital, ownerName, pendingSignons, raisedIssues } from "../query";
 
 const ORG = "org-1";
 const person = (id: string, version_id: string, who: { staff?: string; outside?: string }) => ({
@@ -145,6 +145,25 @@ describe("raisedIssues", () => {
     /* and the document still says what was raised, and who sorted it */
     const troy = (await loadSwmsDocument(ORG, "v2"))?.people.find((p) => p.name === "Troy Porter");
     expect(troy?.signon).toMatchObject({ issue: "No anchor on the rear ridge", issueCleared: { by: "Troy Porter", at: "2026-09-16T08:05:00.000Z" } });
+  });
+});
+
+/* Documents (v2): every SWMS in the workspace, read by the job card's engine */
+describe("listOrgSwms", () => {
+  it("summarises each SWMS as the job card does, newest first, with its job and its kind", async () => {
+    Object.assign(mockDb.tables.swms_versions.find((v) => v.id === "w1")!, { kind: "service" });
+    const all = await listOrgSwms(ORG);
+    expect(all.map((s) => [s.swmsId, s.jobUuid, s.kind])).toEqual([
+      ["s-2", "job-2", "service"],
+      ["s-1", "job-1", "install"],
+    ]);
+    const [card] = await listJobSwms(ORG, "job-1");
+    expect(all[1]).toEqual({ ...card, jobUuid: "job-1", kind: "install" });
+  });
+
+  it("offers nobody a sign-on, and reads nothing of another workspace", async () => {
+    expect((await listOrgSwms(ORG)).every((s) => !s.viewerCanSign)).toBe(true);
+    expect(await listOrgSwms("org-2")).toEqual([]);
   });
 });
 

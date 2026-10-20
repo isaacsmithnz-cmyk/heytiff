@@ -53,7 +53,7 @@ async function renderSection(
       load={async () => ({ holidays: [], orgState: "WA", today: TODAY, ...over })}
     />,
   );
-  // the "Reading your holiday calendar…" placeholder is gone once data lands
+  // the "Reading your holiday calendar" wait is gone once data lands
   await screen.findByLabelText("Holiday name");
   return result;
 }

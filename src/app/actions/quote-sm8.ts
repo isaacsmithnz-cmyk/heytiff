@@ -20,7 +20,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { sm8QuotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { sm8PressFromSession } from "@/lib/integrations/sm8-press";
 import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
-import { offersSend } from "@/lib/integrations/sm8-write-plan";
+import { offersSend, sendRefusal } from "@/lib/integrations/sm8-write-plan";
 import { settlePressedWrites } from "@/lib/integrations/sm8-drain";
 import { syncSm8AfterSend } from "@/lib/integrations/sm8-freshness";
 import { sm8AccessResult } from "@/lib/integrations/sm8-store";
@@ -51,6 +51,17 @@ async function gate(): Promise<{ orgId: string } | { error: string }> {
   }
 }
 
+/** Why a quote can't go now, said before anything is queued: the owner's
+    switch, a pause, a reconnect, or ServiceM8's permission to change a
+    job's lines (3414, 21 October: a grant without manage_job_materials
+    queued "0 sent, 2 still going" for good). A quote on its own trial run
+    goes nowhere, so it needs no permission. */
+async function quoteHeld(orgId: string): Promise<string | null> {
+  const held = sendRefusal(await readSm8WriteState(orgId), "quote");
+  if (held === QUOTE_WORDS.press.scope && (await quotesOnTrial(orgId))) return null;
+  return held;
+}
+
 /** Whether the card offers the send, and whether a press would only be a
     trial run. */
 export async function quoteSendOffered(): Promise<{ offered: boolean; trial: boolean }> {
@@ -77,6 +88,9 @@ export async function sendQuoteToSm8(
   const g = await gate();
   if ("error" in g) return { ok: false, error: g.error };
   if (!UUID.test(jobUuid) || !UUID.test(pressId)) return { ok: false, error: QUOTE_WORDS.press.unqueued };
+
+  const held = await quoteHeld(g.orgId);
+  if (held) return { ok: false, error: held };
 
   const sendAs: SendAs = as === "quote" ? "quote" : "accepted";
   const view = await readSm8SendView(g.orgId, jobUuid, sendAs);
@@ -146,6 +160,8 @@ export async function sendVariationToSm8(jobUuid: string, option: number): Promi
   const g = await gate();
   if ("error" in g) return { ok: false, error: g.error };
   if (!UUID.test(jobUuid) || !Number.isInteger(option) || option < 1 || option > 19) return { ok: false, error: QUOTE_WORDS.press.unqueued };
+  const held = await quoteHeld(g.orgId);
+  if (held) return { ok: false, error: held };
 
   const view = await readVariationSendView(g.orgId, jobUuid, option);
   if (!view.plan.ok || !view.variation) return { ok: false, error: view.plan.ok ? "That option isn't a variation." : view.plan.why };

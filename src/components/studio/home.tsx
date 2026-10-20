@@ -16,6 +16,7 @@ import { Fade } from "@/components/parts/fade";
 import { TextInput } from "@/components/parts/field";
 import { Empty } from "@/components/parts/states";
 import { Icon } from "@/components/shell/icon";
+import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { openDesignJson, DesignDocumentError } from "@/lib/studio/migrations";
 import type { DesignDocument, Floor, PlanImport } from "@/lib/studio/document";
 import type { JobPrefill } from "@/lib/studio/job-link";
@@ -218,16 +219,12 @@ export function DesignHome({
           )}
 
           {loading ? (
-            <div className="ds2-rows" aria-busy="true">
+            /* Tiff's mark, not rows shaped like a guess (rule 41) */
+            <div className="ds2-hold pg-hold" aria-busy="true">
               <span className="ds2-sr" role="status">
                 Loading your designs
               </span>
-              {[0, 1, 2, 3].map((i) => (
-                <div key={i} className="ds2-row ds2-row--skel" aria-hidden="true">
-                  <span className="ds2-thumb ds2-skel" />
-                  <span className="ds2-skel ds2-skel--line" />
-                </div>
-              ))}
+              <TiffGlyph size={48} alive working />
             </div>
           ) : visible.length > 0 ? (
             <>

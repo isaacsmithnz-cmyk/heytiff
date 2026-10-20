@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useContext, useEffect, useMemo, useState, useTransition, type DragEvent, type MouseEvent } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState, useTransition, type DragEvent, type MouseEvent } from "react";
 import { Button, IconButton } from "@/components/parts/button";
 import { Tray } from "@/components/parts/tabs";
 import { TextInput } from "@/components/parts/field";
@@ -15,6 +15,8 @@ import { WindowsContext } from "@/components/records/records-context";
 import { jobPageHref } from "@/lib/shell/links";
 import { mintPressId } from "@/lib/workboard/press-id";
 import { bookJobIn, readBookInContext, takeBackBooking } from "@/app/actions/booking-sm8";
+import { loadSchedulePanel } from "@/app/actions/schedule-panel";
+import { Loading } from "@/components/parts/states";
 import { BOOKING_LENGTHS_MIN } from "@/lib/integrations/sm8-booking-plan";
 import { thrownWords } from "@/lib/stale-deploy";
 import type { PanelJob, SchedulePage } from "@/lib/schedule/schedule-page-query";
@@ -70,6 +72,27 @@ function weekLabel(days: readonly string[]): string {
 const jobName = (j: Pick<PanelJob, "number" | "client">) => (j.number ? `${j.number} ${j.client}` : j.client);
 const blockName = (b: DayBlock) => [b.number, b.client].filter(Boolean).join(" ") || "A job";
 
+/* THE JOBS PANEL IS READ ONCE AND KEPT (Isaac, 20 October: switching was
+   slow, and three seconds of it was this list, which no switch changes). The
+   board remounts with each day or week, so the jobs live here, outside it:
+   shown at once from the last read, and read again behind. */
+let panelKept: PanelJob[] | null = null;
+
+function usePanelJobs(): { jobs: PanelJob[] | null; reload: () => void } {
+  const [jobs, setJobs] = useState<PanelJob[] | null>(panelKept);
+  const reload = useCallback(() => {
+    void loadSchedulePanel()
+      .then((r) => {
+        if (!r.ok) return;
+        panelKept = r.jobs;
+        setJobs(r.jobs);
+      })
+      .catch(() => {});
+  }, []);
+  useEffect(() => reload(), [reload]);
+  return { jobs, reload };
+}
+
 type Held = { job: PanelJob; minutes: number; days: number };
 type Slot = { day: string; start: number; minutes: number };
 
@@ -98,6 +121,7 @@ const DAY_COUNTS = Array.from({ length: MAX_DAYS }, (_, i) => ({ value: String(i
 
 export function ScheduleBoard({ data }: { data: SchedulePage }) {
   const router = useRouter();
+  const panel = usePanelJobs();
   const host = useContext(WindowsContext);
   /* the shell's own toast, as the forms raise theirs (rule 37) */
   const toast = ({ text, undo }: { text: string; undo?: () => void }) => host?.toast(text, undo);
@@ -208,12 +232,16 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
       toast({
         text: `${row.name} booked on ${jobName(job)}, ${when}`,
         undo: () => {
-          void Promise.all(r.rowIds.map((rowId) => takeBackBooking({ jobUuid: job.uuid, rowId }))).then(() => router.refresh());
+          void Promise.all(r.rowIds.map((rowId) => takeBackBooking({ jobUuid: job.uuid, rowId }))).then(() => {
+            router.refresh();
+            panel.reload();
+          });
         },
       });
       setHeld(null);
       setAt(null);
       router.refresh();
+      panel.reload();
     });
   };
 
@@ -323,7 +351,7 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
             </div>
           ) : null}
         </div>
-        {weeks ? null : <JobsPanel jobs={data.jobs} canBook={data.canBook} held={held} week={week} pick={pick} setHeld={setHeld} />}
+        {weeks ? null : <JobsPanel jobs={panel.jobs} canBook={data.canBook} held={held} week={week} pick={pick} setHeld={setHeld} />}
       </div>
       {daysOff ? <RegularDaysOffForm staffProfileId={daysOff.profile} name={daysOff.name} today={data.today} onClose={() => setDaysOff(null)} /> : null}
     </div>
@@ -615,7 +643,8 @@ function JobsPanel({
   pick,
   setHeld,
 }: {
-  jobs: PanelJob[];
+  /** null until the first read lands */
+  jobs: PanelJob[] | null;
   canBook: boolean;
   held: Held | null;
   week: boolean;
@@ -626,7 +655,8 @@ function JobsPanel({
   const [tab, setTab] = useState<Tab>("book");
   const [q, setQ] = useState("");
 
-  const byUuid = useMemo(() => new Map(jobs.map((j) => [j.uuid.toLowerCase(), j])), [jobs]);
+  const all = useMemo(() => jobs ?? [], [jobs]);
+  const byUuid = useMemo(() => new Map(all.map((j) => [j.uuid.toLowerCase(), j])), [all]);
   const list = useMemo(() => {
     const words = q.trim().toLowerCase();
     let base: PanelJob[];
@@ -635,9 +665,9 @@ function JobsPanel({
         .filter((r) => r.ref.kind === "job")
         .map((r) => byUuid.get(r.ref.id.toLowerCase()))
         .filter((j): j is PanelJob => !!j);
-    } else base = tab === "book" ? jobs.filter((j) => j.toBook) : jobs;
+    } else base = tab === "book" ? all.filter((j) => j.toBook) : all;
     return (words ? base.filter((j) => j.words.toLowerCase().includes(words)) : base).slice(0, SHOWN);
-  }, [tab, q, jobs, host?.recent, byUuid]);
+  }, [tab, q, all, host?.recent, byUuid]);
 
   return (
     <aside className="sc-panel" aria-label="Jobs">
@@ -670,7 +700,9 @@ function JobsPanel({
         </div>
       ) : null}
       {!canBook ? <p className="sc-off">Booking from here is off for you.</p> : null}
-      {list.length === 0 ? (
+      {jobs === null ? (
+        <Loading what="Reading the jobs" shape="rows" count={6} />
+      ) : list.length === 0 ? (
         <p className="sc-off">{tab === "recent" ? "No jobs opened lately." : q ? "No job matches that." : "Nothing to book."}</p>
       ) : (
         <ul className="sc-jobs">

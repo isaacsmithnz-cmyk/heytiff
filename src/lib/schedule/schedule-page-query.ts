@@ -1,7 +1,7 @@
 /* The Schedule page's read (v2, step 5): the days on the board, from the
    same day read the Workboard's Schedule tab makes (loadScheduleDay, with
-   our own bookings laid over the mirror and each day's time off), and the
-   jobs the Jobs panel offers, from the Jobs list's own rows. NO SESSION
+   our own bookings laid over the mirror and each day's time off). The jobs
+   the Jobs panel offers are read on their own (`schedulePanelJobs`). NO SESSION
    CHECK of its own beyond the org: the page gates on `workboard` first. */
 
 import { auth0 } from "@/lib/auth0";
@@ -41,7 +41,6 @@ export type SchedulePage = {
   today: string;
   days: string[];
   payloads: SchedulePayload[];
-  jobs: PanelJob[];
   /** Book in is offered here and the viewer may press it */
   canBook: boolean;
   /** the 4 weeks view: each weekday scored against the crew's hours */
@@ -94,14 +93,13 @@ export async function loadSchedulePage(params: Record<string, string | string[] 
       staffNames: new Map(windows.flatMap((w) => w.staffNames)),
     });
     const shown = new Set(days);
-    return { view, day, today, days, payloads: [], jobs: [], canBook: false, capacity: all.filter((d) => shown.has(d.dayISO)), profiles: {}, canTeam: false };
+    return { view, day, today, days, payloads: [], canBook: false, capacity: all.filter((d) => shown.has(d.dayISO)), profiles: {}, canTeam: false };
   }
 
   const booking = sm8BookingsAllowed();
-  const [state, mayPress, list, rules, links, canTeam] = await Promise.all([
+  const [state, mayPress, rules, links, canTeam] = await Promise.all([
     booking ? readSm8WriteState(orgId) : Promise.resolve(null),
     booking ? mayPressBookings() : Promise.resolve(false),
-    loadJobsList(),
     readRegularDaysOff(orgId),
     sm8StaffByProfile(orgId),
     can("team"),
@@ -112,7 +110,27 @@ export async function loadSchedulePage(params: Record<string, string | string[] 
   ).map((p) => ({ ...p, away: withRegular(p.away ?? [], awayOnDay(rules, p.dayISO, links)) }));
   const profiles = Object.fromEntries([...links.entries()].map(([profile, sm8]) => [sm8.toLowerCase(), profile]));
 
-  const jobs: PanelJob[] = (list?.rows ?? [])
+  return {
+    view,
+    day,
+    today,
+    days,
+    payloads,
+    canBook: !!state && offersSend(state, "booking") && mayPress,
+    capacity: [],
+    profiles,
+    canTeam,
+  };
+}
+
+/** THE JOBS PANEL, READ ON ITS OWN (Isaac, 20 October: "The week switcher is
+    very slow"). It is the Jobs list's whole read, about three seconds, and
+    it doesn't change with the day or week on the board, so the board reads
+    its days and the panel reads this once, kept in the browser between
+    switches and read again behind them (app/actions/schedule-panel). */
+export async function schedulePanelJobs(): Promise<PanelJob[]> {
+  const list = await loadJobsList();
+  return (list?.rows ?? [])
     .filter((r) => r.key.startsWith(SM8))
     .map((r) => ({
       uuid: r.key.slice(SM8.length),
@@ -126,17 +144,4 @@ export async function loadSchedulePage(params: Record<string, string | string[] 
       toBook: r.views.includes("to-book"),
       words: r.words,
     }));
-
-  return {
-    view,
-    day,
-    today,
-    days,
-    payloads,
-    jobs,
-    canBook: !!state && offersSend(state, "booking") && mayPress,
-    capacity: [],
-    profiles,
-    canTeam,
-  };
 }

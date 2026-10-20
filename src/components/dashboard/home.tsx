@@ -11,8 +11,8 @@ import { Empty } from "@/components/parts/states";
 import { StateWord } from "@/components/parts/state";
 import { Tick } from "@/components/parts/tick";
 import type { TodayView } from "@/lib/dashboard/home-today";
-import type { TodoRow } from "@/lib/dashboard/todo";
-import { HomeTodo, useTaskTick } from "./home-todo";
+import { columnOf, type TodoRow } from "@/lib/dashboard/todo";
+import { ColumnHead, HomeActivity, HomeTodo, TodoList, useTaskTick } from "./home-todo";
 
 /* HOME, v2 (the board v2-board-home; docs/design.md rules 8, 13, 22, 26,
    27 and 39; decisions 25 and 28). Three things, in one column:
@@ -26,66 +26,67 @@ import { HomeTodo, useTaskTick } from "./home-todo";
    October: "the recording is done in the box itself, no pop-up modal").
    Send opens her on the words.
 
-   TODAY: your own visits and timed tasks, one row each, with the Schedule
-   a link away.
-
-   TO DO: everything waiting on you, the bell's lists among it, with Show
-   all for the rest (./home-todo, lib/dashboard/todo).
+   THREE COLUMNS UNDER IT (Isaac, 20 October). TODAY: your own visits and
+   timed tasks, then whatever is due today or late, with the Schedule a link
+   away. TO DO: what waits on you with no day, with Show all for the rest.
+   ACTIVITY: what comes in, from ServiceM8 and the team, approvals among it
+   (./home-todo, lib/dashboard/todo's `col`).
 
    The old Home (Your day, Diary, Tasks, the Calendar and its list) stands
    at /dashboard/desk until Conversations and Schedule take its faces in. */
 
-function HomeToday({ view }: { view: TodayView }) {
+function HomeToday({ view, due }: { view: TodayView; due: readonly TodoRow[] }) {
   const { gone, tick } = useTaskTick();
   const rows = view.rows.filter((r) => !gone.has(r.key));
   return (
     <section className="hm-sec" aria-labelledby="hm-today">
-      <div className="hm-head">
-        <h2 className="hm-h" id="hm-today">
-          Today
-        </h2>
-        <span className="hm-sum">{view.summary}</span>
-        {/* the v2 Schedule; the old desk's Calendar and the Workboard are no
-            door from Home (Isaac, 20 October) */}
+      {/* no summary beside the title (Isaac, 20 October: "not needed"); the
+          v2 Schedule a link away, never the old desk or the Workboard */}
+      <ColumnHead id="hm-today" name="Today" icon="calendar" hue="purple">
         {view.schedule && (
           <span className="hm-headlinks">
             <LinkButton href="/dashboard/schedule">Schedule</LinkButton>
           </span>
         )}
-      </div>
-      {rows.length === 0 ? (
+      </ColumnHead>
+      {rows.length === 0 && due.length === 0 ? (
         <Empty
           what={view.empty.what}
           line={view.empty.line ?? undefined}
           action={view.empty.action ? <Button href={view.empty.action.href}>{view.empty.action.label}</Button> : null}
         />
       ) : (
-        <RowList label="Today">
-          {rows.map((row) => (
-            <Row
-              key={row.key}
-              lead={
-                <span className="hm-lead">
-                  <span className="hm-time">{row.time}</span>
-                  {row.taskId && (
-                    <Tick
-                      className="hm-tick"
-                      label={<span className="sr-only">Done, {row.name}</span>}
-                      onChange={(on) => {
-                        if (on && row.taskId) void tick(row.key, row.taskId);
-                      }}
-                    />
-                  )}
-                </span>
-              }
-              dot={row.hue ?? undefined}
-              name={row.name}
-              line={row.line}
-              href={row.href ?? undefined}
-              end={row.state ? <StateWord tone={row.state.tone}>{row.state.word}</StateWord> : undefined}
-            />
-          ))}
-        </RowList>
+        <>
+          {rows.length > 0 && (
+            <RowList label="Today">
+              {rows.map((row) => (
+                <Row
+                  key={row.key}
+                  lead={
+                    <span className="hm-lead">
+                      <span className="hm-time">{row.time}</span>
+                      {row.taskId && (
+                        <Tick
+                          className="hm-tick"
+                          label={<span className="sr-only">Done, {row.name}</span>}
+                          onChange={(on) => {
+                            if (on && row.taskId) void tick(row.key, row.taskId);
+                          }}
+                        />
+                      )}
+                    </span>
+                  }
+                  dot={row.hue ?? undefined}
+                  name={row.name}
+                  line={row.line}
+                  href={row.href ?? undefined}
+                  end={row.state ? <StateWord tone={row.state.tone}>{row.state.word}</StateWord> : undefined}
+                />
+              ))}
+            </RowList>
+          )}
+          <TodoList rows={due} label="Due today" />
+        </>
       )}
     </section>
   );
@@ -140,8 +141,13 @@ export function HomeScreen({ today, todo, voice = false }: { today: TodayView; t
           <TiffGlyph size={96} alive working={tiff.isOpen} label="Tiff" />
           <HomeBox voice={voice} />
         </div>
-        <HomeToday view={today} />
-        <HomeTodo rows={todo} />
+        {/* three columns (Isaac, 20 October): Today, anything timed or due;
+            To do, what waits on you; Activity, what comes in */}
+        <div className="hm-cols">
+          <HomeToday view={today} due={todo.filter((r) => columnOf(r) === "today")} />
+          <HomeTodo rows={todo.filter((r) => columnOf(r) === "todo")} />
+          <HomeActivity rows={todo.filter((r) => columnOf(r) === "activity")} />
+        </div>
       </div>
     </div>
   );

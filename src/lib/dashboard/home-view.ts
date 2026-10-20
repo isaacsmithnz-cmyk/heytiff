@@ -51,6 +51,7 @@ export function homeView(data: DashboardData): HomeView {
     today: todayView(data.rail),
     todo: todoRows({
       ...data.todo,
+      today: data.today,
       chips: [...data.chips.self, ...data.chips.team],
       list: homeList(data),
     }),

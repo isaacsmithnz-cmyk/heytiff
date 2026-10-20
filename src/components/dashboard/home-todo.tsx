@@ -12,6 +12,7 @@ import { Row, RowList } from "@/components/parts/row";
 import { Empty } from "@/components/parts/states";
 import { stateTone } from "@/components/parts/state";
 import { Tick } from "@/components/parts/tick";
+import { Icon } from "@/components/shell/icon";
 import { VisitForm, type VisitJob } from "@/components/making/visit-form";
 import { BELL_REFRESH_EVENT } from "@/lib/dashboard/chips";
 import { SNOOZE, SNOOZE_LABEL, type Snooze } from "@/lib/dashboard/reminders";
@@ -114,23 +115,15 @@ function LaterButton({ name, onPick }: { name: string; onPick: (s: Snooze) => vo
   );
 }
 
-export function HomeTodo({
-  rows,
-  all = false,
-  headingLevel = 2,
-}: {
-  rows: readonly TodoRow[];
-  /** The whole list (Show all's page); Home shows the first few. */
-  all?: boolean;
-  headingLevel?: 1 | 2;
-}) {
+/** Rows of To do's kind, in any of Home's columns: a tick for a task, the
+    dot, the name, the line, and the one button that does the thing. */
+export function TodoList({ rows, label, cap }: { rows: readonly TodoRow[]; label: string; cap?: number }) {
   const after = useAfter();
   const { gone, hide, tick } = useTaskTick();
   /* a won job's Book in: the Visit form over Home, the job filled in */
   const [booking, setBooking] = useState<VisitJob | null>(null);
   const here = rows.filter((r) => !gone.has(r.key));
-  const shown = all ? here : here.slice(0, TODO_HOME_CAP);
-  const H = headingLevel === 1 ? "h1" : "h2";
+  const shown = cap != null ? here.slice(0, cap) : here;
 
   const later = (row: TodoRow, taskId: string, s: Snooze) => {
     hide(row.key);
@@ -167,46 +160,32 @@ export function HomeTodo({
     );
   };
 
+  if (shown.length === 0) return null;
   return (
-    <section className="hm-sec" aria-labelledby="hm-todo">
-      <div className="hm-head">
-        <H className={headingLevel === 1 ? "hm-title" : "hm-h"} id="hm-todo">
-          To do
-        </H>
-        <span className="hm-sum">{here.length}</span>
-        {!all && here.length > shown.length && (
-          <LinkButton href="/dashboard/todo" className="hm-headlink">
-            Show all
-          </LinkButton>
-        )}
-      </div>
-      {here.length === 0 ? (
-        <Empty what="Nothing is waiting on you" action={null} />
-      ) : (
-        <RowList label="To do">
-          {shown.map((row) => (
-            <Row
-              key={row.key}
-              lead={
-                row.tick ? (
-                  <Tick
-                    className="hm-tick"
-                    label={<span className="sr-only">Done, {row.name}</span>}
-                    onChange={(on) => {
-                      if (on && row.tick) void tick(row.key, row.tick);
-                    }}
-                  />
-                ) : undefined
-              }
-              dot={stateTone(row.tone)}
-              name={row.name}
-              line={row.lineTone ? <span className={`hm-line hm-line--${row.tone}`}>{row.line}</span> : row.line}
-              href={row.act.kind === "link" || row.act.kind === "bookIn" ? row.act.href : row.tick ? deskTaskHref(row.tick) : undefined}
-              end={end(row)}
-            />
-          ))}
-        </RowList>
-      )}
+    <>
+      <RowList label={label}>
+        {shown.map((row) => (
+          <Row
+            key={row.key}
+            lead={
+              row.tick ? (
+                <Tick
+                  className="hm-tick"
+                  label={<span className="sr-only">Done, {row.name}</span>}
+                  onChange={(on) => {
+                    if (on && row.tick) void tick(row.key, row.tick);
+                  }}
+                />
+              ) : undefined
+            }
+            dot={stateTone(row.tone)}
+            name={row.name}
+            line={row.lineTone ? <span className={`hm-line hm-line--${row.tone}`}>{row.line}</span> : row.line}
+            href={row.act.kind === "link" || row.act.kind === "bookIn" ? row.act.href : row.tick ? deskTaskHref(row.tick) : undefined}
+            end={end(row)}
+          />
+        ))}
+      </RowList>
       {booking && (
         <VisitForm
           job={booking}
@@ -216,6 +195,77 @@ export function HomeTodo({
           onUndone={after}
         />
       )}
+    </>
+  );
+}
+
+/** A column's head on Home: a solid block of the column's colour with its
+    glyph, ink on it (docs/design.md, text on a solid block), then the
+    title at 20, so the three stand apart from the page (Isaac, 20 October:
+    "it all blends in"). No count beside it. */
+export function ColumnHead({
+  id,
+  name,
+  icon,
+  hue,
+  level = 2,
+  children,
+}: {
+  id: string;
+  name: string;
+  icon: string;
+  hue: "purple" | "yellow" | "green";
+  level?: 1 | 2;
+  children?: React.ReactNode;
+}) {
+  const H = level === 1 ? "h1" : "h2";
+  return (
+    <div className="hm-head">
+      <span className={`hm-blk hm-blk--${hue}`} aria-hidden="true">
+        <Icon name={icon} size={18} />
+      </span>
+      <H className={level === 1 ? "hm-title" : "hm-h"} id={id}>
+        {name}
+      </H>
+      {children}
+    </div>
+  );
+}
+
+export function HomeTodo({
+  rows,
+  all = false,
+  headingLevel = 2,
+}: {
+  rows: readonly TodoRow[];
+  /** The whole list (Show all's page); Home shows the first few. */
+  all?: boolean;
+  headingLevel?: 1 | 2;
+}) {
+  return (
+    <section className="hm-sec" aria-labelledby="hm-todo">
+      <ColumnHead id="hm-todo" name="To do" icon="check" hue="yellow" level={headingLevel}>
+        {!all && rows.length > TODO_HOME_CAP && (
+          <LinkButton href="/dashboard/todo" className="hm-headlink">
+            Show all
+          </LinkButton>
+        )}
+      </ColumnHead>
+      {rows.length === 0 ? (
+        <Empty what="Nothing is waiting on you" action={null} />
+      ) : (
+        <TodoList rows={rows} label="To do" cap={all ? undefined : TODO_HOME_CAP} />
+      )}
+    </section>
+  );
+}
+
+/** Activity: what comes in, from ServiceM8 and the team, approvals among it. */
+export function HomeActivity({ rows }: { rows: readonly TodoRow[] }) {
+  return (
+    <section className="hm-sec" aria-labelledby="hm-activity">
+      <ColumnHead id="hm-activity" name="Activity" icon="activity" hue="green" />
+      {rows.length === 0 ? <Empty what="Nothing new" action={null} /> : <TodoList rows={rows} label="Activity" />}
     </section>
   );
 }

@@ -11871,17 +11871,25 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    buttons the Button part; what is here is the column, the two heads, the
    box in v2's dress, a row's time and tick, a line in its state's colour,
    and the count beside Home in the sidebar (decision 25). */
-.fg .wrap.hm { max-width:720px; padding:24px 32px 96px; display:flex; flex-direction:column; gap:32px; }
-.fg .hm-ask { display:flex; flex-direction:column; align-items:center; gap:16px; }
+.fg .wrap.hm { max-width:none; padding:24px 32px 48px; display:flex; flex-direction:column; gap:32px; }
+/* the three columns under Tiff's box (Isaac, 20 October) */
+.fg .hm-cols { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:32px; align-items:start; }
+/* a column's head: a solid block of its colour, its glyph in ink on it */
+.fg .hm-blk { display:inline-flex; align-items:center; justify-content:center; flex:none; width:32px; height:32px; border-radius:var(--r-button); color:var(--ink); }
+.fg .hm-blk--purple { background:var(--purple); }
+.fg .hm-blk--yellow { background:var(--yellow); }
+.fg .hm-blk--green { background:var(--green); }
+.fg .hm-ask { display:flex; flex-direction:column; align-items:center; gap:16px; width:100%; max-width:720px; margin:0 auto; }
 /* Home's box is Conversations' box, the column's full width */
 .fg .hm-ask .cv-box { align-self:stretch; }
 /* Home's own hold: the mark, the box and the two heads, where they land */
 .fg .hm-pk-mark { width:96px; height:96px; border-radius:50%; }
 .fg .hm-pk-box { align-self:stretch; height:calc(16px + 24px + 12px + 36px + 12px + 2px); border-radius:var(--r-card); }
 .fg .hm-pk-h { width:96px; height:24px; border-radius:var(--r-control); }
+.fg .hm-pk-blk { width:32px; height:32px; border-radius:var(--r-button); }
 .fg .hm-sec { display:flex; flex-direction:column; min-width:0; }
-.fg .hm-head { display:flex; align-items:baseline; gap:12px; padding-bottom:12px; border-bottom:1px solid var(--line); }
-.fg .hm-h { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .hm-head { display:flex; align-items:center; gap:12px; padding-bottom:12px; border-bottom:1px solid var(--line); }
+.fg .hm-h { margin:0; font-size:20px; line-height:28px; font-weight:600; color:var(--ink); }
 .fg .hm-title { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
 .fg .hm-sum { min-width:0; font-size:14px; line-height:20px; color:var(--q); font-variant-numeric:tabular-nums; }
 .fg .hm-headlinks { margin-left:auto; display:flex; gap:16px; font-size:14px; line-height:20px; }

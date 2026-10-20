@@ -182,10 +182,10 @@ describe("the box", () => {
 });
 
 describe("Today", () => {
-  it("(F) says how much, and links to the v2 Schedule, never the old desk or Workboard", () => {
+  it("(F) links to the v2 Schedule, never the old desk or Workboard, with no summary beside it", () => {
     draw();
     const s = section("Today");
-    expect(within(s).getByText("2 jobs and a task")).toBeInTheDocument();
+    expect(within(s).queryByText("2 jobs and a task")).toBeNull();
     expect(within(s).getByRole("link", { name: "Schedule" })).toHaveAttribute("href", "/dashboard/schedule");
     expect(within(s).queryByRole("link", { name: "Calendar" })).toBeNull();
   });
@@ -227,11 +227,38 @@ describe("Today", () => {
   });
 });
 
+describe("the three columns", () => {
+  it("(F) puts what is due today under Today, what comes in under Activity, and the rest under To do", () => {
+    draw(today(), [
+      link("chip:rego", "Hilux, XQG41B", "Renew", "/r", { col: "today", tone: "wrong" }),
+      link("timesheets", "Timesheets", "Review", "/dashboard/timepay", { source: "timesheets", col: "activity" }),
+      link("k1", "Price the Truecut quote", "Open", "/q"),
+    ]);
+    expect(within(section("Today")).getByText("Hilux, XQG41B")).toBeInTheDocument();
+    expect(within(section("Activity")).getByText("Timesheets")).toBeInTheDocument();
+    expect(within(section("To do")).getByText("Price the Truecut quote")).toBeInTheDocument();
+    expect(within(section("To do")).queryByText("Timesheets")).toBeNull();
+  });
+
+  it("(F) heads each column with a solid block of its colour", () => {
+    draw();
+    for (const [name, hue] of [["Today", "purple"], ["To do", "yellow"], ["Activity", "green"]] as const) {
+      const head = screen.getByRole("heading", { name }).parentElement!;
+      expect(head.querySelector(".hm-blk")).toHaveClass(`hm-blk--${hue}`);
+    }
+  });
+
+  it("says nothing is new under Activity when nothing is", () => {
+    draw(today(), []);
+    expect(within(section("Activity")).getByText("Nothing new")).toBeInTheDocument();
+  });
+});
+
 describe("To do", () => {
-  it("(F) counts what is waiting, and every row has one button that goes where it should", () => {
+  it("(F) has no count, and every row has one button that goes where it should", () => {
     draw();
     const s = section("To do");
-    expect(within(s).getByText(String(ROWS.length))).toBeInTheDocument();
+    expect(within(s).queryByText(String(ROWS.length))).toBeNull();
     expect(within(s).getByRole("link", { name: "Renew, Hilux, XQG41B" })).toHaveAttribute("href", "/dashboard/assets?v=v1&screen=rego");
     expect(within(s).getByRole("link", { name: "Reply, Which fans for Rozelle?" })).toHaveAttribute("href", "/dashboard/desk?ask=n-77");
     expect(within(s).getByRole("link", { name: "Review, Timesheets" })).toHaveAttribute("href", "/dashboard/timepay");
@@ -310,7 +337,6 @@ describe("To do", () => {
     draw(today(), many);
     const s = section("To do");
     expect(within(s).getAllByRole("listitem")).toHaveLength(TODO_HOME_CAP);
-    expect(within(s).getByText(String(many.length))).toBeInTheDocument();
     expect(within(s).getByRole("link", { name: "Show all" })).toHaveAttribute("href", "/dashboard/todo");
     cleanup();
     draw(today(), many.slice(0, TODO_HOME_CAP));

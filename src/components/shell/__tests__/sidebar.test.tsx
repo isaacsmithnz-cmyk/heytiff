@@ -81,9 +81,9 @@ describe("the sidebar's top", () => {
 });
 
 describe("the places (rule 5)", () => {
-  it("gives everyone Home, and each place to whoever holds it", () => {
+  it("gives everyone Home and Team, and each place to whoever holds it", () => {
     draw(userAs("staff", []));
-    expect(places()).toEqual(["Home"]);
+    expect(places()).toEqual(["Home", "Team"]);
     cleanup();
     draw(userAs("owner"));
     expect(places().slice(0, 8)).toEqual(["Home", "Conversations", "Jobs", "Schedule", "Documents", "Library", "Design", "Team"]);

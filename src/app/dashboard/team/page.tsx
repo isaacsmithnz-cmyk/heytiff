@@ -7,7 +7,7 @@ import { Loading } from "@/components/parts/states";
 import { can, getCapabilities, getDbRole } from "@/lib/permissions-server";
 import { hasMinRole } from "@/lib/roles-shared";
 import { invitableRoles } from "@/lib/permissions";
-import { listMembersWithoutCard, listPendingInvites, listStaff } from "@/lib/staff/query";
+import { listMembersWithoutCard, listPendingInvites, listStaff, listStaffDirectory } from "@/lib/staff/query";
 import { orgExpiryWindow } from "@/lib/org/query";
 import { loadTimepaySection } from "@/lib/timepay/section";
 import { loadFleetPage } from "@/lib/fleet/page-data";
@@ -21,8 +21,9 @@ import { readTeamView, teamViewsFor } from "@/lib/team/views";
 
    Every view is today's screen's read, under today's gate:
    - People is the directory's (listStaff, listMembersWithoutCard,
-     listPendingInvites), and Team itself is gated on `team`, here, because
-     a leaf route is deep-linkable. The directory never shows pay: listStaff
+     listPendingInvites) with `team`. Without it, People is the colleagues'
+     names, roles and mobiles alone (listStaffDirectory): everyone has Team
+     (Isaac, 20 October 2026). The directory never shows pay: listStaff
      selects identity columns only.
    - Timesheets, Leave and Expenses are Time & Pay's one load
      (loadTimepaySection), asked for only with `timepay_all`, which is what
@@ -39,7 +40,7 @@ import { readTeamView, teamViewsFor } from "@/lib/team/views";
 
    The view, and Timesheets' period, ride in the address. The wait is the
    page's own Suspense, so a person's page under /dashboard/team/ never
-   waits behind this list's skeleton. */
+   waits behind this list's hold. */
 
 type Params = Promise<Record<string, string | string[] | undefined>>;
 
@@ -50,6 +51,23 @@ async function TeamBody({ searchParams }: { searchParams: Params }) {
 
   const params = await searchParams;
   const period = typeof params.period === "string" ? params.period : undefined;
+
+  /* EVERYONE HAS TEAM (Isaac, 20 October 2026). Without `team` it is the
+     colleagues' names, what they do and their mobiles, and the notices:
+     nothing of anyone's record. */
+  if (!(await can("team"))) {
+    const [directory, notices] = await Promise.all([listStaffDirectory(orgId), loadNoticeBoard()]);
+    const views = teamViewsFor({ timepay: false, fleet: false });
+    const lean: TeamPageData = {
+      people: { staff: [], orphans: [], pending: [], canInvite: false, inviteRoles: [], appUrl: "", canRemoveMembers: false, vehicles: null },
+      directory,
+      timepay: null,
+      fleet: null,
+      notices,
+      views,
+    };
+    return <TeamPage data={lean} view={readTeamView(params.view, views)} />;
+  }
 
   const [expiry, timepayAll, assetsAll] = await Promise.all([
     orgExpiryWindow(orgId),
@@ -108,13 +126,13 @@ async function TeamBody({ searchParams }: { searchParams: Params }) {
     fleet: register && fleet ? { register, today: fleet.today, warnDays: fleet.warnDays } : null,
     notices,
     views,
+    directory: null,
   };
 
   return <TeamPage data={data} view={readTeamView(params.view, views)} />;
 }
 
 export default async function TeamRoute({ searchParams }: { searchParams: Params }) {
-  if (!(await can("team"))) redirect("/dashboard");
   return (
     <Suspense
       fallback={

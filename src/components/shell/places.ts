@@ -62,7 +62,8 @@ export const PLACES: readonly Place[] = [
   { key: "library", label: "Library", icon: "books", href: "/dashboard/tiff/library", under: ["/dashboard/tiff", "/dashboard/toolbox"], anyOf: ["tiff", "toolbox"] },
   { key: "design", label: "Design", icon: "design", href: "/dashboard/studio", under: [], capability: "studio" },
   /* Time & Pay and Assets moved into Team (its Timesheets, Leave, Expenses and Vehicles views); their old addresses still light it */
-  { key: "team", label: "Team", icon: "users", href: "/dashboard/team", under: ["/dashboard/timepay", "/dashboard/assets", "/dashboard/vehicles"], capability: "team" },
+  /* everyone has Team (Isaac, 20 October 2026); without `team` it is the colleagues' names and mobiles and the notices */
+  { key: "team", label: "Team", icon: "users", href: "/dashboard/team", under: ["/dashboard/timepay", "/dashboard/assets", "/dashboard/vehicles"] },
 ];
 
 /** Today's screens that keep a row until their v2 place takes them in. */

@@ -12658,6 +12658,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 /* the table: a grid per row, so the head and the rows share the columns */
 .fg .tm2-table { --tm2-cols:minmax(0,1.6fr) minmax(0,1.5fr) 140px 120px 128px; min-width:0; }
 .fg .tm2-table.tm2-table--veh { --tm2-cols:minmax(0,1.6fr) minmax(0,1.5fr) minmax(0,1fr) 140px 120px 128px; }
+/* Team for someone without `team`: a colleague and their mobile, to ring */
+.fg .tm2-table.tm2-table--dir { --tm2-cols:minmax(0,1fr) 200px; }
+.fg .tm2-call { text-decoration:none; }
+.fg .tm2-call:hover { text-decoration:underline; }
 .fg .tm2-rows { margin:0; padding:0; list-style:none; }
 .fg .tm2-row { position:relative; display:grid; grid-template-columns:var(--tm2-cols); align-items:center; gap:16px; padding:12px 8px; border-bottom:1px solid var(--line); transition:background var(--t-fast) var(--ease); }
 .fg .tm2-row.tm2-row--head { padding-top:8px; padding-bottom:8px; }

@@ -39,10 +39,11 @@ describe("the sidebar's places (rules 5 and 7)", () => {
     for (const p of [...PLACES, ...STILL_TO_MOVE, ...YOURS]) expect(ICON_PATHS[p.icon]).toBeTruthy();
   });
 
-  it("offers a place only to someone who holds its capability", () => {
-    expect(placesFor(PLACES, viewer([])).map((p) => p.key)).toEqual(["home"]);
+  it("offers a place only to someone who holds its capability, Home and Team to everyone", () => {
+    // Home and Team are everyone's (everyone has Team, Isaac, 20 October 2026)
+    expect(placesFor(PLACES, viewer([])).map((p) => p.key)).toEqual(["home", "team"]);
     expect(placesFor(PLACES, viewer(["workboard", "team"])).map((p) => p.key)).toEqual(["home", "jobs", "schedule", "documents", "team"]);
-    expect(placesFor(PLACES, viewer(["tiff"])).map((p) => p.key)).toEqual(["home", "conversations", "library"]);
+    expect(placesFor(PLACES, viewer(["tiff"])).map((p) => p.key)).toEqual(["home", "conversations", "library", "team"]);
   });
 
   it("keeps Settings to admins and Reports to whoever sees the money", () => {

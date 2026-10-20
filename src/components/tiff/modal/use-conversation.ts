@@ -4,7 +4,7 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { appendSpoken, useDictation } from "@/components/notes/dictation";
 import { GATHER_MS } from "@/components/ui/dot-field";
 import { askBrain, TIFF_APPLY } from "@/lib/brain/ask-client";
-import { looksLikeMove, looksLikeQuestion } from "@/lib/brain/intent";
+import { looksLikeDesignWords, looksLikeMove, looksLikeQuestion } from "@/lib/brain/intent";
 import {
   answerVisit,
   continueNote,
@@ -194,6 +194,7 @@ export function useConversation({
   target: aimTarget,
   targetLabel: aimLabel,
   screen,
+  designOpen = false,
   onLeave,
 }: {
   opening: Opening;
@@ -203,6 +204,9 @@ export function useConversation({
   /** The screen the modal was opened over, by its nav name: part of where
       Tiff is told the person is. */
   screen?: string;
+  /** A design is open under the chat: words about its building go to her
+      (lib/brain/intent `looksLikeDesignWords`), not the note flow. */
+  designOpen?: boolean;
   /** Tiff moved the screen: the modal closes, and the page goes to `href`
       once it has. Called after her line has been shown. */
   onLeave?: (href: string) => void;
@@ -738,7 +742,7 @@ export function useConversation({
     if (parseMove(words)?.kind === "screen") return ask(words, before, true);
     const onward = () => {
       if (looksLikeMove(words)) return ask(words, before, true);
-      if (askedBack.current || looksLikeQuestion(words)) return ask(words, before);
+      if (askedBack.current || looksLikeQuestion(words) || (designOpen && looksLikeDesignWords(words))) return ask(words, before);
       void route(words, source, before);
     };
     /* "Open up Isaac Smith" is free when the name is exact (`tryOpen`). */

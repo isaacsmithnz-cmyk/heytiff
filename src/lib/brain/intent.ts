@@ -247,3 +247,17 @@ export function looksLikeQuestion(text: string): boolean {
 export function looksLikeMove(text: string): boolean {
   return parseMove(text) !== null;
 }
+
+/* ON DESIGN, THE DESIGN'S WORDS GO TO HER (Isaac, 20 October 2026: "she
+   should also be able to revise 3d renderings… you should just be able to
+   open up the TIFF button. And talk to it"). "The kitchen ceiling is 2.7,
+   fix it" carries no question mark, so the note flow took it and offered
+   to make it a task. With a design open, words about the building it draws
+   go to the ask loop, which holds the design and can correct its 3D. */
+const DESIGN_WORDS =
+  /\b(3d|roof|roofs|ceiling|ceilings|pitch|pitched|eave|eaves|rafter|rafters|raked|rake|skillion|hip|gable|framing|frame|joist|joists|void|storey|storeys|floor height|ceiling height)\b/i;
+
+/** With a design open: are these words about the building it draws? */
+export function looksLikeDesignWords(text: string): boolean {
+  return DESIGN_WORDS.test(text);
+}

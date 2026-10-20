@@ -1,7 +1,7 @@
 import * as React from "react";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { NoteScopeProvider, NoteScopeScreen } from "@/components/notes/note-context";
+import { NoteScopeProvider, NoteScopeScreen, useNoteScopeScreen } from "@/components/notes/note-context";
 import { TiffButton } from "@/components/notes/tiff-button";
 import { KEPT_AS_SAID, WHICH_JOB } from "@/lib/workboard/note-turns";
 import { quietLimit } from "../quiet";
@@ -732,6 +732,28 @@ describe("asking", () => {
       { who: "you", text: "who's at 3323 tomorrow?" },
       { who: "tiff", text: "Lyle is at 3323 from 9:00." },
     ]);
+  });
+});
+
+describe("with a design open", () => {
+  function OnDesign() {
+    useNoteScopeScreen({ screenDetail: 'the design "23 Hope Street" (id dsn_1)' });
+    return null;
+  }
+
+  /* Isaac, 20 October 2026: "the kitchen ceiling is 2.7, fix it" was offered
+     as a task. On Design, words about its building go to her, who can
+     correct its 3D; anything else is still a note. */
+  it("asks her about the building rather than filing it", async () => {
+    askBrain.mockImplementationOnce((_input, h) => {
+      h.onDelta("Done: the kitchen is 2.7 m now.");
+      h.onDone();
+    });
+    const user = await openModal({ voice: false, extra: <OnDesign /> });
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "The 3D is wrong: the kitchen ceiling is 2.7 m, please fix it{Enter}");
+    await flush();
+    expect(askBrain).toHaveBeenCalledWith(expect.objectContaining({ question: "The 3D is wrong: the kitchen ceiling is 2.7 m, please fix it" }), expect.anything());
+    expect(routeNote).not.toHaveBeenCalled();
   });
 });
 

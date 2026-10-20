@@ -470,7 +470,7 @@ function Face({ face, open }: { face: FaceState; open: boolean }) {
 
 /* ── a turn ── */
 
-function TurnView({
+export function TurnView({
   turn,
   past,
   live,
@@ -707,7 +707,7 @@ function Quick({ answers, onAnswer }: { answers: QuickAnswer[]; onAnswer: (q: Qu
 
 type DockMode = "listen" | "fix" | "reply";
 
-function Dock({ c, onEmpty }: { c: Conversation; onEmpty: (byKey: boolean) => void }) {
+export function Dock({ c, onEmpty }: { c: Conversation; onEmpty: (byKey: boolean) => void }) {
   const mode: DockMode | null =
     c.stage === "listening" ? "listen" : c.stage === "thinking" || c.stage === "answering" ? null : c.fixing ? "fix" : "reply";
   /* While it folds away it keeps showing what it was. */

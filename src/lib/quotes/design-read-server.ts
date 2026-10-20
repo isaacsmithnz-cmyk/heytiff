@@ -1,4 +1,5 @@
 import "server-only";
+import { roofSummary } from "@/lib/studio/scene3d";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { migrateDesign } from "@/lib/studio/migrations";
 import type { DesignDocument } from "@/lib/studio/document";
@@ -78,7 +79,7 @@ export async function readJobDesign(orgId: string, jobUuid: string, id: string |
     its id, its name or its job's number, the newest that matches; with what
     she read off its plans. */
 export async function readAnyDesign(orgId: string, ask: string): Promise<
-  | { found: true; read: ReturnType<typeof designRead>; plans: ReturnType<typeof readingSummary>; others: DesignOnJob[] }
+  | { found: true; read: ReturnType<typeof designRead>; plans: ReturnType<typeof readingSummary>; roof: ReturnType<typeof roofSummary>; others: DesignOnJob[] }
   | { found: false; reason: string; designs?: DesignOnJob[] }
 > {
   const q = ask.trim().slice(0, 120);
@@ -106,5 +107,5 @@ export async function readAnyDesign(orgId: string, ask: string): Promise<
   } catch {
     return { found: false, reason: `The design "${chosen.name}" couldn't be read.`, designs };
   }
-  return { found: true, read: designRead(doc, await designPacks(doc)), plans: readingSummary(doc.floors, doc.reading), others: designs.slice(1) };
+  return { found: true, read: designRead(doc, await designPacks(doc)), plans: readingSummary(doc.floors, doc.reading), roof: roofSummary(doc), others: designs.slice(1) };
 }

@@ -104,6 +104,8 @@ import { suggestedRooms, withChecks, type PlanReading } from "@/lib/studio/readi
 import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
 import type { LibraryManifest } from "@/lib/studio/packs/library";
 import { Button } from "@/components/parts/button";
+import { TiffButton } from "@/components/notes/tiff-button";
+import { useNoteScopeScreen } from "@/components/notes/note-context";
 import { DesignHome } from "./home";
 import { RoomsFromPlan } from "./rooms-from-plan";
 import { ALL_FLOORS, View3D, type Look3D } from "./view-3d";
@@ -924,6 +926,10 @@ function Editor({
   const [view3d, setView3d] = useState(false);
   const [look3d, setLook3d] = useState<Look3D>({ floor: ALL_FLOORS, apart: false, labels: true, layer: "roof" });
   const scene3d = useMemo(() => (view3d ? sceneOf(doc) : null), [view3d, doc]);
+  /* asking Tiff while designing (Isaac, 20 October 2026: "can I fit a
+     ducted unit in the roof void?"): she is told which design is open, so
+     she reads that one (the registry's studio_design) */
+  useNoteScopeScreen({ screenDetail: `the design "${doc.meta.name}" (id ${doc.id})` });
 
   /* ── fullscreen: the Workboard's display-mode pattern, ported ──
      The DOCUMENT goes fullscreen (never the studio element) because every
@@ -1598,6 +1604,7 @@ function Editor({
           </div>
         )}
         <div className="ds-tb-right">
+          <TiffButton where="sheet" />
           {/* fullscreen rides beside the switcher: one toggle, the browser's
               own Esc is the other way out */}
           <button

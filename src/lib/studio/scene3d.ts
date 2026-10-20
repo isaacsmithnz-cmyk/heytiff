@@ -84,6 +84,8 @@ export type Scene3D = {
   ceilings: Ceiling3D[];
   /** Tiff has read the roof off the set (it may have found none) */
   roofRead: boolean;
+  /** the roof parts in metres, for the roof-void check */
+  roofRects: (RoofRect & { floorId: string })[];
   /** the middle of everything, so the view turns about the house */
   center: XZ;
   /** the longest side of everything, metres, so the camera can stand back far enough */
@@ -328,6 +330,7 @@ export function sceneOf(doc: DesignDocument): Scene3D {
     framing,
     ceilings,
     roofRead: !!roofRead,
+    roofRects: rects,
     center: [(b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2],
     span: Math.max(6, b.x1 - b.x0, b.z1 - b.z0),
   };
@@ -373,3 +376,65 @@ export function threeDState(doc: DesignDocument): { drawable: boolean; read: boo
 
 /** The middle of a space, for its label. */
 export const middleOf = centroid;
+
+/* ── THE ROOF VOID, FOR TIFF (Isaac, 20 October 2026: "can I fit a ducted
+   unit in the roof void?"). Over every room with a roof above it: how much
+   clear height there is between the top of the ceiling joists and the
+   underside of the rafters, lowest and highest, sampled across the room.
+   The framing is the standard one drawn in 3D (rafters at 600, joists at
+   450), because a set seldom has a framing plan; she says so. ── */
+const RAFTER_DEPTH = 0.14;
+const JOIST_DEPTH = 0.12;
+
+export function roofSummary(doc: DesignDocument) {
+  const roof = doc.reading?.roof;
+  if (!roof) return { read: false as const, said: "Tiff hasn't read the roof off this design's drawings yet: Read the plans in Design's 3D view reads it." };
+  const scene = sceneOf(doc);
+  const nameOf = new Map(doc.floors.map((f) => [f.id, f.name]));
+  const voids = scene.floors.flatMap((f) => {
+    const over = scene.roofRects;
+    const raked = new Set(roof.raked.filter((r) => r.floorId === f.id).map((r) => norm(r.room)));
+    return f.spaces
+      .filter((sp) => WALLED.has(sp.kind) && sp.kind !== "stair" && !sp.existing)
+      .flatMap((sp) => {
+        const b = boxOf(sp.pts)!;
+        const top = f.y0 + f.ceiling + JOIST_DEPTH;
+        const clears: number[] = [];
+        for (let i = 0; i <= 8; i++)
+          for (let j = 0; j <= 8; j++) {
+            const x = b.x0 + ((b.x1 - b.x0) * i) / 8;
+            const z = b.z0 + ((b.z1 - b.z0) * j) / 8;
+            const roofY = Math.max(...over.map((r) => roofHeightAt(r, x, z)));
+            if (Number.isFinite(roofY)) clears.push(roofY - RAFTER_DEPTH - top);
+          }
+        if (!clears.length) return [];
+        const isRaked = raked.has(norm(sp.name));
+        return [
+          {
+            floor: nameOf.get(f.id) ?? f.name,
+            room: sp.name,
+            ceiling: isRaked ? "raked: no roof void over it" : "flat",
+            clear_mm_lowest: isRaked ? 0 : Math.max(0, Math.round(Math.min(...clears) * 1000)),
+            clear_mm_highest: isRaked ? 0 : Math.max(0, Math.round(Math.max(...clears) * 1000)),
+          },
+        ];
+      });
+  });
+  return {
+    read: true as const,
+    levels: roof.levels.map((l) => ({ floor: nameOf.get(l.floorId) ?? "", ceiling_mm: l.ceilingMm, floor_zone_mm: l.floorZoneMm, source: l.source })),
+    parts: roof.parts.map((p) => {
+      const pts = p.outline;
+      const k = doc.floors.find((f) => f.id === p.floorId)?.scaleMmPerUnit ?? null;
+      const xs = pts.map((q) => q.x);
+      const ys = pts.map((q) => q.y);
+      const size = k ? `${(((Math.max(...xs) - Math.min(...xs)) * k) / 1000).toFixed(1)} m by ${(((Math.max(...ys) - Math.min(...ys)) * k) / 1000).toFixed(1)} m` : "unscaled";
+      return { floor: nameOf.get(p.floorId) ?? "", form: p.form, pitch_deg: p.pitchDeg, eave_mm: p.eaveMm, overhang_mm: p.overhangMm, size, existing: p.existing, source: p.source };
+    }),
+    raked: roof.raked.map((r) => ({ floor: nameOf.get(r.floorId) ?? "", room: r.room, low_mm: r.lowMm, high_mm: r.highMm })),
+    material: roof.material,
+    roof_space: roof.roofSpace,
+    framing: "Not on the drawings: drawn at standard spacings, rafters 140 deep at 600 mm, ceiling joists 120 deep at 450 mm. The builder's framing may differ.",
+    void_over_rooms: voids,
+  };
+}

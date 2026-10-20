@@ -1,6 +1,6 @@
 import type { Product } from "../families";
 import type { Offer } from "../price-book";
-import { priceQuick, roughRange, zoneKitParts } from "../quick-price";
+import { makerOf, priceQuick, roughRange, zoneKitParts } from "../quick-price";
 
 /* A quick price (Isaac, 21 October 2026: "how much would it cost to
    upgrade? … a one-line answer. Then you could have that as add to quote"). */
@@ -44,4 +44,22 @@ it("says what the book doesn't hold rather than guessing it", () => {
 
 it("gives a person without the figures a rounded range, inc GST", () => {
   expect(roughRange(297000)).toEqual({ lowCents: 275000, highCents: 320000 });
+});
+
+it("finds the maker's pack by its name as said, and not when it could be two", () => {
+  const makers = [
+    { key: "mitsubishi-electric", name: "Mitsubishi Electric" },
+    { key: "mitsubishi-heavy-industries", name: "Mitsubishi Heavy Industries" },
+    { key: "daikin", name: "Daikin" },
+  ];
+  expect(makerOf(makers, "Mitsubishi Electric")).toBe("mitsubishi-electric");
+  expect(makerOf(makers, "mitsubishi elec")).toBe("mitsubishi-electric");
+  expect(makerOf(makers, "daikin")).toBe("daikin");
+  expect(makerOf(makers, "Mitsubishi")).toBeNull();
+});
+
+it("takes a part named by its model as that model or nothing", () => {
+  const q = priceQuick([{ words: "wireless receiver", qty: 1, code: "PAR-ZR01R-B" }], 0, BOOK.filter((p) => !p.name.includes("RECEIVER")), SETTINGS);
+  expect(q.lines).toEqual([]);
+  expect(q.missing).toEqual(["wireless receiver (PAR-ZR01R-B)"]);
 });

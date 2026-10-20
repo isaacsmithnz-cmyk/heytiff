@@ -4,9 +4,9 @@ import { bookProducts } from "./book-view-server";
 import { buildSettingsOf, unsetWords } from "./build-settings";
 import { zoneKitOf } from "./kits";
 import { addLine } from "./lines-server";
-import { zoningFor } from "./lookups-server";
+import { packMakers, zoningFor } from "./lookups-server";
 import { readOrgDay } from "./org-day-server";
-import { dollars, priceQuick, roughRange, zoneKitParts, type QuickPart } from "./quick-price";
+import { dollars, makerOf, priceQuick, roughRange, zoneKitParts, type QuickPart } from "./quick-price";
 import { readQuoteSettings } from "./settings-query";
 import { linePricer } from "./session/tools-server";
 
@@ -33,6 +33,7 @@ export type QuickInput = {
 
 export type QuickAnswer = { value: Record<string, unknown>; offer: QuickOffer | null };
 
+
 /** A quick price as she reads it: the whole of it for a person who sees the
     business's prices; for anyone else, where the business allows it, a
     rough range to say to a customer and nothing it's made of. */
@@ -46,7 +47,8 @@ export async function quickPriceFor(orgId: string, seesPrices: boolean, input: Q
   const parts = [...input.parts];
   let kitNote: string | null = null;
   if (input.zoning?.brand && input.zoning.zones > 0) {
-    const z = await zoningFor(input.zoning.brand);
+    const maker = makerOf(await packMakers(), input.zoning.brand);
+    const z = maker ? await zoningFor(maker) : null;
     if (!z) kitNote = `No zoning data for ${input.zoning.brand}: price its parts by name.`;
     else {
       const kit = zoneKitOf(z, input.zoning.zones, input.zoning.control, input.zoning.wifi);

@@ -109,9 +109,9 @@ export const READS: readonly TiffTool[] = [
     description:
       "A quick, approximate price for something asked on site or in a job's conversation (\"how much to change to a zone kit\", \"give me a price for…\", \"rough idea for a 7kW split\"), " +
       "worked out from the business's own price book at its own markups and its labour at its own charge-out rate, so the person can answer a customer or add it to the job's quote. " +
-      "Name each part to buy with a model code where you know one (from the maker's data, a design, or the job), else in words the book would use; for a maker's zone kit, give zoning (brand, zones, control, wifi) and its interface, controller, receiver and sensors are added for you. " +
+      "Name each part to buy with a model code where you know one (from the maker's data, a design, or the job), else in words the book would use; for a maker's zone kit, give zoning (brand as the maker's full name, e.g. Mitsubishi Electric; zones; control; wifi) and its interface, controller, receiver and sensors are added for you. " +
       "Estimate the labour hours yourself for the work as described, unless the result gives the business's own hours a zone, and say they're your estimate. " +
-      "Answer in one line: the price, what it covers, the hours, and what you assumed. If the result gives rough_inc_gst, give exactly that range as a rough price with a firm quote to follow, and never any cost, markup or line price. " +
+      "Answer in one or two short sentences: the price, what it covers, the hours, and what you assumed; no lists, no part-by-part prices unless asked. If the result gives rough_inc_gst, give exactly that range as a rough price with a firm quote to follow, and never any cost, markup or line price. " +
       "If parts are missing from the book, say which and that the price leaves them out. Ask a question only when the answer would change the price a lot (how many zones, which brand). " +
       "Pass job_id when they're on a job (the where-they-are line names it), so the price can go on that job's quote.",
     inputSchema: {

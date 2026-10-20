@@ -230,6 +230,8 @@ type ContentBlock =
 /** Ask, with hands. Never throws; an abort ends the generator silently —
     the reader has gone, so there is nobody to tell. */
 export async function* streamBrainAnswer(input: AskBrainInput): AsyncGenerator<AskBrainEvent> {
+  /** The last words she said, across rounds (a space between rounds). */
+  let tail = "";
   const question = input.question.trim();
   if (!question) return;
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -305,8 +307,15 @@ export async function* streamBrainAnswer(input: AskBrainInput): AsyncGenerator<A
       for await (const event of stream) {
         if (input.signal?.aborted) return;
         if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-          if (event.delta.text) spoke = true;
-          yield { type: "delta", text: event.delta.text };
+          const t = event.delta.text;
+          if (!t) continue;
+          /* a round's words after an earlier round's run on from them
+             ("…preset.Roughly", 21 October): a space between, where neither
+             has one */
+          if (!spoke && tail && !/\s$/.test(tail) && !/^\s/.test(t)) yield { type: "delta", text: " " };
+          spoke = true;
+          tail = t;
+          yield { type: "delta", text: t };
         }
       }
 

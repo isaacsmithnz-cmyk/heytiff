@@ -50,6 +50,9 @@ function itemFor(book: Product[], part: QuickPart, supplier: string | null) {
       const offer = p.offers.find((o) => o.netCents > 0 && (o.code.toUpperCase() === code.toUpperCase() || sameModel(o.code, code)));
       if (offer) return { product: p, offer };
     }
+    /* a part named by its model is that part or nothing: matched by its
+       words instead, a receiver came back as a sensor (21 October) */
+    return null;
   }
   const words = part.words.trim();
   if (!words) return null;
@@ -107,6 +110,23 @@ export function zoneKitParts(kit: ZoneKit): QuickPart[] {
 export function roughRange(incGstCents: number): { lowCents: number; highCents: number } {
   const to50 = (c: number) => Math.round(c / 5000) * 5000;
   return { lowCents: Math.max(0, to50(incGstCents * 0.92)), highCents: to50(incGstCents * 1.08) };
+}
+
+/** A maker as said ("Mitsubishi Electric", "mitsubishi elec", "daikin") to
+    its pack's key ("mitsubishi-electric"); null when it names none, or more
+    than one ("Mitsubishi" alone is two makers). */
+export function makerOf(makers: readonly { key: string; name: string }[], said: string): string | null {
+  const words = said.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(Boolean);
+  if (!words.length) return null;
+  const slug = words.join("-");
+  const exact = makers.find((m) => m.key === slug || m.name.toLowerCase() === words.join(" "));
+  if (exact) return exact.key;
+  /* every word said starts a word of the maker's name: "mitsubishi elec" */
+  const fits = makers.filter((m) => {
+    const name = m.key.split("-");
+    return words.every((w, i) => name[i]?.startsWith(w));
+  });
+  return fits.length === 1 ? fits[0]!.key : null;
 }
 
 /** Dollars as a person says them: "$3,450". */

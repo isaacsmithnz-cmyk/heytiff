@@ -401,6 +401,7 @@ export function JobConversation({
                       convo.answer(q);
                     }}
                     onUndo={(noteId) => void convo.undo(t.key, noteId)}
+                    onAddOffer={() => void convo.addOffer(t.key)}
                   />
                 ),
               )}
@@ -704,12 +705,15 @@ function LiveTiff({
   asking,
   onAnswer,
   onUndo,
+  onAddOffer,
 }: {
   turn: ModalTurn;
   when: string;
   asking: boolean;
   onAnswer: (q: NonNullable<ModalTurn["quick"]>[number]) => void;
   onUndo: (noteId: string) => void;
+  /** her quick price onto the job's quote, as an option of its own */
+  onAddOffer: () => void;
 }) {
   const rows = (turn.rows ?? []).filter((r) => !r.off);
   const cards = turn.filed
@@ -730,6 +734,20 @@ function LiveTiff({
           cards={cards}
           undo={turn.undo && turn.noteId ? { noteId: turn.noteId, busy: turn.undo === "busy", onUndo } : null}
         />
+      )}
+      {turn.offer && !turn.streaming && (
+        <div className="jc-quick">
+          {turn.offer.state === "added" ? (
+            <span className="cv-result-line">{turn.offer.said}</span>
+          ) : (
+            <>
+              <Button kind="second" size={36} disabled={turn.offer.state === "busy"} onClick={onAddOffer}>
+                {turn.offer.state === "busy" ? "Adding to the quote" : "Add to quote"}
+              </Button>
+              {turn.offer.state === "failed" && <span className="cv-result-line">{turn.offer.said}</span>}
+            </>
+          )}
+        </div>
       )}
       {quick.length > 0 && (
         <div className="jc-quick" role="group" aria-label="Answers">

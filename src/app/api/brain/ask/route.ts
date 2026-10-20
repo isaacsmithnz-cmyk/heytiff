@@ -70,6 +70,7 @@ export async function POST(request: Request) {
           else if (event.type === "tool") write({ t: "tool", name: event.name, label: event.label });
           else if (event.type === "error") write({ t: "err", message: event.message });
           else if (event.type === "screen") write({ t: "screen", href: event.href, label: event.label });
+          else if (event.type === "offer") write({ t: "offer", offer: event.offer });
           else if (event.type === "apply") write({ t: "apply", target: event.target, designId: event.designId, roof: event.roof });
           else if (event.type === "done") write({ t: "done" });
         }

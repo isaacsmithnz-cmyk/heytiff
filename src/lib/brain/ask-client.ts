@@ -19,6 +19,8 @@ export type BrainAskHandlers = {
   /** A tool's result for the open page to take in its own history (a
       design's corrected roof); the turn carries on. */
   onApply?: (apply: TiffApply) => void;
+  /** Something to take from her answer: a quick price to put on the quote. */
+  onOffer?: (offer: unknown) => void;
 };
 
 export type TiffApply = { target: "design-roof"; designId: string; roof: unknown };
@@ -115,7 +117,9 @@ export async function askBrain(
     }
     if (event.t === "delta") handlers.onDelta(String(event.text ?? ""));
     else if (event.t === "tool") handlers.onTool(String(event.label ?? ""));
-    else if (event.t === "apply") {
+    else if (event.t === "offer") {
+      if (event.offer && typeof event.offer === "object") handlers.onOffer?.(event.offer);
+    } else if (event.t === "apply") {
       if (typeof event.designId === "string" && event.target === "design-roof") handlers.onApply?.({ target: "design-roof", designId: event.designId, roof: event.roof });
     } else if (event.t === "screen") {
       /* A move is the end of the turn: nothing after it (a torn connection

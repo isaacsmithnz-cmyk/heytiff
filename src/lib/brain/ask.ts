@@ -80,6 +80,8 @@ export type AskBrainEvent =
   /** A tool's result for the page to take (an `apply` outcome): the open
       design takes its corrected roof through its own history. */
   | { type: "apply"; target: "design-roof"; designId: string; roof: unknown }
+  /** Something to take from her answer (a quick price's Add to quote). */
+  | { type: "offer"; offer: unknown }
   | { type: "done" };
 
 export type AskBrainInput = {
@@ -342,6 +344,11 @@ export async function* streamBrainAnswer(input: AskBrainInput): AsyncGenerator<A
           yield { type: "screen", href: res.outcome.href, label: res.outcome.label };
           yield { type: "done" };
           return;
+        }
+        if (res.ok && res.outcome.kind === "offer") {
+          if (res.outcome.offer) yield { type: "offer", offer: res.outcome.offer };
+          results.push({ type: "tool_result", tool_use_id: call.id, content: JSON.stringify(res.outcome.value).slice(0, 20_000) });
+          continue;
         }
         if (res.ok && res.outcome.kind === "apply") {
           yield { type: "apply", target: res.outcome.target, designId: res.outcome.designId, roof: res.outcome.roof };

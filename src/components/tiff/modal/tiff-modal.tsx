@@ -1,7 +1,7 @@
 "use client";
 
 import { Fade } from "@/components/parts/fade";
-import { IconButton } from "@/components/parts/button";
+import { Button, IconButton } from "@/components/parts/button";
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
@@ -502,6 +502,22 @@ export function TurnView({
       )}
 
       <Quick answers={asking ? (turn.quick ?? []) : []} onAnswer={c.answer} />
+
+      {/* her quick price, onto the job's quote as an option of its own */}
+      {turn.offer && !turn.streaming && (
+        <div className="tm-doors">
+          {turn.offer.state === "added" ? (
+            <span>{turn.offer.said}</span>
+          ) : (
+            <>
+              <Button kind="second" size={32} disabled={turn.offer.state === "busy"} onClick={() => void c.addOffer(turn.key)}>
+                {turn.offer.state === "busy" ? "Adding to the quote" : "Add to quote"}
+              </Button>
+              {turn.offer.state === "failed" && <span>{turn.offer.said}</span>}
+            </>
+          )}
+        </div>
+      )}
 
       {((turn.doors?.length ?? 0) > 0 || turn.undo) && (
         <div className="tm-doors">

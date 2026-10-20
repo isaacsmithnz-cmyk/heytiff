@@ -40,6 +40,8 @@ const dismissNote = jest.fn();
 const answerVisit = jest.fn();
 const openRecordByName = jest.fn(async (_words: string) => null as { href: string; label: string; line: string } | null);
 jest.mock("@/app/actions/tiff-open", () => ({ openRecordByName: (w: string) => openRecordByName(w) }));
+const addQuickPriceToQuote = jest.fn();
+jest.mock("@/app/actions/quick-price", () => ({ addQuickPriceToQuote: (o: unknown) => addQuickPriceToQuote(o) }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   routeNote: (...a: unknown[]) => routeNote(...a),
   continueNote: (...a: unknown[]) => continueNote(...a),
@@ -754,6 +756,59 @@ describe("asking", () => {
         { role: "tiff", text: "Lyle is at 3323 from 9:00." },
       ],
     });
+  });
+});
+
+/* A price now, a task, or asked (Isaac, 21 October 2026: Luke's "can you
+   give me a price for… linear zone kit" became a task asking who should
+   price it). */
+describe("a price", () => {
+  const type = async (user: ReturnType<typeof userEvent.setup>, words: string) => {
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), `${words}{Enter}`);
+    await flush();
+  };
+
+  it("works out a price asked for now, and offers it for the quote", async () => {
+    const offer = { jobUuid: "job-1", title: "Linear zone kit", parts: [{ name: "Zone interface", code: "PAC-ZC04L240C-A", qty: 1, kind: "material" }], hours: 6 };
+    askBrain.mockImplementationOnce((_input, h) => {
+      h.onOffer(offer);
+      h.onDelta("About $2,970 inc GST: the 4-zone kit and 6 hours to fit.");
+      h.onDone();
+    });
+    addQuickPriceToQuote.mockResolvedValueOnce({ ok: true, option: 1 });
+    const user = await openModal({ voice: false });
+    await type(user, "can you give me a price for mitsubishi elec linear zone kit 4 bedrooms wireless sensors");
+    expect(routeNote).not.toHaveBeenCalled();
+    expect(askBrain).toHaveBeenCalledTimes(1);
+    await user.click(within(dialog()).getByRole("button", { name: "Add to quote" }));
+    await flush();
+    expect(addQuickPriceToQuote).toHaveBeenCalledWith(offer);
+    expect(within(dialog()).getByText("On the quote as option 2")).toBeInTheDocument();
+  });
+
+  it("asks which when it could be either, and does what's tapped", async () => {
+    askBrain.mockImplementationOnce((_input, h) => {
+      h.onDelta("About $2,970 inc GST.");
+      h.onDone();
+    });
+    const user = await openModal({ voice: false });
+    await type(user, "I need to get a price for changing to a linear zone kit on this job");
+    expect(askBrain).not.toHaveBeenCalled();
+    expect(routeNote).not.toHaveBeenCalled();
+    expect(within(convo()).getByText("Price it now, or make it a task?")).toBeInTheDocument();
+    await user.click(within(dialog()).getByRole("button", { name: "Price it now" }));
+    await flush();
+    expect(askBrain).toHaveBeenCalledWith(expect.objectContaining({ question: "I need to get a price for changing to a linear zone kit on this job" }), expect.anything());
+  });
+
+  it("files it as a task when that's the answer", async () => {
+    routeNote.mockResolvedValueOnce(routed({ say: "Who should price it?", tasks: [task("Price the linear zone kit", null)] }));
+    const user = await openModal({ voice: false });
+    await type(user, "I need to get a price for changing to a linear zone kit on this job");
+    await user.click(within(dialog()).getByRole("button", { name: "Make it a task" }));
+    await flush();
+    expect(askBrain).not.toHaveBeenCalled();
+    expect(routeNote).toHaveBeenCalledWith(expect.objectContaining({ transcript: "I need to get a price for changing to a linear zone kit on this job" }));
   });
 });
 

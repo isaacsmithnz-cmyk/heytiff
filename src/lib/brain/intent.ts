@@ -261,3 +261,31 @@ const DESIGN_WORDS =
 export function looksLikeDesignWords(text: string): boolean {
   return DESIGN_WORDS.test(text);
 }
+
+/* A PRICE NOW, OR A TASK? (Isaac, 21 October 2026: Luke asked "can you give
+   me a price for mitsubishi elec linear zone kit 4 bedrooms wireless
+   sensors" and got a task asking who should price it. "If I said I need to
+   price up the quote for something… versus I need to get a price for
+   changing to a linear zone kit on this job, she could read it as a task
+   for either or a price for either.")
+
+   Asking for a figure now ("how much would…", "give me a price for…",
+   "rough idea…") goes to her, who works it out. Words that make it work for
+   someone ("price up the quote", "remind me", a day it's due) stay a note.
+   "I need to get a price for…" could be either, so she asks, with two
+   answers to tap. Local and free, like the rest of this file. */
+const PRICE_WORDS = /\b(price|prices|pricing|priced|cost|costs|how much|ballpark|ball park|quote|rough idea)\b/i;
+const PRICE_NOW =
+  /\b(how much|what (?:would|will|does|did) (?:it|that|this) (?:cost|be|come to)|what(?:'s| is) the (?:cost|price)|(?:give|get|do) (?:me|us) (?:a |an )?(?:rough |quick |ballpark )?(?:price|figure|idea|number)|rough (?:price|idea|figure|cost)|ballpark|ball park|quote me|price (?:for|on|to)|cost (?:for|of|to))\b/i;
+const TASK_SIGNS =
+  /\b(remind|reminder|price up|quote up|send (?:the|a|them|him|her) (?:quote|price)|the quote for|by (?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today|tonight|next week|the end of)|before (?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow))\b/i;
+const EITHER = /\b(?:need|needs|have|has|got) (?:to )?(?:get|do|work out|find out|sort) (?:a |the )?(?:price|cost|figure)\b|\bneed (?:a|the) (?:price|cost)\b/i;
+
+/** "price" to work it out now, "either" to ask which, "task" or null to
+    leave it to the note flow. */
+export function priceIntent(text: string): "price" | "either" | "task" | null {
+  if (!PRICE_WORDS.test(text)) return null;
+  if (TASK_SIGNS.test(text)) return "task";
+  if (EITHER.test(text)) return "either";
+  return PRICE_NOW.test(text) ? "price" : null;
+}

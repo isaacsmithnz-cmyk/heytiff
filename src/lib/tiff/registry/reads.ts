@@ -17,6 +17,7 @@ import type { NoteTarget } from "@/app/actions/workboard-notes";
 import { fitDesignRead } from "@/lib/quotes/design-read";
 import { readAnyDesign } from "@/lib/quotes/design-read-server";
 import { reviseDesignRoof } from "@/lib/studio/revise-server";
+import { quickPriceFor } from "@/lib/quotes/quick-price-server";
 import type { Outcome, TiffTool } from "./types";
 
 const str = { type: "string" } as const;
@@ -92,6 +93,79 @@ export const READS: readonly TiffTool[] = [
       const got = await reviseDesignRoof(viewer.orgId, designId, typeof input.words === "string" ? input.words : "");
       if (!got.ok) return result({ changed: false, said: got.error });
       return { kind: "apply", target: "design-roof", designId, roof: got.roof, said: got.said };
+    },
+  },
+
+  /* A quick price (Isaac, 21 October 2026: "If you're on site and you just
+     want to quickly say, how much would it cost to upgrade? … a one-line
+     answer. Then you could have that as add to quote"). The business's own
+     book, markups and rate; a rough range only, for a person who doesn't see
+     its prices, where it allows one. */
+  {
+    name: "quick_price",
+    label: "Working out a price",
+    risk: "read",
+    gate: { capability: "workboard" },
+    description:
+      "A quick, approximate price for something asked on site or in a job's conversation (\"how much to change to a zone kit\", \"give me a price for…\", \"rough idea for a 7kW split\"), " +
+      "worked out from the business's own price book at its own markups and its labour at its own charge-out rate, so the person can answer a customer or add it to the job's quote. " +
+      "Name each part to buy with a model code where you know one (from the maker's data, a design, or the job), else in words the book would use; for a maker's zone kit, give zoning (brand, zones, control, wifi) and its interface, controller, receiver and sensors are added for you. " +
+      "Estimate the labour hours yourself for the work as described, unless the result gives the business's own hours a zone, and say they're your estimate. " +
+      "Answer in one line: the price, what it covers, the hours, and what you assumed. If the result gives rough_inc_gst, give exactly that range as a rough price with a firm quote to follow, and never any cost, markup or line price. " +
+      "If parts are missing from the book, say which and that the price leaves them out. Ask a question only when the answer would change the price a lot (how many zones, which brand). " +
+      "Pass job_id when they're on a job (the where-they-are line names it), so the price can go on that job's quote.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "What it's a price for, in a few words: \"Linear zone kit, 4 zones\"" },
+        parts: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: { words: { type: "string" }, code: { type: "string" }, qty: { type: "number" } },
+            required: ["words", "qty"],
+            additionalProperties: false,
+          },
+        },
+        hours: { type: "number", description: "Person-hours of labour, your estimate" },
+        zoning: {
+          type: "object",
+          properties: {
+            brand: { type: "string" },
+            zones: { type: "number" },
+            control: { type: "string", enum: ["temperature", "on_off"] },
+            wifi: { type: "boolean" },
+          },
+          required: ["brand", "zones", "control", "wifi"],
+          additionalProperties: false,
+        },
+        job_id: { type: "string", description: "The ServiceM8 job's id, from the where-they-are line" },
+      },
+      required: ["title", "parts", "hours"],
+      additionalProperties: false,
+    },
+    run: async (viewer, input) => {
+      const parts = (Array.isArray(input.parts) ? input.parts : []).slice(0, 30).flatMap((p) => {
+        const r = p && typeof p === "object" ? (p as Record<string, unknown>) : {};
+        const words = typeof r.words === "string" ? r.words.slice(0, 200) : "";
+        const qty = typeof r.qty === "number" && Number.isFinite(r.qty) ? Math.min(999, Math.max(0, r.qty)) : 0;
+        return words || typeof r.code === "string" ? [{ words, qty, code: typeof r.code === "string" ? r.code.slice(0, 60) : null }] : [];
+      });
+      const z = input.zoning && typeof input.zoning === "object" ? (input.zoning as Record<string, unknown>) : null;
+      const zoning =
+        z && typeof z.brand === "string" && typeof z.zones === "number"
+          ? { brand: z.brand.slice(0, 60), zones: Math.min(16, Math.max(1, Math.round(z.zones))), control: z.control === "on_off" ? ("on_off" as const) : ("temperature" as const), wifi: z.wifi === true }
+          : null;
+      const hours = typeof input.hours === "number" && Number.isFinite(input.hours) ? Math.min(200, Math.max(0, input.hours)) : 0;
+      const jobUuid = typeof input.job_id === "string" && /^[\w-]{8,64}$/.test(input.job_id) ? input.job_id : null;
+      const got = await quickPriceFor(viewer.orgId, viewer.caps.has("financials"), {
+        title: typeof input.title === "string" ? input.title : "Quick price",
+        parts,
+        hours,
+        zoning,
+        jobUuid,
+      });
+      return { kind: "offer", value: got.value, offer: got.offer };
     },
   },
 

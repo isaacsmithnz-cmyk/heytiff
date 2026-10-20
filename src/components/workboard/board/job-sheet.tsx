@@ -2437,7 +2437,6 @@ export function JobSheet({
               )}
             </div>
           )}
-          {attentionStrip}
           {here && <p className="wb2-here">{here}</p>}
           <div className="wb2-jcbody jp-body" role="tabpanel" aria-labelledby={`jp-tab-${page.section}`}>
             {err && <div className="wb2-sherr">{err}</div>}
@@ -2446,6 +2445,10 @@ export function JobSheet({
                 JC-1), the customer at the rail's foot */}
             <div className="jp-over" hidden={page.section !== "overview"}>
               <JobProgressLine steps={steps} open={step} onOpen={openStep} />
+              {/* what's open on the job is the Overview's, not every tab's
+                  (Isaac, 20 October: "the quote page is holding on to that
+                  on this job one open thing. Same with the visits page") */}
+              {attentionStrip}
               <JobOverview
                 cardId={cardId}
                 label={[cardNumber, detail?.clientName ?? row.clientName].filter(Boolean).join(" ") || undefined}

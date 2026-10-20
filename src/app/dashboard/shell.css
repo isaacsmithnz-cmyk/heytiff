@@ -647,9 +647,9 @@
    different screen. Green stays green — `Active` is a STATE, and a state is
    never the page accent (see the design rule in feedback_design_system). */
 .fg .pcard2 .pbtn.primary {
-  background:var(--wb2-cy); border:1px solid var(--wb2-cy); color:var(--paper); }
+  background:var(--press); border:1px solid var(--press); color:var(--paper); }
 .fg .pcard2 .pbtn.primary:hover:not(:disabled) {
-  background:var(--wb2-cy2); border-color:var(--wb2-cy2); color:var(--paper); }
+  background:var(--press); border-color:var(--press); color:var(--paper); }
 
 /* the lock on a tab is the only thing saying a section is not the person's
    own to see (the staff card's tabs went on 2026-09-29; view-tabs still draws
@@ -3852,9 +3852,9 @@ button.fl-btn { font-size:14px; font-weight:700; }
    card: it is the SAME white surface, and a black button on it would read as a
    different screen. */
 .fg .orgcard2 .pbtn.primary {
-  background:var(--wb2-cy); border:1px solid var(--wb2-cy); color:var(--paper); }
+  background:var(--press); border:1px solid var(--press); color:var(--paper); }
 .fg .orgcard2 .pbtn.primary:hover:not(:disabled) {
-  background:var(--wb2-cy2); border-color:var(--wb2-cy2); color:var(--paper); }
+  background:var(--press); border-color:var(--press); color:var(--paper); }
 
 /* Company and Preferences: titled groups stacked down the tab, each one a
    `.pdlcard` (a 20/600 title on a hairline, rows under it). The first draws no
@@ -4292,13 +4292,19 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
    overlay's primary buttons — "Go", "Save these" — had no fill at
    all: dark text on white, indistinguishable from a label. Which is why a
    DISABLED "Save these" read as nothing happening rather than as off. */
+/* v2 (rules 22 and 23, Isaac, 20 October: "the black check-in button"): no
+   button is black. A button here is the second button, white with a thin
+   outline; the one marked primary is the main, blue with white words. */
 .wb2 .pbtn:not(.ghost), .wb2-sheet .pbtn:not(.ghost), .wb2-capcard .pbtn:not(.ghost), .swz .pbtn:not(.ghost) {
-  background:var(--wb2-cy, var(--ink)); border:1px solid var(--wb2-cy, var(--ink)); color:var(--paper);
-  box-shadow:0 6px 16px -10px rgba(0,127,168,.9); }
+  background:var(--paper); border:1px solid var(--edge); color:var(--ink); }
 .wb2 .pbtn:not(.ghost):hover:not(:disabled),
 .wb2-sheet .pbtn:not(.ghost):hover:not(:disabled),
 .wb2-capcard .pbtn:not(.ghost):hover:not(:disabled),
-.swz .pbtn:not(.ghost):hover:not(:disabled) { background:var(--ink2); border-color:var(--ink); }
+.swz .pbtn:not(.ghost):hover:not(:disabled) { background:var(--hov); }
+.wb2 .pbtn.primary, .wb2-sheet .pbtn.primary, .wb2-capcard .pbtn.primary, .swz .pbtn.primary {
+  background:var(--press); border-color:var(--press); color:var(--paper); }
+.wb2 .pbtn.primary:hover:not(:disabled), .wb2-sheet .pbtn.primary:hover:not(:disabled),
+.wb2-capcard .pbtn.primary:hover:not(:disabled), .swz .pbtn.primary:hover:not(:disabled) { background:var(--press); }
 /* A GHOST STANDING NEXT TO A PRIMARY HAS TO LOOK LIKE ITS PAIR.
 
    This rule set the ghost's height, padding and size and then left its RADIUS
@@ -5271,9 +5277,9 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .wb2-scmnone b { font-size:13px; }
 .wb2-scmnone em { font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); }
 .wb2-scmset { height:34px; padding:0 16px; border-radius:var(--r-button); margin-left:auto;
-  background:var(--wb2-cy, var(--ink)); color:var(--paper); font-size:13px; font-weight:700; cursor:pointer;
+  background:var(--press); color:var(--paper); font-size:13px; font-weight:700; cursor:pointer;
   transition:background var(--t-fast) var(--ease); }
-.wb2-scmset:hover { background:var(--wb2-cy2, var(--ink2)); }
+.wb2-scmset:hover { background:var(--press); }
 .wb2-scmset:focus-visible { outline:none; box-shadow:var(--ring);; }
 
 /* the month grid — the maintenance calendar's frame, re-stated rather than
@@ -9832,9 +9838,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    with the old capture UI (2026-09-27). The nudge's one button is its
    primary, never off, so it needs no ghost or disabled dress. */
 .wb2-nudge .pbtn:not(.ghost) {
-  background:var(--wb2-cy, var(--ink)); border:1px solid var(--wb2-cy, var(--ink)); color:var(--paper);
+  background:var(--press); border:1px solid var(--press); color:var(--paper);
   font-weight:700;box-shadow:var(--shadow-overlay); }
-.wb2-nudge .pbtn:not(.ghost):hover:not(:disabled) { background:var(--ink2); border-color:var(--ink); }
+.wb2-nudge .pbtn:not(.ghost):hover:not(:disabled) { background:var(--press); }
 
 /* ── the debrief ── DELETED, deliberately.
 
@@ -12368,15 +12374,13 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .ds2-item:hover .ds2-row { background:var(--hov); }
 .fg .ds2-row:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
 .fg .ds2-row--head { padding-top:0; padding-bottom:8px; border-bottom:1px solid var(--line); font-size:12px; line-height:16px; font-weight:500; color:var(--q); cursor:default; }
-.fg .ds2-row--skel { cursor:default; }
+.fg .ds2-hold { min-height:240px; }
 .fg .ds2-name { font-weight:600; min-width:0; }
 .fg .ds2-job { min-width:0; }
 .fg .ds2-num { color:var(--ink); font-variant-numeric:tabular-nums; }
 .fg .ds2-quiet { color:var(--q); }
 .fg .ds2-thumb { display:flex; align-items:center; justify-content:center; width:72px; height:54px; box-sizing:border-box; border:1px solid var(--line); border-radius:var(--r-control); overflow:hidden; background:var(--white); color:var(--q); }
 .fg .ds2-thumb img { width:100%; height:100%; object-fit:contain; display:block; }
-.fg .ds2-skel { background:var(--soft); }
-.fg .ds2-skel--line { height:16px; width:40%; border-radius:var(--r-control); }
 /* Delete waits at the row's end and shows with the row's hover or focus (law 24) */
 .fg .ds2-item .ds2-del { position:absolute; right:8px; opacity:0; transition:opacity var(--t-fast) var(--ease); }
 .fg .ds2-item:hover .ds2-del, .fg .ds2-item:focus-within .ds2-del { opacity:1; }

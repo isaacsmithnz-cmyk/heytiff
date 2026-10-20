@@ -383,7 +383,9 @@ function pills(css = CSS): number {
    its fill ink counts; its hover, focus and active states are the same
    button, so they don't count again. */
 const BUTTON_CLASS = /(btn|button|\.b\.go|cta|primary)/i;
-const INK_FILL = /background(?:-color)?\s*:\s*(?:var\(--(?:ink|hd-ink)\)|#000(?:000)?(?![0-9a-f])|#050505|#0a0a0a|black(?![\w-]))/i;
+/* ink through a fallback counts too: the board's `var(--wb2-cy, var(--ink))`
+   painted every button on the job page black past this count (20 October) */
+const INK_FILL = /background(?:-color)?\s*:\s*(?:var\(--(?:ink|hd-ink|wb2-cy2?)(?:\)|,\s*var\(--ink2?\)\))|#000(?:000)?(?![0-9a-f])|#050505|#0a0a0a|black(?![\w-]))/i;
 function inkButtons(): number {
   let n = 0;
   for (const [sel, body] of blocks()) if (BUTTON_CLASS.test(sel) && INK_FILL.test(body) && !/:hover|:active|:focus/.test(sel)) n++;
@@ -520,7 +522,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
      Isaac agreed to the re-base; docs/design.md names the two that stay (the
      photo thumbnail's star, the Studio's close-ready vertex) and records that
      the donut's three go with the Studio's new design. */
-  { law: "shadows that are not a focus ring — one shadow, overlays only", now: () => shadows(outside("shadows")), baseline: 13 },
+  { law: "shadows that are not a focus ring — one shadow, overlays only", now: () => shadows(outside("shadows")), baseline: 12 },
   { law: "bars at the left edge — selection is a fill, state is a word; the one left is the cap on the schedule's blocks", now: () => leftBars(outside("bars at the left edge")), baseline: 1 },
   // round two
   { law: "Tailwind palette hexes — colour comes from the tokens; his are named below", now: () => tailwindHexes(outside("Tailwind palette hexes")), baseline: 0 },

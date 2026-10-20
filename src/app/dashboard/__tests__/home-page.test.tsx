@@ -30,7 +30,7 @@ it("(F) runs Home's gates first, then hands the screen Today and To do", async (
   expect(order).toEqual(["setup", "onboarding", "load"]);
   expect(homeView).toHaveBeenCalledTimes(1);
   const screen = tree.props.children.find((c) => c && c.type === HomeScreen)!;
-  expect(screen.props).toEqual({ today: view.today, todo: view.todo });
+  expect(screen.props).toEqual({ today: view.today, todo: view.todo, voice: false });
   const scope = tree.props.children.find((c) => c && c.type === NoteScopeScreen)!;
   expect(scope.props.staffFirstNames).toEqual(["Dane"]);
 });

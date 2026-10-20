@@ -182,12 +182,12 @@ describe("the box", () => {
 });
 
 describe("Today", () => {
-  it("(F) says how much, and links to the Schedule and the Calendar", () => {
+  it("(F) says how much, and links to the v2 Schedule, never the old desk or Workboard", () => {
     draw();
     const s = section("Today");
     expect(within(s).getByText("2 jobs and a task")).toBeInTheDocument();
-    expect(within(s).getByRole("link", { name: "Schedule" })).toHaveAttribute("href", "/dashboard/workboard");
-    expect(within(s).getByRole("link", { name: "Calendar" })).toHaveAttribute("href", "/dashboard/desk?face=calendar");
+    expect(within(s).getByRole("link", { name: "Schedule" })).toHaveAttribute("href", "/dashboard/schedule");
+    expect(within(s).queryByRole("link", { name: "Calendar" })).toBeNull();
   });
 
   it("(F) draws each visit as rule 39 does: time, dot, name, line, and its state in words", () => {

@@ -269,7 +269,7 @@ describe("the old list's rows", () => {
     const wins = ["j1", "j2"].map((id, i) => ({ job: job({ remoteId: id, jobNumber: `30${i}` }), wonOn: "2026-09-01" }));
     const rows = todoRows(input({ list: listOf({ wins }) }));
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ key: "rollup:wins", name: "2 won jobs with no day", act: { label: "Book", href: "/dashboard/workboard" } });
+    expect(rows[0]).toMatchObject({ key: "rollup:wins", name: "2 won jobs with no day", act: { label: "Book", href: "/dashboard/schedule" } });
   });
 
   it("(F) drops a task's list row when the bell already has it", () => {

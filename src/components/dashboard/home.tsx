@@ -27,17 +27,13 @@ import { HomeTodo, useTaskTick } from "./home-todo";
    Send opens her on the words.
 
    TODAY: your own visits and timed tasks, one row each, with the Schedule
-   (the Workboard, until Schedule is rebuilt) and the old desk's Calendar a
-   link away.
+   a link away.
 
    TO DO: everything waiting on you, the bell's lists among it, with Show
    all for the rest (./home-todo, lib/dashboard/todo).
 
    The old Home (Your day, Diary, Tasks, the Calendar and its list) stands
    at /dashboard/desk until Conversations and Schedule take its faces in. */
-
-/** The old desk's Calendar, until Schedule › Calendar is built (F-023). */
-export const CALENDAR_HREF = "/dashboard/desk?face=calendar";
 
 function HomeToday({ view }: { view: TodayView }) {
   const { gone, tick } = useTaskTick();
@@ -49,10 +45,13 @@ function HomeToday({ view }: { view: TodayView }) {
           Today
         </h2>
         <span className="hm-sum">{view.summary}</span>
-        <span className="hm-headlinks">
-          <LinkButton href={CALENDAR_HREF}>Calendar</LinkButton>
-          {view.schedule && <LinkButton href="/dashboard/workboard">Schedule</LinkButton>}
-        </span>
+        {/* the v2 Schedule; the old desk's Calendar and the Workboard are no
+            door from Home (Isaac, 20 October) */}
+        {view.schedule && (
+          <span className="hm-headlinks">
+            <LinkButton href="/dashboard/schedule">Schedule</LinkButton>
+          </span>
+        )}
       </div>
       {rows.length === 0 ? (
         <Empty

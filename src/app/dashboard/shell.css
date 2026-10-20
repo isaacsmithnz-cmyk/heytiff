@@ -11875,6 +11875,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-ask { display:flex; flex-direction:column; align-items:center; gap:16px; }
 /* Home's box is Conversations' box, the column's full width */
 .fg .hm-ask .cv-box { align-self:stretch; }
+/* Home's own hold: the mark, the box and the two heads, where they land */
+.fg .hm-pk-mark { width:96px; height:96px; border-radius:50%; }
+.fg .hm-pk-box { align-self:stretch; height:calc(16px + 24px + 12px + 36px + 12px + 2px); border-radius:var(--r-card); }
+.fg .hm-pk-h { width:96px; height:24px; border-radius:var(--r-control); }
 .fg .hm-sec { display:flex; flex-direction:column; min-width:0; }
 .fg .hm-head { display:flex; align-items:baseline; gap:12px; padding-bottom:12px; border-bottom:1px solid var(--line); }
 .fg .hm-h { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }

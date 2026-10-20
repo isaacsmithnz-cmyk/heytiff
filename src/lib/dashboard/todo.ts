@@ -227,7 +227,7 @@ function listRows(list: HomeList): TodoRow[] {
               line: phrase(r.sub),
               lineTone: false,
               tick: null,
-              act: { kind: "link", label: "Book", href: "/dashboard/workboard" },
+              act: { kind: "link", label: "Book", href: "/dashboard/schedule" },
             });
           } else walk(r.rows, group);
           break;

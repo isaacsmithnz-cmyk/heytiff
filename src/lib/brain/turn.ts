@@ -37,6 +37,9 @@ export type AskBody = {
 /** An id longer than this isn't one of ours; a label is trimmed to it. */
 const PAGE_ID_MAX = 64;
 const PAGE_LABEL_MAX = 200;
+/** The screen's own detail is a short phrase; nothing that could open or
+    close the block it's put in. */
+const PAGE_DETAIL_MAX = 200;
 const SCREEN_LABELS = new Set(ALL_SCREENS.map((n) => n.label));
 
 /* WHERE THEY ARE, CHECKED. It reaches the model as text in their message, so
@@ -52,8 +55,12 @@ function shapePage(raw: unknown): AskPage | undefined {
   const id = typeof t.id === "string" ? t.id.trim() : "";
   const label = typeof t.label === "string" ? t.label.trim().slice(0, PAGE_LABEL_MAX) : "";
   const target = kind && id && id.length <= PAGE_ID_MAX ? { kind, id, ...(label ? { label } : {}) } : undefined;
+  /* the screen's own detail (Design's open design, Isaac, 20 October 2026)
+     rides only with a screen, and as plain words: no tags, no new lines */
+  const detail =
+    screen && typeof p.detail === "string" ? p.detail.replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, PAGE_DETAIL_MAX) : "";
   if (!screen && !target) return undefined;
-  return { ...(screen ? { screen } : {}), ...(target ? { target } : {}) };
+  return { ...(screen ? { screen } : {}), ...(detail ? { detail } : {}), ...(target ? { target } : {}) };
 }
 
 /* The history is replayed into the model as earlier turns, so it is the one

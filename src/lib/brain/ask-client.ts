@@ -49,6 +49,10 @@ export async function askBrain(
     question: string;
     /** The screen they're on, by its nav name. */
     screen?: string;
+    /** What on that screen they're about, in the screen's words (Design's
+        open design). Its own field: the route takes a screen only by its
+        nav name, so put in the name it was dropped whole. */
+    screenDetail?: string;
     target?: NoteTarget;
     targetLabel?: string;
     /** The Tiff modal's conversation so far, oldest first. The route keeps
@@ -74,6 +78,7 @@ export async function askBrain(
            The route checks every part; the model reads it as place. */
         page: {
           ...(input.screen ? { screen: input.screen } : {}),
+          ...(input.screen && input.screenDetail ? { detail: input.screenDetail } : {}),
           ...(input.target && input.target.kind !== "none" && input.target.id
             ? { target: { kind: input.target.kind, id: input.target.id, label: input.targetLabel } }
             : {}),

@@ -194,6 +194,7 @@ export function useConversation({
   target: aimTarget,
   targetLabel: aimLabel,
   screen,
+  screenDetail,
   designOpen = false,
   onLeave,
 }: {
@@ -204,6 +205,9 @@ export function useConversation({
   /** The screen the modal was opened over, by its nav name: part of where
       Tiff is told the person is. */
   screen?: string;
+  /** What on the screen it's about, in the screen's words (Design's open
+      design): told to her beside the screen's name. */
+  screenDetail?: string;
   /** A design is open under the chat: words about its building go to her
       (lib/brain/intent `looksLikeDesignWords`), not the note flow. */
   designOpen?: boolean;
@@ -565,6 +569,7 @@ export function useConversation({
       {
         question,
         screen,
+        screenDetail,
         target,
         targetLabel,
         history: spoken(before),

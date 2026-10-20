@@ -75,10 +75,15 @@ export function stageWord(steps: readonly JobStep[]): { word: string; tone: Tone
   return done ? { word: done.label, tone: "info" } : null;
 }
 
+/* a first word that names nothing alone: "St Lukes" is not "St" */
+const LEAD_WORD = /^(?:the|mr|mrs|ms|dr|st|mt|[a-z]{1,2})\.?$/i;
+
 /** What an open tab calls a job: its number and the first word of its
-    client's name, "3209 Richards". */
+    client's name, "3209 Richards"; the first two when the first is a
+    title or a short word, "2674 St Lukes". */
 export function jobTabLabel(number: string | null | undefined, clientName: string | null | undefined): string {
-  const short = (clientName ?? "").trim().split(/\s+/)[0] ?? "";
+  const words = (clientName ?? "").trim().split(/\s+/);
+  const short = (words.length > 1 && LEAD_WORD.test(words[0]) ? words.slice(0, 2).join(" ") : words[0]) ?? "";
   const n = (number ?? "").trim();
   if (n && short) return `${n} ${short}`;
   if (short) return (clientName ?? "").trim();

@@ -12423,6 +12423,24 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .pt-dialog .ds2-nd-job { display:flex; align-items:center; gap:8px; min-height:36px; padding:0 4px 0 12px; box-sizing:border-box; border:1px solid var(--edge); border-radius:var(--r-control); font-size:14px; line-height:20px; }
 .pt-dialog .ds2-nd-job b { font-weight:600; }
 .pt-dialog .ds2-nd-job span { flex:1 1 auto; min-width:0; color:var(--q); }
+/* the job search, on the dialog's white: studio.css draws it for the old dark
+   start screen and only inside .dstudio, which a portalled dialog never is */
+.pt-dialog .ds-sm8-field { position:relative; }
+.pt-dialog .ds-sm8-search { display:flex; align-items:center; gap:8px; height:36px; padding:0 12px; box-sizing:border-box; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); }
+.pt-dialog .ds-sm8-search:focus-within { box-shadow:var(--ring); }
+.pt-dialog .ds-sm8-search svg { flex:none; color:var(--q); }
+.pt-dialog .ds-sm8-search input { flex:1 1 auto; min-width:0; height:100%; padding:0; border:0; outline:none; background:transparent; color:var(--ink); font:inherit; font-size:14px; line-height:20px; }
+.pt-dialog .ds-sm8-search input::placeholder { color:var(--q); opacity:1; }
+.pt-dialog .ds-sm8-search input::-webkit-search-cancel-button { display:none; }
+.pt-dialog .ds-sm8-drop { position:absolute; z-index:2; top:calc(100% + 4px); left:0; right:0; max-height:264px; overflow-y:auto; display:flex; flex-direction:column; gap:2px; padding:4px; border-radius:var(--r-card); background:var(--white); box-shadow:var(--shadow-overlay); }
+.pt-dialog .ds-sm8-opt { display:flex; align-items:flex-start; gap:12px; width:100%; padding:8px; border:0; border-radius:var(--r-button); background:none; text-align:left; font:inherit; cursor:pointer; }
+.pt-dialog .ds-sm8-opt:hover, .pt-dialog .ds-sm8-opt:focus-visible { outline:none; background:var(--hov); }
+.pt-dialog .ds-sm8-no { flex:0 0 48px; font-size:13px; line-height:20px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+.pt-dialog .ds-sm8-b { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; }
+.pt-dialog .ds-sm8-t, .pt-dialog .ds-sm8-s, .pt-dialog .ds-sm8-d { overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
+.pt-dialog .ds-sm8-t { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.pt-dialog .ds-sm8-s, .pt-dialog .ds-sm8-d { font-size:13px; line-height:18px; color:var(--q); }
+.pt-dialog .ds-sm8-none { margin:0; padding:8px; font-size:14px; line-height:20px; color:var(--q); }
 .pt-dialog .ds2-nd-drop { display:flex; flex-direction:column; align-items:center; gap:8px; padding:32px 24px; border:1px dashed var(--edge); border-radius:var(--r-card); text-align:center; transition:background var(--t-fast) var(--ease); }
 .pt-dialog .ds2-nd-drop--over { background:var(--sel); }
 .pt-dialog .ds2-nd-drop-ic { display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:var(--r-pill); background:var(--soft); color:var(--ink); }

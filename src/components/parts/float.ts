@@ -18,7 +18,9 @@ import { useEffect, useEffectEvent, useLayoutEffect, useState, type CSSPropertie
 const GAP = 4;
 const EDGE = 8;
 
-export type FloatAlign = "start" | "end";
+/** "out": beside the sidebar the trigger sits in, level with the trigger's
+    top (New's panel, rule 44: it reaches out of the sidebar) */
+export type FloatAlign = "start" | "end" | "out";
 
 type Place = { left: number; top?: number; bottom?: number; maxHeight: number; minWidth?: number; overModal: boolean };
 
@@ -36,6 +38,11 @@ function measure(anchor: HTMLElement, panel: HTMLElement, align: FloatAlign, mat
   const below = vh - r.bottom - GAP - EDGE;
   const above = r.top - GAP - EDGE;
   const overModal = !!anchor.closest("[aria-modal='true'], [role='dialog'], dialog");
+  if (align === "out") {
+    const edge = (anchor.closest("aside") ?? anchor).getBoundingClientRect().right;
+    const top = Math.max(EDGE, Math.min(r.top, vh - height - EDGE));
+    return { left: Math.min(edge, vw - width - EDGE), top, maxHeight: vh - top - EDGE, minWidth, overModal };
+  }
   if (height > below && above > below) {
     return { left, bottom: vh - r.top + GAP, maxHeight: Math.max(0, above), minWidth, overModal };
   }

@@ -110,7 +110,8 @@ export const deskTaskHref = (id: string) => `/dashboard/desk?task=${enc(id)}`;
 /** The Diary, where an entry, a mention or a field issue with no job is
     read until v2 gives the Diary a place (the v2 audit, 20 October 2026). */
 export const DESK_DIARY = "/dashboard/desk?face=diary";
-export const deskAskHref = (noteUuid: string) => `/dashboard/desk?ask=${enc(noteUuid)}`;
+/** A mention's Reply: on Home, in Your feed, where it is answered in place (20 October 2026). */
+export const deskAskHref = (noteUuid: string) => `/dashboard?reply=${enc(noteUuid)}`;
 
 const toneOfDot = (dot: Dot): TodoTone => (dot === "late" ? "wrong" : dot === "today" ? "look" : "info");
 

@@ -45,8 +45,10 @@ export type FeedReply = {
 export type FeedItem = {
   key: string;
   filter: Exclude<FeedFilter, "all">;
-  /** whose it is: a person by name, or ServiceM8 */
-  who: { name: string; sm8: boolean };
+  /** whose it is: a person by name, ServiceM8, or a thing waiting on you (an approval, a notice, work given) */
+  who: { name: string; sm8: boolean; thing?: boolean };
+  /** every note of theirs in it, so a Reply door naming any of them finds it */
+  notes?: string[];
   /** "mentioned you on 2674 St Lukes" */
   what: string;
   /** their words, when there are words */
@@ -77,7 +79,7 @@ function rowItem(r: TodoRow, now: string): FeedItem {
   return {
     key: r.key,
     filter: filterOfRow(r),
-    who: { name: r.name, sm8: JOB_CHIPS.test(r.key) },
+    who: { name: r.name, sm8: JOB_CHIPS.test(r.key), thing: !JOB_CHIPS.test(r.key) },
     what: r.line,
     said: null,
     yours: null,
@@ -106,6 +108,7 @@ function conversationItem(c: DiaryConversation, today: string): FeedItem | null 
     key: `talk:${c.key}`,
     filter: "you",
     who: { name: c.asker.name, sm8: false },
+    notes: c.messages.filter((m) => m.from === "them").map((m) => m.id),
     what: c.messages[0]?.id === ask.message.id ? `mentioned you on ${job}` : `wrote to you on ${job}`,
     said: ask.message.text,
     yours: mine && c.answered ? mine.text : null,

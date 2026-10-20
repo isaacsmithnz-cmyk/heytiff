@@ -30,6 +30,7 @@ import { chunkPages, type PageText } from "./chunk";
 import { isScannedPage, openPdf, PAGE_BATCH, pageWindow } from "./extract";
 import { embedTexts } from "./embeddings";
 import { tagChunks } from "./keywords";
+import { imprintPatch, readImprint } from "./imprint";
 import { addKbUsage, kbQuotaFor } from "./quota";
 
 /* The reason, kept where it can be read.
@@ -94,7 +95,7 @@ export type BatchPlan =
   | { kind: "done" }
   | { kind: "refused"; error: string };
 
-const DOC_COLUMNS = "status, next_page, page_count, chunk_count, scanned_pages, storage_ref";
+const DOC_COLUMNS = "status, next_page, page_count, chunk_count, scanned_pages, storage_ref, source, edition";
 
 /* What to do with this document right now.
 
@@ -303,9 +304,16 @@ export async function processBatch(documentId: string, orgId: string, cache?: Pd
        chunks still match on their own content; null embeddings still match on
        keywords, and a later run backfills them once a key exists. */
     const texts = chunks.map((c) => c.content);
-    const [tagged, embedded] = await Promise.all([
+    /* THE MAKER AND THE EDITION, off the cover and the imprint (./imprint),
+       asked once, in the first batch, beside the tagging, and only for a
+       field nobody has filled */
+    const known = { source: (row.source as string | null) ?? null, edition: (row.edition as string | null) ?? null };
+    const wantImprint = window.from === 1 && (!known.source?.trim() || !known.edition?.trim());
+    const cover = wantImprint ? pages.filter((p) => p.page <= 3).map((p) => p.text).join("\n") : "";
+    const [tagged, embedded, imprint] = await Promise.all([
       tagChunks(texts, documentId),
       embedTexts(texts, "document"),
+      cover ? readImprint(cover) : Promise.resolve(null),
     ]);
 
     const keywords = tagged.ok ? tagged.keywords : chunks.map(() => []);
@@ -347,7 +355,7 @@ export async function processBatch(documentId: string, orgId: string, cache?: Pd
 
     const { error: updateErr } = await supabaseAdmin
       .from("kb_documents")
-      .update(patch)
+      .update({ ...patch, ...(imprint ? imprintPatch(known, imprint) : {}) })
       .eq("org_id", orgId)
       .eq("id", documentId);
     if (updateErr) return fail(documentId, orgId, doc, "That document couldn't be updated.");

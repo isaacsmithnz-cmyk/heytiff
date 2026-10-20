@@ -10534,3 +10534,57 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 /* the pair as whole-order options: lowest each, or all from one supplier */
 .ds-ub-basket { display:flex; flex-wrap:wrap; gap:8px; }
 .ds-ub-over { font-size:12px; font-weight:500; color:var(--q); }
+
+/* ── Plan or 3D (Isaac, 20 October 2026: "a button on design") ──
+   The switch leads the canvas controls; in 3D the same line holds the 3D
+   view's own (floors, Lift apart, Labels, Read the plans). A tray is a fill
+   with a white thumb, as the workflow switcher is. */
+.dstudio .ds-centre { display: inline-flex; align-items: center; gap: 8px; flex: 0 1 auto; min-width: 0; }
+.dstudio .ds-viewtray {
+  display: inline-grid;
+  grid-auto-flow: column;
+  gap: 4px;
+  padding: 4px;
+  background: #e4e6ec;
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+}
+.dstudio .ds-viewtray button {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gray500);
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-button);
+  padding: 4px 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+}
+.dstudio .ds-viewtray button:hover { color: var(--ink); }
+.dstudio .ds-viewtray button[aria-pressed="true"] { background: var(--paper); color: var(--ink); }
+.dstudio .ds-ctl-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* the 3D view fills the canvas's card; its labels ride over the picture */
+.dstudio .ds3 { position: relative; width: 100%; height: 100%; min-height: 0; overflow: hidden; border-radius: var(--r-card); background: var(--paper); }
+.dstudio .ds3-gl { position: absolute; inset: 0; display: block; }
+.dstudio .ds3-lab {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.dstudio .ds3-lab.unit { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.dstudio .ds3-none,
+.dstudio .ds3-empty p { margin: 0; font-size: 14px; line-height: 20px; color: var(--gray500); text-align: center; max-width: 48ch; }
+.dstudio .ds3-none { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.dstudio .ds3-empty { display: flex; align-items: center; justify-content: center; height: 100%; padding: 24px; background: var(--paper); border-radius: var(--r-card); }

@@ -103,8 +103,11 @@ import type { JobPrefill } from "@/lib/studio/job-link";
 import { suggestedRooms, withChecks, type PlanReading } from "@/lib/studio/reading";
 import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
 import type { LibraryManifest } from "@/lib/studio/packs/library";
+import { Button } from "@/components/parts/button";
 import { DesignHome } from "./home";
 import { RoomsFromPlan } from "./rooms-from-plan";
+import { ALL_FLOORS, View3D, type Look3D } from "./view-3d";
+import { sceneOf, type Scene3D } from "@/lib/studio/scene3d";
 import "./studio.css";
 
 /* The sim flag never changes after load, so there is nothing to subscribe to —
@@ -709,6 +712,7 @@ export function Studio({
             step={step}
             saveState={saveState}
             reading={readingNow && doc && readingNow.id === doc.id ? readingNow : null}
+            onReadPlans={() => void readPlans(doc.id)}
             onStep={setStep}
             onMutate={mutate}
             onReplace={replaceDoc}
@@ -816,6 +820,7 @@ function Editor({
   step,
   saveState,
   reading,
+  onReadPlans,
   onStep,
   onMutate,
   onReplace,
@@ -836,6 +841,8 @@ function Editor({
   saveState: "saved" | "saving" | "local";
   /** Tiff reading this design's plans, while she reads and once she has */
   reading?: { state: "reading" | "read" | "failed"; rooms: number } | null;
+  /** asks Tiff to read the design's plans (the 3D view's whole house) */
+  onReadPlans: () => void;
   onStep: (i: number) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onReplace: (d: DesignDocument) => void;
@@ -912,6 +919,11 @@ function Editor({
   const [layers, setLayers] = useState<LayerFlags>(ALL_LAYERS_ON);
   const [grayscale, setGrayscale] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
+  /* the Design step's Plan / 3D switch (Isaac, 20 October 2026: "a button on
+     design"), and what the 3D view shows */
+  const [view3d, setView3d] = useState(false);
+  const [look3d, setLook3d] = useState<Look3D>({ floor: ALL_FLOORS, apart: false, labels: true });
+  const scene3d = useMemo(() => (view3d ? sceneOf(doc) : null), [view3d, doc]);
 
   /* ── fullscreen: the Workboard's display-mode pattern, ported ──
      The DOCUMENT goes fullscreen (never the studio element) because every
@@ -1545,6 +1557,18 @@ function Editor({
         {/* the canvas controls take the centre slot — the strip above the
             canvas is gone. Design step only; they're floor-scoped. */}
         {step === 1 && activeFloor && (
+          <div className="ds-centre">
+          <PlanOr3D on={view3d} onChange={setView3d} />
+          {view3d && scene3d ? (
+            <ThreeDControls
+              scene={scene3d}
+              look={look3d}
+              onLook={setLook3d}
+              plans={doc.floors.some((f) => f.plans.length > 0)}
+              reading={reading?.state === "reading"}
+              onReadPlans={onReadPlans}
+            />
+          ) : (
           <CanvasControls
             floors={doc.floors}
             floor={activeFloor}
@@ -1570,6 +1594,8 @@ function Editor({
             simOn={simOn}
             onToggleSim={toggleSim}
           />
+          )}
+          </div>
         )}
         <div className="ds-tb-right">
           {/* fullscreen rides beside the switcher: one toggle, the browser's
@@ -1622,6 +1648,8 @@ function Editor({
         {step === 1 && (
           <DesignPanel
             doc={doc}
+            scene3d={scene3d}
+            look3d={look3d}
             activeFloorId={activeFloorId}
             onAddFloor={addFloor}
             onGoPlans={() => onStep(0)}
@@ -2457,6 +2485,86 @@ function useClampedMenu(open: boolean) {
 /* Floor ▾ · Calibrate · View · Simulate — relocated from the old strip above
    the canvas onto the topbar line. Everything they drive lives at the Editor
    level; only the popover-open state is local here. */
+/* PLAN OR 3D (Isaac, 20 October 2026: "a button on design"; the board
+   https://claude.ai/artifact/VWq6nGGGaCPxCuRnReyCyX, option B). The canvas
+   and the 3D view are two views of one design, so the switch is a tray of
+   two at the head of the canvas controls. */
+function PlanOr3D({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className="ds-viewtray" role="group" aria-label="View">
+      <button type="button" aria-pressed={!on} onClick={() => onChange(false)}>
+        Plan
+      </button>
+      <button type="button" aria-pressed={on} onClick={() => onChange(true)}>
+        3D
+      </button>
+    </div>
+  );
+}
+
+/* What the 3D view shows, where the canvas controls stand on the plan: every
+   floor or one, the floors lifted apart, the labels. Read the plans, while
+   Tiff hasn't, draws the whole house rather than the zones alone. */
+function ThreeDControls({
+  scene,
+  look,
+  onLook,
+  plans,
+  reading,
+  onReadPlans,
+}: {
+  scene: Scene3D;
+  look: Look3D;
+  onLook: (l: Look3D) => void;
+  /** the design has plans for Tiff to read */
+  plans: boolean;
+  /** she is reading them now */
+  reading: boolean;
+  onReadPlans: () => void;
+}) {
+  const unread = plans && !scene.floors.some((f) => f.read);
+  return (
+    <div className="ds-canvas-toggles">
+      {scene.floors.length > 1 && (
+        <div className="ds-viewtray" role="group" aria-label="Floors">
+          <button type="button" aria-pressed={look.floor === ALL_FLOORS} onClick={() => onLook({ ...look, floor: ALL_FLOORS })}>
+            All
+          </button>
+          {scene.floors.map((f) => (
+            <button key={f.id} type="button" aria-pressed={look.floor === f.id} onClick={() => onLook({ ...look, floor: f.id })}>
+              {floorDisplayName(f)}
+            </button>
+          ))}
+        </div>
+      )}
+      {scene.floors.length > 1 && (
+        <button
+          type="button"
+          className={`ds-ctl-btn${look.apart ? " on" : ""}`}
+          aria-pressed={look.apart}
+          disabled={look.floor !== ALL_FLOORS}
+          onClick={() => onLook({ ...look, apart: !look.apart })}
+        >
+          Lift apart
+        </button>
+      )}
+      <button
+        type="button"
+        className={`ds-ctl-btn${look.labels ? " on" : ""}`}
+        aria-pressed={look.labels}
+        onClick={() => onLook({ ...look, labels: !look.labels })}
+      >
+        Labels
+      </button>
+      {unread && (
+        <Button size={32} disabled={reading} onClick={onReadPlans}>
+          {reading ? "Tiff is reading the plans" : "Read the plans"}
+        </Button>
+      )}
+    </div>
+  );
+}
+
 function CanvasControls({
   floors,
   floor,
@@ -2883,6 +2991,8 @@ function CanvasControls({
 
 function DesignPanel({
   doc,
+  scene3d,
+  look3d,
   activeFloorId,
   onAddFloor,
   onGoPlans,
@@ -2922,6 +3032,9 @@ function DesignPanel({
   onClaimToggle,
 }: {
   doc: DesignDocument;
+  /** the design in 3D, when the top bar's switch says 3D; the canvas otherwise */
+  scene3d: Scene3D | null;
+  look3d: Look3D;
   activeFloorId: string | null;
   onAddFloor: () => void;
   onGoPlans: () => void;
@@ -3072,6 +3185,23 @@ function DesignPanel({
       b
     );
   };
+
+  if (scene3d)
+    return (
+      <div className="ds-design">
+        <div className="ds-canvas-col">
+          <div className="ds-canvas-body">
+            {scene3d.floors.length ? (
+              <View3D scene={scene3d} look={look3d} />
+            ) : (
+              <div className="ds3-empty">
+                <p>Nothing to draw yet: a floor needs its scale, and zones or Tiff&rsquo;s reading of its plans.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
 
   return (
     <div className="ds-design">

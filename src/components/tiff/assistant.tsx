@@ -487,7 +487,7 @@ export function TiffAssistant({
      where conversations are stored"; they start on Home). With none named, it
      opens the newest, unless a document handed a question over to ask. */
   const shownId =
-    activeId ?? (conv && !prefill && !scope ? ([...threads].sort((a, b) => b.updatedAt - a.updatedAt)[0]?.id ?? null) : null);
+    activeId ?? (conv && !prefill && !scope && !handoff.ask ? ([...threads].sort((a, b) => b.updatedAt - a.updatedAt)[0]?.id ?? null) : null);
   const active = threads.find((t) => t.id === shownId) ?? null;
   /* The held thread is written but not yet shown, so it must not appear in
      "Pick up where you left off" either — a card inviting you to resume the
@@ -987,6 +987,17 @@ export function TiffAssistant({
     persist(threads.filter((t) => t.id !== id));
     setRemoving(null);
   };
+
+  /* A QUESTION HANDED OVER WHOLE (the Library's box, ask-handoff's
+     writeAskQuestion) is asked once the threads are in, in a conversation of
+     its own: before then a send would write over the threads it can't see. */
+  const askedHandoff = useRef(false);
+  const askHandedOver = useEffectEvent((question: string) => send(question));
+  useEffect(() => {
+    if (!handoff.ask || askedHandoff.current || !hydrated) return;
+    askedHandoff.current = true;
+    askHandedOver(handoff.ask);
+  }, [handoff.ask, hydrated]);
 
   /* The last question asked, for the "search the library for this" offer under
      a general answer. */

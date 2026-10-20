@@ -13,7 +13,9 @@ import { StateWord } from "@/components/parts/state";
 import { Tick } from "@/components/parts/tick";
 import type { TodayView } from "@/lib/dashboard/home-today";
 import { columnOf, type TodoRow } from "@/lib/dashboard/todo";
-import { ColumnHead, HomeActivity, HomeTodo, TodoList, useTaskTick } from "./home-todo";
+import { ColumnHead, HomeTodo, TodoList, useTaskTick } from "./home-todo";
+import { HomeFeed } from "./home-feed";
+import type { FeedItem } from "@/lib/dashboard/your-feed";
 
 /* HOME, v2 (the board v2-board-home; docs/design.md rules 8, 13, 22, 26,
    27 and 39; decisions 25 and 28). Three things, in one column:
@@ -133,7 +135,7 @@ function HomeBox({ voice, onStart }: { voice: boolean; onStart: (words: string) 
   );
 }
 
-export function HomeScreen({ today, todo, voice = false }: { today: TodayView; todo: TodoRow[]; voice?: boolean }) {
+export function HomeScreen({ today, todo, feed = [], voice = false }: { today: TodayView; todo: TodoRow[]; feed?: readonly FeedItem[]; voice?: boolean }) {
   const tiff = useTiff();
   /* THE CONVERSATION TAKES THE PAGE once you have said something (Isaac, 20
      October, the board's frame 2); Back to Home brings the columns back. */
@@ -160,7 +162,7 @@ export function HomeScreen({ today, todo, voice = false }: { today: TodayView; t
         <div className="hm-cols">
           <HomeToday view={today} due={todo.filter((r) => columnOf(r) === "today")} />
           <HomeTodo rows={todo.filter((r) => columnOf(r) === "todo")} />
-          <HomeActivity rows={todo.filter((r) => columnOf(r) === "activity")} />
+          <HomeFeed items={feed} />
         </div>
       </div>
     </div>

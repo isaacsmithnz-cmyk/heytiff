@@ -259,13 +259,3 @@ export function HomeTodo({
     </section>
   );
 }
-
-/** Activity: what comes in, from ServiceM8 and the team, approvals among it. */
-export function HomeActivity({ rows }: { rows: readonly TodoRow[] }) {
-  return (
-    <section className="hm-sec" aria-labelledby="hm-activity">
-      <ColumnHead id="hm-activity" name="Activity" icon="activity" hue="green" />
-      {rows.length === 0 ? <Empty what="Nothing new" action={null} /> : <TodoList rows={rows} label="Activity" />}
-    </section>
-  );
-}

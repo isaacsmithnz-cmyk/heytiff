@@ -70,6 +70,7 @@ jest.mock("../home-list-query", () => ({ loadHomeList: jest.fn() }));
    pinned in todo.test and the Home suites, and here they are a name. */
 const loadTodoExtras = jest.fn(async (_ctx: unknown) => ({ reminders: [], assignments: [], notices: [], timesheets: 0 }));
 jest.mock("../todo-query", () => ({ loadTodoExtras: (ctx: unknown) => loadTodoExtras(ctx) }));
+jest.mock("../feed-events-query", () => ({ readFeedEvents: async () => [] }));
 jest.mock("../task-record-query", () => ({ loadTasksFace: jest.fn() }));
 jest.mock("@/lib/calendar/query", () => ({ loadCompanyCalendar: jest.fn() }));
 jest.mock("../diary-query", () => ({ loadDiaryFeed: jest.fn() }));

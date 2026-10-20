@@ -11873,6 +11873,28 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-chat .tm-dock { padding:12px 0 0; border-top:0; }
 .fg .hm-chat-now { margin:0; font-size:14px; line-height:20px; color:var(--q); }
 .fg .hm-sec { display:flex; flex-direction:column; min-width:0; }
+/* Your feed (in place of Activity, 20 October 2026): the filter under the
+   head, then each item: who at the left, who/what/when on one line, their
+   words, yours under them, and its buttons; Reply opens a box in place */
+.fg .hm-feed-filter { padding:12px 0 4px; }
+.fg .hm-feed-list { list-style:none; margin:0; padding:0; overflow:auto; min-height:0; }
+.fg .hm-feed-item { display:grid; grid-template-columns:32px minmax(0,1fr); gap:12px; padding:12px 0; border-bottom:1px solid var(--line); }
+.fg .hm-feed-av { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; line-height:16px; font-weight:600; }
+.fg .hm-feed-av--sm8 { background:var(--ink); color:var(--white); }
+.fg .hm-feed-body { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.fg .hm-feed-head { display:flex; align-items:baseline; gap:8px; margin:0; min-width:0; font-size:14px; line-height:20px; }
+.fg .hm-feed-head b { font-weight:600; white-space:nowrap; }
+.fg .hm-feed-what { color:var(--q); white-space:nowrap; overflow:hidden; min-width:0; flex:1 1 auto; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
+.fg .hm-feed-when { color:var(--q); font-size:13px; line-height:20px; white-space:nowrap; }
+/* new to you: an ink dot (blue is only for what you press, rule 16) */
+.fg .hm-feed-new { width:8px; height:8px; border-radius:50%; background:var(--ink); flex:none; align-self:center; }
+.fg .hm-feed-said { margin:0; font-size:14px; line-height:20px; color:var(--ink); overflow-wrap:anywhere; }
+.fg .hm-feed-yours { margin:0; font-size:13px; line-height:20px; color:var(--q); overflow-wrap:anywhere; }
+.fg .hm-feed-acts { display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
+.fg .hm-feed-reply { display:flex; flex-direction:column; gap:4px; margin-top:4px; }
+.fg .hm-feed-replyrow { display:flex; gap:8px; align-items:center; }
+.fg .hm-feed-replyrow > :first-child { flex:1 1 auto; min-width:0; }
+.fg .hm-feed-err { margin:0; font-size:13px; line-height:20px; color:var(--red-w); }
 .fg .hm-head { display:flex; align-items:center; gap:12px; padding-bottom:12px; border-bottom:1px solid var(--line); }
 .fg .hm-h { margin:0; font-size:20px; line-height:28px; font-weight:600; color:var(--ink); }
 .fg .hm-title { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }

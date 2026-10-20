@@ -12464,6 +12464,32 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .pt-dialog .ds2-nd-pieces { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; }
 .pt-dialog .ds2-nd-piece { display:grid; grid-template-columns:72px minmax(0,1fr) auto; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--line); }
 .pt-dialog .ds2-nd-piece .ds2-nd-floor-thumb { width:72px; height:54px; }
+/* Rooms (the boards flow-rooms, flow-adjust): Tiff's rooms over the plan, the picked one's card and the list beside */
+.pt-dialog .ds2-rm { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:24px; height:100%; min-height:0; padding:8px 0 16px; box-sizing:border-box; }
+.pt-dialog .ds2-rm-plan { display:flex; min-width:0; min-height:0; border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; background:var(--white); }
+.pt-dialog .ds2-rm-svg { display:block; width:100%; height:100%; touch-action:none; user-select:none; }
+.pt-dialog .ds2-rm-img { opacity:.6; }
+.pt-dialog .ds2-rm-room { fill:var(--ink); fill-opacity:.03; stroke:var(--grey); stroke-dasharray:6 4; cursor:pointer; }
+.pt-dialog .ds2-rm-room--kept { fill:var(--press); fill-opacity:.16; stroke:var(--press); stroke-dasharray:none; }
+.pt-dialog .ds2-rm-room--sel { fill-opacity:.24; stroke:var(--ink); }
+.pt-dialog .ds2-rm-label { fill:var(--q); font-family:var(--font); font-weight:600; pointer-events:none; }
+.pt-dialog .ds2-rm-label--kept { fill:var(--ink); }
+.pt-dialog .ds2-rm-corner { fill:var(--white); stroke:var(--ink); cursor:move; }
+.pt-dialog .ds2-rm-side { display:flex; flex-direction:column; gap:16px; min-width:0; min-height:0; overflow:auto; }
+.pt-dialog .ds2-rm-card { display:flex; flex-direction:column; gap:12px; padding:16px; border-radius:var(--r-card); box-shadow:inset 0 0 0 1px var(--edge); }
+.pt-dialog .ds2-rm-row { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:14px; line-height:20px; }
+.pt-dialog .ds2-rm-facts { display:grid; grid-template-columns:auto minmax(0,1fr); gap:4px 16px; margin:0; font-size:13px; line-height:18px; }
+.pt-dialog .ds2-rm-facts dt { color:var(--q); }
+.pt-dialog .ds2-rm-facts dd { margin:0; color:var(--ink); font-variant-numeric:tabular-nums; }
+.pt-dialog .ds2-rm-note { display:flex; align-items:center; gap:8px; margin:0; font-size:13px; line-height:18px; color:var(--ink); }
+.pt-dialog .ds2-rm-list { margin:0; padding:0; list-style:none; }
+.pt-dialog .ds2-rm-item { display:grid; grid-template-columns:20px minmax(0,1fr) auto; align-items:center; gap:12px; min-height:36px; border-bottom:1px solid var(--line); }
+.pt-dialog .ds2-rm-item--sel { background:var(--sel); }
+.pt-dialog .ds2-rm-tick { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; padding:0; border:0; border-radius:var(--r-control); box-shadow:inset 0 0 0 1.5px var(--edge); background:var(--white); color:var(--white); cursor:pointer; }
+.pt-dialog .ds2-rm-tick[aria-checked="true"] { background:var(--press); box-shadow:none; }
+.pt-dialog .ds2-rm-tick:focus-visible, .pt-dialog .ds2-rm-name:focus-visible { outline:none; box-shadow:var(--ring); }
+.pt-dialog .ds2-rm-name { padding:0; border:0; background:none; font:inherit; font-size:14px; line-height:20px; color:var(--ink); text-align:left; cursor:pointer; }
+.pt-dialog .ds2-rm-m2 { font-size:13px; line-height:18px; color:var(--q); font-variant-numeric:tabular-nums; }
 /* ===== V2: YOUR TIMESHEET (v2, step 5; the board 6-timesheet;
    components/timepay/my-timesheet.tsx) =====
    Your name › Timesheet. The title with when the sheet sends and Send on

@@ -40,14 +40,17 @@ jest.mock("@/lib/supabase-server", () => ({
 jest.mock("@/lib/integrations/sm8-kinds", () => ({ sm8QuotesAllowed: () => true }));
 jest.mock("@/lib/integrations/sm8-press", () => ({ sm8PressFromSession: async () => ({ orgId: "org-1", userId: "auth0|me", staffId: "s-me", at: Date.now() }) }));
 jest.mock("@/lib/integrations/sm8-writes", () => ({ readSm8WriteState: jest.fn() }));
-jest.mock("@/lib/integrations/sm8-write-plan", () => ({ offersSend: () => true }));
+/* nothing holds a quote unless a test says so */
+const sendRefusal = jest.fn((): string | null => null);
+jest.mock("@/lib/integrations/sm8-write-plan", () => ({ offersSend: () => true, sendRefusal: () => sendRefusal() }));
 jest.mock("@/lib/integrations/sm8-drain", () => ({ settlePressedWrites: jest.fn(async () => undefined) }));
 jest.mock("@/lib/integrations/sm8-freshness", () => ({ syncSm8AfterSend: jest.fn() }));
 jest.mock("@/lib/integrations/sm8-store", () => ({ sm8AccessResult: async () => ({ ok: true, access: {} }) }));
 jest.mock("@/lib/integrations/sm8-http", () => ({ sm8CallOf: () => ({}) }));
 const readSm8Raw = jest.fn();
 jest.mock("@/lib/integrations/sm8-write", () => ({ readSm8Raw: (...a: unknown[]) => readSm8Raw(...a) }));
-jest.mock("@/lib/integrations/sm8-quote-trial", () => ({ quotesOnTrial: async () => false }));
+let onTrial = false;
+jest.mock("@/lib/integrations/sm8-quote-trial", () => ({ quotesOnTrial: async () => onTrial }));
 
 const readVariationSendView = jest.fn();
 jest.mock("@/lib/quotes/sm8-send-server", () => ({
@@ -84,7 +87,7 @@ jest.mock("../sm8-quote-queue", () => ({
   },
 }));
 
-import { sendVariationToSm8 } from "../quote-sm8";
+import { sendQuoteToSm8, sendVariationToSm8 } from "../quote-sm8";
 import { variationSendPlan, INVOICE_AGAIN } from "@/lib/quotes/sm8-variation-plan";
 import { QUOTE_WORDS } from "@/lib/integrations/sm8-quote-plan";
 import type { Variation } from "@/lib/quotes/lines-job";
@@ -196,4 +199,21 @@ it("sends nothing to a job ServiceM8 no longer has, or one still a quote", async
   view(variation(), { status: "Quote", invoiced: false, number: "3209" });
   expect((await sendVariationToSm8(JOB, 1)).ok).toBe(false);
   expect(queued).toHaveLength(0);
+});
+
+/* 3414, 21 October: a grant without manage_job_materials queued "0 sent,
+   2 still going" for good. Held is said at the press, and nothing queues */
+it("says what holds a quote before anything is queued, a trial run aside", async () => {
+  sendRefusal.mockReturnValue(QUOTE_WORDS.press.scope);
+  expect(await sendVariationToSm8(JOB, 1)).toEqual({ ok: false, error: QUOTE_WORDS.press.scope });
+  expect(await sendQuoteToSm8(JOB, "0000000b-0000-4000-8000-000000000001", "2026-10-21 08:26:46", "plan", "quote")).toEqual({ ok: false, error: QUOTE_WORDS.press.scope });
+  expect(queued).toHaveLength(0);
+  /* a quote on its own trial run goes nowhere, so the permission doesn't hold it */
+  onTrial = true;
+  expect((await sendVariationToSm8(JOB, 1)).ok).toBe(true);
+  /* the owner's own Off holds even a trial run */
+  sendRefusal.mockReturnValue(QUOTE_WORDS.press.kindOff);
+  expect(await sendVariationToSm8(JOB, 1)).toEqual({ ok: false, error: QUOTE_WORDS.press.kindOff });
+  onTrial = false;
+  sendRefusal.mockReturnValue(null);
 });

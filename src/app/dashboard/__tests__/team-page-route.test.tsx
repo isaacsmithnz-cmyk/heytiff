@@ -21,8 +21,10 @@ jest.mock("next/navigation", () => ({
   },
 }));
 const listStaff = jest.fn(async () => []);
+const listStaffDirectory = jest.fn(async () => [{ id: "s1", name: "Dane Cooper", role: "Installer", phone: "0400 111 222", photo: null }]);
 jest.mock("@/lib/staff/query", () => ({
   listStaff: () => listStaff(),
+  listStaffDirectory: () => listStaffDirectory(),
   listMembersWithoutCard: async () => [],
   listPendingInvites: async (_o: string, opts: { withLinks: boolean }) => (opts.withLinks ? [{ id: "i", token: "t" }] : [{ id: null, token: null }]),
 }));
@@ -53,11 +55,24 @@ beforeEach(() => {
 });
 
 describe("the route", () => {
-  it("sends a reader without `team` back to Home, and reads nothing", async () => {
-    const { default: TeamRoute } = await import("@/app/dashboard/team/page");
-    await expect(TeamRoute({ searchParams: Promise.resolve({}) })).rejects.toThrow("REDIRECT:/dashboard");
+  /* everyone has Team (Isaac, 20 October 2026) */
+  it("gives a reader without `team` the colleagues and the notices, and reads no records", async () => {
+    const { data, view } = await bodyOf({ view: "timesheets" });
     expect(can).toHaveBeenCalledWith("team");
     expect(listStaff).not.toHaveBeenCalled();
+    expect(loadTimepaySection).not.toHaveBeenCalled();
+    expect(loadFleetPage).not.toHaveBeenCalled();
+    expect(data.directory).toEqual([{ id: "s1", name: "Dane Cooper", role: "Installer", phone: "0400 111 222", photo: null }]);
+    expect(data.views).toEqual(["people", "notices"]);
+    expect(data.people).toMatchObject({ staff: [], canInvite: false, pending: [] });
+    expect(view).toBe("people");
+  });
+
+  it("gives a reader with `team` the records, not the directory", async () => {
+    caps.add("team");
+    const { data } = await bodyOf();
+    expect(listStaffDirectory).not.toHaveBeenCalled();
+    expect(data.directory).toBeNull();
   });
 
   it("reads Time & Pay and the register only under their own gates", async () => {

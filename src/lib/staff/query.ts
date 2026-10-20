@@ -2,7 +2,7 @@ import { cache } from "react";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { expiresIn } from "@/lib/format/duration";
 import { deriveCompliance, initialsFrom, startedLabel, yearsSince } from "./derive";
-import { firstNameOf, fullNameOf } from "./name";
+import { firstNameOf, fullNameOf, type NameParts } from "./name";
 import type {
   MemberWithoutCardRow,
   PendingInviteRow,
@@ -646,4 +646,30 @@ export async function staffCardsInUse(orgId: string): Promise<Set<string> | null
   const { data, error } = await supabaseAdmin.rpc("staff_cards_in_use", { p_org: orgId });
   if (error || !Array.isArray(data)) return null;
   return new Set((data as unknown[]).map((v) => String(typeof v === "object" && v ? Object.values(v)[0] : v)));
+}
+
+/* THE TEAM FOR EVERYONE (Isaac, 20 October 2026: "everyone has team…
+   they'll just get basic information like their full name and their phone
+   number if they need to contact them"). What someone without `team` sees
+   of their colleagues: the working ones' names, what they do and their
+   mobile. Nothing else leaves the server for them: no papers, no access,
+   no address, no emergency contact. */
+export type DirectoryPerson = { id: string; name: string; role: string; phone: string | null; photo: string | null };
+
+export async function listStaffDirectory(orgId: string): Promise<DirectoryPerson[]> {
+  const { data, error } = await supabaseAdmin
+    .from("staff_profiles")
+    .select("id, first_name, last_name, full_name, preferred_name, job_title, phone, photo_url, status")
+    .eq("org_id", orgId);
+  if (error || !data) return [];
+  return (data as Record<string, unknown>[])
+    .filter((r) => r.status === "Active")
+    .map((r) => ({
+      id: String(r.id),
+      name: fullNameOf(r as NameParts) || "Unnamed",
+      role: typeof r.job_title === "string" ? r.job_title.trim() : "",
+      phone: typeof r.phone === "string" && r.phone.trim() ? r.phone.trim() : null,
+      photo: typeof r.photo_url === "string" && r.photo_url ? r.photo_url : null,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }

@@ -9,6 +9,8 @@ import { Tick } from "@/components/parts/tick";
 import { ViewTabs } from "@/components/parts/tabs";
 import { AddPersonButton } from "@/components/team/person-form";
 import { PEOPLE_SORTS, TeamPeople, type PeopleData, type PeopleSort } from "@/components/team/team-people";
+import { TeamDirectory } from "@/components/team/team-directory";
+import type { DirectoryPerson } from "@/lib/staff/query";
 import { TimePay } from "@/components/timepay/timepay";
 import { TeamLeave } from "@/components/timepay/team-leave";
 import { TeamExpenses } from "@/components/timepay/team-expenses";
@@ -41,6 +43,8 @@ export type TeamPageData = {
   /** the Fleet register, present only with `assets_all` */
   fleet: { register: Register; today: string; warnDays: number } | null;
   notices: NoticeBoardData;
+  /** without `team`: the colleagues' names, roles and mobiles, which People shows instead of the records */
+  directory: DirectoryPerson[] | null;
   /** the views this reader has, in order */
   views: TeamView[];
 };
@@ -138,7 +142,7 @@ export function TeamPage({ data, view: asked }: { data: TeamPageData; view: Team
           onGo={(k) => go(k as TeamView)}
           items={data.views.map((v) => ({ key: v, label: TEAM_VIEW_LABEL[v], tone: waiting[v] ? ("look" as const) : undefined }))}
         />
-        {onPeople && (
+        {onPeople && !data.directory && (
           <div className="tm2-picks">
             {/* "Left" is not a view: the people who have left are behind this
                 choice, and only once there is somebody to show */}
@@ -154,7 +158,8 @@ export function TeamPage({ data, view: asked }: { data: TeamPageData; view: Team
       </div>
 
       <section role="tabpanel" id={`${PANEL}-${view}`} aria-labelledby={`tm2-view-${view}`} className="tm2-panel">
-        {view === "people" && (
+        {view === "people" && data.directory && <TeamDirectory people={data.directory} query={query} />}
+        {view === "people" && !data.directory && (
           <TeamPeople data={people} query={query} onClearQuery={() => setQuery("")} showLeft={showLeft} sort={sort} />
         )}
         {view === "timesheets" && timepay && (

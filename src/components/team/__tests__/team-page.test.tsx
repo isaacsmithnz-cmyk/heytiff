@@ -116,7 +116,7 @@ type Opts = {
   view?: TeamView;
 };
 
-function dataFor(o: Opts = {}): TeamPageData {
+function dataFor(o: Opts & { directory?: TeamPageData["directory"] } = {}): TeamPageData {
   const canInvite = o.canInvite ?? false;
   const timepay = o.timepay
     ? ({
@@ -147,11 +147,12 @@ function dataFor(o: Opts = {}): TeamPageData {
     timepay,
     fleet: o.fleet ? ({ register: { vehicles: [{ status: "active" }, { status: "sold" }], staff: [] }, today: "2026-10-19", warnDays: 30 } as never) : null,
     notices: { notices: [], canManage: true, canRead: true, today: "2026-10-19", staff: [], viewerStaffId: null },
+    directory: o.directory ?? null,
     views,
   };
 }
 
-function setup(o: Opts = {}) {
+function setup(o: Opts & { directory?: TeamPageData["directory"] } = {}) {
   const user = userEvent.setup();
   const utils = render(
     <WindowsContext.Provider value={{ toast } as never}>
@@ -469,5 +470,30 @@ describe("Team, a member with no staff card", () => {
     setup({ staff: [], pending: [] });
     expect(screen.getByText("Nobody on the team yet")).toBeInTheDocument();
     expect(screen.queryByText(/matches/)).toBeNull();
+  });
+});
+
+/* EVERYONE HAS TEAM (Isaac, 20 October 2026): without `team`, People is the
+   colleagues' names, what they do and their mobiles, and nothing opens. */
+describe("Team for someone without the team grant", () => {
+  const directory = [
+    { id: "a", name: "Dane Cooper", role: "Installer", phone: "0400 111 222", photo: null },
+    { id: "b", name: "Mia Lee", role: "", phone: null, photo: null },
+  ];
+
+  it("lists the colleagues with their mobile to ring, and no record to open", () => {
+    setup({ directory });
+    expect(screen.getByRole("list", { name: "Your colleagues" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "0400 111 222" })).toHaveAttribute("href", "tel:0400111222");
+    expect(screen.getByText("No mobile")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Dane Cooper" })).toBeNull();
+    expect(screen.queryByText("Licences and papers")).toBeNull();
+  });
+
+  it("searches them by name", async () => {
+    const { user } = setup({ directory });
+    await user.type(screen.getByRole("textbox", { name: "Search people by name or role" }), "mia");
+    expect(screen.queryByText("Dane Cooper")).toBeNull();
+    expect(screen.getByText("Mia Lee")).toBeInTheDocument();
   });
 });

@@ -50,9 +50,12 @@ export type TodoAct =
 
 export type TodoSource = "reminder" | "assignment" | "alert" | "list" | "timesheets" | "notice";
 
-/** Which of Home's three columns a row stands in (Isaac, 20 October):
-    Today is anything timed or due, To do what waits on you with no day,
-    Activity what comes in, from ServiceM8 and the team, approvals among it. */
+/** Which of Home's three columns a row stands in (Isaac, 20 October): Today
+    is only what has a time ("anything with a specific time can go on today.
+    We'll use that as a schedule"): a booking, a task with an hour, a
+    reminder. Everything due but untimed (a rego running out, a job to book,
+    a task due today) is To do's, the most urgent at the top. Activity, now
+    Your feed, is what comes in. */
 export type HomeColumn = "today" | "todo" | "activity";
 
 export type TodoRow = {
@@ -161,7 +164,8 @@ function alertRow(chip: ActionChip, today?: string): TodoRow {
   return {
     key: `alert:${chip.key}`,
     source: "alert",
-    col: INCOMING.has(chip.kind) ? "activity" : today && chip.due && chip.due <= today ? "today" : "todo",
+    /* due, not timed: To do's (Today is only what has a time, 20 October 2026) */
+    col: INCOMING.has(chip.kind) ? "activity" : "todo",
     tone: chip.state === "bad" ? "wrong" : "look",
     name: chip.label,
     line: chip.subject,
@@ -207,7 +211,7 @@ function listRows(list: HomeList): TodoRow[] {
           out.push({
             key: `task:${r.id}`,
             source: "list",
-            col: "today",
+            col: "todo",
             tone: group === "late" ? "wrong" : "look",
             name: r.title,
             line: phrase(r.sub),
@@ -223,7 +227,7 @@ function listRows(list: HomeList): TodoRow[] {
           out.push({
             key: r.id,
             source: "list",
-            col: r.dot === "late" || r.dot === "today" ? "today" : "todo",
+            col: "todo",
             tone: toneOfDot(r.dot),
             name: r.title,
             line: phrase(r.sub),

@@ -138,7 +138,8 @@ describe("Home's three columns (Isaac, 20 October)", () => {
     expect(columnOf(byKey(rows, "notice:n1"))).toBe("activity");
   });
 
-  it("(F) an approval comes in under Activity; a paper due today or past is Today's, one due later To do's", () => {
+  /* Today is only what has a time (Isaac, 20 October 2026: "So schedule should only be today should only be timed events") */
+  it("(F) an approval comes in under Activity; a paper due, today or later, is To do's, the late one first", () => {
     const rows = todoRows(
       input({
         today: "2026-10-20",
@@ -151,7 +152,7 @@ describe("Home's three columns (Isaac, 20 October)", () => {
       }),
     );
     expect(columnOf(byKey(rows, "alert:cw"))).toBe("activity");
-    expect(columnOf(byKey(rows, "alert:r0"))).toBe("today");
+    expect(columnOf(byKey(rows, "alert:r0"))).toBe("todo");
     expect(columnOf(byKey(rows, "alert:r1"))).toBe("todo");
   });
 });

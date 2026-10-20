@@ -337,13 +337,57 @@ export function toRoof(raw: Raw, plans: { floorId: string; floor: string; sheetI
   return { levels, parts, raked, material: s(raw.material), roofSpace: s(raw.roof_space) };
 }
 
+/** A reading as she wrote it: each floor by its name, its points back in that floor's plan image's pixels. */
+export function fromRoof(r: RoofReading, plans: { floorId: string; floor: string; sheetId: string; k: number; left: number; top: number }[]): Json {
+  const byId = new Map(plans.map((p) => [p.floorId, p]));
+  const img = (pt: ReadPoint, at: (typeof plans)[number]) => `${Math.round((pt.x - at.left) * at.k)},${Math.round((pt.y - at.top) * at.k)}`;
+  const name = (id: string) => byId.get(id)?.floor ?? "";
+  return {
+    levels: r.levels.map((l) => ({ floor: name(l.floorId), ceiling_mm: l.ceilingMm, floor_zone_mm: l.floorZoneMm, source: l.source })),
+    roof_parts: r.parts
+      .filter((p) => byId.has(p.floorId))
+      .map((p) => ({
+        floor: name(p.floorId),
+        form: p.form,
+        footprint: p.outline.map((pt) => img(pt, byId.get(p.floorId)!)).join(" "),
+        ridge: p.ridge,
+        falls_to: p.fallsTo || "none",
+        pitch_deg: p.pitchDeg,
+        eave_mm: p.eaveMm,
+        overhang_mm: p.overhangMm,
+        existing: p.existing,
+        source: p.source,
+      })),
+    raked: r.raked.map((k) => ({ floor: name(k.floorId), room: k.room, low_mm: k.lowMm, high_mm: k.highMm })),
+    material: r.material,
+    roof_space: r.roofSpace,
+  };
+}
+
 /* A PDF past this is sent without the pages after the first forty, which is
    where a long set's schedules and details sit; past the API's own ceiling
    it can't go at all. */
 const PDF_MAX_BYTES = 30 * 1024 * 1024;
 
+/* REVISING IT (Isaac, 20 October 2026: "She should also be able to revise
+   3d renderings if you are not happy, similar to how we have done it in
+   chat"). The same read, handed what she read before and what the
+   installer says is wrong; she gives the whole of it back corrected,
+   changing only what they said and what follows from it, and says what
+   she changed. */
+export type RoofRevision = { current: RoofReading; words: string };
+
+const reviseText = (current: unknown, words: string) => `
+
+What was read before, in the same terms and the plan images' pixels:
+${JSON.stringify(current)}
+
+The installer looked at it in 3D and says: "${words.replace(/"/g, "'")}"
+
+Give back the whole reading corrected: change what they said, and what follows from it, and keep the rest as it was. If what they say can't be right by the drawings, keep what the drawings show and say why. In said, tell them in a sentence or two what you changed.`;
+
 /** Reads the roof and the heights: the whole set as the architect drew it, and each floor's plan to set the roof out on. */
-export async function readRoof(orgId: string, pdfRef: string | null, floors: SheetToRead[]): Promise<RoofReading> {
+export async function readRoof(orgId: string, pdfRef: string | null, floors: SheetToRead[], revise?: RoofRevision): Promise<RoofReading & { said: string }> {
   if (!floors.length) throw new Error("There is no floor plan to set the roof out on");
   const plans = await Promise.all(floors.map(async (f) => ({ f, p: await prepare(orgId, f) })));
   const blocks: Block[] = [];
@@ -369,16 +413,18 @@ export async function readRoof(orgId: string, pdfRef: string | null, floors: She
     seen.set(base, k);
     return k > 1 ? `${base} (${k})` : base;
   });
-  const raw = await askWith(
-    blocks,
-    roofPrompt(plans.map(({ f, p }, i) => ({ floor: names[i], w: p.ow, h: p.oh, mm: f.mmPerPx ? f.mmPerPx / p.k : null }))),
-    roofSchema(names),
-    32000,
-  );
-  return toRoof(
-    raw,
-    plans.map(({ f, p }, i) => ({ floorId: f.floorId, floor: names[i], sheetId: f.sheetId, k: p.k, left: p.left, top: p.top })),
-  );
+  const at = plans.map(({ f, p }, i) => ({ floorId: f.floorId, floor: names[i], sheetId: f.sheetId, k: p.k, left: p.left, top: p.top }));
+  const schema = roofSchema(names);
+  const prompt = roofPrompt(plans.map(({ f, p }, i) => ({ floor: names[i], w: p.ow, h: p.oh, mm: f.mmPerPx ? f.mmPerPx / p.k : null })));
+  const raw = revise
+    ? await askWith(
+        blocks,
+        prompt + reviseText(fromRoof(revise.current, at), revise.words.slice(0, 2000)),
+        { ...schema, required: [...(schema.required as string[]), "said"], properties: { ...(schema.properties as Json), said: str() } },
+        32000,
+      )
+    : await askWith(blocks, prompt, schema, 32000);
+  return { ...toRoof(raw, at), said: s(raw.said) };
 }
 
 export const READING_MODEL = MODEL;

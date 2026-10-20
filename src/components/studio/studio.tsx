@@ -109,6 +109,7 @@ import { useNoteScopeScreen } from "@/components/notes/note-context";
 import { DesignHome } from "./home";
 import { RoomsFromPlan } from "./rooms-from-plan";
 import { ALL_FLOORS, View3D, type Look3D } from "./view-3d";
+import { Revise3D } from "./revise-3d";
 import { sceneOf, type Scene3D } from "@/lib/studio/scene3d";
 import "./studio.css";
 
@@ -3209,7 +3210,16 @@ function DesignPanel({
         <div className="ds-canvas-col">
           <div className="ds-canvas-body">
             {scene3d.floors.length ? (
-              <View3D scene={scene3d} look={look3d} />
+              <div className="ds3-wrap">
+                <View3D scene={scene3d} look={look3d} />
+                {scene3d.roofRead && (
+                  <Revise3D
+                    designId={doc.id}
+                    onRoof={(roof) => onMutate((d) => (d.reading ? { ...d, reading: { ...d.reading, roof } } : d))}
+                    onUndo={undo}
+                  />
+                )}
+              </div>
             ) : (
               <div className="ds3-empty">
                 <p>Nothing to draw yet: a floor needs its scale, and zones or Tiff&rsquo;s reading of its plans.</p>

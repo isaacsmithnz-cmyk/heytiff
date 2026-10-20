@@ -99,6 +99,19 @@ export function closeTab(id: string): string | null {
   return next?.href ?? null;
 }
 
+/** Open a page in a tab of its own (Isaac, 21 October 2026: Design's "open
+    job and new tab button… so that you can quickly go back to the job if
+    there isn't a tab already open for it"): the tab that already holds it,
+    by its address without the query, or else a new one. Returns where to go. */
+export function openInTab(href: string, from: string): string {
+  load();
+  const path = href.split("?")[0];
+  const holder = state.tabs.find((t) => !t.blank && t.href.split("?")[0] === path);
+  if (holder) return choose(holder.id) ?? href;
+  newTab(from);
+  return href;
+}
+
 /** A new, empty tab you're on; the next page you open fills it. */
 export function newTab(from: string): void {
   const id = mint();

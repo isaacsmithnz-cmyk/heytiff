@@ -8260,9 +8260,18 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 :is(.tiffbtn, .tiffmk).working .tiffbtn-runw { display:inline; }
 .tiffcyc { animation:tiffCyc 4s linear infinite; }
 .tiffcyc2 { animation:tiffCyc 4s linear -2s infinite; }
-:is(.tiffbtn, .tiffmk).working .tiffbtn-gim-a .tiffbtn-ring { stroke-opacity:.35; animation:tiffCycRing 4s linear infinite; }
-:is(.tiffbtn, .tiffmk).working .tiffbtn-gim-b .tiffbtn-ring { stroke-opacity:.35; animation:tiffCycRing 4s linear -2s infinite; }
+:is(.tiffbtn, .tiffmk).working .tiffbtn-gim-a .tiffbtn-ring, .tiffmk.alive .tiffbtn-gim-a .tiffbtn-ring { stroke-opacity:.35; animation:tiffCycRing 4s linear infinite; }
+:is(.tiffbtn, .tiffmk).working .tiffbtn-gim-b .tiffbtn-ring, .tiffmk.alive .tiffbtn-gim-b .tiffbtn-ring { stroke-opacity:.35; animation:tiffCycRing 4s linear -2s infinite; }
 :is(.tiffbtn, .tiffmk).working .tiffbtn-arc circle { stroke-width:max(1.6px, calc(var(--tb) * .045)); }
+/* HOME'S MARK IS ALIVE (Isaac, 20 October 2026: "move at all times, even
+   in standby, and then it can just go faster when it's spinning. And let's
+   put the colors on it, even in standby"). Its loops run at rest at the
+   button's own pace, in the colours, and `.working` above quickens them. */
+.tiffmk.alive :is(.tiffbtn-pre, .tiffbtn-nod, .tiffbtn-gim-a, .tiffbtn-gim-b, .tiffbtn-arc),
+.tiffmk.alive .tiffbtn-sheen::before { animation-play-state:running; }
+.tiffmk.alive .tiffbtn-run { display:none; }
+.tiffmk.alive .tiffbtn-runw { display:inline; }
+.tiffmk.alive .tiffbtn-arc circle { stroke-width:max(1.6px, calc(var(--tb) * .03)); }
 /* the boards' order: blue, purple, pink, red, orange, yellow, green */
 @keyframes tiffCyc { 0%, 100% { stop-color:var(--mark-cyc-1); } 14.3% { stop-color:var(--mark-cyc-2); } 28.6% { stop-color:var(--mark-cyc-3); } 42.9% { stop-color:var(--mark-cyc-4); }
   57.1% { stop-color:var(--mark-cyc-5); } 71.4% { stop-color:var(--mark-cyc-6); } 85.7% { stop-color:var(--mark-cyc-7); } }
@@ -8294,7 +8303,8 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
   .tiffbtn-pre, .tiffbtn-nod, .tiffbtn-gim-a, .tiffbtn-gim-b, .tiffbtn-arc,
   .tiffbtn.lit .tiffbtn-flip, .tiffbtn.lit .tiffbtn-burst { animation:none; }
   /* the working colours hold still too: the runs and rings keep their first colour */
-  .tiffcyc, .tiffcyc2, :is(.tiffbtn, .tiffmk).working .tiffbtn-gim-a .tiffbtn-ring, :is(.tiffbtn, .tiffmk).working .tiffbtn-gim-b .tiffbtn-ring { animation:none; }
+  .tiffcyc, .tiffcyc2, :is(.tiffbtn, .tiffmk).working .tiffbtn-gim-a .tiffbtn-ring, :is(.tiffbtn, .tiffmk).working .tiffbtn-gim-b .tiffbtn-ring,
+  .tiffmk.alive .tiffbtn-gim-a .tiffbtn-ring, .tiffmk.alive .tiffbtn-gim-b .tiffbtn-ring { animation:none; }
   .tiffbtn-pre { transform:rotateY(18deg); }
   .tiffbtn-sheen { display:none; }
   .tiffbtn-gim-a { transform:rotateZ(-20deg) rotateY(60deg); }
@@ -11861,18 +11871,25 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    buttons the Button part; what is here is the column, the two heads, the
    box in v2's dress, a row's time and tick, a line in its state's colour,
    and the count beside Home in the sidebar (decision 25). */
-.fg .wrap.hm { max-width:720px; padding:24px 32px 96px; display:flex; flex-direction:column; gap:32px; }
-.fg .hm-ask { display:flex; flex-direction:column; align-items:center; gap:16px; }
-.fg .hm-box { align-self:stretch; display:flex; flex-direction:column; gap:12px; padding:16px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--white); transition:border-color var(--t-fast) var(--ease); }
-.fg .hm-box:focus-within { border-color:var(--ink); }
-.fg .hm-box:has(.hm-box-in:focus-visible) { box-shadow:var(--ring); }
-.fg .hm-box .hm-box-in { width:100%; min-width:0; margin:0; padding:0; border:0; outline:none; background:none; font:400 16px/24px var(--font); color:var(--ink); }
-.fg .hm-box .hm-box-in::placeholder { color:var(--q); }
-.fg .hm-box-row { display:flex; align-items:center; gap:8px; }
-.fg .hm-box-row .hm-box-send { margin-left:auto; }
+.fg .wrap.hm { max-width:none; padding:24px 32px 48px; display:flex; flex-direction:column; gap:32px; }
+/* the three columns under Tiff's box (Isaac, 20 October) */
+.fg .hm-cols { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:32px; align-items:start; }
+/* a column's head: a solid block of its colour, its glyph in ink on it */
+.fg .hm-blk { display:inline-flex; align-items:center; justify-content:center; flex:none; width:32px; height:32px; border-radius:var(--r-button); color:var(--ink); }
+.fg .hm-blk--purple { background:var(--purple); }
+.fg .hm-blk--yellow { background:var(--yellow); }
+.fg .hm-blk--green { background:var(--green); }
+.fg .hm-ask { display:flex; flex-direction:column; align-items:center; gap:16px; width:100%; max-width:720px; margin:0 auto; }
+/* Home's box is Conversations' box, the column's full width */
+.fg .hm-ask .cv-box { align-self:stretch; }
+/* Home's own hold: the mark, the box and the two heads, where they land */
+.fg .hm-pk-mark { width:96px; height:96px; border-radius:50%; }
+.fg .hm-pk-box { align-self:stretch; height:calc(16px + 24px + 12px + 36px + 12px + 2px); border-radius:var(--r-card); }
+.fg .hm-pk-h { width:96px; height:24px; border-radius:var(--r-control); }
+.fg .hm-pk-blk { width:32px; height:32px; border-radius:var(--r-button); }
 .fg .hm-sec { display:flex; flex-direction:column; min-width:0; }
-.fg .hm-head { display:flex; align-items:baseline; gap:12px; padding-bottom:12px; border-bottom:1px solid var(--line); }
-.fg .hm-h { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .hm-head { display:flex; align-items:center; gap:12px; padding-bottom:12px; border-bottom:1px solid var(--line); }
+.fg .hm-h { margin:0; font-size:20px; line-height:28px; font-weight:600; color:var(--ink); }
 .fg .hm-title { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
 .fg .hm-sum { min-width:0; font-size:14px; line-height:20px; color:var(--q); font-variant-numeric:tabular-nums; }
 .fg .hm-headlinks { margin-left:auto; display:flex; gap:16px; font-size:14px; line-height:20px; }

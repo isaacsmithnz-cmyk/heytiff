@@ -288,6 +288,7 @@ export function TiffGlyph({
   ground = "paper",
   working = false,
   quiet = false,
+  alive = false,
   size,
   label,
 }: {
@@ -296,13 +297,15 @@ export function TiffGlyph({
   working?: boolean;
   /** Moves only while its control is hovered or focused: for a control repeated down a list. */
   quiet?: boolean;
+  /** Turns at rest, in her colours, and faster while working: Home's mark. */
+  alive?: boolean;
   size?: number;
   /** Stand alone as "HeyTiff" for a screen reader; omit it beside words that already name the thing. */
   label?: string;
 }) {
   return (
     <span
-      className={`tiffmk tiffmk-${ground}${working ? " working" : ""}${quiet ? " quiet" : ""}`}
+      className={`tiffmk tiffmk-${ground}${working ? " working" : ""}${quiet ? " quiet" : ""}${alive ? " alive" : ""}`}
       style={{ "--tiffbtn-mask": MARK_MASK, ...(size ? { "--tb": `${size}px` } : {}) } as CSSProperties}
       {...(label ? { role: "img", "aria-label": label } : { "aria-hidden": true })}
     >

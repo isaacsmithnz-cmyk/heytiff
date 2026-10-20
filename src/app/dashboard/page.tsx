@@ -4,6 +4,7 @@ import { homeView } from "@/lib/dashboard/home-view";
 import { loadDashboard } from "@/lib/dashboard/page-data";
 import { redirectIfSetupPending } from "@/lib/org/setup-gate";
 import { redirectIfOnboardingPending } from "@/lib/staff/onboarding-gate";
+import { isTranscriptionConfigured } from "@/lib/voice/transcribe";
 
 /* HOME, v2 (docs/plans/layout-2026-10, the board v2-board-home): Tiff's
    mark over her box, Today, and To do. Signing in lands here (decision 2).
@@ -31,7 +32,7 @@ export default async function DashboardHomePage() {
           .map((s) => s.name.trim().split(/\s+/)[0])
           .filter((n) => n.length >= 2)}
       />
-      <HomeScreen today={view.today} todo={view.todo} />
+      <HomeScreen today={view.today} todo={view.todo} voice={isTranscriptionConfigured()} />
     </>
   );
 }

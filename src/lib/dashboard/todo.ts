@@ -50,9 +50,16 @@ export type TodoAct =
 
 export type TodoSource = "reminder" | "assignment" | "alert" | "list" | "timesheets" | "notice";
 
+/** Which of Home's three columns a row stands in (Isaac, 20 October):
+    Today is anything timed or due, To do what waits on you with no day,
+    Activity what comes in, from ServiceM8 and the team, approvals among it. */
+export type HomeColumn = "today" | "todo" | "activity";
+
 export type TodoRow = {
   key: string;
   source: TodoSource;
+  /** Left out, To do. */
+  col?: HomeColumn;
   tone: TodoTone;
   name: string;
   line: string;
@@ -82,6 +89,8 @@ export type TodoExtras = {
 export const EMPTY_TODO: TodoExtras = { reminders: [], assignments: [], notices: [], timesheets: 0 };
 
 export type TodoInput = TodoExtras & {
+  /** The day a dated alert is due against, ISO; left out, none is Today's. */
+  today?: string;
   /** Every alert, yours and the team's, as the bell had them. */
   chips: readonly ActionChip[];
   /** Home's list, placed (`placeHomeList`), or null for nobody signed in. */
@@ -129,10 +138,26 @@ const ALERT_VERB: Readonly<Record<ChipKind, string>> = {
   "sm8-booking": "Open",
 };
 
-function alertRow(chip: ActionChip): TodoRow {
+/** What comes in to be looked at or approved: Activity's, not To do's. */
+const INCOMING: ReadonlySet<ChipKind> = new Set<ChipKind>([
+  "expenses",
+  "timesheet",
+  "claim",
+  "leave-queue",
+  "leave-declined",
+  "swms-issue",
+  "swms-template",
+  "cert-wording",
+  "sm8-writes",
+  "sm8-done",
+  "sm8-booking",
+]);
+
+function alertRow(chip: ActionChip, today?: string): TodoRow {
   return {
     key: `alert:${chip.key}`,
     source: "alert",
+    col: INCOMING.has(chip.kind) ? "activity" : today && chip.due && chip.due <= today ? "today" : "todo",
     tone: chip.state === "bad" ? "wrong" : "look",
     name: chip.label,
     line: chip.subject,
@@ -178,6 +203,7 @@ function listRows(list: HomeList): TodoRow[] {
           out.push({
             key: `task:${r.id}`,
             source: "list",
+            col: "today",
             tone: group === "late" ? "wrong" : "look",
             name: r.title,
             line: phrase(r.sub),
@@ -193,6 +219,7 @@ function listRows(list: HomeList): TodoRow[] {
           out.push({
             key: r.id,
             source: "list",
+            col: r.dot === "late" || r.dot === "today" ? "today" : "todo",
             tone: toneOfDot(r.dot),
             name: r.title,
             line: phrase(r.sub),
@@ -227,7 +254,7 @@ function listRows(list: HomeList): TodoRow[] {
               line: phrase(r.sub),
               lineTone: false,
               tick: null,
-              act: { kind: "link", label: "Book", href: "/dashboard/workboard" },
+              act: { kind: "link", label: "Book", href: "/dashboard/schedule" },
             });
           } else walk(r.rows, group);
           break;
@@ -251,6 +278,7 @@ export function todoRows(input: TodoInput): TodoRow[] {
   const reminders: TodoRow[] = input.reminders.map((r) => ({
     key: `reminder:${r.taskId}`,
     source: "reminder",
+    col: "today",
     tone: "look",
     name: r.title,
     line: `Reminder, ${r.late}`,
@@ -261,6 +289,7 @@ export function todoRows(input: TodoInput): TodoRow[] {
   const given: TodoRow[] = news.map((a) => ({
     key: `assignment:${a.taskId}`,
     source: "assignment",
+    col: "activity",
     tone: "look",
     name: a.title,
     line: assignmentLine(a, fmt) ?? "Given to you",
@@ -278,7 +307,7 @@ export function todoRows(input: TodoInput): TodoRow[] {
     if (seen.has(chip.key)) continue;
     seen.add(chip.key);
     if (listed && LIST_CHIP_KINDS.includes(chip.kind)) continue;
-    alerts.push(alertRow(chip));
+    alerts.push(alertRow(chip, input.today));
   }
 
   const list = input.list ? listRows(input.list).filter((r) => r.tick === null || !ownRow.has(r.tick)) : [];
@@ -289,6 +318,7 @@ export function todoRows(input: TodoInput): TodoRow[] {
           {
             key: "timesheets",
             source: "timesheets",
+            col: "activity",
             tone: "look",
             name: "Timesheets",
             line: `${input.timesheets} to approve`,
@@ -302,6 +332,7 @@ export function todoRows(input: TodoInput): TodoRow[] {
   const notices: TodoRow[] = input.notices.map((n) => ({
     key: `notice:${n.id}`,
     source: "notice",
+    col: "activity",
     tone: "info",
     name: n.title,
     line: n.from ? `A notice from ${n.from}, ${fmt(n.day)}` : `A notice, ${fmt(n.day)}`,
@@ -334,3 +365,6 @@ export function bellCount(input: {
   ).length;
   return alerts + input.reminders.length + news + input.notices.length;
 }
+
+/** A row's column on Home. */
+export const columnOf = (row: TodoRow): HomeColumn => row.col ?? "todo";

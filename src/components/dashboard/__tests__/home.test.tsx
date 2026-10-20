@@ -34,6 +34,29 @@ jest.mock("@/app/actions/booking-sm8", () => ({
   bookJobIn: jest.fn(),
   takeBackBooking: jest.fn(),
 }));
+/* the microphone's engine: its start is all a test can press */
+const startDictation = jest.fn();
+jest.mock("@/components/notes/dictation", () => {
+  const actual = jest.requireActual("@/components/notes/dictation");
+  return {
+    ...actual,
+    useDictation: () => ({
+      recording: false,
+      arming: false,
+      transcribing: false,
+      seconds: 0,
+      interim: "",
+      barsRef: { current: null },
+      bindQuiet: jest.fn(),
+      keepListening: jest.fn(),
+      start: startDictation,
+      stop: jest.fn(),
+      handOver: jest.fn(),
+      cancel: jest.fn(),
+      restart: jest.fn(),
+    }),
+  };
+});
 const open = jest.fn((..._a: unknown[]) => true);
 const toast = jest.fn();
 const tiff: TiffApi = { open: (o) => open(o), openedBy: null, isOpen: false, landed: null };
@@ -97,7 +120,7 @@ const draw = (view: TodayView = today(), rows: TodoRow[] = ROWS) =>
   render(
     <WindowsContext.Provider value={windows}>
       <TiffContext.Provider value={tiff}>
-        <HomeScreen today={view} todo={rows} />
+        <HomeScreen today={view} todo={rows} voice />
       </TiffContext.Provider>
     </WindowsContext.Provider>,
   );
@@ -107,7 +130,7 @@ const rowOf = (name: string) => screen.getByText(name).closest("li")!;
 
 afterEach(cleanup);
 beforeEach(() => {
-  [completeTask, reopenTask, snoozeReminder, acknowledgeTask, open, toast, refresh].forEach((m) => m.mockClear());
+  [completeTask, reopenTask, snoozeReminder, acknowledgeTask, open, toast, refresh, startDictation].forEach((m) => m.mockClear());
 });
 
 describe("the box", () => {
@@ -116,16 +139,29 @@ describe("the box", () => {
     expect(screen.getByRole("img", { name: "Tiff" })).toBeInTheDocument();
     const field = screen.getByRole("textbox", { name: "What's happening on site?" });
     expect(field).toHaveAttribute("placeholder", "What's happening on site?");
-    expect(screen.getByRole("button", { name: "Talk to Tiff" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Speak instead of typing" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   });
 
-  it("(F) the microphone opens her listening, in Home's room", async () => {
+  it("(F) her mark is three times the size and turns at rest, in her colours", () => {
     draw();
-    await userEvent.click(screen.getByRole("button", { name: "Talk to Tiff" }));
-    expect(open).toHaveBeenCalledWith(expect.objectContaining({ room: "home", keyboard: false }));
-    expect(open.mock.calls[0]![0]).not.toHaveProperty("words");
+    const mark = screen.getByRole("img", { name: "Tiff" });
+    expect(mark).toHaveClass("tiffmk", "alive");
+    expect(mark.style.getPropertyValue("--tb")).toBe("96px");
+  });
+
+  it("(F) the microphone records in the box, and no window opens", async () => {
+    draw();
+    await userEvent.click(screen.getByRole("button", { name: "Speak instead of typing" }));
+    expect(startDictation).toHaveBeenCalled();
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it("(F) Send with nothing typed does nothing", async () => {
+    draw();
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(open).not.toHaveBeenCalled();
   });
 
   it("(F) Send opens her on the words, and the box empties", async () => {
@@ -146,12 +182,12 @@ describe("the box", () => {
 });
 
 describe("Today", () => {
-  it("(F) says how much, and links to the Schedule and the Calendar", () => {
+  it("(F) links to the v2 Schedule, never the old desk or Workboard, with no summary beside it", () => {
     draw();
     const s = section("Today");
-    expect(within(s).getByText("2 jobs and a task")).toBeInTheDocument();
-    expect(within(s).getByRole("link", { name: "Schedule" })).toHaveAttribute("href", "/dashboard/workboard");
-    expect(within(s).getByRole("link", { name: "Calendar" })).toHaveAttribute("href", "/dashboard/desk?face=calendar");
+    expect(within(s).queryByText("2 jobs and a task")).toBeNull();
+    expect(within(s).getByRole("link", { name: "Schedule" })).toHaveAttribute("href", "/dashboard/schedule");
+    expect(within(s).queryByRole("link", { name: "Calendar" })).toBeNull();
   });
 
   it("(F) draws each visit as rule 39 does: time, dot, name, line, and its state in words", () => {
@@ -191,11 +227,38 @@ describe("Today", () => {
   });
 });
 
+describe("the three columns", () => {
+  it("(F) puts what is due today under Today, what comes in under Activity, and the rest under To do", () => {
+    draw(today(), [
+      link("chip:rego", "Hilux, XQG41B", "Renew", "/r", { col: "today", tone: "wrong" }),
+      link("timesheets", "Timesheets", "Review", "/dashboard/timepay", { source: "timesheets", col: "activity" }),
+      link("k1", "Price the Truecut quote", "Open", "/q"),
+    ]);
+    expect(within(section("Today")).getByText("Hilux, XQG41B")).toBeInTheDocument();
+    expect(within(section("Activity")).getByText("Timesheets")).toBeInTheDocument();
+    expect(within(section("To do")).getByText("Price the Truecut quote")).toBeInTheDocument();
+    expect(within(section("To do")).queryByText("Timesheets")).toBeNull();
+  });
+
+  it("(F) heads each column with a solid block of its colour", () => {
+    draw();
+    for (const [name, hue] of [["Today", "purple"], ["To do", "yellow"], ["Activity", "green"]] as const) {
+      const head = screen.getByRole("heading", { name }).parentElement!;
+      expect(head.querySelector(".hm-blk")).toHaveClass(`hm-blk--${hue}`);
+    }
+  });
+
+  it("says nothing is new under Activity when nothing is", () => {
+    draw(today(), []);
+    expect(within(section("Activity")).getByText("Nothing new")).toBeInTheDocument();
+  });
+});
+
 describe("To do", () => {
-  it("(F) counts what is waiting, and every row has one button that goes where it should", () => {
+  it("(F) has no count, and every row has one button that goes where it should", () => {
     draw();
     const s = section("To do");
-    expect(within(s).getByText(String(ROWS.length))).toBeInTheDocument();
+    expect(within(s).queryByText(String(ROWS.length))).toBeNull();
     expect(within(s).getByRole("link", { name: "Renew, Hilux, XQG41B" })).toHaveAttribute("href", "/dashboard/assets?v=v1&screen=rego");
     expect(within(s).getByRole("link", { name: "Reply, Which fans for Rozelle?" })).toHaveAttribute("href", "/dashboard/desk?ask=n-77");
     expect(within(s).getByRole("link", { name: "Review, Timesheets" })).toHaveAttribute("href", "/dashboard/timepay");
@@ -274,7 +337,6 @@ describe("To do", () => {
     draw(today(), many);
     const s = section("To do");
     expect(within(s).getAllByRole("listitem")).toHaveLength(TODO_HOME_CAP);
-    expect(within(s).getByText(String(many.length))).toBeInTheDocument();
     expect(within(s).getByRole("link", { name: "Show all" })).toHaveAttribute("href", "/dashboard/todo");
     cleanup();
     draw(today(), many.slice(0, TODO_HOME_CAP));

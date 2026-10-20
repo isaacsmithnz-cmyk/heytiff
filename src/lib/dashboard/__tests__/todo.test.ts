@@ -1,7 +1,7 @@
 /* HOME › TO DO: every source, and the one button each row gets. Placed
    against Friday 25 September 2026, the day home-list.test places on. */
 
-import { bellCount, deskAskHref, deskTaskHref, todoRows, type TodoInput, type TodoRow } from "../todo";
+import { columnOf, bellCount, deskAskHref, deskTaskHref, todoRows, type TodoInput, type TodoRow } from "../todo";
 import { placeList, type ListCaps, type ListInput } from "../home-list";
 import { vehicleChips, type ActionChip } from "../chips";
 import type { DashTask } from "../tasks";
@@ -124,12 +124,45 @@ const input = (over: Partial<TodoInput> = {}): TodoInput => ({
 
 const byKey = (rows: TodoRow[], key: string) => rows.find((r) => r.key === key)!;
 
+describe("Home's three columns (Isaac, 20 October)", () => {
+  it("(F) a reminder due is Today's; new work given to you, timesheets and notices are Activity's", () => {
+    const rows = todoRows(
+      input({
+        reminders: [{ taskId: "t9", title: "Ring the dealer", late: "now" }],
+        timesheets: 2,
+        notices: [{ id: "n1", title: "Toolbox talk", from: "Lyle", day: "2026-10-20" }],
+      }),
+    );
+    expect(columnOf(byKey(rows, "reminder:t9"))).toBe("today");
+    expect(columnOf(byKey(rows, "timesheets"))).toBe("activity");
+    expect(columnOf(byKey(rows, "notice:n1"))).toBe("activity");
+  });
+
+  it("(F) an approval comes in under Activity; a paper due today or past is Today's, one due later To do's", () => {
+    const rows = todoRows(
+      input({
+        today: "2026-10-20",
+        list: null,
+        chips: [
+          chip({ key: "cw", kind: "cert-wording" }),
+          chip({ key: "r0", kind: "rego", due: "2026-10-20" }),
+          chip({ key: "r1", kind: "licence", due: "2026-11-30" }),
+        ],
+      }),
+    );
+    expect(columnOf(byKey(rows, "alert:cw"))).toBe("activity");
+    expect(columnOf(byKey(rows, "alert:r0"))).toBe("today");
+    expect(columnOf(byKey(rows, "alert:r1"))).toBe("todo");
+  });
+});
+
 describe("the bell's own rows", () => {
   it("(F) a reminder due: a tick to finish it, and Later", () => {
     const [row] = todoRows(input({ reminders: [{ taskId: "t9", title: "Ring the Hilux dealer", late: "20 minutes ago" }] }));
     expect(row).toEqual<TodoRow>({
       key: "reminder:t9",
       source: "reminder",
+      col: "today",
       tone: "look",
       name: "Ring the Hilux dealer",
       line: "Reminder, 20 minutes ago",
@@ -269,7 +302,7 @@ describe("the old list's rows", () => {
     const wins = ["j1", "j2"].map((id, i) => ({ job: job({ remoteId: id, jobNumber: `30${i}` }), wonOn: "2026-09-01" }));
     const rows = todoRows(input({ list: listOf({ wins }) }));
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ key: "rollup:wins", name: "2 won jobs with no day", act: { label: "Book", href: "/dashboard/workboard" } });
+    expect(rows[0]).toMatchObject({ key: "rollup:wins", name: "2 won jobs with no day", act: { label: "Book", href: "/dashboard/schedule" } });
   });
 
   it("(F) drops a task's list row when the bell already has it", () => {

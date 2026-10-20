@@ -19,7 +19,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 - **5. The eight places.** Home, Conversations, Jobs, Schedule, Documents, Library, Design, Team. The one you're on is white at 12% with its label in bold.
 - **6. Pinned and Recents.** Stay in the sidebar under the places; a job shows its colour dot.
 - **7. Your name.** At the bottom: your card, timesheet, leave, expense claims, Reports and Settings, then Sign out. Reports shows to whoever holds the permission each report needs.
-- **8. Tiff's mark.** Black and white at rest, and still: black on the page, white on the ink. While Tiff listens or works it turns, and its rings run through the colours in the boards' order: blue, purple, pink, red, orange, yellow, green. Listening and working look the same. Colour on the mark means Tiff is busy.
+- **8. Tiff's mark.** Black and white at rest, and still: black on the page, white on the ink. While Tiff listens or works it turns, and its rings run through the colours in the boards' order: blue, purple, pink, red, orange, yellow, green. Listening and working look the same. The one exception is Home's mark over her box, 96 across: it turns in her colours all the time, and faster while she works (Isaac, 20 October: "move at all times, even in standby, and then it can just go faster when it's spinning").
 - **9. The wordmark.** HeyTiff in one colour. The teal leaves the app.
 
 ### Tabs, desktop only
@@ -254,9 +254,9 @@ infinite loop into a strobe.
 | `dotfSwell` | the mark while you talk, in the Tiff modal and the ask bar's recording card | the microphone is open: a wave through the mark |
 | `dotfTurn`, `dotfZip`, `dotfFire` | the Tiff modal's cloud while Tiff has the words | Tiff is working: the mark as a turning cloud until the answer comes back |
 | `wb2Flash` | a calendar day the board's data asked to flash | a flash a row asked for with data |
-| `tiffGyro`, `tiffNod`, `tiffSheen`, `tiffGimbalA`, `tiffGimbalB`, `tiffArc` | the Tiff button and the mark wherever it stands for Tiff; the rules are declared on every mark but held paused until the mark is working | Tiff is working (rule 8, v2). Since 18 October 2026 the mark is still at rest (Isaac, 17 October: "The mark does not turn at rest. It can stay still."), which retires the override of 24 September |
+| `tiffGyro`, `tiffNod`, `tiffSheen`, `tiffGimbalA`, `tiffGimbalB`, `tiffArc` | the Tiff button and the mark wherever it stands for Tiff; the rules are declared on every mark but held paused until the mark is working | Tiff is working (rule 8, v2). Since 18 October 2026 the mark is still at rest (Isaac, 17 October: "The mark does not turn at rest. It can stay still."), which retires the override of 24 September. Home's mark (`.tiffmk.alive`) runs them at rest, in the colours, from 20 October (Isaac) |
 | `tiffCyc` ×2 | the two runs of light on a working mark's rings, their gradient stops cycling blue, purple, pink, red, orange, yellow, green | Tiff is working: colour on the mark means she's busy (rule 8). The gradients are only shown on a working mark |
-| `tiffCycRing` ×2 | a working mark's two faint rings, in the same cycle | Tiff is working (rule 8) |
+| `tiffCycRing` ×2 | a working mark's two faint rings, in the same cycle, and Home's mark's at rest | Tiff is working (rule 8); Home's mark is alive (rule 8, 20 October) |
 | `hdTrace` | the Trace: the white light round the job on now, on Home's day bar | Isaac's override of law 18 (2026-09-24, "design exempt for now, but keep a note"): his live job, marked by a light that runs round its edge once every 8 seconds while it is on. It goes when the job finishes, and stands still under reduced motion. See "Named exemptions" below |
 
 ### The buttons that keep their glyph

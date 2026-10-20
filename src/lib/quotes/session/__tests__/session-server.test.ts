@@ -22,6 +22,8 @@ jest.mock("../store-server", () => ({
   takeAnswers: (...a: unknown[]) => (takeAnswers as jest.Mock)(...a),
 }));
 jest.mock("../tools-server", () => ({ sessionTools: () => async () => ({ ok: true, value: null, label: "x" }) }));
+const readJobSources = jest.fn(async () => ({ sources: [] as { id: string; kind: string; label: string; text: string; at: string | null }[], left: 0 }));
+jest.mock("../job-sources-server", () => ({ readJobSources: (...a: unknown[]) => (readJobSources as jest.Mock)(...a) }));
 jest.mock("../model-server", () => ({
   sessionModelFor: () => process.env.QUOTE_SESSION_MODEL ?? null,
   chosenEffort: () => "medium",
@@ -152,4 +154,36 @@ it("starts her on a tapped answer that leaves her work, with no words of the per
   ]);
   /* the answer is in the thread already: no second message */
   expect(addEvents).not.toHaveBeenCalledWith("org", "s1", "t4", expect.anything());
+});
+
+/* 3421, 21 October: "Add an option for Linear Mitsubishi Zone kit" was typed
+   into an empty conversation, not Read the job; she had none of ServiceM8's
+   three options and built the whole job again */
+it("opens a first turn of typed words with the job, every source of it, and only the first", async () => {
+  readJobSources.mockResolvedValueOnce({
+    sources: [
+      { id: "sm8_quote", kind: "sm8_quote", label: "ServiceM8's quote", text: "Option 1 ducted\nOption 2 on/off zoning\nOption 3 high wall", at: null },
+      { id: "note:1", kind: "note", label: "Note, 14 Oct, Luke", text: "Price on/off and linear zoning", at: null },
+    ],
+    left: 0,
+  });
+  const model = scripted([{ content: [{ type: "text", text: "On it." }], stopReason: "end_turn" }]);
+  const started = await startTurn("org", "job", "u1", "Add an option for a linear zone kit", { modelName: "m", model });
+  await (started as Extract<typeof started, { ok: true }>).run();
+  expect(readJobSources).toHaveBeenCalledWith("org", "job");
+  expect(model.calls[0]!.messages[0]!.content[0]).toEqual({
+    type: "text",
+    text: "<the-job>\n[ServiceM8's quote]\nOption 1 ducted\nOption 2 on/off zoning\nOption 3 high wall\n\n[Note, 14 Oct, Luke]\nPrice on/off and linear zoning\n</the-job>\n\nAdd an option for a linear zone kit",
+  });
+  /* the thread says what they typed, not that they pressed Read the job */
+  expect(addEvents).toHaveBeenCalledWith("org", "s1", "t1", [{ kind: "message", author: "u1", body: { text: "Add an option for a linear zone kit" } }]);
+
+  /* a later turn is the person's words alone */
+  readJobSources.mockClear();
+  beginTurn.mockResolvedValue({ ok: true, session: { ...session, messages: [{ role: "user", content: [{ type: "text", text: "earlier" }] }, { role: "assistant", content: [{ type: "text", text: "Done." }] }] }, turnId: "t2" });
+  const later = scripted([{ content: [{ type: "text", text: "Changed." }], stopReason: "end_turn" }]);
+  const next = await startTurn("org", "job", "u1", "Make it 5 zones", { modelName: "m", model: later });
+  await (next as Extract<typeof next, { ok: true }>).run();
+  expect(readJobSources).not.toHaveBeenCalled();
+  expect(later.calls[0]!.messages.at(-1)!.content.at(-1)).toEqual({ type: "text", text: "Make it 5 zones" });
 });

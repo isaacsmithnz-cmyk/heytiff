@@ -16,7 +16,7 @@ import { namedUnit, unitRoleOf, type UnitRole } from "../unit-name";
 import type { Pairing } from "../pairing";
 import type { Charge, ChargeAsk } from "../charge";
 import type { ToolOutcome } from "./turn";
-import type { MediaBlock } from "./model";
+import type { MediaBlock, TextBlock } from "./model";
 import { fitRead } from "./read-fit";
 import { airflowCheck, airflowSaid, type AirflowGuide } from "@/lib/guides/airflow";
 import { fitDesignRead, type JobDesign } from "../design-read";
@@ -71,7 +71,8 @@ export type QuoteStore = {
   /** the job's photos and documents she can look at, newest first (4.6) */
   jobFiles: () => Promise<JobFile[]>;
   /** one of them as she sees it, or why she can't */
-  look: (id: string) => Promise<MediaBlock[] | string>;
+  /** a file handed to her, with any words that stay once it's dropped */
+  look: (id: string) => Promise<(MediaBlock | TextBlock)[] | string>;
   /** the business's own task hours and working day (slice 8.1) */
   taskHours: () => Promise<{ hours: Record<TaskKey, number | null>; dayHours: number | null }>;
   /** her questions still open, by their numbers: what a person's own words can settle */

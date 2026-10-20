@@ -36,6 +36,7 @@
    check is to compile the file and look for the `react/compiler-runtime`
    import and `$[` cache slots. Zero slots means skipped. */
 
+import { aDialogHasTheKeys } from "@/lib/studio/keys";
 import { Fade } from "@/components/parts/fade";
 import {
   useCallback,
@@ -2139,6 +2140,7 @@ export function StudioCanvas({
       return t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable;
     };
     const down = (e: KeyboardEvent) => {
+      if (aDialogHasTheKeys()) return;
       if (e.code === "Space" && !isTyping(e)) spaceDown.current = true;
       if (e.key === "Escape") {
         setDraftPoly([]);
@@ -2862,7 +2864,7 @@ export function StudioCanvas({
     if (!isRunTool(tool)) return;
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
-      if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) return;
+      if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable || aDialogHasTheKeys()) return;
       if (e.key === "Enter") commitPipe(draftPipe, null);
     };
     window.addEventListener("keydown", onKey);
@@ -2929,7 +2931,7 @@ export function StudioCanvas({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
-      if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) return;
+      if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable || aDialogHasTheKeys()) return;
       if (e.key === "Enter") finishShapeRef.current();
     };
     window.addEventListener("keydown", onKey);

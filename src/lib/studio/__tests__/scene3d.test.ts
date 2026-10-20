@@ -184,8 +184,8 @@ describe("the roof void over each room", () => {
     if (!r.read) throw new Error("not read");
     const lounge = r.void_over_rooms.find((v) => v.room === "Lounge")!;
     // 8 m span, ridge 4 m in; sampled on a 9 by 9 grid, the highest point read is 3.75 m in:
-    // 3.75 tan 22.5 = 1.553 m, less 140 of rafter and 120 of joist
-    expect(lounge.clear_mm_highest).toBe(1293);
+    // 3.75 tan 22.5 = 1.553 m, plus the roof's 172 mm seat on its rafters, less 140 of rafter and 120 of joist
+    expect(lounge.clear_mm_highest).toBe(1465);
     expect(lounge.clear_mm_lowest).toBe(0);
     expect(r.levels[0]).toMatchObject({ ceiling_mm: 2400 });
     expect(r.framing).toMatch(/standard spacings/);

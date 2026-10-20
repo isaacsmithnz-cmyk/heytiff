@@ -105,6 +105,7 @@ import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
 import type { LibraryManifest } from "@/lib/studio/packs/library";
 import { Button } from "@/components/parts/button";
 import { TiffButton } from "@/components/notes/tiff-button";
+import { aDialogHasTheKeys } from "@/lib/studio/keys";
 import { useNoteScopeScreen } from "@/components/notes/note-context";
 import { DesignHome } from "./home";
 import { RoomsFromPlan } from "./rooms-from-plan";
@@ -1401,6 +1402,7 @@ function Editor({
       const t = e.target as HTMLElement;
       if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)
         return;
+      if (aDialogHasTheKeys()) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
         // the system editor keeps its own history (system-builder.tsx)
         if (builderOpen) return;

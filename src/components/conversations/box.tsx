@@ -1,9 +1,8 @@
 "use client";
 
 import type { ReactNode, Ref } from "react";
-import { Button, IconButton } from "@/components/parts/button";
-import { RecordingCard } from "@/components/notes/recording-card";
-import type { DictationState } from "@/components/notes/dictation";
+import { IconButton } from "@/components/parts/button";
+import { DictClock, LiveWords, type DictationState } from "@/components/notes/dictation";
 import { READING_BACK_NOTE } from "@/components/notes/waits";
 import { Waiting } from "@/components/ui/orb";
 
@@ -73,9 +72,12 @@ export function CvBox({
       }}
     >
       {before}
+      {/* RECORDING IN THE BOX, AS CLAUDE'S DOES (Isaac, 20 October 2026: "no
+          Type instead, Start again, Done"): what you say comes into the box
+          as you say it; the bar below has the red dot, the time and Stop. */}
       {dict?.recording ? (
-        <div className="cv-rec" role="group" aria-label="Recording">
-          <RecordingCard dict={dict} text={value} />
+        <div className="cv-words cv-live" role="group" aria-label="Recording" aria-live="polite">
+          <LiveWords said={value} text={dict.interim} />
         </div>
       ) : (
         <textarea
@@ -106,21 +108,32 @@ export function CvBox({
         </p>
       )}
       <div className="cv-boxbar">
-        {dict && !dict.recording && (
-          <IconButton glyph="mic" label="Speak instead of typing" size={36} disabled={dict.transcribing} onClick={dict.start} />
+        {dict?.recording && (
+          <span className="tc-rec">
+            <span className="tc-recdot" aria-hidden="true" />
+            <DictClock seconds={dict.seconds} />
+          </span>
         )}
+        <span className="tc-sp" />
+        {dict?.recording ? (
+          <button type="button" className="pt-btn pt-btn--second pt-btn--32 pt-btn--icon tc-stop" aria-label="Stop" onClick={dict.stop}>
+            <span aria-hidden="true" />
+          </button>
+        ) : dict ? (
+          <IconButton glyph="mic" label="Speak instead of typing" size={32} disabled={dict.transcribing} onClick={dict.start} />
+        ) : null}
         {extra}
-        <Button
+        {/* Send as Claude's: an arrow, grey until there is something to send */}
+        <IconButton
+          glyph="send"
           kind="main"
-          size={36}
+          size={32}
           type="submit"
+          label={sendLabel ?? sendWord}
           className={`cv-send${waiting ? " cv-send--wait" : ""}`}
-          aria-label={sendLabel}
           aria-busy={waiting || undefined}
-          disabled={waiting || listening}
-        >
-          {sendWord}
-        </Button>
+          disabled={waiting || listening || empty}
+        />
       </div>
     </form>
   );

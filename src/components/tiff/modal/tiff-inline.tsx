@@ -5,11 +5,10 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/parts/button";
 import { Fade } from "@/components/parts/fade";
 import { useNoteScope } from "@/components/notes/note-context";
-import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { loadThreads, saveThreads, type TiffMsg, type TiffThread } from "@/lib/tiff/threads";
 import { pushThreads } from "@/lib/tiff/thread-sync";
 import { prefersStill } from "./box-motion";
-import { Dock, TurnView } from "./tiff-modal";
+import { Dock, ThinkingLine, TurnView } from "./tiff-modal";
 import { useConversation, type ModalTurn } from "./use-conversation";
 
 /* TIFF ON THE PAGE (Isaac, 20 October: the conversation takes Home's page,
@@ -104,7 +103,6 @@ export function TiffInline({ words, onBack }: { words: string; onBack: () => voi
     if (el && typeof el.scrollTo === "function") el.scrollTo({ top: el.scrollHeight, behavior: still ? "auto" : "smooth" });
   }, [tail, still]);
 
-  const working = c.stage === "thinking" || c.stage === "answering";
   const title = said.find((t) => t.who === "you")?.text ?? words;
 
   return (
@@ -114,7 +112,6 @@ export function TiffInline({ words, onBack }: { words: string; onBack: () => voi
           ‹ Back to Home
         </Button>
         <Fade className="hm-chat-title">{title}</Fade>
-        <TiffGlyph size={32} alive working={working} label="Tiff" />
       </div>
       <div className="tm-turns hm-chat-turns" ref={turnsRef}>
         {all.map((t, i) => (
@@ -127,7 +124,7 @@ export function TiffInline({ words, onBack }: { words: string; onBack: () => voi
             c={c}
           />
         ))}
-        {c.stage === "thinking" && <p className="hm-chat-now" role="status">Tiff is sorting it out</p>}
+        {(c.stage === "thinking" || (c.stage === "answering" && all.at(-1)?.who !== "tiff")) && <ThinkingLine about={c.doing} />}
       </div>
       <Dock c={c} onEmpty={back} />
     </section>

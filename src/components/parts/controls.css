@@ -59,6 +59,8 @@
 
 .pt-btn:disabled,
 .pt-btn[aria-disabled="true"] { opacity: .5; cursor: default; pointer-events: none; }
+/* a chat's Send with nothing to send is grey, not a faded blue (Isaac, 20 October 2026) */
+.pt-btn.pt-btn--main.pt-btn--icon:disabled { opacity: 1; background: var(--sel); border-color: transparent; color: var(--q); }
 
 /* ---- Links (26): ink, underlined, at the size of the text around them ---- */
 

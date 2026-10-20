@@ -77,6 +77,9 @@ export type AskBrainEvent =
   /** A tool moved the screen: the page goes to `href` (built by the tool from
       a fixed set, never from words the model read). The turn ends with it. */
   | { type: "screen"; href: string; label: string }
+  /** A tool's result for the page to take (an `apply` outcome): the open
+      design takes its corrected roof through its own history. */
+  | { type: "apply"; target: "design-roof"; designId: string; roof: unknown }
   | { type: "done" };
 
 export type AskBrainInput = {
@@ -334,6 +337,11 @@ export async function* streamBrainAnswer(input: AskBrainInput): AsyncGenerator<A
           yield { type: "screen", href: res.outcome.href, label: res.outcome.label };
           yield { type: "done" };
           return;
+        }
+        if (res.ok && res.outcome.kind === "apply") {
+          yield { type: "apply", target: res.outcome.target, designId: res.outcome.designId, roof: res.outcome.roof };
+          results.push({ type: "tool_result", tool_use_id: call.id, content: JSON.stringify({ applied: true, said: res.outcome.said }) });
+          continue;
         }
         results.push({
           type: "tool_result",

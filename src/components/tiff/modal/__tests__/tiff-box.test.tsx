@@ -351,14 +351,14 @@ describe("Sort it out", () => {
     expect(field()).toHaveValue("東京");
   });
 
-  it("sends the words straight to Tiff: the button's rings are what travel now, not the dots", async () => {
+  it("sends the words straight to Tiff, thinking at once", async () => {
     motion(false);
     const user = userEvent.setup();
     render(<Room />);
     await user.type(field(), "Callum to grab the filters");
     await user.click(button("Sort it out")!);
-    // no gather to wait out: the mark is already Tiff's cloud
-    expect(dialog()!.querySelector<HTMLElement>(".dotf")!.dataset.stage).toBe("cloud");
+    // nothing to wait out: she is thinking at once
+    expect(within(dialog()!).getByText("Thinking")).toBeInTheDocument();
   });
 
   it("from the keyboard nothing flies (law 8)", async () => {
@@ -366,10 +366,9 @@ describe("Sort it out", () => {
     const user = userEvent.setup();
     render(<Room />);
     await user.type(field(), "Callum to grab the filters{Enter}");
-    const dots = dialog()!.querySelector<HTMLElement>(".dotf");
-    // the words went straight to Tiff: the mark is there, and never flew in
-    expect(dots).not.toBeNull();
-    expect(dots!.dataset.stage).not.toBe("gather");
+    // the words went straight to Tiff, and nothing flies in the chat at all
+    expect(within(dialog()!).getByText("Thinking")).toBeInTheDocument();
+    expect(dialog()!.querySelector(".dotf")).toBeNull();
   });
 
   it("closing it puts you back in the box, since the button you pressed left with the words", async () => {

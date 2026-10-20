@@ -3,7 +3,6 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import userEvent from "@testing-library/user-event";
 import { NoteScopeProvider, NoteScopeScreen } from "@/components/notes/note-context";
 import { TiffButton } from "@/components/notes/tiff-button";
-import { GATHER_MS } from "@/components/ui/dot-field";
 import { KEPT_AS_SAID, WHICH_JOB } from "@/lib/workboard/note-turns";
 import { quietLimit } from "../quiet";
 import { TiffModalProvider, useTiff } from "../tiff-host";
@@ -13,12 +12,14 @@ import { CLOUD_MS, NOT_REACHED } from "../use-conversation";
    switched on, the microphone faked, every server action a stub. Nothing
    here reaches a model, ServiceM8 or the database.
 
-   What these hold is the shape he approved in the prototype (v6–v16):
-   opening means listening; Done makes your words a turn and Tiff thinks;
-   a plan with nothing unclear files at once with Undo on it; a question
-   holds the filing and takes a tap, a typed reply or a spoken one; the
-   crosses take rows off; × and Escape leave without routing; and the
-   waits have floors so the dots never jump. */
+   What these hold is the shape he approved in the prototype (v6–v16),
+   docked as a chat like Claude's since 20 October 2026: opening means
+   listening; Stop makes your words a turn and Tiff thinks; a plan with
+   nothing unclear files at once with Undo on it; a question holds the
+   filing and takes a tap, a typed reply or a spoken one; the crosses take
+   rows off; × and Escape leave without routing; Minimise keeps the
+   conversation for later; and the waits have floors so her answer never
+   jumps in. */
 
 const refresh = jest.fn();
 jest.mock("next/navigation", () => ({
@@ -150,6 +151,10 @@ const topButton = () => screen.getAllByLabelText(/^Ask or tell Tiff/)[0]!;
 const dialog = () => screen.getByRole("dialog", { name: "Tiff" });
 /** The conversation itself: Tiff's line is also in the status line. */
 const convo = () => dialog().querySelector<HTMLElement>(".tm-turns")!;
+/** What a screen reader hears. The Thinking line is a status too, so this is the quiet one. */
+const heard = () => dialog().querySelector<HTMLElement>(".sr-only[role='status']")!;
+/** "Thinking", in the conversation while she works. */
+const thinking = () => dialog().querySelector<HTMLElement>(".tc-think");
 const flush = () => act(async () => {});
 
 async function openModal(opts: { voice?: boolean; extra?: React.ReactNode } = {}) {
@@ -159,9 +164,9 @@ async function openModal(opts: { voice?: boolean; extra?: React.ReactNode } = {}
   return user;
 }
 
-/** Say something into the open microphone and press Done. */
+/** Say something into the open microphone and press Stop. */
 async function say(user: ReturnType<typeof userEvent.setup>, words: string) {
-  await user.click(within(dialog()).getByRole("button", { name: "Done" }));
+  await user.click(within(dialog()).getByRole("button", { name: "Stop" }));
   await act(async () => engine.opts!.onTranscript(words, { capped: false }));
 }
 
@@ -222,17 +227,17 @@ afterEach(() => {
 });
 
 describe("opening", () => {
-  it("opens listening from the top bar: the clock, a clear cross and Done", async () => {
+  it("opens listening from the top bar: the red dot, the clock and Stop, in the one box", async () => {
     await openModal();
     const d = dialog();
     expect(mic.start).toHaveBeenCalledTimes(1);
-    expect(d.querySelector(".wb2-recdot")).not.toBeNull();
+    expect(d.querySelector(".tc-recdot")).not.toBeNull();
     expect(within(d).getByText("0:03")).toBeInTheDocument();
-    expect(within(d).getByRole("button", { name: "Clear what you said" })).toBeInTheDocument();
-    expect(within(d).getByRole("button", { name: "Done" })).toBeInTheDocument();
-    // listening: a box to type instead, not yet the reply box
-    expect(within(d).getByRole("textbox", { name: "Type instead" })).toHaveValue("");
-    expect(within(d).queryByRole("textbox", { name: "Reply to Tiff" })).toBeNull();
+    expect(within(d).getByRole("button", { name: "Stop" })).toBeInTheDocument();
+    // the box to type in is there while she listens; the microphone gives way to Stop
+    expect(within(d).getByRole("textbox", { name: "Reply to Tiff" })).toHaveValue("");
+    expect(within(d).queryByRole("button", { name: "Speak instead of typing" })).toBeNull();
+    expect(within(d).getByRole("button", { name: "Send" })).toBeDisabled();
   });
 
   /* Isaac, live (2026-09-27): "needs to prompt you to talk to it. the 'you' looks a bit vague" */
@@ -250,9 +255,9 @@ describe("opening", () => {
     await openModal({ voice: false });
     expect(mic.start).not.toHaveBeenCalled();
     expect(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" })).toBeInTheDocument();
-    expect(within(dialog()).queryByRole("button", { name: "Done" })).toBeNull();
-    // and no Tiff button to listen with, since nothing can hear
-    expect(within(dialog()).queryByRole("button", { name: "Talk to Tiff" })).toBeNull();
+    expect(within(dialog()).queryByRole("button", { name: "Stop" })).toBeNull();
+    // and no microphone to listen with, since nothing can hear
+    expect(within(dialog()).queryByRole("button", { name: "Speak instead of typing" })).toBeNull();
   });
 
   it("goes to the reply box, and says why, when the microphone will not open", async () => {
@@ -261,7 +266,7 @@ describe("opening", () => {
     const d = dialog();
     expect(within(d).getByRole("textbox", { name: "Reply to Tiff" })).toBeInTheDocument();
     expect(within(d).getByRole("alert")).toHaveTextContent("Microphone access is blocked for this site.");
-    expect(within(d).queryByRole("button", { name: "Done" })).toBeNull();
+    expect(within(d).queryByRole("button", { name: "Stop" })).toBeNull();
   });
 
   it("names where it was opened: the screen, or the job the screen is about", async () => {
@@ -288,7 +293,7 @@ describe("opening", () => {
 });
 
 describe("talking", () => {
-  it("Done makes your words a turn, folds the dock and says Tiff is sorting it out", async () => {
+  it("Stop makes your words a turn, and Tiff is thinking: on screen and to a screen reader", async () => {
     routeNote.mockReturnValue(new Promise(() => {}));
     const user = await openModal();
     await say(user, "Lyle has the Bellevue Hill head on the ute");
@@ -297,8 +302,12 @@ describe("talking", () => {
     expect(mic.stop).toHaveBeenCalledTimes(1);
     expect(within(d).getByText("You")).toBeInTheDocument();
     expect(within(d).getByText("Lyle has the Bellevue Hill head on the ute")).toBeInTheDocument();
-    expect(d.querySelector(".tm-dock")).toBeNull();
-    expect(within(d).getByRole("status")).toHaveTextContent("Tiff is sorting it out");
+    expect(thinking()).toHaveTextContent("Thinking");
+    // the Thinking line is the status while she works, so nothing is said twice
+    expect(thinking()).toHaveAttribute("role", "status");
+    expect(heard()).toHaveTextContent("");
+    // the box stays while she thinks; it only waits
+    expect(within(d).getByRole("textbox", { name: "Reply to Tiff" })).toBeInTheDocument();
     expect(routeNote).toHaveBeenCalledWith({
       transcript: "Lyle has the Bellevue Hill head on the ute",
       target: { kind: "none" },
@@ -307,7 +316,7 @@ describe("talking", () => {
     });
   });
 
-  it("a quiet ends your turn as Done does: the words go, and Tiff is sorting it out", async () => {
+  it("a quiet ends your turn as Stop does: the words go, and Tiff is thinking", async () => {
     /* "Having to click done kind of takes away from the conversation flow."
        The policy is ./quiet's; the meter calls onQuiet when it runs out. */
     routeNote.mockReturnValue(new Promise(() => {}));
@@ -316,13 +325,15 @@ describe("talking", () => {
     await act(async () => engine.opts!.onQuiet!());
     expect(mic.stop).toHaveBeenCalledTimes(1);
     await act(async () => engine.opts!.onTranscript("Lyle has the Bellevue Hill head on the ute.", { capped: false }));
-    expect(within(dialog()).getByRole("status")).toHaveTextContent("Tiff is sorting it out");
+    // the Thinking line is the status while she works, so nothing is said twice
+    expect(thinking()).toHaveAttribute("role", "status");
+    expect(heard()).toHaveTextContent("");
     expect(routeNote).toHaveBeenCalledWith(expect.objectContaining({ transcript: "Lyle has the Bellevue Hill head on the ute." }));
   });
 
   it("a quiet while you are in the field sends nothing: you clicked in to type or fix", async () => {
     const user = await openModal();
-    await user.click(within(dialog()).getByRole("textbox", { name: "Type instead" }));
+    await user.click(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }));
     await act(async () => engine.opts!.onQuiet!());
     expect(mic.stop).not.toHaveBeenCalled();
     expect(mic.keepListening).toHaveBeenCalled();
@@ -498,8 +509,8 @@ describe("talking", () => {
   });
 
   /* Isaac (2026-09-27): after words you said, her question is listened
-     for, with a box to type instead; "as soon as you start typing, the
-     recording will stop". Typed, she waits at the reply box. */
+     for, with the box to type in instead; "as soon as you start typing,
+     the recording will stop". Typed, she waits at the reply box. */
   it("listens for the answer to her question after words you said; typing stops it, and a typed reply waits at the box", async () => {
     routeNote.mockResolvedValue(
       routed({ say: "Who books it?", tasks: [task("Book 3323 in", null)], clarify: { question: "Who books it?", options: ["Me"] } })
@@ -516,14 +527,14 @@ describe("talking", () => {
     expect(within(dialog()).getByText("Go ahead, I’m listening")).toBeInTheDocument();
     expect(within(dialog()).getByRole("button", { name: "Me" })).toBeInTheDocument();
     // the first key stops the recording and is the start of the reply
-    await user.type(within(dialog()).getByRole("textbox", { name: "Type instead" }), "Lyle books it{Enter}");
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "Lyle books it{Enter}");
     expect(mic.cancel).toHaveBeenCalledTimes(1);
     await flush();
     expect(continueNote).toHaveBeenNthCalledWith(1, "n1", "Lyle books it", []);
 
-    // typed, so she waits at the box; its Tiff button listens
+    // typed, so she waits at the box; its microphone listens
     expect(mic.start).toHaveBeenCalledTimes(2);
-    await user.click(within(dialog()).getByRole("button", { name: "Talk to Tiff" }));
+    await user.click(within(dialog()).getByRole("button", { name: "Speak instead of typing" }));
     expect(mic.start).toHaveBeenCalledTimes(3);
     await say(user, "no, Lyle does it Monday");
     await flush();
@@ -785,7 +796,7 @@ describe("leaving", () => {
   it("a transcript that lands after you have gone routes nothing", async () => {
     const user = await openModal();
     const late = () => engine.opts!;
-    await user.click(within(dialog()).getByRole("button", { name: "Done" }));
+    await user.click(within(dialog()).getByRole("button", { name: "Stop" }));
     const opts = late();
     await user.keyboard("{Escape}");
     await flush();
@@ -951,7 +962,7 @@ describe("focus goes back", () => {
 });
 
 describe("the waits have floors", () => {
-  it("holds Tiff's answer until the cloud has turned", async () => {
+  it("holds Tiff's answer until the cloud has turned, with Thinking up meanwhile", async () => {
     motion(false);
     jest.useFakeTimers();
     routeNote.mockResolvedValue(routed({ say: "Lyle has it.", tasks: [task("Head on the ute", LYLE.id)] }));
@@ -959,8 +970,6 @@ describe("the waits have floors", () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     render(<Harness />);
     await user.click(topButton());
-    // the button's rings are what travel now (./rings): the mark is simply there, and holds nothing up
-    expect(dialog().querySelector('.dotf[data-stage="mark"]')).not.toBeNull();
 
     await say(user, "Lyle has the head");
     await flush();
@@ -971,152 +980,109 @@ describe("the waits have floors", () => {
       jest.advanceTimersByTime(CLOUD_MS - 200);
     });
     expect(within(convo()).queryByText(DONE)).toBeNull();
-    expect(dialog().querySelector('.dotf[data-stage="cloud"]')).not.toBeNull();
+    expect(thinking()).not.toBeNull();
 
     await act(async () => {
       jest.advanceTimersByTime(250);
     });
     expect(within(convo()).getByText(DONE)).toBeInTheDocument();
+    expect(thinking()).toBeNull();
   });
 
-  it("pressed from the keyboard, nothing flies (law 8)", async () => {
-    motion(false);
-    render(<Harness />);
-    await act(async () => {
-      fireEvent.click(topButton(), { detail: 0 });
-    });
-    expect(dialog().querySelector('.dotf[data-stage="gather"]')).toBeNull();
-    expect(dialog().querySelector('.dotf[data-stage="mark"]')).not.toBeNull();
-  });
-
-  it("under reduced motion nothing flies and nothing is held", async () => {
+  it("under reduced motion nothing is held", async () => {
     routeNote.mockResolvedValue(routed({ say: "Lyle has it.", tasks: [task("Head on the ute", LYLE.id)] }));
     fileNote.mockResolvedValue(filedOk);
     const user = await openModal();
-    expect(dialog().querySelector('.dotf[data-stage="gather"]')).toBeNull();
-    expect(dialog().querySelector('.dotf[data-stage="mark"]')).not.toBeNull();
     await say(user, "Lyle has the head");
     await flush();
     expect(within(convo()).getByText(DONE)).toBeInTheDocument();
   });
 });
 
-describe("the rings", () => {
-  const anims: { el: Element; frames: Keyframe[] }[] = [];
-  beforeEach(() => {
-    anims.length = 0;
-    (HTMLElement.prototype as unknown as { animate: unknown }).animate = function (this: Element, frames: Keyframe[]) {
-      anims.push({ el: this, frames });
-      return { finished: Promise.resolve(), cancel() {} };
-    };
-    (HTMLElement.prototype as unknown as { getAnimations: unknown }).getAnimations = () => [];
-  });
-  afterEach(() => {
-    delete (HTMLElement.prototype as unknown as { animate?: unknown }).animate;
-    delete (HTMLElement.prototype as unknown as { getAnimations?: unknown }).getAnimations;
-  });
-
-  const flying = () => anims.filter((a) => (a.el as HTMLElement).classList.contains("tm-fr-pos"));
-
-  /* ./rings: the pressed button's two rings leave it and become the modal's
-     edge, and the modal fills in after them; close sends them home. */
-  it("sends the pressed button's rings out, and brings them home on close", async () => {
+/* DOCKED, NOT MODAL (Isaac, 20 October 2026: a small chat like Claude's,
+   that you can minimise and open up). The page around it stays yours:
+   nothing covers it and nothing flies out of the button, its keys are its
+   own only while you are in it, and Minimise keeps the conversation. */
+describe("docked", () => {
+  it("sits beside the page, not over it: no scrim, and nothing flies from the button", async () => {
     motion(false);
-    const user = await openModal();
-    const m = dialog();
-    expect(flying()).toHaveLength(2);
-    // the button's own rings go on the instant the flying copies leave
-    const gw = topButton().querySelector(".tiffbtn-gw")!;
-    expect(anims.find((a) => a.el === gw)!.frames.at(-1)).toMatchObject({ opacity: 0 });
-    // the modal is only its rings' outline until the fill reaches it
-    const fill = anims.find((a) => a.el === m && a.frames[0] && "backgroundColor" in a.frames[0])!;
-    expect(fill.frames[0]).toMatchObject({ backgroundColor: "transparent" });
-    expect(anims.some((a) => (a.el as HTMLElement).classList.contains("tm-scrim"))).toBe(true);
-
-    const out = flying().length;
-    await user.click(within(m).getByRole("button", { name: "Close" }));
-    expect(flying()).toHaveLength(out + 2);
-    await flush();
-    expect(screen.queryByRole("dialog", { name: "Tiff" })).toBeNull();
-  });
-
-  /* Both were live and unseen (2026-09-27): a `path(evenodd, …)` is no value
-     for `d`, so the fill's ink never drew; and a fill that went at the very
-     instant the modal's own colour came on left a frame with neither, as the
-     two are not on one clock. */
-  it("draws every shape as a plain path, and the fill stays under the modal to the end", async () => {
-    motion(false);
-    const svg: { el: Element; frames: Keyframe[] }[] = [];
-    const proto = Element.prototype as unknown as { animate?: unknown };
-    proto.animate = function (this: Element, frames: Keyframe[]) {
-      svg.push({ el: this, frames });
-      return { finished: Promise.resolve(), cancel() {} };
-    };
-    try {
-      const user = await openModal();
-      const fill = svg.find((a) => a.el.classList.contains("tm-fill"))!.frames;
-      const on = fill.findIndex((f) => f.opacity === 1);
-      expect(on).toBeGreaterThan(0);
-      expect(fill.slice(on).filter((f) => f.opacity === 0).map((f) => f.offset)).toEqual([1]);
-      await user.click(within(dialog()).getByRole("button", { name: "Close" }));
-    } finally {
-      delete proto.animate;
-    }
-    const ds = svg.flatMap((a) => a.frames.map((f) => f.d)).filter((d): d is string => typeof d === "string");
-    expect(ds.length).toBeGreaterThan(0);
-    for (const d of ds) expect(d).toMatch(/^path\("[^"]*"\)$/);
-  });
-
-  it("under reduced motion it only fades, and nothing leaves the button", async () => {
     await openModal();
-    const grow = anims.find((a) => a.el === dialog())!;
-    expect(grow.frames).toEqual([{ opacity: 0 }, { opacity: 1 }]);
-    expect(flying()).toHaveLength(0);
+    expect(dialog()).not.toHaveAttribute("aria-modal");
+    expect(document.querySelector(".tm-scrim")).toBeNull();
+    expect(document.querySelector(".tm-fr-pos")).toBeNull();
   });
 
-  it("opened from the keyboard it only fades, in and out (law 8)", async () => {
-    motion(false);
-    render(<Harness />);
-    await act(async () => {
-      fireEvent.click(topButton(), { detail: 0 });
+  it("leaves Escape pressed on the page around it to the page", async () => {
+    const pageHeard = jest.fn();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") pageHeard();
+    };
+    const outside = document.createElement("input");
+    document.body.appendChild(outside);
+    document.addEventListener("keydown", onKey);
+    try {
+      const user = await openModal({ voice: false });
+      outside.focus();
+      await user.keyboard("{Escape}");
+      await flush();
+      expect(dialog()).toBeInTheDocument();
+      expect(pageHeard).toHaveBeenCalledTimes(1);
+    } finally {
+      document.removeEventListener("keydown", onKey);
+      outside.remove();
+    }
+  });
+
+  it("Minimise leaves the Ask Tiff pill, and the pill brings the conversation back as it was", async () => {
+    askBrain.mockImplementationOnce((_input, h) => {
+      h.onDelta("Lyle is at 3323 from 9:00.");
+      h.onDone();
     });
-    const m = dialog();
-    expect(anims.find((a) => a.el === m)!.frames).toEqual([{ opacity: 0 }, { opacity: 1 }]);
-    await userEvent.setup().keyboard("{Escape}");
-    expect(anims.filter((a) => a.el === m).at(-1)!.frames).toEqual([{ opacity: 1 }, { opacity: 0 }]);
+    const user = await openModal({ voice: false });
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "who's at 3323 tomorrow?{Enter}");
+    await flush();
+
+    await user.click(within(dialog()).getByRole("button", { name: "Minimise" }));
+    // put away, not closed: nothing in it can be reached, and nothing landed
+    expect(dialog()).toHaveAttribute("inert");
+    expect(refresh).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Ask Tiff" }));
+
+    expect(screen.queryByRole("button", { name: "Ask Tiff" })).toBeNull();
+    expect(dialog()).not.toHaveAttribute("inert");
+    expect(within(convo()).getByText("who's at 3323 tomorrow?")).toBeInTheDocument();
+    expect(within(convo()).getByText("Lyle is at 3323 from 9:00.")).toBeInTheDocument();
+    expect(askBrain).toHaveBeenCalledTimes(1);
   });
 
-  it("lets go of the microphone the moment you close, not when the fold ends", async () => {
-    motion(false);
-    (HTMLElement.prototype as unknown as { animate: unknown }).animate = function (this: Element, frames: Keyframe[]) {
-      anims.push({ el: this, frames });
-      return { finished: new Promise(() => {}), cancel() {} };
-    };
-    const user = await openModal();
-    await user.keyboard("{Escape}");
-    expect(mic.cancel).toHaveBeenCalled();
-    // still folding: the modal is on the page, and nothing in it can be pressed
-    expect(document.querySelector(".tm")).not.toBeNull();
-    expect(document.querySelector(".tm")).toHaveAttribute("inert");
+  it("Send waits for something typed, and Enter on nothing sends nothing", async () => {
+    const user = await openModal({ voice: false });
+    const box = within(dialog()).getByRole("textbox", { name: "Reply to Tiff" });
+    const send = within(dialog()).getByRole("button", { name: "Send" });
+    expect(send).toBeDisabled();
+    await user.type(box, "   {Enter}");
+    expect(send).toBeDisabled();
+    expect(askBrain).not.toHaveBeenCalled();
+    expect(routeNote).not.toHaveBeenCalled();
+
+    await user.type(box, "who's at 3323 tomorrow?");
+    expect(send).toBeEnabled();
+    await user.click(send);
+    expect(askBrain.mock.calls[0][0]).toMatchObject({ question: "who's at 3323 tomorrow?" });
   });
 
-  it("folds the dock away by its own box while Tiff thinks, and holds it until it has gone", async () => {
-    motion(false);
-    let fold: () => void = () => {};
-    (HTMLElement.prototype as unknown as { animate: unknown }).animate = function (this: Element, frames: Keyframe[]) {
-      anims.push({ el: this, frames });
-      const closing = (this as HTMLElement).classList.contains("tm-dock") && frames.at(-1)?.height === "0px";
-      return { finished: closing ? new Promise<void>((r) => (fold = r)) : Promise.resolve(), cancel() {} };
-    };
-    routeNote.mockReturnValue(new Promise(() => {}));
-    const user = await openModal();
-    const dock = dialog().querySelector(".tm-dock")!;
-    await say(user, "Lyle has the head");
-    const shut = anims.find((a) => a.el === dock && a.frames.at(-1)?.height === "0px");
-    expect(shut?.frames.at(-1)).toMatchObject({ opacity: 0, height: "0px", paddingTop: "0px", paddingBottom: "0px" });
-    expect(dialog().querySelector(".tm-dock")).toBe(dock);
-    await act(async () => fold());
-    expect(dialog().querySelector(".tm-dock")).toBeNull();
+  /* "Thinking with what she's thinking about" (Isaac, 20 October 2026): the
+     label of the tool she picked up last, said small after Thinking. */
+  it("says what she is doing while she thinks, once the tool she picked up says", async () => {
+    let tool: (label: string) => void = () => {};
+    askBrain.mockImplementationOnce((_input, h) => {
+      tool = h.onTool;
+    });
+    const user = await openModal({ voice: false });
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "can a ducted unit fit in the roof void?{Enter}");
+    expect(thinking()).toHaveTextContent(/^Thinking$/);
+    await act(async () => tool("Reading the design"));
+    expect(within(thinking()!).getByText("reading the design")).toBeInTheDocument();
   });
 });
 
@@ -1126,14 +1092,12 @@ describe("the rings", () => {
 type Proto = { animate?: unknown; getAnimations?: unknown; scrollTo?: unknown };
 const proto = HTMLElement.prototype as unknown as Proto;
 
-/** Web Animations, recorded; the dock's fold can be held open. */
-function recordAnimations(opts: { holdDockFold?: boolean } = {}) {
+/** Web Animations, recorded. */
+function recordAnimations() {
   const anims: { el: Element; frames: Keyframe[] }[] = [];
   proto.animate = function (this: Element, frames: Keyframe[]) {
     anims.push({ el: this, frames });
-    const folding =
-      opts.holdDockFold && (this as HTMLElement).classList.contains("tm-dock") && frames.at(-1)?.height === "0px";
-    return { finished: folding ? new Promise<void>(() => {}) : Promise.resolve(), cancel() {} };
+    return { finished: Promise.resolve(), cancel() {} };
   };
   proto.getAnimations = () => [];
   return anims;
@@ -1170,49 +1134,38 @@ describe("a filing whose answer was lost", () => {
   });
 });
 
-describe("the dock folding away", () => {
-  it("can't be pressed, and a second Done neither closes the modal nor sends twice", async () => {
-    motion(false);
-    recordAnimations({ holdDockFold: true });
+/* WHILE SHE THINKS THE BOX STAYS, AND WAITS. Stop gives way to the
+   microphone, and the microphone and Send wait with her, so nothing sends
+   twice and nothing listens over her. */
+describe("while Tiff thinks", () => {
+  it("the box stays, but neither Send nor the microphone can be pressed, and the words go once", async () => {
     routeNote.mockReturnValue(new Promise(() => {}));
     const user = await openModal();
-    const done = within(dialog()).getByRole("button", { name: "Done" });
-    await user.click(done);
-    expect(dialog().querySelector(".tm-dock")).toHaveAttribute("inert");
-    // jsdom does not honour inert, so the press still lands: it must do nothing
-    await user.click(done);
-    await flush();
-    expect(screen.getByRole("dialog", { name: "Tiff" })).toBeInTheDocument();
+    await user.click(within(dialog()).getByRole("button", { name: "Stop" }));
+    expect(within(dialog()).queryByRole("button", { name: "Stop" })).toBeNull();
+    expect(within(dialog()).getByRole("button", { name: "Speak instead of typing" })).toBeDisabled();
+    expect(within(dialog()).getByRole("button", { name: "Send" })).toBeDisabled();
     await act(async () => engine.opts!.onTranscript("Lyle has the head", { capped: false }));
     expect(routeNote).toHaveBeenCalledTimes(1);
+    expect(mic.start).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("dialog", { name: "Tiff" })).toBeInTheDocument();
   });
 
-  it("its Tiff button does not listen while Tiff thinks", async () => {
-    motion(false);
-    jest.useFakeTimers();
-    recordAnimations({ holdDockFold: true });
-    routeNote.mockResolvedValue(askWho());
-    continueNote.mockReturnValue(new Promise(() => {}));
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-    render(<Harness />);
-    await user.click(topButton());
-    // typed, so her question waits at the reply box rather than listening
-    await user.click(within(dialog()).getByRole("button", { name: "Clear what you said" }));
-    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "3323 needs booking{Enter}");
-    await act(async () => {
-      jest.advanceTimersByTime(GATHER_MS + CLOUD_MS);
-    });
-    await user.click(within(dialog()).getByRole("button", { name: "Me" }));
-    // thinking: the reply box is folding away with its Tiff button still drawn
-    const talk = within(dialog()).getByRole("button", { name: "Talk to Tiff" });
-    await user.click(talk);
-    expect(mic.start).toHaveBeenCalledTimes(1);
-    expect(within(dialog()).queryByRole("button", { name: "Done" })).toBeNull();
+  /* The box no longer folds away while she reads your words back, so what
+     you type there meanwhile is your next turn, never the front of this one. */
+  it("what you type while your words are read back is not put in front of them", async () => {
+    routeNote.mockReturnValue(new Promise(() => {}));
+    const user = await openModal();
+    await act(async () => engine.say!("Lyle has the head"));
+    await user.click(within(dialog()).getByRole("button", { name: "Stop" }));
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "and the filters");
+    await act(async () => engine.opts!.onTranscript("Lyle has the head", { capped: false }));
+    expect(routeNote).toHaveBeenCalledWith(expect.objectContaining({ transcript: "Lyle has the head" }));
   });
 });
 
 describe("reduced motion", () => {
-  it("Done settles your words from the live size to the turn's where motion is allowed", async () => {
+  it("Stop settles your words from the live size to the turn's where motion is allowed", async () => {
     motion(false);
     const anims = recordAnimations();
     routeNote.mockReturnValue(new Promise(() => {}));
@@ -1237,7 +1190,7 @@ describe("reduced motion", () => {
     expect(anims.some((a) => a.el === live && a.frames.some((f) => "height" in f))).toBe(true);
   });
 
-  it("under it nothing settles, grows, opens or folds: the modal only fades", async () => {
+  it("under it nothing settles, grows or opens", async () => {
     const anims = recordAnimations();
     Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
       configurable: true,
@@ -1267,8 +1220,6 @@ describe("the keyboard", () => {
     await act(async () => {
       fireEvent.click(topButton(), { detail: 0 });
     });
-    // nothing flew from the button
-    expect(dialog().querySelector('.dotf[data-stage="gather"]')).toBeNull();
     await say(user, "Lyle has the head");
     await flush();
     expect(fileNote).toHaveBeenCalled();
@@ -1282,17 +1233,16 @@ describe("the keyboard", () => {
     expect(within(convo()).getByText(DONE)).toBeInTheDocument();
   });
 
-  it("the reply box's Tiff button, pressed from it, listens with nothing flying from it", async () => {
+  it("the box's microphone, pressed from it, listens", async () => {
     motion(false);
     await openModal();
     await act(async () => engine.opts!.onError?.("Microphone access is blocked for this site."));
-    const talk = within(dialog()).getByRole("button", { name: "Talk to Tiff" });
+    const talk = within(dialog()).getByRole("button", { name: "Speak instead of typing" });
     await act(async () => {
       fireEvent.click(talk, { detail: 0 });
     });
     expect(mic.start).toHaveBeenCalledTimes(2);
-    expect(dialog().querySelector('.dotf[data-stage="gather"]')).toBeNull();
-    expect(dialog().querySelector('.dotf[data-stage="mark"]')).not.toBeNull();
+    expect(within(dialog()).getByRole("button", { name: "Stop" })).toBeInTheDocument();
   });
 
   it("a press from it does not turn the button; a pointer's does", async () => {
@@ -1307,30 +1257,22 @@ describe("the keyboard", () => {
     await userEvent.setup().click(topButton());
     expect(topButton()).toHaveClass("lit");
   });
-
-  it("Tab stays inside the modal", async () => {
-    const user = await openModal();
-    const d = dialog();
-    expect(within(d).getByRole("button", { name: "Done" })).toHaveFocus();
-    await user.tab();
-    expect(within(d).getByRole("button", { name: "Close" })).toHaveFocus();
-    await user.tab({ shift: true });
-    expect(within(d).getByRole("button", { name: "Done" })).toHaveFocus();
-  });
 });
 
 describe("a screen reader", () => {
-  it("keeps focus in the modal while Tiff thinks, then hears what she said", async () => {
+  it("keeps focus in Tiff while she thinks, then hears what she said", async () => {
     let answer: (v: unknown) => void = () => {};
     routeNote.mockReturnValue(new Promise((r) => (answer = r)));
     fileNote.mockResolvedValue(filedOk);
     const user = await openModal();
     await say(user, "Lyle has the head");
     expect(dialog()).toHaveFocus();
-    expect(within(dialog()).getByRole("status")).toHaveTextContent("Tiff is sorting it out");
+    // the Thinking line is the status while she works, so nothing is said twice
+    expect(thinking()).toHaveAttribute("role", "status");
+    expect(heard()).toHaveTextContent("");
     await act(async () => answer(routed({ say: "Lyle has it.", tasks: [task("Head on the ute", LYLE.id)] })));
     await flush();
-    expect(within(dialog()).getByRole("status")).toHaveTextContent(DONE);
+    expect(heard()).toHaveTextContent(DONE);
     expect(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" })).toHaveFocus();
   });
 
@@ -1339,7 +1281,7 @@ describe("a screen reader", () => {
     const user = await openModal();
     await say(user, "3323 needs booking");
     await flush();
-    expect(within(dialog()).getByRole("status")).toHaveTextContent("Who books it?");
+    expect(heard()).toHaveTextContent("Who books it?");
   });
 });
 
@@ -1369,39 +1311,12 @@ describe("your words, while you say them", () => {
     );
   });
 
-  /* Isaac, live (2026-09-27): "if I hit X down the bottom, it restarts the
-     microphone". The cross stops: the take goes, and the mic stays shut. */
-  it("the cross throws the take away and stops: the reply box, and the mic is not opened again", async () => {
-    const user = await openModal();
-    await act(async () => engine.say!("Lyle has"));
-    await user.click(within(dialog()).getByRole("button", { name: "Clear what you said" }));
-    expect(mic.cancel).toHaveBeenCalledTimes(1);
-    expect(mic.restart).not.toHaveBeenCalled();
-    expect(mic.start).toHaveBeenCalledTimes(1);
-    expect(within(dialog()).queryByRole("button", { name: "Done" })).toBeNull();
-    expect(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" })).toHaveValue("");
-    expect(within(dialog()).queryByText("Lyle has")).toBeNull();
-    expect(routeNote).not.toHaveBeenCalled();
-  });
-
-  it("the cross on your words, clicked into, bins the read-back and stops the same way", async () => {
-    const user = await openModal();
-    await act(async () => engine.say!("Lyle has"));
-    await user.click(dialog().querySelector<HTMLElement>(".tm-words")!);
-    expect(within(dialog()).getByRole("textbox", { name: "What you said" })).toBeInTheDocument();
-    await user.click(within(dialog()).getByRole("button", { name: "Clear what you said" }));
-    expect(mic.cancel).toHaveBeenCalledTimes(1);
-    expect(mic.start).toHaveBeenCalledTimes(1);
-    expect(within(dialog()).queryByRole("textbox", { name: "What you said" })).toBeNull();
-    expect(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" })).toBeInTheDocument();
-  });
-
   /* Talking again from the reply box, mid-conversation: whatever ends the
      take without words is back where you were, her question and all, and
      never the end of the conversation ("done will um, finish the chat"). */
   describe("talking again in a conversation", () => {
     const ASK = "Who books it?";
-    /** Words said, and her question listened for; `opens: false` is a mic still arming as you press Done. */
+    /** Words said, and her question listened for; `opens: false` is a mic still arming as you press Stop. */
     async function talkAgain({ opens = true } = {}) {
       routeNote.mockResolvedValue(routed({ say: ASK, tasks: [task("Book 3323 in", null)], clarify: { question: ASK, options: ["Me"] } }));
       const user = await openModal();
@@ -1409,18 +1324,9 @@ describe("your words, while you say them", () => {
       engine.opens = opens;
       await say(user, "3323 needs booking");
       await flush();
-      expect(within(dialog()).getByRole("button", { name: "Done" })).toBeInTheDocument();
+      expect(within(dialog()).getByRole("button", { name: "Stop" })).toBeInTheDocument();
       return user;
     }
-
-    it("the cross is back at her question, with its answers", async () => {
-      const user = await talkAgain();
-      await user.click(within(dialog()).getByRole("button", { name: "Clear what you said" }));
-      expect(mic.start).toHaveBeenCalledTimes(2);
-      expect(within(convo()).getByText(ASK)).toBeInTheDocument();
-      expect(within(dialog()).getByRole("button", { name: "Me" })).toBeInTheDocument();
-      expect(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" })).toBeInTheDocument();
-    });
 
     it("a quick answer tapped while she listens drops the take and answers", async () => {
       continueNote.mockReturnValue(new Promise(() => {}));
@@ -1432,10 +1338,10 @@ describe("your words, while you say them", () => {
 
     it("clicking into the box to type keeps listening; the first key stops it, in the same field", async () => {
       const user = await talkAgain();
-      const box = within(dialog()).getByRole("textbox", { name: "Type instead" });
+      const box = within(dialog()).getByRole("textbox", { name: "Reply to Tiff" });
       await user.click(box);
       expect(mic.cancel).not.toHaveBeenCalled();
-      expect(within(dialog()).getByRole("button", { name: "Done" })).toBeInTheDocument();
+      expect(within(dialog()).getByRole("button", { name: "Stop" })).toBeInTheDocument();
       await user.keyboard("L");
       expect(mic.cancel).toHaveBeenCalledTimes(1);
       const reply = within(dialog()).getByRole("textbox", { name: "Reply to Tiff" });
@@ -1447,17 +1353,19 @@ describe("your words, while you say them", () => {
     it("with words already said, the first key keeps them for you to fix", async () => {
       const user = await talkAgain();
       await act(async () => engine.say!("Lyle books"));
-      await user.type(within(dialog()).getByRole("textbox", { name: "Type instead" }), "x");
+      await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "x");
       expect(mic.handOver).toHaveBeenCalledTimes(1);
       expect(within(dialog()).getByRole("textbox", { name: "What you said" })).toBeInTheDocument();
     });
 
-    it("Done with nothing said keeps the conversation open, at the reply box", async () => {
+    it("Stop with nothing said keeps the conversation open, back at her question", async () => {
       const user = await talkAgain({ opens: false });
-      await user.click(within(dialog()).getByRole("button", { name: "Done" }));
+      await user.click(within(dialog()).getByRole("button", { name: "Stop" }));
       await flush();
       expect(dialog()).toBeInTheDocument();
       expect(within(convo()).getByText(ASK)).toBeInTheDocument();
+      expect(within(dialog()).getByRole("button", { name: "Me" })).toBeInTheDocument();
+      expect(within(dialog()).queryByRole("button", { name: "Stop" })).toBeNull();
       expect(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" })).toBeInTheDocument();
       expect(continueNote).not.toHaveBeenCalled();
     });
@@ -1516,10 +1424,10 @@ describe("your words, while you say them", () => {
     expect(routeNote).not.toHaveBeenCalled();
   });
 
-  it("Done before anything was said closes it, and sends nothing", async () => {
+  it("Stop before anything was said closes it, and sends nothing", async () => {
     engine.opens = false;
     const user = await openModal();
-    await user.click(within(dialog()).getByRole("button", { name: "Done" }));
+    await user.click(within(dialog()).getByRole("button", { name: "Stop" }));
     await flush();
     expect(screen.queryByRole("dialog", { name: "Tiff" })).toBeNull();
     expect(routeNote).not.toHaveBeenCalled();
@@ -1659,14 +1567,13 @@ describe("opened again on a conversation", () => {
     return user;
   }
 
-  it("has what was said on screen, Tiff's face already fallen, in the diary's room", async () => {
+  it("has what was said on screen, in the diary's room", async () => {
     await reopen();
     const turns = within(convo()).getAllByText(/./, { selector: ".tm-tt" }).map((t) => t.textContent);
     expect(turns).toEqual(["Lyle has the Bellevue Hill head on the ute", DONE]);
     expect(within(convo()).getAllByText(/^(You|Tiff)$/).map((l) => l.textContent)).toEqual(["You", "Tiff"]);
-    // she has already answered: no dots gather, and the header holds her mark
-    expect(dialog().querySelector(".tm-face")).toBeNull();
-    expect(dialog()).toHaveClass("speaking");
+    // she has already answered: nothing says she is thinking
+    expect(thinking()).toBeNull();
     expect(within(dialog()).getByText("Diary")).toBeInTheDocument();
   });
 
@@ -1677,15 +1584,15 @@ describe("opened again on a conversation", () => {
     expect(mic.start).not.toHaveBeenCalled();
     expect(routeNote).not.toHaveBeenCalled();
     expect(askBrain).not.toHaveBeenCalled();
-    // the box's own Tiff button is how to talk
-    expect(within(dialog()).getByRole("button", { name: "Talk to Tiff" })).toBeInTheDocument();
+    // the box's microphone is how to talk
+    expect(within(dialog()).getByRole("button", { name: "Speak instead of typing" })).toBeInTheDocument();
   });
 
-  it("listens once the box's Tiff button is pressed", async () => {
+  it("listens once the box's microphone is pressed", async () => {
     const user = await reopen();
-    await user.click(within(dialog()).getByRole("button", { name: "Talk to Tiff" }));
+    await user.click(within(dialog()).getByRole("button", { name: "Speak instead of typing" }));
     expect(mic.start).toHaveBeenCalledTimes(1);
-    expect(within(dialog()).getByRole("button", { name: "Done" })).toBeInTheDocument();
+    expect(within(dialog()).getByRole("button", { name: "Stop" })).toBeInTheDocument();
   });
 
   it("reads what you say next by the conversation, in the diary's room", async () => {
@@ -1718,10 +1625,9 @@ describe("opened again on a conversation", () => {
     expect(topButton()).toHaveFocus();
   });
 
-  /* Tiff's face had already fallen when it opened, so the first reply
-     brings her cloud up where it sits: no dots fly in from the diary's line
-     behind the scrim, and no wait for a gather that was never drawn. */
-  it("thinks at once on the first reply, the cloud rising where it sits, nothing flying from the line", async () => {
+  /* She had already answered when it opened, so the first reply has her
+     thinking at once, under it: no wait for anything to arrive first. */
+  it("thinks at once on the first reply, under what you said", async () => {
     motion(false);
     jest.useFakeTimers();
     routeNote.mockReturnValue(new Promise(() => {}));
@@ -1731,11 +1637,8 @@ describe("opened again on a conversation", () => {
       grabbed.api!.open({ from: topButton(), conversation: HAD, room: "diary", id: "hd-dy-tiff-e1" });
     });
     await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "and the same for Smith St{Enter}");
-    const field = dialog().querySelector<HTMLElement>(".dotf");
-    expect(field).not.toBeNull();
-    expect(field).toHaveAttribute("data-stage", "cloud");
-    // measured from no button: the dots start where the field is
-    expect(field!.style.getPropertyValue("--gox")).toBe("");
+    expect(thinking()).not.toBeNull();
+    expect(convo().lastElementChild).toBe(thinking());
   });
 
   it("lands at its newest turn as it appears, rather than scrolling there in front of you", async () => {

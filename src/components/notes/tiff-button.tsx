@@ -3,7 +3,7 @@
 import { useEffect, useId, useState, type CSSProperties } from "react";
 import { useTiff } from "@/components/tiff/modal/tiff-context";
 import type { TiffRoom } from "@/lib/workboard/note-turns";
-import { MARK_MASK, TiffMark } from "./tiff-mark";
+import { MARK_MASK, TiffGlyph, TiffMark } from "./tiff-mark";
 import { useNoteScope } from "./note-context";
 
 /* THE TIFF BUTTON — one way in, wherever you are.
@@ -145,6 +145,30 @@ export function TiffButton({ where = "topbar", room, day }: { where?: Where; roo
       {/* v2: the header is on the white page (rule 2), so every Tiff button
           stands on paper and the mark is black (rule 8). */}
       <TiffMark ground="paper" />
+    </button>
+  );
+}
+
+/* DESIGN'S WAY IN (Isaac, 20 October 2026, the chat as mocked: Tiff docked
+   bottom right in Design, minimised to "Ask Tiff", and the top bar losing
+   her button). While no conversation is open the pill is where the chat
+   will be; pressed, it opens the one conversation as every Tiff button
+   does, and the dock's own Minimise brings the pill back. */
+export function AskTiffPill() {
+  const tiff = useTiff();
+  const id = useId();
+  if (tiff.isOpen) return null;
+  return (
+    <button
+      type="button"
+      className="tc-ask"
+      aria-haspopup="dialog"
+      onClick={(e) => tiff.open({ from: e.currentTarget, id, keyboard: e.detail === 0 })}
+    >
+      <span className="tc-askmark" aria-hidden="true">
+        <TiffGlyph ground="ink" size={20} />
+      </span>
+      Ask Tiff
     </button>
   );
 }

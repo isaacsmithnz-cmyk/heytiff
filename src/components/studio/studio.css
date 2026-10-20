@@ -10588,13 +10588,3 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .dstudio .ds3-empty p { margin: 0; font-size: 14px; line-height: 20px; color: var(--gray500); text-align: center; max-width: 48ch; }
 .dstudio .ds3-none { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; }
 .dstudio .ds3-empty { display: flex; align-items: center; justify-content: center; height: 100%; padding: 24px; background: var(--paper); border-radius: var(--r-card); }
-
-/* Tell Tiff what's wrong with the 3D: a box under the picture, her line over it */
-.dstudio .ds3-wrap { display: flex; flex-direction: column; gap: 12px; height: 100%; min-height: 0; }
-.dstudio .ds3-wrap > .ds3 { flex: 1 1 auto; height: auto; }
-.dstudio .ds3-revise { display: flex; flex-direction: column; gap: 8px; flex: 0 0 auto; }
-.dstudio .ds3-ask { display: flex; gap: 8px; align-items: center; }
-.dstudio .ds3-ask > :first-child { flex: 1 1 auto; min-width: 0; }
-.dstudio .ds3-said { display: flex; align-items: center; gap: 8px; font-size: 14px; line-height: 20px; color: var(--ink); }
-.dstudio .ds3-said > span { flex: 1 1 auto; min-width: 0; }
-.dstudio .ds3-said.bad > span { color: var(--red-d, #be123c); }

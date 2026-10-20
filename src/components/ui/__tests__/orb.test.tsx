@@ -135,11 +135,12 @@ describe("the wait, named", () => {
     expect(screen.getByRole("status").textContent).toBe("Reading it back");
   });
 
-  /* The sphere left the wait for the mark, working (2026-09-25); it stays the
-     dictation meter. The mark is as decorative as the sphere was. */
-  it("keeps the mark decorative, and working — not a second announcement", () => {
+  /* The sphere left the wait for the mark, working (2026-09-25), and the
+     mark left it too (Isaac, 20 October 2026: no spinning Tiff in the
+     chat): the wait is its words. */
+  it("is its words alone: no mark turning and no sphere", () => {
     const { container } = render(<Waiting note="Thinking" />);
-    expect(container.querySelectorAll(".tiffmk.working[aria-hidden='true']")).toHaveLength(1);
+    expect(container.querySelector(".tiffmk")).toBeNull();
     expect(container.querySelector(".orb-ball")).toBeNull();
   });
 

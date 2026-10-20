@@ -104,13 +104,14 @@ import { suggestedRooms, withChecks, type PlanReading } from "@/lib/studio/readi
 import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
 import type { LibraryManifest } from "@/lib/studio/packs/library";
 import { Button } from "@/components/parts/button";
-import { TiffButton } from "@/components/notes/tiff-button";
+import { AskTiffPill } from "@/components/notes/tiff-button";
 import { aDialogHasTheKeys } from "@/lib/studio/keys";
 import { useNoteScopeScreen } from "@/components/notes/note-context";
+import { TIFF_APPLY, type TiffApply } from "@/lib/brain/ask-client";
+import type { RoofReading } from "@/lib/studio/reading";
 import { DesignHome } from "./home";
 import { RoomsFromPlan } from "./rooms-from-plan";
 import { ALL_FLOORS, View3D, type Look3D } from "./view-3d";
-import { Revise3D } from "./revise-3d";
 import { sceneOf, type Scene3D } from "@/lib/studio/scene3d";
 import "./studio.css";
 
@@ -932,6 +933,19 @@ function Editor({
      ducted unit in the roof void?"): she is told which design is open, so
      she reads that one (the registry's studio_design) */
   useNoteScopeScreen({ screenDetail: `the design "${doc.meta.name}" (id ${doc.id})` });
+  /* and she revises its 3D from the chat (Isaac, 20 October 2026, in place
+     of the box under the picture): her revise_design_3d hands the corrected
+     roof here, and it goes on through the history, so Undo takes it back */
+  useEffect(() => {
+    const take = (e: Event) => {
+      const got = (e as CustomEvent<TiffApply>).detail;
+      if (got?.target !== "design-roof" || got.designId !== docRef.current.id) return;
+      const roof = got.roof as RoofReading;
+      mutate((d) => (d.reading ? { ...d, reading: { ...d.reading, roof } } : d));
+    };
+    window.addEventListener(TIFF_APPLY, take);
+    return () => window.removeEventListener(TIFF_APPLY, take);
+  }, [mutate]);
 
   /* ── fullscreen: the Workboard's display-mode pattern, ported ──
      The DOCUMENT goes fullscreen (never the studio element) because every
@@ -1493,6 +1507,8 @@ function Editor({
 
   return (
     <div className={`ds-editor${step === 1 && activeFloor ? " two-col" : ""}`}>
+      {/* Tiff, bottom right, where her docked chat opens */}
+      <AskTiffPill />
       {/* three tracks so the tab switcher sits dead-centre: the flanks share
           the leftover width equally, whatever each of them holds */}
       <header className="ds-topbar">
@@ -1607,7 +1623,6 @@ function Editor({
           </div>
         )}
         <div className="ds-tb-right">
-          <TiffButton where="sheet" />
           {/* fullscreen rides beside the switcher: one toggle, the browser's
               own Esc is the other way out */}
           <button
@@ -3212,16 +3227,7 @@ function DesignPanel({
         <div className="ds-canvas-col">
           <div className="ds-canvas-body">
             {scene3d.floors.length ? (
-              <div className="ds3-wrap">
-                <View3D scene={scene3d} look={look3d} />
-                {scene3d.roofRead && (
-                  <Revise3D
-                    designId={doc.id}
-                    onRoof={(roof) => onMutate((d) => (d.reading ? { ...d, reading: { ...d.reading, roof } } : d))}
-                    onUndo={undo}
-                  />
-                )}
-              </div>
+              <View3D scene={scene3d} look={look3d} />
             ) : (
               <div className="ds3-empty">
                 <p>Nothing to draw yet: a floor needs its scale, and zones or Tiff&rsquo;s reading of its plans.</p>

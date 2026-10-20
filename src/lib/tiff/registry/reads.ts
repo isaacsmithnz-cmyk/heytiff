@@ -16,6 +16,7 @@ import { retrieveForQuestion } from "@/lib/tiff/retrieve";
 import type { NoteTarget } from "@/app/actions/workboard-notes";
 import { fitDesignRead } from "@/lib/quotes/design-read";
 import { readAnyDesign } from "@/lib/quotes/design-read-server";
+import { reviseDesignRoof } from "@/lib/studio/revise-server";
 import type { Outcome, TiffTool } from "./types";
 
 const str = { type: "string" } as const;
@@ -59,6 +60,38 @@ export const READS: readonly TiffTool[] = [
       if (!got.found) return result({ found: false, said: got.reason, designs: got.designs ?? [] });
       const system = typeof input.system === "string" ? input.system.slice(0, 120) : null;
       return result({ ...fitDesignRead(got.read, { system }), plans: got.plans, roof: got.roof, other_designs: got.others });
+    },
+  },
+
+  /* Tiff revises the 3D from the chat (Isaac, 20 October: "She should also
+     be able to revise 3d renderings if you are not happy… open up the TIFF
+     button. And talk to it"). She reads the drawings again with what she
+     read before and the words; the corrected roof goes to the open design,
+     which takes it through its own history, so Undo takes it back. Nothing
+     is written here. */
+  {
+    name: "revise_design_3d",
+    label: "Reading the drawings again",
+    risk: "read",
+    gate: { capability: "studio" },
+    description:
+      "Correct the 3D of the design open on the screen (its id is in the screen line) when the person says the roof, a ceiling height, a pitch, the eaves or a raked room is wrong: " +
+      "the drawings are read again with what was read before and their words, and the corrected roof goes onto the design they have open, which they can undo. " +
+      "Only for the design open on the screen, and only when they ask for a change; pass their words as they said them. Then say in a line what changed.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        design_id: { type: "string", description: "The open design's id, from the screen line" },
+        words: { type: "string", description: "What they said is wrong, or what it should be" },
+      },
+      required: ["design_id", "words"],
+      additionalProperties: false,
+    },
+    run: async (viewer, input) => {
+      const designId = typeof input.design_id === "string" ? input.design_id.slice(0, 80) : "";
+      const got = await reviseDesignRoof(viewer.orgId, designId, typeof input.words === "string" ? input.words : "");
+      if (!got.ok) return result({ changed: false, said: got.error });
+      return { kind: "apply", target: "design-roof", designId, roof: got.roof, said: got.said };
     },
   },
 

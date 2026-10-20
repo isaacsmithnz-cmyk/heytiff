@@ -68,7 +68,8 @@ it("renders an open modal, listening, with no window", () => {
     </NoteScopeProvider>
   );
   expect(html).toContain('aria-label="Tiff"');
-  expect(html).toContain("Done");
+  expect(html).toContain('aria-label="Stop"');
+  expect(html).toContain('aria-label="Send"');
 });
 
 it("renders one opened on typed words, with no window", () => {

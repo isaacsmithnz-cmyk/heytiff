@@ -42,7 +42,10 @@ export type Gate =
 /** What a tool hands back: data for the model, or a place to move to. */
 export type Outcome =
   | { kind: "result"; value: unknown }
-  | { kind: "screen"; href: string; label: string; line: string };
+  | { kind: "screen"; href: string; label: string; line: string }
+  /** Something for the page open to take in its own history, with Undo: the
+      tool itself writes nothing. Today only a design's corrected roof. */
+  | { kind: "apply"; target: "design-roof"; designId: string; roof: unknown; said: string };
 
 export type TiffTool = {
   /** ^[a-z][a-z0-9_]{1,63}$ — the registry's tests hold it. */

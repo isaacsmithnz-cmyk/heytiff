@@ -16,7 +16,16 @@ export type BrainAskHandlers = {
   /** Tiff moved the screen: go to `href`. Only ever an address inside the
       dashboard (see `movesTo`); the turn is over once it arrives. */
   onScreen?: (href: string, label: string) => void;
+  /** A tool's result for the open page to take in its own history (a
+      design's corrected roof); the turn carries on. */
+  onApply?: (apply: TiffApply) => void;
 };
+
+export type TiffApply = { target: "design-roof"; designId: string; roof: unknown };
+
+/** The window event a tool's result for the page goes out on: the page
+    open (Design) listens, and nothing else does. */
+export const TIFF_APPLY = "heytiff:apply";
 
 /** The address a `screen` event may move to, or null. The server builds
     these from the nav and the record links; this is the second lock, not the
@@ -101,7 +110,9 @@ export async function askBrain(
     }
     if (event.t === "delta") handlers.onDelta(String(event.text ?? ""));
     else if (event.t === "tool") handlers.onTool(String(event.label ?? ""));
-    else if (event.t === "screen") {
+    else if (event.t === "apply") {
+      if (typeof event.designId === "string" && event.target === "design-roof") handlers.onApply?.({ target: "design-roof", designId: event.designId, roof: event.roof });
+    } else if (event.t === "screen") {
       /* A move is the end of the turn: nothing after it (a torn connection
          included) is reported as a cut-off answer. */
       finished = true;

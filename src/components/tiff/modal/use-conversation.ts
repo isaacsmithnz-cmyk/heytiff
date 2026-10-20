@@ -3,7 +3,7 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { appendSpoken, useDictation } from "@/components/notes/dictation";
 import { GATHER_MS } from "@/components/ui/dot-field";
-import { askBrain } from "@/lib/brain/ask-client";
+import { askBrain, TIFF_APPLY } from "@/lib/brain/ask-client";
 import { looksLikeMove, looksLikeQuestion } from "@/lib/brain/intent";
 import {
   answerVisit,
@@ -230,6 +230,10 @@ export function useConversation({
   const listensFirst = !words0 && !resumed && voiceEnabled;
 
   const [stage, setStage] = useState<Stage>(words0 ? "thinking" : listensFirst ? "listening" : "editing");
+  /* WHAT SHE IS DOING, while she thinks (Isaac, 20 October 2026: "Thinking
+     with what she's thinking about"): the label of the tool she picked up
+     last ("Reading the design"), said small after "Thinking". */
+  const [doingRaw, setDoing] = useState("");
   const [turns, setTurns] = useState<ModalTurn[]>(() =>
     words0 ? [...had, { key: "you0", who: "you", text: words0, enter: false }] : had
   );
@@ -322,6 +326,7 @@ export function useConversation({
       to the cloud once its dots have landed. */
   const think = () => {
     setStage("thinking");
+    setDoing("");
     setError(null);
     stopFold();
     setFaceOpen(true);
@@ -572,7 +577,12 @@ export function useConversation({
             settle(show);
           }
         },
-        onTool: () => {},
+        onTool: (label) => {
+          if (on() && label.trim()) setDoing(label.trim());
+        },
+        onApply: (apply) => {
+          if (on()) window.dispatchEvent(new CustomEvent(TIFF_APPLY, { detail: apply }));
+        },
         onScreen: (href) => {
           if (!on()) return;
           run.moveTo = href;
@@ -795,7 +805,7 @@ export function useConversation({
     onQuiet: () => {
       if (!alive.current) return;
       const at = document.activeElement;
-      if (at instanceof HTMLInputElement && at.classList.contains("tm-in")) return;
+      if ((at instanceof HTMLInputElement || at instanceof HTMLTextAreaElement) && (at.classList.contains("tm-in") || at.classList.contains("tc-in"))) return;
       done();
     },
   });
@@ -1107,6 +1117,8 @@ export function useConversation({
 
   return {
     stage,
+    /** What she is doing while she thinks, lower-cased to follow "Thinking": "reading the design". */
+    doing: stage === "thinking" || stage === "answering" ? doingRaw.charAt(0).toLowerCase() + doingRaw.slice(1) : "",
     turns,
     live,
     draft,

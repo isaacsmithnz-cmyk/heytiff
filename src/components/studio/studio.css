@@ -1921,6 +1921,10 @@ html[data-ds-display] .dstudio.editing {
   min-height: 0;
 }
 .dstudio .ds-canvas-body > .ds-canvas { min-width: 0; }
+/* the 3D view fills the canvas's room as the plan does (Isaac, 20 October:
+   "the 3D viewport is tiny"): a flex row gives a child no width of its own */
+.dstudio .ds-canvas-body > .ds3,
+.dstudio .ds-canvas-body > .ds3-empty { flex: 1 1 auto; min-width: 0; }
 
 /* canvas controls — Floor / Calibrate / View / Simulate, on the topbar line */
 .dstudio .ds-canvas-toggles { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; }

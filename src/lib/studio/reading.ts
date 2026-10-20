@@ -326,3 +326,23 @@ export function readingSummary(floors: FloorLike[], reading: PlanReading | null 
     could_not_read: reading.failed.map((x) => x.reason),
   };
 }
+
+/* A SET TOO BIG TO SEND WHOLE (Isaac, 21 October 2026, 7 Cutler Rd: a 25
+   page tender set at 16 MB). Past the reader's ceiling it is sent from the
+   first floor plan on, which is where the plans, sections and elevations
+   sit in an architect's set; the cover, notes and demolition plan come
+   before it, the joinery and wet areas after. */
+
+/** The set's page to read from: the first floor plan chosen, when the set
+    is the first file uploaded (page indices count across the files in
+    upload order); else its first page. */
+export function firstPlanPage(planImport: { sources: readonly { kind: string }[]; chosen: readonly number[] } | null | undefined): number {
+  if (!planImport || planImport.sources[0]?.kind !== "pdf" || planImport.chosen.length === 0) return 0;
+  return Math.max(0, Math.min(...planImport.chosen));
+}
+
+/** The pages to send: from `from`, at most `most` of them. */
+export function pagesToSend(total: number, from: number, most: number): number[] {
+  const start = Math.min(Math.max(0, from), Math.max(0, total - 1));
+  return Array.from({ length: Math.max(0, Math.min(most, total - start)) }, (_, i) => start + i);
+}

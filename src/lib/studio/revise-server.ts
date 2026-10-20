@@ -1,7 +1,7 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { isDesignDocumentShape } from "./document";
-import type { RoofReading } from "./reading";
+import { firstPlanPage, type RoofReading } from "./reading";
 import { readRoof, type SheetToRead } from "./reading-server";
 
 /* TIFF REVISES THE 3D (Isaac, 20 October 2026: "She should also be able to
@@ -26,7 +26,7 @@ export async function reviseDesignRoof(orgId: string, designId: string, words: s
   );
   const pdf = doc.planImport?.sources.find((src) => src.kind === "pdf")?.ref ?? null;
   try {
-    const { said: line, ...roof } = await readRoof(orgId, pdf, firstPlans, { current, words: said });
+    const { said: line, ...roof } = await readRoof(orgId, pdf, firstPlans, { current, words: said }, firstPlanPage(doc.planImport));
     return { ok: true, roof, said: line || "Done." };
   } catch (e) {
     console.error(`[revise-3d] ${designId}: ${String(e)}`);

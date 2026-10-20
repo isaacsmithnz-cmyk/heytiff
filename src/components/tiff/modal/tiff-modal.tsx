@@ -113,7 +113,8 @@ export function TiffModal({
     voiceEnabled: scope.voiceEnabled,
     target: scope.target,
     targetLabel: scope.targetLabel,
-    screen: scope.screenDetail ? `${screenLabelFor(pathname)}, ${scope.screenDetail}` : screenLabelFor(pathname),
+    screen: screenLabelFor(pathname),
+    screenDetail: scope.screenDetail,
     designOpen: !!scope.screenDetail?.startsWith("the design"),
     onLeave: (href) => leave.current(href),
   });

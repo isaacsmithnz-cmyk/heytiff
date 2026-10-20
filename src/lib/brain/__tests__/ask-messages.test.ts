@@ -12,6 +12,7 @@
 jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: {} }));
 
 import { askMessages, askSystemPrompt, pageBlock, streamBrainAnswer, type AskBrainEvent } from "../ask";
+import { shapeAsk } from "../turn";
 import type { TiffTool, Viewer } from "@/lib/tiff/registry";
 
 const text = (m: { content: { text: string }[] }) => m.content.map((c) => c.text);
@@ -59,6 +60,26 @@ describe("where they are (universal Tiff 1D)", () => {
       "<where-they-are>On the Workboard, looking at #3323 — Meridian Data (job sm8-uuid-3323).</where-they-are>"
     );
     expect(pageBlock(undefined)).toBeNull();
+  });
+
+  /* Design's open design rode inside the screen's name, which the route
+     takes only by the nav's own words, so it was dropped whole and Tiff never
+     knew which design was open; with no block at all she once wrote one of
+     her own, for a design that doesn't exist (7 Cutler Rd, 21 October). */
+  it("says the screen's own detail beside its name", () => {
+    expect(pageBlock({ screen: "Design", detail: 'the design "7 Cutler Rd" (id dsn_mvh5155atv8ju5)' })).toBe(
+      '<where-they-are>On the Design, the design "7 Cutler Rd" (id dsn_mvh5155atv8ju5).</where-they-are>'
+    );
+  });
+
+  it("tells her never to write the block herself", () => {
+    expect(askSystemPrompt({ todayISO: "2026-10-21" } as never)).toMatch(/never write one yourself/);
+  });
+
+  it("takes the detail only with a screen, as plain words", () => {
+    const shaped = shapeAsk({ question: "q", page: { screen: "Design", detail: 'the design "<b>x</b>"\n(id d1)' } });
+    expect(shaped?.page).toEqual({ screen: "Design", detail: 'the design "bx/b" (id d1)' });
+    expect(shapeAsk({ question: "q", page: { screen: "Nowhere", detail: "the design" } })?.page).toBeUndefined();
   });
 
   it("rides in the question's own message, just before the question, with or without history", () => {

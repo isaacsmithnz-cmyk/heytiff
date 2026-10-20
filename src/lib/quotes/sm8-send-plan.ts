@@ -1,5 +1,6 @@
 import type { BuildUp } from "./buildup";
 import { optionHeading, type ProposalDraft } from "./proposal";
+import { areasText, listText, type LinesProposal } from "./lines-proposal";
 import { namedByRole } from "./unit-name";
 
 /* THE ACCEPTED QUOTE, AS SERVICEM8 WILL HOLD IT (Isaac, 2026-10-05: "if a
@@ -51,10 +52,42 @@ export const NONE_ACCEPTED = "No option is marked accepted.";
 /** ServiceM8's statuses a send may take a job from. */
 const SENDABLE = ["Quote", "Work Order"];
 
-const scopeOf = (draft: ProposalDraft, i: number) => {
-  const o = draft.options[i]!;
-  return [optionHeading(draft, i), ...o.lines.map((l) => `- ${l}`)].join("\n");
+/** The approved proposal's words, as far as ServiceM8 is sent them. */
+export type ProposalWords = Pick<LinesProposal, "title" | "intro" | "options" | "notIncluded" | "payment">;
+
+/** An option's scope as ServiceM8 holds it: the approved proposal's words
+    for it where there is one (its summary, the work by area, what's
+    included), else the draft's lines. 3446, 2026-10-21: the approved
+    proposal never reached ServiceM8, only the option's name. */
+const scopeOf = (draft: ProposalDraft, i: number, proposal?: ProposalWords | null) => {
+  const words = proposal?.options[i];
+  if (!words) {
+    const o = draft.options[i]!;
+    return [optionHeading(draft, i), ...o.lines.map((l) => `- ${l}`)].join("\n");
+  }
+  return [optionHeading(draft, i), words.summary, areasText(words.areas), words.included.length ? `Included:\n${listText(words.included)}` : ""]
+    .filter(Boolean)
+    .join("\n\n");
 };
+
+/** A quote's description as ServiceM8 holds it, sent as a quote: the
+    proposal's title and introduction, each option's scope, what isn't
+    included and the payment stages; the options' scopes alone with no
+    proposal. */
+export function quoteDescription(draft: ProposalDraft, indices: readonly number[], proposal?: ProposalWords | null): string {
+  const scopes = indices.map((i) => scopeOf(draft, i, proposal));
+  if (!proposal) return scopes.join("\n\n");
+  const pay = proposal.payment.stages.map((s) => `- ${s.when}${s.percent != null ? `: ${s.percent}%` : ""}`);
+  return [
+    proposal.title,
+    proposal.intro,
+    ...scopes,
+    proposal.notIncluded.length ? `Not included:\n${listText(proposal.notIncluded)}` : "",
+    pay.length ? `Payment:\n${pay.join("\n")}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
 
 /** One accepted option's lines: one at its total, or every line of its
     build, its labour by the person-day, its contingency. */
@@ -100,6 +133,8 @@ export function sendPlan(input: {
   existing: readonly { uuid: string; name: string }[];
   /** the tax rate the business's own lines use */
   taxRateUuid: string | null;
+  /** the approved proposal, whose words make the scope */
+  proposal?: ProposalWords | null;
 }): SendPlan {
   const { draft, accepted, showLines, job } = input;
   if (accepted.length === 0) return { ok: false, why: NONE_ACCEPTED };
@@ -117,7 +152,7 @@ export function sendPlan(input: {
   return {
     ok: true,
     status: status === "Quote" ? { from: "Quote", to: "Work Order" } : null,
-    workDone: accepted.map((a) => scopeOf(draft, a.index)).join("\n\n"),
+    workDone: accepted.map((a) => scopeOf(draft, a.index, input.proposal)).join("\n\n"),
     lines: accepted.flatMap((a) => optionLines(draft, a.index, a.build, showLines)),
     remove: input.existing.map((e) => ({ uuid: e.uuid, name: e.name })),
     taxRateUuid: input.taxRateUuid,
@@ -141,6 +176,8 @@ export function sendAsQuotePlan(input: {
   job: { status: string | null; invoiced: boolean };
   existing: readonly { uuid: string; name: string }[];
   taxRateUuid: string | null;
+  /** the approved proposal, whose words make the description */
+  proposal?: ProposalWords | null;
 }): SendPlan {
   const { draft, options, job } = input;
   if (!input.approved) return { ok: false, why: NOT_APPROVED };
@@ -156,7 +193,7 @@ export function sendAsQuotePlan(input: {
     ok: true,
     status: null,
     workDone: "",
-    jobDescription: options.map((o) => scopeOf(draft, o.index)).join("\n\n"),
+    jobDescription: quoteDescription(draft, options.map((o) => o.index), input.proposal),
     lines: options.map((o) => ({
       name: one ? "As Per Quote" : `${optionHeading(draft, o.index)}, as per quote`,
       quantity: 1,

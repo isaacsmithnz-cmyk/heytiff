@@ -268,6 +268,34 @@ const MANY: ChooserOption[] = ["Adelaide", "Brisbane", "Canberra", "Darwin", "Ho
   label: c,
 }));
 
+describe("Menu, reaching out of the sidebar", () => {
+  it("stands beside the sidebar, level with its trigger, not over the rows below it", () => {
+    function Beside() {
+      const ref = useRef<HTMLButtonElement>(null);
+      return (
+        <aside>
+          <button ref={ref} type="button">
+            New
+          </button>
+          <Menu open anchor={ref} label="New" items={ITEMS.slice(1, 3)} align="out" tone="ink" onSelect={() => {}} onClose={() => {}} />
+        </aside>
+      );
+    }
+    const box = (x: number, y: number, w: number, h: number) => ({ x, y, left: x, top: y, width: w, height: h, right: x + w, bottom: y + h, toJSON: () => ({}) }) as DOMRect;
+    const rect = jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      return this.tagName === "ASIDE" ? box(0, 0, 256, 800) : box(16, 76, 224, 32);
+    });
+    try {
+      render(<Beside />);
+      const panel = screen.getByRole("menu", { name: "New" }).closest(".pt-menu") as HTMLElement;
+      expect(panel.style.left).toBe("256px");
+      expect(panel.style.top).toBe("76px");
+    } finally {
+      rect.mockRestore();
+    }
+  });
+});
+
 function ChooserHarness({ options = FEW, start = null, name, error }: { options?: ChooserOption[]; start?: string | null; name?: string; error?: string }) {
   const [value, setValue] = useState<string | null>(start);
   return (

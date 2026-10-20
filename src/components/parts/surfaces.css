@@ -47,8 +47,9 @@
   color: var(--ink);
   text-wrap: balance;
 }
+/* 16 under the title: at 8 a form's first label read as the title's caption */
 .pt-dialog .pt-dialog-body {
-  padding: 8px 24px 0;
+  padding: 16px 24px 0;
   overflow-y: auto;
   font-size: 14px;
   line-height: 20px;

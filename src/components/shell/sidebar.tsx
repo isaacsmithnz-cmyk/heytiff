@@ -133,6 +133,7 @@ function NewButton({ newJob }: { newJob: boolean }) {
         items={items}
         label="New"
         tone="ink"
+        align="out"
       />
       {making === "job" && <NewJobForm onClose={() => setMaking(null)} />}
       {making === "task" && <TaskForm job={job} onClose={() => setMaking(null)} />}

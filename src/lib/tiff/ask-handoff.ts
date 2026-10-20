@@ -98,9 +98,23 @@ export function writeAskScope(scope: AskScope): boolean {
   }
 }
 
+/** A WHOLE QUESTION, ASKED ON ARRIVAL (Isaac, 20 October: the Library's box
+    is Tiff's box). Unlike an opener this is what somebody typed and pressed
+    Send on, so Conversations asks it at once, in a conversation of its own. */
+export function writeAskQuestion(question: string): boolean {
+  const q = String(question ?? "").trim();
+  if (!q) return false;
+  try {
+    sessionStorage.setItem(ASK_HANDOFF_KEY, JSON.stringify({ ask: q }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** What was left on the way here: words to open the box with, a document to
-    search, or neither. */
-export type AskHandoff = { text: string | null; doc: AskScope | null };
+    search, a question to ask now, or nothing. */
+export type AskHandoff = { text: string | null; doc: AskScope | null; ask?: string | null };
 
 const NOTHING: AskHandoff = { text: null, doc: null };
 
@@ -121,7 +135,8 @@ export function consumeAskHandoff(): AskHandoff {
      also covers one written by a tab still running the older bundle. */
   if (raw.startsWith("{")) {
     try {
-      const parsed = JSON.parse(raw) as { doc?: { docId?: unknown; title?: unknown } };
+      const parsed = JSON.parse(raw) as { doc?: { docId?: unknown; title?: unknown }; ask?: unknown };
+      if (typeof parsed.ask === "string" && parsed.ask.trim()) return { text: null, doc: null, ask: parsed.ask.trim() };
       const docId = typeof parsed.doc?.docId === "string" ? parsed.doc.docId : "";
       if (!docId) return NOTHING;
       const title = typeof parsed.doc?.title === "string" ? parsed.doc.title : "";

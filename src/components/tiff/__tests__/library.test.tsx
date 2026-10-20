@@ -1,7 +1,22 @@
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { cleanup, fireEvent, render as draw, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Library, type KbLibraryDoc, type KbQuotaView } from "../library";
 import type { KbTagRef } from "@/lib/tiff/tags";
+import { KB_CATEGORIES } from "../kb";
+
+/* THE LIBRARY LANDS ON ITS SHELVES (Isaac, 20 October), so a test about a
+   shelf's documents opens the first document's shelf, as a person would,
+   unless it names a shelf or the landing (`landing`) itself. */
+function render(ui: ReactElement<{ docs: KbLibraryDoc[]; initialCategory?: string | null; initialView?: string | null }>, opts: { landing?: boolean } = {}) {
+  const out = draw(ui);
+  const { docs, initialCategory, initialView } = ui.props;
+  if (!opts.landing && !initialCategory && !initialView && docs.length > 0) {
+    const label = KB_CATEGORIES.find((c) => c.key === docs[0].category)!.label;
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${label}`) }));
+  }
+  return out;
+}
 
 /* The library screen.
 
@@ -36,6 +51,9 @@ jest.mock("@/app/actions/kb", () => ({
 const createKbTag = jest.fn();
 const updateKbTag = jest.fn();
 const deleteKbTag = jest.fn();
+/* the model search reads the data packs on the server */
+const findUnits = jest.fn(async (..._a: unknown[]) => ({ ok: true as const, units: [] as unknown[] }));
+jest.mock("@/app/actions/library-units", () => ({ findUnits: (...a: unknown[]) => findUnits(...a) }));
 jest.mock("@/app/actions/kb-tags", () => ({
   createKbTag: (...a: unknown[]) => createKbTag(...(a as [])),
   updateKbTag: (...a: unknown[]) => updateKbTag(...(a as [])),
@@ -120,6 +138,8 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+const catBtn = (label: string) => screen.getByRole("button", { name: new RegExp(`^${label}`) });
+
 /* A manager's doings on a row sit in its Actions menu (v2): opened, then
    the item picked. */
 const openActions = async (title: string) => {
@@ -128,23 +148,30 @@ const openActions = async (title: string) => {
 };
 
 describe("the head (v2)", () => {
-  it("is the Library, with how many documents Tiff can read", () => {
-    render(<Library docs={[doc(), doc({ id: "d-2", title: "PUZ install manual" })]} />);
+  it("lands on Tiff's box and the shelves, with no count (Isaac, 20 October)", () => {
+    render(<Library docs={[doc(), doc({ id: "d-2", title: "PUZ install manual" })]} />, { landing: true });
     expect(screen.getByRole("heading", { level: 1, name: "Library" })).toBeInTheDocument();
-    expect(screen.getByText("2 documents Tiff can read.")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Ask the Library anything" })).toBeInTheDocument();
+    expect(catBtn("Installation documents")).toHaveTextContent("Installation and commissioning manuals");
+    expect(screen.queryByText(/documents Tiff can read/)).toBeNull();
   });
 
   /* asking the library is Tiff's own page, kept as it is */
-  it("leads to asking the library, for everyone who can read it", () => {
-    render(<Library docs={[doc()]} />);
-    expect(screen.getByRole("link", { name: /Ask the Library/ })).toHaveAttribute("href", "/dashboard/tiff");
+  it("hands what is asked to Conversations, which asks it", async () => {
+    sessionStorage.clear();
+    render(<Library docs={[doc()]} />, { landing: true });
+    await userEvent.type(screen.getByRole("textbox", { name: "Ask the Library anything" }), "what does P8 mean?");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(JSON.parse(sessionStorage.getItem("heytiff.tiff.ask.v1")!)).toEqual({ ask: "what does P8 mean?" });
+    expect(push).toHaveBeenCalledWith("/dashboard/conversations");
   });
 
-  it("gives a manager Add a document as the one main button", () => {
-    render(<Library docs={[doc()]} canManage />);
-    const add = screen.getByRole("button", { name: "Add a document" });
-    expect(add.className).toContain("pt-btn--main");
-    expect(document.querySelectorAll(".lb2-head .pt-btn--main")).toHaveLength(1);
+  it("gives a manager Add a document, a second button, on the landing and in a shelf", async () => {
+    render(<Library docs={[doc()]} canManage />, { landing: true });
+    expect(screen.getByRole("button", { name: "Add a document" }).className).not.toContain("pt-btn--main");
+    await userEvent.click(catBtn("Service documents"));
+    expect(screen.getByRole("button", { name: "Add a document" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit tags" })).toBeInTheDocument();
   });
 
   it("gives staff nothing to add", () => {
@@ -281,24 +308,23 @@ describe("what a row says about itself", () => {
 
   /* The kind a row names is its category, which says where it sits — never
      "PDF", which every one of them is. */
-  it("names a document's category as its kind in All, and never PDF", () => {
+  it("is a card in its shelf, named by the shelf, and never PDF", () => {
     render(<Library docs={[doc()]} canManage />);
-    const row = screen.getByText("City Multi fault codes").closest("li") as HTMLElement;
-    expect(within(row).getByText("Service documents")).toBeInTheDocument();
-    expect(within(row).queryByText("PDF")).toBeNull();
+    expect(screen.getByRole("heading", { level: 1, name: "Service documents" })).toBeInTheDocument();
+    const card = screen.getByText("City Multi fault codes").closest("li") as HTMLElement;
+    expect(card).toHaveClass("lb2-card");
+    expect(within(card).queryByText("PDF")).toBeNull();
   });
 
-  it("says when it was added", () => {
-    render(<Library docs={[doc({ uploadedAt: "2026-07-14T02:00:00Z" })]} />);
-    const row = screen.getByText("City Multi fault codes").closest("li") as HTMLElement;
-    expect(within(row).getByText("14 July")).toBeInTheDocument();
+  it("says when it was added when it has no edition", () => {
+    render(<Library docs={[doc({ edition: null, uploadedAt: "2026-07-14T02:00:00Z" })]} />);
+    const card = screen.getByText("City Multi fault codes").closest("li") as HTMLElement;
+    expect(within(card).getByText("Mitsubishi Electric, Added 14 July")).toBeInTheDocument();
   });
 
-  it("shows source, edition, when it changed and who added it", () => {
+  it("says the maker and the edition under the title", () => {
     render(<Library docs={[doc()]} />);
-    expect(
-      screen.getByText("Mitsubishi Electric, 2026 revision B, Updated 1 Aug, Added by Dane Poulos")
-    ).toBeInTheDocument();
+    expect(screen.getByText("Mitsubishi Electric, 2026 revision B")).toBeInTheDocument();
   });
 
   it("staff never see Retry or Resume — the loop is not theirs to drive", () => {
@@ -580,12 +606,12 @@ describe("the embedding gap", () => {
 
 describe("the month's page allowance", () => {
   it("shows the count and the reset date to a manager", () => {
-    render(<Library docs={[doc()]} quota={quota()} canManage />);
+    render(<Library docs={[doc()]} quota={quota()} canManage />, { landing: true });
     expect(screen.getByText("1,240 of 2,000 pages this month, resets 1 Sept")).toBeInTheDocument();
   });
 
   it("says Unlimited pages rather than a number on the unlimited tier", () => {
-    render(<Library docs={[doc()]} quota={quota({ plan: "unlimited", pagesAllowed: null })} canManage />);
+    render(<Library docs={[doc()]} quota={quota({ plan: "unlimited", pagesAllowed: null })} canManage />, { landing: true });
     expect(screen.getByText("Unlimited pages")).toBeInTheDocument();
   });
 
@@ -752,12 +778,15 @@ describe("finding a document", () => {
     doc({ id: "d-3", title: "Warranty claim process", category: "sops", source: "HeyTiff" }),
   ];
 
-  it("filters on the title and the source", async () => {
-    render(<Library docs={library} />);
+  it("filters a shelf on the title and the source", async () => {
+    render(<Library docs={[...library, doc({ id: "d-4", title: "PEAD ducted manual", category: "install", source: "Daikin" })]} initialCategory="install" />);
 
     await userEvent.type(screen.getByLabelText("Search documents"), "PUZ");
     expect(screen.getByText("PUZ-ZM250 installation manual")).toBeInTheDocument();
-    expect(screen.queryByText("Warranty claim process")).not.toBeInTheDocument();
+    expect(screen.queryByText("PEAD ducted manual")).not.toBeInTheDocument();
+    await userEvent.clear(screen.getByLabelText("Search documents"));
+    await userEvent.type(screen.getByLabelText("Search documents"), "daikin");
+    expect(screen.getByText("PEAD ducted manual")).toBeInTheDocument();
   });
 
   it("says so when nothing matches, and offers the way back", async () => {
@@ -793,50 +822,41 @@ describe("finding a document", () => {
     expect(screen.queryByText("City Multi fault codes")).not.toBeInTheDocument();
   });
 
-  it("an empty category beside full ones says what belongs in it", async () => {
-    render(<Library docs={library} />);
+  it("an empty shelf beside full ones says what belongs in it", async () => {
+    render(<Library docs={library} />, { landing: true });
 
-    await userEvent.click(screen.getByRole("tab", { name: /Manufacturer specs/ }));
+    await userEvent.click(catBtn("Manufacturer specs"));
 
     expect(screen.getByText("Nothing in Manufacturer specs yet")).toBeInTheDocument();
     expect(screen.getByText(/Ask a manager to add/)).toBeInTheDocument();
   });
 
-  it("offers a manager the upload from an empty category", async () => {
-    render(<Library docs={library} canManage />);
+  it("offers a manager the upload from an empty shelf", async () => {
+    render(<Library docs={library} canManage />, { landing: true });
 
-    await userEvent.click(screen.getByRole("tab", { name: /Manufacturer specs/ }));
+    await userEvent.click(catBtn("Manufacturer specs"));
     expect(screen.getByText(/Tiff can't answer from this category until something lands in it/)).toBeInTheDocument();
-    expect(within(screen.getByRole("tabpanel")).getByRole("button", { name: "Add a document" })).toBeInTheDocument();
+    expect(within(document.querySelector(".lb2-panel") as HTMLElement).getByRole("button", { name: "Add a document" })).toBeInTheDocument();
   });
 
-  it("puts no numbers on the category tabs (Isaac, 20 October)", () => {
-    render(<Library docs={library} />);
+  it("puts no numbers on the shelves (Isaac, 20 October)", () => {
+    render(<Library docs={library} />, { landing: true });
 
-    expect(screen.getByRole("tab", { name: /Manufacturer specs/ }).textContent).toBe("Manufacturer specs");
-    expect(screen.getByRole("tab", { name: /^All/ }).textContent).toBe("All");
+    expect(catBtn("Manufacturer specs").textContent).toBe("Manufacturer specsDatasheets, capacities and connections");
   });
 
   /* the view rides in the address, so an open tab holds it */
-  it("writes the view into the address", async () => {
+  it("writes the shelf into the address, and Library takes it off", async () => {
     window.history.replaceState(null, "", "/dashboard/tiff/library");
-    render(<Library docs={library} />);
+    render(<Library docs={library} />, { landing: true });
 
-    await userEvent.click(screen.getByRole("tab", { name: /Company SOPs/ }));
+    await userEvent.click(catBtn("Company SOPs"));
     expect(window.location.search).toBe("?cat=sops");
-    await userEvent.click(screen.getByRole("tab", { name: /^All/ }));
+    await userEvent.click(screen.getByRole("button", { name: "‹ Library" }));
     expect(window.location.search).toBe("");
   });
 
   /* a category view drops the Kind column: every row would say the same */
-  it("names the kind only where it differs, in All", async () => {
-    render(<Library docs={library} />);
-    expect(screen.getAllByText("Installation documents").length).toBeGreaterThan(1);
-
-    await userEvent.click(screen.getByRole("tab", { name: /Installation documents/ }));
-    const panel = screen.getByRole("tabpanel");
-    expect(within(panel).queryByText("Installation documents")).toBeNull();
-  });
 
   /* The count map was a hand-written literal of four keys while the category
      list had five, so a field note tallied `undefined + 1` and its chip read
@@ -858,18 +878,18 @@ describe("finding a document", () => {
     expect(screen.queryByText("City Multi fault codes")).not.toBeInTheDocument();
   });
 
-  it("names the field-note category, and never NaN", () => {
+  it("names the field-note shelf, and never NaN", () => {
     render(
       <Library
         docs={[
           doc({ id: "f-1", title: "Roof access at Westfield", category: "field" }),
           doc({ id: "f-2", title: "Pump start-up quirk", category: "field" }),
         ]}
-      />
+      />,
+      { landing: true },
     );
 
-    const chip = screen.getByRole("tab", { name: /Field notes/ });
-    expect(chip.textContent).toBe("Field notes");
+    expect(catBtn("Field notes").textContent).not.toContain("NaN");
   });
 });
 
@@ -944,11 +964,12 @@ describe("narrowing by tag", () => {
     expect(screen.getByRole("button", { name: "Tags: 2 tags" })).toBeInTheDocument();
   });
 
-  it("composes with the category view", async () => {
+  it("keeps the tags on when another shelf opens", async () => {
     render(<Library docs={library} tags={TAGS} />);
 
     await pickTag(/^Daikin/);
-    await userEvent.click(screen.getByRole("tab", { name: /Installation documents/ }));
+    await userEvent.click(screen.getByRole("button", { name: "‹ Library" }));
+    await userEvent.click(catBtn("Installation documents"));
 
     expect(screen.getByText("Ducted install guide")).toBeInTheDocument();
     expect(screen.queryByText("VRV service manual")).not.toBeInTheDocument();
@@ -991,31 +1012,14 @@ describe("narrowing by tag", () => {
 
   it("writes the tags into the address by name", async () => {
     window.history.replaceState(null, "", "/dashboard/tiff/library");
-    render(<Library docs={library} tags={TAGS} />);
+    render(<Library docs={library} tags={TAGS} initialCategory="faults" />);
 
     await pickTag(/^Daikin/);
-    expect(window.location.search).toBe("?tag=daikin");
+    expect(window.location.search).toBe("?cat=faults&tag=daikin");
   });
 
   /* pills are only for a person's name (rule 47), so a row says its tags */
-  it("names its tags on the row, in words", () => {
-    render(<Library docs={library} tags={TAGS} />);
 
-    const row = screen.getByText("Ducted install guide").closest("li") as HTMLElement;
-    expect(within(row).getByText("Tagged Daikin and Ducted")).toBeInTheDocument();
-  });
-
-  it("names a fourth tag as one more rather than turning the row into a cloud", () => {
-    render(
-      <Library
-        docs={[doc({ id: "d-9", title: "Everything manual", tags: [...TAGS] })]}
-        tags={TAGS}
-      />
-    );
-
-    const row = screen.getByText("Everything manual").closest("li") as HTMLElement;
-    expect(within(row).getByText("Tagged Daikin, Mitsubishi Electric, VRV and 1 more")).toBeInTheDocument();
-  });
 });
 
 describe("tagging a document after the fact", () => {
@@ -1135,16 +1139,14 @@ describe("the Toolbox view", () => {
   const TODAY = "2026-10-19";
 
   it("is a view only for someone who holds the tools", () => {
-    render(<Library docs={[doc()]} />);
-    expect(screen.queryByRole("tab", { name: /Toolbox/ })).not.toBeInTheDocument();
+    render(<Library docs={[doc()]} />, { landing: true });
+    expect(screen.queryByRole("button", { name: /^Toolbox/ })).not.toBeInTheDocument();
   });
 
   it("lists each tool, a link into today's tool", async () => {
-    render(<Library docs={[doc()]} toolbox={{ today: TODAY }} />);
+    render(<Library docs={[doc()]} toolbox={{ today: TODAY }} />, { landing: true });
 
-    const tab = screen.getByRole("tab", { name: /Toolbox/ });
-    expect(tab.textContent).toBe("Toolbox");
-    await userEvent.click(tab);
+    await userEvent.click(catBtn("Toolbox"));
 
     expect(screen.getByRole("link", { name: "Heat Load" })).toHaveAttribute("href", "/dashboard/toolbox/heat-load");
     expect(screen.getByRole("link", { name: "Running Pressures" })).toHaveAttribute("href", "/dashboard/toolbox/running-pressures");
@@ -1155,8 +1157,8 @@ describe("the Toolbox view", () => {
   });
 
   it("searches the tools, not the documents, while it is open", async () => {
-    render(<Library docs={[doc()]} toolbox={{ today: TODAY }} />);
-    await userEvent.click(screen.getByRole("tab", { name: /Toolbox/ }));
+    render(<Library docs={[doc()]} toolbox={{ today: TODAY }} />, { landing: true });
+    await userEvent.click(catBtn("Toolbox"));
 
     await userEvent.type(screen.getByLabelText("Search tools"), "pressure");
     expect(screen.getByRole("link", { name: "Running Pressures" })).toBeInTheDocument();
@@ -1169,37 +1171,86 @@ describe("the Toolbox view", () => {
 
   /* New ages out on the yard's date, as on the Toolbox's own page */
   it("says New on a tool only while it is new", async () => {
-    render(<Library docs={[doc()]} toolbox={{ today: "2026-07-25" }} />);
-    await userEvent.click(screen.getByRole("tab", { name: /Toolbox/ }));
+    render(<Library docs={[doc()]} toolbox={{ today: "2026-07-25" }} />, { landing: true });
+    await userEvent.click(catBtn("Toolbox"));
     const row = screen.getByRole("link", { name: "Heat Load" }).closest("li") as HTMLElement;
     expect(within(row).getByText("New")).toBeInTheDocument();
     cleanup();
 
-    render(<Library docs={[doc()]} toolbox={{ today: TODAY }} />);
-    await userEvent.click(screen.getByRole("tab", { name: /Toolbox/ }));
+    render(<Library docs={[doc()]} toolbox={{ today: TODAY }} />, { landing: true });
+    await userEvent.click(catBtn("Toolbox"));
     expect(screen.queryByText("New")).not.toBeInTheDocument();
   });
 
   it("opens on the shelf when the address asks, and writes it there", async () => {
     window.history.replaceState(null, "", "/dashboard/tiff/library");
     render(<Library docs={[doc()]} toolbox={{ today: TODAY }} initialView="toolbox" />);
-    expect(screen.getByRole("tab", { name: /Toolbox/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("heading", { level: 1, name: "Toolbox" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Heat Load" })).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("tab", { name: /^All/ }));
-    await userEvent.click(screen.getByRole("tab", { name: /Toolbox/ }));
+    await userEvent.click(screen.getByRole("button", { name: "‹ Library" }));
+    await userEvent.click(catBtn("Toolbox"));
     expect(window.location.search).toBe("?view=toolbox");
   });
 
   it("ignores the address's shelf for someone without the tools", () => {
     render(<Library docs={[doc()]} initialView="toolbox" />);
-    expect(screen.getByText("City Multi fault codes")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Toolbox/ })).toBeNull();
+    expect(screen.getByRole("textbox", { name: "Ask the Library anything" })).toBeInTheDocument();
   });
 
   /* an empty library still reaches the tools */
   it("keeps the shelf on an empty library", async () => {
-    render(<Library docs={[]} toolbox={{ today: TODAY }} />);
-    await userEvent.click(screen.getByRole("tab", { name: /Toolbox/ }));
+    render(<Library docs={[]} toolbox={{ today: TODAY }} />, { landing: true });
+    await userEvent.click(catBtn("Toolbox"));
     expect(screen.getByRole("link", { name: "Heat Load" })).toBeInTheDocument();
   });
 });
+
+/* ── a model looked up on Manufacturer specs (Isaac, 20 October) ────────── */
+
+describe("looking a model up on Manufacturer specs", () => {
+  const spec = (model: string, over: Record<string, string | null>) => ({
+    key: `o:me:${model}`,
+    side: "outdoor",
+    model,
+    brand: "Mitsubishi Electric",
+    kind: "VRF outdoor, PUMY-SP series",
+    cooling: "15.5 kW",
+    heating: "16.5 kW",
+    power: "Single phase",
+    breaker: "32 A",
+    pipes: "9.52 liquid, 15.88 gas",
+    indoorUnits: "Up to 12, 50 to 130%",
+    size: "1050 x 330 x 981 mm",
+    weight: "93 kg",
+    sound: "54 to 56 dBA",
+    refrigerant: "R410A",
+    source: "PUMY data book, M-P0860 (Oct 2022), p. 1-3",
+    ...over,
+  });
+
+  it("shows the specs side by side, what differs in amber, the documents under them", async () => {
+    findUnits.mockResolvedValue({
+      ok: true,
+      units: [spec("PUMY-SP140VKMD2-A", {}), spec("PUMY-SP140YKMD2-A", { power: "Three phase", breaker: "16 A", weight: "94 kg" })],
+    });
+    render(<Library docs={[doc({ category: "specs", title: "PUMY-SP data book" })]} initialCategory="specs" />);
+
+    await userEvent.type(screen.getByLabelText("Search a model or a document"), "PUMY-SP140");
+
+    expect(await screen.findByRole("heading", { name: "PUMY-SP140VKMD2-A" })).toBeInTheDocument();
+    expect(findUnits).toHaveBeenLastCalledWith("PUMY-SP140");
+    expect(screen.getByText("Three phase")).toHaveClass("lb2-diff");
+    expect(screen.getAllByText("15.5 kW")[0]).not.toHaveClass("lb2-diff");
+    expect(screen.getByText("Documents")).toBeInTheDocument();
+  });
+
+  it("looks nothing up on another shelf", async () => {
+    render(<Library docs={[doc()]} />);
+    await userEvent.type(screen.getByLabelText("Search documents"), "PUMY-SP140");
+    await new Promise((r) => setTimeout(r, 300));
+    expect(findUnits).not.toHaveBeenCalled();
+  });
+});
+

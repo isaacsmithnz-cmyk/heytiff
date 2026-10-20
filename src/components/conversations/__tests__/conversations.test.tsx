@@ -331,6 +331,18 @@ describe("the box", () => {
   });
 });
 
+describe("a question handed over whole (the Library's box)", () => {
+  it("is asked on arrival, in a conversation of its own, once", async () => {
+    localStorage.setItem(STORE_KEY, JSON.stringify(threads()));
+    sessionStorage.setItem("heytiff.tiff.ask.v1", JSON.stringify({ ask: "what does P8 mean?" }));
+    render(<Conversations {...props()} />);
+    await waitFor(() => expect(asks).toHaveLength(1));
+    expect(asks[0].question).toBe("what does P8 mean?");
+    await waitFor(() => expect(stored()).toHaveLength(3));
+    expect(sessionStorage.getItem("heytiff.tiff.ask.v1")).toBeNull();
+  });
+});
+
 describe("where the threads are kept", () => {
   it("stays on this device, as it always has, while the server doesn't keep them", async () => {
     localStorage.setItem(STORE_KEY, JSON.stringify(threads()));

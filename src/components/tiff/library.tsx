@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -14,7 +14,6 @@ import { TextInput } from "@/components/parts/field";
 import { Menu, type MenuItem } from "@/components/parts/menu";
 import { Empty } from "@/components/parts/states";
 import { StateWord, type Tone } from "@/components/parts/state";
-import { ViewTabs } from "@/components/parts/tabs";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { KB_CATEGORIES, filterKbDocs, type KbCategoryKey } from "./kb";
 import { UploadDrawer } from "./upload-drawer";
@@ -25,7 +24,11 @@ import { allTools, toolBadge, toolMatches } from "@/components/toolbox/tools";
 import { auDayOf, fmtAuDayMonth } from "@/lib/au-dates";
 import { deleteKbDoc, retryKbDoc, updateKbDocMeta } from "@/app/actions/kb";
 import { filterByTags, KB_TAG_PILLS_SHOWN, type KbTagRef } from "@/lib/tiff/tags";
-import { writeAskScope } from "@/lib/tiff/ask-handoff";
+import { writeAskQuestion, writeAskScope } from "@/lib/tiff/ask-handoff";
+import { CvBox } from "@/components/conversations/box";
+import { appendSpoken, useDictation } from "@/components/notes/dictation";
+import { findUnits } from "@/app/actions/library-units";
+import { SPEC_ROWS, differing, modelStem, squash, type UnitSpec } from "@/lib/library/unit-specs";
 import { useKbIngest, type KbIngestProgress } from "@/lib/tiff/use-kb-ingest";
 import { useKbOcr, type KbOcrProgress } from "@/lib/tiff/use-kb-ocr";
 import { useKbBackfill } from "@/lib/tiff/use-kb-backfill";
@@ -60,6 +63,16 @@ import type { KbLargeAllowance } from "@/lib/tiff/files";
    The view and the tags ride in the address (`?cat=`, `?view=toolbox`,
    `?tag=`), written with replaceState as they change, as Jobs does, so an
    open tab holds them and the links into the library still land. */
+
+/* SHELVES (Isaac, 20 October; the board
+   https://claude.ai/artifact/64ih5Hjdp74pcKhzKZ6c6h). The Library lands on
+   Tiff's mark and her box, as Home does, and a button per shelf: its colour
+   block, its name and its one line. A shelf opens on its own page: the
+   search, its tags, and its documents as small cards (the title on up to
+   two lines, the maker and the edition). Manufacturer specs' search also
+   looks the model up in the data packs and shows its specs side by side,
+   what differs in amber, the documents under them. The box hands the
+   question to Conversations, where it is asked and kept. */
 
 /* Both extras are attached by the page rather than by lib/tiff/query.ts, for
    the same reason: they are separate reads joined in TypeScript, and a row's
@@ -196,6 +209,108 @@ function stateOf(state: RowState, ocr: OcrView): { tone: Tone; word: string } {
   return { tone: "good", word: "Ready" };
 }
 
+/** Each shelf's colour block and glyph (solid, ink on it), and its line. */
+const CATEGORY_LOOK: Record<Exclude<LibraryView, "all">, { hue: string; icon: string }> = {
+  install: { hue: "green", icon: "wrench" },
+  faults: { hue: "purple", icon: "gauge" },
+  specs: { hue: "yellow", icon: "file" },
+  sops: { hue: "pink", icon: "shield" },
+  field: { hue: "grey", icon: "edit" },
+  toolbox: { hue: "orange", icon: "calc" },
+};
+const TOOLBOX_CATEGORY = { key: "toolbox" as const, label: "Toolbox", blurb: "Calculators and references for site" };
+const said = (blurb: string) => blurb.replace(/ & /g, " and ");
+
+/** A document card's second line: the maker, then its edition, or the day it came in. */
+function cardLine(d: KbLibraryDoc): string {
+  const added = fmtAuDayMonth(auDayOf(d.uploadedAt ?? d.updatedAt));
+  return [d.source, d.edition || (added ? `Added ${added}` : null)].filter(Boolean).join(", ");
+}
+
+/** The Library's box: Tiff's, as Home has it. A question goes to
+    Conversations, asked there at once and kept. */
+function LibraryBox({ voice }: { voice: boolean }) {
+  const router = useRouter();
+  const [text, setText] = useState("");
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [ranOut, setRanOut] = useState(false);
+  const dict = useDictation({
+    onTranscript: (spoken, { capped }) => {
+      setVoiceError(null);
+      setRanOut(capped);
+      setText((prev) => appendSpoken(prev, spoken));
+    },
+    onError: setVoiceError,
+  });
+  const send = () => {
+    const q = text.trim();
+    if (!q) return;
+    writeAskQuestion(q);
+    router.push("/dashboard/conversations");
+  };
+  return (
+    <CvBox
+      value={text}
+      onChange={setText}
+      onSubmit={send}
+      label="Ask the Library anything"
+      placeholder="Ask the Library anything"
+      sendWord="Send"
+      dict={voice ? dict : null}
+      voiceError={voiceError}
+      ranOut={ranOut}
+    />
+  );
+}
+
+/** A model typed into Manufacturer specs' search, looked up in the data
+    packs: its specs side by side, what differs in amber. */
+function ModelSpecs({ query }: { query: string }) {
+  const [found, setFound] = useState<{ q: string; units: UnitSpec[] } | null>(null);
+  const q = query.trim();
+  useEffect(() => {
+    if (q.length < 3) return;
+    let live = true;
+    const t = setTimeout(() => {
+      void findUnits(q).then((res) => {
+        if (live) setFound({ q, units: res.ok ? res.units : [] });
+      });
+    }, 250);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  }, [q]);
+  const units = q.length >= 3 && found ? found.units : [];
+  if (units.length === 0) return null;
+  const diff = differing(units);
+  return (
+    <section className="lb2-specs-sec" aria-label="Models">
+      <p className="lb2-subh">{units.length === 1 ? "The model" : "These models match. What differs is in amber."}</p>
+      <div className="lb2-specs">
+        {units.map((u) => (
+          <article key={u.key} className="lb2-spec">
+            <h3 className="lb2-spec-h">{u.model}</h3>
+            <p className="lb2-spec-q">
+              {u.brand}, {u.kind}
+            </p>
+            <dl className="lb2-spec-kv">
+              {SPEC_ROWS.filter((r) => u[r.key]).map((r) => (
+                <div key={r.key}>
+                  <dt>{r.label}</dt>
+                  <dd className={diff.has(r.key) ? "lb2-diff" : undefined}>{u[r.key]}</dd>
+                </div>
+              ))}
+            </dl>
+            {u.source && <p className="lb2-spec-q">From {u.source}</p>}
+          </article>
+        ))}
+      </div>
+      <p className="lb2-subh">Documents</p>
+    </section>
+  );
+}
+
 /** The view and the tags, into the address, as Jobs writes its own. */
 function writeAddress(view: LibraryView, tagSlugs: readonly string[]) {
   if (typeof window === "undefined") return;
@@ -225,6 +340,7 @@ export function Library({
   initialDocId = null,
   large = null,
   toolbox = null,
+  voice = false,
 }: {
   docs: KbLibraryDoc[];
   quota?: KbQuotaView | null;
@@ -252,6 +368,8 @@ export function Library({
   /** The Toolbox shelf, for a viewer who holds `toolbox`: the yard's date
       ages the tools' New out. Null: no shelf. */
   toolbox?: { today: string } | null;
+  /** The microphone in the box, where this deployment can hear. */
+  voice?: boolean;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -318,7 +436,15 @@ export function Library({
     [tags, tagCounts, tagIds]
   );
 
-  const matches = useMemo(() => filterKbDocs(docs, query), [docs, query]);
+  /* on Manufacturer specs a model also finds the documents its family is
+     named in: a data book says "PUMY-SP", never every model in it */
+  const matches = useMemo(() => {
+    const hits = filterKbDocs(docs, query);
+    const stem = view === "specs" ? modelStem(query) : null;
+    if (!stem) return hits;
+    const ids = new Set(hits.map((d) => d.id));
+    return [...hits, ...docs.filter((d) => !ids.has(d.id) && squash(d.title).includes(stem))];
+  }, [docs, query, view]);
   const tagged = useMemo(() => filterByTags(matches, tagIds), [matches, tagIds]);
   const visible = useMemo(
     () => (view === "all" || view === "toolbox" ? tagged : tagged.filter((d) => d.category === view)),
@@ -369,11 +495,12 @@ export function Library({
   const zero = docs.length === 0;
   const inToolbox = view === "toolbox";
 
-  const items = [
-    { key: "all", label: "All" },
-    ...KB_CATEGORIES.map((c) => ({ key: c.key, label: c.label })),
-    ...(toolbox ? [{ key: "toolbox", label: "Toolbox" }] : []),
+  /* the shelves, and the one open: none is the landing */
+  const categories: { key: Exclude<LibraryView, "all">; label: string; blurb: string }[] = [
+    ...KB_CATEGORIES.map((c) => ({ key: c.key, label: c.label, blurb: c.blurb })),
+    ...(toolbox ? [TOOLBOX_CATEGORY] : []),
   ];
+  const opened = view === "all" ? null : (categories.find((x) => x.key === view) ?? null);
 
   const tagWord =
     tagIds.length === 0
@@ -388,10 +515,7 @@ export function Library({
     count: n(tagCounts[t.id] ?? 0),
   }));
 
-  /* the fact line: what is here, then, for a manager, the month's pages */
-  const fact = zero
-    ? "Nothing here yet. Tiff answers from what you upload."
-    : `${n(docs.length)} ${plural(docs.length, "document")} Tiff can read.`;
+  /* for a manager, the month's pages */
   const pages =
     canManage && quota
       ? quota.pagesAllowed === null
@@ -402,53 +526,98 @@ export function Library({
   return (
     <div className="page in">
       <div className="wrap lb2">
-        <header className="lb2-head">
-          <div className="lb2-id">
-            <h1 className="lb2-title">Library</h1>
-            <p className="lb2-fact">
-              <span>{fact}</span>
-              {pages && (
-                <>
-                  {" "}
-                  <span>{pages}</span>
-                </>
-              )}
-            </p>
-          </div>
-          <div className="lb2-acts">
-            {/* Asking the library is Tiff's: today's ask page, with its
-                sources, its research and its saved threads */}
-            <Button kind="second" href="/dashboard/tiff" icon={<TiffGlyph quiet />}>
-              Ask the Library
-            </Button>
+        {opened === null ? (
+          <header className="lb2-head">
+            <div className="lb2-id">
+              <h1 className="lb2-title">Library</h1>
+              {pages && <p className="lb2-fact">{pages}</p>}
+            </div>
             {/* on the empty library the main button belongs to the empty
-                state, which is the whole screen — two Adds on one page is one
+                state, which is the whole screen: two Adds on one page is one
                 too many */}
             {canManage && !zero && (
-              <>
-                <Button kind="second" icon="tag" onClick={() => setManaging(true)}>
-                  Edit tags
-                </Button>
-                <Button kind="main" icon="plus" onClick={() => setDrawer(true)}>
+              <div className="lb2-acts">
+                <Button kind="second" icon="plus" onClick={() => setDrawer(true)}>
                   Add a document
                 </Button>
-              </>
+              </div>
             )}
-          </div>
-        </header>
+          </header>
+        ) : (
+          <>
+            <Button kind="quiet" size={32} className="lb2-back" onClick={() => setView("all")}>
+              ‹ Library
+            </Button>
+            <header className="lb2-head">
+              <div className="lb2-cath">
+                <span className={`hm-blk hm-blk--${CATEGORY_LOOK[opened.key].hue}`} aria-hidden="true">
+                  <Icon name={CATEGORY_LOOK[opened.key].icon} size={18} />
+                </span>
+                <h1 className="lb2-title">{opened.label}</h1>
+              </div>
+              {canManage && !inToolbox && !zero && (
+                <div className="lb2-acts">
+                  {/* Edit tags renames the tags documents carry (Ducted, VRF, a maker) */}
+                  <Button kind="quiet" icon="tag" onClick={() => setManaging(true)}>
+                    Edit tags
+                  </Button>
+                  <Button kind="second" icon="plus" onClick={() => setDrawer(true)}>
+                    Add a document
+                  </Button>
+                </div>
+              )}
+            </header>
+          </>
+        )}
 
         {canManage && unembedded > 0 && <EmbedGap count={unembedded} />}
 
-        {(!zero || toolbox) && (
+        {opened === null && (
+          <>
+            <div className="hm-ask lb2-ask">
+              <TiffGlyph size={96} alive label="Tiff" />
+              <LibraryBox voice={voice} />
+            </div>
+            {zero && !toolbox ? null : (
+            <nav className="lb2-cats" aria-label="Categories">
+              {categories.map((sh) => (
+                <button key={sh.key} type="button" className="lb2-cat" onClick={() => setView(sh.key)}>
+                  <span className={`hm-blk hm-blk--${CATEGORY_LOOK[sh.key].hue}`} aria-hidden="true">
+                    <Icon name={CATEGORY_LOOK[sh.key].icon} size={18} />
+                  </span>
+                  <span className="lb2-cat-t">
+                    <b>{sh.label}</b>
+                    <span>{said(sh.blurb)}</span>
+                  </span>
+                  <span className="lb2-cat-go" aria-hidden="true">
+                    <Icon name="chevR" size={18} />
+                  </span>
+                </button>
+              ))}
+            </nav>
+            )}
+            {zero && (
+              <Empty
+                what="Tiff can only answer from what’s here"
+                line={
+                  canManage
+                    ? "Upload the manuals, fault-code books, datasheets and SOPs your team already relies on: Installation documents, Service documents, Manufacturer specs and Company SOPs. Tiff reads every page, then answers with the page she read it from."
+                    : "Ask a manager to add the company’s manuals: Installation documents, Service documents, Manufacturer specs and Company SOPs."
+                }
+                action={
+                  canManage ? (
+                    <Button kind="main" icon="plus" onClick={() => setDrawer(true)}>
+                      Add a document
+                    </Button>
+                  ) : null
+                }
+              />
+            )}
+          </>
+        )}
+
+        {opened !== null && (!zero || inToolbox) && (
           <div className="lb2-bar">
-            <ViewTabs
-              ariaLabel="Views of the library"
-              idPrefix="lb2-view"
-              panelPrefix={PANEL}
-              current={view}
-              onGo={(key) => setView(key as LibraryView)}
-              items={items}
-            />
             <div className="lb2-tools">
               {!inToolbox && filterTags.length > 0 && (
                 <>
@@ -491,8 +660,8 @@ export function Library({
                   </span>
                   <TextInput
                     className="lb2-search-input"
-                    aria-label={inToolbox ? "Search tools" : "Search documents"}
-                    placeholder={inToolbox ? "Search tools" : "Search documents"}
+                    aria-label={inToolbox ? "Search tools" : view === "specs" ? "Search a model or a document" : "Search documents"}
+                    placeholder={inToolbox ? "Search tools" : view === "specs" ? "Search a model or a document, e.g. PUMY-SP140" : "Search documents"}
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={(e) => {
@@ -508,7 +677,10 @@ export function Library({
           </div>
         )}
 
-        <div role="tabpanel" id={`${PANEL}-${view}`} aria-labelledby={`lb2-view-${view}`} className="lb2-panel">
+        {view === "specs" && <ModelSpecs query={query} />}
+
+        {opened !== null && (
+        <div id={`${PANEL}-${view}`} className="lb2-panel">
           {inToolbox && toolbox ? (
             shownTools.length === 0 ? (
               <Empty
@@ -520,34 +692,20 @@ export function Library({
                 }
               />
             ) : (
-              <div className="lb2-table lb2-table--tools">
-                <div className="lb2-row lb2-row--head" aria-hidden="true">
-                  <span className="lb2-cell">Tool</span>
-                  <span className="lb2-cell">Kind</span>
-                  <span className="lb2-cell">Added</span>
-                  <span className="lb2-cell">State</span>
-                </div>
-                <ul className="lb2-rows" aria-label={`Toolbox, ${shownTools.length} ${plural(shownTools.length, "tool")}`}>
-                  {shownTools.map(({ tool, cat }) => {
-                    const badge = toolBadge(tool, toolbox.today);
-                    return (
-                      <li key={tool.href} className="lb2-row lb2-row--open">
-                        <span className="lb2-cell lb2-name">
-                          <Link href={tool.href} className="lb2-hit">
-                            <Fade className="lb2-doc">{tool.name}</Fade>
-                          </Link>
-                          <Fade className="lb2-sub">{tool.desc}</Fade>
-                        </span>
-                        <span className="lb2-cell lb2-q">
-                          <Fade>{cat.title}</Fade>
-                        </span>
-                        <span className="lb2-cell lb2-q lb2-num">{tool.addedOn ? fmtAuDayMonth(tool.addedOn) : ""}</span>
-                        <span className="lb2-cell lb2-state">{badge && <StateWord tone="info">{badge}</StateWord>}</span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
+              <ul className="lb2-cards" aria-label="Toolbox">
+                {shownTools.map(({ tool }) => {
+                  const badge = toolBadge(tool, toolbox.today);
+                  return (
+                    <li key={tool.href} className="lb2-card">
+                      <Link href={tool.href} className="lb2-card-t lb2-hit">
+                        {tool.name}
+                      </Link>
+                      <span className="lb2-card-m">{tool.desc}</span>
+                      {badge && <StateWord tone="info">{badge}</StateWord>}
+                    </li>
+                  );
+                })}
+              </ul>
             )
           ) : zero ? (
             <Empty
@@ -602,20 +760,14 @@ export function Library({
               }
             />
           ) : (
-            <div className={`lb2-table${view === "all" ? " lb2-table--kind" : ""}${canManage ? " lb2-table--manage" : ""}`}>
-              <div className="lb2-row lb2-row--head" aria-hidden="true">
-                <span className="lb2-cell">Document</span>
-                {view === "all" && <span className="lb2-cell">Kind</span>}
-                <span className="lb2-cell">Added</span>
-                <span className="lb2-cell">State</span>
-                <span className="lb2-cell" />
-              </div>
-              <ul className="lb2-rows" aria-label={`${items.find((i) => i.key === view)?.label ?? "All"}, ${visible.length} ${plural(visible.length, "document")}`}>
+            <div className="lb2-docs">
+              <ul className="lb2-cards" aria-label={opened?.label ?? "Documents"}>
                 {visible.map((d) => (
                   <DocRow
                     key={d.id}
                     doc={d}
-                    showKind={view === "all"}
+                    showKind={false}
+                    layout="card"
                     state={rowState(d, ingest.progress[d.id], quota)}
                     ocr={ocrView(d, ocr.progress[d.id], ocr.running)}
                     canManage={canManage}
@@ -642,6 +794,7 @@ export function Library({
             </div>
           )}
         </div>
+        )}
       </div>
 
       {drawer && canManage && (
@@ -720,6 +873,7 @@ function EmbedGap({ count }: { count: number }) {
 function DocRow({
   doc,
   showKind,
+  layout = "row",
   state,
   ocr,
   canManage,
@@ -734,6 +888,8 @@ function DocRow({
 }: {
   doc: KbLibraryDoc;
   showKind: boolean;
+  /** "card": a shelf's small card, the title on up to two lines */
+  layout?: "row" | "card";
   state: RowState;
   ocr: OcrView;
   canManage: boolean;
@@ -789,6 +945,67 @@ function DocRow({
     { key: "edit", label: "Edit details" },
     ...(isOwner ? [{ key: "remove", label: "Remove document", danger: true }] : []),
   ];
+
+  const actionsMenu = canManage ? (
+    <>
+      <Button
+        ref={actRef}
+        kind="quiet"
+        size={32}
+        aria-haspopup="menu"
+        aria-expanded={menu}
+        aria-label={`Actions on ${doc.title}`}
+        onClick={() => setMenu((o) => !o)}
+      >
+        Actions
+        <span className="lb2-chev" aria-hidden="true">
+          <Icon name="chevD" size={16} />
+        </span>
+      </Button>
+      <Menu
+        open={menu}
+        anchor={actRef}
+        onClose={() => setMenu(false)}
+        onSelect={(key) => {
+          if (key === "ask") onAsk();
+          else if (key === "edit") onEdit();
+          else if (key === "remove") onDelete();
+        }}
+        items={actions}
+        label={`Actions on ${doc.title}`}
+        align="end"
+      />
+    </>
+  ) : ready ? (
+    <Button kind="quiet" size={32} icon={<TiffGlyph quiet />} aria-label={`Ask Tiff about ${doc.title}`} onClick={onAsk}>
+      Ask Tiff
+    </Button>
+  ) : null;
+
+  /* A SHELF'S CARD (Isaac, 20 October): the title on up to two lines, fading
+     only past that (Edit details renames a long one), the maker and the
+     edition, the state, and the one door. */
+  if (layout === "card")
+    return (
+      <li className={`lb2-card${ready ? " lb2-card--open" : ""}`}>
+        {ready ? (
+          <button type="button" className="lb2-card-t lb2-hit" onClick={onOpen}>
+            {doc.title}
+          </button>
+        ) : (
+          <span className="lb2-card-t">{doc.title}</span>
+        )}
+        {cardLine(doc) && <span className="lb2-card-m">{cardLine(doc)}</span>}
+        <StateWord tone={said.tone}>{said.word}</StateWord>
+        {error && <span className="lb2-err">{error}</span>}
+        {(fix || actionsMenu) && (
+          <span className="lb2-card-foot">
+            {fix}
+            {actionsMenu}
+          </span>
+        )}
+      </li>
+    );
 
   return (
     <li className={`lb2-row${ready ? " lb2-row--open" : ""}`}>

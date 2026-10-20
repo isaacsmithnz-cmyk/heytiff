@@ -4,6 +4,7 @@ import { can, getDbRole } from "@/lib/permissions-server";
 import { hasMinRole } from "@/lib/roles";
 import { todayInAu } from "@/lib/au-dates";
 import { Library } from "@/components/tiff/library";
+import { isTranscriptionConfigured } from "@/lib/voice/transcribe";
 import { asKbCategory } from "@/lib/tiff/files";
 import { countUnembedded } from "@/lib/tiff/backfill";
 import { isSemanticConfigured } from "@/lib/tiff/embeddings";
@@ -120,6 +121,7 @@ export default async function LibraryPage({
       /* the yard's date, not the handset's — it decides which tools still
          read New, as the Toolbox's own page does */
       toolbox={canToolbox ? { today: todayInAu() } : null}
+      voice={isTranscriptionConfigured()}
       /* resolved against the docs actually being rendered, so an id from
          another org — or one deleted since — opens nothing */
       initialDocId={docs.some((d) => d.id === rawDoc) ? String(rawDoc) : null}

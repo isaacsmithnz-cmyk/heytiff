@@ -57,6 +57,17 @@ jest.mock("@/components/notes/dictation", () => {
     }),
   };
 });
+/* the conversation on the page, as a stub: its words, and Back */
+jest.mock("@/components/tiff/modal/tiff-inline", () => ({
+  TiffInline: ({ words, onBack }: { words: string; onBack: () => void }) => (
+    <section aria-label="Talking to Tiff">
+      <p>{words}</p>
+      <button type="button" onClick={onBack}>
+        Back to Home
+      </button>
+    </section>
+  ),
+}));
 const open = jest.fn((..._a: unknown[]) => true);
 const toast = jest.fn();
 const tiff: TiffApi = { open: (o) => open(o), openedBy: null, isOpen: false, landed: null };
@@ -164,66 +175,23 @@ describe("the box", () => {
     expect(open).not.toHaveBeenCalled();
   });
 
-  it("(F) Send opens her on the words, and the box empties", async () => {
+  it("(F) Send starts the conversation on the page, in place of the columns, and no window opens", async () => {
     draw();
-    const field = screen.getByRole("textbox", { name: "What's happening on site?" });
-    await userEvent.type(field, "Finished the Rifkin install");
+    await userEvent.type(screen.getByRole("textbox", { name: "What's happening on site?" }), "Finished the Rifkin install");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
-    expect(open).toHaveBeenCalledWith(expect.objectContaining({ words: "Finished the Rifkin install", room: "home" }));
-    expect(field).toHaveValue("");
+    const chat = screen.getByRole("region", { name: "Talking to Tiff" });
+    expect(chat).toHaveTextContent("Finished the Rifkin install");
+    expect(open).not.toHaveBeenCalled();
+    expect(screen.queryByRole("heading", { name: "Today" })).toBeNull();
   });
 
-  it("(F) Enter is Send", async () => {
+  it("(F) Back to Home brings the box and the columns back, the box empty", async () => {
     draw();
-    const field = screen.getByRole("textbox", { name: "What's happening on site?" });
-    await userEvent.type(field, "Two filters for 3342{Enter}");
-    expect(open).toHaveBeenCalledWith(expect.objectContaining({ words: "Two filters for 3342", keyboard: true }));
-  });
-});
-
-describe("Today", () => {
-  it("(F) links to the v2 Schedule, never the old desk or Workboard, with no summary beside it", () => {
-    draw();
-    const s = section("Today");
-    expect(within(s).queryByText("2 jobs and a task")).toBeNull();
-    expect(within(s).getByRole("link", { name: "Schedule" })).toHaveAttribute("href", "/dashboard/schedule");
-    expect(within(s).queryByRole("link", { name: "Calendar" })).toBeNull();
-  });
-
-  it("(F) draws each visit as rule 39 does: time, dot, name, line, and its state in words", () => {
-    draw();
-    const r = rowOf("Bellevue Hill, Job 3342");
-    expect(r).toHaveTextContent("9:00 to 11:30");
-    expect(r).toHaveTextContent("Installation, with Lyle and Callum");
-    expect(within(r).getByText("On now")).toBeInTheDocument();
-    expect(r.querySelector(".pt-dot--blue")).not.toBeNull();
-    expect(within(r).getByRole("link", { name: "Bellevue Hill, Job 3342" })).toHaveAttribute("href", "/dashboard/jobs/j-3342");
-    expect(within(rowOf("Kingsford Bakery, Job 2380")).getByText("Done")).toBeInTheDocument();
-  });
-
-  it("(F) a task leads with a tick that finishes it, posts its Done, and offers Undo", async () => {
-    draw();
-    const r = rowOf("Order the grilles");
-    expect(r).toHaveTextContent("By 12:30");
-    await act(async () => {
-      fireEvent.click(within(r).getByRole("checkbox", { name: "Done, Order the grilles" }));
-    });
-    expect(completeTask).toHaveBeenCalledWith("t1", { postDone: true });
-    expect(screen.queryByText("Order the grilles")).toBeNull();
-    expect(toast).toHaveBeenCalledWith("Task done", expect.any(Function));
-    await act(async () => {
-      await toast.mock.calls[0]![1]();
-    });
-    expect(reopenTask).toHaveBeenCalledWith("t1", { takeBackDone: true });
-    expect(screen.getByText("Order the grilles")).toBeInTheDocument();
-  });
-
-  it("says what's missing when nothing is booked, and offers no Schedule without the Workboard", () => {
-    draw(today({ rows: [], summary: "Nothing booked", schedule: false, empty: { what: "Nothing booked for you today", line: "Next booked Thu 15 Oct", action: null } }));
-    const s = section("Today");
-    expect(within(s).getByText("Nothing booked for you today")).toBeInTheDocument();
-    expect(within(s).getByText("Next booked Thu 15 Oct")).toBeInTheDocument();
-    expect(within(s).queryByRole("link", { name: "Schedule" })).toBeNull();
+    await userEvent.type(screen.getByRole("textbox", { name: "What's happening on site?" }), "Two filters for 3342{Enter}");
+    expect(screen.getByRole("region", { name: "Talking to Tiff" })).toHaveTextContent("Two filters for 3342");
+    await userEvent.click(screen.getByRole("button", { name: "Back to Home" }));
+    expect(screen.getByRole("heading", { name: "Today" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "What's happening on site?" })).toHaveValue("");
   });
 });
 

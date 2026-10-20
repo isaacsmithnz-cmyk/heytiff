@@ -5,6 +5,7 @@ import { CvBox } from "@/components/conversations/box";
 import { appendSpoken, useDictation } from "@/components/notes/dictation";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { useTiff } from "@/components/tiff/modal/tiff-context";
+import { TiffInline } from "@/components/tiff/modal/tiff-inline";
 import { Button, LinkButton } from "@/components/parts/button";
 import { Row, RowList } from "@/components/parts/row";
 import { Empty } from "@/components/parts/states";
@@ -24,7 +25,8 @@ import { ColumnHead, HomeActivity, HomeTodo, TodoList, useTaskTick } from "./hom
    microphone records in the box itself, the recording card taking its
    place and the words landing in it, as Claude's box does (Isaac, 20
    October: "the recording is done in the box itself, no pop-up modal").
-   Send opens her on the words.
+   Send starts the conversation ON THE PAGE (../tiff/modal/tiff-inline):
+   it takes Home's place, and Back to Home brings the columns back.
 
    THREE COLUMNS UNDER IT (Isaac, 20 October). TODAY: your own visits and
    timed tasks, then whatever is due today or late, with the Schedule a link
@@ -92,9 +94,9 @@ function HomeToday({ view, due }: { view: TodayView; due: readonly TodoRow[] }) 
   );
 }
 
-/** Home's box: the words, the microphone that records in the box, and Send. */
-function HomeBox({ voice }: { voice: boolean }) {
-  const tiff = useTiff();
+/** Home's box: the words, the microphone that records in the box, and Send,
+    which starts the conversation on this page. */
+function HomeBox({ voice, onStart }: { voice: boolean; onStart: (words: string) => void }) {
   const [text, setText] = useState("");
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [ranOut, setRanOut] = useState(false);
@@ -110,9 +112,9 @@ function HomeBox({ voice }: { voice: boolean }) {
 
   const send = () => {
     const words = text.trim();
-    const at = field.current;
-    if (!words || !at) return;
-    if (tiff.open({ from: at, words, room: "home", keyboard: true, back: at })) setText("");
+    if (!words) return;
+    setText("");
+    onStart(words);
   };
 
   return (
@@ -133,13 +135,25 @@ function HomeBox({ voice }: { voice: boolean }) {
 
 export function HomeScreen({ today, todo, voice = false }: { today: TodayView; todo: TodoRow[]; voice?: boolean }) {
   const tiff = useTiff();
+  /* THE CONVERSATION TAKES THE PAGE once you have said something (Isaac, 20
+     October, the board's frame 2); Back to Home brings the columns back. */
+  const [chat, setChat] = useState<{ words: string; n: number } | null>(null);
+  if (chat)
+    return (
+      <div className="page in">
+        <div className="wrap hm hm--chat">
+          <h1 className="sr-only">Home</h1>
+          <TiffInline key={chat.n} words={chat.words} onBack={() => setChat(null)} />
+        </div>
+      </div>
+    );
   return (
     <div className="page in">
       <div className="wrap hm">
         <h1 className="sr-only">Home</h1>
         <div className="hm-ask">
           <TiffGlyph size={96} alive working={tiff.isOpen} label="Tiff" />
-          <HomeBox voice={voice} />
+          <HomeBox voice={voice} onStart={(words) => setChat((was) => ({ words, n: (was?.n ?? 0) + 1 }))} />
         </div>
         {/* three columns (Isaac, 20 October): Today, anything timed or due;
             To do, what waits on you; Activity, what comes in */}

@@ -11880,6 +11880,15 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-ask { display:flex; flex-direction:column; align-items:center; gap:16px; width:100%; max-width:720px; margin:0 auto; }
 /* Home's box is Conversations' box, the column's full width */
 .fg .hm-ask .cv-box { align-self:stretch; }
+/* the conversation on the page (Isaac, 20 October): Home's column at 760,
+   the bar, the turns and the reply box at its foot, the page's height */
+.fg .wrap.hm.hm--chat { max-width:760px; height:100%; box-sizing:border-box; padding-bottom:24px; }
+.fg .hm-chat { display:flex; flex-direction:column; gap:16px; flex:1 1 auto; min-height:0; }
+.fg .hm-chatbar { display:flex; align-items:center; gap:12px; padding-bottom:12px; border-bottom:1px solid var(--line); }
+.fg .hm-chat-title { flex:1 1 auto; min-width:0; font-size:14px; line-height:20px; color:var(--q); }
+.fg .hm-chat .hm-chat-turns { flex:1 1 auto; max-height:none; padding:0; }
+.fg .hm-chat .tm-dock { padding:12px 0 0; border-top:0; }
+.fg .hm-chat-now { margin:0; font-size:14px; line-height:20px; color:var(--q); }
 /* Home's own hold: the mark, the box and the two heads, where they land */
 .fg .hm-pk-mark { width:96px; height:96px; border-radius:50%; }
 .fg .hm-pk-box { align-self:stretch; height:calc(16px + 24px + 12px + 36px + 12px + 2px); border-radius:var(--r-card); }

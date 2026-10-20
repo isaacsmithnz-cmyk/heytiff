@@ -11833,6 +11833,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-feed-item { display:grid; grid-template-columns:32px minmax(0,1fr); gap:12px; padding:12px 0; border-bottom:1px solid var(--line); }
 .fg .hm-feed-av { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; line-height:16px; font-weight:600; }
 .fg .hm-feed-av--sm8 { background:var(--ink); color:var(--white); }
+.fg .hm-feed-av--thing { background:var(--sel); color:var(--ink); }
 .fg .hm-feed-body { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .fg .hm-feed-head { display:flex; align-items:baseline; gap:8px; margin:0; min-width:0; font-size:14px; line-height:20px; }
 .fg .hm-feed-head b { font-weight:600; white-space:nowrap; }

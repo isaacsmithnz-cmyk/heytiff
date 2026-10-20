@@ -14,7 +14,11 @@ import { isTranscriptionConfigured } from "@/lib/voice/transcribe";
    reads what the desk reads (loadDashboard), so Home costs what it cost
    before; Today and To do are worked out from it on the server
    (lib/dashboard/home-view), dated by the same day. */
-export default async function DashboardHomePage() {
+export default async function DashboardHomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   // A brand-new org's owner goes to first-run setup before an empty Home can
   // read as a broken product. Home only — sign-in lands here, and the gate's
   // header says why it is neither in the proxy nor the (synchronous) layout.
@@ -23,7 +27,7 @@ export default async function DashboardHomePage() {
   // shape, same soft landing (lib/staff/onboarding-gate.ts).
   await redirectIfOnboardingPending();
 
-  const data = await loadDashboard();
+  const [data, { reply }] = await Promise.all([loadDashboard(), searchParams]);
   const view = homeView(data);
   return (
     <>
@@ -32,7 +36,14 @@ export default async function DashboardHomePage() {
           .map((s) => s.name.trim().split(/\s+/)[0])
           .filter((n) => n.length >= 2)}
       />
-      <HomeScreen today={view.today} todo={view.todo} feed={view.feed} voice={isTranscriptionConfigured()} />
+      <HomeScreen
+        today={view.today}
+        todo={view.todo}
+        feed={view.feed}
+        /* To do's Reply on a mention names its note: the box opens in Your feed */
+        replyTo={typeof reply === "string" && /^[0-9a-f-]{36}$/i.test(reply) ? reply : null}
+        voice={isTranscriptionConfigured()}
+      />
     </>
   );
 }

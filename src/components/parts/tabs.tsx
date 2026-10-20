@@ -12,13 +12,10 @@ import type { KeyboardEvent, ReactNode } from "react";
 export type TabItem = {
   key: string;
   label: string;
-  /** Shown in grey after the word, 0 included. Left out, nothing shows. */
-  count?: number;
-  /** Said after the count, so it is not a number alone: n => `${n} overdue`. */
-  countLabel?: (n: number) => string;
   href?: string;
-  /** Section tabs only: something on it needs a look (amber) or is wrong
-      (red). The word takes the colour, and a screen reader hears it. */
+  /** Something on it needs a look (amber) or is wrong (red). No tab carries
+      a number (Isaac, 20 October): the word takes the colour, and a screen
+      reader hears it. */
   tone?: "look" | "wrong";
 };
 
@@ -50,18 +47,6 @@ function walk(e: KeyboardEvent<HTMLElement>, role: "tab" | "radio"): HTMLElement
   return all[to]!;
 }
 
-function Count({ item, className }: { item: TabItem; className: string }) {
-  if (item.count == null) return null;
-  return (
-    <>
-      <span className={className} aria-hidden={item.countLabel ? true : undefined}>
-        {item.count}
-      </span>
-      {item.countLabel && <span className="pt-tabs-sr">, {item.countLabel(item.count)}</span>}
-    </>
-  );
-}
-
 function Tabs({ items, current, onGo, ariaLabel, idPrefix, panelPrefix, kind }: TabsProps & { kind: "pt-vtab" | "pt-stab" }) {
   return (
     <div className={kind === "pt-vtab" ? "pt-vtabs" : "pt-stabs"} role="tablist" aria-label={ariaLabel}>
@@ -73,14 +58,13 @@ function Tabs({ items, current, onGo, ariaLabel, idPrefix, panelPrefix, kind }: 
           "aria-selected": on,
           /* only the tab you're on is in the tab order; the arrows reach the rest */
           tabIndex: on ? 0 : -1,
-          className: t.tone && kind === "pt-stab" ? `${kind} ${kind}--${t.tone}` : kind,
+          className: t.tone ? `${kind} ${kind}--${t.tone}` : kind,
           onKeyDown: (e: KeyboardEvent<HTMLElement>) => walk(e, "tab"),
         };
         const body: ReactNode = (
           <>
             <span className={`${kind}-word`}>{t.label}</span>
-            <Count item={t} className={`${kind}-n`} />
-            {t.tone && kind === "pt-stab" && (
+            {t.tone && (
               <span className="pt-tabs-sr">, {t.tone === "wrong" ? "something wrong" : "something to look at"}</span>
             )}
           </>
@@ -107,11 +91,10 @@ function Tabs({ items, current, onGo, ariaLabel, idPrefix, panelPrefix, kind }: 
   );
 }
 
-/* VIEWS OF A LIST (rule 29). Soft tabs under the title: the word at 14/500
-   with its count in the quiet grey, the one you're on in a light fill with
-   the button's 10 corner. No outlines, no thumb. The props follow
-   shell/view-tabs.tsx, with `current` for its `active`; the tints and the
-   padlock stay there, since a count is grey here whatever it counts. */
+/* VIEWS OF A LIST (rule 29). Soft tabs under the title: the word at 14/500,
+   the one you're on in a light fill with the button's 10 corner. No
+   outlines, no thumb, no numbers. The props follow shell/view-tabs.tsx, with
+   `current` for its `active`. */
 export function ViewTabs(props: TabsProps) {
   return <Tabs {...props} kind="pt-vtab" />;
 }

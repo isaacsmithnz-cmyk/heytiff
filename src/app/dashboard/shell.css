@@ -4451,11 +4451,10 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
 .wb2-vt.on { color:var(--ink); }
 .wb2-vt:focus-visible { outline:none; box-shadow:var(--ring);; z-index:4; }
 .wb2-vt:not(.on) + .wb2-vt:not(.on):before { content:""; position:absolute; left:0; top:14px; bottom:14px; width:1.5px; border-radius:var(--r-pill); background:var(--tint-2); }
-/* count badges keep their severity colour even while active (E6) */
-.wb2-vtn { min-width:20px; height:19px; padding:0 4px; border-radius:var(--r-control); display:grid; place-items:center;
-  background:var(--tint-2); color:var(--gray700); font-size:12px; font-weight:700; font-style:normal; }
-.wb2-vtn.dan { background:var(--bad-tint); color:var(--wb2-dan-t, var(--bad-t)); }
-.wb2-vtn.warn { background:var(--warn-tint); color:var(--wb2-warn-t, var(--warn-t)); }
+/* no numbers on a tab (Isaac, 20 October): one with something wrong has its
+   word in red, one to look at in amber; the one you're on stays ink */
+.wb2-vt.dan:not(.on) { color:var(--wb2-dan-t, var(--bad-t)); }
+.wb2-vt.warn:not(.on) { color:var(--wb2-warn-t, var(--warn-t)); }
 /* The thumb IS the card's top edge for the width of the active tab, so it
    carries the card's border. Without it the white sat inside a border that
    stopped at the card, and the join read as a step — "it doesn't actually

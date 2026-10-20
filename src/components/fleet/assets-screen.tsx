@@ -116,12 +116,6 @@ export function AssetsScreen({
     window.history.replaceState(null, "", url.toString());
   }, [openVehicle]);
 
-  /* `working` deliberately includes vehicles off the road — off road is a
-     state of a working vehicle, not an exit from the fleet. The finer slices
-     (attention / pool / sold) are the register's filter now, counted there. */
-  const vehicles = register?.vehicles ?? [];
-  const working = vehicles.filter((v) => v.status !== "sold");
-
   return (
     /* Paper to the frame, and the title rides the tab band (2026-09-20). */
     <div className="page in full">
@@ -160,8 +154,6 @@ export function AssetsScreen({
                   {
                     key: "fleet",
                     label: "Fleet",
-                    count: working.length,
-                    countLabel: (n) => `${n} working vehicles`,
                   },
                   { key: "equipment", label: "Equipment & tools" },
                 ]}

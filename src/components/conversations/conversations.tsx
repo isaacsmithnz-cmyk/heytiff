@@ -90,11 +90,10 @@ function Place({ counts, readyCount, canManage, docTitles, voiceEnabled, notes, 
       initialThreadId={initial.view === "all" ? initial.open : null}
       onOpenChange={openThread}
       you={you}
-      frame={({ list, pane, count }) => {
+      frame={({ list, pane }) => {
         const tabs = CONV_VIEWS.map((v) => ({
           key: v.key,
           label: v.label,
-          count: v.key === "all" ? count : v.key === "team" ? 0 : notes.length,
         }));
         let side = list;
         let main = pane;

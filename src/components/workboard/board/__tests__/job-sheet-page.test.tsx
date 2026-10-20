@@ -367,13 +367,13 @@ describe("the job's sections are the card's faces", () => {
     expect(onSection).toHaveBeenCalledWith("checklist");
   });
 
-  it("says what's in a section once the card knows it", async () => {
+  it("puts no numbers on the sections (Isaac, 20 October)", async () => {
     readJobFiles.mockResolvedValue({ photos: [photo(1), photo(2)], documents: [], elsewhere: [], truncated: false });
     draw("overview");
     await ready();
-    await waitFor(() => expect(jobTab(/^Photos/)).toHaveTextContent("Photos2"));
-    expect(jobTab(/^Documents/)).toHaveTextContent("Documents0");
-    /* nothing on site and nothing booked */
-    expect(jobTab(/^Visits/)).toHaveTextContent("Visits0");
+    await waitFor(() => expect(readJobFiles).toHaveBeenCalled());
+    expect(jobTab(/^Photos/)).toHaveTextContent(/^Photos$/);
+    expect(jobTab(/^Documents/)).toHaveTextContent(/^Documents$/);
+    expect(jobTab(/^Visits/)).toHaveTextContent(/^Visits$/);
   });
 });

@@ -108,14 +108,14 @@ describe("the route", () => {
 });
 
 describe("the screen", () => {
-  it("says what's been made and who it waits on, with a view for each kind", () => {
+  it("says what's been made and who it waits on, with a view for each kind, no numbers on them", () => {
     show(dataFor());
     expect(screen.getByRole("heading", { level: 1, name: "Documents" })).toBeTruthy();
     expect(screen.getByText("7 made, 1 waiting on someone")).toBeTruthy();
-    expect(tab(/^All/).textContent).toBe("All7");
-    expect(tab(/^SWMS/).textContent).toBe("SWMS4");
-    expect(tab(/^Letters/).textContent).toBe("Letters1");
-    expect(tab(/^Handover sheets/).textContent).toBe("Handover sheets1");
+    expect(tab(/^All/).textContent).toBe("All");
+    expect(tab(/^SWMS/).textContent).toBe("SWMS");
+    expect(tab(/^Letters/).textContent).toBe("Letters");
+    expect(tab(/^Handover sheets/).textContent).toBe("Handover sheets");
   });
 
   it("groups All by kind, the newest three of each, and Show all goes to the kind", () => {
@@ -150,7 +150,7 @@ describe("the screen", () => {
     show(dataFor());
     fireEvent.change(screen.getByRole("textbox", { name: "Search documents" }), { target: { value: "lane cove" } });
     expect(within(panel()).getAllByRole("link")).toHaveLength(1);
-    expect(tab(/^All/).textContent).toBe("All1");
+    expect(tab(/^All/).textContent).toBe("All");
     fireEvent.change(screen.getByRole("textbox", { name: "Search documents" }), { target: { value: "nothing like it" } });
     expect(screen.getByText('No documents here match "nothing like it"')).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Clear the search" }));

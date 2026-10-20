@@ -189,7 +189,8 @@ it("counts only the OPEN issues on the switch", async () => {
       viewerStaffId="jordan-mills"
     />,
   );
-  expect(screen.getByRole("tab", { name: /Issues — 1 still open/ })).toBeInTheDocument();
+  // no number on the switch (Isaac, 20 October)
+  expect(screen.getByRole("tab", { name: "Issues" })).toBeInTheDocument();
   // …and the open one leads, however old it is
   await user.click(screen.getByRole("tab", { name: /Issues/ }));
   const rows = screen.getAllByText(/Aircon warm|Tray light/);

@@ -46,8 +46,8 @@ it("keeps live notes on the Notes face and the put-away pile behind the Archived
   expect(screen.getByText("Ring the wholesaler back")).toBeInTheDocument();
   expect(screen.queryByText("Old coil pricing")).not.toBeInTheDocument();
 
-  // the count rides the tab — "1 put away" is its accessible suffix
-  await user.click(screen.getByRole("tab", { name: /Archived — 1 put away/ }));
+  // no number on the tab (Isaac, 20 October)
+  await user.click(screen.getByRole("tab", { name: "Archived" }));
   expect(screen.getByText("Old coil pricing")).toBeInTheDocument();
   expect(screen.queryByText("Ring the wholesaler back")).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: /Put back note: Old coil pricing/ })).toBeInTheDocument();

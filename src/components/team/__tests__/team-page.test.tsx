@@ -164,10 +164,10 @@ function setup(o: Opts = {}) {
 const rowOf = (name: string) => screen.getByText(name).closest("li") as HTMLElement;
 
 describe("Team, the page", () => {
-  it("titles the page with how many are working, and offers Add a person to an inviter only", () => {
+  it("titles the page Team, no number beside it, and offers Add a person to an inviter only", () => {
     setup();
     expect(screen.getByRole("heading", { level: 1, name: "Team" })).toBeInTheDocument();
-    expect(screen.getByText("5 people")).toBeInTheDocument();
+    expect(screen.queryByText("5 people")).toBeNull();
     expect(screen.queryByRole("button", { name: "Add a person" })).toBeNull();
   });
 
@@ -179,15 +179,14 @@ describe("Team, the page", () => {
   it("offers only the views today's gates allow", () => {
     setup();
     const tabs = screen.getAllByRole("tab").map((t) => t.textContent);
-    expect(tabs).toEqual(["People5, 5 working", "Notices0, 0 on the board"]);
+    expect(tabs).toEqual(["People", "Notices"]);
   });
 
-  it("counts what waits in each approval view, and the working vehicles", () => {
+  it("puts an approval view's word in amber while something waits, and no numbers anywhere", () => {
     setup({ timepay: true, fleet: true });
-    expect(screen.getByRole("tab", { name: /Timesheets.*1 waiting for approval/ })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Leave.*1 waiting/ })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Expenses.*3 waiting/ })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Vehicles.*1 working vehicles/ })).toBeInTheDocument();
+    for (const v of ["Timesheets", "Leave", "Expenses"]) expect(screen.getByRole("tab", { name: new RegExp(`^${v}\\W+something to look at$`) })).toHaveClass("pt-vtab--look");
+    expect(screen.getByRole("tab", { name: "Vehicles" })).not.toHaveClass("pt-vtab--look");
+    for (const t of screen.getAllByRole("tab")) expect(t.textContent).not.toMatch(/\d/);
   });
 
   it("opens each framed view on today's screen, and writes the view into the address", async () => {
@@ -291,7 +290,7 @@ describe("Team, People", () => {
      the app. In v2 they are behind "Show people who have left". */
   it("shows who has left behind its choice, each with Reactivate in one press", async () => {
     const { user } = setup();
-    await user.click(screen.getByRole("checkbox", { name: /Show people who have left, 1/ }));
+    await user.click(screen.getByRole("checkbox", { name: /Show people who have left/ }));
     expect(screen.getByRole("heading", { name: "Left, 1" })).toBeInTheDocument();
     await user.click(within(rowOf("Dylan Reyes")).getByRole("button", { name: "Reactivate" }));
     expect(saveStaffSection).toHaveBeenCalledWith("f6", "personal", { status: "Active" });

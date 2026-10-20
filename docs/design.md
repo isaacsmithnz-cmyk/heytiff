@@ -57,9 +57,9 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 
 ### Choices and fields
 
-- **29. Views of a list.** Soft tabs under the title: words with their counts in grey, the one you're on in a light fill. No outlines.
+- **29. Views of a list.** Soft tabs under the title: words alone, the one you're on in a light fill. No outlines. No tab anywhere carries a number, and a screen's title carries no count beside it ("Team", not "Team 3 people"): a view with something waiting has its word in amber, red when something is wrong (Isaac, 20 October: "We need to rule it out everywhere").
 - **30. One of a few.** Day, Week, Month in a thin tray; the chosen one filled light.
-- **31. Section tabs.** Underlined, the one you're on standing on 2px of ink. No numbers on them: a tab with something to look at has its word in amber, red when something is wrong (Isaac, 20 October). A job has seven: Overview, Quote, Visits, Checklist, Photos, Documents, Billing. A person has five: Overview, Hours & leave, Papers, Pay, Access.
+- **31. Section tabs.** Underlined, the one you're on standing on 2px of ink. No numbers on them, as rule 29: a tab with something to look at has its word in amber, red when something is wrong (Isaac, 20 October). A job has seven: Overview, Quote, Visits, Checklist, Photos, Documents, Billing. A person has five: Overview, Hours & leave, Papers, Pay, Access.
 - **32. Ticks and switches.** Blue when on. A switch saves itself.
 - **33. Fields.** 36 tall, a 6 corner, the label above. A wrong field gets a red edge and says why underneath.
 - **34. Menus to choose from.** A field with a chevron; opens a menu. A time opens a wheel: the hour, minutes in fives, am or pm. Nothing types a clock time.

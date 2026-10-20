@@ -370,9 +370,9 @@ export function Library({
   const inToolbox = view === "toolbox";
 
   const items = [
-    { key: "all", label: "All", count: docs.length },
-    ...KB_CATEGORIES.map((c) => ({ key: c.key, label: c.label, count: counts[c.key] ?? 0 })),
-    ...(toolbox ? [{ key: "toolbox", label: "Toolbox", count: tools.length }] : []),
+    { key: "all", label: "All" },
+    ...KB_CATEGORIES.map((c) => ({ key: c.key, label: c.label })),
+    ...(toolbox ? [{ key: "toolbox", label: "Toolbox" }] : []),
   ];
 
   const tagWord =

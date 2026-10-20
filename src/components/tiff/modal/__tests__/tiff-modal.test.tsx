@@ -733,6 +733,28 @@ describe("asking", () => {
       { who: "tiff", text: "Lyle is at 3323 from 9:00." },
     ]);
   });
+
+  /* Kept as a conversation once her answer lands (Isaac, 20 October:
+     Conversations said "No conversations yet" after a day of talking). */
+  it("keeps the chat in Conversations once she has answered", async () => {
+    localStorage.clear();
+    askBrain.mockImplementationOnce((_input, h) => {
+      h.onDelta("Lyle is at 3323 from 9:00.");
+      h.onDone();
+    });
+    const user = await openModal({ voice: false });
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "who's at 3323 tomorrow?{Enter}");
+    await flush();
+    const kept = JSON.parse(localStorage.getItem("heytiff.tiff.threads.v2") ?? "[]");
+    expect(kept).toHaveLength(1);
+    expect(kept[0]).toMatchObject({
+      title: "who's at 3323 tomorrow?",
+      messages: [
+        { role: "user", text: "who's at 3323 tomorrow?" },
+        { role: "tiff", text: "Lyle is at 3323 from 9:00." },
+      ],
+    });
+  });
 });
 
 describe("leaving", () => {

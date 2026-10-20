@@ -12,6 +12,7 @@ import { TiffGlyph } from "@/components/notes/tiff-mark";
 import type { EarlierTurn, TiffRoom } from "@/lib/workboard/note-turns";
 import { EASE, MOVE_MS, canAnimate, prefersStill, tokenMs, useBoxMotion, useGrow } from "./box-motion";
 import type { PlanRowView } from "./plan-view";
+import { keepChat } from "./keep-chat";
 import {
   useConversation,
   type Closed,
@@ -129,6 +130,15 @@ export function TiffModal({
      no longer fly out of the button to become its edge. */
   /* minimised to the "Ask Tiff" pill, the conversation kept */
   const [small, setSmall] = useState(false);
+  /* THE CHAT IS KEPT (./keep-chat): once her answer has landed, this chat
+     is a conversation in Conversations. One opened on a job's conversation
+     is those people's notes, not a chat with her, so it isn't. */
+  const [chatId] = useState(() => `chat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
+  const landed = c.stage !== "thinking" && c.stage !== "answering" && !c.turns.some((t) => t.streaming);
+  const ownChat = !session.conversation?.length;
+  useEffect(() => {
+    if (landed && ownChat) keepChat(chatId, c.turns);
+  }, [landed, ownChat, chatId, c.turns]);
 
 
 

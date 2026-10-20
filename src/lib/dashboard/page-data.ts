@@ -46,6 +46,7 @@ import {
 } from "./day-rail";
 import { loadNextDay, type NextDay } from "./next-day";
 import { loadDesk, readHomeShared, type DeskData, type HomeShared } from "./desk-data";
+import { readFeedEvents, type FeedEvent } from "./feed-events-query";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import { sm8StaffLinkMap } from "@/lib/integrations/links";
 import { sm8QueueStuck } from "@/lib/integrations/sm8-writes";
@@ -105,6 +106,9 @@ export type DashboardData = {
       due and the work given to you, the bell's two reads; the notices you
       haven't read; and, for an approver, the timesheets sent in. */
   todo: TodoExtras;
+  /** What came in from ServiceM8 over the last two days, for Your feed
+      (./feed-events-query): empty without `workboard`. */
+  events: FeedEvent[];
 };
 
 export type HomeRail = {
@@ -205,6 +209,7 @@ const EMPTY: DashboardData = {
   rail: EMPTY_RAIL,
   desk: null,
   todo: EMPTY_TODO,
+  events: [],
 };
 
 export async function loadDashboard(): Promise<DashboardData> {
@@ -274,7 +279,7 @@ export async function loadDashboard(): Promise<DashboardData> {
   const railDay = todayInZone(railTz);
   const railNowMin = nowMinInZone(railTz);
 
-  const [chips, tasks, assignable, journal, issues, schedule, sm8Links, desk, todo] = await Promise.all([
+  const [chips, tasks, assignable, journal, issues, schedule, sm8Links, desk, todo, events] = await Promise.all([
     loadChips(orgId, viewerStaffId, caps, today, isOwner, shared, userId),
     loadTasks(orgId, viewerStaffId, canManage, names),
     // the give-it-to picker only needs names, and only when you can give
@@ -308,6 +313,8 @@ export async function loadDashboard(): Promise<DashboardData> {
     ),
     /* To do's own reads, none of which waits on anything above */
     loadTodoExtras({ orgId, viewerStaffId, caps, today, names }),
+    /* Your feed's ServiceM8 events, behind the board's own gate */
+    caps.has("workboard") && vendor.connected ? readFeedEvents(orgId, railDay).catch(() => [] as FeedEvent[]) : Promise.resolve([] as FeedEvent[]),
   ]);
   const mineUuid = mineOf(sm8Links);
 
@@ -375,6 +382,7 @@ export async function loadDashboard(): Promise<DashboardData> {
     },
     desk,
     todo,
+    events,
   };
 }
 

@@ -10,9 +10,12 @@ import { placeHomeList } from "./home-list";
 import { todayRows, todaySummary, type TodayView } from "./home-today";
 import { mentionTasksOf } from "./mention-asks";
 import type { DashboardData } from "./page-data";
-import { todoRows, type TodoRow } from "./todo";
+import { columnOf, todoRows, type TodoRow } from "./todo";
+import { FEED_TALK_DAYS, yourFeed, type FeedItem } from "./your-feed";
+import { plusDays } from "@/lib/workboard/dates";
 
-export type HomeView = { today: TodayView; todo: TodoRow[] };
+/** Home's three columns: Today, To do, and Your feed in place of Activity. */
+export type HomeView = { today: TodayView; todo: TodoRow[]; feed: FeedItem[] };
 
 export function todayView(rail: DashboardData["rail"]): TodayView {
   const rows = todayRows(rail);
@@ -47,13 +50,25 @@ export function homeList(data: DashboardData) {
 }
 
 export function homeView(data: DashboardData): HomeView {
+  const rows = todoRows({
+    ...data.todo,
+    today: data.today,
+    chips: [...data.chips.self, ...data.chips.team],
+    list: homeList(data),
+  });
+  /* the account's clock when Home was read, for what waits now */
+  const min = data.rail.nowMin === null ? 1439 : Math.max(0, Math.min(1439, data.rail.nowMin));
+  const now = `${data.rail.dayISO} ${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}:00`;
   return {
     today: todayView(data.rail),
-    todo: todoRows({
-      ...data.todo,
-      today: data.today,
-      chips: [...data.chips.self, ...data.chips.team],
-      list: homeList(data),
+    todo: rows.filter((r) => columnOf(r) !== "activity"),
+    feed: yourFeed({
+      rows: rows.filter((r) => columnOf(r) === "activity"),
+      diary: data.desk?.diary.feed ?? null,
+      events: data.events,
+      today: data.rail.dayISO,
+      now,
+      since: plusDays(data.rail.dayISO, -FEED_TALK_DAYS),
     }),
   };
 }

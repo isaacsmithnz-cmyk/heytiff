@@ -152,6 +152,7 @@ jest.mock("../home-list-query", () => ({ loadHomeList: (ctx: unknown) => loadHom
    pinned in todo.test and the Home suites, and here they are a name. */
 const loadTodoExtras = jest.fn(async (_ctx: unknown) => ({ reminders: [], assignments: [], notices: [], timesheets: 0 }));
 jest.mock("../todo-query", () => ({ loadTodoExtras: (ctx: unknown) => loadTodoExtras(ctx) }));
+jest.mock("../feed-events-query", () => ({ readFeedEvents: async () => [] }));
 
 /* A task's Done (two-way phase 2, PR C): the bell's item is read only where
    the deployment sends notes — the module isn't even loaded otherwise. The
@@ -454,7 +455,7 @@ describe("what the old Home alone read", () => {
     expect(readTaskDoneLines).not.toHaveBeenCalled();
     expect(jobCandidates).not.toHaveBeenCalled();
     expect(Object.keys(data).sort()).toEqual(
-      ["assignable", "canManage", "chips", "desk", "issues", "journal", "rail", "tasks", "today", "todo", "viewerStaffId"],
+      ["assignable", "canManage", "chips", "desk", "events", "issues", "journal", "rail", "tasks", "today", "todo", "viewerStaffId"],
     );
     expect(Object.keys(data.tasks).sort()).toEqual(["mine", "team"]);
     expect(data.desk?.calendar).toBe(CAL);

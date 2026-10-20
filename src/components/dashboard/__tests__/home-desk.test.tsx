@@ -292,6 +292,7 @@ const talkOf = (notes: MentionNote[]) =>
   });
 
 const data = (over: Partial<DashboardData> = {}): DashboardData => ({
+  events: [],
   chips: { self: [], team: [] },
   tasks: { mine: [], team: null },
   journal: [],

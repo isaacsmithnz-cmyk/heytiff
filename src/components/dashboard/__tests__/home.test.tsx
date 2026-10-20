@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import type { FeedItem } from "@/lib/dashboard/your-feed";
 import userEvent from "@testing-library/user-event";
 import { HomeScreen } from "../home";
 import { HomeTodo } from "../home-todo";
@@ -24,6 +25,7 @@ jest.mock("@/app/actions/dashboard", () => ({
   reopenTask: (...a: unknown[]) => reopenTask(...a),
 }));
 const snoozeReminder = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
+jest.mock("@/app/actions/job-note-sm8", () => ({ replyToJobNote: jest.fn() }));
 jest.mock("@/app/actions/reminders", () => ({ snoozeReminder: (...a: unknown[]) => snoozeReminder(...a) }));
 const acknowledgeTask = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
 jest.mock("@/app/actions/assignments", () => ({ acknowledgeTask: (...a: unknown[]) => acknowledgeTask(...a) }));
@@ -127,11 +129,11 @@ const ROWS: TodoRow[] = [
   link("notice:n1", "Toolbox talk", "Open", "/dashboard/notices", { source: "notice", tone: "info" }),
 ];
 
-const draw = (view: TodayView = today(), rows: TodoRow[] = ROWS) =>
+const draw = (view: TodayView = today(), rows: TodoRow[] = ROWS, feed: FeedItem[] = []) =>
   render(
     <WindowsContext.Provider value={windows}>
       <TiffContext.Provider value={tiff}>
-        <HomeScreen today={view} todo={rows} voice />
+        <HomeScreen today={view} todo={rows} feed={feed} voice />
       </TiffContext.Provider>
     </WindowsContext.Provider>,
   );
@@ -196,29 +198,30 @@ describe("the box", () => {
 });
 
 describe("the three columns", () => {
-  it("(F) puts what is due today under Today, what comes in under Activity, and the rest under To do", () => {
-    draw(today(), [
-      link("chip:rego", "Hilux, XQG41B", "Renew", "/r", { col: "today", tone: "wrong" }),
-      link("timesheets", "Timesheets", "Review", "/dashboard/timepay", { source: "timesheets", col: "activity" }),
-      link("k1", "Price the Truecut quote", "Open", "/q"),
-    ]);
+  /* Activity became Your feed (Isaac, 20 October 2026) */
+  it("(F) puts what is due today under Today, what comes to you in Your feed, and the rest under To do", () => {
+    draw(
+      today(),
+      [link("chip:rego", "Hilux, XQG41B", "Renew", "/r", { col: "today", tone: "wrong" }), link("k1", "Price the Truecut quote", "Open", "/q")],
+      [{ key: "timesheets", filter: "approvals", who: { name: "Timesheets", sm8: false }, what: "3 to approve", said: null, yours: null, when: "", at: "2026-10-20 13:00:00", unread: false, act: { kind: "link", label: "Review", href: "/dashboard/team?view=timesheets" }, reply: null }],
+    );
     expect(within(section("Today")).getByText("Hilux, XQG41B")).toBeInTheDocument();
-    expect(within(section("Activity")).getByText("Timesheets")).toBeInTheDocument();
+    expect(within(section("Your feed")).getByText("Timesheets")).toBeInTheDocument();
     expect(within(section("To do")).getByText("Price the Truecut quote")).toBeInTheDocument();
     expect(within(section("To do")).queryByText("Timesheets")).toBeNull();
   });
 
   it("(F) heads each column with a solid block of its colour", () => {
     draw();
-    for (const [name, hue] of [["Today", "purple"], ["To do", "yellow"], ["Activity", "green"]] as const) {
+    for (const [name, hue] of [["Today", "purple"], ["To do", "yellow"], ["Your feed", "green"]] as const) {
       const head = screen.getByRole("heading", { name }).parentElement!;
       expect(head.querySelector(".hm-blk")).toHaveClass(`hm-blk--${hue}`);
     }
   });
 
-  it("says nothing is new under Activity when nothing is", () => {
+  it("says nothing is new in Your feed when nothing is", () => {
     draw(today(), []);
-    expect(within(section("Activity")).getByText("Nothing new")).toBeInTheDocument();
+    expect(within(section("Your feed")).getByText("Nothing new")).toBeInTheDocument();
   });
 });
 

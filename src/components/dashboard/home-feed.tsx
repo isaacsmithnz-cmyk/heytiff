@@ -1,0 +1,204 @@
+"use client";
+
+import { useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
+import { acknowledgeTask } from "@/app/actions/assignments";
+import { replyToJobNote, type ReplyResult } from "@/app/actions/job-note-sm8";
+import { Button } from "@/components/parts/button";
+import { TextInput } from "@/components/parts/field";
+import { Initials } from "@/components/parts/initials";
+import { Empty } from "@/components/parts/states";
+import { Tray } from "@/components/parts/tabs";
+import { FEED_FILTERS, inFilter, type FeedFilter, type FeedItem } from "@/lib/dashboard/your-feed";
+import { ColumnHead } from "./home-todo";
+
+/* YOUR FEED — Home's third column, in place of Activity (Isaac, 20 October
+   2026; the board https://claude.ai/artifact/NzYjAQqzJJsgSgPPGCSJVq, built
+   as mocked). Everything that comes to you, newest first, with a filter
+   under the head: All, To you, Jobs, Approvals. The items are decided on the
+   server (lib/dashboard/your-feed); this draws them and does what they do
+   where they sit: Reply to a mention opens a box under it and sends through
+   the job card's own reply (it goes to ServiceM8 as you, and closes the task
+   the ask made); Got it takes work given to you; the rest open their page.
+
+   The filter is remembered on this device (a convenience, so it can be lost
+   with nothing lost). */
+
+const KEPT = "heytiff.home.feed.v1";
+const newComposeId = () => crypto.randomUUID();
+const readKept = (): FeedFilter | null => {
+  try {
+    const v = localStorage.getItem(KEPT);
+    return v === "you" || v === "jobs" || v === "approvals" || v === "all" ? v : null;
+  } catch {
+    return null;
+  }
+};
+/* the kept choice as a store, so the page draws All on the server and the
+   kept one once it is in the browser, without a render that disagrees */
+const listeners = new Set<() => void>();
+const subscribe = (fn: () => void) => {
+  listeners.add(fn);
+  window.addEventListener("storage", fn);
+  return () => {
+    listeners.delete(fn);
+    window.removeEventListener("storage", fn);
+  };
+};
+const keep = (f: FeedFilter) => {
+  try {
+    localStorage.setItem(KEPT, f);
+  } catch {
+    /* not kept: it still filters */
+  }
+  listeners.forEach((fn) => fn());
+};
+
+function ReplyBox({ item, onSent }: { item: FeedItem; onSent: (words: string) => void }) {
+  const [words, setWords] = useState("");
+  const [composeId] = useState(newComposeId);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const reply = item.reply!;
+  const send = async () => {
+    const w = words.trim();
+    if (!w || sending) return;
+    setSending(true);
+    setError(null);
+    const got: ReplyResult = await replyToJobNote({
+      jobUuid: reply.jobUuid,
+      sourceNoteUuid: reply.sourceNoteUuid,
+      words: w,
+      composeId,
+      ...(reply.closesTaskId ? { closesTaskId: reply.closesTaskId } : {}),
+    }).catch((): ReplyResult => ({ ok: false, error: "That didn't send. Try again." }));
+    setSending(false);
+    if (got.ok) onSent(w);
+    else setError(got.error);
+  };
+  return (
+    <form
+      className="hm-feed-reply"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void send();
+      }}
+    >
+      <div className="hm-feed-replyrow">
+        <TextInput
+          aria-label={`Reply to ${item.who.name}`}
+          placeholder={`Reply to ${item.who.name.split(" ")[0]}`}
+          value={words}
+          disabled={sending}
+          autoFocus
+          onChange={(e) => setWords(e.target.value)}
+        />
+        <Button kind="main" size={36} disabled={sending || !words.trim()} onClick={() => void send()}>
+          {sending ? "Sending" : "Send"}
+        </Button>
+      </div>
+      {error && (
+        <p className="hm-feed-err" role="alert">
+          {error}
+        </p>
+      )}
+    </form>
+  );
+}
+
+function FeedEntry({ item, onGone }: { item: FeedItem; onGone: (key: string) => void }) {
+  const router = useRouter();
+  const [replying, setReplying] = useState(false);
+  const [sent, setSent] = useState<string | null>(null);
+  const yours = sent ?? item.yours;
+  const act = item.act;
+  return (
+    <li className="hm-feed-item">
+      {item.who.sm8 ? (
+        <span className="hm-feed-av hm-feed-av--sm8" aria-hidden="true">
+          SM8
+        </span>
+      ) : (
+        <Initials name={item.who.name} size={32} beside />
+      )}
+      <div className="hm-feed-body">
+        <p className="hm-feed-head">
+          {item.unread && !sent && <span className="hm-feed-new" aria-label="New" />}
+          <b>{item.who.name}</b>
+          <span className="hm-feed-what">{item.what}</span>
+          {item.when && <span className="hm-feed-when">{item.when}</span>}
+        </p>
+        {item.said && <p className="hm-feed-said">{item.reply ? `"${item.said}"` : item.said}</p>}
+        {yours && <p className="hm-feed-yours">You: {yours}</p>}
+        {replying && !sent ? (
+          <ReplyBox
+            item={item}
+            onSent={(w) => {
+              setSent(w);
+              setReplying(false);
+              router.refresh();
+            }}
+          />
+        ) : (
+          (item.reply || act) && (
+            <div className="hm-feed-acts">
+              {item.reply && !sent && (
+                <Button size={32} onClick={() => setReplying(true)}>
+                  Reply
+                </Button>
+              )}
+              {act?.kind === "link" && (
+                <Button size={32} href={act.href}>
+                  {act.label}
+                </Button>
+              )}
+              {act?.kind === "gotit" && (
+                <Button
+                  size={32}
+                  onClick={() => {
+                    onGone(item.key);
+                    void acknowledgeTask(act.taskId)
+                      .catch(() => null)
+                      .then(() => router.refresh());
+                  }}
+                >
+                  Got it
+                </Button>
+              )}
+            </div>
+          )
+        )}
+      </div>
+    </li>
+  );
+}
+
+export function HomeFeed({ items }: { items: readonly FeedItem[] }) {
+  const kept = useSyncExternalStore(subscribe, readKept, () => null);
+  /* chosen here before it could be kept (storage refused) still filters */
+  const [chosen, setChosen] = useState<FeedFilter | null>(null);
+  const filter: FeedFilter = chosen ?? kept ?? "all";
+  const [gone, setGone] = useState<ReadonlySet<string>>(new Set());
+  const choose = (f: FeedFilter) => {
+    setChosen(f);
+    keep(f);
+  };
+  const shown = inFilter(items, filter).filter((i) => !gone.has(i.key));
+  return (
+    <section className="hm-sec hm-feed" aria-labelledby="hm-feed">
+      <ColumnHead id="hm-feed" name="Your feed" icon="chat" hue="green" />
+      <div className="hm-feed-filter">
+        <Tray ariaLabel="Show" options={FEED_FILTERS} value={filter} onChange={choose} />
+      </div>
+      {shown.length === 0 ? (
+        <Empty what={filter === "all" ? "Nothing new" : "Nothing here"} action={null} />
+      ) : (
+        <ul className="hm-feed-list" aria-label="Your feed">
+          {shown.map((item) => (
+            <FeedEntry key={item.key} item={item} onGone={(k) => setGone((g) => new Set([...g, k]))} />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}

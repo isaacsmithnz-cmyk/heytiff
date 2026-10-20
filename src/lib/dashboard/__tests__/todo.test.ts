@@ -315,7 +315,7 @@ describe("the old list's rows", () => {
 describe("notices and timesheets", () => {
   it("(F) a notice you haven't read is for your information, opened on the board", () => {
     const [row] = todoRows(input({ notices: [{ id: "n1", title: "Toolbox talk", from: "Callum", day: "2026-09-25" }] }));
-    expect(row).toMatchObject({ tone: "info", name: "Toolbox talk", line: "A notice from Callum, Fri 25 Sept", act: { label: "Open", href: "/dashboard/notices" } });
+    expect(row).toMatchObject({ tone: "info", name: "Toolbox talk", line: "A notice from Callum, Fri 25 Sept", act: { label: "Open", href: "/dashboard/team?view=notices" } });
   });
 
   it("(F) timesheets sent in: Review, for an approver", () => {

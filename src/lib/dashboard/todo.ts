@@ -341,7 +341,7 @@ export function todoRows(input: TodoInput): TodoRow[] {
     line: n.from ? `A notice from ${n.from}, ${fmt(n.day)}` : `A notice, ${fmt(n.day)}`,
     lineTone: false,
     tick: null,
-    act: { kind: "link", label: "Open", href: "/dashboard/notices" },
+    act: { kind: "link", label: "Open", href: "/dashboard/team?view=notices" },
   }));
 
   const all = [...reminders, ...given, ...alerts, ...list, ...timesheets, ...notices];

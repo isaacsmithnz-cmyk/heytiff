@@ -32,7 +32,7 @@ export default async function DashboardHomePage() {
           .map((s) => s.name.trim().split(/\s+/)[0])
           .filter((n) => n.length >= 2)}
       />
-      <HomeScreen today={view.today} todo={view.todo} voice={isTranscriptionConfigured()} />
+      <HomeScreen today={view.today} todo={view.todo} feed={view.feed} voice={isTranscriptionConfigured()} />
     </>
   );
 }

@@ -212,10 +212,19 @@ describe("All: the threads and the open one", () => {
     expect(screen.getByRole("dialog")).toHaveTextContent("Keep the return air path clear.");
   });
 
-  it("says what is missing when there are no conversations yet", () => {
+  it("says what is missing when there are no conversations yet, and leads to Home, where they start", () => {
     render(<Conversations {...props()} />);
     expect(screen.getByText("No conversations yet")).toBeInTheDocument();
-    expect(screen.getByText("Ask Tiff anything")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to Home" })).toHaveAttribute("href", "/dashboard");
+    expect(screen.queryByRole("textbox")).toBeNull();
+  });
+
+  it("only keeps them: no New conversation, and the newest opens when none is named (Isaac, 20 October)", () => {
+    localStorage.setItem(STORE_KEY, JSON.stringify(threads()));
+    render(<Conversations {...props()} />);
+    expect(screen.queryByRole("button", { name: /New conversation/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /^Last 10 kW Mitsubishi ducted/ })).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("textbox", { name: "Ask Tiff" })).toHaveAttribute("placeholder", "Reply to Tiff");
   });
 
   it("renames and deletes the open thread from its own head", async () => {
@@ -232,26 +241,24 @@ describe("All: the threads and the open one", () => {
 describe("the box", () => {
   const box = () => screen.getByRole("textbox", { name: "Ask Tiff" });
 
-  it("asks through the assistant's own flow and keeps the thread where the Library keeps it", async () => {
+  it("asks through the assistant's own flow and keeps the reply in the thread it was asked in", async () => {
     const user = userEvent.setup();
+    localStorage.setItem(STORE_KEY, JSON.stringify(threads()));
     render(<Conversations {...props()} />);
-    expect(box()).toHaveAttribute("placeholder", "Ask Tiff anything");
     await user.type(box(), "what does P8 mean?");
     await user.click(screen.getByRole("button", { name: "Send" }));
 
     expect(asks).toHaveLength(1);
-    expect(asks[0]).toMatchObject({ question: "what does P8 mean?", research: true, history: [] });
+    expect(asks[0]).toMatchObject({ question: "what does P8 mean?", research: true });
     expect(await screen.findByText("P8 is a piping temperature fault.")).toBeInTheDocument();
-    await waitFor(() => expect(stored()).toHaveLength(1));
-    expect(stored()[0].messages.map((m) => m.text)).toEqual(["what does P8 mean?", "P8 is a piping temperature fault."]);
-    // the new thread is open, in the list and in the address
-    expect(screen.getByRole("button", { name: /^what does P8 mean\?/ })).toHaveAttribute("aria-current", "true");
-    expect(window.location.search).toBe(`?open=${stored()[0].id}`);
+    await waitFor(() => expect(stored().find((t) => t.id === "t-ducted")!.messages.at(-1)!.text).toBe("P8 is a piping temperature fault."));
+    expect(stored()).toHaveLength(2);
     expect(box()).toHaveValue("");
   });
 
   it("sends on Enter, and Shift+Enter starts a new line", async () => {
     const user = userEvent.setup();
+    localStorage.setItem(STORE_KEY, JSON.stringify(threads()));
     render(<Conversations {...props()} />);
     await user.type(box(), "first line{Shift>}{Enter}{/Shift}second");
     expect(asks).toHaveLength(0);
@@ -274,7 +281,8 @@ describe("the box", () => {
     script = (e) => {
       emit = e;
     };
-    render(<Conversations {...props()} />);
+    localStorage.setItem(STORE_KEY, JSON.stringify(threads()));
+    render(<Conversations {...props({ initial: { view: "all", open: "t-e6" } })} />);
     await user.type(box(), "coil icing{Enter}");
     expect(screen.getByText("Searching the library")).toHaveAttribute("role", "status");
     act(() =>
@@ -300,7 +308,7 @@ describe("the box", () => {
       emit({ t: "done" });
     });
     expect(screen.getByRole("button", { name: "Send" })).toBeEnabled();
-    await waitFor(() => expect((stored()[0].messages[1] as { steps?: string[] }).steps).toEqual([
+    await waitFor(() => expect((stored().find((t) => t.id === "t-e6")!.messages.at(-1) as { steps?: string[] }).steps).toEqual([
       "Searched your library: 3 matching passages",
       "Read PEAD-M100JAA installation manual",
     ]));
@@ -309,6 +317,7 @@ describe("the box", () => {
   it("says what went wrong and offers to try the same question again", async () => {
     const user = userEvent.setup();
     script = (emit) => emit({ t: "err", message: "Tiff couldn't answer that just now." });
+    localStorage.setItem(STORE_KEY, JSON.stringify(threads()));
     render(<Conversations {...props()} />);
     await user.type(box(), "why P8?{Enter}");
     expect(await screen.findByText("Tiff couldn't answer that just now.")).toBeInTheDocument();

@@ -483,7 +483,12 @@ export function TiffAssistant({
   const showViz = (event: VizEvent) => setViz((prev) => reduceViz(prev, event));
 
   const threads = threadState ?? (hydrated ? loadThreads() : []);
-  const active = threads.find((t) => t.id === activeId) ?? null;
+  /* CONVERSATIONS ONLY KEEPS THEM (Isaac, 20 October: "Conversations are just
+     where conversations are stored"; they start on Home). With none named, it
+     opens the newest, unless a document handed a question over to ask. */
+  const shownId =
+    activeId ?? (conv && !prefill && !scope ? ([...threads].sort((a, b) => b.updatedAt - a.updatedAt)[0]?.id ?? null) : null);
+  const active = threads.find((t) => t.id === shownId) ?? null;
   /* The held thread is written but not yet shown, so it must not appear in
      "Pick up where you left off" either — a card inviting you to resume the
      question you are watching being asked. */
@@ -807,7 +812,7 @@ export function TiffAssistant({
 
     const at = nowMs();
     const msg: Msg = { role: "user", text: trimmed, at };
-    let threadId = activeId;
+    let threadId = active?.id ?? activeId;
     let next: Thread[];
 
     if (active) {
@@ -839,10 +844,11 @@ export function TiffAssistant({
   };
 
   const retry = () => {
-    if (!failure || !activeId) return;
+    const id = active?.id ?? activeId;
+    if (!failure || !id) return;
     const { question, research: mode, history } = failure;
     setFailure(null);
-    run(activeId, question, mode, history);
+    run(id, question, mode, history);
   };
 
   const researchThis = (question: string) => {
@@ -974,7 +980,7 @@ export function TiffAssistant({
      than leaving the transcript of a thread that no longer exists on screen —
      and takes the stream, the failure and the rail with it. */
   const deleteThread = (id: string) => {
-    if (activeId === id) {
+    if (active?.id === id) {
       leaveThread(false);
       settleHistory();
     }
@@ -1038,10 +1044,10 @@ export function TiffAssistant({
     ) : (
       <Empty
         what="No conversations yet"
-        line="Ask Tiff anything and the conversation is kept here."
+        line="Talk to Tiff on Home and the conversation is kept here."
         action={
-          <Button kind="second" size={32} onClick={focusBox}>
-            Ask Tiff
+          <Button kind="second" size={32} href="/dashboard">
+            Go to Home
           </Button>
         }
       />
@@ -1060,9 +1066,6 @@ export function TiffAssistant({
               </Button>
             </>
           )}
-          <Button kind="second" size={32} icon="plus" onClick={newChat}>
-            New conversation
-          </Button>
         </div>
         <div className="cv-scroll" ref={chatRef} onScroll={onChatScroll}>
           {active ? (
@@ -1115,26 +1118,15 @@ export function TiffAssistant({
                 </div>
               )}
             </div>
-          ) : hydrated ? (
-            <div className="cv-start">
-              <Empty
-                what="Ask Tiff anything"
-                line={
-                  readyCount > 0
-                    ? `She answers from the ${readyCount.toLocaleString("en-AU")} ${plural(readyCount, "document")} in your library, and says when the answer is general knowledge.`
-                    : "Add manuals to the Library and she answers from those too, with the page they came from."
-                }
-                action={null}
-              />
-            </div>
           ) : null}
         </div>
+        {(active || prefill || scope) && (
         <CvBox
           value={input}
           onChange={setTyped}
           onSubmit={() => send(input)}
           label="Ask Tiff"
-          placeholder="Ask Tiff anything"
+          placeholder={active ? "Reply to Tiff" : "Ask Tiff about this document"}
           sendWord="Send"
           waiting={working}
           dict={voiceEnabled ? dict : null}
@@ -1153,6 +1145,7 @@ export function TiffAssistant({
             ) : undefined
           }
         />
+        )}
       </section>
     );
     return (

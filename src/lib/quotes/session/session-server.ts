@@ -4,6 +4,8 @@ import type { ModelCall } from "./model";
 import { anthropicModel, chosenEffort, sessionModelFor, writeUpFirst } from "./model-server";
 import { openingMessage, openWords, sessionSystemPrompt } from "./prompt";
 import { addEvents, beginTurn, endTurn, readOpenQuestions, saveRound, takeAnswers } from "./store-server";
+import { briefOf } from "./job-sources";
+import { readJobSources } from "./job-sources-server";
 import { SESSION_TOOLS } from "./tools";
 import { sessionTools } from "./tools-server";
 import { runTurn, type TurnEnd } from "./turn";
@@ -52,7 +54,13 @@ export async function startTurn(
   const history = JSON.stringify(session.messages);
   const moneyWords = opts.noMoney ? NO_MONEY_WORDS : history.lastIndexOf(NO_MONEY_WORDS) > history.lastIndexOf(MONEY_WORDS) ? MONEY_WORDS : "";
   const said = [answered, openWords(open), moneyWords, text, goOn].filter(Boolean).join("\n\n");
-  const message = session.messages.length === 0 ? openingMessage(opts.brief ?? "", said) : said;
+  /* a first turn opened with typed words, not Read the job, still has the
+     job in front of her: every source, as Read the job ticks them. 3421, 21
+     October: "Add an option for Linear Mitsubishi Zone kit" reached her with
+     an empty quote and none of ServiceM8's three options, and she built the
+     whole job again */
+  const brief = opts.brief ?? (session.messages.length === 0 && text ? await jobBrief(orgId, jobUuid) : "");
+  const message = session.messages.length === 0 ? openingMessage(brief, said) : said;
   if (text || opts.brief) await addEvents(orgId, session.id, turnId, [{ kind: "message", author: by, body: { text: text || "Read the job", ...(opts.brief ? { read: true } : {}) } }]);
 
   const model = opts.model ?? anthropicModel();
@@ -72,4 +80,11 @@ export async function startTurn(
     }
   };
   return { ok: true, turnId, run };
+}
+
+/** The job, every source of it, as Read the job sends it with all of them
+    ticked; nothing when it can't be read. */
+async function jobBrief(orgId: string, jobUuid: string): Promise<string> {
+  const read = await readJobSources(orgId, jobUuid).catch(() => null);
+  return read ? briefOf(read.sources, new Set(read.sources.map((s) => s.id))) : "";
 }

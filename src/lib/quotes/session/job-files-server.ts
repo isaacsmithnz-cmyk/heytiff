@@ -3,7 +3,8 @@ import { imageForClaude } from "@/lib/images/for-claude";
 import { familyMediaSources } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 import { readJobMediaGroups } from "@/lib/workboard/job-media-query";
-import type { MediaBlock } from "./model";
+import { isScannedPage, openPdf } from "@/lib/tiff/extract";
+import type { MediaBlock, TextBlock } from "./model";
 import type { JobFile } from "./tools-run";
 
 /* WHAT TIFF LOOKS AT (slice 4.6): the job's photos and documents, as the
@@ -15,6 +16,37 @@ import type { JobFile } from "./tools-run";
 const MAX_FILES = 40;
 /** A PDF she reads at most: a plan set, not an archive. */
 const MAX_PDF_BYTES = 10 * 1024 * 1024;
+/** Of a PDF's own text, what stays with her: a quote or a schedule whole,
+    the first pages of a long set. */
+const PDF_TEXT_PAGES = 12;
+const PDF_TEXT_CHARS = 12_000;
+
+/** A PDF's own text, page by page, as it stays in the conversation once
+    the file is dropped (turn.ts withoutFiles keeps a result's words): the
+    figures she read off a quote are still there in the rounds after. 3421,
+    21 October: she looked at ServiceM8's quote twice, the file gone each
+    time by the round she wrote in, and said she couldn't read its figures.
+    A page with no text (a scan, a drawing) is left to the picture. Pure. */
+export function pdfWords(pages: readonly string[], more = false): string {
+  const read = pages.map((t, i) => ({ n: i + 1, t: t.trim() })).filter((p) => !isScannedPage(p.t));
+  if (read.length === 0) return "";
+  const text = read.map((p) => `[page ${p.n}]\n${p.t}`).join("\n\n");
+  const cut = text.length > PDF_TEXT_CHARS;
+  const tail = cut || more ? "\n[The rest isn't kept here: look at the file again for it.]" : "";
+  return `The PDF's own text, which stays with you after the file is dropped:\n${cut ? text.slice(0, PDF_TEXT_CHARS) : text}${tail}`;
+}
+
+async function pdfText(bytes: Uint8Array): Promise<string> {
+  const doc = await openPdf(bytes);
+  try {
+    const n = Math.min(doc.numPages, PDF_TEXT_PAGES);
+    const pages: string[] = [];
+    for (let i = 1; i <= n; i++) pages.push(await doc.pageText(i));
+    return pdfWords(pages, doc.numPages > n);
+  } finally {
+    await doc.destroy();
+  }
+}
 
 async function filesOf(orgId: string, jobUuid: string): Promise<JobMediaItem[]> {
   const claims = await familyMediaSources(orgId, jobUuid).catch(() => []);
@@ -28,7 +60,7 @@ export async function jobFiles(orgId: string, jobUuid: string): Promise<JobFile[
   return (await filesOf(orgId, jobUuid)).map((f) => ({ id: f.remoteId, name: f.name, kind: f.kind === "photo" ? "photo" : "document", taken: f.takenAt, from: f.origin }));
 }
 
-export async function lookAt(orgId: string, jobUuid: string, id: string): Promise<MediaBlock[] | string> {
+export async function lookAt(orgId: string, jobUuid: string, id: string): Promise<(MediaBlock | TextBlock)[] | string> {
   const f = (await filesOf(orgId, jobUuid)).find((x) => x.remoteId === id);
   if (!f?.url) return "That file isn't on the job, or isn't here yet.";
   const res = await fetch(f.url).catch(() => null);
@@ -36,7 +68,11 @@ export async function lookAt(orgId: string, jobUuid: string, id: string): Promis
   const bytes = Buffer.from(await res.arrayBuffer());
   if (isPdf(f)) {
     if (bytes.length > MAX_PDF_BYTES) return "That PDF is too big to read whole.";
-    return [{ type: "document", source: { type: "base64", media_type: "application/pdf", data: bytes.toString("base64") } }];
+    const words = await pdfText(new Uint8Array(bytes)).catch(() => "");
+    return [
+      { type: "document", source: { type: "base64", media_type: "application/pdf", data: bytes.toString("base64") } },
+      ...(words ? [{ type: "text" as const, text: words }] : []),
+    ];
   }
   if (f.kind !== "photo" && !/image|jpe?g|png|webp|heic/i.test(f.fileType ?? "")) return "She can look at pictures and PDFs only.";
   const image = await imageForClaude(bytes, res.headers.get("content-type"));

@@ -1,4 +1,4 @@
-import { isText, isToolUse, replyCost, type Block, type Effort, type MediaBlock, type ModelCall, type Msg, type ToolDef, type ToolResultBlock } from "./model";
+import { isText, isToolUse, replyCost, type Block, type Effort, type MediaBlock, type ModelCall, type Msg, type TextBlock, type ToolDef, type ToolResultBlock } from "./model";
 
 /* ONE TURN OF TIFF'S SESSION (slice 4.1) — a person says something, she
    works until she's answered: reading, looking things up, changing lines,
@@ -32,7 +32,7 @@ export type SessionState = { messages: Msg[]; summary: string };
 
 /** What a tool did: its answer for the model, and what the thread says. */
 export type ToolOutcome =
-  | { ok: true; value: unknown; label: string; said?: string; event?: EventDraft; media?: MediaBlock[]; detail?: Record<string, unknown>; cost?: ToolCost }
+  | { ok: true; value: unknown; label: string; said?: string; event?: EventDraft; media?: (MediaBlock | TextBlock)[]; detail?: Record<string, unknown>; cost?: ToolCost }
   | { ok: false; error: string; label: string; cost?: ToolCost };
 /** What a tool spent on a call of its own (Research, 12.2): counted with hers. */
 export type ToolCost = { usd: number | null; model: string };

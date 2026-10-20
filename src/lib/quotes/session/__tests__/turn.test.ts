@@ -229,6 +229,22 @@ describe("a file she looks at", () => {
     expect(JSON.stringify(saves.at(-1)!.state.messages)).toContain("Plans.pdf");
   });
 
+  it("keeps the PDF's own text she was handed with it, once the file is gone", async () => {
+    const words = { type: "text" as const, text: "The PDF's own text, which stays with you after the file is dropped:\n[page 1]\nOption 1 $9,100.00" };
+    const model = scripted([
+      { content: [use("t1", "look_at", { id: "quote" })], stopReason: "tool_use" },
+      { content: [use("t2", "read_quote")], stopReason: "tool_use" },
+      { content: [text("Option 1 is $9,100.")], stopReason: "end_turn" },
+    ]);
+    const { d, saves } = deps(model, {
+      runTool: async (name): Promise<ToolOutcome> => (name === "look_at" ? { ok: true, value: { looking_at: "Quote #3421" }, media: [pdf, words], label: "Looked at" } : { ok: true, value: { lines: [] }, label: "Read the quote" }),
+    });
+    await runTurn({ messages: [], summary: "" }, "Add a linear zone option", d);
+    expect(holds(model.calls[2]!.messages)).toBe(false);
+    expect(JSON.stringify(model.calls[2]!.messages)).toContain("Option 1 $9,100.00");
+    expect(JSON.stringify(saves.at(-1)!.state.messages)).toContain("Option 1 $9,100.00");
+  });
+
   it("is dropped from a session saved holding one, before it's sent again", async () => {
     const stored: Msg[] = [
       { role: "user", content: [text("Quote off the plans")] },

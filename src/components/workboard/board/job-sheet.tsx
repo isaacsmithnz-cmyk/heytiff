@@ -2414,7 +2414,9 @@ export function JobSheet({
             name={detail?.clientName ?? row.clientName ?? "Unnamed client"}
             hue={jobHue(categoryColour, status.toLowerCase() === "unsuccessful")}
             facts={facts}
-            stage={stageWord(steps)}
+            /* not until the job is read: before it, the steps are a quote's
+               with nothing done, and the head said "Enquiry" on any job */
+            stage={detail ? stageWord(steps) : null}
             sm8Href={sm8Href}
             add={{ items: addItems, onPick: addPick, disabled: !cardId, onReach: askQuote }}
             actions={{ items: actionItems, onPick: actionPick }}

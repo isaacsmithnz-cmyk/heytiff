@@ -11694,8 +11694,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .jl-state .pt-state { font-size:14px; line-height:20px; max-width:100%; }
 .fg .jl-next { color:var(--q); }
 .fg .jl-who { flex-direction:row; align-items:center; justify-content:flex-start; }
-.fg .jl-discs { display:inline-flex; align-items:center; }
-.fg .jl-discs .pt-initials + .pt-initials { margin-left:-4px; box-shadow:0 0 0 2px var(--white); }
+/* everyone on the job, apart and readable (Isaac, 20 October: "AM, LJ and LM
+   are all kind of merged across"): three to a line, a second line under
+   when there are more */
+.fg .jl-discs { display:flex; flex-wrap:wrap; align-items:center; gap:4px; max-width:80px; }
 .fg .jl-value { align-items:flex-end; text-align:right; font-variant-numeric:tabular-nums; }
 
 /* ===== V2: CONVERSATIONS (v2, step 5; components/conversations, and the

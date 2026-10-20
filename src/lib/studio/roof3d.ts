@@ -25,7 +25,7 @@ export type RoofRect = {
   z1: number;
   /** the top of its walls, metres above the ground floor's level */
   base: number;
-  part: Pick<ReadRoofPart, "form" | "ridge" | "fallsTo" | "pitchDeg" | "overhangMm">;
+  part: Pick<ReadRoofPart, "form" | "ridge" | "fallsTo" | "pitchDeg" | "overhangMm"> & { existing?: boolean };
 };
 
 export const RAFTERS_AT = 0.6;
@@ -50,6 +50,12 @@ function frame(r: RoofRect) {
 
 const tanOf = (r: RoofRect) => Math.tan((Math.max(0, r.part.pitchDeg) * Math.PI) / 180);
 
+/* THE ROOF SITS ON ITS RAFTERS, AND THEY ON THE WALLS: at the wall line the
+   sheets are a rafter's depth (measured square to the slope) above the top
+   of the wall, never on it, or the ceiling joists, which sit on the wall
+   too, come up through the roof at a low eave (23 Hope St, 20 October). */
+export const seatOf = (r: RoofRect): number => (r.part.form === "flat" ? 0 : RAFTER.h / Math.cos(Math.atan(tanOf(r))) + 0.02);
+
 /** Which way a skillion climbs in v: true when its low side is at v0. */
 function lowAtV0(r: RoofRect): boolean {
   const f = r.part.fallsTo;
@@ -64,17 +70,18 @@ export function roofHeightAt(r: RoofRect, x: number, z: number): number {
   if (u < u0 - 1e-6 || u > u1 + 1e-6 || v < v0 - 1e-6 || v > v1 + 1e-6) return -Infinity;
   const t = tanOf(r);
   const half = (v1 - v0) / 2;
+  const base = r.base + seatOf(r);
   switch (r.part.form) {
     case "flat":
-      return r.base;
+      return base;
     case "skillion":
-      return r.base + (lowAtV0(r) ? v - v0 : v1 - v) * t;
+      return base + (lowAtV0(r) ? v - v0 : v1 - v) * t;
     case "gable":
-      return r.base + (half - Math.abs(v - (v0 + v1) / 2)) * t;
+      return base + (half - Math.abs(v - (v0 + v1) / 2)) * t;
     case "hip": {
       const fromSide = half - Math.abs(v - (v0 + v1) / 2);
       const fromEnd = Math.min(u - u0, u1 - u);
-      return r.base + Math.min(fromSide, fromEnd) * t;
+      return base + Math.min(fromSide, fromEnd) * t;
     }
   }
 }
@@ -99,7 +106,8 @@ export function roofMesh(r: RoofRect): { faces: Mesh; fills: Mesh } {
   const o = Math.max(0, r.part.overhangMm) / 1000;
   const half = (v1 - v0) / 2;
   const vm = (v0 + v1) / 2;
-  const base = r.base;
+  const wall = r.base;
+  const base = r.base + seatOf(r);
   const eave = base - o * t;
   switch (r.part.form) {
     case "flat": {
@@ -115,17 +123,21 @@ export function roofMesh(r: RoofRect): { faces: Mesh; fills: Mesh } {
       const top = base + width * t;
       quad(faces, at(u0 - o, eave, outLow), at(u1 + o, eave, outLow), at(u1 + o, top + o * t, outHigh), at(u0 - o, top + o * t, outHigh));
       /* the high wall, and the two ends climbing to it */
-      quad(fills, at(u0, base, highV), at(u1, base, highV), at(u1, top, highV), at(u0, top, highV));
-      tri(fills, at(u0, base, lowV), at(u0, base, highV), at(u0, top, highV));
-      tri(fills, at(u1, base, lowV), at(u1, base, highV), at(u1, top, highV));
+      quad(fills, at(u0, wall, highV), at(u1, wall, highV), at(u1, top, highV), at(u0, top, highV));
+      for (const u of [u0, u1]) {
+        quad(fills, at(u, wall, lowV), at(u, wall, highV), at(u, base, highV), at(u, base, lowV));
+        tri(fills, at(u, base, lowV), at(u, base, highV), at(u, top, highV));
+      }
       break;
     }
     case "gable": {
       const ridge = base + half * t;
       quad(faces, at(u0 - o, eave, v0 - o), at(u1 + o, eave, v0 - o), at(u1 + o, ridge, vm), at(u0 - o, ridge, vm));
       quad(faces, at(u0 - o, ridge, vm), at(u1 + o, ridge, vm), at(u1 + o, eave, v1 + o), at(u0 - o, eave, v1 + o));
-      tri(fills, at(u0, base, v0), at(u0, ridge, vm), at(u0, base, v1));
-      tri(fills, at(u1, base, v0), at(u1, ridge, vm), at(u1, base, v1));
+      for (const u of [u0, u1]) {
+        quad(fills, at(u, wall, v0), at(u, wall, v1), at(u, base, v1), at(u, base, v0));
+        tri(fills, at(u, base, v0), at(u, ridge, vm), at(u, base, v1));
+      }
       break;
     }
     case "hip": {
@@ -155,7 +167,8 @@ export function framingOf(r: RoofRect, raked: Raked = () => false): Member[] {
   const drop = RAFTER.h / 2 / cos + 0.02;
   const half = (v1 - v0) / 2;
   const vm = (v0 + v1) / 2;
-  const base = r.base;
+  /* the sheets' line: the rafters hang under it and stand on the wall */
+  const base = r.base + seatOf(r);
   const ys = (h: number) => h - drop;
   const span = (lo: number, hi: number, step: number) => {
     const n = Math.max(1, Math.floor((hi - lo) / step));
@@ -203,7 +216,7 @@ export function framingOf(r: RoofRect, raked: Raked = () => false): Member[] {
 
   /* ceiling joists, spanning the short way, except over a raked ceiling */
   const shortIsV = v1 - v0 <= u1 - u0;
-  const y = base + JOIST.h / 2;
+  const y = r.base + JOIST.h / 2;
   const [a0, a1, b0, b1] = shortIsV ? [u0, u1, v0, v1] : [v0, v1, u0, u1];
   for (const a of span(a0 + 0.05, a1 - 0.05, JOISTS_AT)) {
     /* walk across, keeping the stretches that aren't raked */

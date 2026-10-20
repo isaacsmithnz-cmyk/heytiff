@@ -311,7 +311,8 @@ export function sceneOf(doc: DesignDocument): Scene3D {
       .filter((x): x is { s: Space3D; rake: (typeof rakes)[number] } => !!x.rake);
     const rakedBoxes = rakedSpaces.map((x) => boxOf(x.s.pts)!);
     const isRaked = (x: number, z: number) => rakedBoxes.some((b) => x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1);
-    for (const r of rects.filter((q) => q.floorId === f.id))
+    /* an existing roof's timber isn't on the drawings and isn't ours to draw */
+    for (const r of rects.filter((q) => q.floorId === f.id && !q.part.existing))
       for (const m of framingOf(r, isRaked)) framing.push({ ...m, floorId: f.id });
     const flat = f.spaces
       .filter((s) => WALLED.has(s.kind) && s.kind !== "stair" && !rakedSpaces.some((x) => x.s === s))

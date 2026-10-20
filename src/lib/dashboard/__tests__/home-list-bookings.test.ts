@@ -79,7 +79,7 @@ describe("E-1: a won job's Book in", () => {
       const list = placeList(input({ wins: [fresh], caps }));
       expect(alertOf(list, `job:${JOB}`)!.verb).toEqual({
         label: "Book in",
-        door: { to: "href", href: `/dashboard/workboard?job=${JOB}` },
+        door: { to: "href", href: `/dashboard/jobs/${JOB}` },
       });
     }
   });
@@ -87,7 +87,7 @@ describe("E-1: a won job's Book in", () => {
   it("leaves the roll-up's Book on the board, whatever is offered (DECISIONS 10)", () => {
     const list = placeList(input({ wins: [fresh, older], caps: BOOKS }));
     const rollup = list.groups.flatMap((g) => g.rows).find((r) => r.id === "rollup:wins");
-    expect(rollup && rollup.kind === "rollup" && rollup.verb).toEqual({ label: "Book", door: { to: "href", href: "/dashboard/workboard" } });
+    expect(rollup && rollup.kind === "rollup" && rollup.verb).toEqual({ label: "Book", door: { to: "href", href: "/dashboard/schedule" } });
   });
 });
 
@@ -275,7 +275,7 @@ describe("E-10: where the deployment books nothing, the list is main's", () => {
       dot: "today",
       figure: null,
       door: { to: "job", remoteId: JOB },
-      verb: { label: "Book in", door: { to: "href", href: `/dashboard/workboard?job=${JOB}` } },
+      verb: { label: "Book in", door: { to: "href", href: `/dashboard/jobs/${JOB}` } },
     });
     expect(alerts(list).some((r) => r.id.startsWith("leftover:"))).toBe(false);
   });

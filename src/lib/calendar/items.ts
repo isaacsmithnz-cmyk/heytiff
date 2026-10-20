@@ -1,4 +1,5 @@
 import { auDayOf, fmtAuWeekdayDate, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { vehiclePageHref } from "@/lib/shell/links";
 import { expiryDue } from "@/lib/expiry-due";
 import type { OrgCredential } from "@/lib/org/credentials";
 import { readRepeatRule, repeatPhrase, repeatsFact } from "./repeat";
@@ -397,7 +398,7 @@ export function vehicleItems(rows: readonly VehicleExpiryRow[], today: string, w
            list's pull request opens; until then this opens the vehicle). */
         action: {
           label: `Renew ${what}`,
-          href: `/dashboard/assets?v=${encodeURIComponent(v.id)}&screen=${k}`,
+          href: vehiclePageHref(v.id),
         },
         overdue,
       });

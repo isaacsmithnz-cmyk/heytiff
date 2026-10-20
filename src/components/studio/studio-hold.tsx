@@ -3,7 +3,7 @@ import "./studio.css";
 /* What the Design Studio's route holds while its page is still on its way
    (app/dashboard/studio/loading.tsx): the dark, and nothing on it.
 
-   The dashboard's own fallback is the shell's light PageSkeleton, and the
+   The dashboard's own fallback is the shell's light page hold, and the
    Studio's start screen is dark: clicking Design used to paint a white
    skeleton on the light well, then snap to black when the page arrived. A
    dark skeleton was tried next and was wrong the other way — grey bars on a

@@ -8,17 +8,13 @@
 /** A person opens on their staff card. */
 export const staffHref = (id: string) => `/dashboard/team/${encodeURIComponent(id)}`;
 
-/** A job opens where its card lives: the Workboard, with its sheet up, found
-    in the board's window or past it (the page reads the whole mirror) — on
-    the face named, when one is. Inside the frame a link like this opens the
-    card where you are instead (components/records/record-link). */
-export const jobHref = (uuid: string, face?: string) =>
-  `/dashboard/workboard?job=${encodeURIComponent(uuid)}${face ? `&face=${encodeURIComponent(face)}` : ""}`;
+/** A job opens on its own page (the v2 audit, 20 October 2026: the
+    Workboard is retired), on the Quote section when the old card's Quote
+    face is named. */
+export const jobHref = (uuid: string, face?: string) => jobPageHref(uuid, face === "quote" ? "quote" : undefined);
 
 /** A job's own page (v2, step 5), on the section named — Overview when none
-    is. Beside `jobHref` rather than in its place: the board's rows, Tiff and
-    the old doors still open the card over the Workboard, and the tests that
-    assert those links stand until the board is rebuilt. */
+    is. */
 export const jobPageHref = (uuid: string, section?: string) =>
   `/dashboard/jobs/${encodeURIComponent(uuid)}${section && section !== "overview" ? `?tab=${encodeURIComponent(section)}` : ""}`;
 
@@ -29,12 +25,12 @@ export const jobPageHref = (uuid: string, section?: string) =>
 export const vehiclePageHref = (id: string, section?: string) =>
   `/dashboard/vehicles/${encodeURIComponent(id)}${section && section !== "overview" ? `?tab=${encodeURIComponent(section)}` : ""}`;
 
-/** A client has no page of their own: the Workboard's search, run on their
-    name, is every job, visit, project and photo that names them. */
-export const clientHref = (name: string) => `/dashboard/workboard?q=${encodeURIComponent(name)}`;
+/** A client has no page of their own: Jobs' search, run on their name, is
+    every job that names them. */
+export const clientHref = (name: string) => `/dashboard/jobs?q=${encodeURIComponent(name)}`;
 
-/** The projects, where a job is made a project (and so has a handover sheet). */
-export const projectsHref = "/dashboard/workboard/projects";
+/** The projects: Jobs' Projects view. */
+export const projectsHref = "/dashboard/jobs?view=projects";
 
 export const projectHref = (id: string) =>`/dashboard/workboard/projects/${encodeURIComponent(id)}`;
 

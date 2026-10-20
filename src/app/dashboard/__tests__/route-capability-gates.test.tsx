@@ -65,6 +65,8 @@ jest.mock("@/lib/tiff/backfill", () => ({ countUnembedded: () => countUnembedded
 jest.mock("@/components/workboard/overview-screen", () => ({ OverviewScreen: () => null }));
 jest.mock("@/lib/workboard/page-data", () => ({
   loadWorkboardPage: jest.fn(async () => ({ manage: false, connection: "none" })),
+  loadLinkedJob: jest.fn(async () => null),
+  linkedVisit: jest.fn(() => null),
 }));
 jest.mock("@/components/workboard/projects-screen", () => ({ ProjectsScreen: () => null }));
 jest.mock("@/components/workboard/project-detail-screen", () => ({
@@ -120,11 +122,9 @@ const LEAVES: [string, () => Promise<unknown>, string][] = [
   ["toolbox/outdoor-unit", OutdoorUnitPage, "toolbox"],
   ["toolbox/running-pressures", RunningPressuresPage, "toolbox"],
   ["toolbox/troubleshooting", TroubleshootingPage, "toolbox"],
-  ["tiff", TiffPage, "tiff"],
   ["tiff/library", LibraryPage, "tiff"],
-  // the page takes the URL's `?job=`; the gate must fire before it is read
-  ["workboard", () => WorkboardPage({ searchParams: Promise.resolve({}) }), "workboard"],
-  ["workboard/projects", WorkboardProjectsPage, "workboard"],
+  // only a visit still lands on the board; the gate must fire before it is read
+  ["workboard", () => WorkboardPage({ searchParams: Promise.resolve({ visit: "v-1" }) }), "workboard"],
 ];
 
 beforeEach(() => {
@@ -265,5 +265,25 @@ describe("the quote page", () => {
   it("sends someone without the Workboard away", async () => {
     (can as jest.Mock).mockImplementation(async () => false);
     await expect(WorkboardQuotePage({ params: Promise.resolve({ id: "x-1" }), searchParams: Promise.resolve({}) })).rejects.toThrow("REDIRECT:/dashboard");
+  });
+});
+
+/* THE RETIRED ADDRESSES (the v2 audit, 20 October 2026) land on their v2
+   homes, so no old link, bookmark or open tab reaches an old screen. */
+describe("retired → the v2 home", () => {
+  beforeEach(() => {
+    can.mockImplementation(async () => allowed);
+  });
+  const board = (q: Record<string, string>) => () => WorkboardPage({ searchParams: Promise.resolve(q) });
+  it.each<[string, () => unknown, string]>([
+    ["tiff", TiffPage, "/dashboard/conversations"],
+    ["workboard/projects", WorkboardProjectsPage, "/dashboard/jobs?view=projects"],
+    ["workboard", board({}), "/dashboard/jobs"],
+    ["workboard?job=", board({ job: "j-1" }), "/dashboard/jobs/j-1"],
+    ["workboard?job=&face=quote", board({ job: "j-1", face: "quote" }), "/dashboard/jobs/j-1?tab=quote"],
+    ["workboard?q=", board({ q: "Smith & Sons" }), "/dashboard/jobs?q=Smith%20%26%20Sons"],
+  ])("%s", async (_route, Page, to) => {
+    allowed = true;
+    await expect(Promise.resolve().then(Page)).rejects.toThrow(`REDIRECT:${to}`);
   });
 });

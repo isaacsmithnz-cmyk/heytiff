@@ -147,10 +147,10 @@ describe("open_record", () => {
       label: "Harbour Rd fit-out",
     });
     expect(await outcome(all, "open_record", { kind: "client", id: "c-1" })).toMatchObject({
-      href: "/dashboard/workboard?q=Meridian%20Data",
+      href: "/dashboard/jobs?q=Meridian%20Data",
     });
     expect(await outcome(all, "open_record", { kind: "job", id: "j-1" })).toMatchObject({
-      href: "/dashboard/workboard?job=j-1",
+      href: "/dashboard/jobs/j-1",
       label: "#1044 — Meridian Data",
     });
   });
@@ -181,7 +181,7 @@ describe("open_record", () => {
       const o = await outcome(all, "open_record", { kind, id });
       if (o.kind === "screen") moves.push(o.href);
     }
-    const record = /^\/dashboard\/(team\/[^/?]+|workboard\?(job|q)=[^&]+|workboard\/projects\/[^/?]+)$/;
+    const record = /^\/dashboard\/(team\/[^/?]+|jobs\/[^/?]+|jobs\?q=[^&]+|workboard\/projects\/[^/?]+)$/;
     for (const href of moves) expect(allowed.has(href) || record.test(href)).toBe(true);
     expect(moves.length).toBeGreaterThan(ALL_SCREENS.length - 2);
   });

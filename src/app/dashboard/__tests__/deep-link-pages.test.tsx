@@ -1,5 +1,5 @@
 /* The two pages the doors land on read their own address: `?v=` and
-   `?screen=` on Assets, `?visit=` on the Workboard. What the screens do with
+   `?screen=` on Assets (now only to send them on), `?visit=` on the Workboard. What the screens do with
    a link is pinned beside them (vehicle-link.test.tsx, overview-screen); this
    pins what each PAGE hands over, which is the half a screen test wiring its
    own props can never see break. */
@@ -8,10 +8,6 @@ const redirect = jest.fn((to: string) => {
   throw new Error(`REDIRECT:${to}`);
 });
 jest.mock("next/navigation", () => ({ redirect: (to: string) => redirect(to) }));
-
-const loadFleetPage = jest.fn();
-jest.mock("@/lib/fleet/page-data", () => ({ loadFleetPage: () => loadFleetPage() }));
-jest.mock("@/components/fleet/assets-screen", () => ({ AssetsScreen: () => null }));
 
 jest.mock("@/lib/permissions-server", () => ({ can: jest.fn(async () => true) }));
 const board = { board: { visits: [{ id: "vis-1" }] } };
@@ -24,55 +20,31 @@ jest.mock("@/lib/workboard/page-data", () => ({
 }));
 jest.mock("@/components/workboard/overview-screen", () => ({ OverviewScreen: () => null }));
 
+import { can } from "@/lib/permissions-server";
 import AssetsPage from "../assets/page";
 import WorkboardPage from "../workboard/page";
 
 type Search = Record<string, string | string[] | undefined>;
 const propsOf = async (page: Promise<unknown>) => ((await page) as { props: Record<string, unknown> }).props;
 
-describe("Assets hands the screen the vehicle and screen the address names", () => {
-  const assets = (search: Search) => propsOf(AssetsPage({ searchParams: Promise.resolve(search) }));
+/* Assets is retired (the v2 audit, 20 October 2026): its doors land on the
+   vehicle's own page, or on Team's Vehicles view. */
+describe("Assets sends its doors to the vehicle's own page", () => {
+  const assets = (search: Search) => AssetsPage({ searchParams: Promise.resolve(search) });
 
-  beforeEach(() => {
-    loadFleetPage.mockResolvedValue({
-      own: { vehicle: null, pickable: [], logs: [] },
-      register: { vehicles: [] },
-      today: "2026-09-25",
-      warnDays: 30,
-      viewerStaffId: null,
-    });
+  it("opens a named vehicle on its page, on Service for the old Log service door", async () => {
+    await expect(assets({ v: "v1", screen: "rego" })).rejects.toThrow("REDIRECT:/dashboard/vehicles/v1");
+    await expect(assets({ v: "v1", screen: "add:service" })).rejects.toThrow("REDIRECT:/dashboard/vehicles/v1?tab=service");
   });
 
-  it("reads a vehicle and the screen to open its card on", async () => {
-    expect((await assets({ v: "v1", screen: "rego" })).openVehicle).toEqual({ id: "v1", screen: "rego" });
-    expect((await assets({ v: "v1", screen: "add:service" })).openVehicle).toEqual({
-      id: "v1",
-      screen: "add:service",
-    });
-    expect((await assets({ v: "v1" })).openVehicle).toEqual({ id: "v1", screen: null });
-  });
-
-  it("opens the card on its main screen for a screen a link may not name", async () => {
-    for (const screen of ["financials", "log:l1", "add:fuel", "nonsense"])
-      expect((await assets({ v: "v1", screen })).openVehicle).toEqual({ id: "v1", screen: null });
-  });
-
-  it("names nothing without one vehicle, whatever the screen says", async () => {
-    expect((await assets({ screen: "rego" })).openVehicle).toBeNull();
-    expect((await assets({ v: "" })).openVehicle).toBeNull();
-    expect((await assets({ v: ["v1", "v2"] })).openVehicle).toBeNull();
-  });
-
-  it("hands a fresh object per render, so the screen can tell a naming from a re-render", async () => {
-    const a = (await assets({ v: "v1" })).openVehicle;
-    const b = (await assets({ v: "v1" })).openVehicle;
-    expect(a).toEqual(b);
-    expect(a).not.toBe(b);
+  it("lands on Team's Vehicles without one vehicle named", async () => {
+    await expect(assets({})).rejects.toThrow("REDIRECT:/dashboard/team?view=vehicles");
+    await expect(assets({ v: ["v1", "v2"] })).rejects.toThrow("REDIRECT:/dashboard/team?view=vehicles");
   });
 
   it("still sends someone without the register to their own vehicle", async () => {
-    loadFleetPage.mockResolvedValue({ own: {}, register: undefined });
-    await expect(assets({ v: "v1", screen: "rego" })).rejects.toThrow("REDIRECT:/dashboard/my-vehicle");
+    (can as jest.Mock).mockResolvedValueOnce(false);
+    await expect(assets({ v: "v1" })).rejects.toThrow("REDIRECT:/dashboard/my-vehicle");
   });
 });
 
@@ -93,10 +65,14 @@ describe("the Workboard hands the screen the visit the address names", () => {
     expect(props.openJob).toBeNull();
   });
 
-  it("hands over nothing for a visit the board doesn't hold, or none named", async () => {
+  it("hands over nothing for a visit the board doesn't hold", async () => {
     expect((await workboard({ visit: "vis-gone" })).openVisit).toBeNull();
-    expect((await workboard({})).openVisit).toBeNull();
-    expect((await workboard({ visit: ["vis-1", "vis-2"] })).openVisit).toBeNull();
+  });
+
+  /* the rest of the board is retired (the v2 audit, 20 October 2026) */
+  it("sends an address with no one visit to Jobs", async () => {
+    await expect(workboard({})).rejects.toThrow("REDIRECT:/dashboard/jobs");
+    await expect(workboard({ visit: ["vis-1", "vis-2"] })).rejects.toThrow("REDIRECT:/dashboard/jobs");
   });
 
   it("lets a job named in the same address win, and asks nothing about the visit", async () => {

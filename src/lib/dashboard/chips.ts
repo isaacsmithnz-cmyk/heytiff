@@ -533,7 +533,7 @@ export function expensesChip(pendingCount: number): ActionChip | null {
         ? "1 expense claim waiting on a decision"
         : `${pendingCount} expense claims waiting on a decision`,
     subject: "Expenses",
-    href: "/dashboard/timepay/expenses",
+    href: "/dashboard/team?view=expenses",
     urgency: urgency("warn", 0),
     due: null,
     ref: null,
@@ -766,7 +766,7 @@ export function leaveQueueChip(pendingCount: number): ActionChip | null {
         ? "1 leave request waiting on a decision"
         : `${pendingCount} leave requests waiting on a decision`,
     subject: "Leave",
-    href: "/dashboard/timepay/leave",
+    href: "/dashboard/team?view=leave",
     urgency: urgency("warn", 0),
     due: null,
     ref: null,

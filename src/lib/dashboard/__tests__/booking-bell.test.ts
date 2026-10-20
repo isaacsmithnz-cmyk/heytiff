@@ -213,7 +213,7 @@ describe("the presser's items", () => {
 
   it("opens the job's card where the line is, and files under the Workboard", () => {
     const chip = sm8BookingChip({ jobUuid: job(1), number: "5010", op: "notSent" });
-    expect(chip).toMatchObject({ kind: "sm8-booking", state: "bad", subject: "Job 5010", href: `/dashboard/workboard?job=${job(1)}` });
+    expect(chip).toMatchObject({ kind: "sm8-booking", state: "bad", subject: "Job 5010", href: `/dashboard/jobs/${job(1)}` });
     expect(chipGroup("sm8-booking")).toBe("Workboard");
   });
 });

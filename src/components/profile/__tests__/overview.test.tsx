@@ -149,7 +149,7 @@ describe("the head", () => {
     expect(jump).toHaveTextContent("ABC123");
     expect(jump.querySelector(".au-plate")).toHaveClass("lg");
     /* `?v=`, not a path segment: the app shell keys its outlet on pathname. */
-    expect(jump.getAttribute("href")).toBe("/dashboard/assets?v=v1");
+    expect(jump.getAttribute("href")).toBe("/dashboard/vehicles/v1");
   });
 
   /* Isaac's call, still: the card names the vehicle, it does not nag. */

@@ -524,8 +524,8 @@ describe("a row's door", () => {
   it("follows a vehicle to its card on the register, and Renew to its renewal", () => {
     draw(place({ chips: van({ regoDays: -8 }) }));
     const row = rowOf("Spare van, CY14FE");
-    expect(within(row).getByRole("link", { name: "Spare van, CY14FE" })).toHaveAttribute("href", "/dashboard/assets?v=v1");
-    expect(within(row).getByRole("link", { name: "Renew" })).toHaveAttribute("href", "/dashboard/assets?v=v1&screen=rego");
+    expect(within(row).getByRole("link", { name: "Spare van, CY14FE" })).toHaveAttribute("href", "/dashboard/vehicles/v1");
+    expect(within(row).getByRole("link", { name: "Renew" })).toHaveAttribute("href", "/dashboard/vehicles/v1");
     expect(row.querySelector(".hd-ls-sub")).toHaveClass("late");
   });
 
@@ -533,7 +533,7 @@ describe("a row's door", () => {
     const user = userEvent.setup();
     draw(place({ wins: [{ job: job(), wonOn: "2026-09-24" }] }));
     const row = rowOf("Job 3323, Randwick");
-    expect(within(row).getByRole("link", { name: "Book in" })).toHaveAttribute("href", "/dashboard/workboard?job=j1");
+    expect(within(row).getByRole("link", { name: "Book in" })).toHaveAttribute("href", "/dashboard/jobs/j1");
     expect(row.querySelector(".hd-ls-fig")).toHaveTextContent("$8,470");
     await user.click(within(row).getByRole("button", { name: "Job 3323, Randwick" }));
     // the row the list carries, not a second read of the mirror

@@ -67,8 +67,8 @@ describe("the page's address", () => {
     expect(jobPageHref("j/odd id", "photos")).toBe("/dashboard/jobs/j%2Fodd%20id?tab=photos");
   });
 
-  it("stands beside the card's own link, which the board still uses", () => {
-    expect(jobHref("a3539c01")).toBe("/dashboard/workboard?job=a3539c01");
+  it("is where the card's old link now opens (the Workboard is retired)", () => {
+    expect(jobHref("a3539c01")).toBe("/dashboard/jobs/a3539c01");
   });
 });
 

@@ -36,7 +36,7 @@ describe("the kinds", () => {
   });
 
   it("gives each its own address to send", () => {
-    expect(recordHref({ kind: "job", id: "j-1" })).toBe("/dashboard/workboard?job=j-1");
+    expect(recordHref({ kind: "job", id: "j-1" })).toBe("/dashboard/jobs/j-1");
     expect(recordHref({ kind: "visit", id: "v-1" })).toBe("/dashboard/workboard?visit=v-1");
     expect(recordHref({ kind: "agreement", id: "a-1" })).toBe("/dashboard/workboard?open=agreement.a-1");
   });

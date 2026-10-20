@@ -35,7 +35,7 @@ const chip = (over: Partial<ActionChip> = {}): ActionChip => ({
   state: "warn",
   label: "3 claims waiting",
   subject: "Expenses",
-  href: "/dashboard/timepay/expenses",
+  href: "/dashboard/team?view=expenses",
   urgency: 10_000,
   due: null,
   ref: null,
@@ -225,7 +225,7 @@ describe("the bell's own rows", () => {
       name: "Hilux, XQG41B",
       line: "Rego runs out today",
       lineTone: true,
-      act: { kind: "link", label: "Renew", href: "/dashboard/assets?v=v1&screen=rego" },
+      act: { kind: "link", label: "Renew", href: "/dashboard/vehicles/v1" },
     });
   });
 
@@ -268,7 +268,7 @@ describe("the old list's rows", () => {
     const list = listOf({ wins: [{ job: job(), wonOn: "2026-09-24" }] });
     const [row] = todoRows(input({ list }));
     expect(row).toMatchObject({ key: "job:j1", tone: "look", name: "Job 2380, Kingsford", act: { label: "Book in" } });
-    expect((row.act as { href: string }).href).toBe("/dashboard/workboard?job=j1");
+    expect((row.act as { href: string }).href).toBe("/dashboard/jobs/j1");
   });
 
   it("(F) a won job books in with the Visit form over Home where bookings are offered, its row on its Visits", () => {
@@ -319,7 +319,7 @@ describe("notices and timesheets", () => {
   });
 
   it("(F) timesheets sent in: Review, for an approver", () => {
-    expect(todoRows(input({ timesheets: 4 }))[0]).toMatchObject({ name: "Timesheets", line: "4 to approve", act: { label: "Review", href: "/dashboard/timepay" } });
+    expect(todoRows(input({ timesheets: 4 }))[0]).toMatchObject({ name: "Timesheets", line: "4 to approve", act: { label: "Review", href: "/dashboard/team?view=timesheets" } });
     expect(todoRows(input({ timesheets: 0 }))).toEqual([]);
   });
 });

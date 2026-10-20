@@ -338,7 +338,7 @@ describe("the palette finds clients and projects", () => {
 
     press("Enter");
     expect(close).toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith("/dashboard/workboard?q=Smith%20%26%20Sons");
+    expect(push).toHaveBeenCalledWith("/dashboard/jobs?q=Smith%20%26%20Sons");
   });
 
   it("opens a project on its own page", async () => {

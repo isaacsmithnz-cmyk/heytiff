@@ -126,7 +126,7 @@ describe("E-1: Book in on a won job", () => {
     draw(place());
     expect(within(rowOf("Job 3342, Testville")).getByRole("link", { name: "Book in" })).toHaveAttribute(
       "href",
-      `/dashboard/workboard?job=${JOB}`,
+      `/dashboard/jobs/${JOB}`,
     );
   });
 });

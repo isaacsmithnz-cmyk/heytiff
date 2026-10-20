@@ -523,17 +523,17 @@ describe("expiries", () => {
       }),
     );
     expect(find<ListAlertRow>(list, "chip:rego:v1")).toMatchObject({
-      door: { to: "href", href: "/dashboard/assets?v=v1" },
-      verb: { label: "Renew", door: { to: "href", href: "/dashboard/assets?v=v1&screen=rego" } },
+      door: { to: "href", href: "/dashboard/vehicles/v1" },
+      verb: { label: "Renew", door: { to: "href", href: "/dashboard/vehicles/v1" } },
     });
     expect(find<ListAlertRow>(list, "chip:insurance:v2").verb).toMatchObject({
       label: "Renew",
-      door: { href: "/dashboard/assets?v=v2&screen=insurance" },
+      door: { href: "/dashboard/vehicles/v2" },
     });
-    expect(find<ListAlertRow>(list, "chip:ctp:v2").verb).toMatchObject({ label: "Renew", door: { href: "/dashboard/assets?v=v2&screen=ctp" } });
+    expect(find<ListAlertRow>(list, "chip:ctp:v2").verb).toMatchObject({ label: "Renew", door: { href: "/dashboard/vehicles/v2" } });
     expect(find<ListAlertRow>(list, "chip:service:v3").verb).toMatchObject({
       label: "Log service",
-      door: { href: "/dashboard/assets?v=v3&screen=add:service" },
+      door: { href: "/dashboard/vehicles/v3?tab=service" },
     });
   });
 
@@ -627,14 +627,14 @@ describe("won jobs", () => {
       figure: "$8,470",
       dot: "today",
       door: { to: "job", remoteId: "fresh" },
-      verb: { label: "Book in", door: { to: "href", href: "/dashboard/workboard?job=fresh" } },
+      verb: { label: "Book in", door: { to: "href", href: "/dashboard/jobs/fresh" } },
     });
     const roll = rows(list, "tobook")[0] as ListRollupRow;
     expect(roll).toMatchObject({
       title: "2 more won jobs with no day",
       sub: "Oldest 3050 Oatley, won 2 months ago.",
       strong: "3050 Oatley",
-      verb: { label: "Book", door: { to: "href", href: "/dashboard/workboard" } },
+      verb: { label: "Book", door: { to: "href", href: "/dashboard/schedule" } },
       count: 2,
     });
     // oldest first inside, each its own door and Book in

@@ -565,7 +565,7 @@ describe("expensesChip", () => {
       kind: "expenses",
       state: "warn",
       label: "1 expense claim waiting on a decision",
-      href: "/dashboard/timepay/expenses",
+      href: "/dashboard/team?view=expenses",
     });
     expect(expensesChip(3)!.label).toBe("3 expense claims waiting on a decision");
   });
@@ -669,7 +669,7 @@ describe("leaveQueueChip", () => {
       kind: "leave-queue",
       state: "warn",
       label: "1 leave request waiting on a decision",
-      href: "/dashboard/timepay/leave",
+      href: "/dashboard/team?view=leave",
     });
     expect(leaveQueueChip(4)!.label).toBe("4 leave requests waiting on a decision");
   });

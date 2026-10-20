@@ -222,7 +222,7 @@ it("leads with the issue for whoever has to answer it, and records it as sorted"
   const card = screen.getByText("An issue was raised").closest(".sws-grp") as HTMLElement;
   expect(within(card).getByText("No anchor on the rear ridge")).toBeInTheDocument();
   expect(within(card).getByText(/^Dane Whitmore, Wed 16 Sept/)).toBeInTheDocument();
-  expect(within(card).getByRole("link", { name: "Open the job to revise the SWMS" })).toHaveAttribute("href", "/dashboard/workboard?job=job-1");
+  expect(within(card).getByRole("link", { name: "Open the job to revise the SWMS" })).toHaveAttribute("href", "/dashboard/jobs/job-1");
   /* above the briefing it is about */
   expect(card.compareDocumentPosition(screen.getByText("Before you start")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
@@ -292,7 +292,7 @@ it("keeps the in-charge words when someone else holds the phone", async () => {
 
 it("goes back to the job it came from", () => {
   render(<SwmsSignOn doc={doc()} me="dane" />);
-  expect(screen.getByRole("link", { name: "← Job #2601" })).toHaveAttribute("href", "/dashboard/workboard?job=job-1");
+  expect(screen.getByRole("link", { name: "← Job #2601" })).toHaveAttribute("href", "/dashboard/jobs/job-1");
 });
 
 it("says a sign-on a correction carried was given before it, without a version number", () => {

@@ -11,6 +11,11 @@ let data: Loaded = { assignable: [], desk: null };
 jest.mock("@/lib/dashboard/page-data", () => ({ loadDashboard: jest.fn(async () => data) }));
 jest.mock("@/components/notes/note-context", () => ({ NoteScopeScreen: () => null }));
 jest.mock("@/components/dashboard/home-desk", () => ({ DashboardDesk: () => null }));
+jest.mock("next/navigation", () => ({
+  redirect: (to: string) => {
+    throw new Error(`REDIRECT:${to}`);
+  },
+}));
 
 import DeskPage from "../desk/page";
 import { DashboardDesk } from "@/components/dashboard/home-desk";
@@ -35,22 +40,29 @@ it("(F) hands the desk the task the address names", async () => {
   expect(await deskFor({ task: T })).toMatchObject({ data, taskId: T, askId: null, face: null });
 });
 
-it("(F) hands the desk the ask, and the face, the address names", async () => {
+it("(F) hands the desk the ask, and the Diary, the address names", async () => {
   expect(await deskFor({ ask: T })).toMatchObject({ askId: T, taskId: null });
-  expect(await deskFor({ face: "calendar" })).toMatchObject({ face: "calendar" });
-  expect(await deskFor({ face: "tasks" })).toMatchObject({ face: "tasks" });
+  expect(await deskFor({ face: "diary" })).toMatchObject({ face: "diary", taskId: null, askId: null });
 });
 
-it("names nothing for anything that isn't an id or a face, or for none", async () => {
-  expect((await deskFor({ task: "../admin" })).taskId).toBeNull();
-  expect((await deskFor({ task: [T, T] })).taskId).toBeNull();
-  expect((await deskFor({ ask: "x" })).askId).toBeNull();
-  expect((await deskFor({ face: "bell" })).face).toBeNull();
-  expect(await deskFor({})).toMatchObject({ taskId: null, askId: null, face: null });
+it("names nothing for anything that isn't an id", async () => {
+  expect((await deskFor({ task: T, ask: "x" })).askId).toBeNull();
+  expect((await deskFor({ ask: T, task: "../admin" })).taskId).toBeNull();
+  expect((await deskFor({ ask: T, task: [T, T] })).taskId).toBeNull();
+});
+
+/* the rest of the desk is retired (the v2 audit, 20 October 2026): Home
+   took it, and its Calendar is Schedule */
+it("sends an address with no task, ask or Diary on to Home, the Calendar to Schedule", async () => {
+  await expect(DeskPage({ searchParams: Promise.resolve({}) })).rejects.toThrow("REDIRECT:/dashboard");
+  await expect(DeskPage({ searchParams: Promise.resolve({ face: "tasks" }) })).rejects.toThrow("REDIRECT:/dashboard");
+  await expect(DeskPage({ searchParams: Promise.resolve({ face: "bell" }) })).rejects.toThrow("REDIRECT:/dashboard");
+  await expect(DeskPage({ searchParams: Promise.resolve({ task: "../admin" }) })).rejects.toThrow("REDIRECT:/dashboard");
+  await expect(DeskPage({ searchParams: Promise.resolve({ face: "calendar" }) })).rejects.toThrow("REDIRECT:/dashboard/schedule");
 });
 
 it("keeps the capture's scope: the first names of who can be given a task", async () => {
-  const tree = (await DeskPage({ searchParams: Promise.resolve({}) })) as Tree;
+  const tree = (await DeskPage({ searchParams: Promise.resolve({ task: T }) })) as Tree;
   const scope = tree.props.children.find((c) => c && c.type === NoteScopeScreen)!;
   expect(scope.props.staffFirstNames).toEqual(["Dane"]);
 });

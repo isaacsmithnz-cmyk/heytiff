@@ -127,7 +127,7 @@ describe("vehicles", () => {
         ["Rego", "Runs out Tue 20 Oct 2026"],
         ["From", "Assets"],
       ],
-      action: { label: "Renew rego", href: "/dashboard/assets?v=v1&screen=rego" },
+      action: { label: "Renew rego", href: "/dashboard/vehicles/v1" },
       overdue: false,
     });
 
@@ -140,7 +140,7 @@ describe("vehicles", () => {
         ["Green slip", "Ran out Thu 17 Sept 2026"],
         ["From", "Assets"],
       ],
-      action: { label: "Renew green slip", href: "/dashboard/assets?v=v1&screen=ctp" },
+      action: { label: "Renew green slip", href: "/dashboard/vehicles/v1" },
       overdue: true,
     });
   });

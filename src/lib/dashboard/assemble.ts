@@ -1,4 +1,4 @@
-import { staffHref } from "@/lib/shell/links";
+import { staffHref, vehiclePageHref } from "@/lib/shell/links";
 import type { Capability } from "@/lib/permissions";
 import type { Vehicle, VehicleWithFacts } from "@/components/fleet/logic";
 import {
@@ -236,7 +236,7 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
       team.push(
         ...vehicleChips(v, {
           subject: vehicleLabel(v),
-          href: `/dashboard/assets?v=${encodeURIComponent(v.id)}`,
+          href: vehiclePageHref(v.id),
           warnDays: src.warnDays,
           today: src.today,
         }),

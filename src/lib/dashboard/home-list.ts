@@ -36,7 +36,7 @@
    phase 3, PR E). Where the deployment books nothing, not one of these is
    handed in, and the list is exactly what it was. */
 
-import { jobHref, staffHref, visitHref } from "@/lib/shell/links";
+import { jobHref, staffHref, vehiclePageHref, visitHref } from "@/lib/shell/links";
 import { daysUntil, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { expiryDue } from "@/lib/expiry-due";
 import { fmtKm } from "@/components/fleet/logic";
@@ -406,8 +406,6 @@ function chipSub(chip: ActionChip, when: ExpiryWhen, due: string | null): string
 
 /* ── doors ── */
 
-const enc = encodeURIComponent;
-
 function chipDoor(chip: ActionChip, caps: ListCaps): Door {
   const ref = chip.ref;
   const sec = chip.kind === "work-rights" ? "workrights" : "licences";
@@ -417,7 +415,7 @@ function chipDoor(chip: ActionChip, caps: ListCaps): Door {
       /* The register's card for anyone who holds the register; your own van
          on My vehicle for anyone who doesn't. */
       return caps.assetsAll
-        ? { to: "href", href: `/dashboard/assets?v=${enc(ref.id)}` }
+        ? { to: "href", href: vehiclePageHref(ref.id) }
         : { to: "href", href: chip.href };
     case "self":
       return { to: "href", href: `/dashboard/profile?sec=${sec}` };
@@ -428,17 +426,17 @@ function chipDoor(chip: ActionChip, caps: ListCaps): Door {
   }
 }
 
-/** Renew and Log service land on the vehicle card's own screen, and only for
+/** Renew lands on the vehicle's own page and Log service on its Service
+    section (the v2 audit, 20 October 2026), and only for
     someone who holds the register — without it a renewal cannot be recorded.
     A person's paper and the business's carry no verb: it would land exactly
     where the row does. */
 function chipVerb(chip: ActionChip, caps: ListCaps): Verb | null {
   const ref = chip.ref;
   if (ref?.kind !== "vehicle" || !caps.assetsAll) return null;
-  const at = `/dashboard/assets?v=${enc(ref.id)}`;
-  if (chip.kind === "service") return { label: "Log service", door: { to: "href", href: `${at}&screen=add:service` } };
+  if (chip.kind === "service") return { label: "Log service", door: { to: "href", href: vehiclePageHref(ref.id, "service") } };
   if (chip.kind === "rego" || chip.kind === "insurance" || chip.kind === "ctp")
-    return { label: "Renew", door: { to: "href", href: `${at}&screen=${chip.kind}` } };
+    return { label: "Renew", door: { to: "href", href: vehiclePageHref(ref.id) } };
   return null;
 }
 
@@ -730,7 +728,7 @@ export function placeList(input: ListInput): HomeList {
       title: `${n}${freshWins.length ? " more" : ""} won ${n === 1 ? "job" : "jobs"} with no day`,
       sub: `Oldest ${short}, won ${agoLabel(oldest.age)}.`,
       strong: short,
-      verb: { label: "Book", door: { to: "href", href: "/dashboard/workboard" } },
+      verb: { label: "Book", door: { to: "href", href: "/dashboard/schedule" } },
       rows: olderWins.map((w) => jobRow(w, false)),
       count: n,
     });

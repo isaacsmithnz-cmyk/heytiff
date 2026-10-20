@@ -192,6 +192,6 @@ describe("Make a document", () => {
     expect(push).toHaveBeenCalledWith("/dashboard/admin/letters/new");
     fireEvent.click(screen.getByRole("button", { name: /Make a document/ }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Handover sheet" }));
-    expect(push).toHaveBeenCalledWith("/dashboard/workboard/projects");
+    expect(push).toHaveBeenCalledWith("/dashboard/jobs?view=projects");
   });
 });

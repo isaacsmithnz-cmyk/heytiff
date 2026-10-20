@@ -105,6 +105,9 @@ import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
 import type { LibraryManifest } from "@/lib/studio/packs/library";
 import { Button } from "@/components/parts/button";
 import { AskTiffPill } from "@/components/notes/tiff-button";
+import Link from "next/link";
+import { openInTab, subscribeTabs, tabsServerSnapshot, tabsSnapshot } from "@/components/shell/open-tabs";
+import { jobPageHref } from "@/lib/shell/links";
 import { aDialogHasTheKeys } from "@/lib/studio/keys";
 import { useNoteScopeScreen } from "@/components/notes/note-context";
 import { TIFF_APPLY, type TiffApply } from "@/lib/brain/ask-client";
@@ -818,6 +821,26 @@ function newDesignFor(name: string, mode: "plan" | "blank", job?: JobPrefill): D
 }
 
 /* ═════════════ Editor ═════════════ */
+
+/** Back to the design's job: its tab if one holds it, else a new tab, so
+    the design keeps this one (Isaac, 21 October 2026: "open job and new tab
+    button… so that you can quickly go back to the job if there isn't a tab
+    already open for it"). */
+function OpenJob({ jobUuid, jobNumber }: { jobUuid: string; jobNumber: string | null }) {
+  const { tabs } = useSyncExternalStore(subscribeTabs, tabsSnapshot, tabsServerSnapshot);
+  const href = jobPageHref(jobUuid);
+  /* the tab that holds the job goes on holding it, on the section it was left on */
+  const held = tabs.find((t) => !t.blank && t.href.split("?")[0] === href);
+  return (
+    <Link
+      href={held?.href ?? href}
+      className="ds-save ds-reading-open"
+      onClick={() => void openInTab(href, `${window.location.pathname}${window.location.search}`)}
+    >
+      {jobNumber ? `Open job ${jobNumber}` : "Open the job"}
+    </Link>
+  );
+}
 
 function Editor({
   doc,
@@ -1536,6 +1559,9 @@ function Editor({
                 }))
               }
             />
+            {/* back to the job (Isaac, 21 October 2026): its tab if one holds
+                it, else a new tab, so the design keeps this one */}
+            {doc.jobLink && <OpenJob jobUuid={doc.jobLink.remoteId} jobNumber={doc.jobLink.jobNumber} />}
             {/* Save status rides under the title — off the bar's width budget.
 
                 When the server save has FAILED the label becomes the button:

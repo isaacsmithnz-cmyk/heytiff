@@ -47,6 +47,7 @@ export function QualificationsCard({
       variant={group ? "group" : "card"}
       title={group?.title ?? "Other qualifications"}
       editLabel={group?.editLabel}
+      lead={group?.lead}
       values={values}
       onSave={(fields) => onSave("licences", fields)}
       validate={(fields) => preValidate(mode, "licences", fields)}

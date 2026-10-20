@@ -418,6 +418,8 @@ describe("surfaces.css", () => {
   const ALLOWED = new Set([
     "ink", "white", "q", "line", "edge", "sel", "hov", "soft", "scrim", "shadow-overlay", "ring", "ring-ink",
     "r-control", "r-button", "r-card", "t-fast", "t-move", "ease", "z-modal", "z-toast", "font",
+    // a section tab's word in its state (rule 31): amber, red when wrong
+    "orange-w", "red-w",
   ]);
 
   it("writes no colour of its own: no hex, no rgb, no named colour", () => {

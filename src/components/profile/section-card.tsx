@@ -1,5 +1,6 @@
 "use client";
 
+import type { Hue } from "@/components/parts/state";
 import { createContext, useContext, useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { Icon } from "@/components/shell/icon";
 import type { PreValidation } from "@/lib/staff/pre-validate";
@@ -70,7 +71,22 @@ export type SectionVariant = "section" | "card" | "group";
 
 /** A card drawn as a titled group on a page of several (Team's person page):
     its title, and its Edit's own words. */
-export type GroupHead = { title: string; editLabel?: string };
+export type GroupHead = {
+  title: string;
+  editLabel?: string;
+  /** a mark before the title: the person page's section icons, each in its colour */
+  lead?: ReactNode;
+};
+
+/** A group's mark on the person page: one of the app's icons drawn in its
+    hue's word value, with nothing behind it (Isaac, 20 October). */
+export function GroupIcon({ name, hue }: { name: string; hue: Hue }) {
+  return (
+    <span className={`tm2-ic tm2-ic--${hue}`} aria-hidden="true">
+      <Icon name={name} size={20} />
+    </span>
+  );
+}
 
 /* WHERE A FORM GOES WHEN IT IS FINISHED WITH. The staff card has no tabs any
    more (2026-09-29): its sections open from the Overview's cards, straight
@@ -103,6 +119,7 @@ export function SectionCard({
   focusField,
   editLabel,
   headExtra,
+  lead,
 }: {
   title: string;
   sub?: string;
@@ -153,6 +170,8 @@ export function SectionCard({
   /** "group" only: another door on the group's head, before its Edit
       (Work rights' Record a check). Hidden while the group is being edited. */
   headExtra?: ReactNode;
+  /** "group" only: a mark before the title (GroupHead's `lead`) */
+  lead?: ReactNode;
 }) {
   const [draft, setDraft] = useState<Record<string, string> | null>(() =>
     startEditing && editable ? { ...values } : null
@@ -237,7 +256,10 @@ export function SectionCard({
         className={["pdlcard", "psec-group", saving ? "saving" : "", className ?? ""].filter(Boolean).join(" ")}
       >
         <div className="pdlh jump">
-          <span>{title}</span>
+          <span>
+            {lead}
+            {title}
+          </span>
           {pill}
           {(editable || headExtra) && (
             <span className="acts">
@@ -376,6 +398,7 @@ export function StaticCard({
   pill,
   variant = "card",
   headExtra,
+  lead,
   children,
 }: {
   title: string;
@@ -386,13 +409,18 @@ export function StaticCard({
   variant?: SectionVariant;
   /** "group" only: a door on the group's head */
   headExtra?: ReactNode;
+  /** "group" only: a mark before the title */
+  lead?: ReactNode;
   children: ReactNode;
 }) {
   if (variant === "group") {
     return (
       <div className="pdlcard psec-group" data-static>
         <div className="pdlh jump">
-          <span>{title}</span>
+          <span>
+            {lead}
+            {title}
+          </span>
           {pill}
           {headExtra && <span className="acts">{headExtra}</span>}
         </div>

@@ -6,7 +6,7 @@ import type { AssignedVehicle, PermissionsCtx } from "@/components/profile/types
 import type { StaffLicence } from "@/lib/staff/types";
 import { TODAY, header as baseHeader, jordan, okActions } from "@/components/profile/__tests__/fixtures/staff";
 
-/* TEAM, A PERSON (v2): one page, an Edit per group, every section of
+/* TEAM, A PERSON (v2): five tabs, an Edit per group, every section of
    today's staff card and its gates. What the old card and the directory's
    row menu did is checked here where it now lives: Deactivate asks then
    writes the status, Reactivate is one press, Delete only on a card the
@@ -131,6 +131,7 @@ function setup(over: Partial<PersonPageData> = {}) {
 }
 
 const group = (name: string) => screen.getAllByText(name, { selector: ".pdlh span, .pdlh span *" })[0].closest(".pdlcard") as HTMLElement;
+const go = async (user: ReturnType<typeof userEvent.setup>, tab: string) => user.click(screen.getByRole("tab", { name: new RegExp(`^${tab}`) }));
 
 describe("the head", () => {
   it("names them, says what they do and since when, and offers Actions", () => {
@@ -146,34 +147,92 @@ describe("the head", () => {
   });
 });
 
-describe("the groups, one page, an Edit each", () => {
-  it("draws every group today's card has, in three columns", () => {
+describe("the tabs", () => {
+  it("has five, no numbers on them, Pay only with `financials`", () => {
     setup({ payroll: { hourly_wage: 42 } });
-    for (const name of ["Details", "Emergency", "Licences and tickets", "Qualifications", "Normal week", "Regular days off", "Leave", "Work rights", "Vehicle", "Pay", "Access", "Notes about Jordy"])
-      expect(group(name)).toBeInTheDocument();
-    expect(document.querySelectorAll(".tm2-col")).toHaveLength(3);
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Overview", "Hours & leave", "Papers, something to look at", "Pay", "Access"]);
+    cleanup();
+    setup({ payroll: null });
+    expect(screen.queryByRole("tab", { name: "Pay" })).toBeNull();
   });
 
-  it("edits Details in place, through the personal section's save", async () => {
+  it("colours a tab's word when something on it needs a look, and red when something is wrong", () => {
+    setup({ leave: { annual: null, personal: null, coming: [] } });
+    expect(screen.getByRole("tab", { name: /^Hours & leave/ })).toHaveClass("pt-stab--look");
+    // the ARC licence runs out inside the window, and no right to work is on record
+    expect(screen.getByRole("tab", { name: /^Papers/ })).toHaveClass("pt-stab--look");
+    expect(screen.getByRole("tab", { name: "Overview" })).not.toHaveClass("pt-stab--look");
+    cleanup();
+    setup({ licences: [{ ...LICENCES[0]!, expiryDate: "2026-07-01" }], profile: { ...jordan, emergency_phone: null } });
+    expect(screen.getByRole("tab", { name: /^Papers/ })).toHaveClass("pt-stab--wrong");
+    expect(screen.getByRole("tab", { name: /^Overview/ })).toHaveClass("pt-stab--look");
+  });
+
+  it("opens on the tab Home's door names", () => {
+    setup({ initialSec: "licences" });
+    expect(screen.getByRole("tab", { name: /^Papers/ })).toHaveAttribute("aria-selected", "true");
+    expect(group("Licences and tickets")).toBeInTheDocument();
+  });
+});
+
+describe("Overview", () => {
+  it("draws Name, Contact, Employment, Uniform and the notes, each a group with its own Edit", () => {
+    setup();
+    for (const name of ["Name", "Contact", "Employment", "Uniform", "Notes about Jordy", "Emergency contact"]) expect(group(name)).toBeInTheDocument();
+    expect(within(group("Name")).getByText("Goes by")).toBeInTheDocument();
+    expect(within(group("Contact")).getByText("Date of birth")).toBeInTheDocument();
+  });
+
+  it("edits Contact in place, through the personal section's save", async () => {
     const { user, actions } = setup();
-    await user.click(within(group("Details")).getByRole("button", { name: "Edit details" }));
+    await user.click(within(group("Contact")).getByRole("button", { name: /^Edit/ }));
     const mobile = screen.getByRole("textbox", { name: /Mobile/ });
     await user.clear(mobile);
     await user.type(mobile, "0414 222 871");
-    await user.click(within(group("Details")).getByRole("button", { name: /Save/ }));
+    await user.click(within(group("Contact")).getByRole("button", { name: /Save/ }));
     expect(actions.onSave).toHaveBeenCalledWith("personal", expect.objectContaining({ phone: "0414 222 871" }));
     // the page stays: the group is back to reading, and the others never moved
-    expect(within(group("Details")).getByRole("button", { name: "Edit details" })).toBeInTheDocument();
+    expect(within(group("Contact")).getByRole("button", { name: /^Edit/ })).toBeInTheDocument();
   });
 
-  it("reads the emergency contact as rows, not the plastic card", () => {
-    setup();
-    expect(within(group("Emergency")).getByText("Sarah Mills")).toBeInTheDocument();
-    expect(within(group("Emergency")).getByRole("button", { name: "Edit emergency contact" })).toBeInTheDocument();
+  it("puts the emergency contact first beside them, the name large, what's missing in amber", () => {
+    setup({ profile: { ...jordan, emergency_relationship: null } });
+    const ice = group("Emergency contact");
+    expect(within(ice).getByText("Sarah Mills")).toHaveClass("tm2-ename");
+    expect(within(ice).getByRole("link", { name: "0411 111 111" })).toHaveAttribute("href", "tel:0411111111");
+    expect(within(ice).getByText("Not set").closest(".pt-state")).toHaveClass("pt-state--look");
+    expect(within(ice).getByRole("button", { name: "Edit Emergency contact" })).toBeInTheDocument();
   });
 
-  it("lists licences in words, with Renew licence only on one running out", () => {
+  it("reads where the papers, the vehicle, the week and leave stand, a row each", () => {
     setup();
+    const rail = screen.getByRole("complementary");
+    expect(within(rail).getByText("1 running out").closest(".pt-state")).toHaveClass("pt-state--look");
+    expect(within(rail).getByText("Not recorded")).toBeInTheDocument();
+    expect(within(rail).getByRole("link", { name: "Hilux XQG 41B" })).toHaveAttribute("href", "/dashboard/vehicles/v1");
+    expect(within(rail).getByText("84,210 km, service at 90,000 km")).toBeInTheDocument();
+    expect(within(rail).getByText("40 h, Mon to Fri")).toBeInTheDocument();
+    expect(within(rail).getByText("112.4 h annual")).toBeInTheDocument();
+  });
+
+  it("says when leave balances aren't set, and Set goes to them", async () => {
+    const { user } = setup({ leave: { annual: null, personal: null, coming: [] } });
+    const rail = screen.getByRole("complementary");
+    expect(within(rail).getByText("Balances not set").closest(".pt-state")).toHaveClass("pt-state--look");
+    await user.click(within(rail).getByRole("button", { name: "Set" }));
+    expect(screen.getByRole("tab", { name: /^Hours & leave/ })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("has no notes on your own page", () => {
+    setup({ isSelf: true, notes: null });
+    expect(screen.queryByText(/Notes about/)).toBeNull();
+  });
+});
+
+describe("Papers", () => {
+  it("lists licences in words, with Renew licence only on one running out", async () => {
+    const { user } = setup();
+    await go(user, "Papers");
     const lics = group("Licences and tickets");
     expect(within(lics).getByText("L148820, runs out 10 Aug 2026").closest(".pt-state")).toHaveClass("pt-state--look");
     expect(within(lics).getByText("Current to 4 Jun 2027").closest(".pt-state")).toHaveClass("pt-state--good");
@@ -182,59 +241,67 @@ describe("the groups, one page, an Edit each", () => {
     expect(within(lics).getByRole("button", { name: "Add a licence" })).toBeInTheDocument();
   });
 
-  it("puts Record a check on Work rights, opening the checks", async () => {
+  it("puts Update on Work rights, opening the checks", async () => {
     const { user } = setup();
-    await user.click(within(group("Work rights")).getByRole("button", { name: "Record a check" }));
+    await go(user, "Papers");
+    await user.click(within(group("Work rights")).getByRole("button", { name: "Update" }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
-  it("shows the vehicle they drive, read-only, with the way to it", () => {
-    setup();
-    const v = group("Vehicle");
-    expect(within(v).getByText("Hilux XQG 41B")).toBeInTheDocument();
-    expect(within(v).getByText("84,210 km")).toBeInTheDocument();
-    expect(within(v).getByText("At 90,000 km")).toBeInTheDocument();
-    expect(within(v).getByRole("link", { name: "Open the vehicle" })).toHaveAttribute("href", "/dashboard/vehicles/v1");
+  it("draws Signature on your own page only", async () => {
+    const { user } = setup();
+    await go(user, "Papers");
+    expect(screen.queryByRole("region", { name: "Signature" })).toBeNull();
+    cleanup();
+    const own = setup({ isSelf: true, notes: null });
+    await go(own.user, "Papers");
+    expect(screen.getByRole("region", { name: "Signature" })).toBeInTheDocument();
   });
+});
 
-  it("keeps pay hidden until Show pay, and leaves it out without `financials`", async () => {
+describe("Pay and Access", () => {
+  it("keeps pay hidden until Show pay", async () => {
     const { user } = setup({ payroll: { hourly_wage: 42.5, pay_basis: "hourly" } });
+    await go(user, "Pay");
     expect(screen.queryByText(/42\.5/)).toBeNull();
     await user.click(within(group("Pay")).getByRole("button", { name: "Show pay" }));
     expect(within(group("Pay")).getByRole("button", { name: "Edit pay" })).toBeInTheDocument();
   });
 
-  it("has no Pay group for a reader without `financials`", () => {
-    setup({ payroll: null });
-    expect(screen.queryByText("Pay", { selector: ".pdlh span" })).toBeNull();
+  it("groups the switches under the places they open, in the sidebar's words", async () => {
+    const { user } = setup();
+    await go(user, "Access");
+    const access = group("Access");
+    for (const g of ["Jobs, Schedule and Documents", "Library and Design", "Team"]) expect(within(access).getByRole("region", { name: g })).toBeInTheDocument();
+    expect(access).not.toHaveTextContent(/Workboard/);
+    expect(within(within(access).getByRole("region", { name: "Library and Design" })).getByText("Toolbox")).toBeInTheDocument();
   });
 
-  it("has no notes on your own page, and no Leave without Time & Pay", () => {
-    setup({ isSelf: true, notes: null, leave: null });
-    expect(screen.queryByText(/Notes about/)).toBeNull();
-    expect(screen.queryByText("Leave", { selector: ".pdlh span" })).toBeNull();
-    expect(screen.getByRole("region", { name: "Signature" })).toBeInTheDocument();
-  });
-
-  it("draws Signature on your own page only", () => {
-    setup();
-    expect(screen.queryByRole("region", { name: "Signature" })).toBeNull();
+  it("chooses the role from a drop-down while editing", async () => {
+    const { user } = setup();
+    await go(user, "Access");
+    await user.click(within(group("Access")).getByRole("button", { name: "Edit access" }));
+    await user.click(screen.getByRole("combobox", { name: "Role" }));
+    expect(screen.getByRole("option", { name: /Admin/ })).toBeInTheDocument();
   });
 });
 
 describe("Normal week", () => {
-  it("lays the days across with their hours, and the times under them", () => {
-    setup();
+  it("lays the days across with their hours, and the times under them", async () => {
+    const { user } = setup();
+    await go(user, "Hours");
     const week = group("Normal week");
     expect(within(week).getAllByText("8")).toHaveLength(5);
     expect(within(week).getByText(/7:00 am to 3:30 pm, 30 minute unpaid break, 40 hours/)).toBeInTheDocument();
   });
 
   it("is changed only by its owner, through their own hours", async () => {
-    setup();
+    const first = setup();
+    await go(first.user, "Hours");
     expect(within(group("Normal week")).queryByRole("button", { name: "Edit hours" })).toBeNull();
     cleanup();
     const { user } = setup({ isSelf: true, notes: null });
+    await go(user, "Hours");
     await user.click(within(group("Normal week")).getByRole("button", { name: "Edit hours" }));
     await user.click(screen.getByRole("button", { name: "Friday" }));
     await user.click(screen.getByRole("button", { name: "Save hours" }));
@@ -244,6 +311,7 @@ describe("Normal week", () => {
 
   it("switches Counts toward the schedule by itself, through the crew's own save", async () => {
     const { user } = setup();
+    await go(user, "Hours");
     await user.click(screen.getByRole("switch", { name: "Counts toward the schedule" }));
     expect(setScheduleCapacity).toHaveBeenCalledWith([{ staffUuid: "sm8-1", included: false, dailyMinutes: 480 }]);
   });
@@ -251,21 +319,25 @@ describe("Normal week", () => {
   it("puts the switch back and says why when the save is refused", async () => {
     setScheduleCapacity.mockResolvedValue({ ok: false, error: "You can't change the crew." });
     const { user } = setup();
+    await go(user, "Hours");
     const sw = screen.getByRole("switch", { name: "Counts toward the schedule" });
     await user.click(sw);
     expect(await screen.findByText("You can't change the crew.")).toBeInTheDocument();
     expect(sw).toHaveAttribute("aria-checked", "true");
   });
 
-  it("reads the crew row without `workboard_manage`, and says when they aren't linked", () => {
-    setup({ canManageCrew: false });
+  it("reads the crew row without `workboard_manage`, and says when they aren't linked", async () => {
+    const a = setup({ canManageCrew: false });
+    await go(a.user, "Hours");
     expect(screen.getByRole("switch", { name: "Counts toward the schedule" })).toBeDisabled();
     expect(screen.getByText("8 hours a day")).toBeInTheDocument();
     cleanup();
-    setup({ crew: null, linkedToSm8: false });
+    const b = setup({ crew: null, linkedToSm8: false });
+    await go(b.user, "Hours");
     expect(screen.getByText(/Not linked to anyone in ServiceM8/)).toBeInTheDocument();
     cleanup();
-    setup({ crew: null, showCrew: false });
+    const c = setup({ crew: null, showCrew: false });
+    await go(c.user, "Hours");
     expect(screen.queryByRole("switch")).toBeNull();
   });
 });
@@ -273,6 +345,7 @@ describe("Normal week", () => {
 describe("Regular days off", () => {
   it("lists the rules in words, and Edit opens the form", async () => {
     const { user } = setup();
+    await go(user, "Hours");
     const rdo = group("Regular days off");
     expect(within(rdo).getByText("TAFE")).toBeInTheDocument();
     expect(within(rdo).getByText("Every Wednesday")).toBeInTheDocument();
@@ -282,8 +355,9 @@ describe("Regular days off", () => {
 });
 
 describe("Leave", () => {
-  it("shows what's available, and what's coming up", () => {
-    setup();
+  it("shows what's available, and what's coming up", async () => {
+    const { user } = setup();
+    await go(user, "Hours");
     const lv = group("Leave");
     expect(within(lv).getByText("112.4 hours")).toBeInTheDocument();
     expect(within(lv).getByText("46 hours")).toBeInTheDocument();
@@ -292,6 +366,7 @@ describe("Leave", () => {
 
   it("sets a changed entitlement through the team's own action, and only with `team`", async () => {
     const { user } = setup();
+    await go(user, "Hours");
     await user.click(within(group("Leave")).getByRole("button", { name: "Edit balances" }));
     const annual = screen.getByRole("spinbutton", { name: /Annual entitlement/ });
     await user.clear(annual);
@@ -300,7 +375,8 @@ describe("Leave", () => {
     expect(setLeaveBalance).toHaveBeenCalledTimes(1);
     expect(setLeaveBalance).toHaveBeenCalledWith({ staffProfileId: "p1", kind: "annual", balanceHours: 152 });
     cleanup();
-    setup({ canSetBalances: false });
+    const again = setup({ canSetBalances: false });
+    await go(again.user, "Hours");
     expect(within(group("Leave")).queryByRole("button", { name: "Edit balances" })).toBeNull();
   });
 });

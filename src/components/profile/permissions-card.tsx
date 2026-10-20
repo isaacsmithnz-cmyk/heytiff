@@ -1,9 +1,10 @@
 "use client";
 
 import { Icon } from "@/components/shell/icon";
+import { Chooser } from "@/components/parts/chooser";
 import type { Capability } from "@/lib/permissions";
 import { ROLE_COPY, ROLE_ORDER, type Role } from "@/lib/roles-shared";
-import { SectionCard, StaticCard, type GroupHead, type SectionBodyContext } from "./section-card";
+import { GroupIcon, SectionCard, StaticCard, type GroupHead, type SectionBodyContext } from "./section-card";
 import { Detail, DetailPanel, DetailPanels } from "./detail";
 import type { PermissionsCtx, SaveSection } from "./types";
 
@@ -24,24 +25,33 @@ const ROLES: [Role, string, string, string][] = ROLE_ORDER.map((r) => [
   ROLE_DOT[r],
 ]);
 
-/* Labels say "everyone's" where the capability gates the team-wide view only —
-   revoking it never touches the person's own timesheet or own vehicle, which
-   are intrinsic. */
+/* In the sidebar's words (v2, Isaac, 20 October): what each grant opens,
+   named after the place it opens. Labels say "everyone's" where the
+   capability gates the team-wide view only: revoking it never touches the
+   person's own timesheet or own vehicle, which are intrinsic. */
 export const ACCESS: [Capability, string, string][] = [
-  ["toolbox", "Toolbox", "Calculators & references"],
-  ["studio", "Design Studio", "Create & edit VRF designs"],
-  ["tiff", "Library", "Ask the company's manuals, specs & SOPs"],
-  ["tiff_manage", "Library — manage", "Add & edit library documents"],
-  ["workboard", "Workboard", "See the projects & maintenance board"],
-  ["workboard_manage", "Workboard — manage", "Create & edit projects, agreements & visits"],
-  ["workboard_money", "Workboard — money", "Job values, claims & what's been paid"],
-  ["team", "Team directory", "View & manage other staff records"],
-  ["timepay_all", "Time & Pay — everyone's", "All timesheets, leave & expenses"],
-  ["approvals", "Approvals", "Approve hours, leave & expenses"],
-  ["assets_all", "Assets — whole register", "Full fleet & equipment"],
-  ["financials", "Financials", "Other people's pay, rates & charge-out"],
-  ["permissions", "Permissions", "Change other people's access"],
-  ["invites", "Invites", "Invite & offboard staff — staff role only"],
+  ["workboard", "Jobs, Schedule and Documents", "See every job, the schedule and the documents"],
+  ["workboard_manage", "Make and change jobs", "New jobs, visits, agreements and quotes"],
+  ["workboard_money", "Money on jobs", "Job values, claims, what's paid, and Reports"],
+  ["tiff", "Library", "Ask it, and Conversations"],
+  ["tiff_manage", "Add to the Library", "Upload and edit documents"],
+  ["toolbox", "Toolbox", "The calculators on the Library's Toolbox shelf"],
+  ["studio", "Design", "Make and change designs"],
+  ["team", "Team", "See and change other people's pages"],
+  ["timepay_all", "Everyone's hours, leave and expenses", "Team's Timesheets, Leave and Expenses"],
+  ["approvals", "Approve", "Hours, leave and expenses"],
+  ["assets_all", "Every vehicle", "Team's Vehicles, not only their own"],
+  ["financials", "Other people's pay", "Pay rates and charge-out"],
+  ["invites", "Invite people", "Add and remove staff"],
+  ["permissions", "Change access", "This tab, for other people"],
+];
+
+/** The person page's three groups of access, by the places they open. */
+export type AccessGroup = { title: string; icon: string; hue: "yellow" | "green" | "pink"; caps: Capability[] };
+export const ACCESS_GROUPS: AccessGroup[] = [
+  { title: "Jobs, Schedule and Documents", icon: "folder", hue: "yellow", caps: ["workboard", "workboard_manage", "workboard_money"] },
+  { title: "Library and Design", icon: "books", hue: "green", caps: ["tiff", "tiff_manage", "toolbox", "studio"] },
+  { title: "Team", icon: "users", hue: "pink", caps: ["team", "timepay_all", "approvals", "assets_all", "financials", "invites", "permissions"] },
 ];
 
 export function permissionsValues(ctx: PermissionsCtx): Record<string, string> {
@@ -199,10 +209,73 @@ export function PermissionsCard({
     </>
   );
 
+  /* THE PERSON PAGE'S ACCESS TAB (v2): the role as a drop-down (rule 34)
+     while editing and a fact while reading, then the switches in three
+     groups, each under the place it opens. */
+  const accessRow = ({ editing, draft, set }: SectionBodyContext, cap: Capability, label: string, hint: string) => {
+    const on = (editing ? draft : values)[`cap_${cap}`] === "on";
+    const locked = !ctx.settable.has(cap);
+    return (
+      <Detail
+        key={cap}
+        label={label}
+        editing={editing}
+        value={<span className={on ? "ro-state ok" : "ro-state mute"}>{on ? "On" : "Off"}</span>}
+        sub={editing ? `${hint}${locked ? ", owner-granted" : ""}` : locked ? "owner-granted" : undefined}
+        control={
+          <button
+            type="button"
+            className={`toggle${on ? " on" : ""}`}
+            role="switch"
+            aria-checked={on}
+            aria-label={label}
+            disabled={locked}
+            onClick={() => !locked && set(`cap_${cap}`, on ? "off" : "on")}
+          />
+        }
+      />
+    );
+  };
+  const groupBody = (c: SectionBodyContext) => (
+    <>
+      {ctx.lockedReason && <p className="tm2-sub tm2-locked">{ctx.lockedReason}</p>}
+      <dl className="pdl">
+        <Detail
+          label="Role"
+          editing={c.editing && ctx.canChangeRole}
+          value={role ? role[1] : ""}
+          sub={role ? role[2] : undefined}
+          control={
+            <Chooser
+              aria-label="Role"
+              options={ROLES.map((r) => ({ value: r[0], label: r[1], hint: r[2] }))}
+              value={c.draft.org_role}
+              onChange={(v) => c.set("org_role", v)}
+            />
+          }
+        />
+      </dl>
+      {ACCESS_GROUPS.map((g) => (
+        <section key={g.title} className="tm2-pgrp" aria-label={g.title}>
+          <h3 className="tm2-pgrp-h">
+            <GroupIcon name={g.icon} hue={g.hue} />
+            {g.title}
+          </h3>
+          <dl className="pdl">
+            {g.caps.map((cap) => {
+              const row = ACCESS.find((a) => a[0] === cap)!;
+              return accessRow(c, cap, row[1], row[2]);
+            })}
+          </dl>
+        </section>
+      ))}
+    </>
+  );
+
   /* The locked card has no edit cycle at all, so it renders the same body with
      `editing` nailed shut rather than keeping a second copy of the read view
      around to drift. */
-  const readOnlyBody = sectionBody({
+  const readOnlyBody = (group ? groupBody : sectionBody)({
     editing: false,
     edit: () => {},
     draft: values,
@@ -218,6 +291,7 @@ export function PermissionsCard({
       <StaticCard
         variant={group ? "group" : "section"}
         title={group?.title ?? "Permissions"}
+        lead={group?.lead}
         pill={group ? undefined : pill}
       >
         {readOnlyBody}
@@ -230,11 +304,13 @@ export function PermissionsCard({
       variant={group ? "group" : "section"}
       title={group?.title ?? "Permissions"}
       editLabel={group?.editLabel}
+      lead={group?.lead}
       pill={group ? undefined : pill}
       values={values}
       onSave={(fields) => onSave("permissions", fields)}
-      body={sectionBody}
+      body={group ? groupBody : sectionBody}
       startEditing={startEditing}
     />
   );
 }
+

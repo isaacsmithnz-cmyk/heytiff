@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { mySignature, saveMySignature } from "@/app/actions/certificates";
 import { SignaturePad } from "@/components/swms/controls";
-import { StaticCard } from "./section-card";
+import { StaticCard, type GroupHead } from "./section-card";
 import "@/components/swms/swms.css";
 
 /* YOUR SIGNATURE — drawn once, here, and printed on every certificate you
@@ -12,7 +12,7 @@ import "@/components/swms/swms.css";
    and the action behind it only ever writes the signed-in person's. Each
    certificate keeps its own copy, so redrawing it never changes one already
    sent. */
-export function SignatureCard({ focus = false }: { focus?: boolean }) {
+export function SignatureCard({ focus = false, group }: { focus?: boolean; /** a titled group on Team's person page */ group?: GroupHead }) {
   const here = useRef<HTMLDivElement | null>(null);
   /* opened from Still to add: brought into view */
   useEffect(() => {
@@ -59,7 +59,12 @@ export function SignatureCard({ focus = false }: { focus?: boolean }) {
 
   return (
     <div ref={here} id="profile-signature">
-      <StaticCard title="Signature" sub="Printed on the certificates you sign">
+      <StaticCard
+        variant={group ? "group" : "card"}
+        title={group?.title ?? "Signature"}
+        lead={group?.lead}
+        sub={group ? undefined : "Printed on the certificates you sign"}
+      >
         {svg === undefined ? null : svg && !redraw ? (
           <div className="sig-card">
             {/* eslint-disable-next-line @next/next/no-img-element */}

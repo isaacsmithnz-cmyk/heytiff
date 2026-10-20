@@ -2,6 +2,7 @@
 
 import { requiredField } from "@/lib/staff/completeness";
 import { IdCard } from "@/components/cards/id-card";
+import { StateWord } from "@/components/parts/state";
 import { EMERGENCY_RELATIONSHIPS, type StaffProfile } from "@/lib/staff/profile";
 import { preValidate } from "@/lib/staff/pre-validate";
 import { SectionCard, type GroupHead, type SectionBodyContext } from "./section-card";
@@ -31,10 +32,14 @@ export function EmergencyCard({
   focusField,
   onSave,
   group,
+  rail = false,
 }: {
   /** drawn as a titled group with its own Edit, on Team's person page: the
       rows read in both modes, since the plastic card is the phone's */
   group?: GroupHead;
+  /** the person page's right-hand card: the name large, then the numbers,
+      and what's missing said in amber */
+  rail?: boolean;
   profile: StaffProfile | null;
   mode: ProfileMode;
   org: string | null;
@@ -69,8 +74,32 @@ export function EmergencyCard({
      the rows render `draft`, so it would sit there contradicting what you were
      typing. Blank, there is no card to show and the rows are the whole
      section — which is also how "+ Add" gets somewhere to live. */
+  const notSet = <StateWord tone="look">Not set</StateWord>;
+  const railRead = (
+    <>
+      <p className="tm2-ename">{values.emergency_name || notSet}</p>
+      <dl className="pdl">
+        <div className="pdrow">
+          <dt>Phone</dt>
+          <dd>{values.emergency_phone ? tel(values.emergency_phone) : notSet}</dd>
+        </div>
+        <div className="pdrow">
+          <dt>Relationship</dt>
+          <dd>{values.emergency_relationship || notSet}</dd>
+        </div>
+        {values.emergency_alt_phone && (
+          <div className="pdrow">
+            <dt>Other phone</dt>
+            <dd>{tel(values.emergency_alt_phone)}</dd>
+          </div>
+        )}
+      </dl>
+    </>
+  );
+
   const body = ({ editing, draft, set, edit }: SectionBodyContext) => (
     <>
+      {rail && !editing && railRead}
       {!blank && !editing && !group && (
         <IdCard
           variant="light"
@@ -95,7 +124,7 @@ export function EmergencyCard({
         />
       )}
 
-      {(blank || editing || group) && (
+      {(blank || editing || group) && !(rail && !editing) && (
       <DetailPanels>
         <DetailPanel title="In case of emergency" wide split>
           <Detail
@@ -170,6 +199,7 @@ export function EmergencyCard({
       variant={group ? "group" : "section"}
       title={group?.title ?? "Emergency contact"}
       editLabel={group?.editLabel}
+      lead={group?.lead}
       values={values}
       startEditing={startEditing}
       focusField={focusField}

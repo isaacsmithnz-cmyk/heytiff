@@ -59,7 +59,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 
 - **29. Views of a list.** Soft tabs under the title: words with their counts in grey, the one you're on in a light fill. No outlines.
 - **30. One of a few.** Day, Week, Month in a thin tray; the chosen one filled light.
-- **31. Section tabs.** Underlined, each with what's in it in grey: Visits 2, Photos 24. A job has seven: Overview, Quote, Visits, Checklist, Photos, Documents, Billing.
+- **31. Section tabs.** Underlined, the one you're on standing on 2px of ink. No numbers on them: a tab with something to look at has its word in amber, red when something is wrong (Isaac, 20 October). A job has seven: Overview, Quote, Visits, Checklist, Photos, Documents, Billing. A person has five: Overview, Hours & leave, Papers, Pay, Access.
 - **32. Ticks and switches.** Blue when on. A switch saves itself.
 - **33. Fields.** 36 tall, a 6 corner, the label above. A wrong field gets a red edge and says why underneath.
 - **34. Menus to choose from.** A field with a chevron; opens a menu. A time opens a wheel: the hour, minutes in fives, am or pm. Nothing types a clock time.
@@ -278,6 +278,20 @@ this list the way it holds the loops: both ways, by name.
 | `x` | `camdel`, `ds-plancard-x` | a thumbnail's cross, on a photo badge and on a plan page in the Studio's import: a picture has no room for a word |
 | `chevL` | `hd-cal-nb` | the Home calendar's Earlier, his arrow either side of what is in view ("go with your recommendations", 2026-09-25, which kept his shapes): the range beside it is the word, the button is named Earlier, and it rests at the twelve months' edge |
 | `chevR` | `hd-cal-nb` | the Home calendar's Later, on the same terms as its Earlier |
+
+### His rulings on a person's page
+
+Two of Isaac's calls on Team's person page break a rule no ratchet counts,
+so they are written here rather than in the table below (20 October 2026,
+on his mock https://claude.ai/artifact/BH6voDn1axdk96JZCCUSTf).
+
+- **Each group has its icon in its colour** (`.tm2-ic`), despite old law 31,
+  colour only where it means something. "Can we add some coloring in
+  there? ... These things need to stand out." The colour is the hue's word
+  value drawn on the icon itself: no square behind it, no tint, no edge.
+- **The emergency contact's title is red** (`.tm2-emerg`), despite rule 16,
+  red only means wrong: it is the one group someone has to find in a hurry.
+  Its icon is a plaster on the diagonal, never a cross.
 
 ### Named exemptions
 

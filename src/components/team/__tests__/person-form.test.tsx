@@ -288,10 +288,10 @@ describe("Add a person — what that address already means", () => {
 describe("Add a person — the roles explain themselves", () => {
   it("describes the chosen role, and re-describes it when it changes", async () => {
     const { user } = setup();
-    expect(screen.getByText("Field worker — own data only")).toBeInTheDocument();
+    expect(screen.getByText("Field worker, their own records only")).toBeInTheDocument();
     await user.click(screen.getByRole("radio", { name: "Admin" }));
-    expect(screen.getByText("Manage the team — approve & assign")).toBeInTheDocument();
-    expect(screen.queryByText("Field worker — own data only")).not.toBeInTheDocument();
+    expect(screen.getByText("Runs the team, approves and assigns")).toBeInTheDocument();
+    expect(screen.queryByText("Field worker, their own records only")).not.toBeInTheDocument();
   });
 });
 

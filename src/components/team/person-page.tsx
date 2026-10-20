@@ -11,10 +11,12 @@ import { Fade } from "@/components/parts/fade";
 import { Menu, type MenuItem } from "@/components/parts/menu";
 import { Dot, StateWord } from "@/components/parts/state";
 import { Switch } from "@/components/parts/tick";
+import { SectionTabs, type TabItem } from "@/components/parts/tabs";
 import { TimeField } from "@/components/parts/time-field";
 import { WindowsContext } from "@/components/records/records-context";
 import { PhotoBadge } from "@/components/profile/photo-badge";
-import { PersonalCard } from "@/components/profile/personal-card";
+import { PersonalCard, type PersonalPart } from "@/components/profile/personal-card";
+import { GroupIcon } from "@/components/profile/section-card";
 import { EmergencyCard } from "@/components/profile/emergency-card";
 import { ComplianceCard } from "@/components/profile/compliance-card";
 import { QualificationsCard } from "@/components/profile/qualifications-card";
@@ -34,6 +36,11 @@ import { setScheduleCapacity } from "@/app/actions/workboard";
 import { setLeaveBalance } from "@/app/actions/leave";
 import { staffHref, vehiclePageHref } from "@/lib/shell/links";
 import { fmtAuWeekdayDateLong } from "@/lib/au-dates";
+import { fmtDay } from "@/lib/format/day";
+import { profileCompleteness } from "@/lib/staff/completeness";
+import { licenceStatus } from "@/lib/staff/licence";
+import { checkState, currentCheck } from "@/lib/staff/work-rights-records";
+import type { Hue, Tone } from "@/components/parts/state";
 import { ruleWords, type RegularDayOff } from "@/lib/team/regular-days-off";
 import { LEAVE_LABEL, type BalanceKind, type BalanceSource, type LeaveKind, type LeaveStatus } from "@/lib/timepay/leave";
 import type { StaffLicence } from "@/lib/staff/types";
@@ -42,18 +49,25 @@ import type { StaffLicenceRecord } from "@/lib/staff/licence-records";
 import type { WorkRightsRecord } from "@/lib/staff/work-rights-records";
 import type { StoredDocument } from "@/lib/documents/query";
 
-/* TEAM, A PERSON (v2, step 5; the board "Team, a person"). The head: their
-   photo or initials, the name, one line (what they do, how long they've
-   been with you) and their state, with Actions on the right. Then three
-   columns of groups under thin lines, everything on one page, each group
-   with its own Edit that opens its form in place: the staff card's own
-   edit cycle (SectionCard: the draft is the mode, a save keeps you where you
-   are, a refused save keeps what you typed and marks the field).
+/* TEAM, A PERSON (v2; Isaac's mock BH6voDn1axdk96JZCCUSTf, 20 October).
+   The head: their photo or initials, the name, one line (what they do, how
+   long they've been with you) and their state, with Actions on the right.
+   Then section tabs (rule 31), no counts: a tab with something to look at
+   has its word in amber, red when something is wrong.
 
-     Details, Emergency, Licences and tickets, Qualifications
-     Normal week (with Counts toward the schedule and hours a day),
-       Regular days off, Leave, Work rights, Signature (yours only)
-     Vehicle, Pay, Access, Notes about them
+     Overview       Name, Contact, Employment, Uniform, Notes about them;
+                    beside them the emergency contact, then one row each for
+                    licences, work rights, the vehicle, the week and leave
+     Hours & leave  Normal week, Leave, Regular days off
+     Papers         Licences and tickets, Work rights, Qualifications,
+                    Signature (yours only)
+     Pay            with `financials` only, hidden until Show pay
+     Access         the role and the switches, by the places they open
+
+   Every group has its icon in its colour (Isaac's ruling, design.md) and
+   its own Edit that opens its form in place: the staff card's own edit
+   cycle (SectionCard: the draft is the mode, a save keeps you where you
+   are, a refused save keeps what you typed and marks the field).
 
    Actions (rule 53): Invite to join on a card nobody has claimed, Copy the
    link, Print, then what ends it: Deactivate (or Reactivate), and Delete for
@@ -117,6 +131,9 @@ export type PersonPageData = {
   regularDaysOff: RegularDayOff[];
   deletable: boolean;
   inviteRoles: string[];
+  /** `?tab=`: the tab to open on */
+  initialTab?: string;
+  /** `?sec=`: Home's doors name a group; it opens the tab it's on */
   initialSec?: string;
 };
 
@@ -127,13 +144,21 @@ const hrs = (n: number) => (Math.round(n * 10) / 10).toString();
 const clock = (t: string) => t.toLowerCase();
 const firstOf = (name: string) => name.trim().split(/\s+/)[0] ?? name;
 
+/** The Personal card's four parts on the Overview, each a group with its mark. */
+const PARTS: [PersonalPart, string, [string, Hue]][] = [
+  ["name", "Name", ["user", "purple"]],
+  ["contact", "Contact", ["phone", "green"]],
+  ["employment", "Employment", ["briefcase", "yellow"]],
+  ["uniform", "Uniform", ["shirt", "pink"]],
+];
+
 /** A group's head: its title, and its one door. */
-function Head({ name, children, count }: { name: string; count?: number; children?: React.ReactNode }) {
+function Head({ name, children, icon }: { name: string; icon?: [string, Hue]; children?: React.ReactNode }) {
   return (
     <div className="pdlh jump">
       <span>
+        {icon && <GroupIcon name={icon[0]} hue={icon[1]} />}
         {name}
-        {count != null && <span className="tm2-hcount"> {count}</span>}
       </span>
       {children && <span className="acts">{children}</span>}
     </div>
@@ -219,7 +244,7 @@ function NormalWeek({
 
   return (
     <section className="pdlcard psec-group tm2-week" aria-label="Normal week">
-      <Head name="Normal week">{isSelf && !editing && <Door onClick={() => setEditing(true)}>Edit hours</Door>}</Head>
+      <Head name="Normal week" icon={["clock", "purple"]}>{isSelf && !editing && <Door onClick={() => setEditing(true)}>Edit hours</Door>}</Head>
       {editing ? (
         <div className="tm2-weekform">
           <div className="tm2-weekclocks">
@@ -318,7 +343,7 @@ function RegularDaysOff({ rules, staffId, name, today }: { rules: RegularDayOff[
   const live = rules.filter((r) => !r.toDate || r.toDate >= today);
   return (
     <section className="pdlcard psec-group" aria-label="Regular days off">
-      <Head name="Regular days off">
+      <Head name="Regular days off" icon={["calendar", "pink"]}>
         <Door onClick={() => setOpen(true)}>{live.length ? "Edit days off" : "Add days off"}</Door>
       </Head>
       {live.length === 0 ? (
@@ -382,7 +407,7 @@ function Leave({ leave, staffId, canSet }: { leave: PersonLeave; staffId: string
 
   return (
     <section className="pdlcard psec-group" aria-label="Leave">
-      <Head name="Leave">{canSet && !editing && <Door onClick={open}>Edit balances</Door>}</Head>
+      <Head name="Leave" icon={["sun", "yellow"]}>{canSet && !editing && <Door onClick={open}>Edit balances</Door>}</Head>
       {editing ? (
         <div className="tm2-weekform">
           {BALANCE_KINDS.map((k) => (
@@ -447,56 +472,93 @@ function Leave({ leave, staffId, canSet }: { leave: PersonLeave; staffId: string
   );
 }
 
-/* ── Vehicle: read-only facts, from the register ── */
+/* ── the tabs ── */
 
-function Vehicle({ vehicle }: { vehicle: AssignedVehicle | null }) {
-  const v = vehicle?.vehicle;
-  const next = v
-    ? v.serviceIntervalKm
-      ? `At ${(v.lastServiceOdo + v.serviceIntervalKm).toLocaleString("en-AU")} km`
-      : v.serviceDays != null
-        ? v.serviceDays < 0
-          ? "Overdue"
-          : `In ${v.serviceDays} days`
-        : null
-    : null;
+type TabKey = "overview" | "hours" | "papers" | "pay" | "access";
+const TAB_KEYS: readonly TabKey[] = ["overview", "hours", "papers", "pay", "access"];
+/** Home's doors name a group (`?sec=`); each opens the tab it's on. */
+const SEC_TAB: Record<string, TabKey> = {
+  personal: "overview",
+  emergency: "overview",
+  notes: "overview",
+  licences: "papers",
+  workrights: "papers",
+  pay: "pay",
+  permissions: "access",
+};
+
+const worse = (a: Tone | null, b: Tone | null): Tone | null => (a === "wrong" || b === "wrong" ? "wrong" : a === "look" || b === "look" ? "look" : null);
+const tabTone = (t: Tone | null): TabItem["tone"] => (t === "wrong" ? "wrong" : t === "look" ? "look" : undefined);
+
+/** Where the licences stand: the worst of them, and the words for the row. */
+function licencesFact(licences: StaffLicence[], today: string, warnDays: number) {
+  const states = licences.map((l) => ({ l, st: licenceStatus(l.expiryDate, today, warnDays).tone }));
+  const expired = states.filter((x) => x.st === "bad").length;
+  const running = states.filter((x) => x.st === "warn").length;
+  const next = licences
+    .filter((l) => l.expiryDate && l.expiryDate >= today)
+    .sort((a, b) => (a.expiryDate ?? "").localeCompare(b.expiryDate ?? ""))[0];
+  const tone: Tone | null = expired ? "wrong" : running ? "look" : null;
+  const value =
+    licences.length === 0
+      ? "None yet"
+      : expired
+        ? `${expired} expired`
+        : running
+          ? `${running} running out`
+          : `${licences.length} current`;
+  return { tone, word: (licences.length ? (tone ?? "good") : "info") as Tone, value, sub: next ? `Next: ${next.typeName}, ${fmtDay(next.expiryDate!)}` : null };
+}
+
+/** Where the right to work stands: the check in force, else the card's own status. */
+function workRightsFact(data: PersonPageData) {
+  const check = currentCheck(data.workRightsChecks);
+  const status = check?.status ?? data.profile?.work_rights_status ?? null;
+  const st = check ? checkState(check, data.today, data.warnDays) : status ? "forever" : "none";
+  const tone: Tone | null = st === "bad" ? "wrong" : st === "warn" || st === "none" ? "look" : null;
+  return {
+    tone,
+    word: (tone ?? "good") as Tone,
+    value: status ?? "Not recorded",
+    sub: check ? `Checked ${fmtDay(check.checkedOn)}` : null,
+  };
+}
+
+/** "Mon to Fri", or the days named when they don't run together. */
+function daysWord(days: number[]): string {
+  const d = [...days].sort((a, b) => a - b);
+  if (d.length === 0) return "No days";
+  const run = d.every((x, i) => i === 0 || x === d[i - 1]! + 1);
+  return run && d.length > 2 ? `${DAY_SHORT[d[0]!]} to ${DAY_SHORT[d[d.length - 1]!]}` : d.map((x) => DAY_SHORT[x]).join(", ");
+}
+
+/** One row beside the Overview: its mark, what it is, where it stands. */
+function Fact({
+  icon,
+  label,
+  tone,
+  value,
+  sub,
+  action,
+}: {
+  icon: [string, Hue];
+  label: string;
+  /** a state word: its dot and colour; left out, the value is plain */
+  tone?: Tone;
+  value: React.ReactNode;
+  sub?: string | null;
+  action?: React.ReactNode;
+}) {
   return (
-    <section className="pdlcard psec-group" aria-label="Vehicle">
-      <Head name="Vehicle" />
-      {v ? (
-        <>
-          <dl className="pdl">
-            <div className="pdrow">
-              <dt>Drives</dt>
-              <dd>
-                <span className="pdv sm">{[v.model || v.name || v.make, v.plate].filter(Boolean).join(" ")}</span>
-              </dd>
-            </div>
-            {v.motorised && (
-              <div className="pdrow">
-                <dt>Odometer</dt>
-                <dd>
-                  <span className="pdv sm">{v.odometer.toLocaleString("en-AU")} km</span>
-                </dd>
-              </div>
-            )}
-            {next && (
-              <div className="pdrow">
-                <dt>Next service</dt>
-                <dd>
-                  <span className="pdv sm">{next}</span>
-                </dd>
-              </div>
-            )}
-          </dl>
-          <Link className="tm2-link" href={vehiclePageHref(v.id)}>
-            Open the vehicle
-          </Link>
-        </>
-      ) : (
-        <p className="tm2-none">No vehicle assigned.</p>
-      )}
-    </section>
+    <li className="tm2-fact">
+      <GroupIcon name={icon[0]} hue={icon[1]} />
+      <span className="tm2-fact-k">{label}</span>
+      <span className="tm2-fact-v">
+        {tone ? <StateWord tone={tone}>{value}</StateWord> : <span className="tm2-fact-w">{value}</span>}
+        {sub && <span className="tm2-sub">{sub}</span>}
+      </span>
+      {action}
+    </li>
   );
 }
 
@@ -515,8 +577,14 @@ export function PersonPage({ data, actions }: { data: PersonPageData; actions: P
   const [busy, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  const hasPay = !!data.payroll;
+  const [tab, setTab] = useState<TabKey>(() => {
+    const want = (TAB_KEYS as readonly string[]).includes(data.initialTab ?? "") ? (data.initialTab as TabKey) : (data.initialSec && SEC_TAB[data.initialSec]) || "overview";
+    return want === "pay" && !hasPay ? "overview" : want;
+  });
+
   /* A door that names a group (`?sec=licences`, `?sec=workrights`: Home's
-     list) brings it into view. The page has no tabs to open. */
+     list) opens its tab and brings the group into view. */
   useEffect(() => {
     if (!data.initialSec) return;
     const el = document.getElementById(`tm2-sec-${data.initialSec}`);
@@ -571,6 +639,28 @@ export function PersonPage({ data, actions }: { data: PersonPageData; actions: P
   const sentence = line ? line.charAt(0).toUpperCase() + line.slice(1) : null;
   const first = firstOf(header.nickname || header.name);
 
+  const lic = licencesFact(data.licences, data.today, data.warnDays);
+  const rights = workRightsFact(data);
+  const missing = profileCompleteness(profile).sectionsMissing;
+  const leaveSet = !!data.leave?.annual && !!data.leave?.personal;
+  const car = data.vehicle?.vehicle ?? null;
+  const nextService = car
+    ? car.serviceIntervalKm
+      ? `service at ${(car.lastServiceOdo + car.serviceIntervalKm).toLocaleString("en-AU")} km`
+      : car.serviceDays != null
+        ? car.serviceDays < 0
+          ? "service overdue"
+          : `service in ${car.serviceDays} days`
+        : null
+    : null;
+  const tabs: TabItem[] = [
+    { key: "overview", label: "Overview", tone: missing.has("personal") || missing.has("emergency") ? "look" : undefined },
+    { key: "hours", label: "Hours & leave", tone: data.leave && !leaveSet ? "look" : undefined },
+    { key: "papers", label: "Papers", tone: tabTone(worse(lic.tone, rights.tone)) },
+    ...(hasPay ? [{ key: "pay", label: "Pay" }] : []),
+    { key: "access", label: "Access" },
+  ];
+
   return (
     <div className="tm2 tm2-p">
       <header className="tm2-phead">
@@ -614,96 +704,190 @@ export function PersonPage({ data, actions }: { data: PersonPageData; actions: P
         </p>
       )}
 
-      <div className="tm2-cols">
-        <div className="tm2-col">
-          <div id="tm2-sec-personal">
-            <PersonalCard
-              group={{ title: "Details", editLabel: "Edit details" }}
-              profile={profile}
-              mode="admin"
-              email={header.email}
-              addressLookup={data.addressLookup}
-              today={data.today}
-              orgState={data.orgState}
-              aliases={data.aliases}
-              onSaveAliases={actions.onSaveAliases}
-              onSave={actions.onSave}
-            />
-          </div>
-          <div id="tm2-sec-emergency">
-            <EmergencyCard group={{ title: "Emergency", editLabel: "Edit emergency contact" }} profile={profile} mode="admin" org={data.org} onSave={actions.onSave} />
-          </div>
-          <div id="tm2-sec-licences">
-            <ComplianceCard
-              layout="rows"
-              licences={data.licences}
-              staffId={header.id}
-              records={data.licenceTerms}
-              documents={data.licenceDocuments}
-              today={data.today}
-              warnDays={data.warnDays}
-              onAdd={actions.onAddLicence}
-              onUpdate={actions.onUpdateLicence}
-              onRemove={actions.onRemoveLicence}
-              onRecordTerm={actions.onRecordLicenceTerm}
-              onAttachDoc={actions.onAttachLicenceDoc}
-              onRemoveTerm={actions.onRemoveLicenceTerm}
-            />
-          </div>
-          <QualificationsCard group={{ title: "Qualifications", editLabel: "Edit qualifications" }} profile={profile} mode="admin" onSave={actions.onSave} />
-        </div>
+      <SectionTabs ariaLabel={`${header.name}'s page`} items={tabs} current={tab} onGo={(k) => setTab(k as TabKey)} idPrefix="tm2-tab" panelPrefix="tm2-panel" />
 
-        <div className="tm2-col">
-          <NormalWeek
-            week={data.week}
-            isSelf={isSelf}
-            crew={data.crew}
-            canManageCrew={data.canManageCrew}
-            linked={data.linkedToSm8}
-            showCrew={data.showCrew}
-            name={header.name}
-          />
-          <RegularDaysOff rules={data.regularDaysOff} staffId={header.id} name={header.name} today={data.today} />
-          {data.leave && <Leave leave={data.leave} staffId={header.id} canSet={data.canSetBalances} />}
-          <div id="tm2-sec-workrights">
-            <WorkRightsCard
-              group={{ title: "Work rights", editLabel: "Edit work rights" }}
-              checkCount={data.workRightsChecks.length}
-              lastChecked={data.workRightsChecks[0]?.checkedOn ?? null}
-              onOpenChecks={actions.onRecordWorkRightsCheck ? () => setChecksOpen(true) : undefined}
-              profile={profile}
-              mode="admin"
-              today={data.today}
-              warnDays={data.warnDays}
-              onSave={actions.onSave}
-            />
-          </div>
-          {/* yours only: a signature is the person's own mark */}
-          {isSelf && <SignatureCard />}
-        </div>
-
-        <div className="tm2-col">
-          <Vehicle vehicle={data.vehicle} />
-          {data.payroll &&
-            (payShown ? (
-              <PayrollCard group={{ title: "Pay", editLabel: "Edit pay" }} pay={data.payroll} rosteredWeek={data.rosteredWeek} onSave={actions.onSave} />
-            ) : (
-              <section className="pdlcard psec-group" aria-label="Pay">
-                <Head name="Pay">
-                  <Door onClick={() => setPayShown(true)}>Show pay</Door>
-                </Head>
-              </section>
+      {tab === "overview" && (
+        <div className="tm2-ov" role="tabpanel" id="tm2-panel-overview" aria-labelledby="tm2-tab-overview">
+          <div className="tm2-col" id="tm2-sec-personal">
+            {PARTS.map(([part, title, icon]) => (
+              <PersonalCard
+                key={part}
+                only={part}
+                group={{ title, lead: <GroupIcon name={icon[0]} hue={icon[1]} /> }}
+                profile={profile}
+                mode="admin"
+                email={header.email}
+                addressLookup={data.addressLookup}
+                today={data.today}
+                orgState={data.orgState}
+                aliases={data.aliases}
+                onSaveAliases={part === "name" ? actions.onSaveAliases : undefined}
+                onSave={actions.onSave}
+              />
             ))}
-          <div id="tm2-sec-permissions">
-            <PermissionsCard group={{ title: "Access", editLabel: "Edit access" }} ctx={data.permissions} onSave={actions.onSave} />
+            {data.notes && (
+              <div id="tm2-sec-notes">
+                <NotesCard
+                  group={{ title: `Notes about ${first}`, editLabel: "Edit note", lead: <GroupIcon name="note" hue="grey" /> }}
+                  notes={data.notes}
+                  onSave={actions.onSave}
+                />
+              </div>
+            )}
           </div>
-          {data.notes && (
-            <div id="tm2-sec-notes">
-              <NotesCard group={{ title: `Notes about ${first}`, editLabel: "Edit note" }} notes={data.notes} onSave={actions.onSave} />
+          <aside className="tm2-rail" aria-label={`${first} at a glance`}>
+            <div className="tm2-emerg" id="tm2-sec-emergency">
+              <EmergencyCard
+                rail
+                group={{ title: "Emergency contact", lead: <GroupIcon name="aid" hue="red" /> }}
+                profile={profile}
+                mode="admin"
+                org={data.org}
+                onSave={actions.onSave}
+              />
             </div>
+            <ul className="tm2-facts">
+              <Fact icon={["card", "orange"]} label="Licences" tone={lic.word} value={lic.value} sub={lic.sub} />
+              <Fact icon={["passport", "green"]} label="Work rights" tone={rights.word} value={rights.value} sub={rights.sub} />
+              <Fact
+                icon={["truck", "grey"]}
+                label="Drives"
+                value={
+                  car ? (
+                    <Link className="tm2-link" href={vehiclePageHref(car.id)}>
+                      {[car.model || car.name || car.make, car.plate].filter(Boolean).join(" ")}
+                    </Link>
+                  ) : (
+                    "No vehicle"
+                  )
+                }
+                sub={car ? [car.motorised ? `${car.odometer.toLocaleString("en-AU")} km` : null, nextService].filter(Boolean).join(", ") || null : null}
+              />
+              <Fact
+                icon={["clock", "purple"]}
+                label="Normal week"
+                value={`${data.week.weekHours != null ? `${hrs(data.week.weekHours)} h, ` : ""}${daysWord(data.week.days)}`}
+                sub={`${clock(data.week.start)} to ${clock(data.week.end)}`}
+              />
+              {data.leave && (
+                <Fact
+                  icon={["sun", "yellow"]}
+                  label="Leave"
+                  tone={leaveSet ? undefined : "look"}
+                  value={leaveSet ? `${hrs(data.leave.annual!.available)} h annual` : "Balances not set"}
+                  sub={leaveSet ? `${hrs(data.leave.personal!.available)} h personal` : data.leave.coming.length ? null : "Nothing booked"}
+                  action={
+                    !leaveSet && data.canSetBalances ? (
+                      <Button kind="second" size={32} onClick={() => setTab("hours")}>
+                        Set
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              )}
+            </ul>
+          </aside>
+        </div>
+      )}
+
+      {tab === "hours" && (
+        <div className="tm2-two" role="tabpanel" id="tm2-panel-hours" aria-labelledby="tm2-tab-hours">
+          <div className="tm2-col">
+            <NormalWeek
+              week={data.week}
+              isSelf={isSelf}
+              crew={data.crew}
+              canManageCrew={data.canManageCrew}
+              linked={data.linkedToSm8}
+              showCrew={data.showCrew}
+              name={header.name}
+            />
+          </div>
+          <div className="tm2-col">
+            {data.leave && <Leave leave={data.leave} staffId={header.id} canSet={data.canSetBalances} />}
+            <RegularDaysOff rules={data.regularDaysOff} staffId={header.id} name={header.name} today={data.today} />
+          </div>
+        </div>
+      )}
+
+      {tab === "papers" && (
+        <div className="tm2-two" role="tabpanel" id="tm2-panel-papers" aria-labelledby="tm2-tab-papers">
+          <div className="tm2-col">
+            <div id="tm2-sec-licences">
+              <ComplianceCard
+                layout="rows"
+                lead={<GroupIcon name="card" hue="orange" />}
+                licences={data.licences}
+                staffId={header.id}
+                records={data.licenceTerms}
+                documents={data.licenceDocuments}
+                today={data.today}
+                warnDays={data.warnDays}
+                onAdd={actions.onAddLicence}
+                onUpdate={actions.onUpdateLicence}
+                onRemove={actions.onRemoveLicence}
+                onRecordTerm={actions.onRecordLicenceTerm}
+                onAttachDoc={actions.onAttachLicenceDoc}
+                onRemoveTerm={actions.onRemoveLicenceTerm}
+              />
+            </div>
+            <QualificationsCard
+              group={{ title: "Qualifications", editLabel: "Edit qualifications", lead: <GroupIcon name="grad" hue="purple" /> }}
+              profile={profile}
+              mode="admin"
+              onSave={actions.onSave}
+            />
+          </div>
+          <div className="tm2-col">
+            <div id="tm2-sec-workrights">
+              <WorkRightsCard
+                group={{ title: "Work rights", editLabel: "Edit work rights", lead: <GroupIcon name="passport" hue="green" /> }}
+                checkCount={data.workRightsChecks.length}
+                lastChecked={data.workRightsChecks[0]?.checkedOn ?? null}
+                onOpenChecks={actions.onRecordWorkRightsCheck ? () => setChecksOpen(true) : undefined}
+                profile={profile}
+                mode="admin"
+                today={data.today}
+                warnDays={data.warnDays}
+                onSave={actions.onSave}
+              />
+            </div>
+            {/* yours only: a signature is the person's own mark */}
+            {isSelf && <SignatureCard group={{ title: "Signature", lead: <GroupIcon name="edit" hue="grey" /> }} />}
+          </div>
+        </div>
+      )}
+
+      {tab === "pay" && data.payroll && (
+        <div className="tm2-one" role="tabpanel" id="tm2-panel-pay" aria-labelledby="tm2-tab-pay">
+          {payShown ? (
+            <PayrollCard
+              group={{ title: "Pay", editLabel: "Edit pay", lead: <GroupIcon name="dollar" hue="green" /> }}
+              pay={data.payroll}
+              rosteredWeek={data.rosteredWeek}
+              onSave={actions.onSave}
+            />
+          ) : (
+            <section className="pdlcard psec-group" aria-label="Pay">
+              <Head name="Pay" icon={["dollar", "green"]}>
+                <Door onClick={() => setPayShown(true)}>Show pay</Door>
+              </Head>
+            </section>
           )}
         </div>
-      </div>
+      )}
+
+      {tab === "access" && (
+        <div className="tm2-one" role="tabpanel" id="tm2-panel-access" aria-labelledby="tm2-tab-access">
+          <div id="tm2-sec-permissions">
+            <PermissionsCard
+              group={{ title: "Access", editLabel: "Edit access", lead: <GroupIcon name="usershield" hue="purple" /> }}
+              ctx={data.permissions}
+              onSave={actions.onSave}
+            />
+          </div>
+        </div>
+      )}
 
       {checksOpen && actions.onRecordWorkRightsCheck && (
         <WorkRightsModal

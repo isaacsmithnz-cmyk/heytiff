@@ -55,7 +55,7 @@ export function WorkRightsCard({
   group,
 }: {
   /** drawn as a titled group on Team's person page; the checks' door sits
-      on its head as Record a check */
+      on its head as Update */
   group?: GroupHead;
   profile: StaffProfile | null;
   mode: ProfileMode;
@@ -159,7 +159,7 @@ export function WorkRightsCard({
               value={
                 <span className="ro-state ok">
                   <Icon name="check" size={13} />
-                  No — full working rights
+                  No, full working rights
                 </span>
               }
             />
@@ -256,10 +256,11 @@ export function WorkRightsCard({
       variant={group ? "group" : "section"}
       title={group?.title ?? "Work rights"}
       editLabel={group?.editLabel}
+      lead={group?.lead}
       headExtra={
         group && onOpenChecks ? (
           <button className="jumpb" type="button" onClick={onOpenChecks}>
-            Record a check
+            Update
           </button>
         ) : undefined
       }

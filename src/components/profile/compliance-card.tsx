@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { LicenceCard } from "@/components/cards/licence-card";
 import { Button } from "@/components/parts/button";
 import { fmtDay } from "@/lib/format/day";
@@ -51,7 +51,10 @@ export function ComplianceCard({
   onRemoveTerm,
   startAdding = false,
   layout = "wall",
+  lead,
 }: {
+  /** "rows" only: a mark before the title (the person page's section icon) */
+  lead?: ReactNode;
   /** "rows" is Team's person page: a titled group, a row per ticket with
       its state in words and Renew licence on one running out, and Add a
       licence on the head. The same modal behind every door. */
@@ -126,8 +129,8 @@ export function ComplianceCard({
       <div className="pdlcard psec-group tm2-lics" data-live>
         <div className="pdlh jump">
           <span>
+            {lead}
             Licences and tickets
-            {licences.length > 0 && <span className="tm2-hcount"> {licences.length}</span>}
           </span>
           <span className="acts">
             <button className="jumpb" type="button" onClick={() => setOpen("new")}>

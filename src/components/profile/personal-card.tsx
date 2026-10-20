@@ -28,6 +28,9 @@ import { ALIAS_WORDS, aliasListText, parseAliasList } from "@/lib/staff/aliases"
    added here has to classify there too */
 const EMPLOYMENT = EMPLOYMENT_TYPES;
 
+/** The card's four parts, each a group of its own on Team's person page. */
+export type PersonalPart = "name" | "contact" | "employment" | "uniform";
+
 /** The EDIT values. Dates are ISO here because the pickers speak ISO; read
     mode formats them as dd/mm/yyyy for itself, straight off the profile. */
 export function personalValues(p: StaffProfile | null, mode: ProfileMode): Record<string, string> {
@@ -67,9 +70,12 @@ export function PersonalCard({
   onSaveAliases,
   onSave,
   group,
+  only,
 }: {
   /** drawn as a titled group with its own Edit, on Team's person page */
   group?: GroupHead;
+  /** one part of the card as its own group (Team's person page) */
+  only?: PersonalPart;
   profile: StaffProfile | null;
   /* Present only on your OWN card — the action moves whoever the session is,
      so an admin viewing a colleague is handed nothing and the row stays the
@@ -147,297 +153,327 @@ export function PersonalCard({
   );
   const [emailOpen, setEmailOpen] = useState(false);
 
-  const body = ({ editing, draft, set, invalid, edit, errorFor }: SectionBodyContext) => (
-    <DetailPanels>
-      <DetailPanel title="Identity">
-        <Detail
-          label="First name"
-          req={requiredField("first_name")}
-          editing={editing}
-          value={values.first_name}
-          onAdd={edit}
-          error={errorFor("first_name", "Check this")}
-          control={
-            <TextInput
-              name="first_name"
-              placeholder="e.g. Jordan"
-              value={draft.first_name}
-              invalid={invalid("first_name")}
-              onChange={(v) => set("first_name", v)}
-            />
-          }
-        />
-        <Detail
-          label="Last name"
-          req={requiredField("last_name")}
-          editing={editing}
-          value={values.last_name}
-          onAdd={edit}
-          control={
-            <TextInput
-              name="last_name"
-              placeholder="e.g. Mills"
-              value={draft.last_name}
-              onChange={(v) => set("last_name", v)}
-            />
-          }
-        />
-        <Detail
-          label="Preferred name"
-          editing={editing}
-          value={values.preferred_name}
-          onAdd={edit}
-          control={
-            <TextInput
-              name="preferred_name"
-              placeholder="e.g. Jordy"
-              value={draft.preferred_name}
-              onChange={(v) => set("preferred_name", v)}
-            />
-          }
-        />
-        {onSaveAliases && (
+  /* THE PARTS. On Team's person page each part is its own group with its
+     own Edit (`only`): Name, Contact (with the date of birth), Employment,
+     Uniform. Everywhere else the four panels sit together, as before. */
+  const body = ({ editing, draft, set, invalid, edit, errorFor }: SectionBodyContext) => {
+    const nameRows = (
+      <>
           <Detail
-            label={ALIAS_WORDS.label}
+            label="First name"
+            req={requiredField("first_name")}
             editing={editing}
-            value={values.aliases}
+            value={values.first_name}
             onAdd={edit}
-            error={errorFor("aliases", "Check these")}
+            error={errorFor("first_name", "Check this")}
             control={
               <TextInput
-                name="aliases"
-                placeholder={ALIAS_WORDS.placeholder}
-                value={draft.aliases}
-                invalid={invalid("aliases")}
-                onChange={(v) => set("aliases", v)}
+                name="first_name"
+                placeholder="e.g. Jordan"
+                value={draft.first_name}
+                invalid={invalid("first_name")}
+                onChange={(v) => set("first_name", v)}
               />
             }
           />
-        )}
-        <Detail
-          label="Date of birth"
-          req={requiredField("birthday")}
-          editing={editing}
-          value={born}
-          onAdd={edit}
-          error={errorFor("birthday", "Pick a real date")}
-          control={
-            <DateField
-              name="birthday"
-              value={draft.birthday}
-              invalid={invalid("birthday")}
-              onChange={(v) => set("birthday", v)}
-              today={today}
-            />
-          }
-        />
-      </DetailPanel>
-
-      <DetailPanel title="Contact">
-        {/* NOT AN EDITABLE FIELD, and deliberately not part of this card's
-            save. It is the address you SIGN IN with, so moving it moves an
-            account rather than a detail — it goes through its own action,
-            behind its own confirmation, and only on your own card. The row
-            was always read-only here; what is new is that it now says where
-            you go to change it instead of leaving you to guess. */}
-        <Detail
-          label="Email"
-          value={changed?.email ?? email}
-          small
-          action={
-            onChangeSignInEmail && !editing ? (
-              <button type="button" className="pdact" onClick={() => setEmailOpen(true)}>
-                Change
-              </button>
-            ) : undefined
-          }
-        />
-        <Detail
-          label="Mobile"
-          req={requiredField("phone")}
-          editing={editing}
-          value={values.phone}
-          onAdd={edit}
-          control={
-            <TextInput
-              name="phone"
-              type="tel"
-              placeholder="04xx xxx xxx"
-              value={draft.phone}
-              onChange={(v) => set("phone", v)}
-            />
-          }
-        />
-        {/* One line, and it stays one line: a staff member's home address is
-            read, not queried, so the whole formatted address goes in the same
-            box AddressField already writes to via onChange. No onResolve —
-            there are no sibling fields here to fill. */}
-        <Detail
-          label="Address"
-          req={requiredField("address")}
-          editing={editing}
-          value={values.address}
-          onAdd={edit}
-          small
-          control={
-            <AddressField
-              name="address"
-              placeholder="Street, suburb, state, postcode"
-              value={draft.address}
-              enabled={addressLookup}
-              onChange={(v) => set("address", v)}
-            />
-          }
-        />
-      </DetailPanel>
-
-      <DetailPanel title="Employment" wide split>
-        <Detail
-          label="Start date"
-          req={requiredField("start_date")}
-          editing={editing}
-          value={started}
-          onAdd={edit}
-          error={errorFor("start_date", "Pick a real date")}
-          control={
-            <DateField
-              name="start_date"
-              value={draft.start_date}
-              invalid={invalid("start_date")}
-              onChange={(v) => set("start_date", v)}
-              today={today}
-            />
-          }
-        />
-        {/* Shown to everyone, editable only by an admin — you should be able to
-            see whether your card is active without being able to switch it off.
-            The server agrees: `status` is absent from SELF_EDITABLE_SECTIONS,
-            so a self save that carries it is dropped rather than refused. */}
-        <Detail
-          label="Status"
-          editing={editing && mode === "admin"}
-          value={
-            <span className={values.status === "Active" ? "ro-state ok" : "ro-state"}>
-              {values.status}
-            </span>
-          }
-          control={
-            <Seg
-              value={draft.status}
-              greenValue="Active"
-              options={["Active", "Inactive"]}
-              onChange={(v) => set("status", v)}
-            />
-          }
-        />
-        <Detail
-          label="Type"
-          req={requiredField("employment_type")}
-          editing={editing}
-          value={values.employment_type}
-          onAdd={edit}
-          control={
-            <SelectInput
-              name="employment_type"
-              placeholder="Select employment type"
-              options={EMPLOYMENT}
-              value={draft.employment_type}
-              onChange={(v) => set("employment_type", v)}
-            />
-          }
-        />
-        {mode === "admin" && (
           <Detail
-            label="Job title"
+            label="Last name"
+            req={requiredField("last_name")}
             editing={editing}
-            value={values.job_title}
+            value={values.last_name}
             onAdd={edit}
             control={
               <TextInput
-                name="job_title"
-                placeholder="e.g. Lead Installer"
-                value={draft.job_title ?? ""}
-                onChange={(v) => set("job_title", v)}
+                name="last_name"
+                placeholder="e.g. Mills"
+                value={draft.last_name}
+                onChange={(v) => set("last_name", v)}
               />
             }
           />
-        )}
-        {mode === "admin" && (
-          /* RESOLVED, not described. This read "Same as organisation", which is
-             a sentence about a setting rather than an answer to "which public
-             holidays does this person get paid for". The org's own state is the
-             answer; the qualifier only says where it came from. */
           <Detail
-            label="Holiday state"
+            label={only ? "Goes by" : "Preferred name"}
             editing={editing}
-            value={values.state || orgState || ""}
-            sub={!values.state && orgState ? "Organisation default" : undefined}
+            value={values.preferred_name}
+            onAdd={edit}
+            control={
+              <TextInput
+                name="preferred_name"
+                placeholder="e.g. Jordy"
+                value={draft.preferred_name}
+                onChange={(v) => set("preferred_name", v)}
+              />
+            }
+          />
+          {onSaveAliases && (
+            <Detail
+              label={ALIAS_WORDS.label}
+              editing={editing}
+              value={values.aliases}
+              onAdd={edit}
+              error={errorFor("aliases", "Check these")}
+              control={
+                <TextInput
+                  name="aliases"
+                  placeholder={ALIAS_WORDS.placeholder}
+                  value={draft.aliases}
+                  invalid={invalid("aliases")}
+                  onChange={(v) => set("aliases", v)}
+                />
+              }
+            />
+          )}
+      </>
+    );
+    const dobRow = (
+      <>
+          <Detail
+            label="Date of birth"
+            req={requiredField("birthday")}
+            editing={editing}
+            value={born}
+            onAdd={edit}
+            error={errorFor("birthday", "Pick a real date")}
+            control={
+              <DateField
+                name="birthday"
+                value={draft.birthday}
+                invalid={invalid("birthday")}
+                onChange={(v) => set("birthday", v)}
+                today={today}
+              />
+            }
+          />
+      </>
+    );
+    const contactRows = (
+      <>
+          {/* NOT AN EDITABLE FIELD, and deliberately not part of this card's
+              save. It is the address you SIGN IN with, so moving it moves an
+              account rather than a detail — it goes through its own action,
+              behind its own confirmation, and only on your own card. The row
+              was always read-only here; what is new is that it now says where
+              you go to change it instead of leaving you to guess. */}
+          <Detail
+            label="Email"
+            value={changed?.email ?? email}
+            small
+            action={
+              onChangeSignInEmail && !editing ? (
+                <button type="button" className="pdact" onClick={() => setEmailOpen(true)}>
+                  Change
+                </button>
+              ) : undefined
+            }
+          />
+          <Detail
+            label="Mobile"
+            req={requiredField("phone")}
+            editing={editing}
+            value={values.phone}
+            onAdd={edit}
+            control={
+              <TextInput
+                name="phone"
+                type="tel"
+                placeholder="04xx xxx xxx"
+                value={draft.phone}
+                onChange={(v) => set("phone", v)}
+              />
+            }
+          />
+          {/* One line, and it stays one line: a staff member's home address is
+              read, not queried, so the whole formatted address goes in the same
+              box AddressField already writes to via onChange. No onResolve —
+              there are no sibling fields here to fill. */}
+          <Detail
+            label="Address"
+            req={requiredField("address")}
+            editing={editing}
+            value={values.address}
+            onAdd={edit}
+            small
+            control={
+              <AddressField
+                name="address"
+                placeholder="Street, suburb, state, postcode"
+                value={draft.address}
+                enabled={addressLookup}
+                onChange={(v) => set("address", v)}
+              />
+            }
+          />
+      </>
+    );
+    const employmentRows = (
+      <>
+          <Detail
+            label="Start date"
+            req={requiredField("start_date")}
+            editing={editing}
+            value={started}
+            onAdd={edit}
+            error={errorFor("start_date", "Pick a real date")}
+            control={
+              <DateField
+                name="start_date"
+                value={draft.start_date}
+                invalid={invalid("start_date")}
+                onChange={(v) => set("start_date", v)}
+                today={today}
+              />
+            }
+          />
+          {/* Shown to everyone, editable only by an admin — you should be able to
+              see whether your card is active without being able to switch it off.
+              The server agrees: `status` is absent from SELF_EDITABLE_SECTIONS,
+              so a self save that carries it is dropped rather than refused. */}
+          <Detail
+            label="Status"
+            editing={editing && mode === "admin"}
+            value={
+              <span className={values.status === "Active" ? "ro-state ok" : "ro-state"}>
+                {values.status}
+              </span>
+            }
+            control={
+              <Seg
+                value={draft.status}
+                greenValue="Active"
+                options={["Active", "Inactive"]}
+                onChange={(v) => set("status", v)}
+              />
+            }
+          />
+          <Detail
+            label="Type"
+            req={requiredField("employment_type")}
+            editing={editing}
+            value={values.employment_type}
             onAdd={edit}
             control={
               <SelectInput
-                name="state"
-                placeholder={orgState ? `Organisation default (${orgState})` : "Same as organisation"}
-                options={AU_STATES}
-                value={draft.state ?? ""}
-                onChange={(v) => set("state", v)}
+                name="employment_type"
+                placeholder="Select employment type"
+                options={EMPLOYMENT}
+                value={draft.employment_type}
+                onChange={(v) => set("employment_type", v)}
               />
             }
           />
-        )}
-      </DetailPanel>
-
-      {/* What goes on the order form when someone starts, and what gets
-          re-ordered when a shirt wears through.
-
-          Every garment is free text over a suggested ladder — AU workwear has
-          no one sizing vocabulary, and a box that refuses "Ladies 14" is worse
-          than one that takes it. The top-half fields suggest BOTH ladders,
-          alpha and chest in centimetres, because a crew holds both answers.
-
-          Boots carry their scale with them: 10 in AU/UK is 44 in EU and 11 in
-          US, so the number alone is an order two sizes out. See
-          lib/staff/uniform.ts. */}
-      <DetailPanel title="Uniform" wide split>
-        {UNIFORM_FIELDS.map((f) => (
-          <Detail
-            key={f.key}
-            label={f.label}
-            editing={editing}
-            // boots read "10 AU/UK" — the size never appears without the
-            // system it is quoted on
-            value={display[f.key]}
-            onAdd={edit}
-            control={
-              f.scaleKey ? (
-                <ScaledInput
-                  name={f.key}
-                  placeholder={f.placeholder}
-                  // the ladder IS the scale's ladder — switch to EU and the
-                  // suggestions become 37–49, not 4–14
-                  suggestions={bootLadder(draft[f.scaleKey])}
-                  value={draft[f.key]}
-                  onChange={(v) => set(f.key, v)}
-                  scale={draft[f.scaleKey]}
-                  scaleName={f.scaleKey}
-                  scales={BOOT_SCALES}
-                  scaleLabel={`${f.label} — size scale`}
-                  onScaleChange={(v) => set(f.scaleKey!, v)}
-                />
-              ) : (
+          {mode === "admin" && (
+            <Detail
+              label="Job title"
+              editing={editing}
+              value={values.job_title}
+              onAdd={edit}
+              control={
                 <TextInput
-                  name={f.key}
-                  placeholder={f.placeholder}
-                  suggestions={f.suggestions}
-                  value={draft[f.key]}
-                  onChange={(v) => set(f.key, v)}
+                  name="job_title"
+                  placeholder="e.g. Lead Installer"
+                  value={draft.job_title ?? ""}
+                  onChange={(v) => set("job_title", v)}
                 />
-              )
-            }
-          />
-        ))}
-      </DetailPanel>
-    </DetailPanels>
-  );
+              }
+            />
+          )}
+          {mode === "admin" && (
+            /* RESOLVED, not described. This read "Same as organisation", which is
+               a sentence about a setting rather than an answer to "which public
+               holidays does this person get paid for". The org's own state is the
+               answer; the qualifier only says where it came from. */
+            <Detail
+              label="Holiday state"
+              editing={editing}
+              value={values.state || orgState || ""}
+              sub={!values.state && orgState ? "Organisation default" : undefined}
+              onAdd={edit}
+              control={
+                <SelectInput
+                  name="state"
+                  placeholder={orgState ? `Organisation default (${orgState})` : "Same as organisation"}
+                  options={AU_STATES}
+                  value={draft.state ?? ""}
+                  onChange={(v) => set("state", v)}
+                />
+              }
+            />
+          )}
+      </>
+    );
+    const uniformRows = (
+      <>
+          {UNIFORM_FIELDS.map((f) => (
+            <Detail
+              key={f.key}
+              label={f.label}
+              editing={editing}
+              // boots read "10 AU/UK" — the size never appears without the
+              // system it is quoted on
+              value={display[f.key]}
+              onAdd={edit}
+              control={
+                f.scaleKey ? (
+                  <ScaledInput
+                    name={f.key}
+                    placeholder={f.placeholder}
+                    // the ladder IS the scale's ladder — switch to EU and the
+                    // suggestions become 37–49, not 4–14
+                    suggestions={bootLadder(draft[f.scaleKey])}
+                    value={draft[f.key]}
+                    onChange={(v) => set(f.key, v)}
+                    scale={draft[f.scaleKey]}
+                    scaleName={f.scaleKey}
+                    scales={BOOT_SCALES}
+                    scaleLabel={`${f.label} — size scale`}
+                    onScaleChange={(v) => set(f.scaleKey!, v)}
+                  />
+                ) : (
+                  <TextInput
+                    name={f.key}
+                    placeholder={f.placeholder}
+                    suggestions={f.suggestions}
+                    value={draft[f.key]}
+                    onChange={(v) => set(f.key, v)}
+                  />
+                )
+              }
+            />
+          ))}
+      </>
+    );
+    if (only) {
+      const rows =
+        only === "name" ? (
+          nameRows
+        ) : only === "contact" ? (
+          <>
+            {contactRows}
+            {dobRow}
+          </>
+        ) : only === "employment" ? (
+          employmentRows
+        ) : (
+          uniformRows
+        );
+      return <dl className="pdl">{rows}</dl>;
+    }
+    return (
+      <DetailPanels>
+        <DetailPanel title="Identity">
+          {nameRows}
+          {dobRow}
+        </DetailPanel>
+        <DetailPanel title="Contact">{contactRows}</DetailPanel>
+        <DetailPanel title="Employment" wide split>
+          {employmentRows}
+        </DetailPanel>
+        <DetailPanel title="Uniform" wide split>
+          {uniformRows}
+        </DetailPanel>
+      </DetailPanels>
+    );
+  };
 
   return (
     <>
@@ -445,6 +481,7 @@ export function PersonalCard({
         variant={group ? "group" : "section"}
         title={group?.title ?? "Personal details"}
         editLabel={group?.editLabel}
+      lead={group?.lead}
         values={values}
         startEditing={startEditing}
         focusField={focusField}

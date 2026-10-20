@@ -166,6 +166,10 @@
 }
 .pt-stabs .pt-stab:hover { border-bottom-color: var(--edge); }
 .pt-stabs .pt-stab[aria-selected="true"] { border-bottom-color: var(--ink); }
+/* a section with something to look at says so in its word: amber, red when
+   something is wrong; the one you're on stays ink */
+.pt-stabs .pt-stab.pt-stab--look:not([aria-selected="true"]) { color: var(--orange-w); }
+.pt-stabs .pt-stab.pt-stab--wrong:not([aria-selected="true"]) { color: var(--red-w); }
 
 .pt-vtabs .pt-vtab:focus-visible,
 .pt-stabs .pt-stab:focus-visible { outline: none; box-shadow: var(--ring); }

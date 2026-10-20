@@ -17,6 +17,9 @@ export type TabItem = {
   /** Said after the count, so it is not a number alone: n => `${n} overdue`. */
   countLabel?: (n: number) => string;
   href?: string;
+  /** Section tabs only: something on it needs a look (amber) or is wrong
+      (red). The word takes the colour, and a screen reader hears it. */
+  tone?: "look" | "wrong";
 };
 
 type TabsProps = {
@@ -70,13 +73,16 @@ function Tabs({ items, current, onGo, ariaLabel, idPrefix, panelPrefix, kind }: 
           "aria-selected": on,
           /* only the tab you're on is in the tab order; the arrows reach the rest */
           tabIndex: on ? 0 : -1,
-          className: kind,
+          className: t.tone && kind === "pt-stab" ? `${kind} ${kind}--${t.tone}` : kind,
           onKeyDown: (e: KeyboardEvent<HTMLElement>) => walk(e, "tab"),
         };
         const body: ReactNode = (
           <>
             <span className={`${kind}-word`}>{t.label}</span>
             <Count item={t} className={`${kind}-n`} />
+            {t.tone && kind === "pt-stab" && (
+              <span className="pt-tabs-sr">, {t.tone === "wrong" ? "something wrong" : "something to look at"}</span>
+            )}
           </>
         );
         if (t.href)
@@ -111,9 +117,9 @@ export function ViewTabs(props: TabsProps) {
 }
 
 /* A RECORD'S SECTIONS (rule 31). Underlined: the one you're on stands on
-   2px of ink, and every tab says what's in it in grey, "Visits 2". A job
-   has seven: Overview, Quote, Visits, Checklist, Photos, Documents,
-   Billing. */
+   2px of ink. A tab with something to look at has its word in amber, red
+   when something is wrong (`tone`). A job has seven: Overview, Quote,
+   Visits, Checklist, Photos, Documents, Billing. */
 export function SectionTabs(props: TabsProps) {
   return <Tabs {...props} kind="pt-stab" />;
 }

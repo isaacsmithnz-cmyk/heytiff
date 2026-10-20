@@ -12702,15 +12702,49 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .tm2-photo .pphoto { width:56px; height:56px; border-radius:50%; }
 .fg .tm2-photo .pphoto .inn { border-radius:50%; }
 .fg .tm2-photo .pphoto.nophoto, .fg .tm2-photo .pphoto.nophoto .inn { background:var(--sel); color:var(--ink); font-size:16px; line-height:24px; font-weight:600; }
-.fg .tm2-cols { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:48px; align-items:start; }
+/* the tabs' pages: Overview's groups beside its rail; two columns; one */
+.fg .tm2-ov { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:48px; align-items:start; }
+.fg .tm2-two { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:48px; align-items:start; }
+.fg .tm2-one { max-width:720px; }
+/* Access names its switches in the sidebar's words, some of them long */
+.fg .tm2-p .tm2-one .pdrow { grid-template-columns:280px minmax(0,1fr); }
 .fg .tm2-col { display:flex; flex-direction:column; gap:32px; min-width:0; }
 /* a group: its head on a thin line, its rows under it */
 .fg .tm2-p .pdlcard.psec-group { border-top:1px solid var(--line); padding-top:16px; }
-.fg .tm2-col > :first-child .pdlcard.psec-group, .fg .tm2-col > .pdlcard.psec-group:first-child { border-top:0; padding-top:0; }
+.fg .tm2-col > :first-child .pdlcard.psec-group, .fg .tm2-col > .pdlcard.psec-group:first-child, .fg .tm2-one > :first-child .pdlcard.psec-group, .fg .tm2-one > .pdlcard.psec-group:first-child { border-top:0; padding-top:0; }
 .fg .tm2-p .psec-group > .pdlh { font-size:16px; line-height:24px; font-weight:600; color:var(--ink); min-height:32px; }
 .fg .tm2-p .psec-group .pdlh .jumpb { padding:4px 8px; margin-right:-8px; border-radius:var(--r-button); font-size:14px; line-height:20px; font-weight:600; color:var(--ink); text-decoration:none; transition:background var(--t-fast) var(--ease); }
 .fg .tm2-p .psec-group .pdlh .jumpb:hover { background:var(--hov); }
-.fg .tm2-hcount { font-weight:400; color:var(--q); }
+/* a group's mark: one of the app's icons in its hue's word value, nothing
+   behind it (Isaac, 20 October; design.md, "His rulings") */
+.fg .tm2-p .psec-group > .pdlh > span:first-child { display:inline-flex; align-items:center; gap:8px; }
+.fg .tm2-ic { display:inline-flex; flex:none; width:20px; height:20px; color:var(--q); }
+.fg .tm2-ic svg { display:block; }
+.fg .tm2-ic--red { color:var(--red-w); }
+.fg .tm2-ic--orange { color:var(--orange-w); }
+.fg .tm2-ic--yellow { color:var(--yellow-w); }
+.fg .tm2-ic--green { color:var(--green-w); }
+.fg .tm2-ic--purple { color:var(--purple-w); }
+.fg .tm2-ic--pink { color:var(--pink-w); }
+/* the emergency contact: a card (rule 35, you call them), its title in red
+   on his ruling, the name large, what's missing in amber */
+.fg .tm2-emerg { padding:16px; border:1px solid var(--edge); border-radius:var(--r-card); }
+.fg .tm2-p .tm2-emerg .pdlcard.psec-group { border-top:0; padding-top:0; }
+.fg .tm2-p .tm2-emerg .psec-group > .pdlh > span:first-child { color:var(--red-w); }
+.fg .tm2-ename { margin:8px 0; font-size:20px; line-height:28px; font-weight:600; color:var(--ink); }
+.fg .tm2-p .tm2-emerg .pdrow { grid-template-columns:112px minmax(0,1fr); }
+/* the rail's rows: a mark, what it is, where it stands, one button at most */
+.fg .tm2-facts { margin:24px 0 0; padding:0; list-style:none; }
+.fg .tm2-fact { display:grid; grid-template-columns:20px 96px minmax(0,1fr) auto; align-items:center; gap:8px; padding:12px 0; border-bottom:1px solid var(--line); }
+.fg .tm2-fact:first-child { border-top:1px solid var(--line); }
+.fg .tm2-fact-k { font-size:14px; line-height:20px; color:var(--q); }
+.fg .tm2-fact-v { display:flex; flex-direction:column; min-width:0; }
+.fg .tm2-fact-w { font-size:14px; line-height:20px; color:var(--ink); }
+.fg .tm2-fact .tm2-link { margin-top:0; }
+/* Access: the switches under the places they open */
+.fg .tm2-pgrp { margin-top:24px; }
+.fg .tm2-pgrp-h { display:flex; align-items:center; gap:8px; margin:0 0 8px; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .tm2-p .tm2-locked { margin:0 0 12px; }
 /* the sub-groups inside a section's form (Identity, Contact, Employment, Uniform) */
 .fg .tm2-p .psec-group .pdlgrid { grid-template-columns:minmax(0,1fr); gap:16px; margin-top:8px; }
 .fg .tm2-p .psec-group .pdlgrid > .pdlcard { border-top:0; padding-top:0; }
@@ -12753,7 +12787,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .tm2-dow:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .tm2-formacts { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
 @media (max-width:900px) {
-  .fg .tm2-cols { grid-template-columns:minmax(0,1fr); gap:32px; }
+  .fg .tm2-ov, .fg .tm2-two { grid-template-columns:minmax(0,1fr); gap:32px; }
 }
 @media print {
   .fg .tm2-p .jumpb, .fg .tm2-phead .pt-btn { display:none; }

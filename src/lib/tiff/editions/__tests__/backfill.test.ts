@@ -12,8 +12,6 @@
    a document (../../imprint), about a fifth of a cent each, and writes only
    into a maker or an edition nobody filled (`imprintPatch`). */
 
-import { KB_BUCKET } from "../../files";
-import { openPdf } from "../../extract";
 import { IMPRINT_CHARS, imprintPatch, readImprint } from "../../imprint";
 
 const MODE = process.env.LIBRARY_EDITIONS;
@@ -33,20 +31,22 @@ async function missing(): Promise<Row[]> {
     .eq("status", "ready")
     .or("source.is.null,source.eq.,edition.is.null,edition.eq.");
   if (error) throw new Error(error.message);
-  return ((data ?? []) as Row[]).filter((r) => r.storage_ref && /\.pdf$/i.test(r.storage_ref));
+  return (data ?? []) as Row[];
 }
 
-async function coverOf(ref: string): Promise<string> {
-  const file = await (await admin()).storage.from(KB_BUCKET).download(ref);
-  if (file.error || !file.data) return "";
-  const pdf = await openPdf(new Uint8Array(await file.data.arrayBuffer()));
-  try {
-    const pages: string[] = [];
-    for (let n = 1; n <= Math.min(3, pdf.numPages); n++) pages.push(await pdf.pageText(n));
-    return pages.join("\n").slice(0, IMPRINT_CHARS);
-  } finally {
-    await pdf.destroy().catch(() => {});
-  }
+/* The cover's words as the reading stored them: the passages from its first
+   three pages (kb_chunks), so no PDF is opened again. A scanned cover has
+   none, and is left as it is. */
+async function coverOf(r: Row): Promise<string> {
+  const { data } = await (await admin())
+    .from("kb_chunks")
+    .select("content, chunk_index")
+    .eq("org_id", r.org_id)
+    .eq("document_id", r.id)
+    .lte("page_from", 3)
+    .order("chunk_index", { ascending: true })
+    .limit(8);
+  return ((data ?? []) as { content: string }[]).map((c) => c.content).join("\n").slice(0, IMPRINT_CHARS);
 }
 
 const run = MODE === "count" || MODE === "write" ? it : it.skip;
@@ -59,7 +59,7 @@ describe("the Library's makers and editions", () => {
       console.log(`${rows.length} documents with no maker or no edition, about ${((rows.length * CENTS_EACH) / 100).toFixed(2)} USD to read.`);
       if (MODE !== "write") return;
       for (const r of rows) {
-        const found = await readImprint(await coverOf(r.storage_ref!));
+        const found = await readImprint(await coverOf(r));
         const patch = imprintPatch(r, found);
         if (Object.keys(patch).length) {
           const { error } = await (await admin()).from("kb_documents").update(patch).eq("org_id", r.org_id).eq("id", r.id);

@@ -1,10 +1,8 @@
-import { ActionRequiredBoard } from "@/components/dashboard/action-required-board";
-import { loadActionRequired } from "@/lib/dashboard/page-data";
+import { redirect } from "next/navigation";
 
-/* Ungated, like the dashboard itself — everyone has their own expiries to see.
-   What the team's and the fleet's chips add is decided by capability inside
-   assembleChips, so there is nothing to gate at the route. */
-export default async function ActionRequiredPage() {
-  const chips = await loadActionRequired();
-  return <ActionRequiredBoard chips={chips} />;
+/* Retired (v2 audit, 20 October 2026): what this board listed is Home's
+   now, its To do and Activity columns. The address stays for the links
+   that name it and lands on Home. */
+export default function ActionRequiredPage(): never {
+  redirect("/dashboard");
 }

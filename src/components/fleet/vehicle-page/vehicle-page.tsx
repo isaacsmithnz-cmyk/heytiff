@@ -216,7 +216,7 @@ export function VehiclePage({
     setRemoving(true);
     const res = await removeVehicleAction(vehicle.id);
     setRemoving(false);
-    if (res.ok) router.replace("/dashboard/assets");
+    if (res.ok) router.replace("/dashboard/team?view=vehicles");
     else {
       setOver({ t: "none" });
       setRemoveError(res.error);

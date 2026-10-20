@@ -313,7 +313,7 @@ describe("4 weeks", () => {
     draw();
     expect(within(agenda()).getByRole("link", { name: "Renew rego" })).toHaveAttribute(
       "href",
-      "/dashboard/assets?v=v3&screen=rego",
+      "/dashboard/vehicles/v3",
     );
   });
 

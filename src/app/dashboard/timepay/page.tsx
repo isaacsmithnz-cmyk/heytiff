@@ -1,27 +1,17 @@
 import { redirect } from "next/navigation";
 import { can } from "@/lib/permissions-server";
-import { TimepayScreen } from "@/components/timepay/timepay-screen";
-import { loadTimepaySection } from "@/lib/timepay/section";
 
-/* Capability-gated: this is the EVERYONE view. Your own timesheet lives at
-   /dashboard/my-timesheet and is never gated.
-
-   All three faces load here — see lib/timepay/section.ts for what moved when
-   the tabs stopped being routes, and timepay-screen.tsx for the URL contract.
-   `?period=` still belongs to this URL: the Timesheets face pushes it to
-   itself, and that push is a real navigation because a different week IS
-   different data. */
-
+/* Retired (v2 audit, 20 October 2026): the team's timesheets are Team's
+   Timesheets view, which reads the same `?period=`. Your own timesheet is
+   /dashboard/my-timesheet and is never gated. */
 export default async function TimePayPage({
   searchParams,
 }: {
   searchParams: Promise<{ period?: string }>;
-}) {
+}): Promise<never> {
   if (!(await can("timepay_all"))) redirect("/dashboard/my-timesheet");
-
   const { period } = await searchParams;
-  const section = await loadTimepaySection(period);
-  if (!section) redirect("/dashboard");
-
-  return <TimepayScreen initialTab="sheets" section={section} />;
+  const q = new URLSearchParams({ view: "timesheets" });
+  if (typeof period === "string" && period) q.set("period", period);
+  redirect(`/dashboard/team?${q}`);
 }

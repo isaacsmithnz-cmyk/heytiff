@@ -154,7 +154,7 @@ describe("a door with the row", () => {
     host(<Door job={row()} />);
     await user.click(screen.getByRole("button", { name: "Open" }));
     await user.click(screen.getByRole("button", { name: "Create an agreement from this job" }));
-    expect(push).toHaveBeenCalledWith("/dashboard/workboard?job=j1");
+    expect(push).toHaveBeenCalledWith("/dashboard/jobs/j1");
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

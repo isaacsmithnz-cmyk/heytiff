@@ -386,7 +386,7 @@ describe("Actions", () => {
     const ask = screen.getByRole("dialog", { name: "Remove Hilux XQG41B?" });
     await u.click(within(ask).getByRole("button", { name: "Remove vehicle" }));
     expect(removeVehicle).toHaveBeenCalledWith("v1");
-    expect(replace).toHaveBeenCalledWith("/dashboard/assets");
+    expect(replace).toHaveBeenCalledWith("/dashboard/team?view=vehicles");
   });
 
   it("says why when the removal is refused, and stays", async () => {

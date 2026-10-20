@@ -75,7 +75,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 
 - **39. A row.** Time or tick, dot, name in bold, a line under it in grey, then a state word or one button on the right.
 - **40. Nothing there yet.** Says what's missing and leads with the action.
-- **41. Loading.** Nothing for half a second, then a skeleton shaped like what's coming.
+- **41. Loading.** Nothing for half a second, then Tiff's mark, turning at her working speed, in the middle of where the page will be. A page never wears a skeleton: one shaped like the page never matched it (Isaac, 20 October 2026).
 - **42. When something goes wrong.** A red dot and word, what it means for you, and what to do.
 - **43. Search.** Results by kind; the last row asks Tiff, with Enter.
 - **44. The New menu.** Job and Task: the same two on every page. It fills in only the record you are on, which you can clear: a task made on a job's page is for that job, and made anywhere else it is a general task. A quote is made on its job, through Add. The panel reaches out from the New button, dark, square where it leaves the panel.
@@ -191,7 +191,7 @@ The 34 laws of 10 September, as they stand under the rules above. Twenty-four ar
 15. No taglines, and no caption that explains the section. The two shapes: three nouns in a row under a title ("splits, ducted, multi") and a line that says what the section is for ("What lets the business trade — nothing expiring"). The title names the section; the content shows what it is for. A line under a title earns its place only when it carries a fact the reader came for, with a figure, a date or a name. "3 need attention" is that fact. "Nothing expiring" is the same fact as reassurance, and "What lets the business trade" is an explanation. Keep the fact, drop the rest.
 16. Colour comes from the tokens. No hex outside the token block. The greys are chosen: ink, quiet text, the line, surface, ground. They were Tailwind's gray-50 to gray-900 by value, and two tokens were Tailwind steps by definition (`--gray700`, `--gray600`). The state colours were Tailwind's red, green, teal and amber.
 17. Spacing is on the scale: 2, 4, 8, 12, 16, 24, 32, 48. Two is the hairline gap between chips. Nothing is typed by feel. Three things are not spacing and stay off the scale: a 1px optical nudge; a layout offset above 48, a rail's width or a footer's clearance; and a negative margin, which is an offset that centres a disc or hides a border. A value that is really a sum of a neighbour's parts, a card's padding plus its border, is written as that sum, `calc(24px + 1px)`, never as 25, so the guard that owns the neighbour can read it. When a value sat between two steps it went down: a working screen is dense.
-18. Motion uses the three speed tokens and no curves of its own. A transition names what moves, never `all`. A hover is one change; nothing lifts, scales, nudges or grows a shadow under the pointer, and a press moves 1px. What may loop: a spinner, a skeleton sweep, a caret, a live dot, and Tiff's mark while the microphone is open or she is working. Every loop that runs is named under Guards.
+18. Motion uses the three speed tokens and no curves of its own. A transition names what moves, never `all`. A hover is one change; nothing lifts, scales, nudges or grows a shadow under the pointer, and a press moves 1px. What may loop: a spinner, a skeleton sweep, a caret, a live dot, and Tiff's mark while the microphone is open, she is working, or a page is loading (rule 41). Every loop that runs is named under Guards.
 19. Six layers, named: base 0, raised 1, sticky 10, overlay 100, modal 200, toast 300. There were 36 values from 0 to 1200.
 20. No arrow on a button. "Continue", not "Continue →". An arrow between two values ("21.5° → 23°") is a fact and stays.
 21. No middot chains. A line under a title is a sentence, or a label and a value. The one allowance is a keyboard hint: "Esc to cancel".
@@ -200,7 +200,7 @@ The 34 laws of 10 September, as they stand under the rules above. Twenty-four ar
 24. A control hidden until hover is also shown on `:focus-within`, or it is not hidden. Keyboard users get the delete control back.
 25. A button with only an icon is close, clear, the microphone, or the ‹ › of a date (rule 27). Every other button carries its word. A `title` is not a label. The few that still keep their glyph are named under Guards, each with its reason, and leave as their screens are rebuilt.
 26. State is not a pill (rule 47). Pills are only for a person's name in a note. Time and Pay's bars and tints go (rule 21).
-27. Nothing spins in the first half second. Past a second, a skeleton shaped like what is coming. The ring lives only inside a button that says what it is doing.
+27. Nothing spins in the first half second. Past it, a page shows Tiff's mark turning (rule 41). The ring lives only inside a button that says what it is doing.
 28. One footer. The ten footer families fold into one, and the buttons name the choice: "Keep" and "Delete file", "Cancel" and "Rename".
 29. `text-wrap: balance` on headings only. Letter-spacing on display titles only; the positive tracking leaves with the eyebrows. "…", never "...". A typed "…" is for a wait that says what it is doing; text that doesn't fit fades (rule 50) and is never cut with one.
 30. *Done, and moved to the decision log: the public pages carry Open Graph metadata and an image.*
@@ -238,7 +238,7 @@ infinite loop into a strobe.
 
 | Keyframes | Runs on | Why it loops |
 |---|---|---|
-| `pkSweep` ×2 | the route skeleton and the job card's summary while its read is out (v2's chrome skeleton is still, rule 41) | a skeleton sweep: the space a screen is about to fill |
+| `pkSweep` | the job card's summary while its read is out (v2's chrome skeleton is still) | a skeleton sweep: the space a screen is about to fill |
 | `dsSweep` | the Studio's skeleton blocks | a skeleton sweep |
 | `ds-sheet-wait` | the sheet's outline while its raster downloads | a skeleton, breathing rather than swept because it is an outline: the plan lands into its place |
 | `vmShimmer` | the reading bar while a scanned document is read | a skeleton sweep for a scan in progress |
@@ -254,7 +254,7 @@ infinite loop into a strobe.
 | `dotfSwell` | the mark while you talk, in the Tiff modal and the ask bar's recording card | the microphone is open: a wave through the mark |
 | `dotfTurn`, `dotfZip`, `dotfFire` | the Tiff modal's cloud while Tiff has the words | Tiff is working: the mark as a turning cloud until the answer comes back |
 | `wb2Flash` | a calendar day the board's data asked to flash | a flash a row asked for with data |
-| `tiffGyro`, `tiffNod`, `tiffSheen`, `tiffGimbalA`, `tiffGimbalB`, `tiffArc` | the Tiff button and the mark wherever it stands for Tiff; the rules are declared on every mark but held paused until the mark is working | Tiff is working (rule 8, v2). Since 18 October 2026 the mark is still at rest (Isaac, 17 October: "The mark does not turn at rest. It can stay still."), which retires the override of 24 September. Home's mark (`.tiffmk.alive`) runs them at rest, in the colours, from 20 October (Isaac) |
+| `tiffGyro`, `tiffNod`, `tiffSheen`, `tiffGimbalA`, `tiffGimbalB`, `tiffArc` | the Tiff button and the mark wherever it stands for Tiff; the rules are declared on every mark but held paused until the mark is working | Tiff is working (rule 8, v2). Since 18 October 2026 the mark is still at rest (Isaac, 17 October: "The mark does not turn at rest. It can stay still."), which retires the override of 24 September. Home's mark (`.tiffmk.alive`) runs them at rest, in the colours, from 20 October (Isaac), and the page's hold (`.pg-hold`, rule 41) runs them working |
 | `tiffCyc` ×2 | the two runs of light on a working mark's rings, their gradient stops cycling blue, purple, pink, red, orange, yellow, green | Tiff is working: colour on the mark means she's busy (rule 8). The gradients are only shown on a working mark |
 | `tiffCycRing` ×2 | a working mark's two faint rings, in the same cycle, and Home's mark's at rest | Tiff is working (rule 8); Home's mark is alive (rule 8, 20 October) |
 | `hdTrace` | the Trace: the white light round the job on now, on Home's day bar | Isaac's override of law 18 (2026-09-24, "design exempt for now, but keep a note"): his live job, marked by a light that runs round its edge once every 8 seconds while it is on. It goes when the job finishes, and stands still under reduced motion. See "Named exemptions" below |

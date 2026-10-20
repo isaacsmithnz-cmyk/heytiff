@@ -130,30 +130,13 @@
 
 .fg .wrap { padding:32px; max-width:1500px; margin:0 auto; padding-bottom:96px; }
 
-/* ---------------- route loading skeleton ----------------
-   The fallback under /dashboard/loading.tsx. Shapes only — it holds the space
-   a screen is about to occupy so the click has somewhere to land. The sweep is
-   slow and low-contrast on purpose: a fast shimmer reads as an error state,
-   and this is often on screen for a second or two.
-   Honours prefers-reduced-motion (a full-page pulsing block is exactly what
-   that setting exists to stop). */
+/* THE PAGE'S HOLD (rule 41): Tiff's mark in the middle of where the page
+   will be, unseen for the first half second (rule 27) so a quick page never
+   flashes it. */
+.fg .pg-hold { display:flex; align-items:center; justify-content:center; opacity:0; animation:pgHoldIn var(--t-move) var(--ease) .5s forwards; }
+@keyframes pgHoldIn { to { opacity:1; } }
+/* the job card's summary sweeps while its read is out */
 @keyframes pkSweep { from{background-position:200% 0;} to{background-position:-200% 0;} }
-.fg .pk-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
-.fg .pk-b { display:block; border-radius:6px;
-  background:linear-gradient(100deg, rgba(10,12,20,.05) 30%, rgba(10,12,20,.09) 50%, rgba(10,12,20,.05) 70%);
-  background-size:200% 100%; animation:pkSweep 1.6s ease-in-out infinite; }
-/* the h1's own block, in the h1's own seat — 24px of it, the height of the
-   title that is about to replace it */
-.fg .pk-title { width:180px; height:24px; border-radius:var(--r-control); }
-.fg .pk-row { display:flex; align-items:center; gap:16px; padding:16px 0; border-bottom:1px solid var(--line); }
-.fg .pk-row:first-child { padding-top:0; }
-.fg .pk-row:last-child { border-bottom:none; }
-.fg .pk-dot { width:38px; height:38px; border-radius:50%; flex:0 0 auto; }
-.fg .pk-l1 { flex:0 1 220px; height:13px; }
-.fg .pk-l2 { flex:0 1 120px; height:13px; }
-@media (prefers-reduced-motion:reduce) {
-  .fg .pk-b { animation:none; background:rgba(10,12,20,.06); }
-}
 
 /* ---- Dashboard home: action-required / roster / payroll section rows.
    Additive only — reuses the existing .card2 / .c2h / .dchip2 primitives. ---- */
@@ -11889,11 +11872,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-chat .hm-chat-turns { flex:1 1 auto; max-height:none; padding:0; }
 .fg .hm-chat .tm-dock { padding:12px 0 0; border-top:0; }
 .fg .hm-chat-now { margin:0; font-size:14px; line-height:20px; color:var(--q); }
-/* Home's own hold: the mark, the box and the two heads, where they land */
-.fg .hm-pk-mark { width:96px; height:96px; border-radius:50%; }
-.fg .hm-pk-box { align-self:stretch; height:calc(16px + 24px + 12px + 36px + 12px + 2px); border-radius:var(--r-card); }
-.fg .hm-pk-h { width:96px; height:24px; border-radius:var(--r-control); }
-.fg .hm-pk-blk { width:32px; height:32px; border-radius:var(--r-button); }
 .fg .hm-sec { display:flex; flex-direction:column; min-width:0; }
 .fg .hm-head { display:flex; align-items:center; gap:12px; padding-bottom:12px; border-bottom:1px solid var(--line); }
 .fg .hm-h { margin:0; font-size:20px; line-height:28px; font-weight:600; color:var(--ink); }

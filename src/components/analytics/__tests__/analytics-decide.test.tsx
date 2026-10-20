@@ -46,7 +46,7 @@ it("asks what can't be placed, each row with the job and what was read from it",
   render(<ToDecide asks={asks} names={names} canDecide />);
   expect(screen.getByText("3 jobs to decide.")).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Is it a quote?" })).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "#3187 Greenway Builders" })).toHaveAttribute("href", "/dashboard/workboard?job=a");
+  expect(screen.getByRole("link", { name: "#3187 Greenway Builders" })).toHaveAttribute("href", "/dashboard/jobs/a");
   expect(screen.getByText("Reads like ducted work, and no quote was sent.")).toBeInTheDocument();
   expect(screen.getByText("Unsuccessful in ServiceM8, but marked paid.")).toBeInTheDocument();
   expect(screen.getByText("24 times the median wall split job, $3,950.")).toBeInTheDocument();

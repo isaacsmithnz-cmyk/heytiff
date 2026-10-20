@@ -125,7 +125,7 @@ function CodeLookup({ color }: { color: string }) {
   const lookUp = () => {
     if (!ready) return;
     writeAskText(faultCodePrefill(code));
-    router.push("/dashboard/tiff");
+    router.push("/dashboard/conversations");
   };
 
   return (

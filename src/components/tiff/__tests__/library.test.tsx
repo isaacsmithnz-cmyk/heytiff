@@ -652,7 +652,7 @@ describe("asking Tiff about a row", () => {
     expect(JSON.parse(sessionStorage.getItem(ASK_KEY) ?? "{}")).toEqual({
       doc: { docId: "d-1", title: "City Multi fault codes" },
     });
-    expect(push).toHaveBeenCalledWith("/dashboard/tiff");
+    expect(push).toHaveBeenCalledWith("/dashboard/conversations");
   });
 
   /* a manager asks from the row's Actions, the same hand-over */
@@ -665,7 +665,7 @@ describe("asking Tiff about a row", () => {
     expect(JSON.parse(sessionStorage.getItem(ASK_KEY) ?? "{}")).toEqual({
       doc: { docId: "d-1", title: "City Multi fault codes" },
     });
-    expect(push).toHaveBeenCalledWith("/dashboard/tiff");
+    expect(push).toHaveBeenCalledWith("/dashboard/conversations");
   });
 
   /* Tiff can't be asked about pages it hasn't read. An affordance that leads

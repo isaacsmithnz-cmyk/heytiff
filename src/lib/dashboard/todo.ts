@@ -107,6 +107,9 @@ const enc = encodeURIComponent;
     to someone, delete) and an ask opens its conversation, until To do's
     rows open their own forms (F-019). */
 export const deskTaskHref = (id: string) => `/dashboard/desk?task=${enc(id)}`;
+/** The Diary, where an entry, a mention or a field issue with no job is
+    read until v2 gives the Diary a place (the v2 audit, 20 October 2026). */
+export const DESK_DIARY = "/dashboard/desk?face=diary";
 export const deskAskHref = (noteUuid: string) => `/dashboard/desk?ask=${enc(noteUuid)}`;
 
 const toneOfDot = (dot: Dot): TodoTone => (dot === "late" ? "wrong" : dot === "today" ? "look" : "info");
@@ -180,7 +183,7 @@ function listAlertAct(r: ListAlertRow): TodoAct {
   if (v && "door" in v && v.door.to === "job") return { kind: "link", label: v.label, href: jobPageHref(v.door.remoteId, "visits") };
   const d = r.door;
   const href =
-    d.to === "href" ? d.href : d.to === "job" ? jobPageHref(d.remoteId) : d.to === "task" ? deskTaskHref(d.id) : "/dashboard/desk";
+    d.to === "href" ? d.href : d.to === "job" ? jobPageHref(d.remoteId) : d.to === "task" ? deskTaskHref(d.id) : DESK_DIARY;
   /* a paper with no verb of its own is renewed where the row lands; a
      service is the vehicle's, opened */
   const paper = r.id.startsWith("chip:") && !/^Service\b/.test(r.sub);
@@ -238,7 +241,7 @@ function listRows(list: HomeList): TodoRow[] {
             line: phrase(r.sub),
             lineTone: false,
             tick: null,
-            act: { kind: "link", label: "Open", href: job ? jobPageHref(job) : "/dashboard/desk" },
+            act: { kind: "link", label: "Open", href: job ? jobPageHref(job) : DESK_DIARY },
           });
           break;
         }
@@ -324,7 +327,7 @@ export function todoRows(input: TodoInput): TodoRow[] {
             line: `${input.timesheets} to approve`,
             lineTone: false,
             tick: null,
-            act: { kind: "link", label: "Review", href: "/dashboard/timepay" },
+            act: { kind: "link", label: "Review", href: "/dashboard/team?view=timesheets" },
           },
         ]
       : [];

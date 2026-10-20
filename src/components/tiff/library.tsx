@@ -493,7 +493,7 @@ export function Library({
      permission, and `tiff_manage` is about changing it. */
   const askAbout = (d: KbLibraryDoc) => {
     writeAskScope({ docId: d.id, title: d.title });
-    router.push("/dashboard/tiff");
+    router.push("/dashboard/conversations");
   };
 
   const zero = docs.length === 0;

@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { DashboardDesk } from "@/components/dashboard/home-desk";
 import { loadDashboard } from "@/lib/dashboard/page-data";
 import { NoteScopeScreen } from "@/components/notes/note-context";
@@ -36,6 +37,11 @@ export default async function DeskPage({
   const askId = ask && UUID.test(ask) ? ask : null;
   const face = one(search?.face);
   const named = face && (DESK_FACES as readonly string[]).includes(face) ? (face as DeskFace) : null;
+  /* RETIRED BUT FOR A TASK OR AN ASK (v2 audit, 20 October 2026): the desk
+     itself is Home, the Calendar is Schedule. A task's row and an ask's
+     reply have no v2 screen yet, nor has the Diary (an entry, a mention or a
+     field issue with no job), so only those doors still open it. */
+  if (!taskId && !askId && named !== "diary") redirect(named === "calendar" ? "/dashboard/schedule" : "/dashboard");
 
   /* The desk is the universal case — nothing here is ABOUT a job, so the
      default target stays none. The staff roster is whoever can be assigned

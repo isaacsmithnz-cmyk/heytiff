@@ -1,5 +1,6 @@
 "use client";
 
+import { vehiclePageHref } from "@/lib/shell/links";
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Plate } from "@/components/fleet/plate";
@@ -287,7 +288,7 @@ function Head({
            lands on. Assets reads the param and opens that vehicle. */
         <div className="pov-van">
           <span className="pov-k">Van</span>
-          <Link className="vehjump" href={`/dashboard/assets?v=${v.id}`}>
+          <Link className="vehjump" href={vehiclePageHref(v.id)}>
             <Plate plate={v.plate} state={v.plateState} size="lg" />
             <span className="sr-only">Open {v.plate} in Fleet</span>
           </Link>

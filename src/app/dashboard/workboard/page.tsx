@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { can } from "@/lib/permissions-server";
 import { linkedVisit, loadLinkedJob, loadWorkboardPage } from "@/lib/workboard/page-data";
 import { OverviewScreen } from "@/components/workboard/overview-screen";
+import { jobPageHref } from "@/lib/shell/links";
 
 /* The Workboard — Overview today; Projects and Maintenance land as their own
    sub-pages. Gated by the `workboard` capability (a staff DEFAULT — the board
@@ -20,6 +21,19 @@ export default async function WorkboardPage({
   }>;
 }) {
   if (!(await can("workboard"))) redirect("/dashboard");
+
+  /* RETIRED BUT FOR A VISIT (v2 audit, 20 October 2026): a job opens on its
+     own page, on its Quote section when the old face named it; a client's
+     search is Jobs' search; the board itself is Jobs. Only `?visit=` still
+     lands here, because a maintenance visit has no page of its own yet. */
+  const asked0 = await searchParams;
+  const one0 = (v: string | string[] | undefined) => (typeof v === "string" ? v.trim() : "");
+  if (!one0(asked0.visit)) {
+    const job0 = one0(asked0.job);
+    if (job0) redirect(jobPageHref(job0, asked0.face === "quote" ? "quote" : undefined));
+    const q0 = one0(asked0.q).slice(0, 120);
+    redirect(q0 ? `/dashboard/jobs?q=${encodeURIComponent(q0)}` : "/dashboard/jobs");
+  }
 
   const data = await loadWorkboardPage();
   if (!data) redirect("/dashboard");

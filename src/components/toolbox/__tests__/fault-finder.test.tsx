@@ -321,7 +321,7 @@ describe("FaultFinder — a diagnosis that lands on a code", () => {
     expect(sessionStorage.getItem(ASK_HANDOFF_KEY)).toContain("“E5”");
     // the caret lands after the question so the brand and model can go on
     expect(sessionStorage.getItem(ASK_HANDOFF_KEY)?.endsWith("? ")).toBe(true);
-    expect(push).toHaveBeenCalledWith("/dashboard/tiff");
+    expect(push).toHaveBeenCalledWith("/dashboard/conversations");
   });
 
   it("points at the empty Library rather than searching it", () => {

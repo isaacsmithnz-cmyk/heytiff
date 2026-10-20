@@ -2,7 +2,7 @@ import { requireOrg } from "@/lib/permissions-server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { isDesignDocumentShape } from "@/lib/studio/document";
 import type { PlanReading } from "@/lib/studio/reading";
-import { READING_MODEL, readSheet, type SheetToRead } from "@/lib/studio/reading-server";
+import { READING_MODEL, readRoof, readSheet, type SheetToRead } from "@/lib/studio/reading-server";
 
 /* POST { designId } — Tiff reads every plan on the design's floors (v2,
    20 October) and hands the reading back for the Studio to keep on the
@@ -12,7 +12,16 @@ import { READING_MODEL, readSheet, type SheetToRead } from "@/lib/studio/reading
    Each sheet is two Opus reads side by side (the checklist and the
    furniture), about a minute and a half; the sheets run together, so a
    house reads in about the time of its slowest sheet. A sheet that fails
-   is said in `failed`, and the rest still come back. */
+   is said in `failed`, and the rest still come back.
+
+   The roof and the heights are a read of their own beside them (Isaac, 20
+   October 2026: "Roof and framing should always be done"): the uploaded
+   set itself, elevations and sections and all, with each floor's plan to
+   set the roof out on.
+
+   ONLY WHAT IS MISSING IS READ. A design read before keeps its sheets and
+   its roof; asking again reads a sheet it hasn't read (a floor added since)
+   and the roof if it has none, so pressing it twice never pays twice. */
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -46,10 +55,31 @@ export async function POST(request: Request): Promise<Response> {
   );
   if (sheets.length === 0) return answer({ ok: false, error: "The design has no plans to read." });
 
-  const results = await Promise.allSettled(sheets.map((s) => readSheet(orgId, s)));
-  const reading: PlanReading = { at: new Date().toISOString(), model: READING_MODEL, floors: {}, failed: [] };
+  const had = data.doc.reading ?? null;
+  const done = new Set(Object.values(had?.floors ?? {}).flat().map((r) => r.sheetId));
+  const toRead = sheets.filter((s) => !done.has(s.sheetId));
+  /* the roof is set out on each floor's first plan; the set is the first PDF uploaded */
+  const firstPlans = data.doc.floors.flatMap((f) => sheets.filter((s) => s.floorId === f.id).slice(0, 1));
+  const pdf = data.doc.planImport?.sources.find((src) => src.kind === "pdf")?.ref ?? null;
+
+  const [results, roof] = await Promise.all([
+    Promise.allSettled(toRead.map((s) => readSheet(orgId, s))),
+    had?.roof
+      ? Promise.resolve(had.roof)
+      : readRoof(orgId, pdf, firstPlans).catch((e) => {
+          console.error(`[read-plans] ${designId}/roof: ${String(e)}`);
+          return null;
+        }),
+  ]);
+  const reading: PlanReading = {
+    at: new Date().toISOString(),
+    model: READING_MODEL,
+    floors: Object.fromEntries(Object.entries(had?.floors ?? {}).map(([k, v]) => [k, [...v]])),
+    failed: [],
+    roof,
+  };
   results.forEach((r, i) => {
-    const s = sheets[i];
+    const s = toRead[i];
     if (r.status === "fulfilled") (reading.floors[s.floorId] ??= []).push(r.value);
     else {
       console.error(`[read-plans] ${designId}/${s.sheetId}: ${String(r.reason)}`);

@@ -1,6 +1,7 @@
 import type { DesignDocument, Floor, Point } from "./document";
 import { floorBasesM, floorHeightM } from "./graph";
 import type { ReadSpace, SheetReading, SpaceKind } from "./reading";
+import { framingOf, roofHeightAt, roofMesh, type Member, type Mesh, type RoofRect } from "./roof3d";
 
 /* THE DESIGN IN 3D (Isaac, 20 October 2026: "a button on Design"; the board
    https://claude.ai/artifact/VWq6nGGGaCPxCuRnReyCyX, option B). What the 3D
@@ -67,10 +68,22 @@ export type Unit3D = {
 
 export type Run3D = { floorId: string; pts: [number, number, number][] };
 
+/** A roof part as drawn: its sheets, the walls rising to it, on the floor whose walls carry it. */
+export type Roof3D = { floorId: string; existing: boolean; faces: Mesh; fills: Mesh };
+
+/** A floor's ceilings: flat ones as outlines at a height, raked ones as their own surface. */
+export type Ceiling3D = { floorId: string; flat: { pts: XZ[]; y: number }[]; raked: Mesh[] };
+
 export type Scene3D = {
   floors: Floor3D[];
   units: Unit3D[];
   pipes: Run3D[];
+  /** the roof and its framing, from Tiff's read of the set; empty until she has read it */
+  roofs: Roof3D[];
+  framing: (Member & { floorId: string })[];
+  ceilings: Ceiling3D[];
+  /** Tiff has read the roof off the set (it may have found none) */
+  roofRead: boolean;
   /** the middle of everything, so the view turns about the house */
   center: XZ;
   /** the longest side of everything, metres, so the camera can stand back far enough */
@@ -192,7 +205,12 @@ export function sceneOf(doc: DesignDocument): Scene3D {
   const ordered = [...doc.floors].sort((a, b) => a.level - b.level);
   const groundFloor = ordered.find((f) => f.level === 0) ?? ordered[0];
   const ground0 = groundFloor ? (bases.get(groundFloor.id) ?? 0) : 0;
-  const ceilingOf = (f: Floor) => mm(Math.max(2.1, floorHeightM(f) - FLOOR_ZONE_M));
+  /* her heights off the sections win over the storey's default */
+  const levelOf = new Map((doc.reading?.roof?.levels ?? []).map((l) => [l.floorId, l]));
+  const ceilingOf = (f: Floor) => {
+    const read = levelOf.get(f.id);
+    return mm(read ? read.ceilingMm / 1000 : Math.max(2.1, floorHeightM(f) - FLOOR_ZONE_M));
+  };
 
   const raws = new Map<string, Raw>();
   for (const f of ordered) {
@@ -264,15 +282,83 @@ export function sceneOf(doc: DesignDocument): Scene3D {
     }
   }
 
+  /* ── the roof, its framing and the ceilings under it ── */
+  const roofs: Roof3D[] = [];
+  const framing: Scene3D["framing"] = [];
+  const ceilings: Ceiling3D[] = [];
+  const roofRead = doc.reading?.roof ?? null;
+  const rects: (RoofRect & { floorId: string })[] = [];
+  for (const part of roofRead?.parts ?? []) {
+    const f = floorById.get(part.floorId);
+    const floor = doc.floors.find((x) => x.id === part.floorId);
+    const sheet = floor?.plans.find((p) => p.id === part.sheetId);
+    const k = floor?.scaleMmPerUnit;
+    if (!f || !sheet || !k || part.outline.length < 3) continue;
+    const mv = shift(moves.get(f.id)!);
+    const pts = part.outline.map((p) => mv([((sheet.x + p.x) * k) / 1000, ((sheet.y + p.y) * k) / 1000]));
+    const b = boxOf(pts)!;
+    const rect = { ...b, base: mm(f.y0 + part.eaveMm / 1000), part, floorId: f.id };
+    rects.push(rect);
+    const { faces, fills } = roofMesh(rect);
+    roofs.push({ floorId: f.id, existing: part.existing, faces, fills });
+  }
+  for (const f of floors) {
+    const rakes = (roofRead?.raked ?? []).filter((r) => r.floorId === f.id);
+    const rakedSpaces = f.spaces
+      .map((s) => ({ s, rake: rakes.find((r) => sameName(r.room, s.name)) }))
+      .filter((x): x is { s: Space3D; rake: (typeof rakes)[number] } => !!x.rake);
+    const rakedBoxes = rakedSpaces.map((x) => boxOf(x.s.pts)!);
+    const isRaked = (x: number, z: number) => rakedBoxes.some((b) => x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1);
+    for (const r of rects.filter((q) => q.floorId === f.id))
+      for (const m of framingOf(r, isRaked)) framing.push({ ...m, floorId: f.id });
+    const flat = f.spaces
+      .filter((s) => WALLED.has(s.kind) && s.kind !== "stair" && !rakedSpaces.some((x) => x.s === s))
+      .map((s) => ({ pts: s.pts, y: mm(f.y0 + f.ceiling) }));
+    const raked = rakedSpaces.map(({ s, rake }) => rakedCeiling(s.pts, f.y0 + f.ceiling, f.y0 + rake.highMm / 1000, rects.filter((q) => q.floorId === f.id)));
+    ceilings.push({ floorId: f.id, flat, raked });
+  }
+
   const all = floors.flatMap((f) => f.spaces.flatMap((s) => s.pts));
   const b = boxOf(all) ?? { x0: 0, z0: 0, x1: 10, z1: 10 };
   return {
     floors,
     units,
     pipes,
+    roofs,
+    framing,
+    ceilings,
+    roofRead: !!roofRead,
     center: [(b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2],
     span: Math.max(6, b.x1 - b.x0, b.z1 - b.z0),
   };
+}
+
+const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+/** "Kitchen/Living" and "KITCHEN / LIVING" are one room */
+const sameName = (a: string, b: string) => norm(a) === norm(b);
+
+/** A raked ceiling: under the roof by a rafter's depth, never below the flat ceiling nor above the height read for it. */
+function rakedCeiling(pts: XZ[], flatY: number, highY: number, over: RoofRect[]): Mesh {
+  const b = boxOf(pts)!;
+  const yAt = (x: number, z: number) => {
+    const roof = Math.max(...over.map((r) => roofHeightAt(r, x, z)));
+    return mm(Math.max(flatY, Math.min(highY, Number.isFinite(roof) ? roof - 0.16 : flatY)));
+  };
+  const nx = Math.max(1, Math.ceil((b.x1 - b.x0) / 0.25));
+  const nz = Math.max(1, Math.ceil((b.z1 - b.z0) / 0.25));
+  const verts: [number, number, number][] = [];
+  const tris: number[] = [];
+  for (let i = 0; i <= nx; i++)
+    for (let j = 0; j <= nz; j++) {
+      const x = b.x0 + ((b.x1 - b.x0) * i) / nx;
+      const z = b.z0 + ((b.z1 - b.z0) * j) / nz;
+      verts.push([mm(x), yAt(x, z), mm(z)]);
+      if (i && j) {
+        const c = i * (nz + 1) + j;
+        tris.push(c - nz - 2, c - 1, c, c - nz - 2, c, c - nz - 1);
+      }
+    }
+  return { verts, tris };
 }
 
 /** Whether the design has anything to draw in 3D yet, and whether Tiff has read its plans. */

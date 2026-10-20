@@ -114,6 +114,7 @@ export function TiffModal({
     target: scope.target,
     targetLabel: scope.targetLabel,
     screen: scope.screenDetail ? `${screenLabelFor(pathname)}, ${scope.screenDetail}` : screenLabelFor(pathname),
+    designOpen: !!scope.screenDetail?.startsWith("the design"),
     onLeave: (href) => leave.current(href),
   });
 

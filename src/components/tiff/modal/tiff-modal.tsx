@@ -1,25 +1,21 @@
 "use client";
 
 import { Fade } from "@/components/parts/fade";
-import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
-import { useOverlay } from "@/components/overlay/use-overlay";
+import { IconButton } from "@/components/parts/button";
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { screenLabelFor } from "@/components/shell/nav";
 import { DictClock, LiveWords } from "@/components/notes/dictation";
 import { useNoteScope } from "@/components/notes/note-context";
-import { MARK_MASK, TiffGlyph, TiffMark } from "@/components/notes/tiff-mark";
-import { DotField, useDotFieldExit } from "@/components/ui/dot-field";
+import { TiffGlyph } from "@/components/notes/tiff-mark";
 import type { EarlierTurn, TiffRoom } from "@/lib/workboard/note-turns";
 import { EASE, MOVE_MS, canAnimate, prefersStill, tokenMs, useBoxMotion, useGrow } from "./box-motion";
-import { fadeIn, fadeOut, flyIn, flyOut, release, restOutline, reverse, type Flight, type RingParts } from "./rings";
-import { RingsOver, RingsUnder, partsOf } from "./tiff-rings";
 import type { PlanRowView } from "./plan-view";
 import {
   useConversation,
   type Closed,
   type Conversation,
-  type Face as FaceState,
   type ModalTurn,
   type Point,
   type QuickAnswer,
@@ -126,74 +122,15 @@ export function TiffModal({
   const leave = useRef<(href: string) => void>(() => {});
 
   const dialog = useRef<HTMLElement | null>(null);
-  const scrim = useRef<HTMLDivElement | null>(null);
   const [leaving, setLeaving] = useState(false);
   const left = useRef(false);
-  /** Only a fade: reduced motion, or a keyboard press (law 8). */
-  const fadeOnly = session.still || session.keyboard;
+  /* DOCKED (Isaac, 20 October 2026: a small chat you can minimise and open
+     up, not the old modal): it is simply there, and simply gone; the rings
+     no longer fly out of the button to become its edge. */
+  /* minimised to the "Ask Tiff" pill, the conversation kept */
+  const [small, setSmall] = useState(false);
 
-  /* THE RINGS (./rings, ./tiff-rings): the fill under the modal, the
-     outline and the flying rings over it. `flight` is whatever is moving
-     now; `held` keeps the button's own rings hidden while theirs are out. */
-  const fillRef = useRef<SVGSVGElement | null>(null);
-  const overRef = useRef<HTMLDivElement | null>(null);
-  const parts = useRef<RingParts | null>(null);
-  const flight = useRef<Flight | null>(null);
-  const held = useRef<Animation[]>([]);
 
-  /* THE ENTRANCE: the rings leave the button pressed and become the
-     modal's edge (./rings). Measured on the resting box, before anything
-     moves. The outline then keeps to the modal's edge as it grows and
-     shrinks with what is in it. */
-  useLayoutEffect(() => {
-    const m = dialog.current;
-    const fill = fillRef.current;
-    const over = overRef.current;
-    if (!m || !fill || !over) return;
-    const p = partsOf(fill, over);
-    parts.current = p;
-    if (!p) return;
-    /* the resting outline keeps to the modal's edge; while it is still opening, the flight re-aims at it */
-    const rest = () => {
-      restOutline(p, m);
-      flight.current?.retarget?.();
-    };
-    rest();
-    const ro = typeof ResizeObserver === "function" ? new ResizeObserver(rest) : null;
-    ro?.observe(m);
-    window.addEventListener("resize", rest);
-    const stop = () => {
-      ro?.disconnect();
-      window.removeEventListener("resize", rest);
-    };
-    if (!canAnimate(m)) return stop;
-    const scene = { dialog: m, scrim: scrim.current, from: session.from };
-    const flown = fadeOnly ? null : flyIn(p, scene);
-    const f = flown ?? fadeIn(p, scene, tokenMs("--t-move", MOVE_MS));
-    flight.current = f;
-    held.current = f.hold;
-    /* Landed. What the open left standing stays as it is — it already
-       matches the stylesheet — because letting go of it all at once rebuilt
-       the modal's layers, and one frame painted before they were back: the
-       page flashed through the modal as it landed (Isaac, watching it live).
-       The outline's frames let go by themselves; the rest goes with the
-       modal. */
-    f.clock?.finished.then(
-      () => {
-        if (flight.current === f) flight.current = null;
-      },
-      () => {}
-    );
-    /* An effect run twice (React's development check) must not fly twice. */
-    return () => {
-      stop();
-      if (flight.current === f) {
-        release(f);
-        flight.current = null;
-        held.current = [];
-      }
-    };
-  }, [session, fadeOnly]);
 
   /** Close: the conversation lets go of everything, then the modal folds
       back toward the button and the host takes it away. `byKey`: closed
@@ -211,40 +148,7 @@ export function TiffModal({
       keyboard: session.keyboard || byKey,
       ...(moveTo.current ? { moveTo: moveTo.current } : {}),
     };
-    const m = dialog.current;
-    const p = parts.current;
-    let out: Flight | null = null;
-    /* Done: the button gets its own rings back, and everything else is left
-       where the close put it (gone) until the host takes the modal away.
-       Letting go of it all here put the whole modal and its veil back on the
-       page for the frame before it unmounted — the flash on close Isaac saw
-       live. */
-    const finish = () => {
-      for (const a of held.current) a.cancel();
-      for (const a of out?.hold ?? []) a.cancel();
-      held.current = [];
-      onClosed(result);
-    };
-    if (!canAnimate(m) || !p) return finish();
-    const now = flight.current;
-    if (now && now.kind === "open" && now.clock && now.clock.playState !== "finished") {
-      /* closed while it is still opening: the open plays itself backwards
-         from where it is, so what is in the air goes back the way it came */
-      out = reverse(now);
-    } else {
-      /* the rings go home into the button pressed, or into the one that
-         stands where it did (Sort it out leaves; the box's own Tiff button
-         comes back in its place) */
-      const home =
-        session.from.isConnected && session.from.querySelector(".tiffbtn-gw")
-          ? session.from
-          : (session.back?.closest(".tm-box")?.querySelector<HTMLElement>(".tiffbtn") ?? null);
-      const scene = { dialog: m, scrim: scrim.current, from: home };
-      out = (fadeOnly || byKey ? null : flyOut(p, scene)) ?? fadeOut(p, scene, tokenMs("--t-move", MOVE_MS));
-    }
-    flight.current = out;
-    if (!out.clock) return finish();
-    out.clock.finished.then(finish, finish);
+    onClosed(result);
   };
 
   /* THE HOLD (universal Tiff 1F, interim until Isaac designs the panel or
@@ -281,33 +185,23 @@ export function TiffModal({
   }, []);
 
   /* ESCAPE CLOSES THIS AND ONLY THIS. Caught on the way down, before a sheet
-     underneath hears it and closes itself too. Tab stays inside. */
+     underneath hears it and closes itself too. Tab is free: docked, the page
+     is still yours. */
   const onKey = useEffectEvent((e: KeyboardEvent) => {
+    /* docked, the page around it is yours: only keys pressed in it are its own */
+    if (!dialog.current?.contains(document.activeElement)) return;
     if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
       close(true);
       return;
     }
-    if (e.key !== "Tab") return;
-    const m = dialog.current;
-    if (!m) return;
-    const stops = [...m.querySelectorAll<HTMLElement>("button:not(:disabled), input, textarea, [tabindex='0']")];
-    if (!stops.length) return;
-    const at = stops.indexOf(document.activeElement as HTMLElement);
-    const next = e.shiftKey ? (at <= 0 ? stops.length - 1 : at - 1) : at === -1 || at === stops.length - 1 ? 0 : at + 1;
-    e.preventDefault();
-    stops[next]!.focus();
   });
   useEffect(() => {
     const listen = (e: KeyboardEvent) => onKey(e);
     window.addEventListener("keydown", listen, true);
     return () => window.removeEventListener("keydown", listen, true);
   }, []);
-  /* On the overlay stack too, so a card or a board under the modal knows
-     something is in front of it. The keys stay its own, and so does where
-     focus goes back to (its host decides). */
-  useOverlay(dialog, { trap: false, restoreFocus: false });
 
   const context = c.targetLabel ?? (session.room ? ROOM[session.room] : screenLabelFor(pathname));
 
@@ -324,9 +218,8 @@ export function TiffModal({
      her question, her answer, what she filed — once it has all arrived. */
   const newest = c.turns.at(-1);
   const heard =
-    c.stage === "thinking"
-      ? "Tiff is sorting it out"
-      : newest?.who === "tiff" && !newest.streaming
+    /* while she thinks the Thinking line is the status, so nothing is said twice */
+    newest?.who === "tiff" && !newest.streaming
         ? newest.text
         : "";
 
@@ -394,16 +287,21 @@ export function TiffModal({
 
   return (
     <>
-      <div className="tm-scrim" ref={scrim} aria-hidden="true" />
-      <RingsUnder fillRef={fillRef} />
+      {small && (
+        <button type="button" className="tc-ask" onClick={() => setSmall(false)}>
+          <span className="tc-askmark" aria-hidden="true">
+            <TiffGlyph ground="ink" size={20} />
+          </span>
+          Ask Tiff
+        </button>
+      )}
       <section
         ref={dialog}
-        className={"tm" + (c.faceOpen ? "" : " speaking")}
+        className={"tm tc-docked" + (small ? " tc-small" : "")}
         role="dialog"
-        aria-modal="true"
         aria-label="Tiff"
         tabIndex={-1}
-        inert={leaving}
+        inert={leaving || small}
       >
         <header className="tm-head">
           <span className="tm-who">
@@ -422,12 +320,11 @@ export function TiffModal({
               </button>
             )}
           </span>
+          <IconButton glyph="minimise" label="Minimise" size={32} onClick={() => setSmall(true)} />
           <button type="button" className="tm-x" aria-label="Close" onClick={(e) => close(e.detail === 0)}>
             <Icon name="x" size={20} />
           </button>
         </header>
-
-        <Face face={c.face} open={c.faceOpen} />
 
         <div className="tm-turns" ref={turnsRef}>
           {all.map((t, i) => (
@@ -440,6 +337,7 @@ export function TiffModal({
               c={c}
             />
           ))}
+          {(c.stage === "thinking" || (c.stage === "answering" && all.at(-1)?.who !== "tiff")) && <ThinkingLine about={c.doing} />}
         </div>
         <p className="sr-only" role="status">
           {heard}
@@ -447,24 +345,7 @@ export function TiffModal({
 
         <Dock c={c} onEmpty={close} />
       </section>
-      <RingsOver overRef={overRef} />
     </>
-  );
-}
-
-/* ── the face ── */
-
-function Face({ face, open }: { face: FaceState; open: boolean }) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const shown = useBoxMotion(ref, open);
-  const field = useDotFieldExit(face.stage);
-  if (!shown) return null;
-  return (
-    <div className="tm-face" ref={ref} aria-hidden="true">
-      <div className="tm-field">
-        {field && <DotField key={face.key} stage={field} size={252} origin={face.origin} />}
-      </div>
-    </div>
   );
 }
 
@@ -534,7 +415,7 @@ export function TurnView({
   return (
     <div
       ref={ref}
-      className={"tm-turn" + (past ? " past" : "") + (live ? " live" : "")}
+      className={"tm-turn" + (turn.who === "you" ? " tm-mine" : "") + (past ? " past" : "") + (live ? " live" : "")}
     >
       {/* Until you say something, the modal asks you to (Isaac, watching it
           live: "needs to prompt you to talk to it"); "You" arrives with your
@@ -703,120 +584,123 @@ function Quick({ answers, onAnswer }: { answers: QuickAnswer[]; onAnswer: (q: Qu
   );
 }
 
-/* ── the dock ── */
+/* ── the box ── */
 
-type DockMode = "listen" | "fix" | "reply";
-
+/* THE BOX, AS CLAUDE'S IS (Isaac, 20 October 2026: "It needs to be minimal
+   and look like a chat conversation in Claude… Little microphone symbol, the
+   send can turn blue once there's content in there"; the board
+   https://claude.ai/artifact/7Z74AT18cUFjexk68UovpB, built as mocked).
+   One rounded box: your words, then a small microphone and Send as an
+   arrow, grey until there is something to send. The microphone records in
+   the box: a red dot and the time, with Stop; what you say comes up in the
+   conversation as you say it, as it always has, and Stop gives it to her.
+   No Type instead, Start again or Done. While she thinks the box stays,
+   and Send waits. */
 export function Dock({ c, onEmpty }: { c: Conversation; onEmpty: (byKey: boolean) => void }) {
-  const mode: DockMode | null =
-    c.stage === "listening" ? "listen" : c.stage === "thinking" || c.stage === "answering" ? null : c.fixing ? "fix" : "reply";
-  /* While it folds away it keeps showing what it was. */
-  const [held, setHeld] = useState<DockMode>(mode ?? "reply");
-  if (mode && mode !== held) setHeld(mode);
-  const ref = useRef<HTMLElement | null>(null);
-  const shown = useBoxMotion(ref, mode !== null);
-
-  const first = useRef<HTMLElement | null>(null);
-  useEffect(() => {
-    if (mode) first.current?.focus({ preventScroll: true });
-  }, [mode]);
-
-  if (!shown) return null;
+  const listening = c.stage === "listening";
+  const working = c.stage === "thinking" || c.stage === "answering";
   const typed = c.draft.trim() !== "";
+  const field = useRef<HTMLTextAreaElement | null>(null);
+  const stop = useRef<HTMLButtonElement | null>(null);
+  /* focus is in the chat from the moment it opens: on the box to type, or on
+     Stop while she listens (on the box, a pause would be read as you typing) */
+  useEffect(() => {
+    if (listening) stop.current?.focus({ preventScroll: true });
+    else if (!working && !c.fixing) field.current?.focus({ preventScroll: true });
+  }, [working, listening, c.fixing]);
+  /* the box grows with what is in it, to five lines */
+  useLayoutEffect(() => {
+    const el = field.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [c.draft, listening]);
+  const canSend = typed && !working && !listening;
 
-  /* FOLDING AWAY, IT CAN'T BE PRESSED. It stays on the page for the fold and
-     keeps showing what it was, but a second Done or Send on it would send
-     twice, or close the modal on words still being read back. */
   return (
-    <footer className="tm-dock" ref={ref} inert={mode === null}>
-      {held === "fix" && (
-        <div className="tm-bar">
-          <span className="tm-sp" />
-          <button type="button" className="tm-clear" aria-label="Clear what you said" onClick={c.clear}>
-            <Icon name="x" size={20} />
-          </button>
-          <button type="button" className="pbtn primary" disabled={!typed} onClick={c.send}>
-            Send
-          </button>
-        </div>
-      )}
-      {/* LISTENING AND THE REPLY BOX ARE ONE BOX, so the words you start to
-          type while she listens stay where you are typing them: the same
-          field, kept by React across the two. Typing stops the recording
-          (`typeInstead`); clicking into it does not. */}
-      {(held === "listen" || held === "reply") && (
-        <form
-          className="tm-box"
-          /* A tap in the box while she listens says "I'm still going": the
-             quiet that would end your turn starts over. Its buttons are
-             their own. */
-          onPointerDown={(e) => {
-            if (held === "listen" && !(e.target as Element).closest("button")) c.keepListening();
-          }}
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (held === "reply") c.send();
-          }}
-        >
-          {held === "listen" && (
-            <span className="tm-rec">
-              <span className="wb2-recdot" aria-hidden="true" />
+    <footer className="tm-dock tc-dock">
+      <form
+        className="tc-box"
+        onPointerDown={(e) => {
+          /* a tap in the box while she listens says "I'm still going" */
+          if (listening && !(e.target as Element).closest("button")) c.keepListening();
+        }}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (canSend) c.send();
+        }}
+      >
+        {!c.fixing && (
+          <textarea
+            ref={field}
+            className="tc-in"
+            rows={1}
+            value={listening ? "" : c.draft}
+            /* while your words are read back nothing is typed in front of them */
+            readOnly={c.stage === "thinking"}
+            onChange={(e) => (listening ? c.typeInstead(e.target.value) : c.setDraft(e.target.value))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                if (canSend) c.send();
+              }
+            }}
+            placeholder="Reply to Tiff"
+            aria-label="Reply to Tiff"
+            autoComplete="off"
+          />
+        )}
+        <div className="tc-row">
+          {listening && (
+            <span className="tc-rec">
+              <span className="tc-recdot" aria-hidden="true" />
               <DictClock seconds={c.seconds} />
             </span>
           )}
-          <input
-            className="tm-in"
-            ref={(el) => {
-              if (held === "reply") first.current = el;
-            }}
-            value={held === "listen" ? "" : c.draft}
-            onChange={(e) => (held === "listen" ? c.typeInstead(e.target.value) : c.setDraft(e.target.value))}
-            placeholder={held === "listen" ? "Type instead" : "Reply to Tiff"}
-            aria-label={held === "listen" ? "Type instead" : "Reply to Tiff"}
-            autoComplete="off"
-          />
-          {held === "listen" ? (
-            <>
-              <button type="button" className="tm-clear" aria-label="Clear what you said" onClick={c.clear}>
-                <Icon name="x" size={20} />
-              </button>
-              <button
-                type="button"
-                className="pbtn primary tm-done"
-                ref={(el) => {
-                  first.current = el;
-                  c.bindQuiet(el);
-                }}
-                onClick={(e) => {
-                  if (!c.done()) onEmpty(e.detail === 0);
-                }}
-              >
-                <span>Done</span>
-              </button>
-            </>
-          ) : typed ? (
-            <button type="submit" className="pbtn primary">
-              Send
-            </button>
-          ) : c.voiceEnabled ? (
+          <span className="tc-sp" />
+          {listening ? (
             <button
               type="button"
-              className="tiffbtn tiffbtn-box tiffbtn-onink"
-              aria-label="Talk to Tiff"
-              style={{ "--tiffbtn-mask": MARK_MASK } as CSSProperties}
-              onClick={(e) => c.talk(e.currentTarget, e.detail === 0)}
+              className="pt-btn pt-btn--second pt-btn--32 pt-btn--icon tc-stop"
+              aria-label="Stop"
+              ref={(el) => {
+                stop.current = el;
+                c.bindQuiet(el);
+              }}
+              onClick={(e) => {
+                if (!c.done()) onEmpty(e.detail === 0);
+              }}
             >
-              <span className="tiffbtn-burst" aria-hidden="true" />
-              <TiffMark ground="ink" />
+              <span aria-hidden="true" />
             </button>
+          ) : c.voiceEnabled ? (
+            <IconButton glyph="mic" label="Speak instead of typing" size={32} disabled={working} onClick={(e) => c.talk(e.currentTarget, e.detail === 0)} />
           ) : null}
-        </form>
-      )}
+          <IconButton glyph="send" kind="main" type="submit" label="Send" size={32} disabled={!(canSend || (c.fixing && typed))} />
+        </div>
+      </form>
       {c.error && (
         <p className="tm-err" role="alert">
           {c.error}
         </p>
       )}
     </footer>
+  );
+}
+
+/* WHILE SHE THINKS: "Thinking", three dots, and what she's doing when the
+   tool she picked up says ("reading the design"). No mark turning here:
+   where there is one, it is above the conversation (Isaac, 20 October). */
+export function ThinkingLine({ about }: { about: string }) {
+  return (
+    <p className="tc-think" role="status">
+      <span>Thinking</span>
+      <span className="tc-dots" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+      </span>
+      {about && <span className="tc-about">{about}</span>}
+    </p>
   );
 }

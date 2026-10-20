@@ -144,3 +144,35 @@ describe("a move", () => {
     expect(requests).toBe(1);
   });
 });
+
+/* A CHANGE FOR THE PAGE DOESN'T END THE TURN (Isaac, 20 October 2026: she
+   revises the 3D from the chat). The tool writes nothing; its result goes
+   to the page open as an `apply` event, she is told it was applied with
+   what changed, and she goes on to say so in her own words. */
+describe("a change for the page", () => {
+  const revise: TiffTool = {
+    name: "revise_design_3d",
+    label: "Reading the drawings again",
+    risk: "read",
+    gate: { open: true },
+    description: "Correct the 3D.",
+    inputSchema: { type: "object", properties: {} },
+    run: async () => ({ kind: "apply", target: "design-roof", designId: "d1", roof: { parts: [] }, said: "Made it a hip roof at 25°." }),
+  };
+
+  it("goes to the page as an apply event, and her answer follows", async () => {
+    const replies: Block[][] = [[{ tool: "revise_design_3d", id: "toolu_1" }], [{ text: "It's a hip roof at 25° now." }]];
+    const sentBodies: string[] = [];
+    globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+      requests += 1;
+      sentBodies.push(String(init?.body ?? ""));
+      return new Response(sse(replies.shift() ?? []), { status: 200, headers: { "content-type": "text/event-stream" } });
+    }) as typeof fetch;
+    const events: AskBrainEvent[] = [];
+    for await (const e of streamBrainAnswer({ viewer, question: "make it a hip roof at 25", tools: [revise], todayISO: viewer.today })) events.push(e);
+    expect(events).toContainEqual({ type: "apply", target: "design-roof", designId: "d1", roof: { parts: [] } });
+    expect(events.filter((e) => e.type === "delta")).toEqual([{ type: "delta", text: "It's a hip roof at 25° now." }]);
+    expect(requests).toBe(2);
+    expect(sentBodies[1]).toContain(JSON.stringify(JSON.stringify({ applied: true, said: "Made it a hip roof at 25°." })).slice(1, -1));
+  });
+});

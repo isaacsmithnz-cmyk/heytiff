@@ -108,9 +108,11 @@ describe("the Tiff modal floats", () => {
     expect(layers).toMatch(/pointer-events:none/);
   });
 
-  it("wears the one overlay shadow over the one scrim", () => {
+  /* docked, as Claude's chat is (Isaac, 20 October 2026): nothing under it
+     dims, so there is no scrim */
+  it("wears the one overlay shadow, with no scrim", () => {
     expect(rules.some(([sel, b]) => sel.split(",").map((s) => s.trim()).includes(".tm") && /box-shadow:var\(--shadow-overlay\)/.test(b))).toBe(true);
-    expect(body(".tm-scrim")).toMatch(/background:var\(--scrim\)/);
+    expect(rules.some(([sel]) => /\.tm-scrim/.test(sel))).toBe(false);
   });
 
   it("is never given a height: its parts open and close by their own", () => {
@@ -183,7 +185,8 @@ describe("the view and the sheet agree", () => {
   it("draws the entry box as the reply box, taller, with the modal's buttons", () => {
     expect(BOX).toMatch(/className="tm-box tm-entry"/);
     expect(BOX).toMatch(/className="tm-in"/);
-    expect(MODAL).toMatch(/className="tm-box"/);
+    // the chat's own box is Claude's (Isaac, 20 October 2026): .tc-box
+    expect(MODAL).toMatch(/className="tc-box"/);
     expect(body(".fg .tm-box.tm-entry")).toMatch(/height:52px/);
     expect(body(".fg .tm-box.tm-entry")).toMatch(/padding:0 8px 0 16px/);
     expect(body(".fg .tm-box:focus-within")).toMatch(/border-color:var\(--ink\)/);
@@ -199,9 +202,10 @@ describe("the view and the sheet agree", () => {
     expect(rules.some(([sel]) => selectors(sel).includes(".fg .tm .tm-box:focus-within"))).toBe(false);
   });
 
-  it("ends the reply box and the entry box in the box's Tiff button", () => {
-    expect(MODAL).toMatch(/className="tiffbtn tiffbtn-box tiffbtn-onink"/);
-    expect(MODAL).not.toMatch(/tiffbtn-sheet/);
+  it("ends the entry box in the box's Tiff button, and the chat's in Send", () => {
+    // the chat's box ends in a microphone and Send, as Claude's does, not a Tiff button
+    expect(MODAL).not.toMatch(/className="tiffbtn/);
+    expect(MODAL).toMatch(/glyph="send"/);
     expect(BOX).toMatch(/<TiffButton where="box"/);
     // one size rule for a box's button on the page, and one in the modal (1.3x): the dock carries none of its own
     expect(rules.some(([sel]) => /\.tm-dock\s+\.tiffbtn/.test(sel))).toBe(false);
@@ -224,7 +228,7 @@ describe("the view and the sheet agree", () => {
 
 describe("the keyboard and reduced motion", () => {
   /* Every control in the modal, and the words you click into to fix. */
-  const RINGED = [".fg .tm-aimx", ".fg .tm-x", ".fg .tm-clear", ".fg .tm-rm", ".fg .tm-undo", ".fg .tm-words", ".fg .tm .pbtn", ".fg .tm-entry .pbtn"];
+  const RINGED = [".fg .tm-aimx", ".fg .tm-x", ".fg .tm-rm", ".fg .tm-undo", ".fg .tm-words", ".fg .tm .pbtn", ".fg .tm-entry .pbtn"];
 
   /* On ink the ring is the ring on ink: paper outside, so it shows (law 32). */
   it.each(RINGED.filter((c) => c !== ".fg .tm-entry .pbtn").map((c) => c.replace(/^\.fg (\.tm )?/, ".fg .tm ")))(
@@ -270,21 +274,5 @@ describe("the keyboard and reduced motion", () => {
         expect(`${one}: ${off}`).toBe(`${one}: true`);
       }
     }
-  });
-});
-
-describe("the dots leave the button", () => {
-  it("may leave the modal and its face while they gather", () => {
-    const opened = rules.filter(([sel, b]) => /overflow:visible/.test(b) && /dotf\[data-stage="gather"\]/.test(sel));
-    const sels = opened.flatMap(([sel]) => sel.split(",").map((s) => s.trim()));
-    expect(sels).toContain('.tm:has(.dotf[data-stage="gather"])');
-    expect(sels).toContain('.tm-face:has(.dotf[data-stage="gather"])');
-  });
-
-  it("start lit only where motion is allowed", () => {
-    const at = CSS.indexOf("animation-name:tmArrive");
-    expect(at).toBeGreaterThan(-1);
-    const media = CSS.lastIndexOf("@media", at);
-    expect(CSS.slice(media, at)).toMatch(/prefers-reduced-motion:\s*no-preference/);
   });
 });

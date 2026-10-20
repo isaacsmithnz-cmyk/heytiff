@@ -14,4 +14,6 @@
    NO PUNCTUATION. The ellipsis is the stylesheet's (`.orb-say b::after`), so
    a test matches the sentence and not a particular run of dots, and every
    wait in the app trails off the same way. */
-export const READING_BACK_NOTE = "Reading it back";
+/* "Thinking", not "Reading it back" (Isaac, 20 October 2026: "We want it to
+   say thinking or something") */
+export const READING_BACK_NOTE = "Thinking";

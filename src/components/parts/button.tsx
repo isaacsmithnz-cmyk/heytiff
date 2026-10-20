@@ -129,24 +129,27 @@ export function LinkButton({ href, children, className, ...rest }: LinkButtonPro
 }
 
 /* ICON-ONLY (rule 27). Close, clear, the microphone and the ‹ › of a date,
-   and nothing else, so the glyph is one of those five by type. Square, in
+   and a chat's Send and Minimise (Isaac, 20 October 2026: Tiff's chat as
+   Claude's), and nothing else, so the glyph is one of those by type. Square, in
    the quiet dress, and its label is required: it is the button's only word
    for a screen reader, and a `title` is not a label (rule 25). */
-export type IconGlyph = "close" | "clear" | "mic" | "earlier" | "later";
+export type IconGlyph = "close" | "clear" | "mic" | "earlier" | "later" | "send" | "minimise";
 
-const GLYPH: Record<IconGlyph, string> = { close: "x", clear: "x", mic: "mic", earlier: "chevL", later: "chevR" };
+const GLYPH: Record<IconGlyph, string> = { close: "x", clear: "x", mic: "mic", earlier: "chevL", later: "chevR", send: "arrowUp", minimise: "minus" };
 
 export type IconButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "className" | "children" | "aria-label"> & {
   glyph: IconGlyph;
   label: string;
   size?: ControlSize;
+  /** quiet, or main for a chat's Send: blue once there is something to send */
+  kind?: "quiet" | "main";
   className?: string;
   ref?: Ref<HTMLButtonElement>;
 };
 
-export function IconButton({ glyph, label, size = 36, className, type = "button", ...rest }: IconButtonProps) {
+export function IconButton({ glyph, label, size = 36, kind = "quiet", className, type = "button", ...rest }: IconButtonProps) {
   return (
-    <button {...rest} type={type} aria-label={label} className={buttonClass("quiet", size, ["pt-btn--icon", className].filter(Boolean).join(" "))}>
+    <button {...rest} type={type} aria-label={label} className={buttonClass(kind, size, ["pt-btn--icon", className].filter(Boolean).join(" "))}>
       {lead(GLYPH[glyph], size === 32 ? 16 : 20)}
     </button>
   );

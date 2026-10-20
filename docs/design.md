@@ -198,7 +198,7 @@ The 34 laws of 10 September, as they stand under the rules above. Twenty-four ar
 22. The dark chrome has one hairline token and no inner highlight. An overlay on it takes the one overlay shadow, not its own.
 23. A hover is one change: a fill or a colour. Nothing lifts, slides, scales, sweeps or grows a shadow on hover.
 24. A control hidden until hover is also shown on `:focus-within`, or it is not hidden. Keyboard users get the delete control back.
-25. A button with only an icon is close, clear, the microphone, or the ‹ › of a date (rule 27). Every other button carries its word. A `title` is not a label. The few that still keep their glyph are named under Guards, each with its reason, and leave as their screens are rebuilt.
+25. A button with only an icon is close, clear, the microphone, the ‹ › of a date (rule 27), or a chat's Send and Minimise, as Claude's are (Isaac, 20 October 2026). Every other button carries its word. A `title` is not a label. The few that still keep their glyph are named under Guards, each with its reason, and leave as their screens are rebuilt.
 26. State is not a pill (rule 47). Pills are only for a person's name in a note. Time and Pay's bars and tints go (rule 21).
 27. Nothing spins in the first half second. Past it, a page shows Tiff's mark turning (rule 41). The ring lives only inside a button that says what it is doing.
 28. One footer. The ten footer families fold into one, and the buttons name the choice: "Keep" and "Delete file", "Cancel" and "Rename".
@@ -240,6 +240,7 @@ infinite loop into a strobe.
 |---|---|---|
 | `pkSweep` | the job card's summary while its read is out (v2's chrome skeleton is still) | a skeleton sweep: the space a screen is about to fill |
 | `dsSweep` | the Studio's skeleton blocks | a skeleton sweep |
+| `tcDots` | the three dots after "Thinking" in Tiff's chat, one rule with each dot delayed | Tiff is working: the Claude-style chat says so in words and dots, with no mark turning (Isaac, 20 October 2026) |
 | `ds-sheet-wait` | the sheet's outline while its raster downloads | a skeleton, breathing rather than swept because it is an outline: the plan lands into its place |
 | `vmShimmer` | the reading bar while a scanned document is read | a skeleton sweep for a scan in progress |
 | `tkShim` ×2 | the ask bar while a question is out; a library shelf while it is searched | a sweep on the thing being searched |

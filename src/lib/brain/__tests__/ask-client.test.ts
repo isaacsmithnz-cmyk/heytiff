@@ -89,3 +89,28 @@ describe("a screen event", () => {
     expect(onError).toHaveBeenCalledWith("That couldn't be opened.");
   });
 });
+
+/* Tiff's change for the open page (her revise_design_3d) reaches it, and
+   only a change it knows: a design's roof, for a design named by id. */
+describe("an apply event", () => {
+  function streamLines(lines: object[]) {
+    const bytes = new TextEncoder().encode(lines.map((l) => JSON.stringify(l)).join("\n") + "\n");
+    let sentOnce = false;
+    const body = { getReader: () => ({ read: async () => (sentOnce ? { done: true, value: undefined } : ((sentOnce = true), { done: false, value: bytes })) }) };
+    global.fetch = jest.fn(async () => ({ ok: true, body }) as unknown as Response) as unknown as typeof global.fetch;
+  }
+
+  it("hands a design's corrected roof to the page", async () => {
+    streamLines([{ t: "apply", target: "design-roof", designId: "d1", roof: { parts: [] } }, { t: "done" }]);
+    const onApply = jest.fn();
+    await askBrain({ question: "make it a hip roof" }, { ...done, onApply });
+    expect(onApply).toHaveBeenCalledWith({ target: "design-roof", designId: "d1", roof: { parts: [] } });
+  });
+
+  it("passes on nothing it doesn't know", async () => {
+    streamLines([{ t: "apply", target: "the-bank", designId: "d1", roof: {} }, { t: "apply", target: "design-roof", roof: {} }, { t: "done" }]);
+    const onApply = jest.fn();
+    await askBrain({ question: "x" }, { ...done, onApply });
+    expect(onApply).not.toHaveBeenCalled();
+  });
+});

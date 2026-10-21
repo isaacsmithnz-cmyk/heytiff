@@ -174,7 +174,7 @@ const lineFields = {
   unit: { type: "string", enum: [...LINE_UNITS], description: "\"m\" for a length, \"h\" for hours, \"\" for a count." },
   source: { type: "string", enum: [...SOURCES], description: "said: the brief or the person said it. assumed: your judgement. unknown: not known yet. fitted: made to fit something else on the quote." },
   why: { type: "string", description: "said: the words, quoted. assumed: the reason. unknown: what's needed to know it. fitted: what it was made to fit." },
-  sell_each_cents: { type: "integer", description: "A price the person gave you for one of it, ex GST, in cents: only with source said and their words in why. Never a price of your own." },
+  sell_each_cents: { type: "integer", description: "A price for one of it, ex GST, in cents, that the person gave you or ServiceM8's quote gives its own line: only with source said, and their words or ServiceM8's line in why. Never a price of your own." },
   duct: { type: "boolean", description: "True for ductwork, grilles and the return: what the duct contingency covers." },
 };
 

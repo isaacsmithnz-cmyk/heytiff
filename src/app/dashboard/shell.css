@@ -11603,15 +11603,17 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 /* ===== V2: A JOB'S OVERVIEW IS ITS CONVERSATION (v2, step 6, slice A; the
    board JC-1; components/jobs/job-overview.tsx, job-conversation.tsx and
-   job-rail.tsx) =====
-   Left, the conversation: the turns wear the Conversations place's own
+   job-tiles.tsx) =====
+   Right, the conversation: the turns wear the Conversations place's own
    rules (`cv-msg`, `cv-meta`, `cv-text`, `cv-day`, `cv-result`, `cv-box`),
    so a message reads the same in both places. It scrolls on its own, the
    newest at the foot by the box, so the head and the stages line stay put.
    What is here: the column and the rail, a voice note's card, the cards
    for the diary's other entries, the answers Tiff offers, Undo, a lit note,
-   the box's Keep as typed, and the rail's three groups. */
-.fg .jc { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:48px; align-items:start; }
+   the box's Keep as typed, and the four tiles. */
+.fg .jc { display:grid; grid-template-columns:minmax(0,520px) minmax(0,1fr); gap:48px; align-items:start; }
+/* the left: the stages line, the four tiles, the customer */
+.fg .jc-side { display:flex; flex-direction:column; gap:24px; min-width:0; }
 .fg .jc-convo { display:flex; flex-direction:column; gap:16px; min-width:0; }
 .fg .jc-scroll { min-height:240px; max-height:calc(100vh - 400px); overflow-y:auto; padding-right:8px; }
 .fg .jc-day { display:flex; flex-direction:column; gap:24px; }
@@ -11649,20 +11651,34 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .jc-photo-thumb { flex:none; display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:var(--r-control); object-fit:cover; background:var(--sel); color:var(--q); }
 .fg .jc-photo-name { min-width:0; max-width:240px; font-size:13px; line-height:18px; font-weight:500; color:var(--ink); }
 .fg .jc-photo-why { min-width:0; margin:0 0 0 8px; font-size:13px; line-height:18px; }
-/* the rail: groups under a thin line (rule 35) */
-.fg .jc-rail { display:flex; flex-direction:column; min-width:0; }
-.fg .jc-group { display:flex; flex-direction:column; align-items:flex-start; gap:8px; padding:16px 0 24px; border-top:1px solid var(--line); }
-.fg .jc-h { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
-.fg .jc-read { margin:0; font-size:14px; line-height:20px; color:var(--ink); }
-.fg .jc-cap { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
-.fg .jc-tasks { display:flex; flex-direction:column; gap:12px; align-self:stretch; margin:0; padding:0; list-style:none; }
+/* a task's name and who and when, in To do */
 .fg .jc-task { display:flex; flex-direction:column; min-width:0; }
 .fg .jc-task-name { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
 .fg .jc-task-line { font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
-.fg .jc-what { margin:0; font-size:14px; line-height:20px; color:var(--ink); white-space:pre-wrap; overflow-wrap:anywhere; }
-.fg .jc-what--folded { max-height:40px; overflow:hidden; -webkit-mask-image:linear-gradient(to bottom, var(--ink) 50%, transparent); mask-image:linear-gradient(to bottom, var(--ink) 50%, transparent); }
-.fg .jc-group .jc-more { padding:0; border:0; background:none; font:inherit; font-size:13px; line-height:18px; font-weight:500; color:var(--link); text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
-.fg .jc-more:focus-visible { outline:none; border-radius:var(--r-control); box-shadow:var(--ring); }
+/* THE FOUR TILES (components/jobs/job-tiles.tsx; Isaac, 22 October 2026,
+   "Job card, four tiles"): square, two by two, each on the soft ground with
+   the card's corner and no outline, as the mock has them. A tile with a tab
+   behind it is pressed anywhere: its name is the button and stretches over
+   the tile; its own buttons sit above that. The hover is one change, the
+   selected fill (rule 23). */
+.fg .jt-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; }
+.fg .jt { position:relative; aspect-ratio:1; display:flex; flex-direction:column; gap:8px; min-width:0; padding:16px; border-radius:var(--r-card); background:var(--soft); overflow:hidden; }
+.fg .jt--door:hover { background:var(--sel); }
+.fg .jt--door:has(.jt-open:focus-visible) { box-shadow:var(--ring); }
+.fg .jt-h { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .jt-open { padding:0; font-weight:600; text-align:left; }
+.fg .jt-open::after { content:""; position:absolute; inset:0; border-radius:var(--r-card); }
+.fg .jt-open:focus-visible { outline:none; }
+.fg .jt-count { font-weight:600; color:var(--warn-t); }
+.fg .jt-fill { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; align-items:flex-start; gap:8px; overflow-y:auto; }
+.fg .jt-foot { position:relative; z-index:1; display:flex; gap:8px; }
+.fg .jt-foot > * { flex:1 1 0; }
+.fg .jt-big { font-size:24px; line-height:32px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .jt-when { font-size:20px; line-height:28px; font-weight:600; color:var(--ink); }
+.fg .jt-read { margin:0; font-size:14px; line-height:20px; color:var(--ink); }
+.fg .jt-cap { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .jt-what { margin:0; font-size:14px; line-height:20px; color:var(--ink); white-space:pre-wrap; overflow-wrap:anywhere; }
+.fg .jt-tasks { display:flex; flex-direction:column; gap:12px; align-self:stretch; margin:0; padding:0; list-style:none; }
 .fg .jc-cust .jcl-cust { align-self:stretch; margin-top:0; padding:0; border-top:0; }
 @media (max-width:900px) {
   .fg .jc { grid-template-columns:minmax(0,1fr); gap:24px; }

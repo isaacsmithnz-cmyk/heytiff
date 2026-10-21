@@ -212,7 +212,13 @@ const draw = (section: JobSection, extra: { moneyVisible?: boolean; manage?: boo
 /** The page, with the job known. */
 const ready = async () => {
   await screen.findByText("Work order, Job 3209, 59 Woorarra Avenue, North Narrabeen.");
-  await waitFor(() => expect(screen.getByRole("button", { name: "Add" })).toBeEnabled());
+  await waitFor(() => expect(readJobRecord).toHaveBeenCalled());
+};
+
+/** The head's one menu, open. */
+const actionsMenu = async () => {
+  await userEvent.click(screen.getByRole("button", { name: "Actions" }));
+  return screen.findByRole("menu", { name: "Actions on this job" });
 };
 
 /** One of the job's section tabs (a face may hold tabs of its own). */
@@ -237,7 +243,7 @@ beforeEach(() => {
 
 describe("the job's page head", () => {
   it("names the job, says its kind, number, address and where it stands on one grey line, with no breadcrumb", async () => {
-    const { container } = draw("overview");
+    const { container } = draw("visits");
     await ready();
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Richards Building");
     const line = container.querySelector(".jp-line")!;
@@ -248,6 +254,14 @@ describe("the job's page head", () => {
     expect(container.querySelector(".wb2-crumbline, .int-back")).toBeNull();
   });
 
+  /* "Job card, four tiles" (Isaac, 22 October 2026): each thing said once */
+  it("leaves where it stands off the line on Overview, where the stages line and Money say it", async () => {
+    const { container } = draw("overview");
+    await ready();
+    expect(container.querySelector(".jp-line")).toHaveTextContent("Work order, Job 3209, 59 Woorarra Avenue, North Narrabeen.");
+    expect(container.querySelector(".jp-stage")).toBeNull();
+  });
+
   it("is a page, not a card: no dialog, no scrim, no band, no rail, nothing to close", async () => {
     const { container } = draw("overview");
     await ready();
@@ -255,24 +269,39 @@ describe("the job's page head", () => {
     expect(document.querySelector(".wb2-scrim")).toBeNull();
     expect(container.querySelector(".wb2-jcband, .jcl-rail")).toBeNull();
     expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
-    /* the card's band said "ServiceM8, synced"; the head's second button says where it goes */
-    const sm8 = screen.getByRole("link", { name: "Open in ServiceM8" });
-    expect(sm8).toHaveClass("pt-btn--second");
-    expect(sm8).toHaveAttribute("href", expect.stringContaining(`OpenJob/${JOB}`));
-    expect(sm8).toHaveAttribute("target", "_blank");
+    /* the card's band said "ServiceM8, synced"; Open in ServiceM8 is the head's menu's last word */
+    const open = jest.spyOn(window, "open").mockImplementation(() => null);
+    await userEvent.click(within(await actionsMenu()).getByRole("menuitem", { name: "Open in ServiceM8" }));
+    expect(open).toHaveBeenCalledWith(expect.stringContaining(`OpenJob/${JOB}`), "_blank", "noopener,noreferrer");
+    open.mockRestore();
   });
 
-  it("opens Add's menu from a second button with its chevron: the card's own items", async () => {
+  /* one menu up top (Isaac, 22 October 2026): what Add made, then what's
+     done to the job, then Open in ServiceM8 */
+  it("has one second button, Actions, with its chevron, opening Add's items first", async () => {
     draw("overview");
     await ready();
-    const add = screen.getByRole("button", { name: "Add" });
-    expect(add).toHaveClass("pt-btn--second");
-    expect(add.querySelector(".jp-chev")).not.toBeNull();
-    await userEvent.click(add);
-    const menu = await screen.findByRole("menu", { name: "Add to this job" });
-    expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Visit", "Task", "Quote", "Cost", "SWMS", "Certificate"]);
-    /* Visit is the Visit form, over the section you're on (rule 51) */
-    await userEvent.click(within(menu).getByRole("menuitem", { name: "Visit" }));
+    const actions = screen.getByRole("button", { name: "Actions" });
+    expect(actions).toHaveClass("pt-btn--second");
+    expect(actions.querySelector(".jp-chev")).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Add" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Open in ServiceM8" })).toBeNull();
+    const menu = await actionsMenu();
+    expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent)).toEqual([
+      "Add visit",
+      "Add task",
+      "Add quote",
+      "Add cost",
+      "Add SWMS",
+      "Add certificate",
+      "Pin the job",
+      "Copy the link",
+      "Create a project from this job",
+      "Create a maintenance agreement",
+      "Open in ServiceM8",
+    ]);
+    /* Add visit is the Visit form, over the section you're on (rule 51) */
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Add visit" }));
     const form = await screen.findByRole("dialog", { name: "Book a visit" });
     expect(within(form).getByRole("button", { name: "Clear the job" })).toBeInTheDocument();
     expect(onSection).not.toHaveBeenCalledWith("visits");
@@ -281,14 +310,7 @@ describe("the job's page head", () => {
   it("puts what's done to the job under Actions: pin, copy the link, then the card's once-per-job acts", async () => {
     draw("overview");
     await ready();
-    await userEvent.click(screen.getByRole("button", { name: "Actions" }));
-    const menu = await screen.findByRole("menu", { name: "Actions on this job" });
-    expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent)).toEqual([
-      "Pin the job",
-      "Copy the link",
-      "Create a project from this job",
-      "Create a maintenance agreement",
-    ]);
+    const menu = await actionsMenu();
     await userEvent.click(within(menu).getByRole("menuitem", { name: "Pin the job" }));
     expect(onAction).toHaveBeenCalledWith("pin");
     await userEvent.click(screen.getByRole("button", { name: "Actions" }));
@@ -300,10 +322,9 @@ describe("the job's page head", () => {
     readMirrorJob.mockResolvedValue({ detail: detail({ status: "Quote", workOrderDate: null }), focusRemoteId: null });
     draw("overview", { manage: false });
     await screen.findByText("Quote, Job 3209, 59 Woorarra Avenue, North Narrabeen.");
-    await waitFor(() => expect(screen.getByRole("button", { name: "Add" })).toBeEnabled());
-    await userEvent.click(screen.getByRole("button", { name: "Actions" }));
-    const menu = await screen.findByRole("menu", { name: "Actions on this job" });
-    await waitFor(() => expect(within(menu).getAllByRole("menuitem")[0]).toHaveTextContent("Make it a work order"));
+    await waitFor(() => expect(readJobRecord).toHaveBeenCalled());
+    const menu = await actionsMenu();
+    await waitFor(() => expect(within(menu).getByRole("menuitem", { name: "Make it a work order" })).toBeInTheDocument());
     await userEvent.click(within(menu).getByRole("menuitem", { name: "Make it a work order" }));
     const ask = screen.getByRole("group", { name: "Make it a work order" });
     expect(ask).toHaveTextContent("Make it a Work Order in ServiceM8?");
@@ -322,19 +343,37 @@ describe("the job's sections are the card's faces", () => {
     expect(tabWords()).toEqual(["Overview", "Quote", "Visits", "Checklist", "Photos", "Documents"]);
   });
 
-  it("shows Overview as the stages line, the job's conversation and its rail (step 6, JC-1)", async () => {
-    draw("overview");
+  /* "Job card, four tiles" (Isaac, 22 October 2026) */
+  it("shows Overview as the stages line over four tiles, and the job's conversation beside them", async () => {
+    const { container } = draw("overview", { moneyVisible: true });
     await ready();
     expect(jobTab("Overview")).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("navigation", { name: "Where the job is up to" })).toBeVisible();
+    const side = container.querySelector(".jc-side") as HTMLElement;
+    expect(within(side).getByRole("navigation", { name: "Where the job is up to" })).toBeVisible();
+    expect([...side.querySelectorAll(".jt .jt-h")].map((h) => h.textContent)).toEqual(["Summary", "Next visit", "Money", "To do"]);
     expect(screen.getByRole("region", { name: "The job's conversation" })).toBeVisible();
     expect(screen.getByRole("textbox", { name: "Tell Tiff about this job" })).toBeVisible();
-    const rail = screen.getByRole("complementary", { name: "About the job" });
-    expect(rail).toHaveTextContent("Where it’s up to");
-    expect(rail).toHaveTextContent("To do on this job");
-    expect(rail).toHaveTextContent("Next visit");
-    /* the card's own Summary and Timeline faces are the card's, not the page's */
-    expect(screen.queryByRole("region", { name: "Summary" })).toBeNull();
+    expect(screen.queryByRole("complementary", { name: "About the job" })).toBeNull();
+    /* Next visit opens Visits and Money opens Billing, from anywhere on the tile */
+    await userEvent.click(within(side).getByRole("button", { name: "Next visit" }));
+    expect(onSection).toHaveBeenCalledWith("visits");
+    await userEvent.click(within(side).getByRole("button", { name: "Money" }));
+    expect(onSection).toHaveBeenCalledWith("billing");
+    /* a manager adds a task from To do */
+    expect(within(side).getByRole("button", { name: "Add task" })).toBeInTheDocument();
+  });
+
+  it("leaves Money's tile off for whoever doesn't see the money", async () => {
+    const { container } = draw("overview");
+    await ready();
+    expect([...container.querySelectorAll(".jc-side .jt .jt-h")].map((h) => h.textContent)).toEqual(["Summary", "Next visit", "To do"]);
+  });
+
+  it("draws none of the card's own faces on Overview", async () => {
+    draw("overview");
+    await ready();
+    /* the card's own Summary and Timeline faces are the card's, not the page's; the Summary here is the tile */
+    expect(screen.getAllByRole("region", { name: "Summary" }).every((r) => r.classList.contains("jt"))).toBe(true);
     expect(screen.queryByRole("region", { name: "Timeline" })).toBeNull();
     expect(screen.queryByRole("region", { name: "Photos" })).toBeNull();
   });

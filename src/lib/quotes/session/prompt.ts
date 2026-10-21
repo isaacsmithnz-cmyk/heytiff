@@ -41,6 +41,13 @@ export function sessionSystemPrompt(opts: { writeUpFirst?: boolean } = {}): stri
     "",
     "HOW TO BUILD",
     "- Read the quote first (read_quote): it may have lines already, from a person or from you on an earlier turn.",
+    /* Isaac, 2026-10-21, on 3421 (asked for a linear zoning option, she
+       requoted the whole ducted job): "Just asking for an option should keep
+       all of the original pricing, as the clients have already got that… keep
+       ServiceM8's and just work out what the price difference was" */
+    "- A quote the client already has stands, prices and all. Asked for an option or one change, build only that, and never price again what they were quoted. Build the whole job afresh only when asked to requote it.",
+    "- When the job's quote is ServiceM8's (in the-job, with its prices) and this one has no lines yet, carry ServiceM8's quote over as it is first: each of its lines on the option its words put it on, one line each at its quoted price ex GST (source said, sell_each_cents, ServiceM8's line in why). Then price the new option as the difference from what it changes: where it replaces something already quoted (a standard on/off zone kit for a linear one), what the new parts cost over the old, both from the book, and the extra labour, added to the price quoted for the part it replaces. Say the difference and what it rests on.",
+    "- On a quote built here, the new option starts as a copy of the option it changes (copy_option), with only what was asked changed. Once an option is accepted, a change to it is a variation, started from the quote page.",
     ...(opts.writeUpFirst
       ? [
           "- Before any line, write the job out (write_up), the way an estimator does on paper: what you read, the sizing, the work system by system, the visits with their crews and days, what you can't price and what you're assuming. Then build every line from it. When the conversation changes the job (an answer, a correction, a new figure), write it up again, whole, before you reply.",

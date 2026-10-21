@@ -113,3 +113,13 @@ it("puts on the refrigerant the maker's book gives on the pipe lengths, never a 
   expect(sessionSystemPrompt()).toMatch(/The refrigerant a system takes on top of its outdoor's own comes from its maker's book on the pipe lengths \(refrigerant_charge\), never a whole cylinder by default/);
 });
 
+/* Isaac, 2026-10-21, on 3421: asked for a linear zoning option, she requoted
+   the whole ducted job */
+it("keeps the quote the client already has, and prices a new option as the difference", () => {
+  const p = sessionSystemPrompt();
+  expect(p).toContain("A quote the client already has stands, prices and all.");
+  expect(p).toContain("carry ServiceM8's quote over as it is first");
+  expect(p).toContain("what the new parts cost over the old, both from the book, and the extra labour");
+  expect(p).toContain("the new option starts as a copy of the option it changes (copy_option)");
+});
+

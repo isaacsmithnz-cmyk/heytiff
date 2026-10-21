@@ -6,10 +6,23 @@
    What ServiceM8 keeps of a quote is its scope as written (the job's
    invoice description) and its line items. A business that hides its lines
    behind one "As Per Quote" line has nothing in them worth reading, so a
-   line that only says that is left out. Prices stay out: the brief says
-   what the job is; what it costs is built again. Pure. */
+   line that only says that is left out, its price said as the quote's.
 
-export type Sm8QuoteLine = { name: string; quantity: number | null };
+   PRICES ARE KEPT, ex GST (Isaac, 2026-10-21, on 3421: "Just asking for an
+   option should keep all of the original pricing, as the clients have
+   already got that"): a new option is priced from what the client was
+   quoted, never instead of it. Pure. */
+
+export type Sm8QuoteLine = { name: string; quantity: number | null; /** the unit price ex GST, cents */ priceCents?: number | null };
+
+const money = (cents: number) => `$${(Math.round(cents) / 100).toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/** A line's price as the brief says it: its amount ex GST, or each for more than one. */
+function priceWords(l: Sm8QuoteLine): string {
+  if (l.priceCents == null || !(l.priceCents > 0)) return "";
+  const n = l.quantity == null ? 1 : Math.abs(l.quantity);
+  return n === 1 ? `: ${money(l.priceCents)} ex GST` : `: ${money(l.priceCents)} each ex GST`;
+}
 
 /** Lines that only stand for the quote's total. */
 const STANDS_FOR_TOTAL = /^\s*as\s+per\s+(the\s+)?quote\s*\.?\s*$/i;
@@ -43,8 +56,11 @@ export function sm8QuoteBrief(q: { scope: string | null; lines: readonly Sm8Quot
   const lines = q.lines
     .filter((l) => l.name.trim() && !STANDS_FOR_TOTAL.test(l.name) && !billsForIt(l.name))
     /* a line taken off (a negative quantity that isn't billing) says so */
-    .map((l) => `- ${l.quantity != null && l.quantity < 0 ? "Taken off: " : ""}${qtyWords(l.quantity)}${l.name.trim()}`);
-  const parts = [scope, lines.length ? `Its line items:\n${lines.join("\n")}` : ""].filter(Boolean);
+    .map((l) => `- ${l.quantity != null && l.quantity < 0 ? "Taken off: " : ""}${qtyWords(l.quantity)}${l.name.trim()}${priceWords(l)}`);
+  /* a quote held as one As Per Quote line: its price is the quote's */
+  const whole = q.lines.filter((l) => STANDS_FOR_TOTAL.test(l.name) && l.priceCents != null && l.priceCents > 0);
+  const total = whole.reduce((s, l) => s + l.priceCents! * Math.abs(l.quantity ?? 1), 0);
+  const parts = [scope, lines.length ? `Its line items:\n${lines.join("\n")}` : "", total > 0 ? `Quoted as ${whole.length === 1 ? "one line" : "lines"} "As Per Quote": ${money(total)} ex GST` : ""].filter(Boolean);
   /* the head always leads, so the writer knows it's ServiceM8's quote */
   return parts.length ? `${SM8_BRIEF_HEAD}\n${parts.join("\n\n")}` : null;
 }

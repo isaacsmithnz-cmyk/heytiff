@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 import { createPortal } from "react-dom";
 import { readJobFiles, readJobRecord, type readMirrorJob } from "@/app/actions/workboard";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
@@ -9,6 +10,7 @@ import { Fade } from "@/components/parts/fade";
 import { Dot } from "@/components/parts/state";
 import { SectionTabs, type TabItem } from "@/components/parts/tabs";
 import { jobPageHref } from "@/lib/shell/links";
+import { openInTab, subscribeTabs, tabsServerSnapshot, tabsSnapshot } from "@/components/shell/open-tabs";
 import { SECTION_LABEL, sectionsFor } from "@/lib/jobs/job-sections";
 import { Waiting } from "@/components/ui/orb";
 import { jobHue } from "@/lib/workboard/job-hue";
@@ -27,14 +29,15 @@ import { sm8QuoteOf } from "./sm8-quote-of";
    2026-10-05: "it should have opened up the proper quote screen not a
    section below"), in v2's layout C (his pick, 18 October 2026): above the
    conversation only the job's name, one grey line under it (its kind, its
-   number, its address and the quote's state word) and the job's seven
+   number, its address, the quote's state word and Open job, back to the
+   job's own page in its own tab, 21 October) and the job's seven
    section tabs, Quote the one you're on. No breadcrumb (the open tab and
    Jobs in the sidebar say where you are), and the job's stages line is
    Overview's. Under them the quote (quote-lines-face.tsx): the conversation
    with Tiff, or the line items, filling the left, and the rail on the right
-   with the quote's progress, its card and its buttons, what goes to
-   ServiceM8 and ServiceM8's own quote, its price read afresh whenever the
-   quote changes.
+   in layout B (21 October 2026): where the quote is, its price, the job in
+   ServiceM8, and the quote's buttons pinned at its foot, its price read
+   afresh whenever the quote changes.
 
    Each other tab goes to the job's own page on that section (v2, step 5);
    Billing is there only for whoever sees the money, as on the job's page.
@@ -46,6 +49,21 @@ import { sm8QuoteOf } from "./sm8-quote-of";
    It reads the job as the card does (the same actions; the page hands the
    job itself in, read on the server), so the two never tell different
    stories about it. */
+
+/** Back to the job from its quote (Isaac, 21 October 2026, as Design's Open
+    job): its tab if one holds it, on the section it was left on, else a new
+    tab, so the quote keeps this one. */
+function OpenJob({ job, jobNumber }: { job: string; jobNumber: string | null }) {
+  const { tabs } = useSyncExternalStore(subscribeTabs, tabsSnapshot, tabsServerSnapshot);
+  const href = jobPageHref(job);
+  /* the tab that holds the job goes on holding it */
+  const held = tabs.find((t) => !t.blank && t.href.split("?")[0] === href);
+  return (
+    <Link href={held?.href ?? href} className="pt-link qp-open" onClick={() => void openInTab(href, `${window.location.pathname}${window.location.search}`)}>
+      {jobNumber ? `Open job ${jobNumber}` : "Open the job"}
+    </Link>
+  );
+}
 
 /** Enough rounds for any job's quote PDFs; a stop for one that never finishes. */
 const MAX_QUOTE_ROUNDS = 4;
@@ -180,6 +198,7 @@ export function QuoteScreen({
               <Dot hue={jobHue(detail.categoryColour, detail.status === "Unsuccessful")} />
               <Fade className="qp-facts">{facts ? `${facts}.` : ""}</Fade>
               {stage && <span className={stage.settle ? "qp-stage settle" : "qp-stage"}>{stage.word}</span>}
+              <OpenJob job={job} jobNumber={detail.jobNumber ?? null} />
             </p>
             <SectionTabs
               items={tabs}
@@ -196,7 +215,7 @@ export function QuoteScreen({
               onPriced={() => setLinesRev((n) => n + 1)}
               onToast={(m) => toast(m)}
               send={<JobQuoteSend job={job} visible version={`lines-${linesRev}`} />}
-              sendQuote={(onSent) => <JobQuoteSend job={job} visible as="quote" version={`lines-${linesRev}`} onSent={onSent} />}
+              sendQuote={(onSent, sentAt) => <JobQuoteSend job={job} visible as="quote" look="button" sentAt={sentAt} version={`lines-${linesRev}`} onSent={onSent} />}
               sm8={sm8}
               onOpenPaper={(item) => setPaper(item)}
               money={financials}

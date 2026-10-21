@@ -48,25 +48,28 @@ export function priceState(price: QuotePrice | null | undefined): PriceState {
 
 /* ── the progress line ── */
 
+/* THE STAGE LINE IN COLOUR (layout B, Isaac, 21 October 2026): what's done,
+   and the join on to the next, in green; the step it's up to in orange with
+   a ring; the rest grey. Names only: what each step was waiting on is said
+   once, under Approve quote, and the state word under the job's name. */
 export function QuoteStepsLine({ steps, onUndo }: { steps: QuoteStep[]; onUndo?: (key: StepKey) => void }) {
   /* only the last thing marked by hand can be taken back; once accepted,
      that's the option's own Accepted, on the Proposal */
   const accepted = steps.some((s) => s.key === "accepted" && s.state === "done");
   const undoable = accepted ? undefined : [...steps].reverse().find((s) => s.state === "done" && (s.key === "approved" || s.key === "sent"))?.key;
+  /* the step it's up to: the first not done, and none once the client said yes */
+  const now = accepted ? -1 : steps.findIndex((s) => s.state !== "done");
   return (
     <ol className="qp-steps" aria-label="Where the quote is">
-      {steps.map((s) => (
-        <li key={s.key} className={s.state === "todo" ? undefined : s.state} aria-current={s.state === "next" ? "step" : undefined}>
+      {steps.map((s, i) => (
+        <li key={s.key} className={s.state === "done" ? "done" : i === now ? "now" : undefined} aria-current={i === now ? "step" : undefined}>
           <i aria-hidden="true" />
           <b>{s.label}</b>
-          <span>
-            {s.words}
-            {onUndo && s.key === undoable && (
-              <button type="button" className="qp-undo" aria-label={`Undo ${s.label.toLowerCase()}`} onClick={() => onUndo(s.key)}>
-                Undo
-              </button>
-            )}
-          </span>
+          {onUndo && s.key === undoable && (
+            <button type="button" className="qp-undo" aria-label={`Undo ${s.label.toLowerCase()}`} onClick={() => onUndo(s.key)}>
+              Undo
+            </button>
+          )}
         </li>
       ))}
     </ol>

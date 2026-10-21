@@ -45,6 +45,27 @@ it("draws the steps in their states, and offers Undo on the last one marked by h
   screen.getByRole("button", { name: "Undo approved" }).click();
   expect(onUndo).toHaveBeenCalledWith("approved");
   expect(screen.getByText("Sent").closest("li")).toHaveAttribute("aria-current", "step");
+  /* layout B (Isaac, 21 October 2026): done in green, the step it's up to
+     in orange, names only */
+  expect(screen.getByText("Brief").closest("li")).toHaveClass("done");
+  expect(screen.getByText("Sent").closest("li")).toHaveClass("now");
+  expect(screen.queryByText("Drafted")).toBeNull();
+  expect(screen.queryByText("Not yet")).toBeNull();
+});
+
+it("marks no step as the one it's up to once the client said yes, and greys what was skipped", () => {
+  render(
+    <QuoteStepsLine
+      steps={[
+        { key: "brief", label: "Brief", state: "done", words: "By hand" },
+        { key: "approved", label: "Approved", state: "todo", words: "" },
+        { key: "accepted", label: "Accepted", state: "done", words: "Option 1" },
+      ]}
+    />
+  );
+  expect(document.querySelector('[aria-current="step"]')).toBeNull();
+  expect(screen.getByText("Approved").closest("li")!.className).toBe("");
+  expect(screen.getByText("Accepted").closest("li")).toHaveClass("done");
 });
 
 it("takes nothing back on the line once the client said yes: that's the option's own Accepted", () => {

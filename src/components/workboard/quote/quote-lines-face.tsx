@@ -25,17 +25,19 @@ import type { QuoteVersion } from "@/lib/quotes/quote-versions";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 import type { Sm8Quote } from "../board/job-quote-card";
 import { QuoteLineItems, groupKey, sellEachOf } from "./quote-line-items";
-import { QuoteCard, QuoteRail } from "./quote-rail";
-import { QuoteActions } from "./quote-actions";
+import { InServiceM8, QuoteCard, QuoteRail } from "./quote-rail";
+import { LinesButton, QuoteActions } from "./quote-actions";
+import { sm8JobUrl } from "@/lib/integrations/sm8-links";
 
-/* THE QUOTE, IN LAYOUT C (Isaac's pick, 18 October 2026; chat first since
+/* THE QUOTE, IN LAYOUT B (Isaac's pick, 21 October 2026; chat first since
    2026-10-13): the conversation with Tiff fills the left, and the rail
-   beside it starts with the quote's progress, small, then says what the
-   quote comes to, with the quote's buttons under its card (quote-rail.tsx,
-   quote-actions.tsx): View line items swaps the left to the line items (the
-   quote by hand on its kept lines, quote-line-items.tsx) and Back to the
-   conversation swaps it back; View quote lays the paper over the left; and
-   Approve joins them, blue, once the quote is priced. No view tabs. Where
+   beside it reads like a checkout (quote-rail.tsx): where the quote is, in
+   colour, what it comes to, Line items under it, which swaps the left to
+   the line items (the quote by hand on its kept lines, quote-line-items.tsx)
+   and Back to the conversation swaps it back, and the job in ServiceM8.
+   Pinned at its foot, the quote's buttons (quote-actions.tsx): Preview
+   quote lays the paper over the left, and Approve quote waits, blue, until
+   the option is priced and nothing is open, then Send to ServiceM8. Where
    Tiff isn't on for the business there is no conversation: the line items
    are the left, and the rail lists what's To confirm.
 
@@ -149,11 +151,12 @@ export function QuoteLinesFace({
   /** what goes to ServiceM8 once an option is accepted (job-quote-send.tsx) */
   send?: ReactNode;
   /** the approved quote sent to ServiceM8 as a quote, before it's accepted
-      (7.3); told when it's gone, so the progress line says so */
-  sendQuote?: (onSent: () => void) => ReactNode;
+      (7.3), pinned under Approve: told when it's gone, so the progress line
+      says so, and when it went for real, so it says Sent and its day */
+  sendQuote?: (onSent: () => void, sentAt: string | null) => ReactNode;
   /** who and where, for the proposal's heading */
   meta?: { title: string; client: string | null; site: string | null; jobNumber: string | null };
-  /** ServiceM8's own quote on the job, in the rail as Already quoted (Isaac,
+  /** ServiceM8's own quote on the job, in the rail's In ServiceM8 (Isaac,
       2026-10-03: "if a quote has been generated in sm8 it should show on
       our quote page") */
   sm8?: Sm8Quote | null;
@@ -181,7 +184,8 @@ export function QuoteLinesFace({
   /* what fills the left while Tiff is on for the business: the
      conversation, or the line items, switched from the rail */
   const [tab, setTab] = useState<"chat" | "lines">("chat");
-  /* whether she's on, and what she's cost, once her thread is read */
+  /* whether she's on, once her thread is read (what she's cost left the
+     rail with layout B, 21 October 2026) */
   const [tiff, setTiff] = useState<{ on: boolean; spentUsd: number | null } | null>(null);
   /* Tiff's questions still open (tiff-panel.tsx) */
   const [asked, setAsked] = useState(0);
@@ -399,10 +403,6 @@ export function QuoteLinesFace({
     );
   }
 
-  /* who approved the proposal, in words */
-  const approvedBy = view?.proposal?.approvedBy ?? "";
-  const approver = !approvedBy ? "someone" : approvedBy === view?.me ? "you" : (view?.names[approvedBy] ?? "someone");
-
   /* what to look at before it goes: the non-Tiff half of the review (slice
      11.1) — what isn't known, what doesn't fit, and the profit */
   /** a thing to confirm; an estimate is confirmed from the list itself, and
@@ -512,34 +512,45 @@ export function QuoteLinesFace({
     />
   );
 
-  /* the quote's buttons, under its card: the left's two views, the paper,
-     and the next step. Approve is the main one, once the option open is
-     priced, every line of it (layout C) */
+  /* what's left before Approve can be pressed, said once under it (layout
+     B, 21 October 2026): her questions still open, and what's left to
+     price; a variation is priced as the difference, and may add no labour */
+  const toPrice = !priced ? 0 : variation ? priced.unpriced.length : leftOn(priced).length;
+  const ready = !!priced && lines.length > 0 && toPrice === 0 && asked === 0;
+  const why = [
+    asked > 0 ? `${asked} ${asked === 1 ? "question" : "questions"} to answer` : "",
+    price && !price.ok ? "Set Quoting to price it" : lines.length === 0 ? "Nothing on this option yet" : toPrice > 0 ? `${toPrice} ${toPrice === 1 ? "line" : "lines"} to price` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  /* the approved quote to ServiceM8, pinned under Approve, while nobody has
+     accepted it; once it went for real, Sent and its day */
+  const sentAt = sentForReal ? (view?.sent?.at ?? null) : null;
+  const toSm8 = money && accepted.length === 0 && view?.approved && !variation ? (sendQuote?.(reload, sentAt) ?? null) : null;
+
+  /* the quote's buttons, pinned at the rail's foot: the paper, and the next
+     step. Approve quote is the main one (layout B) */
   const actions =
     tiff === null ? null : (
       <QuoteActions
         money={money}
         lines={all.length}
         busy={busy}
-        chat={chat}
-        linesUp={linesUp && !paper}
         paper={paper}
         back={chat && tab === "chat" ? "Back to the conversation" : "Back to the line items"}
         kept={!!shown}
         variation={variation}
         approved={view?.approved ?? false}
-        approver={approver}
-        /* a variation is priced as the difference, and may add no labour */
-        priced={!!priced && lines.length > 0 && (variation ? priced.unpriced.length === 0 : !left)}
+        ready={ready}
+        why={why}
+        send={toSm8}
+        /* the client can say yes once it's approved, or on another option */
+        acceptable={!!view?.approved || accepted.length > 0}
         update={(accepted.length > 0 || !!view?.approved) && !variation}
         options={options}
         at={at}
         accepted={accepted.includes(at)}
-        onLines={() => {
-          setPaper(false);
-          setViewing(null);
-          setTab(linesUp && !paper ? "chat" : "lines");
-        }}
         onView={() => setPaper(true)}
         onBack={() => {
           setPaper(false);
@@ -656,6 +667,18 @@ export function QuoteLinesFace({
         <QuoteRail
           progress={<QuoteStepsLine steps={steps} />}
           actions={actions}
+          lines={
+            tiff !== null && chat ? (
+              <LinesButton
+                up={linesUp && !paper}
+                onLines={() => {
+                  setPaper(false);
+                  setViewing(null);
+                  setTab(linesUp && !paper ? "chat" : "lines");
+                }}
+              />
+            ) : null
+          }
           /* the conversation holds what's to confirm, except where there is
              none, or the paper is up in its place: before approving, the
              review stands beside the paper (11.1) */
@@ -673,12 +696,16 @@ export function QuoteLinesFace({
                 />
               )}
               {money && accepted.length > 0 && !variation && send}
-              {money && accepted.length === 0 && view?.approved && sendQuote?.(reload)}
             </>
           }
-          sm8={sm8}
-          onOpenPaper={onOpenPaper}
-          spentUsd={money && chat ? (tiff?.spentUsd ?? null) : null}
+          sm8={
+            <InServiceM8
+              sm8={sm8}
+              href={sm8JobUrl(job)}
+              ours={sentAt ? { at: sentAt, value: money && options === 1 && o ? `${cents2(o.build.incGstCents)} inc GST` : null } : null}
+              onOpenPaper={onOpenPaper}
+            />
+          }
         />
       </div>
     </>

@@ -5,7 +5,7 @@ import { Button, IconButton } from "@/components/parts/button";
 import { Dot } from "@/components/parts/state";
 import { Fade } from "@/components/parts/fade";
 import { Icon } from "@/components/shell/icon";
-import { appendSpoken, useDictation } from "@/components/notes/dictation";
+import { appendSpoken, DictClock, useDictation } from "@/components/notes/dictation";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { useReplyDraft } from "@/components/notes/use-reply-draft";
 import { fmtAuTime } from "@/lib/au-dates";
@@ -372,6 +372,12 @@ export function TiffPanel({
       hers = false;
       continue;
     }
+    /* one fold a turn: only what shows in the thread ends her working, not a
+       question she asked or an answer settled on the way, which split one
+       turn into "45 steps, 1 step, 1 step, 1 step, 2 steps" (Isaac, 21
+       October 2026: "there seems to be still quite a big list") */
+    const shows = e.kind === "message" || e.kind === "reply" || !!research || e.kind === "milestone" || e.kind === "error";
+    if (!shows) continue;
     endSteps();
     if (e.kind === "message") {
       const mine = e.author === me;
@@ -584,15 +590,29 @@ export function TiffPanel({
               onChange={(e) => setTyped(e.target.value)}
               onKeyDown={keys}
             />
+            {/* what you're saying, as you say it (Isaac, 21 October 2026: "the
+                voice to text doesn't seem to be showing properly"): the box
+                showed nothing while it listened */}
+            {(dict.recording || dict.arming || dict.transcribing) && (
+              <p className="qc-live" aria-live="polite">
+                {dict.transcribing ? "Writing down what you said" : dict.interim || "Listening"}
+              </p>
+            )}
             <div className="qc-boxfoot">
-              <IconButton
-                glyph="mic"
-                size={32}
-                label={dict.recording || dict.arming ? "Stop and add what you said" : "Say it"}
-                aria-pressed={dict.recording || dict.arming}
-                disabled={dict.transcribing}
-                onClick={() => (dict.recording || dict.arming ? dict.stop() : dict.start())}
-              />
+              {dict.recording || dict.arming ? (
+                <>
+                  <span className="tc-rec">
+                    <span className="tc-recdot" aria-hidden="true" />
+                    <DictClock seconds={dict.seconds} />
+                  </span>
+                  <span className="tc-sp" />
+                  <button type="button" className="pt-btn pt-btn--second pt-btn--32 pt-btn--icon tc-stop" aria-label="Stop and add what you said" onClick={() => dict.stop()}>
+                    <span aria-hidden="true" />
+                  </button>
+                </>
+              ) : (
+                <IconButton glyph="mic" size={32} label="Say it" disabled={dict.transcribing} onClick={() => dict.start()} />
+              )}
               {/* Q6: the reply box sends with a blue Send that carries its
                   word; it fades while she works, one turn at a time */}
               <Button kind="main" size={32} className="qc-send" disabled={busy || working || !typed.trim()} onClick={sendTyped}>

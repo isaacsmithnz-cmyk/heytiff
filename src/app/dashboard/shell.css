@@ -5752,6 +5752,8 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .qt-box.qc-box { flex-direction:column; align-items:stretch; padding:12px 12px 12px 16px; }
 .fg .qc-box .qt-in { flex:none; min-height:48px; padding:0; font-size:16px; line-height:24px; }
 .fg .qc-boxfoot { display:flex; align-items:center; gap:8px; }
+/* what you're saying, as you say it, in the box's own words size */
+.fg .qc-live { margin:0; padding:0 4px; font-size:16px; line-height:24px; color:var(--q); }
 .fg .qc-send { margin-left:auto; }
 /* A SECOND STEP'S GO (the paper's Save, Read it, a kit's Add): the outline
    in the colour of pressing, one change on hover. It has to beat

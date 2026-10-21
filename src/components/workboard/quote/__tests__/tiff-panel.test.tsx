@@ -428,3 +428,28 @@ it("names her and when she said it over her words, and marks each open question 
   expect(q.querySelector(".qt-qn .pt-dot--orange")).not.toBeNull();
 });
 
+
+/* One fold a turn (Isaac, 21 October 2026: "there seems to be still quite a
+   big list"): a question she asked on the way split one turn's working into
+   "45 steps, 1 step, 1 step…". */
+it("folds a turn's working into one row, past the questions she asked on the way", async () => {
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () =>
+    respond({
+      ...thread,
+      working: false,
+      events: [
+        { id: 1, turnId: "t1", kind: "message", author: "u-isaac", at: "", body: { text: "Quote the ducted" } },
+        { id: 2, turnId: "t1", kind: "tool", author: "tiff", at: "", body: { name: "search_book", label: "Searched your book", ok: true } },
+        { id: 3, turnId: "t1", kind: "question", author: "tiff", at: "", body: { text: "How long is the pipe run?" } },
+        { id: 4, turnId: "t1", kind: "tool", author: "tiff", at: "", body: { name: "pairing_check", label: "Checked the pairing", ok: true } },
+        { id: 5, turnId: "t1", kind: "tool", author: "tiff", at: "", body: { name: "build_labour", label: "Worked out the labour", ok: true } },
+        { id: 6, turnId: "t1", kind: "reply", author: "tiff", at: "", body: { text: "A 10 kW ducted." } },
+      ],
+      questions: {},
+    }),
+  );
+  render(<TiffPanel job="j" onChanged={jest.fn()} />);
+  expect(await screen.findByText("A 10 kW ducted.")).toBeInTheDocument();
+  expect(screen.getAllByRole("button", { name: /^Worked through it/ })).toHaveLength(1);
+  expect(screen.getByRole("button", { name: "Worked through it 3 steps" })).toBeInTheDocument();
+});

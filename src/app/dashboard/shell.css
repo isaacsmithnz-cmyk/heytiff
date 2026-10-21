@@ -5718,6 +5718,8 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .qc-dock { flex:none; display:flex; flex-direction:column; align-items:stretch; gap:8px; padding:12px 0 24px; border-top:1px solid var(--line); background:var(--white); }
 .fg .qc-pair { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0, 1fr); gap:8px; }
 .fg .qc-pair > .pt-btn, .fg .qc-dock > .pt-btn { min-width:0; }
+/* Share's word after Copy the link: quiet, under the button */
+.fg .qc-said { margin:0; font-size:12px; color:var(--q); text-align:center; }
 /* Approved, given: a solid green block in the main button's seat, white on
    green's word value as a schedule block wears it (rule 19); nothing to press */
 .fg .qc-given { background:var(--green-w); border:1px solid var(--green-w); color:var(--white); cursor:default; pointer-events:none; }

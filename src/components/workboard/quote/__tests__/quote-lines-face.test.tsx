@@ -641,6 +641,21 @@ describe("the proposal (7.1)", () => {
     expect(screen.getByRole("button", { name: "Update quote" })).toBeInTheDocument();
   });
 
+  /* Isaac, 21 October 2026: "share becomes available once approved" */
+  it("offers Share only once it's approved: the PDF, or the quote's link", async () => {
+    const first = render(<QuoteLinesFace job="job-3377" price={pricedWhole} onPriced={jest.fn()} />);
+    expect(await screen.findByRole("button", { name: "Approve quote" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Share" })).toBeNull();
+    first.unmount();
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => ({ ...view([indoor]), approved: true, proposal: null }) }));
+    render(<QuoteLinesFace job="job-3377" price={pricedWhole} onPriced={jest.fn()} />);
+    const share = await within(await screen.findByRole("group", { name: "The quote's buttons" })).findByRole("button", { name: "Share" });
+    fireEvent.click(share);
+    const menu = within(screen.getByRole("menu", { name: "Share the quote" }));
+    expect(menu.getByRole("menuitem", { name: /Download PDF/ })).toBeInTheDocument();
+    expect(menu.getByRole("menuitem", { name: /Copy the quote's link/ })).toBeInTheDocument();
+  });
+
   it("puts Send to ServiceM8 under Approved, told whether it went", async () => {
     const sendQuote = jest.fn((_onSent: () => void, sentAt: string | null) => <button type="button">{sentAt ? `Sent ${sentAt}` : "Send to ServiceM8"}</button>);
     let sent: Record<string, unknown> | null = null;

@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { Letterhead } from "@/components/org/letterhead";
 import { useOrgBrand } from "@/components/studio/summary/use-org-brand";
+import type { OrgBrand } from "@/lib/org/brand";
 import { capacityOf } from "@/lib/quotes/brands";
 import { againstFirst, type QuoteLine } from "@/lib/quotes/lines";
 import { areasOf, areasText, listOf, listText, proposalOf, stageAmounts, type LinesProposal } from "@/lib/quotes/lines-proposal";
@@ -38,6 +39,9 @@ type Props = {
   jobNumber: string | null;
   busy: boolean;
   onSave: (patch: Partial<LinesProposal>) => void;
+  /** the business's brand as the server read it: the PDF's print page has
+      no session to ask for it with (app/print/quote) */
+  brand?: OrgBrand;
 };
 
 type Block = "intro" | "notIncluded" | "payment" | "choice" | "notes" | `summary-${number}` | `work-${number}` | `included-${number}`;
@@ -80,7 +84,7 @@ const quiet = (words: string) => <p className="lp-none">{words}</p>;
 
 export function LinesProposalPaper(props: Props) {
   const { lines, price, busy, onSave } = props;
-  const brand = useOrgBrand();
+  const brand = useOrgBrand(props.brand);
   const [editing, setEditing] = useState<Block | null>(null);
   const p = props.proposal ?? proposalOf({});
   const options = Math.max(1, ...lines.map((l) => l.optionIndex + 1));

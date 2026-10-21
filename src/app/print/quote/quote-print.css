@@ -1,0 +1,7 @@
+/* THE QUOTE ON PAPER (app/print/quote): an A4 page, the paper edge to edge,
+   and nothing a person edits with on screen. */
+@page { size: A4; margin: 14mm 12mm; }
+.qpdf { background: var(--paper); }
+.qpdf .lp-paper { max-width: none; border: 0; border-radius: 0; padding: 0; }
+.qpdf .lp-edit,
+.qpdf .lp-box .wb2-jqacts { display: none; }

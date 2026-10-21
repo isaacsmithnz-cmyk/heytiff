@@ -545,6 +545,8 @@ export function QuoteLinesFace({
         ready={ready}
         why={why}
         send={toSm8}
+        /* the paper as a PDF, once it's approved (api/workboard/quote-pdf) */
+        pdf={money && view?.approved && !variation ? `/api/workboard/quote-pdf?job=${encodeURIComponent(job)}` : null}
         /* the client can say yes once it's approved, or on another option */
         acceptable={!!view?.approved || accepted.length > 0}
         update={(accepted.length > 0 || !!view?.approved) && !variation}

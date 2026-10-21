@@ -1,7 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/parts/button";
+import { Menu } from "@/components/parts/menu";
 import { StateWord } from "@/components/parts/state";
 import { Icon } from "@/components/shell/icon";
 import type { Variation } from "@/lib/quotes/lines-job";
@@ -66,6 +67,7 @@ export function QuoteActions({
   ready,
   why,
   send,
+  pdf = null,
   acceptable,
   update,
   options,
@@ -96,6 +98,9 @@ export function QuoteActions({
   why: string;
   /** Send to ServiceM8, once it's approved (job-quote-send.tsx); null otherwise */
   send: ReactNode;
+  /** the quote's PDF, once it's approved: Share offers it (Isaac, 21 October
+      2026: "You can download PDF or share"); null before */
+  pdf?: string | null;
   /** Mark accepted is offered: it's approved, or an option already is */
   acceptable: boolean;
   /** Update quote is offered: it's approved or accepted, and no variation is open */
@@ -144,7 +149,7 @@ export function QuoteActions({
         Update quote
       </Button>
     ) : null;
-  if (!view && !approve && !send && !updating && !accept) return null;
+  if (!view && !approve && !send && !pdf && !updating && !accept) return null;
   return (
     <div className="qc-dock" role="group" aria-label="The quote's buttons">
       {(view || approve) && (
@@ -155,6 +160,7 @@ export function QuoteActions({
       )}
       {left}
       {send}
+      {pdf && <Share pdf={pdf} />}
       {(updating || accept) && (
         <div className="qc-pair">
           {updating}
@@ -162,5 +168,43 @@ export function QuoteActions({
         </div>
       )}
     </div>
+  );
+}
+
+/* SHARE (Isaac, 21 October 2026: "Or maybe just a share button. You can
+   download PDF or share"), once it's approved: the quote's PDF, printed as
+   the paper (api/workboard/quote-pdf), or its link for someone in HeyTiff. */
+function Share({ pdf }: { pdf: string }) {
+  const [open, setOpen] = useState(false);
+  const [said, setSaid] = useState<string | null>(null);
+  const anchor = useRef<HTMLButtonElement | null>(null);
+  const pick = (key: string) => {
+    setOpen(false);
+    if (key === "pdf") window.location.assign(pdf);
+    if (key === "link")
+      void navigator.clipboard
+        ?.writeText(window.location.href)
+        .then(() => setSaid("Link copied"))
+        .catch(() => setSaid("The link couldn't be copied"));
+  };
+  return (
+    <>
+      <Button ref={anchor} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        Share
+      </Button>
+      <Menu
+        open={open}
+        anchor={anchor}
+        onClose={() => setOpen(false)}
+        onSelect={pick}
+        label="Share the quote"
+        matchWidth
+        items={[
+          { key: "pdf", label: "Download PDF" },
+          { key: "link", label: "Copy the quote's link", hint: "For people in HeyTiff" },
+        ]}
+      />
+      {said && <p className="qc-said" role="status">{said}</p>}
+    </>
   );
 }

@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { RecordsContext } from "@/components/records/records-context";
+import { arrive, closeTab, tabsSnapshot } from "@/components/shell/open-tabs";
 
 /* Isaac, 2026-10-05: "it should have opened up the proper quote screen not a
    section below"; 2026-10-12, retiring the old builder: every quote is built
@@ -205,4 +206,19 @@ it("hands the lines the start from the job card, and nothing without it", async 
   render(<QuoteScreen job={JOB} detail={detail} moneyVisible financials />);
   expect(await screen.findByText("Lines, $64,790 inc GST")).toBeInTheDocument();
   expect(screen.queryByText("Starts at the reply box")).toBeNull();
+});
+
+/* Isaac, 21 October 2026, as Design's Open job: "so that you can quickly go
+   back to the job if there isn't a tab already open for it" */
+it("links back to the job under its name: the tab that holds it, on the section it was left on, else the job's page", async () => {
+  render(<QuoteScreen job={JOB} detail={detail} moneyVisible financials />);
+  const link = screen.getByRole("link", { name: "Open job 2905" });
+  expect(link.closest(".qp-line")).not.toBeNull();
+  expect(link).toHaveAttribute("href", `/dashboard/jobs/${JOB}`);
+  act(() => arrive(`/dashboard/jobs/${JOB}?tab=visits`));
+  expect(link).toHaveAttribute("href", `/dashboard/jobs/${JOB}?tab=visits`);
+  await screen.findByText("Lines, $64,790 inc GST");
+  act(() => {
+    for (const t of tabsSnapshot().tabs) closeTab(t.id);
+  });
 });

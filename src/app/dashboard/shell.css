@@ -5682,46 +5682,56 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .qp-facts { flex:0 1 auto; }
 .fg .qp-stage { flex:none; font-weight:500; color:var(--q); }
 .fg .qp-stage.settle { color:var(--orange-w); }
+.fg .qp-open { flex:none; }
 .fg .qp-wait { flex:1; display:flex; flex-direction:column; align-items:flex-start; gap:12px; padding:24px; }
-/* THE PROGRESS, small at the top of the rail (layout C): a dot and a step,
-   joined by a hairline; done in ink, what's left to settle in orange, the
-   next a ring in ink, what's not reached a grey ring */
-.fg .qp-steps { margin:0; padding:0; list-style:none; display:flex; gap:4px; }
-.fg .qp-steps > li { position:relative; flex:1 1 auto; display:flex; flex-direction:column; gap:2px; padding:16px 4px 0 0; }
-.fg .qp-steps > li:last-child { flex:0 0 auto; padding-right:0; }
-.fg .qp-steps > li > i { position:absolute; top:0; left:0; box-sizing:border-box; width:10px; height:10px;
-  border-radius:50%; border:1px solid var(--grey); background:var(--white); }
-.fg .qp-steps > li::after { content:""; position:absolute; top:4px; left:16px; right:4px; height:1px; background:var(--edge); }
+/* THE STAGE LINE, at the top of the rail, in colour (layout B, Isaac, 21
+   October 2026): a dot and a name, joined by a line; what's done, and the
+   join on to the next, in green, the step it's up to in orange with a ring,
+   the rest grey. Names only. The ring stands off the dot on white, so the
+   line keeps 4 either side for it */
+.fg .qp-steps { margin:0; padding:4px 4px 0; list-style:none; display:flex; }
+.fg .qp-steps > li { position:relative; flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding-top:16px; }
+.fg .qp-steps > li:last-child { flex:0 0 auto; }
+.fg .qp-steps > li > i { position:absolute; top:0; left:0; box-sizing:border-box; width:12px; height:12px;
+  border-radius:50%; border:2px solid var(--edge); background:var(--white); }
+.fg .qp-steps > li::after { content:""; position:absolute; top:5px; left:12px; right:0; height:2px; background:var(--line); }
 .fg .qp-steps > li:last-child::after { display:none; }
-.fg .qp-steps b { font-size:13px; font-weight:500; line-height:18px; color:var(--q); }
-.fg .qp-steps span { display:flex; align-items:baseline; gap:4px; min-width:0; font-size:12px; font-weight:500; line-height:16px; color:var(--q); }
-.fg .qp-steps > li:is(.done, .due, .next) b { font-weight:600; color:var(--ink); }
-.fg .qp-steps > li.done > i { border-color:var(--ink); background:var(--ink); }
-.fg .qp-steps > li.done::after { background:var(--ink); }
-.fg .qp-steps > li.due > i { border-color:var(--orange); background:var(--orange); }
-.fg .qp-steps > li.due span { color:var(--orange-w); }
-.fg .qp-steps > li.next > i { border:2px solid var(--ink); }
+.fg .qp-steps b { font-size:12px; font-weight:600; line-height:16px; color:var(--q); white-space:nowrap; }
+.fg .qp-steps > li.done > i { border-color:var(--green); background:var(--green); }
+.fg .qp-steps > li.done::after { background:var(--green); }
+.fg .qp-steps > li.done b { color:var(--green-w); }
+.fg .qp-steps > li.now > i { border-color:var(--orange); background:var(--orange); box-shadow:0 0 0 2px var(--white), 0 0 0 4px var(--orange); }
+.fg .qp-steps > li.now b { color:var(--orange-w); }
 /* THE BODY: the conversation, or the line items, fills the left; the rail,
-   400 wide on its own scroll, beside it with no rule between */
+   400 wide, beside it with no rule between: its own scroll, and the quote's
+   buttons pinned at its foot under a thin line (layout B, 21 October 2026) */
 .fg .qc-body { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0, 1fr) 400px; grid-template-rows:minmax(0, 1fr); gap:24px; padding:0 24px; }
 .fg .qc-main { min-width:0; min-height:0; display:flex; flex-direction:column; }
-.fg .qc-rail { min-height:0; overflow:auto; display:flex; flex-direction:column; gap:24px; padding:24px 0; }
-.fg .qc-rail > * + * { padding-top:24px; border-top:1px solid var(--line); }
-.fg .qc-rail > .qc-acts { padding-top:0; border-top:0; }
+.fg .qc-rail { min-height:0; display:flex; flex-direction:column; }
+.fg .qc-scroll { flex:1; min-height:0; overflow:auto; display:flex; flex-direction:column; gap:24px; padding:24px 0; }
 .fg .qc-rs { display:flex; flex-direction:column; gap:12px; }
 .fg .qc-h { margin:0; font-size:16px; font-weight:600; line-height:24px; color:var(--ink); }
 .fg .qc-note { flex:none; margin:12px 0 0; }
-/* the quote's buttons under its card: two second buttons side by side, then
-   Approve, the main one, as wide as the rail */
-.fg .qc-acts { display:flex; flex-direction:column; align-items:stretch; gap:8px; margin-top:-8px; }
+/* the quote's buttons, pinned: Preview quote and Approve quote side by side,
+   what's left under them in orange, then Send to ServiceM8 as wide as the
+   rail, then Update quote and Mark accepted. Every one 36 */
+.fg .qc-dock { flex:none; display:flex; flex-direction:column; align-items:stretch; gap:8px; padding:12px 0 24px; border-top:1px solid var(--line); background:var(--white); }
 .fg .qc-pair { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0, 1fr); gap:8px; }
-.fg .qc-pair > .pt-btn, .fg .qc-acts > .pt-btn { min-width:0; }
+.fg .qc-pair > .pt-btn, .fg .qc-dock > .pt-btn { min-width:0; }
+/* Approved, given: a solid green block in the main button's seat, white on
+   green's word value as a schedule block wears it (rule 19); nothing to press */
+.fg .qc-given { background:var(--green-w); border:1px solid var(--green-w); color:var(--white); cursor:default; pointer-events:none; }
 /* the conversation: a column no wider than reading wants, her words under
    her name, yours in a light bubble on the right (his "light" bubble,
    2026-10-13), the reply box at its foot; reading at 16 (rule 13) */
 .fg .qt { flex:1; min-width:0; min-height:0; display:flex; flex-direction:column; }
 .fg .qt[hidden] { display:none; }
 .fg .qc-thread { flex:1; min-height:0; overflow:auto; padding:24px 0 16px; }
+.fg .qc-thread[hidden] { display:none; }
+/* Conversation or Scope, a tray at the column's top (layout B, 21 October 2026) */
+.fg .qc-face { flex:none; padding-top:16px; }
+.fg .qc-face + .qc-thread { padding-top:16px; }
+.fg .qt-noscope { margin:0; font-size:16px; line-height:24px; color:var(--q); }
 .fg .qc-col { max-width:820px; display:flex; flex-direction:column; gap:24px; }
 .fg .qc-col .qt-bub { max-width:620px; }
 /* yours and a person's words are paragraphs of their own; a web search's
@@ -5779,22 +5789,18 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .qp-profit > span { display:flex; align-items:baseline; gap:8px; font-size:14px; font-weight:600; color:var(--ink); }
 .fg .qp-profit > span small { font-size:13px; font-weight:500; color:var(--q); }
 .fg .qp-profit > b { font-size:14px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+/* the profit's figure in the colour of its state: green at or over the target, orange under it */
+.fg .qp-profit > b.good { color:var(--green-w); }
+.fg .qp-profit > b.look { color:var(--orange-w); }
 .fg .qp-profit > .qp-pword { grid-column:1 / -1; align-items:baseline; line-height:18px; }
-.fg .qp-groups { margin:4px 0 0; padding:12px 0 0; list-style:none; display:flex; flex-direction:column; gap:8px; border-top:1px solid var(--line); }
-.fg .qp-groups li { display:flex; justify-content:space-between; gap:12px; font-size:14px; color:var(--q); }
-.fg .qp-groups b { font-weight:500; color:var(--ink); font-variant-numeric:tabular-nums; }
-/* a row to open in the rail (Already quoted): an icon bare, never in a tinted square */
-.fg .qc-row { display:flex; align-items:center; gap:12px; width:100%; padding:4px 0; border:0; border-radius:var(--r-control);
-  background:none; font:inherit; text-align:left; color:var(--ink); }
-.fg .qc-row > svg { flex:none; color:var(--q); }
-.fg button.qc-row { cursor:pointer; transition:background var(--t-fast) var(--ease); }
-.fg button.qc-row:hover { background:var(--tint); }
-.fg button.qc-row:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .qc-rt { flex:1; display:flex; flex-direction:column; min-width:0; }
-.fg .qc-rt b { font-size:14px; font-weight:600; }
-.fg .qc-rt em { font-style:normal; font-size:13px; color:var(--q); }
-.fg .qc-spent { margin:0; font-size:13px; color:var(--q); }
-.fg .qc-rail > .qc-spent { margin-top:-16px; padding-top:0; border-top:0; }
+/* THE JOB IN SERVICEM8 (layout B): a card, since it has two things to
+   press; its quote and ours as rows, a label and a figure, and its buttons
+   side by side. No underlined link */
+.fg .qc-sm8 { display:flex; flex-direction:column; gap:8px; padding:12px 16px 16px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--white); }
+.fg .qc-sm8h { display:flex; align-items:center; gap:8px; margin:0; font-size:13px; font-weight:600; line-height:18px; color:var(--q); }
+.fg .qc-sm8r { display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin:0; font-size:13px; line-height:18px; color:var(--q); }
+.fg .qc-sm8r b { flex:none; font-size:14px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .qc-sm8 > .qc-pair { margin-top:4px; }
 /* the line items, the left's other view: its own scroll, the option, where
    it buys from and the Add buttons over the table, the column heads pinned
    at its top, the history at its foot; the paper fills the left */
@@ -6115,7 +6121,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
    page scrolls sideways, so a trackpad's sideways swipe must not reach the
    browser's Back (Isaac, 2026-10-06: "it will just jump back to the
    workboard"). */
-.fg .hd-face.qp-face, .fg .qc-thread, .fg .qc-lines, .fg .qc-rail { overscroll-behavior-x:none; }
+.fg .hd-face.qp-face, .fg .qc-thread, .fg .qc-lines, .fg .qc-scroll { overscroll-behavior-x:none; }
 .fg .qp-face { padding:0 24px 32px; }
 .fg .qp-none { margin:0; font-size:14px; color:var(--q); }
 /* ── THE TABBED JOB CARD (slice 2) ────────────────────────────────────────

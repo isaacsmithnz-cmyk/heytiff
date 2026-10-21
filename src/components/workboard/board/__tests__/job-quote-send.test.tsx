@@ -139,3 +139,37 @@ it("sends the approved quote as a quote: the job's description, left a Quote; no
   await new Promise((r) => setTimeout(r, 0));
   expect(container).toBeEmptyDOMElement();
 });
+
+/* layout B (Isaac, 21 October 2026): on the quote page it's the main button
+   pinned under Approved, and once it went, Sent to ServiceM8 and its day */
+it("is the pinned Send to ServiceM8 on the quote page: the main button alone, then Sent and its day", async () => {
+  quoteSendOffered.mockResolvedValue({ offered: true, trial: false });
+  sendQuoteToSm8.mockResolvedValue({ ok: true, trial: false, sent: 1, waiting: 0, failed: [] });
+  const plan: SendPlan = {
+    ok: true,
+    status: null,
+    workDone: "",
+    jobDescription: "Option 1: Ducted",
+    lines: [{ name: "As Per Quote", quantity: 1, unitPriceCents: 1_500_000, unitCostCents: 900_000 }],
+    remove: [],
+    taxRateUuid: "gst",
+    exGstCents: 1_500_000,
+  };
+  answer(plan);
+  const onSent = jest.fn();
+  const { unmount } = render(<JobQuoteSend job="j-1" visible as="quote" look="button" onSent={onSent} />);
+  const go = await screen.findByRole("button", { name: "Send to ServiceM8" });
+  expect(go).toHaveClass("pt-btn--main", "pt-btn--36");
+  /* the paper it sends is Preview quote's: no plan here */
+  expect(screen.queryByText("Job description")).toBeNull();
+  await act(async () => {
+    fireEvent.click(go);
+  });
+  expect(sendQuoteToSm8).toHaveBeenLastCalledWith("j-1", expect.any(String), "2026-10-05 09:00:00", "k-1", "quote");
+  expect(onSent).toHaveBeenCalled();
+  unmount();
+  answer(plan);
+  render(<JobQuoteSend job="j-1" visible as="quote" look="button" sentAt="2026-10-21T04:00:00Z" />);
+  expect(await screen.findByText("Sent to ServiceM8, Wed 21 Oct")).toBeInTheDocument();
+  expect(screen.queryByRole("button")).toBeNull();
+});

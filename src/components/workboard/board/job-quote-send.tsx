@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Button } from "@/components/parts/button";
+import { StateWord } from "@/components/parts/state";
+import { auDayOf, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { quoteSendOffered, sendQuoteToSm8, sendVariationToSm8, type QuoteSendAnswer, type VariationSendAnswer } from "@/app/actions/quote-sm8";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { NONE_ACCEPTED, NOT_APPROVED, type SendPlan } from "@/lib/quotes/sm8-send-plan";
@@ -24,8 +27,30 @@ type Seen = { plan: SendPlan; editDate: string | null; key: string; at: string |
 const qtyWords = (n: number) => String(Math.round(n * 100) / 100);
 
 /** `as`: "quote" sends the approved quote as a quote, before it's accepted
-    (slice 7.3): its scope as the job's description, the job left a Quote. */
-export function JobQuoteSend({ job, visible, version, as = "accepted", onSent }: { job: string; visible: boolean; version?: string | null; as?: "accepted" | "quote"; onSent?: () => void }) {
+    (slice 7.3): its scope as the job's description, the job left a Quote.
+    `look`: "button" is the quote page's pinned Send to ServiceM8 (layout B,
+    Isaac, 21 October 2026), the main button alone under Approve, with what
+    the send said under it and, once it went (`sentAt`), Sent to ServiceM8
+    and its day; the paper it sends is Preview quote's. The same read, the
+    same press, the same key. */
+export function JobQuoteSend({
+  job,
+  visible,
+  version,
+  as = "accepted",
+  onSent,
+  look = "section",
+  sentAt = null,
+}: {
+  job: string;
+  visible: boolean;
+  version?: string | null;
+  as?: "accepted" | "quote";
+  onSent?: () => void;
+  look?: "section" | "button";
+  /** when it went to ServiceM8 for real, for the button's Sent */
+  sentAt?: string | null;
+}) {
   const asQuote = as === "quote";
   const [seen, setSeen] = useState<Seen | null | undefined>(undefined);
   const [offer, setOffer] = useState<{ offered: boolean; trial: boolean }>({ offered: false, trial: false });
@@ -70,7 +95,24 @@ export function JobQuoteSend({ job, visible, version, as = "accepted", onSent }:
   };
 
   const plan = seen?.plan;
+  /* gone: its day, unless the press that sent it said something went wrong,
+     which stays with the button to press again */
+  const troubled = !!answer && (!answer.ok || answer.failed.length > 0);
+  if (look === "button" && sentAt && !troubled) return <StateWord tone="good">{`Sent to ServiceM8, ${fmtAuWeekdayDayMonth(auDayOf(sentAt))}`}</StateWord>;
   if (!plan || (!plan.ok && (plan.why === NONE_ACCEPTED || plan.why === NOT_APPROVED))) return null;
+
+  if (look === "button") {
+    if (!plan.ok) return <StateWord tone="look">{plan.why}</StateWord>;
+    if (!offer.offered) return null;
+    return (
+      <>
+        <Button kind="main" disabled={sending || !fresh} onClick={() => void send()}>
+          {sending ? "Sending" : offer.trial ? "Trial send to ServiceM8" : "Send to ServiceM8"}
+        </Button>
+        {answer && <SendResult answer={answer} />}
+      </>
+    );
+  }
 
   if (!plan.ok) {
     return (

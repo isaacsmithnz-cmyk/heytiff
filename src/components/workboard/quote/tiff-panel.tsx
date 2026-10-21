@@ -4,6 +4,7 @@ import { useEffect, useEffectEvent, useRef, useState, type KeyboardEvent, type R
 import { Button, IconButton } from "@/components/parts/button";
 import { Dot } from "@/components/parts/state";
 import { Fade } from "@/components/parts/fade";
+import { Tray } from "@/components/parts/tabs";
 import { Icon } from "@/components/shell/icon";
 import { appendSpoken, DictClock, useDictation } from "@/components/notes/dictation";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
@@ -31,7 +32,13 @@ import { fmtAud } from "@/lib/workboard/project-money";
    them, whichever tab is up: the column stays mounted under the line items.
    A reload or a closed tab loses nothing: the work is saved as it goes. Off
    until her model is chosen: then there's nothing here, and the page lays
-   the line items out in her place. */
+   the line items out in her place.
+
+   SCOPE (layout B, Isaac, 21 October 2026): a tray at the column's top,
+   Conversation and Scope. Scope is her reading of the job, the write-up
+   that headed the thread, with what her last one changed marked Changed;
+   moved out of the thread, it is never scrolled away. The reply box stays
+   under both. */
 
 const ROUTE = "/api/workboard/quote-session";
 /** How often the thread is read while she works, ms. */
@@ -117,6 +124,8 @@ export function TiffPanel({
   /* Read the job: its sources, and which are ticked */
   const [sources, setSources] = useState<{ list: Source[]; left: number } | null>(null);
   const [ticked, setTicked] = useState<Set<string>>(new Set());
+  /* the conversation, or her reading of the job */
+  const [face, setFace] = useState<"talk" | "scope">("talk");
   const last = useRef(0);
   const busyNow = useRef(false);
   const bottom = useRef<HTMLDivElement | null>(null);
@@ -180,7 +189,7 @@ export function TiffPanel({
   /* the newest at the foot, and again on coming back from the line items */
   useEffect(() => {
     if (!hidden) bottom.current?.scrollIntoView?.({ block: "end" });
-  }, [events.length, hidden, on]);
+  }, [events.length, hidden, on, face]);
 
   const status = useEffectEvent((s: { on: boolean; spentUsd: number | null }) => onStatus?.(s));
   useEffect(() => {
@@ -440,9 +449,52 @@ export function TiffPanel({
   }
   endSteps();
 
+  /* her reading of the job: her newest write-up, against the one before it */
+  const scope = written ? (
+    <section className="qt-job" aria-label="The job">
+      <header>
+        <b>The job</b>
+        <em>{prior ? "Changed" : "Written"}</em>
+      </header>
+      {WRITE_UP_KEYS.filter((k) => written[k].length > 0).map((k) => (
+        <section key={k}>
+          <h4>{WRITE_UP_SECTIONS[k]}</h4>
+          <ul>
+            {written[k].map((item, i) => (
+              <li key={i} className={item.state === "same" ? undefined : item.state}>
+                {item.text}
+                {item.state === "changed" && <em> Changed</em>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </section>
+  ) : (
+    <p className="qt-noscope">Tell Tiff about the job in the conversation, and she writes it out here.</p>
+  );
+
   return (
     <div className="qt" hidden={hidden}>
-      <div className="qc-thread">
+      <div className="qc-face">
+        <div className="qc-col">
+          <Tray
+            ariaLabel="Conversation or scope"
+            value={face}
+            onChange={setFace}
+            options={[
+              { value: "talk", label: "Conversation" },
+              { value: "scope", label: "Scope" },
+            ]}
+          />
+        </div>
+      </div>
+      {face === "scope" && (
+        <div className="qc-thread">
+          <div className="qc-col">{scope}</div>
+        </div>
+      )}
+      <div className="qc-thread" hidden={face !== "talk"}>
         <div className="qc-col">
           {events.length === 0 && (
             <div className="qt-hello">
@@ -490,27 +542,6 @@ export function TiffPanel({
                   Read it
                 </button>
               </div>
-            </section>
-          )}
-          {written && (
-            <section className="qt-job" aria-label="The job">
-              <header>
-                <b>The job</b>
-                <em>{prior ? "Changed" : "Written"}</em>
-              </header>
-              {WRITE_UP_KEYS.filter((k) => written[k].length > 0).map((k) => (
-                <section key={k}>
-                  <h4>{WRITE_UP_SECTIONS[k]}</h4>
-                  <ul>
-                    {written[k].map((item, i) => (
-                      <li key={i} className={item.state === "same" ? undefined : item.state}>
-                        {item.text}
-                        {item.state === "changed" && <em> Changed</em>}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ))}
             </section>
           )}
           {thread.length > 0 && <div className="qt-thread">{thread}</div>}

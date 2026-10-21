@@ -310,7 +310,9 @@ it("shows a researched price with its page, and Use it puts it on the line (12.2
   expect(onChanged).toHaveBeenCalled();
 });
 
-it("shows the job, written out, at the top: what changed since her last one, and what's settled struck through", async () => {
+/* layout B (Isaac, 21 October 2026): her reading of the job is Scope's, a
+   tray away from the conversation, never scrolled away in the thread */
+it("shows the job, written out, on Scope: what changed since her last one, and what's settled struck through", async () => {
   const wrote = (id: number, writeUp: Record<string, string[]>) => ({ id, turnId: "t1", kind: "tool", author: "tiff", body: { name: "write_up", label: "Wrote the job out", said: "the job, written out", ok: true, detail: { writeUp } }, at: "2026-10-10T00:00:00Z" });
   const first = { read: ["Luke: two ducted systems"], visits: ["Rough-in: 2 people, 3.5 days, 55 h"], unpriced: ["The sandstone core: not in your book"] };
   (global as unknown as { fetch: unknown }).fetch = jest.fn(async () =>
@@ -319,12 +321,30 @@ it("shows the job, written out, at the top: what changed since her last one, and
   render(
     <TiffPanel job="j" onChanged={jest.fn()} />
   );
-  const job = within(await screen.findByRole("region", { name: "The job" }));
+  const tray = within(await screen.findByRole("radiogroup", { name: "Conversation or scope" }));
+  expect(tray.getByRole("radio", { name: "Conversation" })).toHaveAttribute("aria-checked", "true");
+  /* the conversation holds no copy of it */
+  await screen.findByText("A 12.5 kW ducted, priced from your book.");
+  expect(screen.queryByRole("region", { name: "The job" })).toBeNull();
+  fireEvent.click(tray.getByRole("radio", { name: "Scope" }));
+  const job = within(screen.getByRole("region", { name: "The job" }));
   expect(job.getByText("Changed", { selector: "header em" })).toBeInTheDocument();
   expect(job.getByText("Luke: two ducted systems")).toBeInTheDocument();
   expect(job.getByText("Rough-in: 2 people, 3.5 days, 57 h").closest("li")).toHaveClass("changed");
   expect(job.getByText("Rough-in: 2 people, 3.5 days, 55 h").closest("li")).toHaveClass("gone");
   expect(job.getByText("The sandstone core: not in your book").closest("li")).toHaveClass("gone");
+});
+
+it("says on Scope what to do while she hasn't written the job out, and keeps the conversation as it was", async () => {
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond(thread));
+  render(<TiffPanel job="j" onChanged={jest.fn()} />);
+  const tray = within(await screen.findByRole("radiogroup", { name: "Conversation or scope" }));
+  fireEvent.click(tray.getByRole("radio", { name: "Scope" }));
+  expect(screen.getByText("Tell Tiff about the job in the conversation, and she writes it out here.")).toBeInTheDocument();
+  /* the reply box stays under both */
+  expect(screen.getByLabelText("Message Tiff")).toBeInTheDocument();
+  fireEvent.click(tray.getByRole("radio", { name: "Conversation" }));
+  expect(screen.queryByText(/she writes it out here/)).toBeNull();
 });
 
 /* Isaac, 2026-10-11: "however I gave you the answers I should be able to do the same" */

@@ -74,8 +74,6 @@ const FILTERS: { key: StoryFilter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "notes", label: "Notes" },
   { key: "photos", label: "Photos" },
-  { key: "money", label: "Money" },
-  { key: "visits", label: "Visits" },
 ];
 
 /** The diary's doors and what the card holds for them. */
@@ -166,7 +164,6 @@ export function JobConversation({
     () => conversationDays(shown, talks, today, liveNotes, filter === "all" || filter === "notes"),
     [shown, talks, today, liveNotes, filter],
   );
-  const filters = FILTERS.filter((f) => f.key !== "money" || moneyVisible);
   const you = viewerName ?? "You";
 
   /* THE TIMES OF WHAT YOU SAY HERE, read in the press (never in render):
@@ -332,7 +329,7 @@ export function JobConversation({
     <section className="jc-convo" aria-label="The job's conversation">
       {story.length > 0 && (
         <ViewTabs
-          items={filters.map((f) => ({ key: f.key, label: f.label }))}
+          items={FILTERS.map((f) => ({ key: f.key, label: f.label }))}
           current={filter}
           onGo={(k) => setFilter(k as StoryFilter)}
           ariaLabel="Show in the conversation"

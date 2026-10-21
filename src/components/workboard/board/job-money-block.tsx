@@ -1,5 +1,6 @@
 "use client";
 
+import { StateWord } from "@/components/parts/state";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { collectionFrom, MONEY_BASIS, type JobMoney } from "@/lib/workboard/job-money";
@@ -120,48 +121,21 @@ function fallbackLine(
   }
 }
 
-/** Who the invoices go to: the client, and the contact the bills are
-    addressed to when the job names one. */
-export type BillTo = { name: string; contact: { name: string; email: string | null } | null };
-
-/** A claim's segment on the terms bar: paid in ink's green, invoiced and
-    waiting in amber, still to bill in the tint — the same three the old bar
-    used, one segment a claim. */
-const segOf = (c: FamilyClaim) =>
-  c.state === "paid" || c.state === "paid_unknown" ? "paid" : c.state === "awaiting" || c.state === "part" ? "awaiting" : "tocome";
-
-export function JobMoneyBlock({
+/** WHAT ONE JOB'S MONEY SAYS, read once: the block below and the Overview's
+    Money tile both draw from it, so the two can never tell a job's money two
+    ways. */
+export function readMoney({
   family,
   money,
   ledgerPaidCents,
   statusLabel,
   unavailable = false,
-  focusRemoteId = null,
-  onOpenClaim,
-  billTo = null,
-  deposit = null,
 }: {
   family: FamilyMoney | null;
   money: JobMoney | null;
-  /** This job row's OWN payments, for the case where there is no family to
-      count — a job number the family read couldn't parse, or a record read
-      that came back without one. */
   ledgerPaidCents: number;
   statusLabel: string | null;
-  /** The record read was refused or failed. The block says so rather than
-      vanishing — and never falls back to this row's own total, which on a
-      family is the netted figure the whole feature exists to stop showing. */
   unavailable?: boolean;
-  /** The claim this card was opened for — marked in the ledger so a reader
-      who searched "2380A" can see which of the three rows they asked for. */
-  focusRemoteId?: string | null;
-  /** Opens one claim's own modal; absent leaves the rows inert. */
-  onOpenClaim?: (remoteId: string) => void;
-  billTo?: BillTo | null;
-  /** The deposit tick (Isaac, 2026-10-03: "if no deposit required make
-      that as an option so it can get ticked off"). Absent where there is
-      nothing to ask: a deposit invoice exists, or the work has started. */
-  deposit?: { noDeposit: boolean; busy: boolean; error: string | null; onSet: (on: boolean) => void } | null;
 }) {
   /* Collection is counted across the FAMILY when there is one. A parent whose
      deposit landed on #2380A used to read "Nothing paid yet" while $9,402 was
@@ -187,11 +161,6 @@ export function JobMoneyBlock({
   const awaiting = family?.awaitingCents ?? null;
   const toCome = family?.toComeCents ?? null;
   const isFamily = family?.isFamily === true && family.claims.length > 1;
-
-  /* The bar is drawn only against a total it can be a share OF. Widths are
-     rounded to a tenth so three segments can't sum past 100 and wrap. */
-  const pct = (n: number) =>
-    value !== null && value > 0 ? `${Math.max(0, Math.min(100, (n / value) * 100)).toFixed(1)}%` : "0%";
 
   const overdue = (family?.claims ?? []).reduce<number | null>(
     (worst, c) => (c.overdueDays !== null && (worst === null || c.overdueDays > worst) ? c.overdueDays : worst),
@@ -256,6 +225,89 @@ export function JobMoneyBlock({
       : value !== null && basis === "inc" && !ladderSpeaksFirst
         ? Math.max(0, value - paidCents)
         : null;
+  return {
+    paidCents,
+    value,
+    basis,
+    basisWord,
+    awaiting,
+    toCome,
+    isFamily,
+    overdue,
+    segments,
+    invoicedLine,
+    ladderSpeaksFirst,
+    showAwaitingHead,
+    showPaidHead,
+    fallback,
+    barBasisSafe,
+    showBar,
+    balance,
+  };
+}
+
+/** Who the invoices go to: the client, and the contact the bills are
+    addressed to when the job names one. */
+export type BillTo = { name: string; contact: { name: string; email: string | null } | null };
+
+/** A claim's segment on the terms bar: paid in ink's green, invoiced and
+    waiting in amber, still to bill in the tint — the same three the old bar
+    used, one segment a claim. */
+const segOf = (c: FamilyClaim) =>
+  c.state === "paid" || c.state === "paid_unknown" ? "paid" : c.state === "awaiting" || c.state === "part" ? "awaiting" : "tocome";
+
+export function JobMoneyBlock({
+  family,
+  money,
+  ledgerPaidCents,
+  statusLabel,
+  unavailable = false,
+  focusRemoteId = null,
+  onOpenClaim,
+  billTo = null,
+  deposit = null,
+}: {
+  family: FamilyMoney | null;
+  money: JobMoney | null;
+  /** This job row's OWN payments, for the case where there is no family to
+      count — a job number the family read couldn't parse, or a record read
+      that came back without one. */
+  ledgerPaidCents: number;
+  statusLabel: string | null;
+  /** The record read was refused or failed. The block says so rather than
+      vanishing — and never falls back to this row's own total, which on a
+      family is the netted figure the whole feature exists to stop showing. */
+  unavailable?: boolean;
+  /** The claim this card was opened for — marked in the ledger so a reader
+      who searched "2380A" can see which of the three rows they asked for. */
+  focusRemoteId?: string | null;
+  /** Opens one claim's own modal; absent leaves the rows inert. */
+  onOpenClaim?: (remoteId: string) => void;
+  billTo?: BillTo | null;
+  /** The deposit tick (Isaac, 2026-10-03: "if no deposit required make
+      that as an option so it can get ticked off"). Absent where there is
+      nothing to ask: a deposit invoice exists, or the work has started. */
+  deposit?: { noDeposit: boolean; busy: boolean; error: string | null; onSet: (on: boolean) => void } | null;
+}) {
+  const {
+    paidCents,
+    value,
+    basisWord,
+    awaiting,
+    isFamily,
+    overdue,
+    segments,
+    invoicedLine,
+    showAwaitingHead,
+    showPaidHead,
+    fallback,
+    barBasisSafe,
+    showBar,
+    balance,
+  } = readMoney({ family, money, ledgerPaidCents, statusLabel, unavailable });
+  const pct = (n: number) =>
+    value !== null && value > 0 ? `${Math.max(0, Math.min(100, (n / value) * 100)).toFixed(1)}%` : "0%";
+
   /* the terms, a segment a claim, where the claims are a share of a total */
   const terms =
     !unavailable && isFamily && value !== null && value > 0 && barBasisSafe
@@ -347,7 +399,7 @@ export function JobMoneyBlock({
 
       {/* axis 2 — the head row says where collection stands, in the tinted
           row where chasing belongs. The value above it stays the identity. */}
-      {!unavailable && showAwaitingHead && (
+      {!unavailable && showAwaitingHead && awaiting !== null && (
         <div className="wb2-mline head warn">
           <b>Awaiting payment</b>
           <em>
@@ -454,5 +506,59 @@ export function JobMoneyBlock({
         </div>
       )}
     </div>
+  );
+}
+
+/** THE OVERVIEW'S MONEY TILE (Isaac, 22 October 2026, "Job card, four
+    tiles"): the figure large, one word on where collection stands, and one
+    line under it. Read from `readMoney`, as the block is: what's owing once
+    something has come in, the job's value until then. */
+export function JobMoneyGlance({
+  family,
+  money,
+  ledgerPaidCents,
+  statusLabel,
+  unavailable = false,
+}: {
+  family: FamilyMoney | null;
+  money: JobMoney | null;
+  ledgerPaidCents: number;
+  statusLabel: string | null;
+  unavailable?: boolean;
+}) {
+  if (unavailable) return <p className="jt-cap">ServiceM8&apos;s figures didn&apos;t load just now.</p>;
+  const m = readMoney({ family, money, ledgerPaidCents, statusLabel });
+  const figure = m.balance ?? m.value;
+  const owing = m.showAwaitingHead && m.awaiting !== null ? m.awaiting : null;
+  /* a job with no family says where collection stands in the block's own
+     words; on the tile they wear their state: owed in orange, paid in green */
+  const collection = m.ladderSpeaksFirst || m.isFamily ? null : collectionFrom(money?.valueCents ?? null, m.paidCents);
+  const settled = collection === "paid" || collection === "part" || collection === "awaiting" ? collection : null;
+  const line =
+    m.isFamily && m.invoicedLine
+      ? m.invoicedLine
+      : m.balance !== null && m.value !== null
+        ? `Job value ${fmtAud(m.value)}`
+        : money?.invoiced && money.invoicedOn
+          ? `Invoiced ${fmtAuWeekdayDayMonth(money.invoicedOn)}`
+          : null;
+  return (
+    <>
+      <b className="jt-big">{figure !== null ? fmtAud(figure) : "—"}</b>
+      {owing !== null ? (
+        m.overdue !== null ? (
+          <StateWord tone="wrong">{m.overdue === 1 ? "1 day overdue" : `${m.overdue} days overdue`}</StateWord>
+        ) : (
+          <StateWord tone="look">{owing === figure ? "All of it owing" : `${fmtAud(owing)} owing`}</StateWord>
+        )
+      ) : m.showPaidHead ? (
+        <StateWord tone="good">Paid in full</StateWord>
+      ) : m.fallback && settled ? (
+        <StateWord tone={settled === "paid" ? "good" : "look"}>{m.fallback}</StateWord>
+      ) : (
+        m.fallback && <p className="jt-read">{m.fallback}</p>
+      )}
+      {line && <p className="jt-cap">{line}</p>}
+    </>
   );
 }

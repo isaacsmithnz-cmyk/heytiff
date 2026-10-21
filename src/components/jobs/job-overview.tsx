@@ -7,16 +7,16 @@ import { undoNote } from "@/app/actions/workboard-notes";
 import { useNoteScope } from "@/components/notes/note-context";
 import { useTiff } from "@/components/tiff/modal/tiff-context";
 import { useConversation, type Opening } from "@/components/tiff/modal/use-conversation";
-import { nextVisitOf, whereUpTo, type JobConversationRead, type RailTask } from "@/lib/jobs/job-conversation";
+import { nextVisitOf, type JobConversationRead, type RailTask } from "@/lib/jobs/job-conversation";
 import type { StoryEntry } from "@/lib/workboard/job-story";
-import type { JobSummaryRead } from "@/lib/workboard/job-summary";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import { JobConversation, type ConversationDiary } from "./job-conversation";
-import { JobRail } from "./job-rail";
+import { JobTiles } from "./job-tiles";
 
-/* A JOB'S OVERVIEW (v2, step 6, slice A; the board JC-1): the job's
-   conversation on the left, the rail on the right, under the stages line
-   (which the page draws above it: it lives on Overview only).
+/* A JOB'S OVERVIEW (v2, step 6, slice A; the board JC-1; four tiles, Isaac,
+   22 October 2026): on the left the stages line, handed in by the page (it
+   lives on Overview only), and under it the four tiles (job-tiles.tsx),
+   then the customer; on the right the job's conversation, its full height.
 
    It reads what the card's record doesn't hold (app/actions/job-conversation):
    what Tiff said back to each note and what she made, and the job's open
@@ -46,12 +46,12 @@ export function JobOverview({
   story,
   loading,
   moneyVisible,
-  summary,
-  summaryPending,
   detail,
   fallbackWhat,
   diary,
   onToast,
+  head,
+  tiles,
   aside,
 }: {
   cardId: string | null;
@@ -60,13 +60,22 @@ export function JobOverview({
   story: StoryEntry[];
   loading: boolean;
   moneyVisible: boolean;
-  summary: JobSummaryRead | null;
-  summaryPending: boolean;
   detail: MirrorJobDetail | null;
   /** The row's title, until the detail's description is read. */
   fallbackWhat: string | null;
   diary: ConversationDiary;
   onToast: (message: string, undo?: () => void | Promise<void>) => void;
+  /** Over the tiles: the stages line. */
+  head?: ReactNode;
+  /** The tiles' doors and the Money tile's insides, the page's own. */
+  tiles: {
+    onVisits: () => void;
+    onBook?: () => void;
+    money?: ReactNode;
+    onMoney?: () => void;
+    onAddTask?: () => void;
+  };
+  /** Under the tiles: the customer. */
   aside?: ReactNode;
 }) {
   const router = useRouter();
@@ -155,6 +164,22 @@ export function JobOverview({
 
   return (
     <div className="jc">
+      <div className="jc-side">
+        {head}
+        <JobTiles
+          what={what}
+          next={detail ? nextVisitOf({ booked: detail.booked ?? null, nextBooking: detail.nextBooking }, today) : null}
+          onVisits={tiles.onVisits}
+          onBook={tiles.onBook}
+          money={tiles.money}
+          onMoney={tiles.onMoney}
+          tasks={tasks}
+          tasksRead={!!read}
+          onTick={tick}
+          onAddTask={tiles.onAddTask}
+        />
+        {aside}
+      </div>
       <JobConversation
         story={story}
         talks={read?.notes ?? []}
@@ -168,19 +193,6 @@ export function JobOverview({
         voiceEnabled={scope.voiceEnabled}
         onUndoTalk={undoTalk}
       />
-      <JobRail
-        upTo={whereUpTo(summary)}
-        upToOn={summary?.eventOn ?? null}
-        upToPending={!summary && summaryPending}
-        tasks={tasks}
-        tasksRead={!!read}
-        onTick={tick}
-        next={detail ? nextVisitOf({ booked: detail.booked ?? null, nextBooking: detail.nextBooking }, today) : null}
-        what={what}
-        invoice={detail?.workDone?.trim() || null}
-      >
-        {aside}
-      </JobRail>
     </div>
   );
 }

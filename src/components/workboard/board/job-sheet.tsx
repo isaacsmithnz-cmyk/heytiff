@@ -29,7 +29,7 @@ import {
 import { claimFor, claimTitle, isPartialInvoiceLine } from "@/lib/workboard/job-family";
 import { buildJobStory, storyStamp } from "@/lib/workboard/job-story";
 import { JobClaimModal } from "./job-claim-modal";
-import { JobMoneyBlock } from "./job-money-block";
+import { JobMoneyBlock, JobMoneyGlance } from "./job-money-block";
 import { JobSummaryFace } from "./job-summary-face";
 import { JobDiaryFace } from "./job-diary-face";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
@@ -2415,8 +2415,9 @@ export function JobSheet({
             hue={jobHue(categoryColour, status.toLowerCase() === "unsuccessful")}
             facts={facts}
             /* not until the job is read: before it, the steps are a quote's
-               with nothing done, and the head said "Enquiry" on any job */
-            stage={detail ? stageWord(steps) : null}
+               with nothing done, and the head said "Enquiry" on any job; and
+               not on Overview, where the stages line and Money say it */
+            stage={detail && page.section !== "overview" ? stageWord(steps) : null}
             sm8Href={sm8Href}
             add={{ items: addItems, onPick: addPick, disabled: !cardId, onReach: askQuote }}
             actions={{ items: actionItems, onPick: actionPick }}
@@ -2440,11 +2441,11 @@ export function JobSheet({
           {here && <p className="wb2-here">{here}</p>}
           <div className="wb2-jcbody jp-body" role="tabpanel" aria-labelledby={`jp-tab-${page.section}`}>
             {err && <div className="wb2-sherr">{err}</div>}
-            {/* OVERVIEW: the stages line (6-revisions: it lives on Overview
-                only), then the job's conversation and its rail (v2, step 6,
-                JC-1), the customer at the rail's foot */}
+            {/* OVERVIEW: what's open on the job, then the stages line
+                (6-revisions: it lives on Overview only) over the four tiles,
+                the customer under them, and the job's conversation beside
+                them (four tiles, Isaac, 22 October 2026) */}
             <div className="jp-over" hidden={page.section !== "overview"}>
-              <JobProgressLine steps={steps} open={step} onOpen={openStep} />
               {/* what's open on the job is the Overview's, not every tab's
                   (Isaac, 20 October: "the quote page is holding on to that
                   on this job one open thing. Same with the visits page") */}
@@ -2455,10 +2456,28 @@ export function JobSheet({
                 story={story}
                 loading={loading && !detail}
                 moneyVisible={moneyVisible}
-                summary={summary}
-                summaryPending={summaryPending}
                 detail={detail}
                 fallbackWhat={row.title}
+                head={<JobProgressLine steps={steps} open={step} onOpen={openStep} />}
+                tiles={{
+                  onVisits: () => go("visits"),
+                  onBook: bookings?.canBook ? () => addPick("visit") : undefined,
+                  money: moneyVisible ? (
+                    record !== undefined || recordFailed ? (
+                      <JobMoneyGlance
+                        family={family}
+                        money={money}
+                        ledgerPaidCents={record?.ledger ? paymentsTotalCents(record.ledger.payments) : 0}
+                        statusLabel={row.statusLabel}
+                        unavailable={recordFailed}
+                      />
+                    ) : (
+                      <p className="jt-cap">Reading the figures</p>
+                    )
+                  ) : undefined,
+                  onMoney: moneyVisible ? () => go("money") : undefined,
+                  onAddTask: manage && detail ? () => addPick("task") : undefined,
+                }}
                 diary={{
                   onOpenClaim: setOpenClaim,
                   onPhotos: () => go("photos"),
@@ -2480,7 +2499,7 @@ export function JobSheet({
                 }}
                 onToast={onToast}
                 aside={
-                  <section className="jc-group jc-cust" aria-label="The customer">
+                  <section className="jc-cust" aria-label="The customer">
                     <JobCustomer detail={detail} onEdit={customerEdit && cardId ? () => setEditingCustomer(true) : undefined} />
                     {/* a tracked job wears its board, as the card's chip did */}
                     {row.tracked && (

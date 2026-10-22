@@ -2343,8 +2343,10 @@ export function JobSheet({
   /* ABOVE THE FACES, ON EVERY ONE. The strip outranks the row for the same
      reason it outranks the summary: what needs you beats where it's up to.
      It draws nothing at all on a quiet job. */
-  const attentionStrip = attention ? (
+  const attentionStripOf = (bare: boolean) =>
+    attention ? (
             <JobAttentionStrip
+              bare={bare}
               attention={attention}
               assignable={record?.assignable ?? []}
               busy={busy}
@@ -2371,7 +2373,8 @@ export function JobSheet({
                   : null
               }
             />
-  ) : null;
+    ) : null;
+  const attentionStrip = attentionStripOf(false);
 
   if (page) {
     /* THE JOB'S PAGE (v2, step 5): the head, then the section's faces. */
@@ -2441,15 +2444,14 @@ export function JobSheet({
           {here && <p className="wb2-here">{here}</p>}
           <div className="wb2-jcbody jp-body" role="tabpanel" aria-labelledby={`jp-tab-${page.section}`}>
             {err && <div className="wb2-sherr">{err}</div>}
-            {/* OVERVIEW: what's open on the job, then the stages line
-                (6-revisions: it lives on Overview only) over the four tiles,
-                the customer under them, and the job's conversation beside
-                them (four tiles, Isaac, 22 October 2026) */}
+            {/* OVERVIEW: the stages line (6-revisions: it lives on Overview
+                only) over the four tiles, the customer under them, and the
+                job's conversation beside them (four tiles, Isaac, 22 October
+                2026). What's open on the job is the Overview's, not every
+                tab's (Isaac, 20 October), and it is To do's: an ask in a
+                note is a thing to do (the mock's "To do is the job's open
+                asks") */}
             <div className="jp-over" hidden={page.section !== "overview"}>
-              {/* what's open on the job is the Overview's, not every tab's
-                  (Isaac, 20 October: "the quote page is holding on to that
-                  on this job one open thing. Same with the visits page") */}
-              {attentionStrip}
               <JobOverview
                 cardId={cardId}
                 label={[cardNumber, detail?.clientName ?? row.clientName].filter(Boolean).join(" ") || undefined}
@@ -2477,6 +2479,8 @@ export function JobSheet({
                   ) : undefined,
                   onMoney: moneyVisible ? () => go("money") : undefined,
                   onAddTask: manage && detail ? () => addPick("task") : undefined,
+                  open: attentionStripOf(true),
+                  openCount: attention?.total ?? 0,
                 }}
                 diary={{
                   onOpenClaim: setOpenClaim,

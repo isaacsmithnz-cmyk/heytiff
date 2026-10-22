@@ -11679,6 +11679,32 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .jt-cap { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
 .fg .jt-what { margin:0; font-size:14px; line-height:20px; color:var(--ink); white-space:pre-wrap; overflow-wrap:anywhere; }
 .fg .jt-tasks { display:flex; flex-direction:column; gap:12px; align-self:stretch; margin:0; padding:0; list-style:none; }
+/* what's open on the job, in To do: the strip's rows without its box,
+   their doors under the words in a tile this narrow */
+.fg .jt .wb2-jcatt.bare { align-self:stretch; margin:0; padding:0; border-radius:0; background:none; box-shadow:none; }
+.fg .jt .wb2-jcatt.bare .wb2-jcattrow { grid-template-columns:26px minmax(0,1fr); align-items:start; }
+.fg .jt .wb2-jcatt.bare .wb2-jcattacts { grid-column:2; flex-wrap:wrap; }
+/* THE STAGES LINE IN THE OVERVIEW'S COLUMN (Isaac, 22 October 2026): the
+   quote's line, seven names sharing the column's width, no dates under
+   them; green to where it's up to, orange at it, red where it went wrong */
+.fg .jc-side .jcl-line { align-items:flex-start; gap:0; margin:0; padding:4px 4px 0; overflow:visible; }
+.fg .jc-side .jcl-link { display:none; }
+.fg .jc-side .jcl-step { position:relative; flex:1 1 0; min-width:0; flex-direction:column; align-items:flex-start; gap:2px; padding:16px 4px 4px 0; border-radius:0; }
+.fg .jc-side .jcl-step:last-child { flex:0 0 auto; }
+.fg .jc-side .jcl-step:hover, .fg .jc-side .jcl-step.on { background:none; }
+.fg .jc-side .jcl-step::after { content:""; position:absolute; top:5px; left:12px; right:0; height:2px; background:var(--line); }
+.fg .jc-side .jcl-step:last-child::after { display:none; }
+.fg .jc-side .jcl-step.done::after { background:var(--green); }
+.fg .jc-side .jcl-dot { position:absolute; top:0; left:0; box-sizing:border-box; border-width:2px; }
+.fg .jc-side .jcl-step.done .jcl-dot { border-color:var(--green); background:var(--green); }
+.fg .jc-side .jcl-step.now .jcl-dot, .fg .jc-side .jcl-step.warn .jcl-dot { border:2px solid var(--orange); background:var(--orange); box-shadow:0 0 0 2px var(--white), 0 0 0 4px var(--orange); }
+.fg .jc-side .jcl-step.bad .jcl-dot { border-color:var(--red); background:var(--red); }
+.fg .jc-side .jcl-sl em { display:none; }
+.fg .jc-side .jcl-sl b { font-size:12px; line-height:16px; color:var(--q); }
+.fg .jc-side .jcl-step.done .jcl-sl b { color:var(--green-w); }
+.fg .jc-side .jcl-step.now .jcl-sl b, .fg .jc-side .jcl-step.warn .jcl-sl b { color:var(--orange-w); }
+.fg .jc-side .jcl-step.bad .jcl-sl b { color:var(--red-w); }
+.fg .jc-side .jcl-step.on .jcl-sl b { text-decoration:underline; text-underline-offset:4px; }
 .fg .jc-cust .jcl-cust { align-self:stretch; margin-top:0; padding:0; border-top:0; }
 @media (max-width:900px) {
   .fg .jc { grid-template-columns:minmax(0,1fr); gap:24px; }

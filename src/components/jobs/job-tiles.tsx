@@ -16,8 +16,10 @@ import type { NextVisit, RailTask } from "@/lib/jobs/job-conversation";
                  Book a visit;
      Money       the figure, where collection stands, one line under it
                  (job-money-block's JobMoneyGlance), for whoever sees money;
-     To do       the job's open tasks, each a tick, the count in orange
-                 while any is open, and Add task.
+     To do       what's open on the job (an ask in a note, a flag: the
+                 attention rows, with their own doors), then its open
+                 tasks, each a tick, the count in orange while any is
+                 open, and Add task.
 
    Each thing is said once: where the job is up to is the stages line over
    the tiles, the crew is in the diary. A tile with a tab behind it opens it
@@ -71,6 +73,8 @@ export function JobTiles({
   tasksRead,
   onTick,
   onAddTask,
+  open,
+  openCount = 0,
 }: {
   /** The job's words, as the office wrote them. */
   what: string;
@@ -87,7 +91,11 @@ export function JobTiles({
   onTick: (task: RailTask) => void;
   /** Add task, for whoever may set one. */
   onAddTask?: () => void;
+  /** What's open on the job, an ask in a note or a flag, above its tasks. */
+  open?: ReactNode;
+  openCount?: number;
 }) {
+  const count = tasks.length + openCount;
   return (
     <div className="jt-grid">
       <Tile label="Summary" className="jt--summary">
@@ -124,7 +132,7 @@ export function JobTiles({
 
       <Tile
         label="To do"
-        aside={tasks.length > 0 ? <span className="jt-count">{tasks.length}</span> : null}
+        aside={count > 0 ? <span className="jt-count">{count}</span> : null}
         foot={
           onAddTask ? (
             <Button kind="second" onClick={onAddTask}>
@@ -133,6 +141,7 @@ export function JobTiles({
           ) : null
         }
       >
+        {open}
         {tasks.length > 0 ? (
           <ul className="jt-tasks">
             {tasks.map((t) => (
@@ -150,7 +159,7 @@ export function JobTiles({
               </li>
             ))}
           </ul>
-        ) : (
+        ) : openCount > 0 ? null : (
           <p className="jt-cap">{tasksRead ? "Nothing to do on it." : "Reading the job's tasks"}</p>
         )}
       </Tile>

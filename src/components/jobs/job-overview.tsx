@@ -74,6 +74,9 @@ export function JobOverview({
     money?: ReactNode;
     onMoney?: () => void;
     onAddTask?: () => void;
+    /** What's open on the job (the attention rows), at the head of To do. */
+    open?: ReactNode;
+    openCount?: number;
   };
   /** Under the tiles: the customer. */
   aside?: ReactNode;
@@ -177,6 +180,8 @@ export function JobOverview({
           tasksRead={!!read}
           onTick={tick}
           onAddTask={tiles.onAddTask}
+          open={tiles.open}
+          openCount={tiles.openCount ?? 0}
         />
         {aside}
       </div>

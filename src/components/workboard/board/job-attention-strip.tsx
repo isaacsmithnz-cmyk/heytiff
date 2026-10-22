@@ -63,6 +63,7 @@ export function JobAttentionStrip({
   onMakeTask,
   onDismissNote,
   sm8,
+  bare = false,
 }: {
   attention: JobAttention;
   /** Who a task can be given to — sent with the strip so the form opens
@@ -82,6 +83,9 @@ export function JobAttentionStrip({
       its row's id. */
   onDismissNote: (noteUuid: string) => void;
   sm8?: StripSm8 | null;
+  /** Inside the Overview's To do tile (Isaac, 22 October 2026): the rows
+      alone, the tile's name and count standing in for the strip's head. */
+  bare?: boolean;
 }) {
   /* Which suggestion has its form open. One at a time: two open forms on a
      three-row strip is a dialog pretending to be a list. */
@@ -90,11 +94,13 @@ export function JobAttentionStrip({
   if (attention.items.length === 0) return null;
 
   return (
-    <section className="wb2-jcatt" aria-label="Open on this job">
-      <div className="wb2-jcatthd">
-        <span className="wb2-sect">On this job</span>
-        <span className="wb2-chip warn">{attentionCountLabel(attention.total)}</span>
-      </div>
+    <section className={"wb2-jcatt" + (bare ? " bare" : "")} aria-label="Open on this job">
+      {!bare && (
+        <div className="wb2-jcatthd">
+          <span className="wb2-sect">On this job</span>
+          <span className="wb2-chip warn">{attentionCountLabel(attention.total)}</span>
+        </div>
+      )}
       {attention.items.map((item) => (
         <AttentionRow
           key={item.key}

@@ -16,6 +16,8 @@ import { jobPageHref } from "@/lib/shell/links";
 import { mintPressId } from "@/lib/workboard/press-id";
 import { bookJobIn, readBookInContext, takeBackBooking } from "@/app/actions/booking-sm8";
 import { loadSchedulePanel } from "@/app/actions/schedule-panel";
+import { scheduleDay } from "@/app/actions/workboard";
+import type { TeamDay } from "@/lib/schedule/month-team";
 import { Loading } from "@/components/parts/states";
 import { BOOKING_LENGTHS_MIN } from "@/lib/integrations/sm8-booking-plan";
 import { thrownWords } from "@/lib/stale-deploy";
@@ -43,7 +45,6 @@ import {
   weekLine,
   weekdayWord,
   fillWord,
-  hoursWord,
   workingDaysFrom,
   type DayBlock,
   type Fit,
@@ -199,6 +200,9 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [ask, setAsk] = useState<Ask | null>(null);
   const [daysOff, setDaysOff] = useState<{ profile: string; name: string } | null>(null);
+  /* the month's filter and the day whose panel is open beside it */
+  const [monthFilter, setMonthFilter] = useState<MonthFilter>("all");
+  const [pickedDay, setPickedDay] = useState<string | null>(null);
   /** a person's name opens their regular days off, where they're linked and you look after the team */
   const openDaysOff = (row: PersonRow) => {
     const profile = data.canTeam ? data.profiles[row.staffUuid.toLowerCase()] : undefined;
@@ -328,6 +332,16 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
     setAsk({ row, days, ...fit });
   };
 
+  /* a public holiday, or another day the business is shut, by name, day by
+     day (Isaac, 24 October 2026: the Schedule shows them on every view) */
+  const shut = useMemo(() => {
+    const named = new Map<string, string>();
+    for (const p of data.payloads) {
+      const c = p.closed?.[0];
+      if (c) named.set(p.dayISO, c.kind === "holiday" ? c.name || "Public holiday" : c.name || "Closed");
+    }
+    return named;
+  }, [data.payloads]);
   const booked = data.capacity.reduce((n, d) => n + d.bookedMinutes, 0);
   const crew = data.capacity.reduce((n, d) => n + d.capacityMinutes, 0);
   const fact = month
@@ -373,16 +387,30 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
         <Button kind="second" size={32} onClick={() => go(data.view, data.today)}>
           Today
         </Button>
+        {weeks ? (
+          <span className="sc-filter">
+            <Tray
+              ariaLabel="Show"
+              options={[
+                { value: "all", label: "All" },
+                { value: "jobs", label: "Jobs" },
+                { value: "team", label: "Team" },
+              ]}
+              value={monthFilter}
+              onChange={setMonthFilter}
+            />
+          </span>
+        ) : null}
       </div>
 
       <div className="sc-body">
         <div className={`sc-board${held ? " sc-holding" : ""}${switching ? " sc-switching" : ""}`} aria-busy={switching || undefined}>
           {weeks ? (
-            <WeeksGrid data={data} open={(d) => go("day", d)} />
+            <WeeksGrid data={data} filter={monthFilter} picked={pickedDay} pick={(d) => setPickedDay((p) => (p === d ? null : d))} />
           ) : week ? (
-            <WeekRows board={board} held={held} at={at} busy={busy} setAt={setAt} dropOn={dropOn} nameDoor={openDaysOff} />
+            <WeekRows board={board} held={held} at={at} busy={busy} setAt={setAt} dropOn={dropOn} nameDoor={openDaysOff} shut={shut} />
           ) : (
-            <DayRows board={board} held={held} at={at} busy={busy} setAt={setAt} dropOn={dropOn} nameDoor={openDaysOff} />
+            <DayRows board={board} held={held} at={at} busy={busy} setAt={setAt} dropOn={dropOn} nameDoor={openDaysOff} shut={shut} />
           )}
           {ask ? (
             <div className="sc-ask" role="alertdialog" aria-label="Some of those days">
@@ -417,7 +445,20 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
             </div>
           ) : null}
         </div>
-        {weeks ? null : <JobsPanel jobs={panel.jobs} canBook={data.canBook} held={held} week={week} pick={pick} setHeld={setHeld} />}
+        {weeks ? (
+          pickedDay && data.days.includes(pickedDay) ? (
+            <MonthDayPanel
+              key={pickedDay}
+              day={pickedDay}
+              cap={data.capacity.find((c) => c.dayISO === pickedDay)}
+              team={data.team.find((t) => t.dayISO === pickedDay)}
+              onOpen={() => go("day", pickedDay)}
+              onClose={() => setPickedDay(null)}
+            />
+          ) : null
+        ) : (
+          <JobsPanel jobs={panel.jobs} canBook={data.canBook} held={held} week={week} pick={pick} setHeld={setHeld} />
+        )}
       </div>
       {daysOff ? <RegularDaysOffForm staffProfileId={daysOff.profile} name={daysOff.name} today={data.today} onClose={() => setDaysOff(null)} /> : null}
     </div>
@@ -461,11 +502,13 @@ type RowsProps = {
   setAt: (a: { staff: string; min: number; day: string } | null) => void;
   dropOn: (row: PersonRow, place: { min: number; day: string }) => void;
   nameDoor: (row: PersonRow) => (() => void) | undefined;
+  /** the days the business is shut, by name */
+  shut: ReadonlyMap<string, string>;
 };
 
 const pct = (min: number, a: number, b: number) => ((min - a) / (b - a)) * 100;
 
-function DayRows({ board, held, at, busy, setAt, dropOn, nameDoor }: RowsProps) {
+function DayRows({ board, held, at, busy, setAt, dropOn, nameDoor, shut }: RowsProps) {
   const { stripStart: a, stripEnd: b } = board;
   const day = board.days[0];
   const hours: number[] = [];
@@ -479,8 +522,10 @@ function DayRows({ board, held, at, busy, setAt, dropOn, nameDoor }: RowsProps) 
     return Math.max(a, snap(a + (x / r.width) * (b - a)));
   };
 
+  const closed = shut.get(day);
   return (
-    <div className="sc-day">
+    <div className={`sc-day${closed ? " sc-shutday" : ""}`}>
+      {closed ? <p className="sc-shutname">{closed}</p> : null}
       <div className="sc-axis" aria-hidden="true">
         {hours.map((h) => (
           <span key={h} style={{ left: `${pct(h, a, b)}%` }}>
@@ -577,7 +622,7 @@ function weekBars(row: PersonRow): { key: string; first: number; last: number; b
   return out;
 }
 
-function WeekRows({ board, held, at, busy, setAt, dropOn, nameDoor }: RowsProps) {
+function WeekRows({ board, held, at, busy, setAt, dropOn, nameDoor, shut }: RowsProps) {
   const days = board.days;
   const col = at && held ? days.indexOf(at.day) : -1;
   const span = held && col >= 0 ? workingDaysFrom(days[col], held.days) : [];
@@ -587,7 +632,10 @@ function WeekRows({ board, held, at, busy, setAt, dropOn, nameDoor }: RowsProps)
       <div className="sc-wh">
         <div />
         {days.map((d) => (
-          <b key={d}>{dayHead(d)}</b>
+          <b key={d}>
+            {dayHead(d)}
+            {shut.get(d) ? <em className="sc-shutname">{shut.get(d)}</em> : null}
+          </b>
         ))}
       </div>
       {board.people.map((row) => {
@@ -601,7 +649,7 @@ function WeekRows({ board, held, at, busy, setAt, dropOn, nameDoor }: RowsProps)
               {days.map((d, i) => (
                 <div
                   key={d}
-                  className="sc-cell"
+                  className={`sc-cell${shut.has(d) ? " sc-cellshut" : ""}`}
                   style={{ gridColumn: `${i + 1}`, gridRow: "1 / -1" }}
                   onDragOver={(e) => {
                     if (!held) return;
@@ -656,12 +704,34 @@ function WeekRows({ board, held, at, busy, setAt, dropOn, nameDoor }: RowsProps)
   );
 }
 
-/* ── 4 weeks: how full each weekday is ── */
+/* ── 4 weeks and Month: how full each weekday is, and who's off ── */
 
 const FILL_TONE = { Room: "good", Full: "look", Over: "wrong" } as const;
 
-function WeeksGrid({ data, open }: { data: SchedulePage; open: (day: string) => void }) {
+/* THE MONTH, ALL TOGETHER (Isaac, 24 October 2026: "You need to be able to
+   see both combined. For the month view, don't have the hours on there. Just
+   have the capacity"). A weekday's tile says how full the crew is (Room,
+   Full or Over, and the percentage, the crew's hours less whoever is off),
+   the public holiday by name, the day's events, and who's off and why. Jobs
+   narrows it to the capacity, Team to who's off, holidays and events.
+   Pressing a day opens its panel beside the month ("so you can quickly
+   check each day"). */
+export type MonthFilter = "all" | "jobs" | "team";
+
+function WeeksGrid({
+  data,
+  filter,
+  picked,
+  pick,
+}: {
+  data: SchedulePage;
+  filter: MonthFilter;
+  picked: string | null;
+  pick: (day: string) => void;
+}) {
   const byDay = new Map(data.capacity.map((d) => [d.dayISO, d]));
+  const teamBy = new Map(data.team.map((t) => [t.dayISO, t]));
+  const fits = filter === "team" ? 4 : 3;
   return (
     <div className="sc-weeks">
       <div className="sc-wkh">
@@ -676,34 +746,161 @@ function WeeksGrid({ data, open }: { data: SchedulePage; open: (day: string) => 
         ))}
         {data.days.map((d, i) => {
           const c = byDay.get(d);
+          const t = teamBy.get(d);
           const newMonth = i === 0 || monthOf(d) !== monthOf(data.days[i - 1]);
           const word = c ? fillWord(c.fillPct, c.over) : null;
-          const pctFull = c && c.fillPct !== null ? Math.min(c.fillPct, 100) : 0;
+          const off = filter === "jobs" ? [] : (t?.off ?? []);
+          const events = filter === "jobs" ? [] : (t?.events ?? []);
           return (
-            <button key={d} type="button" className={`sc-wk${d === data.today ? " sc-wktoday" : ""}`} onClick={() => open(d)} aria-label={`${longDay(d)}, open the day`}>
+            <button
+              key={d}
+              type="button"
+              className={`sc-wk${d === data.today ? " sc-wktoday" : ""}${t?.holiday ? " sc-wkshut" : ""}`}
+              aria-pressed={picked === d}
+              onClick={() => pick(d)}
+              aria-label={`${longDay(d)}${t?.holiday ? `, ${t.holiday}` : ""}`}
+            >
               <span className="sc-wkd">
                 {dayNum(d)}
                 {newMonth ? ` ${monthOf(d).slice(0, 3)}` : ""}
               </span>
-              {c && c.capacityMinutes > 0 ? (
-                <>
-                  <span className="sc-wkh2">
-                    {hoursWord(c.bookedMinutes)} of {hoursWord(c.capacityMinutes)}
-                  </span>
+              {t?.holiday ? <span className="sc-wkhol">{t.holiday}</span> : null}
+              {filter !== "team" && c && c.fillPct !== null && word ? (
+                <span className="sc-wkcap">
                   <span className="sc-wkbar" aria-hidden="true">
-                    <i className={`sc-wkfill${word ? ` sc-wk--${word.toLowerCase()}` : ""}`} style={{ width: `${pctFull}%` }} />
+                    <i className={`sc-wkfill sc-wk--${word.toLowerCase()}`} style={{ width: `${Math.min(c.fillPct, 100)}%` }} />
                   </span>
-                  {word ? <StateWord tone={FILL_TONE[word]}>{word}</StateWord> : null}
-                  <span className="sc-wkj">{c.jobs === 1 ? "1 job" : `${c.jobs} jobs`}</span>
-                </>
-              ) : (
+                  <StateWord tone={FILL_TONE[word]}>{word}</StateWord>
+                  <span className="sc-wkpc">{c.fillPct}%</span>
+                </span>
+              ) : filter !== "team" && !t?.holiday ? (
                 <span className="sc-wkj">No crew hours</span>
-              )}
+              ) : null}
+              {events.map((e) => (
+                <span key={e.id} className="sc-wkev">
+                  <Icon name="calendar" size={12} />
+                  <Fade>{[e.title, e.when].filter(Boolean).join(", ")}</Fade>
+                </span>
+              ))}
+              {off.slice(0, fits).map((o) => (
+                <span key={o.staffUuid} className="sc-wkoff">
+                  <Initials name={o.name} size={24} />
+                  <span>
+                    <b>{shortName(o.name)}</b>
+                    <em>{[o.why ?? "Off", o.part].filter(Boolean).join(", ")}</em>
+                  </span>
+                </span>
+              ))}
+              {off.length > fits ? <span className="sc-wkj">{off.length - fits} more off</span> : null}
+              {filter === "team" && off.length === 0 && events.length === 0 && !t?.holiday ? <span className="sc-wkj">Everyone in</span> : null}
             </button>
           );
         })}
       </div>
     </div>
+  );
+}
+
+/** One day of the month, beside it: how full it is, its holiday and events,
+    who's off and why, and its jobs as the board's cards, read when it opens;
+    Open the day goes to its Day view to book. */
+function MonthDayPanel({
+  day,
+  cap,
+  team,
+  onOpen,
+  onClose,
+}: {
+  day: string;
+  cap: SchedulePage["capacity"][number] | undefined;
+  team: TeamDay | undefined;
+  onOpen: () => void;
+  onClose: () => void;
+}) {
+  const [jobs, setJobs] = useState<{ day: string; list: { blk: DayBlock; crew: number }[] } | null>(null);
+  useEffect(() => {
+    let live = true;
+    void scheduleDay(day)
+      .then((payload) => {
+        if (!live) return;
+        const seen = new Map<string, { blk: DayBlock; crew: number }>();
+        for (const row of boardOf([payload]).people)
+          for (const blk of row.days[0]?.blocks ?? []) {
+            const had = seen.get(blk.jobUuid);
+            if (!had) seen.set(blk.jobUuid, { blk, crew: blk.with.length + 1 });
+            else if (blk.startMin < had.blk.startMin) seen.set(blk.jobUuid, { ...had, blk });
+          }
+        setJobs({ day, list: [...seen.values()].sort((a, b) => a.blk.startMin - b.blk.startMin) });
+      })
+      .catch(() => live && setJobs({ day, list: [] }));
+    return () => {
+      live = false;
+    };
+  }, [day]);
+  const word = cap ? fillWord(cap.fillPct, cap.over) : null;
+  const shown = jobs && jobs.day === day ? jobs.list : null;
+  return (
+    <aside className="sc-panel sc-mpanel" aria-label={longDay(day)}>
+      <div className="sc-mphead">
+        <h2 className="sc-h2">{longDay(day)}</h2>
+        <IconButton glyph="clear" label="Close the day" size={32} onClick={onClose} />
+      </div>
+      {team?.holiday ? <p className="sc-wkhol">{team.holiday}</p> : null}
+      {cap && cap.fillPct !== null && word ? (
+        <span className="sc-wkcap">
+          <span className="sc-wkbar" aria-hidden="true">
+            <i className={`sc-wkfill sc-wk--${word.toLowerCase()}`} style={{ width: `${Math.min(cap.fillPct, 100)}%` }} />
+          </span>
+          <StateWord tone={FILL_TONE[word]}>{word}</StateWord>
+          <span className="sc-wkpc">{cap.fillPct}%</span>
+        </span>
+      ) : null}
+      <Button kind="main" size={36} onClick={onOpen}>
+        Open the day
+      </Button>
+      {team && team.events.length > 0 ? (
+        <section className="sc-mpsect" aria-label="Events">
+          <h3>Events</h3>
+          {team.events.map((e) => (
+            <span key={e.id} className="sc-wkev">
+              <Icon name="calendar" size={12} />
+              <span>
+                <b>{e.title}</b>
+                {e.when || e.where ? <em>{[e.when, e.where].filter(Boolean).join(", ")}</em> : null}
+              </span>
+            </span>
+          ))}
+        </section>
+      ) : null}
+      <section className="sc-mpsect" aria-label="Who's off">
+        <h3>Who&apos;s off</h3>
+        {team && team.off.length > 0 ? (
+          team.off.map((o) => (
+            <span key={o.staffUuid} className="sc-wkoff">
+              <Initials name={o.name} size={24} />
+              <span>
+                <b>{o.name}</b>
+                <em>{[o.why ?? "Off", o.part ?? "all day"].join(", ")}</em>
+              </span>
+            </span>
+          ))
+        ) : (
+          <p className="sc-off">Everyone in.</p>
+        )}
+      </section>
+      <section className="sc-mpsect" aria-label="Jobs">
+        <h3>{shown ? (shown.length === 1 ? "Jobs, 1" : `Jobs, ${shown.length}`) : "Jobs"}</h3>
+        {shown === null ? (
+          <p className="sc-off">Reading the day&apos;s jobs</p>
+        ) : shown.length === 0 ? (
+          <p className="sc-off">Nothing booked.</p>
+        ) : (
+          shown.map(({ blk, crew }) => (
+            <BookingCard key={blk.jobUuid} blk={blk} crew={crew} when={clockWord(blk.startMin, true)} className="sc-pjob" style={{}} />
+          ))
+        )}
+      </section>
+    </aside>
   );
 }
 

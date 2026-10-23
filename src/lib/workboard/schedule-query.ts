@@ -86,8 +86,15 @@ export async function readDayAvailability(
   orgId: string,
   dayISO: string
 ): Promise<{ away: ScheduleAway[]; closed: ScheduleClosed[] } | null> {
-  const dayFloor = `${dayISO} 00:00:00`;
-  const dayCeil = `${plusDays(dayISO, 1)} 00:00:00`;
+  const rows = await readAvailabilitySpan(orgId, dayISO, dayISO);
+  return rows ? availabilityOnDay(rows, dayISO) : null;
+}
+
+/** The same read over a run of days, first to last inclusive (the month's
+    Team filter): the rows, for `availabilityOnDay` to place day by day. */
+export async function readAvailabilitySpan(orgId: string, firstISO: string, lastISO: string): Promise<AvailabilityRow[] | null> {
+  const dayFloor = `${firstISO} 00:00:00`;
+  const dayCeil = `${plusDays(lastISO, 1)} 00:00:00`;
   const [{ data: state, error: stateError }, { data, error }] = await Promise.all([
     supabaseAdmin
       .from("sm8_sync_state")
@@ -121,7 +128,7 @@ export async function readDayAvailability(
     start: r.start_timestamp,
     end: r.end_timestamp,
   }));
-  return availabilityOnDay(rows, dayISO);
+  return rows;
 }
 
 export async function loadScheduleDay(

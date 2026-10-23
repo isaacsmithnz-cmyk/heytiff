@@ -113,9 +113,19 @@ export function daysFrom(startISO: string, count: number): string[] {
 /** The crew's minutes for one working day: everyone in the index, at their own
     typical hours. Zero at a weekend, and zero when nobody is allocated — both
     of which `capacityDay` reads as "no denominator" rather than as "empty". */
-export function capacityForDay(dayISO: string, allocation: CapacityAllocation[]): number {
+export function capacityForDay(
+  dayISO: string,
+  allocation: CapacityAllocation[],
+  /** minutes of the working day this person is off (leave, TAFE, a
+      warehouse morning); never more than their day comes off it */
+  offMinutes?: (staffUuid: string) => number,
+): number {
   if (!isWorkingDayISO(dayISO)) return 0;
-  return allocation.reduce((s, a) => (a.included ? s + Math.max(0, a.dailyMinutes) : s), 0);
+  return allocation.reduce((s, a) => {
+    if (!a.included) return s;
+    const day = Math.max(0, a.dailyMinutes);
+    return s + day - Math.min(day, Math.max(0, offMinutes?.(a.staffUuid) ?? 0));
+  }, 0);
 }
 
 /** How long one booking runs, in minutes on its own day.
@@ -135,6 +145,23 @@ export function bookedMinutesOf(a: Pick<ScheduleActivity, "start" | "end">): num
   return endMin - startMin;
 }
 
+/** One month, scored — the window scorer over the month's own day list. */
+export function capacityMonth(input: {
+  anyDayISO: string;
+  activities: ScheduleActivity[];
+  allocation: CapacityAllocation[];
+  /** staff uuid → name, for the people list on a day. */
+  staffNames?: Map<string, string>;
+  /** WHO'S OFF COMES OUT FIRST (Isaac, 24 October 2026, the month's
+      capacity): the minutes of a person's working day they're off that
+      day, taken out of the crew's hours before the day is scored. */
+  offMinutes?: (dayISO: string, staffUuid: string) => number;
+  /** Days the business is shut (a public holiday): nothing to score. */
+  closed?: ReadonlySet<string>;
+}): CapacityDay[] {
+  return capacityWindow({ ...input, days: daysOfMonth(input.anyDayISO) });
+}
+
 /** Any run of days, scored. `activities` is every dispatched booking in the
     window — the caller has already applied `activity_was_scheduled = 1`, and
     this re-applies it for the same reason schedule.ts does: it is the single
@@ -146,6 +173,12 @@ export function capacityWindow(input: {
   allocation: CapacityAllocation[];
   /** staff uuid → name, for the people list on a day. */
   staffNames?: Map<string, string>;
+  /** WHO'S OFF COMES OUT FIRST (Isaac, 24 October 2026, the month's
+      capacity): the minutes of a person's working day they're off that
+      day, taken out of the crew's hours before the day is scored. */
+  offMinutes?: (dayISO: string, staffUuid: string) => number;
+  /** Days the business is shut (a public holiday): nothing to score. */
+  closed?: ReadonlySet<string>;
 }): CapacityDay[] {
   const names = input.staffNames ?? new Map<string, string>();
   const byDay = new Map<
@@ -171,7 +204,10 @@ export function capacityWindow(input: {
   return input.days.map((dayISO) => {
     const cell = byDay.get(dayISO);
     const bookedMinutes = cell?.minutes ?? 0;
-    const capacityMinutes = capacityForDay(dayISO, input.allocation);
+    const off = input.offMinutes;
+    const capacityMinutes = input.closed?.has(dayISO)
+      ? 0
+      : capacityForDay(dayISO, input.allocation, off ? (u) => off(dayISO, u) : undefined);
     const scored = capacityMinutes > 0;
     return {
       dayISO,

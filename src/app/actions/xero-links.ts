@@ -227,7 +227,7 @@ async function archivedNames(
 export type LinkActionResult = { ok: true } | { ok: false; error: string };
 
 function refresh() {
-  revalidatePath("/dashboard/timepay");
+  revalidatePath("/dashboard/team");
   revalidatePath("/dashboard/admin/integrations/xero");
 }
 
@@ -356,7 +356,7 @@ export async function checkPayRates(): Promise<PayRatesResult> {
   if (unreadable === 0) await recordDrift(orgId, countDrifting(compared.drifts));
   else await clearDrift(orgId);
   // the Time & Pay banner behind this modal shows the flag — keep it current
-  revalidatePath("/dashboard/timepay");
+  revalidatePath("/dashboard/team");
 
   return { ok: true, rows, unreadable };
 }

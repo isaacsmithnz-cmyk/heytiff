@@ -42,7 +42,7 @@ async function adminCtx(): Promise<Ctx | null> {
 const refresh = () => {
   revalidatePath("/dashboard/admin/knowledge");
   revalidatePath("/dashboard/admin");
-  revalidatePath("/dashboard/tiff/knowledge");
+  revalidatePath("/dashboard/tiff/library");
 };
 
 /** "Looks right" — the entry leaves the queue and stays published. Scoped to

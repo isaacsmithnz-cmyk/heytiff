@@ -58,7 +58,7 @@ async function context(): Promise<Ctx | null> {
 
 function refresh() {
   revalidatePath("/dashboard/my-leave");
-  revalidatePath("/dashboard/timepay");
+  revalidatePath("/dashboard/team");
   // the timesheet derives leave days on read — a decision here changes it too
   revalidatePath("/dashboard/my-timesheet");
 }

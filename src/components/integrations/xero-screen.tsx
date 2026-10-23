@@ -179,8 +179,8 @@ export function XeroScreen({
             {connection && reach?.ok && reach.employees > 0 && (
               <p className="int-hint" style={{ marginTop: 0, marginBottom: 18 }}>
                 Match them to the people in this workspace in{" "}
-                <Link href="/dashboard/timepay" className="ro-link">
-                  Time &amp; Pay settings
+                <Link href="/dashboard/team?view=timesheets" className="ro-link">
+                  Team&apos;s Timesheets settings
                 </Link>
                 .
               </p>

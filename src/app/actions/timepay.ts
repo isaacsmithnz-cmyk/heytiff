@@ -55,7 +55,7 @@ async function context(): Promise<Ctx | null> {
 
 function refresh() {
   revalidatePath("/dashboard/my-timesheet");
-  revalidatePath("/dashboard/timepay");
+  revalidatePath("/dashboard/team");
 }
 
 async function statusOf(orgId: string, staffId: string, periodStart: string): Promise<string> {

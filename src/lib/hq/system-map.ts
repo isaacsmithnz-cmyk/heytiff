@@ -89,13 +89,13 @@ export const NODES: MapNode[] = [
   },
   {
     id: "notices",
-    name: "Noticeboard",
+    name: "Notices",
     kind: "feature",
     group: "Customer dashboard",
     blurb: "Notice/chat: kinds + expiry, polls, events + RSVP, reactions, comments with mentions.",
     detail:
       "Reading is passive — opening the board marks notices read. Acknowledgements are versioned (notices.revision vs notice_reads.revision), so a reworded notice's read-count dips and recovers as people re-read.",
-    href: "/dashboard/notices",
+    href: "/dashboard/team?view=notices",
     paths: ["src/app/dashboard/notices", "src/components/dashboard/notices-board.tsx"],
   },
 
@@ -191,13 +191,13 @@ export const NODES: MapNode[] = [
   },
   {
     id: "timepay",
-    name: "Time & Pay",
+    name: "Timesheets",
     kind: "feature",
     group: "Business tools",
     blurb: "Timesheets, approvals and pay settings for the crew — on real tables.",
     detail:
       "Hours are entered per day on My timesheet and reviewed on the team screen; submissions and approvals flip timesheets rows; the period model (weekly / fortnight / month, weekend + OT rules) lives in pay_settings. Wage columns are financials-gated at the query boundary, so they're absent from the payload without the capability.",
-    href: "/dashboard/timepay",
+    href: "/dashboard/team?view=timesheets",
     paths: ["src/components/timepay", "src/lib/timepay", "src/app/actions/timepay.ts"],
   },
   {
@@ -219,7 +219,7 @@ export const NODES: MapNode[] = [
     blurb: "Vehicle register, logs and assignment, plus every staffer's own-vehicle screen.",
     detail:
       "Register writes need assets_all; logging fuel/service on a vehicle you drive is intrinsic. Dates are stored, day-counts derived on the AU day. Tiff's valuation and receipt scan call the Claude API server-side.",
-    href: "/dashboard/assets",
+    href: "/dashboard/team?view=vehicles",
     paths: ["src/lib/fleet", "src/components/fleet", "src/app/actions/fleet.ts", "src/app/actions/fleet-ai.ts"],
   },
   {
@@ -271,13 +271,13 @@ export const NODES: MapNode[] = [
   },
   {
     id: "workboard",
-    name: "Workboard",
+    name: "Jobs & Schedule",
     kind: "feature",
     group: "Business tools",
     blurb: "The projects & maintenance board — what's on, what's booked, what's overdue.",
     detail:
       "Staff-default by design (capability `workboard`): the board is FOR the people on the tools. Managing it is a second grantable capability (`workboard_manage`, admin default). Standalone-first: everything works on typed job numbers and client names; a ServiceM8 connection enriches rows via the mirrors and never owns them. Display mode fills the screen with the same board minus the app frame, for a big monitor or a wall. Notes are dictated, not typed twice — the Smart Notes engine routes them into tasks, records and questions.",
-    href: "/dashboard/workboard",
+    href: "/dashboard/jobs",
     paths: ["src/app/dashboard/workboard", "src/lib/workboard", "src/components/workboard"],
   },
 
@@ -312,7 +312,7 @@ export const NODES: MapNode[] = [
     blurb: "The four-category document library, and the asking surface it answers out of.",
     detail:
       "Two surfaces on one substrate. The library ingests PDFs a batch of pages at a time — extract, chunk, keyword-tag, embed, bookmark, repeat — driven from the open page rather than a queue, so a document that runs out of the month's page allowance parks at its bookmark and resumes there. Asking runs both legs of retrieval (full-text and, once VOYAGE_API_KEY exists, vector) and fuses them, then answers with the chunks as document blocks and native citations, so a source chip is the model's own reference and not a parsed [n]. Reading is `tiff` (staff default); uploading and editing is `tiff_manage`; deleting is the owner. Threads live in the browser, not the database.",
-    href: "/dashboard/tiff",
+    href: "/dashboard/tiff/library",
     paths: [
       "src/app/dashboard/tiff",
       "src/components/tiff",

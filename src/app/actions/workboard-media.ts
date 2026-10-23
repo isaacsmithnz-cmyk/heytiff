@@ -261,7 +261,7 @@ async function cacheJobFilesInner(jobUuid: string, only?: readonly string[]): Pr
     cached += 1;
   }
 
-  revalidatePath("/dashboard/workboard");
+  revalidatePath("/dashboard/jobs");
   return {
     ok: true,
     cached,

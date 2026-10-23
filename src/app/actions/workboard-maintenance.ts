@@ -50,7 +50,7 @@ async function context(): Promise<Ctx | null> {
    whole surface. It took an `agreementId` to build the second path; nothing
    reads one now, so nothing takes one. */
 function refresh() {
-  revalidatePath("/dashboard/workboard");
+  revalidatePath("/dashboard/jobs");
 }
 
 const trim = (v: unknown, max: number): string | null => {

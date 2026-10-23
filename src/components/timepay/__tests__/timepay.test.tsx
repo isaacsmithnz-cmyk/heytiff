@@ -350,7 +350,7 @@ describe("TimePay screen", () => {
     const user = userEvent.setup();
     renderTimePay();
     await user.click(screen.getByLabelText("Previous period"));
-    expect(push).toHaveBeenCalledWith("/dashboard/timepay?period=2026-06-22");
+    expect(push).toHaveBeenCalledWith("/dashboard/team?view=timesheets&period=2026-06-22");
   });
 
   /* IT USED TO ASSERT THE LOCK — `.tpr.locked`, which hid Approve, Send back,

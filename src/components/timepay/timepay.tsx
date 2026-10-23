@@ -402,7 +402,7 @@ function CompactRow({
 }
 
 /** Time & Pay's own address for a pay period. */
-const timepayPeriodHref = (start: string) => `/dashboard/timepay?period=${start}`;
+const timepayPeriodHref = (start: string) => `/dashboard/team?view=timesheets&period=${start}`;
 
 export function TimePay({
   staff,
@@ -421,7 +421,7 @@ export function TimePay({
   wageDrift = null,
   expenses = { owed: 0, pending: 0 },
   periodHref = timepayPeriodHref,
-  expensesHref = "/dashboard/timepay/expenses",
+  expensesHref = "/dashboard/team?view=expenses",
 }: {
   staff: StaffWeek[];
   week: WeekCtx["week"];

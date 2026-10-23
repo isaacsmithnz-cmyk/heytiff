@@ -51,7 +51,7 @@ describe("SystemMap", () => {
     await user.click(
       screen.getByRole("button", { name: /pull real wages & hours into rate inputs/ })
     );
-    expect(screen.getByText("Open Time & Pay")).toBeInTheDocument();
+    expect(screen.getByText("Open Timesheets")).toBeInTheDocument();
   });
 
   it("a standalone selection says so", async () => {

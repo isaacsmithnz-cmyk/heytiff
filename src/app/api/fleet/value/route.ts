@@ -91,7 +91,7 @@ export async function POST() {
     if (!res.ok) return Response.json(res);
 
     await persistValuations(orgId, parseValuations(res, working));
-    revalidatePath("/dashboard/assets");
+    revalidatePath("/dashboard/team");
     revalidatePath("/dashboard/my-vehicle");
     return Response.json({ ok: true, searched: res.searched });
   } finally {

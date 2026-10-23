@@ -416,7 +416,7 @@ describe("events", () => {
           ["Where", "The Rocks"],
           ["From", "Notices"],
         ],
-        action: { label: "Open notice", href: "/dashboard/notices" },
+        action: { label: "Open notice", href: "/dashboard/team?view=notices" },
       },
     ]);
   });

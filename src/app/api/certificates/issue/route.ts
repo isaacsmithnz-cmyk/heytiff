@@ -245,6 +245,6 @@ export async function POST(request: Request): Promise<Response> {
     return answer({ ok: false, error: "Couldn't put the PDF on the job, so nothing was issued." });
   }
 
-  revalidatePath("/dashboard/workboard");
+  revalidatePath("/dashboard/jobs");
   return answer({ ok: true, versionId, version, documentId, fileName });
 }

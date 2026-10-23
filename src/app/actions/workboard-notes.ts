@@ -258,7 +258,7 @@ async function context(): Promise<Ctx | null> {
 }
 
 function refresh(target?: NoteTarget) {
-  revalidatePath("/dashboard/workboard");
+  revalidatePath("/dashboard/jobs");
   if (target?.kind === "project" && target.id) {
     revalidatePath(`/dashboard/workboard/projects/${target.id}`);
   }

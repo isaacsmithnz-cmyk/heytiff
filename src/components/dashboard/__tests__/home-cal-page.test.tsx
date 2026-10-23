@@ -328,7 +328,7 @@ describe("4 weeks", () => {
     expect(within(row).queryByRole("link")).toBeNull();
     await user.click(title);
     await user.click(viewBtn("Month"));
-    expect(within(panel()).getByRole("link", { name: "Open notice" })).toHaveAttribute("href", "/dashboard/notices");
+    expect(within(panel()).getByRole("link", { name: "Open notice" })).toHaveAttribute("href", "/dashboard/team?view=notices");
   });
 
   /* The action is the row's own control: pressing it opens where the thing

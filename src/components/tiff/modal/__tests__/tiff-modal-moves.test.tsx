@@ -334,10 +334,10 @@ describe("a move request without a question mark", () => {
     const user = userEvent.setup();
     render(<Shell at={path} />);
     await user.click(screen.getAllByLabelText(/^Ask or tell Tiff/)[0]!);
-    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "Take me to the workboard{Enter}");
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "Take me to the schedule{Enter}");
     await flush();
     expect(routeNote).not.toHaveBeenCalled();
-    expect(askBrain.mock.calls.at(-1)?.[0]).toMatchObject({ question: "Take me to the workboard", intent: "move" });
+    expect(askBrain.mock.calls.at(-1)?.[0]).toMatchObject({ question: "Take me to the schedule", intent: "move" });
   });
 
   it("leaves a site instruction that starts the same way to the note router", async () => {

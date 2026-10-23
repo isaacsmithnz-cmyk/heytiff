@@ -5,14 +5,14 @@ import { ALL_SCREENS, SCREEN_ALIASES, squash } from "@/components/shell/nav";
    The note rows are the point: each is a real site instruction that a looser
    rule would have sent to the ask loop and never filed. */
 const MOVES: [string, ReturnType<typeof parseMove>][] = [
-  ["Take me to the workboard", { kind: "screen", label: "Workboard" }],
-  ["Tiff, can you take me to the work board please", { kind: "screen", label: "Workboard" }],
-  ["Can you bring me to the workboard screen?", { kind: "screen", label: "Workboard" }],
+  ["Take me to the schedule", { kind: "screen", label: "Schedule" }],
+  ["Tiff, can you take me to the schedule please", { kind: "screen", label: "Schedule" }],
+  ["Can you bring me to the jobs screen?", { kind: "screen", label: "Jobs" }],
   ["open my timesheet", { kind: "screen", label: "Timesheet" }],
-  ["take me to time and pay", { kind: "screen", label: "Time & Pay" }],
+  ["take me to expense claims", { kind: "screen", label: "Expense claims" }],
   ["take me home", { kind: "screen", label: "Home" }],
   ["take me back to the dashboard", { kind: "screen", label: "Home" }],
-  ["go to the workboard screen", { kind: "screen", label: "Workboard" }],
+  ["go to the schedule screen", { kind: "screen", label: "Schedule" }],
   ["Open Dane's card", { kind: "record" }],
   ["pull up the Meridian job", { kind: "record" }],
   ["open job 1044", { kind: "record" }],

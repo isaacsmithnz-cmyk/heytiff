@@ -17,7 +17,7 @@ describe("grading an eval case", () => {
     const staff = run({ moves: [{ href: "/dashboard/team/s-1", label: "Dane's card" }] });
     expect(grade(c({ record: "staff" }), staff).pass).toBe(true);
     expect(grade(c({ record: "job" }), staff).pass).toBe(false);
-    expect(grade(c({ record: "job" }), run({ moves: [{ href: "/dashboard/workboard?job=u1", label: "#1044" }] })).pass).toBe(true);
+    expect(grade(c({ record: "job" }), run({ moves: [{ href: "/dashboard/jobs/u1", label: "#1044" }] })).pass).toBe(true);
   });
 
   it("wants its tools in order, with others allowed between", () => {

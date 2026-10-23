@@ -134,23 +134,23 @@ describe("the wire", () => {
 
   it("carries a move to the browser as a screen line", async () => {
     events = [
-      { type: "delta", text: "Opening the Workboard." },
-      { type: "screen", href: "/dashboard/workboard", label: "Workboard" },
+      { type: "delta", text: "Opening the Schedule." },
+      { type: "screen", href: "/dashboard/schedule", label: "Schedule" },
       { type: "done" },
     ];
-    const res = await POST(req({ question: "can you bring me to the workboard screen?" }));
+    const res = await POST(req({ question: "can you bring me to the schedule screen?" }));
     expect(await eventsOf(res)).toEqual([
-      { t: "delta", text: "Opening the Workboard." },
-      { t: "screen", href: "/dashboard/workboard", label: "Workboard" },
+      { t: "delta", text: "Opening the Schedule." },
+      { t: "screen", href: "/dashboard/schedule", label: "Schedule" },
       { t: "done" },
     ]);
   });
 
   it("moves to a named screen with no model call at all", async () => {
-    const res = await POST(req({ question: "Take me to the workboard", intent: "move" }));
+    const res = await POST(req({ question: "Take me to the schedule", intent: "move" }));
     expect(await eventsOf(res)).toEqual([
-      { t: "delta", text: "Opening the Workboard." },
-      { t: "screen", href: "/dashboard/workboard", label: "Workboard" },
+      { t: "delta", text: "Opening the Schedule." },
+      { t: "screen", href: "/dashboard/schedule", label: "Schedule" },
       { t: "done" },
     ]);
     expect(streamBrainAnswer).not.toHaveBeenCalled();
@@ -158,8 +158,8 @@ describe("the wire", () => {
 
   it("refuses in words a screen the viewer can't see, also with no model call", async () => {
     caps = new Set(["workboard"]);
-    const res = await POST(req({ question: "can you take me to time and pay?" }));
-    expect(await eventsOf(res)).toEqual([{ t: "delta", text: "You can't open Time & Pay." }, { t: "done" }]);
+    const res = await POST(req({ question: "can you take me to design?" }));
+    expect(await eventsOf(res)).toEqual([{ t: "delta", text: "You can't open Design." }, { t: "done" }]);
     expect(streamBrainAnswer).not.toHaveBeenCalled();
   });
 
@@ -179,7 +179,7 @@ describe("the wire", () => {
     await POST(
       req({
         question: "what's left here?",
-        page: { screen: "Workboard", target: { kind: "visit", id: "v-1", label: "Meridian Data, CRACs" } },
+        page: { screen: "Jobs", target: { kind: "visit", id: "v-1", label: "Meridian Data, CRACs" } },
       })
     );
     expect(viewerForUser).toHaveBeenCalledTimes(1);
@@ -187,7 +187,7 @@ describe("the wire", () => {
     expect(loopInput()).toMatchObject({
       viewer: expect.objectContaining({ orgId: "org-1", userId: "auth0|me" }),
       todayISO: "2026-08-06",
-      page: { screen: "Workboard", target: { kind: "visit", id: "v-1", label: "Meridian Data, CRACs" } },
+      page: { screen: "Jobs", target: { kind: "visit", id: "v-1", label: "Meridian Data, CRACs" } },
     });
   });
 

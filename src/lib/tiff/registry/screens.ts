@@ -38,8 +38,8 @@ const openScreen: TiffTool = {
   description:
     "Open one of the app's screens for the person, when they ask to go somewhere. The screens " +
     `are: ${ALL_SCREENS.map((n) => `${n.label} (${n.hint})`).join("; ")}. People also say ` +
-    '"dashboard" for Home, "my hours" for Timesheet, "time and pay" for Time & Pay and "the studio" ' +
-    "for Design. For a person, job, project or client, use find_record and open_record instead. " +
+    '"dashboard" for Home, "my hours" for Timesheet and "the studio" for Design. ' +
+    "For a person, job, project or client, use find_record and open_record instead. " +
     "Opening a screen ends your turn: say nothing after it.",
   inputSchema: {
     type: "object",
@@ -61,7 +61,7 @@ type RecordKind = "staff" | "client" | "project" | "job";
 const KINDS: readonly RecordKind[] = ["staff", "client", "project", "job"];
 
 /** Who may reach each kind: the capability of the screen it opens on (a
-    staff card is Team's; the rest are the Workboard's). */
+    staff card is Team's; the rest are Jobs'). */
 const KIND_GATE: Record<RecordKind, Capability> = {
   staff: "team",
   client: "workboard",

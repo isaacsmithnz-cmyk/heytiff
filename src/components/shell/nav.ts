@@ -10,6 +10,7 @@
 
 import { hasMinRole, type Role } from "@/lib/roles-shared";
 import type { Capability } from "@/lib/permissions";
+import { PLACES, placeOn } from "./places";
 
 /* A FACE of a nav entry: it shares the parent's sidebar row (the parent lights
    up on any of them) but keeps its own ⌘K result, so folding a screen in costs
@@ -48,115 +49,51 @@ export type NavItem = NavSub & {
   capability?: Capability;
   /** hide below this role — for role-intrinsic sections only */
   minRole?: Role;
+  /** shown to whoever holds any one of these (the Library: Tiff's documents or the field tools) */
+  anyOf?: readonly Capability[];
   /** sibling routes shown as tabs on the page rather than rows in the rail */
   subItems?: NavSub[];
 };
 
 export type NavGroup = { label: string; items: NavItem[] };
 
+/* THE v2 PLACES, AND YOUR NAME'S MENU (docs/design.md rules 5 and 7;
+   places.ts draws the rail from the same eight). The screens v2 retired
+   (the Workboard, the Toolbox, Time & Pay, Assets, the Noticeboard, Action
+   required) are gone from here too, names and all (Isaac, 23 October 2026:
+   "Drop them entirely"): ⌘K and Tiff find a place by its v2 name. Their old
+   addresses still redirect, for saved links. */
 export const NAV_GROUPS: NavGroup[] = [
   {
-    label: "Workspace",
+    label: "Places",
     items: [
-      /* Action required and the Noticeboard are both Home's detail views now,
-         so both ride on Home's row rather than taking one each.
-
-         THE TABS FINALLY EXIST. `subItems` has always meant "sibling route
-         shown as a tab on the page rather than a row in the rail", and Action
-         required has been declared one since the counters — but Home had no
-         tab strip to draw it in, so the promise was only ever half kept. Home
-         is a five-face card now (Journal · Urgent · Needs attention ·
-         Noticeboard · Tasks), and these two ARE two of those faces.
-
-         Neither loses its door. `NAV` is rows plus subItems and feeds ⌘K, so
-         typing "notice" or "action" still finds them; only `NAV_ROWS`, the
-         rail, drops them. Same move Leave made onto Timesheet and the catalogue
-         onto the Library. The routes stay: posting, moderating and the full board
-         all live at /dashboard/notices, which is where the tab's door lands. */
-      { key: "home", label: "Home", icon: "dashboard", href: "/dashboard", hint: "Your day at a glance", accent: "#00E5C0",
+      { key: "home", label: "Home", icon: "home", href: "/dashboard", hint: "Your day and what's to do", accent: "#050505" },
+      { key: "conversations", label: "Conversations", icon: "chat", href: "/dashboard/conversations", hint: "Talk to Tiff and the team", accent: "#050505", capability: "tiff",
         subItems: [
-          { key: "actionreq", label: "Action required", icon: "alert", href: "/dashboard/action-required", hint: "Everything waiting on you", accent: "#FF3366" },
-          { key: "notices", label: "Noticeboard", icon: "note", href: "/dashboard/notices", hint: "Announcements for the team", accent: "#8A2BE2" },
+          /* your own notebook, only you see it; Conversations' "Only me" is its v2 home */
+          { key: "mynotes", label: "My notes", icon: "note", href: "/dashboard/my-notes", hint: "Your own notebook, only you see it", accent: "#050505" },
         ] },
-      // Second on purpose, right under Home: Home is YOUR day, the Workboard
-      // is the BUSINESS's — the two questions anyone opens the app to ask.
-      // It lives in Workspace rather than Operations because unlike the rest
-      // of that group it defaults to EVERYONE (`workboard` is a staff default).
-      { key: "workboard", label: "Workboard", icon: "activity", href: "/dashboard/workboard", hint: "Maintenance & projects command centre", accent: "#00A8E0", capability: "workboard" },
-      { key: "toolbox", label: "Toolbox", icon: "wrench", href: "/dashboard/toolbox", hint: "Calculators & references", accent: "#8A2BE2", capability: "toolbox" },
-      { key: "ductr", label: "Design", icon: "wind", href: "/dashboard/studio", hint: "VRF design canvas", accent: "#FF8A00", capability: "studio" },
-      /* The catalogue rides along as a tab, like Leave does on Timesheet: it is
-         the same feature seen from the other end — you ask the library, and the
-         library is where the answers come from. One rail row, two faces, and ⌘K
-         still lists the catalogue in its own right. Only the FACE is listed
-         here; the row itself is the asking surface.
-
-         IT IS CALLED THE LIBRARY, EVERYWHERE — and it is NOT called AI. This
-         row said "Tiff AI" over a sparkle, which is the badge every tool in the
-         market is wearing this year and the badge people have learned to read
-         as "may be making this up". What is actually behind the row is the
-         opposite of that: a shelf of documents the company uploaded, and
-         answers that cite the page they came from. So the row is named after
-         the thing that makes it trustworthy, and the icon is a library rather
-         than a sparkle. Tiff is still the one answering — the brand is fine,
-         the category label is what was doing the damage.
-
-         The FACE is "All documents", not "Library", because the section is the
-         library now: two rows called Library in ⌘K would be exactly the "which
-         one is which" tax the last rename paid to clear. All documents is a
-         VIEW of the library, not a rival name for it. */
-      { key: "tiff", label: "Library", icon: "library", href: "/dashboard/tiff", hint: "Ask your manuals, specs & SOPs", accent: "#2E68FF", capability: "tiff",
-        subItems: [
-          { key: "tiffkb", label: "All documents", icon: "library", href: "/dashboard/tiff/library", hint: "Every manual, spec & SOP Tiff reads", accent: "#2E68FF" },
-        ] },
+      { key: "jobs", label: "Jobs", icon: "folder", href: "/dashboard/jobs", hint: "Every job, its quote, visits and money", accent: "#050505", capability: "workboard" },
+      { key: "schedule", label: "Schedule", icon: "calendar", href: "/dashboard/schedule", hint: "Who's on which job, by day and week", accent: "#050505", capability: "workboard" },
+      { key: "documents", label: "Documents", icon: "file", href: "/dashboard/documents", hint: "SWMS, certificates, letters and handover sheets", accent: "#050505", capability: "workboard" },
+      /* the Library's documents and its Toolbox shelf: shown for either */
+      { key: "tiffkb", label: "Library", icon: "books", href: "/dashboard/tiff/library", hint: "Manuals, specs, SOPs and the field tools", accent: "#050505", anyOf: ["tiff", "toolbox"] },
+      { key: "design", label: "Design", icon: "design", href: "/dashboard/studio", hint: "Design a system on the plans", accent: "#050505", capability: "studio" },
+      /* everyone has Team (Isaac, 20 October 2026) */
+      { key: "team", label: "Team", icon: "users", href: "/dashboard/team", hint: "People, timesheets, leave, expenses and vehicles", accent: "#050505",
+        subItems: [{ key: "notices", label: "Notices", icon: "note", href: "/dashboard/team?view=notices", hint: "Announcements for the team", accent: "#050505" }] },
     ],
   },
   {
-    /* Your own things, ungated — everyone has these, only some people manage.
-       Sits above Operations for that reason.
-
-       ONE ROW, FIVE FACES. This was five rows (Timesheet+Leave, Vehicle,
-       Expenses, Notes) and the rail could not afford them: thirteen rows
-       needed 999px of nav against a 733px window, so Operations and Admin sat
-       below a fold that `.no-sb` gives no scrollbar to admit. Folding them
-       took the rail to 711px, which fits a 13" laptop.
-
-       The group heading used to carry the "my" so the labels didn't repeat it.
-       There are no headings any more (sidebar.tsx), so the row carries it
-       instead — which is the whole of what "Me" means here. Every face is
-       still a real route and still its own ⌘K result. */
-    label: "Personal",
+    label: "Yours",
     items: [
-      { key: "me", label: "Me", icon: "user", href: "/dashboard/my-timesheet", hint: "Your hours, leave, expenses, vehicle & notes", accent: "#2E68FF",
-        subItems: [
-          { key: "mytimesheet", label: "Timesheet", icon: "clock", href: "/dashboard/my-timesheet", hint: "Your hours & submissions", accent: "#2E68FF" },
-          { key: "myleave", label: "Leave", icon: "calendar", href: "/dashboard/my-leave", hint: "Book leave & see balances", accent: "#00A389" },
-          // Ungated like the rest of this card: spending your own money on
-          // the job and asking for it back is not a privilege.
-          { key: "myexpenses", label: "Expenses", icon: "receipt", href: "/dashboard/my-expenses", hint: "Claim money you've spent", accent: "#8A2BE2" },
-          { key: "myvehicle", label: "Vehicle", icon: "truck", href: "/dashboard/my-vehicle", hint: "Your vehicle, fuel & issues", accent: "#FF8A00" },
-          /* Your own notebook: what you write on it, which only you see. It
-             was also the old capture card's floor ("keep it for me"), and that
-             card went on 2026-09-27: the words the Tiff modal doesn't file go
-             to your diary (`keepWords`), never here. The hint is what ⌘K
-             searches (command-palette), so it says what the page is now. */
-          { key: "mynotes", label: "Notes", icon: "note", href: "/dashboard/my-notes", hint: "Your own notebook — only you see it", accent: "#007FA8" },
-        ] },
-    ],
-  },
-  {
-    label: "Operations",
-    items: [
-      { key: "people", label: "Team", icon: "users", href: "/dashboard/team", hint: "People & their day", accent: "#00A389", capability: "team" },
-      { key: "timepay", label: "Time & Pay", icon: "clock", href: "/dashboard/timepay", hint: "Timesheets, leave & expenses", accent: "#2E68FF", capability: "timepay_all" },
-      { key: "assets", label: "Assets", icon: "truck", href: "/dashboard/assets", hint: "Fleet & equipment", accent: "#FF8A00", capability: "assets_all" },
-      /* Job money, so it follows `workboard_money` (owner-tier by default)
-         rather than a role: whoever is granted the board's money sees what
-         it adds up to (docs/job-analytics-plan.md). */
-      { key: "analytics", label: "Analytics", icon: "gauge", href: "/dashboard/analytics", hint: "Win rate, prices & quotes", accent: "#00A389", capability: "workboard_money" },
-      // Role-intrinsic, not grantable: the section is admin+ (staff hidden
-      // entirely) and the owner-only items inside it gate individually.
-      { key: "admin", label: "Admin", icon: "shield", href: "/dashboard/admin", hint: "Compliance, documents & settings", accent: "#FF3366", minRole: "admin" },
+      { key: "card", label: "Your card", icon: "user", href: "/dashboard/profile", hint: "Your details and papers", accent: "#050505" },
+      { key: "timesheet", label: "Timesheet", icon: "clock", href: "/dashboard/my-timesheet", hint: "Your hours and submissions", accent: "#050505" },
+      { key: "leave", label: "Leave", icon: "calendar", href: "/dashboard/my-leave", hint: "Book leave and see balances", accent: "#050505" },
+      { key: "expenses", label: "Expense claims", icon: "receipt", href: "/dashboard/my-expenses", hint: "Claim money you've spent", accent: "#050505" },
+      /* job money, so it follows `workboard_money` (docs/job-analytics-plan.md) */
+      { key: "reports", label: "Reports", icon: "gauge", href: "/dashboard/analytics", hint: "Win rate, prices and quotes", accent: "#050505", capability: "workboard_money" },
+      { key: "settings", label: "Settings", icon: "settings", href: "/dashboard/admin", hint: "The business, its people and its settings", accent: "#050505", minRole: "admin" },
     ],
   },
 ];
@@ -207,10 +144,20 @@ export const ALL_SCREENS: NavItem[] = NAV.flatMap((n) => [n, ...(n.subItems ?? [
 export const SCREEN_ALIASES: Readonly<Record<string, string>> = {
   dashboard: "Home",
   home: "Home",
+  chat: "Conversations",
+  chats: "Conversations",
+  notes: "My notes",
+  mynotes: "My notes",
   myhours: "Timesheet",
   hours: "Timesheet",
-  noticeboard: "Noticeboard",
-  notices: "Noticeboard",
+  mytimesheet: "Timesheet",
+  expenses: "Expense claims",
+  myexpenses: "Expense claims",
+  mycard: "Your card",
+  profile: "Your card",
+  analytics: "Reports",
+  admin: "Settings",
+  notices: "Notices",
   library: "Library",
   manuals: "Library",
   studio: "Design",
@@ -226,6 +173,7 @@ export type NavViewer = { caps: ReadonlySet<Capability>; role: Role | null };
 
 function visible(n: NavItem, viewer: NavViewer): boolean {
   if (n.capability && !viewer.caps.has(n.capability)) return false;
+  if (n.anyOf && !n.anyOf.some((c) => viewer.caps.has(c))) return false;
   if (n.minRole && !hasMinRole(viewer.role, n.minRole)) return false;
   return true;
 }
@@ -269,5 +217,6 @@ export function screenLabelFor(pathname: string): string {
     if (!onHref(n.href, pathname)) continue;
     if (!best || n.href.length >= best.href.length) best = n;
   }
-  return best?.label ?? "";
+  /* a page a place has taken in (a project, a quote at its old address) is that place's */
+  return best?.label ?? PLACES.find((p) => placeOn(p, pathname))?.label ?? "";
 }

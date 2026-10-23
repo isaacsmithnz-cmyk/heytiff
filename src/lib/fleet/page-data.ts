@@ -3,7 +3,7 @@ import { can } from "@/lib/permissions-server";
 import { todayInAu } from "@/lib/au-dates";
 import { DEFAULT_EXPIRY_WARN_DAYS } from "@/lib/expiry";
 import { orgExpiryWindow } from "@/lib/org/query";
-import type { OwnFleet, Register } from "@/components/fleet/assets-screen";
+import type { OwnFleet, Register } from "@/components/fleet/fleet-types";
 import { documentsForVehicles } from "@/lib/documents/query";
 import {
   getOwnVehicle,

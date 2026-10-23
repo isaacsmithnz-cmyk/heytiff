@@ -16,7 +16,7 @@ import { TeamLeave } from "@/components/timepay/team-leave";
 import { TeamExpenses } from "@/components/timepay/team-expenses";
 import { FleetRegister } from "@/components/fleet/register";
 import { useFleetActions } from "@/components/fleet/fleet-state";
-import type { Register } from "@/components/fleet/assets-screen";
+import type { Register } from "@/components/fleet/fleet-types";
 import { NoticesBoard } from "@/components/dashboard/notices-board";
 import type { TimepaySection } from "@/lib/timepay/section";
 import type { NoticeBoardData } from "@/lib/dashboard/page-data";

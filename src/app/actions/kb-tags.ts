@@ -52,7 +52,7 @@ async function ctx(): Promise<Ctx | null> {
 
 /* By name, not by path — see the same note on `refresh` in ./kb. */
 function refresh() {
-  revalidatePath(navHref("tiff"));
+  revalidatePath(navHref("tiffkb"));
   revalidatePath(navHref("tiffkb"));
 }
 

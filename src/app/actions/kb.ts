@@ -83,7 +83,7 @@ async function ctx(): Promise<Ctx | null> {
    until something else happens to invalidate it. `navHref` reads the path off
    the nav, which is where this app declares where a screen lives. */
 function refresh() {
-  revalidatePath(navHref("tiff"));
+  revalidatePath(navHref("tiffkb"));
   revalidatePath(navHref("tiffkb"));
 }
 

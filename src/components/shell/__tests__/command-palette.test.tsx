@@ -268,10 +268,10 @@ describe("the palette finds jobs", () => {
   it("puts the screens first and walks the keys on into the jobs", async () => {
     searchPalette.mockResolvedValue(finds({ jobs: [job({ remoteId: "j-9", jobNumber: "2380" })] }));
     palette();
-    type("workboard");
+    type("schedule");
     await settle();
 
-    const screenRow = screen.getByRole("option", { name: /^Workboard/ });
+    const screenRow = screen.getByRole("option", { name: /^Schedule/ });
     const jobRow = screen.getByRole("option", { name: /#2380 Kingsford Bakery/ });
     expect(screenRow.compareDocumentPosition(jobRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screenRow).toHaveClass("on");

@@ -94,11 +94,11 @@ describe("open_screen", () => {
   });
 
   it("moves to a screen the viewer may see, with its own line", async () => {
-    expect(await outcome(viewer(["workboard"]), "open_screen", { screen: "Workboard" })).toEqual({
+    expect(await outcome(viewer(["workboard"]), "open_screen", { screen: "Schedule" })).toEqual({
       kind: "screen",
-      href: "/dashboard/workboard",
-      label: "Workboard",
-      line: "Opening the Workboard.",
+      href: "/dashboard/schedule",
+      label: "Schedule",
+      line: "Opening the Schedule.",
     });
   });
 
@@ -107,9 +107,9 @@ describe("open_screen", () => {
   });
 
   it("refuses in words a screen the viewer can't see, and moves nowhere", async () => {
-    const o = await outcome(viewer(["workboard"]), "open_screen", { screen: "Time & Pay" });
+    const o = await outcome(viewer(["workboard"]), "open_screen", { screen: "Design" });
     expect(o.kind).toBe("result");
-    expect(JSON.stringify(o)).toContain("can't open Time & Pay");
+    expect(JSON.stringify(o)).toContain("can't open Design");
   });
 });
 

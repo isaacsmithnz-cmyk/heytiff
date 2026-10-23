@@ -60,14 +60,12 @@ describe("the library's vocabulary", () => {
        So the face is "All documents", not a second "Library": ⌘K would
        otherwise offer two identical words landing on different screens, which
        is the exact confusion the last rename spent a route move to clear. */
-    const row = NAV.find((n) => n.key === "tiff");
+    /* v2 (23 October 2026): one place called Library, landing on the
+       documents; asking moved to Conversations, so there is no second row */
+    const row = NAV.find((n) => n.key === "tiffkb");
     expect(row?.label).toBe("Library");
-    expect(row?.href).toBe("/dashboard/tiff");
-
-    const entry = NAV.find((n) => n.key === "tiffkb");
-    expect(entry?.label).toBe("All documents");
-    expect(entry?.href).toBe("/dashboard/tiff/library");
-    expect(entry?.label).not.toBe(row?.label);
+    expect(row?.href).toBe("/dashboard/tiff/library");
+    expect(NAV.filter((n) => n.label === "Library")).toHaveLength(1);
   });
 
   it("never calls itself AI where a person can read it", () => {

@@ -116,7 +116,7 @@ const OPEN_SCREEN = {
   name: "open_screen",
   description:
     "Open one of the app's screens for the person, when they ask to be taken somewhere " +
-    "(\"take me to the workboard\", \"open my timesheet\"). Only for moving the screen: " +
+    "(\"take me to the schedule\", \"open my timesheet\"). Only for moving the screen: " +
     "never use it to record anything.",
   input_schema: {
     type: "object",

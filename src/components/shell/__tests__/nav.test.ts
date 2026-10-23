@@ -2,330 +2,143 @@ import {
   NAV,
   NAV_GROUPS,
   NAV_ROWS,
+  SCREEN_ALIASES,
   isActive,
   navFor,
   navGroupsFor,
+  navHref,
   type NavItem,
   screenLabelFor,
   type NavViewer,
 } from "../nav";
+import { PLACES, YOURS } from "../places";
 import { CAPABILITIES, resolve } from "@/lib/permissions";
 import type { Role } from "@/lib/roles-shared";
 
+/* ⌘K's and Tiff's screens are v2's (Isaac, 23 October 2026: the old names,
+   "Drop them entirely"): the eight places and your name's menu, the same
+   list the sidebar draws (places.ts). */
+
 const byKey = (key: string) => NAV.find((n) => n.key === key) as NavItem;
+const viewer = (role: Role | null) => ({ caps: resolve(role), role });
+const keys = (v: NavViewer) => navFor(v).map((n) => n.key);
 
 describe("nav config", () => {
-  it("flattens groups into NAV_ROWS — one row per entry", () => {
-    const flatFromGroups = NAV_GROUPS.flatMap((g) => g.items);
-    expect(NAV_ROWS).toHaveLength(flatFromGroups.length);
-    expect(NAV_ROWS.map((n) => n.key)).toEqual(flatFromGroups.map((n) => n.key));
+  it("is the eight places, then your name's menu", () => {
+    expect(NAV_GROUPS.map((g) => g.label)).toEqual(["Places", "Yours"]);
+    expect(NAV_GROUPS[0].items.map((i) => i.label)).toEqual(PLACES.map((p) => p.label));
+    expect(NAV_GROUPS[1].items.map((i) => i.label)).toEqual(YOURS.map((p) => p.label));
   });
 
-  it("NAV additionally carries the tabbed faces, each right after its parent", () => {
-    // The rail draws rows; ⌘K searches everything, folded-in faces included.
-    expect(NAV.map((n) => n.key)).toEqual(
-      NAV_ROWS.flatMap((n) => [n.key, ...(n.subItems ?? []).map((s) => s.key)])
-    );
-    expect(NAV.map((n) => n.key)).toContain("myleave");
-    expect(NAV_ROWS.map((n) => n.key)).not.toContain("myleave");
-  });
-
-  it("leaves no dashboard screen without a door", () => {
-    /* THE ORPHAN GUARD. The audit found two daily surfaces reachable from
-       nowhere in the shell: the noticeboard (one card on Home) and the
-       action-required board (two hero counters). Neither was in the rail and
-       neither was in ⌘K, so typing "notices" or "action" returned "no results"
-       for screens that very much existed.
-
-       Listed by hand rather than crawled off the filesystem: some routes are
-       genuinely details of another screen (a staff card, a project, an
-       agreement) and should NOT own a nav entry. This is the set that has to,
-       and a new top-level screen is meant to fail here until someone decides
-       which it is. */
-    const mustBeFindable = [
-      "/dashboard",
-      "/dashboard/action-required",
-      "/dashboard/notices",
-      "/dashboard/workboard",
-      "/dashboard/toolbox",
-      "/dashboard/studio",
-      "/dashboard/tiff",
-      "/dashboard/tiff/library",
-      "/dashboard/my-timesheet",
-      "/dashboard/my-leave",
-      "/dashboard/my-vehicle",
-      "/dashboard/my-expenses",
-      "/dashboard/team",
-      "/dashboard/timepay",
-      "/dashboard/assets",
-      "/dashboard/analytics",
-      "/dashboard/admin",
-    ];
-    const known = new Set(NAV.map((n) => n.href));
-    expect(mustBeFindable.filter((h) => !known.has(h))).toEqual([]);
-  });
-
-  it("makes Action required AND the noticeboard faces of Home, not rows", () => {
-    /* Both were declared Home's detail views long before Home could draw
-       them. It is a five-face card now — Journal · Urgent · Needs attention ·
-       Noticeboard · Tasks — so the two that were waiting for a tab strip have
-       one, and they come off the rail.
-
-       OFF THE RAIL IS NOT GONE. `NAV` is rows plus subItems and feeds ⌘K; only
-       `NAV_ROWS` drops them. The "must be findable" test above already pins
-       /dashboard/notices, and this pins which side of the split it is on. */
-    expect(byKey("home").subItems?.map((s) => s.href)).toEqual([
-      "/dashboard/action-required",
-      "/dashboard/notices",
-    ]);
-    for (const gone of ["notices", "actionreq"]) {
-      expect(NAV_ROWS.map((n) => n.key)).not.toContain(gone);
-      expect(NAV.map((n) => n.key)).toContain(gone);
+  it("goes where the sidebar goes, place for place", () => {
+    for (const p of [...PLACES, ...YOURS]) {
+      expect(NAV_ROWS.find((n) => n.label === p.label)?.href).toBe(p.href);
     }
-    // …and Home stays lit while you are reading either of them
-    expect(isActive(byKey("home"), "/dashboard/action-required")).toBe(true);
-    expect(isActive(byKey("home"), "/dashboard/notices")).toBe(true);
   });
 
-  it("folds the catalogue into the Library rather than giving it a rail row", () => {
-    // one feature seen from both ends: asking answers out of the catalogue.
-    // The row stays lit on the catalogue, and ⌘K still finds it.
-    const tiff = byKey("tiff");
-    expect(tiff.subItems?.map((s) => s.href)).toEqual(["/dashboard/tiff/library"]);
-    expect(NAV_ROWS.map((n) => n.key)).not.toContain("tiffkb");
-    expect(NAV.map((n) => n.key)).toContain("tiffkb");
-    expect(isActive(tiff, "/dashboard/tiff/library")).toBe(true);
+  it("names none of the screens v2 retired", () => {
+    const labels = NAV.map((n) => n.label);
+    for (const gone of ["Workboard", "Toolbox", "Time & Pay", "Assets", "Noticeboard", "Action required", "Me", "Admin", "Analytics"]) {
+      expect(labels).not.toContain(gone);
+    }
+    const hrefs = NAV.map((n) => n.href);
+    for (const gone of ["/dashboard/workboard", "/dashboard/toolbox", "/dashboard/timepay", "/dashboard/assets", "/dashboard/notices", "/dashboard/action-required", "/dashboard/tiff"]) {
+      expect(hrefs).not.toContain(gone);
+    }
+    for (const word of ["workboard", "timeandpay", "assets", "toolbox", "noticeboard"]) expect(SCREEN_ALIASES).not.toHaveProperty(word);
   });
 
-  it("gives no tabbed face a capability of its own", () => {
-    // A face is offered exactly when its parent is — anything needing its own
-    // gate is an entry, not a face. The type forbids it; this says why.
-    for (const n of NAV_ROWS) {
+  it("carries the faces right after their parent, in ⌘K but not as rows", () => {
+    expect(NAV.map((n) => n.key)).toEqual(NAV_ROWS.flatMap((n) => [n.key, ...(n.subItems ?? []).map((s) => s.key)]));
+    expect(NAV_ROWS.map((n) => n.key)).not.toContain("mynotes");
+    expect(NAV.map((n) => n.key)).toEqual(expect.arrayContaining(["mynotes", "notices"]));
+  });
+
+  it("keeps the keys other screens link by", () => {
+    expect(navHref("home")).toBe("/dashboard");
+    expect(navHref("tiffkb")).toBe("/dashboard/tiff/library");
+    expect(navHref("mynotes")).toBe("/dashboard/my-notes");
+  });
+
+  it("gives no face a gate of its own, and has unique keys under /dashboard", () => {
+    for (const n of NAV_ROWS)
       for (const s of n.subItems ?? []) {
         expect(s).not.toHaveProperty("capability");
         expect(s).not.toHaveProperty("minRole");
       }
-    }
-  });
-
-  it("has unique keys and hrefs under /dashboard", () => {
-    const keys = NAV.map((n) => n.key);
-    expect(new Set(keys).size).toBe(keys.length);
-    for (const n of NAV) {
-      expect(n.href.startsWith("/dashboard")).toBe(true);
-    }
-  });
-
-  it("orders the rail Workspace, then Personal, then Operations", () => {
-    // Personal sits above Operations: everyone has personal screens,
-    // only some people manage.
-    expect(NAV_GROUPS.map((g) => g.label)).toEqual(["Workspace", "Personal", "Operations"]);
-  });
-
-  it("groups the operations section as designed", () => {
-    const ops = NAV_GROUPS.find((g) => g.label === "Operations");
-    expect(ops?.items.map((i) => i.key)).toEqual(["people", "timepay", "assets", "analytics", "admin"]);
-  });
-
-  it("opens Workspace with Home then the Workboard", () => {
-    // The two questions anyone opens the app to ask, in order: what's on for
-    // ME, and what's on for the BUSINESS. Everything else is a tool.
-    const ws = NAV_GROUPS.find((g) => g.label === "Workspace");
-    // Home (your day) → Workboard (the business's), then the tools you go and
-    // use. The noticeboard is a face of Home rather than a row of its own.
-    expect(ws?.items.map((i) => i.key)).toEqual([
-      "home",
-      "workboard",
-      "toolbox",
-      "ductr",
-      "tiff",
-    ]);
-    expect(ws?.items[0].label).toBe("Home");
+    const k = NAV.map((n) => n.key);
+    expect(new Set(k).size).toBe(k.length);
+    for (const n of NAV) expect(n.href.startsWith("/dashboard")).toBe(true);
   });
 });
 
 describe("capability gating", () => {
-  /* The viewer is (capabilities + role): capabilities drive everything
-     grantable, role only the intrinsic Admin section. */
-  const viewer = (role: Role | null) => ({ caps: resolve(role), role });
-  const keys = (v: NavViewer) => navFor(v).map((n) => n.key);
-
-  it("hides Team and Time & Pay from staff, shows them to admins", () => {
-    expect(keys(viewer("staff"))).not.toContain("people");
-    expect(keys(viewer("staff"))).not.toContain("timepay");
-    expect(keys(viewer("admin"))).toEqual(expect.arrayContaining(["people", "timepay"]));
+  it("shows staff Home, Jobs, Schedule, Documents, Team and their own menu, and no Settings", () => {
+    const k = keys(viewer("staff"));
+    expect(k).toEqual(expect.arrayContaining(["home", "jobs", "schedule", "documents", "team", "card", "timesheet", "leave", "expenses"]));
+    expect(k).not.toContain("settings");
+    expect(keys(viewer("admin"))).toContain("settings");
   });
 
-  it("shows the Workboard to staff — it's their board, by default", () => {
-    expect(keys(viewer("staff"))).toContain("workboard");
-    expect(keys(viewer(null))).not.toContain("workboard");
+  it("shows the Library to whoever has Tiff's documents or the field tools", () => {
+    expect(keys({ caps: resolve("staff", { tiff: false, toolbox: true }), role: "staff" })).toContain("tiffkb");
+    expect(keys({ caps: resolve("staff", { tiff: true, toolbox: false }), role: "staff" })).toContain("tiffkb");
+    expect(keys({ caps: resolve("staff", { tiff: false, toolbox: false }), role: "staff" })).not.toContain("tiffkb");
   });
 
-  it("hides Admin from staff only — the section is role-intrinsic", () => {
-    expect(keys(viewer("staff"))).not.toContain("admin");
-    expect(keys(viewer("admin"))).toContain("admin");
-    expect(keys(viewer("owner"))).toContain("admin");
+  it("hides Jobs and the Schedule without the workboard grant", () => {
+    const k = keys({ caps: resolve("staff", { workboard: false }), role: "staff" });
+    expect(k).not.toContain("jobs");
+    expect(k).not.toContain("schedule");
+    expect(k).toContain("home");
   });
 
-  it("shows nothing gated to a signed-out / role-less viewer", () => {
+  it("offers Reports to whoever holds the jobs' money, and no one else", () => {
+    expect(keys(viewer("admin"))).not.toContain("reports");
+    expect(keys({ caps: resolve("admin", { workboard_money: true }), role: "admin" })).toContain("reports");
+    expect(keys(viewer("owner"))).toContain("reports");
+  });
+
+  it("shows a signed-out viewer only the ungated ones", () => {
     const k = keys(viewer(null));
-    for (const gated of ["people", "timepay", "admin", "toolbox", "ductr", "tiff"]) {
-      expect(k).not.toContain(gated);
-    }
-    expect(k).toEqual(expect.arrayContaining(["home", "myvehicle"]));
-    expect(k).not.toContain("assets"); // the register is gated now that My vehicle exists
+    for (const gated of ["jobs", "schedule", "documents", "tiffkb", "design", "conversations", "settings", "reports"]) expect(k).not.toContain(gated);
+    expect(k).toEqual(expect.arrayContaining(["home", "team", "timesheet"]));
   });
 
-  it("GRANTING a capability reveals its entry — the point of the model", () => {
-    // an admin granted `team`-adjacent access they lacked by default
-    const plain = keys({ caps: resolve("staff"), role: "staff" });
-    expect(plain).not.toContain("people");
-
-    const granted = keys({ caps: resolve("staff", { team: true }), role: "staff" });
-    expect(granted).toContain("people");
-    // and nothing else leaked in with it
-    expect(granted).not.toContain("timepay");
-    expect(granted).not.toContain("admin");
+  it("drops a group left empty, never the ones with something in", () => {
+    expect(navGroupsFor(viewer("staff")).map((g) => g.label)).toEqual(["Places", "Yours"]);
+    expect(navGroupsFor(viewer("staff")).every((g) => g.items.length > 0)).toBe(true);
   });
 
-  it("REVOKING a default capability hides its entry", () => {
-    const revoked = keys({ caps: resolve("staff", { toolbox: false }), role: "staff" });
-    expect(revoked).not.toContain("toolbox");
-    expect(revoked).toContain("ductr"); // Design Studio — key is the legacy v3 id
-  });
-
-  it("leaves genuinely ungated entries alone for everyone", () => {
-    /* Faces are read off their PARENT, not off themselves: a face never
-       carries a capability (pinned above), so counting NAV directly would
-       call the catalogue ungated when the Library gates it. */
-    const ungated = NAV_ROWS.filter((n) => !n.capability && !n.minRole).flatMap((n) => [
-      n.key,
-      ...(n.subItems ?? []).map((s) => s.key),
-    ]);
-    // your own vehicle is intrinsic, like your own timesheet will be
-    expect(ungated).toEqual(expect.arrayContaining(["home", "myvehicle"]));
-    for (const role of ["staff", "admin", "owner", null] as const) {
-      expect(keys(viewer(role))).toEqual(expect.arrayContaining(ungated));
-    }
-  });
-
-  it("keeps groups but drops those emptied by filtering", () => {
-    // Staff hold nothing in Operations any more — the Workboard moved up to
-    // Workspace — so the whole group falls away for them.
-    const groups = navGroupsFor(viewer("staff"));
-    expect(groups.map((g) => g.label)).toEqual(["Workspace", "Personal"]);
-    // ONE row now — Timesheet, Leave, Expenses, Vehicle and Notes are five
-    // faces of the Me card, not five rows of the rail.
-    expect(groups.find((g) => g.label === "Personal")?.items.map((i) => i.key)).toEqual(["me"]);
-    expect(groups.every((g) => g.items.length > 0)).toBe(true);
-
-    // …and an admin, who does hold Operations entries, keeps the group.
-    expect(navGroupsFor(viewer("admin")).map((g) => g.label)).toEqual([
-      "Workspace",
-      "Personal",
-      "Operations",
-    ]);
-  });
-
-  it("puts the Workboard second in Workspace, right under Home", () => {
-    // Home is your day, the Workboard is the business's — the pair sits at
-    // the top of the rail, and revoking the capability leaves Home alone.
-    const workspace = (v: NavViewer) =>
-      navGroupsFor(v).find((g) => g.label === "Workspace")?.items.map((i) => i.key);
-    expect(workspace(viewer("staff"))?.slice(0, 2)).toEqual(["home", "workboard"]);
-    expect(workspace(viewer("owner"))?.slice(0, 2)).toEqual(["home", "workboard"]);
-    expect(workspace({ caps: resolve("staff", { workboard: false }), role: "staff" })).toEqual([
-      "home",
-      "toolbox",
-      "ductr",
-      "tiff",
-    ]);
-  });
-
-  it("Personal is ungated — every viewer keeps their own timesheet, vehicle and expenses", () => {
-    for (const role of ["staff", "admin", "owner"] as const) {
-      expect(navGroupsFor(viewer(role)).find((g) => g.label === "Personal")?.items.map((i) => i.key))
-        .toEqual(["me"]);
-      /* One ROW, and every face still its own ⌘K result — the whole point of
-         folding onto a card rather than deleting doors. Typing "leave",
-         "expenses" or "notes" must still find them. */
-      expect(navFor(viewer(role)).map((n) => n.key)).toEqual(
-        expect.arrayContaining(["me", "mytimesheet", "myleave", "myexpenses", "myvehicle", "mynotes"])
-      );
-    }
-    // revoking the team-wide screens doesn't touch your own
-    expect(keys({ caps: resolve("owner", { assets_all: false, timepay_all: false }), role: "owner" }))
-      .toEqual(expect.arrayContaining(["mytimesheet", "myvehicle"]));
-  });
-
-  it("owner sees the full rail", () => {
-    expect(navGroupsFor(viewer("owner")).find((g) => g.label === "Operations")?.items.map((i) => i.key))
-      .toEqual(["people", "timepay", "assets", "analytics", "admin"]);
-  });
-
-  it("offers Analytics to whoever holds the board's money, and no one else", () => {
-    // job money is owner-tier: an admin has it only when it is granted
-    const ops = (v: NavViewer) => navGroupsFor(v).find((g) => g.label === "Operations")?.items.map((i) => i.key) ?? [];
-    expect(ops(viewer("admin"))).not.toContain("analytics");
-    expect(ops({ caps: resolve("admin", { workboard_money: true }), role: "admin" })).toContain("analytics");
-    expect(keys(viewer("staff"))).not.toContain("analytics");
-    expect(ops(viewer("owner"))).toContain("analytics");
-  });
-
-  it("every capability named in the nav is a real capability", () => {
+  it("names only real capabilities", () => {
     for (const n of NAV) {
       if (n.capability) expect(CAPABILITIES).toContain(n.capability);
+      for (const c of n.anyOf ?? []) expect(CAPABILITIES).toContain(c);
     }
   });
 });
 
 describe("isActive", () => {
-  it("matches Dashboard only on the exact path", () => {
-    const home = byKey("home");
-    expect(isActive(home, "/dashboard")).toBe(true);
-    expect(isActive(home, "/dashboard/team")).toBe(false);
-  });
-
-  it("matches a section on its path and nested paths", () => {
-    const team = byKey("people");
-    expect(isActive(team, "/dashboard/team")).toBe(true);
-    expect(isActive(team, "/dashboard/team/jordan-mills")).toBe(true);
-    expect(isActive(team, "/dashboard")).toBe(false);
-    expect(isActive(team, "/dashboard/timepay")).toBe(false);
-  });
-
-  it("keeps an entry lit on its tabbed faces — the row is the section", () => {
-    // Without this the rail would go dark the moment you hit the Leave tab,
-    // reading as "you have navigated out of Timesheet" when you have not.
-    const me = byKey("me");
-    for (const face of ["my-timesheet", "my-leave", "my-expenses", "my-vehicle", "my-notes"]) {
-      expect(isActive(me, `/dashboard/${face}`)).toBe(true);
-    }
-    // …and the manager-side twins are a different row entirely
-    expect(isActive(me, "/dashboard/timepay/leave")).toBe(false);
-    expect(isActive(me, "/dashboard/assets")).toBe(false);
-  });
-
-  it("does not let a face bleed onto a neighbouring entry", () => {
-    // A face lights only its own route — /dashboard/my-leave must not also
-    // match Vehicle or Expenses, which is what would let two ⌘K results claim
-    // the same screen.
-    for (const key of ["myvehicle", "myexpenses"]) {
-      expect(isActive(byKey(key), "/dashboard/my-leave")).toBe(false);
-    }
+  it("lights Home only on its own address, and a place on its nested pages", () => {
+    expect(isActive(byKey("home"), "/dashboard")).toBe(true);
+    expect(isActive(byKey("home"), "/dashboard/team")).toBe(false);
+    expect(isActive(byKey("team"), "/dashboard/team/jordan-mills")).toBe(true);
+    expect(isActive(byKey("jobs"), "/dashboard/jobs/abc")).toBe(true);
+    expect(isActive(byKey("timesheet"), "/dashboard/my-leave")).toBe(false);
   });
 });
 
 describe("screenLabelFor — the screen Tiff is told the person is on", () => {
   it("names the screen by its most exact link", () => {
     expect(screenLabelFor("/dashboard")).toBe("Home");
-    expect(screenLabelFor("/dashboard/workboard")).toBe("Workboard");
-    expect(screenLabelFor("/dashboard/workboard/projects/p-1")).toBe("Workboard");
-    expect(screenLabelFor("/dashboard/tiff/library")).toBe("All documents");
+    expect(screenLabelFor("/dashboard/jobs/abc")).toBe("Jobs");
+    expect(screenLabelFor("/dashboard/tiff/library")).toBe("Library");
+    expect(screenLabelFor("/dashboard/my-timesheet")).toBe("Timesheet");
   });
 
-  it("prefers the face where a row and its face share a link", () => {
-    expect(screenLabelFor("/dashboard/my-timesheet")).toBe("Timesheet");
+  it("names a page a place has taken in by that place", () => {
+    expect(screenLabelFor("/dashboard/workboard/projects/p-1")).toBe("Jobs");
+    expect(screenLabelFor("/dashboard/toolbox/heat-load")).toBe("Library");
   });
 
   it("is nothing off the nav", () => {

@@ -42,9 +42,9 @@ export type CapturedRun = {
 
 const RECORD_HREF: Record<NonNullable<EvalCase["expect"]["record"]>, RegExp> = {
   staff: /^\/dashboard\/team\/[^/?]+$/,
-  job: /^\/dashboard\/workboard\?job=/,
+  job: /^\/dashboard\/jobs\/[^/?]+/,
   project: /^\/dashboard\/workboard\/projects\/[^/?]+$/,
-  client: /^\/dashboard\/workboard\?q=/,
+  client: /^\/dashboard\/jobs\?q=/,
 };
 
 /** Does `want` appear in `got` in order, other items allowed between? */

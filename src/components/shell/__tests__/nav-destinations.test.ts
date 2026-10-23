@@ -88,7 +88,7 @@ describe("the screens this app links to by name", () => {
        which is the exact failure this whole file exists to prevent. */
     expect(routes).toContain("/dashboard");
     expect(routes.length).toBeGreaterThan(20);
-    expect(askedFor.size).toBeGreaterThanOrEqual(4);
+    expect(askedFor.size).toBeGreaterThanOrEqual(3);
   });
 
   it("every key asked for still names a screen that exists", () => {

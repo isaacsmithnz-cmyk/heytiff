@@ -1,7 +1,7 @@
 "use server";
 
 import { requireOrg } from "@/lib/permissions-server";
-import { installedPacks, latestInstalledPack } from "@/lib/studio/packs/server";
+import { latestInstalledPack } from "@/lib/studio/packs/server";
 import { loadPackWithOverrides } from "@/lib/studio/packs/overrides-server";
 import type { DataPack } from "@/lib/studio/packs/schema";
 
@@ -21,13 +21,4 @@ export async function loadStudioPack(
   // override-aware: HQ manual corrections feed the studio engine here.
   const { pack } = await loadPackWithOverrides(brand, latest.version);
   return { pack, version: latest.version };
-}
-
-/** Brands with an installed pack — drives the add-system brand picker. */
-export async function listStudioPackBrands(): Promise<
-  { brand: string; version: string; name: string }[]
-> {
-  await requireOrg("studio");
-  const refs = await installedPacks();
-  return refs.map((r) => ({ brand: r.brand, version: r.version, name: r.meta.name }));
 }

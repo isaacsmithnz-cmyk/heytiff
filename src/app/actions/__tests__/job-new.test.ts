@@ -17,7 +17,7 @@ jest.mock("@/lib/integrations/sm8-freshness", () => ({ syncSm8AfterSend: jest.fn
 jest.mock("@/app/actions/sm8-job-queue", () => ({ queueNewJob: jest.fn() }));
 jest.mock("server-only", () => ({}));
 
-import { createNewJob, matchPreviousSite, newJobLine, readNewJobCategories, searchClientSites, searchNewJobClients } from "../job-new";
+import { createNewJob, matchPreviousSite, readNewJobCategories, searchClientSites, searchNewJobClients } from "../job-new";
 import { newJobOffered } from "@/lib/workboard/new-job-offer";
 import { JOB_WORDS } from "@/lib/integrations/sm8-job-words";
 
@@ -40,7 +40,6 @@ describe.each(["1", "attachment,note", "attachment,note,booking", "attachment,no
     expect(await searchClientSites(U, "")).toEqual([]);
     expect(await matchPreviousSite("41 Waverley St")).toBeNull();
     expect(await readNewJobCategories()).toEqual([]);
-    expect(await newJobLine(U)).toEqual({ ok: false, error: JOB_WORDS.card.jobsUnavailable });
     expect(
       await createNewJob({ pressId: U, clientName: "x", client: { kind: "existing", uuid: U }, jobAddress: "a", description: "b", categoryUuid: null, contact: null, via: null, next: null })
     ).toEqual({ ok: false, error: JOB_WORDS.card.jobsUnavailable });
@@ -62,7 +61,9 @@ describe("where the deployment sends new jobs", () => {
 
   it("asks that the reader runs the board", async () => {
     requireOrg.mockRejectedValue(new Error("no"));
-    expect(await newJobLine(U)).toEqual({ ok: false, error: JOB_WORDS.press.noManage });
+    expect(
+      await createNewJob({ pressId: U, clientName: "x", client: { kind: "existing", uuid: U }, jobAddress: "a", description: "b", categoryUuid: null, contact: null, via: null, next: null })
+    ).toEqual({ ok: false, error: JOB_WORDS.press.noManage });
     expect(requireOrg).toHaveBeenCalledWith("workboard_manage");
   });
 

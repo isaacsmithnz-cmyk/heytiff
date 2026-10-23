@@ -656,32 +656,6 @@ export async function completeVisit(
   return { ok: true };
 }
 
-/** The Completed screen's whole job is invoicing (L3) — one flag, one
-    owner (L7). Only a visit that actually RAN can be invoiced. */
-export async function setVisitInvoiced(
-  visitId: string,
-  invoiced: boolean
-): Promise<MaintenanceResult> {
-  const ctx = await context();
-  if (!ctx) return NOT_SIGNED_IN;
-  if (!(await can("workboard_manage"))) return NO_MANAGE;
-
-  const visit = await visitIn(ctx.orgId, visitId);
-  if (!visit) return { ok: false, error: "That visit is no longer here." };
-  if (visit.status !== "done") {
-    return { ok: false, error: "Only a completed visit can be invoiced." };
-  }
-
-  const { error } = await supabaseAdmin
-    .from("maintenance_visits")
-    .update({ invoiced_at: invoiced ? new Date().toISOString() : null })
-    .eq("org_id", ctx.orgId)
-    .eq("id", visitId);
-  if (error) return { ok: false, error: "Couldn't update the invoice flag." };
-  refresh();
-  return { ok: true };
-}
-
 /* ---------------- placement (time_confirmed's successor, D1) ---------------- */
 
 /** Put the visit on a day. Placement IS the time confirmation — there is no

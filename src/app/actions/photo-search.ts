@@ -94,17 +94,6 @@ type HitRow = {
   m_tag: boolean | null;
 };
 
-/** How many photos this workspace has read. Cheap, and the number that makes
-    an empty result honest. */
-export async function countBankedPhotos(): Promise<number> {
-  const { orgId } = await requireOrg("workboard");
-  const { count } = await supabaseAdmin
-    .from("job_photo_readings")
-    .select("sm8_attachment_uuid", { count: "exact", head: true })
-    .eq("org_id", orgId);
-  return count ?? 0;
-}
-
 /** `limit` is how many hits are wanted — the Workboard's panel takes the
     whole cap, ⌘K a handful. Clamped here: it arrives from a client, and every
     hit costs a signed URL. */

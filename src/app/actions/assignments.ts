@@ -4,13 +4,11 @@ import { revalidateHome } from "@/lib/shell/revalidate-home";
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
-import { assignmentTask, newAssignments } from "@/lib/dashboard/assignments-query";
-import type { NewAssignment } from "@/lib/dashboard/assignments";
+import { assignmentTask } from "@/lib/dashboard/assignments-query";
 
-/* BEING GIVEN WORK — the bell's read, and the one thing you can do to one
-   from there.
+/* BEING GIVEN WORK — the one thing you can do to work you were given.
 
-   NO CAPABILITY GATES EITHER OF THESE, and that is deliberate rather than an
+   NO CAPABILITY GATES THIS, and that is deliberate rather than an
    oversight — the same reasoning `reminders.ts` spells out. `giveTask`
    requires `team` because handing work to somebody else is a management
    action; being told what you were given is not, and gating it would mean a
@@ -32,18 +30,6 @@ async function context(): Promise<Ctx | null> {
   const userId = session?.user?.sub as string | undefined;
   if (!orgId || !userId) return null;
   return { orgId, staffId: await staffProfileIdFor(orgId, userId) };
-}
-
-/** Work somebody gave you that you haven't answered for yet.
-
-    Returns an empty list rather than an error for a signed-out or
-    staff-cardless caller: this drives a badge in the topbar on every screen,
-    and a topbar that throws is a worse answer than a topbar with nothing on
-    it. Same posture as `myDueReminders` beside it. */
-export async function myNewAssignments(): Promise<NewAssignment[]> {
-  const ctx = await context();
-  if (!ctx?.staffId) return [];
-  return newAssignments(ctx.orgId, ctx.staffId);
 }
 
 /** "Got it."

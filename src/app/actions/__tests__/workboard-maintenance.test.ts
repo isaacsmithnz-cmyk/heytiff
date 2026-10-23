@@ -115,7 +115,6 @@ import {
   linkVisitJob,
   placeVisit,
   setAgreementCategory,
-  setVisitInvoiced,
   setVisitPacked,
   setVisitReadiness,
   setVisitStatus,
@@ -600,29 +599,6 @@ describe("categories and tags — identity decided at creation (D10, B2)", () =>
     const res = await setAgreementCategory("a-1", null);
     expect(res.ok).toBe(true);
     expect(updates[0].patch).toMatchObject({ category_id: null });
-  });
-});
-
-describe("setVisitInvoiced — only work that RAN can be billed", () => {
-  it("stamps and clears the one flag, on done visits only", async () => {
-    rows.maintenance_visits = { id: "v-1", agreement_id: "a-1", status: "done", readiness: {} };
-    const res = await setVisitInvoiced("v-1", true);
-    expect(res.ok).toBe(true);
-    expect(typeof updates[0].patch.invoiced_at).toBe("string");
-
-    updates.length = 0;
-    await setVisitInvoiced("v-1", false);
-    expect(updates[0].patch).toEqual({ invoiced_at: null });
-  });
-
-  it("refuses open visits and the workboard tier", async () => {
-    rows.maintenance_visits = { id: "v-1", agreement_id: "a-1", status: "booked", readiness: {} };
-    expect((await setVisitInvoiced("v-1", true)).ok).toBe(false);
-
-    rows.maintenance_visits = { id: "v-1", agreement_id: "a-1", status: "done", readiness: {} };
-    caps = new Set(["workboard"]);
-    expect((await setVisitInvoiced("v-1", true)).ok).toBe(false);
-    expect(updates).toHaveLength(0);
   });
 });
 

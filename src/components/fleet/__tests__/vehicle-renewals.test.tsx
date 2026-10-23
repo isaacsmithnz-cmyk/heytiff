@@ -2,8 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { FleetRegister } from "../register";
 import type { FleetState } from "../fleet-state";
-import type { Vehicle, VehiclePolicy } from "../logic";
-import { currentRenewalDocIds } from "../logic";
+import type { Vehicle } from "../logic";
 
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: jest.fn() }),
@@ -52,47 +51,6 @@ const van: Vehicle = {
   purchaseDateDays: 0,
   lastServiceDays: null,
 };
-
-function policy(over: Partial<VehiclePolicy> = {}): VehiclePolicy {
-  return {
-    id: "p",
-    kind: "insurance",
-    provider: "NRMA",
-    premium: 1240.5,
-    startsOn: null,
-    expiresOn: "2027-09-01",
-    documentId: null,
-    ...over,
-  };
-}
-
-/* ---- what back-filling breaks if "current" is read off the upload date ---- */
-
-it("reads current off the latest expiry however the rows arrive", () => {
-  // the 2024 policy is typed in TODAY, so it is the newest UPLOAD but the
-  // oldest COVER — the vehicle's expiry stays on 2027 and so must the tag
-  expect(
-    currentRenewalDocIds(
-      [
-        policy({ expiresOn: "2024-09-01", documentId: "backfilled" }),
-        policy({ expiresOn: "2027-09-01", documentId: "live" }),
-      ],
-      [],
-    ),
-  ).toEqual(new Set(["live"]));
-});
-
-it("falls back to the newest upload of the kind only when no policy row states a period", () => {
-  const docs = [
-    { id: "new", kind: "rego_notice" },
-    { id: "old", kind: "rego_notice" },
-    { id: "slip", kind: "green_slip" },
-  ];
-  // no rows at all: the first (newest) document of each kind is current
-  expect(currentRenewalDocIds([], docs)).toEqual(new Set(["new", "slip"]));
-  // a rego row with no document: nothing is current for rego, the slip still is
-  expect(currentRenewalDocIds([policy({ kind: "rego" })], docs)).toEqual(new Set(["slip"]));
-});
 
 /* ---- the real path: a register row to a renewal screen ---- */
 

@@ -61,7 +61,6 @@ export const BOOKING_STARTS: readonly string[] = Array.from({ length: (24 * 60) 
 });
 
 const DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
-export const isDay = (d: string) => DAY.test(d);
 
 /** The next Monday-to-Friday after `day`, as text (DECISIONS 13). */
 export function nextWeekday(day: string): string {

@@ -3,8 +3,8 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { JobMediaViewer } from "@/components/workboard/board/job-media-viewer";
-import { showcaseMediaItem } from "@/components/workboard/board/showcase-view";
 import type { PhotoHit } from "@/app/actions/photo-search";
+import type { JobMediaItem } from "@/lib/workboard/job-media";
 
 /* The photo a ⌘K hit opens — the Workboard's own viewer, over whatever screen
    the palette was opened on.
@@ -47,7 +47,7 @@ export function PalettePhotoViewer({
 
   return createPortal(
     <JobMediaViewer
-      items={items.map(showcaseMediaItem)}
+      items={items.map(mediaItemOf)}
       index={index}
       favourites={starred}
       onNav={onNav}
@@ -56,4 +56,24 @@ export function PalettePhotoViewer({
     />,
     document.body
   );
+}
+
+/** A hit as the shared viewer needs to see it. The caption Claude wrote leads
+    when there is one — the filename is ServiceM8's, and ServiceM8 names every
+    photo `Photo`. */
+function mediaItemOf(p: PhotoHit): JobMediaItem {
+  return {
+    remoteId: p.remoteId,
+    name: p.caption || p.name,
+    fileType: null,
+    kind: "photo",
+    origin:
+      [p.jobNumber ? `#${p.jobNumber}` : null, p.clientName].filter(Boolean).join(", ") ||
+      null,
+    takenAt: p.takenAt,
+    url: p.url,
+    width: null,
+    height: null,
+    fromClaim: null,
+  };
 }

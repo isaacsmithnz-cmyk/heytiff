@@ -185,25 +185,10 @@ export function navFor(viewer: NavViewer): NavItem[] {
   return NAV_ROWS.filter((n) => visible(n, viewer)).flatMap((n) => [n, ...(n.subItems ?? [])]);
 }
 
-/** Grouped entries this viewer may see; groups left empty are dropped. */
-export function navGroupsFor(viewer: NavViewer): NavGroup[] {
-  return NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((n) => visible(n, viewer)) })).filter(
-    (g) => g.items.length > 0
-  );
-}
-
 /** /dashboard is an exact match; the rest match by prefix. */
 function onHref(href: string, pathname: string): boolean {
   if (href === "/dashboard") return pathname === "/dashboard";
   return pathname === href || pathname.startsWith(href + "/");
-}
-
-/** Active item for a given pathname. An entry stays lit on any of its tabbed
-    faces — the row is the section, and the tabs move within it. */
-export function isActive(item: NavItem, pathname: string): boolean {
-  return (
-    onHref(item.href, pathname) || (item.subItems ?? []).some((s) => onHref(s.href, pathname))
-  );
 }
 
 /** The screen a pathname is on, by its nav name: the entry, row or face,

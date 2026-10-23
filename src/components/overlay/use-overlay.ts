@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useEffectEvent, useState, useSyncExternalStore, type RefObject } from "react";
+import { useEffect, useEffectEvent, useState, type RefObject } from "react";
 
 /* THE OVERLAY STACK — which dialog is in front, for every dialog at once.
 
@@ -40,24 +40,17 @@ import { useEffect, useEffectEvent, useState, useSyncExternalStore, type RefObje
 type Layer = { seq: number; el: HTMLElement | null };
 
 let layers: readonly Layer[] = [];
-const watchers = new Set<() => void>();
 /** Render order. A parent renders before what it draws, and a later dialog
     after an earlier one, so this orders the stack the way it is seen. */
 let drawn = 0;
 const nextDrawn = () => ++drawn;
 
-function changed() {
-  for (const w of watchers) w();
-}
-
 function add(layer: Layer) {
   layers = [...layers, layer].sort((a, b) => a.seq - b.seq);
-  changed();
 }
 
 function remove(layer: Layer) {
   layers = layers.filter((l) => l !== layer);
-  changed();
 }
 
 const front = (): Layer | undefined => layers[layers.length - 1];
@@ -72,19 +65,6 @@ export function frontOverlay(): HTMLElement | null {
     must leave a key to whatever is over it. */
 export function overlayOpen(): boolean {
   return layers.length > 0;
-}
-
-function subscribe(watch: () => void) {
-  watchers.add(watch);
-  return () => {
-    watchers.delete(watch);
-  };
-}
-
-/** `overlayOpen()`, as state: the component re-renders when a dialog opens
-    or closes over it. */
-export function useOverlayOpen(): boolean {
-  return useSyncExternalStore(subscribe, overlayOpen, () => false);
 }
 
 const STOPS = [

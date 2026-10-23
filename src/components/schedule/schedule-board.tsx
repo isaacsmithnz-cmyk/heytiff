@@ -16,7 +16,6 @@ import { jobPageHref } from "@/lib/shell/links";
 import { mintPressId } from "@/lib/workboard/press-id";
 import { bookJobIn, readBookInContext, takeBackBooking } from "@/app/actions/booking-sm8";
 import { loadSchedulePanel } from "@/app/actions/schedule-panel";
-import { scheduleDay } from "@/app/actions/workboard";
 import type { TeamDay } from "@/lib/schedule/month-team";
 import { Loading } from "@/components/parts/states";
 import { BOOKING_LENGTHS_MIN } from "@/lib/integrations/sm8-booking-plan";
@@ -820,7 +819,10 @@ function MonthDayPanel({
   const [jobs, setJobs] = useState<{ day: string; list: { blk: DayBlock; crew: number }[] } | null>(null);
   useEffect(() => {
     let live = true;
-    void scheduleDay(day)
+    /* the day's read, loaded when a panel first opens: the board's own
+       screens never need the Workboard's actions until then */
+    void import("@/app/actions/workboard")
+      .then((a) => a.scheduleDay(day))
       .then((payload) => {
         if (!live) return;
         const seen = new Map<string, { blk: DayBlock; crew: number }>();

@@ -184,6 +184,9 @@ export async function makeTasks(input: {
   dueDate?: string | null;
   dueTime?: string | null;
   forStaffId?: string | null;
+  /** for the job and nobody in particular (Isaac, 24 October 2026: "It can
+      just say anyone"): open on the job's card for whoever is there */
+  anyone?: boolean;
 }): Promise<MakeTasksResult> {
   const ctx = await context();
   if (!ctx?.staffId) return { ok: false, error: "Not signed in." };
@@ -193,8 +196,11 @@ export async function makeTasks(input: {
   if (input.dueDate && !dueDate) return { ok: false, error: "Check the day." };
   const job = typeof input.jobUuid === "string" && input.jobUuid.trim() ? input.jobUuid.trim().slice(0, 80) : null;
 
-  let assignee = ctx.staffId;
-  if (input.forStaffId && input.forStaffId !== ctx.staffId) {
+  let assignee: string | null = ctx.staffId;
+  if (input.anyone) {
+    if (!job) return { ok: false, error: "Pick the job it's for, or who's doing it." };
+    assignee = null;
+  } else if (input.forStaffId && input.forStaffId !== ctx.staffId) {
     if (!(await can("team"))) return { ok: false, error: "You can't give tasks to other people." };
     const { data: who } = await supabaseAdmin.from("staff_profiles").select("id").eq("org_id", ctx.orgId).eq("id", input.forStaffId).maybeSingle();
     if (!who) return { ok: false, error: "That person isn't on the team." };
@@ -318,8 +324,8 @@ export async function completeTask(taskId: string, opts: { postDone?: boolean } 
   if (!data) return { ok: false, error: "That task no longer exists." };
   if (data.status === "done") return { ok: false, error: "That task is already done." };
 
-  // your own to-do, or a manager closing one out
-  const mine = ctx.staffId && ctx.staffId === data.assigned_to;
+  // your own to-do, a job's task for anyone, or a manager closing one out
+  const mine = (ctx.staffId && ctx.staffId === data.assigned_to) || data.assigned_to === null;
   if (!mine && !(await can("team"))) return { ok: false, error: "That task isn't yours to complete." };
 
   const { data: won, error } = await supabaseAdmin
@@ -387,7 +393,7 @@ export async function reopenTask(taskId: string, opts: { takeBackDone?: boolean 
   if (!data) return { ok: false, error: "That task no longer exists." };
   if (data.status !== "done") return { ok: false, error: "That task is already open." };
 
-  const mine = ctx.staffId && ctx.staffId === data.assigned_to;
+  const mine = (ctx.staffId && ctx.staffId === data.assigned_to) || data.assigned_to === null;
   if (!mine && !(await can("team"))) return { ok: false, error: "That task isn't yours to reopen." };
 
   const { data: won, error } = await supabaseAdmin
@@ -549,6 +555,161 @@ export async function reopenIssue(issueId: string): Promise<DashResult> {
     It never touches a Done or its queue rows: deleting a task is not a press
     to ServiceM8, and only whoever sent a Done can take it back — from the
     job's diary, where it stays. */
+/** A task as its form opens it (Isaac, 24 October 2026: To do's rows and a
+    job card's tasks open their own form over the page). With the job it's
+    for, or the job its words name as a suggestion; who has it, or Anyone;
+    when; and who made it and, once done, who ticked it and when. */
+export type TaskForEdit = {
+  id: string;
+  title: string;
+  job: { uuid: string; label: string } | null;
+  /** the job its words name, offered when it has none */
+  suggestedJob: { uuid: string; label: string } | null;
+  assigneeId: string | null;
+  dueDate: string | null;
+  /** "7:00 AM", as the time wheel says it; null for any time that day */
+  dueTime: string | null;
+  done: { by: string | null; at: string } | null;
+  madeBy: string | null;
+  madeAt: string | null;
+  /** may change who has it (team) */
+  mayGive: boolean;
+};
+
+async function jobLabelOf(orgId: string, uuid: string): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from("sm8_jobs")
+    .select("generated_job_id, company_uuid, job_address")
+    .eq("org_id", orgId)
+    .eq("uuid", uuid)
+    .maybeSingle();
+  if (!data) return null;
+  const { data: co } = data.company_uuid
+    ? await supabaseAdmin.from("sm8_companies").select("name").eq("org_id", orgId).eq("uuid", data.company_uuid).maybeSingle()
+    : { data: null };
+  return [data.generated_job_id, (co as { name?: string } | null)?.name ?? data.job_address].filter(Boolean).join(" ") || null;
+}
+
+export async function readTaskForEdit(taskId: string): Promise<{ ok: true; task: TaskForEdit } | { ok: false; error: string }> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "Not signed in." };
+  const { data } = await supabaseAdmin
+    .from("tasks")
+    .select("id, title, sm8_job_uuid, assigned_to, created_by, created_at, due_date, remind_at, status, done_at, done_by")
+    .eq("org_id", ctx.orgId)
+    .eq("id", taskId)
+    .maybeSingle();
+  if (!data) return { ok: false, error: "That task is gone." };
+  const ids = [data.created_by, data.done_by].filter(Boolean) as string[];
+  const { data: people } = ids.length
+    ? await supabaseAdmin.from("staff_profiles").select("id, first_name, last_name").eq("org_id", ctx.orgId).in("id", ids)
+    : { data: [] };
+  const nameOf = (id: string | null) => {
+    const p = (people ?? []).find((x: { id: string }) => x.id === id) as { first_name?: string | null; last_name?: string | null } | undefined;
+    return p ? [p.first_name, p.last_name].filter(Boolean).join(" ") || null : null;
+  };
+  const jobUuid = (data.sm8_job_uuid as string | null) ?? null;
+  const label = jobUuid ? await jobLabelOf(ctx.orgId, jobUuid) : null;
+  /* the job its words name ("Proceed with 3450 Kingsford"), offered */
+  let suggestedJob: TaskForEdit["suggestedJob"] = null;
+  if (!jobUuid) {
+    const n = /\b(\d{3,6}[A-Z]?)\b/.exec(String(data.title ?? ""))?.[1];
+    if (n) {
+      const { data: hit } = await supabaseAdmin.from("sm8_jobs").select("uuid").eq("org_id", ctx.orgId).eq("generated_job_id", n).limit(1).maybeSingle();
+      const uuid = (hit as { uuid?: string } | null)?.uuid;
+      const l = uuid ? await jobLabelOf(ctx.orgId, uuid) : null;
+      if (uuid && l) suggestedJob = { uuid, label: l };
+    }
+  }
+  const tz = await getSm8Timezone(ctx.orgId);
+  const at = zonedParts((data.remind_at as string | null) ?? null, tz);
+  const dueTime = at
+    ? (() => {
+        const hour = Math.floor(at.min / 60);
+        const h = hour % 12 === 0 ? 12 : hour % 12;
+        return `${h}:${String(at.min % 60).padStart(2, "0")} ${hour < 12 ? "AM" : "PM"}`;
+      })()
+    : null;
+  return {
+    ok: true,
+    task: {
+      id: String(data.id),
+      title: String(data.title ?? ""),
+      job: jobUuid ? { uuid: jobUuid, label: label ?? "A job" } : null,
+      suggestedJob,
+      assigneeId: (data.assigned_to as string | null) ?? null,
+      dueDate: (data.due_date as string | null) ?? (at ? at.day : null),
+      dueTime,
+      done: data.status === "done" && data.done_at ? { by: nameOf(data.done_by as string | null), at: String(data.done_at) } : null,
+      madeBy: nameOf(data.created_by as string | null),
+      madeAt: (data.created_at as string | null) ?? null,
+      mayGive: await can("team"),
+    },
+  };
+}
+
+/** Save a task's form: what, the job, who (a person, or Anyone on the job),
+    and when (a day, and a time if it needs one). Yours, one you made, a
+    job's task for anyone, or `team`'s; giving it to someone else is `team`'s
+    alone, as giveTask says. A new person hears about it. */
+export async function updateTask(
+  taskId: string,
+  input: { title: string; jobUuid: string | null; dueDate: string | null; dueTime: string | null; forStaffId: string | null; anyone: boolean },
+): Promise<DashResult> {
+  const ctx = await context();
+  if (!ctx?.staffId) return { ok: false, error: "Not signed in." };
+  const title = input.title.trim().slice(0, 500);
+  if (!title) return { ok: false, error: "Say what needs doing." };
+  const { data } = await supabaseAdmin
+    .from("tasks")
+    .select("assigned_to, created_by, status")
+    .eq("org_id", ctx.orgId)
+    .eq("id", taskId)
+    .maybeSingle();
+  if (!data) return { ok: false, error: "That task is gone." };
+  const team = await can("team");
+  const mine = ctx.staffId === data.assigned_to || ctx.staffId === data.created_by || data.assigned_to === null;
+  if (!mine && !team) return { ok: false, error: "That task isn't yours to change." };
+  const dueDate = input.dueDate && isISODate(input.dueDate) ? input.dueDate : null;
+  if (input.dueDate && !dueDate) return { ok: false, error: "Check the day." };
+  const job = input.jobUuid?.trim().slice(0, 80) || null;
+  let to: string | null = (data.assigned_to as string | null) ?? null;
+  if (input.anyone) {
+    if (!job) return { ok: false, error: "Pick the job it's for, or who's doing it." };
+    to = null;
+  } else if (input.forStaffId) {
+    if (input.forStaffId !== data.assigned_to) {
+      if (input.forStaffId !== ctx.staffId && !team) return { ok: false, error: "You can't give tasks to other people." };
+      const { data: who } = await supabaseAdmin.from("staff_profiles").select("id").eq("org_id", ctx.orgId).eq("id", input.forStaffId).maybeSingle();
+      if (!who) return { ok: false, error: "That person isn't on the team." };
+    }
+    to = input.forStaffId;
+  } else if (to === null && !job) {
+    to = ctx.staffId;
+  }
+  const time = dueDate ? clock24(input.dueTime) : null;
+  const remindAt = dueDate && time ? remindAtFrom(dueDate, time, await getSm8Timezone(ctx.orgId)) : null;
+  const given = to !== data.assigned_to;
+  const { error } = await supabaseAdmin
+    .from("tasks")
+    .update({
+      title,
+      sm8_job_uuid: job,
+      assigned_to: to,
+      due_date: dueDate,
+      remind_at: remindAt,
+      remind_kind: remindAt ? "by" : null,
+      ...(given ? { acknowledged_at: null, reminder_emailed_at: null } : {}),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("org_id", ctx.orgId)
+    .eq("id", taskId);
+  if (error) return { ok: false, error: "Couldn't save that task." };
+  if (given) await logTaskEvent(ctx.orgId, taskId, ctx.staffId, { kind: "given", from: (data.assigned_to as string | null) ?? null, to });
+  refresh();
+  return { ok: true };
+}
+
 export async function deleteTask(taskId: string): Promise<DashResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Not signed in." };

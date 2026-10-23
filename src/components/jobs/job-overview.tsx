@@ -12,6 +12,11 @@ import type { StoryEntry } from "@/lib/workboard/job-story";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import { JobConversation, type ConversationDiary } from "./job-conversation";
 import { JobTiles } from "./job-tiles";
+import dynamic from "next/dynamic";
+
+/* a task's own form, loaded when one is opened: the job card carries this
+   Overview onto every screen and none needs the form until then */
+const TaskForm = dynamic(() => import("@/components/making/task-form").then((m) => m.TaskForm), { ssr: false });
 
 /* A JOB'S OVERVIEW (v2, step 6, slice A; the board JC-1; four tiles, Isaac,
    22 October 2026): on the left the stages line, handed in by the page (it
@@ -161,6 +166,8 @@ export function JobOverview({
     again();
   };
 
+  /* a task's own form over the page, from the To do tile (Isaac, 24 October 2026) */
+  const [openTask, setOpenTask] = useState<string | null>(null);
   const today = read?.today ?? null;
   const tasks = (read?.tasks ?? []).filter((t) => !ticked.has(t.id));
   const what = (detail?.description ?? fallbackWhat ?? "").trim();
@@ -182,7 +189,10 @@ export function JobOverview({
           onAddTask={tiles.onAddTask}
           open={tiles.open}
           openCount={tiles.openCount ?? 0}
+          done={read?.done ?? []}
+          onOpenTask={setOpenTask}
         />
+        {openTask ? <TaskForm taskId={openTask} onClose={() => setOpenTask(null)} onChanged={again} /> : null}
         {aside}
       </div>
       <JobConversation

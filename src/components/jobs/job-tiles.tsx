@@ -4,6 +4,7 @@ import { useId, type ReactNode } from "react";
 import { Button } from "@/components/parts/button";
 import { StateWord } from "@/components/parts/state";
 import { Tick } from "@/components/parts/tick";
+import { Icon } from "@/components/shell/icon";
 import type { NextVisit, RailTask } from "@/lib/jobs/job-conversation";
 
 /* THE OVERVIEW'S FOUR TILES (Isaac, 22 October 2026, the mock "Job card,
@@ -75,6 +76,8 @@ export function JobTiles({
   onAddTask,
   open,
   openCount = 0,
+  done = [],
+  onOpenTask,
 }: {
   /** The job's words, as the office wrote them. */
   what: string;
@@ -94,6 +97,10 @@ export function JobTiles({
   /** What's open on the job, an ask in a note or a flag, above its tasks. */
   open?: ReactNode;
   openCount?: number;
+  /** ticked in the last fortnight, with who and when */
+  done?: readonly { id: string; title: string; line: string }[];
+  /** a task's own form, over the page */
+  onOpenTask?: (taskId: string) => void;
 }) {
   const count = tasks.length + openCount;
   return (
@@ -149,19 +156,38 @@ export function JobTiles({
                 <Tick
                   checked={false}
                   onChange={() => onTick(t)}
-                  label={
-                    <span className="jc-task">
-                      <span className="jc-task-name">{t.title}</span>
-                      <span className="jc-task-line">{t.line}</span>
-                    </span>
-                  }
+                  label={<span className="sr-only">Done, {t.title}</span>}
                 />
+                {onOpenTask ? (
+                  <button type="button" className="jc-task jt-taskopen" onClick={() => onOpenTask(t.id)}>
+                    <span className="jc-task-name">{t.title}</span>
+                    <span className="jc-task-line">{t.line}</span>
+                  </button>
+                ) : (
+                  <span className="jc-task">
+                    <span className="jc-task-name">{t.title}</span>
+                    <span className="jc-task-line">{t.line}</span>
+                  </span>
+                )}
               </li>
             ))}
           </ul>
-        ) : openCount > 0 ? null : (
+        ) : openCount > 0 || done.length > 0 ? null : (
           <p className="jt-cap">{tasksRead ? "Nothing to do on it." : "Reading the job's tasks"}</p>
         )}
+        {done.length > 0 ? (
+          <ul className="jt-tasks jt-done" aria-label="Done">
+            {done.map((t) => (
+              <li key={t.id}>
+                <Icon name="check" size={16} />
+                <button type="button" className="jc-task jt-taskopen" onClick={() => onOpenTask?.(t.id)}>
+                  <span className="jc-task-name">{t.title}</span>
+                  <span className="jc-task-line">{t.line}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </Tile>
     </div>
   );

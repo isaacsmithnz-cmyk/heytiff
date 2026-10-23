@@ -10533,6 +10533,14 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jt-cap { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
 .fg .jt-what { margin:0; font-size:14px; line-height:20px; color:var(--ink); white-space:pre-wrap; overflow-wrap:anywhere; }
 .fg .jt-tasks { display:flex; flex-direction:column; gap:12px; align-self:stretch; margin:0; padding:0; list-style:none; }
+/* a task's tick, and its words as the door to its own form (Isaac, 24 October 2026) */
+.fg .jt-tasks > li { display:flex; align-items:flex-start; gap:8px; }
+.fg .jt-taskopen { padding:0; text-align:left; cursor:pointer; min-width:0; }
+.fg .jt-taskopen:hover .jc-task-name { text-decoration:underline; text-underline-offset:2px; }
+.fg .jt-taskopen:focus-visible { outline:none; border-radius:var(--r-control); box-shadow:var(--ring); }
+/* ticked in the last fortnight: who and when, quiet */
+.fg .jt-done > li > svg { flex:none; margin-top:2px; color:var(--green-w); }
+.fg .jt-done .jc-task-name { font-weight:500; color:var(--q); }
 /* what's open on the job, in To do: the strip's rows without its box,
    their doors under the words in a tile this narrow */
 .fg .jt .wb2-jcatt.bare { align-self:stretch; margin:0; padding:0; border-radius:0; background:none; box-shadow:none; }
@@ -10780,6 +10788,15 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    No `.fg`: the form opens in a dialog, which portals to <body>. */
 .mk-form { display:flex; flex-direction:column; gap:16px; }
 .mk-pair { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; align-items:start; }
+/* When: Add date, then Add time beside the date (Isaac, 24 October 2026) */
+.mk-when { display:flex; flex-direction:column; gap:8px; }
+.mk-whenrow { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.mk-whenrow > .pt-field, .mk-whenrow > div { min-width:0; }
+/* who made it and who ticked it, under the form; a read that failed */
+.mk-quiet { margin:0; font-size:13px; line-height:18px; color:var(--q); }
+.mk-error { margin:0; font-size:13px; line-height:18px; color:var(--red-w); }
+/* Delete on the left of the form's foot, Mark done and Save on the right */
+.mk-gap { flex:1 1 auto; }
 /* the job it is for (rule 51): filled in, with its clear */
 .mk-job { display:flex; align-items:center; gap:8px; min-height:36px; padding:0 4px 0 12px; border:1px solid var(--edge); border-radius:var(--r-control); }
 .mk-job .mk-job-name { flex:1; min-width:0; font-size:14px; line-height:20px; color:var(--ink); white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }

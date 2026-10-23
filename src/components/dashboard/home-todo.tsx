@@ -14,9 +14,10 @@ import { stateTone } from "@/components/parts/state";
 import { Tick } from "@/components/parts/tick";
 import { Icon } from "@/components/shell/icon";
 import { VisitForm, type VisitJob } from "@/components/making/visit-form";
+import { TaskForm } from "@/components/making/task-form";
 import { BELL_REFRESH_EVENT } from "@/lib/dashboard/chips";
 import { SNOOZE, SNOOZE_LABEL, type Snooze } from "@/lib/dashboard/reminders";
-import { TODO_HOME_CAP, deskTaskHref, type TodoRow } from "@/lib/dashboard/todo";
+import { TODO_HOME_CAP, type TodoRow } from "@/lib/dashboard/todo";
 
 /* HOME › TO DO (v2, rule 39): a dot, the name in bold, a grey line or the
    trouble in its colour, and ONE second button on the right that does the
@@ -122,6 +123,8 @@ export function TodoList({ rows, label, cap }: { rows: readonly TodoRow[]; label
   const { gone, hide, tick } = useTaskTick();
   /* a won job's Book in: the Visit form over Home, the job filled in */
   const [booking, setBooking] = useState<VisitJob | null>(null);
+  /* a task's own form over Home, opened from its row */
+  const [opened, setOpened] = useState<string | null>(null);
   const here = rows.filter((r) => !gone.has(r.key));
   const shown = cap != null ? here.slice(0, cap) : here;
 
@@ -145,6 +148,12 @@ export function TodoList({ rows, label, cap }: { rows: readonly TodoRow[]; label
       return (
         <Button size={32} aria-label={`Got it, ${row.name}`} onClick={() => gotIt(row, a.taskId)}>
           Got it
+        </Button>
+      );
+    if (a.kind === "task")
+      return (
+        <Button size={32} aria-label={`Open, ${row.name}`} onClick={() => setOpened(a.taskId)}>
+          Open
         </Button>
       );
     if (a.kind === "bookIn")
@@ -181,11 +190,13 @@ export function TodoList({ rows, label, cap }: { rows: readonly TodoRow[]; label
             dot={stateTone(row.tone)}
             name={row.name}
             line={row.lineTone ? <span className={`hm-line hm-line--${row.tone}`}>{row.line}</span> : row.line}
-            href={row.act.kind === "link" || row.act.kind === "bookIn" ? row.act.href : row.tick ? deskTaskHref(row.tick) : undefined}
+            href={row.act.kind === "link" || row.act.kind === "bookIn" ? row.act.href : undefined}
+            onClick={row.act.kind === "task" ? () => setOpened((row.act as { taskId: string }).taskId) : row.tick ? () => setOpened(row.tick) : undefined}
             end={end(row)}
           />
         ))}
       </RowList>
+      {opened && <TaskForm taskId={opened} onClose={() => setOpened(null)} onChanged={after} />}
       {booking && (
         <VisitForm
           job={booking}

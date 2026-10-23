@@ -1,5 +1,5 @@
 import type { Product } from "../families";
-import { normaliseKitFacts, type KitFacts, type KitKey } from "../kits";
+import { KIT_WORD, normaliseKitFacts, type KitFacts, type KitKey } from "../kits";
 import type { QuoteLine } from "../lines";
 import { stillUnknown } from "../lines-price";
 import { findInBook, offerFor, supplierOffer, type UnitLookup } from "../lookups";
@@ -291,7 +291,7 @@ export function makeTools(store: QuoteStore) {
         return {
           ok: true,
           label,
-          said: `${k.kit === "split" ? "Split" : "Ducted"}, ${res.added} parts${still.length ? `, ${still.length} to settle` : ""}`,
+          said: `${KIT_WORD[k.kit]}, ${res.added} parts${still.length ? `, ${still.length} to settle` : ""}`,
           value: still.length ? { added: res.added, still_to_settle: still } : { added: res.added },
         };
       }

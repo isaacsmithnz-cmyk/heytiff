@@ -7,6 +7,7 @@ import { bookProducts } from "./book-view-server";
 import { findInBook, unitSpecs, type BookHit, type BookQuery, type ConfirmedLink, type UnitLookup } from "./lookups";
 import { pairingOf, type Pairing } from "./pairing";
 import { chargeOf, type Charge, type ChargeAsk } from "./charge";
+import { vrfPlanOf, type VrfAsk, type VrfPlan } from "./vrf-kit";
 
 /* The lookups (lookups.ts), read for one business: its own book, and the
    installed data packs, which every business shares. The callers gate on
@@ -66,4 +67,10 @@ export async function lookupPairing(brand: string, outdoor: string, indoors: str
 export async function lookupCharge(brand: string, ask: ChargeAsk, orgId?: string | null): Promise<Charge> {
   const [pack, links] = await Promise.all([packFor(brand.toLowerCase()).catch(() => null), confirmedLinks(orgId)]);
   return chargeOf(pack, ask, links);
+}
+
+/** A VRF's run as its maker's table sizes it, for a kit (vrf-kit.ts). */
+export async function lookupVrfPlan(brand: string, ask: VrfAsk, orgId?: string | null): Promise<VrfPlan> {
+  const [pack, links] = await Promise.all([packFor(brand.toLowerCase()).catch(() => null), confirmedLinks(orgId)]);
+  return vrfPlanOf(pack, ask, links);
 }

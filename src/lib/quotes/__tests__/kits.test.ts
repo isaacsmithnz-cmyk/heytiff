@@ -463,3 +463,117 @@ describe("a circuit sized by its maker's book", () => {
   });
 });
 
+/* Isaac, 2026-10-24: "ok" to the VRF kit; the 21 October bench, a PUMY job's
+   eight rounds of searching the book part by part */
+describe("a VRF kit", () => {
+  const vrfBook = [
+    ...book,
+    product("CMY-Y62-G-E BRANCH JOINT", 9850, { brand: "Mitsubishi Electric" }),
+    product("1MM 2 PAIR SHIELDED PVC/OS 110V (100M)", 28644),
+    product("iZONE 12-METRE CAT 5E SHIELDED CABLE", 2638),
+    product("Wired Controller with Backlit LCD PAR-41MAAM", 12530, { brand: "Mitsubishi Electric" }),
+  ];
+  const plan = {
+    ok: true as const,
+    outdoor: "PUMY-SP140VKMD2-A",
+    heads: 4,
+    vrfHeads: 4,
+    pipes: [
+      { liquidMm: 9.52, gasMm: 15.88, m: 16, sections: 3 },
+      { liquidMm: 6.35, gasMm: 12.7, m: 20, sections: 4 },
+      { liquidMm: 9.52, gasMm: 22.2, m: 4, sections: 1 },
+    ],
+    fittings: [
+      { part: "CMY-Y62-G-E", kind: "joint" as const, qty: 3, index: [75, 55, 35] },
+      { part: "PAC-MK54BC", kind: "box" as const, qty: 1, index: [60] },
+    ],
+    totalM: 40,
+    warnings: [],
+    from: "M-P0860 p.74",
+  };
+  const vrf = { ...facts, pipe: null, pipeM: null, amps: 30.5, breakerA: 32, cableMm2: 6, drainM: 2, brand: "mitsubishi-electric", vrf: plan };
+  const byName = (lines: ReturnType<typeof expandKit>, re: RegExp) => lines.filter((l) => re.test(l.name ?? ""));
+
+  it("puts the pipe on at each size the table gives, the joints by part, the cable along it, and a controller and drain for each head", () => {
+    const lines = expandKit("vrf", vrf, vrfBook, at, { consumables: 2000, flush: null, recovery: null });
+    expect(byName(lines, /COIL|Pipe/).map((l) => [l.name, l.qty, l.source])).toEqual([
+      ["PAIRED COIL 3/8+5/8X20M", 16, "assumed"],
+      ["PAIRED COIL 1/4+1/2X20M", 20, "assumed"],
+      ["Pipe 3/8 + 7/8, hard-drawn, with lagging", 4, "unknown"],
+    ]);
+    expect(byName(lines, /COIL 3\/8/)[0]!.why).toBe("16 m at 3/8 + 5/8, 3 sections of the run, sized by M-P0860 p.74; cheapest");
+    expect(byName(lines, /CMY|PAC-MK/).map((l) => [l.name, l.qty, l.source])).toEqual([
+      ["CMY-Y62-G-E BRANCH JOINT", 3, "assumed"],
+      ["PAC-MK54BC", 1, "unknown"],
+    ]);
+    expect(byName(lines, /SHIELDED/).map((l) => [l.name, l.qty])).toEqual([["1MM 2 PAIR SHIELDED PVC/OS 110V (100M)", 40]]);
+    expect(byName(lines, /Controller/).map((l) => [l.name, l.qty])).toEqual([["Wired Controller with Backlit LCD PAR-41MAAM", 4]]);
+    expect(byName(lines, /DRAIN/).map((l) => [l.qty, l.why])).toEqual([[8, "2 m for each of 4 heads; cheapest"]]);
+    /* the outdoor's circuit as a split's: its maker's 32 A breaker, and never a cable under its 6 mm² */
+    expect(byName(lines, /RCBO|ISOLATOR|TPS|Power cable/).map((l) => [l.name, l.source])).toEqual([
+      ["Power cable", "unknown"],
+      ["RCBO 32A 30MA 1P+N", "assumed"],
+      ["ISOLATOR 35A 2P IP66", "assumed"],
+    ]);
+    /* consumables are a head's share, for each head */
+    expect(lines.find((l) => l.name === "Consumables")).toMatchObject({ qty: 4, why: "your allowance, a head, for each of 4" });
+  });
+
+  it("gives no wall controller to heads on a branch box", () => {
+    const lines = expandKit("vrf", { ...vrf, vrf: { ...plan, vrfHeads: 0 } }, vrfBook, at);
+    expect(byName(lines, /Controller/)).toEqual([]);
+  });
+
+  it("says why when the run can't be sized, part by part", () => {
+    const lines = expandKit("vrf", { ...vrf, vrf: { ok: false, why: "PEFY-X isn't in the data pack" } }, vrfBook, at);
+    expect(byName(lines, /Refrigerant pipe|Branch joint/).map((l) => [l.name, l.source, l.why])).toEqual([
+      ["Refrigerant pipe", "unknown", "PEFY-X isn't in the data pack"],
+      ["Branch joint", "unknown", "PEFY-X isn't in the data pack"],
+    ]);
+    expect(KITS.vrf.label).toBe("VRF install");
+  });
+
+  it("takes the heads and the run's lengths as given, and nothing more", () => {
+    expect(normaliseKitFacts({ vrfHeads: [{ model: " PEFY-P20VMX-E ", branchM: 6 }, { model: "" }, { model: "PEFY-P15VMX-E" }], mainM: 12, betweenM: "3", branchM: -1 })).toMatchObject({
+      vrfHeads: [
+        { model: "PEFY-P20VMX-E", branchM: 6 },
+        { model: "PEFY-P15VMX-E", branchM: null },
+      ],
+      mainM: 12,
+      betweenM: 3,
+    });
+    expect(normaliseKitFacts({})).not.toHaveProperty("vrfHeads");
+  });
+});
+
+/* 3363, 24 October: the kit put a single-pole RCBO and isolator on a
+   3-phase PUMY-P200, and Tiff swapped them by hand */
+describe("an outdoor on three phase", () => {
+  const phaseBook = [
+    ...book,
+    product("MCB 3P 32A 6KA C CURVE", 5400),
+    product("ISOLATOR 4P 35A IP66", 4100),
+    product("6MM 4C+E CIRCULAR ORANGE 100M", 182000),
+  ];
+  const three = { ...facts, amps: 18, breakerA: 25, cableMm2: 6, phase: "3" as const };
+  const names = (f: Parameters<typeof expandKit>[1]) => expandKit("split", f, phaseBook, at).filter((l) => /RCBO|MCB|ISOLATOR|TPS|4C\+E|Power|Breaker|Isolator/.test(l.name ?? "")).map((l) => [l.name, l.source]);
+
+  it("gets a 3-pole breaker, a 3-phase isolator and four cores and earth", () => {
+    expect(names(three)).toEqual([
+      ["6MM 4C+E CIRCULAR ORANGE 100M", "assumed"],
+      ["MCB 3P 32A 6KA C CURVE", "assumed"],
+      ["ISOLATOR 4P 35A IP66", "assumed"],
+    ]);
+  });
+
+  it("says what's missing in its own words when the book has none for three phase", () => {
+    expect(names({ ...three, cableMm2: 10 })[0]).toEqual(["Power cable, 3-phase 10 mm²", "unknown"]);
+    const bare = expandKit("split", three, book, at).filter((l) => l.source === "unknown").map((l) => l.name);
+    expect(bare).toEqual(expect.arrayContaining(["Breaker, 3-pole", "Isolator, 3-phase"]));
+  });
+
+  it("never puts a 3 or 4 pole isolator on single phase", () => {
+    expect(names({ ...facts, amps: 30, phase: "1" as const }).map((n) => n[0])).toEqual(["TPS 4MM 2C+E 100M", "RCBO 32A 30MA 1P+N", "ISOLATOR 35A 2P IP66"]);
+  });
+});
+

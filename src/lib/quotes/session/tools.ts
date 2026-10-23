@@ -320,11 +320,11 @@ export const SESSION_TOOLS: ToolDef[] = [
   {
     name: "add_kit",
     description:
-      "Add the parts a split or ducted system takes to install, each picked from the book: pipe, interconnect, power, breaker, isolator, mount, drain, trunking; for ducted the supply plenum made for the indoor's face and a return plenum where its return has one, the Ys and reducers of the layout, the flex, outlets, and the return grille and box at their size. Name the outdoor and its pipe and current are read off its pack; name the indoor and its faces are. A fact left out leaves its part on the quote as not known yet. Every duct size (takeoffs, fittings, reducers, outlet_mm) is the brief's, a plan's or the person's; where none gives one, the airflow guide's (airflow_check), as assumed, never the business's usual. Change any part after, saying why.",
+      "Add the parts a split, ducted or VRF system takes to install, each picked from the book: pipe, interconnect, power, breaker, isolator, mount, drain, trunking; for ducted the supply plenum made for the indoor's face and a return plenum where its return has one, the Ys and reducers of the layout, the flex, outlets, and the return grille and box at their size. For a VRF or PUMY system (kit vrf), name the outdoor and every head: its pipe comes at each size the maker's table gives each section, with its joints, headers and branch boxes by the book's part, the transmission cable, and a wall controller and drain for each head. Name the outdoor and its pipe and current are read off its pack; name the indoor and its faces are. A fact left out leaves its part on the quote as not known yet. Every duct size (takeoffs, fittings, reducers, outlet_mm) is the brief's, a plan's or the person's; where none gives one, the airflow guide's (airflow_check), as assumed, never the business's usual. Change any part after, saying why.",
     input_schema: {
       type: "object",
       properties: {
-        kit: { type: "string", enum: ["split", "ducted"] },
+        kit: { type: "string", enum: ["split", "ducted", "vrf"] },
         option: lineFields.option,
         system: lineFields.system,
         brand: { type: "string", description: "The outdoor's data pack, e.g. mitsubishi-electric" },
@@ -357,6 +357,15 @@ export const SESSION_TOOLS: ToolDef[] = [
         zones: { type: "integer", description: "Ducted, zoned: how many zones. The kit takes the maker's zone system from its data: its interface, its own controller in place of the unit's, a sensor in every zone" },
         zone_control: { type: "string", enum: ["temperature", "on_off"], description: "Ducted, zoned: by temperature (linear, a sensor a zone) or on and off" },
         wifi: { type: "boolean", description: "WiFi asked for: the zone system's own" },
+        heads: {
+          type: "array",
+          maxItems: 50,
+          description: "VRF: every head on the outdoor, by model from the same pack, each with its own branch where it differs (a Studio design gives each head's run)",
+          items: { type: "object", properties: { model: { type: "string" }, branch_m: { type: "number" } }, required: ["model"], additionalProperties: false },
+        },
+        main_m: { type: "number", description: "VRF: the outdoor to the first joint, metres" },
+        between_m: { type: "number", description: "VRF: joint to joint, metres" },
+        branch_m: { type: "number", description: "VRF: each head's branch from its joint, metres, where a head doesn't give its own" },
       },
       required: ["kit", "option", "system"],
       additionalProperties: false,
@@ -685,7 +694,7 @@ export const TOOL_LABELS: Record<string, string> = {
 
 /** A kit call's facts, in the form the kit form sends them. */
 export function kitAskOf(raw: unknown): {
-  kit: "split" | "ducted";
+  kit: "split" | "ducted" | "vrf";
   at: { optionIndex: number; system: string };
   unit: { brand: string; model: string } | null;
   indoor: { brand: string; model: string } | null;
@@ -698,7 +707,7 @@ export function kitAskOf(raw: unknown): {
   const list = (v: unknown) => (Array.isArray(v) ? v.map(obj) : undefined);
   const grille = obj(r.return_grille);
   return {
-    kit: r.kit === "ducted" ? "ducted" : "split",
+    kit: r.kit === "ducted" || r.kit === "vrf" ? r.kit : "split",
     at: { optionIndex: option(r.option), system: str(r.system, 60) },
     unit: brand && model ? { brand, model } : null,
     indoor: brand && indoorModel ? { brand, model: indoorModel } : null,
@@ -722,6 +731,10 @@ export function kitAskOf(raw: unknown): {
       zones: r.zones,
       zoneControl: r.zone_control,
       wifi: r.wifi === true,
+      vrfHeads: list(r.heads)?.map((h) => ({ model: h.model, branchM: h.branch_m })),
+      mainM: r.main_m,
+      betweenM: r.between_m,
+      branchM: r.branch_m,
     },
   };
 }

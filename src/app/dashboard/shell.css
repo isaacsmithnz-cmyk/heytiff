@@ -12176,6 +12176,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .sc-pn { min-width:0; display:flex; flex-direction:column; }
 .fg .sc-name { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
 .fg .sc-pn em { font-style:normal; font-size:12px; line-height:16px; font-weight:500; color:var(--q); white-space:nowrap; }
+.fg .sc-pn .pt-state { font-size:12px; line-height:16px; white-space:nowrap; }
 /* the day: an axis, then a row per person */
 .fg .sc-axis { position:relative; height:24px; margin-left:152px; border-bottom:1px solid var(--line); }
 .fg .sc-axis span { position:absolute; bottom:4px; transform:translateX(-50%); font-size:12px; line-height:16px; font-weight:500; color:var(--q); white-space:nowrap; }
@@ -12188,16 +12189,30 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .sc-blk, .fg .sc-away, .fg .sc-fit { position:absolute; top:8px; bottom:8px; box-sizing:border-box; padding:4px 8px; border-radius:var(--r-button); display:flex; flex-direction:column; justify-content:center; min-width:0; overflow:hidden; }
 .fg .sc-blk { color:var(--ink); text-decoration:none; }
 .fg .sc-blk:focus-visible, .fg .sc-wbar:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
-.fg .sc-bn { font-size:13px; line-height:18px; font-weight:600; }
-.fg .sc-bl { font-size:12px; line-height:16px; font-weight:500; }
-.fg .sc-blk--red { background:var(--red-w); color:var(--white); }
-.fg .sc-blk--orange { background:var(--orange-w); color:var(--white); }
-.fg .sc-blk--yellow { background:var(--yellow-w); color:var(--white); }
-.fg .sc-blk--green { background:var(--green-w); color:var(--white); }
-.fg .sc-blk--blue { background:var(--press); color:var(--white); }
-.fg .sc-blk--purple { background:var(--purple-w); color:var(--white); }
-.fg .sc-blk--pink { background:var(--pink-w); color:var(--white); }
-.fg .sc-blk--grey { background:var(--q); color:var(--white); }
+/* A BOOKING'S CARD (Isaac, 23 October 2026, E of "Schedule card colour"):
+   the job's number in a solid box of its colour, the rest white inside a
+   hairline of the same colour, three lines at 12. The colour is the card's
+   own token; a done card's is grey. */
+.fg .sc-card--red { --sc-hue:var(--red-w); }
+.fg .sc-card--orange { --sc-hue:var(--orange-w); }
+.fg .sc-card--yellow { --sc-hue:var(--yellow-w); }
+.fg .sc-card--green { --sc-hue:var(--green-w); }
+.fg .sc-card--blue { --sc-hue:var(--press); }
+.fg .sc-card--purple { --sc-hue:var(--purple-w); }
+.fg .sc-card--pink { --sc-hue:var(--pink-w); }
+.fg .sc-card--grey { --sc-hue:var(--q); }
+.fg .sc-card { flex-direction:row; align-items:stretch; justify-content:flex-start; padding:0; border:1px solid var(--sc-hue, var(--q)); border-radius:var(--r-control); background:var(--white); color:var(--ink); text-decoration:none; overflow:hidden; }
+.fg .sc-blk.sc-card { bottom:auto; height:52px; }
+.fg .sc-wbar.sc-card { flex-direction:row; padding:0; }
+.fg .sc-card.sc-clash { outline:2px solid var(--orange); outline-offset:-1px; }
+.fg .sc-cn { flex:none; display:flex; align-items:center; justify-content:center; min-width:48px; padding:0 8px; background:var(--sc-hue, var(--q)); color:var(--white); font-size:12px; line-height:16px; font-weight:700; font-variant-numeric:tabular-nums; }
+.fg .sc-cb { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; justify-content:center; padding:2px 8px; }
+.fg .sc-c1 { font-size:12px; line-height:16px; font-weight:600; color:var(--ink); }
+.fg .sc-c2 { font-size:12px; line-height:16px; font-weight:400; color:var(--q); }
+.fg .sc-c3 { display:flex; align-items:center; gap:8px; min-width:0; overflow:hidden; white-space:nowrap; font-size:12px; line-height:16px; color:var(--q); }
+.fg .sc-c3 b { font-weight:600; color:var(--ink); }
+.fg .sc-crew { display:inline-flex; align-items:center; gap:2px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .sc-cs { margin-left:auto; flex:none; font-size:12px; line-height:16px; }
 .fg .sc-away { left:0; right:0; background:var(--soft); color:var(--q); font-size:13px; line-height:18px; align-items:center; }
 .fg .sc-fit { font-size:12px; line-height:16px; font-weight:600; pointer-events:none; }
 .fg .sc-fit.sc-ok { background:var(--sel); box-shadow:inset 0 0 0 2px var(--ink); color:var(--ink); }
@@ -12228,9 +12243,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .sc-off { margin:0; font-size:13px; line-height:18px; color:var(--q); }
 .fg .sc-held { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:12px; border-radius:var(--r-card); background:var(--sel); }
 .fg .sc-heldn { flex:1 1 100%; display:flex; align-items:center; gap:8px; min-width:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
-.fg .sc-jobs { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; flex:1 1 auto; min-height:0; overflow-y:auto; }
+.fg .sc-jobs { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; flex:1 1 auto; min-height:0; overflow-y:auto; }
 .fg .sc-grip { display:inline-flex; flex:none; margin-top:2px; color:var(--q); }
-.fg .sc-job { all:unset; box-sizing:border-box; width:100%; display:flex; align-items:flex-start; gap:8px; padding:8px; border-bottom:1px solid var(--line); border-radius:var(--r-button); cursor:grab; }
+/* the jobs to book: each its own card, with room between (Isaac, 22 October: "Job cards on right need more separation") */
+.fg .sc-job { all:unset; box-sizing:border-box; width:100%; display:flex; align-items:flex-start; gap:8px; padding:8px; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); cursor:grab; }
 .fg .sc-job .pt-dot { margin-top:8px; flex:none; }
 .fg .sc-job:hover { background:var(--hov); }
 .fg .sc-job:focus-visible { outline:2px solid var(--ink); outline-offset:-2px; }

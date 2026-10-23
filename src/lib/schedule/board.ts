@@ -127,6 +127,12 @@ export type DayBlock = {
   endMin: number;
   /** the others on the same job that day, by name */
   with: string[];
+  /** ServiceM8's category, its own words ("Install"), or null */
+  kind: string | null;
+  /** where the booking is up to, said on the card: on site now, done, the
+      job marked complete while this day is still on the run, or a job that
+      didn't go ahead; null while it is just booked */
+  state: "onsite" | "done" | "stale" | "unsuccessful" | null;
 };
 
 export type DayAway = { key: string; word: string; startMin: number; endMin: number; whole: boolean };
@@ -183,11 +189,20 @@ export function boardOf(payloads: readonly SchedulePayload[]): Board {
     number: b.jobNumber,
     client: b.clientName,
     suburb: b.suburb,
-    hue: jobHue(b.categoryColour),
+    /* red follows the Unsuccessful status, never the category (rule 18) */
+    hue: jobHue(b.categoryColour, b.status === "Unsuccessful"),
     startMin: b.startMin,
     endMin: b.endMin,
     with: [...new Set((byJob.get(b.remoteId) ?? []).filter((n) => n !== me))],
+    kind: b.categoryName?.trim() || null,
+    state:
+      b.status === "Unsuccessful" ? "unsuccessful"
+      : b.closure === "stale" ? "stale"
+      : b.closure === "done" ? "done"
+      : b.onSite ? "onsite"
+      : null,
   });
+
 
   const people: PersonRow[] = [...staff.entries()]
     .map(([key, uuid]) => {
@@ -208,6 +223,26 @@ export function boardOf(payloads: readonly SchedulePayload[]): Board {
     .sort((a, b) => a.name.localeCompare(b.name));
 
   return { days: payloads.map((p) => p.dayISO), people, stripStart, stripEnd };
+}
+
+/** TWO AT ONCE (Isaac, 23 October, the mock "Schedule card colour"): a
+    person's bookings that overlap stack, each on a line of its own in the
+    lane, so nothing is drawn over anything. Each booking takes the first
+    line it fits on; `clash` holds the ones that overlap another. */
+export function stackDay(blocks: readonly DayBlock[]): { line: Map<string, number>; lines: number; clash: Set<string> } {
+  const line = new Map<string, number>();
+  const ends: number[] = [];
+  const clash = new Set<string>();
+  const sorted = [...blocks].sort((a, b) => a.startMin - b.startMin || b.endMin - a.endMin);
+  for (const b of sorted) {
+    let i = ends.findIndex((end) => end <= b.startMin);
+    if (i < 0) i = ends.push(0) - 1;
+    ends[i] = b.endMin;
+    line.set(b.key, i);
+  }
+  for (const a of sorted)
+    for (const b of sorted) if (a !== b && a.startMin < b.endMin && b.startMin < a.endMin) clash.add(a.key);
+  return { line, lines: Math.max(1, ends.length), clash };
 }
 
 /** A person against some hours on one day. */
@@ -250,7 +285,9 @@ export function fitWord(f: Fit, start: number, end: number): string {
 }
 
 /** A person's working day: whole days' booked, part days and away, as a
-    line under their name ("Free all day", "Free 6.5 h", "Leave"). */
+    line under their name ("Free all day", "Free 6.5 h", "Leave"). Free time
+    under an hour says nothing (Isaac, 22 October: "Free 0.5 h" was under
+    nine names), so the people with room stand out. */
 export function dayLine(d: { blocks: DayBlock[]; away: DayAway[] }): string {
   const whole = d.away.find((a) => a.whole);
   if (whole) return whole.word;
@@ -266,7 +303,7 @@ export function dayLine(d: { blocks: DayBlock[]; away: DayAway[] }): string {
   }
   if (WORK_END > t) free += WORK_END - t;
   if (free >= WORK_END - WORK_START) return "Free all day";
-  if (free < 30) return "Booked all day";
+  if (free < 60) return "";
   return `Free ${Math.round((free / 60) * 2) / 2} h`;
 }
 

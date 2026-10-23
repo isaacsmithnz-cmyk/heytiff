@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useContext, useEffect, useMemo, useState, useTransition, type DragEvent, type MouseEvent } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState, useTransition, type CSSProperties, type DragEvent, type MouseEvent } from "react";
 import { Button, IconButton } from "@/components/parts/button";
 import { Tray } from "@/components/parts/tabs";
 import { TextInput } from "@/components/parts/field";
@@ -37,6 +37,7 @@ import {
   listDays,
   snap,
   spanWord,
+  stackDay,
   stepDay,
   toHHMM,
   weekLine,
@@ -70,7 +71,73 @@ function weekLabel(days: readonly string[]): string {
 }
 
 const jobName = (j: Pick<PanelJob, "number" | "client">) => (j.number ? `${j.number} ${j.client}` : j.client);
-const blockName = (b: DayBlock) => [b.number, b.client].filter(Boolean).join(" ") || "A job";
+
+/** "Alex Lorenz" → "Alex L": the board's names, none cut off */
+const shortName = (name: string) => {
+  const w = name.trim().split(/\s+/);
+  return w.length > 1 ? `${w[0]} ${w[w.length - 1]!.charAt(0)}` : name;
+};
+
+/* A BOOKING'S CARD (Isaac, 23 October 2026, E of "Schedule card colour":
+   "the job number in a coloured box, a coloured hairline, the rest white").
+   The job's number in a solid box of its colour on the left, the rest white
+   inside a hairline of the same colour, three lines: the client; the suburb;
+   the job's type, its start time, a person and how many are booked on it, and
+   where it's up to. A done card's colour goes grey; one that clashes with
+   another of the person's bookings wears an orange edge. */
+const STATE_WORD = {
+  onsite: { tone: "good", word: "On site" },
+  done: { tone: "info", word: "Done" },
+  stale: { tone: "look", word: "Marked complete" },
+  unsuccessful: { tone: "wrong", word: "Didn't go ahead" },
+} as const;
+
+export function BookingCard({
+  blk,
+  crew,
+  when,
+  clash = false,
+  className,
+  style,
+}: {
+  blk: DayBlock;
+  /** how many are booked on the job that day */
+  crew: number;
+  /** when it starts, "7 am", or "3 days, 7 am" in the week (Isaac, 23
+      October: "install, start time then ppl number") */
+  when: string;
+  clash?: boolean;
+  className: string;
+  style: CSSProperties;
+}) {
+  const state = blk.state ? STATE_WORD[blk.state] : null;
+  return (
+    <Link
+      href={jobPageHref(blk.jobUuid)}
+      className={`${className} sc-card sc-card--${blk.state === "done" ? "grey" : blk.hue}${clash ? " sc-clash" : ""}`}
+      style={style}
+    >
+      {blk.number ? <span className="sc-cn">{blk.number}</span> : null}
+      <span className="sc-cb">
+        <Fade className="sc-c1">{blk.client ?? "A job"}</Fade>
+        {blk.suburb ? <Fade className="sc-c2">{blk.suburb}</Fade> : null}
+        <span className="sc-c3">
+          {blk.kind ? <b>{blk.kind}</b> : null}
+          <span>{when}</span>
+          <span className="sc-crew" aria-label={crew === 1 ? "1 person booked" : `${crew} people booked`}>
+            <Icon name="user" size={12} />
+            {crew}
+          </span>
+          {state ? (
+            <StateWord tone={state.tone} className="sc-cs">
+              {state.word}
+            </StateWord>
+          ) : null}
+        </span>
+      </span>
+    </Link>
+  );
+}
 
 /* THE JOBS PANEL IS READ ONCE AND KEPT (Isaac, 20 October: switching was
    slow, and three seconds of it was this list, which no switch changes). The
@@ -360,13 +427,20 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
 /* ── the rows ── */
 
 /** A person's name: a door to their regular days off where there is one. */
-function Who({ row, line, door }: { row: PersonRow; line: string; door?: () => void }) {
+function Who({ row, line, door, clash = false }: { row: PersonRow; line: string; door?: () => void; clash?: boolean }) {
   const body = (
     <>
       <Initials name={row.name} beside size={32} />
       <span className="sc-pn">
-        <Fade className="sc-name">{row.name}</Fade>
-        <em>{line}</em>
+        <Fade className="sc-name">{shortName(row.name)}</Fade>
+        {/* state is a word in its colour (rule 17): two at once needs a look, free time is good */}
+        {clash ? (
+          <StateWord tone="look">Two at once</StateWord>
+        ) : line.startsWith("Free") ? (
+          <StateWord tone="good">{line}</StateWord>
+        ) : line ? (
+          <em>{line}</em>
+        ) : null}
       </span>
     </>
   );
@@ -419,9 +493,15 @@ function DayRows({ board, held, at, busy, setAt, dropOn, nameDoor }: RowsProps) 
         const fit: Fit | null = held ? fitOf(d, start, end) : null;
         const hot = !!held && at?.staff === row.staffUuid;
         const dim = !!fit && (fit.kind === "busy" || fit.kind === "away");
+        const stack = stackDay(d.blocks);
         return (
-          <div key={row.staffUuid} className={`sc-row${dim ? " sc-dim" : ""}${hot ? " sc-hot" : ""}`}>
-            <Who row={row} line={busy === row.staffUuid ? "Booking" : dayLine(d)} door={nameDoor(row)} />
+          <div
+            key={row.staffUuid}
+            className={`sc-row${dim ? " sc-dim" : ""}${hot ? " sc-hot" : ""}`}
+            /* a line a booking, where two are at once (the row's own 64 is the first) */
+            style={stack.lines > 1 ? { minHeight: `calc(64px + ${stack.lines - 1} * 56px)` } : undefined}
+          >
+            <Who row={row} line={busy === row.staffUuid ? "Booking" : dayLine(d)} door={nameDoor(row)} clash={stack.clash.size > 0 && busy !== row.staffUuid} />
             <div
               className="sc-track"
               onDragOver={(e) => {
@@ -451,17 +531,19 @@ function DayRows({ board, held, at, busy, setAt, dropOn, nameDoor }: RowsProps) 
                 </div>
               ))}
               {d.blocks.map((blk) => (
-                <Link
+                <BookingCard
                   key={blk.key}
-                  href={jobPageHref(blk.jobUuid)}
-                  className={`sc-blk sc-blk--${blk.hue}`}
-                  style={{ left: `${pct(blk.startMin, a, b)}%`, width: `${pct(blk.endMin, a, b) - pct(blk.startMin, a, b)}%` }}
-                >
-                  <Fade className="sc-bn">{blockName(blk)}</Fade>
-                  <Fade className="sc-bl">
-                    {[blk.suburb, spanWord(blk.startMin, blk.endMin), blk.with.length ? `with ${blk.with.join(", ")}` : null].filter(Boolean).join(", ")}
-                  </Fade>
-                </Link>
+                  blk={blk}
+                  crew={blk.with.length + 1}
+                  when={clockWord(blk.startMin, true)}
+                  clash={stack.clash.has(blk.key)}
+                  className="sc-blk"
+                  style={{
+                    left: `${pct(blk.startMin, a, b)}%`,
+                    width: `${pct(blk.endMin, a, b) - pct(blk.startMin, a, b)}%`,
+                    top: `calc(6px + ${stack.line.get(blk.key) ?? 0} * 56px)`,
+                  }}
+                />
               ))}
               {fit && (fit.kind === "free" || fit.kind === "part") ? (
                 <div
@@ -536,18 +618,14 @@ function WeekRows({ board, held, at, busy, setAt, dropOn, nameDoor }: RowsProps)
                 />
               ))}
               {weekBars(row).map((w) => (
-                <Link
+                <BookingCard
                   key={w.key}
-                  href={jobPageHref(w.blk.jobUuid)}
-                  className={`sc-wbar sc-blk--${w.blk.hue}`}
+                  blk={w.blk}
+                  crew={w.blk.with.length + 1}
+                  when={`${w.last > w.first ? `${w.last - w.first + 1} days, ` : ""}${clockWord(w.blk.startMin, true)}`}
+                  className="sc-wbar"
                   style={{ gridColumn: `${w.first + 1} / ${w.last + 2}` }}
-                >
-                  <Fade className="sc-bn">{blockName(w.blk)}</Fade>
-                  <Fade className="sc-bl">
-                    {w.last > w.first ? `${w.last - w.first + 1} days, ` : ""}
-                    {spanWord(w.blk.startMin, w.blk.endMin)}
-                  </Fade>
-                </Link>
+                />
               ))}
               {row.days.map((d, i) =>
                 d.away.map((x) => (
@@ -727,7 +805,8 @@ function JobsPanel({
                 <span className="sc-jt">
                   <Fade className="sc-jn">{jobName(j)}</Fade>
                   <Fade className="sc-jl">{[j.site, j.kind].filter(Boolean).join(", ")}</Fade>
-                  {j.state ? <StateWord tone={j.tone}>{j.state}</StateWord> : null}
+                  {/* every job on To book is waiting for a day: the tab says it once */}
+                  {j.state && tab !== "book" ? <StateWord tone={j.tone}>{j.state}</StateWord> : null}
                 </span>
               </button>
             </li>

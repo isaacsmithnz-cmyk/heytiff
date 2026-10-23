@@ -92,7 +92,6 @@
 /* the date under the clock — .45 is the alpha that LOOKS safe and is 4.46 */
 .fg .topbar .tbclock em { font-style:normal; font-size:12px; font-weight:600; color:var(--on-ink-q); }
 
-
 /* BOTH EDGES, OR EVERY SCREEN IN THE APP SITS OFF ITS OWN CENTRE.
 
    `stable` reserves the scrollbar's width on the inline-end edge only. Every
@@ -260,7 +259,6 @@
 .fg .nb-whenline { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .nb-whenline svg { color:var(--q); flex:0 0 auto; }
 .fg .nb-whensum { font-size:13px; font-weight:600; color:var(--gray400); padding-left:24px; }
-
 
 /* The v3 row-of-stats `.hstats` / `.hstat` block lived here. It was dead — no
    screen rendered that markup after the hero became a greeting plus an action
@@ -505,7 +503,6 @@
    cross-fade it in/out. It's absolute + pointer-events:none, so it costs no layout. */
 .fg .gridbg { opacity:0; transition:opacity var(--t-fast) var(--ease); }
 
-
 /* top header becomes part of the black frame */
 .fg .topbar { background:transparent; -webkit-backdrop-filter:none; backdrop-filter:none; padding:0 24px; position:relative; }
 
@@ -608,7 +605,6 @@
 .fg .fr-tab button:focus-visible, .fg .fr-head button.fr-newtab:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .fr-head button.fr-newtab { display:flex; align-items:center; gap:8px; flex:0 0 auto; height:32px; padding:0 8px; font-size:14px; font-weight:500; color:var(--q); border-radius:var(--r-button); transition:color var(--t-fast) ease-out; }
 .fg .fr-head button.fr-newtab:hover { color:var(--ink); }
-
 
 /* ===== HeyTiff · Staff Profile — edit profile, in the app design language ===== */
 
@@ -4032,7 +4028,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .xc-owed b { font-size:24px; font-weight:700; letter-spacing:-.02em; color:var(--ink); font-variant-numeric:tabular-nums; }
 .fg .xc-owed em { flex:1 1 100%; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
 
-
 .fg .xc-rec { font-size:12px; font-weight:700; color:var(--ink); text-decoration:none; border-bottom:1px solid var(--line); }
 .fg .xc-cancel { font-size:12px; font-weight:700; color:var(--gray500); padding:2px 8px; border-radius:var(--r-control); transition:color var(--t-fast) var(--ease); }
 .fg .xc-cancel:hover:not(:disabled) { color:var(--bad-t); }
@@ -4073,17 +4068,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 /* The stat tile is a link now that expenses are real. */
 .fg a.stat { text-decoration:none; color:inherit; transition:transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .fg a.stat:hover { }
-
-
-/* ── Workboard (.wb-*) ─────────────────────────────────────────────────────
-   The projects & maintenance board. Two lives, one markup: the normal page,
-   and DISPLAY MODE — the identical page with the app frame taken away (see
-   `html[data-wb-display]` in the wb2 block). No dark flip and no separate
-   composition: both were tried and both came out. The overdue pulse is a slow
-   breathe on the semantic danger colour (#e0264f), deliberately nothing like
-   a strobe. */
-
-.wb-board { display:flex; flex-direction:column; gap:16px; }
 
 .wb-day { padding:4px 0 2px; }
 .wb-dayhead { font-size:12px; font-weight:500; color:var(--gray500); margin:8px 0 4px; }
@@ -4383,10 +4367,7 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
    empties the results and lets go of the mirror's answer, so the native one
    comes off rather than sitting beside it doing half the job. */
 .wb2-find input::-webkit-search-cancel-button { -webkit-appearance:none; appearance:none; }
-.wb2-findx { width:24px; height:24px; flex:none; display:grid; place-items:center; border:0; border-radius:var(--r-pill);
-  padding:0; background:var(--tint-2); color:var(--gray700); cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-findx:hover { background:var(--tint-2); color:var(--ink); }
-.wb2-findx:focus-visible { outline:none; box-shadow:var(--ring);; }
+
 /* THE TAB ROW RUNS OUT OF ROOM BEFORE THE SEARCH DOES. Five tabs, the mirror
    chip and the field's 210px floor want ~955px of CARD, and the shell (rail +
    paddings) takes ~320px of viewport before the card gets any — so the row is
@@ -4466,7 +4447,6 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
 @keyframes wb2ModalIn { from { opacity:0; transform:translate(-50%,calc(-50% + 8px)); }
                         to   { opacity:1; transform:translate(-50%,-50%); } }
 @keyframes wb2CardOut { from { opacity:1; transform:none; } to { opacity:0; transform:translateY(-6px); } }
-.wb2-swap { animation:wb2CardIn .32s var(--ease) both; }
 
 /* THE CARD HEAD IS GONE (K9: icon tile, title, subtitle, status slot, every
    tab). Every tab on all three sides, and the search panel, open on the
@@ -4521,43 +4501,16 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
    next row built this way can't reintroduce it. */
 .wb2 [role="button"], .wb2-sheet [role="button"], .wb2-daymodal [role="button"] { cursor:pointer; }
 
-/* ── the triage list (Upcoming) ── */
-/* Six columns, and Frequency and Due are two of them: they used to share one
-   cell stacked on top of each other under a joint heading, which put "In 2
-   days" under a heading that said "Frequency" and left the row's one
-   two-line cell straddling every single-line cell beside it. */
-.wb2-trhd { display:grid; grid-template-columns:minmax(0,1fr) 72px 104px 118px 150px 200px; gap:12px; align-items:end; padding:8px 16px;
-  border-bottom:1px solid var(--wb2-line); font-size:12px; font-weight:500; color:var(--q); }
-.wb2-trhd-ck { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; }
-.wb2-trhd-ck em { display:block; font-style:normal; font-size:12px; font-weight:700; color:var(--gray500);
-  text-transform:none; text-align:center; padding-bottom:4px; border-bottom:2px solid var(--as, rgba(5,5,5,.2));
-  overflow:hidden; white-space:nowrap; }
 .wb2-wkhd { display:flex; align-items:baseline; gap:8px; padding:12px 16px 4px; font-size:12px; font-weight:500; color:var(--gray500); }
 .wb2-wkhd.dan { color:var(--wb2-dan-t); }
 .wb2-wkhd em { font-style:normal; font-size:12px; font-weight:600; text-transform:none; color:var(--q); }
-/* BASELINE, not centre. A row mixes one-line cells with two-line ones, and
-   centring made the one-liners float in the gap BETWEEN the two lines beside
-   them — "Not placed" sat halfway between "Quarterly" and the due chip, which
-   is what reads as crooked. Baseline puts every cell's FIRST line on one
-   line, which is what a person means by aligned. The gate strip opts back out
-   below: it is a control, not a sentence, and three pills whose only content
-   is a dot have no baseline worth aligning to. */
-.wb2-trj { display:grid; grid-template-columns:minmax(0,1fr) 72px 104px 118px 150px 200px; gap:12px; align-items:baseline; padding:12px 16px;
-  border-bottom:1px solid var(--wb2-line2); position:relative; transition:background var(--t-fast) var(--ease), transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.wb2-wkgrp:last-child .wb2-trj:last-child { border-bottom:0; }
-.wb2-trj:hover { background:var(--paper); z-index:1; }
-.wb2-trj:focus-visible { outline:none; box-shadow:inset var(--ring);; }
+
 .wb2-trj[data-sev="over"]:before, .wb2-trt { min-width:0; }
 .wb2-trt b { display:block; font-size:14px; font-weight:700; }
 .wb2-trt em { display:block; font-style:normal; font-size:12px; color:var(--gray500); font-weight:500; margin-top:2px;
   overflow:hidden; white-space:nowrap;
   -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.wb2-trref { font-size:12px; font-weight:700; color:var(--gray500); overflow:hidden; white-space:nowrap; font-variant-numeric:tabular-nums; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.wb2-trcad { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500);
-  overflow:hidden; white-space:nowrap;
-  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.wb2-trw { display:block; min-width:0; }
-.wb2-trw .wb2-chip { overflow:hidden; display:block; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
+
 .wb2-trd { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .wb2-trd b { font-size:13px; font-weight:700; }
 .wb2-trd em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); display:flex; align-items:center; gap:4px; min-width:0; overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
@@ -4565,7 +4518,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-av { width:18px; height:18px; border-radius:var(--r-control); background:var(--tint-2); color:var(--gray700);
   display:inline-grid; place-items:center; font-size:12px; font-weight:700; flex:none; }
 .wb2-trck { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; align-items:center; align-self:center; }
-.wb2-trnote { grid-column:1/-1; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
+
 .wb2-ckall { grid-column:1/-1; height:30px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--tint);
   color:var(--ink); display:flex; align-items:center; justify-content:center; gap:8px; font-size:12px; font-weight:700; }
 /* Gates ticked but no day yet: still good news, but not the same news, so it
@@ -4579,179 +4532,14 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-ckq svg { color:var(--paper); background:var(--wb2-ok); border-radius:var(--r-control); padding:1px; width:15px; height:15px; }
 .wb2-ckq.on { background:var(--tint); border-color:var(--line); }
 
-/* ── urgent rows ── */
-/* The queue's two columns. Tasks ride the right lane behind a hair rule;
-   with only one side populated the grid collapses rather than reserving
-   empty space, and under 1100px it always stacks — a 400px-wide task lane
-   is worse than one below the work. */
-.wb2-urbody { padding:12px 16px 16px; }
-.wb2-urbody.twocol { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:start; gap:8px 24px; }
-.wb2-urqueue { display:flex; flex-direction:column; gap:8px; min-width:0; }
-.wb2-urgrp { display:flex; flex-direction:column; gap:2px; min-width:0; }
-.wb2-urside { position:relative; padding-left:24px; }
-.wb2-urside:before { content:""; position:absolute; left:0; top:4px; bottom:4px; width:1px; background:var(--wb2-line2); }
 .wb2-sect { font-size:12px; font-weight:500; color:var(--gray400);
   padding:4px 2px 4px; }
 @media (max-width:1100px) {
-  .wb2-urbody.twocol { grid-template-columns:minmax(0,1fr); }
-  .wb2-urside { padding-left:0; padding-top:4px; }
-  .wb2-urside:before { left:2px; right:2px; top:0; bottom:auto; width:auto; height:1px; }
+  
+  
+  
 }
 
-/* Tasks: the tick leads, because ticking is the whole interaction. */
-.wb2-tasks { display:flex; flex-direction:column; }
-.wb2-tk { display:flex; align-items:center; gap:12px; padding:8px 8px; border-radius:var(--r-button); transition:background var(--t-fast) var(--ease); }
-.wb2-tk:hover { background:var(--tint); }
-.wb2-tkb { width:22px; height:22px; flex:none; border-radius:50%; border:1.5px solid rgba(5,5,5,.22); background:var(--paper);
-  color:transparent; display:grid; place-items:center; cursor:pointer; transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-tkb:hover:not(:disabled) { border-color:var(--wb2-ok); background:var(--tint); color:var(--ink); }
-.wb2-tkb:disabled { opacity:.5; cursor:default; }
-.wb2-tkb:focus-visible { outline:none; box-shadow:var(--ring);; }
-.wb2-tkt { flex:1; min-width:0; }
-.wb2-tkt b { display:block; font-size:13px; font-weight:700; line-height:1.35; text-wrap:pretty; }
-.wb2-tkt em { display:block; font-style:normal; font-size:12px; color:var(--gray500); font-weight:600; margin-top:2px; }
-.wb2-tk .wb2-chip { flex:none; }
-
-/* A row is a LINE, not a card: the severity bar carries the state and the
-   group heading carries the grouping, so a box around each one only adds
-   edges to count. Boxed, a five-row queue read as five separate things to
-   deal with instead of one list to work down. */
-.wb2-ur { display:flex; align-items:center; gap:12px; border-radius:var(--r-button); padding:12px 12px 12px 12px;
-  position:relative; transition:background var(--t-fast) var(--ease); }
-.wb2-ur:hover { background:var(--tint); }
-.wb2-ur:focus-visible { outline:none; box-shadow:var(--ring);; }
-.wb2-urt { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
-.wb2-urt b { font-size:14px; font-weight:700; line-height:1.3; text-wrap:pretty; }
-.wb2-urt em { font-style:normal; font-size:12px; color:var(--gray500); font-weight:500;
-  overflow:hidden; white-space:nowrap;
-  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.wb2-urwhy { display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
-.wb2-ur .pbtn { flex:none; }
-
-/* ── the month ── */
-.wb2-mckey { display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:12px 16px; border-bottom:1px solid var(--wb2-line2);
-  font-size:12px; font-weight:700; color:var(--gray500); }
-.wb2-mckey span { display:inline-flex; align-items:center; gap:4px; }
-.wb2-mckey i { width:9px; height:9px; border-radius:0; flex:none; }
-.wb2-mcdow { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; padding:8px 16px 4px;
-  font-size:12px; font-weight:500; color:var(--q); }
-.wb2-mcdow span { text-align:left; padding-left:4px; }
-.wb2-mc { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; padding:4px 16px 16px; }
-/* Taller than the content needs. A day cell is a place you put work, so it
-   reads as a container with room in it; squeezed to the text it reads as a
-   label. The load sits at the BOTTOM, centred — the date anchors the top
-   left, the work collects at the foot, and a row of days compares at a
-   glance because every cluster starts from the same baseline. */
-.wb2-mcc { position:relative; min-height:104px; border:1px solid var(--wb2-line2); border-radius:var(--r-button); padding:8px;
-  background:var(--paper); display:flex; flex-direction:column; gap:4px; text-align:left; }
-.wb2-mcc.past { opacity:.6; }
-.wb2-mcc.we { background:var(--tint); }
-/* Today is the ink outline and a badge behind the number — the accent ring
-   competed with the state tints for the same job (they say "what kind of
-   day"; this says "you are here"). */
-.wb2-mcc.today { border-color:rgba(5,5,5,.55); box-shadow:0 0 0 1px rgba(5,5,5,.14);; }
-.wb2-mcc.today .wb2-mcn b { display:inline-grid; place-items:center; min-width:22px; height:22px; padding:0 4px;
-  border-radius:var(--r-control); background:var(--tint-2); color:var(--ink); }
-.wb2-mcc.today .wb2-mcn i { color:var(--gray700); }
-/* A day's colour has to carry across the room — this is the wall-screen
-   view as well as the desk one. Tints sit at the strength the handoff set;
-   anything fainter and a red Monday and a green Monday look alike at 2 m. */
-.wb2-mcc[data-tone="go"] { background:var(--tint-2); border-color:var(--line); }
-.wb2-mcc[data-tone="soon"] { background:var(--warn-tint); border-color:var(--warn); }
-.wb2-mcc[data-tone="flash"] { background:var(--bad-tint); border-color:var(--bad); }
-.wb2-mcc[data-tone="over"] { background:var(--bad-tint); border-color:var(--bad); }
-.wb2-mcc[data-tone="done"] { background:var(--tint); border-color:var(--line); }
-.wb2-mcc[data-tone="done"] .wb2-mcn { color:var(--gray400); }
-.wb2-mcc:hover { border-color:rgba(5,5,5,.2); }
-.wb2-mcc { transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
-/* A settled day earns a proper mark, not a hairline tick: a filled disc the
-   same size as the dot cluster it replaces, so a closed day reads at a
-   glance across the room on the wall screen. */
-.wb2-mcdone { margin-top:auto; display:grid; place-items:center; padding:4px 0 4px; }
-.wb2-mcdone span { display:grid; place-items:center; width:24px; height:24px; border-radius:50%;
-  background:var(--wb2-ok); color:var(--paper); box-shadow:none;; }
-.wb2-mcc[data-tone="done"] .wb2-mcdone span { background:var(--ok-t); }
-/* `.wb2-mcsum` and `.wb2-mchead` went into the toolbar (`.wb2-tbsum`,
-   `.wb2-tbstep` + `.wb2-tbh2`). */
-.wb2-mcc[data-tone="flash"] { animation:wb2Flash 2.4s ease-in-out infinite; }
-@keyframes wb2Flash { 0%,100% {  box-shadow:0 0 0 0 var(--bad); } 50% {  box-shadow:0 0 0 5px var(--bad); } }
-.wb2-mcn { display:flex; align-items:baseline; gap:4px; font-variant-numeric:tabular-nums; }
-.wb2-mcn b { font-size:13px; font-weight:700; color:var(--gray700); }
-.wb2-mcn em { font-style:normal; font-size:12px; font-weight:500;
-  color:var(--gray500); }
-.wb2-mcn i { margin-left:auto; font-style:normal; font-size:12px; font-weight:500; color:var(--ink2); }
-/* the day the month turns leads with a darker number — the row reads as a
-   sequence, and the boundary is where you look twice */
-.wb2-mcc.mstart .wb2-mcn b { color:var(--ink); }
-/* Each dot CARRIES its job's name and service, hidden here and unhidden when
-   display mode gives the cell room for them (`i > *` below). One markup, two
-   densities — the alternative was a second calendar, and two calendars drift. */
-.wb2-mcdots i > * { display:none; }
-.wb2-mcdots { margin-top:auto; display:flex; align-items:center; justify-content:center; gap:4px; flex-wrap:wrap;
-  padding:8px 2px 4px; }
-.wb2-mcdots i { width:11px; height:11px; border-radius:50%; background:rgba(5,5,5,.25); flex:none; }
-.wb2-mcdots i[data-tone="go"] { background:var(--wb2-ok); }
-.wb2-mcdots i[data-tone="soon"] { background:var(--wb2-warn); }
-.wb2-mcdots i[data-tone="flash"], .wb2-mcdots i[data-tone="over"] { background:var(--wb2-dan); }
-.wb2-mcdots i[data-tone="done"] { background:rgba(5,5,5,.22); }
-.wb2-mcdots > b { font-size:12px; font-weight:700; color:var(--gray500); }
-.wb2-mcloose { padding:0 16px 16px; font-size:13px; color:var(--gray500); font-weight:600; margin:0; }
-
-/* ── the Schedule tab: the day board (All jobs' fourth side) ──
-   One lane per staff member, dispatched bookings on a time rail. Every class
-   here starts `wb2-sch` ON PURPOSE: the `.fg button` reset is (0,1,1) and
-   silently strips the background off any single-class button — the wb2-
-   prefix is what opts these out (see the carve-out at the top of this file).
-   A block rendered transparent in the first prototype is how we know. */
-
-/* THE THREE-STATION DIARY HEADER AND THE SEVEN-DAY STRIP WENT WITH THE FOLD
-   — see "THE SCHEDULE'S ONE TOOLBAR" below, and the Schedule commit for what
-   each band cost. The header was a GRID because as flex items with auto
-   margins its stations slid as the contents changed: the weekday is wider on
-   a Wednesday, the Today pill comes and goes, and the chips vanish on an
-   empty day, which threw the stepper against the right-hand edge exactly
-   while you were clicking through empty weeks. A control that jumps is one
-   you have to find again. The row that replaced it holds still for the same
-   reason and by the same means — `flex:none` on every station — in a third
-   of the height, and the strip's day cards are the chips on it. */
-
-/* THE DAYS, as chips on the toolbar: the weekday quiet and the date in ink,
-   and nothing else — the count that sat beside each date went (Isaac,
-   2026-09-17). The chosen day is filled in ink, which is selection as a fill
-   (law 14) and the same ink the filter chips choose with. Baseline-aligned,
-   so the smaller weekday sits on the date's line rather than floating in the
-   middle of it. */
-/* THE WEEK SPANS THE ROW. Seven chips took their own labels' width and the
-   row stopped halfway, with the rest of it empty up to "Synced" (Isaac,
-   2026-09-19: "they only go about halfway across"). They are seven equal
-   columns now, filling everything between the date and the mirror's line —
-   the strip reads as the week it is, and each day is a bigger target. */
-.wb2-schdays { flex:1 1 auto; min-width:0; display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:4px; }
-.wb2-schday { min-width:0; display:flex; align-items:baseline; justify-content:center; gap:4px; height:32px; padding:0 8px;
-  border:0; border-radius:var(--r-control); background:transparent; font:inherit; line-height:32px;
-  cursor:pointer; white-space:nowrap; transition:background-color var(--t-fast) var(--ease); }
-.wb2-tbar > .wb2-schdays ~ .wb2-sm8 { margin-left:24px; }
-.wb2-schday:hover:not(.on) { background:var(--tint); }
-.wb2-schday:focus-visible { outline:none; box-shadow:var(--ring); }
-.wb2-schday .cw { font-size:var(--fs-1); font-weight:var(--fw-label); color:var(--q); }
-.wb2-schday .cd { font-size:var(--fs-2); font-weight:var(--fw-display); color:var(--ink); font-variant-numeric:tabular-nums; }
-.wb2-schday.on { background:var(--ink); }
-.wb2-schday.on .cw { color:var(--on-ink-q); }
-.wb2-schday.on .cd { color:var(--paper); }
-
-/* native day-bookings — a shelf, never a lane. A project trip or maintenance
-   visit is booked to a DAY, with no clock and mostly no person; laying it on
-   the rail would invent both. Above the lanes, labelled with whose board it
-   is — the lesson from the maintenance calendar's removed Everything view. */
-.wb2-schshelf { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:12px 16px 0; }
-.wb2-schshelf > b { font-size:12px; font-weight:500; color:var(--gray400); }
-.wb2-schsv { display:inline-flex; align-items:center; gap:8px; padding:4px 12px; border-radius:var(--r-button);
-  background:var(--info-tint); font-size:12px; font-weight:700; color:var(--wb2-cy); cursor:pointer; }
-.wb2-schsv:hover { background:var(--info-tint); }
-.wb2-schsv:focus-visible { outline:none; box-shadow:var(--ring);; }
-.wb2-schsv em { font-style:normal; font-weight:600; color:var(--gray500); }
-
-.wb2-schload { padding:12px 16px; }
 
 /* ── THE SCHEDULE'S ONE TOOLBAR ──
    Three bands stood between the card and the first crew — the date with its
@@ -4781,8 +4569,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-tbar { flex:none; display:flex; align-items:center; gap:12px; height:48px; padding:0 24px;
   border-bottom:1px solid var(--line);
   position:sticky; top:0; z-index:var(--z-sticky); background:var(--paper); }
-/* the far end of the row: a tab's one action, or the window a list covers */
-.wb2-tbend { margin-left:auto; flex:none; display:flex; align-items:center; gap:8px; }
+
 /* a button in the row takes the row's control height — the header band's 32 —
    rather than the page's 42 (law 33). Stated as `.wb2 .wb2-tbar .pbtn` with
    both states named, because `.wb2 .pbtn:not(.ghost)` is (0,3,0) and sets 38. */
@@ -4790,135 +4577,20 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* a sentence that IS a state — "3 to confirm before Fri 14 Aug" — is set in
    the state's colour, as a word would be (law 26) */
 .wb2-tbh2.warn, .wb2-tbsum .warn { color:var(--warn-t); }
-.wb2-tbstep { display:flex; align-items:center; gap:4px; flex:none; }
-/* a stepper is two buttons, so it draws two: a 28px square with the one
-   hairline, where a bare chevron read as a glyph floating beside the date */
-.wb2-tbarrow { width:28px; height:28px; flex:none; display:grid; place-items:center; padding:0;
-  border:1px solid var(--line); border-radius:var(--r-control); background:var(--paper); color:var(--q); cursor:pointer;
-  transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-tbarrow:hover { background:var(--tint); color:var(--ink); }
-.wb2-tbarrow:focus-visible { outline:none; box-shadow:var(--ring); }
+
 /* the open day is the row's title — a heading in a section, not a display */
 .wb2-tbh2 { flex:none; margin:0; font-size:var(--fs-4); font-weight:var(--fw-heading);
   white-space:nowrap; }
-/* the one link token: ink, underlined (law 34) */
-.wb2-tbtoday { flex:none; padding:0; border:0; background:none; font:inherit; font-size:var(--fs-2);
-  font-weight:var(--fw-label); color:var(--link); text-decoration:underline;
-  text-underline-offset:3px; text-decoration-thickness:1px; cursor:pointer; }
-.wb2-tbtoday:hover { text-decoration-thickness:2px; }
-.wb2-tbtoday:focus-visible { outline:none; border-radius:var(--r-control); box-shadow:var(--ring); }
+
 .wb2-tbsep { width:1px; height:20px; flex:none; background:var(--line); }
-
-
-/* the capacity window's grain beside its range — "Four weeks" under
-   "14 Sept – 11 Oct" was the chip that named the window; it is a label now */
-.wb2-tbwin { flex:none; font-size:var(--fs-2); font-weight:var(--fw-label); color:var(--q);
-  white-space:nowrap; }
-/* the crew control keeps its word and the row's control height */
-.wb2-tbar .wb2-scmcrew { flex:none; height:28px; }
-
-/* the figures are a sentence, not three chips: a chip is for something you
-   tap (law 26), and nobody taps these */
-.wb2-tbsum { margin-left:auto; min-width:0; overflow:hidden;
-  white-space:nowrap; font-size:var(--fs-2); font-weight:var(--fw-label); color:var(--q);
-  font-variant-numeric:tabular-nums; }
 
 /* THE MIRROR'S FRESHNESS closes every toolbar (board/sm8-chip.tsx says why it
    left the header): a quiet line with a dot in its state's colour. It takes
    the far end on a row with nothing else pushed there, and stands a gap off
    whatever is. */
 .wb2-tbar > .wb2-sm8 { margin-left:auto; }
-.wb2-tbar > :is(.wb2-tbsum, .wb2-tbend) ~ .wb2-sm8 { margin-left:16px; }
 
-/* ── THE INSPECTOR ─────────────────────────────────────────────────────
-   What is selected on the board, beside the board (board/inspector.tsx says
-   what it replaced and why). One 400px column with a hairline on its left:
-   no second grey behind it, because content and panel are both paper and the
-   one hairline is what docs/design.md gives a boundary between two of them.
-
-   The board and the panel each scroll on their own, so the toolbar above
-   them stays put — which means a panel that holds a split must not scroll
-   itself, or the toolbar would go with it. */
-.wb2-split { flex:1; min-height:0; display:flex; }
-.wb2-splitm { flex:1; min-width:0; min-height:0; overflow:auto; }
 .fg .page.full .wb2-panel:has(> .wb2-split) { overflow:hidden; }
-
-.wb2-insp { flex:none; width:400px; min-height:0; display:flex; flex-direction:column;
-  border-left:1px solid var(--line); background:var(--paper); }
-.wb2-insph { flex:none; display:flex; align-items:flex-start; gap:12px; padding:24px 24px 16px; }
-.wb2-inspt { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
-/* the line above the title: the number and whose it is, or the day's figures
-   — a quiet label, sentence case, no tracking (law 10) */
-.wb2-inspk { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 8px; font-size:13px; font-weight:500; color:var(--q); }
-.wb2-inspk b { font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
-/* the job's number in the same figure box the block draws it in, so the
-   panel and the rectangle it describes read as one thing */
-.wb2-inspk b.wb2-inspno { align-self:center; padding:0 4px; border-radius:var(--r-control); background:var(--tint-2);
-  font-size:12px; line-height:20px; }
-/* where and when, under the title: a sentence, not a chain (law 21) */
-.wb2-inspm { font-size:13px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
-/* the panel's title is a section title, not a display: 20/600 */
-.wb2-insp h3 { margin:0; font-size:20px; font-weight:600; line-height:1.25; color:var(--ink);
-  overflow-wrap:anywhere; text-wrap:balance; }
-/* the close cross — the one icon-only button law 25 allows, and it says so */
-.wb2-inspx { flex:none; width:28px; height:28px; display:grid; place-items:center; padding:0; border:0;
-  border-radius:var(--r-control); background:transparent; color:var(--q); cursor:pointer;
-  transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-inspx:hover { background:var(--tint); color:var(--ink); }
-.wb2-inspx:focus-visible { outline:none; box-shadow:var(--ring); }
-.wb2-inspb { flex:1; min-height:0; overflow:auto; display:flex; flex-direction:column; gap:24px;
-  padding:0 24px 24px; }
-/* the foot is pinned: the action is always where it was, however long the
-   reading above it runs */
-.wb2-inspa { flex:none; display:flex; gap:8px; padding:16px 24px; border-top:1px solid var(--line); }
-.wb2-inspa .pbtn { white-space:nowrap; }
-
-/* THE LEDGER — the staff card's `.pdrow`, verbatim in its numbers: a 132px
-   label column, the label 12/500 in the quiet colour, the answer 16/600 in
-   ink beside it, a hairline between rows. One vocabulary for a fact, in two
-   places, rather than a second dress for the same kind of thing. */
-.wb2-insl { margin:0; display:flex; flex-direction:column; }
-.wb2-insr { display:grid; grid-template-columns:132px minmax(0,1fr); gap:12px; align-items:baseline;
-  padding:8px 0; border-top:1px solid var(--line); }
-.wb2-insr:last-child { border-bottom:1px solid var(--line); }
-.wb2-insr dt { font-size:12px; font-weight:500; color:var(--q); }
-.wb2-insr dd { margin:0; min-width:0; font-size:16px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
-.wb2-insr dd small { display:block; margin-top:4px; font-size:12px; font-weight:500; }
-.wb2-inspnone { font-weight:500; color:var(--q); }
-.wb2-inspcat { display:inline-flex; align-items:center; gap:8px; }
-
-/* STATE IS A WORD, in its state colour, with no fill and no box (law 26) —
-   the row's own tones, read as words */
-.wb2-inspword { color:var(--ink); }
-.wb2-inspword.ok { color:var(--ok-t); }
-.wb2-inspword.warn { color:var(--warn-t); }
-.wb2-inspword.dan { color:var(--bad-t); }
-
-/* SOMETHING YOU READ is a group, not a card (law 9): a quiet label and the
-   text, no box */
-.wb2-insg { display:flex; flex-direction:column; gap:8px; }
-.wb2-insgl { font-size:12px; font-weight:500; color:var(--q); }
-.wb2-insg p { margin:0; font-size:14px; font-weight:400; line-height:1.5; color:var(--ink);
-  overflow-wrap:anywhere; white-space:pre-wrap; }
-
-/* the job's key, drawn by `.wb2-scfkey`, sits in an answer cell now and takes
-   a body word's size and weight. Doubled class because `.wb2-scfkey span`
-   (12/700 quiet, for a card's footer) comes later in the sheet at the same
-   weight and was winning. */
-.wb2-scfkey.wb2-inspkey span { font-size:14px; font-weight:500; color:var(--ink); }
-
-/* who is on the job: a name, the hours they hold, what their booking is doing */
-.wb2-inspcrew { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; }
-.wb2-inspcrew li { display:grid; grid-template-columns:minmax(0,1fr) auto; column-gap:12px;
-  padding:8px 0; border-top:1px solid var(--line); }
-.wb2-inspcrew li:last-child { border-bottom:1px solid var(--line); }
-.wb2-inspcrew b { min-width:0; font-size:14px; font-weight:600; color:var(--ink);
-  overflow:hidden; white-space:nowrap;
-  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.wb2-inspcrew span { font-size:14px; font-weight:500; color:var(--ink); font-variant-numeric:tabular-nums; }
-.wb2-inspcrew em { grid-column:1 / -1; font-style:normal; font-size:12px; font-weight:500; color:var(--q); }
-/* finished work is neutral on the rail and neutral here */
-.wb2-inspcrew li.done b, .wb2-inspcrew li.done span { color:var(--q); }
 
 /* ── WHAT IS SELECTED, ON THE BOARD ──
    Selection is a fill (law 14) — on a list row, the ink tint. A schedule
@@ -4932,7 +4604,6 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
    either. Both are stated at the reset's own weight plus one. */
 button.wb2-ajr.as-btn:hover { background:var(--tint); }
 button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint-2); }
-.wb2-schb.on { outline:2px solid var(--ink); outline-offset:-2px; z-index:3; }
 
 /* ── THE FILTER CHIPS ──
    What a person taps keeps a chip's form (law 26): a hairline and the
@@ -4952,519 +4623,27 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .wb2-fchip.on { background:var(--ink); border-color:var(--ink); color:var(--paper); font-weight:600; }
 .wb2-fchip.on i, .wb2-fchip.on i.warn, .wb2-fchip.on i.dan { color:var(--paper); }
 
-/* the list's rows sit under a toolbar now, so their own top gutter goes */
-.wb2-splitm > .wb2-sect:first-child { padding-top:12px; }
-/* A list under the toolbar stands in the toolbar's 24px gutter, and its group
-   heads stand with the rows: the shared `.wb2-sect` sits at 2px, which is
-   right heading a strip inside a card and wrong heading a ledger that runs
-   to the well's edge. */
-.fg .page.full .wb2-splitm > .wb2-ajr { padding-left:24px; padding-right:24px; }
-.fg .page.full .wb2-splitm > .wb2-sect { padding:12px 24px 4px; }
-
-/* ── the board ── */
-.wb2-schboard { display:flex; }
-
-/* the frozen name column */
-.wb2-schnames { flex:none; width:148px; border-right:1px solid var(--wb2-line2); background:var(--paper); z-index:2; }
-/* the column's head says how many people are out, in a label's dress */
-.wb2-schnh { height:32px; display:flex; align-items:center; padding:0 16px; border-bottom:1px solid var(--wb2-line2);
-  font-size:var(--fs-1); font-weight:var(--fw-label); color:var(--q); white-space:nowrap; font-variant-numeric:tabular-nums; }
-.wb2-schn { display:flex; flex-direction:column; justify-content:center; gap:2px;
-  padding:0 12px 0 16px; border-bottom:1px solid var(--wb2-line2); }
-/* The dot made this a flex row, and `text-overflow` does not reach an
-   anonymous flex item — a long name clipped mid-letter with no ellipsis. The
-   name gets its own box to be truncated in. */
-.wb2-schn b { display:flex; align-items:center; gap:8px;
-  font-size:13px; font-weight:700; color:var(--ink);
-  overflow:hidden; white-space:nowrap; }
-.wb2-schnn { min-width:0; overflow:hidden; white-space:nowrap; flex:1; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-
-/* ── the presence dot ──
-   Who is actually out there, answered in the name column before you look at
-   the rail at all. Three states, and every one of them is a thing the data
-   says rather than a thing it implies:
-
-     on   — something of theirs recorded time. Green is never a fallback here;
-            it only appears where somebody actually clocked on.
-     wait — open work, none of it started, nothing overdue yet.
-     late — an open booking's start has gone with nothing against it.
-
-   "On a break" is deliberately absent. ServiceM8 tells you a tech clocked OFF
-   a job, not whether they are on a break or driving to the next one, and a dot
-   that guesses is worse than a dot that does not exist.
-
-   COLOUR IS NOT THE ONLY CARRIER, and does not need to be: every state here
-   summarises blocks that already say it in words on the rail. The dot is
-   emphasis, and `.wb2-sr` text beside it carries the word for anyone who
-   cannot see the colour. */
-.wb2-schpd { flex:none; width:8px; height:8px; border-radius:50%; }
-.wb2-schpd.on { background:var(--wb2-ok); }
-.wb2-schpd.wait { box-shadow:inset 0 0 0 1.5px var(--grey);; }
-.wb2-schpd.late { background:var(--wb2-dan); }
-/* the load, under the name and on its line: indented past the dot's seat
-   (8 + the 8 gap), so the two read as one entry */
-.wb2-schn em { padding-left:16px; font-style:normal; font-size:12px; font-weight:500; color:var(--q);
-  font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden;
-  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.wb2-schn.none b { color:var(--gray500); }
-
-/* the scrolling rail. The fade says there is more day to the right — and
-   lifts at the end, so it only ever promises what exists. */
-.wb2-schrailwrap { position:relative; flex:1 1 auto; min-width:0; }
-.wb2-schrailwrap::after { content:""; position:absolute; top:32px; right:0; bottom:0; width:32px;
-  pointer-events:none; z-index:4; background:linear-gradient(to right, rgba(255,255,255,0), var(--paper));
-  opacity:1; transition:opacity var(--t-fast) var(--ease); }
-.wb2-schrailwrap.atend::after { opacity:0; }
-.wb2-schrail { overflow-x:auto; overscroll-behavior-x:contain; }
-.wb2-schinner { position:relative; }
-.wb2-schhours { display:flex; height:32px; border-bottom:1px solid var(--wb2-line2); }
-.wb2-schhr { flex:none; padding-left:8px; font-size:12px; font-weight:500; color:var(--q);
-  border-left:1px solid var(--wb2-line2); display:flex; align-items:center; font-variant-numeric:tabular-nums; }
-.wb2-schhr:first-child { border-left:0; }
-
-.wb2-schlane { position:relative; border-bottom:1px solid var(--wb2-line2); }
-/* the hour grid, drawn once per lane as a background rather than 12 elements */
-.wb2-schlane::before { content:""; position:absolute; inset:0; pointer-events:none;
-  background-image:repeating-linear-gradient(to right, var(--wb2-line2) 0 1px, transparent 1px var(--hr)); }
-
-/* ── time off on a lane (leave to ServiceM8, part two) ──
-   ServiceM8's own word for it at the start of its span, on a plain band:
-   no cap, no wash, no number, because it is not work — it is time nobody can
-   be sent. It fills the lane of somebody with nothing booked; under a
-   working person's bookings it is a strip of its own on the same hours, so
-   a booking over it can never hide it. The word is ink at a label's size: it is
-   the whole message ("SICK", "TAFE"), and #5f6a79 on this ground is 4.6:1,
-   too near the floor for the one word a dispatcher must not miss. */
-.wb2-schaway { position:absolute; display:flex; align-items:flex-start; padding:4px 8px;
-  border-radius:var(--r-control); background:var(--tint-2); overflow:hidden; }
-.wb2-schaway > span:first-child { min-width:0; overflow:hidden; white-space:nowrap;
-  font-size:13px; font-weight:500; line-height:1.2; color:var(--ink);
-  flex:1; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-/* under a working person's bookings: one line, on the strip's middle */
-.wb2-schaway.strip { align-items:center; padding:0 8px; }
-.wb2-schaway.strip > span:first-child { font-size:12px; }
-
-/* the business shut for the day: the label, then ServiceM8's name for it */
-.wb2-schclosed > span { display:inline-flex; align-items:baseline; gap:8px; }
-.wb2-schclosed b { font-size:13px; font-weight:600; color:var(--ink); }
-.wb2-schclosed em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
-
-/* ── a block ──
-   NO TIME TEXT: its place on the rail already says when — writing it on the
-   card too is double handling. Times live in the title and the aria-label.
-
-   TWO LINES, 40px, THE HANDOFF'S. The client in ink with the job number in
-   a figure box beside it, then the category and the suburb in the quiet
-   colour on one line. It was three lines at 60px, every one of them 12px and
-   bold, which made a lane 72px and every block the same grey weight of text.
-
-   THE CAP CARRIES THE COLOUR, AND THE FILL CANNOT. ServiceM8 picks its
-   category colours to sit behind black text, so they arrive around 85%
-   lightness, and two attempts to build a fill out of that both failed loudly
-   enough to be worth naming here: at 50% alpha the colour landed near white
-   and lost its hue, and rebuilt at full chroma it painted ordinary work
-   redder than the board's own alarm. schedule-colour.ts settles it — the
-   ground is a 94% wash no hue can shout from, and the hue itself is the cap
-   below: the block's own leading edge, which law 14 keeps as this board's
-   vocabulary and the key mirrors. */
-.wb2-schb { position:absolute; display:flex; flex-direction:column; justify-content:center; gap:1px;
-  padding:0 8px 0 12px; border:0; border-radius:var(--r-control); text-align:left; overflow:hidden; cursor:pointer;
-  background:var(--fill, var(--tint));
-  transition:background-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-/* a hover is one step of the ink ladder over the block's own ground (law 23) */
-.wb2-schb:hover { z-index:3; background-color:color-mix(in srgb, var(--fill, var(--tint)) 94%, var(--ink)); }
-.wb2-schb::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--bar, var(--grey)); }
-.wb2-schb:focus-visible { outline:none; box-shadow:var(--ring); z-index:4; }
-.wb2-schb b, .wb2-schb em, .wb2-schb i { overflow:hidden; white-space:nowrap; line-height:1.2; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.wb2-schb b { font-size:13px; font-weight:700; color:var(--btext, var(--ink)); }
-.wb2-schb em, .wb2-schb i { font-style:normal; font-size:12px; font-weight:500; color:var(--q); }
-
-/* THREE LINES: the customer, then the job number and the category, then the
-   suburb. The number leads the second line in a figure box, so it is on
-   every card whatever the width — the box never gives ground (`flex:none`),
-   and the category after it takes the ellipsis. The box is a tint of the
-   label's own colour, so it needs no second measurement: it can only ever be
-   closer to the ground than the text is. */
-.wb2-schbm { display:flex; align-items:center; gap:4px; min-width:0; }
-.wb2-schbm em { min-width:0; }
-.wb2-schb u { flex:none; padding:0 4px; border-radius:var(--r-control); text-decoration:none;
-  font-size:12px; font-weight:600; line-height:16px; color:var(--btext, var(--ink));
-  background:var(--chip, var(--tint-2));
-  font-variant-numeric:tabular-nums; }
-
-/* DONE AND CLOSED — the block goes to the stated neutral with a hairline and
-   its cap comes off, so the only thing on the rail still carrying colour is
-   the work that still has to happen. Home's band draws a finished booking the
-   same way, so one booking is one colour on both screens. The tick is the
-   mark: a disc in the OK colour at the right-hand end, in the slot the issue
-   mark uses, so "this one is finished" and "look at this one" are read in one
-   place. */
-.wb2-schb.done { background:var(--pale, var(--tint)); box-shadow:inset 0 0 0 1px var(--pale-edge, var(--edge)); }
-.wb2-schb.done:hover { background-color:color-mix(in srgb, var(--pale, var(--tint)) 94%, var(--ink)); }
-.wb2-schb.done u { color:var(--ink); background:var(--tint-2); }
-.wb2-schb.done, .wb2-schb.done.tight { padding-right:calc(8px + 16px + 4px); }
-.wb2-schb.done::after { content:""; position:absolute; right:8px; top:50%; margin-top:-8px;
-  width:16px; height:16px; border-radius:50%; background:var(--ok-t); }
-/* the tick itself — two borders of an empty box, rotated. A done block has
-   no cap, so ::before is free for it; every inherited value is put back. */
-.wb2-schb.done::before { left:auto; right:14px; top:50%; bottom:auto; margin-top:-5px;
-  width:4px; height:8px; background:none;
-  border:solid var(--paper); border-width:0 2px 2px 0;
-  transform:rotate(40deg); z-index:1; }
-
-/* NOBODY HAS STARTED IT — the cap goes hollow and NOTHING ELSE CHANGES.
-   Filled/hollow is the one distinction ServiceM8's status cannot make: a job
-   sits at `Work Order` whether the tech is on site or still in bed. It only
-   ever appears on a day that has begun, for an account that records time at
-   all; the component owns those gates.
-
-   THE GROUND STAYS THE CATEGORY. "Not started" is not the exception on a
-   rail, it is the ordinary state of most of the day: the morning it was
-   measured, ten of twenty-one bookings were unstarted and seven more were
-   closed, and when unstarted went white the board said nothing about any of
-   them. So the state lives in the cap — filled means someone is on it,
-   hollow means it is still only booked. What is actually WRONG gets a mark
-   of its own, below.
-
-   THE HOLLOW CAP IS WIDER THAN THE FILLED ONE. A 1.5px outline round the
-   4px cap leaves a 1px gap, which reads as the same bar a shade lighter; at
-   6px the gap is 3px, and the cap reads as drawn rather than filled. */
-.wb2-schb.idle::before { width:6px; background:none; box-shadow:inset 0 0 0 1.5px var(--bar, var(--grey)); }
-
-/* PAST ITS START WITH NOTHING RECORDED — the one live block on the rail that
-   is actually wrong, and the only live one wearing a mark: a single disc in
-   the done tick's slot, at its size. The disc clears its own wash 3.77:1 at
-   the worst hue ServiceM8 can invent — a graphic that carries meaning, held
-   to the graphic floor — and the words ride the aria-label and the
-   inspector, so the mark is never alone. */
-.wb2-schb.late { padding-right:calc(8px + 16px + 4px); } /* the disc's offset, its width, a breath: geometry, not rhythm */
-.wb2-schb.late::after, .wb2-schb.dan::after { content:"!"; position:absolute; right:8px; top:50%; margin-top:-8px;
-  width:16px; height:16px; border-radius:50%; background:var(--wb2-dan);
-  display:flex; align-items:center; justify-content:center;
-  font-size:12px; font-weight:700; line-height:1; color:var(--ink); } /* v2: ink on every hue but blue (docs/design.md, the palette) — 5.6:1 on the red */
-
-/* MARKED COMPLETE IN SERVICEM8, BOOKING STILL ON THE DAY. ServiceM8 has no
-   per-booking status — a crew marking TODAY complete closes the whole job,
-   including the visit they are going back for. The rail refuses to repeat
-   that: the booking keeps its category and stays live, because it is still on
-   somebody's run, and the words on its second line say the rest. */
-
-/* DIDN'T GO AHEAD. It wore a 2px danger ring, and on a real day the jobs that
-   fell through were booked across two crews each — four red rectangles, the
-   loudest things on the board, around work that is not happening. It is
-   closed work, so it takes closed work's neutral and loses its cap, and the
-   issue disc says it went wrong: the same two marks as every other block, in
-   the same place. */
-.wb2-schb.dan { background:var(--pale, var(--tint)); box-shadow:inset 0 0 0 1px var(--pale-edge, var(--edge));
-  padding-right:calc(8px + 16px + 4px); }
-.wb2-schb.dan:hover { background-color:color-mix(in srgb, var(--pale, var(--tint)) 94%, var(--ink)); }
-.wb2-schb.dan::before { content:none; }
-.wb2-schb.dan u { color:var(--ink); background:var(--tint-2); }
-
-/* a quote is not won yet: a dashed edge in the category's own colour, where
-   the cap does not already stand. It was a 2px dash inset 4px, which drew a
-   second, darker box inside every quote. */
-.wb2-schb.qt { border:1px dashed var(--bar, var(--q)); border-left:0; }
-
-/* A BLOCK TOO NARROW FOR WORDS KEEPS ITS NUMBER — under 64px, a booking of
-   half an hour or less, where a name would be three letters and an ellipsis.
-   The customer is in the block's title, its label and the inspector. */
-.wb2-schb.tight { padding-left:8px; }
-.wb2-schb.tight b, .wb2-schb.tight em, .wb2-schb.tight i { display:none; }
-.wb2-schb.late.tight, .wb2-schb.dan.tight { padding-right:calc(8px + 16px + 4px); }
-/* THE CREW LINK USED TO BE A HOVER: hovering any block of a multi-person job
-   lifted its siblings and rested the rest of the day at opacity .35. It is a
-   CLICK now (see board/focus-inspector.tsx) — it answered a real question, but only
-   while the mouse was still, and never for a keyboard or a touchscreen. The
-   rules that dimmed forty blocks to emphasise four are gone with it, and the
-   block being read carries an ink outline instead. */
-
-/* THE FOCUS STACK WENT INTO THE INSPECTOR (board/focus-inspector.tsx). It
-   was a card per person over `.fl-ov`'s scrim; the inspector holds the same
-   `focusJobOf` reading beside the day with nothing to dismiss. What stays
-   from it is the key below — the swatches that decode a job's paint — which
-   the inspector draws in an answer cell. */
-
-/* THE STATUS AND WHAT THE COLOURS MEAN — the rail's footer key scoped to the
-   one job brought forward. Each swatch draws the treatment it decodes in the
-   job's OWN paint (the vars arrive from the component), so the key and the
-   block cannot disagree. Same anatomy as .wb2-schkey, restated rather than
-   reused so the footer can move without dragging the card. */
-.wb2-scfkey { display:flex; flex-wrap:wrap; gap:4px 12px; }
-.wb2-scfkey span { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:500; color:var(--q); }
-.wb2-scfkey i { width:18px; height:12px; border-radius:0; flex:none; font-style:normal; }
-/* `.fg .cat` is a home card's class and (0,2,0) outranks `.wb2-scfkey i`, so
-   the category swatch came out a 21px pill with a paper border; stated at
-   its own weight, it is the cap's colour in the key's rectangle again */
-.wb2-scfkey i.cat { position:static; height:12px; border:0; border-radius:0; background:var(--bar, var(--grey)); }
-.wb2-scfkey i.qt { background:var(--fill, var(--tint)); border:1px dashed var(--bar, var(--q)); }
-/* a started booking is its cap filled, and an unstarted one the same cap
-   hollow: the swatch IS the cap, so the key cannot describe a block nobody
-   is looking at */
-.wb2-scfkey i.idle { background:none; box-shadow:inset 0 0 0 1.5px var(--bar, var(--grey)); }
-.wb2-scfkey i.on, .wb2-scfkey i.stale { background:var(--bar, var(--grey)); }
-.wb2-scfkey i.done { background:var(--pale, var(--tint)); box-shadow:inset 0 0 0 1px var(--pale-edge, var(--edge)); }
-.wb2-scfkey i.late, .wb2-scfkey i.dan { width:16px; height:16px; border-radius:50%; background:var(--wb2-dan); color:var(--paper);
-  display:grid; place-items:center; font-size:12px; font-weight:700; line-height:1; }
-
-
-/* the now line — only ever drawn on today. NOT the danger colour: red on
-   this board means "didn't go ahead", and a red rule down a healthy day
-   reads as an alarm about the day.
-
-   It was 1px of the chrome cyan at opacity:.5, on a rail that already carries
-   an hour grid at a similar weight — so it disappeared into its own
-   background. It is the one mark saying which of these blocks is happening
-   right now, so it should be the most definite line here: 2px of ink at full
-   strength, with the time on a cap in the hour row. Ink rather than the
-   accent because the fills are saturated now and a mid-tone cyan has nothing
-   left to sit against. */
-.wb2-schnow { position:absolute; top:0; bottom:0; width:2px; margin-left:-1px; background:var(--ink); z-index:5; pointer-events:none; }
-/* the time rides the hour row, centred on its line */
-.wb2-schnow::before { content:attr(data-now); position:absolute; top:7px; left:1px;
-  transform:translateX(-50%); height:18px; padding:0 8px; border-radius:var(--r-pill);
-  display:flex; align-items:center; background:var(--ink); color:var(--paper);
-  font-size:12px; font-weight:600; white-space:nowrap; font-variant-numeric:tabular-nums; }
-
-/* ── the foot: the legend for this day ── */
-.wb2-schfoot { display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:12px 16px 16px; border-top:1px solid var(--wb2-line2); }
-.wb2-schkey { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-.wb2-schkey span { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:500; color:var(--q); }
-.wb2-schkey i { width:18px; height:12px; border-radius:0; flex:none; }
-/* THE SWATCH IS THE CAP. A category entry fills it with the cap's own colour,
-   so "not started" is that same swatch HOLLOW — which is precisely what the
-   block does now that the white ground is gone. Drawn as a pale rectangle
-   instead (which is what it was) it keys the reader to a treatment no block
-   wears any more; drawn as a tiny outlined pill inside a rectangle, which was
-   the first attempt at this, it reads as the digit 0. */
-.wb2-schkey i.hollow { background:none; box-shadow:inset 0 0 0 1.5px var(--kcap, var(--grey));; }
-/* and the issue mark, at the size and colour it is on a block */
-.wb2-schkey i.mark { width:16px; height:16px; border-radius:50%; background:var(--wb2-dan);
-  display:inline-flex; align-items:center; justify-content:center;
-  font-style:normal; font-size:12px; font-weight:700; line-height:1; color:var(--paper); }
+  
 
 @media (max-width:920px){
-  .wb2-schnames { width:106px; }
-  .wb2-schn { padding:0 8px 0 12px; }
+  
+  
 }
 
-/* ── the Schedule tab's other side: the capacity month ──
-   Weeks as rows, one cell per day, and ONE FIGURE per cell: the fill
-   percentage, set large, on the card's own white. THE NUMBER CARRIES THE
-   RAMP — capacity-paint.ts computes it (slate when empty, the text-safe
-   green toward 100%, the warn INK past it) and hands it down in --capink;
-   nothing here states a ramp colour, so the sheet can never disagree with
-   the sweep that measures it. Hours live in the cell's title and the day
-   panel, not on the face. Every class starts `wb2-` for the same reason the
-   rail's do: the `.fg button` reset is (0,1,1) and silently strips the
-   background off any single-class button. */
-
-/* the crew button rides the header's chip cluster — a pill, with the icon,
-   because it opens the list every number on the month divides by */
-.wb2-scmcrew { display:inline-flex; align-items:center; gap:4px; height:28px; padding:0 12px;
-  border-radius:var(--r-pill); border:1px solid var(--wb2-line); background:var(--paper);
-  font-size:12px; font-weight:700; color:var(--gray500); cursor:pointer;
-  transition:border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-scmcrew:hover { color:var(--ink); border-color:rgba(5,5,5,.24); }
-.wb2-scmcrew:focus-visible { outline:none; box-shadow:var(--ring);; }
-
-/* nobody allocated: the month cannot be scored and SAYS SO once, in a band
-   above the grid, instead of printing 31 quiet zeros — capacity.ts's null
-   promise, kept on the screen */
-.wb2-scmnone { display:flex; align-items:center; gap:4px 12px; flex-wrap:wrap;
-  margin:12px 16px 0; padding:12px 16px; border:1px solid var(--wb2-line); border-radius:var(--r-card);
-  background:var(--tint); }
-.wb2-scmnone b { font-size:13px; }
-.wb2-scmnone em { font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); }
-.wb2-scmset { height:34px; padding:0 16px; border-radius:var(--r-button); margin-left:auto;
-  background:var(--press); color:var(--paper); font-size:13px; font-weight:700; cursor:pointer;
-  transition:background var(--t-fast) var(--ease); }
-.wb2-scmset:hover { background:var(--press); }
-.wb2-scmset:focus-visible { outline:none; box-shadow:var(--ring);; }
-
-/* the month grid — the maintenance calendar's frame, re-stated rather than
-   reused so the two can move apart without either dragging the other */
-.wb2-scmdow { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; padding:12px 16px 4px;
-  font-size:12px; font-weight:500; color:var(--q); }
-.wb2-scmdow span { padding-left:8px; }
-.wb2-scm { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; padding:4px 16px 16px; }
-/* Tall enough that the figure has a cell, not a label — and the same height
-   whether a day is scored, unscored or inert, so the weeks stay level. */
-.wb2-scmc { position:relative; min-height:86px; border:1px solid var(--wb2-line2); border-radius:var(--r-button);
-  background:var(--paper); display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:4px; text-align:center; padding:12px 4px 8px; }
-button.wb2-scmc { cursor:pointer;
-  transition:border-color var(--t-fast) var(--ease), transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease); }
-button.wb2-scmc:hover { border-color:rgba(5,5,5,.2); }
-button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
-/* selection is an ink ring — box-shadow, never a border or size change, so
-   opening a day cannot move the grid under the pointer */
-.wb2-scmc.on { box-shadow:0 0 0 2px var(--ink);; border-color:transparent; }
-.wb2-scmc.on:focus-visible { box-shadow:0 0 0 2px var(--ink), 0 0 0 5px var(--info-t);; }
-/* THE CELL IS A GAUGE: it fills from the bottom as the day does. A hard-stop
-   gradient, not a nested element, so the ring/hover/focus treatments keep
-   working on the one box they already style. --capfill/--caplevel arrive
-   per-day from capacity-paint.ts, which also picks black-or-white ink for
-   whatever the gauge puts under the figure. */
-.wb2-scmc.gauge { background:linear-gradient(to top, var(--capfill, var(--paper)) var(--caplevel, 0%), var(--paper) var(--caplevel, 0%)); }
-.wb2-scmd { position:absolute; top:7px; left:9px; font-size:12px; font-weight:700;
-  color:var(--gray500); font-variant-numeric:tabular-nums; }
-/* the date label sits at the brim — it only changes ink once the gauge has
-   actually climbed under it (paint hands --capdate then, and only then) */
-.wb2-scmc.gauge .wb2-scmd { color:var(--capdate, var(--gray500)); }
-/* today: the date goes on an ink badge — legible over any figure colour,
-   and it cannot collide with the over ring the way a border treatment would */
-.wb2-scmc.today .wb2-scmd { top:4px; left:5px; min-width:21px; height:20px; display:grid;
-  place-items:center; padding:0 4px; border-radius:var(--r-control); background:var(--ink); color:var(--paper); }
-/* THE FIGURE IS THE CELL. --capink arrives per-day from capacity-paint.ts;
-   the fallback ink only ever paints a cell a future change forgets to hand
-   a colour — visible, and correct, rather than invisible. */
-/* THE FIGURE IS THE CELL. Isaac's brief: "the percentage number can take up
-   most of that day". It shipped at 23px beside a same-weight date and read as
-   a caption with a number in it; the date is the label now and the figure is
-   the object. Large type also means the ramp under it is judged as WCAG large
-   text (3:1) — it is still held to 4.5:1, so that never has to be argued. */
-.wb2-scmp { font-size:32px; font-weight:700; letter-spacing:-.045em; line-height:.95;
-  color:var(--capink, var(--ink)); font-variant-numeric:tabular-nums; }
-/* the one qualitative break: the word under the figure, in the same ink the
-   figure already wears — on an over day the gauge is brimful danger and the
-   paint hands white */
-.wb2-scmo { font-style:normal; font-size:12px; font-weight:500; color:var(--capink, var(--wb2-warn-t, var(--warn-t))); }
-/* unscored: no figure, no ramp, a quieter ground — null is not zero. The
-   dot is the one mark allowed: it says the day still holds work, which is
-   what makes it clickable. */
-.wb2-scmc.ns { background:var(--tint); border-color:transparent; }
-.wb2-scmk { width:7px; height:7px; border-radius:50%; background:var(--gray500); }
-
-/* ── THE CAPACITY DAY, IN THE INSPECTOR ──
-   It was a card over `.fl-ov`'s scrim, and before that a panel under the
-   weeks — where 28 cells above a job list ran the list off the bottom of the
-   screen. Beside the grid it has the height of the board and nothing to
-   dismiss. What stays is the list of the day's jobs, each drawn as the block
-   it would be on the rail. */
-/* the inspector's body is what scrolls, so the list is only a column */
-.wb2-scdlist { display:flex; flex-direction:column; gap:4px; }
-.wb2-scdlist .wb2-hint { margin:8px 4px 4px; }
-
-/* A ROW IS THE BLOCK IT WOULD BE ON THE RAIL — same wash, same 4px cap, same
-   number chip, so what the day holds is recognisable before it is read. */
-.wb2-scdjob { position:relative; display:flex; flex-direction:column; gap:2px; width:100%;
-  text-align:left; padding:12px 12px 12px 16px; border-radius:var(--r-button);
-  /* the reset `.wb2-scd button` used to give them, when they lived in a card
-     portalled outside `.fg`; the wb2- prefix still keeps `.fg button` off */
-  border:0; font:inherit; color:inherit; cursor:pointer;
-  background:var(--fill, var(--tint)); transition:transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.wb2-scdjob::before { content:""; position:absolute; left:7px; top:11px; bottom:11px;
-  width:4px; border-radius:var(--r-pill); background:var(--bar, var(--grey)); }
-/* finished work keeps its hairline and loses its cap: colour on this board
-   means work still to do */
-.wb2-scdjob.done { box-shadow:inset 0 0 0 1px rgba(5,5,5,.07);; }
-.wb2-scdjob.done::before { display:none; }
-.wb2-scdjob:hover { }
-.wb2-scdjob:focus-visible { outline:none; box-shadow:var(--ring);; }
-.wb2-scdjh { display:flex; align-items:center; gap:8px; }
-.wb2-scdjh b { min-width:0; overflow:hidden; white-space:nowrap;
-  font-size:14px; font-weight:700; color:var(--btext, var(--ink)); }
-.wb2-scdjh u { flex:none; text-decoration:none; padding:1px 8px; border-radius:var(--r-control);
-  background:var(--chip, var(--tint-2)); font-size:12px; font-weight:700; color:var(--ink);
-  font-variant-numeric:tabular-nums; }
-.wb2-scdjh em { margin-left:auto; flex:none; font-style:normal; font-size:12px; font-weight:700;
-  color:var(--ink); font-variant-numeric:tabular-nums; }
-.wb2-scdjob > em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); }
-.wb2-scdjob > i { font-style:normal; font-size:12px; font-weight:600; color:var(--ink); }
-
-/* ── the crew editor (inside .fl-modal, which PORTALS TO BODY — these are
-   unscoped like every wb2- rule, so they reach it out there; a .fg prefix
-   would style nothing) ── */
-.wb2-scmed { display:flex; flex-direction:column; }
-.wb2-scmrow { display:flex; align-items:center; gap:12px; padding:8px 2px;
-  border-bottom:1px solid var(--line); }
-.wb2-scmrow b { flex:1; min-width:0; font-size:13px; font-weight:700;
-  overflow:hidden; white-space:nowrap;
-  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-/* set aside, not deleted: the name steps back a tier — COLOUR, never
-   opacity, which drags text toward whatever is behind it */
-.wb2-scmrow.off b { color:var(--gray500); }
-.wb2-scmtog { position:relative; flex:none; width:38px; height:22px; border-radius:var(--r-pill);
-  background:var(--tint-2); cursor:pointer; transition:background var(--t-fast) var(--ease); }
-.wb2-scmtog::after { content:""; position:absolute; top:2px; left:2px; width:18px; height:18px;
-  border-radius:50%; background:var(--paper); transition:left var(--t-move) var(--ease); }
-.wb2-scmtog[aria-checked="true"] { background:var(--wb2-ok, var(--ink)); color:var(--paper); }
-.wb2-scmtog[aria-checked="true"]::after { left:18px; }
-.wb2-scmtog:focus-visible { outline:none; box-shadow:var(--ring);; }
-.wb2-scmstep { display:flex; align-items:center; gap:2px; flex:none; }
-.wb2-scmstep > span { min-width:46px; text-align:center; font-size:13px; font-weight:700;
-  font-variant-numeric:tabular-nums; }
-.wb2-scmrow.off .wb2-scmstep > span { color:var(--gray500); }
-.wb2-scmsb { width:26px; height:26px; display:grid; place-items:center; border-radius:var(--r-control);
-  border:1px solid var(--wb2-line, var(--line)); background:var(--paper); color:var(--gray700);
-  font-size:14px; font-weight:700; cursor:pointer; transition:border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-scmsb:hover:not(:disabled) { border-color:rgba(5,5,5,.24); color:var(--ink); }
-.wb2-scmsb:disabled { color:var(--q); border-color:var(--wb2-line2, var(--line)); cursor:default; }
-.wb2-scmsb:focus-visible { outline:none; box-shadow:var(--ring);; }
-/* a failed save is a FAULT and may say so in the danger ink — the never-dan
-   rule above is about the grid, where under-capacity is not one */
-.wb2-scmerr { margin:8px 0 0; font-size:13px; font-weight:600; color:var(--wb2-dan-t, var(--bad-t)); }
-.wb2-scmft { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
-
 @media (max-width:920px){
-  .wb2-scmc { min-height:66px; }
-  .wb2-scmp { font-size:24px; }
+  
+  
 }
 @media (prefers-reduced-motion:reduce){
-  button.wb2-scmc:hover { transform:none; }
+  
 }
 
-/* ── completed ──
-   The opposite call to the urgent queue, and for the opposite reason: a
-   finished visit IS a discrete object — a job that ran, its hours, its note,
-   its invoice state — and you deal with it one at a time. So these ARE
-   cards, on a tinted bed, each holding its own close-out note. */
-.wb2-dnlist { display:flex; flex-direction:column; gap:8px; padding:4px 16px 16px; }
-.wb2-dn { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr) auto; gap:8px 12px;
-  align-items:center; padding:12px 16px; border:1px solid var(--wb2-line); border-radius:var(--r-card); background:var(--paper);
-  transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
-.wb2-dn.can-open:hover { border-color:rgba(5,5,5,.2); }
-.wb2-dn:focus-visible { outline:none; box-shadow:var(--ring);; }
-.wb2-dnt b { display:block; font-size:14px; font-weight:700; }
-.wb2-dnt em, .wb2-dnw em, .wb2-dnh em { display:block; font-style:normal; font-size:12px; color:var(--gray500); font-weight:600; margin-top:2px; overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.wb2-dnw b, .wb2-dnh b { font-size:13px; font-weight:700; }
-/* The note sits in its own well and SIGNS ITSELF — a close-out note whose
-   author you can't see is one nobody can follow up on. */
-.wb2-dnnote { grid-column:1/-1; margin:2px 0 0; padding:8px 12px; border-radius:var(--r-button); background:var(--tint);
-  font-size:13px; font-weight:500; color:var(--gray700); line-height:1.55; text-wrap:pretty; }
-.wb2-dnnote span { display:block; margin-top:4px; font-size:12px; font-weight:500; color:var(--gray400); }
-.wb2-dnnote.none { padding:0; background:none; color:var(--q); }
-
-/* ── agreements ── */
-.wb2-agrp { padding-bottom:8px; }
-.wb2-aghd { display:flex; align-items:baseline; gap:8px; padding:12px 16px 4px; font-size:12px; font-weight:500; color:var(--gray500); }
-.wb2-aghd i { width:10px; height:10px; border-radius:0; background:rgba(5,5,5,.18); align-self:center; }
-.wb2-agrp[data-accent="violet"] .wb2-aghd i { background:var(--ink); }
-.wb2-agrp[data-accent="blue"] .wb2-aghd i { background:var(--ink); color:var(--paper); }
-.wb2-agrp[data-accent="pink"] .wb2-aghd i { background:var(--pink); }
-.wb2-agrp[data-accent="slate"] .wb2-aghd i { background:var(--q); }
-.wb2-aghd em { font-style:normal; font-size:12px; font-weight:600; text-transform:none; color:var(--q); }
-/* Six columns: who and what, how often, when it last ran, when it's next,
-   what follows, and how it's labelled. Last-done and Then are what turn a
-   cadence word into an actual rhythm. */
-.wb2-agcols { display:grid; grid-template-columns:8px minmax(0,1.3fr) 96px minmax(0,.9fr) minmax(0,1fr) minmax(0,.7fr) minmax(0,.9fr);
-  gap:12px; padding:2px 16px 4px; font-size:12px; font-weight:500;
-  color:var(--q); }
 /* Tags read LEFT, like every other column. Right-aligning the last column
    ragged the labels against the card edge and put the heading a long way
    from the first tag under it (Isaac). */
 .wb2-trd.quiet b { color:var(--gray500); font-weight:700; }
-/* hours first on the booked line — the load, then who is carrying it */
-.wb2-trhrs { font-weight:700; color:var(--gray700); }
-.wb2-trhrs:after { content:"·"; margin:0 4px; color:var(--grey); font-weight:700; }
+
 .wb2-trd b.dan { color:var(--wb2-dan-t, var(--bad-t)); }
-.wb2-agr { display:grid; grid-template-columns:8px minmax(0,1.3fr) 96px minmax(0,.9fr) minmax(0,1fr) minmax(0,.7fr) minmax(0,.9fr); gap:12px; align-items:center;
-  padding:12px 16px; border-bottom:1px solid var(--wb2-line2); text-decoration:none; color:inherit; transition:background var(--t-fast) var(--ease); }
-.wb2-agr:hover { background:var(--tint); }
-.wb2-agrp:last-child .wb2-agr:last-child { border-bottom:0; }
-.wb2-agcad { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); }
-.wb2-agtags { display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-self:start; }
 
 /* ── tags — the stored colour, worn everywhere the same (B2) ── */
 .wb2-tag { display:inline-flex; align-items:center; gap:4px; height:26px; padding:0 8px; border-radius:var(--r-pill);
@@ -6525,18 +5704,7 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .wb2-sheet.mv .wb2-jcsec .wb2-facts, .wb2-sheet.pv .wb2-jcsec .wb2-facts { margin-top:8px; }
 .wb2-sheet.mv .wb2-jcsec .wb2-notetext, .wb2-sheet.pv .wb2-jcsec .wb2-notetext { margin-top:8px; }
 .wb2-sheet.mv .wb2-jcsec .wb2-noteact { margin-top:8px; }
-/* ── THE PROJECT CARD (.pv) — one site day per row, notes riding under ──
-   The date column is the row's spine; whatever hangs off the day (the
-   trip's notes, the close-out words, the offer to adopt a diary day) sits
-   in the date's shadow so the days stay scannable. The head-adjacent rule
-   does the first-row work — `:first-of-type` counts element TYPE, and the
-   section head is a div like the rows, so it never matched. */
-.wb2-pv { display:flex; flex-direction:column; border-top:1px solid var(--wb2-line2); }
-.wb2-jcdhead + .wb2-pv { border-top:0; }
-.wb2-pv .wb2-mline { border-top:0; }
-.wb2-pvx { padding:0 0 8px 130px; display:flex; flex-direction:column; gap:4px; align-items:flex-start; }
-.wb2-pvnote { margin:0; font-size:13px; font-weight:500; color:var(--gray700); line-height:1.5;
-  text-wrap:pretty; }
+
 /* a past visit is a door — the row shape as a button. The UA face is
    already stripped by the zero-specificity `:where(button[class*="wb2-"])`
    reset (written for exactly these body-portalled sheets), and the base
@@ -6690,10 +5858,7 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
 @media (prefers-reduced-motion:reduce) {
   .wb2-jcskel { animation:none; background:rgba(10,12,20,.06); }
 }
-/* the lead is the verdict — one sentence in ink, a step up from the lines
-   under it */
-.wb2-jcups-lead { margin:8px 0 0; font-size:16px; font-weight:700;
-  color:var(--ink); line-height:1.45; max-width:68ch; text-wrap:pretty; }
+
 /* one fact per line, a quiet dot to hang each on */
 .wb2-jcups-pts { margin:8px 0 0; padding:0; list-style:none; max-width:68ch;
   display:flex; flex-direction:column; gap:4px; }
@@ -6701,23 +5866,7 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
   color:var(--gray700); line-height:1.55; text-wrap:pretty; }
 .wb2-jcups-pts li::before { content:""; position:absolute; left:2px; top:.62em; width:5px;
   height:5px; border-radius:50%; background:var(--jc-crown, rgba(5,5,5,.28)); }
-/* contacts — who to ring, dissolved into Summary */
-.wb2-crow { display:flex; align-items:center; gap:8px; padding:8px 0; }
-.wb2-crow + .wb2-crow { border-top:1px solid var(--wb2-line2); }
-.wb2-cav { width:30px; height:30px; border-radius:var(--r-button); background:var(--info-tint);
-  color:var(--ink); font-size:12px; font-weight:700; display:inline-flex; align-items:center;
-  justify-content:center; flex:none; }
-.wb2-cwho { min-width:0; flex:1; display:flex; flex-direction:column; }
-.wb2-cwho b { font-size:14px; font-weight:700; }
-.wb2-cwho em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
-.wb2-ccalls { display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end; }
-.wb2-ccall { display:inline-flex; align-items:center; height:26px; padding:0 12px; border-radius:var(--r-control);
-  background:rgba(0,127,168,.09); color:var(--ink); font-size:12px; font-weight:700;
-  white-space:nowrap; text-decoration:none; }
-a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
-.wb2-ccall.plain { background:var(--tint); color:var(--gray700); }
-.wb2-jcpo { margin:8px 0 0; display:flex; align-items:baseline; gap:8px; }
-.wb2-jcpo b { font-size:14px; font-weight:700; }
+
 /* ── the diary ── */
 .wb2-jcdhead { display:flex; align-items:baseline; gap:8px; }
 .wb2-jcdhead b { font-size:16px; font-weight:700; }
@@ -6964,12 +6113,7 @@ button.wb2-jmclaim:focus-visible { outline:none; box-shadow:var(--ring);; border
    where the portal can reach them. */
 .wb2-sheet .int-hint { margin:12px 2px 0; font-size:13px; font-weight:500;
   line-height:1.55; color:var(--gray500); }
-/* "All 12 visits" — opens the rest of the list in place, no second screen */
-.wb2-shmore { display:inline-flex; align-items:center; gap:4px; align-self:flex-start;
-  margin-top:8px; padding:4px 2px; border:0; background:none; color:var(--ink); font:inherit;
-  font-size:13px; font-weight:700; cursor:pointer; }
-.wb2-shmore:hover { text-decoration:underline; }
-.wb2-shmore:focus-visible { outline:none; box-shadow:var(--ring);; border-radius:var(--r-control); }
+
 /* the job's files: a contact sheet, not a gallery — the grid is for scanning
    "what did they photograph", and a tap opens the real thing */
 /* the tabbed card gives the contact sheet a whole face, so the tiles take a
@@ -7209,13 +6353,6 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-showmi em { margin-left:auto; font-style:normal; font-size:12px; font-weight:700;
   color:var(--gray500); font-variant-numeric:tabular-nums; }
 .wb2-showmi.on em { color:var(--info-t); }
-/* WHY A PHOTO MATCHED, when the reason is not the caption — a hit on a model
-   number is otherwise invisible: the picture shows a plate and the words that
-   found it are printed on it. Not a highlight colour; a quiet monospace-free
-   strip, because the house has no mono font. */
-.wb2-showhit { display:block; margin-top:4px; padding:4px 8px; border-radius:var(--r-control);
-  background:var(--warn-tint); color:var(--warn-t); font-size:12px; font-weight:700;
-  overflow-wrap:anywhere; }
 
 .wb2-showempty { display:grid; place-items:center; gap:8px; padding:48px 16px;
   text-align:center; color:var(--gray500); }
@@ -7228,10 +6365,7 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-showdot { width:7px; height:7px; border-radius:50%; background:var(--sc, var(--ink)); flex:none; color:var(--paper); }
 .wb2-showgrid { display:grid; gap:12px; margin-top:12px;
   grid-template-columns:repeat(auto-fill, minmax(215px, 1fr)); }
-/* The same cards inside the universal search panel — inset to the panel's
-   own 20px gutter, and a notch smaller: results sit beside ledger rows, not
-   alone on their own tab. */
-.wb2-findgrid { margin:4px 16px 16px; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); }
+
 .wb2-showcard { margin:0; display:flex; flex-direction:column; gap:8px; min-width:0; }
 .wb2-showimg { position:relative; display:block; aspect-ratio:4/3; border-radius:var(--r-button);
   overflow:hidden; background:var(--wb2-line2); }
@@ -7612,21 +6746,18 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 
 /* ── responsive ── */
 @media (max-width: 1100px) {
-  .wb2-trhd { display:none; }
-  .wb2-trj { grid-template-columns:minmax(0,1fr) auto; row-gap:8px; }
-  /* an auto column is as wide as what it holds, so nothing in it is cut and
-     the fade would only eat the last letters */
-  .wb2-trj .wb2-trref { grid-column:2; justify-self:end; -webkit-mask-image:none; mask-image:none; }
-  /* stacked, cadence and its due chip pair up on one line of their own */
-  .wb2-trj .wb2-trcad { grid-column:1; }
-  .wb2-trj .wb2-trw { grid-column:2; justify-self:end; }
-  .wb2-trj .wb2-trw .wb2-chip { -webkit-mask-image:none; mask-image:none; }
-  .wb2-trj .wb2-trck { grid-column:1/-1; }
-  .wb2-trj .wb2-trd { grid-column:1/-1; flex-direction:row; gap:8px; align-items:baseline; }
-  .wb2-dn { grid-template-columns:minmax(0,1fr) auto; }
-  .wb2-agr { grid-template-columns:minmax(0,1fr) auto; }
-  .wb2-agtags { justify-self:start; }
-  .wb2-mcc { min-height:64px; }
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   .wb2-vtabs { overflow-x:auto; padding-bottom:2px; }
   .wb2-vt { flex:none; }
   /* three facts stacked into three full-width bands pushed everything below
@@ -7637,7 +6768,7 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 }
 @media (prefers-reduced-motion: reduce) {
   .wb2-vslide, .wb2-sheet, .wb2-scrim, .wb2-swap { animation:none !important; transition:none var(--t-fast) var(--ease); }
-  .wb2-mcc[data-tone="flash"] { animation:none; box-shadow:var(--ring-bad);; }
+  
   ::view-transition-group(wbcard), ::view-transition-old(wbcard), ::view-transition-new(wbcard),
   ::view-transition-old(wbtabs), ::view-transition-new(wbtabs) { animation:none !important; }
 }
@@ -7686,39 +6817,10 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-dmhd[data-tone="flash"], .wb2-dmhd[data-tone="over"] { background:linear-gradient(160deg, var(--bad-tint), var(--bad-tint) 70%); }
 .wb2-dmtop { display:flex; align-items:center; justify-content:space-between; }
 .wb2-dmhd h2 { font-size:24px; font-weight:700; letter-spacing:-.03em; line-height:1.15; margin:4px 0 0; }
-.wb2-dmchips { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
-.wb2-dmbody { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:12px; display:flex; flex-direction:column; gap:8px; }
-.wb2-dmgrp { display:flex; flex-direction:column; gap:4px; border-top:1px solid var(--wb2-line2); margin-top:4px; padding-top:8px; }
-.wb2-dmgrp .wb2-sect { padding:2px 4px; }
-.wb2-dmft { display:flex; align-items:center; gap:8px; padding:12px 16px; border-top:1px solid var(--wb2-line2); flex:none; background:var(--paper); }
-.wb2-lpr { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:12px; align-items:center; padding:8px 4px; border-radius:var(--r-button); transition:background var(--t-fast) var(--ease); }
-.wb2-lpr:hover { background:var(--tint); }
-.wb2-lpr .wb2-trt b { font-size:13px; }
 
-/* day cards inside the modal */
-.wb2-dc { position:relative; border:1px solid var(--line); border-radius:var(--r-card); padding:12px 12px 12px 16px;
-  display:flex; flex-direction:column; gap:8px; overflow:hidden; background:var(--paper); text-align:left; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.wb2-dc[data-tone="go"], .wb2-dc[data-tone="done"] { background:var(--tint); border-color:var(--line); }
-.wb2-dc[data-tone="soon"] { background:var(--warn-tint); border-color:var(--warn); }
-.wb2-dc[data-tone="flash"], .wb2-dc[data-tone="over"] { background:var(--bad-tint); border-color:var(--bad); }
-.wb2-dc[data-tone="flash"]:before, .wb2-dc[data-tone="quote"] { border-style:dashed; }
-.wb2-dc.mini:before { background:transparent; }
-.wb2-dc:focus-visible { outline:none; box-shadow:var(--ring);; }
-.wb2-dch { display:flex; align-items:center; gap:8px; }
-.wb2-dch b { font-size:14px; font-weight:700; min-width:0; overflow:hidden; white-space:nowrap; }
-.wb2-dch em { margin-left:auto; font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); }
-.wb2-dcs { font-size:12px; color:var(--gray500); font-weight:600; text-wrap:pretty; }
-.wb2-dcck { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
-.wb2-dcck[data-cols="1"] { grid-template-columns:1fr; }
-.wb2-dcck[data-cols="3"] { grid-template-columns:repeat(3,1fr); }
-.wb2-ck { display:flex; align-items:center; gap:8px; padding:8px 8px; border-radius:var(--r-button);
-  border:1px solid color-mix(in oklab, var(--as) 32%, var(--paper)); background:color-mix(in oklab, var(--as) 7%, var(--paper));
-  font:inherit; font-size:12px; font-weight:700; color:var(--gray700); text-align:left; cursor:pointer;
-  transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-.wb2-ck i { width:9px; height:9px; border-radius:0; background:var(--as); flex:none; }
-.wb2-ck:hover { border-color:color-mix(in oklab, var(--as) 62%, var(--paper)); background:color-mix(in oklab, var(--as) 13%, var(--paper)); }
-span.wb2-ck { cursor:default; }
-.wb2-dcck .wb2-sel { padding:4px 8px; font-size:12px; }
+.wb2-dmbody { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:12px; display:flex; flex-direction:column; gap:8px; }
+
+.wb2-dmft { display:flex; align-items:center; gap:8px; padding:12px 16px; border-top:1px solid var(--wb2-line2); flex:none; background:var(--paper); }
 
 /* toasts — one slot PER ACTION (B23), stacked, each with its own undo */
 .wb2-toasts { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:var(--z-toast);
@@ -7743,7 +6845,7 @@ span.wb2-ck { cursor:default; }
 .wb2-eqlist { display:grid; gap:8px; }
 .wb2-eqrow { display:flex; align-items:center; gap:8px; padding:8px 12px; border:1px solid var(--wb2-line, var(--line)); border-radius:var(--r-button); }
 .wb2-eqrow .wb2-trt { flex:1; min-width:0; }
-.wb2-dnact { display:flex; flex-direction:column; align-items:flex-end; gap:8px; justify-self:end; }
+
 .wb2-newmodal { width:min(760px, calc(100vw - 32px)); }
 .wb2-newmodal .wb2-dmbody { gap:12px; }
 button.wb2-lpr.as-btn, button.wb2-agr.as-btn, button.wb2-ajr.as-btn { font:inherit; text-align:left; background:none; border:0; width:100%; cursor:pointer; color:inherit; }
@@ -7766,55 +6868,27 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
 .wb2-ajr:has(.wb2-ajmoney) { grid-template-columns:78px minmax(0,1.5fr) minmax(0,.85fr) minmax(0,.75fr) minmax(0,1fr) 96px; }
 .wb2-ajnum b { display:block; font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
 .wb2-ajnum em { display:block; font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); margin-top:1px; }
-.wb2-ajmeta { display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-width:0; }
-.wb2-ajmeta em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500);
-  overflow:hidden; white-space:nowrap; max-width:100%;
-  align-self:stretch; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.wb2-ajchips { display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-self:start; }
-.wb2-ajmoney { justify-self:end; text-align:right; font-variant-numeric:tabular-nums; }
-.wb2-ajmoney b { font-size:13px; font-weight:700; }
-.wb2-ajmoney em { font-style:normal; color:var(--gray400); }
+
 /* The section rule doubles as a header when it carries a subtitle. */
 .wb2-sect em { display:block; font-style:normal; text-transform:none;
   font-size:12px; font-weight:600; color:var(--gray400); margin-top:2px; }
-/* ── the Quotes worklist (quote-worklist.ts) ──
-   A group's head names the group and counts it, on one line, in ink: on a
-   worklist the group is the instruction, so it reads before the rows do.
-   What's next is a word in its state's colour (law 26): blue for work to
-   start, amber for something due, ink for a day still to come. */
-.wb2-sect.wb2-qsect { font-size:13px; font-weight:600; color:var(--ink); }
-.wb2-qsect .wb2-qcount { margin-left:8px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
-.wb2-qnext { font-size:14px; font-weight:500; color:var(--ink); white-space:nowrap; }
-.wb2-qnext.info { color:var(--info-t); }
-.wb2-qnext.warn { color:var(--warn-t); }
-.wb2-qfold { display:flex; align-items:center; gap:16px; padding:12px 16px; border-bottom:1px solid var(--wb2-line2, var(--line)); }
-.wb2-qfold p { margin:0; min-width:0; font-size:14px; color:var(--q); }
-.fg .page.full .wb2-splitm > .wb2-qfold { padding-left:24px; padding-right:24px; }
-/* ── the universal search's answers ──
-   Rows are the All jobs ledger row verbatim, so a result reads as the same
-   software as the list it came from. What this adds is the group heading: it
-   lines up with the rows under it (the shared `.wb2-sect` sits at 2px, right
-   when it heads a strip and wrong when it heads a ledger). */
-.wb2-fgrp > .wb2-sect { padding:8px 16px 4px; }
+
 /* The panel's asides — "still looking", "first N shown" — sit in the same
    20px gutter as everything else on it, not against the card's edge. */
 .wb2-panel > .int-hint { margin:12px 16px 16px; }
-.wb2-fgrp > .int-hint { margin:0 16px 12px; }
-/* Air BETWEEN groups, not above the first — `:first-of-type` can't say that
-   here, because the card head is a div too and would take the match. */
-.wb2-fgrp + .wb2-fgrp > .wb2-sect { padding-top:16px; }
+
 .wb2-shtext { font-size:13px; line-height:1.55; color:var(--gray700); margin:4px 0 0; white-space:pre-wrap; }
 
 @media (max-width:1100px) {
   .wb2-ajr, .wb2-ajr:has(.wb2-ajmoney) { grid-template-columns:70px minmax(0,1fr) minmax(0,.9fr); }
-  .wb2-ajmeta, .wb2-ajmoney { display:none; }
+  
 }
 .pbtn.ghost.danger { color:var(--bad-t); border-color:var(--bad); }
 .pbtn.ghost.danger:hover { background:var(--bad-tint); }
 @media (max-width: 1100px) {
   .wb2-formgrid { grid-template-columns:1fr; }
   .wb2-formgrid.eq { grid-template-columns:1fr 1fr; }
-    .wb2-dnact { align-items:flex-start; justify-self:start; flex-direction:row; }
+    
 }
 
 /* ── THE BOARD IS THE WELL ─────────────────────────────────────────────
@@ -7908,50 +6982,6 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
    The title is the one that gives way: it fades (above). */
 .fg .page.full .wb2-vtcap:not(:has(.wb2-find)) { flex:none; }
 .fg .page.full .wb2-headtools .pbtn { white-space:nowrap; }
-
-/* ── THE TITLE IS THE SWITCHER ──
-   The three sides stood in a tray on a line of their own above the band for
-   one release. It cost 48px of board on every tab — a whole crew row — and
-   the line under it said "Workboard", which the rail one column to the left
-   already says. So the title names the side you are reading and opens a menu
-   to change it (components/workboard/side-switcher).
-
-   The button wears the h1's own type; the arrow is the quiet colour. What
-   the tray's seats did and this must keep is the SUMMONS — each side's
-   needs-you count, visible from any side — so the arrow carries a dot in the
-   worst tone waiting elsewhere (law 14 allows a dot), and the menu says
-   which side and how many, in words, in the state's colour. */
-/* The menu is the h1's SIBLING, not its child: inside the heading it would
-   inherit the title's display tracking, and a menu is read at body size. */
-.fg .page.full .wb2-sw { position:relative; flex:none; }
-.fg .page.full .wb2-ttl { display:inline-flex; align-items:center; gap:8px; height:40px; padding:0 8px; margin:0 -8px;
-  border:0; border-radius:var(--r-button); background:none; font:inherit; line-height:1;
-  color:inherit; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
-.fg .page.full .wb2-ttl:hover, .fg .page.full .wb2-ttl[aria-expanded="true"] { background:var(--tint); }
-.fg .page.full .wb2-ttl:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .page.full .wb2-ttlc { position:relative; display:grid; place-items:center; color:var(--q); }
-/* the dot rides the arrow it belongs to; its ring is the paper it sits on */
-.fg .page.full .wb2-ttldot { position:absolute; top:-2px; right:-3px; width:9px; height:9px; border-radius:50%;
-  border:2px solid var(--paper); background:var(--warn); }
-.fg .page.full .wb2-ttldot.dan { background:var(--bad); }
-/* It IS the row menu (`.dmenu`): surface, the one hairline, the card corner
-   and the one overlay shadow, already written once. What differs is where it
-   hangs — under the title rather than off a row's right edge — and that it
-   holds three sides rather than four verbs, so it is wider. */
-.fg .page.full .wb2-ttlmenu { left:-8px; right:auto; top:calc(100% + 8px); min-width:280px; }
-.fg .page.full .wb2-ttlmi { display:flex; align-items:center; gap:8px; width:100%; height:36px; padding:0 12px 0 8px;
-  border:0; border-radius:var(--r-button); background:none; font-size:var(--fs-3); font-weight:var(--fw-label);
-  color:var(--ink); text-align:left; cursor:pointer;
-  transition:background-color var(--t-fast) var(--ease); }
-.fg .page.full .wb2-ttlmi:hover { background:var(--tint); }
-.fg .page.full .wb2-ttlmi:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .page.full .wb2-ttlmi.on { font-weight:var(--fw-heading); }
-.fg .page.full .wb2-ttlck { flex:none; width:16px; display:grid; place-items:center; }
-.fg .page.full .wb2-ttlml { flex:1; min-width:0; }
-/* the count is a word in its state's colour (law 26) */
-.fg .page.full .wb2-ttlmn { flex:none; font-size:var(--fs-2); font-weight:var(--fw-label); }
-.fg .page.full .wb2-ttlmn.wrn { color:var(--warn-t); }
-.fg .page.full .wb2-ttlmn.dan { color:var(--bad-t); }
 
 /* the search and Display mode stand at the band's control height (law 33) */
 .fg .page.full .wb2-find { height:36px; flex:0 1 240px; min-width:120px; border-radius:var(--r-button); }
@@ -8090,18 +7120,6 @@ html[data-wb-display] .fg .wb2-panel { flex:1; min-height:0; display:flex; flex-
 html[data-wb-display] .fg .wb2-vtabs,
 html[data-wb-display] .fg .wb2-mckey,
 html[data-wb-display] .fg .wb2-mcdow { flex:none; }
-
-/* MONEY COMES OFF THE WALL. Display mode is the one screen whose audience
-   isn't the person signed in — it's whoever walks past the workshop TV, and
-   they never authenticated. The capability (`workboard_money`) already
-   decided this person may see job values; it can't decide anything about the
-   room. So every money cell hides here, and only here.
-
-   This is COURTESY, NOT SECURITY, and the difference matters: the numbers are
-   still in the payload, because the viewer is entitled to them — a person can
-   leave display mode and read them. The gate that actually withholds money is
-   in the loaders, where a reader without the capability never receives it. */
-html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 
 /* ── the recording card ──
    What is left of the capture card: the Tiff chat's recording card
@@ -8475,7 +7493,6 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .fg .tm .wb2-anscursor { --wb2-cy:var(--paper); }
 
 
-
 .wb2-capclock { font-variant-numeric:tabular-nums; font-size:13px; font-weight:700; color:var(--gray700); white-space:nowrap; }
 /* Leading the trace rather than hiding in the ribbon corner. Tabular figures
    are load-bearing at this size — proportional digits make the whole line
@@ -8495,15 +7512,6 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    first, and outlived that card (2026-09-27). */
 .wb2-capsaid { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); white-space:nowrap; }
 .wb2-caprec { display:flex; flex-direction:column; align-items:center; gap:8px; padding:12px 0 2px; }
-
-/* SAID WHERE ONLY A SCREEN READER HEARS IT: the Schedule's word beside a
-   crew member's presence dot, for anyone who cannot see the dot. It was the
-   capture card's first, where the read-back said itself while a field of
-   dots announced nothing, and it was written UNSCOPED because that card
-   portalled to document.body, where `.fg .sr-only` would have hidden
-   nothing. The card went with the old capture UI (2026-09-27). */
-.wb2-sr { position:absolute; width:1px; height:1px; margin:-1px; padding:0;
-  overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
 
 /* ── where the field stands ──
    Above the card's own body and outside it, mounted by the door (the Tiff
@@ -8712,68 +7720,11 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
   animation:wb2WordIn .26s var(--ease) both; }
 @media (prefers-reduced-motion:reduce) { .wb2-lw { animation:none; } }
 
-/* The separate WALL composition (Urgent + four weeks, zero interactivity)
-   that used to live here is gone — 2026-08-02, Isaac: display mode has to
-   MIRROR the page, not replace it, because the tab switcher has to stay
-   usable. Its rules and its component went with it; don't rebuild them from
-   the audit's A10 without asking, that directive was superseded. */
-
-/* ── the calendar, given the whole screen ──
-   The grid takes every pixel the card has left and splits it into four equal
-   rows, so a cell goes from 104px to ~190px. That much room changes what a
-   day should SAY: four coloured dots is the right answer when a cell is the
-   size of a stamp and the wrong one when it's the size of a card. So the
-   dots grow into named rows — same markup, same four-item cap, same "+N",
-   just the labels unhidden (see .wb2-mcdots, where they sit hidden by
-   default). You can now read the run of the month from across the office
-   instead of hovering each day for its tooltip. */
-html[data-wb-display] .wb2-mc { flex:1; min-height:0; grid-auto-rows:minmax(0,1fr); align-content:stretch; gap:8px; }
-html[data-wb-display] .wb2-mcc { min-height:0; padding:8px 12px; border-radius:var(--r-card); }
-html[data-wb-display] .wb2-mcn b { font-size:16px; }
-html[data-wb-display] .wb2-mcn em { font-size:12px; }
-html[data-wb-display] .wb2-mcdots { margin-top:8px; flex-direction:column; align-items:stretch; justify-content:flex-start;
-  gap:4px; flex-wrap:nowrap; min-height:0; overflow:hidden; }
-/* `font-style:normal` because the dot IS an <i> — the labels inside it
-   inherit italics from the element that used to be nothing but a circle. */
-html[data-wb-display] .wb2-mcdots i { width:auto; height:auto; flex:none; display:block; min-width:0; font-style:normal;
-  padding:4px 8px; border-radius:var(--r-button); background:rgba(5,5,5,.045); }
-html[data-wb-display] .wb2-mcdots i > * { display:block; overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-html[data-wb-display] .wb2-mcdots i > b { font-size:13px; font-weight:700; color:var(--ink); }
-html[data-wb-display] .wb2-mcdots i > em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
-html[data-wb-display] .wb2-mcdots i[data-tone="go"] { background:var(--tint); }
-html[data-wb-display] .wb2-mcdots i[data-tone="soon"] { background:rgba(255,138,0,.12); }
-html[data-wb-display] .wb2-mcdots i[data-tone="flash"],
-html[data-wb-display] .wb2-mcdots i[data-tone="over"] { background:rgba(224,38,79,.1); }
-html[data-wb-display] .wb2-mcdots i[data-tone="done"] { background:rgba(5,5,5,.045); }
-html[data-wb-display] .wb2-mcdots > b { align-self:flex-start; font-size:12px; }
-/* the settled-day tick scales with the cell rather than floating in it */
-html[data-wb-display] .wb2-mcdone { margin-top:8px; }
-
-/* ── wb2 projects: the pipeline list, money chips, merged calendar ──
-   The projects board rides the same namespace — same card, same tabs, same
-   status colours. Only what the data honestly adds gets new clothes: the
-   stage rail on a row, the claimed-of-total figures, and the hollow ring a
-   dot wears when the merged calendar shows the OTHER board's work. */
-.wb2-plrow { display:grid; grid-template-columns:minmax(0,1.2fr) 108px minmax(0,.8fr) minmax(0,.8fr) minmax(0,1fr); gap:12px;
-  align-items:center; padding:12px 16px; border-bottom:1px solid var(--wb2-line2); position:relative; color:inherit; text-decoration:none;
-  transition:background var(--t-fast) var(--ease), transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.wb2-wkgrp:last-child .wb2-plrow:last-child { border-bottom:0; }
-.wb2-plrow:hover { background:var(--paper); z-index:1; }
-.wb2-plrow:focus-visible { outline:none; box-shadow:inset var(--ring);; }
-.wb2-plstage { display:flex; align-items:center; gap:4px; }
-.wb2-plstage i { width:9px; height:9px; border-radius:50%; background:var(--tint-2); flex:none; }
-.wb2-plstage i.past { background:var(--ok-tint); }
-.wb2-plstage i.now { background:var(--wb2-cy); box-shadow:var(--ring);; }
-.wb2-plprog { display:flex; flex-direction:column; gap:4px; min-width:0; }
-.wb2-plprog em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); }
-.wb2-bar { display:block; height:7px; border-radius:var(--r-pill); background:var(--tint-2); overflow:hidden; }
-.wb2-bar i { display:block; height:100%; border-radius:var(--r-pill); background:var(--wb2-cy); transition:width var(--t-move) var(--ease); }
 .wb2-plmoney { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .wb2-plmoney b { font-size:13px; font-weight:700; font-variant-numeric:tabular-nums;
   overflow:hidden; white-space:nowrap;
   -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .wb2-plmoney em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); }
-.wb2-plchips { display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:flex-end; }
 
 /* merged calendar: the other board's dots wear a hollow ring, never a fill */
 
@@ -8785,8 +7736,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .wb2 .pbtn.ghost.dan, .wb2-sheet .pbtn.ghost.dan { color:var(--wb2-dan-t); border-color:var(--bad); }
 
 @media (max-width:980px) {
-  .wb2-plrow { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
-  .wb2-plstage { display:none; }
+  
+  
 }
 
 /* the project page's trip rows — the board's triage anatomy on a card2 */
@@ -8816,14 +7767,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   background:var(--tint-2); color:var(--ink); }
 .wb2-scopemark.out { background:var(--bad-tint); color:var(--bad-t); }
 @media (max-width:800px) { .wb2-scope { grid-template-columns:1fr; } .wb2-moneyrow { grid-template-columns:minmax(0,1fr) auto; } }
-
-/* the relative age beside the completion date — "yesterday", "6 days ago" */
-.wb2-dnw b i { font-style:normal; font-weight:600; font-size:12px; color:var(--gray500); margin-left:4px; }
-
-/* the ledger's per-row state dot, as the design leads each row */
-.wb2-agdot { width:8px; height:8px; border-radius:50%; flex:none; background:var(--wb2-ok); align-self:center; }
-.wb2-agdot.dan { background:var(--wb2-dan); }
-.wb2-agdot.off { background:rgba(5,5,5,.22); }
 
 /* ---- Tax & EOFY (components/tax/) ----
    Reuses the admin index's shell wholesale (.adm-card / .emptybox)
@@ -11498,7 +10441,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .qsr-code { display:block; font-size:13px; font-weight:500; color:var(--q); }
 .qsr-width { width:96px; }
 
-
 /* ===== THE QUOTE TAB'S LANDING, "QUOTES" (v2; job-quote-card.tsx) =====
    Isaac, 18 October: the Quote tab opens on its quotes. The job's one quote
    is a card (rule 35, something you act on), in one of three states: nothing
@@ -12989,7 +11931,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .st2-rp-table th:last-child, .fg .st2-rp-table td:last-child { padding-right:0; }
 .fg .st2-rp-strong { font-weight:600; }
 .fg .st2-rp-quiet { color:var(--q); }
-
 
 /* ══════════════════ TIFF'S CHAT, AS CLAUDE'S (.tc-*) ══════════════════
    Isaac, 20 October 2026: every chat with Tiff looks like a conversation in

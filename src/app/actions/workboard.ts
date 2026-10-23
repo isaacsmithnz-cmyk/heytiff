@@ -173,8 +173,7 @@ async function context(): Promise<Ctx | null> {
 }
 
 function refresh(projectId?: string) {
-  revalidatePath("/dashboard/workboard");
-  revalidatePath("/dashboard/workboard/projects");
+  revalidatePath("/dashboard/jobs");
   if (projectId) revalidatePath(`/dashboard/workboard/projects/${projectId}`);
 }
 

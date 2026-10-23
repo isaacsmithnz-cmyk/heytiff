@@ -116,7 +116,7 @@ async function leftHeyTiff(ctx: Ctx, row: EntryRow): Promise<boolean> {
 
 function refresh(row: EntryRow) {
   revalidateHome();
-  if (row.target_kind === "job") revalidatePath("/dashboard/workboard");
+  if (row.target_kind === "job") revalidatePath("/dashboard/jobs");
 }
 
 /** Your own entry's words, put right. */

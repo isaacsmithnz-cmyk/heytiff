@@ -336,7 +336,7 @@ export function noticeItems(rows: readonly NoticeEventRow[]): CalItem[] {
       time: wallClock(r.time),
       sub: sentence(where),
       facts,
-      action: { label: "Open notice", href: "/dashboard/notices" },
+      action: { label: "Open notice", href: "/dashboard/team?view=notices" },
     });
   }
   return out;

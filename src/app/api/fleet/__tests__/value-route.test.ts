@@ -106,7 +106,7 @@ it("persists what the run produced BEFORE responding, then refreshes both screen
   expect(persist).toHaveBeenCalledWith("org-1", {
     v1: expect.objectContaining({ point: 42000, atOdo: 55500 }), // parseValuations ran; junk id dropped
   });
-  expect(revalidatePath).toHaveBeenCalledWith("/dashboard/assets");
+  expect(revalidatePath).toHaveBeenCalledWith("/dashboard/team");
   expect(revalidatePath).toHaveBeenCalledWith("/dashboard/my-vehicle");
   expect(await res.json()).toEqual({ ok: true, searched: true });
 });

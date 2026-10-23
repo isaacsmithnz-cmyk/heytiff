@@ -92,7 +92,7 @@ export async function setJobPhotoFavourite(
       .eq("org_id", orgId)
       .eq("sm8_attachment_uuid", photo);
     if (error) return { ok: false, starred: true, note: null };
-    revalidatePath("/dashboard/workboard");
+    revalidatePath("/dashboard/jobs");
     return { ok: true, starred: false, note: null };
   }
 
@@ -194,7 +194,7 @@ export async function setJobPhotoFavourite(
     console.error(`[showcase] re-read failed for ${job}:`, e);
   });
 
-  revalidatePath("/dashboard/workboard");
+  revalidatePath("/dashboard/jobs");
   return { ok: true, starred: true, note };
 }
 

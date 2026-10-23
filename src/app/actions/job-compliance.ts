@@ -415,7 +415,7 @@ export async function emailJobDocuments(input: EmailDocumentsInput): Promise<Ema
     .select("id, applied_at, created_at")
     .maybeSingle();
   if (noteErr) console.error("[job-compliance] sent, but the diary note didn't save:", noteErr.message);
-  revalidatePath("/dashboard/workboard");
+  revalidatePath("/dashboard/jobs");
   const row = saved as { id: string; applied_at: string | null; created_at: string } | null;
   return {
     ok: true,

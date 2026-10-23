@@ -145,7 +145,7 @@ async function context(): Promise<Ctx | null> {
 
 function refresh() {
   revalidatePath("/dashboard/my-expenses");
-  revalidatePath("/dashboard/timepay");
+  revalidatePath("/dashboard/team");
 }
 
 /** The most receipts one row can carry. A row is one purchase; several pages

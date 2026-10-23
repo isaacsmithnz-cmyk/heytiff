@@ -145,7 +145,7 @@ describe("editDiaryEntry", () => {
   it("edits a job note that never left HeyTiff, and refreshes the board too", async () => {
     rows.workboard_notes = mine({ target_kind: "job", target_id: "job-1" });
     expect(await editDiaryEntry(ID, "words")).toEqual({ ok: true });
-    expect(revalidatePath).toHaveBeenCalledWith("/dashboard/workboard");
+    expect(revalidatePath).toHaveBeenCalledWith("/dashboard/jobs");
   });
 
   it("keeps no empty entry: that is a delete", async () => {

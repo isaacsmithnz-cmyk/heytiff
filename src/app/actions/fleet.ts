@@ -58,7 +58,7 @@ async function context(): Promise<Ctx | null> {
 }
 
 function refresh() {
-  revalidatePath("/dashboard/assets");
+  revalidatePath("/dashboard/team");
   revalidatePath("/dashboard/my-vehicle");
 }
 

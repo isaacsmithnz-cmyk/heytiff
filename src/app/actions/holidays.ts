@@ -36,7 +36,7 @@ async function adminContext(): Promise<Ctx | null> {
 }
 
 function revalidateHolidayScreens() {
-  revalidatePath("/dashboard/timepay");
+  revalidatePath("/dashboard/team");
   revalidatePath("/dashboard/my-timesheet");
   revalidatePath("/dashboard/my-leave");
 }

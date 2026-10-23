@@ -380,7 +380,7 @@ async function readJobPhotosInner(
     else failed += 1;
   }
 
-  revalidatePath("/dashboard/workboard");
+  revalidatePath("/dashboard/jobs");
   /* `ok: false` on a total write failure stops the caller's loop dead. The
      brake in job-sheet.tsx is a FALLING count, and a run that stores nothing
      leaves the count unchanged — which would stop it too, but only after a

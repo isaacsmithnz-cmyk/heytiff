@@ -190,9 +190,9 @@ describe("XeroScreen — what the grant can actually see", () => {
 
   it("points at where the matching happens once there are people to match", () => {
     render(<XeroScreen connection={toView(row())} configured sealed notice={null} reach={{ ok: true, employees: 9 }} />);
-    expect(screen.getByText("Time & Pay settings").closest("a")).toHaveAttribute(
+    expect(screen.getByText("Team's Timesheets settings").closest("a")).toHaveAttribute(
       "href",
-      "/dashboard/timepay",
+      "/dashboard/team?view=timesheets",
     );
   });
 

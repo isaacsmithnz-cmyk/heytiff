@@ -154,7 +154,7 @@ function refresh(provider: ImportProvider) {
   revalidatePath(`/dashboard/admin/integrations/${provider}`);
   revalidatePath("/dashboard/team");
   // A Xero import creates the same payroll link the Time & Pay screen reads.
-  if (provider === "xero") revalidatePath("/dashboard/timepay");
+  if (provider === "xero") revalidatePath("/dashboard/team");
 }
 
 /** The workspace's cards, as both the matcher and the picker need them. */

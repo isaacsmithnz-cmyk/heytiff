@@ -199,7 +199,7 @@ export async function saveStaffSection(
       .limit(1);
     if (linked?.length) {
       await clearDrift(ctx.orgId);
-      revalidatePath("/dashboard/timepay");
+      revalidatePath("/dashboard/team");
     }
   }
 

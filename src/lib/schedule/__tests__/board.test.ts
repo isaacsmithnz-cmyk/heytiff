@@ -2,6 +2,7 @@ import {
   boardOf,
   clockWord,
   dayLine,
+  stackDay,
   daysFit,
   daysFor,
   fillWord,
@@ -39,6 +40,8 @@ const blk = (startMin: number, endMin: number, over: Partial<DayBlock> = {}): Da
   startMin,
   endMin,
   with: [],
+  kind: null,
+  state: null,
   ...over,
 });
 
@@ -123,7 +126,10 @@ describe("a person's line", () => {
   it("counts the free hours of the working day", () => {
     expect(dayLine({ blocks: [], away: [] })).toBe("Free all day");
     expect(dayLine({ blocks: [blk(480, 600)], away: [] })).toBe("Free 6.5 h");
-    expect(dayLine({ blocks: [blk(420, 930)], away: [] })).toBe("Booked all day");
+    expect(dayLine({ blocks: [blk(420, 930)], away: [] })).toBe("");
+    /* under an hour free says nothing (Isaac, 22 October) */
+    expect(dayLine({ blocks: [blk(420, 900)], away: [] })).toBe("");
+    expect(dayLine({ blocks: [blk(420, 870)], away: [] })).toBe("Free 1 h");
     expect(dayLine({ blocks: [], away: [{ key: "a", word: "Leave", startMin: 0, endMin: 1440, whole: true }] })).toBe("Leave");
   });
 });
@@ -186,5 +192,29 @@ describe("the board from the day reads", () => {
     const b = boardOf([payload("2026-10-21", [act("x", "B", "2026-10-21"), act("y", "A", "2026-10-21")])]);
     expect(b.people.map((p) => p.name)).toEqual(["Callum Ahn", "Sam Ortiz"]);
     expect(b.people[0].days[0].blocks[0]).toMatchObject({ number: "3323", startMin: 420, endMin: 900, with: ["Sam Ortiz"] });
+  });
+});
+
+/* TWO AT ONCE (Isaac, 23 October): overlapping bookings stack in the lane */
+describe("stacking a person's day", () => {
+  it("keeps bookings that don't overlap on one line", () => {
+    const st = stackDay([blk(450, 690, { key: "a" }), blk(705, 900, { key: "b" })]);
+    expect(st.lines).toBe(1);
+    expect(st.clash.size).toBe(0);
+    expect([st.line.get("a"), st.line.get("b")]).toEqual([0, 0]);
+  });
+
+  it("puts a booking that overlaps another on a line of its own, and marks both", () => {
+    /* Callum on 22 October: 3225 6 to 9, 3118 7 to 3, 3118 again 9:45 to 1:45 */
+    const st = stackDay([blk(360, 540, { key: "pagewood" }), blk(420, 900, { key: "long" }), blk(585, 825, { key: "short" })]);
+    expect(st.lines).toBe(2);
+    expect(st.line.get("pagewood")).toBe(0);
+    expect(st.line.get("long")).toBe(1);
+    expect(st.line.get("short")).toBe(0);
+    expect([...st.clash].sort()).toEqual(["long", "pagewood", "short"]);
+  });
+
+  it("says one line for an empty day", () => {
+    expect(stackDay([]).lines).toBe(1);
   });
 });

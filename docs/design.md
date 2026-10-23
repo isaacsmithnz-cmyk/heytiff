@@ -39,7 +39,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 - **16. Red only means wrong.** Overdue, failed, unsuccessful. A job ServiceM8 marks red is unsuccessful, so it keeps its red. No chart or pipe is red.
 - **17. State is a word.** Good in green, needs a look in orange, wrong or late in red: a word in its colour, a dot where a list wants one. For your information is a grey word and a grey dot, so blue only ever means press. Never a pill or a fill. A dot always sits beside a word that says what it means.
 - **18. A job's colour.** Its ServiceM8 category's colour, snapped to the eight by hue; a category with no hue is grey. A dot beside its name everywhere. No washes, no edge lines. Red follows the Unsuccessful status, never the category.
-- **19. Schedule blocks.** Solid blocks in the job's colour at its word value, with white words: black on the bright values was hard to read (Isaac, 20 October). Blue is the press blue, white on it as before.
+- **19. Schedule cards.** A booking is a white card in a hairline of the job's colour, its job number in a solid box of that colour on the left, white on it (Isaac, 23 October: "the job number in a coloured box, a coloured hairline, the rest white"). Three lines at 12: the client; the suburb; the job's type, its time, a person and how many are booked, and where it's up to. A done card's colour goes grey; two bookings at once stack in the lane, each with an orange edge, and "Two at once" under the person's name. The colour is the job's word value; blue is the press blue.
 - **20. Charts.** The kinds of job in the eight, in a fixed order; ventilation grey. A coloured mark always has its figure or name beside it.
 - **21. Timesheet days.** A dot and the hours for a day worked. A day away is a small white card with a symbol: a plaster for sick, a sun for leave. The key underneath. No bars or tints.
 
@@ -121,7 +121,7 @@ Nineteen values: each of the eight hues has a bright value (dots, blocks, charts
 
 **The one shadow:** 0 12px 32px at 16% of a near-black, for anything that floats. **The scrim** behind a dialog: near-black at 45%.
 
-**Text on a solid block** (a bar, a column's head on Home): ink on every hue but blue, which takes white. A schedule block is the exception: the hue's word value with white words (rule 19).
+**Text on a solid block** (a bar, a column's head on Home): ink on every hue but blue, which takes white. A schedule card's number box is the exception: the hue's word value with white words (rule 19).
 
 **What each colour means:** red only wrong (rule 16); orange needs a look; green good; blue only press (the main button, ticks and switches when on, a selection); grey for your information. A job's own colour (rule 18) and the chart colours (rule 20) are the only other uses.
 

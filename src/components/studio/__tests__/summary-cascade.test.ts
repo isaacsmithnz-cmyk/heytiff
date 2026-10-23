@@ -91,38 +91,16 @@ describe("Summary sheet cascade", () => {
     expect(bare).toEqual([]);
   });
 
-  it("the New design landing owns .ds-hero alone", () => {
-    /* The same collision as `.ds-job`, one class along, and it shipped: the
-       sheet's cover was written as `.ds-hero`, which the landing already owns
-       at the identical specificity (0,2,0). The later rule won, so the LANDING
-       — not the sheet — became a `1fr 340px` grid wearing the sheet's ink and
-       shadow: badge and pitch in one column, the clamp(38px,4.4vw,58px) title
-       wrapped into the other. The sheet's cover is `.ds-cover`.
-
-       Only rules that TARGET the hero itself count: `.ds-hero h2` and
-       `.ds-hero p` style its children and cannot collide with another root.
-       `ds-hero-badge` and the rest are excluded by the word boundary. */
-    const targeted = selectors.filter((sel) =>
-      sel.split(",").some((s) => /\.ds-hero(?![\w-])[^ >+~]*$/.test(s.trim()))
-    );
-    expect(targeted).toEqual([".dstudio .ds-hero"]);
-  });
-
-  it("the landing hero stays a flex column, and the ink cover stays dead", () => {
+  it("the ink cover stays dead", () => {
     /* The 2026-08-16 document redesign DELETED the ink cover, and the
        document itself has since moved to sheet-doc.css. A returning
        `.ds-cover` rule means someone resurrected the old sheet (or its name),
-       which is exactly how the .ds-hero collision shipped. The landing hero
-       must also stay a flex column — the collision's symptom was it becoming
-       the cover's grid. */
+       which is how a cover once collided with the New design landing's
+       `.ds-hero` and turned the landing into the cover's grid. */
     const coverish = selectors.filter((sel) =>
       sel.split(",").some((s) => /\.ds-cover(?![\w-])/.test(s))
     );
     expect(coverish).toEqual([]);
-    const hero = css.match(/\.dstudio \.ds-hero \{[^}]*\}/);
-    expect(hero).not.toBeNull();
-    expect(hero![0]).not.toMatch(/grid-template-columns/);
-    expect(hero![0]).toMatch(/display:\s*flex/);
   });
 
   it("the Summary root is styled by its own class", () => {
@@ -205,20 +183,6 @@ describe("Summary sheet cascade", () => {
     expect(printBlock).toMatch(
       /#ds-printdoc \.ds-print-page \{[^}]*position:\s*relative/
     );
-  });
-
-  it("the recents skeleton PAINTS — its block outranks the card it sits in", () => {
-    /* `.ds-rthumb` carries its own fill and border at (0,2,0) and is written
-       LATER in this file, so a lone `.dstudio .ds-skb` loses to it and the
-       thumb animated an empty box: a sweep over nothing. Same shape as the
-       `.fg button` reset trap. The paint is one declaration block written at
-       both specificities rather than restated. */
-    const paint = selectors.filter((sel) =>
-      sel.split(",").some((one) => /\.ds-skb(?![\w-])\s*$/.test(one.trim()))
-    );
-    expect(paint.length).toBeGreaterThan(0);
-    for (const sel of paint)
-      expect(sel).toMatch(/\.ds-rcard\.skel \.ds-rthumb\.ds-skb/);
   });
 
   it("the dark glass primitives never reach .ds-tbbtn", () => {

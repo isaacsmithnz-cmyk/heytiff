@@ -137,39 +137,6 @@
 /* the job card's summary sweeps while its read is out */
 @keyframes pkSweep { from{background-position:200% 0;} to{background-position:-200% 0;} }
 
-/* ---- Dashboard home: action-required / roster / payroll section rows.
-   Additive only — reuses the existing .card2 / .c2h / .dchip2 primitives. ---- */
-.fg .dash-sub { font-size:12px; font-weight:500; color:var(--gray400); margin:4px 2px 12px; }
-.fg .dash-sub:not(:first-of-type) { margin-top:24px; }
-
-/* The `.hact` action band lived here — a full-width bar under the greeting
-   naming the worst outstanding item. The counters opposite it were saying the
-   same thing in less space, so the band is gone and its CSS with it. Deleting
-   it rather than leaving it unused is the point: the v3 `.hstat` block that
-   sat dead in this file for months went on to shadow the counters at equal
-/* ---- Action-required tiles ----
-   A full-width row per chip wasted most of the card: ~200px of content stretched
-   across ~1300px, with the group tag floating far from the thing it describes.
-   These are compact tiles that flow into as many columns as the width allows —
-   two up on a laptop, one on a phone — so the content stays together and the
-   card shows several items at a glance instead of one per line.
-
-   Two channels, as before: the glyph is the DOMAIN, the colour is the URGENCY. */
-.fg .dash-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(440px, 1fr)); gap:8px; }
-@media (max-width:640px){ .fg .dash-grid { grid-template-columns:1fr; } }
-.fg .dash-tile { display:flex; align-items:center; gap:12px; padding:12px 12px; border:1px solid var(--line); border-radius:var(--r-button); text-decoration:none; color:inherit; transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-.fg .dash-tile:hover { border-color:var(--edge); background:var(--tint); }
-.fg .dash-tile .dt-ic { width:32px; height:32px; border-radius:var(--r-button); flex:0 0 auto; display:flex; align-items:center; justify-content:center; }
-.fg .dash-tile.bad .dt-ic { background:var(--bad-tint); color:var(--bad-t); }
-.fg .dash-tile.warn .dt-ic { background:var(--warn-tint); color:var(--warn-t); }
-.fg .dash-tile .dt-main { min-width:0; flex:1; display:flex; flex-direction:column; gap:2px; }
-.fg .dash-tile .dt-label { font-size:14px; font-weight:700; }
-.fg .dash-tile.bad .dt-label { color:var(--bad-t); }
-.fg .dash-tile.warn .dt-label { color:var(--warn-t); }
-.fg .dash-tile .dt-sub { font-style:normal; font-size:13px; font-weight:600; color:var(--gray400); white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.fg .dash-tile .dt-chev { color:var(--q); flex:0 0 auto; display:flex; }
-.fg .dash-tile:hover .dt-chev { color:var(--gray500); }
-
 /* noticeboard page items */
 .fg .nb-item { padding:24px 24px; }
 .fg .nb-head { display:flex; align-items:flex-start; gap:12px; }
@@ -338,8 +305,6 @@
 .fg .dchip.warn { color:var(--warn-t); }
 .fg .dchip.bad { color:var(--bad-t); }
 
-@keyframes meMenuIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
-
 .fg .topbar .sep { width:1px; height:30px; background:var(--on-ink-tint); }
 
 .fg .emptybox { display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:12px; padding:72px 16px; border:1.5px dashed var(--line); border-radius:var(--r-card); background:var(--tint); }
@@ -467,9 +432,6 @@
 .fg .cat .ctop { position:absolute; top:0; left:0; right:0; height:6px; opacity:.8; z-index:10; border-radius:999px 999px 0 0; }
 .fg .cat .cin { padding:32px; position:relative; z-index:10; }
 
-/* ---------------- DUCTR ---------------- */
-.fg .ductr { position:relative; display:flex; flex-direction:column; height:100%; background:var(--line); overflow:hidden; }
-  
 .fg .odu { padding:24px; border-radius:var(--r-card); background:var(--tint); border:1px solid var(--tint);  box-shadow:inset 0 2px 4px var(--line); }
 .fg .odu .or { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
 .fg .odu .ol { font-size:12px; font-weight:500; color:var(--gray500); }
@@ -1299,10 +1261,6 @@
 /* A fact about the surface, in the row the switch already occupies — see
    me/face-switch.tsx for why it is not allowed near the heading. */
 .fg .me-fsnote { margin:0; font-size:13px; font-weight:600; color:var(--gray500); }
-.fg .seg button .segn { display:inline-block; margin-left:8px; padding:0 4px; min-width:18px;
-  border-radius:var(--r-control); background:rgba(15,18,26,.07); color:var(--gray500);
-  font-size:12px; font-weight:700; font-style:normal; line-height:18px; text-align:center; }
-.fg .seg button.on .segn { background:rgba(15,18,26,.06); color:var(--ink); }
 
 /* toggle */
 .fg .toggle { width:48px; height:28px; border-radius:999px; background:var(--grey); position:relative; flex:0 0 auto; cursor:pointer; transition:background var(--t-fast) var(--ease); }
@@ -1313,7 +1271,6 @@
 /* photo upload dropzone */
 .fg .drop { display:flex; align-items:center; gap:12px; padding:12px; border-radius:var(--r-card); border:1.5px dashed var(--edge); background:var(--tint); cursor:pointer; transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .fg .drop:hover { border-color:var(--ink); background:var(--tint); }
-.fg .drop .di { width:42px; height:42px; border-radius:var(--r-button); flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:var(--paper); color:var(--ink); border:1px solid var(--line); }
 
 /* verified document row (work rights) */
 
@@ -2401,7 +2358,6 @@
 .fg .tpr .sectwrap { display:block; }
 .fg .tpr .detail { display:none; }
 .fg .tpr .card.open .detail { display:block; }
-@keyframes tprUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
 .fg .tpr .drows { margin-top:16px; border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; }
 /* four columns, not five — the fifth was an empty span held open for a `.tag`
    nothing has ever rendered */
@@ -2483,9 +2439,6 @@
 .fg .tpr .qform input::placeholder { color:var(--gray400); }
 .fg .tpr .qform .qsend { display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 16px; border-radius:var(--r-button); font-size:13px; font-weight:700; background:var(--warn); color:var(--on-amber); }
 .fg .tpr .qform .qcancel { height:42px; padding:0 12px; border-radius:var(--r-button); font-size:13px; font-weight:700; color:var(--gray600); background:var(--tint); }
-
-/* crow edit button */
-.fg .tpr .crow .cedit.crowedit { height:42px; padding:0 16px; }
 
 /* ---------- pay settings modal ---------- */
 .fg .tpr .tset { position:fixed; inset:0; z-index:var(--z-modal); display:none; align-items:center; justify-content:center; }
@@ -4086,16 +4039,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 /* an overdue row carries a state edge; the breathe went (law 18) */
 .wb-pulse { border:1px solid var(--bad); }
 
-/* projects */
-.wb-projgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:12px; }
-.wb-proj { display:flex; flex-direction:column; gap:8px; text-decoration:none; color:inherit; cursor:pointer; }
-.wb-proj:hover { background:var(--tint); }
-.wb-projhead { display:flex; align-items:center; gap:8px; }
-/* Two lines, not an ellipsis: a job name is how someone FINDS the card, and
-   "Harbour View Rd — ducted chang…" is exactly the half that doesn't help. */
-.wb-projhead b { font-size:16px; font-weight:700; min-width:0; line-height:1.25; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
-.wb-projsub { font-style:normal; color:var(--gray500); font-size:13px; }
-.wb-projmeta { display:flex; flex-wrap:wrap; gap:4px; }
 .wb-bar { height:6px; border-radius:999px; background:var(--tint-2); overflow:hidden; }
 .wb-bar span { display:block; height:100%; border-radius:999px; background:var(--ink); transition:width var(--t-move) var(--ease); }
 
@@ -4248,11 +4191,6 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
 .wb-chip.warn { color:var(--warn-t); }
 .wb-chip.ghost { color:var(--gray400); }
 .wb-dayhead i { font-style:normal; color:var(--gray400); margin-left:4px; }
-
-/* a flagged project card carries its colour on the edge, not the fill —
-   the card stays readable and the rail of cards still scans as one grid */
-.wb-proj.urgent { border-color:var(--bad); }
-.wb-proj.attention { border-color:var(--warn); }
 
 /* background too, not just the border — the base :fullscreen .wb-chip fill
    would otherwise turn the outline chip back into a solid one */
@@ -10760,7 +10698,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .cv-boxbar .pt-btn.cv-send--wait { opacity:.4; }
 .fg .cv-say { margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
 .fg .cv-say.cv-say--bad { color:var(--bad-t); }
-.fg .cv-rec { min-width:0; }
 .fg .cv-scope { display:flex; align-items:center; gap:8px; min-width:0; margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
 .fg .cv-scope-doc { flex:0 1 auto; min-width:0; font-weight:500; color:var(--ink); }
 /* a note being edited */
@@ -10799,7 +10736,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .hm-chat-title { flex:1 1 auto; min-width:0; font-size:14px; line-height:20px; color:var(--q); }
 .fg .hm-chat .hm-chat-turns { flex:1 1 auto; max-height:none; padding:0; }
 .fg .hm-chat .tm-dock { padding:12px 0 0; border-top:0; }
-.fg .hm-chat-now { margin:0; font-size:14px; line-height:20px; color:var(--q); }
 .fg .hm-sec { display:flex; flex-direction:column; min-width:0; }
 /* Your feed (in place of Activity, 20 October 2026): the filter under the
    head, then each item: who at the left, who/what/when on one line, their
@@ -10827,7 +10763,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .hm-head { display:flex; align-items:center; gap:12px; padding-bottom:12px; border-bottom:1px solid var(--line); }
 .fg .hm-h { margin:0; font-size:20px; line-height:28px; font-weight:600; color:var(--ink); }
 .fg .hm-title { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
-.fg .hm-sum { min-width:0; font-size:14px; line-height:20px; color:var(--q); font-variant-numeric:tabular-nums; }
 .fg .hm-headlinks { margin-left:auto; display:flex; gap:16px; font-size:14px; line-height:20px; }
 .fg .hm-head .hm-headlink { margin-left:auto; font-size:14px; line-height:20px; }
 .fg .hm .pt-row { padding-block:12px; }
@@ -11287,7 +11222,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .dc2-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px 24px; min-width:0; }
 .fg .dc2-title { display:flex; align-items:baseline; gap:12px; min-width:0; }
 .fg .dc2-title h1 { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
-.fg .dc2-made { font-size:14px; line-height:20px; font-weight:400; color:var(--q); font-variant-numeric:tabular-nums; }
 .fg .dc2-tools { display:flex; align-items:center; gap:12px; flex:0 1 auto; min-width:0; }
 .fg .dc2-search { position:relative; display:flex; align-items:center; width:320px; min-width:0; }
 .fg .dc2-search-icon { position:absolute; left:12px; display:inline-flex; color:var(--q); pointer-events:none; }
@@ -11324,7 +11258,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* a kind's group on All: its name and count, Show all on the right */
 .fg .dc2-group-head { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:24px 8px 8px; border-bottom:1px solid var(--line); }
 .fg .dc2-group-h { margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
-.fg .dc2-count { margin-left:4px; font-weight:400; color:var(--q); font-variant-numeric:tabular-nums; }
 .fg .dc2-showall { padding:0; border:0; background:none; font:inherit; font-size:14px; line-height:20px; font-weight:500; color:var(--ink); text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
 .fg .dc2-showall:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-button); }
 /* the Templates rail */
@@ -11339,7 +11272,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .ds2-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px 24px; min-width:0; }
 .fg .ds2-title { display:flex; align-items:baseline; gap:12px; min-width:0; }
 .fg .ds2-title h1 { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
-.fg .ds2-fact { font-size:14px; line-height:20px; font-weight:400; color:var(--q); font-variant-numeric:tabular-nums; }
 .fg .ds2-acts { display:flex; align-items:center; gap:8px; }
 .fg .ds2-body { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:48px; align-items:start; }
 .fg .ds2-list { display:flex; flex-direction:column; gap:16px; min-width:0; }
@@ -11825,13 +11757,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .lb2-search .pt-input.lb2-search-input { padding-left:calc(12px + 16px + 8px); padding-right:calc(32px + 8px); }
 .fg .lb2-search .lb2-search-clear { position:absolute; right:2px; }
 .fg .lb2-panel { min-width:0; }
-/* the table: a grid per row, so the head and the rows share the columns */
-.fg .lb2-table { --lb2-cols:minmax(0,2fr) 96px minmax(0,1.3fr) 112px; min-width:0; }
-.fg .lb2-table.lb2-table--manage { --lb2-cols:minmax(0,2fr) 96px minmax(0,1.3fr) 224px; }
-.fg .lb2-table.lb2-table--kind { --lb2-cols:minmax(0,2fr) minmax(0,1fr) 96px minmax(0,1.3fr) 112px; }
-.fg .lb2-table.lb2-table--kind.lb2-table--manage { --lb2-cols:minmax(0,2fr) minmax(0,1fr) 96px minmax(0,1.3fr) 224px; }
-.fg .lb2-table.lb2-table--tools { --lb2-cols:minmax(0,2fr) minmax(0,1fr) 96px minmax(0,1.3fr); }
-.fg .lb2-rows { margin:0; padding:0; list-style:none; }
 .fg .lb2-row { position:relative; display:grid; grid-template-columns:var(--lb2-cols); align-items:center; gap:16px; padding:12px 8px; border-bottom:1px solid var(--line); }
 .fg .lb2-row.lb2-row--head { padding-top:8px; padding-bottom:8px; }
 .fg .lb2-row.lb2-row--open { transition:background-color var(--t-fast) var(--ease); }

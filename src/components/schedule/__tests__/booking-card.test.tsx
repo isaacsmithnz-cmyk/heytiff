@@ -26,7 +26,7 @@ const blk = (over: Partial<DayBlock> = {}): DayBlock => ({
 });
 
 const draw = (b: DayBlock, clash = false) =>
-  render(<BookingCard blk={b} crew={b.with.length + 1} when="7 to 3" clash={clash} className="sc-blk" style={{}} />).container.querySelector("a")!;
+  render(<BookingCard blk={b} crew={b.with.length + 1} when="7 am" clash={clash} className="sc-blk" style={{}} />).container.querySelector("a")!;
 
 it("puts the job number in a box of the job's colour, and the client, suburb, type, time, crew and state on three lines", () => {
   const card = draw(blk());
@@ -37,7 +37,7 @@ it("puts the job number in a box of the job's colour, and the client, suburb, ty
   expect(card.querySelector(".sc-c2")).toHaveTextContent("Bondi Beach");
   const third = card.querySelector(".sc-c3") as HTMLElement;
   expect(third).toHaveTextContent("Install");
-  expect(third).toHaveTextContent("7 to 3");
+  expect(third).toHaveTextContent("7 am");
   expect(screen.getByLabelText("2 people booked")).toHaveTextContent("2");
   expect(screen.getByText("On site").closest(".pt-state")).toHaveClass("pt-state--good");
   /* no names of the crew on the card: the count says it */

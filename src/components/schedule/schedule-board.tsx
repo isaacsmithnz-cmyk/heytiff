@@ -82,7 +82,7 @@ const shortName = (name: string) => {
    "the job number in a coloured box, a coloured hairline, the rest white").
    The job's number in a solid box of its colour on the left, the rest white
    inside a hairline of the same colour, three lines: the client; the suburb;
-   the job's type, its time, a person and how many are booked on it, and
+   the job's type, its start time, a person and how many are booked on it, and
    where it's up to. A done card's colour goes grey; one that clashes with
    another of the person's bookings wears an orange edge. */
 const STATE_WORD = {
@@ -103,7 +103,8 @@ export function BookingCard({
   blk: DayBlock;
   /** how many are booked on the job that day */
   crew: number;
-  /** "7 to 3", or "3 days, 7 to 3" in the week */
+  /** when it starts, "7 am", or "3 days, 7 am" in the week (Isaac, 23
+      October: "install, start time then ppl number") */
   when: string;
   clash?: boolean;
   className: string;
@@ -534,7 +535,7 @@ function DayRows({ board, held, at, busy, setAt, dropOn, nameDoor }: RowsProps) 
                   key={blk.key}
                   blk={blk}
                   crew={blk.with.length + 1}
-                  when={spanWord(blk.startMin, blk.endMin)}
+                  when={clockWord(blk.startMin, true)}
                   clash={stack.clash.has(blk.key)}
                   className="sc-blk"
                   style={{
@@ -621,7 +622,7 @@ function WeekRows({ board, held, at, busy, setAt, dropOn, nameDoor }: RowsProps)
                   key={w.key}
                   blk={w.blk}
                   crew={w.blk.with.length + 1}
-                  when={`${w.last > w.first ? `${w.last - w.first + 1} days, ` : ""}${spanWord(w.blk.startMin, w.blk.endMin)}`}
+                  when={`${w.last > w.first ? `${w.last - w.first + 1} days, ` : ""}${clockWord(w.blk.startMin, true)}`}
                   className="sc-wbar"
                   style={{ gridColumn: `${w.first + 1} / ${w.last + 2}` }}
                 />

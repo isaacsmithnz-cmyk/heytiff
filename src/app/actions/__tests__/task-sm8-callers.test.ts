@@ -129,6 +129,8 @@ it("(F) exactly the ticking screens post a Done, on every tick they make", () =>
     "components/dashboard/home-todo.tsx",
     // v2's job page: Overview's To do on this job, its ticks (step 6)
     "components/jobs/job-overview.tsx",
+    // a task's own form: its Mark done (Isaac, 24 October 2026)
+    "components/making/task-form.tsx",
   ]);
   // a screen's every tick is a person's: none of them leaves the flag off
   expect(onScreens(ticks.calls).filter((c) => !flagged(ticks.calls, "postDone")(c))).toEqual([]);
@@ -146,6 +148,8 @@ it("(F) exactly the screens with a Reopen or an Undo take one back, on every Reo
     "components/dashboard/home-todo.tsx",
     // v2's job page: the Undo on a To do tick's toast
     "components/jobs/job-overview.tsx",
+    // a task's own form: the Undo on its Mark done's toast
+    "components/making/task-form.tsx",
   ]);
   expect(onScreens(reopens.calls).filter((c) => !flagged(reopens.calls, "takeBackDone")(c))).toEqual([]);
 });

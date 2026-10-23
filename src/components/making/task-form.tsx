@@ -152,7 +152,7 @@ export function TaskForm({
   async function tick() {
     if (!taskId) return;
     setSaving(true);
-    const r = task?.done ? await reopenTask(taskId) : await completeTask(taskId, { postDone: true });
+    const r = task?.done ? await reopenTask(taskId, { takeBackDone: true }) : await completeTask(taskId, { postDone: true });
     setSaving(false);
     if (!r.ok) {
       setError(r.error);

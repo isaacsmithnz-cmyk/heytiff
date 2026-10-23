@@ -34,6 +34,7 @@ export const projectsHref = "/dashboard/jobs?view=projects";
 
 export const projectHref = (id: string) =>`/dashboard/workboard/projects/${encodeURIComponent(id)}`;
 
-/** A maintenance visit opens on the board's Maintenance side with its sheet
-    up (the page reads `?visit=`). */
-export const visitHref = (id: string) => `/dashboard/workboard?visit=${encodeURIComponent(id)}`;
+/** A maintenance visit opens its sheet over Jobs, the record host reading
+    `?open=visit.<id>` (records/ref): the Workboard it opened on is retired
+    (the old-code audit, 23 October 2026). */
+export const visitHref = (id: string) => `/dashboard/jobs?open=${encodeURIComponent(`visit.${id}`)}`;

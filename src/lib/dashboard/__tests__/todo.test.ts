@@ -295,7 +295,7 @@ describe("the old list's rows", () => {
       ],
     });
     const rows = todoRows(input({ list }));
-    expect(byKey(rows, "visit:v9")).toMatchObject({ tone: "wrong", act: { label: "Book in", href: "/dashboard/workboard?visit=v9" } });
+    expect(byKey(rows, "visit:v9")).toMatchObject({ tone: "wrong", act: { label: "Book in", href: "/dashboard/jobs?open=visit.v9" } });
     expect(byKey(rows, "issue:i1")).toMatchObject({ tone: "look", act: { label: "Open", href: "/dashboard/jobs/j7" } });
   });
 

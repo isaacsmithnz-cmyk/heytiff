@@ -3,7 +3,7 @@
 import { createContext, useContext, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { JobSheetTab } from "@/components/workboard/board/job-sheet";
-import type { ScheduleJobState } from "@/components/workboard/board/schedule-tab";
+import type { ScheduleJobState } from "@/lib/workboard/schedule";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
 import type { AgreementCard, VisitCard } from "@/lib/workboard/maintenance-cards";
 import { jobHref } from "@/lib/shell/links";

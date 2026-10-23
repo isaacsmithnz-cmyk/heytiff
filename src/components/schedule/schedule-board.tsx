@@ -800,6 +800,11 @@ function WeeksGrid({
   );
 }
 
+/* the day's read, loaded when a panel first opens: the board's own screens
+   never need the Workboard's actions until then. Outside the component, where
+   the compiler doesn't have to lower an import. */
+const readDay = (day: string) => import("@/app/actions/workboard").then((a) => a.scheduleDay(day));
+
 /** One day of the month, beside it: how full it is, its holiday and events,
     who's off and why, and its jobs as the board's cards, read when it opens;
     Open the day goes to its Day view to book. */
@@ -819,10 +824,7 @@ function MonthDayPanel({
   const [jobs, setJobs] = useState<{ day: string; list: { blk: DayBlock; crew: number }[] } | null>(null);
   useEffect(() => {
     let live = true;
-    /* the day's read, loaded when a panel first opens: the board's own
-       screens never need the Workboard's actions until then */
-    void import("@/app/actions/workboard")
-      .then((a) => a.scheduleDay(day))
+    void readDay(day)
       .then((payload) => {
         if (!live) return;
         const seen = new Map<string, { blk: DayBlock; crew: number }>();

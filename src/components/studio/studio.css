@@ -255,256 +255,8 @@ html[data-ds-display] .dstudio.editing {
     align-items: stretch;
     padding: 32px 24px;
   }
-  /* THE CARD HAS TO CLEAR THE CLOUD'S TAIL HERE. Stacked, the Recent card
-     follows the hero directly — and the hero's flow height ends at the
-     button, while the field carries on ~150px below it. The card's own glass
-     then pulled those dots THROUGH itself: it is translucent with a backdrop
-     blur, so covering them with a z-index is not covering them at all.
-
-     The room is bought on the button, which is the last thing in the hero's
-     flow. Nothing else can buy it: the cloud's anchor is zero-height and
-     sizeless by design, and margin on it would move the button off the
-     centre it was just placed on. */
-  .dstudio .ds-cta.ds-start {
-    margin-bottom: 150px;
-  }
 }
 
-/* New design — transparent hero rendered directly on the black frame (no card,
-   no scrim; the frame's dot grid is the only backdrop) */
-.dstudio .ds-hero {
-  position: relative;
-  color: var(--paper);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-                                                                                                                                                                                                                                                                                                                 
-  align-self: start;
-  padding-top: 24px;
-}
-.dstudio .ds-hero h2 {
-  font-size: 32px;
-  font-weight: 700;
-  letter-spacing: -0.04em;
-  line-height: 1.02;
-  /* The landing is now just the name and the one action — nothing sits
-     between them, so the title carries the gap the pitch used to. */
-  margin: 0 0 32px;
-}
-.dstudio .ds-hero p {
-  color: var(--paper);
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 1.5;
-  max-width: 44ch;
-  margin: 0 0 32px;
-}
-.dstudio .ds-cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  align-self: flex-start;
-  height: 52px;
-  padding: 0 24px;
-  border-radius:var(--r-button);
-  background: var(--teal);
-  color: var(--ink);
-  font-size: 16px;
-  font-weight: 700;
-  transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
-}
-.dstudio .ds-cta:hover {
-}
-/* Hover lights the same glass rather than swapping it for another one: the
-   fill comes up, the rim comes up, the drop deepens. `.ds-cta:hover` above
-   would otherwise put the teal glow back under it. */
-.dstudio .ds-cta.ds-start:hover {
-  background: var(--on-ink-tint-2);
-  border-color: var(--on-ink-line);
-}
-/* The cloud between the name and the action. The field is a square box with
-   the cloud floating at its centre, so it is pulled back by its own margin to
-   sit under the title rather than indented by half a box of nothing. */
-.dstudio .ds-cloud {
-  /* A ZERO-SIZED ANCHOR, and the field hangs off it. The field is a 760px
-     square, and a box that wide inside a `1.35fr` grid column sets the
-     column's min-content — it pushed the whole two-column stack past the
-     viewport and cut the Recent card off at the right edge. Nothing about the
-     cloud should influence layout, so the span carries no size at all: its
-     margins place a point, the field centres itself on that point and spills
-     out of flow in every direction.
-
-     The gap between title and button is therefore the anchor's own top margin
-     plus the button's, not the field's box. */
-  position: relative;
-  display: block;
-  width: 0;
-  height: 0;
-  z-index: 0;
-  margin: 190px 0 0 180px;
-  pointer-events: none;
-}
-.dstudio .ds-cloud .dotf {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  /* THE HOLE THE BUTTON SITS IN. Glass is not opaque: dots drifting behind
-     the button showed through it as streaks across the label and made it hard
-     to read. The field is cleared where the button is and thins back in
-     around it, so the cloud surrounds the button rather than passing over it.
-
-     The mask is in the field's own box, which is NOT transformed — the tilt
-     and the .66 scale live on `.dotf-tilt` inside it — so these are screen
-     pixels, and they hold at every angle of the turn. The clear zone is
-     ~230x77 against a button of 360x68: past its corners on both axes, since
-     an ellipse that only touches the mid-points of a rectangle still leaves
-     dots sitting in its corners.
-
-     `-webkit-mask` paired with `mask`, which is how the rest of the app
-     writes this and unlike the backdrop-filter pair does survive the build. */
-  -webkit-mask: linear-gradient(
-    180deg,
-    #000 0 40%,
-    transparent 44% 54%,
-    #000 58%
-  );
-  mask: linear-gradient(180deg, #000 0 40%, transparent 44% 54%, #000 58%);
-}
-
-/* The landing's single action. Sized on its own class, not on `.ds-cta`: the
-   wizard's nav buttons share that base and must stay small. */
-.dstudio .ds-cta.ds-start {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
-  position: relative;
-  z-index: 1;
-  margin-top: -40px;
-  height: 68px;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                
-  background: var(--ds-night);
-  border: 1px solid var(--ds-night-line);
-  color: var(--paper); 
-                                                                                                            
-  width: min(100%, 360px);
-  justify-content: space-between;
-  padding: 0 12px 0 32px;
-  border-radius:var(--r-button);
-  font-size: 16px;
-}
-/* The button's end-cap: a plain white arrow on the glass, no chip behind it.
-   The HeyTiff chevron stood here while the button was a teal fill, on an ink
-   chip that gave it a ground; on black glass the chip was a second, darker
-   box inside a dark button, and the mark itself was one brand statement too
-   many next to a field of dots that already IS the mark. */
-.dstudio .ds-start-mk {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  color: var(--paper);
-  transition: transform var(--t-move) var(--ease);
-}
-.dstudio .ds-cta.ds-start:hover .ds-start-mk {
-}
-/* HOVERING THE BUTTON GATHERS THE CLOUD. The dots are the mark the chip is
-   wearing, so the button reaching for them is the one gesture that says so:
-   the cloud draws in a little and brightens while the pointer is down there.
-   Reached with `:has()` because the cloud is BEFORE the button in the DOM and
-   a sibling combinator only looks forward. */
-.dstudio .ds-hero:has(.ds-cta.ds-start:hover) .dotf-tilt {
-  transform: rotateX(-12deg) scale(0.605);
-}
-.dstudio .ds-hero:has(.ds-cta.ds-start:hover) .dotf-cell i, .dstudio .ds-hero:has(.ds-cta.ds-start:focus-within) .dotf-cell i {
-  opacity: 1;
-}
-.dstudio .ds-cloud .dotf-cell i {
-  transition: opacity var(--t-fast) var(--ease);
-}
-
-/* new-design wizard */
-.dstudio .ds-hero-step {
-  display: inline-flex;
-  align-self: flex-start;
-  font: 700 12px var(--mono);
-  color: var(--teal);
-  background: var(--tint);
-  border: 1px solid var(--ink);
-  border-radius:var(--r-pill);
-  padding: 4px 12px;
-  margin-bottom: 16px;
-}
-.dstudio .ds-hero-etitle {
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  margin: 0 0 4px;
-}
-.dstudio .ds-hero-esub b {
-  color: var(--paper);
-  font-weight: 700;
-}
-.dstudio .ds-hero-nav {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.dstudio .ds-cta.sm {
-  height: 46px;
-  padding: 0 24px;
-  font-size: 14px;
-}
-.dstudio .ds-cta:disabled {
-  opacity: 0.4;
-  cursor: default; 
-  box-shadow: none;
-  transform: none;
-}
-.dstudio .ds-hero-esub {
-  color: var(--on-ink-q);
-  font-size: 14px;
-  margin: 0 0 16px;
-}
-.dstudio .ds-name-input {
-  width: 100%;
-  max-width: 420px;
-  height: 48px;
-  padding: 0 16px;
-  border-radius:var(--r-control);
-  background: var(--on-ink-tint);
-  border: 1px solid var(--on-ink-line);
-  color: var(--paper);
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 16px;
-  transition: border-color var(--t-fast) var(--ease);
-}
-.dstudio .ds-name-input::placeholder {
-  color: var(--on-ink-q);
-  font-weight: 500;
-}
-.dstudio .ds-name-input:focus {
-  outline: none;
-  border-color: var(--paper);
-}
-
-/* ── Start from a ServiceM8 job ───────────────────────────────────────────
-   The mirror's own search, on the step where a design gets its name. It sits
-   ABOVE the name field because it answers it: pick a job and the street lands
-   in the field below, still editable, with the client and site carried
-   through to what the Summary sheet prints.
-
-   The results are a real DROPDOWN — absolutely positioned over what follows —
-   rather than a list that grows in place. A growing list pushes Continue down
-   the page while you are reading it, and a button travelling out from under
-   the cursor is a bug this codebase has already shipped once. The panel is
-   opaque rather than blurred: it overlays a field it must not let read
-   through, and one more backdrop-filter on this screen buys nothing. */
-.dstudio .ds-sm8 {
-  width: 100%;
-  max-width: 420px;
-  margin-bottom: 12px;
-}
 .dstudio .ds-sm8-field {
   position: relative;
 }
@@ -637,115 +389,6 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 600;
   color: var(--on-ink-q);
 }
-/* the chosen job, in place of the search box — the field it filled is right
-   below it, so this only has to say which job and offer the way back */
-.dstudio .ds-sm8-on {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 46px;
-  padding: 8px 8px 8px 12px;
-  border-radius:var(--r-button);
-  background: var(--on-ink-tint);
-  border: 1px solid var(--on-ink-line);
-  color: var(--paper);
-}
-.dstudio .ds-sm8-on svg {
-  color: var(--teal);
-  flex: 0 0 auto;
-}
-.dstudio .ds-sm8-onl {
-  flex: 1;
-  min-width: 0;
-  font-size: 13px;
-  font-weight: 600;
-  overflow: hidden;
-  white-space: nowrap;
-  -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
-  mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
-}
-.dstudio .ds-sm8-onl b {
-  color: var(--paper);
-  font-weight: 700;
-}
-.dstudio .ds-sm8-clear {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius:var(--r-control);
-  color: var(--on-ink-q);
-  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
-}
-.dstudio .ds-sm8-clear:hover {
-  background: var(--on-ink-tint-2);
-  color: var(--paper);
-}
-.dstudio .ds-opts {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.dstudio .ds-opt {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 12px;
-  text-align: left;
-  padding: 16px;
-  border-radius:var(--r-button);
-  background: var(--on-ink-tint);
-  border: 1px solid var(--on-ink-line);
-  transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
-  cursor: pointer;
-}
-.dstudio .ds-opt:hover {
-  background: var(--on-ink-tint-2);
-}
-.dstudio .ds-opt-ic {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 42px;
-  height: 42px;
-  border-radius:var(--r-button);
-  background: var(--tint);
-  border: 1px solid var(--ink);
-  color: var(--teal);
-}
-.dstudio .ds-opt-n {
-  color: var(--paper);
-  font-size: 16px;
-  font-weight: 700;
-}
-.dstudio .ds-opt-d {
-  color: var(--on-ink-q);
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.45;
-}
-.dstudio .ds-hero-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  align-self: flex-start;
-  height: 38px;
-  padding: 0 16px;
-  border-radius:var(--r-button);
-  background: var(--on-ink-tint);
-  border: 1px solid var(--on-ink-line);
-  color: var(--paper);
-  font-size: 13px;
-  font-weight: 700;
-  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
-}
-.dstudio .ds-hero-back:hover {
-  background: var(--on-ink-tint-2);
-  color: var(--paper);
-}
 
 /* THE LANDING'S GLASS, ONCE. The Recent card and the New design button are
    the same material — same fill, same rim, same blur, same drop — and the
@@ -760,38 +403,11 @@ html[data-ds-display] .dstudio.editing {
   --ds-night-line: var(--on-ink-line);
 }
 
-/* Recent designs — glass card on the dark canvas */
-.dstudio .ds-recent {
-                                                                                                                                                                                                              
-  position: relative;
-  z-index: 1;
-  background: var(--ds-night);
-  border: 1px solid var(--ds-night-line);
-  border-radius:var(--r-card); 
-                                                                                                                                
-  padding: 24px 24px;
-  display: flex;
-  flex-direction: column;
-  min-height: 320px;
-}
-.dstudio .ds-recent-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
 .dstudio .ds-cardt {
   flex: 1 1 100%;
   font-size: 16px;
   font-weight: 700;
   color: var(--paper);
-}
-.dstudio .ds-recent-tools {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 .dstudio .ds-import {
   display: inline-flex;
@@ -812,118 +428,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-import:hover {
   background: var(--on-ink-tint-2);
 }
-.dstudio .ds-search {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--on-ink-tint);
-  border: 1px solid var(--on-ink-line);
-  border-radius:var(--r-control);
-  height: 42px;
-  padding: 0 12px;
-  transition: border-color var(--t-fast) var(--ease);
-}
-.dstudio .ds-search:focus-within {
-  border-color: var(--paper);
-}
-.dstudio .ds-search svg {
-  color: var(--on-ink-q);
-  flex: 0 0 auto;
-}
-.dstudio .ds-search input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--paper);
-}
-.dstudio .ds-search input::placeholder {
-  color: var(--on-ink-q);
-  font-weight: 500;
-}
-/* no overflow here: the card is auto-height so the list never scrolls, and any
-   clip would cut the top row's -2px hover lift (and its focus ring) */
-.dstudio .ds-rlist {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.dstudio .ds-rcard {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 12px;
-  border: 1px solid transparent;
-  border-radius:var(--r-card);
-  background: var(--on-ink-tint);
-  cursor: pointer;
-  transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
-  text-align: left;
-  width: 100%;
-}
-/* LIGHTER UNDER THE POINTER. This screen is ink, so the light well's hover —
-   `--tint` and an `--ink` edge — darkened the row and dropped its edge
-   into the ground, and with every row outlined in the one hairline at rest
-   the list read as all lit but the one you were on. At rest a row is its
-   tint alone; under the pointer it takes the second tint and the hairline. */
-.dstudio .ds-rcard:hover {
-  background: var(--on-ink-tint-2);
-  border-color: var(--on-ink-line);
-}
-
-/* ── the list still loading ──
-   Shapes only: they hold the space the real cards are about to occupy, so the
-   panel does not jump and a click has somewhere to land.
-
-   The sweep matches the shell's route skeleton — slow and low-contrast on
-   purpose, because a fast shimmer reads as an error state — but carries its
-   OWN keyframe rather than borrowing `pkSweep`. This stylesheet is imported
-   by `/live/[token]`, where shell.css is not loaded and a borrowed animation
-   name would silently resolve to nothing. The card sits on the studio's DARK
-   home, so the gradient is white-on-dark rather than `.pk-b`'s dark-on-white.
-
-   It is a card that cannot be pressed: no hover lift, no pointer. */
-@keyframes dsSweep {
-  from { background-position: 200% 0; }
-  to { background-position: -200% 0; }
-}
-.dstudio .ds-rcard.skel { cursor: default; }
-.dstudio .ds-rcard.skel:hover {
-  transform: none;
-  background: var(--on-ink-tint);
-  border-color: transparent;
-}
-/* BOTH SPECIFICITIES, one declaration block. `.ds-rthumb` carries its own
-   fill and border at (0,2,0) and is written later in this file, so a lone
-   `.ds-skb` loses to it and the thumb animated an EMPTY box — the same shape
-   as the `.fg button` reset trap, hit here by my own rule. The second
-   selector states the paint where it has to win, rather than restating it. */
-.dstudio .ds-skb,
-.dstudio .ds-rcard.skel .ds-rthumb.ds-skb {
-  display: block;
-  border: 0;
-  border-radius:var(--r-control);
-  background: var(--on-ink-tint);
-  background-image: linear-gradient(
-    100deg,
-    var(--on-ink-tint) 30%, var(--on-ink-tint-2) 50%, var(--on-ink-tint) 70%
-  );
-  background-size: 200% 100%;
-  animation: dsSweep 1.6s ease-in-out infinite;
-}
-/* the thumb keeps its own 46px box; the rest are the real lines' heights */
-.dstudio .ds-rcard.skel .ds-rthumb.ds-skb { border-radius:var(--r-button); }
-.dstudio .ds-skb-nm { width: 46%; height: 12px; margin-bottom: 8px; }
-.dstudio .ds-skb-mt { width: 72%; height: 9px; }
-.dstudio .ds-skb-wh { flex: 0 0 auto; width: 52px; height: 9px; }
-/* a whole panel of pulsing blocks is exactly what this setting exists to stop */
-@media (prefers-reduced-motion: reduce) {
-  .dstudio .ds-skb { animation: none; }
-}
 
 /* visually hidden, for the reader who is not looking at shapes */
 .dstudio .ds-sr {
@@ -933,41 +437,6 @@ html[data-ds-display] .dstudio.editing {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
-}
-.dstudio .ds-rthumb {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 46px;
-  height: 46px;
-  border-radius:var(--r-button);
-  background: var(--on-ink-tint);
-  border: 1px solid transparent;
-  color: var(--paper);
-}
-.dstudio .ds-rbody {
-  flex: 1;
-  min-width: 0;
-}
-.dstudio .ds-rnm {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--paper);
-  white-space: nowrap;
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
-  mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
-}
-.dstudio .ds-rmeta {
-  font: 700 12px var(--mono);
-  color: var(--on-ink-q);
-  margin-top: 4px;
-}
-.dstudio .ds-rwhen {
-  flex: 0 0 auto;
-  font: 500 12px var(--mono);
-  color: var(--on-ink-q);
 }
 .dstudio .ds-rdel {
   flex: 0 0 auto;
@@ -992,46 +461,6 @@ html[data-ds-display] .dstudio.editing {
   font-size: 12px;
   font-weight: 700;
 }
-/* under the five: the button that opens the rest in place, and closes them
-   again. Underlined, because the line it replaced looked exactly like this
-   and pressing it did nothing. */
-.dstudio .ds-rmore {
-  align-self: center;
-  padding: 4px 8px;
-  border-radius: var(--r-control);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--on-ink-q);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-  transition: color var(--t-fast) var(--ease);
-}
-.dstudio .ds-rmore:hover {
-  color: var(--paper);
-}
-.dstudio .ds-rempty {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  text-align: center;
-  color: var(--on-ink-q);
-  padding: 32px 0;
-}
-.dstudio .ds-rempty-t {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--paper);
-}
-.dstudio .ds-rempty-s {
-  font-size: 13px;
-  font-weight: 500;
-  max-width: 260px;
-  line-height: 1.5;
-}
 .dstudio .ds-ierr {
   font-size: 12px;
   font-weight: 600;
@@ -1040,17 +469,6 @@ html[data-ds-display] .dstudio.editing {
 }
 
 /* ═════════════ Library ═════════════ */
-
-/* The side column, one grid child: Recent designs, and room above it for
-   the library's door when the list is tall enough to reach it. The stack
-   centres the column as a piece; the padding only matters when the column
-   is top-aligned, which is when it would otherwise sit under the door. */
-.dstudio .ds-home-side {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  padding-top: calc(38px + 16px);
-}
 
 /* THE DOOR. Top right of the start screen, level with the stack's top
    padding: "Library, updated 18 Aug 2026", and the word New when something
@@ -4809,20 +4227,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-place-ghost .ds-unit-flange,
 .dstudio .ds-place-ghost .ds-unit-arrow { stroke: var(--teal-d); }
 .dstudio .ds-place-ghost .ds-unit-hub { fill: var(--teal-d); }
-.dstudio .ds-unit-role {
-  fill: currentColor;
-  text-anchor: middle;
-  dominant-baseline: central;
-  font-weight: 700;
-}
-.dstudio .ds-unit-model {
-  fill: var(--gray700);
-  text-anchor: middle;
-  dominant-baseline: central;
-  paint-order: stroke;
-  stroke: #fff;
-  stroke-width: 3px;
-}
 .dstudio .ds-riser circle {
   fill: var(--paper);
   stroke: currentColor;
@@ -6145,15 +5549,6 @@ html[data-ds-display] .dstudio.editing {
 
 /* ═════════ summary page (job details + takeoff + printable pack) ═════════ */
 .dstudio .ds-summary { display: flex; flex-direction: column; gap: 16px; align-items: stretch; }
-/* Where the three fields above came from. This is on the LIGHT well, so no
-   dark-skin literals — and deliberately NOT a state colour: it says the
-   design was started from a job, not that anything is good or bad. */
-/* --gray400 is this codebase's usual icon grey, but at 2.5:1 on white it is
-   under the 3:1 non-text minimum. The glyph carries no meaning the sentence
-   doesn't, so this is belt-and-braces — it also just costs nothing. */
-.dstudio .ds-job-print,
-.dstudio .ds-job-print:disabled { opacity: 0.45; cursor: default; }
-.dstudio .ds-job-print:disabled:hover { transform: none; border-color: var(--line); }
 
 #ds-printdoc { display: none; }
 #ds-printdoc .ds-print-cap {
@@ -6349,39 +5744,11 @@ html[data-ds-display] .dstudio.editing {
 /* .ds-cardt is a Home-screen title (white — dark backdrop); on the summary's
    light paper it vanished outright, so re-ink it here */
 
-/* ── summary redesign (.ds-summary2): one readable column — job card beside
-      the action cards, the snapshot strip, rooms & loads, then the takeoff.
-      Stays on the light paper; numbers are Jakarta with tabular figures. ── */
-.dstudio .ds-act-card {
-  border: 1px solid var(--ds-border);
-  border-radius:var(--r-card);
-  padding: 12px 16px;
-  background: var(--paper);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.dstudio .ds-act-t {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--ink);
-}
-.dstudio .ds-act-t .ds-sim-play { font-size: 12px; color: var(--teal-d); }
 .dstudio .ds-act-s {
   font-size: 12px;
   line-height: 1.5;
   color: var(--gray500);
 }
-.dstudio .ds-act-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 2px;
-}
-.dstudio .ds-act-row .ds-tbbtn { justify-content: center; }
 .dstudio .ds-act-go:disabled { opacity: 0.45; cursor: default; }
 .dstudio .ds-act-go:disabled:hover {
   transform: none;
@@ -6466,17 +5833,6 @@ html[data-ds-display] .dstudio.editing {
    Revoke, Keep) sit at their own width beside it */
 .ds-xm-foot .ds-act-go { flex: 1; justify-content: center; }
 
-/* export customizer — collapsed behind Customise (defaults are everything);
-   captioned groups of checkbox rows + mini segment pills, all on the light
-   card */
-/* WHAT ARE YOU SENDING — the first thing the card asks, and the thing the
-   old card hid behind "Customise" while three mechanism buttons sat in front.
-   One row per artifact: what it is, then what comes out of it. */
-.dstudio .ds-export-picks {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
 .dstudio .ds-export-pick {
   display: flex;
   flex-direction: column;
@@ -6507,13 +5863,6 @@ html[data-ds-display] .dstudio.editing {
   color: var(--gray500);
 }
 
-.dstudio .ds-export-opts {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  border-top: 1px solid var(--line);
-  padding-top: 8px;
-}
 .dstudio .ds-export-grp {
   display: flex;
   flex-direction: column;
@@ -9187,11 +8536,6 @@ html[data-ds-display] .dstudio.editing {
   flex-direction: column;
   gap: var(--s-4);
 }
-.ds-sb-pane-title {
-  margin: 0;
-  font-size: var(--fs-4);
-  font-weight: var(--fw-heading);
-}
 .ds-sb-field {
   display: flex;
   flex-direction: column;
@@ -9355,44 +8699,6 @@ html[data-ds-display] .dstudio.editing {
   background: var(--ink);
 }
 
-/* ── the builder's doors on the design screen ── */
-.dstudio .ds-btray {
-  min-width: 340px;
-  align-items: stretch;
-}
-.dstudio .ds-btray-item {
-  grid-template-columns: auto 1fr auto;
-}
-.dstudio .ds-btray-place {
-  appearance: none;
-  grid-row: 1 / span 2;
-  grid-column: 3;
-  align-self: center;
-  font: inherit;
-  font-size: var(--fs-2);
-  font-weight: var(--fw-label);
-  color: var(--ink);
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: var(--r-button);
-  padding: var(--s-2) var(--s-3);
-  cursor: pointer;
-  transition: background-color var(--t-fast) var(--ease);
-}
-.dstudio .ds-btray-place:hover {
-  background: var(--tint-2);
-}
-.dstudio .ds-btray-place:focus-visible {
-  outline: none;
-  box-shadow: var(--ring);
-}
-.dstudio .ds-btray-flag {
-  margin: 0;
-  padding: var(--s-3);
-  font-size: var(--fs-2);
-  font-weight: var(--fw-label);
-  color: var(--bad-t);
-}
 .ds-sb-roomunits {
   display: flex;
   flex-direction: column;

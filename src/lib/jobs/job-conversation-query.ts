@@ -1,3 +1,4 @@
+import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { listJobDiaryEntries } from "@/lib/dashboard/journal-query";
 import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
@@ -92,7 +93,8 @@ export async function readJobConversationFor(input: {
   const flagIds = [...new Set(entries.flatMap((e) => e.record.flagIds))];
   const issueIds = [...new Set(entries.flatMap((e) => e.record.issueIds))];
 
-  const [linked, onJob, flags, issues] = await Promise.all([
+  const fortnight = new Date(Date.now() - 14 * 86_400_000).toISOString();
+  const [linked, onJob, flags, issues, doneOnJob] = await Promise.all([
     noteTaskIds.length
       ? supabaseAdmin.from("tasks").select(TASK_COLUMNS).eq("org_id", orgId).in("id", noteTaskIds)
       : Promise.resolve({ data: [], error: null }),
@@ -112,11 +114,30 @@ export async function readJobConversationFor(input: {
     issueIds.length
       ? supabaseAdmin.from("workboard_issues").select("id, summary").eq("org_id", orgId).in("id", issueIds)
       : Promise.resolve({ data: [] }),
+    /* the done ones are a nicety: a read that fails is none, never the card's failure */
+    (async () => {
+      try {
+        const r = await supabaseAdmin
+          .from("tasks")
+          .select("id, title, done_at, done_by")
+          .eq("org_id", orgId)
+          .eq("sm8_job_uuid", jobUuid)
+          .eq("status", "done")
+          .gte("done_at", fortnight)
+          .order("done_at", { ascending: false })
+          .limit(5);
+        return r.error ? { data: [] } : r;
+      } catch {
+        return { data: [] };
+      }
+    })(),
   ]);
+  const doneRows = (doneOnJob.data ?? []) as { id: string; title: string | null; done_at: string | null; done_by: string | null }[];
 
   const taskRows = [...((linked.data ?? []) as TaskRow[]), ...((onJob.data ?? []) as TaskRow[])];
   const names = await staffDisplayNames(orgId, [
     ...taskRows.map((t) => t.assigned_to),
+    ...doneRows.map((t) => t.done_by),
     ...entries.map((e) => e.authorId),
     staffId,
   ]);
@@ -124,7 +145,8 @@ export async function readJobConversationFor(input: {
   const lineOf = (t: TaskRow) =>
     taskLine(
       {
-        who: t.assigned_to && t.assigned_to === staffId ? "you" : firstName(t.assigned_to ? names.get(t.assigned_to) : null),
+        /* a job's task for nobody in particular is anyone's (Isaac, 24 October 2026) */
+        who: t.assigned_to === null ? "Anyone" : t.assigned_to === staffId ? "you" : firstName(names.get(t.assigned_to)),
         dueDate: t.due_date,
         time: t.remind_at ? clockIn(tz, t.remind_at) : null,
         by: t.remind_kind === "by",
@@ -182,6 +204,13 @@ export async function readJobConversationFor(input: {
         assigneeId: t.assigned_to,
       })),
     ),
+    done: doneRows.map((t) => {
+      const day = t.done_at ? todayInZone(tz, new Date(t.done_at)) : null;
+      const at = t.done_at ? clockIn(tz, t.done_at) : null;
+      const who = t.done_by === staffId ? "you" : (names.get(t.done_by ?? "") ?? "someone");
+      const when = day ? (day === today ? `today${at ? `, ${at}` : ""}` : `${fmtAuWeekdayDayMonth(day)}${at ? `, ${at}` : ""}`) : "";
+      return { id: t.id, title: (t.title ?? "").trim() || "A task", line: `Done by ${who}${when ? `, ${when}` : ""}` };
+    }),
     viewer: { id: staffId, name: staffId ? (names.get(staffId) ?? null) : null },
   };
 }

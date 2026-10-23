@@ -1,7 +1,7 @@
 /* HOME › TO DO: every source, and the one button each row gets. Placed
    against Friday 25 September 2026, the day home-list.test places on. */
 
-import { columnOf, bellCount, deskAskHref, deskTaskHref, todoRows, type TodoInput, type TodoRow } from "../todo";
+import { columnOf, bellCount, deskAskHref, todoRows, type TodoInput, type TodoRow } from "../todo";
 import { placeList, type ListCaps, type ListInput } from "../home-list";
 import { vehicleChips, type ActionChip } from "../chips";
 import type { DashTask } from "../tasks";
@@ -252,7 +252,7 @@ describe("the old list's rows", () => {
       ["task:late", "wrong", "late"],
       ["task:today", "look", "today"],
     ]);
-    expect(rows[0].act).toEqual({ kind: "link", label: "Open", href: deskTaskHref("late") });
+    expect(rows[0].act).toEqual({ kind: "task", label: "Open", taskId: "late" });
     expect(rows[0].line).toBe("Due Sun 20 Sept");
   });
 

@@ -46,7 +46,9 @@ export type TodoAct =
   | { kind: "link"; label: string; href: string }
   | { kind: "later"; taskId: string }
   | { kind: "gotit"; taskId: string }
-  | { kind: "bookIn"; label: "Book in"; jobUuid: string; href: string };
+  | { kind: "bookIn"; label: "Book in"; jobUuid: string; href: string }
+  /** a task's Open: its own form over Home (Isaac, 24 October 2026), never the old desk */
+  | { kind: "task"; label: "Open"; taskId: string };
 
 export type TodoSource = "reminder" | "assignment" | "alert" | "list" | "timesheets" | "notice";
 
@@ -106,10 +108,6 @@ export const TODO_HOME_CAP = 6;
 const fmt = fmtAuWeekdayDayMonth;
 const enc = encodeURIComponent;
 
-/** The old desk, where a task opens as its own row (move the date, give it
-    to someone, delete) and an ask opens its conversation, until To do's
-    rows open their own forms (F-019). */
-export const deskTaskHref = (id: string) => `/dashboard/desk?task=${enc(id)}`;
 /** The Diary, where an entry, a mention or a field issue with no job is
     read until v2 gives the Diary a place (the v2 audit, 20 October 2026). */
 export const DESK_DIARY = "/dashboard/desk?face=diary";
@@ -187,8 +185,9 @@ function listAlertAct(r: ListAlertRow): TodoAct {
   if (v && "clear" in v) return { kind: "link", label: "Clear", href: jobPageHref(v.clear.jobUuid, "visits") };
   if (v && "door" in v && v.door.to === "job") return { kind: "link", label: v.label, href: jobPageHref(v.door.remoteId, "visits") };
   const d = r.door;
+  if (d.to === "task") return { kind: "task", label: "Open", taskId: d.id };
   const href =
-    d.to === "href" ? d.href : d.to === "job" ? jobPageHref(d.remoteId) : d.to === "task" ? deskTaskHref(d.id) : DESK_DIARY;
+    d.to === "href" ? d.href : d.to === "job" ? jobPageHref(d.remoteId) : DESK_DIARY;
   /* a paper with no verb of its own is renewed where the row lands; a
      service is the vehicle's, opened */
   const paper = r.id.startsWith("chip:") && !/^Service\b/.test(r.sub);
@@ -219,7 +218,7 @@ function listRows(list: HomeList): TodoRow[] {
             tick: r.id,
             act: ask
               ? { kind: "link", label: "Reply", href: deskAskHref(ask) }
-              : { kind: "link", label: "Open", href: deskTaskHref(r.id) },
+              : { kind: "task", label: "Open", taskId: r.id },
           });
           break;
         }

@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { TaskForm } from "../task-form";
 import { WindowsContext } from "@/components/records/records-context";
-import { deleteTask, makeTasks, taskPeople } from "@/app/actions/dashboard";
+import { completeTask, deleteTask, makeTasks, readTaskForEdit, taskPeople, updateTask, type TaskForEdit } from "@/app/actions/dashboard";
 
 /* New › Task and a job's Add › Task (rules 44 and 51): what needs doing,
    the job (filled in on a job's page, clearable), when, and who; saving
@@ -11,6 +11,10 @@ jest.mock("@/app/actions/dashboard", () => ({
   makeTasks: jest.fn(async () => ({ ok: true, taskIds: ["t1"] })),
   deleteTask: jest.fn(async () => ({ ok: true })),
   taskPeople: jest.fn(async () => ({ me: "s-me", people: [] })),
+  readTaskForEdit: jest.fn(),
+  updateTask: jest.fn(async () => ({ ok: true })),
+  completeTask: jest.fn(async () => ({ ok: true })),
+  reopenTask: jest.fn(async () => ({ ok: true })),
 }));
 jest.mock("@/app/actions/palette", () => ({
   searchPalette: jest.fn(async () => ({
@@ -45,7 +49,7 @@ describe("the task form", () => {
     expect(screen.getByPlaceholderText("None, a general task")).toBeInTheDocument();
     say("Order the grilles");
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "Add task" })));
-    expect(makeTasks).toHaveBeenCalledWith({ text: "Order the grilles", jobUuid: null, dueDate: null, dueTime: null, forStaffId: "s-me" });
+    expect(makeTasks).toHaveBeenCalledWith({ text: "Order the grilles", jobUuid: null, dueDate: null, dueTime: null, forStaffId: "s-me", anyone: false });
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(toast).toHaveBeenCalledWith("Task added", expect.any(Function));
     await toast.mock.calls[0][1]();
@@ -59,7 +63,8 @@ describe("the task form", () => {
     say("Order the grilles");
     (makeTasks as jest.Mock).mockResolvedValueOnce({ ok: true, taskIds: ["t1"], jobKept: true });
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "Add task" })));
-    expect((makeTasks as jest.Mock).mock.calls[0][0]).toMatchObject({ jobUuid: "j-3209" });
+    /* a job's task is anyone's until someone is chosen (Isaac, 24 October 2026) */
+    expect((makeTasks as jest.Mock).mock.calls[0][0]).toMatchObject({ jobUuid: "j-3209", anyone: true, forStaffId: null });
     expect(toast).toHaveBeenCalledWith("Task added to 3209 Richards", expect.any(Function));
   });
 
@@ -109,5 +114,72 @@ describe("the task form", () => {
     expect(screen.getByText("Say what needs doing.")).toBeInTheDocument();
     expect(makeTasks).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+/* Add date, then Add time (Isaac, 24 October 2026): a day alone is due any
+   time that day; a time comes only when Add time is pressed */
+describe("when a task is due", () => {
+  it("adds a date first, and a time only once there is a date", async () => {
+    draw();
+    await act(async () => {});
+    expect(screen.queryByRole("button", { name: "Add time" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Add date" }));
+    expect(screen.queryByRole("button", { name: "Add date" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add time" })).toBeNull();
+  });
+});
+
+/* A TASK OPENS ITS OWN FORM (Isaac, 24 October 2026) */
+describe("an existing task's form", () => {
+  const task: TaskForEdit = {
+    id: "t9",
+    title: "Proceed with 3450 Kingsford as do and charge",
+    job: null,
+    suggestedJob: { uuid: "j-3450", label: "3450 Kingsford" },
+    assigneeId: null,
+    dueDate: "2026-10-30",
+    dueTime: null,
+    done: null,
+    madeBy: "Luke Ingold",
+    madeAt: "2026-10-23T20:01:11Z",
+    mayGive: true,
+  };
+  const open = async (over: Partial<TaskForEdit> = {}) => {
+    (readTaskForEdit as jest.Mock).mockResolvedValue({ ok: true, task: { ...task, ...over } });
+    render(
+      <WindowsContext.Provider value={{ toast } as never}>
+        <TaskForm taskId="t9" onClose={jest.fn()} />
+      </WindowsContext.Provider>,
+    );
+    await act(async () => {});
+  };
+
+  it("fills in the task, the job its words name, Anyone, its date, and Add time beside it", async () => {
+    await open();
+    expect(screen.getByRole("heading", { name: "Task" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What needs doing")).toHaveValue(task.title);
+    expect(screen.getByText("3450 Kingsford")).toBeInTheDocument();
+    expect(screen.getByText("Anyone")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add time" })).toBeInTheDocument();
+    expect(screen.getByText(/Made by Luke Ingold/)).toBeInTheDocument();
+  });
+
+  it("saves the job and Anyone, and ticks it done", async () => {
+    await open();
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Save" })));
+    expect(updateTask).toHaveBeenCalledWith("t9", expect.objectContaining({ jobUuid: "j-3450", anyone: true, dueDate: "2026-10-30", dueTime: null }));
+    cleanup();
+    await open();
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Mark done" })));
+    expect(completeTask).toHaveBeenCalledWith("t9", { postDone: true });
+  });
+
+  it("says who ticked a done task and when, and deletes on Delete", async () => {
+    await open({ done: { by: "Luke Ingold", at: "2026-10-24T03:10:00Z" } });
+    expect(screen.getByText(/Done by Luke Ingold/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Not done yet" })).toBeInTheDocument();
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Delete" })));
+    expect(deleteTask).toHaveBeenCalledWith("t9");
   });
 });

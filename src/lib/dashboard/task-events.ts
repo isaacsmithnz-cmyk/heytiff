@@ -29,9 +29,9 @@ export const ACTED_KINDS = TASK_EVENT_KINDS.filter((k) => k !== "created");
 /** What one change says, by kind. The columns a kind does not use stay null,
     which is what the table's own checks ask for. */
 export type TaskEventWrite =
-  | { kind: "created"; to: string }
+  | { kind: "created"; to: string | null }
   | { kind: "due"; from: string | null; to: string | null }
-  | { kind: "given"; from: string | null; to: string }
+  | { kind: "given"; from: string | null; to: string | null }
   | { kind: "done" }
   | { kind: "reopened" };
 

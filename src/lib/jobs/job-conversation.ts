@@ -63,6 +63,10 @@ export type JobConversationRead = {
   today: string;
   notes: JobNoteTalk[];
   tasks: RailTask[];
+  /** The job's tasks ticked in the last fortnight, newest first, each with
+      who ticked it and when (Isaac, 24 October 2026: "Completing a task
+      shows by who and when"). */
+  done?: { id: string; title: string; line: string }[];
   /** Who is looking: their staff card and their name. */
   viewer: { id: string | null; name: string | null };
 };

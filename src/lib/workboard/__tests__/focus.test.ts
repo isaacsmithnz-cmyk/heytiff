@@ -4,9 +4,9 @@
    block go hollow, the narrower late case on top, and the marks a job's own
    paint is decoded into. */
 
-import { blockLabel, blockPaint, blockState, dayStateOfBlock, dayStateOfMarks, focusJobOf } from "../focus";
+import { blockLabel, blockPaint, blockState, dayStateOfBlock, dayStateOfMarks } from "../focus";
 import { layoutScheduleDay, type ScheduleActivity } from "../schedule";
-import { scheduleBlockPaint, TRACKED_PAINT } from "../schedule-colour";
+import { TRACKED_PAINT } from "../schedule-colour";
 import type { AllJobsMirrorJob } from "../all-jobs";
 
 const DAY = "2026-08-14";
@@ -128,24 +128,6 @@ describe("what one block is doing", () => {
 });
 
 describe("the job brought forward", () => {
-  it("gathers everyone on it off the lanes, in the paint their block wears", () => {
-    const day = dayOf([
-      act({ uuid: "a-1", staffUuid: "s-alex" }),
-      act({ uuid: "a-2", staffUuid: "s-david", start: `${DAY} 08:00:00`, end: `${DAY} 12:00:00` }),
-      /* another job on the same day — it has no business in this stack */
-      act({ uuid: "a-3", jobUuid: "j-2", staffUuid: "s-david", start: `${DAY} 13:00:00` }),
-    ], [job({ remoteId: "j-1" }), job({ remoteId: "j-2", jobNumber: "3171" })]);
-
-    const focus = focusJobOf(day, "j-1", clock())!;
-    expect(focus.entries.map((e) => e.who)).toEqual(["Alex Lomond", "David Hanby"]);
-    expect(focus.jobNumber).toBe("3145");
-    expect(focus.paint).toEqual(scheduleBlockPaint("#e7b5ff"));
-    // the category leads the key, and the day-state rides behind it
-    expect(focus.marks.map((m) => m.kind)).toEqual(["cat", "late"]);
-    expect(focus.marks[0].word).toBe("Install");
-    // a job that draws nothing here gets no card at all
-    expect(focusJobOf(day, "j-nowhere", clock())).toBeNull();
-  });
 
   it("puts a tracked job in the board's blue and names the board, not the category", () => {
     const day = layoutScheduleDay({
@@ -157,7 +139,6 @@ describe("the job brought forward", () => {
     const b = day.lanes[0].blocks[0];
     expect(blockPaint(b)).toEqual(TRACKED_PAINT);
     expect(blockLabel(b)).toBe("Project");
-    expect(focusJobOf(day, "j-1", clock())!.marks[0].word).toBe("Project");
   });
 
   it("hands the sheet the DAY-state only, without its key's decode", () => {
@@ -198,11 +179,5 @@ describe("the same reading for one block — Home's pill, handed to the sheet", 
     );
     expect(dayStateOfBlock(done, clock())).toBeNull();
     expect(dayStateOfBlock(blockOn([act({ uuid: "a-1" })]), clock({ dayISO: "2026-08-15" }))).toBeNull();
-  });
-
-  it("is the focus card's own judgement, not a second one", () => {
-    const day = dayOf([act({ uuid: "a-1" })]);
-    const b = day.lanes[0].blocks[0];
-    expect(dayStateOfBlock(b, clock())).toEqual(dayStateOfMarks(focusJobOf(day, "j-1", clock())!.marks));
   });
 });

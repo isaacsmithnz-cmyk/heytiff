@@ -168,51 +168,6 @@ function dayOfNaive(stamp: string | null | undefined): string | null {
   return typeof stamp === "string" && stamp.length >= 10 ? stamp.slice(0, 10) : null;
 }
 
-/** What the name column says about one person, before you look at the rail.
-
-    "on"   — something of theirs has recorded time. They are out there, or have
-             been; the day is under way.
-    "wait" — they still have open work and none of it has been started, but
-             nothing is overdue either. Their day has not begun.
-    "late" — an open booking's start has gone with nothing recorded against it.
-             The one that wants doing something about, so it outranks the rest.
-    null   — nothing to claim. Every booking is closed off and none recorded
-             time, which is a person this reading has no opinion about.
-
-    `overdueBefore` is the minute past which an unstarted booking counts as
-    late: the browser's clock on today, the whole day on a day already gone,
-    and NULL when the clock cannot be trusted — a viewer whose own date
-    disagrees with the board's, exactly as the now line handles it. No mark
-    beats one that is hours wrong. */
-export function lanePresence(
-  blocks: Pick<ScheduleBlock, "onSite" | "closure" | "status" | "startMin">[],
-  overdueBefore: number | null
-): "on" | "wait" | "late" | null {
-  const open = blocks.filter((b) => b.closure !== "done" && b.status !== "Unsuccessful");
-  /* A "stale" booking is on a job ServiceM8 has already marked complete, and
-     it is NOT evidence that its owner is running late — the crew may well be
-     on site without clocking on, which is how the job came to be closed with a
-     later visit still booked. It stays in `open` (it is still work to do, so
-     the lane can still say "not started") but it cannot make anyone late.
-     The block treatment draws the same line; this is the same law in the name
-     column, where it was turning a person's dot red for a finished job. */
-  /* A QUOTE cannot make anyone late either — nobody clocks on to a sales
-     call, so a day of quoting would turn its owner's dot red every evening.
-     The block treatment states the same rule (lib/workboard/focus.ts). */
-  if (
-    overdueBefore !== null &&
-    open.some(
-      (b) =>
-        b.closure !== "stale" && b.status !== "Quote" && !b.onSite && b.startMin < overdueBefore
-    )
-  ) {
-    return "late";
-  }
-  // green only where something actually recorded time — never as a fallback
-  if (blocks.some((b) => b.onSite)) return "on";
-  return open.length > 0 ? "wait" : null;
-}
-
 /**
  * Whether one booking is covered by the job's completion, or is left over
  * after it. See `ScheduleBlock["closure"]`.
@@ -266,13 +221,6 @@ export function clockLabel(mins: number): string {
   const ampm = h < 12 ? "am" : "pm";
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return m === 0 ? `${h12}${ampm}` : `${h12}:${String(m).padStart(2, "0")}${ampm}`;
-}
-
-/** 450 → "7h30"; whole hours drop the minutes ("8h"). The lane's load. */
-export function fmtHoursShort(mins: number): string {
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, "0")}`;
 }
 
 /** The drawn window: the 7am–4pm default, WIDENED to whole hours to fit real

@@ -230,6 +230,3 @@ function workSteps(j: StepInput, moneyVisible: boolean): JobStep[] {
   return steps.map((s) => ({ ...s, label: LABEL[s.key] }));
 }
 
-/** The step the job is at, for the card to open beside. */
-export const currentStep = (steps: JobStep[]): JobStep | null =>
-  steps.find((s) => s.state === "now" || s.state === "warn" || s.state === "bad") ?? null;

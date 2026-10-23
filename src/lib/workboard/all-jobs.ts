@@ -588,37 +588,11 @@ export function groupChecklist(
 
 /* ── the count lines under each tab's title ── */
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-
-export function quotesCountLine(view: AllJobsView): string {
-  const n = view.quotes.length;
-  return n === 0 ? "No quotes out" : `${plural(n, "quote", "quotes")} awaiting an answer`;
-}
-
-/** Money owed on finished work — the question a completed list is really
-    asked. Counts jobs worth a KNOWN amount with some of it still out, so it
-    can't be inflated by the many jobs whose total ServiceM8 never filled in.
-    Null when the reader has no money access. */
-export function awaitingPaymentCount(view: AllJobsView): number | null {
-  if (!view.completed.some((r) => r.money !== null)) return null;
-  return awaitingPaymentRows(view).length;
-}
-
 /** The finished jobs behind that count — the Completed tab's filter. The count
     is these rows' length and nothing else, so a chip's figure and the rows it
     shows are one rule read once. Empty when the reader has no money access. */
 export function awaitingPaymentRows(view: AllJobsView): AllJobRow[] {
   return view.completed.filter((r) => r.money !== null && isAwaitingPayment(r.money.collection));
-}
-
-/** What's still out on finished work, in cents — the figure behind the count.
-    Only jobs with a known total contribute, so this never guesses. */
-export function awaitingPaymentCents(view: AllJobsView): number {
-  return view.completed.reduce((sum, r) => {
-    const m = r.money;
-    if (!m || !isAwaitingPayment(m.collection) || m.valueCents === null) return sum;
-    return sum + Math.max(0, m.valueCents - m.paidCents);
-  }, 0);
 }
 
 /** Re-export so the sheet and rows read one job's money the same way. */

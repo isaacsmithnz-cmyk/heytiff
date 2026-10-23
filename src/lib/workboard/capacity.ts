@@ -110,18 +110,6 @@ export function daysFrom(startISO: string, count: number): string[] {
   return out;
 }
 
-/** Every day of the month `anyDayISO` falls in, in order. */
-export function daysOfMonth(anyDayISO: string): string[] {
-  const y = +anyDayISO.slice(0, 4);
-  const m = +anyDayISO.slice(5, 7);
-  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
-  const out: string[] = [];
-  for (let d = 1; d <= last; d += 1) {
-    out.push(`${anyDayISO.slice(0, 7)}-${String(d).padStart(2, "0")}`);
-  }
-  return out;
-}
-
 /** The crew's minutes for one working day: everyone in the index, at their own
     typical hours. Zero at a weekend, and zero when nobody is allocated — both
     of which `capacityDay` reads as "no denominator" rather than as "empty". */
@@ -145,17 +133,6 @@ export function bookedMinutesOf(a: Pick<ScheduleActivity, "start" | "end">): num
   const endMin =
     rawEnd !== null && rawEnd > startMin ? Math.min(rawEnd, 1440) : Math.min(startMin + 30, 1440);
   return endMin - startMin;
-}
-
-/** One month, scored — the window scorer over the month's own day list. */
-export function capacityMonth(input: {
-  anyDayISO: string;
-  activities: ScheduleActivity[];
-  allocation: CapacityAllocation[];
-  /** staff uuid → name, for the people list on a day. */
-  staffNames?: Map<string, string>;
-}): CapacityDay[] {
-  return capacityWindow({ ...input, days: daysOfMonth(input.anyDayISO) });
 }
 
 /** Any run of days, scored. `activities` is every dispatched booking in the
@@ -209,29 +186,3 @@ export function capacityWindow(input: {
   });
 }
 
-/** The month's own line: what was booked against what was available, counting
-    only the days that HAVE a denominator. Including weekends would make every
-    month look emptier the more weekends it had, which says nothing about the
-    crew. */
-export function capacityMonthTotal(days: CapacityDay[]): {
-  bookedMinutes: number;
-  capacityMinutes: number;
-  fillPct: number | null;
-  workingDays: number;
-} {
-  let bookedMinutes = 0;
-  let capacityMinutes = 0;
-  let workingDays = 0;
-  for (const d of days) {
-    if (d.capacityMinutes <= 0) continue;
-    bookedMinutes += d.bookedMinutes;
-    capacityMinutes += d.capacityMinutes;
-    workingDays += 1;
-  }
-  return {
-    bookedMinutes,
-    capacityMinutes,
-    workingDays,
-    fillPct: capacityMinutes > 0 ? Math.round((bookedMinutes / capacityMinutes) * 100) : null,
-  };
-}

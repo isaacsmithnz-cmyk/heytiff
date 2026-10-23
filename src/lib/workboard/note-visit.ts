@@ -95,9 +95,6 @@ export const visitMinutes = (v: unknown): number => {
 /** How long a visit books for. */
 export const lengthOf = (v: Pick<ProposedVisit, "minutes">): number => v.minutes || VISIT_MINUTES;
 
-/** Whether a visit can be booked as it stands: a day and a clock time. */
-export const clearTime = (v: Pick<ProposedVisit, "day" | "start">): boolean => !!v.day && !!v.start;
-
 /** "Commissioning", from "commissioning". */
 export const workTitle = (work: string): string => {
   const w = work.trim();

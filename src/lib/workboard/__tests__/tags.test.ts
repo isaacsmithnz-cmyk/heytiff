@@ -6,7 +6,6 @@
 
 import {
   CATEGORY_ACCENTS,
-  isCategoryAccent,
   isTagTone,
   nextCategoryAccent,
   TAG_TONES,
@@ -40,9 +39,5 @@ describe("category accents", () => {
     expect(nextCategoryAccent(0)).toBe(CATEGORY_ACCENTS[0]);
     expect(nextCategoryAccent(1)).toBe(CATEGORY_ACCENTS[1]);
     expect(nextCategoryAccent(CATEGORY_ACCENTS.length)).toBe(CATEGORY_ACCENTS[0]);
-  });
-
-  it("pink survives, renamed out of the gate family (C3)", () => {
-    expect(isCategoryAccent("pink")).toBe(true);
   });
 });

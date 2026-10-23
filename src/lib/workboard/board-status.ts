@@ -142,59 +142,9 @@ export function dayTone(tones: VisitTone[], daysToDay: number): DayTone {
 
 /* ── display windows ── */
 
-/** How far ahead the Upcoming tab displays open visits. The loader brings
-    every open row (the 13-month horizon caps generation at ~13 per
-    agreement); trimming the long tail is a display decision made here so
-    client and server agree on it. */
-export const BOARD_AHEAD_DAYS = 120;
-
 /** How much history Completed shows — eight weeks, matching the old board's
     look-back so nothing shipping today loses reach. */
 export const BOARD_DONE_DAYS = 56;
-
-/* ── "N to confirm" (B8) ── */
-
-/** Gaps two weeks out are normal and must not shout: the header counts
-    missing gates only inside this horizon, so the chip going orange MEANS
-    something. */
-export const TO_CONFIRM_HORIZON_DAYS = 14;
-
-export type ToConfirmInput = {
-  status: string;
-  dueDate: string;
-  gates: GateState;
-  mirrorStatus?: string | null;
-};
-
-export function toConfirmCount(
-  visits: ToConfirmInput[],
-  todayISO: string
-): { gaps: number; services: number } {
-  let gaps = 0;
-  let services = 0;
-  for (const v of visits) {
-    if (v.status !== "upcoming" && v.status !== "booked") continue;
-    if (v.mirrorStatus === "Quote") continue;
-    if (v.dueDate < todayISO) continue; // overdue is the Urgent queue's news
-    if (daysBetween(todayISO, v.dueDate) > TO_CONFIRM_HORIZON_DAYS) continue;
-    const missing = missingGates(v.gates).length;
-    if (missing > 0) {
-      gaps += missing;
-      services += 1;
-    }
-  }
-  return { gaps, services };
-}
-
-/* ── completion timing (B12/G3: "done on time" must be earned) ── */
-
-export function completionTiming(
-  dueISO: string,
-  completedISO: string
-): { onTime: boolean; daysLate: number } {
-  const daysLate = Math.max(0, daysBetween(dueISO, completedISO));
-  return { onTime: daysLate === 0, daysLate };
-}
 
 /* ── placement vs promise (K4) ── */
 
@@ -207,38 +157,4 @@ export function placementMismatch(
 ): { late: boolean; daysAfterDue: number } {
   const days = Math.max(0, daysBetween(dueISO, bookedISO));
   return { late: days > 0, daysAfterDue: days };
-}
-
-/* ── week grouping (C4) ── */
-
-/** Monday of the week holding the date — the board's weeks run Mon–Sun,
-    matching how a trades week is actually spoken about. */
-export function mondayOf(iso: string): string {
-  const d = new Date(`${iso}T12:00:00Z`);
-  const dow = d.getUTCDay(); // Sun=0
-  d.setUTCDate(d.getUTCDate() - ((dow + 6) % 7));
-  return d.toISOString().slice(0, 10);
-}
-
-export type WeekGroupKey = "overdue" | "this_week" | "next_week" | string;
-
-/** Group key for the Upcoming list: Overdue first, then This week, Next
-    week, then each later week keyed by its Monday's ISO date (stable,
-    sortable, label-agnostic — labels are the UI's business). */
-export function weekGroupKey(dateISO: string, todayISO: string): WeekGroupKey {
-  if (dateISO < todayISO) return "overdue";
-  const week = mondayOf(dateISO);
-  const thisWeek = mondayOf(todayISO);
-  if (week === thisWeek) return "this_week";
-  if (daysBetween(thisWeek, week) === 7) return "next_week";
-  return week;
-}
-
-/** Sort order for group keys: overdue, this week, next week, then Mondays
-    ascending. */
-export function weekGroupRank(key: WeekGroupKey): string {
-  if (key === "overdue") return "0";
-  if (key === "this_week") return "1";
-  if (key === "next_week") return "2";
-  return `3:${key}`;
 }

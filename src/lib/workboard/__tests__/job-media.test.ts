@@ -8,7 +8,6 @@ import {
   groupJobMedia,
   isCacheableMedia,
   jobMediaKind,
-  mediaCountLine,
   mimeForExt,
   normaliseFileType,
   originLabel,
@@ -177,21 +176,6 @@ describe("grouping and the count line", () => {
     const g = groupJobMedia([item({ remoteId: "x-1", name: "plan.dwg", fileType: ".dwg" })]);
     expect(g.elsewhere.map((i) => i.remoteId)).toEqual(["x-1"]);
     expect(g.photos).toHaveLength(0);
-  });
-
-  it("says what's there, in a sentence", () => {
-    expect(mediaCountLine(groupJobMedia(jobShaped))).toBe("3 photos and 1 document");
-  });
-
-  it("stays honest when a job has only one kind", () => {
-    expect(mediaCountLine(groupJobMedia([item({ remoteId: "p-1" })]))).toBe("1 photo");
-    expect(
-      mediaCountLine(groupJobMedia([item({ remoteId: "d-1", fileType: ".pdf" })]))
-    ).toBe("1 document");
-  });
-
-  it("says nothing is attached rather than showing an empty grid", () => {
-    expect(mediaCountLine(groupJobMedia([]))).toBe("Nothing attached in ServiceM8");
   });
 });
 

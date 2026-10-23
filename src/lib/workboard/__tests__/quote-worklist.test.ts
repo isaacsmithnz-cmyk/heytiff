@@ -1,7 +1,7 @@
 /* The Quotes worklist: which group a quote is in, what to do next, and what
    was quoted — on lines and briefs as they come out of the live account. */
 import type { AllJobRow } from "../all-jobs";
-import { ageWords, cleanBrief, cleanLineName, quoteWorklist, summariseQuoteLines } from "../quote-worklist";
+import { cleanBrief, cleanLineName, quoteWorklist, summariseQuoteLines } from "../quote-worklist";
 
 const row = (over: Partial<AllJobRow>): AllJobRow => ({
   key: `sm8:${over.number ?? "x"}`,
@@ -101,9 +101,5 @@ describe("the groups", () => {
   it("reads what was quoted off the lines, else the brief", () => {
     expect(of("2").what).toBe("Mitsubishi ducted 12.5 kW");
     expect(quoteWorklist([row({ title: "Fw: RFQ - 27 Milroy Avenue" })], today).groups.price[0]!.what).toBe("RFQ - 27 Milroy Avenue");
-  });
-
-  it("counts age in plain words", () => {
-    expect([ageWords(0), ageWords(1), ageWords(12)]).toEqual(["Today", "1 day", "12 days"]);
   });
 });

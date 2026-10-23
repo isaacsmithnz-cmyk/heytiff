@@ -8474,32 +8474,6 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .fg .tm .tiffbtn-box { --tb:48px; }
 .fg .tm .wb2-anscursor { --wb2-cy:var(--paper); }
 
-/* THE RINGS' LAYERS (tiff-rings.tsx), on the modal's layer, stacked by their
-   order in the body: the fill under the modal, the outline and the flying
-   rings over it. Fixed to the viewport, drawn in its pixels, never under a
-   pointer. What stands between a flight's frames is this: the flying rings
-   hidden, the fill hidden, the outline on the modal's edge, still, as its
-   border (the lights that lapped it were "a bit distracting", Isaac). */
-.tm-fill, .tm-over { position:fixed; inset:0; z-index:var(--z-modal); pointer-events:none; }
-.tm-fill { width:100%; height:100%; overflow:visible; opacity:0; }
-.tm-fp, .tm-fu { fill:var(--ink2); }
-.tm-fu { opacity:0; }
-.tm-rim { position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
-.tm-line { fill:none; stroke-width:1.5px; stroke-opacity:.28; }
-.tm-line.tm-a { stroke:var(--mark-teal); }
-.tm-line.tm-b { stroke:var(--mark-blue-l); }
-.tm-fly { position:absolute; inset:0; }
-.tm-fr { position:absolute; left:0; top:0; width:0; height:0; opacity:0; }
-.tm-fr-pos, .tm-fr-gim { position:absolute; left:0; top:0; width:0; height:0; }
-.tm-fr-size { position:absolute; left:0; top:0; transform:translate(-50%, -50%); }
-.tm-fr-arc, .tm-sk { position:absolute; inset:0; }
-.tm-sk { width:100%; height:100%; overflow:visible; }
-.tm-sk circle, .tm-sk path { fill:none; }
-.tm-sk .tiffbtn-ring { stroke-width:1.5px; }
-.tm-sk .runfull, .tm-sk .runarc { stroke-width:2.5px; }
-.tm-sk .runfull { opacity:0; }
-/* the frame's skin shows by default; the paper skin only while a ring leaves a button on paper */
-.tm-sk + .tm-sk { opacity:0; }
 
 
 .wb2-capclock { font-variant-numeric:tabular-nums; font-size:13px; font-weight:700; color:var(--gray700); white-space:nowrap; }

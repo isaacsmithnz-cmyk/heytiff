@@ -62,7 +62,6 @@ let semanticOn = true;
 const countUnembedded = jest.fn(async () => 106);
 jest.mock("@/lib/tiff/embeddings", () => ({ isSemanticConfigured: () => semanticOn }));
 jest.mock("@/lib/tiff/backfill", () => ({ countUnembedded: () => countUnembedded() }));
-jest.mock("@/components/workboard/projects-screen", () => ({ ProjectsScreen: () => null }));
 jest.mock("@/components/workboard/project-detail-screen", () => ({
   ProjectDetailScreen: () => null,
 }));

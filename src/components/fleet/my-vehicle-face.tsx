@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useFleetActions } from "./fleet-state";
 import { FaceSwitch } from "@/components/me/face-switch";
-import type { OwnFleet } from "./assets-screen";
+import type { OwnFleet } from "./fleet-types";
 import { MyVehicle, type VehicleFace } from "./my-vehicle";
 
 /* /dashboard/my-vehicle — the staff lens on the fleet, as a FACE of the Me

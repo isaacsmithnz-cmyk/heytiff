@@ -48,10 +48,9 @@ function mediaRules(query: RegExp): (readonly [string, string])[] {
 }
 const MODAL = fs.readFileSync(path.join(process.cwd(), "src/components/tiff/modal/tiff-modal.tsx"), "utf8");
 const BOX = fs.readFileSync(path.join(process.cwd(), "src/components/tiff/modal/tiff-box.tsx"), "utf8");
-/** The family's views: the modal, and the entry box that opens it. */
-const RINGS = fs.readFileSync(path.join(process.cwd(), "src/components/tiff/modal/tiff-rings.tsx"), "utf8");
-/** The family's views: the modal, its rings' layers, and the entry box that opens it. */
-const VIEW = `${MODAL}\n${RINGS}\n${BOX}`;
+/** The family's views: the modal, and the entry box that opens it (the old
+    rings' layers went with the v2 mark, 23 October 2026). */
+const VIEW = `${MODAL}\n${BOX}`;
 const selectors = (sel: string) => sel.split(",").map((s) => s.trim());
 
 const body = (selector: string) => {
@@ -99,13 +98,6 @@ describe("the Tiff modal floats", () => {
     expect(tm).toMatch(/z-index:var\(--z-modal\)/);
     expect(tm).toMatch(/top:104px/);
     expect(tm).toMatch(/width:min\(780px/);
-  });
-
-  it("puts its rings' layers on its own layer, under a pointer never", () => {
-    const layers = body(".tm-fill, .tm-over");
-    expect(layers).toMatch(/position:fixed/);
-    expect(layers).toMatch(/z-index:var\(--z-modal\)/);
-    expect(layers).toMatch(/pointer-events:none/);
   });
 
   /* docked, as Claude's chat is (Isaac, 20 October 2026): nothing under it

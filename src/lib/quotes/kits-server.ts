@@ -1,8 +1,8 @@
 import "server-only";
 import { bookProducts } from "./book-view-server";
-import { expandKit, kitFactsFrom, stillToSize, type KitFacts, type KitKey } from "./kits";
+import { expandKit, KIT_WORD, kitFactsFrom, stillToSize, vrfAskOf, type KitFacts, type KitKey } from "./kits";
 import { addLine } from "./lines-server";
-import { lookupUnit, zoningFor } from "./lookups-server";
+import { lookupUnit, lookupVrfPlan, zoningFor } from "./lookups-server";
 import { readQuoteSettings } from "./settings-query";
 import { readByHand } from "./lines-job-server";
 import { rangeOffersFrom, readRanges } from "./ranges-server";
@@ -37,6 +37,8 @@ export async function addKit(
   const brand = (indoor ?? unit)?.brand ?? null;
   const zoning = kit === "ducted" && facts.zones && brand ? await zoningFor(brand) : null;
   const f = kitFactsFrom(kit, facts, looked, zoning, brand);
+  /* a VRF: its run, sized by its maker's table, off the outdoor's pack */
+  if (kit === "vrf") f.vrf = unit ? await lookupVrfPlan(unit.brand, vrfAskOf(unit.model, f), orgId) : { ok: false, why: "Needs the outdoor, from its data pack" };
   const [products, settings, byHand, ranges] = await Promise.all([bookProducts(orgId), readQuoteSettings(orgId), readByHand(orgId, jobUuid), readRangeOffers(orgId)]);
   const a = settings.allowances;
   const lines = expandKit(kit, f, products, at, { consumables: a.consumables, flush: a.flush, recovery: a.recovery }, byHand.supplier, {
@@ -45,7 +47,7 @@ export async function addKit(
   });
   let added = 0;
   for (const l of lines) {
-    const r = await addLine(orgId, jobUuid, l, by, `${kit === "split" ? "Split" : "Ducted"} kit`);
+    const r = await addLine(orgId, jobUuid, l, by, `${KIT_WORD[kit]} kit`);
     if (r.ok) added++;
   }
   return added > 0 ? { ok: true, added, still: stillToSize(lines) } : { ok: false, reason: "The kit couldn't be added. Try again." };

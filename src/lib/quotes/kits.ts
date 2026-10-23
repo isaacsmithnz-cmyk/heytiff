@@ -7,6 +7,7 @@ import { inKind, isolatorOf, pickFromRange, RANGE_KINDS, sizeWords, type RangeKi
 import type { ComponentKey } from "./components";
 import type { Preferred } from "./settings";
 import type { ZoningController } from "@/lib/studio/packs/schema";
+import type { VrfPlan } from "./vrf-kit";
 
 /* KITS AS DATA (the engine rebuild, slice 1.3) — what a system takes to
    install, part by part, for any business: each part named by what it is
@@ -25,7 +26,10 @@ import type { ZoningController } from "@/lib/studio/packs/schema";
    Pure: the quote by hand adds a kit in one press; Tiff's tools open the
    same kits. */
 
-export type KitKey = "split" | "ducted";
+export type KitKey = "split" | "ducted" | "vrf";
+
+/** A kit in a word, as its lines' history and Tiff's steps say it. */
+export const KIT_WORD: Record<KitKey, string> = { split: "Split", ducted: "Ducted", vrf: "VRF" };
 
 export type PipeSize = "1/4+3/8" | "1/4+1/2" | "1/4+5/8" | "3/8+5/8" | "3/8+3/4";
 export const PIPE_SIZES: readonly PipeSize[] = ["1/4+3/8", "1/4+1/2", "1/4+5/8", "3/8+5/8", "3/8+3/4"];
@@ -47,6 +51,9 @@ export type KitFacts = {
       allows, mm²: off the outdoor's pack, where the book prints them */
   breakerA?: number | null;
   cableMm2?: number | null;
+  /** the outdoor's supply, off its pack: its breaker, isolator and cable are
+      for it (3363, 24 October: a 3-phase PUMY-P200 got a single-pole RCBO) */
+  phase?: "1" | "3" | null;
   mount: "ground" | "wall";
   /** the outside run in trunking, metres; null or 0: none */
   trunkingM: number | null;
@@ -90,6 +97,15 @@ export type KitFacts = {
   wifi?: boolean;
   /** the maker's zone system for it, from its data pack (zoneKitOf) */
   zoning?: ZoneKit | null;
+  /* VRF (vrf-kit.ts): the heads, the run's lengths, and the run as the
+     maker's table sizes it */
+  /** the heads, by model, each with its own branch where it was given */
+  vrfHeads?: { model: string; branchM: number | null }[] | null;
+  /** the outdoor to the first joint, joint to joint, and each head's branch, metres */
+  mainM?: number | null;
+  betweenM?: number | null;
+  branchM?: number | null;
+  vrf?: VrfPlan | null;
 };
 
 /** THE MAKER'S ZONE SYSTEM ON A DUCTED JOB, from its data pack (Isaac,
@@ -141,6 +157,8 @@ export type KitPart = {
   shows?: { kind: RangeKind; only?: (name: string) => boolean };
   /** the line's name when the book has nothing for it */
   name: string;
+  /** that name, for this job (a 3-phase outdoor's breaker) */
+  nameFor?: (f: KitFacts) => string;
   /** what to look for in the book, or null when a fact it needs is missing;
       `pool` narrows the book first (a rating at or above the draw) */
   search: (f: KitFacts) => (BookQuery & { pool?: (all: Product[]) => Product[] }) | null;
@@ -159,6 +177,10 @@ export type KitPart = {
   /** a part that comes at several sizes on one job (the Ys where the main
       duct splits): a line for each, null when the layout isn't known */
   many?: (f: KitFacts) => { kind: RangeKind; need: RangeNeed; qty: number; why: string }[] | null;
+  /** a part that is several items on one job, each its own line, picked
+      from the book like any part (a VRF's pipe at each size, its joints by
+      part): null when what sizes them isn't known */
+  each?: (f: KitFacts) => KitEach[] | null;
   /** what to say when nothing in the book fits its size */
   none?: (f: KitFacts) => string;
   /** what to say when what sizes it isn't known */
@@ -170,6 +192,16 @@ export type KitPart = {
       unit, its pipe, power, controls, mounting or drain: a layout changes on
       site, they don't */
   duct?: boolean;
+};
+
+/** One item of a part that comes as several (KitPart.each). */
+export type KitEach = {
+  name: string;
+  /** null: it can't be picked, and `needs` says why */
+  search: BookQuery | null;
+  component?: ComponentKey | null;
+  qty: { qty: number; unit: LineFields["unit"]; why: string } | null;
+  needs?: string;
 };
 
 /** What the business has chosen for a kit's parts (1.2, one preferred
@@ -219,13 +251,20 @@ const isolatorNeed = (f: { amps: number | null; breakerA?: number | null }): num
   return both.length ? Math.max(...both) : null;
 };
 
-/** The smallest rating the book has at or above what's needed: a 13.5 A
-    unit takes a 20 A breaker when the business stocks no 16 A (3375). */
-const atLeast = (want: number, words: RegExp) => (all: Product[]) => {
+/** Whether a breaker's or isolator's poles suit the supply: three-phase
+    takes one that says 3 or 4 pole; single phase never one that does. */
+const polesFit = (poles: number | null, phase: KitFacts["phase"]) => (phase === "3" ? poles != null && poles >= 3 : phase === "1" ? poles == null || poles <= 2 : true);
+
+/** The smallest rating the book has at or above what's needed, for the
+    outdoor's supply: a 13.5 A unit takes a 20 A breaker when the business
+    stocks no 16 A (3375). */
+const atLeast = (want: number, words: RegExp, phase: KitFacts["phase"] = null) => (all: Product[]) => {
   const rated = all
     .filter((p) => words.test(p.name))
-    .map((p) => ({ p, a: isolatorOf(p.name)?.amps ?? null }))
-    .filter((x): x is { p: Product; a: number } => x.a != null && x.a >= want);
+    .map((p) => ({ p, size: isolatorOf(p.name) }))
+    .filter((x) => x.size != null && polesFit(x.size.poles, phase))
+    .map((x) => ({ p: x.p, a: x.size!.amps }))
+    .filter((x) => x.a >= want);
   const least = Math.min(...rated.map((x) => x.a));
   return rated.filter((x) => x.a === least).map((x) => x.p);
 };
@@ -255,26 +294,34 @@ const SPLIT: KitPart[] = [
   {
     key: "power",
     rule: "From the board",
-    sizedBy: "What the outdoor draws, never under its maker's smallest cable",
+    sizedBy: "What the outdoor draws, never under its maker's smallest cable; four cores and earth on three phase",
     group: "Pipe, power and controls",
     name: "Power cable",
+    nameFor: (f) => (f.phase === "3" ? `Power cable, 3-phase${cableSizeOf(f) ? ` ${cableSizeOf(f)} mm²` : ""}` : "Power cable"),
     search: (f) => {
       const size = cableSizeOf(f);
-      return size ? { text: `tps ${size}` } : null;
+      if (!size) return null;
+      /* three phase: a cable of four cores and earth at that size, never a TPS of two */
+      return f.phase === "3"
+        ? { text: "", pool: (all) => all.filter((p) => /\b[45]\s*c(ore)?\b|\b4c\s*\+\s*e\b|\b5c\b/i.test(p.name) && new RegExp(`\\b${size.replace(".", "\\.")}\\s*mm`, "i").test(p.name)) }
+        : { text: `tps ${size}` };
     },
-    /* Quoting's power cable is the 2.5 mm² */
-    component: (f) => (cableSizeOf(f) === "2.5" ? "power_cable" : null),
+    /* Quoting's power cable is the 2.5 mm² single-phase TPS */
+    component: (f) => (f.phase !== "3" && cableSizeOf(f) === "2.5" ? "power_cable" : null),
     qty: (f) => metres(f.powerM, "from the board"),
   },
   {
     key: "breaker",
     rule: "One for the new circuit",
-    sizedBy: "Its maker's breaker, else at or above what the outdoor draws",
+    sizedBy: "Its maker's breaker, else at or above what the outdoor draws; 3-pole on three phase",
     group: "Pipe, power and controls",
     name: "RCBO",
+    nameFor: (f) => (f.phase === "3" ? "Breaker, 3-pole" : "RCBO"),
     search: (f) => {
       const need = breakerNeed(f);
-      return need != null ? { text: "rcbo", pool: atLeast(need, /rcbo/i) } : null;
+      if (need == null) return null;
+      /* three phase: an RCBO or MCB of 3 or 4 poles, whatever the book calls it (no words to match: the pool is the search) */
+      return f.phase === "3" ? { text: "", pool: atLeast(need, /rcbo|mcb|circuit breaker/i, "3") } : { text: "rcbo", pool: atLeast(need, /rcbo/i, f.phase) };
     },
     qty: one("one for the new circuit"),
   },
@@ -285,13 +332,14 @@ const SPLIT: KitPart[] = [
     shows: { kind: "isolator" },
     group: "Pipe, power and controls",
     name: "Isolator",
+    nameFor: (f) => (f.phase === "3" ? "Isolator, 3-phase" : "Isolator"),
     search: (f) => {
       const need = isolatorNeed(f);
-      return need != null ? { text: "isolator", pool: atLeast(need, /isolat/i) } : null;
+      return need != null ? { text: "isolator", pool: atLeast(need, /isolat/i, f.phase) } : null;
     },
     range: (f) => {
       const need = isolatorNeed(f);
-      return need != null ? { kind: "isolator", need: { amps: need } } : null;
+      return need != null ? { kind: "isolator", need: { amps: need, phase: f.phase ?? null } } : null;
     },
     qty: one("one at the outdoor"),
   },
@@ -550,6 +598,120 @@ const DUCTED: KitPart[] = [
   },
 ];
 
+/* inches, as the book names copper */
+const INCH: [number, string][] = [
+  [6.35, "1/4"],
+  [9.52, "3/8"],
+  [12.7, "1/2"],
+  [15.88, "5/8"],
+  [19.05, "3/4"],
+  [22.2, "7/8"],
+  [25.4, "1"],
+  [28.58, "1-1/8"],
+  [31.75, "1-1/4"],
+  [34.92, "1-3/8"],
+  [41.28, "1-5/8"],
+];
+const inchOf = (mm: number) => INCH.find(([v]) => Math.abs(v - mm) < 0.3)?.[1] ?? `${mm} mm`;
+const splitPart = (key: string): KitPart => SPLIT.find((p) => p.key === key)!;
+const vrfOf = (f: KitFacts) => (f.vrf?.ok ? f.vrf : null);
+const vrfNeeds = (f: KitFacts) => (f.vrf && !f.vrf.ok ? f.vrf.why : "Needs the outdoor and its heads, from the data pack");
+const vrfHeadCount = (f: KitFacts) => vrfOf(f)?.heads ?? f.vrfHeads?.length ?? null;
+
+/* A VRF OR PUMY SYSTEM (Isaac, 2026-10-24: "ok", the VRF kit, after the
+   21 October bench, where a PUMY job took eight of her fifteen rounds of
+   searching the book part by part). Its run as the maker's table sizes it
+   (vrf-kit.ts): the pipe at each size, the joints, headers and branch boxes
+   by the book's part; the transmission cable along it; the outdoor's
+   power, breaker and isolator as a split's; a wall controller for each of
+   its VRF heads (a head on a branch box has its own); the mount, each
+   head's drain and the trunking. */
+const VRF: KitPart[] = [
+  {
+    key: "vrf-pipe",
+    rule: "Each section of the run, at its size",
+    sizedBy: "The maker's table, by the index each section carries",
+    group: "Pipe, power and controls",
+    name: "Refrigerant pipe",
+    needs: vrfNeeds,
+    search: () => null,
+    qty: () => null,
+    each: (f) => {
+      const v = vrfOf(f);
+      if (!v) return null;
+      return v.pipes.map((p) => {
+        const size = pipeFromMm(p.liquidMm, p.gasMm);
+        const words = `${inchOf(p.liquidMm)} + ${inchOf(p.gasMm)}`;
+        const sections = `${p.sections} ${p.sections === 1 ? "section" : "sections"} of the run`;
+        const qty = p.m != null && p.m > 0 ? { qty: p.m, unit: "m" as const, why: `${p.m} m at ${words}, ${sections}, sized by ${v.from || "the maker's table"}` } : null;
+        return size
+          ? { name: `Pair coil ${words}`, search: { text: `coil ${pipeWords(size)}` }, component: PIPE_COMPONENT[size], qty, needs: `Needs the lengths of ${sections} at ${words}` }
+          : { name: `Pipe ${words}, hard-drawn, with lagging`, search: null, qty, needs: `No pair coil at ${words}: hard-drawn pipe and its lagging, to price` };
+      });
+    },
+  },
+  {
+    key: "vrf-fittings",
+    rule: "One where the run splits",
+    sizedBy: "The maker's joint for the index after it; a branch box for the heads it takes",
+    group: "Pipe, power and controls",
+    name: "Branch joint",
+    needs: vrfNeeds,
+    search: () => null,
+    qty: () => null,
+    each: (f) => {
+      const v = vrfOf(f);
+      if (!v) return null;
+      return v.fittings.map((x) => {
+        const what = x.kind === "box" ? "Branch box" : x.kind === "header" ? "Branch header" : "Branch joint";
+        const index = x.index.join(", ");
+        return {
+          name: x.part ?? what,
+          search: x.part ? { text: x.part } : null,
+          qty: { qty: x.qty, unit: "" as const, why: `${x.qty} ${x.kind === "box" ? "for the heads it takes" : "where the run splits"}, for index ${index}: ${v.from || "the maker's table"}` },
+          needs: `${what}: no row of the maker's table covers index ${index}`,
+        };
+      });
+    },
+  },
+  {
+    key: "transmission",
+    rule: "With the pipe",
+    group: "Pipe, power and controls",
+    name: "Transmission cable",
+    search: () => ({ text: "shielded", pool: (all) => all.filter((p) => /shield/i.test(p.name) && !/\bcat ?[5-7]|rj45|heat ?shield/i.test(p.name)) }),
+    qty: (f) => metres(vrfOf(f)?.totalM ?? null, "with the pipe"),
+  },
+  splitPart("power"),
+  splitPart("breaker"),
+  splitPart("isolator"),
+  {
+    key: "controller",
+    rule: "One for each VRF head",
+    group: "Pipe, power and controls",
+    name: "Wall controller",
+    ownMaker: (f) => !!f.brand,
+    skip: (f) => vrfOf(f)?.vrfHeads === 0,
+    search: (f) =>
+      f.brand ? { text: "control", pool: (all) => all.filter((p) => sameMaker(p.brand, f.brand!) && matchesComponent("wall_controller", p.name)) } : { text: "wired controller" },
+    component: () => "wall_controller",
+    qty: (f) => {
+      const n = vrfOf(f)?.vrfHeads ?? null;
+      return n ? { qty: n, unit: "", why: `one for each of the ${n} VRF ${n === 1 ? "head" : "heads"}` } : null;
+    },
+  },
+  splitPart("mount"),
+  {
+    ...splitPart("drain"),
+    rule: "Each head's drain",
+    qty: (f) => {
+      const n = vrfHeadCount(f);
+      return n && f.drainM ? { qty: Math.round(n * f.drainM * 10) / 10, unit: "m", why: `${f.drainM} m for each of ${n} heads` } : null;
+    },
+  },
+  splitPart("trunking"),
+];
+
 /* CONSUMABLES, ESTIMATED FROM THE BOOK (Isaac, 2026-10-10: "I notice
    you've got to check consumables not known yet. That could be an
    estimate. And we can confirm that"). With no allowance set in Quoting, a
@@ -570,6 +732,13 @@ const CONSUMABLES: Record<KitKey, { words: string; text: string; qty: number }[]
     { words: "silicone", text: "silicone", qty: 1 },
     { words: "brazing rods", text: "brazing", qty: 2 },
   ],
+  /* a head's share: the kit takes one of these for each head */
+  vrf: [
+    { words: "brazing rods", text: "brazing", qty: 2 },
+    { words: "cable ties", text: "cable tie", qty: 1 },
+    { words: "duct tape", text: "duct tape", qty: 1 },
+    { words: "silicone", text: "silicone", qty: 1 },
+  ],
 };
 
 /** A kit's consumables, from the business's book: what they cost it, and
@@ -589,6 +758,7 @@ export function consumablesEstimate(kit: KitKey, products: Product[], supplier: 
 export const KITS: Record<KitKey, { label: string; parts: KitPart[] }> = {
   split: { label: "Split install", parts: SPLIT },
   ducted: { label: "Ducted install", parts: DUCTED },
+  vrf: { label: "VRF install", parts: VRF },
 };
 
 /** The item the business chose for a part, before any search: its range
@@ -687,6 +857,41 @@ export function expandKit(
       }
       continue;
     }
+    /* a part that is several items, each its own line (a VRF's pipe at each
+       size, its joints by part) */
+    if (part.each) {
+      const base = { optionIndex: at.optionIndex, system: at.system, group: part.group, kind: "material" as const, ...ductOf(part) };
+      const items = part.each(f);
+      if (items == null) {
+        const needs = typeof part.needs === "function" ? part.needs(f) : part.needs;
+        out.push({ ...base, name: part.name, qty: 0, unit: "", costCents: 0, source: "unknown", why: needs ?? "Needs the unit's details" });
+        continue;
+      }
+      for (const x of items) {
+        if (!x.search || !x.qty) {
+          out.push({ ...base, name: x.name, qty: x.qty?.qty ?? 0, unit: x.qty?.unit ?? "", costCents: 0, source: "unknown", why: x.needs ?? "Not in your book" });
+          continue;
+        }
+        const picked = chosenFor({ ...part, range: undefined, component: () => x.component ?? null }, f, products, preferred, supplier) ?? pickItem(products, x.search, supplier);
+        if (!picked) {
+          out.push({ ...base, name: x.name, qty: x.qty.qty, unit: x.qty.unit, costCents: 0, source: "unknown", why: `${x.qty.why}; not in your book` });
+          continue;
+        }
+        const roll = x.qty.unit === "m" ? (rollMetresOf(picked.offer.name) ?? null) : null;
+        out.push({
+          ...base,
+          name: picked.product.name,
+          code: picked.offer.code,
+          supplierKey: picked.offer.supplierKey,
+          qty: x.qty.qty,
+          unit: x.qty.unit,
+          costCents: roll && roll > 1 ? Math.round((picked.offer.netCents / roll) * 10) / 10 : picked.offer.netCents,
+          source: "assumed",
+          why: `${x.qty.why}; ${picked.why.toLowerCase()}`,
+        });
+      }
+      continue;
+    }
     /* the old pipe kept: only at the size the unit's pack gives, as no
        pack here says what else a unit will take */
     let swap = "";
@@ -700,7 +905,7 @@ export function expandKit(
     if (!q || !s) {
       const needs = typeof part.needs === "function" ? part.needs(f) : part.needs;
       const why = !s ? (needs ?? (part.key === "pair-coil" && f.keptPipe ? "Needs the unit's details to check the old pipe" : "Needs the unit's details")) : "Needs the run";
-      out.push({ ...base, name: part.name, qty: q?.qty ?? 0, unit: q?.unit ?? "", costCents: 0, source: "unknown", why });
+      out.push({ ...base, name: part.nameFor?.(f) ?? part.name, qty: q?.qty ?? 0, unit: q?.unit ?? "", costCents: 0, source: "unknown", why });
       continue;
     }
     const pool = s.pool ? s.pool(products) : products;
@@ -709,7 +914,7 @@ export function expandKit(
     const sized = part.none ? part.range?.(f) : null;
     const picked = sized ? atSize(sized.kind, sized.need, products, preferred, supplier, sized.only) : (chosenFor(part, f, products, preferred, supplier) ?? pickItem(pool, s, supplier));
     if (!picked) {
-      out.push({ ...base, name: part.name, qty: q.qty, unit: q.unit, costCents: 0, source: "unknown", why: sized && part.none ? part.none(f) : "Not in your book" });
+      out.push({ ...base, name: part.nameFor?.(f) ?? part.name, qty: q.qty, unit: q.unit, costCents: 0, source: "unknown", why: sized && part.none ? part.none(f) : "Not in your book" });
       continue;
     }
     /* sold by the roll, bought here by the metre */
@@ -730,14 +935,16 @@ export function expandKit(
   /* the business's own allowances, at what it set them at; one it hasn't
      set is on the quote as not known yet */
   if (allowances && !only) {
-    const allow = (name: string, cents: number | null, why: string) =>
+    /* a VRF's consumables are a head's share, for each head */
+    const heads = kit === "vrf" ? (vrfHeadCount(f) ?? 1) : 1;
+    const allow = (name: string, cents: number | null, why: string, qty = 1) =>
       out.push({
         optionIndex: at.optionIndex,
         system: at.system,
         group: "Allowances",
         kind: "material",
         name,
-        qty: 1,
+        qty,
         unit: "",
         costCents: cents ?? 0,
         source: cents == null ? "unknown" : "assumed",
@@ -751,14 +958,14 @@ export function expandKit(
         group: "Allowances",
         kind: "material",
         name: "Consumables",
-        qty: 1,
+        qty: heads,
         unit: "",
         costCents: estimate.costCents,
         source: "assumed",
-        why: `An estimate from your book: ${estimate.words}`,
+        why: `An estimate from your book: ${estimate.words}${heads > 1 ? `, for each of ${heads} heads` : ""}`,
         estimate: true,
       });
-    } else allow("Consumables", allowances.consumables, "your allowance, a head");
+    } else allow("Consumables", allowances.consumables, heads > 1 ? `your allowance, a head, for each of ${heads}` : "your allowance, a head", heads);
     if (f.replacing) {
       allow("Refrigerant recovery and removal", allowances.recovery, "your allowance, a system");
       allow(
@@ -802,7 +1009,7 @@ export function pipeFromMm(liquid: number, gas: number): PipeSize | null {
 export function kitFactsFrom(
   kit: KitKey,
   facts: KitFacts,
-  looked: readonly ({ found: true; specs: { role: "indoor" | "outdoor"; model: string; pipeMm: { liquid: number; gas: number } | null; mcaAmps: number | null; maxAmps: number | null; breakerA?: number | null; minCableMm2?: number | null; air?: { supply: { w: number; h: number } | null; ret: { w: number; h: number } | null; returnSpigots: boolean } } } | { found: false })[],
+  looked: readonly ({ found: true; specs: { role: "indoor" | "outdoor"; model: string; pipeMm: { liquid: number; gas: number } | null; mcaAmps: number | null; maxAmps: number | null; breakerA?: number | null; minCableMm2?: number | null; phase?: string | null; air?: { supply: { w: number; h: number } | null; ret: { w: number; h: number } | null; returnSpigots: boolean } } } | { found: false })[],
   zoning: ZoningController | null,
   /** the unit's maker, its pack's key, whether its pack is installed or not */
   brand: string | null = null
@@ -815,6 +1022,7 @@ export function kitFactsFrom(
       if (f.amps == null) f.amps = u.specs.mcaAmps ?? u.specs.maxAmps;
       if (f.breakerA == null) f.breakerA = u.specs.breakerA ?? null;
       if (f.cableMm2 == null) f.cableMm2 = u.specs.minCableMm2 ?? null;
+      if (f.phase == null) f.phase = u.specs.phase === "3" ? "3" : u.specs.phase === "1" ? "1" : null;
     }
     /* a ducted indoor: its plenums are made for its faces (kits, round 2) */
     if (u.specs.role === "indoor") Object.assign(f, indoorFacts(u.specs), f.supplyFace ? { supplyFace: f.supplyFace } : {});
@@ -823,6 +1031,15 @@ export function kitFactsFrom(
   if (kit === "ducted" && f.zones && zoning) f.zoning = zoneKitOf(zoning, f.zones, f.zoneControl ?? "temperature", !!f.wifi);
   return f;
 }
+
+/** What a VRF kit asks its maker's table: the outdoor, its heads and the run's lengths. */
+export const vrfAskOf = (outdoor: string, f: KitFacts) => ({
+  outdoor,
+  heads: (f.vrfHeads ?? []).map((h) => ({ model: h.model, branchM: h.branchM })),
+  mainM: f.mainM ?? null,
+  betweenM: f.betweenM ?? null,
+  branchM: f.branchM ?? null,
+});
 
 export function indoorFacts(u: { model: string; air?: { supply: { w: number; h: number } | null; ret: { w: number; h: number } | null; returnSpigots: boolean } }): Partial<KitFacts> {
   if (!u.air) return { indoorModel: u.model };
@@ -851,6 +1068,22 @@ export function normaliseKitFacts(raw: unknown): KitFacts {
     keptPipe: r.replacing === "keep" && (OLD_PIPES as readonly unknown[]).includes(r.keptPipe) ? (r.keptPipe as OldPipe) : null,
     ...layoutFacts(r),
     ...zoneFacts(r),
+    ...vrfFacts(r, n),
+  };
+}
+
+/** A VRF's heads and the run's lengths, as given: only what was said. */
+function vrfFacts(r: Record<string, unknown>, n: (v: unknown, max: number) => number | null): Partial<KitFacts> {
+  const heads = (Array.isArray(r.vrfHeads) ? r.vrfHeads : []).slice(0, 50).flatMap((h) => {
+    const o = h && typeof h === "object" ? (h as Record<string, unknown>) : {};
+    const model = typeof o.model === "string" ? o.model.trim().slice(0, 60) : "";
+    return model ? [{ model, branchM: n(o.branchM, 200) }] : [];
+  });
+  return {
+    ...(heads.length ? { vrfHeads: heads } : {}),
+    ...(n(r.mainM, 500) != null ? { mainM: n(r.mainM, 500) } : {}),
+    ...(n(r.betweenM, 200) != null ? { betweenM: n(r.betweenM, 200) } : {}),
+    ...(n(r.branchM, 200) != null ? { branchM: n(r.branchM, 200) } : {}),
   };
 }
 

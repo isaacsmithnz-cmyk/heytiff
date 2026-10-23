@@ -123,3 +123,13 @@ it("keeps the quote the client already has, and prices a new option as the diffe
   expect(p).toContain("the new option starts as a copy of the option it changes (copy_option)");
 });
 
+/* Isaac, 2026-10-24: "ok" to the VRF kit */
+it("starts a VRF or PUMY system from the VRF kit, never searching for what it puts on", () => {
+  expect(sessionSystemPrompt()).toContain("For a VRF or PUMY system, add the VRF kit (kit vrf) naming its outdoor and every head");
+});
+
+/* the 24 October bench, 3363: "I've built option 0" */
+it("says options the way the person counts them", () => {
+  expect(sessionSystemPrompt()).toContain("the first is option 1, though the tools count from 0");
+});
+

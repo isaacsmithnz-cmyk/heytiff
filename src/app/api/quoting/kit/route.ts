@@ -49,6 +49,7 @@ export async function GET(req: Request) {
         f.amps = u.specs.mcaAmps ?? u.specs.maxAmps;
         f.breakerA = u.specs.breakerA ?? null;
         f.cableMm2 = u.specs.minCableMm2 ?? null;
+        f.phase = u.specs.phase === "3" ? "3" : u.specs.phase === "1" ? "1" : null;
       } else Object.assign(f, indoorFacts(u.specs));
     }
   }

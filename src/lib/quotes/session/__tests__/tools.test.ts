@@ -64,7 +64,7 @@ const BOOK = [
 ];
 jest.mock("../../book-view-server", () => ({ bookProducts: jest.fn(async () => BOOK) }));
 
-import { bookPrice, isErr, newLineOf, patchOf, questionOf, SESSION_TOOLS } from "../tools";
+import { bookPrice, isErr, kitAskOf, newLineOf, patchOf, questionOf, SESSION_TOOLS } from "../tools";
 import { sessionTools } from "../tools-server";
 import { readLines } from "../../lines-server";
 import { lookupCharge, lookupPairing, lookupUnit } from "../../lookups-server";
@@ -451,3 +451,13 @@ describe("a price the person gave", () => {
     expect(newLineOf({ name: "Flex 250", group: "Ductwork and grilles", kind: "material", qty: 5, source: "assumed", why: "a bag an outlet", duct: true })).toMatchObject({ duct: true });
   });
 });
+
+/* Isaac, 2026-10-24: "ok" to the VRF kit */
+it("asks for a VRF kit with its heads and the run's lengths", () => {
+  const k = kitAskOf({ kit: "vrf", option: 1, system: "Upstairs", brand: "mitsubishi-electric", model: "PUMY-SP140VKMD2-A", heads: [{ model: "PEFY-P20VMX-E", branch_m: 6 }, { model: "PEFY-P15VMX-E" }], main_m: 10, between_m: 3, branch_m: 5 });
+  expect(k.kit).toBe("vrf");
+  expect(k.unit).toEqual({ brand: "mitsubishi-electric", model: "PUMY-SP140VKMD2-A" });
+  expect(k.facts).toMatchObject({ vrfHeads: [{ model: "PEFY-P20VMX-E", branchM: 6 }, { model: "PEFY-P15VMX-E", branchM: undefined }], mainM: 10, betweenM: 3, branchM: 5 });
+  expect(SESSION_TOOLS.find((t) => t.name === "add_kit")!.input_schema.properties).toHaveProperty("heads");
+});
+

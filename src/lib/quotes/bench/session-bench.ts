@@ -1,8 +1,9 @@
 import type { AirflowGuide } from "@/lib/guides/airflow";
 import { NO_DESIGN, type JobDesign } from "../design-read";
 import type { BuildSettings } from "../buildup";
+import type { VrfAsk, VrfPlan } from "../vrf-kit";
 import type { Product } from "../families";
-import { expandKit, kitFactsFrom, stillToSize, type KitAllowances, type KitPreferences } from "../kits";
+import { expandKit, kitFactsFrom, stillToSize, vrfAskOf, type KitAllowances, type KitPreferences } from "../kits";
 import type { ZoningController } from "@/lib/studio/packs/schema";
 import { applyPatch, lineFromRow, lineRow, normaliseLine, sortLines, type QuoteLine } from "../lines";
 import { priceLines } from "../lines-price";
@@ -41,6 +42,8 @@ export function memoryStore(opts: {
   pairing?: (brand: string, outdoor: string, indoors: string[]) => Promise<Pairing>;
   /** the refrigerant to add as the app reads it; none, and it says there's no data pack */
   charge?: (brand: string, ask: ChargeAsk) => Promise<Charge>;
+  /** a VRF's run off its maker's pack, as the app sizes it (lookups-server lookupVrfPlan); none, and the kit says so */
+  vrfPlan?: (brand: string, ask: VrfAsk) => Promise<VrfPlan>;
   /** the maker's zone system, as the app reads it (lookups-server zoningFor) */
   zoning?: (brand: string) => Promise<ZoningController | null>;
   /** the business's ranges and preferred parts, for a kit to pick from */
@@ -100,6 +103,7 @@ export function memoryStore(opts: {
       const brand = (indoor ?? unit)?.brand ?? null;
       const zoning = kit === "ducted" && facts.zones && brand && opts.zoning ? await opts.zoning(brand) : null;
       const f = kitFactsFrom(kit, facts, looked, zoning, brand);
+      if (kit === "vrf") f.vrf = unit && opts.vrfPlan ? await opts.vrfPlan(unit.brand, vrfAskOf(unit.model, f)) : { ok: false, why: "Needs the outdoor, from its data pack" };
       const made = expandKit(kit, f, opts.products, at, opts.allowances ?? null, opts.supplier ?? null, opts.kitPrefs ?? null);
       for (const l of made) add(l as Record<string, unknown>);
       return { ok: true, added: made.length, still: stillToSize(made) };

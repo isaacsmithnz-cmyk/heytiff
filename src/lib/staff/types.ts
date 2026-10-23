@@ -5,7 +5,6 @@
    and the compliance chip are all functions of data we already hold, so
    storing them would just create a second thing to keep in sync. */
 
-import type { Capability } from "@/lib/permissions";
 import type { Role } from "@/lib/roles-shared";
 
 export type ComplianceState = "ok" | "warn" | "bad";
@@ -46,13 +45,6 @@ export type StaffLicence = {
   licenceNumber: string | null;
   expiryDate: string | null;
   color: string | null;
-};
-
-/** What an admin may see/do on a given card — resolved once, passed down. */
-export type CardViewerCaps = {
-  caps: ReadonlySet<Capability>;
-  role: Role | null;
-  userId: string;
 };
 
 /** An outstanding invitation, shaped for the directory's Pending tab.

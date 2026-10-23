@@ -387,32 +387,6 @@ export function satTempC(
   return null;
 }
 
-/* ─────────────────────── superheat / subcooling ─────────────────────── */
-
-/** Superheat (K): suction line temp − DEW temp at suction pressure.
-    Null when the pressure is off-chart. Negative = reading error or flooding. */
-export function superheatK(
-  key: RefrigerantKey,
-  suctionKpaGauge: number,
-  suctionLineTempC: number
-): number | null {
-  const sat = satTempC(key, suctionKpaGauge, "vapor");
-  if (sat === null) return null;
-  return Math.round((suctionLineTempC - sat) * 10) / 10;
-}
-
-/** Subcooling (K): BUBBLE temp at liquid pressure − liquid line temp.
-    Null when the pressure is off-chart. Negative = flash gas in the liquid line. */
-export function subcoolingK(
-  key: RefrigerantKey,
-  liquidKpaGauge: number,
-  liquidLineTempC: number
-): number | null {
-  const sat = satTempC(key, liquidKpaGauge, "liquid");
-  if (sat === null) return null;
-  return Math.round((sat - liquidLineTempC) * 10) / 10;
-}
-
 /* ────────────────────────────── units ────────────────────────────── */
 
 export const KPA_PER_PSI = 6.894757;
@@ -423,19 +397,4 @@ export function kpaToPsi(kpa: number): number {
 
 export function psiToKpa(psi: number): number {
   return Math.round(psi * KPA_PER_PSI * 10) / 10;
-}
-
-/* ───────────────────── operating window pressures ─────────────────────
-   A window's pressure band (kPa gauge) from its sat temps — suction reads
-   the vapor column, discharge the liquid column (matches gauge practice). */
-
-export function windowPressures(
-  key: RefrigerantKey,
-  w: OperatingWindow
-): { lo: number; hi: number } | null {
-  const side: SatSide = w.side === "suction" ? "vapor" : "liquid";
-  const lo = satPressureKpa(key, w.satLoC, side);
-  const hi = satPressureKpa(key, w.satHiC, side);
-  if (lo === null || hi === null) return null;
-  return { lo: Math.round(lo), hi: Math.round(hi) };
 }

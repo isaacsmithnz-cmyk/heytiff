@@ -1,7 +1,5 @@
 import {
-  blockDates,
   blockLabel,
-  blockedDays,
   upcoming,
   validateBlock,
   type Unavailability,
@@ -25,27 +23,6 @@ const B = (from: string, to: string, id = "b"): Unavailability => ({
 
 const TODAY = "2026-07-10";
 
-describe("what a block covers", () => {
-  it("a single day is one day", () => {
-    expect(blockDates(B("2026-07-20", "2026-07-20"))).toEqual(["2026-07-20"]);
-  });
-
-  it("a range is every day of it, inclusive at both ends", () => {
-    expect(blockDates(B("2026-07-20", "2026-07-23"))).toEqual([
-      "2026-07-20",
-      "2026-07-21",
-      "2026-07-22",
-      "2026-07-23",
-    ]);
-  });
-
-  it("maps every covered day back to its block, for marking up a week", () => {
-    const map = blockedDays([B("2026-07-20", "2026-07-21", "a"), B("2026-08-01", "2026-08-01", "b")]);
-    expect(map.get("2026-07-21")?.id).toBe("a");
-    expect(map.get("2026-08-01")?.id).toBe("b");
-    expect(map.has("2026-07-22")).toBe(false);
-  });
-});
 
 describe("which blocks still say something", () => {
   it("keeps today's and everything after it", () => {

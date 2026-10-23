@@ -8,7 +8,6 @@
    units a multi outdoor accepts comes from `multi_rules.compatibility`
    (universal-table-schema.md §5), never a guess. */
 
-import type { DesignSystem } from "./document";
 import type {
   CompatibilityRule,
   DataPack,
@@ -29,21 +28,6 @@ import {
   type SelectFilters,
   type SelectSort,
 } from "./select";
-
-/* ─────────────────────────── settings readers ─────────────────────────── */
-
-/** `settings.multiIdus` — roomId → chosen indoor model. Tolerates any stored
-    shape; non-string entries are dropped. (coverage.ts reads the same key
-    inline for its pending calculation — keep the two in step.) */
-export function multiIduSelections(system: DesignSystem): Record<string, string> {
-  const v = system.settings.multiIdus;
-  if (!v || typeof v !== "object" || Array.isArray(v)) return {};
-  const out: Record<string, string> = {};
-  for (const [roomId, model] of Object.entries(v as Record<string, unknown>)) {
-    if (typeof model === "string" && model) out[roomId] = model;
-  }
-  return out;
-}
 
 /* ─────────────────────── multi-capable indoor units ───────────────────────
    The ME pack doesn't stamp `system_roles: ["multi"]` on indoor rows — the

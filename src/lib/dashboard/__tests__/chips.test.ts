@@ -1,14 +1,11 @@
 import {
   CLAIM_NUDGE_DAYS,
-  GROUP_ICON,
   chipGroup,
-  chipSummary,
   declinedClaimChip,
   declinedLeaveChip,
   expensesChip,
   leaveQueueChip,
   timesheetChip,
-  summaryLine,
   ctpChip,
   insuranceChip,
   licenceChip,
@@ -27,10 +24,8 @@ import {
   vehicleTitle,
   workRightsChips,
   type ActionChip,
-  type ChipKind,
 } from "../chips";
 import type { VehicleWithFacts } from "@/components/fleet/logic";
-import { ICON_PATHS } from "@/components/shell/icon";
 
 // Anchor day for every date-based case. daysUntil counts from this.
 const TODAY = "2026-07-19";
@@ -197,32 +192,6 @@ describe("vehicle chips", () => {
 });
 
 describe("chipSummary / summaryLine", () => {
-  const c = (state: "bad" | "warn"): ActionChip => ({
-    key: `k${Math.random()}`,
-    kind: "rego",
-    state,
-    label: "l",
-    subject: "s",
-    href: "h",
-    urgency: 0,
-    due: null,
-    ref: null,
-  });
-
-  it("counts each urgency separately and totals them", () => {
-    expect(chipSummary([c("bad"), c("warn"), c("warn")])).toEqual({ total: 3, bad: 1, warn: 2 });
-  });
-
-  it("is all zeros when nothing needs attention", () => {
-    expect(chipSummary([])).toEqual({ total: 0, bad: 0, warn: 0 });
-    expect(summaryLine({ total: 0, bad: 0, warn: 0 })).toBe("");
-  });
-
-  it("names only the buckets that have something in them", () => {
-    expect(summaryLine({ total: 3, bad: 1, warn: 2 })).toBe("1 overdue, 2 due soon");
-    expect(summaryLine({ total: 2, bad: 2, warn: 0 })).toBe("2 overdue");
-    expect(summaryLine({ total: 1, bad: 0, warn: 1 })).toBe("1 due soon");
-  });
 });
 
 describe("chipGroup", () => {
@@ -245,42 +214,6 @@ describe("chipGroup", () => {
     expect(chipGroup("timesheet")).toBe("Pay");
     expect(chipGroup("claim")).toBe("Pay");
     expect(chipGroup("expenses")).toBe("Pay");
-  });
-
-  it("gives every kind a group and every group a real icon", () => {
-    /* Exhaustive by construction: a new ChipKind that nobody files fails to
-       compile here rather than rendering with a blank tag and no glyph. */
-    /* A Record, not an array: an array typed ChipKind[] compiles happily when
-       a kind is MISSING, which is the only failure this test exists to catch —
-       it was already short two kinds when a third was added. */
-    const filed: Record<ChipKind, true> = {
-      licence: true,
-      "work-rights": true,
-      rego: true,
-      insurance: true,
-      ctp: true,
-      service: true,
-      "org-insurance": true,
-      "org-licence": true,
-      expenses: true,
-      timesheet: true,
-      claim: true,
-      "leave-queue": true,
-      "leave-declined": true,
-      profile: true,
-      swms: true,
-      "swms-issue": true,
-      "swms-template": true,
-      "cert-wording": true,
-      "sm8-writes": true,
-      "sm8-done": true,
-      "sm8-booking": true,
-    };
-    for (const k of Object.keys(filed) as ChipKind[]) {
-      const g = chipGroup(k);
-      expect(g).toBeTruthy();
-      expect(ICON_PATHS[GROUP_ICON[g]]).toBeTruthy();
-    }
   });
 });
 

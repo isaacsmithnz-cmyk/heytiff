@@ -9,7 +9,6 @@
    and the mirror, on every press. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { familyMediaSources } from "@/lib/workboard/all-jobs-query";
 import { sm8Handle } from "@/lib/workboard/sm8-mentions";
 import { noteWords } from "./sm8-note-plan";
 
@@ -135,24 +134,6 @@ export async function sourceStands(
     .in("id", noteIds);
   if (error) return null;
   return !((data ?? []) as { removed_at: string | null }[]).some((r) => !!r.removed_at);
-}
-
-/** Where a HeyTiff row's note goes in ServiceM8:
-    - a diary entry (it answers nothing): the job it is written on;
-    - a reply or a Done: the object its source hangs off, ONLY when that is
-      this job or one of the job's claims (familyMediaSources);
-    - otherwise null — nothing goes. */
-export async function noteObjectOf(
-  orgId: string,
-  row: { target_id: string | null; reply_to_sm8_note_uuid?: string | null }
-): Promise<string | null> {
-  if (!row.target_id) return null;
-  if (!row.reply_to_sm8_note_uuid) return row.target_id;
-  const source = await noteSourceOf(orgId, row.reply_to_sm8_note_uuid);
-  if (!source) return null;
-  if (source.relatedUuid === row.target_id) return row.target_id;
-  const family = await familyMediaSources(orgId, row.target_id);
-  return family.some((c) => c.remoteId === source.relatedUuid) ? source.relatedUuid : null;
 }
 
 /** A ServiceM8 staff member's @handle, by their uuid. An inactive person

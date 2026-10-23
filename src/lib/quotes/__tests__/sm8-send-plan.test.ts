@@ -1,7 +1,7 @@
 import { priceBuildUp } from "../buildup";
 import { normaliseDraft } from "../proposal";
 import { allowedQuoteFields, quoteRows } from "@/lib/integrations/sm8-quote-plan";
-import { NOT_APPROVED, checkBack, optionLines, planKey, quoteDescription, sendAsQuotePlan, sendPlan, sm8Amount, usualTaxRate, type ProposalWords } from "../sm8-send-plan";
+import { NOT_APPROVED, optionLines, planKey, quoteDescription, sendAsQuotePlan, sendPlan, usualTaxRate, type ProposalWords } from "../sm8-send-plan";
 
 /* Isaac, 2026-10-05: "if a quote is accepted, then it can turn that into the
    work order for service mate… copy the scope and line items" */
@@ -72,12 +72,8 @@ it("refuses what ServiceM8 mustn't get: nothing accepted, a part-priced option, 
 });
 
 it("puts amounts ServiceM8's way, takes the business's usual tax rate, and checks the total back", () => {
-  expect(sm8Amount(1150000)).toBe("11500.0000");
-  expect(sm8Amount(762.5)).toBe("7.6250");
   expect(usualTaxRate(["gst", "gst", "free", null])).toBe("gst");
   expect(usualTaxRate([])).toBeNull();
-  expect(checkBack([{ quantity: 1, unitPrice: 11500 }], 1150000)).toEqual({ sm8Cents: 1150000, gapCents: 0, matches: true });
-  expect(checkBack([{ quantity: 1, unitPrice: 11000 }], 1150000).matches).toBe(false);
 });
 
 /* Isaac, 2026-10-05: "if it adds wifi, does it specify in the quote?" */

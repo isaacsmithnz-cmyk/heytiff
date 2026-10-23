@@ -194,14 +194,6 @@ export async function driveDocument(
   return last;
 }
 
-/** The documents in order, one after the next — never two at once. */
-export async function runIngestQueue(ids: string[], deps: IngestDeps): Promise<void> {
-  for (const id of ids) {
-    if (deps.stopped?.()) return;
-    await driveDocument(id, deps);
-  }
-}
-
 export type KbIngestHandle = {
   /** documentId → the last progress this page saw. */
   progress: Record<string, KbIngestProgress>;

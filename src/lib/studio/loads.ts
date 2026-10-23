@@ -13,7 +13,6 @@
    boundary so a fuller calc can replace it without touching callers. */
 
 import type { Point } from "./document";
-import { coversLoad } from "./fit";
 
 /* ────────────────── climate zones (Australian NCC, W/m²) ──────────────────
    Rule-of-thumb watts per m² by zone × building type. Source (per DUCTR):
@@ -164,15 +163,6 @@ export function sizingCapacityKw(
   }
 }
 
-/** Does a unit cover a room's load under the chosen basis? */
-export function unitMeetsLoad(
-  unit: { capacity_cool_kw: number; capacity_heat_kw: number },
-  loadKw: number,
-  basis: SizingBasis
-): boolean {
-  return coversLoad(sizingCapacityKw(unit, basis), loadKw);
-}
-
 /* ──────────────── orientation detection (north arrow) ────────────────
    Given a room polygon and the north-arrow bearing (degrees clockwise from
    screen-up), find the compass direction the room's primary exposed wall faces
@@ -266,50 +256,4 @@ export function orientationFromWalls(
     if (score > bestScore) { bestScore = score; bestCompass = compass; }
   }
   return bestCompass;
-}
-
-/* ─────────── ventilation airflow requirements (schema for Stage 9) ───────────
-   Ventilation mode swaps the kW block for an airflow requirement in L/s
-   (design-studio-plan.md — Layer 2). This declares the SHAPE + a starter set of
-   Australian rule-of-thumb rates. NOTE: these presets are PROVISIONAL — verify
-   against AS 1668.2 / NCC F6 before the vent module (Stage 9) ships; they are
-   not harvested from a manufacturer book. Structure is stable; numbers may move. */
-
-export type VentMode = "exhaust" | "supply" | "balanced";
-export type AirflowBasis = "per-room" | "per-person" | "per-m2";
-
-export interface AirflowPreset {
-  spaceType: string;
-  mode: VentMode;
-  basis: AirflowBasis;
-  /** L/s — per room, per person, or per m² depending on `basis` */
-  ls: number;
-  note?: string;
-}
-
-/** Provisional AU rule-of-thumb ventilation rates. Verify vs AS 1668.2 / NCC. */
-export const AIRFLOW_PRESETS: Record<string, AirflowPreset> = {
-  bathroom: { spaceType: "Bathroom", mode: "exhaust", basis: "per-room", ls: 25 },
-  toilet: { spaceType: "Toilet", mode: "exhaust", basis: "per-room", ls: 25 },
-  laundry: { spaceType: "Laundry", mode: "exhaust", basis: "per-room", ls: 25 },
-  "kitchen-domestic": { spaceType: "Kitchen (domestic)", mode: "exhaust", basis: "per-room", ls: 40 },
-  "office-fresh-air": { spaceType: "Office (fresh air)", mode: "supply", basis: "per-person", ls: 10 },
-};
-
-/** Required airflow (L/s) for a space, given a preset key and the sizing
-    quantity (room count is implicit=1; supply `people`; per-m² `areaM2`). */
-export function requiredAirflowLs(
-  presetKey: string,
-  qty: { people?: number; areaM2?: number } = {}
-): number {
-  const p = AIRFLOW_PRESETS[presetKey];
-  if (!p) return 0;
-  switch (p.basis) {
-    case "per-room":
-      return p.ls;
-    case "per-person":
-      return p.ls * (qty.people ?? 1);
-    case "per-m2":
-      return p.ls * (qty.areaM2 ?? 0);
-  }
 }

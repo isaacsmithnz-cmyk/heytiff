@@ -20,7 +20,6 @@ import { roomCoverage } from "../coverage";
 import { sizingCapacityKw } from "../loads";
 import { systemComponents } from "../components";
 import {
-  multiIduSelections,
   multiCapableIdus,
   proposeMultiIdus,
   proposeMultiOdus,
@@ -105,26 +104,6 @@ const placedUnit = (
 /* ── settings reader ── */
 
 describe("multiIduSelections", () => {
-  const sys = (settings: Record<string, unknown>): DesignSystem => ({
-    id: "s1",
-    type: "multi-split",
-    brand: "b",
-    colour: "#000",
-    name: "S",
-    settings,
-  });
-
-  it("reads roomId → model and drops junk entries", () => {
-    expect(
-      multiIduSelections(sys({ multiIdus: { r1: "MSZ-AP20VGD", r2: 7, r3: "" } }))
-    ).toEqual({ r1: "MSZ-AP20VGD" });
-  });
-
-  it("tolerates missing / malformed shapes", () => {
-    expect(multiIduSelections(sys({}))).toEqual({});
-    expect(multiIduSelections(sys({ multiIdus: "nope" }))).toEqual({});
-    expect(multiIduSelections(sys({ multiIdus: ["a"] }))).toEqual({});
-  });
 });
 
 /* ── derived IDU capability ── */

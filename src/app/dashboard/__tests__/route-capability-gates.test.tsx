@@ -34,7 +34,6 @@ jest.mock("@/lib/tiff/query", () => ({
   kbDocsForOrg: jest.fn(async () => []),
   kbUploaderNames: jest.fn(async () => ({})),
   kbCategoryCounts: jest.fn(async () => ({ install: 3, faults: 2, specs: 0, sops: 0 })),
-  kbRecentDocs: jest.fn(async () => []),
   kbDocTitles: jest.fn(async () => ({})),
 }));
 /* Mocked at the module rather than at the Supabase client: lib/tiff/tags-query
@@ -74,7 +73,6 @@ jest.mock("@/lib/workboard/projects-board-query", () => ({
 }));
 jest.mock("@/lib/workboard/visit-ensure", () => ({
   ensureVisits: jest.fn(async () => {}),
-  autoCompleteVisitsFromMirror: jest.fn(async () => 0),
 }));
 jest.mock("@/lib/workboard/query", () => ({
   getSm8Timezone: jest.fn(async () => null),
@@ -82,7 +80,6 @@ jest.mock("@/lib/workboard/query", () => ({
 jest.mock("@/lib/workboard/notes-query", () => ({
   listProjectEntries: jest.fn(async () => []),
   listIssues: jest.fn(async () => []),
-  listFlags: jest.fn(async () => []),
 }));
 jest.mock("@/lib/voice/transcribe", () => ({ isTranscriptionConfigured: () => false }));
 jest.mock("@/lib/integrations/store", () => ({

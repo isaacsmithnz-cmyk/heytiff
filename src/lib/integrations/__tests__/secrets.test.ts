@@ -1,4 +1,4 @@
-import { generateTokenKey, open, parseTokenKey, seal, tokenKey } from "../secrets";
+import { open, parseTokenKey, seal, tokenKey } from "../secrets";
 
 /* The seal is the reason a leaked database isn't a leaked accounting system,
    so the cases that matter here are the FAILURES: wrong key, tampered
@@ -38,10 +38,6 @@ describe("parseTokenKey", () => {
     expect(parseTokenKey(null)).toBeNull();
     expect(parseTokenKey("")).toBeNull();
     expect(parseTokenKey("   ")).toBeNull();
-  });
-
-  it("generates a key it will accept back", () => {
-    expect(parseTokenKey(generateTokenKey())).toHaveLength(32);
   });
 });
 

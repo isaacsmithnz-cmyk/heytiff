@@ -115,5 +115,3 @@ export function checkEnglish(text: string): EnglishCheck {
   return foreign ? { foreign, reasons } : CLEAN;
 }
 
-/** Convenience for a caller that only wants the verdict. */
-export const looksNonEnglish = (text: string): boolean => checkEnglish(text).foreign;

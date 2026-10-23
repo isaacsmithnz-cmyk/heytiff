@@ -12,14 +12,12 @@ import {
   suggestedReason,
   stateFormNote,
   changedSince,
-  readsAs,
   shownParts,
   SHOWN,
   WORDING_GROUPS,
   wetMinimum,
   type ApprovedWording,
   type Building,
-  type ClauseKey,
   type CertAnswers,
   type CertFacts,
   type Covers,
@@ -400,51 +398,10 @@ describe("what was asked against what was installed", () => {
 });
 
 describe("the wording the owner approves", () => {
-  /* every way each clause can read, from answers that make it print */
-  const asked = (clause: ClauseKey, more: Partial<CertAnswers> = {}) => {
-    const a = answersFor(JOB_279, BOTH, "house", {
-      requirements: [{ text: "Asked", answer: "clause", clause, own: "", reason: "" }],
-      installed: { ductwork: false, fireRated: true, fireStopProduct: "Promat collars" },
-      ...more,
-    });
-    return statementsFor(a).statements.find((st) => st.clause === clause)!.text;
-  };
-  const twoCharges = (): Partial<CertAnswers> => {
-    const a = answersFor(JOB_1245, AC, "house");
-    a.systems[1].test = { ...TESTED, addedKg: 0.4 };
-    return { covers: BOTH, systems: a.systems };
-  };
-  const printed = (clause: ClauseKey): string[] => {
-    const wet = [{ ...readQuote(JOB_279).fans[0], location: "Ensuite", model: "XF100", airflowGiven: true, airflowLps: 30 }];
-    const extra: Partial<Record<ClauseKey, Partial<CertAnswers>[]>> = {
-      refrigerant: [{}, twoCharges()],
-      ventAirflow: [{}, { fans: wet }, { fans: [{ ...wet[0], airflowKind: "measured" }] }],
-      j5: [{}, { installed: { ductwork: true, fireRated: false, fireStopProduct: "" } }],
-      fireMode: [{ fireMode: "individual" }, { fireMode: "shutdown", fireModeInterface: "FIP relay", fireModeTestedOn: "2026-09-29" }],
-      airBalance: [{ airBalance: "attached" }, { airBalance: "others" }],
-    };
-    return (extra[clause] ?? [{}]).map((more) => asked(clause, more));
-  };
 
-  it("groups every statement once, and shows each line it can print", () => {
+  it("groups every statement once", () => {
     const grouped = WORDING_GROUPS.flatMap((g) => g.clauses.map((c) => c.clause));
     expect([...grouped].sort()).toEqual(Object.keys(CLAUSE_NAME).sort());
-    for (const k of Object.keys(CLAUSE_NAME) as ClauseKey[]) {
-      for (const text of printed(k)) expect([k, SHOWN[k].some((line) => readsAs(line, text))]).toEqual([k, true]);
-    }
-  });
-
-  it("shows every statement a golden job's certificate makes", () => {
-    const jobs = [
-      answersFor(JOB_1383, AC, "apartment", { requirements: futureCert(), fireMode: "individual", fireModeRatingsChecked: true }),
-      answersFor(JOB_279, BOTH, "house"),
-      answersFor(JOB_2699, AC, "apartment", { installed: { ductwork: false, fireRated: true, fireStopProduct: "Promat collars" } }),
-    ];
-    for (const a of jobs) {
-      for (const st of statementsFor(a).statements) {
-        if (st.clause) expect([st.clause, SHOWN[st.clause].some((line) => readsAs(line, st.text))]).toEqual([st.clause, true]);
-      }
-    }
   });
 
   it("splits a shown line into its words, what's typed and the choices", () => {

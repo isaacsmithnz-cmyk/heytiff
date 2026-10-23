@@ -94,9 +94,3 @@ export function open(sealed: string | null | undefined, key: Buffer): string | n
   }
 }
 
-/** A key a deployment can paste into its environment. Not called by the app —
-    it exists so the setup instructions can point at one line of real code
-    rather than a shell incantation that varies by platform. */
-export function generateTokenKey(): string {
-  return randomBytes(KEY_BYTES).toString("base64url");
-}

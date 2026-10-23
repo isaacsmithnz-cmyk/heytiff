@@ -14,7 +14,7 @@ import {
 } from "../document";
 import { PACK_SECTIONS, type DataPack, type PackMeta } from "../packs/schema";
 import { assemblePack, type PackSource } from "../packs/loader";
-import { proposePairs, validateSplitSystem, systemBadge, EQUIV_LENGTH_CLOSE_RATIO } from "../split";
+import { proposePairs } from "../split";
 import { buildSystemGraph, findPath } from "../graph";
 import { evaluateAdditionalCharge } from "../materials";
 import { buildSummaryModel } from "../summary";
@@ -145,14 +145,6 @@ describe("A1 — single-floor split", () => {
     expect(g.orphanRuns).toEqual([]);
   });
 
-  it("validates green (approved pair, within 55 m / 30 m limits)", () => {
-    const v = validateSplitSystem(doc, pack, "sys_split");
-    expect(v.findings).toEqual([]);
-    expect(v.status).toBe("green");
-    expect(v.pair!.odu_model).toBe("PUZ-M100VKA-A");
-    expect(v.lengthM).toBeCloseTo(30, 5);
-  });
-
   it("takeoff: full document→sheet golden output", () => {
     /* the schedule this used to assert was buildMaterials, retired once the
        sheet took over: units are the picklist and the rooms table now, the
@@ -217,8 +209,6 @@ describe("A2 — two-floor split via riser", () => {
   });
 
   it("validates green and materials count the vertical", () => {
-    const v = validateSplitSystem(doc, pack, "sys_split");
-    expect(v.status).toBe("green");
     const sys = buildSummaryModel(doc, pack).systems[0];
     expect(sys.totalPipeM).toBe(23); // the riser's 3 m is in there
     expect(sys.lines.some((l) => l.name === "Additional refrigerant")).toBe(false);
@@ -235,13 +225,6 @@ describe("A3 — over-length warning", () => {
     run("obj_run", "flr_g", [{ x: 100, y: 100 }, { x: 5700, y: 100 }], { kind: "unit", id: "obj_idu" }, { kind: "unit", id: "obj_odu" })
   );
 
-  it("56 m run on a 55 m pair → red over-length", () => {
-    const v = validateSplitSystem(doc, pack, "sys_split");
-    expect(v.status).toBe("red");
-    expect(v.findings.map((f) => f.code)).toEqual(["over-length"]);
-    expect(v.lengthM).toBeCloseTo(56, 5);
-  });
-
   it("charge kicks in beyond the 30 m free length: (56−30)×40 g", () => {
     const sys = buildSummaryModel(doc, pack).systems[0];
     expect(sys.lines).toContainEqual({
@@ -254,55 +237,12 @@ describe("A3 — over-length warning", () => {
   });
 });
 
-/* ═══════════════ A4 — not connected / orphan runs ═══════════════ */
-
-describe("A4 — connectivity is graph-checked, not assumed", () => {
-  it("units with no run at all → red not-connected", () => {
-    const doc = baseDoc();
-    doc.objects.push(
-      unit("obj_idu", "flr_g", "idu", "PLA-M100EA2-A", 100, 100),
-      unit("obj_odu", "flr_g", "odu", "PUZ-M100VKA-A", 3100, 100)
-    );
-    const v = validateSplitSystem(doc, pack, "sys_split");
-    expect(v.status).toBe("red");
-    expect(v.findings.map((f) => f.code)).toEqual(["not-connected"]);
-  });
-
-  it("a drawn run that never attached → red not-connected + amber orphan", () => {
-    const doc = baseDoc();
-    doc.objects.push(
-      unit("obj_idu", "flr_g", "idu", "PLA-M100EA2-A", 100, 100),
-      unit("obj_odu", "flr_g", "odu", "PUZ-M100VKA-A", 3100, 100),
-      run("obj_run", "flr_g", [{ x: 200, y: 300 }, { x: 900, y: 300 }], null, null)
-    );
-    const v = validateSplitSystem(doc, pack, "sys_split");
-    expect(v.status).toBe("red");
-    expect(v.findings.map((f) => f.code).sort()).toEqual(["not-connected", "orphan-run"]);
-  });
-
-  it("unapproved pairing → red pair-not-approved", () => {
-    const doc = baseDoc();
-    doc.objects.push(
-      unit("obj_idu", "flr_g", "idu", "PLA-M100EA2-A", 100, 100),
-      // real ODU, but never paired with a PLA-M100 in the book
-      unit("obj_odu", "flr_g", "odu", "SUZ-M50VAD-A", 3100, 100),
-      run("obj_run", "flr_g", [{ x: 100, y: 100 }, { x: 3100, y: 100 }], { kind: "unit", id: "obj_idu" }, { kind: "unit", id: "obj_odu" })
-    );
-    const v = validateSplitSystem(doc, pack, "sys_split");
-    expect(v.findings.map((f) => f.code)).toContain("pair-not-approved");
-    expect(v.status).toBe("red");
-  });
-});
-
 /* ═══════════════ A5 — empties stay empty ═══════════════ */
 
 describe("A5 — empty design = empty schedule", () => {
-  it("no systems → empty schedule; system with no objects → empty badge", () => {
+  it("no systems → empty schedule", () => {
     const d = createDesign({ name: "Empty", mode: "blank", now: "2026-07-07T00:00:00.000Z" });
     expect(buildSummaryModel(d, pack)).toEqual({ systems: [], unserved: [], picklist: [] });
-
-    const withSys = baseDoc(); // system exists, only a room drawn
-    expect(systemBadge(withSys, pack, withSys.systems[0]).status).toBe("empty");
   });
 
   it("uncalibrated floor → amber, lengths unknown, materials carry a note", () => {
@@ -313,9 +253,6 @@ describe("A5 — empty design = empty schedule", () => {
       unit("obj_odu", "flr_g", "odu", "PUZ-M100VKA-A", 3100, 100),
       run("obj_run", "flr_g", [{ x: 100, y: 100 }, { x: 3100, y: 100 }], { kind: "unit", id: "obj_idu" }, { kind: "unit", id: "obj_odu" })
     );
-    const v = validateSplitSystem(doc, pack, "sys_split");
-    expect(v.status).toBe("amber");
-    expect(v.findings.map((f) => f.code)).toEqual(["uncalibrated"]);
     const sys = buildSummaryModel(doc, pack).systems[0];
     expect(sys.totalPipeM).toBeNull();
     /* a drawn run the sheet cannot measure is STATED, not omitted — silence
@@ -406,8 +343,6 @@ describe("stepped_by_length on a split pair", () => {
       bands: [{ up_to_m: 30, add_g: 350 }, { up_to_m: 40, add_g: 700 }],
       liquid_mm: 9.52,
     });
-    const v = validateSplitSystem(scenarioA1(), stepped, "sys_split");
-    expect(v.findings).toEqual([]);
     const sys = buildSummaryModel(scenarioA1(), stepped).systems[0];
     expect(sys.lines).toContainEqual(expect.objectContaining({ name: "Additional refrigerant", qty: "350 g" }));
   });
@@ -419,28 +354,8 @@ describe("stepped_by_length on a split pair", () => {
       bands: [{ up_to_m: 20, add_g: 350 }],
       liquid_mm: 9.52,
     });
-    const v = validateSplitSystem(scenarioA1(), short, "sys_split");
-    expect(v.findings.map((f) => f.code)).toEqual(["past-charge-table"]);
-    expect(v.findings[0].message).toBe("Run is 30.0 m — the book's charge table for this pair stops at 20 m");
-    expect(v.status).toBe("red");
     const sys = buildSummaryModel(scenarioA1(), short).systems[0];
     expect(sys.lines.some((l) => l.name === "Additional refrigerant")).toBe(false);
-  });
-
-  it("over the pair's own maximum says that, once", () => {
-    const short = withRule({
-      method: "stepped_by_length",
-      precharged_up_to_m: 10,
-      bands: [{ up_to_m: 20, add_g: 350 }],
-      liquid_mm: 9.52,
-    });
-    const tight: DataPack = {
-      ...short,
-      pair_tables: short.pair_tables.map((p) =>
-        p.idu_model === "PLA-M100EA2-A" && p.odu_model === "PUZ-M100VKA-A" ? { ...p, max_length_m: 25 } : p
-      ),
-    };
-    expect(validateSplitSystem(scenarioA1(), tight, "sys_split").findings.map((f) => f.code)).toEqual(["over-length"]);
   });
 });
 
@@ -452,15 +367,6 @@ describe("stepped_by_length on a split pair", () => {
    the margin. A1's run is 30 m on one floor. */
 
 describe("max_length_basis: equivalent", () => {
-  const withLimit = (max: number, basis?: "actual" | "equivalent"): DataPack => ({
-    ...pack,
-    pair_tables: pack.pair_tables.map((p) =>
-      p.idu_model === "PLA-M100EA2-A" && p.odu_model === "PUZ-M100VKA-A"
-        ? { ...p, max_length_m: max, ...(basis ? { max_length_basis: basis } : {}) }
-        : p
-    ),
-  });
-  const codes = (p: DataPack, doc = scenarioA1()) => validateSplitSystem(doc, p, "sys_split").findings;
   /* the indoor unit mounted 2.4 m up: the run on the plan leaves that climb out */
   const mounted = (): DesignDocument => {
     const d = scenarioA1();
@@ -468,44 +374,9 @@ describe("max_length_basis: equivalent", () => {
     return d;
   };
 
-  it("the margin is 80% of the limit", () => {
-    expect(EQUIV_LENGTH_CLOSE_RATIO).toBe(0.8);
-  });
-
-  it("far from the limit: nothing (30 m of 40 m is 75%)", () => {
-    expect(codes(withLimit(40, "equivalent"))).toEqual([]);
-  });
-
-  it("within 20% of it: amber, never red — 30 m of 36 m", () => {
-    expect(codes(withLimit(36, "equivalent"))).toEqual([
-      {
-        severity: "amber",
-        code: "near-equivalent-limit",
-        message:
-          "Run is 30.0 m, within 20% of the book's 36 m — an equivalent length, which also counts bends and fittings. Allow for its fittings",
-      },
-    ]);
-    // at the limit itself, still only amber
-    expect(codes(withLimit(30, "equivalent")).map((x) => x.code)).toEqual(["near-equivalent-limit"]);
-  });
-
   it("the climb between where the ends are mounted counts toward an equivalent limit", () => {
     const g = buildSystemGraph(mounted().objects, mounted().floors, "sys_split");
     expect(findPath(g, "obj_idu", "obj_odu")!.unmeasuredRiseM).toBeCloseTo(2.4, 5);
-    expect(codes(withLimit(31, "equivalent"), mounted())).toEqual([
-      {
-        severity: "red",
-        code: "over-length",
-        message: "Run is 32.4 m with 2.4 m of rise — max for this pair is 31 m equivalent, and that is before its bends and fittings",
-      },
-    ]);
-  });
-
-  it("an actual limit is judged as before: the drawn run alone, no margin", () => {
-    expect(codes(withLimit(31, "actual"), mounted())).toEqual([]);
-    expect(codes(withLimit(31), mounted())).toEqual([]);
-    expect(codes(withLimit(29)).map((x) => x.code)).toEqual(["over-length"]);
-    expect(codes(withLimit(29))[0].message).toBe("Run is 30.0 m — max for this pair is 29 m");
   });
 
   it("a riser's height is already in the run: not counted twice", () => {

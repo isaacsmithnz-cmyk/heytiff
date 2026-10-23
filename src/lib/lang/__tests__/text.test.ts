@@ -1,6 +1,5 @@
 import {
   endsWithCue,
-  hasWholeWord,
   hasWord,
   isLooseScript,
   looseWordCount,
@@ -37,11 +36,6 @@ describe("word boundaries in any script", () => {
     expect(hasWord("明天要检查风机", "检查")).toBe(true);
     // Arabic prefixes its conjunction onto the word: و + يجب
     expect(hasWord("ويجب تغيير الفلتر", "يجب")).toBe(true);
-  });
-
-  it("the whole-word test keeps a past tense out of the imperatives", () => {
-    expect(hasWholeWord("ordered the grilles last week", "order")).toBe(false);
-    expect(hasWholeWord("order the grilles", "order")).toBe(true);
   });
 });
 

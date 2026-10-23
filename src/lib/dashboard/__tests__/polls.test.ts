@@ -1,6 +1,5 @@
 import {
   cleanPollOptions,
-  emptyPoll,
   MAX_POLL_OPTIONS,
   nextSelection,
   tallyPoll,
@@ -124,17 +123,6 @@ describe("tallyPoll", () => {
   });
 });
 
-describe("emptyPoll", () => {
-  it("is a well-formed poll with nothing in it", () => {
-    expect(emptyPoll(true)).toEqual({
-      multi: true,
-      options: [],
-      voters: 0,
-      voted: false,
-      myOptionIds: [],
-    });
-  });
-});
 
 describe("cleanPollOptions", () => {
   it("trims and drops the blanks a composer leaves behind", () => {

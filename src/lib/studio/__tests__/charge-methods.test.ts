@@ -3,7 +3,7 @@
    book's own columns or worked example, never a figure worked out here. */
 
 import type { AdditionalChargeRule } from "../packs/schema";
-import { chargeTableEndM, evaluateAdditionalCharge, pastChargeTable } from "../materials";
+import { evaluateAdditionalCharge, pastChargeTable } from "../materials";
 
 const g = (rule: AdditionalChargeRule, liquidLengthM: number, liquidSizeMm?: number) =>
   evaluateAdditionalCharge(rule, { liquidLengthM, ...(liquidSizeMm != null ? { liquidSizeMm } : {}) });
@@ -58,7 +58,6 @@ describe("stepped_by_length — Daikin EDAU282388 p.112", () => {
     // RZA: "Impossible" past 50 m
     expect(g(RZA, 50, 9.52)).toBe(700);
     expect(g(RZA, 51, 9.52)).toBeNull();
-    expect(chargeTableEndM(RZA, 9.52)).toBe(50);
   });
 
   it("the table is printed for φ9.5 liquid: another or an unknown size has no figure", () => {
@@ -134,14 +133,11 @@ describe("stepped_by_length — MHI PAC-DB-450 (equivalent length Le)", () => {
   it("φ9.52 metres count 0.52 each: 70 m of 9.52 is Le 36.4 m", () => {
     expect(g(FDCA, 57, 9.52)).toBe(0); // Le 29.64
     expect(g(FDCA, 70, 9.52)).toBe(440); // Le 36.4
-    expect(chargeTableEndM(FDCA, 9.52)).toBeCloseTo(134.6, 1);
-    expect(chargeTableEndM(FDCA, 12.7)).toBe(70);
   });
 
   it("a size the formula doesn't weigh has no figure", () => {
     expect(g(FDCA, 35, 6.35)).toBeNull();
     expect(g(FDCA, 35)).toBeNull();
-    expect(chargeTableEndM(FDCA, 6.35)).toBeNull();
   });
 });
 
@@ -188,6 +184,5 @@ describe("whole_length_by_liquid_size — Daikin R410A", () => {
 
   it("has no table end", () => {
     expect(pastChargeTable(RZQ, { liquidLengthM: 500, liquidSizeMm: 12.7 })).toBe(false);
-    expect(chargeTableEndM(RZQ, 12.7)).toBeNull();
   });
 });

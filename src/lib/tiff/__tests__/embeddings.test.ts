@@ -17,11 +17,9 @@ import {
   EMBED_MODEL,
   embedTexts,
   failureForStatus,
-  FREE_TIER_RPM,
   isSemanticConfigured,
   MAX_ATTEMPTS,
   MAX_RETRY_WAIT_MS,
-  PAID_TIER_RPM,
   planRetry,
   retryAfterMs,
   RETRY_WAITS_MS,
@@ -381,14 +379,6 @@ describe("what a status means", () => {
     expect(failureForStatus(403)).toBe("unauthorised");
     expect(failureForStatus(500)).toBe("bad-response");
     expect(failureForStatus(422)).toBe("bad-response");
-  });
-
-  /* The whole diagnosis, kept where the next person will look: a Voyage
-     account with no payment method is capped at 3 requests a minute, and
-     adding one lifts it to Tier 1. */
-  it("writes the rate limits down so nobody diagnoses this twice", () => {
-    expect(FREE_TIER_RPM).toBe(3);
-    expect(PAID_TIER_RPM).toBe(2_000);
   });
 });
 

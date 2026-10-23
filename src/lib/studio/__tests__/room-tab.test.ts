@@ -7,7 +7,6 @@ import {
   autoTabS,
   nearestTabS,
   placeTab,
-  storedTabS,
   tabPath,
   tabShare,
   tabSizePx,
@@ -119,8 +118,6 @@ describe("moving it round", () => {
 
   it("is kept as a share of the way round, so a reshaped room keeps it on about the same stretch", () => {
     expect(tabShare(800, g.P)).toBe(0.4);
-    expect(storedTabS({ labelEdge: 0.4 }, wallsOf(rect(0, 0, 900, 600)))).toBeCloseTo(1200, 6);
-    expect(storedTabS({}, g)).toBeNull();
   });
 });
 

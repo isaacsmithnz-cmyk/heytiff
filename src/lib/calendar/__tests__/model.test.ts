@@ -6,13 +6,10 @@ import {
   calFrame,
   chipCounts,
   choiceOf,
-  clampAnchor,
   dayDetail,
   detail,
   firstSelection,
-  fmtDates,
   fmtDay,
-  fmtDayLong,
   fmtDayRange,
   isHome,
   laneReserve,
@@ -97,12 +94,6 @@ describe("the window and the views", () => {
   it("rests both of Year's arrows: the window is one year", () => {
     expect(stepAnchor("year", TODAY, -1, FRAME)).toBeNull();
     expect(stepAnchor("year", TODAY, 1, FRAME)).toBeNull();
-  });
-
-  it("clamps an anchor into the window for the view", () => {
-    expect(clampAnchor("4w", "2027-08-20", FRAME)).toBe("2027-08-04");
-    expect(clampAnchor("month", "2027-08-20", FRAME)).toBe("2027-08-20");
-    expect(clampAnchor("month", "2026-08-20", FRAME)).toBe("2026-09-01");
   });
 
   it("rests Today when today's range is already in view", () => {
@@ -623,7 +614,6 @@ describe("the one choice: a thing, or a day", () => {
 
 describe("a day in the panel", () => {
   it("names the day in full, with no year, as the twelve months hold each month once", () => {
-    expect(fmtDayLong("2026-10-01")).toBe("Thursday 1 October");
     expect(dayDetail(ITEMS, "2027-01-01").title).toBe("Friday 1 January");
     expect(dayDetail(ITEMS, "2026-09-30").title).toBe("Wednesday 30 September");
   });
@@ -931,8 +921,6 @@ describe("the panel", () => {
 describe("the day formats, ISO in", () => {
   it("writes the handoff's formats from ISO days", () => {
     expect(fmtDay("2026-10-05")).toBe("Mon 5 Oct");
-    expect(fmtDates("2026-09-28", "2026-10-02")).toBe("28 Sept – 2 Oct");
-    expect(fmtDates("2026-10-05", "2026-10-11")).toBe("5 – 11 Oct");
     expect(fmtDayRange("2026-09-28", "2026-10-09")).toBe("Mon 28 Sept – Fri 9 Oct");
   });
 });

@@ -435,21 +435,6 @@ export async function loadNoticeBoard(): Promise<NoticeBoardData> {
   };
 }
 
-/* The action-required page. Like the noticeboard, the dashboard carries only a
-   summary (the hero tile) and the full list lives on its own screen — a count
-   you click into is honest about being a count, where a truncated list on the
-   dashboard would pretend to be the whole picture. */
-export async function loadActionRequired(): Promise<DashboardChips> {
-  const session = await auth0.getSession();
-  const orgId = session?.orgId as string | undefined;
-  const userId = session?.user?.sub as string | undefined;
-  if (!orgId || !userId) return { self: [], team: [] };
-
-  const caps = await getCapabilities();
-  const viewerStaffId = await staffProfileIdFor(orgId, userId);
-  return loadChips(orgId, viewerStaffId, caps, todayInAu(), hasMinRole(await getDbRole(), "owner"), undefined, userId);
-}
-
 async function loadTasks(
   orgId: string,
   viewerStaffId: string | null,

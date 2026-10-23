@@ -171,11 +171,6 @@ const INSURANCE_BADGE: CredBadge = { code: "INS", color: "#2E68FF" };
 
 const HEX = /^#[0-9a-fA-F]{3,8}$/;
 
-/** The names offered under the name box — suggestions, not a closed list. */
-export function credSuggestions(kind: OrgCredKind): string[] {
-  return ORG_CRED_TYPES.filter((t) => t.kind === kind).map((t) => t.name);
-}
-
 /* ONE SPELLING OF A NAME, so a person's words reach the registry.
 
    Everything the registry gives a card — its badge, its colour, WHICH FIELDS

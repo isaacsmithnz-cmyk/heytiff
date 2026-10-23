@@ -1,4 +1,4 @@
-import { brandOfCode, fitsBrand, wrongBrand } from "../brand";
+import { brandOfCode } from "../brand";
 
 describe("whose equipment it is", () => {
   it("reads the brand off the model code, or the item's name", () => {
@@ -14,13 +14,5 @@ describe("whose equipment it is", () => {
 
   it("leaves ductwork, pipe, dampers and cable neutral", () => {
     for (const c of ["MB141210", "MY121010", "MDM250L", "RZCAB12", "PC1412", "PVC20", "CMADJ", "VB350", "1610375-1", "MINIAQUA", "CAB6-0TCE"]) expect(brandOfCode(c)).toBeNull();
-  });
-
-  it("only conflicts when both the system and the part have a brand", () => {
-    expect(wrongBrand("daikin", "PAR-41MAAM")).toBe("mitsubishi");
-    expect(wrongBrand("daikin", "BRC1E63")).toBeNull();
-    expect(wrongBrand(null, "PAR-41MAAM")).toBeNull();
-    expect(wrongBrand("daikin", "PC1412")).toBeNull();
-    expect(fitsBrand("daikin", ["BRC1E63", "PAR-41MAAM", "PC1412"], (c) => c)).toEqual(["BRC1E63", "PC1412"]);
   });
 });

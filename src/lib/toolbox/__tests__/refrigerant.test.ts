@@ -10,9 +10,6 @@ import {
   REFRIGERANTS,
   satPressureKpa,
   satTempC,
-  subcoolingK,
-  superheatK,
-  windowPressures,
 } from "../refrigerant";
 
 describe("refrigerant catalogue", () => {
@@ -103,31 +100,6 @@ describe("satPressureKpa / satTempC", () => {
   });
 });
 
-describe("superheat / subcooling", () => {
-  it("superheat = line temp − DEW temp at suction pressure", () => {
-    // R410A 832 kPag → 5°C sat; line at 12°C → 7 K
-    expect(superheatK("R410A", 832, 12)).toBe(7);
-    // R407C reads the vapor column: 359 kPag → dew 0°C; line 7°C → 7 K
-    expect(superheatK("R407C", 359, 7)).toBe(7);
-  });
-
-  it("subcooling = BUBBLE temp at liquid pressure − line temp", () => {
-    // R410A 2324 kPag → bubble 40°C; liquid line at 33°C → 7 K
-    expect(subcoolingK("R410A", 2324, 33)).toBe(7);
-    // R407C reads the liquid column: 1089 kPag → bubble 25°C; line 18°C → 7 K
-    expect(subcoolingK("R407C", 1089, 18)).toBe(7);
-  });
-
-  it("negative results pass through (flooding / flash gas)", () => {
-    expect(superheatK("R410A", 832, 2)).toBe(-3);
-    expect(subcoolingK("R410A", 2324, 45)).toBe(-5);
-  });
-
-  it("null when pressure is off-chart", () => {
-    expect(superheatK("R32", 50, 10)).toBeNull();
-    expect(subcoolingK("R32", 9000, 30)).toBeNull();
-  });
-});
 
 describe("units", () => {
   it("kPa ↔ psi round trip", () => {
@@ -137,11 +109,6 @@ describe("units", () => {
 });
 
 describe("operating windows", () => {
-  it("cooling suction band derives from the vapor column per refrigerant", () => {
-    const w = getRefrigerant("R410A").cooling.find((x) => x.key === "cool-suction")!;
-    expect(windowPressures("R410A", w)).toEqual({ lo: 697, hi: 1052 });
-    expect(windowPressures("R32", w)!.lo).toBe(712);
-  });
 
   it("R404A reaches freezer temperatures", () => {
     expect(satPressureKpa("R404A", -35)).toBe(62); // vapor
@@ -153,15 +120,6 @@ describe("operating windows", () => {
     const r = getRefrigerant("R404A");
     const keys = r.cooling.map((w) => w.key);
     expect(keys).toEqual(expect.arrayContaining(["mt-suction", "lt-suction", "cool-discharge"]));
-    for (const w of r.cooling) {
-      expect(windowPressures("R404A", w)).not.toBeNull();
-    }
     expect(r.heating).toHaveLength(0); // no heat-pump duty band for cold rooms
-  });
-
-  it("discharge bands read the liquid column on glide blends", () => {
-    const w = getRefrigerant("R407C").cooling.find((x) => x.key === "cool-discharge")!;
-    const band = windowPressures("R407C", w)!;
-    expect(band.lo).toBe(1648); // bubble at 40°C, not dew (1440)
   });
 });

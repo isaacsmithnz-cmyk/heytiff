@@ -1,5 +1,5 @@
 import type { Product } from "../families";
-import { breakerFor, cableFor, cableSizeOf, consumablesEstimate, expandKit, indoorFacts, isolatorFor, KITS, normaliseKitFacts, stillToSize, zoneKitOf } from "../kits";
+import { cableSizeOf, consumablesEstimate, expandKit, indoorFacts, KITS, normaliseKitFacts, stillToSize, zoneKitOf } from "../kits";
 import type { ZoningController } from "@/lib/studio/packs/schema";
 import zoning from "../../../../data/packs/mitsubishi-electric@2026.1/zoning_controllers.json";
 
@@ -30,12 +30,6 @@ const book = [
 ];
 const facts = { pipe: "1/4+1/2" as const, pipeM: 20, powerM: 25, amps: 18, mount: "ground" as const, trunkingM: 0, drainM: 1 };
 const at = { optionIndex: 0, system: "Split system" };
-
-it("sizes the circuit by what the unit draws: the next standard breaker and isolator up, and its cable", () => {
-  expect([breakerFor(18), isolatorFor(18), cableFor(18)]).toEqual([20, 20, "2.5"]);
-  expect([breakerFor(28), isolatorFor(28), cableFor(28)]).toEqual([32, 35, "4"]);
-  expect(breakerFor(99)).toBeNull();
-});
 
 it("builds 3375's split from the book: each part by what it is, a roll bought by the metre", () => {
   const lines = expandKit("split", facts, book, at);

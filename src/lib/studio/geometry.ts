@@ -215,13 +215,6 @@ export function boundsOfPoints(points: Point[]): Bounds | null {
 
 /* ── Snapping ── */
 
-export function snapToGrid(p: Point, step: number): Point {
-  return {
-    x: Math.round(p.x / step) * step,
-    y: Math.round(p.y / step) * step,
-  };
-}
-
 /** Snap to horizontal/vertical from the previous vertex (pipe/duct routing). */
 export function orthoSnap(prev: Point, p: Point): Point {
   return Math.abs(p.x - prev.x) >= Math.abs(p.y - prev.y)
@@ -270,24 +263,6 @@ export function squareInto(pts: Point[], target: Point, eps = 1e-6): Point[] {
 
 const samePoint = (a: Point, b: Point, eps: number) => Math.abs(a.x - b.x) < eps && Math.abs(a.y - b.y) < eps;
 
-/** Index of the vertex within maxDist of p, or -1. */
-export function nearestVertexIndex(
-  p: Point,
-  points: Point[],
-  maxDist: number
-): number {
-  let best = -1;
-  let bestD = maxDist;
-  points.forEach((v, i) => {
-    const d = dist(p, v);
-    if (d <= bestD) {
-      best = i;
-      bestD = d;
-    }
-  });
-  return best;
-}
-
 /* ── Rectangle-aware vertex editing ── */
 
 /** True for a 4-vertex axis-aligned rectangle (either winding). */
@@ -301,34 +276,6 @@ export function isAxisAlignedRect(points: Point[], eps = 1e-6): boolean {
     if (sameX === sameY) return false; // must share exactly one axis per edge
   }
   return polygonArea(points) > eps;
-}
-
-/** The axis-aligned bounding rectangle of a set of points, as polygon corners
-    (TL → TR → BR → BL). Used to snap a free-edited room back to rectangular. */
-export function boundingRect(points: Point[]): Point[] {
-  const b = boundsOfPoints(points);
-  if (!b) return [];
-  return [
-    { x: b.minX, y: b.minY },
-    { x: b.maxX, y: b.minY },
-    { x: b.maxX, y: b.maxY },
-    { x: b.minX, y: b.maxY },
-  ];
-}
-
-/** Move corner `index` of an axis-aligned rectangle to `p`, dragging the two
-    adjacent corners along their shared axes so the shape stays rectangular.
-    The opposite corner is the fixed anchor. */
-export function rectDragVertex(points: Point[], index: number, p: Point): Point[] {
-  const next = points.map((pt) => ({ ...pt }));
-  const prev = (index + 3) % 4;
-  const nxt = (index + 1) % 4;
-  next[index] = { ...p };
-  for (const j of [prev, nxt]) {
-    if (Math.abs(points[j].x - points[index].x) <= 1e-6) next[j].x = p.x;
-    else next[j].y = p.y;
-  }
-  return next;
 }
 
 /* ── Viewport ── */

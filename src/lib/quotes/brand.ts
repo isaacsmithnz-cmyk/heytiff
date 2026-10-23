@@ -27,14 +27,3 @@ export function brandOfCode(code: string, name?: string | null): Brand | null {
   return null;
 }
 
-/** An item of another brand than the system's. A neutral item, or a system
-    whose brand isn't known, never conflicts. */
-export function wrongBrand(system: Brand | null, code: string, name?: string | null): Brand | null {
-  const b = brandOfCode(code, name);
-  return system && b && b !== system ? b : null;
-}
-
-/** Only what fits the system: its own brand's parts and the neutral ones. */
-export function fitsBrand<T>(system: Brand | null, items: T[], codeOf: (i: T) => string, nameOf?: (i: T) => string | null | undefined): T[] {
-  return items.filter((i) => !wrongBrand(system, codeOf(i), nameOf?.(i)));
-}

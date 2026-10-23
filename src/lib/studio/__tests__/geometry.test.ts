@@ -7,11 +7,9 @@ import {
   polylineLength,
   pointInPolygon,
   distToSegment,
-  snapToGrid,
   orthoSnap,
   elbowCorner,
   squareInto,
-  nearestVertexIndex,
   boundsOfPoints,
   worldToScreen,
   screenToWorld,
@@ -24,8 +22,6 @@ import {
   areaUnitsToM2,
   unitsToMeters,
   isAxisAlignedRect,
-  rectDragVertex,
-  boundingRect,
   smoothPathD,
   smoothedLength,
   distToSmoothed,
@@ -142,21 +138,11 @@ describe("calibration accuracy (the lock-gate case)", () => {
 });
 
 describe("snapping + hit helpers", () => {
-  it("snapToGrid rounds to the nearest intersection", () => {
-    expect(snapToGrid({ x: 12, y: 38 }, 25)).toEqual({ x: 0, y: 50 });
-    expect(snapToGrid({ x: 13, y: 37 }, 25)).toEqual({ x: 25, y: 25 });
-  });
 
   it("orthoSnap locks to the dominant axis", () => {
     const prev = { x: 0, y: 0 };
     expect(orthoSnap(prev, { x: 100, y: 8 })).toEqual({ x: 100, y: 0 });
     expect(orthoSnap(prev, { x: 8, y: 100 })).toEqual({ x: 0, y: 100 });
-  });
-
-  it("nearestVertexIndex respects the max distance", () => {
-    const pts = rect(100, 100);
-    expect(nearestVertexIndex({ x: 98, y: 3 }, pts, 5)).toBe(1);
-    expect(nearestVertexIndex({ x: 50, y: 50 }, pts, 5)).toBe(-1);
   });
 
   it("distToSegment: perpendicular and beyond-endpoint cases", () => {
@@ -197,46 +183,6 @@ describe("rectangle-aware vertex editing", () => {
       ])
     ).toBe(false);
     expect(isAxisAlignedRect([r[0], r[1], r[2], r[2]])).toBe(false); // degenerate
-  });
-
-  it("dragging a corner keeps the shape rectangular, anchored on the opposite corner", () => {
-    // drag corner 0 (10,20) → (0,0); corner 2 (110,100) stays fixed
-    const out = rectDragVertex(r, 0, { x: 0, y: 0 });
-    expect(out).toEqual([
-      { x: 0, y: 0 },
-      { x: 110, y: 0 },
-      { x: 110, y: 100 },
-      { x: 0, y: 100 },
-    ]);
-    expect(isAxisAlignedRect(out)).toBe(true);
-  });
-
-  it("boundingRect snaps any shape back to its axis-aligned rectangle", () => {
-    const skewed = [
-      { x: 0, y: 0 },
-      { x: 100, y: 25 },
-      { x: 100, y: 100 },
-      { x: 25, y: 100 },
-    ];
-    const out = boundingRect(skewed);
-    expect(out).toEqual([
-      { x: 0, y: 0 },
-      { x: 100, y: 0 },
-      { x: 100, y: 100 },
-      { x: 0, y: 100 },
-    ]);
-    expect(isAxisAlignedRect(out)).toBe(true);
-    expect(boundingRect([])).toEqual([]);
-  });
-
-  it("works for every corner", () => {
-    for (let i = 0; i < 4; i++) {
-      const out = rectDragVertex(r, i, { x: 47, y: 63 });
-      expect(isAxisAlignedRect(out)).toBe(true);
-      expect(out[i]).toEqual({ x: 47, y: 63 });
-      // opposite corner untouched
-      expect(out[(i + 2) % 4]).toEqual(r[(i + 2) % 4]);
-    }
   });
 });
 

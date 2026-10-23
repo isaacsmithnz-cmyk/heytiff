@@ -72,15 +72,3 @@ export function suggestedDeposit(preset: PaymentPreset, stages: readonly Payment
   return SUGGESTED_DEPOSIT_PCT;
 }
 
-/** What the arithmetic won't allow, in words for the card. */
-export function paymentProblems(preset: PaymentPreset, stages: readonly PaymentStage[]): string[] {
-  const out: string[] = [];
-  if (preset === "commercial") return out;
-  if (stages.some((s) => s.percent === null)) {
-    out.push("Every stage on a home job needs its percentage.");
-  } else {
-    const total = stages.reduce((n, s) => n + (s.percent ?? 0), 0);
-    if (total !== 100) out.push(`The stages add up to ${total}%, not 100%.`);
-  }
-  return out;
-}

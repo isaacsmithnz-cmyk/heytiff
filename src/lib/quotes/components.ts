@@ -141,15 +141,6 @@ export function rollMetresOf(name: string | null | undefined): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-/** A price-book amount as it is mirrored ("187.18"), in cents. Null for an
-    empty or unreadable one; zero stays zero, and a zero-priced item is still
-    shown, because it is the business's own item that has no price yet. */
-export function amountCents(v: string | null | undefined): number | null {
-  if (v == null || v.trim() === "") return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? Math.round(n * 100) : null;
-}
-
 /** What one metre, or one of it, costs to buy: the item's price over its
     roll when it's sold by the metre. Null when a metre can't be worked out. */
 export function buyPerUnitCents(

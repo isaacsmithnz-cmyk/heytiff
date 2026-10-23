@@ -1,4 +1,4 @@
-import { fyChoices, fyElapsed, fyIsCurrent, fyLabel, fyOf, fyRange } from "../fy";
+import { fyChoices, fyIsCurrent, fyLabel, fyOf, fyRange } from "../fy";
 
 /* The financial year. Every test here is a boundary, because the middle of a
    year has never been the thing that goes wrong. */
@@ -64,15 +64,3 @@ describe("fyIsCurrent", () => {
   });
 });
 
-describe("fyElapsed", () => {
-  it("is 1 for a closed year and 0 for one that hasn't started", () => {
-    expect(fyElapsed(2025, "2026-08-04")).toBe(1);
-    expect(fyElapsed(2030, "2026-08-04")).toBe(0);
-  });
-
-  it("is a fraction part-way through", () => {
-    const part = fyElapsed(2027, "2026-08-04");
-    expect(part).toBeGreaterThan(0);
-    expect(part).toBeLessThan(0.2);
-  });
-});

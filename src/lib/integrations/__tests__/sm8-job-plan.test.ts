@@ -1,4 +1,4 @@
-import { companyBody, draftOf, jobBody, jobContactBody, jobLine, jobSubject, parseJobSubject, stepsLeft, stepsOf, validNewJob } from "../sm8-job-plan";
+import { companyBody, draftOf, jobBody, jobContactBody, jobLine, jobSubject, stepsLeft, stepsOf, validNewJob } from "../sm8-job-plan";
 
 const U = (n: number) => `0b1e0b1e-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const none = { first: "", last: "", mobile: "", phone: "", email: "" };
@@ -6,8 +6,6 @@ const none = { first: "", last: "", mobile: "", phone: "", email: "" };
 describe("a new job's plan", () => {
   it("names one row per press", () => {
     expect(jobSubject("p-1")).toBe("job:p-1");
-    expect(parseJobSubject("job:p-1")).toBe("p-1");
-    expect(parseJobSubject("leave:x")).toBeNull();
   });
 
   it("takes an existing client as it is, and a contact only when something was given", () => {

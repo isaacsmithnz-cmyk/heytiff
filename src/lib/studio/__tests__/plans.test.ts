@@ -17,7 +17,6 @@ import {
   defaultFloorName,
   floorDisplayName,
   dropPageOnRow,
-  dropRowAt,
   formatLevel,
   insertPageRow,
   labelPagesSequentially,
@@ -298,19 +297,6 @@ describe("sheet placement + allocation", () => {
     expect(computeRowLevels(rows).get(rows[0].key)).toBe(1); // Level 1 stays L1
     expect(rows[0].anchorLevel).toBe(1);
     expect(trayPageIdxs(rows, [0, 1])).toEqual([0]);
-  });
-
-  it("placed floors reorder by drag; the anchor keeps its pinned level", () => {
-    let rows = insertPageRow([], 0, "A", null, "above"); // anchor GF
-    rows = insertPageRow(rows, 1, "B", rows.find((r) => r.name === "A")!.key, "above");
-    rows = insertPageRow(rows, 2, "C", rows.find((r) => r.name === "B")!.key, "above");
-    // move A (the anchor) above C: A stays GF, the rest fall below ground
-    rows = dropRowAt(rows, rows.find((r) => r.name === "A")!.key, rows.find((r) => r.name === "C")!.key, "above");
-    const levels = computeRowLevels(rows);
-    const byName = (n: string) => levels.get(rows.find((r) => r.name === n)!.key);
-    expect(byName("A")).toBe(0);
-    expect(byName("C")).toBe(-1);
-    expect(byName("B")).toBe(-2);
   });
 
   it("unplaced/removed pages are simply not imported", () => {

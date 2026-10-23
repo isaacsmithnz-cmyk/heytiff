@@ -220,9 +220,6 @@ export function planKey(plan: SendPlan): string {
   return `${text.length.toString(36)}-${h.toString(36)}`;
 }
 
-/** A unit price as ServiceM8 keeps it: dollars to four places. */
-export const sm8Amount = (cents: number) => (cents / 100).toFixed(4);
-
 /** The most-used tax rate on the business's own lines: the one its quotes
     already go out on. Null when it has none. */
 export function usualTaxRate(rates: readonly (string | null)[]): string | null {
@@ -231,11 +228,3 @@ export function usualTaxRate(rates: readonly (string | null)[]): string | null {
   return [...n.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 }
 
-/** ServiceM8's total for the job after the send, against the quote's, ex
-    GST: the check-back. Lines are unit price × quantity, as ServiceM8 adds
-    them; a cent a line is rounding. */
-export function checkBack(lines: readonly { quantity: number; unitPrice: number }[], quotedExGstCents: number): { sm8Cents: number; gapCents: number; matches: boolean } {
-  const sm8Cents = Math.round(lines.reduce((s, l) => s + l.quantity * l.unitPrice * 100, 0));
-  const gapCents = sm8Cents - quotedExGstCents;
-  return { sm8Cents, gapCents, matches: Math.abs(gapCents) <= Math.max(1, lines.length) };
-}

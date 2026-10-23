@@ -691,8 +691,6 @@ export const PING_QUEUE_CAP = 2_000;
 export const HOOK_DAILY_BUDGET = 3_000;
 /** A read that finds ServiceM8 unavailable this many times drops its row. */
 export const HOOK_MAX_ATTEMPTS = 5;
-/** A retired secret stays valid this long: ServiceM8's retry window. */
-export const HOOK_GRACE_MS = 72 * 3_600_000;
 /** Rows for an account that is no longer the connection's are dropped
     after this long. */
 export const MISMATCH_DROP_MS = 24 * 3_600_000;
@@ -719,12 +717,6 @@ export const REMOVE_BUDGET_MS = 8_000;
     `maxDurationS` seconds, less the margin. */
 export function functionDeadline(startedAt: number, maxDurationS: number): number {
   return startedAt + maxDurationS * 1000 - FUNCTION_MARGIN_MS;
-}
-
-/** When a drain started at `startedAt` must stop: its own budget, or its
-    function's deadline, whichever is first. */
-export function drainEnd(startedAt: number, maxDurationS: number, maxMs: number): number {
-  return Math.min(functionDeadline(startedAt, maxDurationS), startedAt + maxMs);
 }
 
 /** Whether a span of `ms` from `now` still ends by `end`: a lease claimed

@@ -5,9 +5,6 @@ import { newId, type DesignSystem } from "../document";
 import { attachOf } from "../graph";
 import { isAirCapable } from "../modules";
 import {
-  DUCTED_OBJECT_TYPES,
-  isDuctedObjectType,
-  ftypeOf,
   diversityFactor,
   distributeSpigots,
   isPlenumOf,
@@ -52,20 +49,6 @@ describe("attachOf (graph v0 + Stage-7 kinds)", () => {
     expect(attachOf({ kind: "plenum", id: "p1" })).toBeNull();
     expect(attachOf({ kind: "grille" })).toBeNull();
     expect(attachOf("grille")).toBeNull();
-  });
-});
-
-/* ── object conventions ── */
-
-describe("ducted object conventions", () => {
-  it("guards the five palette types", () => {
-    for (const t of DUCTED_OBJECT_TYPES) expect(isDuctedObjectType(t)).toBe(true);
-    expect(isDuctedObjectType("room")).toBe(false);
-    expect(isDuctedObjectType("unit")).toBe(false);
-  });
-  it("reads fitting subtypes strictly", () => {
-    expect(ftypeOf({ ftype: "zone-motor" })).toBe("zone-motor");
-    expect(ftypeOf({ ftype: "elbow" })).toBeNull();
   });
 });
 

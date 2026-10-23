@@ -22,7 +22,7 @@ import {
   type VariationMade,
 } from "../note-variation";
 import { planView, withVariationCards } from "@/components/tiff/modal/plan-view";
-import { APPLIED_GROUPS, describeApplied } from "@/lib/dashboard/journal";
+
 
 const ctx: NoteContext = {
   staff: [{ id: "s-me", fullName: "Isaac Smith" }],
@@ -164,11 +164,6 @@ describe("what it became", () => {
     /* one taken back by its own Undo is not counted again; a task goes with the tasks */
     expect(takesBack(appliedOf({ v: 2, variations: [started({ undone: true })] }))).toBe(false);
     expect(startedOn(appliedOf({ variations: [started({ how: "task", why: "money", taskId: "t-1" })] }))).toEqual([]);
-  });
-
-  it("is a group the journal knows by name", () => {
-    expect(APPLIED_GROUPS.map(([k]) => k)).toContain("variations");
-    expect(describeApplied({ variations: [started()] })).toEqual([{ kind: "kept", text: "1 variation started" }]);
   });
 });
 

@@ -365,16 +365,6 @@ function rakedCeiling(pts: XZ[], flatY: number, highY: number, over: RoofRect[])
   return { verts, tris };
 }
 
-/** Whether the design has anything to draw in 3D yet, and whether Tiff has read its plans. */
-export function threeDState(doc: DesignDocument): { drawable: boolean; read: boolean; plans: boolean } {
-  const s = sceneOf(doc);
-  return {
-    drawable: s.floors.length > 0,
-    read: s.floors.some((f) => f.read),
-    plans: doc.floors.some((f) => f.plans.length > 0),
-  };
-}
-
 /** The middle of a space, for its label. */
 export const middleOf = centroid;
 

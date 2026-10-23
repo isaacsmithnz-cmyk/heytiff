@@ -3,7 +3,7 @@
    beside the switch. */
 import { readingFromQuote } from "@/lib/certs/from-quote";
 import type { QuoteLine } from "../lines";
-import { byHandOf, variationInSm8, variationMaterials, variationOf, variationUntouched, withVariation, withVariationMark, withVariationSent, withoutVariation, labourTasks, labourVisits, stageNamed, linesDraft, linesHours, linesMaterials, linesUnits, toggleAccepted, withApproval, withoutApproval, withSent, withLoading, withName, withProposal } from "../lines-job";
+import { byHandOf, variationInSm8, variationMaterials, variationUntouched, withVariation, withVariationSent, withoutVariation, labourTasks, labourVisits, stageNamed, linesDraft, linesHours, linesMaterials, linesUnits, toggleAccepted, withApproval, withoutApproval, withSent, withLoading, withName, withProposal } from "../lines-job";
 import type { UnitSpecs } from "../lookups";
 import { acceptedOptions } from "../proposal";
 
@@ -205,17 +205,6 @@ describe("a variation to the accepted quote", () => {
   it("is an option of its own, numbered, named, varying the accepted one", () => {
     const b = withVariation(accepted, 2, "  Client wants the upstairs hallway done too. ", "u-isaac", "2026-10-15T00:00:00Z");
     expect(b.names).toEqual(["Daikin, zoned", "", "Variation 1"]);
-    expect(variationOf(b, 2)).toEqual({ n: 1, option: 2, of: 0, what: "Client wants the upstairs hallway done too.", startedAt: "2026-10-15T00:00:00Z", startedBy: "u-isaac", approvedAt: null, acceptedAt: null });
-    expect(variationOf(withVariation(b, 3, "A second controller", "u-isaac", "x"), 3)!.n).toBe(2);
-    expect(variationOf(b, 0)).toBeNull();
-  });
-
-  it("is approved, then accepted, on its own; marked again, taken off", () => {
-    const b = withVariation(accepted, 1, "x", "u", "t0");
-    const approved = withVariationMark(b, 1, "approvedAt", "t1");
-    expect(variationOf(approved, 1)).toMatchObject({ approvedAt: "t1", acceptedAt: null });
-    expect(variationOf(withVariationMark(approved, 1, "approvedAt", "t2"), 1)!.approvedAt).toBeNull();
-    expect(variationOf(withVariationMark(approved, 1, "acceptedAt", "t3"), 1)).toMatchObject({ approvedAt: "t1", acceptedAt: "t3" });
   });
 
   it("is read back from the draft, and a broken one left out", () => {

@@ -167,58 +167,6 @@ export function buildDesignSnapshot(doc: DesignDocument): DesignSnapshot {
   };
 }
 
-/* ── Rooms & loads — one table row per room, grouped by floor, with the
-      units serving it (coverage contributors, so multi/VRF attribute their
-      per-room IDUs and splits their pair). ── */
-export interface RoomRow {
-  roomId: string;
-  name: string;
-  areaM2: number | null;
-  loadKw: number | null;
-  serving: { model: string; systemName: string; colour: string }[];
-}
-
-export interface FloorRooms {
-  floorId: string;
-  name: string;
-  level: number;
-  calibrated: boolean;
-  rooms: RoomRow[];
-}
-
-export function roomsByFloor(
-  doc: DesignDocument,
-  pack: DataPack | null
-): FloorRooms[] {
-  const out: FloorRooms[] = [];
-  for (const floor of doc.floors) {
-    const rooms: RoomRow[] = [];
-    for (const o of doc.objects) {
-      if (o.floorId !== floor.id || !isRoom(o)) continue;
-      const cov = roomCoverage(doc, pack, o, doc.settings.sizingBasis);
-      rooms.push({
-        roomId: o.id,
-        name: String(o.props.name ?? "Room"),
-        areaM2: roomAreaM2(doc, o),
-        loadKw: roomLoadKw(doc, o),
-        serving: cov.contributors.map((c) => ({
-          model: c.model,
-          systemName: c.systemName,
-          colour: c.colour,
-        })),
-      });
-    }
-    out.push({
-      floorId: floor.id,
-      name: floor.name,
-      level: floor.level,
-      calibrated: floor.scaleMmPerUnit != null,
-      rooms,
-    });
-  }
-  return out;
-}
-
 /* ── Per-system summary — the shape the redesigned sheet renders ──
       The room is the unit of the sheet, because that is how the document
       stores it: an indoor unit carries `props.roomId`, while the outdoor

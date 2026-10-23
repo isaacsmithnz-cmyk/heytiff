@@ -21,9 +21,6 @@ export const WORK_KIND_WORDS: Record<WorkKind, string> = {
   vrf: "VRF",
 };
 
-/** Below this many of its own reviewed jobs, the business has no "typical". */
-export const MIN_JOBS = 3;
-
 /** The kind of work a job is, from its category and its words. Null when
     it can't be told — and then it is nobody's sample. */
 export function workKindOf(text: string | null | undefined, category: string | null | undefined): WorkKind | null {
@@ -38,22 +35,5 @@ export function workKindOf(text: string | null | undefined, category: string | n
   return null;
 }
 
-/** A reviewed job: its kind of work and the person-hours it took. */
-export type LabourSample = { job: string; kind: WorkKind; personHours: number };
-
 export type TypicalLabour = { kind: WorkKind; hours: number; jobs: number; words: string };
 
-/** The middle of the business's own jobs of this kind, once there are
-    enough of them; null until then. */
-export function typicalLabour(samples: readonly LabourSample[], kind: WorkKind): TypicalLabour | null {
-  const hours = samples.filter((s) => s.kind === kind).map((s) => s.personHours).sort((a, b) => a - b);
-  if (hours.length < MIN_JOBS) return null;
-  const mid = hours.length % 2 ? hours[(hours.length - 1) / 2]! : (hours[hours.length / 2 - 1]! + hours[hours.length / 2]!) / 2;
-  const rounded = Math.round(mid * 2) / 2;
-  return {
-    kind,
-    hours: rounded,
-    jobs: hours.length,
-    words: `Typical ${WORK_KIND_WORDS[kind]} jobs: ${rounded} hrs, from ${hours.length} reviewed jobs.`,
-  };
-}

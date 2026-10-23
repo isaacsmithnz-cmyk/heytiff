@@ -1,7 +1,6 @@
 import {
   ORG_CRED_TYPES,
   buildOrgCredentialRow,
-  credSuggestions,
   defaultColorFor,
   isCredKind,
   normaliseCredName,
@@ -131,12 +130,6 @@ describe("badges & suggestions", () => {
   });
 
   it("suggests the names of its own kind and no others", () => {
-    expect(credSuggestions("insurance")).toEqual([
-      "Public liability",
-      "Professional indemnity",
-      "Workers compensation",
-    ]);
-    expect(credSuggestions("licence")).toHaveLength(2);
     expect(ORG_CRED_TYPES).toHaveLength(5);
   });
 

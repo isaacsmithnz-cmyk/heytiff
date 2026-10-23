@@ -67,16 +67,6 @@ function quantity(n: number): { value: number; unit: DurationUnit } {
   return { value: months, unit: plural(months, "month") };
 }
 
-/** How many days a rendered duration could AT MOST be claiming. The floor
-    property is `durationDays(daysDuration(n)) <= n` for every n. */
-export function durationDays(d: Duration): number {
-  if (d.unit === "") return d.label === "today" ? 0 : 1; // today / tomorrow / yesterday
-  const n = Number(d.value);
-  if (d.unit === "week" || d.unit === "weeks") return n * 7;
-  if (d.unit === "month" || d.unit === "months") return n * DAYS_PER_MONTH;
-  return n;
-}
-
 /** The adaptive label for a whole-day gap. Negative = already past. */
 export function daysDuration(days: number): Duration {
   const whole = Math.trunc(days) || 0; // -0 → 0

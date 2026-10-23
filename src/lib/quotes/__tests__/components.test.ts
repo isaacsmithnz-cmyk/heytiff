@@ -1,7 +1,6 @@
 /* The components a quote prices, and the sums that price them. Names are
    the live price book's own (2026-09-30). */
 import {
-  amountCents,
   colourOf,
   withoutColour,
   buyPerUnitCents,
@@ -78,11 +77,11 @@ describe("a roll's length, read off the name", () => {
 
 describe("the sums", () => {
   it("prices a metre of the 20 m roll, and sells it with the markup", () => {
-    const perM = buyPerUnitCents("m", amountCents("187.18"), 20);
+    const perM = buyPerUnitCents("m", 18718, 20);
     expect(perM).toBe(936);
     expect(sellCents(perM!, 40)).toBe(1310);
-    expect(buyPerUnitCents("m", amountCents("130"), null)).toBeNull();
-    expect(buyPerUnitCents("each", amountCents("27.95"), null)).toBe(2795);
+    expect(buyPerUnitCents("m", 13000, null)).toBeNull();
+    expect(buyPerUnitCents("each", 2795, null)).toBe(2795);
   });
 
   it("says what share of the sell price a markup is", () => {

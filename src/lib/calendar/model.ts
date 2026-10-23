@@ -123,14 +123,8 @@ const must = (iso: string, what: string): number => {
 
 /** "Mon 5 Oct". */
 export const fmtDay = (iso: string): string => dayLabel(must(iso, "day"));
-/** "Thursday 1 October". */
-export const fmtDayLong = (iso: string): string => dayLongLabel(must(iso, "day"));
 /** "Mon 5 Oct", "Mon 5 – Fri 9 Oct", "Mon 28 Sept – Fri 9 Oct". */
 export const fmtDayRange = (a: string, b: string): string => dayRangeLabel(must(a, "start"), must(b, "end"));
-/** "5 Oct", "5 – 11 Oct", "28 Sept – 2 Oct". */
-export const fmtDates = (a: string, b: string): string => datesLabel(must(a, "start"), must(b, "end"));
-/** "6:45 am" from "06:45", "06:45:00" or "6:45 am". */
-export const fmtTime = timeLabel;
 
 /* ── internals: an item with its days as numbers, read once per call ── */
 
@@ -234,12 +228,6 @@ export function isHome(view: CalView, anchor: string, frame: CalFrame): boolean 
 function clampTo(view: CalView, a: number, f: Frame): number {
   const hi = view === "4w" ? f.w1 - 27 : f.w1;
   return Math.min(Math.max(a, f.w0), hi);
-}
-
-/** An anchor moved inside the window for a view: four weeks stop at its first
-    and last days, Month and Year at its edges. */
-export function clampAnchor(view: CalView, anchor: string, frame: CalFrame): string {
-  return fromDay(clampTo(view, must(anchor, "anchor"), frameOf(frame)));
 }
 
 /** Where ‹ or › goes: four weeks, a month or twelve months on, kept inside the

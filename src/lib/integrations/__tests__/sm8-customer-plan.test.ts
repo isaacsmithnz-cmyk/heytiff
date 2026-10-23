@@ -1,4 +1,4 @@
-import { allowedFields, customerChanges, holds, roleWord, type CustomerForm } from "../sm8-customer-plan";
+import { allowedFields, customerChanges, holds, type CustomerForm } from "../sm8-customer-plan";
 
 const J = "0b1e0b1e-0000-4000-8000-000000000001";
 const C = "c0c0c0c0-0000-4000-8000-000000000001";
@@ -48,7 +48,5 @@ describe("a customer save's changes", () => {
   it("reads a record back as holding what went, and says roles in words", () => {
     expect(holds({ type: "BILLING", first: "Kim " }, { type: "BILLING", first: "Kim" })).toBe(true);
     expect(holds({ type: "JOB" }, { type: "BILLING" })).toBe(false);
-    expect(roleWord("Property Manager")).toBe("Property manager");
-    expect(roleWord("BILLING")).toBe("Billing contact");
   });
 });

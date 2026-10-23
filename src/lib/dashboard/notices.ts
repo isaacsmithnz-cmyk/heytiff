@@ -29,13 +29,6 @@ export function asNoticeKind(value: unknown): NoticeKind {
   return NOTICE_KINDS.includes(value as NoticeKind) ? (value as NoticeKind) : "notice";
 }
 
-/** What each kind is called on screen. */
-export const KIND_LABEL: Record<NoticeKind, string> = {
-  notice: "Notice",
-  poll: "Poll",
-  event: "Event",
-};
-
 export type NoticeLifecycle = "active" | "expired" | "archived";
 
 export type Lifecycled = {

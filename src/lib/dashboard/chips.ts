@@ -162,14 +162,6 @@ const GROUP_OF: Record<ChipKind, ChipGroup> = {
   "sm8-booking": "Workboard",
 };
 
-export const GROUP_ICON: Record<ChipGroup, string> = {
-  Fleet: "truck",
-  People: "shield",
-  Business: "hexagon",
-  Pay: "clock",
-  Workboard: "activity",
-};
-
 export function chipGroup(kind: ChipKind): ChipGroup {
   return GROUP_OF[kind];
 }
@@ -951,30 +943,6 @@ function fmtMoney(n: number): string {
     minimumFractionDigits: cents === 0 ? 0 : 2,
     maximumFractionDigits: 2,
   })}`;
-}
-
-/* The one-line version, for the hero tile. The dashboard shows the COUNT and
-   links through to the full board — the same bargain the noticeboard makes, and
-   for the same reason: a summary you click into is honest about being a summary,
-   where a truncated list pretends to be the whole picture. */
-export type ChipSummary = { total: number; bad: number; warn: number };
-
-export function chipSummary(chips: readonly ActionChip[]): ChipSummary {
-  let bad = 0;
-  let warn = 0;
-  for (const c of chips) {
-    if (c.state === "bad") bad += 1;
-    else warn += 1;
-  }
-  return { total: bad + warn, bad, warn };
-}
-
-/** "1 overdue · 2 due soon". Empty when all clear. */
-export function summaryLine(s: ChipSummary): string {
-  const parts: string[] = [];
-  if (s.bad > 0) parts.push(`${s.bad} overdue`);
-  if (s.warn > 0) parts.push(`${s.warn} due soon`);
-  return parts.join(", ");
 }
 
 /* `heroAction` lived here — the hero's action band, which named the worst item

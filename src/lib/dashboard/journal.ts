@@ -81,15 +81,6 @@ function chipTitle(title: string): string {
   return t.length <= CHIP_TITLE_MAX ? t : `${t.slice(0, CHIP_TITLE_MAX - 1).trimEnd()}…`;
 }
 
-/** What a capture turned into: [{kind:"todo",text:"2 tasks"}, …].
-
-    Empty when it produced nothing, which is a real outcome and not an error —
-    you can untick every line and still have said the thing. The row renders
-    with the words and no outcomes rather than disappearing. */
-export function describeApplied(applied: unknown): Outcome[] {
-  return describeAppliedResolved(applied);
-}
-
 /* THE CHIPS BECOME THE THINGS THEY NAME — given the rows to name them with.
 
    "2 tasks" told you the capture worked and nothing else; the point of saying
@@ -169,9 +160,6 @@ export function describeAppliedResolved(
   }
   return out;
 }
-
-/** Exported for the test that pins the wording against the write side. */
-export const APPLIED_GROUPS = GROUPS;
 
 export type JournalEntry = {
   id: string;

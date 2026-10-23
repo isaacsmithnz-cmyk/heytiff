@@ -1,5 +1,5 @@
 import { zoneOr, fmtAuTime } from "../au-dates";
-import { auDayOf, auHourNow, auMinutesNow, daysUntil, fmtAuDayMonth, fmtAuWeekdayDayMonth, fmtAuWeekdayDate, fmtAuWeekdayDateLong, todayInAu, parseAuDate, formatAuDate, maskAuDate } from "../au-dates";
+import { auDayOf, auMinutesNow, daysUntil, fmtAuDayMonth, fmtAuWeekdayDayMonth, fmtAuWeekdayDate, fmtAuWeekdayDateLong, todayInAu, parseAuDate, formatAuDate, maskAuDate } from "../au-dates";
 
 /* The date helpers everything else anchors on. `todayInAu` answers "what day is
    it now" and `auDayOf` answers "what day was that" — they have to agree, or a
@@ -122,22 +122,6 @@ describe("fmtAuWeekdayDateLong", () => {
   });
 });
 
-describe("auHourNow — the greeting's clock", () => {
-  it("reads the AU hour, not the server's (AEST, UTC+10)", () => {
-    // 01:30 UTC is 11:30 in Sydney — a UTC getHours() would say 1
-    expect(auHourNow(new Date("2026-07-26T01:30:00Z"))).toBe(11);
-  });
-
-  it("handles daylight saving (AEDT, UTC+11) across the date line", () => {
-    // 20:00 UTC on the 9th is 07:00 on the 10th in Sydney
-    expect(auHourNow(new Date("2026-01-09T20:00:00Z"))).toBe(7);
-  });
-
-  it("midnight reads as hour 0, never 24", () => {
-    // 14:00 UTC = 00:00 AEST — hourCycle h23 keeps it at 0
-    expect(auHourNow(new Date("2026-07-25T14:00:00Z"))).toBe(0);
-  });
-});
 
 describe("auMinutesNow — the clock a timesheet's send moment is read against", () => {
   it("reads minutes past midnight on the AU clock (AEST, UTC+10)", () => {

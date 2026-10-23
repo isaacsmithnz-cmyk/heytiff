@@ -117,15 +117,6 @@ export function pastChargeTable(
   return L != null && L > rule.bands[rule.bands.length - 1].up_to_m + EPS;
 }
 
-/** the metres of pipe (in this liquid size) at which a stepped table ends —
-    its last band, turned back from a weighted length where the book reads
-    one. Null for every other method, or a size the table has no figure for. */
-export function chargeTableEndM(rule: AdditionalChargeRule, liquidSizeMm?: number): number | null {
-  if (rule.method !== "stepped_by_length" || rule.bands.length === 0) return null;
-  const per = steppedLengthM(rule, { liquidLengthM: 1, ...(liquidSizeMm != null ? { liquidSizeMm } : {}) });
-  return per == null || per <= 0 ? null : rule.bands[rule.bands.length - 1].up_to_m / per;
-}
-
 type VrfChargeRule = Extract<
   AdditionalChargeRule,
   { method: "per_meter_by_liquid_size_by_farthest" | "formula_coefficients" }

@@ -814,15 +814,6 @@ export function shownParts(line: string): ShownPart[] {
     });
 }
 
-/** Whether a printed statement is one of the ways a shown line can read. */
-export function readsAs(line: string, printed: string): boolean {
-  const esc = (t: string) => t.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
-  const pattern = shownParts(line)
-    .map((p) => (p.kind === "text" ? esc(p.text) : p.kind === "typed" ? ".+?" : `(?:${p.options.map(esc).join("|")})`))
-    .join("");
-  return new RegExp(`^${pattern}$`).test(printed);
-}
-
 /** The page's groups, in the order a certificate prints them. A note says
     when a statement inside its group prints, where the group alone doesn't. */
 export const WORDING_GROUPS: readonly { title: string; clauses: readonly { clause: ClauseKey; note?: string }[] }[] = [

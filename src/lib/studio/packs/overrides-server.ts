@@ -12,9 +12,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { applyOverrides, type FieldOverride } from "./overrides";
 import { validatePack } from "./validate";
 import { completenessByRange } from "./ready";
-import { resolvePacks } from "./loader";
 import { loadInstalledPack, type LoadedPack } from "./server";
-import type { DataPack } from "./schema";
 import type { FieldValue } from "./fields";
 
 type OverrideRow = {
@@ -133,16 +131,3 @@ export async function loadPackWithOverrides(
   };
 }
 
-/** Override-aware equivalent of resolveDesignPacks — the packPins → live pack
-    bridge for the studio engine, with corrections merged in per layer. */
-export async function resolveDesignPacksWithOverrides(
-  packPins: Record<string, string>,
-  baseDir?: string
-): Promise<DataPack | null> {
-  const layers: DataPack[] = [];
-  for (const [brand, version] of Object.entries(packPins)) {
-    const { pack } = await loadPackWithOverrides(brand, version, baseDir);
-    layers.push(pack);
-  }
-  return layers.length ? resolvePacks(layers) : null;
-}

@@ -226,11 +226,6 @@ export const sameMaker = (productBrand: string | null | undefined, packKey: stri
   return !!productBrand && flat(productBrand) === flat(packKey);
 };
 
-/* the circuit's parts by what the unit draws: the next standard size up */
-const BREAKERS = [10, 16, 20, 25, 32, 40, 50, 63];
-const ISOLATORS = [20, 35, 63];
-export const breakerFor = (amps: number) => BREAKERS.find((b) => b >= amps) ?? null;
-export const isolatorFor = (amps: number) => ISOLATORS.find((b) => b >= amps) ?? null;
 /** TPS by the circuit it carries: 2.5 mm² to 20 A, 4 mm² to 32 A, 6 mm² beyond. */
 export const cableFor = (amps: number) => (amps <= 20 ? "2.5" : amps <= 32 ? "4" : "6");
 

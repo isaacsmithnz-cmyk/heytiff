@@ -12,9 +12,6 @@ import type { BuildUp } from "./buildup";
    any other in the order it first appears, then the labour, its loading, and
    the duct contingency, its parts and its hours at the business's rate. Pure. */
 
-/** The groups a kit builds, in the order the card reads them. */
-export const GROUP_ORDER = ["Units", "Ductwork and grilles", "Pipe, power and controls", "Mounting and drain", "Allowances"];
-
 export type SumRow = { key: string; label: string; cents: number };
 
 /** every figure to the cent, so a column of them reads as one */
@@ -39,18 +36,3 @@ export function quoteParts(b: BuildUp, hours: number): SumRow[] {
   ];
 }
 
-/** Every group's figure in the one order, which adds up to the total ex GST.
-    `chargeOutCents`: the business's rate, which the contingency's hours sell at. */
-export function quoteGroups(b: BuildUp, chargeOutCents: number): SumRow[] {
-  const known = GROUP_ORDER.flatMap((name) => b.groups.filter((g) => g.name === name));
-  const others = b.groups.filter((g) => !GROUP_ORDER.includes(g.name));
-  const visits = b.labour.visits.reduce((n, v) => n + v.sellCents, 0);
-  return [
-    ...[...known, ...others].map((g) => ({ key: `g-${g.name}`, label: g.name, cents: g.sellCents })),
-    ...(b.labour.visits.length > 0 ? [{ key: "labour", label: "Labour", cents: visits }] : []),
-    ...(b.loading ? [{ key: "loading", label: "Loading on labour", cents: b.loading.sellCents }] : []),
-    /* its parts at the materials markup and its hours at the rate, as the
-       build-up adds them (buildup.ts) */
-    ...(b.contingency ? [{ key: "contingency", label: "Duct contingency", cents: b.contingency.sellCents + Math.round(b.contingency.hours * chargeOutCents) }] : []),
-  ];
-}

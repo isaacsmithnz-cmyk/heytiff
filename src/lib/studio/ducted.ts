@@ -11,31 +11,6 @@ import {
   type OpeningSpec as PackOpeningSpec,
 } from "./packs/schema";
 
-/* ── Object conventions (spec §13) — placed via the component palette ── */
-
-export const DUCTED_OBJECT_TYPES = [
-  "grille",
-  "duct-run",
-  "duct-fitting",
-  "plenum",
-  "controller",
-] as const;
-export type DuctedObjectType = (typeof DUCTED_OBJECT_TYPES)[number];
-
-export function isDuctedObjectType(t: string): t is DuctedObjectType {
-  return (DUCTED_OBJECT_TYPES as readonly string[]).includes(t);
-}
-
-/** Inline fitting subtype (spec §1g). */
-export type FittingType = "takeoff" | "joiner" | "reducer" | "zone-motor";
-
-export function ftypeOf(props: Record<string, unknown>): FittingType | null {
-  const f = props.ftype;
-  return f === "takeoff" || f === "joiner" || f === "reducer" || f === "zone-motor"
-    ? f
-    : null;
-}
-
 /* ── Diversity + required capacity (spec §6h; right-panel spec §4B) ── */
 
 /** D defaults key to ZONING — 1.00 unzoned (every room can call at once;

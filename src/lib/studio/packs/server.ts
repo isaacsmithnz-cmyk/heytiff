@@ -10,7 +10,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { type PackMeta, type DataPack } from "./schema";
-import { loadPackDir, resolvePacks, type SectionReader } from "./loader";
+import { loadPackDir, type SectionReader } from "./loader";
 import { validatePack, type ValidationResult } from "./validate";
 import { completenessByRange, type RangeCompleteness } from "./ready";
 
@@ -107,22 +107,3 @@ export async function loadInstalledPack(
   };
 }
 
-/** The packPins → live DataPack bridge. Loads each pinned pack and merges them
-    (later wins), so the engine consumes ONE resolved DataPack for a design.
-    Returns null when a design pins nothing yet.
-
-    NOTE: this is the RAW loader (no HQ overrides). Engine callers that must
-    reflect staff corrections should use `resolveDesignPacksWithOverrides`
-    (overrides-server.ts). Kept override-free here so server.ts has no Supabase
-    dependency (its jest suite runs without env). Currently unused in prod. */
-export async function resolveDesignPacks(
-  packPins: Record<string, string>,
-  baseDir = DEFAULT_BASE
-): Promise<DataPack | null> {
-  const layers: DataPack[] = [];
-  for (const [brand, version] of Object.entries(packPins)) {
-    const { pack } = await loadInstalledPack(brand, version, baseDir);
-    layers.push(pack);
-  }
-  return layers.length ? resolvePacks(layers) : null;
-}

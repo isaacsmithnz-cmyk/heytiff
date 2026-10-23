@@ -36,9 +36,6 @@ export const CONTACT_ROLES = [
   { type: "Tenant", word: "Tenant" },
 ] as const;
 
-export const roleWord = (type: string | null | undefined): string =>
-  CONTACT_ROLES.find((r) => r.type.toLowerCase() === (type ?? "").trim().toLowerCase())?.word ?? (type?.trim() || "Contact");
-
 /** The fields each record may have changed by HeyTiff, and nothing else. */
 export const CUSTOMER_FIELDS: Record<CustomerObject, readonly string[]> = {
   jobcontact: ["first", "last", "mobile", "phone", "email", "type"],

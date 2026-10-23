@@ -9,7 +9,6 @@
 
 import {
   classifyOurs,
-  drainEnd,
   fitsLease,
   FUNCTION_MARGIN_MS,
   functionDeadline,
@@ -40,8 +39,6 @@ import {
   readHookList,
   readHookObjects,
   redactHook,
-  ROUTE_DRAIN_MS,
-  BACKSTOP_DRAIN_MS,
   sm8HooksHealth,
   spellingsFor,
   type HookObjectName,
@@ -584,11 +581,6 @@ describe("budgets, from the function's own deadline", () => {
     const start = 1_000_000;
     expect(functionDeadline(start, 300)).toBe(start + 300_000 - FUNCTION_MARGIN_MS);
     expect(functionDeadline(start, 60)).toBe(start + 40_000);
-    expect(drainEnd(start, 300, ROUTE_DRAIN_MS)).toBe(start + 120_000);
-    // a shorter function shortens the drain, whatever its own budget says
-    expect(drainEnd(start, 60, ROUTE_DRAIN_MS)).toBe(start + 40_000);
-    expect(drainEnd(start, 120, ROUTE_DRAIN_MS)).toBe(start + 100_000);
-    expect(drainEnd(start, 300, BACKSTOP_DRAIN_MS)).toBe(start + 20_000);
     // a lease fits a 300 s function late in its life, and a 60 s one barely
     expect(fitsLease(start + 235_000, HOOK_LEASE_MS, functionDeadline(start, 300))).toBe(true);
     expect(fitsLease(start + 235_001, HOOK_LEASE_MS, functionDeadline(start, 300))).toBe(false);

@@ -34,10 +34,6 @@ export const NEW_JOB_STATUS = "Quote";
 export const NEW_JOB_CONTACT_TYPE = "JOB";
 
 export const jobSubject = (pressId: string) => `job:${pressId}`;
-export function parseJobSubject(s: string): string | null {
-  const m = /^job:(\S+)$/.exec(s);
-  return m ? m[1]! : null;
-}
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

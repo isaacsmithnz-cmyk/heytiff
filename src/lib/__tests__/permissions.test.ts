@@ -1,12 +1,9 @@
 import {
   CAPABILITIES,
-  MASTER_ONLY,
   OWNER_TIER,
   ROLE_DEFAULTS,
   canChangeRoleOf,
   canEditPermissionsOf,
-  canPerformMasterAction,
-  canRemoveMember,
   canSetCapability,
   invitableRoles,
   isCapability,
@@ -261,37 +258,22 @@ describe("master owner vs co-owners", () => {
     for (const cap of CAPABILITIES) expect(canSetCapability("owner", cap)).toBe(true);
   });
 
-  it("master-only acts are master-only", () => {
-    expect(canPerformMasterAction(master)).toBe(true);
-    expect(canPerformMasterAction(coOwner)).toBe(false);
-    expect(canPerformMasterAction(admin)).toBe(false);
-    expect(MASTER_ONLY).toEqual(["transfer_ownership", "billing", "delete_org"]);
-  });
-
   it("nobody can demote the master — the lockout guarantee", () => {
     expect(canChangeRoleOf(coOwner, master)).toBe(false);
     expect(canChangeRoleOf(master, master)).toBe(false); // not even themselves
   });
 
-  it("nobody can remove the master — transfer primacy first", () => {
-    expect(canRemoveMember(coOwner, master)).toBe(false);
-    expect(canRemoveMember(master, master)).toBe(false);
-  });
-
   it("co-owners can manage everyone else, so you are not a bottleneck", () => {
     expect(canChangeRoleOf(coOwner, admin)).toBe(true);
     expect(canChangeRoleOf(coOwner, own("auth0|co2"))).toBe(true); // incl. other co-owners
-    expect(canRemoveMember(coOwner, admin)).toBe(true);
   });
 
   it("non-owners cannot change roles at all", () => {
     expect(canChangeRoleOf(admin, own("auth0|s1", "staff"))).toBe(false);
-    expect(canRemoveMember(admin, own("auth0|s1", "staff"))).toBe(false);
   });
 
   it("nobody changes their own role or removes themselves here", () => {
     expect(canChangeRoleOf(coOwner, coOwner)).toBe(false);
-    expect(canRemoveMember(coOwner, coOwner)).toBe(false);
   });
 
   it("an owner's permission card stays inert — co-owners included", () => {

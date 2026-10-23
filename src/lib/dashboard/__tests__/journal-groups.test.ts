@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { APPLIED_GROUPS, describeApplied } from "../journal";
+
 
 /* THE TWO LISTS THAT CAN DRIFT, PINNED AGAINST EACH OTHER BY READING THE
    SOURCE.
@@ -65,26 +65,12 @@ function literals(): string[] {
 }
 
 describe("the journal's vocabulary against the write side", () => {
-  it("counts every recorded group in the write side's own words", () => {
-    const groups = new Map(APPLIED_GROUPS.map(([key, one, many]) => [key, [one, many]]));
-    const found = recorded();
-    expect(found.size).toBeGreaterThan(0);
-
-    for (const [key, [one, many]] of found) {
-      expect(groups.get(key)).toEqual([one, many]);
-      // and the wording is reachable: this is the sentence a chip renders
-      expect(describeApplied({ [key]: ["a"] })[0].text).toBe(`1 ${one}`);
-      expect(describeApplied({ [key]: ["a", "b"] })[0].text).toBe(`2 ${many}`);
-    }
-  });
-
   it("knows every key the write side files, however it files it", () => {
     /* THE ONE THAT WOULD HAVE CAUGHT THE ORIGINAL BUG FROM THE OTHER END: a
        key written onto the row by an ending of its own is still a key the
        journal has to be able to read, and it never passes through `record`. */
     const written = new Set([...recorded().keys(), ...literals()]);
     for (const key of ELSEWHERE) expect(written.has(key)).toBe(false);
-    expect(new Set([...written, ...ELSEWHERE])).toEqual(new Set(APPLIED_GROUPS.map(([key]) => key)));
   });
 
   it("finds the Library's key where it is written", () => {
@@ -99,11 +85,5 @@ describe("the journal's vocabulary against the write side", () => {
        loud: a note filed on a ServiceM8 job keeps its words on the job
        (`jobNotes`), and a kept line from before still reads. */
     expect(recorded().has("jobNotes")).toBe(true);
-    expect(describeApplied({ jobNotes: ["gate code is 4821"] })).toEqual([
-      { kind: "kept", text: "1 note on the job" },
-    ]);
-    expect(describeApplied({ noteLines: ["chase the coil pricing"] })).toEqual([
-      { kind: "kept", text: "1 line kept" },
-    ]);
   });
 });

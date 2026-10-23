@@ -20,30 +20,6 @@
    The candidates are PATHS under the API base, not addresses: the route asked
    through the one door (sm8-http), which resolves and checks them. */
 
-/** A path shape worth trying, newest guess LAST — the list is walked in order
-    and the first 2xx wins, so the documented-by-analogy shape goes first. */
-export type Sm8FileCandidate = { shape: string; path: string };
-
-/** The three ways ServiceM8's own surface suggests the bytes might be named.
-
-    1. `Attachment/{uuid}.file` — the exact noun and extension their UPLOAD doc
-       uses. If download mirrors upload, this is it.
-    2. `attachment/{uuid}.file` — same shape, lowercase. Their list endpoint is
-       lowercase (`attachment.json`), so the capital in the upload doc may be
-       prose rather than path.
-    3. `dboattachment/{uuid}.file` — the noun update and delete actually use.
-       The endpoint asymmetry between list/create and update/delete is real and
-       already pinned in sm8-sync-plan's tests, so the bytes may follow the
-       `dbo` side rather than the plain one. */
-export function attachmentFileCandidates(uuid: string): Sm8FileCandidate[] {
-  const id = encodeURIComponent(uuid);
-  return [
-    { shape: "Attachment/{uuid}.file", path: `Attachment/${id}.file` },
-    { shape: "attachment/{uuid}.file", path: `attachment/${id}.file` },
-    { shape: "dboattachment/{uuid}.file", path: `dboattachment/${id}.file` },
-  ];
-}
-
 /** What the first bytes SAY they are, independent of the Content-Type header.
 
     This is the difference between "the endpoint answered 200" and "the

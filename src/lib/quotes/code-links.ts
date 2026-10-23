@@ -30,14 +30,6 @@ export function sameUnitKey(code: string): string {
   return untagged(code).replace(/-/g, "");
 }
 
-/** The same range and size, with the feature and build letters set aside. */
-export function nearKey(code: string): string {
-  let n = sameUnitKey(code);
-  n = n.replace(/VGK?D?/, "VG");
-  n = n.replace(/(VG|VF|VKA|VKM|YKM)D?\d?$/, "$1");
-  return n;
-}
-
 /** The names a pack model stands for: its brochure shorthand read out —
     "PEAD-M50JAA(D)" is JAA or JAAD, "PKA-M71KA(L)2" is KA2 or KAL2,
     "PAR-CT01MAA-PB/SB" is the PB or the SB. */

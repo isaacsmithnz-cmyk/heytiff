@@ -70,22 +70,6 @@ export function hasWord(hay: string, needle: string): boolean {
   }
 }
 
-/** As `hasWord`, but the right edge must be a boundary too — "order" is an
-    imperative, "ordered" is a description of work already done. */
-export function hasWholeWord(hay: string, needle: string): boolean {
-  if (needle === "") return false;
-  if (isLooseScript(needle)) return hay.includes(needle);
-
-  let from = 0;
-  for (;;) {
-    const at = hay.indexOf(needle, from);
-    if (at < 0) return false;
-    from = at + 1;
-    if (joinsWord(hay[at + needle.length])) continue;
-    if (at === 0 || !joinsWord(hay[at - 1])) return true;
-  }
-}
-
 /** Does `hay` open with this cue? The whole text being the cue counts. */
 export function startsWithCue(hay: string, cue: string): boolean {
   if (isLooseScript(cue)) return hay.startsWith(cue);

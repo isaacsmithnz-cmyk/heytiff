@@ -37,14 +37,19 @@ describe("the kinds", () => {
 
   it("gives each its own address to send", () => {
     expect(recordHref({ kind: "job", id: "j-1" })).toBe("/dashboard/jobs/j-1");
-    expect(recordHref({ kind: "visit", id: "v-1" })).toBe("/dashboard/workboard?visit=v-1");
-    expect(recordHref({ kind: "agreement", id: "a-1" })).toBe("/dashboard/workboard?open=agreement.a-1");
+    expect(recordHref({ kind: "visit", id: "v-1" })).toBe("/dashboard/jobs?open=visit.v-1");
+    expect(recordHref({ kind: "agreement", id: "a-1" })).toBe("/dashboard/jobs?open=agreement.a-1");
   });
 });
 
 describe("a link that names a visit", () => {
   it("is a record", () => {
     expect(recordOfHref("/dashboard/workboard?visit=v-7")).toEqual({ ref: { kind: "visit", id: "v-7" } });
+    /* a record opened over a page by its own parameter (the old-code audit, 23 October 2026) */
+    expect(recordOfHref("/dashboard/jobs?open=visit.v-7")).toEqual({ ref: { kind: "visit", id: "v-7" } });
+    expect(recordOfHref("/dashboard/jobs?open=agreement.a-1")).toEqual({ ref: { kind: "agreement", id: "a-1" } });
+    expect(recordOfHref("/dashboard/jobs?open=visit.v-7&view=projects")).toBeNull();
+    expect(recordOfHref("/elsewhere?open=visit.v-7")).toBeNull();
   });
 
   it("is not a record beside anything else", () => {

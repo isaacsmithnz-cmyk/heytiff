@@ -62,12 +62,6 @@ let semanticOn = true;
 const countUnembedded = jest.fn(async () => 106);
 jest.mock("@/lib/tiff/embeddings", () => ({ isSemanticConfigured: () => semanticOn }));
 jest.mock("@/lib/tiff/backfill", () => ({ countUnembedded: () => countUnembedded() }));
-jest.mock("@/components/workboard/overview-screen", () => ({ OverviewScreen: () => null }));
-jest.mock("@/lib/workboard/page-data", () => ({
-  loadWorkboardPage: jest.fn(async () => ({ manage: false, connection: "none" })),
-  loadLinkedJob: jest.fn(async () => null),
-  linkedVisit: jest.fn(() => null),
-}));
 jest.mock("@/components/workboard/projects-screen", () => ({ ProjectsScreen: () => null }));
 jest.mock("@/components/workboard/project-detail-screen", () => ({
   ProjectDetailScreen: () => null,
@@ -123,8 +117,6 @@ const LEAVES: [string, () => Promise<unknown>, string][] = [
   ["toolbox/running-pressures", RunningPressuresPage, "toolbox"],
   ["toolbox/troubleshooting", TroubleshootingPage, "toolbox"],
   ["tiff/library", LibraryPage, "tiff"],
-  // only a visit still lands on the board; the gate must fire before it is read
-  ["workboard", () => WorkboardPage({ searchParams: Promise.resolve({ visit: "v-1" }) }), "workboard"],
 ];
 
 beforeEach(() => {
@@ -282,6 +274,7 @@ describe("retired → the v2 home", () => {
     ["workboard?job=", board({ job: "j-1" }), "/dashboard/jobs/j-1"],
     ["workboard?job=&face=quote", board({ job: "j-1", face: "quote" }), "/dashboard/jobs/j-1?tab=quote"],
     ["workboard?q=", board({ q: "Smith & Sons" }), "/dashboard/jobs?q=Smith%20%26%20Sons"],
+    ["workboard?visit=", board({ visit: "v-1" }), "/dashboard/jobs?open=visit.v-1"],
   ])("%s", async (_route, Page, to) => {
     allowed = true;
     await expect(Promise.resolve().then(Page)).rejects.toThrow(`REDIRECT:${to}`);

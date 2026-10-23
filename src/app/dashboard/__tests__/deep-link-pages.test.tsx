@@ -1,8 +1,6 @@
-/* The two pages the doors land on read their own address: `?v=` and
-   `?screen=` on Assets (now only to send them on), `?visit=` on the Workboard. What the screens do with
-   a link is pinned beside them (vehicle-link.test.tsx, overview-screen); this
-   pins what each PAGE hands over, which is the half a screen test wiring its
-   own props can never see break. */
+/* Two retired pages read their own address only to send it on: `?v=` and
+   `?screen=` on Assets, and `?job=`, `?visit=` and `?q=` on the Workboard
+   (the old-code audit, 23 October 2026: it is a redirect for saved links). */
 
 const redirect = jest.fn((to: string) => {
   throw new Error(`REDIRECT:${to}`);
@@ -10,22 +8,12 @@ const redirect = jest.fn((to: string) => {
 jest.mock("next/navigation", () => ({ redirect: (to: string) => redirect(to) }));
 
 jest.mock("@/lib/permissions-server", () => ({ can: jest.fn(async () => true) }));
-const board = { board: { visits: [{ id: "vis-1" }] } };
-const loadLinkedJob = jest.fn();
-const linkedVisit = jest.fn();
-jest.mock("@/lib/workboard/page-data", () => ({
-  loadWorkboardPage: jest.fn(async () => board),
-  loadLinkedJob: (...a: unknown[]) => loadLinkedJob(...a),
-  linkedVisit: (...a: unknown[]) => linkedVisit(...a),
-}));
-jest.mock("@/components/workboard/overview-screen", () => ({ OverviewScreen: () => null }));
 
 import { can } from "@/lib/permissions-server";
 import AssetsPage from "../assets/page";
 import WorkboardPage from "../workboard/page";
 
 type Search = Record<string, string | string[] | undefined>;
-const propsOf = async (page: Promise<unknown>) => ((await page) as { props: Record<string, unknown> }).props;
 
 /* Assets is retired (the v2 audit, 20 October 2026): its doors land on the
    vehicle's own page, or on Team's Vehicles view. */
@@ -48,44 +36,27 @@ describe("Assets sends its doors to the vehicle's own page", () => {
   });
 });
 
-describe("the Workboard hands the screen the visit the address names", () => {
-  const workboard = (search: Search) =>
-    propsOf(WorkboardPage({ searchParams: Promise.resolve(search) as never }));
+describe("the Workboard sends each saved link to its v2 home", () => {
+  const workboard = (search: Search) => WorkboardPage({ searchParams: Promise.resolve(search) as never });
 
-  beforeEach(() => {
-    loadLinkedJob.mockReset();
-    linkedVisit.mockReset();
-    linkedVisit.mockImplementation((_d: unknown, id: string) => (id === "vis-1" ? { id } : null));
+  it("opens a job on its own page, on its Quote section when the old face named it", async () => {
+    await expect(workboard({ job: "j-7" })).rejects.toThrow("REDIRECT:/dashboard/jobs/j-7");
+    await expect(workboard({ job: "j-7", face: "quote" })).rejects.toThrow("REDIRECT:/dashboard/jobs/j-7?tab=quote");
   });
 
-  it("asks the board it loaded about the visit, and hands over the answer", async () => {
-    const props = await workboard({ visit: "vis-1" });
-    expect(linkedVisit).toHaveBeenCalledWith(board, "vis-1");
-    expect(props.openVisit).toEqual({ id: "vis-1" });
-    expect(props.openJob).toBeNull();
+  it("opens a visit's sheet over Jobs, and a job named beside it wins", async () => {
+    await expect(workboard({ visit: "vis-1" })).rejects.toThrow("REDIRECT:/dashboard/jobs?open=visit.vis-1");
+    await expect(workboard({ job: "j-7", visit: "vis-1" })).rejects.toThrow("REDIRECT:/dashboard/jobs/j-7");
   });
 
-  it("hands over nothing for a visit the board doesn't hold", async () => {
-    expect((await workboard({ visit: "vis-gone" })).openVisit).toBeNull();
-  });
-
-  /* the rest of the board is retired (the v2 audit, 20 October 2026) */
-  it("sends an address with no one visit to Jobs", async () => {
+  it("searches Jobs for a client, and lands on Jobs otherwise", async () => {
+    await expect(workboard({ q: "Meridian" })).rejects.toThrow("REDIRECT:/dashboard/jobs?q=Meridian");
     await expect(workboard({})).rejects.toThrow("REDIRECT:/dashboard/jobs");
     await expect(workboard({ visit: ["vis-1", "vis-2"] })).rejects.toThrow("REDIRECT:/dashboard/jobs");
   });
 
-  it("lets a job named in the same address win, and asks nothing about the visit", async () => {
-    const job = { remoteId: "j-7" };
-    loadLinkedJob.mockResolvedValue(job);
-    const props = await workboard({ job: "j-7", visit: "vis-1" });
-    expect(props.openJob).toBe(job);
-    expect(props.openVisit).toBeNull();
-    expect(linkedVisit).not.toHaveBeenCalled();
-  });
-
-  it("opens the visit when the job named beside it isn't held", async () => {
-    loadLinkedJob.mockResolvedValue(null);
-    expect((await workboard({ job: "j-gone", visit: "vis-1" })).openVisit).toEqual({ id: "vis-1" });
+  it("sends someone without the board Home", async () => {
+    (can as jest.Mock).mockResolvedValueOnce(false);
+    await expect(workboard({ visit: "vis-1" })).rejects.toThrow("REDIRECT:/dashboard");
   });
 });

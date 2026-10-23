@@ -209,8 +209,8 @@ describe("a row", () => {
   });
 
   it("opens a visit with no ServiceM8 job, and an agreement, over the page", () => {
-    expect(row(rows, "visit:v-open").href).toBe("/dashboard/workboard?visit=v-open");
-    expect(row(rows, "agreement:ag-1").href).toBe("/dashboard/workboard?open=agreement.ag-1");
+    expect(row(rows, "visit:v-open").href).toBe("/dashboard/jobs?open=visit.v-open");
+    expect(row(rows, "agreement:ag-1").href).toBe("/dashboard/jobs?open=agreement.ag-1");
   });
 
   it("says where a job is up to and what's next", () => {

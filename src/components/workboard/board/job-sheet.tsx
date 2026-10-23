@@ -104,7 +104,7 @@ import { sm8JobUrl } from "@/lib/integrations/sm8-links";
 import { catTintVars } from "@/lib/workboard/card-tint";
 import { syncedAgo, type Sm8Health } from "./sm8-chip";
 import { useHydrated } from "@/lib/use-hydrated";
-import type { ScheduleJobState } from "./schedule-tab";
+import type { ScheduleJobState } from "@/lib/workboard/schedule";
 import { JobPageHead } from "@/components/jobs/job-page-head";
 import { JobOverview } from "@/components/jobs/job-overview";
 import { jobHue } from "@/lib/workboard/job-hue";

@@ -59,6 +59,13 @@ export type ScheduleStaff = { uuid: string; name: string };
     the All jobs rows' chip already taught), never both. */
 export type ScheduleTracked = { kind: "project" | "visit"; label: string };
 
+/** Where a job on the day's schedule stands, said on its card: late, not
+    started, on site, or marked complete while still on the run. */
+export type ScheduleJobState = {
+  kind: "late" | "idle" | "on" | "stale";
+  word: string;
+};
+
 export type ScheduleBlock = {
   /** The activity uuid — unique even when one job books one person twice. */
   key: string;

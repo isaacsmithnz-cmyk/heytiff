@@ -20,7 +20,6 @@ const FILES = [
   "src/components/making/visit-form.tsx",
   "src/components/making/book-in.ts",
   "src/components/workboard/board/book-in-panel.tsx",
-  "src/components/workboard/board/focus-inspector.tsx",
 ];
 
 type CompileEvent = { kind: string; fnName?: string | null; detail?: unknown };

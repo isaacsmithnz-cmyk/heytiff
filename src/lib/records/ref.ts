@@ -74,8 +74,13 @@ export function recordOfHref(href: string): RecordLinkTarget | null {
   } catch {
     return null;
   }
-  if (url.pathname !== "/dashboard/workboard") return null;
   const params = [...url.searchParams.keys()];
+  /* a record opened over a page by its own parameter (a visit over Jobs) */
+  if (url.pathname.startsWith("/dashboard") && params.length === 1 && params[0] === OPEN_PARAM) {
+    const ref = decodeRecord(url.searchParams.get(OPEN_PARAM));
+    return ref ? { ref } : null;
+  }
+  if (url.pathname !== "/dashboard/workboard") return null;
   const visit = url.searchParams.get("visit");
   if (visit !== null) {
     if (params.length !== 1) return null;
@@ -99,13 +104,13 @@ export function withOpenParam(href: string, ref: RecordRef | null): string {
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
-/** The record's own address, to send someone: a job's and a visit's are
-    the Workboard's links to them; an agreement, which has none, opens over
-    the Workboard by the open record's own parameter. */
+/** The record's own address, to send someone: a job's is its page, a
+    visit's opens it over Jobs; an agreement, which has no page, opens over
+    Jobs by the open record's own parameter. */
 export function recordHref(ref: RecordRef): string {
   if (ref.kind === "job") return jobHref(ref.id);
   if (ref.kind === "visit") return visitHref(ref.id);
-  return `/dashboard/workboard?${OPEN_PARAM}=${encodeURIComponent(encodeRecord(ref))}`;
+  return `/dashboard/jobs?${OPEN_PARAM}=${encodeURIComponent(encodeRecord(ref))}`;
 }
 
 /** The record the address names, if any. */

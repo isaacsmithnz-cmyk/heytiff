@@ -693,7 +693,7 @@ describe("services with no day", () => {
       title: "Bayview Apartments, annual service",
       sub: "Was due Mon 14 Sept. No day yet.",
       dot: "late",
-      door: { to: "href", href: "/dashboard/workboard?visit=a" },
+      door: { to: "href", href: "/dashboard/jobs?open=visit.a" },
       verb: { label: "Book in", placeVisit: "a" },
     });
     expect(find<ListAlertRow>(list, "visit:b").sub).toBe("Due today. No day yet.");

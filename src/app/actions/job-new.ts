@@ -243,11 +243,3 @@ async function readLine(orgId: string, rowId: string): Promise<CreateAnswer> {
   const line = jobLine(row);
   return { ok: true, rowId, line, sm8Url: (row.job_done ?? []).includes("job") ? sm8JobUrl(row.remote_uuid) : null, jobUuid: row.remote_uuid };
 }
-
-/** Where a job the form started is up to, for the form to look again. */
-export async function newJobLine(rowId: string): Promise<CreateAnswer> {
-  const g = await gate();
-  if ("error" in g) return { ok: false, error: g.error };
-  if (!UUID.test(rowId)) return { ok: false, error: JOB_WORDS.press.unqueued };
-  return readLine(g.orgId, rowId);
-}

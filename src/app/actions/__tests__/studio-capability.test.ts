@@ -87,7 +87,7 @@ import {
 import { createPlanUpload, planImageUrl, deletePlanImage } from "../studio-plans";
 import { createShareLink, getShareLink, revokeShareLink } from "../studio-share";
 import { listDesignContributors } from "../studio-contributors";
-import { loadStudioPack, listStudioPackBrands } from "../studio-packs";
+import { loadStudioPack } from "../studio-packs";
 
 const ACTIONS: [string, () => Promise<unknown>][] = [
   ["listStudioDesigns", () => listStudioDesigns()],
@@ -103,7 +103,6 @@ const ACTIONS: [string, () => Promise<unknown>][] = [
   ["revokeShareLink", () => revokeShareLink("d-1")],
   ["listDesignContributors", () => listDesignContributors("d-1")],
   ["loadStudioPack", () => loadStudioPack("me")],
-  ["listStudioPackBrands", () => listStudioPackBrands()],
 ];
 
 beforeEach(() => {
@@ -138,7 +137,6 @@ describe("with `studio` held (the staff default), the same doors open", () => {
   });
 
   it("answers the pack picker", async () => {
-    expect(await listStudioPackBrands()).toEqual([]);
     expect(await loadStudioPack("me")).toBeNull();
   });
 

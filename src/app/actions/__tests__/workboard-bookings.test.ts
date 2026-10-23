@@ -2,7 +2,7 @@
    OVER (two-way phase 3, PR D).
 
    readJobRecord says whether Book in and Clear are offered here, with every
-   press's lines; scheduleDay says whether a leftover's Clear is. Book in
+   press's lines. Book in
    goes only to Workboard manage, the owner while bookings are the owner's,
    where bookings are offered, on an active Quote or Work Order (D-1). Where
    the deployment doesn't name `booking`, neither makes one read more, and
@@ -52,13 +52,6 @@ jest.mock("@/lib/workboard/job-notes-query", () => ({
   readJobAttention: async () => ({ attention: { items: [], total: 0 }, assignable: [] }),
 }));
 
-const DAY_PAYLOAD = { dayISO: "2026-10-07", activities: [], staff: [], jobs: [], onSite: [], addresses: {} };
-const loadScheduleDay = jest.fn(async (..._a: unknown[]) => ({ ...DAY_PAYLOAD }));
-jest.mock("@/lib/workboard/schedule-query", () => ({
-  loadScheduleDay: (...a: unknown[]) => loadScheduleDay(...a),
-  EMPTY_SCHEDULE: { dayISO: "", activities: [], staff: [], jobs: [], onSite: [], addresses: {} },
-}));
-
 const readSm8WriteState = jest.fn(async () => state);
 jest.mock("@/lib/integrations/sm8-writes", () => ({ readSm8WriteState: () => readSm8WriteState() }));
 const readBookingLines = jest.fn(async (_o: string, _s: unknown, _j: string, _viewer: string | null) => ({
@@ -73,7 +66,7 @@ jest.mock("@/lib/integrations/sm8-booking-read", () => ({
   bookingZone: () => bookingZone(),
 }));
 
-import { readJobRecord, scheduleDay } from "../workboard";
+import { readJobRecord } from "../workboard";
 import type { Sm8WriteState } from "@/lib/integrations/sm8-write-plan";
 
 const JOB = "0b1e0b1e-0000-4000-8000-00000000d001";
@@ -106,7 +99,6 @@ beforeEach(() => {
   readSm8WriteState.mockClear();
   readBookingLines.mockClear();
   readJobNotes.mockReset().mockResolvedValue([]);
-  loadScheduleDay.mockClear();
   bookingZone.mockClear();
   process.env.SM8_WRITES = "attachment,booking";
 });
@@ -135,15 +127,6 @@ describe("where the deployment doesn't book (D-14)", () => {
     expect(readSm8WriteState).toHaveBeenCalledTimes(settings);
     expect(readBookingLines).not.toHaveBeenCalled();
     expect(bookingZone).not.toHaveBeenCalled();
-  });
-
-  it("(F) the Schedule's day is the loader's, with no Clear and no read more", async () => {
-    process.env.SM8_WRITES = "attachment,note";
-    const p = await scheduleDay("2026-10-07");
-    expect(Object.keys(p)).toEqual(Object.keys(DAY_PAYLOAD));
-    expect(readSm8WriteState).not.toHaveBeenCalled();
-    /* the loader as it always was called */
-    expect(loadScheduleDay.mock.calls).toEqual([["org-1", "2026-10-07", { away: true }]]);
   });
 });
 
@@ -204,20 +187,5 @@ describe("Book in and Clear on the card (D-1)", () => {
     });
     const r = await Promise.race([readJobRecord(JOB), new Promise((r) => setTimeout(() => r("stuck"), 500))]);
     expect(r).not.toBe("stuck");
-  });
-
-  it("(F) the Schedule reads the write state once, for the day's overlay and the Clear alike", async () => {
-    await scheduleDay("2026-10-07");
-    expect(readSm8WriteState).toHaveBeenCalledTimes(1);
-    expect(loadScheduleDay).toHaveBeenCalledWith("org-1", "2026-10-07", { state: STATE, away: true });
-  });
-
-  it("(F) the Schedule offers a leftover's Clear only to a viewer who may press, where bookings are offered", async () => {
-    expect((await scheduleDay("2026-10-07")).canClear).toBe(true);
-    role = "manager";
-    expect("canClear" in (await scheduleDay("2026-10-07"))).toBe(false);
-    role = "owner";
-    state = { ...STATE, ownerKinds: ["attachment"] };
-    expect("canClear" in (await scheduleDay("2026-10-07"))).toBe(false);
   });
 });

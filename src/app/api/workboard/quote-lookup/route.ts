@@ -12,7 +12,7 @@ export async function GET(req: Request) {
   const session = await auth0.getSession();
   const orgId = (session?.orgId as string | undefined) ?? null;
   if (!orgId || !(await can("workboard_manage")) || !(await can("financials"))) {
-    return Response.json({ ok: false, reason: "Looking things up for a quote needs Workboard manage and money access." }, { status: 403 });
+    return Response.json({ ok: false, reason: "Looking things up for a quote needs Make and change jobs, and Money on jobs." }, { status: 403 });
   }
   const p = new URL(req.url).searchParams;
   const model = (p.get("model") ?? "").trim().slice(0, 60);

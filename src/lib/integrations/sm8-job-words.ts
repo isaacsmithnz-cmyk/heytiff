@@ -48,7 +48,7 @@ export const JOB_WORDS = {
     unqueued: "HeyTiff couldn't queue the job. Nothing was sent; try again.",
     clientGone: "ServiceM8 no longer has that client. Choose them again.",
     parentGone: "ServiceM8 no longer has that builder. Choose them again.",
-    noManage: "Only someone who runs the Workboard can start a job in ServiceM8.",
+    noManage: "Only someone who can make and change jobs can start a job in ServiceM8.",
     alreadyGoing: "It's on its way to ServiceM8 already.",
     cantTakeBack: "It's in ServiceM8 already. Remove it there.",
   },

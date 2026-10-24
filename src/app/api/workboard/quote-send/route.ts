@@ -16,7 +16,7 @@ export async function GET(req: Request) {
   const session = await auth0.getSession();
   const orgId = (session?.orgId as string | undefined) ?? null;
   if (!orgId || !(await can("workboard_manage")) || !(await can("financials"))) {
-    return Response.json({ ok: false, reason: "What goes to ServiceM8 needs Workboard manage and money access." }, { status: 403 });
+    return Response.json({ ok: false, reason: "What goes to ServiceM8 needs Make and change jobs, and Money on jobs." }, { status: 403 });
   }
   const job = (new URL(req.url).searchParams.get("job") ?? "").trim().slice(0, 80);
   if (!job) return Response.json({ ok: false, reason: "No job named." }, { status: 400 });

@@ -175,3 +175,41 @@ it("(F) Done closes a field issue where it sits", async () => {
   expect(resolveIssue).toHaveBeenCalledWith("i1");
   expect(screen.queryByText("Ute 2's reverse camera is out again")).toBeNull();
 });
+
+/* Isaac, 24 October 2026: "It just continues to scroll as long as the feed
+   is … that needs a cap. And then an option to open up your feed to view
+   everything on a separate page." */
+const many = (n: number) =>
+  Array.from({ length: n }, (_, i) =>
+    item({ key: `event:${i}`, filter: "jobs", who: { name: `Person ${i}`, sm8: false }, what: "checked in", open: { href: `/dashboard/jobs/j${i}` } }),
+  );
+
+it("(F) shows the first eight on Home, and Show all opens the whole feed on its own page", () => {
+  render(<HomeFeed items={many(12)} />);
+  expect(within(list()).getAllByRole("listitem")).toHaveLength(8);
+  expect(screen.getByRole("link", { name: "Show all" })).toHaveAttribute("href", "/dashboard/feed");
+  cleanup();
+  render(<HomeFeed items={many(12)} all headingLevel={1} />);
+  expect(within(list()).getAllByRole("listitem")).toHaveLength(12);
+  expect(screen.queryByRole("link", { name: "Show all" })).toBeNull();
+  expect(screen.getByRole("heading", { level: 1, name: "Your feed" })).toBeInTheDocument();
+});
+
+it("offers no Show all when everything fits", () => {
+  render(<HomeFeed items={many(8)} />);
+  expect(screen.queryByRole("link", { name: "Show all" })).toBeNull();
+});
+
+it("(F) still shows the mention To do's Reply named when it falls past the cap, with its box open", () => {
+  render(<HomeFeed items={[...many(10), { ...LUKE, notes: ["n9"] }]} replyTo="n9" />);
+  const luke = within(list()).getByText("Luke Parker").closest("li")!;
+  expect(within(luke).getByRole("textbox", { name: "Reply to Luke Parker" })).toBeInTheDocument();
+  expect(within(list()).getAllByRole("listitem")).toHaveLength(9);
+});
+
+it("(F) opens the reply box when To do's Reply names a mention while Home is already open", () => {
+  const { rerender } = render(<HomeFeed items={[{ ...LUKE, notes: ["n1"] }]} />);
+  expect(screen.queryByRole("textbox", { name: "Reply to Luke Parker" })).toBeNull();
+  rerender(<HomeFeed items={[{ ...LUKE, notes: ["n1"] }]} replyTo="n1" />);
+  expect(screen.getByRole("textbox", { name: "Reply to Luke Parker" })).toBeInTheDocument();
+});

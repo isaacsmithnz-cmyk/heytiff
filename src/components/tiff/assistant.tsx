@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { withoutPlaceTag } from "@/lib/brain/place-tag";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
@@ -191,7 +192,8 @@ function tableCells(line: string): string[] | null {
    line alone is indistinguishable from a sentence containing a pipe, so it is
    held as a paragraph until the `|---|` confirms it — which also stops a
    half-arrived table from flickering into a one-row grid while it streams. */
-export function answerBlocks(text: string): AnswerBlock[] {
+export function answerBlocks(raw: string): AnswerBlock[] {
+  const text = withoutPlaceTag(String(raw ?? ""));
   const blocks: AnswerBlock[] = [];
   let para: string[] = [];
   let bullets: string[] = [];

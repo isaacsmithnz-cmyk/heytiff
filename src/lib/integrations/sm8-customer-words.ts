@@ -35,7 +35,7 @@ export const CUSTOMER_WORDS = {
     capped: "Sending to ServiceM8 is paused. An owner can change that in Integrations, ServiceM8.",
     unreadable: "HeyTiff couldn't read the ServiceM8 settings. Nothing was saved.",
     unqueued: "HeyTiff couldn't save that. Nothing was sent; try again.",
-    noManage: "Only someone who runs the Workboard can change a customer in ServiceM8.",
+    noManage: "Only someone who can make and change jobs can change a customer in ServiceM8.",
     nothing: "Nothing has changed.",
   },
   /* The owner's ServiceM8 screen. */

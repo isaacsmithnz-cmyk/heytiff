@@ -111,7 +111,7 @@ async function gate(sending: boolean): Promise<Gated> {
   try {
     ({ orgId } = await requireOrg("workboard"));
   } catch {
-    return { ok: false, error: "You don't have access to the Workboard." };
+    return { ok: false, error: "You don't have access to Jobs." };
   }
   const press = await sm8PressFromSession();
   if (!press || press.orgId !== orgId) return { ok: false, error: "Not signed in." };

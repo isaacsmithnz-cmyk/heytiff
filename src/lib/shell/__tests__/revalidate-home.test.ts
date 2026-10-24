@@ -11,9 +11,9 @@ import { HOME_PATHS, revalidateHome } from "../revalidate-home";
 
 /* Home is three addresses (v2): a write Home shows refreshes each, and each
    is a page that exists, so none is a revalidate aimed at nothing. */
-it("(F) refreshes Home, To do's whole list and the desk", () => {
+it("(F) refreshes Home, To do's whole list and Your feed's", () => {
   revalidateHome();
-  expect(revalidatePath.mock.calls.map((c) => c[0])).toEqual(["/dashboard", "/dashboard/todo", "/dashboard/desk"]);
+  expect(revalidatePath.mock.calls.map((c) => c[0])).toEqual(["/dashboard", "/dashboard/todo", "/dashboard/feed"]);
 });
 
 it.each([...HOME_PATHS])("names a page that exists: %s", (p) => {

@@ -38,7 +38,7 @@ export const PLACES: readonly Place[] = [
     label: "Home",
     icon: "home",
     href: "/dashboard",
-    under: ["/dashboard/todo", "/dashboard/desk", "/dashboard/action-required", "/dashboard/notices"],
+    under: ["/dashboard/todo", "/dashboard/feed", "/dashboard/desk", "/dashboard/action-required", "/dashboard/notices"],
   },
   /* a job's own page (step 5) lights Jobs before the list has a page */
   { key: "conversations", label: "Conversations", icon: "chat", href: "/dashboard/conversations", under: ["/dashboard/my-notes"], capability: "tiff" },

@@ -1348,6 +1348,14 @@ export function JobSheet({
 
   /* WHICH FACES ARE SHOWING: the page's section's. */
   const faceOn = (k: TabKey) => SECTION_FACES[page.section].includes(k);
+  /* A SECTION MOUNTS WHEN IT IS FIRST OPENED, and stays (walked 24 October
+     2026: Billing's figures took ten seconds). Every face drawn at once,
+     hidden, fired its own reads, and Next runs a page's server actions one
+     at a time, children's first: the open section waited behind all the
+     others'. A section opened once keeps its state when you leave it. */
+  const [seen, setSeen] = useState<ReadonlySet<JobSection>>(() => new Set([page.section]));
+  if (!seen.has(page.section)) setSeen(new Set([...seen, page.section]));
+  const faceSeen = (k: TabKey) => [...seen].some((s) => SECTION_FACES[s].includes(k));
 
   const go = (key: string) => {
     if (key !== "diary") {
@@ -1460,7 +1468,7 @@ export function JobSheet({
       aria-label={FACE_NAME[key]}
       hidden={!faceOn(key)}
     >
-      {body}
+      {faceSeen(key) ? body : null}
     </section>
   );
 
@@ -2209,6 +2217,7 @@ export function JobSheet({
               note is a thing to do (the mock's "To do is the job's open
               asks") */}
           <div className="jp-over" hidden={page.section !== "overview"}>
+            {seen.has("overview") && (
             <JobOverview
               cardId={cardId}
               label={[cardNumber, detail?.clientName ?? row.clientName].filter(Boolean).join(" ") || undefined}
@@ -2271,6 +2280,7 @@ export function JobSheet({
                 </section>
               }
             />
+            )}
           </div>
           {faceMoney}
           {faceVisits}

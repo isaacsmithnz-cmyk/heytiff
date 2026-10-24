@@ -41,7 +41,7 @@ async function gate(): Promise<Gate> {
   const orgId = (session?.orgId as string | undefined) ?? null;
   const userId = (session?.user?.sub as string | undefined) ?? null;
   if (!orgId || !userId || !(await can("workboard"))) {
-    return { ok: false, res: Response.json({ ok: false, reason: "A quote needs the Workboard." }, { status: 403 }) };
+    return { ok: false, res: Response.json({ ok: false, reason: "A quote needs access to Jobs." }, { status: 403 }) };
   }
   const [money, manage] = await Promise.all([can("financials"), can("workboard_manage")]);
   return { ok: true, orgId, userId, money, manage };
@@ -133,7 +133,7 @@ export async function POST(req: Request) {
   const opt = (v: unknown) => (typeof v === "number" ? Math.max(0, Math.min(19, Math.round(v))) : 0);
   const op = typeof body.op === "string" ? body.op : "";
   if (MONEY_OPS.has(op) && !g.money) return Response.json({ ok: false, reason: "Pricing and approving a quote need money access." }, { status: 403 });
-  if (MANAGE_OPS.has(op) && !g.manage) return Response.json({ ok: false, reason: "Marking a quote accepted needs Workboard manage." }, { status: 403 });
+  if (MANAGE_OPS.has(op) && !g.manage) return Response.json({ ok: false, reason: "Marking a quote accepted needs Make and change jobs." }, { status: 403 });
   /* a change without money access: its work, never its price */
   if (!g.money && (op === "add" || op === "change")) {
     if (op === "add") body.line = patchWithoutMoney(body.line);

@@ -16,7 +16,7 @@ export async function GET(req: Request) {
   const session = await auth0.getSession();
   const orgId = (session?.orgId as string | undefined) ?? null;
   if (!orgId || !(await can("workboard"))) {
-    return Response.json({ ok: false, reason: "The checklist needs Workboard access." }, { status: 403 });
+    return Response.json({ ok: false, reason: "The checklist needs access to Jobs." }, { status: 403 });
   }
   const q = (new URL(req.url).searchParams.get("q") ?? "").trim().slice(0, 80);
   if (q.length < 2) return Response.json({ ok: true, hits: [] });

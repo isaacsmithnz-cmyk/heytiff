@@ -42,7 +42,7 @@ export const QUOTE_WORDS = {
     changed: "The job has changed in ServiceM8 since you looked. Look at what goes again, then send.",
     quoteChanged: "The quote has changed since this was shown. Look at what goes again, then send.",
     scope: "ServiceM8 hasn't given HeyTiff permission to change a job's lines yet. An owner can change that in Integrations, ServiceM8.",
-    noManage: "Only someone who runs the Workboard and sees money can send a quote to ServiceM8.",
+    noManage: "Only someone who can make and change jobs and sees their money can send a quote to ServiceM8.",
   },
   /* The owner's ServiceM8 screen. */
   card: {

@@ -35,7 +35,7 @@ async function gate(): Promise<Gate> {
   const orgId = (session?.orgId as string | undefined) ?? null;
   const userId = (session?.user?.sub as string | undefined) ?? null;
   if (!orgId || !userId || !(await can("workboard"))) {
-    return { ok: false, res: Response.json({ ok: false, reason: "Tiff's session needs the Workboard." }, { status: 403 }) };
+    return { ok: false, res: Response.json({ ok: false, reason: "Tiff's session needs access to Jobs." }, { status: 403 }) };
   }
   return { ok: true, orgId, userId, money: await can("financials") };
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition, type CSSProperties } from "react";
+import { projectsHref } from "@/lib/shell/links";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
@@ -162,9 +163,9 @@ export function ProjectDetailScreen({
         <div className="stg">
           <ScreenBand
             crumb={
-              <Link href="/dashboard/workboard" className="int-back">
+              <Link href={projectsHref} className="int-back">
                 <Icon name="chevL" size={15} />
-                Workboard
+                Projects
               </Link>
             }
             title={project.name}

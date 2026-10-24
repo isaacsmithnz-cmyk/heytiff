@@ -441,9 +441,9 @@ describe("claimTitle", () => {
   it("names a claim the way the trade schedules it", () => {
     const m = derive([parent(), depositA(), progressB()]);
     expect(m.claims.map(claimTitle)).toEqual([
-      "Payment 1 — Deposit",
-      "Payment 2 — Progress",
-      "Payment 3 — Final",
+      "Payment 1, Deposit",
+      "Payment 2, Progress",
+      "Payment 3, Final",
     ]);
   });
 });

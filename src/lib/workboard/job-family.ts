@@ -161,6 +161,11 @@ export type FamilyMemberFacts = {
   /** This member's own lines. Partial-invoice rows are KEPT on the parent —
       they are what net its quote down to its balance. */
   lines: FamilyLines;
+  /** What this member's lines come to EX GST, from ServiceM8's own ex-GST
+      `price` on each line (netting rows included, as above). Null when it has
+      no lines or one can't be read. Stated, never derived from an inc-GST
+      figure. */
+  exCents?: number | null;
   /** The day this claim was raised — invoice_date, else the clone's own day. */
   raisedOn: string | null;
 };
@@ -189,6 +194,9 @@ export type FamilyClaim = {
   stage: "Deposit" | "Progress" | "Final";
   amountCents: number | null;
   basis: MoneyBasis | null;
+  /** The claim's figure ex GST, from its own lines' ex-GST prices; null when
+      ServiceM8 never itemised it. Billing says every figure ex GST. */
+  exCents?: number | null;
   /** Whole percent of the family's value; null when there is no family total
       to be a percent OF — a share of an unknown is not a share. */
   percent: number | null;
@@ -214,6 +222,8 @@ export type FamilyMoney = {
       disagree — see the header. */
   valueCents: number | null;
   basis: MoneyBasis | null;
+  /** Every claim's ex-GST figure summed, when every claim has one. */
+  valueExCents?: number | null;
   /** Why the total is missing, when it is, so the block can say which. */
   mixedBasis: boolean;
   unknownClaim: boolean;
@@ -352,6 +362,7 @@ export function deriveFamilyMoney(input: {
       stage: "Progress",
       amountCents: amount?.cents ?? null,
       basis: amount?.basis ?? null,
+      exCents: m.exCents ?? null,
       percent: null,
       raisedOn: m.raisedOn,
       paidCents: m.paidCents,
@@ -444,6 +455,10 @@ export function deriveFamilyMoney(input: {
     claims,
     valueCents,
     basis: readable ? basis : null,
+    valueExCents:
+      drafts.length > 0 && drafts.every((d) => d.exCents != null)
+        ? drafts.reduce((sum, d) => sum + (d.exCents ?? 0), 0)
+        : null,
     mixedBasis,
     unknownClaim,
     invoicedCents: valueCents === null ? null : invoiced,
@@ -462,17 +477,31 @@ export function deriveFamilyMoney(input: {
     A claim smaller than half a percent still lands on 0 — the block says
     "<1%" rather than "0% of the job", which reads as nothing at all. */
 function assignWholePercents(claims: FamilyClaim[], valueCents: number | null): void {
-  if (valueCents === null || valueCents <= 0) return;
+  const whole = wholePercents(claims.map((c) => c.amountCents), valueCents);
+  whole.forEach((p, i) => {
+    if (p !== null) claims[i].percent = p;
+  });
+}
 
-  const shares = claims
-    .map((c, i) => ({ i, cents: c.amountCents }))
+/** Whole-percent shares of `total` that add up to 100, by largest remainder
+    (see above). A null or negative part has no share; with no total, none
+    has. */
+export function wholePercents(
+  parts: readonly (number | null)[],
+  total: number | null
+): (number | null)[] {
+  const out: (number | null)[] = parts.map(() => null);
+  if (total === null || total <= 0) return out;
+
+  const shares = parts
+    .map((cents, i) => ({ i, cents }))
     .filter((x): x is { i: number; cents: number } => x.cents !== null && x.cents >= 0)
     .map((x) => {
-      const exact = (x.cents / valueCents) * 100;
+      const exact = (x.cents / total) * 100;
       const whole = Math.floor(exact);
       return { i: x.i, whole, remainder: exact - whole };
     });
-  if (shares.length === 0) return;
+  if (shares.length === 0) return out;
 
   let spare = 100 - shares.reduce((sum, s) => sum + s.whole, 0);
   for (const s of [...shares].sort((a, b) => b.remainder - a.remainder)) {
@@ -480,7 +509,8 @@ function assignWholePercents(claims: FamilyClaim[], valueCents: number | null): 
     s.whole += 1;
     spare -= 1;
   }
-  for (const s of shares) claims[s.i].percent = s.whole;
+  for (const s of shares) out[s.i] = s.whole;
+  return out;
 }
 
 /** The axis-1 sentence, built one way everywhere — the family shape of
@@ -499,12 +529,12 @@ export function familyInvoicedLine(
 
 /* ── a claim's own name, said one way ── */
 
-/** "Payment 1 — Deposit". The header breadcrumb, the number's dropdown, the
+/** "Payment 1, Deposit". The header breadcrumb, the number's dropdown, the
     ledger row and the claim modal all say this, and they say it from here —
     four surfaces inventing the same label separately is how one of them ends
     up saying something slightly different on the day it matters. */
 export function claimTitle(claim: Pick<FamilyClaim, "index" | "stage">): string {
-  return `Payment ${claim.index} — ${claim.stage}`;
+  return `Payment ${claim.index}, ${claim.stage}`;
 }
 
 /** The claim a given job row IS, or null when the family has no row for it —

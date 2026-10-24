@@ -440,6 +440,29 @@ describe("readJobFamily", () => {
     expect(money?.claims.map((c) => c.percent)).toEqual([30, 50, 20]);
   });
 
+  /* EX GST, FROM SERVICEM8'S OWN PRICES (Billing, 25 October 2026): each
+     member's lines summed at their ex-GST price, the parent's netting rows
+     included, so nothing is divided by 1.1. */
+  it("states each claim and the job ex GST from the lines' own prices", async () => {
+    const money = await readJobFamily("org-1", "j-2380", "2026-08-26", null);
+
+    // $27,960 − $8,388 − $13,980 + $106.24 on the parent
+    expect(money?.claims.map((c) => c.exCents)).toEqual([854737, 1424562, 569824]);
+    expect(money?.valueExCents).toBe(2849123);
+  });
+
+  it("knows no ex-GST figure for a member whose line has no price", async () => {
+    rowsBy["sm8_job_materials"] = [
+      line("j-2380a", "Progress payment 30%", "1.0000", "8388.0000"),
+      { ...line("j-2380b", "Progress payment", "1.0000", "13980.0000"), price: null },
+      line("j-2380", "As Per Quote", "1.0000", "27960.0000"),
+    ];
+    const money = await readJobFamily("org-1", "j-2380", "2026-08-26", null);
+
+    expect(money?.claims.find((c) => c.jobNumber === "2380B")?.exCents).toBeNull();
+    expect(money?.valueExCents).toBeNull();
+  });
+
   /* A ZERO-PRICED ROW IS AN UNREADABLE MEMBER, NOT AN UNPRICED ONE.
      parseSm8AmountToCents("0.0000") is null, so one such row makes that
      member's lines unaddable — and passing that on as "no lines" let its

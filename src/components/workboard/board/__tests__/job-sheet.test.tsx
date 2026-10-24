@@ -789,7 +789,7 @@ it("puts a day's photos in the conversation and sends the reader to the Photos s
     const ev = (await convo().findAllByText("Invoice #2380A"))[0]!.closest(".jc-event") as HTMLElement;
     await userEvent.click(within(ev).getByRole("button", { name: "Open" }));
     expect(
-      await screen.findByRole("dialog", { name: /Payment 1 — Deposit/ })
+      await screen.findByRole("dialog", { name: /Payment 1, Deposit/ })
     ).toBeInTheDocument();
   });
 
@@ -1540,10 +1540,12 @@ describe("ServiceM8's checklist on Materials", () => {
   });
 });
 
-/* ── the money block, now on its own face ── */
+/* ── Billing (Isaac, 25 October 2026, the job page's frames 9, 9b, 10) ── */
 
 type FamilyInput = Parameters<typeof deriveFamilyMoney>[0];
 
+/** #2380 as ServiceM8 holds it: a parent priced inc GST and two clones
+    priced by their ex-GST lines, with no ex-GST figure for the parent. */
 const familyMoney = (over: Partial<FamilyInput> = {}): FamilyMoney =>
   deriveFamilyMoney({
     members: [
@@ -1580,375 +1582,162 @@ const familyMoney = (over: Partial<FamilyInput> = {}): FamilyMoney =>
     ...over,
   });
 
-describe("the Money face", () => {
-  it("reads as an invoice: bill to, the terms a segment a claim, and the balance due as the hero", async () => {
+/** #3237, Chandra Jayasinghe, as the live mirror holds it: $19,700 ex GST
+    billed 30% deposit (paid Fri 11 Sept), 30% progress (raised Tue 15 Sept)
+    and 40% final still to bill. Every member's lines carry ServiceM8's
+    ex-GST price; the parent's are the quote less the two partials. */
+const chandra = (over: Partial<FamilyInput> = {}): FamilyMoney =>
+  deriveFamilyMoney({
+    members: [
+      { remoteId: "j-3237", jobNumber: "3237", totalCents: 866800, paidCents: 0, lastPaidOn: null, lines: { cents: 788000, taxInclusive: false }, exCents: 788000, raisedOn: null },
+      { remoteId: "j-3237a", jobNumber: "3237A", totalCents: 650100, paidCents: 650100, lastPaidOn: "2026-09-11", lines: { cents: 591000, taxInclusive: false }, exCents: 591000, raisedOn: "2026-08-31" },
+      { remoteId: "j-3237b", jobNumber: "3237B", totalCents: 650100, paidCents: 0, lastPaidOn: null, lines: { cents: 591000, taxInclusive: false }, exCents: 591000, raisedOn: "2026-09-15" },
+    ],
+    today: "2026-10-24",
+    termsDays: 14,
+    ...over,
+  });
+
+const line = (remoteId: string, name: string, exCents: number, quantity = 1) => ({
+  remoteId,
+  name,
+  quantity,
+  unitCents: exCents / quantity,
+  taxInclusive: false,
+  lineCents: exCents,
+  exLineCents: exCents,
+});
+
+const emptyClaim = () => ({
+  ledger: { materials: [], payments: [] },
+  notes: [],
+  media: { photos: [], documents: [], elsewhere: [], truncated: false },
+});
+
+const openMoney = async () => {
+  await detailLanded();
+  await openTab("Money");
+};
+
+/** A payment row on Billing, by its bold name. */
+const payRow = (name: string) =>
+  face("money").getByRole("button", { name }).closest("li") as HTMLElement;
+
+describe("Billing, ex GST", () => {
+  it("draws the band: the bar's three shares and figures, and the job value in its own box", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(record({ family: chandra() }));
+    render(<Job row={row()} {...props} moneyVisible />);
+    await openMoney();
+
+    const f = face("money");
+    const box = (await f.findByText("Job value")).closest(".jb-value") as HTMLElement;
+    expect(within(box).getByText("ex GST")).toBeInTheDocument();
+    expect(within(box).getByText("$19,700")).toBeInTheDocument();
+
+    const band = document.querySelector(".jb-cols") as HTMLElement;
+    expect([...band.querySelectorAll(".jb-pct")].map((p) => p.textContent)).toEqual(["30%", "30%", "40%"]);
+    expect([...band.querySelectorAll(".jb-lab")].map((p) => p.textContent)).toEqual([
+      "Paid",
+      "Invoiced, waiting",
+      "Not invoiced",
+    ]);
+    expect([...band.querySelectorAll(".jb-fig")].map((p) => p.textContent)).toEqual(["$5,910", "$5,910", "$7,880"]);
+    /* the bar's columns follow the shares */
+    expect(band.style.gridTemplateColumns).toBe("minmax(max-content, 30fr) minmax(max-content, 30fr) minmax(max-content, 40fr)");
+  });
+
+  it("lists a row a claim, its figure ex GST and one word on the right", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(record({ family: chandra() }));
+    render(<Job row={row()} {...props} moneyVisible />);
+    await openMoney();
+
+    await face("money").findByText("Payments");
+    const deposit = within(payRow("Deposit, 30%"));
+    expect(deposit.getByText("Invoice #3237A")).toBeInTheDocument();
+    expect(deposit.getByText("$5,910")).toBeInTheDocument();
+    expect(deposit.getByText(/^Paid Fri 11 Sept?$/)).toBeInTheDocument();
+
+    const progress = within(payRow("Progress, 30%"));
+    expect(progress.getByText(/^Invoice #3237B, due Tue 29 Sept?$/)).toBeInTheDocument();
+    expect(progress.getByText("25 days overdue")).toHaveClass("pt-state--wrong");
+
+    const final = within(payRow("Final, 40%"));
+    expect(final.getByText("Not invoiced yet")).toBeInTheDocument();
+    expect(final.getByText("$7,880")).toBeInTheDocument();
+    expect(final.getByText("To come")).toHaveClass("pt-state--info");
+  });
+
+  it("drops what moved elsewhere: bill to, the lines, what's been paid, the terms key and the captions", async () => {
     readMirrorJob.mockResolvedValueOnce(
       card(detail({ contacts: [{ name: "Accounts", type: "BILLING", phone: null, altPhone: null, email: "accounts@lsdb.com.au" }] }))
     );
-    readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
-    render(<Job row={row()} {...props} moneyVisible />);
-    await openMoney();
-    const f = face("money");
-    expect(await f.findByText("Bill to")).toBeInTheDocument();
-    expect(f.getByText("accounts@lsdb.com.au")).toBeInTheDocument();
-    expect(f.getByText("Payment terms")).toBeInTheDocument();
-    expect(f.getByText("Balance due")).toBeInTheDocument();
-    expect(f.getByText("Claim")).toBeInTheDocument();
-  });
-
-  const openMoney = async () => {
-    await detailLanded();
-    await openTab("Money");
-  };
-
-  /* ── DUE-NESS, the last unwired half of slice 1 ──
-     `deriveFamilyMoney` has taken payment terms since #553 and every caller
-     passed null, because the number existed nowhere in the app. It is the
-     organisation's own setting now, so a raised claim can finally say when it
-     is due — and one that passed that date says so on the head as well.
-
-     #2380's third claim is the unpaid one: raised Fri 21 Aug, today 26 Aug. */
-
-  it("says only when a claim was RAISED while the terms are unset", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
-    render(<Job row={row()} {...props} moneyVisible />);
-    await openMoney();
-
-    const f = face("money");
-    expect(await f.findByText(/Raised Fri 21 Aug/)).toBeInTheDocument();
-    /* NEVER an invented fortnight: with no terms there is no due date, and
-       nobody is called late against a number the screen made up. */
-    expect(f.queryByText(/Due /)).toBeNull();
-    expect(f.queryByText(/overdue/)).toBeNull();
-  });
-
-  it("names the due date once the organisation has set its terms", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record({ family: familyMoney({ termsDays: 30 }) }));
-    render(<Job row={row()} {...props} moneyVisible />);
-    await openMoney();
-
-    const f = face("money");
-    // raised 21 Aug + 30 days, and today (26 Aug) is well inside it
-    expect(await f.findByText(/Due Sun 20 Sep/)).toBeInTheDocument();
-    expect(f.getByText("Awaiting")).toBeInTheDocument();
-    expect(f.queryByText(/overdue/)).toBeNull();
-  });
-
-  it("calls it overdue, on the claim and on the head, once the date has passed", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record({ family: familyMoney({ termsDays: 3 }) }));
-    render(<Job row={row()} {...props} moneyVisible />);
-    await openMoney();
-
-    const f = face("money");
-    // raised 21 Aug + 3 days = 24 Aug; today is 26 Aug
-    expect(await f.findByText(/Due Mon 24 Aug/)).toBeInTheDocument();
-    expect(f.getByText("Overdue")).toBeInTheDocument();
-    expect(f.getByText("2 days overdue")).toBeInTheDocument();
-  });
-
-  it("puts a claim due ON RECEIPT at its raise date — 0 is an answer", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record({ family: familyMoney({ termsDays: 0 }) }));
-    render(<Job row={row()} {...props} moneyVisible />);
-    await openMoney();
-
-    const f = face("money");
-    expect(await f.findByText(/Due Fri 21 Aug/)).toBeInTheDocument();
-    expect(f.getByText("5 days overdue")).toBeInTheDocument();
-  });
-
-  it("reads three ServiceM8 cards as one job, with the claims numbered", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
-    render(<Job row={row()} {...props} moneyVisible />);
-    await openMoney();
-
-    expect(await face("money").findByText("$31,340.35")).toBeInTheDocument();
-    expect(face("money").getByText("Job value (inc GST)")).toBeInTheDocument();
-    expect(face("money").getByText("Payment 1 — Deposit")).toBeInTheDocument();
-    expect(face("money").getByText("Payment 2 — Progress")).toBeInTheDocument();
-    expect(face("money").getByText("Payment 3 — Final")).toBeInTheDocument();
-    expect(
-      face("money").getByText("Invoice #2380A, 30% of the job, Raised Fri 27 Mar, Paid Thu 2 Apr")
-    ).toBeInTheDocument();
-  });
-
-  it("counts the money that landed on the clones", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
-    render(<Job row={row()} {...props} moneyVisible />);
-    await openMoney();
-
-    await face("money").findByText("$31,340.35");
-    const head = document.querySelector(".wb2-mline.head") as HTMLElement;
-    expect(within(head).getByText("Awaiting payment")).toBeInTheDocument();
-    expect(within(head).getByText("$6,268.06")).toBeInTheDocument();
-    expect(within(head).getByText("20% of the job")).toBeInTheDocument();
-    expect(face("money").queryByText("Nothing paid yet")).toBeNull();
-  });
-
-  it("says what has been invoiced and what is still to bill", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(
       record({
-        family: familyMoney({
-          members: [
-            {
-              remoteId: "j-2380",
-              jobNumber: "2380",
-              totalCents: 626806,
-              paidCents: 0,
-              lastPaidOn: null,
-              lines: null,
-              raisedOn: null,
-            },
-            {
-              remoteId: "j-2380a",
-              jobNumber: "2380A",
-              totalCents: null,
-              paidCents: 940211,
-              lastPaidOn: "2026-04-02",
-              lines: { cents: 854737, taxInclusive: false },
-              raisedOn: "2026-03-27",
-            },
-            {
-              remoteId: "j-2380b",
-              jobNumber: "2380B",
-              totalCents: null,
-              paidCents: 1567018,
-              lastPaidOn: "2026-04-10",
-              lines: { cents: 1424562, taxInclusive: false },
-              raisedOn: "2026-04-02",
-            },
+        family: chandra(),
+        ledger: {
+          materials: [line("m-1", "Ac multi and bulkhead", 1970000)],
+          payments: [
+            { remoteId: "p-1", amountCents: 650100, method: "EFT", note: null, takenOn: "2026-09-11", takenAt: "2026-09-11 09:00:00", isDeposit: true, takenBy: "Robbie" },
           ],
-        }),
+        },
       })
     );
     render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
 
-    expect(
-      await face("money").findByText("$25,072.29 invoiced so far — $6,268.06 to come")
-    ).toBeInTheDocument();
-    expect(face("money").getByText("To come")).toBeInTheDocument();
+    const f = face("money");
+    await f.findByText("Payments");
+    for (const gone of ["Bill to", "accounts@lsdb.com.au", "What went on the job", "Ac multi and bulkhead", /What's been paid/, "Payment terms", "Balance due", /invoiced so far/])
+      expect(f.queryByText(gone)).toBeNull();
+    expect(document.querySelector(".wb2-chip")).toBeNull();
   });
 
-  it("stands the total down rather than adding ex-GST to inc-GST", async () => {
+  it("says only when a claim was raised while the terms are unset", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(record({ family: chandra({ termsDays: null }) }));
+    render(<Job row={row()} {...props} moneyVisible />);
+    await openMoney();
+
+    await face("money").findByText("Payments");
+    /* NEVER an invented fortnight: no terms, no due date, nobody late */
+    const progress = within(payRow("Progress, 30%"));
+    expect(progress.getByText("Invoice #3237B")).toBeInTheDocument();
+    expect(progress.getByText("Awaiting")).toHaveClass("pt-state--look");
+    expect(face("money").queryByText(/overdue/)).toBeNull();
+  });
+
+  it("puts a claim due on receipt at its raise date: 0 is an answer", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(record({ family: chandra({ termsDays: 0 }) }));
+    render(<Job row={row()} {...props} moneyVisible />);
+    await openMoney();
+
+    await face("money").findByText("Payments");
+    const progress = within(payRow("Progress, 30%"));
+    expect(progress.getByText(/^Invoice #3237B, due Tue 15 Sept?$/)).toBeInTheDocument();
+    expect(progress.getByText("39 days overdue")).toBeInTheDocument();
+  });
+
+  it("names a job's variations under the quote's own figure", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(
       record({
-        family: familyMoney({
+        family: chandra({
           members: [
-            {
-              remoteId: "j-2380",
-              jobNumber: "2380",
-              totalCents: 626806,
-              paidCents: 0,
-              lastPaidOn: null,
-              lines: null,
-              raisedOn: "2026-08-21",
-            },
-            {
-              remoteId: "j-2380a",
-              jobNumber: "2380A",
-              totalCents: null,
-              paidCents: 0,
-              lastPaidOn: null,
-              lines: { cents: 854737, taxInclusive: false },
-              raisedOn: "2026-03-27",
-            },
+            /* the parent carries the two variations' lines on top of its balance */
+            { remoteId: "j-3237", jobNumber: "3237", totalCents: null, paidCents: 0, lastPaidOn: null, lines: { cents: 1019000, taxInclusive: false }, exCents: 1019000, raisedOn: null },
+            { remoteId: "j-3237a", jobNumber: "3237A", totalCents: 650100, paidCents: 650100, lastPaidOn: "2026-09-11", lines: { cents: 591000, taxInclusive: false }, exCents: 591000, raisedOn: "2026-08-31" },
+            { remoteId: "j-3237b", jobNumber: "3237B", totalCents: 650100, paidCents: 0, lastPaidOn: null, lines: { cents: 591000, taxInclusive: false }, exCents: 591000, raisedOn: "2026-09-15" },
           ],
         }),
-      })
-    );
-    render(<Job row={row()} {...props} moneyVisible />);
-    await openMoney();
-
-    expect(await face("money").findByText(/different tax bases/)).toBeInTheDocument();
-    expect(face("money").getByText("—")).toBeInTheDocument();
-    expect(face("money").getByText("Job value")).toBeInTheDocument();
-    expect(face("money").queryByText("Job value (inc GST)")).toBeNull();
-    expect(face("money").queryByText("Part or all paid")).toBeNull();
-    expect(face("money").queryByText("Nothing paid yet")).toBeNull();
-  });
-
-  it("names no invoice number on the part still to bill", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(
-      record({
-        family: familyMoney({
-          members: [
-            {
-              remoteId: "j-2380",
-              jobNumber: "2380",
-              totalCents: 626806,
-              paidCents: 0,
-              lastPaidOn: null,
-              lines: null,
-              raisedOn: null,
-            },
-            {
-              remoteId: "j-2380a",
-              jobNumber: "2380A",
-              totalCents: null,
-              paidCents: 940211,
-              lastPaidOn: "2026-04-02",
-              lines: { cents: 854737, taxInclusive: false },
-              raisedOn: "2026-03-27",
-            },
-          ],
-        }),
-      })
-    );
-    render(<Job row={row()} {...props} moneyVisible />);
-    await openMoney();
-
-    /* the claim still to bill says so in its own line, with no number */
-    const toBill = (await face("money").findByText(/Not yet invoiced/)).textContent ?? "";
-    expect(toBill).not.toMatch(/Invoice #2380\b/);
-    expect(face("money").queryByText(/Invoice #2380 ·/)).toBeNull();
-  });
-
-  /* THE EDGE IS INK, NOT THE JOB TYPE'S COLOUR. The block used to take
-     ServiceM8's category colour as its border, and a yellow ring around the
-     job's figure looked bad (Isaac, 2026-09-10). The category still reaches
-     the sheet — the band's tint, the chip's dot — but no colour from the
-     data reaches this block: its edge is the stylesheet's, so the row's
-     colour must leave no inline style behind at all. */
-  it("wears ink as its edge, never the job type's colour", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
-    render(<Job row={row()} {...props} moneyVisible />);
-    await openMoney();
-
-    await face("money").findByText("$31,340.35");
-    const block = document.querySelector(".wb2-jmoney") as HTMLElement;
-    expect(block.style.borderColor).toBe("");
-    expect(block.getAttribute("style")).toBeNull();
-  });
-
-  /* THE FACE IS TWO COLUMNS (Isaac, 2026-09-10): the money on the left — the
-     value, its collection row, what's been paid — and what went on the job on
-     the right. The block used to run the full width with the figure top-right
-     and the sentence bottom-left, over a grid with one column empty on any
-     job with nothing paid. */
-  const simpleMoney = {
-    valueCents: 1905200,
-    invoiced: null,
-    invoicedOn: null,
-    quoteSent: null,
-    quoteSentOn: null,
-    paid: false,
-    paidOn: null,
-  };
-  const goodsAndPaid = {
-    materials: [
-      {
-        remoteId: "m-1",
-        name: "Ducted system",
-        quantity: 1,
-        unitCents: 1620000,
-        taxInclusive: false,
-        lineCents: 1620000,
-      },
-    ],
-    payments: [
-      {
-        remoteId: "p-1",
-        amountCents: 500000,
-        method: "EFT",
-        note: null,
-        takenOn: "2026-09-01",
-        takenAt: "2026-09-01 09:15:00",
-        isDeposit: true,
-        takenBy: "Robbie",
-      },
-    ],
-  };
-
-  it("stands the money in the left column and the goods in the right", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail({ money: simpleMoney })));
-    readJobRecord.mockResolvedValueOnce(record({ ledger: goodsAndPaid }));
-    render(<Job row={row()} {...props} moneyVisible />);
-    await openMoney();
-
-    await face("money").findByText("What went on the job");
-    const grid = document.querySelector(".wb2-jcgrid.money") as HTMLElement;
-    expect(grid.classList.contains("one")).toBe(false);
-    expect(grid.children).toHaveLength(2);
-    const [left, right] = Array.from(grid.children);
-    expect(left.classList.contains("wb2-jcol")).toBe(true);
-    expect(left.children[0].classList.contains("wb2-jmoney")).toBe(true);
-    expect(left.children[1].textContent).toMatch(/What's been paid/);
-    expect(right.textContent).toMatch(/What went on the job/);
-  });
-
-  it("keeps a block that has opened its ledger at the full width, above the columns", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(
-      record({ family: familyMoney(), ledger: { materials: goodsAndPaid.materials, payments: [] } })
-    );
-    render(<Job row={row()} {...props} moneyVisible />);
-    await openMoney();
-
-    await face("money").findByText("$31,340.35");
-    // the claim rows are a table, and a table wants the width
-    expect(document.querySelector(".wb2-jcgrid .wb2-jmoney")).toBeNull();
-    const moneyFace = document.getElementById("jcsec-money") as HTMLElement;
-    expect(moneyFace.children[0].classList.contains("wb2-jmoney")).toBe(true);
-    // with no payments there is nothing for the goods to stand beside
-    const grid = document.querySelector(".wb2-jcgrid.money") as HTMLElement;
-    expect(grid.classList.contains("one")).toBe(true);
-    expect(grid.children).toHaveLength(1);
-    expect(grid.children[0].textContent).toMatch(/What went on the job/);
-  });
-
-  it("runs the block full width when there is nothing to stand beside it", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail({ money: simpleMoney })));
-    readJobRecord.mockResolvedValueOnce(record());
-    render(<Job row={row()} {...props} moneyVisible />);
-    await openMoney();
-
-    await face("money").findByText("$19,052");
-    const grid = document.querySelector(".wb2-jcgrid.money.one") as HTMLElement;
-    expect(grid).not.toBeNull();
-    expect(grid.children).toHaveLength(1);
-    expect(grid.children[0].querySelector(".wb2-jmoney")).not.toBeNull();
-  });
-
-  it("keeps the partial-invoice rows out of what went on the job", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(
-      record({
         ledger: {
           materials: [
-            {
-              remoteId: "m-1",
-              name: "As Per Quote",
-              quantity: 1,
-              unitCents: 2796000,
-              taxInclusive: false,
-              lineCents: 2796000,
-            },
-            {
-              remoteId: "m-2",
-              name: "Partial invoice #2380A",
-              quantity: -1,
-              unitCents: 838800,
-              taxInclusive: false,
-              lineCents: -838800,
-            },
-            {
-              remoteId: "m-3",
-              name: "Discount",
-              quantity: -1,
-              unitCents: 10000,
-              taxInclusive: false,
-              lineCents: -10000,
-            },
+            line("m-1", "Ac multi and bulkhead", 1970000),
+            line("m-2", "Variation 1: return grille, Bed 2", 100000),
+            line("m-3", "Variation 1: extra drain run", 45000),
+            line("m-4", "Variation 2: second controller", 86000),
           ],
           payments: [],
         },
@@ -1957,9 +1746,84 @@ describe("the Money face", () => {
     render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
 
-    expect(await face("money").findByText("As Per Quote")).toBeInTheDocument();
-    expect(face("money").queryByText("Partial invoice #2380A")).toBeNull();
-    expect(face("money").getByText("Discount")).toBeInTheDocument();
+    const box = (await face("money").findByText("Quoted job value")).closest(".jb-value") as HTMLElement;
+    expect(within(box).getByText("$19,700")).toBeInTheDocument();
+    expect(within(box).getByText("Variation 1, $1,450")).toBeInTheDocument();
+    expect(within(box).getByText("Variation 2, $860")).toBeInTheDocument();
+    expect(within(box).queryByText("Job value")).toBeNull();
+  });
+
+  it("keeps the inc-GST figure, labelled, where a claim has no ex-GST lines", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
+    render(<Job row={row()} {...props} moneyVisible />);
+    await openMoney();
+
+    const box = (await face("money").findByText("Job value")).closest(".jb-value") as HTMLElement;
+    /* the family's own total, on its own basis, said */
+    expect(within(box).getByText("$31,340.35")).toBeInTheDocument();
+    expect(within(box).getByText("inc GST")).toBeInTheDocument();
+    /* no "ex GST" over rows that aren't all ex GST */
+    expect(within(document.querySelector(".jb-payhead") as HTMLElement).queryByText("ex GST")).toBeNull();
+    expect(within(payRow("Final, 20%")).getByText("inc GST")).toBeInTheDocument();
+  });
+
+  it("stands the total down rather than adding ex-GST to inc-GST, with no caption", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail({ money: { valueCents: 626806, invoiced: null, invoicedOn: null, quoteSent: null, quoteSentOn: null, paid: false, paidOn: null } })));
+    readJobRecord.mockResolvedValueOnce(
+      record({
+        family: familyMoney({
+          members: [
+            { remoteId: "j-2380", jobNumber: "2380", totalCents: 626806, paidCents: 0, lastPaidOn: null, lines: null, raisedOn: "2026-08-21" },
+            { remoteId: "j-2380a", jobNumber: "2380A", totalCents: null, paidCents: 0, lastPaidOn: null, lines: { cents: 854737, taxInclusive: false }, raisedOn: "2026-03-27" },
+          ],
+        }),
+      })
+    );
+    render(<Job row={row()} {...props} moneyVisible />);
+    await openMoney();
+
+    const box = (await face("money").findByText("Job value")).closest(".jb-value") as HTMLElement;
+    /* never the job row's own netted total */
+    expect(within(box).getByText("—")).toBeInTheDocument();
+    expect(face("money").queryByText(/different tax bases/)).toBeNull();
+    expect(within(payRow("Final")).getByText("$6,268.06")).toBeInTheDocument();
+    expect(within(payRow("Deposit")).getByText("$8,547.37")).toBeInTheDocument();
+  });
+
+  it("shows a job that isn't billed in stages as its invoice", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(
+      record({
+        family: deriveFamilyMoney({
+          members: [
+            { remoteId: "j-2968", jobNumber: "2968", totalCents: 279400, paidCents: 100000, lastPaidOn: "2026-08-07", lines: { cents: 254000, taxInclusive: false }, exCents: 254000, raisedOn: "2026-08-01" },
+          ],
+          today: "2026-08-26",
+          termsDays: null,
+        }),
+      })
+    );
+    render(<Job row={row()} {...props} moneyVisible />);
+    await openMoney();
+
+    const inv = within(await face("money").findByRole("button", { name: "Invoice" }).then((b) => b.closest("li") as HTMLElement));
+    expect(inv.getByText("Invoice #2968, $1,000 inc GST paid")).toBeInTheDocument();
+    expect(inv.getByText("$2,540")).toBeInTheDocument();
+    expect(inv.getByText("Part paid")).toHaveClass("pt-state--look");
+    /* part paid can't be split into paid and waiting ex GST */
+    expect([...document.querySelectorAll(".jb-fig")].map((p) => p.textContent)).toEqual(["—", "—", "$0"]);
+    expect(document.querySelector(".jb-seg")).toBeNull();
+  });
+
+  it("marks the claim the page was opened for", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail(), "j-3237a"));
+    readJobRecord.mockResolvedValueOnce(record({ family: chandra() }));
+    render(<Job row={row({ number: "3237A" })} {...props} moneyVisible section="billing" />);
+
+    await face("money").findByText("Payments");
+    const here = document.querySelector(".jb-here")!.closest("li") as HTMLElement;
+    expect(within(here).getByText("Deposit, 30%")).toBeInTheDocument();
   });
 
   it("shows no figure at all until the family read has landed", async () => {
@@ -1973,210 +1837,28 @@ describe("the Money face", () => {
     render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
 
-    expect(document.querySelector(".wb2-jmoney")).toBeNull();
-    expect(face("money").getByText("Reading the figures")).toBeInTheDocument();
-
-    land(record({ family: familyMoney() }));
-    expect(await face("money").findByText("$31,340.35")).toBeInTheDocument();
-  });
-});
-
-describe("the money block never speaks past what it knows", () => {
-  const mixed = () =>
-    deriveFamilyMoney({
-      members: [
-        {
-          remoteId: "j-2380",
-          jobNumber: "2380",
-          totalCents: 626806,
-          paidCents: 0,
-          lastPaidOn: null,
-          lines: null,
-          raisedOn: "2026-08-21",
-        },
-        {
-          remoteId: "j-2380a",
-          jobNumber: "2380A",
-          totalCents: null,
-          paidCents: 0,
-          lastPaidOn: null,
-          lines: { cents: 854737, taxInclusive: false },
-          raisedOn: "2026-03-27",
-        },
-      ],
-      today: "2026-08-26",
-      termsDays: null,
-    });
-
-  it("does not resurrect the job row's own total when the family stood one down", async () => {
-    readMirrorJob.mockResolvedValueOnce(
-      card(
-        detail({
-          money: {
-            valueCents: 626806,
-            invoiced: null,
-            invoicedOn: null,
-            quoteSent: null,
-            quoteSentOn: null,
-            paid: false,
-            paidOn: null,
-          },
-        })
-      )
-    );
-    readJobRecord.mockResolvedValueOnce(record({ family: mixed() }));
-    render(<Job row={row()} {...props} moneyVisible />);
-    await detailLanded();
-    await openTab("Money");
-
-    await face("money").findByText(/different tax bases/);
-    expect(document.querySelector(".wb2-jmbig")!.textContent).toBe("—");
-    expect(face("money").getByText("Job value")).toBeInTheDocument();
-    const claim = face("money").getByText("Payment 2 — Final").closest(".wb2-mline")!;
-    expect(within(claim as HTMLElement).getByText("$6,268.06")).toBeInTheDocument();
-  });
-
-  it("does not call a job paid in full while a claim is still to be billed", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(
-      record({
-        family: familyMoney({
-          members: [
-            {
-              remoteId: "j-2380",
-              jobNumber: "2380",
-              totalCents: 626806,
-              paidCents: 0,
-              lastPaidOn: null,
-              lines: null,
-              raisedOn: null,
-            },
-            {
-              remoteId: "j-2380a",
-              jobNumber: "2380A",
-              totalCents: null,
-              paidCents: 940211,
-              lastPaidOn: "2026-04-02",
-              lines: { cents: 854737, taxInclusive: false },
-              raisedOn: "2026-03-27",
-            },
-          ],
-        }),
-      })
-    );
-    render(<Job row={row()} {...props} moneyVisible />);
-    await detailLanded();
-    await openTab("Money");
-
-    expect(await face("money").findByText(/invoiced so far/)).toBeInTheDocument();
-    expect(face("money").queryByText("Paid in full")).toBeNull();
+    expect(document.querySelector(".jb")).toBeNull();
+    land(record({ family: chandra() }));
+    expect(await face("money").findByText("$19,700")).toBeInTheDocument();
   });
 
   it("counts the ledger's payments when there is no family to count", async () => {
-    readMirrorJob.mockResolvedValueOnce(
-      card(
-        detail({
-          money: {
-            valueCents: 279400,
-            invoiced: null,
-            invoicedOn: null,
-            quoteSent: null,
-            quoteSentOn: null,
-            paid: false,
-            paidOn: null,
-          },
-        })
-      )
-    );
+    readMirrorJob.mockResolvedValueOnce(card(detail({ money: { valueCents: 279400, invoiced: null, invoicedOn: null, quoteSent: null, quoteSentOn: null, paid: false, paidOn: null } })));
     readJobRecord.mockResolvedValueOnce(
       record({
         ledger: {
           materials: [],
           payments: [
-            {
-              remoteId: "p-1",
-              amountCents: 279400,
-              method: "Bank Transfer",
-              note: null,
-              takenOn: "2026-08-07",
-              takenAt: "2026-08-07 10:00:00",
-              isDeposit: false,
-              takenBy: null,
-            },
+            { remoteId: "p-1", amountCents: 279400, method: "Bank Transfer", note: null, takenOn: "2026-08-07", takenAt: "2026-08-07 10:00:00", isDeposit: false, takenBy: null },
           ],
         },
       })
     );
     render(<Job row={row()} {...props} moneyVisible />);
-    await detailLanded();
-    await openTab("Money");
+    await openMoney();
 
     expect(await face("money").findByText("Paid in full")).toBeInTheDocument();
     expect(face("money").queryByText("Nothing paid yet")).toBeNull();
-  });
-});
-
-describe("the money block on a job with no clones", () => {
-  const plain = (over: Partial<Parameters<typeof deriveFamilyMoney>[0]["members"][number]> = {}) =>
-    deriveFamilyMoney({
-      members: [
-        {
-          remoteId: "j-2968",
-          jobNumber: "2968",
-          totalCents: 279400,
-          paidCents: 0,
-          lastPaidOn: null,
-          lines: null,
-          raisedOn: null,
-          ...over,
-        },
-      ],
-      today: "2026-08-26",
-      termsDays: null,
-    });
-
-  const jobMoney = {
-    valueCents: 279400,
-    invoiced: null,
-    invoicedOn: null,
-    quoteSent: null,
-    quoteSentOn: null,
-    paid: false,
-    paidOn: null,
-  };
-
-  it("says the value and where collection stands, with no bar to compare", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail({ money: jobMoney })));
-    readJobRecord.mockResolvedValueOnce(record({ family: plain() }));
-    render(<Job row={row()} {...props} moneyVisible />);
-    await detailLanded();
-    await openTab("Money");
-
-    expect(await face("money").findByText("$2,794")).toBeInTheDocument();
-    expect(face("money").getByText("Nothing paid yet")).toBeInTheDocument();
-    // …in the head row, not hanging bare under the figure
-    expect(face("money").getByText("Nothing paid yet").closest(".wb2-mline.head")).not.toBeNull();
-    expect(document.querySelector(".wb2-jmbar")).toBeNull();
-    expect(face("money").queryByText(/^Payment 1/)).toBeNull();
-  });
-
-  it("wears the amber head row once there is something to chase", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail({ money: jobMoney })));
-    readJobRecord.mockResolvedValueOnce(
-      record({
-        family: plain({ paidCents: 100000, lastPaidOn: "2026-08-07", raisedOn: "2026-08-01" }),
-      })
-    );
-    render(<Job row={row()} {...props} moneyVisible />);
-    await detailLanded();
-    await openTab("Money");
-
-    await face("money").findByText("$2,794");
-    const head = document.querySelector(".wb2-mline.head") as HTMLElement;
-    expect(within(head).getByText("Awaiting payment")).toBeInTheDocument();
-    expect(within(head).getByText("$1,794")).toBeInTheDocument();
-    expect(document.querySelector(".wb2-jmbar")).not.toBeNull();
-    expect(face("money").queryByText(/Part paid/)).toBeNull();
   });
 });
 
@@ -2187,16 +1869,6 @@ describe("a page opened from a progress claim", () => {
     readMirrorJob.mockResolvedValueOnce(card(detail(), "j-2380a"));
     readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
   };
-
-  it("marks the claim it was opened for in the ledger", async () => {
-    opened();
-    render(<Job row={row({ number: "2380A" })} {...props} moneyVisible section="billing" />);
-
-    await face("money").findByText("$31,340.35");
-    const here = document.querySelector(".wb2-jmclaim.here") as HTMLElement;
-    expect(here).not.toBeNull();
-    expect(within(here).getByText("Payment 1 — Deposit")).toBeInTheDocument();
-  });
 
   it("reads the job's own record and files, not the claim's", async () => {
     opened();
@@ -2234,123 +1906,112 @@ describe("a page opened from a progress claim", () => {
 });
 
 describe("one claim, opened", () => {
-  const openFirstClaim = async () => {
+  const openProgress = async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
+    readJobRecord.mockResolvedValueOnce(record({ family: chandra() }));
     render(<Job row={row()} {...props} moneyVisible />);
-    await detailLanded();
-    await openTab("Money");
-    await screen.findByText("$31,340.35");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Payment 1 — Deposit — open this invoice/ })
-    );
+    await openMoney();
+    await userEvent.click(await face("money").findByRole("button", { name: "Progress, 30%" }));
+    return screen.findByRole("dialog", { name: "Payment 2, Progress" });
   };
 
-  it("shows the invoice's own lines, money and paper — and nothing the job owns", async () => {
+  it("says which invoice, its share, its days, its figure ex GST and its word", async () => {
     readClaim.mockResolvedValue({
       ledger: {
-        materials: [
-          {
-            remoteId: "m-1",
-            name: "Progress payment 30%",
-            quantity: 1,
-            unitCents: 838800,
-            taxInclusive: false,
-            lineCents: 838800,
-          },
-        ],
-        payments: [
-          {
-            remoteId: "pay-1",
-            amountCents: 940211,
-            method: "Stripe",
-            note: null,
-            takenOn: "2026-04-02",
-            takenAt: "2026-04-02 10:12:00",
-            isDeposit: true,
-            takenBy: "Lyle Irving",
-          },
-        ],
+        materials: [line("m-1", "Progress payment for air conditioning installation 30%", 591000)],
+        payments: [],
       },
       notes: [],
+      media: { photos: [], documents: [], elsewhere: [], truncated: false },
+    });
+    const d = within(await openProgress());
+
+    expect(d.getByText(/^Invoice #3237B, 30% of the job\. Raised Tue 15 Sept?, due Tue 29 Sept?\.$/)).toBeInTheDocument();
+    const amt = d.getByText("ex GST", { selector: ".jb-cl-amt .jb-basis" }).parentElement as HTMLElement;
+    expect(within(amt).getByText("$5,910")).toBeInTheDocument();
+    expect(within(amt).getByText("25 days overdue")).toHaveClass("pt-state--wrong");
+
+    expect(await d.findByText("On this invoice")).toBeInTheDocument();
+    expect(d.getByText("Progress payment for air conditioning installation 30%")).toBeInTheDocument();
+    expect(d.getByText("× 1")).toBeInTheDocument();
+    expect(d.getByText("Total ex GST")).toBeInTheDocument();
+    expect(d.getByText("Nothing written on it.")).toBeInTheDocument();
+    /* no crumb back to the job, and no closing line */
+    expect(d.queryByText("#3237")).toBeNull();
+    expect(d.queryByText(/The work itself/)).toBeNull();
+    expect(d.queryByText(/Visits/)).toBeNull();
+  });
+
+  it("gives no total when a line has no ex-GST price", async () => {
+    readClaim.mockResolvedValue({
+      ...emptyClaim(),
+      ledger: {
+        materials: [line("m-1", "Progress payment 30%", 591000), { ...line("m-2", "Unpriced extra", 0), exLineCents: null }],
+        payments: [],
+      },
+    });
+    const d = within(await openProgress());
+    expect(await d.findByText("Unpriced extra")).toBeInTheDocument();
+    expect(d.queryByText("Total ex GST")).toBeNull();
+  });
+
+  it("opens its paper in the job's viewer", async () => {
+    readClaim.mockResolvedValue({
+      ...emptyClaim(),
       media: {
         photos: [],
         documents: [
-          {
-            remoteId: "f-1",
-            name: "Partial Invoice #2380A",
-            fileType: ".pdf",
-            kind: "document" as const,
-            width: null,
-            height: null,
-            origin: "Invoice",
-            takenAt: null,
-            url: null,
-            fromClaim: null,
-          },
+          { remoteId: "f-1", name: "Partial Invoice #3237B", fileType: ".pdf", kind: "document" as const, width: null, height: null, origin: "Invoice", takenAt: null, url: "https://files.example/3237b.pdf", fromClaim: null },
         ],
         elsewhere: [],
         truncated: false,
       },
     });
-    await openFirstClaim();
+    const d = within(await openProgress());
+    await userEvent.click(await d.findByRole("button", { name: "Partial Invoice #3237B" }));
 
-    const modal = await screen.findByRole("dialog", { name: /Payment 1 — Deposit/ });
-    expect(within(modal).getByText("Progress payment 30%")).toBeInTheDocument();
-    expect(within(modal).getByText("Stripe")).toBeInTheDocument();
-    expect(within(modal).getByText("Partial Invoice #2380A")).toBeInTheDocument();
-    expect(within(modal).queryByText(/Visits/)).toBeNull();
-    expect(within(modal).queryByText("Who to ring")).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Payment 2, Progress" })).toBeNull();
+    expect(await screen.findByRole("dialog", { name: "Partial Invoice #3237B" })).toBeInTheDocument();
   });
 
-  it("names what was checked when the only note was ServiceM8's own", async () => {
+  it("lists a payment against it inc GST, as it was paid", async () => {
     readClaim.mockResolvedValue({
-      ledger: { materials: [], payments: [] },
-      notes: [],
-      media: { photos: [], documents: [], elsewhere: [], truncated: false },
-    });
-    await openFirstClaim();
-
-    expect(
-      await screen.findByText(/ServiceM8's own note about raising it isn't repeated here/)
-    ).toBeInTheDocument();
-  });
-
-  it("closes on Escape, leaving the page under it where it was", async () => {
-    readClaim.mockResolvedValue({
-      ledger: { materials: [], payments: [] },
-      notes: [],
-      media: { photos: [], documents: [], elsewhere: [], truncated: false },
+      ...emptyClaim(),
+      ledger: {
+        materials: [],
+        payments: [
+          { remoteId: "pay-1", amountCents: 650100, method: "Stripe", note: null, takenOn: "2026-09-11", takenAt: "2026-09-11 10:12:00", isDeposit: true, takenBy: "Lyle Irving" },
+        ],
+      },
     });
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
+    readJobRecord.mockResolvedValueOnce(record({ family: chandra() }));
     render(<Job row={row()} {...props} moneyVisible />);
-    await detailLanded();
-    await openTab("Money");
-    await face("money").findByText("$31,340.35");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Payment 2 — Progress — open this invoice/ })
-    );
-    await screen.findByRole("dialog", { name: /Payment 2 — Progress/ });
+    await openMoney();
+    await userEvent.click(await face("money").findByRole("button", { name: "Deposit, 30%" }));
+    const d = within(await screen.findByRole("dialog", { name: "Payment 1, Deposit" }));
 
-    await userEvent.keyboard("{Escape}");
-    expect(screen.queryByRole("dialog", { name: /Payment 2/ })).toBeNull();
-    /* the page under it stays where it was */
-    expect(jobTab("Billing")).toHaveAttribute("aria-selected", "true");
+    expect(await d.findByText("Stripe")).toBeInTheDocument();
+    expect(d.getByText("$6,501 inc GST")).toBeInTheDocument();
   });
 
-it("renders after the page, beside it in the body, which is what paints it on top", async () => {
-    readClaim.mockResolvedValue({
-      ledger: { materials: [], payments: [] },
-      notes: [],
-      media: { photos: [], documents: [], elsewhere: [], truncated: false },
-    });
-    await openFirstClaim();
-    await screen.findByRole("dialog", { name: /Payment 1 — Deposit/ });
+  it("closes on Escape and on its cross, leaving the page where it was", async () => {
+    readClaim.mockResolvedValue(emptyClaim());
+    await openProgress();
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "Payment 2, Progress" })).toBeNull();
+    expect(jobTab("Billing")).toHaveAttribute("aria-selected", "true");
 
-    /* the page is the body's first child; the claim portals after it */
+    await userEvent.click(face("money").getByRole("button", { name: "Progress, 30%" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Close this invoice" }));
+    expect(screen.queryByRole("dialog", { name: "Payment 2, Progress" })).toBeNull();
+  });
+
+  it("opens over the page as the parts' dialog, after it in the body", async () => {
+    readClaim.mockResolvedValue(emptyClaim());
+    await openProgress();
     expect(document.body.firstElementChild?.querySelector(".jp-sheet")).not.toBeNull();
-    expect(bodyLayers()).toEqual(["wb2-clscrim", "wb2-claim"]);
+    expect(document.body.lastElementChild).toHaveClass("pt-scrim");
   });
 });
 
@@ -2502,11 +2163,11 @@ describe("money stays behind its grant", () => {
     expect(
       await face("money").findByText(/ServiceM8's figures didn't load just now/)
     ).toBeInTheDocument();
-    expect(document.querySelector(".wb2-jmoney")).not.toBeNull();
+    expect(document.querySelector(".jb")).not.toBeNull();
     expect(face("money").queryByText("$2,794")).toBeNull();
   });
 
-  it("draws the paid-in-full head row when both axes agree", async () => {
+  it("draws the bar all green once every claim is paid", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(
       record({
@@ -2547,11 +2208,11 @@ describe("money stays behind its grant", () => {
     await detailLanded();
     await openTab("Money");
 
+    /* the value in its box, and the same figure paid, both inc GST */
     expect(await face("money").findAllByText("$31,340.35")).toHaveLength(2);
-    const head = document.querySelector(".wb2-mline.head.ok") as HTMLElement;
-    expect(head).not.toBeNull();
-    expect(within(head).getByText("Paid in full")).toBeInTheDocument();
-    expect(within(head).getByText("$31,340.35")).toBeInTheDocument();
+    expect([...document.querySelectorAll(".jb-pct")].map((p) => p.textContent)).toEqual(["100%"]);
+    expect([...document.querySelectorAll(".jb-lab")].map((p) => p.textContent)).toEqual(["Paid"]);
+    expect(face("money").queryByText("Invoiced, waiting")).toBeNull();
   });
 
   it("renders no money fact at all without the grant, whatever the detail says", async () => {
@@ -2584,8 +2245,9 @@ describe("money stays behind its grant", () => {
     await detailLanded();
     await openTab("Money");
 
-    expect(await face("money").findByText("$1,485")).toBeInTheDocument();
-    expect(face("money").getByText(/Job value \(inc GST\)/)).toBeInTheDocument();
+    const box = (await face("money").findByText("$1,485")).closest(".jb-value") as HTMLElement;
+    expect(within(box).getByText("Job value")).toBeInTheDocument();
+    expect(within(box).getByText("inc GST")).toBeInTheDocument();
   });
 
   it("stays silent about invoicing when ServiceM8 never said", async () => {
@@ -2857,7 +2519,10 @@ describe("files on the job", () => {
     /* Revise is in the viewer's head now: the viewer goes and the wizard opens */
     await userEvent.click(within(dialog).getByRole("button", { name: "Revise" }));
     expect(document.querySelector('iframe[src="/swms/v-2"]')).toBeNull();
-    expect(document.querySelector(".swz[role=dialog]")).not.toBeNull();
+    /* the wizard is the parts' dialog now (#1259), under the same name */
+    const wizard = await screen.findByRole("dialog", { name: "Safe Work Method Statement" });
+    expect(wizard.querySelector("iframe")).toBeNull();
+    expect(wizard.closest(".pt-scrim")).not.toBeNull();
   });
 
   /* Reissue and Delete moved off the certificate's row into the viewer's
@@ -3537,55 +3202,6 @@ describe("bringing the bytes across", () => {
 /* ── the ledger obeys the money grant ── */
 
 describe("the ledger obeys the money grant", () => {
-  const ledger = {
-    materials: [
-      {
-        remoteId: "m-1",
-        name: "Daikin CTXM35RVMA",
-        quantity: 2,
-        unitCents: 110000,
-        taxInclusive: true,
-        lineCents: 220000,
-      },
-    ],
-    payments: [
-      {
-        remoteId: "p-1",
-        amountCents: 240000,
-        method: "Bank Transfer",
-        note: null,
-        takenOn: "2026-08-01",
-        takenAt: "2026-08-01 09:15:00",
-        isDeposit: true,
-        takenBy: "Lyle Irving",
-      },
-    ],
-  };
-
-  it("shows the lines and their total to a reader who holds money", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record({ ledger }));
-    render(<Job row={row()} {...props} moneyVisible />);
-    await detailLanded();
-    await openTab("Money");
-
-    expect(await face("money").findByText("What went on the job")).toBeInTheDocument();
-    expect(face("money").getByText("Daikin CTXM35RVMA")).toBeInTheDocument();
-    expect(face("money").getByText("× 2")).toBeInTheDocument();
-    expect(face("money").getByText("Total inc GST")).toBeInTheDocument();
-  });
-
-  it("shows what's been paid, naming a deposit as one", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record({ ledger }));
-    render(<Job row={row()} {...props} moneyVisible />);
-    await detailLanded();
-    await openTab("Money");
-
-    await face("money").findByText("Bank Transfer");
-    expect(face("money").getByText(/deposit, Sat 1 Aug, Lyle Irving/)).toBeInTheDocument();
-  });
-
   it("renders no ledger at all when the server sent none", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(record());
@@ -3594,44 +3210,6 @@ describe("the ledger obeys the money grant", () => {
 
     expect(screen.queryByText("What went on the job")).toBeNull();
     expect(screen.queryByText(/What's been paid/)).toBeNull();
-  });
-
-  it("refuses a total when the lines disagree about tax", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(
-      record({
-        ledger: {
-          payments: [],
-          materials: [
-            { ...ledger.materials[0] },
-            { ...ledger.materials[0], remoteId: "m-2", taxInclusive: false },
-          ],
-        },
-      })
-    );
-    render(<Job row={row()} {...props} moneyVisible />);
-    await detailLanded();
-    await openTab("Money");
-
-    expect(await face("money").findByText(/mix tax-inclusive and tax-exclusive/)).toBeInTheDocument();
-    expect(face("money").queryByText(/^Total/)).toBeNull();
-  });
-
-  it("refuses a total when a line couldn't be priced", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(
-      record({
-        ledger: {
-          payments: [],
-          materials: [{ ...ledger.materials[0], unitCents: null, lineCents: null }],
-        },
-      })
-    );
-    render(<Job row={row()} {...props} moneyVisible />);
-    await detailLanded();
-    await openTab("Money");
-
-    expect(await face("money").findByText(/aren't priced, so there's no total/)).toBeInTheDocument();
   });
 });
 

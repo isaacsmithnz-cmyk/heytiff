@@ -4587,11 +4587,6 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    inset ring keeps a pale swatch visible on the pale chip. */
 .wb2-catdot { display:inline-block; width:7px; height:7px; border-radius:50%; flex:none;
   box-shadow:inset 0 0 0 1px rgba(5,5,5,.14);; }
-/* a note somebody wrote on the job — the body reads first, the byline after */
-.wb2-jnote { padding:8px 0; border-top:1px solid var(--wb2-line2); }
-.wb2-jnote:first-of-type { border-top:0; padding-top:2px; }
-.wb2-jnote > em { display:block; margin-top:4px; font-style:normal; font-size:12px;
-  font-weight:600; color:var(--gray500); }
 /* one line of the ledger: what it was, how many, what it came to */
 .wb2-mline { display:grid; grid-template-columns:1fr auto auto; align-items:baseline; gap:8px;
   padding:8px 0; border-top:1px solid var(--wb2-line2); min-width:0; }
@@ -5367,37 +5362,6 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-check .pbtn { margin-left:auto; }
 /* nothing to say beside the button: no bar around it (#3256, 10-03) */
 .jcl-check.bare { padding:0; background:none; }
-/* BILLING AS AN INVOICE: who it's billed to, the payment terms, and the
-   balance due big on the right, on a grey head; the claims as a table
-   under it — Claim, Status, Amount — the way every invoice page reads */
-.jcl-billhead { display:grid; grid-template-columns:minmax(160px,1fr) minmax(0,2fr) auto; gap:24px; align-items:start; padding:16px; border-radius:var(--r-button); background:var(--tint); }
-.jcl-billto { display:flex; flex-direction:column; gap:4px; min-width:0; }
-.jcl-billto b { font-size:14px; font-weight:600; overflow-wrap:anywhere; }
-.jcl-billto em { font-style:normal; font-size:13px; color:var(--q); overflow-wrap:anywhere; }
-.jcl-terms { display:flex; flex-direction:column; gap:4px; min-width:0; }
-.jcl-terms .wb2-jmbar { margin-top:4px; height:8px; }
-.jcl-termkey { display:flex; gap:2px; }
-.jcl-termkey > span { min-width:0; font-size:12px; font-weight:500; color:var(--q); white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.jcl-bill .wb2-jmhead { min-width:180px; }
-.wb2-jmbig.hero { font-size:32px; }
-.jcl-billval { display:flex; gap:8px; align-items:baseline; margin-top:4px; font-size:13px; font-variant-numeric:tabular-nums; }
-.jcl-claimhead { display:grid; grid-template-columns:minmax(0,1fr) 160px 120px; gap:8px; margin-top:16px; padding:0 2px 8px; border-bottom:1px solid var(--line); font-size:13px; font-weight:500; color:var(--q); }
-.jcl-claimhead > span:last-child { text-align:right; }
-.jcl-bill .wb2-jmclaim { grid-template-columns:minmax(0,1fr) 160px 120px; }
-.jcl-bill .wb2-jmclaim > i { grid-column:2; justify-self:start; }
-.jcl-bill .wb2-jmclaim > span { grid-column:3; text-align:right; }
-.jcl-bill button.wb2-jmclaim:first-of-type { border-top:0; }
-/* A NARROW CARD CAN'T HOLD THREE COLUMNS: 160 + 180 + two gaps outgrew it and
-   the balance due spilled past the card's edge. Bill to and the balance due
-   share the top row; the terms take the full width under them. */
-.jcl-bill { container-type:inline-size; }
-@container (max-width:600px) {
-  .jcl-billhead { grid-template-columns:minmax(0,1fr) auto; row-gap:16px; }
-  .jcl-terms { grid-column:1 / -1; grid-row:2; }
-  .jcl-terms:empty { display:none; }
-  .jcl-bill .wb2-jmhead { min-width:0; }
-  .jcl-billval { flex-wrap:wrap; justify-content:flex-end; }
-}
 .wb2-sheet.mv .wb2-jcsec .wb2-facts, .wb2-sheet.pv .wb2-jcsec .wb2-facts { margin-top:8px; }
 .wb2-sheet.mv .wb2-jcsec .wb2-notetext, .wb2-sheet.pv .wb2-jcsec .wb2-notetext { margin-top:8px; }
 .wb2-sheet.mv .wb2-jcsec .wb2-noteact { margin-top:8px; }
@@ -5495,28 +5459,6 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
 /* a visit is date · crew · hours, and the crew reads beside the day it
    belongs to — not right-clustered against the figure across a full row */
 .wb2-jcface .wb2-mline.visit { grid-template-columns:120px minmax(0,1fr) auto; }
-.wb2-jcgrid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; align-items:start; }
-@media (max-width:900px) { .wb2-jcgrid { grid-template-columns:minmax(0,1fr); } }
-/* THE MONEY FACE IS TWO COLUMNS (Isaac, 2026-09-10): the money on the left —
-   the value, its collection row, what's been paid — and what went on the job
-   on the right. The block ran the full width with the figure top-right and the
-   collection sentence bottom-left, a block that was mostly diagonal space, over
-   a two-column grid with one column empty on any job with nothing paid. The
-   left column is the narrower one: its rows are a figure and a sentence, the
-   right's are names. A block that has opened its ledger stays full width ABOVE
-   the grid — claim rows are a table, and in the narrow column their metas
-   wrapped to three lines — and payments and goods keep their columns under it. */
-.wb2-jcgrid.money { grid-template-columns:minmax(280px, 2fr) minmax(0, 3fr); }
-/* one thing to show — a quote with no lines, a family with no payments — and
-   nothing to stand it beside: it runs the full width rather than leaving the
-   other column blank, which was the fault being fixed */
-.wb2-jcgrid.money.one { grid-template-columns:minmax(0, 1fr); }
-/* restated INSIDE a media block of its own: @media adds no specificity, so
-   the .wb2-jcgrid collapse above cannot beat .wb2-jcgrid.money by itself */
-@media (max-width:900px) { .wb2-jcgrid.money { grid-template-columns:minmax(0, 1fr); } }
-/* the column's gap IS the grid's gap — said once, on the grid, and inherited
-   here so the two can never drift apart (and no second number to keep) */
-.wb2-jcol { display:flex; flex-direction:column; gap:inherit; min-width:0; }
 /* an open section of a face — the faces are the panels now; section heads
    wear the same title dress as the Diary/Visits headers (.wb2-jcdhead) */
 .wb2-jcsec { display:flex; flex-direction:column; }
@@ -5625,109 +5567,73 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
 .wb2-jcrole { font-style:normal; font-weight:600; color:var(--gray500); }
 /* the Actions face — once-per-job acts, as quiet rows */
 
-/* ── THE MONEY BLOCK ──────────────────────────────────────────────────────
-   One job's money, read once. IT WEARS INK, NOT THE JOB TYPE'S COLOUR. It
-   used to take ServiceM8's category colour as its edge, and a yellow ring
-   around the job's figure looked bad (Isaac, 2026-09-10): a palette that
-   makes no contrast promise makes no taste promise either. The category
-   keeps its dot in the chip up top. Ink and not green, because green is the
-   PAID state here — a green frame around "Nothing paid yet" would say the
-   opposite of the words inside it. Width and colour are restated as
-   LONGHANDS after .wb2-shsect's shorthand, which is the only reason they
-   stick. */
-.wb2-jmoney { display:flex; flex-direction:column; border-width:1.5px; border-color:var(--ink); }
-/* THE VALUE SITS ON THE RIGHT (Isaac, 2026-08-28) — every other figure in
-   this face is right-aligned in its own column, so the job's own figure was
-   the one number reading against the grain. Label, figure and the invoiced
-   line move together; the bar and the ledger keep the full width. */
-.wb2-jmhead { display:flex; flex-direction:column; align-items:flex-end; text-align:right; }
-.wb2-jmbig { margin-top:4px; font-size:24px; font-weight:700; letter-spacing:-.03em;
-  line-height:1.15; font-variant-numeric:tabular-nums; }
-.wb2-jmsub { margin-top:2px; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
-/* paid → invoiced-and-awaiting → still to bill: the three states of a job's
-   value, in the order money moves through them */
-.wb2-jmbar { display:flex; gap:2px; height:7px; margin-top:12px; border-radius:var(--r-pill);
-  overflow:hidden; background:var(--tint-2); }
-.wb2-jmbar > i { display:block; height:100%; border-radius:var(--r-pill); min-width:0; }
-.wb2-jmbar > i.paid { background:var(--wb2-ok); }
-.wb2-jmbar > i.awaiting { background:var(--wb2-warn); }
-.wb2-jmbar > i.tocome { background:var(--tint-2); }
-.wb2-jmkey { display:flex; flex-wrap:wrap; gap:4px 16px; margin-top:8px; }
-.wb2-jmkey > span { display:inline-flex; align-items:center; gap:4px; font-size:12px;
-  font-weight:700; color:var(--gray500); }
-.wb2-jmkey > span > i { width:8px; height:8px; border-radius:0; flex:none; }
-.wb2-jmkey > span > i.paid { background:var(--wb2-ok); }
-.wb2-jmkey > span > i.awaiting { background:var(--wb2-warn); }
-.wb2-jmkey > span > i.tocome { background:var(--tint-2); }
-/* WHERE COLLECTION LIVES. The value above is the job's identity and stays
-   ink; chasing is the ledger's business, so it wears the tint. */
-.wb2-mline.head { grid-template-columns:auto minmax(0,1fr) auto auto; margin-top:12px;
-  padding:12px 12px; border-top:0; border-radius:var(--r-button); background:var(--tint); }
-.wb2-mline.head > b { font-size:14px; font-weight:700; }
-.wb2-mline.head > span { font-size:16px; font-weight:700; }
-.wb2-mline.head.warn { background:var(--warn-tint); }
-.wb2-mline.head.warn > span { color:var(--wb2-warn-t); }
-.wb2-mline.head.ok { background:var(--ok-tint); }
-.wb2-mline.head.ok > span { color:var(--ok-t); }
-/* one claim against the job: its name, what it says about itself underneath,
-   the amount, and an inert chip that follows ServiceM8 */
-.wb2-jmclaim { grid-template-columns:minmax(0,1fr) auto auto; align-items:center;
-  padding:8px 2px; row-gap:2px; }
-.wb2-jmclaim > b { grid-column:1; grid-row:1; }
-.wb2-jmclaim > em { grid-column:1; grid-row:2; }
-.wb2-jmclaim > span { grid-column:2; grid-row:1 / span 2; }
-.wb2-jmclaim > i { grid-column:3; grid-row:1 / span 2; }
-.wb2-mline > span.quiet { color:var(--gray500); }
+/* ── BILLING (Isaac, 25 October 2026, the job page's frames 9, 9b and 10) ──
+   Across the top one band under a hairline: the bar in three solid parts
+   with each part's share and figure under it, and the job's value in its own
+   box on the right, the one big figure. Then Payments, a row a claim. Every
+   figure ex GST. The claim opens in the parts' dialog. */
+.fg .jb { display:flex; flex-direction:column; gap:24px; min-width:0; font-family:var(--font); color:var(--ink); }
+.fg .jb-band { display:grid; grid-template-columns:minmax(0,1fr) 280px; gap:48px; align-items:center; padding:8px 0 24px; border-bottom:1px solid var(--line); }
+.fg .jb-split { min-width:0; }
+.fg .jb-cols { display:grid; column-gap:4px; }
+.fg .jb-col { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.fg .jb-seg { display:block; height:14px; border-radius:var(--r-control); background:var(--grey); }
+.fg .jb-col--paid .jb-seg { background:var(--green); }
+.fg .jb-col--waiting .jb-seg { background:var(--orange); }
+.fg .jb-pct { margin-bottom:12px; font-size:12px; line-height:16px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .jb-lab { display:flex; align-items:center; gap:8px; font-size:12px; line-height:16px; font-weight:500; color:var(--q); white-space:nowrap; }
+.fg .jb-fig { font-size:20px; line-height:28px; font-weight:600; color:var(--q); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.fg .jb-col--paid .jb-fig { color:var(--green-w); }
+.fg .jb-col--waiting .jb-fig { color:var(--orange-w); }
+.fg .jb-fact { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+/* the job's value in its own box, centred: Isaac's exemption to rule 35 */
+.fg .jb-value { display:flex; flex-direction:column; align-items:center; gap:4px; padding:24px; border:1px solid var(--edge); border-radius:var(--r-card); text-align:center; }
+.fg .jb-vlab { display:flex; align-items:baseline; gap:8px; font-size:16px; line-height:24px; font-weight:600; }
+.fg .jb-basis,
+.pt-dialog .jb-basis { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .jb-big { font-size:32px; line-height:40px; font-weight:700; font-variant-numeric:tabular-nums; }
+.fg .jb-var { font-size:13px; line-height:18px; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .jb-pay { display:flex; flex-direction:column; gap:8px; }
+.fg .jb-payhead { display:flex; align-items:baseline; justify-content:space-between; gap:16px; }
+.fg .jb-payhead h3 { margin:0; font-size:16px; line-height:24px; font-weight:600; }
+.fg .jb-pay .pt-rows { border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.fg .jb-pay .pt-row { padding-block:12px; }
+/* the claim the page was opened for, from a clone's own number */
+.fg .jb-pay .pt-row:has(.jb-here) { background:var(--sel); }
+.fg .jb-end { display:flex; align-items:center; gap:24px; }
+.fg .jb-amt,
+.pt-dialog .jb-amt { display:inline-flex; align-items:baseline; justify-content:flex-end; gap:8px; min-width:72px; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.fg .jb-word { min-width:144px; justify-content:flex-end; white-space:nowrap; }
+.fg .jb-err { display:flex; align-items:center; gap:8px; margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--red-w); }
+@media (max-width:900px) { .fg .jb-band { grid-template-columns:minmax(0,1fr); gap:24px; } }
+/* a claim, opened: the close cross in the title's row, and the body's own
+   foot room, as the dialog has no buttons */
+.pt-scrim .pt-dialog:has(.jb-x) { position:relative; }
+.pt-scrim .pt-dialog:has(.jb-x) .pt-dialog-title { padding-right:64px; }
+.pt-dialog .pt-dialog-body:has(> .jb-x) { padding-bottom:24px; }
+.pt-dialog .pt-dialog-body .jb-x { position:absolute; top:24px; right:24px; }
+.pt-dialog .pt-dialog-body .jb-cl-line { margin:0 0 16px; font-size:14px; line-height:20px; color:var(--q); }
+.pt-dialog .pt-dialog-body .jb-cl-amt { display:flex; align-items:baseline; gap:12px; margin:0 0 24px; }
+.pt-dialog .pt-dialog-body .jb-cl-amt > b { font-size:20px; line-height:28px; font-weight:600; font-variant-numeric:tabular-nums; }
+.pt-dialog .jb-cl-grp { display:flex; flex-direction:column; gap:4px; }
+.pt-dialog .jb-cl-grp + .jb-cl-grp { margin-top:16px; }
+.pt-dialog .jb-cl-grp > h3 { margin:0; font-size:14px; line-height:20px; font-weight:600; }
+.pt-dialog .jb-cl-rows { margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
+.pt-dialog .jb-cl-rows > li { display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--line); }
+.pt-dialog .jb-cl-t { flex:1; display:flex; flex-direction:column; min-width:0; }
+.pt-dialog .jb-cl-t > b { font-weight:600; overflow-wrap:anywhere; }
+.pt-dialog .jb-cl-t > em,
+.pt-dialog .jb-cl-note > em { font-style:normal; font-size:13px; line-height:18px; color:var(--q); }
+.pt-dialog .pt-dialog-body .jb-cl-none { margin:0; font-size:13px; line-height:18px; color:var(--q); }
+.pt-dialog .pt-dialog-body .jb-cl-note > p { margin:0; white-space:pre-wrap; }
+.pt-dialog .jb-cl-note + .jb-cl-note { padding-top:8px; border-top:1px solid var(--line); }
+.pt-dialog .pt-dialog-body .jb-cl-paper { margin:0; }
+.pt-dialog .pt-link.jb-cl-open { padding:0; border:0; background:none; font:inherit; text-align:start; }
 
-.wb2-shno.here { background:var(--tint); color:var(--ink); }
+
 
 .wb2-shcar { font-style:normal; font-size:12px; margin-left:4px; vertical-align:middle; }
-.wb2-shcrumb { font-style:normal; color:var(--gray400); font-size:13px; font-weight:700; }
 
-/* a claim row is a door, so it has to look and behave like one */
-button.wb2-jmclaim { width:100%; border:0; background:transparent; font:inherit; text-align:left;
-  cursor:pointer; border-top:1px solid var(--wb2-line2); }
-button.wb2-jmclaim:hover { background:var(--tint); }
-button.wb2-jmclaim:focus-visible { outline:none; box-shadow:var(--ring);; border-radius:var(--r-button); }
-/* the claim this card was opened for */
-.wb2-jmclaim.here { background:var(--tint); border-radius:var(--r-button); border-top:0;
-  padding-left:12px; }
-.wb2-jmclaim.here > b { color:var(--ink); }
-/* ── ONE CLAIM, over the card it belongs to ──────────────────────────────
-   Its own scrim so the card dims behind it, and in the sheet's portal
-   rather than a second one. */
-/* ON THE SHEET'S LAYER, AFTER THE SHEET. The card's scrim is on the overlay
-   layer and the card on the modal layer; this pair shares the modal layer
-   and renders after the card in the same portal, and at an equal z-index
-   the later element paints on top. Any lower layer opens the modal
-   invisibly UNDER the card: at 61 once, and on the overlay layer when the
-   layers were named. jsdom cannot see a stacking context, so this was
-   walked; __tests__/sheet-overlay-layers.test.ts holds the layer and the
-   job card's tests hold the order. */
-.wb2-clscrim { position:fixed; inset:0; z-index:var(--z-modal); background:var(--scrim);
-  animation:wb2ClIn .2s ease both; }
-.wb2-claim { position:fixed; z-index:var(--z-modal); left:50%; top:50%; transform:translate(-50%,-50%);
-  width:min(440px, calc(100vw - 32px)); max-height:min(78vh, 720px); overflow:auto;
-  display:flex; flex-direction:column; background:var(--paper); border-radius:var(--r-card);
-  border:1px solid var(--wb2-line, var(--line));
-  animation:wb2ClRise .26s var(--ease) both; }
-@keyframes wb2ClIn { from { opacity:0; } to { opacity:1; } }
-@keyframes wb2ClRise { from { opacity:0; transform:translate(-50%,calc(-50% + 8px)); }
-  to { opacity:1; transform:translate(-50%,-50%); } }
-@media (prefers-reduced-motion:reduce) {
-  .wb2-clscrim, .wb2-claim { animation:none; } }
-.wb2-cltop { display:flex; align-items:center; gap:4px; padding:12px 16px 0; }
-.wb2-clsp { flex:1; }
-.wb2-clhd { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2px 12px;
-  padding:8px 16px 12px; border-bottom:1px solid var(--wb2-line2, var(--line)); }
-.wb2-clhd > b { grid-column:1; font-size:16px; font-weight:700; }
-.wb2-clhd > em { grid-column:1; font-style:normal; font-size:12px; font-weight:600;
-  color:var(--gray500); }
-.wb2-clamt { grid-column:2; grid-row:1 / span 2; align-self:center; font-size:20px;
-  font-weight:700; font-variant-numeric:tabular-nums; }
-.wb2-clbody { display:flex; flex-direction:column; gap:16px; padding:16px 16px 16px; }
-.wb2-clgrp { display:flex; flex-direction:column; }
-.wb2-clgrp > .wb2-sect { margin-bottom:4px; }
 /* a file that arrived on a progress claim and rose to the job */
 .wb2-mfrom { position:absolute; left:4px; bottom:4px; text-decoration:none;
   background:var(--tint); color:var(--paper); font-size:12px; font-weight:700;

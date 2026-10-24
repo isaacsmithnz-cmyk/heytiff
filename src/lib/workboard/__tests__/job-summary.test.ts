@@ -156,7 +156,7 @@ describe("summaryPrompt — the writer never sees money", () => {
     expect(prompt).toContain("site visit, 4h 20m (David Hanby)");
     expect(prompt).toContain("Job completed");
     /* no claim lines, no payment lines, no dollars at all */
-    expect(prompt).not.toContain("Payment 1 — Deposit");
+    expect(prompt).not.toContain("Payment 1, Deposit");
     expect(prompt).not.toContain("settled");
     expect(prompt).not.toContain("$");
   });

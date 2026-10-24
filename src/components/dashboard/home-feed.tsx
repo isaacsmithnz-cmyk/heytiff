@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { acknowledgeTask } from "@/app/actions/assignments";
 import { resolveIssue } from "@/app/actions/dashboard";
+import { doneNote, replyNote } from "@/app/actions/shared-notes";
 import { replyToJobNote, type ReplyResult } from "@/app/actions/job-note-sm8";
 import { Button } from "@/components/parts/button";
 import { TextInput } from "@/components/parts/field";
@@ -28,7 +29,9 @@ import { ColumnHead } from "./home-todo";
    feed and notes should be interactive"): its words go where it is about,
    or open the task it is over Home. A field issue with nothing to open is
    made a task (the task form, its words filled in, and the issue closes
-   once the task is saved) or Done (closed) where it sits.
+   once the task is saved) or Done (closed) where it sits. A note written to
+   you or to the office (New › Note) has Reply, in place, and Done; a note
+   is for note taking, never made a task.
 
    The filter is remembered on this device (a convenience, so it can be lost
    with nothing lost). */
@@ -63,24 +66,38 @@ const keep = (f: FeedFilter) => {
   listeners.forEach((fn) => fn());
 };
 
+type Sent = { ok: true } | { ok: false; error: string };
+
+/** Where a reply goes: a mention's, to ServiceM8 through the job card's own
+    reply; a note's, into its thread. */
+function replier(item: FeedItem, composeId: string): ((words: string) => Promise<Sent>) | null {
+  const reply = item.reply;
+  if (reply)
+    return (w) =>
+      replyToJobNote({
+        jobUuid: reply.jobUuid,
+        sourceNoteUuid: reply.sourceNoteUuid,
+        words: w,
+        composeId,
+        ...(reply.closesTaskId ? { closesTaskId: reply.closesTaskId } : {}),
+      }).then((r: ReplyResult): Sent => (r.ok ? { ok: true } : { ok: false, error: r.error }));
+  const note = item.note;
+  if (note) return (w) => replyNote(note, w);
+  return null;
+}
+
 function ReplyBox({ item, onSent }: { item: FeedItem; onSent: (words: string) => void }) {
   const [words, setWords] = useState("");
   const [composeId] = useState(newComposeId);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const reply = item.reply!;
   const send = async () => {
     const w = words.trim();
-    if (!w || sending) return;
+    const go = replier(item, composeId);
+    if (!w || sending || !go) return;
     setSending(true);
     setError(null);
-    const got: ReplyResult = await replyToJobNote({
-      jobUuid: reply.jobUuid,
-      sourceNoteUuid: reply.sourceNoteUuid,
-      words: w,
-      composeId,
-      ...(reply.closesTaskId ? { closesTaskId: reply.closesTaskId } : {}),
-    }).catch((): ReplyResult => ({ ok: false, error: "That didn't send. Try again." }));
+    const got: Sent = await go(w).catch((): Sent => ({ ok: false, error: "That didn't send. Try again." }));
     setSending(false);
     if (got.ok) onSent(w);
     else setError(got.error);
@@ -154,6 +171,7 @@ function FeedEntry({
   const router = useRouter();
   /* To do's Reply lands here with this mention's box already open */
   const [replying, setReplying] = useState(open && !!item.reply);
+  const answerable = !!item.reply || !!item.note;
   const [sent, setSent] = useState<string | null>(null);
   const yours = sent ?? item.yours;
   const act = item.act;
@@ -191,11 +209,25 @@ function FeedEntry({
             }}
           />
         ) : (
-          (item.reply || act) && (
+          (answerable || act) && (
             <div className="hm-feed-acts">
-              {item.reply && !sent && (
+              {answerable && !sent && (
                 <Button size={32} onClick={() => setReplying(true)}>
                   Reply
+                </Button>
+              )}
+              {item.note && (
+                <Button
+                  size={32}
+                  onClick={() => {
+                    const note = item.note!;
+                    onGone(item.key);
+                    void doneNote(note)
+                      .catch(() => null)
+                      .then(() => router.refresh());
+                  }}
+                >
+                  Done
                 </Button>
               )}
               {act?.kind === "link" && (

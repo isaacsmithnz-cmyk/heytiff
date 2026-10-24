@@ -29,6 +29,7 @@ jest.mock("@/app/actions/job-note-sm8", () => ({ replyToJobNote: jest.fn() }));
 jest.mock("@/app/actions/reminders", () => ({ snoozeReminder: (...a: unknown[]) => snoozeReminder(...a) }));
 const acknowledgeTask = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
 jest.mock("@/app/actions/assignments", () => ({ acknowledgeTask: (...a: unknown[]) => acknowledgeTask(...a) }));
+jest.mock("@/app/actions/shared-notes", () => ({ replyNote: jest.fn(), doneNote: jest.fn() }));
 /* a won job's Book in is the Visit form, over Home */
 const readBookInContext = jest.fn(async (..._a: unknown[]) => ({ ok: false as const, error: "Not in a test." }));
 jest.mock("@/app/actions/booking-sm8", () => ({

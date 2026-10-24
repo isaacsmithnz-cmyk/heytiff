@@ -2,6 +2,7 @@ import { jobPageHref } from "@/lib/shell/links";
 import { stampWhen } from "./diary-conversation";
 import type { DiaryConversation, DiaryFeed } from "./diary-feed";
 import type { FeedEvent } from "./feed-events";
+import type { NoteThread } from "./shared-notes";
 import type { TodoAct, TodoRow } from "./todo";
 
 /* YOUR FEED (Isaac, 20 October 2026, in place of Home's Activity; the board
@@ -19,6 +20,9 @@ import type { TodoAct, TodoRow } from "./todo";
    ServiceM8 refused to take from HeyTiff.
    APPROVALS: leave, timesheets, expenses, claims, SWMS and certificate
    wording waiting on you.
+   A NOTE written to you or to the office (New › Note, 24 October 2026) is
+   to you, with Reply and Done (./shared-notes): a note is for note taking,
+   so it is never made a task here.
 
    EVERY ITEM OPENS (Isaac, 24 October 2026: "Everything on that feed and
    notes should be interactive"): pressing it goes where it is about, its
@@ -72,6 +76,8 @@ export type FeedItem = {
   act: TodoAct | null;
   reply: FeedReply | null;
   open: FeedOpen;
+  /** a note's thread (New › Note): its Reply and Done are the note's own */
+  note?: string;
 };
 
 const APPROVAL_CHIPS = /^alert:(expenses|timesheet|claim|leave-queue|leave-declined|swms-issue|swms-template|cert-wording)/;
@@ -175,6 +181,38 @@ function eventItem(e: FeedEvent, today: string): FeedItem {
   }
 }
 
+/** A note waiting on you: the newest word of somebody else's in its thread,
+    yours under it when you've written, and the job it is about. */
+function noteItem(t: NoteThread, me: string | null, today: string): FeedItem | null {
+  const theirs = [...t.messages].reverse().find((m) => m.authorId !== me);
+  if (!theirs) return null;
+  const mine = [...t.messages].reverse().find((m) => m.authorId === me && m.at <= theirs.at && m.id !== theirs.id) ?? null;
+  const opened = t.messages[0]?.id === theirs.id;
+  const on = t.jobLabel ? ` on ${t.jobLabel}` : "";
+  const what = !opened
+    ? t.rootAuthorId === me
+      ? `answered your note${on}`
+      : `replied${on}`
+    : t.toOffice && t.viaOffice
+      ? `wrote to the office${on}`
+      : `wrote to you${on}`;
+  return {
+    key: `note:${t.threadId}`,
+    filter: "you",
+    who: { name: theirs.name, sm8: false },
+    what,
+    said: theirs.body,
+    yours: mine ? mine.body : null,
+    when: stampWhen(theirs.at, today),
+    at: theirs.at,
+    unread: theirs.at.slice(0, 10) === today,
+    act: null,
+    reply: null,
+    open: t.jobUuid ? { href: jobPageHref(t.jobUuid) } : null,
+    note: t.threadId,
+  };
+}
+
 const dayOf = (stamp: string) => stamp.slice(0, 10);
 
 /** Your feed: newest first. `now` is the account's clock when Home was read. */
@@ -186,6 +224,9 @@ export function yourFeed(input: {
   now: string;
   /** the oldest day a conversation stays in, FEED_TALK_DAYS back */
   since: string;
+  /** the notes waiting on you, and who you are (New › Note) */
+  notes?: readonly NoteThread[];
+  me?: string | null;
 }): FeedItem[] {
   const talk = input.diary
     ? [...input.diary.today, ...input.diary.earlier]
@@ -198,6 +239,7 @@ export function yourFeed(input: {
     ...input.rows.map((r) => rowItem(r, input.now)),
     ...talk,
     ...input.events.map((e) => eventItem(e, input.today)),
+    ...(input.notes ?? []).map((t) => noteItem(t, input.me ?? null, input.today)).filter((x): x is FeedItem => x !== null),
   ];
   /* newest first; what waits now sits at now, and to you leads a tie */
   const rank = { you: 0, approvals: 1, jobs: 2 } as const;

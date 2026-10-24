@@ -66,6 +66,7 @@ function Tile({
 export function JobTiles({
   what,
   next,
+  nextRead = true,
   onVisits,
   onBook,
   money,
@@ -82,6 +83,9 @@ export function JobTiles({
   /** The job's words, as the office wrote them. */
   what: string;
   next: NextVisit | null;
+  /** The visits have been read (no next visit means none, not not-yet): it
+      said "Nothing booked" while it read, then a booking (25 October 2026) */
+  nextRead?: boolean;
   onVisits: () => void;
   /** Book a visit, where the reader may book. */
   onBook?: () => void;
@@ -113,7 +117,7 @@ export function JobTiles({
         label="Next visit"
         onOpen={onVisits}
         foot={
-          !next && onBook ? (
+          !next && nextRead && onBook ? (
             <Button kind="main" onClick={onBook}>
               Book a visit
             </Button>
@@ -126,8 +130,10 @@ export function JobTiles({
             {next.who && <p className="jt-read">{next.who}</p>}
             {next.state && <StateWord tone={next.state.tone}>{next.state.word}</StateWord>}
           </>
-        ) : (
+        ) : nextRead ? (
           <b className="jt-when">Nothing booked</b>
+        ) : (
+          <p className="jt-cap">Reading the visits</p>
         )}
       </Tile>
 

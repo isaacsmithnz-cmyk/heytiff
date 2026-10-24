@@ -8,6 +8,7 @@ import { Chooser } from "@/components/parts/chooser";
 import { TimeField } from "@/components/parts/time-field";
 import { DateField } from "@/components/ui/date-field";
 import { WindowsContext } from "@/components/records/records-context";
+import { sayTasksChanged } from "@/lib/tasks/changed";
 import { TaskSm8Line, type TaskSm8Doors } from "@/components/dashboard/task-sm8-line";
 import { confirmMySm8Link } from "@/app/actions/job-note-sm8";
 import { retryTaskDone } from "@/app/actions/task-sm8";
@@ -163,6 +164,7 @@ export function TaskForm({
       }
       onClose();
       onChanged?.();
+      sayTasksChanged();
       host?.toast("Task saved");
       return;
     }
@@ -181,11 +183,13 @@ export function TaskForm({
     }
     onClose();
     onChanged?.();
+    sayTasksChanged();
     const n = made.taskIds.length;
     const what = n > 1 ? `${n} tasks added` : "Task added";
     const words = forJob ? (made.jobKept === false ? `${what}, without the job for now` : `${what} to ${forJob.label}`) : what;
     host?.toast(words, async () => {
       for (const id of made.taskIds) await deleteTask(id);
+      sayTasksChanged();
     });
   }
 
@@ -200,9 +204,11 @@ export function TaskForm({
     }
     onClose();
     onChanged?.();
+    sayTasksChanged();
     host?.toast(task?.done ? "Task open again" : "Task done", task?.done ? undefined : async () => {
       await reopenTask(taskId, { takeBackDone: true });
       onChanged?.();
+      sayTasksChanged();
     });
   }
 
@@ -217,6 +223,7 @@ export function TaskForm({
     }
     onClose();
     onChanged?.();
+    sayTasksChanged();
     host?.toast("Task deleted");
   }
 

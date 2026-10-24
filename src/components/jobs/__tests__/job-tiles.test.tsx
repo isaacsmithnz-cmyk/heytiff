@@ -30,3 +30,18 @@ it("says there's nothing to do only when nothing is open and no task is", () => 
   expect(todo().getByText("Nothing to do on it.")).toBeInTheDocument();
   expect(todo().queryByText(/^\d+$/)).toBeNull();
 });
+
+/* 25 October 2026, walking job 3440 from the Schedule: Next visit said
+   "Nothing booked" while it read, then "Tomorrow, 7:30 am" */
+it("says it is reading the visits until they are read, and offers Book a visit only once it knows there is none", () => {
+  const onBook = jest.fn();
+  const visit = () => within(screen.getByRole("region", { name: "Next visit" }));
+  const { unmount } = render(<JobTiles {...base} nextRead={false} onBook={onBook} />);
+  expect(visit().getByText("Reading the visits")).toBeInTheDocument();
+  expect(visit().queryByText("Nothing booked")).toBeNull();
+  expect(visit().queryByRole("button", { name: "Book a visit" })).toBeNull();
+  unmount();
+  render(<JobTiles {...base} nextRead onBook={onBook} />);
+  expect(visit().getByText("Nothing booked")).toBeInTheDocument();
+  expect(visit().getByRole("button", { name: "Book a visit" })).toBeInTheDocument();
+});

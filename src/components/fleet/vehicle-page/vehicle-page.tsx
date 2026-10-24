@@ -15,29 +15,38 @@ import { uploadFile } from "@/lib/documents/upload-client";
 import type { VehiclePageData } from "@/lib/fleet/vehicle-page-data";
 import {
   SECTION_LABEL,
-  headLine,
-  headState,
+  headFacts,
   issueGroups,
+  statusWord,
   vehicleTabLabel,
+  vehicleTitle,
   type VehicleSection,
 } from "@/lib/fleet/vehicle-page";
 import { useFleetActions } from "../fleet-state";
 import { STATUS_LABEL, fuelEconomy, valuationStale, type LogKind, type VehicleLog, type VehicleStatus } from "../logic";
 import { EditLogModal, LogModal } from "../modals";
+import { Plate } from "../plate";
 import { VehicleModal, addScreen, logScreen, type Screen } from "../vehicle-modal";
 import { photoSrc } from "../vehicle-modal/derive";
 import { VehicleForm } from "../vehicle-modal/vehicle-form";
-import { Documents, Fuel, Issues, Kilometres, Money, Overview, Service, type Doors, type PageView } from "./sections";
+import { VehicleOutline } from "./outline";
+import { Documents, Fuel, Issues, Money, Overview, Service, type Doors, type PageView } from "./sections";
 
-/* ONE VEHICLE AS A PAGE (v2, "A vehicle's own page", 18 October; the boards
-   v2-board-vehicle-overview, -service, -issues and -km), inside the frame at
-   /dashboard/vehicles/<id>.
+/* ONE VEHICLE AS A PAGE (v2, "A vehicle's own page", 18 October; simplified
+   on Isaac's mock of 24 October 2026, YRqKF87knq2N35tMLa5hkz section 4),
+   inside the frame at /dashboard/vehicles/<id>.
 
-   The head: its name and rego, one grey line (the driver, the kilometres,
-   the model) and where it stands as one word; Add (Service, Issue,
-   Kilometres, Document) and Actions (Change status, Change photo, then
-   Remove vehicle in red, last). Under it the sections, kept in the address
-   as `?tab=` (replaced, not pushed, as the job page keeps its own).
+   EACH FACT ONCE (Isaac, 24 October 2026: "Things are marked down twice
+   like that. Odometers. The person driving it."). The head: the photo
+   square (its outline and "Add a photo" until one is taken), the make and
+   model as the title with the plate drawn beside it ("At the top, Toyota
+   Hiace. And then the license plate in a New South Wales or Australian
+   license plate shape next to it"), and one grey line: the year, the
+   nickname, who drives it, and its status as a dot and a word. Add (Fuel,
+   Kilometres, Service, Issue, Document ›) and Actions (Change driver,
+   Change status, Change photo, then Remove vehicle in red, last). Under it
+   the sections, kept in the address as `?tab=` (replaced, not pushed, as
+   the job page keeps its own).
 
    TODAY'S ENGINES UNDERNEATH (6-revisions, "The forms keep today's
    engines"). Nothing here logs, renews, values or corrects on its own:
@@ -49,7 +58,10 @@ import { Documents, Fuel, Issues, Kilometres, Money, Overview, Service, type Doo
      read by Tiff included; Correct entry opens today's correction;
    - the driver, the status and the photo go through the same actions the
      card's controls call; Remove vehicle asks first, then calls the same
-     removal.
+     removal;
+   - Add › Fuel is the fill My vehicle's Log fuel records: the register's
+     logging screen, or, on the driver's own vehicle, My vehicle's dialog
+     (a pool ute's while their own is off the road).
 
    THE DRIVER'S OWN VEHICLE is the same page, read-only where My vehicle is
    read-only today (F-175): fuel, a reading and an issue through My
@@ -65,7 +77,10 @@ type Over =
   | { t: "log"; kind: LogKind }
   | { t: "remove" };
 
-type MenuKey = "add" | "docs" | "actions" | "status";
+type MenuKey = "add" | "docs" | "actions" | "status" | "driver";
+
+/** the pool, as Change driver offers it: nobody's */
+const POOL = "pool";
 
 const DOC_ITEMS: readonly MenuItem[] = [
   { key: "rego", label: "Rego notice" },
@@ -74,6 +89,8 @@ const DOC_ITEMS: readonly MenuItem[] = [
   { key: "purchase_invoice", label: "Purchase invoice" },
   { key: "finance_agreement", label: "Finance agreement" },
 ];
+
+const ADD_WORD: Record<LogKind, string> = { fuel: "Fuel", odo: "Kilometres", service: "Service", issue: "Issue" };
 
 const STATUS_ITEMS: readonly MenuItem[] = (Object.keys(STATUS_LABEL) as VehicleStatus[]).map((k) => ({ key: k, label: STATUS_LABEL[k] }));
 
@@ -110,14 +127,17 @@ export function VehiclePage({
   const staff = data.lens === "register" ? data.staff : [];
   const valuation = data.lens === "register" ? data.valuation : null;
   const pickable = data.lens === "driver" ? data.pickable : [];
-  const driverName = full?.assignedTo ? (staff.find((s) => s.id === full.assignedTo)?.name ?? null) : null;
+  /* the driver's own vehicle is driven by the one reading it */
+  const driver = register ? (full?.assignedTo ? (staff.find((s) => s.id === full.assignedTo)?.name ?? null) : null) : "you";
   const eco = fuelEconomy(logs);
   const issues = issueGroups(logs);
+  const title = vehicleTitle(vehicle);
   const label = vehicleTabLabel(vehicle);
-  const state = headState(vehicle, issues.open.length, data.warnDays);
-  const photo = full ? photoSrc(full, documents) : { src: `/fleet/${vehicle.motorised ? "van" : "trailer"}.svg`, own: false };
+  const state = statusWord(vehicle.status);
+  const photo = full ? photoSrc(full, documents) : null;
+  const shape = full?.bodyType ?? (vehicle.motorised ? "van" : "trailer");
 
-  /* the open tab's name, "Hilux XQG 41B", with the truck */
+  /* the open tab's name, "Toyota Hiace EVD72G", with the truck */
   useEffect(() => {
     namePage(pathname, { label, icon: "truck" });
   }, [pathname, label]);
@@ -181,7 +201,6 @@ export function VehiclePage({
     renew: (kind) => setOver({ t: "screen", screen: kind }),
     financials: () => setOver({ t: "screen", screen: "financials" }),
     edit: () => setOver({ t: "form" }),
-    assign: (sid) => fleet.assignVehicle(vehicle.id, sid),
     docItems: DOC_ITEMS,
     onDoc: (key) => {
       if (key === "rego" || key === "ctp" || key === "insurance") setOver({ t: "screen", screen: key });
@@ -192,22 +211,33 @@ export function VehiclePage({
     valueError,
   };
 
-  const addItems: MenuItem[] = (register ? (["service", "issue", "odo", "document"] as const) : (["issue", "odo"] as const))
-    .filter((k) => k !== "odo" || vehicle.motorised)
+  /* Add makes what belongs to the vehicle (rule 54): the register all of
+     it, the driver what My vehicle lets them log, a fill, a reading and an
+     issue. Nothing with no motor takes fuel or a reading. */
+  const addItems: MenuItem[] = (register ? (["fuel", "odo", "service", "issue", "document"] as const) : (["fuel", "odo", "issue"] as const))
+    .filter((k) => (k !== "odo" && k !== "fuel") || vehicle.motorised)
     .map((k) => {
-      if (k === "document") return { key: k, label: "Document" };
+      if (k === "document") return { key: k, label: "Document", count: <Icon name="chevR" size={16} /> };
       const can = canLog(k);
-      return { key: k, label: k === "odo" ? "Kilometres" : k === "service" ? "Service" : "Issue", disabled: !can.ok, hint: can.ok ? undefined : "Paused while off road" };
+      return { key: k, label: ADD_WORD[k], disabled: !can.ok, hint: can.ok ? undefined : vehicle.status === "sold" ? "Sold" : "Paused while off road" };
     });
 
+  /* Actions is what's done to the vehicle itself (rule 53): who drives it,
+     its status, its photo, then what ends it, in red */
   const actionItems: MenuItem[] = [
+    { key: "driver", label: "Change driver" },
     { key: "status", label: "Change status" },
     { key: "photo", label: "Change photo" },
     { key: "remove", label: "Remove vehicle", danger: true },
   ];
 
+  const drivers: MenuItem[] = [
+    { key: POOL, label: "Pool, no driver" },
+    ...staff.filter((s) => s.status === "Active" || s.id === full?.assignedTo).map((s) => ({ key: s.id, label: s.name })),
+  ];
+
   const onAction = (key: string) => {
-    if (key === "status") setMenu("status");
+    if (key === "driver" || key === "status") setMenu(key);
     else if (key === "photo") photoInput.current?.click();
     else if (key === "remove") setOver({ t: "remove" });
   };
@@ -239,7 +269,6 @@ export function VehiclePage({
     valuation,
     valuationIsStale: full ? valuationStale(full, valuation ?? undefined) : false,
     staff,
-    driverName,
     eco,
     today: data.today,
     warnDays: data.warnDays,
@@ -257,23 +286,43 @@ export function VehiclePage({
       <div className="wrap vp">
         <header className="vp-head">
           <div className="vp-top">
-            <span className={`vp-photo${photo.own ? " vp-photo--own" : ""}`}>
-              {/* eslint-disable-next-line @next/next/no-img-element -- a signed, expiring URL, as on the card */}
-              <img src={photo.src} alt="" />
-            </span>
-            <div className="vp-id">
-              <h1 className="vp-name">
-                <Fade>{label}</Fade>
-              </h1>
-              <p className="vp-line">
-                <Fade className="vp-facts-line">{`${headLine(vehicle, register ? driverName : null)}.`}</Fade>
-                {state.tone === "info" ? (
-                  <span className="vp-stage">{state.word}</span>
+            {/* the photo square: the photo, or its shape until one is
+                taken; for whoever may change it, a press opens the same
+                picker as Actions › Change photo */}
+            {register ? (
+              <button
+                type="button"
+                className="vp-photo"
+                aria-label={photo?.own ? "Change photo" : undefined}
+                onClick={() => photoInput.current?.click()}
+              >
+                {photo?.own ? (
+                  /* eslint-disable-next-line @next/next/no-img-element -- a signed, expiring URL, as on the card */
+                  <img src={photo.src} alt="" />
                 ) : (
-                  <StateWord tone={state.tone} className="vp-stage">
-                    {state.word}
-                  </StateWord>
+                  <>
+                    <VehicleOutline type={shape} />
+                    <span className="vp-photo-add">Add a photo</span>
+                  </>
                 )}
+              </button>
+            ) : (
+              <span className="vp-photo">
+                <VehicleOutline type={shape} />
+              </span>
+            )}
+            <div className="vp-id">
+              <div className="vp-title">
+                <h1 className="vp-name">
+                  <Fade>{title}</Fade>
+                </h1>
+                {vehicle.plate.trim() && <Plate plate={vehicle.plate} state={vehicle.plateState} size="xl" />}
+              </div>
+              <p className="vp-line">
+                <Fade className="vp-facts-line">{`${headFacts(vehicle, driver)}.`}</Fade>
+                <StateWord tone={state.tone} className="vp-stage">
+                  {state.word}
+                </StateWord>
               </p>
             </div>
             <div className="vp-acts">
@@ -325,7 +374,7 @@ export function VehiclePage({
                     ref={actRef}
                     kind="second"
                     aria-haspopup="menu"
-                    aria-expanded={menu === "actions" || menu === "status"}
+                    aria-expanded={menu === "actions" || menu === "status" || menu === "driver"}
                     onClick={() => setMenu((m) => (m === "actions" ? null : "actions"))}
                   >
                     Actions
@@ -336,7 +385,7 @@ export function VehiclePage({
                     open={menu === "actions"}
                     onClose={() => setMenu(null)}
                     onSelect={(key) => {
-                      if (key !== "status") setMenu(null);
+                      if (key !== "status" && key !== "driver") setMenu(null);
                       onAction(key);
                     }}
                     items={actionItems}
@@ -355,6 +404,20 @@ export function VehiclePage({
                     }}
                     items={STATUS_ITEMS}
                     label="Status"
+                    align="end"
+                  />
+                  <Menu
+                    anchor={actRef}
+                    open={menu === "driver"}
+                    kind="listbox"
+                    chosen={full?.assignedTo ?? POOL}
+                    onClose={() => setMenu(null)}
+                    onSelect={(key) => {
+                      setMenu(null);
+                      fleet.assignVehicle(vehicle.id, key === POOL ? null : key);
+                    }}
+                    items={drivers}
+                    label="Driver"
                     align="end"
                   />
                   <input
@@ -387,8 +450,6 @@ export function VehiclePage({
             <Service view={view} doors={doors} />
           ) : section === "issues" ? (
             <Issues view={view} doors={doors} />
-          ) : section === "kilometres" ? (
-            <Kilometres view={view} doors={doors} />
           ) : section === "fuel" ? (
             <Fuel view={view} doors={doors} />
           ) : section === "documents" ? (

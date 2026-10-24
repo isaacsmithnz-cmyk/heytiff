@@ -1,8 +1,9 @@
-/* A VEHICLE'S OWN PAGE (v2, the boards v2-board-vehicle-*): the head, each
-   section's rows, Add and Actions reaching today's screens and actions, the
-   money shown only to the register, and the driver's own vehicle read-only
-   where My vehicle is. Today's screens are stand-ins here that say which
-   screen they were opened on; they have their own suites. */
+/* A VEHICLE'S OWN PAGE (v2; each fact once, Isaac's mock of 24 October
+   2026): the head (the make and model, the plate beside it, one grey line),
+   each section's rows, Add and Actions reaching today's screens and
+   actions, the money shown only to the register, and the driver's own
+   vehicle read-only where My vehicle is. Today's screens are stand-ins here
+   that say which screen they were opened on; they have their own suites. */
 
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -202,18 +203,40 @@ beforeEach(() => {
   window.history.replaceState(null, "", "/dashboard/vehicles/v1");
 });
 
+const hiace = (): VehiclePageData => {
+  const vehicle: Vehicle = { ...hilux, name: "Zucky", make: "Toyota", model: "Hiace", year: 2022, plate: "EVD72G", plateState: "NSW", assignedTo: "s-dan" };
+  return { ...managerData(), vehicle } as VehiclePageData;
+};
+
 describe("the head", () => {
-  it("names the vehicle and its rego, one grey line, and its state as a word", () => {
-    draw(managerData());
-    expect(screen.getByRole("heading", { level: 1, name: "Hilux XQG41B" })).toBeInTheDocument();
-    expect(screen.getByText("Lyle Irving, 128,400 km, Toyota Hilux SR5 2021.")).toBeInTheDocument();
-    const word = screen.getByText("Rego due in 25 days");
-    expect(word.closest(".pt-state")).toHaveClass("pt-state--look");
+  it("is the make and model, with the plate drawn beside it as a NSW plate (Isaac: \"At the top, Toyota Hiace\")", () => {
+    const { container } = draw(hiace());
+    const h1 = screen.getByRole("heading", { level: 1 });
+    expect(h1).toHaveTextContent(/^Toyota Hiace$/);
+    const plate = container.querySelector(".vp-title .au-plate.xl")!;
+    expect(plate).not.toBeNull();
+    expect(plate.parentElement).toBe(h1.parentElement);
+    expect([...plate.children].map((c) => c.textContent)).toEqual(["NSW", "EVD72G"]);
+    /* the nickname and the plate no longer lead the title */
+    expect(h1).not.toHaveTextContent(/Zucky|EVD72G/);
   });
 
-  it("names its open tab with the truck", () => {
+  it("says the year, the nickname, who drives it and its status on one grey line", () => {
+    draw(hiace());
+    expect(screen.getByText("2022, Zucky, Dan Walsh drives it.")).toBeInTheDocument();
+    const status = screen.getByText("In service");
+    expect(status.closest(".pt-state")).toHaveClass("pt-state--good");
+    expect(status.closest(".vp-line")).not.toBeNull();
+  });
+
+  it("says No driver for the pool", () => {
+    draw({ ...managerData(), vehicle: { ...hilux, assignedTo: null } } as VehiclePageData);
+    expect(screen.getByText("2021, Hilux, No driver.")).toBeInTheDocument();
+  });
+
+  it("names its open tab with the title and plate, and the truck", () => {
     draw(managerData());
-    expect(pageNamesSnapshot()["/dashboard/vehicles/v1"]).toEqual({ label: "Hilux XQG41B", icon: "truck" });
+    expect(pageNamesSnapshot()["/dashboard/vehicles/v1"]).toEqual({ label: "Toyota Hilux SR5 XQG41B", icon: "truck" });
   });
 
   it("keeps the section in the address as ?tab=", async () => {
@@ -223,34 +246,80 @@ describe("the head", () => {
     await user().click(tab(/^Overview/));
     expect(window.location.search).toBe("");
   });
-});
 
-it("says an overdue rego in red in the head", () => {
-  const data = managerData();
-  draw({ ...data, vehicle: { ...hilux, regoDays: -3 } } as VehiclePageData);
-  expect(screen.getByText("Rego 3 days overdue").closest(".pt-state")).toHaveClass("pt-state--wrong");
+  it("has the six sections, with no Kilometres tab", () => {
+    draw(managerData());
+    expect(screen.getAllByRole("tab").map((t) => t.textContent?.replace(/, something to look at$/, ""))).toEqual(["Overview", "Service", "Fuel", "Issues", "Documents", "Money"]);
+  });
+
+  it("opens the photo picker from the photo square, which says Add a photo until there is one", async () => {
+    draw(managerData());
+    const picker = screen.getByLabelText("Change photo") as HTMLInputElement;
+    const click = jest.spyOn(picker, "click").mockImplementation(() => {});
+    await user().click(screen.getByRole("button", { name: "Add a photo" }));
+    expect(click).toHaveBeenCalledTimes(1);
+  });
+
+  it("paints no button ink, and blue only for the one main button", () => {
+    const overview = draw(managerData());
+    expect(overview.container.querySelectorAll(".pt-btn--main")).toHaveLength(0);
+    overview.unmount();
+    draw(managerData(), "service");
+    expect(screen.getAllByRole("button").filter((b) => b.classList.contains("pt-btn--main")).map((b) => b.textContent)).toEqual(["Log a service"]);
+  });
 });
 
 describe("the sections", () => {
-  it("Overview: the latest of each kind, where it stands, and the details", () => {
+  it("Overview: the renewals, each with its state, date and door, and the service and last fill beside them", () => {
     draw(managerData());
-    const latest = screen.getByRole("list", { name: "The latest of each kind" });
-    expect(within(latest).getByText("Aircon blowing warm")).toBeInTheDocument();
-    expect(within(latest).getByText("68.2 litres, $141.20")).toBeInTheDocument();
-    expect(within(latest).getByText("Insurance renewed to 7 Mar 2027")).toBeInTheDocument();
-    expect(within(latest).getByText("Receipt kept")).toBeInTheDocument();
-    expect(within(latest).getByText("Policy kept")).toBeInTheDocument();
-    expect(screen.getAllByText("Due in 25 days")).toHaveLength(2); // rego and green slip
-    expect(screen.getByRole("button", { name: "Renew rego" })).toHaveClass("pt-btn--main");
-    expect(screen.getByText("MR0HA3CD300812345")).toBeInTheDocument();
-    expect(screen.getByText("Book value; Tiff puts it near $39,500")).toBeInTheDocument();
+    const renewals = within(screen.getByRole("region", { name: "Renewals" }));
+    expect(renewals.getByText("Rego")).toBeInTheDocument();
+    expect(renewals.getAllByText("Due in 25 days")).toHaveLength(2); // rego and green slip
+    expect(renewals.getAllByText("to 12 Nov 2026")).toHaveLength(2);
+    expect(renewals.getByText("to 7 Mar 2027")).toBeInTheDocument();
+    for (const name of ["Renew rego", "Renew green slip", "Renew insurance"]) {
+      const b = renewals.getByRole("button", { name });
+      expect(b).toHaveTextContent(/^Renew$/);
+      expect(b).toHaveClass("pt-btn--second");
+    }
+    const service = within(screen.getByRole("region", { name: "Service" }));
+    expect(service.getByText("128,400 km, read day 2")).toBeInTheDocument();
+    expect(service.getByText("At 130,200 km or by 30 Dec 2026, 1,800 km to go")).toBeInTheDocument();
+    expect(service.getByText("day 110")).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Last fuel" })).getByText("68.2 litres, $141.20, Ampol Botany")).toBeInTheDocument();
+  });
+
+  it("Overview: says the odometer once, and has no Value, Driver or Status row, no Details and no Where it stands", () => {
+    draw(managerData());
+    const panel = screen.getByRole("tabpanel");
+    expect(within(panel).getAllByText(/128,400/)).toHaveLength(1);
+    expect(screen.getAllByText(/128,400/)).toHaveLength(1); // not in the head's line either
+    for (const gone of ["Value", "Driver", "Towed by", "Status", "Details", "Latest", "Make and model", "Plate"]) expect(within(panel).queryByText(gone)).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Where it stands" })).toBeNull();
+    expect(screen.queryByText(/Book value|Tiff puts it/)).toBeNull();
+    expect(screen.queryByText("MR0HA3CD300812345")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Change driver" })).toBeNull();
+  });
+
+  it("Overview: says Not on file and offers Add for a renewal nobody entered", async () => {
+    draw({ ...managerData(), vehicle: { ...hilux, ctpDays: null } } as VehiclePageData);
+    const renewals = within(screen.getByRole("region", { name: "Renewals" }));
+    expect(renewals.getByText("Not on file")).toBeInTheDocument();
+    await user().click(renewals.getByRole("button", { name: "Add green slip" }));
+    expect(screen.getByText("Screen ctp, alone")).toBeInTheDocument();
+  });
+
+  it("Overview: says an overdue rego in red where the rego is", () => {
+    draw({ ...managerData(), vehicle: { ...hilux, regoDays: -3 } } as VehiclePageData);
+    const word = within(screen.getByRole("region", { name: "Renewals" })).getByText("3 days overdue");
+    expect(word.closest(".pt-state")).toHaveClass("pt-state--wrong");
   });
 
   it("Service: the history with its paper, the next one due and the year's spend", async () => {
     draw(managerData(), "service");
     expect(tab(/^Service/)).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("heading", { name: "At 130,200 km or by 30 Dec 2026" })).toBeInTheDocument();
-    const rows = screen.getAllByRole("row").slice(1);
+    const rows = within(screen.getByRole("table", { name: "Services" })).getAllByRole("row").slice(1);
     expect(rows).toHaveLength(2);
     expect(within(rows[0]).getByText("Logbook service, 120,000 km")).toBeInTheDocument();
     expect(within(rows[0]).getByText("Record kept")).toBeInTheDocument();
@@ -258,6 +327,25 @@ describe("the sections", () => {
     expect(screen.getByText("$898.00 on service in the last 12 months.")).toBeInTheDocument();
     await user().click(within(rows[1]).getByRole("button", { name: "Attach record" }));
     expect(screen.getByText("Screen log:s0, alone")).toBeInTheDocument();
+  });
+
+  it("Service: the kilometres, the line and the readings newest first, folded in from their old tab", async () => {
+    draw(managerData(), "service");
+    expect(screen.getByRole("img", { name: /The odometer over the last 12 months/ })).toBeInTheDocument();
+    const rows = within(screen.getByRole("table", { name: "Readings" })).getAllByRole("row").slice(1);
+    expect(rows.map((r) => within(r).getAllByRole("cell")[1].textContent)).toEqual(["128,400 km", "128,210 km", "127,100 km", "120,200 km", "110,150 km"]);
+    expect(within(rows[0]).getByText("Fuel docket, Ampol Botany")).toBeInTheDocument();
+    expect(within(rows[0]).getByText("+190")).toBeInTheDocument();
+    await user().click(screen.getByRole("button", { name: "Add a reading" }));
+    expect(screen.getByText("Screen add:odo, alone")).toBeInTheDocument();
+  });
+
+  it("Fuel: the fills", () => {
+    draw(managerData(), "fuel");
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(rows).toHaveLength(1);
+    expect(within(rows[0]).getByText("Ampol Botany")).toBeInTheDocument();
+    expect(within(rows[0]).getByText("Company card")).toBeInTheDocument();
   });
 
   it("Issues: open first, then fixed; an issue opens today's entry screen, where Mark resolved is", async () => {
@@ -271,23 +359,6 @@ describe("the sections", () => {
     expect(screen.getByText("Screen log:i1, alone")).toBeInTheDocument();
   });
 
-  it("Kilometres: the line and the readings, newest first", () => {
-    draw(managerData(), "kilometres");
-    expect(screen.getByRole("img", { name: /The odometer over the last 12 months/ })).toBeInTheDocument();
-    const rows = screen.getAllByRole("row").slice(1);
-    expect(rows.map((r) => within(r).getAllByRole("cell")[1].textContent)).toEqual(["128,400 km", "128,210 km", "127,100 km", "120,200 km", "110,150 km"]);
-    expect(within(rows[0]).getByText("Fuel docket, Ampol Botany")).toBeInTheDocument();
-    expect(within(rows[0]).getByText("+190")).toBeInTheDocument();
-  });
-
-  it("Fuel: the fills", () => {
-    draw(managerData(), "fuel");
-    const rows = screen.getAllByRole("row").slice(1);
-    expect(rows).toHaveLength(1);
-    expect(within(rows[0]).getByText("Ampol Botany")).toBeInTheDocument();
-    expect(within(rows[0]).getByText("Company card")).toBeInTheDocument();
-  });
-
   it("Documents: the renewals and the stored scans", async () => {
     draw(managerData(), "documents");
     const renewals = screen.getByRole("list", { name: "Renewals" });
@@ -299,7 +370,7 @@ describe("the sections", () => {
     expect(screen.getByText("Screen insurance, alone")).toBeInTheDocument();
   });
 
-  it("Money: today's financials screen's content, and its door for the edits", async () => {
+  it("Money: today's financials screen's content, the value, and its door for the edits", async () => {
     draw(managerData(), "money");
     expect(screen.getByText("$39,500")).toBeInTheDocument();
     expect(screen.getByText("Botany Toyota")).toBeInTheDocument();
@@ -313,9 +384,21 @@ describe("the sections", () => {
 describe("Add", () => {
   const pick = async (...names: string[]) => {
     const u = user();
-    await u.click(screen.getByRole("button", { name: /^Add/ }));
+    await u.click(screen.getByRole("button", { name: /^Add$/ }));
     for (const n of names) await u.click(screen.getByRole("menuitem", { name: new RegExp(`^${n}`) }));
   };
+
+  it("offers Fuel, Kilometres, Service, Issue and Document, in that order", async () => {
+    draw(managerData());
+    await user().click(screen.getByRole("button", { name: /^Add$/ }));
+    expect(screen.getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Fuel", "Kilometres", "Service", "Issue", "Document"]);
+  });
+
+  it("logs fuel through today's fuel screen, the one My vehicle's Log fuel records", async () => {
+    draw(managerData());
+    await pick("Fuel");
+    expect(screen.getByText("Screen add:fuel, alone")).toBeInTheDocument();
+  });
 
   it("opens today's logging screens for a service, an issue and a reading", async () => {
     draw(managerData());
@@ -339,18 +422,26 @@ describe("Add", () => {
     expect(screen.getByText("Screen financials, alone")).toBeInTheDocument();
   });
 
-  it("pauses a reading on a vehicle off the road, as the server does", async () => {
+  it("pauses a reading and a fill on a vehicle off the road, as the server does", async () => {
     draw({ ...managerData(), vehicle: { ...hilux, status: "offroad" } } as VehiclePageData);
-    await user().click(screen.getByRole("button", { name: /^Add/ }));
+    await user().click(screen.getByRole("button", { name: /^Add$/ }));
     expect(screen.getByRole("menuitem", { name: /^Kilometres/ })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("menuitem", { name: /^Fuel/ })).toHaveAttribute("aria-disabled", "true");
   });
 
-  it("Renew rego and Edit details open today's renewal screen and form", async () => {
+  it("offers no fuel and no reading for something with no motor", async () => {
+    draw({ ...managerData(), vehicle: { ...hilux, motorised: false } } as VehiclePageData);
+    await user().click(screen.getByRole("button", { name: /^Add$/ }));
+    expect(screen.getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Service", "Issue", "Document"]);
+  });
+
+  it("Renew and Edit schedule open today's renewal screen and form", async () => {
     draw(managerData());
-    await user().click(screen.getByRole("button", { name: "Renew slip" }));
+    await user().click(screen.getByRole("button", { name: "Renew green slip" }));
     expect(screen.getByText("Screen ctp, alone")).toBeInTheDocument();
     await user().click(within(opened()!).getByRole("button", { name: "Back" }));
-    await user().click(screen.getByRole("button", { name: "Edit details" }));
+    await user().click(tab(/^Service/));
+    await user().click(screen.getByRole("button", { name: "Edit schedule" }));
     expect(screen.getByText("The vehicle form, filled in for Hilux")).toBeInTheDocument();
   });
 
@@ -366,6 +457,28 @@ describe("Add", () => {
 });
 
 describe("Actions", () => {
+  it("offers Change driver first, then the status and the photo, and Remove vehicle last, in red", async () => {
+    draw(managerData());
+    await user().click(screen.getByRole("button", { name: /^Actions/ }));
+    const items = screen.getAllByRole("menuitem");
+    expect(items.map((i) => i.textContent)).toEqual(["Change driver", "Change status", "Change photo", "Remove vehicle"]);
+    expect(items[3]).toHaveClass("pt-menu-item--danger");
+  });
+
+  it("changes the driver through today's assignment, the pool included", async () => {
+    draw(managerData());
+    const u = user();
+    await u.click(screen.getByRole("button", { name: /^Actions/ }));
+    await u.click(screen.getByRole("menuitem", { name: "Change driver" }));
+    expect(screen.getByRole("option", { name: "Lyle Irving" })).toHaveAttribute("aria-selected", "true");
+    await u.click(screen.getByRole("option", { name: "Dan Walsh" }));
+    expect(fleet.assignVehicle).toHaveBeenCalledWith("v1", "s-dan");
+    await u.click(screen.getByRole("button", { name: /^Actions/ }));
+    await u.click(screen.getByRole("menuitem", { name: "Change driver" }));
+    await u.click(screen.getByRole("option", { name: "Pool, no driver" }));
+    expect(fleet.assignVehicle).toHaveBeenLastCalledWith("v1", null);
+  });
+
   it("changes the status through today's save", async () => {
     draw(managerData());
     const u = user();
@@ -375,15 +488,13 @@ describe("Actions", () => {
     expect(fleet.saveVehicle).toHaveBeenCalledWith(expect.objectContaining({ id: "v1", status: "offroad" }));
   });
 
-  it("puts Remove vehicle last, in red, and asks before it removes", async () => {
+  it("asks before it removes", async () => {
     draw(managerData());
     const u = user();
     await u.click(screen.getByRole("button", { name: /^Actions/ }));
-    const items = screen.getAllByRole("menuitem");
-    expect(items.map((i) => i.textContent)).toEqual(["Change status", "Change photo", "Remove vehicle"]);
-    await u.click(items[2]);
+    await u.click(screen.getByRole("menuitem", { name: "Remove vehicle" }));
     expect(removeVehicle).not.toHaveBeenCalled();
-    const ask = screen.getByRole("dialog", { name: "Remove Hilux XQG41B?" });
+    const ask = screen.getByRole("dialog", { name: "Remove Toyota Hilux SR5 XQG41B?" });
     await u.click(within(ask).getByRole("button", { name: "Remove vehicle" }));
     expect(removeVehicle).toHaveBeenCalledWith("v1");
     expect(replace).toHaveBeenCalledWith("/dashboard/team?view=vehicles");
@@ -399,22 +510,15 @@ describe("Actions", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't remove that vehicle.");
     expect(replace).not.toHaveBeenCalled();
   });
-
-  it("changes the driver through today's assignment", async () => {
-    draw(managerData());
-    const u = user();
-    await u.click(screen.getByRole("button", { name: "Change driver" }));
-    await u.click(screen.getByRole("option", { name: "Dan Walsh" }));
-    expect(fleet.assignVehicle).toHaveBeenCalledWith("v1", "s-dan");
-  });
 });
 
 describe("the money gate", () => {
-  it("shows Money, Documents and the value to the register", () => {
+  it("shows Money and Documents to the register, and the value only on Money", () => {
     draw(managerData());
     expect(tab(/^Money/)).toBeInTheDocument();
     expect(tab(/^Documents/)).toBeInTheDocument();
-    expect(screen.getByText("Value")).toBeInTheDocument();
+    expect(screen.queryByText("$41,000")).toBeNull();
+    expect(screen.queryByText("$39,500")).toBeNull();
   });
 
   it("shows a driver no Money, no Documents and no value", () => {
@@ -427,22 +531,38 @@ describe("the money gate", () => {
 });
 
 describe("a driver's own vehicle, read-only where My vehicle is", () => {
-  it("has no Actions, no renewals and no assigning", () => {
+  it("has no Actions, no renewing and no assigning, and says they drive it", () => {
     draw(driverData());
     expect(screen.queryByRole("button", { name: /^Actions/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Renew rego" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^(Renew|Add) / })).toBeNull();
     expect(screen.queryByRole("button", { name: "Change driver" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Edit details" })).toBeNull();
-    expect(screen.getByText("You")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit schedule" })).toBeNull();
+    expect(screen.getByText("2021, Hilux, You drive it.")).toBeInTheDocument();
+    /* the renewals still read, as My vehicle shows them */
+    expect(within(screen.getByRole("region", { name: "Renewals" })).getAllByText("Due in 25 days")).toHaveLength(2);
   });
 
-  it("adds an issue or a reading through My vehicle's own dialog, and no service", async () => {
+  it("shows the photo square without a door to change it", () => {
+    draw(driverData());
+    expect(screen.queryByRole("button", { name: /photo/i })).toBeNull();
+    expect(screen.queryByText("Add a photo")).toBeNull();
+  });
+
+  it("adds fuel, a reading or an issue through My vehicle's own dialog, and no service", async () => {
     draw(driverData());
     const u = user();
-    await u.click(screen.getByRole("button", { name: /^Add/ }));
-    expect(screen.getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Issue", "Kilometres"]);
+    await u.click(screen.getByRole("button", { name: /^Add$/ }));
+    expect(screen.getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Fuel", "Kilometres", "Issue"]);
     await u.click(screen.getByRole("menuitem", { name: "Kilometres" }));
     expect(screen.getByText("Today's log dialog: odo on v1")).toBeInTheDocument();
+  });
+
+  it("logs fuel from Add through My vehicle's Log fuel dialog", async () => {
+    draw(driverData());
+    const u = user();
+    await u.click(screen.getByRole("button", { name: /^Add$/ }));
+    await u.click(screen.getByRole("menuitem", { name: "Fuel" }));
+    expect(screen.getByText("Today's log dialog: fuel on v1")).toBeInTheDocument();
   });
 
   it("logs fuel on a pool ute while their own is off the road, as My vehicle offers", async () => {

@@ -23,8 +23,13 @@
 
 /* "lg" is the staff card's: the van is the one thing in its header you read
    from across the room, so the plate is set at the name's weight rather than
-   as a tag beside a sentence. */
-export type PlateSize = "sm" | "md" | "lg";
+   as a tag beside a sentence.
+
+   "xl" is a vehicle's own page, beside its title (Isaac, 24 October 2026:
+   "the license plate in a New South Wales or Australian license plate shape
+   next to it"): drawn as the object, white with an ink edge, the state set
+   small ABOVE the number as a NSW plate carries it, the number in bold. */
+export type PlateSize = "sm" | "md" | "lg" | "xl";
 
 /* Uppercased here rather than left to `text-transform`, because a plate IS
    uppercase — someone typing "mkt482" into the add-vehicle form has entered
@@ -43,6 +48,17 @@ export function Plate({
   size?: PlateSize;
 }) {
   const tag = norm(state);
+  if (size === "xl")
+    return (
+      <span className="au-plate xl">
+        {tag && (
+          <>
+            <span className="st">{tag}</span>{" "}
+          </>
+        )}
+        <span className="no">{norm(plate)}</span>
+      </span>
+    );
   return (
     <span className={`au-plate${size === "md" ? "" : ` ${size}`}`}>
       {norm(plate)}

@@ -3173,6 +3173,13 @@ button.fl-btn { font-size:14px; font-weight:700; }
 /* the staff card's van: read from across the room — see plate.tsx */
 .au-plate.lg { gap:12px; padding:8px 16px; font-size:24px; border-width:2px; border-radius:var(--r-button); background:var(--paper); }
 .au-plate.lg .st { padding-left:12px; font-size:13px; }
+/* a vehicle's own page, beside its title: drawn as the plate itself, white
+   in a 2px ink edge, the state small above the number in bold (Isaac's
+   mock, 24 October 2026). The corner is the field's 6, the scale's nearest
+   to a plate's; no tracking, which the letter-spacing ratchet keeps for
+   display titles. */
+.au-plate.xl { flex:none; flex-direction:column; align-items:center; gap:0; padding:2px 12px 4px; border:2px solid var(--ink); border-radius:var(--r-control); background:var(--paper); box-shadow:none; font-size:20px; line-height:20px; }
+.au-plate.xl .st { padding-left:0; border-left:0; font-size:12px; line-height:12px; color:var(--ink); }
 
 /* log-modal vehicle picker: the select, and the chosen plate beside it.
    Unscoped for the same reason .au-plate is — the modal lives on document.body. */
@@ -9630,21 +9637,30 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* New job: the hits under the customer, each its name and a grey fact */
 .mk-jobhits .mk-job-hitfact { margin-left:8px; color:var(--q); }
 
-/* ===== V2: A VEHICLE'S PAGE (v2, "A vehicle's own page", 18 October; the
-   boards v2-board-vehicle-*; components/fleet/vehicle-page) =====
-   The head as a job's page has it (its photo, name and rego, one grey line
-   and its state as a word, Add and Actions, the section tabs), then the
-   sections: rows and tables on the white page under thin lines, Where it
-   stands in a column on the right, the kilometres as a line in ink. Rows
-   are the Row part and buttons the Button part; what is here is the page. */
+/* ===== V2: A VEHICLE'S PAGE (v2, "A vehicle's own page", 18 October;
+   simplified on Isaac's mock of 24 October 2026, each fact once;
+   components/fleet/vehicle-page) =====
+   The head as a job's page has it (the photo square, the make and model
+   with the plate drawn beside it, one grey line ending in its status, Add
+   and Actions, the section tabs), then the sections: rows and tables on the
+   white page under thin lines, a label and its value in a column, the
+   kilometres as a line in ink. Rows are the Row part and buttons the Button
+   part; what is here is the page. */
 .fg .wrap.vp { padding:24px 32px 96px; display:flex; flex-direction:column; gap:24px; }
 .fg .vp-head { display:flex; flex-direction:column; gap:16px; }
 .fg .vp-top { display:flex; align-items:center; gap:16px; min-width:0; }
-.fg .vp-photo { flex:none; display:flex; align-items:center; justify-content:center; width:64px; height:64px; overflow:hidden; border:1px solid var(--line); border-radius:var(--r-card); background:var(--soft); }
-.fg .vp-photo img { width:48px; height:48px; object-fit:contain; }
-.fg .vp-photo.vp-photo--own img { width:100%; height:100%; object-fit:cover; }
+/* the photo square, 88 by 64 on the soft fill: the photo, or the vehicle's
+   outline in the line's grey and "Add a photo" for whoever may add one */
+.fg .vp-photo { flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; width:88px; height:64px; margin:0; padding:0; overflow:hidden; border:0; border-radius:var(--r-button); background:var(--soft); color:var(--q); font-family:var(--font); }
+.fg button.vp-photo { cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.fg button.vp-photo:hover { background-color:var(--tint-2); }
+.fg button.vp-photo:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .vp-photo img { width:100%; height:100%; object-fit:cover; }
+.fg .vp-photo-add { font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
 .fg .vp-id { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:4px; }
-.fg .vp-name { margin:0; min-width:0; font-size:24px; font-weight:600; line-height:32px; color:var(--ink); }
+/* the title and the plate beside it */
+.fg .vp-title { display:flex; align-items:center; gap:12px; min-width:0; }
+.fg .vp-name { flex:0 1 auto; margin:0; min-width:0; font-size:24px; font-weight:600; line-height:32px; color:var(--ink); }
 .fg .vp-line { display:flex; align-items:center; gap:8px; min-width:0; margin:0; font-size:14px; line-height:20px; color:var(--q); }
 .fg .vp-facts-line { flex:0 1 auto; }
 .fg .vp-stage { flex:none; font-weight:500; }
@@ -9652,8 +9668,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .vp-chev { display:inline-flex; margin-left:4px; vertical-align:middle; }
 .fg .vp-err { margin:0; font-size:14px; line-height:20px; font-weight:500; color:var(--red-w); }
 .fg .vp-body { min-width:0; }
-/* a section and its column; Where it stands sits on the right at 1440 */
-.fg .vp-two { display:grid; grid-template-columns:minmax(0,1fr) 400px; gap:48px; align-items:start; }
+/* Overview: the renewals, and the service and last fill beside them */
+.fg .vp-two { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); gap:32px; align-items:start; }
 .fg .vp-col { display:flex; flex-direction:column; gap:24px; min-width:0; }
 .fg .vp-sec { display:flex; flex-direction:column; gap:8px; min-width:0; }
 .fg .vp-sechead { display:flex; align-items:center; gap:12px; min-height:36px; }
@@ -9663,29 +9679,22 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .vp-h-sub { font-size:14px; line-height:20px; font-weight:400; color:var(--q); font-variant-numeric:tabular-nums; }
 .fg .vp-none,
 .fg .vp-foot { margin:0; font-size:13px; line-height:18px; color:var(--q); }
-.fg .vp-notes { margin:0; font-size:14px; line-height:20px; color:var(--ink); white-space:pre-line; }
 .fg .vp-quiet { color:var(--q); }
 .fg .vp-link { font-size:13px; line-height:18px; font-weight:500; color:var(--ink); text-decoration:underline; text-underline-offset:2px; }
-/* Latest: a fixed column for the kind, as the board draws it */
-.fg .vp-lead { display:inline-block; width:104px; font-size:14px; line-height:20px; font-weight:400; color:var(--q); }
 .fg .vp .pt-row { padding-block:12px; }
-/* Details, the money's facts: label and value, two pairs a line */
+/* the money's facts: label and value, two pairs a line */
 .fg .vp-facts { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px 32px; margin:0; padding-top:8px; border-top:1px solid var(--line); }
 .fg .vp-fact { display:grid; grid-template-columns:160px minmax(0,1fr); gap:12px; align-items:baseline; }
 .fg .vp-fact dt { font-size:14px; line-height:20px; color:var(--q); }
 .fg .vp-fact dd { margin:0; min-width:0; font-size:14px; line-height:20px; color:var(--ink); overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
-/* Where it stands */
-.fg .vp-st { margin:0; }
-.fg .vp-st-row { display:grid; grid-template-columns:104px minmax(0,1fr) auto; gap:12px; align-items:center; padding:8px 0; border-top:1px solid var(--line); }
-.fg .vp-st-row:last-child { border-bottom:1px solid var(--line); }
-.fg .vp-st-row dt { font-size:14px; line-height:20px; color:var(--q); }
-.fg .vp-st-row dd { margin:0; min-width:0; display:flex; flex-direction:column; gap:2px; }
-.fg .vp-st-fig { font-size:14px; line-height:20px; font-weight:500; color:var(--ink); font-variant-numeric:tabular-nums; }
-.fg .vp-st-line { display:flex; align-items:center; gap:4px; font-size:13px; line-height:18px; color:var(--q); }
-.fg .vp-st-who { display:inline-flex; align-items:center; gap:8px; font-size:14px; line-height:20px; color:var(--ink); }
-.fg .vp-st-act { position:relative; }
-.fg .vp-info { display:inline-flex; color:var(--q); border-radius:50%; cursor:help; }
-.fg .vp-info:focus-visible { outline:none; box-shadow:var(--ring); }
+/* Overview's groups: a label, what it says, and on the right a state word
+   or one button (rule 39), each pair under a thin line */
+.fg .vp-kv { margin:0; }
+.fg .vp-kv-row { display:grid; grid-template-columns:104px minmax(0,1fr); gap:12px; align-items:center; padding:8px 0; border-top:1px solid var(--line); }
+.fg .vp-kv-row:last-child { border-bottom:1px solid var(--line); }
+.fg .vp-kv-row dt { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .vp-kv-row dd { margin:0; min-width:0; display:flex; align-items:center; flex-wrap:wrap; gap:4px 8px; font-size:14px; line-height:20px; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .vp-kv-end { margin-left:auto; display:inline-flex; align-items:center; }
 /* Service: the next one, then the history */
 .fg .vp-next { display:flex; align-items:center; gap:24px; padding-bottom:24px; border-bottom:1px solid var(--line); }
 .fg .vp-next-text { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
@@ -9709,7 +9718,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .vp-table .vp-raise { position:relative; z-index:var(--z-raised); }
 .fg .vp-cell-name { display:block; font-weight:600; }
 .fg .vp-cell-line { display:block; font-size:13px; line-height:18px; color:var(--q); }
-/* Kilometres: one big figure, the line, the readings */
+/* Money's one big figure; Service's kilometres: the line, the readings */
 .fg .vp-bigline { display:flex; align-items:baseline; gap:12px; margin:0; min-width:0; }
 .fg .vp-big { font-size:32px; line-height:40px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
 .fg .vp-big-sub { font-size:14px; line-height:20px; color:var(--q); }
@@ -9725,6 +9734,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 }
 @media (max-width:900px) {
   .fg .vp-top { flex-wrap:wrap; }
+  .fg .vp-title { flex-wrap:wrap; }
   .fg .vp-acts { flex-wrap:wrap; }
   .fg .vp-facts { grid-template-columns:minmax(0,1fr); }
 }

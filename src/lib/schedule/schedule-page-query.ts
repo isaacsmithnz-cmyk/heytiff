@@ -8,7 +8,10 @@ import { auth0 } from "@/lib/auth0";
 import { can, getDbRole } from "@/lib/permissions-server";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
-import { loadScheduleDay, type SchedulePayload } from "@/lib/workboard/schedule-query";
+import { loadScheduleDay, readAvailabilitySpan, type SchedulePayload } from "@/lib/workboard/schedule-query";
+import { availabilityOnDay } from "@/lib/workboard/away";
+import { calendarEventsInSpan, noticeEventsInSpan } from "@/lib/calendar/query";
+import { teamDay, type TeamDay } from "./month-team";
 import { loadCapacityWindow } from "@/lib/workboard/capacity-query";
 import { CAPACITY_WINDOW_DAYS, capacityWindow, daysFrom, type CapacityDay } from "@/lib/workboard/capacity";
 import { loadJobsList } from "@/lib/workboard/jobs-list-query";
@@ -43,8 +46,12 @@ export type SchedulePage = {
   payloads: SchedulePayload[];
   /** Book in is offered here and the viewer may press it */
   canBook: boolean;
-  /** the 4 weeks view: each weekday scored against the crew's hours */
+  /** the 4 weeks view: each weekday scored against the crew's hours, less
+      whoever is off and nothing on a public holiday */
   capacity: CapacityDay[];
+  /** 4 weeks and Month: each weekday's public holiday, who's off and its
+      events (the Team filter, Isaac, 24 October 2026) */
+  team: TeamDay[];
   /** ServiceM8 staff uuid (lower case) → their HeyTiff person, where linked */
   profiles: Record<string, string>;
   /** may set the team's regular days off */
@@ -85,15 +92,38 @@ export async function loadSchedulePage(params: Record<string, string | string[] 
      Jobs panel). A month runs past one window's 28 days, so it reads two. */
   if (view === "weeks" || view === "month") {
     const starts = [days[0], ...(daysFrom(days[0], CAPACITY_WINDOW_DAYS + 1)[CAPACITY_WINDOW_DAYS] <= days[days.length - 1] ? [daysFrom(days[0], CAPACITY_WINDOW_DAYS + 1)[CAPACITY_WINDOW_DAYS]] : [])];
-    const windows = await Promise.all(starts.map((s) => loadCapacityWindow(orgId, s)));
+    const first = days[0];
+    const last = days[days.length - 1];
+    const [windows, rows, rules, links, events, notices] = await Promise.all([
+      Promise.all(starts.map((s) => loadCapacityWindow(orgId, s))),
+      readAvailabilitySpan(orgId, first, last),
+      readRegularDaysOff(orgId),
+      sm8StaffByProfile(orgId),
+      calendarEventsInSpan(orgId, first, last),
+      noticeEventsInSpan(orgId, first, last),
+    ]);
+    const staffNames = new Map(windows.flatMap((w) => w.staffNames));
+    const names = new Map<string, string>();
+    for (const a of windows[0].allocation) if (a.name) names.set(a.staffUuid.toLowerCase(), a.name);
+    for (const [uuid, name] of staffNames) if (name) names.set(uuid.toLowerCase(), name);
+    /* who's off, the business shut and its events, day by day: ServiceM8's
+       time off (where its mirror can answer for all of it) with the team's
+       regular days off laid over, as the Day and Week views read them */
+    const team = days.map((d) => {
+      const placed = rows ? availabilityOnDay(rows, d) : { away: [], closed: [] };
+      return teamDay({ dayISO: d, away: withRegular(placed.away, awayOnDay(rules, d, links)), closed: placed.closed, names, events, notices });
+    });
+    const byDay = new Map(team.map((t) => [t.dayISO, t]));
     const all = capacityWindow({
       days: starts.flatMap((s) => daysFrom(s, CAPACITY_WINDOW_DAYS)),
       activities: windows.flatMap((w) => w.activities),
       allocation: windows[0].allocation,
-      staffNames: new Map(windows.flatMap((w) => w.staffNames)),
+      staffNames,
+      offMinutes: (d, u) => byDay.get(d)?.off.find((o) => o.staffUuid.toLowerCase() === u.toLowerCase())?.minutes ?? 0,
+      closed: new Set(team.filter((t) => t.holiday).map((t) => t.dayISO)),
     });
     const shown = new Set(days);
-    return { view, day, today, days, payloads: [], canBook: false, capacity: all.filter((d) => shown.has(d.dayISO)), profiles: {}, canTeam: false };
+    return { view, day, today, days, payloads: [], canBook: false, capacity: all.filter((d) => shown.has(d.dayISO)), team, profiles: {}, canTeam: false };
   }
 
   const booking = sm8BookingsAllowed();
@@ -118,6 +148,7 @@ export async function loadSchedulePage(params: Record<string, string | string[] 
     payloads,
     canBook: !!state && offersSend(state, "booking") && mayPress,
     capacity: [],
+    team: [],
     profiles,
     canTeam,
   };

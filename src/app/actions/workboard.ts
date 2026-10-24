@@ -125,6 +125,7 @@ import {
 } from "@/lib/workboard/all-jobs-query";
 import { sheetRowOf, type AllJobRow, type AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import { saveCapacityAllocation } from "@/lib/workboard/capacity-query";
+import { EMPTY_SCHEDULE, loadScheduleDay, type SchedulePayload } from "@/lib/workboard/schedule-query";
 
 /* Workboard mutations. Everything the UI decided is re-decided here — a
    Server Function is reachable by direct POST.
@@ -752,6 +753,25 @@ export async function searchAllJobs(query: string): Promise<AllJobsMirrorJob[]> 
   return searchAllMirrorJobs(ctx.orgId, query, today, {
     includeMoney: await can("workboard_money"),
   });
+}
+
+/** One day of the diary, for the Schedule month's day panel (the day's jobs
+    as the board's cards). The day is a CHOICE handed in by a client, so it
+    is validated to a bare ISO date here — anything else would ride into a
+    lexicographic string comparison unexamined. Returns the empty payload
+    rather than throwing for a reader without the board. */
+export async function scheduleDay(dayISO: string): Promise<SchedulePayload> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dayISO)) return EMPTY_SCHEDULE;
+  const ctx = await context();
+  if (!ctx || !(await can("workboard"))) return EMPTY_SCHEDULE;
+  /* who's off is laid out as well as who's on (leave to ServiceM8, part two) */
+  if (!sm8BookingsAllowed()) return loadScheduleDay(ctx.orgId, dayISO, { away: true });
+  /* a leftover booking's Clear, for a viewer who may press it where
+     bookings are offered — asked only where the deployment books, with the
+     write state read once for the day's overlay and the Clear alike */
+  const [state, mayPress] = await Promise.all([readSm8WriteState(ctx.orgId), mayPressBookings()]);
+  const payload = await loadScheduleDay(ctx.orgId, dayISO, { state, away: true });
+  return offersSend(state, "booking") && mayPress ? { ...payload, canClear: true } : payload;
 }
 
 /** Set who counts toward a day and for how long.

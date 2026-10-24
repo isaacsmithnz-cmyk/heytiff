@@ -11138,6 +11138,36 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .sc-wk:hover { background:var(--hov); }
 .fg .sc-wk:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
 .fg .sc-wk.sc-wktoday { border-color:var(--ink); }
+/* THE MONTH, ALL TOGETHER (Isaac, 24 October 2026): a shut day on the soft
+   ground with its name; the capacity a bar, its word and the percentage, no
+   hours; events and who's off and why; the day whose panel is open in the
+   selected fill */
+.fg .sc-wk[aria-pressed="true"] { background:var(--sel); border-color:var(--ink); }
+.fg .sc-wk.sc-wkshut { background:var(--soft); }
+.fg .sc-wkhol { margin:0; font-size:13px; line-height:18px; font-weight:700; color:var(--ink); }
+.fg .sc-wkcap { display:flex; align-items:center; gap:8px; align-self:stretch; }
+.fg .sc-wkcap .sc-wkbar { flex:1 1 auto; }
+.fg .sc-wkcap .pt-state { font-size:12px; line-height:16px; }
+.fg .sc-wkpc { font-size:12px; line-height:16px; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .sc-wkev { display:flex; align-items:flex-start; gap:8px; min-width:0; align-self:stretch; font-size:12px; line-height:16px; font-weight:600; color:var(--ink); text-align:left; }
+.fg .sc-wkev > svg { flex:none; margin-top:2px; color:var(--q); }
+.fg .sc-wkev > span { display:flex; flex-direction:column; min-width:0; }
+.fg .sc-wkev em { font-style:normal; font-weight:400; color:var(--q); }
+.fg .sc-wkoff { display:flex; align-items:flex-start; gap:8px; min-width:0; text-align:left; }
+.fg .sc-wkoff > span { display:flex; flex-direction:column; min-width:0; }
+.fg .sc-wkoff b { font-size:12px; line-height:16px; font-weight:600; color:var(--ink); }
+.fg .sc-wkoff em { font-style:normal; font-size:12px; line-height:16px; color:var(--q); }
+.fg .sc-filter { margin-left:auto; }
+/* the day's panel beside the month */
+.fg .sc-mpanel { gap:16px; overflow-y:auto; }
+.fg .sc-mphead { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+.fg .sc-mpsect { display:flex; flex-direction:column; gap:8px; }
+.fg .sc-mpsect h3 { margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .sc-pjob.sc-card { position:static; min-height:52px; }
+/* a public holiday on the Day and Week views: named, the day on the soft ground */
+.fg .sc-shutname { margin:0; font-size:13px; line-height:18px; font-weight:700; color:var(--ink); font-style:normal; display:block; }
+.fg .sc-shutday .sc-track { background:var(--soft); }
+.fg .sc-cell.sc-cellshut { background:var(--soft); }
 .fg .sc-wkd { font-size:16px; line-height:24px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
 .fg .sc-wkh2 { font-size:13px; line-height:18px; color:var(--ink); font-variant-numeric:tabular-nums; }
 .fg .sc-wkj { margin-top:auto; font-size:12px; line-height:16px; color:var(--q); }

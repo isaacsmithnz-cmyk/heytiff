@@ -1,12 +1,14 @@
-/* Sending what's ticked — the job card's footer while the Documents face has
-   ticks, and the email that opens in it. What this pins: Send to ServiceM8 is
+/* Sending what's ticked — the bar that floats at the page's foot while
+   Documents has ticks, and the email it opens as a dialog (the mock of 25
+   October 2026, frames 6 and 8). What this pins: both doors are second
+   buttons, since Add is the area's blue; Send to ServiceM8 is
    offered only where an owner switched it on, says what it is doing while it
    waits, and leaves the reason a file didn't go where the count was; the
    email starts from the job's own people and words; nothing is sent to nobody
    or to something that isn't an address; and a deployment with no mail key
    says so instead of pretending. */
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { EmailDraft } from "@/app/actions/job-compliance";
 import { DocumentsSend } from "../documents-send";
@@ -43,6 +45,7 @@ describe("the bar", () => {
   it("counts what's ticked and offers email, and no ServiceM8 where it isn't switched on", async () => {
     const props = footer();
     expect(screen.getByText("2 documents ticked")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Email documents" })).toHaveClass("pt-btn--second");
     expect(screen.queryByRole("button", { name: "Send to ServiceM8" })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Email documents" }));
     expect(props.onWriting).toHaveBeenCalledWith(true);
@@ -53,7 +56,9 @@ describe("the bar", () => {
   it("has no Clear ticks button", () => {
     footer({ sm8: "live", onSendToSm8: jest.fn(async () => {}) });
     expect(screen.queryByRole("button", { name: "Clear ticks" })).not.toBeInTheDocument();
-    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Send to ServiceM8", "Email documents"]);
+    const buttons = screen.getAllByRole("button");
+    expect(buttons.map((b) => b.textContent)).toEqual(["Send to ServiceM8", "Email documents"]);
+    for (const b of buttons) expect(b).toHaveClass("pt-btn--second");
   });
 
   it("offers Send to ServiceM8 where it's on, and says what it's doing while it waits", async () => {
@@ -72,17 +77,31 @@ describe("the bar", () => {
   it("puts why a file didn't go where the count was, in the state's colour", () => {
     footer({ sm8: "live", onSendToSm8: jest.fn(async () => {}), sm8Note: "Plan.pdf wasn't sent. ServiceM8 refused the file." });
     const note = screen.getByText("Plan.pdf wasn't sent. ServiceM8 refused the file.");
-    expect(note).toHaveClass("sw-state", "bad");
+    expect(note).toHaveClass("wb2-dsend-n", "bad");
     expect(screen.queryByText("2 documents ticked")).not.toBeInTheDocument();
   });
 
-  it("is the card's footer, not something floating over the list", () => {
+  it("floats at the page's foot as a group of its own, not the card's footer", () => {
     footer();
-    expect(screen.getByText("2 documents ticked").closest(".wb2-shft")).not.toBeNull();
+    const bar = screen.getByRole("group", { name: "Send what's ticked" });
+    expect(bar).toHaveClass("wb2-dsend");
+    expect(bar.closest(".wb2-shft")).toBeNull();
+  });
+
+  it("goes when nothing is ticked, while a letter being written stays", async () => {
+    footer({ picked: [] });
+    expect(screen.queryByRole("group", { name: "Send what's ticked" })).toBeNull();
   });
 });
 
 describe("the email", () => {
+  it("opens as the v2 dialog over the page, the message at the reading size", async () => {
+    footer({ writing: true });
+    const dialog = screen.getByRole("dialog", { name: "Email documents" });
+    expect(await within(dialog).findByLabelText("Message")).toHaveClass("wb2-mailmsg");
+    expect(within(dialog).getByRole("button", { name: "Send email" })).toHaveClass("pt-btn--main");
+  });
+
   it("starts from the job's people and its own words, and lists what it attaches", async () => {
     footer({ writing: true });
     expect(await screen.findByRole("checkbox", { name: /Jane Citizen/ })).not.toBeChecked();
@@ -91,7 +110,7 @@ describe("the email", () => {
     expect(screen.getByRole("checkbox", { name: /accounts@abc.com.au/ })).toBeInTheDocument();
     expect(screen.getByLabelText("Subject")).toHaveValue("Documents for job 2380, 12 Smith St");
     expect(screen.getByLabelText("Message")).toHaveValue("Hi,\n\nPlease find our documents for this job attached.");
-    expect(screen.getByText("Public liability and Certificate of compliance.pdf")).toBeInTheDocument();
+    expect(screen.getByText("Attaching Public liability and Certificate of compliance.pdf")).toBeInTheDocument();
   });
 
   it("sends to nobody only after saying who", async () => {
@@ -136,6 +155,17 @@ describe("the email", () => {
     footer({ writing: true, onLoadDraft: jest.fn(async () => ({ ...draft, ready: false })) });
     expect(await screen.findByText("Email isn't set up on this deployment, so nothing can be sent from it.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send email" })).toBeDisabled();
+  });
+
+  it("waits for the people to load, saying what it is doing", async () => {
+    footer({ writing: true, onLoadDraft: () => new Promise(() => {}) });
+    expect(await screen.findByRole("status")).toHaveTextContent("Finding who to send it to");
+    expect(screen.getByRole("button", { name: "Send email" })).toBeDisabled();
+  });
+
+  it("says a failed start failed", async () => {
+    footer({ writing: true, onLoadDraft: jest.fn(async () => null) });
+    expect(await screen.findByText("Couldn't start the email")).toBeInTheDocument();
   });
 
   it("goes back to the bar on Cancel", async () => {

@@ -5826,86 +5826,118 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
    declared — it rendered as a plain grey chip */
 .wb2-chip.cat { color:var(--ink); }
 
-/* ── the shared media viewer ───────────────────────────────────────────
-   Same portal as the sheet, same law as the claim modal: the pair is on the
-   sheet's modal layer and renders after the card, so it paints over it, and
-   the toasts stay above. On the overlay layer it opened under the card. */
-.wb2-mvscrim { position:fixed; inset:0; z-index:var(--z-modal); background:rgba(8,10,16,.62); cursor:zoom-out; }
-/* THE VIEWER TAKES THE SCREEN (Isaac, 2026-08-29 — it replaces the card
-   frame it used to wear). Boxed to the card's 920px the photo was a stamp
-   in the middle of a wide monitor: the reader's place was kept at the cost
-   of the thing they opened it to see. The inset keeps the scrim visible on
-   every edge, so it still reads as a layer over the card, not a new page. */
-.wb2-mv { position:fixed; z-index:var(--z-modal); display:flex; flex-direction:column;
-  inset:24px; width:auto; height:auto; margin:0;
-  border-radius:var(--r-card); overflow:hidden; background:var(--ink2); }
-.wb2-mvtop { display:flex; align-items:center; gap:8px; padding:12px 16px;
-  border-bottom:1px solid var(--on-ink-line); min-height:48px; }
-.wb2-mvtop b { font-size:13px; font-weight:700; color:var(--paper); overflow:hidden;
-  white-space:nowrap; min-width:0; }
-.wb2-mvtop em { font-style:normal; font-size:12px; font-weight:600; color:var(--on-ink-q); white-space:nowrap; }
-.wb2-mvtop .wb2-chip { color:var(--paper); }
-.wb2-mvsp { flex:1; }
-.wb2-mvcount { font-variant-numeric:tabular-nums; }
-.wb2-mvtop .wb2-ico { background:var(--on-ink-tint); color:var(--paper); }
-.wb2-mvtop .wb2-ico:hover { background:var(--on-ink-tint-2); }
-.wb2-mvstage { position:relative; flex:1; min-height:0; overflow:hidden; }
-/* FIT IS object-fit:contain ON A STAGE-SIZED BOX, not max-width on a
-   natural-sized one. The old max-* pair only ever shrank: a photo smaller
-   than the stage sat at its own pixels in the middle of the black, which is
-   what "zoomed out too far" was. A sized box + contain scales BOTH ways and
-   still never crops. (Absolute, not a grid: a percentage max-height inside
-   an auto grid row is indefinite and silently never binds — the portrait
-   that taught this ran off the bottom of the stage.) */
-/* 20px OF AIR ON EVERY SIDE, and the number is load-bearing twice: the
-   viewer's fitScale() pads by the same 40 (2×20) so the wheel's floor lands
-   exactly where the CSS fit does. Change one, change both. It was 8px, and
-   Isaac's read of the whole box was "everything is very close to the edge" —
-   a photograph needs a mat, not a bleed. */
-.wb2-mvstage img { position:absolute; inset:20px; margin:0;
-  width:calc(100% - 40px); height:calc(100% - 40px); object-fit:contain;
-  border-radius:var(--r-control); user-select:none; }
-.wb2-mvstage.zoomed { overflow:auto; display:flex; cursor:grab; }
-.wb2-mvstage.zoomed:active { cursor:grabbing; }
-/* Zoomed, the INLINE width rules and height follows the ratio — object-fit
-   has nothing left to do once the box matches the photo. */
-.wb2-mvstage.zoomed img { position:static; margin:auto; height:auto;
-  max-width:none; max-height:none; object-fit:fill; border-radius:0; }
-.wb2-mvstage .wb2-mvpending { position:absolute; inset:0; display:grid; place-items:center;
-  margin:0; }
-.wb2-mvframe { width:100%; height:100%; border:0; background:var(--paper); }
-.wb2-mvpending { font-size:13px; font-weight:600; color:var(--on-ink-q); max-width:36ch; text-align:center; }
-.wb2-mvnav { position:absolute; top:50%; transform:translateY(-50%); width:36px; height:36px;
-  border:0; border-radius:50%; background:var(--scrim); color:var(--paper); font-size:20px;
-  line-height:1; cursor:pointer; display:grid; place-items:center; }
-.wb2-mvnav:hover { background:var(--ink); }
-.wb2-mvnav:focus-visible { outline:none; box-shadow:var(--ring);; }
-.wb2-mvnav.prev { left:20px; }
-.wb2-mvnav.next { right:20px; }
-/* THE ROLL ALONG THE BOTTOM. Two arrows say a neighbour exists; the strip
-   says what it is and how far the day runs — and it is the mosaic's own
-   order, so the tile you clicked is where your eye already expects it. */
-.wb2-mvstrip { display:flex; gap:4px; flex:none; padding:8px 16px 12px; overflow-x:auto;
-  overflow-y:hidden; border-top:1px solid var(--on-ink-line);
-  scrollbar-width:thin; scrollbar-color:var(--on-ink-line) transparent; }
-.wb2-mvthumb { flex:none; width:66px; height:48px; padding:0; border:0; border-radius:var(--r-control);
-  overflow:hidden; background:var(--on-ink-tint); color:var(--on-ink-q);
-  display:grid; place-items:center; cursor:pointer; opacity:.5;
-  transition:opacity var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.wb2-mvthumb img { width:100%; height:100%; object-fit:cover; display:block; }
-.wb2-mvthumb:hover { opacity:.85; }
-.wb2-mvthumb.on { opacity:1; box-shadow:0 0 0 2px var(--press); }
-.wb2-mvthumb:focus-visible { outline:none; opacity:1; box-shadow:var(--ring); }
-/* A starred photo says so in the strip, so the roll shows what's already been
-   picked without opening each one. */
-.wb2-mvthumb { position:relative; }
-.wb2-mvthumbstar { position:absolute; top:2px; right:2px; line-height:0; color:var(--yellow);
-  filter:drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
+/* ===== V2: A JOB'S DOCUMENTS, ITS SEND BAR AND EMAIL, LICENCES AND
+   INSURANCE, AND THE VIEWER (the mock of 25 October 2026, frames 6, 7, 8
+   and 14). job-documents-face, documents-send, compliance-chooser and
+   job-media-viewer.
+
+   The section: "Documents" and its one blue Add, then a group per kind of
+   paper, each a heading and the parts' rows (rule 39). A tick sits above the
+   row's press, so ticking never opens the file. The send bar floats at the
+   page's foot, white with the one shadow. The dialogs and the viewer portal
+   to <body>, outside `.fg`, so their rules are unscoped.
+
+   The viewer is white like every dialog (rule 36): the 16 corner, the one
+   shadow, the page darkened behind on the one scrim. It still takes most of
+   the screen (Isaac, 29 August: a photo boxed small was "a stamp in the
+   middle of a wide monitor"). The picture sits on a soft grey stage with
+   20px of air on every side, and that number is load-bearing twice: the
+   viewer's fitScale() pads by the same 40 (2 × 20), so the wheel's floor
+   lands exactly where the CSS fit does. Change one, change both. Both
+   halves of the pair sit on the sheet's modal layer and render after the
+   page, so they paint over it (sheet-overlay-layers.test.ts). */
+.fg .jdoc { display:flex; flex-direction:column; gap:16px; }
+/* a file over the section: the whole section is the target, and says so at its edge */
+.fg .jdoc[data-over] { outline:2px dashed var(--ink); outline-offset:8px; border-radius:var(--r-card); }
+.fg .jdoc-head { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.fg .jdoc-h,
+.fg .jdoc-gh { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .jdoc-chev { display:inline-flex; margin-left:4px; vertical-align:middle; }
+.fg .jdoc-group { display:flex; flex-direction:column; gap:4px; }
+.fg .jdoc-group > .pt-rows { border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.fg .jdoc .pt-row-lead { display:flex; }
+.fg .jdoc-tick { position:relative; z-index:var(--z-raised); display:inline-flex; width:16px; }
+.fg .jdoc-look { color:var(--orange-w); }
+.fg .jdoc-busy,
+.fg .jdoc-fact { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .jdoc-err { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--red-w); }
+
+/* the send bar */
+.fg .wb2-dsend { position:sticky; bottom:24px; z-index:var(--z-sticky); align-self:center; display:flex; align-items:center; gap:12px;
+  margin-top:24px; padding:8px 8px 8px 16px; background:var(--white); border:1px solid var(--line); border-radius:var(--r-card);
+  box-shadow:var(--shadow-overlay); }
+.fg .wb2-dsend-n { font-size:14px; line-height:20px; color:var(--ink); }
+.fg .wb2-dsend-n.bad { max-width:48ch; font-size:13px; line-height:18px; font-weight:500; color:var(--red-w); }
+
+/* Licences and insurance, and the email's people: tick rows in a dialog */
+.wb2-cpick { display:flex; flex-direction:column; gap:16px; }
+.wb2-cpick .pt-rows,
+.wb2-mailto .pt-rows { border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.pt-row.wb2-cprow,
+.pt-row.wb2-mailwho { padding-left:0; padding-right:0; }
+.wb2-cprow > .pt-tick,
+.wb2-mailwho > .pt-tick { flex:1; min-width:0; gap:12px; }
+.wb2-cpname { display:flex; flex-direction:column; min-width:0; }
+.wb2-cpname b { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.wb2-cpname span { font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.wb2-cpgroup { display:flex; flex-direction:column; gap:4px; }
+.wb2-cpgh { margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.wb2-cpcount { margin-right:auto; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.wb2-cperr,
+.wb2-mailerr { margin:8px 0 0; font-size:13px; line-height:18px; font-weight:500; color:var(--red-w); }
+
+/* the email: To, Subject, Message at the reading size (rule 13), what it attaches */
+.wb2-mail { display:flex; flex-direction:column; gap:16px; }
+.wb2-mailto { display:flex; flex-direction:column; gap:8px; }
+.pt-textarea.pt-textarea.wb2-mailmsg { font-size:16px; line-height:24px; }
+.wb2-mailfiles,
+.wb2-mailnote { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--q); overflow-wrap:anywhere; }
+.wb2-mailnote { color:var(--orange-w); }
+
+/* the viewer */
+.wb2-mvscrim { position:fixed; inset:0; z-index:var(--z-modal); background:var(--scrim); }
+.wb2-mv { position:fixed; z-index:var(--z-modal); inset:24px; display:flex; flex-direction:column; gap:16px; padding:24px;
+  box-sizing:border-box; overflow:hidden; background:var(--white); color:var(--ink); border-radius:var(--r-card);
+  box-shadow:var(--shadow-overlay); font-family:var(--font); }
+.wb2-mv:focus { outline:none; }
+.wb2-mvtop { display:flex; align-items:center; gap:8px; min-width:0; }
+.wb2-mvwho { flex:1; min-width:0; display:flex; flex-direction:column; }
+.wb2-mvname { margin:0; min-width:0; font-size:20px; line-height:28px; font-weight:600; color:var(--ink); }
+.wb2-mvline { margin:0; font-size:14px; line-height:20px; font-weight:400; color:var(--q); }
+.wb2-mverr { margin:4px 0 0; font-size:13px; line-height:18px; font-weight:500; color:var(--red-w); }
+.wb2-mvcount { flex:none; margin-right:8px; font-size:13px; line-height:18px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
+.pt-btn.wb2-mvstar.on .i { fill:var(--yellow); color:var(--yellow-w); }
+.wb2-mvbody { position:relative; flex:1; min-height:0; display:flex; }
+.wb2-mvpane { position:relative; flex:1; min-height:0; overflow:hidden; background:var(--soft); border-radius:var(--r-button); }
+/* FIT IS object-fit:contain ON A STAGE-SIZED BOX, so it scales both ways and
+   never crops; absolute, because a percentage max-height inside an auto
+   grid row never binds */
+.wb2-mvpane img { position:absolute; inset:20px; margin:0; width:calc(100% - 40px); height:calc(100% - 40px);
+  object-fit:contain; border-radius:var(--r-control); user-select:none; }
+.wb2-mvpane.zoomed { overflow:auto; display:flex; cursor:grab; }
+.wb2-mvpane.zoomed:active { cursor:grabbing; }
+/* zoomed, the inline width rules and the height follows the ratio */
+.wb2-mvpane.zoomed img { position:static; margin:auto; height:auto; max-width:none; max-height:none; object-fit:fill; border-radius:0; }
+.wb2-mvframe { display:block; width:100%; height:100%; border:0; background:var(--white); }
+.wb2-mvpending { position:absolute; inset:0; display:grid; place-items:center; margin:0;
+  font-size:13px; line-height:18px; font-weight:500; color:var(--q); text-align:center; }
+/* Previous and Next on the stage's edges, outside its scroller; placed by
+   `top`, because a press moves a button 1px by transform */
+.pt-btn.wb2-mvnav { position:absolute; top:calc(50% - 18px); z-index:var(--z-raised); }
+.pt-btn.wb2-mvnav.prev { left:12px; }
+.pt-btn.wb2-mvnav.next { right:12px; }
+/* THE ROLL ALONG THE BOTTOM, the mosaic's own order */
+.wb2-mvstrip { display:flex; gap:8px; flex:none; padding:2px; overflow-x:auto; overflow-y:hidden; }
+.wb2-mvthumb { position:relative; flex:none; display:grid; place-items:center; width:56px; height:42px; margin:0; padding:0;
+  border:0; border-radius:var(--r-control); overflow:hidden; background:var(--soft); color:var(--q); cursor:pointer;
+  transition:box-shadow var(--t-fast) var(--ease); }
+.wb2-mvthumb img { display:block; width:100%; height:100%; object-fit:cover; }
+.wb2-mvthumb.on { box-shadow:0 0 0 2px var(--ink); }
+.wb2-mvthumb:focus-visible { outline:none; box-shadow:var(--ring); }
+/* a starred photo says so in the strip */
+.wb2-mvthumbstar { position:absolute; top:2px; right:2px; line-height:0; color:var(--yellow); }
 .wb2-mvthumbstar .i { fill:currentColor; }
-/* The bar's own star. It inherits `.wb2-ico`'s ground; only the lit state and
-   the fill are its own. */
-.wb2-mvtop .wb2-mvstar.on { color:var(--yellow); background:rgba(245,180,0,.16); }
-.wb2-mvtop .wb2-mvstar.on .i { fill:currentColor; }
+
 
 /* THE TAG CHIPS THAT USED TO SIT HERE ARE GONE — half of Isaac's "too many
    labels". They repeated in a second typeface what the caption above them had
@@ -5919,33 +5951,6 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
   color:var(--gray500); border:0; background:transparent; cursor:pointer; font-family:inherit; }
 .wb2-ckseg button.on { background:var(--paper); color:var(--ink); font-weight:700; }
 .wb2-ckseg button:focus-visible { outline:none; box-shadow:var(--ring);; }
-/* Studio designs started FROM this job — the other end of the document's
-   jobLink. A row that OPENS the design (`?design=<id>`), so it is an <a> and
-   has to un-do the browser's link dress; unscoped like everything else on
-   this sheet, because the sheet portals to <body> and never sees `.fg`. */
-/* The negative margin is what lets the hover wash BREATHE without shifting
-   the text: 8px of padding puts colour either side of the row, and -6px pulls
-   the whole thing back so names still line up with the section's other
-   content (a wash flush to the text reads as a highlighter mark). */
-.wb2-dsgn { display:flex; align-items:center; gap:12px; padding:8px 8px; margin:0 -6px; min-width:0;
-  border-top:1px solid var(--wb2-line2); border-radius:var(--r-button); color:inherit; text-decoration:none;
-  transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-dsgn:first-of-type { border-top:0; }
-.wb2-dsgn:hover { background:var(--info-tint); }
-.wb2-dsgn:focus-visible { outline:none; box-shadow:var(--ring);; }
-.wb2-dsgn-ic { display:flex; align-items:center; justify-content:center; flex:none;
-  width:30px; height:30px; border-radius:var(--r-button); background:var(--info-tint); color:var(--ink); }
-.wb2-dsgn-b { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1; }
-.wb2-dsgn-b b { font-size:13px; font-weight:700; overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.wb2-dsgn-b em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500);
-  overflow:hidden; white-space:nowrap;
-  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-/* The chevron says "this goes somewhere" and only leans on hover. It has its
-   own wrapper class because <Icon> renders <span><svg/></span> — a
-   `.wb2-dsgn > svg` rule is valid CSS that matches nothing, which is the
-   failure mode this codebase validates stylesheets to catch. */
-.wb2-dsgn-go { display:flex; flex:none; color:var(--gray400); transition:transform var(--t-move) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-dsgn:hover .wb2-dsgn-go { color:var(--ink); }
 /* A DOCUMENT IS A ROW, the same bones as the design rows above — the walked
    face rendered cached files as blue links and uncached ones as bold black
    paragraphs, two dresses for one kind of thing. One row: icon, name, what
@@ -5957,20 +5962,8 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
    edge. Read off the LABEL, not `:first-of-type`: a group mixes <button>,
    <a> and <div> rows, and first-of-type is first of each ELEMENT, so a PDF
    after a link row lost its hairline. */
-.wb2-sect + .wb2-doc, .wb2-sect + .wb2-docrow { border-top:0; }
-/* a row with acts beside it — a SWMS's sign-on and revision, one of our
-   files' removal: the same row, with the hairline moved out to the pair */
-.wb2-docrow { display:flex; align-items:center; gap:8px; min-width:0; border-top:1px solid var(--wb2-line2); }
-.wb2-docrow > .wb2-doc { flex:1; min-width:0; border-top:0; }
+.wb2-sect + .wb2-doc { border-top:0; }
 .wb2-jcsec > .wb2-sherr { margin:4px 0 8px; }
-/* THE FACE'S WAYS IN sit under its title, the row the Checklist's composer
-   and the Diary's pen keep — never in the title's own line, where Create
-   SWMS floated off the count at the far edge. */
-.wb2-jcdadd { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:8px 0; }
-.wb2-jcdoc > .wb2-sherr { margin:0 0 8px; }
-/* a file over the face: the whole face is the target, and says so at its
-   edge while the upload button says what letting go does */
-.wb2-jcdoc[data-over] { outline:2px dashed var(--ink); outline-offset:8px; border-radius:var(--r-card); }
 a.wb2-doc:hover { background:var(--info-tint); }
 a.wb2-doc:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* a PDF's row is a BUTTON into the in-card viewer — same dress, UA face
@@ -5998,71 +5991,6 @@ a.wb2-doc .wb2-doc-ic { background:var(--info-tint); color:var(--ink); }
 .wb2-doc > .wb2-chip { flex:none; }
 .wb2-doc-go { display:flex; flex:none; color:var(--gray400); transition:transform var(--t-move) var(--ease), color var(--t-fast) var(--ease); }
 a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
-/* ── compliance on the job, and sending what's ticked ──
-   THE TICK A ROW CARRIES while the face is sending. A real checkbox, in INK:
-   choosing is ink's job, and the OK green is for a thing that is done — the
-   checklist's tick. A row with nothing to send keeps the same width empty,
-   so a column of names never jumps. */
-.wb2-docpick { display:flex; align-items:center; justify-content:center; flex:none; width:16px; }
-.wb2-docpick input { width:15px; height:15px; margin:0; accent-color:var(--ink); cursor:pointer; }
-.wb2-docpick input:focus-visible { outline:none; box-shadow:var(--ring); }
-/* after a tick the row's hover wash starts at the row, not under the box */
-.wb2-docpick + .wb2-doc { margin-left:0; }
-/* ADD COMPLIANCE opens under the ways in, and it is a card — something you
-   act on — with the Compliance group it fills directly below it */
-.wb2-cpick { display:flex; flex-direction:column; gap:12px; margin:0 0 12px; padding:12px 16px;
-  border:1px solid var(--wb2-line); border-radius:var(--r-card); background:var(--paper); }
-.wb2-cpick .int-hint, .wb2-cpick > .wb2-sherr { margin:0; }
-.wb2-cprow { display:flex; align-items:center; gap:12px; padding:8px 2px; min-width:0;
-  border-top:1px solid var(--wb2-line2); cursor:pointer; }
-.wb2-sect + .wb2-cprow, .wb2-cptypes + .wb2-cprow { border-top:0; }
-.wb2-cprow input { width:15px; height:15px; margin:0; flex:none; accent-color:var(--ink); cursor:pointer; }
-.wb2-cprow input:focus-visible { outline:none; box-shadow:var(--ring); }
-.wb2-cprow.off, .wb2-cprow.off input { cursor:default; }
-.wb2-cpname { display:flex; flex-direction:column; gap:1px; min-width:0; flex:1; }
-.wb2-cpname b { font-size:14px; font-weight:600; overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.wb2-cpname em { font-style:normal; font-size:12px; font-weight:500; color:var(--gray500);
-  overflow:hidden; white-space:nowrap;
-  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.wb2-cprow.off .wb2-cpname b { color:var(--gray500); }
-.wb2-cpbook { flex:none; font-style:normal; font-size:12px; font-weight:500; color:var(--gray500); white-space:nowrap; }
-/* the state is a word (law 26); `.sw-state.<tone>` colours it */
-.wb2-cpstate { flex:none; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); white-space:nowrap; }
-/* which licence — the checklist's segmented choice, allowed to wrap when a
-   team holds more kinds of ticket than the card is wide */
-.wb2-cptypes { flex-wrap:wrap; align-self:flex-start; margin:4px 0 8px; }
-.wb2-cptypes em { margin-left:4px; font-style:normal; font-variant-numeric:tabular-nums; }
-.wb2-cpfoot { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
-.wb2-cpfoot > em { margin-right:auto; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); }
-/* SENDING — the card's footer while something is ticked. `flex:none`: the
-   body above is the one that gives way, so the letter is never squeezed. */
-.wb2-dsend { flex:none; justify-content:flex-end; }
-.wb2-dsend-n { margin-right:auto; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); }
-/* why a send left files behind takes the whole first line, so the three
-   buttons keep their row together under it instead of one of them wrapping
-   off on its own */
-.wb2-dsend-n.bad { flex:1 0 100%; margin:0; }
-.wb2-dsend.open { max-height:60vh; overflow-y:auto; }
-/* the email, as a ledger: a quiet label column and the answers beside it */
-.wb2-mail { flex:1; min-width:0; display:grid; grid-template-columns:88px minmax(0,1fr); gap:8px 16px; align-items:start; }
-.wb2-maillbl { padding-top:8px; font-size:12px; font-weight:500; color:var(--q); }
-/* beside a list of people the label sits on the first name, not on a field */
-.wb2-maillbl.people { padding-top:2px; }
-.wb2-mail .wb2-fi { width:100%; }
-.wb2-mail textarea.wb2-fi { resize:vertical; font-weight:500; line-height:1.55; }
-.wb2-mailto { display:flex; flex-direction:column; gap:4px; min-width:0; }
-.wb2-mailto > .wb2-fi { margin-top:4px; }
-.wb2-mailwho { display:flex; align-items:baseline; gap:8px; min-width:0; cursor:pointer; }
-.wb2-mailwho input { width:15px; height:15px; margin:0; flex:none; align-self:center; accent-color:var(--ink); cursor:pointer; }
-.wb2-mailwho input:focus-visible { outline:none; box-shadow:var(--ring); }
-.wb2-mailwho b { font-size:14px; font-weight:600; white-space:nowrap; }
-.wb2-mailwho em { min-width:0; font-style:normal; font-size:12px; font-weight:500; color:var(--gray500);
-  overflow:hidden; white-space:nowrap;
-  flex:1; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.wb2-mailfiles { padding-top:8px; font-size:13px; font-weight:500; overflow-wrap:anywhere; }
-.wb2-mail > .int-hint, .wb2-mail > .wb2-sherr, .wb2-mailnote, .wb2-mailacts { grid-column:1 / -1; margin:0; }
-.wb2-mailnote { font-size:13px; font-weight:500; color:var(--warn-t); }
-.wb2-mailacts { display:flex; justify-content:flex-end; gap:8px; }
 .wb2-gates { display:grid; gap:8px; }
 .wb2-gate { border:1px solid var(--wb2-line); border-radius:var(--r-button); background:var(--paper); transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
 .wb2-gate.on { background:var(--tint); border-color:var(--line); }

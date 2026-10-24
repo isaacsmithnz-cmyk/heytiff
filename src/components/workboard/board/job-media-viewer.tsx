@@ -3,6 +3,8 @@
 import { Fade } from "@/components/parts/fade";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useOverlay } from "@/components/overlay/use-overlay";
+import { Button, IconButton } from "@/components/parts/button";
+import { ConfirmDialog } from "@/components/parts/dialog";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { clamp } from "@/lib/studio/geometry";
@@ -28,6 +30,16 @@ import type { JobMediaItem } from "@/lib/workboard/job-media";
    SHEET'S: the card's own keydown chain closes the viewer first (innermost
    first), so this component binds only the arrow keys.
 
+   WHITE, LIKE EVERY DIALOG (rule 36; the mock of 25 October 2026, frame
+   14): white, the 16 corner and the one shadow over the darkened page. The
+   head says what the file is (its name, its date and where it came from,
+   "1 of 3"), then what can be done to it — the acts a document row carried
+   on its right until v2 (Remove, Revise, Reissue, Use renewal, Delete), so
+   each row keeps one thing there — then Star on a photo, then the cross.
+   What ends something is the red word, and asks first. The picture sits on a
+   soft grey stage with Previous and Next as words on it, and the roll of the
+   others underneath.
+
    ON TOP BY LAYER AND ORDER. The pair shares the sheet's modal layer and
    renders after the card, and at an equal z-index the later element paints
    on top; the toasts stay above. jsdom cannot see a stacking context, so
@@ -50,18 +62,41 @@ const ZOOM_MAX = 12;
     growing. 1 when the photo hasn't reported its size yet. */
 function fitScale(
   stage: { clientWidth: number; clientHeight: number },
-  nat: { w: number; h: number } | null
+  nat: { w: number; h: number } | null,
 ): number {
   if (!nat || nat.w <= 0 || nat.h <= 0) return 1;
-  /* 2 × the stage's 20px inset — .wb2-mvstage img in shell.css. The two
+  /* 2 × the stage's 20px inset — .wb2-mvpane img in shell.css. The two
      numbers are one fact written twice: this is what makes the wheel's
      zoom-out floor land exactly on the CSS fit. */
   const pad = 40;
   return Math.min(
     (stage.clientWidth - pad) / nat.w,
-    (stage.clientHeight - pad) / nat.h
+    (stage.clientHeight - pad) / nat.h,
   );
 }
+
+/** One act in the viewer's head: what a document row offered on its right
+    until v2. `run` resolves null once it is done, or with the reason it
+    wasn't, in words; one that `closes` shuts the viewer when it lands (the
+    file it showed has gone). */
+export type ViewerAct = {
+  key: string;
+  /** A verb, as the row said it: "Remove", "Revise", "Use renewal". */
+  label: string;
+  /** Ends something: the red word on the second button (rule 25). */
+  danger?: boolean;
+  /** Asks first, naming what the second press does. */
+  confirm?: {
+    heading: string;
+    body?: string;
+    confirm: string;
+    cancel?: string;
+  };
+  /** What the button says while its work is out. */
+  busyLabel?: string;
+  closes?: boolean;
+  run: () => Promise<string | null> | void;
+};
 
 export function JobMediaViewer({
   items,
@@ -70,6 +105,8 @@ export function JobMediaViewer({
   onNav,
   onStar,
   onClose,
+  actions = [],
+  line,
 }: {
   /** The lens's own list — photos in day order, or one document. */
   items: readonly JobMediaItem[];
@@ -80,16 +117,49 @@ export function JobMediaViewer({
   onNav: (index: number) => void;
   onStar?: (remoteId: string) => void;
   onClose: () => void;
+  /** What can be done to the file on show, in the head. */
+  actions?: readonly ViewerAct[];
+  /** The grey line under the name, when the file's date and origin don't
+      say it (a licence: whose, and how long it runs). */
+  line?: string | null;
 }) {
   const item = items[index];
+  /* The act that is asking, the one whose work is out, and why the last one
+     didn't land. */
+  const [asking, setAsking] = useState<ViewerAct | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const run = async (act: ViewerAct) => {
+    setAsking(null);
+    setErr(null);
+    setBusy(act.key);
+    const why = await Promise.resolve(act.run()).catch(
+      () => "That didn't work. Try again.",
+    );
+    setBusy(null);
+    if (why) setErr(why);
+    else if (act.closes) onClose();
+  };
   const stageRef = useRef<HTMLDivElement>(null);
   const currentThumbRef = useRef<HTMLButtonElement>(null);
   /* Zoom and natural size are KEYED BY INDEX — navigating simply leaves the
      old entry behind, so there is no reset effect to cascade a render. null
      zoom = fit the stage by pure CSS. */
-  const [zoomState, setZoomState] = useState<{ index: number; z: number } | null>(null);
-  const [natural, setNatural] = useState<{ index: number; w: number; h: number } | null>(null);
-  const dragRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
+  const [zoomState, setZoomState] = useState<{
+    index: number;
+    z: number;
+  } | null>(null);
+  const [natural, setNatural] = useState<{
+    index: number;
+    w: number;
+    h: number;
+  } | null>(null);
+  const dragRef = useRef<{
+    x: number;
+    y: number;
+    left: number;
+    top: number;
+  } | null>(null);
   const zoom = zoomState?.index === index ? zoomState.z : null;
   const nat = natural?.index === index ? natural : null;
 
@@ -108,14 +178,24 @@ export function JobMediaViewer({
      (the overlay stack). The arrow keys walk the lens. */
   const dialog = useRef<HTMLDivElement>(null);
   useOverlay(dialog, { onEscape: onClose });
+  /* It takes focus on the way in, as the Dialog part does, so Tab goes round
+     inside it from the first press. */
   useEffect(() => {
+    const el = dialog.current;
+    if (el && !el.contains(document.activeElement))
+      el.focus({ preventScroll: true });
+  }, []);
+  /* The arrows walk the lens, unless the question over it is open. */
+  const askingNow = asking !== null;
+  useEffect(() => {
+    if (askingNow) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight" && index < items.length - 1) onNav(index + 1);
       if (e.key === "ArrowLeft" && index > 0) onNav(index - 1);
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [index, items.length, onNav]);
+  }, [index, items.length, onNav, askingNow]);
 
   /* Body scroll locked while open, restored on close — and the leftward pan
      must not become Chrome's swipe-back, which preventDefault cannot stop
@@ -136,10 +216,13 @@ export function JobMediaViewer({
      button or thumbnail — the open photo stays visible in the strip.
      scrollIntoView is optional-called; jsdom does not implement it. */
   useEffect(() => {
-    currentThumbRef.current?.scrollIntoView?.({ block: "nearest", inline: "center" });
+    currentThumbRef.current?.scrollIntoView?.({
+      block: "nearest",
+      inline: "center",
+    });
   }, [index]);
 
-  const isPdf = ((item?.fileType ?? "").toLowerCase()).endsWith("pdf");
+  const isPdf = (item?.fileType ?? "").toLowerCase().endsWith("pdf");
 
   /* THE WHEEL. A NATIVE listener, passive:false — React 17+ binds onWheel
      passively at the root, so a JSX handler's preventDefault is silently
@@ -203,7 +286,7 @@ export function JobMediaViewer({
     const next = anchoredScroll(
       { left: stage.scrollLeft, top: stage.scrollTop },
       { x: a.x, y: a.y },
-      a.ratio
+      a.ratio,
     );
     stage.scrollLeft = next.left;
     stage.scrollTop = next.top;
@@ -229,7 +312,12 @@ export function JobMediaViewer({
   const onPointerDown = (e: React.PointerEvent) => {
     const stage = stageRef.current;
     if (!stage || zoom === null) return;
-    dragRef.current = { x: e.clientX, y: e.clientY, left: stage.scrollLeft, top: stage.scrollTop };
+    dragRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      left: stage.scrollLeft,
+      top: stage.scrollTop,
+    };
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
   };
   const onPointerMove = (e: React.PointerEvent) => {
@@ -257,86 +345,133 @@ export function JobMediaViewer({
         .join(", ")
     : null;
 
+  const starred = favourites?.has(item.remoteId) ?? false;
+  const sub = line ?? [when, item.origin].filter(Boolean).join(", ");
+  /* a paper's page is a PDF: no picture to put in the strip */
+  const pdfOf = (it: JobMediaItem) =>
+    (it.fileType ?? "").toLowerCase().endsWith("pdf");
+
   return (
     <>
       <div className="wb2-mvscrim" onClick={onClose} />
-      <div ref={dialog} className="wb2-mv" role="dialog" aria-modal="true" aria-label={item.name}>
+      <div
+        ref={dialog}
+        className="wb2-mv"
+        role="dialog"
+        aria-modal="true"
+        aria-label={item.name}
+        tabIndex={-1}
+      >
         <div className="wb2-mvtop">
-          <b>
-            <Fade>{item.name}</Fade>
-          </b>
-          <em>{[when, item.origin].filter(Boolean).join(", ")}</em>
-          {item.fromClaim && <i className="wb2-chip">{`#${item.fromClaim}`}</i>}
-          <span className="wb2-mvsp" />
+          <div className="wb2-mvwho">
+            <h2 className="wb2-mvname">
+              <Fade>{item.name}</Fade>
+            </h2>
+            {(sub || item.fromClaim) && (
+              <p className="wb2-mvline">
+                {[
+                  sub,
+                  item.fromClaim && !item.name.includes(`#${item.fromClaim}`)
+                    ? `on invoice #${item.fromClaim}`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
+              </p>
+            )}
+            {err && <p className="wb2-mverr">{err}</p>}
+          </div>
+          {items.length > 1 && (
+            <span className="wb2-mvcount">{`${index + 1} of ${items.length}`}</span>
+          )}
+          {actions.map((act) => (
+            <Button
+              key={act.key}
+              kind={act.danger ? "delete" : "second"}
+              disabled={busy !== null}
+              aria-busy={busy === act.key || undefined}
+              onClick={() => (act.confirm ? setAsking(act) : void run(act))}
+            >
+              {busy === act.key && act.busyLabel ? act.busyLabel : act.label}
+            </Button>
+          ))}
           {/* THE STAR IS WHERE THE PHOTO IS BIG. Curating from a 66px tile is
               guessing; this is the size at which somebody can actually decide
-              a photo is worth showing another client. */}
+              a photo is worth showing another client. A word, as every
+              button but the cross has (rule 27). */}
           {onStar && (
-            <button
-              className={`wb2-ico wb2-mvstar${favourites?.has(item.remoteId) ? " on" : ""}`}
+            <Button
+              kind="second"
+              icon="star"
+              className={starred ? "wb2-mvstar on" : "wb2-mvstar"}
+              aria-pressed={starred}
               onClick={() => onStar(item.remoteId)}
-              aria-pressed={favourites?.has(item.remoteId) ?? false}
-              aria-label={
-                favourites?.has(item.remoteId) ? `Unstar ${item.name}` : `Star ${item.name}`
-              }
             >
-              <Icon name="star" size={14} />
-            </button>
+              {starred ? "Starred" : "Star"}
+            </Button>
           )}
-          {items.length > 1 && (
-            <em className="wb2-mvcount">{`${index + 1} / ${items.length}`}</em>
-          )}
-          <button className="wb2-ico" onClick={onClose} aria-label="Close viewer">
-            <Icon name="x" size={14} />
-          </button>
+          <IconButton glyph="close" label="Close viewer" onClick={onClose} />
         </div>
-        <div
-          className={`wb2-mvstage${zoom !== null ? " zoomed" : ""}`}
-          ref={stageRef}
-          onDoubleClick={onDoubleClick}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-        >
-          {item.url === null ? (
-            <p className="wb2-mvpending">
-              This file hasn&apos;t been brought across yet — it&apos;s on its way.
-            </p>
-          ) : isPdf ? (
-            <iframe className="wb2-mvframe" src={item.url} title={item.name} />
-          ) : (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={item.url}
-              alt={item.name}
-              draggable={false}
-              onLoad={(e) => {
-                const img = e.currentTarget;
-                setNatural({ index, w: img.naturalWidth || 1, h: img.naturalHeight || 1 });
-              }}
-              style={
-                zoom !== null && nat
-                  ? { width: nat.w * zoom, maxWidth: "none", maxHeight: "none" }
-                  : undefined
-              }
-            />
-          )}
+        <div className="wb2-mvbody">
+          <div
+            className={`wb2-mvpane${zoom !== null ? " zoomed" : ""}`}
+            ref={stageRef}
+            onDoubleClick={onDoubleClick}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+          >
+            {item.url === null ? (
+              <p className="wb2-mvpending">
+                This file hasn&apos;t been brought across yet.
+              </p>
+            ) : isPdf ? (
+              <iframe
+                className="wb2-mvframe"
+                src={item.url}
+                title={item.name}
+              />
+            ) : (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={item.url}
+                alt={item.name}
+                draggable={false}
+                onLoad={(e) => {
+                  const img = e.currentTarget;
+                  setNatural({
+                    index,
+                    w: img.naturalWidth || 1,
+                    h: img.naturalHeight || 1,
+                  });
+                }}
+                style={
+                  zoom !== null && nat
+                    ? {
+                        width: nat.w * zoom,
+                        maxWidth: "none",
+                        maxHeight: "none",
+                      }
+                    : undefined
+                }
+              />
+            )}
+          </div>
+          {/* PREVIOUS AND NEXT, IN WORDS (the mock, frame 14): a bare ‹ › is
+            only a date's (rule 27). They sit on the stage's edges, outside
+            its scroller, so a zoomed photo never carries them off. */}
           {index > 0 && (
-            <button
-              className="wb2-mvnav prev"
-              onClick={() => onNav(index - 1)}
-              aria-label="Previous"
-            >
-              ‹
-            </button>
+            <Button className="wb2-mvnav prev" onClick={() => onNav(index - 1)}>
+              Previous
+            </Button>
           )}
           {index < items.length - 1 && (
-            <button className="wb2-mvnav next" onClick={() => onNav(index + 1)} aria-label="Next">
-              ›
-            </button>
+            <Button className="wb2-mvnav next" onClick={() => onNav(index + 1)}>
+              Next
+            </Button>
           )}
         </div>
-        {/* THE REST OF THE ROLL, ALWAYS IN SIGHT. Two ‹ › arrows say a
+        {/* THE REST OF THE ROLL, ALWAYS IN SIGHT. Previous and Next say a
             neighbour exists; they never say what it is, or how far the day
             runs. The strip is the mosaic's own order, so the photo you saw
             in the grid is the thumbnail you reach for.
@@ -345,7 +480,11 @@ export function JobMediaViewer({
             on the stage and in the mosaic, so a name here would be a third
             reading of one thing. The button's aria-label does the talking. */}
         {items.length > 1 && (
-          <div className="wb2-mvstrip" role="tablist" aria-label="Photos on this job">
+          <div
+            className="wb2-mvstrip"
+            role="tablist"
+            aria-label="Photos on this job"
+          >
             {items.map((it, i) => (
               <button
                 key={it.remoteId}
@@ -356,14 +495,14 @@ export function JobMediaViewer({
                 aria-label={it.name}
                 onClick={() => onNav(i)}
               >
-                {it.url ? (
+                {it.url && !pdfOf(it) ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={it.url} alt="" loading="lazy" draggable={false} />
                 ) : (
-                  <Icon name="cam" size={13} />
+                  <Icon name={pdfOf(it) ? "file" : "cam"} size={13} />
                 )}
                 {/* aria-hidden: the button's own label already carries the
-                    name, and the star's state is on the control in the bar.
+                    name, and the star's state is on the control in the head.
                     A pip that announced itself would be a third reading. */}
                 {favourites?.has(it.remoteId) && (
                   <u className="wb2-mvthumbstar" aria-hidden>
@@ -375,6 +514,20 @@ export function JobMediaViewer({
           </div>
         )}
       </div>
+      {/* WHAT ENDS SOMETHING ASKS FIRST (rule 25), over the viewer: the red
+          block names what the second press does, and Keep takes focus. */}
+      {asking?.confirm && (
+        <ConfirmDialog
+          heading={asking.confirm.heading}
+          confirm={asking.confirm.confirm}
+          cancel={asking.confirm.cancel}
+          busy={busy !== null}
+          onConfirm={() => void run(asking)}
+          onClose={() => setAsking(null)}
+        >
+          {asking.confirm.body}
+        </ConfirmDialog>
+      )}
     </>
   );
 }

@@ -475,6 +475,13 @@ const actionsMenu = async () => {
 const face = (key: string) =>
   within(document.querySelector(`#jcsec-${key}`) as HTMLElement);
 
+/** Documents' own Add menu, open: its items' words. The page's head has an
+    Add of its own, so this one is found inside the section. */
+const documentsAdd = async () => {
+  await userEvent.click(await face("documents").findByRole("button", { name: "Add" }));
+  return screen.findByRole("menu", { name: "Add to the job's documents" });
+};
+
 /** The layers in <body>, in document order. What opens over the page
     portals to the body (src/app/dashboard/__tests__/sheet-overlay-layers.test.ts),
     and at an equal z-index the LATER element paints on top — so it has to
@@ -2648,13 +2655,13 @@ describe("designs started from this job", () => {
     await detailLanded();
     await openTab("Documents");
 
-    expect(screen.getByText("Drawings — designed in the Studio")).toBeInTheDocument();
-    const link = screen.getByRole("link", { name: /12\/3 Wallace St/ });
+    const drawings = within(face("documents").getByRole("region", { name: "Drawings" }));
+    const link = drawings.getByRole("link", { name: "12/3 Wallace St" });
     expect(link).toHaveAttribute("href", "/dashboard/studio?design=dsn_1");
-    expect(within(link).getByText(/2 floors, 3 systems/)).toBeInTheDocument();
+    expect(drawings.getByText(/2 floors, 3 systems/)).toBeInTheDocument();
   });
 
-  it("counts the options in the heading when a job has several", async () => {
+  it("lists several under one heading, with no count beside it", async () => {
     readMirrorJob.mockResolvedValueOnce(
       card(
         detail({
@@ -2666,8 +2673,9 @@ describe("designs started from this job", () => {
     await detailLanded();
     await openTab("Documents");
 
-    expect(screen.getByText("Drawings — 2 Studio options")).toBeInTheDocument();
-    expect(document.querySelectorAll("a.wb2-dsgn")).toHaveLength(2);
+    const drawings = face("documents").getByRole("region", { name: "Drawings" });
+    expect(within(drawings).getByRole("heading", { name: "Drawings" })).toBeInTheDocument();
+    expect(within(drawings).getAllByRole("link")).toHaveLength(2);
   });
 
   it("says one floor and one system in the singular", async () => {
@@ -2789,7 +2797,7 @@ describe("files on the job", () => {
     expect(document.querySelector(".wb2-mtile.pending")).not.toBeNull();
   });
 
-  it("names the paperwork and opens it over the page once cached", async () => {
+  it("names the paperwork and opens it over the page once cached, leaving quotes and invoices to Quote and Billing", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(
       files({
@@ -2802,6 +2810,13 @@ describe("files on the job", () => {
             origin: "Invoice",
             url: "https://signed/d-1.pdf",
           }),
+          file({
+            remoteId: "d-2",
+            name: "Builder plans rev C.pdf",
+            fileType: ".pdf",
+            kind: "document",
+            url: "https://signed/d-2.pdf",
+          }),
         ],
       })
     );
@@ -2809,16 +2824,14 @@ describe("files on the job", () => {
     await detailLanded();
     await openTab("Documents");
 
-    /* an Invoice-sourced PDF files under Money — grouped by what it IS */
-    const moneySec = (await screen.findByText("Money — 1")).closest(".wb2-jcsec")!;
-    const link = within(moneySec as HTMLElement).getByText("Invoice #3137.pdf");
-    /* the name already says "Invoice", so the row does NOT say it again —
-       #559's meta law survives the grouping */
-    expect(within(moneySec as HTMLElement).queryByText("Invoice")).toBeNull();
-    /* a PDF opens IN the card — the shared viewer's iframe, not a new tab */
-    await userEvent.click(link);
-    const dialog = await screen.findByRole("dialog", { name: "Invoice #3137.pdf" });
-    expect(dialog.querySelector("iframe")!.getAttribute("src")).toBe("https://signed/d-1.pdf");
+    /* "Stays as quotes. We don't need a money section in the documents" */
+    const filesSec = await face("documents").findByRole("region", { name: "Files" });
+    expect(face("documents").queryByText("Invoice #3137.pdf")).toBeNull();
+    expect(face("documents").queryByText(/Money/)).toBeNull();
+    /* a PDF opens IN the page — the shared viewer's iframe, not a new tab */
+    await userEvent.click(within(filesSec).getByRole("button", { name: "Builder plans rev C.pdf" }));
+    const dialog = await screen.findByRole("dialog", { name: "Builder plans rev C.pdf" });
+    expect(dialog.querySelector("iframe")!.getAttribute("src")).toBe("https://signed/d-2.pdf");
   });
 
   /* THE SWMS IS PAPER TOO. It opened in a new browser tab that lost the job —
@@ -2833,11 +2846,48 @@ describe("files on the job", () => {
     await detailLanded();
     await openTab("Compliance");
 
-    await userEvent.click(await face("compliance").findByRole("button", { name: /Safe Work Method Statement/ }));
+    /* the job already has its SWMS, so Add doesn't offer a second */
+    await face("documents").findByRole("button", { name: "Safe Work Method Statement" });
+    expect(within(await documentsAdd()).queryByRole("menuitem", { name: "SWMS" })).toBeNull();
+    await userEvent.keyboard("{Escape}");
+
+    await userEvent.click(face("documents").getByRole("button", { name: "Safe Work Method Statement" }));
     const dialog = await screen.findByRole("dialog", { name: "Safe Work Method Statement" });
     expect(dialog.querySelector("iframe")!.getAttribute("src")).toBe("/swms/v-2");
-    /* the job already has its SWMS, so the head doesn't offer a second */
-    expect(face("compliance").queryByRole("button", { name: "Create SWMS" })).toBeNull();
+    /* Revise is in the viewer's head now: the viewer goes and the wizard opens */
+    await userEvent.click(within(dialog).getByRole("button", { name: "Revise" }));
+    expect(document.querySelector('iframe[src="/swms/v-2"]')).toBeNull();
+    expect(document.querySelector(".swz[role=dialog]")).not.toBeNull();
+  });
+
+  /* Reissue and Delete moved off the certificate's row into the viewer's
+     head (v2); Delete still asks, naming what goes with it */
+  it("reissues or deletes a certificate from the viewer's head, asking before it deletes", async () => {
+    const certs = jest.requireMock("@/app/actions/certificates") as { listCertificatesForJob: jest.Mock; deleteCertificate: jest.Mock };
+    const cert = { certificateId: "c-1", versionId: "cv-2", version: 2, title: "Mechanical Compliance Certificate", issuedAt: "2026-10-01T03:00:00Z", issuedBy: "Isaac Smith", issuedById: "staff-1", documentId: "d-9", mayDelete: true };
+    certs.listCertificatesForJob.mockResolvedValueOnce([cert]);
+    certs.deleteCertificate.mockResolvedValueOnce({ ok: true });
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<Job row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Documents");
+
+    await userEvent.click(await face("documents").findByRole("button", { name: "Mechanical Compliance Certificate" }));
+    const viewer = await screen.findByRole("dialog", { name: "Mechanical Compliance Certificate" });
+    expect(within(viewer).getByRole("button", { name: "Reissue" })).toHaveClass("pt-btn--second");
+    const del = within(viewer).getByRole("button", { name: "Delete" });
+    expect(del).toHaveClass("pt-btn--delete");
+    await userEvent.click(del);
+    const ask = screen.getByRole("dialog", { name: "Delete this certificate?" });
+    expect(within(ask).getByText(/All 2 versions and their PDFs come off the job/)).toBeInTheDocument();
+    await userEvent.click(within(ask).getByRole("button", { name: "Keep" }));
+    expect(certs.deleteCertificate).not.toHaveBeenCalled();
+
+    await userEvent.click(within(viewer).getByRole("button", { name: "Delete" }));
+    await userEvent.click(within(screen.getByRole("dialog", { name: "Delete this certificate?" })).getByRole("button", { name: "Delete certificate" }));
+    expect(certs.deleteCertificate).toHaveBeenCalledWith("c-1");
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Mechanical Compliance Certificate" })).toBeNull());
+    await waitFor(() => expect(face("documents").queryByText("Mechanical Compliance Certificate")).toBeNull());
   });
 
   /* a SWMS is signed BEFORE the work: on a job ServiceM8 has finished, the
@@ -2849,7 +2899,9 @@ describe("files on the job", () => {
     const { unmount } = render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Compliance");
-    expect(await face("compliance").findByRole("button", { name: "Create SWMS" })).toBeEnabled();
+    const menu = await documentsAdd();
+    expect(await within(menu).findByRole("menuitem", { name: "SWMS" })).not.toHaveAttribute("aria-disabled");
+    await userEvent.keyboard("{Escape}");
     unmount();
 
     swmsActions.listSwmsForJob.mockClear();
@@ -2860,7 +2912,7 @@ describe("files on the job", () => {
     /* not a greyed-out button that says nothing: there is nothing to create */
     await waitFor(() => expect(swmsActions.listSwmsForJob).toHaveBeenCalled());
     await act(async () => {});
-    expect(face("compliance").queryByRole("button", { name: "Create SWMS" })).toBeNull();
+    expect(within(await documentsAdd()).queryByRole("menuitem", { name: "SWMS" })).toBeNull();
   });
 
   /* PAPER WE FILE OURSELVES. The certificate, the builder's plans — they had
@@ -2914,11 +2966,16 @@ describe("files on the job", () => {
     await detailLanded();
     await openTab("Documents");
 
-    await userEvent.click(await face("documents").findByRole("button", { name: "Remove" }));
-    await userEvent.click(face("documents").getByRole("button", { name: "Delete file" }));
+    /* from the viewer's head, asking first */
+    await userEvent.click(await face("documents").findByRole("button", { name: "CoC.pdf" }));
+    const viewer = await screen.findByRole("dialog", { name: "CoC.pdf" });
+    await userEvent.click(within(viewer).getByRole("button", { name: "Remove" }));
+    expect(removeJobDocument).not.toHaveBeenCalled();
+    await userEvent.click(within(screen.getByRole("dialog", { name: "Delete this file?" })).getByRole("button", { name: "Delete file" }));
 
     expect(removeJobDocument).toHaveBeenCalledWith("d-9");
     await waitFor(() => expect(face("documents").queryByText("CoC.pdf")).toBeNull());
+    expect(screen.queryByRole("dialog", { name: "CoC.pdf" })).toBeNull();
   });
 
   it("files a document that arrived by email under From the client", async () => {
@@ -2941,8 +2998,8 @@ describe("files on the job", () => {
     await detailLanded();
     await openTab("Documents");
 
-    const sec = (await screen.findByText("From the client — 1")).closest(".wb2-jcsec")!;
-    expect(within(sec as HTMLElement).getByText("Site induction.pdf")).toBeInTheDocument();
+    const sec = await face("documents").findByRole("region", { name: "From the client" });
+    expect(within(sec).getByText("Site induction.pdf")).toBeInTheDocument();
   });
 
   it("names an uncached photo by its name and origin", async () => {
@@ -2990,11 +3047,11 @@ describe("files on the job", () => {
     expect(tile.tagName).not.toBe("BUTTON");
 
     /* AND IT IS NOT A STOP ON THE ARROW KEYS: two stills and a video read
-       "1 / 2", never "1 / 3" — a viewer that could land on the video would
+       "1 of 2", never "1 of 3" — a viewer that could land on the video would
        promise a file that is never coming. */
     await userEvent.click(face("photos").getAllByAltText("IMG_4021.jpg")[0].closest("button")!);
     const dialog = await screen.findByRole("dialog", { name: "IMG_4021.jpg" });
-    expect(within(dialog).getByText("1 / 2")).toBeInTheDocument();
+    expect(within(dialog).getByText("1 of 2")).toBeInTheDocument();
 
     await openTab("Documents");
     expect(face("documents").queryByText("walkthrough.mp4")).toBeNull();
@@ -3038,7 +3095,7 @@ describe("files on the job", () => {
        arrows would have taken two. */
     await userEvent.click(within(strip).getByRole("tab", { name: "three.jpg" }));
     const open = await screen.findByRole("dialog", { name: "three.jpg" });
-    expect(within(open).getByText("3 / 3")).toBeInTheDocument();
+    expect(within(open).getByText("3 of 3")).toBeInTheDocument();
     expect(
       within(within(open).getByRole("tablist")).getByRole("tab", { selected: true })
     ).toHaveAttribute("aria-label", "three.jpg");
@@ -3121,17 +3178,18 @@ describe("files on the job", () => {
 
     await userEvent.click((await face("photos").findByAltText("one.jpg")).closest("button")!);
     const dialog = await screen.findByRole("dialog", { name: "one.jpg" });
-    await userEvent.click(within(dialog).getByRole("button", { name: "Star one.jpg" }));
+    /* a button with its word, as every button but the cross has */
+    await userEvent.click(within(dialog).getByRole("button", { name: "Star" }));
     expect(setJobPhotoFavourite).toHaveBeenCalledWith(detail().remoteId, "p-1", true);
     expect(
-      await within(dialog).findByRole("button", { name: "Unstar one.jpg" })
-    ).toBeInTheDocument();
+      await within(dialog).findByRole("button", { name: "Starred" })
+    ).toHaveAttribute("aria-pressed", "true");
 
     /* The star travels with the photo, not with the frame: stepping to a
        photo starred before this card opened shows it lit. */
     await userEvent.keyboard("{ArrowRight}");
     const next = await screen.findByRole("dialog", { name: "two.jpg" });
-    expect(within(next).getByRole("button", { name: "Unstar two.jpg" })).toHaveAttribute(
+    expect(within(next).getByRole("button", { name: "Starred" })).toHaveAttribute(
       "aria-pressed",
       "true"
     );
@@ -3173,7 +3231,7 @@ describe("files on the job", () => {
     await userEvent.click((await face("photos").findByAltText("one.jpg")).closest("button")!);
     const dialog = await screen.findByRole("dialog", { name: "one.jpg" });
 
-    const stage = dialog.querySelector(".wb2-mvstage") as HTMLElement;
+    const stage = dialog.querySelector(".wb2-mvpane") as HTMLElement;
     const img = within(dialog).getByAltText("one.jpg") as HTMLImageElement;
     /* jsdom reports every box as 0, so the stage and the photo are given
        sizes by hand — the fit here is 800/1600 = 0.5. */
@@ -3205,7 +3263,7 @@ describe("files on the job", () => {
     await userEvent.click((await face("photos").findByAltText("one.jpg")).closest("button")!);
     const dialog = await screen.findByRole("dialog", { name: "one.jpg" });
 
-    const stage = dialog.querySelector(".wb2-mvstage") as HTMLElement;
+    const stage = dialog.querySelector(".wb2-mvpane") as HTMLElement;
     const img = within(dialog).getByAltText("one.jpg") as HTMLImageElement;
     Object.defineProperty(stage, "clientWidth", { value: 816, configurable: true });
     Object.defineProperty(stage, "clientHeight", { value: 616, configurable: true });
@@ -3844,21 +3902,25 @@ describe("compliance on the page", () => {
     await detailLanded();
     await openTab("Compliance");
 
-    expect(await face("compliance").findByText("Public liability")).toBeInTheDocument();
+    expect(await face("documents").findByText("Public liability, QBE")).toBeInTheDocument();
     expect(compliance.listJobPapers).toHaveBeenCalledWith("j-1");
     /* nothing ticked, no footer */
     expect(screen.queryByRole("button", { name: "Email documents" })).toBeNull();
 
-    await userEvent.click(face("compliance").getByRole("checkbox", { name: "Select Public liability" }));
-    const bar = screen.getByText("1 document ticked").closest(".wb2-shft") as HTMLElement;
-    /* THE PAGE'S FOOTER, under the body — not inside it */
+    await userEvent.click(face("documents").getByRole("checkbox", { name: "Select Public liability, QBE" }));
+    const bar = screen.getByRole("group", { name: "Send what's ticked" });
+    expect(bar).toHaveTextContent("1 document ticked");
+    /* a bar floating at the page's foot, under the body — not inside it */
+    expect(bar).toHaveClass("wb2-dsend");
     expect(bar.parentElement).toHaveClass("wb2-sheet");
     /* no ServiceM8 door until an owner switches sending on */
     expect(within(bar).queryByRole("button", { name: "Send to ServiceM8" })).toBeNull();
 
     await userEvent.click(within(bar).getByRole("button", { name: "Email documents" }));
-    await userEvent.click(await screen.findByRole("checkbox", { name: /Josh/ }));
-    await userEvent.click(screen.getByRole("button", { name: "Send email" }));
+    /* the email is a dialog over the page now, not a form opened inside it */
+    const letter = await screen.findByRole("dialog", { name: "Email documents" });
+    await userEvent.click(await within(letter).findByRole("checkbox", { name: /Josh/ }));
+    await userEvent.click(within(letter).getByRole("button", { name: "Send email" }));
     expect(compliance.emailJobDocuments).toHaveBeenCalledWith({
       jobUuid: "j-1",
       keys: ["p:p1"],
@@ -3867,16 +3929,17 @@ describe("compliance on the page", () => {
       message: "Hi,\n\nPlease find our documents for this job attached.",
     });
     await waitFor(() => expect(onToast).toHaveBeenCalledWith("Email sent to josh@lsdb.com.au"));
-    /* sent: the ticks clear and the footer goes with them */
+    /* sent: the ticks clear, and the dialog and the bar go with them */
     expect(screen.queryByText("1 document ticked")).toBeNull();
-    expect(face("compliance").getByRole("checkbox", { name: "Select Public liability" })).not.toBeChecked();
+    expect(screen.queryByRole("dialog", { name: "Email documents" })).toBeNull();
+    expect(face("documents").getByRole("checkbox", { name: "Select Public liability, QBE" })).not.toBeChecked();
 
     /* and the conversation says what went, without a reload */
     await openTab("Diary");
     expect(await convo().findByText("Emailed Public liability to josh@lsdb.com.au.")).toBeInTheDocument();
   });
 
-  it("adds papers from IN the face, and what was just added arrives ticked ready to send", async () => {
+  it("adds papers from Add's Licences and insurance, and what was just added arrives ticked ready to send", async () => {
     compliance.listJobPapers.mockResolvedValueOnce({ papers: [], may }).mockResolvedValueOnce({ papers: [pl], may });
     compliance.readComplianceChoices.mockResolvedValue({
       company: [
@@ -3890,27 +3953,32 @@ describe("compliance on the page", () => {
     await detailLanded();
     await openTab("Compliance");
 
-    await userEvent.click(await face("compliance").findByRole("button", { name: "Add compliance" }));
-    const chooser = await face("compliance").findByRole("group", { name: "Add compliance" });
+    await userEvent.click(within(await documentsAdd()).getByRole("menuitem", { name: "Licences and insurance" }));
+    const chooser = await screen.findByRole("dialog", { name: "Licences and insurance" });
     await userEvent.click(await within(chooser).findByRole("checkbox", { name: /Public liability/ }));
     await userEvent.click(within(chooser).getByRole("button", { name: "Add to job" }));
 
     expect(compliance.addJobPapers).toHaveBeenCalledWith("j-1", ["c:pl"]);
-    expect(await face("compliance").findByRole("checkbox", { name: "Select Public liability" })).toBeChecked();
+    expect(await face("documents").findByRole("checkbox", { name: "Select Public liability, QBE" })).toBeChecked();
     expect(screen.getByText("1 document ticked")).toBeInTheDocument();
-    expect(face("compliance").queryByRole("group", { name: "Add compliance" })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Licences and insurance" })).toBeNull();
   });
 
-  it("keeps compliance in its own section, and the files in theirs", async () => {
+  it("keeps compliance in the one Documents section, under its own heading, after the files", async () => {
+    readJobFiles.mockResolvedValue({
+      photos: [],
+      documents: [{ remoteId: "f-1", name: "Plans.pdf", fileType: ".pdf", kind: "document", origin: null, takenAt: null, url: "https://signed/p.pdf", width: null, height: null, fromClaim: null }],
+      elsewhere: [],
+      truncated: false,
+    });
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<Job row={row()} {...props} />);
     await detailLanded();
-    await openTab("Compliance");
-    expect(await face("compliance").findByText("Public liability")).toBeInTheDocument();
-    expect(face("compliance").queryByRole("button", { name: "Upload a document" })).toBeNull();
     await openTab("Documents");
-    expect(face("documents").queryByText("Public liability")).toBeNull();
-    expect(face("documents").queryByRole("button", { name: "Add compliance" })).toBeNull();
+    const compliance = await face("documents").findByRole("region", { name: "Compliance" });
+    expect(within(compliance).getByText("Public liability, QBE")).toBeInTheDocument();
+    expect(face("documents").getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Files", "Compliance"]);
+    expect(document.querySelector("#jcsec-compliance")).toBeNull();
   });
 
   it("keeps the footer to the face the ticks are on", async () => {
@@ -3918,7 +3986,7 @@ describe("compliance on the page", () => {
     render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Compliance");
-    await userEvent.click(await face("compliance").findByRole("checkbox", { name: "Select Public liability" }));
+    await userEvent.click(await face("documents").findByRole("checkbox", { name: "Select Public liability, QBE" }));
     expect(screen.getByText("1 document ticked")).toBeInTheDocument();
     await openTab("Summary");
     expect(screen.queryByText("1 document ticked")).toBeNull();
@@ -3931,8 +3999,44 @@ describe("compliance on the page", () => {
     render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Compliance");
-    await userEvent.click(await face("compliance").findByRole("button", { name: /Public liability/ }));
+    await userEvent.click(await face("documents").findByRole("button", { name: "Public liability, QBE" }));
     expect(await screen.findByTitle("Public liability")).toHaveAttribute("src", "https://signed/coc.pdf");
+    const viewer = screen.getByRole("dialog", { name: "Public liability" });
+    expect(within(viewer).getByText("QBE, to 30 Jun 2027, added by Isaac Smith")).toBeInTheDocument();
+  });
+
+  /* Remove and Use renewal moved off the row into the viewer's head (v2) */
+  it("takes a paper off the job from the viewer, after asking, and says the paper itself stays", async () => {
+    compliance.removeJobPaper.mockResolvedValue({ ok: true });
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<Job row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Documents");
+    await userEvent.click(await face("documents").findByRole("button", { name: "Public liability, QBE" }));
+    const viewer = await screen.findByRole("dialog", { name: "Public liability" });
+    expect(within(viewer).queryByRole("button", { name: "Use renewal" })).toBeNull();
+    await userEvent.click(within(viewer).getByRole("button", { name: "Remove" }));
+    const ask = screen.getByRole("dialog", { name: "Take this off the job?" });
+    expect(within(ask).getByText("The paper itself stays where it's filed.")).toBeInTheDocument();
+    expect(compliance.removeJobPaper).not.toHaveBeenCalled();
+    await userEvent.click(within(ask).getByRole("button", { name: "Remove from job" }));
+    expect(compliance.removeJobPaper).toHaveBeenCalledWith("p1");
+    await waitFor(() => expect(face("documents").queryByText("Public liability, QBE")).toBeNull());
+    expect(screen.queryByRole("dialog", { name: "Public liability" })).toBeNull();
+  });
+
+  it("moves a renewed paper to its renewal from the viewer, in one press", async () => {
+    compliance.listJobPapers.mockResolvedValue({ papers: [{ ...pl, renewed: true }], may });
+    compliance.renewJobPaper.mockResolvedValue({ ok: true });
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<Job row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Documents");
+    expect(await face("documents").findByText("Renewed since it was added")).toBeInTheDocument();
+    await userEvent.click(face("documents").getByRole("button", { name: "Public liability, QBE" }));
+    const viewer = await screen.findByRole("dialog", { name: "Public liability" });
+    await userEvent.click(within(viewer).getByRole("button", { name: "Use renewal" }));
+    expect(compliance.renewJobPaper).toHaveBeenCalledWith("p1");
   });
 
   /* ── the footer's other door ── */
@@ -3962,15 +4066,15 @@ describe("compliance on the page", () => {
     await detailLanded();
     await openTab("Compliance");
 
-    await userEvent.click(await face("compliance").findByRole("checkbox", { name: "Select Public liability" }));
-    const bar = screen.getByText("1 document ticked").closest(".wb2-shft") as HTMLElement;
+    await userEvent.click(await face("documents").findByRole("checkbox", { name: "Select Public liability, QBE" }));
+    const bar = screen.getByRole("group", { name: "Send what's ticked" });
     await userEvent.click(within(bar).getByRole("button", { name: "Send to ServiceM8" }));
 
     expect(sm8Send.sendJobDocumentsToServiceM8).toHaveBeenCalledWith({ jobUuid: "j-1", keys: ["p:p1"] });
     await waitFor(() => expect(onToast).toHaveBeenCalledWith("Public liability sent to ServiceM8"));
     /* it went: the tick clears, the footer with it, and the row says so */
     expect(screen.queryByText("1 document ticked")).toBeNull();
-    expect(face("compliance").getByText("In ServiceM8")).toBeInTheDocument();
+    expect(face("documents").getByText("In ServiceM8")).toBeInTheDocument();
   });
 
   it("keeps a file that didn't go ticked, and says why in the footer until the ticks change", async () => {
@@ -3989,7 +4093,7 @@ describe("compliance on the page", () => {
     await detailLanded();
     await openTab("Compliance");
 
-    const tick = await face("compliance").findByRole("checkbox", { name: "Select Public liability" });
+    const tick = await face("documents").findByRole("checkbox", { name: "Select Public liability, QBE" });
     await userEvent.click(tick);
     await userEvent.click(screen.getByRole("button", { name: "Send to ServiceM8" }));
 
@@ -3997,7 +4101,8 @@ describe("compliance on the page", () => {
       await screen.findByText("Public liability wasn't sent. ServiceM8 said the file is too big.")
     ).toBeInTheDocument();
     expect(tick).toBeChecked();
-    expect(face("compliance").getByText("Not sent to ServiceM8. ServiceM8 said the file is too big.")).toBeInTheDocument();
+    expect(face("documents").getByText("Not sent to ServiceM8")).toBeInTheDocument();
+    expect(face("documents").getByText("To 30 Jun 2027, added by Isaac Smith. ServiceM8 said the file is too big.")).toBeInTheDocument();
 
     await userEvent.click(tick);
     await userEvent.click(tick);
@@ -4015,8 +4120,9 @@ describe("compliance on the page", () => {
     render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Compliance");
-    expect(await face("compliance").findByText("Not in ServiceM8 yet. Sending is paused.")).toBeInTheDocument();
-    expect(face("compliance").queryByText("Sending to ServiceM8…")).toBeNull();
+    expect(await face("documents").findByText("Not in ServiceM8 yet")).toBeInTheDocument();
+    expect(face("documents").getByText("To 30 Jun 2027, added by Isaac Smith. Sending is paused.")).toBeInTheDocument();
+    expect(face("documents").queryByText("Sending to ServiceM8…")).toBeNull();
   });
 
   /* The copy ServiceM8's mirror brings back is left off on the SERVER, by
@@ -4054,7 +4160,8 @@ describe("compliance on the page", () => {
 
     expect(await face("documents").findByText("In ServiceM8")).toBeInTheDocument();
     expect(face("documents").getAllByText("CoC.pdf")).toHaveLength(1);
-    expect(face("documents").getByText("Quote #3137")).toBeInTheDocument();
+    /* a quote is Quote's: Documents has no Money group */
+    expect(face("documents").queryByText("Quote #3137")).toBeNull();
   });
 });
 

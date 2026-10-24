@@ -145,23 +145,6 @@ export function bookedMinutesOf(a: Pick<ScheduleActivity, "start" | "end">): num
   return endMin - startMin;
 }
 
-/** One month, scored — the window scorer over the month's own day list. */
-export function capacityMonth(input: {
-  anyDayISO: string;
-  activities: ScheduleActivity[];
-  allocation: CapacityAllocation[];
-  /** staff uuid → name, for the people list on a day. */
-  staffNames?: Map<string, string>;
-  /** WHO'S OFF COMES OUT FIRST (Isaac, 24 October 2026, the month's
-      capacity): the minutes of a person's working day they're off that
-      day, taken out of the crew's hours before the day is scored. */
-  offMinutes?: (dayISO: string, staffUuid: string) => number;
-  /** Days the business is shut (a public holiday): nothing to score. */
-  closed?: ReadonlySet<string>;
-}): CapacityDay[] {
-  return capacityWindow({ ...input, days: daysOfMonth(input.anyDayISO) });
-}
-
 /** Any run of days, scored. `activities` is every dispatched booking in the
     window — the caller has already applied `activity_was_scheduled = 1`, and
     this re-applies it for the same reason schedule.ts does: it is the single

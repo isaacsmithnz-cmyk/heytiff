@@ -4,15 +4,15 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/parts/button";
 import { Fade } from "@/components/parts/fade";
 import { Menu, type MenuItem } from "@/components/parts/menu";
-import { Dot, StateWord, type Hue, type Tone } from "@/components/parts/state";
+import { Dot, type Hue } from "@/components/parts/state";
 import { SectionTabs, type TabItem } from "@/components/parts/tabs";
 import { Icon } from "@/components/shell/icon";
 
 /* A JOB PAGE'S HEAD (v2, step 5; the mock-ups v2-land-* and v2-leanC):
 
-     the job's name;
-     one grey line: its colour's dot, its kind, its number, its address,
-       and where it stands, one word;
+     the job's colour dot and its name, and nothing under it (Isaac's
+       mock of 25 October 2026: the grey line of its kind, number,
+       address and stage went; they are Overview's to say);
      on the right, one second button, Actions, with a chevron, opening a
        white menu (rules 36, 53 and 54): what Add made first ("Add visit",
        "Add task"), then what's done to the job, then Open in ServiceM8
@@ -35,10 +35,6 @@ const inSentence = (word: string) => (/^[A-Z]{2,}\b/.test(word) ? word : word.ch
 export type JobPageHeadProps = {
   name: string;
   hue: Hue;
-  /** "Work order, Job 3209, 59 Woorarra Avenue, North Narrabeen" */
-  facts: string;
-  /** where the job stands; grey unless it needs a look or went wrong */
-  stage: { word: string; tone: Tone } | null;
   /** ServiceM8's own page for the job, when there is one */
   sm8Href: string | null;
   add: { items: readonly MenuItem[]; onPick: (key: string) => void; disabled?: boolean; onReach?: () => void };
@@ -48,7 +44,7 @@ export type JobPageHeadProps = {
   onSection: (key: string) => void;
 };
 
-export function JobPageHead({ name, hue, facts, stage, sm8Href, add, actions, sections, section, onSection }: JobPageHeadProps) {
+export function JobPageHead({ name, hue, sm8Href, add, actions, sections, section, onSection }: JobPageHeadProps) {
   const actRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const chevron = (
@@ -61,22 +57,9 @@ export function JobPageHead({ name, hue, facts, stage, sm8Href, add, actions, se
       <div className="jp-top">
         <div className="jp-id">
           <h1 className="jp-name">
+            <Dot hue={hue} />
             <Fade>{name}</Fade>
           </h1>
-          <p className="jp-line">
-            <Dot hue={hue} />
-            <Fade className="jp-facts">{facts ? `${facts}.` : ""}</Fade>
-            {/* grey is the line's own colour: a word that needs nothing of
-                you is the line's last word; one that does wears its state */}
-            {stage &&
-              (stage.tone === "info" ? (
-                <span className="jp-stage">{stage.word}</span>
-              ) : (
-                <StateWord tone={stage.tone} className="jp-stage">
-                  {stage.word}
-                </StateWord>
-              ))}
-          </p>
         </div>
         <div className="jp-acts">
           <Button

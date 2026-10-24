@@ -77,10 +77,6 @@ const listJobPicklist = jest.fn(async (): Promise<unknown[]> => []);
 const setPicklistItemPicked = jest.fn(async (): Promise<unknown> => null);
 const removePicklistItem = jest.fn(async () => {});
 const addJobPicklistItem = jest.fn(async (): Promise<unknown> => ({}));
-/* Check in / check out — controllable, for the Installation tests below. */
-const readMyCheckIn = jest.fn(async (): Promise<unknown> => null);
-const checkIn = jest.fn(async (_job: string): Promise<unknown> => null);
-const checkOut = jest.fn(async (_job: string): Promise<unknown> => null);
 /* The customer dialog — controllable for its tests below. */
 const customerEditOffered = jest.fn(async () => false);
 const readCustomerForEdit = jest.fn();
@@ -95,11 +91,6 @@ jest.mock("@/app/actions/job-customer", () => ({
   customerEditOffered: () => customerEditOffered(),
   readCustomerForEdit: (...a: unknown[]) => readCustomerForEdit(...a),
   saveCustomer: (...a: unknown[]) => saveCustomer(...a),
-}));
-jest.mock("@/app/actions/job-check-ins", () => ({
-  readMyCheckIn: () => readMyCheckIn(),
-  checkIn: (j: string) => checkIn(j),
-  checkOut: (j: string) => checkOut(j),
 }));
 jest.mock("@/app/actions/job-picklist", () => ({
   listJobPicklist: (...a: unknown[]) => listJobPicklist(...(a as [])),
@@ -260,7 +251,7 @@ jest.mock("@/app/actions/job-note-sm8", () => ({
 
 
 import { useState } from "react";
-import { JobSheet, visitLength } from "../job-sheet";
+import { JobSheet } from "../job-sheet";
 import type { JobSection } from "@/lib/jobs/job-sections";
 
 type JobProps = Omit<Parameters<typeof JobSheet>[0], "page"> & { section?: JobSection };
@@ -437,10 +428,13 @@ const props = {
   onToast: noop,
 };
 
-/** The head's grey line holding the detail's geo line is the "detail
-    landed" signal: before it, the line says the row's suburb. */
-const detailLanded = () =>
-  waitFor(() => expect(document.querySelector(".jp-facts")).toHaveTextContent("Rose Bay NSW 2029"));
+/** The job read and drawn: the head says nothing of the detail any more
+    (Isaac's mock of 25 October 2026 took its grey line away), so the read
+    itself, answered, is the signal. */
+const detailLanded = async () => {
+  await waitFor(() => expect(readMirrorJob).toHaveBeenCalled());
+  await act(async () => {});
+};
 
 /** One of the job's section tabs (a face may hold tabs of its own). */
 const jobTab = (name: string) =>
@@ -535,14 +529,17 @@ it("lands on Overview, the stages line over the tiles", async () => {
 
 /* ── the band ── */
 
-describe("the head's grey line", () => {
-  it("falls back to the geo line when the job has no written address", async () => {
+describe("the head (Isaac's mock, 25 October 2026)", () => {
+  it("is the job's colour dot and its name, with no grey line under it", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail({ address: null })));
     render(<Job row={row()} {...props} />);
     await detailLanded();
-    expect(document.querySelector(".jp-facts")).toHaveTextContent("Work order, Job 3137, Rose Bay NSW 2029.");
+    const h1 = screen.getByRole("heading", { level: 1 });
+    expect(h1).toHaveTextContent("Laing + Simmons Double Bay");
+    expect(h1.querySelector(".pt-dot")).not.toBeNull();
+    expect(document.querySelector(".jp-line, .jp-facts, .jp-stage")).toBeNull();
+    expect(document.querySelector(".jp-head")).not.toHaveTextContent(/Work order|Job 3137|Rose Bay/);
   });
-
 });
 
 /* ── the Summary face ── */
@@ -1349,153 +1346,43 @@ it("(F) (verifier r2 12) ticked, the pen sends with the SAVED id — and a secon
 
 /* ── the Visits face ── */
 
-/** The crew cell of the visit row for a day, read as one string — the names
-    are separate spans so the title can wear its own weight, and getByText
-    matches per element. */
-const crewLine = (f: ReturnType<typeof face>, day: string): string =>
-  f.getByText(day).parentElement?.querySelector("em")?.textContent ?? "";
-
-
+/* Isaac's mock of 25 October 2026, frame 1: coming up, then the last few */
 describe("the Visits face", () => {
-  it("checks the reader in on this job, and the card reads the job again", async () => {
-    readMyCheckIn.mockResolvedValueOnce(null);
-    checkIn.mockResolvedValueOnce({ jobUuid: "j-1", jobNumber: "3137", since: "2026-10-02T21:32:00Z" });
-    readMirrorJob.mockResolvedValue(card(detail()));
-    render(<Job row={row()} {...props} />);
-    await detailLanded();
-    await openTab("Visits");
-    const reads = readMirrorJob.mock.calls.length;
-    await userEvent.click(face("visits").getByRole("button", { name: "Check in" }));
-    expect(checkIn).toHaveBeenCalledWith("j-1");
-    expect(await face("visits").findByText(/^On site since 7:32\sam$/)).toBeInTheDocument();
-    expect(face("visits").getByRole("button", { name: "Check out" })).toBeInTheDocument();
-    await waitFor(() => expect(readMirrorJob.mock.calls.length).toBe(reads + 1));
-    readMirrorJob.mockReset();
-  });
-
-  it("offers to check in here when the reader is on another job, and says which", async () => {
-    readMyCheckIn.mockResolvedValueOnce({ jobUuid: "j-other", jobNumber: "3225", since: "2026-10-02T21:00:00Z" });
+  it("draws the next booking as a visit coming up, and the days on site under Previous with who went and their time", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Visits");
-    expect(await face("visits").findByText(/^Checked in at #3225 since 7:00\sam$/)).toBeInTheDocument();
-    expect(face("visits").getByRole("button", { name: "Check in here" })).toBeInTheDocument();
+    const f = face("visits");
+    const coming = f.getAllByRole("button").find((b) => b.classList.contains("jv-card"))!;
+    expect(coming).toHaveTextContent(/^Fri14Aug7:30am to 3:30pm/);
+    expect(within(coming).getByRole("img", { name: "Alex Lomond" })).toHaveTextContent("AL");
+    const prev = within(f.getByRole("region", { name: "Previous" }));
+    const days = prev.getAllByRole("listitem");
+    expect(days.map((d) => d.querySelector("b")!.textContent)).toEqual(["Fri 14 Aug", "Thu 13 Aug"]);
+    expect(days[0]).toHaveTextContent("10h 20m");
+    /* initials only: "It's double handling" to write the names beside */
+    expect(within(days[1]!).getAllByRole("img").map((i) => i.getAttribute("aria-label"))).toEqual(["Callum Vallis", "Alex Lomond"]);
+    expect(prev.queryByText("Callum Vallis")).toBeNull();
   });
 
-  it("says who is on site now on the day's card", async () => {
-    readMirrorJob.mockResolvedValueOnce(
-      card(detail({ visits: [{ day: "2026-10-03", minutes: 90, crew: [{ name: "Luke Ingold", title: null, onSite: true }] }] }))
-    );
-    render(<Job row={row()} {...props} />);
-    await detailLanded();
-    await openTab("Visits");
-    expect(crewLine(face("visits"), "Sat 3 Oct")).toBe("Luke Ingold, on site now");
-  });
-
-  it("names a visit's length by the hours each person spent there", () => {
-    const two = [{}, {}];
-    expect(visitLength({ minutes: 960, crew: two })).toBe("Full day");
-    expect(visitLength({ minutes: 300, crew: two })).toBe("Half day");
-    expect(visitLength({ minutes: 20, crew: [{}] })).toBe("Pop-in");
-    /* a person who left a check-in open adds no hours, so they don't divide them */
-    expect(visitLength({ minutes: 406, crew: [{}, { leftOpen: true }] })).toBe("Full day");
-    expect(visitLength({ minutes: 0, crew: [{ leftOpen: true }] })).toBe("");
-  });
-
-  it("lists every visit with who went, tallies the heading, and puts the booking first", async () => {
+  it("has nothing else on the left: no Next on site, no check-in, no queue, no hours against the quote", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Visits");
-
     const f = face("visits");
-    expect(f.getByText("2 visits, 18h 30m on site")).toBeInTheDocument();
-    expect(f.getByText("Fri 14 Aug")).toBeInTheDocument();
-    /* A NAME PLUS WHAT THEY ARE, and only on this face: the dash separates
-       the two people because a comma cannot, once a title is in the line;
-       a mate with no title in ServiceM8 keeps just his name. */
-    expect(crewLine(f, "Thu 13 Aug")).toBe("Callum Vallis — Alex Lomond, Senior HVAC");
-    expect(f.getByText("10h 20m")).toBeInTheDocument();
-    /* the next booking leads, with its end time */
-    expect(f.getByText("Next on site")).toBeInTheDocument();
-    expect(f.getByText("7:30am–3:30pm Fri 14 Aug")).toBeInTheDocument();
-    /* and the queue keeps its own fact */
-    expect(f.getByText("Parts on Order")).toBeInTheDocument();
-    expect(f.getByText(/Lyle Irving, until Thu 20 Aug/)).toBeInTheDocument();
+    for (const gone of ["Next on site", "Check in", "In queue", "Parts on Order", "By visit", "All tasks"]) expect(f.queryByText(gone)).toBeNull();
+    expect(f.queryByRole("button", { name: /Check in/ })).toBeNull();
   });
 
-  it("names who left a check-in open, and the hours leave them out", async () => {
-    /* #3237's 12 Sep and 31 Aug, off the live mirror (sm8CheckInLeftOpen):
-       ServiceM8 counted 54h and 38h 57m; Oleksii's own 6h 46m and
-       Michael's 1h 45m are all anyone recorded. */
-    readMirrorJob.mockResolvedValueOnce(
-      card(
-        detail({
-          timeOnSite: { minutes: 511, sessions: 2 },
-          visits: [
-            {
-              day: "2026-09-12",
-              minutes: 406,
-              crew: [
-                { name: "Oleksii Khalameida", title: "HVAC" },
-                { name: "Louis Jones", title: "HVAC", leftOpen: true },
-              ],
-            },
-            {
-              day: "2026-08-31",
-              minutes: 0,
-              crew: [{ name: "Louis Jones", title: null, leftOpen: true }],
-            },
-          ],
-        })
-      )
-    );
+  it("says nothing is booked when nobody has been on site and nothing is booked", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail({ visits: [], nextBooking: null, queue: null, timeOnSite: null })));
     render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Visits");
-
-    const f = face("visits");
-    expect(crewLine(f, "Sat 12 Sept")).toBe("Oleksii Khalameida, HVAC — Louis Jones, HVAC, check-in left open");
-    expect(f.getByText("6h 46m")).toBeInTheDocument();
-    /* a day with nothing believable says no figure, never "0m" */
-    expect(crewLine(f, "Mon 31 Aug")).toBe("Louis Jones, check-in left open");
-    expect(f.getByText("Mon 31 Aug").parentElement?.lastElementChild?.textContent).toBe("—");
-    expect(f.queryByText("0m")).toBeNull();
-  });
-
-  it("lays every visit out as a card, oldest first, numbered as visits", async () => {
-    const many = Array.from({ length: 12 }, (_, i) => ({
-      day: `2026-08-${String(20 - i).padStart(2, "0")}`,
-      minutes: 60,
-      crew: [{ name: "Alex Lomond", title: null }],
-    }));
-    readMirrorJob.mockResolvedValueOnce(card(detail({ visits: many })));
-    render(<Job row={row()} {...props} />);
-    await detailLanded();
-    await openTab("Visits");
-
-    const strip = within(screen.getByRole("list", { name: "Visits, oldest first" }));
-    const cards = strip.getAllByRole("listitem");
-    expect(cards).toHaveLength(12);
-    expect(within(cards[0]!).getByText("Visit 1")).toBeInTheDocument();
-    expect(within(cards[0]!).getByText("Sun 9 Aug")).toBeInTheDocument();
-    expect(within(cards[11]!).getByText("Visit 12")).toBeInTheDocument();
-    expect(within(cards[11]!).getByText("Thu 20 Aug")).toBeInTheDocument();
-    /* an hour for one person is a pop-in */
-    expect(within(cards[0]!).getByText("Pop-in")).toBeInTheDocument();
-  });
-
-  it("says so when nobody has been on site and nothing is booked", async () => {
-    readMirrorJob.mockResolvedValueOnce(
-      card(detail({ visits: [], nextBooking: null, queue: null, timeOnSite: null }))
-    );
-    render(<Job row={row()} {...props} />);
-    await detailLanded();
-    await openTab("Visits");
-    expect(
-      screen.getByText("Nobody's been on site yet, and nothing is booked.")
-    ).toBeInTheDocument();
+    expect(face("visits").getByText("Nothing booked yet.")).toBeInTheDocument();
+    expect(face("visits").queryByRole("region", { name: "Previous" })).toBeNull();
   });
 });
 
@@ -2219,9 +2106,8 @@ describe("a page opened from a progress claim", () => {
     );
 
     await face("money").findByText("$31,340.35");
-    /* the head's line is the job's: its status and its number, never the claim's */
-    expect(document.querySelector(".jp-facts")).toHaveTextContent("Completed, Job 3137, Rose Bay NSW 2029.");
-    expect(document.querySelector(".jp-line")).not.toHaveTextContent(/Quote|2380A/);
+    /* the head is the job's, never the claim's */
+    expect(screen.getByRole("heading", { level: 1 })).not.toHaveTextContent(/Quote|2380A/);
   });
 
 });

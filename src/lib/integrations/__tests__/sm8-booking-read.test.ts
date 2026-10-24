@@ -184,11 +184,11 @@ describe("the panel's live reads (C-1)", () => {
     ]);
   });
 
-  it("reads at most eight days", async () => {
-    const days = Array.from({ length: 10 }, (_, i) => `2026-10-${String(10 + i).padStart(2, "0")}`);
+  it("reads at most as many days as a press books (twenty, since a visit takes a run of days)", async () => {
+    const days = Array.from({ length: 22 }, (_, i) => new Date(Date.UTC(2026, 9, 1 + i)).toISOString().slice(0, 10));
     const r = await readBookingContext(ORG, JOB, days);
-    expect(fetchMock).toHaveBeenCalledTimes(2 + 8);
-    expect(r.ok && Object.keys(r.data.days)).toEqual(days.slice(0, 8));
+    expect(fetchMock).toHaveBeenCalledTimes(2 + 20);
+    expect(r.ok && Object.keys(r.data.days)).toEqual(days.slice(0, 20));
   });
 
   it("(F) shapes every row as the mirror shapes one, and leaves out a row with no length", async () => {

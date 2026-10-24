@@ -21,6 +21,7 @@ jest.mock("@/lib/supabase-server", () => ({
       };
       q.select = () => q;
       q.eq = (c: string, v: unknown) => (call.filters.push([c, v]), q);
+      q.in = (c: string, v: unknown) => (call.filters.push([c, v]), q);
       q.order = () => q;
       q.maybeSingle = () => Promise.resolve({ data: (tables[table] ?? {}).one ?? null, error: null });
       q.insert = (row: unknown) => {
@@ -104,6 +105,39 @@ describe("an edit as the browser sent it", () => {
     });
     expect(editOf({ kind: "add", name: "x", stage: "Cleanup" })).toBeNull();
     expect(editOf({ kind: "drop table" })).toBeNull();
+  });
+
+  it("reads several tasks onto one visit, each once, and an issue's note and photo", () => {
+    expect(editOf({ kind: "place", ids: [ID, ID, "x", 4], visit: 10 })).toEqual({ kind: "place", ids: [ID], visit: 10 });
+    expect(editOf({ kind: "place", ids: [], visit: 10 })).toBeNull();
+    expect(editOf({ kind: "issue", id: ID, note: "  No gas on site ", documentId: DOC })).toEqual({ kind: "issue", id: ID, note: "No gas on site", documentId: DOC });
+    /* no note clears it, and a photo with it */
+    expect(editOf({ kind: "issue", id: ID, note: "", documentId: DOC })).toEqual({ kind: "issue", id: ID, note: "", documentId: null });
+    expect(editOf({ kind: "issue", id: ID, note: "x", documentId: "nope" })).toEqual({ kind: "issue", id: ID, note: "x", documentId: null });
+  });
+});
+
+/* Isaac's mock of 25 October 2026: a stage ticked and added to a day at
+   once, and Issue on the day */
+describe("planning and issues", () => {
+  it("puts every task named onto the visit, this job's only", async () => {
+    expect(await applyTaskEdit("org-1", "job-1", { userId: "u", name: null }, { kind: "place", ids: [ID, DOC], visit: 10 })).toEqual({ ok: true });
+    const u = calls.find((c) => c.table === "job_tasks" && c.op === "update")!;
+    expect(u.row).toMatchObject({ visit: 10 });
+    expect(u.filters).toEqual(expect.arrayContaining([["org_id", "org-1"], ["sm8_job_uuid", "job-1"], ["id", [ID, DOC]]]));
+  });
+
+  it("keeps an issue on the task with who said it, its photo only when it is on this job, and clears it", async () => {
+    tables.job_tasks = { one: { id: ID, progress: 0 } };
+    tables.documents = { one: onThisJob };
+    expect(await applyTaskEdit("org-1", "job-1", { userId: "u", name: "David Hann" }, { kind: "issue", id: ID, note: "Builder's not on site", documentId: DOC })).toEqual({ ok: true });
+    expect(calls.find((c) => c.op === "update")!.row).toMatchObject({ issue_note: "Builder's not on site", issue_photo_document_id: DOC, issue_by: "David Hann" });
+    calls.length = 0;
+    tables.documents = { one: { ...onThisJob, sm8_job_uuid: "job-2" } };
+    expect(await applyTaskEdit("org-1", "job-1", { userId: "u", name: null }, { kind: "issue", id: ID, note: "x", documentId: DOC })).toEqual({ ok: false, reason: "That photo didn't land on this job." });
+    expect(calls.find((c) => c.op === "update")).toBeUndefined();
+    await applyTaskEdit("org-1", "job-1", { userId: "u", name: null }, { kind: "issue", id: ID, note: "", documentId: null });
+    expect(calls.find((c) => c.op === "update")!.row).toMatchObject({ issue_note: null, issue_photo_document_id: null, issue_by: null, issue_at: null });
   });
 });
 

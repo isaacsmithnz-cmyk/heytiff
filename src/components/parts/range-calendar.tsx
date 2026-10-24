@@ -110,6 +110,7 @@ export function RangeCalendar({
   max,
   holidays,
   workDays = [0, 1, 2, 3, 4],
+  also,
   label,
 }: {
   /** the AU calendar date, from the server, never `new Date()` */
@@ -125,6 +126,9 @@ export function RangeCalendar({
   holidays?: ReadonlyMap<string, string>;
   /** the days the person works, Mon=0; the rest are grey */
   workDays?: readonly number[];
+  /** days off inside the span that were pressed in, drawn picked (Book a
+      visit's Saturday in a run of weekdays) */
+  also?: readonly string[];
   /** what the months are for, said to a screen reader */
   label: string;
 }) {
@@ -154,6 +158,10 @@ export function RangeCalendar({
   const last = spanEnd(span);
   const run = !!span.start && !!span.end && span.end > span.start;
   const inSpan = (iso: string) => !!span.start && !!last && iso >= span.start && iso <= last;
+  /* where days off are pressed in (`also`), a day off inside the span is in
+     it only when it was */
+  const counted = (iso: string) =>
+    !also || workDays.includes(weekdayIndex(iso)) || iso === span.start || iso === last || also.includes(iso);
 
   const moveTo = (from: string, n: number) => {
     const to = addDay(from, n);
@@ -202,7 +210,7 @@ export function RangeCalendar({
               {monthDays(month).map((iso, k) => {
                 if (!iso) return <span key={`e${k}`} className="pt-cal-cell" />;
                 const holiday = holidays?.get(iso);
-                const picked = iso === span.start || (!!span.end && iso === span.end);
+                const picked = iso === span.start || (!!span.end && iso === span.end) || !!also?.includes(iso);
                 const cell = [
                   "pt-cal-cell",
                   run && inSpan(iso) && "pt-cal-cell--run",
@@ -224,7 +232,7 @@ export function RangeCalendar({
                       className={day.filter(Boolean).join(" ")}
                       data-iso={iso}
                       aria-label={name}
-                      aria-pressed={inSpan(iso)}
+                      aria-pressed={inSpan(iso) && counted(iso)}
                       disabled={!allowed(iso)}
                       tabIndex={iso === tabbable ? 0 : -1}
                       onClick={() => {

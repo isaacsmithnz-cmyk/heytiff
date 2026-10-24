@@ -13,6 +13,7 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { inChunks } from "@/lib/in-chunks";
 import { getConnectionView } from "@/lib/integrations/store";
 import { listSm8SyncStatus } from "@/lib/integrations/sm8-sync";
 import { freshenSm8AfterResponse } from "@/lib/integrations/sm8-freshness";
@@ -38,11 +39,6 @@ export type JobsListData = {
   truncated: boolean;
 };
 
-async function inChunks<T>(values: readonly string[], size: number, run: (chunk: string[]) => Promise<T[]>): Promise<T[]> {
-  const out: T[] = [];
-  for (let i = 0; i < values.length; i += size) out.push(...(await run(values.slice(i, i + size))));
-  return out;
-}
 
 type Act = { job_uuid: string; staff_uuid: string | null; start_date: string | null };
 
@@ -101,19 +97,30 @@ export async function loadJobsList(): Promise<JobsListData | null> {
   const orgId = session?.orgId as string | undefined;
   if (!orgId) return null;
 
-  const [moneyVisible, manage] = await Promise.all([can("workboard_money"), can("workboard_manage")]);
-  const view = await getConnectionView(orgId, "servicem8");
+  /* the grants, the connection and its clock in one wait: none needs
+     another's answer, and the clock is one cheap row read whether or not it
+     is used (25 October 2026) */
+  const [moneyVisible, manage, view, zone] = await Promise.all([
+    can("workboard_money"),
+    can("workboard_manage"),
+    getConnectionView(orgId, "servicem8"),
+    getSm8Timezone(orgId),
+  ]);
   const connection = view === null ? "none" : view.status === "connected" ? "connected" : "attention";
   const connected = connection !== "none";
-  const today = todayInZone(connected ? await getSm8Timezone(orgId) : null);
+  const today = todayInZone(connected ? zone : null);
 
-  const [board, projectsBoard, allJobs, sync] = await Promise.all([
+  /* the extras (who is on each job, when each was won) need the jobs, and
+     nothing else here: they are read the moment the jobs land, beside the
+     boards rather than after them */
+  const allJobsP = connected ? loadAllJobs(orgId, today, { includeMoney: moneyVisible }) : Promise.resolve(EMPTY_ALL_JOBS);
+  const [board, projectsBoard, allJobs, sync, extras] = await Promise.all([
     loadMaintenanceBoard(orgId, today),
     loadProjectsBoard(orgId, today, { includeMoney: false }),
-    connected ? loadAllJobs(orgId, today, { includeMoney: moneyVisible }) : Promise.resolve(EMPTY_ALL_JOBS),
+    allJobsP,
     connected ? listSm8SyncStatus(orgId) : Promise.resolve(null),
+    allJobsP.then((a) => readJobExtras(orgId, a.jobs, today)),
   ]);
-  const extras = await readJobExtras(orgId, allJobs.jobs, today);
 
   /* looking at the list counts as looking, as the board's does */
   if (connection === "connected") freshenSm8AfterResponse(orgId);

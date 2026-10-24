@@ -1342,10 +1342,17 @@ export async function readJobFamily(
      claim's whole value, the very misread the cap below declines a read to
      avoid. */
   const linesByJob = new Map<string, Exclude<FamilyLines, null>>();
+  /* EX GST, from each line's own ex-GST `price`: null once a line has none */
+  const exByJob = new Map<string, number | null>();
   for (const raw of (matRows ?? []) as (Parameters<typeof materialLineOf>[0] & {
     job_uuid: string;
   })[]) {
     const line = materialLineOf(raw);
+    const exSoFar = exByJob.get(raw.job_uuid);
+    exByJob.set(
+      raw.job_uuid,
+      exSoFar === null || line.exLineCents == null ? null : (exSoFar ?? 0) + line.exLineCents
+    );
     const soFar = linesByJob.get(raw.job_uuid);
     if (soFar === "unreadable") continue; // already so
     if (line.lineCents === null) {
@@ -1393,6 +1400,7 @@ export async function readJobFamily(
         paidCents: paid?.cents ?? 0,
         lastPaidOn: paid?.lastOn ?? null,
         lines: linesByJob.get(m.uuid) ?? null,
+        exCents: exByJob.get(m.uuid) ?? null,
         /* A clone carries no invoice_date of its own (14 of 478 live), and
            the day it was created IS the day the progress invoice went out. */
         raisedOn: dateOf(m.invoice_date) ?? (splitJobNumber(m.generated_job_id)?.suffix

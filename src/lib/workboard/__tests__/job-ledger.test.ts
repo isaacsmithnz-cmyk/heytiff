@@ -6,6 +6,7 @@ import {
   collectionAgainst,
   fmtQuantity,
   materialLineOf,
+  materialsExTotalCents,
   materialsTaxMixed,
   materialsTotalCents,
   parseSm8Quantity,
@@ -77,6 +78,20 @@ describe("materialLineOf", () => {
     const line = materialLineOf(row({ quantity: "" }));
     expect(line.quantity).toBeNull();
     expect(line.lineCents).toBeNull();
+  });
+
+  /* EX GST IS SERVICEM8'S OWN PRICE, whatever the displayed figure includes:
+     the line's ex-GST total is stated, never the displayed one over 1.1 */
+  it("carries the line's ex-GST total from its price", () => {
+    expect(materialLineOf(row()).exLineCents).toBe(200000);
+    expect(materialLineOf(row({ displayed_amount_is_tax_inclusive: 0, displayed_amount: "1000.0000" })).exLineCents).toBe(200000);
+    expect(materialLineOf(row({ quantity: "-1.0000", price: "5910.0000" })).exLineCents).toBe(-591000);
+  });
+
+  it("reads a line priced at nothing as nothing ex GST, and an unreadable price as unknown", () => {
+    expect(materialLineOf(row({ price: "0.0000" })).exLineCents).toBe(0);
+    expect(materialLineOf(row({ price: null })).exLineCents).toBeNull();
+    expect(materialLineOf(row({ price: "$10" })).exLineCents).toBeNull();
   });
 
   it("names an unnamed line rather than rendering a blank row", () => {
@@ -165,5 +180,14 @@ describe("payments", () => {
   it("refuses the comparison when the job has no total", () => {
     expect(collectionAgainst(240000, null)).toBe("unknown");
     expect(collectionAgainst(0, 0)).toBe("unknown");
+  });
+});
+
+describe("materialsExTotalCents", () => {
+  it("adds the lines' ex-GST figures, and refuses when one is unknown", () => {
+    expect(materialsExTotalCents([{ exLineCents: 591000 }, { exLineCents: -10000 }])).toBe(581000);
+    expect(materialsExTotalCents([{ exLineCents: 591000 }, { exLineCents: null }])).toBeNull();
+    expect(materialsExTotalCents([{ exLineCents: 591000 }, {}])).toBeNull();
+    expect(materialsExTotalCents([])).toBeNull();
   });
 });

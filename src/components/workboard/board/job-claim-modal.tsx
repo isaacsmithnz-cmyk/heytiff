@@ -1,57 +1,54 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useOverlay } from "@/components/overlay/use-overlay";
-import { Icon } from "@/components/shell/icon";
+import { useEffect, useState } from "react";
+import { Dialog } from "@/components/parts/dialog";
+import { IconButton, LinkButton } from "@/components/parts/button";
+import { Loading } from "@/components/parts/states";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
-import { fmtQuantity, materialsTaxMixed, materialsTotalCents } from "@/lib/workboard/job-ledger";
+import { fmtQuantity, materialsExTotalCents } from "@/lib/workboard/job-ledger";
 import { claimTitle, type FamilyClaim } from "@/lib/workboard/job-family";
+import { claimLine, type PaymentRow } from "@/lib/workboard/job-billing";
+import type { JobMediaItem } from "@/lib/workboard/job-media";
 import { readClaim } from "@/app/actions/workboard";
 import type { ClaimDetailRead } from "@/lib/workboard/all-jobs-query";
 
-/* ONE PROGRESS CLAIM, AND DELIBERATELY NOTHING ELSE.
+/* ONE CLAIM, OPENED (Isaac, 25 October 2026, the job page's frame 10): the
+   v2 dialog, 560 wide. Its title, "Payment 2, Progress"; one grey line saying
+   which invoice it is, what share of the job, when it was raised and when
+   it's due; the amount ex GST with its state word; then what is on the
+   invoice, anything written on it, and its paper. No crumb back to the job
+   and no closing line: the job is the page under it.
 
-   ServiceM8 bills a staged job by cloning it, so every claim used to arrive
-   wearing a full job card: the parent's description, the parent's contacts,
-   the family's money and no way to tell which of the three you were on. The
-   claim is not a job, so it stops getting a job's card and gets this instead.
+   WHAT IS IN HERE IS WHAT THE CLAIM KNOWS, and nothing the job owns: the
+   description, the visits and the contacts stay on the job.
 
-   WHAT IS IN HERE IS WHAT THE CLAIM KNOWS: the lines on this invoice, the
-   money that came in against it, anything somebody wrote on it, and its own
-   paperwork. WHAT IS NOT: the description, the visits, the contacts, the
-   checklist, the designs. Those belong to the job, and the job is one tap
-   away behind the crumb at the top. The moment this grows one of them it has
-   become a card again, which is the thing the whole slice exists to stop.
-
-   NOT A SEPARATE PORTAL. It renders inside the sheet's own portal, over the
-   card, because a modal on top of a modal that portals separately is how the
-   scrim ends up above the thing it is dimming. */
+   Every figure is ex GST, from ServiceM8's own ex-GST price on each line. A
+   payment is the one exception, and says so: it is what the customer paid,
+   which is the invoice's inc-GST total. */
 
 export function JobClaimModal({
   claim,
-  parentNumber,
+  row,
+  staged = true,
+  onOpenPaper,
   onClose,
 }: {
   claim: FamilyClaim;
-  /** The job this claim belongs to — the left half of the crumb. */
-  parentNumber: string | null;
+  /** the claim's row on Billing, so the dialog says its figure and its
+      state word exactly as the row does */
+  row: PaymentRow | null;
+  /** billed in stages: the title is the payment's, else the invoice's */
+  staged?: boolean;
+  /** opens a file in the job's own viewer; absent, a file opens in a new tab */
+  onOpenPaper?: (item: JobMediaItem) => void;
   onClose: () => void;
 }) {
   const [detail, setDetail] = useState<ClaimDetailRead | null>(null);
   const [loading, setLoading] = useState(true);
-  const closeRef = useRef<HTMLButtonElement>(null);
-  /* Escape closes the claim and leaves the card under it open. */
-  const dialog = useRef<HTMLElement>(null);
-  useOverlay(dialog, { onEscape: onClose });
 
-  useEffect(() => {
-    closeRef.current?.focus();
-  }, []);
-
-  /* No setLoading(true) here: the modal is KEYED BY CLAIM, so a different
-     claim is a different component with `loading` already true — the same
-     "keyed by id, never reset by effect" rule the sheet itself follows. */
+  /* No setLoading(true) here: the dialog is KEYED BY CLAIM, so a different
+     claim is a different component with `loading` already true. */
   useEffect(() => {
     let live = true;
     void readClaim(claim.remoteId)
@@ -61,7 +58,7 @@ export function JobClaimModal({
         setLoading(false);
       })
       .catch(() => {
-        /* a claim that won't load must not take the card down with it */
+        /* a claim that won't load must not take the page down with it */
         if (live) setLoading(false);
       });
     return () => {
@@ -73,163 +70,112 @@ export function JobClaimModal({
   const payments = detail?.ledger.payments ?? [];
   const notes = detail?.notes ?? [];
   const paper = [...(detail?.media.documents ?? []), ...(detail?.media.photos ?? [])];
+  const total = materialsExTotalCents(materials);
+  const heading = staged ? claimTitle(claim) : claim.jobNumber ? `Invoice #${claim.jobNumber}` : "Invoice";
 
   return (
-    <>
-      <div className="wb2-clscrim" onClick={onClose} />
-      <aside
-        ref={dialog}
-        className="wb2-claim"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`${claimTitle(claim)}${claim.jobNumber ? ` — invoice ${claim.jobNumber}` : ""}`}
-      >
-        <div className="wb2-cltop">
-          {parentNumber && (
-            <>
-              <span className="wb2-shno">{`#${parentNumber}`}</span>
-              <i className="wb2-shcrumb" aria-hidden>
-                ›
-              </i>
-            </>
-          )}
-          <span className="wb2-shno here">
-            {claim.jobNumber ? `#${claim.jobNumber}` : "—"}
-          </span>
-          <span className="wb2-clsp" />
-          <button
-            ref={closeRef}
-            className="wb2-ico"
-            onClick={onClose}
-            aria-label="Close this invoice"
-          >
-            <Icon name="x" size={14} />
-          </button>
-        </div>
+    <Dialog heading={heading} onClose={onClose} width={560}>
+      <IconButton glyph="close" label="Close this invoice" size={32} className="jb-x" onClick={onClose} />
+      <p className="jb-cl-line">{claimLine(claim, row ?? { percent: claim.percent }, staged)}</p>
+      <p className="jb-cl-amt">
+        <b>{row?.cents != null ? fmtAud(row.cents) : "—"}</b>
+        <span className="jb-basis">{row?.basis === "inc" ? "inc GST" : "ex GST"}</span>
+        {row && <span className={`pt-state pt-state--${row.tone}`}>{row.word}</span>}
+      </p>
 
-        <div className="wb2-clhd">
-          <b>{claimTitle(claim)}</b>
-          <em>
-            {[
-              claim.percent !== null ? `${claim.percent}% of the job` : null,
-              claim.raisedOn ? `Raised ${fmtAuWeekdayDayMonth(claim.raisedOn)}` : null,
-              claim.state === "paid" && claim.paidOn
-                ? `Paid ${fmtAuWeekdayDayMonth(claim.paidOn)}`
-                : null,
-            ]
-              .filter(Boolean)
-              .join(", ")}
-          </em>
-          <span className="wb2-clamt">
-            {claim.amountCents !== null ? fmtAud(claim.amountCents) : "—"}
-          </span>
-        </div>
-
-        <div className="wb2-clbody">
-          {loading && !detail ? (
-            <p className="int-hint">Reading the invoice</p>
-          ) : (
-            <>
-              {materials.length > 0 && (
-                <div className="wb2-clgrp">
-                  <span className="wb2-sect">On this invoice</span>
-                  {materials.map((m) => (
-                    <div className="wb2-mline" key={m.remoteId}>
+      {loading && !detail ? (
+        <Loading what="Reading the invoice" />
+      ) : (
+        <>
+          {materials.length > 0 && (
+            <section className="jb-cl-grp">
+              <h3>On this invoice</h3>
+              <ul className="jb-cl-rows">
+                {materials.map((m) => (
+                  <li key={m.remoteId}>
+                    <span className="jb-cl-t">
                       <b>{m.name}</b>
-                      <em>{m.quantity !== null ? `× ${fmtQuantity(m.quantity)}` : ""}</em>
-                      <span>{m.lineCents !== null ? fmtAud(m.lineCents) : "—"}</span>
-                    </div>
-                  ))}
-                  {(() => {
-                    /* Same discipline as the job's own materials list: no
-                       total when a line is unpriced, and none when the lines
-                       disagree about tax. GST is never derived. */
-                    if (materialsTaxMixed(materials)) return null;
-                    const total = materialsTotalCents(materials);
-                    if (total === null) return null;
-                    return (
-                      <div className="wb2-mline total">
-                        <b>{materials[0].taxInclusive ? "Total inc GST" : "Total ex GST"}</b>
-                        <em />
-                        <span>{fmtAud(total)}</span>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
+                      {m.quantity !== null && <em>{`× ${fmtQuantity(m.quantity)}`}</em>}
+                    </span>
+                    <span className="jb-amt">{m.exLineCents != null ? fmtAud(m.exLineCents) : "—"}</span>
+                  </li>
+                ))}
+                {/* no total when a line has no ex-GST price */}
+                {total !== null && (
+                  <li className="jb-cl-total">
+                    <span className="jb-cl-t">
+                      <b>Total ex GST</b>
+                    </span>
+                    <span className="jb-amt">{fmtAud(total)}</span>
+                  </li>
+                )}
+              </ul>
+            </section>
+          )}
 
-              {payments.length > 0 && (
-                <div className="wb2-clgrp">
-                  <span className="wb2-sect">Paid</span>
-                  {payments.map((p) => (
-                    <div className="wb2-mline" key={p.remoteId}>
+          {payments.length > 0 && (
+            <section className="jb-cl-grp">
+              <h3>Paid</h3>
+              <ul className="jb-cl-rows">
+                {payments.map((p) => (
+                  <li key={p.remoteId}>
+                    <span className="jb-cl-t">
                       <b>{p.method ?? "Payment"}</b>
                       <em>
-                        {[
-                          p.isDeposit ? "deposit" : null,
-                          p.takenOn ? fmtAuWeekdayDayMonth(p.takenOn) : null,
-                          p.takenBy,
-                        ]
+                        {[p.isDeposit ? "Deposit" : null, p.takenOn ? fmtAuWeekdayDayMonth(p.takenOn) : null, p.takenBy]
                           .filter(Boolean)
                           .join(", ")}
                       </em>
-                      <span>{p.amountCents !== null ? fmtAud(p.amountCents) : "—"}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="wb2-clgrp">
-                <span className="wb2-sect">Written on it</span>
-                {notes.length > 0 ? (
-                  notes.map((n) => (
-                    <div className="wb2-jnote" key={n.remoteId}>
-                      <p className="wb2-shtext">{n.text}</p>
-                      <em>
-                        {[n.writtenBy, n.writtenOn ? fmtAuWeekdayDayMonth(n.writtenOn) : null]
-                          .filter(Boolean)
-                          .join(", ")}
-                      </em>
-                    </div>
-                  ))
-                ) : (
-                  /* SAYS WHAT WAS CHECKED. ServiceM8 writes "This job was
-                     created as a Partial Invoice for Job #2380" onto every
-                     clone it makes — 406 of the 618 notes on clones — and the
-                     ledger already says it, better. Silence here would read
-                     as "nobody looked". */
-                  <p className="int-hint">
-                    Nothing written on this invoice — ServiceM8&apos;s own note about raising it
-                    isn&apos;t repeated here.
-                  </p>
-                )}
-              </div>
-
-              {paper.length > 0 && (
-                <div className="wb2-clgrp">
-                  <span className="wb2-sect">Paper</span>
-                  {paper.map((f) => (
-                    <p className="wb2-shtext" key={f.remoteId}>
-                      {f.url ? (
-                        <a className="wb2-colink" href={f.url} target="_blank" rel="noreferrer">
-                          {f.name}
-                        </a>
-                      ) : (
-                        <b>{f.name}</b>
-                      )}
-                    </p>
-                  ))}
-                </div>
-              )}
-
-              {/* The one thing this modal will NOT grow into. */}
-              <p className="int-hint">
-                The work itself — what was done, who went, who to ring — is on the job.
-              </p>
-            </>
+                    </span>
+                    <span className="jb-amt">
+                      {p.amountCents !== null ? `${fmtAud(p.amountCents)} inc GST` : "—"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
-        </div>
-      </aside>
-    </>
+
+          <section className="jb-cl-grp">
+            <h3>Written on it</h3>
+            {notes.length > 0 ? (
+              notes.map((n) => (
+                <div className="jb-cl-note" key={n.remoteId}>
+                  <p>{n.text}</p>
+                  <em>
+                    {[n.writtenBy, n.writtenOn ? fmtAuWeekdayDayMonth(n.writtenOn) : null].filter(Boolean).join(", ")}
+                  </em>
+                </div>
+              ))
+            ) : (
+              /* ServiceM8's own note about raising a claim is left off
+                 (isPartialInvoiceStubNote), so this is what was checked */
+              <p className="jb-cl-none">Nothing written on it.</p>
+            )}
+          </section>
+
+          {paper.length > 0 && (
+            <section className="jb-cl-grp">
+              <h3>Paper</h3>
+              {paper.map((f) => (
+                <p className="jb-cl-paper" key={f.remoteId}>
+                  {!f.url ? (
+                    <b>{f.name}</b>
+                  ) : onOpenPaper ? (
+                    <button type="button" className="pt-link jb-cl-open" onClick={() => onOpenPaper(f)}>
+                      {f.name}
+                    </button>
+                  ) : (
+                    <LinkButton href={f.url} target="_blank" rel="noreferrer">
+                      {f.name}
+                    </LinkButton>
+                  )}
+                </p>
+              ))}
+            </section>
+          )}
+        </>
+      )}
+    </Dialog>
   );
 }

@@ -24,6 +24,9 @@ import type { PaletteClient, PaletteProject, PaletteStaff } from "@/lib/workboar
 import type { Role } from "@/lib/roles-shared";
 import type { Capability } from "@/lib/permissions";
 
+/** ServiceM8 says "Work Order"; the app says "Work order" (sentence case, law 12). */
+const sentenceCase = (w: string) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w);
+
 /* The photo viewer loads when a photo is first chosen, not with the frame:
    this palette rides every screen, and the viewer is weight nobody should
    pay for until they open a picture. */
@@ -427,7 +430,7 @@ export function CommandPalette({
             aria-autocomplete="list"
             aria-activedescendant={rows.length ? optionId(sel) : undefined}
           />
-          <kbd className="esc">ESC</kbd>
+          <kbd className="esc">Esc</kbd>
         </div>
 
         <div className="clist no-sb" id="fg-cmd-list" ref={listRef} role="listbox" aria-label="Found">
@@ -575,7 +578,7 @@ export function CommandPalette({
                         </b>
                         <em>{r.job.description ?? r.job.suburb ?? "No description"}</em>
                       </span>
-                      <span className="cst">{r.job.status ?? "Job"}</span>
+                      <span className="cst">{sentenceCase(r.job.status ?? "Job")}</span>
                     </>
                   )}
                   <span className="cen">

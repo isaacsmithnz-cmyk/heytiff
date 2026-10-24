@@ -14,7 +14,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 
 - **1. The page and its two curves.** Ink sidebar; a plain white page. The page curls into the ink at its top left, and the ink curls back into the page at its foot: 40 each, square everywhere else.
 - **2. The header.** The date and the time together on the left of every page; open tabs on the right.
-- **3. New.** At the top of the sidebar, a white disc and the word. Jobs and tasks are made here (rule 44); what belongs to a record comes from its Add (rule 54).
+- **3. New.** At the top of the sidebar, a white disc and the word. Jobs, tasks and notes are made here (rule 44); what belongs to a record comes from its Add (rule 54).
 - **4. Search.** Under New, the word alone (no ⌘K beside it, Isaac, 20 October). Finds any record; its last row asks Tiff.
 - **5. The eight places.** Home, Conversations, Jobs, Schedule, Documents, Library, Design, Team. The one you're on is white at 12% with its label in bold. No number beside any of them.
 - **6. Pinned and Recents.** Stay in the sidebar under the places; a job shows its colour dot.
@@ -78,7 +78,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 - **41. Loading.** Nothing for half a second, then Tiff's mark, turning at her working speed, in the middle of where the page will be. A page never wears a skeleton: one shaped like the page never matched it (Isaac, 20 October 2026).
 - **42. When something goes wrong.** A red dot and word, what it means for you, and what to do.
 - **43. Search.** Results by kind; the last row asks Tiff, with Enter.
-- **44. The New menu.** Job and Task: the same two on every page. It fills in only the record you are on, which you can clear: a task made on a job's page is for that job, and made anywhere else it is a general task. A quote is made on its job, through Add. The panel reaches out from the New button, dark, square where it leaves the panel.
+- **44. The New menu.** Job, Task and Note: the same three on every page (Note joined on 24 October 2026, Isaac: "Yes to new note"). It fills in only the record you are on, which you can clear: a task made on a job's page is for that job, and made anywhere else it is a general task. A quote is made on its job, through Add. The panel reaches out from the New button, dark, square where it leaves the panel.
 
 ### Motion, shape and the rest
 

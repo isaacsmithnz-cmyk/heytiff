@@ -74,7 +74,7 @@ function ToastRow({ toast, onDismiss }: { toast: BoardToast; onDismiss: (id: num
           Undo
         </button>
       )}
-      <button className="wb2-toastx" aria-label="Dismiss" onClick={() => onDismiss(id)}>
+      <button className="wb2-toastx" aria-label="Close" onClick={() => onDismiss(id)}>
         ×
       </button>
     </div>

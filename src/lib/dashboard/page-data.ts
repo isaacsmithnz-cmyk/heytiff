@@ -223,16 +223,32 @@ export async function loadDashboard(): Promise<DashboardData> {
      before the response — every check runs in after(). */
   freshenSm8AfterResponse(orgId);
 
-  const caps = await getCapabilities();
-  const canManage = caps.has("team");
   /* Two screens on this page's chips admit the OWNER only — the Organisation
      screen and the ServiceM8 people screen — so the owner question is asked
      once here and travelled, rather than each chip guessing from a
-     capability that does not gate the page it points at. */
-  const role = await getDbRole();
+     capability that does not gate the page it points at.
+
+     WHO IS LOOKING, AND THE PAGE'S FIRST READS, IN ONE WAIT (Isaac, 25
+     October 2026: Home took two to eight seconds). The capabilities, the
+     role, the viewer's card, the names, ServiceM8's vendor and the shared
+     reads used to be four waits one after another, and none of them needs
+     another's answer but the shared reads, which need the role: they start
+     the moment it lands. The names, the vendor and the shared reads are
+     awaited after the viewer is known, so the crew's links below still start
+     before them; each is caught at once, so one failing while the first wait
+     is out is no unhandled rejection, and the wait for it still fails the
+     page as it always did. */
+  const capsP = getCapabilities();
+  const roleP = getDbRole();
+  const staffP = staffProfileIdFor(orgId, userId);
+  const namesP = loadStaffNames(orgId);
+  const vendorP = sm8VendorOf(orgId);
+  const sharedP = Promise.resolve(roleP).then((r) => readHomeShared(orgId, hasMinRole(r, "owner")));
+  for (const p of [namesP, vendorP, sharedP]) void Promise.resolve(p).catch(() => {});
+  const [caps, role, viewerStaffId] = await Promise.all([capsP, roleP, staffP]);
+  const canManage = caps.has("team");
   const isOwner = hasMinRole(role, "owner");
   const today = todayInAu();
-  const viewerStaffId = await staffProfileIdFor(orgId, userId);
 
   /* WHICH OF THE CREW THE VIEWER IS. One cheap read on the table that is the
      app's law for it — never a name match, which is exactly the guessing
@@ -259,22 +275,14 @@ export async function loadDashboard(): Promise<DashboardData> {
     [...links.entries()].find(([, staffId]) => staffId === viewerStaffId)?.[0] ?? null;
 
   /* Five of the queries below label rows with a person's name, and each used to
-     read the whole staff table for itself. Read it once and hand the same map
-     round — the names cannot disagree between sections either, which they could
-     when five reads raced an edit. */
-  /* The zone comes from the connected ServiceM8 account, and the rail's day
-     with it. Read alongside the names rather than after them: neither depends
-     on the other, and this one gates a query in the batch below.
-
-     And the expiry window and the org's credentials, which the chips have
-     always read for themselves: read once here and shared, so the desk's
-     areas never read them a second time (./desk-data). They are one round
-     trip, as the names are, so this wait takes no longer for them. */
-  const [names, vendor, shared] = await Promise.all([
-    loadStaffNames(orgId),
-    sm8VendorOf(orgId),
-    readHomeShared(orgId, isOwner),
-  ]);
+     read the whole staff table for itself. It is read once, above, and the same
+     map handed round — the names cannot disagree between sections either, which
+     they could when five reads raced an edit. The zone comes from the connected
+     ServiceM8 account, and the rail's day with it; and the expiry window and the
+     org's credentials, which the chips have always read for themselves, are
+     read once there and shared, so the desk's areas never read them a second
+     time (./desk-data). */
+  const [names, vendor, shared] = await Promise.all([namesP, vendorP, sharedP]);
   const railTz = vendor.tz;
   const railDay = todayInZone(railTz);
   const railNowMin = nowMinInZone(railTz);

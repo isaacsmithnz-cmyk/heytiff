@@ -431,13 +431,13 @@ export function JobConversation({
           extra={
             <>
               {!photo && (
-                <Button kind="second" size={36} icon="cam" disabled={!canSend} onClick={() => picker.current?.click()}>
+                <Button kind="second" size={32} icon="cam" disabled={!canSend} onClick={() => picker.current?.click()}>
                   Add photo
                 </Button>
               )}
               <BoxInfo save={!!diary.onWrite} />
               {diary.onWrite && convo.draft.trim() ? (
-                <Button kind="second" size={36} className="jc-keep" disabled={keeping} onClick={keep}>
+                <Button kind="second" size={32} className="jc-keep" disabled={keeping} onClick={keep}>
                   {keeping ? "Saving" : "Save"}
                 </Button>
               ) : null}

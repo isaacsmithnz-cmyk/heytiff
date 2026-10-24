@@ -419,15 +419,18 @@ it("folds her working notes in with her steps, open while she works", async () =
 
 /* layout C (Isaac, 18 October), Q6: the reply box at the conversation's
    foot, the microphone on its own and a blue Send that carries its word */
-it("ends the conversation with the reply box: the microphone, then a blue Send in words", async () => {
+/* every Tiff box is Conversations' box (Isaac, 20 October 2026: "the input
+   section should be identical throughout the software"; 25 October, walking:
+   the quote's was the one with Send in words) */
+it("ends the conversation with the reply box: the microphone, then a blue Send arrow, as every Tiff box has", async () => {
   (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond(thread));
   render(<TiffPanel job="j" onChanged={jest.fn()} />);
   const box = await screen.findByLabelText("Message Tiff");
   const send = screen.getByRole("button", { name: "Send" });
-  expect(send).toHaveTextContent("Send");
-  expect(send).toHaveClass("pt-btn--main");
+  expect(send).toHaveTextContent("");
+  expect(send).toHaveClass("pt-btn--main", "pt-btn--icon");
   expect(send).toBeDisabled();
-  const mic = screen.getByRole("button", { name: "Say it" });
+  const mic = screen.getByRole("button", { name: "Speak instead of typing" });
   expect(mic).toHaveClass("pt-btn--icon");
   expect(mic).toHaveTextContent("");
   const before = (a: Element, b: Element) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;

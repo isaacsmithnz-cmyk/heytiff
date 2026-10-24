@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useContext, useEffect, useMemo, useState, useTransition, type CSSProperties, type DragEvent, type MouseEvent } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, useTransition, type CSSProperties, type DragEvent, type MouseEvent } from "react";
 import { Button, IconButton } from "@/components/parts/button";
 import { Tray } from "@/components/parts/tabs";
-import { TextInput } from "@/components/parts/field";
+import { SearchField } from "@/components/parts/search-field";
 import { Chooser } from "@/components/parts/chooser";
 import { Initials } from "@/components/parts/initials";
 import { Dot, StateWord } from "@/components/parts/state";
@@ -160,6 +160,35 @@ function usePanelJobs(): { jobs: PanelJob[] | null; reload: () => void } {
   return { jobs, reload };
 }
 
+/* DISPLAY OUTLIVES THE BOARD (Isaac, 25 October 2026: on Open display,
+   "when you try and switch between day, week, 4 weeks and month… it kicks
+   you out"). The board remounts with each view and day, so display mode
+   was its own state and went with it, and its cleanup left fullscreen.
+   It lives here instead, with the frame's attribute and fullscreen kept by
+   the two moves that change it; a board that leaves checks a beat later
+   whether another took its place, and only when none did is display
+   closed (a booking opened from the wall leaves the Schedule). */
+let displayOn = false;
+let boardsUp = 0;
+const displayWatchers = new Set<() => void>();
+function setDisplayOn(on: boolean) {
+  if (on === displayOn) return;
+  displayOn = on;
+  const root = document.documentElement;
+  if (on) root.setAttribute("data-wb-display", "on");
+  else {
+    root.removeAttribute("data-wb-display");
+    if (document.fullscreenElement) void document.exitFullscreen?.()?.catch(() => {});
+  }
+  displayWatchers.forEach((fn) => fn());
+}
+const watchDisplay = (fn: () => void) => {
+  displayWatchers.add(fn);
+  return () => {
+    displayWatchers.delete(fn);
+  };
+};
+
 type Held = { job: PanelJob; minutes: number; days: number };
 type Slot = { day: string; start: number; minutes: number };
 
@@ -211,25 +240,30 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
   /* DISPLAY: the Workboard's display mode, on the Schedule (overview-screen
      says why it is the document that goes fullscreen, the frame hidden by an
      attribute on <html>): for the wall, refreshed every minute, left with
-     Close display or the browser's own Esc. */
-  const [display, setDisplay] = useState(false);
+     Close display or the browser's own Esc. It is kept outside the board
+     (`setDisplayOn`), so a change of view keeps it. */
+  const display = useSyncExternalStore(watchDisplay, () => displayOn, () => false);
+  const setDisplay = setDisplayOn;
   useEffect(() => {
+    boardsUp += 1;
     const onChange = () => {
-      if (!document.fullscreenElement) setDisplay(false);
+      if (!document.fullscreenElement) setDisplayOn(false);
     };
     document.addEventListener("fullscreenchange", onChange);
-    return () => document.removeEventListener("fullscreenchange", onChange);
+    return () => {
+      boardsUp -= 1;
+      document.removeEventListener("fullscreenchange", onChange);
+      /* the next view's board mounts in the same commit; none means the
+         Schedule was left */
+      setTimeout(() => {
+        if (boardsUp === 0) setDisplayOn(false);
+      }, 0);
+    };
   }, []);
   useEffect(() => {
     if (!display) return;
-    const root = document.documentElement;
-    root.setAttribute("data-wb-display", "on");
     const t = setInterval(() => router.refresh(), 60_000);
-    return () => {
-      clearInterval(t);
-      root.removeAttribute("data-wb-display");
-      if (document.fullscreenElement) void document.exitFullscreen?.()?.catch(() => {});
-    };
+    return () => clearInterval(t);
   }, [display, router]);
   const toDisplay = () => {
     setDisplay(true);
@@ -343,17 +377,15 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
   }, [data.payloads]);
   const booked = data.capacity.reduce((n, d) => n + d.bookedMinutes, 0);
   const crew = data.capacity.reduce((n, d) => n + d.capacityMinutes, 0);
-  const fact = month
-    ? `${monthOf(data.days[0])} ${data.days[0].slice(0, 4)}${crew > 0 ? `, ${Math.round((booked / crew) * 100)}% booked` : ""}`
-    : weeks
-    ? `4 weeks from ${dayNum(board.days[0] ?? data.days[0])} ${monthOf(data.days[0])}${crew > 0 ? `, ${Math.round((booked / crew) * 100)}% booked` : ""}`
-    : week ? `Week of ${dayNum(board.days[0])} ${monthOf(board.days[0])}` : longDay(data.day);
-
+  /* beside the title, only what the pager under it doesn't already say
+     (Isaac, 24 October 2026: "things are marked down twice"): how booked
+     the 4 weeks or the month are; the day and the week say nothing more */
+  const fact = weeks && crew > 0 ? `${Math.round((booked / crew) * 100)}% booked` : null;
   return (
     <div className="wrap sc">
       <header className="sc-head">
         <h1 className="sc-h1">Schedule</h1>
-        <span className="sc-fact">{fact}</span>
+        {fact ? <span className="sc-fact">{fact}</span> : null}
         <span className="sc-headacts">
           {display ? (
             <Button kind="second" size={36} icon="x" onClick={() => setDisplay(false)}>
@@ -731,6 +763,12 @@ function WeeksGrid({
   const byDay = new Map(data.capacity.map((d) => [d.dayISO, d]));
   const teamBy = new Map(data.team.map((t) => [t.dayISO, t]));
   const fits = filter === "team" ? 4 : 3;
+  /* the month's five rows and 4 weeks' four share the same height, so the
+     month says who's off as their initials alone, in a row, and the day's
+     panel says why (Isaac, 25 October 2026: "when you get to the month,
+     everything seems to get bigger… doesn't quite fit") */
+  const month = data.view === "month";
+  const discs = 5;
   return (
     <div className="sc-weeks">
       <div className="sc-wkh">
@@ -781,16 +819,29 @@ function WeeksGrid({
                   <Fade>{[e.title, e.when].filter(Boolean).join(", ")}</Fade>
                 </span>
               ))}
-              {off.slice(0, fits).map((o) => (
-                <span key={o.staffUuid} className="sc-wkoff">
-                  <Initials name={o.name} size={24} />
-                  <span>
-                    <b>{shortName(o.name)}</b>
-                    <em>{[o.why ?? "Off", o.part].filter(Boolean).join(", ")}</em>
+              {month ? (
+                off.length > 0 ? (
+                  <span className="sc-wkoffs" aria-label={`Off: ${off.map((o) => o.name).join(", ")}`}>
+                    {off.slice(0, discs).map((o) => (
+                      <Initials key={o.staffUuid} name={o.name} size={24} />
+                    ))}
+                    {off.length > discs ? <span className="sc-wkj">{off.length - discs} more</span> : null}
                   </span>
-                </span>
-              ))}
-              {off.length > fits ? <span className="sc-wkj">{off.length - fits} more off</span> : null}
+                ) : null
+              ) : (
+                <>
+                  {off.slice(0, fits).map((o) => (
+                    <span key={o.staffUuid} className="sc-wkoff">
+                      <Initials name={o.name} size={24} />
+                      <span>
+                        <b>{shortName(o.name)}</b>
+                        <em>{[o.why ?? "Off", o.part].filter(Boolean).join(", ")}</em>
+                      </span>
+                    </span>
+                  ))}
+                  {off.length > fits ? <span className="sc-wkj">{off.length - fits} more off</span> : null}
+                </>
+              )}
               {filter === "team" && off.length === 0 && events.length === 0 && !t?.holiday ? <span className="sc-wkj">Everyone in</span> : null}
             </button>
           );
@@ -950,7 +1001,7 @@ function JobsPanel({
   return (
     <aside className="sc-panel" aria-label="Jobs">
       <h2 className="sc-h2">Jobs</h2>
-      <TextInput value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a job, client or site" aria-label="Find a job, client or site" />
+      <SearchField label="Find a job, client or site" value={q} onChange={setQ} />
       <Tray
         ariaLabel="Which jobs"
         options={[
@@ -986,11 +1037,16 @@ function JobsPanel({
         <ul className="sc-jobs">
           {list.map((j) => (
             <li key={j.uuid}>
+              {/* drawn as the board draws a booking (Isaac, 25 October 2026:
+                  the cards to drag "don't match the job cards on the
+                  schedule. They should"): the number in a solid box of the
+                  job's colour, a hairline of it, the rest white */}
               <button
                 type="button"
-                className={`sc-job${held?.job.uuid === j.uuid ? " sc-picked" : ""}`}
+                className={`sc-job sc-card sc-card--${j.hue}${held?.job.uuid === j.uuid ? " sc-picked" : ""}`}
                 draggable
                 aria-pressed={held?.job.uuid === j.uuid}
+                aria-label={jobName(j)}
                 onDragStart={(e) => {
                   e.dataTransfer.setData("text/plain", j.uuid);
                   e.dataTransfer.effectAllowed = "copy";
@@ -998,16 +1054,23 @@ function JobsPanel({
                 }}
                 onClick={() => pick(j)}
               >
+                {j.number ? <span className="sc-cn">{j.number}</span> : null}
+                <span className="sc-cb">
+                  <Fade className="sc-c1">{j.client}</Fade>
+                  {j.site ? <Fade className="sc-c2">{j.site}</Fade> : null}
+                  <span className="sc-c3">
+                    {j.kind ? <b>{j.kind}</b> : null}
+                    {/* every job on To book is waiting for a day: the tab says it once */}
+                    {j.state && tab !== "book" ? (
+                      <StateWord tone={j.tone} className="sc-cs">
+                        {j.state}
+                      </StateWord>
+                    ) : null}
+                  </span>
+                </span>
                 {/* the grip says it can be dragged (Isaac, 20 October) */}
                 <span className="sc-grip" aria-hidden="true">
                   <Icon name="grip" size={16} />
-                </span>
-                <Dot hue={j.hue} />
-                <span className="sc-jt">
-                  <Fade className="sc-jn">{jobName(j)}</Fade>
-                  <Fade className="sc-jl">{[j.site, j.kind].filter(Boolean).join(", ")}</Fade>
-                  {/* every job on To book is waiting for a day: the tab says it once */}
-                  {j.state && tab !== "book" ? <StateWord tone={j.tone}>{j.state}</StateWord> : null}
                 </span>
               </button>
             </li>

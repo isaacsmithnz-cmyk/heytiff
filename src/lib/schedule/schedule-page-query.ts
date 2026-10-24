@@ -84,7 +84,17 @@ export async function loadSchedulePage(params: Record<string, string | string[] 
   const orgId = session?.orgId as string | undefined;
   if (!orgId) return null;
 
-  const today = todayInZone(await getSm8Timezone(orgId));
+  /* what the Day and Week read whatever the day, asked for beside the
+     timezone rather than after it: one round trip to Singapore fewer
+     (Isaac, 25 October 2026: "it takes a little while to load") */
+  const booking = sm8BookingsAllowed();
+  const asked = typeof params.view === "string" ? params.view : "day";
+  const onDays = asked !== "weeks" && asked !== "month";
+  const [zone, state] = await Promise.all([
+    getSm8Timezone(orgId),
+    onDays && booking ? readSm8WriteState(orgId) : Promise.resolve(null),
+  ]);
+  const today = todayInZone(zone);
   const { view, day } = readScheduleParams(params, today);
   const days = daysFor(view, day);
 
@@ -126,18 +136,15 @@ export async function loadSchedulePage(params: Record<string, string | string[] 
     return { view, day, today, days, payloads: [], canBook: false, capacity: all.filter((d) => shown.has(d.dayISO)), team, profiles: {}, canTeam: false };
   }
 
-  const booking = sm8BookingsAllowed();
-  const [state, mayPress, rules, links, canTeam] = await Promise.all([
-    booking ? readSm8WriteState(orgId) : Promise.resolve(null),
+  const [mayPress, rules, links, canTeam, read] = await Promise.all([
     booking ? mayPressBookings() : Promise.resolve(false),
     readRegularDaysOff(orgId),
     sm8StaffByProfile(orgId),
     can("team"),
+    Promise.all(days.map((d) => loadScheduleDay(orgId, d, state ? { state, away: true } : { away: true }))),
   ]);
   /* regular days off (TAFE, RDOs) laid over ServiceM8's own time off */
-  const payloads = (
-    await Promise.all(days.map((d) => loadScheduleDay(orgId, d, state ? { state, away: true } : { away: true })))
-  ).map((p) => ({ ...p, away: withRegular(p.away ?? [], awayOnDay(rules, p.dayISO, links)) }));
+  const payloads = read.map((p) => ({ ...p, away: withRegular(p.away ?? [], awayOnDay(rules, p.dayISO, links)) }));
   const profiles = Object.fromEntries([...links.entries()].map(([profile, sm8]) => [sm8.toLowerCase(), profile]));
 
   return {

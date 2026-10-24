@@ -99,10 +99,10 @@ describe("the route", () => {
 });
 
 describe("the screen", () => {
-  it("says what's open, with no numbers on the views", () => {
+  it("has no count beside its title and no numbers on the views (rule 29)", () => {
     show(dataFor());
     expect(screen.getByRole("heading", { name: "Jobs" })).toBeInTheDocument();
-    expect(screen.getByText("3 open")).toBeInTheDocument();
+    expect(screen.queryByText("3 open")).toBeNull();
     expect(tab(/^All/)).toHaveAttribute("aria-selected", "true");
     expect(tab(/^All/)).toHaveTextContent(/^All$/);
     expect(tab(/^To book/)).toHaveTextContent(/^To book$/);

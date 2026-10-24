@@ -9,11 +9,11 @@
    (new-design.tsx). */
 
 import { useEffect, useRef, useState } from "react";
-import { Button, IconButton } from "@/components/parts/button";
+import { Button } from "@/components/parts/button";
 import { Chooser } from "@/components/parts/chooser";
 import { ConfirmDialog } from "@/components/parts/dialog";
 import { Fade } from "@/components/parts/fade";
-import { TextInput } from "@/components/parts/field";
+import { SearchField } from "@/components/parts/search-field";
 import { Empty } from "@/components/parts/states";
 import { Icon } from "@/components/shell/icon";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
@@ -191,19 +191,7 @@ export function DesignHome({
             Recent designs
           </h2>
           <div className="ds2-bar">
-            <div className="ds2-search" role="search">
-              <span className="ds2-search-icon" aria-hidden="true">
-                <Icon name="search" size={16} />
-              </span>
-              <TextInput
-                className="ds2-search-input"
-                aria-label="Search designs"
-                placeholder="Search designs, jobs or streets"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-              {query && <IconButton glyph="clear" label="Clear the search box" size={32} className="ds2-search-clear" onClick={() => setQuery("")} />}
-            </div>
+            <SearchField className="ds2-search" label="Search designs" placeholder="Search designs, jobs or streets" value={query} onChange={setQuery} />
             <Chooser aria-label="Sort" className="ds2-sort" options={SORTS} value={sort} onChange={(v) => setSort(v as Sort)} />
           </div>
 

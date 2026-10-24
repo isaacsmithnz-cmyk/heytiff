@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Icon } from "@/components/shell/icon";
-import { Button, IconButton } from "@/components/parts/button";
+import { Button } from "@/components/parts/button";
 import { Chooser, type ChooserOption } from "@/components/parts/chooser";
 import { Empty } from "@/components/parts/states";
 import { Fade } from "@/components/parts/fade";
-import { TextInput } from "@/components/parts/field";
 import { Initials } from "@/components/parts/initials";
+import { SearchField } from "@/components/parts/search-field";
 import { Dot, StateWord } from "@/components/parts/state";
 import { ViewTabs } from "@/components/parts/tabs";
 import { RecordLink } from "@/components/records/record-link";
@@ -179,22 +178,7 @@ export function JobsList({ data, initial }: { data: JobsListData; initial: ListS
           <h1>Jobs</h1>
           <span className="jl-open">{open} open</span>
         </div>
-        <div className="jl-search" role="search">
-          <span className="jl-search-icon" aria-hidden="true">
-            <Icon name="search" size={16} />
-          </span>
-          <TextInput
-            className="jl-search-input"
-            aria-label="Search jobs, clients and sites"
-            placeholder="Search jobs, clients and sites"
-            value={state.q}
-            onChange={(e) => go({ q: e.target.value })}
-            onKeyDown={(e) => {
-              if (e.key === "Escape" && state.q) go({ q: "" });
-            }}
-          />
-          {state.q && <IconButton glyph="clear" label="Clear the search box" size={32} className="jl-search-clear" onClick={() => go({ q: "" })} />}
-        </div>
+        <SearchField className="jl-search" label="Search jobs, clients and sites" value={state.q} onChange={(q) => go({ q })} />
       </header>
 
       <div className="jl-bar">

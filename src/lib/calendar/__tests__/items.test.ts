@@ -17,13 +17,11 @@ import {
   type CompanyRows,
   type VehicleExpiryRow,
 } from "../items";
-import { detail } from "../model";
 import { expiryDue } from "@/lib/expiry-due";
 import type { OrgCredential } from "@/lib/org/credentials";
 
 const TODAY = "2026-09-25";
 /** The panel's frame, for what the panel makes of an item. */
-const FRAME = { today: TODAY, windowStart: "2026-09-01", windowEnd: "2027-08-31", stateName: "NSW" };
 
 const van = (over: Partial<VehicleExpiryRow> = {}): VehicleExpiryRow => ({
   id: "v1",
@@ -309,7 +307,6 @@ describe("events", () => {
     const [x] = eventItems([event({ location: null, audience: null, note: "Put it in the yard." })]);
     expect(x!.facts).toEqual([["Note", "Put it in the yard."]]);
     expect(x!.description).toBeNull();
-    expect(detail(x!, [x!], FRAME)?.description).toBeNull();
     // with nothing to say, no Note at all
     const [bare] = eventItems([event({ note: "   " })]);
     expect(bare!.facts!.map(([k]) => k)).not.toContain("Note");

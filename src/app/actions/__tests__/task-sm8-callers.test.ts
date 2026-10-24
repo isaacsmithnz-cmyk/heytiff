@@ -10,9 +10,10 @@ import * as ts from "typescript";
 
    A task's Done goes to ServiceM8 as whoever ticked, so it may only follow a
    PERSON'S tick on a screen made for ticking: v2's Home, Today and To do
-   (one hook, home-todo's `useTaskTick`); the old desk's Your day, list and
-   Tasks face; and the Workboard's Urgent tab. (The bell ticked too, and went
-   with decision 25: To do carries its rows.)
+   (one hook, home-todo's `useTaskTick`), a job's To do, and a task's own
+   form. (The bell ticked too, and went with decision 25: To do carries its
+   rows; the old desk's Your day, list and Tasks face went with the desk on
+   24 October 2026.)
    `postDone: true` is how such a screen says so, and `takeBackDone: true` is
    how the screens with a Reopen or an Undo (the Tasks face, the Urgent tab,
    the list) say it about taking the tick back. (The old Home's Tasks face
@@ -30,10 +31,10 @@ import * as ts from "typescript";
    wrap it in an arrow that passes the flag, and the call is read below.
 
    AND WHERE THE DONE IS READ BACK. An alert's door onto a Done that didn't
-   go opens `/dashboard/desk?task=<id>`, and a Done's state is drawn on the
-   task's page. The desk the address opens is handed the task it names,
-   and every screen that draws the task's page is handed its lines — so
-   the desk can't open with the owner's Done nowhere on it. */
+   go opens `/dashboard?task=<id>`, Home with the task's own form over it,
+   and the form draws the Done's lines with Send again and Try again. Home
+   is handed the task the address names and opens its form, so the bell
+   can't land with the owner's Done nowhere on the screen. */
 
 const SRC = join(process.cwd(), "src");
 
@@ -109,7 +110,7 @@ const where = (calls: Call[], flag: string) => [...new Set(calls.filter(flagged(
 const onScreens = (calls: Call[]) => calls.filter((c) => c.path.startsWith("components/"));
 
 it("has calls to read", () => {
-  expect(ticks.calls.length).toBeGreaterThan(4);
+  expect(ticks.calls.length).toBeGreaterThan(3);
   expect(reopens.calls.length).toBeGreaterThan(1);
 });
 
@@ -120,11 +121,6 @@ it("(F) nothing hands a tick or a Reopen on by reference: every use is a call th
 
 it("(F) exactly the ticking screens post a Done, on every tick they make", () => {
   expect(where(ticks.calls, "postDone")).toEqual([
-    // Home's: Your day's Mark done, and the list's tick
-    "components/dashboard/home-day.tsx",
-    "components/dashboard/home-list.tsx",
-    // and its Tasks face's tick and Mark done
-    "components/dashboard/home-tasks-face.tsx",
     // v2's Home: Today's and To do's ticks, one hook
     "components/dashboard/home-todo.tsx",
     // v2's job page: Overview's To do on this job, its ticks (step 6)
@@ -140,10 +136,6 @@ it("(F) exactly the ticking screens post a Done, on every tick they make", () =>
 
 it("(F) exactly the screens with a Reopen or an Undo take one back, on every Reopen they make", () => {
   expect(where(reopens.calls, "takeBackDone")).toEqual([
-    // Home's list: the Undo on a row it just ticked
-    "components/dashboard/home-list.tsx",
-    // and its Tasks face's Not done yet
-    "components/dashboard/home-tasks-face.tsx",
     // v2's Home: the Undo on a tick's toast
     "components/dashboard/home-todo.tsx",
     // v2's job page: the Undo on a To do tick's toast
@@ -180,15 +172,16 @@ function elementsOf(test: (tag: string) => boolean): { path: string; tag: string
   return out;
 }
 
-it("(F) every screen that draws a task's page hands it the task's Done lines", () => {
-  // Home's Tasks face, where a task opens in place
-  const pages = elementsOf((t) => t === "HomeTasksFace");
-  expect(new Set(pages.map((e) => e.tag))).toEqual(new Set(["HomeTasksFace"]));
-  expect(pages.filter((e) => !e.attrs.includes("sm8Lines") || !e.attrs.includes("sm8Sender"))).toEqual([]);
+it("(F) a task's own form draws its Done's lines, with their doors", () => {
+  const lines = elementsOf((t) => t === "TaskSm8Line");
+  expect(lines.map((e) => e.path)).toEqual(["components/making/task-form.tsx"]);
+  expect(lines.filter((e) => !["lines", "sender", "doors"].every((a) => e.attrs.includes(a)))).toEqual([]);
 });
 
-it("(F) the desk the address opens is handed the task it names", () => {
-  const homes = elementsOf((t) => /^Dashboard[A-Z]/.test(t)).filter((e) => e.path === "app/dashboard/desk/page.tsx");
-  expect(homes.length).toBeGreaterThan(0);
-  expect(homes.filter((e) => !e.attrs.includes("taskId"))).toEqual([]);
+it("(F) Home opens the task its address names", () => {
+  const homes = elementsOf((t) => t === "HomeScreen").filter((e) => e.path === "app/dashboard/page.tsx");
+  expect(homes).toHaveLength(1);
+  expect(homes[0].attrs).toContain("openTask");
+  const forms = elementsOf((t) => t === "TaskForm").filter((e) => e.path === "components/dashboard/home.tsx");
+  expect(forms.filter((e) => e.attrs.includes("taskId"))).toHaveLength(1);
 });

@@ -256,7 +256,6 @@ infinite loop into a strobe.
 | `tiffGyro`, `tiffNod`, `tiffSheen`, `tiffGimbalA`, `tiffGimbalB`, `tiffArc` | the Tiff button and the mark wherever it stands for Tiff; the rules are declared on every mark but held paused until the mark is working | Tiff is working (rule 8, v2). Since 18 October 2026 the mark is still at rest (Isaac, 17 October: "The mark does not turn at rest. It can stay still."), which retires the override of 24 September. Home's mark (`.tiffmk.alive`) runs them at rest, in the colours, from 20 October (Isaac), and the page's hold (`.pg-hold`, rule 41) runs them working |
 | `tiffCyc` ×2 | the two runs of light on a working mark's rings, their gradient stops cycling blue, purple, pink, red, orange, yellow, green | Tiff is working: colour on the mark means she's busy (rule 8). The gradients are only shown on a working mark |
 | `tiffCycRing` ×2 | a working mark's two faint rings, in the same cycle, and Home's mark's at rest | Tiff is working (rule 8); Home's mark is alive (rule 8, 20 October) |
-| `hdTrace` | the Trace: the white light round the job on now, on Home's day bar | Isaac's override of law 18 (2026-09-24, "design exempt for now, but keep a note"): his live job, marked by a light that runs round its edge once every 8 seconds while it is on. It goes when the job finishes, and stands still under reduced motion. See "Named exemptions" below |
 
 ### The buttons that keep their glyph
 
@@ -275,8 +274,6 @@ this list the way it holds the loops: both ways, by name.
 | `plus` | `wb2-striprnd`, `wb2-addgo` | a note composer's commit at the end of its one-line field: the placeholder is the word and Enter is the same press. A form's save is a word; a composer's send is the glyph |
 | `rotate` | `ds-tool` ×2 | undo and redo in the Studio toolbar, the candidates law 25 named |
 | `x` | `camdel`, `ds-plancard-x` | a thumbnail's cross, on a photo badge and on a plan page in the Studio's import: a picture has no room for a word |
-| `chevL` | `hd-cal-nb` | the Home calendar's Earlier, his arrow either side of what is in view ("go with your recommendations", 2026-09-25, which kept his shapes): the range beside it is the word, the button is named Earlier, and it rests at the twelve months' edge |
-| `chevR` | `hd-cal-nb` | the Home calendar's Later, on the same terms as its Earlier |
 
 ### His rulings on a person's page
 
@@ -310,15 +307,7 @@ day he said them.
 | Rule | Ratchet | Count | His words | Date |
 |---|---|---|---|---|
 | `.hd-page` | Tailwind palette hexes | 1 | "design exempt for now, but keep a note": `--hd-done`, the tick on finished work, is Tailwind's green 600 | 2026-09-24 |
-| `.hd-bar` | bars at the left edge | 1 | "go with your recommendations", which kept his end-card line: the first card's outer slant is cut away by the bar, so the open card's 3px ink outline closes down the bar's square end | 2026-09-25 |
-| `.hd-chip` | pills | 1 | "go with your recommendations", which kept his On-now capsule: the state word in the day's panel sits in a white capsule, "On now, 17%" | 2026-09-25 |
-| `.hd-ls-tag` | pills | 1 | "go with your recommendations", which kept his name tag: a task on the list that is someone else's carries their first name in a grey capsule, where law 26 says a plain word | 2026-09-25 |
-| `.hd-trace` | gradients | 5 | "design exempt for now, but keep a note": the Trace, his white light round the job on now, is a conic gradient turning behind a ring that two masks cut from the card's edge, each mask written twice, prefixed and plain | 2026-09-24 |
-| `.hd-cal` | gradients | 2 | "design exempt for now, but keep a note": the Calendar's school holidays wear his grey hatch, a striped gradient declared once as the calendar's token, and its swatch the same hatch drawn finer | 2026-09-24 |
-| `.hd-cal-tag` | pills | 1 | "go with your recommendations", which kept his span tags: a week in the Calendar's 4 weeks carries a tinted capsule for what runs through it, "School holidays all week", where law 26 says a plain word | 2026-09-25 |
-| `.hd-cal-chip` | pills | 1 | "go with your recommendations", which kept his status chip: the Calendar's panel says where the chosen thing stands, "Due in 8 days", in a capsule in the tint of what it says | 2026-09-25 |
 | `.wb2-jcattpill` | pills | 1 | "Our mention can just show our name inside a pill. in place of where it was in the note": a task made from a ServiceM8 note carries the note as ServiceM8 shows it, each person it names a pill where their handle stood, where law 26 says a plain word | 2026-09-29 |
-| `.hd-cal-vb` | shadows | 1 | "design exempt for now, but keep a note": the chosen seat in the Calendar's 4 weeks, Month and Year switch is paper lifted off its tray by his small shadow, `0 1px 2px`, its colour the calendar's token | 2026-09-24 |
 
 What the guard cannot count is noted here on the same word:
 

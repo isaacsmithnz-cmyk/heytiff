@@ -137,6 +137,7 @@ describe("an existing task's form", () => {
     title: "Proceed with 3450 Kingsford as do and charge",
     job: null,
     suggestedJob: { uuid: "j-3450", label: "3450 Kingsford" },
+    sm8: { lines: [], sender: null },
     assigneeId: null,
     dueDate: "2026-10-30",
     dueTime: null,

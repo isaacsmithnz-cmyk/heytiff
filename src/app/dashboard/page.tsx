@@ -9,11 +9,12 @@ import { isTranscriptionConfigured } from "@/lib/voice/transcribe";
 /* HOME, v2 (docs/plans/layout-2026-10, the board v2-board-home): Tiff's
    mark over her box, Today, and To do. Signing in lands here (decision 2).
 
-   The old Home, the desk, is at /dashboard/desk until its faces have their
-   v2 homes; Today's Calendar and To do's Open and Reply go there. It still
-   reads what the desk reads (loadDashboard), so Home costs what it cost
-   before; Today and To do are worked out from it on the server
-   (lib/dashboard/home-view), dated by the same day. */
+   It reads what the old desk read (loadDashboard); Today, To do and Your
+   feed are worked out from it on the server (lib/dashboard/home-view),
+   dated by the same day. A task the address names (`?task=`, the bell's
+   door for a Done that didn't reach ServiceM8) opens its form over Home. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export default async function DashboardHomePage({
   searchParams,
 }: {
@@ -27,7 +28,7 @@ export default async function DashboardHomePage({
   // shape, same soft landing (lib/staff/onboarding-gate.ts).
   await redirectIfOnboardingPending();
 
-  const [data, { reply }] = await Promise.all([loadDashboard(), searchParams]);
+  const [data, { reply, task }] = await Promise.all([loadDashboard(), searchParams]);
   const view = homeView(data);
   return (
     <>
@@ -42,6 +43,7 @@ export default async function DashboardHomePage({
         feed={view.feed}
         /* To do's Reply on a mention names its note: the box opens in Your feed */
         replyTo={typeof reply === "string" && /^[0-9a-f-]{36}$/i.test(reply) ? reply : null}
+        openTask={typeof task === "string" && UUID.test(task) ? task : null}
         voice={isTranscriptionConfigured()}
       />
     </>

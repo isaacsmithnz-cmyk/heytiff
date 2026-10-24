@@ -32,7 +32,6 @@
 
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
-import type { DeskFocusKind } from "./desk-focus";
 import type { DiaryConversation, DiaryFeed, DiaryMessage } from "./diary-feed";
 import { clock12 } from "./task-record";
 
@@ -192,25 +191,4 @@ export function diaryHolds(feed: DiaryFeed | null): { entries: ReadonlySet<strin
     else for (const m of item.conversation.messages) (m.ours ? entries : notes).add(m.id);
   }
   return { entries, notes };
-}
-
-/** The item a door from another face names (desk-focus's `DeskFocus`), by
-    its key in the feed: an entry by its id — a reply of yours by the
-    conversation it is drawn in — a conversation by any of its notes — the
-    ask a task was made from, or a later message in it. Null when the diary
-    holds none: a conversation older than the mentions reach, or deleted in
-    ServiceM8. */
-export function diaryItemOf(feed: DiaryFeed, door: { kind: DeskFocusKind; ids: readonly string[] }): string | null {
-  const id = door.ids[0];
-  if (id === undefined) return null;
-  for (const item of [...feed.today, ...feed.earlier]) {
-    if (door.kind === "entry" && item.kind === "entry" && item.entry.id === id) return item.key;
-    if (
-      item.kind === "conversation" &&
-      (door.kind === "conversation" || door.kind === "entry") &&
-      item.conversation.messages.some((m) => m.id === id && (door.kind === "entry") === !!m.ours)
-    )
-      return item.key;
-  }
-  return null;
 }

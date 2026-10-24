@@ -30,7 +30,7 @@ it("(F) runs Home's gates first, then hands the screen Today, To do and Your fee
   expect(order).toEqual(["setup", "onboarding", "load"]);
   expect(homeView).toHaveBeenCalledTimes(1);
   const screen = tree.props.children.find((c) => c && c.type === HomeScreen)!;
-  expect(screen.props).toEqual({ today: view.today, todo: view.todo, feed: view.feed, replyTo: null, voice: false });
+  expect(screen.props).toEqual({ today: view.today, todo: view.todo, feed: view.feed, replyTo: null, openTask: null, voice: false });
   const scope = tree.props.children.find((c) => c && c.type === NoteScopeScreen)!;
   expect(scope.props.staffFirstNames).toEqual(["Dane"]);
 });
@@ -44,4 +44,16 @@ it("(F) hands Your feed the note To do's Reply named, and nothing that isn't a n
   };
   expect((await props(id)).replyTo).toBe(id);
   expect((await props("../admin")).replyTo).toBeNull();
+});
+
+/* The bell's door for a Done that didn't reach ServiceM8, and the old
+   desk's task links, land here (24 October 2026) */
+it("(F) opens the task the address names over Home, and nothing that isn't a task's id", async () => {
+  const id = "3a3a3a3a-0000-4000-8000-00000000000b";
+  const props = async (task: string) => {
+    const tree = (await DashboardHomePage({ searchParams: Promise.resolve({ task }) })) as Tree;
+    return tree.props.children.find((c) => c && c.type === HomeScreen)!.props;
+  };
+  expect((await props(id)).openTask).toBe(id);
+  expect((await props("../admin")).openTask).toBeNull();
 });

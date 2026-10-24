@@ -7,7 +7,6 @@ import {
   conversationHead,
   conversationUnder,
   diaryHolds,
-  diaryItemOf,
   JOB_GONE_LINE,
   litMessage,
   messageHead,
@@ -221,48 +220,6 @@ describe("the task an ask made", () => {
   });
 });
 
-describe("the item a door names", () => {
-  const entry: DiaryEntry = {
-    id: "e1",
-    said: "Van booked in for Tuesday",
-    day: TODAY,
-    at: "7:30 am",
-    outcomes: [],
-    spoken: false,
-    stamp: `${TODAY} 07:30:00`,
-    routed: false,
-    taskFor: {},
-    turns: [],
-    undo: false,
-    undone: false,
-  };
-  /* built in each test, after the note numbers start again */
-  const feedOf = () => {
-    const conversations: DiaryConversation[] = talk([
-      note(J2041, LYLE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
-      note(J2041, ISAAC.uuid, "2026-09-22 15:10:00", "@lyleirving calling her"),
-      note(J2041, LYLE.uuid, "2026-09-23 08:00:00", "@isaacsmith and the quote?"),
-    ]);
-    return diaryFeed({ entries: [entry], conversations, day: TODAY, mentions: true, entriesCut: false, syncedAt: null });
-  };
-
-  it("finds an entry by its id, and a conversation by any of its notes", () => {
-    const feed = feedOf();
-    expect(diaryItemOf(feed, { kind: "entry", ids: ["e1"] })).toBe("entry:e1");
-    expect(diaryItemOf(feed, { kind: "conversation", ids: ["n1"] })).toBe(`mention:${J2041}:u-lyle`);
-    // a second ask of his, which joined the first one's conversation
-    expect(diaryItemOf(feed, { kind: "conversation", ids: ["n3"] })).toBe(`mention:${J2041}:u-lyle`);
-  });
-
-  it("finds nothing the diary does not hold, or of another kind", () => {
-    const feed = feedOf();
-    expect(diaryItemOf(feed, { kind: "conversation", ids: ["gone"] })).toBeNull();
-    expect(diaryItemOf(feed, { kind: "conversation", ids: ["e1"] })).toBeNull();
-    expect(diaryItemOf(feed, { kind: "entry", ids: ["n1"] })).toBeNull();
-    expect(diaryItemOf(feed, { kind: "entry", ids: [] })).toBeNull();
-  });
-});
-
 describe("what a door can land on", () => {
   const entryOn = (id: string, day: string): DiaryEntry => ({
     id,
@@ -310,7 +267,7 @@ describe("what a door can land on", () => {
      entries, drawn in the conversation holding the note it answers: a door
      to that entry lands on the conversation, and it is never taken for a
      ServiceM8 note. */
-  it("holds a reply of yours from HeyTiff as your entry, and a door to it lands on its conversation", () => {
+  it("holds a reply of yours from HeyTiff as your entry, in the conversation holding the note it answers", () => {
     const reply: DiaryEntry = { ...entryOn("wn-reply", TODAY), said: "on my way" };
     const conversations = buildConversations({
       notes: [note(J2041, LYLE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary")],
@@ -324,8 +281,5 @@ describe("what a door can land on", () => {
     const holds = diaryHolds(feed);
     expect([...holds.entries]).toEqual(["wn-reply"]);
     expect([...holds.notes]).toEqual(["n1"]);
-    expect(diaryItemOf(feed, { kind: "entry", ids: ["wn-reply"] })).toBe(`mention:${J2041}:u-lyle`);
-    expect(diaryItemOf(feed, { kind: "conversation", ids: ["wn-reply"] })).toBeNull();
-    expect(diaryItemOf(feed, { kind: "entry", ids: ["n1"] })).toBeNull();
   });
 });

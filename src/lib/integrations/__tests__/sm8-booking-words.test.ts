@@ -46,14 +46,10 @@ describe("the booking words", () => {
     for (const { path, group, text } of all) if (group !== "kindWords") expect([path, /\{[abc]\}/.test(text)]).toEqual([path, false]);
   });
 
-  it("copy WRITE_WORDS' two sentences exactly, and reuse the Workboard's own and the Schedule's", () => {
+  it("copy WRITE_WORDS' two sentences exactly, and reuse the Workboard's own", () => {
     expect(BOOKING_WORDS.press.capped).toBe(WRITE_WORDS.paused);
     expect(BOOKING_WORDS.press.unreadable).toBe(WRITE_WORDS.settingsUnread);
     expect(readFileSync(join(ROOT, "src/app/actions/workboard.ts"), "utf8")).toContain(`"${BOOKING_WORDS.press.noManage}"`);
-    // the Schedule marks a leftover in these words; the line says them as a sentence
-    expect(readFileSync(join(ROOT, "src/lib/workboard/focus.ts"), "utf8")).toContain(
-      `"${BOOKING_WORDS.line.leftover.replace(/\.$/, "")}"`
-    );
   });
 
   it("(F) are the booking engine's only words: its sender, queue, overlay and zone say no sentence, name or status of their own (review S5)", () => {

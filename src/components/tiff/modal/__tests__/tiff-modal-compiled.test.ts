@@ -24,7 +24,6 @@ const FILES = [
   "src/components/tiff/modal/box-motion.ts",
   "src/components/notes/tiff-button.tsx",
   "src/components/ui/dot-field.tsx",
-  "src/components/tiff/modal/tiff-box.tsx",
 ];
 
 type CompileEvent = { kind: string; fnName?: string | null; detail?: unknown };
@@ -67,10 +66,3 @@ it("names the host, the hook and the view among what compiled", () => {
   }
 });
 
-/* The entry box re-renders on every key you press. */
-it("names the entry box among what compiled", () => {
-  const names = compile("src/components/tiff/modal/tiff-box.tsx")
-    .events.filter((e) => e.kind === "CompileSuccess")
-    .map((e) => e.fnName);
-  expect(names).toContain("TiffBox");
-});

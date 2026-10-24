@@ -766,7 +766,7 @@ describe("the task's line and its doors", () => {
     // the bell's item for it opens the task, and the line is there
     const unsent = await myUnsentDones(ORG, "staff-isaac", SINCE);
     expect(unsent).toEqual([{ taskId: TASK, title: "Order the grilles", noteId: first.id, op: "take_back" }]);
-    expect(sm8DoneChip(unsent[0])).toMatchObject({ href: `/dashboard/desk?task=${TASK}`, label: NOTE_WORDS.bell.doneStillIn });
+    expect(sm8DoneChip(unsent[0])).toMatchObject({ href: `/dashboard?task=${TASK}`, label: NOTE_WORDS.bell.doneStillIn });
     // Try again re-presses that delete, and it goes
     const deletes = writes().filter((w) => w.op === "delete").length;
     expect(await retryTaskDone({ taskId: TASK, noteId: String(first.id), act: "take_out_again" })).toMatchObject({ ok: true });
@@ -953,7 +953,7 @@ describe("the bell, for the one whose tick it was", () => {
       state: "bad",
       label: NOTE_WORDS.bell.doneNotSent,
       subject: "Order the grilles",
-      href: `/dashboard/desk?task=${TASK}`,
+      href: `/dashboard?task=${TASK}`,
       urgency: expect.any(Number),
       due: null,
       ref: null,

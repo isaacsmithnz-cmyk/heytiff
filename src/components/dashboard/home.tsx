@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CvBox } from "@/components/conversations/box";
 import { appendSpoken, useDictation } from "@/components/notes/dictation";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
@@ -15,6 +16,7 @@ import type { TodayView } from "@/lib/dashboard/home-today";
 import { columnOf, type TodoRow } from "@/lib/dashboard/todo";
 import { ColumnHead, HomeTodo, TodoList, useTaskTick } from "./home-todo";
 import { HomeFeed } from "./home-feed";
+import { TaskForm } from "@/components/making/task-form";
 import type { FeedItem } from "@/lib/dashboard/your-feed";
 
 /* HOME, v2 (the board v2-board-home; docs/design.md rules 8, 13, 22, 26,
@@ -36,8 +38,9 @@ import type { FeedItem } from "@/lib/dashboard/your-feed";
    ACTIVITY: what comes in, from ServiceM8 and the team, approvals among it
    (./home-todo, lib/dashboard/todo's `col`).
 
-   The old Home (Your day, Diary, Tasks, the Calendar and its list) stands
-   at /dashboard/desk until Conversations and Schedule take its faces in. */
+   A TASK THE ADDRESS NAMES (`?task=`, the bell's door for a Done that
+   didn't reach ServiceM8) opens its own form over Home; closing it takes
+   the task off the address. The old desk is gone (24 October 2026). */
 
 function HomeToday({ view, due }: { view: TodayView; due: readonly TodoRow[] }) {
   const { gone, tick } = useTaskTick();
@@ -140,6 +143,7 @@ export function HomeScreen({
   todo,
   feed = [],
   replyTo = null,
+  openTask = null,
   voice = false,
 }: {
   today: TodayView;
@@ -147,9 +151,13 @@ export function HomeScreen({
   feed?: readonly FeedItem[];
   /** a mention To do's Reply named (`?reply=`): its box opens in Your feed */
   replyTo?: string | null;
+  /** a task the address names (`?task=`): its form opens over Home */
+  openTask?: string | null;
   voice?: boolean;
 }) {
   const tiff = useTiff();
+  const router = useRouter();
+  const [addressed, setAddressed] = useState(openTask);
   /* THE CONVERSATION TAKES THE PAGE once you have said something (Isaac, 20
      October, the board's frame 2); Back to Home brings the columns back. */
   const [chat, setChat] = useState<{ words: string; n: number } | null>(null);
@@ -177,6 +185,16 @@ export function HomeScreen({
           <HomeTodo rows={todo.filter((r) => columnOf(r) === "todo")} />
           <HomeFeed items={feed} replyTo={replyTo} />
         </div>
+        {addressed && (
+          <TaskForm
+            taskId={addressed}
+            onClose={() => {
+              setAddressed(null);
+              router.replace("/dashboard", { scroll: false });
+            }}
+            onChanged={() => router.refresh()}
+          />
+        )}
       </div>
     </div>
   );

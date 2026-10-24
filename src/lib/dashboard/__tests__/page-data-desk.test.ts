@@ -337,6 +337,25 @@ describe("the desk's reads", () => {
   });
 });
 
+/* Isaac, 25 October 2026: Home took two to eight seconds. Who is looking
+   and the page's first reads are one wait, not four one after another. */
+describe("the first wait", () => {
+  it("asks for the names and ServiceM8's vendor while the viewer's card is still out", async () => {
+    const { staffProfileIdFor } = jest.requireMock("@/lib/fleet/query") as { staffProfileIdFor: jest.Mock };
+    const { sm8VendorOf } = jest.requireMock("@/lib/workboard/query") as { sm8VendorOf: jest.Mock };
+    sm8VendorOf.mockClear();
+    (loadStaffNames as jest.Mock).mockClear();
+    const card = held<string>();
+    staffProfileIdFor.mockImplementationOnce(() => card.promise);
+    const page = loadDashboard();
+    await settle();
+    expect(loadStaffNames).toHaveBeenCalledTimes(1);
+    expect(sm8VendorOf).toHaveBeenCalledTimes(1);
+    card.resolve("s-me");
+    await page;
+  });
+});
+
 describe("the reads the chips and the desk share", () => {
   it("reads the expiry window and the org's credentials once, and hands both the same answer", async () => {
     const data = await loadDashboard();

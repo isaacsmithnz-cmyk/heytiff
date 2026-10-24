@@ -84,6 +84,7 @@ function HomeToday({ view, due }: { view: TodayView; due: readonly TodoRow[] }) 
                     </span>
                   }
                   dot={row.hue ?? undefined}
+                  lines={3}
                   name={row.name}
                   line={row.line}
                   href={row.href ?? undefined}

@@ -8,15 +8,17 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
    end. The whole text stays in the page as real text, so a screen reader
    and a copy get all of it; there is no tooltip (law 25).
 
-   `lines={2}` lets it wrap once and fades the end of the second line. No
-   `line-clamp`: Chrome draws its own ellipsis there. */
+   `lines={2}` lets it wrap once and fades the end of the second line, and
+   `lines={3}` twice, the third's end fading (Home's columns, Isaac, 25
+   October 2026: "run this across two or even three lines… three lines
+   max"). No `line-clamp`: Chrome draws its own ellipsis there. */
 export function Fade({
   children,
   lines = 1,
   className,
 }: {
   children: ReactNode;
-  lines?: 1 | 2;
+  lines?: 1 | 2 | 3;
   className?: string;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
@@ -34,7 +36,7 @@ export function Fade({
     return () => ro.disconnect();
   }, [lines, children]);
 
-  const cls = ["pt-fade", lines === 2 ? "pt-fade--2" : null, over ? "pt-fade--on" : null, className]
+  const cls = ["pt-fade", lines > 1 ? `pt-fade--${lines}` : null, over ? "pt-fade--on" : null, className]
     .filter(Boolean)
     .join(" ");
   return (

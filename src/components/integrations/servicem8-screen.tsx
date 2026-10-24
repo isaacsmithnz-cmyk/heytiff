@@ -447,7 +447,7 @@ export function Servicem8Screen({
                 ...[sm8WaitingConsequence(waitingWrites, waitingNotes, waitingBookings, waitingLeave, waitingJobs, waitingCustomers, waitingQuotes)].filter(
                   (c): c is string => c !== null
                 ),
-                "Workboard rows you created here stay, on the names they already captured.",
+                "Rows you created here stay, on the names they already captured.",
                 "Reconnecting the same account rebuilds the mirror in a few minutes.",
               ]}
               requirePhrase

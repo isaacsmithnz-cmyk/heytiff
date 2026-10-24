@@ -39,6 +39,11 @@ export const FEED_FILTERS: readonly { value: FeedFilter; label: string }[] = [
 /** How far back a conversation stays in the feed after its last word to you. */
 export const FEED_TALK_DAYS = 7;
 
+/** How many items Home shows before Show all (Isaac, 24 October 2026: "It
+    just continues to scroll as long as the feed is … that needs a cap"). The
+    whole feed is its own page, /dashboard/feed. */
+export const FEED_HOME_CAP = 8;
+
 export type FeedReply = {
   jobUuid: string;
   /** the message of theirs a reply answers */
@@ -190,7 +195,9 @@ export function yourFeed(input: {
   const talk = input.diary
     ? [...input.diary.today, ...input.diary.earlier]
         .flatMap((i) => (i.kind === "conversation" ? [i.conversation] : []))
-        .filter((c) => dayOf(c.lastTheirs) >= input.since)
+        /* gone quiet for a week, unless its ask is still an open task of
+           yours: To do's Reply on it has to find it here */
+        .filter((c) => dayOf(c.lastTheirs) >= input.since || c.tasks.some((t) => !!t.taskId && !t.done))
         .map((c) => conversationItem(c, input.today))
         .filter((x): x is FeedItem => x !== null)
     : [];

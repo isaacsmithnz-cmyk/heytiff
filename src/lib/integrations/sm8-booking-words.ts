@@ -83,7 +83,7 @@ export const BOOKING_WORDS = {
     scope: "ServiceM8 hasn't given HeyTiff permission to book yet. An owner can change that in Integrations, ServiceM8.",
     ownerOnly: "Only an owner can book from HeyTiff for now.",
     /** The Workboard's own words (workboard.ts's NO_MANAGE). */
-    noManage: "You don't have access to manage the Workboard.",
+    noManage: "You can't make or change jobs.",
     zoneUnknown:
       "HeyTiff doesn't know ServiceM8's time zone yet, so it can't book. An owner can sync ServiceM8 in Integrations, ServiceM8.",
     stale: "That was checked more than 10 minutes ago. Look again.",

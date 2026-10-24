@@ -76,6 +76,16 @@ describe("to you", () => {
     expect(feed({ diary: diaryOf(talk([{ uuid: "n1", text: "@isaacsmith ring Mary", author: "u-luke", at: "2026-10-01 09:00:00" }])) })).toEqual([]);
   });
 
+  /* To do's Reply on an older ask has to find it here (24 October 2026) */
+  it("(F) keeps an older conversation whose ask is still an open task of yours", () => {
+    const quiet = talk([{ uuid: "n1", text: "@isaacsmith ring Mary", author: "u-luke", at: "2026-10-01 09:00:00" }]);
+    quiet[0].tasks = [{ noteId: "n1", taskId: "t-mary", done: false, dueSaid: null, ownerId: null }];
+    const [item] = feed({ diary: diaryOf(quiet) });
+    expect(item).toMatchObject({ key: expect.stringMatching(/^talk:/), notes: ["n1"] });
+    quiet[0].tasks = [{ noteId: "n1", taskId: "t-mary", done: true, dueSaid: null, ownerId: null }];
+    expect(feed({ diary: diaryOf(quiet) })).toEqual([]);
+  });
+
   it("counts work given to you as to you, new, with Got it", () => {
     const [item] = feed({ rows: [row("assignment:t1", "Order the PEAD", { source: "assignment", act: { kind: "gotit", taskId: "t1" } })] });
     expect(item).toMatchObject({ filter: "you", unread: true, act: { kind: "gotit", taskId: "t1" } });

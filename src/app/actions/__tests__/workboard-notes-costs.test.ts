@@ -564,7 +564,7 @@ describe("the gates", () => {
   it("a note needs the Workboard, as every note does", async () => {
     caps = new Set();
     note();
-    expect(await fileNote("n-1")).toEqual({ ok: false, error: "You don't have access to the Workboard." });
+    expect(await fileNote("n-1")).toEqual({ ok: false, error: "You don't have access to Jobs." });
     expect(claims()).toEqual([]);
   });
 });

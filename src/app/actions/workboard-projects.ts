@@ -35,14 +35,14 @@ import { createAgreement, type NewAgreement } from "./workboard-maintenance";
 export type ProjectsResult = { ok: true; id?: string } | { ok: false; error: string };
 
 const NOT_SIGNED_IN: ProjectsResult = { ok: false, error: "Not signed in." };
-const NO_VIEW: ProjectsResult = { ok: false, error: "You don't have access to the Workboard." };
+const NO_VIEW: ProjectsResult = { ok: false, error: "You don't have access to Jobs." };
 const NO_MANAGE: ProjectsResult = {
   ok: false,
-  error: "You don't have access to manage the Workboard.",
+  error: "You can't make or change jobs.",
 };
 const NO_MONEY: ProjectsResult = {
   ok: false,
-  error: "You don't have access to the Workboard's money.",
+  error: "You can't see the money on jobs.",
 };
 const GONE: ProjectsResult = { ok: false, error: "That project is no longer here." };
 

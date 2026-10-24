@@ -23,7 +23,7 @@ import { toConfirmOf, type QuoteFacts } from "@/lib/quotes/quote-card";
 export async function GET(req: Request) {
   const session = await auth0.getSession();
   const orgId = (session?.orgId as string | undefined) ?? null;
-  if (!orgId || !(await can("workboard"))) return Response.json({ ok: false, reason: "A quote needs the Workboard." }, { status: 403 });
+  if (!orgId || !(await can("workboard"))) return Response.json({ ok: false, reason: "A quote needs access to Jobs." }, { status: 403 });
   const url = new URL(req.url);
   const job = (url.searchParams.get("job") ?? "").trim().slice(0, 80);
   if (!job) return Response.json({ ok: false, reason: "No job named." }, { status: 400 });

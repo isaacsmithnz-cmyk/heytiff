@@ -22,7 +22,7 @@ async function gate() {
   if (!orgId || !userId || !(await can("workboard_manage")) || !(await can("financials"))) return null;
   return { orgId, userId };
 }
-const refused = () => Response.json({ ok: false, reason: "Compare needs Workboard manage and money access." }, { status: 403 });
+const refused = () => Response.json({ ok: false, reason: "Compare needs Make and change jobs, and Money on jobs." }, { status: 403 });
 
 export async function GET(req: Request) {
   const g = await gate();

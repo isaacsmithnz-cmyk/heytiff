@@ -105,7 +105,7 @@ describe.each(MONEY_WRITES)("%s", (_name, call) => {
   it("is refused to an admin without money, before a row is read or written", async () => {
     caps = new Set(ADMIN);
     const res = await call();
-    expect(res).toEqual({ ok: false, error: "You don't have access to the Workboard's money." });
+    expect(res).toEqual({ ok: false, error: "You can't see the money on jobs." });
     expect(reads).toEqual([]);
     expect(writes).toEqual([]);
   });
@@ -119,7 +119,7 @@ describe.each(MONEY_WRITES)("%s", (_name, call) => {
   it("money alone is not enough — it still needs manage", async () => {
     caps = new Set(["workboard", "workboard_money"]);
     const res = await call();
-    expect(res).toEqual({ ok: false, error: "You don't have access to manage the Workboard." });
+    expect(res).toEqual({ ok: false, error: "You can't make or change jobs." });
     expect(writes).toEqual([]);
   });
 });

@@ -37,7 +37,7 @@ async function gate(): Promise<Who | Response> {
   const orgId = (session?.orgId as string | undefined) ?? null;
   const userId = (session?.user?.sub as string | undefined) ?? null;
   if (!orgId || !userId || !(await can("workboard"))) {
-    return Response.json({ ok: false, reason: "The job's tasks need Workboard access." }, { status: 403 });
+    return Response.json({ ok: false, reason: "The job's tasks need access to Jobs." }, { status: 403 });
   }
   return { orgId, userId, userName: (session?.user?.name as string | undefined) ?? null, manage: await can("workboard_manage") };
 }
@@ -81,7 +81,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const who = await gate();
   if (who instanceof Response) return who;
-  if (!who.manage) return Response.json({ ok: false, reason: "Making the task list needs Workboard manage access." }, { status: 403 });
+  if (!who.manage) return Response.json({ ok: false, reason: "Making the task list needs Make and change jobs." }, { status: 403 });
   const body = (await req.json().catch(() => ({}))) as { job?: unknown; make?: unknown };
   const job = jobOf(body.job);
   if (!job || body.make !== true) return Response.json({ ok: false, reason: "No job named." }, { status: 400 });
@@ -100,7 +100,7 @@ export async function PUT(req: Request) {
   const edit = editOf(body.edit);
   if (!job || !edit) return Response.json({ ok: false, reason: "That edit couldn't be read." }, { status: 400 });
   if (LIST_EDITS.has(edit.kind) && !who.manage) {
-    return Response.json({ ok: false, reason: "Changing the task list needs Workboard manage access." }, { status: 403 });
+    return Response.json({ ok: false, reason: "Changing the task list needs Make and change jobs." }, { status: 403 });
   }
   const target = await resolveJobCard(who.orgId, job);
   const done = await applyTaskEdit(who.orgId, target.parentRemoteId, { userId: who.userId, name: await nameOf(who) }, edit);

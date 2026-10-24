@@ -53,7 +53,7 @@ export async function readEquipmentPhoto(
   mediaType: string
 ): Promise<ReadEquipmentResult> {
   if (!(await can("workboard"))) {
-    return { ok: false, reason: "You don't have access to the Workboard." };
+    return { ok: false, reason: "You don't have access to Jobs." };
   }
   if (offline()) return { ok: false, reason: "no-key" };
   if (!PHOTO_MEDIA.includes(mediaType as PhotoMedia)) {
@@ -161,7 +161,7 @@ export async function analyseSm8JobForAgreement(remoteId: string): Promise<Analy
   const orgId = session?.orgId as string | undefined;
   if (!orgId) return { ok: false, reason: "Not signed in." };
   if (!(await can("workboard_manage"))) {
-    return { ok: false, reason: "You don't have access to manage the Workboard." };
+    return { ok: false, reason: "You can't make or change jobs." };
   }
   if (offline()) return { ok: false, reason: "no-key" };
 

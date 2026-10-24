@@ -20,7 +20,7 @@ async function gate(boxIn: unknown, refIn: unknown): Promise<Gate> {
   const ref = draftRefOf(refIn);
   if (!box || !ref) return { ok: false, res: Response.json({ ok: false, reason: "No box named." }, { status: 400 }) };
   if (box === "quote") {
-    if (!(await can("workboard"))) return { ok: false, res: Response.json({ ok: false, reason: "A quote needs the Workboard." }, { status: 403 }) };
+    if (!(await can("workboard"))) return { ok: false, res: Response.json({ ok: false, reason: "A quote needs access to Jobs." }, { status: 403 }) };
     return { ok: true, orgId, userSub, box, ref: (await resolveJobCard(orgId, ref)).parentRemoteId };
   }
   return { ok: false, res: Response.json({ ok: false, reason: "No box named." }, { status: 400 }) };

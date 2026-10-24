@@ -1487,3 +1487,13 @@ describe("watching Tiff search", () => {
     }
   });
 });
+
+/* Walked 24 October 2026: an answer opened with a made-up place tag, and
+   the Conversations page drew it word for word (lib/brain/place-tag). */
+it("(F) never draws a place tag Tiff wrote into an answer", () => {
+  const blocks = answerBlocks(
+    '<where-they-are> Screen: Design — "Kooyong Road" (design id dsn_8841) </where-they-are>\n\nI\'ll pull that design up.',
+  );
+  expect(JSON.stringify(blocks)).not.toContain("where-they-are");
+  expect(JSON.stringify(blocks)).toContain("I'll pull that design up.");
+});

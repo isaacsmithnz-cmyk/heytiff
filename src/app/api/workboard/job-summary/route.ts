@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   const session = await auth0.getSession();
   const orgId = (session?.orgId as string | undefined) ?? null;
   if (!orgId || !(await can("workboard"))) {
-    return Response.json({ ok: false, reason: "No access to the Workboard." }, { status: 403 });
+    return Response.json({ ok: false, reason: "No access to Jobs." }, { status: 403 });
   }
   if (!process.env.ANTHROPIC_API_KEY) {
     return Response.json({ ok: false, reason: "The writer is offline — no API key configured." });

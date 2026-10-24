@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { withoutPlaceTag } from "@/lib/brain/place-tag";
 import { appendSpoken, useDictation } from "@/components/notes/dictation";
 import { GATHER_MS } from "@/components/ui/dot-field";
 import { askBrain, TIFF_APPLY } from "@/lib/brain/ask-client";
@@ -571,7 +572,7 @@ export function useConversation({
     };
     const show = () => {
       run.shown = true;
-      tiffSays(run.text || (run.done ? NO_ANSWER : ""), run.done ? "editing" : "answering", {
+      tiffSays(withoutPlaceTag(run.text) || (run.done ? NO_ANSWER : ""), run.done ? "editing" : "answering", {
         key,
         streaming: !run.done,
         ...(run.offer ? { offer: { value: run.offer, state: "ready" as const } } : {}),
@@ -593,7 +594,7 @@ export function useConversation({
         onDelta: (t) => {
           if (!on()) return;
           run.text += t;
-          if (run.shown) patchTurn(key, () => ({ text: run.text }));
+          if (run.shown) patchTurn(key, () => ({ text: withoutPlaceTag(run.text) }));
           else if (!run.pending) {
             run.pending = true;
             settle(show);
@@ -628,9 +629,9 @@ export function useConversation({
           /* HER QUESTION BACK. An answer that ends asking something ("Which
              Dane?") is waiting on the reply, so the next words go back to
              the ask loop rather than being filed as a note. */
-          if (!run.moveTo && /[?？؟]\s*$/.test(run.text)) askedBack.current = true;
+          if (!run.moveTo && /[?？؟]\s*$/.test(withoutPlaceTag(run.text))) askedBack.current = true;
           if (run.shown) {
-            patchTurn(key, () => ({ streaming: false, text: run.text || NO_ANSWER }));
+            patchTurn(key, () => ({ streaming: false, text: withoutPlaceTag(run.text) || NO_ANSWER }));
             setStage("editing");
             leaveIfMoving();
           } else if (!run.pending) {

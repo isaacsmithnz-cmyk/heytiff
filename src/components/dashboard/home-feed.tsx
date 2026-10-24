@@ -6,13 +6,13 @@ import { useRouter } from "next/navigation";
 import { acknowledgeTask } from "@/app/actions/assignments";
 import { resolveIssue } from "@/app/actions/dashboard";
 import { replyToJobNote, type ReplyResult } from "@/app/actions/job-note-sm8";
-import { Button } from "@/components/parts/button";
+import { Button, LinkButton } from "@/components/parts/button";
 import { TextInput } from "@/components/parts/field";
 import { Initials } from "@/components/parts/initials";
 import { Empty } from "@/components/parts/states";
 import { Tray } from "@/components/parts/tabs";
 import { TaskForm } from "@/components/making/task-form";
-import { FEED_FILTERS, inFilter, type FeedFilter, type FeedItem } from "@/lib/dashboard/your-feed";
+import { FEED_FILTERS, FEED_HOME_CAP, inFilter, type FeedFilter, type FeedItem } from "@/lib/dashboard/your-feed";
 import { Icon } from "@/components/shell/icon";
 import { ColumnHead } from "./home-todo";
 
@@ -242,7 +242,19 @@ function FeedEntry({
   );
 }
 
-export function HomeFeed({ items, replyTo = null }: { items: readonly FeedItem[]; replyTo?: string | null }) {
+export function HomeFeed({
+  items,
+  replyTo = null,
+  all = false,
+  headingLevel = 2,
+}: {
+  items: readonly FeedItem[];
+  replyTo?: string | null;
+  /** The whole feed (Show all's page, /dashboard/feed); Home shows the first
+      FEED_HOME_CAP, and the one To do's Reply named wherever it falls. */
+  all?: boolean;
+  headingLevel?: 1 | 2;
+}) {
   const router = useRouter();
   /* a task's own form over Home: one the item is, or a field issue's to make */
   const [task, setTask] = useState<string | null>(null);
@@ -257,10 +269,20 @@ export function HomeFeed({ items, replyTo = null }: { items: readonly FeedItem[]
     setChosen(f);
     keep(f);
   };
-  const shown = inFilter(items, filter).filter((i) => !gone.has(i.key));
+  const here = inFilter(items, filter).filter((i) => !gone.has(i.key));
+  const named = (i: FeedItem) => !!replyTo && (i.notes ?? []).includes(replyTo);
+  const capped = all ? here : here.slice(0, FEED_HOME_CAP);
+  const asked = all ? null : (here.slice(FEED_HOME_CAP).find(named) ?? null);
+  const shown = asked ? [...capped, asked] : capped;
   return (
     <section className="hm-sec hm-feed" aria-labelledby="hm-feed">
-      <ColumnHead id="hm-feed" name="Your feed" icon="chat" hue="green" />
+      <ColumnHead id="hm-feed" name="Your feed" icon="chat" hue="green" level={headingLevel}>
+        {!all && here.length > FEED_HOME_CAP && (
+          <LinkButton href="/dashboard/feed" className="hm-headlink">
+            Show all
+          </LinkButton>
+        )}
+      </ColumnHead>
       <div className="hm-feed-filter">
         <Tray ariaLabel="Show" options={FEED_FILTERS} value={filter} onChange={choose} />
       </div>
@@ -270,9 +292,11 @@ export function HomeFeed({ items, replyTo = null }: { items: readonly FeedItem[]
         <ul className="hm-feed-list" aria-label="Your feed">
           {shown.map((item) => (
             <FeedEntry
-              key={item.key}
+              /* keyed by whether To do's Reply named it, so a Reply pressed
+                 while Home is open opens its box */
+              key={`${item.key}${named(item) ? ":reply" : ""}`}
               item={item}
-              open={!!replyTo && (item.notes ?? []).includes(replyTo)}
+              open={named(item)}
               onGone={(k) => setGone((g) => new Set([...g, k]))}
               onTask={setTask}
               onMakeTask={setMaking}

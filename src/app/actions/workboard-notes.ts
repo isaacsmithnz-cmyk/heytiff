@@ -237,7 +237,7 @@ export type PublishKbResult =
   | { ok: false; error: string };
 
 const NOT_SIGNED_IN = "Not signed in.";
-const NO_ACCESS = "You don't have access to the Workboard.";
+const NO_ACCESS = "You don't have access to Jobs.";
 const GONE = "That note is no longer here.";
 const NOT_YOURS = "That note isn't yours.";
 

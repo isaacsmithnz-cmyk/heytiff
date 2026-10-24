@@ -398,6 +398,34 @@ describe("the job's sections are the card's faces", () => {
     expect(screen.getByRole("region", { name: "Billing" })).toBeVisible();
   });
 
+  /* walked 24 October 2026: Billing's figures took ten seconds, queued
+     behind every hidden section's reads */
+  it("(F) draws a section only once it is opened, and keeps it after", async () => {
+    const { rerender } = draw("billing", { moneyVisible: true });
+    await ready();
+    const face = (key: string) => document.getElementById(`jcsec-${key}`)!;
+    expect(face("money")).not.toBeEmptyDOMElement();
+    for (const key of ["visits", "checklist", "photos", "documents", "compliance", "quote"]) expect(face(key)).toBeEmptyDOMElement();
+    expect(document.querySelector(".jp-over")).toBeEmptyDOMElement();
+    const at = (section: JobSection) => (
+      <JobSheet
+        row={row()}
+        manage
+        moneyVisible
+        initialTab="summary"
+        page={pageOf(section)}
+        onCreateAgreement={onCreateAgreement}
+        onOpenTracked={noop}
+        onToast={noop}
+      />
+    );
+    rerender(at("checklist"));
+    expect(face("checklist")).not.toBeEmptyDOMElement();
+    rerender(at("billing"));
+    expect(face("checklist")).not.toBeEmptyDOMElement();
+    expect(face("photos")).toBeEmptyDOMElement();
+  });
+
   it("hands a tab press to the page", async () => {
     draw("overview");
     await ready();

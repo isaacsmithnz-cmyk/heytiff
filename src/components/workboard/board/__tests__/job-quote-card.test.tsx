@@ -197,7 +197,7 @@ describe("accepted", () => {
 });
 
 it("a read that fails says so and reads again, never offering to start a quote over one it couldn't read", async () => {
-  answer({ ok: false, reason: "A quote needs the Workboard." });
+  answer({ ok: false, reason: "A quote needs access to Jobs." });
   render(<JobQuoteCard job="j-1" visible sm8={none} />);
   expect(await screen.findByText("Where the quote stands couldn’t be read.")).toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Create a quote" })).toBeNull();

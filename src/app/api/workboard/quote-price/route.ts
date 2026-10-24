@@ -18,7 +18,7 @@ export async function GET(req: Request) {
   const session = await auth0.getSession();
   const orgId = (session?.orgId as string | undefined) ?? null;
   if (!orgId || !(await can("workboard")) || !(await can("financials"))) {
-    return Response.json({ ok: false, reason: "The quote's price needs the Workboard and money access." }, { status: 403 });
+    return Response.json({ ok: false, reason: "The quote's price needs access to Jobs and Money on jobs." }, { status: 403 });
   }
   const job = (new URL(req.url).searchParams.get("job") ?? "").trim().slice(0, 80);
   if (!job) return Response.json({ ok: false, reason: "No job named." }, { status: 400 });

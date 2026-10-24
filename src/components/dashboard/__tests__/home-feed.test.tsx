@@ -24,6 +24,12 @@ jest.mock("@/components/making/task-form", () => ({
   ),
 }));
 jest.mock("@/app/actions/reminders", () => ({ snoozeReminder: jest.fn() }));
+const replyNote = jest.fn(async () => ({ ok: true }));
+const doneNote = jest.fn(async () => ({ ok: true }));
+jest.mock("@/app/actions/shared-notes", () => ({
+  replyNote: (...a: unknown[]) => replyNote(...(a as [])),
+  doneNote: (...a: unknown[]) => doneNote(...(a as [])),
+}));
 jest.mock("@/app/actions/booking-sm8", () => ({ readBookInContext: jest.fn(), bookJobIn: jest.fn(), takeBackBooking: jest.fn() }));
 
 import { HomeFeed } from "../home-feed";
@@ -62,7 +68,7 @@ const list = () => screen.getByRole("list", { name: "Your feed" });
 afterEach(() => {
   cleanup();
   localStorage.clear();
-  [refresh, replyToJobNote, acknowledgeTask, resolveIssue].forEach((m) => m.mockClear());
+  [refresh, replyToJobNote, acknowledgeTask, resolveIssue, replyNote, doneNote].forEach((m) => m.mockClear());
 });
 
 it("(F) is Your feed, with All, To you, Jobs and Approvals, and no count", () => {
@@ -174,4 +180,33 @@ it("(F) Done closes a field issue where it sits", async () => {
   await userEvent.click(within(list()).getByRole("button", { name: "Done" }));
   expect(resolveIssue).toHaveBeenCalledWith("i1");
   expect(screen.queryByText("Ute 2's reverse camera is out again")).toBeNull();
+});
+
+/* New › Note (24 October 2026): Reply and Done, never Make it a task */
+const NOTE = item({
+  key: "note:t-1",
+  filter: "you",
+  who: { name: "David Hann", sm8: false },
+  what: "wrote to the office",
+  said: "Ute 2's reverse camera is out again",
+  note: "t-1",
+});
+
+it("(F) answers a note where it sits, in its own thread", async () => {
+  render(<HomeFeed items={[NOTE]} />);
+  const row = within(list()).getByText("David Hann").closest("li")!;
+  expect(within(row).queryByRole("button", { name: "Make it a task" })).toBeNull();
+  await userEvent.click(within(row).getByRole("button", { name: "Reply" }));
+  await userEvent.type(within(row).getByRole("textbox", { name: "Reply to David Hann" }), "Booked it in for Tuesday");
+  await userEvent.click(within(row).getByRole("button", { name: "Send" }));
+  expect(replyNote).toHaveBeenCalledWith("t-1", "Booked it in for Tuesday");
+  expect(replyToJobNote).not.toHaveBeenCalled();
+  expect(await within(row).findByText("You: Booked it in for Tuesday")).toBeInTheDocument();
+});
+
+it("(F) Done puts a note away", async () => {
+  render(<HomeFeed items={[NOTE]} />);
+  await userEvent.click(within(list()).getByRole("button", { name: "Done" }));
+  expect(doneNote).toHaveBeenCalledWith("t-1");
+  expect(screen.queryByText("David Hann")).toBeNull();
 });

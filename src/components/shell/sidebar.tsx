@@ -10,6 +10,7 @@ import { useCommandPalette } from "./command-palette-context";
 import { WindowsContext, useRecords } from "@/components/records/records-context";
 import { NewJobForm } from "@/components/making/new-job-form";
 import { TaskForm, type TaskJob } from "@/components/making/task-form";
+import { NoteForm } from "@/components/making/note-form";
 import { pageName, pageNamesServerSnapshot, pageNamesSnapshot, subscribePageNames } from "./page-names";
 import { pinsServerSnapshot, pinsSnapshot, seedPins, subscribePins } from "./pins-store";
 import { pinKey, type Pin } from "@/lib/pins/pins";
@@ -84,8 +85,9 @@ function PlaceRow({ place, on }: { place: Place; on: boolean }) {
   );
 }
 
-/* NEW (rules 3 and 44): a white disc and the word. Job and Task are made
-   here, the same on every page. It fills in only the record you're on:
+/* NEW (rules 3 and 44): a white disc and the word. Job, Task and Note are
+   made here, the same on every page (Note, 24 October 2026: a note to people
+   or the office, for note taking; making/note-form). It fills in only the record you're on:
    opened on a job's page, a task is for that job, and you can clear it, so
    from anywhere else it's a general task (Isaac, 18 October). A quote is
    made on its job, through Add. Job is the New job form (making/new-job-form), the board's too, offered where
@@ -96,10 +98,11 @@ function NewButton({ newJob }: { newJob: boolean }) {
   const pathname = usePathname();
   const names = useSyncExternalStore(subscribePageNames, pageNamesSnapshot, pageNamesServerSnapshot);
   const [open, setOpen] = useState(false);
-  const [making, setMaking] = useState<"job" | "task" | null>(null);
+  const [making, setMaking] = useState<"job" | "task" | "note" | null>(null);
   const items: MenuItem[] = [
     ...(newJob ? [{ key: "job", label: "Job", lead: <Icon name="folder" size={16} /> }] : []),
     { key: "task", label: "Task", lead: <Icon name="listCheck" size={16} /> },
+    { key: "note", label: "Note", lead: <Icon name="note" size={16} /> },
   ];
   const onJob = pathname.match(/^\/dashboard\/jobs\/([^/?#]+)/);
   const job: TaskJob | null = onJob
@@ -126,7 +129,7 @@ function NewButton({ newJob }: { newJob: boolean }) {
         onClose={() => setOpen(false)}
         onSelect={(key) => {
           setOpen(false);
-          if (key === "job" || key === "task") setMaking(key);
+          if (key === "job" || key === "task" || key === "note") setMaking(key);
         }}
         items={items}
         label="New"
@@ -135,6 +138,7 @@ function NewButton({ newJob }: { newJob: boolean }) {
       />
       {making === "job" && <NewJobForm onClose={() => setMaking(null)} />}
       {making === "task" && <TaskForm job={job} onClose={() => setMaking(null)} />}
+      {making === "note" && <NoteForm job={job} onClose={() => setMaking(null)} />}
     </>
   );
 }

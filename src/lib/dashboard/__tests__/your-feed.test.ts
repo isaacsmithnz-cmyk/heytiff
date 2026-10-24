@@ -142,6 +142,61 @@ describe("what an item opens", () => {
   });
 });
 
+/* New › Note (Isaac, 24 October 2026): a note to you or the office is to
+   you, with Reply and Done; a note is never made a task */
+describe("a note", () => {
+  const msg = (id: string, authorId: string, name: string, body: string, at: string) => ({ id, authorId, name, body, at });
+  const thread = (over: Partial<import("../shared-notes").NoteThread> = {}): import("../shared-notes").NoteThread => ({
+    threadId: "t-1",
+    rootAuthorId: "s-david",
+    jobUuid: null,
+    jobLabel: null,
+    toOffice: true,
+    viaOffice: true,
+    messages: [msg("n1", "s-david", "David Hann", "Ute 2's reverse camera is out again", "2026-10-20 09:42")],
+    ...over,
+  });
+
+  it("to the office says so, with their words, new today, and the note's own Reply and Done", () => {
+    const [item] = feed({ notes: [thread()], me: "s-isaac" });
+    expect(item).toMatchObject({
+      key: "note:t-1",
+      filter: "you",
+      who: { name: "David Hann", sm8: false },
+      what: "wrote to the office",
+      said: "Ute 2's reverse camera is out again",
+      yours: null,
+      when: "9:42 am",
+      unread: true,
+      act: null,
+      reply: null,
+      open: null,
+      note: "t-1",
+    });
+  });
+
+  it("to you by name, on a job, opens the job", () => {
+    const [item] = feed({ notes: [thread({ toOffice: false, viaOffice: false, jobUuid: "j-3450", jobLabel: "3450 Kingsford" })], me: "s-isaac" });
+    expect(item).toMatchObject({ what: "wrote to you on 3450 Kingsford", open: { href: "/dashboard/jobs/j-3450" } });
+  });
+
+  it("an answer to your own note comes back to you, your words under theirs", () => {
+    const answered = thread({
+      viaOffice: false,
+      messages: [
+        msg("n1", "s-david", "David Hann", "Ute 2's reverse camera is out again", "2026-10-19 09:42"),
+        msg("n2", "s-isaac", "Isaac Smith", "Booked it in for Tuesday", "2026-10-20 10:05"),
+      ],
+    });
+    const [item] = feed({ notes: [answered], me: "s-david" });
+    expect(item).toMatchObject({ who: { name: "Isaac Smith" }, what: "answered your note", said: "Booked it in for Tuesday", yours: "Ute 2's reverse camera is out again" });
+  });
+
+  it("is left out when every word in it is yours", () => {
+    expect(feed({ notes: [thread()], me: "s-david" })).toEqual([]);
+  });
+});
+
 describe("the order", () => {
   it("is newest first, with what waits on you now at the top of today", () => {
     const items = feed({

@@ -3,111 +3,146 @@ import userEvent from "@testing-library/user-event";
 import { useContext, type ReactNode } from "react";
 import { DOCK_MAX, PageRecordsProvider, RecordsProvider, useRecords, type OpenRecordOptions } from "../record-host";
 import { RecordDock } from "../record-dock";
-import { WindowsContext } from "../records-context";
+import { RecordsContext, WindowsContext } from "../records-context";
 import { RecordLink } from "../record-link";
 import { RecordWindows } from "../record-windows";
-import type { AllJobRow } from "@/lib/workboard/all-jobs";
+import type { RecordKind } from "@/lib/records/ref";
 
 /* THE APP'S RECORD HOST. Mounted once in the dashboard layout, above the
-   outlet: a job opens OVER the screen you are on, the address carries it
-   so Back closes it and a refresh brings it back, and going somewhere else
-   puts it away. This suite pins that contract; the card is the board's own
-   component with its own suite, so here it is a window that prints what it
-   was opened on. The mirror read is a server action, and "use server"
+   outlet: a maintenance visit or a service agreement opens OVER the screen
+   you are on, the address carries it so Back closes it and a refresh brings
+   it back, and going somewhere else puts it away. A job is a page of its
+   own (24 October 2026: the pop-up job card went), so a door to one goes
+   there. This suite pins that contract; the cards are the board's own
+   sheets with their own suites, so here they are stand-ins that print what
+   they were opened on. The board read is a server action, and "use server"
    modules cannot be imported into jsdom. */
 
 let mockPath = "/dashboard/assets";
 const mockPush = jest.fn();
+const mockReplace = jest.fn();
+const mockRouter = {
+  refresh: jest.fn(),
+  push: (...a: unknown[]) => mockPush(...a),
+  replace: (...a: unknown[]) => mockReplace(...a),
+};
 jest.mock("next/navigation", () => ({
   usePathname: () => mockPath,
-  useRouter: () => ({ refresh: jest.fn(), push: (...a: unknown[]) => mockPush(...a) }),
+  useRouter: () => mockRouter,
 }));
-/* The card is on the overlay stack as the real one is, carries the window's
-   controls where the real one does, and keeps a little state of its own, so
-   a card set aside can be seen to come back as it was left. */
-jest.mock("@/components/workboard/board/job-sheet", () => {
-  const { useRef, useState } = jest.requireActual<typeof import("react")>("react");
-  const { useOverlay } = jest.requireActual<typeof import("@/components/overlay/use-overlay")>(
-    "@/components/overlay/use-overlay",
-  );
+
+/* A visit and an agreement are read off the maintenance board. What the
+   board holds (`hold`) answers at once; anything else waits until the test
+   answers it, so a late answer can be seen to open nothing. */
+type Answer = { resolve: (body: unknown) => void; reject: (e: unknown) => void };
+const asks = new Map<string, Answer>();
+const board = new Map<string, unknown>();
+function readBoard(kind: string, id: string): Promise<unknown> {
+  const key = `${kind}.${id}`;
+  if (board.has(key)) return Promise.resolve(board.get(key));
+  return new Promise((resolve, reject) => asks.set(key, { resolve, reject }));
+}
+const openMaintenanceCard = jest.fn();
+jest.mock("@/app/actions/workboard-records", () => ({
+  openMaintenanceCard: (...a: unknown[]) => openMaintenanceCard(...a),
+}));
+/* The visit's card carries the window's controls where the real one does,
+   and keeps a little state of its own, so a card set aside can be seen to
+   come back as it was left. */
+jest.mock("@/components/workboard/board/visit-sheet", () => {
+  const { useState } = jest.requireActual<typeof import("react")>("react");
   return {
-    JobSheet: function JobSheet(p: {
-      row: { id: string; number: string | null; clientName: string | null };
-      initialTab?: string;
+    VisitSheet: function VisitSheet(p: {
+      visit: { label: string; clientName: string | null; notes?: string };
       windowControls?: React.ReactNode;
+      onOpenAgreement: (id: string) => void;
+      onChanged?: () => void;
       onClose: () => void;
-      onOpenTracked: (t: { kind: "visit" | "project"; label: string; id: string }) => void;
     }) {
-      const ref = useRef<HTMLDivElement>(null);
-      useOverlay(ref, { onEscape: p.onClose });
-      const [notes, setNotes] = useState(0);
+      const [written, setWritten] = useState(0);
       return (
-        <div ref={ref} role="dialog" aria-modal="true" aria-label={`Job ${p.row.number ?? ""}`}>
-          {p.row.clientName}, tab:{p.initialTab ?? "summary"}, notes:{notes}
+        <div role="dialog" aria-label={`Visit ${p.visit.label}`}>
+          {p.visit.clientName}, notes:{p.visit.notes ?? "none"}, written:{written}
           {p.windowControls}
-          <button onClick={() => setNotes((n) => n + 1)}>Write a note</button>
-          <button onClick={p.onClose}>Close the card</button>
-          <button onClick={() => p.onOpenTracked({ kind: "project", label: "Fit-out", id: "p-3" })}>
-            On the projects board
-          </button>
+          <button onClick={() => setWritten((n) => n + 1)}>Write a note</button>
+          <button onClick={() => p.onOpenAgreement("a-1")}>The agreement</button>
+          <button onClick={() => p.onChanged?.()}>Book the visit</button>
+          <button onClick={p.onClose}>Close the visit</button>
         </div>
       );
     },
   };
 });
-type Answer = { resolve: (row: AllJobRow | null) => void; reject: (e: unknown) => void };
-const asks = new Map<string, Answer>();
-const openMirrorJob = jest.fn(
-  (uuid: string) =>
-    new Promise<AllJobRow | null>((resolve, reject) => {
-      asks.set(uuid, { resolve, reject });
-    }),
-);
-jest.mock("@/app/actions/workboard", () => ({
-  openMirrorJob: (uuid: string) => openMirrorJob(uuid),
-}));
-/* A visit and an agreement are read off the maintenance board, and drawn
-   by the board's own sheets: stand-ins that say what they were handed. */
-const openMaintenanceCard = jest.fn();
-jest.mock("@/app/actions/workboard-records", () => ({
-  openMaintenanceCard: (...a: unknown[]) => openMaintenanceCard(...a),
-}));
-jest.mock("@/components/workboard/board/visit-sheet", () => ({
-  VisitSheet: (p: {
-    visit: { label: string; clientName: string; notes?: string };
-    agreementId?: string;
-    windowControls?: React.ReactNode;
-    onOpenAgreement: (id: string) => void;
-    onChanged?: () => void;
-    onClose: () => void;
-  }) => (
-    <div role="dialog" aria-label={`Visit ${p.visit.label}`}>
-      {p.visit.clientName}, notes:{p.visit.notes ?? "none"}
-      {p.windowControls}
-      <button onClick={() => p.onOpenAgreement("a-1")}>The agreement</button>
-      <button onClick={() => p.onChanged?.()}>Book the visit</button>
-      <button onClick={p.onClose}>Close the visit</button>
-    </div>
-  ),
-}));
 jest.mock("@/components/workboard/board/agreement-sheet", () => ({
-  AgreementSheet: (p: { agreement: { label: string }; onClose: () => void }) => (
+  AgreementSheet: (p: { agreement: { label: string }; windowControls?: React.ReactNode; onClose: () => void }) => (
     <div role="dialog" aria-label={`Agreement ${p.agreement.label}`}>
+      {p.windowControls}
       <button onClick={p.onClose}>Close the agreement</button>
     </div>
   ),
 }));
 
-const row = (over: Partial<AllJobRow> = {}): AllJobRow =>
-  ({ id: "j1", number: "1042", clientName: "Bayview Apartments", ...over }) as AllJobRow;
+/** A visit's card as the board hands it. */
+const visitCard = (
+  id: string,
+  label = "Quarterly service",
+  clientName: string | null = "Bayview Apartments",
+  over: Record<string, unknown> = {},
+) => ({
+  kind: "visit",
+  card: {
+    visit: {
+      id,
+      agreementId: "a-1",
+      label,
+      clientName,
+      status: "upcoming",
+      dueDate: "2026-10-20",
+      readiness: { equipment_ready: false, access_confirmed: false },
+      techs: [],
+      mirrorStatus: null,
+      bookedDate: null,
+      ...over,
+    },
+    today: "2026-10-11",
+    staff: [],
+    tagPool: [],
+    connected: true,
+    history: [],
+    lastDone: null,
+    siteAddress: null,
+    siteRequirements: null,
+    equipment: [],
+  },
+});
 
-async function answer(uuid: string, with_: AllJobRow | null) {
-  await act(async () => asks.get(uuid)!.resolve(with_));
+const agreementCard = (id = "a-1", label = "Bayview HVAC") => ({
+  kind: "agreement",
+  card: { agreement: { id, label, clientName: "Bayview Apartments" }, today: "2026-10-11", categories: [], tagPool: [] },
+});
+
+/** The board holds this visit, and answers for it at once. */
+function hold(id: string, label?: string, clientName?: string | null) {
+  board.set(`visit.${id}`, visitCard(id, label, clientName));
 }
 
-function Door({ id, row: held, opts, label = "Open" }: { id: string; row?: AllJobRow; opts?: OpenRecordOptions; label?: string }) {
+async function answer(key: string, body: unknown) {
+  await act(async () => asks.get(key)!.resolve(body));
+}
+
+function Door({
+  kind = "visit",
+  id,
+  opts,
+  label = "Open",
+}: {
+  kind?: RecordKind;
+  id: string;
+  opts?: OpenRecordOptions;
+  label?: string;
+}) {
   const records = useRecords();
-  return <button onClick={() => records.open({ kind: "job", id }, { ...opts, ...(held ? { row: held } : {}) })}>{label}</button>;
+  return <button onClick={() => records.open({ kind, id }, opts)}>{label}</button>;
 }
 
 function Frame({ children }: { children: ReactNode }) {
@@ -115,7 +150,7 @@ function Frame({ children }: { children: ReactNode }) {
     <RecordsProvider>
       <main>{children}</main>
       <RecordDock />
-      <RecordWindows manage moneyVisible={false} />
+      <RecordWindows manage />
     </RecordsProvider>
   );
 }
@@ -124,105 +159,173 @@ const dock = () => screen.queryByRole("navigation", { name: "Set aside" });
 
 const card = () => screen.queryByRole("dialog");
 
+const visit = (label = "Quarterly service") => screen.findByRole("dialog", { name: `Visit ${label}` });
+
 beforeEach(() => {
   openMaintenanceCard.mockReset();
+  openMaintenanceCard.mockImplementation(readBoard);
   asks.clear();
-  openMirrorJob.mockClear();
+  board.clear();
   mockPush.mockClear();
+  mockReplace.mockClear();
   mockPath = "/dashboard/assets";
   window.history.replaceState(null, "", "/dashboard/assets?v=v1");
 });
 
 describe("a door", () => {
-  it("opens the job over the screen without going anywhere, and the address names it", async () => {
+  it("opens the visit over the screen without going anywhere, and the address names it", async () => {
     const user = userEvent.setup();
+    hold("v-7");
     render(
       <Frame>
         <h1>Assets</h1>
-        <Door id="j1" row={row()} />
+        <Door id="v-7" />
       </Frame>,
     );
     await user.click(screen.getByRole("button", { name: "Open" }));
-    expect(screen.getByRole("dialog", { name: "Job 1042" })).toHaveTextContent("Bayview Apartments");
+    expect(await visit()).toHaveTextContent("Bayview Apartments");
+    expect(openMaintenanceCard).toHaveBeenCalledWith("visit", "v-7");
     expect(screen.getByRole("heading", { name: "Assets" })).toBeInTheDocument();
     expect(mockPush).not.toHaveBeenCalled();
-    expect(openMirrorJob).not.toHaveBeenCalled();
     expect(window.location.pathname).toBe("/dashboard/assets");
-    expect(window.location.search).toBe("?v=v1&open=job.j1");
+    expect(window.location.search).toBe("?v=v1&open=visit.v-7");
   });
 
-  it("asks the mirror for a job it knows only by uuid, on the face it came for", async () => {
+  it("opens nothing until the board answers", async () => {
     const user = userEvent.setup();
     render(
       <Frame>
-        <Door id="j1" opts={{ tab: "quote" }} />
+        <Door id="v-7" />
       </Frame>,
     );
     await user.click(screen.getByRole("button", { name: "Open" }));
-    expect(openMirrorJob).toHaveBeenCalledWith("j1");
     expect(card()).toBeNull();
-    await answer("j1", row());
-    expect(screen.getByRole("dialog", { name: "Job 1042" })).toHaveTextContent("tab:quote");
-  });
-
-  it("says so when the job has left the mirror, and opens nothing", async () => {
-    const user = userEvent.setup();
-    render(
-      <Frame>
-        <Door id="j1" />
-      </Frame>,
-    );
-    await user.click(screen.getByRole("button", { name: "Open" }));
-    await answer("j1", null);
-    expect(card()).toBeNull();
-    expect(screen.getByRole("status")).toHaveTextContent("That job isn't in ServiceM8's copy any more.");
     expect(window.location.search).toBe("?v=v1");
+    await answer("visit.v-7", visitCard("v-7"));
+    expect(screen.getByRole("dialog", { name: "Visit Quarterly service" })).toBeInTheDocument();
   });
 
   it("lets the last ask win: an earlier answer arriving late opens nothing over it", async () => {
     const user = userEvent.setup();
     render(
       <Frame>
-        <Door id="j1" label="First" />
-        <Door id="j2" label="Second" />
+        <Door id="v-1" label="First" />
+        <Door id="v-2" label="Second" />
       </Frame>,
     );
     await user.click(screen.getByRole("button", { name: "First" }));
     await user.click(screen.getByRole("button", { name: "Second" }));
-    await answer("j2", row({ id: "j2", number: "2002" }));
-    await answer("j1", row());
-    expect(screen.getByRole("dialog", { name: "Job 2002" })).toBeInTheDocument();
-    expect(screen.queryByRole("dialog", { name: "Job 1042" })).toBeNull();
-    expect(window.location.search).toBe("?v=v1&open=job.j2");
+    await answer("visit.v-2", visitCard("v-2", "Annual service"));
+    await answer("visit.v-1", visitCard("v-1"));
+    expect(screen.getByRole("dialog", { name: "Visit Annual service" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Visit Quarterly service" })).toBeNull();
+    expect(window.location.search).toBe("?v=v1&open=visit.v-2");
   });
 
   it("keeps one card: a second door replaces the first", async () => {
     const user = userEvent.setup();
+    hold("v-1");
+    board.set("agreement.a-1", agreementCard());
     render(
       <Frame>
-        <Door id="j1" row={row()} label="First" />
-        <Door id="j2" row={row({ id: "j2", number: "2002" })} label="Second" />
+        <Door id="v-1" label="First" />
+        <Door kind="agreement" id="a-1" label="Second" />
       </Frame>,
     );
     await user.click(screen.getByRole("button", { name: "First" }));
+    await visit();
     await user.click(screen.getByRole("button", { name: "Second" }));
+    expect(await screen.findByRole("dialog", { name: "Agreement Bayview HVAC" })).toBeInTheDocument();
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
-    expect(screen.getByRole("dialog", { name: "Job 2002" })).toBeInTheDocument();
+    expect(window.location.search).toBe("?v=v1&open=agreement.a-1");
+  });
+
+  it("says so when a read fails, and opens nothing", async () => {
+    const user = userEvent.setup();
+    openMaintenanceCard.mockRejectedValue(new Error("offline"));
+    render(
+      <Frame>
+        <Door id="v-7" />
+      </Frame>,
+    );
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Could not open that visit");
+    expect(card()).toBeNull();
+    expect(window.location.search).toBe("?v=v1");
+  });
+});
+
+describe("a door to a job", () => {
+  it("goes to the job's page, on the section it came for, and opens nothing over the screen", async () => {
+    const user = userEvent.setup();
+    render(
+      <Frame>
+        <Door kind="job" id="j1" opts={{ tab: "quote" }} />
+      </Frame>,
+    );
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    expect(mockPush).toHaveBeenCalledWith("/dashboard/jobs/j1?tab=quote");
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(openMaintenanceCard).not.toHaveBeenCalled();
+    expect(card()).toBeNull();
+    expect(window.location.search).toBe("?v=v1");
+  });
+
+  it("goes to the job's Overview when the door names no section", async () => {
+    const user = userEvent.setup();
+    render(
+      <Frame>
+        <Door kind="job" id="j1" />
+      </Frame>,
+    );
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    expect(mockPush).toHaveBeenCalledWith("/dashboard/jobs/j1");
+  });
+
+  it("is the last ask: a visit still being read when you leave for a job opens nothing", async () => {
+    const user = userEvent.setup();
+    render(
+      <Frame>
+        <Door id="v-7" label="The visit" />
+        <Door kind="job" id="j1" label="The job" />
+      </Frame>,
+    );
+    await user.click(screen.getByRole("button", { name: "The visit" }));
+    await user.click(screen.getByRole("button", { name: "The job" }));
+    await answer("visit.v-7", visitCard("v-7"));
+    expect(card()).toBeNull();
+    expect(window.location.search).toBe("?v=v1");
+    expect(mockPush).toHaveBeenCalledWith("/dashboard/jobs/j1");
+  });
+
+  it("has no Set aside, Next job or dock of its own: nothing of a job is held", async () => {
+    const user = userEvent.setup();
+    render(
+      <Frame>
+        <Door kind="job" id="j1" />
+      </Frame>,
+    );
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    expect(screen.queryByRole("button", { name: "Set aside" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Next job" })).toBeNull();
+    expect(dock()).toBeNull();
   });
 });
 
 describe("closing", () => {
   it("takes the address's entry back off and gives focus to the door", async () => {
     const user = userEvent.setup();
+    hold("v-7");
     render(
       <Frame>
-        <Door id="j1" row={row()} />
+        <Door id="v-7" />
       </Frame>,
     );
     const door = screen.getByRole("button", { name: "Open" });
     await user.click(door);
+    await visit();
     const depth = window.history.length;
-    await user.click(screen.getByRole("button", { name: "Close the card" }));
+    await user.click(screen.getByRole("button", { name: "Close the visit" }));
     expect(card()).toBeNull();
     await waitFor(() => expect(window.location.search).toBe("?v=v1"));
     expect(window.history.length).toBe(depth);
@@ -231,36 +334,40 @@ describe("closing", () => {
 
   it("Back closes it, and Forward opens it again", async () => {
     const user = userEvent.setup();
+    hold("v-7");
     render(
       <Frame>
-        <Door id="j1" row={row()} />
+        <Door id="v-7" />
       </Frame>,
     );
     const door = screen.getByRole("button", { name: "Open" });
     await user.click(door);
+    await visit();
     act(() => window.history.back());
     await waitFor(() => expect(card()).toBeNull());
     expect(window.location.search).toBe("?v=v1");
     expect(document.activeElement).toBe(door);
 
     act(() => window.history.forward());
-    await waitFor(() => expect(openMirrorJob).toHaveBeenCalledWith("j1"));
-    await answer("j1", row());
-    expect(screen.getByRole("dialog", { name: "Job 1042" })).toBeInTheDocument();
+    expect(await visit()).toBeInTheDocument();
+    expect(openMaintenanceCard).toHaveBeenCalledTimes(2);
+    expect(window.location.search).toBe("?v=v1&open=visit.v-7");
   });
 
-  it("a close while the mirror is still being asked opens nothing after it", async () => {
+  it("a close while the board is still being asked opens nothing after it", async () => {
     const user = userEvent.setup();
+    hold("v-1");
     render(
       <Frame>
-        <Door id="j1" row={row()} label="First" />
-        <Door id="j2" label="Second" />
+        <Door id="v-1" label="First" />
+        <Door id="v-2" label="Second" />
       </Frame>,
     );
     await user.click(screen.getByRole("button", { name: "First" }));
+    await visit();
     await user.click(screen.getByRole("button", { name: "Second" }));
-    await user.click(screen.getByRole("button", { name: "Close the card" }));
-    await answer("j2", row({ id: "j2", number: "2002" }));
+    await user.click(screen.getByRole("button", { name: "Close the visit" }));
+    await answer("visit.v-2", visitCard("v-2", "Annual service"));
     expect(card()).toBeNull();
   });
 });
@@ -268,48 +375,81 @@ describe("closing", () => {
 describe("a refresh, or a copied link", () => {
   it("brings the record back over the same screen, and closing it drops it from the address", async () => {
     const user = userEvent.setup();
-    window.history.replaceState(null, "", "/dashboard/assets?v=v1&open=job.j9");
+    window.history.replaceState(null, "", "/dashboard/assets?v=v1&open=visit.v-9");
     const depth = window.history.length;
     render(
       <Frame>
         <h1>Assets</h1>
       </Frame>,
     );
-    expect(openMirrorJob).toHaveBeenCalledWith("j9");
-    await answer("j9", row({ id: "j9", number: "9009" }));
-    expect(screen.getByRole("dialog", { name: "Job 9009" })).toBeInTheDocument();
+    expect(openMaintenanceCard).toHaveBeenCalledWith("visit", "v-9");
+    await answer("visit.v-9", visitCard("v-9", "Annual service"));
+    expect(screen.getByRole("dialog", { name: "Visit Annual service" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Assets" })).toBeInTheDocument();
     expect(window.history.length).toBe(depth);
 
-    await user.click(screen.getByRole("button", { name: "Close the card" }));
+    await user.click(screen.getByRole("button", { name: "Close the visit" }));
     expect(card()).toBeNull();
     // not Back: the entry before this one is not ours to take
     expect(window.location.search).toBe("?v=v1");
     expect(window.history.length).toBe(depth);
   });
 
+  it("brings an agreement back too", async () => {
+    board.set("agreement.a-1", agreementCard());
+    window.history.replaceState(null, "", "/dashboard/jobs?open=agreement.a-1");
+    mockPath = "/dashboard/jobs";
+    render(<Frame>{null}</Frame>);
+    expect(await screen.findByRole("dialog", { name: "Agreement Bayview HVAC" })).toBeInTheDocument();
+    expect(openMaintenanceCard).toHaveBeenCalledWith("agreement", "a-1");
+  });
+
+  it("replaces an address naming a job with the job's page, rather than pushing it", () => {
+    window.history.replaceState(null, "", "/dashboard/assets?v=v1&open=job.j9");
+    render(<Frame>{null}</Frame>);
+    expect(mockReplace).toHaveBeenCalledWith("/dashboard/jobs/j9");
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(openMaintenanceCard).not.toHaveBeenCalled();
+    expect(card()).toBeNull();
+  });
+
+  it("replaces a job's address that Back lands on with the job's page", async () => {
+    window.history.pushState(null, "", "/dashboard/assets?v=v1&open=job.j2");
+    window.history.pushState(null, "", "/dashboard/assets?v=v1");
+    render(<Frame>{null}</Frame>);
+    expect(mockReplace).not.toHaveBeenCalled();
+    act(() => window.history.back());
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/dashboard/jobs/j2"));
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(card()).toBeNull();
+  });
+
   it("ignores an address naming something the host cannot open", () => {
     window.history.replaceState(null, "", "/dashboard/assets?open=project.p-1");
     render(<Frame>{null}</Frame>);
-    expect(openMirrorJob).not.toHaveBeenCalled();
+    expect(openMaintenanceCard).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 });
 
 describe("going somewhere else", () => {
   it("puts it away, and coming back by another road does not bring it back", async () => {
     const user = userEvent.setup();
+    hold("v-7");
     const { rerender } = render(
       <Frame>
-        <Door id="j1" row={row()} />
+        <Door id="v-7" />
       </Frame>,
     );
     await user.click(screen.getByRole("button", { name: "Open" }));
-    expect(card()).not.toBeNull();
+    await visit();
 
     mockPath = "/dashboard/workboard";
     window.history.pushState(null, "", "/dashboard/workboard");
     rerender(
       <Frame>
-        <Door id="j1" row={row()} />
+        <Door id="v-7" />
       </Frame>,
     );
     expect(card()).toBeNull();
@@ -318,7 +458,7 @@ describe("going somewhere else", () => {
     window.history.pushState(null, "", "/dashboard/assets?v=v1");
     rerender(
       <Frame>
-        <Door id="j1" row={row()} />
+        <Door id="v-7" />
       </Frame>,
     );
     expect(card()).toBeNull();
@@ -328,7 +468,7 @@ describe("going somewhere else", () => {
     const user = userEvent.setup();
     const { rerender } = render(
       <Frame>
-        <Door id="j1" />
+        <Door id="v-7" />
       </Frame>,
     );
     await user.click(screen.getByRole("button", { name: "Open" }));
@@ -336,101 +476,146 @@ describe("going somewhere else", () => {
     window.history.pushState(null, "", "/dashboard/workboard");
     rerender(
       <Frame>
-        <Door id="j1" />
+        <Door id="v-7" />
       </Frame>,
     );
-    await answer("j1", row());
+    await answer("visit.v-7", visitCard("v-7"));
     expect(card()).toBeNull();
     expect(window.location.search).toBe("");
-  });
-
-  it("a card's own door to another screen puts the card away first", async () => {
-    const user = userEvent.setup();
-    render(
-      <Frame>
-        <Door id="j1" row={row()} />
-      </Frame>,
-    );
-    await user.click(screen.getByRole("button", { name: "Open" }));
-    await user.click(screen.getByRole("button", { name: "On the projects board" }));
-    expect(card()).toBeNull();
-    expect(mockPush).toHaveBeenCalledWith("/dashboard/workboard/projects/p-3");
   });
 });
 
 describe("a RecordLink", () => {
   /* What the browser would do with a click nobody took: jsdom cannot
-     navigate, so the page takes it after every handler has had its say. */
-  const leave = (e: MouseEvent) => e.preventDefault();
-  beforeEach(() => document.addEventListener("click", leave));
+     navigate, so the page takes it after every handler has had its say,
+     and notes whether anyone took it first. */
+  let taken: boolean[] = [];
+  const leave = (e: MouseEvent) => {
+    taken.push(e.defaultPrevented);
+    e.preventDefault();
+  };
+  beforeEach(() => {
+    taken = [];
+    document.addEventListener("click", leave);
+  });
   afterEach(() => document.removeEventListener("click", leave));
 
-  it("opens a job's link over the screen, on the face it names, and keeps the real address to copy", async () => {
-    const user = userEvent.setup();
+  /** A host that only notes what it is asked to open. */
+  function Spy({ open, children }: { open: jest.Mock; children: ReactNode }) {
+    return <RecordsContext.Provider value={{ hosted: true, open }}>{children}</RecordsContext.Provider>;
+  }
+
+  it("leaves a job's link to Next: the host is not asked, and the click is not taken", () => {
+    const open = jest.fn();
     render(
-      <Frame>
+      <Spy open={open}>
         <RecordLink href="/dashboard/workboard?job=j1&face=quote">Job 1042</RecordLink>
-      </Frame>,
+      </Spy>,
     );
     const link = screen.getByRole("link", { name: "Job 1042" });
     expect(link).toHaveAttribute("href", "/dashboard/workboard?job=j1&face=quote");
+    fireEvent.click(link);
+    expect(open).not.toHaveBeenCalled();
+    expect(taken).toEqual([false]);
+  });
+
+  it("opens nothing over the screen for a job's link in the frame's host", () => {
+    render(
+      <Frame>
+        <RecordLink href="/dashboard/workboard?job=j1">Job 1042</RecordLink>
+        <RecordLink href="/dashboard/assets?open=job.j1">Job 1042 by its token</RecordLink>
+      </Frame>,
+    );
+    fireEvent.click(screen.getByRole("link", { name: "Job 1042" }));
+    fireEvent.click(screen.getByRole("link", { name: "Job 1042 by its token" }));
+    expect(taken).toEqual([false, false]);
+    expect(openMaintenanceCard).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(card()).toBeNull();
+  });
+
+  it("asks the host for a visit's link, and takes the click", () => {
+    const open = jest.fn();
+    render(
+      <Spy open={open}>
+        <RecordLink href="/dashboard/workboard?visit=v-7">Quarterly service</RecordLink>
+      </Spy>,
+    );
+    const link = screen.getByRole("link", { name: "Quarterly service" });
+    fireEvent.click(link);
+    expect(open).toHaveBeenCalledWith({ kind: "visit", id: "v-7" }, { from: link });
+    expect(taken).toEqual([true]);
+  });
+
+  it("opens a visit's link over the screen, and keeps the real address to copy", async () => {
+    const user = userEvent.setup();
+    hold("v-7");
+    render(
+      <Frame>
+        <RecordLink href="/dashboard/workboard?visit=v-7">Quarterly service</RecordLink>
+      </Frame>,
+    );
+    const link = screen.getByRole("link", { name: "Quarterly service" });
+    expect(link).toHaveAttribute("href", "/dashboard/workboard?visit=v-7");
     await user.click(link);
-    expect(openMirrorJob).toHaveBeenCalledWith("j1");
-    await answer("j1", row());
-    expect(screen.getByRole("dialog", { name: "Job 1042" })).toHaveTextContent("tab:quote");
+    expect(await visit()).toBeInTheDocument();
     expect(window.location.pathname).toBe("/dashboard/assets");
 
-    await user.click(screen.getByRole("button", { name: "Close the card" }));
+    await user.click(screen.getByRole("button", { name: "Close the visit" }));
     expect(document.activeElement).toBe(link);
   });
 
   it("leaves a ⌘-click, a middle click or another tab to the browser", () => {
     render(
       <Frame>
-        <RecordLink href="/dashboard/workboard?job=j1">Job 1042</RecordLink>
-        <RecordLink href="/dashboard/workboard?job=j2" target="_blank">
-          Job 2002
+        <RecordLink href="/dashboard/workboard?visit=v-7">Quarterly service</RecordLink>
+        <RecordLink href="/dashboard/workboard?visit=v-8" target="_blank">
+          Annual service
         </RecordLink>
       </Frame>,
     );
-    fireEvent.click(screen.getByRole("link", { name: "Job 1042" }), { metaKey: true });
-    fireEvent.click(screen.getByRole("link", { name: "Job 1042" }), { ctrlKey: true });
-    fireEvent.click(screen.getByRole("link", { name: "Job 1042" }), { button: 1 });
-    fireEvent.click(screen.getByRole("link", { name: "Job 2002" }));
-    expect(openMirrorJob).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("link", { name: "Quarterly service" }), { metaKey: true });
+    fireEvent.click(screen.getByRole("link", { name: "Quarterly service" }), { ctrlKey: true });
+    fireEvent.click(screen.getByRole("link", { name: "Quarterly service" }), { button: 1 });
+    fireEvent.click(screen.getByRole("link", { name: "Annual service" }));
+    expect(openMaintenanceCard).not.toHaveBeenCalled();
   });
 
-  it("is only a link when the address is not a job's", () => {
+  it("is only a link when the address is not a record's", () => {
     render(
       <Frame>
-        <RecordLink href="/dashboard/workboard?job=j1&q=pump">Search</RecordLink>
+        <RecordLink href="/dashboard/workboard?visit=v-7&q=pump">Search</RecordLink>
         <RecordLink href="/dashboard/assets?v=v2">Van</RecordLink>
       </Frame>,
     );
     fireEvent.click(screen.getByRole("link", { name: "Search" }));
     fireEvent.click(screen.getByRole("link", { name: "Van" }));
-    expect(openMirrorJob).not.toHaveBeenCalled();
+    expect(openMaintenanceCard).not.toHaveBeenCalled();
+    expect(taken).toEqual([false, false]);
   });
 
   it("is only a link outside a host", () => {
-    render(<RecordLink href="/dashboard/workboard?job=j1">Job 1042</RecordLink>);
-    fireEvent.click(screen.getByRole("link", { name: "Job 1042" }));
-    expect(openMirrorJob).not.toHaveBeenCalled();
+    render(<RecordLink href="/dashboard/workboard?visit=v-7">Quarterly service</RecordLink>);
+    fireEvent.click(screen.getByRole("link", { name: "Quarterly service" }));
+    expect(openMaintenanceCard).not.toHaveBeenCalled();
+    expect(taken).toEqual([false]);
   });
 
   it("gives focus, on close, to where the door says when the link will be gone", async () => {
     const user = userEvent.setup();
+    hold("v-7");
     render(
       <Frame>
         <button>Bell</button>
-        <RecordLink href="/dashboard/workboard?job=j1" returnFocus={() => screen.getByRole("button", { name: "Bell" })}>
-          Job 1042
+        <RecordLink href="/dashboard/workboard?visit=v-7" returnFocus={() => screen.getByRole("button", { name: "Bell" })}>
+          Quarterly service
         </RecordLink>
       </Frame>,
     );
-    await user.click(screen.getByRole("link", { name: "Job 1042" }));
-    await answer("j1", row());
-    await user.click(screen.getByRole("button", { name: "Close the card" }));
+    await user.click(screen.getByRole("link", { name: "Quarterly service" }));
+    await visit();
+    await user.click(screen.getByRole("button", { name: "Close the visit" }));
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Bell" }));
   });
 });
@@ -438,39 +623,44 @@ describe("a RecordLink", () => {
 describe("set aside", () => {
   it("puts the card in the dock, lets the address go, and brings it back as it was left", async () => {
     const user = userEvent.setup();
+    hold("v-7");
     render(
       <Frame>
-        <Door id="j1" row={row()} />
+        <Door id="v-7" />
       </Frame>,
     );
     const door = screen.getByRole("button", { name: "Open" });
     await user.click(door);
+    await visit();
     await user.click(screen.getByRole("button", { name: "Write a note" }));
     await user.click(screen.getByRole("button", { name: "Set aside" }));
 
     expect(card()).toBeNull();
     expect(document.activeElement).toBe(door);
     await waitFor(() => expect(window.location.search).toBe("?v=v1"));
-    const waiting = within(dock()!).getByRole("button", { name: "Job 1042 Bayview Apartments" });
+    const waiting = within(dock()!).getByRole("button", { name: "Quarterly service Bayview Apartments" });
 
     await user.click(waiting);
-    expect(screen.getByRole("dialog", { name: "Job 1042" })).toHaveTextContent("notes:1");
-    expect(openMirrorJob).not.toHaveBeenCalled();
-    expect(window.location.search).toBe("?v=v1&open=job.j1");
+    expect(screen.getByRole("dialog", { name: "Visit Quarterly service" })).toHaveTextContent("written:1");
+    expect(openMaintenanceCard).toHaveBeenCalledTimes(1);
+    expect(window.location.search).toBe("?v=v1&open=visit.v-7");
     expect(dock()).toBeNull();
   });
 
   it("goes with you to another screen, where the card in front does not", async () => {
     const user = userEvent.setup();
+    hold("v-1");
+    hold("v-2", "Annual service", "Coogee Strata");
     const { rerender } = render(
       <Frame>
-        <Door id="j1" row={row()} label="First" />
-        <Door id="j2" row={row({ id: "j2", number: "2002", clientName: "Coogee Strata" })} label="Second" />
+        <Door id="v-1" label="First" />
+        <Door id="v-2" label="Second" />
       </Frame>,
     );
     await user.click(screen.getByRole("button", { name: "First" }));
-    await user.click(screen.getByRole("button", { name: "Set aside" }));
+    await user.click(await screen.findByRole("button", { name: "Set aside" }));
     await user.click(screen.getByRole("button", { name: "Second" }));
+    await visit("Annual service");
 
     mockPath = "/dashboard/workboard";
     window.history.pushState(null, "", "/dashboard/workboard");
@@ -480,166 +670,83 @@ describe("set aside", () => {
       </Frame>,
     );
     expect(card()).toBeNull();
-    expect(within(dock()!).getAllByRole("button", { name: /^Job/ })).toHaveLength(1);
+    expect(within(dock()!).getAllByRole("button", { name: /^Close / })).toHaveLength(1);
 
-    await user.click(within(dock()!).getByRole("button", { name: "Job 1042 Bayview Apartments" }));
-    expect(screen.getByRole("dialog", { name: "Job 1042" })).toBeInTheDocument();
+    await user.click(within(dock()!).getByRole("button", { name: "Quarterly service Bayview Apartments" }));
+    expect(screen.getByRole("dialog", { name: "Visit Quarterly service" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Workboard" })).toBeInTheDocument();
     expect(window.location.pathname).toBe("/dashboard/workboard");
   });
 
   it(`keeps ${DOCK_MAX}, and lets the oldest go for a fourth`, async () => {
     const user = userEvent.setup();
-    const ids = ["j1", "j2", "j3", "j4"];
+    const ids = ["v-1", "v-2", "v-3", "v-4"];
+    ids.forEach((id, i) => hold(id, `Service ${i + 1}`, null));
     render(
       <Frame>
-        {ids.map((id, i) => (
-          <Door key={id} id={id} row={row({ id, number: `10${i}`, clientName: null })} label={`Open ${id}`} />
+        {ids.map((id) => (
+          <Door key={id} id={id} label={`Open ${id}`} />
         ))}
       </Frame>,
     );
     for (const id of ids) {
       await user.click(screen.getByRole("button", { name: `Open ${id}` }));
-      await user.click(screen.getByRole("button", { name: "Set aside" }));
+      await user.click(await screen.findByRole("button", { name: "Set aside" }));
     }
     const names = within(dock()!)
-      .getAllByRole("button", { name: /^Job \d+$/ })
+      .getAllByRole("button", { name: /^Service \d+$/ })
       .map((b) => b.textContent);
-    expect(names).toEqual(["Job 101", "Job 102", "Job 103"]);
+    expect(names).toEqual(["Service 2", "Service 3", "Service 4"]);
   });
 
   it("a card in the dock can be let go", async () => {
     const user = userEvent.setup();
+    hold("v-7");
     render(
       <Frame>
-        <Door id="j1" row={row()} />
+        <Door id="v-7" />
       </Frame>,
     );
     await user.click(screen.getByRole("button", { name: "Open" }));
-    await user.click(screen.getByRole("button", { name: "Set aside" }));
-    await user.click(screen.getByRole("button", { name: "Close Job 1042" }));
+    await user.click(await screen.findByRole("button", { name: "Set aside" }));
+    await user.click(screen.getByRole("button", { name: "Close Quarterly service" }));
     expect(dock()).toBeNull();
     expect(card()).toBeNull();
   });
 
   it("opening a card that waits in the dock brings that one back, not a second", async () => {
     const user = userEvent.setup();
+    hold("v-7");
     render(
       <Frame>
-        <Door id="j1" row={row()} label="Open with the row" />
-        <Door id="j1" label="Open by id" />
+        <Door id="v-7" label="Open here" />
+        <Door id="v-7" label="Open from elsewhere" />
       </Frame>,
     );
-    await user.click(screen.getByRole("button", { name: "Open with the row" }));
+    await user.click(screen.getByRole("button", { name: "Open here" }));
+    await visit();
     await user.click(screen.getByRole("button", { name: "Write a note" }));
     await user.click(screen.getByRole("button", { name: "Set aside" }));
-    await user.click(screen.getByRole("button", { name: "Open by id" }));
-    expect(openMirrorJob).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Open from elsewhere" }));
+    expect(openMaintenanceCard).toHaveBeenCalledTimes(1);
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
-    expect(screen.getByRole("dialog", { name: "Job 1042" })).toHaveTextContent("notes:1");
+    expect(screen.getByRole("dialog", { name: "Visit Quarterly service" })).toHaveTextContent("written:1");
   });
 
   it("is not offered by a host drawn inside a page, which has no dock", async () => {
     const user = userEvent.setup();
+    hold("v-7");
     render(
       <PageRecordsProvider>
-        <Door id="j1" row={row()} />
-        <RecordWindows manage moneyVisible={false} />
+        <Door id="v-7" />
+        <RecordWindows manage />
       </PageRecordsProvider>,
     );
     await user.click(screen.getByRole("button", { name: "Open" }));
-    expect(screen.getByRole("dialog", { name: "Job 1042" })).toBeInTheDocument();
+    expect(await visit()).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Set aside" })).toBeNull();
   });
 });
-
-describe("Next job", () => {
-  const LIST = ["j1", "j2", "j3"];
-
-  it("steps through the list the door opened it from, in place, and Back still closes it", async () => {
-    const user = userEvent.setup();
-    render(
-      <Frame>
-        <Door id="j1" row={row()} opts={{ list: LIST }} />
-      </Frame>,
-    );
-    await user.click(screen.getByRole("button", { name: "Open" }));
-    const depth = window.history.length;
-    await user.click(screen.getByRole("button", { name: "Next job" }));
-    expect(openMirrorJob).toHaveBeenCalledWith("j2");
-    expect(window.location.search).toBe("?v=v1&open=job.j2");
-    await answer("j2", row({ id: "j2", number: "2002" }));
-    expect(screen.getByRole("dialog", { name: "Job 2002" })).toBeInTheDocument();
-    expect(screen.getAllByRole("dialog")).toHaveLength(1);
-    expect(window.history.length).toBe(depth);
-
-    act(() => window.history.back());
-    await waitFor(() => expect(card()).toBeNull());
-    expect(window.location.search).toBe("?v=v1");
-  });
-
-  it("walks with J and K while the card is in front, and not while typing", async () => {
-    const user = userEvent.setup();
-    render(
-      <Frame>
-        <input aria-label="Somewhere to type" />
-        <Door id="j2" row={row({ id: "j2", number: "2002" })} opts={{ list: LIST }} />
-      </Frame>,
-    );
-    await user.click(screen.getByRole("button", { name: "Open" }));
-    fireEvent.keyDown(screen.getByRole("textbox", { name: "Somewhere to type" }), { key: "j" });
-    expect(openMirrorJob).not.toHaveBeenCalled();
-
-    fireEvent.keyDown(screen.getByRole("dialog", { name: "Job 2002" }), { key: "k" });
-    expect(openMirrorJob).toHaveBeenCalledWith("j1");
-    await answer("j1", row());
-    fireEvent.keyDown(screen.getByRole("dialog", { name: "Job 1042" }), { key: "j" });
-    expect(openMirrorJob).toHaveBeenLastCalledWith("j2");
-  });
-
-  it("is not offered at the end of the list, or without one", async () => {
-    const user = userEvent.setup();
-    render(
-      <Frame>
-        <Door id="j3" row={row({ id: "j3", number: "3003" })} opts={{ list: LIST }} label="Last" />
-        <Door id="j1" row={row()} label="Alone" />
-      </Frame>,
-    );
-    await user.click(screen.getByRole("button", { name: "Last" }));
-    expect(screen.queryByRole("button", { name: "Next job" })).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Alone" }));
-    expect(screen.queryByRole("button", { name: "Next job" })).toBeNull();
-  });
-
-  it("comes with a RecordLink from a list of them, in the order they are shown", async () => {
-    const user = userEvent.setup();
-    document.addEventListener("click", leave);
-    render(
-      <Frame>
-        <ul data-record-list>
-          <li>
-            <RecordLink href="/dashboard/workboard?job=j1">Job 1042</RecordLink>
-          </li>
-          <li>
-            <RecordLink href="/dashboard/assets?v=v2">Van</RecordLink>
-          </li>
-          <li>
-            <RecordLink href="/dashboard/workboard?job=j2">Job 2002</RecordLink>
-          </li>
-        </ul>
-      </Frame>,
-    );
-    await user.click(screen.getByRole("link", { name: "Job 1042" }));
-    await answer("j1", row());
-    await user.click(screen.getByRole("button", { name: "Next job" }));
-    expect(openMirrorJob).toHaveBeenLastCalledWith("j2");
-    document.removeEventListener("click", leave);
-  });
-});
-
-function leave(e: MouseEvent) {
-  e.preventDefault();
-}
 
 describe("what the palette reads", () => {
   function Recent() {
@@ -651,35 +758,43 @@ describe("what the palette reads", () => {
     return <button onClick={() => records.forget?.()}>Switch workspace</button>;
   }
 
-  it("keeps the jobs opened lately, newest first, once each", async () => {
+  it("keeps the records opened lately, newest first, once each", async () => {
     const user = userEvent.setup();
+    hold("v-1");
+    hold("v-2", "Annual service");
     render(
       <Frame>
         <Recent />
-        <Door id="j1" row={row()} label="First" />
-        <Door id="j2" row={row({ id: "j2", number: "2002" })} label="Second" />
+        <Door id="v-1" label="First" />
+        <Door id="v-2" label="Second" />
       </Frame>,
     );
     expect(screen.getByRole("status", { name: "recent" })).toHaveTextContent("none");
     await user.click(screen.getByRole("button", { name: "First" }));
+    await visit();
     await user.click(screen.getByRole("button", { name: "Second" }));
+    await visit("Annual service");
     await user.click(screen.getByRole("button", { name: "First" }));
-    expect(screen.getByRole("status", { name: "recent" })).toHaveTextContent("Job 1042, Job 2002");
+    await visit();
+    expect(screen.getByRole("status", { name: "recent" })).toHaveTextContent("Quarterly service, Annual service");
   });
 
   it("lets every card go, the dock's and the recent list with them, on a switch of workspace", async () => {
     const user = userEvent.setup();
+    hold("v-1");
+    hold("v-2", "Annual service");
     render(
       <Frame>
         <Recent />
         <Forget />
-        <Door id="j1" row={row()} label="First" />
-        <Door id="j2" row={row({ id: "j2", number: "2002" })} label="Second" />
+        <Door id="v-1" label="First" />
+        <Door id="v-2" label="Second" />
       </Frame>,
     );
     await user.click(screen.getByRole("button", { name: "First" }));
-    await user.click(screen.getByRole("button", { name: "Set aside" }));
+    await user.click(await screen.findByRole("button", { name: "Set aside" }));
     await user.click(screen.getByRole("button", { name: "Second" }));
+    await visit("Annual service");
     await user.click(screen.getByRole("button", { name: "Switch workspace" }));
     expect(card()).toBeNull();
     expect(dock()).toBeNull();
@@ -688,38 +803,11 @@ describe("what the palette reads", () => {
 });
 
 describe("a maintenance visit", () => {
-  const visitCard = (over: Record<string, unknown> = {}) => ({
-    kind: "visit",
-    card: {
-      visit: {
-        id: "v-7",
-        agreementId: "a-1",
-        label: "Quarterly service",
-        clientName: "Bayview Apartments",
-        status: "upcoming",
-        dueDate: "2026-10-20",
-        readiness: { equipment_ready: false, access_confirmed: false },
-        techs: [],
-        mirrorStatus: null,
-        bookedDate: null,
-        ...over,
-      },
-      today: "2026-10-11",
-      staff: [],
-      tagPool: [],
-      connected: true,
-      history: [],
-      lastDone: null,
-      siteAddress: null,
-      siteRequirements: null,
-      equipment: [],
-    },
-  });
   const leave = (e: MouseEvent) => e.preventDefault();
 
   it("opens over the screen from its link, read off the board, and the address names it", async () => {
     const user = userEvent.setup();
-    openMaintenanceCard.mockResolvedValue(visitCard());
+    openMaintenanceCard.mockResolvedValue(visitCard("v-7"));
     document.addEventListener("click", leave);
     render(
       <Frame>
@@ -731,7 +819,6 @@ describe("a maintenance visit", () => {
     expect(openMaintenanceCard).toHaveBeenCalledWith("visit", "v-7");
     expect(await screen.findByRole("dialog", { name: "Visit Quarterly service" })).toHaveTextContent("Bayview Apartments");
     expect(window.location.search).toBe("?v=v1&open=visit.v-7");
-    expect(openMirrorJob).not.toHaveBeenCalled();
   });
 
   it("says so when the board no longer holds it", async () => {
@@ -749,7 +836,9 @@ describe("a maintenance visit", () => {
 
   it("is read again after a press changes it", async () => {
     const user = userEvent.setup();
-    openMaintenanceCard.mockResolvedValueOnce(visitCard()).mockResolvedValueOnce(visitCard({ notes: "booked" }));
+    openMaintenanceCard
+      .mockResolvedValueOnce(visitCard("v-7"))
+      .mockResolvedValueOnce(visitCard("v-7", undefined, undefined, { notes: "booked" }));
     render(
       <Frame>
         <VisitDoor />
@@ -763,12 +852,7 @@ describe("a maintenance visit", () => {
 
   it("opens its agreement in its place, and can be set aside under its own name", async () => {
     const user = userEvent.setup();
-    openMaintenanceCard
-      .mockResolvedValueOnce(visitCard())
-      .mockResolvedValueOnce({
-        kind: "agreement",
-        card: { agreement: { id: "a-1", label: "Bayview HVAC", clientName: "Bayview Apartments" }, today: "2026-10-11", categories: [], tagPool: [] },
-      });
+    openMaintenanceCard.mockResolvedValueOnce(visitCard("v-7")).mockResolvedValueOnce(agreementCard());
     render(
       <Frame>
         <VisitDoor />

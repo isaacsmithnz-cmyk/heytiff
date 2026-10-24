@@ -4,10 +4,9 @@ import { projectHref } from "@/lib/shell/links";
 import { Fragment, Suspense, lazy, useEffect, useEffectEvent, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { OverlayWhileOpen } from "@/components/overlay/use-overlay";
 import { Icon } from "@/components/shell/icon";
 import { Button } from "@/components/parts/button";
-import { Menu, type MenuItem } from "@/components/parts/menu";
+import type { MenuItem } from "@/components/parts/menu";
 import { quoteStarted, type QuoteFacts } from "@/lib/quotes/quote-card";
 import { fmtAuTime, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
@@ -18,7 +17,6 @@ import {
   readMirrorJob,
   type JobRecordRead,
 } from "@/app/actions/workboard";
-import type { JobSummaryRead } from "@/lib/workboard/job-summary";
 import {
   collectionAgainst,
   fmtQuantity,
@@ -26,12 +24,10 @@ import {
   materialsTotalCents,
   paymentsTotalCents,
 } from "@/lib/workboard/job-ledger";
-import { claimFor, claimTitle, isPartialInvoiceLine } from "@/lib/workboard/job-family";
+import { claimFor, isPartialInvoiceLine } from "@/lib/workboard/job-family";
 import { buildJobStory, storyStamp } from "@/lib/workboard/job-story";
 import { JobClaimModal } from "./job-claim-modal";
 import { JobMoneyBlock, JobMoneyGlance } from "./job-money-block";
-import { JobSummaryFace } from "./job-summary-face";
-import { JobDiaryFace } from "./job-diary-face";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
 import { readJobPhotos } from "@/app/actions/photo-readings";
 import {
@@ -97,14 +93,10 @@ import type { BookedEntry, MirrorJobDetail } from "@/lib/workboard/all-jobs-quer
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import {
   sm8TimeOf,
-  sm8Tone,
   type AllJobRow,
 } from "@/lib/workboard/all-jobs";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
-import { catTintVars } from "@/lib/workboard/card-tint";
-import { syncedAgo, type Sm8Health } from "./sm8-chip";
 import { useHydrated } from "@/lib/use-hydrated";
-import type { ScheduleJobState } from "@/lib/workboard/schedule";
 import { JobPageHead } from "@/components/jobs/job-page-head";
 import { JobOverview } from "@/components/jobs/job-overview";
 import { jobHue } from "@/lib/workboard/job-hue";
@@ -304,48 +296,22 @@ export function JobSheet({
   row,
   manage,
   moneyVisible,
-  sm8 = null,
-  scheduleState = null,
   initialTab,
-  openBookIn,
-  openClear,
-  onClose,
   onCreateAgreement,
   onOpenTracked,
   onToast,
-  windowControls,
   page,
 }: {
-  /** Drawn as the job's own page rather than a card over the screen: no
-      scrim, no band, no rail, no close; the page's head, the section's
-      faces under it. Absent, it is the card, as it has always been. */
-  page?: JobSheetPage;
+  /** The job's own page: its head, the section's faces under it (the
+      card over the screen went on 24 October 2026). */
+  page: JobSheetPage;
   row: AllJobRow;
   manage: boolean;
   moneyVisible: boolean;
-  /** The mirror's own health — the same object the board's chip reads, so
-      the card and the board can never disagree about how fresh this is. */
-  sm8?: Sm8Health | null;
-  /** What today's diary says the job is doing — set only when a schedule
-      block opened this sheet, so the header carries the same reading the rail
-      drew (the "!" and the hollow cap, in words). */
-  scheduleState?: ScheduleJobState | null;
   /** The face to open on, for a door that knows what it came for — a
       mention opens the job's Diary. Summary otherwise, and Summary for Money
       without the grant, because that face is absent. */
   initialTab?: JobSheetTab;
-  /** Open on the Visits face with Book in's panel open, for a door that
-      came to book the job (two-way phase 3). The panel draws once the card
-      knows Book in is offered here. */
-  openBookIn?: true;
-  /** Open on the Visits face with this leftover booking's Clear asked (an
-      activity uuid). */
-  openClear?: string;
-  /** What the window it opened in adds to its band — Next job, Set aside —
-      when it opened where you are (components/records). Nothing on the
-      board's own card. */
-  windowControls?: ReactNode;
-  onClose: () => void;
   /** Hands this job to the existing new-agreement modal, prefilled. */
   onCreateAgreement: (row: AllJobRow, detail: MirrorJobDetail | null) => void;
   /** Follows the tracked chip to the board that already holds this job. */
@@ -398,24 +364,15 @@ export function JobSheet({
   const [bkPending, setBkPending] = useState<ReadonlySet<string>>(() => new Set());
   const [bkKick, setBkKick] = useState(0);
   /* the Visit form (Book in), keyed so a Look again opens a fresh one */
-  const [bookIn, setBookIn] = useState<{ n: number; seed: BookInSeed | null } | null>(() =>
-    openBookIn ? { n: 0, seed: null } : null
-  );
+  const [bookIn, setBookIn] = useState<{ n: number; seed: BookInSeed | null } | null>(null);
   /* the leftover whose Clear is being asked, by lower-case uuid */
-  const [clearAsk, setClearAsk] = useState<string | null>(() => (openClear ? openClear.trim().toLowerCase() : null));
+  const [clearAsk, setClearAsk] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<TabKey>(() =>
-    openBookIn || openClear
-      ? "visits"
-      : initialTab && (initialTab !== "money" || moneyVisible)
-        ? initialTab
-        : "summary"
-  );
   /* THE STEP whose part is open below, when the progress line opened it;
-     null when the rail did. A door that came to book opens on Installation;
-     one that came back from the quote page, on Quoted. */
+     null otherwise. A door that came back from the quote page opens
+     on Quoted. */
   const [step, setStep] = useState<StepKey | null>(() =>
-    openBookIn || openClear ? "installation" : initialTab === "quote" ? "quoted" : null
+    initialTab === "quote" ? "quoted" : null
   );
   const [naming, setNaming] = useState(false);
   /* EDIT CUSTOMER (customer details to ServiceM8): offered only where the
@@ -431,13 +388,9 @@ export function JobSheet({
   const [focus, setFocus] = useState<string | null>(null);
   /* Which claim's modal is open, and whether the number's list is showing. */
   const [openClaim, setOpenClaim] = useState<string | null>(null);
-  const [numbersOpen, setNumbersOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   /* ADD (rule 54): what belongs to the job, each item a door to the flow the
      card already has for it. `taskAsk` is bumped by Add > Task, which opens
      the Visits face's own Add a task. */
-  const addRef = useRef<HTMLButtonElement>(null);
-  const [adding, setAdding] = useState(false);
   const [taskAsk, setTaskAsk] = useState(0);
   /* Add › Cost's form, open over the job */
   const [costing, setCosting] = useState(false);
@@ -469,23 +422,9 @@ export function JobSheet({
     | { kind: "papers"; id: string; index: number }
     | null
   >(null);
-  /* Only a REFRESHED paragraph lives in state; the stored one rides the
-     record read, so "fresh ?? stored" needs no state mirroring. */
-  const [freshSummary, setFreshSummary] = useState<JobSummaryRead | null>(null);
-  /* The refresh kick ANSWERED (words or not) — the one input to the summary
-     slot's skeleton that a render can't derive from what has landed. */
-  const [kickAnswered, setKickAnswered] = useState(false);
-  /* The files read ANSWERED — even empty-handed. `media` alone can't say:
-     a failed read leaves it null forever, exactly like one still in flight. */
-  const [filesAnswered, setFilesAnswered] = useState(false);
   const [name, setName] = useState("");
   const [busy, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
-  /* Whether the reader has chosen a tab themselves — the one thing that
-     outranks the clone-open landing on Money. A face the door asked for is
-     that choice made on the reader's behalf, and outranks it the same way. */
-  const touchedTab = useRef(initialTab !== undefined || !!openBookIn || !!openClear || !!page);
   const alive = useRef(true);
 
   useEffect(() => {
@@ -494,43 +433,10 @@ export function JobSheet({
        this line the second mount inherited `false` and the summary refresh
        threw its own answer away. */
     alive.current = true;
-    closeRef.current?.focus();
     return () => {
       alive.current = false;
     };
   }, []);
-
-  /* INNERMOST FIRST. Closing the whole card out from under an open claim
-     is the classic nested-dismiss bug. The dialogs over the card — a claim,
-     the viewer, Edit customer, the SWMS and certificate wizards — are each
-     in front of it on the overlay stack and answer their own Escape, so the
-     card hears the key only when nothing is over it. Its own two menus
-     close before it does. The card joins the stack (`OverlayWhileOpen`,
-     drawn first in its portal); the job's page is a page, and never does. */
-  const sheet = useRef<HTMLElement>(null);
-  const onEscape = () => {
-    if (numbersOpen) setNumbersOpen(false);
-    else if (menuOpen) setMenuOpen(false);
-    else onClose();
-  };
-
-  useEffect(() => {
-    if (!numbersOpen) return;
-    const away = (e: PointerEvent) => {
-      if (!(e.target as HTMLElement)?.closest?.(".wb2-shnos")) setNumbersOpen(false);
-    };
-    document.addEventListener("pointerdown", away);
-    return () => document.removeEventListener("pointerdown", away);
-  }, [numbersOpen]);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const away = (e: PointerEvent) => {
-      if (!(e.target as HTMLElement)?.closest?.(".wb2-shmenu")) setMenuOpen(false);
-    };
-    document.addEventListener("pointerdown", away);
-    return () => document.removeEventListener("pointerdown", away);
-  }, [menuOpen]);
 
   /* No setLoading(true) here: the sheet is KEYED BY JOB, so a different job
      is a different component with `loading` already true. */
@@ -546,13 +452,6 @@ export function JobSheet({
       live = false;
     };
   }, [row.id]);
-
-  /* A CLONE'S ROW OPENS ITS PARENT, landing on the Money face with that
-     claim's ledger row named — the walked #556 behaviour, kept through the
-     move onto tabs. Only until the reader chooses a tab themselves. */
-  useEffect(() => {
-    if (focus && moneyVisible && !touchedTab.current) setTab("money");
-  }, [focus, moneyVisible]);
 
   useEffect(() => {
     if (!manage) return;
@@ -658,16 +557,9 @@ export function JobSheet({
     let live = true;
     void readJobFiles(cardId)
       .then((m) => {
-        if (live) {
-          setMedia(m);
-          setFilesAnswered(true);
-        }
+        if (live) setMedia(m);
       })
-      .catch(() => {
-        /* an answered failure still ANSWERS — the summary slot's skeleton
-           must not wait on a derive that can no longer come */
-        if (live) setFilesAnswered(true);
-      });
+      .catch(() => {});
     return () => {
       live = false;
     };
@@ -699,7 +591,7 @@ export function JobSheet({
     await certSettled();
     if (!alive.current) return;
     setCertWizard(null);
-    setTab("documents");
+    go("documents");
     tick(ourDocumentSendKey(documentId), true);
     setWriting(true);
   };
@@ -709,7 +601,7 @@ export function JobSheet({
     await certSettled();
     if (!alive.current) return;
     setCertWizard(null);
-    setTab("documents");
+    go("documents");
     await sendKeysToServiceM8([ourDocumentSendKey(documentId)], () => fileName);
   };
 
@@ -829,7 +721,6 @@ export function JobSheet({
     };
   }, [cardId]);
 
-  const summary = freshSummary ?? record?.summary ?? null;
   const money = moneyVisible ? (detail?.money ?? null) : null;
   const materials = (record?.ledger?.materials ?? []).filter((m) => !isPartialInvoiceLine(m));
   const family = record?.family ?? null;
@@ -875,13 +766,9 @@ export function JobSheet({
   );
   /* The card's own number — the PARENT's, even when a claim's row opened it. */
   const cardNumber = detail?.jobNumber ?? row.number ?? null;
-  const focusClaim = claimFor(family, focus);
   /* Every header fact follows the CARD once the detail lands; until then the
      row's own facts paint, which is what was clicked. */
-  const cardDate = detail ? detail.dateOn : dayOf(row.date);
-  const cardDateLabel = detail?.dateLabel ?? row.dateLabel;
   const cardStatus = detail?.status ?? row.statusLabel;
-  const cardTone = detail ? sm8Tone(detail.status) : row.tone;
   const openClaimRow = claimFor(family, openClaim);
 
   /* THE OPEN-JOB RULE MOVED TO THE SERVER with the rest of the strip.
@@ -912,25 +799,11 @@ export function JobSheet({
       : undefined
   );
 
-  /* The door back to ServiceM8, and the card's own freshness in the same
-     chip — the board's chip says this behind the scrim, and the card is
-     what you are actually reading. The clock is CLIENT-ONLY for the reason
-     sm8-chip.tsx spells out: `syncedAgo` reads Date.now(), and a server that
-     rendered "just now" against a client that renders "1 min ago" is a
-     hydration failure that takes the whole tree down. */
+  /* The dialogs portal to <body> only once the page has hydrated; and the
+     door back to ServiceM8. */
   const hydrated = useHydrated();
   const sm8Href = sm8JobUrl(cardId ?? row.id);
-  const sm8Line = !sm8
-    ? "Open in ServiceM8"
-    : sm8.attention
-      ? "ServiceM8 needs attention"
-      : sm8.running
-        ? "Syncing with ServiceM8"
-        : hydrated
-          ? `ServiceM8, synced ${syncedAgo(sm8.syncedAt)}`
-          : "ServiceM8";
   const categoryColour = detail?.categoryColour ?? row.categoryColour ?? null;
-  const categoryName = detail?.categoryName ?? row.categoryName ?? null;
 
   /* THE STORY — one merge of everything the sheet holds, built here and
      read by two faces (the diary renders it; the summary's staleness check
@@ -964,9 +837,10 @@ export function JobSheet({
   );
 
   /* THE REFRESH KICK — once, after every read has landed, and only when the
-     story's stamp has left the stored summary behind. The route re-derives
-     and re-compares server-side, so a confused client costs queries, never a
-     second model call. */
+     story's stamp has left the stored summary behind: the route re-derives
+     it and stores it, for the page's Where it's up to. The route re-compares
+     server-side, so a confused client costs queries, never a second model
+     call. */
   const kicked = useRef(false);
   useEffect(() => {
     if (kicked.current) return;
@@ -981,38 +855,10 @@ export function JobSheet({
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ job: cardId }),
     })
-      .then((r) => r.json())
-      .then((res: { ok?: boolean; summary?: JobSummaryRead | null }) => {
-        if (alive.current && res?.ok && res.summary) setFreshSummary(res.summary);
-      })
       .catch(() => {
         /* a summary that won't refresh keeps its stored words */
-      })
-      .finally(() => {
-        if (alive.current) setKickAnswered(true);
       });
   }, [cardId, detail, record, recordFailed, media, picklist, story]);
-
-  /* WHETHER THE SUMMARY SLOT STILL WAITS — derived at render, mirroring the
-     kick's own gates, because every branch but one is knowable from what has
-     already landed. The one fact a render can't derive is whether the kick
-     has answered; that is the only state (`kickAnswered`, set async above —
-     the compiler's no-sync-setState-in-effects rule is why this is not an
-     effect writing a `settled` flag). */
-  const summaryPending = (() => {
-    if (recordFailed || summary !== null) return false;
-    if (record === undefined) return true; // the record read is still out
-    if (record === null) return false; // landed empty — nothing is coming
-    if (media === null || picklist === null) {
-      /* companions still out — unless the files read answered EMPTY-HANDED,
-         which never unblocks the kick's gate (the picklist's catch lands
-         [], so null there always means "not yet") */
-      return !filesAnswered || picklist === null;
-    }
-    const stamp = storyStamp(story);
-    if (!stamp || record.summary?.stamp === stamp) return false; // nothing to derive
-    return !kickAnswered; // the kick is out — words or nothing, shortly
-  })();
 
   const makeProject = () => {
     setErr(null);
@@ -1481,20 +1327,6 @@ export function JobSheet({
       });
   };
 
-  /* THE RAIL — the parts of the job that aren't a step: its summary, the
-     timeline, billing, photos and files (Isaac, 2026-10-01: "the left-hand
-     side is like the selection point"). Fixed from first paint, the money
-     grant known at open, so nothing pops in as reads land. The quote, the
-     visits and the checklist open from their steps on the line above. */
-  const rail: { key: TabKey; label: string }[] = [
-    { key: "summary", label: "Summary" },
-    { key: "diary", label: "Timeline" },
-    ...(moneyVisible ? [{ key: "money" as const, label: "Billing" }] : []),
-    { key: "photos", label: "Photos" },
-    { key: "documents", label: "Files" },
-    { key: "compliance", label: "Compliance" },
-  ];
-
   /* What each step opens. The quote is everyone's on the Workboard, its
      money only theirs who see money (Isaac, 2026-10-12: "the quoting section
      should still be accessible. For techs who are quoting a job"). */
@@ -1514,22 +1346,18 @@ export function JobSheet({
             ? "visits"
             : "summary";
 
-  /* WHICH FACES ARE SHOWING: the card's one, or the page's section's. */
-  const faceOn = (k: TabKey) => (page ? SECTION_FACES[page.section].includes(k) : tab === k);
+  /* WHICH FACES ARE SHOWING: the page's section's. */
+  const faceOn = (k: TabKey) => SECTION_FACES[page.section].includes(k);
 
   const go = (key: string) => {
-    touchedTab.current = true;
     if (key !== "diary") {
       setFlagFocus(false);
       setReplyFor(null);
     }
     setStep(null);
-    setTab(key as TabKey);
-    /* on the page, a face is reached by its section */
-    if (page) {
-      const to = sectionOfFace(key as TabKey);
-      if (to !== page.section) page.onSection(to);
-    }
+    /* a face is reached by its section */
+    const to = sectionOfFace(key as TabKey);
+    if (to !== page.section) page.onSection(to);
   };
 
   const openStep = (k: StepKey) => {
@@ -1575,7 +1403,6 @@ export function JobSheet({
     { key: "certificate", label: "Certificate" },
   ];
   const addPick = (key: string) => {
-    setAdding(false);
     const job = cardId ?? row.id;
     switch (key) {
       case "visit":
@@ -1614,7 +1441,7 @@ export function JobSheet({
      Revise or Reissue) when it has one, and no SWMS once ServiceM8 has the
      job closed, as Add offers none then. Asked once, while rendering, the
      way a prop's change is taken in, so no effect sets state. */
-  const [addAsked, setAddAsked] = useState<"swms" | "certificate" | null>(page?.add ?? null);
+  const [addAsked, setAddAsked] = useState<"swms" | "certificate" | null>(page.add ?? null);
   if (addAsked === "swms" && swms !== null && detail !== null) {
     setAddAsked(null);
     if (swms.length === 0 && !SWMS_CLOSED.has(detail.status ?? "")) setSwmsWizard({ revise: null });
@@ -1623,87 +1450,21 @@ export function JobSheet({
     if (certs.length === 0) setCertWizard({ reissue: null });
   }
 
-  /* Up and down walk the rail, as a vertical tab list does. */
-  const railKey = (e: React.KeyboardEvent, i: number) => {
-    const d = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
-    if (!d) return;
-    e.preventDefault();
-    const next = rail[(i + d + rail.length) % rail.length]!;
-    go(next.key);
-    document.getElementById(`jctab-${next.key}`)?.focus();
-  };
-
-  /* On the page every face is a region of its section, named by itself:
-     the section's tab labels the whole body, not one face of it. */
-  const railed = (key: TabKey) => !page && rail.some((r) => r.key === key);
+  /* Every face is a region of its section, named by itself: the section's
+     tab labels the whole body, not one face of it. */
   const panel = (key: TabKey, body: React.ReactNode) => (
     <section
       className="wb2-jcface"
       id={`jcsec-${key}`}
-      role={railed(key) ? "tabpanel" : "region"}
-      aria-labelledby={railed(key) ? `jctab-${key}` : undefined}
-      aria-label={railed(key) ? undefined : FACE_NAME[key]}
+      role="region"
+      aria-label={FACE_NAME[key]}
       hidden={!faceOn(key)}
     >
       {body}
     </section>
   );
 
-  /* The band's date chip. When the date's meaning IS the status ("completed",
-     "quoted", "closed") it rides inside the status chip as one statement;
-     "raised" and "booked" are their own facts and wear their own chip. */
-  const dateStandsAlone = cardDateLabel === "raised" || cardDateLabel === "booked";
-
-  /* THE FACES, each drawn once: the card puts them under its rail, the
-     page under its head (Overview holds the summary and the diary). */
-  const faceSummary = (
-    <>
-          {panel(
-            "summary",
-            <JobSummaryFace
-              loading={loading}
-              detail={detail}
-              row={row}
-              summary={summary}
-              pending={summaryPending}
-              category={categoryName ? { name: categoryName, colour: categoryColour } : null}
-            />
-          )}
-    </>
-  );
-  const faceDiary = (
-    <>
-          {panel(
-            "diary",
-            <JobDiaryFace
-              focusFlagged={flagFocus}
-              entries={story}
-              loading={loading && !detail}
-              moneyVisible={moneyVisible}
-              onOpenClaim={setOpenClaim}
-              onPhotos={() => go("photos")}
-              /* The pen waits for the card to know WHICH job it is — a note
-                 saved against a guess is worse than a note that waits a
-                 beat. */
-              onWrite={cardId ? writeNote : undefined}
-              onRemoveNote={unwriteNote}
-              /* notes to ServiceM8: absent where the deployment sends none */
-              sender={sender}
-              notesSm8={notesSm8}
-              flags={flags}
-              replyFor={replyFor}
-              onReplyShown={() => setReplyFor(null)}
-              onReply={replyNote}
-              onSendCopy={sendCopy}
-              onTakeBack={takeBack}
-              onMarkDone={markDone}
-              onUndoDone={undoDone}
-              flagsBusy={flagsBusy}
-              onConfirm={confirmLink}
-            />
-          )}
-    </>
-  );
+  /* THE FACES, each drawn once, under the page's head. */
   const faceMoney = (
     <>
           {moneyVisible &&
@@ -2164,8 +1925,7 @@ export function JobSheet({
               onKeyDown={(e) => {
                 if (e.key === "Enter") makeProject();
                 if (e.key === "Escape") {
-                  /* Cancels the naming, not the card: a key taken here is
-                     one the overlay stack leaves alone. */
+                  /* Cancels the naming. */
                   e.preventDefault();
                   setNaming(false);
                 }
@@ -2184,8 +1944,7 @@ export function JobSheet({
     </>
   );
 
-  /* The dialogs over the job, in its own portal (a card) or in one of
-     their own (the page). */
+  /* The dialogs over the job, in a portal of their own. */
   const dialogs = (
     <>
       {/* BOOK IN, the Visit form (two-way phase 3): Add › Visit, the Visits
@@ -2374,463 +2133,157 @@ export function JobSheet({
               }
             />
     ) : null;
-  const attentionStrip = attentionStripOf(false);
 
-  if (page) {
-    /* THE JOB'S PAGE (v2, step 5): the head, then the section's faces. */
-    const address = (detail?.address ?? detail?.geoLine ?? row.suburb ?? "")
-      .split(/\s*\n\s*/)
-      .filter(Boolean)
-      .join(", ");
-    const status = (cardStatus ?? "").trim();
-    /* "Work Order" as a sentence says it: "Work order" */
-    const kind = status ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase() : "";
-    const facts = [kind, cardNumber ? `Job ${cardNumber}` : "", address].filter(Boolean).join(", ");
-    /* no numbers on the sections (rule 31, Isaac, 20 October) */
-    const sections = sectionsFor(moneyVisible).map((key) => ({ key, label: SECTION_LABEL[key] }));
-    /* ACTIONS (rule 53): only what's done to the job itself. Its stage
-       first, then what the page does (pin it, copy the link), then the
-       card's own two once-per-job acts for a manager. Nothing here ends a
-       job: ServiceM8 does that. */
-    const actionItems: MenuItem[] = [
-      ...(offerWorkOrder && wo === null ? [{ key: "work-order", label: "Make it a work order" }] : []),
-      ...page.actions,
-      ...(manage
-        ? [
-            { key: "project", label: "Create a project from this job", disabled: busy },
-            { key: "agreement", label: "Create a maintenance agreement", disabled: busy },
-          ]
-        : []),
-    ];
-    const actionPick = (key: string) => {
-      if (key === "work-order") setWo("ask");
-      else if (key === "project") {
-        setName(row.clientName ?? "");
-        setNaming(true);
-      } else if (key === "agreement") onCreateAgreement(row, detail);
-      else page.onAction(key);
-    };
-    return (
-      <>
-        <div className="wb2-sheet jc jp-sheet">
-          <JobPageHead
-            name={detail?.clientName ?? row.clientName ?? "Unnamed client"}
-            hue={jobHue(categoryColour, status.toLowerCase() === "unsuccessful")}
-            facts={facts}
-            /* not until the job is read: before it, the steps are a quote's
-               with nothing done, and the head said "Enquiry" on any job; and
-               not on Overview, where the stages line and Money say it */
-            stage={detail && page.section !== "overview" ? stageWord(steps) : null}
-            sm8Href={sm8Href}
-            add={{ items: addItems, onPick: addPick, disabled: !cardId, onReach: askQuote }}
-            actions={{ items: actionItems, onPick: actionPick }}
-            sections={sections}
-            section={page.section}
-            onSection={(key) => go(SECTION_FACES[key as JobSection][0]!)}
-          />
-          {offerWorkOrder && (wo === "ask" || wo === "busy") && (
-            <div className="jp-ask" role="group" aria-label="Make it a work order">
-              <span>Make it a Work Order in ServiceM8?</span>
-              <Button kind="main" size={32} disabled={wo === "busy"} onClick={() => void pressWorkOrder()}>
-                {wo === "busy" ? "Making it a work order" : "Make it a work order"}
-              </Button>
-              {wo === "ask" && (
-                <Button kind="second" size={32} onClick={() => setWo(null)}>
-                  Keep it a quote
-                </Button>
-              )}
-            </div>
-          )}
-          {here && <p className="wb2-here">{here}</p>}
-          <div className="wb2-jcbody jp-body" role="tabpanel" aria-labelledby={`jp-tab-${page.section}`}>
-            {err && <div className="wb2-sherr">{err}</div>}
-            {/* OVERVIEW: the stages line (6-revisions: it lives on Overview
-                only) over the four tiles, the customer under them, and the
-                job's conversation beside them (four tiles, Isaac, 22 October
-                2026). What's open on the job is the Overview's, not every
-                tab's (Isaac, 20 October), and it is To do's: an ask in a
-                note is a thing to do (the mock's "To do is the job's open
-                asks") */}
-            <div className="jp-over" hidden={page.section !== "overview"}>
-              <JobOverview
-                cardId={cardId}
-                label={[cardNumber, detail?.clientName ?? row.clientName].filter(Boolean).join(" ") || undefined}
-                story={story}
-                loading={loading && !detail}
-                moneyVisible={moneyVisible}
-                detail={detail}
-                fallbackWhat={row.title}
-                head={<JobProgressLine steps={steps} open={step} onOpen={openStep} />}
-                tiles={{
-                  onVisits: () => go("visits"),
-                  onBook: bookings?.canBook ? () => addPick("visit") : undefined,
-                  money: moneyVisible ? (
-                    record !== undefined || recordFailed ? (
-                      <JobMoneyGlance
-                        family={family}
-                        money={money}
-                        ledgerPaidCents={record?.ledger ? paymentsTotalCents(record.ledger.payments) : 0}
-                        statusLabel={row.statusLabel}
-                        unavailable={recordFailed}
-                      />
-                    ) : (
-                      <p className="jt-cap">Reading the figures</p>
-                    )
-                  ) : undefined,
-                  onMoney: moneyVisible ? () => go("money") : undefined,
-                  onAddTask: manage && detail ? () => addPick("task") : undefined,
-                  open: attentionStripOf(true),
-                  openCount: attention?.total ?? 0,
-                }}
-                diary={{
-                  onOpenClaim: setOpenClaim,
-                  onPhotos: () => go("photos"),
-                  onWrite: cardId ? writeNote : undefined,
-                  onRemoveNote: unwriteNote,
-                  sender,
-                  notesSm8,
-                  flags,
-                  flagsBusy,
-                  focusFlagged: flagFocus,
-                  replyFor,
-                  onReplyShown: () => setReplyFor(null),
-                  onReply: replyNote,
-                  onSendCopy: sendCopy,
-                  onTakeBack: takeBack,
-                  onMarkDone: markDone,
-                  onUndoDone: undoDone,
-                  onConfirm: confirmLink,
-                }}
-                onToast={onToast}
-                aside={
-                  <section className="jc-cust" aria-label="The customer">
-                    <JobCustomer detail={detail} onEdit={customerEdit && cardId ? () => setEditingCustomer(true) : undefined} />
-                    {/* a tracked job wears its board, as the card's chip did */}
-                    {row.tracked && (
-                      <Button kind="quiet" size={32} onClick={() => onOpenTracked(row.tracked!)}>
-                        {row.tracked.kind === "visit" ? "Open it on the maintenance board" : "Open it on the projects board"}
-                      </Button>
-                    )}
-                  </section>
-                }
-              />
-            </div>
-            {faceMoney}
-            {faceVisits}
-            {faceChecklist}
-            {facePhotos}
-            {faceQuote}
-            {faceDocuments}
-          </div>
-          {footer}
-        </div>
-        {/* the dialogs portal, as the card's do: the page's own stacking
-            context would trap a fixed layer under the frame */}
-        {hydrated && createPortal(dialogs, document.body)}
-      </>
-    );
-  }
-
-  return createPortal(
+  /* THE JOB'S PAGE (v2, step 5): the head, then the section's faces. */
+  const address = (detail?.address ?? detail?.geoLine ?? row.suburb ?? "")
+    .split(/\s*\n\s*/)
+    .filter(Boolean)
+    .join(", ");
+  const status = (cardStatus ?? "").trim();
+  /* "Work Order" as a sentence says it: "Work order" */
+  const kind = status ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase() : "";
+  const facts = [kind, cardNumber ? `Job ${cardNumber}` : "", address].filter(Boolean).join(", ");
+  /* no numbers on the sections (rule 31, Isaac, 20 October) */
+  const sections = sectionsFor(moneyVisible).map((key) => ({ key, label: SECTION_LABEL[key] }));
+  /* ACTIONS (rule 53): only what's done to the job itself. Its stage
+     first, then what the page does (pin it, copy the link), then the
+     card's own two once-per-job acts for a manager. Nothing here ends a
+     job: ServiceM8 does that. */
+  const actionItems: MenuItem[] = [
+    ...(offerWorkOrder && wo === null ? [{ key: "work-order", label: "Make it a work order" }] : []),
+    ...page.actions,
+    ...(manage
+      ? [
+          { key: "project", label: "Create a project from this job", disabled: busy },
+          { key: "agreement", label: "Create a maintenance agreement", disabled: busy },
+        ]
+      : []),
+  ];
+  const actionPick = (key: string) => {
+    if (key === "work-order") setWo("ask");
+    else if (key === "project") {
+      setName(row.clientName ?? "");
+      setNaming(true);
+    } else if (key === "agreement") onCreateAgreement(row, detail);
+    else page.onAction(key);
+  };
+  return (
     <>
-      <OverlayWhileOpen of={sheet} onEscape={onEscape} />
-      <div className="wb2-scrim" onClick={onClose} />
-      <aside
-        ref={sheet}
-        className="wb2-sheet jc jcl"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`${row.clientName ?? "Job"}${row.number ? ` — job ${row.number}` : ""}`}
-        style={catTintVars(categoryColour)}
-      >
-        <div className="wb2-jcband">
-          <div className="wb2-shtop">
-            {/* THE NUMBER IS THE NAVIGATION. A job ServiceM8 billed in stages
-                wears a caret that lists its claims; a card opened FROM a claim
-                wears the crumb "#2380 › #2380A". */}
-            <span className="wb2-shnos">
-              {family && family.isFamily && family.claims.length > 1 ? (
-                <button
-                  className="wb2-shno open"
-                  onClick={() => setNumbersOpen((v) => !v)}
-                  aria-expanded={numbersOpen}
-                  aria-label={`${cardNumber ? `#${cardNumber}` : "No number"}, ${family.claims.length} invoices on this job`}
-                >
-                  {cardNumber ? `#${cardNumber}` : "—"}
-                  <i className="wb2-shcar" aria-hidden>
-                    ▾
-                  </i>
-                </button>
-              ) : (
-                <span className="wb2-shno">{cardNumber ? `#${cardNumber}` : "—"}</span>
-              )}
-              {focusClaim && (
-                <>
-                  <i className="wb2-shcrumb" aria-hidden>
-                    ›
-                  </i>
-                  <button
-                    className="wb2-shno here"
-                    onClick={() => setOpenClaim(focusClaim.remoteId)}
-                    aria-label={`Open ${claimTitle(focusClaim)}`}
-                  >
-                    {focusClaim.jobNumber ? `#${focusClaim.jobNumber}` : "—"}
-                  </button>
-                </>
-              )}
-              {numbersOpen && family && (
-                <span className="wb2-shnopop">
-                  {family.claims.map((c) => (
-                    <button
-                      key={c.remoteId}
-                      className={c.remoteId === focus ? "on" : undefined}
-                      onClick={() => {
-                        setNumbersOpen(false);
-                        setOpenClaim(c.remoteId);
-                      }}
-                    >
-                      <span className="n">{c.jobNumber ? `#${c.jobNumber}` : "—"}</span>
-                      <span className="t">{claimTitle(c)}</span>
-                      <span className="a">
-                        {c.amountCents !== null ? fmtAud(c.amountCents) : "—"}
-                      </span>
-                    </button>
-                  ))}
-                </span>
-              )}
-            </span>
-            <span className="wb2-jcid">
-              <h2 className="wb2-shname">
-                {detail?.clientName ?? row.clientName ?? "Unnamed client"}
-              </h2>
-              <p className="wb2-jcaddr">
-                {detail?.address ?? detail?.geoLine ?? row.suburb ?? "No address on the job"}
-              </p>
-            </span>
-            {windowControls}
-            <span className="wb2-jcadd">
-              <Button
-                ref={addRef}
-                kind="second"
-                size={32}
-                icon="plus"
-                disabled={!cardId}
-                aria-haspopup="menu"
-                aria-expanded={adding}
-                onPointerEnter={askQuote}
-                onFocus={askQuote}
-                onClick={() => {
-                  askQuote();
-                  setAdding((v) => !v);
-                }}
-              >
-                Add
+      <div className="wb2-sheet jc jp-sheet">
+        <JobPageHead
+          name={detail?.clientName ?? row.clientName ?? "Unnamed client"}
+          hue={jobHue(categoryColour, status.toLowerCase() === "unsuccessful")}
+          facts={facts}
+          /* not until the job is read: before it, the steps are a quote's
+             with nothing done, and the head said "Enquiry" on any job; and
+             not on Overview, where the stages line and Money say it */
+          stage={detail && page.section !== "overview" ? stageWord(steps) : null}
+          sm8Href={sm8Href}
+          add={{ items: addItems, onPick: addPick, disabled: !cardId, onReach: askQuote }}
+          actions={{ items: actionItems, onPick: actionPick }}
+          sections={sections}
+          section={page.section}
+          onSection={(key) => go(SECTION_FACES[key as JobSection][0]!)}
+        />
+        {offerWorkOrder && (wo === "ask" || wo === "busy") && (
+          <div className="jp-ask" role="group" aria-label="Make it a work order">
+            <span>Make it a Work Order in ServiceM8?</span>
+            <Button kind="main" size={32} disabled={wo === "busy"} onClick={() => void pressWorkOrder()}>
+              {wo === "busy" ? "Making it a work order" : "Make it a work order"}
+            </Button>
+            {wo === "ask" && (
+              <Button kind="second" size={32} onClick={() => setWo(null)}>
+                Keep it a quote
               </Button>
-              <Menu
-                anchor={addRef}
-                open={adding}
-                onClose={() => setAdding(false)}
-                onSelect={addPick}
-                items={addItems}
-                label="Add to this job"
-                align="end"
-              />
-            </span>
-            <span className="wb2-shchips">
-              {focusClaim && <span className="wb2-chip cat">{claimTitle(focusClaim)}</span>}
-              {/* THE CHIP IS THE DOOR — the shape the tracked chip proved.
-                  It used to read "ServiceM8 job", which is a fact the reader
-                  already had (every job on this board is one); it says how
-                  fresh the card is instead, and opens the job over there.
-                  NOT in the ⋯: that menu renders only for someone who can
-                  create projects, and getting back to ServiceM8 is not a
-                  manager's action. */}
-              {sm8Href ? (
-                <a
-                  className={"wb2-chip door" + (sm8?.attention ? " dan" : "")}
-                  href={sm8Href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {sm8Line}
-                  <Icon name="arrowUR" size={12} />
-                </a>
-              ) : (
-                <span className="wb2-chip">
-                  {sm8Line}
-                </span>
-              )}
-              {cardStatus && (
-                <span className={"wb2-chip" + (cardTone ? ` ${cardTone}` : "")}>
-                  {cardStatus}
-                  {!dateStandsAlone && cardDate ? `, ${fmtAuWeekdayDayMonth(cardDate)}` : ""}
-                </span>
-              )}
-              {offerWorkOrder &&
-                (wo === "ask" || wo === "busy" ? (
-                  <>
-                    <span className="wb2-chip">Make it a Work Order in ServiceM8?</span>
-                    <button type="button" className="wb2-chip" disabled={wo === "busy"} onClick={() => void pressWorkOrder()}>
-                      {wo === "busy" ? "Making the Work Order" : "Yes"}
-                    </button>
-                    {wo === "ask" && (
-                      <button type="button" className="wb2-chip" onClick={() => setWo(null)}>
-                        No
-                      </button>
-                    )}
-                  </>
-                ) : (
-                  <button type="button" className="wb2-chip" onClick={() => setWo("ask")}>
-                    Make it a work order
-                  </button>
-                ))}
-              {dateStandsAlone && cardDate && (
-                <span className="wb2-chip">
-                  {`${cardDateLabel === "booked" ? "Booked" : "Raised"} ${fmtAuWeekdayDayMonth(cardDate)}`}
-                </span>
-              )}
-              {scheduleState && (
-                <span className={"wb2-chip" + (scheduleState.kind === "late" ? " dan" : "")}>
-                  {scheduleState.kind === "late" && (
-                    <i className="wb2-shbang" aria-hidden="true">
-                      !
-                    </i>
-                  )}
-                  {scheduleState.word}
-                </span>
-              )}
-              {categoryName && (
-                <span className="wb2-chip">
-                  {categoryColour && (
-                    <i className="wb2-catdot" style={{ background: categoryColour }} aria-hidden />
-                  )}
-                  {categoryName}
-                </span>
-              )}
-              {/* A TRACKED JOB WEARS ITS BOARD. The door used to hide on the
-                  Actions face; a fact this useful belongs where the chips
-                  are, and the chip IS the door. */}
-              {row.tracked && (
-                <button
-                  className="wb2-chip blue"
-                  onClick={() => onOpenTracked(row.tracked!)}
-                >
-                  {row.tracked.kind === "visit"
-                    ? "On the maintenance board"
-                    : "On the projects board"}
-                  <i className="wb2-shcar" aria-hidden>
-                    ›
-                  </i>
-                </button>
-              )}
-            </span>
-            {here && <p className="wb2-here">{here}</p>}
-            {/* THE WAYS OUT OF THIS JOB, back behind the ⋯. They spent one
-                release as an Actions face — two ghost buttons alone on a
-                page — and a face that sparse reads as broken. A disclosure,
-                not an ARIA menu widget: role="menu" promises arrow-key
-                navigation, and promising it without implementing it is worse
-                for a screen reader than two plain buttons. */}
-            {manage && (
-              <span className="wb2-shmenu">
-                <button
-                  className="wb2-ico"
-                  onClick={() => setMenuOpen((v) => !v)}
-                  aria-label="More actions"
-                  aria-expanded={menuOpen}
-                >
-                  <Icon name="dots" size={14} />
-                </button>
-                {menuOpen && (
-                  <span className="wb2-shmpop">
-                    <button
-                      disabled={busy}
-                      onClick={() => {
-                        setMenuOpen(false);
-                        setName(row.clientName ?? "");
-                        setNaming(true);
-                      }}
-                    >
-                      <Icon name="plus" size={14} />
-                      Create a project from this job
-                    </button>
-                    <button
-                      disabled={busy}
-                      onClick={() => {
-                        setMenuOpen(false);
-                        onCreateAgreement(row, detail);
-                      }}
-                    >
-                      <Icon name="file" size={14} />
-                      Create a maintenance agreement
-                    </button>
-                  </span>
-                )}
-              </span>
             )}
-            <button
-              ref={closeRef}
-              className="wb2-ico"
-              onClick={onClose}
-              aria-label="Close"
-            >
-              <Icon name="x" size={14} />
-            </button>
           </div>
-
-          {/* ABOVE THE TABS, ON EVERY FACE. The strip outranks the row for
-              the same reason it outranks the summary: what needs you beats
-              where it's up to. It draws nothing at all on a quiet job. */}
-          {attentionStrip}
-
-          <JobProgressLine steps={steps} open={step} onOpen={openStep} />
-        </div>
-
-        <div className="jcl-body">
-        <div className="jcl-rail">
-          <div className="jcl-nav" role="tablist" aria-orientation="vertical" aria-label="Job card">
-            {rail.map((r, i) => (
-              <button
-                key={r.key}
-                type="button"
-                role="tab"
-                id={`jctab-${r.key}`}
-                aria-controls={`jcsec-${r.key}`}
-                aria-selected={step === null && tab === r.key}
-                tabIndex={step === null && tab === r.key ? 0 : -1}
-                className={"jcl-ni" + (step === null && tab === r.key ? " on" : "")}
-                onClick={() => go(r.key)}
-                onKeyDown={(e) => railKey(e, i)}
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
-          <JobCustomer detail={detail} onEdit={customerEdit && cardId ? () => setEditingCustomer(true) : undefined} />
-        </div>
-
-        <div className="wb2-jcbody">
+        )}
+        {here && <p className="wb2-here">{here}</p>}
+        <div className="wb2-jcbody jp-body" role="tabpanel" aria-labelledby={`jp-tab-${page.section}`}>
           {err && <div className="wb2-sherr">{err}</div>}
-          {faceSummary}
-          {faceDiary}
+          {/* OVERVIEW: the stages line (6-revisions: it lives on Overview
+              only) over the four tiles, the customer under them, and the
+              job's conversation beside them (four tiles, Isaac, 22 October
+              2026). What's open on the job is the Overview's, not every
+              tab's (Isaac, 20 October), and it is To do's: an ask in a
+              note is a thing to do (the mock's "To do is the job's open
+              asks") */}
+          <div className="jp-over" hidden={page.section !== "overview"}>
+            <JobOverview
+              cardId={cardId}
+              label={[cardNumber, detail?.clientName ?? row.clientName].filter(Boolean).join(" ") || undefined}
+              story={story}
+              loading={loading && !detail}
+              moneyVisible={moneyVisible}
+              detail={detail}
+              fallbackWhat={row.title}
+              head={<JobProgressLine steps={steps} open={step} onOpen={openStep} />}
+              tiles={{
+                onVisits: () => go("visits"),
+                onBook: bookings?.canBook ? () => addPick("visit") : undefined,
+                money: moneyVisible ? (
+                  record !== undefined || recordFailed ? (
+                    <JobMoneyGlance
+                      family={family}
+                      money={money}
+                      ledgerPaidCents={record?.ledger ? paymentsTotalCents(record.ledger.payments) : 0}
+                      statusLabel={row.statusLabel}
+                      unavailable={recordFailed}
+                    />
+                  ) : (
+                    <p className="jt-cap">Reading the figures</p>
+                  )
+                ) : undefined,
+                onMoney: moneyVisible ? () => go("money") : undefined,
+                onAddTask: manage && detail ? () => addPick("task") : undefined,
+                open: attentionStripOf(true),
+                openCount: attention?.total ?? 0,
+              }}
+              diary={{
+                onOpenClaim: setOpenClaim,
+                onPhotos: () => go("photos"),
+                onWrite: cardId ? writeNote : undefined,
+                onRemoveNote: unwriteNote,
+                sender,
+                notesSm8,
+                flags,
+                flagsBusy,
+                focusFlagged: flagFocus,
+                replyFor,
+                onReplyShown: () => setReplyFor(null),
+                onReply: replyNote,
+                onSendCopy: sendCopy,
+                onTakeBack: takeBack,
+                onMarkDone: markDone,
+                onUndoDone: undoDone,
+                onConfirm: confirmLink,
+              }}
+              onToast={onToast}
+              aside={
+                <section className="jc-cust" aria-label="The customer">
+                  <JobCustomer detail={detail} onEdit={customerEdit && cardId ? () => setEditingCustomer(true) : undefined} />
+                  {/* a tracked job wears its board, as the card's chip did */}
+                  {row.tracked && (
+                    <Button kind="quiet" size={32} onClick={() => onOpenTracked(row.tracked!)}>
+                      {row.tracked.kind === "visit" ? "Open it on the maintenance board" : "Open it on the projects board"}
+                    </Button>
+                  )}
+                </section>
+              }
+            />
+          </div>
           {faceMoney}
           {faceVisits}
           {faceChecklist}
           {facePhotos}
           {faceQuote}
           {faceDocuments}
-          {/* No Actions face. The once-per-job acts live behind the band's
-              ⋯; the naming row below is the only floor furniture, and only
-              while a project is being named — and the send row, only while
-              the Documents face has something ticked. */}
         </div>
-        </div>
-
         {footer}
-      </aside>
-
-      {dialogs}
-    </>,
-    document.body
+      </div>
+      {/* the dialogs portal, as the card's do: the page's own stacking
+          context would trap a fixed layer under the frame */}
+      {hydrated && createPortal(dialogs, document.body)}
+    </>
   );
 }

@@ -104,9 +104,18 @@ jest.mock("@/app/actions/booking-sm8", () => ({
   readBookingStates: (...a: unknown[]) => bk.readBookingStates(...(a as [never])),
 }));
 
+import { useState } from "react";
 import { JobSheet } from "../job-sheet";
+import type { JobSection } from "@/lib/jobs/job-sections";
 
-/** The Visit form, open over the card on this job. */
+type JobProps = Omit<Parameters<typeof JobSheet>[0], "page"> & { section?: JobSection };
+/** The job's page on one section; a move to another section draws it, as the page does. */
+function Job({ section: first = "visits", ...p }: JobProps) {
+  const [section, setSection] = useState<JobSection>(first);
+  return <JobSheet {...p} page={{ section, onSection: setSection, actions: [], onAction: () => {} }} />;
+}
+
+/** The Visit form, open over the page on this job. */
 const visitForm = async () => {
   const form = await screen.findByRole("dialog", { name: "Book a visit" });
   expect(within(form).getByText("Job 3342, Sample Client Pty Ltd, Rose Bay")).toBeInTheDocument();
@@ -233,12 +242,12 @@ const ourVerb = (state: BookingState = sentLine): VerbView => ({
 });
 
 const noop = () => {};
-const props = { manage: true, moneyVisible: false, onClose: noop, onCreateAgreement: noop, onOpenTracked: noop, onToast: jest.fn() };
+const props = { manage: true, moneyVisible: false, onCreateAgreement: noop, onOpenTracked: noop, onToast: jest.fn() };
 const visits = () => within(document.querySelector("#jcsec-visits") as HTMLElement);
-const open = async (extra: Partial<Parameters<typeof JobSheet>[0]> = {}) => {
-  render(<JobSheet row={row()} {...props} {...extra} />);
-  await screen.findByText("Rose Bay NSW 2029");
-  if (!extra.openBookIn && !extra.openClear) await userEvent.click(screen.getByRole("button", { name: /^Installation/ }));
+/** The job's page on Visits, with the job read. */
+const open = async (extra: Partial<JobProps> = {}) => {
+  render(<Job row={row()} {...props} {...extra} />);
+  await waitFor(() => expect(document.querySelector(".jp-facts")).toHaveTextContent("Rose Bay NSW 2029"));
 };
 
 beforeEach(() => {
@@ -295,14 +304,6 @@ describe("Book in on the card (D-1)", () => {
     await open();
     await visits().findByText("Next on site");
     expect(visits().queryByRole("button", { name: BOOKING_WORDS.panel.book })).toBeNull();
-  });
-
-  it("opens straight on Visits with the Visit form open for a door that came to book", async () => {
-    readMirrorJob.mockResolvedValue({ detail: detail({ booked: [] }), focusRemoteId: null });
-    readJobRecord.mockResolvedValue(record(bookings()));
-    await open({ openBookIn: true });
-    expect(screen.getByRole("button", { name: /^Installation/ })).toHaveAttribute("aria-pressed", "true");
-    await visitForm();
   });
 });
 
@@ -516,10 +517,11 @@ describe("a leftover (D-7)", () => {
     expect(readMirrorJob.mock.calls.length).toBe(reads + 1);
   });
 
-  it("Keep backs out; a door that came to clear opens with the question asked", async () => {
+  it("Keep backs out", async () => {
     leftover("Completed");
     readJobRecord.mockResolvedValue(record(bookings({ canBook: false })));
-    await open({ openClear: LEFT.toUpperCase() });
+    await open();
+    await userEvent.click(await visits().findByRole("button", { name: BOOKING_WORDS.door.clearBooking }));
     const keep = await visits().findByRole("button", { name: BOOKING_WORDS.door.keep });
     await userEvent.click(keep);
     expect(visits().queryByRole("button", { name: BOOKING_WORDS.door.keep })).toBeNull();
@@ -536,7 +538,7 @@ describe("the poll (D-11)", () => {
     readMirrorJob.mockResolvedValue({ detail: detail({ booked: [entry()] }), focusRemoteId: null });
     readJobRecord.mockResolvedValue(record(bookings({ verbs: [v] })));
     bk.readBookingStates.mockResolvedValue({ verbs: [v], lines: {}, gone: [THEIRS.toUpperCase()] });
-    render(<JobSheet row={row()} {...props} initialTab="visits" />);
+    render(<Job row={row()} {...props} />);
     await act(async () => {
       await jest.advanceTimersByTimeAsync(0);
     });
@@ -566,7 +568,7 @@ describe("the poll (D-11)", () => {
     v.bookings[0] = { ...v.bookings[0], uuid: NOT_YET, standing: false };
     readJobRecord.mockResolvedValue(record(bookings({ verbs: [v] })));
     bk.readBookingStates.mockResolvedValue({ verbs: [ourVerb()], lines: {}, gone: [] });
-    render(<JobSheet row={row()} {...props} initialTab="visits" />);
+    render(<Job row={row()} {...props} />);
     await act(async () => {
       await jest.advanceTimersByTimeAsync(0);
     });
@@ -609,7 +611,11 @@ describe("the poll (D-11)", () => {
     } as never);
     bk.bookJobIn.mockResolvedValue({ ok: true, verb: trial, rowIds: ["s-1", "c-2"] } as never);
     bk.readBookingStates.mockResolvedValue({ verbs: [trial], lines: {}, gone: [] });
-    render(<JobSheet row={row()} {...props} openBookIn />);
+    render(<Job row={row()} {...props} />);
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(0);
+    });
+    fireEvent.click(visits().getByRole("button", { name: BOOKING_WORDS.panel.book }));
     const who = await screen.findByRole("combobox", { name: BOOKING_WORDS.panel.who });
     await waitFor(() => expect(who).toBeEnabled());
     fireEvent.click(who);
@@ -630,7 +636,7 @@ describe("the poll (D-11)", () => {
   it("(F) asks nothing where nothing is on its way", async () => {
     jest.useFakeTimers({ doNotFake: ["queueMicrotask", "nextTick", "setImmediate"] });
     readJobRecord.mockResolvedValue(record(bookings({ verbs: [ourVerb()] })));
-    render(<JobSheet row={row()} {...props} initialTab="visits" />);
+    render(<Job row={row()} {...props} />);
     for (let i = 0; i < 3; i++) {
       await act(async () => {
         await jest.advanceTimersByTimeAsync(10_000);

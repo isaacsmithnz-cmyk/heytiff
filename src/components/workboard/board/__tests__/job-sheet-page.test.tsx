@@ -202,7 +202,6 @@ const draw = (section: JobSection, extra: { moneyVisible?: boolean; manage?: boo
       moneyVisible={extra.moneyVisible ?? false}
       initialTab="summary"
       page={pageOf(section)}
-      onClose={noop}
       onCreateAgreement={onCreateAgreement}
       onOpenTracked={noop}
       onToast={noop}

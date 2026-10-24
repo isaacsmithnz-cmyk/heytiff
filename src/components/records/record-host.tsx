@@ -1,13 +1,12 @@
 "use client";
 
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { openMirrorJob } from "@/app/actions/workboard";
 import { openMaintenanceCard } from "@/app/actions/workboard-records";
 import { ToastHost, useBoardToasts } from "@/components/workboard/board/toasts";
-import type { AllJobRow } from "@/lib/workboard/all-jobs";
 import { encodeRecord, openParamOf, recordKey, withOpenParam, type RecordRef } from "@/lib/records/ref";
+import { jobHref } from "@/lib/shell/links";
 import {
   DOCK_MAX,
   RECENT_MAX,
@@ -37,7 +36,7 @@ export type { OpenRecordOptions, RecentRecord, RecordsApi, Win, WindowsApi } fro
    sits above the outlet, so opening a record changes no route and the
    screen underneath stays exactly as it was. Every door calls `open()`.
 
-   THE ADDRESS CARRIES THE CARD IN FRONT (`?open=job.<uuid>`), pushed when a
+   THE ADDRESS CARRIES THE CARD IN FRONT (`?open=visit.<id>`), pushed when a
    door opens it, so Back closes it, a refresh brings it back over the same
    screen, and the address can be copied. Closing it from the card takes the
    entry back off. The other screens' own `?job=`-style links keep working.
@@ -59,11 +58,13 @@ export type { OpenRecordOptions, RecentRecord, RecordsApi, Win, WindowsApi } fro
    address there still names it. A card set aside is on no screen, so it
    goes with you.
 
-   NEXT JOB. A door that opened the job from a list (⌘K's jobs, a list of
-   job links) hands the list over, and the card steps through it in place.
+   A JOB IS A PAGE (24 October 2026: the old pop-up job card went). A door
+   to a job goes to its page, `/dashboard/jobs/<uuid>`, and an old
+   `?open=job.<uuid>` link is replaced by it. Only a visit and a service
+   agreement, which have no page of their own, open here.
 
-   The card is the board's own `JobSheet`; this host only decides where it
-   opens. Its permissions come from the shell's capability read, through
+   The cards are the boards' own sheets; this host only decides where they
+   open. Its permissions come from the shell's capability read, through
    the `ShellRecords` slot, so the card offers here exactly what it offers
    on the board. */
 
@@ -85,25 +86,16 @@ function giveFocusBack(win: Win | undefined) {
   if (to?.isConnected) to.focus({ preventScroll: true });
 }
 
-/** Where a list puts a job: the one after, or before, or none. */
-function stepIn(win: Win | undefined, by: 1 | -1): string | null {
-  if (!win?.list) return null;
-  const at = win.list.indexOf(win.ref.id);
-  return at < 0 ? null : (win.list[at + by] ?? null);
-}
-
 /** What each kind is called in what the host says about it. */
-const NOUN: Record<RecordRef["kind"], string> = { job: "job", visit: "visit", agreement: "agreement" };
-const GONE: Record<RecordRef["kind"], string> = {
-  job: "That job isn't in ServiceM8's copy any more.",
+const NOUN = { visit: "visit", agreement: "agreement" } as const;
+const GONE = {
   visit: "That visit isn't on the board any more.",
   agreement: "That agreement isn't on the board any more.",
 };
 
-/** A record's card, read by its id: a job's row off the mirror, a visit's
-    or an agreement's off the maintenance board. Null when it is not there. */
-function loadBody(ref: RecordRef, jobBody: (row: AllJobRow) => WinBody): Promise<WinBody | null> {
-  if (ref.kind === "job") return openMirrorJob(ref.id).then((row) => (row ? jobBody(row) : null));
+/** A visit's or an agreement's card, read by its id off the maintenance
+    board. Null when it is not there. */
+function loadBody(ref: { kind: "visit" | "agreement"; id: string }): Promise<WinBody | null> {
   return openMaintenanceCard(ref.kind, ref.id).then((read) => {
     if (!read) return null;
     return read.kind === "visit" ? { kind: "visit", card: read.card } : { kind: "agreement", card: read.card };
@@ -144,6 +136,7 @@ function RecordsCore({
       back on load, and keep a dock. */
   syncUrl: boolean;
 }) {
+  const router = useRouter();
   const [windows, setWindows] = useState<Win[]>([]);
   const [recent, setRecent] = useState<RecentRecord[]>([]);
   const { toasts, toast, dismiss: dismissToast } = useBoardToasts();
@@ -199,23 +192,20 @@ function RecordsCore({
   const openRef = useCallback(
     (ref: RecordRef, opts: OpenRecordOptions = {}, address = true) => {
       const n = ++asked.current;
+      /* A JOB IS A PAGE: a door goes there; an address that named one (a
+         refresh, Back, an old link) is replaced by it, so Back never lands
+         on it again. */
+      if (ref.kind === "job") {
+        const to = jobHref(ref.id, opts.tab);
+        if (address) router.push(to);
+        else router.replace(to);
+        return;
+      }
       /* The screen it is asked over, off the address when the host follows
          it: on Back the address has moved before the router has. */
       const path = syncUrl ? window.location.pathname : pathname;
       const from = opts.from !== undefined ? opts.from : focused();
       const key = recordKey(ref);
-      /* What a job's door came for. A booking door is a fresh card even on
-         the job already open, so what it came for is what the card opens
-         on. */
-      const door =
-        ref.kind === "job" && (opts.bookIn || opts.clear) ? { bookIn: !!opts.bookIn, clear: opts.clear ?? null, n } : null;
-      const jobBody = (row: AllJobRow): WinBody => ({
-        kind: "job",
-        row,
-        state: opts.state ?? null,
-        tab: door ? "visits" : opts.tab,
-        door,
-      });
       /** In front, drawing `fresh` — or, with none, as it was left in the
           dock. */
       const land = (fresh: WinBody | null) => {
@@ -231,7 +221,6 @@ function RecordsCore({
             path,
             ref,
             from,
-            list: opts.list ?? (fresh ? null : (was?.list ?? null)),
             aside: false,
             body: fresh ?? was?.body ?? body,
           };
@@ -245,39 +234,35 @@ function RecordsCore({
         const { title, sub } = titleOf(body);
         setRecent((rs) => [{ key, ref, title, sub }, ...rs.filter((r) => r.key !== key)].slice(0, RECENT_MAX));
       };
-      /* A card in the dock comes back as it was left, unless the door
-         brought word of its own (the row, or what it came to book). */
-      if (!opts.row && !door && live.current.some((w) => w.key === key && w.aside)) {
+      /* A card in the dock comes back as it was left. */
+      if (live.current.some((w) => w.key === key && w.aside)) {
         land(null);
         return;
       }
-      if (ref.kind === "job" && opts.row) {
-        land(jobBody(opts.row));
-        return;
-      }
-      const noun = NOUN[ref.kind];
-      void loadBody(ref, jobBody).then(
+      const kind = ref.kind;
+      const noun = NOUN[kind];
+      void loadBody({ kind, id: ref.id }).then(
         (body) => {
           if (n !== asked.current) return;
           if (body) land(body);
-          else toast(GONE[ref.kind]);
+          else toast(GONE[kind]);
         },
         () => {
           if (n === asked.current) toast(`Could not open that ${noun}`);
         },
       );
     },
-    [pathname, syncUrl, pushAddress, toast],
+    [pathname, syncUrl, pushAddress, toast, router],
   );
 
   /* A CARD READ AGAIN in its place, after a press on it changed what it
-     was drawn from. A job's card reads its own; a visit's and an
-     agreement's are drawn from what was read, so they are read again. */
+     was drawn from: a visit's and an agreement's are drawn from what was
+     read, so they are read again. */
   const reload = useCallback(
     (key: string) => {
       const win = live.current.find((w) => w.key === key);
-      if (!win || win.body.kind === "job") return;
-      void loadBody(win.ref, () => win.body)
+      if (!win || win.ref.kind === "job") return;
+      void loadBody({ kind: win.ref.kind, id: win.ref.id })
         .then((body) => {
           if (!body) return;
           setWindows((ws) => ws.map((w) => (w.key === key ? { ...w, body } : w)));
@@ -299,11 +284,6 @@ function RecordsCore({
     },
     [dropAddress],
   );
-
-  const dismiss = useCallback(() => {
-    asked.current += 1;
-    setWindows((ws) => ws.filter((w) => w.aside));
-  }, []);
 
   const setAside = useCallback(
     (key: string) => {
@@ -328,29 +308,6 @@ function RecordsCore({
       if (win) openRef(win.ref);
     },
     [openRef],
-  );
-
-  const stepOf = useCallback((key: string, by: 1 | -1) => stepIn(windows.find((w) => w.key === key), by), [windows]);
-
-  const step = useCallback(
-    (key: string, by: 1 | -1) => {
-      const win = live.current.find((w) => w.key === key);
-      const id = stepIn(win, by);
-      if (!win || !id) return;
-      const next: RecordRef = { kind: "job", id };
-      /* The card steps in place: the address names the next job instead of
-         stacking an entry per job, so Back still closes the card. */
-      if (syncUrl) {
-        const ours = (window.history.state as Record<string, unknown> | null)?.[MARK] === win.key;
-        window.history.replaceState(
-          ours ? { [MARK]: recordKey(next) } : window.history.state,
-          "",
-          withOpenParam(window.location.href, next),
-        );
-      }
-      openRef(next, { list: win.list ?? undefined, from: win.from }, false);
-    },
-    [syncUrl, openRef],
   );
 
   /* A REFRESH, OR A COPIED LINK, brings the record back over the screen.
@@ -405,17 +362,14 @@ function RecordsCore({
       windows: shown,
       docked: syncUrl,
       close,
-      dismiss,
       setAside,
       restore,
-      stepOf,
-      step,
       reload,
       recent,
       remember,
       toast,
     }),
-    [shown, syncUrl, close, dismiss, setAside, restore, stepOf, step, reload, recent, remember, toast],
+    [shown, syncUrl, close, setAside, restore, reload, recent, remember, toast],
   );
 
   return (
@@ -429,8 +383,8 @@ function RecordsCore({
 }
 
 /* THE CARD'S CODE LOADS WHEN A RECORD OPENS, not with the frame. This slot
-   rides every screen, and the job card is a large component nobody should
-   pay for until they open one — the palette's photo viewer is loaded the
+   rides every screen, and a card is code nobody should pay for until they
+   open one — the palette's photo viewer is loaded the
    same way. */
 const LazyRecordWindows = dynamic(() => import("./record-windows").then((m) => m.RecordWindows), {
   ssr: false,
@@ -440,8 +394,8 @@ const LazyRecordWindows = dynamic(() => import("./record-windows").then((m) => m
     from the shell's capability read, which streams in behind its own
     boundary (`ShellRecords`); until it lands nothing is drawn, and the
     record waits in the host. */
-export function RecordWindowsSlot({ manage, moneyVisible }: { manage: boolean; moneyVisible: boolean }) {
+export function RecordWindowsSlot({ manage }: { manage: boolean }) {
   const host = useContext(WindowsContext);
   if (!host || host.windows.length === 0) return null;
-  return <LazyRecordWindows manage={manage} moneyVisible={moneyVisible} />;
+  return <LazyRecordWindows manage={manage} />;
 }

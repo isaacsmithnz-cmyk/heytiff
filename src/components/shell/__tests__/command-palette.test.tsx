@@ -66,7 +66,6 @@ import {
   type WindowsApi,
 } from "@/components/records/records-context";
 import { TiffContext, type TiffApi } from "@/components/tiff/modal/tiff-context";
-import type { AllJobRow } from "@/lib/workboard/all-jobs";
 import { useOverlay } from "@/components/overlay/use-overlay";
 import type { PhotoHit } from "@/app/actions/photo-search";
 import type { PaletteFinds } from "@/app/actions/palette";
@@ -605,32 +604,22 @@ describe("over a job card", () => {
 });
 
 describe("a palette that acts", () => {
-  /* ServiceM8 gives a v4 uuid, and only a uuid makes its link. */
-  const U = "0b6c4f0e-1a2b-4c3d-8e9f-0123456789ab";
+  /* A job is a page (24 October 2026): what opens under the palette is a
+     visit's card or an agreement's. */
   const card: Win = {
-    key: `job.${U}`,
+    key: "visit.v-7",
     path: "/dashboard",
-    ref: { kind: "job", id: U },
+    ref: { kind: "visit", id: "v-7" },
     from: null,
-    list: [U, "j-4822"],
     aside: false,
-    body: {
-      kind: "job",
-      row: { id: U, number: "4821", clientName: "Sarah Nguyen" } as AllJobRow,
-      state: null,
-      tab: undefined,
-      door: null,
-    },
+    body: { kind: "visit", card: { visit: { label: "Quarterly service", clientName: "Bayview" } } } as unknown as Win["body"],
   };
   const host = (over: Partial<WindowsApi> = {}): WindowsApi => ({
     windows: [card],
     docked: true,
     close: jest.fn(),
-    dismiss: jest.fn(),
     setAside: jest.fn(),
     restore: jest.fn(),
-    stepOf: (key, by) => (key === card.key && by === 1 ? "j-4822" : null),
-    step: jest.fn(),
     reload: jest.fn(),
     recent: [],
     toast: jest.fn(),
@@ -647,45 +636,24 @@ describe("a palette that acts", () => {
       </TiffContext.Provider>,
     );
 
-  it("leads with what can be done to the job open under it", () => {
+  it("leads with what can be done to the visit open under it", () => {
     const windows = host();
     drawWith(windows);
-    const group = screen.getByRole("group", { name: "Job 4821" });
-    expect(within(group).getAllByRole("option").map((o) => o.textContent?.replace(/\s+/g, " ").trim())).toEqual([
-      "Set aside",
-      "Next jobJ",
-      "Copy the link to this job",
-      "Open in ServiceM8",
-    ]);
-    fireEvent.click(within(group).getByRole("option", { name: "Set aside" }));
-    expect(close).toHaveBeenCalled();
-    expect(windows.setAside).toHaveBeenCalledWith(`job.${U}`);
-  });
-
-  it("narrows the verbs as you type, and steps to the next job", () => {
-    const windows = host();
-    drawWith(windows);
-    type("next");
-    const group = screen.getByRole("group", { name: "Job 4821" });
-    expect(within(group).getAllByRole("option")).toHaveLength(1);
-    press("Enter");
-    expect(windows.step).toHaveBeenCalledWith(`job.${U}`, 1);
-  });
-
-  it("over a visit, names the visit and offers what a visit has", () => {
-    const visit: Win = {
-      ...card,
-      key: "visit.v-7",
-      ref: { kind: "visit", id: "v-7" },
-      list: null,
-      body: { kind: "visit", card: { visit: { label: "Quarterly service", clientName: "Bayview" } } } as unknown as Win["body"],
-    };
-    drawWith(host({ windows: [visit], stepOf: () => null }));
     const group = screen.getByRole("group", { name: "Quarterly service" });
     expect(within(group).getAllByRole("option").map((o) => o.textContent)).toEqual([
       "Set aside",
       "Copy the link to this visit",
     ]);
+    fireEvent.click(within(group).getByRole("option", { name: "Set aside" }));
+    expect(close).toHaveBeenCalled();
+    expect(windows.setAside).toHaveBeenCalledWith("visit.v-7");
+  });
+
+  it("narrows the verbs as you type", () => {
+    drawWith(host());
+    type("copy");
+    const group = screen.getByRole("group", { name: "Quarterly service" });
+    expect(within(group).getAllByRole("option").map((o) => o.textContent)).toEqual(["Copy the link to this visit"]);
   });
 
   it("offers no Set aside where there is no dock", () => {

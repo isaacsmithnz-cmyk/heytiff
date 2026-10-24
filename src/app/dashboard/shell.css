@@ -135,7 +135,6 @@
 .fg .pg-hold { display:flex; align-items:center; justify-content:center; opacity:0; animation:pgHoldIn var(--t-move) var(--ease) .5s forwards; }
 @keyframes pgHoldIn { to { opacity:1; } }
 /* the job card's summary sweeps while its read is out */
-@keyframes pkSweep { from{background-position:200% 0;} to{background-position:-200% 0;} }
 
 /* noticeboard page items */
 .fg .nb-item { padding:24px 24px; }
@@ -3304,20 +3303,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .inp.err:focus { border-color:var(--bad);  box-shadow:var(--ring-bad); }
 .fg .ferr { font-size:12px; font-weight:700; color:var(--bad-t); }
 
-/* ---- read-mode fact rows (values that don't belong on the plastic) ---- */
-.fg .ro-row { display:flex; align-items:baseline; gap:16px; padding:12px 2px; border-bottom:1px solid var(--line); }
-.fg .ro-row:last-child { border-bottom:none; }
-.fg .ro-row em { font-style:normal; flex:0 0 190px; font-size:12px; font-weight:700; color:var(--gray700); }
-.fg .ro-row b { flex:1; min-width:0; font-size:14px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
-.fg .ro-row .num { font-variant-numeric:tabular-nums; }
-/* "Not set" — a fourth way past the -t text guard, and one this screen made
-   impossible to ignore. #bcc2cd is 1.86:1 on white: below the 3:1 a GRAPHIC
-   needs, let alone text. It was survivable while identity's read view was one
-   fact row; it is six now, so a fresh org rendered six lines of it. --q is the
-   quiet floor that actually clears AA on every ground this lands on. Still
-   italic and still light, because it is a placeholder — it just has to be
-   readable to work as one. */
-.fg .ro-none { font-style:italic; font-weight:500; color:var(--q); }
 .fg .ro-state { display:inline-flex; align-items:center; gap:4px; font-weight:700; }
 .fg .ro-state.ok { color:var(--ok-t); }
 .fg .ro-state.warn { color:var(--warn-t); }
@@ -3326,7 +3311,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 /* the role dot outside its picker — .permrole .prdot doesn't reach read mode */
 .fg .ro-state .prdot { width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
 .fg .ro-note { margin:0; font-size:14px; font-weight:500; line-height:1.6; color:var(--gray700); white-space:pre-wrap; }
-@media (max-width:560px){ .fg .ro-row { flex-direction:column; gap:4px; } .fg .ro-row em { flex:none; } }
+@media (max-width:560px){   }
 
 /* qualifications, as the list of tickets it is */
 .fg .qual-list { display:flex; flex-wrap:wrap; gap:8px; }
@@ -4408,28 +4393,7 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
 button.wb2-chip { font:inherit; font-size:13px; font-weight:500; color:var(--ink); background:var(--paper); border:1px solid var(--line); border-radius:var(--r-control); padding:4px 8px; cursor:pointer; }
 button.wb2-chip:hover { box-shadow:0 0 0 1px var(--info-t) inset;; }
 button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
-.wb2-empty { display:flex; flex-direction:column; align-items:center; gap:4px; text-align:center; padding:32px 16px; color:var(--gray500); }
-.wb2-empty svg { color:var(--q); }
-.wb2-empty b { font-size:14px; color:var(--ink); }
-.wb2-empty em { font-style:normal; font-size:13px; font-weight:500; text-wrap:pretty; }
-/* The integration gaps are the only empty states that explain a CAUSE rather
-   than name an absence, so they run two sentences where the rest run five
-   words — and two centred sentences at full card width is a 140-character
-   measure. Capped here rather than on `.wb2-empty em`, which would re-wrap a
-   dozen one-liners that were never too wide.
 
-   WRITTEN AS `em.wb2-emptybody` ON PURPOSE. `.wb2-empty em` above is (0,1,1)
-   and outranks any bare class, so a lone `.wb2-emptybody` would take the
-   max-width (nothing above declares it) but silently LOSE text-wrap back to
-   the inherited `pretty` — half a rule landing, which is the worst of the
-   three outcomes because it looks like it worked. `balance` is what a capped
-   two-line measure wants: `pretty` only protects the last line, and left this
-   one reading "…as / it goes." */
-.wb2-empty em.wb2-emptybody { max-width:46ch; text-wrap:pretty; }
-/* The one empty state that offers an ACTION rather than just a reason. Spaced
-   off the sentence above it so it reads as the next thing to do, not as the
-   end of the paragraph. */
-.wb2-emptylink { margin-top:4px; font-size:13px; }
 .can-open { cursor:pointer; }
 /* A div that SAYS role="button" has to feel like one. Real <button>s get
    cursor:pointer from the reset at the top of this file; a div doesn't, so
@@ -4478,55 +4442,6 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
   
 }
 
-/* ── THE SCHEDULE'S ONE TOOLBAR ──
-   Three bands stood between the card and the first crew — the date with its
-   week stepper, the seven-day strip, and the board's own top rule — 176px at
-   1600x900, on the screen whose whole point is how many crews you can see.
-   One 48px row now: step the week, read the day, reset to today, pick a day,
-   and the day's figures on the right.
-
-   Capacity wears this row too, from its own tab: the two deliberately shared
-   a header to the pixel so that moving between them moved nothing, and they
-   still do. The three-station header and the strip are deleted above.
-
-   EVERY TAB ON ALL THREE SIDES WEARS IT NOW (board/toolbar.tsx): the lists,
-   the Gallery, both Urgents, Upcoming, both Calendars, both Completeds,
-   Service agreements and Pipeline. Each had drawn its own head — an icon in a
-   tinted square, the tab's name a second time, a caption explaining the
-   section, a chip of counts. */
-/* `flex:none` because the panel is a flex COLUMN once the card fills the
-   well: without it a 48px band is a flex item free to shrink, and it was
-   rendering at 29. */
-/* STICKY, because only some tabs have an inspector. Where the board and the
-   panel scroll on their own the row sits outside the scroller and this does
-   nothing; where the whole panel scrolls — Urgent, Upcoming, Completed,
-   Agreements, Pipeline — it keeps the filters in reach instead of taking them
-   off the top with the first row. Paper behind it, so rows pass under cleanly;
-   the sticky layer, because that is what it is (law 19). */
-.wb2-tbar { flex:none; display:flex; align-items:center; gap:12px; height:48px; padding:0 24px;
-  border-bottom:1px solid var(--line);
-  position:sticky; top:0; z-index:var(--z-sticky); background:var(--paper); }
-
-/* a button in the row takes the row's control height — the header band's 32 —
-   rather than the page's 42 (law 33). Stated as `.wb2 .wb2-tbar .pbtn` with
-   both states named, because `.wb2 .pbtn:not(.ghost)` is (0,3,0) and sets 38. */
-.wb2 .wb2-tbar .pbtn, .wb2 .wb2-tbar .pbtn.ghost { height:32px; }
-/* a sentence that IS a state — "3 to confirm before Fri 14 Aug" — is set in
-   the state's colour, as a word would be (law 26) */
-.wb2-tbh2.warn, .wb2-tbsum .warn { color:var(--warn-t); }
-
-/* the open day is the row's title — a heading in a section, not a display */
-.wb2-tbh2 { flex:none; margin:0; font-size:var(--fs-4); font-weight:var(--fw-heading);
-  white-space:nowrap; }
-
-.wb2-tbsep { width:1px; height:20px; flex:none; background:var(--line); }
-
-/* THE MIRROR'S FRESHNESS closes every toolbar (board/sm8-chip.tsx says why it
-   left the header): a quiet line with a dot in its state's colour. It takes
-   the far end on a row with nothing else pushed there, and stands a gap off
-   whatever is. */
-.wb2-tbar > .wb2-sm8 { margin-left:auto; }
-
 .fg .page.full .wb2-panel:has(> .wb2-split) { overflow:hidden; }
 
 /* ── WHAT IS SELECTED, ON THE BOARD ──
@@ -4541,24 +4456,6 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
    either. Both are stated at the reset's own weight plus one. */
 button.wb2-ajr.as-btn:hover { background:var(--tint); }
 button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint-2); }
-
-/* ── THE FILTER CHIPS ──
-   What a person taps keeps a chip's form (law 26): a hairline and the
-   control radius, and the chosen one filled in ink. The count rides inside
-   the chip it belongs to, as a figure; where the count is a state (money
-   still out) the figure takes the state's colour and the word does not. */
-.wb2-fchips { display:flex; align-items:center; gap:2px; min-width:0; }
-.wb2-fchip { flex:none; display:inline-flex; align-items:center; gap:8px; height:28px; padding:0 8px;
-  border:1px solid var(--line); border-radius:var(--r-control); background:var(--paper);
-  font:inherit; font-size:13px; font-weight:500; color:var(--q); white-space:nowrap; cursor:pointer;
-  transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-fchip:hover { background:var(--tint); color:var(--ink); }
-.wb2-fchip:focus-visible { outline:none; box-shadow:var(--ring); }
-.wb2-fchip i { font-style:normal; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
-.wb2-fchip i.warn { color:var(--warn-t); }
-.wb2-fchip i.dan { color:var(--bad-t); }
-.wb2-fchip.on { background:var(--ink); border-color:var(--ink); color:var(--paper); font-weight:600; }
-.wb2-fchip.on i, .wb2-fchip.on i.warn, .wb2-fchip.on i.dan { color:var(--paper); }
 
   
 
@@ -4723,11 +4620,7 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .wb2-shname { flex:1 1 220px; min-width:0; margin:0; font-size:20px; font-weight:700;
   line-height:1.2; text-wrap:pretty; }
 .wb2-shchips { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-/* the rail's "!" disc, at chip scale — the one schedule state that is
-   actually wrong keeps its mark when the job opens into the sheet */
-.wb2-shchips .wb2-shbang { width:13px; height:13px; border-radius:50%; background:var(--wb2-dan);
-  color:var(--paper); display:grid; place-items:center; font-style:normal; font-size:12px; font-weight:700;
-  line-height:1; flex:none; }
+
 .wb2-ico { width:30px; height:30px; border-radius:var(--r-button); border:0; background:var(--tint); color:var(--gray700);
   display:grid; place-items:center; cursor:pointer; transition:background var(--t-fast) var(--ease); }
 .wb2-ico:hover { background:var(--tint-2); }
@@ -5285,11 +5178,7 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    wrapped the close button onto its own line the moment it did. */
 .wb2-jcband .wb2-shtop { padding:2px 32px 0 0; }
 .wb2-jcband .wb2-ico { position:absolute; top:12px; right:14px; }
-/* the ⋯ sits BESIDE the pinned ✕, not under it — the band pins every
-   .wb2-ico to the same corner, so the menu wrapper takes its own pin one
-   button-width left and un-pins the icon inside it */
-.wb2-jcband .wb2-shmenu { position:absolute; top:12px; right:52px; margin-left:0; }
-.wb2-jcband .wb2-shmenu .wb2-ico { position:static; }
+
 /* A CARD OPENED WHERE YOU ARE adds its window's controls, Next job and Set
    aside (components/records), at the end of the identity's line and level
    with the pinned ✕, clear of it, and of the ⋯ when there is one: that sits
@@ -5301,13 +5190,9 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .wb2-jcwin ~ .wb2-ico { margin-left:0; }
 .wb2-jcband .wb2-jcwin { align-self:flex-start; margin:-2px 4px 0 auto; }
 .wb2-jcband .wb2-shtop:has(.wb2-shmenu) .wb2-jcwin { margin-right:calc(52px + 30px + 8px - 16px - 32px); }
-/* ADD (rule 54) ends the identity's line, where the window's controls did,
-   so it takes their clearance of the pinned ✕ and ⋯, and they stand beside it */
-.wb2-jcadd { flex:none; display:flex; margin-left:auto; }
-.wb2-jcband .wb2-jcadd { align-self:flex-start; margin:-2px 4px 0 auto; }
-.wb2-jcband .wb2-shtop:has(.wb2-shmenu) .wb2-jcadd { margin-right:calc(52px + 30px + 8px - 16px - 32px); }
+
 .wb2-jcband .wb2-shtop:has(.wb2-jcadd) .wb2-jcwin { margin-right:8px; }
-.wb2-jcwin + .wb2-jcadd { margin-left:0; }
+
 /* the chips always take their own line under the identity — a half-wrapped
    chip row (two beside the name, three below) reads as an accident */
 .wb2-jcband .wb2-shchips { flex-basis:100%; margin-top:4px; }
@@ -5368,12 +5253,7 @@ a.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* the fact tiles were dressed for the old header's shoulder — inside a face
    the face's own gap spaces them, and inside a section the head is closer */
 .wb2-sheet.mv .wb2-jcface > .wb2-facts, .wb2-sheet.pv .wb2-jcface > .wb2-facts { margin-top:0; }
-/* ── THE JOB CARD'S PROGRESS LINE AND RAIL (.jcl) ────────────────────────
-   Isaac, 2026-10-01: a progress line across the top whose steps open their
-   part of the job below, and a rail down the left for what isn't a step.
-   A bigger box than the eight-tab card, because the rail takes a column.
-   The visit sheets (.mv, .pv) keep the folder tabs; only .jcl changes. */
-.wb2-sheet.jc.jcl { width:min(1280px, calc(100vw - 40px)); }
+
 .jcl-line { display:flex; align-items:center; gap:4px; margin:8px -8px 0; padding:0 0 12px; overflow-x:auto; scrollbar-width:none; }
 .jcl-line::-webkit-scrollbar { display:none; }
 .jcl-step { display:flex; align-items:center; gap:8px; flex:none; padding:8px 12px; border:0; border-radius:var(--r-button); background:none; font:inherit; text-align:left; color:var(--ink); cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
@@ -5395,16 +5275,7 @@ a.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 .jcl-step.skip .jcl-dot { border-style:dashed; }
 .jcl-link { flex:1 1 8px; min-width:8px; height:1px; background:var(--line); }
 .jcl-link.done { background:var(--ink); }
-/* the rail and the face side by side, under the band; the face is the
-   scroller, so the rail stays in reach however long a timeline runs */
-.jcl-body { flex:1 1 auto; min-height:0; display:grid; grid-template-columns:200px minmax(0,1fr); grid-template-rows:minmax(0,1fr); border-top:1px solid var(--line); }
-.wb2-sheet.jc.jcl .jcl-body > .wb2-jcbody { min-height:0; }
-.jcl-rail { border-right:1px solid var(--line); padding:16px 12px 24px; overflow-y:auto; }
-.jcl-nav { display:flex; flex-direction:column; gap:2px; }
-.jcl-ni { display:flex; align-items:center; height:40px; padding:0 12px; border:0; border-radius:var(--r-button); background:none; font:inherit; font-size:14px; font-weight:500; color:var(--ink); text-align:left; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
-.jcl-ni:hover { background:var(--tint); }
-.jcl-ni.on { background:var(--tint-2); font-weight:600; }
-.jcl-ni:focus-visible { outline:none; box-shadow:var(--ring); }
+
 /* the customer, under the rail's sections, on every part of the card */
 .jcl-cust { display:flex; flex-direction:column; gap:12px; margin-top:16px; padding:16px 4px 0; border-top:1px solid var(--line); }
 .jcl-cust h3 { margin:0; font-size:13px; font-weight:500; color:var(--q); }
@@ -5424,29 +5295,11 @@ a.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-po { margin:0; display:flex; flex-direction:column; gap:2px; font-size:13px; }
 .jcl-po em { font-style:normal; font-size:12px; font-weight:500; color:var(--q); }
-/* THE SUMMARY: the job on a tinted panel, then where it's up to beside
-   who's been on site */
-.jcl-job { display:flex; flex-direction:column; gap:8px; padding:16px; border-radius:var(--r-button); background:var(--tint); }
-.jcl-kind { margin:0; display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; color:var(--q); }
-.jcl-what { margin:0; font-size:16px; line-height:1.45; white-space:pre-wrap; max-width:96ch; }
-.jcl-what.folded { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; white-space:pre-line; }
-.jcl-more { align-self:flex-start; padding:0; border:0; background:none; font:inherit; font-size:13px; font-weight:500; color:var(--ink); text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
-.jcl-more:focus-visible { outline:none; box-shadow:var(--ring); }
-.jcl-two { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-top:16px; }
-.jcl-card { display:flex; flex-direction:column; gap:12px; padding:16px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); }
-.jcl-cardhead { display:flex; align-items:baseline; gap:12px; }
-.jcl-cardhead h3 { margin:0; font-size:16px; font-weight:600; }
-.jcl-cardhead em { margin-left:auto; font-style:normal; font-size:12px; font-weight:500; color:var(--q); }
-.jcl-card .wb2-jcups-pts { margin:0; }
+
 .jcl-hrs { margin:0; display:flex; align-items:baseline; gap:8px; }
 .jcl-hrs b { font-size:24px; font-weight:700; font-variant-numeric:tabular-nums; }
 .jcl-hrs span { font-size:13px; font-weight:500; color:var(--q); }
-.jcl-days { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; }
-.jcl-days li { display:grid; grid-template-columns:96px minmax(0,1fr) auto; gap:12px; align-items:baseline; padding:8px 0; border-top:1px solid var(--line); font-size:13px; }
-.jcl-days li:first-child { border-top:0; }
-.jcl-days b { font-weight:600; }
-.jcl-days span { color:var(--q); }
-.jcl-days em { font-style:normal; font-variant-numeric:tabular-nums; }
+
 /* INSTALLATION: a card per visit, oldest on the left, scrolling sideways */
 .jcl-visits { margin:0; padding:0 0 8px; list-style:none; display:grid; grid-auto-flow:column; grid-auto-columns:240px; gap:12px; overflow-x:auto; overscroll-behavior-x:contain; scroll-snap-type:x proximity; }
 .jcl-visit { display:flex; flex-direction:column; gap:4px; padding:16px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); scroll-snap-align:end; }
@@ -5782,27 +5635,10 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
   background:linear-gradient(180deg, var(--jc-a05, var(--tint)) 0, var(--jc-a025, var(--tint)) 100%), var(--paper); }
 /* the lead already carries its own 8px shoulder inside the tinted box */
 .wb2-jcsec.ups > .wb2-jcdhead { margin-bottom:0; }
-/* the summary slot while its read or first derive is still out — the route
-   skeleton's slow sweep at the box's own shapes. Declared bare, not under
-   .fg: the sheet portals to body and never sees .fg's dress. */
-.wb2-jcskel { display:block; border-radius:var(--r-control);
-  background:linear-gradient(100deg, rgba(10,12,20,.05) 30%, rgba(10,12,20,.09) 50%, rgba(10,12,20,.05) 70%);
-  background-size:200% 100%; animation:pkSweep 1.6s ease-in-out infinite; }
-.wb2-jcskel.t { width:150px; height:16px; }
-.wb2-jcskel.l { margin-top:12px; width:min(430px, 72%); height:14px; }
-.wb2-jcskel.p { margin-top:8px; width:min(310px, 56%); height:11px; }
-.wb2-jcskel.p.short { width:min(230px, 42%); }
-@media (prefers-reduced-motion:reduce) {
-  .wb2-jcskel { animation:none; background:rgba(10,12,20,.06); }
-}
 
-/* one fact per line, a quiet dot to hang each on */
-.wb2-jcups-pts { margin:8px 0 0; padding:0; list-style:none; max-width:68ch;
-  display:flex; flex-direction:column; gap:4px; }
-.wb2-jcups-pts li { position:relative; padding-left:16px; font-size:14px; font-weight:500;
-  color:var(--gray700); line-height:1.55; text-wrap:pretty; }
-.wb2-jcups-pts li::before { content:""; position:absolute; left:2px; top:.62em; width:5px;
-  height:5px; border-radius:50%; background:var(--jc-crown, rgba(5,5,5,.28)); }
+@media (prefers-reduced-motion:reduce) {
+  
+}
 
 /* ── the diary ── */
 .wb2-jcdhead { display:flex; align-items:baseline; gap:8px; }
@@ -5940,34 +5776,12 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
 .wb2-jmclaim > span { grid-column:2; grid-row:1 / span 2; }
 .wb2-jmclaim > i { grid-column:3; grid-row:1 / span 2; }
 .wb2-mline > span.quiet { color:var(--gray500); }
-/* ── THE JOB NUMBER AS NAVIGATION ─────────────────────────────────────────
-   A job ServiceM8 billed in stages wears a caret that lists its claims; a
-   card opened FROM a claim wears the crumb "#2380 › #2380A". Four characters
-   doing the work of a back button, in the one place a reader already looks to
-   find out what they are looking at. */
-.wb2-shnos { position:relative; display:inline-flex; align-items:center; gap:4px; flex:none; }
-.wb2-shnos > button.wb2-shno { border:0; font:inherit; cursor:pointer;
-  font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
-.wb2-shnos > button.wb2-shno:hover { background:var(--info-tint); }
-.wb2-shnos > button.wb2-shno:focus-visible { outline:none; box-shadow:var(--ring);; }
+
 .wb2-shno.here { background:var(--tint); color:var(--ink); }
-.wb2-shnos > button.wb2-shno.here:hover { background:var(--tint); }
+
 .wb2-shcar { font-style:normal; font-size:12px; margin-left:4px; vertical-align:middle; }
 .wb2-shcrumb { font-style:normal; color:var(--gray400); font-size:13px; font-weight:700; }
-/* the claims, addressable */
-.wb2-shnopop { position:absolute; top:calc(100% + 6px); left:0; z-index:4; width:max-content;
-  max-width:min(330px, 76vw); display:flex; flex-direction:column; gap:1px; padding:4px;
-  border-radius:var(--r-button); background:var(--paper); border:1px solid var(--wb2-line);box-shadow:var(--shadow-overlay); }
-.wb2-shnopop > button { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:8px;
-  align-items:center; padding:8px 8px; border:0; border-radius:var(--r-button); background:transparent;
-  font:inherit; text-align:left; cursor:pointer; }
-.wb2-shnopop > button:hover { background:var(--tint); }
-.wb2-shnopop > button.on { background:var(--tint); }
-.wb2-shnopop > button:focus-visible { outline:none; box-shadow:var(--ring);; }
-.wb2-shnopop .n { font-size:12px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
-.wb2-shnopop > button.on .n { color:var(--ink); }
-.wb2-shnopop .t { font-size:12px; font-weight:700; color:var(--gray700); }
-.wb2-shnopop .a { font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; }
+
 /* a claim row is a door, so it has to look and behave like one */
 button.wb2-jmclaim { width:100%; border:0; background:transparent; font:inherit; text-align:left;
   cursor:pointer; border-top:1px solid var(--wb2-line2); }
@@ -6016,32 +5830,14 @@ button.wb2-jmclaim:focus-visible { outline:none; box-shadow:var(--ring);; border
 .wb2-mfrom { position:absolute; left:4px; bottom:4px; text-decoration:none;
   background:var(--tint); color:var(--paper); font-size:12px; font-weight:700;
   padding:2px 4px; border-radius:var(--r-control); font-variant-numeric:tabular-nums; }
-/* the ways out of the job, behind the ⋯ — a once-per-job act, off the floor */
-.wb2-shmenu { position:relative; margin-left:auto; }
-.wb2-shtop .wb2-shmenu .wb2-ico { margin-left:0; }
+
 /* ONE auto margin per flex line, or the two share the slack. `.wb2-shtop
    .wb2-ico { margin-left:auto }` above still matches the close button that
    follows the menu, so both were absorbing half the free space each and the
    ⋯ drifted away from the ×. The menu takes the slack; the × sits against
    it. */
 .wb2-shtop > .wb2-shmenu + .wb2-ico { margin-left:0; }
-/* sized to its longest item — "Create a maintenance agreement" is one thing
-   to do, and wrapping it over two lines reads as two */
-/* ABOVE THE TAB ROW. `.wb2-vtabs` is position:relative z-index:3 and comes
-   LATER in the band's DOM, so a popup at the same level lost the tie and
-   the Documents tab painted straight through the menu. 5 clears the tabs
-   and their focus ring (z-index:4) both. */
-.wb2-shmpop { position:absolute; top:calc(100% + 6px); right:0; z-index:5;
-  width:max-content; max-width:min(320px, 78vw);
-  display:flex; flex-direction:column; gap:1px; padding:4px; border-radius:var(--r-card);
-  background:var(--paper); border:1px solid var(--wb2-line);box-shadow:var(--shadow-overlay); }
-.wb2-shmpop > button { display:flex; align-items:center; gap:8px; width:100%; padding:8px 8px;
-  border:0; border-radius:var(--r-button); background:transparent; color:var(--gray700); font:inherit;
-  font-size:13px; font-weight:700; text-align:left; white-space:nowrap; cursor:pointer; }
-.wb2-shmpop > button:hover:not(:disabled) { background:var(--tint); }
-/* a disabled item goes GREY, never transparent — opacity is not de-emphasis */
-.wb2-shmpop > button:disabled { color:var(--gray400); cursor:default; }
-.wb2-shmpop > button:focus-visible { outline:none; box-shadow:var(--ring);; }
+
 /* THE PORTAL'S OWN RESTATEMENT, and the reason the sheet reuses .wb2-sheet at
    all. `.int-hint` is only ever declared as `.fg .int-hint` (line 4593), and
    this sheet portals to document.body — outside `.fg` — so every hint on it
@@ -6208,112 +6004,7 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
    the fill are its own. */
 .wb2-mvtop .wb2-mvstar.on { color:var(--yellow); background:rgba(245,180,0,.16); }
 .wb2-mvtop .wb2-mvstar.on .i { fill:currentColor; }
-/* ── the showcase ──────────────────────────────────────────────────────
-   A gallery, not a grid of job rows: bigger cards than the job card's mosaic,
-   because these are chosen photographs somebody means to show a client, and
-   each one carries a sentence saying what it is. */
-/* The tab's own gutter — the grid used to sit 1px off the card's edge, which
-   read as pictures glued to the frame. 20px is the panel's own inset, so the
-   gallery hangs level with every other face of this card. */
-.wb2-show { padding:12px 24px 24px; }
-/* THE SEARCH BOX IS GONE FROM THIS TAB — it sat a hand's width under the
-   board's universal field with the same face and different reach. The bank
-   search lives in the one field now (see work-search.tsx); what is left here
-   is purely the curated grid. */
-/* THE CARD IS A DOOR. The button wraps only the picture, not the caption, and
-   sits INSIDE the framed box so the badge and the star can stack over it —
-   a button cannot contain a button. Fully self-dressed because its class
-   carries `wb2-` and is therefore exempt from the `.fg button` reset.
 
-   THE CURSOR IS THE HAND (Isaac). It was `zoom-in`, which is a promise about
-   what happens next that the viewer only half keeps — you land on a fitted
-   photograph, not a magnified one. A hand says "this opens", which is what
-   it does. */
-.wb2-showimg .wb2-showopen { display:block; width:100%; height:100%; margin:0; padding:0;
-  border:0; background:none; font:inherit; text-align:inherit; cursor:pointer; }
-.wb2-showimg .wb2-showopen:focus-visible { outline:none;
-  box-shadow:inset var(--ring);; }
-.wb2-showimg .wb2-showopen:hover img { }
-.wb2-showimg img { transition:transform var(--t-move) var(--ease); }
-/* THE STAR ON THE PICTURE — the mosaic tile's own star, same pill and same
-   gold, because it is the same act on the same photograph seen from a
-   different screen. Always lit here: everything in this gallery is starred,
-   and clicking takes it out. */
-.wb2-showstar { position:absolute; top:6px; right:6px; z-index:2; width:26px; height:26px;
-  display:grid; place-items:center; padding:0; border:0; border-radius:50%;
-  background:rgba(8,10,16,.5); color:var(--paper); cursor:pointer;
-  transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
-.wb2-showstar:hover { background:rgba(8,10,16,.72); }
-.wb2-showstar.on { color:var(--warn); }
-.wb2-showstar.on .i { fill:currentColor; }
-.wb2-showstar:focus-visible { outline:none; box-shadow:var(--ring);; }
-
-/* ── the row above the pictures ──
-   Tabs left, the filter button hard right. It wraps as one unit rather than
-   letting the button drift into the middle of a wrapped tab row. */
-/* the gallery wears the board's toolbar (`.wb2-tbar`); what is its own is
-   the fine filter, parked at the far end of it. Its chips are the list
-   filters' chip (`.wb2-fchip`): one vocabulary for a filter you tap, where
-   the gallery drew a second, pill-shaped one whose chosen state set paper
-   text on a 12% tint of the family colour. The family's dot rides inside. */
-.wb2-showbar .wb2-showfilt { margin-left:auto; }
-.wb2-fchip .wb2-showdot { width:8px; height:8px; }
-.wb2-showfilt { position:relative; display:flex; align-items:center; gap:2px; flex:none; }
-.wb2-showfiltb { display:inline-flex; align-items:center; gap:4px; padding:4px 12px;
-  border:1px solid var(--wb2-line2); border-radius:var(--r-pill); background:transparent;
-  color:var(--gray600); font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap;
-  transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-showfiltb:hover { background:var(--tint); }
-.wb2-showfiltb.on { border-color:var(--info-t); background:var(--info-tint);
-  color:var(--info-t); }
-.wb2-showfiltb:focus-visible { outline:none; box-shadow:var(--ring);; }
-.wb2-showfiltx { display:grid; place-items:center; width:22px; height:22px; padding:0;
-  border:0; border-radius:50%; background:transparent; color:var(--gray500); cursor:pointer; }
-.wb2-showfiltx:hover { background:var(--tint-2); color:var(--ink); }
-.wb2-showfiltx:focus-visible { outline:none; box-shadow:var(--ring);; }
-/* The popover. ABSOLUTE, not fixed — inside `.fg` a fixed child is
-   unreachable under any body-portalled scrim, and this needs no portal
-   because it is not competing with one. */
-.wb2-showmenu { position:absolute; z-index:5; top:calc(100% + 6px); right:0; min-width:216px;
-  max-height:min(60vh, 420px); overflow-y:auto; padding:4px;
-  border:1px solid var(--wb2-line); border-radius:var(--r-card); background:var(--paper);box-shadow:var(--shadow-overlay); }
-.wb2-showmgrp + .wb2-showmgrp, .wb2-showmi + .wb2-showmgrp { margin-top:4px;
-  padding-top:4px; border-top:1px solid var(--wb2-line2); }
-.wb2-showmsect { padding:4px 8px 4px; font-size:12px; font-weight:500; color:var(--q); }
-.wb2-showmi { display:flex; align-items:center; gap:8px; width:100%; padding:8px 8px;
-  border:0; border-radius:var(--r-button); background:transparent; color:var(--ink);
-  font-size:13px; font-weight:600; text-align:left; cursor:pointer; }
-.wb2-showmi:hover { background:var(--tint); }
-.wb2-showmi.on { background:var(--info-tint); color:var(--info-t); font-weight:700; }
-.wb2-showmi:focus-visible { outline:none; box-shadow:var(--ring);; }
-/* the count sits right, tabular so a column of them lines up */
-.wb2-showmi em { margin-left:auto; font-style:normal; font-size:12px; font-weight:700;
-  color:var(--gray500); font-variant-numeric:tabular-nums; }
-.wb2-showmi.on em { color:var(--info-t); }
-
-.wb2-showempty { display:grid; place-items:center; gap:8px; padding:48px 16px;
-  text-align:center; color:var(--gray500); }
-.wb2-showempty b { font-size:14px; font-weight:700; color:var(--ink); }
-.wb2-showempty p { font-size:13px; font-weight:600; max-width:44ch; line-height:1.5; }
-.wb2-showempty .i { color:var(--gray400); }
-/* THE FILTER ROW IS THE CATEGORIES — a chip per subject, each carrying its
-   own hue through `--sc` so the dot, the lit ground and the card's badge are
-   one colour per kind of photograph. */
-.wb2-showdot { width:7px; height:7px; border-radius:50%; background:var(--sc, var(--ink)); flex:none; color:var(--paper); }
-.wb2-showgrid { display:grid; gap:12px; margin-top:12px;
-  grid-template-columns:repeat(auto-fill, minmax(215px, 1fr)); }
-
-.wb2-showcard { margin:0; display:flex; flex-direction:column; gap:8px; min-width:0; }
-.wb2-showimg { position:relative; display:block; aspect-ratio:4/3; border-radius:var(--r-button);
-  overflow:hidden; background:var(--wb2-line2); }
-.wb2-showimg img { width:100%; height:100%; object-fit:cover; display:block; }
-.wb2-showpending { position:absolute; inset:0; display:grid; place-items:center; color:var(--gray400); }
-.wb2-showtag { position:absolute; left:7px; bottom:7px; padding:4px 8px; border-radius:var(--r-pill);
-  font-size:12px; font-weight:700; color:var(--paper); text-decoration:none; }
-.wb2-showcard figcaption { display:flex; flex-direction:column; gap:4px; min-width:0; }
-.wb2-showcard figcaption b { font-size:13px; font-weight:700; line-height:1.35;
-  color:var(--ink); overflow-wrap:anywhere; }
-.wb2-showcard figcaption em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
 /* THE TAG CHIPS THAT USED TO SIT HERE ARE GONE — half of Isaac's "too many
    labels". They repeated in a second typeface what the caption above them had
    usually already said, on every card in the grid. Tags were never the thing
@@ -6730,16 +6421,6 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-filter.dan b { background:var(--bad-tint); color:var(--wb2-dan-t, var(--bad-t)); }
 .wb2-filter.warn b { background:var(--warn-tint); color:var(--wb2-warn-t, var(--warn-t)); }
 .wb2-filter:focus-visible { outline:none; box-shadow:var(--ring);; }
-
-/* the mirror's health (D8), at the end of a toolbar: nobody taps it, so it is
-   a line with a state dot rather than a chip (law 26) */
-.wb2-sm8 { flex:none; display:inline-flex; align-items:center; gap:8px; white-space:nowrap;
-  font-size:var(--fs-1); font-weight:var(--fw-label); color:var(--q); }
-.wb2-sm8::before { content:""; flex:none; width:6px; height:6px; border-radius:50%; background:var(--q); }
-.wb2-sm8.synced::before { background:var(--ok-t); }
-.wb2-sm8.run::before { background:var(--warn); }
-.wb2-sm8.dan { color:var(--wb2-dan-t, var(--bad-t)); }
-.wb2-sm8.dan::before { background:var(--wb2-dan); }
 
 /* the day modal — the list behind a day's colour */
 .wb2-daymodal { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:var(--z-modal);
@@ -8007,24 +7688,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .tgs-s:focus-visible, .tk-sheet .tgs-s:focus-visible, .fl-modal .tgs-s:focus-visible {
   outline:none;   box-shadow:var(--ring); }
 
-/* ── the pills on a library row ── */
-/* Small, quiet, and PRESSABLE: a tag on a row is the fastest way to the
-   document's siblings, which is what earns the space on a row that already
-   carries a title, a meta line and a status pill. */
-.fg .tgl { display:inline-flex; align-items:center; flex-wrap:wrap; gap:4px; margin-top:4px; }
-.fg .tgl-p { display:inline-flex; align-items:center; height:20px; padding:0 8px; border-radius:var(--r-control);
-  border:1px solid color-mix(in srgb, var(--tgc, var(--q)) 30%, transparent);
-  background:color-mix(in srgb, var(--tgc, var(--q)) 9%, var(--paper));
-  color:color-mix(in srgb, var(--tgc, var(--q)) 72%, var(--ink));
-  font-family:var(--font-jakarta), sans-serif; font-size:12px; font-weight:700;
-  white-space:nowrap; }
-.fg button.tgl-p { cursor:pointer; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg button.tgl-p:hover { background:color-mix(in srgb, var(--tgc, var(--q)) 18%, var(--paper));
-  border-color:color-mix(in srgb, var(--tgc, var(--q)) 55%, transparent); }
-.fg .tgl-p.on { background:color-mix(in srgb, var(--tgc, var(--q)) 20%, var(--paper));
-  border-color:color-mix(in srgb, var(--tgc, var(--q)) 60%, transparent); }
-.fg button.tgl-p:focus-visible { outline:none;  box-shadow:var(--ring); }
-
 /* ── the filter rail ── */
 /* a shorter chip than the category rail's, because there are more of them and
    they are the narrower fact */
@@ -8852,7 +8515,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .hd-ls-grp.late { color:var(--hd-late); }
 .fg .hd-ls-grp.today { color:var(--hd-today); }
 
-
 @media (prefers-reduced-motion:reduce) {
   
   
@@ -8893,7 +8555,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* Too narrow for a name beside the number: a holiday keeps its tint, its
    number in his purple and its name as the button's. */
 @container (max-width:84px) {  }
-
 
 @media (prefers-reduced-motion:reduce) {
   
@@ -10273,7 +9934,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .sc-shutday .sc-track { background:var(--soft); }
 .fg .sc-cell.sc-cellshut { background:var(--soft); }
 .fg .sc-wkd { font-size:16px; line-height:24px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
-.fg .sc-wkh2 { font-size:13px; line-height:18px; color:var(--ink); font-variant-numeric:tabular-nums; }
+
 .fg .sc-wkj { margin-top:auto; font-size:12px; line-height:16px; color:var(--q); }
 .fg .sc-wkbar { align-self:stretch; height:4px; border-radius:var(--r-control); background:var(--sel); overflow:hidden; }
 .fg .sc-wkfill { display:block; height:100%; background:var(--q); }

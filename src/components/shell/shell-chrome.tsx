@@ -62,9 +62,6 @@ export async function ShellPalette() {
 export async function ShellRecords() {
   const { user } = await loadShell();
   return (
-    <RecordWindowsSlot
-      manage={user.caps.includes("workboard_manage")}
-      moneyVisible={user.caps.includes("workboard_money")}
-    />
+    <RecordWindowsSlot manage={user.caps.includes("workboard_manage")} />
   );
 }

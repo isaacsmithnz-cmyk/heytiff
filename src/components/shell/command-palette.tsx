@@ -9,7 +9,6 @@ import { useCommandPalette } from "./command-palette-context";
 import { WindowsContext, titleOf, useRecords, type RecentRecord } from "@/components/records/records-context";
 import { recordHref } from "@/lib/records/ref";
 import { useTiff } from "@/components/tiff/modal/tiff-context";
-import { sm8JobUrl } from "@/lib/integrations/sm8-links";
 import { OverlayWhileOpen } from "@/components/overlay/use-overlay";
 import { Icon } from "./icon";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
@@ -172,11 +171,9 @@ export function CommandPalette({
       act,
       ...(keys ? { keys } : {}),
     });
-    const sm8 = front.ref.kind === "job" ? sm8JobUrl(front.ref.id) : null;
     const noun = front.ref.kind;
     const all = [
       ...(windows.docked ? [verb("aside", "Set aside", "minus", () => windows.setAside(front.key))] : []),
-      ...(windows.stepOf(front.key, 1) ? [verb("next", "Next job", "chevR", () => windows.step(front.key, 1), "J")] : []),
       verb("link", `Copy the link to this ${noun}`, "send", () => {
         const link = `${window.location.origin}${recordHref(front.ref)}`;
         void (navigator.clipboard?.writeText(link) ?? Promise.reject()).then(
@@ -184,7 +181,6 @@ export function CommandPalette({
           () => windows.toast("Could not copy the link"),
         );
       }),
-      ...(sm8 ? [verb("sm8", "Open in ServiceM8", "servicem8", () => window.open(sm8, "_blank", "noopener"))] : []),
     ];
     const q = query.trim().toLowerCase();
     return q ? all.filter((v) => v.kind === "verb" && v.label.toLowerCase().includes(q)) : all;

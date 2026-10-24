@@ -13,8 +13,8 @@ import { WindowsContext, titleOf } from "./records-context";
    set a job aside on Home, go to the Workboard, and it is there to bring
    back over the Schedule.
 
-   Each card is what it is called — a job by its number, a visit or an
-   agreement by its name — and its client, the door back to it, and a close
+   Each card is what it is called — a visit or an agreement by its name —
+   and its client, the door back to it, and a close
    cross that lets it go. Light: it reads the host's list and nothing
    else, so the frame carries it without the card's code. */
 

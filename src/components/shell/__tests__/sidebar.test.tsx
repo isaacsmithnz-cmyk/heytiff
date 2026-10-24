@@ -24,12 +24,8 @@ jest.mock("@/components/making/task-form", () => ({
     return <div role="dialog" aria-label="New task" />;
   },
 }));
-const noteForm = jest.fn();
 jest.mock("@/components/making/note-form", () => ({
-  NoteForm: (p: { job: unknown }) => {
-    noteForm(p.job);
-    return <div role="dialog" aria-label="New note" />;
-  },
+  NoteForm: () => <div role="dialog" aria-label="New note" />,
 }));
 jest.mock("@/components/making/new-job-form", () => ({
   NewJobForm: () => <div role="dialog" aria-label="New job" />,
@@ -175,21 +171,12 @@ describe("New", () => {
     mockPath = "/dashboard/team";
   });
 
-  /* New › Note (Isaac, 24 October 2026) */
-  it("makes a note, on the job when it opens on a job's page", () => {
+  /* New › Note: your own note, kept in My notes (24 October 2026) */
+  it("makes a note of your own", () => {
     draw(userAs("staff"));
     act(() => screen.getByRole("button", { name: "New" }).click());
     fireEvent.click(screen.getByRole("menuitem", { name: "Note" }));
     expect(screen.getByRole("dialog", { name: "New note" })).toBeInTheDocument();
-    expect(noteForm).toHaveBeenLastCalledWith(null);
-    cleanup();
-    mockPath = "/dashboard/jobs/abc-123";
-    namePage("/dashboard/jobs/abc-123", { label: "3209 Richards" });
-    draw(userAs("staff"));
-    act(() => screen.getByRole("button", { name: "New" }).click());
-    fireEvent.click(screen.getByRole("menuitem", { name: "Note" }));
-    expect(noteForm).toHaveBeenLastCalledWith({ uuid: "abc-123", label: "3209 Richards" });
-    mockPath = "/dashboard/team";
   });
 
   it("makes a Job with the board's own form", () => {

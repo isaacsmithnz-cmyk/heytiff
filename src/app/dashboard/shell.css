@@ -9570,10 +9570,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .mk-when { display:flex; flex-direction:column; gap:8px; }
 .mk-whenrow { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .mk-whenrow > .pt-field, .mk-whenrow > div { min-width:0; }
-/* a note's To (New › Note): who it goes to, a row each with its clear, then Add someone */
-.mk-to { display:flex; flex-direction:column; gap:8px; }
-.mk-tolist { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
-.mk-torow { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:32px; font-size:14px; line-height:20px; color:var(--ink); }
 /* who made it and who ticked it, under the form; a read that failed */
 .mk-quiet { margin:0; font-size:13px; line-height:18px; color:var(--q); }
 .mk-error { margin:0; font-size:13px; line-height:18px; color:var(--red-w); }

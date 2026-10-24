@@ -86,8 +86,8 @@ function PlaceRow({ place, on }: { place: Place; on: boolean }) {
 }
 
 /* NEW (rules 3 and 44): a white disc and the word. Job, Task and Note are
-   made here, the same on every page (Note, 24 October 2026: a note to people
-   or the office, for note taking; making/note-form). It fills in only the record you're on:
+   made here, the same on every page (Note, 24 October 2026: your own note,
+   kept in My notes; making/note-form). It fills in only the record you're on:
    opened on a job's page, a task is for that job, and you can clear it, so
    from anywhere else it's a general task (Isaac, 18 October). A quote is
    made on its job, through Add. Job is the New job form (making/new-job-form), the board's too, offered where
@@ -138,7 +138,7 @@ function NewButton({ newJob }: { newJob: boolean }) {
       />
       {making === "job" && <NewJobForm onClose={() => setMaking(null)} />}
       {making === "task" && <TaskForm job={job} onClose={() => setMaking(null)} />}
-      {making === "note" && <NoteForm job={job} onClose={() => setMaking(null)} />}
+      {making === "note" && <NoteForm onClose={() => setMaking(null)} />}
     </>
   );
 }

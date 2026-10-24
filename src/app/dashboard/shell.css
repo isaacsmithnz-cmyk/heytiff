@@ -9270,8 +9270,16 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* the answers Tiff offers while she waits on one: second buttons */
 .fg .jc-quick { display:flex; flex-wrap:wrap; gap:8px; }
 /* Keep as typed sits with Send on the right of the box */
-.fg .cv-boxbar .jc-keep { margin-left:auto; }
-.fg .cv-boxbar .jc-keep + .cv-send { margin-left:0; }
+.fg .cv-boxbar .jc-info { margin-left:auto; }
+.fg .cv-boxbar .jc-info + .jc-keep, .fg .cv-boxbar .jc-info + .cv-send, .fg .cv-boxbar .jc-keep + .cv-send { margin-left:0; }
+/* the ⓘ beside Save and Send: a quiet glyph; a press opens what each does,
+   on ink, over the bar, as the tooltip draws (parts/surfaces.css) */
+.fg .jc-info { position:relative; display:inline-flex; }
+.fg .jc-info .jc-infobtn { width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; padding:0; border:0; border-radius:50%; background:none; color:var(--q); cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.fg .jc-info .jc-infobtn:hover, .fg .jc-info .jc-infobtn[aria-expanded="true"] { background:var(--tint); color:var(--ink); }
+.fg .jc-info .jc-infobtn:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .jc-infopop { position:absolute; right:0; bottom:calc(100% + 8px); z-index:var(--z-toast); width:max-content; max-width:300px; display:flex; flex-direction:column; gap:8px; padding:12px; border-radius:var(--r-control); background:var(--ink); color:var(--white); font-size:13px; line-height:20px; font-weight:400; text-align:left; }
+.fg .jc-infopop b { font-weight:600; }
 /* Add photo's chip, above the words in the box: the photo, its name, its clear */
 .fg .jc-photo { display:flex; align-items:center; gap:8px; align-self:flex-start; max-width:100%; min-width:0; padding:4px; border:1px solid var(--line); border-radius:var(--r-button); background:var(--paper); }
 .fg .jc-photo-thumb { flex:none; display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:var(--r-control); object-fit:cover; background:var(--sel); color:var(--q); }

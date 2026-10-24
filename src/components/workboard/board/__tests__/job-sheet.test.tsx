@@ -459,7 +459,7 @@ const openTab = async (name: string) => {
 };
 
 /** The job's conversation, on Overview: the diary's entries, its doors and
-    the pen (Keep as typed), where the card had its Diary face. */
+    the pen (Save), where the card had its Diary face. */
 const convo = () => within(document.querySelector(".jc-convo") as HTMLElement);
 
 /** The page's Actions menu, open. */
@@ -976,12 +976,12 @@ describe("the attention strip", () => {
   });
 });
 
-/* ── the pen: the conversation's Keep as typed ── */
+/* ── the pen: the conversation's Save ── */
 
 /** Words typed in the conversation's box and kept as typed: the pen's write. */
 const keepTyped = async (words: string) => {
   await userEvent.type(convo().getByRole("textbox", { name: "Tell Tiff about this job" }), words);
-  await userEvent.click(convo().getByRole("button", { name: "Keep as typed" }));
+  await userEvent.click(convo().getByRole("button", { name: "Save" }));
 };
 
 describe("writing on the job", () => {
@@ -1175,8 +1175,8 @@ it("(F) (verifier r2 12) ticked, the pen sends with the SAVED id — and a secon
     await keepTyped("Drain kit still to go on");
     await userEvent.type(f.getByRole("textbox", { name: "Tell Tiff about this job" }), "Drain kit still to go on");
     /* the first is still being kept: the door waits for it */
-    expect(f.getByRole("button", { name: "Keeping it" })).toBeDisabled();
-    await userEvent.click(f.getByRole("button", { name: "Keeping it" }));
+    expect(f.getByRole("button", { name: "Saving" })).toBeDisabled();
+    await userEvent.click(f.getByRole("button", { name: "Saving" }));
     expect(addJobNote).toHaveBeenCalledTimes(1);
     expect(f.getAllByText("Drain kit still to go on", { ignore: "textarea" })).toHaveLength(1);
     await act(async () => land(null));

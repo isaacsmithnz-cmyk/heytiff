@@ -8967,6 +8967,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jl-table { --jl-cols:80px minmax(0,1.6fr) minmax(0,1fr) minmax(0,1.3fr) minmax(0,1fr) 112px; min-width:0; }
 .fg .jl-table.jl-table--money { --jl-cols:80px minmax(0,1.6fr) minmax(0,1fr) minmax(0,1.3fr) minmax(0,1fr) 112px 112px; }
 .fg .jl-rows { margin:0; padding:0; list-style:none; }
+/* Show more, under the hundred a view draws */
+.fg .jl-more { display:flex; justify-content:center; padding:24px 0; }
 .fg .jl-row { display:grid; grid-template-columns:var(--jl-cols); align-items:center; gap:16px; padding:12px 8px; border-bottom:1px solid var(--line); color:var(--ink); text-decoration:none; transition:background var(--t-fast) var(--ease); }
 .fg .jl-row.jl-row--head { padding-top:8px; padding-bottom:8px; font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
 .fg .jl-rows .jl-row:hover { background:var(--hov); }

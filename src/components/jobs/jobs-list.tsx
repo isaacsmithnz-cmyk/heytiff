@@ -145,6 +145,14 @@ function Nothing({
   return <Empty what={words[state.view]} action={allJobs} />;
 }
 
+/* A HUNDRED AT A TIME (Isaac, 25 October 2026: Jobs took two seconds to
+   open, and all 971 rows were drawn in the page, 1.4 MB of it). A view draws
+   its first hundred and Show more draws the next; the views, Who, Sort and
+   the search still read every job, because they work on the rows' data, not
+   on what is drawn. A change of view, person, sort or search starts again at
+   a hundred. */
+export const JOBS_PAGE = 100;
+
 export function JobsList({ data, initial }: { data: JobsListData; initial: ListState }) {
   const [state, setState] = useState<ListState>(initial);
   const money = data.moneyVisible;
@@ -157,6 +165,10 @@ export function JobsList({ data, initial }: { data: JobsListData; initial: ListS
 
   const views = viewsFor(money);
   const shown = sortRows(rowsFor(data.rows, state), state.sort);
+  const scope = `${state.view}|${state.who}|${state.sort}|${state.q}`;
+  const [paged, setPaged] = useState({ scope, pages: 1 });
+  const pages = paged.scope === scope ? paged.pages : 1;
+  const drawn = shown.slice(0, JOBS_PAGE * pages);
   const inView = rowsFor(data.rows, { view: state.view, who: ANYONE, q: "" }).length;
   const viewLabel = views.find((v) => v.key === state.view)?.label ?? "All";
 
@@ -223,10 +235,15 @@ export function JobsList({ data, initial }: { data: JobsListData; initial: ListS
               {money && <span className="jl-cell jl-value">Value</span>}
             </div>
             <ul className="jl-rows" aria-label={`${viewLabel}, ${shown.length} ${shown.length === 1 ? "job" : "jobs"}`}>
-              {shown.map((r) => (
+              {drawn.map((r) => (
                 <JobRow key={r.key} row={r} money={money} />
               ))}
             </ul>
+            {drawn.length < shown.length && (
+              <div className="jl-more">
+                <Button onClick={() => setPaged({ scope, pages: pages + 1 })}>Show more</Button>
+              </div>
+            )}
           </div>
         )}
       </div>

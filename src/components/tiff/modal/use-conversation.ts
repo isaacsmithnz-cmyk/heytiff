@@ -841,7 +841,7 @@ export function useConversation({
     onQuiet: () => {
       if (!alive.current) return;
       const at = document.activeElement;
-      if ((at instanceof HTMLInputElement || at instanceof HTMLTextAreaElement) && (at.classList.contains("tm-in") || at.classList.contains("tc-in"))) return;
+      if ((at instanceof HTMLInputElement || at instanceof HTMLTextAreaElement) && at.classList.contains("tc-in")) return;
       done();
     },
   });

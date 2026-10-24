@@ -8,6 +8,9 @@ import { Chooser } from "@/components/parts/chooser";
 import { TimeField } from "@/components/parts/time-field";
 import { DateField } from "@/components/ui/date-field";
 import { WindowsContext } from "@/components/records/records-context";
+import { TaskSm8Line, type TaskSm8Doors } from "@/components/dashboard/task-sm8-line";
+import { confirmMySm8Link } from "@/app/actions/job-note-sm8";
+import { retryTaskDone } from "@/app/actions/task-sm8";
 import { completeTask, deleteTask, makeTasks, readTaskForEdit, reopenTask, taskPeople, updateTask, type TaskForEdit, type TaskPeople } from "@/app/actions/dashboard";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { taskLinesOf } from "@/lib/dashboard/task-lines";
@@ -31,7 +34,9 @@ export type TaskJob = FormJob;
    Mark done and Save. Who can be Anyone ("It can just say anyone"): the
    task is for its job, open on the job's card for whoever is there. When
    is Add date, then Add time if it needs one; without a time it's due any
-   time that day. A done task says who ticked it and when. */
+   time that day. A done task says who ticked it and when, and where its
+   Done stands in ServiceM8, with Send again or Try again on one that
+   didn't go (the bell's door for a Done that didn't reach ServiceM8). */
 const ANYONE = "anyone";
 
 /** "Fri 24 Oct, 2:10 pm" from an instant, on the account's clock as the browser reads it. */
@@ -75,6 +80,35 @@ export function TaskForm({
   const [who, setWho] = useState<string | null>(job ? ANYONE : null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  /* a Done's door pressed: its line reads again once the press is out */
+  const [sending, setSending] = useState(false);
+  const [lineError, setLineError] = useState<string | null>(null);
+  const reread = () =>
+    taskId
+      ? readTaskForEdit(taskId).then((r) => {
+          if (r.ok) setTask(r.task);
+        })
+      : Promise.resolve();
+  const press = async (go: () => Promise<{ ok: boolean; error?: string }>) => {
+    if (sending) return;
+    setSending(true);
+    setLineError(null);
+    const r = await go().catch(() => ({ ok: false, error: "That didn't go. Try again." }));
+    if (!r.ok) setLineError(r.error ?? "That didn't go. Try again.");
+    await reread();
+    setSending(false);
+    onChanged?.();
+  };
+  const doors: TaskSm8Doors = {
+    onRetry: (noteId, act) => void press(() => retryTaskDone({ taskId: taskId!, noteId, act })),
+    onConfirm: (noteId, remoteId, answer) =>
+      void press(async () => {
+        const answered = await confirmMySm8Link({ remoteId, answer });
+        if (!answered.ok) return answered;
+        return retryTaskDone({ taskId: taskId!, noteId, act: "send_again" });
+      }),
+  };
 
   useEffect(() => {
     let live = true;
@@ -327,6 +361,16 @@ export function TaskForm({
               .filter(Boolean)
               .join(". ")}
           </p>
+        ) : null}
+        {task && task.sm8.lines.length > 0 ? (
+          <div className="mk-sm8">
+            <TaskSm8Line lines={task.sm8.lines} sender={task.sm8.sender} pending={sending} doors={doors} />
+            {lineError && (
+              <p className="mk-error" role="alert">
+                {lineError}
+              </p>
+            )}
+          </div>
         ) : null}
       </form>
     </Dialog>

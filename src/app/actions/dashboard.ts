@@ -20,6 +20,8 @@ import { hhmm, remindAtFrom } from "@/lib/dashboard/reminders";
 import { logTaskEvent } from "@/lib/dashboard/task-events";
 import { taskLinesOf } from "@/lib/dashboard/task-lines";
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
+import { readTaskDoneLines, type TaskDoneLine } from "@/lib/dashboard/task-done-query";
+import type { NoteSender } from "@/lib/integrations/links";
 import { sendTaskDone, takeBackTaskDone } from "./task-sm8";
 
 /* Dashboard mutations — tasks and the noticeboard.
@@ -574,6 +576,10 @@ export type TaskForEdit = {
   madeAt: string | null;
   /** may change who has it (team) */
   mayGive: boolean;
+  /** its Done in ServiceM8, line by line, as the viewer reads it: where it
+      stands, with Send again or Try again on one that didn't go (the bell's
+      door, which opened the old desk's Tasks face) */
+  sm8: { lines: readonly TaskDoneLine[]; sender: NoteSender | null };
 };
 
 async function jobLabelOf(orgId: string, uuid: string): Promise<string | null> {
@@ -630,6 +636,7 @@ export async function readTaskForEdit(taskId: string): Promise<{ ok: true; task:
         return `${h}:${String(at.min % 60).padStart(2, "0")} ${hour < 12 ? "AM" : "PM"}`;
       })()
     : null;
+  const sm8 = await readTaskDoneLines(ctx.orgId, ctx.staffId, [String(data.id)]).catch(() => null);
   return {
     ok: true,
     task: {
@@ -644,6 +651,7 @@ export async function readTaskForEdit(taskId: string): Promise<{ ok: true; task:
       madeBy: nameOf(data.created_by as string | null),
       madeAt: (data.created_at as string | null) ?? null,
       mayGive: await can("team"),
+      sm8: { lines: sm8?.lines[String(data.id)] ?? [], sender: sm8?.sender ?? null },
     },
   };
 }

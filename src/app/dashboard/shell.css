@@ -4478,7 +4478,6 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
   
 }
 
-
 /* ── THE SCHEDULE'S ONE TOOLBAR ──
    Three bands stood between the card and the first crew — the date with its
    week stepper, the seven-day strip, and the board's own top rule — 176px at
@@ -7321,11 +7320,11 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .tm-added { font-size:13px; font-weight:500; color:var(--q); white-space:nowrap; }
 .fg .tm-rm { width:24px; height:24px; border-radius:var(--r-control); opacity:0; }
 .fg .tm-row-plan:hover .tm-rm, .fg .tm-row-plan:focus-within .tm-rm { opacity:1; }
-.fg .tm .pbtn, .fg .tm-entry .pbtn { height:36px; padding:0 12px; font-size:14px; }
+.fg .tm .pbtn { height:36px; padding:0 12px; font-size:14px; }
 /* Done, Send, a quick answer, "Add to the Library", and the entry box's Save
    and Sort it out: the ring the capture card's buttons wear, for the
    keyboard only (law 32) */
-.fg .tm .pbtn:focus-visible, .fg .tm-entry .pbtn:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .tm .pbtn:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .tm-quick { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
 .fg .tm-doors { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-top:12px;
   font-size:13px; font-weight:500; color:var(--q); }
@@ -7336,26 +7335,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* the dock, the only buttons. Listening it is a plain row; otherwise the
    reply box, with the Tiff button on its end until you type. */
 .fg .tm-dock { flex:none; padding:12px 16px; border-top:1px solid var(--line); }
-.fg .tm-box { display:flex; align-items:center; gap:8px; min-height:44px; padding:4px 4px 4px 12px;
-  border:1px solid var(--tint-2); border-radius:var(--r-button); background:var(--paper);
-  transition:border-color var(--t-fast) var(--ease); }
-.fg .tm-box:focus-within { border-color:var(--ink); }
-/* the words take no outline of their own, so the box wears the ring for
-   them (law 32), as the search box does. Only for the words: a Save or Sort
-   it out with the keyboard on it wears its own, and the box stays out of it */
-.fg .tm-box:has(> .tm-in:focus-visible) { box-shadow:var(--ring); }
-.fg .tm-in { flex:1; min-width:0; height:34px; padding:0; border:0; outline:none; background:none;
-  font-size:14px; color:var(--ink); }
-.fg .tm-in::placeholder { color:var(--q); }
-.fg .tm-err { margin:8px 0 0; font-size:13px; font-weight:500; color:var(--bad-t); }
 
-/* THE ENTRY BOX (tiff-box.tsx), on the page: the reply box above, so the
-   same edge, corner, words and 36px buttons wherever you meet it. On the
-   page it is his taller box, 52px, with the words 16px in (his 18, snapped
-   to the scale) and the field its full height, so the whole box takes a
-   click. Where it stands and what is under it are the room's to say. */
-.fg .tm-box.tm-entry { height:52px; padding:0 8px 0 16px; }
-.fg .tm-entry .tm-in { height:100%; }
+.fg .tm-err { margin:8px 0 0; font-size:13px; font-weight:500; color:var(--bad-t); }
 
 /* UNDER REDUCED MOTION NOTHING SLIDES. The still mark arrives in the header
    and the conversation's foot opens by width, margin and padding: the
@@ -7388,8 +7369,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .tm .tm-rm { width:32px; height:32px; }
 .fg .tm .tm-aimx:hover, .fg .tm .tm-x:hover, .fg .tm .tm-rm:hover { background:var(--on-ink-tint); }
 .fg .tm .tm-aimx:focus-visible, .fg .tm .tm-x:focus-visible, .fg .tm .tm-rm:focus-visible,
-.fg .tm .tm-undo:focus-visible, .fg .tm .tm-words:focus-visible, .fg .tm .pbtn:focus-visible,
-.fg .tm .tm-box:has(> .tm-in:focus-visible) { box-shadow:var(--ring-ink); }
+.fg .tm .tm-undo:focus-visible, .fg .tm .tm-words:focus-visible, .fg .tm .pbtn:focus-visible { box-shadow:var(--ring-ink); }
 .fg .tm .tm-turns { max-height:572px; padding:0 32px 12px; }
 .fg .tm:not(:has(.tm-dock)) .tm-turns { padding-bottom:32px; }
 .fg .tm .tm-turn + .tm-turn { margin-top:24px; }
@@ -7421,15 +7401,10 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .tm .tm-undo:disabled { color:var(--on-ink-q); }
 .fg .tm .tm-dock { padding:16px 24px; border-top-color:var(--on-ink-line); }
 .fg .tm .wb2-recdot { width:12px; height:12px; }
-.fg .tm .tm-box { gap:12px; min-height:56px; padding:4px 4px 4px 16px; border-color:var(--on-ink-line); background:var(--on-ink-tint); }
-/* the edge lights for the field, not for whatever in the box has focus: listening, Done has it and the box is not being typed in */
-.fg .tm .tm-box:has(> .tm-in:focus) { border-color:var(--paper); }
-.fg .tm .tm-in { height:48px; font-size:16px; color:var(--paper); caret-color:var(--paper); }
-.fg .tm .tm-in::placeholder { color:var(--on-ink-q); }
+
 .fg .tm .tm-err { margin-top:12px; font-size:16px; color:var(--bad-on-ink); }
 .fg .tm .tiffbtn-box { --tb:48px; }
 .fg .tm .wb2-anscursor { --wb2-cy:var(--paper); }
-
 
 .wb2-capclock { font-variant-numeric:tabular-nums; font-size:13px; font-weight:700; color:var(--gray700); white-space:nowrap; }
 /* Leading the trace rather than hiding in the ribbon corner. Tabular figures
@@ -8049,7 +8024,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .tgl-p.on { background:color-mix(in srgb, var(--tgc, var(--q)) 20%, var(--paper));
   border-color:color-mix(in srgb, var(--tgc, var(--q)) 60%, transparent); }
 .fg button.tgl-p:focus-visible { outline:none;  box-shadow:var(--ring); }
-.fg .tgl-more { font-size:12px; font-weight:700; color:var(--gray400); }
 
 /* ── the filter rail ── */
 /* a shorter chip than the category rail's, because there are more of them and
@@ -8866,363 +8840,24 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .hd-page.qp { --hd-ink:var(--ink); --hd-body:var(--q); --hd-rule:var(--line); --hd-rule2:var(--line); --hd-edge:var(--edge);
   --hd-today:var(--ink); --hd-done:var(--green); --hd-dot:var(--grey); --hd-fresh:var(--soft); }
 
-/* ── YOUR DAY: across the top of Diary and Tasks ──
-   A rule under the band and one under the day, in his grey. The one under
-   the day is the body's own top edge, so when the day steps aside for the
-   Calendar that rule rises with the body and is the band's (home-desk). */
-.fg .hd-day { flex:none; display:flex; flex-direction:column; gap:12px; padding:16px 24px;
-  border-top:1px solid var(--hd-rule); }
-.fg .hd-day[hidden] { display:none; }
-.fg .hd-dayh { margin:0; font-size:16px; font-weight:600; line-height:1.2; color:var(--hd-ink); }
-
-/* ── THE BODY: the tabs, then the one cell the faces slide through ──
-   On the page's own paper, so that while it travels down to make room for
-   the day's panel (home-day.tsx) it covers the panel it is uncovering,
-   rather than its words passing over the panel's. */
-.fg .hd-body { flex:1; min-height:0; display:flex; flex-direction:column; background:var(--paper);
-  border-top:1px solid var(--hd-rule); }
-
-/* THE TABS. His grey words, no underline; the chosen one is ink and bold.
-   The row is `flex:none` above the body, so it is pinned by where it
-   stands rather than by `sticky`, and it is one node on every face. */
-.fg .hd-tabs { flex:none; display:flex; align-items:baseline; gap:24px; padding:16px 24px; }
-.fg .hd-tab { display:inline-flex; flex-direction:column; align-items:flex-start; padding:0; border:0;
-  border-radius:6px; background:none; font-size:20px; font-weight:500; line-height:1.2; color:var(--q);
-  cursor:pointer; transition:color var(--t-fast) var(--ease); }
-.fg .hd-tab:hover { color:var(--hd-ink); }
-.fg .hd-tab.on { font-weight:600; color:var(--hd-ink); cursor:default; }
-.fg .hd-tab:focus-visible { outline:none; box-shadow:var(--ring); }
-/* The bold name under every name, with no height and nothing to see: the
-   tab is as wide as its bold word from the start, so the one that is on is
-   never wider than it was and nothing beside it moves. Its weight IS the
-   chosen tab's weight; home-desk-frame holds the two together. */
-.fg .hd-tabw { height:0; overflow:hidden; visibility:hidden; font-weight:600; pointer-events:none;
-  user-select:none; }
-
-/* THE CELL. The body and the Calendar share it and slide past each other
-   in it; the diary column's two faces share its own. Both clip, so a face
-   on its way never paints over the day, the tabs or the list.
-   `clip`, NEVER `hidden`: hidden still makes a scroll container, and the
-   face sliding in gives it room sideways, so a diary door's flash (Tasks'
-   `scrollIntoView`) would scroll the cell ~300px across mid-slide and snap
-   back. Clip bounds the slide without a scroller, as the Studio's start
-   screen does (.ds-home). */
-.fg .hd-fx { flex:1; min-height:0; display:grid; grid-template:minmax(0,1fr) / minmax(0,1fr); overflow:clip; }
-.fg .hd-fx > .hd-main, .fg .hd-fx > .hd-face { grid-area:1 / 1; min-width:0; min-height:0; }
-/* The list takes the right-hand column once it is there; until then the
-   column is the body. */
-.fg .hd-main { display:grid; grid-template-columns:minmax(0,1fr); }
-.fg .hd-main:has(> .hd-list) { grid-template-columns:minmax(0,1fr) minmax(280px,420px); }
-.fg .hd-col { display:grid; grid-template:minmax(0,1fr) / minmax(0,1fr); min-width:0; min-height:0;
-  overflow:clip; }
-.fg .hd-col > .hd-face { grid-area:1 / 1; min-width:0; min-height:0; }
 /* A face scrolls on its own; the tabs above it stay where they are. */
 .fg .hd-face { display:flex; flex-direction:column; overflow-y:auto; }
 .fg .hd-main[hidden], .fg .hd-face[hidden] { display:none; }
 
-/* ── YOUR DAY: his slanted bar (handoff "Home - Diagonal day", §2) ──
-   home-day-bar.tsx. What a card is, how wide, what it says and its colours
-   are decided in lib/dashboard/day-bar and arrive inline: `flex`,
-   `min-width`, and --hd-bg / --hd-fill / --hd-text / --hd-p. Nothing here
-   picks a hue. His radii snap to the scale (card 8 → 10, panel 14 → 16),
-   and his spacing within 4px of where he drew it. Nothing on a card
-   transitions: the grow is a FLIP the bar runs itself (lib/dashboard/
-   day-flip), from boxes read with nothing in the way. The one thing here
-   that moves is the Trace, below. */
-.fg .hd-daynote { margin:0; font-size:14px; color:var(--q); }
-.fg .hd-daynote a { color:var(--link); font-weight:500; text-decoration:underline; text-underline-offset:3px; }
-.fg .hd-daynone { margin:0; font-size:14px; font-weight:500; color:var(--q); }
+@media (prefers-reduced-motion:reduce) {  }
 
-/* THE BAR clips the row, whose ends reach half a card's height past it, so
-   the outer slants of the first and last cards are cut away and the ends
-   read square. `clip`, not `hidden`: hidden is a scroll container, and
-   focusing the last card would scroll the row the 44px it overhangs. */
-.fg .hd-bar { position:relative; margin:8px 0 4px; overflow:clip; border-radius:10px; }
-.fg .hd-row { display:flex; gap:4px; height:88px; margin:0 -44px; }
-/* THE CARD is a layout box the pointer passes through; its skin is what a
-   click lands on, so the card under the pointer is the one whose SHAPE is
-   there, not the one whose box it leans into. */
-.fg .hd-card { position:relative; min-width:0; padding:0; border:0; background:none; font:inherit;
-  color:var(--hd-text); text-align:center; cursor:pointer; pointer-events:none; }
-.fg .hd-card:focus-visible { outline:none; }
-.fg .hd-skin { position:absolute; inset:0; border-radius:10px; overflow:hidden; transform:skewX(45deg);
-  background:var(--hd-bg); pointer-events:auto; }
-/* The job on now darkens from the left as it runs, its edge on the slant. */
-.fg .hd-fill { position:absolute; inset:0; transform-origin:left; transform:scaleX(var(--hd-p, 0));
-  background:var(--hd-fill); }
-/* The open card's 3px ink outline, over its fill, and a focus ring drawn
-   INWARD: the bar clips anything outside a card. */
-.fg .hd-skin::after { content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; }
-.fg .hd-card[aria-expanded="true"] .hd-skin::after { box-shadow:inset 0 0 0 3px var(--hd-ink); }
-.fg .hd-card:focus-visible .hd-skin::after { box-shadow:inset 0 0 0 2px var(--paper), inset 0 0 0 4px var(--ink); }
-/* An end card's outer slant is cut away, so the bar draws that side of the
-   outline down its own square end. His line; a named exemption (law 14).
-   Raised: the cards are positioned and come after ::before, so without a
-   layer of its own the left line would be painted under the first card. */
-.fg .hd-bar::before, .fg .hd-bar::after { content:""; position:absolute; inset:0; z-index:var(--z-raised);
-  border-radius:inherit; pointer-events:none; }
-.fg .hd-bar[data-sel-end~="first"]::before { box-shadow:inset 3px 0 0 var(--hd-ink); }
-.fg .hd-bar[data-sel-end~="last"]::after { box-shadow:inset -3px 0 0 var(--hd-ink); }
-
-/* THE TRACE: a white light that runs round the job on now, once every 8
-   seconds. His loop, and his gradient: both named exemptions in
-   docs/design.md. The ring is a 3px border, the width of the open card's
-   outline, and two masks keep only it (all of the box, less the inside of
-   the border); the mask also cuts away whatever lies outside the box. The
-   light is a conic gradient on a square behind the ring that turns about
-   the card's middle — a rotation, which the compositor runs without
-   painting the page, where animating the gradient's own angle repaints it
-   on every frame. The square is the card's width plus its height across,
-   so its turning corners never come inside the ring. Over the open card's
-   ink outline, as he drew it, so the light still runs on the card the page
-   opens on. Under reduced motion it stands still, the light at the top. */
-.fg .hd-trace { position:absolute; inset:0; z-index:var(--z-raised); border:3px solid transparent;
-  border-radius:inherit; pointer-events:none;
-  -webkit-mask:linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0); -webkit-mask-composite:xor;
-  mask:linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0); mask-composite:exclude; }
-.fg .hd-trace > i { position:absolute; left:50%; top:50%; width:calc(100% + 88px); aspect-ratio:1;
-  translate:-50% -50%;
-  background:conic-gradient(transparent 0deg 220deg, color-mix(in srgb, var(--paper) 50%, transparent) 300deg,
-    var(--paper) 350deg, transparent 360deg);
-  animation:hdTrace 8s linear infinite; }
-@keyframes hdTrace { to { rotate:360deg; } }
-@media (prefers-reduced-motion:reduce) { .fg .hd-trace > i { animation:none; } }
-
-/* THE WORDS, NEVER SKEWED. He drew them inside the skewed card, each block
-   straightened about its own middle; that lands a block along x by its
-   height from the card's middle (44px), at 45°, and nothing else. So each
-   is placed here where his landed: the tag, 18px line centred 19px down,
-   25px left of his 18; the name and time, centred 53px down, 9px right. */
-.fg .hd-lab { position:absolute; inset:0; pointer-events:none; }
-.fg .hd-tag { position:absolute; top:10px; left:-7px; max-width:calc(100% - 60px); overflow:hidden;
-  white-space:nowrap; font-size:12px; font-weight:600; line-height:18px; }
-.fg .hd-card[data-end~="first"] .hd-tag { left:63px; }
-/* Open, the place moves to the middle, above the name: his 32px right of
-   centre at 14px down, less the 21 that height takes back. The end cards'
-   middle is 40px in from the square end. */
-.fg .hd-card[aria-expanded="true"] .hd-tag { top:14px; left:calc(50% + 11px); transform:translateX(-50%); }
-.fg .hd-card[aria-expanded="true"][data-end~="first"] .hd-tag { left:calc(50% + 51px); }
-.fg .hd-card[aria-expanded="true"][data-end~="last"] .hd-tag { left:calc(50% - 29px); }
-.fg .hd-mid { position:absolute; top:18px; bottom:0; left:2px; right:2px; display:flex; flex-direction:column;
-  align-items:center; justify-content:center; gap:4px; line-height:1.2; white-space:nowrap;
-  transform:translateX(9px); }
-.fg .hd-card[data-end~="first"] .hd-mid { left:80px; }
-.fg .hd-card[data-end~="last"] .hd-mid { right:80px; }
-.fg .hd-name, .fg .hd-time { max-width:calc(100% - 40px); overflow:hidden; }
-.fg .hd-name { font-size:16px; font-weight:700; }
-.fg .hd-bar[data-compact] .hd-name { font-size:14px; }
-.fg .hd-time { font-size:13px; font-weight:600; }
-/* The tick on finished work, level, in his green: his bottom-right corner
-   (12px in, 7px up), which the slant carries 28px right; centred on a card
-   folded down to its tick. */
-.fg .hd-tick { position:absolute; right:-16px; bottom:7px; display:grid; place-items:center; width:18px; height:18px;
-  border-radius:50%; background:var(--hd-done); color:var(--paper); pointer-events:none; }
-.fg .hd-tick > span, .fg .hd-tick svg { display:block; }
-.fg .hd-card[data-end~="last"] .hd-tick { right:56px; }
-.fg .hd-card[data-collapsed] .hd-tick { top:35px; bottom:auto; right:calc(50% - 9px); }
-.fg .hd-card[data-collapsed][data-end~="first"] .hd-tick { right:calc(50% - 49px); }
-.fg .hd-card[data-collapsed][data-end~="last"] .hd-tick { right:calc(50% + 31px); }
-
-/* THE PANEL under the bar: the open card, summed up, in the card's own
-   colours (--hd-pbg, --hd-ptitle, --hd-psub, --hd-psw from `dayCardPaint`).
-   Its one action and the close cross stand at the right. */
-.fg .hd-pan { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:start; gap:16px; padding:16px;
-  border-radius:16px; background:var(--hd-pbg); color:var(--hd-ptitle); }
-.fg .hd-sw { width:12px; height:12px; margin-top:4px; background:var(--hd-psw); }
-.fg .hd-pm { display:flex; flex-direction:column; gap:8px; min-width:0; }
-.fg .hd-pt { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; }
-.fg .hd-pn { margin:0; font-size:20px; font-weight:600; line-height:1.2; color:inherit; }
-.fg .hd-pno { font-size:14px; font-weight:600; color:var(--hd-psub); }
-/* HIS CAPSULE round the state word — law 26 says state is a word; he kept
-   it (a named exemption). Paper and ink on a card still to come or on now,
-   his quiet grey once it is finished, the late red on a task past its time. */
-.fg .hd-chip { padding:2px 8px; border-radius:999px; background:var(--paper); color:var(--hd-ink);
-  font-size:12px; font-weight:600; line-height:1.5; }
-.fg .hd-chip[data-state="done"] { background:var(--hd-rule2); color:var(--hd-body); }
-.fg .hd-chip[data-state="late"] { color:var(--hd-late); }
-.fg .hd-ps { margin:0; max-width:720px; font-size:14px; font-weight:500; line-height:1.5; }
-.fg .hd-px { display:flex; flex-wrap:wrap; gap:4px 24px; margin:0; font-size:13px; color:var(--hd-psub); }
-.fg .hd-px > div { display:flex; gap:4px; }
-.fg .hd-px dt { font-weight:700; }
-.fg .hd-px dd { margin:0; }
-.fg .hd-pb { display:flex; align-items:center; gap:8px; }
-.fg .hd-open { height:36px; padding:0 12px; border:0; border-radius:10px; background:var(--hd-ink); color:var(--paper);
-  font:inherit; font-size:14px; font-weight:600; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
-.fg .hd-open:hover:not(:disabled) { background:color-mix(in srgb, var(--hd-ink) 88%, var(--paper)); }
-.fg .hd-open:disabled { cursor:default; }
-.fg .hd-x { display:grid; place-items:center; width:36px; height:36px; padding:0; border:0; border-radius:10px;
-  background:transparent; color:inherit; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
-/* One step of the panel's own ink — his white at 60% hid a white cross. */
-.fg .hd-x:hover { background:color-mix(in srgb, currentColor 16%, transparent); }
-.fg .hd-x > span, .fg .hd-x svg { display:block; }
-.fg .hd-open:focus-visible, .fg .hd-x:focus-visible { outline:none; box-shadow:var(--ring); }
-
-/* ── THE LIST: the right-hand column beside Diary and Tasks ──
-   home-list.tsx. His list (the prototype's rail, v32) on the page's tokens:
-   a group's title at 16/600, Late in the late red and Today in the one
-   teal, its count 8px after it in the quiet grey; then rows of a lead (a
-   dot or a box), the title, a figure, the line under it and at most one
-   verb. His numbers snap to the scales, 4px or less each: the column's
-   padding 28 → 24, the row's gap 14 → 12, the count's 6px → 8, the verb's
-   radius 8 → 10 and its padding 10 → 12. The verb is 32px tall, the
-   height of the Calendar's own admin action. The frame's grid gives the
-   list its column when it is there (`.hd-main:has(> .hd-list)`). */
-.fg .hd-list { min-width:0; min-height:0; overflow-y:auto; padding:4px 24px 24px;
-  border-left:1px solid var(--hd-rule); }
-.fg .hd-ls-none { margin:0; padding:16px 0; font-size:14px; color:var(--q); }
 .fg .hd-ls-grp { display:flex; align-items:baseline; gap:8px; margin:0; padding:24px 0 8px;
   border-bottom:1px solid var(--hd-rule); font-size:16px; font-weight:600; line-height:1.2; color:var(--hd-ink); }
-.fg .hd-ls-g:first-child > .hd-ls-grp { padding-top:16px; }
+
 .fg .hd-ls-grp.late { color:var(--hd-late); }
 .fg .hd-ls-grp.today { color:var(--hd-today); }
-.fg .hd-ls-n { font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
-.fg .hd-ls-rows, .fg .hd-ls-kids { margin:0; padding:0; list-style:none; }
 
-/* A ROW FOLDS AWAY AS ONE once it has said "Done." for its four seconds:
-   the item is a grid of one track, and the track closes on `--t-move`. */
-.fg .hd-ls-it { display:grid; grid-template-rows:1fr; transition:grid-template-rows var(--t-move) var(--ease); }
-.fg .hd-ls-it[data-leaving] { grid-template-rows:0fr; }
-.fg .hd-ls-fold { min-height:0; border-bottom:1px solid var(--hd-rule2); }
-.fg .hd-ls-it[data-leaving] > .hd-ls-fold { overflow:hidden; }
-/* The row's fill reaches 8px past the column's words on each side, as his
-   did, so the words themselves stand on the column's edge. */
-.fg .hd-ls-row { display:grid; grid-template-columns:20px minmax(0,1fr) auto; column-gap:12px; align-items:start;
-  margin:0 -8px; padding:12px 8px; border-radius:6px; font-size:14px; line-height:1.45;
-  transition:background-color var(--t-fast) var(--ease); }
-.fg .hd-ls-row.opens { cursor:pointer; }
-.fg .hd-ls-row.opens:hover { background:var(--tint); }
-/* A door asked for this row: lit once, on the selection tint, and back. */
-.fg .hd-ls-row[data-lit] { background:var(--tint-2); }
-/* The calendar rail's row for the thing the calendar has chosen: filled as
-   a selection is, for as long as it is chosen. */
-.fg .hd-ls-row[data-pressed] { background:var(--tint-2); }
-/* The lead stands in the title's first line, whatever the title does. */
-.fg .hd-ls-lead { grid-row:1; display:flex; align-items:center; justify-content:center; height:1.45em; }
-.fg .hd-ls-dot { width:8px; height:8px; border-radius:50%; background:var(--hd-dot); }
-.fg .hd-ls-dot[data-dot="late"] { background:var(--hd-late); }
-.fg .hd-ls-dot[data-dot="today"] { background:var(--hd-today); }
-/* THE BOX, copied from the old Home into this family, which outlived it:
-   a control, so the control radius, and the quiet colour for its edge. */
-.fg .hd-ls-cb { display:grid; place-items:center; width:18px; height:18px; padding:0; border:1px solid var(--q);
-  border-radius:6px; background:var(--paper); color:var(--paper); cursor:pointer;
-  transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .hd-ls-cb:hover:not(:disabled) { border-color:var(--ink); }
-.fg .hd-ls-cb.on { background:var(--ink); border-color:var(--ink); }
-.fg .hd-ls-cb:disabled { cursor:default; }
-.fg .hd-ls-cb > span, .fg .hd-ls-cb svg { display:block; }
-.fg .hd-ls-t { grid-row:1; grid-column:2; display:block; min-width:0; overflow:hidden; padding:0; border:0;
-  border-radius:6px; background:none; font:inherit; font-weight:500; color:var(--hd-ink); text-align:left;
-  text-decoration:none; white-space:nowrap; cursor:pointer;
-  justify-self:stretch; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.fg .hd-ls-row.done .hd-ls-t { color:var(--q); text-decoration:line-through; }
-.fg .hd-ls-fig { grid-row:1; grid-column:3; display:flex; align-items:center; justify-content:flex-end; gap:8px;
-  font-weight:600; color:var(--hd-ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
-/* HIS NAME TAG on someone else's task: a filled capsule, where law 26 says
-   a plain word. He kept it — a named exemption in docs/design.md. Its fill
-   is his own, #eef0f3, the grey of his second rule, and SOLID: a tint
-   would stack on the row's own, and the body grey reads 4.22:1 on the
-   selection tint laid over itself, which a lit row would make of it. */
-.fg .hd-ls-tag { padding:0 8px; border-radius:999px; background:var(--hd-rule2); font-size:12px; font-weight:600;
-  line-height:20px; color:var(--hd-body); }
-.fg .hd-ls-sub { grid-row:2; grid-column:2 / 4; min-width:0; font-size:13px; font-weight:500; color:var(--hd-body); }
-.fg .hd-ls-row.has-vb .hd-ls-sub { grid-column:2; }
-.fg .hd-ls-sub.late { color:var(--hd-late); }
-.fg .hd-ls-sub.fresh { color:var(--hd-today); }
-.fg .hd-ls-sub b { font-weight:600; }
-.fg .hd-ls-vbs { grid-row:2; grid-column:3; justify-self:end; align-self:center; }
-/* THE VERB: one small outline button, drawn alike as a link or a button. */
-.fg .hd-ls-vb { display:inline-flex; align-items:center; height:32px; padding:0 12px; border:1px solid var(--hd-edge);
-  border-radius:10px; background:var(--paper); font:inherit; font-size:13px; font-weight:600; color:var(--hd-ink);
-  text-decoration:none; white-space:nowrap; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
-.fg .hd-ls-vb:hover { background:var(--tint); }
-.fg .hd-ls-undo, .fg .hd-ls-link { padding:0; border:0; border-radius:6px; background:none; font:inherit; font-weight:600;
-  color:var(--hd-ink); text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
-.fg .hd-ls-undo:disabled { cursor:default; }
-.fg .hd-ls-t:focus-visible, .fg .hd-ls-cb:focus-visible, .fg .hd-ls-vb:focus-visible,
-.fg .hd-ls-undo:focus-visible, .fg .hd-ls-link:focus-visible { outline:none; box-shadow:var(--ring); }
 
-/* WHAT OPENS IN PLACE — a roll-up's rows, an issue's facts, a visit's day —
-   grows open on `--t-move` when a pointer opened it, and is simply there
-   from the keyboard (law 8). Its rows sit under the title, past the lead;
-   the clip keeps the 8px their fill reaches past the column. */
-.fg .hd-ls-in { display:grid; grid-template-rows:1fr; }
-.fg .hd-ls-in[data-grow] { animation:hdLsOpen var(--t-move) var(--ease); }
-.fg .hd-ls-in > * { min-height:0; overflow:clip; overflow-clip-margin:8px; }
-@keyframes hdLsOpen { from { grid-template-rows:0fr; } }
-.fg .hd-ls-kids { margin:0 0 8px calc(20px + 12px); }
-.fg .hd-ls-kids > .hd-ls-it:last-child > .hd-ls-fold { border-bottom:0; }
-.fg .hd-ls-iss { display:flex; flex-direction:column; gap:12px; padding:0 0 16px calc(20px + 12px); }
-.fg .hd-ls-facts { display:grid; grid-template-columns:auto minmax(0,1fr); gap:4px 12px; margin:0; font-size:13px;
-  font-weight:500; }
-.fg .hd-ls-facts > div { display:contents; }
-.fg .hd-ls-facts dt { color:var(--q); }
-.fg .hd-ls-facts dd { margin:0; color:var(--hd-ink); }
-.fg .hd-ls-facts dd.unset { color:var(--q); }
-.fg .hd-ls-acts { display:flex; align-items:center; gap:16px; }
-.fg .hd-ls-pick { padding:0 0 12px calc(20px + 12px); }
-/* The day field's own edge and paper, which the frame's button reset
-   (`.fg button`, 0,1,1) takes off the unscoped `.datef` (0,1,0). */
-.fg .hd-ls-pick .datef { border:1px solid var(--line); background:var(--paper); }
-.fg .hd-ls-pick .datef:focus-visible, .fg .hd-ls-pick .datef[aria-expanded="true"] { border-color:var(--ink); }
 @media (prefers-reduced-motion:reduce) {
-  .fg .hd-ls-it { transition:none; }
-  .fg .hd-ls-in[data-grow] { animation:none; }
+  
+  
 }
 
-/* ── TASKS: the diary column's second face, beside the list ──
-   home-tasks-face.tsx. His Tasks face (the prototype's #tasks, v29–v33) on
-   the page's tokens. Open and Done wear the list's own dress — its group
-   title, its row, its box and his name tag, `hd-ls-` — so a task reads the
-   same in the column and beside it; what grows open under a row is the
-   list's too (`.hd-ls-in`), and so is everything it does under reduced
-   motion. What is the face's own is here: the box's place, the due word,
-   the row that is open, and what opens under it — the facts, their own
-   words, what happened, and what you can do. His numbers snap to the
-   scales, 4px or less each: the column's padding 28 → 24, and what opens
-   sits under the title, past the lead and the gap (his 34 → 20 + 12). The
-   facts' 88px and the history's 152px are layout widths. */
-.fg .hd-tk { padding:4px 24px 24px; }
-.fg .hd-tk-box { margin:0 0 16px; }
-/* His first title sits 8px under the box, where the list's sits 16 under
-   the top of its column. */
-.fg .hd-tk-list > .hd-ls-g:first-child > .hd-ls-grp { padding-top:8px; }
-/* The row that is open wears the hover's fill for as long as it is open —
-   unless a door has lit it, which says so on the selection tint. */
-.fg .hd-tk .hd-ls-row:not([data-lit]):has(> .hd-ls-t[aria-expanded="true"]) { background:var(--tint); }
-/* The due word on the right: late in the late red, today in the teal. */
-.fg .hd-tk-due { font-size:13px; font-weight:500; color:var(--hd-body); }
-.fg .hd-tk-due[data-state="bad"] { color:var(--hd-late); }
-.fg .hd-tk-due[data-state="today"] { color:var(--hd-today); }
-/* Work someone else finished for you: a tick where the box would be, and
-   nothing to press. */
-.fg .hd-tk-tick { display:grid; place-items:center; width:18px; height:18px; color:var(--q); }
-.fg .hd-tk-tick > span, .fg .hd-tk-tick svg { display:block; }
-/* Real words carry a link or an email address with no space in it: they
-   break anywhere rather than widen the face past its column (law 13). */
-.fg .hd-tk-d { min-width:0; padding:4px 0 16px calc(20px + 12px); overflow-wrap:anywhere; }
-.fg .hd-tk-note { margin:8px 0 0; font-size:14px; line-height:1.5; color:var(--hd-ink); }
-.fg .hd-tk-f { display:grid; grid-template-columns:88px minmax(0,1fr); gap:4px 12px; margin:8px 0 0; }
-.fg .hd-tk-f > div { display:contents; }
-.fg .hd-tk-f dt { font-size:13px; font-weight:500; line-height:22px; color:var(--hd-body); }
-.fg .hd-tk-f dd { margin:0; font-size:14px; line-height:22px; color:var(--hd-ink); }
-/* His late fact keeps the day in ink: only how late is red. */
-.fg .hd-tk-f [data-late] { color:var(--hd-late); }
-/* The Job's door at his size and weight, 13/500, underlined as every link. */
-.fg .hd-tk-f .hd-ls-link { font-size:13px; font-weight:500; }
-/* Their own words, in a well: the page's ground, the tile's corner. */
-.fg .hd-tk-q { margin:12px 0 0; padding:12px 16px; border-radius:10px; background:var(--ground); }
-.fg .hd-tk-q figcaption { font-size:13px; font-weight:500; color:var(--hd-body); }
-.fg .hd-tk-q figcaption b { font-weight:600; color:var(--hd-ink); }
-.fg .hd-tk-q p { margin:4px 0 0; font-size:14px; line-height:1.5; color:var(--hd-ink); white-space:pre-line; }
-.fg .hd-tk-h { display:flex; flex-direction:column; gap:4px; margin:12px 0 0; padding:0; list-style:none; }
-.fg .hd-tk-h li { display:grid; grid-template-columns:152px minmax(0,1fr); gap:8px; font-size:13px; font-weight:500;
-  line-height:1.45; color:var(--hd-ink); }
-.fg .hd-tk-h li > span { color:var(--hd-body); }
-/* Where its Done stands with ServiceM8, under what happened to it: one line
-   a row (task-sm8-line), one under another — the words and where they stand,
-   the state in its own colour and nowhere else, and the line's doors as
-   links. Its dress came over from the old Tasks face with it (2026-09-26). */
-.fg .hd-tk-sm8 { display:flex; flex-direction:column; gap:4px; margin:12px 0 0; }
 .fg .hd-tk-sm8line { margin:0; max-width:640px; font-size:14px; color:var(--q); }
 .fg .hd-tk-sm8line b { font-weight:500; color:var(--ink); }
 .fg .hd-tk-sm8line .ok { color:var(--ok-t); }
@@ -9231,126 +8866,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .hd-tk-sm8door { align-self:flex-start; padding:0; border:0; background:none; font-size:14px; font-weight:500;
   color:var(--link); text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
 .fg .hd-tk-sm8door:disabled { color:var(--q); cursor:default; }
-/* What you can do, and a question in its place — Delete for good?, or who
-   to give it to: the list's verb, Mark done filled in ink, Give it to a
-   verb that fits its word, Delete task a red word on the right. */
-.fg .hd-tk-a, .fg .hd-cf { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:16px; }
-.fg .hd-tk-go { border-color:var(--hd-ink); background:var(--hd-ink); color:var(--paper); }
-.fg .hd-tk-go:hover { background:color-mix(in srgb, var(--hd-ink) 88%, var(--paper)); }
-/* The date field, drawn as the verbs beside it. It is the app's own
-   (`.datef`, unscoped, 0,1,0), which the frame's button reset (`.fg
-   button`, 0,1,1) would strip. */
-.fg .hd-tk-a .datef { min-width:0; height:32px; padding:0 12px; border:1px solid var(--hd-edge);
-  border-radius:10px; background:var(--paper); font:inherit; font-size:13px; font-weight:600; color:var(--hd-ink);
-  cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
-/* One change on hover, the fill, as the verbs beside it: the date
-   field's own hover would darken its edge too. */
-.fg .hd-tk-a .datef:hover { border-color:var(--hd-edge); background:var(--tint); }
-.fg .hd-tk-a .datef:focus-visible, .fg .hd-tk-a .datef[aria-expanded="true"] { border-color:var(--ink); }
-.fg .hd-tk-del { height:32px; margin-left:auto; padding:0 12px; border:0; border-radius:10px; background:none;
-  font:inherit; font-size:13px; font-weight:500; color:var(--bad-t); cursor:pointer;
-  transition:background-color var(--t-fast) var(--ease); }
-.fg .hd-tk-del:hover { background:var(--tint); }
-.fg .hd-tk-del:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .hd-cf-q { margin-right:4px; font-size:14px; font-weight:600; color:var(--hd-ink); }
-.fg .hd-cf-go { border-color:var(--bad-t); color:var(--bad-t); }
 
-/* ── THE CALENDAR: the third face, across the whole body ──
-   home-cal-page.tsx and its views. His handoff "Calendar" (4 weeks, Month,
-   Year), walked on the prototype to v33, on the page's tokens. His type is
-   on the scale already; his spacing and radii snap to the scales, 4px or
-   less each: the gutters 28 → 24, a week's air 26 → 24, the rows' gaps 14
-   → 12 and 7 → 8, the panel's 18 → 16, the year's gaps 26 → 24 between
-   rows and 30 → 32 between months;
-   his tiles 12 and 14 → 10, the view switch's seat 9 → the tray's radius
-   less its inset, 8 and 7 → 6, and his swatches, 12px and under, sharp.
-   Everything a person taps is 32px tall, as the list's verb is.
-
-   HIS COLOURS ARE TOKENS, here and nowhere else (law 16 is his to waive:
-   docs/design.md, Named exemptions): a category is said with `data-c` and
-   painted from these, never written in the markup. Holidays his purple,
-   events his teal, admin his amber, each with its tint and its ink; late
-   his pale red with its ink, and the late mark itself the page's one late
-   red; the school holidays his grey hatch, two of his gradients (a named
-   exemption); and his shadow under the view switch's chosen seat (another).
-   Hover and a choice are the app's own tints, as on the list. */
-.fg .hd-cal { --hd-cal-hol:#7c5ce0; --hd-cal-hol-tint:#e8e1fb; --hd-cal-hol-hover:#efeafd; --hd-cal-hol-day:#f6f3fe;
-  --hd-cal-hol-t:#4f3a99; --hd-cal-ev:#0f9488; --hd-cal-ev-tint:#d5f0ec; --hd-cal-ev-t:#0f5e57;
-  --hd-cal-adm:#d9860f; --hd-cal-adm-tint:#fbecd2; --hd-cal-adm-t:#8a5608; --hd-cal-late-tint:#fbe0db;
-  --hd-cal-late-t:#a8202f; --hd-cal-sch:#aeb6c4; --hd-cal-sch-t:#39465a; --hd-cal-we:#fafbfc;
-  --hd-cal-seat:rgba(21,26,36,.08);
-  --hd-cal-hatch:repeating-linear-gradient(135deg, #eef0f3 0 5px, #e1e5eb 5px 10px) #e1e5eb;
-  --hd-cal-hatch-sw:repeating-linear-gradient(135deg, #aeb6c4 0 2px, #eef0f3 2px 4px);
-  flex:1; min-height:0; display:flex; flex-direction:column; color:var(--hd-ink); }
-.fg .hd-cal [data-c="hol"] { --hd-cal-c:var(--hd-cal-hol); }
-.fg .hd-cal [data-c="event"] { --hd-cal-c:var(--hd-cal-ev); }
-.fg .hd-cal [data-c="admin"] { --hd-cal-c:var(--hd-cal-adm); }
-.fg .hd-cal [data-c="school"] { --hd-cal-c:var(--hd-cal-sch); }
-
-/* THE SWATCH: a sharp square in its category's colour, the hatch for the
-   school holidays, the late red for admin past its date; a dot where the
-   rail lists what is due, as the list's are. */
-.fg .hd-cal-sw { flex:none; display:block; width:10px; height:10px; box-sizing:border-box; background:var(--hd-cal-c); }
-.fg .hd-cal-sw[data-c="school"] { background:var(--hd-cal-hatch-sw); }
-.fg .hd-cal-sw[data-late] { background:var(--hd-late); }
-.fg .hd-cal-sw[data-round] { width:8px; height:8px; border-radius:50%; }
-
-/* ITS OWN TOOLBAR, under the tabs and never in their row, and one row
-   (Isaac, 2026-09-26: "simplify it"): ‹ ›, what is in view and Today, then
-   the filters, and the view switch at its end. The box went to the top of
-   the right-hand column, over the day it adds to (below). */
-.fg .hd-cal-tb { flex:none; display:flex; align-items:center; flex-wrap:wrap; gap:8px 0; padding:12px 24px;
-  border-bottom:1px solid var(--hd-rule); container:hdcaltb / inline-size; }
-.fg .hd-cal-nav { flex:none; display:flex; align-items:center; gap:4px; }
-.fg .hd-cal-nb { display:grid; place-items:center; width:32px; height:32px; padding:0; border:0; border-radius:10px;
-  background:transparent; color:var(--hd-ink); cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
-.fg .hd-cal-nb:hover { background:var(--tint); }
-.fg .hd-cal-nb > span, .fg .hd-cal-nb svg { display:block; }
-/* Past the twelve months there is nothing true to show, so the arrow rests. */
-.fg .hd-cal-nb[aria-disabled="true"] { color:var(--q); cursor:default; }
-.fg .hd-cal-nb[aria-disabled="true"]:hover { background:transparent; }
-.fg .hd-cal-rt { margin:0 12px 0 8px; font-size:20px; font-weight:700; line-height:1.2; white-space:nowrap;
-  color:var(--hd-ink); }
-.fg .hd-cal-today { display:inline-flex; align-items:center; height:32px; padding:0 12px; border:1px solid var(--hd-edge);
-  border-radius:999px; background:var(--paper); font-size:13px; font-weight:600; color:var(--hd-ink); cursor:pointer;
-  transition:background-color var(--t-fast) var(--ease); }
-.fg .hd-cal-today:hover { background:var(--tint); }
-/* Today in view already: it rests, quiet. */
-.fg .hd-cal-today[aria-disabled="true"] { color:var(--q); cursor:default; }
-.fg .hd-cal-today[aria-disabled="true"]:hover { background:var(--paper); }
-/* The filters and the switch stand together at the row's end, so a row
-   that runs out of room gives them the next line together: the switch
-   never takes a line alone. */
-.fg .hd-cal-end { display:flex; align-items:center; gap:16px; min-width:0; margin-left:auto; padding-left:16px; }
-/* THE FILTERS, which are also the legend: law 26 keeps a filter's form,
-   a hairline you tap. Off, the swatch is only its edge. */
-.fg .hd-cal-filters { display:flex; flex-wrap:wrap; gap:4px; min-width:0; }
-.fg .hd-cal-filter { display:inline-flex; align-items:center; gap:8px; height:32px; padding:0 12px;
-  border:1px solid var(--hd-edge); border-radius:999px; background:var(--paper); font-size:13px; font-weight:600;
-  color:var(--hd-ink); white-space:nowrap; cursor:pointer;
-  transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .hd-cal-filter:hover { background:var(--tint); }
-.fg .hd-cal-filter[aria-pressed="false"] { background:var(--tint); color:var(--q); }
-/* Off, it already stands on the hover's tint: the pointer takes it one step
-   darker, so an off filter answers the pointer as an on one does. */
-.fg .hd-cal-filter[aria-pressed="false"]:hover { background:var(--tint-2); }
-.fg .hd-cal-filter[aria-pressed="false"] .hd-cal-sw { border:2px solid var(--hd-cal-c); background:transparent; }
-.fg .hd-cal-n { font-weight:600; color:var(--q); font-variant-numeric:tabular-nums; }
-/* THE VIEW SWITCH: a segmented tray, a tint of whatever it stands on
-   (segmented-tray-contrast prefers a tint to his fixed #eef0f3, which only
-   holds on the ground it was picked on), the chosen seat paper lifted by
-   his small shadow (a named exemption, docs/design.md). Each seat is as
-   wide as its bold word from the start, as the tabs are, so choosing one
-   never moves the others. */
-.fg .hd-cal-vs { flex:none; display:flex; gap:2px; padding:4px; border-radius:10px; background:var(--tint-2); }
-.fg .hd-cal-vb { display:inline-flex; flex-direction:column; align-items:center; justify-content:center; height:36px;
-  padding:0 16px; border:0; border-radius:calc(10px - 4px); background:none; font-size:14px; font-weight:600;
-  line-height:1.2; color:var(--hd-body); white-space:nowrap; cursor:pointer;
-  transition:color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease); }
-.fg .hd-cal-vb:hover { color:var(--hd-ink); }
-.fg .hd-cal-vb[aria-pressed="true"] { background:var(--paper); color:var(--hd-ink); font-weight:700; cursor:default;
-  box-shadow:0 1px 2px var(--hd-cal-seat); }
-.fg .hd-cal-vbw { height:0; overflow:hidden; visibility:hidden; font-weight:700; pointer-events:none; user-select:none; }
 /* The toolbar is one line in every view, so the body never moves when the
    view changes. Year's title and two-figure counts beside the switch take
    about 1,185px of the row at his spacing, and 1,070 tightened (measured
@@ -9358,430 +8874,30 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    the row at 1440 wide; under 1,100 the filters and the switch take their
    own line, the switch at its end. */
 @container hdcaltb (max-width:1199.5px) {
-  .fg .hd-cal-nav { gap:2px; }
-  .fg .hd-cal-rt { margin:0 4px; }
-  .fg .hd-cal-today { padding:0 8px; }
-  .fg .hd-cal-end { gap:8px; padding-left:8px; }
-  .fg .hd-cal-filter { gap:4px; padding:0 8px; }
+  
+  
+  
+  
+  
 }
 @container hdcaltb (max-width:1099.5px) {
-  .fg .hd-cal-end { flex-basis:100%; margin-left:0; padding-left:0; }
-  .fg .hd-cal-vs { margin-left:auto; }
+  
+  
 }
 
-/* THE BODY: a view and the column beside it — the box on top, over the day
-   it adds to, then the rail beside 4 weeks or the panel beside Month and
-   Year. Each side scrolls on its own, and the box stays over the column. */
-.fg .hd-cal-body { flex:1; min-height:0; display:flex; flex-direction:column; }
-.fg .hd-cal-v { flex:1; min-height:0; display:grid; grid-template-rows:minmax(0,1fr); }
-.fg .hd-cal-v[data-view="4w"] { grid-template-columns:minmax(0,1fr) clamp(300px, 38%, 380px); }
-.fg .hd-cal-v[data-view="month"], .fg .hd-cal-v[data-view="year"] {
-  grid-template-columns:minmax(0,1fr) clamp(300px, 30%, 340px); }
-.fg .hd-cal-side { min-width:0; min-height:0; display:flex; flex-direction:column; border-left:1px solid var(--hd-rule); }
-.fg .hd-cal-add { flex:none; padding:16px 24px 0; }
-.fg .hd-cal-side > .hd-cal-rail, .fg .hd-cal-side > .hd-cal-det { flex:1; }
-.fg .hd-cal-ag, .fg .hd-cal-rail, .fg .hd-cal-mg, .fg .hd-cal-yg, .fg .hd-cal-det { min-width:0; min-height:0; overflow:auto; }
+@media (prefers-reduced-motion:reduce) {  }
 
-/* 4 WEEKS: the date down the left, what starts on it beside. */
-.fg .hd-cal-ag { padding:4px 24px 32px; }
-.fg .hd-cal-r { display:grid; grid-template-columns:84px minmax(0,1fr); border-radius:10px; }
-.fg .hd-cal-c { min-width:0; }
-.fg .hd-cal-r[data-kind="week"] > .hd-cal-c { display:flex; align-items:center; flex-wrap:wrap; gap:8px;
-  padding:24px 0 8px; border-bottom:1px solid var(--hd-rule); }
-.fg .hd-cal-wkl { margin:0; font-size:16px; font-weight:700; line-height:1.2; color:var(--hd-ink); }
-.fg .hd-cal-wkr { font-size:14px; font-weight:500; color:var(--q); }
-/* HIS SPAN TAG on a week, for what runs through it: a capsule where law 26
-   has a word (a named exemption). The school holidays wear his hatch. */
-.fg .hd-cal-tag { display:inline-flex; align-items:center; height:24px; margin-left:4px; padding:0 8px; border-radius:6px;
-  background:var(--hd-cal-ev-tint); font-size:12px; font-weight:700; color:var(--hd-cal-ev-t); white-space:nowrap; }
-.fg .hd-cal-tag[data-kind="school"] { background:var(--hd-cal-hatch); color:var(--hd-cal-sch-t); }
-.fg .hd-cal-r[data-kind="day"] > .hd-cal-d { padding:12px 0; }
-.fg .hd-cal-day { display:inline-flex; align-items:baseline; gap:8px; white-space:nowrap; }
-.fg .hd-cal-dw { font-size:14px; font-weight:500; color:var(--hd-body); }
-.fg .hd-cal-dn { font-size:20px; font-weight:700; line-height:1.2; color:var(--hd-ink); font-variant-numeric:tabular-nums; }
-.fg .hd-cal-r[data-weekend] .hd-cal-dn { color:var(--q); }
-.fg .hd-cal-r[data-today] .hd-cal-dw { font-weight:700; color:var(--hd-ink); }
-.fg .hd-cal-tl { margin-top:2px; font-size:12px; font-weight:700; color:var(--hd-today); }
-.fg .hd-cal-r[data-kind="day"] > .hd-cal-c { padding:4px 0; border-bottom:1px solid var(--hd-rule2); }
-/* A public holiday's day is tinted, its fill reaching past the column. */
-.fg .hd-cal-r[data-holiday] { grid-template-columns:96px minmax(0,1fr); margin:4px -12px; background:var(--hd-cal-hol-day); }
-.fg .hd-cal-r[data-holiday] > .hd-cal-d { padding-left:12px; }
-.fg .hd-cal-r[data-holiday] > .hd-cal-c { padding-right:12px; border-bottom:0; }
-.fg .hd-cal-r[data-holiday] .hd-cal-dn { color:var(--hd-cal-hol-t); }
-.fg .hd-cal-r[data-kind="quiet"] > .hd-cal-d { padding:12px 0 8px; font-size:14px; font-weight:700; color:var(--q);
-  white-space:nowrap; font-variant-numeric:tabular-nums; }
-.fg .hd-cal-r[data-kind="quiet"] > .hd-cal-c { padding:12px 0 8px; border-bottom:1px solid var(--hd-rule2);
-  font-size:14px; font-weight:600; color:var(--q); }
-.fg .hd-cal-r[data-kind="quiet"] > .hd-cal-c[data-long] { color:var(--hd-cal-hol-t); }
-.fg .hd-cal-none { margin:0; padding:8px 0; font-size:14px; color:var(--q); }
-/* A DAY IS PICKED FROM ITS ROW but its things and their controls
-   (home-cal-agenda.tsx): its date is the day's button, and a quiet run's
-   dates its first day's. The button is filled while the day is the one
-   chosen (law 14: a choice is a fill), in a holiday's own tint on its row,
-   and lit under the pointer anywhere on the row but a thing; the fill
-   reaches 8px past the date, so the date never moves. */
-.fg .hd-cal-r[data-kind="day"], .fg .hd-cal-r[data-kind="quiet"] { cursor:pointer; }
-.fg .hd-cal-day, .fg .hd-cal-qd { margin:-4px -8px; padding:4px 8px; border:0; border-radius:6px; background:none;
-  font:inherit; color:inherit; text-align:left; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
-.fg .hd-cal-qd { display:inline-block; }
-.fg .hd-cal-r:hover:not(:has(.hd-cal-it:hover)) .hd-cal-day:not([aria-pressed="true"]),
-.fg .hd-cal-r:hover .hd-cal-qd:not([aria-pressed="true"]) { background:var(--tint); }
-.fg .hd-cal-r[data-holiday]:hover:not(:has(.hd-cal-it:hover)) .hd-cal-day:not([aria-pressed="true"]) {
-  background:var(--hd-cal-hol-hover); }
-.fg .hd-cal-day[aria-pressed="true"], .fg .hd-cal-qd[aria-pressed="true"] { background:var(--tint-2); }
-.fg .hd-cal-r[data-holiday] .hd-cal-day[aria-pressed="true"] { background:var(--hd-cal-hol-tint); }
-/* A thing on a day: the row picks it, through its title. */
-.fg .hd-cal-it { display:flex; align-items:center; gap:12px; margin:0 -8px; padding:8px; border-radius:10px; cursor:pointer;
-  transition:background-color var(--t-fast) var(--ease); }
-.fg .hd-cal-it + .hd-cal-it { margin-top:2px; }
-.fg .hd-cal-it:hover { background:var(--tint); }
-.fg .hd-cal-it[data-sel] { background:var(--tint-2); }
-/* Just saved: his calFresh. It stands on his event tint for 55% of 2.4 s,
-   then eases to the choice's grey, which is what it is by then (a named
-   exemption from law 18's tokens, docs/design.md). Under reduced motion it
-   is a still tint for as long as it is lit. */
-.fg .hd-cal-it[data-fresh] { background:var(--hd-cal-ev-tint); animation:hdCalFresh 2.4s var(--ease) forwards; }
-@keyframes hdCalFresh { 0%, 55% { background:var(--hd-cal-ev-tint); } to { background:var(--tint-2); } }
-@media (prefers-reduced-motion:reduce) { .fg .hd-cal-it[data-fresh] { animation:none; } }
-/* Lit but not the choice — a repeat's later dates, or what was saved on the
-   day chosen — it has no choice's grey to ease to: it stands on his tint,
-   still, for as long as it is lit, as Month's do. */
-.fg .hd-cal-it[data-fresh]:not([data-sel]) { animation:none; }
-.fg .hd-cal-it > .hd-cal-sw { align-self:flex-start; margin-top:8px; }
-.fg .hd-cal-tx { flex:1; min-width:0; line-height:1.45; }
-.fg .hd-cal-itt { display:block; max-width:100%; padding:0; border:0; border-radius:6px; background:none; font:inherit;
-  font-size:16px; font-weight:600; line-height:1.45; color:var(--hd-ink); text-align:left; cursor:pointer; }
-.fg .hd-cal-itt[data-c="hol"] { color:var(--hd-cal-hol-t); }
-.fg .hd-cal-itt[data-c="school"] { color:var(--hd-body); }
-.fg .hd-cal-s { font-size:14px; color:var(--hd-body); text-wrap:pretty; }
-.fg .hd-cal-rs { flex:none; display:flex; align-items:center; gap:8px; }
-.fg .hd-cal-tm { font-size:14px; font-weight:600; color:var(--hd-body); white-space:nowrap; }
-/* An admin date's one action, drawn as the list's verb is. */
-.fg .hd-cal-ab { display:inline-flex; align-items:center; height:32px; padding:0 12px; border:1px solid var(--hd-edge);
-  border-radius:10px; background:var(--paper); font-size:13px; font-weight:600; color:var(--hd-ink); text-decoration:none;
-  white-space:nowrap; transition:background-color var(--t-fast) var(--ease); }
-.fg .hd-cal-ab:hover { background:var(--tint); }
-
-/* THE RAIL: the list's own rows (home-cal-rail.tsx), Due in the warning
-   colour and Holidays ahead in the holidays' ink. */
-.fg .hd-cal-rail { padding:12px 24px 24px; }
-.fg .hd-cal-rail > .hd-ls-g:first-child > .hd-ls-grp { padding-top:8px; }
 .fg .hd-ls-grp.due { color:var(--warn-t); }
 .fg .hd-ls-grp.hol { color:var(--hd-cal-hol-t); }
-.fg .hd-cal-away { font-size:13px; font-weight:500; color:var(--q); }
 
-/* MONTH: Monday first, the weekend columns narrower. The lines are inset
-   shadows, so the bars sit on the columns exactly. */
-.fg .hd-cal-mg { position:relative; padding:12px 16px 24px 24px; }
-.fg .hd-cal-mh { display:flex; box-shadow:inset 0 -1px 0 var(--hd-rule); }
-.fg .hd-cal-mh > div { min-width:0; }
-.fg .hd-cal-mh span { display:block; padding:0 0 8px 8px; font-size:12px; font-weight:600; color:var(--q); }
-.fg .hd-cal-wk { position:relative; display:flex; box-shadow:inset 0 -1px 0 var(--hd-rule); }
-.fg .hd-cal-mc { min-width:0; min-height:124px; background:var(--paper); box-shadow:inset -1px 0 0 var(--hd-rule2);
-  container-type:inline-size; }
-.fg .hd-cal-mc[data-last] { box-shadow:none; }
-.fg .hd-cal-mc[data-weekend] { background:var(--hd-cal-we); }
-.fg .hd-cal-mc[data-holiday] { background:var(--hd-cal-hol-day); }
-.fg .hd-cal-in { padding:8px 4px; }
-.fg .hd-cal-dr { display:flex; align-items:baseline; gap:4px; width:100%; min-width:0; height:22px; margin:0; padding:0 4px;
-  box-sizing:border-box; border:0; border-radius:6px; background:none; font:inherit; text-align:left; color:var(--hd-ink); }
-.fg button.hd-cal-dr { cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
-/* A DAY IS PICKED FROM ANYWHERE IN ITS CELL but its things
-   (home-cal-month.tsx), on the twelve months' days: its date row is the
-   day's button, lit under the pointer anywhere in the cell but on a thing,
-   and filled while the day, or the holiday it names, is the one chosen
-   (law 14: a choice is a fill), in a public holiday's own tints on its
-   day. A weekend chosen stands on paper, so its quiet date, and Today, read
-   on the choice's grey: on the weekend's own tint they fall short of 4.5. */
-.fg .hd-cal-mc[data-pick] { cursor:pointer; }
-.fg .hd-cal-mc[data-pick]:not([data-picked]):hover:not(:has(.hd-cal-mi:hover)) .hd-cal-dr { background:var(--tint); }
-.fg .hd-cal-mc[data-holiday][data-pick]:not([data-picked]):hover:not(:has(.hd-cal-mi:hover)) .hd-cal-dr {
-  background:var(--hd-cal-hol-hover); }
-.fg .hd-cal-mc[data-picked] .hd-cal-dr { background:var(--tint-2); }
-.fg .hd-cal-mc[data-holiday][data-picked] .hd-cal-dr { background:var(--hd-cal-hol-tint); }
-.fg .hd-cal-mc[data-weekend][data-picked] { background:var(--paper); }
-.fg .hd-cal-drn { flex:none; font-size:14px; font-weight:700; line-height:22px; font-variant-numeric:tabular-nums; }
-.fg .hd-cal-mc[data-weekend] .hd-cal-drn { color:var(--q); }
-.fg .hd-cal-mc[data-out] .hd-cal-drn { color:var(--q); font-weight:500; }
-.fg .hd-cal-mc[data-holiday] .hd-cal-drn { color:var(--hd-cal-hol-t); }
-.fg .hd-cal-drm { min-width:0; overflow:hidden; font-size:12px; font-weight:600; line-height:22px; color:var(--q);
-  white-space:nowrap;
-  flex:1; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.fg .hd-cal-drm[data-kind="holiday"] { font-weight:700; color:var(--hd-cal-hol-t); }
-.fg .hd-cal-drm[data-kind="today"] { font-weight:700; color:var(--hd-today); }
 /* Too narrow for a name beside the number: a holiday keeps its tint, its
    number in his purple and its name as the button's. */
-@container (max-width:84px) { .fg .hd-cal-drm { display:none; } }
-.fg .hd-cal-its { display:flex; flex-direction:column; gap:2px; margin-top:2px; }
-.fg .hd-cal-mi { display:flex; align-items:flex-start; gap:8px; width:100%; min-width:0; margin:0; padding:4px; border:0;
-  border-radius:6px; background:none; font:inherit; color:var(--hd-ink); text-align:left; cursor:pointer;
-  transition:background-color var(--t-fast) var(--ease); }
-.fg .hd-cal-mi:hover { background:var(--tint-2); }
-.fg .hd-cal-mi[aria-pressed="true"] { background:var(--hd-cal-ev-tint); }
-.fg .hd-cal-mi[aria-pressed="true"][data-c="admin"] { background:var(--hd-cal-adm-tint); }
-.fg .hd-cal-mi[aria-pressed="true"][data-late] { background:var(--hd-cal-late-tint); }
-.fg .hd-cal-mi[data-fresh] { background:var(--hd-cal-ev-tint); }
-.fg .hd-cal-mi > .hd-cal-sw { width:8px; height:8px; margin-top:4px; }
-.fg .hd-cal-mit { display:block; flex:1; min-width:0; line-height:1.35; }
-/* A title wraps between words, never inside one: a word too long for the
-   line ends in an ellipsis. The one cut left (rule 50): a mask cannot find
-   the one word that overflows a wrapped title, and over the whole box it
-   would dim every line that runs near the edge. On one line, in a narrow
-   column, it fades. */
-.fg .hd-cal-mtt { display:block; overflow:hidden; font-size:13px; font-weight:700; text-overflow:ellipsis; text-wrap:pretty;
-  overflow-wrap:normal; }
-.fg .hd-cal-mtm { display:block; overflow:hidden; font-size:12px; font-weight:500; color:var(--hd-body);
-  white-space:nowrap;
-  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-/* A weekend column is narrow: a thing is one line, its swatch and title,
-   and the panel carries the rest. */
-.fg .hd-cal-mc[data-narrow] .hd-cal-its { gap:4px; }
-.fg .hd-cal-mc[data-narrow] .hd-cal-mi { gap:4px; }
-.fg .hd-cal-mc[data-narrow] .hd-cal-mtt { white-space:nowrap; text-overflow:clip;
-  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.fg .hd-cal-mc[data-narrow] .hd-cal-mtm { display:none; }
-/* A BAR across its week: square on a side it carries on from, or into. */
-.fg .hd-cal-bar { position:absolute; display:flex; align-items:center; height:22px; box-sizing:border-box; margin:0;
-  padding:0 8px; overflow:hidden; border:0; border-radius:6px; background:var(--hd-cal-ev-tint); font:inherit;
-  font-size:12px; font-weight:700; line-height:22px; color:var(--hd-cal-ev-t); text-align:left; white-space:nowrap;
-  cursor:pointer; }
-.fg .hd-cal-bar[data-kind="school"] { background:var(--hd-cal-hatch); color:var(--hd-cal-sch-t); }
-.fg .hd-cal-bar[data-before] { border-top-left-radius:0; border-bottom-left-radius:0; }
-.fg .hd-cal-bar[data-after] { border-top-right-radius:0; border-bottom-right-radius:0; }
-.fg .hd-cal-bar[aria-pressed="true"] { box-shadow:0 0 0 2px var(--hd-ink); }
-.fg .hd-cal-barl { min-width:0; overflow:hidden; flex:1; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
+@container (max-width:84px) {  }
 
-/* YEAR: twelve months, as many to a row as fit. */
-.fg .hd-cal-yg { display:grid; grid-template-columns:repeat(auto-fill, minmax(148px, 1fr)); align-content:start;
-  gap:24px 32px; padding:24px; }
-.fg .hd-cal-ym { display:flex; flex-direction:column; gap:8px; min-width:0; }
-.fg .hd-cal-ymh { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
-.fg .hd-cal-ymt { margin:0; font-size:16px; font-weight:700; line-height:1.2; color:var(--hd-ink); white-space:nowrap; }
-.fg .hd-cal-ymt[data-past] { color:var(--q); }
-.fg .hd-cal-ymn { font-size:12px; font-weight:500; color:var(--q); white-space:nowrap; }
-.fg .hd-cal-yd { display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:2px; }
-.fg .hd-cal-ydl { padding-bottom:2px; font-size:12px; font-weight:600; color:var(--q); text-align:center; }
-.fg .hd-cal-yc { position:relative; display:flex; align-items:center; justify-content:center; min-width:0; height:30px;
-  box-sizing:border-box; margin:0; padding:0 0 4px; border:0; border-radius:6px; background:transparent; font:inherit;
-  font-size:12px; font-weight:600; color:var(--hd-ink); font-variant-numeric:tabular-nums; }
-/* Every day is a button that picks the day: one with nothing to fill it
-   answers the pointer with the app's hover; one filled keeps what it is. */
-.fg button.hd-cal-yc { cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
-.fg .hd-cal-yc:not([data-fill]):hover { background:var(--tint); }
-.fg .hd-cal-yc[data-weekend] { color:var(--q); }
-.fg .hd-cal-yc[data-past] { font-weight:400; color:var(--q); }
-.fg .hd-cal-yc[data-fill="school"] { background:var(--hd-cal-hatch); }
-/* The quiet grey is short of 4.5 on the hatch's darker stripe: his body grey. */
-.fg .hd-cal-yc[data-fill="school"][data-weekend], .fg .hd-cal-yc[data-fill="school"][data-past] { color:var(--hd-body); }
-.fg .hd-cal-yc[data-fill="shutdown"] { background:var(--hd-cal-ev-tint); color:var(--hd-cal-ev-t); }
-.fg .hd-cal-yc[data-fill="holiday"] { background:var(--hd-cal-hol); font-weight:700; color:var(--paper); }
-.fg .hd-cal-yc[data-today] { font-weight:700; box-shadow:inset 0 0 0 2px var(--hd-ink); }
-.fg .hd-cal-yc[aria-pressed="true"] { box-shadow:0 0 0 2px var(--hd-ink); }
-.fg .hd-cal-yc > i { position:absolute; bottom:3px; left:50%; width:5px; height:5px; border-radius:50%; translate:-50% 0;
-  background:var(--hd-cal-ev); }
-.fg .hd-cal-yc > i[data-dot="admin"] { background:var(--hd-cal-adm); }
-.fg .hd-cal-yc > i[data-dot="late"] { background:var(--hd-late); }
 
-/* THE PANEL beside Month and Year, under the box: the one thing or the day
-   chosen. A thing's kicker is in its category's ink, overdue or not: an
-   admin date past its due says so once, in his late capsule under the
-   title (his calDet). */
-.fg .hd-cal-det { display:flex; flex-direction:column; gap:16px; padding:24px; }
-.fg .hd-cal-dx { display:flex; flex-direction:column; gap:16px; }
-.fg .hd-cal-dxh { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
-.fg .hd-cal-k { font-size:13px; font-weight:500; color:var(--hd-cal-ev-t); }
-.fg .hd-cal-dx[data-c="hol"] .hd-cal-k { color:var(--hd-cal-hol-t); }
-.fg .hd-cal-dx[data-c="admin"] .hd-cal-k { color:var(--hd-cal-adm-t); }
-.fg .hd-cal-dx[data-c="school"] .hd-cal-k { color:var(--hd-body); }
-.fg .hd-cal-dxt { margin:0; font-size:24px; font-weight:700; line-height:1.2; color:var(--hd-ink); text-wrap:pretty; }
-.fg .hd-cal-w { font-size:14px; font-weight:500; color:var(--hd-body); }
-/* HIS STATUS CAPSULE: a named exemption (law 26), in the tint of what it
-   says. */
-.fg .hd-cal-chip { margin-top:4px; padding:4px 8px; border-radius:999px; background:var(--hd-cal-ev-tint); font-size:12px;
-  font-weight:700; line-height:1.5; color:var(--hd-cal-ev-t); }
-.fg .hd-cal-chip[data-c="hol"] { background:var(--hd-cal-hol-tint); color:var(--hd-cal-hol-t); }
-.fg .hd-cal-chip[data-tone="due"] { background:var(--hd-cal-adm-tint); color:var(--hd-cal-adm-t); }
-.fg .hd-cal-chip[data-tone="late"] { background:var(--hd-cal-late-tint); color:var(--hd-cal-late-t); }
-.fg .hd-cal-chip[data-tone="school"] { background:var(--hd-rule2); color:var(--hd-cal-sch-t); }
-.fg .hd-cal-desc { margin:0; font-size:14px; font-weight:500; line-height:1.5; text-wrap:pretty; }
-.fg .hd-cal-facts { display:flex; flex-direction:column; margin:0; border-top:1px solid var(--hd-rule2); }
-.fg .hd-cal-facts > div { display:grid; grid-template-columns:100px minmax(0,1fr); gap:12px; padding:8px 0;
-  border-bottom:1px solid var(--hd-rule2); font-size:14px; line-height:1.4; }
-.fg .hd-cal-facts dt { font-weight:600; color:var(--q); }
-.fg .hd-cal-facts dd { margin:0; font-weight:500; }
-.fg .hd-cal-acts { display:flex; flex-wrap:wrap; gap:8px; }
-/* Its one action, ink with paper words: the day panel's Open job. */
-.fg .hd-cal-go { display:inline-flex; align-items:center; height:36px; padding:0 12px; border-radius:10px;
-  background:var(--hd-ink); font-size:14px; font-weight:600; color:var(--paper); text-decoration:none; white-space:nowrap;
-  transition:background-color var(--t-fast) var(--ease); }
-.fg .hd-cal-go:hover:not(:disabled) { background:color-mix(in srgb, var(--hd-ink) 88%, var(--paper)); }
-/* A DAY IN THE PANEL (components/dashboard/home-cal-panel, `CalDay`): the day
-   in full, then everything on it, each a row that picks it — its swatch,
-   its title and an event's time — whose fill reaches 8px past the column's
-   words, as 4 weeks' rows do. What was just added to it is lit on his
-   event tint for as long as it is lit, as Month's things are. */
-.fg .hd-cal-dl { display:flex; flex-direction:column; gap:2px; margin:0; padding:0; list-style:none; }
-.fg .hd-cal-dli { display:flex; align-items:center; gap:12px; box-sizing:border-box; width:calc(100% + 16px); margin:0 -8px;
-  padding:8px; border:0; border-radius:10px; background:none; font:inherit; font-size:14px; font-weight:600;
-  line-height:1.45; color:var(--hd-ink); text-align:left; cursor:pointer;
-  transition:background-color var(--t-fast) var(--ease); }
-.fg .hd-cal-dli:hover { background:var(--tint); }
-.fg .hd-cal-dli[data-fresh] { background:var(--hd-cal-ev-tint); }
-.fg .hd-cal-dlt { flex:1; min-width:0; overflow-wrap:anywhere; }
-/* A resting action, quieted by colour and never by opacity. */
-.fg .hd-cal-go:disabled { background:var(--tint-2); color:var(--q); cursor:default; }
-/* THE KEY, at the foot of Year's panel. */
-.fg .hd-cal-key { display:flex; flex-direction:column; gap:8px; margin:auto 0 0; padding:16px 0 0; list-style:none;
-  border-top:1px solid var(--hd-rule2); }
-.fg .hd-cal-ki { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; color:var(--hd-body); }
-.fg .hd-cal-ks { flex:none; display:flex; align-items:flex-end; justify-content:center; width:18px; height:14px;
-  background:var(--tint); }
-.fg .hd-cal-ks[data-k="hol"] { background:var(--hd-cal-hol); }
-.fg .hd-cal-ks[data-k="shutdown"] { background:var(--hd-cal-ev-tint); }
-.fg .hd-cal-ks[data-k="school"] { background:var(--hd-cal-hatch); }
-.fg .hd-cal-ks > i { width:5px; height:5px; margin-bottom:2px; border-radius:50%; background:var(--hd-cal-ev); }
-.fg .hd-cal-ks[data-k="admin"] > i { background:var(--hd-cal-adm); }
-.fg .hd-cal-ks[data-k="late"] > i { background:var(--hd-late); }
-
-.fg .hd-cal-vb:focus-visible, .fg .hd-cal-nb:focus-visible, .fg .hd-cal-today:focus-visible,
-.fg .hd-cal-filter:focus-visible, .fg .hd-cal-itt:focus-visible, .fg .hd-cal-ab:focus-visible,
-.fg .hd-cal-dr:focus-visible, .fg .hd-cal-mi:focus-visible, .fg .hd-cal-bar:focus-visible,
-.fg .hd-cal-yc:focus-visible, .fg .hd-cal-go:focus-visible,
-.fg .hd-cal-day:focus-visible, .fg .hd-cal-qd:focus-visible, .fg .hd-cal-dli:focus-visible { outline:2px solid var(--hd-ink); outline-offset:2px; }
-/* The panel's column, where focus is put after a delete, or after a thing
-   is picked from a day's list: the same ring, inside its edge, since the
-   column is its own scroller. */
-.fg .hd-cal-det:focus-visible { outline:2px solid var(--hd-ink); outline-offset:-2px; }
-/* ── THE DIARY: the Diary tab's column ──
-   home-diary-feed.tsx. His diary (the prototype's, v12–v33) on the page's
-   tokens: the entry box at the top (tiff-box.tsx, which dresses itself),
-   then "Today" in the one teal over a rule, then the entries, each over a
-   rule of its own — your initials in an ink disc, "You" and when, your
-   words at body size, and under them the doors and the quiet lines. His
-   numbers snap to the scales, 4px or less each: the column's padding
-   28 → 24, the avatar's gap 14 → 12. A door is tapped, so it keeps a chip's
-   edge (law 26): it is the app's door, the one the old diary's `.hm-door`
-   drew and the diary spec reuses, 28px tall (law 33's small control) with
-   12px either side where his drew 26 and 10, on his edge, the line; its
-   words are ink and underlined, as the prototype drew them: a link's
-   dress (law 34), on the one link token.
-
-   THE WASH: an entry you just saved, or one a door asked for, stands on his
-   pale teal for three quarters of seven seconds (DIARY_LIT_MS), then fades,
-   on his keyframes (`protoFresh`), a flash a row asked for with data — a
-   named exemption from law 18's tokens (docs/design.md). Under reduced
-   motion it is a still tint for as long as it is lit. Like a list row, its
-   fill reaches 8px past the column's words on each side, so the words
-   never move; the rule under it is the item's own and stays on the
-   column. A door lands on the entry itself, so it takes the focus ring. */
-.fg .hd-dy { padding:4px 24px 24px; }
-.fg .hd-dy-box { margin:0 0 16px; }
-.fg .hd-dy-day { margin:0; padding:0 0 8px; border-bottom:1px solid var(--hd-rule); font-size:13px; font-weight:500;
-  color:var(--hd-today); }
-.fg .hd-dy-none { margin:0; padding:12px 0; border-bottom:1px solid var(--hd-rule); font-size:14px; color:var(--q); }
-.fg .hd-dy-list { margin:0; padding:0; list-style:none; }
-.fg .hd-dy-it { border-bottom:1px solid var(--hd-rule); }
-.fg .hd-dy-en { display:grid; grid-template-columns:32px minmax(0,1fr); column-gap:12px; margin:0 -8px; padding:16px 8px;
-  border-radius:6px; }
-.fg .hd-dy-en[data-lit] { background:var(--hd-fresh); animation:hdDyLit 7s var(--ease) both; }
-@keyframes hdDyLit { 0%, 75% { background:var(--hd-fresh); } to { background:transparent; } }
-.fg .hd-dy-en:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .hd-dy-av { display:grid; place-items:center; width:32px; height:32px; border-radius:50%; background:var(--hd-ink);
-  font-size:12px; font-weight:700; color:var(--paper); }
-.fg .hd-dy-bd { min-width:0; }
-.fg .hd-dy-m { margin:0; font-size:13px; font-weight:500; line-height:32px; color:var(--hd-body); }
-.fg .hd-dy-m b { font-weight:600; color:var(--hd-ink); }
-.fg .hd-dy-p { margin:2px 0 0; font-size:14px; line-height:1.5; color:var(--hd-ink); white-space:pre-wrap;
-  overflow-wrap:anywhere; }
-.fg .hd-dy-doors { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:8px; }
-.fg .hd-dy-door { display:inline-flex; align-items:center; height:28px; padding:0 12px; border:1px solid var(--line);
-  border-radius:6px; background:none; font:inherit; font-size:13px; font-weight:500; color:var(--link);
-  text-decoration:underline; text-underline-offset:3px; white-space:nowrap; cursor:pointer;
-  transition:background-color var(--t-fast) var(--ease); }
-.fg .hd-dy-door:hover { background:var(--tint); }
-.fg .hd-dy-door:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .hd-dy-note { font-size:13px; font-weight:500; color:var(--q); }
-/* A reply of yours from HeyTiff says where it stands with ServiceM8
-   (home-diary-reply.tsx) in the quiet line's type, in the state's colour
-   when the sentence is a state (law 31), as the task's line says it. */
-.fg .hd-dy-note.ok { color:var(--ok-t); }
-.fg .hd-dy-note.warn { color:var(--warn-t); }
-.fg .hd-dy-note.bad { color:var(--bad-t); }
-
-/* THE CONVERSATIONS: someone who asked you something in ServiceM8
-   (home-diary-conversation.tsx), as his prototype draws them (v12–v17).
-   The entry's own grid, type and doors; their initials in his grey disc,
-   ink on the selection tint, where yours are paper on ink. Under the ask,
-   the thread, as his v33 renders it at 1440: each message a 24px disc at
-   12/600 (his thread disc; the 700 is the entry's own) at the top of the
-   entry's 32px line (his render's — its later .tent .m outranks the
-   .tr .m 24px), and his 10px gap down to 8. His spacing is kept: 12px from
-   the words above to the first message and from one message to the next,
-   and 8px from the last down to the doors, as under an ask with no thread.
-   It is shared between a message's own 4px padding and the space round
-   it, so a lit message's fill reaches past its words on every side
-   without moving them. His newest message lights as an entry you saved
-   does, on the one wash. */
-.fg .hd-dy-av[data-who="them"] { background:var(--tint-2); color:var(--hd-ink); }
-.fg .hd-dy-thread { margin:8px 0 0; padding:0; list-style:none; }
-.fg .hd-dy-tr { display:grid; grid-template-columns:24px minmax(0,1fr); column-gap:8px; margin:0 -8px; padding:4px 8px;
-  border-radius:6px; }
-.fg .hd-dy-tr + .hd-dy-tr { margin-top:4px; }
-.fg .hd-dy-thread + .hd-dy-doors { margin-top:4px; }
-.fg .hd-dy-tr .hd-dy-av { width:24px; height:24px; font-weight:600; }
-.fg .hd-dy-tr[data-lit] { background:var(--hd-fresh); animation:hdDyLit 7s var(--ease) both; }
-
-/* TIFF'S LINE, under your words: her last word on them, in his prototype's
-   quiet line with her name in ink ("Tiff: Done. …"). Where the modal is on,
-   the line is the door back into the conversation, so her name wears the
-   one link token, ink and underlined on the line's edge like the doors
-   (law 34); the words go ink under the pointer, and it takes the focus
-   ring. UNDO, at the end of what the entry made, is the page's one Undo,
-   the list's and the modal's: ink, 600, underlined, at the doors' height,
-   gone quiet while it is out. Its sentence's place is kept while Undo can
-   speak, and takes no room in the row while it is empty. */
-.fg .hd-dy-tiff { display:block; margin:8px 0 0; padding:0; border:0; border-radius:6px; background:none;
-  font:inherit; font-size:13px; font-weight:500; line-height:1.5; color:var(--hd-body); text-align:left;
-  overflow-wrap:anywhere; }
-.fg .hd-dy-tiff b { font-weight:600; color:var(--hd-ink); }
-.fg .hd-dy-tiff.opens { cursor:pointer; transition:color var(--t-fast) var(--ease); }
-.fg .hd-dy-tiff.opens b { text-decoration:underline; text-underline-offset:3px; }
-.fg .hd-dy-tiff.opens:hover { color:var(--hd-ink); }
-.fg .hd-dy-tiff.opens:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .hd-dy-undo { height:28px; padding:0 8px; border:0; border-radius:6px; background:none; font:inherit;
-  font-size:13px; font-weight:600; color:var(--hd-ink); text-decoration:underline; text-underline-offset:3px;
-  cursor:pointer; transition:color var(--t-fast) var(--ease); }
-.fg .hd-dy-undo[aria-disabled="true"] { color:var(--q); cursor:default; }
-.fg .hd-dy-undo:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .hd-dy-said:empty { position:absolute; }
-/* YOUR ENTRY'S EDIT AND DELETE, SOMEONE ELSE'S HIDE (home-diary-feed,
-   home-diary-conversation): quiet words at the end of the line that says
-   who and when, there while the pointer is on the entry or the keyboard is
-   in it (law 24). A hover is a fill (law 23). */
-.fg .hd-dy-mh { display:flex; align-items:center; gap:8px; }
-.fg .hd-dy-mh > .hd-dy-m { flex:1; min-width:0; }
-.fg .hd-dy-acts { display:flex; flex:none; gap:4px; opacity:0; transition:opacity var(--t-fast) var(--ease); }
-.fg .hd-dy-en:hover .hd-dy-acts, .fg .hd-dy-en:focus-within .hd-dy-acts { opacity:1; }
-.fg .hd-dy-act { height:28px; padding:0 8px; border:0; border-radius:6px; background:none; font:inherit;
-  font-size:13px; font-weight:500; color:var(--hd-body); cursor:pointer;
-  transition:background-color var(--t-fast) var(--ease); }
-.fg .hd-dy-act:hover { background:var(--tint); }
-.fg .hd-dy-act[aria-disabled="true"] { cursor:default; }
-.fg .hd-dy-act:focus-visible { outline:none; box-shadow:var(--ring); }
-/* The words, in a box of the same words, and Save and Cancel under it. */
-.fg .hd-dy-edit { margin-top:2px; }
-.fg .hd-dy-ed { display:block; width:100%; padding:8px 12px; border:1px solid var(--hd-edge); border-radius:6px;
-  background:var(--paper); font:inherit; font-size:14px; line-height:1.5; color:var(--hd-ink); resize:vertical;
-  transition:border-color var(--t-fast) var(--ease); }
-.fg .hd-dy-ed:focus { outline:none; border-color:var(--hd-ink); }
-.fg .hd-dy-edb { display:flex; gap:8px; margin-top:8px; }
-.fg .hd-dy-en .hd-cf { margin-top:8px; }
-/* A conversation you hid, until the page comes round without it. */
-.fg .hd-dy-hid { display:flex; align-items:center; gap:8px; margin:0; padding:16px 0; font-size:13px;
-  font-weight:500; color:var(--q); }
 @media (prefers-reduced-motion:reduce) {
-  .fg .hd-dy-en[data-lit] { animation:none; }
-  .fg .hd-dy-tr[data-lit] { animation:none; }
+  
+  
 }
 /* ===================================================================
    VEHICLE MODAL v2 (components/fleet/vehicle-modal/)
@@ -9929,12 +9045,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 
 /* detail grids */
 .vm-grid { display:grid; gap:12px 16px; }
-/* Three columns by default, four for the specs — DetailGrid has set these
-   classes since the Sep 2026 handoff, and no rule answered them: every fact
-   grid on the card stacked in one column. minmax(0,1fr) so a long VIN
-   wraps inside its cell instead of widening it. */
-.vm-grid.cols3 { grid-template-columns:repeat(3, minmax(0, 1fr)); }
-.vm-grid.cols4 { grid-template-columns:repeat(4, minmax(0, 1fr)); }
+
 .vm-grid.dense { gap:8px 12px; }
 .vm-field { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .vm-field.wide { grid-column:span 2; }
@@ -10835,14 +9946,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
   .mk-money-trio { grid-template-columns:minmax(0,1fr); }
   .mk-money-rec { flex-wrap:wrap; }
 }
-/* ===== MAKING THINGS, THE TEAM'S (v2, step 4): Add an event, Write a
-   notice, Ask for leave (components/making/event-form, notice-form,
-   leave-form). In a dialog, so no `.fg`. ===== */
-/* a delete on the left of the foot, the rest on the right */
-.mk-team-first { margin-right:auto; }
-/* the foot's question, before a delete, with its answers */
-.mk-team-ask { flex:1; display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px; }
-.mk-team-askq { margin-right:auto; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+
 /* what the action refused, in its words (rule 42) */
 .mk-team-wrong { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--red-w); }
 /* a clock time that can be cleared: the wheel and its clear */
@@ -11781,11 +10885,11 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .lb2-search .lb2-search-clear { position:absolute; right:2px; }
 .fg .lb2-panel { min-width:0; }
 .fg .lb2-row { position:relative; display:grid; grid-template-columns:var(--lb2-cols); align-items:center; gap:16px; padding:12px 8px; border-bottom:1px solid var(--line); }
-.fg .lb2-row.lb2-row--head { padding-top:8px; padding-bottom:8px; }
+
 .fg .lb2-row.lb2-row--open { transition:background-color var(--t-fast) var(--ease); }
 .fg .lb2-row.lb2-row--open:hover { background-color:var(--hov); }
 .fg .lb2-cell { display:flex; flex-direction:column; justify-content:center; gap:2px; min-width:0; font-size:14px; line-height:20px; font-weight:400; }
-.fg .lb2-row--head .lb2-cell { font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+
 .fg .lb2-doc { font-weight:600; color:var(--ink); }
 .fg .lb2-sub { font-size:13px; line-height:18px; color:var(--q); }
 .fg .lb2-q { color:var(--q); }

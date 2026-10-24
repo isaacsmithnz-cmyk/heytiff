@@ -1,6 +1,6 @@
-/* THE JOB CARD'S ADD (docs/design.md, rule 54): Visit, Task, Quote
-   (Variation once accepted), Cost, SWMS, Certificate, in a white menu from
-   the band. Each item is a door to the flow the card already has, behind
+/* THE JOB'S ADD (docs/design.md, rule 54): Visit, Task, Quote
+   (Variation once accepted), Cost, SWMS, Certificate, first in the page
+   head's Actions menu ("Add visit"). Each item is a door to the flow the card already has, behind
    that flow's own check, and an item the reader may not use is not there. */
 
 import { act, render, screen, waitFor, within } from "@testing-library/react";
@@ -93,7 +93,16 @@ jest.mock("@/components/making/expense-form", () => ({
   },
 }));
 
-import { JobSheet } from "../job-sheet";
+import { useState } from "react";
+import { JobSheet, type JobSheetPage } from "../job-sheet";
+import type { JobSection } from "@/lib/jobs/job-sections";
+
+type JobProps = Omit<Parameters<typeof JobSheet>[0], "page"> & { section?: JobSection; add?: JobSheetPage["add"] };
+/** The job's page on one section; a move to another section draws it, as the page does. */
+function Job({ section: first = "overview", add, ...p }: JobProps) {
+  const [section, setSection] = useState<JobSection>(first);
+  return <JobSheet {...p} page={{ section, onSection: setSection, actions: [], onAction: () => {}, add }} />;
+}
 
 const JOB = "0b1e0b1e-0000-4000-8000-00000000d054";
 
@@ -209,19 +218,27 @@ const fetchMock = jest.fn(async (url: string) => ({
 }));
 
 const noop = () => {};
-const props = { manage: true, moneyVisible: false, onClose: noop, onCreateAgreement: noop, onOpenTracked: noop, onToast: noop };
+const props = { manage: true, moneyVisible: false, onCreateAgreement: noop, onOpenTracked: noop, onToast: noop };
 
-/** The card, open, with the job known: Add is pressable from here. */
-const open = async (extra: Partial<Parameters<typeof JobSheet>[0]> = {}) => {
-  render(<JobSheet row={row()} {...props} {...extra} />);
-  await screen.findByText("Rose Bay NSW 2029");
-  await waitFor(() => expect(screen.getByRole("button", { name: "Add" })).toBeEnabled());
+/** The job's page, with the job known: Add's items are pressable from here. */
+const open = async (extra: Partial<JobProps> = {}) => {
+  render(<Job row={row()} {...props} {...extra} />);
+  await waitFor(() => expect(document.querySelector(".jp-facts")).toHaveTextContent("Rose Bay NSW 2029"));
+  await waitFor(() => expect(readJobRecord).toHaveBeenCalled());
 };
+/** The head's Actions menu, open: Add's items lead it. */
 const addMenu = async () => {
-  await userEvent.click(screen.getByRole("button", { name: "Add" }));
-  return screen.findByRole("menu", { name: "Add to this job" });
+  await userEvent.click(screen.getByRole("button", { name: "Actions" }));
+  return screen.findByRole("menu", { name: "Actions on this job" });
 };
-const items = (menu: HTMLElement) => within(menu).getAllByRole("menuitem").map((i) => i.textContent);
+/** Add's items, as the menu words them. */
+const items = (menu: HTMLElement) =>
+  within(menu)
+    .getAllByRole("menuitem")
+    .map((i) => i.textContent ?? "")
+    .filter((t) => t.startsWith("Add "));
+/** One of the job's section tabs. */
+const jobTab = (name: string) => within(screen.getByRole("tablist", { name: "The job" })).getByRole("tab", { name: new RegExp(`^${name}`) });
 const pick = async (name: string) => {
   const menu = await addMenu();
   await userEvent.click(within(menu).getByRole("menuitem", { name }));
@@ -236,24 +253,26 @@ beforeEach(() => {
   (global as { fetch?: unknown }).fetch = fetchMock;
 });
 
-describe("the job card's Add", () => {
-  it("is a second button with the word, and opens Visit, Task, Quote, Cost, SWMS, Certificate in that order", async () => {
+describe("the job's Add", () => {
+  it("leads the Actions menu with Visit, Task, Quote, Cost, SWMS, Certificate in that order", async () => {
     await open();
-    const add = screen.getByRole("button", { name: "Add" });
+    const add = screen.getByRole("button", { name: "Actions" });
     expect(add).toHaveClass("pt-btn--second");
     expect(add).toHaveAttribute("aria-haspopup", "menu");
     const menu = await addMenu();
     expect(add).toHaveAttribute("aria-expanded", "true");
-    expect(items(menu)).toEqual(["Visit", "Task", "Quote", "Cost", "SWMS", "Certificate"]);
+    expect(items(menu)).toEqual(["Add visit", "Add task", "Add quote", "Add cost", "Add SWMS", "Add certificate"]);
+    /* Add's items come first */
+    expect(within(menu).getAllByRole("menuitem")[0]).toHaveTextContent("Add visit");
   });
 
   it("reads Variation once the quote is accepted, and takes you to the quote to start it", async () => {
     quoteAnswer = { ok: true, facts: facts({ accepted: [0] }) };
     await open();
     const menu = await addMenu();
-    expect(await within(menu).findByRole("menuitem", { name: "Variation" })).toBeInTheDocument();
-    expect(within(menu).queryByRole("menuitem", { name: "Quote" })).toBeNull();
-    await userEvent.click(within(menu).getByRole("menuitem", { name: "Variation" }));
+    expect(await within(menu).findByRole("menuitem", { name: "Add variation" })).toBeInTheDocument();
+    expect(within(menu).queryByRole("menuitem", { name: "Add quote" })).toBeNull();
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Add variation" }));
     expect(push).toHaveBeenCalledWith(`/dashboard/workboard/quotes/${JOB}`);
   });
 
@@ -271,57 +290,58 @@ describe("the job card's Add", () => {
     await open();
     const menu = await addMenu();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(`/api/workboard/quote-status?job=${JOB}`));
-    await userEvent.click(within(menu).getByRole("menuitem", { name: "Quote" }));
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Add quote" }));
     expect(push).toHaveBeenCalledWith(`/dashboard/workboard/quotes/${JOB}?start=1`);
   });
 
   it("opens the Quote section when where the quote stands couldn't be read", async () => {
     quoteAnswer = { ok: false };
     await open();
-    await pick("Quote");
+    await pick("Add quote");
     expect(push).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: /^Quoted/ })).toHaveAttribute("aria-pressed", "true");
+    expect(jobTab("Quote")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("region", { name: "Quote" })).toBeVisible();
   });
 
   describe("hides what the reader may not use", () => {
     it("has no Task without Workboard manage", async () => {
       await open({ manage: false });
-      expect(items(await addMenu())).toEqual(["Visit", "Quote", "Cost", "SWMS", "Certificate"]);
+      expect(items(await addMenu())).toEqual(["Add visit", "Add quote", "Add cost", "Add SWMS", "Add certificate"]);
     });
 
     it("has no Visit where Book in isn't offered", async () => {
       readJobRecord.mockResolvedValue(record(bookings({ canBook: false })));
       await open();
-      expect(items(await addMenu())).toEqual(["Task", "Quote", "Cost", "SWMS", "Certificate"]);
+      expect(items(await addMenu())).toEqual(["Add task", "Add quote", "Add cost", "Add SWMS", "Add certificate"]);
     });
 
     it("has no SWMS once ServiceM8 has the job closed, as the Compliance section doesn't", async () => {
       readMirrorJob.mockResolvedValue({ detail: detail({ status: "Completed" }), focusRemoteId: null });
       await open();
-      expect(items(await addMenu())).toEqual(["Visit", "Task", "Quote", "Cost", "Certificate"]);
+      expect(items(await addMenu())).toEqual(["Add visit", "Add task", "Add quote", "Add cost", "Add certificate"]);
     });
   });
 
   describe("each item reaches its flow", () => {
-    it("Visit opens the Visit form over the card, the job filled in (rules 51 and 54)", async () => {
+    it("Visit opens the Visit form over the page, the job filled in (rules 51 and 54)", async () => {
       await open();
-      await pick("Visit");
+      await pick("Add visit");
       const form = await screen.findByRole("dialog", { name: "Book a visit" });
       expect(within(form).getByText(/^Job 3400\b/)).toBeInTheDocument();
       expect(within(form).getByRole("button", { name: "Clear the job" })).toBeInTheDocument();
     });
 
-    it("Task opens Installation with Add a task's box ready", async () => {
+    it("Task opens Visits with Add a task's box ready", async () => {
       await open();
-      await pick("Task");
-      expect(screen.getByRole("button", { name: /^Installation/ })).toHaveAttribute("aria-pressed", "true");
+      await pick("Add task");
+      expect(jobTab("Visits")).toHaveAttribute("aria-selected", "true");
       const box = await screen.findByRole("textbox", { name: "A new task" });
       await waitFor(() => expect(box).toHaveFocus());
     });
 
     it("Cost opens Add a cost over the job, the ServiceM8 job filled in to be named in its words", async () => {
       await open();
-      await pick("Cost");
+      await pick("Add cost");
       expect(await screen.findByRole("dialog", { name: "Add a cost" })).toBeInTheDocument();
       expect(push).not.toHaveBeenCalled();
       expect(costForm).toHaveBeenLastCalledWith(
@@ -331,17 +351,19 @@ describe("the job card's Add", () => {
       expect(screen.queryByRole("dialog", { name: "Add a cost" })).toBeNull();
     });
 
-    it("SWMS opens Compliance and the SWMS wizard", async () => {
+    it("SWMS opens Documents, where Compliance is, and the SWMS wizard", async () => {
       await open();
-      await pick("SWMS");
-      expect(screen.getByRole("tab", { name: "Compliance" })).toHaveAttribute("aria-selected", "true");
+      await pick("Add SWMS");
+      expect(jobTab("Documents")).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByRole("region", { name: "Compliance" })).toBeVisible();
       expect(await screen.findByRole("dialog", { name: "New SWMS" })).toBeInTheDocument();
     });
 
-    it("Certificate opens Compliance and the certificate wizard", async () => {
+    it("Certificate opens Documents, where Compliance is, and the certificate wizard", async () => {
       await open();
-      await pick("Certificate");
-      expect(screen.getByRole("tab", { name: "Compliance" })).toHaveAttribute("aria-selected", "true");
+      await pick("Add certificate");
+      expect(jobTab("Documents")).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByRole("region", { name: "Compliance" })).toBeVisible();
       expect(await screen.findByRole("dialog", { name: "New certificate" })).toBeInTheDocument();
     });
   });
@@ -349,22 +371,21 @@ describe("the job card's Add", () => {
 
 /* Documents' Make a document lands on the job's page asking for one (v2) */
 describe("a page that arrives asking for a SWMS or a certificate", () => {
-  const page = (add: "swms" | "certificate") => ({ section: "documents" as const, onSection: noop, actions: [], onAction: noop, add });
 
   it("opens the SWMS wizard once the job's papers are read, as Add › SWMS does", async () => {
-    render(<JobSheet row={row()} {...props} page={page("swms")} />);
+    render(<Job row={row()} {...props} section="documents" add="swms" />);
     expect(await screen.findByRole("dialog", { name: "New SWMS" })).toBeInTheDocument();
   });
 
   it("opens the certificate wizard, as Add › Certificate does", async () => {
-    render(<JobSheet row={row()} {...props} page={page("certificate")} />);
+    render(<Job row={row()} {...props} section="documents" add="certificate" />);
     expect(await screen.findByRole("dialog", { name: "New certificate" })).toBeInTheDocument();
   });
 
   it("opens no SWMS once ServiceM8 has the job closed, as Add offers none", async () => {
     readMirrorJob.mockResolvedValue({ detail: detail({ status: "Completed" }), focusRemoteId: null });
     const { listSwmsForJob } = jest.requireMock("@/app/actions/swms") as { listSwmsForJob: jest.Mock };
-    render(<JobSheet row={row()} {...props} page={page("swms")} />);
+    render(<Job row={row()} {...props} section="documents" add="swms" />);
     await waitFor(() => expect(readMirrorJob).toHaveBeenCalled());
     await waitFor(() => expect(listSwmsForJob).toHaveBeenCalledWith(JOB));
     /* both reads answered, and the page rendered again with them */

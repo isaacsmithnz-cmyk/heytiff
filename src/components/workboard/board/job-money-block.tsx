@@ -392,8 +392,7 @@ export function JobMoneyBlock({
 
       {unavailable && (
         <p className="int-hint">
-          ServiceM8&apos;s figures didn&apos;t load just now. Close the job and open it again to
-          try.
+          ServiceM8&apos;s figures didn&apos;t load just now. Reload the page to try again.
         </p>
       )}
 

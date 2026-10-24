@@ -110,8 +110,6 @@ export function JobPage({
           moneyVisible={moneyVisible}
           initialTab={SECTION_FACES[first][0]}
           page={{ section, onSection: goSection, actions, onAction: (key) => void onAction(key), add }}
-          /* a page has nothing to close */
-          onClose={() => undefined}
           /* New agreement opens over the page (rule 51), the job filled in */
           onCreateAgreement={(r) => setAgreementFrom(r)}
           /* a visit opens over the page; a project on its own page */

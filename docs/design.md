@@ -238,7 +238,6 @@ infinite loop into a strobe.
 
 | Keyframes | Runs on | Why it loops |
 |---|---|---|
-| `pkSweep` | the job card's summary while its read is out (v2's chrome skeleton is still) | a skeleton sweep: the space a screen is about to fill |
 | `tcDots` | the three dots after "Thinking" in Tiff's chat, one rule with each dot delayed | Tiff is working: the Claude-style chat says so in words and dots, with no mark turning (Isaac, 20 October 2026) |
 | `ds-sheet-wait` | the sheet's outline while its raster downloads | a skeleton, breathing rather than swept because it is an outline: the plan lands into its place |
 | `vmShimmer` | the reading bar while a scanned document is read | a skeleton sweep for a scan in progress |

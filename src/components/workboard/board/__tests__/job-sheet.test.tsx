@@ -1,13 +1,12 @@
-/* THE CARD IS TABS — slice 2's anatomy, and the laws that survived the move.
+/* THE JOB'S PAGE — the laws the job card pinned, on the page that holds its
+   faces now (the card over the screen went on 24 October 2026).
 
-   Everything the old single-scroll sheet pinned still holds; it just lives on
-   a face now, so a test opens the tab that owns what it asserts. The new
-   ground rules pinned here: the tab set is FIXED from first paint (Money
-   absent without the grant, Actions absent for a reader with nothing to do),
-   the Summary face leads with the scope and wears the stored "Where it's up
-   to" with its stamp, the Diary is the story merge rendered, and the summary
-   refresh kicks ONCE, only when the story's stamp has left the stored one
-   behind. */
+   Everything the card pinned on a face still holds; it just lives in a
+   section of the page, so a test opens the section that holds what it
+   asserts. Money stays behind its grant (no Billing without it), the
+   Overview holds the stages line, the customer and the job's conversation
+   (the diary's entries, doors and pen), and the summary refresh kicks ONCE,
+   only when the story's stamp has left the stored one behind. */
 
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -260,7 +259,32 @@ jest.mock("@/app/actions/job-note-sm8", () => ({
 }));
 
 
+import { useState } from "react";
 import { JobSheet, visitLength } from "../job-sheet";
+import type { JobSection } from "@/lib/jobs/job-sections";
+
+type JobProps = Omit<Parameters<typeof JobSheet>[0], "page"> & { section?: JobSection };
+/** Every section move the page was asked for. */
+const onSection = jest.fn();
+/** The job's own page, on one section (Overview unless a test says); a move
+    to another section draws it, as the page does. */
+function Job({ section: first = "overview", ...p }: JobProps) {
+  const [section, setSection] = useState<JobSection>(first);
+  return (
+    <JobSheet
+      {...p}
+      page={{
+        section,
+        onSection: (next) => {
+          onSection(next);
+          setSection(next);
+        },
+        actions: [],
+        onAction: () => {},
+      }}
+    />
+  );
+}
 
 /* The summary refresh posts to a route handler; jsdom has no fetch, and a
    real one would be a network call from a unit test anyway. */
@@ -384,6 +408,7 @@ beforeEach(() => {
   setPicklistItemPicked.mockResolvedValue(undefined);
   removePicklistItem.mockResolvedValue(undefined);
   readJobPhotos.mockReset();
+  onSection.mockReset();
   readJobPhotos.mockResolvedValue({ ok: true, read: 0, remaining: 0, note: null });
   listJobPhotoFavourites.mockReset();
   setJobPhotoFavourite.mockReset();
@@ -407,24 +432,40 @@ const card = (d: MirrorJobDetail | null, focusRemoteId: string | null = null) =>
 const props = {
   manage: false,
   moneyVisible: false,
-  onClose: noop,
   onCreateAgreement: noop,
   onOpenTracked: noop,
   onToast: noop,
 };
 
-/** The band's address is the "detail landed" signal — it fills in on every
-    face, where the old suite waited on the Visits heading. */
-const detailLanded = () => screen.findByText("Rose Bay NSW 2029");
+/** The head's grey line holding the detail's geo line is the "detail
+    landed" signal: before it, the line says the row's suburb. */
+const detailLanded = () =>
+  waitFor(() => expect(document.querySelector(".jp-facts")).toHaveTextContent("Rose Bay NSW 2029"));
 
-/* The rail holds Summary, Timeline, Billing, Photos and Files; the quote,
-   the visits and the checklist open from their steps on the progress line.
-   The old face names still read here, so a test says what it opens. */
-const RAIL: Record<string, string> = { Diary: "Timeline", Money: "Billing", Documents: "Files" };
-const STEP: Record<string, RegExp> = { Visits: /^Installation/, Checklist: /^Materials sorted/, Quote: /^Quoted/ };
+/** One of the job's section tabs (a face may hold tabs of its own). */
+const jobTab = (name: string) =>
+  within(screen.getByRole("tablist", { name: "The job" })).getByRole("tab", { name: new RegExp(`^${name}`) });
+
+/* The card's faces, by the section of the page that holds each: the old face
+   names still read here, so a test says what it opens. */
+const SECTION: Record<string, string> = {
+  Summary: "Overview",
+  Diary: "Overview",
+  Money: "Billing",
+  Compliance: "Documents",
+};
 const openTab = async (name: string) => {
-  if (STEP[name]) await userEvent.click(screen.getByRole("button", { name: STEP[name] }));
-  else await userEvent.click(screen.getByRole("tab", { name: RAIL[name] ?? name }));
+  await userEvent.click(jobTab(SECTION[name] ?? name));
+};
+
+/** The job's conversation, on Overview: the diary's entries, its doors and
+    the pen (Keep as typed), where the card had its Diary face. */
+const convo = () => within(document.querySelector(".jc-convo") as HTMLElement);
+
+/** The page's Actions menu, open. */
+const actionsMenu = async () => {
+  await userEvent.click(screen.getByRole("button", { name: "Actions" }));
+  return screen.findByRole("menu", { name: "Actions on this job" });
 };
 
 /** Queries scoped to one face's panel. The inactive panels are `hidden` (so
@@ -434,10 +475,10 @@ const openTab = async (name: string) => {
 const face = (key: string) =>
   within(document.querySelector(`#jcsec-${key}`) as HTMLElement);
 
-/** The layers in <body>, in document order. What opens over the card shares
-    the card's layer (src/app/dashboard/__tests__/sheet-overlay-layers.test.ts),
+/** The layers in <body>, in document order. What opens over the page
+    portals to the body (src/app/dashboard/__tests__/sheet-overlay-layers.test.ts),
     and at an equal z-index the LATER element paints on top — so it has to
-    render after the card, beside it, never inside it or ahead of it. jsdom
+    render after the page, beside it, never inside it or ahead of it. jsdom
     cannot see a stacking context; this order is the half of it that it can. */
 const bodyLayers = () =>
   [...document.body.children]
@@ -446,15 +487,13 @@ const bodyLayers = () =>
 
 /* ── the anatomy ── */
 
-describe("the card is a progress line over a rail", () => {
-  it("wears the fixed rail, Summary first, and lands on it", async () => {
+describe("the page is a stages line over its sections", () => {
+it("lands on Overview, the stages line over the tiles", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} moneyVisible manage />);
+    render(<Job row={row()} {...props} moneyVisible manage />);
     await detailLanded();
 
-    expect(
-      screen.getAllByRole("tab").map((t) => t.textContent)
-    ).toEqual(["Summary", "Timeline", "Billing", "Photos", "Files", "Compliance"]);
+    expect(jobTab("Overview")).toHaveAttribute("aria-selected", "true");
     const line = within(screen.getByRole("navigation", { name: "Where the job is up to" }));
     expect(line.getAllByRole("button").map((b) => b.querySelector("b")?.textContent)).toEqual([
       "Enquiry",
@@ -465,10 +504,6 @@ describe("the card is a progress line over a rail", () => {
       "Installation",
       "Paid",
     ]);
-    expect(screen.getByRole("tab", { name: "Summary" })).toHaveAttribute(
-      "aria-selected",
-      "true"
-    );
   });
 
   /* THE TAB IS THE GATE. Without `workboard_money` the face is ABSENT — no
@@ -476,9 +511,9 @@ describe("the card is a progress line over a rail", () => {
      have filled it. */
   it("has no Money tab at all without the grant", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
-    expect(screen.queryByRole("tab", { name: "Billing" })).toBeNull();
+    expect(within(screen.getByRole("tablist", { name: "The job" })).queryByRole("tab", { name: /^Billing/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Deposit paid/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Paid/ })).toBeNull();
   });
@@ -488,225 +523,35 @@ describe("the card is a progress line over a rail", () => {
      accessible. For techs who are quoting a job"). */
   it("opens the Quote from Quoted without Workboard manage", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await userEvent.click(screen.getByRole("button", { name: /^Quoted/ }));
+    expect(jobTab("Quote")).toHaveAttribute("aria-selected", "true");
     expect(document.querySelector("#jcsec-quote")).not.toHaveAttribute("hidden");
-    expect(document.querySelector("#jcsec-summary")).toHaveAttribute("hidden");
+    expect(document.querySelector(".jp-over")).toHaveAttribute("hidden");
   });
 
-  /* A DOOR THAT KNOWS WHAT IT CAME FOR opens the card on that face — the
-     new Home's mention opens the job's Diary. The tab set is untouched. */
-  it("opens on the face a door asks for", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} initialTab="diary" />);
-    await detailLanded();
-    expect(screen.getByRole("tab", { name: "Timeline" })).toHaveAttribute("aria-selected", "true");
-    expect(document.querySelector("#jcsec-diary")).not.toHaveAttribute("hidden");
-    expect(document.querySelector("#jcsec-summary")).toHaveAttribute("hidden");
-  });
-
-  it("opens on Summary when the face asked for is Money and the reader has no grant", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} initialTab="money" />);
-    await detailLanded();
-    expect(screen.getByRole("tab", { name: "Summary" })).toHaveAttribute("aria-selected", "true");
-  });
-
-  it("has no Actions tab even for a manager — the acts live behind the ⋯", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} manage />);
-    await detailLanded();
-    expect(screen.queryByRole("tab", { name: "Actions" })).toBeNull();
-    expect(screen.getByLabelText("More actions")).toBeInTheDocument();
-  });
-
-  it("wears the job type's colour as the band's wash and crown, at fixed alphas", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
-    await detailLanded();
-
-    const sheet = document.querySelector(".wb2-sheet") as HTMLElement;
-    expect(sheet.style.getPropertyValue("--jc-crown")).toBe("rgba(231,181,255,0.55)");
-    expect(sheet.style.getPropertyValue("--jc-band-a")).toBe("rgba(231,181,255,0.18)");
-    // never the whole card's border — the frame stays the money block's
-    expect(sheet.style.borderColor).toBe("");
-  });
-
-  it("sets no colour vars for a job with no category", async () => {
-    readMirrorJob.mockResolvedValueOnce(
-      card(detail({ categoryName: null, categoryColour: null }))
-    );
-    render(<JobSheet row={row({ categoryName: null, categoryColour: null })} {...props} />);
-    await detailLanded();
-    const sheet = document.querySelector(".wb2-sheet") as HTMLElement;
-    expect(sheet.style.getPropertyValue("--jc-crown")).toBe("");
-  });
 });
 
 /* ── the band ── */
 
-describe("the band", () => {
+describe("the head's grey line", () => {
   it("falls back to the geo line when the job has no written address", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail({ address: null })));
-    render(<JobSheet row={row()} {...props} />);
-    expect(await screen.findByText("Rose Bay NSW 2029")).toBeInTheDocument();
+    render(<Job row={row()} {...props} />);
+    await detailLanded();
+    expect(document.querySelector(".jp-facts")).toHaveTextContent("Work order, Job 3137, Rose Bay NSW 2029.");
   });
 
-  it("always chips the status, and wears the diary's reading when handed one", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(
-      <JobSheet
-        row={row()}
-        {...props}
-        scheduleState={{ kind: "late", word: "Nothing recorded yet" }}
-      />
-    );
-    await detailLanded();
-    expect(screen.getByText("Work Order")).toBeInTheDocument();
-    const chip = screen.getByText("Nothing recorded yet");
-    expect(chip).toHaveClass("dan");
-    expect(chip.querySelector(".wb2-shbang")).not.toBeNull();
-  });
-
-  /* "Raised" is its own fact beside the status; "completed" IS the status,
-     so that date rides inside the status chip as one statement. */
-  it("chips the raised date beside the status, and folds a completed date into it", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    const { unmount } = render(<JobSheet row={row()} {...props} />);
-    await detailLanded();
-    expect(screen.getByText("Raised Sat 8 Aug")).toBeInTheDocument();
-    expect(screen.getByText("Work Order")).toBeInTheDocument();
-    unmount();
-
-    readMirrorJob.mockResolvedValueOnce(
-      card(detail({ status: "Completed", dateOn: "2026-08-21", dateLabel: "completed" }))
-    );
-    render(<JobSheet row={row()} {...props} />);
-    await detailLanded();
-    expect(screen.getByText("Completed, Fri 21 Aug")).toBeInTheDocument();
-    expect(screen.queryByText(/^Raised /)).toBeNull();
-  });
-
-  it("wears the category colour as a dot, never as the chip surface", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
-    await detailLanded();
-    const dot = document.querySelector(".wb2-catdot") as HTMLElement;
-    expect(dot).not.toBeNull();
-    expect(dot.style.background).toBe("rgb(231, 181, 255)");
-  });
 });
 
 /* ── the Summary face ── */
 
-describe("the Summary face", () => {
-  it("leads with the job, verbatim, and keeps what-was-done under it", async () => {
-    readMirrorJob.mockResolvedValueOnce(
-      card(detail({ workDone: "Installed and commissioned." }))
-    );
-    render(<JobSheet row={row()} {...props} />);
-
-    expect(await screen.findByText("Supply and install Daikin multi system")).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "The job" })).toBeInTheDocument();
-    expect(screen.getByText("Invoice description")).toBeInTheDocument();
-    expect(screen.getByText("Installed and commissioned.")).toBeInTheDocument();
-  });
-
-  it("renders the stored points as bullets with the stamp — when it changed and why", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(
-      record({
-        summary: {
-          lead: "First fix done across two visits.",
-          points: ["The crew returns Thursday", 'One loose thread: "check the gyprock"'],
-          stamp: "s-1",
-          eventOn: "2026-08-13",
-          eventLabel: "Nathan's note",
-        },
-      })
-    );
-    render(<JobSheet row={row()} {...props} />);
-
-    expect(await screen.findByText("The crew returns Thursday")).toBeInTheDocument();
-    /* the lead was the header Isaac called messy: with points it goes */
-    expect(screen.queryByText("First fix done across two visits.")).toBeNull();
-    expect(screen.getByText("Where it’s up to")).toBeInTheDocument();
-    expect(screen.getByText("Updated Thu 13 Aug, Nathan's note")).toBeInTheDocument();
-    /* each point is its own list line, not a clause of the lead */
-    const points = document.querySelectorAll(".wb2-jcups-pts li");
-    expect([...points].map((p) => p.textContent)).toEqual([
-      "The crew returns Thursday",
-      'One loose thread: "check the gyprock"',
-    ]);
-  });
-
-  it("says nothing where a summary hasn't been written yet", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record());
-    render(<JobSheet row={row()} {...props} />);
-    await detailLanded();
-    expect(screen.queryByText("Where it’s up to")).toBeNull();
-    /* and the slot's skeleton RESOLVES AWAY — the default files read answers
-       empty-handed, so no derive is coming and holding the box would be a
-       promise the card can't keep */
-    await waitFor(() => expect(document.querySelector(".wb2-jcskel")).toBeNull());
-  });
-
-  it("holds a skeleton in the summary's slot while the record read is out", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    /* a record read that never answers — the slot must hold its ground,
-       shapes only, rather than popping the box in below the fold later */
-    readJobRecord.mockImplementationOnce(() => new Promise(() => {}));
-    render(<JobSheet row={row()} {...props} />);
-    await detailLanded();
-    expect(document.querySelector(".wb2-jcskel")).not.toBeNull();
-    expect(screen.queryByText("Where it’s up to")).toBeNull();
-  });
-
-  it("a summary written as one sentence is its one bullet", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(
-      record({ summary: { lead: "Quoted, waiting on an answer.", points: [], stamp: "s-1", eventOn: null, eventLabel: null } })
-    );
-    render(<JobSheet row={row()} {...props} />);
-    expect(await screen.findByText("Quoted, waiting on an answer.")).toBeInTheDocument();
-    expect([...document.querySelectorAll(".wb2-jcups-pts li")].map((p) => p.textContent)).toEqual(["Quoted, waiting on an answer."]);
-  });
-
-  it("folds long words to two lines and opens the rest in place", async () => {
-    const long = "Supply and install a 14 kW ducted system. ".repeat(8).trim();
-    readMirrorJob.mockResolvedValueOnce(card(detail({ description: long })));
-    render(<JobSheet row={row()} {...props} />);
-    const words = await screen.findByText(long);
-    expect(words).toHaveClass("folded");
-    await userEvent.click(screen.getByRole("button", { name: "Show all" }));
-    expect(words).not.toHaveClass("folded");
-    expect(screen.getByRole("button", { name: "Show less" })).toHaveAttribute("aria-expanded", "true");
-  });
-
-  it("counts the hours on site beside the days, newest first", async () => {
-    readMirrorJob.mockResolvedValueOnce(
-      card(
-        detail({
-          timeOnSite: { minutes: 1050, sessions: 3 },
-          visits: [
-            { day: "2026-09-01", minutes: 510, crew: [{ name: "Luke", title: null }, { name: "Jake", title: null }] },
-            { day: "2026-08-31", minutes: 540, crew: [{ name: "Luke", title: null }] },
-          ],
-        })
-      )
-    );
-    render(<JobSheet row={row()} {...props} />);
-    const onSite = within(await screen.findByRole("region", { name: "On site" }));
-    expect(onSite.getByText("17h 30m")).toBeInTheDocument();
-    expect(onSite.getByText("2 days")).toBeInTheDocument();
-    expect(onSite.getByText("Luke, Jake")).toBeInTheDocument();
-  });
+describe("the customer, on Overview", () => {
 
   it("offers Edit on the contacts only where saving customers is on, and edits in a dialog that sends only what changed", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    const { unmount } = render(<JobSheet row={row()} {...props} manage />);
+    const { unmount } = render(<Job row={row()} {...props} manage />);
     await detailLanded();
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
     unmount();
@@ -722,7 +567,7 @@ describe("the Summary face", () => {
     saveCustomer.mockResolvedValueOnce({ ok: true, saved: 2, waiting: 0, failed: [] });
     const onToast = jest.fn();
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} manage onToast={onToast} />);
+    render(<Job row={row()} {...props} manage onToast={onToast} />);
     await userEvent.click(await screen.findByRole("button", { name: "Edit" }));
     const dialog = within(await screen.findByRole("dialog", { name: "Edit customer" }));
     expect(await dialog.findByDisplayValue("Josh")).toBeInTheDocument();
@@ -736,7 +581,7 @@ describe("the Summary face", () => {
     await waitFor(() => expect(onToast).toHaveBeenCalledWith("Saved to ServiceM8. The card catches up within a minute."));
   });
 
-  it("Escape in Edit customer closes the dialog, not the card under it", async () => {
+  it("Escape in Edit customer closes the dialog, not the page under it", async () => {
     customerEditOffered.mockResolvedValueOnce(true);
     readCustomerForEdit.mockResolvedValueOnce({
       ok: true,
@@ -745,18 +590,18 @@ describe("the Summary face", () => {
       billingRead: true,
     });
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    const onClose = jest.fn();
-    render(<JobSheet row={row()} {...props} manage onClose={onClose} />);
+    render(<Job row={row()} {...props} manage />);
     await userEvent.click(await screen.findByRole("button", { name: "Edit" }));
     await screen.findByRole("dialog", { name: "Edit customer" });
     await userEvent.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Edit customer" })).toBeNull());
-    expect(onClose).not.toHaveBeenCalled();
+    /* the page is still there under it */
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Laing + Simmons Double Bay");
   });
 
-  it("puts the customer in the rail: a contact's email as a mailto link, and their role", async () => {
+  it("puts the customer on Overview: a contact's email as a mailto link, and their role", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
 
     const cust = within(await screen.findByRole("region", { name: "Customer" }));
     const link = (await cust.findByText("josh@lsdb.com.au")) as HTMLAnchorElement;
@@ -782,7 +627,7 @@ describe("the Summary face", () => {
         })
       )
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
 
     const dialable = await screen.findByText("0426 719 412");
     expect(dialable.closest("a")).toHaveAttribute("href", "tel:0426719412");
@@ -792,7 +637,7 @@ describe("the Summary face", () => {
 
   it("keeps the client's PO with the contacts", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail({ purchaseOrder: "PO-2214" })));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     expect(await screen.findByText("PO-2214")).toBeInTheDocument();
     expect(screen.getByText("Their PO")).toBeInTheDocument();
   });
@@ -814,7 +659,7 @@ describe("the summary refresh", () => {
     });
   };
 
-  it("kicks once when the stored stamp has fallen behind, and swaps the fresh words in", async () => {
+  it("kicks once when the stored stamp has fallen behind", async () => {
     allLanded({
       summary: {
         lead: "Old words.",
@@ -824,31 +669,15 @@ describe("the summary refresh", () => {
         eventLabel: "a note",
       },
     });
-    fetchMock.mockResolvedValue({
-      json: async () => ({
-        ok: true,
-        summary: {
-          lead: "Fresh words about the job.",
-          points: ["A fresh point"],
-          stamp: "fresh",
-          eventOn: "2026-08-14",
-          eventLabel: "a site visit",
-        },
-      }),
-    });
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
 
-    /* not asserting the stale words first: the mocked route answers on the
-       next tick, so the swap can beat the query — the walked behaviour is
-       stored-then-fresh, and the END state plus one POST is what's pinned */
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("/api/workboard/job-summary");
     expect(JSON.parse(String(init.body))).toEqual({ job: "j-1" });
-
-    expect(await screen.findByText("A fresh point")).toBeInTheDocument();
-    expect(screen.queryByText("Old words.")).toBeNull();
-    expect(screen.getByText("Updated Fri 14 Aug, a site visit")).toBeInTheDocument();
+    /* once: a later render does not ask again */
+    await new Promise((r) => setTimeout(r, 0));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("does not kick when the stored stamp matches the story's", async () => {
@@ -882,11 +711,12 @@ describe("the summary refresh", () => {
     allLanded({
       summary: { lead: "Current words.", points: [], stamp: stamp!, eventOn: "2026-08-14", eventLabel: "a site visit" },
     });
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
 
-    expect(await screen.findByText("Current words.")).toBeInTheDocument();
+    await detailLanded();
     /* give any wrong kick a tick to fire before asserting it didn't */
     await waitFor(() => expect(readJobFiles).toHaveBeenCalled());
+    await waitFor(() => expect(listJobPicklist).toHaveBeenCalled());
     await new Promise((r) => setTimeout(r, 0));
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -895,7 +725,7 @@ describe("the summary refresh", () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(record());
     /* readJobFiles stays at the default null forever */
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await new Promise((r) => setTimeout(r, 0));
     expect(fetchMock).not.toHaveBeenCalled();
@@ -904,136 +734,9 @@ describe("the summary refresh", () => {
 
 /* ── the Diary face ── */
 
-describe("the Diary face", () => {
-  it("reads the job's record newest-first under day markers", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(
-      record({
-        notes: [
-          {
-            remoteId: "n-1",
-            text: "Units being delivered direct to site",
-            writtenOn: "2026-08-12",
-            writtenAt: "2026-08-12 09:14:00",
-            writtenBy: "Lyle Irving",
-            actionRequired: false,
-            fromClaim: null,
-          },
-        ],
-      })
-    );
-    render(<JobSheet row={row()} {...props} />);
-    await detailLanded();
-    await openTab("Diary");
+describe("the job's conversation, on Overview", () => {
 
-    const f = face("diary");
-    expect(f.getByText("Diary")).toBeInTheDocument();
-    /* since the job was raised — the oldest event on the feed. July is one
-       of the three months en-AU genuinely spells in full. */
-    expect(f.getByText("Since Thu 30 July")).toBeInTheDocument();
-    expect(f.getByText("Units being delivered direct to site")).toBeInTheDocument();
-    expect(f.getByText("Lyle Irving")).toBeInTheDocument();
-    /* the visits are entries now, with the crew named */
-    expect(f.getByText("Site visit — 10h 20m")).toBeInTheDocument();
-    expect(f.getByText("Callum Vallis, Alex Lomond")).toBeInTheDocument();
-    /* the tick echoes in the diary */
-    expect(f.getByText("Checked off — Isolate power")).toBeInTheDocument();
-    /* and the milestone sinks to its day's end */
-    expect(f.getByText("Became a work order")).toBeInTheDocument();
-  });
-
-  it("filters down to just the notes", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(
-      record({
-        notes: [
-          {
-            remoteId: "n-1",
-            text: "Grille sizes to order",
-            writtenOn: "2026-08-12",
-            writtenAt: "2026-08-12 09:14:00",
-            writtenBy: "David Hanby",
-            actionRequired: false,
-            fromClaim: null,
-          },
-        ],
-      })
-    );
-    render(<JobSheet row={row()} {...props} />);
-    await detailLanded();
-    await openTab("Diary");
-
-    await userEvent.click(screen.getByRole("tab", { name: "Notes" }));
-    const f = face("diary");
-    expect(f.getByText("Grille sizes to order")).toBeInTheDocument();
-    expect(f.queryByText(/Site visit/)).toBeNull();
-  });
-
-  /* The Money filter is a door to money-shaped entries; without the grant
-     the server sent none and the button would open an empty room. */
-  it("offers no Money filter without the grant", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record());
-    render(<JobSheet row={row()} {...props} />);
-    await detailLanded();
-    await openTab("Diary");
-
-    expect(screen.getByRole("tab", { name: "Notes" })).toBeInTheDocument();
-    expect(screen.queryByRole("tab", { name: "Money" })).toBeNull();
-  });
-
-  it("badges a claim's note with where it was filed, and flags action required", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(
-      record({
-        notes: [
-          {
-            remoteId: "n-1",
-            text: "Please make double detection",
-            writtenOn: "2026-08-21",
-            writtenAt: "2026-08-21 16:00:00",
-            writtenBy: "Michael Dixon",
-            actionRequired: true,
-            fromClaim: "2380A",
-          },
-        ],
-      })
-    );
-    render(<JobSheet row={row()} {...props} />);
-    await detailLanded();
-    await openTab("Diary");
-
-    expect(screen.getByText("Please make double detection")).toBeInTheDocument();
-    expect(screen.getByText("Action required")).toBeInTheDocument();
-    expect(screen.getByText("#2380A")).toBeInTheDocument();
-  });
-
-  it("wears an @mention as a callout inside the note's words", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(
-      record({
-        notes: [
-          {
-            remoteId: "n-1",
-            text: "@lyleirving still need another day on site",
-            writtenOn: "2026-08-12",
-            writtenAt: "2026-08-12 09:14:00",
-            writtenBy: "David Hanby",
-            actionRequired: false,
-            fromClaim: null,
-          },
-        ],
-      })
-    );
-    render(<JobSheet row={row()} {...props} />);
-    await detailLanded();
-    await openTab("Diary");
-
-    const mention = screen.getByText("@lyleirving");
-    expect(mention).toHaveClass("wb2-mention");
-  });
-
-  it("clusters a day's photos to four tiles and sends +N to the Photos tab", async () => {
+it("puts a day's photos in the conversation and sends the reader to the Photos section", async () => {
     const photo = (n: number): JobMediaItem => ({
       remoteId: `p-${n}`,
       name: `IMG_${n}.jpg`,
@@ -1053,19 +756,14 @@ describe("the Diary face", () => {
       elsewhere: [],
       truncated: false,
     });
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
-    await openTab("Diary");
 
-    expect(face("diary").getByText("6 photos")).toBeInTheDocument();
-    const more = screen.getByRole("button", { name: "+2" });
-    await userEvent.click(more);
-    expect(screen.getByRole("tab", { name: "Photos" })).toHaveAttribute(
-      "aria-selected",
-      "true"
-    );
+    expect(await convo().findByText("6 photos")).toBeInTheDocument();
+    await userEvent.click(convo().getByRole("button", { name: "See the photos" }));
+    expect(jobTab("Photos")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("region", { name: "Photos" })).toBeVisible();
   });
-
   /* A money event states what happened and is a DOOR — it opens the claim's
      own modal and never repeats the ledger. */
   it("opens the claim modal from a money event", async () => {
@@ -1076,111 +774,38 @@ describe("the Diary face", () => {
     });
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await detailLanded();
-    await openTab("Diary");
 
-    /* the deposit settled — its door names the invoice */
-    await userEvent.click(
-      within(document.querySelector("#jcsec-diary") as HTMLElement).getAllByRole("button", {
-        name: /Invoice #2380A — open it/,
-      })[0]
-    );
+    /* the deposit settled — its card names the invoice, and Open is its door */
+    const ev = (await convo().findAllByText("Invoice #2380A"))[0]!.closest(".jc-event") as HTMLElement;
+    await userEvent.click(within(ev).getByRole("button", { name: "Open" }));
     expect(
       await screen.findByRole("dialog", { name: /Payment 1 — Deposit/ })
     ).toBeInTheDocument();
   });
 
-  it("names what was checked when the diary is empty", async () => {
-    readMirrorJob.mockResolvedValueOnce(
-      card(
-        detail({
-          date: null,
-          quoteSentOn: null,
-          workOrderDate: null,
-          visits: [],
-          checklist: [],
-          nextBooking: null,
-          queue: null,
-          timeOnSite: null,
-        })
-      )
-    );
-    readJobRecord.mockResolvedValueOnce(record());
-    render(<JobSheet row={row()} {...props} />);
-    await detailLanded();
-    await openTab("Diary");
-
-    expect(
-      screen.getByText("Nothing in the diary yet. Checked notes, visits, photos and checklists.")
-    ).toBeInTheDocument();
-  });
 });
 
 /* ── the band's two doors, and the flag ── */
 
-describe("the ServiceM8 chip", () => {
+describe("Open in ServiceM8", () => {
   /* The fixtures' "j-1" is not an id ServiceM8 would ever send, and the URL
-     builder refuses anything that isn't a uuid — so a card with a real one
+     builder refuses anything that isn't a uuid — so a job with a real one
      is what proves the door. */
   const UUID = "0e0e0e0e-0000-4000-8000-0000000000c5";
-  const realId = () => card(detail({ remoteId: UUID }));
 
-  it("says how fresh the card is, and IS the door back to ServiceM8", async () => {
-    readMirrorJob.mockResolvedValueOnce(realId());
-    render(
-      <JobSheet
-        row={row()}
-        {...props}
-        sm8={{ attention: false, syncedAt: new Date().toISOString(), running: false }}
-      />
-    );
-    await detailLanded();
-
-    const door = await screen.findByRole("link", { name: /ServiceM8/ });
-    expect(door).toHaveAttribute("href", `https://go.servicem8.com/OpenJob/${UUID}`);
-    /* A new tab, and never with our opener attached. */
-    expect(door).toHaveAttribute("target", "_blank");
-    expect(door).toHaveAttribute("rel", "noopener noreferrer");
-    expect(door.textContent).toContain("synced just now");
-    /* The chip it replaced said a thing the reader already knew. */
-    expect(screen.queryByText("ServiceM8 job")).toBeNull();
-  });
-
-  it("says the mirror needs attention instead of a clock, and still opens", async () => {
-    readMirrorJob.mockResolvedValueOnce(realId());
-    render(
-      <JobSheet
-        row={row()}
-        {...props}
-        sm8={{ attention: true, syncedAt: null, running: false }}
-      />
-    );
-    await detailLanded();
-
-    const door = await screen.findByRole("link", { name: /ServiceM8 needs attention/ });
-    expect(door).toHaveAttribute("href", `https://go.servicem8.com/OpenJob/${UUID}`);
-  });
-
-  it("is a door with no clock when the board never passed the mirror's health", async () => {
-    readMirrorJob.mockResolvedValueOnce(realId());
-    render(<JobSheet row={row()} {...props} />);
-    await detailLanded();
-
-    expect(await screen.findByRole("link", { name: /Open in ServiceM8/ })).toBeInTheDocument();
-  });
-
-  it("opens the CARD's job — a clone's card is showing its parent", async () => {
+  it("opens the PAGE's job — a clone's page is showing its parent", async () => {
     /* The row that was clicked is the clone; readMirrorJob resolved the
        parent, and the parent is what the reader is looking at. */
     readMirrorJob.mockResolvedValueOnce(card(detail({ remoteId: UUID, jobNumber: "2380" })));
-    render(<JobSheet row={row({ id: "clone-uuid", number: "2380A" })} {...props} />);
+    render(<Job row={row({ id: "clone-uuid", number: "2380A" })} {...props} />);
     await detailLanded();
 
-    expect(await screen.findByRole("link", { name: /ServiceM8/ })).toHaveAttribute(
-      "href",
-      `https://go.servicem8.com/OpenJob/${UUID}`
-    );
+    const open = jest.spyOn(window, "open").mockImplementation(() => null);
+    await userEvent.click(within(await actionsMenu()).getByRole("menuitem", { name: "Open in ServiceM8" }));
+    expect(open).toHaveBeenCalledWith(`https://go.servicem8.com/OpenJob/${UUID}`, "_blank", "noopener,noreferrer");
+    open.mockRestore();
   });
 });
 
@@ -1218,18 +843,18 @@ describe("the attention strip", () => {
   it("is ABSENT on a quiet job — no header, no empty furniture", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(record());
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await waitFor(() => expect(readJobRecord).toHaveBeenCalled());
     expect(screen.queryByRole("region", { name: "Open on this job" })).toBeNull();
   });
 
-  it("says what ServiceM8's flagged note ACTUALLY SAID, and opens the diary at it", async () => {
+  it("says what ServiceM8's flagged note ACTUALLY SAID, and opens the conversation at it", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(
       record({ notes: [flaggedNote()], attention: { items: [sm8flag], total: 1 } })
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
 
     /* The chip this replaced could only say "1 flagged note" — a number. */
@@ -1238,9 +863,9 @@ describe("the attention strip", () => {
     expect(strip.getByText(/Flagged in ServiceM8/)).toBeInTheDocument();
 
     await userEvent.click(strip.getByRole("button", { name: /Open in the diary/ }));
-    expect(screen.getByRole("tab", { name: "Timeline", selected: true })).toBeInTheDocument();
-    const lit = face("diary").getByText("Send a 20% deposit invoice").closest(".wb2-ev");
-    expect(lit).toHaveClass("flag");
+    expect(jobTab("Overview")).toHaveAttribute("aria-selected", "true");
+    const lit = convo().getByText("Send a 20% deposit invoice").closest(".cv-msg");
+    expect(lit).toHaveClass("jc-lit");
   });
 
   it("clears a HeyTiff flag, and the row leaves at once", async () => {
@@ -1262,7 +887,7 @@ describe("the attention strip", () => {
         },
       })
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
 
     const strip = within(await screen.findByRole("region", { name: "Open on this job" }));
@@ -1283,7 +908,7 @@ describe("the attention strip", () => {
     it("only ever SUGGESTS — the form refuses to save until a person is named", async () => {
       readMirrorJob.mockResolvedValueOnce(card(detail()));
       readJobRecord.mockResolvedValueOnce(withMention());
-      render(<JobSheet row={row()} {...props} />);
+      render(<Job row={row()} {...props} />);
       await detailLanded();
 
       const strip = within(await screen.findByRole("region", { name: "Open on this job" }));
@@ -1306,7 +931,7 @@ describe("the attention strip", () => {
     it("saves once somebody says who it is for", async () => {
       readMirrorJob.mockResolvedValueOnce(card(detail()));
       readJobRecord.mockResolvedValueOnce(withMention());
-      render(<JobSheet row={row()} {...props} />);
+      render(<Job row={row()} {...props} />);
       await detailLanded();
 
       const strip = within(await screen.findByRole("region", { name: "Open on this job" }));
@@ -1326,7 +951,7 @@ describe("the attention strip", () => {
     it("stays dismissed when it wasn't work", async () => {
       readMirrorJob.mockResolvedValueOnce(card(detail()));
       readJobRecord.mockResolvedValueOnce(withMention());
-      render(<JobSheet row={row()} {...props} />);
+      render(<Job row={row()} {...props} />);
       await detailLanded();
 
       const strip = within(await screen.findByRole("region", { name: "Open on this job" }));
@@ -1338,34 +963,36 @@ describe("the attention strip", () => {
     });
   });
 
-  it("leaves a closed job's flagged notes to the diary alone", async () => {
+  it("leaves a closed job's flagged notes to the conversation alone", async () => {
     /* The open-job rule is the SERVER's now (job-attention.ts owns it and its
        own suite proves it). What this pins is the other half: the record
        stands even when the alarm doesn't. */
     readMirrorJob.mockResolvedValueOnce(card(detail({ status: "Completed" })));
     readJobRecord.mockResolvedValueOnce(record({ notes: [flaggedNote()] }));
-    render(<JobSheet row={row({ statusLabel: "Completed", tone: "ok" })} {...props} />);
+    render(<Job row={row({ statusLabel: "Completed", tone: "ok" })} {...props} />);
     await detailLanded();
-    await openTab("Diary");
-    await waitFor(() =>
-      expect(face("diary").getByText("Action required")).toBeInTheDocument()
-    );
+    await waitFor(() => expect(convo().getByText("Action required")).toBeInTheDocument());
     expect(screen.queryByRole("region", { name: "Open on this job" })).toBeNull();
   });
 });
 
-/* ── the pen at the diary's head ── */
+/* ── the pen: the conversation's Keep as typed ── */
+
+/** Words typed in the conversation's box and kept as typed: the pen's write. */
+const keepTyped = async (words: string) => {
+  await userEvent.type(convo().getByRole("textbox", { name: "Tell Tiff about this job" }), words);
+  await userEvent.click(convo().getByRole("button", { name: "Keep as typed" }));
+};
 
 describe("writing on the job", () => {
-  it("lands as a diary entry at once, then wears the name only the server knew", async () => {
+  it("lands in the conversation at once, then wears the name only the server knew", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
-    await openTab("Diary");
+    await waitFor(() => expect(readJobRecord).toHaveBeenCalled());
 
-    const f = face("diary");
-    await userEvent.type(f.getByLabelText("a note on this job"), "Drain kit still to go on");
-    await userEvent.click(f.getByRole("button", { name: "Add a note on this job" }));
+    const f = convo();
+    await keepTyped("Drain kit still to go on");
 
     /* under the pen's own id (two-way phase 2): a double submit is one entry */
     expect(addJobNote).toHaveBeenCalledWith("j-1", "Drain kit still to go on", {
@@ -1393,11 +1020,10 @@ describe("writing on the job", () => {
         ],
       })
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
-    await openTab("Diary");
 
-    const f = face("diary");
+    const f = convo();
     await waitFor(() =>
       expect(f.getByText("Ring the builder about roof access")).toBeInTheDocument()
     );
@@ -1425,11 +1051,10 @@ describe("writing on the job", () => {
         ],
       })
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
-    await openTab("Diary");
 
-    const f = face("diary");
+    const f = convo();
     await waitFor(() =>
       expect(f.getByText("Please make double detection")).toBeInTheDocument()
     );
@@ -1440,9 +1065,9 @@ describe("writing on the job", () => {
   });
 });
 
-/* ── notes to ServiceM8 on the card (two-way phase 2, PR B) ── */
+/* ── notes to ServiceM8 on the page (two-way phase 2, PR B) ── */
 
-describe("notes to ServiceM8 on the card", () => {
+describe("notes to ServiceM8 on the page", () => {
   const ASK = "7e7e7e7e-0000-4000-8000-00000000a5c1";
   const ISAAC_SM8 = "5a1b2c3d-0000-4000-8000-00000000aaaa";
   const ready = { state: "ready" as const, staffUuid: ISAAC_SM8, remoteId: ISAAC_SM8, sm8Name: "Isaac Smith", handle: "isaacsmith" };
@@ -1507,36 +1132,32 @@ describe("notes to ServiceM8 on the card", () => {
     addJobNote.mockClear();
   });
 
-  it("(F) the strip's Reply opens the diary at the note, with its box open; a reply shows at once under it, sending, with Undo", async () => {
+it("(F) the strip's Reply opens the conversation at the note, with its box open; a reply shows at once, sending, with Undo", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(withNotes());
     noteSm8.replyToJobNote.mockResolvedValueOnce({ ok: true, note: reply() });
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
 
     const strip = within(await screen.findByRole("region", { name: "Open on this job" }));
     await userEvent.click(strip.getByRole("button", { name: "Reply" }));
-    expect(screen.getByRole("tab", { name: "Timeline", selected: true })).toBeInTheDocument();
-    const f = face("diary");
+    expect(jobTab("Overview")).toHaveAttribute("aria-selected", "true");
+    const f = convo();
+    /* the note it answers is lit, and its box is open */
+    expect(f.getByPlaceholderText(NOTE_WORDS.door.replyPlaceholder).closest(".cv-msg")).toHaveClass("jc-lit");
     await userEvent.type(f.getByPlaceholderText(NOTE_WORDS.door.replyPlaceholder), "on my way");
     await userEvent.click(f.getByRole("button", { name: NOTE_WORDS.door.sendReply }));
     expect(noteSm8.replyToJobNote).toHaveBeenCalledWith(
       expect.objectContaining({ jobUuid: "j-1", sourceNoteUuid: ASK, words: "on my way" })
     );
-    // under the note it answers, once, with its line and its Undo
-    const thread = await waitFor(() => {
-      const t = document.querySelector("#jcsec-diary .wb2-evthread");
-      if (!t) throw new Error("no thread yet");
-      return t as HTMLElement;
-    });
-    expect(within(thread).getByText(NOTE_WORDS.line.sending)).toBeInTheDocument();
-    expect(within(thread).getByRole("button", { name: "Undo" })).toBeInTheDocument();
-    expect(document.querySelectorAll("#jcsec-diary .wb2-evcard")).toHaveLength(2);
+    // drawn once, with its line and its Undo
+    expect(await f.findByText(NOTE_WORDS.line.sending)).toBeInTheDocument();
+    expect(f.getAllByText(NOTE_WORDS.line.sending)).toHaveLength(1);
+    expect(f.getByRole("button", { name: "Undo" })).toBeInTheDocument();
     // answered: its mention leaves the strip
     expect(screen.queryByRole("region", { name: "Open on this job" })).toBeNull();
   });
-
-  it("(F) (verifier r2 12) ticked, the pen sends with the SAVED id — and the same words twice are one entry and one send", async () => {
+it("(F) (verifier r2 12) ticked, the pen sends with the SAVED id — and a second keep while the first is out is no entry and no send", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(withNotes({ attention: { items: [], total: 0 } }));
     let land: (v: unknown) => void = () => {};
@@ -1547,16 +1168,17 @@ describe("notes to ServiceM8 on the card", () => {
         })
     );
     noteSm8.sendJobNoteToServiceM8.mockResolvedValue({ ok: true, state: sent });
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
-    await openTab("Diary");
-    const f = face("diary");
-    await userEvent.click(f.getByRole("checkbox", { name: NOTE_WORDS.door.alsoInSm8 }));
-    const box = f.getByLabelText("a note on this job");
-    await userEvent.type(box, "Drain kit still to go on{Enter}");
-    await userEvent.type(box, "Drain kit still to go on{Enter}");
+    const f = convo();
+    await userEvent.click(await f.findByRole("checkbox", { name: NOTE_WORDS.door.alsoInSm8 }));
+    await keepTyped("Drain kit still to go on");
+    await userEvent.type(f.getByRole("textbox", { name: "Tell Tiff about this job" }), "Drain kit still to go on");
+    /* the first is still being kept: the door waits for it */
+    expect(f.getByRole("button", { name: "Keeping it" })).toBeDisabled();
+    await userEvent.click(f.getByRole("button", { name: "Keeping it" }));
     expect(addJobNote).toHaveBeenCalledTimes(1);
-    expect(f.getAllByText("Drain kit still to go on")).toHaveLength(1);
+    expect(f.getAllByText("Drain kit still to go on", { ignore: "textarea" })).toHaveLength(1);
     await act(async () => land(null));
     await waitFor(() => expect(noteSm8.sendJobNoteToServiceM8).toHaveBeenCalledTimes(1));
     expect(noteSm8.sendJobNoteToServiceM8).toHaveBeenCalledWith({ jobUuid: "j-1", noteId: "saved-1" });
@@ -1567,11 +1189,10 @@ describe("notes to ServiceM8 on the card", () => {
   it("unticked, the pen sends nothing to ServiceM8", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(withNotes({ attention: { items: [], total: 0 } }));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
-    await openTab("Diary");
-    const f = face("diary");
-    await userEvent.type(f.getByLabelText("a note on this job"), "Drain kit{Enter}");
+    await convo().findByRole("checkbox", { name: NOTE_WORDS.door.alsoInSm8 });
+    await keepTyped("Drain kit");
     await waitFor(() => expect(addJobNote).toHaveBeenCalled());
     expect(noteSm8.sendJobNoteToServiceM8).not.toHaveBeenCalled();
     addJobNote.mockClear();
@@ -1589,10 +1210,9 @@ describe("notes to ServiceM8 on the card", () => {
     readJobRecord.mockResolvedValue(withNotes({ sender: confirm, ourNotes: [reply({ state: asking })], attention: { items: [], total: 0 } }));
     noteSm8.confirmMySm8Link.mockResolvedValue({ ok: true, sender: ready });
     noteSm8.sendJobNoteToServiceM8.mockResolvedValue({ ok: true, state: sending });
-    const { unmount } = render(<JobSheet row={row()} {...props} />);
+    const { unmount } = render(<Job row={row()} {...props} />);
     await detailLanded();
-    await openTab("Diary");
-    const ev = (await face("diary").findByText("Not sent to ServiceM8. Is Isaac Smith you?")).closest(".wb2-ev") as HTMLElement;
+    const ev = (await convo().findByText("Not sent to ServiceM8. Is Isaac Smith you?")).closest(".cv-msg") as HTMLElement;
     await userEvent.click(within(ev).getByRole("button", { name: NOTE_WORDS.door.yes }));
     expect(noteSm8.confirmMySm8Link).toHaveBeenCalledWith({ remoteId: ISAAC_SM8, answer: "yes" });
     await waitFor(() => expect(noteSm8.sendJobNoteToServiceM8).toHaveBeenCalledWith({ jobUuid: "j-1", noteId: "r-1" }));
@@ -1600,10 +1220,9 @@ describe("notes to ServiceM8 on the card", () => {
 
     noteSm8.sendJobNoteToServiceM8.mockClear();
     noteSm8.confirmMySm8Link.mockResolvedValue({ ok: true, sender: { ...confirm, state: "denied" } });
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
-    await openTab("Diary");
-    const ev2 = (await face("diary").findByText("Not sent to ServiceM8. Is Isaac Smith you?")).closest(".wb2-ev") as HTMLElement;
+    const ev2 = (await convo().findByText("Not sent to ServiceM8. Is Isaac Smith you?")).closest(".cv-msg") as HTMLElement;
     await userEvent.click(within(ev2).getByRole("button", { name: NOTE_WORDS.door.notMe }));
     await waitFor(() => expect(noteSm8.confirmMySm8Link).toHaveBeenLastCalledWith({ remoteId: ISAAC_SM8, answer: "no" }));
     expect(noteSm8.sendJobNoteToServiceM8).not.toHaveBeenCalled();
@@ -1617,16 +1236,15 @@ describe("notes to ServiceM8 on the card", () => {
       error: NOTE_WORDS.press.takeBackOff,
       state: { key: "line.stillIn", text: "Still in ServiceM8. Sending notes is switched off.", tone: "bad", acts: ["take_out_again"] },
     });
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
-    await openTab("Diary");
-    const f = face("diary");
+    const f = convo();
     await userEvent.click(await f.findByRole("button", { name: "Undo" }));
     expect(noteSm8.takeBackJobNote).toHaveBeenCalledWith({ jobUuid: "j-1", noteId: "r-1" });
     expect(await f.findByText("Still in ServiceM8. Sending notes is switched off.")).toBeInTheDocument();
     noteSm8.takeBackJobNote.mockResolvedValueOnce({ ok: true, gone: true, state: null });
     await userEvent.click(f.getByRole("button", { name: NOTE_WORDS.door.tryAgain }));
-    await waitFor(() => expect(f.queryByText("@lyleirving on my way")).toBeNull());
+    await waitFor(() => expect(f.queryByText("on my way", { exact: false })).toBeNull());
   });
 
   it("Remove on an entry that went keeps it, taking it out, until it has gone", async () => {
@@ -1637,10 +1255,9 @@ describe("notes to ServiceM8 on the card", () => {
     noteSm8.readJobNoteStates
       .mockResolvedValueOnce({ ours: { "d-1": { key: "line.takingOut", text: NOTE_WORDS.line.takingOut, tone: null, acts: [] } }, flags: {} })
       .mockResolvedValue({ ours: {}, flags: {} });
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
-    await openTab("Diary");
-    const f = face("diary");
+    const f = convo();
     await userEvent.click(await f.findByRole("button", { name: "Remove" }));
     expect(await f.findByText(NOTE_WORDS.line.takingOut)).toBeInTheDocument();
     expect(f.getByText("Drain kit still to go on")).toBeInTheDocument();
@@ -1661,10 +1278,9 @@ describe("notes to ServiceM8 on the card", () => {
       });
     noteSm8.markJobNoteDone.mockImplementation(pending);
     noteSm8.undoJobNoteDone.mockImplementation(pending);
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
-    await openTab("Diary");
-    const f = face("diary");
+    const f = convo();
     const pressIdOf = (fn: jest.Mock, n: number) => (fn.mock.calls[n][0] as { pressId: string }).pressId;
 
     const door = await f.findByRole("button", { name: NOTE_WORDS.door.markDone });
@@ -1719,14 +1335,13 @@ describe("notes to ServiceM8 on the card", () => {
         },
       })
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     const strip = within(await screen.findByRole("region", { name: "Open on this job" }));
     expect(strip.queryByRole("button", { name: "Reply" })).toBeNull();
     expect(strip.getByRole("button", { name: "Make it a task" })).toBeInTheDocument();
-    await openTab("Diary");
-    expect(face("diary").queryByRole("button", { name: "Reply" })).toBeNull();
-    expect(face("diary").queryByRole("checkbox")).toBeNull();
+    expect(convo().queryByRole("button", { name: "Reply" })).toBeNull();
+    expect(convo().queryByRole("checkbox")).toBeNull();
     expect(noteSm8.readJobNoteStates).not.toHaveBeenCalled();
   });
 });
@@ -1745,7 +1360,7 @@ describe("the Visits face", () => {
     readMyCheckIn.mockResolvedValueOnce(null);
     checkIn.mockResolvedValueOnce({ jobUuid: "j-1", jobNumber: "3137", since: "2026-10-02T21:32:00Z" });
     readMirrorJob.mockResolvedValue(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Visits");
     const reads = readMirrorJob.mock.calls.length;
@@ -1760,7 +1375,7 @@ describe("the Visits face", () => {
   it("offers to check in here when the reader is on another job, and says which", async () => {
     readMyCheckIn.mockResolvedValueOnce({ jobUuid: "j-other", jobNumber: "3225", since: "2026-10-02T21:00:00Z" });
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Visits");
     expect(await face("visits").findByText(/^Checked in at #3225 since 7:00\sam$/)).toBeInTheDocument();
@@ -1771,7 +1386,7 @@ describe("the Visits face", () => {
     readMirrorJob.mockResolvedValueOnce(
       card(detail({ visits: [{ day: "2026-10-03", minutes: 90, crew: [{ name: "Luke Ingold", title: null, onSite: true }] }] }))
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Visits");
     expect(crewLine(face("visits"), "Sat 3 Oct")).toBe("Luke Ingold, on site now");
@@ -1789,7 +1404,7 @@ describe("the Visits face", () => {
 
   it("lists every visit with who went, tallies the heading, and puts the booking first", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Visits");
 
@@ -1835,7 +1450,7 @@ describe("the Visits face", () => {
         })
       )
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Visits");
 
@@ -1855,7 +1470,7 @@ describe("the Visits face", () => {
       crew: [{ name: "Alex Lomond", title: null }],
     }));
     readMirrorJob.mockResolvedValueOnce(card(detail({ visits: many })));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Visits");
 
@@ -1874,7 +1489,7 @@ describe("the Visits face", () => {
     readMirrorJob.mockResolvedValueOnce(
       card(detail({ visits: [], nextBooking: null, queue: null, timeOnSite: null }))
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Visits");
     expect(
@@ -1888,7 +1503,7 @@ describe("the Visits face", () => {
 describe("the Checklist face", () => {
   it("shows the checklist grouped by section, with who ticked what", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Checklist");
 
@@ -1906,7 +1521,7 @@ describe("the Checklist face", () => {
 
   it("stays writable when the job has no list at all", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail({ checklist: [] })));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Checklist");
     expect(
@@ -1963,7 +1578,7 @@ describe("the Money face", () => {
       card(detail({ contacts: [{ name: "Accounts", type: "BILLING", phone: null, altPhone: null, email: "accounts@lsdb.com.au" }] }))
     );
     readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
     const f = face("money");
     expect(await f.findByText("Bill to")).toBeInTheDocument();
@@ -1989,7 +1604,7 @@ describe("the Money face", () => {
   it("says only when a claim was RAISED while the terms are unset", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
 
     const f = face("money");
@@ -2003,7 +1618,7 @@ describe("the Money face", () => {
   it("names the due date once the organisation has set its terms", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(record({ family: familyMoney({ termsDays: 30 }) }));
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
 
     const f = face("money");
@@ -2016,7 +1631,7 @@ describe("the Money face", () => {
   it("calls it overdue, on the claim and on the head, once the date has passed", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(record({ family: familyMoney({ termsDays: 3 }) }));
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
 
     const f = face("money");
@@ -2029,7 +1644,7 @@ describe("the Money face", () => {
   it("puts a claim due ON RECEIPT at its raise date — 0 is an answer", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(record({ family: familyMoney({ termsDays: 0 }) }));
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
 
     const f = face("money");
@@ -2040,31 +1655,31 @@ describe("the Money face", () => {
   it("reads three ServiceM8 cards as one job, with the claims numbered", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
 
-    expect(await screen.findByText("$31,340.35")).toBeInTheDocument();
-    expect(screen.getByText("Job value (inc GST)")).toBeInTheDocument();
-    expect(screen.getByText("Payment 1 — Deposit")).toBeInTheDocument();
-    expect(screen.getByText("Payment 2 — Progress")).toBeInTheDocument();
-    expect(screen.getByText("Payment 3 — Final")).toBeInTheDocument();
+    expect(await face("money").findByText("$31,340.35")).toBeInTheDocument();
+    expect(face("money").getByText("Job value (inc GST)")).toBeInTheDocument();
+    expect(face("money").getByText("Payment 1 — Deposit")).toBeInTheDocument();
+    expect(face("money").getByText("Payment 2 — Progress")).toBeInTheDocument();
+    expect(face("money").getByText("Payment 3 — Final")).toBeInTheDocument();
     expect(
-      screen.getByText("Invoice #2380A, 30% of the job, Raised Fri 27 Mar, Paid Thu 2 Apr")
+      face("money").getByText("Invoice #2380A, 30% of the job, Raised Fri 27 Mar, Paid Thu 2 Apr")
     ).toBeInTheDocument();
   });
 
   it("counts the money that landed on the clones", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
 
-    await screen.findByText("$31,340.35");
+    await face("money").findByText("$31,340.35");
     const head = document.querySelector(".wb2-mline.head") as HTMLElement;
     expect(within(head).getByText("Awaiting payment")).toBeInTheDocument();
     expect(within(head).getByText("$6,268.06")).toBeInTheDocument();
     expect(within(head).getByText("20% of the job")).toBeInTheDocument();
-    expect(screen.queryByText("Nothing paid yet")).toBeNull();
+    expect(face("money").queryByText("Nothing paid yet")).toBeNull();
   });
 
   it("says what has been invoiced and what is still to bill", async () => {
@@ -2104,13 +1719,13 @@ describe("the Money face", () => {
         }),
       })
     );
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
 
     expect(
-      await screen.findByText("$25,072.29 invoiced so far — $6,268.06 to come")
+      await face("money").findByText("$25,072.29 invoiced so far — $6,268.06 to come")
     ).toBeInTheDocument();
-    expect(screen.getByText("To come")).toBeInTheDocument();
+    expect(face("money").getByText("To come")).toBeInTheDocument();
   });
 
   it("stands the total down rather than adding ex-GST to inc-GST", async () => {
@@ -2141,15 +1756,15 @@ describe("the Money face", () => {
         }),
       })
     );
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
 
-    expect(await screen.findByText(/different tax bases/)).toBeInTheDocument();
-    expect(screen.getByText("—")).toBeInTheDocument();
-    expect(screen.getByText("Job value")).toBeInTheDocument();
-    expect(screen.queryByText("Job value (inc GST)")).toBeNull();
-    expect(screen.queryByText("Part or all paid")).toBeNull();
-    expect(screen.queryByText("Nothing paid yet")).toBeNull();
+    expect(await face("money").findByText(/different tax bases/)).toBeInTheDocument();
+    expect(face("money").getByText("—")).toBeInTheDocument();
+    expect(face("money").getByText("Job value")).toBeInTheDocument();
+    expect(face("money").queryByText("Job value (inc GST)")).toBeNull();
+    expect(face("money").queryByText("Part or all paid")).toBeNull();
+    expect(face("money").queryByText("Nothing paid yet")).toBeNull();
   });
 
   it("names no invoice number on the part still to bill", async () => {
@@ -2180,13 +1795,13 @@ describe("the Money face", () => {
         }),
       })
     );
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
 
     /* the claim still to bill says so in its own line, with no number */
-    const toBill = (await screen.findByText(/Not yet invoiced/)).textContent ?? "";
+    const toBill = (await face("money").findByText(/Not yet invoiced/)).textContent ?? "";
     expect(toBill).not.toMatch(/Invoice #2380\b/);
-    expect(screen.queryByText(/Invoice #2380 ·/)).toBeNull();
+    expect(face("money").queryByText(/Invoice #2380 ·/)).toBeNull();
   });
 
   /* THE EDGE IS INK, NOT THE JOB TYPE'S COLOUR. The block used to take
@@ -2198,10 +1813,10 @@ describe("the Money face", () => {
   it("wears ink as its edge, never the job type's colour", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
 
-    await screen.findByText("$31,340.35");
+    await face("money").findByText("$31,340.35");
     const block = document.querySelector(".wb2-jmoney") as HTMLElement;
     expect(block.style.borderColor).toBe("");
     expect(block.getAttribute("style")).toBeNull();
@@ -2249,10 +1864,10 @@ describe("the Money face", () => {
   it("stands the money in the left column and the goods in the right", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail({ money: simpleMoney })));
     readJobRecord.mockResolvedValueOnce(record({ ledger: goodsAndPaid }));
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
 
-    await screen.findByText("What went on the job");
+    await face("money").findByText("What went on the job");
     const grid = document.querySelector(".wb2-jcgrid.money") as HTMLElement;
     expect(grid.classList.contains("one")).toBe(false);
     expect(grid.children).toHaveLength(2);
@@ -2268,14 +1883,14 @@ describe("the Money face", () => {
     readJobRecord.mockResolvedValueOnce(
       record({ family: familyMoney(), ledger: { materials: goodsAndPaid.materials, payments: [] } })
     );
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
 
-    await screen.findByText("$31,340.35");
+    await face("money").findByText("$31,340.35");
     // the claim rows are a table, and a table wants the width
     expect(document.querySelector(".wb2-jcgrid .wb2-jmoney")).toBeNull();
-    const face = document.getElementById("jcsec-money") as HTMLElement;
-    expect(face.children[0].classList.contains("wb2-jmoney")).toBe(true);
+    const moneyFace = document.getElementById("jcsec-money") as HTMLElement;
+    expect(moneyFace.children[0].classList.contains("wb2-jmoney")).toBe(true);
     // with no payments there is nothing for the goods to stand beside
     const grid = document.querySelector(".wb2-jcgrid.money") as HTMLElement;
     expect(grid.classList.contains("one")).toBe(true);
@@ -2286,10 +1901,10 @@ describe("the Money face", () => {
   it("runs the block full width when there is nothing to stand beside it", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail({ money: simpleMoney })));
     readJobRecord.mockResolvedValueOnce(record());
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
 
-    await screen.findByText("$19,052");
+    await face("money").findByText("$19,052");
     const grid = document.querySelector(".wb2-jcgrid.money.one") as HTMLElement;
     expect(grid).not.toBeNull();
     expect(grid.children).toHaveLength(1);
@@ -2331,12 +1946,12 @@ describe("the Money face", () => {
         },
       })
     );
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
 
-    expect(await screen.findByText("As Per Quote")).toBeInTheDocument();
-    expect(screen.queryByText("Partial invoice #2380A")).toBeNull();
-    expect(screen.getByText("Discount")).toBeInTheDocument();
+    expect(await face("money").findByText("As Per Quote")).toBeInTheDocument();
+    expect(face("money").queryByText("Partial invoice #2380A")).toBeNull();
+    expect(face("money").getByText("Discount")).toBeInTheDocument();
   });
 
   it("shows no figure at all until the family read has landed", async () => {
@@ -2347,14 +1962,14 @@ describe("the Money face", () => {
         land = res;
       })
     );
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await openMoney();
 
     expect(document.querySelector(".wb2-jmoney")).toBeNull();
-    expect(screen.getByText("Reading the figures")).toBeInTheDocument();
+    expect(face("money").getByText("Reading the figures")).toBeInTheDocument();
 
     land(record({ family: familyMoney() }));
-    expect(await screen.findByText("$31,340.35")).toBeInTheDocument();
+    expect(await face("money").findByText("$31,340.35")).toBeInTheDocument();
   });
 });
 
@@ -2402,14 +2017,14 @@ describe("the money block never speaks past what it knows", () => {
       )
     );
     readJobRecord.mockResolvedValueOnce(record({ family: mixed() }));
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await detailLanded();
     await openTab("Money");
 
-    await screen.findByText(/different tax bases/);
+    await face("money").findByText(/different tax bases/);
     expect(document.querySelector(".wb2-jmbig")!.textContent).toBe("—");
-    expect(screen.getByText("Job value")).toBeInTheDocument();
-    const claim = screen.getByText("Payment 2 — Final").closest(".wb2-mline")!;
+    expect(face("money").getByText("Job value")).toBeInTheDocument();
+    const claim = face("money").getByText("Payment 2 — Final").closest(".wb2-mline")!;
     expect(within(claim as HTMLElement).getByText("$6,268.06")).toBeInTheDocument();
   });
 
@@ -2441,12 +2056,12 @@ describe("the money block never speaks past what it knows", () => {
         }),
       })
     );
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await detailLanded();
     await openTab("Money");
 
-    expect(await screen.findByText(/invoiced so far/)).toBeInTheDocument();
-    expect(screen.queryByText("Paid in full")).toBeNull();
+    expect(await face("money").findByText(/invoiced so far/)).toBeInTheDocument();
+    expect(face("money").queryByText("Paid in full")).toBeNull();
   });
 
   it("counts the ledger's payments when there is no family to count", async () => {
@@ -2484,12 +2099,12 @@ describe("the money block never speaks past what it knows", () => {
         },
       })
     );
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await detailLanded();
     await openTab("Money");
 
-    expect(await screen.findByText("Paid in full")).toBeInTheDocument();
-    expect(screen.queryByText("Nothing paid yet")).toBeNull();
+    expect(await face("money").findByText("Paid in full")).toBeInTheDocument();
+    expect(face("money").queryByText("Nothing paid yet")).toBeNull();
   });
 });
 
@@ -2525,16 +2140,16 @@ describe("the money block on a job with no clones", () => {
   it("says the value and where collection stands, with no bar to compare", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail({ money: jobMoney })));
     readJobRecord.mockResolvedValueOnce(record({ family: plain() }));
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await detailLanded();
     await openTab("Money");
 
-    expect(await screen.findByText("$2,794")).toBeInTheDocument();
-    expect(screen.getByText("Nothing paid yet")).toBeInTheDocument();
+    expect(await face("money").findByText("$2,794")).toBeInTheDocument();
+    expect(face("money").getByText("Nothing paid yet")).toBeInTheDocument();
     // …in the head row, not hanging bare under the figure
-    expect(screen.getByText("Nothing paid yet").closest(".wb2-mline.head")).not.toBeNull();
+    expect(face("money").getByText("Nothing paid yet").closest(".wb2-mline.head")).not.toBeNull();
     expect(document.querySelector(".wb2-jmbar")).toBeNull();
-    expect(screen.queryByText(/^Payment 1/)).toBeNull();
+    expect(face("money").queryByText(/^Payment 1/)).toBeNull();
   });
 
   it("wears the amber head row once there is something to chase", async () => {
@@ -2544,59 +2159,32 @@ describe("the money block on a job with no clones", () => {
         family: plain({ paidCents: 100000, lastPaidOn: "2026-08-07", raisedOn: "2026-08-01" }),
       })
     );
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await detailLanded();
     await openTab("Money");
 
-    await screen.findByText("$2,794");
+    await face("money").findByText("$2,794");
     const head = document.querySelector(".wb2-mline.head") as HTMLElement;
     expect(within(head).getByText("Awaiting payment")).toBeInTheDocument();
     expect(within(head).getByText("$1,794")).toBeInTheDocument();
     expect(document.querySelector(".wb2-jmbar")).not.toBeNull();
-    expect(screen.queryByText(/Part paid/)).toBeNull();
+    expect(face("money").queryByText(/Part paid/)).toBeNull();
   });
 });
 
 /* ── a clone opens the job it is a claim of ── */
 
-describe("a card opened from a progress claim", () => {
+describe("a page opened from a progress claim", () => {
   const opened = () => {
     readMirrorJob.mockResolvedValueOnce(card(detail(), "j-2380a"));
     readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
   };
 
-  /* The walked #556 behaviour, kept through the move onto tabs: a clone's
-     row lands on the MONEY face with its claim named. */
-  it("lands on the Money face with the crumb and the claim named", async () => {
-    opened();
-    render(<JobSheet row={row({ number: "2380A" })} {...props} moneyVisible />);
-
-    expect(await screen.findByText("$31,340.35")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Billing" })).toHaveAttribute(
-      "aria-selected",
-      "true"
-    );
-    expect(screen.getByRole("button", { name: "#3137, 3 invoices on this job" })).toHaveTextContent("#3137");
-    expect(document.querySelector(".wb2-shcrumb")).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Open Payment 1 — Deposit" })).toHaveTextContent("#2380A");
-    expect(screen.getAllByText("Payment 1 — Deposit").length).toBeGreaterThan(0);
-  });
-
-  /* The landing on Money gives way to a reader who has chosen a face, and a
-     face the door asked for is that choice made on their behalf. */
-  it("stays on the face a door asked for, rather than landing on Money", async () => {
-    opened();
-    render(<JobSheet row={row({ number: "2380A" })} {...props} moneyVisible initialTab="photos" />);
-    // the claim is known and the family's money is in: everything that would land on Money has
-    expect(await screen.findByText("$31,340.35")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Photos" })).toHaveAttribute("aria-selected", "true");
-  });
-
   it("marks the claim it was opened for in the ledger", async () => {
     opened();
-    render(<JobSheet row={row({ number: "2380A" })} {...props} moneyVisible />);
+    render(<Job row={row({ number: "2380A" })} {...props} moneyVisible section="billing" />);
 
-    await screen.findByText("$31,340.35");
+    await face("money").findByText("$31,340.35");
     const here = document.querySelector(".wb2-jmclaim.here") as HTMLElement;
     expect(here).not.toBeNull();
     expect(within(here).getByText("Payment 1 — Deposit")).toBeInTheDocument();
@@ -2604,15 +2192,15 @@ describe("a card opened from a progress claim", () => {
 
   it("reads the job's own record and files, not the claim's", async () => {
     opened();
-    render(<JobSheet row={row({ id: "j-2380a", number: "2380A" })} {...props} moneyVisible />);
+    render(<Job row={row({ id: "j-2380a", number: "2380A" })} {...props} moneyVisible section="billing" />);
 
-    await screen.findByText("$31,340.35");
+    await face("money").findByText("$31,340.35");
     expect(readJobRecord).toHaveBeenCalledWith("j-1");
     expect(readJobFiles).toHaveBeenCalledWith("j-1");
     expect(readJobRecord).not.toHaveBeenCalledWith("j-2380a");
   });
 
-  it("shows the job's own day and status, not the claim's", async () => {
+  it("shows the job's own status and number, not the claim's", async () => {
     readMirrorJob.mockResolvedValueOnce(
       card(
         detail({ status: "Completed", dateOn: "2026-08-21", dateLabel: "completed" }),
@@ -2621,58 +2209,27 @@ describe("a card opened from a progress claim", () => {
     );
     readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
     render(
-      <JobSheet
+      <Job
         row={row({ number: "2380A", statusLabel: "Quote", tone: "", date: "2026-03-27 00:00:00", dateLabel: "quoted" })}
         {...props}
         moneyVisible
+        section="billing"
       />
     );
 
-    await screen.findByText("$31,340.35");
-    expect(screen.getByText("Completed, Fri 21 Aug")).toBeInTheDocument();
-    expect(screen.queryByText("Quote")).toBeNull();
-    expect(screen.queryByText(/^Raised /)).toBeNull();
+    await face("money").findByText("$31,340.35");
+    /* the head's line is the job's: its status and its number, never the claim's */
+    expect(document.querySelector(".jp-facts")).toHaveTextContent("Completed, Job 3137, Rose Bay NSW 2029.");
+    expect(document.querySelector(".jp-line")).not.toHaveTextContent(/Quote|2380A/);
   });
 
-  it("says nothing about a claim on a job that was never cloned", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record());
-    render(<JobSheet row={row()} {...props} moneyVisible />);
-    await detailLanded();
-
-    expect(document.querySelector(".wb2-shcrumb")).toBeNull();
-    expect(document.querySelector(".wb2-shcar")).toBeNull();
-    /* and it stays on Summary — no focus, no jump */
-    expect(screen.getByRole("tab", { name: "Summary" })).toHaveAttribute(
-      "aria-selected",
-      "true"
-    );
-  });
-});
-
-describe("the job number lists its claims", () => {
-  it("opens the list and addresses each invoice", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
-    render(<JobSheet row={row()} {...props} moneyVisible />);
-    await detailLanded();
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "#3137, 3 invoices on this job" })).toBeInTheDocument()
-    );
-    await userEvent.click(screen.getByRole("button", { name: "#3137, 3 invoices on this job" }));
-
-    const pop = document.querySelector(".wb2-shnopop") as HTMLElement;
-    expect(within(pop).getByText("#2380A")).toBeInTheDocument();
-    expect(within(pop).getByText("#2380B")).toBeInTheDocument();
-    expect(within(pop).getByText("Payment 3 — Final")).toBeInTheDocument();
-  });
 });
 
 describe("one claim, opened", () => {
   const openFirstClaim = async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await detailLanded();
     await openTab("Money");
     await screen.findByText("$31,340.35");
@@ -2751,8 +2308,7 @@ describe("one claim, opened", () => {
     ).toBeInTheDocument();
   });
 
-  it("closes on Escape without closing the card under it", async () => {
-    const onClose = jest.fn();
+  it("closes on Escape, leaving the page under it where it was", async () => {
     readClaim.mockResolvedValue({
       ledger: { materials: [], payments: [] },
       notes: [],
@@ -2760,10 +2316,10 @@ describe("one claim, opened", () => {
     });
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
-    render(<JobSheet row={row()} {...props} moneyVisible onClose={onClose} />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await detailLanded();
     await openTab("Money");
-    await screen.findByText("$31,340.35");
+    await face("money").findByText("$31,340.35");
     await userEvent.click(
       screen.getByRole("button", { name: /Payment 2 — Progress — open this invoice/ })
     );
@@ -2771,10 +2327,11 @@ describe("one claim, opened", () => {
 
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("dialog", { name: /Payment 2/ })).toBeNull();
-    expect(onClose).not.toHaveBeenCalled();
+    /* the page under it stays where it was */
+    expect(jobTab("Billing")).toHaveAttribute("aria-selected", "true");
   });
 
-  it("renders after the card, beside it in the body, which is what paints it on top", async () => {
+it("renders after the page, beside it in the body, which is what paints it on top", async () => {
     readClaim.mockResolvedValue({
       ledger: { materials: [], payments: [] },
       notes: [],
@@ -2783,37 +2340,40 @@ describe("one claim, opened", () => {
     await openFirstClaim();
     await screen.findByRole("dialog", { name: /Payment 1 — Deposit/ });
 
-    expect(bodyLayers()).toEqual(["wb2-scrim", "wb2-sheet", "wb2-clscrim", "wb2-claim"]);
+    /* the page is the body's first child; the claim portals after it */
+    expect(document.body.firstElementChild?.querySelector(".jp-sheet")).not.toBeNull();
+    expect(bodyLayers()).toEqual(["wb2-clscrim", "wb2-claim"]);
   });
 });
 
-/* ── the ⋯ menu and the tracked chip — the Actions face retired ── */
+/* ── the job's once-per-job acts, under the head's Actions ── */
 
-describe("the band's once-per-job acts", () => {
-  it("holds the promote actions behind the ⋯, manage only", async () => {
+describe("the job's once-per-job acts", () => {
+  it("holds the promote actions under Actions, manage only", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} manage />);
+    render(<Job row={row()} {...props} manage />);
     await detailLanded();
 
-    await userEvent.click(screen.getByLabelText("More actions"));
-    expect(screen.getByText("Create a project from this job")).toBeInTheDocument();
-    expect(screen.getByText("Create a maintenance agreement")).toBeInTheDocument();
+    const menu = within(await actionsMenu());
+    expect(menu.getByRole("menuitem", { name: "Create a project from this job" })).toBeInTheDocument();
+    expect(menu.getByRole("menuitem", { name: "Create a maintenance agreement" })).toBeInTheDocument();
   });
 
-  it("shows no ⋯ at all without manage", async () => {
+  it("offers neither without manage", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
-    expect(screen.queryByLabelText("More actions")).toBeNull();
+    const menu = within(await actionsMenu());
+    expect(menu.queryByRole("menuitem", { name: "Create a project from this job" })).toBeNull();
+    expect(menu.queryByRole("menuitem", { name: "Create a maintenance agreement" })).toBeNull();
   });
 
   it("names the project on the floor and creates it", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} manage />);
+    render(<Job row={row()} {...props} manage />);
     await detailLanded();
 
-    await userEvent.click(screen.getByLabelText("More actions"));
-    await userEvent.click(screen.getByText("Create a project from this job"));
+    await userEvent.click(within(await actionsMenu()).getByRole("menuitem", { name: "Create a project from this job" }));
     const input = screen.getByLabelText("Name the project");
     await userEvent.clear(input);
     await userEvent.type(input, "Wallace St change-over{Enter}");
@@ -2824,24 +2384,24 @@ describe("the band's once-per-job acts", () => {
     );
   });
 
-  it("Escape in the naming row cancels the naming, not the card", async () => {
-    const onClose = jest.fn();
+  it("Escape in the naming row cancels the naming", async () => {
+    createProjectFromJob.mockClear();
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} manage onClose={onClose} />);
+    render(<Job row={row()} {...props} manage />);
     await detailLanded();
 
-    await userEvent.click(screen.getByLabelText("More actions"));
-    await userEvent.click(screen.getByText("Create a project from this job"));
+    await userEvent.click(within(await actionsMenu()).getByRole("menuitem", { name: "Create a project from this job" }));
+    expect(screen.getByLabelText("Name the project")).toHaveFocus();
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByLabelText("Name the project")).toBeNull();
-    expect(onClose).not.toHaveBeenCalled();
+    expect(createProjectFromJob).not.toHaveBeenCalled();
   });
 
-  it("wears the tracked board as a chip in the band, and the chip is the door", async () => {
+  it("names the board a tracked job is on, beside the customer, and that is the door", async () => {
     const onOpenTracked = jest.fn();
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(
-      <JobSheet
+      <Job
         row={row({ tracked: { kind: "visit", id: "v-1", label: "#1021" } })}
         {...props}
         onOpenTracked={onOpenTracked}
@@ -2849,12 +2409,11 @@ describe("the band's once-per-job acts", () => {
     );
     await detailLanded();
 
-    await userEvent.click(screen.getByRole("button", { name: "On the maintenance board" }));
+    const cust = within(screen.getByRole("region", { name: "The customer" }));
+    await userEvent.click(cust.getByRole("button", { name: "Open it on the maintenance board" }));
     expect(onOpenTracked).toHaveBeenCalledWith({ kind: "visit", id: "v-1", label: "#1021" });
-    expect(screen.getByText("On the maintenance board")).toBeInTheDocument();
   });
 });
-
 /* ── money stays behind its grant ── */
 
 describe("money stays behind its grant", () => {
@@ -2875,13 +2434,13 @@ describe("money stays behind its grant", () => {
         })
       )
     );
-    render(<JobSheet row={row({ statusLabel: "Quote" })} {...props} moneyVisible />);
+    render(<Job row={row({ statusLabel: "Quote" })} {...props} moneyVisible />);
     await detailLanded();
     await openTab("Money");
 
-    expect(await screen.findByText("Quote sent Mon 3 Aug")).toBeInTheDocument();
-    expect(screen.getByText("$6,850")).toBeInTheDocument();
-    expect(screen.queryByText("Nothing paid yet")).toBeNull();
+    expect(await face("money").findByText("Quote sent Mon 3 Aug")).toBeInTheDocument();
+    expect(face("money").getByText("$6,850")).toBeInTheDocument();
+    expect(face("money").queryByText("Nothing paid yet")).toBeNull();
   });
 
   it("keeps the quote's own sentence when a family read produces an awaiting figure", async () => {
@@ -2917,26 +2476,26 @@ describe("money stays behind its grant", () => {
         }),
       })
     );
-    render(<JobSheet row={row({ statusLabel: "Quote" })} {...props} moneyVisible />);
+    render(<Job row={row({ statusLabel: "Quote" })} {...props} moneyVisible />);
     await detailLanded();
     await openTab("Money");
 
-    expect(await screen.findByText("Quote sent Mon 3 Aug")).toBeInTheDocument();
-    expect(screen.queryByText("Awaiting payment")).toBeNull();
+    expect(await face("money").findByText("Quote sent Mon 3 Aug")).toBeInTheDocument();
+    expect(face("money").queryByText("Awaiting payment")).toBeNull();
   });
 
   it("says the figures didn't load rather than dropping the money block", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockRejectedValueOnce(new Error("boom"));
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await detailLanded();
     await openTab("Money");
 
     expect(
-      await screen.findByText(/ServiceM8's figures didn't load just now/)
+      await face("money").findByText(/ServiceM8's figures didn't load just now/)
     ).toBeInTheDocument();
     expect(document.querySelector(".wb2-jmoney")).not.toBeNull();
-    expect(screen.queryByText("$2,794")).toBeNull();
+    expect(face("money").queryByText("$2,794")).toBeNull();
   });
 
   it("draws the paid-in-full head row when both axes agree", async () => {
@@ -2976,11 +2535,11 @@ describe("money stays behind its grant", () => {
         }),
       })
     );
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await detailLanded();
     await openTab("Money");
 
-    expect(await screen.findAllByText("$31,340.35")).toHaveLength(2);
+    expect(await face("money").findAllByText("$31,340.35")).toHaveLength(2);
     const head = document.querySelector(".wb2-mline.head.ok") as HTMLElement;
     expect(head).not.toBeNull();
     expect(within(head).getByText("Paid in full")).toBeInTheDocument();
@@ -2989,10 +2548,11 @@ describe("money stays behind its grant", () => {
 
   it("renders no money fact at all without the grant, whatever the detail says", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
 
-    expect(screen.queryByRole("tab", { name: "Billing" })).toBeNull();
+    expect(within(screen.getByRole("tablist", { name: "The job" })).queryByRole("tab", { name: /^Billing/ })).toBeNull();
+    expect(document.querySelector("#jcsec-money")).toBeNull();
     expect(screen.queryByText(/Job value/)).toBeNull();
   });
 
@@ -3012,12 +2572,12 @@ describe("money stays behind its grant", () => {
         })
       )
     );
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await detailLanded();
     await openTab("Money");
 
-    expect(await screen.findByText("$1,485")).toBeInTheDocument();
-    expect(screen.getByText(/Job value \(inc GST\)/)).toBeInTheDocument();
+    expect(await face("money").findByText("$1,485")).toBeInTheDocument();
+    expect(face("money").getByText(/Job value \(inc GST\)/)).toBeInTheDocument();
   });
 
   it("stays silent about invoicing when ServiceM8 never said", async () => {
@@ -3036,13 +2596,13 @@ describe("money stays behind its grant", () => {
         })
       )
     );
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await detailLanded();
     await openTab("Money");
 
-    await screen.findByText("$1,485");
-    expect(screen.queryByText("Not invoiced")).toBeNull();
-    expect(screen.queryByText(/awaiting payment/i)).toBeNull();
+    await face("money").findByText("$1,485");
+    expect(face("money").queryByText("Not invoiced")).toBeNull();
+    expect(face("money").queryByText(/awaiting payment/i)).toBeNull();
   });
 
   it("still says Not invoiced when ServiceM8 actually says so", async () => {
@@ -3061,10 +2621,10 @@ describe("money stays behind its grant", () => {
         })
       )
     );
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await detailLanded();
     await openTab("Money");
-    expect(await screen.findByText("Not invoiced")).toBeInTheDocument();
+    expect(await face("money").findByText("Not invoiced")).toBeInTheDocument();
   });
 });
 
@@ -3083,7 +2643,7 @@ describe("designs started from this job", () => {
 
   it("lists each one under Drawings as a link that opens THAT design", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail({ designs: [design()] })));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Documents");
 
@@ -3101,7 +2661,7 @@ describe("designs started from this job", () => {
         })
       )
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Documents");
 
@@ -3113,7 +2673,7 @@ describe("designs started from this job", () => {
     readMirrorJob.mockResolvedValueOnce(
       card(detail({ designs: [design({ floorCount: 1, systemCount: 1 })] }))
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Documents");
 
@@ -3122,7 +2682,7 @@ describe("designs started from this job", () => {
 
   it("is absent entirely when nothing has been designed", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Documents");
 
@@ -3131,7 +2691,7 @@ describe("designs started from this job", () => {
 
   it("encodes the id it puts in the link", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail({ designs: [design({ id: "dsn a&b" })] })));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Documents");
 
@@ -3169,18 +2729,18 @@ describe("files on the job", () => {
   it("says so when a job has no photos", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(files());
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Photos");
     expect(await screen.findByText("No photos on this job.")).toBeInTheDocument();
   });
 
-  it("shows a cached photo as a real image, opening the viewer in the card", async () => {
+  it("shows a cached photo as a real image, opening the viewer over the page", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(
       files({ photos: [file({ remoteId: "p-1", url: "https://signed/p-1.jpg" })] })
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Photos");
 
@@ -3193,30 +2753,32 @@ describe("files on the job", () => {
     const dialog = await screen.findByRole("dialog", { name: "IMG_4021.jpg" });
     expect(within(dialog).getByAltText("IMG_4021.jpg")).toBeInTheDocument();
 
-    /* Escape closes the viewer, not the card — innermost first */
+    /* Escape closes the viewer, and the photo is where it was */
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("dialog", { name: "IMG_4021.jpg" })).toBeNull();
     expect(face("photos").getByAltText("IMG_4021.jpg")).toBeInTheDocument();
   });
 
-  it("opens the viewer after the card, beside it in the body, which is what paints it on top", async () => {
+  it("opens the viewer after the page, beside it in the body, which is what paints it on top", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(
       files({ photos: [file({ remoteId: "p-1", url: "https://signed/p-1.jpg" })] })
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Photos");
     await userEvent.click((await face("photos").findByAltText("IMG_4021.jpg")).closest("button")!);
     await screen.findByRole("dialog", { name: "IMG_4021.jpg" });
 
-    expect(bodyLayers()).toEqual(["wb2-scrim", "wb2-sheet", "wb2-mvscrim", "wb2-mv"]);
+    /* the page is the body's first child; the viewer portals after it */
+    expect(document.body.firstElementChild?.querySelector(".jp-sheet")).not.toBeNull();
+    expect(bodyLayers()).toEqual(["wb2-mvscrim", "wb2-mv"]);
   });
 
   it("shows a placeholder tile for a photo whose bytes aren't cached", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(files({ photos: [file({ remoteId: "p-1" })] }));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Photos");
 
@@ -3226,7 +2788,7 @@ describe("files on the job", () => {
     expect(document.querySelector(".wb2-mtile.pending")).not.toBeNull();
   });
 
-  it("names the paperwork and opens it in the card once cached", async () => {
+  it("names the paperwork and opens it over the page once cached", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(
       files({
@@ -3242,7 +2804,7 @@ describe("files on the job", () => {
         ],
       })
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Documents");
 
@@ -3260,13 +2822,13 @@ describe("files on the job", () => {
 
   /* THE SWMS IS PAPER TOO. It opened in a new browser tab that lost the job —
      the exact thing this face's viewer exists to stop. */
-  it("opens a SWMS in the card's own viewer, not a new tab", async () => {
+  it("opens a SWMS in the page's own viewer, not a new tab", async () => {
     const swmsActions = jest.requireMock("@/app/actions/swms") as { listSwmsForJob: jest.Mock };
     swmsActions.listSwmsForJob.mockResolvedValueOnce([
       { swmsId: "s-1", versionId: "v-2", version: 2, issuedAt: "2026-09-16T07:42:00", responsible: "Alex Lomond", signed: 1, total: 2, waitingOn: ["Callum Vallis"], issues: [], viewerCanSign: false, viewerSigned: false },
     ]);
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Compliance");
 
@@ -3283,7 +2845,7 @@ describe("files on the job", () => {
     /* jest.setup's stub already answers "no SWMS on this job" */
     const swmsActions = jest.requireMock("@/app/actions/swms") as { listSwmsForJob: jest.Mock };
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    const { unmount } = render(<JobSheet row={row()} {...props} />);
+    const { unmount } = render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Compliance");
     expect(await face("compliance").findByRole("button", { name: "Create SWMS" })).toBeEnabled();
@@ -3291,7 +2853,7 @@ describe("files on the job", () => {
 
     swmsActions.listSwmsForJob.mockClear();
     readMirrorJob.mockResolvedValueOnce(card(detail({ status: "Completed" })));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Compliance");
     /* not a greyed-out button that says nothing: there is nothing to create */
@@ -3316,7 +2878,7 @@ describe("files on the job", () => {
   it("files an upload on THIS job and shows it on the face", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(files()).mockResolvedValueOnce(files({ documents: [ours] }));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Documents");
 
@@ -3333,7 +2895,7 @@ describe("files on the job", () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(files());
     attachJobDocument.mockResolvedValueOnce({ ok: false, error: "That job isn't in ServiceM8's copy any more." });
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Documents");
 
@@ -3347,7 +2909,7 @@ describe("files on the job", () => {
   it("takes one of ours back off the job", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(files({ documents: [ours] }));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Documents");
 
@@ -3374,7 +2936,7 @@ describe("files on the job", () => {
         ],
       })
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Documents");
 
@@ -3387,7 +2949,7 @@ describe("files on the job", () => {
     readJobFiles.mockResolvedValueOnce(
       files({ photos: [file({ remoteId: "p-1", origin: "Emailed in" })] })
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Photos");
 
@@ -3411,7 +2973,7 @@ describe("files on the job", () => {
         ],
       })
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Photos");
 
@@ -3451,7 +3013,7 @@ describe("files on the job", () => {
         ],
       })
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Photos");
 
@@ -3493,7 +3055,7 @@ describe("files on the job", () => {
         ],
       })
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Photos");
 
@@ -3526,7 +3088,7 @@ describe("files on the job", () => {
        curation that isn't there. */
     setJobPhotoFavourite.mockResolvedValueOnce({ ok: false, starred: false, note: null });
     const onToast = jest.fn();
-    render(<JobSheet row={row()} {...props} onToast={onToast} />);
+    render(<Job row={row()} {...props} onToast={onToast} />);
     await detailLanded();
     await openTab("Photos");
 
@@ -3552,7 +3114,7 @@ describe("files on the job", () => {
       })
     );
     listJobPhotoFavourites.mockResolvedValue([{ remoteId: "p-2", addedAt: "2026-08-29" }]);
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Photos");
 
@@ -3589,7 +3151,7 @@ describe("files on the job", () => {
         ],
       })
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Documents");
     await userEvent.click(await face("documents").findByText("report.pdf"));
@@ -3604,7 +3166,7 @@ describe("files on the job", () => {
     readJobFiles.mockResolvedValue(
       files({ photos: [file({ remoteId: "p-1", name: "one.jpg", url: "https://signed/p-1.jpg" })] })
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Photos");
     await userEvent.click((await face("photos").findByAltText("one.jpg")).closest("button")!);
@@ -3636,7 +3198,7 @@ describe("files on the job", () => {
     readJobFiles.mockResolvedValue(
       files({ photos: [file({ remoteId: "p-1", name: "one.jpg", url: "https://signed/p-1.jpg" })] })
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Photos");
     await userEvent.click((await face("photos").findByAltText("one.jpg")).closest("button")!);
@@ -3661,7 +3223,7 @@ describe("files on the job", () => {
     readJobFiles.mockResolvedValueOnce(
       files({ photos: [file({ remoteId: "p-1", url: "https://signed/p-1.jpg" })] })
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Photos");
     await userEvent.click((await face("photos").findByAltText("IMG_4021.jpg")).closest("button")!);
@@ -3699,7 +3261,7 @@ describe("bringing the bytes across", () => {
       .mockResolvedValueOnce({ ok: true, cached: 6, remaining: 6, media: null, note: null })
       .mockResolvedValueOnce({ ok: true, cached: 6, remaining: 0, media: null, note: null });
 
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await waitFor(() => expect(cacheJobFiles).toHaveBeenCalledTimes(2));
   });
@@ -3718,7 +3280,7 @@ describe("bringing the bytes across", () => {
       .mockResolvedValueOnce({ ok: true, read: 4, remaining: 4, note: null })
       .mockResolvedValueOnce({ ok: true, read: 4, remaining: 0, note: null });
 
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     /* Two BANK rounds. Counting every call would also count the dataplate
        upgrade pass that follows, which is a different question. */
@@ -3742,7 +3304,7 @@ describe("bringing the bytes across", () => {
       return { ok: true, read: 1, remaining: 0, note: null };
     });
 
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await waitFor(() => expect(order).toContain("upgrade"));
     /* The bank first: a photograph nobody has looked at must never wait
@@ -3766,7 +3328,7 @@ describe("bringing the bytes across", () => {
       return { ok: true, read: 4, remaining: left, note: null };
     });
 
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await waitFor(() => expect(left).toBe(0), { timeout: 5000 });
     /* 240 / 4 — comfortably past the twelve rounds that used to bind. */
@@ -3782,7 +3344,7 @@ describe("bringing the bytes across", () => {
     cacheJobFiles.mockResolvedValue({ ok: true, cached: 0, remaining: 0, media: null, note: null });
     readJobPhotos.mockResolvedValue({ ok: true, read: 4, remaining: 40, note: null });
 
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await waitFor(() => expect(readJobPhotos).toHaveBeenCalled());
     await new Promise((r) => setTimeout(r, 300));
@@ -3803,7 +3365,7 @@ describe("bringing the bytes across", () => {
     cacheJobFiles.mockResolvedValue({ ok: true, cached: 0, remaining: 0, media: null, note: null });
     readJobPhotos.mockResolvedValue({ ok: false, read: 0, remaining: 12, note: null });
 
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Photos");
     expect(
@@ -3821,7 +3383,7 @@ describe("bringing the bytes across", () => {
     cacheJobFiles.mockResolvedValue({ ok: true, cached: 0, remaining: 0, media: null, note: null });
     readJobPhotos.mockResolvedValue({ ok: true, read: 1, remaining: 0, note: null });
 
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Photos");
     await waitFor(() => expect(readJobPhotos).toHaveBeenCalled());
@@ -3845,7 +3407,7 @@ describe("bringing the bytes across", () => {
       return { ok: true, read: 0, remaining: 0, note: null };
     });
 
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await waitFor(() => expect(readJobPhotos).toHaveBeenCalled());
     expect(readAfterCache).toBe(true);
@@ -3860,7 +3422,7 @@ describe("bringing the bytes across", () => {
     cacheJobFiles.mockResolvedValue({ ok: true, cached: 0, remaining: 0, media: null, note: null });
     readJobPhotos.mockResolvedValue({ ok: true, read: 1, remaining: 9, note: null });
 
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await waitFor(() => expect(readJobPhotos).toHaveBeenCalled());
     /* One round that made no headway is enough — never a third. */
@@ -3875,7 +3437,7 @@ describe("bringing the bytes across", () => {
     readJobFiles.mockResolvedValueOnce(files());
     cacheJobFiles.mockResolvedValue({ ok: true, cached: 0, remaining: 20, media: null, note: null });
 
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await waitFor(() => expect(cacheJobFiles).toHaveBeenCalledTimes(1));
   });
@@ -3906,7 +3468,7 @@ describe("bringing the bytes across", () => {
       note: "Storage is full — photos can't be brought across until there's room.",
     });
 
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Photos");
     expect(await screen.findByText(/Storage is full/)).toBeInTheDocument();
@@ -3944,31 +3506,31 @@ describe("the ledger obeys the money grant", () => {
   it("shows the lines and their total to a reader who holds money", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(record({ ledger }));
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await detailLanded();
     await openTab("Money");
 
-    expect(await screen.findByText("What went on the job")).toBeInTheDocument();
-    expect(screen.getByText("Daikin CTXM35RVMA")).toBeInTheDocument();
-    expect(screen.getByText("× 2")).toBeInTheDocument();
-    expect(screen.getByText("Total inc GST")).toBeInTheDocument();
+    expect(await face("money").findByText("What went on the job")).toBeInTheDocument();
+    expect(face("money").getByText("Daikin CTXM35RVMA")).toBeInTheDocument();
+    expect(face("money").getByText("× 2")).toBeInTheDocument();
+    expect(face("money").getByText("Total inc GST")).toBeInTheDocument();
   });
 
   it("shows what's been paid, naming a deposit as one", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(record({ ledger }));
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await detailLanded();
     await openTab("Money");
 
-    await screen.findByText("Bank Transfer");
-    expect(screen.getByText(/deposit, Sat 1 Aug, Lyle Irving/)).toBeInTheDocument();
+    await face("money").findByText("Bank Transfer");
+    expect(face("money").getByText(/deposit, Sat 1 Aug, Lyle Irving/)).toBeInTheDocument();
   });
 
   it("renders no ledger at all when the server sent none", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(record());
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
 
     expect(screen.queryByText("What went on the job")).toBeNull();
@@ -3988,12 +3550,12 @@ describe("the ledger obeys the money grant", () => {
         },
       })
     );
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await detailLanded();
     await openTab("Money");
 
-    expect(await screen.findByText(/mix tax-inclusive and tax-exclusive/)).toBeInTheDocument();
-    expect(screen.queryByText(/^Total/)).toBeNull();
+    expect(await face("money").findByText(/mix tax-inclusive and tax-exclusive/)).toBeInTheDocument();
+    expect(face("money").queryByText(/^Total/)).toBeNull();
   });
 
   it("refuses a total when a line couldn't be priced", async () => {
@@ -4006,11 +3568,11 @@ describe("the ledger obeys the money grant", () => {
         },
       })
     );
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<Job row={row()} {...props} moneyVisible />);
     await detailLanded();
     await openTab("Money");
 
-    expect(await screen.findByText(/aren't priced, so there's no total/)).toBeInTheDocument();
+    expect(await face("money").findByText(/aren't priced, so there's no total/)).toBeInTheDocument();
   });
 });
 
@@ -4041,7 +3603,7 @@ describe("the job's own checklist", () => {
       item(),
       item({ id: "p2", name: "Pressure test new lineset", kind: "todo", qty: "", designId: null, addedBy: "Jake Thompson" }),
     ]);
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Checklist");
 
@@ -4071,7 +3633,7 @@ describe("the job's own checklist", () => {
         pickedBy: "Jake Thompson",
       }),
     ]);
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Checklist");
 
@@ -4086,7 +3648,7 @@ describe("the job's own checklist", () => {
     const user = userEvent.setup();
     setPicklistItemPicked.mockReturnValue(new Promise(() => {}));
     listJobPicklist.mockResolvedValue([item()]);
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Checklist");
 
@@ -4113,7 +3675,7 @@ describe("the job's own checklist", () => {
         pickedBy: "Isaac Smith",
       })
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Checklist");
 
@@ -4129,7 +3691,7 @@ describe("the job's own checklist", () => {
     const onToast = jest.fn();
     setPicklistItemPicked.mockRejectedValue(new Error("nope"));
     listJobPicklist.mockResolvedValue([item()]);
-    render(<JobSheet row={row()} {...props} onToast={onToast} />);
+    render(<Job row={row()} {...props} onToast={onToast} />);
     await detailLanded();
     await openTab("Checklist");
 
@@ -4146,7 +3708,7 @@ describe("the job's own checklist", () => {
       new UnrecognizedActionError('Server Action "7f00" was not found on the server.')
     );
     listJobPicklist.mockResolvedValue([item()]);
-    render(<JobSheet row={row()} {...props} onToast={onToast} />);
+    render(<Job row={row()} {...props} onToast={onToast} />);
     await detailLanded();
     await openTab("Checklist");
 
@@ -4163,7 +3725,7 @@ describe("the job's own checklist", () => {
     addJobPicklistItem.mockResolvedValue(
       item({ id: "srv-1", name: "Order PAR-40 controller", kind: "todo", qty: "", designId: null, addedBy: "Isaac Smith" })
     );
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Checklist");
 
@@ -4185,7 +3747,7 @@ describe("the job's own checklist", () => {
   it("a material row asks for a quantity; a to-do never does", async () => {
     const user = userEvent.setup();
     listJobPicklist.mockResolvedValue([]);
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Checklist");
 
@@ -4209,7 +3771,7 @@ describe("the job's own checklist", () => {
     const onToast = jest.fn();
     listJobPicklist.mockResolvedValue([]);
     addJobPicklistItem.mockRejectedValue(new Error("offline"));
-    render(<JobSheet row={row()} {...props} onToast={onToast} />);
+    render(<Job row={row()} {...props} onToast={onToast} />);
     await detailLanded();
     await openTab("Checklist");
 
@@ -4221,31 +3783,31 @@ describe("the job's own checklist", () => {
 
   it("only a manager can remove a line", async () => {
     listJobPicklist.mockResolvedValue([item()]);
-    const { unmount } = render(<JobSheet row={row()} {...props} />);
+    const { unmount } = render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Checklist");
     expect(await screen.findByText("MSZ-AP25VGD")).toBeInTheDocument();
     expect(screen.queryByLabelText("Remove MSZ-AP25VGD")).not.toBeInTheDocument();
     unmount();
 
-    render(<JobSheet row={row()} {...props} manage />);
+    render(<Job row={row()} {...props} manage />);
     await detailLanded();
     await openTab("Checklist");
     expect(await screen.findByLabelText("Remove MSZ-AP25VGD")).toBeInTheDocument();
   });
 
-  it("a checklist that will not load never takes the sheet down", async () => {
+  it("a checklist that will not load never takes the page down", async () => {
     listJobPicklist.mockRejectedValue(new Error("offline"));
-    render(<JobSheet row={row()} {...props} />);
-    expect(await screen.findByRole("region", { name: "The job" })).toBeInTheDocument();
+    render(<Job row={row()} {...props} />);
+    await detailLanded();
     await openTab("Checklist");
     expect(screen.queryByText("Materials")).not.toBeInTheDocument();
   });
 });
 
-/* ── compliance on the card, and sending what's ticked ── */
+/* ── compliance on the page, and sending what's ticked ── */
 
-describe("compliance on the card", () => {
+describe("compliance on the page", () => {
   const may = { company: true, staff: true, send: true };
   const pl: JobPaper = {
     id: "p1",
@@ -4274,7 +3836,7 @@ describe("compliance on the card", () => {
     compliance.readEmailDraft.mockResolvedValue(draft);
   });
 
-  it("files the business's papers under Compliance, and sends what's ticked from the card's own footer", async () => {
+  it("files the business's papers under Compliance, and sends what's ticked from the page's own footer", async () => {
     const onToast = jest.fn();
     compliance.emailJobDocuments.mockResolvedValue({
       ok: true,
@@ -4282,7 +3844,7 @@ describe("compliance on the card", () => {
       note: { id: "n-1", text: "Emailed Public liability to josh@lsdb.com.au.", at: "2026-09-23T02:00:00Z", author: "Isaac Smith" },
     });
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} onToast={onToast} />);
+    render(<Job row={row()} {...props} onToast={onToast} />);
     await detailLanded();
     await openTab("Compliance");
 
@@ -4293,7 +3855,7 @@ describe("compliance on the card", () => {
 
     await userEvent.click(face("compliance").getByRole("checkbox", { name: "Select Public liability" }));
     const bar = screen.getByText("1 document ticked").closest(".wb2-shft") as HTMLElement;
-    /* THE CARD'S FOOTER, under the scrolling body — not inside it */
+    /* THE PAGE'S FOOTER, under the body — not inside it */
     expect(bar.parentElement).toHaveClass("wb2-sheet");
     /* no ServiceM8 door until an owner switches sending on */
     expect(within(bar).queryByRole("button", { name: "Send to ServiceM8" })).toBeNull();
@@ -4313,9 +3875,9 @@ describe("compliance on the card", () => {
     expect(screen.queryByText("1 document ticked")).toBeNull();
     expect(face("compliance").getByRole("checkbox", { name: "Select Public liability" })).not.toBeChecked();
 
-    /* and the diary says what went, without a reload */
+    /* and the conversation says what went, without a reload */
     await openTab("Diary");
-    expect(await face("diary").findByText("Emailed Public liability to josh@lsdb.com.au.")).toBeInTheDocument();
+    expect(await convo().findByText("Emailed Public liability to josh@lsdb.com.au.")).toBeInTheDocument();
   });
 
   it("adds papers from IN the face, and what was just added arrives ticked ready to send", async () => {
@@ -4328,7 +3890,7 @@ describe("compliance on the card", () => {
     });
     compliance.addJobPapers.mockResolvedValue({ ok: true, added: ["p1"] });
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Compliance");
 
@@ -4345,7 +3907,7 @@ describe("compliance on the card", () => {
 
   it("keeps compliance in its own section, and the files in theirs", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Compliance");
     expect(await face("compliance").findByText("Public liability")).toBeInTheDocument();
@@ -4357,7 +3919,7 @@ describe("compliance on the card", () => {
 
   it("keeps the footer to the face the ticks are on", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Compliance");
     await userEvent.click(await face("compliance").findByRole("checkbox", { name: "Select Public liability" }));
@@ -4368,9 +3930,9 @@ describe("compliance on the card", () => {
     expect(screen.getByText("1 document ticked")).toBeInTheDocument();
   });
 
-  it("opens a paper in the card's own viewer", async () => {
+  it("opens a paper in the page's own viewer", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Compliance");
     await userEvent.click(await face("compliance").findByRole("button", { name: /Public liability/ }));
@@ -4400,7 +3962,7 @@ describe("compliance on the card", () => {
       sends: [sent("d1", "sent")],
     });
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} onToast={onToast} />);
+    render(<Job row={row()} {...props} onToast={onToast} />);
     await detailLanded();
     await openTab("Compliance");
 
@@ -4427,7 +3989,7 @@ describe("compliance on the card", () => {
       sends: [sent("d1", "failed", "ServiceM8 said the file is too big.")],
     });
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Compliance");
 
@@ -4454,7 +4016,7 @@ describe("compliance on the card", () => {
       hold: "paused",
     });
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Compliance");
     expect(await face("compliance").findByText("Not in ServiceM8 yet. Sending is paused.")).toBeInTheDocument();
@@ -4490,7 +4052,7 @@ describe("compliance on the card", () => {
       truncated: false,
     });
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
+    render(<Job row={row()} {...props} />);
     await detailLanded();
     await openTab("Documents");
 

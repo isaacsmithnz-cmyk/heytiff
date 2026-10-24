@@ -6,10 +6,8 @@ import {
   parseSection,
   sectionOfFace,
   sectionsFor,
-  stageWord,
 } from "../job-sections";
 import { jobHref, jobPageHref } from "@/lib/shell/links";
-import type { JobStep } from "@/lib/workboard/job-steps";
 
 /* A job's seven sections (docs/design.md rule 31), each the job card's own
    faces (v2, step 5). */
@@ -78,23 +76,6 @@ describe("the page's address", () => {
 
   it("is where the card's old link now opens (the Workboard is retired)", () => {
     expect(jobHref("a3539c01")).toBe("/dashboard/jobs/a3539c01");
-  });
-});
-
-describe("where the job stands, one word", () => {
-  const step = (label: string, state: JobStep["state"], fact = ""): JobStep => ({ key: "enquiry", label, state, fact });
-
-  it("is the last step done, in grey", () => {
-    expect(stageWord([step("Enquiry", "done"), step("Quoted", "done"), step("Accepted", "done"), step("Installation", "now")])).toEqual({ word: "Accepted", tone: "info" });
-  });
-
-  it("says what needs a look in orange, and a declined quote in red", () => {
-    expect(stageWord([step("Enquiry", "done"), step("Paid", "warn", "Invoiced, not paid")])).toEqual({ word: "Invoiced, not paid", tone: "look" });
-    expect(stageWord([step("Enquiry", "done"), step("Quoted", "done"), step("Declined", "bad")])).toEqual({ word: "Declined", tone: "wrong" });
-  });
-
-  it("is nothing before anything is done", () => {
-    expect(stageWord([step("Enquiry", "now")])).toBeNull();
   });
 });
 

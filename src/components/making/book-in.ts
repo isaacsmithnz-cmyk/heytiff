@@ -19,10 +19,14 @@ import { fillWords } from "@/lib/integrations/sm8-note-words";
 import { mintPressId } from "@/lib/workboard/press-id";
 import { thrownWords } from "@/lib/stale-deploy";
 import { awayInSlot, closedInSlot } from "@/lib/workboard/away";
+import { runDays } from "@/lib/workboard/visit-words";
+import { pickDay, weekdayIndex, type DaySpan } from "@/components/parts/range-calendar";
 
 /* BOOK IN'S ENGINE (two-way phase 3, PR D), lifted out of the job card's
-   Book in panel so the Visit form (./visit-form) draws it, unchanged: who,
-   day, start and how long, a row per booking, up to eight. It asks
+   Book in panel so the Visit form (./visit-form) draws it. Since 25 October
+   2026 (Isaac: "Book a visit takes a run of days") it is who (several
+   people), a run of days, the start each day and how long: a booking a
+   person a day, up to BOOKINGS_PER_PRESS. It asks
    ServiceM8 itself before it offers Book (readBookInContext: the job, its
    bookings and each row's day, for everyone), and says what it found as
    facts in sentences, who else is on that day and what a row overlaps,
@@ -46,8 +50,9 @@ import { awayInSlot, closedInSlot } from "@/lib/workboard/away";
 export type BookInRow = { id: number; staffUuid: string; day: string; start: string; minutes: number };
 
 /** A booking to fill a fresh form from: Look again and Book again on a
-    line open the form with its person, day, start and length. */
-export type BookInSeed = { staffUuid: string | null; start: string | null; end: string | null };
+    line, and a visit's Change visit, open the form with its people, day,
+    start and length. */
+export type BookInSeed = { staffUuid: string | null; start: string | null; end: string | null; staffUuids?: readonly string[] };
 
 export type BookInCtx = Extract<BookInContext, { ok: true }> & { browserZone: string | null };
 
@@ -85,26 +90,49 @@ function withWord(text: string, word: string | null, fill: Record<string, string
   return fillWords(word ? text : text.replace(/: \{word\}/, ""), { ...fill, word: word ?? "" });
 }
 
-/** A row from a booking a line names: its person, day, start and length, or
-    the defaults where it has none that the form offers. */
-function seededRow(id: number, seed: BookInSeed | null | undefined): BookInRow {
+/** What a seed fills the form with: its people, its day, its start and
+    length, or the defaults where it has none that the form offers. */
+export function seededForm(seed: BookInSeed | null | undefined): { people: string[]; day: string; start: string; minutes: number } {
   const start = seed?.start ?? "";
   const hhmm = start.length >= 16 ? start.slice(11, 16) : "";
   const a = clockMin(start);
   const b = seed?.end ? clockMin(seed.end) : null;
   const span = a !== null && b !== null && seed?.end?.slice(0, 10) === start.slice(0, 10) ? b - a : null;
+  const people = [...new Set((seed?.staffUuids?.length ? seed.staffUuids : seed?.staffUuid ? [seed.staffUuid] : []).filter(Boolean))];
   return {
-    id,
-    staffUuid: seed?.staffUuid ?? "",
+    people,
     day: DAY.test(start.slice(0, 10)) ? start.slice(0, 10) : "",
     start: BOOKING_STARTS.includes(hhmm) ? hhmm : DEFAULT_START,
     minutes: span !== null && (BOOKING_LENGTHS_MIN as readonly number[]).includes(span) ? span : DEFAULT_MINUTES,
   };
 }
 
+/** The bookings a choice makes: one a person a day, day by day. */
+export function bookingRows(people: readonly string[], days: readonly string[], start: string, minutes: number): BookInRow[] {
+  const rows: BookInRow[] = [];
+  for (const day of days) for (const staffUuid of people) rows.push({ id: rows.length + 1, staffUuid, day, start, minutes });
+  return rows;
+}
+
+/* A PRESS INSIDE A RUN (Isaac, 25 October 2026: Book a visit takes a run of
+   days, "on the same calendar as Leave"): a Saturday or Sunday inside a
+   run already chosen goes in, or back out; any other press is Leave's
+   (pickDay), and starts the weekends over. */
+export function pressDay(span: DaySpan, weekends: readonly string[], iso: string): { span: DaySpan; weekends: string[] } {
+  const inside = !!span.start && !!span.end && iso > span.start && iso < span.end;
+  if (inside && weekdayIndex(iso) >= 5) {
+    return { span, weekends: weekends.includes(iso) ? weekends.filter((d) => d !== iso) : [...weekends, iso] };
+  }
+  return { span: pickDay(span, iso), weekends: [] };
+}
+
 /** A row whose booking would end past midnight: no slot of that day holds
     it (a booking ends on the day it starts). */
 export const crossesMidnight = (r: BookInRow) => DAY.test(r.day) && !slotOf(r.day, r.start, r.minutes);
+
+/** Today on the account's clock as the card last knew it, read when the
+    form opens: never in a render. */
+const zoneToday = (zone: string | null) => (zone ? (localNow(zone, Date.now())?.slice(0, 10) ?? null) : null);
 
 /** The browser's own zone, or null where it can't say. */
 function browserZone(): string | null {
@@ -137,8 +165,12 @@ export function useBookIn({
   onDone: (verb: VerbView, rowIds: string[]) => void;
 }) {
   const [pressId] = useState(mintPressId);
-  const [rows, setRows] = useState<BookInRow[]>(() => [seededRow(1, seed)]);
-  const [nextId, setNextId] = useState(2);
+  const [first] = useState(() => seededForm(seed));
+  const [people, setPeopleState] = useState<string[]>(first.people);
+  const [span, setSpan] = useState<DaySpan>({ start: first.day || null, end: null });
+  const [weekends, setWeekends] = useState<string[]>([]);
+  const [start, setStartState] = useState(first.start);
+  const [minutes, setMinutesState] = useState(first.minutes);
   const [ctx, setCtx] = useState<BookInCtx | null>(null);
   const [readErr, setReadErr] = useState<string | null>(null);
   const [makeWorkOrder, setMakeWorkOrder] = useState(true);
@@ -173,7 +205,7 @@ export function useBookIn({
           hasCtx.current = true;
           setCtx({ ...r, browserZone: browserZone() });
           setReadErr(null);
-          setRows((cur) => cur.map((x) => (x.day ? x : { ...x, day: nextWeekday(r.today) })));
+          setSpan((cur) => (cur.start ? cur : { start: nextWeekday(r.today), end: null }));
           return;
         }
         if (hasCtx.current) setCtx((c) => (c ? unreadDays(c, days) : c));
@@ -188,13 +220,15 @@ export function useBookIn({
     );
   };
 
-  const wanted = [...new Set(rows.map((r) => r.day).filter((d) => DAY.test(d)))].slice(0, BOOKINGS_PER_PRESS);
+  const days = runDays(span.start, span.end, weekends);
+  const rows = bookingRows(people, days, start, minutes);
+  const wanted = days.filter((d) => DAY.test(d)).slice(0, BOOKINGS_PER_PRESS);
   const wantedKey = wanted.join(",");
 
   /* opening: the day asked about first is the row's own, or the next
      weekday on the account's clock as the card last knew it */
   const open = useEffectEvent(() => {
-    const today = zone ? localNow(zone, Date.now())?.slice(0, 10) : null;
+    const today = zoneToday(zone);
     const first = wanted.length > 0 ? wanted : today ? [nextWeekday(today)] : [];
     load(first);
   });
@@ -222,23 +256,29 @@ export function useBookIn({
     load(wanted);
   };
 
-  const setRow = (id: number, patch: Partial<BookInRow>) => {
+  const setPeople = (v: string[]) => {
     setErr(null);
-    setRows((cur) => cur.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    setPeopleState(v);
   };
-  const addRow = () => {
-    if (rows.length >= BOOKINGS_PER_PRESS) return;
-    const last = rows[rows.length - 1];
-    setRows([...rows, { id: nextId, staffUuid: "", day: last.day, start: last.start, minutes: last.minutes }]);
-    setNextId(nextId + 1);
-  };
-  const removeRow = (id: number) => {
+  const pick = (iso: string) => {
     setErr(null);
-    setRows(rows.filter((r) => r.id !== id));
+    const next = pressDay(span, weekends, iso);
+    setSpan(next.span);
+    setWeekends(next.weekends);
+  };
+  const setStart = (hhmm: string) => {
+    setErr(null);
+    setStartState(hhmm);
+  };
+  const setMinutes = (m: number) => {
+    setErr(null);
+    setMinutesState(m);
   };
 
   const staffName = (uuid: string) => ctx?.staff.find((s) => low(s.uuid) === low(uuid))?.name ?? null;
-  const complete = !!ctx && rows.every((r) => !!r.staffUuid && DAY.test(r.day) && !crossesMidnight(r));
+  const tooMany = rows.length > BOOKINGS_PER_PRESS;
+  const late = !!rows[0] && crossesMidnight(rows[0]);
+  const complete = !!ctx && rows.length > 0 && !tooMany && !late;
   const quote = ctx?.job.status === "Quote";
 
   const book = () => {
@@ -271,6 +311,14 @@ export function useBookIn({
 
   return {
     rows,
+    days,
+    people,
+    span,
+    weekends,
+    start,
+    minutes,
+    tooMany,
+    late,
     ctx,
     readErr,
     err,
@@ -280,9 +328,10 @@ export function useBookIn({
     complete,
     quote,
     staffName,
-    setRow,
-    addRow,
-    removeRow,
+    setPeople,
+    pick,
+    setStart,
+    setMinutes,
     lookAgain,
     tryReadAgain,
     book,
@@ -396,16 +445,4 @@ export function bookInFacts(
     clashes,
     zone: place ? fillWords(BOOKING_WORDS.panel.zone, { place }) : null,
   };
-}
-
-/** What Book will book, said before it is pressed: one sentence, or "Books
-    2:" and a sentence a booking. */
-export function bookInConfirm(rows: readonly BookInRow[], staffName: (uuid: string) => string | null): string {
-  const said = rows.map((r) => {
-    const slot = slotOf(r.day, r.start, r.minutes);
-    const parts = slot ? rangeParts(slot.start, slot.end) : { start: fmtTime(r.start), end: "" };
-    return { name: staffName(r.staffUuid) ?? BOOKING_WORDS.fill.person, day: fmtAuWeekdayDayMonth(r.day), ...parts };
-  });
-  if (said.length === 1) return fillWords(BOOKING_WORDS.panel.confirmOne, said[0]);
-  return [fillWords(BOOKING_WORDS.panel.confirmMany, { n: said.length }), ...said.map((s) => fillWords(BOOKING_WORDS.panel.confirmRow, s))].join(" ");
 }

@@ -54,8 +54,10 @@ export const BOOKING_STEP_MIN = 15;
 export const BOOKING_LENGTHS_MIN = [30, 60, 90, 120, 180, 240, 360, 480] as const;
 
 /** One press books at most this many (DECISIONS 10): several bookings on
-    one job, never several jobs. */
-export const BOOKINGS_PER_PRESS = 8;
+    one job, never several jobs. Twenty since a visit takes a run of days
+    (Isaac, 25 October 2026): two people for two working weeks, or four for
+    one; it is also how many days one Book a visit reads. */
+export const BOOKINGS_PER_PRESS = 20;
 
 /** A booking, or a status change, pressed longer ago than this never goes
     by itself (DECISIONS 8). */

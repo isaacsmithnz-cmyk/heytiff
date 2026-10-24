@@ -1,6 +1,4 @@
 import type { JobSheetTab } from "@/components/workboard/board/job-sheet";
-import type { JobStep } from "@/lib/workboard/job-steps";
-import type { Tone } from "@/components/parts/state";
 
 /* A JOB'S SEVEN SECTIONS (docs/design.md rule 31): Overview, Quote, Visits,
    Materials, Photos, Documents, Billing. The job page (app/dashboard/jobs)
@@ -65,20 +63,6 @@ export function parseSection(raw: string | string[] | undefined | null, moneyVis
   const said = raw.trim().toLowerCase();
   const s = OLD_NAMES[said] ?? said;
   return (sectionsFor(moneyVisible) as readonly string[]).includes(s) ? (s as JobSection) : "overview";
-}
-
-/** Where the job stands, as one word after the address (6-revisions: "on
-    every other tab the stage is one grey word after the address"): a step
-    that went wrong says so in red (Declined), one that needs a look says
-    what it is in orange ("Invoiced, not paid"); otherwise the last step
-    done, in grey. Null before the job has done anything. */
-export function stageWord(steps: readonly JobStep[]): { word: string; tone: Tone } | null {
-  const bad = steps.find((s) => s.state === "bad");
-  if (bad) return { word: bad.label, tone: "wrong" };
-  const warn = steps.find((s) => s.state === "warn");
-  if (warn) return { word: warn.fact || warn.label, tone: "look" };
-  const done = steps.filter((s) => s.state === "done").at(-1);
-  return done ? { word: done.label, tone: "info" } : null;
 }
 
 /* a first word that names nothing alone: "St Lukes" is not "St" */

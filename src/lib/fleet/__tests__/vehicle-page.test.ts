@@ -1,28 +1,31 @@
 import type { Vehicle, VehicleLog, VehiclePolicy } from "@/components/fleet/logic";
 import { vehiclePageHref } from "@/lib/shell/links";
 import {
-  headLine,
-  headState,
+  headFacts,
   issueGroups,
   kmChart,
   kmPerMonth,
-  latestRows,
+  lastFuel,
   nextServiceHeading,
+  nickname,
   parseVehicleSection,
   readings,
   renewalHistory,
+  renewalRows,
   renewalWord,
   sectionsFor,
   serviceEvery,
   serviceHistory,
+  serviceRows,
   serviceSpend,
-  standsRows,
+  statusWord,
   vehicleTabLabel,
+  vehicleTitle,
 } from "../vehicle-page";
 
-/* What a vehicle's own page SAYS (v2, the boards v2-board-vehicle-*): its
-   sections, the head's one state word, each section's rows, all from the
-   rules the register and the card already use. */
+/* What a vehicle's own page SAYS (v2; each fact once since Isaac's mock of
+   24 October 2026): its sections, the title and the one grey line, each
+   section's rows, all from the rules the register and the card already use. */
 
 const TODAY = "2026-10-18";
 
@@ -78,18 +81,24 @@ const POLICIES: VehiclePolicy[] = [
 ];
 
 describe("the sections", () => {
-  it("are all seven for the register, and leave Documents and Money out for a driver", () => {
-    expect(sectionsFor({ register: true, motorised: true })).toEqual(["overview", "service", "issues", "kilometres", "fuel", "documents", "money"]);
-    expect(sectionsFor({ register: false, motorised: true })).toEqual(["overview", "service", "issues", "kilometres", "fuel"]);
+  it("are all six for the register, Kilometres folded into Service, and leave Documents and Money out for a driver", () => {
+    expect(sectionsFor({ register: true, motorised: true })).toEqual(["overview", "service", "fuel", "issues", "documents", "money"]);
+    expect(sectionsFor({ register: false, motorised: true })).toEqual(["overview", "service", "fuel", "issues"]);
   });
 
-  it("have no Kilometres and no Fuel on something with no motor", () => {
+  it("have no Fuel on something with no motor", () => {
     expect(sectionsFor({ register: true, motorised: false })).toEqual(["overview", "service", "issues", "documents", "money"]);
+  });
+
+  it("land an old ?tab=kilometres on Service, where the readings went", () => {
+    for (const lens of [true, false]) expect(parseVehicleSection("kilometres", sectionsFor({ register: lens, motorised: true }))).toBe("service");
+    expect(parseVehicleSection("Kilometres", sectionsFor({ register: true, motorised: false }))).toBe("service");
+    expect(parseVehicleSection("constructor", sectionsFor({ register: true, motorised: true }))).toBe("overview");
   });
 
   it("are named by ?tab=, and anything the viewer hasn't got is Overview", () => {
     const driver = sectionsFor({ register: false, motorised: true });
-    expect(parseVehicleSection("Kilometres", driver)).toBe("kilometres");
+    expect(parseVehicleSection("Fuel", driver)).toBe("fuel");
     expect(parseVehicleSection("money", driver)).toBe("overview");
     expect(parseVehicleSection(["fuel", "issues"], driver)).toBe("overview");
     expect(parseVehicleSection(undefined, driver)).toBe("overview");
@@ -105,82 +114,105 @@ describe("the page's address", () => {
   });
 });
 
+const hiace = (over: Partial<Vehicle> = {}): Vehicle => hilux({ name: "Zucky", make: "Toyota", model: "Hiace", year: 2022, plate: "EVD72G", ...over });
+
+describe("the title", () => {
+  it("is the make and model, the brand first (Isaac: \"At the top, Toyota Hiace\")", () => {
+    expect(vehicleTitle(hiace())).toBe("Toyota Hiace");
+    expect(vehicleTitle(hilux())).toBe("Toyota Hilux SR5");
+    expect(vehicleTitle(hiace({ model: "Toyota Hiace" }))).toBe("Toyota Hiace");
+  });
+
+  it("falls back to the vehicle's own name, then to the word Vehicle", () => {
+    expect(vehicleTitle(hiace({ make: "", model: "" }))).toBe("Zucky");
+    expect(vehicleTitle(hiace({ make: "", model: "", name: "" }))).toBe("Vehicle");
+    expect(vehicleTitle(hiace({ make: "Isuzu", model: "" }))).toBe("Isuzu");
+  });
+
+  it("leaves the nickname to the grey line, and drops one that is only the plate or the title again", () => {
+    expect(nickname(hiace())).toBe("Zucky");
+    expect(nickname(hiace({ name: "evd 72g" }))).toBeNull();
+    expect(nickname(hiace({ name: "Toyota Hiace" }))).toBeNull();
+    expect(nickname(hiace({ make: "", model: "" }))).toBeNull();
+  });
+});
+
 describe("the tab's name", () => {
-  it("is the name and the rego, or the rego alone", () => {
-    expect(vehicleTabLabel({ name: "Hilux", plate: "XQG 41B" })).toBe("Hilux XQG 41B");
-    expect(vehicleTabLabel({ name: "", plate: "XQG 41B" })).toBe("XQG 41B");
-    expect(vehicleTabLabel({ name: "xqg 41b", plate: "XQG 41B" })).toBe("xqg 41b");
+  it("is the title and the plate, as the head reads, or the plate alone", () => {
+    expect(vehicleTabLabel(hiace())).toBe("Toyota Hiace EVD72G");
+    expect(vehicleTabLabel(hiace({ make: "", model: "", name: "" }))).toBe("EVD72G");
+    expect(vehicleTabLabel(hiace({ plate: " " }))).toBe("Toyota Hiace");
+    expect(vehicleTabLabel(hiace({ make: "", model: "", name: "EVD 72G" }))).toBe("EVD72G");
   });
 });
 
-describe("the head", () => {
-  it("says rego due in N days in orange inside the window", () => {
-    expect(headState(hilux({ regoDays: 25 }), 0, 30)).toEqual({ word: "Rego due in 25 days", tone: "look" });
+describe("the grey line", () => {
+  it("is the year, the nickname and who drives it", () => {
+    expect(headFacts(hiace(), "Isaac Smith")).toBe("2022, Zucky, Isaac Smith drives it");
+    expect(headFacts(hiace({ name: "" }), null)).toBe("2022, No driver");
+    expect(headFacts(hiace({ year: 0 }), "you")).toBe("Zucky, You drive it");
+    expect(headFacts(hiace({ motorised: false }), "Dan Walsh")).toBe("2022, Zucky, Dan Walsh tows it");
   });
 
-  it("says rego overdue in red", () => {
-    expect(headState(hilux({ regoDays: -3 }), 0, 30)).toEqual({ word: "Rego 3 days overdue", tone: "wrong" });
-    expect(headState(hilux({ regoDays: -1 }), 0, 30)).toEqual({ word: "Rego 1 day overdue", tone: "wrong" });
+  it("says no kilometres and no make or model: the title and Overview have those", () => {
+    const line = headFacts(hilux(), "Lyle Irving");
+    expect(line).not.toMatch(/km|Toyota|Hilux SR5/);
   });
 
-  it("puts what is wrong before what needs a look", () => {
-    expect(headState(hilux({ regoDays: 25, ctpDays: -2 }), 0, 30)).toEqual({ word: "Green slip 2 days overdue", tone: "wrong" });
-    expect(headState(hilux({ status: "offroad", regoDays: 25 }), 0, 30)).toEqual({ word: "Off road", tone: "wrong" });
-  });
-
-  it("says an open issue or a service due as the register's chips say them", () => {
-    expect(headState(hilux(), 1, 30)).toEqual({ word: "1 issue open", tone: "look" });
-    expect(headState(hilux({ odometer: 129400 }), 0, 30)).toEqual({ word: "Service in 800 km", tone: "look" });
-  });
-
-  it("says its status when nothing needs a look", () => {
-    expect(headState(hilux(), 0, 30)).toEqual({ word: "In service", tone: "good" });
-    expect(headState(hilux({ status: "for_sale" }), 0, 30)).toEqual({ word: "For sale", tone: "info" });
-    expect(headState(hilux({ status: "sold", regoDays: -40 }), 0, 30)).toEqual({ word: "Sold", tone: "info" });
-  });
-
-  it("is one grey line: the driver, the kilometres, the model", () => {
-    expect(headLine(hilux(), "Lyle Irving")).toBe("Lyle Irving, 128,400 km, Toyota Hilux SR5 2021");
-    expect(headLine(hilux({ motorised: false }), null)).toBe("Toyota Hilux SR5 2021");
+  it("ends in the status, as a word in its state", () => {
+    expect(statusWord("active")).toEqual({ word: "In service", tone: "good" });
+    expect(statusWord("offroad")).toEqual({ word: "Off road", tone: "wrong" });
+    expect(statusWord("for_sale")).toEqual({ word: "For sale", tone: "info" });
   });
 });
 
-describe("where it stands", () => {
-  it("says each renewal as a word in its state, with its date and who it's with", () => {
-    const rows = standsRows(hilux({ regoDays: 25 }), POLICIES, LOGS, TODAY, 30);
-    const rego = rows.find((r) => r.key === "rego")!;
-    expect(rego.word).toEqual({ word: "Due in 25 days", tone: "look" });
-    expect(rego.line).toBe("12 Nov 2026, Transport for NSW");
-    const ins = rows.find((r) => r.key === "insurance")!;
-    expect(ins.word).toEqual({ word: "Current", tone: "good" });
-    expect(ins.line).toBe("To 7 Mar 2027, NRMA, comprehensive");
-  });
-
-  it("says Not set for a renewal nobody entered, never a date", () => {
-    expect(renewalWord(null, 30)).toEqual({ word: "Not set", tone: "info" });
-    expect(renewalWord(-4, 30)).toEqual({ word: "4 days overdue", tone: "wrong" });
-  });
-
-  it("says the service in grey while it's fine, and where the odometer was read", () => {
-    const rows = standsRows(hilux(), [], LOGS, TODAY, 30);
-    expect(rows.find((r) => r.key === "service")).toMatchObject({ word: { word: "In 1,800 km or in 73 days", tone: "info" }, line: "Due at 130,200 km or by 30 Dec 2026" });
-    expect(rows.find((r) => r.key === "odo")).toMatchObject({ word: { word: "128,400 km" }, line: "Read day 2, from a fuel docket" });
-  });
-});
-
-describe("Latest", () => {
-  it("is one row of each kind, the newest of each", () => {
-    const rows = latestRows(LOGS, POLICIES, { f1: 11.8 });
-    expect(rows.map((r) => [r.label, r.name])).toEqual([
-      ["Issue", "Aircon blowing warm"],
-      ["Fuel", "68.2 litres, $141.20"],
-      ["Kilometres", "127,100 km"],
-      ["Service", "Logbook service, 120,000 km"],
-      ["Renewal", "Insurance renewed to 7 Mar 2027"],
+describe("Overview's renewals", () => {
+  it("say each one as a word in its state, with the day it runs to", () => {
+    const rows = renewalRows(hilux({ regoDays: 25 }), POLICIES, TODAY, 30);
+    expect(rows.map((r) => [r.label, r.word.word, r.date, r.onFile])).toEqual([
+      ["Rego", "Due in 25 days", "to 12 Nov 2026", true],
+      ["Green slip", "Current", "to 6 May 2027", true],
+      ["Insurance", "Current", "to 7 Mar 2027", true],
     ]);
-    expect(rows[0].line).toBe("Lyle Irving, day 3, at 128,210 km");
-    expect(rows[1].line).toBe("Ampol Botany, day 2, 11.8 L/100 km, company card");
-    expect(rows[4].opens).toEqual({ renewal: "insurance" });
+    expect(rows[0].word.tone).toBe("look");
+  });
+
+  it("say Not on file, with no date and an Add, for one nobody entered", () => {
+    const ctp = renewalRows(hilux({ ctpDays: null }), POLICIES, TODAY, 30).find((r) => r.kind === "ctp")!;
+    expect(ctp).toMatchObject({ word: { word: "Not on file", tone: "info" }, date: null, onFile: false });
+    expect(renewalWord(-4, 30)).toEqual({ word: "4 days overdue", tone: "wrong" });
+    expect(renewalRows(hilux({ regoDays: -4 }), [], TODAY, 30)[0].date).toBe("ended 14 Oct 2026");
+  });
+});
+
+describe("Overview's service", () => {
+  it("says the odometer once, read when, then the next service and the last", () => {
+    const rows = serviceRows(hilux(), LOGS, TODAY, 30);
+    expect(rows.map((r) => [r.label, r.value])).toEqual([
+      ["Odometer", "128,400 km, read day 2"],
+      ["Next service", "At 130,200 km or by 30 Dec 2026, 1,800 km to go"],
+      ["Last service", "day 110"],
+    ]);
+    expect(rows.every((r) => !r.word)).toBe(true);
+  });
+
+  it("says a service close or past as a word, and nothing for a cycle nobody set", () => {
+    expect(serviceRows(hilux({ odometer: 129400 }), LOGS, TODAY, 30)[1]).toMatchObject({ value: "At 130,200 km or by 30 Dec 2026, 800 km to go", word: { word: "Due soon", tone: "look" } });
+    expect(serviceRows(hilux({ odometer: 131000 }), LOGS, TODAY, 30)[1]).toMatchObject({ value: expect.stringContaining("800 km past it"), word: { word: "Overdue", tone: "wrong" } });
+    expect(serviceRows(hilux({ serviceIntervalKm: null, serviceDays: null }), LOGS, TODAY, 30)[1]).toMatchObject({ value: "No cycle set", quiet: true });
+  });
+
+  it("has no odometer on something with no motor, and counts its days instead", () => {
+    const rows = serviceRows(hilux({ motorised: false }), [], TODAY, 30);
+    expect(rows.map((r) => r.label)).toEqual(["Next service", "Last service"]);
+    expect(rows[0].value).toBe("By 30 Dec 2026, 73 days to go");
+    expect(rows[1]).toMatchObject({ value: "None logged", quiet: true });
+    expect(serviceRows(hilux({ motorised: false }), [], TODAY, 30, 110)[1].value).toBe("30 Jun 2026");
+  });
+
+  it("says the last fill: its day, then the litres, the cost and the station", () => {
+    expect(lastFuel(LOGS)).toMatchObject({ when: "day 2", line: "68.2 litres, $141.20, Ampol Botany" });
+    expect(lastFuel([])).toBeNull();
   });
 });
 

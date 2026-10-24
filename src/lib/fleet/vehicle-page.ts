@@ -1,5 +1,14 @@
-/* A VEHICLE'S OWN PAGE (v2, "A vehicle's own page", 18 October; the boards
-   v2-board-vehicle-*.png): what the page SAYS, worked out without a DOM.
+/* A VEHICLE'S OWN PAGE (v2, "A vehicle's own page", 18 October; simplified
+   on Isaac's mock of 24 October 2026, YRqKF87knq2N35tMLa5hkz section 4):
+   what the page SAYS, worked out without a DOM.
+
+   EACH FACT ONCE. "The vehicles page is quite messy… Simplify it. Things are
+   marked down twice like that. Odometers. The person driving it." (Isaac,
+   24 October 2026.) The title is the make and model, with the plate drawn
+   beside it; the year, the nickname, who drives it and its status are the
+   one grey line under them; Overview holds the renewals, the service (the
+   odometer lives there and nowhere else on it) and the last fill. The value
+   is Money's alone.
 
    The page is layout over today's engines (components/fleet). Everything it
    prints that is not a straight field read is decided here, from the same
@@ -7,24 +16,21 @@
    derive.ts), so the page can never warn about something the register is
    quiet on, or the other way round. Nothing here invents a figure: a reading
    nobody took is not a point on the line, and a renewal nobody filed is
-   "Not set". */
+   "Not on file". */
 
 import { fmtDay } from "@/lib/format/day";
 import { dateFromDays } from "@/lib/fleet/map";
 import {
-  FUEL_PAYER_LABEL,
-  INSURANCE_COVER_LABEL,
   STATUS_LABEL,
   displayName,
   expiryState,
   fmtCost,
   fmtKm,
-  modelLabel,
   serviceDue,
   serviceDueKm,
-  vehicleChips,
   type ChipState,
   type RenewalKind,
+  type VehicleIdentity,
   type VehicleLog,
   type VehiclePolicy,
   type VehicleStatus,
@@ -34,15 +40,16 @@ import { RENEWAL_ROW, currentPolicy, logIso } from "@/components/fleet/vehicle-m
 
 /* ---- the sections and the address ---- */
 
-export const VEHICLE_SECTIONS = ["overview", "service", "issues", "kilometres", "fuel", "documents", "money"] as const;
+/* Kilometres was a tab of its own until 24 October 2026; its readings and
+   the line are Service's now, under the next service they count towards. */
+export const VEHICLE_SECTIONS = ["overview", "service", "fuel", "issues", "documents", "money"] as const;
 export type VehicleSection = (typeof VEHICLE_SECTIONS)[number];
 
 export const SECTION_LABEL: Record<VehicleSection, string> = {
   overview: "Overview",
   service: "Service",
-  issues: "Issues",
-  kilometres: "Kilometres",
   fuel: "Fuel",
+  issues: "Issues",
   documents: "Documents",
   money: "Money",
 };
@@ -50,38 +57,94 @@ export const SECTION_LABEL: Record<VehicleSection, string> = {
 /** What the viewer is sent decides which sections there are. The register
     lens (`assets_all`) has them all; the driver's own vehicle has what My
     vehicle shows today, so no Documents and no Money; a vehicle with no
-    motor has no odometer and no tank, so no Kilometres and no Fuel. */
+    motor has no tank, so no Fuel. */
 export function sectionsFor(opts: { register: boolean; motorised: boolean }): VehicleSection[] {
   return VEHICLE_SECTIONS.filter((s) => {
-    if ((s === "kilometres" || s === "fuel") && !opts.motorised) return false;
+    if (s === "fuel" && !opts.motorised) return false;
     if ((s === "documents" || s === "money") && !opts.register) return false;
     return true;
   });
 }
+
+/** Sections the address once named and the page no longer has, and where
+    they went: an old `?tab=kilometres` (a bookmark, a link from before 24
+    October 2026) opens Service, where the readings are now. */
+const MOVED: ReadonlyMap<string, VehicleSection> = new Map([["kilometres", "service"]]);
 
 /** `?tab=`: one of the sections this viewer has, else Overview. A repeated
     one (an array) is no section at all. */
 export function parseVehicleSection(raw: unknown, have: readonly VehicleSection[]): VehicleSection {
   if (typeof raw !== "string") return "overview";
   const s = raw.trim().toLowerCase();
-  return (have as readonly string[]).includes(s) ? (s as VehicleSection) : "overview";
-}
-
-/** The name the open tab wears: "Hilux XQG 41B", or the plate alone when the
-    vehicle has no name of its own. */
-export function vehicleTabLabel(v: Pick<VehicleWithFacts, "name" | "plate">): string {
-  const name = v.name.trim();
-  const plate = v.plate.trim();
-  if (!name) return plate || "Vehicle";
-  return plate && name.toUpperCase() !== plate.toUpperCase() ? `${name} ${plate}` : name;
+  const to = MOVED.get(s) ?? s;
+  return (have as readonly string[]).includes(to) ? (to as VehicleSection) : "overview";
 }
 
 /* ---- the head ---- */
+
+type Named = Pick<VehicleIdentity, "make" | "model" | "name" | "plate">;
+
+/** One spelling of a plate or a name, for telling two apart: no spaces, in capitals. */
+const squash = (s: string) => s.replace(/\s+/g, "").toUpperCase();
+
+/** The title: the make and model, "Toyota Hiace" (Isaac, 24 October 2026:
+    "It should say the brand. At the top, Toyota Hiace"). A model that
+    already starts with the make isn't given it twice. With neither, the
+    vehicle's own name, else "Vehicle". The plate is drawn beside the title,
+    never in it. */
+export function vehicleTitle(v: Named): string {
+  const make = v.make.trim();
+  const model = v.model.trim();
+  const both = make && model && !model.toUpperCase().startsWith(make.toUpperCase()) ? `${make} ${model}` : model || make;
+  return both || v.name.trim() || "Vehicle";
+}
+
+/** The vehicle's own name, "Zucky", when it has one that is more than its
+    plate or its title again. */
+export function nickname(v: Named): string | null {
+  const name = v.name.trim();
+  if (!name || squash(name) === squash(v.plate) || squash(name) === squash(vehicleTitle(v))) return null;
+  return name;
+}
+
+/** The name the open tab wears: the title and the plate, "Toyota Hiace
+    EVD72G", as the head reads; the plate alone when there is no title. */
+export function vehicleTabLabel(v: Named): string {
+  const title = vehicleTitle(v);
+  const plate = v.plate.trim();
+  if (!plate) return title;
+  return title === "Vehicle" || squash(title) === squash(plate) ? plate : `${title} ${plate}`;
+}
+
+/** Who drives it, as the grey line says it: the driver's name, "you" on the
+    driver's own vehicle, or nobody. */
+export type Driver = string | "you" | null;
+
+/** The one grey line under the title: the year, the nickname when it has
+    one, and who drives it ("Isaac Smith drives it", "No driver"); something
+    towed is towed. Its status follows the line as a dot and a word. */
+export function headFacts(v: VehicleWithFacts, driver: Driver): string {
+  const who =
+    driver === "you"
+      ? `You ${v.motorised ? "drive" : "tow"} it`
+      : driver
+        ? `${driver} ${v.motorised ? "drives" : "tows"} it`
+        : "No driver";
+  return [v.year ? String(v.year) : null, nickname(v), who].filter(Boolean).join(", ");
+}
 
 export type Tone = "wrong" | "look" | "good" | "info";
 export type Word = { word: string; tone: Tone };
 
 const TONE: Record<ChipState, Tone> = { bad: "wrong", warn: "look", ok: "good" };
+
+/** The status, as a word in its state: the head's, and the only place it shows. */
+export function statusWord(status: VehicleStatus): Word {
+  const tone: Record<VehicleStatus, Tone> = { active: "good", offroad: "wrong", for_sale: "info", sold: "info" };
+  return { word: STATUS_LABEL[status], tone: tone[status] };
+}
+
+/* ---- Overview: the renewals ---- */
 
 const days = (n: number) => (Math.abs(n) === 1 ? "1 day" : `${fmtKm(Math.abs(n))} days`);
 
@@ -99,72 +162,41 @@ const RENEWAL_DAYS: Record<RenewalKind, (v: VehicleWithFacts) => number | null> 
   insurance: (v) => v.insuranceDays,
 };
 
-/** Where the vehicle stands, as one word: the worst thing about it, as the
-    register's chips rank it (wrong before needs a look), in the page's words;
-    and when nothing is, its status. */
-export function headState(v: VehicleWithFacts, openIssues: number, warnDays: number): Word {
-  if (v.status === "sold") return { word: "Sold", tone: "info" };
-  const found: Word[] = [];
-  if (v.status === "offroad") found.push({ word: "Off road", tone: "wrong" });
-  for (const kind of ["rego", "ctp", "insurance"] as const) {
-    const d = RENEWAL_DAYS[kind](v);
-    if (d != null && d <= warnDays) found.push(dueWord(RENEWAL_ROW[kind], d));
-  }
-  /* the cycle and the issues as the chips say them, one source for both */
-  for (const c of vehicleChips(v, openIssues, warnDays)) {
-    if (c.label.startsWith("Service") || /issues? open$/.test(c.label)) found.push({ word: c.label, tone: TONE[c.state] });
-  }
-  const worst = found.find((w) => w.tone === "wrong") ?? found[0];
-  if (worst) return worst;
-  if (v.status === "for_sale") return { word: STATUS_LABEL.for_sale, tone: "info" };
-  return { word: STATUS_LABEL.active, tone: "good" };
-}
-
-/** The one grey line under the name: the driver, the kilometres, the model. */
-export function headLine(v: VehicleWithFacts, driver: string | null): string {
-  return [driver, v.motorised ? `${fmtKm(v.odometer)} km` : null, modelLabel(v) || null].filter(Boolean).join(", ");
-}
-
-/** The status, as a word in its state. */
-export function statusWord(status: VehicleStatus): Word {
-  const tone: Record<VehicleStatus, Tone> = { active: "good", offroad: "wrong", for_sale: "info", sold: "info" };
-  return { word: STATUS_LABEL[status], tone: tone[status] };
-}
-
-/* ---- where it stands ---- */
-
-export type StandsRow = { key: string; label: string; word: Word; line: string | null };
-
-/** A renewal's word: "Due in 25 days", "3 days overdue", "Current", "Not set". */
+/** A renewal's word: "Due in 25 days", "3 days overdue", "Current", "Not on file". */
 export function renewalWord(d: number | null, warnDays: number): Word {
-  if (d == null) return { word: "Not set", tone: "info" };
+  if (d == null) return { word: "Not on file", tone: "info" };
   const state = expiryState(d, warnDays);
   if (state === "ok") return { word: "Current", tone: "good" };
   const w = dueWord("", d).word.trim();
   return { word: w.charAt(0).toUpperCase() + w.slice(1), tone: TONE[state] };
 }
 
-function renewalLine(kind: RenewalKind, v: VehicleWithFacts, policies: readonly VehiclePolicy[], today: string): string | null {
-  const p = currentPolicy(policies, kind);
-  const d = RENEWAL_DAYS[kind](v);
-  const until = p?.expiresOn ?? (d != null ? dateFromDays(d, today) : null);
-  if (!until) return null;
-  const cover = p?.cover ? INSURANCE_COVER_LABEL[p.cover].toLowerCase() : null;
-  return [kind === "insurance" ? `To ${fmtDay(until)}` : fmtDay(until), p?.provider ?? null, cover].filter(Boolean).join(", ");
+export type RenewalRow = {
+  kind: RenewalKind;
+  label: string;
+  word: Word;
+  /** "to 12 Nov 2026", or "ended 15 Oct 2026" once it has; null with nothing on file */
+  date: string | null;
+  /** a date is on file, so its door says Renew; without one it says Add */
+  onFile: boolean;
+};
+
+/** Rego, green slip and insurance, each with its state and the day it runs to. */
+export function renewalRows(v: VehicleWithFacts, policies: readonly VehiclePolicy[], today: string, warnDays: number): RenewalRow[] {
+  return (["rego", "ctp", "insurance"] as const).map((kind) => {
+    const d = RENEWAL_DAYS[kind](v);
+    const until = d == null ? null : (currentPolicy(policies, kind)?.expiresOn ?? dateFromDays(d, today));
+    return {
+      kind,
+      label: RENEWAL_ROW[kind],
+      word: renewalWord(d, warnDays),
+      date: until ? `${d != null && d < 0 ? "ended" : "to"} ${fmtDay(until)}` : null,
+      onFile: d != null,
+    };
+  });
 }
 
-/** "In 1,800 km" — the nearer limit, capitalised, or "No cycle set". */
-export function serviceWord(v: VehicleWithFacts, warnDays: number): Word {
-  const due = serviceDue(v, warnDays);
-  if (due.kmLeft == null && due.daysLeft == null) return { word: "No cycle set", tone: "info" };
-  const parts: string[] = [];
-  if (due.kmLeft != null) parts.push(due.kmLeft < 0 ? `${fmtKm(-due.kmLeft)} km overdue` : `in ${fmtKm(due.kmLeft)} km`);
-  if (due.daysLeft != null) parts.push(due.daysLeft < 0 ? `${days(due.daysLeft)} overdue` : `in ${days(due.daysLeft)}`);
-  const w = parts.join(" or ");
-  /* a cycle that is fine is for your information, grey, as the board draws it */
-  const tone: Tone = due.state === "ok" ? "info" : TONE[due.state];
-  return { word: w.charAt(0).toUpperCase() + w.slice(1), tone };
-}
+/* ---- Overview: the service, and the last fill ---- */
 
 /** "at 130,200 km or by 30 Dec 2026": both limits, each only if it applies. */
 function serviceLimits(v: VehicleWithFacts, today: string): string | null {
@@ -176,66 +208,84 @@ function serviceLimits(v: VehicleWithFacts, today: string): string | null {
   return parts.length ? parts.join(" or ") : null;
 }
 
-/** "Due at 130,200 km or by 30 Dec 2026". */
-export function serviceDueLine(v: VehicleWithFacts, today: string): string | null {
-  const s = serviceLimits(v, today);
-  return s ? `Due ${s}` : null;
-}
-
-const READ_FROM: Record<VehicleLog["kind"], string> = {
-  fuel: "from a fuel docket",
-  odo: "off the dash",
-  issue: "with an issue",
-  service: "at a service",
-};
-
 /** The newest log that carried a reading. */
 export function latestReading(logs: readonly VehicleLog[]): VehicleLog | null {
   return [...logs].filter((l) => typeof l.odo === "number").sort((a, b) => a.ago - b.ago)[0] ?? null;
 }
 
-export function standsRows(
-  v: VehicleWithFacts,
-  policies: readonly VehiclePolicy[],
-  logs: readonly VehicleLog[],
-  today: string,
-  warnDays: number,
-): StandsRow[] {
-  const rows: StandsRow[] = (["rego", "ctp", "insurance"] as const).map((kind) => ({
-    key: kind,
-    label: RENEWAL_ROW[kind],
-    word: renewalWord(RENEWAL_DAYS[kind](v), warnDays),
-    line: renewalLine(kind, v, policies, today),
-  }));
-  rows.push({ key: "service", label: "Service", word: serviceWord(v, warnDays), line: serviceDueLine(v, today) });
-  if (v.motorised) {
-    const read = latestReading(logs);
-    rows.push({
-      key: "odo",
-      label: "Odometer",
-      word: { word: `${fmtKm(v.odometer)} km`, tone: "info" },
-      line: read ? `Read ${read.when}, ${READ_FROM[read.kind]}` : null,
-    });
-  }
-  return rows;
-}
-
-/* ---- Latest: one row of each kind ---- */
-
-export type LatestKind = "issue" | "fuel" | "odo" | "service" | "renewal";
-export type LatestRow = {
-  kind: LatestKind;
-  label: string;
-  name: string;
-  line: string;
-  /** a log's id, or a renewal's kind */
-  opens: { log: string } | { renewal: RenewalKind };
-};
-
 const newest = (logs: readonly VehicleLog[], kind: VehicleLog["kind"]) =>
   [...logs].filter((l) => l.kind === kind).sort((a, b) => a.ago - b.ago)[0] ?? null;
 
 const join = (xs: (string | null | undefined | false)[]) => xs.filter(Boolean).join(", ");
+
+export type FactRow = {
+  key: string;
+  label: string;
+  value: string;
+  /** nothing recorded, said in grey */
+  quiet?: boolean;
+  /** a cycle that needs a look or is past, as a word on the right */
+  word?: Word;
+};
+
+/** "At 130,200 km or by 30 Dec 2026, 1,800 km to go", with a word when it
+    is close or past; "No cycle set" for a vehicle with neither limit. */
+function nextServiceRow(v: VehicleWithFacts, today: string, warnDays: number): FactRow {
+  const limits = serviceLimits(v, today);
+  if (!limits) return { key: "next", label: "Next service", value: "No cycle set", quiet: true };
+  const due = serviceDue(v, warnDays);
+  const left =
+    due.kmLeft != null
+      ? due.kmLeft < 0
+        ? `${fmtKm(-due.kmLeft)} km past it`
+        : `${fmtKm(due.kmLeft)} km to go`
+      : due.daysLeft != null
+        ? due.daysLeft < 0
+          ? `${days(due.daysLeft)} past it`
+          : `${days(due.daysLeft)} to go`
+        : null;
+  const value = `${limits.charAt(0).toUpperCase()}${limits.slice(1)}${left ? `, ${left}` : ""}`;
+  const word: Word | undefined =
+    due.state === "bad" ? { word: "Overdue", tone: "wrong" } : due.state === "warn" ? { word: "Due soon", tone: "look" } : undefined;
+  return { key: "next", label: "Next service", value, word };
+}
+
+/** Overview's Service: the odometer and when it was read (the one place
+    Overview says it), the next service, and the last one. `lastServiceDays`
+    is the register's own anchor, for a service that came in without a log. */
+export function serviceRows(
+  v: VehicleWithFacts,
+  logs: readonly VehicleLog[],
+  today: string,
+  warnDays: number,
+  lastServiceDays: number | null = null,
+): FactRow[] {
+  const rows: FactRow[] = [];
+  if (v.motorised) {
+    const read = latestReading(logs);
+    rows.push({ key: "odo", label: "Odometer", value: `${fmtKm(v.odometer)} km${read ? `, read ${read.when}` : ""}` });
+  }
+  rows.push(nextServiceRow(v, today, warnDays));
+  const last = newest(logs, "service");
+  rows.push(
+    last
+      ? { key: "last", label: "Last service", value: last.when }
+      : lastServiceDays != null
+        ? { key: "last", label: "Last service", value: fmtDay(dateFromDays(-lastServiceDays, today)) }
+        : { key: "last", label: "Last service", value: "None logged", quiet: true },
+  );
+  return rows;
+}
+
+/** The newest fill: its day, then "90.05 litres, $106.17, Coles Express Park Holme". */
+export function lastFuel(logs: readonly VehicleLog[]): { log: VehicleLog; when: string; line: string } | null {
+  const f = newest(logs, "fuel");
+  if (!f) return null;
+  const line = join([typeof f.litres === "number" ? `${f.litres} litres` : null, typeof f.cost === "number" ? fmtCost(f.cost) : null, f.station]);
+  return { log: f, when: f.when, line: line || "Fuel logged" };
+}
+
+/* ---- Issues and Service: names and lines ---- */
 
 export function issueName(l: VehicleLog): string {
   return l.note?.trim() || "Issue reported";
@@ -243,72 +293,8 @@ export function issueName(l: VehicleLog): string {
 export function issueLine(l: VehicleLog): string {
   return join([l.staffName, l.when, typeof l.odo === "number" ? `at ${fmtKm(l.odo)} km` : null]);
 }
-export function fuelName(l: VehicleLog): string {
-  return join([typeof l.litres === "number" ? `${l.litres} litres` : "Fuel", typeof l.cost === "number" ? fmtCost(l.cost) : null]);
-}
-export function fuelLine(l: VehicleLog, eco?: number): string {
-  return join([
-    l.station,
-    l.when,
-    typeof eco === "number" ? `${eco} L/100 km` : null,
-    l.paidWith ? FUEL_PAYER_LABEL[l.paidWith].toLowerCase() : null,
-  ]);
-}
 export function serviceName(l: VehicleLog): string {
   return l.note?.trim() || "Service";
-}
-
-/** The policy filed last: by when it was filed, else when it starts, else when it runs to. */
-export function latestPolicy(policies: readonly VehiclePolicy[]): VehiclePolicy | null {
-  const at = (p: VehiclePolicy) => p.createdAt ?? p.startsOn ?? p.expiresOn;
-  return [...policies].sort((a, b) => at(b).localeCompare(at(a)))[0] ?? null;
-}
-
-const RENEWED: Record<RenewalKind, string> = { rego: "Rego", ctp: "Green slip", insurance: "Insurance" };
-
-export function latestRows(
-  logs: readonly VehicleLog[],
-  policies: readonly VehiclePolicy[],
-  eco: Record<string, number>,
-): LatestRow[] {
-  const rows: LatestRow[] = [];
-  const issue = newest(logs, "issue");
-  if (issue) rows.push({ kind: "issue", label: "Issue", name: issueName(issue), line: issueLine(issue), opens: { log: issue.id } });
-  const fuel = newest(logs, "fuel");
-  if (fuel) rows.push({ kind: "fuel", label: "Fuel", name: fuelName(fuel), line: fuelLine(fuel, eco[fuel.id]), opens: { log: fuel.id } });
-  const odo = newest(logs, "odo");
-  if (odo && typeof odo.odo === "number")
-    rows.push({
-      kind: "odo",
-      label: "Kilometres",
-      name: `${fmtKm(odo.odo)} km`,
-      line: join([odo.staffName ? `Read off the dash by ${odo.staffName}` : "Read off the dash", odo.when]),
-      opens: { log: odo.id },
-    });
-  const service = newest(logs, "service");
-  if (service)
-    rows.push({
-      kind: "service",
-      label: "Service",
-      name: serviceName(service),
-      line: join([service.station, service.when, typeof service.cost === "number" ? fmtCost(service.cost) : null]),
-      opens: { log: service.id },
-    });
-  const p = latestPolicy(policies);
-  if (p)
-    rows.push({
-      kind: "renewal",
-      label: "Renewal",
-      name: `${RENEWED[p.kind]} renewed to ${fmtDay(p.expiresOn)}`,
-      line: join([
-        p.provider,
-        p.cover ? INSURANCE_COVER_LABEL[p.cover].toLowerCase() : null,
-        p.premium != null ? fmtCost(p.premium) : null,
-        p.excess != null ? `excess ${fmtCost(p.excess)}` : null,
-      ]),
-      opens: { renewal: p.kind },
-    });
-  return rows;
 }
 
 /* ---- Service ---- */
@@ -354,7 +340,7 @@ export function issueGroups(logs: readonly VehicleLog[]): { open: VehicleLog[]; 
   return { open: issues.filter((l) => l.status !== "resolved"), fixed: issues.filter((l) => l.status === "resolved") };
 }
 
-/* ---- Kilometres ---- */
+/* ---- Kilometres, on Service ---- */
 
 export type Reading = {
   log: VehicleLog;

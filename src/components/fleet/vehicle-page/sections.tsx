@@ -8,14 +8,11 @@ import { Menu, type MenuItem } from "@/components/parts/menu";
 import { Row, RowList } from "@/components/parts/row";
 import { StateWord } from "@/components/parts/state";
 import { Empty } from "@/components/parts/states";
-import { Tooltip } from "@/components/parts/tooltip";
-import { Icon } from "@/components/shell/icon";
 import { documentTitle } from "@/components/record-modal/doc-rows";
 import type { StoredDocument } from "@/lib/documents/query";
 import { fmtDay } from "@/lib/format/day";
 import { dateFromDays } from "@/lib/fleet/map";
 import {
-  BODY_TYPE_LABEL,
   FUEL_PAYER_LABEL,
   fmtCost,
   fmtKm,
@@ -37,12 +34,10 @@ import {
   financePosition,
   financeRows,
   logDocuments,
-  policyDocuments,
   purchaseRows,
   repaymentLabel,
-  specRows,
   valueNotes,
-  type FactRow,
+  type FactRow as MoneyRow,
 } from "../vehicle-modal/derive";
 import {
   fuelHistory,
@@ -51,25 +46,33 @@ import {
   issueName,
   kmChart,
   kmPerMonth,
-  latestRows,
+  lastFuel,
   nextServiceHeading,
   readings,
   renewalHistory,
+  renewalRows,
   serviceEvery,
   serviceHistory,
   serviceName,
+  serviceRows,
   serviceSpend,
-  standsRows,
-  statusWord,
-  type LatestRow,
+  type FactRow,
   type Word,
 } from "@/lib/fleet/vehicle-page";
 import { KmLine } from "./km-line";
 
-/* A VEHICLE'S SECTIONS (v2; the boards v2-board-vehicle-overview, -service,
-   -issues and -km). Each is layout over what today's card already knows,
+/* A VEHICLE'S SECTIONS (v2; simplified on Isaac's mock of 24 October 2026,
+   "each fact once"). Each is layout over what today's card already knows,
    handed down by the page; every door out of them is one of `Doors`, which
-   the page points at today's own screens and forms. Nothing here writes. */
+   the page points at today's own screens and forms. Nothing here writes.
+
+     Overview   Renewals (rego, green slip, insurance, each with Renew or
+                Add); beside them Service (the odometer, the next service,
+                the last) and the last fill
+     Service    the next one, the history, then the kilometres: the line
+                and every reading (Kilometres was its own tab until
+                24 October 2026)
+     Fuel, Issues, Documents, Money   as they were */
 
 export type PageView = {
   /** the register's lens (`assets_all`); false is the driver's own vehicle */
@@ -84,7 +87,6 @@ export type PageView = {
   valuation: AiValuation | null;
   valuationIsStale: boolean;
   staff: FleetStaff[];
-  driverName: string | null;
   eco: Record<string, number>;
   today: string;
   warnDays: number;
@@ -100,7 +102,6 @@ export type Doors = {
   renew: (kind: RenewalKind) => void;
   financials: () => void;
   edit: () => void;
-  assign: (staffId: string | null) => void;
   /** the kinds of paper Add › Document files */
   docItems: readonly MenuItem[];
   onDoc: (key: string) => void;
@@ -109,14 +110,13 @@ export type Doors = {
   valueError: string | null;
 };
 
-const POOL = "pool";
-
-function Head({ heading, count, children }: { heading: string; count?: number; children?: ReactNode }) {
+function Head({ heading, count, sub, children }: { heading: string; count?: number; sub?: string | null; children?: ReactNode }) {
   return (
     <div className="vp-sechead">
       <h2 className="vp-h">
         {heading}
         {count != null && <span className="vp-h-n">{count}</span>}
+        {sub && <span className="vp-h-sub">{sub}</span>}
       </h2>
       {children != null && <div className="vp-sechead-acts">{children}</div>}
     </div>
@@ -129,218 +129,86 @@ function WordOf({ w }: { w: Word }) {
 
 /* ---- Overview ---- */
 
-const logIdOf = (row: LatestRow): string | null => ("log" in row.opens ? row.opens.log : null);
-
-function keptWord(row: LatestRow, view: PageView): ReactNode {
-  const id = logIdOf(row);
-  if (row.kind === "issue") {
-    const log = view.logs.find((l) => l.id === id);
-    return log?.status === "resolved" ? <StateWord tone="good">Fixed</StateWord> : <StateWord tone="look">Open</StateWord>;
-  }
-  if (!view.register) return null;
-  if ("renewal" in row.opens) {
-    const kind = row.opens.renewal;
-    const p = view.policies.filter((x) => x.kind === kind).sort((a, b) => b.expiresOn.localeCompare(a.expiresOn))[0];
-    return p && policyDocuments(view.documents, p).length > 0 ? <StateWord tone="info">Policy kept</StateWord> : null;
-  }
-  if (!id) return null;
-  const kept = logDocuments(view.documents, { id }).length > 0 || view.logs.find((l) => l.id === id)?.hasReceipt;
-  if (!kept) return null;
-  return <StateWord tone="info">{row.kind === "fuel" ? "Receipt kept" : "Record kept"}</StateWord>;
-}
-
-export function Overview({ view, doors }: { view: PageView; doors: Doors }) {
-  const rows = latestRows(view.logs, view.register ? view.policies : [], view.eco);
-  const v = view.full;
-  const details: FactRow[] = [
-    { label: "Make and model", value: [view.vehicle.make, view.vehicle.model].filter(Boolean).join(" ") + (view.vehicle.year ? `, ${view.vehicle.year}` : "") },
-    { label: "Plate", value: [view.vehicle.plate, view.vehicle.plateState].filter(Boolean).join(", ") },
-    ...(v?.bodyType ? [{ label: "Body", value: [BODY_TYPE_LABEL[v.bodyType], v.colour?.toLowerCase()].filter(Boolean).join(", ") }] : []),
-    ...(v ? specRows(v).filter((s) => !(v.bodyType && s.label === "Colour")).map((s) => ({ label: s.label, value: s.value })) : []),
-  ];
+/** A label, what it says, and on the right a word or one button (rule 39). */
+function Facts({ rows }: { rows: { key: string; label: string; body: ReactNode; end?: ReactNode }[] }) {
   return (
-    <div className="vp-two">
-      <div className="vp-col">
-        <section className="vp-sec" aria-labelledby="vp-latest">
-          <div className="vp-sechead">
-            <h2 className="vp-h" id="vp-latest">
-              Latest <span className="vp-h-sub">one of each</span>
-            </h2>
-          </div>
-          {rows.length === 0 ? (
-            <Empty
-              what="Nothing logged yet"
-              action={
-                <Button kind="second" icon="plus" onClick={() => doors.log("issue")}>
-                  Report an issue
-                </Button>
-              }
-            />
-          ) : (
-            <RowList label="The latest of each kind">
-              {rows.map((r) => {
-                const id = logIdOf(r);
-                const log = id ? view.logs.find((l) => l.id === id) : undefined;
-                const renewal = "renewal" in r.opens ? r.opens.renewal : null;
-                const open = log ? doors.entry(log) : renewal && view.register ? () => doors.renew(renewal) : null;
-                return (
-                  <Row
-                    key={r.kind}
-                    lead={<span className="vp-lead">{r.label}</span>}
-                    name={r.name}
-                    line={r.line}
-                    end={keptWord(r, view)}
-                    onClick={open ?? undefined}
-                  />
-                );
-              })}
-            </RowList>
-          )}
-        </section>
-
-        <section className="vp-sec" aria-labelledby="vp-details">
-          <div className="vp-sechead">
-            <h2 className="vp-h" id="vp-details">
-              Details
-            </h2>
-            {view.register && (
-              <Button kind="quiet" onClick={doors.edit}>
-                Edit details
-              </Button>
-            )}
-          </div>
-          <dl className="vp-facts">
-            {details.map((d) => (
-              <div key={d.label} className="vp-fact">
-                <dt>{d.label}</dt>
-                <dd>{d.value}</dd>
-              </div>
-            ))}
-          </dl>
-          {v?.notes && <p className="vp-notes">{v.notes}</p>}
-        </section>
-      </div>
-      <Stands view={view} doors={doors} />
-    </div>
+    <dl className="vp-kv">
+      {rows.map((r) => (
+        <div key={r.key} className="vp-kv-row">
+          <dt>{r.label}</dt>
+          <dd>
+            {r.body}
+            {r.end != null && <span className="vp-kv-end">{r.end}</span>}
+          </dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
-/* ---- Where it stands ---- */
+const factBody = (r: FactRow) => <span className={r.quiet ? "vp-quiet" : undefined}>{r.value}</span>;
 
-export function Stands({ view, doors }: { view: PageView; doors: Doors }) {
-  const driverRef = useRef<HTMLButtonElement>(null);
-  const [picking, setPicking] = useState(false);
-  const rows = standsRows(view.vehicle, view.policies, view.logs, view.today, view.warnDays);
-  const renew: Partial<Record<string, { label: string; kind: RenewalKind; main: boolean }>> = view.register
-    ? {
-        rego: { label: "Renew rego", kind: "rego", main: true },
-        ctp: { label: "Renew slip", kind: "ctp", main: false },
-        insurance: { label: "Renew insurance", kind: "insurance", main: false },
-      }
-    : {};
-  const v = view.full;
-  const drivers: MenuItem[] = [
-    { key: POOL, label: "Pool, no driver" },
-    ...view.staff.filter((s) => s.status === "Active" || s.id === v?.assignedTo).map((s) => ({ key: s.id, label: s.name })),
-  ];
-  const status = statusWord(view.vehicle.status);
+export function Overview({ view, doors }: { view: PageView; doors: Doors }) {
+  const renewals = renewalRows(view.vehicle, view.policies, view.today, view.warnDays);
+  const service = serviceRows(view.vehicle, view.logs, view.today, view.warnDays, view.full?.lastServiceDays ?? null);
+  const fuel = view.vehicle.motorised ? lastFuel(view.logs) : null;
   return (
-    <section className="vp-sec vp-stands" aria-labelledby="vp-stands">
-      <div className="vp-sechead">
-        <h2 className="vp-h" id="vp-stands">
-          Where it stands
-        </h2>
-      </div>
-      <dl className="vp-st">
-        {rows.map((r) => {
-          const act = renew[r.key];
-          return (
-            <div key={r.key} className="vp-st-row">
-              <dt>{r.label}</dt>
-              <dd>
-                {r.key === "odo" ? <span className="vp-st-fig">{r.word.word}</span> : <WordOf w={r.word} />}
-                {r.line && <span className="vp-st-line">{r.line}</span>}
-              </dd>
-              {act && (
-                <span className="vp-st-act">
-                  <Button kind={act.main ? "main" : "second"} onClick={() => doors.renew(act.kind)}>
-                    {act.label}
-                  </Button>
-                </span>
-              )}
-            </div>
-          );
-        })}
-        <div className="vp-st-row">
-          <dt>{view.vehicle.motorised ? "Driver" : "Towed by"}</dt>
-          <dd>
-            {view.register ? (
-              view.driverName ? (
-                <span className="vp-st-who">
-                  <Initials name={view.driverName} size={24} beside />
-                  {view.driverName}
-                </span>
-              ) : (
-                <span className="vp-st-fig">Pool, no driver</span>
-              )
-            ) : (
-              <span className="vp-st-fig">You</span>
-            )}
-          </dd>
-          {view.register && (
-            <span className="vp-st-act">
-              <Button ref={driverRef} kind="quiet" aria-haspopup="listbox" aria-expanded={picking} onClick={() => setPicking((p) => !p)}>
-                Change driver
-              </Button>
-              <Menu
-                open={picking}
-                anchor={driverRef}
-                kind="listbox"
-                label="Driver"
-                items={drivers}
-                chosen={v?.assignedTo ?? POOL}
-                align="end"
-                onClose={() => setPicking(false)}
-                onSelect={(key) => {
-                  setPicking(false);
-                  doors.assign(key === POOL ? null : key);
-                }}
-              />
-            </span>
-          )}
+    <div className="vp-two">
+      <section className="vp-sec" aria-labelledby="vp-renewals">
+        <div className="vp-sechead">
+          <h2 className="vp-h" id="vp-renewals">
+            Renewals
+          </h2>
         </div>
-        <div className="vp-st-row">
-          <dt>Status</dt>
-          <dd>
-            <WordOf w={status} />
-          </dd>
-        </div>
-        {view.register && v && (
-          <div className="vp-st-row">
-            <dt>Value</dt>
-            <dd>
-              <span className="vp-st-fig">{fmtMoney(v.value)}</span>
-              <span className="vp-st-line">
-                {view.valuation ? (
-                  <>
-                    Book value; Tiff puts it near {fmtMoney(view.valuation.point)}
-                    <Tooltip
-                      label={[`${fmtMoney(view.valuation.low)} to ${fmtMoney(view.valuation.high)}`, ...valueNotes(view.valuation, v, view.valuationIsStale)].join(". ")}
-                    >
-                      <span className="vp-info" tabIndex={0} role="img" aria-label="How Tiff priced it">
-                        <Icon name="info" size={14} />
-                      </span>
-                    </Tooltip>
-                  </>
-                ) : (
-                  "Book value"
-                )}
-              </span>
-            </dd>
+        <Facts
+          rows={renewals.map((r) => {
+            const door = r.onFile ? "Renew" : "Add";
+            return {
+              key: r.kind,
+              label: r.label,
+              body: (
+                <>
+                  <WordOf w={r.word} />
+                  {r.date && <span>{r.date}</span>}
+                </>
+              ),
+              /* the renewals are the register's; a driver reads them */
+              end: view.register ? (
+                <Button kind="second" size={32} aria-label={`${door} ${r.label.toLowerCase()}`} onClick={() => doors.renew(r.kind)}>
+                  {door}
+                </Button>
+              ) : undefined,
+            };
+          })}
+        />
+      </section>
+      <div className="vp-col">
+        <section className="vp-sec" aria-labelledby="vp-service">
+          <div className="vp-sechead">
+            <h2 className="vp-h" id="vp-service">
+              Service
+            </h2>
           </div>
+          <Facts
+            rows={service.map((r) => ({ key: r.key, label: r.label, body: factBody(r), end: r.word ? <WordOf w={r.word} /> : undefined }))}
+          />
+        </section>
+        {view.vehicle.motorised && (
+          <section className="vp-sec" aria-labelledby="vp-lastfuel">
+            <div className="vp-sechead">
+              <h2 className="vp-h" id="vp-lastfuel">
+                Last fuel
+              </h2>
+            </div>
+            {fuel ? (
+              <Facts rows={[{ key: fuel.log.id, label: fuel.when, body: <span>{fuel.line}</span> }]} />
+            ) : (
+              <p className="vp-none">No fills logged yet.</p>
+            )}
+          </section>
         )}
-      </dl>
-    </section>
+      </div>
+    </div>
   );
 }
 
@@ -383,7 +251,7 @@ export function Service({ view, doors }: { view: PageView; doors: Doors }) {
           }
         />
       ) : (
-        <table className="vp-table">
+        <table className="vp-table" aria-label="Services">
           <thead>
             <tr>
               <th scope="col">Date</th>
@@ -438,7 +306,70 @@ export function Service({ view, doors }: { view: PageView; doors: Doors }) {
         </table>
       )}
       {spend != null && <p className="vp-foot">{fmtCost(spend)} on service in the last 12 months.</p>}
+      {view.vehicle.motorised && <Kilometres view={view} doors={doors} />}
     </div>
+  );
+}
+
+/* The kilometres, under the service they count towards: how far it goes a
+   month, the line, and every reading. The odometer itself is Overview's. */
+function Kilometres({ view, doors }: { view: PageView; doors: Doors }) {
+  const rs = readings(view.logs, view.today);
+  const rate = kmPerMonth(rs);
+  const chart = kmChart(rs, view.today, serviceDueKm(view.vehicle));
+  const can = doors.canLog("odo");
+  return (
+    <section className="vp-sec" aria-label="Kilometres">
+      <Head
+        heading="Kilometres"
+        sub={rate ? `${fmtKm(rate.perMonth)} km ${rate.spanDays >= 330 ? "a month over the last 12 months" : `a month since ${fmtDay(rate.sinceIso)}`}` : null}
+      >
+        <Button kind="second" icon="plus" disabled={!can.ok} onClick={() => doors.log("odo")}>
+          Add a reading
+        </Button>
+      </Head>
+      {!can.ok && can.why && <p className="vp-none">{can.why}</p>}
+      {chart && <KmLine chart={chart} label={`The odometer over the last 12 months, now ${fmtKm(view.vehicle.odometer)} km`} />}
+      {rs.length === 0 ? (
+        <p className="vp-none">No readings yet.</p>
+      ) : (
+        <table className="vp-table" aria-label="Readings">
+          <thead>
+            <tr>
+              <th scope="col">Read</th>
+              <th scope="col">Odometer</th>
+              <th scope="col">Since the last</th>
+              <th scope="col">From</th>
+              <th scope="col">By</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rs.map((r) => {
+              const open = doors.entry(r.log);
+              return (
+                <tr key={r.log.id} className={open ? "vp-tr vp-tr--open" : "vp-tr"}>
+                  <td>
+                    {open ? (
+                      <button type="button" className="vp-hit" onClick={open}>
+                        {fmtDay(r.on)}
+                      </button>
+                    ) : (
+                      fmtDay(r.on)
+                    )}
+                  </td>
+                  <td>{fmtKm(r.odo)} km</td>
+                  <td className="vp-quiet">{r.since == null ? "" : `${r.since >= 0 ? "+" : ""}${fmtKm(r.since)}`}</td>
+                  <td>
+                    <Fade>{r.from}</Fade>
+                  </td>
+                  <td>{r.by}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </section>
   );
 }
 
@@ -471,82 +402,6 @@ export function Issues({ view, doors }: { view: PageView; doors: Doors }) {
           <RowList label="Fixed issues">{fixed.map(rowOf)}</RowList>
         </section>
       )}
-    </div>
-  );
-}
-
-/* ---- Kilometres ---- */
-
-export function Kilometres({ view, doors }: { view: PageView; doors: Doors }) {
-  const rs = readings(view.logs, view.today);
-  const rate = kmPerMonth(rs);
-  const chart = kmChart(rs, view.today, serviceDueKm(view.vehicle));
-  const can = doors.canLog("odo");
-  return (
-    <div className="vp-two">
-      <div className="vp-col">
-        <div className="vp-sechead">
-          <p className="vp-bigline">
-            {rate ? (
-              <>
-                <span className="vp-big">{fmtKm(rate.perMonth)} km</span>
-                <span className="vp-big-sub">
-                  {rate.spanDays >= 330 ? "a month over the last 12 months" : `a month since ${fmtDay(rate.sinceIso)}`}
-                </span>
-              </>
-            ) : (
-              <span className="vp-big">{fmtKm(view.vehicle.odometer)} km</span>
-            )}
-          </p>
-          <div className="vp-sechead-acts">
-            <Button kind="second" icon="plus" disabled={!can.ok} onClick={() => doors.log("odo")}>
-              Add a reading
-            </Button>
-          </div>
-        </div>
-        {!can.ok && can.why && <p className="vp-none">{can.why}</p>}
-        {chart && <KmLine chart={chart} label={`The odometer over the last 12 months, now ${fmtKm(view.vehicle.odometer)} km`} />}
-        {rs.length === 0 ? (
-          <p className="vp-none">No readings yet.</p>
-        ) : (
-          <table className="vp-table">
-            <thead>
-              <tr>
-                <th scope="col">Read</th>
-                <th scope="col">Odometer</th>
-                <th scope="col">Since the last</th>
-                <th scope="col">From</th>
-                <th scope="col">By</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rs.map((r) => {
-                const open = doors.entry(r.log);
-                return (
-                  <tr key={r.log.id} className={open ? "vp-tr vp-tr--open" : "vp-tr"}>
-                    <td>
-                      {open ? (
-                        <button type="button" className="vp-hit" onClick={open}>
-                          {fmtDay(r.on)}
-                        </button>
-                      ) : (
-                        fmtDay(r.on)
-                      )}
-                    </td>
-                    <td>{fmtKm(r.odo)} km</td>
-                    <td className="vp-quiet">{r.since == null ? "" : `${r.since >= 0 ? "+" : ""}${fmtKm(r.since)}`}</td>
-                    <td>
-                      <Fade>{r.from}</Fade>
-                    </td>
-                    <td>{r.by}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
-      <Stands view={view} doors={doors} />
     </div>
   );
 }
@@ -690,7 +545,7 @@ export function Documents({ view, doors }: { view: PageView; doors: Doors }) {
 
 /* ---- Money ---- */
 
-function Facts({ rows }: { rows: FactRow[] }) {
+function MoneyFacts({ rows }: { rows: MoneyRow[] }) {
   return (
     <dl className="vp-facts">
       {rows.map((r) => (
@@ -735,7 +590,7 @@ export function Money({ view, doors }: { view: PageView; doors: Doors }) {
 
       <section className="vp-sec" aria-label="Purchase">
         <Head heading="Purchase" />
-        <Facts rows={purchaseRows(v, view.today, fin)} />
+        <MoneyFacts rows={purchaseRows(v, view.today, fin)} />
         {v.purchaseDateDays > 0 && <p className="vp-foot">Bought {fmtDay(dateFromDays(-v.purchaseDateDays, view.today))}.</p>}
       </section>
 
@@ -743,7 +598,7 @@ export function Money({ view, doors }: { view: PageView; doors: Doors }) {
         <Head heading="Finance" />
         {fin && pos ? (
           <>
-            <Facts rows={financeRows(fin)} />
+            <MoneyFacts rows={financeRows(fin)} />
             <p className="vp-foot">
               {pos.ended
                 ? "The schedule has ended."

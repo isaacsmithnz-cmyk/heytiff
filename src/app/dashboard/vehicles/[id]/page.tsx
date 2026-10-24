@@ -4,8 +4,9 @@ import { parseVehicleSection, sectionsFor } from "@/lib/fleet/vehicle-page";
 import { VehiclePage } from "@/components/fleet/vehicle-page/vehicle-page";
 
 /* ONE VEHICLE, A PAGE OF ITS OWN (v2, "A vehicle's own page", 18 October,
-   Isaac: "Looks good"), inside the dashboard frame: its name and rego, one
-   grey line and its state as a word, Add and Actions, and its sections.
+   Isaac: "Looks good"; each fact once since 24 October 2026), inside the
+   dashboard frame: its make and model with the plate beside it, one grey
+   line ending in its status, Add and Actions, and its sections.
 
    Gated as today's vehicle card is: `assets_all` opens any vehicle in the
    org, the register's way; a driver without it opens the vehicle assigned
@@ -13,7 +14,8 @@ import { VehiclePage } from "@/components/fleet/vehicle-page/vehicle-page";
    org's, a pool ute the driver isn't assigned, nothing at all) is a 404,
    not a leak. See lib/fleet/vehicle-page-data.
 
-   `?tab=` names the section: one this viewer has, else Overview.
+   `?tab=` names the section: one this viewer has, else Overview. The old
+   `?tab=kilometres` opens Service, where the readings went.
 
    Awaits the request on purpose: under the dashboard's loading.tsx the
    frame paints at once and this streams in behind it. */

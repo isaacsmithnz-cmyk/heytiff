@@ -37,6 +37,18 @@ describe("Plate", () => {
     expect(sm.querySelector(".au-plate")?.className).toBe("au-plate sm");
   });
 
+  it("draws the page's plate with its state above the number, read in that order", () => {
+    const { container } = render(<Plate plate="evd72g" state="nsw" size="xl" />);
+    const plate = container.querySelector(".au-plate.xl")!;
+    expect([...plate.children].map((c) => [c.className, c.textContent])).toEqual([
+      ["st", "NSW"],
+      ["no", "EVD72G"],
+    ]);
+    expect(plate.textContent).toBe("NSW EVD72G");
+    const { container: bare } = render(<Plate plate="EVD72G" size="xl" />);
+    expect(bare.querySelector(".st")).toBeNull();
+  });
+
   it("is styled by an UNSCOPED class, because fleet modals portal outside .fg", () => {
     const { container } = render(<Plate plate="MKT482" />);
     expect(container.querySelector(".au-plate")).not.toBeNull();

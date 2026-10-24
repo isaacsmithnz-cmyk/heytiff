@@ -61,7 +61,7 @@ describe("a manager, with the register", () => {
     const page = await visit("v2");
     expect(can).toHaveBeenCalledWith("assets_all");
     expect(page.props.data).toMatchObject({ lens: "register", vehicle: { id: "v2" }, staff: [{ id: "s-lyle" }], today: "2026-10-18", warnDays: 30 });
-    expect(page.props.sections).toEqual(["overview", "service", "issues", "kilometres", "fuel", "documents", "money"]);
+    expect(page.props.sections).toEqual(["overview", "service", "fuel", "issues", "documents", "money"]);
     expect(page.props.section).toBe("overview");
   });
 
@@ -80,6 +80,11 @@ describe("a manager, with the register", () => {
     expect((await visit("v1", { tab: "Service" })).props.section).toBe("service");
     expect((await visit("v1", { tab: "ledger" })).props.section).toBe("overview");
   });
+
+  it("opens Service for an old ?tab=kilometres, where the readings went (24 October 2026)", async () => {
+    expect((await visit("v1", { tab: "kilometres" })).props.section).toBe("service");
+    expect((await visit("v1", { tab: "Kilometres" })).props.section).toBe("service");
+  });
 });
 
 describe("a driver, without the register", () => {
@@ -94,7 +99,7 @@ describe("a driver, without the register", () => {
     expect(page.props.data).not.toHaveProperty("documents");
     expect(page.props.data).not.toHaveProperty("finance");
     expect(page.props.data).not.toHaveProperty("valuation");
-    expect(page.props.sections).toEqual(["overview", "service", "issues", "kilometres", "fuel"]);
+    expect(page.props.sections).toEqual(["overview", "service", "fuel", "issues"]);
     expect(listVehicles).not.toHaveBeenCalled();
     expect(documentsForVehicles).not.toHaveBeenCalled();
   });
@@ -107,6 +112,7 @@ describe("a driver, without the register", () => {
     expect((await visit("v1", { tab: "money" })).props.section).toBe("overview");
     expect((await visit("v1", { tab: "documents" })).props.section).toBe("overview");
     expect((await visit("v1", { tab: "fuel" })).props.section).toBe("fuel");
+    expect((await visit("v1", { tab: "kilometres" })).props.section).toBe("service");
   });
 });
 

@@ -20,7 +20,6 @@ import {
   rowsFor,
   sortRows,
   sortsFor,
-  viewCounts,
   viewsFor,
   withListState,
   type JobSort,
@@ -156,7 +155,6 @@ export function JobsList({ data, initial }: { data: JobsListData; initial: ListS
     if (typeof window !== "undefined") window.history.replaceState(null, "", withListState(window.location.href, s));
   };
 
-  const open = viewCounts(data.rows, { who: ANYONE, q: "" }).all;
   const views = viewsFor(money);
   const shown = sortRows(rowsFor(data.rows, state), state.sort);
   const inView = rowsFor(data.rows, { view: state.view, who: ANYONE, q: "" }).length;
@@ -175,8 +173,9 @@ export function JobsList({ data, initial }: { data: JobsListData; initial: ListS
     <div className="jl">
       <header className="jl-head">
         <div className="jl-title">
+          {/* no count beside the title (rule 29, Isaac, 20 October: "We need
+              to rule it out everywhere"): "969 open" was one */}
           <h1>Jobs</h1>
-          <span className="jl-open">{open} open</span>
         </div>
         <SearchField className="jl-search" label="Search jobs, clients and sites" value={state.q} onChange={(q) => go({ q })} />
       </header>

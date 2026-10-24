@@ -176,6 +176,17 @@ describe("an existing task's form", () => {
     expect(completeTask).toHaveBeenCalledWith("t9", { postDone: true });
   });
 
+  /* 25 October 2026: Mark done said "Saving" on Save */
+  it("says the wait on the button that was pressed", async () => {
+    await open();
+    let done: (v: { ok: true }) => void = () => {};
+    (completeTask as jest.Mock).mockImplementationOnce(() => new Promise((r) => (done = r)));
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Mark done" })));
+    expect(screen.getByRole("button", { name: "Marking it done" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    await act(async () => done({ ok: true }));
+  });
+
   it("says who ticked a done task and when, and deletes on Delete", async () => {
     await open({ done: { by: "Luke Ingold", at: "2026-10-24T03:10:00Z" } });
     expect(screen.getByText(/Done by Luke Ingold/)).toBeInTheDocument();

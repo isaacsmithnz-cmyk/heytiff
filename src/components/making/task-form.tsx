@@ -79,7 +79,10 @@ export function TaskForm({
   /* a task for a job is anyone's until someone is chosen */
   const [who, setWho] = useState<string | null>(job ? ANYONE : null);
   const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  /* which press is out, so the wait is said on the button that was pressed
+     (25 October 2026: Mark done said "Saving" on Save) */
+  const [doing, setDoing] = useState<"save" | "tick" | "remove" | null>(null);
+  const saving = doing !== null;
 
   /* a Done's door pressed: its line reads again once the press is out */
   const [sending, setSending] = useState(false);
@@ -143,7 +146,7 @@ export function TaskForm({
       setError("Say what needs doing.");
       return;
     }
-    setSaving(true);
+    setDoing("save");
     if (editing && taskId) {
       const r = await updateTask(taskId, {
         title,
@@ -153,7 +156,7 @@ export function TaskForm({
         forStaffId: anyone || who === ANYONE ? null : who,
         anyone,
       });
-      setSaving(false);
+      setDoing(null);
       if (!r.ok) {
         setError(r.error);
         return;
@@ -172,7 +175,7 @@ export function TaskForm({
       anyone,
     });
     if (!made.ok) {
-      setSaving(false);
+      setDoing(null);
       setError(made.error);
       return;
     }
@@ -188,9 +191,9 @@ export function TaskForm({
 
   async function tick() {
     if (!taskId) return;
-    setSaving(true);
+    setDoing("tick");
     const r = task?.done ? await reopenTask(taskId, { takeBackDone: true }) : await completeTask(taskId, { postDone: true });
-    setSaving(false);
+    setDoing(null);
     if (!r.ok) {
       setError(r.error);
       return;
@@ -205,9 +208,9 @@ export function TaskForm({
 
   async function remove() {
     if (!taskId) return;
-    setSaving(true);
+    setDoing("remove");
     const r = await deleteTask(taskId);
-    setSaving(false);
+    setDoing(null);
     if (!r.ok) {
       setError(r.error);
       return;
@@ -247,14 +250,14 @@ export function TaskForm({
         editing ? (
           <>
             <Button kind="delete" onClick={() => void remove()} disabled={saving}>
-              Delete
+              {doing === "remove" ? "Deleting" : "Delete"}
             </Button>
             <span className="mk-gap" />
             <Button kind="second" onClick={() => void tick()} disabled={saving}>
-              {task?.done ? "Not done yet" : "Mark done"}
+              {doing === "tick" ? (task?.done ? "Opening it again" : "Marking it done") : task?.done ? "Not done yet" : "Mark done"}
             </Button>
             <Button kind="main" onClick={() => void save()} disabled={saving}>
-              {saving ? "Saving" : "Save"}
+              {doing === "save" ? "Saving" : "Save"}
             </Button>
           </>
         ) : (
@@ -263,7 +266,7 @@ export function TaskForm({
               Cancel
             </Button>
             <Button kind="main" onClick={save} disabled={saving}>
-              {saving ? (many ? `Adding ${lines.length} tasks` : "Adding the task") : many ? `Add ${lines.length} tasks` : "Add task"}
+              {doing === "save" ? (many ? `Adding ${lines.length} tasks` : "Adding the task") : many ? `Add ${lines.length} tasks` : "Add task"}
             </Button>
           </>
         )

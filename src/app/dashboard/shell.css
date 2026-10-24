@@ -1353,7 +1353,8 @@
      over a job card comes up on top of the card. */
   .fg-cmd { position:fixed; inset:0; z-index:var(--z-modal); display:none; align-items:flex-start; justify-content:center; padding-top:15vh; font-family:var(--font-jakarta), sans-serif; }
   .fg-cmd.open { display:flex; }
-  .fg-cmd .ov { position:absolute; inset:0; background:var(--scrim); backdrop-filter:blur(8px); animation:fgcFade .2s both; }
+  /* the page darkened, not blurred (rule 36; Isaac's walk, 25 October 2026) */
+  .fg-cmd .ov { position:absolute; inset:0; background:var(--scrim); animation:fgcFade .2s both; }
   @keyframes fgcFade { from{opacity:0} to{opacity:1} }
   .fg-cmd .box { position:relative; width:640px; max-width:calc(100vw - 32px); border-radius:var(--r-card); overflow:hidden; background:var(--paper); border:1px solid var(--paper); box-shadow:var(--shadow-overlay); animation:fgcIn .3s var(--ease) both; }
   @keyframes fgcIn { from{opacity:0;transform:scale(.96) translateY(-8px)} to{opacity:1;transform:none} }
@@ -4689,8 +4690,11 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    and a blue Send that carries its word (Q6) */
 .fg .qc-comp { flex:none; padding:8px 0 24px; }
 .fg .qc-comp .qc-col { gap:8px; }
-.fg .qt-box.qc-box { flex-direction:column; align-items:stretch; padding:12px 12px 12px 16px; }
-.fg .qc-box .qt-in { flex:none; min-height:48px; padding:0; font-size:16px; line-height:24px; }
+/* the quote's box is Conversations' box (.cv-box): its padding, its gap, a
+   field that grows with what you write, and the arrow to send (Isaac, 25
+   October 2026: "check that all TIFF input boxes match") */
+.fg .qt-box.qc-box { flex-direction:column; align-items:stretch; gap:12px; padding:16px 16px 12px 24px; }
+.fg .qc-box .qt-in { flex:none; min-height:24px; max-height:240px; field-sizing:content; padding:0; font-size:16px; line-height:24px; }
 .fg .qc-boxfoot { display:flex; align-items:center; gap:8px; }
 /* what you're saying, as you say it, in the box's own words size */
 .fg .qc-live { margin:0; padding:0 4px; font-size:16px; line-height:24px; color:var(--q); }
@@ -5980,16 +5984,18 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 
 .wb2-dmft { display:flex; align-items:center; gap:8px; padding:12px 16px; border-top:1px solid var(--wb2-line2); flex:none; background:var(--paper); }
 
-/* toasts — one slot PER ACTION (B23), stacked, each with its own undo */
-.wb2-toasts { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:var(--z-toast);
-  display:flex; flex-direction:column-reverse; gap:8px; align-items:center; pointer-events:none; }
-.wb2-toast { display:flex; align-items:center; gap:12px; padding:12px 8px 12px 16px; border-radius:var(--r-card);
-  background:var(--q); color:var(--paper); font-size:13px; font-weight:600;box-shadow:var(--shadow-overlay);
-  pointer-events:auto; animation:wb2CardIn .32s var(--ease) both; max-width:min(520px, calc(100vw - 40px)); }
-.wb2-toast button { font:inherit; font-weight:700; color:var(--paper); background:none; border:0; cursor:pointer; padding:2px 4px; border-radius:var(--r-button); }
+/* toasts — one slot PER ACTION (B23), stacked, each with its own undo.
+   Where the Toast part puts its own (rule 37: grey, bottom left; Isaac, 25
+   October 2026, walking: the shell's sat bottom centre, the notes' bottom
+   left), in its dress: the 10 corner, words at 14, Undo at 600. */
+.wb2-toasts { position:fixed; left:24px; bottom:24px; z-index:var(--z-toast);
+  display:flex; flex-direction:column-reverse; gap:8px; align-items:flex-start; pointer-events:none; }
+.wb2-toast { display:flex; align-items:center; gap:12px; min-height:44px; box-sizing:border-box; padding:12px 8px 12px 16px; border-radius:var(--r-button);
+  background:var(--q); color:var(--paper); font-size:14px; line-height:20px; font-weight:400;
+  pointer-events:auto; animation:pt-toast-in var(--t-move) var(--ease) both; max-width:min(400px, calc(100vw - 48px)); }
+.wb2-toast button { font:inherit; font-weight:600; color:var(--paper); background:none; border:0; cursor:pointer; padding:2px 4px; border-radius:var(--r-button); }
 .wb2-toast button:hover { background:var(--on-ink-tint-2); }
-.wb2-toast .wb2-toastx { color:var(--on-ink-q); font-size:16px; padding:0 8px; }
-.wb2-toast .wb2-toastx:hover { color:var(--paper); }
+.wb2-toast .wb2-toastx { color:var(--paper); font-size:16px; padding:0 8px; }
 @media (prefers-reduced-motion:reduce) { .wb2-daymodal, .wb2-toast { animation:none !important; } }
 
 /* ── wb2 step 4: agreement sheet forms, create modal, invoice folds ── */
@@ -8949,7 +8955,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jl-head { display:flex; align-items:center; justify-content:space-between; gap:24px; }
 .fg .jl-title { display:flex; align-items:baseline; gap:12px; min-width:0; }
 .fg .jl-title h1 { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
-.fg .jl-open { font-size:14px; line-height:20px; font-weight:400; color:var(--q); font-variant-numeric:tabular-nums; }
 .fg .jl-search { flex:0 1 440px; }
 .fg .jl-bar { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
 .fg .jl-picks { display:flex; align-items:center; gap:8px; }
@@ -10366,7 +10371,9 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .tc-askmark { width:32px; height:32px; border-radius:50%; background:var(--ink); display:inline-flex; align-items:center; justify-content:center; }
 .tc-ask:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .tc-dock { padding:0 12px 12px; border-top:0; background:transparent; }
-.fg .tc-box { display:flex; flex-direction:column; gap:8px; padding:12px 12px 8px 16px; border:1px solid var(--edge); border-radius:16px; background:var(--paper); }
+/* Tiff's window and Home's conversation reply in Conversations' box too:
+   the same padding, gap and corner (25 October 2026) */
+.fg .tc-box { display:flex; flex-direction:column; gap:12px; padding:16px 16px 12px 24px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--paper); }
 .fg .tc-box:focus-within { border-color:var(--ink); }
 .fg .tc-in { width:100%; border:0; outline:0; resize:none; padding:0; background:transparent; color:var(--ink); font:400 16px/24px var(--font); }
 .fg .tc-in::placeholder { color:var(--q); }

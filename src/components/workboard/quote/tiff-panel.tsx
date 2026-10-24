@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useEffectEvent, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { Button, IconButton } from "@/components/parts/button";
+import { IconButton } from "@/components/parts/button";
 import { Dot } from "@/components/parts/state";
 import { Fade } from "@/components/parts/fade";
 import { Tray } from "@/components/parts/tabs";
@@ -614,7 +614,7 @@ export function TiffPanel({
             <textarea
               ref={box}
               className="qt-in"
-              rows={2}
+              rows={1}
               value={typed}
               placeholder={events.length === 0 ? "Tell Tiff about the job" : "Reply"}
               aria-label="Message Tiff"
@@ -642,13 +642,13 @@ export function TiffPanel({
                   </button>
                 </>
               ) : (
-                <IconButton glyph="mic" size={32} label="Say it" disabled={dict.transcribing} onClick={() => dict.start()} />
+                <IconButton glyph="mic" size={32} label="Speak instead of typing" disabled={dict.transcribing} onClick={() => dict.start()} />
               )}
-              {/* Q6: the reply box sends with a blue Send that carries its
-                  word; it fades while she works, one turn at a time */}
-              <Button kind="main" size={32} className="qc-send" disabled={busy || working || !typed.trim()} onClick={sendTyped}>
-                Send
-              </Button>
+              {/* Send as Claude's, an arrow, as every Tiff box has it (rule 25;
+                  Isaac, 20 October 2026: "the input section should be
+                  identical throughout the software"; it was Q6's word Send);
+                  it fades while she works, one turn at a time */}
+              <IconButton glyph="send" kind="main" size={32} label="Send" className="qc-send" disabled={busy || working || !typed.trim()} onClick={sendTyped} />
             </div>
           </div>
         </div>

@@ -16,7 +16,7 @@ import type { JobStep } from "@/lib/workboard/job-steps";
 
 describe("the sections", () => {
   it("are the rule's seven, in its order", () => {
-    expect(JOB_SECTIONS.map((s) => SECTION_LABEL[s])).toEqual(["Overview", "Quote", "Visits", "Checklist", "Photos", "Documents", "Billing"]);
+    expect(JOB_SECTIONS.map((s) => SECTION_LABEL[s])).toEqual(["Overview", "Quote", "Visits", "Materials", "Photos", "Documents", "Billing"]);
   });
 
   it("each show the card's faces: Overview the summary and diary, Documents the files and compliance, Billing the money", () => {
@@ -24,7 +24,7 @@ describe("the sections", () => {
       overview: ["summary", "diary"],
       quote: ["quote"],
       visits: ["visits"],
-      checklist: ["checklist"],
+      materials: ["checklist"],
       photos: ["photos"],
       documents: ["documents", "compliance"],
       billing: ["money"],
@@ -49,6 +49,15 @@ describe("?tab=", () => {
   it("names a section, whatever its case", () => {
     expect(parseSection("visits", false)).toBe("visits");
     expect(parseSection(" Photos ", false)).toBe("photos");
+  });
+
+  /* Isaac, 25 October 2026: the Checklist became Materials, and a link
+     made before still opens it */
+  it("lands an old ?tab=checklist on Materials", () => {
+    expect(parseSection("materials", false)).toBe("materials");
+    expect(parseSection("checklist", false)).toBe("materials");
+    expect(parseSection(" Checklist ", true)).toBe("materials");
+    expect(sectionOfFace("checklist")).toBe("materials");
   });
 
   it("lands anything else on Overview", () => {

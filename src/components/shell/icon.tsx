@@ -191,6 +191,14 @@ export const ICON_PATHS: Record<string, string> = {
   plug: '<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8z"/>',
   xero: '<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6"/><path d="m15 9-6 6"/>',
   servicem8: '<circle cx="12" cy="7.25" r="4.25"/><circle cx="12" cy="16.75" r="4.25"/>',
+  /* the price book's shelves on a job's Materials (25 October 2026), drawn
+     on his mock where no icon above fits: a coil of pipe end on, a grille's
+     slats in its frame, a stand under a roof line, and Lucide's funnel */
+  coil: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/>',
+  grille: '<rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M7.5 9h9"/><path d="M7.5 12h9"/><path d="M7.5 15h9"/>',
+  mount: '<path d="M4.5 19.5V9L12 4.5 19.5 9v10.5"/><path d="M4.5 13.5h15"/>',
+  filter:
+    '<path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/>',
 };
 
 /* THE CHEVRON'S LANGUAGE (step 5 of the identity plan, 2026-09-14). The mark

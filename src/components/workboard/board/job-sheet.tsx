@@ -38,7 +38,7 @@ import {
   setPicklistItemPicked,
   type JobPicklistItem,
 } from "@/app/actions/job-picklist";
-import { JobChecklistFace } from "./job-checklist-face";
+import { JobMaterialsFace } from "./job-materials-face";
 import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
 import { JobQuoteCard } from "./job-quote-card";
@@ -188,7 +188,7 @@ const FACE_NAME: Record<TabKey, string> = {
   quote: "Quote",
   money: "Billing",
   visits: "Visits",
-  checklist: "Checklist",
+  checklist: "Materials",
   photos: "Photos",
   documents: "Files",
   compliance: "Compliance",
@@ -1792,7 +1792,7 @@ export function JobSheet({
     <>
           {panel(
             "checklist",
-            <JobChecklistFace
+            <JobMaterialsFace
               loading={loading}
               sm8={detail?.checklist ?? []}
               items={picklist}

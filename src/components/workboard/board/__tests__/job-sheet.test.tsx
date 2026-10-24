@@ -1498,24 +1498,26 @@ describe("the Visits face", () => {
   });
 });
 
-/* ── the Checklist face ── */
+/* ── Materials: ServiceM8's own checklist, read-only ── */
 
-describe("the Checklist face", () => {
-  it("shows the checklist grouped by section, with who ticked what", async () => {
+describe("ServiceM8's checklist on Materials", () => {
+  it("is a box of grey ticks nobody changes, by section, with who ticked what", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<Job row={row()} {...props} />);
     await detailLanded();
-    await openTab("Checklist");
+    await openTab("Materials");
 
-    expect(screen.getByText("From ServiceM8 — 1 of 3 done")).toBeInTheDocument();
-    expect(screen.getByText("Handover")).toBeInTheDocument();
+    const box = await face("checklist").findByRole("region", { name: "From ServiceM8" });
+    expect(within(box).getByText("Handover")).toBeInTheDocument();
+    expect(within(box).queryByRole("checkbox")).not.toBeInTheDocument();
 
-    const done = screen.getByText("Isolate power").closest(".wb2-ckrow")!;
-    expect(done.className).toContain("done");
+    const done = within(box).getByText("Isolate power").closest(".jm-row")!;
+    expect(done).toHaveClass("jm-row--done");
+    expect(within(done as HTMLElement).getByRole("img", { name: "Done" })).toBeInTheDocument();
     expect(within(done as HTMLElement).getByText("Callum Vallis, Thu 13 Aug")).toBeInTheDocument();
 
-    const form = screen.getByText("DAS Service Call").closest(".wb2-ckrow")!;
-    expect(form.className).not.toContain("done");
+    const form = within(box).getByText("DAS Service Call").closest(".jm-row")!;
+    expect(form).not.toHaveClass("jm-row--done");
     expect(within(form as HTMLElement).getByText("Form")).toBeInTheDocument();
   });
 
@@ -1523,12 +1525,10 @@ describe("the Checklist face", () => {
     readMirrorJob.mockResolvedValueOnce(card(detail({ checklist: [] })));
     render(<Job row={row()} {...props} />);
     await detailLanded();
-    await openTab("Checklist");
-    expect(
-      screen.getByText("Nothing on the checklist yet — type the first row above.")
-    ).toBeInTheDocument();
-    /* the composer is the point of the face — it is there even when empty */
-    expect(screen.getByLabelText("Add to the list")).toBeInTheDocument();
+    await openTab("Materials");
+    expect(await screen.findByText("No materials on this job yet.")).toBeInTheDocument();
+    /* the composer is the point of the face: it is there even when empty */
+    expect(screen.getByLabelText("Add a material")).toBeInTheDocument();
   });
 });
 
@@ -3578,7 +3578,7 @@ describe("the ledger obeys the money grant", () => {
 
 /* ── OUR checklist — writable, two sections, stamped ticks ── */
 
-describe("the job's own checklist", () => {
+describe("the job's materials", () => {
   beforeEach(() => {
     readMirrorJob.mockResolvedValue(card(detail()));
   });
@@ -3597,51 +3597,66 @@ describe("the job's own checklist", () => {
     addedAt: "2026-08-16T00:00:00.000Z",
     ...over,
   });
+  const shelf = (name: string) => face("checklist").getByRole("region", { name });
 
-  it("draws the two fixed sections, materials under their own head", async () => {
+  it("puts each row on the price book's shelf, in the book's order, a box each", async () => {
     listJobPicklist.mockResolvedValue([
+      item({ id: "p2", name: "Isolator 20A", sub: "WPS120, Rexel", qty: "1", designId: null }),
       item(),
-      item({ id: "p2", name: "Pressure test new lineset", kind: "todo", qty: "", designId: null, addedBy: "Jake Thompson" }),
+      item({ id: "p3", name: "Thing nobody can place", sub: "", qty: "", designId: null }),
     ]);
     render(<Job row={row()} {...props} />);
     await detailLanded();
-    await openTab("Checklist");
+    await openTab("Materials");
 
-    const ck = face("checklist");
-    expect(await ck.findByText("Materials")).toBeInTheDocument();
-    /* "To do" is also the composer's seg button — ask for the section head */
-    expect(ck.getByText("To do", { selector: ".wb2-sect" })).toBeInTheDocument();
-    const materials = ck.getByText("Materials", { selector: ".wb2-sect" }).closest(".wb2-jcsec")!;
-    expect(within(materials as HTMLElement).getByText("MSZ-AP25VGD")).toBeInTheDocument();
-    const todos = ck.getByText("To do", { selector: ".wb2-sect" }).closest(".wb2-jcsec")!;
-    expect(within(todos as HTMLElement).getByText("Pressure test new lineset")).toBeInTheDocument();
-    /* the head counts BOTH lists — ours (2 open) and ServiceM8's (2 open, 1 done) */
-    expect(ck.getByText("4 open, 1 done")).toBeInTheDocument();
+    expect(await face("checklist").findByText("Thing nobody can place")).toBeInTheDocument();
+    expect(face("checklist").getByRole("heading", { name: "Materials", level: 3 })).toBeInTheDocument();
+    /* no count line under the title, and no To do anywhere */
+    expect(face("checklist").queryByText(/open, .* done/)).not.toBeInTheDocument();
+    expect(face("checklist").queryByText("To do")).not.toBeInTheDocument();
+    expect(face("checklist").getAllByRole("heading", { level: 4 }).map((h) => h.textContent)).toEqual([
+      "Units",
+      "Electrical",
+      "Miscellaneous",
+      "From ServiceM8",
+    ]);
+    expect(within(shelf("Units")).getByText("MSZ-AP25VGD")).toBeInTheDocument();
+    expect(within(shelf("Electrical")).getByText("Isolator 20A")).toBeInTheDocument();
+    expect(within(shelf("Miscellaneous")).getByText("Thing nobody can place")).toBeInTheDocument();
   });
 
-  it("a ticked row STAYS, stamped who and when to the minute", async () => {
+  it("draws a row on one line: the name, its line beside it, the quantity on the right", async () => {
+    listJobPicklist.mockResolvedValue([item()]);
+    render(<Job row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Materials");
+
+    const rowEl = (await face("checklist").findByText("MSZ-AP25VGD")).closest(".jm-row") as HTMLElement;
+    expect(within(rowEl).getByText("wall mounted indoor")).toHaveClass("jm-sub");
+    expect(rowEl.lastElementChild).toHaveClass("jm-qty");
+    expect(rowEl.lastElementChild).toHaveTextContent("3");
+  });
+
+  it("a ticked row STAYS, greyed and stamped who and when", async () => {
     listJobPicklist.mockResolvedValue([
       item({
         id: "p3",
         name: "Isolate old unit",
-        kind: "todo",
         qty: "",
         designId: null,
         picked: true,
-        /* 01:52Z = 11:52am in Sydney winter */
+        /* a day gone by says the day */
         pickedAt: "2026-08-14T01:52:00.000Z",
         pickedBy: "Jake Thompson",
       }),
     ]);
     render(<Job row={row()} {...props} />);
     await detailLanded();
-    await openTab("Checklist");
+    await openTab("Materials");
 
-    const rowEl = (await screen.findByText("Isolate old unit")).closest(".wb2-pkrow")!;
-    expect(rowEl.className).toContain("done");
-    expect(
-      within(rowEl as HTMLElement).getByText("Jake Thompson, 11:52am Fri 14 Aug")
-    ).toBeInTheDocument();
+    const rowEl = (await screen.findByText("Isolate old unit")).closest(".jm-row")!;
+    expect(rowEl).toHaveClass("jm-row--done");
+    expect(within(rowEl as HTMLElement).getByText("Jake Thompson, Fri 14 Aug")).toBeInTheDocument();
   });
 
   it("ticking saves, and shows immediately rather than waiting on the server", async () => {
@@ -3650,39 +3665,31 @@ describe("the job's own checklist", () => {
     listJobPicklist.mockResolvedValue([item()]);
     render(<Job row={row()} {...props} />);
     await detailLanded();
-    await openTab("Checklist");
+    await openTab("Materials");
 
-    const box = await screen.findByLabelText("Done: MSZ-AP25VGD");
+    const box = await screen.findByLabelText("Loaded: MSZ-AP25VGD");
     await user.click(box);
     expect(setPicklistItemPicked).toHaveBeenCalledWith("p1", true);
     expect(box).toBeChecked();
   });
 
-  it("names who ticked it the moment it is ticked, not on the next open", async () => {
+  it("names who ticked it the moment it is ticked, to the minute on the day", async () => {
     /* WALK-FOUND: the optimistic flip cannot know the display name behind
        its own auth id, so the stamp read "9:11pm" with nobody's name until
-       the card was reopened — the half that matters, missing exactly when
-       the person acts. The action returns the saved row now. */
+       the card was reopened. The action returns the saved row now. */
     const user = userEvent.setup();
-    listJobPicklist.mockResolvedValue([item({ id: "p1", kind: "todo", qty: "" })]);
+    listJobPicklist.mockResolvedValue([item({ id: "p1" })]);
     setPicklistItemPicked.mockResolvedValue(
-      item({
-        id: "p1",
-        kind: "todo",
-        qty: "",
-        picked: true,
-        pickedAt: "2026-08-28T11:11:00.000Z",
-        pickedBy: "Isaac Smith",
-      })
+      item({ id: "p1", picked: true, pickedAt: new Date().toISOString(), pickedBy: "Isaac Smith" })
     );
     render(<Job row={row()} {...props} />);
     await detailLanded();
-    await openTab("Checklist");
+    await openTab("Materials");
 
-    await user.click(await screen.findByLabelText("Done: MSZ-AP25VGD"));
-    const row_ = (await screen.findByText("MSZ-AP25VGD")).closest(".wb2-pkrow")!;
+    await user.click(await screen.findByLabelText("Loaded: MSZ-AP25VGD"));
+    const row_ = (await screen.findByText("MSZ-AP25VGD")).closest(".jm-row")!;
     await waitFor(() =>
-      expect(within(row_ as HTMLElement).getByText(/Isaac Smith, /)).toBeInTheDocument()
+      expect(within(row_ as HTMLElement).getByText(/^Isaac Smith, \d{1,2}:\d{2}(am|pm)$/)).toBeInTheDocument()
     );
   });
 
@@ -3693,9 +3700,9 @@ describe("the job's own checklist", () => {
     listJobPicklist.mockResolvedValue([item()]);
     render(<Job row={row()} {...props} onToast={onToast} />);
     await detailLanded();
-    await openTab("Checklist");
+    await openTab("Materials");
 
-    const box = await screen.findByLabelText("Done: MSZ-AP25VGD");
+    const box = await screen.findByLabelText("Loaded: MSZ-AP25VGD");
     await user.click(box);
     await waitFor(() => expect(box).not.toBeChecked());
     expect(onToast).toHaveBeenCalledWith("Could not save that tick");
@@ -3710,52 +3717,33 @@ describe("the job's own checklist", () => {
     listJobPicklist.mockResolvedValue([item()]);
     render(<Job row={row()} {...props} onToast={onToast} />);
     await detailLanded();
-    await openTab("Checklist");
+    await openTab("Materials");
 
-    const box = await screen.findByLabelText("Done: MSZ-AP25VGD");
+    const box = await screen.findByLabelText("Loaded: MSZ-AP25VGD");
     await user.click(box);
     await waitFor(() => expect(box).not.toBeChecked());
     expect(onToast).toHaveBeenCalledWith(STALE_DEPLOY_WORDS);
     expect(onToast).not.toHaveBeenCalledWith("Could not save that tick");
   });
 
-  it("types a row onto the list and swaps in the saved one", async () => {
+  it("types a material onto the list, with its quantity, and swaps in the saved one", async () => {
     const user = userEvent.setup();
     listJobPicklist.mockResolvedValue([]);
     addJobPicklistItem.mockResolvedValue(
-      item({ id: "srv-1", name: "Order PAR-40 controller", kind: "todo", qty: "", designId: null, addedBy: "Isaac Smith" })
+      item({ id: "srv-1", name: "Linear bar grille", qty: "2", designId: null, addedBy: "Isaac Smith" })
     );
     render(<Job row={row()} {...props} />);
     await detailLanded();
-    await openTab("Checklist");
+    await openTab("Materials");
 
-    await user.type(screen.getByLabelText("Add to the list"), "Order PAR-40 controller");
-    await user.click(face("checklist").getByRole("button", { name: "Add" }));
-
-    /* optimistic first — the row is on the list before the server answers */
-    expect(screen.getByText("Order PAR-40 controller")).toBeInTheDocument();
-    await waitFor(() =>
-      expect(addJobPicklistItem).toHaveBeenCalledWith("j-1", {
-        kind: "todo",
-        name: "Order PAR-40 controller",
-        qty: "",
-        sub: "",
-      })
-    );
-  });
-
-  it("a material row asks for a quantity; a to-do never does", async () => {
-    const user = userEvent.setup();
-    listJobPicklist.mockResolvedValue([]);
-    render(<Job row={row()} {...props} />);
-    await detailLanded();
-    await openTab("Checklist");
-
-    expect(screen.queryByLabelText("Quantity")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Material" }));
-    await user.type(screen.getByLabelText("Add to the list"), "Linear bar grille");
+    /* one kind now: no To do / Material tray */
+    expect(face("checklist").queryByRole("button", { name: "Material" })).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText("Add a material"), "Linear bar grille");
     await user.type(screen.getByLabelText("Quantity"), "2");
     await user.click(face("checklist").getByRole("button", { name: "Add" }));
+
+    /* optimistic first: the row is on the list before the server answers */
+    expect(screen.getByText("Linear bar grille")).toBeInTheDocument();
     await waitFor(() =>
       expect(addJobPicklistItem).toHaveBeenCalledWith("j-1", {
         kind: "material",
@@ -3773,35 +3761,42 @@ describe("the job's own checklist", () => {
     addJobPicklistItem.mockRejectedValue(new Error("offline"));
     render(<Job row={row()} {...props} onToast={onToast} />);
     await detailLanded();
-    await openTab("Checklist");
+    await openTab("Materials");
 
-    await user.type(screen.getByLabelText("Add to the list"), "Ghost row");
+    await user.type(screen.getByLabelText("Add a material"), "Ghost row");
     await user.click(face("checklist").getByRole("button", { name: "Add" }));
     await waitFor(() => expect(screen.queryByText("Ghost row")).not.toBeInTheDocument());
     expect(onToast).toHaveBeenCalledWith("Could not add that row");
   });
 
-  it("only a manager can remove a line", async () => {
+  it("only a manager can remove a line, with a quiet Remove on the row", async () => {
+    const user = userEvent.setup();
     listJobPicklist.mockResolvedValue([item()]);
     const { unmount } = render(<Job row={row()} {...props} />);
     await detailLanded();
-    await openTab("Checklist");
+    await openTab("Materials");
     expect(await screen.findByText("MSZ-AP25VGD")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Remove MSZ-AP25VGD")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remove MSZ-AP25VGD" })).not.toBeInTheDocument();
     unmount();
 
     render(<Job row={row()} {...props} manage />);
     await detailLanded();
-    await openTab("Checklist");
-    expect(await screen.findByLabelText("Remove MSZ-AP25VGD")).toBeInTheDocument();
+    await openTab("Materials");
+    const remove = await screen.findByRole("button", { name: "Remove MSZ-AP25VGD" });
+    expect(remove).toHaveTextContent("Remove");
+    expect(remove).toHaveClass("pt-btn--quiet");
+    await user.click(remove);
+    await waitFor(() => expect(screen.queryByText("MSZ-AP25VGD")).not.toBeInTheDocument());
+    expect(removePicklistItem).toHaveBeenCalledWith("p1");
   });
 
-  it("a checklist that will not load never takes the page down", async () => {
+  it("a list that will not load never takes the page down", async () => {
     listJobPicklist.mockRejectedValue(new Error("offline"));
     render(<Job row={row()} {...props} />);
     await detailLanded();
-    await openTab("Checklist");
-    expect(screen.queryByText("Materials")).not.toBeInTheDocument();
+    await openTab("Materials");
+    expect(await face("checklist").findByRole("region", { name: "From ServiceM8" })).toBeInTheDocument();
+    expect(face("checklist").queryByRole("region", { name: "Units" })).not.toBeInTheDocument();
   });
 });
 

@@ -4592,9 +4592,6 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    inset ring keeps a pale swatch visible on the pale chip. */
 .wb2-catdot { display:inline-block; width:7px; height:7px; border-radius:50%; flex:none;
   box-shadow:inset 0 0 0 1px rgba(5,5,5,.14);; }
-/* the job's mirrored checklist — state on the dot, done rows fade */
-.wb2-ckgroup { display:flex; flex-direction:column; margin-top:4px; }
-.wb2-cksec { display:block; margin:8px 0 4px; color:var(--gray400); }
 /* a note somebody wrote on the job — the body reads first, the byline after */
 .wb2-jnote { padding:8px 0; border-top:1px solid var(--wb2-line2); }
 .wb2-jnote:first-of-type { border-top:0; padding-top:2px; }
@@ -5515,10 +5512,6 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
 .wb2-jcface .wb2-mline > b { font-size:14px; }
 .wb2-jcface .wb2-mline > em { font-size:12px; }
 .wb2-jcface .wb2-mline > span { font-size:14px; }
-.wb2-jcface .wb2-ckname, .wb2-jcface .wb2-pkname { font-size:14px; }
-.wb2-jcface .wb2-ckrow > em { font-size:12px; }
-.wb2-jcface .wb2-pksub { font-size:12px; }
-.wb2-jcface .wb2-pkqty { font-size:13px; }
 .wb2-jcface .wb2-shtext { font-size:14px; }
 .wb2-jcface .wb2-cwho em, .wb2-jcface .wb2-nextv em, .wb2-jcface .wb2-facts em { font-size:12px; }
 /* a visit is date · crew · hours, and the crew reads beside the day it
@@ -5943,56 +5936,12 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
    you filter by; they are what the search reads. */
 
 .wb2-shsect > .wb2-shtext > .wb2-chip { margin-left:8px; vertical-align:middle; }
-.wb2-ckrow { display:flex; align-items:center; gap:8px; padding:8px 2px; min-width:0;
-  border-top:1px solid var(--wb2-line2); }
-.wb2-ckdot { width:9px; height:9px; border-radius:50%; border:2px solid rgba(5,5,5,.18);
-  background:var(--paper); flex:none; }
-.wb2-ckrow.done .wb2-ckdot { background:var(--wb2-ok); border-color:var(--wb2-ok); }
-.wb2-ckname { font-size:13px; font-weight:600; min-width:0; overflow-wrap:anywhere; }
-.wb2-ckrow.done .wb2-ckname { color:var(--gray500); }
-.wb2-ckrow > .wb2-chip { flex:none; }
-.wb2-ckrow > em { margin-left:auto; flex:none; font-style:normal; font-size:12px; font-weight:600;
-  color:var(--gray500); }
-/* OUR material picklist — pushed from a Studio design. Reads as a sibling of
-   the checklist above it, but its dot is a real checkbox: theirs is a mirror
-   of ServiceM8 and read-only, ours is the one that can actually be ticked. */
-.wb2-pkrow { display:flex; align-items:center; gap:8px; padding:8px 2px; min-width:0;
-  border-top:1px solid var(--wb2-line2); }
-.wb2-pkbox { display:flex; align-items:center; flex:none; }
-/* the `.fg input` reset is (0,1,1) and eats a lone class — two classes here */
-.wb2-pkrow .wb2-pkbox input { width:15px; height:15px; accent-color:var(--wb2-ok);
-  cursor:pointer; margin:0; }
-.wb2-pkrow .wb2-pkbox input:focus-visible { outline:none; box-shadow:var(--ring);; }
-.wb2-pkname { font-size:13px; font-weight:600; min-width:0; overflow-wrap:anywhere;
-  flex:1 1 140px; }
-.wb2-pkrow.done .wb2-pkname { color:var(--gray500); text-decoration:line-through; }
-.wb2-pksub { font-style:normal; font-size:12px; font-weight:500; color:var(--gray500);
-  min-width:0; overflow:hidden; white-space:nowrap; }
-.wb2-pkqty { flex:none; font-size:13px; font-weight:700;
-  font-variant-numeric:tabular-nums; }
-/* ONE right-side cluster with ONE auto margin — qty, tick stamp and the
-   delete share it, because two `margin-left:auto` on a flex line split the
-   slack (the #553 lesson). */
-.wb2-pkend { margin-left:auto; flex:none; display:flex; align-items:center; gap:8px; }
-.wb2-pkstamp { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500);
-  white-space:nowrap; }
-/* the composer at the face's head — a real form, outside .fg, so the inputs
-   and buttons dress themselves */
-.wb2-ckadd { display:flex; gap:8px; align-items:center; margin:8px 0 2px; flex-wrap:wrap; }
-.wb2-ckadd .wb2-fi { flex:1 1 200px; }
-.wb2-ckadd .wb2-fi.qty { flex:0 1 88px; }
 .wb2-ckseg { display:inline-flex; flex:none; background:var(--tint-2); border-radius:var(--r-button);
   padding:4px; gap:2px; }
 .wb2-ckseg button { padding:4px 12px; border-radius:var(--r-button); font-size:12px; font-weight:700;
   color:var(--gray500); border:0; background:transparent; cursor:pointer; font-family:inherit; }
 .wb2-ckseg button.on { background:var(--paper); color:var(--ink); font-weight:700; }
 .wb2-ckseg button:focus-visible { outline:none; box-shadow:var(--ring);; }
-.wb2-pkrow.done .wb2-pkqty { color:var(--gray500); }
-.wb2-pkdel { flex:none; opacity:0; color:var(--gray500); padding:2px; border-radius:var(--r-control);
-  transition:opacity var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-pkrow:hover .wb2-pkdel, .wb2-pkdel:focus-visible { opacity:1; }
-.wb2-pkdel:hover { color:var(--wb2-dan-t); }
-.wb2-pkdel:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* Studio designs started FROM this job — the other end of the document's
    jobLink. A row that OPENS the design (`?design=<id>`), so it is an <a> and
    has to un-do the browser's link dress; unscoped like everything else on
@@ -9156,6 +9105,58 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
   .fg .jp-top { flex-direction:column; }
   .fg .jp-acts { flex-wrap:wrap; }
 }
+
+/* ===== V2: A JOB'S MATERIALS (was its Checklist; Isaac, 25 October 2026;
+   components/workboard/board/job-materials-face.tsx) =====
+   The title, one composer line (the material, its quantity, the microphone,
+   Add), then the price book's shelves, each a box of its own (a 1px edge,
+   the 16 corner), flowing down three columns with no gaps. A shelf's icon
+   is drawn in its hue's word value on the icon itself, nothing behind it
+   (his ruling, docs/design.md "His rulings"). A row is one line: the tick,
+   the name in bold and its line in grey beside it, faded where it runs out,
+   then who ticked it and when, a quiet Remove where you point, and the
+   quantity on the right. */
+.fg .jm { display:flex; flex-direction:column; gap:16px; }
+.fg .jm-title { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .jm-add { display:flex; align-items:center; gap:8px; }
+.fg .jm-find { flex:1 1 auto; min-width:0; display:flex; }
+.fg .jm-find > .pt-input { flex:1 1 auto; min-width:0; }
+.fg .jm-add .jm-qtyin { flex:none; width:72px; }
+.fg .jm-wait { flex:none; font-size:13px; line-height:18px; color:var(--q); }
+.fg .jm-err { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--red-w); }
+.fg .jm-none { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.fg .jm-shelves { columns:3; column-gap:16px; }
+.fg .jm-box { break-inside:avoid; margin:0 0 16px; padding:12px 16px 4px; border:1px solid var(--edge); border-radius:var(--r-card); }
+.fg .jm-head { display:flex; align-items:center; gap:8px; margin:0 0 4px; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .jm-ic { display:inline-flex; flex:none; color:var(--q); }
+.fg .jm-ic--orange { color:var(--orange-w); }
+.fg .jm-ic--yellow { color:var(--yellow-w); }
+.fg .jm-ic--green { color:var(--green-w); }
+.fg .jm-ic--purple { color:var(--purple-w); }
+.fg .jm-ic--pink { color:var(--pink-w); }
+.jm-rows { margin:0; padding:0; list-style:none; }
+.jm-rows > li + li { border-top:1px solid var(--line); }
+.jm-row { position:relative; display:flex; align-items:center; gap:8px; min-width:0; min-height:32px; font-size:14px; line-height:20px; }
+.jm-row .jm-tick { flex:1 1 auto; min-width:0; }
+.jm-row .jm-tick .pt-tick__word { min-width:0; flex:1 1 auto; }
+.jm-text { display:block; }
+.jm-name { font-weight:600; color:var(--ink); }
+.jm-sub { margin-left:8px; font-size:13px; color:var(--q); }
+.jm-row--done .jm-name { color:var(--q); }
+.jm-stamp { flex:none; font-size:13px; line-height:18px; color:var(--q); white-space:nowrap; }
+.jm-qty { flex:none; min-width:44px; text-align:right; font-weight:500; color:var(--ink); font-variant-numeric:tabular-nums; }
+/* Remove takes no room until you point at the row or reach it with Tab */
+.jm-row .pt-btn.jm-remove { flex:none; width:0; min-width:0; padding:0; overflow:hidden; opacity:0; }
+.jm-row:hover .pt-btn.jm-remove, .jm-row:focus-within .pt-btn.jm-remove { width:auto; padding:0 8px; opacity:1; }
+/* ServiceM8's own ticks: grey, nobody changes them here */
+.jm-ro { display:inline-flex; flex:none; width:16px; height:16px; box-sizing:border-box; border:1.5px solid var(--edge); border-radius:var(--r-control); color:var(--white); }
+.jm-ro.jm-ro--on { background:var(--grey); border-color:var(--grey); }
+.jm-row > .jm-text { flex:1 1 auto; min-width:0; margin-left:2px; }
+.fg .jm-rows > .jm-part { padding:8px 0 4px; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+/* the price book under the field, as wide as the field */
+.pt-menu.jm-book { max-width:none; }
+@media (max-width:1100px) { .fg .jm-shelves { columns:2; } }
+@media (max-width:700px) { .fg .jm-shelves { columns:1; } }
 
 /* ===== V2: A JOB'S OVERVIEW IS ITS CONVERSATION (v2, step 6, slice A; the
    board JC-1; components/jobs/job-overview.tsx, job-conversation.tsx and

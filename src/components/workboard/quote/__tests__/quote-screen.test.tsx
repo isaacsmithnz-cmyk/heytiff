@@ -108,7 +108,7 @@ it("heads the page with the job's name, one grey line and the job's section tabs
   /* the job's colour, snapped to the eight, beside its line */
   expect(container.querySelector(".qp-line .pt-dot--blue")).not.toBeNull();
   const tabs = screen.getByRole("tablist", { name: "The job" });
-  expect(within(tabs).getAllByRole("tab").map((t) => t.querySelector(".pt-stab-word")!.textContent)).toEqual(["Overview", "Quote", "Visits", "Checklist", "Photos", "Documents", "Billing"]);
+  expect(within(tabs).getAllByRole("tab").map((t) => t.querySelector(".pt-stab-word")!.textContent)).toEqual(["Overview", "Quote", "Visits", "Materials", "Photos", "Documents", "Billing"]);
   expect(within(tabs).getByRole("tab", { name: "Quote" })).toHaveAttribute("aria-selected", "true");
   expect(await screen.findByText("Lines, $64,790 inc GST")).toBeInTheDocument();
   /* the price is read for the quote's lines, and handed to them */
@@ -151,7 +151,7 @@ it("leaves Billing out of the job's tabs for someone without the money", async (
   render(<QuoteScreen job={JOB} detail={detail} moneyVisible={false} financials={false} />);
   await screen.findByText("Lines, no value");
   const tabs = screen.getByRole("tablist", { name: "The job" });
-  expect(within(tabs).getAllByRole("tab").map((t) => t.querySelector(".pt-stab-word")!.textContent)).toEqual(["Overview", "Quote", "Visits", "Checklist", "Photos", "Documents"]);
+  expect(within(tabs).getAllByRole("tab").map((t) => t.querySelector(".pt-stab-word")!.textContent)).toEqual(["Overview", "Quote", "Visits", "Materials", "Photos", "Documents"]);
 });
 
 it("reads no price and no family value for someone without the money grants", async () => {

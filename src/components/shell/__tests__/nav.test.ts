@@ -118,7 +118,7 @@ describe("screenLabelFor — the screen Tiff is told the person is on", () => {
   });
 
   it("names a page a place has taken in by that place", () => {
-    expect(screenLabelFor("/dashboard/workboard/projects/p-1")).toBe("Jobs");
+    expect(screenLabelFor("/dashboard/jobs/projects/p-1")).toBe("Jobs");
     expect(screenLabelFor("/dashboard/toolbox/heat-load")).toBe("Library");
   });
 

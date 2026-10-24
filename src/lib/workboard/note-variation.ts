@@ -26,6 +26,7 @@
 
 /** At most this many variations come off one note: one client's change is
     one variation, however many parts it touches. */
+import { quoteHref } from "@/lib/shell/links";
 export const VARIATIONS_MAX = 1;
 
 /** The most of what's changing a variation keeps (lines-job's own). */
@@ -122,8 +123,7 @@ export const variationTitle = (v: Pick<VariationMade, "n" | "what">): string =>
   `Started variation ${v.n ?? 1}${v.what.trim() ? `: ${v.what.trim()}` : ""}`;
 
 /** The quote page, open on the variation. */
-export const variationHref = (jobUuid: string, option: number): string =>
-  `/dashboard/workboard/quotes/${encodeURIComponent(jobUuid)}?option=${option}`;
+export const variationHref = (jobUuid: string, option: number): string => quoteHref(jobUuid, { option });
 
 /** The task a variation became: "Add to the quote: return grille in Bed 2"
     when nothing is accepted, "Start variation: …" without money access. */

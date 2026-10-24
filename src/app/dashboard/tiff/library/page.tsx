@@ -45,8 +45,12 @@ export default async function LibraryPage({
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 } = {}) {
   /* the Library row shows for the field tools too: someone with those and
-     not Tiff's documents gets the tools themselves */
-  if (!(await can("tiff"))) redirect((await can("toolbox")) ? "/dashboard/toolbox" : "/dashboard");
+     not Tiff's documents gets the Toolbox shelf alone (24 October 2026, in
+     place of the old Toolbox screen) */
+  if (!(await can("tiff"))) {
+    if (!(await can("toolbox"))) redirect("/dashboard");
+    return <Library docs={[]} documents={false} initialView="toolbox" toolbox={{ today: todayInAu() }} />;
+  }
 
   const session = await auth0.getSession();
   const orgId = session?.orgId as string | undefined;

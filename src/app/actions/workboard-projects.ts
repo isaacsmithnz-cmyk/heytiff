@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { projectHref } from "@/lib/shell/links";
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
@@ -57,7 +58,7 @@ async function context(): Promise<Ctx | null> {
 
 function refresh(projectId?: string) {
   revalidatePath("/dashboard/jobs");
-  if (projectId) revalidatePath(`/dashboard/workboard/projects/${projectId}`);
+  if (projectId) revalidatePath(projectHref(projectId));
 }
 
 const trim = (v: unknown, max: number): string | null => {

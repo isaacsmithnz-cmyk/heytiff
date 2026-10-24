@@ -273,7 +273,7 @@ describe("the job's Add", () => {
     expect(await within(menu).findByRole("menuitem", { name: "Add variation" })).toBeInTheDocument();
     expect(within(menu).queryByRole("menuitem", { name: "Add quote" })).toBeNull();
     await userEvent.click(within(menu).getByRole("menuitem", { name: "Add variation" }));
-    expect(push).toHaveBeenCalledWith(`/dashboard/workboard/quotes/${JOB}`);
+    expect(push).toHaveBeenCalledWith(`/dashboard/jobs/${JOB}/quote`);
   });
 
   it("reads where the quote stands once, from the Quote section's own route", async () => {
@@ -291,7 +291,7 @@ describe("the job's Add", () => {
     const menu = await addMenu();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(`/api/workboard/quote-status?job=${JOB}`));
     await userEvent.click(within(menu).getByRole("menuitem", { name: "Add quote" }));
-    expect(push).toHaveBeenCalledWith(`/dashboard/workboard/quotes/${JOB}?start=1`);
+    expect(push).toHaveBeenCalledWith(`/dashboard/jobs/${JOB}/quote?start=1`);
   });
 
   it("opens the Quote section when where the quote stands couldn't be read", async () => {

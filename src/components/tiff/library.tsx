@@ -340,6 +340,7 @@ export function Library({
   initialDocId = null,
   large = null,
   toolbox = null,
+  documents = true,
   voice = false,
 }: {
   docs: KbLibraryDoc[];
@@ -368,6 +369,11 @@ export function Library({
   /** The Toolbox shelf, for a viewer who holds `toolbox`: the yard's date
       ages the tools' New out. Null: no shelf. */
   toolbox?: { today: string } | null;
+  /** The company's documents and Tiff's box over them. False for someone
+      who holds the field tools and not the Library (`toolbox` without
+      `tiff`): theirs is the Toolbox shelf alone (24 October 2026, in place
+      of the old Toolbox screen). */
+  documents?: boolean;
   /** The microphone in the box, where this deployment can hear. */
   voice?: boolean;
 }) {
@@ -501,7 +507,7 @@ export function Library({
 
   /* the shelves, and the one open: none is the landing */
   const categories: { key: Exclude<LibraryView, "all">; label: string; blurb: string }[] = [
-    ...KB_CATEGORIES.map((c) => ({ key: c.key, label: c.label, blurb: c.blurb })),
+    ...(documents ? KB_CATEGORIES.map((c) => ({ key: c.key, label: c.label, blurb: c.blurb })) : []),
     ...(toolbox ? [TOOLBOX_CATEGORY] : []),
   ];
   const opened = view === "all" ? null : (categories.find((x) => x.key === view) ?? null);
@@ -578,10 +584,12 @@ export function Library({
 
         {opened === null && (
           <>
-            <div className="hm-ask lb2-ask">
-              <TiffGlyph size={96} alive label="Tiff" />
-              <LibraryBox voice={voice} />
-            </div>
+            {documents && (
+              <div className="hm-ask lb2-ask">
+                <TiffGlyph size={96} alive label="Tiff" />
+                <LibraryBox voice={voice} />
+              </div>
+            )}
             {zero && !toolbox ? null : (
             <nav className="lb2-cats" aria-label="Categories">
               {categories.map((sh) => (

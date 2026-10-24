@@ -79,7 +79,7 @@ describe("a link that names a job", () => {
     ["the Workboard on its own", "/dashboard/workboard"],
     ["a job and a search", "/dashboard/workboard?job=j-1&q=pump"],
     ["a job on a side", "/dashboard/workboard?job=j-1&side=jobs"],
-    ["a job's quote screen", "/dashboard/workboard/quotes/j-1"],
+    ["a job's quote screen", "/dashboard/jobs/j-1/quote"],
     ["an id the host would refuse", "/dashboard/workboard?job=a%2Fb"],
   ])("is not a record when it is %s", (_, href) => {
     expect(recordOfHref(href)).toBeNull();

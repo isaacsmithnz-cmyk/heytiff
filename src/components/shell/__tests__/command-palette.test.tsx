@@ -347,7 +347,7 @@ describe("the palette finds clients and projects", () => {
     await settle();
 
     fireEvent.click(screen.getByRole("option", { name: /^Kingsford fitout/ }));
-    expect(push).toHaveBeenCalledWith("/dashboard/workboard/projects/p-9");
+    expect(push).toHaveBeenCalledWith("/dashboard/jobs/projects/p-9");
   });
 
   it("says a stopped project's state, and a running one's stage", async () => {

@@ -74,7 +74,7 @@ describe("the sidebar's places (rules 5 and 7)", () => {
     expect(placeOn(jobs, "/dashboard/jobs")).toBe(true);
     expect(placeOn(jobs, "/dashboard/jobs/a3539c01")).toBe(true);
     expect(placeOn(jobs, "/dashboard/workboard")).toBe(true);
-    expect(placeOn(jobs, "/dashboard/workboard/projects/p1")).toBe(true);
+    expect(placeOn(jobs, "/dashboard/jobs/projects/p1")).toBe(true);
     expect(placeOn(jobs, "/dashboard/jobsite")).toBe(false);
     expect(STILL_TO_MOVE).toEqual([]);
   });

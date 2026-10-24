@@ -104,8 +104,11 @@ import TiffPage from "../tiff/page";
 import LibraryPage from "../tiff/library/page";
 import WorkboardPage from "../workboard/page";
 import WorkboardProjectsPage from "../workboard/projects/page";
-import WorkboardProjectPage from "../workboard/projects/[id]/page";
-import WorkboardQuotePage from "../workboard/quotes/[id]/page";
+import ProjectPage from "../jobs/projects/[id]/page";
+import JobQuotePage from "../jobs/[id]/quote/page";
+import OldProjectPage from "../workboard/projects/[id]/page";
+import OldQuotePage from "../workboard/quotes/[id]/page";
+import ToolboxPage from "../toolbox/page";
 
 const LEAVES: [string, () => Promise<unknown>, string][] = [
   ["toolbox/heat-load", HeatLoadPage, "toolbox"],
@@ -140,8 +143,8 @@ describe("held → the page renders", () => {
 describe("the dynamic leaves check the same door", () => {
   type Leaf = { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
   const DYNAMIC: [string, (p: Leaf) => Promise<unknown>][] = [
-    ["workboard/projects/[id]", WorkboardProjectPage],
-    ["workboard/quotes/[id]", WorkboardQuotePage],
+    ["jobs/projects/[id]", ProjectPage],
+    ["jobs/[id]/quote", JobQuotePage],
   ];
   const props = { params: Promise.resolve({ id: "x-1" }), searchParams: Promise.resolve({}) };
 
@@ -239,20 +242,20 @@ describe("the knowledge base hands the client what this viewer may do", () => {
 describe("the quote page", () => {
   it("lets a tech in without Workboard manage, without the money", async () => {
     (can as jest.Mock).mockImplementation(async (cap: string) => cap === "workboard");
-    const page = (await WorkboardQuotePage({ params: Promise.resolve({ id: "x-1" }), searchParams: Promise.resolve({}) })) as { props: { moneyVisible: boolean; financials: boolean; start: boolean } };
+    const page = (await JobQuotePage({ params: Promise.resolve({ id: "x-1" }), searchParams: Promise.resolve({}) })) as { props: { moneyVisible: boolean; financials: boolean; start: boolean } };
     expect(page.props).toMatchObject({ moneyVisible: false, financials: false, start: false });
   });
 
   /* the job card's Create a quote links ?start=1 (the chat-first page, 2026-10-13) */
   it("starts at the reply box from the job card's Create a quote", async () => {
     (can as jest.Mock).mockImplementation(async () => true);
-    const page = (await WorkboardQuotePage({ params: Promise.resolve({ id: "x-1" }), searchParams: Promise.resolve({ start: "1" }) })) as { props: { start: boolean } };
+    const page = (await JobQuotePage({ params: Promise.resolve({ id: "x-1" }), searchParams: Promise.resolve({ start: "1" }) })) as { props: { start: boolean } };
     expect(page.props.start).toBe(true);
   });
 
   it("sends someone without the Workboard away", async () => {
     (can as jest.Mock).mockImplementation(async () => false);
-    await expect(WorkboardQuotePage({ params: Promise.resolve({ id: "x-1" }), searchParams: Promise.resolve({}) })).rejects.toThrow("REDIRECT:/dashboard");
+    await expect(JobQuotePage({ params: Promise.resolve({ id: "x-1" }), searchParams: Promise.resolve({}) })).rejects.toThrow("REDIRECT:/dashboard");
   });
 });
 
@@ -266,6 +269,20 @@ describe("retired → the v2 home", () => {
   it.each<[string, () => unknown, string]>([
     ["tiff", TiffPage, "/dashboard/conversations"],
     ["workboard/projects", WorkboardProjectsPage, "/dashboard/jobs?view=projects"],
+    /* a project's page and a job's quote are under Jobs (24 October 2026) */
+    ["workboard/projects/[id]", () => OldProjectPage({ params: Promise.resolve({ id: "p-1" }) }), "/dashboard/jobs/projects/p-1"],
+    [
+      "workboard/quotes/[id]?start=1",
+      () => OldQuotePage({ params: Promise.resolve({ id: "j-1" }), searchParams: Promise.resolve({ start: "1" }) }),
+      "/dashboard/jobs/j-1/quote?start=1",
+    ],
+    [
+      "workboard/quotes/[id]?option=2",
+      () => OldQuotePage({ params: Promise.resolve({ id: "j-1" }), searchParams: Promise.resolve({ option: "2" }) }),
+      "/dashboard/jobs/j-1/quote?option=2",
+    ],
+    /* the field tools are the Library's Toolbox shelf */
+    ["toolbox", ToolboxPage, "/dashboard/tiff/library?view=toolbox"],
     ["workboard", board({}), "/dashboard/jobs"],
     ["workboard?job=", board({ job: "j-1" }), "/dashboard/jobs/j-1"],
     ["workboard?job=&face=quote", board({ job: "j-1", face: "quote" }), "/dashboard/jobs/j-1?tab=quote"],

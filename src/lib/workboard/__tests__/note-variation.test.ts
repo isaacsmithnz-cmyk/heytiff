@@ -139,11 +139,11 @@ describe("what it became", () => {
         how: "started",
         title: "Started variation 1: return grille in Bed 2",
         line: "A draft to change and price on the quote.",
-        href: `/dashboard/workboard/quotes/${JOB}?option=1`,
+        href: `/dashboard/jobs/${JOB}/quote?option=1`,
         undo: true,
       },
     ]);
-    expect(variationHref(JOB, 3)).toBe(`/dashboard/workboard/quotes/${JOB}?option=3`);
+    expect(variationHref(JOB, 3)).toBe(`/dashboard/jobs/${JOB}/quote?option=3`);
     /* one taken back has no card */
     expect(variationCards([started({ undone: true })])).toEqual([]);
   });
@@ -151,7 +151,7 @@ describe("what it became", () => {
   it("lays its card over its row once filed, the row's Open on the quote", () => {
     const p = shapeProposal(raw([{ what: "return grille in Bed 2" }], { tasks: [] }), ctx);
     const rows = withVariationCards(planView(p, [], false), variationCards([started()]));
-    expect(rows[0]).toMatchObject({ text: "Started variation 1: return grille in Bed 2", open: `/dashboard/workboard/quotes/${JOB}?option=1` });
+    expect(rows[0]).toMatchObject({ text: "Started variation 1: return grille in Bed 2", open: `/dashboard/jobs/${JOB}/quote?option=1` });
     expect(withVariationCards(planView(p, [], false), undefined)[0]!.open).toBeUndefined();
   });
 

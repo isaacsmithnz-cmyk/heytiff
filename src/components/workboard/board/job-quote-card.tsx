@@ -1,5 +1,6 @@
 "use client";
 
+import { quoteHref } from "@/lib/shell/links";
 import { useEffect, useState, type ReactNode } from "react";
 import { Icon } from "@/components/shell/icon";
 import { Button } from "@/components/parts/button";
@@ -61,7 +62,7 @@ export type Sm8Quote = {
 
 const WHEN: LandingWhen = { day: fmtAuWeekdayDayMonth, time: (at) => fmtAuTime(new Date(at)) };
 
-const quotePage = (job: string, start = false) => `/dashboard/workboard/quotes/${encodeURIComponent(job)}${start ? "?start=1" : ""}`;
+const quotePage = (job: string, start = false) => quoteHref(job, { start });
 
 function State({ state }: { state: LandingState }) {
   return (

@@ -210,3 +210,47 @@ describe("an empty view", () => {
     expect(screen.getByText("Bringing the jobs across from ServiceM8")).toBeInTheDocument();
   });
 });
+
+/* Isaac, 25 October 2026: Jobs took two seconds, all 971 rows drawn in the
+   page. A view draws a hundred; the search and the views still read every job. */
+describe("a hundred at a time", () => {
+  const many = (n: number) =>
+    dataFor({
+      jobs: Array.from({ length: n }, (_, i) =>
+        job({ remoteId: `wo-${i}`, jobNumber: String(4000 + i), clientName: i === n - 1 ? "Zebulon Last" : `Client ${i}` }),
+      ),
+    });
+
+  it("(F) draws the first hundred, and Show more draws the next until there are none", () => {
+    show(many(250));
+    expect(rowLinks()).toHaveLength(100);
+    expect(screen.getByRole("list")).toHaveAccessibleName(/250 jobs/);
+    fireEvent.click(screen.getByRole("button", { name: "Show more" }));
+    expect(rowLinks()).toHaveLength(200);
+    fireEvent.click(screen.getByRole("button", { name: "Show more" }));
+    expect(rowLinks()).toHaveLength(250);
+    expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
+  });
+
+  it("(F) searches every job, not only the hundred drawn", () => {
+    show(many(250));
+    expect(screen.queryByText("Zebulon Last")).toBeNull();
+    fireEvent.change(screen.getByRole("textbox", { name: "Search jobs, clients and sites" }), { target: { value: "zebulon" } });
+    expect(rowLinks()).toHaveLength(1);
+    expect(screen.getByText("Zebulon Last")).toBeInTheDocument();
+  });
+
+  it("starts again at a hundred when the search changes", () => {
+    show(many(250));
+    fireEvent.click(screen.getByRole("button", { name: "Show more" }));
+    expect(rowLinks()).toHaveLength(200);
+    const box = screen.getByRole("textbox", { name: "Search jobs, clients and sites" });
+    fireEvent.change(box, { target: { value: "client" } });
+    expect(rowLinks()).toHaveLength(100);
+  });
+
+  it("offers no Show more when a view fits", () => {
+    show(dataFor());
+    expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
+  });
+});

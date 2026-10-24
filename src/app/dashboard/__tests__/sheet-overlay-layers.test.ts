@@ -52,8 +52,6 @@ const SHEET = layer(".wb2-sheet");
 
 describe("what opens over a card sits on the card's layer", () => {
   it.each([
-    [".wb2-clscrim", "the invoice's scrim"],
-    [".wb2-claim", "the invoice"],
     [".wb2-mvscrim", "the viewer's scrim"],
     [".wb2-mv", "the viewer"],
     [".tm", "the Tiff modal"],

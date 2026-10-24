@@ -1,87 +1,23 @@
 "use client";
 
-import { StateWord } from "@/components/parts/state";
+import { Button } from "@/components/parts/button";
+import { Row, RowList } from "@/components/parts/row";
+import { Dot, StateWord } from "@/components/parts/state";
+import { Wrong } from "@/components/parts/states";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { collectionFrom, MONEY_BASIS, type JobMoney } from "@/lib/workboard/job-money";
-import {
-  claimTitle,
-  familyInvoicedLine,
-  type FamilyClaim,
-  type FamilyMoney,
-} from "@/lib/workboard/job-family";
+import { familyInvoicedLine, type FamilyMoney } from "@/lib/workboard/job-family";
+import type { BillingView, PaymentRow } from "@/lib/workboard/job-billing";
 
-/* THE MONEY BLOCK — one job's money, read once.
-
-   It replaces a fact tile that could only ever say one sentence, and it is
-   the only place on this card that money is derived: the materials and
-   payments sections below list what ServiceM8 sent, this says what it MEANS.
-   Balance owing used to be computed in two places on this sheet and printed
-   in neither.
-
-   THE BLOCK WEARS INK. It used to take the job type's colour as its edge —
-   ServiceM8's category palette, which makes no contrast promise and, it
-   turned out, no taste promise: a yellow ring around the figure looked bad
-   (Isaac, 2026-09-10). The category keeps its dot in the chip up top; this
-   block's edge is the stylesheet's, and no colour reaches it from the data.
+/* ONE JOB'S MONEY. `readMoney` and the Overview's tile (JobMoneyGlance)
+   read it the way they always have; Billing (JobMoneyBlock) draws it ex GST
+   from lib/workboard/job-billing's `readBilling`.
 
    TWO AXES, NEVER ONE SENTENCE, straight out of project-money.ts:
 
      axis 1  what the job is worth, and how much of it has been invoiced
-             — "$25,072 invoiced so far — $6,268 to come"
-     axis 2  per claim, paid or awaiting — the ledger below the bar
-
-   A JOB WITH NO CLONES wears the same block with the ledger folded away: the
-   value, the bar, and one line saying where collection stands. A FAMILY opens
-   the ledger and numbers the claims the way the trade schedules them. */
-
-/** The words a claim's chip wears, and its tone. Inert — every one of them
-    follows ServiceM8, which is what the tooltip says. */
-function chipOf(claim: FamilyClaim): { word: string; tone: string } {
-  switch (claim.state) {
-    case "paid":
-      return { word: "Paid", tone: " ok" };
-    case "part":
-      return { word: "Part paid", tone: " warn" };
-    case "awaiting":
-      return claim.overdueDays !== null
-        ? { word: "Overdue", tone: " dan" }
-        : { word: "Awaiting", tone: " warn" };
-    case "not_invoiced":
-      return { word: "To come", tone: "" };
-    /* Money in, nothing to check it against. Deliberately toneless: green
-       would say settled, amber would say chase it, and neither is known. */
-    case "paid_unknown":
-      return { word: "Part or all paid", tone: "" };
-    default:
-      return { word: "Amount unknown", tone: "" };
-  }
-}
-
-/** The fragments under a claim's name. Each starts with a capital because
-    each is its own statement, not a clause hanging off the one before. */
-function metaOf(claim: FamilyClaim): string {
-  const bits: string[] = [];
-  // an invoice nobody has raised has no number to name
-  if (claim.jobNumber && claim.state !== "not_invoiced") bits.push(`Invoice #${claim.jobNumber}`);
-  if (claim.percent !== null) {
-    // a real claim rounded to nothing reads as nothing at all
-    bits.push(claim.percent === 0 ? "<1% of the job" : `${claim.percent}% of the job`);
-  }
-  if (claim.state === "not_invoiced") {
-    bits.push("Not yet invoiced");
-  } else {
-    if (claim.raisedOn) bits.push(`Raised ${fmtAuWeekdayDayMonth(claim.raisedOn)}`);
-    if ((claim.state === "paid" || claim.state === "paid_unknown") && claim.paidOn) {
-      bits.push(`Paid ${fmtAuWeekdayDayMonth(claim.paidOn)}`);
-    } else if (claim.state === "part") {
-      bits.push(`Paid ${fmtAud(claim.paidCents)} so far`);
-    } else if (claim.dueOn) {
-      bits.push(`Due ${fmtAuWeekdayDayMonth(claim.dueOn)}`);
-    }
-  }
-  return bits.join(", ");
-}
+     axis 2  per claim, paid or awaiting */
 
 /** What today's sheet says when the mirror can't be added up — kept word for
     word, because it is the only honest thing to say about a job ServiceM8
@@ -246,265 +182,151 @@ export function readMoney({
   };
 }
 
-/** Who the invoices go to: the client, and the contact the bills are
-    addressed to when the job names one. */
-export type BillTo = { name: string; contact: { name: string; email: string | null } | null };
-
-/** A claim's segment on the terms bar: paid in ink's green, invoiced and
-    waiting in amber, still to bill in the tint — the same three the old bar
-    used, one segment a claim. */
-const segOf = (c: FamilyClaim) =>
-  c.state === "paid" || c.state === "paid_unknown" ? "paid" : c.state === "awaiting" || c.state === "part" ? "awaiting" : "tocome";
-
+/** BILLING (Isaac, 25 October 2026, the job page's frames 9 and 9b). Across
+    the top, one band under a hairline: on the left the bar in three solid
+    parts, green paid, orange invoiced and waiting, grey not invoiced yet,
+    each part's share under it and its figure under that; on the right the
+    job's value in its own box, the one big figure. Then Payments, a row a
+    claim, each opening the claim. Every figure ex GST, and saying so
+    ("Figures need to be clearly excluding GST"); see lib/workboard/job-billing
+    for what is said when a figure isn't known ex GST. */
 export function JobMoneyBlock({
-  family,
-  money,
-  ledgerPaidCents,
-  statusLabel,
+  view,
   unavailable = false,
   focusRemoteId = null,
   onOpenClaim,
-  billTo = null,
   deposit = null,
 }: {
-  family: FamilyMoney | null;
-  money: JobMoney | null;
-  /** This job row's OWN payments, for the case where there is no family to
-      count — a job number the family read couldn't parse, or a record read
-      that came back without one. */
-  ledgerPaidCents: number;
-  statusLabel: string | null;
-  /** The record read was refused or failed. The block says so rather than
-      vanishing — and never falls back to this row's own total, which on a
-      family is the netted figure the whole feature exists to stop showing. */
+  view: BillingView | null;
+  /** The record read was refused or failed: said, never a guessed figure. */
   unavailable?: boolean;
-  /** The claim this card was opened for — marked in the ledger so a reader
-      who searched "2380A" can see which of the three rows they asked for. */
+  /** The claim the page was opened for, from a clone's own number. */
   focusRemoteId?: string | null;
-  /** Opens one claim's own modal; absent leaves the rows inert. */
+  /** Opens one claim; absent leaves the rows inert. */
   onOpenClaim?: (remoteId: string) => void;
-  billTo?: BillTo | null;
   /** The deposit tick (Isaac, 2026-10-03: "if no deposit required make
       that as an option so it can get ticked off"). Absent where there is
       nothing to ask: a deposit invoice exists, or the work has started. */
   deposit?: { noDeposit: boolean; busy: boolean; error: string | null; onSet: (on: boolean) => void } | null;
 }) {
-  const {
-    paidCents,
-    value,
-    basisWord,
-    awaiting,
-    isFamily,
-    overdue,
-    segments,
-    invoicedLine,
-    showAwaitingHead,
-    showPaidHead,
-    fallback,
-    barBasisSafe,
-    showBar,
-    balance,
-  } = readMoney({ family, money, ledgerPaidCents, statusLabel, unavailable });
-  const pct = (n: number) =>
-    value !== null && value > 0 ? `${Math.max(0, Math.min(100, (n / value) * 100)).toFixed(1)}%` : "0%";
-
-  /* the terms, a segment a claim, where the claims are a share of a total */
-  const terms =
-    !unavailable && isFamily && value !== null && value > 0 && barBasisSafe
-      ? family!.claims.filter((c) => c.amountCents !== null && c.amountCents > 0)
-      : null;
+  if (unavailable || !view) {
+    return (
+      <div className="jb">
+        <Wrong word="The figures didn't load" means="ServiceM8's figures didn't load just now. Reload the page to try again." />
+      </div>
+    );
+  }
+  const { value, quoted, segments, figures, rows } = view;
+  const basisWord = (b: "ex" | "inc") => (b === "ex" ? "ex GST" : "inc GST");
+  const allEx = rows.every((r) => r.basis === "ex" || r.cents === null);
+  const showFigures = rows.length > 0 && (figures.paid !== null || figures.waiting !== null || figures.tocome !== null);
+  const cols = segments ?? [
+    { key: "paid" as const, word: "Paid", cents: figures.paid, percent: 1 },
+    { key: "waiting" as const, word: "Invoiced, waiting", cents: figures.waiting, percent: 1 },
+    { key: "tocome" as const, word: "Not invoiced", cents: figures.tocome, percent: 1 },
+  ];
+  const hue = { paid: "green", waiting: "orange", tocome: "grey" } as const;
 
   return (
-    <div className="wb2-shsect wb2-jmoney jcl-bill">
-      {/* THE INVOICE'S HEAD (Isaac, 2026-10-02): who it's billed to on the
-          left, the payment terms across the middle, and the balance due big
-          on the right — where every invoice page puts it. */}
-      <div className="jcl-billhead">
-        {billTo && (
-          <div className="jcl-billto">
-            <span className="wb2-sect">Bill to</span>
-            <b>{billTo.name}</b>
-            {billTo.contact && <em>{billTo.contact.name}</em>}
-            {billTo.contact?.email && <em>{billTo.contact.email}</em>}
-          </div>
-        )}
-
-        <div className="jcl-terms">
-          {terms && terms.length > 1 ? (
-            <>
-              <span className="wb2-sect">Payment terms</span>
-              {/* A ZERO-WIDTH SEGMENT IS NOT DRAWN — it still owns its gap */}
-              <span className="wb2-jmbar" aria-hidden>
-                {terms.map((c) => (
-                  <i key={c.remoteId} className={segOf(c)} style={{ width: pct(c.amountCents!) }} />
-                ))}
-              </span>
-              <span className="jcl-termkey">
-                {terms.map((c) => (
-                  <span key={c.remoteId} style={{ width: pct(c.amountCents!) }}>
-                    {c.percent !== null ? `${c.percent === 0 ? "<1" : c.percent}% ${c.stage.toLowerCase()}` : c.stage}
+    <div className="jb">
+      <div className="jb-band">
+        <div className="jb-split">
+          {showFigures ? (
+            <div
+              className="jb-cols"
+              style={{ gridTemplateColumns: cols.map((c) => `minmax(max-content, ${Math.max(1, c.percent)}fr)`).join(" ") }}
+            >
+              {cols.map((c) => (
+                <div className={`jb-col jb-col--${c.key}`} key={c.key}>
+                  {segments && (
+                    <>
+                      <i className="jb-seg" aria-hidden="true" />
+                      <span className="jb-pct">{`${c.percent}%`}</span>
+                    </>
+                  )}
+                  <span className="jb-lab">
+                    <Dot hue={hue[c.key]} />
+                    {c.word}
                   </span>
-                ))}
-              </span>
-            </>
+                  <b className="jb-fig">{c.cents !== null ? fmtAud(c.cents) : "—"}</b>
+                </div>
+              ))}
+            </div>
           ) : (
-            !unavailable &&
-            showBar && (
-              <>
-                <span className="wb2-jmbar" aria-hidden>
-                  {segments.map((seg) => (
-                    <i key={seg.key} className={seg.key} style={{ width: pct(seg.cents) }} />
-                  ))}
-                </span>
-                <span className="wb2-jmkey">
-                  {segments.map((seg) => (
-                    <span key={seg.key}>
-                      <i className={seg.key} />
-                      {seg.word}
-                    </span>
-                  ))}
-                </span>
-              </>
-            )
+            view.fact && <p className="jb-fact">{view.fact}</p>
           )}
         </div>
 
-        <div className="wb2-jmhead">
-          {balance !== null ? (
-            <>
-              <span className="wb2-sect">Balance due</span>
-              <b className="wb2-jmbig hero">{fmtAud(balance)}</b>
-              <span className="jcl-billval">
-                <span className="wb2-sect">Job value{basisWord}</span>
-                <span>{value !== null ? fmtAud(value) : "—"}</span>
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="wb2-sect">Job value{unavailable ? "" : basisWord}</span>
-              <b className="wb2-jmbig">{!unavailable && value !== null ? fmtAud(value) : "—"}</b>
-            </>
-          )}
-          {/* axis 1, and only axis 1 */}
-          {!unavailable && isFamily && invoicedLine && <em className="wb2-jmsub">{invoicedLine}</em>}
+        <div className="jb-value">
+          <span className="jb-vlab">
+            {quoted ? "Quoted job value" : "Job value"}
+            {value.cents !== null && <span className="jb-basis">{basisWord(value.basis)}</span>}
+          </span>
+          <b className="jb-big">{quoted ? fmtAud(quoted.cents) : value.cents !== null ? fmtAud(value.cents) : "—"}</b>
+          {quoted?.variations.map((v) => (
+            <span className="jb-var" key={v.n}>{`Variation ${v.n}, ${fmtAud(v.cents)}`}</span>
+          ))}
         </div>
       </div>
 
-      {unavailable && (
-        <p className="int-hint">
-          ServiceM8&apos;s figures didn&apos;t load just now. Reload the page to try again.
-        </p>
-      )}
-
-      {/* axis 2 — the head row says where collection stands, in the tinted
-          row where chasing belongs. The value above it stays the identity. */}
-      {!unavailable && showAwaitingHead && awaiting !== null && (
-        <div className="wb2-mline head warn">
-          <b>Awaiting payment</b>
-          <em>
-            {value !== null && value > 0
-              ? `${Math.max(1, Math.round((awaiting / value) * 100))}% of the job`
-              : ""}
-          </em>
-          <span>{fmtAud(awaiting)}</span>
-          {overdue !== null && (
-            <i className="wb2-chip dan">
-              {overdue === 1 ? "1 day overdue" : `${overdue} days overdue`}
-            </i>
+      {(rows.length > 0 || deposit) && (
+        <section className="jb-pay" aria-labelledby="jb-pay-h">
+          <div className="jb-payhead">
+            <h3 id="jb-pay-h">Payments</h3>
+            {allEx && <span className="jb-basis">ex GST</span>}
+          </div>
+          <RowList label="Payments">
+            {/* NO DEPOSIT, said once and ticked here: the progress line's
+                Deposit step is done on the tick, and waits for it otherwise */}
+            {deposit && (
+              <Row
+                name="Deposit"
+                line={deposit.noDeposit ? "Not needed on this job" : "None invoiced"}
+                end={
+                  <Button
+                    size={32}
+                    disabled={deposit.busy}
+                    aria-pressed={deposit.noDeposit}
+                    onClick={() => deposit.onSet(!deposit.noDeposit)}
+                  >
+                    {deposit.noDeposit ? "Undo" : "No deposit needed"}
+                  </Button>
+                }
+              />
+            )}
+            {rows.map((r) => (
+              <PaymentRowItem key={r.claimId ?? r.name} row={r} here={r.claimId === focusRemoteId} onOpen={onOpenClaim} />
+            ))}
+          </RowList>
+          {deposit?.error && (
+            <p className="jb-err">
+              <Dot hue="red" />
+              {deposit.error}
+            </p>
           )}
-        </div>
-      )}
-      {!unavailable && showPaidHead && (
-        <div className="wb2-mline head ok">
-          <b>Paid in full</b>
-          <em />
-          <span>{fmtAud(paidCents)}</span>
-        </div>
-      )}
-
-      {/* NO DEPOSIT, said once and ticked here: the progress line's Deposit
-          step is done on the tick, and waits for it otherwise */}
-      {!unavailable && deposit && (
-        <div className="wb2-mline head">
-          <b>Deposit</b>
-          <em>{deposit.noDeposit ? "Not needed on this job" : "None invoiced"}</em>
-          <span />
-          <button type="button" className="pbtn ghost" disabled={deposit.busy} aria-pressed={deposit.noDeposit} onClick={() => deposit.onSet(!deposit.noDeposit)}>
-            {deposit.noDeposit ? "Undo" : "No deposit needed"}
-          </button>
-        </div>
-      )}
-      {!unavailable && deposit?.error && <p className="wb2-sherr">{deposit.error}</p>}
-
-      {/* A CLAIM ROW IS A DOOR. Each opens that invoice's own modal — its
-          lines, its payment, its writing, its paper — which is where those
-          live now that a clone has stopped being a card of its own. */}
-      {!unavailable && isFamily && (
-        <div className="jcl-claimhead" aria-hidden>
-          <span>Claim</span>
-          <span>Status</span>
-          <span>Amount</span>
-        </div>
-      )}
-      {!unavailable &&
-        isFamily &&
-        family!.claims.map((claim) => {
-          const chip = chipOf(claim);
-          const inner = (
-            <>
-              <b>{claimTitle(claim)}</b>
-              <em>{metaOf(claim)}</em>
-              <span className={claim.state === "not_invoiced" ? "quiet" : undefined}>
-                {claim.amountCents !== null ? fmtAud(claim.amountCents) : "—"}
-              </span>
-              <i className={`wb2-chip${chip.tone}`}>
-                {chip.word}
-              </i>
-            </>
-          );
-          const cls =
-            "wb2-mline wb2-jmclaim" + (claim.remoteId === focusRemoteId ? " here" : "");
-          return onOpenClaim ? (
-            <button
-              type="button"
-              className={cls}
-              key={claim.remoteId}
-              onClick={() => onOpenClaim(claim.remoteId)}
-              aria-label={`${claimTitle(claim)} — open this invoice`}
-            >
-              {inner}
-            </button>
-          ) : (
-            <div className={cls} key={claim.remoteId}>
-              {inner}
-            </div>
-          );
-        })}
-
-      {/* WHY THERE IS NO TOTAL, said rather than left blank. */}
-      {family?.mixedBasis && (
-        <p className="int-hint">
-          These invoices are priced on different tax bases, so they don&apos;t add up to one figure
-          here — ServiceM8&apos;s invoices are the total.
-        </p>
-      )}
-      {family?.unknownClaim && !family.mixedBasis && isFamily && (
-        <p className="int-hint">
-          ServiceM8 hasn&apos;t priced one of this job&apos;s invoices, so there&apos;s no total to
-          show.
-        </p>
-      )}
-
-      {/* THE SENTENCE HAS A ROW OF ITS OWN. It used to hang bare under the
-          figure, and across the block's old full width that put it in the
-          opposite corner to the number with nothing but space between. The
-          neutral tint is the head row's — a place, not a state. */}
-      {!unavailable && fallback && (
-        <div className="wb2-mline head">
-          <b>{fallback}</b>
-        </div>
+        </section>
       )}
     </div>
+  );
+}
+
+function PaymentRowItem({ row, here, onOpen }: { row: PaymentRow; here: boolean; onOpen?: (remoteId: string) => void }) {
+  const claimId = row.claimId;
+  return (
+    <Row
+      name={row.name}
+      line={row.line}
+      onClick={onOpen && claimId ? () => onOpen(claimId) : undefined}
+      end={
+        <span className={"jb-end" + (here ? " jb-here" : "")}>
+          <span className="jb-amt">
+            {row.cents !== null ? fmtAud(row.cents) : "—"}
+            {row.cents !== null && row.basis === "inc" && <span className="jb-basis">inc GST</span>}
+          </span>
+          <span className={`pt-state pt-state--${row.tone} jb-word`}>{row.word}</span>
+        </span>
+      }
+    />
   );
 }
 

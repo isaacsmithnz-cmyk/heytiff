@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { JobMoneyBlock } from "../job-money-block";
 import type { FamilyMoney } from "@/lib/workboard/job-family";
+import { readBilling } from "@/lib/workboard/job-billing";
 
 /* THE DEPOSIT TICK on Billing (Isaac, 2026-10-03: "if no deposit required
    make that as an option so it can get ticked off"). */
@@ -21,11 +22,19 @@ const family: FamilyMoney = {
 };
 
 const block = (deposit: Parameters<typeof JobMoneyBlock>[0]["deposit"]) =>
-  render(<JobMoneyBlock family={family} money={null} ledgerPaidCents={0} statusLabel="Work Order" deposit={deposit} />);
+  render(
+    <JobMoneyBlock
+      view={readBilling({ family, money: null, ledgerPaidCents: 0, statusLabel: "Work Order" })}
+      deposit={deposit}
+    />
+  );
 
 it("asks, and the press ticks it", async () => {
   const onSet = jest.fn();
   block({ noDeposit: false, busy: false, error: null, onSet });
+  /* a Deposit row under Payments, its one button on the right */
+  expect(screen.getByRole("list", { name: "Payments" })).toBeTruthy();
+  expect(screen.getByText("Deposit")).toBeTruthy();
   expect(screen.getByText("None invoiced")).toBeTruthy();
   await userEvent.click(screen.getByRole("button", { name: "No deposit needed" }));
   expect(onSet).toHaveBeenCalledWith(true);

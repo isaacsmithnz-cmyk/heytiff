@@ -7,10 +7,10 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { Button } from "@/components/parts/button";
+import { Loading } from "@/components/parts/states";
 import type { MenuItem } from "@/components/parts/menu";
 import { quoteStarted, type QuoteFacts } from "@/lib/quotes/quote-card";
 import { fmtAuTime, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
-import { fmtAud } from "@/lib/workboard/project-money";
 import {
   createProjectFromJob,
   readJobFiles,
@@ -18,14 +18,9 @@ import {
   readMirrorJob,
   type JobRecordRead,
 } from "@/app/actions/workboard";
-import {
-  collectionAgainst,
-  fmtQuantity,
-  materialsTaxMixed,
-  materialsTotalCents,
-  paymentsTotalCents,
-} from "@/lib/workboard/job-ledger";
+import { paymentsTotalCents } from "@/lib/workboard/job-ledger";
 import { claimFor, isPartialInvoiceLine } from "@/lib/workboard/job-family";
+import { readBilling } from "@/lib/workboard/job-billing";
 import { buildJobStory, storyStamp } from "@/lib/workboard/job-story";
 import { JobClaimModal } from "./job-claim-modal";
 import { JobMoneyBlock, JobMoneyGlance } from "./job-money-block";
@@ -770,6 +765,17 @@ export function JobSheet({
      row's own facts paint, which is what was clicked. */
   const cardStatus = detail?.status ?? row.statusLabel;
   const openClaimRow = claimFor(family, openClaim);
+  /* BILLING, ex GST, read once: the section and the claim it opens */
+  const billing =
+    moneyVisible && record !== undefined && !recordFailed
+      ? readBilling({
+          family,
+          money,
+          ledgerPaidCents: record?.ledger ? paymentsTotalCents(record.ledger.payments) : 0,
+          statusLabel: row.statusLabel,
+          lines: materials,
+        })
+      : null;
 
   /* THE OPEN-JOB RULE MOVED TO THE SERVER with the rest of the strip.
      ServiceM8's "action required" is a bookmark somebody left on a note and
@@ -1478,159 +1484,29 @@ export function JobSheet({
           {moneyVisible &&
             panel(
               "money",
-              (() => {
-                /* MONEY READS ONCE, and it reads here. The block waits for
-                   the family read so a family-billed parent never paints its
-                   netted total and then corrects itself. */
-                const block =
-                  record !== undefined || recordFailed ? (
-                    <JobMoneyBlock
-                      family={family}
-                      unavailable={recordFailed}
-                      money={money}
-                      ledgerPaidCents={
-                        record?.ledger ? paymentsTotalCents(record.ledger.payments) : 0
-                      }
-                      statusLabel={row.statusLabel}
-                      focusRemoteId={focus}
-                      onOpenClaim={setOpenClaim}
-                      deposit={(() => {
-                        const status = (detail?.status ?? "").trim().toLowerCase();
-                        const started = (detail?.visits.length ?? 0) > 0 || status === "completed";
-                        /* asked while a deposit could still be wanted: no
-                           deposit invoice, work not started, not declined */
-                        const ask = !!family && family.claims[0]?.stage !== "Deposit" && !started && status !== "unsuccessful";
-                        return noDeposit || ask
-                          ? { noDeposit, busy: depositBusy, error: depositError, onSet: (on: boolean) => void tickNoDeposit(on) }
-                          : null;
-                      })()}
-                      billTo={(() => {
-                        const name = detail?.clientName ?? row.clientName;
-                        if (!name) return null;
-                        const c = detail?.contacts.find((x) => (x.type ?? "").trim().toLowerCase() === "billing");
-                        return { name, contact: c ? { name: c.name, email: c.email } : null };
-                      })()}
-                    />
-                  ) : (
-                    <p className="int-hint">Reading the figures</p>
-                  );
-
-                /* A BLOCK THAT HAS OPENED ITS LEDGER KEEPS THE FULL WIDTH.
-                   The claim rows are a table — name, what it says about
-                   itself, amount, chip — and in the left column each one
-                   wrapped to four lines. The same test the block itself
-                   applies before it opens the ledger. */
-                const ledgerOpen = family !== null && family.isFamily && family.claims.length > 1;
-
-                const paidSection =
-                  record?.ledger && record.ledger.payments.length > 0 ? (
-                    <div className="wb2-shsect">
-                      <span className="wb2-sect">
-                        What&apos;s been paid —{" "}
-                        {(() => {
-                          const paid = paymentsTotalCents(record.ledger.payments);
-                          /* COLLECTION IS SAID ONCE, and the block above says
-                             it. On a family this figure is measured against
-                             THIS row's own netted total, so no verdict. */
-                          if (record.family?.isFamily) return fmtAud(paid);
-                          const state = collectionAgainst(paid, money?.valueCents ?? null);
-                          if (state === "paid") return `${fmtAud(paid)}, paid in full`;
-                          if (state === "part")
-                            return `${fmtAud(paid)} of ${fmtAud(money!.valueCents!)}`;
-                          return fmtAud(paid);
-                        })()}
-                      </span>
-                      {record.ledger.payments.map((p) => (
-                        <div className="wb2-mline" key={p.remoteId}>
-                          <b>{p.method ?? "Payment"}</b>
-                          <em>
-                            {[
-                              p.isDeposit ? "deposit" : null,
-                              p.takenOn ? fmtAuWeekdayDayMonth(p.takenOn) : null,
-                              p.takenBy,
-                            ]
-                              .filter(Boolean)
-                              .join(", ")}
-                          </em>
-                          <span>{p.amountCents !== null ? fmtAud(p.amountCents) : "—"}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null;
-
-                /* PARTIAL-INVOICE ROWS LEAVE THIS LIST. "Partial invoice
-                   #2380A × −1" is ServiceM8 subtracting one of its own
-                   clones out of the parent — bookkeeping, not something
-                   that went on the job. It belongs to the block above,
-                   where it IS a claim. */
-                const goodsSection =
-                  materials.length > 0 ? (
-                    <div className="wb2-shsect">
-                      <span className="wb2-sect">What went on the job</span>
-                      {materials.map((m) => (
-                        <div className="wb2-mline" key={m.remoteId}>
-                          <b>{m.name}</b>
-                          <em>{m.quantity !== null ? `× ${fmtQuantity(m.quantity)}` : ""}</em>
-                          <span>{m.lineCents !== null ? fmtAud(m.lineCents) : "—"}</span>
-                        </div>
-                      ))}
-                      {(() => {
-                        const total = materialsTotalCents(materials);
-                        const mixed = materialsTaxMixed(materials);
-                        /* No total when a line couldn't be read, and none
-                           when the lines disagree about tax. */
-                        if (mixed)
-                          return (
-                            <p className="int-hint">
-                              These lines mix tax-inclusive and tax-exclusive prices, so they
-                              don&apos;t add up to one figure here — ServiceM8&apos;s invoice is
-                              the total.
-                            </p>
-                          );
-                        if (total === null)
-                          return (
-                            <p className="int-hint">
-                              Some lines aren&apos;t priced, so there&apos;s no total to show.
-                            </p>
-                          );
-                        return (
-                          <div className="wb2-mline total">
-                            <b>{materials[0].taxInclusive ? "Total inc GST" : "Total ex GST"}</b>
-                            <em />
-                            <span>{fmtAud(total)}</span>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  ) : null;
-
-                /* THE FACE IS TWO COLUMNS (Isaac, 2026-09-10): the money on
-                   the left — the value, its collection row, what's been paid
-                   — and what went on the job on the right. The block used to
-                   run the full width with the figure top-right and the
-                   sentence bottom-left, over a grid with one column empty on
-                   any job with nothing paid. With nothing to stand beside,
-                   whichever column is there runs the full width rather than
-                   leaving the other half blank, which was the fault. */
-                const left = !ledgerOpen || paidSection !== null;
-                const twoUp = left && goodsSection !== null;
-                return (
-                  <>
-                    {ledgerOpen && block}
-                    {(left || goodsSection !== null) && (
-                      <div className={"wb2-jcgrid money" + (twoUp ? "" : " one")}>
-                        {left && (
-                          <div className="wb2-jcol">
-                            {!ledgerOpen && block}
-                            {paidSection}
-                          </div>
-                        )}
-                        {goodsSection}
-                      </div>
-                    )}
-                  </>
-                );
-              })()
+              /* MONEY READS ONCE, and it reads here. The section waits for
+                 the family read so a family-billed parent never paints its
+                 netted total and then corrects itself. */
+              record !== undefined || recordFailed ? (
+                <JobMoneyBlock
+                  view={billing}
+                  unavailable={recordFailed}
+                  focusRemoteId={focus}
+                  onOpenClaim={setOpenClaim}
+                  deposit={(() => {
+                    const status = (detail?.status ?? "").trim().toLowerCase();
+                    const started = (detail?.visits.length ?? 0) > 0 || status === "completed";
+                    /* asked while a deposit could still be wanted: no
+                       deposit invoice, work not started, not declined */
+                    const ask = !!family && family.claims[0]?.stage !== "Deposit" && !started && status !== "unsuccessful";
+                    return noDeposit || ask
+                      ? { noDeposit, busy: depositBusy, error: depositError, onSet: (on: boolean) => void tickNoDeposit(on) }
+                      : null;
+                  })()}
+                />
+              ) : (
+                <Loading what="Reading the figures" />
+              )
             )}
     </>
   );
@@ -1973,7 +1849,13 @@ export function JobSheet({
         <JobClaimModal
           key={openClaimRow.remoteId}
           claim={openClaimRow}
-          parentNumber={cardNumber}
+          row={billing?.rows.find((r) => r.claimId === openClaimRow.remoteId) ?? null}
+          staged={billing ? billing.staged : true}
+          onOpenPaper={(item) => {
+            /* the viewer stands where the claim stood */
+            setOpenClaim(null);
+            setViewer({ kind: "page", item });
+          }}
           onClose={() => setOpenClaim(null)}
         />
       )}

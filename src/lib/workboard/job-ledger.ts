@@ -49,7 +49,19 @@ export type JobMaterialLine = {
   /** quantity × unit, in cents. Null when either half is missing — an
       invented total is worse than a blank. */
   lineCents: number | null;
+  /** quantity × ServiceM8's `price`, which is always ex GST, in cents: the
+      line's ex-GST figure as ServiceM8 states it, never one we worked out
+      from the displayed amount. A line priced at nothing is 0 here, not
+      unknown. Null when the quantity or the price can't be read. */
+  exLineCents?: number | null;
 };
+
+/** ServiceM8's `price`, the ex-GST unit figure, in cents. Unlike a job's
+    total, "0.0000" on a line is a line given away, so it reads as 0. */
+function exUnitOf(raw: string | null | undefined): number | null {
+  if (typeof raw !== "string" || !/^-?\d+(\.\d+)?$/.test(raw.trim())) return null;
+  return parseSm8AmountToCents(raw) ?? 0;
+}
 
 type MaterialRow = {
   uuid: string;
@@ -69,6 +81,7 @@ export function materialLineOf(row: MaterialRow): JobMaterialLine {
   const unitCents = displayed ?? parseSm8AmountToCents(row.price);
   const taxInclusive =
     displayed !== null && row.displayed_amount_is_tax_inclusive === 1;
+  const exUnit = exUnitOf(row.price);
 
   return {
     remoteId: row.uuid,
@@ -77,6 +90,7 @@ export function materialLineOf(row: MaterialRow): JobMaterialLine {
     unitCents,
     taxInclusive,
     lineCents: quantity !== null && unitCents !== null ? Math.round(quantity * unitCents) : null,
+    exLineCents: quantity !== null && exUnit !== null ? Math.round(quantity * exUnit) : null,
   };
 }
 
@@ -95,6 +109,15 @@ export function materialsTaxMixed(lines: readonly JobMaterialLine[]): boolean {
   if (lines.length < 2) return false;
   const first = lines[0].taxInclusive;
   return lines.some((l) => l.taxInclusive !== first);
+}
+
+/** The lines' ex-GST sum, from ServiceM8's own ex-GST prices, and only when
+    every line has one. Tax flags don't matter here: `price` is ex GST on
+    every line, whatever the displayed amount includes. */
+export function materialsExTotalCents(lines: readonly Pick<JobMaterialLine, "exLineCents">[]): number | null {
+  if (lines.length === 0) return null;
+  if (lines.some((l) => l.exLineCents == null)) return null;
+  return lines.reduce((sum, l) => sum + (l.exLineCents ?? 0), 0);
 }
 
 /* ── payments ── */

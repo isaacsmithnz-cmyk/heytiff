@@ -346,10 +346,10 @@ describe("buildJobStory — money is whoever sent it", () => {
     expect(story.filter((e) => e.kind === "payment")).toHaveLength(0);
     const claims = story.filter((e) => e.kind === "claim");
     expect(claims.map((e) => e.kind === "claim" && `${e.title} ${e.event}`)).toEqual([
-      "Payment 3 — Final settled",
-      "Payment 3 — Final raised",
-      "Payment 1 — Deposit settled",
-      "Payment 1 — Deposit raised",
+      "Payment 3, Final settled",
+      "Payment 3, Final raised",
+      "Payment 1, Deposit settled",
+      "Payment 1, Deposit raised",
     ]);
   });
 
@@ -388,8 +388,8 @@ describe("buildJobStory — money is whoever sent it", () => {
     );
     const settled = story.filter((e) => e.kind === "claim" && e.event === "settled");
     expect(settled.map((e) => e.kind === "claim" && [e.title, e.isFinal])).toEqual([
-      ["Payment 2 — Final", true],
-      ["Payment 1 — Deposit", false],
+      ["Payment 2, Final", true],
+      ["Payment 1, Deposit", false],
     ]);
   });
 });
@@ -579,7 +579,7 @@ describe("storyLineOf — the writer's raw material", () => {
         ]),
       })
     );
-    expect(storyLineOf(story[0])).toBe("2026-08-22 — Payment 3 — Final settled — $6,268.06");
+    expect(storyLineOf(story[0])).toBe("2026-08-22 — Payment 3, Final settled — $6,268.06");
   });
 
   it("flags an action-required note and quotes the words", () => {

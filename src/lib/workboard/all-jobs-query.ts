@@ -20,6 +20,7 @@
    handed in, and when it is false the money columns are never selected. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { inChunks } from "@/lib/in-chunks";
 import { sm8BookingsAllowed, sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { sm8Ours, withoutOurs } from "@/lib/integrations/sm8-echo";
 import {
@@ -116,19 +117,6 @@ export function oneLine(text: string | null, max = 160): string | null {
   return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
 }
 
-/** Supabase caps a URL's length, and `.in()` rides in the query string —
-    chunk anything that could be thousands wide. */
-async function inChunks<T>(
-  values: string[],
-  size: number,
-  run: (chunk: string[]) => Promise<T[]>
-): Promise<T[]> {
-  const out: T[] = [];
-  for (let i = 0; i < values.length; i += size) {
-    out.push(...(await run(values.slice(i, i + size))));
-  }
-  return out;
-}
 
 /* ── our bookings over the mirror (two-way phase 3, PR D) ──
 

@@ -16,6 +16,7 @@ import { auth0 } from "@/lib/auth0";
 import { getDbRole } from "@/lib/permissions-server";
 import { hasMinRole } from "@/lib/roles-shared";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { inChunks } from "@/lib/in-chunks";
 import { auDayOf, todayInAu } from "@/lib/au-dates";
 import { listOrgSwms } from "@/lib/swms/query";
 import { listOrgCerts } from "@/lib/certs/query";
@@ -42,11 +43,6 @@ export type DocumentsData = {
   canWriteLetters: boolean;
 };
 
-async function inChunks<T>(values: readonly string[], size: number, run: (chunk: string[]) => Promise<T[]>): Promise<T[]> {
-  const out: T[] = [];
-  for (let i = 0; i < values.length; i += size) out.push(...(await run(values.slice(i, i + size))));
-  return out;
-}
 
 type JobRow = {
   uuid: string;

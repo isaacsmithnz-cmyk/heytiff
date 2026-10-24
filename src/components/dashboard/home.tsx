@@ -14,7 +14,7 @@ import { StateWord } from "@/components/parts/state";
 import { Tick } from "@/components/parts/tick";
 import type { TodayView } from "@/lib/dashboard/home-today";
 import { columnOf, type TodoRow } from "@/lib/dashboard/todo";
-import { ColumnHead, HomeTodo, TodoList, useTaskTick } from "./home-todo";
+import { ColumnHead, HomeReplyContext, HomeTodo, TodoList, useTaskTick } from "./home-todo";
 import { HomeFeed } from "./home-feed";
 import { TaskForm } from "@/components/making/task-form";
 import type { FeedItem } from "@/lib/dashboard/your-feed";
@@ -158,6 +158,10 @@ export function HomeScreen({
   const tiff = useTiff();
   const router = useRouter();
   const [addressed, setAddressed] = useState(openTask);
+  /* the mention whose box is open in Your feed: the address's, then To
+     do's Reply, which opens it here without reading Home again; `n` opens
+     it again on a second press */
+  const [asked, setAsked] = useState<{ id: string; n: number } | null>(replyTo ? { id: replyTo, n: 0 } : null);
   /* THE CONVERSATION TAKES THE PAGE once you have said something (Isaac, 20
      October, the board's frame 2); Back to Home brings the columns back. */
   const [chat, setChat] = useState<{ words: string; n: number } | null>(null);
@@ -180,11 +184,13 @@ export function HomeScreen({
         </div>
         {/* three columns (Isaac, 20 October): Today, anything timed or due;
             To do, what waits on you; Activity, what comes in */}
-        <div className="hm-cols">
-          <HomeToday view={today} due={todo.filter((r) => columnOf(r) === "today")} />
-          <HomeTodo rows={todo.filter((r) => columnOf(r) === "todo")} />
-          <HomeFeed items={feed} replyTo={replyTo} />
-        </div>
+        <HomeReplyContext.Provider value={(id) => setAsked((a) => ({ id, n: (a?.n ?? 0) + 1 }))}>
+          <div className="hm-cols">
+            <HomeToday view={today} due={todo.filter((r) => columnOf(r) === "today")} />
+            <HomeTodo rows={todo.filter((r) => columnOf(r) === "todo")} />
+            <HomeFeed items={feed} replyTo={asked?.id ?? null} asked={asked?.n ?? 0} />
+          </div>
+        </HomeReplyContext.Provider>
         {addressed && (
           <TaskForm
             taskId={addressed}

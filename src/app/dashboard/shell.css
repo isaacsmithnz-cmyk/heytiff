@@ -9102,6 +9102,10 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* the conversation on the page (Isaac, 20 October): Home's column at 760,
    the bar, the turns and the reply box at its foot, the page's height */
 .fg .wrap.hm.hm--chat { max-width:760px; height:100%; box-sizing:border-box; padding-bottom:24px; }
+/* Show all, To do's and Your feed's own page: one column, centred, with
+   the page's gutters, as Home's conversation stands (Isaac, 25 October
+   2026: "everything is hugging… it should be centered") */
+.fg .wrap.hm.hm--all { max-width:760px; }
 .fg .hm-chat { display:flex; flex-direction:column; gap:16px; flex:1 1 auto; min-height:0; }
 .fg .hm-chatbar { display:flex; align-items:center; gap:12px; padding-bottom:12px; border-bottom:1px solid var(--line); }
 .fg .hm-chat-title { flex:1 1 auto; min-width:0; font-size:14px; line-height:20px; color:var(--q); }
@@ -9112,7 +9116,10 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    head, then each item: who at the left, who/what/when on one line, their
    words, yours under them, and its buttons; Reply opens a box in place */
 .fg .hm-feed-filter { padding:12px 0 4px; }
-.fg .hm-feed-list { list-style:none; margin:0; padding:0; overflow:auto; min-height:0; }
+/* the item's hover fill reaches 8 past its words on each side; the list
+   gives it that room inside its own edge, or the fill is what overflows
+   and the column scrolls sideways (Isaac, 25 October 2026) */
+.fg .hm-feed-list { list-style:none; margin:0 -8px; padding:0 8px; overflow-x:hidden; overflow-y:auto; min-height:0; }
 .fg .hm-feed-item { display:grid; grid-template-columns:32px minmax(0,1fr); gap:12px; padding:12px 0; border-bottom:1px solid var(--line); }
 .fg .hm-feed-av { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; line-height:16px; font-weight:600; }
 .fg .hm-feed-av--sm8 { background:var(--ink); color:var(--white); }
@@ -9125,8 +9132,12 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .hm-feed-open:hover { background:var(--tint); }
 .fg .hm-feed-open:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .hm-feed-head { display:flex; align-items:baseline; gap:8px; margin:0; min-width:0; font-size:14px; line-height:20px; }
-.fg .hm-feed-head b { font-weight:600; white-space:nowrap; }
-.fg .hm-feed-what { color:var(--q); white-space:nowrap; overflow:hidden; min-width:0; flex:1 1 auto; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
+/* the name is drawn whole first and fades only past the line; what they
+   did takes what is left, at least 64 of it, so a long name never pushes
+   it out of sight */
+.fg .hm-feed-head .hm-feed-name { flex:0 1 auto; font-weight:600; }
+.fg .hm-feed-what:empty { display:none; }
+.fg .hm-feed-what { color:var(--q); white-space:nowrap; overflow:hidden; min-width:64px; flex:1 1 0; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .fg .hm-feed-when { color:var(--q); font-size:13px; line-height:20px; white-space:nowrap; }
 /* new to you: an ink dot (blue is only for what you press, rule 16) */
 .fg .hm-feed-new { width:8px; height:8px; border-radius:50%; background:var(--ink); flex:none; align-self:center; }

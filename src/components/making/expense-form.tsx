@@ -434,7 +434,7 @@ export function ExpenseForm({
             {scanning && file ? (
               <>
                 <p className="mk-money-dropk">Reading {file.name}</p>
-                <Loading what="Reading the receipt" shape="text" />
+                <Loading what="Reading the receipt" />
               </>
             ) : (
               <>

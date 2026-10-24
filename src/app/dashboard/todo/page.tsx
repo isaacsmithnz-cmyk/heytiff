@@ -9,8 +9,8 @@ import { loadDashboard } from "@/lib/dashboard/page-data";
 export default async function TodoPage() {
   const view = homeView(await loadDashboard());
   return (
-    <div className="page in full">
-      <div className="wrap hm">
+    <div className="page in">
+      <div className="wrap hm hm--all">
         <HomeTodo rows={view.todo} all headingLevel={1} />
       </div>
     </div>

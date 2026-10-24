@@ -207,6 +207,17 @@ it("(F) still shows the mention To do's Reply named when it falls past the cap, 
   expect(within(list()).getAllByRole("listitem")).toHaveLength(9);
 });
 
+it("(F) puts the mention To do's Reply named first, so its box opens in view", () => {
+  render(<HomeFeed items={[...many(3), { ...LUKE, notes: ["n9"] }]} replyTo="n9" />);
+  const first = within(list()).getAllByRole("listitem")[0];
+  expect(within(first).getByRole("textbox", { name: "Reply to Luke Parker" })).toBeInTheDocument();
+});
+
+it("(F) a long name gives way to the rest of its line and fades, so the column never scrolls sideways", () => {
+  render(<HomeFeed items={[{ ...LUKE, who: { name: "Middle rooftop unit tripped again, repeat occurrence, cause not yet identified", sm8: false } }]} />);
+  expect(within(list()).getByText(/Middle rooftop unit/)).toHaveClass("pt-fade", "hm-feed-name");
+});
+
 it("(F) opens the reply box when To do's Reply names a mention while Home is already open", () => {
   const { rerender } = render(<HomeFeed items={[{ ...LUKE, notes: ["n1"] }]} />);
   expect(screen.queryByRole("textbox", { name: "Reply to Luke Parker" })).toBeNull();

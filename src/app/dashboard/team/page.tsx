@@ -1,9 +1,7 @@
-import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth0 } from "@/lib/auth0";
 import { TeamPage, type TeamPageData } from "@/components/team/team-page";
-import { Loading } from "@/components/parts/states";
 import { can, getCapabilities, getDbRole } from "@/lib/permissions-server";
 import { hasMinRole } from "@/lib/roles-shared";
 import { invitableRoles } from "@/lib/permissions";
@@ -39,12 +37,14 @@ import { readTeamView, teamViewsFor } from "@/lib/team/views";
    invite at all", so there is one gate, not two.
 
    The view, and Timesheets' period, ride in the address. The wait is the
-   page's own Suspense, so a person's page under /dashboard/team/ never
-   waits behind this list's hold. */
+   route's own, dashboard/loading.tsx: Tiff's mark and nothing after it
+   (rule 41; a Suspense of its own here put a skeleton after the mark,
+   Isaac, 25 October 2026). No loading.tsx here, so a person's page under
+   /dashboard/team/ never waits behind this list's. */
 
 type Params = Promise<Record<string, string | string[] | undefined>>;
 
-async function TeamBody({ searchParams }: { searchParams: Params }) {
+export default async function TeamRoute({ searchParams }: { searchParams: Params }) {
   const session = await auth0.getSession();
   const orgId = session?.orgId as string | undefined;
   if (!orgId) redirect("/dashboard");
@@ -130,18 +130,4 @@ async function TeamBody({ searchParams }: { searchParams: Params }) {
   };
 
   return <TeamPage data={data} view={readTeamView(params.view, views)} />;
-}
-
-export default async function TeamRoute({ searchParams }: { searchParams: Params }) {
-  return (
-    <Suspense
-      fallback={
-        <div className="tm2">
-          <Loading what="Loading the team" shape="rows" count={7} />
-        </div>
-      }
-    >
-      <TeamBody searchParams={searchParams} />
-    </Suspense>
-  );
 }

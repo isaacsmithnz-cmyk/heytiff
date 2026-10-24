@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useRef, useState, useTransition } from "react";
+import { createContext, useCallback, useContext, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { completeTask, reopenTask } from "@/app/actions/dashboard";
 import { snoozeReminder } from "@/app/actions/reminders";
@@ -30,6 +30,21 @@ import { TODO_HOME_CAP, type TodoRow } from "@/lib/dashboard/todo";
    as the bell did: a one-tap action that waits a round trip to admit it
    happened feels broken. The sidebar's count is told to ask again
    (`BELL_REFRESH_EVENT`), and the page reads again behind it. */
+
+/** REPLY OPENS WHERE YOU ARE (Isaac, 25 October 2026: on Home "if you
+    click any of the buttons… they don't do anything"). To do's Reply was a
+    link back to Home itself, `?reply=`: a whole read of Home, two to four
+    seconds with nothing on screen, and then the box opened at the foot of
+    Your feed, under the fold. On Home it is this instead, and the feed
+    opens the mention's box at once, at its top. Off Home (To do's own
+    page) it stays the link, which lands there. */
+export const HomeReplyContext = createContext<((noteUuid: string) => void) | null>(null);
+
+/** The mention a Reply link names, or null for any other link. */
+export function replyOfHref(href: string): string | null {
+  const m = /^\/dashboard\?reply=([0-9a-f-]{36})$/i.exec(href);
+  return m ? m[1] : null;
+}
 
 /** The rows a press has taken away, until the page reads again. */
 function useGone() {
@@ -120,6 +135,12 @@ function LaterButton({ name, onPick }: { name: string; onPick: (s: Snooze) => vo
     dot, the name, the line, and the one button that does the thing. */
 export function TodoList({ rows, label, cap }: { rows: readonly TodoRow[]; label: string; cap?: number }) {
   const after = useAfter();
+  const replyHere = useContext(HomeReplyContext);
+  /* a mention's Reply, answered in Your feed on this page */
+  const replyOf = (row: TodoRow) => {
+    const id = replyHere && row.act.kind === "link" ? replyOfHref(row.act.href) : null;
+    return id && replyHere ? () => replyHere(id) : null;
+  };
   const { gone, hide, tick } = useTaskTick();
   /* a won job's Book in: the Visit form over Home, the job filled in */
   const [booking, setBooking] = useState<VisitJob | null>(null);
@@ -164,6 +185,13 @@ export function TodoList({ rows, label, cap }: { rows: readonly TodoRow[]; label
           {a.label}
         </Button>
       );
+    const reply = replyOf(row);
+    if (reply)
+      return (
+        <Button size={32} aria-label={`${a.label}, ${row.name}`} onClick={reply}>
+          {a.label}
+        </Button>
+      );
     return (
       <Button size={32} href={a.href} aria-label={`${a.label}, ${row.name}`}>
         {a.label}
@@ -192,8 +220,14 @@ export function TodoList({ rows, label, cap }: { rows: readonly TodoRow[]; label
             dot={stateTone(row.tone)}
             name={row.name}
             line={row.lineTone ? <span className={`hm-line hm-line--${row.tone}`}>{row.line}</span> : row.line}
-            href={row.act.kind === "link" || row.act.kind === "bookIn" ? row.act.href : undefined}
-            onClick={row.act.kind === "task" ? () => setOpened((row.act as { taskId: string }).taskId) : row.tick ? () => setOpened(row.tick) : undefined}
+            href={replyOf(row) ? undefined : row.act.kind === "link" || row.act.kind === "bookIn" ? row.act.href : undefined}
+            onClick={
+              row.act.kind === "task"
+                ? () => setOpened((row.act as { taskId: string }).taskId)
+                : row.tick
+                  ? () => setOpened(row.tick)
+                  : (replyOf(row) ?? undefined)
+            }
             end={end(row)}
           />
         ))}

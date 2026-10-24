@@ -225,6 +225,39 @@ describe("the three columns", () => {
   });
 });
 
+describe("To do's Reply, on Home", () => {
+  const NOTE = "01a10eef-eecb-7c94-9d9a-7d44b2e4b19b";
+  const mention = (n: number): FeedItem => ({
+    key: `talk:${n}`,
+    filter: "you",
+    who: { name: n === 0 ? "Luke Parker" : `Person ${n}`, sm8: false },
+    what: "mentioned you",
+    said: "can you order two grille filters?",
+    yours: null,
+    when: "",
+    at: "2026-10-20 12:00:00",
+    unread: false,
+    act: null,
+    reply: { jobUuid: "job-1", sourceNoteUuid: `n${n}`, closesTaskId: null },
+    open: null,
+    notes: n === 0 ? [NOTE] : [`other-${n}`],
+  });
+
+  /* Isaac, 25 October 2026: on Home "if you click any of the buttons…
+     they don't do anything". The Reply was a link to Home itself: seconds
+     of nothing, then the box under the fold. */
+  it("(F) opens the mention's box in Your feed at once, first, without reading Home again", async () => {
+    const feed = [...Array.from({ length: 10 }, (_, i) => mention(i + 1)), mention(0)];
+    draw(today(), [link("task:m1", "Which fans for Rozelle?", "Reply", `/dashboard?reply=${NOTE}`, { source: "list" })], feed);
+    const todo = section("To do");
+    expect(within(todo).queryByRole("link", { name: /Reply/ })).toBeNull();
+    await userEvent.click(within(todo).getByRole("button", { name: "Reply, Which fans for Rozelle?" }));
+    const items = within(screen.getByRole("list", { name: "Your feed" })).getAllByRole("listitem");
+    expect(within(items[0]).getByRole("textbox", { name: "Reply to Luke Parker" })).toBeInTheDocument();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+});
+
 describe("To do", () => {
   it("(F) has no count, and every row has one button that goes where it should", () => {
     draw();

@@ -59,12 +59,26 @@ const open = (revise: string | null = null) =>
 const tab = (name: string) => userEvent.click(screen.getByRole("tab", { name }));
 const panel = (key: string) => within(document.getElementById(`swzsec-${key}`) as HTMLElement);
 const ready = () => screen.findByRole("tab", { name: "The work" });
+/** A chooser, by its label: open it, and pick the option. */
+async function choose(label: string, option: string | RegExp) {
+  await userEvent.click(screen.getByLabelText(label));
+  await userEvent.click(screen.getByRole("option", { name: option }));
+}
+/** The options a chooser offers, read with it open, then closed again. */
+async function optionsOf(label: string) {
+  await userEvent.click(screen.getByLabelText(label));
+  const names = screen.getAllByRole("option").map((o) => o.textContent);
+  await userEvent.keyboard("{Escape}");
+  return names;
+}
+/** One of a few, in its tray. */
+const pick = (tray: string, option: string) => userEvent.click(within(screen.getByRole("radiogroup", { name: tray })).getByRole("radio", { name: option }));
 
 /** Fill in what a plain install with power needs, on the screens that ask it. */
 async function fillInstall() {
   await tab("How it's done");
   await userEvent.type(screen.getByLabelText("Isolation point"), "Main switchboard, garage wall");
-  await userEvent.selectOptions(screen.getByLabelText("Electrician connecting it"), "staff:sam");
+  await choose("Electrician connecting it", /^Sam Ikpeba/);
   await tab("Who it covers");
   await userEvent.type(screen.getByLabelText("Nearest hospital"), "Sutherland Hospital");
 }
@@ -80,9 +94,10 @@ describe("what the job already says", () => {
     open();
     await ready();
     expect(screen.getByRole("heading", { name: "Safe Work Method Statement" })).toBeInTheDocument();
-    expect(screen.getByText("14 Attunga Road, Miranda NSW 2228")).toBeInTheDocument();
+    /* the job's number and address, on the grey line under the title */
+    expect(screen.getByText("Job 2601, 14 Attunga Road, Miranda NSW 2228")).toBeInTheDocument();
     expect(screen.getByText("From the job's category, Install")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Install or replace", pressed: true })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Install or replace", checked: true })).toBeInTheDocument();
     /* the address names the state, so it's stated, not asked */
     expect(screen.getByText("From the site address")).toBeInTheDocument();
     expect(panel("work").getByText("New South Wales")).toBeInTheDocument();
@@ -93,6 +108,23 @@ describe("what the job already says", () => {
     expect(screen.queryByText(/Step \d of 4/)).toBeNull();
   });
 
+  /* every pop-up is the v2 dialog (Isaac, 25 October 2026): the Dialog part,
+     its steps as section tabs, and only v2's parts inside */
+  it("is the v2 dialog, with v2's parts and none of the job card's", async () => {
+    open();
+    await ready();
+    const dialog = screen.getByRole("dialog", { name: "Safe Work Method Statement" });
+    expect(dialog).toHaveClass("pt-dialog", "pt-dialog--720");
+    expect(screen.getByRole("tab", { name: "How it's done" })).toHaveClass("pt-stab");
+    expect(screen.getByRole("button", { name: "Continue" })).toHaveClass("pt-btn--main");
+    await tab("How it's done");
+    expect(panel("how").getByRole("checkbox", { name: /Braze/ }).closest("label")).toHaveClass("pt-tick");
+    await tab("Who it covers");
+    expect(screen.getByRole("button", { name: "Back" })).toHaveClass("pt-btn--second");
+    expect(screen.getByLabelText("First aider")).toHaveClass("pt-chooser");
+    expect(dialog.querySelector('[class*="wb2-"], .pbtn, .seg, select, [class^="sw-"]')).toBeNull();
+  });
+
   /* A MELBOURNE JOB whose address never spells "VIC" was written to New South
      Wales rules, because the only two answers offered were NSW and QLD. */
   it("asks which state when the address doesn't say, and offers every state", async () => {
@@ -100,10 +132,8 @@ describe("what the job already says", () => {
     open();
     await ready();
     expect(screen.getByText("The address doesn't say")).toBeInTheDocument();
-    const state = screen.getByLabelText("State") as HTMLSelectElement;
-    expect(state.value).toBe("");
-    expect([...state.options].map((o) => o.textContent)).toEqual([
-      "Choose the state",
+    expect(screen.getByLabelText("State")).toHaveTextContent("Choose the state");
+    expect(await optionsOf("State")).toEqual([
       "New South Wales",
       "Queensland",
       "Victoria",
@@ -117,7 +147,7 @@ describe("what the job already says", () => {
     await tab("Review");
     expect(screen.getByRole("button", { name: "Choose the state this job is in." })).toBeInTheDocument();
     await tab("The work");
-    await userEvent.selectOptions(state, "QLD");
+    await choose("State", "Queensland");
     await tab("Review");
     expect(panel("review").getByText("Queensland")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Choose the state this job is in." })).toBeNull();
@@ -127,7 +157,7 @@ describe("what the job already says", () => {
     swmsWizardContext.mockImplementation(async () => context({ job: { ...context().job, address: "8 Lygon Street, Brunswick", state: null, jurisdiction: null } }));
     open();
     await ready();
-    await userEvent.selectOptions(screen.getByLabelText("State"), "VIC");
+    await choose("State", "Victoria");
     expect(panel("work").getByText(/This job is in Victoria\./)).toBeInTheDocument();
     await tab("Review");
     expect(screen.getByRole("button", { name: /This job is in Victoria\./ })).toBeInTheDocument();
@@ -138,7 +168,7 @@ describe("what the job already says", () => {
     expect(screen.getByRole("button", { name: "Issue the SWMS" })).toBeDisabled();
 
     await tab("The work");
-    await userEvent.selectOptions(screen.getByLabelText("State"), "NSW");
+    await choose("State", "New South Wales");
     expect(panel("work").queryByText(/This job is in Victoria/)).toBeNull();
   });
 
@@ -146,7 +176,7 @@ describe("what the job already says", () => {
   it("asks who the builder is, and names them where it says they get a copy", async () => {
     open();
     await ready();
-    await userEvent.click(within(screen.getByRole("group", { name: "Builder" })).getByRole("button", { name: "Yes" }));
+    await pick("Builder", "Yes");
     await userEvent.type(screen.getByLabelText("The builder"), "Kestrel Constructions");
     await tab("Review");
     expect(panel("review").getByText("Kestrel Constructions gets a copy before work starts")).toBeInTheDocument();
@@ -159,7 +189,7 @@ describe("what the job already says", () => {
     await tab("How it's done");
     await userEvent.click(panel("how").getByRole("checkbox", { name: /Get onto the roof/ }));
     await tab("The work");
-    await userEvent.click(screen.getByRole("button", { name: "Service or repair" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Service or repair" }));
     await tab("How it's done");
     expect(panel("how").getByRole("checkbox", { name: /Get onto the roof/ })).toBeChecked();
     /* and a step a service never does is simply not offered */
@@ -204,11 +234,11 @@ describe("what the job already says", () => {
     open();
     await ready();
     await tab("Who it covers");
-    expect((screen.getByLabelText("First aider") as HTMLSelectElement).value).toBe("staff:dane");
+    expect(screen.getByLabelText("First aider")).toHaveTextContent("Dane Whitmore");
     expect(screen.getByText("Has first aid on file")).toBeInTheDocument();
 
-    await userEvent.selectOptions(screen.getByLabelText("First aider"), "");
-    expect((screen.getByLabelText("First aider") as HTMLSelectElement).value).toBe("");
+    await choose("First aider", "Not named");
+    expect(screen.getByLabelText("First aider")).toHaveTextContent("Not named");
     expect(screen.queryByText("Has first aid on file")).toBeNull();
   });
 
@@ -216,10 +246,10 @@ describe("what the job already says", () => {
   it("asks about the building's age in the step that drills it", async () => {
     open();
     await ready();
-    expect(panel("work").queryByRole("group", { name: "Built before 1990" })).toBeNull();
+    expect(panel("work").queryByRole("radiogroup", { name: "Built before 1990" })).toBeNull();
     await tab("How it's done");
     await userEvent.click(panel("how").getByRole("checkbox", { name: /Core drill/ }));
-    expect(panel("how").getByRole("group", { name: "Built before 1990" })).toBeInTheDocument();
+    expect(panel("how").getByRole("radiogroup", { name: "Built before 1990" })).toBeInTheDocument();
   });
 
   it("starts an install with the steps every install has, and the site's steps unticked", async () => {
@@ -238,7 +268,7 @@ describe("what the job already says", () => {
   it("offers a service only the steps that hold for it, and says when it needs a SWMS at all", async () => {
     open();
     await ready();
-    await userEvent.click(screen.getByRole("button", { name: "Service or repair" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Service or repair" }));
     expect(screen.getByText(/needs a SWMS only for high-risk work/)).toBeInTheDocument();
     await tab("How it's done");
     expect(panel("how").queryByRole("checkbox", { name: /Lift the outdoor unit/ })).toBeNull();
@@ -265,12 +295,12 @@ describe("who it covers", () => {
     open();
     await ready();
     await tab("How it's done");
-    await userEvent.selectOptions(screen.getByLabelText("Electrician connecting it"), "staff:sam");
+    await choose("Electrician connecting it", /^Sam Ikpeba/);
     await tab("Who it covers");
     expect(screen.getByRole("checkbox", { name: /Sam Ikpeba/ })).toBeChecked();
 
     await tab("How it's done");
-    await userEvent.selectOptions(screen.getByLabelText("Electrician connecting it"), "new");
+    await choose("Electrician connecting it", "Someone from outside the business");
     await userEvent.type(screen.getByLabelText("Electrician's name"), "Ali Sparks");
     await tab("Who it covers");
     expect(panel("who").getByDisplayValue("Ali Sparks")).toBeInTheDocument();
@@ -306,7 +336,7 @@ describe("the review", () => {
     expect(within(emergency).getByText(/Nearest hospital: not named yet/)).toBeInTheDocument();
 
     await tab("Who it covers");
-    await userEvent.selectOptions(screen.getByLabelText("First aider"), "staff:troy");
+    await choose("First aider", "Troy Porter");
     await userEvent.type(screen.getByLabelText("Nearest hospital"), "Sutherland Hospital");
     await tab("Review");
     const named = panel("review").getByText("Emergency").closest("div") as HTMLElement;
@@ -381,7 +411,7 @@ describe("the review", () => {
     open();
     await ready();
     await tab("Review");
-    const bullets = document.querySelectorAll(".sw-problems li").length;
+    const bullets = document.querySelectorAll(".wzd-jumps li").length;
     expect(bullets).toBe(3);
     expect(screen.getByText(`${bullets} things to answer above`)).toBeInTheDocument();
   });
@@ -400,7 +430,7 @@ describe("the review", () => {
     await ready();
     await tab("How it's done");
     await userEvent.type(screen.getByLabelText("Isolation point"), "Main board");
-    await userEvent.selectOptions(screen.getByLabelText("Electrician connecting it"), "new");
+    await choose("Electrician connecting it", "Someone from outside the business");
     await userEvent.type(screen.getByLabelText("Electrician's name"), "Ali Sparks");
     await tab("Who it covers");
     await userEvent.type(screen.getByLabelText("Nearest hospital"), "Sutherland Hospital");
@@ -472,15 +502,15 @@ describe("a revision", () => {
     }));
     open("v-1");
     await screen.findByRole("heading", { name: "Revise the SWMS" });
-    expect((screen.getByLabelText("State") as HTMLSelectElement).value).toBe("QLD");
+    expect(screen.getByLabelText("State")).toHaveTextContent("Queensland");
 
     /* the first aider the last version didn't name stays unnamed */
     await tab("Who it covers");
-    expect((screen.getByLabelText("First aider") as HTMLSelectElement).value).toBe("");
+    expect(screen.getByLabelText("First aider")).toHaveTextContent("Not named");
 
     /* and a change of kind keeps the steps that version ticked */
     await tab("The work");
-    await userEvent.click(screen.getByRole("button", { name: "Service or repair" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Service or repair" }));
     await tab("How it's done");
     expect(panel("how").getByRole("checkbox", { name: /Get onto the roof/ })).toBeChecked();
   });
@@ -503,9 +533,9 @@ describe("a revision", () => {
     await tab("Who it covers");
     expect(screen.getByRole("checkbox", { name: /Dane Whitmore/ })).not.toBeChecked();
     expect(screen.getByDisplayValue("Lindqvist Plumbing")).toBeInTheDocument();
-    expect((screen.getByLabelText("First aider") as HTMLSelectElement).value).toBe("staff:troy");
+    expect(screen.getByLabelText("First aider")).toHaveTextContent("Troy Porter");
     await tab("How it's done");
-    expect((screen.getByLabelText("Electrician connecting it") as HTMLSelectElement).value).toBe("staff:sam");
+    expect(screen.getByLabelText("Electrician connecting it")).toHaveTextContent("Sam Ikpeba");
     await tab("Review");
     expect(screen.getByRole("button", { name: "Say what changed and why." })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Issue version 2" })).toBeDisabled();
@@ -570,14 +600,21 @@ it("asks before a stray Escape throws the choices away", async () => {
   expect(onClose).toHaveBeenCalledTimes(1);
 
   onClose.mockClear();
-  await userEvent.click(within(screen.getByRole("group", { name: "Traffic" })).getByRole("button", { name: "Yes" }));
+  await pick("Traffic", "Yes");
   fireEvent.keyDown(document, { key: "Escape" });
   expect(onClose).not.toHaveBeenCalled();
-  expect(screen.getByText("Discard this SWMS?")).toBeInTheDocument();
-  await userEvent.click(screen.getByRole("button", { name: "Keep editing" }));
-  expect(screen.queryByText("Discard this SWMS?")).toBeNull();
+  expect(screen.getByRole("dialog", { name: "Discard this SWMS?" })).toBeInTheDocument();
+  /* Escape on the question keeps editing; it never reaches the wizard under it */
+  fireEvent.keyDown(document, { key: "Escape" });
+  expect(screen.queryByRole("dialog", { name: "Discard this SWMS?" })).toBeNull();
+  expect(onClose).not.toHaveBeenCalled();
 
-  await userEvent.click(screen.getByRole("button", { name: "Close the SWMS" }));
+  fireEvent.keyDown(document, { key: "Escape" });
+  await userEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  expect(screen.queryByRole("dialog", { name: "Discard this SWMS?" })).toBeNull();
+
+  /* the first screen's Cancel asks the same question */
+  await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
   await userEvent.click(screen.getByRole("button", { name: "Discard" }));
   await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
 });

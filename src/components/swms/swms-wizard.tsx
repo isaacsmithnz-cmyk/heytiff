@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useOverlay } from "@/components/overlay/use-overlay";
-import { Icon } from "@/components/shell/icon";
-import { ViewTabs } from "@/components/shell/view-tabs";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Button, IconButton } from "@/components/parts/button";
+import { ConfirmDialog } from "@/components/parts/dialog";
+import { Chooser } from "@/components/parts/chooser";
+import { Field, TextArea, TextInput } from "@/components/parts/field";
+import { Tray } from "@/components/parts/tabs";
+import { Tick } from "@/components/parts/tick";
 import {
   issueSwms,
   swmsPrevious,
@@ -37,8 +40,8 @@ import {
 } from "@/lib/swms/library";
 import type { SwmsTeamMember } from "@/lib/swms/query";
 import { ApproveTemplate } from "./approve-template";
-import { Choice, Seg } from "./controls";
 import { TemplateSteps } from "./template-steps";
+import { focusSoon, FootWord, Group, jobLine, Jumps, Q, Radio, TickWords, WizardDialog } from "./wizard";
 import "./swms.css";
 
 /* THE SWMS WIZARD — four screens of choices on the job card, and the template
@@ -52,10 +55,11 @@ import "./swms.css";
    (`issueProblemList`), each with the answer it is about, so the review takes
    you to the field instead of telling you to go and find it.
 
-   IT WEARS THE CARD. It opens over the job card inside the card's portal, so
-   it takes the card's band, tabs, fields and buttons rather than a dress of
-   its own — two sets of controls stacked on one screen is the first thing a
-   daily user notices. */
+   IT IS THE V2 DIALOG (Isaac, 25 October 2026: "every pop-up is the v2
+   dialog"): the title, the job's number and address in grey, the four
+   screens as section tabs, and only v2's parts inside — a step is a box
+   with its tick, a one-of-a-few is a tray, a list to pick from is a
+   chooser. The frame is ./wizard. */
 
 type Tab = "work" | "how" | "who" | "review";
 type Outsider = { id: string; name: string; company: string };
@@ -99,12 +103,16 @@ const STEP_SUB: Record<StepKey, string> = {
 };
 
 const REFRIGERANTS = [
-  ["R32", "R32"],
-  ["R410A", "R410A"],
-  ["R454B", "R454B"],
-  ["R290", "R290"],
+  { value: "R32", label: "R32" },
+  { value: "R410A", label: "R410A" },
+  { value: "R454B", label: "R454B" },
+  { value: "R290", label: "R290" },
 ] as const;
-type Refrigerant = (typeof REFRIGERANTS)[number][0];
+type Refrigerant = (typeof REFRIGERANTS)[number]["value"];
+const NO_YES = [
+  { value: "no", label: "No" },
+  { value: "yes", label: "Yes" },
+] as const;
 
 const REGULATION = {
   NSW: "Work Health and Safety Regulation 2025 (NSW)",
@@ -174,7 +182,6 @@ export function SwmsWizard({
      typed into stays the same element — and keeps the cursor — as it becomes
      a person, while a new blank row opens below it. */
   const [blankId, setBlankId] = useState("o0");
-  const closeRef = useRef<HTMLButtonElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const seq = useRef(0);
   const newId = () => `o${++seq.current}`;
@@ -239,38 +246,14 @@ export function SwmsWizard({
     };
   }, [jobUuid, reviseVersionId]);
 
-  useEffect(() => {
-    closeRef.current?.focus();
-  }, []);
-
-  /* A field, reached: after its screen has painted, focus it and bring it
-     into view. Two frames — the first commits the tab, the second lays it out. */
-  const focusSoon = (id: string) => {
-    const land = () => {
-      const el = document.getElementById(id);
-      el?.scrollIntoView?.({ block: "center" });
-      el?.focus();
-    };
-    if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => requestAnimationFrame(land));
-    else setTimeout(land, 0);
-  };
-
+  /* Escape, the scrim and Cancel close the wizard, never the page under it:
+     the dialog is in front (the overlay stack). A wizard with choices in it
+     asks first: a stray key shouldn't throw away a site walk. While it asks,
+     the question is in front, so Escape there keeps editing. */
   const askClose = () => {
     if (dirty && !issued) setConfirmClose(true);
     else onClose();
   };
-
-  /* Escape closes the wizard, never the card under it: the wizard is in
-     front (the overlay stack). A wizard with choices in it asks first: a
-     stray key shouldn't throw away a site walk. */
-  const dialog = useRef<HTMLElement>(null);
-  useOverlay(dialog, {
-    onEscape: () => {
-      if (confirmClose) setConfirmClose(false);
-      else if (dirty && !issued) setConfirmClose(true);
-      else onClose();
-    },
-  });
 
   const go = (t: Tab) => {
     setTab(t);
@@ -451,324 +434,314 @@ export function SwmsWizard({
 
   const kindFromJob = job ? kindFromCategory(job.categoryName) : null;
   const work = (
-    <>
+    <div className="wzd-form">
       {job?.description && (
-        <div className="sw-grp">
-          <div className="sw-gh">
-            <b>The work</b>
-          </div>
-          <p className="sw-text">{job.description}</p>
-        </div>
+        <Group heading="The work">
+          <p className="wzd-text">{job.description}</p>
+        </Group>
       )}
-      <div className="sw-qas">
-        <div className="sw-qa">
-          <span>
-            The job
-            {kindFromJob && job?.categoryName && <em>{`From the job's category, ${job.categoryName}`}</em>}
-          </span>
-          <Seg id="swz-kind" label="The job" value={a.kind} options={[["install", "Install or replace"], ["service", "Service or repair"]] as const} onChange={setKind} />
-        </div>
-        {/* what the address says is a fact, not a question */}
-        {job?.jurisdiction ? (
-          <div className="sw-qa">
-            <span>
-              State
-              <em>From the site address</em>
-            </span>
-            <b>{STATE_NAME[job.jurisdiction]}</b>
-          </div>
-        ) : (
-          <div className="sw-qa">
-            <span>
-              <label htmlFor="swz-state">State</label>
-              <em>The address doesn&apos;t say</em>
-            </span>
-            <select
-              id="swz-state"
-              className="wb2-sel"
-              value={pickedState}
-              onChange={(e) => {
-                const picked = e.target.value as AuState | "";
-                setPickedState(picked);
-                const rules = jurisdictionOf(picked || null);
-                if (rules) set({ jurisdiction: rules, roofPower: rules === "QLD" ? "off" : a.roofPower });
-                else touch();
-              }}
-            >
-              <option value="">Choose the state</option>
-              {AU_STATES.map((st) => (
-                <option key={st} value={st}>
-                  {STATE_NAME[st]}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-        <div className="sw-qa">
-          <span>Overhead powerlines near the work?</span>
-          <Seg label="Overhead powerlines" value={a.site.powerlines ? "yes" : "no"} options={[["no", "No"], ["yes", "Yes"]] as const} onChange={(v) => setSite("powerlines", v === "yes")} />
-        </div>
-        <div className="sw-qa">
-          <span>Next to a road or driveway with traffic?</span>
-          <Seg label="Traffic" value={a.site.traffic ? "yes" : "no"} options={[["no", "No"], ["yes", "Yes"]] as const} onChange={(v) => setSite("traffic", v === "yes")} />
-        </div>
-        <div className="sw-qa">
-          <span>
-            A builder running the site?<em>They get a copy before work starts</em>
-          </span>
-          <Seg label="Builder" value={a.site.builder ? "yes" : "no"} options={[["no", "No"], ["yes", "Yes"]] as const} onChange={(v) => setSite("builder", v === "yes")} />
-        </div>
-        {/* named, so the document says who was handed a copy */}
-        {a.site.builder && (
-          <div className="sw-qa">
-            <label htmlFor="swz-builder">The builder</label>
-            <input id="swz-builder" className="wb2-fi" placeholder="Their name" value={a.builderName} onChange={(e) => set({ builderName: e.target.value })} />
-          </div>
-        )}
-      </div>
-      {pickedOut && siteState && <p className="sw-state bad">{stateNotCovered(siteState)}</p>}
-      {a.kind === "service" && (
-        <p className="sw-note">A service or repair needs a SWMS only for high-risk work, like going on the roof or into the roof space.</p>
+      <Q label="The job" id="swz-kind" sub={kindFromJob && job?.categoryName ? `From the job's category, ${job.categoryName}` : null}>
+        <Tray
+          ariaLabel="The job"
+          value={a.kind}
+          options={[
+            { value: "install", label: "Install or replace" },
+            { value: "service", label: "Service or repair" },
+          ]}
+          onChange={setKind}
+        />
+      </Q>
+      {/* what the address says is a fact, not a question */}
+      {job?.jurisdiction ? (
+        <Q label="State" sub="From the site address">
+          <span className="wzd-said">{STATE_NAME[job.jurisdiction]}</span>
+        </Q>
+      ) : (
+        <Q label="State" htmlFor="swz-state" sub="The address doesn't say">
+          <Chooser
+            id="swz-state"
+            className="wzd-short"
+            placeholder="Choose the state"
+            value={pickedState || null}
+            options={AU_STATES.map((st) => ({ value: st, label: STATE_NAME[st] }))}
+            onChange={(v) => {
+              const picked = v as AuState;
+              setPickedState(picked);
+              const rules = jurisdictionOf(picked);
+              if (rules) set({ jurisdiction: rules, roofPower: rules === "QLD" ? "off" : a.roofPower });
+              else touch();
+            }}
+          />
+        </Q>
       )}
-    </>
+      <Q label="Overhead powerlines near the work?">
+        <Tray ariaLabel="Overhead powerlines" value={a.site.powerlines ? "yes" : "no"} options={NO_YES} onChange={(v) => setSite("powerlines", v === "yes")} />
+      </Q>
+      <Q label="Next to a road or driveway with traffic?">
+        <Tray ariaLabel="Traffic" value={a.site.traffic ? "yes" : "no"} options={NO_YES} onChange={(v) => setSite("traffic", v === "yes")} />
+      </Q>
+      <Q label="A builder running the site?" sub="They get a copy before work starts">
+        <Tray ariaLabel="Builder" value={a.site.builder ? "yes" : "no"} options={NO_YES} onChange={(v) => setSite("builder", v === "yes")} />
+      </Q>
+      {/* named, so the document says who was handed a copy */}
+      {a.site.builder && (
+        <Field label="The builder" id="swz-builder">
+          <TextInput className="wzd-short" placeholder="Their name" value={a.builderName} onChange={(e) => set({ builderName: e.target.value })} />
+        </Field>
+      )}
+      {pickedOut && siteState && <p className="wzd-wrong">{stateNotCovered(siteState)}</p>}
+      {a.kind === "service" && <p className="wzd-note">A service or repair needs a SWMS only for high-risk work, like going on the roof or into the roof space.</p>}
+    </div>
   );
 
-  const asks: Partial<Record<StepKey, React.ReactNode>> = {
+  /* a set of radio rows, named by the words over them */
+  const radios = (id: string, label: string, rows: ReactNode) => (
+    <div className="wzd-radios" role="radiogroup" aria-labelledby={id}>
+      <span className="wzd-ql" id={id}>
+        {label}
+      </span>
+      {rows}
+    </div>
+  );
+
+  const asks: Partial<Record<StepKey, ReactNode>> = {
     roof: (
-      <div className="sw-ask">
-        <span className="sw-al">Fall protection on this roof</span>
-        <div className="sw-opts">
-          <Choice name="fall" checked={a.fall === "edge"} onChange={() => set({ fall: "edge" })} title="Edge protection" />
-          <Choice name="fall" checked={a.fall === "scaffold"} onChange={() => set({ fall: "scaffold" })} title="Scaffold with a stair" />
-          <Choice name="fall" checked={a.fall === "ewp"} onChange={() => set({ fall: "ewp" })} title="Elevating work platform" />
-          <Choice name="fall" checked={a.fall === "harness"} onChange={() => set({ fall: "harness" })} title="Harness to a roof anchor" />
-        </div>
+      <>
+        {radios(
+          "swz-fall-l",
+          "Fall protection on this roof",
+          <>
+            <Radio name="fall" checked={a.fall === "edge"} onChange={() => set({ fall: "edge" })} label="Edge protection" />
+            <Radio name="fall" checked={a.fall === "scaffold"} onChange={() => set({ fall: "scaffold" })} label="Scaffold with a stair" />
+            <Radio name="fall" checked={a.fall === "ewp"} onChange={() => set({ fall: "ewp" })} label="Elevating work platform" />
+            <Radio name="fall" checked={a.fall === "harness"} onChange={() => set({ fall: "harness" })} label="Harness to a roof anchor" />
+          </>,
+        )}
         {a.fall === "harness" && (
-          <input id="swz-anchor" className="wb2-fi" aria-label="Which roof anchor" placeholder="Which anchor, and where" value={a.anchor} onChange={(e) => set({ anchor: e.target.value })} />
+          <Field label="Which roof anchor" id="swz-anchor">
+            <TextInput placeholder="Which anchor, and where" value={a.anchor} onChange={(e) => set({ anchor: e.target.value })} />
+          </Field>
         )}
         {a.fall === "harness" && a.jurisdiction === "QLD" && (
-          <textarea
-            id="swz-qldreason"
-            className="wb2-notes"
-            rows={2}
-            aria-label="Why a harness and not something higher"
-            placeholder="Why edge protection, a scaffold or an EWP won't work here"
-            value={a.qldFallReason}
-            onChange={(e) => set({ qldFallReason: e.target.value })}
-          />
+          <Field label="Why a harness and not something higher" id="swz-qldreason">
+            <TextArea rows={2} placeholder="Why edge protection, a scaffold or an EWP won't work here" value={a.qldFallReason} onChange={(e) => set({ qldFallReason: e.target.value })} />
+          </Field>
         )}
-      </div>
+      </>
     ),
     lift: (
-      <div className="sw-ask">
-        <span className="sw-al">How the unit goes up</span>
-        <div className="sw-opts row">
-          <Choice name="lift" checked={a.lift === "hoist"} onChange={() => set({ lift: "hoist" })} title="Rope hoist" />
-          <Choice name="lift" checked={a.lift === "crane"} onChange={() => set({ lift: "crane" })} title="Crane or Hiab" />
-        </div>
-      </div>
+      <Q label="How the unit goes up">
+        <Tray
+          ariaLabel="How the unit goes up"
+          value={a.lift}
+          options={[
+            { value: "hoist", label: "Rope hoist" },
+            { value: "crane", label: "Crane or Hiab" },
+          ]}
+          onChange={(v) => set({ lift: v })}
+        />
+      </Q>
     ),
     drill: (
-      <div className="sw-ask">
+      <>
         {/* asked where it changes something: the wall being drilled */}
-        <span className="sw-al">Built before 1990?</span>
-        <Seg
-          label="Built before 1990"
-          value={a.site.pre1990 ? "yes" : "no"}
-          options={[["no", "No"], ["yes", "Yes or not sure"]] as const}
-          onChange={(v) => setSite("pre1990", v === "yes")}
-        />
-        <span className="sw-al">Dust control</span>
-        <div className="sw-opts row">
-          <Choice name="dust" checked={a.dust === "wet"} onChange={() => set({ dust: "wet" })} title="Wet drilling" />
-          <Choice name="dust" checked={a.dust === "extract"} onChange={() => set({ dust: "extract" })} title="On-tool extraction" />
-        </div>
-        <span className="sw-al">Silica dust</span>
-        <div className="sw-opts">
-          <Choice name="silica" checked={a.silica === "high"} onChange={() => set({ silica: "high" })} title="High risk" sub="Power-tool drilling of brick or concrete" />
-          <Choice name="silica" checked={a.silica === "low"} onChange={() => set({ silica: "low" })} title="Not high risk" />
-        </div>
-        {a.silica === "low" && (
-          <input id="swz-silicawhy" className="wb2-fi" aria-label="Why it isn't high risk" placeholder="Why it isn't high risk" value={a.silicaWhy} onChange={(e) => set({ silicaWhy: e.target.value })} />
-        )}
-      </div>
-    ),
-    ceiling: (
-      <div className="sw-ask">
-        <span className="sw-al">Power while in the roof space</span>
-        <div className="sw-opts">
-          <Choice
-            id="swz-roofpower"
-            name="roofPower"
-            checked={a.roofPower === "off"}
-            onChange={() => set({ roofPower: "off" })}
-            title="Mains off at the main switchboard, locked and tagged"
-            sub={a.jurisdiction === "QLD" ? "Required in Queensland for a house roof space" : null}
+        <Q label="Built before 1990?">
+          <Tray
+            ariaLabel="Built before 1990"
+            value={a.site.pre1990 ? "yes" : "no"}
+            options={[
+              { value: "no", label: "No" },
+              { value: "yes", label: "Yes or not sure" },
+            ]}
+            onChange={(v) => setSite("pre1990", v === "yes")}
           />
-          {a.jurisdiction !== "QLD" && (
-            <Choice name="roofPower" checked={a.roofPower === "rcd"} onChange={() => set({ roofPower: "rcd" })} title="Only the RCD-protected socket circuit left on" />
-          )}
-        </div>
-      </div>
+        </Q>
+        <Q label="Dust control">
+          <Tray
+            ariaLabel="Dust control"
+            value={a.dust}
+            options={[
+              { value: "wet", label: "Wet drilling" },
+              { value: "extract", label: "On-tool extraction" },
+            ]}
+            onChange={(v) => set({ dust: v })}
+          />
+        </Q>
+        {radios(
+          "swz-silica-l",
+          "Silica dust",
+          <>
+            <Radio name="silica" checked={a.silica === "high"} onChange={() => set({ silica: "high" })} label="High risk" sub="Power-tool drilling of brick or concrete" />
+            <Radio name="silica" checked={a.silica === "low"} onChange={() => set({ silica: "low" })} label="Not high risk" />
+          </>,
+        )}
+        {a.silica === "low" && (
+          <Field label="Why it isn't high risk" id="swz-silicawhy">
+            <TextInput value={a.silicaWhy} onChange={(e) => set({ silicaWhy: e.target.value })} />
+          </Field>
+        )}
+      </>
+    ),
+    ceiling: radios(
+      "swz-roofpower-l",
+      "Power while in the roof space",
+      <>
+        <Radio
+          id="swz-roofpower"
+          name="roofPower"
+          checked={a.roofPower === "off"}
+          onChange={() => set({ roofPower: "off" })}
+          label="Mains off at the main switchboard, locked and tagged"
+          sub={a.jurisdiction === "QLD" ? "Required in Queensland for a house roof space" : null}
+        />
+        {a.jurisdiction !== "QLD" && (
+          <Radio name="roofPower" checked={a.roofPower === "rcd"} onChange={() => set({ roofPower: "rcd" })} label="Only the RCD-protected socket circuit left on" />
+        )}
+      </>,
     ),
     power: (
-      <div className="sw-ask">
-        <label className="sw-al" htmlFor="swz-isolation">
-          Isolation point
-        </label>
-        <input id="swz-isolation" className="wb2-fi" placeholder="Where the circuit is isolated" value={a.isolation} onChange={(e) => set({ isolation: e.target.value })} />
-        <label className="sw-al" htmlFor="swz-elec">
-          Electrician connecting it
-        </label>
-        <select id="swz-elec" className="wb2-sel" value={electrician} onChange={(e) => chooseElectrician(e.target.value)}>
-          <option value="">Choose</option>
-          {team.map((t) => (
-            <option key={t.id} value={`staff:${t.id}`}>
-              {t.role ? `${t.name}, ${t.role}` : t.name}
-            </option>
-          ))}
-          {named.map((o) => (
-            <option key={o.id} value={`out:${o.id}`}>
-              {o.company ? `${o.name}, ${o.company}` : o.name}
-            </option>
-          ))}
-          {/* a helper not named yet holds the choice until they are */}
-          {electricianRow && !electricianRow.name.trim() ? (
-            <option value={electrician}>Someone from outside the business</option>
-          ) : (
-            <option value="new">Someone from outside the business</option>
-          )}
-        </select>
+      <>
+        <Field label="Isolation point" id="swz-isolation">
+          <TextInput placeholder="Where the circuit is isolated" value={a.isolation} onChange={(e) => set({ isolation: e.target.value })} />
+        </Field>
+        <Field label="Electrician connecting it" id="swz-elec">
+          <Chooser
+            className="wzd-short"
+            placeholder="Choose"
+            value={electrician || null}
+            options={[
+              ...team.map((t) => ({ value: `staff:${t.id}`, label: t.name, hint: t.role || undefined })),
+              ...named.map((o) => ({ value: `out:${o.id}`, label: o.name, hint: o.company || undefined })),
+              /* a helper not named yet holds the choice until they are */
+              electricianRow && !electricianRow.name.trim()
+                ? { value: electrician, label: "Someone from outside the business" }
+                : { value: "new", label: "Someone from outside the business" },
+            ]}
+            onChange={chooseElectrician}
+          />
+        </Field>
         {electricianRow && (
-          <div className="sw-addrow">
-            <input id="swz-elec-name" className="wb2-fi" aria-label="Electrician's name" placeholder="Name" value={electricianRow.name} onChange={(e) => editOutsider(electricianRow.id, { name: e.target.value })} />
-            <input className="wb2-fi" aria-label="Electrician's company" placeholder="Company" value={electricianRow.company} onChange={(e) => editOutsider(electricianRow.id, { company: e.target.value })} />
+          <div className="wzd-pair">
+            <Field label="Electrician's name" id="swz-elec-name">
+              <TextInput value={electricianRow.name} onChange={(e) => editOutsider(electricianRow.id, { name: e.target.value })} />
+            </Field>
+            <Field label="Electrician's company">
+              <TextInput value={electricianRow.company} onChange={(e) => editOutsider(electricianRow.id, { company: e.target.value })} />
+            </Field>
           </div>
         )}
-      </div>
+      </>
     ),
     charge: (
-      <div className="sw-ask">
-        <span className="sw-al">Refrigerant</span>
-        <Seg label="Refrigerant" value={a.refrigerant as Refrigerant} options={REFRIGERANTS} onChange={(v) => set({ refrigerant: v })} />
-      </div>
+      <Q label="Refrigerant">
+        <Tray ariaLabel="Refrigerant" value={a.refrigerant as Refrigerant} options={REFRIGERANTS} onChange={(v) => set({ refrigerant: v })} />
+      </Q>
     ),
   };
 
   const offered = stepsFor(a.kind);
   const how = (
-    <>
-      <div className="sw-grp">
-        <div className="sw-gh">
-          <b>Steps on this job</b>
-          <span>{`${offered.filter((k) => a.steps[k]).length} of ${offered.length}`}</span>
-        </div>
-        <div className="sw-steps">
+    <div className="wzd-form">
+      <Group heading="Steps on this job" fact={`${offered.filter((k) => a.steps[k]).length} of ${offered.length}`}>
+        <div className="wzd-steps">
           {offered.map((k, i) => (
-            <div key={k} className={`sw-stepbox${a.steps[k] ? " on" : ""}`}>
-              <label className="sw-stephd">
-                <input id={i === 0 ? "swz-step-first" : undefined} type="checkbox" checked={a.steps[k]} onChange={(e) => setStepOn(k, e.target.checked)} />
-                <span>
-                  <b>{STEP_TITLE[k]}</b>
-                  <em>{STEP_SUB[k]}</em>
-                </span>
-              </label>
-              {a.steps[k] && asks[k]}
+            <div key={k} className="wzd-step">
+              <Tick
+                id={i === 0 ? "swz-step-first" : undefined}
+                className="wzd-tick"
+                checked={a.steps[k]}
+                onChange={(on) => setStepOn(k, on)}
+                label={<TickWords main={STEP_TITLE[k]} sub={STEP_SUB[k]} />}
+              />
+              {a.steps[k] && asks[k] && <div className="wzd-ask">{asks[k]}</div>}
             </div>
           ))}
         </div>
-      </div>
-      <div className="sw-grp">
-        <label className="sw-gh" htmlFor="swz-notes">
-          <b>Anything different about this site</b>
-        </label>
-        <textarea id="swz-notes" className="wb2-notes" rows={3} value={a.siteNotes} onChange={(e) => set({ siteNotes: e.target.value })} />
-      </div>
-    </>
+      </Group>
+      <Field label="Anything different about this site" id="swz-notes">
+        <TextArea rows={3} value={a.siteNotes} onChange={(e) => set({ siteNotes: e.target.value })} />
+      </Field>
+    </div>
   );
 
   /* the hospital the last SWMS in this postcode named, while it's still the one filled in */
   const nearby = !prev && ctx && ctx !== "failed" && ctx.hospital && a.hospital === ctx.hospital.name ? ctx.hospital : null;
   const who = (
-    <>
-      <div className="sw-grp">
-        <div className="sw-gh">
-          <b>From your team</b>
-          <span>{`${coveredTeam.length} chosen`}</span>
-        </div>
-        <div className="sw-crew">
-          {team.map((t, i) => {
-            const on = covers.includes(t.id);
-            return (
-              <label key={t.id} className={`sw-person${on ? " on" : ""}`}>
-                <input id={i === 0 ? "swz-team" : undefined} type="checkbox" checked={on} onChange={(e) => toggleCover(t.id, e.target.checked)} />
-                <span className="sw-who">
-                  <b>{t.name}</b>
-                  <em>{t.booked ? (t.role ? `${t.role}, booked on this job` : "Booked on this job") : t.role || "Team member"}</em>
-                  {on && (
-                    <span className="sw-tickets">
-                      {t.tickets.length === 0 ? (
-                        <span className="sw-state warn">No tickets on file</span>
-                      ) : (
-                        t.tickets.map((k) => (
-                          <span key={k.name} className={k.current ? undefined : "sw-state warn"}>
-                            {k.current ? k.name : `${k.name}, expired`}
+    <div className="wzd-form">
+      <Group heading="From your team" fact={`${coveredTeam.length} chosen`}>
+        {team.length === 0 ? (
+          <p className="wzd-note">Nobody active on the team yet.</p>
+        ) : (
+          <ul className="wzd-rows">
+            {team.map((t, i) => {
+              const on = covers.includes(t.id);
+              return (
+                <li key={t.id} className="wzd-row">
+                  <Tick
+                    id={i === 0 ? "swz-team" : undefined}
+                    className="wzd-tick"
+                    checked={on}
+                    onChange={(next) => toggleCover(t.id, next)}
+                    label={
+                      <span className="wzd-words">
+                        <span className="wzd-title">{t.name}</span>
+                        <span className="wzd-sub">{t.booked ? (t.role ? `${t.role}, booked on this job` : "Booked on this job") : t.role || "Team member"}</span>
+                        {on && (
+                          <span className="wzd-tickets">
+                            {t.tickets.length === 0 ? (
+                              <span className="wzd-look">No tickets on file</span>
+                            ) : (
+                              t.tickets.map((k) => (
+                                <span key={k.name} className={k.current ? undefined : "wzd-look"}>
+                                  {k.current ? k.name : `${k.name}, expired`}
+                                </span>
+                              ))
+                            )}
                           </span>
-                        ))
-                      )}
-                    </span>
-                  )}
-                </span>
-              </label>
-            );
-          })}
-          {team.length === 0 && <p className="sw-note">Nobody active on the team yet.</p>}
-        </div>
-      </div>
+                        )}
+                      </span>
+                    }
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Group>
 
-      <div className="sw-grp">
-        <div className="sw-gh">
-          <b>Someone from outside the business</b>
-        </div>
-        <div className="sw-outsiders">
+      <Group heading="Someone from outside the business">
+        <div className="wzd-outsiders">
           {[...outsiders, { id: blankId, name: "", company: "" }].map((o, i) => (
-            <div key={o.id} className="sw-addrow">
-              <input
-                className="wb2-fi"
+            <div key={o.id} className="wzd-addrow">
+              <TextInput
                 aria-label={o.id === blankId ? "Their name" : `Name ${i + 1}`}
                 placeholder="Name"
                 value={o.name}
                 onChange={(e) => editOutsider(o.id, { name: e.target.value })}
               />
-              <input
-                className="wb2-fi"
+              <TextInput
                 aria-label={o.id === blankId ? "Their company" : `Company ${i + 1}`}
                 placeholder="Company"
                 value={o.company}
                 onChange={(e) => editOutsider(o.id, { company: e.target.value })}
               />
               {o.id !== blankId ? (
-                <button type="button" className="wb2-ico" aria-label={`Clear ${o.name.trim() || "this row"}`} onClick={() => clearOutsider(o.id)}>
-                  <Icon name="x" size={14} />
-                </button>
+                <IconButton glyph="clear" label={`Clear ${o.name.trim() || "this row"}`} onClick={() => clearOutsider(o.id)} />
               ) : (
-                <span className="sw-rowgap" aria-hidden="true" />
+                <span aria-hidden="true" />
               )}
             </div>
           ))}
         </div>
-      </div>
+      </Group>
 
-      <div className="sw-grp">
-        <div className="sw-gh">
-          <b>In charge on site</b>
-        </div>
+      <Group heading="In charge on site">
         {coveredTeam.length === 0 ? (
-          <p className="sw-note">Choose someone from your team first.</p>
+          <p className="wzd-note">Choose someone from your team first.</p>
         ) : (
-          <div className="sw-opts row">
+          <div className="wzd-radios" role="radiogroup" aria-label="In charge on site">
             {coveredTeam.map((t, i) => (
-              <Choice
+              <Radio
                 key={t.id}
                 id={i === 0 ? "swz-resp" : undefined}
                 name="responsible"
@@ -777,62 +750,53 @@ export function SwmsWizard({
                   setResponsible(t.id);
                   touch();
                 }}
-                title={t.name}
+                label={t.name}
               />
             ))}
           </div>
         )}
-      </div>
+      </Group>
 
-      <div className="sw-grp">
-        <div className="sw-gh">
-          <b>Emergency</b>
-        </div>
-        <div className="sw-qas">
-          <div className="sw-qa">
-            <span>
-              <label htmlFor="swz-aid">First aider</label>
-              {!aiderChosen && autoAider && <em>Has first aid on file</em>}
-            </span>
-            <select
+      <Group heading="Emergency">
+        <div className="wzd-form">
+          <Q label="First aider" htmlFor="swz-aid" sub={!aiderChosen && autoAider ? "Has first aid on file" : null}>
+            <Chooser
               id="swz-aid"
-              className="wb2-sel"
+              className="wzd-short"
               value={aider}
-              onChange={(e) => {
-                setFirstAider(e.target.value);
+              options={[{ value: "", label: "Not named" }, ...people.map((p) => ({ value: p.key, label: p.name }))]}
+              onChange={(v) => {
+                setFirstAider(v);
                 setAiderChosen(true);
                 touch();
               }}
-            >
-              <option value="">Not named</option>
-              {people.map((p) => (
-                <option key={p.key} value={p.key}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="sw-qa">
-            <span>Fire extinguisher</span>
-            <Seg label="Fire extinguisher" value={a.extinguisher} options={[["van", "In the van"], ["site", "On site"]] as const} onChange={(v) => set({ extinguisher: v })} />
-          </div>
-          <div className="sw-qa">
-            <span>
-              <label htmlFor="swz-hosp">Nearest hospital</label>
-              {nearby && <em>{nearby.jobNumber ? `From job #${nearby.jobNumber}, in the same postcode` : "From a SWMS in the same postcode"}</em>}
-            </span>
-            <input id="swz-hosp" className="wb2-fi" value={a.hospital} onChange={(e) => set({ hospital: e.target.value })} />
-          </div>
+            />
+          </Q>
+          <Q label="Fire extinguisher">
+            <Tray
+              ariaLabel="Fire extinguisher"
+              value={a.extinguisher}
+              options={[
+                { value: "van", label: "In the van" },
+                { value: "site", label: "On site" },
+              ]}
+              onChange={(v) => set({ extinguisher: v })}
+            />
+          </Q>
+          <Q label="Nearest hospital" htmlFor="swz-hosp" sub={nearby ? (nearby.jobNumber ? `From job #${nearby.jobNumber}, in the same postcode` : "From a SWMS in the same postcode") : null}>
+            <TextInput id="swz-hosp" className="wzd-short" value={a.hospital} onChange={(e) => set({ hospital: e.target.value })} />
+          </Q>
         </div>
-      </div>
-    </>
+      </Group>
+    </div>
   );
 
   const extras = new Set(a.extraCategories);
   const auto = new Set(categoriesOf({ ...a, extraCategories: [] }).map((c) => c.n));
+  const listed = problems.filter((p) => p.field !== "siteChecked");
   const review = (
-    <>
-      <dl className="sw-rev">
+    <div className="wzd-form">
+      <dl className="wzd-rev">
         <div>
           <dt>Steps</dt>
           <dd>
@@ -845,10 +809,10 @@ export function SwmsWizard({
           <dd>
             {people.length === 1 ? "1 person" : `${people.length} people`}
             {people.length > 0 && <small>{people.map((p) => p.name).join(", ")}</small>}
-            {/* the Who screen warns about this in red; the read-back used to
-                let it through in silence, and paper printed "None on file" */}
+            {/* the Who screen warns about this; the read-back used to let it
+                through in silence, and paper printed "None on file" */}
             {noTickets.length > 0 && (
-              <small className="sw-state warn">{`${andList(noTickets.map((t) => t.name))} ${noTickets.length === 1 ? "has" : "have"} no current ticket on file`}</small>
+              <small className="wzd-look">{`${andList(noTickets.map((t) => t.name))} ${noTickets.length === 1 ? "has" : "have"} no current ticket on file`}</small>
             )}
           </dd>
         </div>
@@ -860,7 +824,7 @@ export function SwmsWizard({
           <dt>Builder</dt>
           <dd>
             {a.site.builder ? (
-              <span className="sw-state warn">{`${a.builderName.trim() || "The builder"} gets a copy before work starts`}</span>
+              <span className="wzd-look">{`${a.builderName.trim() || "The builder"} gets a copy before work starts`}</span>
             ) : (
               "No builder on this job"
             )}
@@ -871,7 +835,7 @@ export function SwmsWizard({
         <div>
           <dt>Emergency</dt>
           <dd>
-            {personName(aider) ?? <span className="sw-state warn">Nobody named as first aider</span>}
+            {personName(aider) ?? <span className="wzd-look">Nobody named as first aider</span>}
             <small>{`Nearest hospital: ${a.hospital.trim() || "not named yet"}. Fire extinguisher: ${a.extinguisher === "van" ? "in the van" : "on site"}.`}</small>
           </dd>
         </div>
@@ -885,98 +849,78 @@ export function SwmsWizard({
               </>
             ) : (
               /* never assert New South Wales over a site just said to be elsewhere */
-              <span className="sw-state bad">{siteState ? `${STATE_NAME[siteState]}, which this template doesn't cover` : "No state chosen yet"}</span>
+              <span className="wzd-wrong">{siteState ? `${STATE_NAME[siteState]}, which this template doesn't cover` : "No state chosen yet"}</span>
             )}
           </dd>
         </div>
       </dl>
 
-      <div className="sw-grp">
-        <div className="sw-gh">
-          <b>High-risk construction work</b>
-          <span>{cats.length === 1 ? "1 on this job" : `${cats.length} on this job`}</span>
-        </div>
+      <Group heading="High-risk construction work" fact={cats.length === 1 ? "1 on this job" : `${cats.length} on this job`}>
         {cats.length === 0 ? (
-          <p className="sw-note">None from the steps ticked.</p>
+          <p className="wzd-note">None from the steps ticked.</p>
         ) : (
-          <div className="sw-crew">
+          <ul className="wzd-rows">
             {cats.map((cat) => (
-              <div key={cat.n} className="sw-person out">
-                <span className="sw-who">
-                  <b>{PLAIN.get(cat.n)}</b>
-                  <em>{cat.reason}</em>
+              <li key={cat.n} className="wzd-row wzd-row--end">
+                <span className="wzd-words">
+                  <span className="wzd-title">{PLAIN.get(cat.n)}</span>
+                  <span className="wzd-sub">{cat.reason}</span>
                 </span>
                 {!auto.has(cat.n) && (
-                  <button
-                    type="button"
-                    className="wb2-ico"
-                    aria-label={`Clear ${PLAIN.get(cat.n)}`}
-                    onClick={() => set({ extraCategories: a.extraCategories.filter((n) => n !== cat.n) })}
-                  >
-                    <Icon name="x" size={14} />
-                  </button>
+                  <IconButton glyph="clear" label={`Clear ${PLAIN.get(cat.n)}`} onClick={() => set({ extraCategories: a.extraCategories.filter((n) => n !== cat.n) })} />
                 )}
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
         {moreCategories ? (
-          <div className="sw-cats">
+          <ul className="wzd-rows">
             {HRCW.filter((h) => !auto.has(h.n) && !extras.has(h.n)).map((h) => (
-              <label key={h.n} className="sw-cat">
-                <input type="checkbox" checked={false} onChange={() => set({ extraCategories: [...a.extraCategories, h.n].sort((x, y) => x - y) })} />
-                <span>{h.plain}</span>
-              </label>
+              <li key={h.n} className="wzd-row">
+                <Tick checked={false} onChange={() => set({ extraCategories: [...a.extraCategories, h.n].sort((x, y) => x - y) })} label={h.plain} />
+              </li>
             ))}
-          </div>
+          </ul>
         ) : (
-          <button type="button" className="sw-more" onClick={() => setMoreCategories(true)}>
+          <Button kind="quiet" size={32} className="wzd-start" onClick={() => setMoreCategories(true)}>
             Add another category
-          </button>
+          </Button>
         )}
-      </div>
+      </Group>
 
-      <div className="sw-grp">
-        <div className="sw-gh">
-          <b>Risk scores</b>
-        </div>
-        <Choice
-          kind="checkbox"
-          name="riskAppendix"
+      <Group heading="Risk scores">
+        <Tick
+          className="wzd-tick"
           checked={a.riskAppendix}
           onChange={(on) => set({ riskAppendix: on })}
-          title="Add a risk score appendix"
-          sub="Likelihood and consequence for each step, before and after its controls, on a page of its own"
+          label={<TickWords main="Add a risk score appendix" sub="Likelihood and consequence for each step, before and after its controls, on a page of its own" />}
         />
-      </div>
+      </Group>
 
       {prev && (
-        <div className="sw-grp">
-          <label className="sw-gh" htmlFor="swz-reason">
-            <b>What changed</b>
-          </label>
-          <textarea
-            id="swz-reason"
-            className="wb2-notes"
-            rows={2}
-            value={reason}
-            onChange={(e) => {
-              setReason(e.target.value);
-              touch();
-            }}
-          />
-          <div className="sw-opts">
-            <Choice
+        <div className="wzd-form">
+          <Field label="What changed" id="swz-reason">
+            <TextArea
+              rows={2}
+              value={reason}
+              onChange={(e) => {
+                setReason(e.target.value);
+                touch();
+              }}
+            />
+          </Field>
+          <div className="wzd-radios" role="radiogroup" aria-label="What kind of change">
+            <Radio
               name="material"
               checked={!correction}
               onChange={() => {
                 setMaterial(true);
                 touch();
               }}
-              title="It changes how the work is done"
+              label="It changes how the work is done"
               sub="Everyone signs on again, and the site is walked again"
             />
-            <Choice
+            <Radio
               name="material"
               checked={correction}
               disabled={changes.length > 0}
@@ -984,49 +928,34 @@ export function SwmsWizard({
                 setMaterial(false);
                 touch();
               }}
-              title="It's a correction"
+              label="It's a correction"
               sub={changes.length > 0 ? `${capital(andList(changes))} changed, so everyone signs on again` : "Sign-ons and the site walk carry over"}
             />
           </div>
         </div>
       )}
 
-      {problems.filter((p) => p.field !== "siteChecked").length > 0 && (
-        <ul className="sw-problems">
-          {problems
-            .filter((p) => p.field !== "siteChecked")
-            .map((p) => (
-              <li key={p.text}>
-                <button type="button" onClick={() => jump(p.field)}>
-                  {p.text}
-                </button>
-              </li>
-            ))}
-        </ul>
-      )}
+      <Jumps items={listed.map((p) => ({ key: p.field, text: p.text }))} onJump={(_, i) => jump(listed[i]!.field)} />
 
       {/* a correction stands on the walk the version it corrects was issued on */}
       {!correction && (
-        <Choice
+        <Tick
           id="swz-walked"
-          kind="checkbox"
-          name="checked"
+          className="wzd-tick"
           checked={checked}
           onChange={(on) => {
             setChecked(on);
             touch();
           }}
-          title="I've walked this site and this SWMS matches it"
-          sub="Recorded with your name and the time"
+          label={<TickWords main="I've walked this site and this SWMS matches it" sub="Recorded with your name and the time" />}
         />
       )}
-    </>
+    </div>
   );
 
   /* What the last screen's greyed-out button is waiting for: the problems
      the list shows, counted as the list shows them — the site walk is a tick
      on the screen, not a line in the list, so it is named rather than counted. */
-  const listed = problems.filter((p) => p.field !== "siteChecked");
   const waitingFor = listed.length
     ? listed.length === 1
       ? listed[0].text
@@ -1037,87 +966,55 @@ export function SwmsWizard({
 
   /* ── the frame ───────────────────────────────────────────────────────── */
 
-  let body: React.ReactNode;
-  let foot: React.ReactNode = null;
+  let body: ReactNode;
+  let foot: ReactNode = null;
   let tabs = false;
   let title = prev ? "Revise the SWMS" : "Safe Work Method Statement";
+  const closeOnly = (
+    <Button kind="main" onClick={onClose}>
+      Close
+    </Button>
+  );
 
   if (ctx === null) {
-    body = <p className="sw-note">Reading the job and the team</p>;
+    body = <p className="wzd-note">Reading the job and the team</p>;
   } else if (ctx === "failed") {
-    body = <p className="sw-note">Couldn&apos;t open the SWMS for this job. Close it and try again.</p>;
-    foot = (
-      <>
-        <span />
-        <button type="button" className="pbtn" onClick={onClose}>
-          Close
-        </button>
-      </>
-    );
+    body = <p className="wzd-note">Couldn&apos;t open the SWMS for this job. Close it and try again.</p>;
+    foot = closeOnly;
   } else if (stale) {
     /* the version this was opened to revise has been replaced; carrying on
        would file a second SWMS on the job */
     title = "This SWMS has moved on";
-    body = (
-      <p className="sw-text">
-        A newer version was issued while this card was open. Close it and open the job again to revise the current one.
-      </p>
-    );
-    foot = (
-      <>
-        <span />
-        <button type="button" className="pbtn" onClick={onClose}>
-          Close
-        </button>
-      </>
-    );
+    body = <p className="wzd-text">A newer version was issued while this card was open. Close it and open the job again to revise the current one.</p>;
+    foot = closeOnly;
   } else if (ctx.job.state && !ctx.job.jurisdiction) {
     /* named, and nothing to press: a SWMS to another state's rules is worse than none */
-    body = <p className="sw-text">{stateNotCovered(ctx.job.state)}</p>;
-    foot = (
-      <>
-        <span />
-        <button type="button" className="pbtn" onClick={onClose}>
-          Close
-        </button>
-      </>
-    );
+    body = <p className="wzd-text">{stateNotCovered(ctx.job.state)}</p>;
+    foot = closeOnly;
   } else if (!ctx.libraryApproved) {
     if (ctx.canApprove) {
       title = "Approve the SWMS template";
       body = (
-        <>
-          <p className="sw-text">
+        <div className="wzd-form">
+          <p className="wzd-text">
             Every SWMS is written from these steps and controls. Anything specific to a site is typed on site and printed as it was
             entered. Approve them once, and anyone on the team can issue a SWMS.
           </p>
           <TemplateSteps />
-        </>
+        </div>
       );
       foot = (
         <>
-          <span />
-          <button type="button" className="pbtn ghost" onClick={onClose}>
+          <Button kind="second" onClick={onClose}>
             Cancel
-          </button>
+          </Button>
           <ApproveTemplate onApproved={() => setCtx((c) => (c && c !== "failed" ? { ...c, libraryApproved: true } : c))} />
         </>
       );
     } else {
       title = "The SWMS template needs approving";
-      body = (
-        <p className="sw-text">
-          {`${ctx.ownerName ?? "The owner"} approves it before the first SWMS can be issued, and it's waiting in their bell.`}
-        </p>
-      );
-      foot = (
-        <>
-          <span />
-          <button type="button" className="pbtn" onClick={onClose}>
-            Close
-          </button>
-        </>
-      );
+      body = <p className="wzd-text">{`${ctx.ownerName ?? "The owner"} approves it before the first SWMS can be issued, and it's waiting in their bell.`}</p>;
+      foot = closeOnly;
     }
   } else if (issued) {
     /* who a correction carried is signed on already; everyone else — anyone
@@ -1134,139 +1031,115 @@ export function SwmsWizard({
     ];
     title = issued.version > 1 ? `Version ${issued.version} is on the job` : "The SWMS is on the job";
     body = (
-      <div className="sw-issued">
-        <p className="sw-text">
+      <div className="wzd-form">
+        <p className="wzd-text">
           {correction ? "Filed under Documents, Compliance. Anyone who signed on before stays signed on." : "Filed under Documents, Compliance."}
         </p>
         {inBells.length > 0 && (
-          <div className="sw-grp">
-            <div className="sw-gh">
-              <b>Asked in their bell</b>
-            </div>
-            <p className="sw-text">{inBells.map((t) => t.name).join(", ")}</p>
-          </div>
+          <Group heading="Asked in their bell">
+            <p className="wzd-text">{inBells.map((t) => t.name).join(", ")}</p>
+          </Group>
         )}
         {here.length > 0 && (
-          <div className="sw-grp">
-            <div className="sw-gh">
-              <b>Signing on here</b>
-            </div>
-            <div className="sw-crew">
+          <Group heading="Signing on here">
+            <ul className="wzd-rows">
               {here.map((p) => (
-                <div key={p.key} className="sw-person out">
-                  <span className="sw-who">
-                    <b>{p.name}</b>
-                    <em>{p.sub}</em>
+                <li key={p.key} className="wzd-row">
+                  <span className="wzd-words">
+                    <span className="wzd-title">{p.name}</span>
+                    <span className="wzd-sub">{p.sub}</span>
                   </span>
-                </div>
+                </li>
               ))}
-            </div>
-          </div>
+            </ul>
+          </Group>
         )}
         {a.site.builder && (
-          <p className="sw-state warn">{`${a.builderName.trim() || "The builder"} gets a copy before work starts — open the SWMS and send them the PDF.`}</p>
+          <p className="wzd-look">{`${a.builderName.trim() || "The builder"} gets a copy before work starts — open the SWMS and send them the PDF.`}</p>
         )}
       </div>
     );
     foot = (
       <>
-        <span />
-        <button type="button" className="pbtn ghost" onClick={() => onOpen(issued.versionId)}>
+        <Button kind="second" onClick={() => onOpen(issued.versionId)}>
           Open the SWMS
-        </button>
+        </Button>
         {here.length > 0 ? (
           <>
-            <button type="button" className="pbtn ghost" onClick={onClose}>
+            <Button kind="second" onClick={onClose}>
               Done
-            </button>
-            <button type="button" className="pbtn" onClick={() => onSignOn(issued.versionId)}>
+            </Button>
+            <Button kind="main" onClick={() => onSignOn(issued.versionId)}>
               Sign on now
-            </button>
+            </Button>
           </>
         ) : (
-          <button type="button" className="pbtn" onClick={onClose}>
+          <Button kind="main" onClick={onClose}>
             Done
-          </button>
+          </Button>
         )}
       </>
     );
   } else {
     tabs = true;
     const at = TABS.findIndex((t) => t.key === tab);
-    foot = confirmClose ? (
-      <>
-        <span>Discard this SWMS?</span>
-        <button type="button" className="pbtn ghost" onClick={() => setConfirmClose(false)}>
-          Keep editing
-        </button>
-        <button type="button" className="pbtn" onClick={onClose}>
-          Discard
-        </button>
-      </>
-    ) : (
+    foot = (
       <>
         {/* the tabs say which screen this is; the last one says what the
             greyed-out button is still waiting for */}
-        <span className={error || (at === 3 && problems.length > 0) ? "sw-state bad" : undefined}>
-          {error ?? (at === 3 ? waitingFor : "")}
-        </span>
-        {at > 0 && (
-          <button type="button" className="pbtn ghost" onClick={() => go(TABS[at - 1].key)}>
+        {error ? <FootWord tone="wrong">{error}</FootWord> : at === 3 && waitingFor ? <FootWord tone="look">{waitingFor}</FootWord> : null}
+        {at > 0 ? (
+          <Button kind="second" onClick={() => go(TABS[at - 1].key)}>
             Back
-          </button>
+          </Button>
+        ) : (
+          <Button kind="second" onClick={askClose}>
+            Cancel
+          </Button>
         )}
         {at < 3 ? (
-          <button type="button" className="pbtn" onClick={() => go(TABS[at + 1].key)}>
+          <Button kind="main" onClick={() => go(TABS[at + 1].key)}>
             Continue
-          </button>
+          </Button>
         ) : (
-          <button type="button" className="pbtn" disabled={busy || problems.length > 0} onClick={issue}>
+          <Button kind="main" disabled={busy || problems.length > 0} onClick={issue}>
             {busy ? "Issuing the SWMS" : prev ? `Issue version ${version}` : "Issue the SWMS"}
-          </button>
+          </Button>
         )}
       </>
     );
   }
 
-  const panels: Record<Tab, React.ReactNode> = { work, how, who, review };
+  const panels: Record<Tab, ReactNode> = { work, how, who, review };
 
   return (
     <>
-      <div className="swz-scrim" onClick={askClose} />
-      <aside ref={dialog} className={`swz${tabs ? " tall" : ""}`} role="dialog" aria-modal="true" aria-label={title}>
-        <div className={`wb2-jcband${tabs ? "" : " bare"}`}>
-          <div className="wb2-shtop">
-            {job?.number && <span className="wb2-shno">{`#${job.number}`}</span>}
-            <span className="wb2-jcid">
-              <h2 className="wb2-shname">{title}</h2>
-              <p className="wb2-jcaddr">{job?.address ?? (ctx === null ? "Reading the job" : "No address on the job")}</p>
-            </span>
-          </div>
-          <button ref={closeRef} type="button" className="wb2-ico" aria-label="Close the SWMS" onClick={askClose}>
-            <Icon name="x" size={14} />
-          </button>
-          {tabs && (
-            <ViewTabs
-              items={TABS}
-              active={tab}
-              onGo={(k) => go(k as Tab)}
-              ariaLabel="SWMS steps"
-              idPrefix="swztab"
-              panelPrefix="swzsec"
-            />
-          )}
-        </div>
-        <div className="wb2-jcbody swz-body" ref={bodyRef}>
-          {tabs
-            ? TABS.map((t) => (
-                <section key={t.key} className="wb2-jcface" id={`swzsec-${t.key}`} role="tabpanel" aria-labelledby={`swztab-${t.key}`} hidden={tab !== t.key}>
-                  {panels[t.key]}
-                </section>
-              ))
-            : body}
-        </div>
-        {foot && <div className="wb2-shft">{foot}</div>}
-      </aside>
+      <WizardDialog
+        heading={title}
+        line={jobLine(job)}
+        width={720}
+        tall={tabs}
+        onClose={askClose}
+        foot={foot}
+        scrollRef={bodyRef}
+        tabs={tabs ? { items: TABS, current: tab, onGo: (k) => go(k as Tab), ariaLabel: "SWMS steps", idPrefix: "swztab", panelPrefix: "swzsec" } : null}
+      >
+        {tabs
+          ? TABS.map((t) => (
+              <section key={t.key} id={`swzsec-${t.key}`} role="tabpanel" aria-labelledby={`swztab-${t.key}`} hidden={tab !== t.key}>
+                {panels[t.key]}
+              </section>
+            ))
+          : body}
+      </WizardDialog>
+      <ConfirmDialog
+        open={confirmClose}
+        heading="Discard this SWMS?"
+        confirm="Discard"
+        cancel="Keep editing"
+        onConfirm={onClose}
+        onClose={() => setConfirmClose(false)}
+      />
     </>
   );
 }

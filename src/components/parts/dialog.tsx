@@ -104,7 +104,8 @@ function DialogSurface({
    the dialog that asks before something is undone for good. Both buttons
    name what they do, "Delete visit" and "Keep it", and the one that keeps
    things takes focus, so Enter on arrival is never the loss. The buttons
-   wear the Button part's classes; that part draws them. */
+   wear the Button part's classes, at a dialog's 36 (rule 28); that part
+   draws them. Without the size they had no height or words' size at all. */
 
 export type ConfirmDialogProps = {
   open?: boolean;
@@ -144,12 +145,12 @@ export function ConfirmDialog({
       describedBy={children != null ? bodyId : undefined}
       foot={
         <>
-          <button type="button" className="pt-btn pt-btn--second" data-autofocus onClick={onClose}>
+          <button type="button" className="pt-btn pt-btn--36 pt-btn--second" data-autofocus onClick={onClose}>
             {cancel}
           </button>
           <button
             type="button"
-            className={`pt-btn ${danger ? "pt-btn--danger" : "pt-btn--main"}`}
+            className={`pt-btn pt-btn--36 ${danger ? "pt-btn--danger" : "pt-btn--main"}`}
             disabled={busy}
             aria-busy={busy || undefined}
             onClick={onConfirm}

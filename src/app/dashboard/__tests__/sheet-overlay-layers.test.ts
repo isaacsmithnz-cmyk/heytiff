@@ -3,12 +3,14 @@ import path from "node:path";
 
 /* ── WHAT OPENS OVER A CARD SITS ON THE CARD'S LAYER ──
 
-   The Workboard's sheets sit on the modal layer. Four things open over one,
-   each a scrim and a surface: an invoice's own modal, the media viewer and
-   the SWMS wizard inside the job card's portal, and the Tiff modal in a
-   portal of its own when a sheet's Tiff button, or a note field's offer on
-   a sheet, opens it. (The capture card was the fourth, and held this layer
-   for the same reason, until it went with the old capture UI, 2026-09-27.)
+   The Workboard's sheets sit on the modal layer. Three things open over one,
+   each a scrim and a surface: an invoice's own modal and the media viewer
+   inside the job card's portal, and the Tiff modal in a portal of its own
+   when a sheet's Tiff button, or a note field's offer on a sheet, opens
+   it. (The capture card was a fourth, and held this layer
+   for the same reason, until it went with the old capture UI, 2026-09-27.
+   The SWMS wizard was another, until it became the v2 dialog, which stands
+   on the modal layer as every Dialog does, 2026-10-25.)
 
    When the layers were named (#683) the sheet went to the modal layer and
    the first three pairs it had then went to the overlay layer, so each
@@ -29,7 +31,7 @@ const read = (f: string) =>
   fs.readFileSync(path.join(process.cwd(), f), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
 
 const TOKENS = read("src/app/tokens.css");
-const CSS = ["src/app/dashboard/shell.css", "src/components/swms/swms.css"].map(read).join("\n");
+const CSS = read("src/app/dashboard/shell.css");
 
 /** The layer a selector's own rule puts it on, with the token resolved. Only a
     rule naming the selector alone counts — `.wb2-sheet.jc` is not `.wb2-sheet`. */
@@ -54,8 +56,6 @@ describe("what opens over a card sits on the card's layer", () => {
     [".wb2-claim", "the invoice"],
     [".wb2-mvscrim", "the viewer's scrim"],
     [".wb2-mv", "the viewer"],
-    [".swz-scrim", "the SWMS wizard's scrim"],
-    [".swz", "the SWMS wizard"],
     [".tm", "the Tiff modal"],
   ])("%s, %s, is on the sheet's layer", (selector) => {
     expect(layer(selector)).toBe(SHEET);

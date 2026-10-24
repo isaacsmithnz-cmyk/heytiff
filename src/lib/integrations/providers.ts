@@ -240,7 +240,20 @@ export function missingScopes(granted: string | null | undefined): string[] {
    THE PRICE BOOK (2026-09-29): read_inventory, "Read-only access to Materials
    and MaterialBundles Endpoint" in the scope table, and the same name on
    material.json's reference page — the two agree this time. Asked for with
-   its reader, the price-book mirror, for itemised quotes. */
+   its reader, the price-book mirror, for itemised quotes.
+
+   THE CUSTOMER'S EMAILS AND TEXTS (2026-10-25): read_sms and read_email,
+   "Read job SMS history; does not grant permission to send SMS" and "Read
+   job email history; does not grant permission to send email" in the scope
+   table of developer.servicem8.com/docs/authentication, read that day. They
+   open sms.json and email.json, ServiceM8's read-only job communication
+   history (inbound and outbound, filterable by related_object_uuid; the May
+   2026 API update). Isaac, 25 October 2026: "on service, mate, you can see
+   the customer conversation. Like email replies, email sent … I think we're
+   actually missing this." Asked for ahead of their mirror on purpose, as in
+   2026-08-13: re-consent is a ceremony the owner performs once, and the
+   messages' field names are learned from the first real read before the
+   job's conversation is drawn. Neither can send anything. */
 
 /** One scope with its public justification — the same shape for every
     provider. `XeroScope` above predates this alias and stays for its callers. */
@@ -316,6 +329,16 @@ export const SM8_SCOPES: ScopeEntry[] = [
     scope: "read_job_notes",
     area: "Workboard",
     why: "Reads job notes, so what's written on a job's diary in ServiceM8 shows on the job here.",
+  },
+  {
+    scope: "read_sms",
+    area: "Workboard",
+    why: "Reads the text messages sent to and received from the customer on each job, so a job's conversation here shows them. Read only: it can't send a text.",
+  },
+  {
+    scope: "read_email",
+    area: "Workboard",
+    why: "Reads the emails sent to and received from the customer on each job, so a job's conversation here shows them. Read only: it can't send an email.",
   },
   {
     scope: "read_job_materials",

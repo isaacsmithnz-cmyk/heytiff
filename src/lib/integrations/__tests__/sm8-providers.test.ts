@@ -21,12 +21,14 @@ import {
 } from "../providers";
 
 describe("the ServiceM8 ask is exactly the read set", () => {
-  it("is these seventeen scopes and nothing else", () => {
+  it("is these nineteen scopes and nothing else", () => {
     // Set equality, not contains: an extra scope is as much a failure as a
     // missing one — a consent screen that over-asks is over-asking on trust.
     // The last six are the 2026-08-13 job-media expansion, bundled into ONE
     // re-consent by the owner's decision. read_inventory (2026-09-29) came
-    // with its reader, the price-book mirror for itemised quotes.
+    // with its reader, the price-book mirror for itemised quotes. read_sms
+    // and read_email (2026-10-25) read the customer's texts and emails on a
+    // job, and send nothing.
     expect([...SM8_SCOPE_LIST].sort()).toEqual(
       [
         "vendor",
@@ -46,6 +48,8 @@ describe("the ServiceM8 ask is exactly the read set", () => {
         "read_job_materials",
         "read_job_payments",
         "read_inventory",
+        "read_sms",
+        "read_email",
       ].sort()
     );
   });

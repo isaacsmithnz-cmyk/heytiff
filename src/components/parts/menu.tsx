@@ -35,6 +35,8 @@ export type MenuItem = {
   /** ends the record: a red word, last (rule 53) */
   danger?: boolean;
   disabled?: boolean;
+  /** a thin line above it, setting it apart from the items before */
+  rule?: boolean;
 };
 
 export type MenuProps = {
@@ -46,8 +48,10 @@ export type MenuProps = {
   items: readonly MenuItem[];
   /** what the list is, for a screen reader */
   label: string;
-  /** the chosen item, on the selected fill */
-  chosen?: string | null;
+  /** the chosen item, on the selected fill; several, for a chooser that takes more than one */
+  chosen?: string | readonly string[] | null;
+  /** a pick leaves the menu open, for a chooser that takes more than one */
+  stay?: boolean;
   /** "listbox" for a chooser's options */
   kind?: "menu" | "listbox";
   /** a filter box above the items */
@@ -68,7 +72,7 @@ export function Menu(props: MenuProps) {
 
 const first = (list: readonly MenuItem[]) => list.find((i) => !i.disabled)?.key ?? null;
 
-function MenuPanel({ anchor, onClose, onSelect, items, label, chosen, kind = "menu", filter, matchWidth, align, id, tone = "white" }: MenuProps) {
+function MenuPanel({ anchor, onClose, onSelect, items, label, chosen, stay = false, kind = "menu", filter, matchWidth, align, id, tone = "white" }: MenuProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const filterRef = useRef<HTMLInputElement>(null);
@@ -80,9 +84,8 @@ function MenuPanel({ anchor, onClose, onSelect, items, label, chosen, kind = "me
   const ordered = [...items.filter((i) => !i.danger), ...items.filter((i) => i.danger)];
   const q = query.trim().toLowerCase();
   const shown = q ? ordered.filter((i) => i.label.toLowerCase().includes(q)) : ordered;
-  const [active, setActive] = useState<string | null>(() =>
-    chosen != null && ordered.some((i) => i.key === chosen && !i.disabled) ? chosen : first(ordered),
-  );
+  const isChosen = (key: string) => (typeof chosen === "string" ? key === chosen : !!chosen?.includes(key));
+  const [active, setActive] = useState<string | null>(() => ordered.find((i) => isChosen(i.key) && !i.disabled)?.key ?? first(ordered));
   const enabled = shown.filter((i) => !i.disabled);
   const at = enabled.findIndex((i) => i.key === active);
   const optionId = (key: string) => `${made}-o${shown.findIndex((i) => i.key === key)}`;
@@ -96,7 +99,7 @@ function MenuPanel({ anchor, onClose, onSelect, items, label, chosen, kind = "me
   };
   const pick = (item: MenuItem) => {
     if (item.disabled) return;
-    close(true);
+    if (!stay) close(true);
     onSelect(item.key);
   };
 
@@ -205,11 +208,12 @@ function MenuPanel({ anchor, onClose, onSelect, items, label, chosen, kind = "me
         className="pt-menu-list"
         role={kind}
         aria-label={label}
+        aria-multiselectable={kind === "listbox" && Array.isArray(chosen) ? true : undefined}
         tabIndex={-1}
         aria-activedescendant={filter ? undefined : activeId}
       >
         {shown.map((item, i) => {
-          const on = item.key === chosen;
+          const on = isChosen(item.key);
           return (
             <MenuRow
               key={item.key}
@@ -218,7 +222,7 @@ function MenuPanel({ anchor, onClose, onSelect, items, label, chosen, kind = "me
               role={itemRole}
               on={on}
               active={item.key === active}
-              rule={i === firstDanger && i > 0}
+              rule={(i === firstDanger || !!item.rule) && i > 0}
               onPoint={() => {
                 setKeyed(false);
                 if (!item.disabled) setActive(item.key);

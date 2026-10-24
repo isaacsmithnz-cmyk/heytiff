@@ -20,6 +20,8 @@ const FILES = [
   "src/components/making/visit-form.tsx",
   "src/components/making/book-in.ts",
   "src/components/workboard/board/book-in-panel.tsx",
+  /* a job's Visits (25 October 2026): its cards, its tasks and its dialogs */
+  "src/components/workboard/board/job-visit-tasks.tsx",
 ];
 
 type CompileEvent = { kind: string; fnName?: string | null; detail?: unknown };
@@ -61,4 +63,5 @@ it("names the form, its engine, the lines and the Clear's confirm among what com
   expect(names("src/components/workboard/board/book-in-panel.tsx")).toEqual(
     expect.arrayContaining(["BookingEntryLine", "BookingStateLine", "ClearConfirm"]),
   );
+  expect(names("src/components/workboard/board/job-visit-tasks.tsx")).toEqual(expect.arrayContaining(["JobVisits", "DayTask", "IssueDialog", "VisitDialog"]));
 });

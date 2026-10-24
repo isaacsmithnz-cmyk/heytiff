@@ -10,7 +10,6 @@ import { Button } from "@/components/parts/button";
 import { Loading } from "@/components/parts/states";
 import type { MenuItem } from "@/components/parts/menu";
 import { quoteStarted, type QuoteFacts } from "@/lib/quotes/quote-card";
-import { fmtAuTime, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import {
   createProjectFromJob,
   readJobFiles,
@@ -37,14 +36,13 @@ import { JobMaterialsFace } from "./job-materials-face";
 import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
 import { JobQuoteCard } from "./job-quote-card";
-import { JobVisitTasks, type VisitDay } from "./job-visit-tasks";
+import { JobVisits, VisitDialog, type ComingVisit } from "./job-visit-tasks";
 import { sm8QuoteOf } from "../quote/sm8-quote-of";
 import { JobProgressLine } from "./job-progress-line";
 import { JobCustomer } from "./job-customer";
 import { JobCustomerDialog } from "./job-customer-dialog";
 import { customerEditOffered } from "@/app/actions/job-customer";
 import { setNoDeposit } from "@/app/actions/job-deposit";
-import { checkIn, checkOut, readMyCheckIn, type MyCheckIn } from "@/app/actions/job-check-ins";
 import { jobSteps, type StepKey } from "@/lib/workboard/job-steps";
 import { SwmsWizard } from "@/components/swms/swms-wizard";
 import { CertWizard } from "@/components/certs/cert-wizard";
@@ -87,16 +85,13 @@ import type { BookInSeed } from "@/components/making/book-in";
 import { VisitForm, visitJobLabel } from "@/components/making/visit-form";
 import type { BookedEntry, MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
-import {
-  sm8TimeOf,
-  type AllJobRow,
-} from "@/lib/workboard/all-jobs";
+import type { AllJobRow } from "@/lib/workboard/all-jobs";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
 import { useHydrated } from "@/lib/use-hydrated";
 import { JobPageHead } from "@/components/jobs/job-page-head";
 import { JobOverview } from "@/components/jobs/job-overview";
 import { jobHue } from "@/lib/workboard/job-hue";
-import { SECTION_FACES, SECTION_LABEL, sectionOfFace, sectionsFor, stageWord, type JobSection } from "@/lib/jobs/job-sections";
+import { SECTION_FACES, SECTION_LABEL, sectionOfFace, sectionsFor, type JobSection } from "@/lib/jobs/job-sections";
 
 /* One ServiceM8 job — a CARD OF TABS.
 
@@ -152,15 +147,6 @@ import { SECTION_FACES, SECTION_LABEL, sectionOfFace, sectionsFor, stageWord, ty
 const MAX_CACHE_ROUNDS = 60;
 const MAX_READ_ROUNDS = 70;
 
-/** A visit's length in the words the crew use (Isaac, 2026-10-02: a visit
-    can be a full day or "a 20-minute pop-in"), by the hours each person who
-    recorded time spent there. A day nobody's time can be believed has none. */
-export function visitLength(v: { minutes: number; crew: { leftOpen?: true }[] }): string {
-  const counted = v.crew.filter((c) => !c.leftOpen).length;
-  if (v.minutes <= 0 || counted === 0) return "";
-  const each = v.minutes / counted;
-  return each >= 300 ? "Full day" : each >= 120 ? "Half day" : "Pop-in";
-}
 
 /** The card's faces. A door that knows which face it wants opens on it
     with `initialTab`. */
@@ -239,21 +225,6 @@ const ExpenseForm = lazy(() => import("@/components/making/expense-form").then((
 /** Where a quote is made, as the Quote section's own link goes: a quote
     not started yet starts with Tiff. */
 const quotePage = (job: string, started: boolean) => quoteHref(job, { start: !started });
-
-const dayOf = (naive: string | null | undefined) =>
-  naive && naive.length >= 10 ? naive.slice(0, 10) : null;
-
-
-/** "7:30am Thu 14 Aug", or "7:30am–3:30pm Thu 14 Aug" when the booking's end
-    is known and lands on the same day. The time itself is the shared
-    `sm8TimeOf` — the project card's day window says it the same way. */
-function bookingLabel(naive: string, end?: string | null): string {
-  const date = dayOf(naive);
-  const time = sm8TimeOf(naive);
-  if (!date || !time) return date ? fmtAuWeekdayDayMonth(date) : naive;
-  const endTime = end && dayOf(end) === date ? sm8TimeOf(end) : null;
-  return `${endTime ? `${time}–${endTime}` : time} ${fmtAuWeekdayDayMonth(date)}`;
-}
 
 /** A dialable href, or null when the field isn't one number.
 
@@ -375,9 +346,8 @@ export function JobSheet({
      on — asked once, for a manager, and never anywhere else */
   const [customerEdit, setCustomerEdit] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(false);
-  /* WHERE THE READER IS CHECKED IN, if anywhere — undefined until read */
-  const [mine, setMine] = useState<MyCheckIn | undefined>(undefined);
-  const [checking, setChecking] = useState(false);
+  /* THE VISIT PRESSED on Visits, by its key: its dialog is open */
+  const [visitOpen, setVisitOpen] = useState<string | null>(null);
   /* The claim this card was opened FOR, when a clone's row was clicked. It
      names the row in the ledger — the card is always the job. */
   const [focus, setFocus] = useState<string | null>(null);
@@ -458,16 +428,6 @@ export function JobSheet({
       live = false;
     };
   }, [manage]);
-
-  useEffect(() => {
-    let live = true;
-    void readMyCheckIn()
-      .then((m) => live && setMine(m))
-      .catch(() => live && setMine(null));
-    return () => {
-      live = false;
-    };
-  }, []);
 
   /* THE COMPANION READS FOLLOW THE CARD, not the row that was clicked. A
      clone's row opens its parent, so asking for the clone's files, ledger or
@@ -1009,38 +969,26 @@ export function JobSheet({
     if (v) v.crew.push(b);
     else visitsAhead.push({ key, start: b.start, end: b.end, crew: [b] });
   }
-  const crewOf = (crew: readonly BookedEntry[]) =>
-    crew.map((b, i) => (
-      <Fragment key={b.uuid}>
-        {i > 0 && <br />}
-        {b.staffName ?? BOOKING_WORDS.fill.person}
-        {b.staffName && b.staffTitle && <i className="wb2-jcrole">{`, ${b.staffTitle}`}</i>}
-      </Fragment>
-    ));
-  /* A day on site's crew, as the visit cards have always drawn it. A comma
-     separates two bare names; once a title (or a check-in left open) is in
-     the line a comma cannot say where one person ends, so the pair takes a
-     dash instead. The separators are REAL TEXT, not CSS — jest never loads
-     the stylesheet, so a separator that lives only in CSS is one nothing
-     here can see fail. */
-  const visitCrew = (v: NonNullable<typeof detail>["visits"][number]): ReactNode =>
-    v.crew.length === 0
-      ? "Nobody named"
-      : v.crew.map((c, i) => (
-          <span key={c.name}>
-            {i > 0 ? (v.crew.some((m) => m.title || m.leftOpen) ? " — " : ", ") : ""}
-            {c.name}
-            {c.title && <i className="wb2-jcrole">{`, ${c.title}`}</i>}
-            {/* on site, time unknown: the hours leave this person out, so the line says why */}
-            {c.leftOpen && <i className="wb2-jcrole">, check-in left open</i>}
-            {c.onSite && <i className="wb2-jcrole">, on site now</i>}
-          </span>
-        ));
-  /* the days booked ahead; who's booked is said once, in the bookings
-     above the visits, so their cards don't repeat it */
-  const daysAhead: VisitDay[] = [
-    ...new Set([...(standing ?? []).map((b) => b.start), ...(!standing && detail?.nextBooking ? [detail.nextBooking.start] : [])].map((s) => s.slice(0, 10))),
-  ].map((day) => ({ day, crewNode: null, minutes: 0, length: null, onSite: false }));
+  /* THE VISITS COMING UP (Isaac's mock of 25 October 2026): every visit
+     from today on, each with who's going; where the deployment books
+     nothing, the next booking alone, as it always was */
+  const coming: ComingVisit[] = standing
+    ? visitsAhead.map((v) => ({
+        key: v.key,
+        start: v.start,
+        end: v.end,
+        crew: v.crew.map((b) => ({ name: b.staffName ?? BOOKING_WORDS.fill.person, title: b.staffTitle })),
+      }))
+    : detail?.nextBooking
+      ? [
+          {
+            key: `${detail.nextBooking.start}|${detail.nextBooking.end ?? ""}`,
+            start: detail.nextBooking.start,
+            end: detail.nextBooking.end,
+            crew: detail.nextBooking.staffName ? [{ name: detail.nextBooking.staffName, title: detail.nextBooking.staffTitle }] : [],
+          },
+        ]
+      : [];
   const listed = new Set((standing ?? []).map((b) => b.uuid.trim().toLowerCase()));
   const above = bkVerbs
     .map((v) => ({ ...v, bookings: v.bookings.filter((b) => !(listed.has(b.uuid) && bkLines[b.uuid])) }))
@@ -1205,14 +1153,16 @@ export function JobSheet({
 
   /** What a standing booking says on its own entry: our line and its doors,
       or a leftover's words and Clear booking — asked in place. */
-  const entryState = (b: BookedEntry) => {
+  const entryState = (b: BookedEntry, takeBackElsewhere = false) => {
     const u = b.uuid.trim().toLowerCase();
     const line = bkLines[u];
     if (line) {
       const rowId = b.ourRow ?? verbLineOf(u, "create")?.rowId ?? null;
+      /* a visit's dialog takes the booking back with its own Cancel visit */
+      const acts = line.acts.filter((a) => (rowId || a === "open_in_sm8") && !(takeBackElsewhere && (a === "undo" || a === "cancel")));
       return (
         <BookingStateLine
-          state={rowId ? line : { ...line, acts: line.acts.filter((a) => a === "open_in_sm8") }}
+          state={{ ...line, acts }}
           sm8Url={sm8Url}
           busy={!!rowId && bkBusy.has(rowId)}
           canPanel={!!bookings?.canBook}
@@ -1244,6 +1194,42 @@ export function JobSheet({
         )}
       </div>
     );
+  };
+
+  /* A VISIT, PRESSED (frame 4): where its bookings stand, said once when
+     they all say the same, and Cancel visit where this viewer may take them
+     back, by the same doors a booking's line has always had. */
+  const visitBookings = (key: string): BookedEntry[] => (standing ? (visitsAhead.find((v) => v.key === key)?.crew ?? []) : []);
+  const takeBacks = (crew: readonly BookedEntry[]) =>
+    crew.flatMap((b) => {
+      const u = b.uuid.trim().toLowerCase();
+      const line = bkLines[u];
+      const rowId = line ? (b.ourRow ?? verbLineOf(u, "create")?.rowId ?? null) : null;
+      const act: BookingAct | null = line?.acts.includes("undo") ? "undo" : line?.acts.includes("cancel") ? "cancel" : null;
+      return rowId && act ? [{ b, u, rowId, act }] : [];
+    });
+  /** in the mirror, with nothing of ours to say: booked there */
+  const bookedThere = (
+    <BookingStateLine
+      state={{ key: null, text: BOOKING_WORDS.line.sent, tone: "ok", acts: ["open_in_sm8"] }}
+      sm8Url={sm8Url}
+      busy={false}
+      canPanel={false}
+      onAct={() => undefined}
+    />
+  );
+  const visitState = (crew: readonly BookedEntry[]): ReactNode => {
+    if (crew.length === 0) return null;
+    const lines = crew.map((b) => bkLines[b.uuid.trim().toLowerCase()] ?? null);
+    if (lines.every((l) => !l) && crew.every((b) => !b.leftover)) return bookedThere;
+    const plain = (l: BookingState | null) => !!l && l.acts.every((a) => a === "undo" || a === "cancel" || a === "open_in_sm8");
+    if (new Set(lines.map((l) => l?.text ?? null)).size === 1 && lines.every(plain)) return entryState(crew[0]!, true);
+    return crew.map((b) => (
+      <div className="jv-whose" key={b.uuid}>
+        <b>{b.staffName ?? BOOKING_WORDS.fill.person}</b>
+        {entryState(b, true) ?? bookedThere}
+      </div>
+    ));
   };
 
   /* STARRING IS OPTIMISTIC AND REVERSIBLE. The star is a curator's gesture,
@@ -1285,21 +1271,6 @@ export function JobSheet({
         paint(!on);
         onToast(thrownWords(e, "Could not save that star"));
       });
-  };
-
-  /* CHECK IN / CHECK OUT — the reader, on this job. The card reads the job
-     again after, so the day's card shows them on site (or their hours). */
-  const pressCheck = (out: boolean) => {
-    if (!cardId || checking) return;
-    setChecking(true);
-    void (out ? checkOut(cardId) : checkIn(cardId))
-      .then((m) => {
-        if (!alive.current) return;
-        setMine(m);
-        void readMirrorJob(row.id).then((res) => alive.current && res.detail && setDetail(res.detail));
-      })
-      .catch((e: unknown) => alive.current && onToast(thrownWords(e, out ? "Could not check you out" : "Could not check you in")))
-      .finally(() => alive.current && setChecking(false));
   };
 
   const removeChecklistItem = (id: string) => {
@@ -1514,153 +1485,52 @@ export function JobSheet({
     <>
           {panel(
             "visits",
-            <>
-              {/* CHECK IN / CHECK OUT (Isaac, 2026-10-02): the record of who
-                  was on site, over ServiceM8's check-ins, which miss most
-                  days. One press; checking in here checks out of anywhere
-                  else. */}
-              {cardId && mine !== undefined && (
-                <div className={"jcl-check" + (mine?.jobUuid === cardId ? " on" : mine ? "" : " bare")}>
-                  {mine?.jobUuid === cardId ? (
-                    <>
-                      <span>{`On site since ${fmtAuTime(new Date(mine.since))}`}</span>
-                      <button type="button" className="pbtn" disabled={checking} onClick={() => pressCheck(true)}>
-                        Check out
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      {mine && (
-                        <span>{`Checked in at ${mine.jobNumber ? `#${mine.jobNumber}` : "another job"} since ${fmtAuTime(new Date(mine.since))}`}</span>
-                      )}
-                      <button type="button" className="pbtn" disabled={checking} onClick={() => pressCheck(false)}>
-                        {mine ? "Check in here" : "Check in"}
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-              {/* BOOK IN (two-way phase 3): the door, or its panel in place,
-                  then every press on the job whose booking isn't standing
-                  on the list below — newest first, a status change said
-                  once above its bookings. Nothing of it where the
-                  deployment books nothing. */}
-              {bookings?.canBook && cardId && (
-                <div className="wb2-jcattsave">
-                  <button type="button" className="pbtn" onClick={() => openPanel(null)}>
-                    {BOOKING_WORDS.panel.book}
-                  </button>
-                </div>
-              )}
-              {above.length > 0 && (
-                <div className="wb2-jcsec">
-                  {above.map((v) => (
-                    <Fragment key={v.verbId}>
-                      {v.status?.state.text && (
-                        <div className="wb2-evmeta">
-                          <StateLine as="span" line={{ word: v.status.state.text, tone: v.status.state.tone }} />
-                        </div>
-                      )}
-                      {v.bookings.map((b) => (
-                        <Fragment key={b.rowId}>
-                          {b.start && (
-                            <BookingEntryLine start={b.start} end={b.end} name={b.name} startOnly={b.op === "clear"} />
+            detail ? (
+              <JobVisits
+                job={cardId ?? row.id}
+                visible={faceOn("visits")}
+                client={detail.clientName ?? row.clientName ?? ""}
+                zone={detail.timezone ?? bookings?.zone ?? null}
+                coming={coming}
+                previous={detail.visits.map((v) => ({ day: v.day, crew: v.crew.map((c) => c.name), minutes: v.minutes }))}
+                workOrderDate={detail.workOrderDate}
+                askAdd={taskAsk}
+                onBook={bookings?.canBook && cardId ? () => openPanel(null) : undefined}
+                onOpen={setVisitOpen}
+                pressed={
+                  /* BOOK IN (two-way phase 3): every press on the job whose
+                     booking isn't a visit on the list yet, newest first, a
+                     status change said once above its bookings */
+                  above.length > 0 ? (
+                    <div className="wb2-jcsec">
+                      {above.map((v) => (
+                        <Fragment key={v.verbId}>
+                          {v.status?.state.text && (
+                            <div className="wb2-evmeta">
+                              <StateLine as="span" line={{ word: v.status.state.text, tone: v.status.state.tone }} />
+                            </div>
                           )}
-                          <BookingStateLine
-                            state={b.state}
-                            sm8Url={sm8Url}
-                            busy={bkBusy.has(b.rowId)}
-                            canPanel={b.op === "clear" || !!bookings?.canBook}
-                            onAct={(act) => bookingAct(act, { rowId: b.rowId, op: b.op, uuid: b.uuid, seed: seedOf(b) })}
-                          />
+                          {v.bookings.map((b) => (
+                            <Fragment key={b.rowId}>
+                              {b.start && <BookingEntryLine start={b.start} end={b.end} name={b.name} startOnly={b.op === "clear"} />}
+                              <BookingStateLine
+                                state={b.state}
+                                sm8Url={sm8Url}
+                                busy={bkBusy.has(b.rowId)}
+                                canPanel={b.op === "clear" || !!bookings?.canBook}
+                                onAct={(act) => bookingAct(act, { rowId: b.rowId, op: b.op, uuid: b.uuid, seed: seedOf(b) })}
+                              />
+                            </Fragment>
+                          ))}
                         </Fragment>
                       ))}
-                    </Fragment>
-                  ))}
-                </div>
-              )}
-              {standing ? (
-                visitsAhead[0] && (
-                  <div className="wb2-nextv">
-                    <span className="wb2-sect">Next on site</span>
-                    <b>{bookingLabel(visitsAhead[0].start, visitsAhead[0].end)}</b>
-                    <em>{crewOf(visitsAhead[0].crew)}</em>
-                    {visitsAhead[0].crew.map((b) => (
-                      <Fragment key={b.uuid}>{entryState(b)}</Fragment>
-                    ))}
-                  </div>
-                )
-              ) : null}
-              {visitsAhead.length > 1 && (
-                <div className="wb2-jcsec">
-                  {visitsAhead.slice(1).map((v) => (
-                    <Fragment key={v.key}>
-                      <BookingEntryLine
-                        start={v.start}
-                        end={v.end}
-                        name={v.crew.map((b) => b.staffName ?? BOOKING_WORDS.fill.person).join(", ")}
-                        title={v.crew.length === 1 ? v.crew[0]!.staffTitle : null}
-                      />
-                      {v.crew.map((b) => (
-                        <Fragment key={b.uuid}>{entryState(b)}</Fragment>
-                      ))}
-                    </Fragment>
-                  ))}
-                </div>
-              )}
-              {/* SITE VISITS IS ONE SECTION — the next booking FIRST, in the
-                  accent, then every past visit under the same roof. */}
-              {!standing && detail?.nextBooking && (
-                <div className="wb2-nextv">
-                  <span className="wb2-sect">Next on site</span>
-                  <b>{bookingLabel(detail.nextBooking.start, detail.nextBooking.end)}</b>
-                  <em>
-                    {detail.nextBooking.staffName ?? "Nobody named"}
-                    {detail.nextBooking.staffName && detail.nextBooking.staffTitle && (
-                      <i className="wb2-jcrole">{`, ${detail.nextBooking.staffTitle}`}</i>
-                    )}
-                  </em>
-                </div>
-              )}
-              {detail?.queue && (
-                <div className="wb2-jcsec">
-                  <span className="wb2-sect">In queue</span>
-                  <p className="wb2-shtext">
-                    <b>{detail.queue.name}</b>
-                    {", "}
-                    {[
-                      detail.queue.staffName,
-                      detail.queue.expiry
-                        ? `until ${fmtAuWeekdayDayMonth(detail.queue.expiry)}`
-                        : null,
-                    ]
-                      .filter(Boolean)
-                      .join(", ") || "waiting"}
-                  </p>
-                </div>
-              )}
-              {detail ? (
-                <JobVisitTasks
-                  job={cardId ?? row.id}
-                  visible={faceOn("visits")}
-                  onSite={detail.visits.map((v) => ({
-                    day: v.day,
-                    crewNode: visitCrew(v),
-                    length: visitLength(v),
-                    minutes: v.minutes,
-                    onSite: v.crew.some((c) => c.onSite),
-                  }))}
-                  ahead={daysAhead}
-                  workOrderDate={detail.workOrderDate}
-                  onSiteMinutes={detail.timeOnSite?.minutes ?? null}
-                  askAdd={taskAsk}
-                  onBook={bookings?.canBook && cardId ? () => openPanel(null) : undefined}
-                  emptyWords={above.length > 0 || detail.queue ? "" : "Nobody's been on site yet, and nothing is booked."}
-                />
-              ) : (
-                <p className="int-hint">{loading ? "Reading the visits from the mirror" : "Nobody's been on site yet, and nothing is booked."}</p>
-              )}
-            </>
+                    </div>
+                  ) : null
+                }
+              />
+            ) : (
+              <p className="int-hint">{loading ? "Reading the visits from the mirror" : "Nobody's been on site yet, and nothing is booked."}</p>
+            )
           )}
     </>
   );
@@ -1817,6 +1687,39 @@ export function JobSheet({
     </>
   );
 
+  /* A VISIT, PRESSED on Visits (frame 4): its dialog, while its visit is
+     still coming up */
+  const openVisit = visitOpen ? (coming.find((c) => c.key === visitOpen) ?? null) : null;
+  const openCrew = openVisit ? visitBookings(openVisit.key) : [];
+  const openBacks = cardId ? takeBacks(openCrew) : [];
+  const cancelVisit = () => {
+    for (const t of openBacks) bookingAct(t.act, { rowId: t.rowId, op: "create", uuid: t.u, seed: seedOf(t.b) });
+  };
+  const changeVisit = () => {
+    if (!openVisit) return;
+    const people = openCrew.map((b) => b.staffUuid).filter((u): u is string => !!u);
+    setVisitOpen(null);
+    openPanel({ staffUuid: people[0] ?? null, staffUuids: people, start: openVisit.start, end: openVisit.end });
+  };
+  const visitDialog = openVisit ? (
+    <VisitDialog
+      visit={openVisit}
+      jobLine={visitJobLabel({ number: detail?.jobNumber ?? row.number ?? null, clientName: detail?.clientName ?? row.clientName, suburb: null })}
+      state={
+        visitState(openCrew) ??
+        (sm8Url ? (
+          <a className="wb2-evdoor" href={sm8Url} target="_blank" rel="noreferrer">
+            {BOOKING_WORDS.door.openInSm8}
+          </a>
+        ) : null)
+      }
+      onClose={() => setVisitOpen(null)}
+      onCancel={openBacks.length > 0 ? cancelVisit : undefined}
+      cancelling={openBacks.some((t) => bkBusy.has(t.rowId))}
+      onChange={bookings?.canBook && cardId ? changeVisit : undefined}
+    />
+  ) : null;
+
   /* The dialogs over the job, in a portal of their own. */
   const dialogs = (
     <>
@@ -1840,6 +1743,8 @@ export function JobSheet({
           toast={onToast}
         />
       )}
+      {/* A VISIT, PRESSED on Visits (frame 4) */}
+      {visitDialog}
       {/* Edit customer, the v2 dialog: it portals to <body> as it mounts, so
           it lands after the page and over it, on the modal layer. */}
       {editingCustomer && cardId && (
@@ -2121,14 +2026,7 @@ export function JobSheet({
     ) : null;
 
   /* THE JOB'S PAGE (v2, step 5): the head, then the section's faces. */
-  const address = (detail?.address ?? detail?.geoLine ?? row.suburb ?? "")
-    .split(/\s*\n\s*/)
-    .filter(Boolean)
-    .join(", ");
   const status = (cardStatus ?? "").trim();
-  /* "Work Order" as a sentence says it: "Work order" */
-  const kind = status ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase() : "";
-  const facts = [kind, cardNumber ? `Job ${cardNumber}` : "", address].filter(Boolean).join(", ");
   /* no numbers on the sections (rule 31, Isaac, 20 October) */
   const sections = sectionsFor(moneyVisible).map((key) => ({ key, label: SECTION_LABEL[key] }));
   /* ACTIONS (rule 53): only what's done to the job itself. Its stage
@@ -2159,11 +2057,6 @@ export function JobSheet({
         <JobPageHead
           name={detail?.clientName ?? row.clientName ?? "Unnamed client"}
           hue={jobHue(categoryColour, status.toLowerCase() === "unsuccessful")}
-          facts={facts}
-          /* not until the job is read: before it, the steps are a quote's
-             with nothing done, and the head said "Enquiry" on any job; and
-             not on Overview, where the stages line and Money say it */
-          stage={detail && page.section !== "overview" ? stageWord(steps) : null}
           sm8Href={sm8Href}
           add={{ items: addItems, onPick: addPick, disabled: !cardId, onReach: askQuote }}
           actions={{ items: actionItems, onPick: actionPick }}

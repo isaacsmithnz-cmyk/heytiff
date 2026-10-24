@@ -3,12 +3,14 @@
    which is the Visit form now, a dialog over the card with the job filled
    in (making/visit-form; its own suite holds what it does inside).
 
-   The card draws what the server says and nothing of its own: Book in only
-   where the record offers it, each booking once — a standing booking of
-   ours carries its line and Undo on its own entry, anything else is drawn
-   above the list — a leftover's Clear asked in place, and a poll while
-   anything is on its way. Where the deployment books nothing the record
-   has no `bookings` and the detail no `booked`, and the face is main's. */
+   The card draws what the server says and nothing of its own: Book a visit
+   only where the record offers it, each booking once — a standing booking
+   carries its line in its visit's dialog (Isaac's mock of 25 October 2026,
+   frame 4), where Cancel visit is its Undo; anything else is drawn above
+   the visits — a leftover's Clear asked in place in its dialog, and a poll
+   while anything is on its way. Where the deployment books nothing the
+   record has no `bookings` and the detail no `booked`, and the next booking
+   is the one visit coming up. */
 
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -244,10 +246,20 @@ const ourVerb = (state: BookingState = sentLine): VerbView => ({
 const noop = () => {};
 const props = { manage: true, moneyVisible: false, onCreateAgreement: noop, onOpenTracked: noop, onToast: jest.fn() };
 const visits = () => within(document.querySelector("#jcsec-visits") as HTMLElement);
+const BOOK = "Book a visit";
+/** A visit card on the face, by its date block and time ("Wed7Oct1pm to 3pm"). */
+const card = (text: RegExp) => visits().getAllByRole("button").find((b) => b.classList.contains("jv-card") && text.test(b.textContent ?? ""));
+/** A visit pressed: its dialog. */
+const openVisit = async (text: RegExp, heading: string) => {
+  await waitFor(() => expect(card(text)).toBeDefined());
+  await userEvent.click(card(text)!);
+  return within(await screen.findByRole("dialog", { name: heading }));
+};
 /** The job's page on Visits, with the job read. */
 const open = async (extra: Partial<JobProps> = {}) => {
   render(<Job row={row()} {...props} {...extra} />);
-  await waitFor(() => expect(document.querySelector(".jp-facts")).toHaveTextContent("Rose Bay NSW 2029"));
+  await waitFor(() => expect(readMirrorJob).toHaveBeenCalled());
+  await act(async () => {});
 };
 
 beforeEach(() => {
@@ -265,27 +277,30 @@ beforeEach(() => {
 afterEach(() => jest.useRealTimers());
 
 describe("where the deployment books nothing (D-14)", () => {
-  it("(F) the Visits face is main's: the next booking as it always was, no Book in, no line, no poll", async () => {
+  it("(F) the next booking is the one visit coming up, with no Book a visit, no line, no poll", async () => {
     await open();
-    const face = visits();
-    expect(face.getByText("Next on site")).toBeInTheDocument();
-    expect(face.getByText("8am–10am Wed 7 Oct")).toBeInTheDocument();
-    expect(face.queryByRole("button", { name: BOOKING_WORDS.panel.book })).toBeNull();
-    expect(face.queryByText(BOOKING_WORDS.line.sent)).toBeNull();
+    expect(card(/^Wed7Oct8am to 10am/)).toBeDefined();
+    expect(visits().getByRole("img", { name: "Sam Tester" })).toBeInTheDocument();
+    expect(visits().queryByRole("button", { name: BOOK })).toBeNull();
+    expect(visits().queryByText(BOOKING_WORDS.line.sent)).toBeNull();
     expect(document.querySelectorAll("#jcsec-visits .wb2-mline")).toHaveLength(0);
     expect(document.querySelectorAll("#jcsec-visits .wb2-jcattsave")).toHaveLength(0);
+    /* pressed, it says what it is, with neither door */
+    const d = await openVisit(/^Wed7Oct/, "Wed 7 Oct, 8am to 10am");
+    expect(d.queryByRole("button")).toBeNull();
     expect(bk.readBookingStates).not.toHaveBeenCalled();
     expect(bk.readBookInContext).not.toHaveBeenCalled();
   });
 });
 
-describe("Book in on the card (D-1)", () => {
-  it("(F) sits above Next on site where the record offers it, and opens the Visit form with the job filled in", async () => {
+describe("Book a visit on the card (D-1)", () => {
+  it("(F) heads the visits where the record offers it, and opens the Visit form with the job filled in", async () => {
     readMirrorJob.mockResolvedValue({ detail: detail({ booked: [entry()] }), focusRemoteId: null });
     readJobRecord.mockResolvedValue(record(bookings()));
     await open();
-    const book = await visits().findByRole("button", { name: BOOKING_WORDS.panel.book });
-    expect(book.compareDocumentPosition(visits().getByText("Next on site")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const book = await visits().findByRole("button", { name: BOOK });
+    expect(book).toHaveClass("pt-btn--main");
+    expect(book.compareDocumentPosition(card(/^Wed7Oct/)!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await userEvent.click(book);
     await visitForm();
     expect(bk.readBookInContext).toHaveBeenCalledWith(expect.objectContaining({ jobUuid: JOB }));
@@ -295,35 +310,82 @@ describe("Book in on the card (D-1)", () => {
     readMirrorJob.mockResolvedValue({ detail: detail({ booked: [entry({ staffUuid: null, staffName: null })] }), focusRemoteId: null });
     readJobRecord.mockResolvedValue(record(bookings()));
     await open();
-    expect(await visits().findByText(BOOKING_WORDS.fill.person)).toBeInTheDocument();
+    expect(await visits().findByRole("img", { name: BOOKING_WORDS.fill.person })).toBeInTheDocument();
   });
 
-  it("(F) is absent where the record doesn't offer it", async () => {
+  it("(F) is absent where the record doesn't offer it, and so is Change visit", async () => {
     readMirrorJob.mockResolvedValue({ detail: detail({ booked: [entry()] }), focusRemoteId: null });
     readJobRecord.mockResolvedValue(record(bookings({ canBook: false })));
     await open();
-    await visits().findByText("Next on site");
-    expect(visits().queryByRole("button", { name: BOOKING_WORDS.panel.book })).toBeNull();
+    const d = await openVisit(/^Wed7Oct/, "Wed 7 Oct, 8am to 10am");
+    expect(visits().queryByRole("button", { name: BOOK })).toBeNull();
+    expect(d.queryByRole("button", { name: "Change visit" })).toBeNull();
+  });
+
+  it("(F) Change visit opens Book a visit on the visit, everyone going in it", async () => {
+    readMirrorJob.mockResolvedValue({
+      detail: detail({ booked: [entry(), entry({ uuid: MINE, staffUuid: ALEX, staffName: "Alex Sample" })] }),
+      focusRemoteId: null,
+    });
+    readJobRecord.mockResolvedValue(record(bookings()));
+    bk.readBookInContext.mockResolvedValue({
+      ok: true,
+      offered: true,
+      trial: false,
+      hold: null,
+      zone: "Australia/Sydney",
+      today: "2026-10-06",
+      job: { uuid: JOB, number: "3342", status: "Work Order", editDate: "2026-10-01 10:00:00" },
+      bookings: [],
+      days: { "2026-10-07": [] },
+      jobNumbers: {},
+      staff: [
+        { uuid: SAM, name: "Sam Tester", you: false, linked: true },
+        { uuid: ALEX, name: "Alex Sample", you: false, linked: true },
+      ],
+      readAt: "2026-10-05T22:00:00.000Z",
+      off: {},
+    } as never);
+    await open();
+    /* two people at one time are one visit */
+    const d = await openVisit(/^Wed7Oct/, "Wed 7 Oct, 8am to 10am");
+    expect(within(d.getByRole("list", { name: "Who's going" })).getAllByRole("listitem")).toHaveLength(2);
+    await userEvent.click(d.getByRole("button", { name: "Change visit" }));
+    const form = await visitForm();
+    await waitFor(() => expect(within(form).getByRole("combobox", { name: BOOKING_WORDS.panel.who })).toHaveTextContent("Sam Tester and Alex Sample"));
+    expect(within(form).getByText("1 visit, Wed 7 Oct, 8am to 10am")).toBeInTheDocument();
   });
 });
 
 describe("each booking drawn once (D-15)", () => {
-  it("(F) a standing booking of ours carries its line and Undo on its entry, never also above the list", async () => {
+  it("(F) a standing booking of ours carries its line in its visit's dialog, never also above the visits, and Cancel visit is its Undo", async () => {
     readMirrorJob.mockResolvedValue({
       detail: detail({ booked: [entry(), entry({ uuid: MINE, staffUuid: ALEX, staffName: "Alex Sample", start: "2026-10-07 13:00:00", end: "2026-10-07 15:00:00", ourRow: "c-2" })] }),
       focusRemoteId: null,
     });
     readJobRecord.mockResolvedValue(record(bookings({ verbs: [ourVerb()], lines: { [MINE]: sentLine } })));
     await open();
-    const face = visits();
-    expect(await face.findAllByText(BOOKING_WORDS.line.sent)).toHaveLength(1);
-    expect(face.getAllByRole("button", { name: BOOKING_WORDS.door.undo })).toHaveLength(1);
-    expect(face.getAllByText("Wed 7 Oct, 1:00 to 3:00 pm")).toHaveLength(1);
     /* the status change is said once, above */
-    expect(face.getAllByText(BOOKING_WORDS.line.statusSent)).toHaveLength(1);
+    expect(await visits().findAllByText(BOOKING_WORDS.line.statusSent)).toHaveLength(1);
+    expect(visits().queryByText(BOOKING_WORDS.line.sent)).toBeNull();
+    expect(visits().queryByRole("button", { name: BOOKING_WORDS.door.undo })).toBeNull();
+    const d = await openVisit(/^Wed7Oct1pm to 3pm/, "Wed 7 Oct, 1pm to 3pm");
+    expect(d.getAllByText(BOOKING_WORDS.line.sent)).toHaveLength(1);
+    expect(d.getByRole("link", { name: BOOKING_WORDS.door.openInSm8 })).toHaveAttribute("href", `https://go.servicem8.com/OpenJob/${JOB}`);
+    expect(d.queryByRole("button", { name: BOOKING_WORDS.door.undo })).toBeNull();
+    expect(d.getByRole("button", { name: "Cancel visit" })).toHaveClass("pt-btn--delete");
   });
 
-  it("(F) ...and so while it is taken out: Taking it out of ServiceM8 sits on its entry", async () => {
+  it("(F) a booking made in ServiceM8 says it is booked there, with no Cancel visit", async () => {
+    readMirrorJob.mockResolvedValue({ detail: detail({ booked: [entry()] }), focusRemoteId: null });
+    readJobRecord.mockResolvedValue(record(bookings()));
+    await open();
+    const d = await openVisit(/^Wed7Oct/, "Wed 7 Oct, 8am to 10am");
+    expect(d.getByText(BOOKING_WORDS.line.sent)).toHaveClass("sw-state", "ok");
+    expect(d.queryByRole("button", { name: "Cancel visit" })).toBeNull();
+  });
+
+  it("(F) ...and so while it is taken out: Taking it out of ServiceM8 sits in its dialog", async () => {
     const taking: BookingState = { key: "line.takingOut", text: BOOKING_WORDS.line.takingOut, tone: null, acts: [] };
     readMirrorJob.mockResolvedValue({
       detail: detail({ booked: [entry({ uuid: MINE, staffUuid: ALEX, staffName: "Alex Sample", start: "2026-10-07 13:00:00", end: "2026-10-07 15:00:00", ourRow: "c-2" })] }),
@@ -331,23 +393,24 @@ describe("each booking drawn once (D-15)", () => {
     });
     readJobRecord.mockResolvedValue(record(bookings({ verbs: [ourVerb(taking)], lines: { [MINE]: taking } })));
     await open();
-    const face = visits();
-    expect(await face.findAllByText(BOOKING_WORDS.line.takingOut)).toHaveLength(1);
-    /* on the Next on site entry itself */
-    expect(face.getByText(BOOKING_WORDS.line.takingOut).closest(".wb2-nextv")).not.toBeNull();
+    await waitFor(() => expect(card(/^Wed7Oct/)).toBeDefined());
+    expect(visits().queryByText(BOOKING_WORDS.line.takingOut)).toBeNull();
+    const d = await openVisit(/^Wed7Oct/, "Wed 7 Oct, 1pm to 3pm");
+    expect(d.getAllByText(BOOKING_WORDS.line.takingOut)).toHaveLength(1);
+    expect(d.queryByRole("button", { name: "Cancel visit" })).toBeNull();
   });
 
-  it("(F) a booking pressed after the card loaded — a line of its own, but not on the list yet — is drawn once, above the list", async () => {
+  it("(F) a booking pressed after the card loaded — a line of its own, but not on the list yet — is drawn once, above the visits", async () => {
     readMirrorJob.mockResolvedValue({ detail: detail({ booked: [entry()] }), focusRemoteId: null });
     readJobRecord.mockResolvedValue(record(bookings({ verbs: [ourVerb()], lines: { [MINE]: sentLine } })));
     await open();
     const face = visits();
     expect(await face.findAllByText(BOOKING_WORDS.line.sent)).toHaveLength(1);
     expect(face.getAllByRole("button", { name: BOOKING_WORDS.door.undo })).toHaveLength(1);
-    expect(face.getByText(BOOKING_WORDS.line.sent).compareDocumentPosition(face.getByText("Next on site")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(face.getByText(BOOKING_WORDS.line.sent).compareDocumentPosition(card(/^Wed7Oct/)!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("(F) a booking the list doesn't hold is drawn once, above the list, with its line", async () => {
+  it("(F) a booking the list doesn't hold is drawn once, above the visits, with its line", async () => {
     const moved: BookingState = { key: "line.keptOther", text: BOOKING_WORDS.line.keptOther, tone: "bad", acts: ["undo", "open_in_sm8"] };
     const v = ourVerb(moved);
     v.bookings[0] = { ...v.bookings[0], uuid: NOT_YET, standing: false };
@@ -358,21 +421,24 @@ describe("each booking drawn once (D-15)", () => {
     expect(await face.findAllByText(BOOKING_WORDS.line.keptOther)).toHaveLength(1);
     const line = face.getByText(BOOKING_WORDS.line.keptOther);
     expect(line).toHaveClass("sw-state", "bad");
-    expect(line.compareDocumentPosition(face.getByText("Next on site")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(line.compareDocumentPosition(card(/^Wed7Oct/)!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(face.getByRole("link", { name: BOOKING_WORDS.door.openInSm8 })).toHaveAttribute("href", `https://go.servicem8.com/OpenJob/${JOB}`);
   });
 });
 
 describe("a line's doors (D-5)", () => {
-  it("(F) Undo takes the booking back by its row, and the card reads its lines again", async () => {
+  it("(F) Cancel visit takes every booking of it this viewer may back by its row, and the card reads its lines again", async () => {
     readMirrorJob.mockResolvedValue({
-      detail: detail({ booked: [entry({ uuid: MINE, staffUuid: ALEX, staffName: "Alex Sample", ourRow: "c-2" })] }),
+      detail: detail({ booked: [entry({ uuid: MINE, staffUuid: ALEX, staffName: "Alex Sample", ourRow: "c-2" }), entry()] }),
       focusRemoteId: null,
     });
     readJobRecord.mockResolvedValue(record(bookings({ verbs: [ourVerb()], lines: { [MINE]: sentLine } })));
     await open();
-    await userEvent.click(await visits().findByRole("button", { name: BOOKING_WORDS.door.undo }));
-    expect(bk.takeBackBooking).toHaveBeenCalledWith({ jobUuid: JOB, rowId: "c-2" });
+    const d = await openVisit(/^Wed7Oct/, "Wed 7 Oct, 8am to 10am");
+    /* one of ours, one made in ServiceM8: each says where it stands */
+    expect(d.getByText("Alex Sample", { selector: ".jv-whose b" })).toBeInTheDocument();
+    await userEvent.click(d.getByRole("button", { name: "Cancel visit" }));
+    expect(bk.takeBackBooking.mock.calls).toEqual([[{ jobUuid: JOB, rowId: "c-2" }]]);
     await waitFor(() => expect(bk.readBookingStates).toHaveBeenCalledWith({ jobUuid: JOB }));
   });
 
@@ -438,6 +504,8 @@ describe("a line's doors (D-5)", () => {
 });
 
 describe("a leftover (D-7)", () => {
+  /** The leftover's visit, Thu 8 Oct, pressed. */
+  const openLeftover = () => openVisit(/^Thu8Oct/, "Thu 8 Oct, 9am to 11am");
   const leftover = (status: string) => {
     readMirrorJob.mockResolvedValue({
       detail: detail({ status, booked: [entry(), entry({ uuid: LEFT, start: "2026-10-08 09:00:00", end: "2026-10-08 11:00:00", leftover: true })] }),
@@ -449,8 +517,8 @@ describe("a leftover (D-7)", () => {
     leftover("Completed");
     readJobRecord.mockResolvedValue(record(bookings({ canBook: false })));
     await open();
-    const face = visits();
-    expect(await face.findByText(BOOKING_WORDS.line.leftover)).toBeInTheDocument();
+    const face = await openLeftover();
+    expect(face.getByText(BOOKING_WORDS.line.leftover)).toBeInTheDocument();
     await userEvent.click(face.getByRole("button", { name: BOOKING_WORDS.door.clearBooking }));
     const question = "Take Sam Tester's booking on Thu 8 Oct, 9:00 am off job 3342 in ServiceM8? The job is Completed. HeyTiff can't put it back.";
     expect(face.getByRole("group", { name: question })).toBeInTheDocument();
@@ -468,16 +536,18 @@ describe("a leftover (D-7)", () => {
     leftover("Unsuccessful");
     readJobRecord.mockResolvedValue(record(bookings({ canBook: false })));
     await open();
-    expect(await visits().findByText(BOOKING_WORDS.line.leftoverUnsuccessful)).toBeInTheDocument();
-    expect(visits().getByRole("button", { name: BOOKING_WORDS.door.clearBooking })).toBeInTheDocument();
+    const d = await openLeftover();
+    expect(d.getByText(BOOKING_WORDS.line.leftoverUnsuccessful)).toBeInTheDocument();
+    expect(d.getByRole("button", { name: BOOKING_WORDS.door.clearBooking })).toBeInTheDocument();
   });
 
   it("(F) offers no Clear to a viewer who may not press", async () => {
     leftover("Completed");
     readJobRecord.mockResolvedValue(record(bookings({ canBook: false, canClear: false })));
     await open();
-    expect(await visits().findByText(BOOKING_WORDS.line.leftover)).toBeInTheDocument();
-    expect(visits().queryByRole("button", { name: BOOKING_WORDS.door.clearBooking })).toBeNull();
+    const d = await openLeftover();
+    expect(d.getByText(BOOKING_WORDS.line.leftover)).toBeInTheDocument();
+    expect(d.queryByRole("button", { name: BOOKING_WORDS.door.clearBooking })).toBeNull();
   });
 
   /** A Clear of the leftover, above the list, with its line. */
@@ -490,7 +560,7 @@ describe("a leftover (D-7)", () => {
       { rowId: "d-1", op: "clear", uuid: LEFT, staffUuid: SAM, name: "Sam Tester", start: "2026-10-08 09:00:00", end: "2026-10-08 11:00:00", state, standing: false },
     ],
   });
-  const clearDoors = () => visits().queryAllByRole("button", { name: BOOKING_WORDS.door.clearBooking });
+  const clearDoors = () => screen.queryAllByRole("button", { name: BOOKING_WORDS.door.clearBooking });
 
   it.each([
     ["a trial", { key: "line.clearTrial", text: BOOKING_WORDS.line.clearTrial, tone: null, acts: [] }, 1],
@@ -502,7 +572,8 @@ describe("a leftover (D-7)", () => {
     leftover("Completed");
     readJobRecord.mockResolvedValue(record(bookings({ canBook: false, verbs: [clearVerb({ ...state, acts: [...state.acts] })] })));
     await open();
-    await visits().findByText(BOOKING_WORDS.line.leftover);
+    const d = await openLeftover();
+    d.getByText(BOOKING_WORDS.line.leftover);
     expect(clearDoors()).toHaveLength(doors);
   });
 
@@ -513,18 +584,20 @@ describe("a leftover (D-7)", () => {
     await open();
     const reads = readMirrorJob.mock.calls.length;
     await userEvent.click(await visits().findByRole("button", { name: BOOKING_WORDS.door.lookAgain }));
-    expect(await visits().findByRole("button", { name: BOOKING_WORDS.door.keep })).toHaveFocus();
-    expect(readMirrorJob.mock.calls.length).toBe(reads + 1);
+    await waitFor(() => expect(readMirrorJob.mock.calls.length).toBe(reads + 1));
+    const d = await openLeftover();
+    expect(await d.findByRole("button", { name: BOOKING_WORDS.door.keep })).toBeInTheDocument();
   });
 
   it("Keep backs out", async () => {
     leftover("Completed");
     readJobRecord.mockResolvedValue(record(bookings({ canBook: false })));
     await open();
-    await userEvent.click(await visits().findByRole("button", { name: BOOKING_WORDS.door.clearBooking }));
-    const keep = await visits().findByRole("button", { name: BOOKING_WORDS.door.keep });
+    const d = await openLeftover();
+    await userEvent.click(d.getByRole("button", { name: BOOKING_WORDS.door.clearBooking }));
+    const keep = await d.findByRole("button", { name: BOOKING_WORDS.door.keep });
     await userEvent.click(keep);
-    expect(visits().queryByRole("button", { name: BOOKING_WORDS.door.keep })).toBeNull();
+    expect(d.queryByRole("button", { name: BOOKING_WORDS.door.keep })).toBeNull();
     expect(bk.clearLeftoverBooking).not.toHaveBeenCalled();
   });
 });
@@ -543,7 +616,7 @@ describe("the poll (D-11)", () => {
       await jest.advanceTimersByTimeAsync(0);
     });
     expect(visits().getByText(BOOKING_WORDS.line.sending)).toBeInTheDocument();
-    expect(visits().getByText("Next on site")).toBeInTheDocument();
+    expect(card(/^Wed7Oct/)).toBeDefined();
     expect(bk.readBookingStates).not.toHaveBeenCalled();
 
     await act(async () => {
@@ -551,7 +624,7 @@ describe("the poll (D-11)", () => {
     });
     expect(bk.readBookingStates).toHaveBeenCalledTimes(1);
     /* the one we took out leaves the list */
-    expect(visits().queryByText("Next on site")).toBeNull();
+    expect(card(/^Wed7Oct/)).toBeUndefined();
 
     for (let i = 0; i < 10; i++) {
       await act(async () => {
@@ -615,11 +688,12 @@ describe("the poll (D-11)", () => {
     await act(async () => {
       await jest.advanceTimersByTimeAsync(0);
     });
-    fireEvent.click(visits().getByRole("button", { name: BOOKING_WORDS.panel.book }));
+    fireEvent.click(visits().getByRole("button", { name: BOOK }));
     const who = await screen.findByRole("combobox", { name: BOOKING_WORDS.panel.who });
     await waitFor(() => expect(who).toBeEnabled());
     fireEvent.click(who);
     fireEvent.click(within(screen.getByRole("listbox")).getByRole("option", { name: BOOKING_WORDS.panel.you }));
+    fireEvent.keyDown(screen.getByRole("listbox"), { key: "Escape" });
     await user.click(screen.getByRole("button", { name: "Book visit" }));
     await act(async () => {
       await jest.advanceTimersByTimeAsync(0);

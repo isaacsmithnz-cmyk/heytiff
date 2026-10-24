@@ -3,31 +3,40 @@
 import { useContext, useState } from "react";
 import { Dialog } from "@/components/parts/dialog";
 import { Button } from "@/components/parts/button";
-import { Chooser } from "@/components/parts/chooser";
+import { Chooser, ChooserMany } from "@/components/parts/chooser";
+import { Field } from "@/components/parts/field";
+import { RangeCalendar, dayWords } from "@/components/parts/range-calendar";
 import { TimeField } from "@/components/parts/time-field";
 import { Tick } from "@/components/parts/tick";
 import { StateWord } from "@/components/parts/state";
-import { DateField } from "@/components/ui/date-field";
 import { formatClock } from "@/components/ui/time-wheel";
 import { parseClock } from "@/components/timepay/logic";
 import { WindowsContext } from "@/components/records/records-context";
 import { JobField, type FormJob } from "./job-field";
-import { bookInConfirm, bookInFacts, crossesMidnight, useBookIn, type BookInSeed } from "./book-in";
+import { bookInFacts, useBookIn, type BookInSeed } from "./book-in";
 import { takeBackBooking, type VerbView } from "@/app/actions/booking-sm8";
-import { BOOKING_LENGTHS_MIN, BOOKING_WORDS, BOOKINGS_PER_PRESS, fmtLength } from "@/lib/integrations/sm8-booking-plan";
+import { BOOKING_LENGTHS_MIN, BOOKING_WORDS, fmtLength } from "@/lib/integrations/sm8-booking-plan";
+import { andWords, daysWords, lengthRange } from "@/lib/workboard/visit-words";
 
-/* A JOB'S ADD › VISIT (rules 51, 52 and 54), its Visits section's Book in,
-   and Home's To do Book in: one form wherever a visit is booked. It is
-   Book in, the job card's panel (two-way phase 3), drawn as a dialog over
-   the page you're on: the engine is ./book-in, lifted out of that panel
-   unchanged. Who, day, start and how long, a row a booking, up to eight;
-   ServiceM8 is read before Book is offered, and what it said follows the
-   rows as sentences, an overlap or time off warning in orange and never
-   blocking. On a Quote, Make it a Work Order is ticked and goes with Book.
+/* A JOB'S ADD › VISIT (rules 51, 52 and 54), its Visits section's Book a
+   visit, and Home's To do Book in: one form wherever a visit is booked. It
+   is Book in, the job card's panel (two-way phase 3), drawn as a dialog
+   over the page you're on: the engine is ./book-in.
 
-   The job is a field (rule 51), filled in from the door that opened it,
-   clearable, and found again by number, client or site, as Search finds
-   it. A new job is read afresh: its rows start over.
+   BOOK A VISIT OVER SEVERAL DAYS (Isaac's mock of 25 October 2026, frame
+   4b): who, as one chooser that takes several people; a run of days on
+   Leave's calendar (the first press starts it, the second ends it, and a
+   Saturday or Sunday inside it is left out unless pressed); the start each
+   day and how long. Under them one line says what it comes to, "3 visits,
+   Mon 9 to Wed 11 Nov, 7am to 3pm", with the people under it, and Book
+   books a booking a person a day. ServiceM8 is read before Book is
+   offered, and what it said follows as sentences, an overlap or time off
+   warning in orange and never blocking. On a Quote, Make it a Work Order
+   is ticked and goes with Book.
+
+   The job is said under the title, as the mock draws it ("Job 2043, JT
+   Construct"). Opened with no job, it asks for one first, by number,
+   client or site, as Search finds it.
 
    The start is the wheel (rule 34) on the quarter hour, the grid ServiceM8
    is booked on (BOOKING_STEP_MIN), so every time it offers books.
@@ -78,7 +87,7 @@ export function VisitForm({ job, ...rest }: VisitFormProps) {
   /* the seed is the opening job's booking: a job picked here starts clean */
   const seed = forJob && job && forJob.uuid === job.uuid ? rest.seed : null;
   if (!forJob) return <NoJob onPick={setForJob} onClose={rest.onClose} />;
-  return <BookVisit key={forJob.uuid} {...rest} seed={seed} job={forJob} onClear={() => setForJob(null)} />;
+  return <BookVisit key={forJob.uuid} {...rest} seed={seed} job={forJob} />;
 }
 
 /** No job yet: the field to find one, and Book waiting on it. */
@@ -86,7 +95,7 @@ function NoJob({ onPick, onClose }: { onPick: (j: VisitJob) => void; onClose: ()
   return (
     <Dialog
       heading={HEADING}
-      width={720}
+      width={560}
       onClose={onClose}
       foot={
         <>
@@ -114,8 +123,7 @@ function BookVisit({
   onBooked,
   onUndone,
   toast,
-  onClear,
-}: Omit<VisitFormProps, "job"> & { job: VisitJob; onClear: () => void }) {
+}: Omit<VisitFormProps, "job"> & { job: VisitJob }) {
   const host = useContext(WindowsContext);
   const say = toast ?? host?.toast;
   const b = useBookIn({
@@ -125,7 +133,7 @@ function BookVisit({
     onDone: (verb, rowIds) => {
       onClose();
       onBooked?.(job.uuid, verb, rowIds);
-      const n = rowIds.length;
+      const n = new Set(b.rows.map((r) => r.day)).size;
       say?.(n > 1 ? `${n} visits booked` : "Visit booked", async () => {
         for (const rowId of rowIds) {
           const back = await takeBackBooking({ jobUuid: job.uuid, rowId }).catch(() => null);
@@ -138,16 +146,27 @@ function BookVisit({
       });
     },
   });
-  const { rows, ctx } = b;
-  const many = rows.length > 1;
-  const facts = ctx ? bookInFacts(ctx, job.uuid, rows, b.staffName) : null;
+  const { ctx, days, people } = b;
+  const n = days.length;
+  const facts = ctx ? bookInFacts(ctx, job.uuid, b.rows, b.staffName) : null;
   const who = (ctx?.staff ?? []).map((s) => ({ value: s.uuid, label: s.you ? BOOKING_WORDS.panel.you : s.name }));
   const lengths = BOOKING_LENGTHS_MIN.map((m) => ({ value: String(m), label: fmtLength(m) }));
+  const names = people.map((u) => b.staffName(u) ?? BOOKING_WORDS.fill.person);
+  const today = ctx?.today ?? null;
+  const first = days[0] ?? null;
+  const last = days[days.length - 1] ?? null;
+  /* the step above the months: what the next press does */
+  const run = !!b.span.start && !!b.span.end && b.span.end > b.span.start;
+  const step = !b.span.start
+    ? { lead: "Pick the first day" }
+    : run
+      ? { lead: daysWords(b.span.start, b.span.end!), rest: "press a day to start again" }
+      : { lead: dayWords(b.span.start), rest: "press a later day for a run of days" };
 
   return (
     <Dialog
       heading={HEADING}
-      width={720}
+      width={560}
       onClose={onClose}
       foot={
         <>
@@ -155,67 +174,61 @@ function BookVisit({
             {BOOKING_WORDS.panel.cancel}
           </Button>
           <Button kind="main" disabled={!b.complete || b.busy} aria-busy={b.busy || undefined} onClick={b.book}>
-            {b.busy ? (many ? `Booking ${rows.length} visits` : "Booking the visit") : many ? `Book ${rows.length} visits` : "Book visit"}
+            {b.busy ? (n > 1 ? `Booking ${n} visits` : "Booking the visit") : n > 1 ? `Book ${n} visits` : "Book visit"}
           </Button>
         </>
       }
     >
       <div className="mk-form">
-        <JobField job={job} onChange={(j) => !j && onClear()} />
+        <p className="jv-dline">{job.label}</p>
+        <Field label={BOOKING_WORDS.panel.who}>
+          <ChooserMany options={who} value={people} placeholder={BOOKING_WORDS.panel.pickWho} disabled={!ctx} onChange={b.setPeople} />
+        </Field>
 
-        <div className="mk-job-visits" role="group" aria-label="Visits">
-          <div className="mk-job-visitrow mk-job-visithead" aria-hidden="true">
-            <span className="pt-field-label">{BOOKING_WORDS.panel.who}</span>
-            <span className="pt-field-label">{BOOKING_WORDS.panel.day}</span>
-            <span className="pt-field-label">{BOOKING_WORDS.panel.start}</span>
-            <span className="pt-field-label">{BOOKING_WORDS.panel.length}</span>
-          </div>
-          {rows.map((r, i) => (
-            <div className="mk-job-visitrow" key={r.id}>
-              <Chooser
-                aria-label={BOOKING_WORDS.panel.who}
-                options={who}
-                value={r.staffUuid || null}
-                placeholder={BOOKING_WORDS.panel.pickWho}
-                disabled={!ctx}
-                onChange={(v) => b.setRow(r.id, { staffUuid: v })}
-              />
-              <DateField value={r.day || null} onChange={(iso) => b.setRow(r.id, { day: iso ?? "" })} today={ctx?.today} aria-label={BOOKING_WORDS.panel.day} />
-              <TimeField
-                label={BOOKING_WORDS.panel.start}
-                value={toWheel(r.start)}
-                step={15}
-                onChange={(v) => {
-                  const hhmm = fromWheel(v);
-                  if (hhmm) b.setRow(r.id, { start: hhmm });
-                }}
-              />
-              <Chooser aria-label={BOOKING_WORDS.panel.length} options={lengths} value={String(r.minutes)} onChange={(v) => b.setRow(r.id, { minutes: Number(v) })} />
-              {i > 0 ? (
-                <Button kind="quiet" onClick={() => b.removeRow(r.id)}>
-                  {BOOKING_WORDS.panel.remove}
-                </Button>
-              ) : (
-                <span />
-              )}
-              {/* a row that runs past midnight is refused here, before
-                  anything is pressed: Book stays off until it ends on its
-                  own day */}
-              {crossesMidnight(r) && (
-                <div className="mk-job-visiterr">
-                  <StateWord tone="wrong">{BOOKING_WORDS.press.crossesMidnight}</StateWord>
-                </div>
-              )}
-            </div>
-          ))}
-          {rows.length < BOOKINGS_PER_PRESS && (
-            <div>
-              <Button kind="second" icon="plus" onClick={b.addRow}>
-                {BOOKING_WORDS.panel.addAnother}
-              </Button>
-            </div>
-          )}
+        {today && (
+          <>
+            <p className="lv2-ask" aria-live="polite">
+              <b>{step.lead}</b>
+              {step.rest && <span>, {step.rest}</span>}
+            </p>
+            <RangeCalendar label="Pick the days" today={today} span={b.span} onPick={b.pick} min={today} also={b.weekends} />
+          </>
+        )}
+
+        <div className="lv2-fields">
+          <Field label="Start, each day">
+            <TimeField
+              value={toWheel(b.start)}
+              step={15}
+              onChange={(v) => {
+                const hhmm = fromWheel(v);
+                if (hhmm) b.setStart(hhmm);
+              }}
+            />
+          </Field>
+          <Field label={BOOKING_WORDS.panel.length}>
+            <Chooser options={lengths} value={String(b.minutes)} onChange={(v) => b.setMinutes(Number(v))} />
+          </Field>
         </div>
+        {/* a day that runs past midnight is refused here, before anything
+            is pressed: Book stays off until it ends on its own day */}
+        {b.late && (
+          <div className="mk-job-visiterr">
+            <StateWord tone="wrong">{BOOKING_WORDS.press.crossesMidnight}</StateWord>
+          </div>
+        )}
+
+        {first && last && people.length > 0 && !b.late && (
+          <div className="lv2-sum">
+            <b>{`${n} ${n === 1 ? "visit" : "visits"}, ${daysWords(first, last)}, ${lengthRange(b.start, b.minutes)}`}</b>
+            <span>{n > 1 ? `${andWords(names)} on each.` : `${andWords(names)}.`}</span>
+          </div>
+        )}
+        {b.tooMany && (
+          <div className="mk-job-says">
+            <StateWord tone="wrong">{BOOKING_WORDS.press.tooMany}</StateWord>
+          </div>
+        )}
 
         {(!ctx || facts) && (
           <div className="mk-job-facts">
@@ -248,9 +261,8 @@ function BookVisit({
           </div>
         )}
 
-        {ctx && (b.complete || ctx.trial || ctx.hold || b.err) && (
+        {ctx && (ctx.trial || ctx.hold || b.err) && (
           <div className="mk-job-facts">
-            {b.complete && <div>{bookInConfirm(rows, b.staffName)}</div>}
             {ctx.trial && <div>{BOOKING_WORDS.panel.trial}</div>}
             {ctx.hold === "paused" && <div>{BOOKING_WORDS.panel.heldPaused}</div>}
             {ctx.hold === "reconnect" && <div>{BOOKING_WORDS.panel.heldReconnect}</div>}

@@ -45,6 +45,10 @@ type TaskRow = {
   model_read: string | null;
   source: string;
   hours: number | string | null;
+  issue_note?: string | null;
+  issue_photo_document_id?: string | null;
+  issue_by?: string | null;
+  issue_at?: string | null;
 };
 type UpdateRow = { id: string; task_id: string; day: string; pct_from: number; pct_to: number; note: string; by_name: string | null; created_at: string };
 
@@ -61,6 +65,7 @@ const taskOf = (r: TaskRow): JobTask => ({
   modelRead: r.model_read,
   source: r.source === "person" ? "person" : "quote",
   hours: r.hours == null ? null : Number(r.hours),
+  issue: r.issue_note ? { note: r.issue_note, by: r.issue_by ?? null, at: r.issue_at ?? null, photo: r.issue_photo_document_id ?? null } : null,
 });
 const updateOf = (r: UpdateRow): TaskUpdate => ({ id: r.id, taskId: r.task_id, day: r.day, from: r.pct_from, to: r.pct_to, note: r.note, by: r.by_name, at: r.created_at });
 
@@ -71,7 +76,7 @@ export async function readJobTasks(orgId: string, cardId: string): Promise<{ tas
   const [{ data: tasks }, { data: updates }] = await Promise.all([
     supabaseAdmin
       .from("job_tasks")
-      .select("id, name, stage, kind, unit, visit, sort, progress, serial, model_read, source, hours")
+      .select("id, name, stage, kind, unit, visit, sort, progress, serial, model_read, source, hours, issue_note, issue_photo_document_id, issue_by, issue_at")
       .eq("org_id", orgId)
       .eq("sm8_job_uuid", cardId)
       .order("sort", { ascending: true }),
@@ -320,6 +325,10 @@ type TaskEdit =
   /** how far it's got today, with a note; 100 is done, 0 undoes it */
   | { kind: "progress"; id: string; to: number; note: string }
   | { kind: "visit"; id: string; visit: number | null }
+  /** several tasks onto one visit at once (Add to a day), or off it */
+  | { kind: "place"; ids: string[]; visit: number | null }
+  /** what's wrong with a task on the day, and its photo; an empty note clears it */
+  | { kind: "issue"; id: string; note: string; documentId: string | null }
   | { kind: "add"; name: string; stage: VisitStage; taskKind: TaskKind; visit: number | null }
   | { kind: "rename"; id: string; name: string }
   | { kind: "remove"; id: string }
@@ -329,7 +338,7 @@ type TaskEdit =
   | { kind: "plate"; id: string; model: string; serial: string };
 
 /** Edits that change the list itself, not the work done on it. */
-export const LIST_EDITS: ReadonlySet<TaskEdit["kind"]> = new Set(["visit", "add", "rename", "remove"]);
+export const LIST_EDITS: ReadonlySet<TaskEdit["kind"]> = new Set(["visit", "place", "add", "rename", "remove"]);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const visitIn = (v: unknown): number | null => (typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= 99 ? v : null);
@@ -358,6 +367,15 @@ export function editOf(raw: unknown): TaskEdit | null {
     }
     case "visit":
       return id ? { kind: "visit", id, visit: visitIn(o.visit) } : null;
+    case "place": {
+      const ids = Array.isArray(o.ids) ? [...new Set(o.ids.filter((x): x is string => typeof x === "string" && UUID.test(x)))].slice(0, MAX_TASKS) : [];
+      return ids.length ? { kind: "place", ids, visit: visitIn(o.visit) } : null;
+    }
+    case "issue": {
+      const note = typeof o.note === "string" ? o.note.trim().slice(0, MAX_NOTE) : "";
+      const documentId = typeof o.documentId === "string" && UUID.test(o.documentId) ? o.documentId : null;
+      return id ? { kind: "issue", id, note, documentId: note ? documentId : null } : null;
+    }
     case "add": {
       const name = nameIn(o.name);
       const stage = VISIT_STAGES.includes(o.stage as VisitStage) ? (o.stage as VisitStage) : null;
@@ -385,6 +403,21 @@ export function editOf(raw: unknown): TaskEdit | null {
 
 const SAVE_FAILED = "That couldn't be saved. Try again.";
 
+type JobDoc = { kind: string; sm8_job_uuid: string | null; uploaded_at: string | null; storage_ref: string; mime_type: string | null };
+
+/** A landed job document on THIS job, or null: a document id is a choice
+    the browser handed in. */
+async function docOnJob(orgId: string, cardId: string, documentId: string): Promise<JobDoc | null> {
+  const { data: doc } = await supabaseAdmin
+    .from("documents")
+    .select("kind, sm8_job_uuid, uploaded_at, storage_ref, mime_type")
+    .eq("org_id", orgId)
+    .eq("id", documentId)
+    .maybeSingle();
+  const d = doc as JobDoc | null;
+  return d && d.kind === "job_document" && d.uploaded_at && d.sm8_job_uuid === cardId ? d : null;
+}
+
 /** One edit, on this job's own task. `who` names the person for the
     update's line. `note`: done, with something to say. */
 export async function applyTaskEdit(
@@ -409,6 +442,16 @@ export async function applyTaskEdit(
       created_by: who.userId,
     });
     return error ? { ok: false, reason: "The task couldn't be added. Try again." } : { ok: true };
+  }
+  if (edit.kind === "place") {
+    /* this job's own tasks only: an id from another job matches no row */
+    const { error } = await supabaseAdmin
+      .from("job_tasks")
+      .update({ visit: edit.visit, updated_at: new Date().toISOString() })
+      .eq("org_id", orgId)
+      .eq("sm8_job_uuid", cardId)
+      .in("id", edit.ids);
+    return error ? { ok: false, reason: "Those couldn't be moved. Try again." } : { ok: true };
   }
 
   const { data } = await supabaseAdmin.from("job_tasks").select("id, progress, unit, serial").eq("org_id", orgId).eq("sm8_job_uuid", cardId).eq("id", edit.id).maybeSingle();
@@ -453,17 +496,17 @@ export async function applyTaskEdit(
       const { error } = await supabaseAdmin.from("job_tasks").delete().eq("org_id", orgId).eq("sm8_job_uuid", cardId).eq("id", edit.id);
       return error ? { ok: false, reason: "That couldn't be taken off. Try again." } : { ok: true };
     }
+    case "issue": {
+      if (!edit.note) {
+        return (await patch({ issue_note: null, issue_photo_document_id: null, issue_by: null, issue_at: null })) ? { ok: true } : { ok: false, reason: SAVE_FAILED };
+      }
+      if (edit.documentId && !(await docOnJob(orgId, cardId, edit.documentId))) return { ok: false, reason: "That photo didn't land on this job." };
+      return (await patch({ issue_note: edit.note, issue_photo_document_id: edit.documentId, issue_by: who.name, issue_at: now })) ? { ok: true } : { ok: false, reason: SAVE_FAILED };
+    }
     case "photo": {
-      /* the photo is a landed job document on THIS job: the id is a choice
-         the browser handed in */
-      const { data: doc } = await supabaseAdmin
-        .from("documents")
-        .select("kind, sm8_job_uuid, uploaded_at, storage_ref, mime_type")
-        .eq("org_id", orgId)
-        .eq("id", edit.documentId)
-        .maybeSingle();
-      const d = doc as { kind: string; sm8_job_uuid: string | null; uploaded_at: string | null; storage_ref: string; mime_type: string | null } | null;
-      if (!d || d.kind !== "job_document" || !d.uploaded_at || d.sm8_job_uuid !== cardId) return { ok: false, reason: "That photo didn't land on this job." };
+      /* the photo is a landed job document on THIS job */
+      const d = await docOnJob(orgId, cardId, edit.documentId);
+      if (!d) return { ok: false, reason: "That photo didn't land on this job." };
       const { error } = await supabaseAdmin
         .from("job_task_photos")
         .upsert({ org_id: orgId, task_id: edit.id, document_id: edit.documentId, role: edit.role, created_by: who.userId }, { onConflict: "task_id,document_id" });

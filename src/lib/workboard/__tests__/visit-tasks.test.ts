@@ -140,3 +140,31 @@ describe("the whole list", () => {
   });
 
 });
+
+/* 25 October 2026, the job page's On the day: the next visit's tasks show
+   under it even when no visit is today, and a tick made then must stay on
+   the visit it was made on */
+describe("work done ahead of its day", () => {
+  const slots = slotsOn("2026-10-09");
+  const lineOn = (placed: ReturnType<typeof placeTasks>, n: number, id: string) => placed.visits.find((v) => v.slot.n === n)?.lines.find((l) => l.task.id === id) ?? null;
+
+  it("stays on the visit still to come it was planned for, done, with who did it", () => {
+    const t = task("wire", "Wire the controllers", { visit: 3, progress: 100 });
+    const placed = placeTasks([t], [up("wire", "2026-10-09", 0, 100, "", "Louis Jones")], slots);
+    expect(lineOn(placed, 3, "wire")).toMatchObject({ mark: "done", last: { by: "Louis Jones", at: "2026-10-09T15:00:00Z" } });
+    expect(lineOn(placed, 2, "wire")).toBeNull();
+  });
+
+  it("and so does a task started ahead of its day, with nothing said of a visit gone", () => {
+    const t = task("test", "Pressure test", { visit: 3, progress: 50 });
+    const placed = placeTasks([t], [up("test", "2026-10-09", 0, 50)], slots);
+    expect(lineOn(placed, 3, "test")).toMatchObject({ mark: "part", pct: 50, meta: null });
+    expect(placed.visits.filter((v) => v.lines.length).map((v) => v.slot.n)).toEqual([3]);
+  });
+
+  it("but work logged on a visit's own day is that visit's", () => {
+    const t = task("test", "Pressure test", { visit: 3, progress: 50 });
+    const placed = placeTasks([t], [up("test", "2026-10-07", 0, 50)], slots);
+    expect(lineOn(placed, 2, "test")).toMatchObject({ pct: 50 });
+  });
+});

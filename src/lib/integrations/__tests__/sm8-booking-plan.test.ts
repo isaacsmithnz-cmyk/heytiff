@@ -1020,7 +1020,7 @@ describe("the switches and the clocks", () => {
 
   it("holds the numbers the spec sets", () => {
     expect(BOOKING_STEP_MIN).toBe(15);
-    expect(BOOKINGS_PER_PRESS).toBe(8);
+    expect(BOOKINGS_PER_PRESS).toBe(20);
     expect(BOOKING_TTL_MS).toBe(86_400_000);
     expect(BOOKING_STATUS_LEAD_MS).toBe(600_000);
     expect(BOOKING_STATUS_WAIT_MS).toBe(120_000);

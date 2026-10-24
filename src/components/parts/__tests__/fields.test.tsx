@@ -3,7 +3,7 @@ import path from "node:path";
 import { useRef, useState } from "react";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { overlayOpen } from "@/components/overlay/use-overlay";
-import { Chooser, type ChooserOption } from "../chooser";
+import { Chooser, ChooserMany, type ChooserOption } from "../chooser";
 import { Field, TextArea, TextInput } from "../field";
 import { Menu, type MenuItem } from "../menu";
 import { TimeField } from "../time-field";
@@ -306,6 +306,45 @@ function ChooserHarness({ options = FEW, start = null, name, error }: { options?
     </form>
   );
 }
+
+describe("ChooserMany (Book a visit's Who, 25 October 2026)", () => {
+  function Many() {
+    const [v, setV] = useState<string[]>([]);
+    return (
+      <Field label="Who">
+        <ChooserMany options={[{ value: "lj", label: "Louis Jones" }, { value: "lm", label: "Leonardo Martins" }, { value: "dh", label: "David Hann" }]} value={v} placeholder="Pick who" onChange={setV} />
+      </Field>
+    );
+  }
+  it("takes several, says them as a sentence in the list's order, and stays open while you pick", () => {
+    render(<Many />);
+    const box = screen.getByRole("combobox", { name: "Who" });
+    expect(box).toHaveTextContent("Pick who");
+    fireEvent.click(box);
+    const list = screen.getByRole("listbox");
+    expect(list).toHaveAttribute("aria-multiselectable", "true");
+    fireEvent.click(within(list).getByRole("option", { name: "Leonardo Martins" }));
+    fireEvent.click(within(screen.getByRole("listbox")).getByRole("option", { name: "Louis Jones" }));
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+    expect(within(screen.getByRole("listbox")).getAllByRole("option").map((o) => o.getAttribute("aria-selected"))).toEqual(["true", "true", "false"]);
+    expect(box).toHaveTextContent("Louis Jones and Leonardo Martins");
+    fireEvent.click(within(screen.getByRole("listbox")).getByRole("option", { name: "David Hann" }));
+    expect(box).toHaveTextContent("Louis Jones, Leonardo Martins and David Hann");
+    fireEvent.click(within(screen.getByRole("listbox")).getByRole("option", { name: "Louis Jones" }));
+    expect(box).toHaveTextContent("Leonardo Martins and David Hann");
+  });
+});
+
+describe("Menu, a line before an item", () => {
+  it("rules a line above an item that asks for one, without making it red", () => {
+    const anchor = { current: document.body };
+    render(<Menu open anchor={anchor} onClose={() => {}} onSelect={() => {}} label="How far" items={[{ key: "25", label: "Started, 25%" }, { key: "issue", label: "Issue", rule: true }]} />);
+    const issue = screen.getByRole("menuitem", { name: "Issue" });
+    expect(issue).toHaveClass("pt-menu-item--ruled");
+    expect(issue).not.toHaveClass("pt-menu-item--danger");
+    expect(screen.getByRole("menuitem", { name: "Started, 25%" })).not.toHaveClass("pt-menu-item--ruled");
+  });
+});
 
 describe("Chooser", () => {
   it("looks like a field: the chosen word or the placeholder, and the chevron", () => {

@@ -587,8 +587,8 @@ describe("Book in's refusals before anything is queued (C-5)", () => {
     expect(postSm8Booking).not.toHaveBeenCalled();
   };
 
-  it("(F) nine rows is more than a press books", async () => {
-    await refused({ bookings: Array.from({ length: 9 }, (_, i) => one({ start: `${String(8 + i).padStart(2, "0")}:00` })) }, BOOKING_WORDS.press.tooMany);
+  it("(F) twenty-one rows is more than a press books", async () => {
+    await refused({ bookings: Array.from({ length: 21 }, (_, i) => one({ start: `${String(1 + i).padStart(2, "0")}:00` })) }, BOOKING_WORDS.press.tooMany);
   });
 
   it("(F) a start off the 15-minute grid, a length the panel doesn't offer, or a day that isn't one is refused", async () => {

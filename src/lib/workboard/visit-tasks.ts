@@ -57,7 +57,14 @@ export type JobTask = {
   source: "quote" | "person";
   /** the person-hours the quote gave it (slice 8.2); none for a task made any other way */
   hours?: number | null;
+  /** what's wrong with it, said on the day (Issue on its Started menu);
+      null, or absent, while it has none */
+  issue?: TaskIssue | null;
 };
+
+/** An issue with a task: the note, who said it and when, and its photo (a
+    job document's id). */
+export type TaskIssue = { note: string; by: string | null; at: string | null; photo: string | null };
 
 /** A photo taken on a task: the unit in place, its rating plate, or other. */
 export type TaskPhoto = { id: string; taskId: string; role: "unit" | "plate" | "other"; url: string | null };
@@ -121,10 +128,20 @@ type Facts = {
   from: number | null;
 };
 
+/* WORK DONE AHEAD OF ITS DAY (25 October 2026): a task on a visit still
+   to come, ticked on a day that is no visit's (the office, the day before),
+   is that visit's work, not the last visit's before it, or it would leave
+   the coming visit it was ticked on for a day long gone. */
+function visitOfWork(task: JobTask, slots: readonly VisitSlot[], day: string): number | null {
+  const planned = task.visit != null ? slots.find((s) => s.n === task.visit) : undefined;
+  if (planned && still(planned) && planned.day && day < planned.day && !slots.some((s) => s.day === day)) return planned.n;
+  return visitOfDay(slots, day);
+}
+
 function factsOf(task: JobTask, ups: TaskUpdate[], slots: readonly VisitSlot[]): Facts {
   const byVisit = new Map<number, TaskUpdate[]>();
   for (const u of ups) {
-    const v = visitOfDay(slots, u.day);
+    const v = visitOfWork(task, slots, u.day);
     if (v != null) byVisit.set(v, [...(byVisit.get(v) ?? []), u]);
   }
   for (const [v, mine] of byVisit) if (mine[0]!.from === mine[mine.length - 1]!.to && !noteOf(mine)) byVisit.delete(v);
@@ -162,6 +179,8 @@ export type TaskLine = {
   note: { by: string | null; text: string } | null;
   /** the day of the last work this line shows; null for work still to do */
   lastDay: string | null;
+  /** who did the last work this line shows, and when (an ISO instant) */
+  last: { by: string | null; at: string } | null;
 };
 
 const markOf = (pct: number): TaskMark => (pct >= 100 ? "done" : pct > 0 ? "part" : "open");
@@ -202,6 +221,7 @@ export function placeTasks(
         meta: joined ? joined[0]!.toUpperCase() + joined.slice(1) : null,
         note: noteOf(mine),
         lastDay: last.day,
+        last: { by: last.by, at: last.at },
       });
     });
     /* still to do: on the visit it shows on, unless that visit already
@@ -215,12 +235,13 @@ export function placeTasks(
         meta: from != null ? `From visit ${from}` : null,
         note: null,
         lastDay: null,
+        last: null,
       };
       if (shownOn == null) unplaced.push(line);
       else if (!worked.includes(shownOn)) at(shownOn)?.lines.push(line);
     } else if (worked.length === 0) {
       /* done with no day's work on record (ticked before any visit) */
-      const line: TaskLine = { task, mark: "done", pct: 100, pctWords: null, meta: null, note: null, lastDay: null };
+      const line: TaskLine = { task, mark: "done", pct: 100, pctWords: null, meta: null, note: null, lastDay: null, last: null };
       const v = task.visit != null ? at(task.visit) : undefined;
       if (v) v.lines.push(line);
       else unplaced.push(line);

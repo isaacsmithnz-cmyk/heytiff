@@ -104,3 +104,96 @@ export function Chooser({
     </>
   );
 }
+
+/** "Louis Jones", "Louis Jones and Leonardo Martins", "A, B and C". */
+const andWords = (words: readonly string[]) =>
+  words.length < 2 ? (words[0] ?? "") : `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}`;
+
+/* A CHOOSER THAT TAKES SEVERAL (Isaac, 25 October 2026, Book a visit's Who:
+   "Louis Jones and Leonardo Martins"). The same field and menu as one of a
+   list; a pick adds or takes away and leaves the menu open, and the field
+   says everyone chosen, joined as a sentence. */
+export function ChooserMany({
+  options,
+  value,
+  onChange,
+  placeholder = "Choose",
+  disabled,
+  invalid,
+  size = 36,
+  id,
+  "aria-label": ariaLabel,
+  className,
+}: {
+  options: readonly ChooserOption[];
+  value: readonly string[];
+  onChange: (value: string[]) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  invalid?: boolean;
+  size?: ControlSize;
+  id?: string;
+  "aria-label"?: string;
+  className?: string;
+}) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  const listId = `${useId()}-list`;
+  const wired = useFieldWiring({ id, invalid });
+  /* in the list's order, so the field reads the same however they were picked */
+  const chosen = options.filter((o) => value.includes(o.value));
+
+  const onKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
+    if (open || disabled) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      setOpen(true);
+    }
+  };
+
+  const cls =
+    "pt-chooser" +
+    sizeClass("pt-chooser", size) +
+    (wired.invalid ? " pt-chooser--invalid" : "") +
+    (className ? ` ${className}` : "");
+
+  return (
+    <>
+      <button
+        ref={ref}
+        type="button"
+        id={wired.id}
+        className={cls}
+        role="combobox"
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={open ? listId : undefined}
+        aria-invalid={wired.invalid || undefined}
+        aria-describedby={wired.describedBy}
+        disabled={disabled}
+        onClick={() => setOpen((o) => !o)}
+        onKeyDown={onKeyDown}
+      >
+        <span className={`pt-chooser-value${chosen.length ? "" : " pt-chooser-value--empty"}`}>
+          {chosen.length ? andWords(chosen.map((o) => o.label)) : placeholder}
+        </span>
+        <Chevron className="pt-chooser-chev" />
+      </button>
+      <Menu
+        open={open}
+        anchor={ref}
+        id={listId}
+        kind="listbox"
+        label={ariaLabel ?? wired.label ?? placeholder}
+        items={options.map((o) => ({ key: o.value, label: o.label, hint: o.hint }))}
+        chosen={value}
+        stay
+        filter={options.length > FILTER_PAST}
+        matchWidth
+        onClose={() => setOpen(false)}
+        onSelect={(v) => onChange(value.includes(v) ? value.filter((x) => x !== v) : [...value, v])}
+      />
+    </>
+  );
+}

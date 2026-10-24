@@ -4,7 +4,7 @@ import type { JobCandidate } from "@/lib/workboard/note-match";
 /* THE OPEN JOBS, for the two things that ask "which job?" off the board.
 
    The Tiff modal's "Which job is this for?" (`fileNote`, which offers the
-   ones the words match) and the expense form's job picker (lib/me/page-data)
+   ones the words match) and the expense form's job picker (Expense claims, app/dashboard/(me)/my-expenses)
    read this, so a receipt and a note agree about what an open job is. It
    began as Home's list for the capture card's job picker (Isaac,
    2026-08-13: a job the matcher could not resolve left the review saying

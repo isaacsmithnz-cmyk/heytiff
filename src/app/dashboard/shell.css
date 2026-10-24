@@ -9547,10 +9547,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* a clock time that can be cleared: the wheel and its clear */
 .mk-team-time { display:flex; align-items:center; gap:4px; min-width:0; }
 .mk-team-time .pt-timefield { flex:1; }
-/* a line under a form: the leave's working days and what's available */
-.mk-team-line { margin:0; font-size:13px; line-height:18px; color:var(--q); }
-/* three across: From, To and Hours */
-.mk-team-three { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; align-items:start; }
+
 /* a list in a form: the poll's answers, the files */
 .mk-team-list { display:flex; flex-direction:column; gap:8px; margin:0; padding:0; list-style:none; }
 .mk-team-answer { display:flex; align-items:center; gap:4px; }

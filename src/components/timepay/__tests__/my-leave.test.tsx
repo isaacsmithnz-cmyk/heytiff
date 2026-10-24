@@ -1,316 +1,249 @@
-import { act, render, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MyLeave, balanceBars } from "../my-leave";
+import { LEAVE_STATE, MyLeave } from "../my-leave";
 import { WindowsContext } from "@/components/records/records-context";
-import { pickDate } from "@/components/ui/__tests__/fixtures/pick-date";
 import type { BalanceView, LeaveRequest } from "@/lib/timepay/leave";
 
-/* Asking for leave is choosing a span, and seeing what it costs.
-
-   Ask for leave is a dialog over My leave now (components/making/leave-form,
-   the forms board's form 9): the type, From and To, the hours, a note, a
-   medical certificate when the span wants one, and the line that says what
-   the span spends — its working days, the public holidays inside it given
-   back by name, and what's available. The inline month grid it had is gone
-   with the board; the holidays it showed are still counted and named. */
+/* LEAVE, A PAGE OF ITS OWN (Isaac's mock of 24 October 2026, section 2).
+   The title and Add, one blue button whose white menu holds the four kinds
+   ("You need to have a add button instead of ask for leave… the add would
+   be leave request, sick day, etc."); what you have as two figures; your
+   requests as rows with their state as a word ("Waiting on the office
+   should be waiting for approval"); the public holidays coming up. */
 
 const requestLeave = jest.fn(async (..._a: unknown[]) => ({ ok: true as const, id: "new-request" }));
 const cancelLeave = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
-
+const attachCertificate = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
 jest.mock("@/app/actions/leave", () => ({
   requestLeave: (...a: unknown[]) => requestLeave(...a),
   cancelLeave: (...a: unknown[]) => cancelLeave(...a),
+  attachCertificate: (...a: unknown[]) => attachCertificate(...a),
 }));
-jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }) }));
-/* The certificate picker imports the shared upload client, which reaches a
-   server action and pulls auth0 into jsdom — the suite fails to PARSE without
-   this, nowhere near the line that caused it. Same trap as every other
-   `"use server"` import in a component test. */
+const refresh = jest.fn();
+jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh }) }));
+/* the certificate picker imports the shared upload client, which reaches a
+   server action and pulls auth0 into jsdom */
 const uploadFile = jest.fn(async (..._a: unknown[]) => ({
   ok: true as const,
   file: { documentId: "doc-1", fileName: "certificate.pdf", mimeType: "application/pdf", sizeBytes: 1, previewUrl: null },
 }));
 jest.mock("@/lib/documents/upload-client", () => ({ uploadFile: (...a: unknown[]) => uploadFile(...a) }));
 
-const TODAY = "2026-07-20"; // a Monday
-// the first Monday in August — a real one-day-off shape to plan around
-const HOLIDAYS = [{ date: "2026-08-03", name: "Picnic Day" }];
+const TODAY = "2026-10-21"; // a Wednesday
+const HOLIDAYS = [
+  { date: "2026-10-05", name: "Labour Day" }, // gone: loaded for a sick day put in after, not listed as coming
+  { date: "2026-12-25", name: "Christmas Day" },
+  { date: "2026-12-26", name: "Boxing Day" },
+  { date: "2026-12-28", name: "Boxing Day (additional day)" },
+  { date: "2027-01-01", name: "New Year's Day" },
+];
+const ANNUAL: BalanceView = { kind: "annual", balanceHours: 152, asAt: "2026-07-01", source: "xero", booked: 56, available: 96 };
 
-const ANNUAL: BalanceView = {
+const req = (over: Partial<LeaveRequest>): LeaveRequest => ({
+  id: "r1",
+  staffId: "s1",
   kind: "annual",
-  balanceHours: 152,
-  asAt: "2026-07-01",
-  source: "manual",
-  booked: 0,
-  available: 152,
-};
+  startDate: "2026-12-21",
+  endDate: "2027-01-01",
+  hours: 56,
+  status: "pending",
+  ...over,
+});
 
 const toast = jest.fn();
 
 function setup(over: Partial<React.ComponentProps<typeof MyLeave>> = {}) {
   const view = render(
     <WindowsContext.Provider value={{ toast } as never}>
-      <MyLeave
-        today={TODAY}
-        standard={7.6}
-        balances={[ANNUAL]}
-        requests={[] as LeaveRequest[]}
-        holidays={HOLIDAYS}
-        {...over}
-      />
+      <MyLeave today={TODAY} standard={8} balances={[]} requests={[]} holidays={HOLIDAYS} {...over} />
     </WindowsContext.Provider>,
   );
   const user = userEvent.setup();
-  const form = () => within(screen.getByRole("dialog", { name: "Ask for leave" }));
-  const field = (label: string) => form().getByLabelText(label);
-  const openForm = () => user.click(screen.getByRole("button", { name: "Ask for leave" }));
-  const span = async (from: string, to: string) => {
-    await pickDate("From", from, form());
-    await pickDate("To", to, form());
+  const add = () => screen.getByRole("button", { name: "Add" });
+  const pick = async (item: RegExp) => {
+    await user.click(add());
+    await user.click(screen.getByRole("menuitem", { name: item }));
   };
-  return { ...view, user, form, field, openForm, span };
+  return { ...view, user, add, pick };
 }
-
-/** The line under the form: what the span costs. */
-const meta = () => document.querySelector(".mk-team-line")!.textContent;
 
 beforeEach(() => {
   requestLeave.mockClear();
   cancelLeave.mockClear();
+  attachCertificate.mockClear();
   uploadFile.mockClear();
   toast.mockClear();
+  refresh.mockClear();
 });
 
-describe("From and To", () => {
-  it("open on today, and a later From carries To along", async () => {
-    const { field, openForm } = setup();
-    await openForm();
-    expect(field("From")).toHaveTextContent("20/07/2026");
-    expect(field("To")).toHaveTextContent("20/07/2026");
-    await pickDate("From", "2026-07-30", within(screen.getByRole("dialog", { name: "Ask for leave" })));
-    expect(field("From")).toHaveTextContent("30/07/2026");
-    expect(field("To")).toHaveTextContent("30/07/2026");
-  });
-
-  it("refuses days that have already been", async () => {
-    const { user, field, openForm } = setup();
-    await openForm();
-    await user.click(field("From"));
-    const pop = within(screen.getByRole("dialog", { name: "Choose a date" }));
-    expect(pop.getByRole("button", { name: "Sunday 19 July 2026" })).toBeDisabled();
-    expect(pop.getByRole("button", { name: "Monday 20 July 2026" })).toBeEnabled();
-  });
-
-  it("keeps the hours a number, its placeholder the suggestion (decision 27)", async () => {
-    const { field, openForm, span } = setup();
-    await openForm();
-    await span("2026-07-22", "2026-07-24");
-    expect(field("Hours")).toHaveAttribute("type", "number");
-    expect(field("Hours")).toHaveAttribute("placeholder", "22.8");
+describe("the page", () => {
+  it("is titled Leave, with Add the one blue button, and none of the old card's strip or bars", () => {
+    const { container, add } = setup();
+    expect(screen.getByRole("heading", { level: 1, name: "Leave" })).toBeInTheDocument();
+    expect(add()).toHaveClass("pt-btn--main");
+    expect(add()).toHaveAttribute("aria-haspopup", "menu");
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Ask for leave" })).toBeNull();
+    // the grey header bars and the coloured blocks went with the old card
+    expect(container.querySelector(".lv-ch, .lv-baltile, .lv-req, .dchip")).toBeNull();
+    expect(container.querySelectorAll(".pt-btn--main")).toHaveLength(1);
   });
 });
 
-describe("public holidays inside the span", () => {
-  it("counts the working days and says which day it gave back", async () => {
-    const { openForm, span } = setup();
-    await openForm();
-    // Mon 3 Aug – Fri 7 Aug, with the Monday a public holiday
-    await span("2026-08-03", "2026-08-07");
-    expect(meta()).toContain("4 working days");
-    expect(meta()).toContain("1 public holiday skipped (Picnic Day)");
-    expect(meta()).toContain("152h available");
+describe("Add", () => {
+  it("opens a white menu of the four kinds", async () => {
+    const { user, add } = setup();
+    await user.click(add());
+    const menu = screen.getByRole("menu", { name: "Add leave" });
+    expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent)).toEqual([
+      "Annual leave request",
+      "Sick dayPersonal leave",
+      "Carer's leavePersonal leave",
+      "Unpaid leave request",
+    ]);
+    expect(menu.closest(".pt-menu")).not.toHaveClass("pt-menu--ink");
   });
 
-  it("counts holidays it cannot name in a line", async () => {
-    const { openForm, span } = setup({
-      holidays: [
-        { date: "2026-08-03", name: "Picnic Day" },
-        { date: "2026-08-05", name: "Show Day" },
-        { date: "2026-08-07", name: "Cup Day" },
+  it.each([
+    [/^Annual leave request/, "Annual leave request", "annual", "Send request"],
+    [/^Sick day/, "Sick day", "personal", "Send"],
+    [/^Carer's leave/, "Carer's leave", "personal", "Send"],
+    [/^Unpaid leave request/, "Unpaid leave request", "unpaid", "Send request"],
+  ])("opens %s as the form with its heading, and sends its kind", async (item, heading, kind, sendWord) => {
+    const { user, pick } = setup();
+    await pick(item);
+    const form = within(screen.getByRole("dialog", { name: heading }));
+    expect(form.getByRole("heading", { name: heading })).toBeInTheDocument();
+    // a request is planned from a first day; a sick day and carer's leave open on today
+    if (sendWord === "Send request") await user.click(form.getByRole("button", { name: "Thu 22 Oct" }));
+    else expect(form.getByRole("button", { name: "Wed 21 Oct, today" })).toHaveClass("pt-cal-day--picked");
+    await user.click(form.getByRole("button", { name: sendWord }));
+    expect(requestLeave).toHaveBeenCalledWith(expect.objectContaining({ kind }));
+    expect(screen.queryByRole("dialog", { name: heading })).toBeNull();
+    expect(toast).toHaveBeenCalledWith("Leave request sent", expect.any(Function));
+  });
+
+  it("closes the form on Cancel and leaves the page as it was", async () => {
+    const { user, pick } = setup();
+    await pick(/^Sick day/);
+    await user.click(within(screen.getByRole("dialog", { name: "Sick day" })).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(requestLeave).not.toHaveBeenCalled();
+  });
+});
+
+describe("What you have", () => {
+  it("shows a dash and says not set yet for a balance nobody has set", () => {
+    setup();
+    const figs = document.querySelector(".lv2-figs")!;
+    expect(within(figs as HTMLElement).getByText("Annual leave, not set yet").nextSibling).toHaveTextContent("—");
+    expect(within(figs as HTMLElement).getByText("Personal / carer's, not set yet")).toBeInTheDocument();
+  });
+
+  it("shows a balance that is set as its hours available, with what's booked and where it came from", () => {
+    setup({ balances: [ANNUAL] });
+    const caption = screen.getByText("Annual leave, 56 h booked, synced from Xero");
+    expect(caption.nextSibling).toHaveTextContent("96 h");
+  });
+});
+
+describe("Your requests", () => {
+  it("says so when there are none", () => {
+    setup();
+    expect(screen.getByText("Nothing requested yet.")).toBeInTheDocument();
+  });
+
+  it("draws each as a row: a dot, the kind, the dates and hours, and where it's up to", () => {
+    setup({ requests: [req({})] });
+    const row = within(screen.getByRole("list", { name: "Your requests" })).getAllByRole("listitem")[0]!;
+    expect(row.querySelector(".pt-row-name")).toHaveTextContent("Annual leave");
+    expect(row.querySelector(".pt-row-line")).toHaveTextContent("Mon 21 Dec – Fri 1 Jan, 7 days, 56 h");
+    expect(row.querySelector(".pt-dot")).toHaveClass("pt-dot--orange");
+    expect(row.querySelector(".lv2-word")).toHaveTextContent("Waiting for approval");
+    expect(row.querySelector(".lv2-word")).toHaveClass("lv2-word--look");
+  });
+
+  it("says Waiting for approval, never Pending, wherever you see a request still waiting", async () => {
+    const { user, container } = setup({ requests: [req({})] });
+    expect(LEAVE_STATE.pending.word).toBe("Waiting for approval");
+    expect(container).not.toHaveTextContent(/pending/i);
+    await user.click(screen.getByRole("button", { name: "Annual leave" }));
+    expect(within(screen.getByRole("dialog", { name: "Annual leave" })).getByText("Waiting for approval")).toBeInTheDocument();
+  });
+
+  it("says each state as a word in its colour", () => {
+    setup({
+      requests: [
+        req({ id: "a", status: "approved" }),
+        req({ id: "d", status: "declined", reviewNote: "Short-staffed over Christmas" }),
+        req({ id: "c", status: "cancelled", kind: "unpaid", startDate: "2026-10-01", endDate: "2026-10-06", hours: 24 }),
       ],
     });
-    await openForm();
-    await span("2026-08-03", "2026-08-07");
-    expect(meta()).toContain("2 working days");
-    expect(meta()).toContain("3 public holidays skipped");
-    expect(meta()).not.toContain("Picnic Day");
+    const words = [...document.querySelectorAll(".lv2-word")].map((w) => [w.textContent, w.className]);
+    expect(words).toEqual([
+      ["Approved", "lv2-word lv2-word--good"],
+      ["Declined", "lv2-word lv2-word--wrong"],
+      ["Cancelled", "lv2-word lv2-word--info"],
+    ]);
+    expect(screen.getByText("Thu 1 Oct – Tue 6 Oct, 3 days, 24 h")).toBeInTheDocument();
   });
 
-  it("says nothing about holidays when the span passes none", async () => {
-    const { openForm, span } = setup();
-    await openForm();
-    await span("2026-07-22", "2026-07-23");
-    expect(meta()).toBe("2 working days, 152h available.");
-  });
-});
-
-describe("sending", () => {
-  it("sends the dates with the suggested hours, keeps you on your leave, and Undo withdraws it", async () => {
-    const { user, form, openForm, span } = setup();
-    await openForm();
-    await span("2026-07-22", "2026-07-24");
-    await user.click(form().getByRole("button", { name: "Send request" }));
-
-    expect(requestLeave).toHaveBeenCalledWith({
-      kind: "annual",
-      startDate: "2026-07-22",
-      endDate: "2026-07-24",
-      hours: 22.8, // 3 working days × 7.6
-      note: undefined,
-    });
-    expect(screen.queryByRole("dialog", { name: "Ask for leave" })).toBeNull();
-    expect(toast).toHaveBeenCalledWith("Leave requested", expect.any(Function));
-    await act(async () => toast.mock.calls[0][1]());
-    expect(cancelLeave).toHaveBeenCalledWith("new-request");
-  });
-
-  it("still lets the hours be overridden for a part day", async () => {
-    const { user, form, field, openForm, span } = setup();
-    await openForm();
-    await span("2026-07-22", "2026-07-22");
-    expect(field("Hours")).toHaveAttribute("placeholder", "7.6");
-    await user.type(field("Hours"), "4");
-    await user.type(field("Note"), "Dentist");
-    await user.click(form().getByRole("button", { name: "Send request" }));
-
-    expect(requestLeave).toHaveBeenCalledWith(
-      expect.objectContaining({ startDate: "2026-07-22", endDate: "2026-07-22", hours: 4, note: "Dentist" }),
-    );
-  });
-
-  it("says why the request was refused, and stays open", async () => {
-    const { user, form, openForm } = setup();
-    await openForm();
-    requestLeave.mockResolvedValueOnce({ ok: false, error: "That's 8h more annual leave than you have available." } as never);
-    await user.click(form().getByRole("button", { name: "Send request" }));
-    expect(form().getByRole("alert")).toHaveTextContent("That's 8h more annual leave than you have available.");
-    expect(toast).not.toHaveBeenCalled();
-  });
-});
-
-describe("the type and the certificate", () => {
-  it("asks for a certificate only when this span of personal leave wants one, and sends it with the request", async () => {
-    const { user, form, openForm, span } = setup({ certAfterDays: 2 });
-    await openForm();
-    await span("2026-07-22", "2026-07-24");
-    expect(form().queryByText("Medical certificate")).toBeNull();
-    await user.click(form().getByRole("radio", { name: "Personal or carer's" }));
-    expect(form().getByText("Medical certificate")).toBeInTheDocument();
-    const input = screen.getByRole("dialog", { name: "Ask for leave" }).querySelector<HTMLInputElement>('input[type="file"]')!;
-    await user.upload(input, new File(["x"], "certificate.pdf", { type: "application/pdf" }));
-    expect(uploadFile).toHaveBeenCalledWith(expect.any(File), "medical_certificate");
-    expect(form().getByRole("list", { name: "Medical certificate" })).toHaveTextContent("certificate.pdf");
-    expect(form().getByRole("button", { name: "Replace certificate" })).toBeInTheDocument();
-    await user.click(form().getByRole("button", { name: "Send request" }));
-    expect(requestLeave).toHaveBeenCalledWith(expect.objectContaining({ kind: "personal", certificateDocumentId: "doc-1" }));
-  });
-
-  it("never blocks a request on the certificate", async () => {
-    const { user, form, openForm, span } = setup({ certAfterDays: 2 });
-    await openForm();
-    await user.click(form().getByRole("radio", { name: "Personal or carer's" }));
-    await span("2026-07-22", "2026-07-24");
-    expect(form().getByRole("button", { name: "Send request" })).toBeEnabled();
-  });
-
-  it("says nothing about a balance for unpaid leave", async () => {
-    const { user, form, openForm } = setup();
-    await openForm();
-    await user.click(form().getByRole("radio", { name: "Unpaid leave" }));
-    expect(meta()).toBe("1 working day.");
-  });
-});
-
-/* ---- the 2026-07-31 redesign: colour, and buttons that say what they do ---- */
-
-const REQ: LeaveRequest = {
-  id: "r1",
-  staffId: "s1",
-  kind: "annual",
-  startDate: "2026-08-10",
-  endDate: "2026-08-12",
-  hours: 22.8,
-  status: "approved",
-};
-
-describe("balanceBars", () => {
-  it("splits the track into what's left and what's booked", () => {
-    expect(balanceBars(100, 75, 25)).toEqual({ avail: 75, booked: 25 });
-  });
-
-  it("survives an entitlement of zero rather than dividing by it", () => {
-    // an unset balance is 0h — the bar must be empty, not NaN% wide
-    expect(balanceBars(0, 0, 0)).toEqual({ avail: 0, booked: 0 });
-  });
-
-  it("clamps an over-booked balance instead of overflowing the track", () => {
-    // booked more than you had: available goes negative, booked past 100%
-    expect(balanceBars(100, -20, 120)).toEqual({ avail: 0, booked: 100 });
-  });
-});
-
-describe("Ask for leave sits on the card it adds to (rule 52)", () => {
-  it("is in the requests card header, not floating in the page header", () => {
-    const { container } = setup();
-    const head = container.querySelector(".lv-ch.act")!;
-    expect(within(head as HTMLElement).getByRole("button", { name: "Ask for leave" })).toBeTruthy();
-    // and nothing action-shaped is left stranded in the page heading
-    expect(container.querySelector(".v2head button")).toBeNull();
-  });
-
-  /* The form opens over the page (rule 51), so the button that opened it
-     stays where it was, and Cancel is the one way back. */
-  it("opens Ask for leave over the page, and Cancel closes it", async () => {
-    const { user, form, openForm } = setup();
-    await openForm();
-    expect(form().getByRole("heading", { name: "Ask for leave" })).toBeInTheDocument();
-    expect(form().getByRole("radiogroup", { name: "Type" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "Annual leave" })).toHaveAttribute("aria-checked", "true");
-    // no native select (rule 34)
-    expect(screen.getByRole("dialog", { name: "Ask for leave" }).querySelector("select")).toBeNull();
-    await user.click(form().getByRole("button", { name: "Cancel" }));
-    expect(screen.queryByRole("dialog", { name: "Ask for leave" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Ask for leave" })).toBeTruthy();
-  });
-});
-
-describe("cancelling a request", () => {
-  it("arms before it fires — one press asks, the next goes through", async () => {
-    const { user, container } = setup({ requests: [REQ] });
-    const btn = () => container.querySelector<HTMLElement>(".lv-cancel")!;
-
-    await user.click(btn());
-    expect(cancelLeave).not.toHaveBeenCalled();
-    expect(btn().className).toContain("arm");
-    expect(btn().textContent).toContain("Confirm");
-
-    await user.click(btn());
+  it("opens a request, and Cancel request withdraws one still waiting", async () => {
+    const { user } = setup({ requests: [req({ note: "Family in Perth" })] });
+    await user.click(screen.getByRole("button", { name: "Annual leave" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Annual leave" }));
+    expect(dialog.getByText("Mon 21 Dec to Fri 1 Jan")).toBeInTheDocument();
+    expect(dialog.getByText("Family in Perth")).toBeInTheDocument();
+    const cancel = dialog.getByRole("button", { name: "Cancel request" });
+    expect(cancel).toHaveClass("pt-btn--delete");
+    await user.click(cancel);
     expect(cancelLeave).toHaveBeenCalledWith("r1");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(toast).toHaveBeenCalledWith("Leave request cancelled");
   });
 
-  it("names the request it would cancel, for anyone not seeing the row", () => {
-    setup({ requests: [REQ] });
-    // the label names the kind AND the dates — "Cancel" alone tells a screen
-    // reader nothing about which of several rows it is sitting on
-    expect(
-      screen.getByRole("button", { name: /^Cancel Annual leave on 10 Aug.+12 Aug$/ }),
-    ).toBeTruthy();
+  it("offers no Cancel request once approved leave has started, or for a request already closed", async () => {
+    const { user } = setup({
+      requests: [req({ id: "a", status: "approved", startDate: "2026-10-19", endDate: "2026-10-23", hours: 40 }), req({ id: "d", status: "declined", reviewNote: "Short-staffed" })],
+    });
+    const [started, declined] = screen.getAllByRole("button", { name: "Annual leave" });
+    await user.click(started!);
+    expect(within(screen.getByRole("dialog")).queryByRole("button", { name: "Cancel request" })).toBeNull();
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Close" }));
+    await user.click(declined!);
+    const dialog = within(screen.getByRole("dialog"));
+    expect(dialog.getByText("Why it was declined")).toBeInTheDocument();
+    expect(dialog.getByText("Short-staffed")).toBeInTheDocument();
+    expect(dialog.queryByRole("button", { name: "Cancel request" })).toBeNull();
+  });
+
+  it("says when a sick day is still waiting on its certificate, and takes it afterwards", async () => {
+    const { user } = setup({
+      requests: [req({ kind: "personal", startDate: "2026-10-19", endDate: "2026-10-20", hours: 16, status: "approved", certExpected: true })],
+    });
+    expect(screen.getByText("Mon 19 Oct – Tue 20 Oct, 2 days, 16 h, no certificate yet")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Personal / carer's" }));
+    const dialog = screen.getByRole("dialog", { name: "Personal / carer's" });
+    expect(within(dialog).getByText("No certificate yet")).toBeInTheDocument();
+    await user.upload(dialog.querySelector<HTMLInputElement>('input[type="file"]')!, new File(["x"], "certificate.pdf", { type: "application/pdf" }));
+    expect(attachCertificate).toHaveBeenCalledWith("r1", "doc-1");
   });
 });
 
-describe("leave kinds carry colour without stealing a status hue", () => {
-  it("marks the tile and the row with the kind, not the status", () => {
-    const { container } = setup({ requests: [REQ] });
-    expect(container.querySelector(".lv-baltile.lv-annual")).not.toBeNull();
-    expect(container.querySelector(".lv-req.lv-annual")).not.toBeNull();
+describe("Public holidays coming up", () => {
+  it("lists the ones still to come, the date in bold and the name", () => {
+    setup();
+    const list = screen.getByRole("list", { name: "Public holidays coming up" });
+    expect([...list.querySelectorAll("li")].map((li) => [li.querySelector("b")?.textContent, li.querySelector("span")?.textContent])).toEqual([
+      ["Fri 25 Dec", "Christmas Day"],
+      ["Sat 26 Dec", "Boxing Day"],
+      ["Mon 28 Dec", "Boxing Day (additional day)"],
+      ["Fri 1 Jan", "New Year's Day"],
+    ]);
   });
 
-  it("keeps the status chip as the row's only state signal", () => {
-    // the kind is a left bar, the status is the pill — if the kind ever took
-    // teal/amber/red the two would collide on one row
-    const { container } = setup({ requests: [REQ] });
-    const row = container.querySelector(".lv-req")!;
-    expect(row.querySelector(".dchip.ok")?.textContent).toBe("Approved");
-    expect(row.querySelectorAll(".dchip")).toHaveLength(1);
+  it("says when none are loaded", () => {
+    setup({ holidays: [] });
+    expect(screen.getByText("No public holidays loaded for your state yet.")).toBeInTheDocument();
   });
 });

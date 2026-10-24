@@ -540,7 +540,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
      keyboard the same control back (law 24). */
   { law: "hover-revealed controls — shown on focus too, or not hidden", now: () => { let n = 0; for (const [sel, body] of blocks()) if (/:hover/.test(sel) && !/focus-within|focus-visible/.test(sel) && /\bopacity\s*:\s*1\b/.test(body)) n++; return n; }, baseline: 0 },
   { law: "pill, chip, tag and badge rules drawn as a box — state is a word, a chip is for a filter you tap", now: () => pills(outside("pills")), baseline: 28 },
-  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 25 },
+  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 24 },
   // ink and paper
   /* The OK colour on a selector that is not a state. It began as a count of
      every use (88), then the accent migration named accent-on-state as state
@@ -553,7 +553,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
       // a custom property that aliases the OK colour (`--wb2-ok: var(--ok-t)`) is a definition, not a use
       for (const [sel, body] of blocks()) if (!STATE.test(sel)) n += (body.replace(/--[\w-]+\s*:\s*var\(--ok-t\)/g, "").match(/var\(--ok-t\)/g) ?? []).length;
       return n;
-    }, baseline: 9 },
+    }, baseline: 8 },
   { law: "focus rings drawn as an alpha tint — 2px of solid ink", now: faintRings, baseline: 0 },
   { law: "colour declared on anchors — one link token", now: anchorColours, baseline: 12 },
   /* THE ACCENT. Teal, blue and violet in any spelling, doing any job, in a

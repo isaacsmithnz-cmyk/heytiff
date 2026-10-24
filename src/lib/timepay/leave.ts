@@ -277,8 +277,25 @@ export function balanceView(balance: LeaveBalance, requests: LeaveRequest[]): Ba
   return { ...balance, booked, available: Math.round((balance.balanceHours - booked) * 100) / 100 };
 }
 
-/** Would this new request fit? Unpaid always fits; a kind with no balance row
-    is treated as zero available. Returns the shortfall (0 = fits). */
+/* HOW FAR BACK A DAY AWAY CAN BE PUT IN. A sick day is often put in after
+   (Isaac, 24 October 2026: "Sick day, you should be able to add ones in
+   the past"), so the sick day's and carer's leave's calendars reach back
+   this far, and the leave page loads the public holidays from here, so a
+   day put in after is counted against the holidays it really had. About
+   three months: a pay run or two, and the timesheets they paid. */
+export const LEAVE_LOOKBACK_DAYS = 92;
+
+/** Would this new request fit? Unpaid always fits, and so does a kind whose
+    balance nobody has set yet. Returns the shortfall (0 = fits).
+
+    AN UNSET BALANCE IS NOT ZERO. It used to be treated as nothing
+    available, which refused every annual leave request and every sick day
+    in a workspace that hadn't typed its balances in, and left those
+    people only unpaid leave. Isaac's leave page (24 October 2026) says
+    instead: "Your annual leave balance isn't set yet, so it goes in as a
+    request, waiting for approval." The request still waits for someone
+    with `approvals`, who knows what the person is owed; a balance that IS
+    set is still held to what it has available. */
 export function shortfall(
   kind: LeaveKind,
   hours: number,
@@ -287,7 +304,7 @@ export function shortfall(
 ): number {
   if (!isBalanceKind(kind)) return 0; // unpaid is unrestricted
   const bal = balances.find((b) => b.kind === kind);
-  if (!bal) return hours; // no entitlement recorded → nothing available
+  if (!bal) return 0; // not set yet: it goes in as a request, for whoever approves it
   const { available } = balanceView(bal, requests);
   return Math.max(0, Math.round((hours - available) * 100) / 100);
 }

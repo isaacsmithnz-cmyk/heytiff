@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Button } from "@/components/parts/button";
+import { Menu, type MenuItem } from "@/components/parts/menu";
+import { Row, RowList } from "@/components/parts/row";
+import { StateWord, type Tone } from "@/components/parts/state";
+import { Empty, Loading, Wrong } from "@/components/parts/states";
+import { Tick } from "@/components/parts/tick";
 import { Icon } from "@/components/shell/icon";
 import { auDayOf, fmtAuWeekdayDayMonth, todayInAu } from "@/lib/au-dates";
 import { ALLOWED_TYPES } from "@/lib/documents/files";
@@ -12,7 +17,8 @@ import type { SwmsSummary } from "@/lib/swms/query";
 import type { CertSummary } from "@/lib/certs/query";
 import {
   ourDocumentSendKey,
-  paperMeta,
+  paperRowLine,
+  paperRowName,
   paperSendable,
   paperSendKey,
   paperStateLine,
@@ -23,58 +29,38 @@ import {
 import { sendLine, type JobSend, type SendHold, type SendLine } from "@/lib/integrations/sm8-write-plan";
 import { ComplianceChooser } from "./compliance-chooser";
 import { StateLine } from "./state-line";
-import "@/components/swms/swms.css";
 
-/* THE DOCUMENTS FACE — the job's paper, grouped by what a document IS,
-   never by which system made it: Drawings (the Studio's designs — ours),
-   Money (invoices, quotes, work orders), From the client (emailed in),
-   Video, then the rest. An empty group doesn't render. COMPLIANCE LEADS:
-   the SWMS is the one paper HeyTiff writes itself, and the one the crew
-   needs before the work starts, so it is filed first. It wears the same row
-   as every other document and opens in the same viewer; the head offers to
-   create one only while the job has none, because a second press made a
-   second SWMS where a revision was meant.
+/* A JOB'S DOCUMENTS (v2; the mock of 25 October 2026, frame 6). One heading,
+   no count under it, and one blue Add, whose white menu holds the ways in:
+   Upload a file, Licences and insurance, SWMS, Certificate, each only where
+   the old buttons were offered. A file dropped anywhere on the section lands
+   as Upload does.
 
-   THE WAYS IN SIT UNDER THE TITLE, the row every face keeps for adding to
-   it — the Checklist's form, the Diary's pen. Create SWMS spent a release in
-   the title's own line, floating off the count at the far edge. Beside it
-   now: an upload, because the paper worth keeping (the certificate, the
-   builder's plans) had nowhere to go but ServiceM8. A file dropped anywhere
-   on the face lands the same way. Ours live here, never in ServiceM8, so a
-   row of ours says who added it and can be taken back off; theirs cannot.
+   THE PAPER IS GROUPED BY WHAT IT IS, never by which system made it:
+   Drawings (the Studio's designs), From the client (emailed in), Files,
+   then Compliance (Isaac, 2 October: "compliance is supposed to sit
+   underneath files"): the SWMS, the certificate, the business's licences
+   and insurance and ServiceM8's own papers known by their names. A group
+   with nothing in it doesn't draw. Quotes, invoices and work orders are
+   not here: "Stays as quotes. We don't need a money section in the
+   documents" (25 October). They are on Quote and on their claim.
 
-   A PDF opens IN THE CARD, in the shared viewer's iframe — today every
-   file was a new browser tab that lost the job. Files whose bytes aren't
-   cached yet are named without a door. Videos are finally NAMED — their
-   rows were loaded and thrown away for a bare count — but their bytes stay
-   in ServiceM8 by charter (a job's worth of mp4 against a bucket sized in
-   gigabytes), so the row says so instead of pretending to play.
+   EVERY ROW IS A V2 ROW (rule 39): a tick where this viewer may send it, the
+   name, a grey line of facts, and one thing on the right, a state word or a
+   button. Pressing it opens the file in the viewer, whose head now carries
+   what the rows used to offer beside the name (Remove, Revise, Reissue, Use
+   renewal, Delete). A file the viewer can't show still goes to the
+   browser; a file with no bytes here has no door.
 
-   THE CERTIFICATES JOIN IT TOO. A compliance certificate is the other paper
-   HeyTiff writes, at the other end of the job: Create certificate is offered
-   on any job, finished or not (a card can sit at Work Order while its last
-   claim is complete), and a reissue is the next version, not a second
-   certificate. Its PDF is an ordinary file of ours on the job, so its row's
-   tick is that file's, and sending it is the footer's.
+   WHAT IS TICKED IS SENT from the bar at the page's foot (documents-send).
+   A row with nothing to send (a SWMS is a page, a file not brought across
+   yet) holds the tick's place empty, so the names still line up.
 
-   THE BUSINESS'S PAPERS JOIN THE SWMS UNDER COMPLIANCE. Add compliance is
-   the third way in: the certificates on the Organisation screen and the
-   tickets on the staff cards, put on the job as links to the paper they
-   already own (lib/compliance/papers). A paper whose policy has renewed
-   since says so, and one press moves it to the renewal.
-
-   AND ANYTHING WITH BYTES CAN BE SENT. For someone who may send, every file
-   the face holds carries a tick — ours, theirs and the papers alike — and
-   what is ticked is emailed from the card's footer. A row with nothing to
-   send (a SWMS is a page, a file not brought across yet) holds the tick's
-   place empty, so the names still line up.
-
-   AND ONE OF OURS SAYS WHETHER IT IS IN SERVICEM8, once somebody has sent
-   it there from the footer: "In ServiceM8", or on its way, or why it didn't
-   go, in the state's colour under its name. ServiceM8's own copy, mirrored
-   back by the next sync, never reaches this list: the server leaves every
-   file HeyTiff sent off the job's files (lib/integrations/sm8-echo), so a
-   file sent is still one row. */
+   ONE OF OURS SAYS WHETHER IT IS IN SERVICEM8 once somebody has sent it
+   there: "In ServiceM8", on its way, or why it didn't go. ServiceM8's own
+   copy, mirrored back by the next sync, never reaches this list: the server
+   leaves every file HeyTiff sent off the job's files (lib/integrations/
+   sm8-echo), so a file sent is still one row. */
 
 /* An instant's AU day. The browser's own getters read the UTC date on the
    server's render, and the yard's day on the client's. */
@@ -84,6 +70,54 @@ const editedOn = (iso: string): string => fmtAuWeekdayDayMonth(auDayOf(iso));
     a file the upload would then refuse. */
 const ACCEPT = Object.keys(ALLOWED_TYPES).join(",");
 
+const TONE: Record<"ok" | "warn" | "bad", Tone> = { ok: "good", warn: "look", bad: "wrong" };
+const RANK: Record<Tone, number> = { wrong: 3, look: 2, good: 1, info: 0 };
+
+/** A state as one word on a row's right, and what is left of its sentence
+    for the grey line: "Not sent to ServiceM8. ServiceM8 refused the file."
+    is the word "Not sent to ServiceM8" and the reason. */
+type RowState = { word: string; tone: Tone; more: string | null };
+function rowState(line: SendLine | { word: string; tone: "ok" | "warn" | "bad" | null } | null): RowState | null {
+  if (!line) return null;
+  const at = line.word.indexOf(". ");
+  const word = (at < 0 ? line.word : line.word.slice(0, at)).replace(/\.$/, "");
+  const more = at < 0 ? null : line.word.slice(at + 2).trim() || null;
+  return { word, tone: line.tone ? TONE[line.tone] : "info", more };
+}
+/** The one state a row says: the worst of what it has to say. */
+const worst = (...states: (RowState | null)[]): RowState | null =>
+  states.reduce<RowState | null>((w, s) => (s && (!w || RANK[s.tone] > RANK[w.tone]) ? s : w), null);
+
+/** "1 of 3 signed on, waiting on Dane Whitmore and Kai Lindqvist" */
+function signedLine(s: SwmsSummary): string {
+  const count = `${s.signed} of ${s.total} signed on`;
+  if (s.waitingOn.length === 0) return count;
+  return `${count}, waiting on ${andList(s.waitingOn)}`;
+}
+
+/** "Dane Whitmore raised: no anchor on the rear ridge" */
+function issueLine(s: SwmsSummary): string {
+  if (s.issues.length === 1) return `${s.issues[0].name} raised: ${s.issues[0].issue}`;
+  return `${s.issues.length} issues raised, by ${andList(s.issues.map((i) => i.name))}`;
+}
+
+/** A document's grey line: who added one of ours (the answer to "why isn't
+    this in ServiceM8?"), where one of theirs came from, and when. */
+function docLine(item: JobMediaItem): string {
+  const day = item.takenAt ? fmtAuWeekdayDayMonth(item.takenAt.slice(0, 10)) : null;
+  return [
+    item.documentId ? (item.addedBy ? `Added by ${item.addedBy}` : "Added in HeyTiff") : null,
+    item.origin && !item.name.toLowerCase().includes(item.origin.toLowerCase()) ? item.origin : null,
+    item.fromClaim && !item.name.includes(`#${item.fromClaim}`) ? `on invoice #${item.fromClaim}` : null,
+    day,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+/** The old document row, kept for the quote's rail (quote-rail), which
+    still lists ServiceM8's quote papers in it. The Documents section draws
+    the v2 Row instead. */
 export function DocRow({
   item,
   onOpen,
@@ -147,281 +181,24 @@ export function DocRow({
   return <span className="wb2-doc">{inner}</span>;
 }
 
-/** A row of OURS: the same row, with the one act ServiceM8's never get —
-    taking it back off. Two presses, and the second names what it does,
-    because the bytes go with the row and nothing brings them back. */
-function OurRow({
-  item,
-  pick,
-  state = null,
-  onOpen,
-  onRemove,
-}: {
-  item: JobMediaItem;
-  /** The row's tick, when the face is sending. */
-  pick?: React.ReactNode;
-  state?: SendLine | null;
-  onOpen: (item: JobMediaItem) => void;
-  onRemove?: (item: JobMediaItem) => Promise<string | null>;
-}) {
-  const [asking, setAsking] = useState(false);
-  const [removing, setRemoving] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const remove = async () => {
-    if (!onRemove) return;
-    setRemoving(true);
-    setErr(null);
-    const why = await onRemove(item);
-    /* a row that landed its removal is gone with the next read; one that
-       didn't stays, and says why */
-    setRemoving(false);
-    if (why) {
-      setErr(why);
-      setAsking(false);
-    }
-  };
+function Group({ heading, children }: { heading: string; children: ReactNode }) {
   return (
-    <>
-      <div className="wb2-docrow">
-        {pick}
-        <DocRow item={item} onOpen={onOpen} state={state} />
-        {onRemove &&
-          (asking ? (
-            <>
-              <button type="button" className="pbtn ghost sm" disabled={removing} onClick={() => setAsking(false)}>
-                Keep
-              </button>
-              <button type="button" className="pbtn ghost sm dan" disabled={removing} onClick={() => void remove()}>
-                {removing ? "Deleting the file" : "Delete file"}
-              </button>
-            </>
-          ) : (
-            <button type="button" className="pbtn ghost sm" onClick={() => setAsking(true)}>
-              Remove
-            </button>
-          ))}
-      </div>
-      {err && <p className="wb2-sherr">{err}</p>}
-    </>
+    <section className="jdoc-group" aria-label={heading}>
+      <h3 className="jdoc-gh">{heading}</h3>
+      <RowList label={heading}>{children}</RowList>
+    </section>
   );
 }
 
-/** A paper the business put on the job — the same row, with its state said
-    out loud and the two acts a link has: taking it off (the paper itself
-    stays, so the confirm says "Remove from job", not "Delete file"), and,
-    once the policy has renewed, moving it to the renewal. */
-function PaperRow({
-  paper,
-  today,
-  pick,
-  sm8 = null,
-  onOpen,
-  onRemove,
-  onRenew,
-}: {
-  paper: JobPaper;
-  today: string;
-  pick?: React.ReactNode;
-  /** Where the paper's files stand with ServiceM8. */
-  sm8?: SendLine | null;
-  onOpen?: (paper: JobPaper) => void;
-  onRemove?: (paper: JobPaper) => Promise<string | null>;
-  onRenew?: (paper: JobPaper) => Promise<string | null>;
-}) {
-  const [asking, setAsking] = useState(false);
-  const [busy, setBusy] = useState<"remove" | "renew" | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const line = paperStateLine(paper, today);
-  /* a ticket's scan opens for `team` and its holder; for anyone else the row
-     says it is here and when it runs to, without a door */
-  const opens = !!onOpen && paper.files.some((f) => f.url);
+/** The right of a row: a state word, or one button. */
+const endOf = (state: RowState | null, button?: ReactNode): ReactNode =>
+  button ?? (state ? <StateWord tone={state.tone}>{state.word}</StateWord> : undefined);
 
-  const run = async (what: "remove" | "renew", act: (p: JobPaper) => Promise<string | null>) => {
-    setBusy(what);
-    setErr(null);
-    const why = await act(paper).catch(() => "That didn't work. Try again.");
-    /* a row that landed its change is redrawn by the next read; one that
-       didn't stays, and says why */
-    setBusy(null);
-    setAsking(false);
-    if (why) setErr(why);
-  };
-
-  const inner = (
-    <>
-      <span className="wb2-doc-ic">
-        <Icon name={paper.kind === "company" ? "shield" : "passport"} size={15} />
-      </span>
-      <span className="wb2-doc-b">
-        <b>{paper.name}</b>
-        <em>{paperMeta(paper)}</em>
-        {line && <StateLine line={line} />}
-        {sm8 && <StateLine line={sm8} />}
-      </span>
-      {opens && (
-        <span className="wb2-doc-go">
-          <Icon name="chevR" size={15} />
-        </span>
-      )}
-    </>
-  );
-
-  return (
-    <>
-      <div className="wb2-docrow">
-        {pick}
-        {opens ? (
-          <button type="button" className="wb2-doc" onClick={() => onOpen?.(paper)}>
-            {inner}
-          </button>
-        ) : (
-          <span className="wb2-doc">{inner}</span>
-        )}
-        {paper.manage && paper.renewed && onRenew && !asking && (
-          <button
-            type="button"
-            className="pbtn ghost sm"
-            disabled={!!busy}
-            onClick={() => void run("renew", onRenew)}
-          >
-            {busy === "renew" ? "Switching to the renewal" : "Use renewal"}
-          </button>
-        )}
-        {paper.manage &&
-          onRemove &&
-          (asking ? (
-            <>
-              <button type="button" className="pbtn ghost sm" disabled={!!busy} onClick={() => setAsking(false)}>
-                Keep
-              </button>
-              <button
-                type="button"
-                className="pbtn ghost sm dan"
-                disabled={!!busy}
-                onClick={() => void run("remove", onRemove)}
-              >
-                {busy === "remove" ? "Removing from the job" : "Remove from job"}
-              </button>
-            </>
-          ) : (
-            <button type="button" className="pbtn ghost sm" disabled={!!busy} onClick={() => setAsking(true)}>
-              Remove
-            </button>
-          ))}
-      </div>
-      {err && <p className="wb2-sherr">{err}</p>}
-    </>
-  );
-}
-
-/** A certificate on the job: opened, reissued, or deleted with every
-    version and its PDFs. Two presses, and the second names what goes. */
-function CertRow({
-  cert,
-  pick,
-  sub,
-  onOpen,
-  onReissue,
-  onDelete,
-}: {
-  cert: CertSummary;
-  pick?: React.ReactNode;
-  sub: string;
-  onOpen?: (cert: CertSummary) => void;
-  onReissue?: (versionId: string) => void;
-  onDelete?: (cert: CertSummary) => Promise<string | null>;
-}) {
-  const [asking, setAsking] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const del = async () => {
-    if (!onDelete) return;
-    setDeleting(true);
-    setErr(null);
-    const why = await onDelete(cert).catch(() => "That didn't work. Try again.");
-    /* a deleted certificate leaves the list; one that wasn't stays, and says why */
-    setDeleting(false);
-    setAsking(false);
-    if (why) setErr(why);
-  };
-  const deletable = !!onDelete && !!cert.mayDelete;
-  return (
-    <>
-      <div className="wb2-docrow">
-        {pick}
-        <button type="button" className="wb2-doc" onClick={() => onOpen?.(cert)}>
-          <span className="wb2-doc-ic">
-            <Icon name="file" size={15} />
-          </span>
-          <span className="wb2-doc-b">
-            <b>{cert.title}</b>
-            <em>{sub}</em>
-          </span>
-          <span className="wb2-doc-go">
-            <Icon name="chevR" size={15} />
-          </span>
-        </button>
-        {asking ? (
-          <>
-            <button type="button" className="pbtn ghost sm" disabled={deleting} onClick={() => setAsking(false)}>
-              Keep
-            </button>
-            <button type="button" className="pbtn ghost sm dan" disabled={deleting} onClick={() => void del()}>
-              {deleting ? "Deleting the certificate" : "Delete certificate"}
-            </button>
-          </>
-        ) : (
-          <>
-            {onReissue && (
-              <button type="button" className="pbtn ghost sm" onClick={() => onReissue(cert.versionId)}>
-                Reissue
-              </button>
-            )}
-            {deletable && (
-              <button type="button" className="pbtn ghost sm" onClick={() => setAsking(true)}>
-                Delete
-              </button>
-            )}
-          </>
-        )}
-      </div>
-      {asking && (
-        <p className="wb2-sherr">
-          {cert.version > 1
-            ? `All ${cert.version} versions and their PDFs come off the job. A copy already sent to ServiceM8 or emailed stays where it went.`
-            : "Its PDF comes off the job. A copy already sent to ServiceM8 or emailed stays where it went."}
-        </p>
-      )}
-      {err && <p className="wb2-sherr">{err}</p>}
-    </>
-  );
-}
-
-const GROUPS: { key: "money" | "client" | "files"; label: string }[] = [
-  { key: "money", label: "Money" },
-  { key: "client", label: "From the client" },
-  { key: "files", label: "Files" },
-];
-
-/** "1 of 3 signed on, waiting on Dane Whitmore and Kai Lindqvist" */
-function signedLine(s: SwmsSummary): string {
-  const count = `${s.signed} of ${s.total} signed on`;
-  if (s.waitingOn.length === 0) return count;
-  const names =
-    s.waitingOn.length === 1
-      ? s.waitingOn[0]
-      : `${s.waitingOn.slice(0, -1).join(", ")} and ${s.waitingOn[s.waitingOn.length - 1]}`;
-  return `${count}, waiting on ${names}`;
-}
-
-/** "Dane Whitmore raised: no anchor on the rear ridge" */
-function issueLine(s: SwmsSummary): string {
-  if (s.issues.length === 1) return `${s.issues[0].name} raised: ${s.issues[0].issue}`;
-  return `${s.issues.length} issues raised, by ${andList(s.issues.map((i) => i.name))}`;
-}
+/** The grey line, with the rest of the state's sentence after it. */
+const lineOf = (facts: string, state: RowState | null): string =>
+  [facts, state?.more].filter(Boolean).join(". ");
 
 export function JobDocumentsFace({
-  part = "all",
   documents,
   elsewhere,
   designs,
@@ -430,19 +207,14 @@ export function JobDocumentsFace({
   canCreateSwms = false,
   swmsClosed = false,
   loading,
-  truncated,
   onOpen,
   onUpload,
-  onRemove,
   onCreateSwms,
   onOpenSwms,
-  onReviseSwms,
   certificates = null,
   certificatesFailed = false,
   onCreateCertificate,
   onOpenCertificate,
-  onReissueCertificate,
-  onDeleteCertificate,
   papers = null,
   papersFailed = false,
   mayAdd = { company: false, staff: false },
@@ -452,16 +224,9 @@ export function JobDocumentsFace({
   onLoadChoices,
   onAddPapers,
   onOpenPaper,
-  onRemovePaper,
-  onRenewPaper,
   sends = null,
   sendHold = null,
 }: {
-  /** Which part of the job's paper this face holds (Isaac, 2026-10-02:
-      Compliance is its own section under Files): the files — uploads, the
-      client's paper, drawings — or the compliance — SWMS, licences and
-      insurance. "all" is both, as one face. */
-  part?: "files" | "compliance" | "all";
   documents: readonly JobMediaItem[] | null;
   elsewhere: readonly JobMediaItem[] | null;
   /** Absent for a reader without `studio` — the action doesn't fetch it. */
@@ -469,41 +234,34 @@ export function JobDocumentsFace({
   /** The job's SWMS at their latest versions; null until the read lands. */
   swms?: readonly SwmsSummary[] | null;
   /** The read failed. Saying so beats an empty Compliance group with a
-      Create button — pressing it made a SECOND SWMS on a job that had one. */
+      SWMS in Add — pressing it made a SECOND SWMS on a job that had one. */
   swmsFailed?: boolean;
-  /** False until the card knows which job it is. */
+  /** False until the page knows which job it is. */
   canCreateSwms?: boolean;
   /** ServiceM8 has finished the job: nobody would be asked to sign a new SWMS
-      and the bell would never ring, so there is no Create to offer. */
+      and the bell would never ring, so Add offers none. */
   swmsClosed?: boolean;
   loading: boolean;
-  truncated: boolean;
+  /** Open one of the job's files in the viewer. */
   onOpen: (item: JobMediaItem) => void;
   /** Put one file on the job. Resolves null once it has landed, or with the
-      reason it didn't, in words. Absent until the card knows which job it
+      reason it didn't, in words. Absent until the page knows which job it
       is — the upload waits rather than filing somewhere it has to guess. */
   onUpload?: (file: File) => Promise<string | null>;
-  /** Take one of OUR files back off the job; the same answer shape. */
-  onRemove?: (item: JobMediaItem) => Promise<string | null>;
   onCreateSwms?: () => void;
   onOpenSwms?: (swms: SwmsSummary) => void;
-  onReviseSwms?: (versionId: string) => void;
   /** The job's certificates at their latest versions; null until the read lands. */
   certificates?: readonly CertSummary[] | null;
-  /** The read failed — said, rather than a Create that may make a second one. */
+  /** The read failed — said, rather than a Certificate in Add that may make a second one. */
   certificatesFailed?: boolean;
-  /** Absent until the card knows which job it is. */
+  /** Absent until the page knows which job it is. */
   onCreateCertificate?: () => void;
   onOpenCertificate?: (cert: CertSummary) => void;
-  onReissueCertificate?: (versionId: string) => void;
-  /** Delete a certificate with every version and its PDFs; the error in
-      words, or null when it went. */
-  onDeleteCertificate?: (cert: CertSummary) => Promise<string | null>;
   /** The business's papers on this job; null until the read lands. */
   papers?: readonly JobPaper[] | null;
   /** The read failed — said, rather than an empty group that looks true. */
   papersFailed?: boolean;
-  /** Which sides of Add compliance this viewer may add. */
+  /** Which sides of Licences and insurance this viewer may add. */
   mayAdd?: { company: boolean; staff: boolean };
   /** yyyy-mm-dd — what "expires in 2 weeks" counts from. */
   today?: string;
@@ -511,26 +269,26 @@ export function JobDocumentsFace({
       no row carries a tick at all. */
   picked?: ReadonlySet<string>;
   onPick?: (key: string, on: boolean) => void;
-  /** Absent until the card knows which job it is. */
+  /** Absent until the page knows which job it is. */
   onLoadChoices?: () => Promise<PaperChoices | null>;
   /** Put ticked papers on the job; null once they are on, or the reason. */
   onAddPapers?: (keys: string[]) => Promise<string | null>;
   onOpenPaper?: (paper: JobPaper) => void;
-  onRemovePaper?: (paper: JobPaper) => Promise<string | null>;
-  onRenewPaper?: (paper: JobPaper) => Promise<string | null>;
   /** What has been sent to ServiceM8 from this job, by file. */
   sends?: readonly JobSend[] | null;
   /** What is holding the files waiting to go: a pause, or a reconnect. */
   sendHold?: SendHold;
 }) {
   const day = today ?? todayInAu();
-  /* Add compliance, open under the ways in */
+  /* Licences and insurance, open over the page */
   const [choosing, setChoosing] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const addRef = useRef<HTMLButtonElement>(null);
   const picker = useRef<HTMLInputElement | null>(null);
   /* How far through a batch the upload is — null when none is running. */
   const [sending, setSending] = useState<{ at: number; of: number } | null>(null);
   const [refused, setRefused] = useState<string[]>([]);
-  /* A file is being dragged over the face. */
+  /* A file is being dragged over the section. */
   const [over, setOver] = useState(false);
 
   const upload = async (files: readonly File[]) => {
@@ -546,10 +304,10 @@ export function JobDocumentsFace({
     setRefused(why);
   };
 
-  /* A FILE DROPPED A FEW PIXELS WIDE WOULD LOSE THE CARD. The browser's own
+  /* A FILE DROPPED A FEW PIXELS WIDE WOULD LOSE THE PAGE. The browser's own
      answer to a file dropped on a page is to open it in the tab, so a miss
-     by a margin would swap the job for the PDF. While the card can take a
-     file, a drop anywhere else does nothing instead. */
+     by a margin would swap the job for the PDF. While the section can take
+     a file, a drop anywhere else does nothing instead. */
   useEffect(() => {
     if (!onUpload) return;
     const hold = (e: DragEvent) => {
@@ -586,304 +344,276 @@ export function JobDocumentsFace({
     : {};
 
   const docs = documents ?? [];
-  /* Video went where it belongs — the Photos face, with the rest of what
-     was shot on site. What is left here is genuinely unshowable. */
+  /* What is genuinely unshowable here stays in ServiceM8; video went to
+     Photos, with the rest of what was shot on site. */
   const unshowable = (elsewhere ?? []).length;
   const byGroup = new Map<string, JobMediaItem[]>();
   for (const d of docs) {
     const g = documentGroupOf(d);
     byGroup.set(g, [...(byGroup.get(g) ?? []), d]);
   }
-  const showFiles = part !== "compliance";
-  const showCompliance = part !== "files";
-  const statements = showCompliance ? (swms ?? []) : [];
-  /* a certificate is compliance paper, with the SWMS and the licences */
-  const certs = showCompliance ? (certificates ?? []) : [];
-  const ours = showCompliance ? (papers ?? []) : [];
+  const statements = swms ?? [];
+  const certs = certificates ?? [];
+  const ours = papers ?? [];
   /* ServiceM8's own insurance and licence papers, known by their names */
-  const attachedPapers = showCompliance ? (byGroup.get("compliance") ?? []) : [];
-  const fileCount = docs.length - (byGroup.get("compliance") ?? []).length;
-  const total = (showFiles ? fileCount + designs.length : 0) + statements.length + certs.length + ours.length + attachedPapers.length;
+  const attachedPapers = byGroup.get("compliance") ?? [];
+  const client = byGroup.get("client") ?? [];
+  const files = byGroup.get("files") ?? [];
+  const compliance = statements.length + certs.length + ours.length + attachedPapers.length;
+  const total = designs.length + client.length + files.length + compliance;
 
-  const offerSwms = showCompliance && !!onCreateSwms && !swmsClosed && swms !== null && statements.length === 0;
+  const offerSwms = !!onCreateSwms && !swmsClosed && swms !== null && statements.length === 0;
   /* one per job: a later one is a reissue of the first */
-  const offerCertificate = showCompliance && !!onCreateCertificate && certificates !== null && certs.length === 0;
-  const offerPapers = showCompliance && !!onLoadChoices && !!onAddPapers && (mayAdd.company || mayAdd.staff);
-  const offerUpload = showFiles ? onUpload : undefined;
+  const offerCertificate = !!onCreateCertificate && certificates !== null && certs.length === 0;
+  const offerPapers = !!onLoadChoices && !!onAddPapers && (mayAdd.company || mayAdd.staff);
 
-  /** One document's row: ours with its doors, theirs with a tick when
-      there are bytes here to send. */
-  const docRowOf = (d: JobMediaItem) =>
-    d.documentId ? (
-      <OurRow
-        key={d.remoteId}
-        item={d}
-        pick={pickOf(d.url ? ourDocumentSendKey(d.documentId) : null, d.name)}
-        state={sends ? sendLine(sends, [d.documentId], sendHold) : null}
-        onOpen={onOpen}
-        onRemove={onRemove}
-      />
-    ) : onPick ? (
-      <div key={d.remoteId} className="wb2-docrow">
-        {pickOf(d.url ? theirFileSendKey(d.remoteId) : null, d.name)}
-        <DocRow item={d} onOpen={onOpen} />
-      </div>
-    ) : (
-      <DocRow key={d.remoteId} item={d} onOpen={onOpen} />
-    );
+  const addItems: MenuItem[] = [
+    ...(onUpload ? [{ key: "upload", label: "Upload a file", disabled: !!sending }] : []),
+    ...(offerPapers ? [{ key: "papers", label: "Licences and insurance" }] : []),
+    ...(offerSwms ? [{ key: "swms", label: "SWMS", disabled: !canCreateSwms }] : []),
+    ...(offerCertificate ? [{ key: "certificate", label: "Certificate" }] : []),
+  ];
+  const addPick = (key: string) => {
+    setAdding(false);
+    if (key === "upload") picker.current?.click();
+    else if (key === "papers") setChoosing(true);
+    else if (key === "swms") onCreateSwms?.();
+    else if (key === "certificate") onCreateCertificate?.();
+  };
 
-  /* THE TICK A ROW CARRIES while the face is sending: a box for a file with
+  /* THE TICK A ROW CARRIES while the viewer may send: a box for a file with
      bytes to send, and for anything else an empty box-sized gap, so a column
      of names never jumps. No tick at all for someone who may not send. */
-  const pickOf = (key: string | null, name: string) => {
+  const pickOf = (key: string | null, name: string): ReactNode => {
     if (!onPick) return undefined;
-    if (!key) return <span className="wb2-docpick" aria-hidden="true" />;
+    if (!key) return <span className="jdoc-tick" aria-hidden="true" />;
     return (
-      <label className="wb2-docpick">
-        <input
-          type="checkbox"
-          checked={!!picked?.has(key)}
-          onChange={(e) => onPick(key, e.target.checked)}
-          aria-label={`Select ${name}`}
-        />
-      </label>
+      <Tick
+        className="jdoc-tick"
+        checked={!!picked?.has(key)}
+        onChange={(on) => onPick(key, on)}
+        label={<span className="sr-only">{`Select ${name}`}</span>}
+      />
     );
   };
 
+  /** One document's row: a tick when there are bytes here to send, and the
+      viewer, the browser or nothing as its door. */
+  const docRowOf = (d: JobMediaItem) => {
+    const sendKey = d.url ? (d.documentId ? ourDocumentSendKey(d.documentId) : theirFileSendKey(d.remoteId)) : null;
+    const state =
+      d.documentId && sends
+        ? rowState(sendLine(sends, [d.documentId], sendHold))
+        : !d.url && !d.documentId
+          ? { word: "Not brought across yet", tone: "info" as const, more: null }
+          : null;
+    const url = d.url;
+    const open = url
+      ? opensInCard(d.fileType)
+        ? () => onOpen(d)
+        : () => void window.open(url, "_blank", "noopener,noreferrer")
+      : undefined;
+    return (
+      <Row
+        key={d.remoteId}
+        lead={pickOf(sendKey, d.name)}
+        name={d.name}
+        line={lineOf(docLine(d), state) || undefined}
+        end={endOf(state)}
+        onClick={open}
+      />
+    );
+  };
+
+  const swmsRowOf = (s: SwmsSummary) => {
+    /* no version number: someone new to the job never saw version 1 —
+       "Revised" says there was one, and the paper keeps the count */
+    const facts = `${s.version > 1 ? "Revised" : "Issued"} ${editedOn(s.issuedAt)}, ${s.responsible} in charge, ${signedLine(s)}`;
+    /* Sign on only for someone with something to sign here; what is left for
+       a reader who has already signed is signing somebody else on, and the
+       door says so. Once everyone has signed, an issue nobody answered is
+       the door. */
+    const door = s.viewerCanSign ? (
+      <Button size={32} href={`/dashboard/swms/${s.versionId}`}>
+        {s.viewerSigned ? "Sign them on" : "Sign on"}
+      </Button>
+    ) : s.issues.length > 0 ? (
+      <Button size={32} href={`/dashboard/swms/${s.versionId}`}>
+        Open the issue
+      </Button>
+    ) : undefined;
+    return (
+      <Row
+        key={s.swmsId}
+        lead={pickOf(null, "Safe Work Method Statement")}
+        name="Safe Work Method Statement"
+        line={
+          s.issues.length > 0 ? (
+            <>
+              {`${facts}. `}
+              {/* what someone wrote at sign-on, where the office looks */}
+              <span className="jdoc-look">{issueLine(s)}</span>
+            </>
+          ) : (
+            facts
+          )
+        }
+        end={endOf(null, door)}
+        onClick={onOpenSwms ? () => onOpenSwms(s) : undefined}
+      />
+    );
+  };
+
+  const certRowOf = (c: CertSummary) => {
+    const state = c.documentId && sends ? rowState(sendLine(sends, [c.documentId], sendHold)) : null;
+    return (
+      <Row
+        key={c.certificateId}
+        lead={pickOf(c.documentId ? ourDocumentSendKey(c.documentId) : null, c.title)}
+        name={c.title}
+        line={lineOf(`${c.version > 1 ? "Reissued" : "Issued"} ${editedOn(c.issuedAt)}, signed by ${c.issuedBy}`, state)}
+        end={endOf(state)}
+        onClick={onOpenCertificate ? () => onOpenCertificate(c) : undefined}
+      />
+    );
+  };
+
+  const paperRowOf = (p: JobPaper) => {
+    /* its own state (expired, renewed, running out) and where its files
+       stand with ServiceM8: the row says the worse of the two */
+    const own = paperStateLine(p, day);
+    const sm8 = sends ? rowState(sendLine(sends, p.files.map((f) => f.id), sendHold)) : null;
+    const state = worst(own ? { word: own.word, tone: TONE[own.tone], more: null } : null, sm8);
+    /* a ticket's scan opens for `team` and its holder; for anyone else the
+       row says it is here and when it runs to, without a door */
+    const opens = !!onOpenPaper && p.files.some((f) => f.url);
+    const name = paperRowName(p);
+    return (
+      <Row
+        key={p.id}
+        lead={pickOf(paperSendable(p) ? paperSendKey(p.id) : null, name)}
+        name={name}
+        line={lineOf(paperRowLine(p), state) || undefined}
+        end={endOf(state)}
+        onClick={opens ? () => onOpenPaper?.(p) : undefined}
+      />
+    );
+  };
+
+  const failed = [
+    swmsFailed ? "SWMS" : null,
+    certificatesFailed ? "certificates" : null,
+    papersFailed ? "licences and insurance" : null,
+  ].filter((f): f is string => f !== null);
+  const reading = loading && documents === null;
+
   return (
-    <div className="wb2-jcdoc" data-over={over ? "" : undefined} {...(showFiles ? dropProps : {})}>
-      <div className="wb2-jcdhead">
-        <b>{part === "compliance" ? "Compliance" : part === "files" ? "Files" : "Documents"}</b>
-        {total > 0 && <em>{total === 1 ? "1 file" : `${total} files`}</em>}
+    <div className="jdoc" data-over={over ? "" : undefined} {...dropProps}>
+      <div className="jdoc-head">
+        <h2 className="jdoc-h">Documents</h2>
+        {addItems.length > 0 && (
+          <>
+            <Button
+              ref={addRef}
+              kind="main"
+              icon="plus"
+              aria-haspopup="menu"
+              aria-expanded={adding}
+              onClick={() => setAdding((a) => !a)}
+            >
+              Add
+              <span className="jdoc-chev" aria-hidden="true">
+                <Icon name="chevD" size={16} />
+              </span>
+            </Button>
+            <Menu
+              open={adding}
+              anchor={addRef}
+              onClose={() => setAdding(false)}
+              onSelect={addPick}
+              items={addItems}
+              label="Add to the job's documents"
+              align="end"
+            />
+          </>
+        )}
+        {onUpload && (
+          <input
+            ref={picker}
+            type="file"
+            multiple
+            accept={ACCEPT}
+            hidden
+            aria-label="Choose documents to upload"
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []);
+              /* cleared now, so choosing the same file again still fires */
+              e.target.value = "";
+              void upload(files);
+            }}
+          />
+        )}
       </div>
 
-      {(offerUpload || offerSwms || offerPapers || offerCertificate) && (
-        <div className="wb2-jcdadd">
-          {offerUpload && (
-            <>
-              <button
-                type="button"
-                className="pbtn ghost"
-                disabled={!!sending}
-                onClick={() => picker.current?.click()}
-              >
-                <Icon name="upload" size={15} />
-                {sending
-                  ? sending.of === 1
-                    ? "Uploading the file"
-                    : `Uploading ${sending.at} of ${sending.of}`
-                  : over
-                    ? "Drop to upload"
-                    : "Upload a document"}
-              </button>
-              <input
-                ref={picker}
-                type="file"
-                multiple
-                accept={ACCEPT}
-                hidden
-                aria-label="Choose documents to upload"
-                onChange={(e) => {
-                  const files = Array.from(e.target.files ?? []);
-                  /* cleared now, so choosing the same file again still fires */
-                  e.target.value = "";
-                  void upload(files);
-                }}
-              />
-            </>
-          )}
-          {offerPapers && (
-            <button
-              type="button"
-              className="pbtn ghost"
-              aria-expanded={choosing}
-              onClick={() => setChoosing((open) => !open)}
-            >
-              <Icon name="plus" size={15} />
-              Add compliance
-            </button>
-          )}
-          {offerSwms && (
-            <button type="button" className="pbtn ghost" disabled={!canCreateSwms} onClick={onCreateSwms}>
-              <Icon name="shield" size={15} />
-              Create SWMS
-            </button>
-          )}
-          {offerCertificate && (
-            <button type="button" className="pbtn ghost" onClick={onCreateCertificate}>
-              <Icon name="file" size={15} />
-              Create certificate
-            </button>
-          )}
-        </div>
+      {(sending || over) && (
+        <p className="jdoc-busy" role="status">
+          {sending
+            ? sending.of === 1
+              ? "Uploading the file"
+              : `Uploading ${sending.at} of ${sending.of}`
+            : "Drop to upload"}
+        </p>
       )}
       {refused.map((why) => (
-        <p key={why} className="wb2-sherr">
+        <p key={why} className="jdoc-err">
           {why}
         </p>
       ))}
 
-      {choosing && offerPapers && (
-        <ComplianceChooser
-          today={day}
-          onLoad={onLoadChoices}
-          onAdd={onAddPapers}
-          onClose={() => setChoosing(false)}
-        />
+      {failed.length > 0 && (
+        <Wrong word={`Couldn't read this job's ${andList(failed)}`} means="Open the job again to see them." />
       )}
 
-      {showCompliance && swmsFailed && <p className="int-hint">Couldn&apos;t read this job&apos;s SWMS. Close the card and open it again.</p>}
-      {showCompliance && certificatesFailed && (
-        <p className="int-hint">Couldn&apos;t read this job&apos;s certificates. Close the card and open it again.</p>
-      )}
-      {showCompliance && papersFailed && (
-        <p className="int-hint">Couldn&apos;t read this job&apos;s licences and insurance. Close the card and open it again.</p>
-      )}
-
-      {statements.length + certs.length + ours.length + attachedPapers.length > 0 && (
-        <div className="wb2-jcsec">
-          {part === "all" && <span className="wb2-sect">{`Compliance — ${statements.length + certs.length + ours.length + attachedPapers.length}`}</span>}
-          {statements.map((s) => (
-            <div key={s.swmsId} className="wb2-docrow">
-              {pickOf(null, "Safe Work Method Statement")}
-              <button type="button" className="wb2-doc" onClick={() => onOpenSwms?.(s)}>
-                <span className="wb2-doc-ic">
-                  <Icon name="shield" size={15} />
-                </span>
-                {/* no version number: someone new to the job never saw version 1 —
-                    "Revised" says there was one, and the paper keeps the count */}
-                <span className="wb2-doc-b">
-                  <b>Safe Work Method Statement</b>
-                  <em>{`${s.version > 1 ? "Revised" : "Issued"} ${editedOn(s.issuedAt)}, ${s.responsible} in charge. ${signedLine(s)}`}</em>
-                  {/* what someone wrote at sign-on, where the office looks */}
-                  {s.issues.length > 0 && <em className="sw-state warn">{issueLine(s)}</em>}
-                </span>
-                <span className="wb2-doc-go">
-                  <Icon name="chevR" size={15} />
-                </span>
-              </button>
-              {/* Sign on only for someone with something to sign here —
-                  anyone else would land on a page with nothing to do */}
-              {/* what is left for a reader who has already signed is signing
-                  somebody else on, and the door should say so */}
-              {s.viewerCanSign ? (
-                <Link className="pbtn ghost sm" href={`/dashboard/swms/${s.versionId}`}>
-                  {s.viewerSigned ? "Sign them on" : "Sign on"}
-                </Link>
-              ) : (
-                /* the row names an issue nobody has answered and, once
-                   everyone has signed, gave nothing to press */
-                s.issues.length > 0 && (
-                  <Link className="pbtn ghost sm" href={`/dashboard/swms/${s.versionId}`}>
-                    Open the issue
-                  </Link>
-                )
-              )}
-              {onReviseSwms && (
-                <button type="button" className="pbtn ghost sm" onClick={() => onReviseSwms(s.versionId)}>
-                  Revise
-                </button>
-              )}
-            </div>
-          ))}
-          {certs.map((c) => (
-            <CertRow
-              key={c.certificateId}
-              cert={c}
-              pick={pickOf(c.documentId ? ourDocumentSendKey(c.documentId) : null, c.title)}
-              sub={`${c.version > 1 ? "Reissued" : "Issued"} ${editedOn(c.issuedAt)}, signed by ${c.issuedBy}`}
-              onOpen={onOpenCertificate}
-              onReissue={onReissueCertificate}
-              onDelete={onDeleteCertificate}
-            />
-          ))}
-          {ours.map((p) => (
-            <PaperRow
-              key={p.id}
-              paper={p}
-              today={day}
-              pick={pickOf(
-                paperSendable(p) ? paperSendKey(p.id) : null,
-                p.person ? `${p.name}, ${p.person}` : p.name
-              )}
-              sm8={sends ? sendLine(sends, p.files.map((f) => f.id), sendHold) : null}
-              onOpen={onOpenPaper}
-              onRemove={onRemovePaper}
-              onRenew={onRenewPaper}
-            />
-          ))}
-          {attachedPapers.map((d) => docRowOf(d))}
-        </div>
-      )}
-
-      {showFiles && designs.length > 0 && (
-        <div className="wb2-jcsec">
-          <span className="wb2-sect">
-            {designs.length === 1
-              ? "Drawings — designed in the Studio"
-              : `Drawings — ${designs.length} Studio options`}
-          </span>
+      {designs.length > 0 && (
+        <Group heading="Drawings">
           {designs.map((d) => (
-            <Link
+            <Row
               key={d.id}
-              className="wb2-dsgn"
+              lead={onPick ? <span className="jdoc-tick" aria-hidden="true" /> : undefined}
+              name={d.name}
+              line={
+                `${d.floorCount} ${d.floorCount === 1 ? "floor" : "floors"}, ` +
+                `${d.systemCount} ${d.systemCount === 1 ? "system" : "systems"}, ` +
+                `edited ${editedOn(d.updatedAt)}`
+              }
               href={`/dashboard/studio?design=${encodeURIComponent(d.id)}`}
-            >
-              <span className="wb2-dsgn-ic">
-                <Icon name={d.mode === "plan" ? "file" : "square"} size={15} />
-              </span>
-              <span className="wb2-dsgn-b">
-                <b>{d.name}</b>
-                <em>
-                  {`${d.floorCount} ${d.floorCount === 1 ? "floor" : "floors"}, ` +
-                    `${d.systemCount} ${d.systemCount === 1 ? "system" : "systems"}, ` +
-                    `edited ${editedOn(d.updatedAt)}`}
-                </em>
-              </span>
-              {/* its own wrapper because <Icon> renders <span><svg/></span> */}
-              <span className="wb2-dsgn-go">
-                <Icon name="chevR" size={15} />
-              </span>
-            </Link>
+            />
           ))}
-        </div>
+        </Group>
       )}
 
-      {(showFiles ? GROUPS : []).map(({ key, label }) => {
-        const items = byGroup.get(key) ?? [];
-        if (items.length === 0) return null;
-        return (
-          <div key={key} className="wb2-jcsec">
-            <span className="wb2-sect">{`${label} — ${items.length}`}</span>
-            {items.map((d) => docRowOf(d))}
-          </div>
-        );
-      })}
+      {client.length > 0 && <Group heading="From the client">{client.map(docRowOf)}</Group>}
+      {files.length > 0 && <Group heading="Files">{files.map(docRowOf)}</Group>}
 
-      {total === 0 && (
-        <p className="int-hint">
-          {part === "compliance"
-            ? swms === null && papers === null && !swmsFailed && !papersFailed
-              ? "Reading the compliance"
-              : "No SWMS, licences or insurance on this job."
-            : loading && documents === null
-              ? "Reading the files"
-              : "No documents on this job."}
-        </p>
+      {compliance > 0 && (
+        <Group heading="Compliance">
+          {statements.map(swmsRowOf)}
+          {certs.map(certRowOf)}
+          {ours.map(paperRowOf)}
+          {attachedPapers.map(docRowOf)}
+        </Group>
       )}
 
-      {showFiles && unshowable > 0 && (
-        <p className="int-hint">
-          {unshowable === 1
-            ? "1 file stays in ServiceM8"
-            : `${unshowable} files stay in ServiceM8`}{" "}
-          — file types this screen can&apos;t show.
-        </p>
+      {total === 0 &&
+        failed.length === 0 &&
+        (reading ? <Loading what="Reading the documents" /> : <Empty what="No documents on this job" action={null} />)}
+
+      {unshowable > 0 && (
+        <p className="jdoc-fact">{unshowable === 1 ? "1 file stays in ServiceM8" : `${unshowable} files stay in ServiceM8`}</p>
       )}
-      {showFiles && truncated && (
-        <p className="int-hint">
-          Showing the newest of each kind — this job has more in ServiceM8.
-        </p>
+
+      {choosing && offerPapers && onLoadChoices && onAddPapers && (
+        <ComplianceChooser today={day} onLoad={onLoadChoices} onAdd={onAddPapers} onClose={() => setChoosing(false)} />
       )}
     </div>
   );

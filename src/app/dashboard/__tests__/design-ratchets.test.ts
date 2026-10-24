@@ -522,7 +522,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
      Isaac agreed to the re-base; docs/design.md names the two that stay (the
      photo thumbnail's star, the Studio's close-ready vertex) and records that
      the donut's three go with the Studio's new design. */
-  { law: "shadows that are not a focus ring — one shadow, overlays only", now: () => shadows(outside("shadows")), baseline: 12 },
+  { law: "shadows that are not a focus ring — one shadow, overlays only", now: () => shadows(outside("shadows")), baseline: 11 },
   { law: "bars at the left edge — selection is a fill, state is a word; the one left is the cap on the schedule's blocks", now: () => leftBars(outside("bars at the left edge")), baseline: 0 },
   // round two
   { law: "Tailwind palette hexes — colour comes from the tokens; his are named below", now: () => tailwindHexes(outside("Tailwind palette hexes")), baseline: 0 },
@@ -539,7 +539,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
      a rule that lists a `:focus-within` twin beside its `:hover` gives the
      keyboard the same control back (law 24). */
   { law: "hover-revealed controls — shown on focus too, or not hidden", now: () => { let n = 0; for (const [sel, body] of blocks()) if (/:hover/.test(sel) && !/focus-within|focus-visible/.test(sel) && /\bopacity\s*:\s*1\b/.test(body)) n++; return n; }, baseline: 0 },
-  { law: "pill, chip, tag and badge rules drawn as a box — state is a word, a chip is for a filter you tap", now: () => pills(outside("pills")), baseline: 28 },
+  { law: "pill, chip, tag and badge rules drawn as a box — state is a word, a chip is for a filter you tap", now: () => pills(outside("pills")), baseline: 27 },
   { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 24 },
   // ink and paper
   /* The OK colour on a selector that is not a state. It began as a count of

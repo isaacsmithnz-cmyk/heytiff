@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/parts/button";
+import { Dialog } from "@/components/parts/dialog";
+import { Empty, Loading, Wrong } from "@/components/parts/states";
+import { StateWord, type Tone } from "@/components/parts/state";
+import { ViewTabs } from "@/components/parts/tabs";
+import { Tick } from "@/components/parts/tick";
 import {
   choiceBlock,
   choiceFacts,
@@ -11,20 +17,22 @@ import {
   type PaperChoices,
 } from "@/lib/compliance/papers";
 
-/* ADD COMPLIANCE — the Documents face's third way in, opened IN the face under
-   the row that holds it, the way the Checklist's composer sits under its
-   title. Not a modal over the card: the job stays in view, and what is added
-   lands in the Compliance group directly below.
+/* LICENCES AND INSURANCE — a door in the Documents section's Add, opened as
+   the v2 dialog (the mock of 25 October 2026, frame 7): the business's
+   papers and the team's tickets, each a tick row with its state word on the
+   right, and Add to job at the foot beside how many are ticked.
 
-   TWO SIDES, each only for someone who may add it. The business's papers are
-   a list; the team's tickets are asked the way the office asks them — which
-   licence, then whose — so a type is chosen first and its holders follow,
-   the people booked on this job at the top.
+   TWO SIDES, each only for someone who may add it, as soft tabs when there
+   are both. The team's tickets are grouped by licence, the trade tickets
+   first (licenceTypes says why), and under each the people holding it, the
+   ones booked on this job at the top.
 
    A PAPER THAT CAN'T GO ON A JOB SAYS WHY INSTEAD OF OFFERING A BOX: an
    expired certificate is not something to hand a customer, and a card with no
-   paper under it has nothing to hand them. Ticks survive switching licence
-   type; the count beside Add to job is the whole of them. */
+   paper under it has nothing to hand them. Ticks survive switching sides;
+   the count beside Add to job is the whole of them. */
+
+const TONE: Record<"ok" | "warn" | "bad" | "mute", Tone> = { ok: "good", warn: "look", bad: "wrong", mute: "info" };
 
 function ChoiceRow({
   choice,
@@ -39,23 +47,26 @@ function ChoiceRow({
 }) {
   const block = choiceBlock(choice);
   const state = choiceStateWord(choice, today);
-  const facts = choiceFacts(choice);
-  const title = choice.kind === "staff" ? choice.person ?? choice.name : choice.name;
+  const facts = [choice.booked ? "Booked on this job" : null, choiceFacts(choice)].filter(Boolean).join(", ");
+  const title = choice.kind === "staff" ? (choice.person ?? choice.name) : choice.name;
   return (
-    <label className={`wb2-cprow${block ? " off" : ""}`}>
-      <input
-        type="checkbox"
+    <li className="pt-row wb2-cprow">
+      <Tick
+        className="wb2-cptick"
         checked={choice.onJob || ticked}
         disabled={!!block}
-        onChange={(e) => onTick(e.target.checked)}
+        onChange={onTick}
+        label={
+          <span className="wb2-cpname">
+            <b>{title}</b>
+            {facts && <span>{facts}</span>}
+          </span>
+        }
       />
-      <span className="wb2-cpname">
-        <b>{title}</b>
-        {facts && <em>{facts}</em>}
+      <span className="pt-row-end">
+        <StateWord tone={TONE[state.tone]}>{state.word}</StateWord>
       </span>
-      {choice.booked && <em className="wb2-cpbook">Booked on this job</em>}
-      <em className={`wb2-cpstate sw-state${state.tone === "mute" ? "" : ` ${state.tone}`}`}>{state.word}</em>
-    </label>
+    </li>
   );
 }
 
@@ -75,7 +86,7 @@ export function ComplianceChooser({
   const [choices, setChoices] = useState<PaperChoices | null>(null);
   const [failed, setFailed] = useState(false);
   const [ticked, setTicked] = useState<ReadonlySet<string>>(new Set());
-  const [type, setType] = useState<string | null>(null);
+  const [side, setSide] = useState<"company" | "staff" | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -102,10 +113,11 @@ export function ComplianceChooser({
   }, []);
 
   const types = useMemo(() => licenceTypes(choices?.staff ?? []), [choices]);
-  /* the type in view: the one chosen, else the first — the trade tickets
-     lead (licenceTypes says why) */
-  const shown = type && types.includes(type) ? type : types[0] ?? null;
-  const holders = shown ? holdersOf(choices?.staff ?? [], shown) : [];
+  /* the side in view: the one chosen, else the first this viewer may add */
+  const sides = [choices?.company ? ("company" as const) : null, choices?.staff ? ("staff" as const) : null].filter(
+    (s): s is "company" | "staff" => s !== null
+  );
+  const shown = side && sides.includes(side) ? side : (sides[0] ?? null);
 
   const tick = (key: string, on: boolean) =>
     setTicked((cur) => {
@@ -114,8 +126,6 @@ export function ComplianceChooser({
       else next.delete(key);
       return next;
     });
-
-  const tickedOf = (t: string) => holdersOf(choices?.staff ?? [], t).filter((c) => ticked.has(c.key)).length;
 
   const add = async () => {
     if (ticked.size === 0 || busy) return;
@@ -127,84 +137,71 @@ export function ComplianceChooser({
     else onClose();
   };
 
+  const rowOf = (c: PaperChoice) => (
+    <ChoiceRow key={c.key} choice={c} today={today} ticked={ticked.has(c.key)} onTick={(on) => tick(c.key, on)} />
+  );
+
   return (
-    <div className="wb2-cpick" role="group" aria-label="Add compliance">
-      {failed ? (
-        <p className="int-hint">Couldn&apos;t read the licences and insurance. Close the card and open it again.</p>
-      ) : choices === null ? (
-        <p className="int-hint">Reading the licences and insurance</p>
-      ) : (
+    <Dialog
+      heading="Licences and insurance"
+      width={560}
+      onClose={onClose}
+      foot={
         <>
-          {choices.company && (
-            <div className="wb2-jcsec">
-              <span className="wb2-sect">Company</span>
-              {choices.company.length === 0 ? (
-                <p className="int-hint">No licences or insurance on file. They&apos;re added on the Organisation screen.</p>
-              ) : (
-                choices.company.map((c) => (
-                  <ChoiceRow
-                    key={c.key}
-                    choice={c}
-                    today={today}
-                    ticked={ticked.has(c.key)}
-                    onTick={(on) => tick(c.key, on)}
-                  />
-                ))
-              )}
-            </div>
+          <span className="wb2-cpcount">{ticked.size === 1 ? "1 ticked" : ticked.size > 1 ? `${ticked.size} ticked` : ""}</span>
+          <Button disabled={busy} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button kind="main" disabled={ticked.size === 0 || busy} aria-busy={busy || undefined} onClick={() => void add()}>
+            {busy ? "Adding to the job" : "Add to job"}
+          </Button>
+        </>
+      }
+    >
+      {failed ? (
+        <Wrong word="Couldn't read the licences and insurance" means="Close this and open it again." />
+      ) : choices === null ? (
+        <Loading what="Reading the licences and insurance" />
+      ) : (
+        <div className="wb2-cpick">
+          {sides.length > 1 && (
+            <ViewTabs
+              ariaLabel="Whose papers"
+              items={[
+                { key: "company", label: "Company" },
+                { key: "staff", label: "Staff licences" },
+              ]}
+              current={shown ?? "company"}
+              onGo={(key) => setSide(key as "company" | "staff")}
+            />
           )}
 
-          {choices.staff && (
-            <div className="wb2-jcsec">
-              <span className="wb2-sect">Staff licences</span>
-              {types.length === 0 ? (
-                <p className="int-hint">No staff licences on file. They&apos;re added on each person&apos;s card.</p>
-              ) : (
-                <>
-                  <span className="wb2-ckseg wb2-cptypes" role="group" aria-label="Which licence">
-                    {types.map((t) => {
-                      const n = tickedOf(t);
-                      return (
-                        <button
-                          key={t}
-                          type="button"
-                          className={t === shown ? "on" : undefined}
-                          aria-pressed={t === shown}
-                          onClick={() => setType(t)}
-                        >
-                          {t}
-                          {n > 0 && <em>{n}</em>}
-                        </button>
-                      );
-                    })}
-                  </span>
-                  {holders.map((c) => (
-                    <ChoiceRow
-                      key={c.key}
-                      choice={c}
-                      today={today}
-                      ticked={ticked.has(c.key)}
-                      onTick={(on) => tick(c.key, on)}
-                    />
-                  ))}
-                </>
-              )}
-            </div>
-          )}
-        </>
+          {shown === "company" &&
+            choices.company &&
+            (choices.company.length === 0 ? (
+              <Empty what="No licences or insurance on file" action={null} />
+            ) : (
+              <ul className="pt-rows" aria-label="Company">
+                {choices.company.map(rowOf)}
+              </ul>
+            ))}
+
+          {shown === "staff" &&
+            choices.staff &&
+            (types.length === 0 ? (
+              <Empty what="No staff licences on file" action={null} />
+            ) : (
+              types.map((t) => (
+                <section key={t} className="wb2-cpgroup" aria-label={t}>
+                  <h3 className="wb2-cpgh">{t}</h3>
+                  <ul className="pt-rows">{holdersOf(choices.staff ?? [], t).map(rowOf)}</ul>
+                </section>
+              ))
+            ))}
+        </div>
       )}
 
-      {err && <p className="wb2-sherr">{err}</p>}
-
-      <div className="wb2-cpfoot">
-        {ticked.size > 0 && <em>{ticked.size === 1 ? "1 ticked" : `${ticked.size} ticked`}</em>}
-        <button type="button" className="pbtn ghost" disabled={busy} onClick={onClose}>
-          Cancel
-        </button>
-        <button type="button" className="pbtn" disabled={ticked.size === 0 || busy} onClick={() => void add()}>
-          {busy ? "Adding to the job" : "Add to job"}
-        </button>
-      </div>
-    </div>
+      {err && <p className="wb2-cperr">{err}</p>}
+    </Dialog>
   );
 }

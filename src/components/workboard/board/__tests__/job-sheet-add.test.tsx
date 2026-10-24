@@ -355,7 +355,7 @@ describe("the job's Add", () => {
       await open();
       await pick("Add SWMS");
       expect(jobTab("Documents")).toHaveAttribute("aria-selected", "true");
-      expect(screen.getByRole("region", { name: "Compliance" })).toBeVisible();
+      expect(screen.getByRole("region", { name: "Documents" })).toBeVisible();
       expect(await screen.findByRole("dialog", { name: "New SWMS" })).toBeInTheDocument();
     });
 
@@ -363,7 +363,7 @@ describe("the job's Add", () => {
       await open();
       await pick("Add certificate");
       expect(jobTab("Documents")).toHaveAttribute("aria-selected", "true");
-      expect(screen.getByRole("region", { name: "Compliance" })).toBeVisible();
+      expect(screen.getByRole("region", { name: "Documents" })).toBeVisible();
       expect(await screen.findByRole("dialog", { name: "New certificate" })).toBeInTheDocument();
     });
   });

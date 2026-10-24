@@ -55,10 +55,10 @@ import { SwmsWizard } from "@/components/swms/swms-wizard";
 import { CertWizard } from "@/components/certs/cert-wizard";
 import { CERT_TITLE } from "@/lib/certs/mechanical";
 import { readComplianceChoices, readEmailDraft } from "@/app/actions/job-compliance";
-import { ourDocumentSendKey, paperLabel, type JobPaper } from "@/lib/compliance/papers";
+import { ourDocumentSendKey, paperLabel, paperMeta, type JobPaper } from "@/lib/compliance/papers";
 import { fileTypeForMime, type JobMediaItem } from "@/lib/workboard/job-media";
 import { todayInAu } from "@/lib/au-dates";
-import { JobMediaViewer } from "./job-media-viewer";
+import { JobMediaViewer, type ViewerAct } from "./job-media-viewer";
 import { DocumentsSend } from "./documents-send";
 import {
   listJobPhotoFavourites,
@@ -190,7 +190,7 @@ const FACE_NAME: Record<TabKey, string> = {
   visits: "Visits",
   checklist: "Materials",
   photos: "Photos",
-  documents: "Files",
+  documents: "Documents",
   compliance: "Compliance",
 };
 
@@ -1849,56 +1849,45 @@ export function JobSheet({
   );
   const faceDocuments = (
     <>
-          {/* FILES AND COMPLIANCE, TWO SECTIONS ON THE RAIL (Isaac,
-              2026-10-02: "compliance is supposed to sit underneath files").
-              One face, told which part it holds; a tick to send carries
-              across both. */}
-          {(["documents", "compliance"] as const).map((key) => (
-            <Fragment key={key}>
-              {panel(
-                key,
-                <JobDocumentsFace
-                  part={key === "documents" ? "files" : "compliance"}
-                  documents={media ? media.documents : null}
-                  elsewhere={media ? media.elsewhere : null}
-                  designs={detail?.designs ?? []}
-                  swms={swms}
-                  swmsFailed={swmsFailed}
-                  canCreateSwms={!!cardId}
-                  /* a SWMS is a before-work document: once ServiceM8 has the job
-                     finished, nobody is asked to sign one and the bell won't ring */
-                  swmsClosed={SWMS_CLOSED.has(detail?.status ?? "")}
-                  loading={media === null}
-                  truncated={!!media?.truncated}
-                  onOpen={(item) => setViewer({ kind: "paper", id: item.remoteId })}
-                  onUpload={cardId ? uploadDocument : undefined}
-                  onRemove={removeDocument}
-                  onCreateSwms={() => setSwmsWizard({ revise: null })}
-                  onOpenSwms={(s) => setViewer({ kind: "page", item: swmsPaper(s.versionId) })}
-                  onReviseSwms={(versionId) => setSwmsWizard({ revise: versionId })}
-                  certificates={certs}
-                  certificatesFailed={certsFailed}
-                  onCreateCertificate={cardId ? () => setCertWizard({ reissue: null }) : undefined}
-                  onOpenCertificate={(c) => setViewer({ kind: "page", item: certPaper(c.versionId) })}
-                  onReissueCertificate={(versionId) => setCertWizard({ reissue: versionId })}
-                  onDeleteCertificate={removeCertificate}
-                  papers={papers ? papers.papers : null}
-                  papersFailed={papersFailed}
-                  mayAdd={{ company: !!papers?.may.company, staff: !!papers?.may.staff }}
-                  today={todayInAu()}
-                  picked={papers?.may.send ? picked : undefined}
-                  onPick={papers?.may.send ? tick : undefined}
-                  onLoadChoices={cardId ? () => readComplianceChoices(cardId) : undefined}
-                  onAddPapers={cardId ? addPapers : undefined}
-                  onOpenPaper={(p) => setViewer({ kind: "papers", id: p.id, index: 0 })}
-                  onRemovePaper={removePaper}
-                  onRenewPaper={renewPaper}
-                  sends={sm8Read?.sends ?? null}
-                  sendHold={sm8Read?.hold ?? null}
+          {/* ONE DOCUMENTS SECTION (v2, the mock of 25 October 2026): one
+              heading and one Add, the files and the compliance as groups of
+              the same list, Compliance last. What a row used to offer beside
+              its name (Remove, Revise, Reissue, Use renewal, Delete) is in
+              the viewer's head, below. */}
+          {panel(
+            "documents",
+            <JobDocumentsFace
+              documents={media ? media.documents : null}
+              elsewhere={media ? media.elsewhere : null}
+              designs={detail?.designs ?? []}
+              swms={swms}
+              swmsFailed={swmsFailed}
+              canCreateSwms={!!cardId}
+              /* a SWMS is a before-work document: once ServiceM8 has the job
+                 finished, nobody is asked to sign one and the bell won't ring */
+              swmsClosed={SWMS_CLOSED.has(detail?.status ?? "")}
+              loading={media === null}
+              onOpen={(item) => setViewer({ kind: "paper", id: item.remoteId })}
+              onUpload={cardId ? uploadDocument : undefined}
+              onCreateSwms={() => setSwmsWizard({ revise: null })}
+              onOpenSwms={(s) => setViewer({ kind: "page", item: swmsPaper(s.versionId) })}
+              certificates={certs}
+              certificatesFailed={certsFailed}
+              onCreateCertificate={cardId ? () => setCertWizard({ reissue: null }) : undefined}
+              onOpenCertificate={(c) => setViewer({ kind: "page", item: certPaper(c.versionId) })}
+              papers={papers ? papers.papers : null}
+              papersFailed={papersFailed}
+              mayAdd={{ company: !!papers?.may.company, staff: !!papers?.may.staff }}
+              today={todayInAu()}
+              picked={papers?.may.send ? picked : undefined}
+              onPick={papers?.may.send ? tick : undefined}
+              onLoadChoices={cardId ? () => readComplianceChoices(cardId) : undefined}
+              onAddPapers={cardId ? addPapers : undefined}
+              onOpenPaper={(p) => setViewer({ kind: "papers", id: p.id, index: 0 })}
+              sends={sm8Read?.sends ?? null}
+              sendHold={sm8Read?.hold ?? null}
             />
-              )}
-            </Fragment>
-          ))}
+          )}
     </>
   );
 
@@ -1906,10 +1895,10 @@ export function JobSheet({
      project is being named. */
   const footer = (
     <>
-        {/* SENDING WHAT'S TICKED — the card's footer, under the scrolling body,
-            so the list keeps scrolling above it. Only on the face the ticks
-            are on, and never over the naming row. */}
-        {(faceOn("documents") || faceOn("compliance")) && !naming && cardId && papers?.may.send && (pickedList.length > 0 || writing) && (
+        {/* SENDING WHAT'S TICKED — a bar floating at the page's foot while
+            Documents has ticks, and the email as a dialog over the page.
+            Never over the naming row. */}
+        {faceOn("documents") && !naming && cardId && papers?.may.send && (pickedList.length > 0 || writing) && (
           <DocumentsSend
             picked={pickedList}
             writing={writing}
@@ -2052,9 +2041,69 @@ export function JobSheet({
         />
       )}
 
-      {viewer?.kind === "page" && (
-        <JobMediaViewer items={[viewer.item]} index={0} favourites={null} onNav={() => {}} onClose={() => setViewer(null)} />
-      )}
+      {/* THE VIEWER'S HEAD CARRIES WHAT A ROW USED TO OFFER (v2): a SWMS
+          is revised, a certificate reissued or deleted, one of our files
+          removed, a licence moved to its renewal or taken off the job. What
+          ends something asks first. */}
+      {viewer?.kind === "page" &&
+        (() => {
+          const statement = swms?.find((x) => `swms:${x.versionId}` === viewer.item.remoteId);
+          const cert = certs?.find((x) => `cert:${x.versionId}` === viewer.item.remoteId);
+          const acts: ViewerAct[] = statement
+            ? [
+                {
+                  key: "revise",
+                  label: "Revise",
+                  run: () => {
+                    setViewer(null);
+                    setSwmsWizard({ revise: statement.versionId });
+                  },
+                },
+              ]
+            : cert
+              ? [
+                  {
+                    key: "reissue",
+                    label: "Reissue",
+                    run: () => {
+                      setViewer(null);
+                      setCertWizard({ reissue: cert.versionId });
+                    },
+                  },
+                  ...(cert.mayDelete
+                    ? [
+                        {
+                          key: "delete",
+                          label: "Delete",
+                          danger: true,
+                          closes: true,
+                          busyLabel: "Deleting the certificate",
+                          confirm: {
+                            heading: "Delete this certificate?",
+                            body:
+                              cert.version > 1
+                                ? `All ${cert.version} versions and their PDFs come off the job. A copy already sent to ServiceM8 or emailed stays where it went.`
+                                : "Its PDF comes off the job. A copy already sent to ServiceM8 or emailed stays where it went.",
+                            confirm: "Delete certificate",
+                            cancel: "Keep",
+                          },
+                          run: () => removeCertificate(cert),
+                        },
+                      ]
+                    : []),
+                ]
+              : [];
+          return (
+            <JobMediaViewer
+              items={[viewer.item]}
+              index={0}
+              favourites={null}
+              onNav={() => {}}
+              onClose={() => setViewer(null)}
+              actions={acts}
+            />
+          );
+        })()}
 
       {/* A licence or certificate on the job — its own pages, in the same
           viewer as the job's other paper. */}
@@ -2062,14 +2111,38 @@ export function JobSheet({
         (() => {
           const paper = papers?.papers.find((p) => p.id === viewer.id);
           const pages = paper ? paperPages(paper) : [];
-          if (pages.length === 0) return null;
+          if (!paper || pages.length === 0) return null;
+          const acts: ViewerAct[] = paper.manage
+            ? [
+                ...(paper.renewed
+                  ? [{ key: "renew", label: "Use renewal", busyLabel: "Switching to the renewal", run: () => renewPaper(paper) }]
+                  : []),
+                {
+                  key: "remove",
+                  label: "Remove",
+                  danger: true,
+                  closes: true,
+                  busyLabel: "Removing from the job",
+                  /* the paper itself stays where it is filed: this takes the link off */
+                  confirm: {
+                    heading: "Take this off the job?",
+                    body: "The paper itself stays where it's filed.",
+                    confirm: "Remove from job",
+                    cancel: "Keep",
+                  },
+                  run: () => removePaper(paper),
+                },
+              ]
+            : [];
           return (
             <JobMediaViewer
               items={pages}
               index={Math.min(viewer.index, pages.length - 1)}
               favourites={null}
+              line={paperMeta(paper)}
               onNav={(i) => setViewer({ kind: "papers", id: viewer.id, index: i })}
               onClose={() => setViewer(null)}
+              actions={acts}
             />
           );
         })()}
@@ -2090,6 +2163,28 @@ export function JobSheet({
               : media.documents.filter((d) => d.remoteId === viewer.id);
           const index = items.findIndex((i) => i.remoteId === viewer.id);
           if (index < 0) return null;
+          const shown = items[index];
+          /* one of OURS can be taken back off; the bytes go with the row and
+             nothing brings them back, so it asks, naming what it does */
+          const acts: ViewerAct[] =
+            viewer.kind === "paper" && shown?.documentId
+              ? [
+                  {
+                    key: "remove",
+                    label: "Remove",
+                    danger: true,
+                    closes: true,
+                    busyLabel: "Deleting the file",
+                    confirm: {
+                      heading: "Delete this file?",
+                      body: "It comes off the job, and nothing brings it back.",
+                      confirm: "Delete file",
+                      cancel: "Keep",
+                    },
+                    run: () => removeDocument(shown),
+                  },
+                ]
+              : [];
           return (
             <JobMediaViewer
               items={items}
@@ -2101,6 +2196,7 @@ export function JobSheet({
                 setViewer({ kind: viewer.kind, id: items[i]?.remoteId ?? viewer.id })
               }
               onClose={() => setViewer(null)}
+              actions={acts}
             />
           );
         })()}

@@ -1,26 +1,34 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Icon } from "@/components/shell/icon";
+import { useEffect, useId, useRef, useState } from "react";
+import { Button } from "@/components/parts/button";
+import { Dialog } from "@/components/parts/dialog";
+import { Field, TextArea, TextInput } from "@/components/parts/field";
+import { Loading, Wrong } from "@/components/parts/states";
+import { Tick } from "@/components/parts/tick";
 import { readAddresses } from "@/lib/compliance/papers";
 import { andList } from "@/lib/swms/library";
 import type { EmailContact, EmailDraft } from "@/app/actions/job-compliance";
 
-/* SENDING WHAT'S TICKED — the job card's footer while the Documents face has
-   ticks, and the email that opens IN it.
+/* SENDING WHAT'S TICKED (the mock of 25 October 2026, frames 6 and 8).
 
-   THE CARD'S ONE FOOTER (law 28), not a bar floating over the list: it sits
-   under the scrolling body, so the list above keeps scrolling and can still be
-   ticked while the email is written — the letter's Attaching line follows the
-   ticks. Nothing opens over the card.
+   THE BAR floats at the page's foot while the Documents section has ticks:
+   how many, then Send to ServiceM8 and Email documents, both second
+   buttons, because the section's Add is its one blue. It floats, white with
+   the one shadow, so the list above keeps scrolling under it and can still
+   be ticked.
 
-   SEND TO SERVICEM8 IS THE OTHER DOOR, and it is there only where an owner
-   has switched it on (Integrations, ServiceM8). The press waits for its
-   files; what came of them is the card's toast and each row's own words,
-   and a file that didn't go keeps its tick and says why here, in the space
-   the count was in. */
+   SEND TO SERVICEM8 is there only where an owner has switched it on
+   (Integrations, ServiceM8). The press waits for its files; what came of
+   them is a toast and each row's own word, and a file that didn't go keeps
+   its tick and says why here, in the space the count was in.
 
-function ContactBox({
+   EMAIL DOCUMENTS opens the v2 dialog: who it goes to (the job's people as
+   tick rows, and anyone else's address), the subject, the message at the
+   reading size (rule 13), and what it attaches. The letter's Attaching line
+   follows the ticks as they stand. */
+
+function ContactTick({
   contact,
   on,
   onTick,
@@ -30,11 +38,18 @@ function ContactBox({
   onTick: (on: boolean) => void;
 }) {
   return (
-    <label className="wb2-mailwho">
-      <input type="checkbox" checked={on} onChange={(e) => onTick(e.target.checked)} />
-      <b>{contact.name ?? contact.email}</b>
-      <em>{contact.name ? `${contact.email}, ${contact.role.toLowerCase()}` : contact.role}</em>
-    </label>
+    <li className="pt-row wb2-mailwho">
+      <Tick
+        checked={on}
+        onChange={onTick}
+        label={
+          <span className="wb2-cpname">
+            <b>{contact.name ?? contact.email}</b>
+            <span>{contact.name ? `${contact.email}, ${contact.role.toLowerCase()}` : contact.role}</span>
+          </span>
+        }
+      />
+    </li>
   );
 }
 
@@ -50,8 +65,8 @@ export function DocumentsSend({
 }: {
   /** What is ticked, by the names the letter will list. */
   picked: readonly { key: string; name: string }[];
-  /** The email is open. The card holds it, so unticking the last file while
-      writing doesn't throw the letter away with the footer. */
+  /** The email is open. The page holds it, so unticking the last file while
+      writing doesn't throw the letter away with the bar. */
   writing: boolean;
   onWriting: (on: boolean) => void;
   onLoadDraft: () => Promise<EmailDraft | null>;
@@ -63,19 +78,22 @@ export function DocumentsSend({
   sm8Note?: string | null;
   onSendToSm8?: () => Promise<void>;
 }) {
-  if (!writing) {
-    return (
-      <SendBar
-        count={picked.length}
-        sm8={sm8}
-        sm8Note={sm8Note}
-        onEmail={() => onWriting(true)}
-        onSendToSm8={onSendToSm8}
-      />
-    );
-  }
-
-  return <EmailForm picked={picked} onLoadDraft={onLoadDraft} onSend={onSend} onCancel={() => onWriting(false)} />;
+  return (
+    <>
+      {picked.length > 0 && (
+        <SendBar
+          count={picked.length}
+          sm8={sm8}
+          sm8Note={sm8Note}
+          onEmail={() => onWriting(true)}
+          onSendToSm8={onSendToSm8}
+        />
+      )}
+      {writing && (
+        <EmailDialog picked={picked} onLoadDraft={onLoadDraft} onSend={onSend} onCancel={() => onWriting(false)} />
+      )}
+    </>
+  );
 }
 
 function SendBar({
@@ -99,26 +117,25 @@ function SendBar({
     setSending(false);
   };
   return (
-    <div className="wb2-shft wb2-dsend">
+    <div className="wb2-dsend" role="group" aria-label="Send what's ticked">
       {sm8Note ? (
-        <em className="wb2-dsend-n sw-state bad">{sm8Note}</em>
+        <span className="wb2-dsend-n bad">{sm8Note}</span>
       ) : (
-        <em className="wb2-dsend-n">{count === 1 ? "1 document ticked" : `${count} documents ticked`}</em>
+        <span className="wb2-dsend-n">{count === 1 ? "1 document ticked" : `${count} documents ticked`}</span>
       )}
       {sm8 && onSendToSm8 && (
-        <button type="button" className="pbtn ghost" disabled={sending} onClick={() => void sendToSm8()}>
+        <Button disabled={sending} aria-busy={sending || undefined} onClick={() => void sendToSm8()}>
           {sending ? "Sending to ServiceM8" : "Send to ServiceM8"}
-        </button>
+        </Button>
       )}
-      <button type="button" className="pbtn" disabled={sending} onClick={onEmail}>
-        <Icon name="mail" size={15} />
+      <Button disabled={sending} onClick={onEmail}>
         Email documents
-      </button>
+      </Button>
     </div>
   );
 }
 
-function EmailForm({
+function EmailDialog({
   picked,
   onLoadDraft,
   onSend,
@@ -137,6 +154,8 @@ function EmailForm({
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const formId = useId();
+  const toId = useId();
 
   /* one read per opening, held from mount so the effect is honestly
      empty-dep'd (see compliance-chooser) */
@@ -183,15 +202,38 @@ function EmailForm({
     setErr(null);
     const why = await onSend({ to: all, subject, message }).catch(() => "The email didn't send. Try again in a minute.");
     setBusy(false);
-    /* on success the ticks clear and this footer goes with them */
+    /* on success the ticks clear and the dialog goes with them */
     if (why) setErr(why);
   };
 
   const names = picked.map((p) => p.name);
 
   return (
-    <div className="wb2-shft wb2-dsend open">
+    <Dialog
+      heading="Email documents"
+      width={560}
+      onClose={onCancel}
+      /* a letter half written is not lost to a stray press on the page */
+      dismissable={false}
+      foot={
+        <>
+          <Button disabled={busy} onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button
+            kind="main"
+            type="submit"
+            form={formId}
+            disabled={busy || !draft || !draft.ready || names.length === 0}
+            aria-busy={busy || undefined}
+          >
+            {busy ? "Sending the email" : "Send email"}
+          </Button>
+        </>
+      }
+    >
       <form
+        id={formId}
         className="wb2-mail"
         onSubmit={(e) => {
           e.preventDefault();
@@ -199,30 +241,35 @@ function EmailForm({
         }}
       >
         {failed ? (
-          <p className="int-hint">Couldn&apos;t start the email. Close the card and open it again.</p>
+          <Wrong word="Couldn't start the email" means="Close this and open it again." />
         ) : draft === null ? (
-          <p className="int-hint">Finding who to send it to</p>
+          <Loading what="Finding who to send it to" />
         ) : (
           <>
-            <span className={`wb2-maillbl${draft.contacts.length > 0 ? " people" : ""}`}>To</span>
-            <div className="wb2-mailto">
-              {draft.contacts.map((c) => (
-                <ContactBox
-                  key={c.email}
-                  contact={c}
-                  on={to.has(c.email)}
-                  onTick={(on) =>
-                    setTo((cur) => {
-                      const next = new Set(cur);
-                      if (on) next.add(c.email);
-                      else next.delete(c.email);
-                      return next;
-                    })
-                  }
-                />
-              ))}
-              <input
-                className="wb2-fi"
+            <div className="wb2-mailto" role="group" aria-labelledby={toId}>
+              <span id={toId} className="pt-field-label">
+                To
+              </span>
+              {draft.contacts.length > 0 && (
+                <ul className="pt-rows">
+                  {draft.contacts.map((c) => (
+                    <ContactTick
+                      key={c.email}
+                      contact={c}
+                      on={to.has(c.email)}
+                      onTick={(on) =>
+                        setTo((cur) => {
+                          const next = new Set(cur);
+                          if (on) next.add(c.email);
+                          else next.delete(c.email);
+                          return next;
+                        })
+                      }
+                    />
+                  ))}
+                </ul>
+              )}
+              <TextInput
                 value={other}
                 onChange={(e) => setOther(e.target.value)}
                 placeholder={draft.contacts.length > 0 ? "Someone else's email" : "Their email"}
@@ -231,48 +278,22 @@ function EmailForm({
               />
             </div>
 
-            <label className="wb2-maillbl" htmlFor="wb2-mail-subject">
-              Subject
-            </label>
-            <input
-              id="wb2-mail-subject"
-              className="wb2-fi"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-            />
+            <Field label="Subject">
+              <TextInput value={subject} onChange={(e) => setSubject(e.target.value)} />
+            </Field>
 
-            <label className="wb2-maillbl" htmlFor="wb2-mail-message">
-              Message
-            </label>
-            <textarea
-              id="wb2-mail-message"
-              className="wb2-fi"
-              rows={4}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-            />
+            <Field label="Message">
+              <TextArea className="wb2-mailmsg" rows={4} value={message} onChange={(e) => setMessage(e.target.value)} />
+            </Field>
 
-            <span className="wb2-maillbl">Attaching</span>
-            <span className="wb2-mailfiles">{names.length > 0 ? andList(names) : "Nothing ticked"}</span>
+            <p className="wb2-mailfiles">{names.length > 0 ? `Attaching ${andList(names)}` : "Nothing ticked to attach"}</p>
 
-            {!draft.ready && (
-              <p className="wb2-mailnote">Email isn&apos;t set up on this deployment, so nothing can be sent from it.</p>
-            )}
+            {!draft.ready && <p className="wb2-mailnote">Email isn&apos;t set up on this deployment, so nothing can be sent from it.</p>}
           </>
         )}
 
-        {err && <p className="wb2-sherr">{err}</p>}
-
-        <div className="wb2-mailacts">
-          <button type="button" className="pbtn ghost" disabled={busy} onClick={onCancel}>
-            Cancel
-          </button>
-          <button type="submit" className="pbtn" disabled={busy || !draft || !draft.ready || names.length === 0}>
-            <Icon name="send" size={15} />
-            {busy ? "Sending the email" : "Send email"}
-          </button>
-        </div>
+        {err && <p className="wb2-mailerr">{err}</p>}
       </form>
-    </div>
+    </Dialog>
   );
 }

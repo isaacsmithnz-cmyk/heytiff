@@ -129,12 +129,16 @@ async function bell(who: string): Promise<string[]> {
 async function card(viewer: string | null) {
   const swms = await listJobSwms(ORG, JOB, viewer);
   const { container, unmount } = render(
-    <JobDocumentsFace documents={[]} elsewhere={[]} designs={[]} loading={false} truncated={false} onOpen={() => {}} swms={swms} onReviseSwms={() => {}} />
+    <JobDocumentsFace documents={[]} elsewhere={[]} designs={[]} loading={false} onOpen={() => {}} swms={swms} />
   );
-  const row = container.querySelector(".wb2-docrow");
+  /* the v2 row: its grey line (with an issue raised at sign-on, if any,
+     after it), and the one door on its right; Revise is the viewer's */
+  const row = container.querySelector(".pt-row");
+  const line = row?.querySelector(".pt-row-line")?.textContent ?? "";
+  const issue = row?.querySelector(".jdoc-look")?.textContent ?? null;
   const out = {
-    lines: row ? [...row.querySelectorAll(".wb2-doc-b em")].map((e) => e.textContent ?? "") : [],
-    doors: row ? [...row.querySelectorAll("a.pbtn, button.pbtn")].map((e) => e.textContent ?? "") : [],
+    lines: row ? (issue ? [line.slice(0, line.length - issue.length).replace(/\. $/, ""), issue] : [line]) : [],
+    doors: row ? [...row.querySelectorAll(".pt-row-end a, .pt-row-end button")].map((e) => e.textContent ?? "") : [],
   };
   unmount();
   return out;
@@ -181,10 +185,10 @@ it("keeps every screen telling the same true story from issue to a finished job"
   expect(await bell("dane")).toEqual(["Sign on to the SWMS"]);
   expect(await bell("troy")).toEqual(["Sign on to the SWMS"]);
   expect(await card(null)).toEqual({
-    lines: [expect.stringMatching(/^Issued .*, Troy Porter in charge\. 0 of 4 signed on, waiting on Dane Whitmore, Sam Ikpeba, Troy Porter and Kai Lindqvist$/)],
-    doors: ["Revise"],
+    lines: [expect.stringMatching(/^Issued .*, Troy Porter in charge, 0 of 4 signed on, waiting on Dane Whitmore, Sam Ikpeba, Troy Porter and Kai Lindqvist$/)],
+    doors: [],
   });
-  expect((await card("dane")).doors).toEqual(["Sign on", "Revise"]);
+  expect((await card("dane")).doors).toEqual(["Sign on"]);
 
   /* 2. AT THE TRUCK: Troy signs himself on, then Kai on his phone. */
   as("troy");
@@ -193,7 +197,7 @@ it("keeps every screen telling the same true story from issue to a finished job"
   expect(await bell("troy")).toEqual([]);
   expect(await bell("dane")).toEqual(["Sign on to the SWMS"]);
   /* signed, but his crew hasn't: the door says what it does now */
-  expect((await card("troy")).doors).toEqual(["Sign them on", "Revise"]);
+  expect((await card("troy")).doors).toEqual(["Sign them on"]);
   const troyReads = await page("troy", v1.versionId);
   expect(troyReads.text).toMatch(/You signed on /);
   expect(troyReads.rows["Kai Lindqvist"]).toMatch(/on Troy Porter's phone/);
@@ -254,7 +258,7 @@ it("keeps every screen telling the same true story from issue to a finished job"
   /* everyone has signed now: the row still gives the issue a door */
   expect(await card("troy")).toEqual({
     lines: [expect.stringMatching(/4 of 4 signed on$/), "Sam Ikpeba raised: Ladder is too short for the rear wall"],
-    doors: ["Open the issue", "Revise"],
+    doors: ["Open the issue"],
   });
 
   /* 7. THE METHOD CHANGES — a crane instead of a hoist. Everyone signs again,
@@ -279,7 +283,7 @@ it("keeps every screen telling the same true story from issue to a finished job"
   mockDb.tables.sm8_jobs[0].status = "Completed";
   expect(await bell("dane")).toEqual([]);
   expect(await bell("troy")).toEqual([]);
-  expect(await card("troy")).toEqual({ lines: [expect.stringMatching(/0 of 4 signed on, waiting on /)], doors: ["Revise"] });
+  expect(await card("troy")).toEqual({ lines: [expect.stringMatching(/0 of 4 signed on, waiting on /)], doors: [] });
   /* a licence doesn't leave with the person: paper still says what he holds */
   expect((await paper(v3.versionId)).licences["Dane WhitmoreInstaller"]).toBe("ARC licence");
 

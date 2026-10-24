@@ -385,11 +385,11 @@ describe("the job's sections are the card's faces", () => {
     expect(screen.queryByRole("region", { name: "Summary" })).toBeNull();
   });
 
-  it("shows Documents as the files and compliance together", async () => {
+  it("shows Documents as one section, the files and compliance together", async () => {
     draw("documents");
     await ready();
-    expect(screen.getByRole("region", { name: "Files" })).toBeVisible();
-    expect(screen.getByRole("region", { name: "Compliance" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Documents" })).toBeVisible();
+    expect(document.querySelector("#jcsec-compliance")).toBeNull();
   });
 
   it("shows Billing as the money face", async () => {
@@ -405,7 +405,7 @@ describe("the job's sections are the card's faces", () => {
     await ready();
     const face = (key: string) => document.getElementById(`jcsec-${key}`)!;
     expect(face("money")).not.toBeEmptyDOMElement();
-    for (const key of ["visits", "checklist", "photos", "documents", "compliance", "quote"]) expect(face(key)).toBeEmptyDOMElement();
+    for (const key of ["visits", "checklist", "photos", "documents", "quote"]) expect(face(key)).toBeEmptyDOMElement();
     expect(document.querySelector(".jp-over")).toBeEmptyDOMElement();
     const at = (section: JobSection) => (
       <JobSheet

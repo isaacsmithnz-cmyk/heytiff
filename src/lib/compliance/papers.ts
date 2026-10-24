@@ -191,6 +191,22 @@ export function paperMeta(paper: JobPaper): string {
   ]);
 }
 
+/** A paper's row on the job, as the v2 Documents section reads it (the mock
+    of 25 October 2026): the name says what and whose ("Public liability,
+    QBE Insurance (Australia) Ltd", "ARC licence, Dane Whitmore"), and the
+    grey line how long it runs and who put it there ("To 10 Nov 2026, added
+    by Isaac Smith"). */
+export function paperRowName(paper: JobPaper): string {
+  const whose = (paper.kind === "staff" ? paper.person : paper.issuer)?.trim();
+  return whose ? `${paper.name}, ${whose}` : paper.name;
+}
+export function paperRowLine(paper: JobPaper): string {
+  return metaLine(null, [
+    paper.expiresOn ? `to ${fmtDay(paper.expiresOn)}` : null,
+    paper.addedBy ? `added by ${paper.addedBy}` : null,
+  ]);
+}
+
 /** Whether a paper on the job can be ticked to send: it has a file this
     viewer may open, and the term on the job hasn't run out. An expired
     certificate is not something to hand a customer — the row says Expired,

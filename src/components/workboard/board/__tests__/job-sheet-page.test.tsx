@@ -335,11 +335,11 @@ describe("the job's sections are the card's faces", () => {
   it("has seven tabs with the money, and no Billing without it", async () => {
     const { unmount } = draw("overview", { moneyVisible: true });
     await ready();
-    expect(tabWords()).toEqual(["Overview", "Quote", "Visits", "Checklist", "Photos", "Documents", "Billing"]);
+    expect(tabWords()).toEqual(["Overview", "Quote", "Visits", "Materials", "Photos", "Documents", "Billing"]);
     unmount();
     draw("overview");
     await ready();
-    expect(tabWords()).toEqual(["Overview", "Quote", "Visits", "Checklist", "Photos", "Documents"]);
+    expect(tabWords()).toEqual(["Overview", "Quote", "Visits", "Materials", "Photos", "Documents"]);
   });
 
   /* "Job card, four tiles" (Isaac, 22 October 2026) */
@@ -419,7 +419,7 @@ describe("the job's sections are the card's faces", () => {
         onToast={noop}
       />
     );
-    rerender(at("checklist"));
+    rerender(at("materials"));
     expect(face("checklist")).not.toBeEmptyDOMElement();
     rerender(at("billing"));
     expect(face("checklist")).not.toBeEmptyDOMElement();
@@ -429,8 +429,8 @@ describe("the job's sections are the card's faces", () => {
   it("hands a tab press to the page", async () => {
     draw("overview");
     await ready();
-    await userEvent.click(jobTab(/^Checklist/));
-    expect(onSection).toHaveBeenCalledWith("checklist");
+    await userEvent.click(jobTab(/^Materials/));
+    expect(onSection).toHaveBeenCalledWith("materials");
   });
 
   it("puts no numbers on the sections (Isaac, 20 October)", async () => {

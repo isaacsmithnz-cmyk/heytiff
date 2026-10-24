@@ -3,7 +3,7 @@ import type { JobStep } from "@/lib/workboard/job-steps";
 import type { Tone } from "@/components/parts/state";
 
 /* A JOB'S SEVEN SECTIONS (docs/design.md rule 31): Overview, Quote, Visits,
-   Checklist, Photos, Documents, Billing. The job page (app/dashboard/jobs)
+   Materials, Photos, Documents, Billing. The job page (app/dashboard/jobs)
    draws each from the job card's own faces, so the card and the page never
    tell two stories about one job:
 
@@ -11,7 +11,8 @@ import type { Tone } from "@/components/parts/state";
                  lives on Overview only, 6-revisions, 17 October)
      Quote     = the quote
      Visits    = the visits
-     Checklist = the checklist
+     Materials = the job's own list, which the card calls its checklist
+                 (Isaac, 25 October 2026: every row on it is a material)
      Photos    = the photos
      Documents = the files and compliance
      Billing   = the money, only for whoever holds `workboard_money`: without
@@ -19,14 +20,14 @@ import type { Tone } from "@/components/parts/state";
 
    Pure, so the page, the quote page's tabs and the tests read one list. */
 
-export const JOB_SECTIONS = ["overview", "quote", "visits", "checklist", "photos", "documents", "billing"] as const;
+export const JOB_SECTIONS = ["overview", "quote", "visits", "materials", "photos", "documents", "billing"] as const;
 export type JobSection = (typeof JOB_SECTIONS)[number];
 
 export const SECTION_LABEL: Record<JobSection, string> = {
   overview: "Overview",
   quote: "Quote",
   visits: "Visits",
-  checklist: "Checklist",
+  materials: "Materials",
   photos: "Photos",
   documents: "Documents",
   billing: "Billing",
@@ -37,7 +38,7 @@ export const SECTION_FACES: Record<JobSection, readonly JobSheetTab[]> = {
   overview: ["summary", "diary"],
   quote: ["quote"],
   visits: ["visits"],
-  checklist: ["checklist"],
+  materials: ["checklist"],
   photos: ["photos"],
   documents: ["documents", "compliance"],
   billing: ["money"],
@@ -53,11 +54,16 @@ export function sectionOfFace(face: JobSheetTab): JobSection {
 export const sectionsFor = (moneyVisible: boolean): readonly JobSection[] =>
   moneyVisible ? JOB_SECTIONS : JOB_SECTIONS.filter((s) => s !== "billing");
 
+/* the names a section went by, so an old link still lands on it */
+const OLD_NAMES: Record<string, JobSection> = { checklist: "materials" };
+
 /** The section an address's `?tab=` names, or Overview: an invented one, a
-    repeated one, and Billing without the money grant all land on Overview. */
+    repeated one, and Billing without the money grant all land on Overview.
+    A section's old name lands on it (`?tab=checklist` is Materials). */
 export function parseSection(raw: string | string[] | undefined | null, moneyVisible: boolean): JobSection {
   if (typeof raw !== "string") return "overview";
-  const s = raw.trim().toLowerCase();
+  const said = raw.trim().toLowerCase();
+  const s = OLD_NAMES[said] ?? said;
   return (sectionsFor(moneyVisible) as readonly string[]).includes(s) ? (s as JobSection) : "overview";
 }
 

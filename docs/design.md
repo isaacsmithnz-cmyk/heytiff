@@ -59,7 +59,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 
 - **29. Views of a list.** Soft tabs under the title: words alone, the one you're on in a light fill. No outlines. No tab anywhere carries a number, and a screen's title carries no count beside it ("Team", not "Team 3 people"): a view with something waiting has its word in amber, red when something is wrong (Isaac, 20 October: "We need to rule it out everywhere").
 - **30. One of a few.** Day, Week, Month in a thin tray; the chosen one filled light.
-- **31. Section tabs.** Underlined, the one you're on standing on 2px of ink. No numbers on them, as rule 29: a tab with something to look at has its word in amber, red when something is wrong (Isaac, 20 October). A job has seven: Overview, Quote, Visits, Checklist, Photos, Documents, Billing. A person has five: Overview, Hours & leave, Papers, Pay, Access.
+- **31. Section tabs.** Underlined, the one you're on standing on 2px of ink. No numbers on them, as rule 29: a tab with something to look at has its word in amber, red when something is wrong (Isaac, 20 October). A job has seven: Overview, Quote, Visits, Materials, Photos, Documents, Billing (Materials was Checklist until 25 October 2026, and `?tab=checklist` still lands on it). A person has five: Overview, Hours & leave, Papers, Pay, Access.
 - **32. Ticks and switches.** Blue when on. A switch saves itself.
 - **33. Fields.** 36 tall, a 6 corner, the label above. A wrong field gets a red edge and says why underneath.
 - **34. Menus to choose from.** A field with a chevron; opens a menu. A time opens a wheel: the hour, minutes in fives, am or pm. Nothing types a clock time.
@@ -274,11 +274,15 @@ this list the way it holds the loops: both ways, by name.
 | `rotate` | `ds-tool` ×2 | undo and redo in the Studio toolbar, the candidates law 25 named |
 | `x` | `camdel`, `ds-plancard-x` | a thumbnail's cross, on a photo badge and on a plan page in the Studio's import: a picture has no room for a word |
 
-### His rulings on a person's page
+### His rulings
 
-Two of Isaac's calls on Team's person page break a rule no ratchet counts,
-so they are written here rather than in the table below (20 October 2026,
-on his mock https://claude.ai/artifact/BH6voDn1axdk96JZCCUSTf).
+Some of Isaac's calls break a rule no ratchet counts, so they are written
+here rather than in the table below, each with his words and the day.
+
+#### On a person's page
+
+Two of his calls on Team's person page (20 October 2026, on his mock
+https://claude.ai/artifact/BH6voDn1axdk96JZCCUSTf).
 
 - **Each group has its icon in its colour** (`.tm2-ic`), despite old law 31,
   colour only where it means something. "Can we add some coloring in
@@ -287,6 +291,23 @@ on his mock https://claude.ai/artifact/BH6voDn1axdk96JZCCUSTf).
 - **The emergency contact's title is red** (`.tm2-emerg`), despite rule 16,
   red only means wrong: it is the one group someone has to find in a hurry.
   Its icon is a plaster on the diagonal, never a cross.
+
+#### On a job's page
+
+Two of his calls on the job page's old pieces (25 October 2026, on his mock
+https://claude.ai/artifact/GL43j32Z8xBo3CXekExHuF).
+
+- **Materials' groups have their icons in colour** (`.jm-ic`), despite old
+  law 31, colour only where it means something. "Now just put some color or
+  something on the group headers." Each of the price book's shelves keeps
+  one icon in one hue's word value (`SHELF_LOOK` in
+  `lib/workboard/material-shelves.ts`), drawn on the icon itself: no square
+  behind it, no tint, no edge. Red and blue are never a shelf's, since red
+  only means wrong and blue only means press.
+- **Billing's job value stands in a bordered box**, despite rule 35, a card
+  is something you act on. "put job value on the right. Center it. And give
+  it its own border." The box is the figure's own, on the right of Billing,
+  centred in it.
 
 ### Named exemptions
 

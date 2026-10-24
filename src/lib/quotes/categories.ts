@@ -47,7 +47,7 @@ export const CATEGORIES: { key: CategoryKey; label: string }[] = [
   { key: "heating", label: "Heating and evaporative" },
   { key: "refrigeration", label: "Commercial refrigeration" },
   { key: "consumables", label: "Tools and consumables" },
-  { key: "other", label: "Everything else" },
+  { key: "other", label: "Miscellaneous" },
 ];
 
 /* Mitsubishi's model ranges: the code says what it is when the trade

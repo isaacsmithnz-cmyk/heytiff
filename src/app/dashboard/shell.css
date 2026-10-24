@@ -4153,16 +4153,15 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
 /* v2 (rules 22 and 23, Isaac, 20 October: "the black check-in button"): no
    button is black. A button here is the second button, white with a thin
    outline; the one marked primary is the main, blue with white words. */
-.wb2 .pbtn:not(.ghost), .wb2-sheet .pbtn:not(.ghost), .wb2-capcard .pbtn:not(.ghost), .swz .pbtn:not(.ghost) {
+.wb2 .pbtn:not(.ghost), .wb2-sheet .pbtn:not(.ghost), .wb2-capcard .pbtn:not(.ghost) {
   background:var(--paper); border:1px solid var(--edge); color:var(--ink); }
 .wb2 .pbtn:not(.ghost):hover:not(:disabled),
 .wb2-sheet .pbtn:not(.ghost):hover:not(:disabled),
-.wb2-capcard .pbtn:not(.ghost):hover:not(:disabled),
-.swz .pbtn:not(.ghost):hover:not(:disabled) { background:var(--hov); }
-.wb2 .pbtn.primary, .wb2-sheet .pbtn.primary, .wb2-capcard .pbtn.primary, .swz .pbtn.primary {
+.wb2-capcard .pbtn:not(.ghost):hover:not(:disabled) { background:var(--hov); }
+.wb2 .pbtn.primary, .wb2-sheet .pbtn.primary, .wb2-capcard .pbtn.primary {
   background:var(--press); border-color:var(--press); color:var(--paper); }
 .wb2 .pbtn.primary:hover:not(:disabled), .wb2-sheet .pbtn.primary:hover:not(:disabled),
-.wb2-capcard .pbtn.primary:hover:not(:disabled), .swz .pbtn.primary:hover:not(:disabled) { background:var(--press); }
+.wb2-capcard .pbtn.primary:hover:not(:disabled) { background:var(--press); }
 /* A GHOST STANDING NEXT TO A PRIMARY HAS TO LOOK LIKE ITS PAIR.
 
    This rule set the ghost's height, padding and size and then left its RADIUS
@@ -4179,12 +4178,12 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
    `--edge`, the second button's thin outline in the parts, rule 23.) The fill stays white: a filled primary
    beside an outlined secondary is the pair saying which one is the default,
    and two fills would say neither. */
-.wb2 .pbtn.ghost, .wb2-sheet .pbtn.ghost, .wb2-capcard .pbtn.ghost, .swz .pbtn.ghost {
+.wb2 .pbtn.ghost, .wb2-sheet .pbtn.ghost, .wb2-capcard .pbtn.ghost {
   height:38px; padding:0 16px; font-size:13px; border-radius:var(--r-button);
   border:1px solid var(--edge); box-shadow:none; }
 .wb2 .pbtn.ghost:hover:not(:disabled), .wb2-sheet .pbtn.ghost:hover:not(:disabled),
-.wb2-capcard .pbtn.ghost:hover:not(:disabled), .swz .pbtn.ghost:hover:not(:disabled) { background:var(--hov); }
-.wb2 .pbtn:not(.ghost), .wb2-sheet .pbtn:not(.ghost), .wb2-capcard .pbtn:not(.ghost), .swz .pbtn:not(.ghost) {
+.wb2-capcard .pbtn.ghost:hover:not(:disabled) { background:var(--hov); }
+.wb2 .pbtn:not(.ghost), .wb2-sheet .pbtn:not(.ghost), .wb2-capcard .pbtn:not(.ghost) {
   height:38px; padding:0 16px; font-size:13px; border-radius:var(--r-button); }
 
 /* OFF has to LOOK off. A 55% fade of a coloured button still reads as a
@@ -4193,11 +4192,11 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
    (Isaac). So a disabled button loses its colour entirely, keeps its shape,
    and says so with the cursor. Wins over the fills above by specificity. */
 .wb2 .pbtn:disabled, .wb2-sheet .pbtn:disabled,
-.wb2-daymodal .pbtn:disabled, .swz .pbtn:disabled {
+.wb2-daymodal .pbtn:disabled {
   background:var(--soft); border-color:var(--line); color:var(--q); box-shadow:none;;
   cursor:not-allowed; opacity:1; }
 .wb2 .pbtn.ghost:disabled, .wb2-sheet .pbtn.ghost:disabled,
-.wb2-daymodal .pbtn.ghost:disabled, .swz .pbtn.ghost:disabled { background:var(--tint); color:var(--q); }
+.wb2-daymodal .pbtn.ghost:disabled { background:var(--tint); color:var(--q); }
 
 /* ── the view tabs — joined to the card ── */
 /* PADDING-LEFT IS LOAD-BEARING, and it is what finally settled the top-left
@@ -4450,9 +4449,7 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 
    So each portal root restates the ramp and pins its own colour. Keep this
    list in step with the createPortal roots in components/workboard. */
-/* `.swz` is the SWMS wizard (components/swms), which opens inside the job
-   card's portal and wears the card's buttons and segmented choices. */
-.wb2-sheet, .wb2-daymodal, .wb2-capcard, .wb2-toasts, .wb2-scrim, .swz {
+.wb2-sheet, .wb2-daymodal, .wb2-capcard, .wb2-toasts, .wb2-scrim {
   --ink:#050505; --gray400:var(--q); --gray500:var(--q); --gray700:var(--ink);
   color:var(--ink);
 }
@@ -4470,19 +4467,18 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    step with the ramp list above — same roots, same reason. Sizes are NOT
    restated: the wb2 accent block sets those at higher specificity and must
    keep winning. */
-.wb2-sheet .pbtn, .wb2-daymodal .pbtn, .wb2-capcard .pbtn, .swz .pbtn {
+.wb2-sheet .pbtn, .wb2-daymodal .pbtn, .wb2-capcard .pbtn {
   display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 16px; border-radius:var(--r-button);
   font-size:14px; font-weight:700; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
 /* THE OUTLINE IS THE SAME ONE THE IN-PAGE GHOST WEARS, and it has to be:
    this block is later in the sheet than the accent block, so whatever it says
    about the border is what a ghost in a sheet or a modal gets. Left at
    `#e5e7eb` the two diverged — the same class, 1.2:1 here and 3:1 there. */
-.wb2-sheet .pbtn.ghost, .wb2-daymodal .pbtn.ghost, .wb2-capcard .pbtn.ghost, .swz .pbtn.ghost {
+.wb2-sheet .pbtn.ghost, .wb2-daymodal .pbtn.ghost, .wb2-capcard .pbtn.ghost {
   background:#fff; border:1px solid var(--edge); color:var(--gray700); box-shadow:none; }
 .wb2-sheet .pbtn.ghost:hover:not(:disabled),
 .wb2-daymodal .pbtn.ghost:hover:not(:disabled),
-.wb2-capcard .pbtn.ghost:hover:not(:disabled),
-.swz .pbtn.ghost:hover:not(:disabled) { background:var(--hov); color:var(--ink); }
+.wb2-capcard .pbtn.ghost:hover:not(:disabled) { background:var(--hov); color:var(--ink); }
 .wb2-sheet .pbtn:not(.ghost):hover:not(:disabled),
 .wb2-daymodal .pbtn:not(.ghost):hover:not(:disabled),
 .wb2-capcard .pbtn:not(.ghost):hover:not(:disabled) { }
@@ -4491,9 +4487,8 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .wb2-sheet .pbtn:active:not(:disabled),
 .wb2-daymodal .pbtn:active:not(:disabled),
 .wb2-capcard .pbtn:active:not(:disabled),
-.wb2-qpage .pbtn:active:not(:disabled),
-.swz .pbtn:active:not(:disabled) { transform:translateY(1px); }
-.wb2-sheet .pbtn:focus-visible, .wb2-daymodal .pbtn:focus-visible, .wb2-capcard .pbtn:focus-visible, .wb2-qpage .pbtn:focus-visible, .swz .pbtn:focus-visible {
+.wb2-qpage .pbtn:active:not(:disabled) { transform:translateY(1px); }
+.wb2-sheet .pbtn:focus-visible, .wb2-daymodal .pbtn:focus-visible, .wb2-capcard .pbtn:focus-visible, .wb2-qpage .pbtn:focus-visible {
   outline:none; box-shadow:var(--ring); }
 /* the shared look for a disabled button lives with the fills it overrides —
    see `.wb2 .pbtn:disabled` up in the accent block */
@@ -4502,7 +4497,7 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .wb2-daymodal .pbtn.ghost.dan:hover:not(:disabled) {
   background:var(--bad-tint); border-color:var(--bad); color:var(--wb2-dan-t, var(--bad-t)); }
 @media (prefers-reduced-motion:reduce) {
-  .wb2-sheet .pbtn:active, .wb2-daymodal .pbtn:active, .wb2-capcard .pbtn:active, .swz .pbtn:active { transform:none; }
+  .wb2-sheet .pbtn:active, .wb2-daymodal .pbtn:active, .wb2-capcard .pbtn:active { transform:none; }
 }
 
 /* ── the sheet — a CENTRED MODAL, two sections to a row ──
@@ -5214,9 +5209,6 @@ a.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 .jcl-custhead { display:flex; align-items:baseline; gap:8px; }
 .jcl-edit { margin-left:auto; padding:0; border:0; background:none; font:inherit; font-size:13px; font-weight:500; color:var(--ink); text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
 .jcl-edit:focus-visible { outline:none; box-shadow:var(--ring); }
-.ncust-contact { display:flex; flex-direction:column; gap:8px; margin:0; padding:12px 0; border:0; border-top:1px solid var(--line); min-width:0; }
-.ncust-contact:first-child { border-top:0; padding-top:0; }
-.ncust-remove { margin-left:auto; align-self:center; }
 .jcl-contacts { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:12px; }
 .jcl-contacts li { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .jcl-contacts b { font-size:13px; font-weight:600; }
@@ -5409,20 +5401,6 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
   .jcl-bill .wb2-jmhead { min-width:0; }
   .jcl-billval { flex-wrap:wrap; justify-content:flex-end; }
 }
-/* EDIT CUSTOMER (job-customer-dialog) wears what New job wore before v2: a
-   label on the left and the field on the right */
-.wb2-newmodal.njob { width:min(760px, calc(100vw - 40px)); }
-.njob-title { margin:0; font-size:20px; font-weight:600; }
-.njob-body { display:flex; flex-direction:column; gap:16px; }
-.njob-row { display:grid; grid-template-columns:120px minmax(0,1fr); gap:8px 16px; align-items:start; }
-.njob-k { padding-top:8px; font-size:13px; font-weight:500; color:var(--q); }
-.njob-v { display:flex; flex-direction:column; gap:8px; min-width:0; }
-.njob-chips { flex-direction:row; flex-wrap:wrap; gap:4px; }
-.njob-two { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; }
-.njob-addr { min-height:56px; resize:vertical; }
-.njob-link { align-self:flex-start; padding:0; border:0; background:none; font:inherit; font-size:13px; font-weight:500; color:var(--ink); text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
-.njob-link:focus-visible { outline:none; box-shadow:var(--ring); }
-.njob-line { margin:0; font-size:14px; }
 .wb2-sheet.mv .wb2-jcsec .wb2-facts, .wb2-sheet.pv .wb2-jcsec .wb2-facts { margin-top:8px; }
 .wb2-sheet.mv .wb2-jcsec .wb2-notetext, .wb2-sheet.pv .wb2-jcsec .wb2-notetext { margin-top:8px; }
 .wb2-sheet.mv .wb2-jcsec .wb2-noteact { margin-top:8px; }
@@ -5636,14 +5614,13 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
    including the button ground rules `.fg button` used to supply. */
 .wb2-sheet .me-fshd { display:flex; align-items:center; justify-content:space-between;
   gap:16px; margin:8px 0 0; }
-.swz .seg,
 .wb2-sheet .seg { display:inline-flex; align-self:flex-start; width:fit-content;
   background:var(--sel); border:1px solid rgba(10,12,20,.06); border-radius:var(--r-button); padding:4px; gap:4px; }
-.wb2-sheet .seg button, .swz .seg button { padding:8px 12px; border-radius:var(--r-button); border:0; background:transparent;
+.wb2-sheet .seg button { padding:8px 12px; border-radius:var(--r-button); border:0; background:transparent;
   font:inherit; font-size:13px; font-weight:700; color:var(--gray500); cursor:pointer;
   transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.wb2-sheet .seg button.on, .swz .seg button.on { background:var(--paper); color:var(--ink);box-shadow:var(--shadow-overlay); }
-.wb2-sheet .seg button:focus-visible, .swz .seg button:focus-visible { outline:none; box-shadow:var(--ring);; }
+.wb2-sheet .seg button.on { background:var(--paper); color:var(--ink);box-shadow:var(--shadow-overlay); }
+.wb2-sheet .seg button:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* the next booking, first over the past visits, in the accent */
 .wb2-nextv { display:flex; flex-direction:column; gap:4px; padding:12px 12px;
   border-radius:var(--r-button); background:var(--info-tint); }
@@ -6396,8 +6373,6 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-eqrow { display:flex; align-items:center; gap:8px; padding:8px 12px; border:1px solid var(--wb2-line, var(--line)); border-radius:var(--r-button); }
 .wb2-eqrow .wb2-trt { flex:1; min-width:0; }
 
-.wb2-newmodal { width:min(760px, calc(100vw - 32px)); }
-.wb2-newmodal .wb2-dmbody { gap:12px; }
 button.wb2-lpr.as-btn, button.wb2-agr.as-btn, button.wb2-ajr.as-btn { font:inherit; text-align:left; background:none; border:0; width:100%; cursor:pointer; color:inherit; }
 button.wb2-agr.as-btn, button.wb2-ajr.as-btn { border-bottom:1px solid var(--wb2-line2, var(--line)); }
 button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button.wb2-ajr.as-btn:focus-visible { outline:none; box-shadow:inset var(--ring);; border-radius:var(--r-button); }
@@ -8258,7 +8233,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* A smaller primary, for the nudge's inline action. Joins the portal-safe
    list rather than relying on `.fg`, which does not reach out here. */
 .wb2 .pbtn.sm, .wb2-sheet .pbtn.sm,
-.wb2-nudge .pbtn.sm, .swz .pbtn.sm, .sws .pbtn.sm { height:29px; padding:0 12px; font-size:12px; border-radius:var(--r-button); }
+.wb2-nudge .pbtn.sm, .sws .pbtn.sm { height:29px; padding:0 12px; font-size:12px; border-radius:var(--r-button); }
 
 /* THE TOKEN HAS TO WORK OFF THE BOARD TOO. The fills above are scoped to
    `.wb2` / `.wb2-sheet` / `.wb2-capcard`, which is fine while a control only
@@ -10715,3 +10690,22 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .tc-dots i:nth-child(3) { animation-delay:.4s; }
 @keyframes tcDots { 0%, 80%, 100% { opacity:.25; } 40% { opacity:1; } }
 @media (prefers-reduced-motion:reduce) { .fg .tc-dots i { animation:none; opacity:.6; } }
+
+/* EDIT CUSTOMER (job-customer-dialog), the v2 dialog (Isaac, 25 October
+   2026): fields with their labels above, each contact a card (rule 35) with
+   its role one chooser, and the bills' address with "Same as the site". */
+.ecust { display:flex; flex-direction:column; gap:16px; }
+.ecust-grp { display:flex; flex-direction:column; align-items:stretch; gap:8px; }
+.ecust-gt { margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.ecust-contact { display:flex; flex-direction:column; gap:12px; min-width:0; margin:0; padding:16px; border:1px solid var(--edge); border-radius:var(--r-card); }
+.ecust-two { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; }
+.ecust-role { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; }
+.ecust-role > .pt-field { flex:0 1 224px; }
+.pt-btn.ecust-add { align-self:flex-start; }
+.ecust-bills { display:flex; flex-direction:column; align-items:flex-start; gap:4px; }
+.ecust-bills > .pt-field { align-self:stretch; }
+.ecust-same.ecust-same { margin:0; padding:0; border:0; background:none; font-family:var(--font); font-size:13px; line-height:18px; font-weight:500;
+  color:var(--link); text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
+.ecust-same:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
+.ecust-note { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.ecust-wrong { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--red-w); }

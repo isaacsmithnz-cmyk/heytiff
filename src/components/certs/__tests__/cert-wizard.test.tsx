@@ -107,6 +107,40 @@ describe("what the job already says", () => {
   });
 });
 
+describe("the dialog", () => {
+  /* every pop-up is the v2 dialog (Isaac, 25 October 2026) */
+  it("is the v2 dialog, the job on a grey line, its steps as section tabs", async () => {
+    open();
+    await screen.findByRole("tab", { name: "The job" });
+    const dialog = screen.getByRole("dialog", { name: "Mechanical Compliance Certificate" });
+    expect(dialog).toHaveClass("pt-dialog", "pt-dialog--960");
+    expect(screen.getByText("Job 3326, Lv 3 Suite 4/44-54 Example Road, Suburb, NSW, 2015")).toBeInTheDocument();
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["The job", "Equipment", "Requirements", "Checks", "Sign"]);
+    expect(screen.getByRole("tab", { name: "Equipment" })).toHaveClass("pt-stab");
+    await tab("Equipment");
+    /* each system a box, its rows labelled, and a quiet Clear on each */
+    expect(panel("equipment").getByRole("heading", { name: "System 1" })).toBeInTheDocument();
+    expect(panel("equipment").getByLabelText("Outdoor unit location")).toHaveClass("pt-input");
+    expect(panel("equipment").getByRole("button", { name: "Clear outdoor unit 1" })).toHaveClass("pt-btn--quiet");
+    expect(panel("equipment").getByRole("button", { name: "Add equipment" })).toHaveClass("pt-btn--second");
+    expect(dialog.querySelector('[class*="wb2-"], .pbtn, .seg, select, [class^="cz-"], [class^="sw-"]')).toBeNull();
+  });
+
+  it("asks before Cancel throws the answers away", async () => {
+    open();
+    await screen.findByRole("tab", { name: "The job" });
+    await userEvent.click(panel("covers").getByRole("radio", { name: /Office/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog", { name: "Discard this certificate?" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(screen.queryByRole("dialog", { name: "Discard this certificate?" })).toBeNull();
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(screen.getByRole("button", { name: "Discard" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("the make", () => {
   it("is read off each model, follows a new model, and keeps one typed by hand", async () => {
     open();
@@ -167,7 +201,7 @@ describe("where the equipment came from", () => {
     answer(tiffs2933);
     expect(await eq.findByDisplayValue("RZQ250LY1")).toBeInTheDocument();
     expect(eq.getByDisplayValue("FDYQN250LBV1")).toBeInTheDocument();
-    expect(eq.getByText("Filled in from the job's description. Check every row against what was installed.")).toBeInTheDocument();
+    expect(eq.queryByText("Tiff is reading the job's description")).toBeNull();
     expect(readJobDescription).toHaveBeenCalledWith("job-1");
   });
 
@@ -190,7 +224,7 @@ describe("where the equipment came from", () => {
     open();
     await screen.findByRole("tab", { name: "Equipment" });
     await tab("Equipment");
-    expect(await panel("equipment").findByText("Filled in from the job's description. Check every row against what was installed.")).toBeInTheDocument();
+    await waitFor(() => expect(panel("equipment").queryByText("Tiff is reading the job's description")).toBeNull());
     expect(panel("equipment").getByDisplayValue("MUZ-AP42VGD2-A2")).toBeInTheDocument();
   });
 
@@ -201,12 +235,15 @@ describe("where the equipment came from", () => {
     expect(readJobDescription).not.toHaveBeenCalled();
   });
 
-  it("says it came from the accepted quote when it did", async () => {
+  /* he removes every tagline (25 October 2026): the rows are the answer,
+     and no caption under the heading says where they came from */
+  it("fills the rows in without a caption saying where from", async () => {
     certWizardContext.mockImplementation(async () => context({ equipmentFrom: "quote" }));
     open();
     await screen.findByRole("tab", { name: "Equipment" });
     await tab("Equipment");
-    expect(panel("equipment").getByText("Filled in from the accepted quote. Check every row.")).toBeInTheDocument();
+    expect(panel("equipment").getByDisplayValue("MUZ-AP42VGD2-A2")).toBeInTheDocument();
+    expect(panel("equipment").queryByText(/Filled in from/)).toBeNull();
   });
 
   it("says to mark the accepted option when the quote has several and none is marked", async () => {
@@ -215,7 +252,6 @@ describe("where the equipment came from", () => {
     await screen.findByRole("tab", { name: "Equipment" });
     await tab("Equipment");
     expect(panel("equipment").getByText(/This job's quote has 2 options and none is marked accepted/)).toBeInTheDocument();
-    expect(panel("equipment").getByText("Filled in from the job's description. Check every row against what was installed.")).toBeInTheDocument();
   });
 });
 
@@ -346,10 +382,11 @@ describe("what you've been asked to cover", () => {
     readCertifierList.mockImplementation(async () => reading([{ text: "AC installed to AS/NZS 5149", clause: "refrigerant", notOurs: false }]));
     readCertifierEmail.mockImplementation(async () => reading([{ text: "Fans to AS 1668.2", clause: null, notOurs: false }]));
     const list = await openStep();
-    const pick = list.getByRole("combobox", { name: "A file to read" });
-    expect(within(pick).getByRole("group", { name: "From ServiceM8" })).toHaveTextContent("OC List of Requirements.pdf");
-    expect(within(pick).getByRole("group", { name: "Uploaded here" })).toHaveTextContent("Photo of list.jpg");
-    await userEvent.selectOptions(pick, "f-sm8");
+    /* each file says where it came from, under its name */
+    await userEvent.click(list.getByRole("combobox", { name: "A file to read" }));
+    expect(screen.getByRole("option", { name: /^OC List of Requirements\.pdf/ })).toHaveTextContent("From ServiceM8");
+    expect(screen.getByRole("option", { name: /^Photo of list\.jpg/ })).toHaveTextContent("Uploaded here");
+    await userEvent.click(screen.getByRole("option", { name: /^OC List of Requirements\.pdf/ }));
     await userEvent.type(list.getByLabelText("What the certificate must cover"), "Fans to AS 1668.2 too please");
     await userEvent.click(list.getByRole("button", { name: "Read the requirements" }));
     expect(readCertifierList).toHaveBeenCalledWith("job-1", "f-sm8");
@@ -378,10 +415,12 @@ describe("what you've been asked to cover", () => {
   it("looks again for a file filed in ServiceM8 a minute ago", async () => {
     certListFiles.mockImplementation(async () => [{ id: "f-new", name: "Requirements.pdf", fromSm8: true }]);
     const list = await openStep();
-    expect(list.getByRole("option", { name: "No files on this job yet" })).toBeInTheDocument();
+    expect(list.getByRole("combobox", { name: "A file to read" })).toHaveTextContent("No files on this job yet");
     await userEvent.click(list.getByRole("button", { name: "Look again" }));
     expect(cacheJobFiles).toHaveBeenCalledWith("job-1");
-    expect(await list.findByRole("option", { name: "Requirements.pdf" })).toBeInTheDocument();
+    await waitFor(() => expect(list.getByRole("combobox", { name: "A file to read" })).toHaveTextContent("No file"));
+    await userEvent.click(list.getByRole("combobox", { name: "A file to read" }));
+    expect(screen.getByRole("option", { name: /^Requirements\.pdf/ })).toBeInTheDocument();
   });
 });
 
@@ -437,7 +476,7 @@ describe("the state the job is in", () => {
     open();
     await screen.findByRole("tab", { name: "The job" });
     const covers = panel("covers");
-    expect(covers.getByLabelText("State")).toHaveValue("VIC");
+    expect(covers.getByLabelText("State")).toHaveTextContent("Victoria");
     expect(covers.getByText("From the address")).toBeInTheDocument();
     expect(covers.getByText(/VBA plumbing compliance certificate/)).toBeInTheDocument();
   });
@@ -446,7 +485,7 @@ describe("the state the job is in", () => {
     certWizardContext.mockImplementation(async () => context({ job: { ...context().job, address: "12 Smith St" }, orgState: "QLD" }));
     open();
     await screen.findByRole("tab", { name: "The job" });
-    expect(panel("covers").getByLabelText("State")).toHaveValue("QLD");
+    expect(panel("covers").getByLabelText("State")).toHaveTextContent("Queensland");
     expect(panel("covers").getByText("From your company settings")).toBeInTheDocument();
   });
 
@@ -454,7 +493,7 @@ describe("the state the job is in", () => {
     certWizardContext.mockImplementation(async () => context({ job: { ...context().job, address: "12 Smith St" }, orgState: null }));
     open();
     await screen.findByRole("tab", { name: "The job" });
-    expect(panel("covers").getByLabelText("State")).toHaveValue("");
+    expect(panel("covers").getByLabelText("State")).toHaveTextContent("Choose");
     await tab("Sign");
     expect(panel("sign").getByRole("button", { name: "Choose the state the job is in." })).toBeInTheDocument();
   });

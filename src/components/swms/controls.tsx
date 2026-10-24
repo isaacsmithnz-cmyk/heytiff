@@ -1,13 +1,14 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { Button } from "@/components/parts/button";
 import { SIGNATURE_VIEWBOX } from "@/lib/swms/input";
 
-/* THE SWMS'S CONTROLS, shared: the segmented choice, the option row and the
-   signature pad. They lived inside the SWMS wizard and the sign-on; the
-   certificate wizard and the staff card's signature use the same ones, so a
-   choice and a signature look and behave the same wherever they're asked
-   for. Styled by swms.css. */
+/* THE SWMS'S CONTROLS, shared: the segmented choice (the letterhead's) and
+   the signature pad (the sign-on, the certificate wizard and the staff
+   card's signature), so a signature looks and behaves the same wherever it
+   is asked for. The wizards' own choices are v2's parts (./wizard). Styled
+   by swms.css. */
 
 export function Seg<T extends string>({
   label,
@@ -37,36 +38,6 @@ export function Seg<T extends string>({
         </button>
       ))}
     </div>
-  );
-}
-
-export function Choice({
-  name,
-  checked,
-  onChange,
-  title,
-  sub,
-  kind = "radio",
-  id,
-  disabled = false,
-}: {
-  name: string;
-  checked: boolean;
-  onChange: (on: boolean) => void;
-  title: string;
-  sub?: string | null;
-  kind?: "radio" | "checkbox";
-  id?: string;
-  disabled?: boolean;
-}) {
-  return (
-    <label className={`sw-opt${checked ? " on" : ""}${disabled ? " off" : ""}`}>
-      <input id={id} type={kind} name={name} checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
-      <span>
-        <b>{title}</b>
-        {sub && <em>{sub}</em>}
-      </span>
-    </label>
   );
 }
 
@@ -136,9 +107,10 @@ export function SignaturePad({ onChange, label }: { onChange: (path: string) => 
         }}
       />
       {empty && <span>Sign here</span>}
-      <button
-        type="button"
-        className="pbtn ghost sm sws-clear"
+      <Button
+        kind="quiet"
+        size={32}
+        className="sws-clear"
         onClick={() => {
           parts.current = [];
           last.current = null;
@@ -149,7 +121,7 @@ export function SignaturePad({ onChange, label }: { onChange: (path: string) => 
         }}
       >
         Clear
-      </button>
+      </Button>
     </div>
   );
 }

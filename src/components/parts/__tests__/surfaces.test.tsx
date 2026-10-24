@@ -123,8 +123,9 @@ describe("ConfirmDialog", () => {
     expect(dialog).toHaveAccessibleDescription("The crew loses it from their day.");
     const keep = screen.getByRole("button", { name: "Keep it" });
     const del = screen.getByRole("button", { name: "Delete visit" });
-    expect(keep).toHaveClass("pt-btn", "pt-btn--second");
-    expect(del).toHaveClass("pt-btn", "pt-btn--danger");
+    /* a dialog's buttons are 36 (rule 28); without the size class they had no height */
+    expect(keep).toHaveClass("pt-btn", "pt-btn--36", "pt-btn--second");
+    expect(del).toHaveClass("pt-btn", "pt-btn--36", "pt-btn--danger");
     expect(keep).toHaveFocus();
     // the safe one first, the red one at the right end of the foot
     expect(keep.compareDocumentPosition(del) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

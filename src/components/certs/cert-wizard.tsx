@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { useOverlay } from "@/components/overlay/use-overlay";
-import { Icon } from "@/components/shell/icon";
-import { ViewTabs } from "@/components/shell/view-tabs";
-import { Choice, Seg, SignaturePad } from "@/components/swms/controls";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Button, LinkButton } from "@/components/parts/button";
+import { ConfirmDialog } from "@/components/parts/dialog";
+import { Chooser } from "@/components/parts/chooser";
+import { Field, TextArea, TextInput } from "@/components/parts/field";
+import { Tray } from "@/components/parts/tabs";
+import { Tick } from "@/components/parts/tick";
+import { SignaturePad } from "@/components/swms/controls";
+import { FootWord, Group, jobLine, Jumps, Q, Radio, WizardDialog } from "@/components/swms/wizard";
 import { DateField } from "@/components/ui/date-field";
 import {
   certPrevious,
@@ -54,7 +57,6 @@ import {
 } from "@/lib/certs/mechanical";
 import { AU_STATES, STATE_NAME, stateFromAddress, type AuState } from "@/lib/swms/library";
 import "@/components/swms/swms.css";
-import "./cert-wizard.css";
 
 /* THE CERTIFICATE WIZARD — five screens on the job card, and the library
    writes the certificate. docs/certificates-plan.md, The wizard.
@@ -66,9 +68,9 @@ import "./cert-wizard.css";
    and its charge, and what this job was asked to cover, pasted, typed or on a file, from
    whoever asked (a certifier, the builder, an architect).
 
-   IT WEARS THE SWMS WIZARD'S DRESS (swms.css): the same panel over the card,
-   the same tabs, questions, options and footer, so the two documents HeyTiff
-   writes are asked for the same way. */
+   IT WEARS THE SWMS WIZARD'S FRAME (swms/wizard): the v2 dialog, the job's
+   line, the steps as section tabs, Back and Continue, so the two documents
+   HeyTiff writes are asked for the same way (Isaac, 25 October 2026). */
 
 type Tab = "covers" | "equipment" | "list" | "checks" | "sign";
 const TABS: { key: Tab; label: string }[] = [
@@ -93,7 +95,7 @@ const PROBLEM_TAB: Record<CertProblemField, Tab> = {
   approval: "sign",
 };
 
-const REFRIGERANTS = ["R32", "R410A", "R454B", "R290"] as const;
+const REFRIGERANTS = ["R32", "R410A", "R454B", "R290"].map((r) => ({ value: r, label: r }));
 
 const blankSystem = (refrigerant = ""): AcSystem => ({
   outdoor: { ...EMPTY_ROW },
@@ -168,26 +170,22 @@ function startingAnswers(ctx: CertWizardContext): CertAnswers {
   };
 }
 
-function Field({
+/** A labelled text field, as the equipment's rows hold them. */
+function Entry({
   label,
   value,
   onChange,
-  width,
-  list,
   inputMode,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
-  width?: "s" | "m";
-  list?: string;
   inputMode?: "decimal" | "numeric";
 }) {
   return (
-    <label className={`cz-f${width ? ` ${width}` : ""}`}>
-      <span>{label}</span>
-      <input className="wb2-fi" type="text" value={value} list={list} inputMode={inputMode} onChange={(e) => onChange(e.target.value)} />
-    </label>
+    <Field label={label}>
+      <TextInput value={value} inputMode={inputMode} onChange={(e) => onChange(e.target.value)} />
+    </Field>
   );
 }
 
@@ -196,23 +194,12 @@ function Field({
    never stayed and 2.8 could not be typed. The text is the field's own; it
    is taken from the number again only when the number changes from
    elsewhere. */
-function NumField({
-  label,
-  value,
-  onChange,
-  width,
-}: {
-  label: string;
-  value: number | null;
-  onChange: (n: number | null) => void;
-  width?: "s" | "m";
-}) {
+function NumField({ label, value, onChange }: { label: string; value: number | null; onChange: (n: number | null) => void }) {
   const [text, setText] = useState(() => numText(value));
   if (readNum(text) !== value) setText(numText(value));
   return (
-    <Field
+    <Entry
       label={label}
-      width={width}
       inputMode="decimal"
       value={text}
       onChange={(v) => {
@@ -280,7 +267,7 @@ export function CertWizard({
   const [readingDescription, setReadingDescription] = useState(false);
   const equipmentEdited = useRef(false);
   const [confirmClose, setConfirmClose] = useState(false);
-  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let live = true;
@@ -348,10 +335,8 @@ export function CertWizard({
     else setConfirmClose(true);
   };
 
-  /* Escape closes, through the same question as the cross, and only this:
-     the card under it stays open (the overlay stack). */
-  const dialog = useRef<HTMLElement>(null);
-  useOverlay(dialog, { onEscape: askClose });
+  /* Escape, the scrim and Cancel ask the same question, and close only
+     this: the page under it stays open (the overlay stack). */
 
   const live = ctx && ctx !== "failed" ? ctx : null;
   const signer = live?.signatory ?? null;
@@ -521,215 +506,209 @@ export function CertWizard({
 
   /* ── the screens ─────────────────────────────────────────────────────── */
 
+  const fromAddress = live ? stateFromAddress(live.job.address) : null;
   const coversScreen = live && (
-    <>
-      <div className="sw-grp">
-        <div className="sw-gh">
-          <b>What are you certifying?</b>
+    <div className="wzd-form">
+      <Group heading="What are you certifying?">
+        <div className="wzd-ticks">
+          <Tick
+            checked={a.covers.ac}
+            onChange={(on) => set({ covers: { ...a.covers, ac: on }, systems: on && a.systems.length === 0 ? [blankSystem()] : a.systems })}
+            label="Air conditioning"
+          />
+          <Tick checked={a.covers.vent} onChange={(on) => set({ covers: { ...a.covers, vent: on }, fans: on && a.fans.length === 0 ? [blankFan()] : a.fans })} label="Ventilation" />
         </div>
-        <div className="sw-opts row cz-big">
-          <Choice kind="checkbox" name="covers-ac" checked={a.covers.ac} onChange={(on) => set({ covers: { ...a.covers, ac: on }, systems: on && a.systems.length === 0 ? [blankSystem()] : a.systems })} title="Air conditioning" sub="Splits, multis, ducted, VRF" />
-          <Choice kind="checkbox" name="covers-vent" checked={a.covers.vent} onChange={(on) => set({ covers: { ...a.covers, vent: on }, fans: on && a.fans.length === 0 ? [blankFan()] : a.fans })} title="Ventilation" sub="Exhaust fans, ERVs, fresh air" />
-        </div>
-      </div>
-      <div className="sw-grp">
-        <div className="sw-gh">
-          <b>Which state is the job in?</b>
-          {a.state === null && <span>{"The address doesn't name one, and your company settings don't either."}</span>}
-        </div>
-        <div className="sw-qas">
-          <div className="sw-qa">
-            <span>
-              <label htmlFor="cz-state">State</label>
-              {a.state !== null && a.state === stateFromAddress(live.job.address) && <em>From the address</em>}
-              {a.state !== null && !stateFromAddress(live.job.address) && a.state === live.orgState && <em>From your company settings</em>}
-            </span>
-            <select id="cz-state" className="wb2-fi" value={a.state ?? ""} onChange={(e) => set({ state: (e.target.value || null) as AuState | null })}>
-              <option value="">Choose</option>
-              {AU_STATES.map((st) => (
-                <option key={st} value={st}>
-                  {STATE_NAME[st]}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        {stateFormNote(a.state) && <p className="sw-note">{stateFormNote(a.state)}</p>}
-      </div>
-      <div className="sw-grp">
-        <div className="sw-gh">
-          <b>What kind of building is it?</b>
-          {a.building === null && <span>Choose one to confirm.</span>}
-        </div>
-        <div className="sw-opts row cz-big">
+      </Group>
+      <Q
+        label="State"
+        htmlFor="cz-state"
+        sub={
+          a.state === null
+            ? "The address doesn't name one, and your company settings don't either."
+            : a.state === fromAddress
+              ? "From the address"
+              : !fromAddress && a.state === live.orgState
+                ? "From your company settings"
+                : null
+        }
+      >
+        <Chooser
+          id="cz-state"
+          className="wzd-short"
+          placeholder="Choose"
+          value={a.state}
+          options={AU_STATES.map((st) => ({ value: st, label: STATE_NAME[st] }))}
+          onChange={(v) => set({ state: v as AuState })}
+        />
+      </Q>
+      {stateFormNote(a.state) && <p className="wzd-note">{stateFormNote(a.state)}</p>}
+      <Group heading="What kind of building is it?" fact={a.building === null ? "Choose one to confirm." : null}>
+        <div className="wzd-radios" role="radiogroup" aria-label="What kind of building it is">
           {BUILDINGS.map((b) => (
-            <Choice
+            <Radio
               key={b.key}
               name="building"
               checked={a.building === b.key}
               onChange={() => set({ building: b.key })}
-              title={b.label}
+              label={b.label}
               sub={a.building === null && live.building.building === b.key ? `${b.cls}, suggested ${live.building.because}` : b.cls}
             />
           ))}
         </div>
-      </div>
-      <div className="sw-qas">
-        <div className="sw-qa">
-          <span>
-            <label htmlFor="cz-done">Date the works were completed</label>
-            {live.job.completedOn && a.completedOn === live.job.completedOn && <em>From ServiceM8</em>}
-          </span>
-          <DateField id="cz-done" className="wb2-fi cz-date" aria-label="Date the works were completed" max={live.today} today={live.today} value={a.completedOn || null} onChange={(iso) => set({ completedOn: iso ?? "" })} />
-        </div>
-      </div>
-    </>
+      </Group>
+      <Q label="Date the works were completed" htmlFor="cz-done" sub={live.job.completedOn && a.completedOn === live.job.completedOn ? "From ServiceM8" : null}>
+        <DateField
+          id="cz-done"
+          className="wzd-date"
+          aria-label="Date the works were completed"
+          max={live.today}
+          today={live.today}
+          value={a.completedOn || null}
+          onChange={(iso) => set({ completedOn: iso ?? "" })}
+        />
+      </Q>
+    </div>
   );
 
+  /* the plate check closes the last list of units on the screen */
+  const plateTick = (
+    <Tick
+      className="wzd-tick"
+      checked={a.equipmentConfirmed}
+      onChange={(on) => set({ equipmentConfirmed: on })}
+      label="I've checked every unit against its rating plate"
+    />
+  );
+  const eqClass = a.serialsGiven ? "wzd-eq wzd-eq--serial" : "wzd-eq";
+
   const acEditor = (
-    <div className="sw-grp">
-      <div className="sw-gh">
-        <b>Air conditioning</b>
-        <span>{`${fmtKw(indoorTotalKw(a.systems))} indoor in total`}</span>
-      </div>
+    <Group heading="Air conditioning" fact={`${fmtKw(indoorTotalKw(a.systems))} indoor in total`}>
       {live && live.quoteToMark > 0 && (
-        <p className="sw-state bad">{`This job's quote has ${live.quoteToMark} options and none is marked accepted. Mark the one the client took on the Quote face, then open the certificate again.`}</p>
+        <p className="wzd-wrong">{`This job's quote has ${live.quoteToMark} options and none is marked accepted. Mark the one the client took on the Quote face, then open the certificate again.`}</p>
       )}
-      {readingDescription ? (
-        <p className="sw-note">Tiff is reading the job&apos;s description</p>
-      ) : live?.reading.systems.length ? (
-        <p className="sw-note">
-          {live.equipmentFrom === "quote" ? "Filled in from the accepted quote. Check every row." : "Filled in from the job's description. Check every row against what was installed."}
-        </p>
-      ) : null}
+      {readingDescription && <p className="wzd-note">Tiff is reading the job&apos;s description</p>}
       {/* the quote's own total against its rows: a room left off it, or a
           capacity typed wrong, shows here before it reaches the paper */}
       {live?.reading.statedConnectedKw != null && Math.abs(live.reading.statedConnectedKw - indoorTotalKw(a.systems)) > 0.05 && (
-        <p className="sw-state bad">
+        <p className="wzd-text">
           {`The quote says ${fmtKw(live.reading.statedConnectedKw)} connected, but these rows add to ${fmtKw(indoorTotalKw(a.systems))}. Check for a missing room or a wrong capacity. If the rows are right, carry on.`}
         </p>
       )}
       {a.systems.map((s, i) => (
-        <div key={i} className="cz-sys">
-          <div className="cz-row out">
-            <Field label="Outdoor unit location" value={s.outdoor.location} onChange={(v) => setOutdoor(i, { location: v })} />
-            <Field label="Make" width="m" value={s.outdoor.make} onChange={(v) => setOutdoor(i, { make: v })} />
-            <Field label="Model" value={s.outdoor.model} onChange={(v) => setOutdoor(i, { model: v })} />
-            <NumField label="kW" width="s" value={s.outdoor.capacityKw} onChange={(n) => setOutdoor(i, { capacityKw: n })} />
-            {a.serialsGiven && <Field label="Serial" width="m" value={s.outdoor.serial} onChange={(v) => setOutdoor(i, { serial: v })} />}
-            <button type="button" className="wb2-ico cz-x" aria-label={`Clear outdoor unit ${i + 1}`} onClick={() => set({ systems: a.systems.filter((_, j) => j !== i) })}>
-              <Icon name="x" size={14} />
-            </button>
+        <div key={i} className="wzd-box">
+          <h4 className="wzd-boxt">{`System ${i + 1}`}</h4>
+          <div className={eqClass}>
+            <Entry label="Outdoor unit location" value={s.outdoor.location} onChange={(v) => setOutdoor(i, { location: v })} />
+            <Entry label="Make" value={s.outdoor.make} onChange={(v) => setOutdoor(i, { make: v })} />
+            <Entry label="Model" value={s.outdoor.model} onChange={(v) => setOutdoor(i, { model: v })} />
+            <NumField label="kW" value={s.outdoor.capacityKw} onChange={(n) => setOutdoor(i, { capacityKw: n })} />
+            <span aria-hidden="true" />
+            {a.serialsGiven && <Entry label="Serial" value={s.outdoor.serial} onChange={(v) => setOutdoor(i, { serial: v })} />}
+            <Button kind="quiet" aria-label={`Clear outdoor unit ${i + 1}`} onClick={() => set({ systems: a.systems.filter((_, j) => j !== i) })}>
+              Clear
+            </Button>
           </div>
           {s.indoors.map((r, j) => (
-            <div key={j} className="cz-row">
-              <Field label="Room" value={r.location} onChange={(v) => setIndoor(i, j, { location: v })} />
-              <Field label="Make" width="m" value={r.make} onChange={(v) => setIndoor(i, j, { make: v })} />
-              <Field label="Model" value={r.model} onChange={(v) => setIndoor(i, j, { model: v })} />
-              <NumField label="kW" width="s" value={r.capacityKw} onChange={(n) => setIndoor(i, j, { capacityKw: n })} />
-              <Field label="Qty" width="s" inputMode="numeric" value={String(r.qty)} onChange={(v) => setIndoor(i, j, { qty: Math.max(1, Math.floor(readNum(v) ?? 1)) })} />
-              {a.serialsGiven && <Field label={r.qty > 1 ? "Serials, comma between" : "Serial"} width="m" value={r.serial} onChange={(v) => setIndoor(i, j, { serial: v })} />}
-              <button
-                type="button"
-                className="wb2-ico cz-x"
-                aria-label={`Clear ${r.location || `indoor unit ${j + 1}`}`}
-                onClick={() => setSystem(i, { ...s, indoors: s.indoors.filter((_, k) => k !== j) })}
-              >
-                <Icon name="x" size={14} />
-              </button>
+            <div key={j} className={eqClass}>
+              <Entry label="Room" value={r.location} onChange={(v) => setIndoor(i, j, { location: v })} />
+              <Entry label="Make" value={r.make} onChange={(v) => setIndoor(i, j, { make: v })} />
+              <Entry label="Model" value={r.model} onChange={(v) => setIndoor(i, j, { model: v })} />
+              <NumField label="kW" value={r.capacityKw} onChange={(n) => setIndoor(i, j, { capacityKw: n })} />
+              <Entry label="Qty" inputMode="numeric" value={String(r.qty)} onChange={(v) => setIndoor(i, j, { qty: Math.max(1, Math.floor(readNum(v) ?? 1)) })} />
+              {a.serialsGiven && <Entry label={r.qty > 1 ? "Serials, comma between" : "Serial"} value={r.serial} onChange={(v) => setIndoor(i, j, { serial: v })} />}
+              <Button kind="quiet" aria-label={`Clear ${r.location || `indoor unit ${j + 1}`}`} onClick={() => setSystem(i, { ...s, indoors: s.indoors.filter((_, k) => k !== j) })}>
+                Clear
+              </Button>
             </div>
           ))}
-          <button type="button" className="sw-more" onClick={() => setSystem(i, { ...s, indoors: [...s.indoors, { ...EMPTY_ROW }] })}>
+          <Button kind="quiet" size={32} className="wzd-start" onClick={() => setSystem(i, { ...s, indoors: [...s.indoors, { ...EMPTY_ROW }] })}>
             Add an indoor unit
-          </button>
+          </Button>
         </div>
       ))}
-      <button type="button" className="pbtn ghost sm cz-add" onClick={() => set({ systems: [...a.systems, blankSystem(a.systems[0]?.test.refrigerant ?? "")] })}>
-        Add equipment
-      </button>
-    </div>
+      <div className="wzd-between">
+        <Button kind="second" onClick={() => set({ systems: [...a.systems, blankSystem(a.systems[0]?.test.refrigerant ?? "")] })}>
+          Add equipment
+        </Button>
+        {!a.covers.vent && plateTick}
+      </div>
+    </Group>
   );
 
   const fanEditor = (
-    <div className="sw-grp">
-      <div className="sw-gh">
-        <b>Ventilation</b>
-      </div>
+    <Group heading="Ventilation">
       {a.fans.map((f, i) => (
-        <div key={i} className="cz-sys">
-          <div className="cz-row fan">
-            <Field label="Room" value={f.location} onChange={(v) => setFan(i, { location: v })} />
-            <Field label="Make" width="m" value={f.make} onChange={(v) => setFan(i, { make: v })} />
-            <Field label="Model" value={f.model} onChange={(v) => setFan(i, { model: v })} />
-            {a.serialsGiven && <Field label="Serial" width="m" value={f.serial} onChange={(v) => setFan(i, { serial: v })} />}
-            <button type="button" className="wb2-ico cz-x" aria-label={`Clear the ${f.location || `fan ${i + 1}`} fan`} onClick={() => set({ fans: a.fans.filter((_, j) => j !== i) })}>
-              <Icon name="x" size={14} />
-            </button>
+        <div key={i} className="wzd-box">
+          <div className={a.serialsGiven ? "wzd-eq wzd-eq--fan wzd-eq--serial" : "wzd-eq wzd-eq--fan"}>
+            <Entry label="Room" value={f.location} onChange={(v) => setFan(i, { location: v })} />
+            <Entry label="Make" value={f.make} onChange={(v) => setFan(i, { make: v })} />
+            <Entry label="Model" value={f.model} onChange={(v) => setFan(i, { model: v })} />
+            {a.serialsGiven && <Entry label="Serial" value={f.serial} onChange={(v) => setFan(i, { serial: v })} />}
+            <Button kind="quiet" aria-label={`Clear the ${f.location || `fan ${i + 1}`} fan`} onClick={() => set({ fans: a.fans.filter((_, j) => j !== i) })}>
+              Clear
+            </Button>
           </div>
           {/* the airflow is printed only when someone wants it on the certificate */}
-          <div className="cz-fanfoot">
-            <label className="cz-tick">
-              <input type="checkbox" checked={f.airflowGiven} onChange={(e) => setFan(i, { airflowGiven: e.target.checked })} />
-              Show its airflow
-            </label>
+          <div className="wzd-airflow">
+            <Tick checked={f.airflowGiven} onChange={(on) => setFan(i, { airflowGiven: on })} label="Show its airflow" />
             {f.airflowGiven && (
               <>
-                <NumField label="L/s" width="s" value={f.airflowLps} onChange={(n) => setFan(i, { airflowLps: n })} />
-                <Seg label="How the airflow is known" value={f.airflowKind} options={[["rated", "Rated"], ["measured", "Measured"]] as const} onChange={(v) => setFan(i, { airflowKind: v })} />
+                <div className="wzd-num">
+                  <NumField label="L/s" value={f.airflowLps} onChange={(n) => setFan(i, { airflowLps: n })} />
+                </div>
+                <Tray
+                  ariaLabel="How the airflow is known"
+                  value={f.airflowKind}
+                  options={[
+                    { value: "rated", label: "Rated" },
+                    { value: "measured", label: "Measured" },
+                  ]}
+                  onChange={(v) => setFan(i, { airflowKind: v })}
+                />
               </>
             )}
           </div>
         </div>
       ))}
-      <button type="button" className="pbtn ghost sm cz-add" onClick={() => set({ fans: [...a.fans, blankFan()] })}>
-        Add a fan
-      </button>
+      <div className="wzd-between">
+        <Button kind="second" onClick={() => set({ fans: [...a.fans, blankFan()] })}>
+          Add a fan
+        </Button>
+        {plateTick}
+      </div>
       {a.fans.length > 0 && (
-        <>
-          <div className="sw-gh">
-            <b>Does every exhaust fan discharge outdoors?</b>
-            {a.exhaustTo === "not" && <span>{"The certificate won't say where the exhaust goes."}</span>}
-          </div>
-          <div className="sw-opts">
-            {EXHAUST_TO.map((e) => (
-              <Choice key={e.key} name="exhaust-to" checked={a.exhaustTo === e.key} onChange={() => set({ exhaustTo: e.key })} title={e.label} />
-            ))}
-          </div>
-        </>
+        <div className="wzd-radios" role="radiogroup" aria-labelledby="cz-exhaust-l">
+          <span className="wzd-ql" id="cz-exhaust-l">
+            Does every exhaust fan discharge outdoors?
+          </span>
+          {a.exhaustTo === "not" && <span className="wzd-qs">{"The certificate won't say where the exhaust goes."}</span>}
+          {EXHAUST_TO.map((e) => (
+            <Radio key={e.key} name="exhaust-to" checked={a.exhaustTo === e.key} onChange={() => set({ exhaustTo: e.key })} label={e.label} />
+          ))}
+        </div>
       )}
-    </div>
+    </Group>
   );
 
   const equipmentScreen = (
-    <>
+    <div className="wzd-form">
       {a.covers.ac && acEditor}
       {a.covers.vent && fanEditor}
+      {/* serials are optional: off, the certificate prints no serial column */}
       {(a.covers.ac || a.covers.vent) && (
-        <div className="sw-grp">
-          {/* serials are optional: off, the certificate prints no serial column */}
-          <label className="cz-tick">
-            <input type="checkbox" checked={a.serialsGiven} onChange={(e) => set({ serialsGiven: e.target.checked })} />
-            Show serial numbers on the certificate
-          </label>
-          <Choice
-            kind="checkbox"
-            name="confirmed"
-            checked={a.equipmentConfirmed}
-            onChange={(on) => set({ equipmentConfirmed: on })}
-            title="I've checked every unit against its rating plate"
-          />
-        </div>
+        <Tick checked={a.serialsGiven} onChange={(on) => set({ serialsGiven: on })} label="Show serial numbers on the certificate" />
       )}
-      <div className="sw-grp">
-        <div className="sw-gh">
-          <b>What else was installed?</b>
-        </div>
-        <div className="sw-opts">
-          <Choice kind="checkbox" name="duct" checked={a.installed.ductwork} onChange={(on) => set({ installed: { ...a.installed, ductwork: on } })} title="Ductwork, plenums or flexible duct" />
-          <Choice kind="checkbox" name="fire" checked={a.installed.fireRated} onChange={(on) => set({ installed: { ...a.installed, fireRated: on } })} title="Penetrations through fire-rated walls or floors" />
+      <Group heading="What else was installed?">
+        <div className="wzd-ticks">
+          <Tick checked={a.installed.ductwork} onChange={(on) => set({ installed: { ...a.installed, ductwork: on } })} label="Ductwork, plenums or flexible duct" />
+          <Tick
+            checked={a.installed.fireRated}
+            onChange={(on) => set({ installed: { ...a.installed, fireRated: on } })}
+            label="Penetrations through fire-rated walls or floors"
+          />
           {a.installed.fireRated && (
-            <input
-              className="wb2-fi"
+            <TextInput
+              className="wzd-short"
               aria-label="Fire-stopping product"
               placeholder="Fire-stopping product, like Promat collars"
               value={a.installed.fireStopProduct}
@@ -737,215 +716,193 @@ export function CertWizard({
             />
           )}
         </div>
-      </div>
-    </>
+      </Group>
+    </div>
   );
 
-  const fileOptions = (fromSm8: boolean) =>
-    live?.files
-      .filter((f) => f.fromSm8 === fromSm8)
-      .map((f) => (
-        <option key={f.id} value={f.id}>
-          {f.name}
-        </option>
-      ));
+  const fileOptions = live
+    ? [
+        { value: "", label: live.files.length ? "No file" : "No files on this job yet" },
+        ...live.files.map((f) => ({ value: f.id, label: f.name, hint: f.fromSm8 ? "From ServiceM8" : "Uploaded here" })),
+      ]
+    : [];
 
   const listScreen = live && (
-    <>
-      <div className="sw-grp">
-        <div className="sw-gh">
-          <b>
-            <label htmlFor="cz-asked">What the certificate must cover</label>
-          </b>
-          <span>Optional</span>
-        </div>
-        <textarea
-          id="cz-asked"
-          className="wb2-notes"
-          rows={6}
-          placeholder="Paste the email or list from the certifier, builder or architect"
-          value={asked}
-          onChange={(e) => setAsked(e.target.value)}
+    <div className="wzd-form">
+      <Q label="What the certificate must cover" htmlFor="cz-asked" sub="Optional">
+        <TextArea id="cz-asked" rows={6} placeholder="Paste the email or list from the certifier, builder or architect" value={asked} onChange={(e) => setAsked(e.target.value)} />
+      </Q>
+      <div className="wzd-pick">
+        <Chooser aria-label="A file to read" value={listDoc} options={fileOptions} onChange={setListDoc} />
+        <Button kind="second" disabled={uploading || listBusy} onClick={() => listPicker.current?.click()}>
+          {uploading ? "Uploading the file" : "Upload a file"}
+        </Button>
+        <input
+          ref={listPicker}
+          type="file"
+          accept="application/pdf,image/jpeg,image/png,image/webp,image/gif"
+          hidden
+          aria-label="Choose a file to upload"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            /* cleared now, so choosing the same file again still fires */
+            e.target.value = "";
+            void uploadList(file);
+          }}
         />
-        <div className="cz-pick">
-          <select className="wb2-sel" aria-label="A file to read" value={listDoc} onChange={(e) => setListDoc(e.target.value)}>
-            <option value="">{live.files.length ? "No file" : "No files on this job yet"}</option>
-            {live.files.some((f) => f.fromSm8) && <optgroup label="From ServiceM8">{fileOptions(true)}</optgroup>}
-            {live.files.some((f) => !f.fromSm8) && <optgroup label="Uploaded here">{fileOptions(false)}</optgroup>}
-          </select>
-          <button type="button" className="pbtn ghost" disabled={uploading || listBusy} onClick={() => listPicker.current?.click()}>
-            {uploading ? "Uploading the file" : "Upload a file"}
-          </button>
-          <input
-            ref={listPicker}
-            type="file"
-            accept="application/pdf,image/jpeg,image/png,image/webp,image/gif"
-            hidden
-            aria-label="Choose a file to upload"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              /* cleared now, so choosing the same file again still fires */
-              e.target.value = "";
-              void uploadList(file);
-            }}
-          />
-        </div>
-        <p className="sw-note">
-          Files emailed to this job in ServiceM8 are listed.{" "}
-          <button type="button" className="sw-more cz-inline" disabled={looking} onClick={() => void lookAgain()}>
-            {looking ? "Looking in ServiceM8" : "Look again"}
-          </button>
-        </p>
-        <button type="button" className="pbtn cz-read" disabled={!unread || listBusy || uploading} onClick={() => void readAsked()}>
-          {listBusy ? "Reading the requirements" : "Read the requirements"}
-        </button>
-        {listError && <p className="sw-state bad">{listError}</p>}
-        {!listError && unread && !listBusy && <p className="sw-note">Not read yet.</p>}
-        {lastRead?.found === 0 && !unread && <p className="sw-note">Tiff found no requirements in it for this certificate.</p>}
-        {a.requirements.length === 0 && !asked.trim() && !listDoc && <p className="sw-note">No requirements? Continue, and the certificate uses the standard statements.</p>}
       </div>
+      <p className="wzd-note">
+        Files emailed to this job in ServiceM8 are listed.{" "}
+        <button type="button" className="wzd-inline" disabled={looking} onClick={() => void lookAgain()}>
+          {looking ? "Looking in ServiceM8" : "Look again"}
+        </button>
+      </p>
+      <Button kind="second" className="wzd-start" disabled={!unread || listBusy || uploading} onClick={() => void readAsked()}>
+        {listBusy ? "Reading the requirements" : "Read the requirements"}
+      </Button>
+      {listError && <p className="wzd-wrong">{listError}</p>}
+      {!listError && unread && !listBusy && <p className="wzd-note">Not read yet.</p>}
+      {lastRead?.found === 0 && !unread && <p className="wzd-note">Tiff found no requirements in it for this certificate.</p>}
+      {a.requirements.length === 0 && !asked.trim() && !listDoc && <p className="wzd-note">No requirements? Continue, and the certificate uses the standard statements.</p>}
 
       {a.requirements.length > 0 && (
-        <div className="sw-grp">
-          <div className="sw-gh">
-            <b>Requirements found</b>
-            <span>{`${a.requirements.length} to check`}</span>
-          </div>
-          {a.requirements.map((r, i) => (
-            <div key={i} className="cz-req">
-              <textarea className="wb2-notes" rows={2} aria-label={`Requirement ${i + 1}`} value={r.text} onChange={(e) => setReq(i, { text: e.target.value })} />
-              <select
-                className="wb2-sel"
-                aria-label={`How requirement ${i + 1} is answered`}
-                value={r.answer === "clause" ? r.clause ?? "" : r.answer}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (v === "own" || v === "na") setReq(i, { answer: v, reason: v === "na" && !r.reason ? suggestedReason(r.clause, a.building, a.state) : r.reason });
-                  else setReq(i, { answer: "clause", clause: (v || null) as ClauseKey | null });
-                }}
-              >
-                <option value="">Choose a statement</option>
-                {MATCHABLE.map((k) => (
-                  <option key={k} value={k}>
-                    {CLAUSE_NAME[k]}
-                  </option>
-                ))}
-                <option value="own">Write my own statement</option>
-                <option value="na">Doesn&apos;t apply</option>
-              </select>
-              {r.answer === "own" && (
-                <textarea className="wb2-notes" rows={2} maxLength={MAX_REQUIREMENT_TEXT} aria-label={`Your statement for requirement ${i + 1}`} placeholder="The statement, as it should print" value={r.own} onChange={(e) => setReq(i, { own: e.target.value })} />
-              )}
-              {r.answer === "na" && (
-                <input className="wb2-fi" maxLength={MAX_REASON} aria-label={`Why requirement ${i + 1} doesn't apply`} placeholder="Why it doesn't apply" value={r.reason} onChange={(e) => setReq(i, { reason: e.target.value })} />
-              )}
-            </div>
-          ))}
-          <button
-            type="button"
-            className="sw-more"
+        <Group heading="Requirements found" fact={`${a.requirements.length} to check`}>
+          <ul className="wzd-rows">
+            {a.requirements.map((r, i) => (
+              <li key={i} className="wzd-req">
+                <TextArea rows={2} aria-label={`Requirement ${i + 1}`} value={r.text} onChange={(e) => setReq(i, { text: e.target.value })} />
+                <Chooser
+                  aria-label={`How requirement ${i + 1} is answered`}
+                  placeholder="Choose a statement"
+                  value={r.answer === "clause" ? r.clause : r.answer}
+                  options={[
+                    ...MATCHABLE.map((k) => ({ value: k, label: CLAUSE_NAME[k] })),
+                    { value: "own", label: "Write my own statement" },
+                    { value: "na", label: "Doesn't apply" },
+                  ]}
+                  onChange={(v) => {
+                    if (v === "own" || v === "na") setReq(i, { answer: v, reason: v === "na" && !r.reason ? suggestedReason(r.clause, a.building, a.state) : r.reason });
+                    else setReq(i, { answer: "clause", clause: v as ClauseKey });
+                  }}
+                />
+                {r.answer === "own" && (
+                  <TextArea
+                    rows={2}
+                    maxLength={MAX_REQUIREMENT_TEXT}
+                    aria-label={`Your statement for requirement ${i + 1}`}
+                    placeholder="The statement, as it should print"
+                    value={r.own}
+                    onChange={(e) => setReq(i, { own: e.target.value })}
+                  />
+                )}
+                {r.answer === "na" && (
+                  <TextInput maxLength={MAX_REASON} aria-label={`Why requirement ${i + 1} doesn't apply`} placeholder="Why it doesn't apply" value={r.reason} onChange={(e) => setReq(i, { reason: e.target.value })} />
+                )}
+              </li>
+            ))}
+          </ul>
+          <Button
+            kind="quiet"
+            size={32}
+            className="wzd-start"
             onClick={() => {
               set({ requirements: [] });
               setLastRead(null);
             }}
           >
             Clear these requirements
-          </button>
-        </div>
+          </Button>
+        </Group>
       )}
-    </>
+    </div>
   );
 
   const testFor = (s: AcSystem, i: number) => (
-    <div key={i} className="cz-sys">
-      {!sameTests && <b className="cz-for">{s.outdoor.model || s.outdoor.location || `Outdoor unit ${i + 1}`}</b>}
-      <div className="cz-row test">
-        <label className="cz-f">
-          <span>Refrigerant</span>
-          <select className="wb2-sel" value={s.test.refrigerant} onChange={(e) => setTest(i, { refrigerant: e.target.value })}>
-            <option value="">Choose</option>
-            {REFRIGERANTS.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
-        </label>
+    <div key={i} className="wzd-form">
+      {!sameTests && <h4 className="wzd-boxt">{s.outdoor.model || s.outdoor.location || `Outdoor unit ${i + 1}`}</h4>}
+      <Q label="Refrigerant">
+        <Tray ariaLabel="Refrigerant" value={s.test.refrigerant} options={REFRIGERANTS} onChange={(v) => setTest(i, { refrigerant: v })} />
+      </Q>
+      <div className="wzd-num wzd-num--wide">
         <NumField label="Refrigerant added (kg)" value={s.test.addedKg} onChange={(n) => setTest(i, { addedKg: n })} />
       </div>
     </div>
   );
 
   const checksScreen = (
-    <>
+    <div className="wzd-form">
       {a.covers.ac && (
-        <div className="sw-grp">
-          <div className="sw-gh">
-            <b>Refrigerant</b>
-          </div>
+        <Group heading="Refrigerant">
           {a.systems.length > 1 && (
-            <Choice
-              kind="checkbox"
-              name="same"
+            <Tick
               checked={sameTests}
               onChange={(on) => {
                 setSameTests(on);
                 if (on && a.systems[0]) set({ systems: a.systems.map((s) => ({ ...s, test: { ...a.systems[0].test } })) });
               }}
-              title="The same for every outdoor unit"
+              label="The same for every outdoor unit"
             />
           )}
           {(sameTests ? a.systems.slice(0, 1) : a.systems).map(testFor)}
-        </div>
+        </Group>
       )}
 
       {clauses.includes("fireMode") && (
-        <div className="sw-grp">
-          <div className="sw-gh">
-            <b>Fire mode</b>
-            <span>Asked for by the certifier (Specification 21)</span>
-          </div>
-          <div className="sw-opts">
-            <Choice name="fire" checked={a.fireMode === "individual"} onChange={() => set({ fireMode: "individual" })} title="Individual room units, each 1,000 L/s or less" sub="Not part of a smoke control system, so no shutdown is needed" />
+        <Group heading="Fire mode" fact="Asked for by the certifier (Specification 21)">
+          <div className="wzd-radios" role="radiogroup" aria-label="Fire mode">
+            <Radio
+              name="fire"
+              checked={a.fireMode === "individual"}
+              onChange={() => set({ fireMode: "individual" })}
+              label="Individual room units, each 1,000 L/s or less"
+              sub="Not part of a smoke control system, so no shutdown is needed"
+            />
             {a.fireMode === "individual" && (
-              <Choice kind="checkbox" name="rated" checked={a.fireModeRatingsChecked} onChange={(on) => set({ fireModeRatingsChecked: on })} title="I've checked each unit's rated airflow on its spec sheet" />
+              <Tick
+                className="wzd-indent"
+                checked={a.fireModeRatingsChecked}
+                onChange={(on) => set({ fireModeRatingsChecked: on })}
+                label="I've checked each unit's rated airflow on its spec sheet"
+              />
             )}
-            <Choice name="fire" checked={a.fireMode === "shutdown"} onChange={() => set({ fireMode: "shutdown" })} title="It shuts down on a fire signal" />
+            <Radio name="fire" checked={a.fireMode === "shutdown"} onChange={() => set({ fireMode: "shutdown" })} label="It shuts down on a fire signal" />
             {a.fireMode === "shutdown" && (
-              <div className="cz-row cert">
-                <Field label="Fire signal from" value={a.fireModeInterface} onChange={(v) => set({ fireModeInterface: v })} />
-                <label className="cz-f">
-                  <span>Tested on</span>
-                  <DateField className="wb2-fi" aria-label="Tested on" max={live?.today} today={live?.today} value={a.fireModeTestedOn || null} onChange={(iso) => set({ fireModeTestedOn: iso ?? "" })} />
-                </label>
+              <div className="wzd-pair wzd-indent">
+                <Entry label="Fire signal from" value={a.fireModeInterface} onChange={(v) => set({ fireModeInterface: v })} />
+                <Q label="Tested on">
+                  <DateField aria-label="Tested on" max={live?.today} today={live?.today} value={a.fireModeTestedOn || null} onChange={(iso) => set({ fireModeTestedOn: iso ?? "" })} />
+                </Q>
               </div>
             )}
-            <Choice name="fire" checked={a.fireMode === "smoke"} onChange={() => set({ fireMode: "smoke" })} title="It's part of a smoke control system" sub="That needs the mechanical engineer's certificate, not this one" />
+            <Radio
+              name="fire"
+              checked={a.fireMode === "smoke"}
+              onChange={() => set({ fireMode: "smoke" })}
+              label="It's part of a smoke control system"
+              sub="That needs the mechanical engineer's certificate, not this one"
+            />
           </div>
-        </div>
+        </Group>
       )}
 
       {clauses.includes("airBalance") && (
-        <div className="sw-grp">
-          <div className="sw-gh">
-            <b>Air balance report</b>
-          </div>
-          <div className="sw-opts row">
-            <Choice name="balance" checked={a.airBalance === "attached"} onChange={() => set({ airBalance: "attached" })} title="Attached to this certificate" />
-            <Choice name="balance" checked={a.airBalance === "others"} onChange={() => set({ airBalance: "others" })} title="Provided by others" />
-          </div>
-        </div>
+        <Q label="Air balance report">
+          <Tray
+            ariaLabel="Air balance report"
+            value={a.airBalance ?? ""}
+            options={[
+              { value: "attached", label: "Attached to this certificate" },
+              { value: "others", label: "Provided by others" },
+            ]}
+            onChange={(v) => set({ airBalance: v === "attached" ? "attached" : "others" })}
+          />
+        </Q>
       )}
 
-      <div className="sw-qas">
-        <div className="sw-qa">
-          <span>
-            <label htmlFor="cz-notcov">Not covered (optional)</label>
-          </span>
-          <input id="cz-notcov" className="wb2-fi" placeholder="For example, the building's outdoor-air ventilation" value={a.notCoveredExtra} onChange={(e) => set({ notCoveredExtra: e.target.value })} />
-        </div>
-      </div>
-    </>
+      <Field label="Not covered (optional)" id="cz-notcov">
+        <TextInput placeholder="For example, the building's outdoor-air ventilation" value={a.notCoveredExtra} onChange={(e) => set({ notCoveredExtra: e.target.value })} />
+      </Field>
+    </div>
   );
 
   const licenceLine = (name: string, l: { number: string | null; expires: string | null; current: boolean } | null) => (
@@ -953,7 +910,7 @@ export function CertWizard({
       <dt>{name}</dt>
       <dd>
         {l?.number ?? "Not on your staff card"}
-        <small className={l?.current ? undefined : "sw-state bad"}>
+        <small className={l?.current ? undefined : "wzd-wrong"}>
           {!l ? "Add it to your staff card to sign certificates" : l.current ? `Current to ${l.expires}` : l.expires ? `Lapsed ${l.expires}` : "No expiry date on file"}
         </small>
       </dd>
@@ -962,8 +919,8 @@ export function CertWizard({
 
   const blocking = problems.filter((p) => p.field !== "sign" && p.field !== "approval");
   const signScreen = live && (
-    <>
-      <dl className="sw-rev">
+    <div className="wzd-form">
+      <dl className="wzd-rev">
         <div>
           <dt>Certificate</dt>
           <dd>{CERT_TITLE}</dd>
@@ -977,111 +934,91 @@ export function CertWizard({
       </dl>
 
       {licensed && (
-        <div className="sw-grp">
-          <div className="sw-gh">
-            <b>Your signature</b>
-            {signature && <span>Kept on your staff card</span>}
-          </div>
+        <Group heading="Your signature" fact={signature ? "Kept on your staff card" : null}>
           {signature && !drawing ? (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="cz-sig" src={`data:image/svg+xml;utf8,${encodeURIComponent(signature)}`} alt="Your signature" />
-              <button type="button" className="sw-more" onClick={() => setSignature(null)}>
+              <img className="wzd-sig" src={`data:image/svg+xml;utf8,${encodeURIComponent(signature)}`} alt="Your signature" />
+              <Button kind="quiet" size={32} className="wzd-start" onClick={() => setSignature(null)}>
                 Draw it again
-              </button>
+              </Button>
             </>
           ) : (
             <>
               <SignaturePad label="Draw your signature" onChange={setDrawing} />
-              <button type="button" className="pbtn ghost sm cz-add" disabled={!drawing || sigBusy} onClick={() => void keepSignature()}>
+              <Button kind="second" className="wzd-start" disabled={!drawing || sigBusy} onClick={() => void keepSignature()}>
                 {sigBusy ? "Saving the signature" : "Keep this signature"}
-              </button>
+              </Button>
             </>
           )}
-        </div>
+        </Group>
       )}
       {!licensed && (
-        <p className="sw-state bad">
-          To issue a certificate you need a current ARC licence and contractor licence on your staff card. This one can be read, but not issued.
-        </p>
+        <p className="wzd-wrong">To issue a certificate you need a current ARC licence and contractor licence on your staff card. This one can be read, but not issued.</p>
       )}
       {!live.approved &&
         (live.canApprove ? (
-          <p className="sw-text">
-            The wording needs your approval before the first certificate goes out. <Link href="/dashboard/admin/templates/certificate">Read and approve the wording</Link>
+          <p className="wzd-text">
+            The wording needs your approval before the first certificate goes out. <LinkButton href="/dashboard/admin/templates/certificate">Read and approve the wording</LinkButton>
           </p>
         ) : (
-          <p className="sw-state warn">{`${live.ownerName ?? "The owner"} approves the certificate wording before the first one can be issued.`}</p>
+          <p className="wzd-look">{`${live.ownerName ?? "The owner"} approves the certificate wording before the first one can be issued.`}</p>
         ))}
-      {blocking.length > 0 && (
-        <ul className="sw-problems">
-          {blocking.map((p, i) => (
-            <li key={i}>
-              <button type="button" onClick={() => go(PROBLEM_TAB[p.field])}>
-                {p.text}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </>
+      <Jumps items={blocking.map((p) => ({ key: p.field, text: p.text }))} onJump={(_, i) => go(PROBLEM_TAB[blocking[i]!.field])} />
+    </div>
   );
 
   /* ── the frame ───────────────────────────────────────────────────────── */
 
-  let body: React.ReactNode;
-  let foot: React.ReactNode = null;
+  let body: ReactNode;
+  let foot: ReactNode = null;
   let tabs = false;
   let title = prev ? "Reissue the certificate" : CERT_TITLE;
   const close = (
-    <>
-      <span />
-      <button type="button" className="pbtn" onClick={onClose}>
-        Close
-      </button>
-    </>
+    <Button kind="main" onClick={onClose}>
+      Close
+    </Button>
   );
 
   if (ctx === null) {
-    body = <p className="sw-note">Reading the job</p>;
+    body = <p className="wzd-note">Reading the job</p>;
   } else if (ctx === "failed") {
-    body = <p className="sw-note">Couldn&apos;t open the certificate for this job. Close it and try again.</p>;
+    body = <p className="wzd-note">Couldn&apos;t open the certificate for this job. Close it and try again.</p>;
     foot = close;
   } else if (issued) {
     title = issued.version > 1 ? `Version ${issued.version} is on the job` : "The certificate is on the job";
     body = (
-      <div className="sw-grp">
-        <p className="sw-text">{`Saved to the job's Documents as ${issued.fileName}. It hasn't been sent to anyone yet.`}</p>
-        <div className="cz-after">
+      <div className="wzd-form">
+        <p className="wzd-text">{`Saved to the job's Documents as ${issued.fileName}. It hasn't been sent to anyone yet.`}</p>
+        <div className="wzd-after">
           {canSend && (
             <>
-              <button type="button" className="pbtn" onClick={() => onEmail(issued.documentId)}>
+              <Button kind="second" onClick={() => onEmail(issued.documentId)}>
                 Email to the builder
-              </button>
-              <button type="button" className="pbtn ghost" onClick={() => onSendToSm8(issued.documentId, issued.fileName)}>
+              </Button>
+              <Button kind="second" onClick={() => onSendToSm8(issued.documentId, issued.fileName)}>
                 Send to ServiceM8
-              </button>
+              </Button>
             </>
           )}
-          <button type="button" className="pbtn ghost" onClick={() => void download(false)}>
+          <Button kind="second" onClick={() => void download(false)}>
             Download PDF
-          </button>
-          <button type="button" className="pbtn ghost cz-share" onClick={() => void download(true)}>
+          </Button>
+          <Button kind="second" className="wzd-share" onClick={() => void download(true)}>
             Share PDF
-          </button>
+          </Button>
         </div>
-        {error && <p className="sw-state bad">{error}</p>}
+        {error && <p className="wzd-wrong">{error}</p>}
       </div>
     );
     foot = (
       <>
-        <span />
-        <button type="button" className="pbtn ghost" onClick={() => onOpen(issued.versionId)}>
+        <Button kind="second" onClick={() => onOpen(issued.versionId)}>
           Open the certificate
-        </button>
-        <button type="button" className="pbtn" onClick={onClose}>
+        </Button>
+        <Button kind="main" onClick={onClose}>
           Done
-        </button>
+        </Button>
       </>
     );
   } else {
@@ -1090,76 +1027,71 @@ export function CertWizard({
     const last = at === TABS.length - 1;
     /* the licences and the approval are on the problem list already */
     const canIssue = !!live && problems.length === 0 && !busy;
-    foot = confirmClose ? (
+    foot = (
       <>
-        <span>Discard this certificate?</span>
-        <button type="button" className="pbtn ghost" onClick={() => setConfirmClose(false)}>
-          Keep editing
-        </button>
-        <button type="button" className="pbtn" onClick={onClose}>
-          Discard
-        </button>
-      </>
-    ) : (
-      <>
-        <span className={error || (last && problems.length > 0) ? "sw-state bad" : undefined}>
-          {error ?? (last && problems.length > 0 ? (problems.length === 1 ? problems[0].text : `${problems.length} things to answer`) : "")}
-        </span>
-        {at > 0 && (
-          <button type="button" className="pbtn ghost" onClick={() => go(TABS[at - 1].key)}>
+        {error ? (
+          <FootWord tone="wrong">{error}</FootWord>
+        ) : last && problems.length > 0 ? (
+          <FootWord tone="look">{problems.length === 1 ? problems[0].text : `${problems.length} things to answer`}</FootWord>
+        ) : null}
+        {at > 0 ? (
+          <Button kind="second" onClick={() => go(TABS[at - 1].key)}>
             Back
-          </button>
+          </Button>
+        ) : (
+          <Button kind="second" onClick={askClose}>
+            Cancel
+          </Button>
         )}
         {!last ? (
-          <button type="button" className="pbtn" onClick={() => go(TABS[at + 1].key)}>
+          <Button kind="main" onClick={() => go(TABS[at + 1].key)}>
             Continue
-          </button>
+          </Button>
         ) : (
-          <button type="button" className="pbtn" disabled={!canIssue} onClick={() => void issue()}>
+          <Button kind="main" disabled={!canIssue} onClick={() => void issue()}>
             {busy ? "Issuing the certificate" : prev ? `Issue version ${prev.version + 1}` : "Issue the certificate"}
-          </button>
+          </Button>
         )}
       </>
     );
   }
 
-  const panels: Record<Tab, React.ReactNode> = {
+  const panels: Record<Tab, ReactNode> = {
     covers: coversScreen,
     equipment: equipmentScreen,
     list: listScreen,
     checks: checksScreen,
     sign: signScreen,
   };
-  const job = live?.job ?? null;
 
   return (
     <>
-      <div className="swz-scrim" onClick={askClose} />
-      <aside ref={dialog} className={`swz${tabs ? " tall" : ""}`} role="dialog" aria-modal="true" aria-label={title}>
-        <div className={`wb2-jcband${tabs ? "" : " bare"}`}>
-          <div className="wb2-shtop">
-            {job?.number && <span className="wb2-shno">{`#${job.number}`}</span>}
-            <span className="wb2-jcid">
-              <h2 className="wb2-shname">{tabs ? CERT_TITLE : title}</h2>
-              <p className="wb2-jcaddr">{job?.address ?? (ctx === null ? "Reading the job" : "No address on the job")}</p>
-            </span>
-          </div>
-          <button type="button" className="wb2-ico" aria-label="Close the certificate" onClick={askClose}>
-            <Icon name="x" size={14} />
-          </button>
-          {tabs && <ViewTabs items={TABS} active={tab} onGo={(k) => go(k as Tab)} ariaLabel="Certificate steps" idPrefix="cztab" panelPrefix="czsec" />}
-        </div>
-        <div className="wb2-jcbody swz-body" ref={bodyRef}>
-          {tabs
-            ? TABS.map((t) => (
-                <section key={t.key} className="wb2-jcface" id={`czsec-${t.key}`} role="tabpanel" aria-labelledby={`cztab-${t.key}`} hidden={tab !== t.key}>
-                  {panels[t.key]}
-                </section>
-              ))
-            : body}
-        </div>
-        {foot && <div className="wb2-shft">{foot}</div>}
-      </aside>
+      <WizardDialog
+        heading={tabs ? CERT_TITLE : title}
+        line={jobLine(live?.job ?? null)}
+        width={960}
+        tall={tabs}
+        onClose={askClose}
+        foot={foot}
+        scrollRef={bodyRef}
+        tabs={tabs ? { items: TABS, current: tab, onGo: (k) => go(k as Tab), ariaLabel: "Certificate steps", idPrefix: "cztab", panelPrefix: "czsec" } : null}
+      >
+        {tabs
+          ? TABS.map((t) => (
+              <section key={t.key} id={`czsec-${t.key}`} role="tabpanel" aria-labelledby={`cztab-${t.key}`} hidden={tab !== t.key}>
+                {panels[t.key]}
+              </section>
+            ))
+          : body}
+      </WizardDialog>
+      <ConfirmDialog
+        open={confirmClose}
+        heading="Discard this certificate?"
+        confirm="Discard"
+        cancel="Keep editing"
+        onConfirm={onClose}
+        onClose={() => setConfirmClose(false)}
+      />
     </>
   );
 }

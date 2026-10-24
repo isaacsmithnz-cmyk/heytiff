@@ -1975,8 +1975,8 @@ export function JobSheet({
           toast={onToast}
         />
       )}
-      {/* Over the card, inside the SAME portal — a modal on a modal that
-          portals separately is how a scrim ends up above the thing it dims. */}
+      {/* Edit customer, the v2 dialog: it portals to <body> as it mounts, so
+          it lands after the page and over it, on the modal layer. */}
       {editingCustomer && cardId && (
         <JobCustomerDialog jobUuid={cardId} onClose={() => setEditingCustomer(false)} onSaved={onToast} />
       )}
@@ -2009,7 +2009,7 @@ export function JobSheet({
         </Suspense>
       )}
 
-      {/* The SWMS wizard — same portal, over the card. Keyed by what it opened
+      {/* The SWMS wizard, a v2 dialog over the page. Keyed by what it opened
           for, so a revision never inherits a new SWMS's half-made choices. */}
       {swmsWizard && cardId && (
         <SwmsWizard
@@ -2026,8 +2026,8 @@ export function JobSheet({
         />
       )}
 
-      {/* The certificate wizard — the same portal, over the card, keyed like
-          the SWMS's so a reissue never inherits a new one's half-made answers. */}
+      {/* The certificate wizard, a v2 dialog over the page, keyed like the
+          SWMS's so a reissue never inherits a new one's half-made answers. */}
       {certWizard && cardId && (
         <CertWizard
           key={`${cardId}:${certWizard.reissue ?? "new"}`}

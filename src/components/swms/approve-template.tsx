@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/parts/button";
 import { approveSwmsLibrary } from "@/app/actions/swms";
 import { BELL_REFRESH_EVENT } from "@/lib/dashboard/chips";
 import { withCleanup } from "@/lib/ui/with-cleanup";
@@ -34,9 +35,9 @@ export function ApproveTemplate({ onApproved }: { onApproved?: () => void }) {
   return (
     <>
       {error && <span className="sw-state bad">{error}</span>}
-      <button type="button" className="pbtn primary" disabled={busy} onClick={approve}>
+      <Button kind="main" disabled={busy} onClick={approve}>
         {busy ? "Approving the template" : "Approve the template"}
-      </button>
+      </Button>
     </>
   );
 }

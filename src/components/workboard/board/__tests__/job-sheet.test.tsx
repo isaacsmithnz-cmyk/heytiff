@@ -571,7 +571,8 @@ describe("the customer, on Overview", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Edit" }));
     const dialog = within(await screen.findByRole("dialog", { name: "Edit customer" }));
     expect(await dialog.findByDisplayValue("Josh")).toBeInTheDocument();
-    await userEvent.click(dialog.getByRole("radio", { name: "Site contact" }));
+    await userEvent.click(dialog.getByRole("combobox", { name: "Role" }));
+    await userEvent.click(screen.getByRole("option", { name: "Site contact" }));
     await userEvent.click(dialog.getByRole("button", { name: "Same as the site" }));
     await userEvent.click(dialog.getByRole("button", { name: "Save to ServiceM8" }));
     await waitFor(() => expect(saveCustomer).toHaveBeenCalled());

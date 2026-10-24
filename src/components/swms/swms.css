@@ -1,40 +1,148 @@
-/* THE SWMS SCREENS — the wizard over the job card, the sign-on page and the
-   template page.
+/* THE SWMS SCREENS — the two wizards over the job page (the SWMS and the
+   certificate), the sign-on page and the template page.
 
-   WHAT IS HERE IS ONLY WHAT THE APP DOESN'T ALREADY HAVE. The wizard wears
-   the job card's own band, tabs, fields, buttons, segmented choices and
-   footer (`.wb2-jcband`, ViewTabs, `.wb2-fi`, `.pbtn`, `.seg`, `.wb2-shft` —
-   `.swz` joins the portal roots in shell.css for the last three), and the
-   pages wear the dashboard's cards and buttons. Two dresses for one control
-   on one screen is the first thing a daily user notices, so this sheet holds
-   the frame, the option rows, the signature pad and the reading layout. Held
-   to the scales in docs/design.md; tokens from tokens.css on :root. */
+   The wizards are the v2 dialog (parts/dialog, rule 36) with v2's parts
+   inside; what is here is their frame (./wizard) and the few shapes the
+   parts don't draw: a radio row, a step's box, a row of the equipment's
+   fields. Held to the scales in docs/design.md; tokens from tokens.css. */
 
 /* ── the wizard's frame ─────────────────────────────────────────────────── */
 
-/* ON THE CARD'S LAYER. The sheet sits on the modal layer; these share it and
-   come later in the same portal, so they paint over it. Held by
-   sheet-overlay-layers.test.ts. */
-.swz-scrim { position:fixed; inset:0; z-index:var(--z-modal); background:var(--scrim); }
-/* SIZED TO WHAT IT HOLDS. A short state — the template waiting, the SWMS
-   issued — is a short panel; only the four screens keep one height, so a
-   tab switch doesn't make the panel jump. */
-.swz { position:fixed; inset:0; margin:auto; z-index:var(--z-modal);
-  width:min(760px, calc(100vw - 32px)); height:max-content; max-height:calc(100vh - 32px);
-  display:flex; flex-direction:column; overflow:hidden;
-  background:var(--paper); color:var(--ink); border:1px solid var(--line); border-radius:var(--r-card);
-  font-size:14px; line-height:1.45;
-  --wb2-line:var(--line); --wb2-line2:var(--line); }
-.swz.tall { height:min(800px, calc(100vh - 32px)); }
-.swz > .wb2-jcband.bare { padding-bottom:16px; }
-.swz > .swz-body { min-height:0; overflow-y:auto; overscroll-behavior:contain; border-radius:0;
-  display:flex; flex-direction:column; gap:16px; }
-.swz > .wb2-shft { position:static; flex:none; }
-.swz > .wb2-shft > span { flex:1; min-width:0; font-size:13px; font-weight:500; color:var(--q); }
-.swz .wb2-fi, .swz .wb2-sel { width:100%; }
-.swz .wb2-notes { margin-bottom:0; }
+/* The grey line and the tabs stay put; the screen under them scrolls
+   between the tabs and the foot. While the steps are up the dialog keeps
+   one height, so a tab never makes it jump. */
+.pt-scrim .pt-dialog:has(.wzd--tall) { height:min(800px, 100%); }
+.pt-dialog .pt-dialog-body:has(> .wzd) { display:flex; flex-direction:column; flex:1 1 auto; min-height:0; overflow:hidden; padding-top:4px; }
+.wzd { display:flex; flex-direction:column; flex:1 1 auto; min-height:0; }
+.wzd-line { margin:0 0 8px; font-size:14px; line-height:20px; color:var(--q); }
+/* the rings of the fields at its edge stay inside it: the scroller reaches
+   out over the body's own gutter */
+.wzd-scroll { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; margin:0 -24px; padding:16px 24px 4px; }
+.wzd--tall .wzd-scroll { border-bottom:1px solid var(--line); }
+.wzd-footword { margin-right:auto; min-width:0; font-size:13px; line-height:18px; font-weight:500; }
+.wzd-footword--look { color:var(--orange-w); }
+.wzd-footword--wrong { color:var(--red-w); }
 
-/* ── groups, questions and option rows, shared with the pages ────────────── */
+/* ── what the screens hold ──────────────────────────────────────────────── */
+
+.wzd-form { display:flex; flex-direction:column; gap:24px; min-width:0; }
+.wzd-form .wzd-form { gap:16px; }
+.wzd-grp { display:flex; flex-direction:column; gap:12px; min-width:0; }
+.wzd-gh { display:flex; align-items:baseline; justify-content:space-between; gap:16px; }
+.wzd-gt { margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.wzd-fact { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.wzd-text { margin:0; max-width:68ch; font-size:14px; line-height:20px; color:var(--ink); }
+.wzd-note { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.wzd-look { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--orange-w); }
+.wzd-wrong { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--red-w); }
+.wzd-short { max-width:320px; }
+.pt-btn.wzd-start { align-self:flex-start; }
+.wzd-pair { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; align-items:start; }
+.wzd-between { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.wzd-ticks { display:flex; flex-direction:column; gap:12px; }
+
+/* a question: its label, a grey fact, then the answer */
+.wzd-q { display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-width:0; }
+.wzd-q > .pt-input, .wzd-q > .pt-textarea, .wzd-q > .pt-chooser { align-self:stretch; }
+.wzd-q > .pt-tray { margin-top:4px; }
+.wzd-ql { font-size:13px; line-height:18px; font-weight:500; color:var(--ink); }
+.wzd-qs { font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.wzd-said { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+
+/* a radio row: the tick's 16 box gone round, blue when on (rule 32) */
+.wzd-radios { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
+.wzd-radios > .wzd-ql { color:var(--q); }
+.wzd-radio { display:flex; align-items:flex-start; gap:8px; cursor:pointer; }
+.wzd-radio.wzd-radio--off { cursor:default; }
+.wzd-radio-in.wzd-radio-in {
+  appearance:none; -webkit-appearance:none; box-sizing:border-box; flex:none;
+  width:16px; height:16px; margin:2px 0 0; border:1px solid var(--grey); border-radius:50%; background:var(--white);
+  cursor:inherit; transition:border-color var(--t-fast) var(--ease), border-width var(--t-fast) var(--ease);
+}
+.wzd-radio-in:hover:not(:checked):not(:disabled) { border-color:var(--q); }
+.wzd-radio-in:checked { border:5px solid var(--press); }
+.wzd-radio-in:disabled { opacity:.5; }
+.wzd-radio-in:focus-visible { outline:none; box-shadow:var(--ring); }
+.wzd-words { display:flex; flex-direction:column; min-width:0; }
+.wzd-title { font-size:14px; line-height:20px; font-weight:400; color:var(--ink); }
+.wzd-sub { font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.wzd-radio--off .wzd-title { color:var(--q); }
+/* a tick with two lines: the box stands by the first */
+.pt-tick.wzd-tick { align-items:flex-start; }
+.pt-tick.wzd-tick .pt-tick__box { margin-top:2px; }
+.pt-tick.wzd-indent, .wzd-pair.wzd-indent { margin-left:calc(16px + 8px); }
+
+/* a step: a box you tick (rule 35), its questions under its words */
+.wzd-steps { display:flex; flex-direction:column; gap:12px; }
+.wzd-step { display:flex; flex-direction:column; gap:12px; padding:12px 16px; border:1px solid var(--edge); border-radius:var(--r-card); }
+.wzd-step > .pt-tick .wzd-title { font-weight:600; }
+/* under the step's words: the tick's 16 box and its 8 gap */
+.wzd-ask { display:flex; flex-direction:column; align-items:stretch; gap:12px; margin-left:calc(16px + 8px); }
+.wzd-ask .wzd-ql, .wzd-ask .pt-field-label { color:var(--q); }
+
+/* rows under thin lines (rule 35): the team to tick, a list read back */
+.wzd-rows { margin:0; padding:0; list-style:none; }
+.wzd-row { display:flex; align-items:flex-start; gap:12px; padding:8px 0; }
+.wzd-row + .wzd-row { border-top:1px solid var(--line); }
+.wzd-row.wzd-row--end { align-items:center; justify-content:space-between; }
+.wzd-row > .pt-tick .wzd-title, .wzd-row > .wzd-words .wzd-title { font-weight:600; }
+.wzd-tickets { display:flex; flex-wrap:wrap; gap:2px 12px; font-size:13px; line-height:18px; font-weight:500; color:var(--ink); }
+.wzd-outsiders { display:flex; flex-direction:column; gap:8px; }
+.wzd-addrow { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) 36px; align-items:center; gap:8px; }
+
+/* the review: a label and what was answered */
+.wzd-rev { margin:0; display:flex; flex-direction:column; }
+.wzd-rev > div { display:grid; grid-template-columns:160px minmax(0,1fr); gap:12px; align-items:baseline; padding:8px 0; }
+.wzd-rev > div + div { border-top:1px solid var(--line); }
+.wzd-rev dt { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.wzd-rev dd { margin:0; min-width:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.wzd-rev small { display:block; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.wzd-rev small.wzd-look { font-weight:500; color:var(--orange-w); }
+.wzd-rev small.wzd-wrong { font-weight:500; color:var(--red-w); }
+
+/* what still stands in the way, each a press from its answer */
+.wzd-jumps { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:4px; }
+.wzd-jumps li { display:flex; align-items:center; gap:8px; }
+.wzd-jump.wzd-jump,
+.wzd-inline.wzd-inline {
+  margin:0; padding:0; border:0; background:none; font-family:var(--font); font-size:14px; line-height:20px; font-weight:400;
+  color:var(--link); text-align:left; text-decoration:underline; text-underline-offset:2px; cursor:pointer;
+}
+.wzd-inline.wzd-inline { font-size:13px; line-height:18px; font-weight:500; }
+.wzd-inline:disabled { color:var(--q); cursor:default; }
+.wzd-jump:focus-visible, .wzd-inline:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
+
+/* ── the certificate's own shapes ───────────────────────────────────────── */
+
+/* one outdoor unit and the indoor units it runs, as a box */
+.wzd-box { display:flex; flex-direction:column; gap:12px; padding:16px; border:1px solid var(--edge); border-radius:var(--r-card); }
+.wzd-boxt { margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+/* a row of labelled fields: where, make, model, kW, qty, then Clear */
+.wzd-eq { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1.2fr) minmax(0,1.5fr) 72px 64px auto; gap:8px; align-items:end; }
+.wzd-eq.wzd-eq--serial { grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1.3fr) 72px 64px minmax(0,1fr) auto; }
+.wzd-eq.wzd-eq--fan { grid-template-columns:minmax(0,1.3fr) minmax(0,1.2fr) minmax(0,1.5fr) auto; }
+.wzd-eq.wzd-eq--fan.wzd-eq--serial { grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1.3fr) minmax(0,1fr) auto; }
+.wzd-airflow { display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap; min-height:36px; }
+.wzd-airflow > .pt-tick { align-self:center; }
+.wzd-num { width:96px; }
+.wzd-num.wzd-num--wide { width:200px; }
+.wzd-pick { display:flex; gap:8px; align-items:center; }
+.wzd-pick > .pt-chooser { flex:1 1 auto; }
+.wzd-req { display:flex; flex-direction:column; gap:8px; padding:12px 0; }
+.wzd-req + .wzd-req { border-top:1px solid var(--line); }
+.wzd-date { width:200px; }
+.wzd-sig { display:block; width:100%; max-width:320px; height:auto; border-bottom:1px solid var(--ink); }
+.wzd-after { display:flex; flex-wrap:wrap; gap:8px; }
+/* the phone's own share sheet; a desktop has Download */
+@media (hover: hover) and (pointer: fine) {
+  .pt-btn.wzd-share { display:none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wzd-radio-in.wzd-radio-in { transition:none; }
+}
+
+/* ── shared with the sign-on and template pages ─────────────────────────── */
 
 .sw-grp { display:flex; flex-direction:column; gap:8px; min-width:0; }
 .sw-gh { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 8px; }
@@ -48,83 +156,7 @@
 .sw-more { align-self:flex-start; padding:0; border:0; background:none; font:inherit; font-size:13px; font-weight:500;
   color:var(--link); text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
 .sw-more:focus-visible { outline:none; box-shadow:var(--ring); }
-
-.sw-opts { display:flex; flex-direction:column; gap:4px; }
-.sw-opts.row { flex-direction:row; flex-wrap:wrap; }
-.sw-opt { display:flex; align-items:flex-start; gap:8px; padding:8px 12px; min-width:0;
-  border:1px solid var(--line); border-radius:var(--r-button); background:var(--paper); cursor:pointer;
-  transition:background var(--t-fast) var(--ease); }
-.sw-opt:hover { background:var(--tint); }
-.sw-opt.on { background:var(--tint-2); }
-.sw-opt input, .sw-cat input, .sw-stephd input, .sw-person input { flex:none; width:16px; height:16px; margin:2px 0 0; accent-color:var(--ink); }
-.sw-opt > span { display:flex; flex-direction:column; gap:2px; min-width:0; }
-.sw-opt b { font-size:14px; font-weight:600; }
-.sw-opt em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
-.sw-opt:focus-within { box-shadow:var(--ring); }
-/* an option this answer rules out, with why under it */
-.sw-opt.off { cursor:default; }
-.sw-opt.off:hover { background:var(--paper); }
-.sw-opt.off b { font-weight:500; color:var(--q); }
-
-/* a question and its answer on one line; hairlines between, like a group */
-.sw-qas { display:flex; flex-direction:column; }
-.sw-qa { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:12px; padding:8px 0; border-top:1px solid var(--line); }
-.sw-qa:last-child { border-bottom:1px solid var(--line); }
-.sw-qa > span, .sw-qa > label { font-size:14px; font-weight:600; }
-/* what the job already says, stated where a question would be */
-.sw-qa > b { font-size:14px; font-weight:500; }
-.sw-qa em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
-/* a fixed width: a percentage inside an auto track resolved to the field's
-   own intrinsic size, and a hospital's name was cut off at 180px */
-.swz .sw-qa > .wb2-fi, .swz .sw-qa > .wb2-sel { width:320px; max-width:100%; }
-
-/* a category added by hand, from the ones the steps didn't switch on */
-.sw-cats { display:flex; flex-direction:column; }
-.sw-cat { display:flex; gap:8px; align-items:flex-start; padding:8px 0; border-top:1px solid var(--line);
-  cursor:pointer; font-size:14px; font-weight:500; }
-.sw-cat:last-child { border-bottom:1px solid var(--line); }
-
-/* the steps — one box each, because each one is a thing you tick */
-.sw-steps { display:flex; flex-direction:column; gap:8px; }
-.sw-stepbox { display:flex; flex-direction:column; gap:12px; padding:12px 16px; border:1px solid var(--line); border-radius:var(--r-button); }
-.sw-stepbox:not(.on) { background:var(--tint); }
-.sw-stephd { display:flex; align-items:flex-start; gap:8px; cursor:pointer; }
-.sw-stephd > span { display:flex; flex-direction:column; gap:2px; min-width:0; }
-.sw-stephd b { font-size:14px; font-weight:600; }
-.sw-stepbox:not(.on) .sw-stephd b { font-weight:500; color:var(--q); }
-.sw-stephd em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
-.sw-ask { display:flex; flex-direction:column; gap:8px; padding-left:24px; }
 .sw-al { font-size:13px; font-weight:500; color:var(--q); }
-
-/* people — the team to tick, helpers as rows, and a list read back */
-.sw-crew { display:flex; flex-direction:column; }
-.sw-person { display:flex; align-items:flex-start; gap:8px; padding:8px 0; border-top:1px solid var(--line); cursor:pointer; }
-.sw-person:last-child { border-bottom:1px solid var(--line); }
-.sw-person.out { align-items:center; cursor:default; }
-.sw-who { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
-.sw-who b { font-size:14px; font-weight:600; }
-.sw-person:not(.on):not(.out) .sw-who b { font-weight:500; color:var(--q); }
-.sw-who em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
-.sw-tickets { display:flex; flex-wrap:wrap; gap:2px 12px; font-size:13px; font-weight:500; color:var(--ink); }
-.sw-outsiders { display:flex; flex-direction:column; gap:8px; }
-.sw-addrow { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) 30px; align-items:center; gap:8px; }
-.sw-ask .sw-addrow { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
-.sw-rowgap { width:30px; }
-
-/* the review — a label and its figure */
-.sw-rev { margin:0; display:flex; flex-direction:column; }
-.sw-rev > div { display:grid; grid-template-columns:160px minmax(0,1fr); gap:12px; align-items:baseline; padding:8px 0; border-top:1px solid var(--line); }
-.sw-rev > div:last-child { border-bottom:1px solid var(--line); }
-.sw-rev dt { font-size:13px; font-weight:500; color:var(--q); }
-.sw-rev dd { margin:0; font-size:16px; font-weight:600; min-width:0; }
-.sw-rev small { display:block; font-size:13px; font-weight:500; color:var(--q); }
-/* what still stands in the way — each one goes to its answer */
-.sw-problems { margin:0; padding-left:16px; list-style:disc; display:flex; flex-direction:column; gap:4px; color:var(--warn-t); }
-.sw-problems button { padding:0; border:0; background:none; font:inherit; font-size:14px; font-weight:500; color:var(--warn-t);
-  text-align:left; text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
-.sw-problems button:focus-visible { outline:none; box-shadow:var(--ring); }
-
-.sw-issued { display:flex; flex-direction:column; gap:16px; }
 
 /* the template, read before it is approved */
 .sw-lib { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:4px; }
@@ -160,7 +192,7 @@
   background:var(--paper); touch-action:none; cursor:crosshair; }
 .sws-pad canvas { position:absolute; inset:0; width:100%; height:100%; border-radius:var(--r-button); color:var(--ink); }
 .sws-pad > span { position:absolute; inset:0; display:grid; place-items:center; font-size:13px; font-weight:500; color:var(--q); pointer-events:none; }
-.sws-pad .sws-clear { position:absolute; right:8px; bottom:8px; }
+.sws-pad .pt-btn.sws-clear { position:absolute; right:8px; bottom:8px; }
 .sws-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .sws-actions > span { flex:1; min-width:0; font-size:13px; font-weight:500; }
 /* the app's own note field, which `.sw-field` never was — it had no rules at

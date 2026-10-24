@@ -13,31 +13,8 @@
    the viewer's date disagrees with the board's). A missing mark beats one
    that is hours wrong. */
 
-import type { ScheduleBlock, ScheduleDay } from "./schedule";
+import type { ScheduleBlock } from "./schedule";
 import { scheduleBlockPaint, TRACKED_PAINT, type BlockPaint } from "./schedule-colour";
-
-/** One person on the job, and what their booking is doing. */
-export type FocusEntry = {
-  /** The booking's activity uuid. */
-  key: string;
-  who: string;
-  /** Who is booked, as ServiceM8 names them; null in the unassigned lane. */
-  staffUuid: string | null;
-  /** The booking's start, the account's wall clock "YYYY-MM-DD HH:MM:SS":
-      what a Clear says it saw. */
-  start: string;
-  /** A future booking on a finished job, which may be cleared (two-way
-      phase 3): the block's own, decided on the server. */
-  leftover: boolean;
-  startMin: number;
-  endMin: number;
-  /** The word for this booking's state, decided once so the two surfaces can
-      never disagree. Null when there is nothing to claim. */
-  state: string | null;
-  paint: BlockPaint;
-  /** Finished work is neutral on the rail and neutral here. */
-  done: boolean;
-};
 
 /** One treatment this job's blocks wear, decoded: the swatch is drawn by the
     card in the job's own paint, the word says what it means. `cat` is always
@@ -45,23 +22,6 @@ export type FocusEntry = {
 export type FocusMark = {
   kind: "cat" | "qt" | "dan" | "done" | "stale" | "idle" | "late" | "on";
   word: string;
-};
-
-export type FocusJob = {
-  /** The job's uuid, which a Clear names. */
-  remoteId: string;
-  /** ServiceM8's status word, verbatim — a Clear's confirm says it. */
-  status: string | null;
-  jobNumber: string | null;
-  clientName: string | null;
-  suburb: string | null;
-  /** The category, or the board that owns it — whatever the block says. */
-  label: string;
-  /** The job's own paint, for the marks' swatches. */
-  paint: BlockPaint;
-  /** The status of the job and what its colours mean — only what it wears. */
-  marks: FocusMark[];
-  entries: FocusEntry[];
 };
 
 /** What the day being read knows about time. `tracksTime` comes off the laid
@@ -137,44 +97,6 @@ export function blockState(
     : b.closure === "done" ? "Done"
     : b.onSite ? "Started" : null;
   return { hollow, late, word };
-}
-
-/** THE JOB BROUGHT FORWARD. Gathered from the LANES rather than from the
-    payload, so the cards are exactly the bookings that were drawn — a job
-    booked on another day is not on this day and has no business in a stack
-    lifted off it. Null when the job draws nothing here. */
-export function focusJobOf(day: ScheduleDay, jobUuid: string, clock: DayClock): FocusJob | null {
-  const entries: FocusEntry[] = day.lanes.flatMap((l) =>
-    l.blocks
-      .filter((b) => b.remoteId === jobUuid)
-      .map((b) => ({
-        key: b.key,
-        who: l.name,
-        staffUuid: l.staffUuid || null,
-        start: b.start,
-        leftover: b.leftover === true,
-        startMin: b.startMin,
-        endMin: b.endMin,
-        state: blockState(b, clock).word,
-        done: b.closure === "done",
-        paint: blockPaint(b),
-      }))
-  );
-  if (entries.length === 0) return null;
-
-  const all = day.lanes.flatMap((l) => l.blocks).filter((b) => b.remoteId === jobUuid);
-  const first = all[0];
-  return {
-    remoteId: first.remoteId,
-    status: first.status,
-    jobNumber: first.jobNumber,
-    clientName: first.clientName,
-    suburb: first.suburb,
-    label: blockLabel(first),
-    paint: blockPaint(first),
-    marks: jobMarks(all, clock),
-    entries,
-  };
 }
 
 /** WHAT THE BLOCKS' PAINT IS SAYING, in words — the footer key scoped to the

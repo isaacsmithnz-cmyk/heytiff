@@ -3,7 +3,6 @@ import {
   parsePhotoQuery,
   rankPhotos,
   scoreMatch,
-  searchSummary,
   type PhotoMatch,
 } from "@/lib/workboard/photo-search";
 
@@ -119,21 +118,3 @@ describe("rankPhotos", () => {
   });
 });
 
-describe("searchSummary", () => {
-  /* "Nothing found" against a bank of twelve means something completely
-     different from nothing found against four thousand, so the sentence
-     always says how much has been read. */
-  it("says how big the bank is, so an empty result is honest", () => {
-    expect(searchSummary(0, 12, "ductwork")).toContain("12 photos read so far");
-    expect(searchSummary(0, 12, "ductwork")).toContain("Nothing");
-  });
-
-  it("counts one photo as one photo", () => {
-    expect(searchSummary(1, 40, "puz")).toContain("1 photo matching");
-    expect(searchSummary(1, 1, "puz")).toContain("1 photo read so far");
-  });
-
-  it("quotes the term back so the reader can see what was actually asked", () => {
-    expect(searchSummary(3, 90, "PUZ-M125")).toContain("PUZ-M125");
-  });
-});

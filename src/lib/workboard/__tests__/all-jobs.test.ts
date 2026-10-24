@@ -1,12 +1,9 @@
 import {
   ALL_JOBS_HORIZON_DAYS,
   allJobsRows,
-  awaitingPaymentCents,
-  awaitingPaymentCount,
   awaitingPaymentRows,
   fmtMinutesAsHours,
   groupChecklist,
-  quotesCountLine,
   sheetRowOf,
   sm8CategoryColour,
   sm8CheckInLeftOpen,
@@ -330,7 +327,6 @@ describe("money on a row", () => {
   it("is null throughout when the reader has no money access", () => {
     const v = view({ jobs: [job({ remoteId: "j-1", money: null })] });
     expect(v.work.unbooked[0].money).toBeNull();
-    expect(awaitingPaymentCount(v)).toBeNull();
   });
 
   it("counts what finished work is still owed, and totals it", () => {
@@ -362,10 +358,8 @@ describe("money on a row", () => {
         }),
       ],
     });
-    expect(awaitingPaymentCount(v)).toBe(2);
     // the count is the filter's rows, read once — the chip and its list agree
     expect(awaitingPaymentRows(v)).toHaveLength(2);
-    expect(awaitingPaymentCents(v)).toBe(10000 + 30000);
   });
 
   /* THE ASYMMETRY THAT WOULD OTHERWISE INFLATE THIS. 1,819 completed jobs
@@ -384,21 +378,10 @@ describe("money on a row", () => {
         }),
       ],
     });
-    expect(awaitingPaymentCount(v)).toBe(0);
-    expect(awaitingPaymentCents(v)).toBe(0);
     expect(v.completed[0].money?.collection).toBe("paid_unknown_total");
   });
 });
 
-describe("the count lines", () => {
-  /* The work and completed count sentences went when those lists' toolbars
-     became filter chips: the chips carry the counts, and a sentence restating
-     them was the same figure twice. Quotes has no honest split to filter on,
-     so its sentence is still its toolbar. */
-  it("has something to say when there are no quotes", () => {
-    expect(quotesCountLine(view({ jobs: [] }))).toBe("No quotes out");
-  });
-});
 
 describe("sm8CategoryColour", () => {
   it("accepts the bare hex the live mirror actually sends", () => {

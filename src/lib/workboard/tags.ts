@@ -18,10 +18,6 @@ export function isTagTone(v: unknown): v is TagTone {
   return typeof v === "string" && (TAG_TONES as readonly string[]).includes(v);
 }
 
-export function isCategoryAccent(v: unknown): v is CategoryAccent {
-  return typeof v === "string" && (CATEGORY_ACCENTS as readonly string[]).includes(v);
-}
-
 /** Deterministic tone for a new tag: hash the name once, store the answer.
     Renaming or adding OTHER tags can never change it — the stored colour is
     the truth and this function only ever runs at creation. */

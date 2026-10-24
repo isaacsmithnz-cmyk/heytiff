@@ -11,7 +11,6 @@ import {
   isPhotoSubject,
   subjectColour,
   subjectLabel,
-  subjectsInFamily,
 } from "@/lib/workboard/photo-subjects";
 
 /* The closed set the showcase filters by. These tests exist because the whole
@@ -115,12 +114,6 @@ describe("the families", () => {
     for (const f of PHOTO_FAMILIES) {
       expect(FAMILY_LABEL[f]).toBeTruthy();
       expect(FAMILY_COLOUR[f]).toMatch(/^#[0-9A-Fa-f]{6}$/);
-    }
-  });
-
-  it("leaves no family empty — a tab with nothing under it is furniture", () => {
-    for (const f of PHOTO_FAMILIES) {
-      expect(subjectsInFamily(f).length).toBeGreaterThan(0);
     }
   });
 

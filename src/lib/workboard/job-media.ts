@@ -291,17 +291,3 @@ export function documentGroupOf(item: JobMediaItem): JobDocumentGroup {
   return "files";
 }
 
-/** The one line a media section leads with. Says what's there, and stays
-    honest when a job has only the paperwork or only the pictures. */
-export function mediaCountLine(groups: JobMediaGroups): string {
-  const parts: string[] = [];
-  const n = (count: number, one: string, many: string) =>
-    `${count} ${count === 1 ? one : many}`;
-  if (groups.photos.length) parts.push(n(groups.photos.length, "photo", "photos"));
-  /* documents and the leftovers keep their own words below */
-  if (groups.documents.length) parts.push(n(groups.documents.length, "document", "documents"));
-  if (groups.elsewhere.length) parts.push(`${groups.elsewhere.length} left in ServiceM8`);
-  if (parts.length === 0) return "Nothing attached in ServiceM8";
-  if (parts.length === 1) return parts[0];
-  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
-}

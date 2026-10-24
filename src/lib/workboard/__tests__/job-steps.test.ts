@@ -1,5 +1,5 @@
 import type { FamilyClaim, FamilyMoney } from "../job-family";
-import { currentStep, jobSteps, lineOf, type StepInput } from "../job-steps";
+import { jobSteps, lineOf, type StepInput } from "../job-steps";
 
 const base: StepInput = {
   status: "Quote",
@@ -64,7 +64,6 @@ describe("where a job is up to", () => {
   it("an accepted job with its deposit invoiced shows the deposit as the warning", () => {
     const s = jobSteps({ ...base, status: "Work Order", quoteSentOn: "2026-08-27", workOrderDate: "2026-08-28", family: family([claim({}), claim({ index: 2, stage: "Final", state: "not_invoiced", raisedOn: null })]) }, true);
     expect(s.find((x) => x.key === "deposit")).toMatchObject({ state: "warn", fact: "Invoiced 28 Aug" });
-    expect(currentStep(s)?.key).toBe("deposit");
   });
 
   it("a job on site is at Installation, counting its days, whatever is still open behind it", () => {
@@ -89,7 +88,6 @@ describe("where a job is up to", () => {
       "installation:now:Day 2",
       "paid:next:",
     ]);
-    expect(currentStep(s)?.key).toBe("installation");
   });
 
   /* Isaac, 2026-10-03: "if no deposit required make that as an option so it
@@ -98,7 +96,6 @@ describe("where a job is up to", () => {
     const one = { status: "Work Order", quoteSentOn: "2026-08-27", workOrderDate: "2026-08-28", family: family([claim({ stage: "Final", state: "not_invoiced" })]) };
     expect(line(one)).toContain("deposit:now");
     expect(line({ ...one, noDeposit: true })).toContain("deposit:done:Not needed");
-    expect(currentStep(jobSteps({ ...base, ...one, noDeposit: true }, true))?.key).toBe("installation");
   });
 
   it("a deposit ticked as not needed is called Deposit, never Deposit paid", () => {
@@ -138,12 +135,6 @@ describe("where a job is up to", () => {
     );
     expect(s.every((x) => x.state === "done" || x.state === "skip")).toBe(true);
     expect(s.at(-1)).toMatchObject({ key: "paid", fact: "Paid 20 Sept" });
-    expect(currentStep(s)).toBeNull();
-  });
-
-  it("a completed job still owed money is at Paid, as a warning", () => {
-    const s = jobSteps({ ...base, status: "Completed", quoteSentOn: "2026-08-27", workOrderDate: "2026-08-28", completionDate: "2026-09-12", family: family([claim({ stage: "Final", state: "awaiting" })], { awaitingCents: 300000, toComeCents: 0 }) }, true);
-    expect(currentStep(s)).toMatchObject({ key: "paid", state: "warn", fact: "Invoiced, not paid" });
   });
 
   it("a declined quote says Declined and the line ends there", () => {

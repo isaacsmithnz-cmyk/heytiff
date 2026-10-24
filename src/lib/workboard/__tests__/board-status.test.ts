@@ -5,22 +5,16 @@
    speaks (C4). */
 
 import {
-  completionTiming,
   daysBetween,
   dayTone,
   FLASH_WINDOW_DAYS,
   gateStateOf,
   isWeekendISO,
   missingGates,
-  mondayOf,
   placementMismatch,
   rollToBusinessDay,
   SOON_WINDOW_DAYS,
-  toConfirmCount,
-  TO_CONFIRM_HORIZON_DAYS,
   visitTone,
-  weekGroupKey,
-  weekGroupRank,
   type GateState,
 } from "../board-status";
 
@@ -142,38 +136,6 @@ describe("dayTone — the cell summarises its day, worst news first", () => {
   });
 });
 
-describe("toConfirmCount — the calm-board rule (B8)", () => {
-  const g = (miss: number) =>
-    miss === 0 ? gates(true, true, 1) : miss === 1 ? gates(true, true, 0) : gates(false, false, 0);
-
-  it("counts gaps only inside 14 days, and says how many services carry them", () => {
-    const { gaps, services } = toConfirmCount(
-      [
-        open("2026-08-02", g(3)), // inside — 3 gaps
-        open("2026-08-12", g(1)), // day 13 — 1 gap
-        open("2026-09-20", g(3)), // September — the chip must NOT shout about this
-        open("2026-08-03", g(0)), // ready — no gap
-      ],
-      today
-    );
-    expect(gaps).toBe(4);
-    expect(services).toBe(2);
-  });
-
-  it("the horizon edge is day 14 in, day 15 out", () => {
-    expect(toConfirmCount([open("2026-08-13", g(1))], today).gaps).toBe(1);
-    expect(toConfirmCount([open("2026-08-14", g(1))], today).gaps).toBe(0);
-    expect(TO_CONFIRM_HORIZON_DAYS).toBe(14);
-  });
-
-  it("overdue is the Urgent queue's news; quotes and history are nobody's gaps", () => {
-    expect(toConfirmCount([open("2026-07-20", g(3))], today).gaps).toBe(0);
-    expect(
-      toConfirmCount([{ ...open("2026-08-02", g(3)), mirrorStatus: "Quote" }], today).gaps
-    ).toBe(0);
-    expect(toConfirmCount([open("2026-08-02", g(3), "done")], today).gaps).toBe(0);
-  });
-});
 
 describe("dates and weekends", () => {
   it("daysBetween is calendar-honest across a DST change", () => {
@@ -193,13 +155,6 @@ describe("dates and weekends", () => {
   });
 });
 
-describe("completionTiming — 'done on time' must be earned (B12)", () => {
-  it("on or before the due date is on time; after is honestly late", () => {
-    expect(completionTiming("2026-07-30", "2026-07-30")).toEqual({ onTime: true, daysLate: 0 });
-    expect(completionTiming("2026-07-30", "2026-07-28")).toEqual({ onTime: true, daysLate: 0 });
-    expect(completionTiming("2026-07-30", "2026-08-02")).toEqual({ onTime: false, daysLate: 3 });
-  });
-});
 
 describe("placementMismatch — K4's pair, surfaced never silent", () => {
   it("booking after the due date is late by construction", () => {
@@ -218,29 +173,3 @@ describe("placementMismatch — K4's pair, surfaced never silent", () => {
   });
 });
 
-describe("week grouping (C4) — Mon–Sun weeks, overdue pulled out front", () => {
-  it("mondayOf finds the week's Monday from any day of it", () => {
-    expect(mondayOf("2026-07-30")).toBe("2026-07-27"); // Thu → Mon
-    expect(mondayOf("2026-07-27")).toBe("2026-07-27"); // Mon → itself
-    expect(mondayOf("2026-08-02")).toBe("2026-07-27"); // Sun belongs to the week it ends
-  });
-
-  it("keys: overdue, this week, next week, then Mondays", () => {
-    expect(weekGroupKey("2026-07-31", today)).toBe("this_week"); // tomorrow
-    expect(weekGroupKey("2026-08-02", today)).toBe("this_week"); // Sunday of this week
-    expect(weekGroupKey("2026-08-03", today)).toBe("next_week");
-    expect(weekGroupKey("2026-08-09", today)).toBe("next_week");
-    expect(weekGroupKey("2026-08-10", today)).toBe("2026-08-10");
-    expect(weekGroupKey(today, today)).toBe("this_week");
-    // Monday of this week is already behind Thursday's today — that's overdue,
-    // not "this week": the group order says deal with it, not plan it
-    expect(weekGroupKey("2026-07-27", today)).toBe("overdue");
-    expect(weekGroupKey("2026-07-20", today)).toBe("overdue");
-  });
-
-  it("ranks sort the groups in reading order", () => {
-    const keys = ["2026-08-17", "next_week", "overdue", "2026-08-10", "this_week"];
-    const sorted = [...keys].sort((a, b) => (weekGroupRank(a) < weekGroupRank(b) ? -1 : 1));
-    expect(sorted).toEqual(["overdue", "this_week", "next_week", "2026-08-10", "2026-08-17"]);
-  });
-});

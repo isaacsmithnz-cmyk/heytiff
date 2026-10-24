@@ -202,7 +202,6 @@ export function costGap(c: Pick<ProposedCost, "amount" | "gstBasis">): CostGap |
 
 const money = (n: number) =>
   `$${n.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-export const fmtMoney = money;
 
 /** "fittings at Reece", "fittings", "Reece", "that". */
 export function costWhat(c: Pick<ProposedCost, "whatFor" | "supplier">): string {

@@ -1,4 +1,4 @@
-import type { ConfirmedNote, NoteTarget } from "@/app/actions/workboard-notes";
+import type { ConfirmedNote } from "@/app/actions/workboard-notes";
 import { isRemindKind, type RemindKind } from "@/lib/dashboard/reminders";
 import type { NoteProposal, ProposedTask, Severity } from "./note-brain";
 import { isVisitPart, visitDay, visitMinutes, visitStart, type ProposedVisit } from "./note-visit";
@@ -152,15 +152,6 @@ export const jobBound = (d: Draft): boolean => {
     c.issueEntries.length > 0
   );
 };
-
-/** Turn a picker value ("visit:abc") back into a target. */
-export function targetOf(picked: string): NoteTarget | null {
-  if (!picked) return null;
-  const [kind, id] = picked.split(":");
-  return kind === "agreement" || kind === "project" || kind === "visit"
-    ? { kind: kind as NoteTarget["kind"], id }
-    : null;
-}
 
 /* ── THE PLAN AS ROWS ────────────────────────────────────────────────────
 

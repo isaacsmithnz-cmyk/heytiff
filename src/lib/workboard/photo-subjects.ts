@@ -168,11 +168,6 @@ export function familyOf(subject: string | null): PhotoFamily | null {
   return subject && isPhotoSubject(subject) ? SUBJECT_FAMILY[subject] : null;
 }
 
-/** The subjects inside one family, in the vocabulary's own order. */
-export function subjectsInFamily(family: PhotoFamily): PhotoSubject[] {
-  return PHOTO_SUBJECTS.filter((s) => SUBJECT_FAMILY[s] === family);
-}
-
 /** A subject's label — falling back to the stored string for anything this
     build no longer knows, so retiring a subject never hides a photograph. */
 export function subjectLabel(subject: string | null): string {

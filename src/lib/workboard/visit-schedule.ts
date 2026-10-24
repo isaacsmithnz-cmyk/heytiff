@@ -43,28 +43,10 @@ export function readReadiness(raw: unknown): Record<ReadinessKey, boolean> {
   return out;
 }
 
-export function readinessCount(raw: unknown): { ready: number; total: number } {
-  const r = readReadiness(raw);
-  return { ready: READINESS_KEYS.filter((k) => r[k]).length, total: READINESS_KEYS.length };
-}
-
 function rawObject(raw: unknown): Record<string, unknown> {
   return raw && typeof raw === "object" && !Array.isArray(raw)
     ? (raw as Record<string, unknown>)
     : {};
-}
-
-/** The D1 mapping, as a pure function (the SQL migration is its mirror):
-    parts_ready → equipment_ready; access OR customer_notified → access
-    (OR, not AND — nobody's half-done work gets un-confirmed); time_confirmed
-    → nothing, placement carries it now. Already-migrated keys pass through. */
-export function migrateLegacyReadiness(raw: unknown): Record<ReadinessKey, boolean> {
-  const obj = rawObject(raw);
-  const on = (k: string) => Object.hasOwn(obj, k) && obj[k] === true;
-  return {
-    equipment_ready: on("equipment_ready") || on("parts_ready"),
-    access_confirmed: on("access_confirmed") || on("customer_notified"),
-  };
 }
 
 /* ── date maths (UTC-pinned, calendar-safe) ── */
@@ -160,25 +142,4 @@ export function isPristineFuture(v: PristineCheck, todayISO: string): boolean {
     if (Object.hasOwn(obj, key) && obj[key] === true) return false;
   }
   return true;
-}
-
-/* ── buckets ── */
-
-export type VisitBucket = "overdue" | "due_soon" | "upcoming";
-
-export const DUE_SOON_DAYS = 14;
-
-/** Derived, never stored: overdue is a date comparison on the account's
-    clock, so it can't go stale and can't lie. Only open visits bucket at
-    all — done/skipped are history. */
-export function bucketFor(dueISO: string, todayISO: string): VisitBucket {
-  if (dueISO < todayISO) return "overdue";
-  const soonEdge = addDaysISO(todayISO, DUE_SOON_DAYS);
-  return dueISO <= soonEdge ? "due_soon" : "upcoming";
-}
-
-function addDaysISO(iso: string, n: number): string {
-  const d = new Date(`${iso}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
 }

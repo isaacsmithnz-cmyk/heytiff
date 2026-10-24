@@ -9,7 +9,6 @@ import {
   awaySpanOnDay,
   awayWord,
   closedInSlot,
-  closedLabel,
   overlaps,
   type AvailabilityRow,
 } from "../away";
@@ -104,8 +103,6 @@ describe("the words", () => {
   it("say the business's own word, as typed, and 'Time off' where it typed none", () => {
     expect(awayWord({ name: "MICK GOLF" })).toBe("MICK GOLF");
     expect(awayWord({ name: null })).toBe("Time off");
-    expect(closedLabel({ kind: "holiday" })).toBe("Public holiday");
-    expect(closedLabel({ kind: "closed" })).toBe("Closed");
   });
 });
 

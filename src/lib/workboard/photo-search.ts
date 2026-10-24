@@ -130,14 +130,3 @@ export function snippet(text: string, term: string, width = 64): string {
   return `${from > 0 ? "…" : ""}${cut}${from + width < text.length ? "…" : ""}`;
 }
 
-/** The phrase a result list leads with. Says what was searched and how much
-    came back, because "23 results" alone does not tell you whether the bank
-    is small or your query was narrow. */
-export function searchSummary(count: number, banked: number, term: string): string {
-  const found =
-    count === 0 ? "Nothing" : count === 1 ? "1 photo" : `${count} photos`;
-  const of = banked === 1 ? "1 photo read so far" : `${banked} photos read so far`;
-  return count === 0
-    ? `${found} matching “${term}” — out of ${of}.`
-    : `${found} matching “${term}”, out of ${of}.`;
-}

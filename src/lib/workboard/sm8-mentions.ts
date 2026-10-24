@@ -75,20 +75,6 @@ const CLOSES = /^$|^[\r\n,.;:!?)\]]/;
    "susie@peterson.com" and "info@isaacsmith" name nobody. */
 const IN_ADDRESS = /[a-z0-9._%+-]/i;
 
-/** The note's words with only the handles we KNOW taken out — what a row
-    that QUOTES a person should show.
-
-    `withoutHandles` takes out every @word, which is right for a task's title
-    and wrong for a quote: "email susie@peterson.com about it" became "email
-    susie about it", half an address and a sentence that says something
-    else. This takes out exactly what `mentionedHandles` would count, keeps
-    an address whole (an "@" inside a word is never a mention), keeps a
-    sentence's full stop when the handle ended it, and leaves every other
-    character — line breaks included — where the writer put it. */
-export function withoutKnownHandles(text: string, known: Iterable<string>): string {
-  return sayKnownHandles(text, lowerSet(known), () => null);
-}
-
 /** A note as the diary QUOTES it to one reader: only the ADDRESSING taken
     out, and every other person it names said by name.
 

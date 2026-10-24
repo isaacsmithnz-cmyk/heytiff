@@ -128,13 +128,6 @@ export function cleanBrief(text: string | null): string | null {
 
 export type QuoteGroupKey = "price" | "wait" | "cold" | "stale";
 
-export const QUOTE_GROUPS: { key: QuoteGroupKey; title: string }[] = [
-  { key: "price", title: "To price" },
-  { key: "wait", title: "Waiting on an answer" },
-  { key: "cold", title: "Going cold" },
-  { key: "stale", title: "Over 6 months" },
-];
-
 export const FOLLOW_UP_DAYS = [7, 21] as const;
 const COLD_AFTER = 60;
 const STALE_AFTER = 180;
@@ -193,5 +186,3 @@ export function quoteWorklist(rows: readonly AllJobRow[], today: string): QuoteW
   };
 }
 
-/** "Today", "1 day", "12 days". */
-export const ageWords = (age: number) => (age === 0 ? "Today" : age === 1 ? "1 day" : `${age} days`);

@@ -4,47 +4,6 @@
    the same posture as every other read module in this feature. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";
-import type { Severity } from "./note-brain";
-
-export type BoardFlag = {
-  id: string;
-  message: string;
-  severity: Severity;
-  targetKind: string;
-  targetId: string | null;
-  createdAt: string;
-};
-
-/** Live flags, worst first — an urgent one raised this morning should not sit
-    below a week-old info note. */
-export async function listFlags(orgId: string, limit = 20): Promise<BoardFlag[]> {
-  const { data } = await supabaseAdmin
-    .from("workboard_flags")
-    .select("id, message, severity, target_kind, target_id, created_at")
-    .eq("org_id", orgId)
-    .eq("active", true)
-    .order("created_at", { ascending: false })
-    .limit(limit);
-
-  const rank: Record<string, number> = { urgent: 0, warn: 1, info: 2 };
-  return ((data ?? []) as {
-    id: string;
-    message: string;
-    severity: Severity;
-    target_kind: string;
-    target_id: string | null;
-    created_at: string;
-  }[])
-    .map((f) => ({
-      id: f.id,
-      message: f.message,
-      severity: f.severity,
-      targetKind: f.target_kind,
-      targetId: f.target_id,
-      createdAt: f.created_at,
-    }))
-    .sort((a, b) => (rank[a.severity] ?? 3) - (rank[b.severity] ?? 3));
-}
 
 export type ProjectEntry = {
   id: string;

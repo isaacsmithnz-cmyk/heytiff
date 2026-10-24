@@ -164,7 +164,3 @@ export const AWAY_WORDS = {
   partDay: "Off {start}–{end}",
 };
 
-/** "Public holiday" or "Closed": what a closure is, as a label. */
-export function closedLabel(c: { kind: "holiday" | "closed" }): string {
-  return c.kind === "holiday" ? AWAY_WORDS.holiday : AWAY_WORDS.closed;
-}

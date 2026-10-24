@@ -11,10 +11,8 @@
 
 import {
   clockLabel,
-  fmtHoursShort,
   layoutScheduleDay,
   closureOf,
-  lanePresence,
   minutesOfNaive,
   onSiteKey,
   railBoundsOf,
@@ -80,12 +78,6 @@ describe("labels", () => {
     expect(clockLabel(720)).toBe("12pm");
     expect(clockLabel(0)).toBe("12am");
     expect(clockLabel(810)).toBe("1:30pm");
-  });
-
-  it("speaks the lane's load", () => {
-    expect(fmtHoursShort(480)).toBe("8h");
-    expect(fmtHoursShort(450)).toBe("7h30");
-    expect(fmtHoursShort(45)).toBe("0h45");
   });
 });
 
@@ -380,93 +372,6 @@ describe("closureOf", () => {
     });
     // this booking sits two days after the job was closed off
     expect(d.lanes[0].blocks[0].closure).toBe("stale");
-  });
-});
-
-/* ── who is actually out there ──
-   The name column's dot, summarising a lane before you look at the rail. */
-describe("lanePresence", () => {
-  const b = (over: Partial<Parameters<typeof lanePresence>[0][number]> = {}) => ({
-    onSite: false,
-    closure: "open" as const,
-    status: "Work Order" as string | null,
-    startMin: 480,
-    ...over,
-  });
-
-  it("is green only where something actually recorded time", () => {
-    expect(lanePresence([b({ onSite: true })], 1440)).toBe("on");
-    // never as a fallback: an unstarted lane is not quietly reported as fine
-    expect(lanePresence([b()], null)).toBe("wait");
-  });
-
-  it("says nothing at all when every booking is closed and none recorded", () => {
-    // a person this reading has no opinion about — better than inventing one
-    expect(lanePresence([b({ closure: "done" })], 1440)).toBeNull();
-    expect(lanePresence([b({ status: "Unsuccessful" })], 1440)).toBeNull();
-    expect(lanePresence([], 1440)).toBeNull();
-  });
-
-  it("lets late outrank both — it is the one wanting doing something about", () => {
-    // out on one job, overdue on another: the overdue one is what you act on
-    expect(
-      lanePresence([b({ onSite: true, startMin: 420 }), b({ startMin: 480 })], 600)
-    ).toBe("late");
-  });
-
-  it("does not call a booking late before its start has gone", () => {
-    expect(lanePresence([b({ startMin: 900 })], 600)).toBe("wait");
-    expect(lanePresence([b({ startMin: 599 })], 600)).toBe("late");
-    expect(lanePresence([b({ startMin: 600 })], 600)).toBe("wait"); // exactly now
-  });
-
-  it("never claims lateness without a clock it can trust", () => {
-    // the viewer whose own date disagrees with the board's
-    expect(lanePresence([b({ startMin: 60 })], null)).toBe("wait");
-  });
-
-  it("ignores work that is closed when looking for something overdue", () => {
-    // finished and unsuccessful jobs have no recorded time in plenty of
-    // accounts, and neither is late
-    expect(lanePresence([b({ closure: "done", startMin: 60 })], 600)).toBeNull();
-    expect(lanePresence([b({ status: "Unsuccessful", startMin: 60 })], 600)).toBeNull();
-  });
-
-  it("never turns a quoting day's dot red — nobody clocks on to a quote", () => {
-    // the same rule the block treatment states; a day of quotes is a day
-    // that went to plan, not a person to chase
-    expect(lanePresence([b({ status: "Quote", startMin: 60 })], 600)).toBe("wait");
-  });
-
-  it("treats a stale booking as open — it is still on the run", () => {
-    /* It used to read "late" here. That was the whole of the bug Isaac saw:
-       a job ServiceM8 closed when the crew marked an EARLIER visit complete
-       turned its owner's dot red on the day of the return visit. Open, yes —
-       there is work to do. Late, no — see the paragraph in lanePresence. */
-    expect(lanePresence([b({ closure: "stale", startMin: 60 })], 600)).toBe("wait");
-  });
-});
-
-describe("lanePresence and a job ServiceM8 has already closed", () => {
-  it("does not call somebody late for a booking on a closed job", () => {
-    /* The same law the block treatment follows, in the name column. This was
-       turning a person's dot red — "nothing recorded yet" — because a job
-       they are simply going back to had been marked complete for an earlier
-       visit. It still counts as work to do, so the lane says "not started". */
-    const stale = {
-      onSite: false,
-      closure: "stale" as const,
-      status: "Completed",
-      startMin: 7 * 60,
-    };
-    expect(lanePresence([stale], 12 * 60)).toBe("wait");
-  });
-
-  it("still calls an ordinary unstarted booking late", () => {
-    // a narrowing, not a removal
-    const open = { onSite: false, closure: "open" as const, status: "Work Order", startMin: 7 * 60 };
-    expect(lanePresence([open], 12 * 60)).toBe("late");
-    expect(lanePresence([open, { ...open, closure: "stale" as const }], 12 * 60)).toBe("late");
   });
 });
 

@@ -1,4 +1,4 @@
-import { chimeScore, playChime } from "../chime";
+import { playChime } from "../chime";
 
 /* THE MIC'S THREE NOTES.
 
@@ -13,30 +13,6 @@ import { chimeScore, playChime } from "../chime";
    `start`, `stop` and `cancel`, so a browser with no Web Audio, a blocked
    context or an exception mid-schedule must cost the note and nothing else. */
 
-describe("the shape of it", () => {
-  it("opens on a rising fifth", () => {
-    const [a, b] = chimeScore("start");
-    expect(b).toBeGreaterThan(a);
-    expect(b / a).toBeCloseTo(1.5, 1);
-  });
-
-  it("closes on the same fifth, falling", () => {
-    const start = chimeScore("start");
-    const stop = chimeScore("stop");
-    expect(stop).toEqual([...start].reverse());
-  });
-
-  it("throws away on one low note that resolves nowhere", () => {
-    const discard = chimeScore("discard");
-    expect(discard).toHaveLength(1);
-    expect(discard[0]).toBeLessThan(Math.min(...chimeScore("start")));
-  });
-
-  it("hands back a copy — a caller cannot retune the app by accident", () => {
-    chimeScore("start").push(1);
-    expect(chimeScore("start")).toHaveLength(2);
-  });
-});
 
 describe("it never costs anything but the sound", () => {
   const realAC = window.AudioContext;

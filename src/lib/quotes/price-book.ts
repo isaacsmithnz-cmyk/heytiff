@@ -299,9 +299,6 @@ export function parseHeadedRows(rows: Row[], excelDate: (serial: number) => stri
   return dedupe(out, skipped);
 }
 
-/** The invoice workbooks are headed sheets. */
-export const parseInvoicedRows = parseHeadedRows;
-
 /** The words a search looks for: lower case, at most four, without the
     characters that would break the database's filter or match anything
     (% _ * , ( ) " and a backslash). Every search of the book reads them

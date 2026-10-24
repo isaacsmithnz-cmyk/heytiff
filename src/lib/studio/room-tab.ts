@@ -384,12 +384,4 @@ export function autoTabS(
   return best ? best.s : null;
 }
 
-/* ── kept on the room ──
-   As a share of the way round (`props.labelEdge`, 0–1), not a distance: a
-   room that is reshaped keeps its tab on about the same stretch of wall. */
-export function storedTabS(props: Record<string, unknown>, g: Walls): number | null {
-  const v = props.labelEdge;
-  return typeof v === "number" && Number.isFinite(v) ? wrap(v, 1) * g.P : null;
-}
-
 export const tabShare = (s: number, P: number): number => (P > 0 ? Math.round((wrap(s, P) / P) * 1e6) / 1e6 : 0);

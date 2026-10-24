@@ -2,7 +2,6 @@ import {
   asProgress,
   driveDocument,
   postIngestBatch,
-  runIngestQueue,
   type KbIngestProgress,
 } from "../use-kb-ingest";
 
@@ -194,63 +193,6 @@ describe("driveDocument — work happening without us", () => {
   });
 });
 
-describe("runIngestQueue", () => {
-  it("finishes one document before starting the next", async () => {
-    const log: string[] = [];
-    const { post } = scripted(
-      {
-        "d-1": [processing(20), { status: "ready", pagesDone: 30, pageCount: 30 }],
-        "d-2": [{ status: "ready", pagesDone: 10, pageCount: 10 }],
-        "d-3": [processing(20), { status: "paused", pagesDone: 40, pageCount: 500 }],
-      },
-      log
-    );
-
-    await runIngestQueue(["d-1", "d-2", "d-3"], { post });
-
-    // never interleaved: two batches at once double-spend the page allowance
-    expect(log).toEqual(["d-1", "d-1", "d-2", "d-3", "d-3"]);
-  });
-
-  it("carries on to the next document after one fails", async () => {
-    const log: string[] = [];
-    const { post } = scripted(
-      {
-        "d-1": [{ status: "failed", pagesDone: 0, pageCount: null, error: "That file couldn't be read." }],
-        "d-2": [{ status: "ready", pagesDone: 12, pageCount: 12 }],
-      },
-      log
-    );
-
-    const settled: string[] = [];
-    await runIngestQueue(["d-1", "d-2"], { post, onSettled: (id, p) => settled.push(`${id}:${p.status}`) });
-
-    expect(log).toEqual(["d-1", "d-2"]);
-    expect(settled).toEqual(["d-1:failed", "d-2:ready"]);
-  });
-
-  it("abandons the rest of the queue once stopped", async () => {
-    const log: string[] = [];
-    const { post } = scripted(
-      {
-        "d-1": [{ status: "ready", pagesDone: 5, pageCount: 5 }],
-        "d-2": [{ status: "ready", pagesDone: 5, pageCount: 5 }],
-      },
-      log
-    );
-
-    let done = 0;
-    await runIngestQueue(["d-1", "d-2"], {
-      post,
-      onSettled: () => {
-        done += 1;
-      },
-      stopped: () => done >= 1,
-    });
-
-    expect(log).toEqual(["d-1"]);
-  });
-});
 
 describe("postIngestBatch", () => {
   const fetchMock = jest.fn();

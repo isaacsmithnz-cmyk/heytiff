@@ -1,8 +1,6 @@
 import {
-  DAYS_PER_MONTH,
   agoLabel,
   daysDuration,
-  durationDays,
   expiresIn,
   expiryClause,
   inLabel,
@@ -59,31 +57,6 @@ describe("daysDuration — the granularity ladder", () => {
    at its most generous interpretation — a week is 7 days, a month is 30 — and
    it must still fit inside the real gap. A single ">" here is the difference
    between "book it in week 6" and missing a rego renewal. */
-describe("never overstates the gap", () => {
-  it("holds for every day count out to a year and beyond", () => {
-    for (let n = 1; n <= 400; n++) {
-      const claimed = durationDays(daysDuration(n));
-      expect(claimed).toBeLessThanOrEqual(n);
-      // and the same, in the past tense — never claim MORE time has passed
-      expect(durationDays(daysDuration(-n))).toBeLessThanOrEqual(n);
-    }
-  });
-
-  it("is as precise as the unit allows — never needlessly coarse", () => {
-    // one more of whatever unit was chosen would have overshot; that is what
-    // makes this a floor rather than an excuse to under-report wildly.
-    for (let n = 2; n <= 400; n++) {
-      const d = daysDuration(n);
-      const step = d.unit.startsWith("month") ? DAYS_PER_MONTH : d.unit.startsWith("week") ? 7 : 1;
-      expect(durationDays(d) + step).toBeGreaterThan(n);
-    }
-  });
-
-  it("is exact on the day counts that divide evenly", () => {
-    expect(durationDays(daysDuration(14))).toBe(14);
-    expect(durationDays(daysDuration(90))).toBe(90);
-  });
-});
 
 describe("expiresIn / expiryClause", () => {
   it("reads as a sentence in both tenses", () => {

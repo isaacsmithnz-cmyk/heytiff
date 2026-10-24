@@ -189,9 +189,6 @@ export function byHandOf(draft: unknown): ByHand {
 /** The approved quote sent to ServiceM8 as a quote, or a trial run of it. */
 export const withSent = (b: ByHand, by: string, now: string, trial: boolean): ByHand => ({ ...b, sent: { at: now, by, trial } });
 
-/** The variation an option is, if it is one. */
-export const variationOf = (b: Pick<ByHand, "variations">, option: number): Variation | null => b.variations.find((v) => v.option === option) ?? null;
-
 /** A variation started on option `option`, a copy of the accepted one: the
     next number, its words, and its name for the proposal and ServiceM8. */
 export function withVariation(b: ByHand, option: number, what: string, by: string, now: string): ByHand {

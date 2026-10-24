@@ -49,12 +49,6 @@ export const EMBED_BATCH = 128;
    below buys back a few; it cannot buy twenty batches a minute. If vectors go
    missing again, CHECK THE BILLING PAGE before reading any of this code. */
 
-/** Requests a minute on an account with no payment method. */
-export const FREE_TIER_RPM = 3;
-
-/** Requests a minute once one is added — Voyage's Tier 1. */
-export const PAID_TIER_RPM = 2_000;
-
 /* ── giving up cleanly ─────────────────────────────────────────────────────
 
    Bounded, and short. The ingest route has a 300s ceiling and a document to

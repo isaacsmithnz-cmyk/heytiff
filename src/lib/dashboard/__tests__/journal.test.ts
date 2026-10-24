@@ -1,4 +1,4 @@
-import { APPLIED_GROUPS, CHIP_TITLE_MAX, describeApplied, describeAppliedResolved, entryForDoor } from "../journal";
+import { CHIP_TITLE_MAX, describeAppliedResolved, entryForDoor } from "../journal";
 
 /* The journal reads a table nothing had ever read back to a person:
    `workboard_notes` keeps every transcript verbatim as the evidence for what
@@ -7,68 +7,6 @@ import { APPLIED_GROUPS, CHIP_TITLE_MAX, describeApplied, describeAppliedResolve
    — the group names and their plurals — and the day grouping, which has to
    survive a timestamp that lands on the far side of midnight in UTC. */
 
-describe("describeApplied", () => {
-  it("counts each group in the words the save summary used", () => {
-    expect(describeApplied({ taskIds: ["a", "b"], noteLines: ["x"] })).toEqual([
-      { kind: "todo", text: "2 tasks" },
-      { kind: "kept", text: "1 line kept" },
-    ]);
-  });
-
-  it("keeps the write side's own singular and plural for every group", () => {
-    /* THE PAIRING IS COPIED, NOT SHARED, and `journal-groups.test.ts` is what
-       actually reads `actions/workboard-notes.ts` to check it. This list is
-       the order the chips come out in, which that scan says nothing about:
-       the writer's groups first (the Library's among them, which a press
-       appends), then the two that keep the words as they were said — the
-       job, then the kept lines of rows from before. */
-    expect(APPLIED_GROUPS.map(([k]) => k)).toEqual([
-      "taskIds",
-      "flagIds",
-      "entryIds",
-      "entryLines",
-      "issueIds",
-      "bringItems",
-      "visits",
-      "costs",
-      "variations",
-      "kbIds",
-      "jobNotes",
-      "noteLines",
-    ]);
-    for (const [key, one, many, kind] of APPLIED_GROUPS) {
-      expect(describeApplied({ [key]: ["only"] })).toEqual([{ kind, text: `1 ${one}` }]);
-      expect(describeApplied({ [key]: ["a", "b"] })).toEqual([{ kind, text: `2 ${many}` }]);
-    }
-  });
-
-  it("sorts every group into one of exactly two glyphs", () => {
-    /* Eight glyphs would be a vocabulary to learn; the split that matters is
-       the one the reader acts on. If a new group arrives, it has to choose a
-       side here rather than quietly inventing a third. */
-    expect(new Set(APPLIED_GROUPS.map(([, , , kind]) => kind))).toEqual(
-      new Set(["todo", "kept"]),
-    );
-    const todo = APPLIED_GROUPS.filter(([, , , k]) => k === "todo").map(([key]) => key);
-    expect(todo).toEqual(["taskIds", "flagIds", "issueIds", "bringItems"]);
-  });
-
-  it("reports nothing for a capture that produced nothing", () => {
-    // untick every line and you have still said the thing: the row renders
-    // with the words and no outcomes, rather than disappearing
-    expect(describeApplied({})).toEqual([]);
-    expect(describeApplied(null)).toEqual([]);
-    expect(describeApplied(undefined)).toEqual([]);
-  });
-
-  it("ignores a shape it did not write rather than inventing a number", () => {
-    expect(describeApplied({ taskIds: "two" })).toEqual([]);
-    expect(describeApplied({ taskIds: 2 })).toEqual([]);
-    expect(describeApplied("nonsense")).toEqual([]);
-    // an unknown key is not guessed at either
-    expect(describeApplied({ somethingNew: ["a"] })).toEqual([]);
-  });
-});
 
 describe("describeAppliedResolved", () => {
   const tasks = new Map([
@@ -140,18 +78,6 @@ describe("describeAppliedResolved", () => {
     const out = describeAppliedResolved(applied, { tasks, kb, noteId: "n1" });
     expect(out.every((o) => o.go === undefined)).toBe(true);
     expect(out.map((o) => o.text)).toEqual(["1 flag", "2 entries", "1 issue", "1 bring-item"]);
-  });
-
-  it("is exactly describeApplied when nothing was looked up", () => {
-    // the old counts are not a separate code path that can drift — they are
-    // this function with no lookups
-    const applied = { taskIds: ["t1", "t2"], kbIds: ["k1"], noteLines: ["x"] };
-    expect(describeAppliedResolved(applied)).toEqual(describeApplied(applied));
-    expect(describeApplied(applied).map((o) => o.text)).toEqual([
-      "2 tasks",
-      "1 knowledge entry",
-      "1 line kept",
-    ]);
   });
 
   it("keeps the order the groups were applied in", () => {

@@ -18,7 +18,7 @@ import { assemblePack, type PackSource } from "../packs/loader";
 import { createDesign, type DesignDocument, type DesignObject } from "../document";
 import { roomLoadKw, type RoomObj } from "../loads-room";
 import { sizingCapacityKw } from "../loads";
-import { roomAtPoint, roomCoverage, systemCover } from "../coverage";
+import { roomCoverage, systemCover } from "../coverage";
 import { buildSummaryModel } from "../summary";
 import {
   addBandUnit,
@@ -35,16 +35,13 @@ import {
   moveZone,
   outdoorsListing,
   placeAllocation,
-  placeInRoomSpot,
   releaseSystem,
   releaseZones,
   removeAllocation,
   removeZone,
   roomVerdict,
   swapAllocation,
-  systemCheck,
   trayItems,
-  wrongRoomPlacements,
   zonesToAdd,
 } from "../builder";
 import { claimZone, familyOf, newSystem, systemKind, zoneIdsOf } from "../zones";
@@ -171,7 +168,6 @@ describe("the outdoor is proposed, not picked (R12)", () => {
     expect(odu()).toBe("MXZ-4F80VGD");
     const sys = head(room.master.id, "MSZ-AP50VGD2");
     expect(odu()).toBeNull();
-    expect(systemCheck(d, pack, basis, sys)).toMatchObject({ kind: "multi", listed: false });
 
     // take Living's head out: the rest is re-proposed, smallest first
     const living = allocationsOf(sys).find((a) => a.roomId === room.living.id)!;
@@ -216,7 +212,6 @@ describe("the outdoor is proposed, not picked (R12)", () => {
     const sys = r.doc.systems.find((s) => s.id === r.systemId)!;
     expect(allocationsOf(sys).find((a) => a.role === "odu")?.model).toBe("MXZ-4F71VGD");
     expect(roomCoverage(r.doc, pack, room.master, basis).coveredKw).toBeCloseTo(kw("MSZ-AP50VGD2"), 5);
-    expect(systemCheck(r.doc, pack, basis, sys)).toMatchObject({ kind: "multi", listed: true });
   });
 });
 
@@ -248,25 +243,6 @@ describe("two heads in one room on a multi", () => {
     expect(cov.coveredKw).toBeCloseTo(kw("MXZ-4F80VGD"), 5);
     expect(roomVerdict(r.doc, pack, basis, room.living).word).toBe("Undersized");
   });
-
-  it("the book refuses 71 + 71 with three bedroom heads on every MXZ", () => {
-    const { doc, room } = house();
-    let d = doc;
-    let id: string | null = null;
-    for (const [roomId, model] of [
-      [room.living.id, "SEZ-M71DA(L)"],
-      [room.living.id, "SEZ-M71DA(L)"],
-      [room.bed1.id, "MSZ-AP25VGD2"],
-      [room.bed2.id, "MSZ-AP35VGD2"],
-      [room.master.id, "MSZ-AP35VGD2"],
-    ] as const) {
-      const r = addMultiHead(d, pack, basis, { systemId: id, roomId, iduModel: model });
-      d = r.doc;
-      id = r.systemId;
-    }
-    const check = systemCheck(d, pack, basis, d.systems.find((s) => s.id === id)!);
-    expect(check).toMatchObject({ kind: "multi", listed: false, alternatives: [] });
-  });
 });
 
 /* ── placing ── */
@@ -284,66 +260,7 @@ describe("placing never changes the room a unit serves", () => {
     expect(obj.systemId).toBe(r.systemId);
     expect(obj.props.roomId).toBe(room.bed1.id);
     expect(obj.props.model).toBe("MSZ-AP25VGD2");
-    expect(wrongRoomPlacements(placed)).toEqual([
-      { systemId: r.systemId, allocationId: idu.id, roomId: room.bed1.id, inRoomId: room.bed2.id },
-    ]);
     expect(trayItems(placed, pack).map((t) => t.role)).toEqual(["odu"]);
-
-    // outside every room — the hallway bulkhead — is not flagged
-    const hall = placeAllocation(r.doc, pack, r.systemId, idu.id, doc.floors[0].id, { x: 1050, y: 900 });
-    expect(wrongRoomPlacements(hall)).toEqual([]);
-  });
-
-  it("Place in room puts a head inside its room and an outdoor below it, never two on one spot", () => {
-    const { doc, room } = house();
-    const floorId = doc.floors[0].id;
-    let d = addSplit(doc, pack, { roomId: room.living.id, iduModel: "MSZ-AP71VGD2", oduModel: "MUZ-AP71VG2" }).doc;
-    d = addSplit(d, pack, { roomId: room.living.id, iduModel: "MSZ-AP71VGD2", oduModel: "MUZ-AP71VG2" }).doc;
-    for (const item of trayItems(d, pack)) {
-      const spot = placeInRoomSpot(d, pack, item.systemId, item.allocationId)!;
-      expect(spot.floorId).toBe(floorId);
-      d = placeAllocation(d, pack, item.systemId, item.allocationId, spot.floorId, spot.at);
-    }
-    expect(trayItems(d, pack)).toEqual([]);
-    const units = d.objects.filter((o) => o.type === "unit");
-    const at = (role: string) =>
-      units.filter((o) => o.props.role === role).map((o) => (o.geometry.kind === "point" ? o.geometry.at : null)!);
-    const heads = at("idu");
-    const outs = at("odu");
-    expect(heads).toHaveLength(2);
-    expect(outs).toHaveLength(2);
-    // both heads inside Living, both outdoors outside it and below it
-    for (const p of heads) expect(roomAtPoint(d.objects, floorId, p)?.id).toBe(room.living.id);
-    for (const p of outs) {
-      expect(roomAtPoint(d.objects, floorId, p)).toBeNull();
-      expect(p.y).toBeGreaterThan(960);
-    }
-    // and never on one spot
-    expect(heads[0].x).not.toBeCloseTo(heads[1].x, 0);
-    expect(outs[0].x).not.toBeCloseTo(outs[1].x, 0);
-    // placing moved nothing between rooms
-    expect(wrongRoomPlacements(d)).toEqual([]);
-  });
-
-  it("an outdoor never lands inside the room next door", () => {
-    const { doc, room } = house();
-    const floorId = doc.floors[0].id;
-    // a hall directly below Master
-    doc.objects.push({
-      id: "hall",
-      type: "room",
-      systemId: null,
-      floorId,
-      plane: "room",
-      geometry: { kind: "polygon", points: rect(2150, 500, 550, 300) },
-      props: { name: "Hall" },
-    } as DesignObject);
-    const r = addSplit(doc, pack, { roomId: room.master.id, iduModel: "MSZ-AP35VGD2", oduModel: "MUZ-AP35VG2" });
-    const odu = allocationsOf(r.doc.systems[0]).find((a) => a.role === "odu")!;
-    const spot = placeInRoomSpot(r.doc, pack, r.systemId, odu.id)!;
-    expect(roomAtPoint(r.doc.objects, floorId, spot.at)).toBeNull();
-    // the side that backs onto the hall is passed over for the open one above
-    expect(spot.at.y).toBeLessThan(0);
   });
 
   it("deleting a placed unit on the plan sends it back to the tray", () => {

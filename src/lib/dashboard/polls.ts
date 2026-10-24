@@ -55,12 +55,6 @@ export type PollResult = {
   myOptionIds: string[];
 };
 
-/** The empty poll — a question nobody can answer yet, or a notice that isn't
-    one. Kept here so callers never hand-roll a half-shaped result. */
-export function emptyPoll(multi = false): PollResult {
-  return { multi, options: [], voters: 0, voted: false, myOptionIds: [] };
-}
-
 export function tallyPoll(input: {
   options: readonly PollOptionRow[];
   votes: readonly PollVoteRow[];

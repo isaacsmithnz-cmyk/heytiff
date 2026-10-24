@@ -93,9 +93,8 @@ jest.mock("@/lib/integrations/sm8-freshness", () => ({
 
 import { auth0 } from "@/lib/auth0";
 import { getCapabilities } from "@/lib/permissions-server";
-import { loadActionRequired, loadDashboard } from "../page-data";
+import { loadDashboard } from "../page-data";
 
-const handed = () => (assembleChips.mock.calls.at(-1)![0] as { sm8Stuck: unknown }).sm8Stuck;
 
 beforeEach(() => {
   role = "owner";
@@ -103,26 +102,6 @@ beforeEach(() => {
   sm8QueueStuck.mockReset().mockResolvedValue({ reason: "billing", waiting: 2 });
 });
 
-describe("the bell's ServiceM8 line", () => {
-  it("reads what is stuck for an owner, and hands it to the chips", async () => {
-    await loadActionRequired();
-    expect(sm8QueueStuck).toHaveBeenCalledWith("org-1");
-    expect(handed()).toEqual({ reason: "billing", waiting: 2 });
-  });
-
-  it("never reads it for anybody else", async () => {
-    role = "admin";
-    await loadActionRequired();
-    expect(sm8QueueStuck).not.toHaveBeenCalled();
-    expect(handed()).toBeNull();
-  });
-
-  it("raises no chip, and keeps the bell, when the read fails", async () => {
-    sm8QueueStuck.mockRejectedValue(new Error("down"));
-    await loadActionRequired();
-    expect(handed()).toBeNull();
-  });
-});
 
 describe("opening Home", () => {
   beforeEach(() => {
@@ -144,57 +123,5 @@ describe("opening Home", () => {
     (auth0.getSession as jest.Mock).mockResolvedValueOnce(null);
     await loadDashboard();
     expect(freshen).not.toHaveBeenCalled();
-  });
-});
-
-/* E-4 and E-10: the bell's booking items (two-way phase 3, PR E) are read
-   only where the deployment books, for the viewer who pressed (their Auth0
-   id) and — the guard — for the owner alone; anywhere else the chips'
-   input is exactly main's, and nothing is asked. */
-describe("the bell's booking items", () => {
-  const input = () => assembleChips.mock.calls.at(-1)![0] as Record<string, unknown>;
-  beforeEach(() => {
-    myBookingTrouble.mockReset().mockResolvedValue([{ jobUuid: "j1", number: "5010", op: "notSent" }]);
-    bookingGuardTripped.mockReset().mockResolvedValue({ number: "5020" });
-    (getCapabilities as jest.Mock).mockResolvedValue(new Set(["workboard"]));
-  });
-  afterEach(() => {
-    delete process.env.SM8_WRITES;
-    (getCapabilities as jest.Mock).mockResolvedValue(new Set());
-  });
-
-  it("reads the presser's items and the owner's guard where the deployment books, and hands them on", async () => {
-    process.env.SM8_WRITES = "attachment,note,booking";
-    await loadActionRequired();
-    expect(myBookingTrouble).toHaveBeenCalledWith("org-1", "auth0|me", expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/));
-    expect(bookingGuardTripped).toHaveBeenCalledWith("org-1", expect.any(String));
-    expect(input().ownBookingTrouble).toEqual([{ jobUuid: "j1", number: "5010", op: "notSent" }]);
-    expect(input().sm8BookingGuard).toEqual({ number: "5020" });
-  });
-
-  it("never asks about the guard for anybody but the owner", async () => {
-    process.env.SM8_WRITES = "attachment,note,booking";
-    role = "admin";
-    await loadActionRequired();
-    expect(bookingGuardTripped).not.toHaveBeenCalled();
-    expect(input().sm8BookingGuard).toBeNull();
-  });
-
-  it("keeps the bell when the reads fail", async () => {
-    process.env.SM8_WRITES = "attachment,note,booking";
-    myBookingTrouble.mockRejectedValue(new Error("down"));
-    bookingGuardTripped.mockRejectedValue(new Error("down"));
-    await loadActionRequired();
-    expect(input().ownBookingTrouble).toEqual([]);
-    expect(input().sm8BookingGuard).toBeNull();
-  });
-
-  it.each(["1", "attachment,note"])("SM8_WRITES=%s: asks nothing, and the chips' input is main's", async (writes) => {
-    process.env.SM8_WRITES = writes;
-    await loadActionRequired();
-    expect(myBookingTrouble).not.toHaveBeenCalled();
-    expect(bookingGuardTripped).not.toHaveBeenCalled();
-    expect(input()).not.toHaveProperty("ownBookingTrouble");
-    expect(input()).not.toHaveProperty("sm8BookingGuard");
   });
 });

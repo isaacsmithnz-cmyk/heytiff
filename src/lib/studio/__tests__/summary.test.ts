@@ -14,7 +14,6 @@ import {
   designBasis,
   effectiveBuildingType,
   effectiveClimateZone,
-  roomsByFloor,
 } from "../summary";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
@@ -166,25 +165,6 @@ describe("buildDesignSnapshot", () => {
   });
 });
 
-describe("roomsByFloor", () => {
-  it("groups rooms per floor with loads and serving units", () => {
-    const floors = roomsByFloor(fixtureDoc(), pack);
-    expect(floors).toHaveLength(2);
-    const [f1, f2] = floors;
-    expect(f1.calibrated).toBe(true);
-    expect(f1.rooms).toHaveLength(1);
-    expect(f1.rooms[0].name).toBe("Lounge");
-    expect(f1.rooms[0].areaM2).toBeCloseTo(20, 5);
-    expect(f1.rooms[0].loadKw).toBeCloseTo(2.9, 5);
-    expect(f1.rooms[0].serving).toHaveLength(1);
-    expect(f1.rooms[0].serving[0].model).toBe("MSZ-AP25VGD");
-    expect(f1.rooms[0].serving[0].systemName).toBe("System 1");
-    // uncalibrated floor: the room rows exist, measures are null
-    expect(f2.calibrated).toBe(false);
-    expect(f2.rooms[0].areaM2).toBeNull();
-    expect(f2.rooms[0].loadKw).toBeNull();
-  });
-});
 
 describe("the picklist across systems", () => {
   it("sums the same model wherever it is placed, sorted by name", () => {

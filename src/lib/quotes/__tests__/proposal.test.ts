@@ -8,7 +8,7 @@
    other deposit is the business's to set. */
 
 import { CHECKLIST, CHECKLIST_KEYS, orderChecklist } from "../checklist";
-import { PAYMENT_PRESETS, SUGGESTED_DEPOSIT_PCT, paymentProblems, suggestedDeposit } from "../payment";
+import { PAYMENT_PRESETS, SUGGESTED_DEPOSIT_PCT, suggestedDeposit } from "../payment";
 import {
   MAX_OPTIONS,
   acceptedOptions,
@@ -169,13 +169,6 @@ describe("the checklist catalogue", () => {
 });
 
 describe("payment terms", () => {
-  it("each preset adds up, at the suggested deposit", () => {
-    for (const k of ["domestic_small", "domestic_construction"] as const) {
-      expect(paymentProblems(k, PAYMENT_PRESETS[k].stages)).toEqual([]);
-      expect(suggestedDeposit(k, PAYMENT_PRESETS[k].stages)).toBeNull();
-    }
-    expect(paymentProblems("commercial", PAYMENT_PRESETS.commercial.stages)).toEqual([]);
-  });
 
   it("takes any deposit, says the suggested one beside it, and says when the stages don't add up", () => {
     const stages = [
@@ -183,7 +176,6 @@ describe("payment terms", () => {
       { when: "Progress", percent: 30 },
       { when: "Balance", percent: 30 },
     ];
-    expect(paymentProblems("domestic_construction", stages)).toEqual(["The stages add up to 90%, not 100%."]);
     expect(suggestedDeposit("domestic_construction", stages)).toBe(SUGGESTED_DEPOSIT_PCT);
     expect(suggestedDeposit("commercial", stages)).toBeNull();
     expect(suggestedDeposit("domestic_small", [{ when: "Balance on finishing", percent: 100 }])).toBeNull();

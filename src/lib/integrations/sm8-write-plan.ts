@@ -1198,12 +1198,6 @@ export function sendLine(
   return null;
 }
 
-/** Whether a file may be sent again: never sent, or sent and it came to
-    nothing. A file in ServiceM8, or on its way, is not sent twice. */
-export function sendable(send: JobSend | undefined): boolean {
-  return !send || send.status === "failed" || send.status === "cancelled" || send.status === "trial";
-}
-
 /* THE TWIN — a file we sent, mirrored back by the next sync as one of
    ServiceM8's own — is left off on the server, by its uuid, everywhere a
    ServiceM8 file is read (sm8-echo.ts). A file sent is one row whether or

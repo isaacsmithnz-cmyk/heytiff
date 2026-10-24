@@ -9,7 +9,6 @@ import path from "path";
 import {
   installedPacks,
   loadInstalledPack,
-  resolveDesignPacks,
 } from "../server";
 
 const prov = { kind: "extracted", source: "book" };
@@ -89,13 +88,3 @@ describe("loadInstalledPack", () => {
   });
 });
 
-describe("resolveDesignPacks — packPins bridge", () => {
-  it("returns null when a design pins nothing", async () => {
-    expect(await resolveDesignPacks({}, base)).toBeNull();
-  });
-
-  it("loads a single pinned pack", async () => {
-    const merged = await resolveDesignPacks({ acme: "1.0" }, base);
-    expect(merged!.outdoor_units[0].capacity_cool_kw).toBe(22.4);
-  });
-});

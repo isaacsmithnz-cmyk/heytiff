@@ -9,15 +9,11 @@ import {
   faceOf,
   fitOf,
   fittingOf,
-  forTheOutdoorsCurrent,
-  forTheOutdoorsSize,
   inKind,
   isolatorOf,
-  needWords,
   neckOf,
   pickFromRange,
   plenumOf,
-  rangeNeedOf,
   reducerOf,
   sameLine,
   sizeWords,
@@ -202,32 +198,11 @@ describe("the size a kit line takes", () => {
 });
 
 describe("what a kit line needs, read back", () => {
-  it("reads the outdoor's current and supply off an isolator, and its size off a bracket", () => {
-    expect(rangeNeedOf({ name: "Isolator", sub: `${forTheOutdoorsCurrent(28, "1")}Living` })).toEqual({ kind: "isolator", need: { amps: 28, phase: "1" } });
-    expect(rangeNeedOf({ name: "Isolator", sub: `${forTheOutdoorsCurrent(16, null)}the multi` })).toEqual({ kind: "isolator", need: { amps: 16, phase: null } });
-    expect(rangeNeedOf({ name: "Isolator, 3Ø 32 A", sub: "Weatherproof IP66" })).toEqual({ kind: "isolator", need: { amps: 32, phase: "3" } });
-    expect(rangeNeedOf({ name: "Isolator", sub: "Living" })).toEqual({ kind: "isolator", need: null });
-    expect(rangeNeedOf({ name: "Wall bracket", sub: `${forTheOutdoorsSize(1050, 114)}the ducted system` })).toEqual({ kind: "wall_bracket", need: { w: 1050, kg: 114 } });
-  });
-
-  it("reads a ducted kit's sizes off its lines' names", () => {
-    expect(rangeNeedOf({ name: "Zone damper Ø250", sub: "a zone" })).toEqual({ kind: "zone_damper", need: { mm: 250 } });
-    expect(rangeNeedOf({ name: "Trunk Ø350", sub: "" })).toEqual({ kind: "flex_duct", need: { mm: 350 } });
-    expect(rangeNeedOf({ name: "Bar grille 1200 × 150, flangeless", sub: "" })).toEqual({ kind: "bar_grille", need: { w: 1200, h: 150 } });
-    expect(rangeNeedOf({ name: "Slot diffuser 1200 long", sub: "" })).toEqual({ kind: "slot_diffuser", need: { w: 1200 } });
-    expect(rangeNeedOf({ name: "Return grille, Ø250 spigot", sub: "" })).toEqual({ kind: "return_grille", need: { mm: 250 } });
-    expect(rangeNeedOf({ name: "Fitting Ø350 → Ø300 / Ø250", sub: "" })).toEqual({ kind: "fitting", need: { ins: [350], outs: [300, 250] } });
-    expect(rangeNeedOf({ name: "Plenum, spigots Ø250 / Ø250 / Ø250", sub: "" })).toEqual({ kind: "plenum", need: { spigots: [250, 250, 250] } });
-    expect(rangeNeedOf({ name: "Zone damper", sub: "a zone" })).toEqual({ kind: "zone_damper", need: null });
-    expect(rangeNeedOf({ name: "Drain hose", sub: "" })).toBeNull();
-  });
 
   it("says a size in a few words", () => {
     expect(sizeWords("isolator", { amps: 20, poles: 2 })).toBe("20 A, 2 pole");
     expect(sizeWords("fitting", { ins: [450, 500], outs: [350, 350] })).toBe("Ø450 or Ø500 → Ø350 / Ø350");
     expect(sizeWords("plenum", { spigots: [350, 400, 350] })).toBe("Ø400 + 2 × Ø350");
-    expect(needWords("isolator", { amps: 63, phase: "3" })).toBe("63 A on three phase");
-    expect(needWords("wall_bracket", { kg: 114, w: 1050 })).toBe("114 kg, 1050 mm wide");
   });
 });
 

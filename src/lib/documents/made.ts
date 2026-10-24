@@ -243,14 +243,6 @@ export function sortRows(rows: readonly DocRow[], sort: DocSort): DocRow[] {
   return out.sort((a, b) => b.day.localeCompare(a.day) || a.name.localeCompare(b.name));
 }
 
-/** Each view's count under the person and the search. */
-export function viewCounts(rows: readonly DocRow[], s: Pick<DocsState, "by" | "q">): Record<DocView, number> {
-  const left = narrowed(rows, s);
-  const counts = { all: left.length } as Record<DocView, number>;
-  for (const k of DOC_KINDS) counts[k] = left.filter((r) => r.kind === k).length;
-  return counts;
-}
-
 /** Everyone a row belongs to, by name. */
 export function peopleOf(rows: readonly DocRow[]): { value: string; label: string }[] {
   const names = [...new Set(rows.map((r) => r.by).filter((b): b is string => !!b))].sort((a, b) => a.localeCompare(b));

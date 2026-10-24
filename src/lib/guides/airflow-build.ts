@@ -1006,7 +1006,6 @@ export type SupplyOutlets = ReturnType<typeof buildOutlets>;
 export type ReturnAir = ReturnType<typeof buildReturn>;
 export type Ducts = ReturnType<typeof buildDucts>;
 export type Zoning = ReturnType<typeof buildZoning>;
-export type Sources = ReturnType<typeof buildSources>;
 
 /** Every generated table, by its file name: the same evidence gives the same bytes. */
 export function buildAirflowGuide(ev: Evidence) {

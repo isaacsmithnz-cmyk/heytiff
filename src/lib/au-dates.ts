@@ -169,21 +169,6 @@ export function fmtAuWeekdayDateLong(iso: string | null | undefined): string {
   }).format(new Date(`${day}T00:00:00Z`));
 }
 
-/* The hour on the AU clock right now, 0-23 — for greetings, never arithmetic.
-   getHours() on a UTC server says "Good evening" at 9am in the yard; this
-   reads the same anchor as todayInAu, so the greeting and the date line it
-   sits over can't disagree. */
-export function auHourNow(now: Date = new Date()): number {
-  const part = new Intl.DateTimeFormat("en-AU", {
-    timeZone: AU_ANCHOR_TZ,
-    hour: "numeric",
-    hourCycle: "h23",
-  })
-    .formatToParts(now)
-    .find((p) => p.type === "hour");
-  return Number(part?.value ?? 0);
-}
-
 /* Minutes past midnight on the AU clock right now — the other half of
    `todayInAu`, for asking whether a wall-clock moment ("Sun 3:00 PM") has come
    without turning either side into an instant. Same anchor, so the date and

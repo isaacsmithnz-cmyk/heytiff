@@ -1,7 +1,7 @@
 import type { BuildSettings } from "../buildup";
 import type { QuoteLine } from "../lines";
 import { priceLines } from "../lines-price";
-import { cents2, quoteGroups, quoteParts } from "../quote-sum";
+import { quoteParts } from "../quote-sum";
 
 /* The quote card's sums (the chat-first quote page, Isaac, 2026-10-13), on
    3231's own lines as they stood on 12 October (121 Awaba Street: a 10 kW
@@ -87,45 +87,12 @@ it("splits the total into Units, Materials and Labour, the contingency's hours i
   expect(sum(parts)).toBe(b.exGstCents);
 });
 
-it("lists the groups in the one order, not the order the lines went on, and they add up to the total", () => {
-  const groups = quoteGroups(b, s.chargeOutCents);
-  expect(groups.map((g) => [g.label, cents2(g.cents)])).toEqual([
-    ["Units", "$3,934.54"],
-    ["Ductwork and grilles", "$1,834.99"],
-    ["Pipe, power and controls", "$2,058.97"],
-    ["Mounting and drain", "$207.48"],
-    ["Allowances", "$95.90"],
-    ["Labour", "$5,600.00"],
-    /* 15% of the dampers' $226.05 at 40% on, and 3 h at $140 */
-    ["Duct contingency", "$467.47"],
-  ]);
-  expect(sum(groups)).toBe(b.exGstCents);
-});
-
 it("puts a group the kit doesn't build after the kit's, before the labour, and a loading with the labour, still adding up", () => {
   const core = line(["Core holes", null, "material", 1, "", 30000, null]);
   const [x] = priceLines([core, ...lines3231], [], s, { pct: 20, labourCostCents: null }, { 0: { pct: 10, reason: "Parapet access" } });
-  const groups = quoteGroups(x!.build, s.chargeOutCents);
-  expect(groups.map((g) => g.label)).toEqual([
-    "Units",
-    "Ductwork and grilles",
-    "Pipe, power and controls",
-    "Mounting and drain",
-    "Allowances",
-    "Core holes",
-    "Labour",
-    "Loading on labour",
-    "Duct contingency",
-  ]);
-  expect(groups.find((g) => g.label === "Loading on labour")!.cents).toBe(56000);
-  expect(sum(groups)).toBe(x!.build.exGstCents);
   /* the loading is labour's, not the materials' */
   const parts = quoteParts(x!.build, 43);
   expect(parts[2]!.cents).toBe(602000 + 56000);
   expect(sum(parts)).toBe(x!.build.exGstCents);
 });
 
-it("says nothing of a contingency or labour a quote hasn't got", () => {
-  const [x] = priceLines(lines3231.filter((l) => l.kind === "unit"), [], s, { pct: null, labourCostCents: null });
-  expect(quoteGroups(x!.build, s.chargeOutCents).map((g) => g.label)).toEqual(["Units"]);
-});

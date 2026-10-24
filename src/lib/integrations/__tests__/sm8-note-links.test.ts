@@ -18,7 +18,7 @@ const familyMediaSources = jest.fn(async () => [] as { remoteId: string; claimNu
 jest.mock("@/lib/workboard/all-jobs-query", () => ({ familyMediaSources: (...a: unknown[]) => familyMediaSources(...(a as [])) }));
 
 import { confirmSm8Link, linkSm8StaffMember, sm8NoteSender } from "../links";
-import { noteObjectOf, noteSourceOf } from "../sm8-note-source";
+import { noteSourceOf } from "../sm8-note-source";
 import { NOTE_WORDS } from "../sm8-note-plan";
 
 const ORG = "org-1";
@@ -140,14 +140,5 @@ describe("what a note answers, and where it goes", () => {
     fake.db.sm8_writes = [{ org_id: ORG, kind: "note", op: "create", status: "sent", remote_uuid: OURS, sm8_job_uuid: JOB, note_id: "n1", as_staff_uuid: ISAAC }];
     expect(await noteSourceOf(ORG, OURS)).toMatchObject({ relatedUuid: JOB, text: "@lyleirving tiếng việt", origin: "heytiff", authorSm8Uuid: ISAAC });
     expect(await noteSourceOf(ORG, "not-a-uuid")).toBeNull();
-  });
-
-  it("a diary entry goes on its job; a reply on its source's object, only when that is the job or one of its claims", async () => {
-    fake.db.sm8_job_notes = [{ org_id: ORG, uuid: NOTE, related_object_uuid: CLAIM, note: "x" }];
-    expect(await noteObjectOf(ORG, { target_id: JOB, reply_to_sm8_note_uuid: null })).toBe(JOB);
-    expect(await noteObjectOf(ORG, { target_id: JOB, reply_to_sm8_note_uuid: NOTE })).toBeNull();
-    familyMediaSources.mockResolvedValue([{ remoteId: CLAIM, claimNumber: "2380-1" }]);
-    expect(await noteObjectOf(ORG, { target_id: JOB, reply_to_sm8_note_uuid: NOTE })).toBe(CLAIM);
-    expect(await noteObjectOf(ORG, { target_id: JOB, reply_to_sm8_note_uuid: "7e7e7e7e-0000-4000-8000-00000000dead" })).toBeNull();
   });
 });

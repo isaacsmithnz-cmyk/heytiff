@@ -35,9 +35,6 @@
 import { sm8Request, type Sm8Call } from "./sm8-http";
 import { looksLikeFile, sniffFileKind } from "./sm8-attachment-probe";
 
-/** The shape that serves bytes. Verified live; see the header. */
-export const SM8_ATTACHMENT_FILE_SHAPE = "Attachment/{uuid}.file";
-
 /** The path, under the API base, that serves one attachment's bytes. */
 export function attachmentFilePath(uuid: string): string {
   return `Attachment/${encodeURIComponent(uuid)}.file`;

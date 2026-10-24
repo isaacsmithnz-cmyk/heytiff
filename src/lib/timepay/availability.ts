@@ -1,4 +1,4 @@
-import { addDays, daysBetween } from "./period";
+import { daysBetween } from "./period";
 
 /* Unavailability — a casual saying which days they can't work.
 
@@ -28,20 +28,6 @@ export type Unavailability = {
   to: string;
   note?: string;
 };
-
-/** Every calendar day a block covers. */
-export function blockDates(b: { from: string; to: string }): string[] {
-  const out: string[] = [];
-  for (let i = 0; i <= daysBetween(b.from, b.to); i++) out.push(addDays(b.from, i));
-  return out;
-}
-
-/** Date → the block covering it, for marking up a week. */
-export function blockedDays(blocks: Unavailability[]): Map<string, Unavailability> {
-  const out = new Map<string, Unavailability>();
-  for (const b of blocks) for (const d of blockDates(b)) out.set(d, b);
-  return out;
-}
 
 /** Blocks that still say something — today's and later. A block that has run
     out is history, not a standing statement about availability. */

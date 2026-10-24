@@ -461,9 +461,6 @@ function pruneRows(rows: BuilderRow[]): BuilderRow[] {
   return kept;
 }
 
-const isMovable = (r: BuilderRow | undefined) =>
-  r !== undefined && r.floorId === null;
-
 /** Fresh designs: re-pin the anchor row's level (the dropdown). */
 export function setAnchorLevel(rows: BuilderRow[], key: string, level: number): BuilderRow[] {
   return rows.map((r) =>
@@ -517,24 +514,6 @@ export function previewInsertLevel(
   const row = sim.find((r) => r.pageIdxs.includes(-1));
   if (!row) return 0;
   return computeRowLevels(sim).get(row.key) ?? 0;
-}
-
-/** Move a placed row so it lands directly above/below the anchor row. */
-export function dropRowAt(
-  rows: BuilderRow[],
-  key: string,
-  anchorKey: string,
-  side: "above" | "below"
-): BuilderRow[] {
-  if (key === anchorKey) return rows;
-  const row = rows.find((r) => r.key === key);
-  if (!isMovable(row)) return rows;
-  const without = rows.filter((r) => r.key !== key);
-  const t = without.findIndex((r) => r.key === anchorKey);
-  if (t < 0) return rows;
-  const next = [...without];
-  next.splice(side === "above" ? t + 1 : t, 0, row!);
-  return next;
 }
 
 /** Merge a page onto a floor row as a second sheet (east/west split). */

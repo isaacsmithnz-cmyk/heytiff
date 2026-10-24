@@ -23,20 +23,6 @@
 
 import { KB_CATEGORIES, type KbCategory } from "./files";
 
-/* ── durations (paired with the `.tk-line` / `.tk-rcat` rules in shell.css) ── */
-
-/** A line drawing itself from the composer out to a shelf. */
-export const DRAW_MS = 450;
-
-/** One trip of the travelling pulse along a line that is still waiting. */
-export const PULSE_MS = 1500;
-
-/** Lines going out once the answer has landed. */
-export const FADE_MS = 600;
-
-/** A card changing state — colour, ring, dim. */
-export const CARD_MS = 250;
-
 /* ── the state ───────────────────────────────────────────────────────────── */
 
 /** idle → searching → traced → answering → settled, and back to idle on reset. */

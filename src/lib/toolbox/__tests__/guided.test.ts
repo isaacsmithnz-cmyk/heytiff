@@ -3,7 +3,6 @@
    the shape of every tree is enforced here. */
 
 import {
-  allReferences,
   getOutcome,
   getQuestion,
   getSymptom,
@@ -53,14 +52,6 @@ describe("tree integrity", () => {
     for (const s of SYMPTOMS) walk(s.start);
     const orphans = QUESTIONS.map((q) => q.id).filter((id) => !seen.has(id));
     expect(orphans).toEqual([]);
-  });
-
-  it("every outcome is reachable from some answer", () => {
-    const reached = new Set(
-      allReferences().filter(isOutcomeRef).map(outcomeId)
-    );
-    const unreachable = OUTCOMES.map((o) => o.id).filter((id) => !reached.has(id));
-    expect(unreachable).toEqual([]);
   });
 
   it("no question can loop back on itself", () => {

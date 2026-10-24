@@ -107,5 +107,3 @@ export function playChime(kind: Chime): void {
   }
 }
 
-/** Test seam — the scores are the design, so they are worth asserting on. */
-export const chimeScore = (kind: Chime): number[] => [...SCORE[kind]];

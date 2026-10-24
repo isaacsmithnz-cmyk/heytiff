@@ -18,7 +18,7 @@ import { newId, type DesignDocument, type DesignObject, type DesignSystem, type 
 import type { DataPack, IndoorUnit, OutdoorUnit, PairTable } from "./packs/schema";
 import { indexNotation } from "./packs/schema";
 import { allocationsOf, hasAllocations, type Allocation } from "./allocations";
-import { roomAtPoint, roomCoverage, systemCover, type CoverageCap } from "./coverage";
+import { roomCoverage, systemCover, type CoverageCap } from "./coverage";
 import { checkMultiCompatibility, multiCapableIdus, UNDER_MINIMUM } from "./multi";
 import { vrfOutdoorsListing } from "./vrf";
 import { outdoorReadiness } from "./packs/ready";
@@ -31,7 +31,6 @@ import { attachOf } from "./graph";
 import { claimZone, claimedZoneIds, familyOf, newSystem, systemTypeFor, unclaimZone, zoneIdsOf } from "./zones";
 import type { SizingBasis } from "./loads";
 import type { RoomObj } from "./loads-room";
-import { boundsOfPoints, pointInPolygon, polygonCentroid } from "./geometry";
 
 export { allocationsOf, hasAllocations, type Allocation } from "./allocations";
 
@@ -697,82 +696,6 @@ export function placeAllocation(
   return { ...doc, objects: [...doc.objects, obj] };
 }
 
-/** Where "Place in room" puts a unit, with no mode: an indoor unit just inside
-    its room's top wall, an outdoor just outside its room — below it, else
-    above, right or left, never inside another room (a multi's outdoor goes by
-    its first head's room). Either steps sideways past units already placed, so
-    two never land on one spot. Null when the unit has no room to go by. */
-export function placeInRoomSpot(
-  doc: DesignDocument,
-  pack: DataPack,
-  systemId: string,
-  allocationId: string
-): { floorId: string; at: Point } | null {
-  const sys = doc.systems.find((s) => s.id === systemId);
-  const a = sys ? allocationsOf(sys).find((x) => x.id === allocationId) : undefined;
-  if (!sys || !a) return null;
-  const roomId =
-    a.roomId ?? allocationsOf(sys).find((x) => x.role === "idu" && x.roomId)?.roomId ?? null;
-  const room = doc.objects.find((o): o is RoomObj => o.id === roomId && isRoom(o));
-  if (!room) return null;
-  const floorId = room.floorId;
-  const mm = doc.floors.find((f) => f.id === floorId)?.scaleMmPerUnit || 10;
-  const pts = room.geometry.points;
-  const b = boundsOfPoints(pts)!;
-  const c = polygonCentroid(pts);
-  const size = footprint(pack, a);
-  const w = (size.widthMm + 300) / mm;
-  const h = (size.depthMm + 300) / mm;
-
-  const placed = doc.objects.flatMap((o) =>
-    o.type === "unit" && o.id !== a.id && o.floorId === floorId && o.geometry.kind === "point"
-      ? [o.geometry.at]
-      : []
-  );
-  const clear = (p: Point) =>
-    placed.every((q) => Math.abs(q.x - p.x) >= w || Math.abs(q.y - p.y) >= h);
-  /* 0, +1, -1, +2, -2 … steps either side of a start */
-  const steps = [0, 1, -1, 2, -2, 3, -3, 4, -4];
-
-  if (a.role === "idu") {
-    const y = b.minY + (size.depthMm / 2 + 200) / mm;
-    for (const row of [y, c.y]) {
-      for (const n of steps) {
-        const p = { x: c.x + n * w, y: row };
-        if (pointInPolygon(p, pts) && clear(p)) return { floorId, at: p };
-      }
-    }
-    return { floorId, at: c };
-  }
-
-  const outY = (size.depthMm / 2 + 600) / mm;
-  const outX = (size.widthMm / 2 + 600) / mm;
-  const sides: { at: Point; along: "x" | "y" }[] = [
-    { at: { x: c.x, y: b.maxY + outY }, along: "x" },
-    { at: { x: c.x, y: b.minY - outY }, along: "x" },
-    { at: { x: b.maxX + outX, y: c.y }, along: "y" },
-    { at: { x: b.minX - outX, y: c.y }, along: "y" },
-  ];
-  const along = (side: (typeof sides)[number]) =>
-    steps.map((n) =>
-      side.along === "x"
-        ? { x: side.at.x + n * w, y: side.at.y }
-        : { x: side.at.x, y: side.at.y + n * h }
-    );
-  const free = (p: Point) => !roomAtPoint(doc.objects, floorId, p) && clear(p);
-  /* a side that backs straight onto another room is skipped while another is open */
-  for (const side of sides) {
-    if (roomAtPoint(doc.objects, floorId, side.at)) continue;
-    const p = along(side).find(free);
-    if (p) return { floorId, at: p };
-  }
-  for (const side of sides) {
-    const p = along(side).find(free);
-    if (p) return { floorId, at: p };
-  }
-  return { floorId, at: sides[0].at };
-}
-
 function footprint(pack: DataPack, a: Allocation): { widthMm: number; depthMm: number } {
   if (a.role === "idu") {
     const u = iduRow(pack, a.model);
@@ -877,27 +800,6 @@ export function trayItems(doc: DesignDocument, pack: DataPack): TrayItem[] {
   });
 }
 
-/** placed indoor units sitting inside a room other than the one they serve.
-    Outside every room is normal — a bulkhead over a hallway — and not listed. */
-export function wrongRoomPlacements(
-  doc: DesignDocument
-): { systemId: string; allocationId: string; roomId: string; inRoomId: string }[] {
-  const out: { systemId: string; allocationId: string; roomId: string; inRoomId: string }[] = [];
-  for (const sys of doc.systems) {
-    if (!hasAllocations(sys)) continue;
-    for (const a of allocationsOf(sys)) {
-      if (a.role !== "idu" || !a.roomId) continue;
-      const o = doc.objects.find((x) => x.id === a.id);
-      if (!o || o.geometry.kind !== "point") continue;
-      const inRoom = roomAtPoint(doc.objects, o.floorId, o.geometry.at);
-      if (inRoom && inRoom.id !== a.roomId) {
-        out.push({ systemId: sys.id, allocationId: a.id, roomId: a.roomId, inRoomId: inRoom.id });
-      }
-    }
-  }
-  return out;
-}
-
 /* ─────────────────────────── verdicts ─────────────────────────── */
 
 export type RoomWord = "Fits" | "Undersized" | "Oversized" | "Calibrate" | "No units";
@@ -924,53 +826,6 @@ export function roomVerdict(
   if (!coversLoad(cov.coveredKw, cov.loadKw)) return { word: "Undersized", ...base };
   if (cov.coveredKw > cov.loadKw * OVERSIZE_CAP + 1e-9) return { word: "Oversized", ...base };
   return { word: "Fits", ...base };
-}
-
-export type SystemCheck =
-  | {
-      kind: "split";
-      /** the indoor and outdoor are a pair the book lists */
-      listed: boolean;
-      iduModel: string;
-      oduModel: string;
-    }
-  | {
-      kind: "multi";
-      /** the outdoor's book lists the set */
-      listed: boolean;
-      /** "" while no outdoor lists the set */
-      oduModel: string;
-      /** outdoors whose book lists the set, smallest first */
-      alternatives: string[];
-      headCount: number;
-    };
-
-export function systemCheck(
-  _doc: DesignDocument,
-  pack: DataPack,
-  _basis: SizingBasis,
-  sys: DesignSystem
-): SystemCheck {
-  const allocs = allocationsOf(sys);
-  if (sys.type === "split") {
-    const idu = allocs.find((a) => a.role === "idu")?.model ?? "";
-    const odu = allocs.find((a) => a.role === "odu")?.model ?? "";
-    const listed = pack.pair_tables.some((p) => p.idu_model === idu && p.odu_model === odu);
-    return { kind: "split", listed, iduModel: idu, oduModel: odu };
-  }
-  const heads = allocs
-    .filter((a) => a.role === "idu" && a.model)
-    .map((a) => iduRow(pack, a.model))
-    .filter((u): u is IndoorUnit => u != null);
-  const alternatives = outdoorsListing(pack, heads).map((o) => o.model);
-  const oduModel = allocs.find((a) => a.role === "odu")?.model ?? "";
-  return {
-    kind: "multi",
-    listed: Boolean(oduModel) && alternatives.includes(oduModel),
-    oduModel,
-    alternatives,
-    headCount: heads.length,
-  };
 }
 
 /* ─────────────────────────── old designs ─────────────────────────── */

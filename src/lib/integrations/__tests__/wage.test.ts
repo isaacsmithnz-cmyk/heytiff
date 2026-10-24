@@ -1,5 +1,4 @@
 import {
-  isAdoptable,
   isPlausibleHourly,
   MAX_HOURLY,
   resolveXeroPay,
@@ -164,13 +163,11 @@ describe("wageDrift", () => {
       delta: -9.92,
       basis: { annual: 95_000, hoursPerWeek: 38 },
     });
-    expect(isAdoptable(drift)).toBe(true);
   });
 
   it("passes a no-hours salary through with no number to adopt", () => {
     const drift = wageDrift(58, { kind: "salary", annual: 95_000, hoursPerWeek: null });
     expect(drift).toMatchObject({ kind: "salary", annual: 95_000, here: 58 });
-    expect(isAdoptable(drift)).toBe(false);
   });
 
   it("carries the reason through when there's nothing comparable", () => {
@@ -179,12 +176,6 @@ describe("wageDrift", () => {
       note: "Not an hourly rate.",
     });
     expect(wageDrift(58, { kind: "unknown" })).toEqual({ kind: "none", note: null });
-  });
-
-  it("only ever offers an adopt on an hourly-vs-hourly difference", () => {
-    expect(isAdoptable(wageDrift(58, hourly(61.5)))).toBe(true);
-    expect(isAdoptable(wageDrift(58, hourly(58)))).toBe(false);
-    expect(isAdoptable(wageDrift(58, { kind: "unknown" }))).toBe(false);
   });
 });
 

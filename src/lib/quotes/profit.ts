@@ -1,4 +1,3 @@
-import type { BuildUp } from "./buildup";
 
 /* WHAT A QUOTE KEEPS — its profit against the business's own target (Isaac,
    2026-10-07: "Just have a profit target, if it's over then great, if it's
@@ -32,21 +31,6 @@ export function hourCostOf(chargeOutCents: number, targetPct: number | null, lab
   if (labourCostCents != null && labourCostCents > 0) return labourCostCents;
   if (targetPct == null) return null;
   return Math.round(chargeOutCents * (1 - targetPct / 100));
-}
-
-/** Every hour the build-up charges: the visits' person-days at the day's
-    hours, and the contingency's hours on top. */
-export const hoursOf = (b: BuildUp, dayHours: number) => b.labour.personDays * dayHours + b.labour.hours;
-
-export function profitOf(
-  b: BuildUp,
-  s: { chargeOutCents: number; dayHours: number },
-  targetPct: number | null,
-  labourCostCents: number | null
-): Profit | null {
-  const hourCost = hourCostOf(s.chargeOutCents, targetPct, labourCostCents);
-  if (hourCost == null) return null;
-  return profitAt(b.exGstCents, b.buyCents + Math.round(hoursOf(b, s.dayHours) * hourCost), targetPct, hourCost);
 }
 
 /** Profit on a price whose cost is already known (a quote's kept lines carry

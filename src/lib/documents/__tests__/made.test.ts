@@ -12,7 +12,6 @@ import {
   sortRows,
   swmsRow,
   swmsState,
-  viewCounts,
   viewsFor,
   withDocsState,
 } from "../made";
@@ -120,7 +119,6 @@ describe("the list's state", () => {
   it("narrows by view, person and search, and counts each view under them", () => {
     expect(rowsFor(rows, { view: "all", by: ANYONE, q: "lane cove" }).map((r) => r.kind)).toEqual(["certificate"]);
     expect(rowsFor(rows, { view: "all", by: "Isaac Smith", q: "" }).map((r) => r.kind)).toEqual(["certificate", "letter"]);
-    expect(viewCounts(rows, { by: ANYONE, q: "" })).toMatchObject({ all: 3, swms: 1, certificate: 1, letter: 1, handover: 0 });
     expect(peopleOf(rows).map((p) => p.value)).toEqual(["Isaac Smith", "Lyle Irving"]);
   });
 

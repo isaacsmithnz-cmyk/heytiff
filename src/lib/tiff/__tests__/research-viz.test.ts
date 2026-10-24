@@ -1,13 +1,9 @@
 import {
   ALSO_MATCHED_NOTE,
-  CARD_MS,
-  DRAW_MS,
-  FADE_MS,
   FOUND_HERE_NOTE,
   IDLE_VIZ,
   LOOKING_NOTE,
   NOTHING_NOTE,
-  PULSE_MS,
   READING_NOTE,
   SEARCHING_NOTE,
   THINKING_NOTE,
@@ -499,22 +495,6 @@ describe("clearing the rail", () => {
     reduceViz(before, { t: "done" });
     reduceViz(before, { t: "reset" });
     expect(before).toEqual(snapshot);
-  });
-});
-
-/* ── the durations the stylesheet and this file have to agree on ─────────── */
-
-describe("timings", () => {
-  it("names every duration the animation uses, so nothing is a magic number", () => {
-    expect(DRAW_MS).toBe(450);
-    expect(PULSE_MS).toBe(1500);
-    expect(FADE_MS).toBe(600);
-    expect(CARD_MS).toBe(250);
-  });
-
-  it("lets a line finish drawing before it can be faded out", () => {
-    expect(DRAW_MS).toBeLessThan(FADE_MS + DRAW_MS);
-    expect(CARD_MS).toBeLessThan(DRAW_MS);
   });
 });
 

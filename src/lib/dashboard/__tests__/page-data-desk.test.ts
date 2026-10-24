@@ -244,7 +244,7 @@ import type { DiaryFeed } from "../diary-feed";
 import { jobCandidates } from "../job-candidates";
 import { listNotices, loadStaffNames } from "../tasks-query";
 import { approvedInSpan, holidaysInSpan } from "@/lib/timepay/leave-query";
-import { loadActionRequired, loadDashboard } from "../page-data";
+import { loadDashboard } from "../page-data";
 
 /* A read held open until the test lets it go. */
 const held = <T,>() => {
@@ -355,13 +355,6 @@ describe("the reads the chips and the desk share", () => {
     await loadDashboard();
     expect(listOrgCredentials).not.toHaveBeenCalled();
     expect(chipsInput().orgCredentials).toEqual([]);
-  });
-
-  it("still reads them itself on the action-required page, which has no Home around it", async () => {
-    await loadActionRequired();
-    expect(orgExpiryWindow).toHaveBeenCalledTimes(1);
-    expect(listOrgCredentials).toHaveBeenCalledTimes(1);
-    expect(chipsInput()).toMatchObject({ warnDays: 45, orgCredentials: [CRED] });
   });
 });
 

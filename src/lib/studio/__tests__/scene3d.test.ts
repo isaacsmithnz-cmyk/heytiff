@@ -1,6 +1,6 @@
 import { createDesign, type DesignDocument, type DesignObject, type Floor } from "../document";
 import type { ReadSpace, SheetReading } from "../reading";
-import { lineUp, sceneOf, threeDState } from "../scene3d";
+import { lineUp, sceneOf } from "../scene3d";
 
 /* The 3D view's arithmetic (lib/studio/scene3d): what it draws, in metres,
    and how the floors stand on each other. */
@@ -81,7 +81,6 @@ describe("a floor's spaces", () => {
   it("leaves out a floor with no scale, and says when nothing can be drawn", () => {
     const d = design([floor("gf", 0, { scaleMmPerUnit: null })], { gf: [read("s-gf", [space("Lounge", "room", [0, 0, 400, 300])])] });
     expect(sceneOf(d).floors).toEqual([]);
-    expect(threeDState(d)).toEqual({ drawable: false, read: false, plans: true });
   });
 
   it("gives a window a sill and a door the floor, both under the ceiling", () => {

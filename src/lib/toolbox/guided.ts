@@ -3263,11 +3263,6 @@ export interface TrailStep {
   answer: string;
 }
 
-/** Every id an answer can point at — used by the integrity tests. */
-export function allReferences(): string[] {
-  return QUESTIONS.flatMap((q) => q.answers.map((a) => a.next));
-}
-
 const REMAINING = new Map<string, { min: number; max: number }>();
 
 /** How many questions still lie ahead AFTER the one at `id`, best case to

@@ -202,12 +202,6 @@ export function wageDrift(here: number | null, xero: XeroPay): WageDrift {
   }
 }
 
-/** Does this drift have a number a person could adopt? Only an hourly-vs-hourly
-    difference does — the salary case deliberately does not. */
-export function isAdoptable(drift: WageDrift): drift is Extract<WageDrift, { kind: "differs" }> {
-  return drift.kind === "differs";
-}
-
 /** The most a wage can be set to by adopting. Not a policy about pay — a guard
     against a mis-read rate (a cents/dollars confusion in a pay template)
     writing an absurd figure into the column every charge-out rate derives from. */

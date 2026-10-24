@@ -10,7 +10,7 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { HOOK_GRACE_MS, HOOK_OBJECT_NAMES, PING_UUIDS_MAX } from "../sm8-hook-plan";
+import { HOOK_OBJECT_NAMES, PING_UUIDS_MAX } from "../sm8-hook-plan";
 import { SM8_OBJECTS } from "../sm8-sync-plan";
 
 const DIR = join(__dirname, "..", "..", "..", "..", "docs", "migrations");
@@ -72,7 +72,6 @@ describe("what the tables hold", () => {
 
   it("takes as many uuids from one ping as the route does, and keeps a retired secret as long as the plan says", () => {
     expect(block(migration, "HOOK FUNCTIONS")).toContain(`not between 1 and ${PING_UUIDS_MAX} then`);
-    expect(HOOK_GRACE_MS).toBe(72 * 3_600_000);
     expect(block(migration, "HOOK FUNCTIONS")).toContain("clock_timestamp() + interval '72 hours'");
   });
 

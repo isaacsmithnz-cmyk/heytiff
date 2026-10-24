@@ -22,7 +22,6 @@ import {
   readWriteMode,
   readWriteStatus,
   refusedKinds,
-  sendable,
   sendFailure,
   sendHold,
   sendLine,
@@ -333,14 +332,6 @@ describe("what one of our rows says", () => {
       word: "Not in ServiceM8 yet. Trying again shortly.",
       tone: "warn",
     });
-  });
-
-  it("lets a file go again only when the last try came to nothing", () => {
-    expect(sendable(undefined)).toBe(true);
-    expect(sendable(send({ status: "failed" }))).toBe(true);
-    expect(sendable(send({ status: "trial" }))).toBe(true);
-    expect(sendable(send({ status: "sent" }))).toBe(false);
-    expect(sendable(send({ status: "queued" }))).toBe(false);
   });
 });
 

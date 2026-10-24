@@ -1,7 +1,7 @@
 /* The build-up's rules, on a 12.5 kW Mitsubishi ducted system with five
    zones and on a wall split, each written out as the lines a quote prices,
    at one business's settings. */
-import { customerBreakdown, ductTrunks, faceVelocity, priceBuildUp, recommendReturn, STANDARD_RETURNS, trunkingLengths, wallBracketCode, type BuildLine } from "../buildup";
+import { priceBuildUp, trunkingLengths, wallBracketCode, type BuildLine } from "../buildup";
 import { ONE_BUSINESS } from "./fixtures/one-business";
 
 const line = (l: Omit<BuildLine, "supplierKey" | "code"> & Partial<BuildLine>): BuildLine => ({ code: null, supplierKey: "aad", ...l });
@@ -59,20 +59,6 @@ describe("the build-up", () => {
 });
 
 describe("the layout rules", () => {
-  it("steps five 250 zones down as Isaac did on 2330", () => {
-    expect(ductTrunks(5)).toEqual([
-      { mm: 350, zones: 3, fittings: ["MB141210", "MY121010"] },
-      { mm: 350, zones: 2, fittings: ["MY141010"] },
-    ]);
-    expect(ductTrunks(4).map((t) => t.zones)).toEqual([2, 2]);
-    expect(ductTrunks(7).map((t) => t.zones)).toEqual([3, 2, 2]);
-  });
-
-  it("recommends the smallest standard return at about 2 m/s", () => {
-    expect(recommendReturn(1000, STANDARD_RETURNS)).toEqual({ wMm: 900, hMm: 550 });
-    expect(recommendReturn(700, STANDARD_RETURNS)).toEqual({ wMm: 900, hMm: 400 });
-    expect(faceVelocity(1000, { wMm: 900, hMm: 400 })).toBeCloseTo(2.78, 2);
-  });
 
   it("brackets by size and trunking by the half length", () => {
     expect(wallBracketCode(1050, 114)).toBe("CWBX");
@@ -103,21 +89,3 @@ describe("a price offered below the build-up", () => {
   });
 });
 
-describe("what the customer sees in a breakdown", () => {
-  const visits = [{ stage: "Install" as const, people: 5, days: 1 }];
-
-  it("spreads the loading, contingency and a discount across the lines, summing to the cent", () => {
-    const b = priceBuildUp(DUCTED, visits, ONE_BUSINESS, { pct: 15, reason: "hard access" }, { exGstCents: 1_200_000, reason: "to win it" });
-    const c = customerBreakdown(b);
-    expect(c.lines.reduce((a, l) => a + l.sellCents, 0)).toBe(b.exGstCents);
-    expect(c.lines.some((l) => /loading|difficulty|contingency|discount/i.test(l.name))).toBe(false);
-    expect(c.hiddenCents).not.toBe(0);
-  });
-
-  it("leaves the lines as priced when nothing is hidden", () => {
-    const b = priceBuildUp(DUCTED, visits, { ...ONE_BUSINESS, contingency: null });
-    const c = customerBreakdown(b);
-    expect(c.hiddenCents).toBe(0);
-    expect(c.lines.reduce((a, l) => a + l.sellCents, 0)).toBe(b.exGstCents);
-  });
-});

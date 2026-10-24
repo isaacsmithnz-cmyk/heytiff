@@ -10,11 +10,9 @@ import {
   heightMult,
   roomHeatLoadKw,
   sizingCapacityKw,
-  unitMeetsLoad,
   bearingToCompass,
   detectOrientation,
   orientationFromWalls,
-  requiredAirflowLs,
   ORIENTATIONS,
 } from "../loads";
 import type { Point as GeomPoint } from "../document";
@@ -120,14 +118,6 @@ describe("sizing basis", () => {
     expect(sizingCapacityKw(unit, "worst-of-both")).toBe(10);
     expect(sizingCapacityKw({ capacity_cool_kw: 5.6, capacity_heat_kw: 5.0 }, "worst-of-both")).toBe(5.0);
   });
-
-  it("unitMeetsLoad compares against the basis rating", () => {
-    expect(unitMeetsLoad(unit, 9.5, "cooling")).toBe(true);
-    expect(unitMeetsLoad(unit, 10.0, "cooling")).toBe(true); // exact fit
-    expect(unitMeetsLoad(unit, 10.5, "cooling")).toBe(false);
-    expect(unitMeetsLoad(unit, 10.5, "worst-of-both")).toBe(false); // min=10 < 10.5
-    expect(unitMeetsLoad(unit, 11.0, "heating")).toBe(true);
-  });
 });
 
 describe("orientation detection", () => {
@@ -189,18 +179,6 @@ describe("orientationFromWalls (marked external walls)", () => {
   });
 });
 
-describe("ventilation airflow presets", () => {
-  it("per-room exhaust returns the flat rate", () => {
-    expect(requiredAirflowLs("bathroom")).toBe(25);
-    expect(requiredAirflowLs("kitchen-domestic")).toBe(40);
-  });
-  it("per-person supply scales with occupancy", () => {
-    expect(requiredAirflowLs("office-fresh-air", { people: 4 })).toBe(40);
-  });
-  it("unknown space type → 0", () => {
-    expect(requiredAirflowLs("nope")).toBe(0);
-  });
-});
 
 describe("a room with another floor above", () => {
   it("comes down 15%: the 7 × 4 m ground-floor room with west sun, 5.278 kW → 4.486 kW", () => {

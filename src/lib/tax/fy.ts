@@ -50,12 +50,3 @@ export function fyChoices(today: string, history = FY_HISTORY): number[] {
   return Array.from({ length: history }, (_, i) => current - i);
 }
 
-/** How much of a financial year has already happened, as a fraction. Used only
-    to say "part-year so far" rather than implying a closed set of books. */
-export function fyElapsed(fy: number, today: string): number {
-  const { start, end } = fyRange(fy);
-  if (today > end) return 1;
-  if (today < start) return 0;
-  const day = (iso: string) => Date.parse(`${iso}T00:00:00Z`) / 86_400_000;
-  return (day(today) - day(start)) / (day(end) - day(start));
-}

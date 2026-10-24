@@ -108,31 +108,12 @@ export function ownerLabel(o: Ownership): string | null {
   return isMasterOwner(o) ? "Owner" : "Co-owner";
 }
 
-/** Master-only acts. Co-owners are full owners for everything else. */
-export const MASTER_ONLY = [
-  "transfer_ownership",
-  "billing",
-  "delete_org",
-] as const;
-export type MasterAction = (typeof MASTER_ONLY)[number];
-
-export function canPerformMasterAction(actor: Ownership): boolean {
-  return isMasterOwner(actor);
-}
-
 /** May the actor change this person's role (promote/demote, incl. co-owners)? */
 export function canChangeRoleOf(actor: Ownership, target: Ownership): boolean {
   if (actor.role !== "owner") return false; // role changes are owner business
   if (target.userId === actor.userId) return false; // no self role change
   if (isMasterOwner(target)) return false; // the master is untouchable
   return true; // owners (incl. co-owners) may promote/demote anyone else
-}
-
-/** May the actor remove this person from the org entirely? */
-export function canRemoveMember(actor: Ownership, target: Ownership): boolean {
-  if (isMasterOwner(target)) return false; // transfer primacy first — DB agrees
-  if (target.userId === actor.userId) return false; // leaving is its own flow
-  return actor.role === "owner";
 }
 
 /* Delegation rules — pure, used by the Team permissions action AND to render

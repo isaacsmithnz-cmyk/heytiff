@@ -115,6 +115,33 @@ describe("approvals and jobs", () => {
   });
 });
 
+/* Isaac, 24 October 2026: "Everything on that feed and notes should be interactive" */
+describe("what an item opens", () => {
+  it("opens a mention's job, an approval's page, work given as its task, and what came in on its job", () => {
+    const [talkItem] = feed({ diary: diaryOf(talk([{ uuid: "n1", text: "@isaacsmith ring Mary", author: "u-luke", at: "2026-10-20 12:52:00" }])) });
+    expect(talkItem.open).toEqual({ href: `/dashboard/jobs/${JOB}` });
+    const rows = feed({
+      rows: [
+        row("alert:leave-queue:1", "Leave to approve", { act: { kind: "link", label: "Review", href: "/dashboard/team?view=leave" } }),
+        row("assignment:t1", "Order the PEAD", { source: "assignment", act: { kind: "gotit", taskId: "t1" } }),
+        row("issue:i1", "Ute 2's reverse camera is out again", { act: { kind: "issue", issueId: "i1", title: "Ute 2's reverse camera is out again" } }),
+      ],
+    });
+    expect(rows.find((i) => i.key === "alert:leave-queue:1")?.open).toEqual({ href: "/dashboard/team?view=leave" });
+    expect(rows.find((i) => i.key === "assignment:t1")?.open).toEqual({ taskId: "t1" });
+    expect(rows.find((i) => i.key === "issue:i1")?.open).toBeNull();
+    const events = feedEventsOf({
+      jobs: [],
+      acts: [{ uuid: "a1", job_uuid: "j2", staff_uuid: "s-luke", start_date: "2026-10-20 07:30:00" }],
+      atts: [{ uuid: "p1", related_object_uuid: "j2", created_by_staff_uuid: "s-luke", timestamp: "2026-10-20 11:00:00", file_type: ".jpg" }],
+      label: () => "2674 Clovelly",
+      nameOf: new Map([["s-luke", "Luke Parker"]]),
+      since: "2026-10-19",
+    });
+    expect(feed({ events }).map((i) => i.open)).toEqual([{ href: "/dashboard/jobs/j2?tab=photos" }, { href: "/dashboard/jobs/j2" }]);
+  });
+});
+
 describe("the order", () => {
   it("is newest first, with what waits on you now at the top of today", () => {
     const items = feed({

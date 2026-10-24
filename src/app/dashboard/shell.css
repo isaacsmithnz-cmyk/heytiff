@@ -10755,6 +10755,12 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .hm-feed-av--sm8 { background:var(--ink); color:var(--white); }
 .fg .hm-feed-av--thing { background:var(--sel); color:var(--ink); }
 .fg .hm-feed-body { display:flex; flex-direction:column; gap:4px; min-width:0; }
+/* the item's words are its door (24 October): to its job, approval or
+   notice, or its task's form; a hover is a fill, as a row's */
+.fg .hm-feed-open, .fg .hm-feed-words { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.fg .hm-feed-open { margin:-4px -8px; padding:4px 8px; border:0; border-radius:var(--r-control); background:none; font:inherit; color:inherit; text-align:left; text-decoration:none; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.fg .hm-feed-open:hover { background:var(--tint); }
+.fg .hm-feed-open:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .hm-feed-head { display:flex; align-items:baseline; gap:8px; margin:0; min-width:0; font-size:14px; line-height:20px; }
 .fg .hm-feed-head b { font-weight:600; white-space:nowrap; }
 .fg .hm-feed-what { color:var(--q); white-space:nowrap; overflow:hidden; min-width:0; flex:1 1 auto; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }

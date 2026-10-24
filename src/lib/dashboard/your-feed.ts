@@ -20,6 +20,11 @@ import type { TodoAct, TodoRow } from "./todo";
    APPROVALS: leave, timesheets, expenses, claims, SWMS and certificate
    wording waiting on you.
 
+   EVERY ITEM OPENS (Isaac, 24 October 2026: "Everything on that feed and
+   notes should be interactive"): pressing it goes where it is about, its
+   job, its approval, its notice, or opens the task it is. A field issue
+   with nothing to open is answered where it sits: Make it a task, or Done.
+
    Anything waiting on you with no time of its own (an approval) stands at
    the time Home was read: it is current, so it sits with today's. */
 
@@ -42,6 +47,9 @@ export type FeedReply = {
   closesTaskId: string | null;
 };
 
+/** What pressing an item opens: a page, or a task's own form over Home. */
+export type FeedOpen = { href: string } | { taskId: string } | null;
+
 export type FeedItem = {
   key: string;
   filter: Exclude<FeedFilter, "all">;
@@ -63,10 +71,26 @@ export type FeedItem = {
   unread: boolean;
   act: TodoAct | null;
   reply: FeedReply | null;
+  open: FeedOpen;
 };
 
 const APPROVAL_CHIPS = /^alert:(expenses|timesheet|claim|leave-queue|leave-declined|swms-issue|swms-template|cert-wording)/;
 const JOB_CHIPS = /^alert:sm8-/;
+
+function openOfAct(act: TodoAct | null): FeedOpen {
+  if (!act) return null;
+  switch (act.kind) {
+    case "link":
+    case "bookIn":
+      return { href: act.href };
+    case "task":
+    case "later":
+    case "gotit":
+      return { taskId: act.taskId };
+    case "issue":
+      return null;
+  }
+}
 
 function filterOfRow(r: TodoRow): FeedItem["filter"] {
   if (r.source === "timesheets" || APPROVAL_CHIPS.test(r.key)) return "approvals";
@@ -88,6 +112,7 @@ function rowItem(r: TodoRow, now: string): FeedItem {
     unread: r.source === "assignment",
     act: r.act,
     reply: null,
+    open: openOfAct(r.act),
   };
 }
 
@@ -117,11 +142,21 @@ function conversationItem(c: DiaryConversation, today: string): FeedItem | null 
     unread: c.fresh && !c.answered,
     act: c.jobLabel ? { kind: "link", label: "Open the job", href: jobPageHref(c.jobUuid) } : null,
     reply: c.jobLive ? { jobUuid: c.jobUuid, sourceNoteUuid: ask.message.id, closesTaskId: ask.taskId } : null,
+    open: c.jobLabel ? { href: jobPageHref(c.jobUuid) } : null,
   };
 }
 
 function eventItem(e: FeedEvent, today: string): FeedItem {
-  const base = { key: `event:${e.key}`, filter: "jobs" as const, yours: null, when: stampWhen(e.at, today), at: e.at, unread: false, reply: null };
+  const base = {
+    key: `event:${e.key}`,
+    filter: "jobs" as const,
+    yours: null,
+    when: stampWhen(e.at, today),
+    at: e.at,
+    unread: false,
+    reply: null,
+    open: { href: jobPageHref(e.jobUuid, e.kind === "photos" ? "photos" : undefined) },
+  };
   switch (e.kind) {
     case "new-job":
       return { ...base, who: { name: "New job", sm8: true }, what: e.job, said: e.said, act: { kind: "link", label: "Open", href: jobPageHref(e.jobUuid) } };

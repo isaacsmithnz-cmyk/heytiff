@@ -46,12 +46,15 @@ function whenDone(iso: string): string {
 export function TaskForm({
   job = null,
   taskId = null,
+  startWith = "",
   onClose,
   onChanged,
 }: {
   job?: TaskJob | null;
   /** an existing task: the form opens on it, to change, tick or delete */
   taskId?: string | null;
+  /** a new task's words to start from: a field issue made a task */
+  startWith?: string;
   onClose: () => void;
   /** told when a task changed here, so the list it opened from reads again */
   onChanged?: () => void;
@@ -60,7 +63,7 @@ export function TaskForm({
   const whenId = useId();
   const [task, setTask] = useState<TaskForEdit | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(startWith);
   const [forJob, setForJob] = useState<TaskJob | null>(job);
   const [due, setDue] = useState<string | null>(null);
   const [time, setTime] = useState<string | null>(null);

@@ -203,7 +203,7 @@ describe("the three columns", () => {
     draw(
       today(),
       [link("chip:rego", "Hilux, XQG41B", "Renew", "/r", { col: "today", tone: "wrong" }), link("k1", "Price the Truecut quote", "Open", "/q")],
-      [{ key: "timesheets", filter: "approvals", who: { name: "Timesheets", sm8: false }, what: "3 to approve", said: null, yours: null, when: "", at: "2026-10-20 13:00:00", unread: false, act: { kind: "link", label: "Review", href: "/dashboard/team?view=timesheets" }, reply: null }],
+      [{ key: "timesheets", filter: "approvals", who: { name: "Timesheets", sm8: false }, what: "3 to approve", said: null, yours: null, when: "", at: "2026-10-20 13:00:00", unread: false, act: { kind: "link", label: "Review", href: "/dashboard/team?view=timesheets" }, reply: null, open: { href: "/dashboard/team?view=timesheets" } }],
     );
     expect(within(section("Today")).getByText("Hilux, XQG41B")).toBeInTheDocument();
     expect(within(section("Your feed")).getByText("Timesheets")).toBeInTheDocument();

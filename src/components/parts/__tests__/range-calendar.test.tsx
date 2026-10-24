@@ -167,6 +167,19 @@ describe("picking a span", () => {
   });
 });
 
+describe("days off pressed in (Book a visit, 25 October 2026)", () => {
+  it("draws a day off inside the span as left out until it is pressed in, and picked once it is", () => {
+    render(
+      <RangeCalendar label="Pick the days" today="2026-11-01" span={{ start: "2026-11-06", end: "2026-11-10" }} onPick={() => {}} also={["2026-11-08"]} />,
+    );
+    expect(day("Sat 7 Nov")).toHaveAttribute("aria-pressed", "false");
+    expect(day("Sat 7 Nov")).not.toHaveClass("pt-cal-day--picked");
+    expect(day("Sun 8 Nov")).toHaveAttribute("aria-pressed", "true");
+    expect(day("Sun 8 Nov")).toHaveClass("pt-cal-day--picked");
+    expect(day("Mon 9 Nov")).toHaveAttribute("aria-pressed", "true");
+  });
+});
+
 describe("the keys", () => {
   it("makes the months one Tab stop, and the arrows move a day or a week", async () => {
     const user = userEvent.setup();

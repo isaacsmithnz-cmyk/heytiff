@@ -5,7 +5,7 @@
    Overview the summary and the diary under the stages line, Documents the
    files and compliance, Billing the money. */
 
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobBookings, JobCardRead, JobRecordRead } from "@/app/actions/workboard";
@@ -210,7 +210,8 @@ const draw = (section: JobSection, extra: { moneyVisible?: boolean; manage?: boo
 
 /** The page, with the job known. */
 const ready = async () => {
-  await screen.findByText("Work order, Job 3209, 59 Woorarra Avenue, North Narrabeen.");
+  await waitFor(() => expect(readMirrorJob).toHaveBeenCalled());
+  await act(async () => {});
   await waitFor(() => expect(readJobRecord).toHaveBeenCalled());
 };
 
@@ -241,24 +242,17 @@ beforeEach(() => {
 });
 
 describe("the job's page head", () => {
-  it("names the job, says its kind, number, address and where it stands on one grey line, with no breadcrumb", async () => {
+  /* Isaac's mock of 25 October 2026: the grey line under the name goes */
+  it("names the job beside its colour dot, with no grey line under it and no breadcrumb", async () => {
     const { container } = draw("visits");
     await ready();
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Richards Building");
-    const line = container.querySelector(".jp-line")!;
-    /* the job's colour, snapped to the eight, beside its line */
-    expect(line.querySelector(".pt-dot--blue")).not.toBeNull();
-    /* the quote went out and became a work order: Accepted, in grey */
-    expect(within(line as HTMLElement).getByText("Accepted")).toHaveClass("jp-stage");
+    const h1 = screen.getByRole("heading", { level: 1 });
+    expect(h1).toHaveTextContent("Richards Building");
+    /* the job's colour, snapped to the eight, beside its name */
+    expect(h1.querySelector(".pt-dot--blue")).not.toBeNull();
+    expect(container.querySelector(".jp-line, .jp-facts, .jp-stage")).toBeNull();
+    expect(container.querySelector(".jp-head")).not.toHaveTextContent(/Work order|Job 3209|Woorarra|Accepted/);
     expect(container.querySelector(".wb2-crumbline, .int-back")).toBeNull();
-  });
-
-  /* "Job card, four tiles" (Isaac, 22 October 2026): each thing said once */
-  it("leaves where it stands off the line on Overview, where the stages line and Money say it", async () => {
-    const { container } = draw("overview");
-    await ready();
-    expect(container.querySelector(".jp-line")).toHaveTextContent("Work order, Job 3209, 59 Woorarra Avenue, North Narrabeen.");
-    expect(container.querySelector(".jp-stage")).toBeNull();
   });
 
   it("is a page, not a card: no dialog, no scrim, no band, no rail, nothing to close", async () => {
@@ -302,7 +296,7 @@ describe("the job's page head", () => {
     /* Add visit is the Visit form, over the section you're on (rule 51) */
     await userEvent.click(within(menu).getByRole("menuitem", { name: "Add visit" }));
     const form = await screen.findByRole("dialog", { name: "Book a visit" });
-    expect(within(form).getByRole("button", { name: "Clear the job" })).toBeInTheDocument();
+    expect(within(form).getByText(/^Job 3209\b/)).toHaveClass("jv-dline");
     expect(onSection).not.toHaveBeenCalledWith("visits");
   });
 
@@ -320,8 +314,7 @@ describe("the job's page head", () => {
   it("asks before making a quote a work order, from Actions", async () => {
     readMirrorJob.mockResolvedValue({ detail: detail({ status: "Quote", workOrderDate: null }), focusRemoteId: null });
     draw("overview", { manage: false });
-    await screen.findByText("Quote, Job 3209, 59 Woorarra Avenue, North Narrabeen.");
-    await waitFor(() => expect(readJobRecord).toHaveBeenCalled());
+    await ready();
     const menu = await actionsMenu();
     await waitFor(() => expect(within(menu).getByRole("menuitem", { name: "Make it a work order" })).toBeInTheDocument());
     await userEvent.click(within(menu).getByRole("menuitem", { name: "Make it a work order" }));

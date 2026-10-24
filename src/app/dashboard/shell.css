@@ -5217,156 +5217,6 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-po { margin:0; display:flex; flex-direction:column; gap:2px; font-size:13px; }
 .jcl-po em { font-style:normal; font-size:12px; font-weight:500; color:var(--q); }
 
-.jcl-hrs { margin:0; display:flex; align-items:baseline; gap:8px; }
-.jcl-hrs b { font-size:24px; font-weight:700; font-variant-numeric:tabular-nums; }
-.jcl-hrs span { font-size:13px; font-weight:500; color:var(--q); }
-
-/* INSTALLATION: a card per visit, oldest on the left, scrolling sideways */
-.jcl-visits { margin:0; padding:0 0 8px; list-style:none; display:grid; grid-auto-flow:column; grid-auto-columns:240px; gap:12px; overflow-x:auto; overscroll-behavior-x:contain; scroll-snap-type:x proximity; }
-.jcl-visit { display:flex; flex-direction:column; gap:4px; padding:16px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); scroll-snap-align:end; }
-.jcl-visit > em { font-style:normal; font-size:13px; line-height:1.45; color:var(--ink); }
-.jcl-vlen { margin-top:auto; padding-top:8px; font-size:12px; font-weight:500; color:var(--q); }
-.jcl-vhrs { font-size:20px; font-weight:600; font-variant-numeric:tabular-nums; }
-.jcl-vlen + .jcl-vhrs { margin-top:0; padding-top:0; }
-.jcl-visit > em + .jcl-vhrs { margin-top:auto; padding-top:8px; }
-/* VISITS AND THEIR TASKS (board/job-visit-tasks.tsx). Its buttons are
-   scoped under `.fg` to out-rank the shell's button reset, which is (0,1,1) */
-.jcl-visits.tasks { grid-auto-columns:316px; align-items:start; }
-.jcl-visit.now { border-color:var(--ink); }
-.jcl-visit.plan { border-style:dashed; }
-.jcl-vh { display:flex; align-items:baseline; gap:8px; }
-.jcl-vh b { font-size:16px; font-weight:600; }
-.jcl-vword { margin-left:auto; font-size:14px; font-weight:500; }
-.jcl-vword.ok, .jcl-tstat.ok { color:var(--ok-t); }
-.jcl-vword.info, .jcl-tstat.info { color:var(--info-t); }
-.jcl-vword.quiet, .jcl-tstat.quiet { color:var(--q); }
-.jcl-vday { font-size:13px; color:var(--q); }
-.jcl-visits.tasks .jcl-vlen { padding-top:12px; }
-/* PLANNING THE VISITS (Isaac, 2026-10-10): while a manager has tasks on no
-   visit, the visits in a row of tabs, the one open, and Still to do beside
-   it; a task dragged onto a visit, a tab, a card, or back to the list */
-.jcl-vtabs { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 16px; }
-.fg .jcl-vtab { display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding:4px 12px; border:1px solid var(--line); border-radius:var(--r-button);
-  background:var(--paper); font:inherit; color:var(--ink); text-align:left; cursor:pointer; }
-.fg .jcl-vtab b { font-size:12px; font-weight:500; color:var(--q); }
-.fg .jcl-vtab span { font-size:14px; font-weight:600; }
-.fg .jcl-vtab.now b { color:var(--info-t); }
-.fg .jcl-vtab.on { border-color:var(--ink); box-shadow:var(--ring); }
-.fg .jcl-vtab:focus-visible { outline:none; box-shadow:var(--ring); }
-.jcl-plan { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); gap:24px; align-items:start; }
-.jcl-vcard, .jcl-todo { display:flex; flex-direction:column; gap:8px; padding:16px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); }
-.jcl-vcard.now { border-color:var(--ink); }
-.jcl-todo { border-color:transparent; background:var(--tint); }
-.jcl-vcard.drop, .jcl-todo.drop, .jcl-visit.drop { border-style:dashed; border-color:var(--ink); }
-.jcl-vch { display:flex; align-items:baseline; flex-wrap:wrap; gap:8px; }
-.jcl-vch b { font-size:16px; font-weight:600; }
-.jcl-vch .jcl-vword { margin-left:0; }
-.jcl-vplan { margin-left:auto; font-style:normal; font-size:12px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
-.jcl-vcrew { font-style:normal; font-size:13px; line-height:1.45; color:var(--ink); }
-.jcl-vfoot { margin:0; padding-top:8px; display:flex; align-items:baseline; gap:8px; }
-.jcl-vfoot .jcl-vlen { margin-top:0; padding-top:0; }
-.jcl-todog { display:flex; flex-direction:column; gap:4px; }
-.jcl-todoh { margin:4px 0 0; font-size:12px; font-weight:600; color:var(--q); }
-.jcl-todol { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
-.jcl-todor { display:grid; grid-template-columns:minmax(0, 1fr) auto auto; gap:8px; align-items:center; padding:8px 0; border-top:1px solid var(--line); cursor:grab; }
-.jcl-todor:first-child { border-top:0; }
-.jcl-todon { font-size:13px; line-height:1.45; color:var(--ink); }
-.jcl-todor .pbtn { white-space:nowrap; }
-.jcl-task[draggable="true"] { cursor:grab; }
-.jcl-tasks { margin:8px 0 0; padding:0; list-style:none; display:flex; flex-direction:column; }
-.jcl-task { display:grid; grid-template-columns:16px minmax(0,1fr); gap:8px; align-items:start; padding:8px 0; border-top:1px solid var(--line); }
-.jcl-task:first-child { border-top:0; }
-.jcl-tasks.cols { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); column-gap:24px; }
-.jcl-tasks.cols .jcl-task:nth-child(2) { border-top:0; }
-.jcl-tasks.rows .jcl-task { grid-template-columns:16px minmax(0,1fr) 180px 100px; }
-.fg .jcl-tbox { width:16px; height:16px; margin-top:2px; padding:0; display:inline-flex; align-items:center; justify-content:center;
-  border:1.5px solid var(--q); border-radius:var(--r-control); background:var(--paper); color:var(--paper); cursor:pointer;
-  position:relative; overflow:hidden; }
-.fg .jcl-tbox.done { background:var(--ink); border-color:var(--ink); }
-.fg .jcl-tbox.part { border-color:var(--ink); }
-.fg .jcl-tbox.part > i { position:absolute; inset:0 auto 0 0; width:var(--p); background:var(--ink); }
-.fg .jcl-tbox:disabled { cursor:default; }
-.fg .jcl-tbox:focus-visible { outline:none; box-shadow:var(--ring); }
-.jcl-ttx { display:flex; flex-direction:column; gap:2px; min-width:0; }
-/* a task from the quote's labour, with the hours it was quoted at (8.2) */
-.jcl-thead { display:flex; align-items:baseline; gap:8px; min-width:0; }
-.fg .jcl-thead > .jcl-tname { flex:1 1 auto; min-width:0; }
-.jcl-thr { flex:none; margin-left:auto; font-style:normal; font-size:12px; font-weight:500; color:var(--q); white-space:nowrap; font-variant-numeric:tabular-nums; }
-.fg .jcl-tname { padding:0; border:0; background:none; font:inherit; font-size:13px; text-align:left; color:var(--ink); cursor:pointer; }
-.fg .jcl-tname:hover { text-decoration:underline; text-underline-offset:2px; }
-.fg .jcl-tname:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
-.jcl-tmeta { font-size:12px; font-weight:500; color:var(--q); }
-.jcl-tmeta b { margin-right:4px; font-weight:700; color:var(--ink); }
-.jcl-tnote { font-size:12px; color:var(--q); }
-.jcl-tnote q { color:var(--ink); }
-.jcl-tvis { font-size:13px; color:var(--q); }
-.jcl-tstat { font-size:14px; font-weight:500; text-align:right; }
-.jcl-tsel { max-width:100%; }
-.jcl-tloose, .jcl-tall { display:flex; flex-direction:column; gap:8px; margin-top:16px; }
-.jcl-tall { gap:16px; }
-.jcl-tghead { display:flex; align-items:baseline; gap:8px; font-size:13px; }
-.jcl-tghead b { font-weight:600; }
-.jcl-tghead em { font-style:normal; color:var(--q); }
-.jcl-tmake { margin:8px 0 16px; }
-.jcl-hbar { display:flex; flex-direction:column; gap:8px; margin:8px 0 16px; }
-.jcl-hbar .jcl-hrs em { margin-left:auto; font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
-.jcl-tbar > i.ok { background:var(--ok-t); }
-.jcl-tbar > i.warn { background:var(--warn); }
-.jcl-tbar > i.bad { background:var(--bad); }
-.jcl-tadd { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:16px; }
-.jcl-tadd .wb2-fi { flex:1 1 220px; }
-.jcl-tchk { display:inline-flex; align-items:center; gap:8px; font-size:13px; }
-.jcl-tdetail { display:flex; flex-direction:column; gap:16px; }
-.fg .jcl-back { align-self:flex-start; display:inline-flex; align-items:center; gap:4px; padding:0; border:0; background:none;
-  font:inherit; font-size:13px; font-weight:600; color:var(--ink); cursor:pointer; }
-.fg .jcl-back:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
-.jcl-tprog { display:flex; flex-direction:column; gap:8px; }
-.jcl-tbar { height:8px; border-radius:var(--r-pill); background:var(--tint-2); overflow:hidden; }
-.jcl-tbar > i { display:block; height:100%; border-radius:var(--r-pill); background:var(--ink); }
-.jcl-tupd { display:flex; flex-direction:column; gap:12px; padding:16px; border:1px solid var(--line); border-radius:var(--r-card); }
-.jcl-tform { display:grid; grid-template-columns:auto minmax(0,1fr); gap:12px; }
-.jcl-tform label { display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:500; color:var(--q); }
-.jcl-tpin { display:flex; align-items:center; gap:8px; }
-.jcl-tpin .wb2-fi { width:72px; }
-.jcl-tpin i { font-style:normal; font-size:14px; font-weight:600; color:var(--ink); }
-.jcl-thist ul { margin:0; padding:0; list-style:none; }
-.jcl-thist li { display:grid; grid-template-columns:96px minmax(0,1fr) auto; column-gap:12px; row-gap:2px; padding:12px 0; border-top:1px solid var(--line); font-size:13px; }
-.jcl-thist li:first-child { border-top:0; }
-.jcl-thist li b { font-weight:600; }
-.jcl-thist li span { color:var(--q); }
-.jcl-thist li strong { font-weight:600; font-variant-numeric:tabular-nums; }
-.jcl-thist li p { grid-column:2 / -1; margin:0; }
-.jcl-tmanage { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding-top:12px; border-top:1px solid var(--line); }
-.jcl-trename { display:flex; align-items:center; gap:8px; flex:1; }
-.jcl-trename .wb2-fi { flex:1; }
-/* a unit's photos, and what its plate says */
-.jcl-tcam { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:500; color:var(--q); }
-.jcl-tunit { display:flex; flex-direction:column; gap:12px; }
-.jcl-tshots { display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:12px; }
-.jcl-tshots:empty { display:none; }
-.jcl-tshots figure { margin:0; display:flex; flex-direction:column; gap:4px; }
-.jcl-tshots img { display:block; width:100%; aspect-ratio:4 / 3; object-fit:cover; border-radius:var(--r-button); border:1px solid var(--line); }
-.jcl-tshots figcaption { font-size:12px; font-weight:500; }
-.jcl-tshot-gone { display:grid; place-items:center; aspect-ratio:4 / 3; border-radius:var(--r-button); background:var(--tint); font-size:12px; color:var(--q); }
-.jcl-tfile { cursor:pointer; }
-.jcl-tfile:focus-within { box-shadow:var(--ring); }
-.jcl-tread { display:flex; flex-direction:column; gap:8px; }
-.jcl-tkv { margin:0; display:grid; grid-template-columns:96px minmax(0,1fr); }
-.jcl-tkv dt, .jcl-tkv dd { margin:0; padding:8px 0; border-top:1px solid var(--line); font-size:13px; }
-.jcl-tkv dt:first-of-type, .jcl-tkv dt:first-of-type + dd { border-top:0; }
-.jcl-tkv dt { color:var(--q); font-weight:500; }
-.jcl-tkv dd { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; }
-.jcl-tkv dd b { font-weight:600; }
-.jcl-tkv dd em { font-style:normal; }
-.jcl-tkv dd em.ok { color:var(--ok-t); font-weight:600; }
-.jcl-tkv dd em.warn { color:var(--warn-t); font-weight:600; }
-/* check in / check out, at the head of Installation */
-.jcl-check { display:flex; align-items:center; gap:12px; margin-bottom:16px; padding:12px 16px; border-radius:var(--r-button); background:var(--tint); font-size:14px; }
-.jcl-check.on { background:var(--ok-tint); }
-.jcl-check.on span { font-weight:600; }
-.jcl-check .pbtn { margin-left:auto; }
-/* nothing to say beside the button: no bar around it (#3256, 10-03) */
-.jcl-check.bare { padding:0; background:none; }
 /* BILLING AS AN INVOICE: who it's billed to, the payment terms, and the
    balance due big on the right, on a grey head; the claims as a table
    under it — Claim, Status, Amount — the way every invoice page reads */
@@ -5491,7 +5341,7 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
 .wb2-jcface .wb2-mline > em { font-size:12px; }
 .wb2-jcface .wb2-mline > span { font-size:14px; }
 .wb2-jcface .wb2-shtext { font-size:14px; }
-.wb2-jcface .wb2-cwho em, .wb2-jcface .wb2-nextv em, .wb2-jcface .wb2-facts em { font-size:12px; }
+.wb2-jcface .wb2-cwho em, .wb2-jcface .wb2-facts em { font-size:12px; }
 /* a visit is date · crew · hours, and the crew reads beside the day it
    belongs to — not right-clustered against the figure across a full row */
 .wb2-jcface .wb2-mline.visit { grid-template-columns:120px minmax(0,1fr) auto; }
@@ -5614,11 +5464,6 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
   transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .wb2-sheet .seg button.on { background:var(--paper); color:var(--ink);box-shadow:var(--shadow-overlay); }
 .wb2-sheet .seg button:focus-visible { outline:none; box-shadow:var(--ring);; }
-/* the next booking, first over the past visits, in the accent */
-.wb2-nextv { display:flex; flex-direction:column; gap:4px; padding:12px 12px;
-  border-radius:var(--r-button); background:var(--info-tint); }
-.wb2-nextv b { font-size:16px; font-weight:700; color:var(--ink); }
-.wb2-nextv em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
 /* WHAT SOMEBODY IS, after their name — quieter than the name, and the
    separator belongs to the CSS so a title can be absent without leaving a
    dangling dot in the markup. */
@@ -8986,10 +8831,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jp-head { display:flex; flex-direction:column; gap:16px; }
 .fg .jp-top { display:flex; align-items:flex-start; gap:16px; min-width:0; }
 .fg .jp-id { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:4px; }
-.fg .jp-name { margin:0; min-width:0; font-size:24px; font-weight:600; line-height:32px; color:var(--ink); }
-.fg .jp-line { display:flex; align-items:center; gap:8px; min-width:0; margin:0; font-size:14px; line-height:20px; color:var(--q); }
-.fg .jp-facts { flex:0 1 auto; }
-.fg .jp-stage { flex:none; font-weight:500; }
+/* the job's colour dot beside its name, and no line under it (Isaac's mock, 25 October 2026) */
+.fg .jp-name { display:flex; align-items:center; gap:12px; margin:0; min-width:0; font-size:24px; font-weight:600; line-height:32px; color:var(--ink); }
 .fg .jp-acts { flex:none; display:flex; align-items:center; gap:8px; }
 /* Add's and Actions' chevron, after the word */
 .fg .jp-chev { display:inline-flex; margin-left:4px; vertical-align:middle; }
@@ -10638,3 +10481,79 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .ecust-same:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
 .ecust-note { margin:0; font-size:14px; line-height:20px; color:var(--q); }
 .ecust-wrong { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--red-w); }
+
+/* ── A JOB'S VISITS (Isaac's mock of 25 October 2026, frames 1 to 4;
+   board/job-visit-tasks.tsx). Coming up and Previous on the left, Tasks to
+   plan beside them as a card. A visit is a white card in a hairline, the
+   date in a block, the time with a clock, the people as initials; today's
+   is outlined in ink. The card is a button, so it is scoped under `.fg` to
+   out-rank the shell's button reset, (0,1,1). ── */
+.fg .jv { display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:32px; align-items:start; }
+.fg .jv-main { display:flex; flex-direction:column; gap:12px; min-width:0; }
+.fg .jv-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+.fg .jv-head h3, .fg .jv-plan h3 { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .jv-wrong, .fg .jv-none { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.fg .jv-cards { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:12px; }
+.fg .jv-card { display:flex; align-items:center; gap:16px; width:100%; padding:12px 16px; border:1px solid var(--edge); border-radius:var(--r-card);
+  background:var(--paper); font:inherit; color:var(--ink); text-align:left; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.fg .jv-card:hover { background:var(--hov); }
+.fg .jv-card:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .jv-card.today { padding:calc(12px - 1px) calc(16px - 1px); border:2px solid var(--ink); }
+.fg .jv-card.drop { border-style:dashed; border-color:var(--ink); }
+.fg .jv-date { flex:none; width:44px; display:flex; flex-direction:column; align-items:center; }
+.fg .jv-date span { font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+.fg .jv-date b { font-size:20px; line-height:28px; font-weight:600; }
+.fg .jv-body { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:8px; }
+.fg .jv-time { display:flex; align-items:center; gap:8px; font-size:14px; line-height:20px; color:var(--q); }
+.fg .jv-time b { font-weight:600; color:var(--ink); }
+.fg .jv-today { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .jv-discs { display:inline-flex; gap:2px; }
+.fg .jv-word { flex:none; margin-left:auto; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+/* on the day: the visit's tasks under its card, past the date block */
+.fg .jv-day { list-style:none; margin:4px 0 0 76px; padding:0; }
+.fg .jv-dtask { display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--line); }
+.fg .jv-dtask:last-child { border-bottom:0; }
+.fg .jv-dtask[draggable="true"], .fg .jv-task[draggable="true"] { cursor:grab; }
+.fg .jv-dtask .pt-tick, .fg .jv-task .pt-tick { flex:1 1 auto; min-width:0; align-items:flex-start; }
+.fg .jv-dtask .pt-tick__box, .fg .jv-task .pt-tick__box { margin-top:2px; }
+.fg .jv-dtext { display:flex; flex-direction:column; min-width:0; }
+.fg .jv-dtext b { font-weight:600; }
+.fg .jv-dtext em { font-style:normal; font-size:13px; line-height:18px; color:var(--q); }
+.fg .jv-dtask.done .jv-dtext b { font-weight:500; color:var(--q); }
+.fg .pt-btn.jv-issue { color:var(--red-w); }
+.fg .jv-chev { display:inline-flex; margin-left:4px; vertical-align:middle; }
+/* Previous: two to a row */
+.fg .jv-prev { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
+.fg .jv-pgrid { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); column-gap:24px; border-top:1px solid var(--line); }
+.fg .jv-pgrid li { display:flex; align-items:center; gap:12px; min-width:0; padding:8px 0; border-bottom:1px solid var(--line); font-size:13px; line-height:18px; }
+.fg .jv-pgrid b { flex:none; width:92px; font-weight:600; }
+.fg .jv-pgrid em { margin-left:auto; font-style:normal; color:var(--q); font-variant-numeric:tabular-nums; }
+/* Tasks to plan: a card, its stages, a field and the foot while anything is ticked */
+.fg .jv-plan { display:flex; flex-direction:column; gap:12px; padding:16px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--paper); }
+.fg .jv-plan.drop { border-style:dashed; border-color:var(--ink); }
+.fg .jv-plan h3 { display:flex; align-items:center; gap:8px; }
+.fg .jv-group { display:flex; flex-direction:column; }
+.fg .jv-ghead { padding:4px 0; }
+.fg h4.jv-ghead { margin:0; font-size:14px; line-height:20px; font-weight:600; }
+.fg .jv-ghead .pt-tick__word, .fg .jv-task .pt-tick__word, .fg .jv-tname { font-weight:600; }
+.fg .jv-tasks { list-style:none; margin:0; padding:0; }
+.fg .jv-task { display:flex; align-items:flex-start; gap:12px; padding:8px 0; border-top:1px solid var(--line); }
+.fg .jv-tname { flex:1 1 auto; min-width:0; font-size:14px; line-height:20px; }
+.fg .jv-hours { flex:none; font-size:13px; line-height:20px; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .jv-selbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding-top:12px; border-top:1px solid var(--line); font-size:14px; font-weight:600; }
+@media (max-width:900px) {
+  .fg .jv, .fg .jv-pgrid { grid-template-columns:minmax(0,1fr); }
+  .fg .jv-day { margin-left:0; }
+}
+/* the visit's and the issue's dialogs, portalled outside `.fg` */
+.pt-dialog .jv-dline { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.pt-dialog .jv-going { display:flex; flex-direction:column; gap:4px; }
+.pt-dialog .jv-going h3 { margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.pt-dialog .jv-going .pt-rows { border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.pt-dialog .jv-state, .pt-dialog .jv-whose { display:flex; flex-direction:column; gap:4px; font-size:13px; line-height:18px; }
+.pt-dialog .pt-btn.jv-footleft { margin-right:auto; }
+.pt-dialog .jv-photo { display:flex; align-items:center; gap:12px; }
+.pt-dialog .jv-file { position:relative; cursor:pointer; }
+.pt-dialog .jv-file:focus-within { box-shadow:var(--ring); }
+.pt-dialog .jv-file input { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); opacity:0; }
+.pt-dialog .jv-photoname { font-size:13px; line-height:18px; color:var(--q); }

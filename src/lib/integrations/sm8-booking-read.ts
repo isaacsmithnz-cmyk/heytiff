@@ -107,7 +107,7 @@ function dayAfter(d: string): string {
   return new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + 1)).toISOString().slice(0, 10);
 }
 
-/** The days to read: real ones, each once, eight at most. */
+/** The days to read: real ones, each once, as many as one press books at most. */
 function daysToRead(days: readonly unknown[]): string[] {
   const out: string[] = [];
   for (const d of days) {

@@ -223,7 +223,8 @@ const props = { manage: true, moneyVisible: false, onCreateAgreement: noop, onOp
 /** The job's page, with the job known: Add's items are pressable from here. */
 const open = async (extra: Partial<JobProps> = {}) => {
   render(<Job row={row()} {...props} {...extra} />);
-  await waitFor(() => expect(document.querySelector(".jp-facts")).toHaveTextContent("Rose Bay NSW 2029"));
+  await waitFor(() => expect(readMirrorJob).toHaveBeenCalled());
+  await act(async () => {});
   await waitFor(() => expect(readJobRecord).toHaveBeenCalled());
 };
 /** The head's Actions menu, open: Add's items lead it. */
@@ -327,15 +328,15 @@ describe("the job's Add", () => {
       await open();
       await pick("Add visit");
       const form = await screen.findByRole("dialog", { name: "Book a visit" });
-      expect(within(form).getByText(/^Job 3400\b/)).toBeInTheDocument();
-      expect(within(form).getByRole("button", { name: "Clear the job" })).toBeInTheDocument();
+      /* the job, said under the title (Isaac's mock, 25 October 2026) */
+      expect(within(form).getByText(/^Job 3400\b/)).toHaveClass("jv-dline");
     });
 
     it("Task opens Visits with Add a task's box ready", async () => {
       await open();
       await pick("Add task");
       expect(jobTab("Visits")).toHaveAttribute("aria-selected", "true");
-      const box = await screen.findByRole("textbox", { name: "A new task" });
+      const box = await screen.findByRole("textbox", { name: "Add a task" });
       await waitFor(() => expect(box).toHaveFocus());
     });
 

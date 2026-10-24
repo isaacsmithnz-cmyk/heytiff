@@ -66,8 +66,6 @@ export function homeView(data: DashboardData): HomeView {
       rows: rows.filter((r) => columnOf(r) === "activity"),
       diary: data.desk?.diary.feed ?? null,
       events: data.events,
-      notes: data.notes,
-      me: data.viewerStaffId,
       today: data.rail.dayISO,
       now,
       since: plusDays(data.rail.dayISO, -FEED_TALK_DAYS),

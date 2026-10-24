@@ -1,81 +1,49 @@
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NoteForm } from "../note-form";
 import { WindowsContext } from "@/components/records/records-context";
-import { sendNote } from "@/app/actions/shared-notes";
+import { addMyNote } from "@/app/actions/my-notes";
 
-/* New › Note (Isaac, 24 October 2026; the board
-   https://claude.ai/artifact/NiPWtzHBwnetSyyiBag3Yp): what, the job, and who
-   it is to. With no job it starts on The office. */
+/* New › Note (Isaac, 24 October 2026): "notes should just be personal
+   notes … you're the only one that's going to be looking at it". The words
+   and Save, kept in My notes; nobody to send it to, and no job. */
 
-jest.mock("@/app/actions/shared-notes", () => ({
-  notePeople: jest.fn(async () => ({ me: "s-me", people: [{ id: "s-isaac", name: "Isaac Smith" }] })),
-  sendNote: jest.fn(async () => ({ ok: true })),
-}));
-jest.mock("@/app/actions/palette", () => ({
-  searchPalette: jest.fn(async () => ({ staff: [], clients: [], projects: [], photos: [], jobs: [] })),
-}));
+jest.mock("@/app/actions/my-notes", () => ({ addMyNote: jest.fn(async () => ({ ok: true, id: "n1" })) }));
 
 const toast = jest.fn();
-const draw = (job: { uuid: string; label: string } | null = null, onClose = jest.fn()) => {
+const draw = (onClose = jest.fn()) => {
   render(
     <WindowsContext.Provider value={{ toast } as never}>
-      <NoteForm job={job} onClose={onClose} />
+      <NoteForm onClose={onClose} />
     </WindowsContext.Provider>,
   );
   return onClose;
 };
-const say = (words: string) => fireEvent.change(screen.getByLabelText("What"), { target: { value: words } });
-const toList = () => screen.queryByRole("list");
+const say = (words: string) => fireEvent.change(screen.getByLabelText("Note"), { target: { value: words } });
 
 afterEach(() => {
   cleanup();
   jest.clearAllMocks();
 });
 
-it("(F) with no job, goes to the office", async () => {
+it("(F) keeps the note in My notes, and asks nobody else", async () => {
   const onClose = draw();
-  await act(async () => {});
-  expect(screen.getByRole("dialog", { name: "New note" })).toBeInTheDocument();
-  expect(within(toList()!).getByText("The office")).toBeInTheDocument();
+  expect(screen.queryByText("To")).toBeNull();
+  expect(screen.queryByText("For job")).toBeNull();
   say("Ute 2's reverse camera is out again");
-  await act(async () => fireEvent.click(screen.getByRole("button", { name: "Send" })));
-  expect(sendNote).toHaveBeenCalledWith({ text: "Ute 2's reverse camera is out again", jobUuid: null, to: [], toOffice: true });
+  await act(async () => fireEvent.click(screen.getByRole("button", { name: "Save to My notes" })));
+  expect(addMyNote).toHaveBeenCalledWith({ body: "Ute 2's reverse camera is out again", source: "text" });
   await waitFor(() => expect(onClose).toHaveBeenCalled());
-  expect(toast).toHaveBeenCalledWith("Sent to The office");
+  expect(toast).toHaveBeenCalledWith("Saved to My notes");
 });
 
-it("(F) goes to the people you name instead, once the office is taken off", async () => {
-  draw();
-  await act(async () => {});
-  fireEvent.click(screen.getByRole("button", { name: "Take The office off" }));
-  expect(toList()).toBeNull();
-  fireEvent.click(screen.getByRole("combobox", { name: "Add someone" }));
-  fireEvent.click(await screen.findByRole("option", { name: "Isaac Smith" }));
-  expect(within(toList()!).getByText("Isaac Smith")).toBeInTheDocument();
-  say("Can you grab the ladder");
-  await act(async () => fireEvent.click(screen.getByRole("button", { name: "Send" })));
-  expect(sendNote).toHaveBeenCalledWith({ text: "Can you grab the ladder", jobUuid: null, to: ["s-isaac"], toOffice: false });
-});
-
-it("(F) on a job's page, the job is filled in and nobody is named until you choose", async () => {
-  draw({ uuid: "j-3450", label: "3450 Kingsford" });
-  await act(async () => {});
-  expect(toList()).toBeNull();
-  say("Return air is 600 x 400");
-  await act(async () => fireEvent.click(screen.getByRole("button", { name: "Send" })));
-  expect(sendNote).toHaveBeenCalledWith({ text: "Return air is 600 x 400", jobUuid: "j-3450", to: [], toOffice: false });
-  expect(toast).toHaveBeenCalledWith("Kept on 3450 Kingsford");
-});
-
-it("asks for the words first, and keeps the form when it didn't send", async () => {
+it("asks for the words first, and keeps the form when it didn't save", async () => {
   const onClose = draw();
-  await act(async () => {});
-  await act(async () => fireEvent.click(screen.getByRole("button", { name: "Send" })));
-  expect(sendNote).not.toHaveBeenCalled();
-  expect(screen.getByText("Write the note first.")).toBeInTheDocument();
-  (sendNote as jest.Mock).mockResolvedValueOnce({ ok: false, error: "There's nobody in the office to send it to. Name someone." });
+  await act(async () => fireEvent.click(screen.getByRole("button", { name: "Save to My notes" })));
+  expect(addMyNote).not.toHaveBeenCalled();
+  expect(screen.getByText("Write something first.")).toBeInTheDocument();
+  (addMyNote as jest.Mock).mockResolvedValueOnce({ ok: false, error: "Couldn't keep that note." });
   say("Hello");
-  await act(async () => fireEvent.click(screen.getByRole("button", { name: "Send" })));
-  expect(screen.getByText("There's nobody in the office to send it to. Name someone.")).toBeInTheDocument();
+  await act(async () => fireEvent.click(screen.getByRole("button", { name: "Save to My notes" })));
+  expect(screen.getByText("Couldn't keep that note.")).toBeInTheDocument();
   expect(onClose).not.toHaveBeenCalled();
 });

@@ -51,8 +51,10 @@ import type { NoteSender } from "@/lib/integrations/links";
    here on the page rather than in the modal, aimed at this job: the same
    route, questions, filing and Undo, drawn where JC-1 draws them. A
    question she asks with answers to pick shows them as second buttons
-   that answer. Keep as typed is the diary pen's path (`addJobNote`): the
-   words kept word for word as a note on the job, Tiff filing nothing.
+   that answer. Save is the diary pen's path (`addJobNote`): the words kept
+   word for word as a note on the job, Tiff filing nothing (Isaac, 24
+   October 2026: "Instead of keep as typed, just hit save"). The little ⓘ
+   beside them says what Save and Send each do, when you tap it.
 
    ADD PHOTO, the box's second button as JC-1 draws it. A photo picked or
    taken uploads at once, as the expense form uploads a receipt
@@ -61,8 +63,8 @@ import type { NoteSender } from "@/lib/integrations/links";
    words as `receiptId`, and the cost lane reads it with today's receipt
    reader (note-cost-file). Nothing in the router puts a photo on a job's
    note or its photos today, so a photo that isn't a receipt goes nowhere
-   else, and Tiff says nothing of it. Keep as typed keeps the words only:
-   the photo stays in the box for Send.
+   else, and Tiff says nothing of it. Save keeps the words only: the photo
+   stays in the box for Send.
 
    NOTHING THE DIARY DID IS LOST: its filters are the soft tabs at the
    head; a note's line and doors (Remove, Send to ServiceM8, Mark done,
@@ -80,7 +82,7 @@ const FILTERS: { key: StoryFilter; label: string }[] = [
 export type ConversationDiary = {
   onOpenClaim: (remoteId: string) => void;
   onPhotos: () => void;
-  /** Keep as typed: the pen's write. Absent until the card knows the job. */
+  /** Save: the pen's write. Absent until the card knows the job. */
   onWrite?: (body: string, alsoSm8: boolean, composeId: string) => void | Promise<unknown>;
   onRemoveNote?: (id: string) => void;
   sender: NoteSender | null;
@@ -287,8 +289,8 @@ export function JobConversation({
     } else convo.send();
   };
 
-  /* KEEP AS TYPED: the words as they are, a note on the job, and nothing
-     filed from them. The pen's own write and its Also in ServiceM8. */
+  /* SAVE: the words as they are, a note on the job, and nothing filed from
+     them. The pen's own write and its Also in ServiceM8. */
   const [also, tick] = useAlsoSm8();
   const [keeping, setKeeping] = useState(false);
   const keep = () => {
@@ -433,9 +435,10 @@ export function JobConversation({
                   Add photo
                 </Button>
               )}
+              <BoxInfo save={!!diary.onWrite} />
               {diary.onWrite && convo.draft.trim() ? (
                 <Button kind="second" size={36} className="jc-keep" disabled={keeping} onClick={keep}>
-                  {keeping ? "Keeping it" : "Keep as typed"}
+                  {keeping ? "Saving" : "Save"}
                 </Button>
               ) : null}
             </>
@@ -466,6 +469,55 @@ type BoxPhoto =
 
 /** The photo's chip in the box, with its clear. A refused upload says why
     in its place, and the clear takes it away. */
+/* WHAT SAVE AND SEND DO (Isaac, 24 October 2026: "a little information
+   button next to it … if you tap that, then it will say what save and what
+   send does"). Opens on a press, not a hover, so a thumb on site can read
+   it; a press anywhere else or Escape puts it away. */
+function BoxInfo({ save }: { save: boolean }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("pointerdown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
+  return (
+    <span ref={ref} className="jc-info">
+      <button
+        type="button"
+        className="jc-infobtn"
+        aria-label={save ? "What Save and Send do" : "What Send does"}
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Icon name="info" size={16} />
+      </button>
+      {open && (
+        <span className="jc-infopop" role="note">
+          {save && (
+            <span>
+              <b>Save</b>{" "}keeps your words as you typed them, as a note on this job. Tiff doesn&apos;t read them, and no task is made.
+            </span>
+          )}
+          <span>
+            <b>Send</b>{" "}gives them to Tiff, as your voice does. She puts what they say on this job, and makes a task for anyone they ask.
+          </span>
+        </span>
+      )}
+    </span>
+  );
+}
+
 function PhotoChip({ photo, onClear }: { photo: BoxPhoto; onClear: () => void }) {
   if (photo.state === "bad") {
     return (

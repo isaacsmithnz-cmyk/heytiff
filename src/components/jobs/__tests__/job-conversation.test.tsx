@@ -224,15 +224,33 @@ it("keeps the words as typed, a note on the job, with Tiff filing nothing", asyn
   const setDraft = jest.fn();
   const send = jest.fn();
   draw({ c: convo({ draft: "  Grilles are in the van  ", setDraft, send }), d });
-  await userEvent.click(screen.getByRole("button", { name: "Keep as typed" }));
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
   expect(d.onWrite).toHaveBeenCalledWith("Grilles are in the van", false, expect.any(String));
   expect(setDraft).toHaveBeenCalledWith("");
   expect(send).not.toHaveBeenCalled();
 });
 
-it("offers Keep as typed only once there are words", () => {
+it("offers Save only once there are words", () => {
   draw({ c: convo({ draft: "" }) });
-  expect(screen.queryByRole("button", { name: "Keep as typed" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+});
+
+/* Isaac, 24 October 2026: "a little information button next to it … if you
+   tap that, then it will say what save and what send does" */
+it("(F) says what Save and Send do when its ⓘ is pressed, and puts it away again", async () => {
+  draw({ c: convo({ draft: "Grilles are in the van" }) });
+  const info = screen.getByRole("button", { name: "What Save and Send do" });
+  expect(info).toHaveAttribute("aria-expanded", "false");
+  expect(screen.queryByRole("note")).toBeNull();
+  await userEvent.click(info);
+  const said = screen.getByRole("note");
+  expect(said).toHaveTextContent("Save keeps your words as you typed them, as a note on this job. Tiff doesn't read them, and no task is made.");
+  expect(said).toHaveTextContent("Send gives them to Tiff, as your voice does.");
+  await userEvent.keyboard("{Escape}");
+  expect(screen.queryByRole("note")).toBeNull();
+  await userEvent.click(info);
+  await userEvent.click(info);
+  expect(screen.queryByRole("note")).toBeNull();
 });
 
 it("keeps the diary's filters, and the diary's other entries as cards in their place", async () => {

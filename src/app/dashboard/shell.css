@@ -5210,6 +5210,9 @@ a.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 .jcl-mail { display:block; font-size:13px; color:var(--ink); white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-po { margin:0; display:flex; flex-direction:column; gap:2px; font-size:13px; }
+.jcl-site { display:flex; flex-direction:column; gap:2px; font-size:14px; line-height:20px; }
+.jcl-site b { font-weight:600; }
+.jcl-addr { margin:0; white-space:pre-line; color:var(--ink); }
 .jcl-po em { font-style:normal; font-size:12px; font-weight:500; color:var(--q); }
 
 .jcl-hrs { margin:0; display:flex; align-items:baseline; gap:8px; }

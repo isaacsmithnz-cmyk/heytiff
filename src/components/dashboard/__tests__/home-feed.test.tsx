@@ -213,9 +213,18 @@ it("(F) puts the mention To do's Reply named first, so its box opens in view", (
   expect(within(first).getByRole("textbox", { name: "Reply to Luke Parker" })).toBeInTheDocument();
 });
 
-it("(F) a long name gives way to the rest of its line and fades, so the column never scrolls sideways", () => {
+/* Isaac, 25 October 2026: "we're not losing all of the text off to the
+   right… three lines max" */
+it("(F) says who and what as one sentence that wraps to three lines and fades only past them, when under their words", () => {
   render(<HomeFeed items={[{ ...LUKE, who: { name: "Middle rooftop unit tripped again, repeat occurrence, cause not yet identified", sm8: false } }]} />);
-  expect(within(list()).getByText(/Middle rooftop unit/)).toHaveClass("pt-fade", "hm-feed-name");
+  const name = within(list()).getByText(/Middle rooftop unit/);
+  expect(name).toHaveClass("hm-feed-name");
+  const sentence = name.closest(".pt-fade")!;
+  expect(sentence).toHaveClass("pt-fade--3");
+  expect(sentence).toHaveTextContent("Middle rooftop unit tripped again, repeat occurrence, cause not yet identified mentioned you on 2674 Clovelly");
+  expect(within(list()).getByText(/grille filters/).closest(".pt-fade")).toHaveClass("pt-fade--3");
+  expect(within(list()).getByText("12:52 pm")).toHaveClass("hm-feed-when");
+  expect(sentence).not.toHaveTextContent("12:52 pm");
 });
 
 it("(F) opens the reply box when To do's Reply names a mention while Home is already open", () => {

@@ -218,6 +218,8 @@ export function TodoList({ rows, label, cap }: { rows: readonly TodoRow[]; label
               ) : undefined
             }
             dot={stateTone(row.tone)}
+            /* up to three lines, never cut off at the right (Isaac, 25 October 2026) */
+            lines={3}
             name={row.name}
             line={row.lineTone ? <span className={`hm-line hm-line--${row.tone}`}>{row.line}</span> : row.line}
             href={replyOf(row) ? undefined : row.act.kind === "link" || row.act.kind === "bookIn" ? row.act.href : undefined}

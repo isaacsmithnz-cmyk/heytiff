@@ -9135,16 +9135,14 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .hm-feed-open { margin:-4px -8px; padding:4px 8px; border:0; border-radius:var(--r-control); background:none; font:inherit; color:inherit; text-align:left; text-decoration:none; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
 .fg .hm-feed-open:hover { background:var(--tint); }
 .fg .hm-feed-open:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .hm-feed-head { display:flex; align-items:baseline; gap:8px; margin:0; min-width:0; font-size:14px; line-height:20px; }
-/* the name is drawn whole first and fades only past the line; what they
-   did takes what is left, at least 64 of it, so a long name never pushes
-   it out of sight */
-.fg .hm-feed-head .hm-feed-name { flex:0 1 auto; font-weight:600; }
-.fg .hm-feed-what:empty { display:none; }
-.fg .hm-feed-what { color:var(--q); white-space:nowrap; overflow:hidden; min-width:64px; flex:1 1 0; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.fg .hm-feed-when { color:var(--q); font-size:13px; line-height:20px; white-space:nowrap; }
-/* new to you: an ink dot (blue is only for what you press, rule 16) */
-.fg .hm-feed-new { width:8px; height:8px; border-radius:50%; background:var(--ink); flex:none; align-self:center; }
+.fg .hm-feed-head { display:flex; align-items:flex-start; gap:8px; margin:0; min-width:0; }
+/* who and what as one sentence, wrapping to three lines (25 October 2026) */
+.fg .hm-feed-headtext { flex:1 1 auto; font-size:14px; line-height:20px; color:var(--ink); }
+.fg .hm-feed-name { font-weight:600; }
+.fg .hm-feed-what { color:var(--q); }
+.fg .hm-feed-when { color:var(--q); font-size:12px; line-height:16px; }
+/* new to you: an ink dot (blue is only for what you press, rule 16), by the first line */
+.fg .hm-feed-new { width:8px; height:8px; border-radius:50%; background:var(--ink); flex:none; margin-top:calc((20px - 8px) / 2); }
 .fg .hm-feed-said { margin:0; font-size:14px; line-height:20px; color:var(--ink); overflow-wrap:anywhere; }
 .fg .hm-feed-yours { margin:0; font-size:13px; line-height:20px; color:var(--q); overflow-wrap:anywhere; }
 .fg .hm-feed-acts { display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }

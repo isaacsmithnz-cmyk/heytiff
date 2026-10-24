@@ -173,15 +173,29 @@ function FeedEntry({
       )}
       <div className="hm-feed-body">
         <Opener item={item} onTask={onTask}>
+          {/* WHO AND WHAT, AS A SENTENCE THAT WRAPS (Isaac, 25 October 2026:
+              "we're not losing all of the text off to the right… three lines
+              max"): the name in bold and what they did after it, running to
+              three lines before its end fades; when moves under their words,
+              so the line has the column's whole width */}
           <span className="hm-feed-head">
             {item.unread && !sent && <span className="hm-feed-new" aria-label="New" />}
-            {/* a long name fades at its end and gives way to the rest of the
-                line, so the column never scrolls sideways (25 October) */}
-            <Fade className="hm-feed-name">{item.who.name}</Fade>
-            <span className="hm-feed-what">{item.what}</span>
-            {item.when && <span className="hm-feed-when">{item.when}</span>}
+            <Fade lines={3} className="hm-feed-headtext">
+              <b className="hm-feed-name">{item.who.name}</b>
+              {item.what ? (
+                <>
+                  {" "}
+                  <span className="hm-feed-what">{item.what}</span>
+                </>
+              ) : null}
+            </Fade>
           </span>
-          {item.said && <span className="hm-feed-said">{item.reply ? `"${item.said}"` : item.said}</span>}
+          {item.said && (
+            <Fade lines={3} className="hm-feed-said">
+              {item.reply ? `"${item.said}"` : item.said}
+            </Fade>
+          )}
+          {item.when && <span className="hm-feed-when">{item.when}</span>}
         </Opener>
         {yours && <p className="hm-feed-yours">You: {yours}</p>}
         {replying && !sent ? (

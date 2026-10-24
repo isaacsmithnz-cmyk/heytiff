@@ -6,12 +6,14 @@
    holds on any ground; it goes on only while the text overflows */
 .pt-fade { display:block; min-width:0; overflow:hidden; white-space:nowrap; }
 .pt-fade.pt-fade--2 { white-space:normal; max-height:2lh; }
+.pt-fade.pt-fade--3 { white-space:normal; max-height:3lh; }
 .pt-fade.pt-fade--on {
   -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
   mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
 }
-/* two lines: the first is whole, the second fades at its end */
-.pt-fade.pt-fade--2.pt-fade--on {
+/* two or three lines: those above the last are whole, the last fades at its end */
+.pt-fade.pt-fade--2.pt-fade--on,
+.pt-fade.pt-fade--3.pt-fade--on {
   -webkit-mask-image:linear-gradient(var(--ink), var(--ink)), linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
   mask-image:linear-gradient(var(--ink), var(--ink)), linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
   -webkit-mask-size:100% calc(100% - 1lh), 100% 1lh;
@@ -45,6 +47,9 @@
 .pt-row .pt-row-hit:focus-visible::after { box-shadow:var(--ring); }
 .pt-row-line { display:block; min-width:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
 .pt-row-end { flex:none; position:relative; z-index:var(--z-raised); font-size:13px; line-height:18px; font-weight:500; }
+/* a row whose name runs to more lines: what is beside it stands by the first */
+.pt-row.pt-row--wrap { align-items:flex-start; }
+.pt-row.pt-row--wrap > .pt-dot { margin-top:calc((20px - 8px) / 2); }
 
 /* rules 40 and 42: nothing there yet, and something gone wrong, sit in the
    middle of the area they stand for */

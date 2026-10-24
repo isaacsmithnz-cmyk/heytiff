@@ -56,6 +56,18 @@ describe("the task form", () => {
     expect(deleteTask).toHaveBeenCalledWith("t1");
   });
 
+  /* 25 October 2026: a task made from New never reached the job's own To do */
+  it("says on the page that a task changed, so a screen that read its tasks reads them again", async () => {
+    const heard = jest.fn();
+    window.addEventListener("heytiff:tasks-changed", heard);
+    draw();
+    await act(async () => {});
+    say("Order the grilles");
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Add task" })));
+    await waitFor(() => expect(heard).toHaveBeenCalledTimes(1));
+    window.removeEventListener("heytiff:tasks-changed", heard);
+  });
+
   it("on a job's page: the job is filled in, and saving puts the task on it", async () => {
     draw({ uuid: "j-3209", label: "3209 Richards" });
     await act(async () => {});

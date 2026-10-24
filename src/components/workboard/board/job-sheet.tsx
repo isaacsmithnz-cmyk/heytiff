@@ -2097,7 +2097,16 @@ export function JobSheet({
               moneyVisible={moneyVisible}
               detail={detail}
               fallbackWhat={row.title}
-              head={<JobProgressLine steps={steps} open={step} onOpen={openStep} />}
+              head={
+                <JobProgressLine
+                  /* no stage is the job's until its detail is read: the line
+                     said Quoted while it read, then Deposit paid (25 October
+                     2026) */
+                  steps={detail ? steps : steps.map((s) => ({ ...s, state: "next" as const, fact: "" }))}
+                  open={step}
+                  onOpen={openStep}
+                />
+              }
               tiles={{
                 onVisits: () => go("visits"),
                 onBook: bookings?.canBook ? () => addPick("visit") : undefined,

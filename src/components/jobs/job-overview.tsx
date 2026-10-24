@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { readJobConversation } from "@/app/actions/job-conversation";
 import { undoNote } from "@/app/actions/workboard-notes";
@@ -12,6 +12,7 @@ import type { StoryEntry } from "@/lib/workboard/job-story";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import { JobConversation, type ConversationDiary } from "./job-conversation";
 import { JobTiles } from "./job-tiles";
+import { useTasksChanged } from "@/lib/tasks/changed";
 import dynamic from "next/dynamic";
 
 /* a task's own form, loaded when one is opened: the job card carries this
@@ -101,6 +102,7 @@ export function JobOverview({
   const [read, setRead] = useState<JobConversationRead | null>(null);
   const [kick, setKick] = useState(0);
   const again = () => setKick((k) => k + 1);
+  const readAgain = useCallback(() => setKick((k) => k + 1), []);
   /* each answer Tiff gives in the box: a filing, an Undo's line, a question */
   const filedHere = convo.turns.filter((t) => t.who === "tiff").length;
   const ours = story.filter((e) => e.kind === "note" && e.origin === "heytiff").length;
@@ -119,6 +121,11 @@ export function JobOverview({
       live = false;
     };
   }, [cardId, kick, filedHere, ours, landed]);
+
+  /* a task made, changed or ticked anywhere on the page (New › Task, a row's
+     own form) is read again here: it never reached this To do until a
+     reload (25 October 2026) */
+  useTasksChanged(readAgain);
 
   /* leaving: a note Tiff was still asking about is set aside, as the modal
      does when it closes */
@@ -179,6 +186,7 @@ export function JobOverview({
         <JobTiles
           what={what}
           next={detail ? nextVisitOf({ booked: detail.booked ?? null, nextBooking: detail.nextBooking }, today) : null}
+          nextRead={!!detail}
           onVisits={tiles.onVisits}
           onBook={tiles.onBook}
           money={tiles.money}

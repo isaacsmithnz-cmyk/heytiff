@@ -5,6 +5,23 @@ import { getViewerName } from "@/lib/staff/query";
 import { ownerLabel } from "@/lib/permissions";
 import type { Role } from "@/lib/roles-shared";
 import type { ShellUser } from "@/components/shell/sidebar";
+import { supabaseAdmin } from "@/lib/supabase-server";
+import { staffProfileIdFor } from "@/lib/fleet/query";
+
+/** Whether a vehicle is assigned to this person: Your vehicle shows under
+    their name only then. A read that fails says no. */
+async function hasOwnVehicle(orgId: string, userId: string): Promise<boolean> {
+  const staffId = await staffProfileIdFor(orgId, userId).catch(() => null);
+  if (!staffId) return false;
+  const { data } = await supabaseAdmin
+    .from("vehicles")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("assigned_to", staffId)
+    .neq("status", "sold")
+    .limit(1);
+  return (data ?? []).length > 0;
+}
 
 /* Everything the app frame needs to know about WHO is looking at it.
 
@@ -55,13 +72,14 @@ export const loadShell = cache(async (): Promise<ShellData> => {
 
      The staff record owns the name: the Auth0 session has no name claim here,
      and trusting it showed people their own email address in the topbar. */
-  const [viewer, ownership, caps, orgName] = await Promise.all([
+  const [viewer, ownership, caps, orgName, hasVehicle] = await Promise.all([
     orgId && userId
       ? getViewerName(orgId, userId, fallbackName)
       : Promise.resolve({ full: fallbackName, first: "there" }),
     getOwnership(),
     getCapabilities(),
     getOrgName(),
+    orgId && userId ? hasOwnVehicle(orgId, userId).catch(() => false) : Promise.resolve(false),
   ]);
 
   const displayName = viewer.full;
@@ -76,6 +94,7 @@ export const loadShell = cache(async (): Promise<ShellData> => {
       // resolved per request, so a granted capability shows its nav entry on
       // the very next navigation — no re-login
       caps: [...caps],
+      hasVehicle,
     },
     orgName,
     orgId: orgId ?? null,

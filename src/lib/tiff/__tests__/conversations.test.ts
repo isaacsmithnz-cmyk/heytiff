@@ -55,13 +55,14 @@ describe("her steps", () => {
 describe("the address and the rest", () => {
   it("writes the view and what is open, and leaves All bare", () => {
     expect(withConvState("http://x/dashboard/conversations", { view: "all", open: null })).toBe("/dashboard/conversations");
-    expect(withConvState("http://x/dashboard/conversations?view=me", { view: "all", open: "t-1" })).toBe("/dashboard/conversations?open=t-1");
-    expect(withConvState("http://x/dashboard/conversations", { view: "me", open: "n1" })).toBe("/dashboard/conversations?view=me&open=n1");
+    expect(withConvState("http://x/dashboard/conversations?view=team", { view: "all", open: "t-1" })).toBe("/dashboard/conversations?open=t-1");
+    expect(withConvState("http://x/dashboard/conversations", { view: "team", open: null })).toBe("/dashboard/conversations?view=team");
   });
 
   it("reads a view, and anything else is All", () => {
-    expect(viewOf("me")).toBe("me");
     expect(viewOf("team")).toBe("team");
+    // Only me went: your notes are Your name › Notes
+    expect(viewOf("me")).toBe("all");
     expect(viewOf("everything")).toBe("all");
     expect(viewOf(undefined)).toBe("all");
   });

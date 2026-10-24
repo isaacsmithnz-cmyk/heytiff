@@ -55,10 +55,6 @@ const failed = (c: Ctx | { error: string }): c is { error: string } => "error" i
 const refresh = () => {
   revalidatePath(navHref("mynotes"));
   revalidateHome();
-  /* v2's Conversations › Only me reads the same notes. By path: the place has
-     no row in nav.ts, which the shell owns, and it moves into the sidebar
-     there (places.ts) when the shell points at it. */
-  revalidatePath("/dashboard/conversations");
 };
 
 /** Keep a note for yourself. `sourceNoteId` links it back to the routed note

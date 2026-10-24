@@ -6,193 +6,39 @@ import type { MeData } from "@/lib/me/page-data";
 const mockPush = jest.fn();
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: mockPush, refresh: jest.fn() }) }));
 
-/* THE SERVER ACTIONS ARE STUBBED, NOT THE FACES. A `"use server"` module
-   pulled into jsdom takes `next/cache` and its `Request` global with it and
-   the suite dies at import — so every action module these five faces reach is
-   mocked, and the faces themselves render for real. That is the point: what
-   this file guards is which face is on screen and which switch it carries, and
-   a stubbed face would answer both questions by construction.
-
-   My leave IS stubbed: a big screen with its own suite and no in-panel
-   switch. The timesheet is no face at all since v2: it is its own page. */
+/* WHAT IS LEFT OF THE ME CARD: Leave, under the old strip. Timesheet,
+   Expense claims, Your vehicle and Notes are pages of their own under Your
+   name (Isaac, 24 October 2026), so their tabs go to them. My leave is
+   stubbed: a big screen with its own suite. */
 jest.mock("@/components/timepay/my-leave", () => ({
   MyLeave: () => <div data-testid="face-leave" />,
 }));
-jest.mock("@/app/actions/my-notes", () => ({
-  addMyNote: jest.fn(async () => ({ ok: true })),
-  archiveMyNote: jest.fn(async () => ({ ok: true })),
-  deleteMyNote: jest.fn(async () => ({ ok: true })),
-  editMyNote: jest.fn(async () => ({ ok: true })),
-}));
-jest.mock("@/components/notes/note-token", () => ({
-  NoteToken: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
-    <input aria-label="a note" value={value} onChange={(e) => onChange(e.target.value)} />
-  ),
-}));
-jest.mock("@/app/actions/expenses", () => ({
-  submitClaim: jest.fn(async () => ({ ok: true })),
-  cancelClaim: jest.fn(async () => ({ ok: true })),
-}));
-jest.mock("@/app/actions/expense-ai", () => ({ readExpenseReceipt: jest.fn() }));
-jest.mock("@/app/actions/fleet-ai", () => ({ readFuelReceipt: jest.fn(), valueFleet: jest.fn() }));
-jest.mock("@/lib/documents/upload-client", () => ({ uploadFile: jest.fn() }));
-jest.mock("@/app/actions/fleet", () => ({
-  addLog: jest.fn(async () => ({ ok: true })),
-  assignVehicle: jest.fn(async () => ({ ok: true })),
-  deleteLog: jest.fn(async () => ({ ok: true })),
-  editLog: jest.fn(async () => ({ ok: true })),
-  removeVehicle: jest.fn(async () => ({ ok: true })),
-  resolveIssue: jest.fn(async () => ({ ok: true })),
-  saveValuations: jest.fn(async () => ({ ok: true })),
-  saveVehicle: jest.fn(async () => ({ ok: true })),
-}));
 
-/* THE FIVE PERSONAL SCREENS, ON ONE CARD.
-
-   They were five rail rows and the rail could not afford them — thirteen rows
-   needed 999px of nav inside a 733px window, so Operations and Admin sat below
-   a fold that `.no-sb` gives no scrollbar to admit. What these guard is the
-   half of that trade that could quietly rot: the rows went, and every one of
-   the five has to still be a place you can get to and a thing that says which
-   it is. */
-
-const DATA = {
-  timesheet: null,
-  leave: null,
-  fleet: { own: { vehicle: null, pickable: [], logs: [] }, today: "2026-08-23", viewerStaffId: null },
-  claims: [],
-  notes: [],
-  archived: [],
-  staffId: null,
-  today: "2026-08-23",
-} as unknown as MeData;
+const DATA: MeData = { leave: null };
 
 const strip = () => screen.getByRole("tablist", { name: "Yours" });
 
-it("carries all five faces, and opens the one the route names", () => {
-  render(<MeScreen initialTab="vehicle" data={DATA} />);
-  const labels = within(strip())
-    .getAllByRole("tab")
-    .map((t) => t.textContent);
-  expect(labels).toEqual(["Timesheet", "Leave", "Expenses", "Vehicle", "Notes"]);
-  expect(within(strip()).getByRole("tab", { name: "Vehicle" })).toHaveAttribute(
-    "aria-selected",
-    "true"
-  );
-  expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("My vehicle");
-});
+beforeEach(() => mockPush.mockClear());
 
-it("names itself for each face — these are five destinations, not one screen", async () => {
+it("is Leave, with the strip's other tabs going to their own pages", async () => {
   const user = userEvent.setup();
   render(<MeScreen initialTab="leave" data={DATA} />);
-  for (const [tab, title] of [
-    ["Expenses", "My expenses"],
-    ["Vehicle", "My vehicle"],
-    ["Notes", "Notes"],
-    ["Leave", "My leave"],
+  expect(within(strip()).getByRole("tab", { name: "Leave" })).toHaveAttribute("aria-selected", "true");
+  expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("My leave");
+  for (const [tab, href] of [
+    ["Timesheet", "/dashboard/my-timesheet"],
+    ["Expenses", "/dashboard/my-expenses"],
+    ["Vehicle", "/dashboard/my-vehicle"],
+    ["Notes", "/dashboard/my-notes"],
   ] as const) {
     await user.click(within(strip()).getByRole("tab", { name: tab }));
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(title);
+    expect(mockPush).toHaveBeenLastCalledWith(href);
   }
-});
-
-/* YOUR TIMESHEET IS A PAGE OF ITS OWN in v2 (the board 6-timesheet, Your
-   name › Timesheet), so its tab goes there instead of switching a face. */
-it("takes the Timesheet tab to the timesheet's own page", async () => {
-  const user = userEvent.setup();
-  mockPush.mockClear();
-  render(<MeScreen initialTab="leave" data={DATA} />);
-  await user.click(within(strip()).getByRole("tab", { name: "Timesheet" }));
-  expect(mockPush).toHaveBeenCalledWith("/dashboard/my-timesheet");
+  // the page under you stays Leave until the address changes
   expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("My leave");
 });
 
-/* THE SWITCH INSIDE A FACE. Vehicle, Expenses and Notes each carried their own
-   card-edge strip; a strip inside a strip is not a control this app has, so
-   the inner pair moved onto `.seg`. What must stay true is that both faces are
-   still reachable and still announce themselves — the whole point of the move
-   was that nothing became unreachable. */
-it("keeps each face's own pair on an in-panel switch, not a second card strip", async () => {
-  const user = userEvent.setup();
-  render(<MeScreen initialTab="notes" data={DATA} />);
-
-  // exactly two tablists: the card's five, and this face's two
-  const lists = screen.getAllByRole("tablist");
-  expect(lists.map((l) => l.getAttribute("aria-label"))).toEqual(["Yours", "Your notes"]);
-  expect(screen.getByRole("tablist", { name: "Your notes" })).toHaveClass("me-fsw");
-
-  const inner = () => screen.getByRole("tablist", { name: "Your notes" });
-  await user.click(within(inner()).getByRole("tab", { name: "Archived" }));
-  expect(within(inner()).getByRole("tab", { name: "Archived" })).toHaveAttribute(
-    "aria-selected",
-    "true"
-  );
-  // …and switching the CARD's face does not leave the old switch behind
-  await user.click(within(strip()).getByRole("tab", { name: "Expenses" }));
-  expect(screen.queryByRole("tablist", { name: "Your notes" })).toBeNull();
-  expect(screen.getByRole("tablist", { name: "Your expenses" })).toBeTruthy();
-});
-
-/* THE PANEL SWAPS IN PLACE — no remount, no fade. `key={tab}` + `.psec2`
-   rebuilt the face and faded it in on every switch, which on a timesheet grid
-   reads as the content flashing (Isaac, 2026-08-22). */
-it("keeps the same panel node, with no fade class", async () => {
-  const user = userEvent.setup();
-  const { container } = render(<MeScreen initialTab="leave" data={DATA} />);
-  const panel = () => container.querySelector('.wb2-panel > [role="tabpanel"]');
-
-  const before = panel();
-  expect(before).not.toHaveClass("psec2");
-  await user.click(within(strip()).getByRole("tab", { name: "Expenses" }));
-  expect(panel()).toBe(before);
-  expect(panel()).not.toHaveClass("psec2");
-});
-
-/* THE URL MUST NOT MOVE. A cross-PATH replaceState remounts the whole page
-   tree — the shell keys its outlet on the pathname — taking this component's
-   state with it, so every tab click bounced back to the entry face (Isaac hit
-   it on prod within minutes, 2026-08-22). */
-it("never writes the path when you change face", async () => {
-  const user = userEvent.setup();
-  const spy = jest.spyOn(window.history, "replaceState");
-  const push = jest.spyOn(window.history, "pushState");
-  render(<MeScreen initialTab="leave" data={DATA} />);
-  await user.click(within(strip()).getByRole("tab", { name: "Notes" }));
-  expect(spy).not.toHaveBeenCalled();
-  expect(push).not.toHaveBeenCalled();
-  spy.mockRestore();
-  push.mockRestore();
-});
-
-/* THE HEADER MUST NOT MOVE. Notes carried "Only you can see these" under the
-   card's heading, so landing on Notes stepped the whole page down and leaving
-   it stepped back up (Isaac, 2026-08-23). The sentence is not gone — it rides
-   the switch row inside the panel — and since the rollout (2026-09-20) the
-   heading rides the TAB BAND, a fixed 56px row: one h1, the tabs, nothing a
-   face can add. This pins the h1 as the band's lead on every face, which is
-   what keeps the row from growing. */
-it("keeps the header to a heading alone, on every face", async () => {
-  const user = userEvent.setup();
-  const { container } = render(<MeScreen initialTab="leave" data={DATA} />);
-  const band = () => container.querySelector(".wb2-vtabs") as HTMLElement;
-
-  for (const tab of ["Expenses", "Vehicle", "Notes", "Leave"] as const) {
-    await user.click(within(strip()).getByRole("tab", { name: tab }));
-    expect(band().querySelectorAll("h1")).toHaveLength(1);
-    // the heading leads the band, and the tabs follow it
-    expect(band().firstElementChild!.tagName).toBe("H1");
-    expect(band().children[1]).toHaveClass("wb2-vtrow");
-  }
-  // …and the sentence still exists, on the surface it describes
-  await user.click(within(strip()).getByRole("tab", { name: "Notes" }));
-  expect(screen.getByText("Only you can see these.")).toBeTruthy();
-});
-
-/* A MISSING STAFF CARD USED TO REDIRECT. My expenses and My notes each bounced
-   to /dashboard when the viewer had no staff row, which cannot survive the
-   merge: one absent face would take the other four with it. */
-it("shows an empty face rather than losing the card when there is no staff record", () => {
+it("shows an empty face when there is no staff record", () => {
   render(<MeScreen initialTab="leave" data={DATA} />);
   expect(screen.getByText("No staff record yet")).toBeTruthy();
-  expect(within(strip()).getAllByRole("tab")).toHaveLength(5);
 });

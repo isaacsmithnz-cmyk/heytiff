@@ -122,8 +122,8 @@ describe("the places (rule 5)", () => {
 });
 
 describe("your name (rule 7)", () => {
-  it("opens your card, time, leave, claims, Reports and Settings, then Sign out", () => {
-    draw(userAs("owner", [...resolve("owner")]));
+  it("opens your card, time, leave, claims, vehicle, notes, Reports and Settings, then Sign out", () => {
+    draw({ ...userAs("owner", [...resolve("owner")]), hasVehicle: true });
     act(() => screen.getByRole("button", { name: /Isaac Smith/ }).click());
     const menu = screen.getByRole("menu", { name: "Your name" });
     expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent)).toEqual([
@@ -131,6 +131,8 @@ describe("your name (rule 7)", () => {
       "Timesheet",
       "Leave",
       "Expense claims",
+      "Your vehicle",
+      "Notes",
       "Reports",
       "Settings",
       "Sign out",

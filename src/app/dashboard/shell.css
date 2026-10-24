@@ -3934,7 +3934,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .xc-onjob { display:flex; align-items:center; gap:4px; margin:4px 0 0;
   font-size:12px; font-weight:600; color:var(--gray500); }
 
-.fg .xc-list { display:flex; flex-direction:column; gap:8px; margin-top:24px; }
+.fg .xc-list { display:flex; flex-direction:column; gap:8px; margin-top:16px; }
 .fg .xc-row { display:flex; flex-wrap:wrap; align-items:flex-start; gap:12px; padding:16px 16px; border-radius:var(--r-card); background:var(--paper); border:1px solid var(--line); }
 /* a decided claim steps back — it is history, not something to act on */
 .fg .xc-row.reimbursed, .fg .xc-row.cancelled, .fg .xc-row.declined { background:var(--tint);  box-shadow:none; }
@@ -6425,7 +6425,7 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-toasts { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:var(--z-toast);
   display:flex; flex-direction:column-reverse; gap:8px; align-items:center; pointer-events:none; }
 .wb2-toast { display:flex; align-items:center; gap:12px; padding:12px 8px 12px 16px; border-radius:var(--r-card);
-  background:var(--ink); color:var(--paper); font-size:13px; font-weight:600;box-shadow:var(--shadow-overlay);
+  background:var(--q); color:var(--paper); font-size:13px; font-weight:600;box-shadow:var(--shadow-overlay);
   pointer-events:auto; animation:wb2CardIn .32s var(--ease) both; max-width:min(520px, calc(100vw - 40px)); }
 .wb2-toast button { font:inherit; font-weight:700; color:var(--paper); background:none; border:0; cursor:pointer; padding:2px 4px; border-radius:var(--r-button); }
 .wb2-toast button:hover { background:var(--on-ink-tint-2); }
@@ -9405,8 +9405,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .cv-rows .cv-row:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .cv-row-title { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
 .fg .cv-row-when { font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
-.fg .cv-group { margin-top:24px; }
-.fg .cv-group .cv-group-label { margin:0 0 4px; padding:0 16px; font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+
 .fg .cv-main { display:flex; flex-direction:column; min-width:0; min-height:0; }
 .fg .cv-pane { flex:1; display:flex; flex-direction:column; gap:16px; min-height:0; padding:24px 32px 32px 48px; }
 .fg .cv-pane-head { display:flex; align-items:center; justify-content:flex-end; gap:8px; min-height:32px; }
@@ -9467,9 +9466,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .cv-say.cv-say--bad { color:var(--bad-t); }
 .fg .cv-scope { display:flex; align-items:center; gap:8px; min-width:0; margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
 .fg .cv-scope-doc { flex:0 1 auto; min-width:0; font-weight:500; color:var(--ink); }
-/* a note being edited */
-.fg .cv-edit { display:flex; flex-direction:column; gap:8px; }
-.fg .cv-edit-acts { display:flex; justify-content:flex-end; gap:8px; }
+
 @media (max-width:900px) {
   .fg .cv { grid-template-columns:minmax(0,1fr); height:auto; min-height:100%; }
   .fg .cv-side { border-right:0; border-bottom:1px solid var(--line); }
@@ -9576,7 +9573,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    The receipt first, in a dashed drop zone; then the receipt as a row, the
    fields in pairs and threes, and fuel's own under a thin line. The door on
    My expenses sits above the list. No `.fg`: the form portals to <body>. */
-.fg .mk-money-door { display:flex; margin-bottom:16px; }
 .mk-money-drop { display:flex; flex-direction:column; gap:12px; padding:24px; border:1px dashed var(--edge); border-radius:var(--r-card); transition:background-color var(--t-fast) var(--ease); }
 .mk-money-drop.mk-money-drop--over { background:var(--hov); }
 .mk-money-dropk { margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
@@ -10213,6 +10209,16 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .pt-dialog .ds2-rm-tick:focus-visible, .pt-dialog .ds2-rm-name:focus-visible { outline:none; box-shadow:var(--ring); }
 .pt-dialog .ds2-rm-name { padding:0; border:0; background:none; font:inherit; font-size:14px; line-height:20px; color:var(--ink); text-align:left; cursor:pointer; }
 .pt-dialog .ds2-rm-m2 { font-size:13px; line-height:18px; color:var(--q); font-variant-numeric:tabular-nums; }
+/* ===== V2: YOURS PAGES (Expense claims, Notes; Isaac, 24 October 2026)
+   Your name › each is a page of its own, as Timesheet is: the title, its
+   one main button on the right, soft tabs where the page has views, then
+   the list. No strip of Timesheet · Leave · Expenses tabs over them. ===== */
+.fg .wrap.yp { max-width:none; padding:24px 32px 48px; display:flex; flex-direction:column; gap:16px; font-family:var(--font); color:var(--ink); }
+.fg .yp-head { display:flex; align-items:center; justify-content:space-between; gap:24px; min-width:0; }
+.fg .yp-h1 { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
+.fg .yp-chev { display:inline-flex; margin-left:4px; vertical-align:middle; }
+.fg .nt-end { display:flex; align-items:center; gap:8px; }
+.fg .nt-day { margin-right:8px; color:var(--q); white-space:nowrap; }
 /* ===== V2: YOUR TIMESHEET (v2, step 5; the board 6-timesheet;
    components/timepay/my-timesheet.tsx) =====
    Your name › Timesheet. The title with when the sheet sends and Send on

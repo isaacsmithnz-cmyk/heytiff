@@ -2,15 +2,14 @@ import { act, cleanup, render, screen, waitFor, within } from "@testing-library/
 import userEvent from "@testing-library/user-event";
 import { Conversations, type ConversationsProps } from "../conversations";
 import type { AskEvent, AskInput, AskSourceItem } from "@/lib/tiff/ask-client";
-import type { MyNote } from "@/lib/notes/my-notes-query";
 import { STORE_KEY } from "@/lib/tiff/threads";
 import { resetThreadSync } from "@/lib/tiff/thread-sync";
 
 /* CONVERSATIONS (v2, the board v2-board-conversations). What these pin: the
-   three views and what each says; the open thread laid out as the board
+   two views and what each says; the open thread laid out as the board
    draws it, from the Library's own threads; Team saying honestly that it
-   isn't built; Only me being your notes, with their own box and Save; and
-   the box asking through the assistant's own flow, not a second Tiff. The
+   isn't built; Only me gone (your notes are Your name › Notes); and the
+   box asking through the assistant's own flow, not a second Tiff. The
    network is the ask stream, scripted here, and the threads' server copy,
    which answers "not kept" as it does until the table is applied. */
 
@@ -28,19 +27,6 @@ jest.mock("@/lib/tiff/ask-client", () => ({
 }));
 
 jest.mock("@/app/actions/kb", () => ({ kbDocUrl: jest.fn(async () => ({ ok: true, url: "https://signed.example/doc.pdf" })) }));
-
-const notesApi = {
-  addMyNote: jest.fn(async (_input: { body: string; source?: string }) => ({ ok: true as const, id: "n-new" })),
-  archiveMyNote: jest.fn(async (_id: string, _archived?: boolean) => ({ ok: true as const })),
-  deleteMyNote: jest.fn(async (_id: string) => ({ ok: true as const })),
-  editMyNote: jest.fn(async (_id: string, _body: string) => ({ ok: true as const })),
-};
-jest.mock("@/app/actions/my-notes", () => ({
-  addMyNote: (input: { body: string; source?: string }) => notesApi.addMyNote(input),
-  archiveMyNote: (id: string, archived?: boolean) => notesApi.archiveMyNote(id, archived),
-  deleteMyNote: (id: string) => notesApi.deleteMyNote(id),
-  editMyNote: (id: string, body: string) => notesApi.editMyNote(id, body),
-}));
 
 const at = (h: number, m = 0, daysBack = 0) => {
   const d = new Date();
@@ -83,25 +69,12 @@ const threads = () => [
   { id: "t-e6", title: "Clearing an E6 on a Daikin split", updatedAt: at(9, 0, 1), messages: [] },
 ];
 
-const note = (over: Partial<MyNote> = {}): MyNote => ({
-  id: "n1",
-  body: "Ring the wholesaler back\nabout the coil pricing",
-  source: "text",
-  sourceNoteId: null,
-  createdAt: new Date(at(8, 12)).toISOString(),
-  updatedAt: new Date(at(8, 12)).toISOString(),
-  archivedAt: null,
-  ...over,
-});
-
 const props = (over: Partial<ConversationsProps> = {}): ConversationsProps => ({
   counts: { install: 3, faults: 0, specs: 0, sops: 0, field: 0 },
   readyCount: 3,
   canManage: true,
   docTitles: {},
   voiceEnabled: false,
-  notes: [note()],
-  archived: [],
   initial: { view: "all", open: null },
   you: "Isaac Smith",
   ...over,
@@ -131,29 +104,29 @@ afterEach(cleanup);
 const tab = (name: RegExp) => screen.getByRole("tab", { name });
 
 describe("the views", () => {
-  it("names the place and offers All, Team and Only me, with no numbers on them", async () => {
+  it("names the place and offers All and Team, with no numbers on them", async () => {
     localStorage.setItem(STORE_KEY, JSON.stringify(threads()));
     render(<Conversations {...props()} />);
     expect(screen.getByRole("heading", { level: 1, name: "Conversations" })).toBeInTheDocument();
     expect(tab(/^All/)).toHaveAttribute("aria-selected", "true");
     expect(tab(/^All/)).toHaveTextContent(/^All$/);
     expect(tab(/^Team/)).toHaveTextContent(/^Team$/);
-    expect(tab(/^Only me/)).toHaveTextContent(/^Only me$/);
+    // Only me went (Isaac, 24 October 2026): a note isn't a conversation
+    expect(screen.getAllByRole("tab")).toHaveLength(2);
   });
 
   it("puts the view in the address, so a tab or a refresh holds it", async () => {
     const user = userEvent.setup();
     render(<Conversations {...props()} />);
-    await user.click(tab(/^Only me/));
-    expect(window.location.search).toBe("?view=me");
+    await user.click(tab(/^Team/));
+    expect(window.location.search).toBe("?view=team");
     await user.click(tab(/^All/));
     expect(window.location.search).toBe("");
   });
 
   it("opens on the view the address names", () => {
-    render(<Conversations {...props({ initial: { view: "me", open: null } })} />);
-    expect(tab(/^Only me/)).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("list", { name: "Your notes" })).toBeInTheDocument();
+    render(<Conversations {...props({ initial: { view: "team", open: null } })} />);
+    expect(tab(/^Team/)).toHaveAttribute("aria-selected", "true");
   });
 });
 
@@ -387,68 +360,5 @@ describe("Team", () => {
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Open your conversations" }));
     expect(tab(/^All/)).toHaveAttribute("aria-selected", "true");
-  });
-});
-
-describe("Only me: your private notes", () => {
-  const open = async () => {
-    const user = userEvent.setup();
-    render(<Conversations {...props({ initial: { view: "me", open: null }, archived: [note({ id: "n0", body: "Old gate code", archivedAt: new Date().toISOString() })] })} />);
-    return user;
-  };
-
-  it("lists your notes by their first line and time, and the archived ones apart", async () => {
-    await open();
-    const live = within(screen.getByRole("list", { name: "Your notes" })).getAllByRole("button");
-    expect(live.map((b) => b.textContent)).toEqual(["Ring the wholesaler backToday 8:12 am"]);
-    expect(within(screen.getByRole("list", { name: "Archived notes" })).getByRole("button")).toHaveTextContent("Old gate code");
-  });
-
-  it("opens a note with Edit and Archive, and archiving says so with Undo", async () => {
-    const user = await open();
-    await user.click(screen.getByRole("button", { name: /Ring the wholesaler back/ }));
-    expect(window.location.search).toBe("?view=me&open=n1");
-    const pane = screen.getByRole("region", { name: "Ring the wholesaler back" });
-    expect(within(pane).getByText(/about the coil pricing/)).toBeInTheDocument();
-    await user.click(within(pane).getByRole("button", { name: "Archive" }));
-    expect(notesApi.archiveMyNote).toHaveBeenCalledWith("n1", undefined);
-    expect(await screen.findByText("Note archived")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Undo" }));
-    await waitFor(() => expect(notesApi.archiveMyNote).toHaveBeenLastCalledWith("n1", false));
-  });
-
-  it("edits a note in place", async () => {
-    const user = await open();
-    await user.click(screen.getByRole("button", { name: /Ring the wholesaler back/ }));
-    await user.click(screen.getByRole("button", { name: "Edit" }));
-    const field = screen.getByRole("textbox", { name: "Edit the note" });
-    await user.clear(field);
-    await user.type(field, "Ring them Monday");
-    await user.click(screen.getByRole("button", { name: "Save changes" }));
-    expect(notesApi.editMyNote).toHaveBeenCalledWith("n1", "Ring them Monday");
-  });
-
-  it("puts an archived note back, and deletes one for good only after asking", async () => {
-    const user = await open();
-    await user.click(screen.getByRole("button", { name: /Old gate code/ }));
-    await user.click(screen.getByRole("button", { name: "Delete for good" }));
-    expect(notesApi.deleteMyNote).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Delete note" }));
-    expect(notesApi.deleteMyNote).toHaveBeenCalledWith("n0");
-  });
-
-  it("keeps a note from its own box with Save, never asking Tiff", async () => {
-    const user = await open();
-    const box = screen.getByRole("textbox", { name: "Write a note for yourself" });
-    await user.type(box, "Gate code 4471");
-    await user.click(screen.getByRole("button", { name: "Save the note" }));
-    expect(notesApi.addMyNote).toHaveBeenCalledWith({ body: "Gate code 4471", source: "text" });
-    expect(asks).toHaveLength(0);
-    expect(window.location.search).toBe("?view=me&open=n-new");
-  });
-
-  it("says what is missing when there are no notes", () => {
-    render(<Conversations {...props({ notes: [], initial: { view: "me", open: null } })} />);
-    expect(screen.getByText("No notes yet")).toBeInTheDocument();
   });
 });

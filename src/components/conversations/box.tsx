@@ -8,9 +8,7 @@ import { Waiting } from "@/components/ui/orb";
 
 /* THE BOX AT THE FOOT (the board v2-board-conversations): the words at 16
    (rule 13), then the microphone, icon-only (rule 27), and the blue main
-   button with its word on the right (rule 22, Q6). One box for both of the
-   place's conversations: asking Tiff, where it says Send, and Only me, where
-   it says Save.
+   button with its word on the right (rule 22, Q6). It says Send.
 
    Enter sends and Shift+Enter starts a new line, as every chat box does.
    While Tiff works, Send fades until she's done (6-revisions.md, "While

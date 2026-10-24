@@ -29,6 +29,8 @@ export type ShellUser = {
   role: Role | null;
   /** resolved capabilities; drives what the sidebar offers. Routes gate themselves too. */
   caps: readonly Capability[];
+  /** a vehicle is assigned to them: Your vehicle shows under their name */
+  hasVehicle?: boolean;
 };
 
 /* THE SIDEBAR (docs/design.md rules 1 and 3 to 7). Ink, top to bottom:
@@ -37,7 +39,7 @@ export type ShellUser = {
 export function Sidebar({ user, newJob = false, pins = [] }: { user: ShellUser; newJob?: boolean; pins?: readonly Pin[] }) {
   seedPins(pins);
   const pathname = usePathname();
-  const viewer = { caps: new Set(user.caps), role: user.role };
+  const viewer = { caps: new Set(user.caps), role: user.role, hasVehicle: !!user.hasVehicle };
   const places = placesFor(PLACES, viewer);
   const moving = placesFor(STILL_TO_MOVE, viewer);
   const { open: openSearch } = useCommandPalette();
@@ -208,8 +210,15 @@ function Recents() {
 }
 
 /* YOUR NAME (rule 7): at the foot. Your card, timesheet, leave, expense
-   claims, Reports and Settings, then Sign out. */
-function YourName({ user, viewer }: { user: ShellUser; viewer: { caps: ReadonlySet<Capability>; role: Role | null } }) {
+   claims, your vehicle (when you have one) and notes, Reports and
+   Settings, then Sign out. */
+function YourName({
+  user,
+  viewer,
+}: {
+  user: ShellUser;
+  viewer: { caps: ReadonlySet<Capability>; role: Role | null; hasVehicle?: boolean };
+}) {
   const ref = useRef<HTMLButtonElement>(null);
   const router = useRouter();
   const [open, setOpen] = useState(false);

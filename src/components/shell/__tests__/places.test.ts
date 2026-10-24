@@ -48,8 +48,21 @@ describe("the sidebar's places (rules 5 and 7)", () => {
 
   it("keeps Settings to admins and Reports to whoever sees the money", () => {
     const keys = (caps: string[], role: "owner" | "admin" | "staff") => placesFor(YOURS, viewer(caps, role)).map((p) => p.key);
-    expect(keys([], "staff")).toEqual(["card", "timesheet", "leave", "expenses"]);
-    expect(keys(["workboard_money"], "admin")).toEqual(["card", "timesheet", "leave", "expenses", "reports", "settings"]);
+    expect(keys([], "staff")).toEqual(["card", "timesheet", "leave", "expenses", "mynotes"]);
+    expect(keys(["workboard_money"], "admin")).toEqual(["card", "timesheet", "leave", "expenses", "mynotes", "reports", "settings"]);
+  });
+
+  /* Your vehicle only for someone with one assigned (Isaac, 24 October 2026) */
+  it("offers Your vehicle only to someone driving one", () => {
+    expect(placesFor(YOURS, viewer([], "staff")).map((p) => p.key)).not.toContain("myvehicle");
+    expect(placesFor(YOURS, { ...viewer([], "staff"), hasVehicle: true }).map((p) => p.key)).toEqual([
+      "card",
+      "timesheet",
+      "leave",
+      "expenses",
+      "myvehicle",
+      "mynotes",
+    ]);
   });
 
   it("lights Home only on its own address and the pages moving into it", () => {

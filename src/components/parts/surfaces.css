@@ -67,7 +67,8 @@
 @keyframes pt-scrim-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes pt-dialog-in { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
 
-/* ---- the toast (rule 37) ---- */
+/* ---- the toast (rule 37): grey, not ink (Isaac, 24 October 2026: "it
+   should be gray"); white on the quiet grey is 5.7:1 ---- */
 
 .pt-toasts {
   position: fixed;
@@ -89,7 +90,7 @@
   box-sizing: border-box;
   padding: 12px 16px;
   border-radius: var(--r-button);
-  background: var(--ink);
+  background: var(--q);
   color: var(--white);
   font-family: var(--font);
   font-size: 14px;

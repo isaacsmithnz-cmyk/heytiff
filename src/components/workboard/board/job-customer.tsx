@@ -11,12 +11,27 @@ import { telHref } from "./job-sheet";
 
    Both numbers, a dialable one as a tel: link and ServiceM8's free text left
    as text, the email as a mailto, the role in the account's own word, and
-   the client's PO under them. */
+   the client's PO under them.
+
+   THE SITE, ABOVE THEM: the job's number and its address. They were the
+   page head's grey line until that line went (Isaac, 25 October 2026:
+   "Show the address and job number on the Overview tab"), and this is the
+   one place they're said now. */
 
 export function JobCustomer({ detail, onEdit }: { detail: MirrorJobDetail | null; onEdit?: () => void }) {
-  if (!detail || (detail.contacts.length === 0 && !detail.purchaseOrder && !onEdit)) return null;
+  if (!detail) return null;
+  const where = (detail.address ?? "").trim() || detail.geoLine || detail.suburb || "";
+  const site = detail.jobNumber || where;
+  if (!site && detail.contacts.length === 0 && !detail.purchaseOrder && !onEdit) return null;
   return (
     <section className="jcl-cust" aria-label="Customer">
+      {site && (
+        <div className="jcl-site">
+          <h3>Site</h3>
+          {detail.jobNumber && <b>Job {detail.jobNumber}</b>}
+          {where && <p className="jcl-addr">{where}</p>}
+        </div>
+      )}
       <div className="jcl-custhead">
         <h3>Contacts</h3>
         {onEdit && (

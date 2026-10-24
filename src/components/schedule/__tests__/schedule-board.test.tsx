@@ -96,6 +96,17 @@ describe("the title", () => {
   });
 });
 
+describe("the month", () => {
+  it("(F) says who's off as their initials in a row, so five weeks fit the screen; the day's panel says why", () => {
+    const days = ["2026-10-26"];
+    const off = ["Alex Lorenz", "Isaac Smith", "Luke Irving"].map((name) => ({ staffUuid: name, name, why: "Holidays", part: null, minutes: 480 }));
+    render(<ScheduleBoard data={page({ view: "month", days, payloads: [], team: [{ dayISO: days[0], holiday: null, events: [], off } as unknown as SchedulePage["team"][number]] })} />);
+    const row = screen.getByLabelText("Off: Alex Lorenz, Isaac Smith, Luke Irving");
+    expect(row.querySelectorAll(".pt-initials")).toHaveLength(3);
+    expect(screen.queryByText("Holidays")).toBeNull();
+  });
+});
+
 describe("Jobs, to drag", () => {
   it("(F) are the board's own cards: the number in a box of the job's colour, the client, the site, the kind", async () => {
     render(<ScheduleBoard data={page()} />);

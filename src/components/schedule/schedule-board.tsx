@@ -762,10 +762,13 @@ function WeeksGrid({
 }) {
   const byDay = new Map(data.capacity.map((d) => [d.dayISO, d]));
   const teamBy = new Map(data.team.map((t) => [t.dayISO, t]));
-  /* the month's five rows and 4 weeks' four share the same height, so a
-     month's tile holds one person fewer (Isaac, 25 October 2026: "when you
-     get to the month, everything seems to get bigger… doesn't quite fit") */
-  const fits = (filter === "team" ? 4 : 3) - (data.view === "month" ? 1 : 0);
+  const fits = filter === "team" ? 4 : 3;
+  /* the month's five rows and 4 weeks' four share the same height, so the
+     month says who's off as their initials alone, in a row, and the day's
+     panel says why (Isaac, 25 October 2026: "when you get to the month,
+     everything seems to get bigger… doesn't quite fit") */
+  const month = data.view === "month";
+  const discs = 5;
   return (
     <div className="sc-weeks">
       <div className="sc-wkh">
@@ -816,16 +819,29 @@ function WeeksGrid({
                   <Fade>{[e.title, e.when].filter(Boolean).join(", ")}</Fade>
                 </span>
               ))}
-              {off.slice(0, fits).map((o) => (
-                <span key={o.staffUuid} className="sc-wkoff">
-                  <Initials name={o.name} size={24} />
-                  <span>
-                    <b>{shortName(o.name)}</b>
-                    <em>{[o.why ?? "Off", o.part].filter(Boolean).join(", ")}</em>
+              {month ? (
+                off.length > 0 ? (
+                  <span className="sc-wkoffs" aria-label={`Off: ${off.map((o) => o.name).join(", ")}`}>
+                    {off.slice(0, discs).map((o) => (
+                      <Initials key={o.staffUuid} name={o.name} size={24} />
+                    ))}
+                    {off.length > discs ? <span className="sc-wkj">{off.length - discs} more</span> : null}
                   </span>
-                </span>
-              ))}
-              {off.length > fits ? <span className="sc-wkj">{off.length - fits} more off</span> : null}
+                ) : null
+              ) : (
+                <>
+                  {off.slice(0, fits).map((o) => (
+                    <span key={o.staffUuid} className="sc-wkoff">
+                      <Initials name={o.name} size={24} />
+                      <span>
+                        <b>{shortName(o.name)}</b>
+                        <em>{[o.why ?? "Off", o.part].filter(Boolean).join(", ")}</em>
+                      </span>
+                    </span>
+                  ))}
+                  {off.length > fits ? <span className="sc-wkj">{off.length - fits} more off</span> : null}
+                </>
+              )}
               {filter === "team" && off.length === 0 && events.length === 0 && !t?.holiday ? <span className="sc-wkj">Everyone in</span> : null}
             </button>
           );

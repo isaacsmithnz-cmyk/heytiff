@@ -9520,6 +9520,9 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .sc-wkev > span { display:flex; flex-direction:column; min-width:0; }
 .fg .sc-wkev em { font-style:normal; font-weight:400; color:var(--q); }
 .fg .sc-wkoff { display:flex; align-items:flex-start; gap:8px; min-width:0; text-align:left; }
+/* the month: who's off as a row of initials (the day's panel says why) */
+.fg .sc-wkoffs { display:flex; align-items:center; flex-wrap:wrap; gap:4px; min-width:0; }
+.fg .sc-wkoffs .sc-wkj { margin:0 0 0 4px; }
 .fg .sc-wkoff > span { display:flex; flex-direction:column; min-width:0; }
 .fg .sc-wkoff b { font-size:12px; line-height:16px; font-weight:600; color:var(--ink); }
 .fg .sc-wkoff em { font-style:normal; font-size:12px; line-height:16px; color:var(--q); }

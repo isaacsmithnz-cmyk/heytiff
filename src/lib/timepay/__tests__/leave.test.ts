@@ -157,8 +157,11 @@ describe("shortfall — the request guard", () => {
     expect(shortfall("annual", 20, balances, requests)).toBe(4);
   });
 
-  it("treats an unrecorded balance as nothing available", () => {
-    expect(shortfall("personal", 8, balances, [])).toBe(8); // no personal balance row
+  /* Isaac, 24 October 2026: "Your annual leave balance isn't set yet, so it
+     goes in as a request, waiting for approval." Unset is not zero. */
+  it("lets a request through for approval when its balance isn't set yet", () => {
+    expect(shortfall("personal", 8, balances, [])).toBe(0); // no personal balance row
+    expect(shortfall("annual", 56, [], [])).toBe(0);
   });
 
   it("never restricts unpaid leave", () => {

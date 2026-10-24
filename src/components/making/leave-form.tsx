@@ -1,16 +1,17 @@
 "use client";
 
-import { useContext, useId, useMemo, useRef, useState } from "react";
+import { useContext, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog } from "@/components/parts/dialog";
 import { Button } from "@/components/parts/button";
 import { Field, TextInput } from "@/components/parts/field";
-import { Tray } from "@/components/parts/tabs";
-import { DateField } from "@/components/ui/date-field";
+import { RangeCalendar, addDay, dayWords, pickDay, spanEnd, weekdayIndex, weekdayWord, type DaySpan } from "@/components/parts/range-calendar";
 import { WindowsContext } from "@/components/records/records-context";
 import { cancelLeave, requestLeave } from "@/app/actions/leave";
 import { uploadFile } from "@/lib/documents/upload-client";
 import {
+  LEAVE_LOOKBACK_DAYS,
+  MON_FRI,
   certificateExpected,
   rangeBreakdown,
   suggestedHours,
@@ -20,50 +21,119 @@ import {
 } from "@/lib/timepay/leave";
 import { fmt } from "@/components/timepay/logic";
 
-/* ASK FOR LEAVE (rules 51 and 52): your name › Leave › Ask for leave, as a
-   dialog over your leave.
+/* A LEAVE REQUEST, PICKED ON A CALENDAR (Isaac, 24 October 2026, his mock
+   YRqKF87knq2N35tMLa5hkz, sections 6 and 7): your name › Leave › Add, then
+   the kind, as a dialog over your leave (rules 51 and 54).
 
-   Today's request, field for field: the type, the first and last day off,
-   the hours, a note, and a medical certificate when the span wants one.
-   The hours stay a number (decision 27); left empty, the span's own
-   working days are what get booked, the suggestion its placeholder says,
-   counted on your roster with the public holidays in it left out. The line
-   under the form says what the span costs: its working days, the holidays
-   it skips by name while there are two or fewer, and what you have
-   available of that kind.
+   "You need to have a add button instead of ask for leave… the add would be
+   leave request, sick day, etc." Each of Add's four opens this form with its
+   own words as the heading. An annual or unpaid leave request is planned:
+   two months side by side, today and later, a first day off and then a
+   last. "Sick day, you should be able to add ones in the past. Or select the
+   current day, at least": a sick day opens on one month with today picked,
+   and any day before it can be put in after; carer's leave is the same,
+   and can be planned ahead too. Sick days and carer's leave both come off
+   personal leave, and the leave table records one kind for both, so both
+   go in as personal leave.
 
-   The certificate is uploaded before the request exists and adopted when
-   it is sent, and it never blocks sending: somebody booking a sick day
-   usually hasn't seen a doctor yet. Everything is decided again by
-   `requestLeave`: one live booking a day, and no more than you have.
-   Sending keeps you on your leave, with a toast whose Undo withdraws the
-   request (`cancelLeave`); a withdrawn request stays in your history as
-   Cancelled, as one withdrawn from its row does. */
+   Under the months, what the days come to: the working days and the hours
+   in bold, counted on your own roster with the public holidays left out,
+   and one grey line about your balance. The hours fill themselves from the
+   roster and can be changed for a part day. A certificate is offered when
+   the workspace asks for one on a span this long, and it never blocks
+   sending: somebody booking a sick day usually hasn't seen a doctor yet.
 
-const KINDS = [
-  { value: "annual", label: "Annual leave" },
-  { value: "personal", label: "Personal or carer's" },
-  { value: "unpaid", label: "Unpaid leave" },
-] as const;
+   Everything is decided again by `requestLeave`: one live booking a day,
+   and no more than a balance that is set has available. Sending keeps you on
+   your leave, with a toast whose Undo withdraws the request (`cancelLeave`). */
+
+export type LeaveAsk = "annual" | "sick" | "carers" | "unpaid";
+
+/** Add's four, in its order: the words are the menu's and the form's heading. */
+export const LEAVE_ASKS: readonly { key: LeaveAsk; heading: string; kind: LeaveKind; hint?: string }[] = [
+  { key: "annual", heading: "Annual leave request", kind: "annual" },
+  { key: "sick", heading: "Sick day", kind: "personal", hint: "Personal leave" },
+  { key: "carers", heading: "Carer's leave", kind: "personal", hint: "Personal leave" },
+  { key: "unpaid", heading: "Unpaid leave request", kind: "unpaid" },
+];
+
+/** A day away (a sick day, carer's leave) is put in on the day or after; a request is planned. */
+const isDayAway = (ask: LeaveAsk) => ask === "sick" || ask === "carers";
+
+const KIND_WORDS: Record<LeaveKind, string> = { annual: "annual leave", personal: "personal leave", unpaid: "unpaid leave" };
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const hoursWords = (h: number) => (h > 0 ? plural(Number(fmt(h)), "hour", "hours") : "no hours");
 
-/* What the span costs you, in words.
-
-   A leave request is a range of dates, but what a person is actually deciding
-   is how many days of entitlement it spends — and the two differ every time a
-   public holiday lands mid-trip. So the line names the holidays it skipped
-   while there are few enough to read (two), and counts them after that. */
-export function breakdownLine(b: RangeBreakdown): string {
-  const parts = [plural(b.working, "working day", "working days")];
-  if (b.holidays.length > 0) {
-    const named = b.holidays.length <= 2 ? ` (${b.holidays.map((h) => h.name).join(", ")})` : "";
-    parts.push(`${plural(b.holidays.length, "public holiday", "public holidays")} skipped${named}`);
+/* THE STEP, above the months: what the next press does. */
+export function stepLine(ask: LeaveAsk, span: DaySpan, today: string): { lead: string; rest?: string } {
+  const { start, end } = span;
+  if (!start) return { lead: "Pick your first day off" };
+  if (end && end > start) return { lead: `${dayWords(start)} to ${dayWords(end)}`, rest: "press a day to start again" };
+  if (isDayAway(ask)) {
+    const lead = start === today ? `Today, ${dayWords(start)}` : dayWords(start);
+    return { lead, rest: start < today ? "a day already gone, put in after" : "press another day, or a second one for a run of days" };
   }
-  return parts.join(", ");
+  if (!end) return { lead: "Now your last day off", rest: `from ${dayWords(start)}` };
+  return { lead: dayWords(start), rest: "press a day to start again" };
+}
+
+/* WHAT THE DAYS COME TO, in bold, and the one grey line beside it: why a
+   day takes no hours, or what the hours do to the balance. */
+export function whatItComesTo({
+  kind,
+  start,
+  last,
+  breakdown,
+  suggested,
+  hours,
+  standard,
+  roster,
+  holidayMap,
+  balance,
+}: {
+  kind: LeaveKind;
+  start: string;
+  last: string;
+  breakdown: RangeBreakdown;
+  /** the roster's hours for the span */
+  suggested: number;
+  /** the hours that will be sent */
+  hours: number;
+  standard: number;
+  roster: readonly number[];
+  holidayMap: ReadonlyMap<string, string>;
+  balance: BalanceView | undefined;
+}): { bold: string; why: string } {
+  const one = start === last;
+  const bold = one
+    ? `${dayWords(start)}, ${hoursWords(hours)}`
+    : breakdown.working === 0
+      ? "No working days, no hours"
+      : `${plural(breakdown.working, "working day", "working days")}, ${hoursWords(hours)}`;
+  const nothingOff = kind === "unpaid" ? "there are no hours to take" : `nothing comes off your ${KIND_WORDS[kind]}`;
+  if (suggested === 0) {
+    const holiday = one ? holidayMap.get(start) : undefined;
+    if (holiday !== undefined && roster.includes(weekdayIndex(start))) return { bold, why: `${holiday} is a public holiday, so ${nothingOff}.` };
+    if (one)
+      return {
+        bold,
+        why: `${weekdayWord(start)} isn't one of your working days, so ${nothingOff}. On a working day it's that day's hours, ${fmt(standard)}.`,
+      };
+    return { bold, why: `None of these is one of your working days, so ${nothingOff}.` };
+  }
+  if (kind === "unpaid") return { bold, why: "Unpaid leave comes off no balance, so it goes in as a request, waiting for approval." };
+  if (!balance) return { bold, why: `Your ${KIND_WORDS[kind]} balance isn't set yet, so it goes in as a request, waiting for approval.` };
+  if (hours > balance.available)
+    return {
+      bold,
+      why: `You have ${fmt(balance.available)} hours of ${KIND_WORDS[kind]} available, so this is ${fmt(hours - balance.available)} hours more than you have.`,
+    };
+  return { bold, why: `Comes off your ${KIND_WORDS[kind]}: ${fmt(balance.available)} hours available, ${fmt(balance.available - hours)} after this.` };
 }
 
 export function LeaveForm({
+  ask,
   today,
   standard,
   balances,
@@ -72,12 +142,13 @@ export function LeaveForm({
   certAfterDays = null,
   onClose,
 }: {
+  ask: LeaveAsk;
   today: string;
   /** a working day's hours, for the suggestion */
   standard: number;
   balances: BalanceView[];
   holidays: { date: string; name: string }[];
-  /** the requester's own roster (Mon=0): suggestions count these days, the
+  /** the requester's own roster (Mon=0): the hours count these days, the
       same days the timesheet will pay */
   workDays?: number[];
   /** the workspace's certificate threshold in working days, or null when it
@@ -87,14 +158,16 @@ export function LeaveForm({
 }) {
   const router = useRouter();
   const host = useContext(WindowsContext);
-  const fromId = useId();
-  const toId = useId();
   const certInput = useRef<HTMLInputElement>(null);
+  const meta = LEAVE_ASKS.find((a) => a.key === ask)!;
+  const kind = meta.kind;
+  const dayAway = isDayAway(ask);
+  const roster = workDays?.length ? workDays : MON_FRI;
 
-  const [kind, setKind] = useState<LeaveKind>("annual");
-  const [startDate, setStartDate] = useState(today);
-  const [endDate, setEndDate] = useState(today);
-  const [hours, setHours] = useState("");
+  /* a sick day and carer's leave open on today, picked; a request on nothing */
+  const [span, setSpan] = useState<DaySpan>(dayAway ? { start: today, end: today } : { start: null, end: null });
+  /* the hours as typed, or null to follow the roster; a new pick follows it again */
+  const [typed, setTyped] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [cert, setCert] = useState<{ documentId: string; fileName: string } | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -103,20 +176,28 @@ export function LeaveForm({
 
   const holidayMap = useMemo(() => new Map(holidays.map((h) => [h.date, h.name] as const)), [holidays]);
   const holidaySet = useMemo(() => new Set(holidayMap.keys()), [holidayMap]);
-  const suggested = useMemo(
-    () => suggestedHours(startDate, endDate, standard, holidaySet, workDays),
-    [startDate, endDate, standard, holidaySet, workDays],
-  );
-  const breakdown = useMemo(() => rangeBreakdown(startDate, endDate, holidayMap, workDays), [startDate, endDate, holidayMap, workDays]);
-  const effectiveHours = hours.trim() === "" ? suggested : Number(hours);
+  const start = span.start;
+  const last = spanEnd(span);
+  const breakdown = start && last ? rangeBreakdown(start, last, holidayMap, roster) : null;
+  const suggested = start && last ? suggestedHours(start, last, standard, holidaySet, roster) : 0;
+  const hours = typed === null ? suggested : Number(typed);
   /* Whether THIS span wants a certificate: one rule, shared with the
      approver and the timesheet, counting the working days the line prints. */
-  const wantsCert = certificateExpected(kind, breakdown.working, certAfterDays);
+  const wantsCert = !!breakdown && certificateExpected(kind, breakdown.working, certAfterDays);
   const balance = balances.find((b) => b.kind === kind);
 
-  const setFrom = (iso: string) => {
-    setStartDate(iso);
-    if (iso && iso > endDate) setEndDate(iso);
+  const min = dayAway ? addDay(today, -LEAVE_LOOKBACK_DAYS) : today;
+  const max = ask === "sick" ? today : addDay(today, 365);
+  const step = stepLine(ask, span, today);
+
+  const sum =
+    start && last && breakdown
+      ? whatItComesTo({ kind, start, last, breakdown, suggested, hours, standard, roster, holidayMap, balance })
+      : null;
+
+  const pick = (iso: string) => {
+    setSpan((s) => pickDay(s, iso));
+    setTyped(null);
   };
 
   /** Upload, and hold the id until Send adopts it. */
@@ -130,15 +211,16 @@ export function LeaveForm({
     setCert({ documentId: res.file.documentId, fileName: res.file.fileName });
   };
 
+  const ready = !!start && !!last && hours > 0;
   const send = async () => {
-    if (pending || !(effectiveHours > 0)) return;
+    if (pending || uploading || !ready || !start || !last) return;
     setPending(true);
     setError(null);
     const res = await requestLeave({
       kind,
-      startDate,
-      endDate,
-      hours: effectiveHours,
+      startDate: start,
+      endDate: last,
+      hours,
       note: note.trim() || undefined,
       ...(cert ? { certificateDocumentId: cert.documentId } : {}),
     });
@@ -148,7 +230,7 @@ export function LeaveForm({
     router.refresh();
     const id = res.id;
     host?.toast(
-      "Leave requested",
+      "Leave request sent",
       id
         ? async () => {
             await cancelLeave(id);
@@ -158,50 +240,70 @@ export function LeaveForm({
     );
   };
 
+  const sendWord = dayAway ? "Send" : "Send request";
+
   return (
     <Dialog
-      heading="Ask for leave"
-      width={560}
+      heading={meta.heading}
+      width={dayAway ? 560 : 720}
       onClose={onClose}
       foot={
         <>
           <Button kind="second" onClick={onClose}>
             Cancel
           </Button>
-          <Button kind="main" disabled={pending || uploading || !(effectiveHours > 0)} onClick={() => void send()}>
-            {pending ? "Sending the request" : "Send request"}
+          <Button kind="main" disabled={pending || uploading || !ready} onClick={() => void send()}>
+            {pending ? "Sending" : sendWord}
           </Button>
         </>
       }
     >
       <form
         className="mk-form"
-        aria-label="Ask for leave"
+        aria-label={meta.heading}
         onSubmit={(e) => {
           e.preventDefault();
           void send();
         }}
       >
-        <div className="pt-field">
-          <span className="pt-field-label">Type</span>
-          <Tray ariaLabel="Type" options={KINDS} value={kind} onChange={setKind} />
-        </div>
-        <div className="mk-team-three">
-          <Field label="From" id={fromId}>
-            <DateField id={fromId} value={startDate || null} today={today} min={today} onChange={(iso) => setFrom(iso ?? "")} />
-          </Field>
-          <Field label="To" id={toId}>
-            <DateField id={toId} value={endDate || null} today={today} min={startDate} onChange={(iso) => setEndDate(iso ?? "")} />
-          </Field>
-          {/* The placeholder IS the suggestion: leave it be and the span's
-              own working days are what get booked. */}
+        <p className="lv2-ask" aria-live="polite">
+          <b>{step.lead}</b>
+          {step.rest && <span>, {step.rest}</span>}
+        </p>
+        <RangeCalendar
+          label={dayAway ? "Pick the days" : "Pick your days off"}
+          today={today}
+          months={dayAway ? 1 : 2}
+          span={span}
+          onPick={pick}
+          min={min}
+          max={max}
+          holidays={holidayMap}
+          workDays={roster}
+        />
+        {sum && (
+          <div className="lv2-sum">
+            <b>{sum.bold}</b>
+            <span>{sum.why}</span>
+          </div>
+        )}
+        <div className="lv2-fields">
+          {/* filled from the roster; change it for a part day */}
           <Field label="Hours">
-            <TextInput type="number" inputMode="decimal" placeholder={String(suggested)} value={hours} onChange={(e) => setHours(e.target.value)} />
+            <TextInput
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step={0.25}
+              placeholder={suggested > 0 ? String(suggested) : undefined}
+              value={typed ?? (suggested > 0 ? String(suggested) : "")}
+              onChange={(e) => setTyped(e.target.value)}
+            />
+          </Field>
+          <Field label="Note">
+            <TextInput placeholder="Optional" value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
         </div>
-        <Field label="Note">
-          <TextInput value={note} onChange={(e) => setNote(e.target.value)} />
-        </Field>
         {wantsCert && (
           <div className="pt-field">
             <span className="pt-field-label">Medical certificate</span>
@@ -216,9 +318,12 @@ export function LeaveForm({
                   </li>
                 </ul>
               )}
-              <Button icon="upload" disabled={uploading || pending} onClick={() => certInput.current?.click()}>
-                {uploading ? "Uploading the certificate" : cert ? "Replace certificate" : "Attach certificate"}
-              </Button>
+              <div className="lv2-cert">
+                <Button icon="upload" disabled={uploading || pending} onClick={() => certInput.current?.click()}>
+                  {uploading ? "Uploading the certificate" : cert ? "Replace certificate" : "Attach certificate"}
+                </Button>
+                {!cert && <span className="lv2-cert-when">Add it now or later</span>}
+              </div>
               <input
                 ref={certInput}
                 type="file"
@@ -232,10 +337,6 @@ export function LeaveForm({
             </div>
           </div>
         )}
-        <p className="mk-team-line">
-          {breakdownLine(breakdown)}
-          {kind !== "unpaid" && balance ? `, ${fmt(balance.available)}h available` : ""}.
-        </p>
         {error && (
           <p className="mk-team-wrong" role="alert">
             {error}

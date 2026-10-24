@@ -125,8 +125,8 @@ export async function myRequests(orgId: string, staffProfileId: string): Promise
   );
 }
 
-/** Your entitlements. Missing rows mean "none recorded", not zero-forever — the
-    request form treats an absent balance as nothing available. */
+/** Your entitlements. Missing rows mean "none recorded", not zero-forever — a
+    request against an absent balance goes in for approval (`shortfall`). */
 export async function myBalances(orgId: string, staffProfileId: string): Promise<LeaveBalance[]> {
   const { data } = await supabaseAdmin
     .from("leave_balances")

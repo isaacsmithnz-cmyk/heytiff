@@ -3030,39 +3030,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    board's card, which is the whole point: one control, one surface, four
    screens. Removed rather than parked, as `.segsw` was: an unused block in
    this file has shadowed a live component at equal specificity before. */
-/* ---- My leave: kind identity ----------------------------------------------
-   A leave KIND is identity, never state, so it takes a hue the severity
-   palette doesn't own. If annual leave wore teal, an "Annual leave" rail and
-   an "Approved" chip would sit on the same request row in the same colour
-   meaning two different things — the exact confusion the state rule exists to
-   prevent. Teal, amber and red stay reserved for pending / approved /
-   declined; kinds get blue, violet and slate.
-
-   Each kind sets --lvk once and every part of the tile and row reads it, so a
-   kind is recoloured in one place rather than five. */
-.fg .lv-annual   { --lvk:var(--ink); --lvk-bg:var(--tint); }
-.fg .lv-personal { --lvk:var(--ink); --lvk-bg:var(--tint); }
-.fg .lv-unpaid   { --lvk:var(--q); --lvk-bg:var(--tint-2); }
-
-.fg .lv-bal { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-bottom:16px; }
-/* blocks in a card, like the rail cards and the team screen's stat tiles */
-.fg .lv-baltile { position:relative; padding:16px 16px 16px; border-radius:var(--r-card); background:var(--tint); border:1px solid var(--line); overflow:hidden; }
-.fg .lv-baltop { display:flex; align-items:center; gap:8px; }
-.fg .lv-balic { display:flex; align-items:center; justify-content:center; color:var(--lvk); flex:0 0 auto; }
-.fg .lv-baltile em { display:block; font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .lv-baltile b { display:flex; align-items:baseline; gap:4px; font-size:32px; font-weight:700; color:var(--ink); margin:12px 0 0; letter-spacing:-.02em; }
-.fg .lv-baltile b span { font-size:13px; font-weight:700; color:var(--gray500); }
-/* What's left, drawn rather than only counted. The track is the whole
-   entitlement; the solid run is what you can still book and the faded run
-   beside it is what you already have booked but haven't taken. */
-.fg .lv-balbar { display:flex; height:6px; border-radius:999px; background:var(--tint-2); overflow:hidden; margin:8px 0 8px; }
-.fg .lv-balbar i { display:block; background:var(--lvk); transition:width var(--t-move) var(--ease); }
-.fg .lv-balbar i.bk { background:var(--lvk); opacity:.3; }
-.fg .lv-balsub { font-size:12px; font-weight:600; color:var(--gray500); }
-.fg .lv-src { display:flex; align-items:center; gap:4px; margin-top:8px; font-size:12px; font-weight:700; color:var(--gray400); }
-.fg .lv-src.synced { color:var(--ok-t); }
-.fg .lv-balempty, .fg .lv-declined, .fg .lv-pnote { font-size:13px; font-weight:600; color:var(--gray500); }
-.fg .lv-declined { display:block; color:var(--bad-t); margin-top:4px; }
+.fg .lv-pnote { font-size:13px; font-weight:600; color:var(--gray500); }
 .fg .lv-form { padding:16px 16px; border-radius:var(--r-card); background:var(--tint); border:1px solid var(--line); margin-bottom:24px; }
 /* IN THE COLUMN IT BELONGS TO. The form lives inside the requests card now,
    directly under the button that opens it, so it squares its own corners into
@@ -3078,21 +3046,11 @@ button.fl-btn { font-size:14px; font-weight:700; }
    reuse the plain bar and have nothing to put on the right. The button's own
    height sets the bar, so it doesn't grow taller than its neighbour. */
 .fg .lv-ch.act { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 8px 8px 16px; }
-.fg .lv-req, .fg .lv-hol, .fg .lv-pend, .fg .lv-calday { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--line); }
-/* The kind is the label the row prints in bold (law 14: kind is a label, not
-   a bar down the edge); the row's only pill stays the status. */
-.fg .lv-req { padding-left:16px; }
+.fg .lv-pend, .fg .lv-calday { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--line); }
 .fg .lv-pend { align-items:flex-start; }
-/* A CANCELLED OR DECLINED REQUEST IS SETTLED, NOT ERASED. `opacity:.6` took
-   every colour in the row down against the card: the dates to 2.63, the
-   "Cancelled" chip to 2.31, "Declined" to 2.74 and an approved-then-cancelled
-   green chip to 1.90 — and the whole point of the row is that somebody can
-   still read what was asked for and what happened to it. It recedes by GROUND
-   instead, the same move the directory rows made. */
-.fg .lv-req.muted { background:var(--tint); }
-.fg .lv-reqmain, .fg .lv-pmain { flex:1; min-width:0; }
-.fg .lv-reqmain b, .fg .lv-pmain b { display:block; font-size:14px; font-weight:700; color:var(--ink); }
-.fg .lv-reqmain em, .fg .lv-pmain em { display:flex; align-items:center; gap:8px; font-style:normal; font-size:13px; font-weight:600; color:var(--gray500); margin-top:4px; }
+.fg .lv-pmain { flex:1; min-width:0; }
+.fg .lv-pmain b { display:block; font-size:14px; font-weight:700; color:var(--ink); }
+.fg .lv-pmain em { display:flex; align-items:center; gap:8px; font-style:normal; font-size:13px; font-weight:600; color:var(--gray500); margin-top:4px; }
 /* Was a bare 30px × with a title attribute — unlabelled, and one click from
    throwing away an approved booking. Now it says what it does and arms first:
    press once to ask, again to confirm, anywhere else to forget it. `.arm`
@@ -3100,7 +3058,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .lv-cancel { display:inline-flex; align-items:center; gap:4px; height:28px; padding:0 8px; border-radius:var(--r-button); font-size:12px; font-weight:700; color:var(--gray500); border:1px solid var(--line); background:var(--paper); white-space:nowrap; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .fg .lv-cancel:hover { color:var(--bad-t); border-color:var(--bad); background:var(--bad-tint); }
 .fg .lv-cancel.arm { background:var(--bad); border-color:var(--bad); color:var(--paper); }
-.fg .lv-hist { border-top:2px solid var(--line); }
 .fg .lv-pacts { display:flex; gap:8px; }
 .fg .lv-decline { display:flex; gap:8px; margin-top:8px; }
 .fg .lv-decline input { flex:1; height:34px; padding:0 12px; border-radius:var(--r-control); border:1px solid var(--line); font-family:var(--font); font-size:13px; }
@@ -3109,15 +3066,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .lv-callegend { margin:0; padding:12px 16px; font-size:12px; font-weight:600; line-height:1.55; color:var(--gray400); }
 @media (max-width:820px){ .fg .lv-cols { grid-template-columns:1fr; } }
 
-/* ---- public holidays: upcoming panel + admin manager ---- */
-.fg .mts-hols { margin-top:24px; border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; }
-.fg .mts-holh { display:flex; align-items:center; gap:8px; padding:12px 16px; font-size:13px; font-weight:500; color:var(--gray700); background:var(--tint); border-bottom:1px solid var(--line); }
-.fg .mts-hollist { display:flex; flex-direction:column; }
-.fg .mts-hol { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--line); }
-.fg .mts-hol.next { background:var(--tint); }
-.fg .mts-hol b { font-size:13px; font-weight:700; color:var(--ink); min-width:120px; }
-.fg .mts-hol em { flex:1; font-style:normal; font-size:13px; font-weight:600; color:var(--gray500); }
-.fg .mts-holnext { font-size:12px; font-weight:500; color:var(--ink); background:var(--tint-2); padding:4px 8px; border-radius:var(--r-control); }
+/* ---- public holidays: the admin manager ---- */
 .fg .hol-year { border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; margin-top:16px; }
 .fg .hol-row { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--line); }
 .fg .hol-date { min-width:150px; font-size:13px; font-weight:700; color:var(--ink); }
@@ -3893,15 +3842,10 @@ button.fl-btn { font-size:14px; font-weight:700; }
    Deliberately quiet. This is the most sensitive row in the app and it should
    read as a checklist item, not an alarm: an approver can approve without one,
    and a person who hasn't seen a doctor yet is not doing anything wrong.
-   Asking for leave attaches one in its dialog (components/making/leave-form);
-   a booked row says whether it has one, on one line. */
-.fg .lv-reqcert { display:inline-flex; align-items:center; gap:4px; margin-top:4px; font-size:12px; font-weight:700; color:var(--warn-t); }
-.fg .lv-reqcert.on { color:var(--ok-t); }
-.fg .lv-reqcert a { color:inherit; text-decoration:underline; text-underline-offset:2px; }
-.fg .lv-certadd { margin-left:2px; padding:1px 8px; border-radius:var(--r-control); background:var(--tint-2); color:var(--gray700); cursor:pointer; }
-.fg .lv-certadd:hover { background:var(--tint-2); }
-
-/* the approver's copy, on the pending card where the decision is made */
+   The person's own copy is on their Leave page (components/timepay/my-leave):
+   a request's grey line says "no certificate yet" and the request, opened,
+   takes one. This is the approver's, on the pending card where the decision
+   is made. */
 .fg .lv-pcert { display:inline-flex; align-items:center; gap:8px; margin-top:4px; font-size:12px; font-weight:700; color:var(--warn-t); }
 .fg .lv-pcert.on { color:var(--ok-t); }
 .fg .lv-pcert a { color:inherit; text-decoration:underline; text-underline-offset:2px; }
@@ -10330,6 +10274,58 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
   .fg .ts2-table { --ts2-cols:64px 24px 40px minmax(0,1fr); }
   .fg .ts2-day .ts2-times-cell { display:none; }
   .fg .ts2-ref { grid-template-columns:minmax(0,1fr); }
+}
+/* ===== V2: LEAVE (components/timepay/my-leave.tsx, making/leave-form.tsx;
+   Isaac's mock of 24 October 2026, YRqKF87knq2N35tMLa5hkz, sections 2, 6
+   and 7) =====
+   Your name › Leave, a page of its own as Timesheet is: the title with Add
+   on its right, the one blue button, whose white menu holds the four kinds.
+   On the left what you have, the two balances as figures, and your requests
+   as rows (rule 39) under a hairline, their state a word in its colour; on
+   the right the public holidays coming up. No header bars, no coloured
+   blocks. The request form and a request's own dialog portal out of .fg, so
+   their rules name .pt-dialog; the calendar is the part's (patterns.css). */
+.fg .wrap.lv2 { max-width:none; padding:24px 32px 48px; display:flex; flex-direction:column; gap:24px; font-family:var(--font); color:var(--ink); }
+.fg .lv2-head { display:flex; align-items:center; justify-content:space-between; gap:24px; min-width:0; }
+.fg .lv2-h1 { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
+.fg .lv2-chev { display:inline-flex; margin-left:4px; }
+.fg .lv2-cols { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:48px; align-items:start; }
+.fg .lv2-main { display:flex; flex-direction:column; gap:32px; min-width:0; }
+.fg .lv2-group { display:flex; flex-direction:column; gap:8px; min-width:0; }
+.fg .lv2-gh { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .lv2-figs { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px; margin:0; padding-top:12px; border-top:1px solid var(--line); }
+.fg .lv2-figs > div { display:flex; flex-direction:column-reverse; justify-content:flex-end; gap:4px; min-width:0; }
+.fg .lv2-figs dt { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .lv2-figs dd { margin:0; font-size:20px; line-height:28px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .lv2-group .pt-rows { border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.fg .lv2-word { font-size:13px; line-height:18px; font-weight:500; color:var(--q); white-space:nowrap; }
+.fg .lv2-word.lv2-word--look { color:var(--orange-w); }
+.fg .lv2-word.lv2-word--good { color:var(--green-w); }
+.fg .lv2-word.lv2-word--wrong { color:var(--red-w); }
+.fg .lv2-none { margin:0; padding:12px 0; border-top:1px solid var(--line); font-size:14px; line-height:20px; color:var(--q); }
+.fg .lv2-hols { display:flex; flex-direction:column; margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
+.fg .lv2-hols li { display:grid; grid-template-columns:112px minmax(0,1fr); gap:12px; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px; line-height:20px; }
+.fg .lv2-hols b { font-weight:600; font-variant-numeric:tabular-nums; }
+.fg .lv2-hols span { color:var(--q); }
+.pt-dialog .lv2-ask { margin:0; font-size:16px; line-height:24px; color:var(--q); }
+.pt-dialog .lv2-ask b { font-weight:600; color:var(--ink); }
+.pt-dialog .lv2-sum { display:flex; flex-direction:column; gap:4px; padding-top:12px; border-top:1px solid var(--line); }
+.pt-dialog .lv2-sum b { font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.pt-dialog .lv2-sum span { font-size:13px; line-height:18px; color:var(--q); }
+.pt-dialog .lv2-fields { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; align-items:start; }
+.pt-dialog .lv2-cert { display:flex; align-items:center; flex-wrap:wrap; gap:12px; }
+.pt-dialog .lv2-cert-when { font-size:13px; line-height:18px; color:var(--q); }
+.pt-dialog .lv2-req { display:flex; flex-direction:column; gap:16px; }
+.pt-dialog .lv2-facts { display:grid; grid-template-columns:auto minmax(0,1fr); gap:8px 16px; margin:0; font-size:14px; line-height:20px; }
+.pt-dialog .lv2-facts > div { display:contents; }
+.pt-dialog .lv2-facts dt { font-size:13px; line-height:20px; font-weight:500; color:var(--q); }
+.pt-dialog .lv2-facts dd { margin:0; min-width:0; color:var(--ink); overflow-wrap:anywhere; }
+@media (max-width:1100px) {
+  .fg .lv2-cols { grid-template-columns:minmax(0,1fr); }
+}
+@media (max-width:720px) {
+  .fg .wrap.lv2 { padding:16px 16px 48px; }
+  .pt-dialog .lv2-fields { grid-template-columns:minmax(0,1fr); }
 }
 /* ===== TEAM, PEOPLE (v2, step 5; components/team/team-page.tsx, team-people.tsx) =====
    The board "Team, People": the title with how many people in grey, the

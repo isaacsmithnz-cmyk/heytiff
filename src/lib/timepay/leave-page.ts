@@ -19,6 +19,7 @@ import { listFleetStaff } from "@/lib/fleet/query";
 import { teamBalanceRows, type TeamBalanceRow } from "./balances";
 import { orgBalances, orgLiveRequests } from "./balances-query";
 import {
+  LEAVE_LOOKBACK_DAYS,
   balanceView,
   calendarDays,
   type BalanceView,
@@ -34,7 +35,10 @@ export type MyLeaveData = {
   standard: number;
   balances: BalanceView[];
   requests: LeaveRequest[];
-  holidays: { date: string; name: string }[]; // upcoming, for the request helper + list
+  /** from LEAVE_LOOKBACK_DAYS ago to a year on: the request form counts a
+      day put in after against its own holidays, and the page lists the ones
+      still to come */
+  holidays: { date: string; name: string }[];
   /** the requester's own working pattern (Mon=0) — the request form suggests
       hours over THESE days, the same days the timesheet will actually pay */
   workDays: number[];
@@ -55,7 +59,7 @@ export async function loadMyLeave(): Promise<MyLeaveData | null> {
     shiftDefaultsFor(ctx.orgId, [ctx.staffId]),
   ]);
   await ensureHolidays(ctx.orgId, state, ctx.today);
-  const holidays = await holidaysInSpan(ctx.orgId, state, ctx.today, horizon);
+  const holidays = await holidaysInSpan(ctx.orgId, state, addDays(ctx.today, -LEAVE_LOOKBACK_DAYS), horizon);
   const ownDays = defaults.workDays.get(ctx.staffId);
 
   return {

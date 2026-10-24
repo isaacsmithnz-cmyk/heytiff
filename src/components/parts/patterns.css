@@ -82,3 +82,43 @@
 /* the not-found and error pages: Wrong, centred in the whole page */
 .pt-wrong-page { flex:1; display:flex; flex-direction:column; min-height:100%; background:var(--white); }
 .pt-wrong-page > .pt-wrong { flex:1; }
+
+/* a calendar to pick days on (range-calendar.tsx; Isaac's mock of 24
+   October 2026). Monday first, a day off the roster grey, today ringed thin,
+   a public holiday struck through with a small dot under it. The days picked
+   are blue discs with white numbers and the run between them a light fill of
+   the same blue: blue is a selection (rule 17), and nothing picked is ink.
+   The day names two classes, so it beats the frame's button reset. */
+.pt-cal { display:flex; flex-direction:column; gap:12px; font-family:var(--font); color:var(--ink); }
+.pt-cal-months { display:grid; grid-template-columns:minmax(0,360px); gap:24px; }
+.pt-cal-months.pt-cal-months--2 { grid-template-columns:repeat(2, minmax(0,1fr)); }
+.pt-cal-month { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.pt-cal-head { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:32px; }
+.pt-cal-title { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.pt-cal-nav { display:flex; gap:4px; }
+.pt-cal-grid { display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); row-gap:2px; }
+.pt-cal-wd { padding:4px 0; font-size:12px; line-height:16px; font-weight:500; color:var(--q); text-align:center; }
+.pt-cal-cell { display:flex; align-items:center; justify-content:center; height:36px; }
+.pt-cal-cell.pt-cal-cell--run { background:color-mix(in srgb, var(--press) 10%, transparent); }
+.pt-cal-cell.pt-cal-cell--first { border-top-left-radius:var(--r-pill); border-bottom-left-radius:var(--r-pill); }
+.pt-cal-cell.pt-cal-cell--last { border-top-right-radius:var(--r-pill); border-bottom-right-radius:var(--r-pill); }
+.pt-cal-day.pt-cal-day {
+  position:relative; display:flex; align-items:center; justify-content:center;
+  width:32px; height:32px; margin:0; padding:0; box-sizing:border-box;
+  border:1px solid transparent; border-radius:var(--r-pill); background:none;
+  font:500 14px/20px var(--font); color:var(--ink); font-variant-numeric:tabular-nums; cursor:pointer;
+  transition:background-color var(--t-fast) var(--ease);
+}
+.pt-cal-day.pt-cal-day:hover { background:var(--hov); }
+.pt-cal-day.pt-cal-day--off { color:var(--q); }
+.pt-cal-day.pt-cal-day--hol .pt-cal-num { text-decoration:line-through; }
+.pt-cal-mark { position:absolute; bottom:2px; left:calc(50% - 2px); width:4px; height:4px; border-radius:var(--r-pill); background:currentColor; }
+.pt-cal-day.pt-cal-day--today { border-color:var(--ink); }
+.pt-cal-day.pt-cal-day.pt-cal-day--picked { background:var(--press); border-color:var(--press); color:var(--white); }
+.pt-cal-day.pt-cal-day:disabled { background:none; color:var(--grey); cursor:default; }
+.pt-cal-day.pt-cal-day:focus-visible { outline:none; box-shadow:var(--ring); }
+.pt-cal-hols { margin:0; font-size:13px; line-height:18px; color:var(--q); }
+.pt-cal-hols b { font-weight:600; color:var(--ink); }
+@media (max-width:720px) {
+  .pt-cal-months.pt-cal-months--2 { grid-template-columns:minmax(0,1fr); }
+}

@@ -330,7 +330,7 @@ function AnswerText({ text }: { text: string }) {
    stream, laid out as a list of threads and the open conversation with its
    box at the foot. The assistant makes the two halves and hands them to
    `frame`, which puts them on the page beside whatever else the place shows
-   (its title, its views, Only me), so the stream keeps running while
+   (its title, its views), so the stream keeps running while
    another view is up. Nothing about asking is written twice. */
 export type ConversationParts = {
   /** The threads, newest first: a title in bold over its time in grey. */

@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MyExpensesFace } from "../my-expenses-face";
+import { ExpenseClaims } from "../expense-claims";
 import type { Claim } from "@/lib/expenses/claim";
 
 /* THE CLAIMANT'S SCREEN: the lists of what was filed, what you are owed,
@@ -52,7 +52,7 @@ const claim = (over: Partial<Claim> = {}): Claim =>
     receipts: [],
     ...over,
   }) as Claim;
-const draw = () => render(<MyExpensesFace claims={[]} today={TODAY} />);
+const draw = () => render(<ExpenseClaims claims={[]} today={TODAY} />);
 
 beforeEach(() => {
   cancel.mockReset().mockResolvedValue({ ok: true });
@@ -60,41 +60,52 @@ beforeEach(() => {
   formProps.mockReset();
 });
 
-/* THE DOOR (rule 52): your name › Expense claims › Claim an expense. */
-describe("the door", () => {
-  it("opens Claim an expense over the screen, as your own money, with the open work", async () => {
+/* THE DOOR (rule 52): Your name › Expense claims › Add, which asks whose
+   money it was first. One main button on the page, and none on an empty
+   view (Isaac, 24 October 2026). */
+describe("Add", () => {
+  it("is the page's one main button, under the title", () => {
+    draw();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Expense claims");
+    expect(screen.getByRole("button", { name: "Add" })).toHaveClass("pt-btn--main");
+    expect(document.querySelectorAll(".pt-btn--main")).toHaveLength(1);
+  });
+
+  it("opens Claim an expense as your own money, with the open work", async () => {
     const user = userEvent.setup();
     const jobs = [{ kind: "visit" as const, id: "v1", clientName: "Northgate", label: "Service", jobNumber: "1042" }];
-    render(<MyExpensesFace claims={[]} today={TODAY} jobs={jobs} />);
-    const door = screen.getByRole("button", { name: "Claim an expense" });
-    expect(door).toHaveClass("pt-btn--main");
-    await user.click(door);
+    render(<ExpenseClaims claims={[]} today={TODAY} jobs={jobs} />);
+    await user.click(screen.getByRole("button", { name: "Add" }));
+    await user.click(screen.getByRole("menuitem", { name: /Expense claim/ }));
     expect(screen.getByRole("dialog", { name: "Claim an expense" })).toBeInTheDocument();
     expect(formProps).toHaveBeenLastCalledWith(expect.objectContaining({ payer: "own", today: TODAY, jobs }));
   });
 
-  it("starts a card receipt on the company card, from the Company card face", async () => {
+  it("starts a card receipt on the company card", async () => {
     const user = userEvent.setup();
     draw();
-    await user.click(screen.getByRole("tab", { name: /Company card/ }));
-    await user.click(screen.getByRole("button", { name: "File a card receipt" }));
+    await user.click(screen.getByRole("button", { name: "Add" }));
+    await user.click(screen.getByRole("menuitem", { name: /Company card receipt/ }));
     expect(formProps).toHaveBeenLastCalledWith(expect.objectContaining({ payer: "company" }));
   });
 
-  it("lands on the face what you filed lives on", async () => {
+  it("lands on the view what you filed lives on", async () => {
     const user = userEvent.setup();
     draw();
-    await user.click(screen.getByRole("button", { name: "Claim an expense" }));
+    await user.click(screen.getByRole("button", { name: "Add" }));
+    await user.click(screen.getByRole("menuitem", { name: /Expense claim/ }));
     await user.click(screen.getByRole("button", { name: "Saved on the card" }));
     expect(screen.getByRole("tab", { name: /Company card/ })).toHaveAttribute("aria-selected", "true");
     expect(refresh).toHaveBeenCalled();
   });
 
-  it("is not on Closed, which is history", async () => {
+  it("puts no second button on an empty view", async () => {
     const user = userEvent.setup();
     draw();
-    await user.click(screen.getByRole("tab", { name: /Closed/ }));
-    expect(screen.queryByRole("button", { name: "Claim an expense" })).toBeNull();
+    for (const view of [/^Claims/, /Company card/, /Closed/]) {
+      await user.click(screen.getByRole("tab", { name: view }));
+      expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Add"]);
+    }
   });
 });
 
@@ -120,17 +131,17 @@ describe("provenance", () => {
   };
 
   it("says a claim came from a fuel log, and names the vehicle", () => {
-    render(<MyExpensesFace claims={[fuelClaim]} today={TODAY} />);
+    render(<ExpenseClaims claims={[fuelClaim]} today={TODAY} />);
     expect(screen.getByText(/Raised from your fuel log, Hilux/)).toBeInTheDocument();
   });
 
   it("still says it when the vehicle has no name to show", () => {
-    render(<MyExpensesFace claims={[{ ...fuelClaim, fuelLog: { vehicleLogId: "log-1", vehicle: null } }]} today={TODAY} />);
+    render(<ExpenseClaims claims={[{ ...fuelClaim, fuelLog: { vehicleLogId: "log-1", vehicle: null } }]} today={TODAY} />);
     expect(screen.getByText(/Raised from your fuel log/)).toBeInTheDocument();
   });
 
   it("says nothing on a claim somebody typed themselves", () => {
-    render(<MyExpensesFace claims={[{ ...fuelClaim, fuelLog: null }]} today={TODAY} />);
+    render(<ExpenseClaims claims={[{ ...fuelClaim, fuelLog: null }]} today={TODAY} />);
     expect(screen.queryByText(/Raised from your fuel log/)).toBeNull();
   });
 });
@@ -144,7 +155,7 @@ describe("what the claimant is told", () => {
      out of pocket, who got a list and was left to add it up. */
   it("totals what it owes you, using the same helper the approver's screen uses", () => {
     const { container } = render(
-      <MyExpensesFace
+      <ExpenseClaims
         today={TODAY}
         claims={[
           claim({ id: "a", amount: 184.5, status: "pending" }),
@@ -160,7 +171,7 @@ describe("what the claimant is told", () => {
 
   it("says nothing when nothing is owed", () => {
     const { container } = render(
-      <MyExpensesFace today={TODAY} claims={[claim({ status: "reimbursed" })]} />,
+      <ExpenseClaims today={TODAY} claims={[claim({ status: "reimbursed" })]} />,
     );
     expect(container.querySelector(".xc-owed")).toBeNull();
   });
@@ -170,19 +181,19 @@ describe("what the claimant is told", () => {
      "what gets approved without a conversation" while filling the form, and
      never told again whether theirs had one. */
   it("says when a claim has no receipt, the way the review screen does", () => {
-    render(<MyExpensesFace today={TODAY} claims={[claim({ receipts: [] })]} />);
+    render(<ExpenseClaims today={TODAY} claims={[claim({ receipts: [] })]} />);
     expect(screen.getByText("No receipt")).toBeInTheDocument();
   });
 
   it("drops the nag once the claim is settled", () => {
     // a reimbursed claim's missing docket is history, not a thing to chase
-    render(<MyExpensesFace today={TODAY} claims={[claim({ status: "reimbursed", receipts: [] })]} />);
+    render(<ExpenseClaims today={TODAY} claims={[claim({ status: "reimbursed", receipts: [] })]} />);
     expect(screen.queryByText("No receipt")).toBeNull();
   });
 
   it("links the receipt when there is one, instead", () => {
     render(
-      <MyExpensesFace
+      <ExpenseClaims
         today={TODAY}
         claims={[claim({ receipts: [{ url: "https://x/r.jpg", image: true }] })]}
       />,
@@ -198,7 +209,7 @@ describe("cancelling a claim", () => {
      one, at that) and strands the receipt with it. One press did it. */
   it("asks first, then goes through on the second press", async () => {
     const user = userEvent.setup();
-    render(<MyExpensesFace today={TODAY} claims={[claim({ id: "c9", status: "pending" })]} />);
+    render(<ExpenseClaims today={TODAY} claims={[claim({ id: "c9", status: "pending" })]} />);
 
     await user.click(screen.getByRole("button", { name: /^Cancel / }));
     expect(cancel).not.toHaveBeenCalled();
@@ -215,7 +226,7 @@ describe("the Claims / Closed split", () => {
   it("keeps open claims on Claims and answered ones behind Closed", async () => {
     const user = userEvent.setup();
     render(
-      <MyExpensesFace
+      <ExpenseClaims
         today={TODAY}
         claims={[
           claim({ id: "open-1", description: "Brazing rods", status: "pending" }),
@@ -230,8 +241,6 @@ describe("the Claims / Closed split", () => {
     await user.click(screen.getByRole("tab", { name: /Closed/ }));
     expect(screen.getByText("Old drill")).toBeInTheDocument();
     expect(screen.queryByText("Brazing rods")).not.toBeInTheDocument();
-    // the door is the working face's, not history's
-    expect(screen.queryByRole("button", { name: "Claim an expense" })).not.toBeInTheDocument();
   });
 });
 
@@ -242,7 +251,7 @@ describe("the panel does not animate on a switch", () => {
   it("keeps the same panel node, with no fade class", async () => {
     const user = userEvent.setup();
     const { container } = render(
-      <MyExpensesFace
+      <ExpenseClaims
         today={TODAY}
         claims={[claim({ id: "o1", status: "pending" }), claim({ id: "d1", status: "reimbursed" })]}
       />,
@@ -274,7 +283,7 @@ describe("company-card receipts", () => {
   it("keeps card receipts off Claims and Closed entirely", async () => {
     const user = userEvent.setup();
     render(
-      <MyExpensesFace
+      <ExpenseClaims
         today={TODAY}
         claims={[card(), claim({ id: "o1", status: "pending", description: "Copper fittings" })]}
       />,
@@ -298,7 +307,7 @@ describe("company-card receipts", () => {
      waiting on anything, so it must not inflate the badge that says how many
      claims are still live. */
   it("does not count a card receipt as an open claim", () => {
-    render(<MyExpensesFace today={TODAY} claims={[card(), card({ id: "cc2" })]} />);
+    render(<ExpenseClaims today={TODAY} claims={[card(), card({ id: "cc2" })]} />);
     expect(screen.queryByRole("tab", { name: /Claims — / })).not.toBeInTheDocument();
   });
 });
@@ -309,7 +318,7 @@ describe("company-card receipts", () => {
 it("keeps the owed figure off the company-card face", async () => {
   const user = userEvent.setup();
   render(
-    <MyExpensesFace
+    <ExpenseClaims
       today={TODAY}
       claims={[
         claim({ id: "o1", status: "pending", amount: 184.5 }),
@@ -332,7 +341,7 @@ describe("a receipt on a job", () => {
   it("shows the job on a filed row, on both kinds", async () => {
     const user = userEvent.setup();
     render(
-      <MyExpensesFace
+      <ExpenseClaims
         today={TODAY}
         claims={[
           claim({ id: "o1", status: "pending", job: { kind: "visit", id: "v1", label: "#1042, Northgate" } }),

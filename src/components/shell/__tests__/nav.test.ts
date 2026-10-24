@@ -46,7 +46,7 @@ describe("nav config", () => {
 
   it("carries the faces right after their parent, in ⌘K but not as rows", () => {
     expect(NAV.map((n) => n.key)).toEqual(NAV_ROWS.flatMap((n) => [n.key, ...(n.subItems ?? []).map((s) => s.key)]));
-    expect(NAV_ROWS.map((n) => n.key)).not.toContain("mynotes");
+    expect(NAV_ROWS.map((n) => n.key)).not.toContain("notices");
     expect(NAV.map((n) => n.key)).toEqual(expect.arrayContaining(["mynotes", "notices"]));
   });
 

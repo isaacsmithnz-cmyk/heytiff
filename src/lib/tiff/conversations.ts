@@ -6,18 +6,19 @@ import type { KbCategory } from "./files";
    and the times the place shows, kept pure so they can be proven without a
    screen. The place itself is components/conversations. */
 
-/** The views of the list (rule 29): All, Team, Only me. */
-export type ConvView = "all" | "team" | "me";
+/** The views of the list (rule 29): All and Team. Only me went (Isaac,
+    24 October 2026): your notes are Your name › Notes, and a note isn't a
+    conversation. */
+export type ConvView = "all" | "team";
 
 export const CONV_VIEWS: readonly { key: ConvView; label: string }[] = [
   { key: "all", label: "All" },
   { key: "team", label: "Team" },
-  { key: "me", label: "Only me" },
 ];
 
-export const viewOf = (v: unknown): ConvView => (v === "team" || v === "me" ? v : "all");
+export const viewOf = (v: unknown): ConvView => (v === "team" ? v : "all");
 
-/** The view and the open thread or note, as the address carries them. */
+/** The view and the open thread, as the address carries them. */
 export function withConvState(href: string, s: { view: ConvView; open: string | null }): string {
   const url = new URL(href);
   if (s.view === "all") url.searchParams.delete("view");

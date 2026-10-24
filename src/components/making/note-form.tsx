@@ -5,18 +5,20 @@ import { Dialog } from "@/components/parts/dialog";
 import { Button } from "@/components/parts/button";
 import { Field, TextArea } from "@/components/parts/field";
 import { WindowsContext } from "@/components/records/records-context";
-import { addMyNote } from "@/app/actions/my-notes";
+import { addMyNote, editMyNote } from "@/app/actions/my-notes";
 
 /* NEW › NOTE (Isaac, 24 October 2026): a note is yours. "Maybe notes should
    just be personal notes by default … no need to send it to other people,
    because realistically that note would be added to a job card": a note
    about a job, and anyone it mentions, belongs on the job card. This one
    is your own notepad: the words, and Save, and it is kept in My notes,
-   where only you see it. */
+   where only you see it.
 
-export function NoteForm({ onClose }: { onClose: () => void }) {
+   The same form edits one, from Notes' Edit: `note` is the one it opens on. */
+
+export function NoteForm({ onClose, note }: { onClose: () => void; note?: { id: string; body: string } }) {
   const host = useContext(WindowsContext);
-  const [words, setWords] = useState("");
+  const [words, setWords] = useState(note?.body ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -26,19 +28,22 @@ export function NoteForm({ onClose }: { onClose: () => void }) {
       return;
     }
     setSaving(true);
-    const r = await addMyNote({ body: words, source: "text" }).catch(() => ({ ok: false as const, error: "Couldn't keep that note." }));
+    const r = await (note ? editMyNote(note.id, words) : addMyNote({ body: words, source: "text" })).catch(() => ({
+      ok: false as const,
+      error: "Couldn't keep that note.",
+    }));
     setSaving(false);
     if (!r.ok) {
       setError(r.error);
       return;
     }
     onClose();
-    host?.toast("Saved to My notes");
+    if (!note) host?.toast("Saved to My notes");
   }
 
   return (
     <Dialog
-      heading="New note"
+      heading={note ? "Edit note" : "New note"}
       width={560}
       onClose={onClose}
       foot={
@@ -47,7 +52,7 @@ export function NoteForm({ onClose }: { onClose: () => void }) {
             Cancel
           </Button>
           <Button kind="main" onClick={() => void save()} disabled={saving}>
-            {saving ? "Saving" : "Save to My notes"}
+            {saving ? "Saving" : note ? "Save changes" : "Save to My notes"}
           </Button>
         </>
       }

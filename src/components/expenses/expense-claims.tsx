@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
-import { FaceSwitch } from "@/components/me/face-switch";
 import { Button } from "@/components/parts/button";
+import { Menu } from "@/components/parts/menu";
+import { Empty } from "@/components/parts/states";
+import { ViewTabs } from "@/components/parts/tabs";
 import { ExpenseForm } from "@/components/making/expense-form";
 import { fmtAuWeekdayDate } from "@/lib/au-dates";
 import type { JobCandidate } from "@/lib/workboard/note-match";
@@ -19,12 +21,17 @@ import {
 } from "@/lib/expenses/claim";
 import { cancelClaim, type ExpenseResult } from "@/app/actions/expenses";
 
-/* My expenses — money you spent on the job, and want back.
+/* EXPENSE CLAIMS (v2): Your name › Expense claims, a page of its own like
+   Timesheet, with no strip of Timesheet · Leave · Expenses tabs over it
+   (Isaac, 24 October 2026). Money you spent on the job and want back, and
+   the dockets for what the company card paid.
 
    THE FORM IS CLAIM AN EXPENSE (components/making/expense-form), the v2
    form a job's Add › Cost opens too. It starts on the receipt, read by
    today's reader, and keeps every rule this screen's own form had; this
-   screen is its door and the lists of what was filed. */
+   page is its door and the lists of what was filed. ONE door: Add, top
+   right, says whose money it was (Expense claim, or Company card receipt),
+   and the empty views carry no button of their own. */
 
 const money = (n: number) => `$${n.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -32,7 +39,7 @@ const money = (n: number) => `$${n.toLocaleString("en-AU", { minimumFractionDigi
    claim get paid". Three questions, three faces — see the split below. */
 type XcFace = "claims" | "company" | "closed";
 
-export function MyExpensesFace({
+export function ExpenseClaims({
   claims,
   today,
   jobs = [],
@@ -54,8 +61,10 @@ export function MyExpensesFace({
      team directory use. Arming a second forgets the first. */
   const [armed, setArmed] = useState<string | null>(null);
   const [face, setFace] = useState<XcFace>("claims");
-  /* Claim an expense, open over the screen */
-  const [claiming, setClaiming] = useState(false);
+  /* Claim an expense, open over the screen, on whose money Add chose */
+  const [claiming, setClaiming] = useState<PaidWith | null>(null);
+  const addRef = useRef<HTMLButtonElement>(null);
+  const [adding, setAdding] = useState(false);
 
   const run = (action: () => Promise<ExpenseResult>, onOk?: () => void) => {
     setError(null);
@@ -85,9 +94,6 @@ export function MyExpensesFace({
 
      Open rides `isOpen`, the same test `owedTotal` uses, so the Claims face
      and the owed figure can never disagree about which rows count. */
-  /* Which payer a NEW row starts as, read off the face you started from. */
-  const payer: PaidWith = face === "company" ? "company" : "own";
-
   const cardReceipts = claims.filter((c) => c.paidWith === "company");
   const ownClaims = claims.filter((c) => c.paidWith === "own");
   const openClaims = ownClaims.filter((c) => isOpen(c.status));
@@ -96,31 +102,57 @@ export function MyExpensesFace({
     face === "company" ? cardReceipts : face === "closed" ? closedClaims : openClaims;
 
   return (
-    <>
-      <div className="wb2-card">
-        <div className="ppanel2">
+    <div className="wrap yp">
+      <header className="yp-head">
+        <h1 className="yp-h1">Expense claims</h1>
+        <Button
+          ref={addRef}
+          kind="main"
+          icon="plus"
+          aria-haspopup="menu"
+          aria-expanded={adding}
+          onClick={() => setAdding((a) => !a)}
+        >
+          Add
+          <span className="yp-chev" aria-hidden="true">
+            <Icon name="chevD" size={16} />
+          </span>
+        </Button>
+        {/* WHOSE MONEY IT WAS is the first thing Add asks, because getting
+            it wrong leaves somebody out of their own money or asks the
+            business to pay twice. The form's own tray can still change it. */}
+        <Menu
+          anchor={addRef}
+          open={adding}
+          onClose={() => setAdding(false)}
+          onSelect={(key) => {
+            setAdding(false);
+            setClaiming(key as PaidWith);
+          }}
+          items={[
+            { key: "own", label: "Expense claim", hint: "You paid" },
+            { key: "company", label: "Company card receipt", hint: "The card paid" },
+          ]}
+          label="Add"
+          align="end"
+        />
+      </header>
+
       {error && <div className="xc-err">{error}</div>}
 
-      {/* Claims is the working face — capture first, then what's still
-          moving. Company card is the docket pile for the business's own
-          money, which needs no decision from anybody. Closed is the answered
-          pile (reimbursed, declined, cancelled), which used to pad out the one
-          list forever.
-
-          The pair was this card's tab strip until expenses became a face of
-          the Me card, and a card-edge strip does not nest — see
-          me/face-switch.tsx. Same two faces, one level down. */}
-      <FaceSwitch
+      {/* Claims is the working view: what's still moving. Company card is
+          the docket pile for the business's own money, which needs no
+          decision from anybody. Closed is the answered pile (reimbursed,
+          declined, cancelled), which used to pad out the one list forever.
+          Soft tabs (rule 29): three views of one page's list. */}
+      <ViewTabs
         ariaLabel="Your expenses"
         idPrefix="xct"
         panelPrefix="xcp"
-        active={face}
+        current={face}
         onGo={(k) => setFace(k as XcFace)}
         items={[
-          {
-            key: "claims",
-            label: "Claims",
-          },
+          { key: "claims", label: "Claims" },
           /* NO COUNT. A number here would be "how many receipts have you filed
              this year", which asks nothing of anybody — unlike the open claims
              beside it, which are people waiting on money. */
@@ -129,33 +161,17 @@ export function MyExpensesFace({
         ]}
       />
       {/* No `key`, no `.psec2` — the claim list swaps in place, the way
-          Team's directory does. Both together remount the face and fade it
-          back in from opacity 0, which on a list reads as a flash rather than
-          polish (see me-screen.tsx). */}
+          Team's directory does. Both together remount the view and fade it
+          back in from opacity 0, which on a list reads as a flash. */}
       <section id={`xcp-${face}`} role="tabpanel" aria-labelledby={`xct-${face}`} tabIndex={-1}>
-          {(face === "claims" || face === "company") && (
-            <>
-          {/* THE DOOR (rule 52): Claim an expense, over this screen.
-              THE FACE YOU ARE ON DECIDES WHOSE MONEY IT WAS: from Company
-              card it opens on the card, and the form's own tray is there to
-              change it. Get it wrong and either somebody is out of their own
-              money or the business is asked to pay twice. */}
-          <div className="mk-money-door">
-            <Button kind="main" icon={face === "company" ? "card" : "receipt"} onClick={() => setClaiming(true)}>
-              {face === "company" ? "File a card receipt" : "Claim an expense"}
-            </Button>
-          </div>
-
           {/* WHAT YOU ARE OWED, on the screen of the person owed it. The
               approver's queue has carried this figure all along, and so has
               the Time & Pay stat tile; the claimant's own screen listed the
               claims and left them to add up.
 
-              CLAIMS ONLY. The capture row above is on both faces because both
-              file a receipt, but this figure is not: over a list of company
-              dockets, "Owed to you $184.50" is a number about somewhere else,
-              and the one thing a card receipt has to say is that nobody owes
-              anybody anything. */}
+              CLAIMS ONLY: over a list of company dockets, "Owed to you
+              $184.50" is a number about somewhere else, and the one thing a
+              card receipt has to say is that nobody owes anybody anything. */}
           {face === "claims" && owed > 0 && (
             <div className="xc-owed">
               <span className="xc-owedk">Owed to you</span>
@@ -163,30 +179,22 @@ export function MyExpensesFace({
               <em>Claims sent or approved but not yet paid.</em>
             </div>
           )}
-            </>
-          )}
 
           <div className="xc-list">
+            {/* The page's one door is Add, so an empty view says what goes
+                in it and carries no button of its own (Isaac, 24 October
+                2026: one button each page). */}
             {shown.length === 0 ? (
               face === "closed" ? (
-                <div className="adm-empty">
-                  <b>Nothing here yet</b>
-                  <em>Claims land here once they&apos;re reimbursed, declined or cancelled.</em>
-                </div>
+                <Empty what="Nothing here yet" line="Claims land here once they’re reimbursed, declined or cancelled." action={null} />
               ) : face === "company" ? (
-                <div className="adm-empty">
-                  <b>No card receipts filed</b>
-                  <em>
-                    Buy something on the company card and the docket goes here — the bank feed
-                    knows the amount, not what was bought. Fuel is the exception: it goes on the
-                    vehicle, with the litres and the odometer.
-                  </em>
-                </div>
+                <Empty
+                  what="No card receipts filed"
+                  line="Buy something on the company card and its docket goes here, so the bank feed can be matched to it."
+                  action={null}
+                />
               ) : (
-                <div className="adm-empty">
-                  <b>Nothing claimed yet</b>
-                  <em>Anything you buy for a job and pay for yourself goes here.</em>
-                </div>
+                <Empty what="Nothing claimed yet" line="Anything you buy for a job and pay for yourself goes here." action={null} />
               )
             ) : (
               shown.map((c) => (
@@ -274,15 +282,13 @@ export function MyExpensesFace({
             )}
           </div>
       </section>
-        </div>
-      </div>
 
       {claiming && (
         <ExpenseForm
-          payer={payer}
+          payer={claiming}
           jobs={jobs}
           today={today}
-          onClose={() => setClaiming(false)}
+          onClose={() => setClaiming(null)}
           /* Land on the face the thing you just filed lives on. Saving a card
              receipt and being left staring at Claims, where it will never
              appear, reads as the save having failed. */
@@ -293,6 +299,6 @@ export function MyExpensesFace({
           onUndone={() => router.refresh()}
         />
       )}
-    </>
+    </div>
   );
 }

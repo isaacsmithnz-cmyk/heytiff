@@ -18,7 +18,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 - **4. Search.** Under New, the word alone (no ⌘K beside it, Isaac, 20 October). Finds any record; its last row asks Tiff.
 - **5. The eight places.** Home, Conversations, Jobs, Schedule, Documents, Library, Design, Team. The one you're on is white at 12% with its label in bold. No number beside any of them.
 - **6. Pinned and Recents.** Stay in the sidebar under the places; a job shows its colour dot.
-- **7. Your name.** At the bottom: your card, timesheet, leave, expense claims, Reports and Settings, then Sign out. Reports shows to whoever holds the permission each report needs.
+- **7. Your name.** At the bottom: your card, timesheet, leave, expense claims, your vehicle (only for someone with one assigned) and notes, Reports and Settings, then Sign out. Each is a page of its own: no strip of tabs between them (Isaac, 24 October 2026). Reports shows to whoever holds the permission each report needs.
 - **8. Tiff's mark.** Black and white at rest, and still: black on the page, white on the ink. While Tiff listens or works it turns, and its rings run through the colours in the boards' order: blue, purple, pink, red, orange, yellow, green. Listening and working look the same. The one exception is Home's mark over her box, 96 across: it turns in her colours all the time, and faster while she works (Isaac, 20 October: "move at all times, even in standby, and then it can just go faster when it's spinning").
 - **9. The wordmark.** HeyTiff in one colour. The teal leaves the app.
 
@@ -68,7 +68,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 
 - **35. Card or group.** A card (outline, 16 corner) is something you act on; everything else is a group under a thin line.
 - **36. Menus and dialogs.** White, 16 corner, the one shadow. A dialog darkens the page behind it.
-- **37. Toasts.** Ink, bottom left, a few words and Undo.
+- **37. Toasts.** Grey (the quiet grey, white words), bottom left, a few words and Undo. Not ink (Isaac, 24 October 2026: "it should be gray or something").
 - **38. People.** Initials on a light grey disc.
 
 ### Patterns

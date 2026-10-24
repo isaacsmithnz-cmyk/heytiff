@@ -28,6 +28,8 @@ export type Place = {
   /** shown to whoever holds any one of these (the Library: Tiff's documents or the field tools) */
   anyOf?: readonly Capability[];
   minRole?: Role;
+  /** only for someone with a vehicle assigned to them (Your vehicle) */
+  needsVehicle?: true;
 };
 
 export const PLACES: readonly Place[] = [
@@ -77,13 +79,20 @@ export const YOURS: readonly Place[] = [
   { key: "timesheet", label: "Timesheet", icon: "clock", href: "/dashboard/my-timesheet", under: [] },
   { key: "leave", label: "Leave", icon: "calendar", href: "/dashboard/my-leave", under: [] },
   { key: "expenses", label: "Expense claims", icon: "receipt", href: "/dashboard/my-expenses", under: [] },
+  /* the old Me card's last two faces, each a page of its own (24 October 2026) */
+  { key: "myvehicle", label: "Your vehicle", icon: "car", href: "/dashboard/my-vehicle", under: [], needsVehicle: true },
+  { key: "mynotes", label: "Notes", icon: "note", href: "/dashboard/my-notes", under: [] },
   { key: "reports", label: "Reports", icon: "gauge", href: "/dashboard/analytics", under: [], capability: "workboard_money" },
   { key: "settings", label: "Settings", icon: "settings", href: "/dashboard/admin", under: [], minRole: "admin" },
 ];
 
-export function placesFor(list: readonly Place[], viewer: { caps: ReadonlySet<Capability>; role: Role | null }): Place[] {
+export function placesFor(
+  list: readonly Place[],
+  viewer: { caps: ReadonlySet<Capability>; role: Role | null; hasVehicle?: boolean },
+): Place[] {
   return list.filter(
     (p) =>
+      (!p.needsVehicle || !!viewer.hasVehicle) &&
       (!p.capability || viewer.caps.has(p.capability)) &&
       (!p.anyOf || p.anyOf.some((c) => viewer.caps.has(c))) &&
       (!p.minRole || (viewer.role !== null && hasMinRole(viewer.role, p.minRole))),

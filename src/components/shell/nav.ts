@@ -68,11 +68,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Places",
     items: [
       { key: "home", label: "Home", icon: "home", href: "/dashboard", hint: "Your day and what's to do", accent: "#050505" },
-      { key: "conversations", label: "Conversations", icon: "chat", href: "/dashboard/conversations", hint: "Talk to Tiff and the team", accent: "#050505", capability: "tiff",
-        subItems: [
-          /* your own notebook, only you see it; Conversations' "Only me" is its v2 home */
-          { key: "mynotes", label: "My notes", icon: "note", href: "/dashboard/my-notes", hint: "Your own notebook, only you see it", accent: "#050505" },
-        ] },
+      { key: "conversations", label: "Conversations", icon: "chat", href: "/dashboard/conversations", hint: "Talk to Tiff and the team", accent: "#050505", capability: "tiff" },
       { key: "jobs", label: "Jobs", icon: "folder", href: "/dashboard/jobs", hint: "Every job, its quote, visits and money", accent: "#050505", capability: "workboard" },
       { key: "schedule", label: "Schedule", icon: "calendar", href: "/dashboard/schedule", hint: "Who's on which job, by day and week", accent: "#050505", capability: "workboard" },
       { key: "documents", label: "Documents", icon: "file", href: "/dashboard/documents", hint: "SWMS, certificates, letters and handover sheets", accent: "#050505", capability: "workboard" },
@@ -91,6 +87,10 @@ export const NAV_GROUPS: NavGroup[] = [
       { key: "timesheet", label: "Timesheet", icon: "clock", href: "/dashboard/my-timesheet", hint: "Your hours and submissions", accent: "#050505" },
       { key: "leave", label: "Leave", icon: "calendar", href: "/dashboard/my-leave", hint: "Book leave and see balances", accent: "#050505" },
       { key: "expenses", label: "Expense claims", icon: "receipt", href: "/dashboard/my-expenses", hint: "Claim money you've spent", accent: "#050505" },
+      /* your vehicle's own page, and your own notes (Isaac, 24 October 2026:
+         the old Me card's faces each become a page under your name) */
+      { key: "myvehicle", label: "Your vehicle", icon: "car", href: "/dashboard/my-vehicle", hint: "The vehicle you drive", accent: "#050505" },
+      { key: "mynotes", label: "Notes", icon: "note", href: "/dashboard/my-notes", hint: "Your own notes, only you see them", accent: "#050505" },
       /* job money, so it follows `workboard_money` (docs/job-analytics-plan.md) */
       { key: "reports", label: "Reports", icon: "gauge", href: "/dashboard/analytics", hint: "Win rate, prices and quotes", accent: "#050505", capability: "workboard_money" },
       { key: "settings", label: "Settings", icon: "settings", href: "/dashboard/admin", hint: "The business, its people and its settings", accent: "#050505", minRole: "admin" },
@@ -146,8 +146,8 @@ export const SCREEN_ALIASES: Readonly<Record<string, string>> = {
   home: "Home",
   chat: "Conversations",
   chats: "Conversations",
-  notes: "My notes",
-  mynotes: "My notes",
+  mynotes: "Notes",
+  myvehicle: "Your vehicle",
   myhours: "Timesheet",
   hours: "Timesheet",
   mytimesheet: "Timesheet",

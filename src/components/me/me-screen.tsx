@@ -1,36 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ViewTabs } from "@/components/shell/view-tabs";
 import { MyLeave } from "@/components/timepay/my-leave";
-import { MyExpensesFace } from "@/components/expenses/my-expenses-face";
-import { MyVehicleFace } from "@/components/fleet/my-vehicle-face";
-import { MyNotesFace } from "@/components/notes/my-notes-face";
 import type { MeData } from "@/lib/me/page-data";
 
-/* EVERYTHING THAT IS YOURS, ON ONE CARD — five faces, switched on the client.
-
-   These were five rows in the rail and five routes underneath, and the rail
-   could not afford them: thirteen rows needed 999px of nav against a 733px
-   window, so Operations and Admin sat below a fold that `.no-sb` gives no
-   scrollbar to admit (Isaac, 2026-08-23). Four rows folded into one and the
-   rail came down to 711px, which fits a 13" laptop.
-
-   IT IS THE `(my-time)` SHAPE, WIDENED. Timesheet and Leave already shared a
-   card this way: every route loads all the faces and the switch is pure state.
-   Three more faces join them and the contract is unchanged.
-
-   THE URL DELIBERATELY DOES NOT FOLLOW THE FACE. Syncing it with
-   history.replaceState bounces straight back to the entry face, because the
-   dashboard shell keys its outlet on the pathname (`<main key={pathname}>`,
-   app-shell.tsx) and a cross-PATH replaceState remounts the whole page tree
-   and this component's state with it — Isaac hit it on prod within minutes
-   (2026-08-22). All five stay real routes, and each one only picks which face
-   opens first; ⌘K still lists every one of them by name.
-
-   The heading swaps words per face. These are five nav destinations sharing a
-   card, not one screen with five sections, and each still says which it is. */
+/* WHAT IS LEFT OF THE ME CARD: Leave, under the old strip of Timesheet ·
+   Leave · Expenses · Vehicle · Notes. The other four are pages of their own
+   under Your name now (Isaac, 24 October 2026), so their tabs here go to
+   them; Leave's own page replaces this screen, and the strip goes with it. */
 
 type Tab = "timesheet" | "leave" | "expenses" | "vehicle" | "notes";
 
@@ -46,23 +24,18 @@ const TABS = [
   { key: "notes", label: "Notes" },
 ] as const;
 
-const TITLE: Record<Tab, string> = {
-  timesheet: "My timesheet",
-  leave: "My leave",
-  expenses: "My expenses",
-  vehicle: "My vehicle",
-  notes: "Notes",
+/* EVERY FACE BUT LEAVE IS A PAGE OF ITS OWN in v2, under Your name
+   (Isaac, 24 October 2026), so its tab here goes there rather than
+   switching a face. Leave's own page replaces this screen next. */
+const PAGE: Record<Exclude<Tab, "leave">, string> = {
+  timesheet: "/dashboard/my-timesheet",
+  expenses: "/dashboard/my-expenses",
+  vehicle: "/dashboard/my-vehicle",
+  notes: "/dashboard/my-notes",
 };
 
-/* THE TIMESHEET IS A PAGE OF ITS OWN in v2 (the board 6-timesheet, Your
-   name › Timesheet), at /dashboard/my-timesheet, so its tab here goes there
-   rather than switching a face. The other four faces are unchanged until
-   their own boards land. */
-const TIMESHEET_PAGE = "/dashboard/my-timesheet";
-
-export function MeScreen({ initialTab, data }: { initialTab: Exclude<Tab, "timesheet">; data: MeData }) {
+export function MeScreen({ data }: { initialTab?: "leave"; data: MeData }) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>(initialTab);
 
   return (
     /* THE PAGE IS PAPER TO THE FRAME (2026-09-20, the Workboard's frame on
@@ -75,30 +48,15 @@ export function MeScreen({ initialTab, data }: { initialTab: Exclude<Tab, "times
             ariaLabel="Yours"
             idPrefix="met"
             panelPrefix="mep"
-            active={tab}
-            onGo={(k) => (k === "timesheet" ? router.push(TIMESHEET_PAGE) : setTab(k as Tab))}
+            active="leave"
+            onGo={(k) => k !== "leave" && router.push(PAGE[k as Exclude<Tab, "leave">])}
             items={TABS.map((t) => ({ ...t }))}
-            /* THE TITLE RIDES THE TAB ROW. It stood on a line of its own,
-               where anything a single face added to it changed the header's
-               height and stepped the card down (Isaac, 2026-08-23). In the
-               band there is nowhere to add anything: the h1 is the lead and
-               the tabs take the rest. */
-            lead={<h1 className="wb2-h1">{TITLE[tab]}</h1>}
+            lead={<h1 className="wb2-h1">My leave</h1>}
           />
-          {/* No `key` and no `.psec2` — the panel swaps in place, like Team's.
-              The pair unmounts and rebuilds the face on every click and fades
-              it in from opacity 0 with a 12px rise, which on a timesheet grid
-              reads as the content flashing (Isaac, 2026-08-22). The thumb
-              slide IS the animation. */}
           <div className="wb2-card">
             <div className="wb2-panel">
-              <section
-                id={`mep-${tab}`}
-                role="tabpanel"
-                aria-labelledby={`met-${tab}`}
-                tabIndex={-1}
-              >
-                {face(tab, data)}
+              <section id="mep-leave" role="tabpanel" aria-labelledby="met-leave" tabIndex={-1}>
+                {leaveFace(data)}
               </section>
             </div>
           </div>
@@ -106,28 +64,6 @@ export function MeScreen({ initialTab, data }: { initialTab: Exclude<Tab, "times
       </div>
     </div>
   );
-}
-
-function face(tab: Tab, data: MeData) {
-  switch (tab) {
-    case "timesheet":
-      return null;
-    case "leave":
-      return leaveFace(data);
-    case "expenses":
-      return <MyExpensesFace claims={data.claims} today={data.today} jobs={data.jobs} />;
-    case "vehicle":
-      return (
-        <MyVehicleFace
-          own={data.fleet.own}
-          today={data.fleet.today}
-          warnDays={data.fleet.warnDays}
-          viewerStaffId={data.fleet.viewerStaffId}
-        />
-      );
-    case "notes":
-      return <MyNotesFace notes={data.notes} archived={data.archived} />;
-  }
 }
 
 /* The empty branch keeps the frame it gained in #332: the tabs render above

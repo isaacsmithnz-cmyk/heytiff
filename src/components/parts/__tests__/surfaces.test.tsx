@@ -516,13 +516,15 @@ describe("surfaces.css", () => {
     expect(rules.find(([s]) => s === '.pt-tray .pt-tray-opt[aria-checked="true"]')![1]).toMatch(/background:\s*var\(--sel\)/);
   });
 
-  it("puts the toast on the ink, bottom left, over everything", () => {
+  /* grey, not ink (Isaac, 24 October 2026) */
+  it("(F) puts the toast on the quiet grey, bottom left, over everything", () => {
     const stack = rules.find(([s]) => s === ".pt-toasts")![1];
     expect(stack).toMatch(/left:\s*24px/);
     expect(stack).toMatch(/bottom:\s*24px/);
     expect(stack).toMatch(/z-index:\s*var\(--z-toast\)/);
     const toast = rules.find(([s]) => s === ".pt-toasts .pt-toast")![1];
-    expect(toast).toMatch(/background:\s*var\(--ink\)/);
+    expect(toast).toMatch(/background:\s*var\(--q\)/);
+    expect(toast).not.toMatch(/var\(--ink\)/);
     expect(toast).toMatch(/color:\s*var\(--white\)/);
     expect(toast).toMatch(/border-radius:\s*var\(--r-button\)/);
   });

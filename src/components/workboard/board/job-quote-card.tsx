@@ -149,7 +149,7 @@ export function JobQuoteCard({
   ) : null;
 
   let body: ReactNode;
-  if (read === undefined) body = <Loading what="Reading the quote" shape="card" />;
+  if (read === undefined) body = <Loading what="Reading the quote" />;
   else if (read === null)
     body = (
       <div className="qland-card">

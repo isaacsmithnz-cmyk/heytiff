@@ -1,4 +1,4 @@
-import { isValidElement, type ReactElement } from "react";
+import type { ReactElement } from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { DocumentsList } from "@/components/documents/documents-list";
 import { makeOnJobHref } from "@/components/documents/make-document";
@@ -89,10 +89,8 @@ describe("the route", () => {
 
   it("reads the view from the address, and a kind the reader hasn't is All", async () => {
     const { default: DocumentsPage } = await import("@/app/dashboard/documents/page");
-    const page = (await DocumentsPage({ searchParams: Promise.resolve({ view: "letter" }) })) as ReactElement<{ children: ReactElement<{ searchParams: Promise<Record<string, string>> }> }>;
-    const body = page.props.children;
-    expect(isValidElement(body)).toBe(true);
-    const run = body.type as (p: { searchParams: Promise<Record<string, string>> }) => Promise<ReactElement<{ initial: DocsState }>>;
+    /* the page itself waits: no Suspense of its own (rule 41, one hold) */
+    const run = DocumentsPage as (p: { searchParams: Promise<Record<string, string>> }) => Promise<ReactElement<{ initial: DocsState }>>;
     loadDocuments.mockResolvedValue(dataFor());
     expect((await run({ searchParams: Promise.resolve({ view: "letter" }) })).props.initial.view).toBe("letter");
     loadDocuments.mockResolvedValue(dataFor({ kinds: ["swms", "certificate", "handover"] }));

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { Dot } from "./state";
 
 /* NOTHING THERE YET (rule 40, law 12): what is missing, in a few words,
@@ -20,46 +21,27 @@ export function Empty({ what, line, action }: { what: ReactNode; line?: ReactNod
 const SHOW_AFTER = 500;
 
 /* LOADING (rule 41, law 27): nothing for half a second, so a fast answer
-   never flashes, then blocks shaped like what is coming. The blocks are
-   still: a loop needs its row in docs/design.md, and a skeleton is state,
-   not ambience. A screen reader hears what is loading, said once. */
-export function Loading({
-  what,
-  shape = "rows",
-  count,
-}: {
-  /** what is coming, as the wait says it: "Loading visits" */
-  what: string;
-  shape?: "rows" | "card" | "text";
-  count?: number;
-}) {
+   never flashes, then Tiff's mark, turning at her working speed, in the
+   middle of where the thing will be. Never a skeleton (Isaac, 20 October
+   2026: "the skeleton loading screens never seem to match what the actual
+   content is… a Tiff logo spinning quickly instead"; 25 October: the
+   Schedule showed his mark and then a skeleton). The page's own hold is
+   the same mark at 72 (shell/page-hold); a panel's is 32. A screen reader
+   hears what is loading, said once. */
+export function Loading({ what }: { /** what is coming, as the wait says it: "Loading visits" */ what: string }) {
   const [shown, setShown] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setShown(true), SHOW_AFTER);
     return () => clearTimeout(t);
   }, []);
-  const n = count ?? (shape === "card" ? 1 : 3);
   return (
-    <div className={`pt-load pt-load--${shape}`} aria-busy="true">
+    <div className="pt-load" aria-busy="true">
       {shown && (
         <>
           <span className="pt-load-sr" role="status">
             {what}
           </span>
-          <div className="pt-load-shape" aria-hidden="true">
-            {Array.from({ length: n }, (_, i) =>
-              shape === "rows" ? (
-                <div key={i} className="pt-load-row">
-                  <span className="pt-load-bar pt-load-name" />
-                  <span className="pt-load-bar pt-load-line" />
-                </div>
-              ) : shape === "card" ? (
-                <div key={i} className="pt-load-bar pt-load-card" />
-              ) : (
-                <span key={i} className="pt-load-bar pt-load-text" />
-              ),
-            )}
-          </div>
+          <TiffGlyph size={32} alive working />
         </>
       )}
     </div>

@@ -166,7 +166,7 @@ describe("Loading (rule 41)", () => {
   beforeEach(() => jest.useFakeTimers());
   afterEach(() => jest.useRealTimers());
 
-  it("shows nothing for half a second, then still rows and what is loading", () => {
+  it("shows nothing for half a second, then Tiff's mark and what is loading", () => {
     const { container } = render(<Loading what="Loading visits" />);
     const box = container.querySelector(".pt-load")!;
     expect(box).toHaveAttribute("aria-busy", "true");
@@ -176,17 +176,9 @@ describe("Loading (rule 41)", () => {
     act(() => jest.advanceTimersByTime(1));
     expect(screen.getByRole("status")).toHaveTextContent("Loading visits");
     expect(screen.getByRole("status")).toHaveClass("pt-load-sr");
-    expect(container.querySelector(".pt-load-shape")).toHaveAttribute("aria-hidden", "true");
-    expect(container.querySelectorAll(".pt-load-row")).toHaveLength(3);
-  });
-
-  it("takes the shape and count of what's coming", () => {
-    const { container, rerender } = render(<Loading what="Loading the job" shape="card" />);
-    act(() => jest.advanceTimersByTime(500));
-    expect(container.querySelector(".pt-load")).toHaveClass("pt-load--card");
-    expect(container.querySelectorAll(".pt-load-card")).toHaveLength(1);
-    rerender(<Loading what="Loading the job" shape="text" count={5} />);
-    expect(container.querySelectorAll(".pt-load-text")).toHaveLength(5);
+    /* the mark, turning, and never a skeleton (rule 41) */
+    expect(box.querySelector(".tiffmk.working")).toHaveAttribute("aria-hidden", "true");
+    expect(box.querySelector(".pt-load-shape, .pt-load-bar")).toBeNull();
   });
 
   it("stops its timer when it leaves", () => {

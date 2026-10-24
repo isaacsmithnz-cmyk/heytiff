@@ -44,9 +44,8 @@ jest.mock("@/components/team/team-page", () => ({ TeamPage: () => null }));
 
 async function bodyOf(search: Record<string, string> = {}) {
   const { default: TeamRoute } = await import("@/app/dashboard/team/page");
-  const page = (await TeamRoute({ searchParams: Promise.resolve(search) })) as ReactElement<{ children: ReactElement }>;
-  const body = page.props.children;
-  return (await (body.type as (p: unknown) => Promise<ReactElement<{ data: TeamPageData; view: string }>>)(body.props)).props;
+  /* the page itself waits: no Suspense of its own (rule 41, one hold) */
+  return ((await TeamRoute({ searchParams: Promise.resolve(search) })) as ReactElement<{ data: TeamPageData; view: string }>).props;
 }
 
 beforeEach(() => {

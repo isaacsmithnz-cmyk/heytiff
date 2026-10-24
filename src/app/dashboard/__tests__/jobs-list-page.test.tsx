@@ -85,11 +85,8 @@ describe("the route", () => {
   it("opens on the view, person, sort and search the address names", async () => {
     loadJobsList.mockResolvedValue(dataFor());
     const { default: JobsPage } = await import("@/app/dashboard/jobs/page");
-    const page = (await JobsPage({ searchParams: Promise.resolve({ view: "quotes", who: "Lyle Irving", sort: "oldest", q: "okafor" }) })) as ReactElement<{
-      children: ReactElement<{ searchParams: Promise<Record<string, string>> }>;
-    }>;
-    const body = page.props.children;
-    const list = await (body.type as (p: typeof body.props) => Promise<ReactElement<{ initial: ListState }>>)(body.props);
+    /* the page itself waits: no Suspense of its own (rule 41, one hold) */
+    const list = (await JobsPage({ searchParams: Promise.resolve({ view: "quotes", who: "Lyle Irving", sort: "oldest", q: "okafor" }) })) as ReactElement<{ initial: ListState }>;
     expect(isValidElement(list)).toBe(true);
     expect(list.props.initial).toEqual({ view: "quotes", who: "lyle irving", sort: "oldest", q: "okafor" });
   });
@@ -97,9 +94,7 @@ describe("the route", () => {
   it("lands on Home when there is no workspace to read", async () => {
     loadJobsList.mockResolvedValue(null);
     const { default: JobsPage } = await import("@/app/dashboard/jobs/page");
-    const page = (await JobsPage({ searchParams: Promise.resolve({}) })) as ReactElement<{ children: ReactElement }>;
-    const body = page.props.children;
-    await expect((body.type as (p: unknown) => Promise<unknown>)(body.props)).rejects.toThrow("REDIRECT:/dashboard");
+    await expect(JobsPage({ searchParams: Promise.resolve({}) })).rejects.toThrow("REDIRECT:/dashboard");
   });
 });
 

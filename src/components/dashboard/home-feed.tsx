@@ -10,6 +10,7 @@ import { Button, LinkButton } from "@/components/parts/button";
 import { TextInput } from "@/components/parts/field";
 import { Initials } from "@/components/parts/initials";
 import { Empty } from "@/components/parts/states";
+import { Fade } from "@/components/parts/fade";
 import { Tray } from "@/components/parts/tabs";
 import { TaskForm } from "@/components/making/task-form";
 import { FEED_FILTERS, FEED_HOME_CAP, inFilter, type FeedFilter, type FeedItem } from "@/lib/dashboard/your-feed";
@@ -174,7 +175,9 @@ function FeedEntry({
         <Opener item={item} onTask={onTask}>
           <span className="hm-feed-head">
             {item.unread && !sent && <span className="hm-feed-new" aria-label="New" />}
-            <b>{item.who.name}</b>
+            {/* a long name fades at its end and gives way to the rest of the
+                line, so the column never scrolls sideways (25 October) */}
+            <Fade className="hm-feed-name">{item.who.name}</Fade>
             <span className="hm-feed-what">{item.what}</span>
             {item.when && <span className="hm-feed-when">{item.when}</span>}
           </span>
@@ -245,11 +248,14 @@ function FeedEntry({
 export function HomeFeed({
   items,
   replyTo = null,
+  asked: pressed = 0,
   all = false,
   headingLevel = 2,
 }: {
   items: readonly FeedItem[];
   replyTo?: string | null;
+  /** how many times To do's Reply has been pressed on Home: each opens the box again */
+  asked?: number;
   /** The whole feed (Show all's page, /dashboard/feed); Home shows the first
       FEED_HOME_CAP, and the one To do's Reply named wherever it falls. */
   all?: boolean;
@@ -272,8 +278,10 @@ export function HomeFeed({
   const here = inFilter(items, filter).filter((i) => !gone.has(i.key));
   const named = (i: FeedItem) => !!replyTo && (i.notes ?? []).includes(replyTo);
   const capped = all ? here : here.slice(0, FEED_HOME_CAP);
-  const asked = all ? null : (here.slice(FEED_HOME_CAP).find(named) ?? null);
-  const shown = asked ? [...capped, asked] : capped;
+  /* the mention To do's Reply named goes FIRST, its box open, where the
+     press can see it: at the foot of the column it opened under the fold */
+  const asked = here.find(named) ?? null;
+  const shown = asked ? [asked, ...capped.filter((i) => i !== asked)] : capped;
   return (
     <section className="hm-sec hm-feed" aria-labelledby="hm-feed">
       <ColumnHead id="hm-feed" name="Your feed" icon="chat" hue="green" level={headingLevel}>
@@ -294,7 +302,7 @@ export function HomeFeed({
             <FeedEntry
               /* keyed by whether To do's Reply named it, so a Reply pressed
                  while Home is open opens its box */
-              key={`${item.key}${named(item) ? ":reply" : ""}`}
+              key={`${item.key}${named(item) ? `:reply:${pressed}` : ""}`}
               item={item}
               open={named(item)}
               onGone={(k) => setGone((g) => new Set([...g, k]))}

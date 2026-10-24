@@ -979,7 +979,7 @@ function JobsPanel({
       ) : null}
       {!canBook ? <p className="sc-off">Booking from here is off for you.</p> : null}
       {jobs === null ? (
-        <Loading what="Reading the jobs" shape="rows" count={6} />
+        <Loading what="Reading the jobs" />
       ) : list.length === 0 ? (
         <p className="sc-off">{tab === "recent" ? "No jobs opened lately." : q ? "No job matches that." : "Nothing to book."}</p>
       ) : (

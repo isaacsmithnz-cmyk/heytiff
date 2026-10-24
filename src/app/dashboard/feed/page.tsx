@@ -14,8 +14,8 @@ export default async function FeedPage({
   const [data, { reply }] = await Promise.all([loadDashboard(), searchParams]);
   const view = homeView(data);
   return (
-    <div className="page in full">
-      <div className="wrap hm">
+    <div className="page in">
+      <div className="wrap hm hm--all">
         <HomeFeed
           items={view.feed}
           replyTo={typeof reply === "string" && /^[0-9a-f-]{36}$/i.test(reply) ? reply : null}

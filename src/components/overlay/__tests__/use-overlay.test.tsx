@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { overlayOpen, useOverlay, useOverlayOpen, type OverlayOptions } from "../use-overlay";
+import { overlayOpen, useOverlay, type OverlayOptions } from "../use-overlay";
 
 /* THE OVERLAY STACK. Escape goes to the dialog in front and only to it, Tab
    goes round inside it, and focus goes back to what opened it. These
@@ -107,27 +107,6 @@ describe("Escape", () => {
     );
     esc();
     expect(card).not.toHaveBeenCalled();
-  });
-});
-
-describe("what is open", () => {
-  it("is known to the page underneath while a dialog is up", async () => {
-    const user = userEvent.setup();
-    const Probe = () => <output aria-label="over">{String(useOverlayOpen())}</output>;
-    render(
-      <>
-        <Probe />
-        <Opener name="Open card">{(close) => <Dialog name="Card" onEscape={close} />}</Opener>
-      </>,
-    );
-    expect(overlayOpen()).toBe(false);
-    expect(screen.getByRole("status", { name: "over" })).toHaveTextContent("false");
-    await user.click(screen.getByRole("button", { name: "Open card" }));
-    expect(overlayOpen()).toBe(true);
-    expect(screen.getByRole("status", { name: "over" })).toHaveTextContent("true");
-    act(() => esc());
-    expect(overlayOpen()).toBe(false);
-    expect(screen.getByRole("status", { name: "over" })).toHaveTextContent("false");
   });
 });
 

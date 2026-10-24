@@ -45,11 +45,6 @@ export type DotFieldStage = "gather" | "mark" | "cloud" | "fall";
     know, because the field lets go of the stage on its own. */
 export const GATHER_MS = 1420;
 
-/** How long the drop takes, start to last dot gone. The caller needs this to
-    know how long to keep the field mounted after the wait ends — see
-    `useDotFieldExit` — and the stylesheet needs it to match. */
-export const FALL_MS = 1100;
-
 export function DotField({
   stage,
   size = 268,
@@ -191,48 +186,4 @@ function useGather(live: DotFieldStage | null): DotFieldStage | null {
 
   if (!live || done) return null;
   return live === "mark" ? "gather" : null;
-}
-
-/**
- * Keeps the field on screen long enough to leave.
- *
- * A wait that ends unmounts the card's body, and an unmounted element cannot
- * animate — the cloud would simply blink out. This holds the last live stage
- * for the length of the drop and then lets go, so the caller can render the
- * field for exactly as long as it has something to do.
- *
- * THE CHANGE IS ANSWERED IN RENDER, NOT IN AN EFFECT. The first version did
- * all of this in a `useEffect` on `live`, which is the shape React's own
- * compiler rules refuse — `setState` in an effect body renders the tree,
- * commits it, and renders again, so the card painted one frame of the OLD
- * stage every single time it moved. (It also shipped `eslint` red: the rule
- * is `react-hooks/set-state-in-effect`, and it landed with the field.)
- *
- * What is left in an effect is the one thing that genuinely belongs there —
- * a timer — and its `setState` runs in the timer's own callback, which is
- * the sanctioned shape: subscribe to something outside React, tell React
- * when it fires.
- *
- * @param live  what the field should be right now, or null once the wait is over
- */
-export function useDotFieldExit(live: DotFieldStage | null): DotFieldStage | null {
-  const [seen, setSeen] = useState<DotFieldStage | null>(live);
-  const [shown, setShown] = useState<DotFieldStage | null>(live);
-
-  if (live !== seen) {
-    setSeen(live);
-    /* Only a cloud has anywhere to fall from — `shown` IS the answer to "was
-       it one", which is what the `wasCloud` ref used to carry. A recording
-       abandoned before the mic closes goes with the card rather than
-       performing an exit. */
-    setShown(live ?? (shown === "cloud" ? "fall" : null));
-  }
-
-  useEffect(() => {
-    if (shown !== "fall") return;
-    const t = setTimeout(() => setShown(null), FALL_MS);
-    return () => clearTimeout(t);
-  }, [shown]);
-
-  return shown;
 }

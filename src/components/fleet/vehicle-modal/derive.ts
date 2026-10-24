@@ -19,7 +19,6 @@ import { formatAbn } from "@/lib/fleet/receipt";
 import {
   FINANCE_KIND_LABEL,
   PAYMENTS_PER_YEAR,
-  RENEWAL_KINDS,
   expiryState,
   fmtKm,
   fmtCost,
@@ -72,16 +71,6 @@ export type LinkedScreen = RenewalKind | "add:service";
     builds a fresh one per render; the register takes it by identity. */
 export type VehicleLink = { id: string; screen: LinkedScreen | null };
 
-/** Read `?screen=`. Anything it doesn't name, an array included, is no
-    screen at all, and the card opens on its main screen: a link that half
-    works still opens the vehicle. */
-export function linkedScreen(raw: unknown): LinkedScreen | null {
-  if (raw === "add:service") return raw;
-  return typeof raw === "string" && (RENEWAL_KINDS as readonly string[]).includes(raw)
-    ? (raw as RenewalKind)
-    : null;
-}
-
 export const RENEWAL_TITLE: Record<RenewalKind, string> = {
   rego: "Registration",
   insurance: "Insurance",
@@ -126,7 +115,7 @@ export function renewalStatusText(days: number | null): string {
 }
 
 /** The renewal in force for a kind: the LATEST EXPIRY, not the newest upload —
-    the same rule as the vehicle's cache column and currentRenewalDocIds. */
+    the same rule as the vehicle's cache column. */
 export function currentPolicy(policies: readonly VehiclePolicy[], kind: RenewalKind): VehiclePolicy | null {
   return policies
     .filter((p) => p.kind === kind)

@@ -3,11 +3,8 @@ import {
   NAV_GROUPS,
   NAV_ROWS,
   SCREEN_ALIASES,
-  isActive,
   navFor,
-  navGroupsFor,
   navHref,
-  type NavItem,
   screenLabelFor,
   type NavViewer,
 } from "../nav";
@@ -19,7 +16,6 @@ import type { Role } from "@/lib/roles-shared";
    "Drop them entirely"): the eight places and your name's menu, the same
    list the sidebar draws (places.ts). */
 
-const byKey = (key: string) => NAV.find((n) => n.key === key) as NavItem;
 const viewer = (role: Role | null) => ({ caps: resolve(role), role });
 const keys = (v: NavViewer) => navFor(v).map((n) => n.key);
 
@@ -105,26 +101,11 @@ describe("capability gating", () => {
     expect(k).toEqual(expect.arrayContaining(["home", "team", "timesheet"]));
   });
 
-  it("drops a group left empty, never the ones with something in", () => {
-    expect(navGroupsFor(viewer("staff")).map((g) => g.label)).toEqual(["Places", "Yours"]);
-    expect(navGroupsFor(viewer("staff")).every((g) => g.items.length > 0)).toBe(true);
-  });
-
   it("names only real capabilities", () => {
     for (const n of NAV) {
       if (n.capability) expect(CAPABILITIES).toContain(n.capability);
       for (const c of n.anyOf ?? []) expect(CAPABILITIES).toContain(c);
     }
-  });
-});
-
-describe("isActive", () => {
-  it("lights Home only on its own address, and a place on its nested pages", () => {
-    expect(isActive(byKey("home"), "/dashboard")).toBe(true);
-    expect(isActive(byKey("home"), "/dashboard/team")).toBe(false);
-    expect(isActive(byKey("team"), "/dashboard/team/jordan-mills")).toBe(true);
-    expect(isActive(byKey("jobs"), "/dashboard/jobs/abc")).toBe(true);
-    expect(isActive(byKey("timesheet"), "/dashboard/my-leave")).toBe(false);
   });
 });
 

@@ -2,7 +2,6 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { Icon } from "@/components/shell/icon";
-import { Tooltip } from "@/components/parts/tooltip";
 import { createKbTag } from "@/app/actions/kb-tags";
 import {
   KB_TAG_COLORS,
@@ -193,57 +192,6 @@ export function TagPicker({
 
       {full && <p className="tgp-full">{KB_TAGS_PER_DOC_MAX} tags is the limit for one document.</p>}
     </div>
-  );
-}
-
-/* ── the read-only version: what a row wears ─────────────────────────────── */
-
-/** The pills on a library row. Clickable, because a tag on a document is also
-    the fastest way to find its siblings — which is what earns them the space
-    on a row that already carries a title, a meta line and a status. */
-export function TagPills({
-  tags,
-  max,
-  activeIds = [],
-  onPick,
-}: {
-  tags: KbTagRef[];
-  /** Past this many the rest collapse into "+N" — a row is not a tag cloud. */
-  max: number;
-  activeIds?: string[];
-  onPick?: (tagId: string) => void;
-}) {
-  if (tags.length === 0) return null;
-
-  const shown = tags.slice(0, max);
-  const rest = tags.length - shown.length;
-  const active = new Set(activeIds);
-
-  return (
-    <span className="tgl">
-      {shown.map((t) =>
-        onPick ? (
-          <button
-            key={t.id}
-            type="button"
-            className={`tgl-p${active.has(t.id) ? " on" : ""}`}
-            style={{ "--tgc": t.color } as React.CSSProperties}
-            onClick={() => onPick(t.id)}
-          >
-            {t.label}
-          </button>
-        ) : (
-          <span key={t.id} className="tgl-p" style={{ "--tgc": t.color } as React.CSSProperties}>
-            {t.label}
-          </span>
-        )
-      )}
-      {rest > 0 && (
-        <Tooltip label={tags.slice(max).map((t) => t.label).join(", ")}>
-          <span className="tgl-more">+{rest}</span>
-        </Tooltip>
-      )}
-    </span>
   );
 }
 

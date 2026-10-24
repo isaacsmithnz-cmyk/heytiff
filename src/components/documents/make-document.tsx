@@ -22,8 +22,6 @@ import { letterHref } from "@/lib/letters/letter";
    - Handover sheet: a project's sheet is printed from the project, so it
      goes to the projects, where a job is made a project. */
 
-export type MakeKind = "swms" | "certificate" | "letter" | "handover";
-
 const ON_A_JOB: Record<"swms" | "certificate", { heading: string; go: string }> = {
   swms: { heading: "Make a SWMS", go: "Make the SWMS" },
   certificate: { heading: "Make a certificate", go: "Make the certificate" },

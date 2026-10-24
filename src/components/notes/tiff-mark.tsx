@@ -121,44 +121,12 @@ function Defs({ ground }: { ground: Ground }) {
   );
 }
 
-/** The gradients one skin's marks draw from, for a layer that draws the rings
-    without a button of its own (the Tiff modal's flying rings). */
-export const TiffMarkDefs = Defs;
-
-/** A ring's line is drawn at r=48 of its 100 box: 0.96 of the box across.
-    Anything that takes over from a ring's line starts at this size. */
-export const RING_DRAWN = (2 * R) / 100;
-
 /** A ring's own colour, faint, on each ground: the ground's mono at rest
     (v2, rule 8); a working mark's rings take the colours in its stylesheet. */
 export const RING_COLOUR: Record<Ground, Record<"a" | "b", string>> = {
   ink: { a: MONO.ink, b: MONO.ink },
   paper: { a: MONO.paper, b: MONO.paper },
 };
-
-/* A GIMBAL RING THAT FLIES (the Tiff modal, ./tiff/modal/rings). The
-   button's run is a 120° dash on a circle under non-scaling-stroke, and
-   Chrome lays that dash out in screen pixels: on a 31px ring it covers the
-   whole ring, and on a 700px ring it repeats eight times. So a flying ring
-   carries both: `.runfull` is the button's own circle, identical to it as
-   it leaves, and `.runarc` a true 120° arc, the same run at any size. The
-   flight hands over from the first to the second while the ring is small. */
-export function FlyingRingSvg({ axis, ground, className }: { axis: "a" | "b"; ground: Ground; className: string }) {
-  const run = `url(#${axis === "a" ? IDS[ground].runA : IDS[ground].runB})`;
-  return (
-    <svg className={className} viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-      <circle className="tiffbtn-ring" cx="50" cy="50" r={R} style={{ stroke: RING_COLOUR[ground][axis] }} vectorEffect="non-scaling-stroke" />
-      <circle className="runfull" cx="50" cy="50" r={R} stroke={run} pathLength={360} strokeDasharray="120 240" vectorEffect="non-scaling-stroke" />
-      <path
-        className="runarc"
-        d={`M ${50 + R} 50 A ${R} ${R} 0 0 1 ${HEAD.x.toFixed(3)} ${HEAD.y.toFixed(3)}`}
-        stroke={run}
-        strokeLinecap="round"
-        vectorEffect="non-scaling-stroke"
-      />
-    </svg>
-  );
-}
 
 function Layer({ stroke, z, opacity, face }: { stroke: string; z: number; opacity: number; face?: boolean }) {
   return (

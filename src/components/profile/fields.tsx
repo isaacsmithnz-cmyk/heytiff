@@ -398,15 +398,6 @@ export function Seg({
 }
 
 /** A read-mode fact row for values that don't belong on the plastic card. */
-export function FactRow({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="ro-row">
-      <em>{label}</em>
-      <b>{value || <span className="ro-none">Not set</span>}</b>
-    </div>
-  );
-}
-
 /* A percentage you can SEE.
 
    Utilisation and the cost split were both numbers you could only reach by

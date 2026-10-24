@@ -94,9 +94,9 @@ export function moveBox(el: HTMLElement | null, dir: "open" | "close"): Promise<
  * its real box. A part mounted already shown does not grow unless it says
  * `appear` — the modal's own entrance covers everything it opens with.
  *
- * THE CHANGE IS ANSWERED IN RENDER, the way `useDotFieldExit` answers its
- * own: showing a part mounts it in the same render, and only the timer-like
- * part — the animation finishing — sets state from outside.
+ * THE CHANGE IS ANSWERED IN RENDER: showing a part mounts it in the same
+ * render, and only the timer-like part — the animation finishing — sets
+ * state from outside.
  */
 export function useBoxMotion(
   ref: RefObject<HTMLElement | null>,

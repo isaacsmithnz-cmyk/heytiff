@@ -185,7 +185,7 @@ describe("the Jobs list's views", () => {
       next: "Today",
       who: ["Kim Lee", "Dan West"],
     });
-    expect(row(rows, "project:p-native")).toMatchObject({ href: "/dashboard/workboard/projects/p-native", state: "Blocked", tone: "wrong" });
+    expect(row(rows, "project:p-native")).toMatchObject({ href: "/dashboard/jobs/projects/p-native", state: "Blocked", tone: "wrong" });
   });
 
   it("Agreements is the active and paused service agreements", () => {

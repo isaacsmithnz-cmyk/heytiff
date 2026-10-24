@@ -1,5 +1,6 @@
 "use client";
 
+import { quoteHref } from "@/lib/shell/links";
 import { projectHref } from "@/lib/shell/links";
 import { Fragment, Suspense, lazy, useEffect, useEffectEvent, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -242,8 +243,7 @@ const ExpenseForm = lazy(() => import("@/components/making/expense-form").then((
 
 /** Where a quote is made, as the Quote section's own link goes: a quote
     not started yet starts with Tiff. */
-const quotePage = (job: string, started: boolean) =>
-  `/dashboard/workboard/quotes/${encodeURIComponent(job)}${started ? "" : "?start=1"}`;
+const quotePage = (job: string, started: boolean) => quoteHref(job, { start: !started });
 
 const dayOf = (naive: string | null | undefined) =>
   naive && naive.length >= 10 ? naive.slice(0, 10) : null;

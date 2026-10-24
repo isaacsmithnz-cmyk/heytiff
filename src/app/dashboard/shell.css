@@ -428,7 +428,7 @@
    document screen uses — see the note at the top of toolbox.css. */
 .fg .cat { position:relative; background:var(--paper); border-radius:var(--r-card); border:1px solid var(--paper); transition:box-shadow var(--t-fast) var(--ease); height:100%; }
 .fg .cat:hover { }
-.fg .cat .ctop { position:absolute; top:0; left:0; right:0; height:6px; opacity:.8; z-index:10; border-radius:999px 999px 0 0; }
+
 .fg .cat .cin { padding:32px; position:relative; z-index:10; }
 
 .fg .odu { padding:24px; border-radius:var(--r-card); background:var(--tint); border:1px solid var(--tint);  box-shadow:inset 0 2px 4px var(--line); }
@@ -4271,25 +4271,6 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
 /* the capture pill rides at the row's right end, sitting slightly proud of
    the tab baseline so it reads as a tool, not a sixth tab */
 .wb2-vtcap { margin-left:auto; display:flex; align-items:center; gap:8px; padding-bottom:8px; flex:none; }
-/* THE UNIVERSAL SEARCH FIELD lives in that slot on all three boards, beside
-   the ServiceM8 health chip — which puts it just above the white card on
-   every side and every tab, and is the whole argument for it. It sits proud
-   of the tab baseline the way the capture pill did, so it reads as a tool
-   rather than as one more tab.
-
-   It is not caught by the `.fg button` / `.fg input` resets: both exclude
-   anything carrying a `wb2-` class outright (see the top of this file), which
-   is what keeps a (0,1,1) reset off a (0,1,0) component rule here. */
-.wb2-find { display:flex; align-items:center; gap:8px; height:36px; padding:0 4px 0 12px; border-radius:var(--r-pill);
-  border:1px solid var(--wb2-line); background:var(--paper); color:var(--gray500); flex:0 1 320px; min-width:210px; }
-.wb2-find:focus-within { border-color:var(--info-t); box-shadow:var(--ring);; }
-.wb2-find input { flex:1; min-width:0; border:0; background:none; font:inherit; font-size:13px; font-weight:600;
-  color:var(--ink); outline:none; }
-.wb2-find input::placeholder { color:var(--q); font-weight:500; }
-/* Chrome draws its own clear cross on type=search. Ours is the one that also
-   empties the results and lets go of the mirror's answer, so the native one
-   comes off rather than sitting beside it doing half the job. */
-.wb2-find input::-webkit-search-cancel-button { -webkit-appearance:none; appearance:none; }
 
 /* THE TAB ROW RUNS OUT OF ROOM BEFORE THE SEARCH DOES. Five tabs, the mirror
    chip and the field's 210px floor want ~955px of CARD, and the shell (rail +
@@ -4314,7 +4295,7 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
   .wb2-vtabs { flex-wrap:wrap-reverse; padding-left:0; }
   .wb2-vtabs .wb2-vt:first-of-type { margin-left:32px; }
   .wb2-vtcap { flex:1 0 100%; margin:0 0 8px; padding-bottom:0; }
-  .wb2-find { flex:1 1 auto; }
+  
 }
 /* ── the tabs' own row ──
    The band that holds them is the page header now (`lead` + tabs + `tools`),
@@ -6601,8 +6582,6 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
 .fg .page.full .wb2-vtcap:not(:has(.wb2-find)) { flex:none; }
 .fg .page.full .wb2-headtools .pbtn { white-space:nowrap; }
 
-/* the search and Display mode stand at the band's control height (law 33) */
-.fg .page.full .wb2-find { height:36px; flex:0 1 240px; min-width:120px; border-radius:var(--r-button); }
 .fg .page.full .wb2-headtools { flex:none; }
 .fg .page.full .wb2-headtools .pbtn { height:36px; padding:0 12px; font-size:var(--fs-2); font-weight:var(--fw-heading); }
 /* Escape out of display mode hands focus back to this button, and it had no
@@ -6619,7 +6598,7 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
   .fg .page.full .wb2-vtrow { flex:0 1 auto; min-width:0; overflow-x:auto; scrollbar-width:none; }
   .fg .page.full .wb2-vtrow::-webkit-scrollbar { display:none; }
   .fg .page.full .wb2-vtcap { flex:none; }
-  .fg .page.full .wb2-find { flex:0 0 120px; }
+  
 }
 
 /* ONE PAPER SURFACE, SO THE CARD STOPS BEING A CARD, AND THE TABS STOP BEING

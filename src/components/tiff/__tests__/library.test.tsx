@@ -1193,6 +1193,18 @@ describe("the Toolbox view", () => {
     expect(window.location.search).toBe("?view=toolbox");
   });
 
+  /* the tools without the Library (24 October 2026, in place of the old
+     Toolbox screen): the Toolbox shelf, and nothing of the documents */
+  it("(F) is the Toolbox shelf alone for someone with the tools and not the Library", async () => {
+    render(<Library docs={[]} documents={false} toolbox={{ today: TODAY }} initialView="toolbox" />);
+    expect(screen.getByRole("heading", { level: 1, name: "Toolbox" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Heat Load" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "‹ Library" }));
+    expect(screen.queryByRole("textbox", { name: "Ask the Library anything" })).toBeNull();
+    const shelves = within(screen.getByRole("navigation", { name: "Categories" })).getAllByRole("button");
+    expect(shelves.map((b) => b.textContent)).toEqual([expect.stringMatching(/^Toolbox/)]);
+  });
+
   it("ignores the address's shelf for someone without the tools", () => {
     render(<Library docs={[doc()]} initialView="toolbox" />);
     expect(screen.queryByRole("button", { name: /^Toolbox/ })).toBeNull();

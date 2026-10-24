@@ -38,7 +38,7 @@ export function ToolPage({
         <div className="stg">
           <ScreenBand
             crumb={
-              <Link href="/dashboard/toolbox" className="tback">
+              <Link href="/dashboard/tiff/library?view=toolbox" className="tback">
                 <Icon name="chevL" size={15} />
                 Toolbox
               </Link>

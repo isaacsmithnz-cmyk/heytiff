@@ -216,7 +216,7 @@ describe("a server action", () => {
   });
 
   test("goes through without the session's cookie set again", async () => {
-    const res = await proxy(action("https://go.hey-tiff.com/dashboard/workboard/quotes/job-1"));
+    const res = await proxy(action("https://go.hey-tiff.com/dashboard/jobs/job-1/quote"));
     expect(res.status).toBe(200);
     expect(res.headers.get("set-cookie")).toBeNull();
     expect(middlewareSpy).not.toHaveBeenCalled();

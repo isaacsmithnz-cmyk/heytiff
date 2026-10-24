@@ -32,7 +32,17 @@ export const clientHref = (name: string) => `/dashboard/jobs?q=${encodeURICompon
 /** The projects: Jobs' Projects view. */
 export const projectsHref = "/dashboard/jobs?view=projects";
 
-export const projectHref = (id: string) =>`/dashboard/workboard/projects/${encodeURIComponent(id)}`;
+/** A project's own page, under Jobs (24 October 2026; it was the
+    Workboard's, whose old address still lands here). */
+export const projectHref = (id: string) => `/dashboard/jobs/projects/${encodeURIComponent(id)}`;
+
+/** A job's quote, full screen, under its job (24 October 2026; it was the
+    Workboard's): `start` opens with the reply box ready for the brief, and
+    `option` on that option. */
+export const quoteHref = (job: string, opts: { start?: boolean; option?: number | null } = {}) => {
+  const q = [opts.start ? "start=1" : null, opts.option != null ? `option=${opts.option}` : null].filter(Boolean).join("&");
+  return `/dashboard/jobs/${encodeURIComponent(job)}/quote${q ? `?${q}` : ""}`;
+};
 
 /** A maintenance visit opens its sheet over Jobs, the record host reading
     `?open=visit.<id>` (records/ref): the Workboard it opened on is retired

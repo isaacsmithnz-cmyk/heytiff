@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { projectHref } from "@/lib/shell/links";
 import { revalidateHome } from "@/lib/shell/revalidate-home";
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
@@ -260,7 +261,7 @@ async function context(): Promise<Ctx | null> {
 function refresh(target?: NoteTarget) {
   revalidatePath("/dashboard/jobs");
   if (target?.kind === "project" && target.id) {
-    revalidatePath(`/dashboard/workboard/projects/${target.id}`);
+    revalidatePath(projectHref(target.id));
   }
   /* Agreement and visit notes need nothing beyond the board: an agreement now
      opens in a sheet ON the board rather than at a route of its own, so the

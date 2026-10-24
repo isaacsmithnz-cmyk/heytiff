@@ -104,7 +104,8 @@ function NewButton({ newJob }: { newJob: boolean }) {
     { key: "task", label: "Task", lead: <Icon name="listCheck" size={16} /> },
     { key: "note", label: "Note", lead: <Icon name="note" size={16} /> },
   ];
-  const onJob = pathname.match(/^\/dashboard\/jobs\/([^/?#]+)/);
+  /* a job's page and its quote; a project's page is under Jobs too, and is not a job */
+  const onJob = pathname.match(/^\/dashboard\/jobs\/(?!projects(?:[/?#]|$))([^/?#]+)/);
   const job: TaskJob | null = onJob
     ? { uuid: decodeURIComponent(onJob[1]), label: pageName(names, pathname)?.label ?? "This job" }
     : null;

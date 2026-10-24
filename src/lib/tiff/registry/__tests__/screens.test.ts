@@ -143,7 +143,7 @@ describe("open_record", () => {
       label: "Dane Porter's card",
     });
     expect(await outcome(all, "open_record", { kind: "project", id: "p-1" })).toMatchObject({
-      href: "/dashboard/workboard/projects/p-1",
+      href: "/dashboard/jobs/projects/p-1",
       label: "Harbour Rd fit-out",
     });
     expect(await outcome(all, "open_record", { kind: "client", id: "c-1" })).toMatchObject({
@@ -181,7 +181,7 @@ describe("open_record", () => {
       const o = await outcome(all, "open_record", { kind, id });
       if (o.kind === "screen") moves.push(o.href);
     }
-    const record = /^\/dashboard\/(team\/[^/?]+|jobs\/[^/?]+|jobs\?q=[^&]+|workboard\/projects\/[^/?]+)$/;
+    const record = /^\/dashboard\/(team\/[^/?]+|jobs\/[^/?]+|jobs\?q=[^&]+|jobs\/projects\/[^/?]+)$/;
     for (const href of moves) expect(allowed.has(href) || record.test(href)).toBe(true);
     expect(moves.length).toBeGreaterThan(ALL_SCREENS.length - 2);
   });

@@ -52,7 +52,7 @@ const paper = {
   height: null,
   fromClaim: null,
 };
-const PAGE = "/dashboard/workboard/quotes/j-1";
+const PAGE = "/dashboard/jobs/j-1/quote";
 const isMain = (el: HTMLElement) => el.classList.contains("pt-btn--main");
 
 beforeEach(() => {

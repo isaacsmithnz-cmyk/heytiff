@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { acknowledgeTask } from "@/app/actions/assignments";
+import { resolveIssue } from "@/app/actions/dashboard";
 import { replyToJobNote, type ReplyResult } from "@/app/actions/job-note-sm8";
 import { Button } from "@/components/parts/button";
 import { TextInput } from "@/components/parts/field";
 import { Initials } from "@/components/parts/initials";
 import { Empty } from "@/components/parts/states";
 import { Tray } from "@/components/parts/tabs";
+import { TaskForm } from "@/components/making/task-form";
 import { FEED_FILTERS, inFilter, type FeedFilter, type FeedItem } from "@/lib/dashboard/your-feed";
 import { Icon } from "@/components/shell/icon";
 import { ColumnHead } from "./home-todo";
@@ -21,6 +24,11 @@ import { ColumnHead } from "./home-todo";
    where they sit: Reply to a mention opens a box under it and sends through
    the job card's own reply (it goes to ServiceM8 as you, and closes the task
    the ask made); Got it takes work given to you; the rest open their page.
+   The item itself opens too (Isaac, 24 October 2026: "Everything on that
+   feed and notes should be interactive"): its words go where it is about,
+   or open the task it is over Home. A field issue with nothing to open is
+   made a task (the task form, its words filled in, and the issue closes
+   once the task is saved) or Done (closed) where it sits.
 
    The filter is remembered on this device (a convenience, so it can be lost
    with nothing lost). */
@@ -109,7 +117,40 @@ function ReplyBox({ item, onSent }: { item: FeedItem; onSent: (words: string) =>
 
 const THING_ICON: Record<FeedItem["filter"], string> = { approvals: "check", you: "note", jobs: "folder" };
 
-function FeedEntry({ item, onGone, open = false }: { item: FeedItem; onGone: (key: string) => void; open?: boolean }) {
+/** A field issue made a task: its words, and the issue the saved task closes. */
+type MakeTask = { title: string; issueId: string };
+
+/** The item's words, as the door to what it is about. */
+function Opener({ item, onTask, children }: { item: FeedItem; onTask: (taskId: string) => void; children: ReactNode }) {
+  const open = item.open;
+  if (open && "href" in open)
+    return (
+      <Link className="hm-feed-open" href={open.href}>
+        {children}
+      </Link>
+    );
+  if (open)
+    return (
+      <button type="button" className="hm-feed-open" onClick={() => onTask(open.taskId)}>
+        {children}
+      </button>
+    );
+  return <span className="hm-feed-words">{children}</span>;
+}
+
+function FeedEntry({
+  item,
+  onGone,
+  onTask,
+  onMakeTask,
+  open = false,
+}: {
+  item: FeedItem;
+  onGone: (key: string) => void;
+  onTask: (taskId: string) => void;
+  onMakeTask: (m: MakeTask) => void;
+  open?: boolean;
+}) {
   const router = useRouter();
   /* To do's Reply lands here with this mention's box already open */
   const [replying, setReplying] = useState(open && !!item.reply);
@@ -130,13 +171,15 @@ function FeedEntry({ item, onGone, open = false }: { item: FeedItem; onGone: (ke
         <Initials name={item.who.name} size={32} beside />
       )}
       <div className="hm-feed-body">
-        <p className="hm-feed-head">
-          {item.unread && !sent && <span className="hm-feed-new" aria-label="New" />}
-          <b>{item.who.name}</b>
-          <span className="hm-feed-what">{item.what}</span>
-          {item.when && <span className="hm-feed-when">{item.when}</span>}
-        </p>
-        {item.said && <p className="hm-feed-said">{item.reply ? `"${item.said}"` : item.said}</p>}
+        <Opener item={item} onTask={onTask}>
+          <span className="hm-feed-head">
+            {item.unread && !sent && <span className="hm-feed-new" aria-label="New" />}
+            <b>{item.who.name}</b>
+            <span className="hm-feed-what">{item.what}</span>
+            {item.when && <span className="hm-feed-when">{item.when}</span>}
+          </span>
+          {item.said && <span className="hm-feed-said">{item.reply ? `"${item.said}"` : item.said}</span>}
+        </Opener>
         {yours && <p className="hm-feed-yours">You: {yours}</p>}
         {replying && !sent ? (
           <ReplyBox
@@ -160,6 +203,24 @@ function FeedEntry({ item, onGone, open = false }: { item: FeedItem; onGone: (ke
                   {act.label}
                 </Button>
               )}
+              {act?.kind === "issue" && (
+                <>
+                  <Button size={32} onClick={() => onMakeTask({ title: act.title, issueId: act.issueId })}>
+                    Make it a task
+                  </Button>
+                  <Button
+                    size={32}
+                    onClick={() => {
+                      onGone(item.key);
+                      void resolveIssue(act.issueId)
+                        .catch(() => null)
+                        .then(() => router.refresh());
+                    }}
+                  >
+                    Done
+                  </Button>
+                </>
+              )}
               {act?.kind === "gotit" && (
                 <Button
                   size={32}
@@ -182,6 +243,10 @@ function FeedEntry({ item, onGone, open = false }: { item: FeedItem; onGone: (ke
 }
 
 export function HomeFeed({ items, replyTo = null }: { items: readonly FeedItem[]; replyTo?: string | null }) {
+  const router = useRouter();
+  /* a task's own form over Home: one the item is, or a field issue's to make */
+  const [task, setTask] = useState<string | null>(null);
+  const [making, setMaking] = useState<MakeTask | null>(null);
   const kept = useSyncExternalStore(subscribe, readKept, () => null);
   /* chosen here before it could be kept (storage refused) still filters */
   const [chosen, setChosen] = useState<FeedFilter | null>(null);
@@ -209,9 +274,25 @@ export function HomeFeed({ items, replyTo = null }: { items: readonly FeedItem[]
               item={item}
               open={!!replyTo && (item.notes ?? []).includes(replyTo)}
               onGone={(k) => setGone((g) => new Set([...g, k]))}
+              onTask={setTask}
+              onMakeTask={setMaking}
             />
           ))}
         </ul>
+      )}
+      {task && <TaskForm taskId={task} onClose={() => setTask(null)} onChanged={() => router.refresh()} />}
+      {making && (
+        <TaskForm
+          startWith={making.title}
+          onClose={() => setMaking(null)}
+          onChanged={() => {
+            const issueId = making.issueId;
+            setGone((g) => new Set([...g, `issue:${issueId}`]));
+            void resolveIssue(issueId)
+              .catch(() => null)
+              .then(() => router.refresh());
+          }}
+        />
       )}
     </section>
   );

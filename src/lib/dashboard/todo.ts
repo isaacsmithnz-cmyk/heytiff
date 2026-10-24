@@ -31,7 +31,9 @@
    bell's count, and the board draws it smaller than To do's (3 and 9). */
 
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
-import { jobPageHref, visitHref } from "@/lib/shell/links";
+import { recordHref } from "@/lib/records/ref";
+import { jobPageHref, projectHref, visitHref } from "@/lib/shell/links";
+import type { HomeIssue } from "./issues";
 import { assignmentLine, assignmentsNotAlreadyDue, type NewAssignment } from "./assignments";
 import { LIST_CHIP_KINDS, type Dot, type HomeList, type ListAlertRow, type ListRow } from "./home-list";
 import type { ActionChip, ChipKind } from "./chips";
@@ -48,7 +50,9 @@ export type TodoAct =
   | { kind: "gotit"; taskId: string }
   | { kind: "bookIn"; label: "Book in"; jobUuid: string; href: string }
   /** a task's Open: its own form over Home (Isaac, 24 October 2026), never the old desk */
-  | { kind: "task"; label: "Open"; taskId: string };
+  | { kind: "task"; label: "Open"; taskId: string }
+  /** a field issue with nothing to open: Make it a task, or Done, in Your feed */
+  | { kind: "issue"; issueId: string; title: string };
 
 export type TodoSource = "reminder" | "assignment" | "alert" | "list" | "timesheets" | "notice";
 
@@ -108,9 +112,6 @@ export const TODO_HOME_CAP = 6;
 const fmt = fmtAuWeekdayDayMonth;
 const enc = encodeURIComponent;
 
-/** The Diary, where an entry, a mention or a field issue with no job is
-    read until v2 gives the Diary a place (the v2 audit, 20 October 2026). */
-export const DESK_DIARY = "/dashboard/desk?face=diary";
 /** A mention's Reply: on Home, in Your feed, where it is answered in place (20 October 2026). */
 export const deskAskHref = (noteUuid: string) => `/dashboard?reply=${enc(noteUuid)}`;
 
@@ -187,11 +188,28 @@ function listAlertAct(r: ListAlertRow): TodoAct {
   const d = r.door;
   if (d.to === "task") return { kind: "task", label: "Open", taskId: d.id };
   const href =
-    d.to === "href" ? d.href : d.to === "job" ? jobPageHref(d.remoteId) : DESK_DIARY;
+    d.to === "href" ? d.href : d.to === "job" ? jobPageHref(d.remoteId) : d.to === "mention" ? deskAskHref(d.id) : "/dashboard";
   /* a paper with no verb of its own is renewed where the row lands; a
      service is the vehicle's, opened */
   const paper = r.id.startsWith("chip:") && !/^Service\b/.test(r.sub);
   return { kind: "link", label: paper ? "Renew" : "Open", href };
+}
+
+/** Where a field issue opens: what it is about, or null for nothing. */
+function issueHref(i: HomeIssue): string | null {
+  if (!i.targetId) return null;
+  switch (i.targetKind) {
+    case "job":
+      return jobPageHref(i.targetId);
+    case "visit":
+      return visitHref(i.targetId);
+    case "agreement":
+      return recordHref({ kind: "agreement", id: i.targetId });
+    case "project":
+      return projectHref(i.targetId);
+    case "none":
+      return null;
+  }
 }
 
 /** A sentence's full stop goes: a row's line is a phrase. */
@@ -236,16 +254,22 @@ function listRows(list: HomeList): TodoRow[] {
           });
           break;
         case "issue": {
-          const job = r.issue.targetKind === "job" && r.issue.targetId ? r.issue.targetId : null;
+          /* one on a job, a visit, an agreement or a project is To do's and
+             opens it; one with none is Your feed's, made a task or done
+             there (Isaac, 24 October 2026: the desk's last doors) */
+          const href = issueHref(r.issue);
           out.push({
             key: r.id,
             source: "list",
+            ...(href ? {} : { col: "activity" as const }),
             tone: toneOfDot(r.dot),
             name: r.title,
             line: phrase(r.sub),
             lineTone: false,
             tick: null,
-            act: { kind: "link", label: "Open", href: job ? jobPageHref(job) : DESK_DIARY },
+            act: href
+              ? { kind: "link", label: "Open", href }
+              : { kind: "issue", issueId: r.issue.id, title: r.issue.summary },
           });
           break;
         }

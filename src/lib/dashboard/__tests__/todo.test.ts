@@ -299,6 +299,30 @@ describe("the old list's rows", () => {
     expect(byKey(rows, "issue:i1")).toMatchObject({ tone: "look", act: { label: "Open", href: "/dashboard/jobs/j7" } });
   });
 
+  /* the desk's last doors (Isaac, 24 October 2026): an issue about nothing
+     is Your feed's, made a task or Done there; one on a visit, an
+     agreement or a project opens it */
+  it("(F) an issue about nothing goes to Your feed with Make it a task and Done; one on a visit or agreement opens it", () => {
+    const issue = (id: string, targetKind: "none" | "visit" | "agreement", targetId: string | null) => ({
+      id,
+      summary: "Ute 2's reverse camera is out again",
+      equipmentRef: null,
+      occurrences: 1,
+      firstSeen: DAY,
+      lastSeen: DAY,
+      targetKind,
+      targetId,
+      where: null,
+    });
+    const list = listOf({ issues: [issue("i1", "none", null), issue("i2", "visit", "v2"), issue("i3", "agreement", "a3")] });
+    const rows = todoRows(input({ list }));
+    expect(byKey(rows, "issue:i1")).toMatchObject({ col: "activity", act: { kind: "issue", issueId: "i1", title: "Ute 2's reverse camera is out again" } });
+    expect(byKey(rows, "issue:i2")).toMatchObject({ act: { kind: "link", label: "Open", href: "/dashboard/jobs?open=visit.v2" } });
+    expect(byKey(rows, "issue:i3")).toMatchObject({ act: { kind: "link", label: "Open", href: "/dashboard/jobs?open=agreement.a3" } });
+    expect(byKey(rows, "issue:i2").col).toBeUndefined();
+    expect(JSON.stringify(rows)).not.toContain("/dashboard/desk");
+  });
+
   it("keeps the older won jobs as one row, Book on the board", () => {
     const wins = ["j1", "j2"].map((id, i) => ({ job: job({ remoteId: id, jobNumber: `30${i}` }), wonOn: "2026-09-01" }));
     const rows = todoRows(input({ list: listOf({ wins }) }));

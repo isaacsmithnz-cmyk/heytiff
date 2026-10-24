@@ -12,7 +12,17 @@ jest.mock("@/app/actions/job-note-sm8", () => ({ replyToJobNote: (...a: unknown[
 const acknowledgeTask = jest.fn(async () => ({ ok: true }));
 jest.mock("@/app/actions/assignments", () => ({ acknowledgeTask: (...a: unknown[]) => acknowledgeTask(...(a as [])) }));
 /* the column's head is To do's, whose module brings To do's own actions */
-jest.mock("@/app/actions/dashboard", () => ({ completeTask: jest.fn(), reopenTask: jest.fn() }));
+const resolveIssue = jest.fn(async () => ({ ok: true }));
+jest.mock("@/app/actions/dashboard", () => ({ completeTask: jest.fn(), reopenTask: jest.fn(), resolveIssue: (...a: unknown[]) => resolveIssue(...(a as [])) }));
+/* the task's own form, as a stand-in that says what it was opened on */
+jest.mock("@/components/making/task-form", () => ({
+  TaskForm: (p: { taskId?: string | null; startWith?: string; onClose: () => void; onChanged?: () => void }) => (
+    <div role="dialog" aria-label="Task">
+      {p.taskId ? `task ${p.taskId}` : `new: ${p.startWith}`}
+      <button onClick={() => (p.onChanged?.(), p.onClose())}>Save</button>
+    </div>
+  ),
+}));
 jest.mock("@/app/actions/reminders", () => ({ snoozeReminder: jest.fn() }));
 jest.mock("@/app/actions/booking-sm8", () => ({ readBookInContext: jest.fn(), bookJobIn: jest.fn(), takeBackBooking: jest.fn() }));
 
@@ -28,6 +38,7 @@ const item = (over: Partial<FeedItem> & Pick<FeedItem, "key" | "filter">): FeedI
   unread: false,
   act: null,
   reply: null,
+  open: null,
   ...over,
 });
 
@@ -51,7 +62,7 @@ const list = () => screen.getByRole("list", { name: "Your feed" });
 afterEach(() => {
   cleanup();
   localStorage.clear();
-  [refresh, replyToJobNote, acknowledgeTask].forEach((m) => m.mockClear());
+  [refresh, replyToJobNote, acknowledgeTask, resolveIssue].forEach((m) => m.mockClear());
 });
 
 it("(F) is Your feed, with All, To you, Jobs and Approvals, and no count", () => {
@@ -122,4 +133,45 @@ it("(F) draws an approval with an icon, not initials as if it were a person", ()
   const row = within(list()).getByText("Leave to approve").closest("li")!;
   expect(row.querySelector(".hm-feed-av--thing")).not.toBeNull();
   expect(row.querySelector(".pt-initials")).toBeNull();
+});
+
+/* Isaac, 24 October 2026: "Everything on that feed and notes should be interactive" */
+it("(F) opens what an item is about from its words: a page, or the task it is over Home", async () => {
+  render(
+    <HomeFeed
+      items={[
+        { ...LEAVE, open: { href: "/dashboard/team?view=leave" } },
+        { ...GIVEN, open: { taskId: "t1" } },
+      ]}
+    />,
+  );
+  expect(within(list()).getByRole("link", { name: /Leave to approve/ })).toHaveAttribute("href", "/dashboard/team?view=leave");
+  await userEvent.click(within(list()).getByRole("button", { name: /Order the PEAD/ }));
+  expect(screen.getByRole("dialog", { name: "Task" })).toHaveTextContent("task t1");
+});
+
+const ISSUE = item({
+  key: "issue:i1",
+  filter: "you",
+  who: { name: "Ute 2's reverse camera is out again", sm8: false, thing: true },
+  what: "New today",
+  act: { kind: "issue", issueId: "i1", title: "Ute 2's reverse camera is out again" },
+});
+
+it("(F) makes a field issue with nothing to open a task, closing the issue once the task is saved", async () => {
+  render(<HomeFeed items={[ISSUE]} />);
+  await userEvent.click(within(list()).getByRole("button", { name: "Make it a task" }));
+  const form = screen.getByRole("dialog", { name: "Task" });
+  expect(form).toHaveTextContent("new: Ute 2's reverse camera is out again");
+  expect(resolveIssue).not.toHaveBeenCalled();
+  await userEvent.click(within(form).getByRole("button", { name: "Save" }));
+  expect(resolveIssue).toHaveBeenCalledWith("i1");
+  expect(screen.queryByText("Ute 2's reverse camera is out again")).toBeNull();
+});
+
+it("(F) Done closes a field issue where it sits", async () => {
+  render(<HomeFeed items={[ISSUE]} />);
+  await userEvent.click(within(list()).getByRole("button", { name: "Done" }));
+  expect(resolveIssue).toHaveBeenCalledWith("i1");
+  expect(screen.queryByText("Ute 2's reverse camera is out again")).toBeNull();
 });

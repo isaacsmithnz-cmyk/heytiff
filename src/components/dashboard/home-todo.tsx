@@ -156,6 +156,8 @@ export function TodoList({ rows, label, cap }: { rows: readonly TodoRow[]; label
           Open
         </Button>
       );
+    /* a field issue with nothing to open is Your feed's, never To do's */
+    if (a.kind === "issue") return null;
     if (a.kind === "bookIn")
       return (
         <Button size={32} aria-label={`${a.label}, ${row.name}`} onClick={() => setBooking({ uuid: a.jobUuid, label: row.name })}>

@@ -7,6 +7,7 @@ import { useToast } from "@/components/parts/toast";
 import { useSectionSave } from "@/components/profile/use-section-save";
 import type { SaveResult } from "@/components/profile/types";
 import type { PreValidation } from "@/lib/staff/pre-validate";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* A SETTINGS SECTION'S PIECES (v2, 25 October 2026; the mock
    BRjnFN2dsMPoruBt32rs6P). A section is its title and groups under thin
@@ -177,26 +178,25 @@ export function useSelfSave(onSave: (fields: Record<string, string>) => Promise<
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
 
-  const write = async (field: string, value: string, was: string, said: string) => {
+  /* withCleanup, not try/finally: React Compiler gives up on a hook with a
+     finalizer in it (lib/ui/with-cleanup). The catch is the network's. */
+  const write = (field: string, value: string, was: string, said: string) => {
     setError(null);
     setPending(field);
-    try {
-      const res = await onSave({ [field]: value });
-      if (!res.ok) {
-        setError(res.error);
-        return;
-      }
-      toast({
-        text: said,
-        undo: () => {
-          void onSave({ [field]: was });
-        },
-      });
-    } catch {
-      setError("Couldn't save that. Check your connection and try again.");
-    } finally {
-      setPending(null);
-    }
+    return withCleanup(
+      () =>
+        onSave({ [field]: value }).then(
+          (res) => {
+            if (!res.ok) {
+              setError(res.error);
+              return;
+            }
+            toast({ text: said, undo: () => void onSave({ [field]: was }) });
+          },
+          () => setError("Couldn't save that. Check your connection and try again."),
+        ),
+      () => setPending(null),
+    );
   };
 
   return { write, error, pending };

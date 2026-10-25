@@ -82,11 +82,20 @@ const CRON_PATH = "/api/cron/";
    here so the proxy loads nothing of ServiceM8's. */
 const HOOK_PATH = "/api/integrations/servicem8/webhook/";
 
+/* THE PHONE'S ROUTES ARE LET THROUGH TOO (native app, phase 1). The phone
+   carries no cookie, only Auth0's access token, which the route itself
+   checks (lib/mobile/auth): there is no session here to roll and nothing to
+   redirect to sign-in. And not moved to the canonical host either: a
+   redirected fetch drops its Authorization header on the way, so a 308 here
+   would answer every call from the phone with a 401 it could not explain. */
+export const MOBILE_PATH = "/api/mobile/";
+
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   if (path.startsWith(CRON_PATH)) return NextResponse.next();
   if (path.startsWith(HOOK_PATH)) return NextResponse.next();
+  if (path.startsWith(MOBILE_PATH)) return NextResponse.next();
 
   const moved = canonicalHostRedirect(request);
   if (moved) return moved;
@@ -149,9 +158,10 @@ export const config = {
      nothing except doing it on every one of them.
 
      ServiceM8's pings (HOOK_PATH above) are left out too, so the proxy never
-     runs on a machine's call at all; the check at the top of proxy() stays,
-     for a matcher that ever drifts. proxy.test holds both. */
+     runs on a machine's call at all, and so are the phone's routes
+     (MOBILE_PATH); the checks at the top of proxy() stay, for a matcher that
+     ever drifts. proxy.test holds both. */
   matcher: [
-    "/((?!_next/static|_next/image|brand/|favicon.ico|sitemap.xml|robots.txt|api/integrations/servicem8/webhook/).*)",
+    "/((?!_next/static|_next/image|brand/|favicon.ico|sitemap.xml|robots.txt|api/integrations/servicem8/webhook/|api/mobile/).*)",
   ],
 };

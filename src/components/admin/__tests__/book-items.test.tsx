@@ -1,8 +1,11 @@
 /* The price book's items: the whole book once, then Most used (by quotes),
    a shelf in families, units by maker and type, and a search — all sorted
-   in the browser with nothing more asked of the server. A supplier's price
-   pressed prefers it at once, and is put back if refused. */
+   in the browser with nothing more asked of the server. A part is a row of
+   the table, with what it costs and what it sells at; opened, every
+   supplier's price, and Make preferred puts one forward at once, put back
+   if refused. */
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { BookItems } from "../book-items";
 import type { Product } from "@/lib/quotes/families";
 
@@ -26,7 +29,7 @@ const product = (over: Partial<Product> & Pick<Product, "key" | "name" | "offers
 const coil = product({
   key: "aad|PC1412",
   name: "PAIRED COIL 1/4+1/2X20M",
-  offers: [offer("reece", "Reece", "9800006-1", "ARDENT PR CU 1/4 X 1/2", 18000), offer("aad", "AAD", "PC1412", "PAIRED COIL 1/4+1/2X20M", 19100)],
+  offers: [offer("reece", "Reece", "9800006-1", "ARDENT PR CU 1/4 X 1/2 20M", 18000), offer("aad", "AAD", "PC1412", "PAIRED COIL 1/4+1/2X20M", 19100)],
   quotes: 30,
 });
 const small = product({ key: "aad|PC1438", name: "PAIRED COIL 1/4+3/8X20M", offers: [offer("aad", "AAD", "PC1438", "PAIRED COIL 1/4+3/8X20M", 15747)] });
@@ -69,61 +72,92 @@ function serve(preferOk = true) {
   return { posted, asked };
 }
 
-it("opens on the parts on the most quotes, with every supplier's price", async () => {
+const show = async (user: ReturnType<typeof userEvent.setup>, option: string) => {
+  await user.click(screen.getByRole("combobox", { name: "Show" }));
+  await user.click(within(screen.getByRole("listbox")).getByRole("option", { name: option }));
+};
+
+it("opens on the parts on the most quotes, the item a quote takes and what it sells at", async () => {
   serve();
-  render(<BookItems />);
-  expect(await screen.findByText("PAIRED COIL 1/4+1/2X20M")).toBeInTheDocument();
-  expect(screen.getByRole("heading", { name: "Most used" })).toBeInTheDocument();
-  expect(screen.getByText("9800006-1, PC1412. On 30 quotes")).toBeInTheDocument();
+  render(<BookItems markupPct={40} />);
+  const name = await screen.findByRole("button", { name: "PAIRED COIL 1/4+1/2X20M" });
+  expect(screen.getByRole("combobox", { name: "Show" })).toHaveTextContent("Most used");
+  const row = name.closest(".st2-pb-row") as HTMLElement;
+  /* the lowest is what a quote takes: Reece's, a 20 m roll, sold by the metre at 40% */
+  expect(within(row).getByText("9800006-1, 20 m, on 30 quotes")).toBeInTheDocument();
+  expect(within(row).getByText("Reece and 1 more")).toBeInTheDocument();
+  expect(within(row).getByText("$180.00")).toBeInTheDocument();
+  expect(within(row).getByText("$12.60 a metre")).toBeInTheDocument();
   /* a part on no quote isn't most used */
   expect(screen.queryByText("PAIRED COIL 1/4+3/8X20M")).toBeNull();
-  /* the lowest price is in the state's green */
-  expect(screen.getByRole("button", { name: "Prefer Reece's 9800006-1 at $180.00" })).toHaveClass("ok");
+});
+
+it("opens a part onto every supplier's price, the lowest in the state's green", async () => {
+  serve();
+  render(<BookItems />);
+  fireEvent.click(await screen.findByRole("button", { name: "PAIRED COIL 1/4+1/2X20M" }));
+  const offers = within(screen.getByRole("list", { name: "PAIRED COIL 1/4+1/2X20M at each supplier" }));
+  expect(offers.getAllByRole("listitem")).toHaveLength(2);
+  expect(offers.getByText("$180.00")).toHaveClass("st2-pb-low");
+  expect(offers.getByText("$191.00")).not.toHaveClass("st2-pb-low");
+  /* no markup set: nothing is said to sell at a figure of ours */
+  expect(screen.queryByText(/a metre$/)).toBeNull();
 });
 
 it("asks the server once: shelves and searches are sorted here", async () => {
+  const user = userEvent.setup();
   const { asked } = serve();
   render(<BookItems />);
-  await screen.findByText("PAIRED COIL 1/4+1/2X20M");
-  fireEvent.click(screen.getByRole("button", { name: "Pipe and coil 2" }));
+  await screen.findByRole("button", { name: "PAIRED COIL 1/4+1/2X20M" });
+  await show(user, "Pipe and coil");
   fireEvent.change(screen.getByLabelText("Search the price book"), { target: { value: "zena" } });
-  fireEvent.click(screen.getByRole("button", { name: "Most used 1" }));
+  await show(user, "Most used");
   expect(screen.getByText("DAIKIN ZENA HWS IND 2.5KW R32")).toBeInTheDocument();
   expect(asked).toEqual(["/api/quoting/price-book"]);
 });
 
 it("prefers a supplier's price at once, the server working out the part's other codes", async () => {
+  const user = userEvent.setup();
   const { posted } = serve();
   render(<BookItems />);
-  const aad = await screen.findByRole("button", { name: "Prefer AAD's PC1412 at $191.00" });
+  fireEvent.click(await screen.findByRole("button", { name: "PAIRED COIL 1/4+1/2X20M" }));
   await act(async () => {
-    fireEvent.click(aad);
+    fireEvent.click(screen.getByRole("button", { name: "Prefer AAD's PC1412 at $191.00" }));
   });
   expect(posted).toEqual([{ ref: "aad|PC1412", on: true }]);
-  expect(screen.getByRole("button", { name: "Preferred AAD's PC1412 at $191.00" })).toHaveAttribute("aria-pressed", "true");
-  expect(within(screen.getByRole("navigation", { name: "Price book views" })).getByRole("button", { name: "Preferred 1" })).toBeInTheDocument();
+  expect(screen.getAllByText("Preferred")).toHaveLength(2);
+  expect(screen.getByRole("button", { name: "Stop preferring AAD's PC1412" })).toBeInTheDocument();
+  /* the row now shows the preferred item, not the lowest */
+  const row = screen.getByRole("button", { name: "PAIRED COIL 1/4+1/2X20M" }).closest(".st2-pb-row") as HTMLElement;
+  expect(within(row).getByText("$191.00")).toBeInTheDocument();
+  /* and the preferred view holds it */
+  await show(user, "Preferred");
+  expect(screen.getByRole("button", { name: "PAIRED COIL 1/4+1/2X20M" })).toBeInTheDocument();
 });
 
 it("puts a refused preference back and says why", async () => {
   serve(false);
   render(<BookItems />);
-  const aad = await screen.findByRole("button", { name: "Prefer AAD's PC1412 at $191.00" });
+  fireEvent.click(await screen.findByRole("button", { name: "PAIRED COIL 1/4+1/2X20M" }));
   await act(async () => {
-    fireEvent.click(aad);
+    fireEvent.click(screen.getByRole("button", { name: "Prefer AAD's PC1412 at $191.00" }));
   });
-  expect(screen.getByText("The price book needs money access.")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Prefer AAD's PC1412 at $191.00" })).toHaveAttribute("aria-pressed", "false");
+  expect(screen.getByRole("alert")).toHaveTextContent("The price book needs money access.");
+  expect(screen.getByRole("button", { name: "Prefer AAD's PC1412 at $191.00" })).toBeInTheDocument();
+  expect(screen.queryByText("Preferred")).toBeNull();
 });
 
 it("shows a shelf as families that open onto their sizes", async () => {
+  const user = userEvent.setup();
   serve();
   render(<BookItems />);
-  await screen.findByText("PAIRED COIL 1/4+1/2X20M");
-  fireEvent.click(screen.getByRole("button", { name: "Pipe and coil 2" }));
+  await screen.findByRole("button", { name: "PAIRED COIL 1/4+1/2X20M" });
+  await show(user, "Pipe and coil");
   const family = screen.getByRole("button", { name: /Paired coil/ });
   expect(family).toHaveAttribute("aria-expanded", "false");
-  expect(within(family).getByText("$157.47 to $180.00")).toBeInTheDocument();
-  expect(screen.getByText("2 parts in 1 family")).toBeInTheDocument();
+  const row = family.closest(".st2-pb-row") as HTMLElement;
+  expect(within(row).getByText("$157.47 to $180.00")).toBeInTheDocument();
+  expect(within(row).getByText("2 sizes")).toBeInTheDocument();
   expect(screen.queryByText("PAIRED COIL 1/4+3/8X20M")).not.toBeInTheDocument();
   fireEvent.click(family);
   expect(screen.getByText("PAIRED COIL 1/4+3/8X20M")).toBeInTheDocument();
@@ -131,12 +165,21 @@ it("shows a shelf as families that open onto their sizes", async () => {
 
 /* Isaac, 2026-10-05: "the unit section is very messy. Needs to be sorted by brand" */
 it("shows units by maker, A to Z, each maker's units by type in kW order", async () => {
+  const user = userEvent.setup();
   serve();
   render(<BookItems />);
-  await screen.findByText("PAIRED COIL 1/4+1/2X20M");
-  fireEvent.click(screen.getByRole("button", { name: "Units 3" }));
-  expect(screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Daikin2", "Fujitsu1"]);
+  await screen.findByRole("button", { name: "PAIRED COIL 1/4+1/2X20M" });
+  await show(user, "Units");
+  expect(screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Daikin", "Fujitsu"]);
   const daikinSection = screen.getByRole("region", { name: "Daikin" });
   fireEvent.click(within(daikinSection).getByRole("button", { name: /Wall split indoor/ }));
   expect(within(daikinSection).getAllByText(/DAIKIN ZENA/).map((e) => e.textContent)).toEqual(["DAIKIN ZENA HWS IND 2.5KW R32", "DAIKIN ZENA HWS IND 5KW R32"]);
+});
+
+it("says when nothing matches a search", async () => {
+  serve();
+  render(<BookItems />);
+  await screen.findByRole("button", { name: "PAIRED COIL 1/4+1/2X20M" });
+  fireEvent.change(screen.getByLabelText("Search the price book"), { target: { value: "nothing like this" } });
+  expect(screen.getByText("Nothing in the price book matches")).toBeInTheDocument();
 });

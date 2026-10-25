@@ -1,6 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Button } from "@/components/parts/button";
+import { Dialog } from "@/components/parts/dialog";
+import { Fade } from "@/components/parts/fade";
+import { TextInput } from "@/components/parts/field";
+import { Loading } from "@/components/parts/states";
+import { Tick } from "@/components/parts/tick";
+import { useToast } from "@/components/parts/toast";
+import { Group } from "@/components/settings/parts";
 import {
   RANGE_KINDS,
   lineLabel,
@@ -13,24 +21,24 @@ import {
   type RangeView,
 } from "@/lib/quotes/ranges";
 import { withCleanup } from "@/lib/ui/with-cleanup";
+import { dollars, Oops } from "./pb-bits";
 
-/* RANGES THAT COME IN SIZES (Isaac, 2026-10-04: "you pick one item, say
-   your Y 14-10-10, and Tiff finds the same range's other sizes in your
-   price book for you to confirm once").
+/* RANGES THAT COME IN SIZES, on Price book › What prices each part (Isaac,
+   2026-10-04: "you pick one item, say your Y 14-10-10, and Tiff finds the
+   same range's other sizes in your price book for you to confirm once").
 
    A kit needs its parts at a size — an isolator for the outdoor's current,
    a bracket that holds it, a Ø250 damper, a Y from 14" into two 10" — so
-   each is priced from the business's own range of it. Choose opens the
-   price book's product lines of that kind, the ones on the most quotes
-   first; pressing one lays out every size of it the book holds, each
-   read off its name, ticked; Add puts the ticked ones in. A bracket can
-   say the widest outdoor it takes (Isaac, 2026-09-30: the 180 kg one
-   doesn't fit a PUZ-ZM125). A size that can't be read off a name isn't
-   offered: it's said, not guessed. */
+   each is priced from the business's own range of it. A part's row opens
+   its range: what's in it, and the price book's product lines of that
+   kind, the ones on the most quotes first; Use on one lays out every size
+   of it the book holds, each read off its name, ticked; Add puts the
+   ticked ones in. A bracket can say the widest outdoor it takes (Isaac,
+   2026-09-30: the 180 kg one doesn't fit a PUZ-ZM125). A size that can't
+   be read off a name isn't offered: it's said, not guessed. */
 
 const ROUTE = "/api/quoting/ranges";
-const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 2 });
-const dollars = (cents: number | null) => (cents == null ? "No longer in the book" : money.format(cents / 100));
+const price = (cents: number | null) => (cents == null ? "No longer in the book" : dollars(cents));
 const sizes = (n: number) => `${n} size${n === 1 ? "" : "s"}`;
 
 type CandidatesAnswer = { ok: true; lines: CandidateLine[] } | { ok: false; reason: string };
@@ -57,77 +65,82 @@ const saveRefusal = (a: Extract<SaveAnswer, { ok: false }>) => a.reason;
 const withRange = (rs: RangeView[], range: RangeView) => rs.map((r) => (r.kind === range.kind ? range : r));
 
 export function RangesGroup({ initial }: { initial: RangeView[] }) {
+  const toast = useToast();
   const [ranges, setRanges] = useState(initial);
   const [open, setOpen] = useState<RangeKind | null>(null);
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
+  const [wrong, setWrong] = useState<string | null>(null);
 
   const change = async (kind: RangeKind, add: { supplierKey: string; code: string; size: RangeSize }[], remove: { supplierKey: string; code: string }[], done: string) => {
     setBusy(true);
-    setNote(null);
+    setWrong(null);
     const body = JSON.stringify({ kind, add, remove });
     return withCleanup(async () => {
       try {
         const a = (await (await fetch(ROUTE, { method: "POST", headers: { "content-type": "application/json" }, body })).json()) as SaveAnswer;
         if (!a.ok) {
-          setNote({ tone: "bad", text: saveRefusal(a) });
+          setWrong(saveRefusal(a));
           return false;
         }
         setRanges((rs) => withRange(rs, a.range));
-        setNote({ tone: "ok", text: done });
+        toast({ text: done });
         return true;
       } catch {
-        setNote({ tone: "bad", text: "The range couldn't be saved. Try again." });
+        setWrong("The range couldn't be saved. Try again.");
         return false;
       }
     }, () => setBusy(false));
   };
 
+  const opened = ranges.find((r) => r.kind === open) ?? null;
+
   return (
-    <section className="qs-group">
-      <h2 className="qs-h">Ranges that come in sizes</h2>
-      {note && <div className={`int-note ${note.tone}`}>{note.text}</div>}
-      <div className="qs-table" role="table" aria-label="Ranges that come in sizes">
-        <div className="qs-row qsr-row qs-headrow" role="row">
+    <Group heading="Ranges that come in sizes">
+      <div className="st2-pb-rows" role="table" aria-label="Ranges that come in sizes">
+        <div className="st2-pb-grid st2-pb-ranges st2-pb-head" role="row">
           <span role="columnheader">Part</span>
           <span role="columnheader">Your range</span>
           <span role="columnheader">Sizes</span>
-          <span role="columnheader" />
+          <span role="columnheader">
+            <span className="sr-only">Change it</span>
+          </span>
         </div>
         {ranges.map((r) => {
           const k = RANGE_KINDS[r.kind];
           const lines = linesIn(r.items);
-          const isOpen = open === r.kind;
           return (
-            <div key={r.kind} role="rowgroup">
-              <div className={`qs-row qsr-row${isOpen ? " on" : ""}`} role="row">
-                <span role="cell" className="qs-item">
-                  <b>{k.label}</b>
-                  <em>{k.by}</em>
-                </span>
-                <span role="cell" className="qs-item">
-                  {lines.length ? lines.map((l) => l.label).join("; ") : <em className="qs-none">Not chosen</em>}
-                </span>
-                <span role="cell">{r.items.length ? sizes(r.items.length) : ""}</span>
-                <span role="cell" className="qs-act">
-                  <button type="button" className="pbtn ghost sm" disabled={busy} aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : r.kind)}>
-                    {isOpen ? "Close" : r.items.length ? "Change" : "Choose"}
-                  </button>
-                </span>
-              </div>
-              {isOpen && (
-                <RangePicker
-                  range={r}
-                  busy={busy}
-                  onAdd={(add) => change(r.kind, add, [], `${k.label}: ${sizes(add.length)} added`)}
-                  onRemove={(items) => void change(r.kind, [], items, `${k.label}: ${sizes(items.length)} taken out`)}
-                />
-              )}
+            <div key={r.kind} className="st2-pb-grid st2-pb-ranges" role="row">
+              <span role="cell" className="st2-pb-name">
+                <b>{k.label}</b>
+                <span className="st2-pb-line">{k.by}</span>
+              </span>
+              <span role="cell" className={lines.length ? undefined : "st2-pb-none"}>
+                <Fade lines={2}>{lines.length ? lines.map((l) => l.label).join("; ") : "Not chosen"}</Fade>
+              </span>
+              <span role="cell">{r.items.length ? sizes(r.items.length) : ""}</span>
+              <span role="cell" className="st2-pb-act">
+                <Button kind="second" size={32} disabled={busy} aria-label={`${r.items.length ? "Change" : "Choose"} the range of ${k.noun}`} onClick={() => setOpen(r.kind)}>
+                  {r.items.length ? "Change range" : "Choose range"}
+                </Button>
+              </span>
             </div>
           );
         })}
       </div>
-    </section>
+      {opened && (
+        <RangePicker
+          range={opened}
+          busy={busy}
+          wrong={wrong}
+          onAdd={(add) => change(opened.kind, add, [], `${RANGE_KINDS[opened.kind].label}: ${sizes(add.length)} added`)}
+          onRemove={(items) => void change(opened.kind, [], items, `${RANGE_KINDS[opened.kind].label}: ${sizes(items.length)} taken out`)}
+          onClose={() => {
+            setOpen(null);
+            setWrong(null);
+          }}
+        />
+      )}
+    </Group>
   );
 }
 
@@ -137,15 +150,20 @@ type Proposed = CandidateItem & { supplierKey: string; supplierName: string };
 function RangePicker({
   range,
   busy,
+  wrong,
   onAdd,
   onRemove,
+  onClose,
 }: {
   range: RangeView;
   busy: boolean;
+  wrong: string | null;
   onAdd: (add: { supplierKey: string; code: string; size: RangeSize }[]) => Promise<boolean>;
   onRemove: (items: { supplierKey: string; code: string }[]) => void;
+  onClose: () => void;
 }) {
   const kind = range.kind;
+  const k = RANGE_KINDS[kind];
   const [lines, setLines] = useState<CandidateLine[] | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [proposal, setProposal] = useState<{ label: string; items: Proposed[] } | null>(null);
@@ -179,24 +197,31 @@ function RangePicker({
 
   const inRange = linesIn(range.items);
   return (
-    <div className="qs-pick" role="row">
-      <div role="cell" className="qsr-pick">
+    <Dialog
+      heading={k.label}
+      width={720}
+      onClose={onClose}
+      foot={
+        <Button kind="second" size={36} onClick={onClose}>
+          Done
+        </Button>
+      }
+    >
+      <div className="st2-pb-dlg">
+        {wrong && <Oops>{wrong}</Oops>}
         {inRange.length > 0 && (
-          <ul className="qs-list">
+          <ul className="st2-pb-rows" aria-label={`Your range of ${k.noun}`}>
             {inRange.map((l) => (
-              <li key={l.key} className="qsr-line">
-                <span className="qs-item">
-                  {l.label}
-                  <em>{l.items.map((i) => i.words).join(", ")}</em>
+              <li key={l.key} className="st2-pb-grid st2-pb-lines">
+                <span className="st2-pb-name">
+                  <b>{l.label}</b>
+                  <span className="st2-pb-line">
+                    <Fade>{l.items.map((i) => i.words).join(", ")}</Fade>
+                  </span>
                 </span>
-                <button
-                  type="button"
-                  className="pbtn ghost sm"
-                  disabled={busy}
-                  onClick={() => onRemove(l.items.map((i) => ({ supplierKey: i.supplierKey, code: i.code })))}
-                >
-                  Take out
-                </button>
+                <Button kind="second" size={32} disabled={busy} onClick={() => onRemove(l.items.map((i) => ({ supplierKey: i.supplierKey, code: i.code })))}>
+                  Take it out
+                </Button>
               </li>
             ))}
           </ul>
@@ -215,31 +240,34 @@ function RangePicker({
             }
           />
         ) : failed ? (
-          <p className="qs-sub">{failed}</p>
+          <Oops>{failed}</Oops>
         ) : lines == null ? (
-          <p className="qs-sub">Reading your price book</p>
+          <Loading what="Reading your price book" />
         ) : lines.length === 0 ? (
-          <p className="qs-sub">{`Nothing in your price book reads as ${RANGE_KINDS[kind].noun} with a size in its name.`}</p>
+          <p className="st2-pb-said">{`Nothing in your price book reads as ${k.noun} with a size in its name.`}</p>
         ) : (
-          <ul className="qs-list" aria-label={`${RANGE_KINDS[kind].label} in your price book`}>
-            {lines.map((l) => {
-              const sized = l.items.filter((i) => i.size).length;
-              return (
-                <li key={l.key} className="qsr-line">
-                  <span className="qs-item">
-                    {`${l.label}, ${l.supplierName}`}
-                    <em>{[sizes(sized), l.quotes ? `on ${l.quotes} quote${l.quotes === 1 ? "" : "s"}` : null].filter(Boolean).join(", ")}</em>
-                  </span>
-                  <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => propose(l)}>
-                    Use
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          <section aria-label={`${k.label} in your price book`}>
+            <h3 className="st2-pb-sub">In your price book</h3>
+            <ul className="st2-pb-rows" aria-label={`${k.label} in your price book`}>
+              {lines.map((l) => {
+                const sized = l.items.filter((i) => i.size).length;
+                return (
+                  <li key={l.key} className="st2-pb-grid st2-pb-lines">
+                    <span className="st2-pb-name">
+                      <b>{`${l.label}, ${l.supplierName}`}</b>
+                      <span className="st2-pb-line">{[sizes(sized), l.quotes ? `on ${l.quotes} quote${l.quotes === 1 ? "" : "s"}` : null].filter(Boolean).join(", ")}</span>
+                    </span>
+                    <Button kind="second" size={32} disabled={busy} onClick={() => propose(l)}>
+                      Use this line
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
         )}
       </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -277,10 +305,10 @@ function Proposal({
       return next;
     });
   return (
-    <div className="qs-match qsr-proposal">
-      <h3 className="qs-h">{label}</h3>
-      <div className="pbi-wrap">
-        <table className="pbi">
+    <section aria-label={label}>
+      <h3 className="st2-pb-sub">{label}</h3>
+      <div className="st2-pb-ledgerwrap">
+        <table className="st2-pb-ledger">
           <thead>
             <tr>
               <th scope="col">
@@ -289,7 +317,7 @@ function Proposal({
               <th scope="col">Size</th>
               <th scope="col">Item</th>
               {brackets && <th scope="col">Outdoors up to, mm wide</th>}
-              <th scope="col" className="pbi-num">
+              <th scope="col" className="st2-pb-num">
                 Buy
               </th>
             </tr>
@@ -298,17 +326,17 @@ function Proposal({
             {sized.map((i) => (
               <tr key={i.code}>
                 <td>
-                  <input type="checkbox" checked={on.has(i.code)} disabled={busy} onChange={() => toggle(i.code)} aria-label={`${i.words}, ${i.code}`} />
+                  <Tick label={<span className="sr-only">{`${i.words}, ${i.code}`}</span>} checked={on.has(i.code)} disabled={busy} onChange={() => toggle(i.code)} />
                 </td>
-                <td className="pbi-code">{i.words}</td>
+                <td className="st2-pb-code">{i.words}</td>
                 <td>
                   {i.name}
-                  <span className="qsr-code">{i.code}</span>
+                  <span className="st2-pb-line">{i.code}</span>
                 </td>
                 {brackets && (
                   <td>
-                    <input
-                      className="wb2-fi qsr-width"
+                    <TextInput
+                      size={32}
                       inputMode="numeric"
                       value={widths[i.code] ?? ""}
                       disabled={busy}
@@ -317,20 +345,20 @@ function Proposal({
                     />
                   </td>
                 )}
-                <td className="pbi-num">{dollars(i.buyCents)}</td>
+                <td className="st2-pb-num">{price(i.buyCents)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      {unread.length > 0 && <p className="qs-sub">{`No size in the name, so not offered: ${unread.map((i) => i.name).join("; ")}.`}</p>}
-      <div className="wb2-jqacts">
-        <button type="button" className="pbtn ghost" disabled={busy} onClick={onCancel}>
+      {unread.length > 0 && <p className="st2-pb-said">{`No size in the name, so not offered: ${unread.map((i) => i.name).join("; ")}.`}</p>}
+      <div className="st2-pb-foot">
+        <Button kind="second" size={36} disabled={busy} onClick={onCancel}>
           Cancel
-        </button>
-        <button
-          type="button"
-          className="pbtn primary"
+        </Button>
+        <Button
+          kind="main"
+          size={36}
           disabled={busy || picked.length === 0}
           onClick={() =>
             onAdd(
@@ -343,8 +371,8 @@ function Proposal({
           }
         >
           {`Add ${sizes(picked.length)}`}
-        </button>
+        </Button>
       </div>
-    </div>
+    </section>
   );
 }

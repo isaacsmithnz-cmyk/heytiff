@@ -1,0 +1,131 @@
+/* SETTINGS › PRICE BOOK (v2, 25 October 2026; the mock's Price book board).
+   The frame's groups and rows (.st2-*, shell.css) carry the section; what
+   is here is the Price book's own: the search and its chooser, the book as
+   a table of parts with their figures in columns, the tables of the other
+   three views, and what the dialogs a row opens hold.
+
+   The page's own rules sit under .fg, as shell.css's do. What a dialog
+   holds does not: a dialog is portalled to <body>, outside .fg (the parts'
+   own sheets are written the same way for the same reason), so those rules
+   stand on their st2-pb- names alone. A button drawn here is reset in full,
+   and named twice for the page, where `.fg button` would reset it at
+   (0,1,1). */
+
+.fg .st2-pb-panel { display:flex; flex-direction:column; gap:24px; min-width:0; outline:none; }
+
+/* the search, and what to show beside it */
+.fg .st2-pb-items { display:flex; flex-direction:column; gap:16px; min-width:0; }
+.fg .st2-pb-bar { display:flex; align-items:center; gap:12px; }
+.fg .st2-pb-find { width:360px; }
+.fg .st2-pb-show { width:200px; }
+
+/* THE BOOK AS A TABLE: a part a row, its name in bold with its code and
+   roll under it in grey, its supplier, what it costs and what it sells at,
+   the figures to the right in their columns (rule 14). Opened, a part shows
+   every supplier's price under it; on a shelf, a family of sizes opens onto
+   them. The open row is in the selected fill. */
+.fg .st2-pb-table { display:flex; flex-direction:column; min-width:0; }
+.fg .st2-pb-row { position:relative; display:grid; grid-template-columns:minmax(0, 1fr) 160px 104px 136px; gap:16px; align-items:center;
+  padding:8px 0; border-top:1px solid var(--line); font-size:14px; line-height:20px; color:var(--ink); }
+.fg .st2-pb-row.st2-pb-head { border-top:0; padding:4px 0; font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+.fg .st2-pb-sup { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.fg .st2-pb-prod.on > .st2-pb-row, .fg .st2-pb-fam.on > .st2-pb-row { background-color:var(--sel); }
+.fg .st2-pb-sizes { padding-left:24px; }
+.fg .st2-pb-sec { display:flex; flex-direction:column; min-width:0; }
+.fg .st2-pb-sech { margin:16px 0 4px; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+/* a part opened: every supplier's price a row of the same columns, its
+   name stepped in, its button where Sells at stands */
+.fg .st2-pb-offers { list-style:none; margin:0; padding:0 0 8px; }
+.fg .st2-pb-offer > .st2-pb-name { padding-left:24px; }
+.fg .st2-pb-more { display:flex; align-items:center; justify-content:space-between; gap:12px; padding-top:12px;
+  border-top:1px solid var(--line); font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+
+/* what a row says, wherever it stands: its name, a line under it, its
+   figures, its buttons */
+.st2-pb-name { display:flex; flex-direction:column; min-width:0; }
+.st2-pb-name > b { font-weight:600; }
+.st2-pb-line { display:block; min-width:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.st2-pb-none { color:var(--q); }
+.st2-pb-fig { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+/* the lowest of several prices, in the state's green (Isaac's, since
+   2026-09-30: it means something) */
+.st2-pb-low { font-weight:600; color:var(--green-w); }
+.st2-pb-act { display:inline-flex; align-items:center; justify-content:flex-end; gap:12px; }
+/* a row's name that opens it: the button's box covers the row, so the
+   whole row is the target, as the parts' Row does it */
+.st2-pb-open, .fg .st2-pb-open { display:block; min-width:0; max-width:100%; margin:0; padding:0; border:0; background:none;
+  font:600 14px/20px var(--font); color:var(--ink); text-align:start; cursor:pointer; }
+.st2-pb-open::after { content:""; position:absolute; inset:0; }
+.st2-pb-open:focus-visible { outline:none; }
+.st2-pb-open:focus-visible::after { box-shadow:var(--ring); }
+.st2-pb-click { transition:background-color var(--t-fast) var(--ease); }
+.st2-pb-click:hover { background-color:var(--hov); }
+
+/* THE OTHER VIEWS' TABLES: a record a row under a hairline, the same
+   14 type and figure columns as the book, one grid each */
+.st2-pb-grid { position:relative; display:grid; gap:16px; align-items:center; padding:8px 0; border-top:1px solid var(--line);
+  font-size:14px; line-height:20px; color:var(--ink); }
+.st2-pb-grid.st2-pb-head { border-top:0; padding:4px 0; font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+.st2-pb-grid.on { background-color:var(--sel); }
+.st2-pb-sups { grid-template-columns:180px minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr); }
+.st2-pb-parts { grid-template-columns:minmax(0, 1fr) 120px 120px 120px 136px; }
+.st2-pb-ranges { grid-template-columns:minmax(0, 1fr) minmax(0, 1.4fr) 72px 152px; }
+.st2-pb-same { grid-template-columns:minmax(0, 1fr) minmax(0, 1fr) 112px 208px; }
+.st2-pb-links { grid-template-columns:24px minmax(0, 1fr) minmax(0, 1fr) 184px 120px; }
+.st2-pb-choices { grid-template-columns:minmax(0, 1fr) 128px 120px; }
+.st2-pb-lines { grid-template-columns:minmax(0, 1fr) auto; }
+.st2-pb-rows { display:flex; flex-direction:column; min-width:0; }
+.st2-pb-offerlist { display:flex; flex-direction:column; gap:2px; align-items:flex-end; font-variant-numeric:tabular-nums; }
+.st2-pb-offerlist .st2-pb-line { display:inline; }
+
+/* a group within a group: its heading at 14, its rows, its own button */
+.st2-pb-part { display:flex; flex-direction:column; gap:8px; min-width:0; padding-top:16px; }
+.st2-pb-sub { margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.st2-pb-foot { display:flex; align-items:center; gap:8px; }
+/* a fact, in ink, with its figure (law 15); its second line in grey */
+.st2-pb-said { margin:0; font-size:14px; line-height:20px; font-weight:400; color:var(--ink); font-variant-numeric:tabular-nums; }
+.st2-pb-said > span { display:block; font-size:13px; line-height:18px; color:var(--q); }
+/* what went wrong (rule 42), the frame's Wrong for where .fg doesn't reach */
+.st2-pb-wrong { display:flex; align-items:center; gap:8px; margin:0; font-size:14px; line-height:20px; font-weight:500; color:var(--red-w); }
+
+/* WHAT A DIALOG HOLDS: a supplier's record, a range's lines, a component's
+   choices, the kit's example */
+.st2-pb-dlg { display:flex; flex-direction:column; gap:16px; min-width:0; font-family:var(--font); font-size:14px; line-height:20px; color:var(--ink); }
+.st2-pb-dlg > section { display:flex; flex-direction:column; gap:12px; min-width:0; padding-top:16px; border-top:1px solid var(--line); }
+.st2-pb-kv { display:flex; flex-direction:column; gap:8px; margin:0; }
+.st2-pb-kv > div { display:grid; grid-template-columns:120px minmax(0, 1fr); gap:16px; }
+.st2-pb-kv dt { font-weight:500; color:var(--q); }
+.st2-pb-kv dd { margin:0; min-width:0; overflow-wrap:anywhere; }
+.st2-pb-acts { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.st2-pb-fields { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:16px; }
+.st2-pb-rule { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr) auto; gap:16px; align-items:end; }
+/* a file chosen through a second button: the input covers it, unseen */
+.st2-pb-file { position:relative; cursor:pointer; }
+.st2-pb-file[aria-disabled="true"] { cursor:default; }
+.st2-pb-file:focus-within { box-shadow:var(--ring); }
+.st2-pb-file > input { position:absolute; inset:0; width:100%; height:100%; margin:0; opacity:0; cursor:inherit; }
+
+/* a ledger: what an invoice or a document was read as, a file's first rows,
+   a range's sizes; a line a row, the figures in their columns */
+.st2-pb-ledgerwrap { min-width:0; overflow-x:auto; }
+.st2-pb-ledger { width:100%; border-collapse:collapse; font-size:13px; line-height:18px; font-weight:400; font-variant-numeric:tabular-nums; }
+.st2-pb-ledger th { padding:4px 8px; text-align:left; font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+.st2-pb-ledger td { padding:8px; border-top:1px solid var(--line); vertical-align:top; }
+.st2-pb-ledger th:first-child, .st2-pb-ledger td:first-child { padding-left:0; }
+.st2-pb-ledger .st2-pb-num { text-align:right; white-space:nowrap; }
+.st2-pb-ledger .st2-pb-code { white-space:nowrap; }
+.st2-pb-ledger td > .pt-fade { max-width:220px; }
+.st2-pb-ledger .pt-input { width:96px; }
+
+/* THE KITS: the example a kit is priced at, what it comes to, and each part
+   with how many, what sizes it and its range from the book, ticked */
+.st2-pb-kitbar { display:flex; align-items:center; gap:24px; flex-wrap:wrap; }
+.st2-pb-kittotal { margin-left:auto; text-align:right; }
+.st2-pb-kittotal > b { display:block; font-size:20px; line-height:28px; font-weight:600; font-variant-numeric:tabular-nums; }
+.st2-pb-kitpart { display:grid; grid-template-columns:200px minmax(0, 1fr) 104px; gap:16px; align-items:start; padding:12px 0 8px;
+  border-top:1px solid var(--line); font-size:14px; line-height:20px; }
+.st2-pb-kituses { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.st2-pb-kituse { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:12px; align-items:baseline; }
+.st2-pb-kitrange { list-style:none; margin:0 0 8px; padding:0; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px 16px; }
+.st2-pb-kitrange .pt-tick { align-items:flex-start; }
+.st2-pb-kitrange .pt-tick__word { display:flex; flex-direction:column; min-width:0; }

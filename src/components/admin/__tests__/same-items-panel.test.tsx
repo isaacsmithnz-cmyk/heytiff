@@ -1,4 +1,4 @@
-/* One part at two suppliers on the Quoting page: each proposed pair with
+/* One part at two suppliers on Price book › Matching: each proposed pair with
    both prices, the cheaper marked, and an answer that takes it off the
    list and counts a confirmation. */
 import { act, fireEvent, render, screen } from "@testing-library/react";
@@ -22,15 +22,15 @@ it("shows a pair with both prices, and a confirmation takes it off the list", as
   }) as unknown as typeof fetch;
 
   render(<SameItemsPanel />);
-  expect(await screen.findByText("2 confirmed, 1 to check. A confirmed pair is one item priced at both suppliers.")).toBeInTheDocument();
-  expect(screen.getByText("$191.00")).toHaveClass("ok");
-  expect(screen.getByText("$194.38")).not.toHaveClass("ok");
+  expect(await screen.findByText("2 confirmed, 1 to check.")).toBeInTheDocument();
+  expect(screen.getByText("$191.00")).toHaveClass("st2-pb-low");
+  expect(screen.getByText("$194.38")).not.toHaveClass("st2-pb-low");
   expect(screen.getByText("1/4, 1/2, 20 m")).toBeInTheDocument();
 
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "Same item" }));
   });
   expect(posted).toEqual([{ a: "aad|PC1412", b: "reece|9800006-1", decision: "confirmed" }]);
-  expect(screen.getByText("3 confirmed, 0 to check. A confirmed pair is one item priced at both suppliers.")).toBeInTheDocument();
+  expect(screen.getByText("3 confirmed, 0 to check.")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Same item" })).not.toBeInTheDocument();
 });

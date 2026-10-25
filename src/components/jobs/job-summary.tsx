@@ -16,7 +16,9 @@ import { JobSection } from "./job-section";
    it: a description with no heading is its lines as plain rows.
 
    Each group shows its first four rows, then a quiet "Show 16 more" that
-   opens that group, so every system shows on the first look. The head's
+   opens that group, so every system shows on the first look; an opened
+   group ends in "Show fewer", which folds it back (Isaac, 25 October 2026).
+   The head's
    one button, quiet, shows the description as the office wrote it under a
    quote's rows; a Summary that is the description has nothing more to
    show, and no button. */
@@ -62,6 +64,7 @@ export function JobSummary({
       ) : (
         groups.map((g) => {
           const open = opened.has(g.key);
+          const long = g.rows.length > SUMMARY_ROWS;
           const more = open ? 0 : g.rows.length - SUMMARY_ROWS;
           return (
             <div className="jov-group" key={g.key}>
@@ -74,10 +77,22 @@ export function JobSummary({
                   </li>
                 ))}
               </ul>
-              {more > 0 && (
+              {long && (
                 <div className="jov-more">
-                  <Button kind="quiet" size={32} onClick={() => setOpened((o) => new Set(o).add(g.key))}>
-                    {`Show ${more} more`}
+                  <Button
+                    kind="quiet"
+                    size={32}
+                    aria-expanded={open}
+                    onClick={() =>
+                      setOpened((o) => {
+                        const next = new Set(o);
+                        if (open) next.delete(g.key);
+                        else next.add(g.key);
+                        return next;
+                      })
+                    }
+                  >
+                    {open ? "Show fewer" : `Show ${more} more`}
                   </Button>
                 </div>
               )}

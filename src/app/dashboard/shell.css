@@ -1017,8 +1017,7 @@
 .fg .padd { display:inline-flex; align-items:center; font-size:16px; font-weight:600; color:var(--link); text-decoration:underline; text-underline-offset:3px; border-radius:var(--r-control); cursor:pointer; }
 .fg .padd:focus-visible { outline:none; box-shadow:var(--ring); }
 
-/* the licence wall — CR80 cards, not the 230px info tiles .credgrid lays out
-   (that grid still serves the company credentials on the Organisation screen).
+/* the licence wall — CR80 cards.
    .idc is capped at 460px for the one-card cases; in here a card fills its
    track. */
 /* min(300px,100%), not a bare 300px: on a narrow phone the track would stay
@@ -1048,7 +1047,7 @@
    is survivable here in a way it was not for the old wrapping strip: Summary
    links to every section it lists, so the strip is never the only way in. */
 @media (max-width:1400px){
-  .fg .pcard2 .wb2-vtabs, .fg .orgcard2 .wb2-vtabs { overflow-x:auto; scrollbar-width:none; padding-left:24px; }
+  .fg .pcard2 .wb2-vtabs { overflow-x:auto; scrollbar-width:none; padding-left:24px; }
   /* THE ORG CARD SCROLLS, IT DOES NOT WRAP. `.wb2-vtabs` picks up
      `flex-wrap:wrap-reverse` from the Workboard's own 900px rule — which is
      right there, where the row shares its line with the universal search field
@@ -1057,10 +1056,8 @@
      is `translateX` off a single `offsetLeft`, so a tab on a second line gets
      the card's top edge drawn under the tab ABOVE it. Restated at (0,3,0) so it
      wins wherever that rule lands. */
-  .fg .orgcard2 .wb2-vtabs { flex-wrap:nowrap; }
-  .fg .pcard2 .wb2-vtabs::-webkit-scrollbar,
-  .fg .orgcard2 .wb2-vtabs::-webkit-scrollbar { display:none; }
-  .fg .pcard2 .wb2-vt, .fg .orgcard2 .wb2-vt { flex:none; }
+  .fg .pcard2 .wb2-vtabs::-webkit-scrollbar { display:none; }
+  .fg .pcard2 .wb2-vt { flex:none; }
   /* THE SCROLLBAR IS HIDDEN, SO SAY IT SCROLLS SOME OTHER WAY.
 
      Nine tabs measure 925px; a narrow window gives the strip 295px. The two
@@ -1072,25 +1069,19 @@
      the scroll container itself — an absolutely-positioned overlay would scroll
      away with the content it is meant to be masking. */
   .fg .pcard2 .wb2-vtabs::before,
-  .fg .pcard2 .wb2-vtabs::after,
-  .fg .orgcard2 .wb2-vtabs::before,
-  .fg .orgcard2 .wb2-vtabs::after {
+  .fg .pcard2 .wb2-vtabs::after {
     content:""; position:sticky; z-index:4; align-self:stretch;
     flex:0 0 0; width:0; overflow:visible; pointer-events:none;
   }
-  .fg .pcard2 .wb2-vtabs::before, .fg .orgcard2 .wb2-vtabs::before { left:0; }
-  .fg .pcard2 .wb2-vtabs::after, .fg .orgcard2 .wb2-vtabs::after { right:0; }
+  .fg .pcard2 .wb2-vtabs::before { left:0; }
+  .fg .pcard2 .wb2-vtabs::after { right:0; }
   .fg .pcard2 .wb2-vtabs[data-ovl]::before,
-  .fg .pcard2 .wb2-vtabs[data-ovr]::after,
-  .fg .orgcard2 .wb2-vtabs[data-ovl]::before,
-  .fg .orgcard2 .wb2-vtabs[data-ovr]::after {
+  .fg .pcard2 .wb2-vtabs[data-ovr]::after {
     width:0; box-shadow:none;;
   }
-  .fg .pcard2 .wb2-vtabs[data-ovl]::before,
-  .fg .orgcard2 .wb2-vtabs[data-ovl]::before {
+  .fg .pcard2 .wb2-vtabs[data-ovl]::before {
   }
-  .fg .pcard2 .wb2-vtabs[data-ovr]::after,
-  .fg .orgcard2 .wb2-vtabs[data-ovr]::after {
+  .fg .pcard2 .wb2-vtabs[data-ovr]::after {
   }
 }
 @media (max-width:920px){
@@ -1125,19 +1116,10 @@
    was repeating it. Heading 600, subtitle 400 in the quiet colour: one thing
    loud. */
 .fg .card2 { background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); padding:24px; margin-bottom:16px; }
-/* WHAT YOU READ IS A GROUP, NOT A CARD (2026-09-21) — the pass the Fault
-   Finder took in #774 and the SWMS in #778, here for the integration screens.
-   On paper to the frame a white card with a hairline is paper on paper and
-   its edge does nothing; law 9 says a card is for something you ACT on. So
-   what Xero powers, what HeyTiff asks for and what has been read across group
-   by a hairline and the spacing scale, while connecting, picking which books
-   to use and disconnecting keep their cards — you operate those. The heading
-   is the same heading either way. */
-.fg .int-grp { padding-top:16px; margin-bottom:16px; border-top:1px solid var(--line); }
-.fg .card2 .c2h, .fg .int-grp .c2h { display:flex; align-items:center; gap:12px; margin-bottom:24px; }
-.fg .card2 .c2h b, .fg .int-grp .c2h b { font-size:16px; font-weight:600; }
-.fg .card2 .c2h em, .fg .int-grp .c2h em { font-style:normal; display:block; font-size:13px; font-weight:400; color:var(--gray400); margin-top:2px; }
-.fg .card2 .c2h .pill2, .fg .int-grp .c2h .pill2 { margin-left:auto; }
+.fg .card2 .c2h { display:flex; align-items:center; gap:12px; margin-bottom:24px; }
+.fg .card2 .c2h b { font-size:16px; font-weight:600; }
+.fg .card2 .c2h em { font-style:normal; display:block; font-size:13px; font-weight:400; color:var(--gray400); margin-top:2px; }
+.fg .card2 .c2h .pill2 { margin-left:auto; }
 .fg .adminpill { display:inline-flex; align-items:center; gap:8px; font-family:var(--mono); font-size:14px; font-weight:500; color:var(--bad-t); }
 
 /* form fields */
@@ -1526,7 +1508,7 @@
   width:var(--dotf,268px); height:var(--dotf,268px);
   perspective:calc(var(--dotf,268px) * 3.6); }
 .dotf-tilt { position:absolute; inset:0; transform-style:preserve-3d;
-                                                                                                                                
+
   transform:rotateX(0deg); transition:transform var(--t-move) var(--ease); }
 .dotf-orbit { position:absolute; inset:0; transform-style:preserve-3d; }
 .dotf-cell { position:absolute; left:50%; top:50%; width:0; height:0; transform-style:preserve-3d; }
@@ -2019,27 +2001,10 @@
 .fg .tpr .autosub { font-size:13px; font-weight:600; color:var(--gray500); margin-top:12px; }
 .fg .tpr .autosub:empty { display:none; margin:0; }
 
-/* big buttons */
-.fg .tpr .bbtn { display:inline-flex; align-items:center; gap:8px; height:50px; padding:0 16px; border-radius:var(--r-button); font-size:14px; font-weight:700; background:var(--paper); color:var(--gray700); border:1px solid var(--line); transition:border-color var(--t-fast) var(--ease); white-space:nowrap; }
-.fg .tpr .bbtn:hover { border-color:var(--ink); }
-.fg .tpr .bbtn svg { opacity:.85; }
-/* the primary action is ink (ink and paper); `.teal` keeps its name for the markup */
-.fg .tpr .bbtn.teal { background:var(--press); color:var(--paper); border-color:var(--press); }
-.fg .tpr .bbtn.teal:hover { border-color:var(--press); }
-.fg .tpr .bbtn.ink { background:var(--press); color:var(--paper); border-color:var(--press); }
-.fg .tpr .bbtn.ink svg { opacity:1; color:var(--paper); }
-.fg .tpr .bbtn.sq { width:50px; padding:0; justify-content:center; }
-.fg .tpr .bbtn.sq svg { opacity:.8; }
-/* The settings gear, in the period bar. It used to sit in the page heading —
-   which belongs to timepay/layout.tsx now, and can't hold it: the settings
-   modal is client state the timesheets screen owns. `margin-left:auto` parks
-   it at the end of the row without disturbing the switcher's centring. */
-.fg .tpr .wknav .tp-gear { height:38px; width:38px; margin-left:auto; }
-/* A held Submit still lifted on hover and still showed a pointer, which is a
-   button telling you it will do something it won't. */
-.fg .tpr .bbtn:disabled { cursor:default; }
-.fg .tpr .bbtn:disabled:hover { transform:none; border-color:var(--line); }
-.fg .tpr .bbtn.ink:disabled:hover { border-color:var(--press); }
+/* The way to the pay rules, in the period bar: Settings › Pay and holidays
+   since 25 October 2026, where the settings gear's modal was. `margin-left:auto`
+   parks it at the end of the row without disturbing the switcher's centring. */
+.fg .tpr .wknav .tp-payset { margin-left:auto; }
 
 /* ---------- stat strip (compact) ---------- */
 .fg .tpr .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:16px 0 16px; }
@@ -2353,7 +2318,7 @@
 
 /* summary line + expand */
  /* prominent pay-multiplier split (this determines pay) */
-  
+
 /* expanded per-day rows */
 .fg .tpr .sectwrap { display:block; }
 .fg .tpr .detail { display:none; }
@@ -2440,108 +2405,12 @@
 .fg .tpr .qform .qsend { display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 16px; border-radius:var(--r-button); font-size:13px; font-weight:700; background:var(--warn); color:var(--on-amber); }
 .fg .tpr .qform .qcancel { height:42px; padding:0 12px; border-radius:var(--r-button); font-size:13px; font-weight:700; color:var(--gray600); background:var(--tint); }
 
-/* ---------- pay settings modal ---------- */
-.fg .tpr .tset { position:fixed; inset:0; z-index:var(--z-modal); display:none; align-items:center; justify-content:center; }
-.fg .tpr .tset.open { display:flex; }
-.fg .tpr .tset-bd { position:absolute; inset:0; background:var(--scrim); backdrop-filter:blur(4px); animation:tprFade .2s ease; }
-@keyframes tprFade { from{opacity:0} to{opacity:1} }
-.fg .tpr .tset-panel { position:relative; width:560px; max-width:92vw; max-height:88vh; overflow:auto; background:var(--paper); border-radius:var(--r-card); box-shadow:var(--shadow-overlay); animation:tprPop .24s var(--ease); }
-@keyframes tprPop { from{opacity:0; transform:translateY(12px) scale(.98)} to{opacity:1; transform:none} }
-.fg .tpr .tset-x { width:38px; height:38px; border-radius:var(--r-button); display:flex; align-items:center; justify-content:center; color:var(--gray500); background:var(--tint); flex:0 0 auto; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .tpr .tset-x:hover { background:var(--tint-2); color:var(--ink); }
 /* `.fg .tpr .seg` IS GONE, and it was doing more than it looked like. Its
    three `.segb` children were dead — nothing in the app renders that class —
    but the tray override was live: it out-ranks `.fg .seg` (0,3,0 to 0,2,0),
    so every FaceSwitch on a `.tpr` screen was painted `#eceef1` while the same
    control on the staff card was `#f3f4f6`. One control, two trays, decided by
    which screen you were on. There is one tray value in this app now. */
-
-/* ---------- setup wizard ---------- */
-.fg .tpr .tset-panel.wz { width:620px; padding:0; }
-.fg .tpr .wz-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:24px 24px 0; }
-.fg .tpr .wz-head .wz-k { font-size:12px; font-weight:500; color:var(--ink); margin-bottom:8px; }
-.fg .tpr .wz-head h3 { font-size:24px; font-weight:700; letter-spacing:-.02em; margin:0; }
-.fg .tpr .wz-head p { font-size:14px; font-weight:600; color:var(--gray500); margin:8px 0 0; line-height:1.5; max-width:420px; text-wrap:pretty; }
-.fg .tpr .wz-dots { display:flex; gap:8px; padding:16px 24px 4px; }
-.fg .tpr .wz-dot { width:26px; height:6px; border-radius:999px; background:var(--tint-2); transition:background-color var(--t-fast) var(--ease), width var(--t-move) var(--ease); }
-.fg .tpr .wz-dot.done { background:var(--q); }
-.fg .tpr .wz-dot.on { background:var(--ink); width:40px; }
-.fg .tpr .wz-body { padding:24px 24px 4px; min-height:260px; }
-.fg .tpr .wz-foot { display:flex; align-items:center; gap:8px; padding:16px 24px 24px; }
-.fg .tpr .wz-foot .spx { flex:1; }
-.fg .tpr .wz-foot .bbtn { height:52px; padding:0 24px; font-size:14px; }
-
-.fg .tpr .wz-cards { display:grid; gap:8px; }
-.fg .tpr .wz-card { position:relative; display:block; text-align:left; padding:16px 16px; border-radius:var(--r-card); border:2px solid var(--line); background:var(--paper); transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .tpr .wz-card:hover { background:var(--tint); }
-.fg .tpr .wz-card.on { border-color:var(--ink); background:var(--tint); }
-.fg .tpr .wz-card b { display:block; font-size:16px; font-weight:700; }
-.fg .tpr .wz-card em { display:block; font-style:normal; font-size:13px; font-weight:600; color:var(--gray500); margin-top:4px; }
-.fg .tpr .wz-card .wz-tag { position:absolute; top:18px; right:18px; font-size:14px; font-weight:500; color:var(--ink); }
-
-.fg .tpr .wz-pills { display:flex; gap:8px; flex-wrap:wrap; }
-.fg .tpr .wz-pill { height:54px; min-width:66px; padding:0 16px; border-radius:var(--r-control); border:2px solid var(--line); background:var(--paper); font-size:14px; font-weight:700; color:var(--gray600); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .tpr .wz-pill:hover { background:var(--tint); }
-.fg .tpr .wz-pill.on { border-color:var(--ink); background:var(--tint-2); color:var(--ink); }
-.fg .tpr .wz-pills.sm .wz-pill { height:44px; font-size:13px; }
-.fg .tpr .wz-pills.ctr { justify-content:center; margin-top:16px; }
-
-.fg .tpr .wz-step { display:flex; align-items:center; justify-content:center; gap:16px; padding:12px 0; }
-.fg .tpr .wz-sbtn { width:58px; height:58px; border-radius:var(--r-card); background:var(--white); border:1px solid var(--edge); color:var(--ink); font-size:24px; font-weight:700; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .tpr .wz-sbtn:hover { }
-.fg .tpr .wz-val { min-width:140px; text-align:center; font-size:32px; font-weight:700; letter-spacing:-.03em; }
-
-.fg .tpr .wz-tglrow { display:flex; width:100%; align-items:center; justify-content:space-between; gap:12px; padding:16px 16px; border-radius:var(--r-card); border:2px solid var(--line); background:var(--paper); margin-bottom:8px; font-size:14px; font-weight:700; color:var(--ink); transition:border-color var(--t-fast) var(--ease); text-align:left; }
-.fg .tpr .wz-tglrow:hover { background:var(--tint); }
-.fg .tpr .wz-sw { width:52px; height:30px; border-radius:999px; background:var(--tint-2); position:relative; transition:background var(--t-fast) var(--ease); flex:0 0 auto; }
-.fg .tpr .wz-sw i { position:absolute; top:3px; left:3px; width:24px; height:24px; border-radius:50%; background:var(--paper); transition:left var(--t-move) var(--ease); }
-.fg .tpr .wz-sw.on { background:var(--ink); }
-.fg .tpr .wz-sw.on i { left:25px; }
-
-.fg .tpr .wz-subgrid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
-.fg .tpr .wz-sl { font-size:12px; font-weight:500; color:var(--gray400); margin-bottom:8px; text-align:center; }
-.fg .tpr .wz-scroll { position:relative; height:180px; overflow-y:auto; border:2px solid var(--line); border-radius:var(--r-card); scroll-snap-type:y proximity; padding:4px; }
-.fg .tpr .wz-si { scroll-snap-align:center; height:44px; display:flex; align-items:center; justify-content:center; border-radius:var(--r-button); font-size:14px; font-weight:700; color:var(--gray600); cursor:pointer; transition:background var(--t-fast) var(--ease); }
-.fg .tpr .wz-si:hover { background:var(--tint); }
-.fg .tpr .wz-si.on { background:var(--ink); color:var(--paper); font-weight:700; }
-
-.fg .tpr .wz-rev { display:flex; align-items:center; gap:12px; padding:16px 0; border-top:1px solid var(--line); font-size:14px; }
-.fg .tpr .wz-rev:first-child { border-top:none; }
-.fg .tpr .wz-rev > span { color:var(--gray500); font-weight:700; width:150px; flex:0 0 auto; }
-.fg .tpr .wz-rev b { font-weight:700; flex:1; min-width:0; }
-.fg .tpr .wz-edit { font-size:13px; font-weight:700; color:var(--ink); background:var(--tint-2); padding:8px 16px; border-radius:var(--r-button); transition:background var(--t-fast) var(--ease); }
-.fg .tpr .wz-edit:hover { background:var(--tint); }
-
-/* settings menu (post-setup) */
-.fg .tpr .wz-menu { min-height:0; padding-top:4px; }
-.fg .tpr .wz-menu .ms { padding:16px 0; border-top:1px solid var(--line); }
-.fg .tpr .wz-menu .ms:first-child { border-top:none; }
-.fg .tpr .wz-menu .ms-l { font-size:12px; font-weight:500; color:var(--gray400); margin-bottom:12px; }
-.fg .tpr .wz-menu .ms-p { font-size:13px; font-weight:600; color:var(--gray500); line-height:1.55; margin:0 0 12px; text-wrap:pretty; }
-/* A rung of the overtime ladder: its own plain-language label above the
-   stepper it belongs to. Replaces `.wz-or` for this, which was tracked
-   uppercase and read as a section divider rather than a field label — see
-   overtimeControls in settings.tsx. */
-.fg .tpr .ms-rung + .ms-rung { margin-top:12px; padding-top:12px; border-top:1px solid var(--line); }
-.fg .tpr .ms-rungl { display:block; font-size:13px; font-weight:700; color:var(--gray700); text-align:center; }
-.fg .tpr .wz-menu .ms-rungl { text-align:left; }
-.fg .tpr .ms-rung .ms-p { margin:4px 0 0; }
-/* Says a thing isn't built yet, in the voice of a note rather than an error. */
-.fg .tpr .ms-soon { display:flex; align-items:flex-start; gap:8px; color:var(--gray400); }
-.fg .tpr .ms-soon svg { flex:0 0 auto; margin-top:2px; }
-
-/* folding sections (public holidays, Xero payroll) — a row you press, sitting
-   below the pay settings rather than on top of them. Titled in sentence case,
-   not the uppercase .ms-l key, because these are things you OPEN, not labels
-   over a control. */
-.fg .tpr .wz-menu .ms-fold { padding:0; }
-.fg .tpr .wz-menu .ms-foldh { display:flex; align-items:center; justify-content:space-between; gap:16px; width:100%; padding:16px 0; text-align:left; }
-.fg .tpr .wz-menu .ms-foldl { display:block; font-size:14px; font-weight:700; color:var(--gray700); }
-.fg .tpr .wz-menu .ms-foldl em { display:block; font-style:normal; font-size:13px; font-weight:600; color:var(--gray400); margin-top:4px; text-wrap:pretty; }
-.fg .tpr .wz-menu .ms-foldh svg { flex:0 0 auto; color:var(--gray400); transition:transform var(--t-move) var(--ease); }
-.fg .tpr .wz-menu .ms-fold.on .ms-foldh svg { transform:rotate(90deg); }
-.fg .tpr .wz-menu .ms-fold.on .ms-foldl { color:var(--ink); }
-.fg .tpr .wz-menu .ms-foldb { padding-bottom:16px; }
 
 /* ---- Xero payroll matching (components/timepay/xero-payroll.tsx) ----
    A row per person inside the settings menu section. Two lines and the
@@ -2595,34 +2464,6 @@
 .fg .tpr .xp-extra ul { margin:8px 0 0; padding-left:16px; }
 .fg .tpr .xp-extra li { font-size:13px; font-weight:700; color:var(--ink); line-height:1.7; }
 .fg .tpr .xp-extra li span { font-weight:600; color:var(--gray400); }
-.fg .tpr .wz-menu .wz-step { justify-content:flex-start; gap:12px; padding:4px 0; }
-.fg .tpr .wz-menu .wz-sbtn { width:44px; height:44px; border-radius:var(--r-button); font-size:20px; }
-.fg .tpr .wz-menu .wz-val { min-width:88px; font-size:24px; }
-.fg .tpr .wz-menu .wz-pill { height:42px; min-width:54px; padding:0 12px; font-size:13px; }
-.fg .tpr .wz-menu .wz-tglrow { padding:12px 16px; margin-bottom:8px; font-size:14px; border-radius:var(--r-button); }
-.fg .tpr .wz-menu .wz-scroll { height:132px; }
-.fg .tpr .wz-foot.menu { position:sticky; bottom:0; background:var(--paper); border-top:1px solid var(--line); border-radius:0 0 var(--r-card) var(--r-card); }
-.fg .tpr .wz-rerun { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--gray500); transition:color var(--t-fast) var(--ease); }
-.fg .tpr .wz-rerun:hover { color:var(--ink); }
-
-/* penalty-rate rule rows */
-.fg .tpr .prule { border:2px solid var(--line); border-radius:var(--r-card); margin-bottom:8px; overflow:hidden; transition:border-color var(--t-fast) var(--ease); background:var(--paper); }
-.fg .tpr .prule.on { border-color:var(--ink); }
-.fg .tpr .rl-head { display:flex; width:100%; align-items:center; gap:12px; padding:12px 16px; text-align:left; }
-.fg .tpr .rl-nm { font-size:14px; font-weight:700; color:var(--ink); white-space:nowrap; }
-.fg .tpr .rl-nm em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray400); margin-left:8px; }
-.fg .tpr .rl-sum { margin-left:auto; font-size:12px; font-weight:700; color:var(--ink); white-space:nowrap; }
-.fg .tpr .rl:not(.on) .rl-sum { color:var(--gray400); }
-.fg .tpr .rl-head .wz-sw { flex:0 0 auto; }
-.fg .tpr .rl-ctl { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; padding:0 16px 12px; }
-.fg .tpr .wz-pills.xs { display:inline-flex; }
-.fg .tpr .wz-pills.xs .wz-pill { height:38px; min-width:52px; padding:0 12px; font-size:13px; border-radius:var(--r-control); }
-.fg .tpr .rl-then { font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .tpr .rl-step { display:inline-flex; align-items:center; gap:8px; }
-.fg .tpr .rl-step button { width:36px; height:36px; border-radius:var(--r-button); background:var(--white); border:1px solid var(--edge); color:var(--ink); font-size:16px; font-weight:700; transition:transform var(--t-move) var(--ease); }
-.fg .tpr .rl-step button:hover { }
-.fg .tpr .rl-step b { font-size:16px; font-weight:700; min-width:42px; text-align:center; }
-.fg .tpr .wz-menu .rl-head { padding:12px 12px; }
 
 /* THE LOCK ON A CLOSED PERIOD IS GONE (2026-09-16). `.fg .tpr.locked
    .capprove / .cedit / .allbtn / .qform { display:none !important }` hid the
@@ -3006,7 +2847,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
    it fell to Chrome's UA rule (currentColor at 54%), which resolves to ~#787878
    on white: 4.42:1, for the one placeholder in the app that carries a value. */
 .fg .mts-f input::placeholder { color:var(--q); font-weight:600; }
-.fg .mts-facts { display:flex; gap:8px; margin-left:auto; }
 
 /* A fortnight reads as two week-rows and a month as four-plus, which is how
    people actually think about a pay period — so the day tiles wrap at seven
@@ -3020,10 +2860,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .tpr .dwh { display:flex; align-items:baseline; justify-content:space-between; padding:8px 12px 4px; background:var(--tint); }
 .fg .tpr .dwh span { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .tpr .dwh em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray700); }
-.fg .wz-anchor { display:flex; flex-direction:column; gap:4px; margin-top:12px; width:100%; }
-.fg .wz-anchor > span { font-size:13px; font-weight:700; color:var(--ink); }
-.fg .wz-anchor em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
-.fg .wz-anchor .fl-i, .fg .wz-anchor .datef { max-width:220px; }
 
 /* ---- Time & Pay: leave (stage 5b) ---- */
 /* `.tp-tabs` — the Time & Pay pill group — is gone. Both of its screens, the
@@ -3052,13 +2888,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .lv-pmain { flex:1; min-width:0; }
 .fg .lv-pmain b { display:block; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .lv-pmain em { display:flex; align-items:center; gap:8px; font-style:normal; font-size:13px; font-weight:600; color:var(--gray500); margin-top:4px; }
-/* Was a bare 30px × with a title attribute — unlabelled, and one click from
-   throwing away an approved booking. Now it says what it does and arms first:
-   press once to ask, again to confirm, anywhere else to forget it. `.arm`
-   borrows the filled-red confirm state .fl-btn.danger.arm already uses. */
-.fg .lv-cancel { display:inline-flex; align-items:center; gap:4px; height:28px; padding:0 8px; border-radius:var(--r-button); font-size:12px; font-weight:700; color:var(--gray500); border:1px solid var(--line); background:var(--paper); white-space:nowrap; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .lv-cancel:hover { color:var(--bad-t); border-color:var(--bad); background:var(--bad-tint); }
-.fg .lv-cancel.arm { background:var(--bad); border-color:var(--bad); color:var(--paper); }
 .fg .lv-pacts { display:flex; gap:8px; }
 .fg .lv-decline { display:flex; gap:8px; margin-top:8px; }
 .fg .lv-decline input { flex:1; height:34px; padding:0 12px; border-radius:var(--r-control); border:1px solid var(--line); font-family:var(--font); font-size:13px; }
@@ -3066,35 +2895,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .lv-calnames { display:flex; flex-wrap:wrap; gap:4px; }
 .fg .lv-callegend { margin:0; padding:12px 16px; font-size:12px; font-weight:600; line-height:1.55; color:var(--gray400); }
 @media (max-width:820px){ .fg .lv-cols { grid-template-columns:1fr; } }
-
-/* ---- public holidays: the admin manager ---- */
-.fg .hol-year { border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; margin-top:16px; }
-.fg .hol-row { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--line); }
-.fg .hol-date { min-width:150px; font-size:13px; font-weight:700; color:var(--ink); }
-.fg .hol-name { flex:1; font-size:14px; font-weight:600; color:var(--gray700); }
-.fg .hol-src { font-size:12px; font-weight:700; color:var(--gray400); text-transform:capitalize; }
-.fg .hol-src.synced { color:var(--ok-t); }
-
-/* removed (suppressed) holidays — tombstones an admin can restore, so they
-   have to stay readable enough to restore the right one. `opacity:.75` on the
-   block took the year heading to 3.11, the state code to 2.99 and the struck
-   dates to 3.26; the strike-through and the ground already say "removed". */
-.fg .hol-year.removed { background:var(--tint); }
-.fg .hol-year.removed .lv-ch { color:var(--gray500); }
-.fg .hol-row.off .hol-date, .fg .hol-row.off .hol-name { color:var(--q); text-decoration:line-through; text-decoration-thickness:1px; }
-
-/* "worth confirming" — proclamation-dependent days the rules can't date.
-   Deliberately quiet: a hint, not a task list. */
-.fg .hol-sug { margin-top:16px; border:1px dashed var(--line); border-radius:var(--r-card); background:var(--tint); overflow:hidden; }
-.fg .hol-sugh { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; padding:12px 16px; font-size:12px; font-weight:500; color:var(--gray500); }
-.fg .hol-sugh span { font-size:12px; font-weight:600; color:var(--gray400); text-transform:none; }
-.fg .hol-sugrow { display:flex; align-items:center; gap:12px; padding:8px 16px; border-top:1px solid var(--line); }
-.fg .hol-sugy { min-width:44px; font-size:13px; font-weight:700; color:var(--gray400); }
-.fg .hol-sugmain { flex:1; min-width:0; }
-.fg .hol-sugmain b { display:block; font-size:13px; font-weight:700; color:var(--gray700); }
-.fg .hol-sugmain em { display:block; font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); line-height:1.45; margin-top:2px; }
-.fg .hol-sugadd { display:flex; align-items:center; gap:4px; height:30px; padding:0 12px; border-radius:var(--r-button); border:1px solid var(--line); background:var(--paper); font-size:12px; font-weight:700; color:var(--gray700); }
-.fg .hol-sugadd:hover { border-color:var(--line); color:var(--ink); }
 
 /* invite modal — UNSCOPED: it portals to <body>, outside .fg (see .fl-ov) */
 .fl-err { background:var(--bad-tint); border:1px solid var(--bad); border-radius:var(--r-button); padding:8px 12px; margin-bottom:12px; font-size:13px; font-weight:600; color:var(--bad-t); }
@@ -3232,28 +3032,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .idc .idc-tel { color:inherit; text-decoration:none; border-bottom:1px solid currentColor; }
 @media (max-width:480px){ .fg .idc { aspect-ratio:auto; min-height:220px; } .fg .idc .idc-facts { margin-top:16px; } }
 
-/* ---- credential cards (.credgrid / .cred) ---- */
-.fg .credgrid { margin-top:16px; display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:12px; }
+/* ---- a licence card (.idc.cred) ---- */
 .fg .cred { position:relative; background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); padding:16px; font-variant-numeric:tabular-nums; }
-.fg .cred-top { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
-.fg .cred-top b { font-size:14px; font-weight:700; overflow-wrap:anywhere; }
-.fg .cred-badge { flex:0 0 auto; padding:4px 8px; border-radius:var(--r-control); font-size:12px; font-weight:700; }
-.fg .cred-no { margin-top:8px; font-size:13px; font-weight:700; color:var(--gray700); }
-.fg .cred-no.none { color:var(--q); font-weight:600; }
-.fg .cred-foot { margin-top:12px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
-.fg .cred-exp { font-size:12px; font-weight:600; color:var(--gray400); }
-.fg .lstat { flex:0 0 auto; font-size:12px; font-weight:700; padding:4px 8px; border-radius:var(--r-control); }
-.fg .lstat.ok { background:var(--ok-tint); color:var(--ok-t); }
-.fg .lstat.warn { background:var(--warn-tint); color:var(--warn-t); }
-.fg .lstat.bad { background:var(--bad-tint); color:var(--bad-t); }
-.fg .lstat.mute { background:var(--tint); color:var(--q); }
-.fg .cred-del { position:absolute; top:8px; right:8px; height:26px; padding:0 8px; font-size:12px; font-weight:700; border-radius:var(--r-control); display:flex; align-items:center; justify-content:center; color:var(--q); background:var(--tint); opacity:0; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .cred:hover .cred-del, .fg .cred-del:focus-visible { opacity:1; }
-.fg .cred-del:hover { background:var(--bad-tint); color:var(--bad-t); }
-.fg .cred-del:disabled { opacity:.5; cursor:default; }
-/* a hover-revealed control is an unreachable control on a phone, and this
-   screen is used on one — on a touch pointer the × is simply always there */
-@media (hover:none), (pointer:coarse) { .fg .cred-del { opacity:1; } }
 
 /* ---- field-level validation ---- */
 .fg .inp.err { border-color:var(--bad); background:var(--bad-tint); }
@@ -3268,7 +3048,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 /* the role dot outside its picker — .permrole .prdot doesn't reach read mode */
 .fg .ro-state .prdot { width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
 .fg .ro-note { margin:0; font-size:14px; font-weight:500; line-height:1.6; color:var(--gray700); white-space:pre-wrap; }
-@media (max-width:560px){   }
 
 /* qualifications, as the list of tickets it is */
 .fg .qual-list { display:flex; flex-wrap:wrap; gap:8px; }
@@ -3330,9 +3109,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .tw-opt.on { color:var(--ink); font-weight:700; font-size:16px; }
 .fg .tw-opt:focus-visible { outline:2px solid var(--ink); outline-offset:-2px; }
 .fg .tw-opt:disabled { pointer-events:none; opacity:.5; }
-/* the wizard's own wheels sit side by side under a menu heading */
-.fg .tpr .wz-wheels { display:flex; flex-wrap:wrap; gap:8px; }
-.fg .tpr .wz-wheels .tw { flex:1 1 150px; }
 /* ---- date picker (components/ui/date-field.tsx + month-grid.tsx) ----
    Every date field in the app is this: a button showing dd/mm/yyyy that opens
    our own calendar. No `<input type="date">` anywhere — its rendering and its
@@ -3420,278 +3196,34 @@ button.fl-btn { font-size:14px; font-weight:700; }
    reads as a spreadsheet — 760px keeps title, sub and chevron in one glance.
    The icon-chip accent is inline (per row, ~10% tint) the way the nav and the
    toolbox do it; everything structural lives here. */
-.fg .adm-group + .adm-group { margin-top:32px; }
-.fg .adm-glabel { font-size:12px; font-weight:500; color:var(--gray400); margin:0 0 12px 2px; }
-.fg .adm-card { background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; }
-.fg .adm-row { display:flex; align-items:center; gap:12px; padding:16px 16px; text-decoration:none; color:inherit; border-top:1px solid var(--line); transition:background var(--t-fast) var(--ease); }
-.fg .adm-row:first-child { border-top:0; }
-.fg a.adm-row:hover { background:var(--tint); }
-.fg .adm-ic { flex:0 0 auto; width:40px; height:40px; border-radius:var(--r-button); display:flex; align-items:center; justify-content:center; }
-.fg .adm-main { flex:1; min-width:0; }
-.fg .adm-main b { display:block; font-size:16px; font-weight:700; color:var(--ink); }
-.fg .adm-main em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); margin-top:2px; }
-.fg .adm-ch { flex:0 0 auto; display:flex; color:var(--gray400); transition:transform var(--t-move) var(--ease); }
-.fg a.adm-row:hover .adm-ch { }
+
 .fg .adm-empty { padding:80px 16px; text-align:center; border:1.5px dashed var(--line); border-radius:var(--r-card); background:var(--tint); }
 .fg .adm-empty b { display:block; font-size:16px; font-weight:700; color:var(--gray500); }
 .fg .adm-empty em { display:block; max-width:420px; margin:4px auto 0; font-style:normal; font-size:13px; font-weight:500; color:var(--gray400); line-height:1.5; }
 
-/* ---- Integrations (components/integrations/) ----
-   Additive: the index IS the admin index (.adm-card / .adm-row / .adm-ic), so
-   only the state pill is new there. The Xero screen reuses .card2 / .c2h /
-   .pbtn wholesale; what's below is the handful of blocks a connection screen
-   needs and nothing else has — a back link above a title, a facts strip, the
-   scope list, and a destructive button. */
+/* ---- What the old integration screens shared, still worn elsewhere ----
+   Settings › Integrations is its own sheet since 25 October 2026
+   (components/settings/integrations.css). These few rules began with the
+   integration screens and are worn by others now: the back link, the lede,
+   the state word on the templates list, a round trip's one-line note, a
+   hint, and three of .pbtn's own rules (an <a> wearing it, the destructive
+   variant and the disabled state). They go as those screens move. */
 .fg .int-back { display:inline-flex; align-items:center; gap:4px; font-size:13px; font-weight:700; color:var(--gray500); text-decoration:none; transition:color var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
 .fg .int-back:hover { color:var(--ink); }
 .fg .int-lede { max-width:620px; margin:0 0 24px; font-size:14px; font-weight:500; line-height:1.6; color:var(--gray500); }
-.fg .int-foot { margin:12px 2px 0; font-size:13px; font-weight:600; color:var(--gray400); }
 
-/* The row's state, said in a word. Semantic colour, never the page accent —
-   ok #00A389 / warn amber / off grey (see the design-system note). */
-.fg .int-pill { flex:0 0 auto; display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:500; white-space:nowrap; overflow:hidden; }
-.fg .int-dot { width:7px; height:7px; border-radius:50%; flex:0 0 auto; }
-.fg .int-pill.on { color:var(--ink); }
-.fg .int-pill.on .int-dot { background:var(--ink); }
-.fg .int-pill.warn { color:var(--warn-t); }
-.fg .int-pill.warn .int-dot { background:var(--warn-t); }
-.fg .int-pill.off { color:var(--gray500); }
-.fg .int-pill.off .int-dot { background:var(--gray400); }
-@media (max-width:560px){ .fg .int-pill { display:none; } }
+/* The row's state, said in a word (the templates list). */
 
-/* Outcome of a round trip that just finished — the OAuth redirect's one line. */
+/* A round trip's outcome, one line. */
 .fg .int-note { padding:12px 16px; margin-bottom:16px; border-radius:var(--r-card); font-size:14px; font-weight:600; line-height:1.45; }
 .fg .int-note.ok { background:var(--ok-tint); color:var(--ok-t); }
 .fg .int-note.bad { background:var(--bad-tint); color:var(--bad-t); }
 
-.fg .int-facts { display:flex; flex-wrap:wrap; gap:12px 32px; margin:0 0 16px; }
-.fg .int-facts dt { font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .int-facts dd { margin:4px 0 0; font-size:14px; font-weight:700; color:var(--ink); }
-
-/* Why the button isn't there. A missing env var is an instruction, not an
-   error, so it reads as one. */
-.fg .int-blocked { padding:12px 16px; margin-bottom:16px; border-radius:var(--r-card); border:1.5px dashed var(--line); background:var(--tint); }
-.fg .int-blocked b { display:block; font-size:14px; font-weight:700; color:var(--gray700); }
-.fg .int-blocked p { margin:4px 0 0; font-size:13px; font-weight:500; line-height:1.55; color:var(--gray500); }
-.fg .int-blocked ul { margin:8px 0 0; padding-left:16px; }
-.fg .int-blocked li { font-size:13px; font-weight:500; line-height:1.6; color:var(--gray500); }
-.fg .int-blocked code, .fg .int-scopes code { padding:1px 4px; border-radius:var(--r-control); background:var(--tint-2); font-family:var(--mono); font-size:.92em; font-weight:700; color:var(--gray700); }
-
-.fg .int-act { display:flex; flex-wrap:wrap; gap:8px; }
-/* Connect is an <a> (an API route — see the note in xero-screen.tsx), and
-   .pbtn was only ever worn by <button>, so it never had to say this. */
 .fg a.pbtn { text-decoration:none; }
 .fg .int-hint { margin:12px 2px 0; font-size:13px; font-weight:500; line-height:1.55; color:var(--gray500); }
-/* Disconnect's second click. The only destructive button in the section, so
-   the variant lives with it rather than in the shared .pbtn block. */
 .fg .pbtn.danger { background:var(--bad); color:var(--paper); }
 .fg .pbtn.danger:hover:not(:disabled) { background:var(--bad-t); }
 .fg .pbtn:disabled { opacity:.55; cursor:default; }
-
-.fg .int-tenants { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
-.fg .int-tenant { display:flex; align-items:center; gap:12px; padding:12px 12px; border-radius:var(--r-button); border:1px solid var(--line); background:var(--tint); font-size:14px; font-weight:700; cursor:pointer; transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-.fg .int-tenant:hover { border-color:var(--line); background:var(--paper); }
-.fg .int-tenant input { accent-color:var(--ink); width:16px; height:16px; }
-
-.fg .int-uses { display:flex; flex-direction:column; gap:16px; }
-.fg .int-use b { font-size:14px; font-weight:700; }
-.fg .int-use p { margin:4px 0 0; font-size:13px; font-weight:500; line-height:1.6; color:var(--gray500); }
-
-/* One row per scope: the literal string Xero will show, the area it serves,
-   and the sentence. A scope the stored grant predates is marked, because that
-   is the whole reason to render the list against a connection at all. */
-.fg .int-scopes { list-style:none; margin:0; padding:0; }
-.fg .int-scopes li { padding:12px 0; border-top:1px solid var(--line); }
-.fg .int-scopes li:first-child { border-top:0; padding-top:0; }
-.fg .int-scopes li p { margin:4px 0 0; font-size:13px; font-weight:500; line-height:1.55; color:var(--gray500); }
-.fg .int-scopehead { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
-.fg .int-tag { font-size:14px; font-weight:500; color:var(--gray500); }
-.fg .int-tag.warn { color:var(--warn-t); }
-/* the writes list's two outcomes — a word in the state's colour (law 26) */
-.fg .int-tag.ok { color:var(--ok-t); }
-.fg .int-tag.bad { color:var(--bad-t); }
-/* SENDING FILES TO SERVICEM8 — the checklist's segmented choice for the
-   setting, and each write's file name read as a name, not as code */
-.fg .int-wname { min-width:0; font-size:14px; font-weight:600; overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-
-/* A backfill in progress is NOT a warning. It wears the ok green, because the
-   thing it reports is working — the warn amber next to it now means one thing
-   only, "somebody is needed", and that separation is the point. Semantic
-   state, so #00A389 and never the page accent. */
-.fg .int-tag.live { display:inline-flex; align-items:center; gap:4px; color:var(--ok-t); }
-.fg .int-pulse { width:6px; height:6px; border-radius:50%; background:var(--ink); animation:int-pulse 1.6s ease-in-out infinite; color:var(--paper); }
-@keyframes int-pulse { 0%,100% { opacity:.32; transform:scale(.82); } 50% { opacity:1; transform:scale(1); } }
-/* The dot carries no information the words don't; for anyone who has asked for
-   less motion it simply sits still. */
-@media (prefers-reduced-motion:reduce) { .fg .int-pulse { animation:none; opacity:1; } }
-
-/* ---- The ServiceM8 screen on one page (2026-09-28) ----
-   "A bit messy, way too much information", then "make use of as much of
-   the screen as possible without having to scroll": the connection across
-   the top in two columns, then sending, the mirror and the people as one
-   grid that takes the whole width — three columns where there is room, the
-   mirror over the people at a laptop's. */
-.fg .int-sm8 { container-type:inline-size; }
-.fg .int-sm8 .card2 { padding:16px 24px; }
-.fg .int-sm8 .c2h { margin-bottom:8px; }
-.fg .int-sm8 .c2h > div:first-child { flex:1; }
-.fg .int-sm8-grid { display:grid; grid-template-columns:minmax(0,7fr) minmax(0,5fr); grid-template-areas:"w m" "w p"; grid-template-rows:auto 1fr; gap:16px; align-items:start; }
-.fg .int-sm8-grid.solo { grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-areas:"m p"; grid-template-rows:auto; }
-.fg .int-sm8-grid .card2 { margin-bottom:0; }
-.fg .int-sm8-grid .int-wcard { grid-area:w; }
-.fg .int-sm8-grid .int-mirrorcard { grid-area:m; }
-.fg .int-sm8-people { grid-area:p; min-width:0; display:flex; flex-direction:column; gap:16px; }
-@container (min-width:1400px) {
-  .fg .int-sm8-grid { grid-template-columns:minmax(0,5fr) minmax(0,4fr) minmax(0,3fr); grid-template-areas:"w m p"; grid-template-rows:auto; }
-  .fg .int-sm8-grid.solo { grid-template-columns:minmax(0,4fr) minmax(0,3fr); }
-  .fg .int-sm8 .int-mirror-done.folded { display:grid; }
-  .fg .int-mirrorcard .int-foldbtn { display:none; }
-}
-@container (max-width:900px) {
-  .fg .int-sm8-grid, .fg .int-sm8-grid.solo { grid-template-columns:minmax(0,1fr); grid-template-areas:"w" "m" "p"; grid-template-rows:auto; }
-}
-
-/* the connection: who and when on the left, the controls on the right;
-   the warnings, the confirm and anything blocking take the width under them */
-.fg .int-conn { display:grid; grid-template-columns:minmax(0,1fr) auto; grid-auto-flow:row dense; column-gap:32px; row-gap:16px; align-items:start; }
-.fg .int-conn > * { grid-column:1 / -1; margin:0; }
-.fg .int-conn > .int-connhead { grid-column:1; grid-row:1; margin:0; }
-.fg .int-conn > .int-act { grid-column:2; grid-row:1; justify-content:flex-end; }
-/* the account's name, and beside it its health: a word in the state's
-   colour led by a dot of the same colour — no box, state is a word */
-.fg .int-connname { display:flex; align-items:center; flex-wrap:wrap; gap:4px 12px; }
-.fg .int-health { display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:600; }
-.fg .int-health i { width:8px; height:8px; border-radius:var(--r-pill); background:currentColor; }
-.fg .int-health.ok { color:var(--ok-t); }
-.fg .int-health.warn { color:var(--warn-t); }
-.fg .int-health.bad { color:var(--bad-t); }
-.fg .int-connfacts { display:flex; flex-wrap:wrap; gap:4px 24px; margin:8px 0 0; }
-.fg .int-connfacts > div { display:flex; align-items:baseline; gap:8px; }
-.fg .int-connfacts dt { font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .int-connfacts dd { margin:0; font-size:14px; font-weight:600; color:var(--ink); }
-.fg .int-connfacts dd.warn { color:var(--warn-t); }
-
-/* when the mirror last moved, under the facts */
-.fg .int-syncline { margin:0; font-size:13px; line-height:1.5; color:var(--gray500); }
-.fg .int-syncline span:first-child { font-size:14px; font-weight:500; color:var(--ink); }
-
-/* the mirror as a ledger: a name and a count, two to a row; a row still
-   moving or stuck takes the width, because its tag is a sentence */
-.fg .int-mirror { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); column-gap:24px; }
-.fg .int-mirror li { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:8px 0; border-top:1px solid var(--line); font-size:14px; font-weight:500; }
-.fg .int-mirror li.wide { grid-column:1 / -1; }
-.fg .int-mirror .int-tag { text-align:right; font-variant-numeric:tabular-nums; }
-/* the read objects, folded to their sum on a laptop, every row on a wide
-   screen (the grid's three-column query, below) */
-.fg .int-foldrow { display:flex; align-items:center; gap:12px; }
-.fg .int-foldrow > span { flex:1; min-width:0; font-size:14px; color:var(--gray500); }
-.fg .int-foldbtn { display:inline-flex; align-items:center; gap:4px; padding:0; border:0; background:none; font-size:13px; font-weight:600; color:var(--ink); white-space:nowrap; cursor:pointer; }
-.fg .int-foldbtn:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
-.fg .int-mirror + .int-foldrow, .fg .int-foldrow + .int-mirror { margin-top:12px; }
-.fg .int-mirror-done.folded { display:none; }
-
-/* sending: the kinds on one row, what failed, and one line a write */
-.fg .int-kinds { display:flex; flex-wrap:wrap; gap:8px 24px; margin-bottom:12px; }
-.fg .int-kind { display:flex; align-items:center; gap:8px; }
-.fg .int-kind b { font-size:14px; font-weight:600; }
-.fg .int-kind-why { order:3; font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
-.fg .int-wfoot { display:flex; align-items:center; gap:12px; padding-top:8px; border-top:1px solid var(--line); }
-.fg .int-failed { display:flex; align-items:center; gap:12px; margin-left:auto; }
-.fg .int-failed b { font-size:14px; font-weight:600; color:var(--bad-t); }
-/* one grid for the list, each row on its tracks (subgrid), so the state
-   column is as wide as its longest word and every row lines up with it */
-.fg .int-writes { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:minmax(0,2fr) minmax(0,3fr) auto; column-gap:12px; }
-.fg .int-writes li { grid-column:1 / -1; display:grid; grid-template-columns:subgrid; align-items:baseline; padding:8px 0; border-top:1px solid var(--line); }
-.fg .int-writes p { margin:0; font-size:13px; line-height:1.5; color:var(--gray500); }
-.fg .int-writes .int-tag { text-align:right; white-space:nowrap; }
-.fg .int-more { padding:0; border:0; background:none; text-align:left; font-size:13px; font-weight:600; color:var(--ink); cursor:pointer; }
-.fg .int-more:hover { text-decoration:underline; }
-.fg .int-more:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
-
-/* the permissions, one line until opened */
-.fg .int-sm8 .int-perms { padding:0 24px; }
-.fg .int-sm8 .int-perms[open] { padding-bottom:16px; }
-.fg .int-perms > summary { display:flex; align-items:center; gap:4px 16px; padding:16px 0; list-style:none; cursor:pointer; }
-.fg .int-perms > summary::-webkit-details-marker { display:none; }
-.fg .int-perms > summary:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
-.fg .int-perms { container-type:inline-size; }
-.fg .int-perms > summary { flex-wrap:wrap; }
-.fg .int-perms > summary b { flex:1 0 auto; font-size:16px; font-weight:600; }
-.fg .int-perms > summary span { order:3; flex:1 0 100%; min-width:0; font-size:14px; color:var(--gray500); }
-.fg .int-perms > summary i { display:inline-flex; align-items:center; gap:4px; font-style:normal; font-size:13px; font-weight:600; color:var(--ink); white-space:nowrap; }
-.fg .int-perms-ask { margin:0 0 8px; font-size:13px; line-height:1.55; color:var(--gray500); }
-.fg .int-perms-head { margin:16px 0 8px; font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .int-perm-rows { list-style:none; margin:0; padding:0; }
-.fg .int-perm-rows li { display:grid; grid-template-columns:220px minmax(0,1fr) 120px; gap:24px; align-items:baseline; padding:12px 0; border-top:1px solid var(--line); }
-.fg .int-perm-rows code { font-family:var(--mono); font-size:14px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
-.fg .int-perm-rows p { margin:0; font-size:13px; line-height:1.5; color:var(--gray500); }
-.fg .int-perm-rows .int-tag { text-align:right; font-size:13px; }
-/* in the people's column the permission, its state, then its sentence */
-@container (max-width:720px) {
-  .fg .int-perm-rows li { grid-template-columns:minmax(0,1fr) auto; row-gap:4px; }
-  .fg .int-perm-rows p { grid-column:1 / -1; grid-row:2; }
-}
-
-/* ---- ServiceM8 people reconcile (components/integrations/sm8-people-card) ----
-   Import is a review, not a copy: the row IS the preview of what would land,
-   and the editor is where fields get unticked or corrected. Reuses card2 /
-   int-note / int-tag / fl-btn; only the row grid, the field editor and the
-   bulk bar are new. Everything .fg .sp-* so the .fg button/input resets lose. */
-.fg .sp-tools { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; }
-.fg .sp-selall { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--gray500); cursor:pointer; }
-.fg .sp-selall input { width:15px; height:15px; accent-color:var(--ink); }
-.fg .sp-ghostbtn { display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border-radius:var(--r-button); border:0; background:transparent; font-size:13px; font-weight:700; color:var(--gray500); cursor:pointer; }
-.fg .sp-ghostbtn:hover { background:var(--tint); color:var(--gray700); }
-.fg .sp-rows { display:flex; flex-direction:column; }
-.fg .sp-row { border-top:1px solid var(--line); }
-.fg .sp-row:first-child { border-top:0; }
-.fg .sp-row.off .sp-main b { color:var(--gray400); }
-.fg .sp-line { display:flex; align-items:center; gap:12px; padding:12px 0; }
-.fg .sp-check { width:16px; flex:0 0 auto; display:flex; align-items:center; }
-.fg .sp-check input { width:15px; height:15px; accent-color:var(--ink); }
-.fg .sp-main { min-width:0; flex:1; display:flex; flex-direction:column; gap:2px; }
-.fg .sp-main b { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; }
-.fg .sp-main em { font-style:normal; font-size:13px; font-weight:600; color:var(--gray500); overflow-wrap:anywhere; }
-.fg .sp-sug { margin-top:2px; font-size:13px; font-weight:700; color:var(--info-t); }
-/* the name inside "Looks like …" is a word in the sentence, not the row's
-   own flex title that `.sp-main b` makes it */
-.fg .sp-sug b { display:inline; }
-.fg .sp-act { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
-.fg .sp-editor { display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; padding:4px 0 12px 24px; }
-.fg .sp-f { display:flex; flex-direction:column; gap:4px; }
-.fg .sp-f > span { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:500; color:var(--gray500); }
-.fg .sp-f > span input { width:14px; height:14px; accent-color:var(--ink); }
-.fg .sp-f > input { height:38px; padding:0 12px; border-radius:var(--r-control); border:1.5px solid var(--line); background:var(--paper); font-size:14px; font-weight:600; color:var(--gray700); }
-.fg .sp-f > input:focus { outline:none; border-color:var(--ink); }
-.fg .sp-f.out > input { background:var(--tint); color:var(--gray400); }
-.fg .sp-editorfoot { grid-column:1 / -1; display:flex; align-items:center; gap:8px; }
-.fg .sp-linkpick { display:flex; align-items:center; gap:8px; }
-.fg .sp-linkpick select { height:34px; padding:0 8px; border-radius:var(--r-control); border:1.5px solid var(--line); background:var(--paper); font-size:13px; font-weight:700; color:var(--gray700); }
-.fg .sp-bulk { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; padding:12px 12px; border-radius:var(--r-button); background:var(--tint); }
-.fg .sp-bulk > span { font-size:13px; font-weight:700; color:var(--gray500); }
-.fg .sp-linked { margin-top:12px; border-top:1px solid var(--line); padding-top:8px; }
-/* Where an unlink actually belongs, when it isn't this screen. */
-.fg .sp-elsewhere { max-width:230px; font-size:12px; font-weight:600; line-height:1.45; color:var(--gray400); text-align:right; }
-.fg .sp-empty { padding:12px 0; font-size:13px; font-weight:600; color:var(--gray400); }
-
-/* Connect/disconnect guards (components/integrations/connect-actions).
-   The consent warning is quiet and informational; the disconnect confirm is
-   the loud one, because it is the only control in this area that deletes. */
-.fg .int-consent { display:flex; gap:8px; align-items:flex-start; margin:0 0 12px; padding:12px 12px; border-radius:var(--r-button); background:var(--tint); color:var(--gray500); }
-.fg .int-consent svg { flex:0 0 auto; margin-top:1px; color:var(--warn-t); }
-.fg .int-consent p { margin:0; font-size:13px; font-weight:600; line-height:1.55; }
-.fg .int-consent b { font-weight:700; color:var(--gray700); }
-.fg .int-danger { margin:0 0 4px; padding:16px 16px; border-radius:var(--r-card); border:1.5px solid var(--bad); background:var(--bad-tint); }
-.fg .int-danger > b { display:block; font-size:14px; font-weight:700; color:var(--bad-t); }
-.fg .int-danger ul { margin:8px 0 0; padding-left:16px; }
-.fg .int-danger li { margin-top:4px; font-size:13px; font-weight:600; line-height:1.55; color:var(--gray600, var(--gray500)); }
-.fg .int-danger .int-hint { margin:8px 0 0; }
-.fg .int-danger .int-act { margin-top:12px; }
-.fg .int-typed { display:flex; flex-direction:column; gap:4px; margin-top:12px; }
-.fg .int-typed > span { font-size:12px; font-weight:700; color:var(--gray500); }
-.fg .int-typed > span b { font-weight:700; color:var(--gray700); }
-.fg .int-typed input { height:40px; padding:0 12px; border-radius:var(--r-control); border:1.5px solid var(--line); background:var(--paper); font-size:14px; font-weight:600; color:var(--gray700); }
-.fg .int-typed input:focus { outline:none; border-color:var(--bad); }
 
 /* ---- Organisation screen (components/org/) ----
    Additive: the company profile reuses .card2 / .idc / .cred wholesale, and
@@ -3706,9 +3238,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
    accessible name stays on a real control. */
 .fg .cred.clickable { transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
 .fg .cred.clickable:hover { border-color:var(--line); }
-.fg .cred-open { position:absolute; inset:0; z-index:var(--z-raised); border-radius:var(--r-card); }
-.fg .cred-open:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
-.fg .cred-issuer { margin-top:4px; font-size:12px; font-weight:600; color:var(--gray400); overflow-wrap:anywhere; }
 
 /* The add tile lives IN the grid, so "one more" is the same shape as the
    things it joins. */
@@ -3736,23 +3265,15 @@ button.fl-btn { font-size:14px; font-weight:700; }
 
    The panel chrome (`.ppanel2`, `.psec2`, `.psechd`, `.pdl*`) is already
    declared against `.fg` alone, so it reaches here with nothing restated. */
-.fg .orgcard2 { --wb2-line:var(--line); --wb2-line2:var(--line);
-  --wb2-cy:var(--ink); --wb2-cy2:var(--ink2); }
 
 /* Save wears the board's cyan here for the same reason it does on the staff
    card: it is the SAME white surface, and a black button on it would read as a
    different screen. */
-.fg .orgcard2 .pbtn.primary {
-  background:var(--press); border:1px solid var(--press); color:var(--paper); }
-.fg .orgcard2 .pbtn.primary:hover:not(:disabled) {
-  background:var(--press); border-color:var(--press); color:var(--paper); }
 
 /* Company and Preferences: titled groups stacked down the tab, each one a
    `.pdlcard` (a 20/600 title on a hairline, rows under it). The first draws no
    top rule — the tab band's hairline is right above it — and the gap between
    groups is the scale's 32. */
-.fg .orgco { display:grid; gap:32px; }
-.fg .orgco > .pdlcard:first-child { border-top:0; padding-top:0; }
 
 /* A group that edits (SectionCard variant="group"): its Edit sits at the
    title's end, and becomes Cancel and Save in the same place. */
@@ -3764,7 +3285,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 
 /* Brand's two rows. Both save on pick, so neither is in an edit cycle: the row
    shows what is set and carries the one verb that fits. */
-.fg .orglogo, .fg .orgcol { display:flex; align-items:center; gap:12px; flex-wrap:wrap; min-height:40px; width:100%; }
+.fg .orglogo, .fg .orgcol { display:flex; align-items:center; justify-content:flex-end; gap:12px; flex-wrap:wrap; min-height:40px; min-width:0; }
 .fg .orglogo { border-radius:var(--r-button); transition:background var(--t-fast) var(--ease); }
 .fg .orglogo.over { background:var(--tint); }
 .fg .orglogo.busy { opacity:.6; }
@@ -3777,16 +3298,14 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .orglogo-thumb img { max-width:100%; max-height:100%; object-fit:contain; }
 /* a pale logo on white is not there: its thumbnail sits on the dark it would get on a document */
 .fg .orglogo-thumb.dark { background:var(--ink); }
-.fg .orglogo-none { flex:1; min-width:0; font-size:16px; font-weight:500; color:var(--q); }
+.fg .orglogo-none { min-width:0; font-size:14px; line-height:20px; font-weight:400; color:var(--q); }
 .fg .orglogo-act, .fg .orgcol-act { display:flex; gap:8px; margin-left:auto; }
-.fg .orglogo .pbtn, .fg .orgcol .pbtn { height:32px; padding:0 12px; font-size:13px; }
-.fg .orglogo .carderr, .fg .orgcol .carderr { flex:1 0 100%; margin:0; }
+.fg .orglogo .st2-wrong, .fg .orgcol .st2-wrong { flex:1 0 100%; }
 /* Two columns of label, thumbnail and two buttons need about 470px each:
    below that the buttons wrap and a 40px row becomes three lines. Brand's two
    rows stack instead; the read-only groups below it are short enough to stay
    two across. The 1240 is the 224px sidebar, the card's gutters and two
    columns plus their gap. */
-@media (max-width:1240px){ .fg .pdl.orgbrand { grid-template-columns:1fr; } }
 
 /* A native colour input is a button with a swatch in it and no two browsers
    dress it alike; the padding/border reset is what makes the swatch fill the
@@ -3799,16 +3318,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .orgcol-hex { width:120px; height:32px; }
 
 /* Account — four read-only facts about the account itself, two up. */
-.fg .orgacct { display:grid; grid-template-columns:1fr 1fr; gap:16px 24px; }
-@media (max-width:640px){ .fg .orgacct { grid-template-columns:1fr; gap:16px; } }
-.fg .orgacct-f { display:block; min-width:0; }
-.fg .orgacct-f em { font-style:normal; display:block; font-size:12px; font-weight:500; color:var(--q); }
-.fg .orgacct-f b { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:4px; font-size:16px; font-weight:700; color:var(--ink); }
-.fg .orgacct-f i { font-style:normal; display:block; margin-top:4px; font-size:13px; font-weight:600; color:var(--q); overflow-wrap:anywhere; }
+
 /* "You" is a fact, not a state — the neutral chip, never the ok/danger pair. */
-.fg .orgacct-you { display:inline-flex; align-items:center; height:20px; padding:0 8px; border-radius:var(--r-control);
-  font-size:12px; font-weight:500;
-  background:var(--tint); color:var(--info-t); }
 
 /* ── Handing the account over (components/org/transfer-owner-modal) ──
    A list you PICK from, then a panel that says what picking meant, then the
@@ -4246,7 +3757,7 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
   .wb2-vtabs { flex-wrap:wrap-reverse; padding-left:0; }
   .wb2-vtabs .wb2-vt:first-of-type { margin-left:32px; }
   .wb2-vtcap { flex:1 0 100%; margin:0 0 8px; padding-bottom:0; }
-  
+
 }
 /* ── the tabs' own row ──
    The band that holds them is the page header now (`lead` + tabs + `tools`),
@@ -4368,11 +3879,6 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 
 .wb2-sect { font-size:12px; font-weight:500; color:var(--gray400);
   padding:4px 2px 4px; }
-@media (max-width:1100px) {
-  
-  
-  
-}
 
 .fg .page.full .wb2-panel:has(> .wb2-split) { overflow:hidden; }
 
@@ -4388,21 +3894,6 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
    either. Both are stated at the reset's own weight plus one. */
 button.wb2-ajr.as-btn:hover { background:var(--tint); }
 button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint-2); }
-
-  
-
-@media (max-width:920px){
-  
-  
-}
-
-@media (max-width:920px){
-  
-  
-}
-@media (prefers-reduced-motion:reduce){
-  
-}
 
 /* Tags read LEFT, like every other column. Right-aligning the last column
    ragged the labels against the card edge and put the heading a long way
@@ -5318,10 +4809,6 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
 /* the lead already carries its own 8px shoulder inside the tinted box */
 .wb2-jcsec.ups > .wb2-jcdhead { margin-bottom:0; }
 
-@media (prefers-reduced-motion:reduce) {
-  
-}
-
 /* ── the diary ── */
 .wb2-jcdhead { display:flex; align-items:baseline; gap:8px; }
 .wb2-jcdhead b { font-size:16px; font-weight:700; }
@@ -5461,8 +4948,6 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
 .pt-dialog .jb-cl-note + .jb-cl-note { padding-top:8px; border-top:1px solid var(--line); }
 .pt-dialog .pt-dialog-body .jb-cl-paper { margin:0; }
 .pt-dialog .pt-link.jb-cl-open { padding:0; border:0; background:none; font:inherit; text-align:start; }
-
-
 
 .wb2-shcar { font-style:normal; font-size:12px; margin-left:4px; vertical-align:middle; }
 
@@ -5675,7 +5160,6 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* a starred photo says so in the strip */
 .wb2-mvthumbstar { position:absolute; top:2px; right:2px; line-height:0; color:var(--yellow); }
 .wb2-mvthumbstar .i { fill:currentColor; }
-
 
 /* THE TAG CHIPS THAT USED TO SIT HERE ARE GONE — half of Isaac's "too many
    labels". They repeated in a second typeface what the caption above them had
@@ -5898,18 +5382,7 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 
 /* ── responsive ── */
 @media (max-width: 1100px) {
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
   .wb2-vtabs { overflow-x:auto; padding-bottom:2px; }
   .wb2-vt { flex:none; }
   /* three facts stacked into three full-width bands pushed everything below
@@ -5920,7 +5393,7 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 }
 @media (prefers-reduced-motion: reduce) {
   .wb2-vslide, .wb2-sheet, .wb2-scrim, .wb2-swap { animation:none !important; transition:none var(--t-fast) var(--ease); }
-  
+
   ::view-transition-group(wbcard), ::view-transition-old(wbcard), ::view-transition-new(wbcard),
   ::view-transition-old(wbtabs), ::view-transition-new(wbtabs) { animation:none !important; }
 }
@@ -6023,14 +5496,14 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
 
 @media (max-width:1100px) {
   .wb2-ajr, .wb2-ajr:has(.wb2-ajmoney) { grid-template-columns:70px minmax(0,1fr) minmax(0,.9fr); }
-  
+
 }
 .pbtn.ghost.danger { color:var(--bad-t); border-color:var(--bad); }
 .pbtn.ghost.danger:hover { background:var(--bad-tint); }
 @media (max-width: 1100px) {
   .wb2-formgrid { grid-template-columns:1fr; }
   .wb2-formgrid.eq { grid-template-columns:1fr 1fr; }
-    
+
 }
 
 /* ── THE BOARD IS THE WELL ─────────────────────────────────────────────
@@ -6141,7 +5614,7 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
   .fg .page.full .wb2-vtrow { flex:0 1 auto; min-width:0; overflow-x:auto; scrollbar-width:none; }
   .fg .page.full .wb2-vtrow::-webkit-scrollbar { display:none; }
   .fg .page.full .wb2-vtcap { flex:none; }
-  
+
 }
 
 /* ONE PAPER SURFACE, SO THE CARD STOPS BEING A CARD, AND THE TABS STOP BEING
@@ -6622,11 +6095,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .wb2-recdot { width:10px; height:10px; border-radius:50%; background:var(--bad); flex:none; animation:fgPulse 1.6s ease-in-out infinite; }
 @media (prefers-reduced-motion:reduce) { .wb2-recdot { animation:none; } }
 .wb2-capact { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:12px; flex-wrap:wrap; }
-
-/* A quiet line under a row: when a note on my notes was made and how, and an
-   entry's heading in the Library's queue. It was the review card's "said:"
-   first, and outlived that card (2026-09-27). */
-.wb2-capsaid { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); white-space:nowrap; }
 .wb2-caprec { display:flex; flex-direction:column; align-items:center; gap:8px; padding:12px 0 2px; }
 
 /* ── where the field stands ──
@@ -6760,7 +6228,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    it followed the page's inherited 1.5 without being told. Walked on prod at
    rows=3: 86.75px either way. */
 .wb2-notes.wb2-lwbox { height:calc(var(--lwrows) * 1lh + 26px);
-                                                                                                                                                                                                                                                                                                                                                                                                                                  
+
   background:var(--paper); resize:none; }
 
 /* ── and the box the CARD wears ── */
@@ -6851,11 +6319,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .wb2-hint.dan { color:var(--wb2-dan-t); }
 .wb2 .pbtn.ghost.dan, .wb2-sheet .pbtn.ghost.dan { color:var(--wb2-dan-t); border-color:var(--bad); }
 
-@media (max-width:980px) {
-  
-  
-}
-
 /* the project page's trip rows — the board's triage anatomy on a card2 */
 .wb2-triprow { display:grid; grid-template-columns:minmax(0,1fr) 170px 200px; gap:12px; align-items:center;
   padding:12px 4px; border-bottom:1px solid var(--line); }
@@ -6883,67 +6346,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
   background:var(--tint-2); color:var(--ink); }
 .wb2-scopemark.out { background:var(--bad-tint); color:var(--bad-t); }
 @media (max-width:800px) { .wb2-scope { grid-template-columns:1fr; } .wb2-moneyrow { grid-template-columns:minmax(0,1fr) auto; } }
-
-/* ---- Tax & EOFY (components/tax/) ----
-   Reuses the admin index's shell wholesale (.adm-card / .emptybox)
-   — a settings-section screen should not invent a second card. What is new is
-   only what a year of spending needs: a year picker, three headline figures, a
-   category strip, and a row that ends in whether the receipt exists.
-
-   Semantic colour only, never the page accent: ok #00A389, warn amber. The one
-   thing this screen must be able to shout is a MISSING receipt, and it does it
-   in the same amber every other caution in the app uses. */
-/* `.tx-years` — the year picker's own pill family — is gone: the years ride
-   the board's tab strip (`shell/board-tabs`) above the one card. Only the
-   quiet "so far" tag on the running year survives, restyled for a tab. */
-.fg .wb2-vt .tx-sofar { font-style:normal; font-size:12px; font-weight:700; color:var(--q); }
-
-.fg .tx-sumrow { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:0 0 16px; }
-.fg .tx-stat { display:flex; flex-direction:column; gap:4px; padding:16px 16px; border-radius:var(--r-card); background:var(--paper); border:1px solid var(--line); }
-.fg .tx-statlab { font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .tx-statval { font-size:24px; font-weight:700; color:var(--ink); }
-.fg .tx-statsub { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
-.fg .tx-stat.ok .tx-statval { color:var(--ok-t); }
-.fg .tx-stat.warn { border-color:var(--warn); background:var(--warn-tint); }
-.fg .tx-stat.warn .tx-statval, .fg .tx-stat.warn .tx-statsub { color:var(--warn-t); }
-
-.fg .tx-note { display:flex; align-items:flex-start; gap:8px; margin:0 0 12px; padding:12px 12px; border-radius:var(--r-card); background:var(--warn-tint); font-size:13px; font-weight:600; line-height:1.5; color:var(--warn-t); }
-.fg .tx-note .i { flex:none; margin-top:1px; }
-
-.fg .tx-cats { margin:0 0 32px; }
-.fg .tx-cat { display:flex; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid var(--line); }
-.fg .tx-cat:first-child { border-top:0; }
-.fg .tx-catname { flex:1; min-width:0; font-size:14px; font-weight:700; color:var(--ink); }
-.fg .tx-catcount { flex:none; min-width:26px; font-size:12px; font-weight:700; color:var(--gray500); text-align:right; }
-.fg .tx-catgst { flex:none; font-size:12px; font-weight:600; color:var(--gray400); }
-.fg .tx-catamt { flex:none; min-width:92px; text-align:right; font-size:14px; font-weight:700; color:var(--ink); }
-
-.fg .tx-listhead { display:flex; align-items:center; gap:12px; margin:0 0 12px; }
-.fg .tx-listhead h2 { flex:1; margin:0; font-size:16px; font-weight:700; color:var(--ink); }
-
-.fg .tx-item { display:flex; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid var(--line); }
-.fg .tx-item:first-child { border-top:0; }
-.fg .tx-ic { flex:none; display:inline-flex; align-items:center; justify-content:center; color:var(--ink); }
-.fg .tx-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
-.fg .tx-main b { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; color:var(--ink); }
-.fg .tx-main em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.fg .tx-flag { flex:none; font-size:12px; font-weight:500; color:var(--warn-t); }
-.fg .tx-amt { flex:none; display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
-.fg .tx-amt b { font-size:14px; font-weight:700; color:var(--ink); }
-.fg .tx-amt em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
-
-/* The row's verdict. An anchor when there is something to open, a span when
-   there is not — so the amber one is deliberately not clickable. */
-.fg .tx-rcpt { flex:none; display:inline-flex; align-items:center; gap:4px; min-width:96px; padding:4px 12px; border-radius:var(--r-button); background:var(--tint); font-size:12px; font-weight:700; color:var(--ink); text-decoration:none; transition:background var(--t-fast) var(--ease); }
-.fg a.tx-rcpt:hover { background:var(--tint-2); }
-.fg .tx-rcpt.none { background:var(--warn-tint); color:var(--warn-t); }
-
-@media (max-width:700px){
-  .fg .tx-sumrow { grid-template-columns:1fr; }
-  .fg .tx-catgst { display:none; }
-  .fg .tx-item { flex-wrap:wrap; }
-  .fg .tx-rcpt { min-width:0; }
-}
 
 /* ---- correcting a log entry ----
    Unscoped, like the rest of the fleet modal block: these render inside the
@@ -7876,14 +7278,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    live components at equal specificity twice, so they are removed rather
    than left for the next person to trip over. */
 
-/* ── the KB curation queue ── */
-.wb2-kbqrow { display:grid; gap:8px; padding:16px 16px; border-bottom:1px solid var(--line); }
-.wb2-kbqrow:last-child { border-bottom:0; }
-.wb2-kbqhead { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.wb2-kbqhead b { font-size:14px; font-weight:700; color:var(--ink); }
-.wb2-kbqbody { margin:0; font-size:13px; line-height:1.55; color:var(--gray700); max-width:70ch; }
-.wb2-kbqrow .wb2-noteact { justify-content:flex-start; }
-
 /* ── the caret ──
    An answer still arriving ends in it: the Tiff modal's, as Tiff's answer
    streams. It was the capture card's answer stage's first — the question
@@ -8029,18 +7423,11 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .hd-face { display:flex; flex-direction:column; overflow-y:auto; }
 .fg .hd-main[hidden], .fg .hd-face[hidden] { display:none; }
 
-@media (prefers-reduced-motion:reduce) {  }
-
 .fg .hd-ls-grp { display:flex; align-items:baseline; gap:8px; margin:0; padding:24px 0 8px;
   border-bottom:1px solid var(--hd-rule); font-size:16px; font-weight:600; line-height:1.2; color:var(--hd-ink); }
 
 .fg .hd-ls-grp.late { color:var(--hd-late); }
 .fg .hd-ls-grp.today { color:var(--hd-today); }
-
-@media (prefers-reduced-motion:reduce) {
-  
-  
-}
 
 .fg .hd-tk-sm8line { margin:0; max-width:640px; font-size:14px; color:var(--q); }
 .fg .hd-tk-sm8line b { font-weight:500; color:var(--ink); }
@@ -8058,18 +7445,11 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    the row at 1440 wide; under 1,100 the filters and the switch take their
    own line, the switch at its end. */
 @container hdcaltb (max-width:1199.5px) {
-  
-  
-  
-  
-  
+
 }
 @container hdcaltb (max-width:1099.5px) {
-  
-  
-}
 
-@media (prefers-reduced-motion:reduce) {  }
+}
 
 .fg .hd-ls-grp.due { color:var(--warn-t); }
 .fg .hd-ls-grp.hol { color:var(--hd-cal-hol-t); }
@@ -8078,10 +7458,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    number in his purple and its name as the button's. */
 @container (max-width:84px) {  }
 
-@media (prefers-reduced-motion:reduce) {
-  
-  
-}
 /* ===================================================================
    VEHICLE MODAL v2 (components/fleet/vehicle-modal/)
 
@@ -8099,7 +7475,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .vm-ov { position:fixed; inset:0; z-index:var(--z-modal); display:flex; align-items:flex-start; justify-content:center; padding:32px 24px; overflow:auto;
   background:var(--scrim); backdrop-filter:blur(6px); animation:flFade .2s ease;
   font-family:var(--font-jakarta), sans-serif; -webkit-font-smoothing:antialiased;
-                                                                                                                              
+
   --vm-muted:var(--q); --vm-faint:var(--q); --vm-sunk:var(--tint); --vm-sunk-h:var(--tint-2); --vm-chip:var(--tint); --vm-chip-h:var(--tint-2);
   --vm-line:var(--line); --vm-line2:var(--line); --vm-rule:var(--line); --vm-border:var(--line);
   --vm-ok-bg:var(--tint); --vm-ok-bg2:var(--tint-2); --vm-ok-line:var(--tint-2);
@@ -8431,16 +7807,12 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .vm-inline:disabled { opacity:.45; cursor:default; }
 
 /* ---- the wall, grouped by kind (Licences, then Insurance) ---- */
-.fg .credgroup { margin-top:16px; }
-.fg .credgroup + .credgroup { margin-top:24px; }
-.fg .credgroup-h { display:block; font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .credgroup > .credgrid { margin-top:8px; }
+
 /* How many terms a card has on file — the history, visible from outside it.
    QUIET, not ok-teal: a count is information, and a semantic state colour used
    for something that is not a state reads as "this one is fine" on a card whose
    status chip may be saying the opposite. It is separated from the issuer line
    above it by weight, not by hue. */
-.fg .cred-note { margin-top:4px; font-size:12px; font-weight:700; color:var(--q); }
 
 /* A licence card that is a DOOR — stretched over the whole surface, above the
    sheen and the mesh but below nothing else, because there is nothing else on
@@ -8474,204 +7846,24 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .wr-checksl b { font-size:14px; font-weight:700; color:var(--ink); }
 .fg .wr-checksl em { font-style:normal; font-size:12px; font-weight:600; color:var(--q); }
 
-/* ── ADMIN · QUOTING (components/admin/quoting-screen) ──
-   Two groups, a hairline top each (law 9: read, not acted on as a box). The
-   markup fields sit in a row with their profit share under each; the
-   preferred items are a ruled table, the open row filled with the
-   selection tint and its shortlist below it. */
+/* ── QUOTING'S OLD FIELDS, kept only for Reports' settings
+   (components/admin/analytics-settings-screen), the one screen still
+   wearing them. Quoting and the Price book are sections of the Settings
+   frame now (25 October 2026), dressed by components/settings/quoting.css
+   and price-book.css; what only they wore has gone. ── */
 .qs-group { padding:16px 0 24px; border-top:1px solid var(--line); }
 .qs-group:first-of-type { border-top:0; padding-top:0; }
 .qs-h { margin:0; font-size:16px; font-weight:600; }
 .qs-sub { margin:4px 0 0; font-size:13px; font-weight:500; color:var(--q); }
 .qs-fields { display:flex; flex-wrap:wrap; gap:24px; margin-top:12px; }
-/* what every job starts with: a task a row, its visit, whether it's photos */
-.qs-starters { list-style:none; margin:12px 0 0; padding:0; display:flex; flex-direction:column; }
-.qs-starters li { display:grid; grid-template-columns:minmax(0, 1fr) 180px auto 24px; gap:12px; align-items:center; padding:8px 0; border-top:1px solid var(--line); }
-.qs-starters li:first-child { border-top:0; }
-.qs-check { display:inline-flex; align-items:center; gap:8px; font-size:13px; color:var(--ink); white-space:nowrap; }
 .qs-field { display:flex; flex-direction:column; gap:4px; }
 .qs-field > span:first-child { font-size:13px; font-weight:500; color:var(--q); }
 .qs-in { display:flex; align-items:center; gap:8px; }
 .qs-in .wb2-fi { width:96px; font-variant-numeric:tabular-nums; }
 .qs-in em { font-style:normal; font-size:14px; color:var(--q); }
 .qs-share { font-style:normal; font-size:13px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
-.qs-table { margin-top:12px; display:flex; flex-direction:column; }
-.qs-row { display:grid; grid-template-columns:200px minmax(0, 1fr) 96px 160px 160px 132px; gap:12px; align-items:center;
-  padding:8px 0; border-top:1px solid var(--line); font-size:14px; }
-.qs-row.on { background:var(--tint); }
-/* the kits as ranges (Isaac's kits, round 2): a part, how many, what sizes
-   it, what it comes to, and its range from the book under it */
-.qs-kitbar { display:flex; align-items:center; gap:24px; margin-top:12px; padding:16px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); }
-.qs-kat { display:flex; flex-direction:column; align-items:flex-start; gap:2px; font-size:13px; color:var(--q); }
-.qs-kat b { font-size:14px; font-weight:600; color:var(--ink); }
-.qs-ktot { margin-left:auto; display:flex; flex-direction:column; align-items:flex-end; gap:2px; font-size:13px; color:var(--q); }
-.qs-ktot b { font-size:24px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
-.qs-klink { padding:0; border:0; background:none; font:inherit; font-size:13px; font-weight:600; color:var(--ink); text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
-.qs-kform { display:flex; flex-wrap:wrap; align-items:flex-end; gap:16px; margin-top:12px; }
-.qs-kform .wb2-fi { width:160px; }
-.qs-kcols, .qs-kph { display:grid; grid-template-columns:160px 184px 184px minmax(0, 1fr) 96px; gap:16px; }
-.qs-kcols { margin-top:16px; font-size:13px; font-weight:500; color:var(--q); }
-.qs-kcols .r { text-align:right; }
-.qs-kpart { display:flex; flex-direction:column; gap:12px; padding:16px 0; border-top:1px solid var(--line); }
-.qs-kph { align-items:start; font-size:13px; line-height:1.45; }
-.qs-kph > b { font-size:14px; font-weight:600; }
-.qs-kuses { display:flex; flex-direction:column; gap:8px; min-width:0; }
-.qs-kuse { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:12px; align-items:baseline; font-size:14px; }
-.qs-kuse small { display:block; font-size:12px; color:var(--q); }
-.qs-kuse .n, .qs-kamt { font-variant-numeric:tabular-nums; }
-.qs-kuse .n { font-size:13px; color:var(--q); white-space:nowrap; }
-.qs-kuse.none { color:var(--q); }
-.qs-kamt { text-align:right; font-size:14px; font-weight:600; }
-.qs-krh { display:flex; align-items:baseline; gap:12px; font-size:13px; color:var(--q); }
-.qs-krh b { font-weight:600; color:var(--ink); }
-.qs-krange { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:8px; }
-.qs-krange label { display:grid; grid-template-columns:16px minmax(0, 1fr); gap:8px; align-items:start; padding:8px 12px; border:1px solid var(--line); border-radius:var(--r-button); background:var(--paper); font-size:13px; line-height:1.4; cursor:pointer; }
-.qs-krange input { margin:2px 0 0; }
-.qs-krange b { font-weight:600; }
-.qs-krange small { display:flex; justify-content:space-between; gap:8px; font-size:12px; color:var(--q); }
-.qs-krange small .n { font-variant-numeric:tabular-nums; white-space:nowrap; }
-.qs-krange em { display:block; margin-top:2px; font-style:normal; font-size:12px; font-weight:600; color:var(--ink); }
-.qs-krange li.now label { border-color:var(--ink); background:var(--tint); }
-.qs-list li.qs-habit { grid-template-columns:minmax(0, 1fr) auto; }
-.qs-headrow { border-top:0; font-size:13px; font-weight:500; color:var(--q); }
-.qs-row b { font-weight:600; }
-.qs-row .num, .qs-list .num { text-align:right; font-variant-numeric:tabular-nums; }
 .qs-item { min-width:0; }
 .qs-item em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
-.qs-none { color:var(--q); }
-.qs-act { display:flex; justify-content:flex-end; }
-.qs-pick { padding:8px 0 16px 212px; }
-.qs-roll { display:flex; align-items:flex-end; gap:12px; margin-bottom:8px; }
-.qs-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
-.qs-list li { display:grid; grid-template-columns:minmax(0, 1fr) 96px 160px 132px; gap:12px; align-items:center;
-  padding:8px 0; border-top:1px solid var(--line); font-size:14px; }
-.qs-list li.on { background:var(--tint); }
-.qs-chosen { font-style:normal; font-size:14px; font-weight:500; }
-.qs-chosen.ok { color:var(--ok-t); }
-/* the price book: a supplier per row with its upload, then the one search
-   that lays a model's price at every supplier side by side, the cheaper in
-   the state's green (law 31: it means something) */
-.qs-notedetail { display:block; margin-top:4px; font-weight:500; }
-.qs-upload { position:relative; cursor:pointer; }
-.qs-upload[aria-disabled="true"] { opacity:.5; cursor:default; }
-.qs-file { position:absolute; inset:0; opacity:0; cursor:pointer; }
-/* a list-price supplier's discount: a range per row, its Remove on the
-   fields' baseline */
-.qs-rule { align-items:flex-end; }
-/* a file's columns matched by hand: its first rows as they are, a column
-   to choose for each field */
-.qs-match { margin-top:16px; padding:16px; border:1px solid var(--line); border-radius:var(--r-card); }
-.qs-preview { margin-top:12px; overflow-x:auto; }
-.qs-preview table { border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; }
-.qs-preview th { padding:4px 8px; text-align:left; font-weight:600; color:var(--q); }
-.qs-preview td { padding:4px 8px; border-top:1px solid var(--line); white-space:nowrap; max-width:220px; overflow:hidden; }
-/* a cell takes no max-width in an auto table; the Fade inside it does, and
-   fades only a value longer than that (rule 50) */
-.qs-preview td > .pt-fade { max-width:220px; }
-.qs-offers { display:flex; flex-wrap:wrap; gap:16px; }
-.qs-offer { display:flex; flex-direction:column; font-variant-numeric:tabular-nums; font-weight:500; }
-.qs-offer em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
-.qs-offer.ok { color:var(--ok-t); font-weight:600; }
-.qs-saves { font-size:13px; font-weight:500; color:var(--q); text-align:right; }
-/* the pack's links: near units in groups by what differs, each row ticked
-   into its group's press, with its prices and its own "not the same" */
-.lk-group { margin-top:16px; }
-.lk-group .qs-table { margin-top:8px; }
-.qs-row.lk-row { grid-template-columns:32px 220px 280px minmax(0, 1fr) 132px; }
-.qs-acts2 { gap:8px; }
-.qs-unpriced li { grid-template-columns:minmax(0, 1fr); }
-/* one part at two suppliers: each side with its price, what they share,
-   and the answer */
-.qs-samerow { grid-template-columns:minmax(0, 1fr) minmax(0, 1fr) 160px 240px; }
-/* a grouped item: one row, every supplier's price a button to choose it by,
-   the lowest in the state's green; the priced-from state is a word */
-.qs-state { font-weight:500; }
-.qs-state.warn { color:var(--warn-t); }
-.qs-state.ok { color:var(--ok-t); }
-.qs-list li:has(.qs-groupoffers) { grid-template-columns:minmax(0, 1fr) minmax(0, 1.4fr); }
-.qs-groupoffers { display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; }
-/* `.fg button` resets every button's border and fill at (0,1,1): these
-   carry the element so the price's edge and its chosen fill survive it */
-.fg button.qs-offerbtn { display:flex; flex-direction:column; align-items:flex-start; padding:4px 12px; border:1px solid var(--line);
-  border-radius:var(--r-button); background:var(--paper); font-size:14px; font-weight:500; font-variant-numeric:tabular-nums;
-  transition:background-color var(--t-fast) var(--ease); }
-.fg button.qs-offerbtn:hover:not(:disabled) { background:var(--tint); }
-.qs-offerbtn em { font-style:normal; font-size:12px; color:var(--q); }
-.qs-offerbtn.ok { color:var(--ok-t); }
-.fg button.qs-offerbtn.on { background:var(--tint-2); border-color:var(--ink); }
-
-/* The price book's items (book-items.tsx): what to look at down the left,
-   the shelf's families on the right */
-.pbk { display:grid; grid-template-columns:240px minmax(0, 1fr); gap:32px; align-items:start; }
-.pbk-rail { position:sticky; top:0; display:flex; flex-direction:column; gap:2px; }
-.fg button.pbk-view { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 12px;
-  border-radius:var(--r-button); font-size:14px; font-weight:500; text-align:left; transition:background-color var(--t-fast) var(--ease); }
-.fg button.pbk-view:hover { background:var(--tint); }
-.fg button.pbk-view.on { background:var(--tint-2); font-weight:600; }
-.pbk-view em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
-.pbk-railsep { height:1px; margin:8px 12px; background:var(--line); }
-.pbk-main { min-width:0; }
-.pbk-head { display:flex; justify-content:space-between; align-items:flex-start; gap:24px; margin-bottom:16px; }
-.pbk-title { margin:0; font-size:20px; font-weight:600; }
-.pbk-find { width:320px; }
-.pbk-sec + .pbk-sec { margin-top:24px; }
-.pbk-sech { margin:0 0 4px; font-size:16px; font-weight:600; }
-.pbk-prod { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1.2fr); gap:16px; align-items:center;
-  padding:8px 0; border-top:1px solid var(--line); font-size:14px; }
-.pbk-prod b { font-weight:600; }
-.fg button.pbk-famrow { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:16px; align-items:center; width:100%;
-  padding:8px 12px; border-top:1px solid var(--line); text-align:left; font-size:14px; transition:background-color var(--t-fast) var(--ease); }
-.fg button.pbk-famrow:hover { background:var(--tint); }
-.fg button.pbk-famrow.on { background:var(--tint-2); }
-.pbk-famrow b { font-weight:600; }
-.pbk-range { font-size:14px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
-.pbk-sizes { padding-left:24px; }
-.pbk-sech em { margin-left:8px; font-style:normal; font-size:13px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
-
-/* The price book's suppliers (price-book-panel.tsx): one quiet row each,
-   which opens onto what can be done to it */
-.pbs-head, .fg button.pbs-row { display:grid; grid-template-columns:220px minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr); gap:16px; align-items:center; }
-.pbs-head { padding:0 12px 8px; font-size:13px; font-weight:500; color:var(--q); }
-.fg button.pbs-row { width:100%; padding:12px; border-top:1px solid var(--line); text-align:left; font-size:14px; transition:background-color var(--t-fast) var(--ease); }
-.fg button.pbs-row:hover { background:var(--tint); }
-.fg button.pbs-row.on { background:var(--tint-2); }
-.pbs-row b { font-weight:600; }
-.pbs-none { color:var(--q); }
-.pbs-panel { display:flex; flex-direction:column; gap:12px; padding:12px 12px 24px; }
-.pbs-panel .qs-sub { margin:0; }
-.pbs-panel .qs-match { margin-top:0; }
-.pbs-acts { display:flex; gap:8px; }
-.pbs-add { display:flex; align-items:center; gap:8px; margin-top:16px; }
-.pbs-add .wb2-fi { width:320px; }
-.pbs-addbtn { margin-top:16px; }
-
-/* An invoice Tiff read, looked over before it goes in (invoice-review.tsx):
-   a ledger, a line a row, the figures in their columns */
-.pbi-review { display:flex; flex-direction:column; gap:12px; }
-.pbi-review > * { margin:0; }
-.pbi-wrap { overflow-x:auto; }
-.pbi { width:100%; border-collapse:collapse; font-size:13px; font-weight:500; font-variant-numeric:tabular-nums; }
-.pbi th { padding:4px 8px; text-align:left; font-weight:600; color:var(--q); }
-.pbi td { padding:8px; border-top:1px solid var(--line); vertical-align:top; }
-.pbi .pbi-num { text-align:right; white-space:nowrap; }
-.pbi-code { white-space:nowrap; }
-
-/* a supplier's code letters, in its open row (code-letters.tsx): what's
-   kept, a line each, and the read to look over before it's kept */
-.pbl { display:flex; flex-direction:column; gap:8px; }
-.qs-list li.pbl-rule { grid-template-columns:minmax(0, 1fr) 132px; }
-.qs-list li.pbl-rule .pbtn { justify-self:end; }
-
-/* Quoting's ranges that come in sizes (quoting-ranges.tsx): a part, the
-   business's range of it, how many sizes; opened, its product lines and
-   the sizes of the one chosen, as a ledger */
-.qs-row.qsr-row { grid-template-columns:200px minmax(0, 1fr) 132px 132px; }
-.qsr-pick { display:flex; flex-direction:column; gap:12px; }
-.qs-list li.qsr-line { grid-template-columns:minmax(0, 1fr) 132px; }
-.qs-list li.qsr-line .pbtn { justify-self:end; }
-.qsr-proposal { margin-top:0; }
-.qsr-code { display:block; font-size:13px; font-weight:500; color:var(--q); }
-.qsr-width { width:96px; }
 
 /* ===== THE QUOTE TAB'S LANDING, "QUOTES" (v2; job-quote-card.tsx) =====
    Isaac, 18 October: the Quote tab opens on its quotes. The job's one quote
@@ -9601,8 +8793,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    way back to Settings above the title in ink (rule 26), the title at 24,
    the grey fact line, the page's own button or state word on the right.
    It sits where the band sat, in the band's 24px gutter, and the panel
-   under it keeps its line and its scroll. The index: each area's name on
-   the left, its rows on the right (rule 39), a thin line between areas. */
+   under it keeps its line and its scroll. */
 .fg .st2-head { flex:none; display:flex; flex-direction:column; gap:8px; padding:24px 24px 16px; min-width:0; font-family:var(--font); color:var(--ink); }
 .fg .st2-back { align-self:flex-start; display:inline-flex; align-items:center; gap:4px; margin-left:-4px; padding:2px 4px; border-radius:var(--r-button);
   font-size:13px; line-height:18px; font-weight:500; color:var(--ink); text-decoration:none; transition:background-color var(--t-fast) var(--ease); }
@@ -9614,13 +8805,47 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .st2-h1 { margin:0; min-width:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
 .fg .st2-facts { margin:0; min-width:0; font-size:14px; line-height:20px; font-weight:400; color:var(--q); font-variant-numeric:tabular-nums; }
 .fg .st2-tools { flex:none; display:flex; align-items:center; gap:8px; }
-.fg .st2-groups { display:flex; flex-direction:column; gap:24px; min-width:0; }
-.fg .st2-group { display:grid; grid-template-columns:240px minmax(0,1fr); gap:32px; align-items:start; min-width:0; }
-.fg .st2-group + .st2-group { padding-top:24px; border-top:1px solid var(--line); }
-.fg .st2-gh { margin:0; padding-top:12px; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
-.fg .st2-group .pt-row { padding-block:12px; }
-/* the Rate Calculator's line: its health as a state word, then the business */
-.fg .st2-rc-facts { display:inline-flex; align-items:center; gap:12px; min-width:0; }
+/* SETTINGS, the frame (25 October 2026, the mock BRjnFN2…): one page, the
+   six sections down a 240 list on the left, the one you're on in the
+   selected fill and bold; the section on the right in a 760 column. A
+   section is its title and groups under thin lines (rule 35), each group's
+   heading at 16 with its buttons on the right; typed details as label and
+   value, a setting as its name with its control on the right. */
+.fg .st2 { display:flex; align-items:flex-start; gap:32px; min-width:0; font-family:var(--font); color:var(--ink); }
+.fg .st2-nav { position:sticky; top:0; flex:none; width:240px; display:flex; flex-direction:column; gap:2px; }
+.fg .st2-navitem { display:flex; align-items:center; min-height:36px; padding:0 12px; border-radius:var(--r-button);
+  font-size:14px; line-height:20px; font-weight:500; color:var(--ink); text-decoration:none; transition:background-color var(--t-fast) var(--ease); }
+.fg .st2-navitem:hover { background-color:var(--hov); }
+.fg .st2-navitem.on { background-color:var(--sel); font-weight:600; }
+.fg .st2-navitem:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .st2-body { flex:1 1 auto; min-width:0; max-width:760px; display:flex; flex-direction:column; gap:24px; }
+.fg .st2-hold { min-height:480px; }
+.fg .st2-titlerow { display:flex; align-items:center; justify-content:space-between; gap:24px; min-width:0; }
+.fg .st2-group { display:flex; flex-direction:column; gap:8px; min-width:0; padding-top:16px; border-top:1px solid var(--line); }
+.fg .st2-ghead { display:flex; align-items:center; gap:12px; min-height:32px; }
+.fg .st2-ghead h2 { flex:1 1 auto; min-width:0; margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .st2-link { font-size:14px; line-height:20px; font-weight:500; color:var(--ink); text-decoration:underline; text-underline-offset:2px; }
+.fg .st2-link:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
+.fg .st2-kv { display:flex; flex-direction:column; gap:8px; margin:0; font-size:14px; line-height:20px; }
+.fg .st2-kvrow { display:grid; grid-template-columns:200px minmax(0,1fr); gap:24px; }
+.fg .st2-kv dt { font-weight:500; color:var(--q); }
+.fg .st2-kv dd { margin:0; min-width:0; overflow-wrap:anywhere; color:var(--ink); }
+.fg .st2-none { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.fg .st2-kv dd.st2-none { color:var(--q); }
+.fg .st2-set { display:flex; align-items:center; gap:24px; min-height:52px; padding:8px 0; }
+.fg .st2-set + .st2-set { border-top:1px solid var(--line); }
+.fg .st2-setw { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:4px; }
+.fg .st2-sett { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .st2-sets { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .st2-who { display:flex; align-items:center; gap:8px; font-size:14px; line-height:20px; font-weight:400; color:var(--ink); }
+.fg .st2-choose { width:200px; }
+.fg .st2-form { display:flex; flex-direction:column; gap:16px; padding:8px 0; }
+.fg .st2-fields { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px; }
+.fg .st2-fields.st2-fields--one { grid-template-columns:minmax(0,1fr); }
+.fg .st2-fields.st2-fields--three { grid-template-columns:repeat(3, minmax(0,1fr)); }
+.fg .st2-wrong { display:flex; align-items:center; gap:8px; margin:0; font-size:14px; line-height:20px; font-weight:500; color:var(--red-w); }
+.fg .st2-rowend { display:inline-flex; align-items:center; gap:12px; }
+.fg .st2-group .pt-row { padding-left:0; padding-right:0; }
 /* REPORTS (analytics-screen.tsx). The head as Jobs has it, the dates as its
    grey line and the period on the right, a tray of links (rule 30); the
    views as soft tabs (rule 29); then each view on the white page, its
@@ -10301,77 +9526,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
   .fg .lb2-head { flex-wrap:wrap; }
   .fg .lb2-search { width:240px; }
 }
-
-/* ===== V2: SETTINGS AND REPORTS (v2, the screens with no board, 18 October;
-   components/settings, components/analytics) =====
-   SETTINGS. The head every settings page wears (settings-head.tsx): the
-   way back to Settings above the title in ink (rule 26), the title at 24,
-   the grey fact line, the page's own button or state word on the right.
-   It sits where the band sat, in the band's 24px gutter, and the panel
-   under it keeps its line and its scroll. The index: each area's name on
-   the left, its rows on the right (rule 39), a thin line between areas. */
-.fg .st2-head { flex:none; display:flex; flex-direction:column; gap:8px; padding:24px 24px 16px; min-width:0; font-family:var(--font); color:var(--ink); }
-.fg .st2-back { align-self:flex-start; display:inline-flex; align-items:center; gap:4px; margin-left:-4px; padding:2px 4px; border-radius:var(--r-button);
-  font-size:13px; line-height:18px; font-weight:500; color:var(--ink); text-decoration:none; transition:background-color var(--t-fast) var(--ease); }
-.fg .st2-back-word { text-decoration:underline; text-underline-offset:2px; }
-.fg .st2-back:hover { background-color:var(--hov); }
-.fg .st2-back:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .st2-top { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; min-width:0; }
-.fg .st2-id { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:4px; }
-.fg .st2-h1 { margin:0; min-width:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
-.fg .st2-facts { margin:0; min-width:0; font-size:14px; line-height:20px; font-weight:400; color:var(--q); font-variant-numeric:tabular-nums; }
-.fg .st2-tools { flex:none; display:flex; align-items:center; gap:8px; }
-.fg .st2-groups { display:flex; flex-direction:column; gap:24px; min-width:0; }
-.fg .st2-group { display:grid; grid-template-columns:240px minmax(0,1fr); gap:32px; align-items:start; min-width:0; }
-.fg .st2-group + .st2-group { padding-top:24px; border-top:1px solid var(--line); }
-.fg .st2-gh { margin:0; padding-top:12px; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
-.fg .st2-group .pt-row { padding-block:12px; }
-/* the Rate Calculator's line: its health as a state word, then the business */
-.fg .st2-rc-facts { display:inline-flex; align-items:center; gap:12px; min-width:0; }
-/* REPORTS (analytics-screen.tsx). The head as Jobs has it, the dates as its
-   grey line and the period on the right, a tray of links (rule 30); the
-   views as soft tabs (rule 29); then each view on the white page, its
-   groups under thin lines. The top line: the win rate is the one big
-   figure (32), the six beside it at 20, each with its label above and its
-   words under, a change in its state's colour. The charts and the job rows
-   are analytics.css's. */
-.fg .wrap.st2-rp { max-width:none; padding:24px 32px 96px; display:flex; flex-direction:column; gap:16px; min-width:0; font-family:var(--font); color:var(--ink); }
-.fg .st2-rp-head { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; min-width:0; }
-.fg .st2-rp-period .pt-tray-opt { text-decoration:none; }
-.fg .st2-rp-period .pt-tray-opt[aria-current="true"] { background:var(--sel); color:var(--ink); }
-.fg .st2-rp-panel { min-width:0; padding-top:8px; outline:none; }
-.fg .st2-rp-face { display:flex; flex-direction:column; gap:32px; min-width:0; }
-.fg .st2-rp-lede { display:flex; flex-direction:column; gap:12px; }
-.fg .st2-rp-say { margin:0; font-size:14px; line-height:20px; font-weight:400; color:var(--q); }
-.fg .st2-rp-todo { display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:14px; line-height:20px; color:var(--ink); }
-.fg .st2-rp-top { display:grid; grid-template-columns:280px minmax(0,1fr); gap:32px; align-items:start; }
-.fg .st2-rp-lead { display:flex; flex-direction:column; gap:8px; padding-right:32px; border-right:1px solid var(--line); min-width:0; }
-.fg .st2-rp-label { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
-.fg .st2-rp-big { font-size:32px; line-height:40px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
-.fg .st2-rp-meter { height:8px; background:var(--soft); }
-.fg .st2-rp-meter > span { display:block; height:8px; background:var(--chart-1); }
-.fg .st2-rp-note { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
-.fg .st2-rp-note.st2-rp-note--good { font-weight:600; color:var(--green-w); }
-.fg .st2-rp-note.st2-rp-note--look { font-weight:600; color:var(--orange-w); }
-.fg .st2-rp-figs { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:24px 32px; min-width:0; }
-.fg .st2-rp-figs.st2-rp-figs--four { grid-template-columns:repeat(4, minmax(0,1fr)); }
-.fg .st2-rp-fig { display:flex; flex-direction:column; gap:4px; min-width:0; }
-.fg .st2-rp-value { font-size:20px; line-height:28px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
-.fg .st2-rp-sec { display:flex; flex-direction:column; gap:16px; min-width:0; padding-top:24px; border-top:1px solid var(--line); }
-.fg .st2-rp-h { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
-.fg .st2-rp-sec h3 { margin:0 0 8px; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
-.fg .st2-rp-cols { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:32px; }
-.fg .st2-rp-two { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:32px; align-items:start; }
-.fg .st2-rp-acts { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
-/* the lost, as a table: why, how many, how much work */
-.fg .st2-rp-table { width:100%; border-collapse:collapse; font-size:14px; line-height:20px; color:var(--ink); font-variant-numeric:tabular-nums; }
-.fg .st2-rp-table th { padding:8px 12px; text-align:left; font-size:12px; line-height:16px; font-weight:500; color:var(--q); border-bottom:1px solid var(--line); }
-.fg .st2-rp-table td { padding:12px; border-bottom:1px solid var(--line); vertical-align:baseline; }
-.fg .st2-rp-table th:first-child, .fg .st2-rp-table td:first-child { padding-left:0; }
-.fg .st2-rp-table .st2-rp-num { text-align:right; white-space:nowrap; }
-.fg .st2-rp-table th:last-child, .fg .st2-rp-table td:last-child { padding-right:0; }
-.fg .st2-rp-strong { font-weight:600; }
-.fg .st2-rp-quiet { color:var(--q); }
 
 /* ══════════════════ TIFF'S CHAT, AS CLAUDE'S (.tc-*) ══════════════════
    Isaac, 20 October 2026: every chat with Tiff looks like a conversation in

@@ -23,5 +23,8 @@ export async function saveQuoteSettings(input: unknown): Promise<SaveResult> {
     );
   if (error) return { ok: false, reason: "The settings couldn't be saved. Try again." };
   revalidatePath("/dashboard/admin/quoting");
+  /* the preferred items are saved from the Price book, and its items sell
+     at the materials markup saved from Quoting */
+  revalidatePath("/dashboard/admin/price-book");
   return { ok: true, settings };
 }

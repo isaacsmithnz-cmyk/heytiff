@@ -568,7 +568,7 @@ describe("expiries", () => {
       verb: null,
     });
     expect(find<ListAlertRow>(list, "chip:org-cred:pl")).toMatchObject({
-      door: { to: "href", href: "/dashboard/admin/organization?sec=credentials" },
+      door: { to: "href", href: "/dashboard/admin/organization#licences" },
       verb: null,
       sub: "Ran out Tue 1 Sept.",
     });

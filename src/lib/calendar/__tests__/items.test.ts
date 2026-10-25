@@ -173,7 +173,7 @@ describe("the business's own papers", () => {
         ["Runs out", "Tue 10 Nov 2026"],
         ["From", "Admin"],
       ],
-      action: { label: "Renew", href: "/dashboard/admin/organization?sec=credentials" },
+      action: { label: "Renew", href: "/dashboard/admin/organization#licences" },
       overdue: false,
     });
   });

@@ -1,13 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { ScreenPanel } from "@/components/shell/screen-band";
-import { Chooser } from "@/components/parts/chooser";
-import { SettingsHead } from "@/components/settings/settings-head";
+import { useState, type ReactNode } from "react";
+import { Button } from "@/components/parts/button";
+import { Chooser, type ChooserOption } from "@/components/parts/chooser";
+import { TextInput } from "@/components/parts/field";
+import { Tick } from "@/components/parts/tick";
+import { useToast } from "@/components/parts/toast";
+import { Group, SectionTitle, Setting, Wrong } from "@/components/settings/parts";
 import { saveQuoteSettings } from "@/app/actions/quote-settings";
-import { profitSharePct, sellCents, type ComponentKey } from "@/lib/quotes/components";
-import type { ComponentGroup, ComponentOffer, ComponentShortlist } from "@/lib/quotes/settings-query";
+import { profitSharePct } from "@/lib/quotes/components";
 import {
   ALLOWANCES,
   ALLOWANCE_KEYS,
@@ -32,153 +34,186 @@ import {
   type StarterWhen,
   type TaskKey,
 } from "@/lib/quotes/settings";
-import { orgDayOf, rateFromWords, type CalcDay } from "@/lib/quotes/org-day";
+import { orgDayOf, type CalcDay } from "@/lib/quotes/org-day";
 import { hourCostOf } from "@/lib/quotes/profit";
-import { KitsSection } from "./quoting-kits";
-import type { Habit } from "@/lib/quotes/habits";
-import type { RangeView } from "@/lib/quotes/ranges";
-import { RangesGroup } from "./quoting-ranges";
+import { withCleanup } from "@/lib/ui/with-cleanup";
+import "@/components/settings/quoting.css";
 
-/* QUOTING — what a quote is priced by.
+/* SETTINGS › QUOTING (v2, 25 October 2026; the mock's Quoting board). What
+   a quote is priced by, as the business's own figures: the rate and the
+   markup, the allowances a kit carries at cost, the hours it checks a
+   quote's labour against, what every job starts with, and the two answers
+   about what a quote shows. What prices each part (the preferred items, the
+   ranges that come in sizes, the kits) is the Price book's now.
 
    THE RATE AND THE DAY: the charge-out rate and the working day, set here
    so a business can quote before it has finished its Rate Calculator
-   (Isaac, 2026-10-04). Left blank, each is the Rate Calculator's, and the
-   field says so; a day on site is the one times the other, never a figure
-   of ours (org-day.ts).
-
-   THE DUCT CONTINGENCY: a share of a quote's ductwork and grilles, and
-   hours on top at the rate — the business's own, and none when blank.
+   (Isaac, 2026-10-04). Left blank, each is the Rate Calculator's: the field
+   shows its figure in grey, and the line under the rates says where it
+   came from. A day on site is the one times the other, never a figure of
+   ours (org-day.ts).
 
    THE PROFIT TARGET: the share of a price the business means to keep. A
-   quote under it says so and by how much; nothing changes a price (Isaac,
-   2026-10-07). An hour's cost is the rate less the target unless typed,
-   because the rate already carries the profit (profit.ts).
+   quote under it says so; nothing changes a price (Isaac, 2026-10-07). An
+   hour's cost is the rate less the target unless typed (profit.ts).
 
-   THE MARKUP says its profit share beside it, because 20% markup is 16.7% of
-   the sell price and the two get confused on every quote otherwise.
+   THE MARKUP says its profit share under its name, because 20% markup is
+   16.7% of the sell price and the two get confused otherwise.
 
-   PREFERRED ITEMS: each common component (pair coil by size, cable, drain
-   hose, isolator…) is priced from ONE price-book item — the LOWEST priced
-   per metre or each, by default (Isaac, 2026-09-30). Override opens the
-   shortlist and a person picks another; Use lowest goes back. The same item
-   at several suppliers is one row with every supplier's price beside it,
-   the lowest in the state's green. A roll's length is read off the item's
-   name; where it can't be, it can be typed, and a metre can't be priced
-   until it is.
-
-   RANGES: a part a kit needs at a size — an isolator, a bracket, dampers,
-   flex, diffusers, grilles, Ys and BTOs, plenums — from the business's own
-   range of it (quoting-ranges.tsx). */
+   Typed figures are a group with its own save; a choice saves the moment
+   it's picked (rule 32). Either says so in a toast with Undo (rule 51),
+   and what went wrong under its own group (rule 42). */
 
 const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 2 });
-const $ = (cents: number | null) => (cents == null ? "–" : money.format(cents / 100));
-
-/** HABITS, asked about (slice 13.2): a swap made on three quotes or more,
-    offered as the preferred item, one press to say yes. */
-function HabitsGroup({ habits, onDone }: { habits: Habit[]; onDone: () => void }) {
-  const [busy, setBusy] = useState<string | null>(null);
-  const [done, setDone] = useState<Set<string>>(new Set());
-  const prefer = async (h: Habit) => {
-    const ref = `${h.to.supplierKey}|${h.to.code}`;
-    setBusy(ref);
-    const r = await fetch("/api/quoting/preferred", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ref, on: true }) }).catch(() => null);
-    setBusy(null);
-    if (r?.ok) {
-      setDone((d) => new Set(d).add(ref));
-      onDone();
-    }
-  };
-  return (
-    <section className="qs-group" aria-labelledby="qs-habits">
-      <h2 className="qs-h" id="qs-habits">
-        Habits
-      </h2>
-      <ul className="qs-list">
-        {habits.map((h) => {
-          const ref = `${h.to.supplierKey}|${h.to.code}`;
-          return (
-            <li key={ref + h.from.code} className="qs-habit">
-              <span className="qs-item">
-                {`You've swapped ${h.from.code} for ${h.to.code} on ${h.quotes} quotes.`}
-                <em>{h.to.name}</em>
-              </span>
-              {done.has(ref) ? (
-                <span className="qs-chosen">Preferred</span>
-              ) : (
-                <button type="button" className="pbtn ghost sm" disabled={busy !== null} onClick={() => void prefer(h)}>
-                  {`Make ${h.to.code} your preferred`}
-                </button>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
+const $ = (cents: number) => money.format(cents / 100);
 
 /** A setting as its field shows it: blank when the business hasn't set one. */
 const field = (n: number | null) => (n == null ? "" : String(n));
 const numOrNone = (s: string) => (s.trim() === "" ? null : Number(s));
+const bare = (s: string) => s.replace(/[$,\s]/g, "");
 /** dollars as typed to cents, blank as not set */
-const centsOrNone = (s: string) => (s.trim() === "" ? null : Math.round(Number(s.replace(/[$,\s]/g, "")) * 100));
+const centsOrNone = (s: string) => (s.trim() === "" ? null : Math.round(Number(bare(s)) * 100));
 const dollarsField = (cents: number | null) => (cents == null ? "" : String(cents / 100));
+/** a figure in a field's grey, where the field is blank: "140.00" */
+const placeDollars = (cents: number) => (cents / 100).toFixed(2);
 /** blank, or a number from lo to hi */
 const inRange = (s: string, lo: number, hi: number) => s.trim() === "" || (Number.isFinite(Number(s)) && Number(s) >= lo && Number(s) <= hi);
 
+type Save = (group: string, next: QuoteSettings, said: string) => Promise<boolean>;
+
 export function QuotingScreen({
   initial,
-  components,
-  ranges,
   calc,
-  habits = [],
 }: {
   initial: QuoteSettings;
-  components: ComponentShortlist[];
-  /** the business's ranges of the parts that come in sizes */
-  ranges: RangeView[];
   /** what the business's Rate Calculator says, when it has one */
   calc: CalcDay | null;
-  /** swaps made on three quotes or more, asked about (habits.ts) */
-  habits?: Habit[];
 }) {
   const router = useRouter();
+  const toast = useToast();
   const [saved, setSaved] = useState(initial);
-  const [unit, setUnit] = useState(field(initial.unitMarkupPct));
-  const [material, setMaterial] = useState(field(initial.materialMarkupPct));
-  const [rate, setRate] = useState(dollarsField(initial.chargeOutCents));
-  const [hours, setHours] = useState(field(initial.dayHours));
-  const [contPct, setContPct] = useState(field(initial.contingencyPct));
-  const [contHours, setContHours] = useState(field(initial.contingencyHours));
-  const [target, setTarget] = useState(field(initial.profitTargetPct));
-  const [hourCost, setHourCost] = useState(dollarsField(initial.labourCostCents));
-  const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
-  const [open, setOpen] = useState<ComponentKey | null>(null);
+  const [pending, setPending] = useState<string | null>(null);
+  const [wrong, setWrong] = useState<{ group: string; text: string } | null>(null);
 
-  const save = async (next: QuoteSettings, done: string) => {
-    setBusy(true);
-    setNote(null);
-    const res = await saveQuoteSettings(next);
-    setBusy(false);
-    if (!res.ok) {
-      setNote({ tone: "bad", text: res.reason });
-      return false;
-    }
-    setSaved(res.settings);
-    setUnit(field(res.settings.unitMarkupPct));
-    setMaterial(field(res.settings.materialMarkupPct));
-    setRate(dollarsField(res.settings.chargeOutCents));
-    setHours(field(res.settings.dayHours));
-    setContPct(field(res.settings.contingencyPct));
-    setContHours(field(res.settings.contingencyHours));
-    setTarget(field(res.settings.profitTargetPct));
-    setHourCost(dollarsField(res.settings.labourCostCents));
-    setNote({ tone: "ok", text: done });
-    router.refresh();
-    return true;
+  /* every save writes the whole of the settings, so each group's save is
+     the saved settings with its own part changed; Undo writes back what was
+     there before */
+  const write = (group: string, next: QuoteSettings) => {
+    setPending(group);
+    setWrong(null);
+    return withCleanup(async () => {
+      try {
+        const res = await saveQuoteSettings(next);
+        if (!res.ok) {
+          setWrong({ group, text: res.reason });
+          return false;
+        }
+        setSaved(res.settings);
+        router.refresh();
+        return true;
+      } catch {
+        setWrong({ group, text: "Couldn't save that. Check your connection and try again." });
+        return false;
+      }
+    }, () => setPending(null));
   };
+
+  const save: Save = async (group, next, said) => {
+    const was = saved;
+    const ok = await write(group, next);
+    if (ok) toast({ text: said, undo: () => void write(group, was) });
+    return ok;
+  };
+
+  const errorAt = (group: string) => (wrong?.group === group ? wrong.text : null);
+  const busy = pending !== null;
+
+  return (
+    <>
+      <SectionTitle>Quoting</SectionTitle>
+      <RatesGroup
+        key={JSON.stringify([saved.chargeOutCents, saved.dayHours, saved.unitMarkupPct, saved.materialMarkupPct, saved.contingencyPct, saved.contingencyHours, saved.profitTargetPct, saved.labourCostCents])}
+        saved={saved}
+        calc={calc}
+        busy={busy}
+        saving={pending === "rates"}
+        error={errorAt("rates")}
+        onSave={save}
+      />
+      <AllowancesGroup key={JSON.stringify(saved.allowances)} saved={saved} busy={busy} saving={pending === "allowances"} error={errorAt("allowances")} onSave={save} />
+      <TaskHoursGroup key={JSON.stringify(saved.taskHours)} saved={saved} busy={busy} saving={pending === "tasks"} error={errorAt("tasks")} onSave={save} />
+      <StartersGroup key={JSON.stringify(saved.starterTasks)} saved={saved} busy={busy} saving={pending === "starters"} error={errorAt("starters")} onSave={save} />
+      <LayoutGroup saved={saved} busy={busy} error={errorAt("layout")} onSave={save} />
+      <CustomerGroup saved={saved} busy={busy} error={errorAt("customer")} onSave={save} />
+    </>
+  );
+}
+
+/** A figure typed beside its unit, its name on the left (the mock's row). */
+function Amount({
+  id,
+  name,
+  line,
+  unit,
+  value,
+  onChange,
+  placeholder = "Not set",
+  invalid,
+  disabled,
+  tail,
+}: {
+  id: string;
+  name: string;
+  /** a fact about the figure, under its name */
+  line?: ReactNode;
+  unit: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  invalid?: boolean;
+  disabled?: boolean;
+  /** what sits beside the figure; a group with one keeps its seat in every
+      row, so null holds the seat empty and leaving it out has none */
+  tail?: ReactNode;
+}) {
+  return (
+    <div className="st2-set">
+      <div className="st2-setw">
+        <label className="st2-sett" htmlFor={id}>
+          {name}
+        </label>
+        {line != null && <span className="st2-sets">{line}</span>}
+      </div>
+      <span className="st2-q-amt">
+        <TextInput id={id} inputMode="decimal" value={value} placeholder={placeholder} invalid={invalid} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
+        <span className="st2-q-unit">{unit}</span>
+      </span>
+      {tail !== undefined && <span className="st2-q-tail">{tail}</span>}
+    </div>
+  );
+}
+
+/** The markup's profit share, said under its name once there's a figure. */
+const shareLine = (typed: string) => {
+  const n = Number(typed);
+  return typed.trim() !== "" && Number.isFinite(n) && n >= 0 ? `${profitSharePct(n)}% of the price is profit` : undefined;
+};
+
+type GroupProps = { saved: QuoteSettings; busy: boolean; saving: boolean; error: string | null; onSave: Save };
+
+/* RATE AND MARKUP: the mock's group, with the two figures it didn't draw
+   that a quote also uses (the duct contingency's hours, and what an hour
+   costs when it isn't the rate less the target). Save rates is the
+   section's one main button. */
+function RatesGroup({ saved, calc, busy, saving, error, onSave }: GroupProps & { calc: CalcDay | null }) {
+  const [rate, setRate] = useState(dollarsField(saved.chargeOutCents));
+  const [hours, setHours] = useState(field(saved.dayHours));
+  const [unit, setUnit] = useState(field(saved.unitMarkupPct));
+  const [material, setMaterial] = useState(field(saved.materialMarkupPct));
+  const [contPct, setContPct] = useState(field(saved.contingencyPct));
+  const [contHours, setContHours] = useState(field(saved.contingencyHours));
+  const [target, setTarget] = useState(field(saved.profitTargetPct));
+  const [hourCost, setHourCost] = useState(dollarsField(saved.labourCostCents));
 
   const typed = {
     unitMarkupPct: numOrNone(unit),
@@ -190,609 +225,287 @@ export function QuotingScreen({
     profitTargetPct: numOrNone(target),
     labourCostCents: centsOrNone(hourCost),
   };
-  const changed =
-    typed.unitMarkupPct !== saved.unitMarkupPct ||
-    typed.materialMarkupPct !== saved.materialMarkupPct ||
-    typed.chargeOutCents !== saved.chargeOutCents ||
-    typed.dayHours !== saved.dayHours ||
-    typed.contingencyPct !== saved.contingencyPct ||
-    typed.contingencyHours !== saved.contingencyHours ||
-    typed.profitTargetPct !== saved.profitTargetPct ||
-    typed.labourCostCents !== saved.labourCostCents;
-  const valid =
-    [unit, material].every((s) => inRange(s, 0, MAX_MARKUP_PCT)) &&
-    inRange(rate.replace(/[$,\s]/g, ""), 0.01, MAX_CHARGE_OUT_CENTS / 100) &&
-    inRange(hours, 1, MAX_DAY_HOURS) &&
-    inRange(contPct, 0, MAX_CONTINGENCY_PCT) &&
-    inRange(contHours, 0, MAX_CONTINGENCY_HOURS) &&
-    inRange(target, 0, MAX_PROFIT_TARGET_PCT) &&
-    inRange(hourCost.replace(/[$,\s]/g, ""), 0.01, MAX_CHARGE_OUT_CENTS / 100);
+  const changed = (Object.keys(typed) as (keyof typeof typed)[]).some((k) => typed[k] !== saved[k]);
+
+  /* each figure's bounds, and what to say when one is past them */
+  const checks: { key: string; ok: boolean; why: string }[] = [
+    { key: "rate", ok: inRange(bare(rate), 0.01, MAX_CHARGE_OUT_CENTS / 100), why: `A charge-out rate is more than $0 and at most ${$(MAX_CHARGE_OUT_CENTS)} an hour.` },
+    { key: "hours", ok: inRange(hours, 1, MAX_DAY_HOURS), why: `A working day is 1 to ${MAX_DAY_HOURS} hours.` },
+    { key: "unit", ok: inRange(unit, 0, MAX_MARKUP_PCT), why: `A markup is 0 to ${MAX_MARKUP_PCT}%.` },
+    { key: "material", ok: inRange(material, 0, MAX_MARKUP_PCT), why: `A markup is 0 to ${MAX_MARKUP_PCT}%.` },
+    { key: "contPct", ok: inRange(contPct, 0, MAX_CONTINGENCY_PCT), why: `A duct contingency is 0 to ${MAX_CONTINGENCY_PCT}% of the ductwork.` },
+    { key: "contHours", ok: inRange(contHours, 0, MAX_CONTINGENCY_HOURS), why: `Contingency hours are 0 to ${MAX_CONTINGENCY_HOURS}.` },
+    { key: "target", ok: inRange(target, 0, MAX_PROFIT_TARGET_PCT), why: `A profit target is 0 to ${MAX_PROFIT_TARGET_PCT}% of the price.` },
+    { key: "hourCost", ok: inRange(bare(hourCost), 0.01, MAX_CHARGE_OUT_CENTS / 100), why: `A labour cost is more than $0 and at most ${$(MAX_CHARGE_OUT_CENTS)} an hour.` },
+  ];
+  const bad = (key: string) => checks.find((c) => c.key === key)?.ok === false;
+  const valid = checks.every((c) => c.ok);
+  const firstWrong = checks.find((c) => !c.ok)?.why ?? null;
+
   /* what a quote will use, as typed: this page's figure, else the Rate Calculator's */
-  const day = orgDayOf(valid ? typed : saved, calc);
-  /* what an hour costs, as typed: its own figure, else the rate less the target */
   const shown = valid ? typed : saved;
+  const day = orgDayOf(shown, calc);
+  const fromCalc = orgDayOf({ chargeOutCents: null, dayHours: null }, calc);
   const hourCostCents = day.rate ? hourCostOf(day.rate.perHourCents, shown.profitTargetPct, shown.labourCostCents) : shown.labourCostCents;
+  /* the labour cost a blank field stands for: the rate less the target */
+  const rateLessTarget = day.rate ? hourCostOf(day.rate.perHourCents, shown.profitTargetPct, null) : null;
 
-  const choose = (key: ComponentKey, group: ComponentGroup, offer: ComponentOffer, rollM: number | null) =>
-    save(
-      { ...saved, preferred: { ...saved.preferred, [key]: { supplierKey: offer.supplierKey, code: offer.code, rollM } } },
-      "Item chosen"
-    ).then((ok) => {
-      if (ok) setOpen(null);
-    });
+  /* the facts the figures make, the mock's line: where a blank figure came
+     from, then what an hour costs and what a day on site is */
+  const borrowed = [
+    day.rate && day.rate.from !== "quoting" ? `${$(day.rate.perHourCents)} an hour${day.rate.from === "recommended" ? ", its recommendation" : ""}` : null,
+    day.hours && day.hours.from !== "quoting" ? `${day.hours.hours} hours a day` : null,
+  ].filter(Boolean);
+  const facts = [
+    borrowed.length ? `From your Rate Calculator: ${borrowed.join(" and ")}.` : null,
+    hourCostCents != null ? `An hour costs you ${$(hourCostCents)}.` : null,
+    day.dayCents != null ? `A day on site is ${$(day.dayCents)} a person.` : "A day on site needs a charge-out rate and a working day.",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
-  const backToLowest = (key: ComponentKey) => {
-    const preferred = { ...saved.preferred };
-    delete preferred[key];
-    return save({ ...saved, preferred }, "Back to the lowest price").then((ok) => {
-      if (ok) setOpen(null);
-    });
-  };
-
+  const off = busy;
   return (
-    <div className="page in full">
-      <div className="wrap">
-        <div className="stg">
-          <SettingsHead heading="Quoting" />
-          <ScreenPanel>
-            {note && <div className={`int-note ${note.tone}`}>{note.text}</div>}
-
-            <section className="qs-group">
-              <h2 className="qs-h">Rate and markup</h2>
-              <div className="qs-fields">
-                <label className="qs-field">
-                  <span>Charge-out rate</span>
-                  <span className="qs-in">
-                    <em>$</em>
-                    <input
-                      className="wb2-fi"
-                      inputMode="decimal"
-                      value={rate}
-                      disabled={busy}
-                      onChange={(e) => setRate(e.target.value)}
-                      aria-label="Charge-out rate, dollars an hour"
-                    />
-                    <em>an hour</em>
-                  </span>
-                  <em className="qs-share">{day.rate ? fromWords(rate, rateFromWords(day.rate.from), $(day.rate.perHourCents)) : "Not set"}</em>
-                </label>
-                <label className="qs-field">
-                  <span>Working day</span>
-                  <span className="qs-in">
-                    <input
-                      className="wb2-fi"
-                      inputMode="decimal"
-                      value={hours}
-                      disabled={busy}
-                      onChange={(e) => setHours(e.target.value)}
-                      aria-label="Hours in a working day"
-                    />
-                    <em>hours</em>
-                  </span>
-                  <em className="qs-share">
-                    {day.hours ? fromWords(hours, "your Rate Calculator's working hours", `${day.hours.hours} hours`) : "Not set"}
-                  </em>
-                </label>
-                <MarkupField label="Units" value={unit} onChange={setUnit} disabled={busy} />
-                <MarkupField label="Materials" value={material} onChange={setMaterial} disabled={busy} />
-                <label className="qs-field">
-                  <span>Duct contingency</span>
-                  <span className="qs-in">
-                    <input
-                      className="wb2-fi"
-                      inputMode="decimal"
-                      value={contPct}
-                      disabled={busy}
-                      onChange={(e) => setContPct(e.target.value)}
-                      aria-label="Duct contingency, percent of ductwork and grilles"
-                    />
-                    <em>% of ductwork</em>
-                  </span>
-                  <span className="qs-in">
-                    <input
-                      className="wb2-fi"
-                      inputMode="decimal"
-                      value={contHours}
-                      disabled={busy}
-                      onChange={(e) => setContHours(e.target.value)}
-                      aria-label="Duct contingency, hours"
-                    />
-                    <em>hours</em>
-                  </span>
-                  <em className="qs-share">{contPct.trim() === "" && contHours.trim() === "" ? "None" : "On a quote with ductwork"}</em>
-                </label>
-                <label className="qs-field">
-                  <span>Profit target</span>
-                  <span className="qs-in">
-                    <input
-                      className="wb2-fi"
-                      inputMode="decimal"
-                      value={target}
-                      disabled={busy}
-                      onChange={(e) => setTarget(e.target.value)}
-                      aria-label="Profit target, percent of the price"
-                    />
-                    <em>% of the price</em>
-                  </span>
-                  <em className="qs-share">{target.trim() === "" ? "Not set: quotes aren't checked" : "A quote under it says so"}</em>
-                </label>
-                <label className="qs-field">
-                  <span>An hour costs you</span>
-                  <span className="qs-in">
-                    <em>$</em>
-                    <input
-                      className="wb2-fi"
-                      inputMode="decimal"
-                      value={hourCost}
-                      disabled={busy}
-                      onChange={(e) => setHourCost(e.target.value)}
-                      aria-label="What an hour of labour costs, dollars"
-                    />
-                    <em>an hour</em>
-                  </span>
-                  <em className="qs-share">
-                    {hourCost.trim() !== ""
-                      ? "Your figure"
-                      : hourCostCents != null
-                        ? `${$(hourCostCents)}: the rate less the target`
-                        : "Not set"}
-                  </em>
-                </label>
-              </div>
-              <p className="qs-sub">
-                {day.dayCents != null && day.rate && day.hours
-                  ? `A day on site is ${$(day.dayCents)} a person: ${day.hours.hours} hours at ${$(day.rate.perHourCents)}.`
-                  : "A day on site needs a charge-out rate and a working day."}
-              </p>
-              <div className="wb2-jqacts">
-                <button
-                  type="button"
-                  className="pbtn primary"
-                  disabled={busy || !changed || !valid}
-                  onClick={() => void save({ ...saved, ...typed }, "Rate and markup saved")}
-                >
-                  Save
-                </button>
-              </div>
-            </section>
-
-            <AllowancesGroup
-              key={JSON.stringify(saved.allowances)}
-              saved={saved.allowances}
-              busy={busy}
-              onSave={(allowances) => void save({ ...saved, allowances }, "Allowances saved")}
-            />
-
-            <TaskHoursGroup
-              key={JSON.stringify(saved.taskHours)}
-              saved={saved.taskHours}
-              busy={busy}
-              onSave={(taskHours) => void save({ ...saved, taskHours }, "Task hours saved")}
-            />
-
-            <StartersGroup
-              key={JSON.stringify(saved.starterTasks)}
-              saved={saved.starterTasks}
-              busy={busy}
-              onSave={(starterTasks) => void save({ ...saved, starterTasks }, "Starter tasks saved")}
-            />
-
-            <section className="qs-group">
-              <h2 className="qs-h">Ductwork, when the brief doesn&apos;t say</h2>
-              <div className="qs-fields">
-                <label className="qs-field">
-                  <span>Your usual layout</span>
-                  <select
-                    className="wb2-sel"
-                    value={saved.usualLayout ?? ""}
-                    disabled={busy}
-                    onChange={(e) =>
-                      void save({ ...saved, usualLayout: e.target.value === "trunks" || e.target.value === "plenum" ? e.target.value : null }, "Usual layout saved")
-                    }
-                  >
-                    <option value="">Ask on each job</option>
-                    {(["trunks", "plenum"] as const).map((k) => (
-                      <option key={k} value={k}>
-                        {USUAL_LAYOUT_WORDS[k]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            </section>
-
-            {/* Isaac, 2026-10-05: "show line items to customer or leave it off
-                by default so that they just see the total price" */}
-            <section className="qs-group">
-              <h2 className="qs-h">What the customer sees</h2>
-              <div className="qs-fields">
-                <label className="qs-field">
-                  <span>On a quote, unless it says otherwise</span>
-                  <select
-                    className="wb2-sel"
-                    value={saved.showLines ? "lines" : "total"}
-                    disabled={busy}
-                    onChange={(e) => void save({ ...saved, showLines: e.target.value === "lines" }, "Saved")}
-                  >
-                    <option value="total">Each option&apos;s total</option>
-                    <option value="lines">Each option&apos;s line items and its total</option>
-                  </select>
-                </label>
-                {/* Isaac, 2026-10-21: "staff members could potentially give a
-                    customer a price if they are asking for something while on
-                    site" */}
-                <div className="qs-field">
-                  <span>A rough price from Tiff, on site</span>
-                  <Chooser
-                    aria-label="A rough price from Tiff, on site"
-                    options={[
-                      { value: "prices", label: "Only for people who see prices" },
-                      { value: "anyone", label: "For anyone on a job, as a rounded price" },
-                    ]}
-                    value={saved.staffRoughPrice ? "anyone" : "prices"}
-                    disabled={busy}
-                    onChange={(v) => void save({ ...saved, staffRoughPrice: v === "anyone" }, "Saved")}
-                  />
-                </div>
-              </div>
-            </section>
-
-            <section className="qs-group">
-              <h2 className="qs-h">Preferred items</h2>
-              <p className="qs-sub">
-                {saved.materialMarkupPct == null
-                  ? "No materials markup set."
-                  : `Materials sell at buy price plus ${saved.materialMarkupPct}%.`}
-              </p>
-              <div className="qs-table" role="table" aria-label="Preferred items">
-                <div className="qs-row qs-headrow" role="row">
-                  <span role="columnheader">Component</span>
-                  <span role="columnheader">Priced from</span>
-                  <span role="columnheader" className="num">Buy</span>
-                  <span role="columnheader" className="num">Per metre or each</span>
-                  <span role="columnheader" className="num">Sells at</span>
-                  <span role="columnheader" />
-                </div>
-                {components.map((c) => (
-                  <ComponentRow
-                    key={c.key}
-                    c={c}
-                    markupPct={saved.materialMarkupPct}
-                    open={open === c.key}
-                    busy={busy}
-                    onToggle={() => setOpen((o) => (o === c.key ? null : c.key))}
-                    onChoose={(group, offer, rollM) => void choose(c.key, group, offer, rollM)}
-                    onLowest={() => void backToLowest(c.key)}
-                  />
-                ))}
-              </div>
-            </section>
-
-            <RangesGroup initial={ranges} />
-
-            {habits.length > 0 && <HabitsGroup habits={habits} onDone={() => router.refresh()} />}
-
-            <KitsSection />
-          </ScreenPanel>
-        </div>
+    <Group heading="Rate and markup">
+      <Amount
+        id="q-rate"
+        name="Charge-out rate"
+        unit="dollars an hour"
+        value={rate}
+        onChange={setRate}
+        placeholder={fromCalc.rate ? placeDollars(fromCalc.rate.perHourCents) : "Not set"}
+        invalid={bad("rate")}
+        disabled={off}
+        tail={
+          <Button kind="second" size={36} href="/dashboard/admin/rate-calculator">
+            Work out the rate
+          </Button>
+        }
+      />
+      <Amount
+        id="q-day"
+        name="Working day"
+        unit="hours"
+        value={hours}
+        onChange={setHours}
+        placeholder={fromCalc.hours ? String(fromCalc.hours.hours) : "Not set"}
+        invalid={bad("hours")}
+        disabled={off}
+        tail={null}
+      />
+      <Amount id="q-units" name="Units" line={shareLine(unit)} unit="% markup" value={unit} onChange={setUnit} invalid={bad("unit")} disabled={off} tail={null} />
+      <Amount id="q-mats" name="Materials" line={shareLine(material)} unit="% markup" value={material} onChange={setMaterial} invalid={bad("material")} disabled={off} tail={null} />
+      <Amount id="q-duct" name="Duct contingency" unit="% of ductwork" value={contPct} onChange={setContPct} invalid={bad("contPct")} disabled={off} tail={null} />
+      <Amount id="q-ducth" name="Contingency hours" unit="hours" value={contHours} onChange={setContHours} invalid={bad("contHours")} disabled={off} tail={null} />
+      <Amount id="q-target" name="Profit target" unit="% of the price" value={target} onChange={setTarget} invalid={bad("target")} disabled={off} tail={null} />
+      <Amount
+        id="q-cost"
+        name="Labour cost"
+        unit="dollars an hour"
+        value={hourCost}
+        onChange={setHourCost}
+        placeholder={rateLessTarget != null ? placeDollars(rateLessTarget) : "Not set"}
+        invalid={bad("hourCost")}
+        disabled={off}
+        tail={null}
+      />
+      <p className="st2-q-fact">{facts}</p>
+      {(firstWrong || error) && <Wrong>{firstWrong ?? error}</Wrong>}
+      <div className="st2-q-foot">
+        <Button kind="main" size={36} disabled={off || !changed || !valid} onClick={() => void onSave("rates", { ...saved, ...typed }, "Rates saved")}>
+          {saving ? "Saving the rates" : "Save rates"}
+        </Button>
       </div>
-    </div>
+    </Group>
   );
 }
 
-/* WHAT A KIT CARRIES THAT ISN'T ONE ITEM — the business's own figure for
+/* WHAT A KIT CARRIES THAT ISN'T ONE ITEM, the business's own figure for
    each, at cost: its materials markup goes on top. Blank, a quote's kit
    lists the line and asks for it here (Isaac, 2026-10-04). */
-function AllowancesGroup({
-  saved,
-  busy,
-  onSave,
-}: {
-  saved: QuoteSettings["allowances"];
-  busy: boolean;
-  onSave: (a: QuoteSettings["allowances"]) => void;
-}) {
+function AllowancesGroup({ saved, busy, saving, error, onSave }: GroupProps) {
   const [typed, setTyped] = useState<Record<AllowanceKey, string>>(
-    () => Object.fromEntries(ALLOWANCE_KEYS.map((k) => [k, dollarsField(saved[k])])) as Record<AllowanceKey, string>
+    () => Object.fromEntries(ALLOWANCE_KEYS.map((k) => [k, dollarsField(saved.allowances[k])])) as Record<AllowanceKey, string>
   );
   const next = Object.fromEntries(ALLOWANCE_KEYS.map((k) => [k, centsOrNone(typed[k])])) as QuoteSettings["allowances"];
-  const changed = ALLOWANCE_KEYS.some((k) => next[k] !== saved[k]);
-  const valid = ALLOWANCE_KEYS.every((k) => inRange(typed[k].replace(/[$,\s]/g, ""), 0, MAX_ALLOWANCE_CENTS / 100));
+  const changed = ALLOWANCE_KEYS.some((k) => next[k] !== saved.allowances[k]);
+  const okOf = (k: AllowanceKey) => inRange(bare(typed[k]), 0, MAX_ALLOWANCE_CENTS / 100);
+  const valid = ALLOWANCE_KEYS.every(okOf);
   return (
-    <section className="qs-group">
-      <h2 className="qs-h">Allowances, at cost</h2>
-      <div className="qs-fields">
-        {ALLOWANCE_KEYS.map((k) => (
-          <label className="qs-field" key={k}>
-            <span>{ALLOWANCES[k].label}</span>
-            <span className="qs-in">
-              <em>$</em>
-              <input
-                className="wb2-fi"
-                inputMode="decimal"
-                value={typed[k]}
-                disabled={busy}
-                onChange={(e) => setTyped((cur) => ({ ...cur, [k]: e.target.value }))}
-                aria-label={`${ALLOWANCES[k].label} allowance, dollars ${ALLOWANCES[k].per}`}
-              />
-              <em>{ALLOWANCES[k].per}</em>
-            </span>
-            <em className="qs-share">{saved[k] == null ? "Not set" : "Set"}</em>
-          </label>
-        ))}
+    <Group heading="Allowances, at cost">
+      {ALLOWANCE_KEYS.map((k) => (
+        <Amount
+          key={k}
+          id={`q-allow-${k}`}
+          name={ALLOWANCES[k].label}
+          unit={`dollars ${ALLOWANCES[k].per}`}
+          value={typed[k]}
+          onChange={(v) => setTyped((cur) => ({ ...cur, [k]: v }))}
+          invalid={!okOf(k)}
+          disabled={busy}
+        />
+      ))}
+      {!valid ? <Wrong>{`An allowance is $0 to ${$(MAX_ALLOWANCE_CENTS)}.`}</Wrong> : error && <Wrong>{error}</Wrong>}
+      <div className="st2-q-foot">
+        <Button kind="second" size={36} disabled={busy || !changed || !valid} onClick={() => void onSave("allowances", { ...saved, allowances: next }, "Allowances saved")}>
+          {saving ? "Saving the allowances" : "Save allowances"}
+        </Button>
       </div>
-      <div className="wb2-jqacts">
-        <button type="button" className="pbtn primary" disabled={busy || !changed || !valid} onClick={() => onSave(next)}>
-          Save allowances
-        </button>
-      </div>
-    </section>
+    </Group>
   );
 }
 
 /** THE BUSINESS'S OWN TASK HOURS (slice 8.1): a check beside each quote's
     labour, never a price. Empty until it sets them. */
-function TaskHoursGroup({
-  saved,
-  busy,
-  onSave,
-}: {
-  saved: QuoteSettings["taskHours"];
-  busy: boolean;
-  onSave: (t: QuoteSettings["taskHours"]) => void;
-}) {
-  const [typed, setTyped] = useState<Record<TaskKey, string>>(() => Object.fromEntries(TASK_KEYS.map((k) => [k, field(saved[k])])) as Record<TaskKey, string>);
+function TaskHoursGroup({ saved, busy, saving, error, onSave }: GroupProps) {
+  const [typed, setTyped] = useState<Record<TaskKey, string>>(() => Object.fromEntries(TASK_KEYS.map((k) => [k, field(saved.taskHours[k])])) as Record<TaskKey, string>);
   const next = Object.fromEntries(TASK_KEYS.map((k) => [k, numOrNone(typed[k])])) as QuoteSettings["taskHours"];
-  const changed = TASK_KEYS.some((k) => next[k] !== saved[k]);
-  const valid = TASK_KEYS.every((k) => inRange(typed[k], 0.01, MAX_TASK_HOURS));
+  const changed = TASK_KEYS.some((k) => next[k] !== saved.taskHours[k]);
+  const okOf = (k: TaskKey) => inRange(typed[k], 0.01, MAX_TASK_HOURS);
+  const valid = TASK_KEYS.every(okOf);
   return (
-    <section className="qs-group">
-      <h2 className="qs-h">Task hours</h2>
-      <div className="qs-fields">
-        {TASK_KEYS.map((k) => (
-          <label className="qs-field" key={k}>
-            <span>{TASKS[k].label}</span>
-            <span className="qs-in">
-              <input
-                className="wb2-fi"
-                inputMode="decimal"
-                value={typed[k]}
-                disabled={busy}
-                onChange={(e) => setTyped((cur) => ({ ...cur, [k]: e.target.value }))}
-                aria-label={`Hours for ${TASKS[k].per}`}
-              />
-              <em>{`hours ${TASKS[k].per}`}</em>
-            </span>
-            <em className="qs-share">{saved[k] == null ? "Not set" : "Set"}</em>
-          </label>
-        ))}
+    <Group heading="Task hours">
+      {TASK_KEYS.map((k) => (
+        <Amount
+          key={k}
+          id={`q-task-${k}`}
+          name={TASKS[k].label}
+          unit={`hours ${TASKS[k].per}`}
+          value={typed[k]}
+          onChange={(v) => setTyped((cur) => ({ ...cur, [k]: v }))}
+          invalid={!okOf(k)}
+          disabled={busy}
+        />
+      ))}
+      {!valid ? <Wrong>{`A task is more than 0 and at most ${MAX_TASK_HOURS} hours.`}</Wrong> : error && <Wrong>{error}</Wrong>}
+      <div className="st2-q-foot">
+        <Button kind="second" size={36} disabled={busy || !changed || !valid} onClick={() => void onSave("tasks", { ...saved, taskHours: next }, "Task hours saved")}>
+          {saving ? "Saving the task hours" : "Save task hours"}
+        </Button>
       </div>
-      <div className="wb2-jqacts">
-        <button type="button" className="pbtn primary" disabled={busy || !changed || !valid} onClick={() => onSave(next)}>
-          Save task hours
-        </button>
-      </div>
-    </section>
+    </Group>
   );
 }
+
+const WHEN_OPTIONS: ChooserOption[] = STARTER_WHENS.map((w) => ({ value: w, label: STARTER_WHEN[w] }));
 
 /** WHAT EVERY JOB STARTS WITH (Isaac, 2026-10-10: "the tasks can be
     auto-populated for basic things, so protection, check site for damages
     that we could be blamed for"): the business's own list, on each new
-    job's visits around the quote's tasks. */
-function StartersGroup({ saved, busy, onSave }: { saved: StarterTask[]; busy: boolean; onSave: (t: StarterTask[]) => void }) {
-  const [rows, setRows] = useState<StarterTask[]>(saved);
+    job's visits around the quote's tasks. A list of records, so its Add is
+    on the group's head; the list is saved together. */
+function StartersGroup({ saved, busy, saving, error, onSave }: GroupProps) {
+  const [rows, setRows] = useState<StarterTask[]>(saved.starterTasks);
   const next = rows.map((r) => ({ ...r, name: r.name.replace(/\s+/g, " ").trim() })).filter((r) => r.name);
-  const changed = JSON.stringify(next) !== JSON.stringify(saved);
+  const changed = JSON.stringify(next) !== JSON.stringify(saved.starterTasks);
   const set = (i: number, patch: Partial<StarterTask>) => setRows((cur) => cur.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const nameOf = (r: StarterTask, i: number) => r.name || `starter task ${i + 1}`;
   return (
-    <section className="qs-group">
-      <h2 className="qs-h">Every job starts with</h2>
-      <ul className="qs-starters">
+    <Group
+      heading="Every job starts with"
+      tools={
+        <Button kind="second" size={32} disabled={busy || rows.length >= MAX_STARTERS} onClick={() => setRows((cur) => [...cur, { name: "", when: "every", photos: false }])}>
+          Add a task
+        </Button>
+      }
+    >
+      <ul className="st2-q-tasks" aria-label="Every job starts with">
         {rows.map((r, i) => (
-          <li key={i}>
-            <input
-              className="wb2-fi"
-              value={r.name}
-              maxLength={MAX_STARTER_NAME}
+          <li key={i} className="st2-q-task">
+            <TextInput value={r.name} maxLength={MAX_STARTER_NAME} disabled={busy} aria-label={`Starter task ${i + 1}`} placeholder="What's done" onChange={(e) => set(i, { name: e.target.value })} />
+            <Chooser
+              aria-label={`When ${nameOf(r, i)} is done`}
+              options={WHEN_OPTIONS}
+              value={r.when}
               disabled={busy}
-              aria-label={`Starter task ${i + 1}`}
-              onChange={(e) => set(i, { name: e.target.value })}
+              onChange={(v) => set(i, { when: v as StarterWhen })}
             />
-            <select className="wb2-fi" value={r.when} disabled={busy} aria-label={`When ${r.name || `starter task ${i + 1}`} is done`} onChange={(e) => set(i, { when: e.target.value as StarterWhen })}>
-              {STARTER_WHENS.map((w) => (
-                <option key={w} value={w}>
-                  {STARTER_WHEN[w]}
-                </option>
-              ))}
-            </select>
-            <label className="qs-check">
-              <input type="checkbox" checked={r.photos} disabled={busy} onChange={(e) => set(i, { photos: e.target.checked })} />
-              <span>Done with photos</span>
-            </label>
-            <button type="button" className="ql-x" aria-label={`Take ${r.name || `starter task ${i + 1}`} off`} disabled={busy} onClick={() => setRows((cur) => cur.filter((_, j) => j !== i))}>
-              ×
-            </button>
+            <Tick label="Done with photos" checked={r.photos} disabled={busy} onChange={(on) => set(i, { photos: on })} />
+            <Button kind="quiet" size={32} aria-label={`Take ${nameOf(r, i)} off`} disabled={busy} onClick={() => setRows((cur) => cur.filter((_, j) => j !== i))}>
+              Remove
+            </Button>
           </li>
         ))}
       </ul>
-      <div className="wb2-jqacts">
-        <button type="button" className="pbtn ghost" disabled={busy || rows.length >= MAX_STARTERS} onClick={() => setRows((cur) => [...cur, { name: "", when: "every", photos: false }])}>
-          Add a task
-        </button>
-        <button type="button" className="pbtn primary" disabled={busy || !changed} onClick={() => onSave(next)}>
-          Save starter tasks
-        </button>
+      {error && <Wrong>{error}</Wrong>}
+      <div className="st2-q-foot">
+        <Button kind="second" size={36} disabled={busy || !changed} onClick={() => void onSave("starters", { ...saved, starterTasks: next }, "Starter tasks saved")}>
+          {saving ? "Saving the starter tasks" : "Save starter tasks"}
+        </Button>
       </div>
-    </section>
+    </Group>
   );
 }
 
-function MarkupField({
-  label,
-  value,
-  onChange,
-  disabled,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  disabled: boolean;
-}) {
-  const n = Number(value);
+const LAYOUT_OPTIONS: ChooserOption[] = [
+  { value: "ask", label: "Ask on each job" },
+  ...(["trunks", "plenum"] as const).map((k) => ({ value: k, label: USUAL_LAYOUT_WORDS[k] })),
+];
+
+/* HOW THE BUSINESS USUALLY RUNS DUCTWORK, for a brief that doesn't say.
+   Saves on pick. */
+function LayoutGroup({ saved, busy, error, onSave }: Omit<GroupProps, "saving">) {
   return (
-    <label className="qs-field">
-      <span>{label}</span>
-      <span className="qs-in">
-        <input
-          className="wb2-fi"
-          inputMode="decimal"
-          value={value}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-          aria-label={`${label} markup percent`}
+    <Group heading="Ductwork, when the brief doesn't say">
+      <Setting name="Usual layout">
+        <Chooser
+          className="st2-q-wide"
+          aria-label="Usual layout"
+          options={LAYOUT_OPTIONS}
+          value={saved.usualLayout ?? "ask"}
+          disabled={busy}
+          onChange={(v) =>
+            void onSave(
+              "layout",
+              { ...saved, usualLayout: v === "trunks" || v === "plenum" ? v : null },
+              v === "trunks" ? "Usual layout set to trunks" : v === "plenum" ? "Usual layout set to a plenum" : "Ductwork asked on each job"
+            )
+          }
         />
-        <em>%</em>
-      </span>
-      <em className="qs-share">
-        {value.trim() !== "" && Number.isFinite(n) ? `${profitSharePct(n)}% of the sell price is profit` : "–"}
-      </em>
-    </label>
+      </Setting>
+      {error && <Wrong>{error}</Wrong>}
+    </Group>
   );
 }
 
-/** Under a blank field, where the figure a quote uses comes from; under a
-    filled one, nothing more to say. */
-const fromWords = (typedValue: string, source: string, value: string) =>
-  typedValue.trim() === "" ? `${value}, ${source}` : "Set here";
-
-const perUnitWord = (unit: "m" | "each") => (unit === "m" ? "a metre" : "each");
-
-function ComponentRow({
-  c,
-  markupPct,
-  open,
-  busy,
-  onToggle,
-  onChoose,
-  onLowest,
-}: {
-  c: ComponentShortlist;
-  markupPct: number | null;
-  open: boolean;
-  busy: boolean;
-  onToggle: () => void;
-  onChoose: (group: ComponentGroup, offer: ComponentOffer, rollM: number | null) => void;
-  onLowest: () => void;
-}) {
-  const pick = c.chosen;
-  const [roll, setRoll] = useState(pick?.group.rollM ? String(pick.group.rollM) : "");
+/* WHAT THE CUSTOMER SEES. Whether a quote shows its line items unless it
+   says otherwise (Isaac, 2026-10-05: "show line items to customer or leave
+   it off by default so that they just see the total price"), and who may
+   ask Tiff for a rough price on site (Isaac, 2026-10-21: "staff members
+   could potentially give a customer a price if they are asking for
+   something while on site"). Each saves on pick. */
+function CustomerGroup({ saved, busy, error, onSave }: Omit<GroupProps, "saving">) {
   return (
-    <>
-      <div className={`qs-row${open ? " on" : ""}`} role="row">
-        <b role="cell">{c.label}</b>
-        <span role="cell" className="qs-item">
-          {pick ? (
-            <>
-              {pick.group.name}
-              <em>
-                {`${pick.offer.code}, ${pick.offer.supplierName}${pick.offer.pack ? `, ${pick.offer.pack}` : ""}, `}
-                <span className={pick.overridden ? "qs-state warn" : "qs-state"}>{pick.overridden ? "Override" : pick.preferred ? "Preferred" : "Lowest price"}</span>
-              </em>
-            </>
-          ) : (
-            <em className="qs-none">Nothing in the price book prices this yet</em>
-          )}
-        </span>
-        <span role="cell" className="num">{pick ? $(pick.offer.buyCents) : ""}</span>
-        <span role="cell" className="num">
-          {pick ? (pick.offer.perUnitCents == null ? "Needs roll length" : `${$(pick.offer.perUnitCents)} ${perUnitWord(c.unit)}`) : ""}
-        </span>
-        <span role="cell" className="num">
-          {pick && pick.offer.perUnitCents != null && markupPct != null ? `${$(sellCents(pick.offer.perUnitCents, markupPct))} ${perUnitWord(c.unit)}` : ""}
-        </span>
-        <span role="cell" className="qs-act qs-acts2">
-          {pick?.overridden && (
-            <button type="button" className="pbtn ghost sm" disabled={busy} onClick={onLowest}>
-              Use lowest
-            </button>
-          )}
-          {c.groups.length > 0 && (
-            <button type="button" className="pbtn ghost sm" disabled={busy} onClick={onToggle} aria-expanded={open}>
-              {open ? "Close" : "Override"}
-            </button>
-          )}
-        </span>
-      </div>
-      {open && (
-        <div className="qs-pick" role="row">
-          <div role="cell">
-            {c.unit === "m" && pick && (
-              <div className="qs-roll">
-                <label className="qs-field">
-                  <span>{`Roll length of ${pick.offer.code}`}</span>
-                  <span className="qs-in">
-                    <input
-                      className="wb2-fi"
-                      inputMode="decimal"
-                      value={roll}
-                      disabled={busy}
-                      onChange={(e) => setRoll(e.target.value)}
-                      aria-label="Roll length in metres"
-                    />
-                    <em>m</em>
-                  </span>
-                </label>
-                <button
-                  type="button"
-                  className="pbtn ghost"
-                  disabled={busy || !(Number(roll) > 0)}
-                  onClick={() => onChoose(pick.group, pick.offer, Number(roll))}
-                >
-                  Save length
-                </button>
-              </div>
-            )}
-            <ul className="qs-list">
-              {c.groups.map((g) => (
-                <li key={g.code} className={pick?.group.code === g.code ? "on" : undefined}>
-                  <span className="qs-item">
-                    {g.name}
-                    <em>
-                      {[g.code, g.uses ? `On ${g.uses} quote${g.uses === 1 ? "" : "s"}` : null]
-                        .filter(Boolean)
-                        .join(", ")}
-                    </em>
-                  </span>
-                  <span className="qs-groupoffers">
-                    {g.offers.map((o, i) => {
-                      const on = pick?.offer.code === o.code && pick.offer.supplierKey === o.supplierKey;
-                      return (
-                        <button
-                          key={`${o.supplierKey}:${o.code}`}
-                          type="button"
-                          className={`qs-offerbtn${i === 0 && g.offers.length > 1 ? " ok" : ""}${on ? " on" : ""}`}
-                          disabled={busy || on}
-                          aria-pressed={on}
-                          aria-label={`Use ${o.code} from ${o.supplierName}`}
-                          onClick={() => onChoose(g, o, null)}
-                        >
-                          <em>{o.pack ? `${o.supplierName}, ${o.pack}` : o.supplierName}</em>
-                          {o.perUnitCents == null
-                            ? c.unit === "m"
-                              ? `${$(o.buyCents)}, length not in the name`
-                              : $(o.buyCents)
-                            : `${$(o.perUnitCents)} ${perUnitWord(c.unit)}`}
-                        </button>
-                      );
-                    })}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
-    </>
+    <Group heading="What the customer sees">
+      <Setting name="On a quote">
+        <Chooser
+          className="st2-q-wide"
+          aria-label="On a quote, unless it says otherwise"
+          options={[
+            { value: "total", label: "Each option's total" },
+            { value: "lines", label: "Each option's line items and its total" },
+          ]}
+          value={saved.showLines ? "lines" : "total"}
+          disabled={busy}
+          onChange={(v) => void onSave("customer", { ...saved, showLines: v === "lines" }, v === "lines" ? "Quotes show their line items" : "Quotes show each option's total")}
+        />
+      </Setting>
+      <Setting name="A rough price from Tiff, on site">
+        <Chooser
+          className="st2-q-wide"
+          aria-label="A rough price from Tiff, on site"
+          options={[
+            { value: "prices", label: "Only for people who see prices" },
+            { value: "anyone", label: "For anyone on a job, as a rounded price" },
+          ]}
+          value={saved.staffRoughPrice ? "anyone" : "prices"}
+          disabled={busy}
+          onChange={(v) =>
+            void onSave("customer", { ...saved, staffRoughPrice: v === "anyone" }, v === "anyone" ? "Anyone on a job can ask for a rough price" : "Rough prices only for people who see prices")
+          }
+        />
+      </Setting>
+      {error && <Wrong>{error}</Wrong>}
+    </Group>
   );
 }

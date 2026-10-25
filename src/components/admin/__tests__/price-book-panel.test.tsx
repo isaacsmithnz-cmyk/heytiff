@@ -1,7 +1,9 @@
-/* A price list in a layout HeyTiff doesn't know: its first rows are shown,
-   a person picks the code and price columns, and the file is read again
-   with them. */
-import { act, fireEvent, render, screen } from "@testing-library/react";
+/* The price book's suppliers: a row each, which opens its supplier in a
+   dialog, where its price list and its invoices go in. A price list in a
+   layout HeyTiff doesn't know shows its first rows, a person picks the code
+   and price columns, and the file is read again with them. */
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { PriceBook } from "../price-book-panel";
 import type { SupplierView } from "@/lib/quotes/price-book-server";
 
@@ -19,7 +21,16 @@ const acme: SupplierView = {
   itemCount: null,
 };
 
+const dialog = () => within(screen.getByRole("dialog"));
+
+/** A chooser in the dialog, opened and picked from its menu. */
+const pick = async (user: ReturnType<typeof userEvent.setup>, chooser: string, option: string) => {
+  await user.click(screen.getByRole("combobox", { name: chooser }));
+  await user.click(within(screen.getByRole("listbox")).getByRole("option", { name: option }));
+};
+
 it("asks which column is which, then reads the file with the columns chosen", async () => {
+  const user = userEvent.setup();
   const sent: FormData[] = [];
   global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
     if (init?.method === "POST") {
@@ -37,27 +48,27 @@ it("asks which column is which, then reads the file with the columns chosen", as
               },
       } as Response;
     }
-    return { json: async () => ({ ok: true, categories: [] }) } as Response;
+    return { json: async () => ({ ok: true, rules: [] }) } as Response;
   }) as unknown as typeof fetch;
 
   const onImported = jest.fn();
   render(<PriceBook suppliers={[acme]} onImported={onImported} />);
-  /* a supplier is one quiet row; its uploads are inside it */
+  /* a supplier is one quiet row; its uploads are in its dialog */
   expect(screen.queryByLabelText("Upload Acme price list")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: /^Acme/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Acme" }));
+  expect(screen.getByRole("dialog", { name: "Acme" })).toBeInTheDocument();
   const input = screen.getByLabelText("Upload Acme price list");
-  const file = new File(["x"], "acme.xlsx");
   await act(async () => {
-    fireEvent.change(input, { target: { files: [file] } });
+    fireEvent.change(input, { target: { files: [new File(["x"], "acme.xlsx")] } });
   });
 
-  expect(screen.getByText("Which column is which in acme.xlsx?")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Which column is which in acme.xlsx?" })).toBeInTheDocument();
   expect(screen.getByRole("cell", { name: "Bracket" })).toBeInTheDocument();
   const read = screen.getByRole("button", { name: "Read the file" });
   expect(read).toBeDisabled();
 
-  fireEvent.change(screen.getByRole("combobox", { name: "Code" }), { target: { value: "A" } });
-  fireEvent.change(screen.getByRole("combobox", { name: "Price ex GST" }), { target: { value: "C" } });
+  await pick(user, "Code", "A: Part No");
+  await pick(user, "Price ex GST", "C: Trade");
   expect(read).toBeEnabled();
   await act(async () => {
     fireEvent.click(read);
@@ -75,7 +86,7 @@ it("asks which column is which, then reads the file with the columns chosen", as
    parts from us come in". A new business has no suppliers: the one thing to
    do is add one, and naming one whose own files HeyTiff reads adds it as
    that (2026-10-05: one "Add supplier", not a button per supplier). */
-it("starts a new business with no suppliers and the form to add one, offering the files HeyTiff reads", async () => {
+it("starts a new business with no suppliers and the way to add one, offering the files HeyTiff reads", async () => {
   const posted: unknown[] = [];
   global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
     if (init?.method === "POST" && url === "/api/quoting/suppliers") {
@@ -85,17 +96,20 @@ it("starts a new business with no suppliers and the form to add one, offering th
     return { json: async () => ({ ok: true }) } as Response;
   }) as unknown as typeof fetch;
   const onImported = jest.fn();
-  const { container } = render(<PriceBook suppliers={[]} onImported={onImported} />);
-  expect(screen.queryByRole("list", { name: "Suppliers" })).toBeNull();
+  render(<PriceBook suppliers={[]} onImported={onImported} />);
+  expect(screen.queryByRole("table", { name: "Suppliers" })).toBeNull();
+  expect(screen.getByText("No suppliers yet")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Add a supplier" }));
   /* the suppliers HeyTiff reads are offered as the name is typed */
-  expect([...container.querySelectorAll("datalist option")].map((o) => o.getAttribute("value"))).toEqual(["AAD", "Reece", "Mitsubishi Electric"]);
+  expect([...document.querySelectorAll("datalist option")].map((o) => o.getAttribute("value"))).toEqual(["AAD", "Reece", "Mitsubishi Electric"]);
   fireEvent.change(screen.getByLabelText("New supplier's name"), { target: { value: "reece" } });
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "Add supplier" }));
   });
   expect(posted).toEqual([{ builtIn: "reece" }]);
   expect(onImported).toHaveBeenCalled();
-  expect(await screen.findByText("Reece added. Open it to upload its price list.")).toBeInTheDocument();
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.getByText("Reece added. Open it to upload its price list.")).toBeInTheDocument();
 
   /* any other supplier by its name */
   fireEvent.click(screen.getByRole("button", { name: "Add a supplier" }));
@@ -108,24 +122,33 @@ it("starts a new business with no suppliers and the form to add one, offering th
 
 it("doesn't offer a supplier the business already has, and keeps the list to one row each", () => {
   global.fetch = jest.fn(async () => ({ json: async () => ({ ok: true }) })) as unknown as typeof fetch;
-  const { container } = render(
+  render(
     <PriceBook suppliers={[{ ...acme, key: "aad", name: "AAD", format: "aad_csv", file: "csv", importedAt: "2026-09-29T00:00:00Z", itemCount: 3579 }]} onImported={jest.fn()} />
   );
-  /* one row, no buttons but the row itself and Add a supplier */
-  const buttons = screen.getAllByRole("button").map((b) => b.textContent);
-  expect(buttons).toHaveLength(2);
-  expect(buttons[0]).toMatch(/^AADNet prices3,579 items, prices from 29 Sept? 2026None yet$/);
-  expect(buttons[1]).toBe("Add a supplier");
+  /* one row, no buttons but Add a supplier on the group's head and the row itself */
+  expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Add a supplier", "AAD"]);
+  const rows = within(screen.getByRole("table", { name: "Suppliers" })).getAllByRole("row");
+  expect(rows[1]!.textContent).toMatch(/^AADNet prices3,579 items, prices from 29 Sept? 2026None yet$/);
   fireEvent.click(screen.getByRole("button", { name: "Add a supplier" }));
-  expect([...container.querySelectorAll("datalist option")].map((o) => o.getAttribute("value"))).toEqual(["Reece", "Mitsubishi Electric"]);
+  expect([...document.querySelectorAll("datalist option")].map((o) => o.getAttribute("value"))).toEqual(["Reece", "Mitsubishi Electric"]);
+});
+
+it("opens a supplier on arrival when Add items asked for it", () => {
+  global.fetch = jest.fn(async () => ({ json: async () => ({ ok: true, rules: [] }) })) as unknown as typeof fetch;
+  render(<PriceBook suppliers={[acme]} onImported={jest.fn()} initialOpen="acme" />);
+  expect(screen.getByRole("dialog", { name: "Acme" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Done" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
 });
 
 /* Isaac, 2026-10-05: invoices are the same supplier's prices, not another
    supplier — "Mitsubishi as a supplier can be one header". */
 it("takes a supplier's invoices under the supplier, asking no discount for what was paid", async () => {
+  const user = userEvent.setup();
   const sent: FormData[] = [];
   global.fetch = jest.fn(async (_url: string, init?: RequestInit) => {
-    const form = init!.body as FormData;
+    if (!init?.method || init.method === "GET") return { json: async () => ({ ok: true, rules: [] }) } as Response;
+    const form = init.body as FormData;
     sent.push(form);
     return {
       json: async () =>
@@ -135,21 +158,45 @@ it("takes a supplier's invoices under the supplier, asking no discount for what 
     } as Response;
   }) as unknown as typeof fetch;
   render(<PriceBook suppliers={[{ ...acme, name: "Mitsubishi Electric", pricing: "list_less", discountPct: 30 }]} onImported={jest.fn()} />);
-  fireEvent.click(screen.getByRole("button", { name: /^Mitsubishi Electric/ }));
-  /* a list-price supplier's discount sits in its open row */
-  expect(screen.getByRole("heading", { name: "Discount" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Mitsubishi Electric" }));
+  /* a list-price supplier's discount is in its dialog */
+  expect(dialog().getByRole("heading", { name: "Discount" })).toBeInTheDocument();
+  expect(screen.getByLabelText("Off every list price, %")).toHaveValue("30");
   await act(async () => {
     fireEvent.change(screen.getByLabelText("Add Mitsubishi Electric invoices"), { target: { files: [new File(["x"], "invoices.xlsx")] } });
   });
   expect(sent[0]!.get("kind")).toBe("invoices");
   expect(screen.queryByRole("combobox", { name: "The prices are" })).not.toBeInTheDocument();
-  fireEvent.change(screen.getByRole("combobox", { name: "Code" }), { target: { value: "A" } });
-  fireEvent.change(screen.getByRole("combobox", { name: "Price ex GST" }), { target: { value: "B" } });
+  await pick(user, "Code", "A: Item");
+  await pick(user, "Price ex GST", "B: Paid");
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "Read the file" }));
   });
   expect(sent[1]!.get("kind")).toBe("invoices");
   expect(screen.getByText("Mitsubishi Electric invoices in: 93 items read, 50 prices changed, 43 new.")).toBeInTheDocument();
+});
+
+it("saves a list-price supplier's discount, with a range of codes of its own", async () => {
+  const patched: unknown[] = [];
+  global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
+    if (init?.method === "PATCH") {
+      patched.push(JSON.parse(String(init.body)));
+      return { json: async () => ({ ok: true }) } as Response;
+    }
+    return { json: async () => ({ ok: true, rules: [] }) } as Response;
+  }) as unknown as typeof fetch;
+  const onImported = jest.fn();
+  render(<PriceBook suppliers={[{ ...acme, key: "me", name: "Mitsubishi Electric", pricing: "list_less", discountPct: 30 }]} onImported={onImported} />);
+  fireEvent.click(screen.getByRole("button", { name: "Mitsubishi Electric" }));
+  fireEvent.click(screen.getByRole("button", { name: "Add a range" }));
+  fireEvent.change(screen.getByLabelText("Codes starting"), { target: { value: "PUMY" } });
+  fireEvent.change(screen.getByLabelText("Their discount, %"), { target: { value: "35" } });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Save discount" }));
+  });
+  expect(patched).toEqual([{ key: "me", discountPct: 30, rules: [{ prefix: "PUMY", discountPct: 35 }] }]);
+  expect(screen.getByText("Mitsubishi Electric discount saved.")).toBeInTheDocument();
+  expect(onImported).toHaveBeenCalled();
 });
 
 /* Isaac, 2026-10-05: the price book takes in invoices — the invoice itself,
@@ -158,6 +205,7 @@ it("takes a supplier's invoices under the supplier, asking no discount for what 
 it("reads an invoice PDF, shows each line against the book, and adds the lot on one press", async () => {
   const posts: { url: string; body: FormData | string }[] = [];
   global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
+    if (!init?.method || init.method === "GET") return { json: async () => ({ ok: true, rules: [] }) } as Response;
     posts.push({ url, body: init!.body as FormData | string });
     if (url === "/api/quoting/invoice-read") {
       return {
@@ -183,7 +231,7 @@ it("reads an invoice PDF, shows each line against the book, and adds the lot on 
   const aad = { ...acme, key: "aad", name: "AAD", format: "aad_csv" as const, file: "csv" as const };
   const reece = { ...acme, key: "reece", name: "Reece", format: "reece_csv" as const, file: "csv" as const };
   render(<PriceBook suppliers={[aad, reece]} onImported={onImported} />);
-  fireEvent.click(screen.getByRole("button", { name: /^AAD/ }));
+  fireEvent.click(screen.getByRole("button", { name: "AAD" }));
   const input = screen.getByLabelText("Add AAD invoices");
   expect(input.getAttribute("accept")).toContain("application/pdf");
   expect(input.getAttribute("accept")).toContain("image/jpeg");
@@ -196,7 +244,10 @@ it("reads an invoice PDF, shows each line against the book, and adds the lot on 
   expect(screen.getByRole("heading", { name: /^Invoice 7781203 from Reece Australia Pty Ltd, 29 Sept? 2026$/ })).toBeInTheDocument();
   /* the invoice is another supplier's: said, not refused */
   expect(screen.getByText("This invoice names Reece, not AAD.")).toBeInTheDocument();
-  const rows = screen.getAllByRole("row").slice(1).map((r) => [...r.querySelectorAll("td")].map((td) => td.textContent));
+  const rows = dialog()
+    .getAllByRole("row")
+    .slice(1)
+    .map((r) => [...r.querySelectorAll("td")].map((td) => td.textContent));
   expect(rows).toEqual([
     ["PC1412", "Pair coil 1/4 1/2 15m", "2", "$118.50", "Was $124.00"],
     ["CMADJ", "Pipe clamp", "20", "$1.15", "New"],
@@ -222,19 +273,22 @@ it("reads an invoice PDF, shows each line against the book, and adds the lot on 
     ],
   });
   expect(screen.getByText("AAD invoice 7781203 in: 3 items read, 1 price changed, 1 new.")).toBeInTheDocument();
-  expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  expect(dialog().queryByRole("table")).not.toBeInTheDocument();
   expect(onImported).toHaveBeenCalled();
 });
 
 it("cancels an invoice read without adding anything, and says what went wrong reading one", async () => {
-  global.fetch = jest.fn(async () => ({ json: async () => ({ ok: false, reason: "That's 14 pages. Tiff reads an invoice of up to 10." }) })) as unknown as typeof fetch;
+  const lettersRead = { json: async () => ({ ok: true, rules: [] }) } as Response;
+  global.fetch = jest.fn(async (_url: string, init?: RequestInit) =>
+    !init?.method ? lettersRead : ({ json: async () => ({ ok: false, reason: "That's 14 pages. Tiff reads an invoice of up to 10." }) } as Response)
+  ) as unknown as typeof fetch;
   render(<PriceBook suppliers={[acme]} onImported={jest.fn()} />);
-  fireEvent.click(screen.getByRole("button", { name: /^Acme/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Acme" }));
   await act(async () => {
     fireEvent.change(screen.getByLabelText("Add Acme invoices"), { target: { files: [new File(["%PDF"], "statement.pdf", { type: "application/pdf" })] } });
   });
-  expect(screen.getByText("That's 14 pages. Tiff reads an invoice of up to 10.")).toBeInTheDocument();
-  expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  expect(screen.getByRole("alert")).toHaveTextContent("That's 14 pages. Tiff reads an invoice of up to 10.");
+  expect(dialog().queryByRole("table")).not.toBeInTheDocument();
 
   global.fetch = jest.fn(async () => ({
     json: async () => ({ ok: true, read: { supplier: "", invoiceNo: "", invoiceDate: null, lines: [{ code: "AC-100", name: "Bracket", qty: 4, cents: 1000, now: null, after: 1000 }], skipped: [] } }),
@@ -248,14 +302,14 @@ it("cancels an invoice read without adding anything, and says what went wrong re
   const sent = ((global.fetch as jest.Mock).mock.calls[0]![1] as RequestInit).body as FormData;
   expect((sent.get("file") as File).type).toBe("image/jpeg");
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-  expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  expect(dialog().queryByRole("table")).not.toBeInTheDocument();
   expect(global.fetch).toHaveBeenCalledTimes(1);
 });
 
 it("doesn't send an invoice file over 4 MB, which the host would refuse", async () => {
-  global.fetch = jest.fn() as unknown as typeof fetch;
+  global.fetch = jest.fn(async () => ({ json: async () => ({ ok: true, rules: [] }) })) as unknown as typeof fetch;
   render(<PriceBook suppliers={[acme]} onImported={jest.fn()} />);
-  fireEvent.click(screen.getByRole("button", { name: /^Acme/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Acme" }));
   await act(async () => {
     fireEvent.change(screen.getByLabelText("Add Acme invoices"), {
       target: { files: [new File([new Uint8Array(5 * 1024 * 1024)], "scan.pdf", { type: "application/pdf" })] },
@@ -265,16 +319,17 @@ it("doesn't send an invoice file over 4 MB, which the host would refuse", async 
   expect((global.fetch as jest.Mock).mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "POST")).toHaveLength(0);
 });
 
-it("says Adding only while this invoice's prices go in, not while another file is read", async () => {
+it("says it's adding only while this invoice's prices go in, not while another file is read", async () => {
   const read = { supplier: "", invoiceNo: "12", invoiceDate: null, lines: [{ code: "AC-100", name: "Bracket", qty: 4, cents: 1000, now: null, after: 1000 }], skipped: [] };
   let finish: (v: unknown) => void = () => {};
-  global.fetch = jest.fn(async (url: string) => {
+  global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
+    if (!init?.method) return { json: async () => ({ ok: true, rules: [] }) } as Response;
     if (url === "/api/quoting/invoice-read") return { json: async () => ({ ok: true, read }) } as Response;
     /* the other file, and then the prices, take their time */
     return { json: () => new Promise((resolve) => (finish = resolve)) } as unknown as Response;
   }) as unknown as typeof fetch;
   render(<PriceBook suppliers={[acme]} onImported={jest.fn()} />);
-  fireEvent.click(screen.getByRole("button", { name: /^Acme/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Acme" }));
   await act(async () => {
     fireEvent.change(screen.getByLabelText("Add Acme invoices"), { target: { files: [new File(["%PDF"], "12.pdf", { type: "application/pdf" })] } });
   });
@@ -287,7 +342,7 @@ it("says Adding only while this invoice's prices go in, not while another file i
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "Add 1 price" }));
   });
-  expect(screen.getByRole("button", { name: "Adding" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Adding the prices" })).toBeDisabled();
   await act(async () => finish({ ok: true, summary: { read: 1, added: 1, changed: 0, gone: 0 } }));
   expect(screen.getByText("Acme invoice 12 in: 1 item read, no price changed, 1 new.")).toBeInTheDocument();
 });

@@ -1,0 +1,24 @@
+/* SETTINGS › QUOTING (v2, 25 October 2026; the mock's Quoting board). The
+   frame's groups and rows (.st2-*, shell.css) carry the section; what is
+   here is only Quoting's own: a figure typed beside its unit, the line of
+   facts the rates make, the group's foot that holds its save, the starter
+   tasks as rows of fields, and the Rate Calculator's room inside the frame. */
+
+/* a figure, typed to the right, its unit after it in grey; every figure in
+   a group stands in the same column, so a row with a button beside its
+   figure keeps that button's seat in the rows without one */
+.fg .st2-q-amt { flex:none; display:flex; align-items:center; gap:8px; width:240px; }
+.fg .st2-q-amt .pt-input { flex:none; width:120px; text-align:right; font-variant-numeric:tabular-nums; }
+.fg .st2-q-unit { min-width:0; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .st2-q-tail { flex:none; display:flex; justify-content:flex-end; width:160px; }
+.fg .st2-q-fact { margin:8px 0 0; font-size:14px; line-height:20px; font-weight:400; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .st2-q-foot { display:flex; align-items:center; gap:8px; margin-top:8px; }
+/* a chooser whose words are a sentence ("A plenum on the unit with a spigot
+   for each outlet") */
+.fg .st2-q-wide { width:320px; }
+
+/* what every job starts with: the task's words, which visit, whether it's
+   done with photos, and its Remove */
+.fg .st2-q-tasks { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
+.fg .st2-q-task { display:grid; grid-template-columns:minmax(0, 1fr) 180px auto auto; gap:12px; align-items:center; padding:8px 0; }
+.fg .st2-q-task + .st2-q-task { border-top:1px solid var(--line); }

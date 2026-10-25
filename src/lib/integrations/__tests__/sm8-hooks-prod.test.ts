@@ -150,9 +150,8 @@ jest.mock("../store", () => ({
     writeMode: "live",
   }),
 }));
-/* the owner's ServiceM8 screen (PR F): its loader, for real; what it hands
-   the screen is read off the element */
-jest.mock("@/components/integrations/servicem8-screen", () => ({ Servicem8Screen: () => null }));
+/* the owner's ServiceM8 screen (PR F): its loader, for real, as Settings ›
+   Integrations runs it; what it hands the ServiceM8 group is what it returns */
 jest.mock("../sm8-read", () => ({ readSm8Vendor: rec("readVendor", { ok: true, data: { name: "Acme Air", timezoneName: null } }) }));
 jest.mock("@/app/actions/staff-import", () => ({ getSm8PeopleData: rec("people", null) }));
 jest.mock("../sm8-sync", () => ({
@@ -194,8 +193,7 @@ import { GET as cronGET } from "@/app/api/cron/sm8-sync/route";
 import { disconnectServiceM8Action } from "@/app/actions/integrations";
 import { freshenSm8AfterResponse } from "../sm8-freshness";
 import { GET as hookGET, POST as hookPOST } from "@/app/api/integrations/servicem8/webhook/[hook]/route";
-import Servicem8IntegrationPage from "@/app/dashboard/admin/integrations/servicem8/page";
-import type { ReactElement } from "react";
+import { loadServicem8 } from "@/app/dashboard/admin/(settings)/integrations/load";
 
 const env = { ...process.env };
 const realFetch = global.fetch;
@@ -363,8 +361,7 @@ describe("with the switch off, each entry point makes today's calls exactly", ()
   it("the owner's ServiceM8 screen: today's reads, no read of live updates, and today's props", async () => {
     const props: Record<string, unknown>[] = [];
     const seen = await underEach(async () => {
-      const el = (await Servicem8IntegrationPage({ searchParams: Promise.resolve({}) })) as ReactElement<Record<string, unknown>>;
-      props.push(el.props);
+      props.push((await loadServicem8("org-5d21", {})) as Record<string, unknown>);
     });
     expectToday(seen, {
       calls: [

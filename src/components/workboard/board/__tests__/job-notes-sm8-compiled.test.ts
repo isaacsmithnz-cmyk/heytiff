@@ -20,7 +20,7 @@ const FILES = [
   "src/components/workboard/board/job-attention-strip.tsx",
   "src/components/workboard/board/state-line.tsx",
   "src/components/dashboard/task-sm8-line.tsx",
-  "src/components/integrations/sm8-writes-card.tsx",
+  "src/components/integrations/sm8-sending.tsx",
 ];
 
 type CompileEvent = { kind: string; fnName?: string | null; detail?: unknown };

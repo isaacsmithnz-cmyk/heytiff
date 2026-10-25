@@ -15,10 +15,11 @@ import type { XeroEmployee } from "@/lib/integrations/xero-shape";
 
 /* Matching this workspace's people to Xero's payroll employees.
 
-   Lives inside the Time & Pay settings modal because that is where whoever
-   runs pay already goes, and it is already `financials`-gated — which this
-   surface has to be, since it decides whose pay attaches to which payroll
-   record and reports drift in pay-adjacent fields.
+   Lives in Settings › Pay and holidays (it was the Time & Pay settings
+   modal's) because that is where whoever runs pay already goes, and it is
+   already `financials`-gated — which this surface has to be, since it decides
+   whose pay attaches to which payroll record and reports drift in
+   pay-adjacent fields.
 
    THE SCREEN NEVER DECIDES. Every suggestion is offered with the reason it was
    made, and a person presses the button. Two people who share a name produce no

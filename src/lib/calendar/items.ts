@@ -441,7 +441,7 @@ export function credentialItems(cards: readonly OrgCredential[], today: string, 
       sub: `${overdue ? "Overdue. " : ""}${issuer ? `${sentence(issuer)} ` : ""}From Admin.`,
       description: `Your ${noun}${from} ${overdue ? "ran out" : "runs out"} on ${on}.`,
       facts,
-      action: { label: "Renew", href: "/dashboard/admin/organization?sec=credentials" },
+      action: { label: "Renew", href: "/dashboard/admin/organization#licences" },
       overdue,
     });
   }

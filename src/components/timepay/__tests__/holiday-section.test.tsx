@@ -1,17 +1,17 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HolidaySection } from "../holiday-section";
 import type { Holiday } from "@/lib/timepay/leave-query";
 
 const addHoliday = jest.fn(async () => ({ ok: true as const }));
-const removeHoliday = jest.fn(async () => ({ ok: true as const }));
-const restoreHoliday = jest.fn(async () => ({ ok: true as const }));
+const removeHoliday = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
+const restoreHoliday = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
 const refresh = jest.fn();
 
 jest.mock("@/app/actions/holidays", () => ({
   addHoliday: (...a: unknown[]) => addHoliday(...(a as [])),
-  removeHoliday: (...a: unknown[]) => removeHoliday(...(a as [])),
-  restoreHoliday: (...a: unknown[]) => restoreHoliday(...(a as [])),
+  removeHoliday: (...a: unknown[]) => removeHoliday(...a),
+  restoreHoliday: (...a: unknown[]) => restoreHoliday(...a),
   getHolidayManagerData: jest.fn(),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh }) }));
@@ -42,26 +42,22 @@ const hol = (over: Partial<Holiday> = {}): Holiday => ({
   ...over,
 });
 
-/* The section fetches its own calendar on mount now (it used to be handed one
-   by the page), so every case injects a `load` and waits for the first paint
-   before asserting. The shape of what it renders is unchanged. */
-async function renderSection(
-  over: Partial<{ holidays: Holiday[]; orgState: string | null; today: string }> = {},
-) {
-  const result = render(
-    <HolidaySection
-      load={async () => ({ holidays: [], orgState: "WA", today: TODAY, ...over })}
-    />,
-  );
-  // the "Reading your holiday calendar" wait is gone once data lands
+type Data = { holidays: Holiday[]; orgState: string | null; today: string };
+
+/* The holidays group of Settings › Pay and holidays. Without `initial` the
+   section reads its own calendar on mount, so these cases inject a `load`
+   and wait for the form before asserting. */
+async function renderSection(over: Partial<Data> = {}) {
+  const load = jest.fn(async () => ({ holidays: [], orgState: "WA", today: TODAY, ...over }));
+  const result = render(<HolidaySection load={load} />);
   await screen.findByLabelText("Holiday name");
-  return result;
+  return { ...result, load };
 }
 
 beforeEach(() => {
   provisional.mockReset();
   provisional.mockReturnValue([]);
-  addHoliday.mockClear();
+  [addHoliday, removeHoliday, restoreHoliday, refresh].forEach((m) => m.mockClear());
 });
 
 it("says nothing when the state has no proclamation-dependent days", async () => {
@@ -80,14 +76,15 @@ it("suggests this year and next, with the timing hint", async () => {
   provisional.mockReturnValue([KINGS]);
   await renderSection();
 
-  expect(screen.getByText("Worth confirming")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Worth confirming" })).toBeInTheDocument();
   expect(provisional).toHaveBeenCalledWith("WA", 2026);
   expect(provisional).toHaveBeenCalledWith("WA", 2027);
 
-  expect(screen.getAllByText("King's Birthday")).toHaveLength(2);
-  expect(screen.getByText("2026")).toBeInTheDocument();
-  expect(screen.getByText("2027")).toBeInTheDocument();
-  expect(screen.getAllByText(/proclaimed each year/)).toHaveLength(2);
+  const list = screen.getByRole("list", { name: "Worth confirming" });
+  expect(within(list).getAllByText("King's Birthday")).toHaveLength(2);
+  expect(within(list).getByText("2026")).toBeInTheDocument();
+  expect(within(list).getByText("2027")).toBeInTheDocument();
+  expect(within(list).getAllByText(/proclaimed each year/)).toHaveLength(2);
 });
 
 it("drops one already on the calendar for that year — including a removed one", async () => {
@@ -109,19 +106,20 @@ it("keeps suggesting when the same name exists only under another state", async 
   expect(screen.getAllByText("King's Birthday")).toHaveLength(3); // the calendar row + two suggestions
 });
 
-it("Add prefills the form's state and name, and leaves the date to the admin", async () => {
+it("Add the date prefills the form's state and name, and leaves the date to the admin", async () => {
   const user = userEvent.setup();
   provisional.mockImplementation((_s: string, y: number) => (y === 2027 ? [KINGS] : []));
   await renderSection({ orgState: "WA" });
 
-  const row = screen.getByText("2027").closest(".hol-sugrow") as HTMLElement;
-  await user.click(within(row).getByRole("button", { name: /add/i }));
+  await user.click(screen.getByRole("button", { name: "Add the date of King's Birthday, 2027" }));
 
   expect(screen.getByLabelText<HTMLInputElement>("Holiday name").value).toBe("King's Birthday");
-  expect(screen.getByLabelText<HTMLSelectElement>("State").value).toBe("WA");
+  expect(screen.getByLabelText("State")).toHaveTextContent("WA");
   expect(screen.getByLabelText("Date")).toHaveTextContent("dd/mm/yyyy");
+  // the date is where the admin goes next
+  expect(screen.getByLabelText("Date")).toHaveFocus();
   // nothing is written until a date is supplied
-  expect(screen.getByRole("button", { name: /add holiday/i })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Add holiday" })).toBeDisabled();
   expect(addHoliday).not.toHaveBeenCalled();
 });
 
@@ -131,22 +129,34 @@ it("Add prefills the form's state and name, and leaves the date to the admin", a
 it("still writes through the normal add path once the gazetted date is picked", async () => {
   const user = userEvent.setup();
   provisional.mockReturnValue([KINGS]);
-  await renderSection();
+  const { load } = await renderSection();
 
-  await user.click(screen.getAllByRole("button", { name: /^add$/i })[0]);
+  await user.click(screen.getAllByRole("button", { name: /^Add the date/ })[0]);
   await user.click(screen.getByLabelText("Date"));
   await user.click(screen.getByRole("button", { name: "Next month" }));
   await user.click(screen.getByRole("button", { name: "Next month" }));
   await user.click(screen.getByRole("button", { name: "Monday 28 September 2026" }));
   expect(screen.getByLabelText("Date")).toHaveTextContent("28/09/2026");
 
-  await user.click(screen.getByRole("button", { name: /add holiday/i }));
+  await user.click(screen.getByRole("button", { name: "Add holiday" }));
 
   expect(addHoliday).toHaveBeenCalledWith({
     state: "WA",
     date: "2026-09-28",
     name: "King's Birthday",
   });
+  // the list is client-held, so it is read again; the timesheets behind it are refreshed too
+  await waitFor(() => expect(refresh).toHaveBeenCalled());
+  expect(load).toHaveBeenCalledTimes(2);
+  expect(screen.getByLabelText<HTMLInputElement>("Holiday name").value).toBe("");
+});
+
+it("adds for the state picked, not only the business's own", async () => {
+  const user = userEvent.setup();
+  await renderSection({ orgState: "WA" });
+  await user.click(screen.getByLabelText("State"));
+  await user.click(screen.getByRole("option", { name: "VIC" }));
+  expect(screen.getByLabelText("State")).toHaveTextContent("VIC");
 });
 
 /* The year's opening day is the floor — the manager is for this year on, not
@@ -165,4 +175,66 @@ it("locks the picker out of the years before this one", async () => {
   }
   expect(screen.getByText("January 2026")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Previous month" })).toBeDisabled();
+});
+
+describe("the calendar", () => {
+  it("lists each year's days as rows: the name, then the date and the state", async () => {
+    await renderSection({
+      holidays: [
+        hol(),
+        hol({ id: "pd", date: "2026-08-03", name: "Picnic Day", source: "manual" }),
+        hol({ id: "ny27", date: "2027-01-01" }),
+      ],
+    });
+    const y26 = screen.getByRole("list", { name: "Public holidays in 2026" });
+    expect(within(y26).getByText("New Year's Day")).toBeInTheDocument();
+    expect(within(y26).getByText("Thu 1 Jan 2026, WA")).toBeInTheDocument();
+    // a day someone added says so; a day the calendar filled in doesn't
+    expect(within(y26).getByText("Mon 3 Aug 2026, WA, added by hand")).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Public holidays in 2027" })).toBeInTheDocument();
+  });
+
+  it("removes a day this business works, and reads the calendar again", async () => {
+    const user = userEvent.setup();
+    const { load } = await renderSection({ holidays: [hol()] });
+    await user.click(screen.getByRole("button", { name: "Remove New Year's Day" }));
+    expect(removeHoliday).toHaveBeenCalledWith("h1");
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+  });
+
+  it("keeps a removed day listed under its own heading, to restore", async () => {
+    const user = userEvent.setup();
+    await renderSection({ holidays: [hol({ suppressed: true })] });
+    expect(screen.getByRole("heading", { name: "Removed, worked as normal days" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Restore New Year's Day" }));
+    expect(restoreHoliday).toHaveBeenCalledWith("h1");
+  });
+
+  it("says what's missing when there's nothing on it", async () => {
+    await renderSection();
+    expect(screen.getByText("No public holidays yet")).toBeInTheDocument();
+  });
+
+  it("says what went wrong when a change is refused, and keeps the list", async () => {
+    const user = userEvent.setup();
+    removeHoliday.mockResolvedValueOnce({ ok: false, error: "Only an admin can manage public holidays." } as never);
+    await renderSection({ holidays: [hol()] });
+    await user.click(screen.getByRole("button", { name: "Remove New Year's Day" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Only an admin can manage public holidays.");
+    expect(screen.getByText("New Year's Day")).toBeInTheDocument();
+  });
+});
+
+describe("what the page hands it", () => {
+  it("draws the calendar the page read, without reading it again", () => {
+    const load = jest.fn();
+    render(<HolidaySection initial={{ holidays: [hol()], orgState: "WA", today: TODAY }} load={load} />);
+    expect(screen.getByText("New Year's Day")).toBeInTheDocument();
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it("says so when the calendar can't be read", async () => {
+    render(<HolidaySection load={async () => null} />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't load the holiday calendar.");
+  });
 });

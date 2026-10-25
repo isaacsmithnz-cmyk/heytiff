@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Icon } from "@/components/shell/icon";
+import { Button } from "@/components/parts/button";
+import { Wrong } from "@/components/settings/parts";
 import { uploadFile } from "@/lib/documents/upload-client";
 import { prepareLogo } from "@/lib/org/logo-prepare";
 import type { LogoTone } from "@/lib/org/logo-fit";
@@ -129,24 +130,18 @@ export function LogoUploader({
           <img src={logoUrl} alt="Company logo" />
         </span>
       ) : (
-        <span className="orglogo-none">Initials stand in</span>
+        <span className="orglogo-none">No logo, initials stand in</span>
       )}
 
       <span className="orglogo-act">
-        <button
-          className="pbtn ghost"
-          type="button"
-          disabled={busy}
-          onClick={() => fileRef.current?.click()}
-        >
-          <Icon name="upload" size={14} />
-          {logoUrl ? "Replace" : "Upload"}
-        </button>
         {logoUrl && (
-          <button className="pbtn ghost" type="button" disabled={busy} onClick={clear}>
-            Remove
-          </button>
+          <Button kind="second" size={32} disabled={busy} onClick={clear}>
+            Remove logo
+          </Button>
         )}
+        <Button kind="second" size={32} disabled={busy} onClick={() => fileRef.current?.click()}>
+          {busy ? "Saving the logo" : logoUrl ? "Replace logo" : "Upload a logo"}
+        </Button>
       </span>
 
       <input
@@ -157,7 +152,7 @@ export function LogoUploader({
         style={{ display: "none" }}
         onChange={(e) => pick(e.target.files?.[0])}
       />
-      {error && <div className="carderr">{error}</div>}
+      {error && <Wrong>{error}</Wrong>}
     </div>
   );
 }

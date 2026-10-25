@@ -82,7 +82,8 @@ export const YOURS: readonly Place[] = [
   /* the old Me card's last two faces, each a page of its own (24 October 2026) */
   { key: "myvehicle", label: "Your vehicle", icon: "car", href: "/dashboard/my-vehicle", under: [], needsVehicle: true },
   { key: "mynotes", label: "Notes", icon: "note", href: "/dashboard/my-notes", under: [] },
-  { key: "reports", label: "Reports", icon: "gauge", href: "/dashboard/analytics", under: [], capability: "workboard_money" },
+  /* the jobs' money opens its three views, the business's money Tax and EOFY (rule 7) */
+  { key: "reports", label: "Reports", icon: "gauge", href: "/dashboard/analytics", under: [], anyOf: ["workboard_money", "financials"] },
   { key: "settings", label: "Settings", icon: "settings", href: "/dashboard/admin", under: [], minRole: "admin" },
 ];
 

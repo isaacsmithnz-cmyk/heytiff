@@ -12,6 +12,7 @@ import { kbDocsForOrg, kbUploaderNames } from "@/lib/tiff/query";
 import { kbQuotaFor } from "@/lib/tiff/quota";
 import { kbLargeAllowance } from "@/lib/tiff/large";
 import { ensureKbSeedTags, kbTagsByDocument, kbTagsForOrg, kbTagUsage } from "@/lib/tiff/tags-query";
+import { listUnreviewedFieldNotes } from "@/lib/tiff/field-notes";
 
 /* The library (v2: the Library place lands here). Deep-linkable leaf — same `tiff` gate as the assistant page:
    the capability is revocable, so every route checks for itself and not just
@@ -26,7 +27,9 @@ import { ensureKbSeedTags, kbTagsByDocument, kbTagsForOrg, kbTagUsage } from "@/
    `?cat=` is how the assistant's category cards arrive: the card you clicked
    is the filter you land on. `?view=toolbox` is the field tools' shelf,
    for someone who holds `toolbox` (the same gate as /dashboard/toolbox and
-   every tool's page). `?tag=` is the same idea on the second axis, and
+   every tool's page). `?view=review` is Field notes on what's to look over,
+   Knowledge from the field, for an admin (it was /dashboard/admin/knowledge,
+   which lands here now). `?tag=` is the same idea on the second axis, and
    repeatable — `?tag=daikin&tag=vrv` is a link to the Daikin VRV shelf.
 
    `?doc=` names ONE document and opens its search panel on arrival — how a
@@ -67,7 +70,7 @@ export default async function LibraryPage({
   /* The passages stored without a vector. Counted only where a key exists:
      without one, EVERY chunk is null by design and the whole library would
      read as broken rather than as keyword-only. */
-  const [docs, quota, canManage, role, uploaders, unembedded, tags, docTags, tagUsage, canToolbox] =
+  const [docs, quota, canManage, role, uploaders, unembedded, tags, docTags, tagUsage, canToolbox, review] =
     await Promise.all([
       kbDocsForOrg(orgId),
       kbQuotaFor(orgId),
@@ -79,6 +82,10 @@ export default async function LibraryPage({
       kbTagsByDocument(orgId),
       kbTagUsage(orgId),
       can("toolbox"),
+      /* Knowledge from the field: what the crew taught Tiff that nobody has
+         looked over, read for an admin and nobody else (the same gate as
+         actions/kb-review.ts; the role read is the request's, cached) */
+      getDbRole().then((r) => (hasMinRole(r, "admin") ? listUnreviewedFieldNotes(orgId) : null)),
     ]);
 
   /* The URL names tags by SLUG, not by id — a link that survives being pasted
@@ -121,7 +128,8 @@ export default async function LibraryPage({
       large={large}
       unembedded={unembedded}
       initialCategory={asKbCategory(raw)}
-      initialView={rawView === "toolbox" ? "toolbox" : null}
+      initialView={rawView === "toolbox" ? "toolbox" : rawView === "review" ? "review" : null}
+      review={review}
       /* the yard's date, not the handset's — it decides which tools still
          read New, as the Toolbox's own page does */
       toolbox={canToolbox ? { today: todayInAu() } : null}

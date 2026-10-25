@@ -14,8 +14,10 @@ import { TextInput } from "@/components/parts/field";
 import { Menu, type MenuItem } from "@/components/parts/menu";
 import { Empty } from "@/components/parts/states";
 import { StateWord, type Tone } from "@/components/parts/state";
+import { ViewTabs } from "@/components/parts/tabs";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { KB_CATEGORIES, filterKbDocs, type KbCategoryKey } from "./kb";
+import { FieldReview } from "./field-review";
 import { UploadDrawer } from "./upload-drawer";
 import { TagPicker } from "./tag-picker";
 import { TagManager } from "./tag-manager";
@@ -35,6 +37,7 @@ import { useKbBackfill } from "@/lib/tiff/use-kb-backfill";
 import type { KbDocRow } from "@/lib/tiff/query";
 import type { KbQuota } from "@/lib/tiff/quota";
 import type { KbLargeAllowance } from "@/lib/tiff/files";
+import type { FieldNoteRow } from "@/lib/tiff/field-notes";
 
 /* THE LIBRARY (v2, step 5; no board, so built from docs/design.md and the
    v2 screens already built: Jobs' list, a vehicle's page, Schedule). The
@@ -62,7 +65,15 @@ import type { KbLargeAllowance } from "@/lib/tiff/files";
 
    The view and the tags ride in the address (`?cat=`, `?view=toolbox`,
    `?tag=`), written with replaceState as they change, as Jobs does, so an
-   open tab holds them and the links into the library still land. */
+   open tab holds them and the links into the library still land.
+
+   KNOWLEDGE FROM THE FIELD (25 October 2026; it was Admin's, Isaac:
+   "Knowledge from the field in the Library"): for an admin, the Field notes
+   shelf has two views, soft tabs under its head (rule 29), All notes and To
+   look over, the notes the crew taught Tiff that nobody has looked over yet
+   (field-review.tsx). While one waits, To look over's word is amber, and so
+   is the shelf's name on the landing; never a number. `?cat=field&view=review`
+   lands on it. */
 
 /* SHELVES (Isaac, 20 October; the board
    https://claude.ai/artifact/64ih5Hjdp74pcKhzKZ6c6h). The Library lands on
@@ -311,8 +322,11 @@ function ModelSpecs({ query }: { query: string }) {
   );
 }
 
+/** The Field notes shelf's two views, an admin's: every note, or the ones to look over. */
+type FieldView = "all" | "review";
+
 /** The view and the tags, into the address, as Jobs writes its own. */
-function writeAddress(view: LibraryView, tagSlugs: readonly string[]) {
+function writeAddress(view: LibraryView, tagSlugs: readonly string[], fieldView: FieldView = "all") {
   if (typeof window === "undefined") return;
   const url = new URL(window.location.href);
   url.searchParams.delete("cat");
@@ -320,6 +334,7 @@ function writeAddress(view: LibraryView, tagSlugs: readonly string[]) {
   url.searchParams.delete("tag");
   if (view === "toolbox") url.searchParams.set("view", "toolbox");
   else if (view !== "all") url.searchParams.set("cat", view);
+  if (view === "field" && fieldView === "review") url.searchParams.set("view", "review");
   for (const s of tagSlugs) url.searchParams.append("tag", s);
   window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
 }
@@ -342,6 +357,7 @@ export function Library({
   toolbox = null,
   documents = true,
   voice = false,
+  review = null,
 }: {
   docs: KbLibraryDoc[];
   quota?: KbQuotaView | null;
@@ -352,8 +368,9 @@ export function Library({
       say. */
   unembedded?: number;
   initialCategory?: KbCategoryKey | null;
-  /** From `?view=toolbox`: the field tools' shelf, for someone who holds it. */
-  initialView?: "toolbox" | null;
+  /** From `?view=toolbox`: the field tools' shelf, for someone who holds it.
+      From `?view=review`: Field notes, on what's to look over, for an admin. */
+  initialView?: "toolbox" | "review" | null;
   /** Every tag the org has, including ones nothing wears yet — the picker
       offers those, and the filter hides them. */
   tags?: KbTagRef[];
@@ -376,12 +393,20 @@ export function Library({
   documents?: boolean;
   /** The microphone in the box, where this deployment can hear. */
   voice?: boolean;
+  /** The field notes nobody has looked over yet, for an admin (Knowledge
+      from the field). Null: not this viewer's to look over. */
+  review?: FieldNoteRow[] | null;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const opensOnReview = initialView === "review" && review !== null;
   const [view, setViewState] = useState<LibraryView>(
-    initialView === "toolbox" && toolbox ? "toolbox" : (initialCategory ?? "all"),
+    initialView === "toolbox" && toolbox ? "toolbox" : opensOnReview ? "field" : (initialCategory ?? "all"),
   );
+  const [fieldView, setFieldViewState] = useState<FieldView>(opensOnReview ? "review" : "all");
+  /* looked over or taken down here: gone from the list before the page redraws */
+  const [reviewed, setReviewed] = useState<ReadonlySet<string>>(() => new Set());
+  const toLookOver = (review ?? []).filter((e) => !reviewed.has(e.id));
   const [tagIds, setTagIds] = useState<string[]>(initialTagIds);
   const [drawer, setDrawer] = useState(false);
   const [managing, setManaging] = useState(false);
@@ -469,11 +494,16 @@ export function Library({
 
   const setView = (next: LibraryView) => {
     setViewState(next);
+    setFieldViewState("all");
     writeAddress(next, slugsOf(tagIds));
+  };
+  const setFieldView = (next: FieldView) => {
+    setFieldViewState(next);
+    writeAddress(view, slugsOf(tagIds), next);
   };
   const setTags = (next: string[]) => {
     setTagIds(next);
-    writeAddress(view, slugsOf(next));
+    writeAddress(view, slugsOf(next), fieldView);
   };
   const toggleTag = (id: string) => setTags(tagIds.includes(id) ? tagIds.filter((v) => v !== id) : [...tagIds, id]);
 
@@ -504,6 +534,10 @@ export function Library({
 
   const zero = docs.length === 0;
   const inToolbox = view === "toolbox";
+  /* Field notes, for an admin: its two views, and the one to look over */
+  const fieldTabs = view === "field" && review !== null;
+  const inReview = fieldTabs && fieldView === "review";
+  const waiting = toLookOver.length > 0;
 
   /* the shelves, and the one open: none is the landing */
   const categories: { key: Exclude<LibraryView, "all">; label: string; blurb: string }[] = [
@@ -577,6 +611,19 @@ export function Library({
                 </div>
               )}
             </header>
+            {fieldTabs && (
+              <ViewTabs
+                ariaLabel="Field notes"
+                idPrefix="lb2-fv"
+                panelPrefix="lb2-fv-panel"
+                current={fieldView}
+                onGo={(k) => setFieldView(k as FieldView)}
+                items={[
+                  { key: "all", label: "All notes" },
+                  { key: "review", label: "To look over", tone: waiting ? "look" : undefined },
+                ]}
+              />
+            )}
           </>
         )}
 
@@ -598,7 +645,15 @@ export function Library({
                     <Icon name={CATEGORY_LOOK[sh.key].icon} size={18} />
                   </span>
                   <span className="lb2-cat-t">
-                    <b>{sh.label}</b>
+                    {/* a shelf with something to look over has its word in amber, never a number (rule 29) */}
+                    {sh.key === "field" && waiting ? (
+                      <b className="lb2-cat-look">
+                        {sh.label}
+                        <span className="sr-only">, something to look over</span>
+                      </b>
+                    ) : (
+                      <b>{sh.label}</b>
+                    )}
                     <span>{said(sh.blurb)}</span>
                   </span>
                   <span className="lb2-cat-go" aria-hidden="true">
@@ -628,7 +683,7 @@ export function Library({
           </>
         )}
 
-        {opened !== null && (!zero || inToolbox) && (
+        {opened !== null && (!zero || inToolbox) && !inReview && (
           <div className="lb2-bar">
             <div className="lb2-tools">
               {!inToolbox && filterTags.length > 0 && (
@@ -692,8 +747,15 @@ export function Library({
         {view === "specs" && <ModelSpecs query={query} />}
 
         {opened !== null && (
-        <div id={`${PANEL}-${view}`} className="lb2-panel">
-          {inToolbox && toolbox ? (
+        <div
+          id={fieldTabs ? `lb2-fv-panel-${fieldView}` : `${PANEL}-${view}`}
+          className="lb2-panel"
+          role={fieldTabs ? "tabpanel" : undefined}
+          aria-labelledby={fieldTabs ? `lb2-fv-${fieldView}` : undefined}
+        >
+          {inReview ? (
+            <FieldReview entries={toLookOver} onDone={(id) => setReviewed((s) => new Set(s).add(id))} />
+          ) : inToolbox && toolbox ? (
             shownTools.length === 0 ? (
               <Empty
                 what={`No tools match “${query.trim()}”`}

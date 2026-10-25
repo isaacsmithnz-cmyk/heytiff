@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Button } from "@/components/parts/button";
+import { Fade } from "@/components/parts/fade";
+import { Tick } from "@/components/parts/tick";
 import { uprightFile } from "@/lib/images/upright";
 import { MAX_INVOICE_BYTES } from "@/lib/quotes/invoice-read";
 import { ruleWords, type KeptRule, type LettersRead } from "@/lib/quotes/code-letters";
 import { withCleanup } from "@/lib/ui/with-cleanup";
+import { FileButton, Oops, Said } from "./pb-bits";
 
-/* A SUPPLIER'S CODE LETTERS, in its open row on Price book → Suppliers
+/* A SUPPLIER'S CODE LETTERS, in its dialog on Price book › Suppliers
    (Isaac, 2026-10-05: the Mitsubishi letters were read by hand, "not in the
    app upload").
 
@@ -124,32 +128,34 @@ export function CodeLetters({ supplierKey, supplierName }: { supplierKey: string
 
   const ticked = reading ? reading.read.rules.length - off.size : 0;
   return (
-    <div className="pbl">
-      <h3 className="qs-h">What the letters in its codes mean</h3>
-      {note && <div className={`int-note ${note.tone}`}>{note.text}</div>}
+    <section aria-label="What the letters in its codes mean">
+      <h3 className="st2-pb-sub">What the letters in its codes mean</h3>
+      {note && (note.tone === "ok" ? <Said>{note.text}</Said> : <Oops>{note.text}</Oops>)}
       {rules.length > 0 && (
-        <ul className="qs-list" aria-label={`${supplierName} code letters`}>
+        <ul className="st2-pb-rows" aria-label={`${supplierName} code letters`}>
           {rules.map((r) => (
-            <li key={r.id} className="pbl-rule">
-              <span className="qs-item">
-                {`${ruleWords(r)}: ${r.meaning}`}
-                <em>{`${r.example.with} has it, ${r.example.without} doesn't${r.source ? `; from ${r.source}` : ""}`}</em>
+            <li key={r.id} className="st2-pb-grid st2-pb-lines">
+              <span className="st2-pb-name">
+                <span>{`${ruleWords(r)}: ${r.meaning}`}</span>
+                <span className="st2-pb-line">
+                  <Fade>{`${r.example.with} has it, ${r.example.without} doesn't${r.source ? `; from ${r.source}` : ""}`}</Fade>
+                </span>
               </span>
-              <button type="button" className="pbtn ghost sm" disabled={busy !== null} onClick={() => void takeOut(r)}>
-                Take out
-              </button>
+              <Button kind="second" size={32} disabled={busy !== null} aria-label={`Take out ${ruleWords(r)}`} onClick={() => void takeOut(r)}>
+                Take it out
+              </Button>
             </li>
           ))}
         </ul>
       )}
       {reading ? (
-        <div className="qs-match pbi-review">
-          <h3 className="qs-h">{reading.read.maker ? `${reading.fileName}, from ${reading.read.maker}` : reading.fileName}</h3>
+        <>
+          <h3 className="st2-pb-sub">{reading.read.maker ? `${reading.fileName}, from ${reading.read.maker}` : reading.fileName}</h3>
           {reading.read.rules.length === 0 ? (
-            <p className="qs-sub">No letters explained in it.</p>
+            <p className="st2-pb-said">No letters explained in it.</p>
           ) : (
-            <div className="pbi-wrap">
-              <table className="pbi">
+            <div className="st2-pb-ledgerwrap">
+              <table className="st2-pb-ledger">
                 <thead>
                   <tr>
                     <th scope="col">
@@ -164,9 +170,14 @@ export function CodeLetters({ supplierKey, supplierName }: { supplierKey: string
                   {reading.read.rules.map((r, i) => (
                     <tr key={`${r.family}|${r.letter}|${r.example.with}`}>
                       <td>
-                        <input type="checkbox" checked={!off.has(i)} disabled={busy !== null} onChange={() => toggle(i)} aria-label={`Keep ${ruleWords(r)}`} />
+                        <Tick
+                          label={<span className="sr-only">{`Keep ${ruleWords(r)}`}</span>}
+                          checked={!off.has(i)}
+                          disabled={busy !== null}
+                          onChange={() => toggle(i)}
+                        />
                       </td>
-                      <td className="pbi-code">{ruleWords(r)}</td>
+                      <td className="st2-pb-code">{ruleWords(r)}</td>
                       <td>{r.meaning}</td>
                       <td>{`${r.example.with}, without it ${r.example.without}`}</td>
                     </tr>
@@ -175,37 +186,29 @@ export function CodeLetters({ supplierKey, supplierName }: { supplierKey: string
               </table>
             </div>
           )}
-          {reading.read.skipped.length > 0 && <p className="qs-sub">{`Not taken: ${reading.read.skipped.map((s) => `${s.said}, ${s.why}`).join("; ")}.`}</p>}
-          <div className="wb2-jqacts">
-            <button type="button" className="pbtn ghost" disabled={busy !== null} onClick={() => setReading(null)}>
+          {reading.read.skipped.length > 0 && <p className="st2-pb-said">{`Not taken: ${reading.read.skipped.map((s) => `${s.said}, ${s.why}`).join("; ")}.`}</p>}
+          <div className="st2-pb-foot">
+            <Button kind="second" size={36} disabled={busy !== null} onClick={() => setReading(null)}>
               Cancel
-            </button>
+            </Button>
             {reading.read.rules.length > 0 && (
-              <button type="button" className="pbtn primary" disabled={busy !== null || ticked === 0} onClick={() => void keep()}>
-                {busy === "keep" ? "Keeping" : `Keep ${rulesWord(ticked)}`}
-              </button>
+              <Button kind="second" size={36} disabled={busy !== null || ticked === 0} onClick={() => void keep()}>
+                {busy === "keep" ? "Keeping the rules" : `Keep ${rulesWord(ticked)}`}
+              </Button>
             )}
           </div>
-        </div>
+        </>
       ) : (
-        <div className="pbs-acts">
-          <label className="pbtn ghost sm qs-upload" aria-disabled={busy !== null}>
-            {busy === "read" ? "Reading the document" : "Read code letters"}
-            <input
-              type="file"
-              className="qs-file"
-              aria-label={`Read ${supplierName}'s code letters from a document`}
-              accept=".pdf,application/pdf,.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-              disabled={busy !== null}
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                e.target.value = "";
-                if (f) void read(f);
-              }}
-            />
-          </label>
+        <div className="st2-pb-acts">
+          <FileButton
+            words={busy === "read" ? "Reading the document" : "Read code letters"}
+            label={`Read ${supplierName}'s code letters from a document`}
+            accept=".pdf,application/pdf,.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+            disabled={busy !== null}
+            onFile={(f) => void read(f)}
+          />
         </div>
       )}
-    </div>
+    </section>
   );
 }

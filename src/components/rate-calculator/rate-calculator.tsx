@@ -26,8 +26,9 @@ import { RC } from "./theme";
 import { money, rate0, gstOf } from "./format";
 import { parseRate, RcIcon, WsEyebrow } from "./ui";
 import { Button } from "@/components/parts/button";
+import { LinkButton } from "@/components/parts/button";
 import { StateWord, type Tone } from "@/components/parts/state";
-import { SettingsHead } from "@/components/settings/settings-head";
+import { SectionTitle } from "@/components/settings/parts";
 
 /** The engine's health, as a state word (rule 17). */
 const HEALTH_TONE: Record<string, Tone> = { danger: "wrong", warning: "look", success: "good", neutral: "info" };
@@ -437,19 +438,17 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, onReset, s
       {showRatesIntro && <RatesIntro s={s} patch={patch} onDone={() => setIntroOpen(false)} />}
       {showSettings && <SettingsPanel st={s} patch={patch} onClose={() => setShowSettings(false)} onReset={onReset} superOwned={superOwned} />}
 
-      {/* the v2 settings head (it was the Studio-style workspace bar): the way
-          back to Settings, the title, the health as a state word and the
-          business's name on the grey line, and the two doors as words */}
-      <SettingsHead
-        heading="Rate Calculator"
-        facts={
-          <span className="st2-rc-facts">
-            <StateWord tone={HEALTH_TONE[health.type] ?? "info"}>{health.status}</StateWord>
-            {s.businessName && <span>{s.businessName}</span>}
-          </span>
-        }
+      {/* inside the Settings frame, under Quoting (25 October 2026): the way
+          back to Quoting as a link in ink above the title (rule 26), the
+          title, and on its right the health as a state word and the two
+          doors as words */}
+      <LinkButton href="/dashboard/admin/quoting" className="rca-back">
+        Back to Quoting
+      </LinkButton>
+      <SectionTitle
         tools={
           <>
+            <StateWord tone={HEALTH_TONE[health.type] ?? "info"}>{health.status}</StateWord>
             <Button kind="quiet" onClick={() => setHelpOpen(true)}>
               How to use
             </Button>
@@ -458,7 +457,9 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, onReset, s
             </Button>
           </>
         }
-      />
+      >
+        Rate calculator
+      </SectionTitle>
 
       {showBanner && !overview && !insights && reviewDue && <NotifBanner daysSince={daysSince} message={s.reviewState.message || null} onReview={() => { setShowBanner(false); setStep(0); }} onDismiss={() => setShowBanner(false)} />}
 

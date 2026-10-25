@@ -1,7 +1,13 @@
 "use client";
 
-import { Fade } from "@/components/parts/fade";
 import { useState } from "react";
+import { Button } from "@/components/parts/button";
+import { Chooser } from "@/components/parts/chooser";
+import { Dialog } from "@/components/parts/dialog";
+import { Fade } from "@/components/parts/fade";
+import { Field, TextInput } from "@/components/parts/field";
+import { Empty } from "@/components/parts/states";
+import { Group } from "@/components/settings/parts";
 import { BUILT_IN_SUPPLIERS, COLUMN_FIELDS, MAX_DISCOUNT_PCT, pricingWords, type ColumnField, type Columns, type DiscountRule } from "@/lib/quotes/price-book";
 import type { SupplierView, ImportSummary } from "@/lib/quotes/price-book-server";
 import { MAX_INVOICE_BYTES, otherSupplierNamed, type ReadInvoice } from "@/lib/quotes/invoice-read";
@@ -9,29 +15,33 @@ import { uprightFile } from "@/lib/images/upright";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 import { InvoiceReview } from "./invoice-review";
 import { CodeLetters } from "./code-letters";
+import { FileButton, Oops, Said } from "./pb-bits";
 
-/* THE PRICE BOOK'S SUPPLIERS: the suppliers the business buys from, each
-   with its price list and its invoices, and how it prices. One supplier is
-   one row: its price list and its invoices are two ways its prices come in
-   (Isaac, 2026-10-05 — Mitsubishi Electric's VRF indoors are only ever
-   quoted, so what was paid on invoices prices them, under Mitsubishi
-   Electric). An invoice prices only the codes on it.
+/* THE PRICE BOOK'S SUPPLIERS (Price book › Suppliers): the suppliers the
+   business buys from, each with its price list and its invoices, and how it
+   prices. One supplier is one row: its price list and its invoices are two
+   ways its prices come in (Isaac, 2026-10-05 — Mitsubishi Electric's VRF
+   indoors are only ever quoted, so what was paid on invoices prices them,
+   under Mitsubishi Electric). An invoice prices only the codes on it.
 
-   A new file is uploaded here, not to ServiceM8: AAD's CSV of net prices,
-   Mitsubishi Electric's PDF trade book of list prices (the business's own
-   discount comes off as it's read, set here: one for everything and any
-   range by its codes). What the file changed is said once it's in.
+   A row opens its supplier (rule 35's record, in a dialog, as a licence
+   opens on Business): upload a price list, add invoices, for a list-price
+   supplier its discount, and the letters in its codes. A new file is
+   uploaded here, not to ServiceM8: AAD's CSV of net prices, Mitsubishi
+   Electric's PDF trade book of list prices (the business's own discount
+   comes off as it's read). What the file changed is said once it's in.
 
    Invoices come as a spreadsheet of what was paid, or as the invoice
    itself — a PDF or a photo — which Tiff reads and the person looks over
    before its prices go in (invoice-review.tsx).
 
    A new business starts with no suppliers: it adds its own. The ones whose
-   own files HeyTiff reads (AAD, Reece, the Mitsubishi trade book) are a press
-   each; any other is added by name, and its price list can be
-   any CSV or workbook. When the file's headings aren't ones HeyTiff reads,
-   its first rows are shown and a person says which column is the code,
-   the description and the price — once: the next file reads the same. */
+   own files HeyTiff reads (AAD, Reece, the Mitsubishi trade book) are
+   offered as the name is typed; any other is added by name, and its price
+   list can be any CSV or workbook. When the file's headings aren't ones
+   HeyTiff reads, its first rows are shown and a person says which column
+   is the code, the description and the price — once: the next file reads
+   the same. */
 
 const ROUTE = "/api/quoting/price-book";
 const dateOf = (iso: string) =>
@@ -48,22 +58,21 @@ type ImportAnswer =
     }
   | { ok: false; reason: string; needsColumns?: boolean; preview?: Preview };
 
-/** A file waiting for its columns to be matched. */
 /** A price list, which replaces the supplier's last one, or invoices, which
     price only the codes on them: the same supplier either way. */
 type Kind = "list" | "invoices";
 
-type Matching = { supplier: SupplierView; file: File; kind: Kind; preview: Preview };
+/** A file waiting for its columns to be matched. */
+type Matching = { file: File; kind: Kind; preview: Preview };
 
 /** An invoice Tiff has read, waiting to be looked over. */
-type Reading = { supplier: SupplierView; fileName: string; read: ReadInvoice };
+type Reading = { fileName: string; read: ReadInvoice };
 
 type ReadAnswer = { ok: true; read: ReadInvoice } | { ok: false; reason: string };
 type AddAnswer = { ok: true; summary: ImportSummary } | { ok: false; reason: string };
 
 /** An invoice Tiff reads, rather than a spreadsheet of one: a PDF or a photo. */
 const isInvoiceDocument = (f: File) => f.type === "application/pdf" || f.type.startsWith("image/") || /\.(pdf|jpe?g|png|webp)$/i.test(f.name);
-
 
 /* What each answer says, read OUT HERE rather than in the try/catch that
    asks for it: React Compiler 1.0 cannot lower a value block — a ternary,
@@ -87,53 +96,213 @@ const changesOf = ({ read, changed, added, gone }: ImportSummary) =>
     .filter(Boolean)
     .join(", ");
 
+type Note = { tone: "ok" | "bad"; text: string; detail?: string };
+
 /** What a price list or invoices that went in changed, said once. */
-const importedNote = (name: string, kind: Kind, a: Extract<ImportAnswer, { ok: true }>) => {
+const importedNote = (name: string, kind: Kind, a: Extract<ImportAnswer, { ok: true }>): Note => {
   const twice = a.conflicts.length
     ? `Listed twice at different prices, the first kept: ${[...new Set(a.conflicts.map((c) => c.code))].join(", ")}.`
     : undefined;
-  return { tone: "ok" as const, text: `${name} ${kind === "invoices" ? "invoices" : "price list"} in: ${changesOf(a.summary)}.`, detail: twice };
+  return { tone: "ok", text: `${name} ${kind === "invoices" ? "invoices" : "price list"} in: ${changesOf(a.summary)}.`, detail: twice };
 };
 
 /** What an invoice Tiff read changed once its prices went in. */
-const invoiceNote = (r: Reading, summary: ImportSummary) => ({
-  tone: "ok" as const,
-  text: `${r.supplier.name} ${r.read.invoiceNo ? `invoice ${r.read.invoiceNo}` : r.fileName} in: ${changesOf(summary)}.`,
+const invoiceNote = (name: string, r: Reading, summary: ImportSummary): Note => ({
+  tone: "ok",
+  text: `${name} ${r.read.invoiceNo ? `invoice ${r.read.invoiceNo}` : r.fileName} in: ${changesOf(summary)}.`,
 });
 
 const addRefusal = (reason: string | undefined) => reason ?? "That supplier couldn't be added.";
 const discountRefusal = (reason: string | undefined) => reason ?? "The discount couldn't be saved.";
 
+const n = (v: number) => v.toLocaleString("en-AU");
 /** A supplier's price list, in a few words. */
 const listWords = (s: SupplierView) =>
   s.importedAt ? `${n(s.itemCount ?? 0)} items, prices from ${dateOf(s.listOn ?? s.importedAt)}` : null;
 /** A supplier's invoices, in a few words. */
 const invoiceWords = (s: SupplierView) => (s.invoicedAt ? `${n(s.invoiceItems ?? 0)} items, ${dateOf(s.invoicedAt)}` : null);
-/** The files behind them, for the open row. */
-const filesWords = (s: SupplierView) =>
-  [s.fileName ? `Price list from ${s.fileName}` : null, s.invoiceFileName ? `invoices from ${s.invoiceFileName}` : null].filter(Boolean).join(", ");
-
-const n = (v: number) => v.toLocaleString("en-AU");
 
 /* A SUPPLIER IS ONE QUIET ROW (Isaac, 2026-10-05: "that whole page is
    messy. There's so many buttons to press"): its name, how it prices, its
    price list and its invoices. Pressing the row opens what can be done to
-   it — upload a price list, add invoices, and for a list-price supplier its
-   discount — and only that row's. One "Add a supplier" closes the list. */
-export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]; onImported: () => void }) {
+   it, and only that supplier's. Add a supplier is on the group's head. */
+export function PriceBook({
+  suppliers,
+  onImported,
+  initialOpen = null,
+  initialAdding = false,
+}: {
+  suppliers: SupplierView[];
+  onImported: () => void;
+  /** a supplier to open on arrival (Add items, on the title, asked which) */
+  initialOpen?: string | null;
+  /** arrive with Add a supplier open */
+  initialAdding?: boolean;
+}) {
+  const [openKey, setOpenKey] = useState<string | null>(initialOpen);
+  const [adding, setAdding] = useState(initialAdding);
+  const [said, setSaid] = useState<string | null>(null);
+  const open = suppliers.find((s) => s.key === openKey) ?? null;
+
+  const add = (
+    <Button kind="second" size={32} onClick={() => setAdding(true)}>
+      Add a supplier
+    </Button>
+  );
+
+  return (
+    <Group heading="Suppliers" tools={suppliers.length > 0 ? add : undefined}>
+      {said && <Said>{said}</Said>}
+      {suppliers.length === 0 ? (
+        <Empty what="No suppliers yet" action={add} />
+      ) : (
+        <div className="st2-pb-rows" role="table" aria-label="Suppliers">
+          <div className="st2-pb-grid st2-pb-sups st2-pb-head" role="row">
+            <span role="columnheader">Supplier</span>
+            <span role="columnheader">Prices</span>
+            <span role="columnheader">Price list</span>
+            <span role="columnheader">Invoices</span>
+          </div>
+          {suppliers.map((s) => {
+            const list = listWords(s);
+            const invoices = invoiceWords(s);
+            return (
+              <div key={s.key} className="st2-pb-grid st2-pb-sups st2-pb-click" role="row">
+                <span role="cell" className="st2-pb-name">
+                  <button type="button" className="st2-pb-open" onClick={() => setOpenKey(s.key)}>
+                    <Fade>{s.name}</Fade>
+                  </button>
+                </span>
+                <span role="cell">
+                  <Fade>{pricingWords(s)}</Fade>
+                </span>
+                <span role="cell" className={list ? undefined : "st2-pb-none"}>
+                  <Fade>{list ?? "None yet"}</Fade>
+                </span>
+                <span role="cell" className={invoices ? undefined : "st2-pb-none"}>
+                  <Fade>{invoices ?? "None yet"}</Fade>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {open && <SupplierDialog key={open.key} supplier={open} suppliers={suppliers} onImported={onImported} onClose={() => setOpenKey(null)} />}
+      {adding && (
+        <AddSupplier
+          suppliers={suppliers}
+          onAdded={(words) => {
+            setAdding(false);
+            setSaid(words);
+            onImported();
+          }}
+          onClose={() => setAdding(false)}
+        />
+      )}
+    </Group>
+  );
+}
+
+/* ADD A SUPPLIER: its name. One whose own files HeyTiff reads (AAD, Reece,
+   the Mitsubishi trade book) is added as that when its name is typed; any
+   other by its name. */
+function AddSupplier({ suppliers, onAdded, onClose }: { suppliers: SupplierView[]; onAdded: (said: string) => void; onClose: () => void }) {
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [wrong, setWrong] = useState<string | null>(null);
+  const knownToAdd = BUILT_IN_SUPPLIERS.filter((b) => !suppliers.some((s) => s.key === b.key));
+  const ready = name.trim().length >= 2;
+
+  const add = async () => {
+    const typed = name.trim();
+    if (typed.length < 2) return;
+    const known = knownToAdd.find((b) => b.name.toLowerCase() === typed.toLowerCase());
+    const body = JSON.stringify(known ? { builtIn: known.key } : { name: typed });
+    /* worked out here, not in the try: the compiler can't lower a value block inside one */
+    const added = `${known ? known.name : typed} added. Open it to upload its price list.`;
+    setBusy(true);
+    setWrong(null);
+    await withCleanup(async () => {
+      try {
+        const a = (await (await fetch("/api/quoting/suppliers", { method: "POST", headers: { "content-type": "application/json" }, body })).json()) as {
+          ok: boolean;
+          reason?: string;
+        };
+        if (!a.ok) {
+          setWrong(addRefusal(a.reason));
+          return;
+        }
+        onAdded(added);
+      } catch {
+        setWrong("That supplier couldn't be added. Try again.");
+      }
+    }, () => setBusy(false));
+  };
+
+  return (
+    <Dialog
+      heading="Add a supplier"
+      onClose={onClose}
+      foot={
+        <>
+          <Button kind="second" size={36} disabled={busy} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button kind="main" size={36} disabled={busy || !ready} onClick={() => void add()}>
+            {busy ? "Adding the supplier" : "Add supplier"}
+          </Button>
+        </>
+      }
+    >
+      <div className="st2-pb-dlg">
+        <Field label="New supplier's name">
+          <TextInput
+            list="st2-pb-known"
+            value={name}
+            disabled={busy}
+            data-autofocus
+            placeholder="e.g. Reece"
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void add();
+            }}
+          />
+        </Field>
+        <datalist id="st2-pb-known">
+          {knownToAdd.map((b) => (
+            <option key={b.key} value={b.name} />
+          ))}
+        </datalist>
+        {wrong && <Oops>{wrong}</Oops>}
+      </div>
+    </Dialog>
+  );
+}
+
+/* A SUPPLIER, OPENED: what it is, its two ways in for prices, what came of
+   the last one, and, for a list-price supplier, its discount; then the
+   letters in its codes. */
+function SupplierDialog({
+  supplier: s,
+  suppliers,
+  onImported,
+  onClose,
+}: {
+  supplier: SupplierView;
+  suppliers: SupplierView[];
+  onImported: () => void;
+  onClose: () => void;
+}) {
   const [busy, setBusy] = useState<string | null>(null);
-  const [note, setNote] = useState<{ tone: "ok" | "bad"; text: string; detail?: string } | null>(null);
+  const [note, setNote] = useState<Note | null>(null);
   const [matching, setMatching] = useState<Matching | null>(null);
   const [reading, setReading] = useState<Reading | null>(null);
-  const [openKey, setOpenKey] = useState<string | null>(null);
-  /* a new business starts with the form open: it has nothing else to do here */
-  const [adding, setAdding] = useState(suppliers.length === 0);
-  const [newName, setNewName] = useState("");
 
   /* an invoice itself, a PDF or a photo: Tiff reads its lines for the
      person to look over, and nothing goes in until they add them */
-  const readInvoiceFile = async (s: SupplierView, file: File) => {
-    setBusy(`${s.key}:invoices`);
+  const readInvoiceFile = async (file: File) => {
+    setBusy("invoices");
     setNote(null);
     setMatching(null);
     setReading(null);
@@ -152,7 +321,7 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
           setNote({ tone: "bad", text: a.reason });
           return;
         }
-        setReading({ supplier: s, fileName: file.name, read: a.read });
+        setReading({ fileName: file.name, read: a.read });
       } catch {
         setNote({ tone: "bad", text: "The invoice couldn't be sent. Try again." });
       }
@@ -161,13 +330,13 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
 
   const addInvoice = async (r: Reading) => {
     const body = JSON.stringify({
-      supplier: r.supplier.key,
+      supplier: s.key,
       invoiceNo: r.read.invoiceNo,
       invoiceDate: r.read.invoiceDate,
       fileName: r.fileName,
       lines: r.read.lines.map((l) => ({ code: l.code, name: l.name, cents: l.cents })),
     });
-    setBusy(`${r.supplier.key}:add`);
+    setBusy("add");
     setNote(null);
     await withCleanup(async () => {
       try {
@@ -177,7 +346,7 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
           return;
         }
         setReading(null);
-        setNote(invoiceNote(r, a.summary));
+        setNote(invoiceNote(s.name, r, a.summary));
         onImported();
       } catch {
         setNote({ tone: "bad", text: "The prices couldn't be sent. Try again." });
@@ -185,9 +354,9 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
     }, () => setBusy(null));
   };
 
-  const upload = async (s: SupplierView, file: File, kind: Kind, layout?: { columns: Columns; pricing: "net" | "list_less"; discountPct: number }) => {
-    if (kind === "invoices" && isInvoiceDocument(file)) return readInvoiceFile(s, file);
-    setBusy(`${s.key}:${kind}`);
+  const upload = async (file: File, kind: Kind, layout?: { columns: Columns; pricing: "net" | "list_less"; discountPct: number }) => {
+    if (kind === "invoices" && isInvoiceDocument(file)) return readInvoiceFile(file);
+    setBusy(kind);
     setNote(null);
     await withCleanup(async () => {
       try {
@@ -203,7 +372,7 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
         const a = (await (await fetch(ROUTE, { method: "POST", body: form })).json()) as ImportAnswer;
         if (!a.ok) {
           const preview = columnsToMatch(a);
-          if (preview) setMatching({ supplier: s, file, kind, preview });
+          if (preview) setMatching({ file, kind, preview });
           else setNote({ tone: "bad", text: a.reason });
           return;
         }
@@ -216,40 +385,8 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
     }, () => setBusy(null));
   };
 
-  /* a supplier whose own files HeyTiff reads (AAD, Reece, the Mitsubishi
-     trade book) when the name typed is one of theirs; any other by name */
-  const knownToAdd = BUILT_IN_SUPPLIERS.filter((b) => !suppliers.some((s) => s.key === b.key));
-  const add = async () => {
-    const name = newName.trim();
-    if (name.length < 2) return;
-    const known = knownToAdd.find((b) => b.name.toLowerCase() === name.toLowerCase());
-    const body = JSON.stringify(known ? { builtIn: known.key } : { name });
-    /* worked out here, not in the try: the compiler can't lower a value block inside one */
-    const added = `${known ? known.name : name} added. Open it to upload its price list.`;
-    setBusy("add");
-    setNote(null);
-    await withCleanup(async () => {
-      try {
-        const a = (await (await fetch("/api/quoting/suppliers", { method: "POST", headers: { "content-type": "application/json" }, body })).json()) as {
-          ok: boolean;
-          reason?: string;
-        };
-        if (!a.ok) {
-          setNote({ tone: "bad", text: addRefusal(a.reason) });
-          return;
-        }
-        setNewName("");
-        setAdding(false);
-        setNote({ tone: "ok", text: added });
-        onImported();
-      } catch {
-        setNote({ tone: "bad", text: "That supplier couldn't be added. Try again." });
-      }
-    }, () => setBusy(null));
-  };
-
-  const saveDiscount = async (s: SupplierView, discountPct: number, rules: DiscountRule[]) => {
-    setBusy(s.key);
+  const saveDiscount = async (discountPct: number, rules: DiscountRule[]) => {
+    setBusy("discount");
     setNote(null);
     await withCleanup(async () => {
       try {
@@ -272,165 +409,114 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
     }, () => setBusy(null));
   };
 
-  const fileInput = (s: SupplierView, kind: Kind) => (
-    <label className="pbtn ghost sm qs-upload" aria-disabled={busy !== null}>
-      {busy === `${s.key}:${kind}` ? "Reading the file" : kind === "invoices" ? "Add invoices" : "Upload price list"}
-      <input
-        type="file"
-        className="qs-file"
-        aria-label={kind === "invoices" ? `Add ${s.name} invoices` : `Upload ${s.name} price list`}
-        accept={
-          kind === "invoices"
-            ? ".csv,text/csv,.xlsx,.pdf,application/pdf,.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-            : s.format === "headed"
-              ? ".csv,text/csv,.xlsx"
-              : s.file === "csv"
-              ? ".csv,text/csv"
-              : s.file === "xlsx"
-                ? ".xlsx"
-                : ".pdf,application/pdf"
-        }
-        disabled={busy !== null}
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          e.target.value = "";
-          if (f) void upload(s, f, kind);
-        }}
-      />
-    </label>
-  );
+  const accept = (kind: Kind) =>
+    kind === "invoices"
+      ? ".csv,text/csv,.xlsx,.pdf,application/pdf,.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+      : s.format === "headed"
+        ? ".csv,text/csv,.xlsx"
+        : s.file === "csv"
+          ? ".csv,text/csv"
+          : s.file === "xlsx"
+            ? ".xlsx"
+            : ".pdf,application/pdf";
 
+  const list = listWords(s);
+  const invoices = invoiceWords(s);
   return (
-    <section className="qs-group">
-      {note && (
-        <div className={`int-note ${note.tone}`}>
-          {note.text}
-          {note.detail && <span className="qs-notedetail">{note.detail}</span>}
-        </div>
-      )}
-      {suppliers.length > 0 && (
-        <div className="pbs" role="list" aria-label="Suppliers">
-          <div className="pbs-head" aria-hidden="true">
-            <span>Supplier</span>
-            <span>Prices</span>
-            <span>Price list</span>
-            <span>Invoices</span>
+    <Dialog
+      heading={s.name}
+      width={720}
+      onClose={onClose}
+      foot={
+        <Button kind="second" size={36} onClick={onClose}>
+          Done
+        </Button>
+      }
+    >
+      <div className="st2-pb-dlg">
+        <dl className="st2-pb-kv">
+          <div>
+            <dt>Prices</dt>
+            <dd>{pricingWords(s)}</dd>
           </div>
-          {suppliers.map((s) => {
-            const isOpen = openKey === s.key;
-            const list = listWords(s);
-            const invoices = invoiceWords(s);
-            const files = filesWords(s);
-            return (
-              <div key={s.key} role="listitem">
-                <button type="button" className={isOpen ? "pbs-row on" : "pbs-row"} aria-expanded={isOpen} onClick={() => setOpenKey(isOpen ? null : s.key)}>
-                  <b>{s.name}</b>
-                  <span>{pricingWords(s)}</span>
-                  <span className={list ? undefined : "pbs-none"}>{list ?? "None yet"}</span>
-                  <span className={invoices ? undefined : "pbs-none"}>{invoices ?? "None yet"}</span>
-                </button>
-                {isOpen && (
-                  <div className="pbs-panel">
-                    {files && <p className="qs-sub">{`${files}.`}</p>}
-                    <div className="pbs-acts">
-                      {fileInput(s, "list")}
-                      {fileInput(s, "invoices")}
-                    </div>
-                    {matching?.supplier.key === s.key && (
-                      <MatchColumns
-                        m={matching}
-                        busy={busy !== null}
-                        onCancel={() => setMatching(null)}
-                        onRead={(layout) => void upload(matching.supplier, matching.file, matching.kind, layout)}
-                      />
-                    )}
-                    {reading?.supplier.key === s.key && (
-                      <InvoiceReview
-                        read={reading.read}
-                        fileName={reading.fileName}
-                        supplierName={s.name}
-                        otherSupplier={otherSupplierNamed(
-                          reading.read.supplier,
-                          s.name,
-                          suppliers.map((o) => o.name)
-                        )}
-                        busy={busy !== null}
-                        adding={busy === `${s.key}:add`}
-                        onCancel={() => setReading(null)}
-                        onAdd={() => void addInvoice(reading)}
-                      />
-                    )}
-                    {s.pricing === "list_less" && (
-                      <SupplierDiscount
-                        key={s.key}
-                        supplier={s}
-                        busy={busy !== null}
-                        onSave={(discountPct, rules) => void saveDiscount(s, discountPct, rules)}
-                      />
-                    )}
-                    <CodeLetters supplierKey={s.key} supplierName={s.name} />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {adding ? (
-        <div className="pbs-add">
-          <input
-            className="wb2-fi"
-            list="pbs-known"
-            value={newName}
+          <div>
+            <dt>Price list</dt>
+            <dd className={list ? undefined : "st2-pb-none"}>{list ? `${list}${s.fileName ? `, from ${s.fileName}` : ""}` : "None yet"}</dd>
+          </div>
+          <div>
+            <dt>Invoices</dt>
+            <dd className={invoices ? undefined : "st2-pb-none"}>{invoices ? `${invoices}${s.invoiceFileName ? `, from ${s.invoiceFileName}` : ""}` : "None yet"}</dd>
+          </div>
+        </dl>
+        <div className="st2-pb-acts">
+          <FileButton
+            words={busy === "list" ? "Reading the file" : "Upload price list"}
+            label={`Upload ${s.name} price list`}
+            accept={accept("list")}
             disabled={busy !== null}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void add();
-            }}
-            placeholder="Supplier's name"
-            aria-label="New supplier's name"
+            onFile={(f) => void upload(f, "list")}
           />
-          <datalist id="pbs-known">
-            {knownToAdd.map((b) => (
-              <option key={b.key} value={b.name} />
-            ))}
-          </datalist>
-          {suppliers.length > 0 && (
-            <button type="button" className="pbtn ghost" disabled={busy !== null} onClick={() => setAdding(false)}>
-              Cancel
-            </button>
-          )}
-          <button type="button" className="pbtn primary" disabled={busy !== null || newName.trim().length < 2} onClick={() => void add()}>
-            {busy === "add" ? "Adding" : "Add supplier"}
-          </button>
+          <FileButton
+            words={busy === "invoices" ? "Reading the file" : "Add invoices"}
+            label={`Add ${s.name} invoices`}
+            accept={accept("invoices")}
+            disabled={busy !== null}
+            onFile={(f) => void upload(f, "invoices")}
+          />
         </div>
-      ) : (
-        <button type="button" className="pbtn ghost pbs-addbtn" onClick={() => setAdding(true)}>
-          Add a supplier
-        </button>
-      )}
-    </section>
+        {note && (note.tone === "ok" ? <Said more={note.detail}>{note.text}</Said> : <Oops>{note.text}</Oops>)}
+        {matching && (
+          <MatchColumns
+            m={matching}
+            supplier={s}
+            busy={busy !== null}
+            onCancel={() => setMatching(null)}
+            onRead={(layout) => void upload(matching.file, matching.kind, layout)}
+          />
+        )}
+        {reading && (
+          <InvoiceReview
+            read={reading.read}
+            fileName={reading.fileName}
+            supplierName={s.name}
+            otherSupplier={otherSupplierNamed(
+              reading.read.supplier,
+              s.name,
+              suppliers.map((o) => o.name)
+            )}
+            busy={busy !== null}
+            adding={busy === "add"}
+            onCancel={() => setReading(null)}
+            onAdd={() => void addInvoice(reading)}
+          />
+        )}
+        {s.pricing === "list_less" && <SupplierDiscount supplier={s} busy={busy !== null} onSave={(discountPct, rules) => void saveDiscount(discountPct, rules)} />}
+        <CodeLetters supplierKey={s.key} supplierName={s.name} />
+      </div>
+    </Dialog>
   );
 }
 
 /* The first rows of a file HeyTiff couldn't read by its headings, and a
    choice of column for each field. What's chosen is kept for the supplier,
    so the next file reads without asking. */
+const NOT_IN_FILE = "none";
 function MatchColumns({
   m,
+  supplier,
   busy,
   onCancel,
   onRead,
 }: {
   m: Matching;
+  supplier: SupplierView;
   busy: boolean;
   onCancel: () => void;
   onRead: (layout: { columns: Columns; pricing: "net" | "list_less"; discountPct: number }) => void;
 }) {
   const [cols, setCols] = useState<Columns>({});
-  const [pricing, setPricing] = useState<"net" | "list_less">(m.supplier.pricing);
-  const [pct, setPct] = useState(m.supplier.discountPct ? String(m.supplier.discountPct) : "");
+  const [pricing, setPricing] = useState<"net" | "list_less">(supplier.pricing);
+  const [pct, setPct] = useState(supplier.discountPct ? String(supplier.discountPct) : "");
   const sample = (letter: string) => {
     const v = m.preview.rows.map((r) => r[m.preview.letters.indexOf(letter)]).find((x) => x != null && String(x).trim());
     return v == null ? letter : `${letter}: ${String(v).slice(0, 24)}`;
@@ -446,10 +532,10 @@ function MatchColumns({
   const invoices = m.kind === "invoices";
   const ready = !!cols.code && !!cols.price && (invoices || pricing === "net" || Number(pct) > 0);
   return (
-    <div className="qs-match">
-      <h3 className="qs-h">{`Which column is which in ${m.file.name}?`}</h3>
-      <div className="qs-preview">
-        <table>
+    <section aria-label={`Which column is which in ${m.file.name}?`}>
+      <h3 className="st2-pb-sub">{`Which column is which in ${m.file.name}?`}</h3>
+      <div className="st2-pb-ledgerwrap">
+        <table className="st2-pb-ledger">
           <thead>
             <tr>
               {m.preview.letters.map((l) => (
@@ -472,58 +558,46 @@ function MatchColumns({
           </tbody>
         </table>
       </div>
-      <div className="qs-fields">
+      <div className="st2-pb-fields">
         {COLUMN_FIELDS.map((f) => (
-          <label className="qs-field" key={f.field}>
-            <span>{f.label}</span>
-            <select className="wb2-sel" value={cols[f.field] ?? ""} disabled={busy} onChange={(e) => set(f.field, e.target.value)}>
-              <option value="">{f.required ? "Choose a column" : "Not in this file"}</option>
-              {m.preview.letters.map((l) => (
-                <option key={l} value={l}>
-                  {sample(l)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Field key={f.field} label={f.label}>
+            <Chooser
+              placeholder={f.required ? "Choose a column" : "Not in this file"}
+              options={[...(f.required ? [] : [{ value: NOT_IN_FILE, label: "Not in this file" }]), ...m.preview.letters.map((l) => ({ value: l, label: sample(l) }))]}
+              value={cols[f.field] ?? (f.required ? null : NOT_IN_FILE)}
+              disabled={busy}
+              onChange={(v) => set(f.field, v === NOT_IN_FILE ? "" : v)}
+            />
+          </Field>
         ))}
         {!invoices && (
-          <label className="qs-field">
-            <span>The prices are</span>
-            <select
-              className="wb2-sel"
+          <Field label="The prices are">
+            <Chooser
+              options={[
+                { value: "net", label: "What we pay" },
+                { value: "list_less", label: "List prices, less our discount" },
+              ]}
               value={pricing}
               disabled={busy}
-              onChange={(e) => setPricing(e.target.value === "list_less" ? "list_less" : "net")}
-            >
-              <option value="net">What we pay</option>
-              <option value="list_less">List prices, less our discount</option>
-            </select>
-          </label>
+              onChange={(v) => setPricing(v === "list_less" ? "list_less" : "net")}
+            />
+          </Field>
         )}
         {!invoices && pricing === "list_less" && (
-          <label className="qs-field">
-            <span>Our discount</span>
-            <span className="qs-in">
-              <input className="wb2-fi" inputMode="decimal" value={pct} disabled={busy} onChange={(e) => setPct(e.target.value)} aria-label="Discount percent" />
-              <em>%</em>
-            </span>
-          </label>
+          <Field label="Our discount, %">
+            <TextInput inputMode="decimal" value={pct} disabled={busy} onChange={(e) => setPct(e.target.value)} />
+          </Field>
         )}
       </div>
-      <div className="wb2-jqacts">
-        <button type="button" className="pbtn ghost" disabled={busy} onClick={onCancel}>
+      <div className="st2-pb-foot">
+        <Button kind="second" size={36} disabled={busy} onClick={onCancel}>
           Cancel
-        </button>
-        <button
-          type="button"
-          className="pbtn primary"
-          disabled={busy || !ready}
-          onClick={() => onRead({ columns: cols, pricing, discountPct: pricing === "list_less" ? Number(pct) : 0 })}
-        >
+        </Button>
+        <Button kind="main" size={36} disabled={busy || !ready} onClick={() => onRead({ columns: cols, pricing, discountPct: pricing === "list_less" ? Number(pct) : 0 })}>
           Read the file
-        </button>
+        </Button>
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -546,63 +620,34 @@ function SupplierDiscount({
   const setRule = (i: number, part: Partial<{ prefix: string; pct: string }>) =>
     setRules((rs) => rs.map((r, j) => (j === i ? { ...r, ...part } : r)));
   return (
-    <div className="qs-match">
-      <h3 className="qs-h">Discount</h3>
-      <div className="qs-fields">
-        <label className="qs-field">
-          <span>Off every list price</span>
-          <span className="qs-in">
-            <input className="wb2-fi" inputMode="decimal" value={pct} disabled={busy} onChange={(e) => setPct(e.target.value)} aria-label="Discount percent" />
-            <em>%</em>
-          </span>
-        </label>
+    <section aria-label="Discount">
+      <h3 className="st2-pb-sub">Discount</h3>
+      <div className="st2-pb-fields">
+        <Field label="Off every list price, %" error={okPct(pct) ? null : `A discount is 0 to ${MAX_DISCOUNT_PCT}%`}>
+          <TextInput inputMode="decimal" value={pct} disabled={busy} onChange={(e) => setPct(e.target.value)} />
+        </Field>
       </div>
       {rules.map((r, i) => (
-        <div className="qs-fields qs-rule" key={i}>
-          <label className="qs-field">
-            <span>Codes starting</span>
-            <span className="qs-in">
-              <input
-                className="wb2-fi"
-                value={r.prefix}
-                disabled={busy}
-                onChange={(e) => setRule(i, { prefix: e.target.value })}
-                aria-label="Codes starting with"
-              />
-            </span>
-          </label>
-          <label className="qs-field">
-            <span>Their discount</span>
-            <span className="qs-in">
-              <input
-                className="wb2-fi"
-                inputMode="decimal"
-                value={r.pct}
-                disabled={busy}
-                onChange={(e) => setRule(i, { pct: e.target.value })}
-                aria-label="Their discount percent"
-              />
-              <em>%</em>
-            </span>
-          </label>
-          <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => setRules((rs) => rs.filter((_, j) => j !== i))}>
+        <div className="st2-pb-rule" key={i}>
+          <Field label="Codes starting">
+            <TextInput value={r.prefix} disabled={busy} onChange={(e) => setRule(i, { prefix: e.target.value })} />
+          </Field>
+          <Field label="Their discount, %">
+            <TextInput inputMode="decimal" value={r.pct} disabled={busy} onChange={(e) => setRule(i, { pct: e.target.value })} />
+          </Field>
+          <Button kind="quiet" size={36} disabled={busy} aria-label={`Remove the range ${r.prefix || i + 1}`} onClick={() => setRules((rs) => rs.filter((_, j) => j !== i))}>
             Remove
-          </button>
+          </Button>
         </div>
       ))}
-      <div className="wb2-jqacts">
-        <button type="button" className="pbtn ghost" disabled={busy} onClick={() => setRules((rs) => [...rs, { prefix: "", pct: "" }])}>
+      <div className="st2-pb-foot">
+        <Button kind="second" size={36} disabled={busy} onClick={() => setRules((rs) => [...rs, { prefix: "", pct: "" }])}>
           Add a range
-        </button>
-        <button
-          type="button"
-          className="pbtn primary"
-          disabled={busy || !ready}
-          onClick={() => onSave(Number(pct) || 0, rules.map((r) => ({ prefix: r.prefix.trim(), discountPct: Number(r.pct) })))}
-        >
+        </Button>
+        <Button kind="second" size={36} disabled={busy || !ready} onClick={() => onSave(Number(pct) || 0, rules.map((r) => ({ prefix: r.prefix.trim(), discountPct: Number(r.pct) })))}>
           Save discount
-        </button>
+        </Button>
       </div>
-    </div>
+    </section>
   );
 }

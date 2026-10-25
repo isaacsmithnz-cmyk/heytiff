@@ -91,8 +91,9 @@ export const NAV_GROUPS: NavGroup[] = [
          the old Me card's faces each become a page under your name) */
       { key: "myvehicle", label: "Your vehicle", icon: "car", href: "/dashboard/my-vehicle", hint: "The vehicle you drive", accent: "#050505" },
       { key: "mynotes", label: "Notes", icon: "note", href: "/dashboard/my-notes", hint: "Your own notes, only you see them", accent: "#050505" },
-      /* job money, so it follows `workboard_money` (docs/job-analytics-plan.md) */
-      { key: "reports", label: "Reports", icon: "gauge", href: "/dashboard/analytics", hint: "Win rate, prices and quotes", accent: "#050505", capability: "workboard_money" },
+      /* job money follows `workboard_money` (docs/job-analytics-plan.md), and
+         Tax and EOFY, the business's own, `financials`: shown for either */
+      { key: "reports", label: "Reports", icon: "gauge", href: "/dashboard/analytics", hint: "Win rate, prices, quotes, tax and EOFY", accent: "#050505", anyOf: ["workboard_money", "financials"] },
       { key: "settings", label: "Settings", icon: "settings", href: "/dashboard/admin", hint: "The business, its people and its settings", accent: "#050505", minRole: "admin" },
     ],
   },

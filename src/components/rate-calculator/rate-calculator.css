@@ -10,6 +10,17 @@
   height:calc(100dvh - 96px); min-height:0;
   font-family:var(--font-jakarta), 'Plus Jakarta Sans', sans-serif; font-size:14px; color:var(--ink); }
 .rca * { box-sizing:border-box; }
+
+/* THE RATE CALCULATOR inside the frame. It is a workspace of three panes,
+   its setup path, the step and the live rates, so the section column gives
+   it the page's width rather than the 760 a section reads at; Quoting stays
+   lit in the side list. The way back to Quoting is a link above its title
+   (rule 26), and the workspace is the window's height less the frame's head
+   and the page's top gutter, so its panes scroll and the page doesn't. */
+.fg .st2-body:has(> .rca) { max-width:none; }
+.fg .st2-body > .rca { height:calc(100dvh - 96px - 32px); gap:8px; }
+.fg .rca-back { align-self:flex-start; font-size:14px; line-height:20px; font-weight:500; }
+
 .rca ::selection { background:var(--tint-2); }
 
 /* Scrollbars follow the shell's .outlet treatment (shell.css): transparent at

@@ -17,7 +17,9 @@ import { staffIdFor } from "@/lib/workboard/projects-query";
    on a tick from a review card — the blast radius of removing a wrong one is
    smaller than the blast radius of leaving it, and making the queue owner-only
    would mean bad advice stays up until Isaac personally logs in. The role
-   gate matches the section that hosts the queue.
+   gate matches the view that hosts the queue: the Library's Field notes,
+   To look over, which reads the queue for an admin and nobody else (25
+   October 2026; it was Admin, Knowledge from the field).
 
    Removal never touches kb_usage and never touches storage: a field note has
    no file, and no pages were ever billed for it. The chunks follow the row by
@@ -39,9 +41,8 @@ async function adminCtx(): Promise<Ctx | null> {
   return { orgId, staffId: await staffIdFor(orgId, userId) };
 }
 
+/* the queue lives in the Library now; its old address only redirects */
 const refresh = () => {
-  revalidatePath("/dashboard/admin/knowledge");
-  revalidatePath("/dashboard/admin");
   revalidatePath("/dashboard/tiff/library");
 };
 

@@ -1,42 +1,20 @@
 import { redirect } from "next/navigation";
-import { auth0 } from "@/lib/auth0";
-import { SettingsIndex } from "@/components/settings/settings-index";
 import { hasMinRole } from "@/lib/roles";
-import { can, getDbRole } from "@/lib/permissions-server";
-import { countUnreviewedFieldNotes } from "@/lib/tiff/field-notes";
+import { getDbRole } from "@/lib/permissions-server";
+import { sectionsFor } from "@/lib/settings/sections";
+import { settingsViewer } from "@/lib/settings/viewer";
 
-/* SETTINGS (it was Admin). The SECTION is admin+ — "Staff: Admin section hidden entirely" per
-   docs/roles-and-permissions.md. Its ITEMS gate individually: the rate
-   calculator needs `financials` — owner by default and grantable to an admin —
-   while organisation settings and the owner tools are owner-INTRINSIC (co-owners
-   included), which is why the flag passed down is the role, not a capability.
-   (Inviting is gated the same way by `invites`, but it lives on the Team page
-   now; the public-holiday calendar moved into the Time & Pay settings gear.)
+/* SETTINGS (it was Admin). One page since 25 October 2026: the six sections
+   down the left, so the address that used to be the menu opens the first
+   section this viewer holds. The SECTION is admin+ — "Staff: Admin section
+   hidden entirely" per docs/roles-and-permissions.md — and every admin holds
+   Pay and holidays, so nobody who gets past the role lands nowhere.
 
-   Section visibility stays role-based only while manager-visible tools such as
-   compliance, documents, licences & insurances and training don't exist.
-   When the first one lands it gets a capability, and this becomes
-   "has any admin-section capability", so an owner could grant a senior staff
-   member compliance access without making them an admin. */
-
-export default async function AdminPage() {
-  const role = await getDbRole();
-  if (!hasMinRole(role, "admin")) redirect("/dashboard");
-
-  const session = await auth0.getSession();
-  const orgId = session?.orgId as string | undefined;
-
-  const [canFinancials, canJobMoney, kbQueueCount] = await Promise.all([
-    can("financials"),
-    can("workboard_money"),
-    orgId ? countUnreviewedFieldNotes(orgId) : Promise.resolve(0),
-  ]);
-  return (
-    <SettingsIndex
-      isOwner={hasMinRole(role, "owner")}
-      canFinancials={canFinancials}
-      canJobMoney={canJobMoney}
-      kbQueueCount={kbQueueCount}
-    />
-  );
+   What the old menu also held has gone where it belongs: the templates and
+   letters are what you send, Tax and EOFY is a view in Reports, and
+   Knowledge from the field is the Library's. */
+export default async function AdminPage(): Promise<never> {
+  if (!hasMinRole(await getDbRole(), "admin")) redirect("/dashboard");
+  const [first] = sectionsFor(await settingsViewer());
+  redirect(first?.href ?? "/dashboard");
 }

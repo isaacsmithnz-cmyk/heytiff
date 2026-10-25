@@ -1,0 +1,127 @@
+import { redirect } from "next/navigation";
+import { auth0 } from "@/lib/auth0";
+import { supabaseAdmin } from "@/lib/supabase-server";
+import { hasMinRole } from "@/lib/roles";
+import { getDbRole, isMaster } from "@/lib/permissions-server";
+import { BusinessScreen } from "@/components/org/business-screen";
+import {
+  listOrgCredentialRecords,
+  listOrgCredentials,
+  orgExpiryWindow,
+  listOwnerCandidates,
+  orgAccount,
+} from "@/lib/org/query";
+import { documentsForOrgCredentials, signOne } from "@/lib/documents/query";
+import { todayInAu } from "@/lib/au-dates";
+import {
+  clearOrgBrandColor,
+  clearOrgLogo,
+  saveOrgSection,
+  setOrgBrandColor,
+  setOrgLogo,
+} from "@/app/actions/org";
+import {
+  addOrgCredential,
+  fileCredentialDocument,
+  recordCredentialTerm,
+  removeCredentialTerm,
+  removeOrgCredential,
+  updateOrgCredential,
+} from "@/app/actions/org-credentials";
+import { transferOwnership } from "@/app/actions/org-ownership";
+import type { OrgSettings } from "@/lib/org/settings";
+
+/* Settings › Business (it was Organisation) — owner-only (co-owners included; org settings are
+   owner-intrinsic, unlike billing which is master-only).
+
+   React now, on the staff card's machinery (components/profile/section-card),
+   where this screen used to be an HTML string driven by ProfileBehaviors — the
+   last caller of the injected-HTML profile renderer, which goes with it.
+
+   The compliance COLUMNS are gone from this select: the ARC authorisation, the
+   contractor licence and the insurance policy are rows in org_credentials now
+   (docs/migrations/org_credentials.sql). The columns themselves drop in a later
+   cleanup migration; nothing here reads them. */
+
+const COLUMNS =
+  "id, trading_name, legal_name, abn, acn, gst_registered, payment_terms_days, expiry_warn_days, expiry_email, " +
+  "email, phone, website, address, suburb, state, postcode, logo_url, logo_tone, brand_color";
+// primary_owner_user_id and the legacy `name` are deliberately not selected —
+// this screen edits the company profile, not ownership or the signup seed.
+
+export default async function OrganizationPage() {
+  const session = await auth0.getSession();
+  if (!session) redirect("/auth/login");
+  if (!hasMinRole(await getDbRole(), "owner")) redirect("/dashboard");
+
+  const orgId = session.orgId as string;
+  const { data } = await supabaseAdmin
+    .from("organizations")
+    .select(COLUMNS)
+    .eq("id", orgId)
+    .maybeSingle();
+  if (!data) redirect("/dashboard");
+
+  const org = data as unknown as OrgSettings;
+  /* THE HANDOVER IS MASTER-ONLY, so the roster it needs is loaded for the
+     master and nobody else: a co-owner's render makes one query fewer and
+     ships no list of user ids to a client that has no control to use it. */
+  const master = await isMaster();
+  const [credentials, records, account, logoUrl, ownerCandidates, expiry] = await Promise.all([
+    listOrgCredentials(orgId),
+    // the terms behind the cards — the history the modal reads
+    listOrgCredentialRecords(orgId),
+    // whose account this is — owner, size, age, plan. The viewer's sub goes in
+    // so the card can say "You" rather than printing a co-owner their own
+    // name as if it were someone else's.
+    orgAccount(orgId, session.user.sub as string),
+    // the column holds a storage ref; the bucket is private, so the link is
+    // minted here and expires
+    signOne(org.logo_url),
+    master
+      ? listOwnerCandidates(orgId, session.user.sub as string)
+      : Promise.resolve([]),
+    orgExpiryWindow(orgId),
+  ]);
+
+  /* The paperwork and the chips need the cards first, so they come after —
+     two more reads rather than two per card, and both skipped entirely for a
+     business that has recorded nothing. */
+  const ids = credentials.map((c) => c.id);
+  const [credentialDocuments] = await Promise.all([
+    documentsForOrgCredentials(orgId, ids),
+  ]);
+
+  return (
+    <BusinessScreen
+      org={org}
+      credentials={credentials}
+      credentialRecords={records}
+      credentialDocuments={Object.fromEntries(credentialDocuments)}
+      account={account}
+      ownerCandidates={ownerCandidates}
+      logoUrl={logoUrl}
+      today={todayInAu()}
+      warnDays={expiry.warnDays}
+      // Configured or not — the boolean crosses to the client, the key never
+      // does (no NEXT_PUBLIC_ prefix, so Next cannot inline it either).
+      addressLookup={Boolean(process.env.GOOGLE_MAPS_API_KEY)}
+      actions={{
+        onSave: saveOrgSection,
+        onAddCredential: addOrgCredential,
+        onUpdateCredential: updateOrgCredential,
+        onRemoveCredential: removeOrgCredential,
+        onRecordTerm: recordCredentialTerm,
+        onAttachCredentialDoc: fileCredentialDocument,
+        onRemoveTerm: removeCredentialTerm,
+        onSetLogo: setOrgLogo,
+        onClearLogo: clearOrgLogo,
+        onSetBrandColor: setOrgBrandColor,
+        onClearBrandColor: clearOrgBrandColor,
+        // absent for a co-owner: the control is not rendered rather than
+        // rendered-and-refused. The action re-checks anyway.
+        onTransferOwnership: master ? transferOwnership : undefined,
+      }}
+    />
+  );
+}

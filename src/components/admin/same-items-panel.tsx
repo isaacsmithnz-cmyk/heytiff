@@ -1,10 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Button } from "@/components/parts/button";
+import { Fade } from "@/components/parts/fade";
+import { Loading } from "@/components/parts/states";
+import { Group, Wrong } from "@/components/settings/parts";
 import type { PricedProposal, PricedSide, SameItemsView } from "@/lib/quotes/same-items-server";
 import { withCleanup } from "@/lib/ui/with-cleanup";
+import { dollars } from "./pb-bits";
 
-/* ONE PART AT TWO SUPPLIERS, in Admin → Quoting.
+/* ONE PART AT TWO SUPPLIERS, in Price book › Matching.
 
    The same part under each supplier's own code — AAD's PC1412 pair coil is
    Reece's 9800006-1 — found by Tiff: a code written in the other's name,
@@ -13,18 +18,18 @@ import { withCleanup } from "@/lib/ui/with-cleanup";
    preferred items; or "Not the same", and it isn't proposed again. */
 
 const ROUTE = "/api/quoting/same-items";
-const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 2 });
-const $ = (cents: number) => money.format(cents / 100);
 const refOf = (s: PricedSide) => `${s.supplierKey}|${s.code}`;
 
 function Side({ s, cheaper }: { s: PricedSide; cheaper: boolean }) {
   return (
-    <span role="cell" className="qs-item">
-      <b>{s.name}</b>
-      <em>
+    <span role="cell" className="st2-pb-name">
+      <b>
+        <Fade>{s.name}</Fade>
+      </b>
+      <span className="st2-pb-line">
         {`${s.supplierName}, ${s.code}, `}
-        <span className={cheaper ? "qs-state ok" : "qs-state"}>{s.netCents > 0 ? $(s.netCents) : "no price"}</span>
-      </em>
+        <span className={cheaper ? "st2-pb-low" : undefined}>{s.netCents > 0 ? dollars(s.netCents) : "no price"}</span>
+      </span>
     </span>
   );
 }
@@ -72,46 +77,50 @@ export function SameItemsPanel() {
     }, () => setBusy(null));
   };
 
-  if (failed) return <p className="qs-sub">The price lists couldn&rsquo;t be compared.</p>;
-  if (!view) return <p className="qs-sub">Comparing the price lists</p>;
-
   return (
-    <section className="qs-group">
-      <h2 className="qs-h">Same item, two suppliers</h2>
-      <p className="qs-sub">
-        {`${view.confirmed} confirmed, ${view.proposals.length} to check. A confirmed pair is one item priced at both suppliers.`}
-      </p>
-      {view.proposals.length > 0 && (
-        <div className="qs-table" role="table" aria-label="Items to check">
-          <div className="qs-row qs-headrow qs-samerow" role="row">
-            <span role="columnheader">Item</span>
-            <span role="columnheader">Looks the same as</span>
-            <span role="columnheader">Why</span>
-            <span role="columnheader" />
-          </div>
-          {view.proposals.map((p) => {
-            const key = `${refOf(p.a)}#${refOf(p.b)}`;
-            const both = p.a.netCents > 0 && p.b.netCents > 0 && p.a.netCents !== p.b.netCents;
-            return (
-              <div className="qs-row qs-samerow" role="row" key={key}>
-                <Side s={p.a} cheaper={both && p.a.netCents < p.b.netCents} />
-                <Side s={p.b} cheaper={both && p.b.netCents < p.a.netCents} />
-                <span role="cell" className="qs-saves">
-                  {p.why === "mentioned" ? `${p.shared[0]} is in the name` : p.shared.join(", ")}
-                </span>
-                <span role="cell" className="qs-act qs-acts2">
-                  <button type="button" className="pbtn ghost sm" disabled={busy !== null} onClick={() => void decide(p, "rejected")}>
-                    Not the same
-                  </button>
-                  <button type="button" className="pbtn primary sm" disabled={busy !== null} onClick={() => void decide(p, "confirmed")}>
-                    Same item
-                  </button>
+    <Group heading="Same item, two suppliers">
+      {failed ? (
+        <Wrong>The price lists couldn&rsquo;t be compared. Try again.</Wrong>
+      ) : !view ? (
+        <Loading what="Comparing the price lists" />
+      ) : (
+        <>
+          <p className="st2-pb-said">{`${view.confirmed} confirmed, ${view.proposals.length} to check.`}</p>
+          {view.proposals.length > 0 && (
+            <div className="st2-pb-rows" role="table" aria-label="Items to check">
+              <div className="st2-pb-grid st2-pb-same st2-pb-head" role="row">
+                <span role="columnheader">Item</span>
+                <span role="columnheader">Looks the same as</span>
+                <span role="columnheader">Why</span>
+                <span role="columnheader">
+                  <span className="sr-only">Answer</span>
                 </span>
               </div>
-            );
-          })}
-        </div>
+              {view.proposals.map((p) => {
+                const key = `${refOf(p.a)}#${refOf(p.b)}`;
+                const both = p.a.netCents > 0 && p.b.netCents > 0 && p.a.netCents !== p.b.netCents;
+                return (
+                  <div className="st2-pb-grid st2-pb-same" role="row" key={key}>
+                    <Side s={p.a} cheaper={both && p.a.netCents < p.b.netCents} />
+                    <Side s={p.b} cheaper={both && p.b.netCents < p.a.netCents} />
+                    <span role="cell" className="st2-pb-line">
+                      {p.why === "mentioned" ? `${p.shared[0]} is in the name` : p.shared.join(", ")}
+                    </span>
+                    <span role="cell" className="st2-pb-act">
+                      <Button kind="second" size={32} disabled={busy !== null} onClick={() => void decide(p, "rejected")}>
+                        Not the same
+                      </Button>
+                      <Button kind="second" size={32} disabled={busy !== null} onClick={() => void decide(p, "confirmed")}>
+                        Same item
+                      </Button>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
-    </section>
+    </Group>
   );
 }

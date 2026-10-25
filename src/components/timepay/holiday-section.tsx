@@ -1,9 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Icon } from "@/components/shell/icon";
-import { Tooltip } from "@/components/parts/tooltip";
+import { Button } from "@/components/parts/button";
+import { Chooser, type ChooserOption } from "@/components/parts/chooser";
+import { Field, TextInput } from "@/components/parts/field";
+import { Row, RowList } from "@/components/parts/row";
+import { Empty, Loading } from "@/components/parts/states";
+import { Wrong } from "@/components/settings/parts";
 import { DateField } from "@/components/ui/date-field";
 import { fmtAuWeekdayDate } from "@/lib/au-dates";
 import {
@@ -17,40 +21,51 @@ import { provisionalHolidays } from "@/lib/timepay/holiday-rules";
 import type { HolidayManagerData } from "@/lib/timepay/leave-page";
 import type { Holiday } from "@/lib/timepay/leave-query";
 
-/* The public-holiday manager. It lives in one place: a folding admin+ section
-   at the bottom of the Time & Pay settings gear. (The old admin page that also
-   wrapped it is gone.)
+/* The public-holiday manager: the holidays group of Settings › Pay and
+   holidays (v2, 25 October 2026; it was a folding row at the foot of Time &
+   Pay's settings gear). Admin+.
 
    The calendar mostly maintains itself (holiday-sync tops it up from the
    statutory rules), so this is the exceptions surface: add a proclaimed
    one-off, remove a day this business works, restore one removed by mistake.
-   Removed auto days stay listed under "Removed" — they're tombstones the
-   sync must not resurrect, so they must stay visible and reversible.
+   Removed auto days stay listed under their own heading: they're tombstones
+   the sync must not resurrect, so they must stay visible and reversible.
 
    "Worth confirming" covers the other half of the calendar: days that are real
    but whose DATE nobody can compute (WA's proclaimed King's Birthday, the
    Friday before the AFL Grand Final). The rules module never auto-writes those,
-   so the admin gets a quiet nudge with the usual timing, prefills the form from
-   it, and types the date off the gazette — which lands it as a manual row.
+   so each is a row with its usual timing, and its button fills the form from
+   it; the admin picks the date off the gazette, which lands it as a manual row.
 
-   THE CALENDAR LOADS ON FIRST MOUNT, not with the Time & Pay page — the same
-   pattern as the Xero section beside it, and this section is only mounted once
-   its menu row is opened. A year of holiday rows plus a statutory top-up that
-   can WRITE were being fetched on every visit to a screen about timesheets. */
+   The page reads the calendar with the rest of Settings (`initial`), and the
+   section re-reads it after every change through `load`, the admin-gated
+   action, because the list is client-held: router.refresh() alone would
+   leave the day just added off the screen it was added from. Without
+   `initial` it reads on mount. */
 
 const STATES = ["NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"] as const;
+const STATE_OPTIONS: ChooserOption[] = STATES.map((s) => ({ value: s, label: s }));
+
+/** The date, the state, and whether someone added it here by hand. */
+const holidayLine = (h: Holiday) =>
+  [fmtAuWeekdayDate(h.date), h.state, h.source === "manual" ? "added by hand" : null].filter(Boolean).join(", ");
 
 export function HolidaySection({
+  initial,
   load = getHolidayManagerData,
 }: {
+  /** the calendar as the page read it; left out, the section reads its own */
+  initial?: HolidayManagerData | null;
   /** Injectable for tests; production uses the admin-gated server action. */
   load?: () => Promise<HolidayManagerData | null>;
 }) {
   const router = useRouter();
   const [busy, start] = useTransition();
+  /* which press is out, so its own button says what it's doing */
+  const [doing, setDoing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<HolidayManagerData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<HolidayManagerData | null>(initial ?? null);
+  const [loading, setLoading] = useState(!initial);
 
   /* NULL until the admin picks one, rather than seeded from the org and then
      re-seeded on every re-fetch: the form re-reads its own calendar after each
@@ -60,6 +75,7 @@ export function HolidaySection({
   const [date, setDate] = useState("");
   const [name, setName] = useState("");
   const dateRef = useRef<HTMLButtonElement>(null);
+  const dateId = useId();
 
   const fetchData = useCallback(
     (live: { current: boolean } = { current: true }) =>
@@ -77,31 +93,32 @@ export function HolidaySection({
   );
 
   useEffect(() => {
+    if (initial) return;
     const live = { current: true };
     fetchData(live);
     return () => {
       live.current = false;
     };
-  }, [fetchData]);
+  }, [fetchData, initial]);
 
-  const run = (action: () => Promise<HolidayResult>, onOk?: () => void) => {
+  const run = (key: string, action: () => Promise<HolidayResult>, onOk?: () => void) => {
     setError(null);
+    setDoing(key);
     start(async () => {
       const res = await action();
       if (res.ok) {
         onOk?.();
-        /* Both, in this order. The list is client-held now, so router.refresh()
-           alone would leave the day just added off the very screen it was added
-           from; the refresh is still owed, because the timesheets behind this
-           modal presume against this calendar. */
+        /* Both, in this order: the list is client-held, and the timesheets
+           presume against this calendar, so the server render is owed too. */
         await fetchData();
         router.refresh();
       } else setError(res.error);
+      setDoing(null);
     });
   };
 
-  if (loading) return <p className="xp-note">Reading your holiday calendar</p>;
-  if (!data) return <p className="xp-note">{error ?? "Couldn't load the holiday calendar."}</p>;
+  if (loading) return <Loading what="Reading the holiday calendar" />;
+  if (!data) return <Wrong>{error ?? "Couldn't load the holiday calendar."} Reload the page to try again.</Wrong>;
 
   const { holidays, orgState, today } = data;
   const state = picked ?? orgState ?? "NSW";
@@ -126,7 +143,7 @@ export function HolidaySection({
           .map((p) => ({ ...p, year, state: orgState })),
       );
 
-  // group by year for a scannable list
+  // by year, for a list you can scan
   const byYear = new Map<string, Holiday[]>();
   for (const h of active) {
     const y = h.date.slice(0, 4);
@@ -134,137 +151,117 @@ export function HolidaySection({
   }
 
   return (
-    <div className="hol-sec">
-      {error && <div className="tp-err">{error}</div>}
-
-      <div className="lv-form" style={{ marginTop: 4 }}>
-        <div className="lv-frow">
-          <label className="mts-f">
-            <span>State</span>
-            <select
-              value={state}
-              onChange={(e) => setPicked(e.target.value)}
-            >
-              {STATES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="mts-f">
-            <span>Date</span>
-            <DateField
-              ref={dateRef}
-              value={date || null}
-              today={today}
-              min={today.slice(0, 4) + "-01-01"}
-              onChange={(iso) => setDate(iso ?? "")}
-            />
-          </label>
-          <label className="mts-f" style={{ flex: 1, minWidth: 200 }}>
-            <span>Holiday name</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Picnic Day" />
-          </label>
-          <div className="mts-facts" style={{ alignItems: "flex-end" }}>
-            <button
-              className="fl-btn primary"
-              disabled={busy || !date || !name.trim()}
-              onClick={() =>
-                run(
-                  () => addHoliday({ state, date, name }),
-                  () => {
-                    setDate("");
-                    setName("");
-                  },
-                )
-              }
-            >
-              <Icon name="plus" size={14} />
-              Add holiday
-            </button>
-          </div>
-        </div>
+    <div className="st2-pay-hol">
+      <div className="st2-pay-holform">
+        <Field label="State">
+          <Chooser options={STATE_OPTIONS} value={state} onChange={setPicked} />
+        </Field>
+        <Field label="Date" id={dateId}>
+          <DateField
+            ref={dateRef}
+            id={dateId}
+            className="st2-pay-date"
+            value={date || null}
+            today={today}
+            min={today.slice(0, 4) + "-01-01"}
+            onChange={(iso) => setDate(iso ?? "")}
+          />
+        </Field>
+        <Field label="Holiday name">
+          <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Picnic Day" />
+        </Field>
+        <Button
+          kind="main"
+          disabled={busy || !date || !name.trim()}
+          onClick={() =>
+            run(
+              "add",
+              () => addHoliday({ state, date, name }),
+              () => {
+                setDate("");
+                setName("");
+              },
+            )
+          }
+        >
+          {doing === "add" ? "Adding the holiday" : "Add holiday"}
+        </Button>
       </div>
 
+      {error && <Wrong>{error}</Wrong>}
+
       {suggestions.length > 0 && (
-        <div className="hol-sug">
-          <div className="hol-sugh">
-            Worth confirming
-            <span>These are set by proclamation — add the date once it&rsquo;s gazetted.</span>
-          </div>
-          {suggestions.map((s) => (
-            <div className="hol-sugrow" key={`${s.year}-${s.name}`}>
-              <span className="hol-sugy">{s.year}</span>
-              <span className="hol-sugmain">
-                <b>{s.name}</b>
-                <em>{s.usual}</em>
-              </span>
-              <button
-                className="hol-sugadd"
-                onClick={() => {
-                  setPicked(s.state);
-                  setName(s.name);
-                  setDate("");
-                  dateRef.current?.focus();
-                }}
-              >
-                <Icon name="plus" size={13} />
-                Add
-              </button>
-            </div>
-          ))}
+        <div className="st2-pay-part">
+          <h3 className="st2-pay-h3">Worth confirming</h3>
+          <RowList label="Worth confirming">
+            {suggestions.map((s) => (
+              <Row
+                key={`${s.year}-${s.name}`}
+                lead={<span className="st2-pay-year">{s.year}</span>}
+                name={s.name}
+                line={s.usual}
+                lines={2}
+                end={
+                  <Button
+                    size={32}
+                    aria-label={`Add the date of ${s.name}, ${s.year}`}
+                    onClick={() => {
+                      setPicked(s.state);
+                      setName(s.name);
+                      setDate("");
+                      dateRef.current?.focus();
+                    }}
+                  >
+                    Add the date
+                  </Button>
+                }
+              />
+            ))}
+          </RowList>
         </div>
       )}
 
       {active.length === 0 ? (
-        <div className="fl-hempty" style={{ marginTop: 20 }}>
-          No holidays yet — they&rsquo;ll fill in automatically for your state, or add one above.
-        </div>
+        <Empty what="No public holidays yet" action={null} />
       ) : (
         [...byYear.entries()].map(([year, rows]) => (
-          <div className="hol-year" key={year}>
-            <div className="lv-ch">{year}</div>
-            {rows.map((h) => (
-              <div className="hol-row" key={h.id}>
-                <span className="hol-date">{fmtAuWeekdayDate(h.date)}</span>
-                <span className="hol-name">{h.name}</span>
-                <span className="dchip2 mute">{h.state}</span>
-                <span className={`hol-src${h.source === "manual" ? "" : " synced"}`}>{h.source}</span>
-                <button
-                  className="lv-cancel"
-                  disabled={busy}
-                  aria-label={`Remove ${h.name}`}
-                  onClick={() => run(() => removeHoliday(h.id))}
-                >
-                  <Icon name="x" size={14} />
-                </button>
-              </div>
-            ))}
+          <div className="st2-pay-part" key={year}>
+            <h3 className="st2-pay-h3">{year}</h3>
+            <RowList label={`Public holidays in ${year}`}>
+              {rows.map((h) => (
+                <Row
+                  key={h.id}
+                  name={h.name}
+                  line={holidayLine(h)}
+                  end={
+                    <Button size={32} disabled={busy} aria-label={`Remove ${h.name}`} onClick={() => run(`remove:${h.id}`, () => removeHoliday(h.id))}>
+                      {doing === `remove:${h.id}` ? "Removing" : "Remove"}
+                    </Button>
+                  }
+                />
+              ))}
+            </RowList>
           </div>
         ))
       )}
 
       {removed.length > 0 && (
-        <div className="hol-year removed">
-          <div className="lv-ch">Removed — this business works these days</div>
-          {removed.map((h) => (
-            <div className="hol-row off" key={h.id}>
-              <span className="hol-date">{fmtAuWeekdayDate(h.date)}</span>
-              <span className="hol-name">{h.name}</span>
-              <span className="dchip2 mute">{h.state}</span>
-              <Tooltip label="Restore">
-                <button
-                  className="lv-cancel"
-                  disabled={busy}
-                  aria-label={`Restore ${h.name}`}
-                  onClick={() => run(() => restoreHoliday(h.id))}
-                >
-                  <Icon name="sync" size={14} />
-                </button>
-              </Tooltip>
-            </div>
-          ))}
+        <div className="st2-pay-part">
+          <h3 className="st2-pay-h3">Removed, worked as normal days</h3>
+          <RowList label="Removed holidays">
+            {removed.map((h) => (
+              <Row
+                key={h.id}
+                name={h.name}
+                line={holidayLine(h)}
+                end={
+                  <Button size={32} disabled={busy} aria-label={`Restore ${h.name}`} onClick={() => run(`restore:${h.id}`, () => restoreHoliday(h.id))}>
+                    {doing === `restore:${h.id}` ? "Restoring" : "Restore"}
+                  </Button>
+                }
+              />
+            ))}
+          </RowList>
         </div>
       )}
     </div>

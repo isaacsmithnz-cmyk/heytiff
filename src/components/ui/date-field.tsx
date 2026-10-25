@@ -21,7 +21,7 @@ import { MonthGrid, monthOf } from "./month-grid";
    which makes it the containing block for position:fixed descendants and would
    anchor this to the page instead of the viewport. The `.fg` display:contents
    wrapper carries the frame's custom properties across without re-applying its
-   layout (precedent: components/timepay/settings.tsx). */
+   layout (precedent: components/org/transfer-owner-modal.tsx). */
 
 const POP_W = 300;
 /* Enough room to matter, not a measurement: the flip decision only needs to

@@ -405,6 +405,8 @@ export async function savePaySettings(settings: Settings): Promise<TimepayResult
   });
   if (error) return { ok: false, error: "Couldn't save pay settings." };
   refresh();
+  // the rules are set in Settings › Pay and holidays, which redraws with them
+  revalidatePath("/dashboard/admin/pay");
   return { ok: true };
 }
 

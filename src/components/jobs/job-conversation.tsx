@@ -5,7 +5,6 @@ import { Button, IconButton } from "@/components/parts/button";
 import { Fade } from "@/components/parts/fade";
 import { Initials } from "@/components/parts/initials";
 import { StateWord, type Tone } from "@/components/parts/state";
-import { ViewTabs } from "@/components/parts/tabs";
 import { Icon } from "@/components/shell/icon";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { appendSpoken, useDictation } from "@/components/notes/dictation";
@@ -66,8 +65,8 @@ import { JobSection } from "./job-section";
    question she asks with answers to pick shows them as second buttons
    that answer. Save is the diary pen's path (`addJobNote`): the words kept
    word for word as a note on the job, Tiff filing nothing (Isaac, 24
-   October 2026: "Instead of keep as typed, just hit save"). The little ⓘ
-   beside them says what Save and Send each do, when you tap it.
+   October 2026: "Instead of keep as typed, just hit save"). The ⓘ that
+   said what each does went on the walk of 25 October 2026 (no hint text).
 
    ADD PHOTO, the box's second button as JC-1 draws it. A photo picked or
    taken uploads at once, as the expense form uploads a receipt
@@ -305,6 +304,7 @@ export function JobConversation({
   /* SAVE: the words as they are, a note on the job, and nothing filed from
      them. The pen's own write and its Also in ServiceM8. */
   const [also, tick] = useAlsoSm8();
+  const sm8Tick = !!diary.notesSm8 && !!diary.onWrite;
   const [keeping, setKeeping] = useState(false);
   const keep = () => {
     const words = convo.draft.trim();
@@ -339,16 +339,24 @@ export function JobConversation({
 
   const empty = !loading && story.length === 0 && talks.length === 0 && live.length === 0;
 
+  /* THE FILTER: the soft tabs' dress (rule 29), but buttons that say
+     whether they are pressed, each its own stop for the keyboard (the walk
+     of 25 October 2026: they were tabs with one stop between them) */
   const tabs =
     story.length > 0 ? (
-      <ViewTabs
-        items={FILTERS.map((f) => ({ key: f.key, label: f.label }))}
-        current={filter}
-        onGo={(k) => setFilter(k as StoryFilter)}
-        ariaLabel="Show in the feed"
-        idPrefix="jcf"
-        panelPrefix="jcfp"
-      />
+      <div className="pt-vtabs jc-filter" role="group" aria-label="Show in the feed">
+        {FILTERS.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            className="pt-vtab"
+            aria-pressed={filter === f.key}
+            onClick={() => setFilter(f.key)}
+          >
+            <span className="pt-vtab-word">{f.label}</span>
+          </button>
+        ))}
+      </div>
     ) : null;
   /* the box's own exchange stands under "Today" at the top; the day's
      older entries then follow without a second "Today" */
@@ -373,21 +381,25 @@ export function JobConversation({
           ranOut={ranOut}
           before={photo ? <PhotoChip photo={photo} onClear={clearPhoto} /> : null}
           lead={
-            !photo ? (
-              <Button kind="quiet" size={32} disabled={!canSend} onClick={() => picker.current?.click()}>
-                Add photo
-              </Button>
-            ) : null
+            /* Add photo, then the Also in ServiceM8 tick, 16 apart, in the
+               box's own bottom row (the walk of 25 October 2026) */
+            <span className="jc-lead">
+              {!photo && (
+                <Button kind="quiet" size={32} disabled={!canSend} onClick={() => picker.current?.click()}>
+                  Add photo
+                </Button>
+              )}
+              {sm8Tick && (
+                <AlsoSm8 part="tick" also={also} onTick={tick} sender={diary.sender} notesSm8={diary.notesSm8!} onConfirm={diary.onConfirm} />
+              )}
+            </span>
           }
           extra={
-            <>
-              <BoxInfo save={!!diary.onWrite} />
-              {diary.onWrite && convo.draft.trim() ? (
-                <Button kind="second" size={32} className="jc-keep" disabled={keeping} onClick={keep}>
-                  {keeping ? "Saving" : "Save"}
-                </Button>
-              ) : null}
-            </>
+            diary.onWrite && convo.draft.trim() ? (
+              <Button kind="second" size={32} className="jc-keep" disabled={keeping} onClick={keep}>
+                {keeping ? "Saving" : "Save"}
+              </Button>
+            ) : null
           }
         />
         <input
@@ -398,12 +410,11 @@ export function JobConversation({
           aria-label="Add photo"
           onChange={(e) => pick(e.target.files?.[0])}
         />
-        {diary.notesSm8 && diary.onWrite && (
-          <AlsoSm8 also={also} onTick={tick} sender={diary.sender} notesSm8={diary.notesSm8} onConfirm={diary.onConfirm} />
-        )}
+        {/* why the tick can't send yet, and its Yes / Not me, under the box */}
+        {sm8Tick && <AlsoSm8 part="why" also={also} onTick={tick} sender={diary.sender} notesSm8={diary.notesSm8!} onConfirm={diary.onConfirm} />}
       </div>
 
-      <div className="jc-feed" id={`jcfp-${filter}`} role="tabpanel" aria-labelledby={story.length > 0 ? `jcf-${filter}` : undefined}>
+      <div className="jc-feed">
         {loading && story.length === 0 ? (
           <p className="jov-none">Reading the job&rsquo;s notes from the mirror</p>
         ) : empty ? (
@@ -498,55 +509,6 @@ type BoxPhoto =
 
 /** The photo's chip in the box, with its clear. A refused upload says why
     in its place, and the clear takes it away. */
-/* WHAT SAVE AND SEND DO (Isaac, 24 October 2026: "a little information
-   button next to it … if you tap that, then it will say what save and what
-   send does"). Opens on a press, not a hover, so a thumb on site can read
-   it; a press anywhere else or Escape puts it away. */
-function BoxInfo({ save }: { save: boolean }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const away = (e: PointerEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const esc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("pointerdown", away);
-    document.addEventListener("keydown", esc);
-    return () => {
-      document.removeEventListener("pointerdown", away);
-      document.removeEventListener("keydown", esc);
-    };
-  }, [open]);
-  return (
-    <span ref={ref} className="jc-info">
-      <button
-        type="button"
-        className="jc-infobtn"
-        aria-label={save ? "What Save and Send do" : "What Send does"}
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-      >
-        <Icon name="info" size={16} />
-      </button>
-      {open && (
-        <span className="jc-infopop" role="note">
-          {save && (
-            <span>
-              <b>Save</b>{" "}keeps your words as you typed them, as a note on this job. Tiff doesn&apos;t read them, and no task is made.
-            </span>
-          )}
-          <span>
-            <b>Send</b>{" "}gives them to Tiff, as your voice does. She puts what they say on this job, and makes a task for anyone they ask.
-          </span>
-        </span>
-      )}
-    </span>
-  );
-}
-
 function PhotoChip({ photo, onClear }: { photo: BoxPhoto; onClear: () => void }) {
   if (photo.state === "bad") {
     return (

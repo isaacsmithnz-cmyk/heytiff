@@ -149,7 +149,8 @@
   transition: background-color var(--t-fast) var(--ease);
 }
 .pt-vtabs .pt-vtab:hover { background: var(--hov); }
-.pt-vtabs .pt-vtab[aria-selected="true"] { background: var(--sel); }
+.pt-vtabs .pt-vtab[aria-selected="true"],
+.pt-vtabs .pt-vtab[aria-pressed="true"] { background: var(--sel); }
 
 .pt-stabs {
   gap: 24px;

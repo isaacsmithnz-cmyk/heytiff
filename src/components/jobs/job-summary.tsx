@@ -6,20 +6,23 @@ import { summaryFromText, type SummaryGroup } from "@/lib/jobs/job-summary-rows"
 import { JobSection } from "./job-section";
 
 /* THE SUMMARY (Isaac, 25 October 2026, "Yes, build the refined Overview
-   A"): what the job is, as rows under 14/600 subheadings, the thing in ink
-   on the left and its model number grey at 13 on the right.
+   A"; the walk of the same day): what the job is, as rows under 14/600
+   subheadings, the thing in ink on the left and its model number grey at 13
+   on the right.
 
    Its groups are the job's quote's systems where the quote can say what
    the job is (read with the Overview's conversation, job-summary-rows),
    else the description's own headings and lines. Nothing is written for
    it: a description with no heading is its lines as plain rows.
 
-   The head's one button, quiet, shows the description as the office wrote
-   it: under the quote's rows, or the rest of its lines where the rows were
-   the description's and some were held back. */
+   Each group shows its first four rows, then a quiet "Show 16 more" that
+   opens that group, so every system shows on the first look. The head's
+   one button, quiet, shows the description as the office wrote it under a
+   quote's rows; a Summary that is the description has nothing more to
+   show, and no button. */
 
-/** The rows a group shows before Show the full description. */
-export const SUMMARY_ROWS = 8;
+/** The rows a group shows before its Show N more. */
+export const SUMMARY_ROWS = 4;
 
 export function JobSummary({
   fromQuote,
@@ -34,10 +37,10 @@ export function JobSummary({
   read: boolean;
 }) {
   const [full, setFull] = useState(false);
+  const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
   const quote = !!fromQuote && fromQuote.length > 0;
   const groups = quote ? fromQuote : read ? summaryFromText(description) : [];
-  const held = !quote && groups.some((g) => g.rows.length > SUMMARY_ROWS);
-  const offer = quote ? !!description : held;
+  const offer = quote && !!description;
   return (
     <JobSection
       name="Summary"
@@ -57,19 +60,30 @@ export function JobSummary({
           <li className="jov-row jov-none">{read ? "Nothing written about the job." : "Reading the job"}</li>
         </ul>
       ) : (
-        groups.map((g) => (
-          <div className="jov-group" key={g.key}>
-            {g.title && <h3 className="jov-sub">{g.title}</h3>}
-            <ul className="jov-rows">
-              {(quote || full ? g.rows : g.rows.slice(0, SUMMARY_ROWS)).map((r) => (
-                <li key={r.key} className="jov-row">
-                  <span className="jov-thing">{r.thing}</span>
-                  {r.detail && <span className="jov-detail">{r.detail}</span>}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))
+        groups.map((g) => {
+          const open = opened.has(g.key);
+          const more = open ? 0 : g.rows.length - SUMMARY_ROWS;
+          return (
+            <div className="jov-group" key={g.key}>
+              {g.title && <h3 className="jov-sub">{g.title}</h3>}
+              <ul className="jov-rows">
+                {(more > 0 ? g.rows.slice(0, SUMMARY_ROWS) : g.rows).map((r) => (
+                  <li key={r.key} className="jov-row">
+                    <span className="jov-thing">{r.thing}</span>
+                    {r.detail && <span className="jov-detail">{r.detail}</span>}
+                  </li>
+                ))}
+              </ul>
+              {more > 0 && (
+                <div className="jov-more">
+                  <Button kind="quiet" size={32} onClick={() => setOpened((o) => new Set(o).add(g.key))}>
+                    {`Show ${more} more`}
+                  </Button>
+                </div>
+              )}
+            </div>
+          );
+        })
       )}
       {quote && full && description && <p className="jov-words">{description}</p>}
     </JobSection>

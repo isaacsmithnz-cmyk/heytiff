@@ -1952,6 +1952,23 @@ describe("the job's once-per-job acts", () => {
     expect(createProjectFromJob).not.toHaveBeenCalled();
   });
 
+  /* the walk of 25 October 2026: Money waited 20 seconds for the record */
+  it("shows the job's value in Money at once, from the row, and only the paid word waits", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockReturnValueOnce(new Promise(() => undefined));
+    render(
+      <Job
+        row={row({ money: { valueCents: 1383376, paidCents: 0, collection: "none", quoteSent: true, quoteSentOn: null } as never })}
+        {...props}
+        moneyVisible
+      />
+    );
+    await detailLanded();
+    const cell = within(screen.getByRole("region", { name: "Money" }));
+    expect(cell.getByText("$13,833.76")).toHaveClass("jov-fig");
+    expect(cell.getByText("Reading the payments")).toHaveClass("jov-cap");
+  });
+
   it("names the board a tracked job is on, under the strip of facts, and that is the door", async () => {
     const onOpenTracked = jest.fn();
     readMirrorJob.mockResolvedValueOnce(card(detail()));

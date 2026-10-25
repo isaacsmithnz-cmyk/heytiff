@@ -39,6 +39,7 @@ import { JobQuoteCard } from "./job-quote-card";
 import { JobVisits, VisitDialog, type ComingVisit } from "./job-visit-tasks";
 import { sm8QuoteOf } from "../quote/sm8-quote-of";
 import { JobProgressLine } from "./job-progress-line";
+import { fmtAud } from "@/lib/workboard/project-money";
 import { JobCustomerDialog } from "./job-customer-dialog";
 import { customerEditOffered } from "@/app/actions/job-customer";
 import { setNoDeposit } from "@/app/actions/job-deposit";
@@ -2106,6 +2107,14 @@ export function JobSheet({
                       statusLabel={row.statusLabel}
                       unavailable={recordFailed}
                     />
+                  ) : row.money?.valueCents != null ? (
+                    /* the job's value at once, from the row the page already
+                       has (the Jobs list's); only the paid word waits (the
+                       walk of 25 October 2026: Money waited 20 seconds) */
+                    <>
+                      <b className="jov-fig">{fmtAud(row.money.valueCents)}</b>
+                      <p className="jov-cap">Reading the payments</p>
+                    </>
                   ) : (
                     <p className="jov-cap">Reading the figures</p>
                   )

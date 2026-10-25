@@ -41,6 +41,25 @@ describe("the Summary", () => {
     expect(s.queryByRole("button", { name: "Show the full description" })).toBeNull();
   });
 
+  /* the walk of 25 October 2026, job 3385: four rows a group, then Show N more */
+  it("shows four rows a group, then a quiet Show N more that opens that group alone, and no head button for a description", async () => {
+    const pick = "Pick List\nUpstairs\n* One\n* Two\n* Three\n* Four\n* Five\n* Six\nDownstairs\n* Indoor MSZ-AP25VGKD2-A2\n* B\n* C\n* D\n* E";
+    render(<JobSummary fromQuote={null} description={pick} read />);
+    const s = within(screen.getByRole("region", { name: "Summary" }));
+    expect(s.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Upstairs", "Downstairs"]);
+    expect(s.queryByRole("button", { name: /full description/ })).toBeNull();
+    expect(s.getAllByRole("listitem")).toHaveLength(8);
+    const more = s.getByRole("button", { name: "Show 2 more" });
+    expect(more).toHaveClass("pt-btn--quiet");
+    expect(s.getByRole("button", { name: "Show 1 more" })).toBeInTheDocument();
+    await userEvent.click(more);
+    expect(s.getByText("Six")).toBeInTheDocument();
+    expect(s.queryByRole("button", { name: "Show 2 more" })).toBeNull();
+    /* the other group stays as it was */
+    expect(s.queryByText("E")).toBeNull();
+    expect(within(s.getByText("Indoor").closest("li") as HTMLElement).getByText("MSZ-AP25VGKD2-A2")).toHaveClass("jov-detail");
+  });
+
   it("says nothing is written, and waits for the quote before reading the description", () => {
     const { rerender } = render(<JobSummary fromQuote={null} description="Ducted upstairs" read={false} />);
     expect(screen.getByText("Reading the job")).toBeInTheDocument();

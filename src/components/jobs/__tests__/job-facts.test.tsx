@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
-import { JobFacts } from "../job-facts";
+import { JobFacts, phoneWords } from "../job-facts";
 
 /* THE STRIP OF FACTS (Isaac, 25 October 2026, "Yes, build the refined
    Overview A"): Site, Contact, Next visit and Money, one box; three cells
@@ -14,7 +14,7 @@ const detail = (over: Partial<MirrorJobDetail> = {}) =>
     address: "8/36 Abbott Road\nSeven Hills NSW 2147",
     suburb: "Seven Hills",
     geoLine: null,
-    contacts: [{ name: "Damian", type: "JOB", phone: "0403 183 628", altPhone: null, email: null }],
+    contacts: [{ name: "Damian", type: "JOB", phone: "0403183628", altPhone: null, email: null }],
     purchaseOrder: null,
     ...over,
   }) as unknown as MirrorJobDetail;
@@ -54,7 +54,9 @@ it("puts who to ring in Contact: their disc, name, role and the number to dial, 
   const c = cell("Contact");
   expect(c.getByText("Damian")).toBeInTheDocument();
   expect(c.getByText("Job contact")).toBeInTheDocument();
-  expect(c.getByText("0403 183 628").closest("a")).toHaveAttribute("href", "tel:0403183628");
+  const tel = c.getByText("0403 183 628").closest("a") as HTMLElement;
+  expect(tel).toHaveAttribute("href", "tel:0403183628");
+  expect(tel).toHaveClass("jov-tel");
   expect(screen.getByRole("region", { name: "Contact" }).querySelector(".pt-initials--32")).toHaveTextContent("D");
   await userEvent.click(c.getByRole("button", { name: "Edit" }));
   expect(onEditContact).toHaveBeenCalled();
@@ -86,4 +88,23 @@ it("opens Visits from Next visit and Billing from Money", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Money" }));
   expect(onVisits).toHaveBeenCalled();
   expect(onMoney).toHaveBeenCalled();
+});
+
+/* the walk of 25 October 2026: it read 0403183628 */
+it("writes a number as Australians write it, and anything else as given", () => {
+  expect(phoneWords("0403183628")).toBe("0403 183 628");
+  expect(phoneWords("0403-183-628")).toBe("0403 183 628");
+  expect(phoneWords("0298765432")).toBe("02 9876 5432");
+  expect(phoneWords("(02) 9876 5432")).toBe("02 9876 5432");
+  expect(phoneWords("1300 123 456")).toBe("1300 123 456");
+  expect(phoneWords("+61 403 183 628")).toBe("+61 403 183 628");
+  expect(phoneWords("0412 345 678 / 9999 a/h")).toBe("0412 345 678 / 9999 a/h");
+});
+
+it("keeps Book a visit's room while the visits are read, so nothing jumps", () => {
+  const { rerender } = render(<JobFacts {...base} nextRead={false} onBook={jest.fn()} />);
+  const held = screen.getByRole("region", { name: "Next visit" }).querySelector(".jov-press--held");
+  expect(held).toHaveAttribute("aria-hidden", "true");
+  rerender(<JobFacts {...base} nextRead={false} />);
+  expect(screen.getByRole("region", { name: "Next visit" }).querySelector(".jov-press--held")).toBeNull();
 });

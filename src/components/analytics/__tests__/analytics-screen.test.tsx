@@ -11,7 +11,9 @@ jest.mock("@/app/actions/booking-sm8", () => ({ makeWorkOrder: jest.fn(), markUn
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import { analyse, type AnalyticsJob } from "@/lib/analytics/job-analytics";
+import { totalsFor, type TaxItem } from "@/lib/tax/item";
 import { AnalyticsScreen } from "../analytics-screen";
+import type { TaxState } from "../tax-view";
 
 const TODAY = "2026-10-07";
 let n = 0;
@@ -179,5 +181,102 @@ describe("AnalyticsScreen", () => {
     expect(await screen.findByText("Kept open as a tender, to 180 days.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect(decideJob).toHaveBeenLastCalledWith(expect.any(String), "extend", null);
+  });
+});
+
+/* TAX AND EOFY, a view in Reports (Isaac, 25 October 2026), for whoever
+   holds `financials`: its tab beside the jobs' three, its year in the head
+   as a tray of links, and alone, with no tabs, for someone who holds it and
+   not the jobs' money. Its own figures are tax-view.test's. */
+describe("Tax and EOFY in Reports", () => {
+  const spend = (over: Partial<TaxItem> = {}): TaxItem => ({
+    id: "fuel:1",
+    source: "fuel",
+    date: "2026-07-31",
+    supplier: "Shell Coburg",
+    abn: null,
+    category: "fuel",
+    description: "Fuel — 62.4 L",
+    amount: 158.4,
+    gst: 14.4,
+    staffName: null,
+    vehicle: null,
+    receiptUrl: "https://example.test/signed",
+    receiptIsImage: true,
+    hasReceipt: true,
+    provisional: false,
+    ...over,
+  });
+  const tax = (items: TaxItem[] = [spend()], fy = 2027): TaxState => ({
+    year: { fy, items, totals: totalsFor(items) },
+    choices: [2027, 2026, 2025, 2024, 2023],
+    today: "2026-10-07",
+  });
+  const ready = { kind: "ready" as const, data, truncated: false };
+
+  afterEach(() => window.history.replaceState(null, "", "/"));
+
+  it("is a fourth soft tab, words only, and opens on the year with its tray", () => {
+    render(<AnalyticsScreen state={ready} period="12m" tax={tax()} />);
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Overview", "Quotes", "To decide", "Tax and EOFY"]);
+    fireEvent.click(screen.getByRole("tab", { name: "Tax and EOFY" }));
+    expect(screen.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", "st2-rp-tab-tax");
+    expect(screen.getByText("Fuel and expense claims from 1 July 2026 to today, the year still running.")).toHaveClass("st2-facts");
+    const year = screen.getByRole("link", { name: "2026–27" });
+    expect(year).toHaveAttribute("href", "/dashboard/analytics?view=tax&fy=2027");
+    expect(year).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("link", { name: "2022–23" })).toHaveAttribute("href", "/dashboard/analytics?view=tax&fy=2023");
+    // the jobs' period is not this view's
+    expect(screen.queryByRole("link", { name: "12 months" })).not.toBeInTheDocument();
+    expect(window.location.search).toBe("?view=tax");
+  });
+
+  it("writes the view out of the address on the way back to the jobs", () => {
+    window.history.replaceState(null, "", "/dashboard/analytics?view=tax&fy=2026");
+    render(<AnalyticsScreen state={ready} period="12m" tax={tax()} initialView="tax" />);
+    expect(screen.getByRole("tab", { name: "Tax and EOFY" })).toHaveAttribute("aria-selected", "true");
+    fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
+    expect(window.location.search).toBe("?fy=2026");
+    expect(screen.getByRole("link", { name: "12 months" })).toBeInTheDocument();
+  });
+
+  it("keeps a period that was chosen on the years' links", () => {
+    render(<AnalyticsScreen state={ready} period="fy" tax={tax()} initialView="tax" />);
+    expect(screen.getByRole("link", { name: "2025–26" })).toHaveAttribute("href", "/dashboard/analytics?view=tax&fy=2026&period=fy");
+  });
+
+  it("says a closed year's dates, and no more", () => {
+    render(<AnalyticsScreen state={ready} period="12m" tax={tax([], 2026)} initialView="tax" />);
+    expect(screen.getByText("Fuel and expense claims from 1 July 2025 to 30 June 2026.")).toBeInTheDocument();
+    expect(screen.queryByText(/still running/)).not.toBeInTheDocument();
+  });
+
+  it("puts its word in amber while a line is missing its receipt, with no number", () => {
+    render(<AnalyticsScreen state={ready} period="12m" tax={tax([spend(), spend({ id: "fuel:2", hasReceipt: false, receiptUrl: null })])} />);
+    const tab = screen.getByRole("tab", { name: /^Tax and EOFY/ });
+    expect(tab).toHaveClass("pt-vtab--look");
+    expect(tab.textContent).not.toMatch(/\d/);
+  });
+
+  it("is the whole page, with no tabs, for someone with the business's money and not the jobs'", () => {
+    render(<AnalyticsScreen state={null} period="12m" tax={tax()} />);
+    expect(screen.getByRole("heading", { level: 1, name: "Reports" })).toBeInTheDocument();
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Every item" })).toBeInTheDocument();
+    expect(screen.queryByText(/Win rate/)).not.toBeInTheDocument();
+    expect(screen.queryByText("ServiceM8 isn't connected")).not.toBeInTheDocument();
+  });
+
+  it("is not there for someone without the business's money", () => {
+    render(<AnalyticsScreen state={ready} period="12m" tax={null} initialView="tax" />);
+    expect(screen.queryByRole("tab", { name: /Tax and EOFY/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("still opens on Tax and EOFY without ServiceM8, for someone with both", () => {
+    render(<AnalyticsScreen state={{ kind: "standalone" }} period="12m" tax={tax()} initialView="tax" />);
+    expect(screen.getByRole("table", { name: "Every item" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
+    expect(screen.getByText("ServiceM8 isn't connected")).toBeInTheDocument();
   });
 });

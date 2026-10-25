@@ -89,9 +89,11 @@ describe("capability gating", () => {
     expect(k).toContain("home");
   });
 
-  it("offers Reports to whoever holds the jobs' money, and no one else", () => {
+  it("offers Reports to whoever holds the jobs' money or the business's, and no one else", () => {
     expect(keys(viewer("admin"))).not.toContain("reports");
     expect(keys({ caps: resolve("admin", { workboard_money: true }), role: "admin" })).toContain("reports");
+    // Tax and EOFY is a view in Reports: a bookkeeper with `financials` reaches it
+    expect(keys({ caps: resolve("admin", { financials: true }), role: "admin" })).toContain("reports");
     expect(keys(viewer("owner"))).toContain("reports");
   });
 

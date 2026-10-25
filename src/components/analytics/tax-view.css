@@ -1,0 +1,11 @@
+/* REPORTS › TAX AND EOFY (tax-view.tsx). The Reports view's own figures
+   and tables (`st2-rp-*`, shell.css) draw it; these only fix the items
+   table's columns, so a long supplier fades in its own (rule 50) and the
+   figures stand in theirs, and put Export on the group's head. */
+.fg .st2-tx-head { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:32px; }
+.fg .st2-tx-items { table-layout:fixed; }
+.fg .st2-tx-items .st2-tx-day { width:112px; white-space:nowrap; }
+.fg .st2-tx-items .st2-tx-fig { width:120px; }
+.fg .st2-tx-items .st2-tx-paper { width:144px; }
+.fg .st2-tx-what .pt-state { margin-top:4px; }
+.fg .st2-tx-line { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }

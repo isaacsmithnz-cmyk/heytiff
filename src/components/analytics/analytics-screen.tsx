@@ -5,13 +5,14 @@ import { useState, type ReactNode } from "react";
 import { Button, LinkButton } from "@/components/parts/button";
 import { Dot } from "@/components/parts/state";
 import { Empty, Wrong } from "@/components/parts/states";
-import { ViewTabs } from "@/components/parts/tabs";
+import { ViewTabs, type TabItem } from "@/components/parts/tabs";
 import {
   change,
   daysBetween,
   longDay,
   money,
   pct,
+  DEFAULT_PERIOD,
   PERIODS,
   type AnalyticsJob,
   type JobAnalytics,
@@ -21,6 +22,7 @@ import {
 import { DaysToYes, EnquiriesChart, KIND_COLOUR, PriceTable, RateBars, STEP_COLOUR } from "./analytics-charts";
 import { ToDecide } from "./analytics-decide";
 import { useKeptOpen, useMarkLost, useVoids, VoidList, type KeepOpen } from "./analytics-jobs";
+import { FyPicker, taxFacts, TaxView, taxWaiting, type TaxState } from "./tax-view";
 import "./analytics.css";
 
 /* REPORTS (v2; it was Analytics) — the business's own jobs, read off
@@ -32,8 +34,16 @@ import "./analytics.css";
    (rule 14: one big one, the win rate; the rest at 20), the tables tables.
 
    Every number, query and gate is today's: the page reads it all
-   (dashboard/analytics/page.tsx, `workboard_money`), and nothing here
-   counts anything but how many of a list there are. */
+   (dashboard/analytics/page.tsx), and nothing here counts anything but how
+   many of a list there are.
+
+   TAX AND EOFY is a fourth view (Isaac, 25 October 2026: "Tax and EOFY as a
+   view in Reports"), for whoever holds `financials`: a year's field spend
+   and its receipts (tax-view.tsx). Each view shows to whoever holds what it
+   needs (rule 7): the jobs' three need `workboard_money`, so someone with
+   only `financials` sees Tax and EOFY alone, with no tabs over it. The view
+   you're on rides in the address as `?view=tax`, written as it changes, so
+   a year's link lands on it. */
 
 export type AnalyticsState =
   | { kind: "standalone" }
@@ -52,76 +62,136 @@ export type AnalyticsState =
       lostWrites?: "on" | "trial" | null;
     };
 
-type Tab = "overview" | "quotes" | "decide";
+export type ReportsView = "overview" | "quotes" | "decide" | "tax";
 
 const TAB_ID = "st2-rp-tab";
 const PANEL_ID = "st2-rp-panel";
 
-export function AnalyticsScreen({ state, period }: { state: AnalyticsState; period: PeriodKey }) {
-  const [tab, setTab] = useState<Tab>("overview");
+/** The view, into the address: `?view=tax` for Tax and EOFY, nothing for the
+    jobs' three, the period and the year left as they are. */
+function writeView(view: ReportsView) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (view === "tax") url.searchParams.set("view", "tax");
+  else url.searchParams.delete("view");
+  window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+/** The view to open on: the one asked for, if this viewer has it. */
+function firstView(asked: ReportsView | undefined, jobs: boolean, tax: boolean): ReportsView {
+  if (asked === "tax" && tax) return "tax";
+  if (!jobs) return "tax";
+  return asked && asked !== "tax" ? asked : "overview";
+}
+
+export function AnalyticsScreen({
+  state,
+  period,
+  tax = null,
+  initialView,
+}: {
+  /** the jobs' three views; null for a viewer without `workboard_money` */
+  state: AnalyticsState | null;
+  period: PeriodKey;
+  /** Tax and EOFY; null for a viewer without `financials` */
+  tax?: TaxState | null;
+  /** from `?view=tax` */
+  initialView?: ReportsView;
+}) {
+  const [tab, setTabState] = useState<ReportsView>(() => firstView(initialView, state !== null, tax !== null));
+  const setTab = (next: ReportsView) => {
+    setTabState(next);
+    writeView(next);
+  };
+  const views: TabItem[] = [
+    ...(state
+      ? [
+          { key: "overview", label: "Overview" },
+          { key: "quotes", label: "Quotes" },
+          { key: "decide", label: "To decide", tone: state.kind === "ready" && jobsToDecide(state.data) > 0 ? ("look" as const) : undefined },
+        ]
+      : []),
+    ...(tax ? [{ key: "tax", label: "Tax and EOFY", tone: taxWaiting(tax) ? ("look" as const) : undefined }] : []),
+  ];
+  const onTax = tab === "tax" ? tax : null;
+  const jobs = tab === "tax" ? null : state;
+  /* one view is no choice: no tabs over it, and the panel is just the page */
+  const tabbed = views.length > 1;
   return (
     <div className="page in">
       <div className="wrap st2-rp">
         <header className="st2-rp-head">
           <div className="st2-id">
             <h1 className="st2-h1">Reports</h1>
-            {state.kind === "ready" && (
-              <p className="st2-facts">Quotes on jobs raised {spanWords(state.data)}, against the same days a year earlier.</p>
+            {jobs?.kind === "ready" && (
+              <p className="st2-facts">Quotes on jobs raised {spanWords(jobs.data)}, against the same days a year earlier.</p>
             )}
+            {onTax && <p className="st2-facts">{taxFacts(onTax)}</p>}
           </div>
-          {state.kind === "ready" && <PeriodPicker period={period} />}
+          {jobs?.kind === "ready" && <PeriodPicker period={period} />}
+          {onTax && <FyPicker tax={onTax} period={period === DEFAULT_PERIOD ? null : period} />}
         </header>
 
-        <ViewTabs
-          ariaLabel="Reports"
-          idPrefix={TAB_ID}
-          panelPrefix={PANEL_ID}
-          current={tab}
-          onGo={(k) => setTab(k as Tab)}
-          items={[
-            { key: "overview", label: "Overview" },
-            { key: "quotes", label: "Quotes" },
-            {
-              key: "decide",
-              label: "To decide",
-              tone: state.kind === "ready" && jobsToDecide(state.data) > 0 ? "look" : undefined,
-            },
-          ]}
-        />
+        {tabbed && (
+          <ViewTabs
+            ariaLabel="Reports"
+            idPrefix={TAB_ID}
+            panelPrefix={PANEL_ID}
+            current={tab}
+            onGo={(k) => setTab(k as ReportsView)}
+            items={views}
+          />
+        )}
 
-        <section className="st2-rp-panel" id={`${PANEL_ID}-${tab}`} role="tabpanel" aria-labelledby={`${TAB_ID}-${tab}`} tabIndex={-1}>
-          {state.kind === "standalone" && (
-            <Empty
-              what="ServiceM8 isn't connected"
-              line="Reports read your quotes and jobs from ServiceM8."
-              action={
-                <Button kind="main" href="/dashboard/admin/integrations/servicem8">
-                  Connect ServiceM8
-                </Button>
-              }
-            />
-          )}
-          {state.kind === "unread" && <Wrong word="ServiceM8's copy couldn't be read just now" means="Reload the page in a minute." />}
-          {state.kind === "ready" && tab === "overview" && (
-            <Overview a={state.data} truncated={state.truncated} onDecide={() => setTab("decide")} />
-          )}
-          {state.kind === "ready" && tab === "quotes" && (
-            <Quotes a={state.data} names={state.names ?? {}} canDecide={state.canDecide ?? false} lostWrites={state.lostWrites ?? null} />
-          )}
-          {state.kind === "ready" && tab === "decide" && (
-            <ToDecide
-              asks={state.data.toDecide.asks}
-              names={state.names ?? {}}
-              canDecide={state.canDecide ?? false}
-              workOrders={state.workOrders ?? null}
-              lostWrites={state.lostWrites ?? null}
-              voided={state.data.voided}
-              quoteFromCents={state.data.rules.quoteFromCents}
-            />
-          )}
+        <section
+          className="st2-rp-panel"
+          id={`${PANEL_ID}-${tab}`}
+          role={tabbed ? "tabpanel" : undefined}
+          aria-labelledby={tabbed ? `${TAB_ID}-${tab}` : undefined}
+          tabIndex={-1}
+        >
+          {onTax && <TaxView tax={onTax} />}
+          {jobs && <JobViews state={jobs} tab={tab} onDecide={() => setTab("decide")} />}
         </section>
       </div>
     </div>
+  );
+}
+
+/** The jobs' three views, on what ServiceM8's copy gave. */
+function JobViews({ state, tab, onDecide }: { state: AnalyticsState; tab: ReportsView; onDecide: () => void }) {
+  return (
+    <>
+      {state.kind === "standalone" && (
+        <Empty
+          what="ServiceM8 isn't connected"
+          line="Reports read your quotes and jobs from ServiceM8."
+          action={
+            <Button kind="main" href="/dashboard/admin/integrations/servicem8">
+              Connect ServiceM8
+            </Button>
+          }
+        />
+      )}
+      {state.kind === "unread" && <Wrong word="ServiceM8's copy couldn't be read just now" means="Reload the page in a minute." />}
+      {state.kind === "ready" && tab === "overview" && (
+        <Overview a={state.data} truncated={state.truncated} onDecide={onDecide} />
+      )}
+      {state.kind === "ready" && tab === "quotes" && (
+        <Quotes a={state.data} names={state.names ?? {}} canDecide={state.canDecide ?? false} lostWrites={state.lostWrites ?? null} />
+      )}
+      {state.kind === "ready" && tab === "decide" && (
+        <ToDecide
+          asks={state.data.toDecide.asks}
+          names={state.names ?? {}}
+          canDecide={state.canDecide ?? false}
+          workOrders={state.workOrders ?? null}
+          lostWrites={state.lostWrites ?? null}
+          voided={state.data.voided}
+          quoteFromCents={state.data.rules.quoteFromCents}
+        />
+      )}
+    </>
   );
 }
 

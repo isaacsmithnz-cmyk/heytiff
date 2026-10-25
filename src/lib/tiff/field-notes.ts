@@ -131,7 +131,7 @@ export function keywordsFromTitle(title: string): string[] {
   ].slice(0, 10);
 }
 
-/* ── the admin queue ─────────────────────────────────────────────────── */
+/* ── the admin queue: the Library's Field notes, To look over ───────── */
 
 export type FieldNoteRow = {
   id: string;
@@ -142,7 +142,7 @@ export type FieldNoteRow = {
   createdAt: string;
 };
 
-/** Unreviewed field notes, newest first — what Admin's "N new entries" is. */
+/** Unreviewed field notes, newest first: Knowledge from the field. */
 export async function listUnreviewedFieldNotes(orgId: string, limit = 50): Promise<FieldNoteRow[]> {
   const { data } = await supabaseAdmin
     .from("kb_documents")
@@ -164,15 +164,4 @@ export async function listUnreviewedFieldNotes(orgId: string, limit = 50): Promi
       createdAt: String(r.created_at),
     };
   });
-}
-
-/** How many are waiting — the Admin card's number. */
-export async function countUnreviewedFieldNotes(orgId: string): Promise<number> {
-  const { count } = await supabaseAdmin
-    .from("kb_documents")
-    .select("id", { count: "exact", head: true })
-    .eq("org_id", orgId)
-    .eq("category", "field")
-    .is("reviewed_at", null);
-  return count ?? 0;
 }

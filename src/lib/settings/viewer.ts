@@ -6,7 +6,7 @@ import { sectionsFor, type SettingsSection, type SettingsViewer } from "./sectio
     for the request, so the page under them pays nothing for asking again. */
 export async function settingsViewer(): Promise<SettingsViewer> {
   const [role, canFinancials, canJobMoney] = await Promise.all([getDbRole(), can("financials"), can("workboard_money")]);
-  return { isOwner: hasMinRole(role, "owner"), canFinancials, canJobMoney };
+  return { isAdmin: hasMinRole(role, "admin"), isOwner: hasMinRole(role, "owner"), canFinancials, canJobMoney };
 }
 
 /** The sections, as the client list wants them: no functions cross. */

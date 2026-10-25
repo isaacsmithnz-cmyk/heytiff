@@ -2,11 +2,14 @@ import { redirect } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
 import { TemplatesList } from "@/components/admin/templates-list";
 import { templateFor, templateHref } from "@/components/admin/templates-catalogue";
-import { approvalStatus, templateApprovals } from "./approvals";
+import { approvalStatus, templateApprovals } from "@/app/dashboard/admin/templates/approvals";
 
-/* TEMPLATES — in Admin with the business's other settings. Anyone signed in
-   can read them, as they could read the two template pages these replace;
-   only the owner approves. An old `?sec=` address goes to its template. */
+/* SETTINGS › TEMPLATES, the seventh section (Isaac, 26 October 2026: "Yes,
+   Templates is a seventh section in Settings, after Reports"). The list sits
+   in the frame; each template opens on its own page beside it
+   (admin/templates/[key]), full width, because it is the document. Anyone
+   signed in can read them, as before; only the owner approves. An old
+   `?sec=` address goes to its template. */
 export default async function TemplatesPage({
   searchParams,
 }: {

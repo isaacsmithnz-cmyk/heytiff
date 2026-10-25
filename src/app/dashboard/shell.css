@@ -3196,18 +3196,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    reads as a spreadsheet — 760px keeps title, sub and chevron in one glance.
    The icon-chip accent is inline (per row, ~10% tint) the way the nav and the
    toolbox do it; everything structural lives here. */
-.fg .adm-group + .adm-group { margin-top:32px; }
-.fg .adm-glabel { font-size:12px; font-weight:500; color:var(--gray400); margin:0 0 12px 2px; }
-.fg .adm-card { background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; }
-.fg .adm-row { display:flex; align-items:center; gap:12px; padding:16px 16px; text-decoration:none; color:inherit; border-top:1px solid var(--line); transition:background var(--t-fast) var(--ease); }
-.fg .adm-row:first-child { border-top:0; }
-.fg a.adm-row:hover { background:var(--tint); }
-.fg .adm-ic { flex:0 0 auto; width:40px; height:40px; border-radius:var(--r-button); display:flex; align-items:center; justify-content:center; }
-.fg .adm-main { flex:1; min-width:0; }
-.fg .adm-main b { display:block; font-size:16px; font-weight:700; color:var(--ink); }
-.fg .adm-main em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); margin-top:2px; }
-.fg .adm-ch { flex:0 0 auto; display:flex; color:var(--gray400); transition:transform var(--t-move) var(--ease); }
-.fg a.adm-row:hover .adm-ch { }
+
 .fg .adm-empty { padding:80px 16px; text-align:center; border:1.5px dashed var(--line); border-radius:var(--r-card); background:var(--tint); }
 .fg .adm-empty b { display:block; font-size:16px; font-weight:700; color:var(--gray500); }
 .fg .adm-empty em { display:block; max-width:420px; margin:4px auto 0; font-style:normal; font-size:13px; font-weight:500; color:var(--gray400); line-height:1.5; }
@@ -3224,15 +3213,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .int-lede { max-width:620px; margin:0 0 24px; font-size:14px; font-weight:500; line-height:1.6; color:var(--gray500); }
 
 /* The row's state, said in a word (the templates list). */
-.fg .int-pill { flex:0 0 auto; display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:500; white-space:nowrap; overflow:hidden; }
-.fg .int-dot { width:7px; height:7px; border-radius:50%; flex:0 0 auto; }
-.fg .int-pill.on { color:var(--ink); }
-.fg .int-pill.on .int-dot { background:var(--ink); }
-.fg .int-pill.warn { color:var(--warn-t); }
-.fg .int-pill.warn .int-dot { background:var(--warn-t); }
-.fg .int-pill.off { color:var(--gray500); }
-.fg .int-pill.off .int-dot { background:var(--gray400); }
-@media (max-width:560px){ .fg .int-pill { display:none; } }
 
 /* A round trip's outcome, one line. */
 .fg .int-note { padding:12px 16px; margin-bottom:16px; border-radius:var(--r-card); font-size:14px; font-weight:600; line-height:1.45; }

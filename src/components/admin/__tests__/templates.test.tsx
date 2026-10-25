@@ -35,14 +35,17 @@ const props = (over: Partial<ApprovalProps> = {}): ApprovalProps => ({
 describe("the list", () => {
   it("groups every template by who receives it, each a link, and says which wait for approval", () => {
     render(<TemplatesList status={{ certificate: { text: "Waiting for your approval", tone: "warn" }, swms: { text: "Approved", tone: "on" } }} />);
-    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/dashboard/admin");
-    expect(screen.getByText("7 templates, 1 waiting for approval")).toBeInTheDocument();
-    expect(screen.getByText("Customers")).toBeInTheDocument();
-    expect(screen.getByText("Builders and certifiers")).toBeInTheDocument();
-    expect(screen.getByText("Your team")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Templates");
+    expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual([
+      "Customers",
+      "Builders and certifiers",
+      "Letters",
+      "Your team",
+    ]);
+    // a section's title carries no count (rule 29)
+    expect(screen.queryByText(/7 templates/)).not.toBeInTheDocument();
     const hrefs = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
     expect(hrefs).toEqual([
-      "/dashboard/admin",
       "/dashboard/admin/templates/quote",
       "/dashboard/admin/templates/handover",
       "/dashboard/admin/templates/documents-email",
@@ -51,8 +54,9 @@ describe("the list", () => {
       "/dashboard/admin/templates/letterhead",
       "/dashboard/admin/templates/project-checklist",
     ]);
-    expect(screen.getByRole("link", { name: /Mechanical Compliance Certificate/ })).toHaveTextContent("Waiting for your approval");
-    expect(screen.getByRole("link", { name: /SWMS/ })).toHaveTextContent("Approved");
+    const cert = screen.getByRole("link", { name: /Mechanical Compliance Certificate/ }).closest("li")!;
+    expect(cert).toHaveTextContent("Waiting for your approval");
+    expect(screen.getByRole("link", { name: /SWMS/ }).closest("li")).toHaveTextContent("Approved");
   });
 
   it("knows a template by its key, and nothing else", () => {

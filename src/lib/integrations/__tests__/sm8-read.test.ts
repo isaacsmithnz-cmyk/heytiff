@@ -196,6 +196,38 @@ describe("fetchSm8Page", () => {
     });
   });
 
+  /* The May 2026 API update: an account without SMS or email history
+     switched on answers 400 "sms is not an authorised object type". That is
+     one endpoint off, not ServiceM8 down, and the engine has to be able to
+     tell — so it says so, beside the status every 400 carries. */
+  it("a 400 naming an unauthorised object type says the endpoint isn't on; any other 400 doesn't", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ errorCode: 400, message: "sms is not an authorised object type" }, { status: 400 }));
+    expect(await fetchSm8Page(call("t"), "sms.json", { cursor: "-1", filter: null })).toEqual({
+      ok: false,
+      failure: "unavailable",
+      status: 400,
+      notEnabled: true,
+    });
+
+    fetchMock.mockResolvedValueOnce(jsonResponse("email is not an authorized object type", { status: 400 }));
+    expect(await fetchSm8Page(call("t"), "email.json", { cursor: "-1", filter: null })).toMatchObject({ notEnabled: true });
+
+    fetchMock.mockResolvedValueOnce(jsonResponse("Invalid $filter", { status: 400 }));
+    expect(await fetchSm8Page(call("t"), "sms.json", { cursor: "-1", filter: null })).toEqual({
+      ok: false,
+      failure: "unavailable",
+      status: 400,
+    });
+
+    // the words on another status are not the 400's
+    fetchMock.mockResolvedValueOnce(jsonResponse("sms is not an authorised object type", { status: 500 }));
+    expect(await fetchSm8Page(call("t"), "sms.json", { cursor: "-1", filter: null })).toEqual({
+      ok: false,
+      failure: "unavailable",
+      status: 500,
+    });
+  });
+
   it("a network throw and a non-array body are both 'unavailable'", async () => {
     fetchMock.mockRejectedValueOnce(new Error("boom"));
     expect(await fetchSm8Page(call("t"), "job.json", { cursor: "-1", filter: null })).toEqual({

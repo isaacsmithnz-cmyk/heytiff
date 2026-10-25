@@ -64,7 +64,7 @@ export const LEAVE_WORDS = {
     leave: "Leave",
     leaveGroup: "Sending leave to ServiceM8",
     leaveConsent:
-      "ServiceM8 hasn't given HeyTiff permission to add leave yet, so no leave can go. Reconnect ServiceM8 above and approve it on ServiceM8's screen.",
+      "ServiceM8 hasn't given HeyTiff permission to add leave yet, so no leave can go. Reconnect ServiceM8 below and approve it on ServiceM8's screen.",
     leaveOffOne: "Leave is off. 1 leave entry that was waiting won't go.",
     leaveOffMany: "Leave is off. {n} leave entries that were waiting won't go.",
     leaveUnavailable: "Leave can't be sent from this deployment yet.",

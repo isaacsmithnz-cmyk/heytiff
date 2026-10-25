@@ -1116,19 +1116,10 @@
    was repeating it. Heading 600, subtitle 400 in the quiet colour: one thing
    loud. */
 .fg .card2 { background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); padding:24px; margin-bottom:16px; }
-/* WHAT YOU READ IS A GROUP, NOT A CARD (2026-09-21) — the pass the Fault
-   Finder took in #774 and the SWMS in #778, here for the integration screens.
-   On paper to the frame a white card with a hairline is paper on paper and
-   its edge does nothing; law 9 says a card is for something you ACT on. So
-   what Xero powers, what HeyTiff asks for and what has been read across group
-   by a hairline and the spacing scale, while connecting, picking which books
-   to use and disconnecting keep their cards — you operate those. The heading
-   is the same heading either way. */
-.fg .int-grp { padding-top:16px; margin-bottom:16px; border-top:1px solid var(--line); }
-.fg .card2 .c2h, .fg .int-grp .c2h { display:flex; align-items:center; gap:12px; margin-bottom:24px; }
-.fg .card2 .c2h b, .fg .int-grp .c2h b { font-size:16px; font-weight:600; }
-.fg .card2 .c2h em, .fg .int-grp .c2h em { font-style:normal; display:block; font-size:13px; font-weight:400; color:var(--gray400); margin-top:2px; }
-.fg .card2 .c2h .pill2, .fg .int-grp .c2h .pill2 { margin-left:auto; }
+.fg .card2 .c2h { display:flex; align-items:center; gap:12px; margin-bottom:24px; }
+.fg .card2 .c2h b { font-size:16px; font-weight:600; }
+.fg .card2 .c2h em { font-style:normal; display:block; font-size:13px; font-weight:400; color:var(--gray400); margin-top:2px; }
+.fg .card2 .c2h .pill2 { margin-left:auto; }
 .fg .adminpill { display:inline-flex; align-items:center; gap:8px; font-family:var(--mono); font-size:14px; font-weight:500; color:var(--bad-t); }
 
 /* form fields */
@@ -3406,19 +3397,18 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .adm-empty b { display:block; font-size:16px; font-weight:700; color:var(--gray500); }
 .fg .adm-empty em { display:block; max-width:420px; margin:4px auto 0; font-style:normal; font-size:13px; font-weight:500; color:var(--gray400); line-height:1.5; }
 
-/* ---- Integrations (components/integrations/) ----
-   Additive: the index IS the admin index (.adm-card / .adm-row / .adm-ic), so
-   only the state pill is new there. The Xero screen reuses .card2 / .c2h /
-   .pbtn wholesale; what's below is the handful of blocks a connection screen
-   needs and nothing else has — a back link above a title, a facts strip, the
-   scope list, and a destructive button. */
+/* ---- What the old integration screens shared, still worn elsewhere ----
+   Settings › Integrations is its own sheet since 25 October 2026
+   (components/settings/integrations.css). These few rules began with the
+   integration screens and are worn by others now: the back link, the lede,
+   the state word on the templates list, a round trip's one-line note, a
+   hint, and three of .pbtn's own rules (an <a> wearing it, the destructive
+   variant and the disabled state). They go as those screens move. */
 .fg .int-back { display:inline-flex; align-items:center; gap:4px; font-size:13px; font-weight:700; color:var(--gray500); text-decoration:none; transition:color var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
 .fg .int-back:hover { color:var(--ink); }
 .fg .int-lede { max-width:620px; margin:0 0 24px; font-size:14px; font-weight:500; line-height:1.6; color:var(--gray500); }
-.fg .int-foot { margin:12px 2px 0; font-size:13px; font-weight:600; color:var(--gray400); }
 
-/* The row's state, said in a word. Semantic colour, never the page accent —
-   ok #00A389 / warn amber / off grey (see the design-system note). */
+/* The row's state, said in a word (the templates list). */
 .fg .int-pill { flex:0 0 auto; display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:500; white-space:nowrap; overflow:hidden; }
 .fg .int-dot { width:7px; height:7px; border-radius:50%; flex:0 0 auto; }
 .fg .int-pill.on { color:var(--ink); }
@@ -3429,239 +3419,16 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .int-pill.off .int-dot { background:var(--gray400); }
 @media (max-width:560px){ .fg .int-pill { display:none; } }
 
-/* Outcome of a round trip that just finished — the OAuth redirect's one line. */
+/* A round trip's outcome, one line. */
 .fg .int-note { padding:12px 16px; margin-bottom:16px; border-radius:var(--r-card); font-size:14px; font-weight:600; line-height:1.45; }
 .fg .int-note.ok { background:var(--ok-tint); color:var(--ok-t); }
 .fg .int-note.bad { background:var(--bad-tint); color:var(--bad-t); }
 
-.fg .int-facts { display:flex; flex-wrap:wrap; gap:12px 32px; margin:0 0 16px; }
-.fg .int-facts dt { font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .int-facts dd { margin:4px 0 0; font-size:14px; font-weight:700; color:var(--ink); }
-
-/* Why the button isn't there. A missing env var is an instruction, not an
-   error, so it reads as one. */
-.fg .int-blocked { padding:12px 16px; margin-bottom:16px; border-radius:var(--r-card); border:1.5px dashed var(--line); background:var(--tint); }
-.fg .int-blocked b { display:block; font-size:14px; font-weight:700; color:var(--gray700); }
-.fg .int-blocked p { margin:4px 0 0; font-size:13px; font-weight:500; line-height:1.55; color:var(--gray500); }
-.fg .int-blocked ul { margin:8px 0 0; padding-left:16px; }
-.fg .int-blocked li { font-size:13px; font-weight:500; line-height:1.6; color:var(--gray500); }
-.fg .int-blocked code, .fg .int-scopes code { padding:1px 4px; border-radius:var(--r-control); background:var(--tint-2); font-family:var(--mono); font-size:.92em; font-weight:700; color:var(--gray700); }
-
-.fg .int-act { display:flex; flex-wrap:wrap; gap:8px; }
-/* Connect is an <a> (an API route — see the note in xero-screen.tsx), and
-   .pbtn was only ever worn by <button>, so it never had to say this. */
 .fg a.pbtn { text-decoration:none; }
 .fg .int-hint { margin:12px 2px 0; font-size:13px; font-weight:500; line-height:1.55; color:var(--gray500); }
-/* Disconnect's second click. The only destructive button in the section, so
-   the variant lives with it rather than in the shared .pbtn block. */
 .fg .pbtn.danger { background:var(--bad); color:var(--paper); }
 .fg .pbtn.danger:hover:not(:disabled) { background:var(--bad-t); }
 .fg .pbtn:disabled { opacity:.55; cursor:default; }
-
-.fg .int-tenants { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
-.fg .int-tenant { display:flex; align-items:center; gap:12px; padding:12px 12px; border-radius:var(--r-button); border:1px solid var(--line); background:var(--tint); font-size:14px; font-weight:700; cursor:pointer; transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-.fg .int-tenant:hover { border-color:var(--line); background:var(--paper); }
-.fg .int-tenant input { accent-color:var(--ink); width:16px; height:16px; }
-
-.fg .int-uses { display:flex; flex-direction:column; gap:16px; }
-.fg .int-use b { font-size:14px; font-weight:700; }
-.fg .int-use p { margin:4px 0 0; font-size:13px; font-weight:500; line-height:1.6; color:var(--gray500); }
-
-/* One row per scope: the literal string Xero will show, the area it serves,
-   and the sentence. A scope the stored grant predates is marked, because that
-   is the whole reason to render the list against a connection at all. */
-.fg .int-scopes { list-style:none; margin:0; padding:0; }
-.fg .int-scopes li { padding:12px 0; border-top:1px solid var(--line); }
-.fg .int-scopes li:first-child { border-top:0; padding-top:0; }
-.fg .int-scopes li p { margin:4px 0 0; font-size:13px; font-weight:500; line-height:1.55; color:var(--gray500); }
-.fg .int-scopehead { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
-.fg .int-tag { font-size:14px; font-weight:500; color:var(--gray500); }
-.fg .int-tag.warn { color:var(--warn-t); }
-/* the writes list's two outcomes — a word in the state's colour (law 26) */
-.fg .int-tag.ok { color:var(--ok-t); }
-.fg .int-tag.bad { color:var(--bad-t); }
-/* SENDING FILES TO SERVICEM8 — the checklist's segmented choice for the
-   setting, and each write's file name read as a name, not as code */
-.fg .int-wname { min-width:0; font-size:14px; font-weight:600; overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-
-/* A backfill in progress is NOT a warning. It wears the ok green, because the
-   thing it reports is working — the warn amber next to it now means one thing
-   only, "somebody is needed", and that separation is the point. Semantic
-   state, so #00A389 and never the page accent. */
-.fg .int-tag.live { display:inline-flex; align-items:center; gap:4px; color:var(--ok-t); }
-.fg .int-pulse { width:6px; height:6px; border-radius:50%; background:var(--ink); animation:int-pulse 1.6s ease-in-out infinite; color:var(--paper); }
-@keyframes int-pulse { 0%,100% { opacity:.32; transform:scale(.82); } 50% { opacity:1; transform:scale(1); } }
-/* The dot carries no information the words don't; for anyone who has asked for
-   less motion it simply sits still. */
-@media (prefers-reduced-motion:reduce) { .fg .int-pulse { animation:none; opacity:1; } }
-
-/* ---- The ServiceM8 screen on one page (2026-09-28) ----
-   "A bit messy, way too much information", then "make use of as much of
-   the screen as possible without having to scroll": the connection across
-   the top in two columns, then sending, the mirror and the people as one
-   grid that takes the whole width — three columns where there is room, the
-   mirror over the people at a laptop's. */
-.fg .int-sm8 { container-type:inline-size; }
-.fg .int-sm8 .card2 { padding:16px 24px; }
-.fg .int-sm8 .c2h { margin-bottom:8px; }
-.fg .int-sm8 .c2h > div:first-child { flex:1; }
-.fg .int-sm8-grid { display:grid; grid-template-columns:minmax(0,7fr) minmax(0,5fr); grid-template-areas:"w m" "w p"; grid-template-rows:auto 1fr; gap:16px; align-items:start; }
-.fg .int-sm8-grid.solo { grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-areas:"m p"; grid-template-rows:auto; }
-.fg .int-sm8-grid .card2 { margin-bottom:0; }
-.fg .int-sm8-grid .int-wcard { grid-area:w; }
-.fg .int-sm8-grid .int-mirrorcard { grid-area:m; }
-.fg .int-sm8-people { grid-area:p; min-width:0; display:flex; flex-direction:column; gap:16px; }
-@container (min-width:1400px) {
-  .fg .int-sm8-grid { grid-template-columns:minmax(0,5fr) minmax(0,4fr) minmax(0,3fr); grid-template-areas:"w m p"; grid-template-rows:auto; }
-  .fg .int-sm8-grid.solo { grid-template-columns:minmax(0,4fr) minmax(0,3fr); }
-  .fg .int-sm8 .int-mirror-done.folded { display:grid; }
-  .fg .int-mirrorcard .int-foldbtn { display:none; }
-}
-@container (max-width:900px) {
-  .fg .int-sm8-grid, .fg .int-sm8-grid.solo { grid-template-columns:minmax(0,1fr); grid-template-areas:"w" "m" "p"; grid-template-rows:auto; }
-}
-
-/* the connection: who and when on the left, the controls on the right;
-   the warnings, the confirm and anything blocking take the width under them */
-.fg .int-conn { display:grid; grid-template-columns:minmax(0,1fr) auto; grid-auto-flow:row dense; column-gap:32px; row-gap:16px; align-items:start; }
-.fg .int-conn > * { grid-column:1 / -1; margin:0; }
-.fg .int-conn > .int-connhead { grid-column:1; grid-row:1; margin:0; }
-.fg .int-conn > .int-act { grid-column:2; grid-row:1; justify-content:flex-end; }
-/* the account's name, and beside it its health: a word in the state's
-   colour led by a dot of the same colour — no box, state is a word */
-.fg .int-connname { display:flex; align-items:center; flex-wrap:wrap; gap:4px 12px; }
-.fg .int-health { display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:600; }
-.fg .int-health i { width:8px; height:8px; border-radius:var(--r-pill); background:currentColor; }
-.fg .int-health.ok { color:var(--ok-t); }
-.fg .int-health.warn { color:var(--warn-t); }
-.fg .int-health.bad { color:var(--bad-t); }
-.fg .int-connfacts { display:flex; flex-wrap:wrap; gap:4px 24px; margin:8px 0 0; }
-.fg .int-connfacts > div { display:flex; align-items:baseline; gap:8px; }
-.fg .int-connfacts dt { font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .int-connfacts dd { margin:0; font-size:14px; font-weight:600; color:var(--ink); }
-.fg .int-connfacts dd.warn { color:var(--warn-t); }
-
-/* when the mirror last moved, under the facts */
-.fg .int-syncline { margin:0; font-size:13px; line-height:1.5; color:var(--gray500); }
-.fg .int-syncline span:first-child { font-size:14px; font-weight:500; color:var(--ink); }
-
-/* the mirror as a ledger: a name and a count, two to a row; a row still
-   moving or stuck takes the width, because its tag is a sentence */
-.fg .int-mirror { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); column-gap:24px; }
-.fg .int-mirror li { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:8px 0; border-top:1px solid var(--line); font-size:14px; font-weight:500; }
-.fg .int-mirror li.wide { grid-column:1 / -1; }
-.fg .int-mirror .int-tag { text-align:right; font-variant-numeric:tabular-nums; }
-/* the read objects, folded to their sum on a laptop, every row on a wide
-   screen (the grid's three-column query, below) */
-.fg .int-foldrow { display:flex; align-items:center; gap:12px; }
-.fg .int-foldrow > span { flex:1; min-width:0; font-size:14px; color:var(--gray500); }
-.fg .int-foldbtn { display:inline-flex; align-items:center; gap:4px; padding:0; border:0; background:none; font-size:13px; font-weight:600; color:var(--ink); white-space:nowrap; cursor:pointer; }
-.fg .int-foldbtn:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
-.fg .int-mirror + .int-foldrow, .fg .int-foldrow + .int-mirror { margin-top:12px; }
-.fg .int-mirror-done.folded { display:none; }
-
-/* sending: the kinds on one row, what failed, and one line a write */
-.fg .int-kinds { display:flex; flex-wrap:wrap; gap:8px 24px; margin-bottom:12px; }
-.fg .int-kind { display:flex; align-items:center; gap:8px; }
-.fg .int-kind b { font-size:14px; font-weight:600; }
-.fg .int-kind-why { order:3; font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
-.fg .int-wfoot { display:flex; align-items:center; gap:12px; padding-top:8px; border-top:1px solid var(--line); }
-.fg .int-failed { display:flex; align-items:center; gap:12px; margin-left:auto; }
-.fg .int-failed b { font-size:14px; font-weight:600; color:var(--bad-t); }
-/* one grid for the list, each row on its tracks (subgrid), so the state
-   column is as wide as its longest word and every row lines up with it */
-.fg .int-writes { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:minmax(0,2fr) minmax(0,3fr) auto; column-gap:12px; }
-.fg .int-writes li { grid-column:1 / -1; display:grid; grid-template-columns:subgrid; align-items:baseline; padding:8px 0; border-top:1px solid var(--line); }
-.fg .int-writes p { margin:0; font-size:13px; line-height:1.5; color:var(--gray500); }
-.fg .int-writes .int-tag { text-align:right; white-space:nowrap; }
-.fg .int-more { padding:0; border:0; background:none; text-align:left; font-size:13px; font-weight:600; color:var(--ink); cursor:pointer; }
-.fg .int-more:hover { text-decoration:underline; }
-.fg .int-more:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
-
-/* the permissions, one line until opened */
-.fg .int-sm8 .int-perms { padding:0 24px; }
-.fg .int-sm8 .int-perms[open] { padding-bottom:16px; }
-.fg .int-perms > summary { display:flex; align-items:center; gap:4px 16px; padding:16px 0; list-style:none; cursor:pointer; }
-.fg .int-perms > summary::-webkit-details-marker { display:none; }
-.fg .int-perms > summary:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
-.fg .int-perms { container-type:inline-size; }
-.fg .int-perms > summary { flex-wrap:wrap; }
-.fg .int-perms > summary b { flex:1 0 auto; font-size:16px; font-weight:600; }
-.fg .int-perms > summary span { order:3; flex:1 0 100%; min-width:0; font-size:14px; color:var(--gray500); }
-.fg .int-perms > summary i { display:inline-flex; align-items:center; gap:4px; font-style:normal; font-size:13px; font-weight:600; color:var(--ink); white-space:nowrap; }
-.fg .int-perms-ask { margin:0 0 8px; font-size:13px; line-height:1.55; color:var(--gray500); }
-.fg .int-perms-head { margin:16px 0 8px; font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .int-perm-rows { list-style:none; margin:0; padding:0; }
-.fg .int-perm-rows li { display:grid; grid-template-columns:220px minmax(0,1fr) 120px; gap:24px; align-items:baseline; padding:12px 0; border-top:1px solid var(--line); }
-.fg .int-perm-rows code { font-family:var(--mono); font-size:14px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
-.fg .int-perm-rows p { margin:0; font-size:13px; line-height:1.5; color:var(--gray500); }
-.fg .int-perm-rows .int-tag { text-align:right; font-size:13px; }
-/* in the people's column the permission, its state, then its sentence */
-@container (max-width:720px) {
-  .fg .int-perm-rows li { grid-template-columns:minmax(0,1fr) auto; row-gap:4px; }
-  .fg .int-perm-rows p { grid-column:1 / -1; grid-row:2; }
-}
-
-/* ---- ServiceM8 people reconcile (components/integrations/sm8-people-card) ----
-   Import is a review, not a copy: the row IS the preview of what would land,
-   and the editor is where fields get unticked or corrected. Reuses card2 /
-   int-note / int-tag / fl-btn; only the row grid, the field editor and the
-   bulk bar are new. Everything .fg .sp-* so the .fg button/input resets lose. */
-.fg .sp-tools { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; }
-.fg .sp-selall { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--gray500); cursor:pointer; }
-.fg .sp-selall input { width:15px; height:15px; accent-color:var(--ink); }
-.fg .sp-ghostbtn { display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border-radius:var(--r-button); border:0; background:transparent; font-size:13px; font-weight:700; color:var(--gray500); cursor:pointer; }
-.fg .sp-ghostbtn:hover { background:var(--tint); color:var(--gray700); }
-.fg .sp-rows { display:flex; flex-direction:column; }
-.fg .sp-row { border-top:1px solid var(--line); }
-.fg .sp-row:first-child { border-top:0; }
-.fg .sp-row.off .sp-main b { color:var(--gray400); }
-.fg .sp-line { display:flex; align-items:center; gap:12px; padding:12px 0; }
-.fg .sp-check { width:16px; flex:0 0 auto; display:flex; align-items:center; }
-.fg .sp-check input { width:15px; height:15px; accent-color:var(--ink); }
-.fg .sp-main { min-width:0; flex:1; display:flex; flex-direction:column; gap:2px; }
-.fg .sp-main b { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; }
-.fg .sp-main em { font-style:normal; font-size:13px; font-weight:600; color:var(--gray500); overflow-wrap:anywhere; }
-.fg .sp-sug { margin-top:2px; font-size:13px; font-weight:700; color:var(--info-t); }
-/* the name inside "Looks like …" is a word in the sentence, not the row's
-   own flex title that `.sp-main b` makes it */
-.fg .sp-sug b { display:inline; }
-.fg .sp-act { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
-.fg .sp-editor { display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; padding:4px 0 12px 24px; }
-.fg .sp-f { display:flex; flex-direction:column; gap:4px; }
-.fg .sp-f > span { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:500; color:var(--gray500); }
-.fg .sp-f > span input { width:14px; height:14px; accent-color:var(--ink); }
-.fg .sp-f > input { height:38px; padding:0 12px; border-radius:var(--r-control); border:1.5px solid var(--line); background:var(--paper); font-size:14px; font-weight:600; color:var(--gray700); }
-.fg .sp-f > input:focus { outline:none; border-color:var(--ink); }
-.fg .sp-f.out > input { background:var(--tint); color:var(--gray400); }
-.fg .sp-editorfoot { grid-column:1 / -1; display:flex; align-items:center; gap:8px; }
-.fg .sp-linkpick { display:flex; align-items:center; gap:8px; }
-.fg .sp-linkpick select { height:34px; padding:0 8px; border-radius:var(--r-control); border:1.5px solid var(--line); background:var(--paper); font-size:13px; font-weight:700; color:var(--gray700); }
-.fg .sp-bulk { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; padding:12px 12px; border-radius:var(--r-button); background:var(--tint); }
-.fg .sp-bulk > span { font-size:13px; font-weight:700; color:var(--gray500); }
-.fg .sp-linked { margin-top:12px; border-top:1px solid var(--line); padding-top:8px; }
-/* Where an unlink actually belongs, when it isn't this screen. */
-.fg .sp-elsewhere { max-width:230px; font-size:12px; font-weight:600; line-height:1.45; color:var(--gray400); text-align:right; }
-.fg .sp-empty { padding:12px 0; font-size:13px; font-weight:600; color:var(--gray400); }
-
-/* Connect/disconnect guards (components/integrations/connect-actions).
-   The consent warning is quiet and informational; the disconnect confirm is
-   the loud one, because it is the only control in this area that deletes. */
-.fg .int-consent { display:flex; gap:8px; align-items:flex-start; margin:0 0 12px; padding:12px 12px; border-radius:var(--r-button); background:var(--tint); color:var(--gray500); }
-.fg .int-consent svg { flex:0 0 auto; margin-top:1px; color:var(--warn-t); }
-.fg .int-consent p { margin:0; font-size:13px; font-weight:600; line-height:1.55; }
-.fg .int-consent b { font-weight:700; color:var(--gray700); }
-.fg .int-danger { margin:0 0 4px; padding:16px 16px; border-radius:var(--r-card); border:1.5px solid var(--bad); background:var(--bad-tint); }
-.fg .int-danger > b { display:block; font-size:14px; font-weight:700; color:var(--bad-t); }
-.fg .int-danger ul { margin:8px 0 0; padding-left:16px; }
-.fg .int-danger li { margin-top:4px; font-size:13px; font-weight:600; line-height:1.55; color:var(--gray600, var(--gray500)); }
-.fg .int-danger .int-hint { margin:8px 0 0; }
-.fg .int-danger .int-act { margin-top:12px; }
-.fg .int-typed { display:flex; flex-direction:column; gap:4px; margin-top:12px; }
-.fg .int-typed > span { font-size:12px; font-weight:700; color:var(--gray500); }
-.fg .int-typed > span b { font-weight:700; color:var(--gray700); }
-.fg .int-typed input { height:40px; padding:0 12px; border-radius:var(--r-control); border:1.5px solid var(--line); background:var(--paper); font-size:14px; font-weight:600; color:var(--gray700); }
-.fg .int-typed input:focus { outline:none; border-color:var(--bad); }
 
 /* ---- Organisation screen (components/org/) ----
    Additive: the company profile reuses .card2 / .idc / .cred wholesale, and

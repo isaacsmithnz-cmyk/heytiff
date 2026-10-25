@@ -151,6 +151,8 @@ async function ownerCtx(): Promise<{ orgId: string; userId: string } | { error: 
 }
 
 function refresh(provider: ImportProvider) {
+  // Settings › Integrations, one page for both apps since 25 October 2026
+  revalidatePath("/dashboard/admin/integrations");
   revalidatePath(`/dashboard/admin/integrations/${provider}`);
   revalidatePath("/dashboard/team");
   // A Xero import creates the same payroll link the Time & Pay screen reads.

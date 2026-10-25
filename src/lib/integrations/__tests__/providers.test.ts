@@ -1,10 +1,4 @@
-import {
-  missingScopes,
-  providerById,
-  PROVIDERS,
-  XERO_SCOPES,
-  XERO_SCOPE_LIST,
-} from "../providers";
+import { missingScopes, XERO_SCOPES, XERO_SCOPE_LIST } from "../providers";
 
 /* The registry is what the consent URL, the screen and this suite all read, so
    these tests pin the things that would silently diverge: a scope asked for
@@ -12,21 +6,14 @@ import {
    matters most — a WRITE scope appearing in what is documented as a read-only
    integration. */
 
-describe("PROVIDERS", () => {
-  it("has unique ids and finds them", () => {
-    const ids = PROVIDERS.map((p) => p.id);
-    expect(new Set(ids).size).toBe(ids.length);
-    expect(providerById("xero")?.name).toBe("Xero");
-    expect(providerById("nope")).toBeUndefined();
-  });
-
+describe("XERO_SCOPES", () => {
+  /* the area beside each permission is what Settings › Integrations says
+     Xero is for, before anyone presses Connect */
   it("promises only what is actually wired — Expenses joins when its read exists", () => {
-    const areas = providerById("xero")!.uses.map((u) => u.area);
+    const areas = [...new Set(XERO_SCOPES.map((s) => s.area).filter(Boolean))];
     expect(areas).toEqual(["Time & Pay", "Rate Calculator"]);
   });
-});
 
-describe("XERO_SCOPES", () => {
   it("lists every scope exactly once", () => {
     expect(new Set(XERO_SCOPE_LIST).size).toBe(XERO_SCOPE_LIST.length);
   });

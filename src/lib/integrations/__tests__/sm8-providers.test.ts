@@ -9,7 +9,6 @@
 import {
   missingScopes,
   missingScopesFor,
-  PROVIDERS,
   SM8_SCOPE_LIST,
   SM8_SCOPES,
   SM8_WRITE_KIND_SCOPES,
@@ -123,13 +122,6 @@ describe("the ServiceM8 ask is exactly the read set", () => {
 
   it("holds no duplicates", () => {
     expect(new Set(SM8_SCOPE_LIST).size).toBe(SM8_SCOPE_LIST.length);
-  });
-
-  it("registers the provider row the index renders", () => {
-    const p = PROVIDERS.find((x) => x.id === "servicem8");
-    expect(p).toBeDefined();
-    expect(p!.icon).toBe("servicem8");
-    expect(p!.uses.length).toBeGreaterThan(0);
   });
 });
 

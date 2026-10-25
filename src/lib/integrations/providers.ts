@@ -1,96 +1,19 @@
-/* The connected-app registry — pure data, no server imports, so the screens,
-   the routes and the tests all read the SAME list.
+/* What each connected app is asked for — pure data, no server imports, so
+   the screen, the routes and the tests all read the SAME list. Every
+   permission carries the area it serves and the sentence an owner would
+   accept, because Settings › Integrations shows them before anyone presses
+   Connect: an integrations page that says "connect Xero" without saying what
+   for is asking for a grant on trust.
 
-   Adding an app is one entry here plus its own lib module, the way the toolbox
-   registry (components/toolbox/tools.ts) and the admin index already work.
-
-   Xero is first because it is where a trade business's money already lives.
-   The three things it is here to power are named in `powers` and repeated on
-   the screen — an integrations page that says "connect Xero" without saying
-   what for is asking for a grant on trust. */
+   (The list of apps itself, with a blurb and an icon per app, went with the
+   Integrations index on 25 October 2026: the apps are the section's groups
+   now, ServiceM8 then Xero.) */
 
 /* the two booking permissions' sentences, from the words module that
    imports nothing (sm8-booking-words), so this file stays pure data */
 import { BOOKING_WORDS } from "./sm8-booking-words";
 import { JOB_WORDS } from "./sm8-job-words";
 import { QUOTE_WORDS } from "./sm8-quote-words";
-
-export type ProviderId = "xero" | "servicem8";
-
-export type ProviderStatus = "live" | "planned";
-
-/** What a connected app is here to feed, in the order we intend to wire it. */
-export type ProviderUse = {
-  /** The HeyTiff surface it lands in. */
-  area: string;
-  /** What flows, in one line. */
-  detail: string;
-};
-
-export type Provider = {
-  id: ProviderId;
-  name: string;
-  /** One line for the index row. */
-  blurb: string;
-  icon: string;
-  /** Icon-chip accent, the way the admin index and nav tint theirs. */
-  accent: string;
-  status: ProviderStatus;
-  uses: ProviderUse[];
-};
-
-/* Each provider's own blue. Used the way every other accent here is — as a
-   ~10% chip tint behind an in-house stroke glyph — not as a reproduction of
-   their marks. */
-const XERO_BLUE = "#13B5EA";
-const SM8_BLUE = "#00A8E0";
-
-export const PROVIDERS: Provider[] = [
-  {
-    id: "xero",
-    name: "Xero",
-    blurb: "Accounting, payroll & bills — the books this business already keeps",
-    icon: "xero",
-    accent: XERO_BLUE,
-    status: "live",
-    uses: [
-      {
-        area: "Time & Pay",
-        detail:
-          "Match staff here to their Xero payroll employees, read the pay calendar the business actually runs on, and notice when a pay rate changes in Xero.",
-      },
-      {
-        area: "Rate Calculator",
-        detail:
-          "Real overhead totals from the profit & loss, instead of the business costs being typed in from memory once a year.",
-      },
-    ],
-  },
-  {
-    id: "servicem8",
-    name: "ServiceM8",
-    blurb: "Jobs, clients & schedules — where the day's work already lives",
-    icon: "servicem8",
-    accent: SM8_BLUE,
-    status: "live",
-    uses: [
-      {
-        area: "Workboard",
-        detail:
-          "Projects and maintenance link straight to real jobs — job numbers, clients, addresses, booked times — instead of anyone retyping them.",
-      },
-      {
-        area: "Maintenance radar",
-        detail:
-          "Upcoming and overdue services show against the client and site ServiceM8 already knows, and a linked job completing marks the visit done here.",
-      },
-    ],
-  },
-];
-
-export function providerById(id: string): Provider | undefined {
-  return PROVIDERS.find((p) => p.id === id);
-}
 
 /* ── Xero scopes ───────────────────────────────────────────────────────────
 

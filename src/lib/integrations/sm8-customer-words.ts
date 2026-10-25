@@ -43,7 +43,7 @@ export const CUSTOMER_WORDS = {
     customers: "Customer details",
     customersGroup: "Saving customer details to ServiceM8",
     customersConsent:
-      "ServiceM8 hasn't given HeyTiff permission to change customers yet, so no change can go. Reconnect ServiceM8 above and approve it on ServiceM8's screen.",
+      "ServiceM8 hasn't given HeyTiff permission to change customers yet, so no change can go. Reconnect ServiceM8 below and approve it on ServiceM8's screen.",
     customersOffOne: "Customer details are off. 1 change that was waiting won't go.",
     customersOffMany: "Customer details are off. {n} changes that were waiting won't go.",
     customersUnavailable: "Customer details can't be saved to ServiceM8 from this deployment yet.",

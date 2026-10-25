@@ -49,7 +49,7 @@ export const QUOTE_WORDS = {
     quotes: "Accepted quotes",
     quotesGroup: "Sending accepted quotes to ServiceM8",
     quotesConsent:
-      "ServiceM8 hasn't given HeyTiff permission to change a job's lines yet, so no quote can go. Reconnect ServiceM8 above and approve it on ServiceM8's screen.",
+      "ServiceM8 hasn't given HeyTiff permission to change a job's lines yet, so no quote can go. Reconnect ServiceM8 below and approve it on ServiceM8's screen.",
     quotesOffOne: "Accepted quotes are off. 1 change that was waiting won't go.",
     quotesOffMany: "Accepted quotes are off. {n} changes that were waiting won't go.",
     quotesUnavailable: "Accepted quotes can't be sent to ServiceM8 from this deployment yet.",

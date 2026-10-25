@@ -1952,21 +1952,36 @@ describe("the job's once-per-job acts", () => {
     expect(createProjectFromJob).not.toHaveBeenCalled();
   });
 
-  /* the walk of 25 October 2026: Money waited 20 seconds for the record */
-  it("shows the job's value in Money at once, from the row, and only the paid word waits", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
+  /* the walk of 25 October 2026: Money waited 20 seconds for the record;
+     and a figure must never be replaced by a different one */
+  const jobMoney = { valueCents: 1383376, invoiced: true, invoicedOn: "2026-10-20", quoteSent: true, quoteSentOn: null, paid: false, paidOn: null };
+  const rowMoney = (paidCents: number) =>
+    ({ valueCents: 1383376, paidCents, collection: paidCents > 0 ? "part" : "none", quoteSent: true, quoteSentOn: null }) as never;
+  const moneyCell = async (cards: number | null, paidCents: number) => {
+    readMirrorJob.mockResolvedValueOnce({ ...card(detail({ money: jobMoney } as never)), cards } as never);
     readJobRecord.mockReturnValueOnce(new Promise(() => undefined));
-    render(
-      <Job
-        row={row({ money: { valueCents: 1383376, paidCents: 0, collection: "none", quoteSent: true, quoteSentOn: null } as never })}
-        {...props}
-        moneyVisible
-      />
-    );
+    const view = render(<Job row={row({ money: rowMoney(paidCents) })} {...props} moneyVisible />);
     await detailLanded();
-    const cell = within(screen.getByRole("region", { name: "Money" }));
+    return { cell: within(screen.getByRole("region", { name: "Money" })), unmount: view.unmount };
+  };
+
+  it("shows a one-card job's value in Money at once, nothing paid, and only the paid word waits", async () => {
+    const { cell } = await moneyCell(1, 0);
     expect(cell.getByText("$13,833.76")).toHaveClass("jov-fig");
     expect(cell.getByText("Reading the payments")).toHaveClass("jov-cap");
+  });
+
+  it("waits for the record where the figure may change: a job billed across cards, or one something is paid on", async () => {
+    let m = await moneyCell(3, 0);
+    expect(m.cell.getByText("Reading the figures")).toBeInTheDocument();
+    expect(m.cell.queryByText("$13,833.76")).toBeNull();
+    m.unmount();
+    m = await moneyCell(1, 450000);
+    expect(m.cell.getByText("Reading the figures")).toBeInTheDocument();
+    expect(m.cell.queryByText("$13,833.76")).toBeNull();
+    m.unmount();
+    m = await moneyCell(null, 0);
+    expect(m.cell.getByText("Reading the figures")).toBeInTheDocument();
   });
 
   it("names the board a tracked job is on, under the strip of facts, and that is the door", async () => {

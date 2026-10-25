@@ -120,6 +120,7 @@ async function notesViewer(orgId: string, userId: string): Promise<NotesViewer> 
 import {
   readJobTracked,
   readMirrorJobDetail,
+  familyCardCount,
   readMirrorJobRow,
   searchAllMirrorJobs,
   type MirrorJobDetail,
@@ -479,6 +480,9 @@ export type JobCardRead = {
   /** Set when the row asked for was a progress CLAIM: the card is its parent
       and this is the claim to land on. Null for a job opened as itself. */
   focusRemoteId: string | null;
+  /** How many cards ServiceM8 bills the job across, for a reader who sees
+      money (familyCardCount); null otherwise, or when it can't be told. */
+  cards?: number | null;
 };
 
 export async function readMirrorJob(remoteId: string): Promise<JobCardRead> {
@@ -502,12 +506,19 @@ export async function readMirrorJob(remoteId: string): Promise<JobCardRead> {
     can("workboard_money"),
     can("studio"),
   ]);
-  const detail = await readMirrorJobDetail(ctx.orgId, target.parentRemoteId, today, {
-    includeMoney,
-    includeDesigns,
-    timezone,
-  });
-  return { detail, focusRemoteId: target.focusRemoteId };
+  const [detail, cards] = await Promise.all([
+    readMirrorJobDetail(ctx.orgId, target.parentRemoteId, today, {
+      includeMoney,
+      includeDesigns,
+      timezone,
+    }),
+    includeMoney
+      ? Promise.resolve()
+          .then(() => familyCardCount(ctx.orgId, target.parentRemoteId))
+          .catch(() => null)
+      : Promise.resolve(null),
+  ]);
+  return { detail, focusRemoteId: target.focusRemoteId, cards };
 }
 
 /** THE ROW A CARD OPENS ON, from a job's uuid alone. A door on the new Home

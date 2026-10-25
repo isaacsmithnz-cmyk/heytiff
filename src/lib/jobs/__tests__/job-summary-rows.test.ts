@@ -128,6 +128,25 @@ describe("a pick list, as the office writes one", () => {
   });
 });
 
+describe("a line with nothing under it, in a bulleted description", () => {
+  it("is a plain row in the group it sits in, never dropped; only the first line over the rest goes", () => {
+    const groups = summaryFromText(
+      "Pick List\nUpstairs\n* Ducted indoor PEAD-m71jaad\nWill require 2 x site visits\nDownstairs\n* High wall\nCall Damian before the second visit",
+    );
+    expect(groups.map((g) => [g.title, g.rows.map((r) => r.thing)])).toEqual([
+      ["Upstairs", ["Ducted indoor", "Will require 2 x site visits"]],
+      ["Downstairs", ["High wall", "Call Damian before the second visit"]],
+    ]);
+  });
+
+  it("keeps a line before any group, after the first, as a plain row of its own", () => {
+    expect(summaryFromText("Pick List\nAccess via the loading dock\nUpstairs\n* Ducted indoor").map((g) => [g.title, g.rows.map((r) => r.thing)])).toEqual([
+      [null, ["Access via the loading dock"]],
+      ["Upstairs", ["Ducted indoor"]],
+    ]);
+  });
+});
+
 describe("a model code", () => {
   it("is five or more letters and digits, as makers write them", () => {
     for (const c of ["PEAD-m71jaad", "SUZ-m71vad2-a", "41maam", "MSZ-AP25VGKD2-A2", "RXV71WVMA"]) expect(isModelCode(c)).toBe(true);

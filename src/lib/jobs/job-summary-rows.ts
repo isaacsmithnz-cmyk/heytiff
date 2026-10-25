@@ -61,10 +61,11 @@ export function summaryFromQuote(lines: readonly Line[], accepted: readonly numb
 
 /* THE DESCRIPTION, AS THE OFFICE WRITES ONE (the walk of 25 October 2026,
    job 3385's "Pick List"): a line with no bullet is a group's heading, the
-   bulleted lines under it are its rows, and a heading with nothing under it
-   ("Pick List") says nothing. A model code in a row moves to the right,
-   grey and in capitals: "Wall controller - 41maam" is "Wall controller"
-   with 41MAAM. A description with no bullet at all is the older kind: its
+   bulleted lines under it are its rows, and a line with nothing under it is
+   a plain row of the group it sits in, except the description's first line,
+   a title over the rest ("Pick List"), which says nothing. A model code in
+   a row moves to the right, grey and in capitals: "Wall controller -
+   41maam" is "Wall controller" with 41MAAM. A description with no bullet at all is the older kind: its
    own "Heading:" lines over its lines, or its lines as plain rows. */
 const BULLET = /^(?:\*{1,2}|[-•·–])\s*/;
 const NUMBERED = /^\d+[.)]\s+/;
@@ -134,6 +135,22 @@ export function summaryFromText(text: string | null | undefined): SummaryGroup[]
     const words = raw.replace(bulleted ? BULLET : NUMBERED, "").replace(BULLET, "");
     if (words.trim()) cur.rows.push({ key: `d:${i}`, ...rowOf(words) });
   });
-  /* a heading the description left empty says nothing */
-  return groups.filter((g) => g.rows.length > 0);
+  if (!bulleted) return groups.filter((g) => g.rows.length > 0);
+  /* A LINE WITH NOTHING UNDER IT is the description's own words, not a
+     heading, and stays as a plain row in the group it sits in: dropping
+     real text with no way to see it is worse (25 October 2026). Only the
+     description's first line, a title over the rest ("Pick List"), goes. */
+  const out: SummaryGroup[] = [];
+  groups.forEach((g, i) => {
+    if (g.rows.length > 0 || g.title === null) {
+      if (g.rows.length > 0) out.push(g);
+      return;
+    }
+    if (i === 0 && g.key === "d:0") return;
+    const row = { key: g.key, ...rowOf(g.title) };
+    const last = out.at(-1);
+    if (last) last.rows.push(row);
+    else out.push({ key: g.key, title: null, rows: [row] });
+  });
+  return out;
 }

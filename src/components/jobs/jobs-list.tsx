@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/parts/button";
 import { Chooser, type ChooserOption } from "@/components/parts/chooser";
 import { Empty } from "@/components/parts/states";
@@ -13,6 +13,7 @@ import { RecordLink } from "@/components/records/record-link";
 import { sm8Gap } from "@/components/workboard/board/sm8-gap";
 import { fmtAud } from "@/lib/workboard/project-money";
 import type { JobsListData } from "@/lib/workboard/jobs-list-query";
+import { unpackRows, type PackedRow } from "@/lib/workboard/jobs-list-wire";
 import {
   ANYONE,
   NOBODY,
@@ -152,6 +153,13 @@ function Nothing({
    on what is drawn. A change of view, person, sort or search starts again at
    a hundred. */
 export const JOBS_PAGE = 100;
+
+/** The page's door: the rows come packed (lib/workboard/jobs-list-wire) and
+    are unpacked once, here, into the rows everything else reads. */
+export function JobsListPage({ data, initial }: { data: Omit<JobsListData, "rows"> & { rows: PackedRow[] }; initial: ListState }) {
+  const rows = useMemo(() => unpackRows(data.rows), [data.rows]);
+  return <JobsList data={{ ...data, rows }} initial={initial} />;
+}
 
 export function JobsList({ data, initial }: { data: JobsListData; initial: ListState }) {
   const [state, setState] = useState<ListState>(initial);

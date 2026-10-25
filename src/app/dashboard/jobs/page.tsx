@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { can } from "@/lib/permissions-server";
 import { loadJobsList } from "@/lib/workboard/jobs-list-query";
 import { readListState } from "@/lib/workboard/jobs-list";
-import { JobsList } from "@/components/jobs/jobs-list";
+import { JobsListPage } from "@/components/jobs/jobs-list";
+import { packRows } from "@/lib/workboard/jobs-list-wire";
 
 /* JOBS, the list (v2, step 5; docs/plans/layout-2026-10, the board
    v2-board-jobs). Today's Workboard All jobs, Projects and Maintenance
@@ -22,5 +23,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Params 
   const data = await loadJobsList();
   if (!data) redirect("/dashboard");
   const initial = readListState(await searchParams, data.moneyVisible);
-  return <JobsList data={data} initial={initial} />;
+  /* every job's row goes to the browser for the views and the search,
+     packed (lib/workboard/jobs-list-wire) */
+  return <JobsListPage data={{ ...data, rows: packRows(data.rows) }} initial={initial} />;
 }

@@ -296,7 +296,7 @@ https://claude.ai/artifact/BH6voDn1axdk96JZCCUSTf).
 
 Three of his calls on the job page (25 October 2026; the first two on his
 mock https://claude.ai/artifact/GL43j32Z8xBo3CXekExHuF, the third on the
-refined Overview A).
+refined Overview A, https://claude.ai/artifact/SGFpbThni6YZF6HU3SZpPL).
 
 - **Materials' groups have their icons in colour** (`.jm-ic`), despite old
   law 31, colour only where it means something. "Now just put some color or

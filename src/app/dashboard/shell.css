@@ -6348,11 +6348,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .wb2-recdot { width:10px; height:10px; border-radius:50%; background:var(--bad); flex:none; animation:fgPulse 1.6s ease-in-out infinite; }
 @media (prefers-reduced-motion:reduce) { .wb2-recdot { animation:none; } }
 .wb2-capact { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:12px; flex-wrap:wrap; }
-
-/* A quiet line under a row: when a note on my notes was made and how, and an
-   entry's heading in the Library's queue. It was the review card's "said:"
-   first, and outlived that card (2026-09-27). */
-.wb2-capsaid { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); white-space:nowrap; }
 .wb2-caprec { display:flex; flex-direction:column; align-items:center; gap:8px; padding:12px 0 2px; }
 
 /* ── where the field stands ──
@@ -6604,67 +6599,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
   background:var(--tint-2); color:var(--ink); }
 .wb2-scopemark.out { background:var(--bad-tint); color:var(--bad-t); }
 @media (max-width:800px) { .wb2-scope { grid-template-columns:1fr; } .wb2-moneyrow { grid-template-columns:minmax(0,1fr) auto; } }
-
-/* ---- Tax & EOFY (components/tax/) ----
-   Reuses the admin index's shell wholesale (.adm-card / .emptybox)
-   — a settings-section screen should not invent a second card. What is new is
-   only what a year of spending needs: a year picker, three headline figures, a
-   category strip, and a row that ends in whether the receipt exists.
-
-   Semantic colour only, never the page accent: ok #00A389, warn amber. The one
-   thing this screen must be able to shout is a MISSING receipt, and it does it
-   in the same amber every other caution in the app uses. */
-/* `.tx-years` — the year picker's own pill family — is gone: the years ride
-   the board's tab strip (`shell/board-tabs`) above the one card. Only the
-   quiet "so far" tag on the running year survives, restyled for a tab. */
-.fg .wb2-vt .tx-sofar { font-style:normal; font-size:12px; font-weight:700; color:var(--q); }
-
-.fg .tx-sumrow { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:0 0 16px; }
-.fg .tx-stat { display:flex; flex-direction:column; gap:4px; padding:16px 16px; border-radius:var(--r-card); background:var(--paper); border:1px solid var(--line); }
-.fg .tx-statlab { font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .tx-statval { font-size:24px; font-weight:700; color:var(--ink); }
-.fg .tx-statsub { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
-.fg .tx-stat.ok .tx-statval { color:var(--ok-t); }
-.fg .tx-stat.warn { border-color:var(--warn); background:var(--warn-tint); }
-.fg .tx-stat.warn .tx-statval, .fg .tx-stat.warn .tx-statsub { color:var(--warn-t); }
-
-.fg .tx-note { display:flex; align-items:flex-start; gap:8px; margin:0 0 12px; padding:12px 12px; border-radius:var(--r-card); background:var(--warn-tint); font-size:13px; font-weight:600; line-height:1.5; color:var(--warn-t); }
-.fg .tx-note .i { flex:none; margin-top:1px; }
-
-.fg .tx-cats { margin:0 0 32px; }
-.fg .tx-cat { display:flex; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid var(--line); }
-.fg .tx-cat:first-child { border-top:0; }
-.fg .tx-catname { flex:1; min-width:0; font-size:14px; font-weight:700; color:var(--ink); }
-.fg .tx-catcount { flex:none; min-width:26px; font-size:12px; font-weight:700; color:var(--gray500); text-align:right; }
-.fg .tx-catgst { flex:none; font-size:12px; font-weight:600; color:var(--gray400); }
-.fg .tx-catamt { flex:none; min-width:92px; text-align:right; font-size:14px; font-weight:700; color:var(--ink); }
-
-.fg .tx-listhead { display:flex; align-items:center; gap:12px; margin:0 0 12px; }
-.fg .tx-listhead h2 { flex:1; margin:0; font-size:16px; font-weight:700; color:var(--ink); }
-
-.fg .tx-item { display:flex; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid var(--line); }
-.fg .tx-item:first-child { border-top:0; }
-.fg .tx-ic { flex:none; display:inline-flex; align-items:center; justify-content:center; color:var(--ink); }
-.fg .tx-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
-.fg .tx-main b { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; color:var(--ink); }
-.fg .tx-main em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.fg .tx-flag { flex:none; font-size:12px; font-weight:500; color:var(--warn-t); }
-.fg .tx-amt { flex:none; display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
-.fg .tx-amt b { font-size:14px; font-weight:700; color:var(--ink); }
-.fg .tx-amt em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
-
-/* The row's verdict. An anchor when there is something to open, a span when
-   there is not — so the amber one is deliberately not clickable. */
-.fg .tx-rcpt { flex:none; display:inline-flex; align-items:center; gap:4px; min-width:96px; padding:4px 12px; border-radius:var(--r-button); background:var(--tint); font-size:12px; font-weight:700; color:var(--ink); text-decoration:none; transition:background var(--t-fast) var(--ease); }
-.fg a.tx-rcpt:hover { background:var(--tint-2); }
-.fg .tx-rcpt.none { background:var(--warn-tint); color:var(--warn-t); }
-
-@media (max-width:700px){
-  .fg .tx-sumrow { grid-template-columns:1fr; }
-  .fg .tx-catgst { display:none; }
-  .fg .tx-item { flex-wrap:wrap; }
-  .fg .tx-rcpt { min-width:0; }
-}
 
 /* ---- correcting a log entry ----
    Unscoped, like the rest of the fleet modal block: these render inside the
@@ -7596,14 +7530,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    those classes any more, and dead rules in this stylesheet have shadowed
    live components at equal specificity twice, so they are removed rather
    than left for the next person to trip over. */
-
-/* ── the KB curation queue ── */
-.wb2-kbqrow { display:grid; gap:8px; padding:16px 16px; border-bottom:1px solid var(--line); }
-.wb2-kbqrow:last-child { border-bottom:0; }
-.wb2-kbqhead { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.wb2-kbqhead b { font-size:14px; font-weight:700; color:var(--ink); }
-.wb2-kbqbody { margin:0; font-size:13px; line-height:1.55; color:var(--gray700); max-width:70ch; }
-.wb2-kbqrow .wb2-noteact { justify-content:flex-start; }
 
 /* ── the caret ──
    An answer still arriving ends in it: the Tiff modal's, as Tiff's answer

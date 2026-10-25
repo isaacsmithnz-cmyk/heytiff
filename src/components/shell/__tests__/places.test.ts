@@ -50,6 +50,9 @@ describe("the sidebar's places (rules 5 and 7)", () => {
     const keys = (caps: string[], role: "owner" | "admin" | "staff") => placesFor(YOURS, viewer(caps, role)).map((p) => p.key);
     expect(keys([], "staff")).toEqual(["card", "timesheet", "leave", "expenses", "mynotes"]);
     expect(keys(["workboard_money"], "admin")).toEqual(["card", "timesheet", "leave", "expenses", "mynotes", "reports", "settings"]);
+    // Tax and EOFY is a view in Reports, the business's money
+    expect(keys(["financials"], "admin")).toEqual(["card", "timesheet", "leave", "expenses", "mynotes", "reports", "settings"]);
+    expect(keys(["team"], "admin")).not.toContain("reports");
   });
 
   /* Your vehicle only for someone with one assigned (Isaac, 24 October 2026) */

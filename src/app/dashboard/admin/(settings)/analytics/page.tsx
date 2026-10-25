@@ -6,16 +6,17 @@ import { getSm8Timezone } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
 import { periodSpan, spanBefore } from "@/lib/analytics/job-analytics";
 import { readAnalyticsJobs, readAnalyticsSettings, readCategories, readClientNames } from "@/lib/analytics/analytics-query";
-import { AnalyticsSettingsScreen, type ClientView } from "@/components/admin/analytics-settings-screen";
+import { ReportsSection, type ClientView } from "@/components/settings/reports-section";
 
-/* Admin, Analytics — how the business's jobs are counted (Isaac, 2026-10-07:
-   "Settings options maybe?"; src/lib/analytics/settings.ts). Gated by
-   `workboard_money`, the Analytics page's own grant: every setting moves a
-   figure of job money. The jobs of the last two years are read for what a
-   setting stands in for: the clients whose cards are bookings, and the age
-   ServiceM8 closes an unanswered Quote at. */
+/* Settings › Reports (it was Admin, Analytics) — how the business's jobs are
+   counted (Isaac, 2026-10-07: "Settings options maybe?";
+   src/lib/analytics/settings.ts). Gated by `workboard_money`, the Reports
+   page's own grant: every setting moves a figure of job money. The jobs of
+   the last two years are read for what a setting stands in for: the clients
+   whose cards are bookings, and the age ServiceM8 closes an unanswered
+   Quote at. The section's body only: the frame is (settings)/layout.tsx. */
 
-export default async function AnalyticsSettingsPage() {
+export default async function ReportsSettingsPage() {
   const session = await auth0.getSession();
   if (!session) redirect("/auth/login");
   if (!(await can("workboard_money"))) redirect("/dashboard");
@@ -42,9 +43,10 @@ export default async function AnalyticsSettingsPage() {
   ];
 
   return (
-    <AnalyticsSettingsScreen
+    <ReportsSection
       initial={settings}
       ready={ready}
+      connected={connected !== null}
       categories={categories.map((c) => ({ ...c, jobs: found?.byCategory[c.uuid] ?? 0 }))}
       clients={clients}
       closeAge={found?.closeAge ?? null}

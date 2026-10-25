@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render as draw, screen, waitFor, within } from "@te
 import userEvent from "@testing-library/user-event";
 import { Library, type KbLibraryDoc, type KbQuotaView } from "../library";
 import type { KbTagRef } from "@/lib/tiff/tags";
+import type { FieldNoteRow } from "@/lib/tiff/field-notes";
 import { KB_CATEGORIES } from "../kb";
 
 /* THE LIBRARY LANDS ON ITS SHELVES (Isaac, 20 October), so a test about a
@@ -58,6 +59,14 @@ jest.mock("@/app/actions/kb-tags", () => ({
   createKbTag: (...a: unknown[]) => createKbTag(...(a as [])),
   updateKbTag: (...a: unknown[]) => updateKbTag(...(a as [])),
   deleteKbTag: (...a: unknown[]) => deleteKbTag(...(a as [])),
+}));
+
+/* Knowledge from the field's two verbs, "use server" like the rest */
+const markFieldNoteReviewed = jest.fn();
+const removeFieldNote = jest.fn();
+jest.mock("@/app/actions/kb-review", () => ({
+  markFieldNoteReviewed: (...a: unknown[]) => markFieldNoteReviewed(...(a as [])),
+  removeFieldNote: (...a: unknown[]) => removeFieldNote(...(a as [])),
 }));
 
 const start = jest.fn();
@@ -1284,3 +1293,99 @@ describe("looking a model up on Manufacturer specs", () => {
   });
 });
 
+
+/* KNOWLEDGE FROM THE FIELD (25 October 2026; it was Admin's): for an admin,
+   Field notes has a second view, To look over, the notes nobody has looked
+   over yet, a row each with Looks right on the right; the row opens the
+   whole note, where Take it down is. While one waits, the view's word and
+   the shelf's are amber, and nothing carries a number. */
+describe("knowledge from the field", () => {
+  const note = (over: Partial<FieldNoteRow> = {}): FieldNoteRow => ({
+    id: "n-1",
+    title: "Daikin VRV needs the long purge",
+    body: "Purge the indoor for ten minutes before the first run, or the EEV hunts.",
+    heading: "Learned on the job — Alex L, Tue 20 Oct, at Meridian Data",
+    authorName: "Alex L",
+    createdAt: "2026-10-20T02:00:00Z",
+    ...over,
+  });
+  const notes = [doc({ id: "n-1", category: "field", kind: "NOTE", title: "Daikin VRV needs the long purge", source: "Alex L", fileName: null, storageRef: null })];
+
+  beforeEach(() => {
+    markFieldNoteReviewed.mockResolvedValue({ ok: true });
+    removeFieldNote.mockResolvedValue({ ok: true });
+    window.history.replaceState(null, "", "/dashboard/tiff/library");
+  });
+
+  it("puts Field notes' word in amber on the landing while something waits, with no number", () => {
+    render(<Library docs={notes} review={[note()]} />, { landing: true });
+    const shelf = catBtn("Field notes");
+    expect(shelf.querySelector("b")).toHaveClass("lb2-cat-look");
+    expect(shelf).toHaveAccessibleName(/^Field notes ?, something to look over/);
+    expect(shelf.querySelector("b")!.textContent).not.toMatch(/\d/);
+  });
+
+  it("is plain once nothing waits", () => {
+    render(<Library docs={notes} review={[]} />, { landing: true });
+    expect(catBtn("Field notes").querySelector("b")).not.toHaveClass("lb2-cat-look");
+  });
+
+  it("gives an admin's Field notes two soft tabs, To look over in amber, and the address follows", async () => {
+    render(<Library docs={notes} review={[note()]} initialCategory="field" />);
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["All notes", "To look over, something to look at"]);
+    expect(screen.getByRole("tab", { name: /^To look over/ })).toHaveClass("pt-vtab--look");
+    expect(screen.getByRole("tab", { name: "All notes" })).toHaveAttribute("aria-selected", "true");
+    await userEvent.click(screen.getByRole("tab", { name: /^To look over/ }));
+    expect(window.location.search).toBe("?cat=field&view=review");
+    expect(screen.getByRole("list", { name: "To look over" })).toBeInTheDocument();
+    // what to look over isn't searched: the bar is All notes'
+    expect(screen.queryByLabelText("Search documents")).not.toBeInTheDocument();
+  });
+
+  it("lands on what's to look over from the old address's redirect", () => {
+    render(<Library docs={notes} review={[note()]} initialView="review" />);
+    expect(screen.getByRole("heading", { level: 1, name: "Field notes" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /^To look over/ })).toHaveAttribute("aria-selected", "true");
+    const row = within(screen.getByRole("list", { name: "To look over" })).getAllByRole("listitem")[0]!;
+    expect(row).toHaveTextContent("Daikin VRV needs the long purge");
+    expect(row).toHaveTextContent("Alex L, Tue 20 Oct: Purge the indoor for ten minutes");
+    expect(within(row).getByRole("button", { name: "Looks right: Daikin VRV needs the long purge" })).toHaveClass("pt-btn--second");
+  });
+
+  it("takes a note off the list when it looks right, and the amber with it", async () => {
+    render(<Library docs={notes} review={[note()]} initialView="review" />);
+    await userEvent.click(screen.getByRole("button", { name: "Looks right: Daikin VRV needs the long purge" }));
+    expect(markFieldNoteReviewed).toHaveBeenCalledWith("n-1");
+    expect(await screen.findByText("Nothing new from the field to look over")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "To look over" })).not.toHaveClass("pt-vtab--look");
+  });
+
+  it("opens the whole note, where it can be taken down", async () => {
+    render(<Library docs={notes} review={[note()]} initialView="review" />);
+    await userEvent.click(screen.getByRole("button", { name: "Daikin VRV needs the long purge" }));
+    const dialog = screen.getByRole("dialog", { name: "Daikin VRV needs the long purge" });
+    expect(dialog).toHaveTextContent("Learned on the job — Alex L, Tue 20 Oct, at Meridian Data");
+    expect(dialog).toHaveTextContent("or the EEV hunts.");
+    const down = within(dialog).getByRole("button", { name: "Take it down" });
+    expect(down).toHaveClass("pt-btn--delete");
+    expect(within(dialog).getByRole("button", { name: "Looks right" })).toHaveClass("pt-btn--main");
+    await userEvent.click(down);
+    expect(removeFieldNote).toHaveBeenCalledWith("n-1");
+    expect(await screen.findByText("Nothing new from the field to look over")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("says why, in red, when a verb is refused, and keeps the note", async () => {
+    markFieldNoteReviewed.mockResolvedValueOnce({ ok: false, error: "That entry is already gone." });
+    render(<Library docs={notes} review={[note()]} initialView="review" />);
+    await userEvent.click(screen.getByRole("button", { name: "Looks right: Daikin VRV needs the long purge" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("That entry is already gone.");
+    expect(screen.getByText("Daikin VRV needs the long purge")).toBeInTheDocument();
+  });
+
+  it("is an admin's: anyone else's Field notes has no tabs, and the address can't open it", () => {
+    render(<Library docs={notes} initialView="review" initialCategory="field" />);
+    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "To look over" })).not.toBeInTheDocument();
+  });
+});

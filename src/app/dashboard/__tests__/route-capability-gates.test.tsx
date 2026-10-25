@@ -46,6 +46,10 @@ jest.mock("@/lib/tiff/tags-query", () => ({
   ensureKbSeedTags: jest.fn(async () => {}),
 }));
 jest.mock("@/lib/tiff/large", () => ({ kbLargeAllowance: async () => null }));
+/* Knowledge from the field, the Library's (25 October 2026) */
+const NOTE = { id: "n-1", title: "Daikin VRV needs the long purge", body: "Purge for ten minutes.", heading: null, authorName: "Alex L", createdAt: "2026-10-20T02:00:00Z" };
+const listUnreviewedFieldNotes = jest.fn(async () => [NOTE]);
+jest.mock("@/lib/tiff/field-notes", () => ({ listUnreviewedFieldNotes: () => listUnreviewedFieldNotes() }));
 jest.mock("@/lib/tiff/quota", () => ({
   kbQuotaFor: jest.fn(async () => ({
     plan: "standard",
@@ -109,6 +113,8 @@ import JobQuotePage from "../jobs/[id]/quote/page";
 import OldProjectPage from "../workboard/projects/[id]/page";
 import OldQuotePage from "../workboard/quotes/[id]/page";
 import ToolboxPage from "../toolbox/page";
+import TaxPage from "../admin/tax/page";
+import KnowledgePage from "../admin/knowledge/page";
 
 const LEAVES: [string, () => Promise<unknown>, string][] = [
   ["toolbox/heat-load", HeatLoadPage, "toolbox"],
@@ -213,7 +219,19 @@ describe("the knowledge base hands the client what this viewer may do", () => {
 
   it("opens on the shelf the URL named, and on nothing it invented", async () => {
     expect((await propsOf({ view: "toolbox" })).initialView).toBe("toolbox");
+    expect((await propsOf({ cat: "field", view: "review" })).initialView).toBe("review");
     expect((await propsOf({ view: "nonsense" })).initialView).toBeNull();
+  });
+
+  /* Knowledge from the field is an admin's, as the actions that act on it
+     are (actions/kb-review.ts): read for them, and for nobody else */
+  it("hands what's to look over from the field to an admin, and to nobody else", async () => {
+    role = "admin";
+    expect((await propsOf()).review).toEqual([NOTE]);
+    listUnreviewedFieldNotes.mockClear();
+    role = "staff";
+    expect((await propsOf()).review).toBeNull();
+    expect(listUnreviewedFieldNotes).not.toHaveBeenCalled();
   });
 
   it("nulls the unlimited tier's page ceiling rather than sending Infinity", async () => {
@@ -288,6 +306,12 @@ describe("retired → the v2 home", () => {
     ["workboard?job=&face=quote", board({ job: "j-1", face: "quote" }), "/dashboard/jobs/j-1?tab=quote"],
     ["workboard?q=", board({ q: "Smith & Sons" }), "/dashboard/jobs?q=Smith%20%26%20Sons"],
     ["workboard?visit=", board({ visit: "v-1" }), "/dashboard/jobs?open=visit.v-1"],
+    /* Settings is one page (25 October 2026): Tax and EOFY is a view in
+       Reports, its year kept; Knowledge from the field is the Library's */
+    ["admin/tax", () => TaxPage({ searchParams: Promise.resolve({}) }), "/dashboard/analytics?view=tax"],
+    ["admin/tax?fy=", () => TaxPage({ searchParams: Promise.resolve({ fy: "2026" }) }), "/dashboard/analytics?view=tax&fy=2026"],
+    ["admin/tax?fy=nonsense", () => TaxPage({ searchParams: Promise.resolve({ fy: "x" }) }), "/dashboard/analytics?view=tax"],
+    ["admin/knowledge", KnowledgePage, "/dashboard/tiff/library?cat=field&view=review"],
   ])("%s", async (_route, Page, to) => {
     allowed = true;
     await expect(Promise.resolve().then(Page)).rejects.toThrow(`REDIRECT:${to}`);

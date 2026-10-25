@@ -1,0 +1,5 @@
+/* SETTINGS › REPORTS (reports-section.tsx). The frame's groups and rows
+   draw it; only the choosers are wider than the frame's 200, because
+   "As found in your jobs: at 60 days" and "Installs, can be quotes" are the
+   choices themselves. */
+.fg .st2-rs-choose.pt-chooser { flex:none; width:280px; }

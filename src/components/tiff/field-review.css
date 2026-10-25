@@ -1,0 +1,13 @@
+/* THE LIBRARY › FIELD NOTES › TO LOOK OVER (field-review.tsx). The rows
+   are the parts' own (rule 39); these lay out what went wrong (rule 42) and
+   the whole note in its dialog. The dialog portals to <body>, outside
+   `.fg`, so its rules are the dialog's: who said it in grey, what they said
+   at the reading size (rule 13). The shelf's word in amber while something
+   waits (rule 29) is the landing's. */
+.fg .lb2-fr { display:flex; flex-direction:column; gap:8px; min-width:0; max-width:960px; }
+.fg .lb2-fr-wrong,
+.pt-dialog .lb2-fr-wrong { display:flex; align-items:center; gap:8px; margin:0; font-size:14px; line-height:20px; font-weight:500; color:var(--red-w); }
+.pt-dialog .lb2-fr-said { margin:0 0 8px; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.pt-dialog .lb2-fr-body { margin:0; font-size:16px; line-height:24px; font-weight:400; color:var(--ink); white-space:pre-wrap; overflow-wrap:anywhere; }
+.pt-dialog .lb2-fr-wrong { margin-top:12px; }
+.fg .lb2-cat-t b.lb2-cat-look { color:var(--orange-w); }

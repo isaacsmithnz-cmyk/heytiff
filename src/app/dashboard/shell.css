@@ -2010,27 +2010,10 @@
 .fg .tpr .autosub { font-size:13px; font-weight:600; color:var(--gray500); margin-top:12px; }
 .fg .tpr .autosub:empty { display:none; margin:0; }
 
-/* big buttons */
-.fg .tpr .bbtn { display:inline-flex; align-items:center; gap:8px; height:50px; padding:0 16px; border-radius:var(--r-button); font-size:14px; font-weight:700; background:var(--paper); color:var(--gray700); border:1px solid var(--line); transition:border-color var(--t-fast) var(--ease); white-space:nowrap; }
-.fg .tpr .bbtn:hover { border-color:var(--ink); }
-.fg .tpr .bbtn svg { opacity:.85; }
-/* the primary action is ink (ink and paper); `.teal` keeps its name for the markup */
-.fg .tpr .bbtn.teal { background:var(--press); color:var(--paper); border-color:var(--press); }
-.fg .tpr .bbtn.teal:hover { border-color:var(--press); }
-.fg .tpr .bbtn.ink { background:var(--press); color:var(--paper); border-color:var(--press); }
-.fg .tpr .bbtn.ink svg { opacity:1; color:var(--paper); }
-.fg .tpr .bbtn.sq { width:50px; padding:0; justify-content:center; }
-.fg .tpr .bbtn.sq svg { opacity:.8; }
-/* The settings gear, in the period bar. It used to sit in the page heading —
-   which belongs to timepay/layout.tsx now, and can't hold it: the settings
-   modal is client state the timesheets screen owns. `margin-left:auto` parks
-   it at the end of the row without disturbing the switcher's centring. */
-.fg .tpr .wknav .tp-gear { height:38px; width:38px; margin-left:auto; }
-/* A held Submit still lifted on hover and still showed a pointer, which is a
-   button telling you it will do something it won't. */
-.fg .tpr .bbtn:disabled { cursor:default; }
-.fg .tpr .bbtn:disabled:hover { transform:none; border-color:var(--line); }
-.fg .tpr .bbtn.ink:disabled:hover { border-color:var(--press); }
+/* The way to the pay rules, in the period bar: Settings › Pay and holidays
+   since 25 October 2026, where the settings gear's modal was. `margin-left:auto`
+   parks it at the end of the row without disturbing the switcher's centring. */
+.fg .tpr .wknav .tp-payset { margin-left:auto; }
 
 /* ---------- stat strip (compact) ---------- */
 .fg .tpr .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:16px 0 16px; }
@@ -2431,108 +2414,12 @@
 .fg .tpr .qform .qsend { display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 16px; border-radius:var(--r-button); font-size:13px; font-weight:700; background:var(--warn); color:var(--on-amber); }
 .fg .tpr .qform .qcancel { height:42px; padding:0 12px; border-radius:var(--r-button); font-size:13px; font-weight:700; color:var(--gray600); background:var(--tint); }
 
-/* ---------- pay settings modal ---------- */
-.fg .tpr .tset { position:fixed; inset:0; z-index:var(--z-modal); display:none; align-items:center; justify-content:center; }
-.fg .tpr .tset.open { display:flex; }
-.fg .tpr .tset-bd { position:absolute; inset:0; background:var(--scrim); backdrop-filter:blur(4px); animation:tprFade .2s ease; }
-@keyframes tprFade { from{opacity:0} to{opacity:1} }
-.fg .tpr .tset-panel { position:relative; width:560px; max-width:92vw; max-height:88vh; overflow:auto; background:var(--paper); border-radius:var(--r-card); box-shadow:var(--shadow-overlay); animation:tprPop .24s var(--ease); }
-@keyframes tprPop { from{opacity:0; transform:translateY(12px) scale(.98)} to{opacity:1; transform:none} }
-.fg .tpr .tset-x { width:38px; height:38px; border-radius:var(--r-button); display:flex; align-items:center; justify-content:center; color:var(--gray500); background:var(--tint); flex:0 0 auto; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .tpr .tset-x:hover { background:var(--tint-2); color:var(--ink); }
 /* `.fg .tpr .seg` IS GONE, and it was doing more than it looked like. Its
    three `.segb` children were dead — nothing in the app renders that class —
    but the tray override was live: it out-ranks `.fg .seg` (0,3,0 to 0,2,0),
    so every FaceSwitch on a `.tpr` screen was painted `#eceef1` while the same
    control on the staff card was `#f3f4f6`. One control, two trays, decided by
    which screen you were on. There is one tray value in this app now. */
-
-/* ---------- setup wizard ---------- */
-.fg .tpr .tset-panel.wz { width:620px; padding:0; }
-.fg .tpr .wz-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:24px 24px 0; }
-.fg .tpr .wz-head .wz-k { font-size:12px; font-weight:500; color:var(--ink); margin-bottom:8px; }
-.fg .tpr .wz-head h3 { font-size:24px; font-weight:700; letter-spacing:-.02em; margin:0; }
-.fg .tpr .wz-head p { font-size:14px; font-weight:600; color:var(--gray500); margin:8px 0 0; line-height:1.5; max-width:420px; text-wrap:pretty; }
-.fg .tpr .wz-dots { display:flex; gap:8px; padding:16px 24px 4px; }
-.fg .tpr .wz-dot { width:26px; height:6px; border-radius:999px; background:var(--tint-2); transition:background-color var(--t-fast) var(--ease), width var(--t-move) var(--ease); }
-.fg .tpr .wz-dot.done { background:var(--q); }
-.fg .tpr .wz-dot.on { background:var(--ink); width:40px; }
-.fg .tpr .wz-body { padding:24px 24px 4px; min-height:260px; }
-.fg .tpr .wz-foot { display:flex; align-items:center; gap:8px; padding:16px 24px 24px; }
-.fg .tpr .wz-foot .spx { flex:1; }
-.fg .tpr .wz-foot .bbtn { height:52px; padding:0 24px; font-size:14px; }
-
-.fg .tpr .wz-cards { display:grid; gap:8px; }
-.fg .tpr .wz-card { position:relative; display:block; text-align:left; padding:16px 16px; border-radius:var(--r-card); border:2px solid var(--line); background:var(--paper); transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .tpr .wz-card:hover { background:var(--tint); }
-.fg .tpr .wz-card.on { border-color:var(--ink); background:var(--tint); }
-.fg .tpr .wz-card b { display:block; font-size:16px; font-weight:700; }
-.fg .tpr .wz-card em { display:block; font-style:normal; font-size:13px; font-weight:600; color:var(--gray500); margin-top:4px; }
-.fg .tpr .wz-card .wz-tag { position:absolute; top:18px; right:18px; font-size:14px; font-weight:500; color:var(--ink); }
-
-.fg .tpr .wz-pills { display:flex; gap:8px; flex-wrap:wrap; }
-.fg .tpr .wz-pill { height:54px; min-width:66px; padding:0 16px; border-radius:var(--r-control); border:2px solid var(--line); background:var(--paper); font-size:14px; font-weight:700; color:var(--gray600); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .tpr .wz-pill:hover { background:var(--tint); }
-.fg .tpr .wz-pill.on { border-color:var(--ink); background:var(--tint-2); color:var(--ink); }
-.fg .tpr .wz-pills.sm .wz-pill { height:44px; font-size:13px; }
-.fg .tpr .wz-pills.ctr { justify-content:center; margin-top:16px; }
-
-.fg .tpr .wz-step { display:flex; align-items:center; justify-content:center; gap:16px; padding:12px 0; }
-.fg .tpr .wz-sbtn { width:58px; height:58px; border-radius:var(--r-card); background:var(--white); border:1px solid var(--edge); color:var(--ink); font-size:24px; font-weight:700; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .tpr .wz-sbtn:hover { }
-.fg .tpr .wz-val { min-width:140px; text-align:center; font-size:32px; font-weight:700; letter-spacing:-.03em; }
-
-.fg .tpr .wz-tglrow { display:flex; width:100%; align-items:center; justify-content:space-between; gap:12px; padding:16px 16px; border-radius:var(--r-card); border:2px solid var(--line); background:var(--paper); margin-bottom:8px; font-size:14px; font-weight:700; color:var(--ink); transition:border-color var(--t-fast) var(--ease); text-align:left; }
-.fg .tpr .wz-tglrow:hover { background:var(--tint); }
-.fg .tpr .wz-sw { width:52px; height:30px; border-radius:999px; background:var(--tint-2); position:relative; transition:background var(--t-fast) var(--ease); flex:0 0 auto; }
-.fg .tpr .wz-sw i { position:absolute; top:3px; left:3px; width:24px; height:24px; border-radius:50%; background:var(--paper); transition:left var(--t-move) var(--ease); }
-.fg .tpr .wz-sw.on { background:var(--ink); }
-.fg .tpr .wz-sw.on i { left:25px; }
-
-.fg .tpr .wz-subgrid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
-.fg .tpr .wz-sl { font-size:12px; font-weight:500; color:var(--gray400); margin-bottom:8px; text-align:center; }
-.fg .tpr .wz-scroll { position:relative; height:180px; overflow-y:auto; border:2px solid var(--line); border-radius:var(--r-card); scroll-snap-type:y proximity; padding:4px; }
-.fg .tpr .wz-si { scroll-snap-align:center; height:44px; display:flex; align-items:center; justify-content:center; border-radius:var(--r-button); font-size:14px; font-weight:700; color:var(--gray600); cursor:pointer; transition:background var(--t-fast) var(--ease); }
-.fg .tpr .wz-si:hover { background:var(--tint); }
-.fg .tpr .wz-si.on { background:var(--ink); color:var(--paper); font-weight:700; }
-
-.fg .tpr .wz-rev { display:flex; align-items:center; gap:12px; padding:16px 0; border-top:1px solid var(--line); font-size:14px; }
-.fg .tpr .wz-rev:first-child { border-top:none; }
-.fg .tpr .wz-rev > span { color:var(--gray500); font-weight:700; width:150px; flex:0 0 auto; }
-.fg .tpr .wz-rev b { font-weight:700; flex:1; min-width:0; }
-.fg .tpr .wz-edit { font-size:13px; font-weight:700; color:var(--ink); background:var(--tint-2); padding:8px 16px; border-radius:var(--r-button); transition:background var(--t-fast) var(--ease); }
-.fg .tpr .wz-edit:hover { background:var(--tint); }
-
-/* settings menu (post-setup) */
-.fg .tpr .wz-menu { min-height:0; padding-top:4px; }
-.fg .tpr .wz-menu .ms { padding:16px 0; border-top:1px solid var(--line); }
-.fg .tpr .wz-menu .ms:first-child { border-top:none; }
-.fg .tpr .wz-menu .ms-l { font-size:12px; font-weight:500; color:var(--gray400); margin-bottom:12px; }
-.fg .tpr .wz-menu .ms-p { font-size:13px; font-weight:600; color:var(--gray500); line-height:1.55; margin:0 0 12px; text-wrap:pretty; }
-/* A rung of the overtime ladder: its own plain-language label above the
-   stepper it belongs to. Replaces `.wz-or` for this, which was tracked
-   uppercase and read as a section divider rather than a field label — see
-   overtimeControls in settings.tsx. */
-.fg .tpr .ms-rung + .ms-rung { margin-top:12px; padding-top:12px; border-top:1px solid var(--line); }
-.fg .tpr .ms-rungl { display:block; font-size:13px; font-weight:700; color:var(--gray700); text-align:center; }
-.fg .tpr .wz-menu .ms-rungl { text-align:left; }
-.fg .tpr .ms-rung .ms-p { margin:4px 0 0; }
-/* Says a thing isn't built yet, in the voice of a note rather than an error. */
-.fg .tpr .ms-soon { display:flex; align-items:flex-start; gap:8px; color:var(--gray400); }
-.fg .tpr .ms-soon svg { flex:0 0 auto; margin-top:2px; }
-
-/* folding sections (public holidays, Xero payroll) — a row you press, sitting
-   below the pay settings rather than on top of them. Titled in sentence case,
-   not the uppercase .ms-l key, because these are things you OPEN, not labels
-   over a control. */
-.fg .tpr .wz-menu .ms-fold { padding:0; }
-.fg .tpr .wz-menu .ms-foldh { display:flex; align-items:center; justify-content:space-between; gap:16px; width:100%; padding:16px 0; text-align:left; }
-.fg .tpr .wz-menu .ms-foldl { display:block; font-size:14px; font-weight:700; color:var(--gray700); }
-.fg .tpr .wz-menu .ms-foldl em { display:block; font-style:normal; font-size:13px; font-weight:600; color:var(--gray400); margin-top:4px; text-wrap:pretty; }
-.fg .tpr .wz-menu .ms-foldh svg { flex:0 0 auto; color:var(--gray400); transition:transform var(--t-move) var(--ease); }
-.fg .tpr .wz-menu .ms-fold.on .ms-foldh svg { transform:rotate(90deg); }
-.fg .tpr .wz-menu .ms-fold.on .ms-foldl { color:var(--ink); }
-.fg .tpr .wz-menu .ms-foldb { padding-bottom:16px; }
 
 /* ---- Xero payroll matching (components/timepay/xero-payroll.tsx) ----
    A row per person inside the settings menu section. Two lines and the
@@ -2586,34 +2473,6 @@
 .fg .tpr .xp-extra ul { margin:8px 0 0; padding-left:16px; }
 .fg .tpr .xp-extra li { font-size:13px; font-weight:700; color:var(--ink); line-height:1.7; }
 .fg .tpr .xp-extra li span { font-weight:600; color:var(--gray400); }
-.fg .tpr .wz-menu .wz-step { justify-content:flex-start; gap:12px; padding:4px 0; }
-.fg .tpr .wz-menu .wz-sbtn { width:44px; height:44px; border-radius:var(--r-button); font-size:20px; }
-.fg .tpr .wz-menu .wz-val { min-width:88px; font-size:24px; }
-.fg .tpr .wz-menu .wz-pill { height:42px; min-width:54px; padding:0 12px; font-size:13px; }
-.fg .tpr .wz-menu .wz-tglrow { padding:12px 16px; margin-bottom:8px; font-size:14px; border-radius:var(--r-button); }
-.fg .tpr .wz-menu .wz-scroll { height:132px; }
-.fg .tpr .wz-foot.menu { position:sticky; bottom:0; background:var(--paper); border-top:1px solid var(--line); border-radius:0 0 var(--r-card) var(--r-card); }
-.fg .tpr .wz-rerun { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--gray500); transition:color var(--t-fast) var(--ease); }
-.fg .tpr .wz-rerun:hover { color:var(--ink); }
-
-/* penalty-rate rule rows */
-.fg .tpr .prule { border:2px solid var(--line); border-radius:var(--r-card); margin-bottom:8px; overflow:hidden; transition:border-color var(--t-fast) var(--ease); background:var(--paper); }
-.fg .tpr .prule.on { border-color:var(--ink); }
-.fg .tpr .rl-head { display:flex; width:100%; align-items:center; gap:12px; padding:12px 16px; text-align:left; }
-.fg .tpr .rl-nm { font-size:14px; font-weight:700; color:var(--ink); white-space:nowrap; }
-.fg .tpr .rl-nm em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray400); margin-left:8px; }
-.fg .tpr .rl-sum { margin-left:auto; font-size:12px; font-weight:700; color:var(--ink); white-space:nowrap; }
-.fg .tpr .rl:not(.on) .rl-sum { color:var(--gray400); }
-.fg .tpr .rl-head .wz-sw { flex:0 0 auto; }
-.fg .tpr .rl-ctl { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; padding:0 16px 12px; }
-.fg .tpr .wz-pills.xs { display:inline-flex; }
-.fg .tpr .wz-pills.xs .wz-pill { height:38px; min-width:52px; padding:0 12px; font-size:13px; border-radius:var(--r-control); }
-.fg .tpr .rl-then { font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .tpr .rl-step { display:inline-flex; align-items:center; gap:8px; }
-.fg .tpr .rl-step button { width:36px; height:36px; border-radius:var(--r-button); background:var(--white); border:1px solid var(--edge); color:var(--ink); font-size:16px; font-weight:700; transition:transform var(--t-move) var(--ease); }
-.fg .tpr .rl-step button:hover { }
-.fg .tpr .rl-step b { font-size:16px; font-weight:700; min-width:42px; text-align:center; }
-.fg .tpr .wz-menu .rl-head { padding:12px 12px; }
 
 /* THE LOCK ON A CLOSED PERIOD IS GONE (2026-09-16). `.fg .tpr.locked
    .capprove / .cedit / .allbtn / .qform { display:none !important }` hid the
@@ -2997,7 +2856,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
    it fell to Chrome's UA rule (currentColor at 54%), which resolves to ~#787878
    on white: 4.42:1, for the one placeholder in the app that carries a value. */
 .fg .mts-f input::placeholder { color:var(--q); font-weight:600; }
-.fg .mts-facts { display:flex; gap:8px; margin-left:auto; }
 
 /* A fortnight reads as two week-rows and a month as four-plus, which is how
    people actually think about a pay period — so the day tiles wrap at seven
@@ -3011,10 +2869,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .tpr .dwh { display:flex; align-items:baseline; justify-content:space-between; padding:8px 12px 4px; background:var(--tint); }
 .fg .tpr .dwh span { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .tpr .dwh em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray700); }
-.fg .wz-anchor { display:flex; flex-direction:column; gap:4px; margin-top:12px; width:100%; }
-.fg .wz-anchor > span { font-size:13px; font-weight:700; color:var(--ink); }
-.fg .wz-anchor em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
-.fg .wz-anchor .fl-i, .fg .wz-anchor .datef { max-width:220px; }
 
 /* ---- Time & Pay: leave (stage 5b) ---- */
 /* `.tp-tabs` — the Time & Pay pill group — is gone. Both of its screens, the
@@ -3043,13 +2897,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .lv-pmain { flex:1; min-width:0; }
 .fg .lv-pmain b { display:block; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .lv-pmain em { display:flex; align-items:center; gap:8px; font-style:normal; font-size:13px; font-weight:600; color:var(--gray500); margin-top:4px; }
-/* Was a bare 30px × with a title attribute — unlabelled, and one click from
-   throwing away an approved booking. Now it says what it does and arms first:
-   press once to ask, again to confirm, anywhere else to forget it. `.arm`
-   borrows the filled-red confirm state .fl-btn.danger.arm already uses. */
-.fg .lv-cancel { display:inline-flex; align-items:center; gap:4px; height:28px; padding:0 8px; border-radius:var(--r-button); font-size:12px; font-weight:700; color:var(--gray500); border:1px solid var(--line); background:var(--paper); white-space:nowrap; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .lv-cancel:hover { color:var(--bad-t); border-color:var(--bad); background:var(--bad-tint); }
-.fg .lv-cancel.arm { background:var(--bad); border-color:var(--bad); color:var(--paper); }
 .fg .lv-pacts { display:flex; gap:8px; }
 .fg .lv-decline { display:flex; gap:8px; margin-top:8px; }
 .fg .lv-decline input { flex:1; height:34px; padding:0 12px; border-radius:var(--r-control); border:1px solid var(--line); font-family:var(--font); font-size:13px; }
@@ -3057,35 +2904,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .lv-calnames { display:flex; flex-wrap:wrap; gap:4px; }
 .fg .lv-callegend { margin:0; padding:12px 16px; font-size:12px; font-weight:600; line-height:1.55; color:var(--gray400); }
 @media (max-width:820px){ .fg .lv-cols { grid-template-columns:1fr; } }
-
-/* ---- public holidays: the admin manager ---- */
-.fg .hol-year { border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; margin-top:16px; }
-.fg .hol-row { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--line); }
-.fg .hol-date { min-width:150px; font-size:13px; font-weight:700; color:var(--ink); }
-.fg .hol-name { flex:1; font-size:14px; font-weight:600; color:var(--gray700); }
-.fg .hol-src { font-size:12px; font-weight:700; color:var(--gray400); text-transform:capitalize; }
-.fg .hol-src.synced { color:var(--ok-t); }
-
-/* removed (suppressed) holidays — tombstones an admin can restore, so they
-   have to stay readable enough to restore the right one. `opacity:.75` on the
-   block took the year heading to 3.11, the state code to 2.99 and the struck
-   dates to 3.26; the strike-through and the ground already say "removed". */
-.fg .hol-year.removed { background:var(--tint); }
-.fg .hol-year.removed .lv-ch { color:var(--gray500); }
-.fg .hol-row.off .hol-date, .fg .hol-row.off .hol-name { color:var(--q); text-decoration:line-through; text-decoration-thickness:1px; }
-
-/* "worth confirming" — proclamation-dependent days the rules can't date.
-   Deliberately quiet: a hint, not a task list. */
-.fg .hol-sug { margin-top:16px; border:1px dashed var(--line); border-radius:var(--r-card); background:var(--tint); overflow:hidden; }
-.fg .hol-sugh { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; padding:12px 16px; font-size:12px; font-weight:500; color:var(--gray500); }
-.fg .hol-sugh span { font-size:12px; font-weight:600; color:var(--gray400); text-transform:none; }
-.fg .hol-sugrow { display:flex; align-items:center; gap:12px; padding:8px 16px; border-top:1px solid var(--line); }
-.fg .hol-sugy { min-width:44px; font-size:13px; font-weight:700; color:var(--gray400); }
-.fg .hol-sugmain { flex:1; min-width:0; }
-.fg .hol-sugmain b { display:block; font-size:13px; font-weight:700; color:var(--gray700); }
-.fg .hol-sugmain em { display:block; font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); line-height:1.45; margin-top:2px; }
-.fg .hol-sugadd { display:flex; align-items:center; gap:4px; height:30px; padding:0 12px; border-radius:var(--r-button); border:1px solid var(--line); background:var(--paper); font-size:12px; font-weight:700; color:var(--gray700); }
-.fg .hol-sugadd:hover { border-color:var(--line); color:var(--ink); }
 
 /* invite modal — UNSCOPED: it portals to <body>, outside .fg (see .fl-ov) */
 .fl-err { background:var(--bad-tint); border:1px solid var(--bad); border-radius:var(--r-button); padding:8px 12px; margin-bottom:12px; font-size:13px; font-weight:600; color:var(--bad-t); }
@@ -3300,9 +3118,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .tw-opt.on { color:var(--ink); font-weight:700; font-size:16px; }
 .fg .tw-opt:focus-visible { outline:2px solid var(--ink); outline-offset:-2px; }
 .fg .tw-opt:disabled { pointer-events:none; opacity:.5; }
-/* the wizard's own wheels sit side by side under a menu heading */
-.fg .tpr .wz-wheels { display:flex; flex-wrap:wrap; gap:8px; }
-.fg .tpr .wz-wheels .tw { flex:1 1 150px; }
 /* ---- date picker (components/ui/date-field.tsx + month-grid.tsx) ----
    Every date field in the app is this: a button showing dd/mm/yyyy that opens
    our own calendar. No `<input type="date">` anywhere — its rendering and its

@@ -9094,7 +9094,13 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    and the count beside Home in the sidebar (decision 25). */
 .fg .wrap.hm { max-width:none; padding:24px 32px 48px; display:flex; flex-direction:column; gap:32px; }
 /* the three columns under Tiff's box (Isaac, 20 October) */
-.fg .hm-cols { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:32px; align-items:start; }
+.fg .hm-cols { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); align-items:stretch; }
+/* a hairline between the columns, 32 either side (Isaac, 25 October 2026:
+   the same lines the job's Overview separates its columns with) */
+.fg .hm-cols > .hm-sec { padding-inline:32px; }
+.fg .hm-cols > .hm-sec:first-child { padding-left:0; }
+.fg .hm-cols > .hm-sec:last-child { padding-right:0; }
+.fg .hm-cols > .hm-sec + .hm-sec { border-left:1px solid var(--line); }
 /* a column's head: a solid block of its colour, its glyph in ink on it */
 .fg .hm-blk { display:inline-flex; align-items:center; justify-content:center; flex:none; width:32px; height:32px; border-radius:var(--r-button); color:var(--ink); }
 .fg .hm-blk--purple { background:var(--purple); }

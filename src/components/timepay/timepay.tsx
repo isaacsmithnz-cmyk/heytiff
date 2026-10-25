@@ -17,24 +17,18 @@ import {
   weekGroups,
 } from "./logic";
 import { Avatar, DayLegend, MiniTile, Tile, legendFor } from "./tiles";
-import { TimePaySettings } from "./settings";
-import { HolidaySection } from "./holiday-section";
 import { useRouter } from "next/navigation";
 import {
   approveWeek,
-  savePaySettings,
   sendBackWeek,
   type TimepayResult,
 } from "@/app/actions/timepay";
 import type { SheetState } from "@/lib/timepay/query";
-import { XeroPayroll } from "./xero-payroll";
 import Link from "next/link";
+import { Button, LinkButton } from "@/components/parts/button";
 
-/* The lazy import lives OUT HERE, not in the component. The deferral is
-   unchanged — the module is still fetched on the first call — but React
-   Compiler 1.0 cannot lower an `import()` expression inside a component
-   and gives up on the WHOLE component when it meets one. */
-const xeroLinks = () => import("@/app/actions/xero-links");
+/** Where the pay rules, the public holidays and Xero payroll are set. */
+const PAY_SETTINGS = "/dashboard/admin/pay";
 
 /** Whole dollars — a stat tile is a glance, and cents on it are noise. */
 const money0 = (n: number) => `$${Math.round(n).toLocaleString("en-AU")}`;
@@ -417,7 +411,6 @@ export function TimePay({
   canApprove,
   financials,
   canHolidays,
-  xeroConnected,
   wageDrift = null,
   expenses = { owed: 0, pending: 0 },
   periodHref = timepayPeriodHref,
@@ -431,21 +424,22 @@ export function TimePay({
   periods: PayPeriod[];
   periodIndex: number;
   settings: Settings;
+  /** whether anyone has confirmed the pay rules yet; until then the way to
+      them reads "Set up pay" for someone who can */
   configured: boolean;
   /** timesheet row per staff id, for the period being viewed */
   sheets: Record<string, SheetState>;
   canApprove: boolean;
   financials: boolean;
-  /** admin+ — unlocks the holidays row in the gear. A boolean, not the
-      calendar: the section fetches its own rows when the row is opened. */
+  /** admin+: the public holidays are theirs to set, so the way to
+      Settings › Pay and holidays shows for them too */
   canHolidays: boolean;
-  /** Whether this workspace has a live Xero grant. A boolean only: the
-      connection's details are owner business, and this screen just needs to
-      know whether the matching section has anything to show. */
+  /** No longer read: payroll matching moved with the gear to Settings › Pay
+      and holidays, which asks Xero itself. Team still passes it. */
   xeroConnected?: boolean;
   /** One line when the weekly sweep found wages disagreeing with Xero, else
       null. A COUNT-derived sentence — the rates themselves stay behind the
-      gated Check pay rates read in the settings gear. */
+      gated Check pay rates read in Settings › Pay and holidays. */
   wageDrift?: string | null;
   /** What's outstanding on expense claims. Resolved server-side and only when
       the viewer holds `financials` — the tile that shows it is money. */
@@ -460,7 +454,6 @@ export function TimePay({
   const ctx: WeekCtx = useMemo(() => ({ week, today, through }), [week, today, through]);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const run = (action: () => Promise<TimepayResult>) => {
     setError(null);
@@ -551,10 +544,9 @@ export function TimePay({
      `approvals` on every write, so nothing is loosened by letting the queue
      stay reachable.
 
-     THE GEAR MOVED INTO THE PERIOD BAR. It lived in the page heading, which is
-     the layout's now — and it can't go there, because the settings modal is
-     client state this component owns. The period row is where the screen's
-     other controls already are. */
+     THE GEAR IS A LINK NOW, in the period bar where the screen's other
+     controls are. The pay settings it opened are Settings › Pay and holidays
+     (25 October 2026), so it goes there, in words, for the same people. */
   return (
     <div className="tpr">
           <div className="wb2-card tp-card">
@@ -586,13 +578,9 @@ export function TimePay({
                   <span className="pstatus hist">Historical</span>
                 )}
                 {(financials || canHolidays) && (
-                  <button
-                    className="bbtn sq tp-gear"
-                    aria-label="Settings"
-                    onClick={() => setSettingsOpen(true)}
-                  >
-                    <Icon name="settings" size={17} />
-                  </button>
+                  <Button href={PAY_SETTINGS} className="tp-payset">
+                    {financials && !configured ? "Set up pay" : "Pay settings"}
+                  </Button>
                 )}
               </div>
             <div className="autosub">{note}</div>
@@ -753,58 +741,17 @@ export function TimePay({
           )}
 
           {/* Advisory, not an error: Xero changed and nobody has looked yet.
-              The fix is two taps away in the gear, so the line points there
-              rather than trying to be actionable itself. */}
+              The comparison is in Settings › Pay and holidays, so the line
+              links there rather than trying to be actionable itself. */}
             {wageDrift && (
               <div className="tp-drift">
                 <Icon name="info" size={15} />
-                <span>{wageDrift} Open settings → Xero payroll to compare.</span>
+                <span>
+                  {wageDrift} <LinkButton href={`${PAY_SETTINGS}#xero-payroll`}>Compare in Xero payroll</LinkButton>
+                </span>
               </div>
             )}
           </div>
-
-          {settingsOpen && (
-            <TimePaySettings
-              settings={settings}
-              firstRun={!configured}
-              canPay={financials}
-              holidaySection={canHolidays ? <HolidaySection /> : null}
-              xeroSection={
-                xeroConnected ? (
-                  /* The actions are imported lazily, inside the section, so
-                     the Auth0 + Supabase runtime behind them never enters this
-                     screen's bundle — the same reason the rate calculator
-                     dynamic-imports its own save action. */
-                  <XeroPayroll
-                    load={async () => (await xeroLinks()).getLinkingData()}
-                    onLink={async (id, remote, how) =>
-                      (await xeroLinks()).linkEmployee(id, remote, how)
-                    }
-                    onUnlink={async (id) =>
-                      (await xeroLinks()).unlinkEmployee(id)
-                    }
-                    onAdoptEmployment={async (id, value) =>
-                      (await xeroLinks()).adoptEmploymentType(id, value)
-                    }
-                    onAdoptBasis={async (id, value) =>
-                      (await xeroLinks()).adoptPayBasis(id, value)
-                    }
-                    onCheckPay={async () =>
-                      (await xeroLinks()).checkPayRates()
-                    }
-                    onAdoptWage={async (id) =>
-                      (await xeroLinks()).adoptWage(id)
-                    }
-                  />
-                ) : null
-              }
-              onClose={() => setSettingsOpen(false)}
-              onSave={(next) => {
-                run(() => savePaySettings(next));
-                setSettingsOpen(false);
-              }}
-            />
-          )}
     </div>
   );
 }

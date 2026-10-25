@@ -8,26 +8,12 @@ import type { SheetState } from "@/lib/timepay/query";
 
 const approveWeek = jest.fn(async () => ({ ok: true as const }));
 const sendBackWeek = jest.fn(async () => ({ ok: true as const }));
-const savePaySettings = jest.fn(async () => ({ ok: true as const }));
 const push = jest.fn();
 const refresh = jest.fn();
 
 jest.mock("@/app/actions/timepay", () => ({
   approveWeek: (...a: unknown[]) => approveWeek(...(a as [])),
   sendBackWeek: (...a: unknown[]) => sendBackWeek(...(a as [])),
-  savePaySettings: (...a: unknown[]) => savePaySettings(...(a as [])),
-}));
-// the gear's holiday section pulls these in; the real module drags next/cache
-// into jsdom, so mock like every other action import
-jest.mock("@/app/actions/holidays", () => ({
-  addHoliday: jest.fn(async () => ({ ok: true })),
-  removeHoliday: jest.fn(async () => ({ ok: true })),
-  restoreHoliday: jest.fn(async () => ({ ok: true })),
-  getHolidayManagerData: jest.fn(async () => ({
-    holidays: [],
-    orgState: "NSW",
-    today: "2026-07-25",
-  })),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
 
@@ -140,7 +126,7 @@ const section = (title: string) => {
 };
 
 beforeEach(() => {
-  [approveWeek, sendBackWeek, savePaySettings, push, refresh].forEach((m) => m.mockClear());
+  [approveWeek, sendBackWeek, push, refresh].forEach((m) => m.mockClear());
 });
 
 describe("TimePay screen", () => {
@@ -374,34 +360,29 @@ describe("capability gating on the screen", () => {
     expect(screen.getByText("Bosley Hayes")).toBeInTheDocument(); // still readable
   });
 
-  it("without `financials` (and not an admin) the settings gear is absent", () => {
+  /* THE GEAR IS A LINK. The pay settings it opened are Settings › Pay and
+     holidays now (25 October 2026), so the period bar carries the way there,
+     in words, for the same people the gear showed for: `financials`, or an
+     admin, whose public holidays are there. What the page holds is its own
+     suite's (components/settings/__tests__/pay-screen.test.tsx). */
+  const payLink = () => screen.queryByRole("link", { name: /Pay settings|Set up pay/ });
+
+  it("without `financials` (and not an admin) there is no way to the pay settings", () => {
     renderTimePay({ financials: false });
-    expect(screen.queryByLabelText("Settings")).toBeNull();
+    expect(payLink()).toBeNull();
   });
 
-  it("an admin without `financials` still gets the gear — holidays only, no pay controls", async () => {
-    const user = userEvent.setup();
-    renderTimePay({
-      financials: false,
-      canHolidays: true,
-    });
-    await user.click(screen.getByLabelText("Settings"));
-    expect(screen.getByText("Public holidays")).toBeInTheDocument();
-    expect(screen.queryByText("Pay cycle")).toBeNull();
-    expect(screen.queryByText("Re-run setup")).toBeNull();
-    // holiday edits apply immediately — no draft Save, just a way out
-    expect(screen.queryByText("Save")).toBeNull();
-    expect(screen.getByText("Close")).toBeInTheDocument();
+  it("an admin without `financials` still gets the way there, for the holidays", () => {
+    renderTimePay({ financials: false, canHolidays: true });
+    expect(payLink()).toHaveAttribute("href", "/dashboard/admin/pay");
+    expect(payLink()).toHaveTextContent("Pay settings");
   });
 
-  it("with both `financials` and admin, the gear carries holidays AND pay controls", async () => {
-    const user = userEvent.setup();
+  it("with `financials` it goes to the same place, a link and not a button", () => {
     renderTimePay({ canHolidays: true });
-    await user.click(screen.getByLabelText("Settings"));
-    // "Public holidays" appears as the manager section and as the rate rule
-    expect(screen.getAllByText("Public holidays").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText("Pay cycle")).toBeInTheDocument();
-    expect(screen.getByText("Save")).toBeInTheDocument();
+    expect(payLink()).toHaveAttribute("href", "/dashboard/admin/pay");
+    // the gear-only button is gone, and with it the modal it opened
+    expect(screen.queryByRole("button", { name: "Settings" })).toBeNull();
   });
 
   it("an hours-only payload renders no dollar figure anywhere", () => {
@@ -417,15 +398,24 @@ describe("capability gating on the screen", () => {
 });
 
 describe("pay settings", () => {
-  it("saving the wizard persists through the action, not localStorage", async () => {
-    const user = userEvent.setup();
+  /* The first run was the modal's seven steps; it is the page's own now. Until
+     the rules are confirmed the way there says so, to whoever can set them. */
+  it("reads Set up pay until the rules are confirmed, for someone who can set them", () => {
     renderTimePay({ configured: false });
-    await user.click(screen.getByLabelText("Settings"));
-    expect(screen.getByText("Setup, step 1 of 7")).toBeInTheDocument();
-    for (let i = 0; i < 6; i++) await user.click(screen.getByText("Next"));
-    await user.click(screen.getByText("Save settings"));
-    expect(savePaySettings).toHaveBeenCalledTimes(1);
-    expect(localStorage.getItem("ht_tp_set")).toBeNull();
+    expect(screen.getByRole("link", { name: "Set up pay" })).toHaveAttribute("href", "/dashboard/admin/pay");
+  });
+
+  it("an admin without `financials` can't set them, so it stays Pay settings", () => {
+    renderTimePay({ configured: false, financials: false, canHolidays: true });
+    expect(screen.getByRole("link", { name: "Pay settings" })).toBeInTheDocument();
+  });
+
+  it("the wages line from Xero links to the comparison", () => {
+    renderTimePay({ wageDrift: "2 wages differ from Xero." });
+    expect(screen.getByRole("link", { name: "Compare in Xero payroll" })).toHaveAttribute(
+      "href",
+      "/dashboard/admin/pay#xero-payroll",
+    );
   });
 
   it("settings drive the derivation — a longer standard day flags clean weeks", () => {

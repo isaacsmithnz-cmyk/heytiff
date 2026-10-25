@@ -243,7 +243,7 @@ export const BOOKING_WORDS = {
     bookings: "Bookings",
     bookingsGroup: "Sending bookings to ServiceM8",
     bookingsConsent:
-      "ServiceM8 hasn't given HeyTiff permission to book yet, so no booking can go. Reconnect ServiceM8 above and approve it on ServiceM8's screen.",
+      "ServiceM8 hasn't given HeyTiff permission to book yet, so no booking can go. Reconnect ServiceM8 below and approve it on ServiceM8's screen.",
     bookingsOffOne: "Bookings are off. 1 booking that was waiting won't go.",
     bookingsOffMany: "Bookings are off. {n} bookings that were waiting won't go.",
     bookingsUnavailable: "Bookings can't be sent from this deployment yet.",

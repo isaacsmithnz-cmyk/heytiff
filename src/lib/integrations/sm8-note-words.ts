@@ -32,9 +32,9 @@ export const NOTE_WORDS = {
     onLineNone: "On.",
     trialLine: "Trial run. Each send from a job is checked and listed here. Nothing reaches ServiceM8.",
     notesConsent:
-      "ServiceM8 hasn't given HeyTiff permission to add notes yet, so no note can go. Reconnect ServiceM8 above and approve it on ServiceM8's screen.",
+      "ServiceM8 hasn't given HeyTiff permission to add notes yet, so no note can go. Reconnect ServiceM8 below and approve it on ServiceM8's screen.",
     filesConsent:
-      "ServiceM8 hasn't given HeyTiff permission to add files yet, so nothing can go. Reconnect ServiceM8 above and approve it on ServiceM8's screen.",
+      "ServiceM8 hasn't given HeyTiff permission to add files yet, so nothing can go. Reconnect ServiceM8 below and approve it on ServiceM8's screen.",
     notesOffOne: "Notes are off. 1 note that was waiting won't go.",
     notesOffMany: "Notes are off. {n} notes that were waiting won't go.",
     filesOffOne: "Files are off. 1 file that was waiting won't go.",

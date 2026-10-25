@@ -1,24 +1,15 @@
 /**
  * @jest-environment node
  *
- * The ServiceM8 screen's loader: what it hands the screen. The writes card
- * is drawn WHENEVER THERE IS A CONNECTION on a deployment that writes —
- * needs_reauth included, which is exactly when the owner needs to see what
- * is waiting and why — and a connect refused for settings that couldn't be
- * read says so. The screen itself is its own suite's.
+ * ServiceM8's loader for Settings › Integrations: what it hands the
+ * ServiceM8 group. Sending is drawn WHENEVER THERE IS A CONNECTION on a
+ * deployment that writes — needs_reauth included, which is exactly when the
+ * owner needs to see what is waiting and why — and a connect refused for
+ * settings that couldn't be read says so. The group itself is its own
+ * suite's (components/integrations).
  */
 
-import type { ReactElement } from "react";
-
-jest.mock("next/navigation", () => ({
-  redirect: (to: string) => {
-    throw new Error(`redirect ${to}`);
-  },
-}));
-jest.mock("@/lib/auth0", () => ({ auth0: { getSession: jest.fn(async () => ({ orgId: "org-1" })) } }));
 jest.mock("@/lib/integrations/sm8-quote-trial", () => ({ quotesOnTrial: jest.fn(async () => true) }));
-jest.mock("@/lib/permissions-server", () => ({ getDbRole: jest.fn(async () => "owner") }));
-jest.mock("@/components/integrations/servicem8-screen", () => ({ Servicem8Screen: () => null }));
 
 const getConnectionView = jest.fn();
 jest.mock("@/lib/integrations/store", () => ({
@@ -40,7 +31,13 @@ jest.mock("@/lib/integrations/secrets", () => ({ tokenKey: () => "k" }));
 jest.mock("@/lib/integrations/sm8", () => ({ sm8Config: () => ({}) }));
 jest.mock("@/lib/integrations/sm8-store", () => ({ readSm8AccountChange: jest.fn(async () => null) }));
 jest.mock("@/lib/integrations/sm8-write-cancel", () => ({ countSm8WritesCancelledSince: jest.fn(async () => 0) }));
-jest.mock("@/app/actions/staff-import", () => ({ getSm8PeopleData: jest.fn(async () => null) }));
+jest.mock("@/app/actions/staff-import", () => ({
+  getSm8PeopleData: jest.fn(async () => null),
+  getXeroPeopleData: jest.fn(async () => null),
+}));
+/* the Xero half of the same module, never called by ServiceM8's loader */
+jest.mock("@/lib/integrations/xero", () => ({ xeroConfig: () => null }));
+jest.mock("@/lib/integrations/xero-read", () => ({ countPayrollEmployees: jest.fn() }));
 
 let kinds: string[] = ["attachment"];
 const readSm8WriteState = jest.fn();
@@ -66,7 +63,7 @@ jest.mock("@/lib/integrations/sm8-hooks", () => {
   return { readSm8HooksHealth: (...a: unknown[]) => readSm8HooksHealth(...a) };
 });
 
-import Servicem8IntegrationPage from "../page";
+import { loadServicem8 } from "../load";
 
 type Props = {
   connection: { writeMode: string; missing: string[] } | null;
@@ -112,10 +109,8 @@ const state = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-const load = async (params: Record<string, string> = {}): Promise<Props> => {
-  const el = (await Servicem8IntegrationPage({ searchParams: Promise.resolve(params) })) as ReactElement<Props>;
-  return el.props;
-};
+const load = async (params: Record<string, string> = {}): Promise<Props> =>
+  (await loadServicem8("org-1", params)) as unknown as Props;
 
 beforeEach(() => {
   kinds = ["attachment"];
@@ -126,8 +121,8 @@ beforeEach(() => {
   readSm8Vendor.mockClear();
 });
 
-describe("the ServiceM8 screen's loader", () => {
-  it("hands the writes card the setting, the queue and who paused it", async () => {
+describe("ServiceM8's loader", () => {
+  it("hands sending the setting, the queue and who paused it", async () => {
     readSm8WriteState.mockResolvedValue(state({ mode: "paused", pausedReason: "cap" }));
     const p = await load();
     expect(p.writes).toMatchObject({
@@ -143,12 +138,12 @@ describe("the ServiceM8 screen's loader", () => {
     expect(p.waitingWrites).toBe(3);
   });
 
-  it("counts the failures of the account connected now, the ones Retry failed files can reach", async () => {
+  it("counts the failures of the account connected now, the ones Retry the files can reach", async () => {
     await load();
     expect(countSm8Queue).toHaveBeenCalledWith("org-1", "vendor-1");
   });
 
-  it("draws the writes card while the connection needs reconnecting — when the owner needs it most", async () => {
+  it("draws sending while the connection needs reconnecting — when the owner needs it most", async () => {
     getConnectionView.mockResolvedValue(view({ status: "needs_reauth" }));
     readSm8WriteState.mockResolvedValue(state({ connected: false }));
     const p = await load();
@@ -166,12 +161,12 @@ describe("the ServiceM8 screen's loader", () => {
     expect(p.writes).not.toBeNull();
   });
 
-  it("draws no card rather than a wrong one when the settings can't be read", async () => {
+  it("draws no sending rather than a wrong one when the settings can't be read", async () => {
     readSm8WriteState.mockResolvedValue(state({ readable: false }));
     expect((await load()).writes).toBeNull();
   });
 
-  it("draws no card, and shows sending off, on a deployment that writes nothing", async () => {
+  it("draws no sending, and shows it off, on a deployment that writes nothing", async () => {
     kinds = [];
     getConnectionView.mockResolvedValue(view({ missing: ["manage_attachments"] }));
     const p = await load();
@@ -211,7 +206,7 @@ describe("the ServiceM8 screen's loader", () => {
 /* two-way phase 4, PR F: live updates from ServiceM8. The owner sees nothing
    while they work, and one line when they don't; with the switch anything
    but on, the page reads nothing more than it did. */
-describe("the ServiceM8 screen's loader, with live updates", () => {
+describe("ServiceM8's loader, with live updates", () => {
   const env = { ...process.env };
   beforeEach(() => {
     readSm8HooksHealth.mockReset().mockResolvedValue(null);
@@ -225,7 +220,7 @@ describe("the ServiceM8 screen's loader, with live updates", () => {
   };
 
   /* first: the module registry keeps a module once any test loads it */
-  it("off: reads nothing, loads nothing, and hands the screen today's props", async () => {
+  it("off: reads nothing, loads nothing, and hands the group today's props", async () => {
     for (const [vercel, hooks] of [["production", undefined], ["production", "gone"], ["preview", "1"]] as const) {
       process.env.VERCEL_ENV = vercel;
       if (hooks === undefined) delete process.env.SM8_WEBHOOKS;
@@ -250,7 +245,7 @@ describe("the ServiceM8 screen's loader, with live updates", () => {
     );
   });
 
-  it("on, and the module or its read fails: the screen still draws, with nothing said", async () => {
+  it("on, and the module or its read fails: the group still draws, with nothing said", async () => {
     on();
     readSm8HooksHealth.mockRejectedValue(new Error("chunk failed to load"));
     const p = await load();
@@ -271,7 +266,7 @@ describe("the ServiceM8 screen's loader, with live updates", () => {
    name booking the page asks nothing about bookings (A-1); where it does,
    the booking permissions are listed only while Bookings is On, and what is
    waiting and what a switch cancelled are counted apart. */
-describe("the ServiceM8 screen's loader, with bookings", () => {
+describe("ServiceM8's loader, with bookings", () => {
   const cancelledSince = (jest.requireMock("@/lib/integrations/sm8-write-cancel") as { countSm8WritesCancelledSince: jest.Mock })
     .countSm8WritesCancelledSince;
   const accountChange = (jest.requireMock("@/lib/integrations/sm8-store") as { readSm8AccountChange: jest.Mock }).readSm8AccountChange;
@@ -319,7 +314,7 @@ describe("the ServiceM8 screen's loader, with bookings", () => {
     expect(p.writeScopes.map((s) => s.scope)).toEqual(["manage_attachments", "publish_job_notes", "manage_schedule", "manage_jobs"]);
   });
 
-  it("hands the screen the bookings waiting, for the disconnect confirm", async () => {
+  it("hands the group the bookings waiting, for the disconnect confirm", async () => {
     kinds = ["attachment", "note", "booking"];
     countSm8Queue.mockResolvedValueOnce({ waiting: 6, failed: 0, waitingKinds: { attachment: 3, note: 1, booking: 2 } });
     const p = (await load()) as Props & { waitingBookings?: number };

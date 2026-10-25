@@ -57,7 +57,7 @@ export const JOB_WORDS = {
     jobs: "New jobs",
     jobsGroup: "Starting jobs in ServiceM8",
     jobsConsent:
-      "ServiceM8 hasn't given HeyTiff permission to add jobs yet, so no new job can go. Reconnect ServiceM8 above and approve it on ServiceM8's screen.",
+      "ServiceM8 hasn't given HeyTiff permission to add jobs yet, so no new job can go. Reconnect ServiceM8 below and approve it on ServiceM8's screen.",
     jobsOffOne: "New jobs are off. 1 new job that was waiting won't go.",
     jobsOffMany: "New jobs are off. {n} new jobs that were waiting won't go.",
     jobsUnavailable: "New jobs can't be sent from this deployment yet.",

@@ -1,0 +1,67 @@
+/* SETTINGS › INTEGRATIONS (v2, 25 October 2026; components/integrations).
+   What the section needs past the frame's own pieces (.st2-* in shell.css):
+   a sub-heading inside a group with its control on the right, a sentence in
+   a state's colour with its dot (rule 17: a word in its colour, never a pill
+   or a box), a row that opens onto its list, the live dot on what is being
+   read, and the foot that holds Reconnect and Disconnect. The dialogs are
+   portalled outside .fg, so their rules are .pt-dialog's. */
+
+/* a sub-heading in the group: Sending to ServiceM8, What HeyTiff reads */
+.fg .st2-int-sub { display:flex; align-items:center; gap:12px; min-height:32px; margin-top:12px; }
+.fg .st2-int-sub h3 { flex:1 1 auto; min-width:0; margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+
+/* a sentence in a state's colour, with its dot by its first line */
+.fg .st2-int-said { display:flex; align-items:flex-start; gap:8px; margin:0; font-size:14px; line-height:20px; font-weight:500; }
+.fg .st2-int-said .pt-dot { margin-top:calc((20px - 8px) / 2); }
+.fg .st2-int-said.st2-int-said--good { color:var(--green-w); }
+.fg .st2-int-said.st2-int-said--look { color:var(--orange-w); }
+.fg .st2-int-said.st2-int-said--info { color:var(--q); }
+/* a short state word stands whole on the right of its row */
+.fg .st2-int-word { flex:none; white-space:nowrap; }
+.fg .st2-int-dev { margin:0; font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+
+/* a row opened onto its list: each item a row of its own, set in */
+.fg .st2-int-open { display:flex; flex-direction:column; min-width:0; padding-left:24px; border-top:1px solid var(--line); }
+.fg .st2-int-open + .st2-set { border-top:1px solid var(--line); }
+.fg .st2-int-part { display:flex; flex-direction:column; min-width:0; }
+.fg .st2-int-cap { margin:0; padding-top:12px; font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+.fg .st2-int-more { padding:8px 0; }
+.fg .st2-int-count { font-size:13px; line-height:18px; font-weight:500; color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.fg .st2-int-choose { width:240px; }
+
+/* what is being read right now: its dot is live (docs/design.md, the loops) */
+.fg .st2-int-live .pt-dot { animation:int-pulse 1.6s ease-in-out infinite; }
+@keyframes int-pulse { 0%,100% { opacity:.32; transform:scale(.82); } 50% { opacity:1; transform:scale(1); } }
+/* the dot says nothing the words don't; for less motion it sits still */
+@media (prefers-reduced-motion:reduce) { .fg .st2-int-live .pt-dot { animation:none; opacity:1; } }
+
+/* the group's foot: Reconnect, then Disconnect */
+.fg .st2-int-foot { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:8px; }
+
+/* THE DIALOGS. Disconnect's list of what goes; what went wrong, the
+   frame's red dot and words, out here in the portal too. */
+.pt-dialog .st2-int-dlist { display:flex; flex-direction:column; gap:4px; margin:0 0 16px; padding-left:16px; }
+.pt-dialog .st2-wrong { display:flex; align-items:center; gap:8px; margin:12px 0 0; font-size:14px; line-height:20px; font-weight:500; color:var(--red-w); }
+
+/* People in ServiceM8, People in Xero: the review */
+.pt-dialog .st2-int-pline { margin:0 0 12px; font-size:14px; line-height:20px; color:var(--q); }
+.pt-dialog .st2-int-pnote { display:flex; align-items:flex-start; gap:8px; margin:0 0 12px; font-size:14px; line-height:20px; font-weight:500; color:var(--green-w); }
+.pt-dialog .st2-int-pnote .pt-dot { margin-top:calc((20px - 8px) / 2); }
+.pt-dialog .st2-int-pnote.st2-int-pnote--wrong { color:var(--red-w); }
+.pt-dialog .st2-int-ptools { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:32px; padding-bottom:8px; border-bottom:1px solid var(--line); }
+.pt-dialog .st2-int-people { margin:0; padding:0; list-style:none; }
+.pt-dialog .st2-int-person + .st2-int-person { border-top:1px solid var(--line); }
+.pt-dialog .st2-int-pline-row { display:flex; align-items:center; gap:12px; padding:8px 0; }
+.pt-dialog .st2-int-pick { flex:none; display:flex; align-items:center; width:24px; }
+.pt-dialog .st2-int-hide { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.pt-dialog .st2-int-pmain { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.pt-dialog .st2-int-pname { display:flex; align-items:center; flex-wrap:wrap; gap:4px 12px; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.pt-dialog .st2-int-pfacts { font-size:13px; line-height:18px; font-weight:400; color:var(--q); overflow-wrap:anywhere; }
+.pt-dialog .st2-int-pfacts b { font-weight:600; color:var(--ink); }
+.pt-dialog .st2-int-pend { flex:none; display:inline-flex; align-items:center; gap:8px; }
+.pt-dialog .st2-int-pedit { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px 16px; padding:4px 0 16px calc(24px + 12px); }
+.pt-dialog .st2-int-pfield { display:flex; flex-direction:column; gap:8px; min-width:0; }
+.pt-dialog .st2-int-pfoot { grid-column:1 / -1; display:flex; align-items:center; gap:8px; }
+.pt-dialog .st2-int-pchoose { width:280px; }
+.pt-dialog .st2-int-plinked { display:flex; flex-direction:column; align-items:flex-start; gap:4px; margin-top:12px; padding-top:8px; border-top:1px solid var(--line); }
+.pt-dialog .st2-int-plinked .st2-int-people { align-self:stretch; }

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode, Ref } from "react";
-import { IconButton } from "@/components/parts/button";
+import { Button, IconButton } from "@/components/parts/button";
 import { DictClock, LiveWords, type DictationState } from "@/components/notes/dictation";
 import { READING_BACK_NOTE } from "@/components/notes/waits";
 import { Waiting } from "@/components/ui/orb";
@@ -34,7 +34,9 @@ export function CvBox({
   ranOut = false,
   boxRef,
   before,
+  lead,
   extra,
+  worded = false,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -56,8 +58,14 @@ export function CvBox({
   boxRef?: Ref<HTMLTextAreaElement>;
   /** Anything the box carries above its words: the document it is scoped to. */
   before?: ReactNode;
+  /** On the bar's left, before the microphone's side: a job's Add photo. */
+  lead?: ReactNode;
   /** A second way to press, beside the main button: a job's Keep as typed. */
   extra?: ReactNode;
+  /** The main button says its word, blue, as a job's Overview draws it
+      (Isaac, 25 October 2026, "Yes, build the refined Overview A"); the
+      arrow otherwise, as Claude's. */
+  worded?: boolean;
 }) {
   const listening = !!dict && (dict.recording || dict.transcribing);
   const empty = !value.trim();
@@ -112,6 +120,7 @@ export function CvBox({
             <DictClock seconds={dict.seconds} />
           </span>
         )}
+        {lead}
         <span className="tc-sp" />
         {dict?.recording ? (
           <button type="button" className="pt-btn pt-btn--second pt-btn--32 pt-btn--icon tc-stop" aria-label="Stop" onClick={dict.stop}>
@@ -121,17 +130,31 @@ export function CvBox({
           <IconButton glyph="mic" label="Speak instead of typing" size={32} disabled={dict.transcribing} onClick={dict.start} />
         ) : null}
         {extra}
-        {/* Send as Claude's: an arrow, grey until there is something to send */}
-        <IconButton
-          glyph="send"
-          kind="main"
-          size={32}
-          type="submit"
-          label={sendLabel ?? sendWord}
-          className={`cv-send${waiting ? " cv-send--wait" : ""}`}
-          aria-busy={waiting || undefined}
-          disabled={waiting || listening || empty}
-        />
+        {worded ? (
+          <Button
+            kind="main"
+            size={32}
+            type="submit"
+            aria-label={sendLabel ?? sendWord}
+            className={`cv-send${waiting ? " cv-send--wait" : ""}`}
+            aria-busy={waiting || undefined}
+            disabled={waiting || listening || empty}
+          >
+            {sendWord}
+          </Button>
+        ) : (
+          /* Send as Claude's: an arrow, grey until there is something to send */
+          <IconButton
+            glyph="send"
+            kind="main"
+            size={32}
+            type="submit"
+            label={sendLabel ?? sendWord}
+            className={`cv-send${waiting ? " cv-send--wait" : ""}`}
+            aria-busy={waiting || undefined}
+            disabled={waiting || listening || empty}
+          />
+        )}
       </div>
     </form>
   );

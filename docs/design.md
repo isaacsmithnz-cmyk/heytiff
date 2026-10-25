@@ -294,8 +294,9 @@ https://claude.ai/artifact/BH6voDn1axdk96JZCCUSTf).
 
 #### On a job's page
 
-Two of his calls on the job page's old pieces (25 October 2026, on his mock
-https://claude.ai/artifact/GL43j32Z8xBo3CXekExHuF).
+Three of his calls on the job page (25 October 2026; the first two on his
+mock https://claude.ai/artifact/GL43j32Z8xBo3CXekExHuF, the third on the
+refined Overview A, https://claude.ai/artifact/SGFpbThni6YZF6HU3SZpPL).
 
 - **Materials' groups have their icons in colour** (`.jm-ic`), despite old
   law 31, colour only where it means something. "Now just put some color or
@@ -308,6 +309,13 @@ https://claude.ai/artifact/GL43j32Z8xBo3CXekExHuF).
   is something you act on. "put job value on the right. Center it. And give
   it its own border." The box is the figure's own, on the right of Billing,
   centred in it.
+- **The Overview's section heads wear Home's coloured block** (`.hm-blk` in
+  `.jov-head`), despite old law 31, colour only where it means something:
+  Summary pink with a file, To do yellow with a tick, the Activity feed
+  green with a bubble, the last two as Home's own. He approved the mock
+  that drew them ("Yes, build the refined Overview A", 25 October 2026).
+  The block is solid with its icon in ink, as on Home and in the Library:
+  no tint, no edge, and never blue, red or orange.
 
 ### Named exemptions
 

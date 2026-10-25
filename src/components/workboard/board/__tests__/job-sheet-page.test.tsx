@@ -335,37 +335,44 @@ describe("the job's sections are the card's faces", () => {
     expect(tabWords()).toEqual(["Overview", "Quote", "Visits", "Materials", "Photos", "Documents"]);
   });
 
-  /* "Job card, four tiles" (Isaac, 22 October 2026) */
-  it("shows Overview as the stages line over four tiles, and the job's conversation beside them", async () => {
+  /* the refined Overview A (Isaac, 25 October 2026): the stages line, the
+     strip of facts, then the Summary and To do beside the Activity feed */
+  it("shows Overview as the stages line over the strip of facts, the Summary and To do beside the Activity feed", async () => {
     const { container } = draw("overview", { moneyVisible: true });
     await ready();
     expect(jobTab("Overview")).toHaveAttribute("aria-selected", "true");
-    const side = container.querySelector(".jc-side") as HTMLElement;
-    expect(within(side).getByRole("navigation", { name: "Where the job is up to" })).toBeVisible();
-    expect([...side.querySelectorAll(".jt .jt-h")].map((h) => h.textContent)).toEqual(["Summary", "Next visit", "Money", "To do"]);
-    expect(screen.getByRole("region", { name: "The job's conversation" })).toBeVisible();
+    const over = container.querySelector(".jov") as HTMLElement;
+    expect(within(over).getByRole("navigation", { name: "Where the job is up to" })).toBeVisible();
+    const facts = within(screen.getByRole("group", { name: "The job's facts" }));
+    expect(facts.getAllByRole("region").map((r) => r.querySelector(".jov-lab")?.firstChild?.textContent)).toEqual(["Site", "Contact", "Next visit", "Money"]);
+    expect([...over.querySelectorAll(".jov-main .jov-title")].map((h) => h.textContent)).toEqual(["Summary", "To do"]);
+    expect([...over.querySelectorAll(".jov-side .jov-title")].map((h) => h.textContent)).toEqual(["Activity feed"]);
+    expect(screen.getByRole("region", { name: "Activity feed" })).toBeVisible();
     expect(screen.getByRole("textbox", { name: "Tell Tiff about this job" })).toBeVisible();
     expect(screen.queryByRole("complementary", { name: "About the job" })).toBeNull();
-    /* Next visit opens Visits and Money opens Billing, from anywhere on the tile */
-    await userEvent.click(within(side).getByRole("button", { name: "Next visit" }));
+    /* Next visit opens Visits and Money opens Billing, from anywhere on the cell */
+    await userEvent.click(facts.getByRole("button", { name: "Next visit" }));
     expect(onSection).toHaveBeenCalledWith("visits");
-    await userEvent.click(within(side).getByRole("button", { name: "Money" }));
+    await userEvent.click(facts.getByRole("button", { name: "Money" }));
     expect(onSection).toHaveBeenCalledWith("billing");
     /* a manager adds a task from To do */
-    expect(within(side).getByRole("button", { name: "Add task" })).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "To do" })).getByRole("button", { name: "Add task" })).toBeInTheDocument();
   });
 
-  it("leaves Money's tile off for whoever doesn't see the money", async () => {
-    const { container } = draw("overview");
+  it("leaves Money's cell off for whoever doesn't see the money", async () => {
+    draw("overview");
     await ready();
-    expect([...container.querySelectorAll(".jc-side .jt .jt-h")].map((h) => h.textContent)).toEqual(["Summary", "Next visit", "To do"]);
+    const facts = screen.getByRole("group", { name: "The job's facts" });
+    expect(facts).toHaveClass("jov-facts--3");
+    expect(within(facts).getAllByRole("region")).toHaveLength(3);
+    expect(within(facts).queryByRole("button", { name: "Money" })).toBeNull();
   });
 
   it("draws none of the card's own faces on Overview", async () => {
     draw("overview");
     await ready();
-    /* the card's own Summary and Timeline faces are the card's, not the page's; the Summary here is the tile */
-    expect(screen.getAllByRole("region", { name: "Summary" }).every((r) => r.classList.contains("jt"))).toBe(true);
+    /* the card's own Summary and Timeline faces are the card's, not the page's; the Summary here is the section */
+    expect(screen.getAllByRole("region", { name: "Summary" }).every((r) => r.classList.contains("jov-summary"))).toBe(true);
     expect(screen.queryByRole("region", { name: "Timeline" })).toBeNull();
     expect(screen.queryByRole("region", { name: "Photos" })).toBeNull();
   });

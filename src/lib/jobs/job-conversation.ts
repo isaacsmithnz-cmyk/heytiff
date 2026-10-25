@@ -7,14 +7,17 @@ import type { JobSummaryRead } from "@/lib/workboard/job-summary";
 import type { AppliedRecord } from "@/lib/workboard/note-applied";
 import type { EarlierTurn } from "@/lib/workboard/note-turns";
 import type { Tone } from "@/components/parts/state";
+import type { SummaryGroup } from "./job-summary-rows";
 
 /* A JOB'S OVERVIEW AS ITS CONVERSATION (v2, step 6, slice A; the board
    JC-1) — pure. What the job's page draws on Overview, decided here where
    a test can see it. Nothing here reads a clock: `today` is handed in,
    read on the server on the account's own clock.
 
-   THE LEFT COLUMN is the job's diary turned into a conversation, oldest at
-   the top and the box at the foot. Every entry the diary held is still in
+   THE ACTIVITY FEED is the job's diary turned into a conversation. This
+   builds it oldest first, day by day; the feed draws it the other way up,
+   newest first under the box (Isaac's refined Overview A, 25 October
+   2026). Every entry the diary held is still in
    it (lib/workboard/job-story builds them, unchanged): ServiceM8's notes
    and ours as messages, each with its person and time; the visits, photos,
    bookings, money and milestones as small cards in their place. A "Today"
@@ -69,6 +72,10 @@ export type JobConversationRead = {
   done?: { id: string; title: string; line: string }[];
   /** Who is looking: their staff card and their name. */
   viewer: { id: string | null; name: string | null };
+  /** The Summary's groups from the job's quote in HeyTiff (job-summary-rows),
+      no money in them; null when the quote can't say what the job is, and
+      the Summary reads the description instead. */
+  summary?: SummaryGroup[] | null;
 };
 
 /* ── days ── */
@@ -91,7 +98,7 @@ export type ConvItem = { key: string; entry: StoryEntry | null; talk: JobNoteTal
 
 export type ConvDay = { day: string; label: string; items: ConvItem[] };
 
-/** The conversation, oldest first, day by day.
+/** The conversation, oldest first, day by day (the feed turns it newest first).
 
     `story` is the diary's own list (newest first, as job-story builds it),
     already filtered. Each of our notes in it finds its talk by id. A note

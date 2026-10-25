@@ -116,7 +116,9 @@ const draw = (p: {
     </div>,
   );
 
-it("reads oldest first, a line between the days, each message with its person and time", () => {
+/* THE ACTIVITY FEED (Isaac's refined Overview A, 25 October 2026): newest
+   first, a grey line between the days, Tiff's box at the head */
+it("reads newest first, a line between the days, each message with its person and time", () => {
   draw({
     story: [
       note({ key: "note:b", text: "Second", at: "2026-10-13 10:02:00" }),
@@ -124,12 +126,69 @@ it("reads oldest first, a line between the days, each message with its person an
     ],
   });
   const days = screen.getAllByText(/^(Today|Fri 9 Oct)$/).map((d) => d.textContent);
-  expect(days).toEqual(["Fri 9 Oct", "Today"]);
+  expect(days).toEqual(["Today", "Fri 9 Oct"]);
+  expect(screen.getByText("Today")).toHaveClass("jc-dayname");
   const msgs = screen.getAllByRole("article");
-  expect(msgs.map((m) => within(m).getByText(/First|Second/).textContent)).toEqual(["First", "Second"]);
-  expect(within(msgs[0]!).getByText("Dane Hill")).toBeInTheDocument();
-  expect(within(msgs[0]!).getByText("3:00 pm")).toBeInTheDocument();
-  expect(within(msgs[1]!).getByText("10:02 am")).toBeInTheDocument();
+  expect(msgs.map((m) => within(m).getByText(/First|Second/).textContent)).toEqual(["Second", "First"]);
+  expect(within(msgs[1]!).getByText("Dane Hill")).toBeInTheDocument();
+  expect(within(msgs[1]!).getByText("3:00 pm")).toBeInTheDocument();
+  expect(within(msgs[0]!).getByText("10:02 am")).toBeInTheDocument();
+});
+
+it("puts a day's entries newest first too, and says Yesterday for yesterday", () => {
+  draw({
+    story: [
+      note({ key: "note:late", text: "Later on", day: "2026-10-12", at: "2026-10-12 16:43:00" }),
+      note({ key: "note:early", text: "Early on", day: "2026-10-12", at: "2026-10-12 08:10:00" }),
+    ],
+  });
+  expect(screen.getByText("Yesterday")).toHaveClass("jc-dayname");
+  expect(screen.getAllByRole("article").map((m) => within(m).getByText(/on$/).textContent)).toEqual(["Later on", "Early on"]);
+});
+
+it("is a section like the others: the green block, Activity feed, the soft tabs on its right, Tiff's box above the feed", () => {
+  draw({ story: [note()] });
+  const feed = screen.getByRole("region", { name: "Activity feed" });
+  const head = feed.querySelector(".jov-head") as HTMLElement;
+  expect(head.querySelector(".hm-blk")).toHaveClass("hm-blk--green");
+  expect(within(head).getByRole("heading", { level: 2 })).toHaveTextContent("Activity feed");
+  expect(within(head).getAllByRole("tab").map((t) => t.textContent)).toEqual(["All", "Notes", "Photos"]);
+  /* the box comes before the feed */
+  const box = screen.getByRole("textbox", { name: "Tell Tiff about this job" });
+  const list = feed.querySelector(".jc-feed") as HTMLElement;
+  expect(box.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  /* Send says its word, blue; Add photo is quiet */
+  expect(screen.getByRole("button", { name: "Send to Tiff" })).toHaveTextContent("Send");
+  expect(screen.getByRole("button", { name: "Send to Tiff" })).toHaveClass("pt-btn--main");
+  expect(screen.getByRole("button", { name: "Add photo" })).toHaveClass("pt-btn--quiet");
+});
+
+it("filters what is already read: Photos shows the photos and leaves the notes", async () => {
+  const onPhotos = jest.fn();
+  draw({
+    story: [
+      note({ key: "note:b", text: "Second" }),
+      { kind: "photos", key: "photos:2026-10-13", day: "2026-10-13", at: null, count: 2, shown: [] },
+    ],
+    d: diary({ onPhotos }),
+  });
+  await userEvent.click(screen.getByRole("tab", { name: "Photos" }));
+  expect(screen.queryByText("Second")).toBeNull();
+  expect(screen.getByText("2 photos")).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "See all" }));
+  expect(onPhotos).toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("tab", { name: "All" }));
+  expect(screen.getByText("Second")).toBeInTheDocument();
+});
+
+it("opens the quote from its Quote sent entry, by the job's number", async () => {
+  const onQuote = jest.fn();
+  draw({
+    story: [{ kind: "milestone", key: "milestone:quoted", day: "2026-10-09", at: null, label: "Quote sent" }],
+    d: diary({ onQuote, jobNumber: "3385" }),
+  });
+  await userEvent.click(screen.getByRole("button", { name: "Open quote #3385" }));
+  expect(onQuote).toHaveBeenCalled();
 });
 
 it("draws a voice note as a card round its words", () => {

@@ -604,11 +604,11 @@ describe("the customer, on Overview", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Laing + Simmons Double Bay");
   });
 
-  it("puts the customer on Overview: a contact's email as a mailto link, and their role", async () => {
+  it("puts the customer in the strip's Contact: a contact's email as a mailto link, and their role", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<Job row={row()} {...props} />);
 
-    const cust = within(await screen.findByRole("region", { name: "Customer" }));
+    const cust = within(await screen.findByRole("region", { name: /^Contacts?$/ }));
     const link = (await cust.findByText("josh@lsdb.com.au")) as HTMLAnchorElement;
     expect(link.getAttribute("href")).toBe("mailto:josh@lsdb.com.au");
     expect(cust.getByText("Josh")).toBeInTheDocument();
@@ -765,7 +765,7 @@ it("puts a day's photos in the conversation and sends the reader to the Photos s
     await detailLanded();
 
     expect(await convo().findByText("6 photos")).toBeInTheDocument();
-    await userEvent.click(convo().getByRole("button", { name: "See the photos" }));
+    await userEvent.click(convo().getByRole("button", { name: "See all" }));
     expect(jobTab("Photos")).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("region", { name: "Photos" })).toBeVisible();
   });
@@ -1952,7 +1952,7 @@ describe("the job's once-per-job acts", () => {
     expect(createProjectFromJob).not.toHaveBeenCalled();
   });
 
-  it("names the board a tracked job is on, beside the customer, and that is the door", async () => {
+  it("names the board a tracked job is on, under the strip of facts, and that is the door", async () => {
     const onOpenTracked = jest.fn();
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(
@@ -1964,8 +1964,9 @@ describe("the job's once-per-job acts", () => {
     );
     await detailLanded();
 
-    const cust = within(screen.getByRole("region", { name: "The customer" }));
-    await userEvent.click(cust.getByRole("button", { name: "Open it on the maintenance board" }));
+    const under = document.querySelector(".jov-under") as HTMLElement;
+    expect(under.previousElementSibling).toHaveClass("jov-facts");
+    await userEvent.click(within(under).getByRole("button", { name: "Open it on the maintenance board" }));
     expect(onOpenTracked).toHaveBeenCalledWith({ kind: "visit", id: "v-1", label: "#1021" });
   });
 });

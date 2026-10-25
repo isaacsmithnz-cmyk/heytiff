@@ -19,14 +19,14 @@ const money = (over: Partial<JobMoney> = {}): JobMoney => ({
 
 it("shows an invoiced job nobody has paid as its value, owed in orange, and the day it was invoiced", () => {
   render(<JobMoneyGlance family={null} money={money()} ledgerPaidCents={0} statusLabel="Work Order" />);
-  expect(screen.getByText("$10,450")).toHaveClass("jt-big");
+  expect(screen.getByText("$10,450")).toHaveClass("jov-fig");
   expect(screen.getByText("Nothing paid yet").closest(".pt-state")).toHaveClass("pt-state--look");
-  expect(screen.getByText("Invoiced Tue 20 Oct")).toHaveClass("jt-cap");
+  expect(screen.getByText("Invoiced Tue 20 Oct")).toHaveClass("jov-cap");
 });
 
 it("shows what's still owing once part is paid, with the job's value under it", () => {
   render(<JobMoneyGlance family={null} money={money()} ledgerPaidCents={450000} statusLabel="Work Order" />);
-  expect(screen.getByText("$5,950")).toHaveClass("jt-big");
+  expect(screen.getByText("$5,950")).toHaveClass("jov-fig");
   expect(screen.getByText("Job value $10,450")).toBeInTheDocument();
 });
 
@@ -43,5 +43,5 @@ it("leaves a quote's word grey", () => {
 it("says so when ServiceM8's figures didn't load, and shows no figure", () => {
   render(<JobMoneyGlance family={null} money={null} ledgerPaidCents={0} statusLabel={null} unavailable />);
   expect(screen.getByText(/didn.t load just now/)).toBeInTheDocument();
-  expect(document.querySelector(".jt-big")).toBeNull();
+  expect(document.querySelector(".jov-fig")).toBeNull();
 });

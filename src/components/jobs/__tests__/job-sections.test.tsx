@@ -60,6 +60,22 @@ describe("the Summary", () => {
     expect(within(s.getByText("Indoor").closest("li") as HTMLElement).getByText("MSZ-AP25VGKD2-A2")).toHaveClass("jov-detail");
   });
 
+  /* Isaac, 25 October 2026: an opened group folds back */
+  it("ends an opened group in Show fewer, which folds it back to four", async () => {
+    const pick = "Upstairs\n* One\n* Two\n* Three\n* Four\n* Five\n* Six\nDownstairs\n* A\n* B";
+    render(<JobSummary fromQuote={null} description={pick} read />);
+    const s = within(screen.getByRole("region", { name: "Summary" }));
+    await userEvent.click(s.getByRole("button", { name: "Show 2 more" }));
+    const fewer = s.getByRole("button", { name: "Show fewer" });
+    expect(fewer).toHaveAttribute("aria-expanded", "true");
+    expect(s.getByText("Six")).toBeInTheDocument();
+    await userEvent.click(fewer);
+    expect(s.queryByText("Six")).toBeNull();
+    expect(s.getByRole("button", { name: "Show 2 more" })).toHaveAttribute("aria-expanded", "false");
+    /* a group of four or fewer has neither button */
+    expect(s.getAllByRole("button")).toHaveLength(1);
+  });
+
   it("says nothing is written, and waits for the quote before reading the description", () => {
     const { rerender } = render(<JobSummary fromQuote={null} description="Ducted upstairs" read={false} />);
     expect(screen.getByText("Reading the job")).toBeInTheDocument();

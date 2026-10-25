@@ -13,7 +13,8 @@ import type { LineFields } from "@/lib/quotes/lines";
        labour lines are hours, not a thing that goes in, and stay on the
        quote;
      - else the description's own lines, under its own headings where it
-       has them (a line that ends with a colon, "Next visit:");
+       has them (a line with no bullet over bulleted ones, or a line that
+       ends with a colon, "Next visit:"), a model code on the right;
      - else nothing, and the page says the job has nothing written. */
 
 export type SummaryRow = { key: string; thing: string; detail: string };
@@ -58,7 +59,53 @@ export function summaryFromQuote(lines: readonly Line[], accepted: readonly numb
   return out.length ? out : null;
 }
 
-const BULLET = /^(?:[-*•·–]|\d+[.)])\s+/;
+/* THE DESCRIPTION, AS THE OFFICE WRITES ONE (the walk of 25 October 2026,
+   job 3385's "Pick List"): a line with no bullet is a group's heading, the
+   bulleted lines under it are its rows, and a line with nothing under it is
+   a plain row of the group it sits in, except the description's first line,
+   a title over the rest ("Pick List"), which says nothing. A model code in
+   a row moves to the right, grey and in capitals: "Wall controller -
+   41maam" is "Wall controller" with 41MAAM. A description with no bullet at all is the older kind: its
+   own "Heading:" lines over its lines, or its lines as plain rows. */
+const BULLET = /^(?:\*{1,2}|[-•·–])\s*/;
+const NUMBERED = /^\d+[.)]\s+/;
+
+/** A size, a rating or a length, never a code: 250mm, 7.1kW, 12m, 20A. */
+const SIZE = /^\d+(?:\.\d+)?(?:mm|cm|m|mtr|kw|w|kva|va|v|a|amp|amps|hp|kg|g|l|lt|ltr|pa|db|deg|c|x)$/i;
+/** A refrigerant, never a code: R32, R410a. */
+const GAS = /^r\d{2,3}[a-z]?$/i;
+
+/** A maker's model code: five or more letters, digits and dashes, with two
+    letters and two digits in it at least, as PEAD-M71JAAD, SUZ-M71VAD2-A,
+    41MAAM or MSZ-AP25VGKD2-A2. */
+export function isModelCode(token: string): boolean {
+  const t = token.replace(/[,;:]+$/, "");
+  if (t.length < 5 || !/^[A-Za-z0-9][A-Za-z0-9-]*[A-Za-z0-9]$/.test(t)) return false;
+  if (!/[A-Za-z]/.test(t) || !/\d/.test(t)) return false;
+  if (SIZE.test(t) || GAS.test(t)) return false;
+  /* a range of sizes, 10-20mm, is still a size */
+  if (t.split("-").every((seg) => /^\d+(?:\.\d+)?$/.test(seg) || SIZE.test(seg))) return false;
+  /* two letters and two digits at least, so 2-way, 3-phase or 2nd isn't one */
+  return (t.match(/[A-Za-z]/g) ?? []).length >= 2 && (t.match(/\d/g) ?? []).length >= 2;
+}
+
+const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** A row's words and the model code in them, moved to the right. */
+export function rowOf(text: string): { thing: string; detail: string } {
+  const words = text.replace(/\s+/g, " ").trim().split(" ");
+  const at = words.findIndex(isModelCode);
+  if (at < 0) return { thing: words.join(" "), detail: "" };
+  const detail = words[at]!.replace(/[,;:]+$/, "").toUpperCase();
+  const rest = [...words.slice(0, at), ...words.slice(at + 1)]
+    .join(" ")
+    /* the separator the code stood behind, "Wall controller - 41maam" */
+    .replace(/\s*[-–:,]\s*$/, "")
+    .replace(/^\s*[-–:,]\s*/, "")
+    .trim();
+  if (!rest) return { thing: detail, detail: "" };
+  return { thing: at === 0 ? capital(rest) : rest, detail };
+}
 
 /** The description's own lines, under its own headings. A description with
     no heading is one group with no title: its lines as plain rows. */
@@ -67,10 +114,15 @@ export function summaryFromText(text: string | null | undefined): SummaryGroup[]
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
+  const bulleted = lines.some((l) => BULLET.test(l));
   const groups: SummaryGroup[] = [];
   let cur: SummaryGroup | null = null;
   lines.forEach((raw, i) => {
-    const heading = /^(.{1,80}):$/.exec(raw) ?? /^#{1,3}\s+(.{1,80})$/.exec(raw);
+    const heading = bulleted
+      ? BULLET.test(raw)
+        ? null
+        : [raw, raw.replace(/:$/, "")]
+      : (/^(.{1,80}):$/.exec(raw) ?? /^#{1,3}\s+(.{1,80})$/.exec(raw));
     if (heading) {
       cur = { key: `d:${i}`, title: heading[1]!.trim(), rows: [] };
       groups.push(cur);
@@ -80,8 +132,25 @@ export function summaryFromText(text: string | null | undefined): SummaryGroup[]
       cur = { key: `d:${i}`, title: null, rows: [] };
       groups.push(cur);
     }
-    cur.rows.push({ key: `d:${i}`, thing: raw.replace(BULLET, ""), detail: "" });
+    const words = raw.replace(bulleted ? BULLET : NUMBERED, "").replace(BULLET, "");
+    if (words.trim()) cur.rows.push({ key: `d:${i}`, ...rowOf(words) });
   });
-  /* a heading the description left empty says nothing */
-  return groups.filter((g) => g.rows.length > 0);
+  if (!bulleted) return groups.filter((g) => g.rows.length > 0);
+  /* A LINE WITH NOTHING UNDER IT is the description's own words, not a
+     heading, and stays as a plain row in the group it sits in: dropping
+     real text with no way to see it is worse (25 October 2026). Only the
+     description's first line, a title over the rest ("Pick List"), goes. */
+  const out: SummaryGroup[] = [];
+  groups.forEach((g, i) => {
+    if (g.rows.length > 0 || g.title === null) {
+      if (g.rows.length > 0) out.push(g);
+      return;
+    }
+    if (i === 0 && g.key === "d:0") return;
+    const row = { key: g.key, ...rowOf(g.title) };
+    const last = out.at(-1);
+    if (last) last.rows.push(row);
+    else out.push({ key: g.key, title: null, rows: [row] });
+  });
+  return out;
 }

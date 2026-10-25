@@ -8832,6 +8832,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jov-open:focus-visible { outline:none; }
 .fg .jov-lab .jov-edit { margin:-8px -12px -8px 0; }
 .fg .jov-press { position:relative; z-index:1; margin-top:4px; }
+.fg .jov-press--held { display:block; height:32px; }
 .fg .jov-strong { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
 .fg .jov-addr { margin:0; font-size:14px; line-height:20px; color:var(--ink); white-space:pre-line; }
 .fg .jov-cap { margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
@@ -8843,15 +8844,18 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jov-contacts { align-self:stretch; display:flex; flex-direction:column; gap:12px; margin:0; padding:0; list-style:none; }
 .fg .jov-contacts li { display:flex; align-items:center; gap:12px; min-width:0; }
 .fg .jov-person { display:flex; flex-direction:column; min-width:0; }
-.fg .jov-tel { font-size:13px; line-height:18px; color:var(--ink); overflow-wrap:anywhere; }
+/* the number to ring, easy to see and still a tel: link: 14 at 500 in ink, no underline (Isaac, 25 October 2026) */
+.fg .jov-tel { font-size:14px; line-height:20px; font-weight:500; color:var(--ink); text-decoration:none; overflow-wrap:anywhere; }
 /* an address is one token: it fades at its end, never breaks mid-word */
 .fg .jov-mail { display:block; font-size:13px; line-height:18px; color:var(--ink); white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.fg a.jov-tel, .fg a.jov-mail { text-decoration:underline; text-underline-offset:2px; }
+.fg a.jov-mail { text-decoration:underline; text-underline-offset:2px; }
 /* a tracked job's board, under the strip */
 .fg .jov-under { display:flex; }
 /* the two columns and the hairline between them */
 .fg .jov-cols { display:grid; grid-template-columns:minmax(0,1fr) calc(460px + 32px + 1px); column-gap:32px; align-items:start; }
 .fg .jov-main { display:flex; flex-direction:column; gap:24px; min-width:0; }
+/* it stays in view as the feed scrolls, while it fits in the page's height (job-overview.tsx measures) */
+.fg .jov-main--stick { position:sticky; top:24px; }
 .fg .jov-side { align-self:stretch; min-width:0; padding-left:32px; border-left:1px solid var(--line); }
 /* the section recipe */
 .fg .jov-sec { display:flex; flex-direction:column; min-width:0; }
@@ -8864,6 +8868,9 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jov-detail { flex:none; max-width:50%; font-size:13px; line-height:18px; color:var(--q); text-align:right; overflow-wrap:anywhere; }
 .fg .jov-group + .jov-group { margin-top:16px; }
 .fg .jov-sub { margin:0 0 4px; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+/* a group's Show N more: quiet, its word level with the rows' */
+.fg .jov-more { display:flex; padding:4px 0 0; }
+.fg .jov-more .pt-btn { margin-left:-12px; }
 .fg .jov-none { margin:0; font-size:14px; line-height:20px; color:var(--q); }
 .fg .jov-row.jov-none { justify-content:flex-start; }
 .fg .jov-words { margin:16px 0 0; font-size:16px; line-height:24px; color:var(--ink); white-space:pre-wrap; overflow-wrap:anywhere; }
@@ -8919,16 +8926,11 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jc-undoall { margin:0; }
 /* the answers Tiff offers while she waits on one: second buttons */
 .fg .jc-quick { display:flex; flex-wrap:wrap; gap:8px; }
-/* Save and the ⓘ sit with Send on the right of the box */
-.fg .cv-boxbar .jc-info + .jc-keep, .fg .cv-boxbar .jc-info + .cv-send, .fg .cv-boxbar .jc-keep + .cv-send { margin-left:0; }
-/* the ⓘ beside Save and Send: a quiet glyph; a press opens what each does,
-   on ink, over the bar, as the tooltip draws (parts/surfaces.css) */
-.fg .jc-info { position:relative; display:inline-flex; }
-.fg .jc-info .jc-infobtn { width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; padding:0; border:0; border-radius:50%; background:none; color:var(--q); cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
-.fg .jc-info .jc-infobtn:hover, .fg .jc-info .jc-infobtn[aria-expanded="true"] { background:var(--tint); color:var(--ink); }
-.fg .jc-info .jc-infobtn:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .jc-infopop { position:absolute; right:0; bottom:calc(100% + 8px); z-index:var(--z-toast); width:max-content; max-width:300px; display:flex; flex-direction:column; gap:8px; padding:12px; border-radius:var(--r-control); background:var(--ink); color:var(--white); font-size:13px; line-height:20px; font-weight:400; text-align:left; }
-.fg .jc-infopop b { font-weight:600; }
+/* Save sits with Send on the right of the box; Add photo and the Also in
+   ServiceM8 tick on its left, 16 apart (the walk of 25 October 2026) */
+.fg .cv-boxbar .jc-keep + .cv-send { margin-left:0; }
+.fg .jc-lead { display:flex; align-items:center; gap:16px; min-width:0; }
+.fg .jc-lead .wb2-flcheck { align-self:auto; padding:0; font-size:13px; line-height:18px; font-weight:500; color:var(--ink); }
 /* Add photo's chip, above the words in the box: the photo, its name, its clear */
 .fg .jc-photo { display:flex; align-items:center; gap:8px; align-self:flex-start; max-width:100%; min-width:0; padding:4px; border:1px solid var(--line); border-radius:var(--r-button); background:var(--paper); }
 .fg .jc-photo-thumb { flex:none; display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:var(--r-control); object-fit:cover; background:var(--sel); color:var(--q); }
@@ -8958,6 +8960,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 @media (max-width:1100px) {
   .fg .jov-cols { grid-template-columns:minmax(0,1fr); row-gap:32px; }
   .fg .jov-side { padding-left:0; border-left:0; }
+  .fg .jov-main--stick { position:static; }
 }
 @media (max-width:760px) {
   .fg .jov-facts, .fg .jov-facts--3 { grid-template-columns:minmax(0,1fr); }

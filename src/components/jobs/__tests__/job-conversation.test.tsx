@@ -152,7 +152,8 @@ it("is a section like the others: the green block, Activity feed, the soft tabs 
   const head = feed.querySelector(".jov-head") as HTMLElement;
   expect(head.querySelector(".hm-blk")).toHaveClass("hm-blk--green");
   expect(within(head).getByRole("heading", { level: 2 })).toHaveTextContent("Activity feed");
-  expect(within(head).getAllByRole("tab").map((t) => t.textContent)).toEqual(["All", "Notes", "Photos"]);
+  const filter = within(head).getByRole("group", { name: "Show in the feed" });
+  expect(within(filter).getAllByRole("button").map((t) => t.textContent)).toEqual(["All", "Notes", "Photos"]);
   /* the box comes before the feed */
   const box = screen.getByRole("textbox", { name: "Tell Tiff about this job" });
   const list = feed.querySelector(".jc-feed") as HTMLElement;
@@ -172,12 +173,12 @@ it("filters what is already read: Photos shows the photos and leaves the notes",
     ],
     d: diary({ onPhotos }),
   });
-  await userEvent.click(screen.getByRole("tab", { name: "Photos" }));
+  await userEvent.click(screen.getByRole("button", { name: "Photos" }));
   expect(screen.queryByText("Second")).toBeNull();
   expect(screen.getByText("2 photos")).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "See all" }));
   expect(onPhotos).toHaveBeenCalled();
-  await userEvent.click(screen.getByRole("tab", { name: "All" }));
+  await userEvent.click(screen.getByRole("button", { name: "All" }));
   expect(screen.getByText("Second")).toBeInTheDocument();
 });
 
@@ -294,22 +295,30 @@ it("offers Save only once there are words", () => {
   expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
 });
 
-/* Isaac, 24 October 2026: "a little information button next to it … if you
-   tap that, then it will say what save and what send does" */
-it("(F) says what Save and Send do when its ⓘ is pressed, and puts it away again", async () => {
-  draw({ c: convo({ draft: "Grilles are in the van" }) });
-  const info = screen.getByRole("button", { name: "What Save and Send do" });
-  expect(info).toHaveAttribute("aria-expanded", "false");
-  expect(screen.queryByRole("note")).toBeNull();
-  await userEvent.click(info);
-  const said = screen.getByRole("note");
-  expect(said).toHaveTextContent("Save keeps your words as you typed them, as a note on this job. Tiff doesn't read them, and no task is made.");
-  expect(said).toHaveTextContent("Send gives them to Tiff, as your voice does.");
-  await userEvent.keyboard("{Escape}");
-  expect(screen.queryByRole("note")).toBeNull();
-  await userEvent.click(info);
-  await userEvent.click(info);
-  expect(screen.queryByRole("note")).toBeNull();
+/* the walk of 25 October 2026: the ⓘ went (no hint text), and the Also in
+   ServiceM8 tick came inside the box's bottom row, after Add photo */
+it("has no ⓘ in the box, and the Also in ServiceM8 tick in its bottom row after Add photo", () => {
+  draw({
+    c: convo({ draft: "Grilles are in the van" }),
+    d: diary({ notesSm8: { owner: false } as never, sender: { state: "ready" } as never }),
+  });
+  expect(screen.queryByRole("button", { name: /^What Save/ })).toBeNull();
+  const tick = screen.getByRole("checkbox", { name: "Also in ServiceM8" });
+  const lead = tick.closest(".jc-lead") as HTMLElement;
+  expect(lead.closest(".cv-boxbar")).not.toBeNull();
+  expect(lead.firstElementChild).toHaveTextContent("Add photo");
+});
+
+it("(F) presses the feed's filter from the keyboard: each word is its own stop, and says whether it is pressed", async () => {
+  draw({ story: [note({ key: "note:b", text: "Second" }), { kind: "photos", key: "photos:2026-10-13", day: "2026-10-13", at: null, count: 2, shown: [] }] });
+  const notes = screen.getByRole("button", { name: "Notes" });
+  expect(screen.getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
+  expect(notes).toHaveAttribute("aria-pressed", "false");
+  expect(notes).not.toHaveAttribute("tabindex", "-1");
+  notes.focus();
+  await userEvent.keyboard("{Enter}");
+  expect(notes).toHaveAttribute("aria-pressed", "true");
+  expect(screen.queryByText("2 photos")).toBeNull();
 });
 
 it("keeps the diary's filters, and the diary's other entries as cards in their place", async () => {
@@ -323,7 +332,7 @@ it("keeps the diary's filters, and the diary's other entries as cards in their p
   });
   await userEvent.click(screen.getByRole("button", { name: "Open" }));
   expect(onOpenClaim).toHaveBeenCalledWith("c1");
-  await userEvent.click(screen.getByRole("tab", { name: "Notes" }));
+  await userEvent.click(screen.getByRole("button", { name: "Notes" }));
   expect(screen.queryByText(/Deposit invoice/)).toBeNull();
   expect(screen.getByText("Study head mounted and levelled.")).toBeInTheDocument();
 });

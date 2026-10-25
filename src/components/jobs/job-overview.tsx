@@ -51,6 +51,38 @@ const TaskForm = dynamic(() => import("@/components/making/task-form").then((m) 
    (lib/lang/policy, in the router). It never listens by itself; the box's
    microphone puts said words in the box, which go as voice. */
 
+/** The room a sticking column keeps above it, and below it, in the page's scroller. */
+const STICK_GAP = 24;
+
+/* THE LEFT COLUMN STAYS IN VIEW (the walk of 25 October 2026: the feed
+   runs long, and Summary and To do ended halfway down). It sticks in the
+   page's scroller as the feed scrolls, but only while it fits in the
+   scroller's height: a Summary taller than that scrolls with the page, so
+   nothing in it is ever out of reach. */
+function useStickWhileItFits() {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [fits, setFits] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const scroller = el.closest<HTMLElement>(".outlet");
+    const measure = () => {
+      const room = (scroller?.clientHeight ?? window.innerHeight) - 2 * STICK_GAP;
+      setFits(el.offsetHeight > 0 && el.offsetHeight <= room);
+    };
+    measure();
+    const seen = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    seen?.observe(el);
+    if (scroller) seen?.observe(scroller);
+    window.addEventListener("resize", measure);
+    return () => {
+      seen?.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
+  return [ref, fits] as const;
+}
+
 const OPENING: Opening = { origin: null, still: true, at: 0, room: "diary" };
 
 /* The tick's actions, reached when a tick is pressed: the job card carries
@@ -103,6 +135,7 @@ export function JobOverview({
 }) {
   const router = useRouter();
   const scope = useNoteScope();
+  const [mainRef, mainFits] = useStickWhileItFits();
   const tiff = useTiff();
   const convo = useConversation({
     opening: OPENING,
@@ -213,7 +246,7 @@ export function JobOverview({
       />
       {under}
       <div className="jov-cols">
-        <div className="jov-main">
+        <div className={`jov-main${mainFits ? " jov-main--stick" : ""}`} ref={mainRef}>
           <JobSummary fromQuote={read?.summary ?? null} description={what} read={readDone || !!read || (!cardId && !loading)} />
           <JobTodo
             tasks={tasks}

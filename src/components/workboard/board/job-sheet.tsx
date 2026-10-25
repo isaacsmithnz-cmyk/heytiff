@@ -39,6 +39,7 @@ import { JobQuoteCard } from "./job-quote-card";
 import { JobVisits, VisitDialog, type ComingVisit } from "./job-visit-tasks";
 import { sm8QuoteOf } from "../quote/sm8-quote-of";
 import { JobProgressLine } from "./job-progress-line";
+import { fmtAud } from "@/lib/workboard/project-money";
 import { JobCustomerDialog } from "./job-customer-dialog";
 import { customerEditOffered } from "@/app/actions/job-customer";
 import { setNoDeposit } from "@/app/actions/job-deposit";
@@ -274,6 +275,8 @@ export function JobSheet({
 }) {
   const router = useRouter();
   const [detail, setDetail] = useState<MirrorJobDetail | null>(null);
+  /* how many cards ServiceM8 bills the job across, read with the detail */
+  const [cards, setCards] = useState<number | null>(null);
   /* The job's files AS READ. What the faces show is `media`, below: this,
      less ServiceM8's copies of files we sent that our own rows show. */
   const [mediaRead, setMedia] = useState<JobMediaGroupsRead | null>(null);
@@ -397,6 +400,7 @@ export function JobSheet({
     void readMirrorJob(row.id).then((res) => {
       if (!live) return;
       setDetail(res.detail);
+      setCards(res.cards ?? null);
       setFocus(res.focusRemoteId);
       setLoading(false);
     });
@@ -2012,6 +2016,22 @@ export function JobSheet({
             />
     ) : null;
 
+  /* MONEY BEFORE THE RECORD: the row's value, only where it is certainly
+     the figure the record will show, since a figure must never be replaced
+     by a different one (Isaac, 25 October 2026). That is a job on one card
+     (ServiceM8 bills no clone of it), worth something, with nothing paid:
+     the record's figure is then its own total (readMoney: the family of one
+     sums its total; the balance stands in only once something is paid).
+     Anything else says "Reading the figures" until the record lands. */
+  const early =
+    cards === 1 &&
+    row.money?.valueCents != null &&
+    row.money.valueCents > 0 &&
+    row.money.paidCents === 0 &&
+    detail?.money?.valueCents === row.money.valueCents
+      ? row.money.valueCents
+      : null;
+
   /* THE JOB'S PAGE (v2, step 5): the head, then the section's faces. */
   const status = (cardStatus ?? "").trim();
   /* no numbers on the sections (rule 31, Isaac, 20 October) */
@@ -2106,6 +2126,14 @@ export function JobSheet({
                       statusLabel={row.statusLabel}
                       unavailable={recordFailed}
                     />
+                  ) : early !== null ? (
+                    /* the job's value at once, from the row the page already
+                       has (the Jobs list's); only the paid word waits (the
+                       walk of 25 October 2026: Money waited 20 seconds) */
+                    <>
+                      <b className="jov-fig">{fmtAud(early)}</b>
+                      <p className="jov-cap">Reading the payments</p>
+                    </>
                   ) : (
                     <p className="jov-cap">Reading the figures</p>
                   )

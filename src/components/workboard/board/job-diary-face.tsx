@@ -384,21 +384,30 @@ export function AlsoSm8({
   sender,
   notesSm8,
   onConfirm,
+  part = "both",
 }: {
   also: boolean;
   onTick: (on: boolean) => void;
   sender: NoteSender | null;
   notesSm8: DiaryNotesSm8;
   onConfirm?: Doors["onConfirm"];
+  /** The tick alone (in a box's bottom row, a job's Overview), the line
+      saying why it can't send alone (under that box), or both together. */
+  part?: "both" | "tick" | "why";
 }) {
   const ready = sender?.state === "ready";
   const why = sender && !ready ? senderSentence(sender) : null;
+  const box = (
+    <label className="wb2-flcheck">
+      <input type="checkbox" checked={ready && also} disabled={!ready} onChange={(e) => onTick(e.target.checked)} />
+      {NOTE_WORDS.door.alsoInSm8}
+    </label>
+  );
+  if (part === "tick") return box;
+  if (part === "why" && !why) return null;
   return (
     <div className="wb2-evreply">
-      <label className="wb2-flcheck">
-        <input type="checkbox" checked={ready && also} disabled={!ready} onChange={(e) => onTick(e.target.checked)} />
-        {NOTE_WORDS.door.alsoInSm8}
-      </label>
+      {part === "both" && box}
       {why && (
         <div className="wb2-jcattsave">
           <span className="wb2-evmeta">{why}</span>

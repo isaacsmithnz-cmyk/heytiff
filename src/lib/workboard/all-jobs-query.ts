@@ -1233,6 +1233,33 @@ export async function readMirrorJobDetail(
 
 /* ── the family behind one job ── */
 
+/** HOW MANY CARDS ServiceM8 bills this job across, itself included: the
+    family's members by name, as readJobFamily finds them, and nothing of
+    their money. One is a job on its own card, whose figure on the Overview
+    is its own `total_invoice_amount` until something is paid, so the page
+    can show it before the family's read lands (the walk of 25 October 2026:
+    Money waited 20 seconds; "a figure must never be replaced by a different
+    one"). Null when it can't be told. */
+export async function familyCardCount(orgId: string, remoteId: string): Promise<number | null> {
+  const { data: self } = await supabaseAdmin
+    .from("sm8_jobs")
+    .select("generated_job_id")
+    .eq("org_id", orgId)
+    .eq("uuid", remoteId)
+    .eq("active", 1)
+    .maybeSingle();
+  const parts = splitJobNumber((self as { generated_job_id: string | null } | null)?.generated_job_id);
+  if (!parts) return null;
+  const { data, error } = await supabaseAdmin
+    .from("sm8_jobs")
+    .select("generated_job_id")
+    .eq("org_id", orgId)
+    .eq("active", 1)
+    .in("generated_job_id", familyNumbersFor(parts.base));
+  if (error) return null;
+  return ((data ?? []) as { generated_job_id: string | null }[]).filter((r) => isFamilyMember(parts.base, r.generated_job_id)).length;
+}
+
 /** Every job row ServiceM8 cloned out of this one, read as ONE ledger.
 
     THE FAMILY IS ASKED FOR BY NAME, not by prefix. `ilike '15%'` would ask

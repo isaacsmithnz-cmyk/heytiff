@@ -40,6 +40,17 @@ export function telHref(raw: string | null | undefined): string | null {
   return /^\+?\d{6,15}$/.test(bare) ? `tel:${bare}` : null;
 }
 
+/** A number as Australians write it: a mobile 0403 183 628, a landline
+    02 9876 5432 (the walk of 25 October 2026: it read 0403183628).
+    Anything else, a 1300 number, one from overseas, ServiceM8's free text
+    saying more than one number, is shown as it was given. */
+export function phoneWords(raw: string): string {
+  const bare = raw.replace(/[\s()\-.]/g, "");
+  if (/^04\d{8}$/.test(bare)) return `${bare.slice(0, 4)} ${bare.slice(4, 7)} ${bare.slice(7)}`;
+  if (/^0[2378]\d{8}$/.test(bare)) return `${bare.slice(0, 2)} ${bare.slice(2, 6)} ${bare.slice(6)}`;
+  return raw.trim();
+}
+
 function Fact({
   label,
   onOpen,
@@ -174,7 +185,11 @@ export function JobFacts({
             )}
           </>
         ) : (
-          <p className="jov-cap">Reading the visits</p>
+          <>
+            <p className="jov-cap">Reading the visits</p>
+            {/* Book a visit's room, kept while it reads, so nothing jumps when it comes */}
+            {onBook && <span className="jov-press jov-press--held" aria-hidden="true" />}
+          </>
         )}
       </Fact>
 
@@ -203,7 +218,7 @@ function ContactNumber({ value }: { value: string | null }) {
   const href = telHref(value);
   return href ? (
     <a className="jov-tel" href={href}>
-      {value}
+      {phoneWords(value)}
     </a>
   ) : (
     <span className="jov-tel">{value}</span>

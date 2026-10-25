@@ -11,7 +11,9 @@ import { nextVisitOf, type JobConversationRead, type RailTask } from "@/lib/jobs
 import type { StoryEntry } from "@/lib/workboard/job-story";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import { JobConversation, type ConversationDiary } from "./job-conversation";
-import { JobTiles } from "./job-tiles";
+import { JobFacts } from "./job-facts";
+import { JobSummary } from "./job-summary";
+import { JobTodo } from "./job-todo";
 import { useTasksChanged } from "@/lib/tasks/changed";
 import dynamic from "next/dynamic";
 
@@ -19,10 +21,20 @@ import dynamic from "next/dynamic";
    Overview onto every screen and none needs the form until then */
 const TaskForm = dynamic(() => import("@/components/making/task-form").then((m) => m.TaskForm), { ssr: false });
 
-/* A JOB'S OVERVIEW (v2, step 6, slice A; the board JC-1; four tiles, Isaac,
-   22 October 2026): on the left the stages line, handed in by the page (it
-   lives on Overview only), and under it the four tiles (job-tiles.tsx),
-   then the customer; on the right the job's conversation, its full height.
+/* A JOB'S OVERVIEW (v2, step 6, slice A; the board JC-1; laid out again as
+   Isaac's refined Overview A, 25 October 2026: "Yes, build the refined
+   Overview A"). Top to bottom:
+
+     the stages line, handed in by the page (it lives on Overview only);
+     the strip of facts (job-facts.tsx): Site, Contact, Next visit and,
+       for whoever sees money, Money;
+     what the page puts under the strip: a tracked job's board;
+     two columns split by a full-height hairline: on the left the Summary
+       (job-summary.tsx) and To do (job-todo.tsx), on the right the
+       Activity feed (job-conversation.tsx), Tiff's box at its head.
+
+   Every section is one recipe (job-section.tsx): a coloured block and its
+   title, at most one button on the right, then rows under hairlines.
 
    It reads what the card's record doesn't hold (app/actions/job-conversation):
    what Tiff said back to each note and what she made, and the job's open
@@ -57,8 +69,8 @@ export function JobOverview({
   diary,
   onToast,
   head,
-  tiles,
-  aside,
+  doors,
+  under,
 }: {
   cardId: string | null;
   /** What the job is called where Tiff says where words are going. */
@@ -71,21 +83,23 @@ export function JobOverview({
   fallbackWhat: string | null;
   diary: ConversationDiary;
   onToast: (message: string, undo?: () => void | Promise<void>) => void;
-  /** Over the tiles: the stages line. */
+  /** Over the strip: the stages line. */
   head?: ReactNode;
-  /** The tiles' doors and the Money tile's insides, the page's own. */
-  tiles: {
+  /** The sections' doors and the Money cell's insides, the page's own. */
+  doors: {
     onVisits: () => void;
     onBook?: () => void;
     money?: ReactNode;
     onMoney?: () => void;
     onAddTask?: () => void;
+    /** Contact's Edit, where saving customers is on. */
+    onEditContact?: () => void;
     /** What's open on the job (the attention rows), at the head of To do. */
     open?: ReactNode;
     openCount?: number;
   };
-  /** Under the tiles: the customer. */
-  aside?: ReactNode;
+  /** Under the strip: a tracked job's board. */
+  under?: ReactNode;
 }) {
   const router = useRouter();
   const scope = useNoteScope();
@@ -100,6 +114,8 @@ export function JobOverview({
 
   /* THE READ, and every reason to read it again */
   const [read, setRead] = useState<JobConversationRead | null>(null);
+  /* the read answered or failed: the Summary reads the description then */
+  const [readDone, setReadDone] = useState(false);
   const [kick, setKick] = useState(0);
   const again = () => setKick((k) => k + 1);
   const readAgain = useCallback(() => setKick((k) => k + 1), []);
@@ -116,6 +132,9 @@ export function JobOverview({
       })
       .catch(() => {
         /* the diary's own entries still stand; what Tiff made waits for the next read */
+      })
+      .finally(() => {
+        if (live) setReadDone(true);
       });
     return () => {
       live = false;
@@ -173,49 +192,57 @@ export function JobOverview({
     again();
   };
 
-  /* a task's own form over the page, from the To do tile (Isaac, 24 October 2026) */
+  /* a task's own form over the page, from To do (Isaac, 24 October 2026) */
   const [openTask, setOpenTask] = useState<string | null>(null);
   const today = read?.today ?? null;
   const tasks = (read?.tasks ?? []).filter((t) => !ticked.has(t.id));
   const what = (detail?.description ?? fallbackWhat ?? "").trim();
 
   return (
-    <div className="jc">
-      <div className="jc-side">
-        {head}
-        <JobTiles
-          what={what}
-          next={detail ? nextVisitOf({ booked: detail.booked ?? null, nextBooking: detail.nextBooking }, today) : null}
-          nextRead={!!detail}
-          onVisits={tiles.onVisits}
-          onBook={tiles.onBook}
-          money={tiles.money}
-          onMoney={tiles.onMoney}
-          tasks={tasks}
-          tasksRead={!!read}
-          onTick={tick}
-          onAddTask={tiles.onAddTask}
-          open={tiles.open}
-          openCount={tiles.openCount ?? 0}
-          done={read?.done ?? []}
-          onOpenTask={setOpenTask}
-        />
-        {openTask ? <TaskForm taskId={openTask} onClose={() => setOpenTask(null)} onChanged={again} /> : null}
-        {aside}
-      </div>
-      <JobConversation
-        story={story}
-        talks={read?.notes ?? []}
-        today={today}
-        loading={loading}
-        moneyVisible={moneyVisible}
-        diary={diary}
-        convo={convo}
-        canSend={!!cardId}
-        viewerName={read?.viewer.name ?? null}
-        voiceEnabled={scope.voiceEnabled}
-        onUndoTalk={undoTalk}
+    <div className="jov">
+      {head && <div className="jov-line">{head}</div>}
+      <JobFacts
+        detail={detail}
+        next={detail ? nextVisitOf({ booked: detail.booked ?? null, nextBooking: detail.nextBooking }, today) : null}
+        nextRead={!!detail}
+        onVisits={doors.onVisits}
+        onBook={doors.onBook}
+        money={doors.money}
+        onMoney={doors.onMoney}
+        onEditContact={doors.onEditContact}
       />
+      {under}
+      <div className="jov-cols">
+        <div className="jov-main">
+          <JobSummary fromQuote={read?.summary ?? null} description={what} read={readDone || !!read || (!cardId && !loading)} />
+          <JobTodo
+            tasks={tasks}
+            tasksRead={!!read}
+            onTick={tick}
+            onAddTask={doors.onAddTask}
+            open={doors.open}
+            openCount={doors.openCount ?? 0}
+            done={read?.done ?? []}
+            onOpenTask={setOpenTask}
+          />
+          {openTask ? <TaskForm taskId={openTask} onClose={() => setOpenTask(null)} onChanged={again} /> : null}
+        </div>
+        <div className="jov-side">
+          <JobConversation
+            story={story}
+            talks={read?.notes ?? []}
+            today={today}
+            loading={loading}
+            moneyVisible={moneyVisible}
+            diary={diary}
+            convo={convo}
+            canSend={!!cardId}
+            viewerName={read?.viewer.name ?? null}
+            voiceEnabled={scope.voiceEnabled}
+            onUndoTalk={undoTalk}
+          />
+        </div>
+      </div>
     </div>
   );
 }

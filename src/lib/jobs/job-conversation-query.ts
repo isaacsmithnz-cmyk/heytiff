@@ -3,6 +3,9 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { listJobDiaryEntries } from "@/lib/dashboard/journal-query";
 import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
 import { todayInZone } from "@/lib/workboard/dates";
+import { readLines } from "@/lib/quotes/lines-server";
+import { readByHand } from "@/lib/quotes/lines-job-server";
+import { summaryFromQuote, type SummaryGroup } from "./job-summary-rows";
 import {
   madeCards,
   railTasksOf,
@@ -20,7 +23,7 @@ import {
    the right to ask and hands in the org, the viewer and the clock, the
    posture of every read module in the feature.
 
-   Two things, three reads and a name lookup:
+   Three things, five reads and a name lookup:
 
      the notes   every note filed on this job, and what each made, with
                  Undo where it would still take it back (journal-query's
@@ -33,6 +36,9 @@ import {
                  NOT YET APPLIED). Until the column is there its read fails
                  with a missing column and the job's tasks are the ones its
                  notes link; nothing else changes.
+     the summary the job's quote in HeyTiff, as the Summary's groups: the
+                 lines' names and codes, never a price, so it goes to anyone
+                 on the Workboard as the quote itself does (job-summary-rows).
 
    MONEY IS HELD BACK HERE (decision 15, 6-revisions.md), for a viewer
    without `workboard_money`, so the figures never reach their browser:
@@ -74,6 +80,18 @@ function clockIn(tz: string | null, iso: string): string | null {
 
 const firstName = (name: string | null | undefined) => name?.trim().split(/\s+/)[0] || null;
 
+/** The Summary's groups from the job's quote: its lines' names and codes,
+    never a price. A quote that can't be read is none, never the
+    Overview's failure. */
+async function quoteSummary(orgId: string, jobUuid: string): Promise<SummaryGroup[] | null> {
+  try {
+    const [lines, byHand] = await Promise.all([readLines(orgId, jobUuid), readByHand(orgId, jobUuid)]);
+    return summaryFromQuote(lines, byHand.accepted);
+  } catch {
+    return null;
+  }
+}
+
 export async function readJobConversationFor(input: {
   orgId: string;
   staffId: string | null;
@@ -87,7 +105,7 @@ export async function readJobConversationFor(input: {
 }): Promise<JobConversationRead> {
   const { orgId, staffId, jobUuid, tz, undoAny, money } = input;
   const today = todayInZone(tz);
-  const entries = await listJobDiaryEntries(orgId, staffId, jobUuid, tz);
+  const [entries, summary] = await Promise.all([listJobDiaryEntries(orgId, staffId, jobUuid, tz), quoteSummary(orgId, jobUuid)]);
 
   const noteTaskIds = [...new Set(entries.flatMap((e) => e.record.taskIds))];
   const flagIds = [...new Set(entries.flatMap((e) => e.record.flagIds))];
@@ -212,5 +230,6 @@ export async function readJobConversationFor(input: {
       return { id: t.id, title: (t.title ?? "").trim() || "A task", line: `Done by ${who}${when ? `, ${when}` : ""}` };
     }),
     viewer: { id: staffId, name: staffId ? (names.get(staffId) ?? null) : null },
+    summary,
   };
 }

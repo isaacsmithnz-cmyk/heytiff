@@ -330,9 +330,10 @@ function PaymentRowItem({ row, here, onOpen }: { row: PaymentRow; here: boolean;
   );
 }
 
-/** THE OVERVIEW'S MONEY TILE (Isaac, 22 October 2026, "Job card, four
-    tiles"): the figure large, one word on where collection stands, and one
-    line under it. Read from `readMoney`, as the block is: what's owing once
+/** THE OVERVIEW'S MONEY CELL (the strip of facts, Isaac, 25 October 2026,
+    "Yes, build the refined Overview A"; the tile of 22 October before it):
+    the figure at 20, one word on where collection stands, and one line
+    under it. Read from `readMoney`, as the block is: what's owing once
     something has come in, the job's value until then. */
 export function JobMoneyGlance({
   family,
@@ -347,7 +348,7 @@ export function JobMoneyGlance({
   statusLabel: string | null;
   unavailable?: boolean;
 }) {
-  if (unavailable) return <p className="jt-cap">ServiceM8&apos;s figures didn&apos;t load just now.</p>;
+  if (unavailable) return <p className="jov-cap">ServiceM8&apos;s figures didn&apos;t load just now.</p>;
   const m = readMoney({ family, money, ledgerPaidCents, statusLabel });
   const figure = m.balance ?? m.value;
   const owing = m.showAwaitingHead && m.awaiting !== null ? m.awaiting : null;
@@ -365,7 +366,7 @@ export function JobMoneyGlance({
           : null;
   return (
     <>
-      <b className="jt-big">{figure !== null ? fmtAud(figure) : "—"}</b>
+      <b className="jov-fig">{figure !== null ? fmtAud(figure) : "—"}</b>
       {owing !== null ? (
         m.overdue !== null ? (
           <StateWord tone="wrong">{m.overdue === 1 ? "1 day overdue" : `${m.overdue} days overdue`}</StateWord>
@@ -377,9 +378,9 @@ export function JobMoneyGlance({
       ) : m.fallback && settled ? (
         <StateWord tone={settled === "paid" ? "good" : "look"}>{m.fallback}</StateWord>
       ) : (
-        m.fallback && <p className="jt-read">{m.fallback}</p>
+        m.fallback && <p className="jov-read">{m.fallback}</p>
       )}
-      {line && <p className="jt-cap">{line}</p>}
+      {line && <p className="jov-cap">{line}</p>}
     </>
   );
 }

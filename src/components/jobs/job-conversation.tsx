@@ -31,11 +31,22 @@ import { emptyStoryLine, filterStory, fmtStoryMinutes, type StoryEntry, type Sto
 import { conversationDays, stampClock, type JobNoteTalk, type MadeCard, type MadeKind } from "@/lib/jobs/job-conversation";
 import type { FlagState } from "@/lib/integrations/sm8-note-plan";
 import type { NoteSender } from "@/lib/integrations/links";
+import { JobSection } from "./job-section";
 
-/* THE JOB'S CONVERSATION (v2, step 6, slice A; the board JC-1): the left
-   column of a job's Overview.
+/* THE JOB'S ACTIVITY FEED (v2, step 6, slice A; the board JC-1; laid out
+   again on Isaac's refined Overview A, 25 October 2026): the right column
+   of a job's Overview, a section like the others, green with a bubble as
+   Home's Your feed, its soft tabs (All, Notes, Photos) on the head's right.
 
-   WHAT IT SHOWS, oldest at the top, the box at the foot:
+   TIFF'S BOX FIRST, under the head, then the feed, NEWEST FIRST, a 12/500
+   grey line between the days ("Today", "Yesterday", "Tue 20 Oct"). What
+   you said in the box just now stands at the top, in the order it was
+   said, as one exchange reads. A note is a 32 disc, the name in bold and
+   the time in grey, then the words at 16; any other entry is a 32 row: a
+   grey icon, the bold words, a grey line, at most one quiet button at the
+   far right, and a photo entry its thumbnails under it.
+
+   WHAT IT SHOWS:
      - every entry of the job's diary (lib/workboard/job-story, unchanged):
        a note as a message, with the person's initials, their name and the
        time, then the words; a visit, a booking, photos, money and the
@@ -45,6 +56,8 @@ import type { NoteSender } from "@/lib/integrations/links";
        each thing she made, with Undo where `undoNote` would still take it
        back (lib/jobs/job-conversation; the note's own row says it);
      - a line between the days, "Today" for today's.
+
+   The filter is the soft tabs', over what is already read.
 
    THE BOX IS THE ROUTER'S OWN DOOR. Send hands the words to the Tiff
    modal's conversation (components/tiff/modal/use-conversation), held
@@ -98,6 +111,10 @@ export type ConversationDiary = {
   onMarkDone?: Doors["onMarkDone"];
   onUndoDone?: Doors["onUndoDone"];
   onConfirm?: Doors["onConfirm"];
+  /** The Quote tab, from a Quote sent entry. */
+  onQuote?: () => void;
+  /** The job's number, for that entry's button: "Open quote #3385". */
+  jobNumber?: string | null;
 };
 
 /** A flag's tone, in the state words' own (rule 17). */
@@ -162,8 +179,13 @@ export function JobConversation({
   const shown = useMemo(() => filterStory(story, filter), [story, filter]);
   const live = convo.turns;
   const liveNotes = useMemo(() => new Set(live.flatMap((t) => (t.noteId ? [t.noteId] : []))), [live]);
+  /* newest first: the days, and each day's entries, the other way up from
+     the conversation's own order */
   const days = useMemo(
-    () => conversationDays(shown, talks, today, liveNotes, filter === "all" || filter === "notes"),
+    () =>
+      conversationDays(shown, talks, today, liveNotes, filter === "all" || filter === "notes")
+        .reverse()
+        .map((d) => ({ ...d, items: [...d.items].reverse() })),
     [shown, talks, today, liveNotes, filter],
   );
   const you = viewerName ?? "You";
@@ -208,15 +230,6 @@ export function JobConversation({
   useEffect(() => {
     if (lit) litRef.current?.scrollIntoView?.({ block: "center" });
   }, [lit]);
-
-  /* THE NEWEST IS AT THE FOOT, by the box: the list opens scrolled to it,
-     and follows what lands while you are there. */
-  const scroller = useRef<HTMLDivElement | null>(null);
-  const size = shown.length + talks.length + live.length;
-  useEffect(() => {
-    const el = scroller.current;
-    if (el && !lit) el.scrollTop = el.scrollHeight;
-  }, [size, lit]);
 
   /* the box's microphone: words said land in the box, and go as voice */
   const [voiceErr, setVoiceErr] = useState<string | null>(null);
@@ -326,94 +339,24 @@ export function JobConversation({
 
   const empty = !loading && story.length === 0 && talks.length === 0 && live.length === 0;
 
+  const tabs =
+    story.length > 0 ? (
+      <ViewTabs
+        items={FILTERS.map((f) => ({ key: f.key, label: f.label }))}
+        current={filter}
+        onGo={(k) => setFilter(k as StoryFilter)}
+        ariaLabel="Show in the feed"
+        idPrefix="jcf"
+        panelPrefix="jcfp"
+      />
+    ) : null;
+  /* the box's own exchange stands under "Today" at the top; the day's
+     older entries then follow without a second "Today" */
+  const todayShown = live.length > 0;
+
   return (
     <UndoTalk.Provider value={undoTalk ? { undo: undoTalk, busy: undoing } : null}>
-    <section className="jc-convo" aria-label="The job's conversation">
-      {story.length > 0 && (
-        <ViewTabs
-          items={FILTERS.map((f) => ({ key: f.key, label: f.label }))}
-          current={filter}
-          onGo={(k) => setFilter(k as StoryFilter)}
-          ariaLabel="Show in the conversation"
-          idPrefix="jcf"
-          panelPrefix="jcfp"
-        />
-      )}
-      <div className="jc-scroll" ref={scroller} id={`jcfp-${filter}`} role="tabpanel" aria-labelledby={story.length > 0 ? `jcf-${filter}` : undefined}>
-        {loading && story.length === 0 ? (
-          <p className="cv-aside">Reading the job&rsquo;s notes from the mirror</p>
-        ) : empty ? (
-          <p className="cv-aside">{emptyStoryLine(moneyVisible)}</p>
-        ) : shown.length === 0 && filter !== "all" ? (
-          <p className="cv-aside">Nothing of that kind on the job.</p>
-        ) : null}
-        <div className="cv-msgs">
-          {days.map((day) => (
-            <div className="jc-day" key={day.day}>
-              <div className="cv-day">
-                <span>{day.label}</span>
-              </div>
-              {day.items.map((item) =>
-                item.entry?.kind === "note" ? (
-                  <NoteMessage
-                    key={item.key}
-                    entry={item.entry}
-                    talk={item.talk}
-                    doors={doors}
-                    lit={item.key === lit}
-                    litRef={item.key === lit ? litRef : undefined}
-                    replyOpen={openKey === item.key}
-                    onReplyOpen={(on) => openReply(on ? item.key : null)}
-                  />
-                ) : item.entry ? (
-                  <EventCard key={item.key} entry={item.entry} onOpenClaim={diary.onOpenClaim} onPhotos={diary.onPhotos} />
-                ) : item.talk ? (
-                  <TalkMessage key={item.key} talk={item.talk} />
-                ) : null,
-              )}
-            </div>
-          ))}
-
-          {/* WHAT YOU SAID HERE JUST NOW, and what Tiff said back */}
-          {live.length > 0 && (
-            <div className="jc-day">
-              {days.at(-1)?.label !== "Today" && (
-                <div className="cv-day">
-                  <span>Today</span>
-                </div>
-              )}
-              {live.map((t) =>
-                t.who === "you" ? (
-                  <Message key={t.key} who={you} when={timeOf(t)}>
-                    <div className="cv-text cv-text--mine">
-                      <p>{t.text}</p>
-                    </div>
-                  </Message>
-                ) : (
-                  <LiveTiff
-                    key={t.key}
-                    turn={t}
-                    when={timeOf(t)}
-                    asking={convo.questionOpen && t === lastTiff}
-                    onAnswer={(q) => {
-                      stamp();
-                      convo.answer(q);
-                    }}
-                    onUndo={(noteId) => void convo.undo(t.key, noteId)}
-                    onAddOffer={() => void convo.addOffer(t.key)}
-                  />
-                ),
-              )}
-              {working && (
-                <Message who="Tiff" tiff working when="">
-                  <p className="cv-now">Working through it</p>
-                </Message>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
+    <JobSection name="Activity feed" icon="chat" hue="green" className="jc-convo" action={tabs}>
       <div className="jc-foot">
         <CvBox
           value={convo.draft}
@@ -423,18 +366,21 @@ export function JobConversation({
           placeholder="Tell Tiff about this job"
           sendWord="Send"
           sendLabel="Send to Tiff"
+          worded
           waiting={working || !canSend || photo?.state === "up"}
           dict={voiceEnabled ? dict : null}
           voiceError={voiceErr}
           ranOut={ranOut}
           before={photo ? <PhotoChip photo={photo} onClear={clearPhoto} /> : null}
+          lead={
+            !photo ? (
+              <Button kind="quiet" size={32} disabled={!canSend} onClick={() => picker.current?.click()}>
+                Add photo
+              </Button>
+            ) : null
+          }
           extra={
             <>
-              {!photo && (
-                <Button kind="second" size={32} icon="cam" disabled={!canSend} onClick={() => picker.current?.click()}>
-                  Add photo
-                </Button>
-              )}
               <BoxInfo save={!!diary.onWrite} />
               {diary.onWrite && convo.draft.trim() ? (
                 <Button kind="second" size={32} className="jc-keep" disabled={keeping} onClick={keep}>
@@ -456,7 +402,90 @@ export function JobConversation({
           <AlsoSm8 also={also} onTick={tick} sender={diary.sender} notesSm8={diary.notesSm8} onConfirm={diary.onConfirm} />
         )}
       </div>
-    </section>
+
+      <div className="jc-feed" id={`jcfp-${filter}`} role="tabpanel" aria-labelledby={story.length > 0 ? `jcf-${filter}` : undefined}>
+        {loading && story.length === 0 ? (
+          <p className="jov-none">Reading the job&rsquo;s notes from the mirror</p>
+        ) : empty ? (
+          <p className="jov-none">{emptyStoryLine(moneyVisible)}</p>
+        ) : shown.length === 0 && filter !== "all" ? (
+          <p className="jov-none">Nothing of that kind on the job.</p>
+        ) : null}
+
+        {/* WHAT YOU SAID HERE JUST NOW, and what Tiff said back: the newest,
+            at the top, in the order it was said */}
+        {live.length > 0 && (
+          <div className="jc-day">
+            <p className="jc-dayname">Today</p>
+            {live.map((t) =>
+              t.who === "you" ? (
+                <div className="jc-entry" key={t.key}>
+                  <Message who={you} when={timeOf(t)}>
+                    <div className="cv-text cv-text--mine">
+                      <p>{t.text}</p>
+                    </div>
+                  </Message>
+                </div>
+              ) : (
+                <div className="jc-entry" key={t.key}>
+                  <LiveTiff
+                    turn={t}
+                    when={timeOf(t)}
+                    asking={convo.questionOpen && t === lastTiff}
+                    onAnswer={(q) => {
+                      stamp();
+                      convo.answer(q);
+                    }}
+                    onUndo={(noteId) => void convo.undo(t.key, noteId)}
+                    onAddOffer={() => void convo.addOffer(t.key)}
+                  />
+                </div>
+              ),
+            )}
+            {working && (
+              <div className="jc-entry">
+                <Message who="Tiff" tiff working when="">
+                  <p className="cv-now">Working through it</p>
+                </Message>
+              </div>
+            )}
+          </div>
+        )}
+
+        {days.map((day, i) => (
+          <div className="jc-day" key={day.day}>
+            {!(i === 0 && todayShown && day.label === "Today") && <p className="jc-dayname">{day.label}</p>}
+            {day.items.map((item) =>
+              item.entry?.kind === "note" ? (
+                <NoteMessage
+                  key={item.key}
+                  entry={item.entry}
+                  talk={item.talk}
+                  doors={doors}
+                  lit={item.key === lit}
+                  litRef={item.key === lit ? litRef : undefined}
+                  replyOpen={openKey === item.key}
+                  onReplyOpen={(on) => openReply(on ? item.key : null)}
+                />
+              ) : item.entry ? (
+                <EventCard
+                  key={item.key}
+                  entry={item.entry}
+                  onOpenClaim={diary.onOpenClaim}
+                  onPhotos={diary.onPhotos}
+                  onQuote={diary.onQuote}
+                  jobNumber={diary.jobNumber ?? null}
+                />
+              ) : item.talk ? (
+                <div className="jc-entry" key={item.key}>
+                  <TalkMessage talk={item.talk} />
+                </div>
+              ) : null,
+            )}
+          </div>
+        ))}
+      </div>
+    </JobSection>
     </UndoTalk.Provider>
   );
 }
@@ -644,7 +673,7 @@ function NoteMessage({
     </>
   );
   return (
-    <>
+    <div className="jc-entry">
       <Message who={who} when={stampClock(entry.at)} lit={lit} litRef={litRef} head={head}>
         <Words text={entry.text} spoken={!!talk?.spoken} />
         <div className="jc-doors">
@@ -652,7 +681,7 @@ function NoteMessage({
         </div>
       </Message>
       {talk && <Replies talk={talk} who={who} />}
-    </>
+    </div>
   );
 }
 
@@ -825,22 +854,36 @@ function EventCard({
   entry,
   onOpenClaim,
   onPhotos,
+  onQuote,
+  jobNumber,
 }: {
   entry: Exclude<StoryEntry, { kind: "note" }>;
   onOpenClaim: (remoteId: string) => void;
   onPhotos: () => void;
+  onQuote?: () => void;
+  jobNumber: string | null;
 }) {
+  /* a 32 row: the grey icon in its 32 column, the bold words and a grey
+     line after them, at most one quiet button at the far right; what the
+     entry carries (a photo's thumbnails) under the row */
   const card = (icon: string, name: string, line: string | null, act?: ReactNode, more?: ReactNode) => (
-    <div className="jc-event">
-      <span className="jc-made-icon" aria-hidden="true">
-        <Icon name={icon} size={16} />
-      </span>
-      <span className="cv-result-id">
-        <span className="cv-result-name">{name}</span>
-        {line && <span className="cv-result-line">{line}</span>}
-        {more}
-      </span>
-      {act}
+    <div className="jc-entry jc-event">
+      <div className="jc-evrow">
+        <span className="jc-made-icon" aria-hidden="true">
+          <Icon name={icon} size={16} />
+        </span>
+        <span className="jc-evwords">
+          <b className="cv-result-name">{name}</b>
+          {line && (
+            <>
+              {" "}
+              <span className="cv-result-line">{line}</span>
+            </>
+          )}
+        </span>
+        {act}
+      </div>
+      {more}
     </div>
   );
   switch (entry.kind) {
@@ -859,7 +902,7 @@ function EventCard({
         entry.count === 1 ? "1 photo" : `${entry.count} photos`,
         null,
         <Button kind="quiet" size={32} onClick={onPhotos}>
-          See the photos
+          See all
         </Button>,
         <span className="jc-photos">
           {entry.shown.map((p) =>
@@ -880,9 +923,9 @@ function EventCard({
         entry.event === "settled" ? "dollar" : "receipt",
         `${entry.title} ${entry.event}${amount}`,
         entry.jobNumber ? `Invoice #${entry.jobNumber}` : null,
-        <button type="button" className="cv-open" onClick={() => onOpenClaim(entry.remoteId)}>
+        <Button kind="quiet" size={32} onClick={() => onOpenClaim(entry.remoteId)}>
           Open
-        </button>,
+        </Button>,
       );
     }
     case "payment": {
@@ -900,6 +943,15 @@ function EventCard({
     case "push":
       return card("listCheck", `${entry.count} material ${entry.count === 1 ? "line" : "lines"} from the Studio`, "Put on the checklist");
     case "milestone":
-      return card(MILESTONE_ICON[entry.label] ?? "check", entry.label, null);
+      return card(
+        MILESTONE_ICON[entry.label] ?? "check",
+        entry.label,
+        null,
+        entry.label === "Quote sent" && onQuote ? (
+          <Button kind="quiet" size={32} onClick={onQuote}>
+            {jobNumber ? `Open quote #${jobNumber}` : "Open the quote"}
+          </Button>
+        ) : undefined,
+      );
   }
 }

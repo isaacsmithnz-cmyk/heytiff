@@ -39,7 +39,6 @@ import { JobQuoteCard } from "./job-quote-card";
 import { JobVisits, VisitDialog, type ComingVisit } from "./job-visit-tasks";
 import { sm8QuoteOf } from "../quote/sm8-quote-of";
 import { JobProgressLine } from "./job-progress-line";
-import { JobCustomer } from "./job-customer";
 import { JobCustomerDialog } from "./job-customer-dialog";
 import { customerEditOffered } from "@/app/actions/job-customer";
 import { setNoDeposit } from "@/app/actions/job-deposit";
@@ -225,18 +224,6 @@ const ExpenseForm = lazy(() => import("@/components/making/expense-form").then((
 /** Where a quote is made, as the Quote section's own link goes: a quote
     not started yet starts with Tiff. */
 const quotePage = (job: string, started: boolean) => quoteHref(job, { start: !started });
-
-/** A dialable href, or null when the field isn't one number.
-
-    SERVICEM8'S PHONE FIELD IS FREE TEXT. Stripping everything that isn't a
-    digit assumes it holds exactly one number, so "0412 345 678 / 9999 a/h"
-    becomes tel:04123456789999 — a number that is nobody's, offered as if it
-    were the contact's. */
-export function telHref(raw: string | null | undefined): string | null {
-  if (typeof raw !== "string") return null;
-  const bare = raw.replace(/[\s()\-.]/g, "");
-  return /^\+?\d{6,15}$/.test(bare) ? `tel:${bare}` : null;
-}
 
 /* The band's wash lives in lib/workboard/card-tint.ts — the dress has three
    wearers now, and importing a sheet for a pure helper drags its server
@@ -2081,11 +2068,11 @@ export function JobSheet({
         <div className="wb2-jcbody jp-body" role="tabpanel" aria-labelledby={`jp-tab-${page.section}`}>
           {err && <div className="wb2-sherr">{err}</div>}
           {/* OVERVIEW: the stages line (6-revisions: it lives on Overview
-              only) over the four tiles, the customer under them, and the
-              job's conversation beside them (four tiles, Isaac, 22 October
-              2026). What's open on the job is the Overview's, not every
-              tab's (Isaac, 20 October), and it is To do's: an ask in a
-              note is a thing to do (the mock's "To do is the job's open
+              only), the strip of facts under it, then the Summary and To
+              do beside the Activity feed (Isaac's refined Overview A, 25
+              October 2026). What's open on the job is the Overview's, not
+              every tab's (Isaac, 20 October), and it is To do's: an ask in
+              a note is a thing to do (the mock's "To do is the job's open
               asks") */}
           <div className="jp-over" hidden={page.section !== "overview"}>
             {seen.has("overview") && (
@@ -2107,7 +2094,7 @@ export function JobSheet({
                   onOpen={openStep}
                 />
               }
-              tiles={{
+              doors={{
                 onVisits: () => go("visits"),
                 onBook: bookings?.canBook ? () => addPick("visit") : undefined,
                 money: moneyVisible ? (
@@ -2120,11 +2107,12 @@ export function JobSheet({
                       unavailable={recordFailed}
                     />
                   ) : (
-                    <p className="jt-cap">Reading the figures</p>
+                    <p className="jov-cap">Reading the figures</p>
                   )
                 ) : undefined,
                 onMoney: moneyVisible ? () => go("money") : undefined,
                 onAddTask: manage && detail ? () => addPick("task") : undefined,
+                onEditContact: customerEdit && cardId ? () => setEditingCustomer(true) : undefined,
                 open: attentionStripOf(true),
                 openCount: attention?.total ?? 0,
               }}
@@ -2146,18 +2134,20 @@ export function JobSheet({
                 onMarkDone: markDone,
                 onUndoDone: undoDone,
                 onConfirm: confirmLink,
+                onQuote: () => go("quote"),
+                jobNumber: cardNumber,
               }}
               onToast={onToast}
-              aside={
-                <section className="jc-cust" aria-label="The customer">
-                  <JobCustomer detail={detail} onEdit={customerEdit && cardId ? () => setEditingCustomer(true) : undefined} />
-                  {/* a tracked job wears its board, as the card's chip did */}
-                  {row.tracked && (
+              under={
+                /* a tracked job wears its board, as the card's chip did: under
+                   the strip, where the customer column had it */
+                row.tracked ? (
+                  <div className="jov-under">
                     <Button kind="quiet" size={32} onClick={() => onOpenTracked(row.tracked!)}>
                       {row.tracked.kind === "visit" ? "Open it on the maintenance board" : "Open it on the projects board"}
                     </Button>
-                  )}
-                </section>
+                  </div>
+                ) : null
               }
             />
             )}

@@ -891,6 +891,180 @@ describe("failure kinds end exactly as much as they should", () => {
   });
 });
 
+/* ── the customer's texts and emails (sms.json, email.json) ──
+
+   Read-only job communication history from ServiceM8's May 2026 API update.
+   No edit-date filter: each walk is the whole history by cursor, upserted,
+   and a finished one is walked again only every MESSAGE_REREAD_MS. An
+   account without the endpoint switched on answers 400 "… is not an
+   authorised object type", and that must be the object's news alone. */
+describe("the job's texts and emails", () => {
+  const H = 60 * 60_000;
+  const messageUpserts = () =>
+    upserts.filter((u) => u.table === "sm8_job_messages").flatMap((u) => u.payload as Row[]);
+  const callsTo = (endpoint: string) => fetchSm8Page.mock.calls.filter((c) => c[1] === endpoint);
+  /* every object read and finished, the messages `ago` before NOW */
+  const allDone = (ago: number) =>
+    SM8_OBJECTS.map((s) => ({
+      object: s.object,
+      cursor: s.object === "sms" || s.object === "email" ? null : "2026-07-01 00:00:00",
+      backfill_done: true,
+      rows_pulled: 5,
+      last_synced_at: new Date(NOW - ago).toISOString(),
+      walk_cursor: null,
+      walk_filter: null,
+    }));
+
+  it("keeps each record whole, by kind, and pages the history by cursor", async () => {
+    const text1 = { uuid: "s-1", direction: "inbound", related_object: "job", related_object_uuid: "j-1", x: "hi" };
+    const text2 = { uuid: "s-2", direction: "outbound", related_object: "job", related_object_uuid: "j-1", x: { y: 1 } };
+    const mail = { uuid: "e-1", related_object_uuid: "j-2" };
+    fetchSm8Page.mockImplementation(async (_t: string, endpoint: string, opts: { cursor: string }) => {
+      if (endpoint === "sms.json") {
+        return opts.cursor === "-1"
+          ? { ok: true, rows: [text1], nextCursor: "sms-2" }
+          : { ok: true, rows: [text2], nextCursor: null };
+      }
+      if (endpoint === "email.json") return { ok: true, rows: [mail], nextCursor: null };
+      return emptyPage;
+    });
+
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(out).toMatchObject({ ran: true, complete: true, rowsPulled: 3 });
+
+    expect(callsTo("sms.json").map((c) => c[2])).toEqual([
+      { cursor: "-1", filter: null },
+      { cursor: "sms-2", filter: null },
+    ]);
+    const rows = messageUpserts();
+    expect(rows).toHaveLength(3);
+    expect(rows.find((r) => r.uuid === "s-1")).toEqual({
+      uuid: "s-1",
+      kind: "sms",
+      direction: "inbound",
+      related_object: "job",
+      related_object_uuid: "j-1",
+      raw: text1,
+      org_id: "org-1",
+      synced_at: new Date(NOW).toISOString(),
+    });
+    expect(rows.find((r) => r.uuid === "s-2")!.raw).toEqual(text2);
+    expect(rows.find((r) => r.uuid === "e-1")).toMatchObject({ kind: "email", direction: null, related_object: null, raw: mail });
+
+    // finished, with no edit-date floor to keep
+    expect(stateUpsertFor("sms")).toMatchObject({ backfill_done: true, cursor: null, last_error: null, rows_pulled: 2 });
+    expect(stateUpsertFor("email")).toMatchObject({ backfill_done: true, cursor: null, rows_pulled: 1 });
+  });
+
+  it("asks for the whole history every walk, never an edit-date window", async () => {
+    stateRows = allDone(7 * H).map((r) => (r.object === "sms" ? { ...r, cursor: "2026-10-01 00:00:00" } : r));
+    await runSm8Sync("org-1", "manual", NOW);
+    expect(callsTo("sms.json")[0][2]).toEqual({ cursor: "-1", filter: null });
+    expect(callsTo("email.json")[0][2]).toEqual({ cursor: "-1", filter: null });
+  });
+
+  it("a history read lately isn't walked again yet, and the run is still complete", async () => {
+    stateRows = allDone(1 * H);
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(callsTo("sms.json")).toHaveLength(0);
+    expect(callsTo("email.json")).toHaveLength(0);
+    expect(stateUpsertFor("sms")).toBeUndefined();
+    expect(out.complete).toBe(true);
+    // the objects read by edit date still were
+    expect(callsTo("job.json")).toHaveLength(1);
+  });
+
+  it("a history read longer ago than MESSAGE_REREAD_MS is walked again", async () => {
+    stateRows = allDone(7 * H);
+    await runSm8Sync("org-1", "manual", NOW);
+    expect(callsTo("sms.json")).toHaveLength(1);
+    expect(callsTo("email.json")).toHaveLength(1);
+  });
+
+  it("a walk that paused carries on at once, however recent the last finished one", async () => {
+    stateRows = allDone(1 * H).map((r) => (r.object === "sms" ? { ...r, walk_cursor: "sms-7", walk_filter: null } : r));
+    await runSm8Sync("org-1", "manual", NOW);
+    expect(callsTo("sms.json").map((c) => c[2])).toEqual([{ cursor: "sms-7", filter: null }]);
+    expect(callsTo("email.json")).toHaveLength(0);
+  });
+
+  it("a 400 'not an authorised object type' says so on that object and walks the rest", async () => {
+    fetchSm8Page.mockImplementation(async (_t: string, endpoint: string) =>
+      endpoint === "sms.json" ? { ok: false, failure: "unavailable", status: 400, notEnabled: true } : emptyPage
+    );
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(out.note).not.toBe(SM8_UNREACHABLE);
+    expect(out.complete).toBe(false);
+    expect(stateUpsertFor("sms")!.last_error).toBe("ServiceM8 doesn't offer texts to apps on this account yet.");
+    expect(stateUpsertFor("sms")!.backfill_done).toBe(false);
+    expect(fetchSm8Page).toHaveBeenCalledTimes(SM8_OBJECTS.length);
+    expect(stateUpsertFor("email")!.backfill_done).toBe(true);
+    expect(lastRunsUpdate().patch).toMatchObject({ last_ok: true });
+    expect(markSm8NeedsReauth).not.toHaveBeenCalled();
+  });
+
+  it("the same 400 on any object is that object's alone — the walk goes on", async () => {
+    fetchSm8Page.mockImplementation(async (_t: string, endpoint: string) =>
+      endpoint === "staff.json" ? { ok: false, failure: "unavailable", status: 400, notEnabled: true } : emptyPage
+    );
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(out.note).not.toBe(SM8_UNREACHABLE);
+    expect(fetchSm8Page).toHaveBeenCalledTimes(SM8_OBJECTS.length);
+    expect(stateUpsertFor("jobs")!.backfill_done).toBe(true);
+  });
+
+  it("any other 400 still ends the run, as before", async () => {
+    fetchSm8Page.mockImplementation(async (_t: string, endpoint: string) =>
+      endpoint === "sms.json" ? { ok: false, failure: "unavailable", status: 400 } : emptyPage
+    );
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(out.note).toBe(SM8_UNREACHABLE);
+    expect(stateUpsertFor("sms")!.last_error).toBe(SM8_UNREACHABLE);
+  });
+
+  it("a 403 names the grant to reconnect for, and the walk goes on", async () => {
+    fetchSm8Page.mockImplementation(async (_t: string, endpoint: string) =>
+      endpoint === "email.json" ? { ok: false, failure: "forbidden" } : emptyPage
+    );
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(stateUpsertFor("email")!.last_error).toBe("Reconnect ServiceM8 to grant read_email.");
+    expect(stateUpsertFor("sms")!.backfill_done).toBe(true);
+    expect(fetchSm8Page).toHaveBeenCalledTimes(SM8_OBJECTS.length);
+    expect(out.note).not.toBe(SM8_UNREACHABLE);
+  });
+
+  it("the screen's list says which kind couldn't be read, and why", async () => {
+    stateRows = [
+      { object: "sms", backfill_done: false, rows_pulled: 0, last_synced_at: null, last_error: "ServiceM8 doesn't offer texts to apps on this account yet." },
+      { object: "email", backfill_done: false, rows_pulled: 0, last_synced_at: null, last_error: "Reconnect ServiceM8 to grant read_email." },
+    ];
+    const view = await listSm8SyncStatus("org-1");
+    expect(view.objects.find((o) => o.object === "sms")).toMatchObject({
+      label: "Texts",
+      phase: "blocked",
+      lastError: "ServiceM8 doesn't offer texts to apps on this account yet.",
+    });
+    expect(view.objects.find((o) => o.object === "email")).toMatchObject({
+      label: "Emails",
+      phase: "blocked",
+      lastError: "Reconnect ServiceM8 to grant read_email.",
+    });
+  });
+
+  it("a page of records with no uuid lands nothing, and the log names their keys, never their values", async () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    fetchSm8Page.mockImplementation(async (_t: string, endpoint: string) =>
+      endpoint === "sms.json" ? { ok: true, rows: [{ id: "x", body: "secret words" }], nextCursor: null } : emptyPage
+    );
+    await runSm8Sync("org-1", "manual", NOW);
+    expect(messageUpserts()).toHaveLength(0);
+    const line = warn.mock.calls.map((c) => String(c[0])).find((l) => l.includes("sms.json"))!;
+    expect(line).toContain("keys: id, body");
+    expect(line).not.toContain("secret words");
+    warn.mockRestore();
+  });
+});
+
 describe("sweepableSm8Orgs — the nightly cap must rotate, not cut off", () => {
   it("puts the longest-waiting workspace first", async () => {
     connRows = [{ org_id: "a" }, { org_id: "b" }, { org_id: "c" }];

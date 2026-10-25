@@ -31,10 +31,15 @@ export type Sm8ObjectName =
   | "staff"
   | "categories"
   | "queues"
-  | "availability";
+  | "availability"
+  | "sms"
+  | "email";
 
 type Raw = Record<string, unknown>;
-export type MirrorRow = Record<string, string | number | null>;
+/** A mirror column's value: ServiceM8's text and integer fields, or — for a
+    record kept whole (sm8_job_messages.raw) — the record itself, as jsonb. */
+export type MirrorValue = string | number | null | Readonly<Raw>;
+export type MirrorRow = Record<string, MirrorValue>;
 
 export type Sm8ObjectSpec = {
   object: Sm8ObjectName;
@@ -50,6 +55,11 @@ export type Sm8ObjectSpec = {
   /** Raw API row → mirror columns. Null when the row is unusable (no uuid) —
       dropped, never allowed to abort a page. */
   shape: (row: Raw) => MirrorRow | null;
+  /** Set for an endpoint with NO edit-date filter (sms.json, email.json):
+      every walk reads the whole history by cursor and upserts it, and once
+      read, a new walk starts at most this often. Absent: the walk asks only
+      for what changed since the cursor, as every other object does. */
+  rereadEveryMs?: number;
 };
 
 /* ── field coercers — the whole zero-trust boundary in four functions ── */
@@ -392,6 +402,36 @@ const shapeAvailability = (r: Raw): MirrorRow | null => {
   };
 };
 
+/* THE CUSTOMER'S TEXTS AND EMAILS (sms.json and email.json, read_sms and
+   read_email; ServiceM8's May 2026 API update). Each is the job's merged
+   inbound and outbound history, and THEIR FIELD NAMES ARE UNDOCUMENTED. So
+   nothing is guessed: the record is kept WHOLE in `raw`, exactly as sent,
+   and only the four names the update itself documents — uuid, and the
+   $filter fields direction, related_object and related_object_uuid — are
+   lifted into columns, each null when it isn't there. What the job's
+   conversation draws is chosen from the keys the first real read brings. */
+const messageShape = (kind: "sms" | "email") =>
+  (r: Raw): MirrorRow | null => {
+    const uuid = uuidOf(r);
+    if (!uuid) return null;
+    return {
+      uuid,
+      kind,
+      direction: textOrNull(r.direction),
+      related_object: textOrNull(r.related_object),
+      related_object_uuid: textOrNull(r.related_object_uuid),
+      raw: r,
+    };
+  };
+
+/** How often a fully read message history is walked again. These endpoints
+    filter on direction and the related record, never on an edit date, so a
+    walk is the whole history: about one call per thousand messages. Every
+    ten minutes would spend the day's call budget (DAILY_CALL_BUDGET) the
+    other objects need for their changes; four times a day keeps a
+    conversation a few hours fresh at most. */
+export const MESSAGE_REREAD_MS = 6 * 60 * 60_000;
+
 /* ── the list itself, in sync order ── */
 
 export const SM8_OBJECTS: Sm8ObjectSpec[] = [
@@ -417,7 +457,19 @@ export const SM8_OBJECTS: Sm8ObjectSpec[] = [
   // Everything, not a window: a holiday or a long leave keyed in years ago
   // can still cover a day ahead, and the whole account is ~250 rows.
   { object: "availability", endpoint: "availability.json", table: "sm8_availability", scope: "read_schedule", label: "Time off", backfillMonths: null, shape: shapeAvailability },
+  // One table, two kinds: a job's conversation reads both by related_object_uuid.
+  { object: "sms", endpoint: "sms.json", table: "sm8_job_messages", scope: "read_sms", label: "Texts", backfillMonths: null, shape: messageShape("sms"), rereadEveryMs: MESSAGE_REREAD_MS },
+  { object: "email", endpoint: "email.json", table: "sm8_job_messages", scope: "read_email", label: "Emails", backfillMonths: null, shape: messageShape("email"), rereadEveryMs: MESSAGE_REREAD_MS },
 ];
+
+/** True for an object read by what changed since its cursor (`edit_date gt`),
+    false for one walked whole each time (rereadEveryMs). */
+export function readsByEditDate(spec: Pick<Sm8ObjectSpec, "rereadEveryMs">): boolean {
+  return spec.rereadEveryMs === undefined;
+}
+
+/** The mirror tables, each once (sms and email share sm8_job_messages). */
+const MIRROR_TABLES: string[] = [...new Set(SM8_OBJECTS.map((s) => s.table))];
 
 /** Everything disconnect wipes — the mirrors AND the bookkeeping, because a
     cursor into data we no longer hold is a lie waiting for a reconnect.
@@ -437,7 +489,7 @@ export const SM8_OBJECTS: Sm8ObjectSpec[] = [
     address of this workspace is `unknown` and answered 410, which
     unsubscribes it. Each tolerates a database without it. */
 export const SM8_WIPE_TABLES: string[] = [
-  ...SM8_OBJECTS.map((s) => s.table),
+  ...MIRROR_TABLES,
   "sm8_sync_state",
   "sm8_sync_runs",
   "sm8_webhook_pings",
@@ -457,7 +509,7 @@ export const SM8_WIPE_TABLES: string[] = [
     and answered 410 — and so does the subscription record, which the next
     reconcile rewrites for the new account. */
 export const SM8_ACCOUNT_RESET_TABLES: string[] = [
-  ...SM8_OBJECTS.map((s) => s.table),
+  ...MIRROR_TABLES,
   "sm8_sync_state",
   "sm8_webhook_pings",
 ];
@@ -483,6 +535,25 @@ export function walkOrderFor(backfillDone: ReadonlySet<string>): Sm8ObjectSpec[]
   const first = SM8_OBJECTS.findIndex((s) => !backfillDone.has(s.object));
   if (first <= 0) return SM8_OBJECTS;
   return [...SM8_OBJECTS.slice(first), ...SM8_OBJECTS.slice(0, first)];
+}
+
+/** Whether this run walks `spec` at all. Every object always does, except
+    one walked whole (rereadEveryMs) that has finished reading: it starts a
+    new walk only once its last finished walk is that old. A walk in progress
+    always carries on, and a read that hasn't finished — a first one, or one
+    refused — is always tried again. */
+export function sm8WalkIsDue(input: {
+  spec: Pick<Sm8ObjectSpec, "rereadEveryMs">;
+  resuming: boolean;
+  backfillDone: boolean;
+  lastSyncedAt: string | null | undefined;
+  nowMs: number;
+}): boolean {
+  const every = input.spec.rereadEveryMs;
+  if (every === undefined || input.resuming || !input.backfillDone) return true;
+  const last = input.lastSyncedAt ? Date.parse(input.lastSyncedAt) : NaN;
+  if (!Number.isFinite(last)) return true;
+  return input.nowMs - last >= every;
 }
 
 /* ── cursor & window arithmetic (naive strings, deliberately) ── */
@@ -528,10 +599,12 @@ export function backfillFloor(nowMs: number, months: number): string {
     Field name is case-sensitive over there; value quoting happens here so
     the reader can't get it wrong. */
 export function filterFor(
-  spec: Pick<Sm8ObjectSpec, "backfillMonths">,
+  spec: Pick<Sm8ObjectSpec, "backfillMonths" | "rereadEveryMs">,
   cursor: string | null | undefined,
   nowMs: number
 ): string | null {
+  // no edit-date filter on this endpoint: every walk is the whole history
+  if (!readsByEditDate(spec)) return null;
   const floor =
     cursorFloor(cursor) ??
     (spec.backfillMonths !== null ? backfillFloor(nowMs, spec.backfillMonths) : null);
@@ -684,6 +757,13 @@ export const SM8_STATE_UNREAD =
     already has: one account, one workspace. */
 export const SM8_ELSEWHERE =
   "This ServiceM8 account is connected to another HeyTiff workspace. Disconnect it there, or reconnect with a different account.";
+
+/** ServiceM8 answered 400 "… is not an authorised object type": the
+    endpoint isn't switched on for this account. The grant can't fix it, so
+    the sentence doesn't say reconnect; the other objects walk on. */
+export function sm8NotEnabledNote(label: string): string {
+  return `ServiceM8 doesn't offer ${label.toLowerCase()} to apps on this account yet.`;
+}
 
 /* ── a pause is not a failure ── */
 

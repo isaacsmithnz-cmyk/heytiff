@@ -17,7 +17,11 @@ import {
   isSm8PauseNote,
   lowestStampFrom,
   maxEditDate,
+  MESSAGE_REREAD_MS,
   nextCursor,
+  readsByEditDate,
+  sm8NotEnabledNote,
+  sm8WalkIsDue,
   sm8LocalStamp,
   SM8_OBJECTS,
   SM8_PAUSE_SHARED_LIMIT,
@@ -198,6 +202,8 @@ describe("the object list", () => {
       job_payments: "jobpayment.json",
       materials: "material.json",
       availability: "availability.json",
+      sms: "sms.json",
+      email: "email.json",
     });
   });
 
@@ -278,6 +284,104 @@ describe("the object list", () => {
   });
 });
 
+/* ── the customer's texts and emails ──
+
+   sms.json and email.json (ServiceM8's May 2026 API update) document their
+   filters, not their fields. So the record is kept whole, exactly as sent,
+   and only uuid and the three filterable names are lifted out. */
+describe("the job's texts and emails", () => {
+  const sms = SM8_OBJECTS.find((s) => s.object === "sms")!;
+  const email = SM8_OBJECTS.find((s) => s.object === "email")!;
+
+  it("reads each under its own read-only grant, into one table", () => {
+    expect(sms).toMatchObject({ endpoint: "sms.json", scope: "read_sms", table: "sm8_job_messages", label: "Texts" });
+    expect(email).toMatchObject({ endpoint: "email.json", scope: "read_email", table: "sm8_job_messages", label: "Emails" });
+  });
+
+  it("keeps the record whole and lifts out only the documented names", () => {
+    const record = {
+      uuid: "m-1",
+      direction: "inbound",
+      related_object: "job",
+      related_object_uuid: "j-1",
+      some_undocumented_field: "Running 10 late",
+      nested: { a: [1, 2] },
+      edit_date: "2026-10-25 09:00:00",
+    };
+    const shaped = sms.shape(record)!;
+    expect(shaped).toEqual({
+      uuid: "m-1",
+      kind: "sms",
+      direction: "inbound",
+      related_object: "job",
+      related_object_uuid: "j-1",
+      raw: record,
+    });
+    // exactly as sent: nothing renamed, coerced or dropped on the way in
+    expect(JSON.parse(JSON.stringify(shaped.raw))).toEqual(record);
+  });
+
+  it("nulls a documented name that isn't there, or isn't text", () => {
+    const shaped = email.shape({ uuid: "m-2", direction: 7, related_object: "" })!;
+    expect(shaped).toMatchObject({ kind: "email", direction: null, related_object: null, related_object_uuid: null });
+    expect(shaped.raw).toEqual({ uuid: "m-2", direction: 7, related_object: "" });
+  });
+
+  it("drops a record with no uuid, which has nothing to key it", () => {
+    expect(sms.shape({ direction: "outbound" })).toBeNull();
+    expect(email.shape({ uuid: "" })).toBeNull();
+  });
+
+  it("asks for no edit-date window: every walk is the whole history, whatever the cursor", () => {
+    expect(readsByEditDate(sms)).toBe(false);
+    expect(readsByEditDate(email)).toBe(false);
+    expect(filterFor(sms, null, Date.parse("2026-10-25T00:00:00Z"))).toBeNull();
+    expect(filterFor(email, "2026-10-01 00:00:00", Date.parse("2026-10-25T00:00:00Z"))).toBeNull();
+    // every other object still reads by what changed
+    for (const s of SM8_OBJECTS.filter((o) => o.object !== "sms" && o.object !== "email")) {
+      expect(readsByEditDate(s)).toBe(true);
+    }
+  });
+
+  it("wipes the shared table once, with the other mirrors", () => {
+    expect(SM8_WIPE_TABLES.filter((t) => t === "sm8_job_messages")).toHaveLength(1);
+    expect(SM8_ACCOUNT_RESET_TABLES.filter((t) => t === "sm8_job_messages")).toHaveLength(1);
+    expect(new Set(SM8_WIPE_TABLES).size).toBe(SM8_WIPE_TABLES.length);
+  });
+
+  it("says an endpoint the account doesn't have is ServiceM8's, not a reconnect, and isn't a pause", () => {
+    expect(sm8NotEnabledNote(sms.label)).toBe("ServiceM8 doesn't offer texts to apps on this account yet.");
+    expect(sm8NotEnabledNote(email.label)).toBe("ServiceM8 doesn't offer emails to apps on this account yet.");
+    expect(isSm8PauseNote(sm8NotEnabledNote(sms.label))).toBe(false);
+  });
+});
+
+describe("sm8WalkIsDue — a history walked whole is walked again only so often", () => {
+  const sms = SM8_OBJECTS.find((s) => s.object === "sms")!;
+  const jobs = SM8_OBJECTS.find((s) => s.object === "jobs")!;
+  const now = Date.parse("2026-10-25T06:00:00Z");
+  const ago = (ms: number) => new Date(now - ms).toISOString();
+  const due = (o: Partial<Parameters<typeof sm8WalkIsDue>[0]>) =>
+    sm8WalkIsDue({ spec: sms, resuming: false, backfillDone: true, lastSyncedAt: ago(60_000), nowMs: now, ...o });
+
+  it("an object read by edit date is walked every run", () => {
+    expect(due({ spec: jobs })).toBe(true);
+  });
+
+  it("a finished history is left alone until its last walk is MESSAGE_REREAD_MS old", () => {
+    expect(due({})).toBe(false);
+    expect(due({ lastSyncedAt: ago(MESSAGE_REREAD_MS - 1) })).toBe(false);
+    expect(due({ lastSyncedAt: ago(MESSAGE_REREAD_MS) })).toBe(true);
+  });
+
+  it("a walk in progress, an unfinished first read, or no record of the last walk always goes", () => {
+    expect(due({ resuming: true })).toBe(true);
+    expect(due({ backfillDone: false })).toBe(true);
+    expect(due({ lastSyncedAt: null })).toBe(true);
+    expect(due({ lastSyncedAt: "not a time" })).toBe(true);
+  });
+});
+
 describe("walkOrderFor — the rotation that stops budget starvation", () => {
   const all = SM8_OBJECTS.map((s) => s.object);
   const order = (done: string[]) => walkOrderFor(new Set(done)).map((s) => s.object);
@@ -319,6 +423,8 @@ describe("walkOrderFor — the rotation that stops budget starvation", () => {
       "job_payments",
       "materials",
       "availability",
+      "sms",
+      "email",
       "staff",
       "categories",
       "queues",

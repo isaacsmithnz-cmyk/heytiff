@@ -10,7 +10,7 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { SM8_OBJECTS } from "../sm8-sync-plan";
+import { readsByEditDate, SM8_OBJECTS } from "../sm8-sync-plan";
 
 const DIR = join(__dirname, "..", "..", "..", "..", "docs", "migrations");
 const migration = readFileSync(join(DIR, "sm8_calls_echo_freshness.sql"), "utf8");
@@ -31,10 +31,14 @@ function block(sql: string, name: string): string {
 }
 
 describe("keep the newer row", () => {
-  it("guards every mirror table the sync writes — a new object can't slip past it", () => {
+  /* Every table read by edit date. sm8_job_messages (sms, email) has no
+     edit_date to compare — its endpoints filter on none — so the guard,
+     which reads new.edit_date, can't stand on it. */
+  it("guards every mirror table the sync reads by edit date — a new object can't slip past it", () => {
     const list = /foreach t in array array\[([\s\S]*?)\]/.exec(migration)![1];
     const named = [...list.matchAll(/'([a-z0-9_]+)'/g)].map((m) => m[1]).sort();
-    expect(named).toEqual(SM8_OBJECTS.map((o) => o.table).sort());
+    expect(named).toEqual(SM8_OBJECTS.filter(readsByEditDate).map((o) => o.table).sort());
+    expect(named).not.toContain("sm8_job_messages");
   });
 
   it("skips an update whose stamp is older, comparing ServiceM8's text stamps as text", () => {

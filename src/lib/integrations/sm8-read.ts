@@ -151,7 +151,7 @@ export async function readSm8StaffRows(
    dropped path segment, 5xx theirs, and a non-array 200 means the shape
    assumption is wrong. The body is a vendor's error text, so it is truncated
    and goes to the server log — never to a page, never near the token. */
-async function logSm8Failure(what: string, res: Response, note?: string): Promise<void> {
+async function logSm8Failure(what: string, res: Response, note?: string): Promise<string> {
   let detail = note ?? "";
   if (!note) {
     try {
@@ -161,7 +161,12 @@ async function logSm8Failure(what: string, res: Response, note?: string): Promis
     }
   }
   console.error(`[sm8] ${what} ${res.status} ${res.statusText}: ${detail}`);
+  return detail;
 }
+
+/** ServiceM8's 400 for an endpoint this account hasn't switched on — "sms is
+    not an authorised object type" (the May 2026 API update). */
+const NOT_AUTHORISED_OBJECT = /not an authori[sz]ed object type/i;
 
 /* ── the sync engine's page reader ── */
 
@@ -182,7 +187,17 @@ export type Sm8Page =
       `unavailable` from a served error: ServiceM8's HTTP status, so a
       caller reading one record can tell a refusal of that record (a 4xx)
       from an outage. */
-  | { ok: false; failure: Sm8PageFailure; called?: false; busy?: Sm8Busy; status?: number };
+  | {
+      ok: false;
+      failure: Sm8PageFailure;
+      called?: false;
+      busy?: Sm8Busy;
+      status?: number;
+      /** On `unavailable` with status 400: ServiceM8 said the object type
+          isn't authorised for this account — that endpoint is off, the rest
+          of the account is fine. */
+      notEnabled?: true;
+    };
 
 /** One page of one object: up to 1000 rows plus the x-next-cursor header
     that names the next page (absent = walk complete). The failure kinds are
@@ -221,7 +236,10 @@ export async function fetchSm8Page(
     if (res.status === 402) return { ok: false, failure: "payment_required" };
     if (res.status === 429) return { ok: false, failure: "rate_limited", busy: sm8BusyOf(answer) ?? undefined };
     if (!res.ok) {
-      await logSm8Failure(`GET ${endpoint}`, res);
+      const body = await logSm8Failure(`GET ${endpoint}`, res);
+      if (res.status === 400 && NOT_AUTHORISED_OBJECT.test(body)) {
+        return { ok: false, failure: "unavailable", status: 400, notEnabled: true };
+      }
       return { ok: false, failure: "unavailable", status: res.status };
     }
 

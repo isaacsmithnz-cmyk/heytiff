@@ -80,6 +80,7 @@ import {
   maxEditDate,
   nextCursor,
   PAGE_BUDGET,
+  readsByEditDate,
   SM8_ACCOUNT_MOVED,
   SM8_ACCOUNT_SWITCHED,
   SM8_ACCOUNT_UNCLEARED,
@@ -94,7 +95,9 @@ import {
   SM8_PAUSE_SHARED_LIMIT,
   SM8_STATE_UNREAD,
   SM8_UNREACHABLE,
+  sm8NotEnabledNote,
   sm8ObjectPhase,
+  sm8WalkIsDue,
   walkOrderFor,
   type MirrorRow,
   type Sm8ObjectPhase,
@@ -346,6 +349,9 @@ type StateRow = {
   cursor: string | null;
   backfill_done: boolean | null;
   rows_pulled: number | null;
+  /** When the last walk finished — how a history walked whole (sms, email)
+      knows whether it is due again (sm8WalkIsDue). */
+  last_synced_at?: string | null;
   /** Where a paused walk resumes, and the query that cursor belongs to. */
   walk_cursor: string | null;
   walk_filter: string | null;
@@ -355,7 +361,7 @@ type StateRow = {
   walk_started_at?: string | null;
 };
 
-const STATE_COLUMNS = "object, cursor, backfill_done, rows_pulled, walk_cursor, walk_filter";
+const STATE_COLUMNS = "object, cursor, backfill_done, rows_pulled, last_synced_at, walk_cursor, walk_filter";
 
 /** Every object's state for one workspace. A READ THAT FAILS IS NOT AN EMPTY
     STATE: read as "nothing synced yet", it would start every object's
@@ -649,6 +655,22 @@ export async function runSm8Sync(
        is a real value (an object with no floor), which is why the cursor, not
        the filter, is what says a walk is in progress. */
     const resuming = prior?.walk_cursor != null;
+
+    /* A history walked whole (sms, email: no edit-date filter) that finished
+       reading lately isn't walked again yet — up to date, at no call. */
+    if (
+      !sm8WalkIsDue({
+        spec,
+        resuming,
+        backfillDone: prior?.backfill_done === true,
+        lastSyncedAt: prior?.last_synced_at,
+        nowMs: now,
+      })
+    ) {
+      objectsCompleted += 1;
+      continue;
+    }
+
     const filter = resuming ? prior!.walk_filter : filterFor(spec, prior?.cursor ?? null, now);
 
     /* When this walk began: a resumed walk keeps its own start, a new one
@@ -724,6 +746,11 @@ export async function runSm8Sync(
              touching the grant — reconnecting cannot settle an invoice. */
           objectError = SM8_BILLING;
           stopNote = objectError;
+        } else if (page.failure === "unavailable" && page.notEnabled) {
+          /* 400 "not an authorised object type": this endpoint is off for
+             the account, which is this object's news alone — the others
+             share nothing with it, so the walk moves on, as for a 403. */
+          objectError = sm8NotEnabledNote(spec.label);
         } else if (page.failure === "rate_limited") {
           objectError = SM8_PAUSE_RATE_LIMIT;
           stopNote = objectError;
@@ -751,6 +778,15 @@ export async function runSm8Sync(
       for (const raw of page.rows) {
         const s = spec.shape(raw);
         if (s) shaped.push({ ...s, org_id: orgId, synced_at: iso });
+      }
+      /* A page of records none of which has a uuid lands nothing, and the
+         count says 0 as if there were none. The keys (never the values) go
+         to the log, so a renamed id field is seen rather than mistaken for
+         an empty account. */
+      if (page.rows.length > 0 && shaped.length === 0) {
+        console.warn(
+          `[sm8] ${spec.endpoint}: ${page.rows.length} records without a uuid for org ${orgId}; keys: ${Object.keys(page.rows[0]).join(", ")}`
+        );
       }
 
       /* The connection may have moved to another account since the run
@@ -818,11 +854,13 @@ export async function runSm8Sync(
             object: spec.object,
             /* the lower of the highest stamp read and the walk's start less
                the overlap, in the account's clock — see nextCursor */
-            cursor: nextCursor({
-              seenMax: batchMax,
-              walkStartedAtMs: walkStartedAt ? Date.parse(walkStartedAt) : null,
-              tz,
-            }),
+            cursor: readsByEditDate(spec)
+              ? nextCursor({
+                  seenMax: batchMax,
+                  walkStartedAtMs: walkStartedAt ? Date.parse(walkStartedAt) : null,
+                  tz,
+                })
+              : null, // walked whole each time: no floor to keep
             backfill_done: true,
             last_synced_at: new Date().toISOString(),
             last_error: null,

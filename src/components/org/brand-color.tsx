@@ -4,6 +4,9 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { documentTheme } from "@/lib/org/theme";
 import type { SaveResult } from "./types";
 import { withCleanup } from "@/lib/ui/with-cleanup";
+import { Button } from "@/components/parts/button";
+import { TextInput } from "@/components/parts/field";
+import { Wrong } from "@/components/settings/parts";
 
 /* THE DOCUMENT COLOUR — one ROW on the Company tab: a swatch, the hex, Remove.
 
@@ -97,18 +100,18 @@ export function BrandColorPicker({
         className="orgcol-swatch"
         value={draft}
         disabled={busy}
-        aria-label="Brand colour"
+        aria-label="Document colour"
         onChange={(e) => setDraft(e.currentTarget.value)}
       />
       {/* Typed, because a business has its brand hex written down on a style
           guide and copying it in is the accurate way to do this. */}
-      <input
-        type="text"
-        className="inp orgcol-hex"
+      <TextInput
+        size={32}
+        className="orgcol-hex"
         value={typed}
         disabled={busy}
         placeholder="None"
-        aria-label="Brand colour hex"
+        aria-label="Document colour hex"
         spellCheck={false}
         onChange={(e) => {
           setTyped(e.target.value);
@@ -122,13 +125,13 @@ export function BrandColorPicker({
       />
       {value && (
         <span className="orgcol-act">
-          <button className="pbtn ghost" type="button" disabled={busy} onClick={clear}>
-            Remove
-          </button>
+          <Button kind="second" size={32} disabled={busy} onClick={clear}>
+            Remove colour
+          </Button>
         </span>
       )}
 
-      {error && <div className="carderr">{error}</div>}
+      {error && <Wrong>{error}</Wrong>}
     </div>
   );
 }

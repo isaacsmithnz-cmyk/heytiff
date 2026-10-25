@@ -1017,8 +1017,7 @@
 .fg .padd { display:inline-flex; align-items:center; font-size:16px; font-weight:600; color:var(--link); text-decoration:underline; text-underline-offset:3px; border-radius:var(--r-control); cursor:pointer; }
 .fg .padd:focus-visible { outline:none; box-shadow:var(--ring); }
 
-/* the licence wall — CR80 cards, not the 230px info tiles .credgrid lays out
-   (that grid still serves the company credentials on the Organisation screen).
+/* the licence wall — CR80 cards.
    .idc is capped at 460px for the one-card cases; in here a card fills its
    track. */
 /* min(300px,100%), not a bare 300px: on a narrow phone the track would stay
@@ -1048,7 +1047,7 @@
    is survivable here in a way it was not for the old wrapping strip: Summary
    links to every section it lists, so the strip is never the only way in. */
 @media (max-width:1400px){
-  .fg .pcard2 .wb2-vtabs, .fg .orgcard2 .wb2-vtabs { overflow-x:auto; scrollbar-width:none; padding-left:24px; }
+  .fg .pcard2 .wb2-vtabs { overflow-x:auto; scrollbar-width:none; padding-left:24px; }
   /* THE ORG CARD SCROLLS, IT DOES NOT WRAP. `.wb2-vtabs` picks up
      `flex-wrap:wrap-reverse` from the Workboard's own 900px rule — which is
      right there, where the row shares its line with the universal search field
@@ -1057,10 +1056,8 @@
      is `translateX` off a single `offsetLeft`, so a tab on a second line gets
      the card's top edge drawn under the tab ABOVE it. Restated at (0,3,0) so it
      wins wherever that rule lands. */
-  .fg .orgcard2 .wb2-vtabs { flex-wrap:nowrap; }
-  .fg .pcard2 .wb2-vtabs::-webkit-scrollbar,
-  .fg .orgcard2 .wb2-vtabs::-webkit-scrollbar { display:none; }
-  .fg .pcard2 .wb2-vt, .fg .orgcard2 .wb2-vt { flex:none; }
+  .fg .pcard2 .wb2-vtabs::-webkit-scrollbar { display:none; }
+  .fg .pcard2 .wb2-vt { flex:none; }
   /* THE SCROLLBAR IS HIDDEN, SO SAY IT SCROLLS SOME OTHER WAY.
 
      Nine tabs measure 925px; a narrow window gives the strip 295px. The two
@@ -1072,25 +1069,19 @@
      the scroll container itself — an absolutely-positioned overlay would scroll
      away with the content it is meant to be masking. */
   .fg .pcard2 .wb2-vtabs::before,
-  .fg .pcard2 .wb2-vtabs::after,
-  .fg .orgcard2 .wb2-vtabs::before,
-  .fg .orgcard2 .wb2-vtabs::after {
+  .fg .pcard2 .wb2-vtabs::after {
     content:""; position:sticky; z-index:4; align-self:stretch;
     flex:0 0 0; width:0; overflow:visible; pointer-events:none;
   }
-  .fg .pcard2 .wb2-vtabs::before, .fg .orgcard2 .wb2-vtabs::before { left:0; }
-  .fg .pcard2 .wb2-vtabs::after, .fg .orgcard2 .wb2-vtabs::after { right:0; }
+  .fg .pcard2 .wb2-vtabs::before { left:0; }
+  .fg .pcard2 .wb2-vtabs::after { right:0; }
   .fg .pcard2 .wb2-vtabs[data-ovl]::before,
-  .fg .pcard2 .wb2-vtabs[data-ovr]::after,
-  .fg .orgcard2 .wb2-vtabs[data-ovl]::before,
-  .fg .orgcard2 .wb2-vtabs[data-ovr]::after {
+  .fg .pcard2 .wb2-vtabs[data-ovr]::after {
     width:0; box-shadow:none;;
   }
-  .fg .pcard2 .wb2-vtabs[data-ovl]::before,
-  .fg .orgcard2 .wb2-vtabs[data-ovl]::before {
+  .fg .pcard2 .wb2-vtabs[data-ovl]::before {
   }
-  .fg .pcard2 .wb2-vtabs[data-ovr]::after,
-  .fg .orgcard2 .wb2-vtabs[data-ovr]::after {
+  .fg .pcard2 .wb2-vtabs[data-ovr]::after {
   }
 }
 @media (max-width:920px){
@@ -1526,7 +1517,7 @@
   width:var(--dotf,268px); height:var(--dotf,268px);
   perspective:calc(var(--dotf,268px) * 3.6); }
 .dotf-tilt { position:absolute; inset:0; transform-style:preserve-3d;
-                                                                                                                                
+
   transform:rotateX(0deg); transition:transform var(--t-move) var(--ease); }
 .dotf-orbit { position:absolute; inset:0; transform-style:preserve-3d; }
 .dotf-cell { position:absolute; left:50%; top:50%; width:0; height:0; transform-style:preserve-3d; }
@@ -2353,7 +2344,7 @@
 
 /* summary line + expand */
  /* prominent pay-multiplier split (this determines pay) */
-  
+
 /* expanded per-day rows */
 .fg .tpr .sectwrap { display:block; }
 .fg .tpr .detail { display:none; }
@@ -3232,28 +3223,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .idc .idc-tel { color:inherit; text-decoration:none; border-bottom:1px solid currentColor; }
 @media (max-width:480px){ .fg .idc { aspect-ratio:auto; min-height:220px; } .fg .idc .idc-facts { margin-top:16px; } }
 
-/* ---- credential cards (.credgrid / .cred) ---- */
-.fg .credgrid { margin-top:16px; display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:12px; }
+/* ---- a licence card (.idc.cred) ---- */
 .fg .cred { position:relative; background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); padding:16px; font-variant-numeric:tabular-nums; }
-.fg .cred-top { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
-.fg .cred-top b { font-size:14px; font-weight:700; overflow-wrap:anywhere; }
-.fg .cred-badge { flex:0 0 auto; padding:4px 8px; border-radius:var(--r-control); font-size:12px; font-weight:700; }
-.fg .cred-no { margin-top:8px; font-size:13px; font-weight:700; color:var(--gray700); }
-.fg .cred-no.none { color:var(--q); font-weight:600; }
-.fg .cred-foot { margin-top:12px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
-.fg .cred-exp { font-size:12px; font-weight:600; color:var(--gray400); }
-.fg .lstat { flex:0 0 auto; font-size:12px; font-weight:700; padding:4px 8px; border-radius:var(--r-control); }
-.fg .lstat.ok { background:var(--ok-tint); color:var(--ok-t); }
-.fg .lstat.warn { background:var(--warn-tint); color:var(--warn-t); }
-.fg .lstat.bad { background:var(--bad-tint); color:var(--bad-t); }
-.fg .lstat.mute { background:var(--tint); color:var(--q); }
-.fg .cred-del { position:absolute; top:8px; right:8px; height:26px; padding:0 8px; font-size:12px; font-weight:700; border-radius:var(--r-control); display:flex; align-items:center; justify-content:center; color:var(--q); background:var(--tint); opacity:0; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .cred:hover .cred-del, .fg .cred-del:focus-visible { opacity:1; }
-.fg .cred-del:hover { background:var(--bad-tint); color:var(--bad-t); }
-.fg .cred-del:disabled { opacity:.5; cursor:default; }
-/* a hover-revealed control is an unreachable control on a phone, and this
-   screen is used on one — on a touch pointer the × is simply always there */
-@media (hover:none), (pointer:coarse) { .fg .cred-del { opacity:1; } }
 
 /* ---- field-level validation ---- */
 .fg .inp.err { border-color:var(--bad); background:var(--bad-tint); }
@@ -3268,7 +3239,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 /* the role dot outside its picker — .permrole .prdot doesn't reach read mode */
 .fg .ro-state .prdot { width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
 .fg .ro-note { margin:0; font-size:14px; font-weight:500; line-height:1.6; color:var(--gray700); white-space:pre-wrap; }
-@media (max-width:560px){   }
 
 /* qualifications, as the list of tickets it is */
 .fg .qual-list { display:flex; flex-wrap:wrap; gap:8px; }
@@ -3706,9 +3676,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
    accessible name stays on a real control. */
 .fg .cred.clickable { transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
 .fg .cred.clickable:hover { border-color:var(--line); }
-.fg .cred-open { position:absolute; inset:0; z-index:var(--z-raised); border-radius:var(--r-card); }
-.fg .cred-open:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
-.fg .cred-issuer { margin-top:4px; font-size:12px; font-weight:600; color:var(--gray400); overflow-wrap:anywhere; }
 
 /* The add tile lives IN the grid, so "one more" is the same shape as the
    things it joins. */
@@ -3736,23 +3703,15 @@ button.fl-btn { font-size:14px; font-weight:700; }
 
    The panel chrome (`.ppanel2`, `.psec2`, `.psechd`, `.pdl*`) is already
    declared against `.fg` alone, so it reaches here with nothing restated. */
-.fg .orgcard2 { --wb2-line:var(--line); --wb2-line2:var(--line);
-  --wb2-cy:var(--ink); --wb2-cy2:var(--ink2); }
 
 /* Save wears the board's cyan here for the same reason it does on the staff
    card: it is the SAME white surface, and a black button on it would read as a
    different screen. */
-.fg .orgcard2 .pbtn.primary {
-  background:var(--press); border:1px solid var(--press); color:var(--paper); }
-.fg .orgcard2 .pbtn.primary:hover:not(:disabled) {
-  background:var(--press); border-color:var(--press); color:var(--paper); }
 
 /* Company and Preferences: titled groups stacked down the tab, each one a
    `.pdlcard` (a 20/600 title on a hairline, rows under it). The first draws no
    top rule — the tab band's hairline is right above it — and the gap between
    groups is the scale's 32. */
-.fg .orgco { display:grid; gap:32px; }
-.fg .orgco > .pdlcard:first-child { border-top:0; padding-top:0; }
 
 /* A group that edits (SectionCard variant="group"): its Edit sits at the
    title's end, and becomes Cancel and Save in the same place. */
@@ -3764,7 +3723,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 
 /* Brand's two rows. Both save on pick, so neither is in an edit cycle: the row
    shows what is set and carries the one verb that fits. */
-.fg .orglogo, .fg .orgcol { display:flex; align-items:center; gap:12px; flex-wrap:wrap; min-height:40px; width:100%; }
+.fg .orglogo, .fg .orgcol { display:flex; align-items:center; justify-content:flex-end; gap:12px; flex-wrap:wrap; min-height:40px; min-width:0; }
 .fg .orglogo { border-radius:var(--r-button); transition:background var(--t-fast) var(--ease); }
 .fg .orglogo.over { background:var(--tint); }
 .fg .orglogo.busy { opacity:.6; }
@@ -3777,16 +3736,14 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .orglogo-thumb img { max-width:100%; max-height:100%; object-fit:contain; }
 /* a pale logo on white is not there: its thumbnail sits on the dark it would get on a document */
 .fg .orglogo-thumb.dark { background:var(--ink); }
-.fg .orglogo-none { flex:1; min-width:0; font-size:16px; font-weight:500; color:var(--q); }
+.fg .orglogo-none { min-width:0; font-size:14px; line-height:20px; font-weight:400; color:var(--q); }
 .fg .orglogo-act, .fg .orgcol-act { display:flex; gap:8px; margin-left:auto; }
-.fg .orglogo .pbtn, .fg .orgcol .pbtn { height:32px; padding:0 12px; font-size:13px; }
-.fg .orglogo .carderr, .fg .orgcol .carderr { flex:1 0 100%; margin:0; }
+.fg .orglogo .st2-wrong, .fg .orgcol .st2-wrong { flex:1 0 100%; }
 /* Two columns of label, thumbnail and two buttons need about 470px each:
    below that the buttons wrap and a 40px row becomes three lines. Brand's two
    rows stack instead; the read-only groups below it are short enough to stay
    two across. The 1240 is the 224px sidebar, the card's gutters and two
    columns plus their gap. */
-@media (max-width:1240px){ .fg .pdl.orgbrand { grid-template-columns:1fr; } }
 
 /* A native colour input is a button with a swatch in it and no two browsers
    dress it alike; the padding/border reset is what makes the swatch fill the
@@ -3799,16 +3756,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .orgcol-hex { width:120px; height:32px; }
 
 /* Account — four read-only facts about the account itself, two up. */
-.fg .orgacct { display:grid; grid-template-columns:1fr 1fr; gap:16px 24px; }
-@media (max-width:640px){ .fg .orgacct { grid-template-columns:1fr; gap:16px; } }
-.fg .orgacct-f { display:block; min-width:0; }
-.fg .orgacct-f em { font-style:normal; display:block; font-size:12px; font-weight:500; color:var(--q); }
-.fg .orgacct-f b { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:4px; font-size:16px; font-weight:700; color:var(--ink); }
-.fg .orgacct-f i { font-style:normal; display:block; margin-top:4px; font-size:13px; font-weight:600; color:var(--q); overflow-wrap:anywhere; }
+
 /* "You" is a fact, not a state — the neutral chip, never the ok/danger pair. */
-.fg .orgacct-you { display:inline-flex; align-items:center; height:20px; padding:0 8px; border-radius:var(--r-control);
-  font-size:12px; font-weight:500;
-  background:var(--tint); color:var(--info-t); }
 
 /* ── Handing the account over (components/org/transfer-owner-modal) ──
    A list you PICK from, then a panel that says what picking meant, then the
@@ -4246,7 +4195,7 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
   .wb2-vtabs { flex-wrap:wrap-reverse; padding-left:0; }
   .wb2-vtabs .wb2-vt:first-of-type { margin-left:32px; }
   .wb2-vtcap { flex:1 0 100%; margin:0 0 8px; padding-bottom:0; }
-  
+
 }
 /* ── the tabs' own row ──
    The band that holds them is the page header now (`lead` + tabs + `tools`),
@@ -4368,11 +4317,6 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 
 .wb2-sect { font-size:12px; font-weight:500; color:var(--gray400);
   padding:4px 2px 4px; }
-@media (max-width:1100px) {
-  
-  
-  
-}
 
 .fg .page.full .wb2-panel:has(> .wb2-split) { overflow:hidden; }
 
@@ -4388,21 +4332,6 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
    either. Both are stated at the reset's own weight plus one. */
 button.wb2-ajr.as-btn:hover { background:var(--tint); }
 button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint-2); }
-
-  
-
-@media (max-width:920px){
-  
-  
-}
-
-@media (max-width:920px){
-  
-  
-}
-@media (prefers-reduced-motion:reduce){
-  
-}
 
 /* Tags read LEFT, like every other column. Right-aligning the last column
    ragged the labels against the card edge and put the heading a long way
@@ -5318,10 +5247,6 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
 /* the lead already carries its own 8px shoulder inside the tinted box */
 .wb2-jcsec.ups > .wb2-jcdhead { margin-bottom:0; }
 
-@media (prefers-reduced-motion:reduce) {
-  
-}
-
 /* ── the diary ── */
 .wb2-jcdhead { display:flex; align-items:baseline; gap:8px; }
 .wb2-jcdhead b { font-size:16px; font-weight:700; }
@@ -5461,8 +5386,6 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
 .pt-dialog .jb-cl-note + .jb-cl-note { padding-top:8px; border-top:1px solid var(--line); }
 .pt-dialog .pt-dialog-body .jb-cl-paper { margin:0; }
 .pt-dialog .pt-link.jb-cl-open { padding:0; border:0; background:none; font:inherit; text-align:start; }
-
-
 
 .wb2-shcar { font-style:normal; font-size:12px; margin-left:4px; vertical-align:middle; }
 
@@ -5675,7 +5598,6 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* a starred photo says so in the strip */
 .wb2-mvthumbstar { position:absolute; top:2px; right:2px; line-height:0; color:var(--yellow); }
 .wb2-mvthumbstar .i { fill:currentColor; }
-
 
 /* THE TAG CHIPS THAT USED TO SIT HERE ARE GONE — half of Isaac's "too many
    labels". They repeated in a second typeface what the caption above them had
@@ -5898,18 +5820,7 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 
 /* ── responsive ── */
 @media (max-width: 1100px) {
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
   .wb2-vtabs { overflow-x:auto; padding-bottom:2px; }
   .wb2-vt { flex:none; }
   /* three facts stacked into three full-width bands pushed everything below
@@ -5920,7 +5831,7 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 }
 @media (prefers-reduced-motion: reduce) {
   .wb2-vslide, .wb2-sheet, .wb2-scrim, .wb2-swap { animation:none !important; transition:none var(--t-fast) var(--ease); }
-  
+
   ::view-transition-group(wbcard), ::view-transition-old(wbcard), ::view-transition-new(wbcard),
   ::view-transition-old(wbtabs), ::view-transition-new(wbtabs) { animation:none !important; }
 }
@@ -6023,14 +5934,14 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
 
 @media (max-width:1100px) {
   .wb2-ajr, .wb2-ajr:has(.wb2-ajmoney) { grid-template-columns:70px minmax(0,1fr) minmax(0,.9fr); }
-  
+
 }
 .pbtn.ghost.danger { color:var(--bad-t); border-color:var(--bad); }
 .pbtn.ghost.danger:hover { background:var(--bad-tint); }
 @media (max-width: 1100px) {
   .wb2-formgrid { grid-template-columns:1fr; }
   .wb2-formgrid.eq { grid-template-columns:1fr 1fr; }
-    
+
 }
 
 /* ── THE BOARD IS THE WELL ─────────────────────────────────────────────
@@ -6141,7 +6052,7 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
   .fg .page.full .wb2-vtrow { flex:0 1 auto; min-width:0; overflow-x:auto; scrollbar-width:none; }
   .fg .page.full .wb2-vtrow::-webkit-scrollbar { display:none; }
   .fg .page.full .wb2-vtcap { flex:none; }
-  
+
 }
 
 /* ONE PAPER SURFACE, SO THE CARD STOPS BEING A CARD, AND THE TABS STOP BEING
@@ -6760,7 +6671,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    it followed the page's inherited 1.5 without being told. Walked on prod at
    rows=3: 86.75px either way. */
 .wb2-notes.wb2-lwbox { height:calc(var(--lwrows) * 1lh + 26px);
-                                                                                                                                                                                                                                                                                                                                                                                                                                  
+
   background:var(--paper); resize:none; }
 
 /* ── and the box the CARD wears ── */
@@ -6850,11 +6761,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .wb2-carry input { accent-color:var(--wb2-cy); width:15px; height:15px; }
 .wb2-hint.dan { color:var(--wb2-dan-t); }
 .wb2 .pbtn.ghost.dan, .wb2-sheet .pbtn.ghost.dan { color:var(--wb2-dan-t); border-color:var(--bad); }
-
-@media (max-width:980px) {
-  
-  
-}
 
 /* the project page's trip rows — the board's triage anatomy on a card2 */
 .wb2-triprow { display:grid; grid-template-columns:minmax(0,1fr) 170px 200px; gap:12px; align-items:center;
@@ -8029,18 +7935,11 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .hd-face { display:flex; flex-direction:column; overflow-y:auto; }
 .fg .hd-main[hidden], .fg .hd-face[hidden] { display:none; }
 
-@media (prefers-reduced-motion:reduce) {  }
-
 .fg .hd-ls-grp { display:flex; align-items:baseline; gap:8px; margin:0; padding:24px 0 8px;
   border-bottom:1px solid var(--hd-rule); font-size:16px; font-weight:600; line-height:1.2; color:var(--hd-ink); }
 
 .fg .hd-ls-grp.late { color:var(--hd-late); }
 .fg .hd-ls-grp.today { color:var(--hd-today); }
-
-@media (prefers-reduced-motion:reduce) {
-  
-  
-}
 
 .fg .hd-tk-sm8line { margin:0; max-width:640px; font-size:14px; color:var(--q); }
 .fg .hd-tk-sm8line b { font-weight:500; color:var(--ink); }
@@ -8058,18 +7957,11 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    the row at 1440 wide; under 1,100 the filters and the switch take their
    own line, the switch at its end. */
 @container hdcaltb (max-width:1199.5px) {
-  
-  
-  
-  
-  
+
 }
 @container hdcaltb (max-width:1099.5px) {
-  
-  
-}
 
-@media (prefers-reduced-motion:reduce) {  }
+}
 
 .fg .hd-ls-grp.due { color:var(--warn-t); }
 .fg .hd-ls-grp.hol { color:var(--hd-cal-hol-t); }
@@ -8078,10 +7970,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    number in his purple and its name as the button's. */
 @container (max-width:84px) {  }
 
-@media (prefers-reduced-motion:reduce) {
-  
-  
-}
 /* ===================================================================
    VEHICLE MODAL v2 (components/fleet/vehicle-modal/)
 
@@ -8099,7 +7987,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .vm-ov { position:fixed; inset:0; z-index:var(--z-modal); display:flex; align-items:flex-start; justify-content:center; padding:32px 24px; overflow:auto;
   background:var(--scrim); backdrop-filter:blur(6px); animation:flFade .2s ease;
   font-family:var(--font-jakarta), sans-serif; -webkit-font-smoothing:antialiased;
-                                                                                                                              
+
   --vm-muted:var(--q); --vm-faint:var(--q); --vm-sunk:var(--tint); --vm-sunk-h:var(--tint-2); --vm-chip:var(--tint); --vm-chip-h:var(--tint-2);
   --vm-line:var(--line); --vm-line2:var(--line); --vm-rule:var(--line); --vm-border:var(--line);
   --vm-ok-bg:var(--tint); --vm-ok-bg2:var(--tint-2); --vm-ok-line:var(--tint-2);
@@ -8431,16 +8319,12 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .vm-inline:disabled { opacity:.45; cursor:default; }
 
 /* ---- the wall, grouped by kind (Licences, then Insurance) ---- */
-.fg .credgroup { margin-top:16px; }
-.fg .credgroup + .credgroup { margin-top:24px; }
-.fg .credgroup-h { display:block; font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .credgroup > .credgrid { margin-top:8px; }
+
 /* How many terms a card has on file — the history, visible from outside it.
    QUIET, not ok-teal: a count is information, and a semantic state colour used
    for something that is not a state reads as "this one is fine" on a card whose
    status chip may be saying the opposite. It is separated from the issuer line
    above it by weight, not by hue. */
-.fg .cred-note { margin-top:4px; font-size:12px; font-weight:700; color:var(--q); }
 
 /* A licence card that is a DOOR — stretched over the whole surface, above the
    sheen and the mesh but below nothing else, because there is nothing else on
@@ -9601,8 +9485,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    way back to Settings above the title in ink (rule 26), the title at 24,
    the grey fact line, the page's own button or state word on the right.
    It sits where the band sat, in the band's 24px gutter, and the panel
-   under it keeps its line and its scroll. The index: each area's name on
-   the left, its rows on the right (rule 39), a thin line between areas. */
+   under it keeps its line and its scroll. */
 .fg .st2-head { flex:none; display:flex; flex-direction:column; gap:8px; padding:24px 24px 16px; min-width:0; font-family:var(--font); color:var(--ink); }
 .fg .st2-back { align-self:flex-start; display:inline-flex; align-items:center; gap:4px; margin-left:-4px; padding:2px 4px; border-radius:var(--r-button);
   font-size:13px; line-height:18px; font-weight:500; color:var(--ink); text-decoration:none; transition:background-color var(--t-fast) var(--ease); }
@@ -9614,11 +9497,47 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .st2-h1 { margin:0; min-width:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
 .fg .st2-facts { margin:0; min-width:0; font-size:14px; line-height:20px; font-weight:400; color:var(--q); font-variant-numeric:tabular-nums; }
 .fg .st2-tools { flex:none; display:flex; align-items:center; gap:8px; }
-.fg .st2-groups { display:flex; flex-direction:column; gap:24px; min-width:0; }
-.fg .st2-group { display:grid; grid-template-columns:240px minmax(0,1fr); gap:32px; align-items:start; min-width:0; }
-.fg .st2-group + .st2-group { padding-top:24px; border-top:1px solid var(--line); }
-.fg .st2-gh { margin:0; padding-top:12px; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
-.fg .st2-group .pt-row { padding-block:12px; }
+/* SETTINGS, the frame (25 October 2026, the mock BRjnFN2…): one page, the
+   six sections down a 240 list on the left, the one you're on in the
+   selected fill and bold; the section on the right in a 760 column. A
+   section is its title and groups under thin lines (rule 35), each group's
+   heading at 16 with its buttons on the right; typed details as label and
+   value, a setting as its name with its control on the right. */
+.fg .st2 { display:flex; align-items:flex-start; gap:32px; min-width:0; font-family:var(--font); color:var(--ink); }
+.fg .st2-nav { position:sticky; top:0; flex:none; width:240px; display:flex; flex-direction:column; gap:2px; }
+.fg .st2-navitem { display:flex; align-items:center; min-height:36px; padding:0 12px; border-radius:var(--r-button);
+  font-size:14px; line-height:20px; font-weight:500; color:var(--ink); text-decoration:none; transition:background-color var(--t-fast) var(--ease); }
+.fg .st2-navitem:hover { background-color:var(--hov); }
+.fg .st2-navitem.on { background-color:var(--sel); font-weight:600; }
+.fg .st2-navitem:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .st2-body { flex:1 1 auto; min-width:0; max-width:760px; display:flex; flex-direction:column; gap:24px; }
+.fg .st2-hold { min-height:480px; }
+.fg .st2-titlerow { display:flex; align-items:center; justify-content:space-between; gap:24px; min-width:0; }
+.fg .st2-group { display:flex; flex-direction:column; gap:8px; min-width:0; padding-top:16px; border-top:1px solid var(--line); }
+.fg .st2-ghead { display:flex; align-items:center; gap:12px; min-height:32px; }
+.fg .st2-ghead h2 { flex:1 1 auto; min-width:0; margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .st2-link { font-size:14px; line-height:20px; font-weight:500; color:var(--ink); text-decoration:underline; text-underline-offset:2px; }
+.fg .st2-link:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
+.fg .st2-kv { display:flex; flex-direction:column; gap:8px; margin:0; font-size:14px; line-height:20px; }
+.fg .st2-kvrow { display:grid; grid-template-columns:200px minmax(0,1fr); gap:24px; }
+.fg .st2-kv dt { font-weight:500; color:var(--q); }
+.fg .st2-kv dd { margin:0; min-width:0; overflow-wrap:anywhere; color:var(--ink); }
+.fg .st2-none { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.fg .st2-kv dd.st2-none { color:var(--q); }
+.fg .st2-set { display:flex; align-items:center; gap:24px; min-height:52px; padding:8px 0; }
+.fg .st2-set + .st2-set { border-top:1px solid var(--line); }
+.fg .st2-setw { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:4px; }
+.fg .st2-sett { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .st2-sets { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .st2-who { display:flex; align-items:center; gap:8px; font-size:14px; line-height:20px; font-weight:400; color:var(--ink); }
+.fg .st2-choose { width:200px; }
+.fg .st2-form { display:flex; flex-direction:column; gap:16px; padding:8px 0; }
+.fg .st2-fields { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px; }
+.fg .st2-fields.st2-fields--one { grid-template-columns:minmax(0,1fr); }
+.fg .st2-fields.st2-fields--three { grid-template-columns:repeat(3, minmax(0,1fr)); }
+.fg .st2-wrong { display:flex; align-items:center; gap:8px; margin:0; font-size:14px; line-height:20px; font-weight:500; color:var(--red-w); }
+.fg .st2-rowend { display:inline-flex; align-items:center; gap:12px; }
+.fg .st2-group .pt-row { padding-left:0; padding-right:0; }
 /* the Rate Calculator's line: its health as a state word, then the business */
 .fg .st2-rc-facts { display:inline-flex; align-items:center; gap:12px; min-width:0; }
 /* REPORTS (analytics-screen.tsx). The head as Jobs has it, the dates as its

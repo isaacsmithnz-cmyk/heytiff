@@ -194,7 +194,7 @@ import { GET as cronGET } from "@/app/api/cron/sm8-sync/route";
 import { disconnectServiceM8Action } from "@/app/actions/integrations";
 import { freshenSm8AfterResponse } from "../sm8-freshness";
 import { GET as hookGET, POST as hookPOST } from "@/app/api/integrations/servicem8/webhook/[hook]/route";
-import Servicem8IntegrationPage from "@/app/dashboard/admin/integrations/servicem8/page";
+import Servicem8IntegrationPage from "@/app/dashboard/admin/(settings)/integrations/servicem8/page";
 import type { ReactElement } from "react";
 
 const env = { ...process.env };

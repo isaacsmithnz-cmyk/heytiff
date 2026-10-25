@@ -422,7 +422,7 @@ function chipDoor(chip: ActionChip, caps: ListCaps): Door {
     case "staff":
       return { to: "href", href: `${staffHref(ref.id)}?sec=${sec}` };
     case "org-credential":
-      return { to: "href", href: "/dashboard/admin/organization?sec=credentials" };
+      return { to: "href", href: "/dashboard/admin/organization#licences" };
   }
 }
 

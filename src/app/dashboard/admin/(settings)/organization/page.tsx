@@ -3,7 +3,7 @@ import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { hasMinRole } from "@/lib/roles";
 import { getDbRole, isMaster } from "@/lib/permissions-server";
-import { OrgScreen } from "@/components/org/org-screen";
+import { BusinessScreen } from "@/components/org/business-screen";
 import {
   listOrgCredentialRecords,
   listOrgCredentials,
@@ -31,7 +31,7 @@ import {
 import { transferOwnership } from "@/app/actions/org-ownership";
 import type { OrgSettings } from "@/lib/org/settings";
 
-/* Organisation settings — owner-only (co-owners included; org settings are
+/* Settings › Business (it was Organisation) — owner-only (co-owners included; org settings are
    owner-intrinsic, unlike billing which is master-only).
 
    React now, on the staff card's machinery (components/profile/section-card),
@@ -49,11 +49,7 @@ const COLUMNS =
 // primary_owner_user_id and the legacy `name` are deliberately not selected —
 // this screen edits the company profile, not ownership or the signup seed.
 
-export default async function OrganizationPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}) {
+export default async function OrganizationPage() {
   const session = await auth0.getSession();
   if (!session) redirect("/auth/login");
   if (!hasMinRole(await getDbRole(), "owner")) redirect("/dashboard");
@@ -71,7 +67,7 @@ export default async function OrganizationPage({
      master and nobody else: a co-owner's render makes one query fewer and
      ships no list of user ids to a client that has no control to use it. */
   const master = await isMaster();
-  const [credentials, records, account, logoUrl, ownerCandidates, params, expiry] = await Promise.all([
+  const [credentials, records, account, logoUrl, ownerCandidates, expiry] = await Promise.all([
     listOrgCredentials(orgId),
     // the terms behind the cards — the history the modal reads
     listOrgCredentialRecords(orgId),
@@ -85,9 +81,6 @@ export default async function OrganizationPage({
     master
       ? listOwnerCandidates(orgId, session.user.sub as string)
       : Promise.resolve([]),
-    // which tab a shared link asks for — read here rather than with
-    // useSearchParams, so the screen needs no Suspense boundary around it
-    searchParams,
     orgExpiryWindow(orgId),
   ]);
 
@@ -100,7 +93,7 @@ export default async function OrganizationPage({
   ]);
 
   return (
-    <OrgScreen
+    <BusinessScreen
       org={org}
       credentials={credentials}
       credentialRecords={records}
@@ -110,7 +103,6 @@ export default async function OrganizationPage({
       logoUrl={logoUrl}
       today={todayInAu()}
       warnDays={expiry.warnDays}
-      initialSec={typeof params.sec === "string" ? params.sec : undefined}
       // Configured or not — the boolean crosses to the client, the key never
       // does (no NEXT_PUBLIC_ prefix, so Next cannot inline it either).
       addressLookup={Boolean(process.env.GOOGLE_MAPS_API_KEY)}

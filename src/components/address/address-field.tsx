@@ -99,6 +99,8 @@ export type AddressFieldProps = {
   /** server-computed Boolean(GOOGLE_MAPS_API_KEY); false = plain text input */
   enabled: boolean;
   disabled?: boolean;
+  /** the input's class: today's `inp`, or the v2 field's `pt-input` */
+  className?: string;
 };
 
 export function AddressField({
@@ -109,6 +111,7 @@ export function AddressField({
   placeholder,
   enabled,
   disabled,
+  className = "inp",
 }: AddressFieldProps) {
   const listId = `${useId()}-adr`;
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -265,7 +268,7 @@ export function AddressField({
   return (
     <>
       <input
-        className="inp"
+        className={className}
         ref={inputRef}
         name={name}
         id={name}

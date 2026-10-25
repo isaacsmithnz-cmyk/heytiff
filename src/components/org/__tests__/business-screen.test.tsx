@@ -24,33 +24,27 @@ jest.mock("@/app/actions/org-credential-ai", () => ({
   readOrgCredentialDocument: (...a: unknown[]) => readOrgCredentialDocument(...a),
 }));
 
-import { OrgScreen } from "../org-screen";
+import { ToastProvider } from "@/components/parts/toast";
+import { BusinessScreen } from "../business-screen";
 
-/* The Organisation screen, on the Workboard's card.
+/* Settings › Business (v2, 25 October 2026): one page of groups under thin
+   lines, Brand, Trading details, Contact, Licences and insurance, Payments
+   and reminders, Account, in that order.
 
-   THE SHAPE THIS FILE NOW ASSUMES. One row of tabs over one white card, so a
-   section is only in the document while its tab is live. Every test that wants
-   a section names it — through `sec`, which is the page's own `?sec=` — rather
-   than reaching for the second `.card2` on a scroll. That indexing is what made
-   the old file fragile: "the third card is Contact & address" was a comment
-   holding a test together.
+   What this file pins:
 
-   Four things this file is really pinning:
+     TYPED DETAILS EDIT IN PLACE. Each group of them has one Edit, and its
+     read and edit faces name the same things in the same order.
 
-     OVERVIEW READS AND EVERY OTHER TAB EDITS. The landing tab has no Save on it
-     anywhere, and it can reach every tab it summarises.
+     A SETTING YOU PICK SAVES ITSELF, as the preferences section, one field
+     at a time, and says so in a toast.
 
-     THE HINTS ARE GONE. "Shown across HeyTiff — including under the logo" and
-     "Checked against the ATO checksum on save" described the software to
-     itself. A test asserts their ABSENCE, because a helpful-sounding sentence
-     is exactly the kind of thing that gets re-added.
+     A BAD ABN NEVER LEAVES THE BROWSER. The group runs the same checksum the
+     action runs, so the action is not called at all and the ABN box is the
+     one that gets marked.
 
-     A BAD ABN NEVER LEAVES THE BROWSER. The card runs the same checksum the
-     action runs, so the action is not called at all and the ABN box is the one
-     that gets marked.
-
-     THE MODAL IS NOT THERE UNTIL IT IS. It portals to <body>, so "no dialog in
-     the document" is the only honest way to say it's closed. */
+     THE MODAL IS NOT THERE UNTIL IT IS. It portals to <body>, so "no dialog
+     in the document" is the only honest way to say it's closed. */
 
 const TODAY = "2026-07-24";
 
@@ -127,9 +121,6 @@ function setup(
     records?: Record<string, OrgCredentialRecord[]>;
     /** the paperwork behind the cards, keyed by credential id */
     documents?: Record<string, StoredDocument[]>;
-    /** which tab to land on — the page's own `?sec=`, so a test that wants a
-        section says which one instead of counting cards down a page */
-    sec?: string;
   } = {}
 ) {
   const actions = {
@@ -153,7 +144,8 @@ function setup(
         : over.onTransferOwnership,
   };
   const view = render(
-    <OrgScreen
+    <ToastProvider>
+    <BusinessScreen
       org={{ ...ORG, ...(over.org ?? {}) }}
       credentials={over.credentials ?? CREDENTIALS}
       credentialRecords={over.records ?? {}}
@@ -162,128 +154,78 @@ function setup(
       ownerCandidates={over.candidates ?? CANDIDATES}
       logoUrl={over.logoUrl ?? null}
       today={TODAY} warnDays={30}
-      initialSec={over.sec}
       addressLookup={over.addressLookup ?? false}
       actions={actions}
     />
+    </ToastProvider>
   );
   return { ...view, actions };
 }
 
-/* THE CARD SWITCHER — four tabs over one white card, Company first.
+/* The group a heading names, so a test says WHICH group it is in instead of
+   counting down a page. */
+const group = (title: string) =>
+  screen.getByRole("heading", { level: 2, name: title }).closest(".st2-group") as HTMLElement;
 
-   The order is the screen's argument and is asserted whole: the business
-   itself, then its settings, then what lets it trade, and whose account it is.
-   There is no Overview — the first tab is the thing it used to summarise. */
-describe("the card switcher", () => {
-  const TABS = ["Company", "Preferences", "Licences & insurance", "Account"];
-
-  it("runs one row of tabs over one card, in the screen's order", () => {
-    const { container } = setup();
-    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(TABS);
-    expect(container.querySelectorAll(".wb2-card")).toHaveLength(1);
+describe("the business page", () => {
+  it("is six titled groups, in the order a customer meets them", () => {
+    setup();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Business");
+    expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual([
+      "Brand",
+      "Trading details",
+      "Contact",
+      "Licences and insurance",
+      "Payments and reminders",
+      "Account",
+    ]);
   });
 
-  it("lands on Company, with nothing to save until an Edit is pressed", () => {
+  it("has nothing to save until an Edit is pressed", () => {
     setup();
-    expect(screen.getByRole("tab", { name: "Company" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("button", { name: "Edit Trading details" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Edit Contact" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit trading details" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit contact" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Save/ })).not.toBeInTheDocument();
   });
 
-  /* ONE SECTION IS IN THE DOCUMENT AT A TIME — the point of the card. */
-  it("shows one tab at a time", async () => {
-    const user = userEvent.setup();
-    setup();
-    expect(screen.queryByText("Who holds this HeyTiff account")).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("tab", { name: "Account" }));
-    expect(screen.getByText("Who holds this HeyTiff account")).toBeInTheDocument();
-    expect(screen.queryByText("Document colour")).not.toBeInTheDocument();
-  });
-
-  it("opens on the tab a link names, and writes the one you choose back to the URL", async () => {
-    const user = userEvent.setup();
-    setup({ sec: "preferences" });
-    expect(screen.getByRole("tab", { name: "Preferences" })).toHaveAttribute("aria-selected", "true");
-
-    await user.click(screen.getByRole("tab", { name: "Licences & insurance" }));
-    expect(new URL(window.location.href).searchParams.get("sec")).toBe("credentials");
-  });
-
-  /* Four tabs merged into Company. A link somebody saved or shared still lands
-     on the tab that now holds what it named. */
-  it.each(["overview", "brand", "identity", "contact"])(
-    "sends a retired ?sec=%s link to Company",
-    (sec) => {
-      setup({ sec });
-      expect(screen.getByRole("tab", { name: "Company" })).toHaveAttribute("aria-selected", "true");
-    }
-  );
-
-  it("falls back to Company when the link names nothing on this screen", () => {
-    setup({ sec: "payroll" });
-    expect(screen.getByRole("tab", { name: "Company" })).toHaveAttribute("aria-selected", "true");
-  });
-});
-
-/* The group a title names, so a test says WHICH card it is in instead of
-   counting down a page. */
-const group = (title: string) =>
-  screen.getByText(title, { selector: ".pdlh > span:first-child" }).closest(".pdlcard") as HTMLElement;
-
-describe("the company tab", () => {
-  it("is three titled groups, in the order a customer meets them", () => {
-    const { container } = setup();
-    const titles = Array.from(container.querySelectorAll(".orgco > .pdlcard > .pdlh > span:first-child")).map(
-      (t) => t.textContent
-    );
-    expect(titles).toEqual(["Brand", "Trading details", "Contact"]);
-  });
-
-  /* The documents are drawn on the templates; this screen carries no second,
+  /* The documents are drawn on the templates; this page carries no second,
      drifting copy of them. */
   it("sends you to the templates to see the logo on a document", () => {
     setup();
-    expect(screen.getByRole("link", { name: "View on templates" })).toHaveAttribute(
-      "href",
-      "/dashboard/admin/templates"
-    );
+    expect(screen.getByRole("link", { name: "View on templates" })).toHaveAttribute("href", "/dashboard/admin/templates");
   });
 
   it("says initials stand in when there is no logo, and shows the logo when there is", () => {
     const { container, unmount } = setup();
     expect(container.querySelector(".orglogo-thumb img")).toBeNull();
-    expect(screen.getByText("Initials stand in")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Upload/ })).toBeInTheDocument();
+    expect(screen.getByText("No logo, initials stand in")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Upload a logo" })).toBeInTheDocument();
     unmount();
 
     const withLogo = setup({ logoUrl: "https://signed.example/logo.png" });
-    expect(withLogo.container.querySelector(".orglogo-thumb img")).toHaveAttribute(
-      "src",
-      "https://signed.example/logo.png"
-    );
-    expect(screen.getByRole("button", { name: /Replace/ })).toBeInTheDocument();
+    expect(withLogo.container.querySelector(".orglogo-thumb img")).toHaveAttribute("src", "https://signed.example/logo.png");
+    expect(screen.getByRole("button", { name: "Replace logo" })).toBeInTheDocument();
   });
 
-  /* Read and edit name the same five things in the same order, or pressing Edit
-     replaces the rows you were reading with an unrelated form. */
+  /* Read and edit name the same five things in the same order, or pressing
+     Edit replaces the rows you were reading with an unrelated form. */
   it("trading details reads back the same fields it edits", async () => {
     const user = userEvent.setup();
     setup();
     const card = group("Trading details");
-
-    const labels = () =>
-      Array.from(card.querySelectorAll(".pdrow dt, .field label")).map((l) =>
-        (l.textContent ?? "").replace("*", "").trim()
-      );
+    const labels = () => Array.from(card.querySelectorAll(".st2-kv dt, .pt-field-label")).map((l) => (l.textContent ?? "").trim());
     const inRead = labels();
     expect(inRead).toEqual(["Trading name", "Legal name", "ABN", "ACN", "GST"]);
 
-    await user.click(within(card).getByRole("button", { name: /Edit/ }));
-    // GST names its unit where the read row doesn't need to
-    expect(labels().map((l) => (l === "GST registered" ? "GST" : l))).toEqual(inRead);
+    await user.click(within(card).getByRole("button", { name: "Edit trading details" }));
+    expect(labels()).toEqual(inRead);
+  });
+
+  it("says Not set for a blank, never a dash", () => {
+    setup({ org: { acn: null } });
+    const card = group("Trading details");
+    expect(within(card).getByText("Not set")).toBeInTheDocument();
+    expect(within(card).queryByText("—")).not.toBeInTheDocument();
   });
 
   it("reads the address as one row", () => {
@@ -291,82 +233,114 @@ describe("the company tab", () => {
     expect(within(group("Contact")).getByText("12 Trade Street, Ringwood VIC 3134")).toBeInTheDocument();
   });
 
-  /* The hints the redesign deleted. They explained the software to itself; the
-     ABN one is now an ERROR on the field, which is what it was really promising. */
+  /* The hints the redesign deleted. They explained the software to itself;
+     the ABN one is an ERROR on the field, which is what it was promising. */
   it("carries none of the old explanatory hints", async () => {
     const user = userEvent.setup();
     setup();
-    await user.click(screen.getByRole("button", { name: "Edit Trading details" }));
-
+    await user.click(screen.getByRole("button", { name: "Edit trading details" }));
     expect(screen.queryByText(/Shown across HeyTiff/)).not.toBeInTheDocument();
     expect(screen.queryByText(/ATO checksum/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Coming soon/)).not.toBeInTheDocument();
-  });
 
-  it("keeps the one help line that says something the label doesn't", async () => {
-    const user = userEvent.setup();
-    setup();
-    await user.click(screen.getByRole("button", { name: "Edit Contact" }));
-    expect(screen.getByText("Also sets your public-holiday calendar")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(screen.getByRole("button", { name: "Edit contact" }));
+    expect(screen.queryByText(/public-holiday calendar/)).not.toBeInTheDocument();
   });
 
   it("keeps the website with the contact details, where it prints", async () => {
     const user = userEvent.setup();
     const { actions } = setup();
-    await user.click(screen.getByRole("button", { name: "Edit Contact" }));
+    await user.click(screen.getByRole("button", { name: "Edit contact" }));
     await user.clear(screen.getByLabelText("Website"));
     await user.type(screen.getByLabelText("Website"), "blueskyair.com.au");
-    await user.click(screen.getByRole("button", { name: /Save/ }));
-    expect(actions.onSave).toHaveBeenCalledWith(
-      "contact",
-      expect.objectContaining({ website: "blueskyair.com.au" })
-    );
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(actions.onSave).toHaveBeenCalledWith("contact", expect.objectContaining({ website: "blueskyair.com.au" }));
+  });
+
+  it("goes back to reading once it saves", async () => {
+    const user = userEvent.setup();
+    setup();
+    await user.click(screen.getByRole("button", { name: "Edit contact" }));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByRole("button", { name: "Edit contact" })).toBeInTheDocument();
+  });
+
+  it("keeps what was typed and says why when the save is refused", async () => {
+    const user = userEvent.setup();
+    const { actions } = setup();
+    actions.onSave.mockResolvedValueOnce({ ok: false, error: "That email is already in use." });
+    await user.click(screen.getByRole("button", { name: "Edit contact" }));
+    await user.clear(screen.getByLabelText("Email"));
+    await user.type(screen.getByLabelText("Email"), "new@smithair.com.au");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("That email is already in use.");
+    expect(screen.getByLabelText("Email")).toHaveValue("new@smithair.com.au");
   });
 });
 
-/* PREFERENCES — the knobs, off the letterhead. Each card saves only its own
-   rows, through the one `preferences` section. */
-describe("the preferences tab", () => {
-  it("reads payment terms and the expiry window back, one row per edit field", () => {
-    setup({ sec: "preferences" });
-    expect(within(group("Payments")).getByText("14 days")).toBeInTheDocument();
-    const expiry = group("Expiry warnings");
-    expect(within(expiry).getByText("30 days before")).toBeInTheDocument();
-    expect(within(expiry).getByText("Sent each morning")).toBeInTheDocument();
+/* PAYMENTS AND REMINDERS — picked, not typed, and each saves itself as the
+   preferences section, its own field only. */
+describe("payments and reminders", () => {
+  const pick = async (user: ReturnType<typeof userEvent.setup>, chooser: string, option: string) => {
+    await user.click(screen.getByRole("combobox", { name: chooser }));
+    await user.click(within(screen.getByRole("listbox")).getByRole("option", { name: option }));
+  };
+
+  it("reads payment terms and the warning window back on their choosers", () => {
+    setup();
+    expect(screen.getByRole("combobox", { name: "Payment terms" })).toHaveTextContent("14 days");
+    expect(screen.getByRole("combobox", { name: "Warn before papers run out" })).toHaveTextContent("30 days before");
+    expect(screen.getByRole("switch", { name: "Morning email" })).toHaveAttribute("aria-checked", "true");
   });
 
-  it("saves payment terms as the preferences section, and nothing else", async () => {
+  it("saves payment terms the moment they're picked, and nothing else", async () => {
     const user = userEvent.setup();
-    const { actions } = setup({ sec: "preferences" });
-    await user.click(screen.getByRole("button", { name: "Edit Payments" }));
-    await user.clear(screen.getByLabelText(/Payment terms/));
-    await user.type(screen.getByLabelText(/Payment terms/), "30");
-    await user.click(screen.getByRole("button", { name: /Save/ }));
+    const { actions } = setup();
+    await pick(user, "Payment terms", "30 days");
     expect(actions.onSave).toHaveBeenCalledWith("preferences", { payment_terms_days: "30" });
+    expect(await screen.findByText("Payment terms set to 30 days")).toBeInTheDocument();
   });
 
-  it("blocks junk payment terms on the field, and never calls the action", async () => {
-    const user = userEvent.setup();
-    const { actions } = setup({ sec: "preferences" });
-    await user.click(screen.getByRole("button", { name: "Edit Payments" }));
-    await user.clear(screen.getByLabelText(/Payment terms/));
-    await user.type(screen.getByLabelText(/Payment terms/), "soon");
-    await user.click(screen.getByRole("button", { name: /Save/ }));
-    expect(await screen.findAllByText(/whole days/)).not.toHaveLength(0);
-    expect(actions.onSave).not.toHaveBeenCalled();
+  it("calls nought days what they are", () => {
+    setup({ org: { payment_terms_days: 0 } });
+    expect(screen.getByRole("combobox", { name: "Payment terms" })).toHaveTextContent("On receipt");
   });
 
-  it("saves the expiry window as the preferences section", async () => {
+  /* A business that typed 10 before the list existed still sees 10. */
+  it("keeps a saved value that isn't one of the list's", () => {
+    setup({ org: { payment_terms_days: 10 } });
+    expect(screen.getByRole("combobox", { name: "Payment terms" })).toHaveTextContent("10 days");
+  });
+
+  it("saves the warning window as the preferences section", async () => {
     const user = userEvent.setup();
-    const { actions } = setup({ sec: "preferences" });
-    await user.click(screen.getByRole("button", { name: "Edit Expiry warnings" }));
-    await user.clear(screen.getByLabelText(/Warn before an expiry/));
-    await user.type(screen.getByLabelText(/Warn before an expiry/), "45");
-    await user.click(screen.getByRole("button", { name: /Save/ }));
-    expect(actions.onSave).toHaveBeenCalledWith(
-      "preferences",
-      expect.objectContaining({ expiry_warn_days: "45" })
-    );
+    const { actions } = setup();
+    await pick(user, "Warn before papers run out", "60 days before");
+    expect(actions.onSave).toHaveBeenCalledWith("preferences", { expiry_warn_days: "60" });
+  });
+
+  it("turns the morning email off with its switch", async () => {
+    const user = userEvent.setup();
+    const { actions } = setup();
+    await user.click(screen.getByRole("switch", { name: "Morning email" }));
+    expect(actions.onSave).toHaveBeenCalledWith("preferences", { expiry_email: "No" });
+  });
+
+  it("puts the old value back when the toast's Undo is pressed", async () => {
+    const user = userEvent.setup();
+    const { actions } = setup();
+    await pick(user, "Payment terms", "30 days");
+    await user.click(await screen.findByRole("button", { name: "Undo" }));
+    expect(actions.onSave).toHaveBeenLastCalledWith("preferences", { payment_terms_days: "14" });
+  });
+
+  it("says why under the group when a pick is refused", async () => {
+    const user = userEvent.setup();
+    const { actions } = setup();
+    actions.onSave.mockResolvedValueOnce({ ok: false, error: "Payment terms are whole days — 0 to 180." });
+    await pick(user, "Payment terms", "30 days");
+    expect(await within(group("Payments and reminders")).findByRole("alert")).toHaveTextContent("whole days");
   });
 });
 
@@ -375,7 +349,7 @@ describe("saving trading details", () => {
     const user = userEvent.setup();
     const { actions } = setup();
 
-    await user.click(screen.getByRole("button", { name: "Edit Trading details" }));
+    await user.click(screen.getByRole("button", { name: "Edit trading details" }));
     await user.clear(screen.getByLabelText(/Trading name/));
     await user.type(screen.getByLabelText(/Trading name/), "Smith Air Co");
     await user.click(screen.getByRole("button", { name: /Save/ }));
@@ -390,7 +364,7 @@ describe("saving trading details", () => {
     const user = userEvent.setup();
     const { actions } = setup();
 
-    await user.click(screen.getByRole("button", { name: "Edit Trading details" }));
+    await user.click(screen.getByRole("button", { name: "Edit trading details" }));
     const abn = screen.getByLabelText("ABN");
     await user.clear(abn);
     await user.type(abn, "51824753557"); // one digit out
@@ -402,30 +376,44 @@ describe("saving trading details", () => {
   });
 });
 
-describe("the credential grid", () => {
-  it("renders each row with its badge, number, issuer and status", () => {
-    const { container } = setup({ sec: "credentials" });
-    const cards = container.querySelectorAll(".credgrid .cred");
-    expect(cards).toHaveLength(2);
-
-    expect(screen.getByText("ARC")).toBeInTheDocument();
-    expect(screen.getByText("INS")).toBeInTheDocument();
-    expect(screen.getByText("No. AU12345")).toBeInTheDocument();
-    expect(screen.getByText("QBE")).toBeInTheDocument();
-    expect(screen.getByText("Expires 07/08/2026")).toBeInTheDocument();
-    // 14 days out — the same 30-day window (and wording) as the dashboard chip
-    expect(screen.getByText("Expires in 2 weeks")).toBeInTheDocument();
-    expect(screen.getByText("No expiry date")).toBeInTheDocument();
+describe("the licences", () => {
+  it("lists each one as a row: its name, who issued it and its number, and when it runs out", () => {
+    setup();
+    const card = group("Licences and insurance");
+    expect(within(card).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(card).getByText("Australian Refrigeration Council, No. AU12345")).toBeInTheDocument();
+    expect(within(card).getByText("QBE, No. PL-9")).toBeInTheDocument();
+    // 14 days out, inside the 30-day window: a look, in the same words as Home's
+    expect(within(card).getByText("Runs out Fri 7 Aug")).toBeInTheDocument();
+    expect(within(card).getByText("No end date")).toBeInTheDocument();
   });
 
-  it("offers a tile to add one", () => {
-    setup({ sec: "credentials", credentials: [] });
-    expect(screen.getByRole("button", { name: /Add licence or insurance/ })).toBeInTheDocument();
+  it("offers Renew only on one that has run out or is about to", () => {
+    setup();
+    expect(screen.getAllByRole("button", { name: "Renew" })).toHaveLength(1);
+  });
+
+  it("says ran out, in red, once the date has passed", () => {
+    setup({ credentials: [{ ...CREDENTIALS[0]!, expiryDate: "2026-07-01" }] });
+    expect(screen.getByText("Ran out Wed 1 July")).toBeInTheDocument();
+  });
+
+  it("leads with Add when there are none", () => {
+    setup({ credentials: [] });
+    expect(screen.getByText("No licences or insurance on file")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add a licence or policy" })).toBeInTheDocument();
   });
 
   it("opens no modal until something is clicked", () => {
-    setup({ sec: "credentials" });
+    setup();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("opens Renew on the update, not the record", async () => {
+    const user = userEvent.setup();
+    setup();
+    await user.click(screen.getByRole("button", { name: "Renew" }));
+    expect(within(screen.getByRole("dialog")).getByText("Update licence")).toBeInTheDocument();
   });
 });
 
@@ -468,9 +456,9 @@ describe("the credential modal", () => {
 
   it("adds one from the tile", async () => {
     const user = userEvent.setup();
-    const { actions } = setup({ sec: "credentials", credentials: [] });
+    const { actions } = setup({ credentials: [] });
 
-    await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
+    await user.click(screen.getByRole("button", { name: "Add a licence or policy" }));
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText(/^Name/), "Working at Heights");
     await user.click(within(dialog).getByRole("button", { name: "Add card" }));
@@ -487,11 +475,10 @@ describe("the credential modal", () => {
   it("opens a card on the term in force, with its facts and its history", async () => {
     const user = userEvent.setup();
     setup({
-      sec: "credentials",
       records: { C2: [term(), term({ id: "R0", expiresOn: "2025-08-07", startsOn: "2024-08-07", premium: 2100 })] },
     });
 
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
 
     // the term in force, as the certificate prints it
@@ -506,16 +493,11 @@ describe("the credential modal", () => {
     expect(within(history).getByText("$2,100")).toBeInTheDocument();
   });
 
-  it("says on the card how many terms are on file", () => {
-    setup({ sec: "credentials", records: { C2: [term(), term({ id: "R0", expiresOn: "2025-08-07" })] } });
-    expect(screen.getByText("2 terms on file")).toBeInTheDocument();
-  });
-
   it("records a renewal as a NEW term, never as an edit of the card", async () => {
     const user = userEvent.setup();
-    const { actions } = setup({ sec: "credentials", records: { C2: [term()] } });
+    const { actions } = setup({ records: { C2: [term()] } });
 
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
     await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
@@ -542,8 +524,8 @@ describe("the credential modal", () => {
      card behind it is gone while you are on it. */
   it("hands over to a screen to file a term, and comes back on the chevron", async () => {
     const user = userEvent.setup();
-    setup({ sec: "credentials", records: { C2: [term()] } });
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    setup({ records: { C2: [term()] } });
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
 
     expect(within(dialog).getByText("Current policy")).toBeInTheDocument();
@@ -558,9 +540,9 @@ describe("the credential modal", () => {
 
   it("renames a card behind the Edit details door, and updates it by id", async () => {
     const user = userEvent.setup();
-    const { actions } = setup({ sec: "credentials" });
+    const { actions } = setup();
 
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: /Edit details/ }));
 
@@ -583,9 +565,9 @@ describe("the credential modal", () => {
      saved over them would wipe the very columns the dashboard chip reads. */
   it("stops offering the term's own fields once a term exists", async () => {
     const user = userEvent.setup();
-    setup({ sec: "credentials", records: { C2: [term()] } });
+    setup({ records: { C2: [term()] } });
 
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: /Edit details/ }));
 
@@ -596,8 +578,8 @@ describe("the credential modal", () => {
 
   it("asks for the expiry with a calendar, never a text box", async () => {
     const user = userEvent.setup();
-    setup({ sec: "credentials" });
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    setup();
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
     await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
@@ -610,9 +592,9 @@ describe("the credential modal", () => {
 
   it("deletes only after a second, deliberate click", async () => {
     const user = userEvent.setup();
-    const { actions } = setup({ sec: "credentials" });
+    const { actions } = setup();
 
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: /Edit details/ }));
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
@@ -624,8 +606,8 @@ describe("the credential modal", () => {
 
   it("has no Delete when there is nothing yet to delete", async () => {
     const user = userEvent.setup();
-    setup({ sec: "credentials" });
-    await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
+    setup();
+    await user.click(screen.getByRole("button", { name: "Add a licence or policy" }));
     expect(
       within(screen.getByRole("dialog")).queryByRole("button", { name: "Delete" })
     ).not.toBeInTheDocument();
@@ -639,8 +621,8 @@ describe("the credential modal", () => {
      first in the document. */
   it("asks what it is before it offers the scanner, and the scanner follows", async () => {
     const user = userEvent.setup();
-    setup({ sec: "credentials" });
-    await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
+    setup();
+    await user.click(screen.getByRole("button", { name: "Add a licence or policy" }));
     const dialog = screen.getByRole("dialog");
 
     const type = within(dialog).getByRole("tablist", { name: "Type" });
@@ -665,8 +647,8 @@ describe("the credential modal", () => {
      screen with nothing to say which won — and the term's copy silently did. */
   it("never asks for the number or the issuer by hand while adding", async () => {
     const user = userEvent.setup();
-    setup({ sec: "credentials" });
-    await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
+    setup();
+    await user.click(screen.getByRole("button", { name: "Add a licence or policy" }));
     const dialog = screen.getByRole("dialog");
 
     expect(within(dialog).queryByLabelText("Number")).not.toBeInTheDocument();
@@ -683,8 +665,8 @@ describe("the credential modal", () => {
 
   it("refuses an unnamed credential without calling anything", async () => {
     const user = userEvent.setup();
-    const { actions } = setup({ sec: "credentials" });
-    await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
+    const { actions } = setup();
+    await user.click(screen.getByRole("button", { name: "Add a licence or policy" }));
     const dialog = screen.getByRole("dialog");
 
     // the name is the one thing the card cannot be without, so the button that
@@ -695,10 +677,10 @@ describe("the credential modal", () => {
 
   it("keeps the modal open and says why when the action refuses", async () => {
     const user = userEvent.setup();
-    const { actions } = setup({ sec: "credentials" });
+    const { actions } = setup();
     actions.onAddCredential.mockResolvedValueOnce({ ok: false, error: "Couldn't add that." });
 
-    await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
+    await user.click(screen.getByRole("button", { name: "Add a licence or policy" }));
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText(/^Name/), "ARC");
     await user.click(within(dialog).getByRole("button", { name: "Add card" }));
@@ -709,8 +691,8 @@ describe("the credential modal", () => {
 
   it("closes on the header X without writing", async () => {
     const user = userEvent.setup();
-    const { actions } = setup({ sec: "credentials" });
-    await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
+    const { actions } = setup();
+    await user.click(screen.getByRole("button", { name: "Add a licence or policy" }));
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Close" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(actions.onAddCredential).not.toHaveBeenCalled();
@@ -733,9 +715,9 @@ describe("the credential modal", () => {
   it("does not offer a workers compensation policy a limit or an excess", async () => {
     const user = userEvent.setup();
     const wc: OrgCredential = { ...CREDENTIALS[1], name: "Workers compensation" };
-    setup({ sec: "credentials", credentials: [wc], records: { C2: [term()] } });
+    setup({ credentials: [wc], records: { C2: [term()] } });
 
-    await user.click(screen.getByRole("button", { name: "Edit Workers compensation" }));
+    await user.click(screen.getByRole("button", { name: "Workers compensation" }));
     const dialog = screen.getByRole("dialog");
     // not in the facts it reads back
     expect(within(dialog).queryByText("Limit")).not.toBeInTheDocument();
@@ -759,12 +741,11 @@ describe("the credential modal", () => {
     const user = userEvent.setup();
     const wc: OrgCredential = { ...CREDENTIALS[1], name: "Workers compensation" };
     setup({
-      sec: "credentials",
       credentials: [wc],
       records: { C2: [term({ workersCount: 11, wages: 943_669.32 })] },
     });
 
-    await user.click(screen.getByRole("button", { name: "Edit Workers compensation" }));
+    await user.click(screen.getByRole("button", { name: "Workers compensation" }));
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("Workers")).toBeInTheDocument();
     expect(within(dialog).getByText("11")).toBeInTheDocument();
@@ -786,9 +767,9 @@ describe("the credential modal", () => {
   it("calls the cover box what that paper calls it", async () => {
     const user = userEvent.setup();
     const wc: OrgCredential = { ...CREDENTIALS[1], name: "Workers compensation" };
-    setup({ sec: "credentials", credentials: [wc], records: { C2: [term()] } });
+    setup({ credentials: [wc], records: { C2: [term()] } });
 
-    await user.click(screen.getByRole("button", { name: "Edit Workers compensation" }));
+    await user.click(screen.getByRole("button", { name: "Workers compensation" }));
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("Industry classification")).toBeInTheDocument();
     expect(within(dialog).queryByText("Cover")).not.toBeInTheDocument();
@@ -796,9 +777,9 @@ describe("the credential modal", () => {
 
   it("offers a public liability policy neither figure", async () => {
     const user = userEvent.setup();
-    setup({ sec: "credentials", records: { C2: [term()] } });
+    setup({ records: { C2: [term()] } });
 
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).queryByText("Workers")).not.toBeInTheDocument();
     expect(within(dialog).queryByText("Wages")).not.toBeInTheDocument();
@@ -812,9 +793,9 @@ describe("the credential modal", () => {
 
   it("still offers them to the policy that prints them", async () => {
     const user = userEvent.setup();
-    setup({ sec: "credentials", records: { C2: [term()] } });
+    setup({ records: { C2: [term()] } });
 
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("Limit")).toBeInTheDocument();
     expect(within(dialog).getByText("Excess")).toBeInTheDocument();
@@ -829,8 +810,8 @@ describe("the credential modal", () => {
      Tiff's "remind me Monday" tasks are a separate feature. */
   it("offers no Remind me on a card — the org's expiry window nudges instead", async () => {
     const user = userEvent.setup();
-    setup({ sec: "credentials", records: { C2: [term()] } });
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    setup({ records: { C2: [term()] } });
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).queryByRole("button", { name: /Remind me/ })).not.toBeInTheDocument();
     expect(within(dialog).queryByRole("menuitemcheckbox")).not.toBeInTheDocument();
@@ -841,13 +822,13 @@ describe("the credential modal", () => {
 
   it("shows no history panel until there is history", async () => {
     const user = userEvent.setup();
-    const { unmount } = setup({ sec: "credentials", records: { C2: [term()] } });
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    const { unmount } = setup({ records: { C2: [term()] } });
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     expect(within(screen.getByRole("dialog")).queryByText("Policy history")).not.toBeInTheDocument();
     unmount();
 
-    setup({ sec: "credentials", records: { C2: [term(), term({ id: "R0", expiresOn: "2025-08-07" })] } });
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    setup({ records: { C2: [term(), term({ id: "R0", expiresOn: "2025-08-07" })] } });
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     expect(within(screen.getByRole("dialog")).getByText("Policy history")).toBeInTheDocument();
   });
 
@@ -893,11 +874,10 @@ describe("the address", () => {
   // The Contact group names its own Edit, so this finds it among the Company
   // tab's three groups without counting down the page.
   const openContact = async (user: ReturnType<typeof userEvent.setup>) =>
-    user.click(screen.getByRole("button", { name: "Edit Contact" }));
+    user.click(screen.getByRole("button", { name: "Edit contact" }));
   const saveContact = () => screen.getByRole("button", { name: /Save/ });
 
   const blank = {
-    sec: "company",
     org: { address: null, suburb: null, state: null, postcode: null },
   };
 
@@ -931,8 +911,8 @@ describe("the address", () => {
     await user.click(screen.getByText(SUGGESTION.text));
 
     await waitFor(() => expect(screen.getByLabelText("Suburb")).toHaveValue("Ringwood"));
-    // the State SELECT, so the holiday calendar follows — a code it can show
-    expect(screen.getByLabelText(/^State/)).toHaveValue("VIC");
+    // the State chooser, so the holiday calendar follows — a code it can show
+    expect(screen.getByLabelText(/^State/)).toHaveTextContent("VIC");
     expect(screen.getByLabelText("Postcode")).toHaveValue("3134");
   });
 
@@ -1032,7 +1012,7 @@ describe("the logo", () => {
   it("is on the screen in read mode, with no Edit pressed", () => {
     const { container } = setup();
     expect(container.querySelector(".orglogo")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Upload/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Upload a logo" })).toBeInTheDocument();
     expect(screen.getByLabelText("Company logo")).toBeInTheDocument();
   });
 
@@ -1078,11 +1058,11 @@ describe("the logo", () => {
   it("offers Remove only once there is a logo", async () => {
     const user = userEvent.setup();
     const plain = setup();
-    expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remove logo" })).not.toBeInTheDocument();
     plain.unmount();
 
     const withLogo = setup({ logoUrl: "https://signed.example/logo.png" });
-    await user.click(screen.getByRole("button", { name: "Remove" }));
+    await user.click(screen.getByRole("button", { name: "Remove logo" }));
     expect(withLogo.actions.onClearLogo).toHaveBeenCalled();
   });
 
@@ -1111,53 +1091,33 @@ describe("the logo", () => {
   });
 });
 
-describe("the account card", () => {
-  it("states who holds the account, how big it is, and since when", () => {
-    setup({ sec: "account" });
-    expect(screen.getByText("Isaac Smith")).toBeInTheDocument();
-    expect(screen.getByText("isaac@smithair.com.au")).toBeInTheDocument();
-    expect(screen.getByText("7 active")).toBeInTheDocument();
-    expect(screen.getByText(/of 9 on the books/)).toBeInTheDocument();
-    expect(screen.getByText("Standard")).toBeInTheDocument();
-  });
-
-  /* created_at is a TIMESTAMPTZ and every AU state is ahead of UTC, so an
-     evening signup sliced in UTC reads a day early. 2025-03-10T14:30Z is the
-     11th in Melbourne. */
-  it("dates the signup on the AU calendar, not UTC's", () => {
-    setup({ sec: "account" });
-    expect(screen.getByText("11/03/2025")).toBeInTheDocument();
-    expect(screen.queryByText("10/03/2025")).not.toBeInTheDocument();
+describe("the account", () => {
+  it("says who holds it", () => {
+    setup();
+    expect(within(group("Account")).getByText("Isaac Smith")).toBeInTheDocument();
   });
 
   it("says so when the owner is the person reading it", () => {
-    const { unmount } = setup({ sec: "account" });
-    expect(screen.queryByText("You")).not.toBeInTheDocument();
+    const { unmount } = setup();
+    expect(screen.queryByText("Isaac Smith (you)")).not.toBeInTheDocument();
     unmount();
 
-    setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: true } });
-    expect(screen.getByText("You")).toBeInTheDocument();
+    setup({ account: { ...ACCOUNT, ownerIsYou: true } });
+    expect(screen.getByText("Isaac Smith (you)")).toBeInTheDocument();
   });
 
-  /* A staff member has a login before they have a name on their profile. The
-     card falls back to the address rather than printing a dash for a real
-     person. */
+  /* A login has an address before it has a name; the row says the address
+     rather than a dash for a real person. */
   it("falls back to the email's local part when there is no name", () => {
-    setup({ sec: "account", account: { ...ACCOUNT, ownerName: null } });
-    expect(screen.getByText("isaac")).toBeInTheDocument();
+    setup({ account: { ...ACCOUNT, ownerName: null } });
+    expect(within(group("Account")).getByText("isaac")).toBeInTheDocument();
   });
 
-  /* No account, no tab — never an empty one. Asking for it by link lands on
-     Company, which does not carry the panel either: the strip and the tab
-     have to agree about what exists. */
   it("is absent entirely when the caller had no session to resolve it", () => {
-    setup({ sec: "account", account: null });
-    expect(screen.getAllByRole("tab").map((t) => t.textContent)).not.toContain("Account");
-    expect(screen.queryByText("Primary owner")).not.toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Company" })).toHaveAttribute("aria-selected", "true");
+    setup({ account: null });
+    expect(screen.queryByRole("heading", { level: 2, name: "Account" })).not.toBeInTheDocument();
   });
 });
-
 
 /* HANDING THE ACCOUNT OVER — the one master-only act on this screen.
 
@@ -1171,10 +1131,10 @@ describe("the account card", () => {
    before the button that causes it. */
 describe("handing the account over", () => {
   const openHandover = async (user: ReturnType<typeof userEvent.setup>) =>
-    user.click(screen.getByRole("button", { name: /Hand over/ }));
+    user.click(screen.getByRole("button", { name: "Hand over the account" }));
 
   it("offers the handover to the master owner", () => {
-    setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: true } });
+    setup({ account: { ...ACCOUNT, ownerIsYou: true } });
     expect(screen.getByRole("button", { name: /Hand over/ })).toBeInTheDocument();
   });
 
@@ -1182,25 +1142,25 @@ describe("handing the account over", () => {
      ABN, the address, the licences. The page passes no action for them, so the
      control is not rendered rather than rendered-and-refused. */
   it("does not offer it to a co-owner", () => {
-    setup({ sec: "account", onTransferOwnership: undefined as unknown as jest.Mock });
+    setup({ onTransferOwnership: undefined as unknown as jest.Mock });
     expect(screen.queryByRole("button", { name: /Hand over/ })).not.toBeInTheDocument();
   });
 
   /* Reading someone else's ownership is not the same as holding it: the master
      flag is what the button hangs off, not the action alone. */
   it("does not offer it while someone else holds the account", () => {
-    setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: false } });
+    setup({ account: { ...ACCOUNT, ownerIsYou: false } });
     expect(screen.queryByRole("button", { name: /Hand over/ })).not.toBeInTheDocument();
   });
 
   it("opens no dialog until it is asked for", () => {
-    setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: true } });
+    setup({ account: { ...ACCOUNT, ownerIsYou: true } });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("lists everyone else with a login, and says what each of them is today", async () => {
     const user = userEvent.setup();
-    setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: true } });
+    setup({ account: { ...ACCOUNT, ownerIsYou: true } });
     await openHandover(user);
 
     const dialog = screen.getByRole("dialog");
@@ -1215,7 +1175,7 @@ describe("handing the account over", () => {
      so a misclick in a list must not be the whole transaction. */
   it("writes nothing when a person is chosen", async () => {
     const user = userEvent.setup();
-    const { actions } = setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: true } });
+    const { actions } = setup({ account: { ...ACCOUNT, ownerIsYou: true } });
     await openHandover(user);
     await user.click(screen.getByRole("radio", { name: /Liv Nguyen/ }));
 
@@ -1224,7 +1184,7 @@ describe("handing the account over", () => {
 
   it("cannot be committed before anyone is chosen", async () => {
     const user = userEvent.setup();
-    setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: true } });
+    setup({ account: { ...ACCOUNT, ownerIsYou: true } });
     await openHandover(user);
 
     const dialog = screen.getByRole("dialog");
@@ -1235,7 +1195,7 @@ describe("handing the account over", () => {
      one that rides along when the person is not already an owner. */
   it("says what it costs, and names the promotion when there is one", async () => {
     const user = userEvent.setup();
-    setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: true } });
+    setup({ account: { ...ACCOUNT, ownerIsYou: true } });
     await openHandover(user);
     await user.click(screen.getByRole("radio", { name: /Liv Nguyen/ }));
 
@@ -1248,7 +1208,7 @@ describe("handing the account over", () => {
      nobody — claiming otherwise would be a warning about nothing. */
   it("claims no promotion when the person is already an owner", async () => {
     const user = userEvent.setup();
-    setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: true } });
+    setup({ account: { ...ACCOUNT, ownerIsYou: true } });
     await openHandover(user);
     await user.click(screen.getByRole("radio", { name: /Sam Reed/ }));
 
@@ -1258,10 +1218,10 @@ describe("handing the account over", () => {
 
   it("hands it over by user id, then closes", async () => {
     const user = userEvent.setup();
-    const { actions } = setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: true } });
+    const { actions } = setup({ account: { ...ACCOUNT, ownerIsYou: true } });
     await openHandover(user);
     await user.click(screen.getByRole("radio", { name: /Liv Nguyen/ }));
-    await user.click(screen.getByRole("button", { name: /Hand over the account/ }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: /Hand over the account/ }));
 
     expect(actions.onTransferOwnership).toHaveBeenCalledWith("auth0|liv");
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -1272,11 +1232,11 @@ describe("handing the account over", () => {
     const onTransferOwnership = jest
       .fn()
       .mockResolvedValue({ ok: false, error: "Only the account owner can hand the account over." });
-    setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: true }, onTransferOwnership });
+    setup({ account: { ...ACCOUNT, ownerIsYou: true }, onTransferOwnership });
 
     await openHandover(user);
     await user.click(screen.getByRole("radio", { name: /Liv Nguyen/ }));
-    await user.click(screen.getByRole("button", { name: /Hand over the account/ }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: /Hand over the account/ }));
 
     expect(
       await screen.findByText("Only the account owner can hand the account over.")
@@ -1289,12 +1249,12 @@ describe("handing the account over", () => {
      logins, not about the staff list. */
   it("says why the list is empty rather than offering an empty one", async () => {
     const user = userEvent.setup();
-    setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: true }, candidates: [] });
+    setup({ account: { ...ACCOUNT, ownerIsYou: true }, candidates: [] });
     await openHandover(user);
 
     expect(screen.getByText("There is nobody else signed in")).toBeInTheDocument();
     expect(screen.getByText(/accepted their invite and signed in/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Hand over the account/ })).toBeDisabled();
+    expect(within(screen.getByRole("dialog")).getByRole("button", { name: /Hand over the account/ })).toBeDisabled();
   });
 });
 
@@ -1332,8 +1292,8 @@ describe("filing a document against a card with no expiry", () => {
 
   it("offers the door on the card itself, where the term card would be", async () => {
     const user = userEvent.setup();
-    setup({ sec: "credentials" });
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    setup();
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
 
     expect(within(dialog).queryByText("Current policy")).not.toBeInTheDocument();
@@ -1347,9 +1307,9 @@ describe("filing a document against a card with no expiry", () => {
   it("files the upload against the CARD, under no term", async () => {
     const user = userEvent.setup();
     uploadFile.mockResolvedValue({ ok: true, file: { documentId: "doc-9" } });
-    const { actions } = setup({ sec: "credentials" });
+    const { actions } = setup();
 
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     await user.upload(within(screen.getByRole("dialog")).getByLabelText("Add document"), file());
 
     // the kind is the ownership guard: an insurance card files org_insurance
@@ -1359,8 +1319,8 @@ describe("filing a document against a card with no expiry", () => {
 
   it("lists what has been filed against it", async () => {
     const user = userEvent.setup();
-    setup({ sec: "credentials", documents: { C2: [doc()] } });
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    setup({ documents: { C2: [doc()] } });
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
 
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText(/certificate\.pdf/)).toBeInTheDocument();
@@ -1369,8 +1329,8 @@ describe("filing a document against a card with no expiry", () => {
 
   it("says plainly when nothing has been filed yet", async () => {
     const user = userEvent.setup();
-    setup({ sec: "credentials" });
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    setup();
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     expect(
       within(screen.getByRole("dialog")).getByText("No paperwork filed against this card yet.")
     ).toBeInTheDocument();
@@ -1379,9 +1339,9 @@ describe("filing a document against a card with no expiry", () => {
   it("files nothing when the upload itself refuses", async () => {
     const user = userEvent.setup();
     uploadFile.mockResolvedValue({ ok: false, error: "That upload didn't finish." });
-    const { actions } = setup({ sec: "credentials" });
+    const { actions } = setup();
 
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     await user.upload(within(screen.getByRole("dialog")).getByLabelText("Add document"), file());
     expect(actions.onAttachCredentialDoc).not.toHaveBeenCalled();
   });
@@ -1393,7 +1353,6 @@ describe("filing a document against a card with no expiry", () => {
     const user = userEvent.setup();
     uploadFile.mockResolvedValue({ ok: true, file: { documentId: "doc-9" } });
     const { actions } = setup({
-      sec: "credentials",
       records: {
         C2: [
           {
@@ -1417,7 +1376,7 @@ describe("filing a document against a card with no expiry", () => {
       },
     });
 
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getAllByLabelText("Add document")).toHaveLength(1);
 
@@ -1454,9 +1413,9 @@ describe("adding a card by scanning it", () => {
 
   it("sends the certificate and what was read, with no expiry on it", async () => {
     const user = userEvent.setup();
-    const { actions } = setup({ sec: "credentials", credentials: [] });
+    const { actions } = setup({ credentials: [] });
 
-    await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
+    await user.click(screen.getByRole("button", { name: "Add a licence or policy" }));
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText(/^Name/), "Contractor licence");
     await user.upload(
@@ -1509,7 +1468,7 @@ describe("scanning a certificate with no expiry on the update screen", () => {
   });
 
   const scanOnUpdate = async (user: ReturnType<typeof userEvent.setup>) => {
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
     await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
@@ -1519,7 +1478,7 @@ describe("scanning a certificate with no expiry on the update screen", () => {
 
   it("files the uploaded certificate against the card instead of dead-ending", async () => {
     const user = userEvent.setup();
-    const { actions } = setup({ sec: "credentials" });
+    const { actions } = setup();
 
     const dialog = await scanOnUpdate(user);
     expect(within(dialog).queryByRole("button", { name: "Save policy" })).not.toBeInTheDocument();
@@ -1532,7 +1491,7 @@ describe("scanning a certificate with no expiry on the update screen", () => {
 
   it("goes back to the card once it has landed", async () => {
     const user = userEvent.setup();
-    setup({ sec: "credentials" });
+    setup();
 
     const dialog = await scanOnUpdate(user);
     await user.click(within(dialog).getByRole("button", { name: "File the document" }));
@@ -1543,7 +1502,7 @@ describe("scanning a certificate with no expiry on the update screen", () => {
 
   it("keeps the certificate when the filing is refused, so pressing again is a retry", async () => {
     const user = userEvent.setup();
-    const { actions } = setup({ sec: "credentials" });
+    const { actions } = setup();
     actions.onAttachCredentialDoc.mockResolvedValueOnce({ ok: false, error: "That document couldn't be filed." });
 
     const dialog = await scanOnUpdate(user);
@@ -1560,7 +1519,6 @@ describe("scanning a certificate with no expiry on the update screen", () => {
   it("does not promise to retire the term in force when it is only filing", async () => {
     const user = userEvent.setup();
     setup({
-      sec: "credentials",
       records: {
         C2: [
           {
@@ -1591,8 +1549,8 @@ describe("scanning a certificate with no expiry on the update screen", () => {
 
   it("still has nothing to press with neither an expiry nor a document", async () => {
     const user = userEvent.setup();
-    setup({ sec: "credentials" });
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    setup();
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
     await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
@@ -1628,7 +1586,7 @@ describe("the expiry's required star", () => {
   });
 
   const openUpdate = async (user: ReturnType<typeof userEvent.setup>) => {
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
     return dialog;
@@ -1636,7 +1594,7 @@ describe("the expiry's required star", () => {
 
   it("shows on the update screen while only a term can be saved", async () => {
     const user = userEvent.setup();
-    setup({ sec: "credentials" });
+    setup();
     const dialog = await openUpdate(user);
     await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
     expect(star(dialog)).not.toBeNull();
@@ -1644,7 +1602,7 @@ describe("the expiry's required star", () => {
 
   it("goes once a certificate is waiting, because the button files it without one", async () => {
     const user = userEvent.setup();
-    setup({ sec: "credentials" });
+    setup();
     const dialog = await openUpdate(user);
     await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
     await within(dialog).findByText("Scanned");
@@ -1653,8 +1611,8 @@ describe("the expiry's required star", () => {
 
   it("never shows while adding a card", async () => {
     const user = userEvent.setup();
-    setup({ sec: "credentials" });
-    await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
+    setup();
+    await user.click(screen.getByRole("button", { name: "Add a licence or policy" }));
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
     expect(star(dialog)).toBeNull();
@@ -1714,8 +1672,8 @@ describe("the words on a business card", () => {
 
   it("says what is on file once a certificate is filed against a card with no term", async () => {
     const user = userEvent.setup();
-    setup({ sec: "credentials", documents: { C2: [doc()] } });
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    setup({ documents: { C2: [doc()] } });
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("1 document filed against this card")).toBeInTheDocument();
     expect(within(dialog).queryByText("Nothing filed against this card yet")).not.toBeInTheDocument();
@@ -1724,11 +1682,10 @@ describe("the words on a business card", () => {
   it("never says term, and asks for a second click rather than a tap", async () => {
     const user = userEvent.setup();
     setup({
-      sec: "credentials",
       records: { C2: [record(), record({ id: "R0", expiresOn: "2025-06-30", startsOn: "2024-07-01" })] },
       documents: { C2: [doc()] },
     });
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
 
     const history = within(dialog).getByText("Policy history").closest(".vm-card") as HTMLElement;
@@ -1772,8 +1729,8 @@ describe("a scan in progress survives Escape", () => {
 
   it("keeps the add window and the scan when Escape is pressed", async () => {
     const user = userEvent.setup();
-    setup({ sec: "credentials", credentials: [] });
-    await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
+    setup({ credentials: [] });
+    await user.click(screen.getByRole("button", { name: "Add a licence or policy" }));
     const dialog = screen.getByRole("dialog");
     await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
     await within(dialog).findByText("Scanned");
@@ -1785,8 +1742,8 @@ describe("a scan in progress survives Escape", () => {
 
   it("stays on the update screen with the scan when Escape is pressed", async () => {
     const user = userEvent.setup();
-    setup({ sec: "credentials" });
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    setup();
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
     await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
@@ -1797,8 +1754,8 @@ describe("a scan in progress survives Escape", () => {
 
   it("still goes back to the card on Escape when nothing has been scanned", async () => {
     const user = userEvent.setup();
-    setup({ sec: "credentials" });
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    setup();
+    await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
     await user.keyboard("{Escape}");

@@ -19,8 +19,8 @@ function setup(initial: string | null = null) {
   return { ...utils, onSet, onClear, refresh: () => utils.rerender(view()) };
 }
 
-const swatch = () => screen.getByLabelText("Brand colour") as HTMLInputElement;
-const hex = () => screen.getByLabelText("Brand colour hex") as HTMLInputElement;
+const swatch = () => screen.getByLabelText("Document colour") as HTMLInputElement;
+const hex = () => screen.getByLabelText("Document colour hex") as HTMLInputElement;
 
 it("saves a picked colour when the pointer lets go, and shows it in the box", async () => {
   const { onSet, refresh } = setup();
@@ -31,7 +31,7 @@ it("saves a picked colour when the pointer lets go, and shows it in the box", as
   refresh();
   expect(onSet).toHaveBeenCalledWith("#ff0000");
   expect(hex()).toHaveValue("#ff0000");
-  expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Remove colour" })).toBeInTheDocument();
 });
 
 /* A drag across the spectrum is hundreds of `input` events and one `change`:
@@ -71,12 +71,12 @@ it("puts the swatch and the box back when the colour is removed", async () => {
   expect(swatch().value).toBe("#ff0000");
 
   await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove colour" }));
   });
   refresh();
 
   expect(onClear).toHaveBeenCalled();
   expect(swatch().value).not.toBe("#ff0000");
   expect(hex()).toHaveValue("");
-  expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Remove colour" })).not.toBeInTheDocument();
 });

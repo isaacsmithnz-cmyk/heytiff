@@ -14,6 +14,7 @@ import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { inChunks } from "@/lib/in-chunks";
+import { jobsTimer } from "./jobs-timing";
 import { getConnectionView } from "@/lib/integrations/store";
 import { listSm8SyncStatus } from "@/lib/integrations/sm8-sync";
 import { freshenSm8AfterResponse } from "@/lib/integrations/sm8-freshness";
@@ -92,8 +93,11 @@ async function readJobExtras(
   return { crew: crewOf(acts, names, today), wonOn };
 }
 
-export async function loadJobsList(): Promise<JobsListData | null> {
+export async function loadJobsList(opts: { from?: string } = {}): Promise<JobsListData | null> {
+  /* timed for a day, to the server's log only (./jobs-timing) */
+  const clock = jobsTimer(opts.from ?? "page");
   const session = await auth0.getSession();
+  clock.mark("session");
   const orgId = session?.orgId as string | undefined;
   if (!orgId) return null;
 
@@ -106,6 +110,7 @@ export async function loadJobsList(): Promise<JobsListData | null> {
     getConnectionView(orgId, "servicem8"),
     getSm8Timezone(orgId),
   ]);
+  clock.mark("grants");
   const connection = view === null ? "none" : view.status === "connected" ? "connected" : "attention";
   const connected = connection !== "none";
   const today = todayInZone(connected ? zone : null);
@@ -113,13 +118,13 @@ export async function loadJobsList(): Promise<JobsListData | null> {
   /* the extras (who is on each job, when each was won) need the jobs, and
      nothing else here: they are read the moment the jobs land, beside the
      boards rather than after them */
-  const allJobsP = connected ? loadAllJobs(orgId, today, { includeMoney: moneyVisible }) : Promise.resolve(EMPTY_ALL_JOBS);
+  const allJobsP = connected ? loadAllJobs(orgId, today, { includeMoney: moneyVisible, timer: clock }) : Promise.resolve(EMPTY_ALL_JOBS);
   const [board, projectsBoard, allJobs, sync, extras] = await Promise.all([
-    loadMaintenanceBoard(orgId, today),
-    loadProjectsBoard(orgId, today, { includeMoney: false }),
-    allJobsP,
-    connected ? listSm8SyncStatus(orgId) : Promise.resolve(null),
-    allJobsP.then((a) => readJobExtras(orgId, a.jobs, today)),
+    clock.lap("maintenance", loadMaintenanceBoard(orgId, today)),
+    clock.lap("projects", loadProjectsBoard(orgId, today, { includeMoney: false })),
+    clock.lap("jobs", allJobsP),
+    clock.lap("sync", connected ? listSm8SyncStatus(orgId) : Promise.resolve(null)),
+    clock.lap("extras", allJobsP.then((a) => readJobExtras(orgId, a.jobs, today))),
   ]);
 
   /* looking at the list counts as looking, as the board's does */
@@ -176,6 +181,8 @@ export async function loadJobsList(): Promise<JobsListData | null> {
     today,
     moneyVisible,
   });
+
+  clock.done({ rows: rows.length, jobs: allJobs.jobs.length });
 
   return {
     rows,

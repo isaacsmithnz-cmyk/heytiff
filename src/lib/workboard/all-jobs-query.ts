@@ -21,6 +21,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { inChunks } from "@/lib/in-chunks";
+import type { JobsTimer } from "./jobs-timing";
 import { sm8BookingsAllowed, sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { sm8Ours, withoutOurs } from "@/lib/integrations/sm8-echo";
 import {
@@ -235,7 +236,8 @@ export async function nextBookingOf(
 export async function loadAllJobs(
   orgId: string,
   today: string,
-  opts: { includeMoney?: boolean } = {}
+  /** the Jobs list's timer, for a day (./jobs-timing) */
+  opts: { includeMoney?: boolean; timer?: JobsTimer } = {}
 ): Promise<AllJobsData> {
   const includeMoney = opts.includeMoney ?? true;
   const base =
@@ -275,6 +277,7 @@ export async function loadAllJobs(
       .not("remote_id", "is", null),
   ]);
 
+  opts.timer?.mark("jobs.lists");
   const openAll = (openRows ?? []) as unknown as JobRow[];
   const truncated = openAll.length > ALL_JOBS_OPEN_CAP;
   const rows = [...openAll.slice(0, ALL_JOBS_OPEN_CAP), ...((doneRows ?? []) as unknown as JobRow[])];
@@ -378,7 +381,9 @@ export async function loadAllJobs(
     ])
   );
 
+  opts.timer?.mark("jobs.details");
   const nextBooking = await nextBookingOf(orgId, jobIds, activities, today);
+  opts.timer?.mark("jobs.next");
 
   /* Summed here rather than in SQL, through the same parser the rest of the
      money uses — an amount is a ServiceM8 string, and one place reads them. */

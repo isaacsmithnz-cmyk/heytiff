@@ -1,12 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Button } from "@/components/parts/button";
+import { Fade } from "@/components/parts/fade";
+import { Loading } from "@/components/parts/states";
+import { Tick } from "@/components/parts/tick";
+import { Group, Wrong } from "@/components/settings/parts";
 import type { DiffKind } from "@/lib/quotes/code-links";
 import type { PricedLink, ProposalView } from "@/lib/quotes/links-server";
 import type { Offer } from "@/lib/quotes/price-book";
 import { withCleanup } from "@/lib/ui/with-cleanup";
+import { dollars, Said } from "./pb-bits";
 
-/* THE PACK'S MODELS AND THEIR ORDER CODES, in Admin → Price book → Matching.
+/* THE PACK'S MODELS AND THEIR ORDER CODES, in Price book › Matching.
 
    The Studio's equipment pack names a unit as the brochure does; the price
    books sell it by its order code. Exact and tag-only matches are linked
@@ -22,14 +28,12 @@ import { withCleanup } from "@/lib/ui/with-cleanup";
    same; either answer is kept. Nothing in the pack is renamed. */
 
 const ROUTE = "/api/quoting/links";
-const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 2 });
-const dollars = (cents: number) => money.format(cents / 100);
 
-const GROUPS: { kind: DiffKind; title: string }[] = [
-  { kind: "build", title: "A newer or older build of the same unit" },
-  { kind: "wifi", title: "The order code adds Wi-Fi built in (K)" },
-  { kind: "dred", title: "The order code adds demand response (D)" },
-  { kind: "letter", title: "A letter different" },
+const GROUPS: { kind: DiffKind; heading: string }[] = [
+  { kind: "build", heading: "A newer or older build of the same unit" },
+  { kind: "wifi", heading: "The order code adds Wi-Fi built in (K)" },
+  { kind: "dred", heading: "The order code adds demand response (D)" },
+  { kind: "letter", heading: "A letter different" },
 ];
 
 type Row = { id: string; link: PricedLink; proposal: ProposalView };
@@ -38,15 +42,16 @@ type Answer = { ok: boolean; reason?: string };
 const refusal = (a: Answer) => a.reason ?? "That couldn't be saved. Try again.";
 const units = (n: number) => `${n} unit${n === 1 ? "" : "s"}`;
 
+/** Every supplier's price for a code, the lowest of several in green. */
 function Offers({ offers }: { offers: Offer[] }) {
-  if (offers.length === 0) return <em className="qs-none">No price</em>;
+  if (offers.length === 0) return <span className="st2-pb-none">No price</span>;
   const low = Math.min(...offers.map((o) => o.netCents));
   return (
-    <span className="qs-offers">
+    <span className="st2-pb-offerlist">
       {offers.map((o) => (
-        <span key={`${o.supplierKey}:${o.code}`} className={offers.length > 1 && o.netCents === low ? "qs-offer ok" : "qs-offer"}>
-          <em>{o.supplierName}</em>
-          {dollars(o.netCents)}
+        <span key={`${o.supplierKey}:${o.code}`}>
+          <span className="st2-pb-line">{`${o.supplierName} `}</span>
+          <span className={offers.length > 1 && o.netCents === low ? "st2-pb-low" : undefined}>{dollars(o.netCents)}</span>
         </span>
       ))}
     </span>
@@ -107,8 +112,18 @@ export function LinksPanel() {
       return next;
     });
 
-  if (failed) return <p className="qs-sub">The pack&rsquo;s links couldn&rsquo;t be read.</p>;
-  if (!links) return <p className="qs-sub">Reading the equipment pack</p>;
+  if (failed)
+    return (
+      <Group heading="Equipment pack links">
+        <Wrong>The pack&rsquo;s links couldn&rsquo;t be read. Try again.</Wrong>
+      </Group>
+    );
+  if (!links)
+    return (
+      <Group heading="Equipment pack links">
+        <Loading what="Reading the equipment pack" />
+      </Group>
+    );
 
   const linked = links.filter((l) => l.codes.length > 0);
   const waiting = links.filter((l) => l.proposals.length > 0);
@@ -116,93 +131,102 @@ export function LinksPanel() {
   const rows: Row[] = waiting.flatMap((link) => link.proposals.map((proposal) => ({ id: `${link.model}|${proposal.codes[0]}`, link, proposal })));
 
   return (
-    <section className="qs-group">
-      <h2 className="qs-h">Equipment pack links</h2>
-      <p className="qs-sub">
+    <Group heading="Equipment pack links">
+      <p className="st2-pb-said">
         {`${linked.length} of ${links.length} pack models linked to an order code, ${units(rows.length)} to confirm, ${unpriced.length} with no price in any price list.`}
       </p>
-      {note && <div className={`int-note ${note.tone}`}>{note.text}</div>}
+      {note && (note.tone === "ok" ? <Said>{note.text}</Said> : <Wrong>{note.text}</Wrong>)}
 
       {GROUPS.map((g) => {
         const mine = rows.filter((r) => r.proposal.kind === g.kind);
         if (mine.length === 0) return null;
         const ticked = mine.filter((r) => !left.has(r.id));
         return (
-          <div key={g.kind} className="lk-group">
-            <h3 className="qs-h">{`${g.title}, ${units(mine.length)}`}</h3>
-            <div className="qs-table" role="table" aria-label={g.title}>
-              <div className="qs-row qs-headrow lk-row" role="row">
+          <section key={g.kind} className="st2-pb-part" aria-label={g.heading}>
+            <h3 className="st2-pb-sub">{g.heading}</h3>
+            <div className="st2-pb-rows" role="table" aria-label={g.heading}>
+              <div className="st2-pb-grid st2-pb-links st2-pb-head" role="row">
                 <span role="columnheader">
                   <span className="sr-only">Include</span>
                 </span>
                 <span role="columnheader">Pack model</span>
                 <span role="columnheader">Order code</span>
-                <span role="columnheader">Prices</span>
-                <span role="columnheader" />
+                <span role="columnheader" className="st2-pb-fig">
+                  Prices
+                </span>
+                <span role="columnheader">
+                  <span className="sr-only">Answer</span>
+                </span>
               </div>
               {mine.map((r) => (
-                <div className="qs-row lk-row" role="row" key={r.id}>
+                <div className="st2-pb-grid st2-pb-links" role="row" key={r.id}>
                   <span role="cell">
-                    <input type="checkbox" checked={!left.has(r.id)} disabled={busy !== null} onChange={() => toggle(r.id)} aria-label={`Include ${r.link.model}`} />
+                    <Tick label={<span className="sr-only">{`Include ${r.link.model}`}</span>} checked={!left.has(r.id)} disabled={busy !== null} onChange={() => toggle(r.id)} />
                   </span>
-                  <span role="cell" className="qs-item">
+                  <span role="cell" className="st2-pb-name">
                     <b>{r.link.model}</b>
-                    <em>{[r.link.section, r.link.label].filter(Boolean).join(", ")}</em>
+                    <span className="st2-pb-line">
+                      <Fade>{[r.link.section, r.link.label].filter(Boolean).join(", ")}</Fade>
+                    </span>
                   </span>
-                  <span role="cell" className="qs-item">
-                    {r.proposal.codes.join(", ")}
-                    <em>{r.proposal.words}</em>
+                  <span role="cell" className="st2-pb-name">
+                    <span>{r.proposal.codes.join(", ")}</span>
+                    <span className="st2-pb-line">
+                      <Fade>{r.proposal.words}</Fade>
+                    </span>
                   </span>
                   <span role="cell">
                     <Offers offers={r.proposal.offers} />
                   </span>
-                  <span role="cell" className="qs-act">
-                    <button
-                      type="button"
-                      className="pbtn ghost sm"
+                  <span role="cell" className="st2-pb-act">
+                    <Button
+                      kind="second"
+                      size={32}
                       disabled={busy !== null}
                       onClick={() => void answer([r], "rejected", r.id, `${r.link.model}: not the same unit, and won't be offered again.`)}
                     >
                       Not the same
-                    </button>
+                    </Button>
                   </span>
                 </div>
               ))}
             </div>
-            <div className="wb2-jqacts">
-              <button
-                type="button"
-                className="pbtn primary"
+            <div className="st2-pb-foot">
+              <Button
+                kind="second"
+                size={36}
                 disabled={busy !== null || ticked.length === 0}
-                aria-label={`Confirm ${units(ticked.length)}: ${g.title}`}
+                aria-label={`Confirm ${units(ticked.length)}: ${g.heading}`}
                 onClick={() => void answer(ticked, "confirmed", g.kind, `${units(ticked.length)} linked.`)}
               >
-                {busy === g.kind ? "Linking" : `Confirm ${units(ticked.length)}`}
-              </button>
+                {busy === g.kind ? "Linking the units" : `Confirm ${units(ticked.length)}`}
+              </Button>
             </div>
-          </div>
+          </section>
         );
       })}
 
       {unpriced.length > 0 && (
-        <div className="wb2-jqacts">
-          <button type="button" className="pbtn ghost sm" onClick={() => setShowUnpriced((v) => !v)} aria-expanded={showUnpriced}>
+        <div className="st2-pb-foot">
+          <Button kind="quiet" size={32} onClick={() => setShowUnpriced((v) => !v)} aria-expanded={showUnpriced}>
             {showUnpriced ? "Hide models with no price" : `Show the ${unpriced.length} models with no price`}
-          </button>
+          </Button>
         </div>
       )}
       {showUnpriced && (
-        <ul className="qs-list qs-unpriced">
+        <ul className="st2-pb-rows" aria-label="Models with no price">
           {unpriced.map((l) => (
-            <li key={l.model}>
-              <span className="qs-item">
-                {l.model}
-                <em>{[l.section, l.label].filter(Boolean).join(", ")}</em>
+            <li key={l.model} className="st2-pb-grid st2-pb-lines">
+              <span className="st2-pb-name">
+                <span>{l.model}</span>
+                <span className="st2-pb-line">
+                  <Fade>{[l.section, l.label].filter(Boolean).join(", ")}</Fade>
+                </span>
               </span>
             </li>
           ))}
         </ul>
       )}
-    </section>
+    </Group>
   );
 }

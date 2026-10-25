@@ -58,7 +58,7 @@ it("shows what's kept, and takes one out", async () => {
   render(<CodeLetters supplierKey="mitsubishi" supplierName="Mitsubishi Electric" />);
   expect(await screen.findByText("K after VG, in MSZ codes: Wi-Fi built in")).toBeInTheDocument();
   await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "Take out" }));
+    fireEvent.click(screen.getByRole("button", { name: "Take out K after VG, in MSZ codes" }));
   });
   expect(screen.queryByText("K after VG, in MSZ codes: Wi-Fi built in")).not.toBeInTheDocument();
   expect((global.fetch as jest.Mock).mock.calls.at(-1)![0]).toBe("/api/quoting/code-letters?id=r-1");

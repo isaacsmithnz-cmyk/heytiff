@@ -1,11 +1,20 @@
-/* Quoting's ranges that come in sizes (Isaac, 2026-10-04: "you pick one
-   item, say your Y 14-10-10, and Tiff finds the same range's other sizes in
-   your price book for you to confirm once"). */
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+/* The ranges that come in sizes, on Price book › What prices each part
+   (Isaac, 2026-10-04: "you pick one item, say your Y 14-10-10, and Tiff
+   finds the same range's other sizes in your price book for you to confirm
+   once"). A part's row opens its range in a dialog. */
+import { act, fireEvent, render as draw, screen, within } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { ToastProvider } from "@/components/parts/toast";
 import { RangesGroup } from "../quoting-ranges";
 import { RANGE_KEYS, type CandidateLine, type RangeView } from "@/lib/quotes/ranges";
 
+const render = (ui: ReactElement) => draw(<ToastProvider>{ui}</ToastProvider>);
+
 const empty: RangeView[] = RANGE_KEYS.map((kind) => ({ kind, items: [] }));
+
+/** A part's row, and its button that opens the range. */
+const rowOf = (label: string) => screen.getByText(label).closest('[role="row"]') as HTMLElement;
+const openRange = (label: string) => within(rowOf(label)).getByRole("button", { name: /the range of/ });
 
 const ys: CandidateLine[] = [
   {
@@ -46,7 +55,9 @@ it("lists every part that comes in sizes, none chosen for a new business", () =>
   expect(within(table).getAllByText("Not chosen")).toHaveLength(RANGE_KEYS.length);
   expect(within(table).getByText("Isolators")).toBeInTheDocument();
   expect(within(table).getByText("by amps")).toBeInTheDocument();
-  expect(within(table).getAllByRole("button", { name: "Choose" })).toHaveLength(RANGE_KEYS.length);
+  const choose = within(table).getAllByRole("button", { name: /^Choose the range of/ });
+  expect(choose).toHaveLength(RANGE_KEYS.length);
+  expect(choose[0]).toHaveTextContent("Choose range");
 });
 
 it("makes a range from one product line: its sizes laid out ticked, the line's key sizes with them, and added on one press", async () => {
@@ -72,25 +83,26 @@ it("makes a range from one product line: its sizes laid out ticked, the line's k
   }) as unknown as typeof fetch;
 
   render(<RangesGroup initial={empty} />);
-  const row = screen.getByText("Ys and BTOs").closest('[role="row"]') as HTMLElement;
+  const row = rowOf("Ys and BTOs");
   await act(async () => {
-    fireEvent.click(within(row).getByRole("button", { name: "Choose" }));
+    fireEvent.click(openRange("Ys and BTOs"));
   });
+  expect(screen.getByRole("dialog", { name: "Ys and BTOs" })).toBeInTheDocument();
   /* the lines the business's quotes use most come first, as the server sorts them */
   const offered = screen.getByRole("list", { name: "Ys and BTOs in your price book" });
   expect(within(offered).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
-    "Airloc smartfit Y ins, AAD2 sizes, on 12 quotesUse",
-    "BTO insulated, AAD1 size, on 3 quotesUse",
-    "Airloc smartfit Y ins key, AAD1 sizeUse",
+    "Airloc smartfit Y ins, AAD2 sizes, on 12 quotesUse this line",
+    "BTO insulated, AAD1 size, on 3 quotesUse this line",
+    "Airloc smartfit Y ins key, AAD1 sizeUse this line",
   ]);
-  fireEvent.click(within(offered).getAllByRole("button", { name: "Use" })[0]!);
+  fireEvent.click(within(offered).getAllByRole("button", { name: "Use this line" })[0]!);
 
   expect(screen.getByRole("heading", { name: "Airloc smartfit Y ins, AAD" })).toBeInTheDocument();
-  const boxes = screen.getAllByRole("checkbox");
-  expect(boxes.map((b) => b.getAttribute("aria-label"))).toEqual(["Ø350 → Ø250 / Ø250, AY141010", "Ø300 → Ø250 / Ø250, AY121010", "Ø350 → Ø300 / Ø300, AY141212"]);
-  expect(boxes.every((b) => (b as HTMLInputElement).checked)).toBe(true);
+  const names = ["Ø350 → Ø250 / Ø250, AY141010", "Ø300 → Ø250 / Ø250, AY121010", "Ø350 → Ø300 / Ø300, AY141212"];
+  expect(screen.getAllByRole("checkbox")).toHaveLength(3);
+  for (const name of names) expect(screen.getByRole("checkbox", { name })).toBeChecked();
   /* a person takes one out before adding */
-  fireEvent.click(boxes[1]!);
+  fireEvent.click(screen.getByRole("checkbox", { name: names[1] }));
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "Add 2 sizes" }));
   });
@@ -114,9 +126,9 @@ it("says which items have no size in their name, and never offers them", async (
   global.fetch = jest.fn(async () => ({ json: async () => ({ ok: true, lines: ys }) })) as unknown as typeof fetch;
   render(<RangesGroup initial={empty} />);
   await act(async () => {
-    fireEvent.click(within(screen.getByText("Ys and BTOs").closest('[role="row"]') as HTMLElement).getByRole("button", { name: "Choose" }));
+    fireEvent.click(openRange("Ys and BTOs"));
   });
-  fireEvent.click(within(screen.getByRole("list", { name: "Ys and BTOs in your price book" })).getAllByRole("button", { name: "Use" })[1]!);
+  fireEvent.click(within(screen.getByRole("list", { name: "Ys and BTOs in your price book" })).getAllByRole("button", { name: "Use this line" })[1]!);
   expect(screen.getAllByRole("checkbox")).toHaveLength(1);
   expect(screen.getByText("No size in the name, so not offered: BTO 400.400/350.350 INSULATED.")).toBeInTheDocument();
 });
@@ -149,9 +161,9 @@ it("lets a bracket say the widest outdoor it takes", async () => {
   }) as unknown as typeof fetch;
   render(<RangesGroup initial={empty} />);
   await act(async () => {
-    fireEvent.click(within(screen.getByText("Wall brackets").closest('[role="row"]') as HTMLElement).getByRole("button", { name: "Choose" }));
+    fireEvent.click(openRange("Wall brackets"));
   });
-  fireEvent.click(screen.getByRole("button", { name: "Use" }));
+  fireEvent.click(screen.getByRole("button", { name: "Use this line" }));
   fireEvent.change(screen.getByLabelText("Widest outdoor CWB180 takes, mm"), { target: { value: "900" } });
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "Add 2 sizes" }));
@@ -179,16 +191,17 @@ it("takes a product line out of a range", async () => {
     ],
   };
   render(<RangesGroup initial={empty.map((r) => (r.kind === "zone_damper" ? dampers : r))} />);
-  const row = screen.getByText("Zone dampers").closest('[role="row"]') as HTMLElement;
+  const row = rowOf("Zone dampers");
   expect(within(row).getByText("Clip-in motorised damper, Advantage Air")).toBeInTheDocument();
   await act(async () => {
-    fireEvent.click(within(row).getByRole("button", { name: "Change" }));
+    fireEvent.click(within(row).getByRole("button", { name: "Change the range of zone dampers" }));
   });
   expect(screen.getByText("Ø200, Ø250")).toBeInTheDocument();
   expect(screen.getByText("Nothing in your price book reads as zone dampers with a size in its name.")).toBeInTheDocument();
   await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "Take out" }));
+    fireEvent.click(screen.getByRole("button", { name: "Take it out" }));
   });
+  expect(screen.getByText("Zone dampers: 2 sizes taken out")).toBeInTheDocument();
   expect(posted).toEqual([
     {
       kind: "zone_damper",

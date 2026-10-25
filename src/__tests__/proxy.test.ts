@@ -23,7 +23,7 @@ jest.mock("@/lib/auth0", () => ({
 }));
 
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
-import { config, proxy } from "@/proxy";
+import { config, MOBILE_PATH, proxy } from "@/proxy";
 import { HOOK_PATH } from "@/lib/integrations/sm8-hook-plan";
 
 const env = process.env;
@@ -135,6 +135,34 @@ describe("ServiceM8's pings", () => {
     for (const path of ["/api/integrations/servicem8/webhooks-x", "/api/integrations/servicem8/webhook", "/api/integrations/servicem8/callback"]) {
       const res = await proxy(req(`https://heytiff.vercel.app${path}`, "heytiff.vercel.app"));
       expect([path, res.status]).toEqual([path, 308]);
+    }
+  });
+});
+
+/* The phone carries Auth0's token, not a cookie, and a redirected fetch
+   drops its Authorization header: so its routes are neither moved nor given
+   the session's work, and the proxy doesn't run on them at all. */
+describe("the phone's routes", () => {
+  test("the path let through is where the routes live", () => {
+    expect(existsSync(join(__dirname, "..", "app", MOBILE_PATH, "me", "route.ts"))).toBe(true);
+  });
+
+  test("reach the route on any host: no move, no session work", async () => {
+    for (const host of ["heytiff.vercel.app", "www.hey-tiff.com", "go.hey-tiff.com"]) {
+      const res = await proxy(
+        new NextRequest(`https://${host}${MOBILE_PATH}schedule?day=2026-10-26`, { headers: { host, authorization: "Bearer t" } })
+      );
+      expect([host, res.status, res.headers.get("location")]).toEqual([host, 200, null]);
+    }
+    expect(middlewareSpy).not.toHaveBeenCalled();
+  });
+
+  test("the matcher leaves them out, and only them", () => {
+    const runs = (url: string) => unstable_doesMiddlewareMatch({ config, url });
+    expect(runs(`${MOBILE_PATH}me`)).toBe(false);
+    expect(runs(`${MOBILE_PATH}jobs/abc-123`)).toBe(false);
+    for (const url of ["/api/mobilex", "/api/mobile", "/dashboard/mobile/", `/x${MOBILE_PATH}me`]) {
+      expect([url, runs(url)]).toEqual([url, true]);
     }
   });
 });

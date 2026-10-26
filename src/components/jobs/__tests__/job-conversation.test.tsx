@@ -485,3 +485,29 @@ it("opens the whole message from its bubble, read only, as plain text", async ()
   await userEvent.click(within(dialog).getByRole("button", { name: "Close" }));
   expect(screen.queryByRole("dialog")).toBeNull();
 });
+
+/* filled and grouped like iMessage (Isaac, 26 October 2026: "Deep green with white") */
+it("fills each side's bubbles its own way, and says a run's name once above it and its time once under it", async () => {
+  const f = fixture3372();
+  draw({
+    customer: customerFeed(
+      [
+        { ...f[2]!, id: "a", stamp: "2026-10-06 10:00:00", text: "First" },
+        { ...f[2]!, id: "b", stamp: "2026-10-06 10:01:00", text: "Second" },
+        { ...f[6]!, id: "c", stamp: "2026-10-06 10:02:00", text: "Third", seenStamp: "2026-10-06 10:05:00" },
+      ],
+      { customer: "Marco", money: true },
+    ),
+  });
+  const run = [...document.querySelectorAll(".jc-bm")] as HTMLElement[];
+  expect(run.map((b) => b.className)).toEqual([
+    "jc-bm jc-bm--them jc-bm--first",
+    "jc-bm jc-bm--them jc-bm--last",
+    "jc-bm jc-bm--us jc-bm--first jc-bm--last",
+  ]);
+  expect(run.map((b) => b.querySelector(".jc-bmname")?.textContent ?? null)).toEqual(["Marco", null, "Dana"]);
+  expect(run.map((b) => b.querySelector(".jc-bmtime")?.textContent ?? null)).toEqual([null, "10:01 am", "10:02 amSeen 10:05 am"]);
+  /* each bubble still opens the whole message */
+  await userEvent.click(screen.getByRole("button", { name: "First" }));
+  expect(screen.getByRole("dialog")).toHaveTextContent("First");
+});

@@ -8114,10 +8114,9 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    tidied option B; components/jobs/customer-thread.tsx). ServiceM8's own
    send is the event row, its answer or "Seen" on the right; a conversation
    is a thread: its 32 head, the subject once, then bubbles, the customer
-   left and the team right, at most 80% wide, a hairline edge and no fill,
-   the corner on the speaker's side tucked to the field's 6 (the scale has
-   no 4). 4 from a bubble to its time, 12 where the speaker changes, 16
-   round ServiceM8's grey lines, 16 under the thread. */
+   left and the team right, at most 80% wide, filled (below). 4 from a
+   run to its time, 2 inside a run, 12 where the speaker changes, 16 round
+   ServiceM8's grey lines, 16 under the thread. */
 /* the words, then a send of no known kind's first words 8 after them, fading */
 .fg .jc-sendtext { flex:1 1 auto; display:flex; align-items:baseline; gap:8px; min-width:0; }
 .fg .jc-send .jc-evwords { flex:none; }
@@ -8136,15 +8135,25 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jc-bm { display:flex; flex-direction:column; gap:4px; max-width:80%; min-width:0; }
 .fg .jc-bm--them { align-self:flex-start; align-items:flex-start; }
 .fg .jc-bm--us { align-self:flex-end; align-items:flex-end; }
-.fg .jc-bm + .jc-bm { margin-top:8px; }
-.fg .jc-bm + .jc-bm:has(> .jc-bmname) { margin-top:12px; }
+/* A RUN: back-to-back bubbles from one speaker stack 2 apart; a new run
+   (its name above it) stands 12 off the last */
+.fg .jc-bm + .jc-bm { margin-top:2px; }
+.fg .jc-bm + .jc-bm--first { margin-top:12px; }
 .fg .jc-bmname { margin:0; font-size:12px; line-height:16px; font-weight:600; color:var(--q); }
-.fg .jc-thbody .jc-bubble { display:block; max-width:100%; padding:8px 12px; border:1px solid var(--edge); border-radius:var(--r-card); background:none; font:inherit; color:var(--ink); text-align:left; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
-.fg .jc-bm--them .jc-bubble { border-top-left-radius:var(--r-control); }
-.fg .jc-bm--us .jc-bubble { border-top-right-radius:var(--r-control); }
-.fg .jc-thbody .jc-bubble:hover { background:var(--hov); }
+/* FILLED, like a phone's (Isaac, 26 October 2026: "Deep green with white";
+   docs/design.md, On a job's page): the team's deep green with white words,
+   the customer's light grey with ink. The card's corner, the inside ones
+   tucked to the field's 6, and the run's last keeping its tuck on the
+   speaker's side, as iMessage does (the scale has no 18: the card's 16). */
+.fg .jc-thbody .jc-bubble { display:block; max-width:100%; padding:8px 12px; border:0; border-radius:var(--r-card); font:inherit; text-align:left; cursor:pointer; }
+.fg .jc-bm--us .jc-bubble { background:var(--green-w); color:var(--white); border-bottom-right-radius:var(--r-control); }
+.fg .jc-bm--them .jc-bubble { background:var(--bubble-them); color:var(--ink); border-bottom-left-radius:var(--r-control); }
+.fg .jc-bm--us:not(.jc-bm--first) .jc-bubble { border-top-right-radius:var(--r-control); }
+.fg .jc-bm--them:not(.jc-bm--first) .jc-bubble { border-top-left-radius:var(--r-control); }
+/* the ink ring stands outside the fill */
 .fg .jc-thbody .jc-bubble:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .jc-bubble .jc-bubwords { font-size:16px; line-height:24px; white-space:pre-line; overflow-wrap:anywhere; }
+/* the words fade themselves at the third line, so the fade reads on either fill */
+.fg .jc-bubble .jc-bubwords { font-size:16px; line-height:22px; white-space:pre-line; overflow-wrap:anywhere; }
 .fg .jc-bmtime { display:flex; align-items:center; gap:8px; margin:0; font-size:12px; line-height:16px; color:var(--q); }
 .fg .jc-bmtime .jc-clip { margin-left:0; font-size:12px; line-height:16px; }
 .fg .jc-thline { align-self:center; display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin:16px 0; font-size:13px; line-height:20px; color:var(--q); text-align:center; }

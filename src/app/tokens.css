@@ -35,6 +35,10 @@
   --red:#EF4444; --red-w:#BE123C; --orange:#F97316; --orange-w:#B45309; --yellow:#FACC15; --yellow-w:#A16207;
   --green:#22C55E; --green-w:#15803D; --blue:#2563EB; --purple:#A855F7; --purple-w:#7E22CE; --pink:#EC4899; --pink-w:#9D174D;
   --grey:#9CA3AF; --white:#FFFFFF;
+  /* the customer's bubble in a job's Activity feed: a solid light grey, the
+     palette's grey laid 22% into white (never an ink alpha), which ink
+     reads on at 17:1 (Isaac, 26 October 2026, "Deep green with white") */
+  --bubble-them:color-mix(in srgb, var(--grey) 22%, var(--white));
   --edge:rgba(5,5,5,.14); --sel:rgba(5,5,5,.07); --hov:rgba(5,5,5,.04); --soft:rgba(5,5,5,.05);
   /* blue only ever means press (rule 17): the main button, a tick or switch that is on, a selection */
   --press:var(--blue);

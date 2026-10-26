@@ -12,6 +12,7 @@
    every rule under test is a pure function, which is exactly why they were
    written as pure functions. */
 import {
+  handlesBlock,
   historyBlock,
   isEmptyProposal,
   resolveAssignee,
@@ -580,3 +581,42 @@ describe("historyBlock — the router's memory, rendered", () => {
     expect(block).not.toContain("Issue 10");
   });
 });
+
+/* THE ONE NOTE ON A JOB (Isaac, 26 October 2026): Tiff writes the whole
+   note again, tidied, and the job keeps that one note for HeyTiff and
+   ServiceM8 both. */
+describe("the tidied job note", () => {
+  it("is asked for on every read, with the person's handle and every figure kept", () => {
+    expect(NOTE_SCHEMA.required).toContain("job_note");
+    expect(TIFF_NOTE_SCHEMA.required).toContain("job_note");
+    const rules = systemPrompt(ctx);
+    expect(rules).toContain("job_note: ALWAYS the whole note again");
+    expect(rules).toContain("every number and unit");
+    expect(rules).toContain("ServiceM8 handle");
+  });
+
+  it("comes through the shaper as it was written, paragraphs and all", () => {
+    const p = shapeProposal(raw({ job_note: "  Pipe run is about 14 m.\n\n@davidhann grab a coil.  " }), ctx);
+    expect(p.jobNote).toBe("Pipe run is about 14 m.\n\n@davidhann grab a coil.");
+    // and isn't a lane: a note that's only a note still has nothing to do
+    expect(isEmptyProposal(p)).toBe(true);
+  });
+
+  it("is empty when the model wrote none", () => {
+    expect(shapeProposal(raw({}), ctx).jobNote).toBe("");
+  });
+});
+
+describe("handlesBlock — the ServiceM8 people a job note may mention", () => {
+  it("names each with their handle, on one line", () => {
+    expect(
+      handlesBlock({ ...ctx, handles: [{ name: "David Hann", handle: "davidhann" }, { name: "Michael Diamond", handle: "michaeldiamond" }] })
+    ).toBe("ServiceM8 handles: David Hann @davidhann, Michael Diamond @michaeldiamond.");
+  });
+
+  it("says nothing with nobody to mention, so the prompt is as it was", () => {
+    expect(handlesBlock(ctx)).toBe("");
+    expect(handlesBlock({ ...ctx, handles: [{ name: " ", handle: "x" }] })).toBe("");
+  });
+});
+

@@ -254,6 +254,7 @@ const EMPTY: NoteProposal = {
   issueEntries: [],
   kbEntries: [],
   plainNote: "",
+  jobNote: "",
   say: "",
   clarify: null,
 };

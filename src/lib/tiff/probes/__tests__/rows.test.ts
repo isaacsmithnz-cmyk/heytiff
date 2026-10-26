@@ -13,6 +13,7 @@ const plan = (over: Partial<NoteProposal> = {}): NoteProposal => ({
   issueEntries: [],
   kbEntries: [],
   plainNote: "",
+  jobNote: "",
   say: "",
   clarify: null,
   ...over,

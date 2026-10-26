@@ -153,6 +153,8 @@ const openRecordByName = jest.fn(async (_words: string) => null as { href: strin
 jest.mock("@/app/actions/tiff-open", () => ({ openRecordByName: (w: string) => openRecordByName(w) }));
 /* the job page's Overview holds the Tiff modal's conversation, which reads the calendar's line actions */
 jest.mock("@/app/actions/calendar", () => ({ fileCalendarLine: jest.fn(), noteOnCalendarEvents: jest.fn(), undoCalendarLine: jest.fn() }));
+/* the Activity feed's Add to my notes */
+jest.mock("@/app/actions/my-notes", () => ({ addMyNote: jest.fn(async () => ({ ok: true, id: "my-1" })), deleteMyNote: jest.fn(async () => ({ ok: true })) }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   routeNote: (...a: unknown[]) => routeNote(...(a as [])),
   dismissNote: jest.fn(async () => ({ ok: true, summary: "" })),
@@ -986,11 +988,14 @@ describe("the attention strip", () => {
 /** Words typed in the conversation's box and kept as typed: the pen's write. */
 const keepTyped = async (words: string) => {
   await userEvent.type(convo().getByRole("textbox", { name: "Tell Tiff about this job" }), words);
-  await userEvent.click(convo().getByRole("button", { name: "Save" }));
+  await userEvent.click(convo().getByRole("button", { name: "Add to my notes" }));
 };
 
 describe("writing on the job", () => {
-  it("lands in the conversation at once, then wears the name only the server knew", async () => {
+  /* Isaac, 26 October 2026: a note on the job is Send's (Tiff files it, and
+     the one tidied note goes to ServiceM8 by itself); the box's other door
+     keeps words privately, in My notes */
+  it("keeps a private note in My notes: nothing written on the job, nothing sent", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<Job row={row()} {...props} />);
     await detailLanded();
@@ -998,17 +1003,10 @@ describe("writing on the job", () => {
 
     const f = convo();
     await keepTyped("Drain kit still to go on");
-
-    /* under the pen's own id (two-way phase 2): a double submit is one entry */
-    expect(addJobNote).toHaveBeenCalledWith("j-1", "Drain kit still to go on", {
-      id: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/),
-    });
-    /* THE SAVED ROW REPLACES THE OPTIMISTIC ONE. A browser knows its own
-       auth id and not the display name behind it — slice 3 shipped that
-       defect on the checklist's stamps, and this is the same fix. */
-    await waitFor(() => expect(f.getByText("Isaac Smith")).toBeInTheDocument());
-    expect(f.getByText("Drain kit still to go on")).toBeInTheDocument();
-    expect(f.getByText("In HeyTiff")).toBeInTheDocument();
+    const { addMyNote } = jest.requireMock("@/app/actions/my-notes") as { addMyNote: jest.Mock };
+    await waitFor(() => expect(addMyNote).toHaveBeenCalledWith({ body: "Drain kit still to go on", source: "text" }));
+    expect(addJobNote).not.toHaveBeenCalled();
+    expect(f.queryByText("Drain kit still to go on", { ignore: "textarea" })).toBeNull();
   });
 
   it("takes one back off when asked", async () => {
@@ -1162,45 +1160,19 @@ it("(F) the strip's Reply opens the conversation at the note, with its box open;
     // answered: its mention leaves the strip
     expect(screen.queryByRole("region", { name: "Open on this job" })).toBeNull();
   });
-it("(F) (verifier r2 12) ticked, the pen sends with the SAVED id — and a second keep while the first is out is no entry and no send", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(withNotes({ attention: { items: [], total: 0 } }));
-    let land: (v: unknown) => void = () => {};
-    addJobNote.mockImplementationOnce(
-      (_job: string, body: string) =>
-        new Promise((resolve) => {
-          land = () => resolve({ id: "saved-1", text: body, at: "2026-08-28T09:00:00.000Z", author: "Isaac Smith" });
-        })
-    );
-    noteSm8.sendJobNoteToServiceM8.mockResolvedValue({ ok: true, state: sent });
-    render(<Job row={row()} {...props} />);
-    await detailLanded();
-    const f = convo();
-    await userEvent.click(await f.findByRole("checkbox", { name: NOTE_WORDS.door.alsoInSm8 }));
-    await keepTyped("Drain kit still to go on");
-    await userEvent.type(f.getByRole("textbox", { name: "Tell Tiff about this job" }), "Drain kit still to go on");
-    /* the first is still being kept: the door waits for it */
-    expect(f.getByRole("button", { name: "Saving" })).toBeDisabled();
-    await userEvent.click(f.getByRole("button", { name: "Saving" }));
-    expect(addJobNote).toHaveBeenCalledTimes(1);
-    expect(f.getAllByText("Drain kit still to go on", { ignore: "textarea" })).toHaveLength(1);
-    await act(async () => land(null));
-    await waitFor(() => expect(noteSm8.sendJobNoteToServiceM8).toHaveBeenCalledTimes(1));
-    expect(noteSm8.sendJobNoteToServiceM8).toHaveBeenCalledWith({ jobUuid: "j-1", noteId: "saved-1" });
-    expect(await f.findByText(NOTE_WORDS.line.sent)).toBeInTheDocument();
-    addJobNote.mockClear();
-  });
-
-  it("unticked, the pen sends nothing to ServiceM8", async () => {
+  /* the tick went on 26 October 2026: a note on the job goes by itself */
+  it("offers no Also in ServiceM8 tick, and a private note sends nothing to ServiceM8", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(withNotes({ attention: { items: [], total: 0 } }));
     render(<Job row={row()} {...props} />);
     await detailLanded();
-    await convo().findByRole("checkbox", { name: NOTE_WORDS.door.alsoInSm8 });
+    await waitFor(() => expect(readJobRecord).toHaveBeenCalled());
+    expect(convo().queryByRole("checkbox", { name: NOTE_WORDS.door.alsoInSm8 })).toBeNull();
     await keepTyped("Drain kit");
-    await waitFor(() => expect(addJobNote).toHaveBeenCalled());
+    const { addMyNote } = jest.requireMock("@/app/actions/my-notes") as { addMyNote: jest.Mock };
+    await waitFor(() => expect(addMyNote).toHaveBeenCalled());
+    expect(addJobNote).not.toHaveBeenCalled();
     expect(noteSm8.sendJobNoteToServiceM8).not.toHaveBeenCalled();
-    addJobNote.mockClear();
   });
 
   it("(F) (verifier r3 3) Yes on a saved row's question confirms, then sends that row; Not me sends nothing", async () => {

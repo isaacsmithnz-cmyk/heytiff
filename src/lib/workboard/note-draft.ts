@@ -322,6 +322,7 @@ export function storedProposal(raw: unknown): NoteProposal | null {
       str(k.body).trim() ? { title: str(k.title), body: str(k.body) } : null,
     ),
     plainNote: str(r.plainNote),
+    jobNote: str(r.jobNote),
     say: str(r.say),
     clarify: c && str(c.question).trim() ? { question: str(c.question), options: strs(c.options) } : null,
   };

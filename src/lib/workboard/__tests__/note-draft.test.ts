@@ -44,6 +44,7 @@ const P: NoteProposal = {
   issueEntries: [{ body: "Tripped again", equipmentHint: "RTU-2" }],
   kbEntries: [{ title: "Clearing an E6", body: "Power the outdoor board separately." }],
   plainNote: "",
+  jobNote: "",
   say: "",
   clarify: null,
 };
@@ -168,6 +169,7 @@ describe("the draft rules", () => {
     issueEntries: [],
     kbEntries: [],
     plainNote: "",
+    jobNote: "",
     say: "",
     clarify: null,
   };

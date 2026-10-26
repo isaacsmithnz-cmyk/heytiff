@@ -86,7 +86,7 @@ export function recordStrings(p: NoteProposal): string[] {
   for (const e of p.commissioningEntries) out.push(e.body);
   for (const e of p.issueEntries) out.push(e.body);
   for (const k of p.kbEntries) out.push(k.title, k.body);
-  out.push(p.plainNote);
+  out.push(p.plainNote, p.jobNote);
   if (p.clarify) out.push(p.clarify.question, ...p.clarify.options);
   return out.filter((s) => s.trim() !== "");
 }
@@ -128,6 +128,7 @@ export function withTranslations(
     issueEntries: p.issueEntries.map((e) => ({ ...e, body: s(e.body) })),
     kbEntries: p.kbEntries.map((k) => ({ ...k, title: s(k.title), body: s(k.body) })),
     plainNote: s(p.plainNote),
+    jobNote: s(p.jobNote),
     clarify: p.clarify
       ? { question: s(p.clarify.question), options: p.clarify.options.map(s) }
       : null,

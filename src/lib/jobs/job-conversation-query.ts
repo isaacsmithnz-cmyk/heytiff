@@ -6,6 +6,8 @@ import { todayInZone } from "@/lib/workboard/dates";
 import { readLines } from "@/lib/quotes/lines-server";
 import { readByHand } from "@/lib/quotes/lines-job-server";
 import { summaryFromQuote, type SummaryGroup } from "./job-summary-rows";
+import { readCustomerMessages } from "./customer-messages-query";
+import type { CustomerItem } from "./customer-messages";
 import {
   madeCards,
   railTasksOf,
@@ -36,6 +38,9 @@ import {
                  NOT YET APPLIED). Until the column is there its read fails
                  with a missing column and the job's tasks are the ones its
                  notes link; nothing else changes.
+     the customer the customer's texts and emails, and ServiceM8's own
+                 sends, from its job communication history
+                 (customer-messages-query), for whoever reads the diary.
      the summary the job's quote in HeyTiff, as the Summary's groups: the
                  lines' names and codes, never a price, so it goes to anyone
                  on the Workboard as the quote itself does (job-summary-rows).
@@ -105,7 +110,14 @@ export async function readJobConversationFor(input: {
 }): Promise<JobConversationRead> {
   const { orgId, staffId, jobUuid, tz, undoAny, money } = input;
   const today = todayInZone(tz);
-  const [entries, summary] = await Promise.all([listJobDiaryEntries(orgId, staffId, jobUuid, tz), quoteSummary(orgId, jobUuid)]);
+  const [entries, summary, customer] = await Promise.all([
+    listJobDiaryEntries(orgId, staffId, jobUuid, tz),
+    quoteSummary(orgId, jobUuid),
+    /* the customer's messages are a nicety beside the diary: a read that fails is none */
+    Promise.resolve()
+      .then(() => readCustomerMessages({ orgId, jobUuid, money }))
+      .catch((): CustomerItem[] => []),
+  ]);
 
   const noteTaskIds = [...new Set(entries.flatMap((e) => e.record.taskIds))];
   const flagIds = [...new Set(entries.flatMap((e) => e.record.flagIds))];
@@ -231,5 +243,6 @@ export async function readJobConversationFor(input: {
     }),
     viewer: { id: staffId, name: staffId ? (names.get(staffId) ?? null) : null },
     summary,
+    customer,
   };
 }

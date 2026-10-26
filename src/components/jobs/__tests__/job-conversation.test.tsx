@@ -32,6 +32,8 @@ beforeEach(() => {
 });
 
 import { JobConversation, type ConversationDiary } from "../job-conversation";
+import { customerFeed, type CustomerItem } from "@/lib/jobs/customer-messages";
+import { fixture3372 } from "@/lib/jobs/__fixtures__/customer-3372";
 
 type Note = Extract<StoryEntry, { kind: "note" }>;
 
@@ -97,6 +99,7 @@ const draw = (p: {
   c?: Conversation;
   d?: ConversationDiary;
   onUndoTalk?: (id: string) => Promise<unknown>;
+  customer?: CustomerItem[];
 }) =>
   render(
     <div className="fg">
@@ -112,6 +115,7 @@ const draw = (p: {
         viewerName="Isaac Smith"
         voiceEnabled={false}
         onUndoTalk={p.onUndoTalk}
+        customer={p.customer}
       />
     </div>,
   );
@@ -153,7 +157,7 @@ it("is a section like the others: the green block, Activity feed, the soft tabs 
   expect(head.querySelector(".hm-blk")).toHaveClass("hm-blk--green");
   expect(within(head).getByRole("heading", { level: 2 })).toHaveTextContent("Activity feed");
   const filter = within(head).getByRole("group", { name: "Show in the feed" });
-  expect(within(filter).getAllByRole("button").map((t) => t.textContent)).toEqual(["All", "Notes", "Photos"]);
+  expect(within(filter).getAllByRole("button").map((t) => t.textContent)).toEqual(["All", "Customer", "Notes", "Photos"]);
   /* the box comes before the feed */
   const box = screen.getByRole("textbox", { name: "Tell Tiff about this job" });
   const list = feed.querySelector(".jc-feed") as HTMLElement;
@@ -413,4 +417,53 @@ it("says why a photo didn't upload, in its place", async () => {
   draw({ c: convo({ draft: "$85 at Reece" }) });
   pickPhoto();
   expect(await screen.findByRole("alert")).toHaveTextContent("That file is too big.");
+});
+
+/* ── the customer, in the feed (Isaac, 26 October 2026, "Yes build") ── */
+
+const customer = () => customerFeed(fixture3372(), { customer: "Marco", money: true, staffOf: (m) => m.name });
+
+it("draws ServiceM8's sends as rows and the conversation as a thread, oldest first inside it", () => {
+  draw({ customer: customer() });
+  expect(screen.getByText("Booking for Wed 14 Oct, 2:00 pm texted")).toBeInTheDocument();
+  const reply = screen.getAllByText("Marco: YES")[0]!;
+  expect(reply.tagName).toBe("B");
+  const thread = screen.getByText("Email with Marco").closest(".jc-thread") as HTMLElement;
+  const bubbles = [...thread.querySelectorAll(".jc-bm")].map((b) => b.querySelector(".jc-bmtime")?.textContent);
+  expect(bubbles).toEqual(["10:03 am", "11:06 am", "11:51 amSeen 11:56 am"]);
+  expect(within(thread).getByText("Booking for 2:00 pm texted").closest(".jc-thline")).toHaveTextContent("Marco: Yes");
+  /* the newest day first: the invoice's day over the first quote's */
+  const days = screen.getAllByText(/^(Tue 20 Oct|Tue 29 Sept?)$/).map((d) => d.textContent);
+  expect(days).toEqual(["Tue 20 Oct", expect.stringMatching(/^Tue 29 Sept?$/)]);
+});
+
+it("filters to the customer: the threads and ServiceM8's sends, and nothing else", async () => {
+  draw({ story: [note({ key: "note:b", text: "Second" })], customer: customer() });
+  await userEvent.click(screen.getByRole("button", { name: "Customer" }));
+  expect(screen.getByRole("button", { name: "Customer" })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.queryByText("Second")).toBeNull();
+  expect(screen.getByText("Email with Marco")).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Notes" }));
+  expect(screen.queryByText("Email with Marco")).toBeNull();
+  expect(screen.getByText("Second")).toBeInTheDocument();
+});
+
+it("says a quote sent once, as ServiceM8's send, where the feed would have said it twice", () => {
+  draw({
+    story: [{ kind: "milestone", key: "milestone:quoted", day: "2026-09-29", at: null, label: "Quote sent" }],
+    customer: customer(),
+  });
+  expect(screen.queryByText("Quote sent")).toBeNull();
+  expect(screen.getAllByText("Quote emailed").length).toBeGreaterThan(0);
+});
+
+it("opens the whole message from its bubble, read only, as plain text", async () => {
+  draw({ customer: customer() });
+  await userEvent.click(screen.getByRole("button", { name: /^Thanks, Dana, just got the text/ }));
+  const dialog = screen.getByRole("dialog", { name: "Re: Your Quote from Acme Air (Ref #3372)" });
+  expect(within(dialog).getByText("Thanks, Dana, just got the text re 2pm visit.")).toHaveClass("cmsg-words");
+  expect(within(dialog).getByText("Tue 6 Oct, 11:06 am")).toBeInTheDocument();
+  expect(within(dialog).queryByRole("textbox")).toBeNull();
+  await userEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
 });

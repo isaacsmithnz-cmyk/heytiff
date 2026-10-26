@@ -8110,6 +8110,46 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jc-photos img,
 .fg .jc-photos .jc-photo-wait { width:64px; height:48px; border-radius:var(--r-control); object-fit:cover; background:var(--sel); }
 .fg .jc-photos .jc-photo-wait { display:inline-flex; align-items:center; justify-content:center; color:var(--q); }
+/* THE CUSTOMER IN THE FEED (Isaac, 26 October 2026, "Yes build", the
+   tidied option B; components/jobs/customer-thread.tsx). ServiceM8's own
+   send is the event row, its answer or "Seen" on the right; a conversation
+   is a thread: its 32 head, the subject once, then bubbles, the customer
+   left and the team right, at most 80% wide, a hairline edge and no fill,
+   the corner on the speaker's side tucked to the field's 6 (the scale has
+   no 4). 4 from a bubble to its time, 12 where the speaker changes, 16
+   round ServiceM8's grey lines, 16 under the thread. */
+/* the words, then a send of no known kind's first words 8 after them, fading */
+.fg .jc-sendtext { flex:1 1 auto; display:flex; align-items:baseline; gap:8px; min-width:0; }
+.fg .jc-send .jc-evwords { flex:none; }
+.fg .jc-sendopen { flex:1 1 auto; min-width:0; font-size:13px; line-height:18px; color:var(--q); }
+/* on the right: the answer or Seen, then the Quote's door, 8 apart */
+.fg .jc-sendend { flex:none; display:flex; align-items:center; gap:8px; margin-left:auto; }
+.fg .jc-sendreply { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .jc-sendseen { font-size:13px; line-height:18px; color:var(--q); }
+.fg .jc-clip { display:inline-flex; align-items:center; gap:2px; margin-left:8px; font-size:13px; line-height:18px; color:var(--q); vertical-align:middle; }
+.fg .jc-thread { gap:0; padding:4px 0 16px; }
+.fg .jc-thhead { display:flex; align-items:center; gap:12px; min-width:0; min-height:32px; }
+.fg .jc-thhead > .jc-made-icon { width:32px; justify-content:center; }
+.fg .jc-thtitle { flex:none; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .jc-thsub { flex:1 1 auto; font-size:13px; line-height:18px; color:var(--q); }
+.fg .jc-thbody { display:flex; flex-direction:column; padding-top:8px; }
+.fg .jc-bm { display:flex; flex-direction:column; gap:4px; max-width:80%; min-width:0; }
+.fg .jc-bm--them { align-self:flex-start; align-items:flex-start; }
+.fg .jc-bm--us { align-self:flex-end; align-items:flex-end; }
+.fg .jc-bm + .jc-bm { margin-top:8px; }
+.fg .jc-bm + .jc-bm:has(> .jc-bmname) { margin-top:12px; }
+.fg .jc-bmname { margin:0; font-size:12px; line-height:16px; font-weight:600; color:var(--q); }
+.fg .jc-thbody .jc-bubble { display:block; max-width:100%; padding:8px 12px; border:1px solid var(--edge); border-radius:var(--r-card); background:none; font:inherit; color:var(--ink); text-align:left; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.fg .jc-bm--them .jc-bubble { border-top-left-radius:var(--r-control); }
+.fg .jc-bm--us .jc-bubble { border-top-right-radius:var(--r-control); }
+.fg .jc-thbody .jc-bubble:hover { background:var(--hov); }
+.fg .jc-thbody .jc-bubble:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .jc-bubble .jc-bubwords { font-size:16px; line-height:24px; white-space:pre-line; overflow-wrap:anywhere; }
+.fg .jc-bmtime { display:flex; align-items:center; gap:8px; margin:0; font-size:12px; line-height:16px; color:var(--q); }
+.fg .jc-bmtime .jc-clip { margin-left:0; font-size:12px; line-height:16px; }
+.fg .jc-thline { align-self:center; display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin:16px 0; font-size:13px; line-height:20px; color:var(--q); text-align:center; }
+.fg .jc-thline:last-child { margin-bottom:0; }
+.fg .jc-thline b { font-weight:600; color:var(--ink); }
 /* Undo: a link's dress, because it is a door back */
 .fg .cv-result .jc-undo,
 .fg .jc-undoall .jc-undo { flex:none; padding:0; border:0; background:none; font:inherit; font-size:14px; line-height:20px; font-weight:500; color:var(--link); text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
@@ -8160,6 +8200,12 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
   .fg .jov-fact:first-child { border-radius:16px 16px 0 0; }
   .fg .jov-fact:last-child { border-radius:0 0 16px 16px; }
 }
+
+/* the whole message, in the dialog that portals outside .fg: who, when, and the words as plain text */
+.pt-dialog .cmsg-facts { display:grid; grid-template-columns:auto minmax(0,1fr); gap:4px 12px; margin:0 0 16px; font-size:13px; line-height:18px; }
+.pt-dialog .cmsg-facts dt { font-weight:500; color:var(--q); }
+.pt-dialog .cmsg-facts dd { margin:0; color:var(--ink); overflow-wrap:anywhere; }
+.pt-dialog .pt-dialog-body .cmsg-words { max-height:60vh; margin:0; overflow-y:auto; font-size:16px; line-height:24px; color:var(--ink); white-space:pre-wrap; overflow-wrap:anywhere; }
 
 /* ===== JOBS, THE LIST (v2, step 5; components/jobs/jobs-list.tsx) =====
    The board v2-board-jobs: the title with what's open beside it in grey, the

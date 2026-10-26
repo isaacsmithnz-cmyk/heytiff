@@ -8,6 +8,7 @@ import type { AppliedRecord } from "@/lib/workboard/note-applied";
 import type { EarlierTurn } from "@/lib/workboard/note-turns";
 import type { Tone } from "@/components/parts/state";
 import type { SummaryGroup } from "./job-summary-rows";
+import type { CustomerItem } from "./customer-messages";
 
 /* A JOB'S OVERVIEW AS ITS CONVERSATION (v2, step 6, slice A; the board
    JC-1) — pure. What the job's page draws on Overview, decided here where
@@ -76,6 +77,9 @@ export type JobConversationRead = {
       no money in them; null when the quote can't say what the job is, and
       the Summary reads the description instead. */
   summary?: SummaryGroup[] | null;
+  /** The customer's texts and emails with the team, as threads, and
+      ServiceM8's own sends as rows (customer-messages), oldest first. */
+  customer?: CustomerItem[];
 };
 
 /* ── days ── */
@@ -94,7 +98,7 @@ export function stampClock(stamp: string | null | undefined): string {
 }
 
 /** One thing in the conversation: a diary entry, a note's talk, or both. */
-export type ConvItem = { key: string; entry: StoryEntry | null; talk: JobNoteTalk | null };
+export type ConvItem = { key: string; entry: StoryEntry | null; talk: JobNoteTalk | null; customer?: CustomerItem | null };
 
 export type ConvDay = { day: string; label: string; items: ConvItem[] };
 
@@ -113,6 +117,7 @@ export function conversationDays(
   today: string | null,
   hide: ReadonlySet<string> = new Set(),
   withTaken = true,
+  customer: readonly CustomerItem[] = [],
 ): ConvDay[] {
   const byId = new Map(talks.map((t) => [t.id, t]));
   const items: (ConvItem & { day: string; at: string | null })[] = [];
@@ -131,11 +136,19 @@ export function conversationDays(
       else items.splice(at, 0, item);
     }
   }
+  /* the customer's messages and ServiceM8's sends, each where its latest moment puts it */
+  for (const c of customer) {
+    const at = items.findIndex((i) => i.day > c.day || (i.day === c.day && !!i.at && i.at > c.at));
+    const item = { key: c.key, entry: null, talk: null, customer: c, day: c.day, at: c.at };
+    if (at < 0) items.push(item);
+    else items.splice(at, 0, item);
+  }
   const days: ConvDay[] = [];
-  for (const { key, entry, talk, day } of items) {
+  for (const { key, entry, talk, customer: c, day } of items) {
+    const it: ConvItem = c ? { key, entry, talk, customer: c } : { key, entry, talk };
     const cur = days.at(-1);
-    if (cur && cur.day === day) cur.items.push({ key, entry, talk });
-    else days.push({ day, label: dayLabel(day, today), items: [{ key, entry, talk }] });
+    if (cur && cur.day === day) cur.items.push(it);
+    else days.push({ day, label: dayLabel(day, today), items: [it] });
   }
   return days;
 }

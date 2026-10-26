@@ -31,6 +31,8 @@ import { conversationDays, stampClock, type JobNoteTalk, type MadeCard, type Mad
 import type { FlagState } from "@/lib/integrations/sm8-note-plan";
 import type { NoteSender } from "@/lib/integrations/links";
 import { JobSection } from "./job-section";
+import { CustomerSendRow, CustomerThreadView } from "./customer-thread";
+import { withoutEchoes, type CustomerItem } from "@/lib/jobs/customer-messages";
 
 /* THE JOB'S ACTIVITY FEED (v2, step 6, slice A; the board JC-1; laid out
    again on Isaac's refined Overview A, 25 October 2026): the right column
@@ -84,8 +86,15 @@ import { JobSection } from "./job-section";
    the pen's; a flagged note an attention row sent you to is lit and
    brought into view; the strip's Reply opens its box. */
 
-const FILTERS: { key: StoryFilter; label: string }[] = [
+/** The feed's views: the diary's, and Customer, the customer's threads and
+    ServiceM8's sends and nothing else (Isaac, 26 October 2026). */
+type FeedFilter = Extract<StoryFilter, "all" | "notes" | "photos"> | "customer";
+
+const NONE: CustomerItem[] = [];
+
+const FILTERS: { key: FeedFilter; label: string }[] = [
   { key: "all", label: "All" },
+  { key: "customer", label: "Customer" },
   { key: "notes", label: "Notes" },
   { key: "photos", label: "Photos" },
 ];
@@ -155,6 +164,7 @@ export function JobConversation({
   viewerName,
   voiceEnabled,
   onUndoTalk,
+  customer = NONE,
 }: {
   /** The diary's entries, newest first, as job-story builds them. */
   story: StoryEntry[];
@@ -173,19 +183,29 @@ export function JobConversation({
   /** Undo on a note told to Tiff before: what it made is taken back
       (`undoNote`), and the conversation reads again. */
   onUndoTalk?: (noteId: string) => Promise<unknown>;
+  /** The customer's threads and ServiceM8's sends (customer-messages). */
+  customer?: CustomerItem[];
 }) {
-  const [filter, setFilter] = useState<StoryFilter>("all");
-  const shown = useMemo(() => filterStory(story, filter), [story, filter]);
+  const [filter, setFilter] = useState<FeedFilter>("all");
+  /* a row the customer's messages already say ("Quote sent") is said once */
+  const unechoed = useMemo(() => withoutEchoes(story, customer), [story, customer]);
+  /* the days a quote's send stands in for the "Quote sent" row: it keeps that row's door */
+  const quoteDays = useMemo(() => {
+    const kept = new Set(unechoed);
+    return new Set(story.flatMap((e) => (e.kind === "milestone" && e.label === "Quote sent" && !kept.has(e) ? [e.day] : [])));
+  }, [story, unechoed]);
+  const shown = useMemo(() => (filter === "customer" ? [] : filterStory(unechoed, filter)), [unechoed, filter]);
+  const theirs = filter === "all" || filter === "customer" ? customer : NONE;
   const live = convo.turns;
   const liveNotes = useMemo(() => new Set(live.flatMap((t) => (t.noteId ? [t.noteId] : []))), [live]);
   /* newest first: the days, and each day's entries, the other way up from
      the conversation's own order */
   const days = useMemo(
     () =>
-      conversationDays(shown, talks, today, liveNotes, filter === "all" || filter === "notes")
+      conversationDays(shown, filter === "customer" ? [] : talks, today, liveNotes, filter === "all" || filter === "notes", theirs)
         .reverse()
         .map((d) => ({ ...d, items: [...d.items].reverse() })),
-    [shown, talks, today, liveNotes, filter],
+    [shown, talks, today, liveNotes, filter, theirs],
   );
   const you = viewerName ?? "You";
 
@@ -337,13 +357,13 @@ export function JobConversation({
   };
   const lastTiff = [...live].reverse().find((t) => t.who === "tiff") ?? null;
 
-  const empty = !loading && story.length === 0 && talks.length === 0 && live.length === 0;
+  const empty = !loading && story.length === 0 && talks.length === 0 && live.length === 0 && customer.length === 0;
 
   /* THE FILTER: the soft tabs' dress (rule 29), but buttons that say
      whether they are pressed, each its own stop for the keyboard (the walk
      of 25 October 2026: they were tabs with one stop between them) */
   const tabs =
-    story.length > 0 ? (
+    story.length > 0 || customer.length > 0 ? (
       <div className="pt-vtabs jc-filter" role="group" aria-label="Show in the feed">
         {FILTERS.map((f) => (
           <button
@@ -360,7 +380,7 @@ export function JobConversation({
     ) : null;
   /* the box's own exchange stands under "Today" at the top; the day's
      older entries then follow without a second "Today" */
-  const todayShown = live.length > 0;
+  const todayShown = live.length > 0 && filter !== "customer";
 
   return (
     <UndoTalk.Provider value={undoTalk ? { undo: undoTalk, busy: undoing } : null}>
@@ -419,13 +439,13 @@ export function JobConversation({
           <p className="jov-none">Reading the job&rsquo;s notes from the mirror</p>
         ) : empty ? (
           <p className="jov-none">{emptyStoryLine(moneyVisible)}</p>
-        ) : shown.length === 0 && filter !== "all" ? (
+        ) : filter !== "all" && (filter === "customer" ? customer.length === 0 : shown.length === 0) ? (
           <p className="jov-none">Nothing of that kind on the job.</p>
         ) : null}
 
         {/* WHAT YOU SAID HERE JUST NOW, and what Tiff said back: the newest,
             at the top, in the order it was said */}
-        {live.length > 0 && (
+        {live.length > 0 && filter !== "customer" && (
           <div className="jc-day">
             <p className="jc-dayname">Today</p>
             {live.map((t) =>
@@ -467,7 +487,21 @@ export function JobConversation({
           <div className="jc-day" key={day.day}>
             {!(i === 0 && todayShown && day.label === "Today") && <p className="jc-dayname">{day.label}</p>}
             {day.items.map((item) =>
-              item.entry?.kind === "note" ? (
+              item.customer ? (
+                item.customer.kind === "thread" ? (
+                  <CustomerThreadView key={item.key} thread={item.customer} />
+                ) : (
+                  <CustomerSendRow
+                    key={item.key}
+                    send={item.customer}
+                    quoteDoor={
+                      item.customer.sort === "quote" && diary.onQuote && quoteDays.has(item.customer.day)
+                        ? { label: diary.jobNumber ? `Open quote #${diary.jobNumber}` : "Open the quote", onOpen: diary.onQuote }
+                        : null
+                    }
+                  />
+                )
+              ) : item.entry?.kind === "note" ? (
                 <NoteMessage
                   key={item.key}
                   entry={item.entry}

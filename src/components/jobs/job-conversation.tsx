@@ -32,7 +32,7 @@ import type { FlagState } from "@/lib/integrations/sm8-note-plan";
 import type { NoteSender } from "@/lib/integrations/links";
 import { JobSection } from "./job-section";
 import { CustomerSendRow, CustomerThreadView } from "./customer-thread";
-import { withoutEchoes, type CustomerItem } from "@/lib/jobs/customer-messages";
+import { pairClaims, withoutEchoes, type CustomerItem } from "@/lib/jobs/customer-messages";
 
 /* THE JOB'S ACTIVITY FEED (v2, step 6, slice A; the board JC-1; laid out
    again on Isaac's refined Overview A, 25 October 2026): the right column
@@ -187,12 +187,23 @@ export function JobConversation({
   const [filter, setFilter] = useState<FeedFilter>("all");
   /* a row the customer's messages already say ("Quote sent") is said once */
   const unechoed = useMemo(() => withoutEchoes(story, customer), [story, customer]);
+  /* an invoice's send and the claim raised for it are one row: the send's, with the claim's name and Open */
+  const claims = useMemo(() => pairClaims(story, customer), [story, customer]);
   /* the days a quote's send stands in for the "Quote sent" row: it keeps that row's door */
   const quoteDays = useMemo(() => {
     const kept = new Set(unechoed);
     return new Set(story.flatMap((e) => (e.kind === "milestone" && e.label === "Quote sent" && !kept.has(e) ? [e.day] : [])));
   }, [story, unechoed]);
   const shown = useMemo(() => (filter === "customer" ? [] : filterStory(unechoed, filter)), [unechoed, filter]);
+  /* the door a send keeps from the row it stands in for: the quote's, or the claim's Open */
+  const sendDoor = (send: Extract<CustomerItem, { kind: "send" }>): { label: string; onOpen: () => void } | null => {
+    const claim = claims.get(send.key);
+    if (claim) return { label: "Open", onOpen: () => diary.onOpenClaim(claim.remoteId) };
+    if (send.sort === "quote" && diary.onQuote && quoteDays.has(send.day)) {
+      return { label: diary.jobNumber ? `Open quote #${diary.jobNumber}` : "Open the quote", onOpen: diary.onQuote };
+    }
+    return null;
+  };
   const theirs = filter === "all" || filter === "customer" ? customer : NONE;
   const live = convo.turns;
   const liveNotes = useMemo(() => new Set(live.flatMap((t) => (t.noteId ? [t.noteId] : []))), [live]);
@@ -500,11 +511,8 @@ export function JobConversation({
                   <CustomerSendRow
                     key={item.key}
                     send={item.customer}
-                    quoteDoor={
-                      item.customer.sort === "quote" && diary.onQuote && quoteDays.has(item.customer.day)
-                        ? { label: diary.jobNumber ? `Open quote #${diary.jobNumber}` : "Open the quote", onOpen: diary.onQuote }
-                        : null
-                    }
+                    claim={claims.get(item.customer.key)?.title ?? null}
+                    door={sendDoor(item.customer)}
                   />
                 )
               ) : item.entry?.kind === "note" ? (

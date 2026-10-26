@@ -538,3 +538,33 @@ it("fills each side's bubbles its own way, and says a run's name once above it a
   await userEvent.click(screen.getByRole("button", { name: "First" }));
   expect(screen.getByRole("dialog")).toHaveTextContent("First");
 });
+
+/* the walk of 26 October 2026: the 20 October invoice showed twice */
+it("says an invoice once: ServiceM8's send, with the claim's name and its Open after Seen", async () => {
+  const onOpenClaim = jest.fn();
+  draw({
+    story: [
+      { kind: "claim", key: "claim:c2:raised", day: "2026-10-20", at: null, event: "raised", remoteId: "c2", title: "Payment 2, Final", jobNumber: "3372", amountCents: 1320000, isFinal: true },
+    ],
+    customer: customer(),
+    d: diary({ onOpenClaim }),
+  });
+  expect(screen.queryByText(/Payment 2, Final raised/)).toBeNull();
+  const row = screen.getByText("Invoice sent, $13,200").closest(".jc-send") as HTMLElement;
+  expect(row).toHaveTextContent("Payment 2, Final, by email and text");
+  const end = row.querySelector(".jc-sendend") as HTMLElement;
+  expect([...end.children].map((c) => c.textContent)).toEqual(["Seen 12:58 pm", "Open"]);
+  await userEvent.click(within(end).getByRole("button", { name: "Open" }));
+  expect(onOpenClaim).toHaveBeenCalledWith("c2");
+});
+
+it("leaves the claim's own row where it isn't the invoice that went out", () => {
+  draw({
+    story: [
+      { kind: "claim", key: "claim:c3:raised", day: "2026-10-20", at: null, event: "raised", remoteId: "c3", title: "Payment 1, Deposit", jobNumber: "3372A", amountCents: 400000, isFinal: false },
+    ],
+    customer: customer(),
+  });
+  expect(screen.getByText(/Payment 1, Deposit raised/)).toBeInTheDocument();
+  expect(screen.getByText("Invoice sent, $13,200").closest(".jc-send")).not.toHaveTextContent("Payment 1");
+});

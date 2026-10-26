@@ -28,15 +28,26 @@ import type { CustomerSend, CustomerThread, ThreadBubble } from "@/lib/jobs/cust
    the thread's span are grey lines in the middle. A bubble is a button: it
    opens the whole message in a dialog, its words as plain text. */
 
-export function CustomerSendRow({ send, quoteDoor }: { send: CustomerSend; quoteDoor?: { label: string; onOpen: () => void } | null }) {
+export function CustomerSendRow({
+  send,
+  door,
+  claim,
+}: {
+  send: CustomerSend;
+  /** the door of the row this send stands in for: "Open quote #3372", a claim's Open */
+  door?: { label: string; onOpen: () => void } | null;
+  /** the claim this invoice is, by its name, said before the send's own detail */
+  claim?: string | null;
+}) {
+  const detail = [claim, send.detail].filter(Boolean).join(", ") || null;
   const end =
-    send.reply || send.seen || quoteDoor ? (
+    send.reply || send.seen || door ? (
       <span className="jc-sendend">
         {send.reply ? <b className="jc-sendreply">{send.reply}</b> : send.seen ? <span className="jc-sendseen">{send.seen}</span> : null}
-        {/* the "Quote sent" row this send stands in for keeps its door (26 October 2026) */}
-        {quoteDoor && (
-          <Button kind="quiet" size={32} onClick={quoteDoor.onOpen}>
-            {quoteDoor.label}
+        {/* the row this send stands in for keeps its door, after Seen (26 October 2026) */}
+        {door && (
+          <Button kind="quiet" size={32} onClick={door.onOpen}>
+            {door.label}
           </Button>
         )}
       </span>
@@ -50,10 +61,10 @@ export function CustomerSendRow({ send, quoteDoor }: { send: CustomerSend; quote
         <span className="jc-sendtext">
           <span className="jc-evwords">
             <b className="cv-result-name">{send.words}</b>
-            {send.detail && (
+            {detail && (
               <>
                 {" "}
-                <span className="cv-result-line">{send.detail}</span>
+                <span className="cv-result-line">{detail}</span>
               </>
             )}
             {send.attachments > 0 && <Clip count={send.attachments} />}

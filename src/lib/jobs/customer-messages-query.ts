@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import {
   customerFeed,
   htmlToText,
+  withoutQuoted,
   openingPattern,
   phoneKey,
   templateMarked,
@@ -17,7 +18,9 @@ import {
    ask (`workboard`, the diary's own gate) and that the job is this
    workspace's, and hands in the org.
 
-   The newest 200 messages hung off the job. Names: the team's from
+   The newest 200 messages hung off the job. An email's words are its HTML
+   read as text (never drawn), its text part only where that says nothing,
+   and a reply's quote of what came before cut off. Names: the team's from
    sm8_staff by who sent it, the customer's from the job's own contacts,
    matched on the number or the address (+61 read as 0), else the job's
    first contact, else the number or address as it came.
@@ -106,7 +109,11 @@ export async function readCustomerMessages(input: { orgId: string; jobUuid: stri
     const text =
       kind === "sms"
         ? (str(raw.message) ?? "")
-        : (str(raw.message_text) ?? (str(raw.message_html) ? htmlToText(String(raw.message_html)) : ""));
+        : /* the HTML read as text first: ServiceM8's own text part joins a
+             signature's lines; the text part only where there is no HTML,
+             or it says nothing. What a reply quotes is cut off either way. */
+          withoutQuoted(str(raw.message_html) ? htmlToText(String(raw.message_html)) : "") ||
+          withoutQuoted(str(raw.message_text) ?? "");
     const fromPhone = str(raw.from_phone);
     const toPhone = str(raw.to_phone);
     const fromEmail = str(raw.from_email);

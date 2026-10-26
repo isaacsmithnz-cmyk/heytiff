@@ -69,6 +69,10 @@ export type CustomerSend = {
   reply: string | null;
   seen: string | null;
   attachments: number;
+  /** an invoice's amount, for whoever sees money; null otherwise */
+  amountCents: number | null;
+  /** the job or invoice numbers its subject and words name ("Job #3372") */
+  refs: string[];
 };
 
 export type ThreadBubble = {
@@ -318,6 +322,7 @@ export function customerFeed(
     let opening: string | null = null;
     let line: string;
     let icon: CustomerSend["icon"] = first.kind === "sms" ? "message" : "mail";
+    let cents: number | null = null;
     if (s.sort === "booking") {
       const when = bookingWhen(first.text, Number(first.stamp.slice(0, 4)));
       words = when ? `Booking for ${fmtAuWeekdayDayMonth(when.day)}, ${clock12(when.minutes)} ${verb}` : `Booking request ${verb}`;
@@ -336,7 +341,7 @@ export function customerFeed(
       words = `Quote ${verb}`;
       line = by ? `${words} ${by}` : words;
     } else if (s.sort === "invoice") {
-      const cents = opts.money ? (s.msgs.map((m) => amountCents(m.text)).find((c) => c !== null) ?? null) : null;
+      cents = opts.money ? (s.msgs.map((m) => amountCents(m.text)).find((c) => c !== null) ?? null) : null;
       words = cents !== null ? `Invoice ${verb}, ${fmtAud(cents)}` : `Invoice ${verb}`;
       line = by ? `${words} ${by}` : words;
     } else {
@@ -358,6 +363,8 @@ export function customerFeed(
       reply: s.reply,
       seen,
       attachments,
+      amountCents: cents,
+      refs: [...new Set(s.msgs.flatMap((m) => [...`${m.subject ?? ""}\n${m.text}`.matchAll(/#\s?(\d+[A-Za-z]?)\b/g)].map((x) => x[1]!.toUpperCase())))],
     };
   };
 
@@ -430,7 +437,34 @@ export function customerFeed(
 /** The feed's own rows ServiceM8's sends already say: a "Quote sent" or an
     "Invoice raised" on a day a quote or an invoice went out, so the job
     reads one row, not two. */
+type ClaimEntry = Extract<StoryEntry, { kind: "claim" }>;
+
+/** AN INVOICE SAID ONCE (the walk of 26 October 2026: "Invoice sent,
+    $13,200" over "Payment 2, Final raised, $13,200", the same invoice).
+    ServiceM8's invoice send and a claim raised the same day are one when
+    they are worth the same, or, where the send says no amount (an email
+    alone) or the amounts differ, when the send's subject or words name the
+    claim's number. The send's row stands, carrying the claim's name and
+    its Open; anything else leaves both. By the send's key. */
+export function pairClaims(story: readonly StoryEntry[], customer: readonly CustomerItem[]): Map<string, ClaimEntry> {
+  const pairs = new Map<string, ClaimEntry>();
+  const taken = new Set<ClaimEntry>();
+  const raised = story.filter((e): e is ClaimEntry => e.kind === "claim" && e.event === "raised");
+  for (const c of customer) {
+    if (c.kind !== "send" || c.sort !== "invoice") continue;
+    const day = raised.filter((e) => e.day === c.day && !taken.has(e));
+    const claim =
+      (c.amountCents !== null ? day.find((e) => e.amountCents === c.amountCents) : undefined) ??
+      day.find((e) => !!e.jobNumber && c.refs.includes(e.jobNumber.toUpperCase()));
+    if (!claim) continue;
+    pairs.set(c.key, claim);
+    taken.add(claim);
+  }
+  return pairs;
+}
+
 export function withoutEchoes(story: readonly StoryEntry[], customer: readonly CustomerItem[]): StoryEntry[] {
+  const paired = new Set<StoryEntry>(pairClaims(story, customer).values());
   const sent = new Set<string>();
   const walk = (s: CustomerSend) => {
     if (s.sort === "quote") sent.add(`Quote sent:${s.day}`);
@@ -446,29 +480,56 @@ export function withoutEchoes(story: readonly StoryEntry[], customer: readonly C
       if (/^Invoice\b/.test(l.words)) sent.add(`Invoice raised:${c.day}`);
     }
   }
-  if (sent.size === 0) return [...story];
-  return story.filter((e) => !(e.kind === "milestone" && sent.has(`${e.label}:${e.day}`)));
+  return story.filter((e) => !paired.has(e) && !(e.kind === "milestone" && sent.has(`${e.label}:${e.day}`)));
 }
 
-/** An email's HTML as plain text, for the rare one ServiceM8 sent with no
-    text part: tags out, breaks kept, the common entities read. Never drawn
-    as HTML. */
+const ENTITIES: Record<string, string> = {
+  nbsp: " ", amp: "&", lt: "<", gt: ">", quot: '"', apos: "'",
+  rsquo: "’", lsquo: "‘", rdquo: "”", ldquo: "“", ndash: "–", mdash: "—", hellip: "…", bull: "•", middot: "·", copy: "©", reg: "®", trade: "™", deg: "°",
+};
+
+/** An email's HTML as plain text, never drawn as HTML (the walk of 26
+    October 2026: ServiceM8's own text part runs a signature's lines into
+    one, "Luke Ingold61457301636", where its HTML has the break). The
+    source's own whitespace is one space, as a browser reads it; a <br>,
+    and the open and close of a block (div, p, li, tr, h1–6, blockquote),
+    is a line; images, styles, scripts and every other tag go; the
+    entities are read; each line is trimmed, and three or more line
+    breaks close up to two. */
 export function htmlToText(html: string): string {
-  return html
-    .replace(/<(script|style|head)[^>]*>[\s\S]*?<\/\1>/gi, "")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/(p|div|li|tr|h[1-6])>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'")
-    .replace(/&#(\d+);/g, (_, n: string) => String.fromCharCode(Number(n)))
-    .replace(/[ \t]+\n/g, "\n")
+  const text = html
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<(script|style|head|title)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "")
+    .replace(/\s+/g, " ")
+    .replace(/<br\b[^>]*>/gi, "\n")
+    .replace(/<\/?(?:div|p|li|tr|h[1-6]|blockquote)\b[^>]*>/gi, "\n")
+    .replace(/<hr\b[^>]*>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&#x([0-9a-f]+);/gi, (_, h: string) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, n: string) => String.fromCodePoint(Number(n)))
+    .replace(/&([a-z]+);/gi, (m, name: string) => ENTITIES[name.toLowerCase()] ?? m)
+    .replace(/ /g, " ");
+  return text
+    .split("\n")
+    .map((l) => l.replace(/[ \t]+/g, " ").trim())
+    .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+/** A reply's own words: what it quotes of the messages before it cut off,
+    at the header a mail program writes over the quote ("From: … Sent: …",
+    "On Tue, 6 Oct … wrote:", "-----Original Message-----"). */
+export function withoutQuoted(text: string): string {
+  const lines = text.split("\n");
+  const at = lines.findIndex((l, i) => {
+    const t = l.trim();
+    if (/^-{2,}\s*original message\s*-{2,}$/i.test(t)) return true;
+    if (/^on\b.{4,200}\bwrote:$/i.test(t)) return true;
+    if (/^from:\s/i.test(t)) return lines.slice(i + 1, i + 4).some((n) => /^(?:sent|date):\s/i.test(n.trim()));
+    return false;
+  });
+  return (at < 0 ? text : lines.slice(0, at).join("\n")).trim();
 }
 
 /** A phone as the contacts write it, for matching: +61 4… is 04…. */

@@ -1,15 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
 import { TableKit } from "@tiptap/extension-table";
-import { ScreenPanel } from "@/components/shell/screen-band";
-import { SettingsHead } from "@/components/settings/settings-head";
-import { Button } from "@/components/parts/button";
+import { Icon } from "@/components/shell/icon";
+import { Button, LinkButton } from "@/components/parts/button";
+import { Chooser } from "@/components/parts/chooser";
+import { ConfirmDialog } from "@/components/parts/dialog";
+import { Fade } from "@/components/parts/fade";
+import { Field, TextArea, TextInput } from "@/components/parts/field";
+import { Dot } from "@/components/parts/state";
+import { Tray } from "@/components/parts/tabs";
+import { Tick } from "@/components/parts/tick";
+import { ToastProvider, useToast } from "@/components/parts/toast";
 import { DateField } from "@/components/ui/date-field";
 import { LetterPaper } from "./letter-paper";
 import { deleteLetter, saveLetter, type LetterSaveResult } from "@/app/actions/letters";
@@ -18,20 +24,40 @@ import { MAX_RECIPIENT, MAX_SUBJECT, MAX_TITLE, letterDate, letterHref, lettersH
 import type { LetterheadFacts } from "@/lib/letters/letterhead";
 import type { SignerChoice } from "@/lib/letters/query";
 import type { Letterhead } from "@/lib/templates/settings";
-import "@/components/admin/templates.css";
 import "./letter-editor.css";
 
-/* A LETTER, WRITTEN ON THE PAPER IT PRINTS ON — the business's letterhead
-   (Admin → Templates) drawn around the body, and the body typed straight
-   onto it, the way a Word document is: bold, italic, underline, headings,
-   lists, a simple table, each paragraph aligned as wanted. The side holds
-   what isn't the body: the date, who it is to, the "Re:" line and who signs.
+/* A LETTER, WRITTEN ON THE PAPER IT PRINTS ON (v2, 27 October 2026; the
+   mock old-letters, built as drawn). The business's letterhead (Admin →
+   Templates) is drawn around the body, and the body is typed straight onto
+   it, the way a Word document is: bold, italic, underline, headings, lists,
+   a simple table, each paragraph aligned as wanted.
+
+   The title and its two buttons, Download PDF and Save letter, with no crumb:
+   Documents in the sidebar and the open tab say where you are. Save letter is
+   blue and held until something changes; Download PDF saves first, then
+   prints the saved letter. Saved says so in a toast (rule 37); a save that
+   fails says so under the title, a red dot and what to do (rule 42).
+
+   Beside the paper, two sections: The letter (its name, date, who it is to
+   and the "Re:" line) and Signed by. Delete letter sits alone at the foot,
+   and asks in a dialog (rule 25).
 
    The body is Tiptap's document, read back through lib/letters/body on every
-   save and every print, so what was typed is never markup on the page.
-   Download PDF saves first, then prints the saved letter. */
+   save and every print, so what was typed is never markup on the page. */
 
 const FAILED: LetterSaveResult = { ok: false, error: "Couldn't save the letter. Try again." };
+
+/* what each refusal means for you, under its red word */
+const SAVE_FAILED = "Your changes are still here. Try again.";
+
+type WrongLine = { word: string; means: string };
+
+/** A save that came back refused: the generic failure in the mock's words,
+    anything the server named (a signer gone, a letter gone) as it said it. */
+const saveWrong = (error: string): WrongLine => ({
+  word: "Couldn't save the letter",
+  means: error === FAILED.error ? SAVE_FAILED : error,
+});
 
 /* THE PRINTED PDF, fetched and handed to the browser as a download. Out
    here, as a plain function, because React Compiler 1.0 can't lower a
@@ -69,85 +95,144 @@ const EXTENSIONS = [
   TableKit.configure({ table: { resizable: false } }),
 ];
 
+/* HEADINGS ARE ONE CHOOSER (the mock's note 3): Body text, Heading and
+   Subheading, the kind of the paragraph the cursor is in. */
+type Kind = "body" | "heading" | "subheading";
+const KINDS: { value: Kind; label: string }[] = [
+  { value: "body", label: "Body text" },
+  { value: "heading", label: "Heading" },
+  { value: "subheading", label: "Subheading" },
+];
+const kindOf = (e: Editor): Kind =>
+  e.isActive("heading", { level: 2 }) ? "heading" : e.isActive("heading", { level: 3 }) ? "subheading" : "body";
+const setKind = (e: Editor, k: Kind) => {
+  const c = e.chain().focus();
+  (k === "body" ? c.setParagraph() : c.setHeading({ level: k === "heading" ? 2 : 3 })).run();
+};
+
+/* THE FOUR ALIGNMENTS, in a thin tray (rule 30) */
+type Align = "left" | "center" | "right" | "justify";
+const ALIGNS: { value: Align; label: string }[] = [
+  { value: "left", label: "Left" },
+  { value: "center", label: "Centre" },
+  { value: "right", label: "Right" },
+  { value: "justify", label: "Justify" },
+];
+const alignOf = (e: Editor): Align => ALIGNS.find((a) => e.isActive({ textAlign: a.value }))?.value ?? "left";
+
+/* every other tool keeps its word, a quiet button (rule 24) */
 type Tool = { label: string; on?: (e: Editor) => boolean; run: (e: Editor) => void; show?: (e: Editor) => boolean };
 
-const TOOLS: Tool[][] = [
-  [
-    { label: "Bold", on: (e) => e.isActive("bold"), run: (e) => e.chain().focus().toggleBold().run() },
-    { label: "Italic", on: (e) => e.isActive("italic"), run: (e) => e.chain().focus().toggleItalic().run() },
-    { label: "Underline", on: (e) => e.isActive("underline"), run: (e) => e.chain().focus().toggleUnderline().run() },
-  ],
-  [
-    { label: "Heading", on: (e) => e.isActive("heading", { level: 2 }), run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run() },
-    { label: "Subheading", on: (e) => e.isActive("heading", { level: 3 }), run: (e) => e.chain().focus().toggleHeading({ level: 3 }).run() },
-  ],
-  [
-    { label: "Bullets", on: (e) => e.isActive("bulletList"), run: (e) => e.chain().focus().toggleBulletList().run() },
-    { label: "Numbers", on: (e) => e.isActive("orderedList"), run: (e) => e.chain().focus().toggleOrderedList().run() },
-  ],
-  [
-    { label: "Left", on: (e) => e.isActive({ textAlign: "left" }), run: (e) => e.chain().focus().setTextAlign("left").run() },
-    { label: "Centre", on: (e) => e.isActive({ textAlign: "center" }), run: (e) => e.chain().focus().setTextAlign("center").run() },
-    { label: "Right", on: (e) => e.isActive({ textAlign: "right" }), run: (e) => e.chain().focus().setTextAlign("right").run() },
-    { label: "Justify", on: (e) => e.isActive({ textAlign: "justify" }), run: (e) => e.chain().focus().setTextAlign("justify").run() },
-  ],
-  [
-    {
-      label: "Table",
-      show: (e) => !e.isActive("table"),
-      run: (e) => e.chain().focus().insertTable({ rows: 3, cols: 2, withHeaderRow: false }).run(),
-    },
-    { label: "Add row", show: (e) => e.isActive("table"), run: (e) => e.chain().focus().addRowAfter().run() },
-    { label: "Add column", show: (e) => e.isActive("table"), run: (e) => e.chain().focus().addColumnAfter().run() },
-    { label: "Delete row", show: (e) => e.isActive("table"), run: (e) => e.chain().focus().deleteRow().run() },
-    { label: "Delete column", show: (e) => e.isActive("table"), run: (e) => e.chain().focus().deleteColumn().run() },
-    { label: "Remove table", show: (e) => e.isActive("table"), run: (e) => e.chain().focus().deleteTable().run() },
-  ],
-  [
-    { label: "Undo", run: (e) => e.chain().focus().undo().run() },
-    { label: "Redo", run: (e) => e.chain().focus().redo().run() },
-  ],
+const MARKS: Tool[] = [
+  { label: "Bold", on: (e) => e.isActive("bold"), run: (e) => e.chain().focus().toggleBold().run() },
+  { label: "Italic", on: (e) => e.isActive("italic"), run: (e) => e.chain().focus().toggleItalic().run() },
+  { label: "Underline", on: (e) => e.isActive("underline"), run: (e) => e.chain().focus().toggleUnderline().run() },
 ];
+const LISTS: Tool[] = [
+  { label: "Bullets", on: (e) => e.isActive("bulletList"), run: (e) => e.chain().focus().toggleBulletList().run() },
+  { label: "Numbers", on: (e) => e.isActive("orderedList"), run: (e) => e.chain().focus().toggleOrderedList().run() },
+];
+/* inside a table, Add table swaps for the table's own tools (note 4); each
+   is undone by Undo, so none is red */
+const TABLE: Tool[] = [
+  {
+    label: "Add table",
+    show: (e) => !e.isActive("table"),
+    run: (e) => e.chain().focus().insertTable({ rows: 3, cols: 2, withHeaderRow: false }).run(),
+  },
+  { label: "Add row", show: (e) => e.isActive("table"), run: (e) => e.chain().focus().addRowAfter().run() },
+  { label: "Add column", show: (e) => e.isActive("table"), run: (e) => e.chain().focus().addColumnAfter().run() },
+  { label: "Delete row", show: (e) => e.isActive("table"), run: (e) => e.chain().focus().deleteRow().run() },
+  { label: "Delete column", show: (e) => e.isActive("table"), run: (e) => e.chain().focus().deleteColumn().run() },
+  { label: "Remove table", show: (e) => e.isActive("table"), run: (e) => e.chain().focus().deleteTable().run() },
+];
+const HISTORY: Tool[] = [
+  { label: "Undo", run: (e) => e.chain().focus().undo().run() },
+  { label: "Redo", run: (e) => e.chain().focus().redo().run() },
+];
+const GROUPS = [MARKS, LISTS, TABLE, HISTORY];
 
-/** The toolbar, redrawn as the cursor moves so each button says whether
-    it is on where the cursor is. */
-function Toolbar({ editor }: { editor: Editor }) {
-  const state = useEditorState({
-    editor,
-    selector: ({ editor: e }) => TOOLS.map((g) => g.map((t) => ({ on: t.on ? t.on(e) : false, show: t.show ? t.show(e) : true }))),
-  });
+/** A group of worded tools; a press never takes the cursor off the paper. */
+function Tools({ editor, tools, state }: { editor: Editor; tools: Tool[]; state: { on: boolean; show: boolean }[] }) {
   return (
-    <div className="lte-bar" role="toolbar" aria-label="Formatting">
-      {TOOLS.map((group, g) => (
-        <div key={g} className="lte-grp">
-          {group.map((t, i) =>
-            state[g][i].show ? (
-              <button
-                key={t.label}
-                type="button"
-                className="lte-btn"
-                aria-pressed={t.on ? state[g][i].on : undefined}
-                onMouseDown={(ev) => ev.preventDefault()}
-                onClick={() => t.run(editor)}
-              >
-                {t.label}
-              </button>
-            ) : null
-          )}
-        </div>
-      ))}
+    <div className="lte-grp">
+      {tools.map((t, i) =>
+        state[i].show ? (
+          <Button
+            key={t.label}
+            kind="quiet"
+            size={32}
+            className="lte-tool"
+            aria-pressed={t.on ? state[i].on : undefined}
+            onMouseDown={(ev) => ev.preventDefault()}
+            onClick={() => t.run(editor)}
+          >
+            {t.label}
+          </Button>
+        ) : null
+      )}
     </div>
   );
 }
 
-export function LetterEditor({
-  initial,
-  facts,
-  letterhead,
-  signers,
-  me,
-  today,
-}: {
+/** The toolbar, redrawn as the cursor moves so each tool says what is on
+    where the cursor is. */
+function Toolbar({ editor }: { editor: Editor }) {
+  const state = useEditorState({
+    editor,
+    selector: ({ editor: e }) => ({
+      kind: kindOf(e),
+      align: alignOf(e),
+      groups: GROUPS.map((g) => g.map((t) => ({ on: t.on ? t.on(e) : false, show: t.show ? t.show(e) : true }))),
+    }),
+  });
+  return (
+    <div className="lte-bar" role="toolbar" aria-label="Formatting">
+      <div className="lte-grp">
+        <Chooser
+          aria-label="Text style"
+          size={32}
+          className="lte-kind"
+          options={KINDS}
+          value={state.kind}
+          onChange={(v) => setKind(editor, v as Kind)}
+        />
+      </div>
+      <Tools editor={editor} tools={MARKS} state={state.groups[0]} />
+      <Tools editor={editor} tools={LISTS} state={state.groups[1]} />
+      <div className="lte-grp">
+        <Tray
+          ariaLabel="Alignment"
+          options={ALIGNS}
+          value={state.align}
+          onChange={(a) => editor.chain().focus().setTextAlign(a).run()}
+        />
+      </div>
+      <Tools editor={editor} tools={TABLE} state={state.groups[2]} />
+      <Tools editor={editor} tools={HISTORY} state={state.groups[3]} />
+    </div>
+  );
+}
+
+/** A section of the rail: Home's coloured block and its title (`.hm-blk`). */
+function Section({ heading, icon, hue, children }: { heading: string; icon: string; hue: "pink" | "purple"; children: ReactNode }) {
+  const id = useId();
+  return (
+    <section className="lte-sec" aria-labelledby={id}>
+      <div className="lte-sechead">
+        <span className={`hm-blk hm-blk--${hue}`} aria-hidden="true">
+          <Icon name={icon} size={18} />
+        </span>
+        <h2 className="lte-sectitle" id={id}>
+          {heading}
+        </h2>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+type Props = {
   initial: LetterInput;
   facts: LetterheadFacts;
   letterhead: Letterhead;
@@ -156,12 +241,19 @@ export function LetterEditor({
   me: { staffId: string; signatureSvg: string | null } | null;
   /** yyyy-mm-dd */
   today: string;
-}) {
+};
+
+/* "No one" in the chooser: a value no staff id can be */
+const NO_ONE = "none";
+
+function Letter({ initial, facts, letterhead, signers, me, today }: Props) {
   const router = useRouter();
+  const toast = useToast();
+  const dateId = useId();
   const [l, setL] = useState<LetterInput>(initial);
   const [saved, setSaved] = useState<string>(() => JSON.stringify(initial));
   const [busy, setBusy] = useState<"save" | "pdf" | "delete" | null>(null);
-  const [note, setNote] = useState<{ text: string; bad: boolean } | null>(null);
+  const [wrong, setWrong] = useState<WrongLine | null>(null);
   const [askDelete, setAskDelete] = useState(false);
 
   const editor = useEditor({
@@ -172,10 +264,7 @@ export function LetterEditor({
     onUpdate: ({ editor: e }) => setL((cur) => ({ ...cur, body: normaliseBody(e.getJSON()) })),
   });
 
-  const set = (patch: Partial<LetterInput>) => {
-    setL((cur) => ({ ...cur, ...patch }));
-    setNote(null);
-  };
+  const set = (patch: Partial<LetterInput>) => setL((cur) => ({ ...cur, ...patch }));
   const dirty = JSON.stringify(l) !== saved;
 
   /* a letter left with changes unsaved asks first */
@@ -193,31 +282,34 @@ export function LetterEditor({
   /* someone else's signature stays on only until somebody else saves */
   const othersSignature = !!signer && !signerIsMe && initial.withSignature && initial.signerStaffId === signer.staffId;
 
-  const save = async (): Promise<string | null> => {
+  /** Saves the letter; `quiet` when Download PDF saves on its way to print,
+      so the one toast says the PDF. */
+  const save = async (quiet = false): Promise<string | null> => {
     setBusy("save");
-    setNote(null);
+    setWrong(null);
     const res = await saveLetter({ ...l, withSignature: signerIsMe && l.withSignature }).catch(() => FAILED);
     setBusy(null);
     if (!res.ok) {
-      setNote({ text: res.error, bad: true });
+      setWrong(saveWrong(res.error));
       return null;
     }
     const next = { ...l, id: res.id, withSignature: res.withSignature };
     setL(next);
     setSaved(JSON.stringify(next));
-    setNote({ text: "Saved.", bad: false });
+    if (!quiet) toast({ text: "Letter saved" });
     if (!l.id) router.replace(letterHref(res.id));
     return res.id;
   };
 
   const download = async () => {
-    const id = dirty || !l.id ? await save() : l.id;
+    const id = dirty || !l.id ? await save(true) : l.id;
     if (!id) return;
     setBusy("pdf");
-    setNote({ text: "Printing the PDF", bad: false });
+    setWrong(null);
     const ok = await downloadPdf(id, `${titleOf(l)}.pdf`);
     setBusy(null);
-    setNote(ok ? { text: "PDF downloaded.", bad: false } : { text: "Couldn't print the PDF. Try again.", bad: true });
+    if (ok) toast({ text: "PDF downloaded" });
+    else setWrong({ word: "Couldn't print the PDF", means: "The letter is saved. Try again." });
   };
 
   const remove = async () => {
@@ -226,7 +318,7 @@ export function LetterEditor({
     const res = await deleteLetter(l.id).catch(() => ({ ok: false as const, error: "Couldn't delete the letter. Try again." }));
     setBusy(null);
     setAskDelete(false);
-    if (!res.ok) return setNote({ text: res.error, bad: true });
+    if (!res.ok) return setWrong({ word: "Couldn't delete the letter", means: res.error });
     setSaved(JSON.stringify(l));
     router.push(lettersHref);
   };
@@ -235,143 +327,141 @@ export function LetterEditor({
     ? { name: signer.name, title: signer.title, signatureSvg: signerIsMe && l.withSignature ? me?.signatureSvg ?? null : null }
     : null;
 
+  const signerOptions = [
+    { value: NO_ONE, label: "No one" },
+    ...signers.map((s) => ({ value: s.staffId, label: s.title ? `${s.name}, ${s.title}` : s.name })),
+  ];
+
   return (
-    <div className="page in full lte">
-      <div className="wrap">
-        <div className="stg">
-          <SettingsHead
-            back={{ href: lettersHref, label: "Letters" }}
-            heading={titleOf(l) === "Untitled letter" && !l.id ? "New letter" : titleOf(l)}
-            tools={
-              <>
-                <Button kind="second" disabled={!!busy} onClick={() => void download()}>
-                  {busy === "pdf" ? "Printing the PDF" : "Download PDF"}
-                </Button>
-                <Button kind="main" disabled={!!busy || !dirty} onClick={() => void save()}>
-                  {busy === "save" ? "Saving the letter" : "Save"}
-                </Button>
-              </>
-            }
-          />
-          <ScreenPanel>
-            {note && <p className={note.bad ? "sw-state bad" : "tpl-quiet"}>{note.text}</p>}
-            <div className="tpl-work">
-              <div className="tpl-well lte-well">
-                {editor && <Toolbar editor={editor} />}
-                <LetterPaper
-                  facts={facts}
-                  letterhead={letterhead}
-                  letter={{ date: letterDate(l.date), to: recipientLines(l.recipient), subject: l.subject, signer: paperSigner }}
-                >
-                  <EditorContent editor={editor} />
-                </LetterPaper>
-              </div>
-              <aside className="tpl-side">
-                <div className="tpl-card">
-                  <h2>The letter</h2>
-                  <label className="tpl-field">
-                    Name in the list
-                    <input
-                      className="wb2-fi"
-                      value={l.title}
-                      maxLength={MAX_TITLE}
-                      placeholder={l.subject || "For example, Sam Taylor's employment"}
-                      onChange={(e) => set({ title: e.target.value })}
-                    />
-                  </label>
-                  <div className="tpl-field">
-                    Date
-                    <DateField
-                      className="wb2-fi"
-                      aria-label="Date"
-                      today={today}
-                      value={l.date || null}
-                      onChange={(iso) => set({ date: iso ?? "" })}
-                    />
-                  </div>
-                  <label className="tpl-field">
-                    To, a line each
-                    <textarea
-                      className="wb2-fi"
-                      rows={4}
-                      value={l.recipient}
-                      maxLength={MAX_RECIPIENT}
-                      placeholder={"Department of Home Affairs\nGPO Box 9984\nSydney NSW 2001"}
-                      onChange={(e) => set({ recipient: e.target.value })}
-                    />
-                  </label>
-                  <label className="tpl-field">
-                    Re
-                    <input
-                      className="wb2-fi"
-                      value={l.subject}
-                      maxLength={MAX_SUBJECT}
-                      placeholder="Employment confirmation"
-                      onChange={(e) => set({ subject: e.target.value })}
-                    />
-                  </label>
-                </div>
-                <div className="tpl-card">
-                  <h2>Signed by</h2>
-                  <select
-                    className="wb2-fi"
-                    aria-label="Signed by"
-                    value={l.signerStaffId ?? ""}
-                    onChange={(e) => set({ signerStaffId: e.target.value || null, withSignature: !!me && e.target.value === me.staffId })}
-                  >
-                    <option value="">No one</option>
-                    {signers.map((s) => (
-                      <option key={s.staffId} value={s.staffId}>
-                        {s.title ? `${s.name}, ${s.title}` : s.name}
-                      </option>
-                    ))}
-                  </select>
-                  {signerIsMe && (
-                    me?.signatureSvg ? (
-                      <label className="tpl-row tpl-tick">
-                        <input type="checkbox" checked={l.withSignature} onChange={(e) => set({ withSignature: e.target.checked })} />
-                        <span>Add my signature</span>
-                      </label>
-                    ) : (
-                      <p className="tpl-quiet">
-                        Draw your signature on <Link href="/dashboard/profile">your profile</Link> to sign letters with it.
-                      </p>
-                    )
-                  )}
-                  {signer && !signerIsMe && (
-                    <p className="tpl-quiet">
-                      {othersSignature
-                        ? `${signer.name} signed this. Saving takes their signature off until they save it themselves.`
-                        : `Only ${signer.name} can add their signature, by opening this letter and saving it.`}
-                    </p>
-                  )}
-                </div>
-                <div className="tpl-card">
-                  {askDelete ? (
-                    <>
-                      <p>Delete this letter? It can&apos;t be brought back.</p>
-                      <div className="tpl-acts">
-                        <button type="button" className="pbtn ghost" disabled={!!busy} onClick={() => setAskDelete(false)}>
-                          Keep
-                        </button>
-                        <button type="button" className="pbtn ghost dan" disabled={!!busy} onClick={() => void remove()}>
-                          {busy === "delete" ? "Deleting the letter" : "Delete letter"}
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="tpl-acts">
-                      <button type="button" className="pbtn ghost" disabled={!!busy} onClick={() => setAskDelete(true)}>
-                        Delete
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </aside>
-            </div>
-          </ScreenPanel>
+    <div className="wrap lte">
+      <header className="lte-head">
+        <h1 className="lte-h1">
+          <Fade>{titleOf(l) === "Untitled letter" && !l.id ? "New letter" : titleOf(l)}</Fade>
+        </h1>
+        <div className="lte-tools">
+          <Button kind="second" disabled={!!busy} onClick={() => void download()}>
+            {busy === "pdf" ? "Printing the PDF" : "Download PDF"}
+          </Button>
+          <Button kind="main" disabled={!!busy || !dirty} onClick={() => void save()}>
+            {busy === "save" ? "Saving the letter" : "Save letter"}
+          </Button>
         </div>
+      </header>
+
+      {wrong && (
+        <div className="lte-wrong" role="alert">
+          <p className="lte-wrong-word">
+            <Dot hue="red" />
+            {wrong.word}
+          </p>
+          <p className="lte-wrong-means">{wrong.means}</p>
+        </div>
+      )}
+
+      <div className="lte-work">
+        <div className="lte-well">
+          {editor && <Toolbar editor={editor} />}
+          <LetterPaper
+            facts={facts}
+            letterhead={letterhead}
+            letter={{ date: letterDate(l.date), to: recipientLines(l.recipient), subject: l.subject, signer: paperSigner }}
+          >
+            <EditorContent editor={editor} />
+          </LetterPaper>
+        </div>
+
+        <aside className="lte-rail">
+          <Section heading="The letter" icon="file" hue="pink">
+            <Field label="Name in the list">
+              <TextInput
+                value={l.title}
+                maxLength={MAX_TITLE}
+                placeholder={l.subject || "For example, Sam Taylor's employment"}
+                onChange={(e) => set({ title: e.target.value })}
+              />
+            </Field>
+            <Field label="Date" id={dateId}>
+              <DateField
+                id={dateId}
+                className="lte-date"
+                today={today}
+                value={l.date || null}
+                onChange={(iso) => set({ date: iso ?? "" })}
+              />
+            </Field>
+            <Field label="To">
+              <TextArea
+                rows={4}
+                value={l.recipient}
+                maxLength={MAX_RECIPIENT}
+                placeholder={"Department of Home Affairs\nGPO Box 9984\nSydney NSW 2001"}
+                onChange={(e) => set({ recipient: e.target.value })}
+              />
+            </Field>
+            <Field label="Re">
+              <TextInput
+                value={l.subject}
+                maxLength={MAX_SUBJECT}
+                placeholder="Employment confirmation"
+                onChange={(e) => set({ subject: e.target.value })}
+              />
+            </Field>
+          </Section>
+
+          <Section heading="Signed by" icon="edit" hue="purple">
+            <Chooser
+              aria-label="Signed by"
+              options={signerOptions}
+              value={l.signerStaffId ?? NO_ONE}
+              onChange={(v) => {
+                const id = v === NO_ONE ? null : v;
+                set({ signerStaffId: id, withSignature: !!me && id === me.staffId });
+              }}
+            />
+            {signerIsMe &&
+              (me?.signatureSvg ? (
+                <Tick label="Add my signature" checked={l.withSignature} onChange={(on) => set({ withSignature: on })} />
+              ) : (
+                <p className="lte-line">
+                  Draw your signature on <LinkButton href="/dashboard/profile">your profile</LinkButton> to sign letters with it.
+                </p>
+              ))}
+            {signer && !signerIsMe && (
+              <p className="lte-line">
+                {othersSignature
+                  ? `${signer.name} signed this. Saving takes their signature off until they save it themselves.`
+                  : `Only ${signer.name} can add their signature, by opening this letter and saving it.`}
+              </p>
+            )}
+          </Section>
+
+          <div className="lte-foot">
+            <Button kind="delete" disabled={!!busy} onClick={() => setAskDelete(true)}>
+              Delete letter
+            </Button>
+          </div>
+        </aside>
       </div>
+
+      <ConfirmDialog
+        open={askDelete}
+        heading="Delete this letter?"
+        confirm={busy === "delete" ? "Deleting the letter" : "Delete letter"}
+        cancel="Keep letter"
+        busy={busy === "delete"}
+        onConfirm={() => void remove()}
+        onClose={() => setAskDelete(false)}
+      >
+        It can&apos;t be brought back.
+      </ConfirmDialog>
     </div>
+  );
+}
+
+export function LetterEditor(props: Props) {
+  return (
+    <ToastProvider>
+      <Letter {...props} />
+    </ToastProvider>
   );
 }

@@ -344,6 +344,15 @@ the fourth on the customer's messages, below).
   bottom of the page"). Under a bubble its time and doors are quiet words
   with no underline, and Remove is the red word (rule 25).
 
+#### On a letter
+
+- **The letter editor's rail wears Home's coloured block** (`.hm-blk` in
+  `.lte-sechead`), despite old law 31, colour only where it means
+  something: The letter pink with a file, Signed by purple with a pen. He
+  approved the mock that drew them (27 October 2026: "Other than that,
+  everything looks fine"). Solid, the icon in ink, as on the job's
+  Overview.
+
 ### Named exemptions
 
 Isaac's own shapes on the new Home break some of the laws on purpose, on

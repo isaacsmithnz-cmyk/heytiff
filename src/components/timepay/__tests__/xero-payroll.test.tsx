@@ -75,6 +75,19 @@ describe("XeroPayroll", () => {
     expect(await screen.findByText("The Xero connection needs reconnecting.")).toBeInTheDocument();
   });
 
+  /* Rule 42: what it means, and the one thing to do (the Settings walk, 26
+     October 2026: it was a bare red line). */
+  it("says what a read failure means and asks Xero again", async () => {
+    const user = userEvent.setup();
+    const p = props({ ...base, error: "Xero didn't answer. Try again in a moment." });
+    render(<XeroPayroll {...p} />);
+    expect(await screen.findByText("Nobody can be matched to Xero payroll until it answers.")).toBeInTheDocument();
+    p.load.mockResolvedValueOnce(base);
+    await user.click(screen.getByRole("button", { name: "Ask Xero again" }));
+    expect(p.load).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(screen.queryByText(/didn't answer/)).not.toBeInTheDocument());
+  });
+
   it("offers a suggestion with its evidence, and links on confirmation", async () => {
     const user = userEvent.setup();
     const p = props({

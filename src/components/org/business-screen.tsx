@@ -8,7 +8,7 @@ import { Field, TextInput } from "@/components/parts/field";
 import { Initials } from "@/components/parts/initials";
 import { Empty } from "@/components/parts/states";
 import { Row, RowList } from "@/components/parts/row";
-import { StateWord, stateTone, type Tone } from "@/components/parts/state";
+import { StateWord, type Tone } from "@/components/parts/state";
 import { Tray } from "@/components/parts/tabs";
 import { Switch } from "@/components/parts/tick";
 import { AddressField } from "@/components/address/address-field";
@@ -296,7 +296,8 @@ function expiryWord(expiry: string | null, today: string, warnDays: number): { t
 }
 
 /* Licences and insurance: rows, each opening its record, where a renewal is
-   filed as a new term and the old one kept. A row that has run out or is
+   filed as a new term and the old one kept. The state word carries the one
+   dot; a second at the row's start said it twice (the walk, 26 October). A row that has run out or is
    about to carries Renew, which opens the same record on its update. */
 function CredentialsGroup({
   credentials,
@@ -336,7 +337,6 @@ function CredentialsGroup({
             return (
               <Row
                 key={c.id}
-                dot={stateTone(tone)}
                 name={c.name}
                 line={line || undefined}
                 onClick={() => setOpen({ credential: c })}

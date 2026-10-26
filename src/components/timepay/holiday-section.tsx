@@ -72,6 +72,9 @@ export function HolidaySection({
      add, and a seeding effect would drag the picker back off the state they
      were working in mid-entry. Null simply means "still the org's". */
   const [picked, setPicked] = useState<string | null>(null);
+  /* the years after this one, folded until asked for: three years of a
+     state's calendar is forty rows (the Settings walk, 26 October 2026) */
+  const [later, setLater] = useState(false);
   const [date, setDate] = useState("");
   const [name, setName] = useState("");
   const dateRef = useRef<HTMLButtonElement>(null);
@@ -149,6 +152,7 @@ export function HolidaySection({
     const y = h.date.slice(0, 4);
     byYear.set(y, [...(byYear.get(y) ?? []), h]);
   }
+  const laterYears = [...byYear.keys()].filter((y) => Number(y) > thisYear);
 
   return (
     <div className="st2-pay-hol">
@@ -224,7 +228,7 @@ export function HolidaySection({
       {active.length === 0 ? (
         <Empty what="No public holidays yet" action={null} />
       ) : (
-        [...byYear.entries()].map(([year, rows]) => (
+        [...byYear.entries()].filter(([year]) => later || Number(year) <= thisYear).map(([year, rows]) => (
           <div className="st2-pay-part" key={year}>
             <h3 className="st2-pay-h3">{year}</h3>
             <RowList label={`Public holidays in ${year}`}>
@@ -234,7 +238,7 @@ export function HolidaySection({
                   name={h.name}
                   line={holidayLine(h)}
                   end={
-                    <Button size={32} disabled={busy} aria-label={`Remove ${h.name}`} onClick={() => run(`remove:${h.id}`, () => removeHoliday(h.id))}>
+                    <Button kind="delete" size={32} disabled={busy} aria-label={`Remove ${h.name}`} onClick={() => run(`remove:${h.id}`, () => removeHoliday(h.id))}>
                       {doing === `remove:${h.id}` ? "Removing" : "Remove"}
                     </Button>
                   }
@@ -243,6 +247,14 @@ export function HolidaySection({
             </RowList>
           </div>
         ))
+      )}
+
+      {!later && laterYears.length > 0 && (
+        <div>
+          <Button kind="quiet" size={32} onClick={() => setLater(true)}>
+            {`Show ${laterYears.join(" and ")}`}
+          </Button>
+        </div>
       )}
 
       {removed.length > 0 && (

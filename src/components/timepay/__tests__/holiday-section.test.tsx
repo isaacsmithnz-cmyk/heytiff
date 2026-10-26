@@ -191,7 +191,23 @@ describe("the calendar", () => {
     expect(within(y26).getByText("Thu 1 Jan 2026, WA")).toBeInTheDocument();
     // a day someone added says so; a day the calendar filled in doesn't
     expect(within(y26).getByText("Mon 3 Aug 2026, WA, added by hand")).toBeInTheDocument();
+  });
+
+  /* Three years of a state's calendar is forty rows: the years after this
+     one wait behind one button (the Settings walk, 26 October 2026). */
+  it("folds the years after this one until asked for", async () => {
+    const user = userEvent.setup();
+    await renderSection({ holidays: [hol(), hol({ id: "ny27", date: "2027-01-01" }), hol({ id: "ny28", date: "2028-01-01" })] });
+    expect(screen.queryByRole("list", { name: "Public holidays in 2027" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Show 2027 and 2028" }));
     expect(screen.getByRole("list", { name: "Public holidays in 2027" })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Public holidays in 2028" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Show/ })).not.toBeInTheDocument();
+  });
+
+  it("says Remove as a red word, as every delete is", async () => {
+    await renderSection({ holidays: [hol()] });
+    expect(screen.getByRole("button", { name: "Remove New Year's Day" })).toHaveClass("pt-btn--delete");
   });
 
   it("removes a day this business works, and reads the calendar again", async () => {

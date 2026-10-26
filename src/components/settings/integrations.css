@@ -6,9 +6,12 @@
    read, and the foot that holds Reconnect and Disconnect. The dialogs are
    portalled outside .fg, so their rules are .pt-dialog's. */
 
-/* a sub-heading in the group: Sending to ServiceM8, What HeyTiff reads */
-.fg .st2-int-sub { display:flex; align-items:center; gap:12px; min-height:32px; margin-top:12px; }
-.fg .st2-int-sub h3 { flex:1 1 auto; min-width:0; margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+/* a sub-heading in the group: Sending to ServiceM8, What HeyTiff reads. A
+   label over the part beneath it (13, grey, as Pay and holidays labels its
+   years), on a thin line of its own: at 14 and bold it read as a setting
+   with nothing set (the walk, 26 October 2026). */
+.fg .st2-int-sub { display:flex; align-items:center; gap:12px; min-height:32px; margin-top:8px; padding-top:12px; border-top:1px solid var(--line); }
+.fg .st2-int-sub h3 { flex:1 1 auto; min-width:0; margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
 
 /* a sentence in a state's colour, with its dot by its first line */
 .fg .st2-int-said { display:flex; align-items:flex-start; gap:8px; margin:0; font-size:14px; line-height:20px; font-weight:500; }

@@ -3,6 +3,8 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { Button } from "@/components/parts/button";
+import { Loading, Wrong } from "@/components/parts/states";
 import type {
   LinkingData,
   LinkActionResult,
@@ -71,6 +73,7 @@ export function XeroPayroll({
   const [unread, setUnread] = useState(0);
 
   const refresh = () => {
+    setError(null);
     setLoading(true);
     load()
       .then(setData)
@@ -102,13 +105,23 @@ export function XeroPayroll({
     });
   };
 
-  if (loading) return <p className="xp-note">Reading your Xero payroll</p>;
-  if (!data) return <p className="xp-note">{error ?? "Couldn't load the Xero payroll list."}</p>;
+  /* Rule 42 for both failures: a red dot and the word, what it means, and
+     the one thing to do about it, here and now (the Settings walk, 26
+     October 2026: it was a bare red line). */
+  const askAgain = (
+    <Button kind="second" size={32} disabled={loading} onClick={refresh}>
+      Ask Xero again
+    </Button>
+  );
+
+  if (loading) return <Loading what="Reading your Xero payroll" />;
+  if (!data)
+    return <Wrong word={error ?? "Couldn't load the Xero payroll list."} means="Nobody can be matched to Xero payroll until it loads." action={askAgain} />;
 
   if (!data.connected) {
     return (
       <p className="xp-note">
-        Xero isn&apos;t connected. An owner can connect it in Admin → Integrations, and these
+        Xero isn&apos;t connected. An owner can connect it in Settings › Integrations, and these
         people can be matched afterwards.
       </p>
     );
@@ -117,11 +130,7 @@ export function XeroPayroll({
   /* A read failure must not render as an empty roster — "nobody is on payroll"
      and "we couldn't ask" look identical in a list and mean opposite things. */
   if (data.error) {
-    return (
-      <div className="xp">
-        <p className="xp-note bad">{data.error}</p>
-      </div>
-    );
+    return <Wrong word={data.error} means="Nobody can be matched to Xero payroll until it answers." action={askAgain} />;
   }
 
   const linked = data.rows.filter((r) => r.state.kind === "linked" || r.state.kind === "linked_left");

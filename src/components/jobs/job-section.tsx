@@ -11,15 +11,17 @@ import { Icon } from "@/components/shell/icon";
    The colours are Home's: To do yellow with a tick, the feed green with a
    bubble, as Home's Your feed. The Summary is pink: not blue (it means
    press), red (wrong) or orange (needs a look), and not purple, which is
-   Home's Today. */
+   Home's Today. A project's page (project-detail-screen.tsx) wears the same
+   recipe and takes purple and grey as well, as its mock draws them. */
 
-export type SectionHue = "pink" | "yellow" | "green";
+export type SectionHue = "pink" | "yellow" | "green" | "purple" | "grey";
 
 export function JobSection({
   name,
   icon,
   hue,
   action,
+  note,
   className,
   children,
 }: {
@@ -29,6 +31,8 @@ export function JobSection({
   hue: SectionHue;
   /** On the head's right: one quiet or second button, or the feed's tabs. */
   action?: ReactNode;
+  /** Beside the title, in grey: a fact with a figure ("4 of 15 ticked"). */
+  note?: ReactNode;
   className?: string;
   children: ReactNode;
 }) {
@@ -42,6 +46,7 @@ export function JobSection({
         <h2 className="jov-title" id={id}>
           {name}
         </h2>
+        {note != null && <span className="jov-note">{note}</span>}
         {action && <div className="jov-headact">{action}</div>}
       </div>
       {children}

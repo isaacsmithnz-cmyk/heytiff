@@ -3041,14 +3041,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
    variant and the disabled state). They go as those screens move. */
 .fg .int-back { display:inline-flex; align-items:center; gap:4px; font-size:13px; font-weight:700; color:var(--gray500); text-decoration:none; transition:color var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
 .fg .int-back:hover { color:var(--ink); }
-.fg .int-lede { max-width:620px; margin:0 0 24px; font-size:14px; font-weight:500; line-height:1.6; color:var(--gray500); }
 
 /* The row's state, said in a word (the templates list). */
-
-/* A round trip's outcome, one line. */
-.fg .int-note { padding:12px 16px; margin-bottom:16px; border-radius:var(--r-card); font-size:14px; font-weight:600; line-height:1.45; }
-.fg .int-note.ok { background:var(--ok-tint); color:var(--ok-t); }
-.fg .int-note.bad { background:var(--bad-tint); color:var(--bad-t); }
 
 .fg a.pbtn { text-decoration:none; }
 .fg .int-hint { margin:12px 2px 0; font-size:13px; font-weight:500; line-height:1.55; color:var(--gray500); }
@@ -3270,59 +3264,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg a.stat { text-decoration:none; color:inherit; transition:transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .fg a.stat:hover { }
 
-.wb-day { padding:4px 0 2px; }
-.wb-dayhead { font-size:12px; font-weight:500; color:var(--gray500); margin:8px 0 4px; }
-.wb-row { display:flex; align-items:center; gap:8px; padding:8px 8px; border-radius:var(--r-button); }
-.wb-row:hover { background:var(--tint); }
-.wb-time { font-weight:700; font-size:13px; min-width:64px; }
-.wb-who { flex:1; min-width:0; font-size:14px; white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.wb-who em { font-style:normal; color:var(--gray500); }
-.wb-tech { font-size:13px; color:var(--gray700); font-weight:600; }
-/* a kind, a number or a state, read: the word (law 26). The pressed kind is `button.wb-chip`, below. */
-.wb-chip { font-size:12px; font-weight:500; color:var(--gray700); white-space:nowrap; }
-.wb-chip.on { color:var(--ink); font-weight:700; }
-.wb-chip.bad { color:var(--bad-t); }
-
-/* the overdue breathe — used by the maintenance radar */
-/* an overdue row carries a state edge; the breathe went (law 18) */
-.wb-pulse { border:1px solid var(--bad); }
-
-.wb-bar { height:6px; border-radius:999px; background:var(--tint-2); overflow:hidden; }
-.wb-bar span { display:block; height:100%; border-radius:999px; background:var(--ink); transition:width var(--t-move) var(--ease); }
-
-/* stage stepper */
-.wb-stepper { display:flex; flex-wrap:wrap; gap:4px; }
-button.wb-step { font-size:12px; font-weight:700; padding:8px 12px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--paper); color:var(--gray500); cursor:pointer; }
-.wb-step:disabled { cursor:default; }
-.wb-step.past { background:var(--ok-tint); border-color:transparent; color:var(--ok-t); }
-.wb-step.now { background:var(--ink); border-color:var(--ink); color:var(--paper); }
-.wb-step.todo:hover:not(:disabled) { border-color:var(--ink); color:var(--gray700); }
-
-/* ticks, inline adders, small controls */
-/* TYPED AS `button.` deliberately — the same (0,1,1) trick `button.wb-chip`
-   uses below, and here it is the difference between an empty checkbox and one
-   that looks ticked. A bare `.wb-tick` is (0,1,0) and loses `color:transparent`
-   to the reset's `color:inherit`, so an UNTICKED box drew its check glyph in
-   full ink, with no border and no white fill; only `.done` (0,2,0) survived.
-   Two states that must never be confusable were telling the same story. */
-button.wb-tick { width:24px; height:24px; border-radius:var(--r-control); border:1.5px solid var(--q); background:var(--paper); color:transparent; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex:none; }
-.wb-tick.done { background:var(--ok-t); border-color:var(--ok-t); color:var(--paper); }
-.wb-tick:not(.done):hover { border-color:var(--ok-t); color:var(--ok-tint); }
-/* "Add", not a bare plus (law 25) */
-button.wb-add { height:20px; padding:0 8px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--paper); color:var(--ink); font:inherit; font-size:12px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; margin-left:8px; vertical-align:middle; }
-.wb-add:hover { border-color:var(--ink); }
-/* `input.` for the same (0,1,1) reason as `button.wb-tick` — outside the wb2
-   namespace the input reset still wins, and this field is in-page on the
-   project detail screen (note-capture's copies are portalled). */
-input.wb-inline { flex:1; min-width:0; border:1px solid var(--line); border-radius:var(--r-control); padding:8px 12px; font:inherit; font-size:13px; }
-.wb-inline:focus { outline:none; border-color:var(--ink); box-shadow:var(--ring); }
-.wb-select { border:1px solid var(--line); border-radius:var(--r-control); padding:8px 12px; font:inherit; font-size:13px; background:var(--paper); cursor:pointer; }
-.wb-notetext { font-size:14px; color:var(--gray700); white-space:pre-wrap; margin:0; }
-/* the search result's card. Without the `button.` its border went to
-   `border:none`, which also made `.wb-hit:hover`'s border-COLOR a no-op —
-   the row had no edge to recolour. */
-button.wb-hit { width:100%; text-align:left; border:1px solid var(--line); background:var(--paper); border-radius:var(--r-button); cursor:pointer; margin-top:4px; }
-.wb-hit:hover { background:var(--tint); }
 
 /* the Overview strip */
 
@@ -3362,16 +3303,6 @@ button.wb-hit { width:100%; text-align:left; border:1px solid var(--line); backg
    overflow rule and the neighbours in every row are spaced for it. */
 .wb-lvl .orb-ball { --orb-k:calc(.5 + .55 * var(--lvl)); }
 
-/* visits */
-.wb-chip:disabled { cursor:default; opacity:.7; }
-/* This rule already existed to win the TYPE back, but stopped there — so a
-   plain chip on a button kept its 11px/700 and still lost its grey pill and
-   its ink, while `.on`/`.bad`/`.warn`/`.ghost` (0,2,0) kept theirs. Half a fix
-   reads as a deliberate design ("only status chips are tinted"), which is why
-   it survived a redesign audit. The fill and colour are restated here. */
-button.wb-chip { cursor:pointer; padding:4px 8px; border:1px solid var(--line); border-radius:var(--r-control); font:inherit; font-size:12px; font-weight:700; background:var(--paper); color:var(--ink); }
-button.wb-chip.on { background:var(--tint-2); border-color:var(--ink); }
-button.wb-chip:hover:not(:disabled) { background:var(--tint); }
 
 /* ── Workboard command centre ──────────────────────────────────────────────
    The 6am layer: the switcher, the three vitals, the load rail, the readiness
@@ -3436,12 +3367,6 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
 /* the current stage is TALLER, not just a different colour — it has to be
    findable in a grid of cards without reading any of them */
 
-.wb-chip.warn { color:var(--warn-t); }
-.wb-chip.ghost { color:var(--gray400); }
-.wb-dayhead i { font-style:normal; color:var(--gray400); margin-left:4px; }
-
-/* background too, not just the border — the base :fullscreen .wb-chip fill
-   would otherwise turn the outline chip back into a solid one */
 
 /* ── wb2 — the redesigned maintenance board ────────────────────────────────
    The five-tab command centre (audit E7/K9): Chrome-style tabs joined to ONE
@@ -3637,7 +3562,6 @@ button.wb2-chip { font:inherit; font-size:13px; font-weight:500; color:var(--ink
 button.wb2-chip:hover { box-shadow:0 0 0 1px var(--info-t) inset;; }
 button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 
-.can-open { cursor:pointer; }
 /* A div that SAYS role="button" has to feel like one. Real <button>s get
    cursor:pointer from the reset at the top of this file; a div doesn't, so
    the Upcoming job rows handed you the I-beam of the text they're made of —
@@ -3646,9 +3570,6 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
    next row built this way can't reintroduce it. */
 .wb2 [role="button"], .wb2-sheet [role="button"], .wb2-daymodal [role="button"] { cursor:pointer; }
 
-.wb2-wkhd { display:flex; align-items:baseline; gap:8px; padding:12px 16px 4px; font-size:12px; font-weight:500; color:var(--gray500); }
-.wb2-wkhd.dan { color:var(--wb2-dan-t); }
-.wb2-wkhd em { font-style:normal; font-size:12px; font-weight:600; text-transform:none; color:var(--q); }
 
 .wb2-trj[data-sev="over"]:before, .wb2-trt { min-width:0; }
 .wb2-trt b { display:block; font-size:14px; font-weight:700; }
@@ -3656,26 +3577,9 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
   overflow:hidden; white-space:nowrap;
   -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 
-.wb2-trd { display:flex; flex-direction:column; gap:2px; min-width:0; }
-.wb2-trd b { font-size:13px; font-weight:700; }
-.wb2-trd em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); display:flex; align-items:center; gap:4px; min-width:0; overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.wb2-trd em.dan, .wb2-facts em.dan, .wb2-sched em.dan { color:var(--wb2-dan-t); }
+.wb2-facts em.dan, .wb2-sched em.dan { color:var(--wb2-dan-t); }
 .wb2-av { width:18px; height:18px; border-radius:var(--r-control); background:var(--tint-2); color:var(--gray700);
   display:inline-grid; place-items:center; font-size:12px; font-weight:700; flex:none; }
-.wb2-trck { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; align-items:center; align-self:center; }
-
-.wb2-ckall { grid-column:1/-1; height:30px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--tint);
-  color:var(--ink); display:flex; align-items:center; justify-content:center; gap:8px; font-size:12px; font-weight:700; }
-/* Gates ticked but no day yet: still good news, but not the same news, so it
-   doesn't wear the full green a booked-and-ready job wears. */
-/* the softer "Ready to book" variant is gone — there is no such thing as
-   half-ready. Nothing without a day in the diary wears this strip. */
-.wb2-ckall svg { color:var(--paper); background:var(--wb2-ok); border-radius:var(--r-control); padding:1px; }
-.wb2-ckq { width:100%; height:30px; border-radius:var(--r-control); border:1px solid color-mix(in oklab, var(--as) 34%, var(--paper));
-  background:color-mix(in oklab, var(--as) 8%, var(--paper)); display:grid; place-items:center; }
-.wb2-ckq i { width:8px; height:8px; border-radius:0; background:var(--as); }
-.wb2-ckq svg { color:var(--paper); background:var(--wb2-ok); border-radius:var(--r-control); padding:1px; width:15px; height:15px; }
-.wb2-ckq.on { background:var(--tint); border-color:var(--line); }
 
 .wb2-sect { font-size:12px; font-weight:500; color:var(--gray400);
   padding:4px 2px 4px; }
@@ -3698,9 +3602,7 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 /* Tags read LEFT, like every other column. Right-aligning the last column
    ragged the labels against the card edge and put the heading a long way
    from the first tag under it (Isaac). */
-.wb2-trd.quiet b { color:var(--gray500); font-weight:700; }
 
-.wb2-trd b.dan { color:var(--wb2-dan-t, var(--bad-t)); }
 
 /* ── tags — the stored colour, worn everywhere the same (B2) ── */
 .wb2-tag { display:inline-flex; align-items:center; gap:4px; height:26px; padding:0 8px; border-radius:var(--r-pill);
@@ -6074,11 +5976,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
   animation:wb2WordIn .26s var(--ease) both; }
 @media (prefers-reduced-motion:reduce) { .wb2-lw { animation:none; } }
 
-.wb2-plmoney { display:flex; flex-direction:column; gap:2px; min-width:0; }
-.wb2-plmoney b { font-size:13px; font-weight:700; font-variant-numeric:tabular-nums;
-  overflow:hidden; white-space:nowrap;
-  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.wb2-plmoney em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); }
 
 /* merged calendar: the other board's dots wear a hollow ring, never a fill */
 
@@ -6088,34 +5985,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .wb2-carry input { accent-color:var(--wb2-cy); width:15px; height:15px; }
 .wb2-hint.dan { color:var(--wb2-dan-t); }
 .wb2 .pbtn.ghost.dan, .wb2-sheet .pbtn.ghost.dan { color:var(--wb2-dan-t); border-color:var(--bad); }
-
-/* the project page's trip rows — the board's triage anatomy on a card2 */
-.wb2-triprow { display:grid; grid-template-columns:minmax(0,1fr) 170px 200px; gap:12px; align-items:center;
-  padding:12px 4px; border-bottom:1px solid var(--line); }
-.wb2-triprow:last-child { border-bottom:0; }
-.wb2-triprow.can-open { cursor:pointer; border-radius:var(--r-button); padding:12px 8px; margin:0 -10px;
-  transition:background var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
-.wb2-triprow.can-open:hover { background:var(--tint); }
-.wb2-triprow.can-open:focus-visible { outline:none; box-shadow:inset var(--ring);; }
-.wb2-triprow.donerow .wb2-trt b { opacity:.75; }
-.wb2-triprow.add { grid-template-columns:minmax(0,1fr) auto auto auto; align-items:end; }
-.wb2-triprow.add .wb2-fl { display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:500; color:var(--gray500); }
-@media (max-width:900px) { .wb2-triprow { grid-template-columns:1fr; gap:8px; } }
-
-/* the money, scope and dates cards on the project page */
-.wb2-moneyrow { display:grid; grid-template-columns:minmax(0,1fr) auto auto auto; gap:12px; align-items:center;
-  padding:12px 4px; border-bottom:1px solid var(--line); }
-.wb2-moneyrow:last-child { border-bottom:0; }
-.wb2-moneyrow.head { background:var(--tint); border-radius:var(--r-button); padding:12px 12px; margin-bottom:4px; border-bottom:0; }
-/* here the figure stands in an auto column, as wide as it is: nothing to fade */
-.wb2-moneyrow .wb2-plmoney b { font-size:14px; -webkit-mask-image:none; mask-image:none; }
-.wb2-moneystrip { display:flex; gap:8px; align-items:center; margin:4px 0 8px; }
-.wb2-scope { display:grid; grid-template-columns:1fr 1fr; gap:0 24px; }
-.wb2-scopecol { min-width:0; }
-.wb2-scopemark { width:20px; height:20px; border-radius:var(--r-control); display:inline-grid; place-items:center; flex:none;
-  background:var(--tint-2); color:var(--ink); }
-.wb2-scopemark.out { background:var(--bad-tint); color:var(--bad-t); }
-@media (max-width:800px) { .wb2-scope { grid-template-columns:1fr; } .wb2-moneyrow { grid-template-columns:minmax(0,1fr) auto; } }
 
 /* ---- correcting a log entry ----
    Unscoped, like the rest of the fleet modal block: these render inside the
@@ -7460,6 +7329,80 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
   .fg .jov-fact:first-child { border-radius:16px 16px 0 0; }
   .fg .jov-fact:last-child { border-radius:0 0 16px 16px; }
 }
+
+/* ===== V2: A PROJECT'S PAGE (Isaac, 27 October 2026, on the old screens'
+   mock: "everything looks fine") =====
+   workboard/project-detail-screen.tsx and its sections. It wears the job
+   page's head (.jp-*), its stages line and strip of facts (.jov-*) and the
+   one section recipe (job-section.tsx); what is the project's own is here.
+   A row's Remove waits for the pointer or the keyboard (law 24). The
+   forms portal out of .fg, so theirs are written bare, at the foot. */
+.fg .pj-head { margin-bottom:16px; }
+.fg .pj-panel { padding-top:24px; }
+.fg .pj-two { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:48px; align-items:start; }
+.fg .pj-col { display:flex; flex-direction:column; gap:24px; min-width:0; }
+.fg .pj-one { max-width:640px; }
+.fg .pj-side { display:flex; flex-direction:column; gap:24px; }
+.fg .jov-note { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .pj-blocked { display:flex; flex-direction:column; gap:4px; }
+.fg .pj-blocked-word { display:flex; align-items:center; gap:8px; margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--red-w); }
+.fg .pj-cap { margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.fg .pj-client { display:flex; align-items:center; gap:12px; min-width:0; }
+.fg .pj-sub { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:32px; margin:16px 0 4px; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .pj-group:first-child .pj-sub { margin-top:0; }
+.fg .pj-none { margin:0; padding:12px 0; border-top:1px solid var(--line); font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .pj-row { gap:12px; }
+.fg .pj-text { flex:1 1 auto; display:flex; flex-direction:column; min-width:0; }
+.fg .pj-name { min-width:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
+.fg .pj-plain { flex:1 1 auto; font-weight:400; }
+.fg .pj-wrap { white-space:pre-wrap; }
+.fg .pj-line { font-size:13px; line-height:18px; font-weight:400; color:var(--q); overflow-wrap:anywhere; }
+.fg .pj-lead { flex:none; min-width:88px; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .pj-end { flex:none; display:flex; align-items:center; justify-content:flex-end; gap:8px; }
+.fg .pj-when { font-size:13px; line-height:18px; color:var(--q); }
+.fg .pj-amt { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .pj-done .pt-tick__word { color:var(--q); }
+.fg .pj-row .pj-rm { opacity:0; transition:opacity var(--t-fast) var(--ease); }
+.fg .pj-row:hover .pj-rm, .fg .pj-row:focus-within .pj-rm { opacity:1; }
+.fg .pj-adder { flex:1 1 auto; display:flex; align-items:center; gap:8px; min-width:0; }
+.fg .pj-adder .pt-input, .fg .pj-compose .pt-input, .fg .pj-row > .pt-input { flex:1 1 auto; min-width:0; }
+.fg .pj-compose { display:flex; gap:8px; margin-bottom:12px; }
+.fg .pj-notes { margin:0; padding-top:12px; border-top:1px solid var(--line); font-size:16px; line-height:24px; color:var(--ink); white-space:pre-wrap; overflow-wrap:anywhere; }
+.fg .pj-notes-edit { gap:12px; }
+.fg .pj-jobno { flex:none; min-width:48px; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg a.pj-joblink { text-decoration:none; }
+.fg a.pj-joblink:hover { text-decoration:underline; text-underline-offset:2px; }
+.fg .pj-trip { position:relative; display:grid; grid-template-columns:minmax(0,1fr) 160px auto; gap:16px; align-items:center; min-height:48px; padding:8px 0; border-bottom:1px solid var(--line); transition:background-color var(--t-fast) var(--ease); }
+.fg .pj-trip:hover { background:var(--hov); }
+.fg .pj-trip-hit { position:absolute; inset:0; padding:0; border:0; background:none; cursor:pointer; }
+.fg .pj-trip-hit:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .pj-gates { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; }
+.fg .pj-sr { position:absolute; width:1px; height:1px; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.fg .pj-total { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; padding-bottom:16px; border-bottom:1px solid var(--line); }
+.fg .pj-total-k { display:flex; flex-direction:column; align-items:flex-start; gap:4px; }
+.fg .pj-total-lab { font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .pj-big { font-size:32px; line-height:40px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .pj-sums { display:flex; flex-direction:column; gap:4px; padding-bottom:8px; }
+.fg .pj-sum { margin:0; font-size:14px; line-height:20px; color:var(--ink); }
+.fg .pj-words { display:flex; flex-wrap:wrap; gap:12px; margin:0; }
+@media (max-width:900px) {
+  .fg .pj-two { grid-template-columns:minmax(0,1fr); gap:32px; }
+  .fg .pj-trip { grid-template-columns:minmax(0,1fr); gap:8px; }
+  .fg .pj-gates { justify-content:flex-start; }
+}
+/* the project's forms, on the Dialog part, outside .fg */
+.pj-attach { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,2fr); gap:12px; align-items:start; }
+.pj-attach.pj-attach--typed { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+.pj-dlg-cap { margin:0; font-size:13px; line-height:18px; color:var(--q); }
+.pj-dlg-line { margin:0; font-size:14px; line-height:20px; color:var(--ink); }
+.pj-hits { list-style:none; margin:0; padding:0; border-top:1px solid var(--line); }
+.pj-hit { display:flex; align-items:center; gap:12px; min-height:48px; padding:8px 0; border-bottom:1px solid var(--line); font-family:var(--font); }
+.pj-hit-no { flex:none; min-width:48px; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+.pj-hit-text { flex:1 1 auto; display:flex; flex-direction:column; min-width:0; font-size:13px; line-height:18px; color:var(--q); }
+.pj-hit-text b { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.pj-photo { display:flex; align-items:center; gap:12px; }
+.pj-thumb { flex:none; width:48px; height:48px; border-radius:var(--r-control); object-fit:cover; background:var(--soft); }
+.pj-photo-read { flex:1 1 auto; min-width:0; }
 
 /* WHAT CAME WITH A MESSAGE (Isaac, 26 October 2026): a quiet row each,
    the paperclip, the file's name fading and its type grey, opening it where

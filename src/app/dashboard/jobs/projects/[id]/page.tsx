@@ -8,6 +8,7 @@ import { getConnectionView } from "@/lib/integrations/store";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
 import { ProjectDetailScreen } from "@/components/workboard/project-detail-screen";
+import { parseProjectTab } from "@/lib/workboard/project-tabs";
 
 /* One project, whole story, under Jobs (/dashboard/jobs/projects/<id> since
    24 October 2026; the Workboard's old address lands here): stage, trips, checklist, money, equipment,
@@ -17,12 +18,17 @@ import { ProjectDetailScreen } from "@/components/workboard/project-detail-scree
 
    Trips come from the SAME loader the board reads (loadProjectsBoard), so
    this page and the board can never tell different stories about a trip —
-   K2's rule, applied to the route. */
+   K2's rule, applied to the route.
+
+   `?tab=` names the open section, as on a job's page: one of the six, and
+   Money only for whoever sees money; anything else is Overview. */
 
 export default async function ProjectPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   if (!(await can("workboard"))) redirect("/dashboard");
 
@@ -31,6 +37,7 @@ export default async function ProjectPage({
   if (!orgId) redirect("/dashboard");
 
   const { id } = await params;
+  const { tab } = await searchParams;
   const today = todayInZone(await getSm8Timezone(orgId));
   // Money is its own grant (`workboard_money`, owner-tier) — asked once here
   // and handed to both loaders, so neither reads what this person may not see.
@@ -55,6 +62,7 @@ export default async function ProjectPage({
       sm8Connected={connection?.status === "connected"}
       entries={entries}
       issues={issues}
+      tab={parseProjectTab(tab, includeMoney)}
     />
   );
 }

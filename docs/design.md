@@ -60,7 +60,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 
 - **29. Views of a list.** Soft tabs under the title: words alone, the one you're on in a light fill. No outlines. No tab anywhere carries a number, and a screen's title carries no count beside it ("Team", not "Team 3 people"): a view with something waiting has its word in amber, red when something is wrong (Isaac, 20 October: "We need to rule it out everywhere").
 - **30. One of a few.** Day, Week, Month in a thin tray; the chosen one filled light.
-- **31. Section tabs.** Underlined, the one you're on standing on 2px of ink. No numbers on them, as rule 29: a tab with something to look at has its word in amber, red when something is wrong (Isaac, 20 October). A job has seven: Overview, Quote, Visits, Materials, Photos, Documents, Billing (Materials was Checklist until 25 October 2026, and `?tab=checklist` still lands on it). A person has five: Overview, Hours & leave, Papers, Pay, Access.
+- **31. Section tabs.** Underlined, the one you're on standing on 2px of ink. No numbers on them, as rule 29: a tab with something to look at has its word in amber, red when something is wrong (Isaac, 20 October). A job has seven: Overview, Quote, Visits, Materials, Photos, Documents, Billing (Materials was Checklist until 25 October 2026, and `?tab=checklist` still lands on it). A project has six: Overview, Trips, Scope, Money, Site, Documents (27 October 2026). A person has five: Overview, Hours & leave, Papers, Pay, Access.
 - **32. Ticks and switches.** Blue when on. A switch saves itself.
 - **33. Fields.** 36 tall, a 6 corner, the label above. A wrong field gets a red edge and says why underneath.
 - **34. Menus to choose from.** A field with a chevron; opens a menu. A time opens a wheel: the hour, minutes in fives, am or pm. Nothing types a clock time.
@@ -351,6 +351,18 @@ the fourth on the customer's messages, below).
   approved the mock that drew them (27 October 2026: "Other than that,
   everything looks fine"). Solid, the icon in ink, as on the job's
   Overview.
+
+#### On a project's page
+
+His call on the old screens' mocks (27 October 2026: "Other than that,
+everything looks fine").
+
+- **A project's section heads wear Home's coloured block** (`.hm-blk` in
+  `.jov-head`), as the job's Overview does, despite old law 31: Checklist
+  and Dates yellow, Jobs, Trips and Design purple, the journals, Claims and
+  In the price green, Notes, Variations and Documents pink, Not in the
+  price and Recurring issues grey. Solid with the icon in ink, never blue,
+  red or orange.
 
 ### Named exemptions
 

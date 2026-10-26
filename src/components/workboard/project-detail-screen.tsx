@@ -1,44 +1,44 @@
 "use client";
 
-import { useMemo, useState, useTransition, type CSSProperties } from "react";
-import { projectsHref } from "@/lib/shell/links";
+import { useEffect, useId, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
-import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
+import { Button, LinkButton } from "@/components/parts/button";
+import { ConfirmDialog } from "@/components/parts/dialog";
+import { TextInput } from "@/components/parts/field";
+import { Fade } from "@/components/parts/fade";
+import { Initials } from "@/components/parts/initials";
+import { Menu, type MenuItem } from "@/components/parts/menu";
+import { Dot, StateWord } from "@/components/parts/state";
+import { SectionTabs, type TabItem } from "@/components/parts/tabs";
+import { Tick } from "@/components/parts/tick";
+import { JobSection } from "@/components/jobs/job-section";
+import { phoneWords, telHref } from "@/components/jobs/job-facts";
 import { NoteToken } from "@/components/notes/note-token";
-import { WbModal } from "./wb-modal";
+import { useNoteScopeScreen } from "@/components/notes/note-context";
+import { useRecords } from "@/components/records/records-context";
+import { namePage } from "@/components/shell/page-names";
 import { auDayOf, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
-import {
-  PROJECT_STAGES,
-  checklistProgress,
-  leftBehindFor,
-  stageAdvice,
-  stageIndex,
-} from "@/lib/workboard/stages";
-import type { JobSearchHit, ProjectDetail } from "@/lib/workboard/projects-query";
+import { jobPageHref } from "@/lib/shell/links";
+import { PROJECT_TABS, parseProjectTab, type ProjectTab } from "@/lib/workboard/project-tabs";
+import { PROJECT_STAGES, SECTION_STAGES, checklistProgress, stageAdvice, stageIndex } from "@/lib/workboard/stages";
+import { deriveProjectMoney, fmtAud } from "@/lib/workboard/project-money";
+import type { ProjectDetail } from "@/lib/workboard/projects-query";
 import type { IssueRow, ProjectEntry } from "@/lib/workboard/notes-query";
 import type { ProjectBoardVisit } from "@/lib/workboard/projects-board-query";
 import type { BoardTech } from "@/lib/workboard/board-query";
-import { useNoteScopeScreen } from "@/components/notes/note-context";
 import { ProjectTripSheet } from "./board/project-trip-sheet";
+import { AgreementForm } from "./board/agreement-form";
 import { ToastHost, useBoardToasts } from "./board/toasts";
-import {
-  GATE_LABEL,
-  agoLabel,
-  projectMissingOf,
-  projectPlacedDayOf,
-  untilLabel,
-} from "./board/derive";
+import { GATE_LABEL, agoLabel, projectMissingOf, projectPlacedDayOf, untilLabel } from "./board/derive";
 import {
   addChecklistItem,
   addEquipment,
   attachJob,
   detachJob,
-  listDesignOptions,
   removeChecklistItem,
   removeEquipment,
-  searchJobs,
   setEquipmentManualLeft,
   setProjectDesign,
   setProjectStage,
@@ -47,38 +47,77 @@ import {
   updateProjectMeta,
 } from "@/app/actions/workboard";
 import {
+  addClaim,
+  addMilestone,
   addProjectEntry,
+  addVariation,
   attachDocumentToProject,
   clearProjectBlocked,
   createProjectVisit,
+  decideVariation,
   setProjectBlocked,
+  setProjectBudget,
+  setProjectDefectsEnd,
+  setProjectHoursBudget,
+  setProjectPromise,
 } from "@/app/actions/workboard-projects";
-import { readEquipmentPhoto } from "@/app/actions/workboard-ai";
 import { deleteDocument } from "@/app/actions/documents";
 import { uploadFile } from "@/lib/documents/upload-client";
 import { fmtBytes } from "@/lib/documents/files";
-import {
-  DatesCard,
-  FlywheelCard,
-  MoneyCard,
-  ScopeCard,
-  VariationsCard,
-} from "./project-money-cards";
-import { DateField } from "@/components/ui/date-field";
 import { withCleanup } from "@/lib/ui/with-cleanup";
-import { fileToUprightBase64 } from "@/lib/images/upright";
+import {
+  AgreementSection,
+  DatesSection,
+  MoneySection,
+  ScopeSections,
+  VariationsSection,
+  totalBasis,
+  type Run,
+} from "./project-money-cards";
+import {
+  AttachJobForm,
+  BlockForm,
+  ClaimForm,
+  DayForm,
+  DecideForm,
+  DesignForm,
+  EditProjectForm,
+  EquipmentForm,
+  HoursForm,
+  MilestoneForm,
+  SectionForm,
+  TotalForm,
+  TripForm,
+  VariationForm,
+  type OpenForm,
+} from "./project-forms";
 
-/* One project, stacked cards — the whole start-to-finish story on one page,
-   now in the redesigned board's language: the stage is manual but
-   checklist-AWARE (a completed section offers the move; advancing past
-   unticked items warns and never blocks — decision P5), Blocked is a
-   first-class state with a reason and a who (P4), and the trips the crew
-   actually drives live here with their gates, bring lists and close-outs —
-   the same rows the board shows, from the same loader, so the two can never
-   disagree.
+/* ONE PROJECT, A PAGE LIKE A JOB'S (Isaac, 27 October 2026, on the old
+   screens' mock: "everything looks fine"). It was a stack of up to sixteen
+   cards in v1's dress; it is now the job page's shape:
 
-   Ticking is for everyone on the board; SHAPING is offered only to managers
-   — and the server re-decides both, so these flags only decide what's drawn. */
+     the head: the project's name, then where it stands as a word (On hold,
+       Blocked), the one press that state wants in blue (Resume project,
+       Unblock project, Reopen project) and Actions, a white menu: what Add
+       makes, then Edit details, Link design and the handover sheet, then
+       Block and Put on hold (rule 53);
+     six section tabs (rule 31): Overview, Trips, Scope, Money, Site and
+       Documents, the one open kept in the address as `?tab=`;
+     Overview: the stage line, the strip of facts (Site, Client, Next trip,
+       Money), then the checklist and the jobs beside the site journal and
+       the notes.
+
+   The stage is manual but checklist-AWARE (decision P5): a completed
+   section offers the move, and moving past unticked items asks first, in
+   a dialog, and never blocks. Blocked is first-class with a reason and a who
+   (P4). The trips are the board's own rows, from the same loader, so the
+   two can never disagree.
+
+   Ticking is for everyone on the board; SHAPING is offered only to managers,
+   and the server re-decides both, so these flags only decide what's drawn.
+   Money and variations are one grant (`workboard_money`): without it the
+   loader returned none, so the Money tab and the strip's Money cell are
+   ABSENT rather than empty. */
 
 export function ProjectDetailScreen({
   project,
@@ -89,6 +128,7 @@ export function ProjectDetailScreen({
   sm8Connected,
   entries,
   issues,
+  tab: firstTab = "overview",
 }: {
   project: ProjectDetail;
   trips: ProjectBoardVisit[];
@@ -98,456 +138,232 @@ export function ProjectDetailScreen({
   sm8Connected: boolean;
   entries: ProjectEntry[];
   issues: IssueRow[];
+  tab?: ProjectTab;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const records = useRecords();
   const [busy, start] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [attaching, setAttaching] = useState(false);
-  const [addingEquip, setAddingEquip] = useState(false);
-  const [editingMeta, setEditingMeta] = useState(false);
-  const [blocking, setBlocking] = useState(false);
-  const [tripSheet, setTripSheet] = useState<{ visitId: string; closeOut: boolean } | null>(null);
+  const [tab, setTab] = useState<ProjectTab>(parseProjectTab(firstTab, project.moneyVisible));
+  const [form, setForm] = useState<OpenForm | null>(null);
+  const [addingTo, setAddingTo] = useState<string | null>(null);
+  const [tripSheet, setTripSheet] = useState<string | null>(null);
   const { toasts, toast, dismiss } = useBoardToasts();
+  const close = () => setForm(null);
 
-  const run = (fn: () => Promise<{ ok: boolean; error?: string }>) => {
-    setError(null);
+  const run: Run = (fn) => {
     start(async () => {
       const res = await fn();
-      if (!res.ok && res.error) setError(res.error);
+      if (!res.ok && res.error) toast(res.error);
       router.refresh();
     });
   };
-
-  const progress = checklistProgress(project.checklist);
-  const sections = useMemo(() => {
-    const by = new Map<string, ProjectDetail["checklist"]>();
-    for (const item of project.checklist) {
-      (by.get(item.section) ?? by.set(item.section, []).get(item.section)!).push(item);
-    }
-    return [...by.entries()];
-  }, [project.checklist]);
-
-  const live = project.status === "active" || project.status === "blocked";
-  const sheetTrip = tripSheet ? trips.find((t) => t.id === tripSheet.visitId) ?? null : null;
-  const openTrips = trips.filter((t) => t.status === "upcoming" || t.status === "booked");
-  const nextTripFor = (v: { id: string; dueDate: string }) => {
-    const later = openTrips
-      .filter((o) => o.id !== v.id && o.dueDate >= v.dueDate)
-      .sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1));
-    return later[0] ? { id: later[0].id, label: later[0].label } : null;
+  /** Close the form, then run what it handed back. */
+  const submit: Run = (fn) => {
+    setForm(null);
+    run(fn);
   };
 
-  /* This page IS a job, so the scope names it once and every posture below
-     inherits it — the capsule by the header, the notes field further down,
-     and the trip sheet's own boxes. Nothing passes a project id to a note
-     control any more. */
-  /* What this screen is about, reported up to the Tiff button in the frame:
-     a note taken here lands on THIS project without anybody passing a target
-     down. The roster is the real one rather than a derivation — this screen
-     already has it, and it's what lets a dictated "Dane needs to chase the
-     switchboard" reach the Tiff modal instead of staying a string in a box. */
+  /* the open tab's name, as a job's page names its own */
+  useEffect(() => {
+    if (pathname) namePage(pathname, { label: project.name });
+  }, [pathname, project.name]);
+
+  /* This page IS a record, so the scope names it once: a note taken here,
+     at the Tiff button in the frame or in the notes below, lands on THIS
+     project. The roster is the real one, so a dictated "Dane needs to chase
+     the switchboard" reaches the Tiff modal instead of staying a string. */
   useNoteScopeScreen({
     target: { kind: "project", id: project.id },
     targetLabel: project.name,
     staffFirstNames: staff.map((s) => s.name.trim().split(/\s+/)[0]).filter((n) => n.length >= 2),
   });
 
+  const goTab = (next: string) => {
+    const t = parseProjectTab(next, project.moneyVisible);
+    setTab(t);
+    const url = new URL(window.location.href);
+    if (t === "overview") url.searchParams.delete("tab");
+    else url.searchParams.set("tab", t);
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  };
+
+  const live = project.status === "active" || project.status === "blocked";
+  const openTrips = trips.filter((t) => t.status === "upcoming" || t.status === "booked").sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1));
+  const sheetTrip = tripSheet ? trips.find((t) => t.id === tripSheet) ?? null : null;
+  const nextTripFor = (v: { id: string; dueDate: string }) => {
+    const later = openTrips.filter((o) => o.id !== v.id && o.dueDate >= v.dueDate);
+    return later[0] ? { id: later[0].id, label: later[0].label } : null;
+  };
+
+  /* ── the head's presses ── */
+  const status = (to: string) => () => run(() => setProjectStatus(project.id, to));
+  const main: { label: string; press: () => void } | null = !manage
+    ? null
+    : project.status === "on_hold"
+      ? { label: "Resume project", press: status("active") }
+      : project.status === "blocked"
+        ? { label: "Unblock project", press: () => run(() => clearProjectBlocked(project.id)) }
+        : project.status === "done" || project.status === "archived"
+          ? { label: "Reopen project", press: status("active") }
+          : null;
+
+  const actions: MenuItem[] = manage
+    ? [
+        ...(live ? [{ key: "add-trip", label: "Add trip" }] : []),
+        { key: "add-equipment", label: "Add equipment" },
+        ...(project.moneyVisible
+          ? [
+              { key: "add-claim", label: "Add claim" },
+              { key: "add-variation", label: "Add variation" },
+            ]
+          : []),
+        { key: "add-milestone", label: "Add milestone" },
+        { key: "edit", label: "Edit details", rule: true },
+        { key: "design", label: project.designId ? "Change design" : "Link design" },
+        { key: "handover", label: "Open handover sheet" },
+        ...(project.status === "active"
+          ? [
+              { key: "block", label: "Block project", rule: true },
+              { key: "hold", label: "Put on hold" },
+              ...(project.stage === "Complete" ? [{ key: "done", label: "Mark project done" }] : []),
+            ]
+          : project.status === "blocked"
+            ? [{ key: "hold", label: "Put on hold", rule: true }]
+            : []),
+        ...(project.status === "done" ? [{ key: "archive", label: "Archive project", danger: true }] : []),
+      ]
+    : [{ key: "handover", label: "Open handover sheet" }];
+
+  const onAction = (key: string) => {
+    if (key === "add-trip") {
+      goTab("trips");
+      setForm({ kind: "trip" });
+    } else if (key === "add-equipment") setForm({ kind: "equipment" });
+    else if (key === "add-claim") setForm({ kind: "claim" });
+    else if (key === "add-variation") setForm({ kind: "variation" });
+    else if (key === "add-milestone") {
+      goTab("trips");
+      setForm({ kind: "milestone" });
+    } else if (key === "edit") setForm({ kind: "edit" });
+    else if (key === "design") setForm({ kind: "design" });
+    else if (key === "handover") window.open(`/handover/${project.id}`, "_blank", "noopener,noreferrer");
+    else if (key === "block") setForm({ kind: "block" });
+    else if (key === "hold") status("on_hold")();
+    else if (key === "done") status("done")();
+    else if (key === "archive") status("archived")();
+  };
+
+  const tabs: TabItem[] = PROJECT_TABS.filter((t) => t.key !== "money" || project.moneyVisible).map((t) => ({ key: t.key, label: t.label }));
+  const sections = useMemo(() => sectionsOf(project.checklist), [project.checklist]);
+
   return (
-    /* Paper to the frame, the project's name in the band with its status and
-       Edit at the band's end, and the way back to the board on its own line
-       above it (2026-09-20). Who and where follows the band: the band is for
-       the name, and the address is the first fact about the project, not a
-       subtitle of the screen. */
-    <div className="page in full">
-      <div className="wrap">
-        <div className="stg">
-          <ScreenBand
-            crumb={
-              <Link href={projectsHref} className="int-back">
-                <Icon name="chevL" size={15} />
-                Projects
-              </Link>
-            }
-            title={project.name}
-            tools={
-              manage ? (
-                <>
-                  <StatusCluster
+    <div className="page in">
+      <div className="wrap jp pj">
+        <ProjectHead project={project} main={main} actions={actions} onAction={onAction} busy={busy} />
+        <SectionTabs items={tabs} current={tab} onGo={goTab} ariaLabel="The project" idPrefix="pj-tab" />
+
+        <div className="pj-panel" role="tabpanel" aria-labelledby={`pj-tab-${tab}`}>
+          {tab === "overview" && (
+            <div className="jov">
+              {project.status === "blocked" && <BlockedLine project={project} />}
+              <StageLine project={project} manage={manage} busy={busy} run={run} />
+              <ProjectFacts project={project} openTrips={openTrips} onTrips={() => goTab("trips")} onMoney={() => goTab("money")} />
+              <div className="jov-cols">
+                <div className="jov-main">
+                  <AgreementSection project={project} manage={manage} onOpen={setForm} />
+                  <ChecklistSection
                     project={project}
+                    sections={sections}
+                    manage={manage}
+                    live={live}
                     busy={busy}
                     run={run}
-                    onBlock={() => setBlocking(true)}
+                    addingTo={addingTo}
+                    onAdding={setAddingTo}
+                    onOpen={setForm}
                   />
-                  <button className="pbtn ghost" onClick={() => setEditingMeta(true)}>
-                    <Icon name="edit" size={15} />
-                    Edit
-                  </button>
-                </>
-              ) : null
-            }
-          />
-          <ScreenPanel>
-          <p className="int-lede">
-            {[project.clientName, project.siteLabel, project.siteAddress]
-              .filter(Boolean)
-              .join(", ") || "No client details yet"}
-          </p>
-
-          {error && <div className="int-note bad">{error}</div>}
-
-          {project.status === "blocked" && (
-            <div className="int-note bad">
-              <b>Blocked{project.blockedOn ? ` on ${project.blockedOn}` : ""}</b>
-              {project.blockedReason ? ` — ${project.blockedReason}` : ""}
-              {project.blockedAt ? `, since ${fmtAuWeekdayDayMonth(auDayOf(project.blockedAt))}` : ""}
-              {manage && (
-                <button
-                  className="pbtn ghost"
-                  style={{ marginLeft: 10 }}
-                  disabled={busy}
-                  onClick={() => run(() => clearProjectBlocked(project.id))}
-                >
-                  Unblock
-                </button>
-              )}
-            </div>
-          )}
-          {project.status === "on_hold" && (
-            <div className="int-note">
-              On hold — its trips sit quiet on the board until it resumes.
-            </div>
-          )}
-          {project.status === "done" && (
-            <div className="int-note">Closed — it lives under the board&apos;s Completed tab.</div>
-          )}
-          {project.status === "archived" && (
-            <div className="int-note">Archived — hidden from the board entirely.</div>
-          )}
-
-          <StageCard project={project} manage={manage} live={live} busy={busy} run={run} />
-          <TripsCard
-            project={project}
-            trips={trips}
-            openTrips={openTrips}
-            today={today}
-            manage={manage}
-            live={live}
-            busy={busy}
-            run={run}
-            onOpenTrip={(visitId) => setTripSheet({ visitId, closeOut: false })}
-          />
-
-          <FlywheelCard project={project} manage={manage} busy={busy} />
-          {/* Money and variations are one grant (`workboard_money`). Without it
-              the loader returned no budget, no claims and no variations, so the
-              cards are ABSENT rather than empty — an empty money card would
-              read as "this job has no total", which is a claim about the
-              project and not about who's looking. Scope and dates stay: an
-              exclusion list is site knowledge, not money. */}
-          {project.moneyVisible && (
-            <MoneyCard project={project} manage={manage} busy={busy} run={run} />
-          )}
-          <ScopeCard project={project} manage={manage} busy={busy} run={run} />
-          {project.moneyVisible && (
-            <VariationsCard project={project} manage={manage} busy={busy} run={run} />
-          )}
-          <DatesCard project={project} today={today} manage={manage} busy={busy} run={run} />
-
-          {/* ── checklist ── */}
-          <div className="card2">
-            <div className="c2h">
-              <div>
-                <b>Checklist</b>
-                <em>
-                  {progress.done}/{progress.total} ticked — ticks record who and when.
-                </em>
+                  <JobsSection project={project} manage={manage} busy={busy} run={run} onOpen={setForm} />
+                </div>
+                <div className="jov-side pj-side">
+                  <JournalSection
+                    project={project}
+                    entries={entries}
+                    busy={busy}
+                    run={run}
+                    kind="progress"
+                    name="Site journal"
+                    icon="chat"
+                    placeholder="What was done or found today"
+                    press="Add entry"
+                  />
+                  <NotesSection
+                    notes={project.notes}
+                    manage={manage}
+                    busy={busy}
+                    onSave={(text) => run(() => updateProjectMeta(project.id, { notes: text }))}
+                  />
+                </div>
               </div>
             </div>
-            <div className="wb-bar" style={{ marginBottom: 14 }}>
-              <span style={{ width: `${progress.percent}%` }} />
+          )}
+
+          {tab === "trips" && (
+            <div className="pj-two">
+              <TripsSection trips={trips} openTrips={openTrips} today={today} canAdd={manage && live} onAdd={() => setForm({ kind: "trip" })} onOpenTrip={setTripSheet} />
+              <DatesSection project={project} today={today} manage={manage} busy={busy} run={run} onOpen={setForm} />
             </div>
-            {sections.map(([section, items]) => (
-              <ChecklistSection
-                key={section}
-                section={section}
-                items={items}
-                manage={manage}
+          )}
+
+          {tab === "scope" && <ScopeSections project={project} manage={manage} busy={busy} run={run} />}
+
+          {tab === "money" && project.moneyVisible && (
+            <div className="pj-two">
+              <MoneySection project={project} manage={manage} busy={busy} run={run} onOpen={setForm} />
+              <VariationsSection project={project} manage={manage} busy={busy} run={run} onOpen={setForm} />
+            </div>
+          )}
+
+          {tab === "site" && (
+            <div className="pj-two">
+              <div className="pj-col">
+                <EquipmentSection project={project} manage={manage} busy={busy} run={run} onOpen={setForm} />
+                <DesignSection project={project} manage={manage} onOpen={setForm} />
+                {issues.length > 0 && <IssuesSection issues={issues} />}
+              </div>
+              <JournalSection
+                project={project}
+                entries={entries}
                 busy={busy}
-                onToggle={(id, done) => run(() => toggleChecklistItem(id, done))}
-                onRemove={(id) => run(() => removeChecklistItem(id))}
-                onAdd={(label) => run(() => addChecklistItem(project.id, section, label))}
+                run={run}
+                kind="commissioning"
+                name="Commissioning"
+                icon="thermo"
+                placeholder="Readings and settings"
+                press="Add reading"
+                action={
+                  <Button size={32} href={`/handover/${project.id}`} target="_blank" rel="noreferrer">
+                    Open handover sheet
+                  </Button>
+                }
               />
-            ))}
-            {manage && sections.length === 0 && (
-              <p className="int-hint">No items yet — add the first below.</p>
-            )}
-            {manage && (
-              <NewSectionAdder
-                onAdd={(section, label) => run(() => addChecklistItem(project.id, section, label))}
-                busy={busy}
-              />
-            )}
-          </div>
-
-          {/* ── equipment / left on site ── */}
-          <div className="card2">
-            <div className="c2h">
-              <div>
-                <b>Equipment on site</b>
-                {project.equipment.length > 0 && <em>{project.equipment.length === 1 ? "1 item" : `${project.equipment.length} items`}</em>}
-              </div>
-              {manage && (
-                <button className="pbtn ghost" style={{ marginLeft: "auto" }} onClick={() => setAddingEquip(true)}>
-                  <Icon name="plus" size={15} />
-                  Add
-                </button>
-              )}
-            </div>
-            {project.equipment.length === 0 ? (
-              <p className="int-hint">Nothing recorded yet.</p>
-            ) : (
-              project.equipment.map((e) => (
-                <div className="wb-row" key={e.id}>
-                  <span className="wb-who">
-                    <b>{e.description}</b>
-                    {(e.model || e.serial) && (
-                      <em>
-                        {" "}
-                       , {[e.model, e.serial && `s/n ${e.serial}`].filter(Boolean).join(", ")}
-                      </em>
-                    )}
-                    {e.locationNote && <em>, {e.locationNote}</em>}
-                  </span>
-                  <button
-                    className={"wb-chip" + (e.manualLeft ? " on" : "")}
-                    disabled={busy}
-                    onClick={() => run(() => setEquipmentManualLeft(e.id, !e.manualLeft))}
-                  >
-                    {e.manualLeft ? "Manual left ✓" : "Manual not left"}
-                  </button>
-                  {manage && (
-                    <button
-                      className="fl-x"
-                      aria-label="Remove equipment"
-                      disabled={busy}
-                      onClick={() => run(() => removeEquipment(e.id))}
-                    >
-                      <Icon name="x" size={14} />
-                    </button>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* ── jobs ── */}
-          <div className="card2">
-            <div className="c2h">
-              <div>
-                <b>Jobs on this project</b>
-                <em>
-                  {sm8Connected
-                    ? "Linked ServiceM8 jobs carry their live status and bookings."
-                    : "Typed job numbers — linking goes live once ServiceM8 is connected."}
-                </em>
-              </div>
-              {manage && (
-                <button className="pbtn ghost" style={{ marginLeft: "auto" }} onClick={() => setAttaching(true)}>
-                  <Icon name="plus" size={15} />
-                  Attach job
-                </button>
-              )}
-            </div>
-            {project.jobs.length === 0 ? (
-              <p className="int-hint">No jobs attached yet.</p>
-            ) : (
-              project.jobs.map((j) => (
-                <div className="wb-row" key={j.id}>
-                  <span className="wb-chip">#{j.jobNumber}</span>
-                  <span className="wb-chip">{j.role}</span>
-                  <span className="wb-who">
-                    {j.mirror ? (
-                      <>
-                        <b>{j.mirror.status ?? "—"}</b>
-                        {j.mirror.suburb && <em>, {j.mirror.suburb}</em>}
-                        {j.mirror.nextBooking && (
-                          <em>
-                            {" "}
-                           , {bookingLabel(j.mirror.nextBooking.start)}
-                            {j.mirror.nextBooking.staffName
-                              ? ` — ${j.mirror.nextBooking.staffName}`
-                              : ""}
-                          </em>
-                        )}
-                        {j.mirror.checklist && j.mirror.checklist.total > 0 && (
-                          <em>
-                            {" "}
-                            SM8 list {j.mirror.checklist.done}/{j.mirror.checklist.total}
-                          </em>
-                        )}
-                      </>
-                    ) : (
-                      <em>{j.provider ? "Not in the mirror yet" : "Typed by hand"}</em>
-                    )}
-                  </span>
-                  {j.mirror?.contacts[0] && (
-                    <span className="wb-tech">
-                      {j.mirror.contacts[0].name}
-                      {j.mirror.contacts[0].phone ? `, ${j.mirror.contacts[0].phone}` : ""}
-                    </span>
-                  )}
-                  {manage && (
-                    <button
-                      className="fl-x"
-                      aria-label="Detach job"
-                      disabled={busy}
-                      onClick={() => run(() => detachJob(j.id))}
-                    >
-                      <Icon name="x" size={14} />
-                    </button>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-
-          <DocumentsCard
-            project={project}
-            today={today}
-            busy={busy}
-            run={run}
-            onRefresh={() => router.refresh()}
-          />
-
-          <JournalCard
-            project={project}
-            entries={entries}
-            busy={busy}
-            run={run}
-            kind="progress"
-            title="Site journal"
-            sub="What was done and found, dated as it happened — spoken or typed."
-            placeholder="Rough-in done in the roof, two penetrations to seal Monday"
-          />
-
-          <JournalCard
-            project={project}
-            entries={entries}
-            busy={busy}
-            run={run}
-            kind="commissioning"
-            title="Commissioning"
-            sub="Readings and settings, as recorded on site — the handover sheet reads these."
-            placeholder="Suction 8.2 bar, superheat 6.1 K, all zones balanced"
-            headerExtra={
-              <a
-                className="pbtn ghost"
-                style={{ marginLeft: "auto" }}
-                href={`/handover/${project.id}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <Icon name="file" size={15} />
-                Handover sheet
-              </a>
-            }
-          />
-
-          {issues.length > 0 && (
-            <div className="card2">
-              <div className="c2h">
-                <div>
-                  <b>Recurring issues</b>
-                  <em>Logged more than once.</em>
-                </div>
-              </div>
-              {issues.map((i) => (
-                <div className={"wb-row" + (i.occurrences > 1 ? " wb-pulse" : "")} key={i.id}>
-                  <span className={"wb-chip" + (i.occurrences > 1 ? " bad" : "")}>
-                    ×{i.occurrences}
-                  </span>
-                  <span className="wb-who">
-                    <b>{i.summary}</b>
-                    {i.equipmentRef && <em>, {i.equipmentRef}</em>}
-                  </span>
-                  <span className="wb-tech">
-                    {i.occurrences > 1
-                      ? `${fmtAuWeekdayDayMonth(i.firstSeen)} → ${fmtAuWeekdayDayMonth(i.lastSeen)}`
-                      : fmtAuWeekdayDayMonth(i.lastSeen)}
-                  </span>
-                </div>
-              ))}
             </div>
           )}
 
-          {/* ── design ── */}
-          <DesignCard
-            designId={project.designId}
-            designName={project.designName}
-            manage={manage}
-            busy={busy}
-            onSet={(id) => run(() => setProjectDesign(project.id, id))}
-          />
-
-          {/* ── notes ── */}
-          <NotesCard
-            notes={project.notes}
-            manage={manage}
-            busy={busy}
-            onSave={(text) => run(() => updateProjectMeta(project.id, { notes: text }))}
-          />
-          </ScreenPanel>
+          {tab === "documents" && <DocumentsSection project={project} today={today} busy={busy} run={run} onToast={toast} onRefresh={() => router.refresh()} />}
         </div>
       </div>
 
-      {attaching && (
-        <AttachJobModal
-          sm8Connected={sm8Connected}
-          onClose={() => setAttaching(false)}
-          onAttach={(input) => {
-            setAttaching(false);
-            run(() => attachJob(project.id, input));
-          }}
-        />
-      )}
-      {addingEquip && (
-        <AddEquipmentModal
-          onClose={() => setAddingEquip(false)}
-          onAdd={(input, photo) => {
-            setAddingEquip(false);
-            run(async () => {
-              const res = await addEquipment(project.id, input);
-              if (!res.ok) return res;
-              if (photo) {
-                // the nameplate photo is site evidence — it lands with the
-                // project's files through the same slot flow as any upload
-                const up = await uploadFile(photo, "project_file");
-                if (up.ok) await attachDocumentToProject(up.file.documentId, project.id);
-              }
-              return res;
-            });
-          }}
-        />
-      )}
-      {editingMeta && (
-        <EditMetaModal
-          project={project}
-          onClose={() => setEditingMeta(false)}
-          onSave={(patch) => {
-            setEditingMeta(false);
-            run(() => updateProjectMeta(project.id, patch));
-          }}
-        />
-      )}
-      {blocking && (
-        <BlockModal
-          onClose={() => setBlocking(false)}
-          onBlock={(reason, on) => {
-            setBlocking(false);
-            run(() => setProjectBlocked(project.id, { reason, on }));
-          }}
-        />
-      )}
+      <Forms
+        form={form}
+        project={project}
+        today={today}
+        sm8Connected={sm8Connected}
+        close={close}
+        submit={submit}
+        onOpenAgreement={(id) => records.open({ kind: "agreement", id })}
+        onToast={toast}
+      />
 
       {sheetTrip && (
         <ProjectTripSheet
@@ -558,7 +374,7 @@ export function ProjectDetailScreen({
           manage={manage}
           connected={sm8Connected}
           nextTrip={nextTripFor(sheetTrip)}
-          startClosing={tripSheet?.closeOut ?? false}
+          startClosing={false}
           onToast={toast}
           onClose={() => setTripSheet(null)}
         />
@@ -567,24 +383,621 @@ export function ProjectDetailScreen({
       <ToastHost toasts={toasts} onDismiss={dismiss} />
     </div>
   );
-
-
-
-
-
 }
 
-/* ── the project screen's five cards ──
+/* ── the head ── */
 
-   AT MODULE SCOPE, and they have to stay here. They used to be declared
-   inside ProjectDetailScreen, which meant a NEW component type on every
-   render: React tears the old tree down and mounts a fresh one, so the local
-   state below — a half-typed journal line, a trip being added, an upload in
-   flight — was thrown away every time anything above them changed. That also
-   put a `useState` inside a function defined in a component body, which React
-   Compiler refuses outright, so the parent was never compiled either. */
+const STATUS_WORD: Record<string, { word: string; tone: "wrong" | "info" | "good" } | undefined> = {
+  blocked: { word: "Blocked", tone: "wrong" },
+  on_hold: { word: "On hold", tone: "info" },
+  done: { word: "Done", tone: "good" },
+  archived: { word: "Archived", tone: "info" },
+};
 
-type RunAction = (fn: () => Promise<{ ok: boolean; error?: string }>) => void;
+function ProjectHead({
+  project,
+  main,
+  actions,
+  onAction,
+  busy,
+}: {
+  project: ProjectDetail;
+  main: { label: string; press: () => void } | null;
+  actions: readonly MenuItem[];
+  onAction: (key: string) => void;
+  busy: boolean;
+}) {
+  const actRef = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  const word = STATUS_WORD[project.status];
+  return (
+    <header className="jp-head pj-head">
+      <div className="jp-top">
+        <div className="jp-id">
+          <h1 className="jp-name">
+            <Fade>{project.name}</Fade>
+          </h1>
+        </div>
+        <div className="jp-acts">
+          {word && <StateWord tone={word.tone}>{word.word}</StateWord>}
+          {main && (
+            <Button kind="main" disabled={busy} onClick={main.press}>
+              {main.label}
+            </Button>
+          )}
+          <Button ref={actRef} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+            Actions
+            <span className="jp-chev" aria-hidden="true">
+              <Icon name="chevD" size={16} />
+            </span>
+          </Button>
+          <Menu
+            anchor={actRef}
+            open={open}
+            onClose={() => setOpen(false)}
+            onSelect={(key) => {
+              setOpen(false);
+              onAction(key);
+            }}
+            items={actions}
+            label="Actions on this project"
+            align="end"
+          />
+        </div>
+      </div>
+    </header>
+  );
+}
+
+/** Blocked, said where the stage is: who it waits on in red, why and since when in grey (rule 42). */
+function BlockedLine({ project }: { project: ProjectDetail }) {
+  return (
+    <div className="pj-blocked">
+      <p className="pj-blocked-word">
+        <Dot hue="red" />
+        Blocked{project.blockedOn ? ` on ${project.blockedOn}` : ""}
+      </p>
+      <p className="pj-cap">
+        {[project.blockedReason, project.blockedAt ? `since ${fmtAuWeekdayDayMonth(auDayOf(project.blockedAt))}` : null].filter(Boolean).join(", ")}
+      </p>
+    </div>
+  );
+}
+
+/* ── Overview: the stage line ── */
+
+/** Unticked items in each seeded section that should be finished before
+    BEING at `target`, the honest count behind "move anyway?". */
+function owedBefore(target: string, items: readonly { section: string; done: boolean }[]) {
+  const at = stageIndex(target);
+  return SECTION_STAGES.filter((m) => stageIndex(m.stages[m.stages.length - 1]!) < at)
+    .map((m) => ({ section: m.section, n: items.filter((i) => i.section === m.section && !i.done).length }))
+    .filter((o) => o.n > 0);
+}
+
+const owedWords = (owed: { section: string; n: number }[]) => {
+  const parts = owed.map((o, i) => `${o.n}${i === 0 ? (o.n === 1 ? " item" : " items") : ""} under ${o.section}`);
+  const list = parts.length < 2 ? (parts[0] ?? "") : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+  const total = owed.reduce((s, o) => s + o.n, 0);
+  return `${list} ${total === 1 ? "isn't" : "aren't"} ticked yet.`;
+};
+
+function StageLine({ project, manage, busy, run }: { project: ProjectDetail; manage: boolean; busy: boolean; run: Run }) {
+  const [pending, setPending] = useState<string | null>(null);
+  const current = Math.max(stageIndex(project.stage), 0);
+  const move = (target: string) => {
+    setPending(null);
+    run(() => setProjectStage(project.id, target));
+  };
+  const tryMove = (target: string) => {
+    if (!manage || busy || target === project.stage) return;
+    // backward is a correction, not an advance: it never asks
+    if (stageIndex(target) <= current) return move(target);
+    if (owedBefore(target, project.checklist).length === 0) return move(target);
+    setPending(target);
+  };
+  const owed = pending ? owedBefore(pending, project.checklist) : [];
+
+  return (
+    <div className="jov-line">
+      <nav className="jcl-line" aria-label="Where the project is up to">
+        {PROJECT_STAGES.map((s, i) => {
+          const state = i < current ? "done" : i === current ? "now" : "next";
+          return (
+            <button
+              key={s}
+              type="button"
+              className={`jcl-step ${state}`}
+              aria-current={state === "now" ? "step" : undefined}
+              disabled={!manage || busy}
+              onClick={() => tryMove(s)}
+            >
+              <i className="jcl-dot" aria-hidden />
+              <span className="jcl-sl">
+                <b>{s}</b>
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+      {pending && (
+        <ConfirmMove
+          target={pending}
+          from={project.stage}
+          body={owedWords(owed)}
+          onClose={() => setPending(null)}
+          onMove={() => move(pending)}
+        />
+      )}
+    </div>
+  );
+}
+
+
+function ConfirmMove({ target, from, body, onClose, onMove }: { target: string; from: string; body: string; onClose: () => void; onMove: () => void }) {
+  return (
+    <ConfirmDialog heading={`Move to ${target}?`} confirm={`Move to ${target}`} cancel={`Keep at ${from}`} danger={false} onConfirm={onMove} onClose={onClose}>
+      <p>{body}</p>
+    </ConfirmDialog>
+  );
+}
+
+/* ── Overview: the strip of facts (the job page's, job-facts.tsx) ── */
+
+function Fact({ label, onOpen, children }: { label: string; onOpen?: () => void; children: ReactNode }) {
+  const id = useId();
+  return (
+    <section className={`jov-fact${onOpen ? " jov-fact--door" : ""}`} aria-labelledby={id}>
+      <div className="jov-lab">
+        {onOpen ? (
+          <button type="button" className="jov-open" id={id} onClick={onOpen}>
+            {label}
+          </button>
+        ) : (
+          <span id={id}>{label}</span>
+        )}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function ProjectFacts({
+  project,
+  openTrips,
+  onTrips,
+  onMoney,
+}: {
+  project: ProjectDetail;
+  openTrips: ProjectBoardVisit[];
+  onTrips: () => void;
+  onMoney: () => void;
+}) {
+  /* who to ring: the first linked job's first contact in ServiceM8 */
+  const withContact = project.jobs.find((j) => j.mirror?.contacts.length);
+  const contact = withContact?.mirror?.contacts[0] ?? null;
+  const next = openTrips[0] ?? null;
+  const placed = next ? projectPlacedDayOf(next) : null;
+  const money = project.moneyVisible ? deriveProjectMoney({ budgetCents: project.budgetCents, variations: project.variations, claims: project.claims }) : null;
+  const tel = contact?.phone ? telHref(contact.phone) : null;
+
+  return (
+    <div className={`jov-facts${money ? "" : " jov-facts--3"}`} role="group" aria-label="The project's facts">
+      <Fact label="Site">
+        {project.siteLabel && <b className="jov-strong">{project.siteLabel}</b>}
+        {project.siteAddress && <p className="jov-addr">{project.siteAddress}</p>}
+        {!project.siteLabel && !project.siteAddress && <p className="jov-cap">No site yet</p>}
+      </Fact>
+
+      <Fact label="Client">
+        {project.clientName || contact ? (
+          <div className="pj-client">
+            <Initials name={project.clientName || contact?.name || "Client"} size={32} beside />
+            <span className="jov-person">
+              <b className="jov-strong">{project.clientName || contact?.name}</b>
+              {contact && <span className="jov-cap">{`${contactRole(contact.type)} on ${withContact!.jobNumber}`}</span>}
+              {contact?.phone &&
+                (tel ? (
+                  <a className="jov-tel" href={tel}>
+                    {phoneWords(contact.phone)}
+                  </a>
+                ) : (
+                  <span className="jov-tel">{contact.phone}</span>
+                ))}
+            </span>
+          </div>
+        ) : (
+          <p className="jov-cap">No client yet</p>
+        )}
+      </Fact>
+
+      <Fact label="Next trip" onOpen={onTrips}>
+        {next ? (
+          <>
+            <b className="jov-strong">{placed ? fmtAuWeekdayDayMonth(placed) : `Around ${fmtAuWeekdayDayMonth(next.dueDate)}`}</b>
+            <p className="jov-cap">{next.label}</p>
+            {!placed && <StateWord tone="look">Not placed</StateWord>}
+          </>
+        ) : (
+          <>
+            <b className="jov-strong">Nothing booked</b>
+            <StateWord tone="info">No trips yet</StateWord>
+          </>
+        )}
+      </Fact>
+
+      {money && (
+        <Fact label="Money" onOpen={onMoney}>
+          {money.revisedTotalCents !== null ? (
+            <>
+              <b className="jov-fig">{fmtAud(money.revisedTotalCents)}</b>
+              <p className="jov-cap">{totalBasis(project)}</p>
+            </>
+          ) : (
+            <b className="jov-strong">No total yet</b>
+          )}
+          {money.claimedCents > 0 ? (
+            <StateWord tone={money.awaitingCents > 0 ? "look" : "good"}>
+              {money.awaitingCents > 0 ? `${fmtAud(money.awaitingCents)} awaiting payment` : `${fmtAud(money.claimedCents)} claimed`}
+            </StateWord>
+          ) : (
+            <StateWord tone="info">Nothing claimed yet</StateWord>
+          )}
+        </Fact>
+      )}
+    </div>
+  );
+}
+
+/** ServiceM8 types a contact "JOB" or "BILLING"; the others it spells out. */
+function contactRole(type: string | null): string {
+  const t = (type ?? "").trim().toLowerCase();
+  if (t === "job" || t === "") return "Job contact";
+  if (t === "billing") return "Billing contact";
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+/* ── Overview: the checklist ── */
+
+type Sections = [string, ProjectDetail["checklist"]][];
+
+function sectionsOf(items: ProjectDetail["checklist"]): Sections {
+  const by = new Map<string, ProjectDetail["checklist"]>();
+  for (const item of items) {
+    const list = by.get(item.section) ?? [];
+    list.push(item);
+    by.set(item.section, list);
+  }
+  return [...by.entries()];
+}
+
+function ChecklistSection({
+  project,
+  sections,
+  manage,
+  live,
+  busy,
+  run,
+  addingTo,
+  onAdding,
+  onOpen,
+}: {
+  project: ProjectDetail;
+  sections: Sections;
+  manage: boolean;
+  live: boolean;
+  busy: boolean;
+  run: Run;
+  addingTo: string | null;
+  onAdding: (section: string | null) => void;
+  onOpen: (form: OpenForm) => void;
+}) {
+  const progress = checklistProgress(project.checklist);
+  const advice = stageAdvice(project.stage, project.checklist);
+  return (
+    <JobSection
+      name="Checklist"
+      icon="check"
+      hue="yellow"
+      note={progress.total > 0 ? `${progress.done} of ${progress.total} ticked` : null}
+      action={
+        manage ? (
+          <Button size={32} onClick={() => onOpen({ kind: "section" })}>
+            Add section
+          </Button>
+        ) : null
+      }
+    >
+      {sections.length === 0 && <p className="pj-none">No items yet.</p>}
+      {sections.map(([section, items]) => {
+        const all = items.length > 0 && items.every((i) => i.done);
+        const nudge = manage && live && advice.nudge && advice.next && advice.gateSection === section ? advice.next : null;
+        return (
+          <div className="pj-group" key={section}>
+            <div className="pj-sub">
+              <span>{section}</span>
+              <span className="pj-end">
+                {all && <StateWord tone="good">All ticked</StateWord>}
+                {nudge && (
+                  <Button kind="quiet" size={32} disabled={busy} onClick={() => run(() => setProjectStage(project.id, nudge))}>
+                    {`Move to ${nudge}`}
+                  </Button>
+                )}
+              </span>
+            </div>
+            <ul className="jov-rows" aria-label={section}>
+              {items.map((item) => (
+                <li className={`jov-row pj-row${item.done ? " pj-done" : ""}`} key={item.id}>
+                  <Tick label={item.label} checked={item.done} disabled={busy} onChange={(on) => run(() => toggleChecklistItem(item.id, on))} />
+                  <span className="pj-end">
+                    {item.done && item.doneAt && <span className="pj-when">{fmtAuWeekdayDayMonth(auDayOf(item.doneAt))}</span>}
+                    {manage && (
+                      <Button kind="quiet" size={32} className="pj-rm" aria-label={`Remove ${item.label}`} disabled={busy} onClick={() => run(() => removeChecklistItem(item.id))}>
+                        Remove
+                      </Button>
+                    )}
+                  </span>
+                </li>
+              ))}
+              {addingTo === section && (
+                <li className="jov-row pj-row">
+                  <ItemAdder
+                    section={section}
+                    busy={busy}
+                    onAdd={(label) => {
+                      onAdding(null);
+                      run(() => addChecklistItem(project.id, section, label));
+                    }}
+                    onCancel={() => onAdding(null)}
+                  />
+                </li>
+              )}
+            </ul>
+            {manage && addingTo !== section && (
+              <div className="jov-more">
+                <Button kind="quiet" size={32} aria-label={`Add an item to ${section}`} onClick={() => onAdding(section)}>
+                  Add item
+                </Button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </JobSection>
+  );
+}
+
+function ItemAdder({ section, busy, onAdd, onCancel }: { section: string; busy: boolean; onAdd: (label: string) => void; onCancel: () => void }) {
+  const [label, setLabel] = useState("");
+  const add = () => {
+    if (label.trim()) onAdd(label.trim());
+  };
+  return (
+    <span className="pj-adder">
+      <TextInput
+        size={32}
+        autoFocus
+        aria-label={`A new item under ${section}`}
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") add();
+          if (e.key === "Escape") onCancel();
+        }}
+      />
+      <Button kind="quiet" size={32} onClick={onCancel}>
+        Cancel
+      </Button>
+      <Button size={32} disabled={busy || !label.trim()} onClick={add}>
+        Add item
+      </Button>
+    </span>
+  );
+}
+
+/* ── Overview: the jobs ── */
+
+const ROLE_WORD: Record<string, string> = {
+  quote: "The quote",
+  install: "The install",
+  variation: "A variation",
+  service: "A service",
+  other: "Other work",
+};
+
+/** '2026-07-29 07:30:00' → '7:30am Wed 29/7': string maths on the mirror's
+    wall-clock value, no Date() reinterpretation. */
+function bookingLabel(naive: string): string {
+  const [d, t] = [naive.slice(0, 10), naive.slice(11, 16)];
+  const h = parseInt(t.slice(0, 2), 10);
+  const hh = h % 12 === 0 ? 12 : h % 12;
+  const [y, m, day] = d.split("-").map((x) => parseInt(x, 10));
+  const dow = new Date(Date.UTC(y!, m! - 1, day)).getUTCDay();
+  const dows = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  return `${hh}:${t.slice(3, 5)}${h < 12 ? "am" : "pm"} ${dows[dow]} ${day}/${m}`;
+}
+
+function JobsSection({ project, manage, busy, run, onOpen }: { project: ProjectDetail; manage: boolean; busy: boolean; run: Run; onOpen: (form: OpenForm) => void }) {
+  return (
+    <JobSection
+      name="Jobs"
+      icon="briefcase"
+      hue="purple"
+      action={
+        manage ? (
+          <Button size={32} onClick={() => onOpen({ kind: "attach" })}>
+            Attach job
+          </Button>
+        ) : null
+      }
+    >
+      {project.jobs.length === 0 ? (
+        <p className="pj-none">No jobs attached yet.</p>
+      ) : (
+        <ul className="jov-rows" aria-label="Jobs on this project">
+          {project.jobs.map((j) => {
+            const m = j.mirror;
+            const line = m
+              ? [
+                  m.status,
+                  m.suburb,
+                  m.nextBooking ? `${bookingLabel(m.nextBooking.start)}${m.nextBooking.staffName ? ` with ${m.nextBooking.staffName}` : ""}` : null,
+                  m.checklist && m.checklist.total > 0 ? `SM8 list ${m.checklist.done}/${m.checklist.total}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(", ")
+              : j.provider
+                ? "Not in the mirror yet"
+                : "Typed by hand";
+            const who = m?.contacts[0];
+            return (
+              <li className="jov-row pj-row pj-job" key={j.id} data-job={j.jobNumber}>
+                <span className="pj-jobno">{j.jobNumber}</span>
+                <span className="pj-text">
+                  {j.remoteId && m ? (
+                    <Link href={jobPageHref(j.remoteId)} className="pj-name pj-joblink">
+                      {ROLE_WORD[j.role] ?? j.role}
+                    </Link>
+                  ) : (
+                    <b className="pj-name">{ROLE_WORD[j.role] ?? j.role}</b>
+                  )}
+                  <span className="pj-line">{line}</span>
+                </span>
+                <span className="pj-end">
+                  {who && <span className="pj-when">{[who.name, who.phone].filter(Boolean).join(", ")}</span>}
+                  {manage && (
+                    <Button kind="quiet" size={32} aria-label={`Detach job ${j.jobNumber}`} disabled={busy} onClick={() => run(() => detachJob(j.id))}>
+                      Detach
+                    </Button>
+                  )}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </JobSection>
+  );
+}
+
+/* ── the two journals: one table behind them, told apart by kind ── */
+
+function JournalSection({
+  project,
+  entries,
+  busy,
+  run,
+  kind,
+  name,
+  icon,
+  placeholder,
+  press,
+  action,
+}: {
+  project: ProjectDetail;
+  entries: ProjectEntry[];
+  busy: boolean;
+  run: Run;
+  kind: "progress" | "commissioning";
+  name: string;
+  icon: string;
+  placeholder: string;
+  press: string;
+  action?: ReactNode;
+}) {
+  const [text, setText] = useState("");
+  const rows = entries.filter((e) => e.kind === kind);
+  const add = () => {
+    const body = text.trim();
+    if (!body) return;
+    setText("");
+    run(() => addProjectEntry(project.id, kind, body));
+  };
+  return (
+    <JobSection name={name} icon={icon} hue="green" action={action}>
+      <div className="pj-compose">
+        <TextInput
+          aria-label={name}
+          placeholder={placeholder}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") add();
+          }}
+        />
+        <Button disabled={busy || !text.trim()} onClick={add}>
+          {press}
+        </Button>
+      </div>
+      {rows.length === 0 ? (
+        <p className="pj-none">Nothing recorded yet.</p>
+      ) : (
+        <ul className="jov-rows" aria-label={name}>
+          {rows.map((e) => (
+            <li className="jov-row pj-row pj-entry" key={e.id}>
+              <span className="pj-lead">{fmtAuWeekdayDayMonth(e.entryDate)}</span>
+              <span className="pj-name pj-plain pj-wrap">{e.body}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </JobSection>
+  );
+}
+
+/* ── Overview: the notes ── */
+
+function NotesSection({ notes, manage, busy, onSave }: { notes: string | null; manage: boolean; busy: boolean; onSave: (text: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(notes ?? "");
+  return (
+    <JobSection
+      name="Notes"
+      icon="file"
+      hue="pink"
+      action={
+        manage && !editing ? (
+          <Button
+            size={32}
+            onClick={() => {
+              setText(notes ?? "");
+              setEditing(true);
+            }}
+          >
+            Edit notes
+          </Button>
+        ) : null
+      }
+    >
+      {editing ? (
+        <div className="pj-col pj-notes-edit">
+          <NoteToken as="field" label="project notes" value={text} onChange={setText} rows={5} />
+          <div className="pj-end">
+            <Button kind="quiet" disabled={busy} onClick={() => setEditing(false)}>
+              Cancel
+            </Button>
+            <Button
+              kind="main"
+              disabled={busy}
+              onClick={() => {
+                onSave(text);
+                setEditing(false);
+              }}
+            >
+              Save notes
+            </Button>
+          </div>
+        </div>
+      ) : notes ? (
+        <p className="pj-notes">{notes}</p>
+      ) : (
+        <p className="pj-none">No notes yet.</p>
+      )}
+    </JobSection>
+  );
+}
+
+/* ── Trips ── */
 
 /* The `??`s read first, into their own names: React Compiler 1.0 refuses a
    ternary whose test is itself a logical and gives up on the whole
@@ -595,1216 +1008,392 @@ const mostRecentlyCompleted = (a: ProjectBoardVisit, b: ProjectBoardVisit) => {
   return at < bt ? 1 : -1;
 };
 
-function StatusCluster({
-  project,
-  busy,
-  run,
-  onBlock,
+function TripsSection({
+  trips,
+  openTrips,
+  today,
+  canAdd,
+  onAdd,
+  onOpenTrip,
 }: {
-  project: ProjectDetail;
-  busy: boolean;
-  run: RunAction;
-  onBlock: () => void;
+  trips: ProjectBoardVisit[];
+  openTrips: ProjectBoardVisit[];
+  today: string;
+  canAdd: boolean;
+  onAdd: () => void;
+  onOpenTrip: (id: string) => void;
 }) {
-  if (project.status === "active" || project.status === "blocked") {
-    return (
-      <>
-        {project.status === "active" && (
-          <button className="pbtn ghost" disabled={busy} onClick={() => onBlock()}>
-            Block…
-          </button>
-        )}
-        <button
-          className="pbtn ghost"
-          disabled={busy}
-          onClick={() => run(() => setProjectStatus(project.id, "on_hold"))}
-        >
-          Put on hold
-        </button>
-        {project.stage === "Complete" && (
-          <button
-            className="pbtn ghost"
-            disabled={busy}
-            onClick={() => run(() => setProjectStatus(project.id, "done"))}
-          >
-            Mark done
-          </button>
-        )}
-      </>
-    );
-  }
-  if (project.status === "on_hold") {
-    return (
-      <button
-        className="pbtn ghost"
-        disabled={busy}
-        onClick={() => run(() => setProjectStatus(project.id, "active"))}
-      >
-        Resume
-      </button>
-    );
-  }
-  if (project.status === "done") {
-    return (
-      <>
-        <button
-          className="pbtn ghost"
-          disabled={busy}
-          onClick={() => run(() => setProjectStatus(project.id, "active"))}
-        >
-          Reopen
-        </button>
-        <button
-          className="pbtn ghost"
-          disabled={busy}
-          onClick={() => run(() => setProjectStatus(project.id, "archived"))}
-        >
-          Archive
-        </button>
-      </>
-    );
-  }
+  const done = trips
+    .filter((t) => t.status === "done" || t.status === "skipped")
+    .sort(mostRecentlyCompleted);
   return (
-    <button
-      className="pbtn ghost"
-      disabled={busy}
-      onClick={() => run(() => setProjectStatus(project.id, "active"))}
+    <JobSection
+      name="Trips to site"
+      icon="car"
+      hue="purple"
+      action={
+        canAdd ? (
+          <Button size={32} onClick={onAdd}>
+            Add trip
+          </Button>
+        ) : null
+      }
     >
-      Reopen
-    </button>
+      {openTrips.length === 0 && done.length === 0 && <p className="pj-none">No trips yet.</p>}
+      {openTrips.length > 0 && (
+        <ul className="jov-rows" aria-label="Trips to come">
+          {openTrips.map((t) => {
+            const missing = projectMissingOf(t);
+            const placed = projectPlacedDayOf(t);
+            const late = t.dueDate < today;
+            const packed = t.bringList.filter((i) => i.packed).length;
+            return (
+              <li className="pj-trip" key={t.id}>
+                <button type="button" className="pj-trip-hit" aria-label={`Open ${t.label}`} onClick={() => onOpenTrip(t.id)} />
+                <span className="pj-text">
+                  <b className="pj-name">{t.label}</b>
+                  <span className="pj-line">
+                    {[
+                      `Around ${fmtAuWeekdayDayMonth(t.dueDate)}`,
+                      t.jobNumber ? `job ${t.jobNumber}` : null,
+                      t.bringList.length ? `bring ${packed} of ${t.bringList.length}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </span>
+                </span>
+                <span className="pj-text">
+                  {placed ? (
+                    <>
+                      <b className="pj-name">{fmtAuWeekdayDayMonth(placed)}</b>
+                      <span className="pj-line">{t.techs.length ? t.techs.map((x) => x.name).join(", ") : "Nobody assigned yet"}</span>
+                    </>
+                  ) : (
+                    <StateWord tone={late ? "wrong" : "look"}>{late ? untilLabel(t.dueDate, today).t : "Not placed"}</StateWord>
+                  )}
+                </span>
+                <span className="pj-gates">
+                  {missing.length === 0 ? (
+                    <StateWord tone="good">Ready</StateWord>
+                  ) : (
+                    (["equipment", "access", "crew"] as const).map((g) => (
+                      <StateWord key={g} tone={missing.includes(g) ? "info" : "good"}>
+                        {GATE_LABEL[g]}
+                        <span className="pj-sr">{missing.includes(g) ? ", not yet" : ", confirmed"}</span>
+                      </StateWord>
+                    ))
+                  )}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {done.length > 0 && (
+        <>
+          <div className="pj-sub">
+            <span>Ran</span>
+          </div>
+          <ul className="jov-rows" aria-label="Trips that ran">
+            {done.map((t) => (
+              <li className="pj-trip" key={t.id}>
+                <button type="button" className="pj-trip-hit" aria-label={`Open ${t.label}`} onClick={() => onOpenTrip(t.id)} />
+                <span className="pj-text">
+                  <b className="pj-name">{t.label}</b>
+                  <span className="pj-line">{t.completionNote || "No close-out note"}</span>
+                </span>
+                <span className="pj-text">
+                  <b className="pj-name">{t.completedAt ? fmtAuWeekdayDayMonth(t.completedAt) : "No day"}</b>
+                  <span className="pj-line">{t.status === "skipped" ? "Skipped" : t.completedAt ? `Ran ${agoLabel(t.completedAt, today)}` : ""}</span>
+                </span>
+                <span className="pj-gates">
+                  <StateWord tone={t.status === "done" ? "good" : "info"}>
+                    {t.status === "done" ? (t.actualHours !== null ? `${t.actualHours} h on site` : "Done") : "Skipped"}
+                  </StateWord>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </JobSection>
   );
 }
 
-function StageCard({
-  project,
-  manage,
-  live,
-  busy,
-  run,
-}: {
-  project: ProjectDetail;
-  manage: boolean;
-  live: boolean;
-  busy: boolean;
-  run: RunAction;
-}) {
-  const [pendingStage, setPendingStage] = useState<string | null>(null);
-  const advice = stageAdvice(project.stage, project.checklist);
-  const currentIdx = Math.max(stageIndex(project.stage), 0);
+/* ── Site ── */
 
-  const move = (target: string) => {
-    setPendingStage(null);
-    run(() => setProjectStage(project.id, target));
-  };
-
-  const tryMove = (target: string) => {
-    if (!manage || busy || target === project.stage) return;
-    // Backward is a correction, not an advance — it never warns.
-    if (stageIndex(target) <= currentIdx) {
-      move(target);
-      return;
-    }
-    const owed = leftBehindFor(target, project.checklist);
-    if (owed === 0) {
-      move(target);
-      return;
-    }
-    setPendingStage(target);
-  };
-
+function EquipmentSection({ project, manage, busy, run, onOpen }: { project: ProjectDetail; manage: boolean; busy: boolean; run: Run; onOpen: (form: OpenForm) => void }) {
   return (
-    <div className="card2">
-      <div className="c2h">
-        <div>
-          <b>Stage</b>
-          <em>
-            {manage
-              ? "A person moves the stage — the checklist informs, it never decides."
-              : "Where this project is up to."}
-          </em>
-        </div>
-        {advice.gateSection && advice.sectionTotal > 0 && (
-          <span
-            className={"wb2-chip" + (advice.sectionDone === advice.sectionTotal ? " ok" : "")}
-            style={{ marginLeft: "auto" }}
-          >
-            {advice.gateSection} {advice.sectionDone}/{advice.sectionTotal}
-          </span>
-        )}
-      </div>
-      <div className="wb-stepper">
-        {PROJECT_STAGES.map((s, i) => {
-          const state = i < currentIdx ? "past" : i === currentIdx ? "now" : "todo";
-          return (
-            <button
-              key={s}
-              className={`wb-step ${state}`}
-              disabled={!manage || busy}
-              onClick={() => tryMove(s)}
-            >
-              {s}
-            </button>
-          );
-        })}
-      </div>
-
-      {pendingStage && (
-        <div className="int-note bad" style={{ marginTop: 12 }}>
-          {leftBehindFor(pendingStage, project.checklist)} checklist{" "}
-          {leftBehindFor(pendingStage, project.checklist) === 1 ? "item" : "items"} unticked
-          behind {pendingStage} — the record stays honest either way.
-          <button
-            className="pbtn ghost"
-            style={{ marginLeft: 10 }}
-            disabled={busy}
-            onClick={() => move(pendingStage)}
-          >
-            Advance anyway
-          </button>
-          <button
-            className="pbtn ghost"
-            style={{ marginLeft: 6 }}
-            disabled={busy}
-            onClick={() => setPendingStage(null)}
-          >
-            Not yet
-          </button>
-        </div>
+    <JobSection
+      name="Equipment on site"
+      icon="unit"
+      hue="yellow"
+      action={
+        manage ? (
+          <Button size={32} onClick={() => onOpen({ kind: "equipment" })}>
+            Add equipment
+          </Button>
+        ) : null
+      }
+    >
+      {project.equipment.length === 0 ? (
+        <p className="pj-none">Nothing recorded yet.</p>
+      ) : (
+        <ul className="jov-rows" aria-label="Equipment on site">
+          {project.equipment.map((e) => (
+            <li className="jov-row pj-row" key={e.id}>
+              <span className="pj-text">
+                <b className="pj-name">{e.description}</b>
+                <span className="pj-line">{[e.model, e.serial && `s/n ${e.serial}`, e.locationNote].filter(Boolean).join(", ")}</span>
+              </span>
+              <span className="pj-end">
+                <Tick label="Manual left" checked={e.manualLeft} disabled={busy} onChange={(on) => run(() => setEquipmentManualLeft(e.id, on))} />
+                {manage && (
+                  <Button kind="quiet" size={32} className="pj-rm" aria-label={`Remove ${e.description}`} disabled={busy} onClick={() => run(() => removeEquipment(e.id))}>
+                    Remove
+                  </Button>
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
-
-      {manage && live && !pendingStage && advice.nudge && advice.next && (
-        <div className="int-note" style={{ marginTop: 12 }}>
-          {advice.gateSection} is all ticked — move to {advice.next}?
-          <button
-            className="pbtn ghost"
-            style={{ marginLeft: 10 }}
-            disabled={busy}
-            onClick={() => move(advice.next!)}
-          >
-            Move to {advice.next}
-          </button>
-        </div>
-      )}
-    </div>
+    </JobSection>
   );
 }
 
-function DocumentsCard({
+function DesignSection({ project, manage, onOpen }: { project: ProjectDetail; manage: boolean; onOpen: (form: OpenForm) => void }) {
+  return (
+    <JobSection
+      name="Design"
+      icon="design"
+      hue="purple"
+      action={
+        manage ? (
+          <Button size={32} onClick={() => onOpen({ kind: "design" })}>
+            {project.designId ? "Change design" : "Link design"}
+          </Button>
+        ) : null
+      }
+    >
+      {project.designId ? (
+        <ul className="jov-rows">
+          <li className="jov-row pj-row">
+            <b className="pj-name">{project.designName ?? "A Studio design"}</b>
+            {/* opens THE design, not the Studio's front door */}
+            <Button kind="quiet" size={32} href={`/dashboard/studio?design=${encodeURIComponent(project.designId)}`}>
+              Open in Studio
+            </Button>
+          </li>
+        </ul>
+      ) : (
+        <p className="pj-none">No design linked.</p>
+      )}
+    </JobSection>
+  );
+}
+
+function IssuesSection({ issues }: { issues: IssueRow[] }) {
+  return (
+    <JobSection name="Recurring issues" icon="alert" hue="grey">
+      <ul className="jov-rows" aria-label="Recurring issues">
+        {issues.map((i) => (
+          <li className="jov-row pj-row" key={i.id}>
+            <span className="pj-text">
+              <b className="pj-name">{i.summary}</b>
+              <span className="pj-line">
+                {[
+                  i.equipmentRef,
+                  i.occurrences > 1 ? `${fmtAuWeekdayDayMonth(i.firstSeen)} to ${fmtAuWeekdayDayMonth(i.lastSeen)}` : fmtAuWeekdayDayMonth(i.lastSeen),
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
+              </span>
+            </span>
+            {i.occurrences > 1 && <StateWord tone="look">{`Logged ${i.occurrences} times`}</StateWord>}
+          </li>
+        ))}
+      </ul>
+    </JobSection>
+  );
+}
+
+/* ── Documents ── */
+
+function DocumentsSection({
   project,
   today,
   busy,
   run,
+  onToast,
   onRefresh,
 }: {
   project: ProjectDetail;
   today: string;
   busy: boolean;
-  run: RunAction;
+  run: Run;
+  onToast: (message: string) => void;
   onRefresh: () => void;
 }) {
   const [uploading, setUploading] = useState(false);
-  const [uploadErr, setUploadErr] = useState<string | null>(null);
-
+  const picker = useRef<HTMLInputElement>(null);
   const upload = async (file: File) => {
     setUploading(true);
-    setUploadErr(null);
     await withCleanup(async () => {
       const up = await uploadFile(file, "project_file");
-      if (!up.ok) {
-        setUploadErr(up.error);
-        return;
-      }
+      if (!up.ok) return onToast(up.error);
       const attached = await attachDocumentToProject(up.file.documentId, project.id);
-      if (!attached.ok) setUploadErr(attached.error);
+      if (!attached.ok) onToast(attached.error);
       onRefresh();
     }, () => setUploading(false));
   };
-
   return (
-    <div className="card2">
-      <div className="c2h">
-        <div>
-          <b>Documents &amp; photos</b>
-          <em>Before-cover-up shots, the sparky&apos;s CoC, anything worth keeping with the job.</em>
-        </div>
-        <label className="pbtn ghost" style={{ marginLeft: "auto", cursor: "pointer" }}>
-          <Icon name="upload" size={15} />
-          {uploading ? "Uploading the file" : "Upload"}
-          <input
-            type="file"
-            accept="image/*,application/pdf"
-            style={{ display: "none" }}
-            disabled={uploading}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              e.target.value = "";
-              if (f) void upload(f);
-            }}
-          />
-        </label>
-      </div>
-      {uploadErr && <p className="int-note bad">{uploadErr}</p>}
-      {project.documents.length === 0 ? (
-        <p className="int-hint">
-          Nothing here yet — a photo before the ceiling closes is the one you&apos;ll want later.
-        </p>
-      ) : (
-        project.documents.map((d) => (
-          <div className="wb-row" key={d.id}>
-            <span className="wb-chip">
-              {d.mimeType.startsWith("image/") ? "photo" : "file"}
-            </span>
-            <span className="wb-who">
-              <b>{d.fileName}</b>
-              <em>
-                {" "}
-               , {fmtBytes(d.sizeBytes)}, {agoLabel(auDayOf(d.uploadedAt), today)}
-              </em>
-            </span>
-            {d.url && (
-              <a className="pbtn ghost" href={d.url} target="_blank" rel="noreferrer">
-                Open
-              </a>
-            )}
-            <button
-              className="fl-x"
-              aria-label={`Remove ${d.fileName}`}
-              disabled={busy || uploading}
-              onClick={() => run(() => deleteDocument(d.id))}
-            >
-              <Icon name="x" size={13} />
-            </button>
-          </div>
-        ))
-      )}
-    </div>
-  );
-}
-
-/* ── the two journals — one table behind them, told apart by kind ── */
-
-function JournalCard({
-  project,
-  entries,
-  busy,
-  run,
-  kind,
-  title,
-  sub,
-  placeholder,
-  headerExtra,
-}: {
-  project: ProjectDetail;
-  entries: ProjectEntry[];
-  busy: boolean;
-  run: RunAction;
-  kind: "progress" | "commissioning";
-  title: string;
-  sub: string;
-  placeholder: string;
-  headerExtra?: React.ReactNode;
-}) {
-  const [text, setText] = useState("");
-  const rows = entries.filter((e) => e.kind === kind);
-
-  const addEntry = () => {
-    const body = text.trim();
-    if (!body) return;
-    setText("");
-    run(() => addProjectEntry(project.id, kind, body));
-  };
-
-  return (
-    <div className="card2">
-      <div className="c2h">
-        <div>
-          <b>{title}</b>
-          <em>{sub}</em>
-        </div>
-        {headerExtra}
-      </div>
-      {rows.map((e) => (
-        <div className="wb-row" key={e.id}>
-          <span className="wb-time">{fmtAuWeekdayDayMonth(e.entryDate)}</span>
-          <span className="wb-who">{e.body}</span>
-        </div>
-      ))}
-      {rows.length === 0 && <p className="int-hint">Nothing recorded yet.</p>}
-      <div className="wb2-dayrow">
-        <input
-          className="wb2-fi"
-          placeholder={placeholder}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") addEntry();
-          }}
-        />
-        <button className="pbtn ghost" disabled={busy || !text.trim()} onClick={addEntry}>
-          Add
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function TripsCard({
-  project,
-  trips,
-  openTrips,
-  today,
-  manage,
-  live,
-  busy,
-  run,
-  onOpenTrip,
-}: {
-  project: ProjectDetail;
-  trips: ProjectBoardVisit[];
-  openTrips: ProjectBoardVisit[];
-  today: string;
-  manage: boolean;
-  live: boolean;
-  busy: boolean;
-  run: RunAction;
-  onOpenTrip: (visitId: string) => void;
-}) {
-  const [adding, setAdding] = useState(false);
-  const [label, setLabel] = useState("");
-  const [around, setAround] = useState("");
-  const [day, setDay] = useState("");
-
-  const add = () => {
-    const name = label.trim();
-    if (!name || !around) return;
-    setAdding(false);
-    setLabel("");
-    setAround("");
-    setDay("");
-    run(() => createProjectVisit(project.id, { label: name, dueDate: around, bookedDate: day || null }));
-  };
-
-  const done = trips
-    .filter((t) => t.status === "done" || t.status === "skipped")
-    .sort(mostRecentlyCompleted);
-
-  return (
-    <div className="card2">
-      <div className="c2h">
-        <div>
-          <b>Trips to site</b>
-        </div>
-        {manage && live && (
-          <button
-            className="pbtn ghost"
-            style={{ marginLeft: "auto" }}
-            onClick={() => setAdding((v) => !v)}
-          >
-            <Icon name="plus" size={15} />
-            Add a trip
-          </button>
-        )}
-      </div>
-
-      {adding && (
-        <div className="wb2-triprow add">
-          <input
-            className="wb2-fi"
-            autoFocus
-            placeholder="What's the trip for — “Rough-in day 1”"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") add();
-            }}
-          />
-          <label className="wb2-fl">
-            Around
-            <DateField className="wb2-fi" aria-label="Roughly when" clearable value={around || null} onChange={(iso) => setAround(iso ?? "")} />
-          </label>
-          <label className="wb2-fl">
-            Day booked
-            <DateField className="wb2-fi" aria-label="Day" value={day || null} onChange={(iso) => setDay(iso ?? "")} />
-          </label>
-          <button className="pbtn" disabled={busy || !label.trim() || !around} onClick={add}>
-            Add the trip
-          </button>
-        </div>
-      )}
-
-      {openTrips.length === 0 && done.length === 0 && !adding && (
-        <p className="int-hint">
-          No trips yet{manage && live ? " — add the first and its bring list starts there." : "."}
-        </p>
-      )}
-
-      {openTrips.map((t) => {
-        const missing = projectMissingOf(t);
-        const placed = projectPlacedDayOf(t);
-        const rel = untilLabel(t.dueDate, today);
-        return (
-          <div
-            key={t.id}
-            className="wb2-triprow can-open"
-            role="button"
-            tabIndex={0}
-            aria-label={`Open ${t.label}`}
-            data-sev={t.dueDate < today ? "over" : missing.length && rel.tone ? "soon" : undefined}
-            onClick={() => onOpenTrip(t.id)}
-            onKeyDown={(e) => {
-              if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
-                e.preventDefault();
-                onOpenTrip(t.id);
-              }
-            }}
-          >
-            <div className="wb2-trt">
-              <b>{t.label}</b>
-              <em>
-                around {fmtAuWeekdayDayMonth(t.dueDate)}
-                {t.jobNumber ? `, #${t.jobNumber}` : ""}
-                {t.bringList.length
-                  ? `, bring ${t.bringList.filter((i) => i.packed).length}/${t.bringList.length}`
-                  : ""}
-              </em>
-            </div>
-            <div className="wb2-trd">
-              {placed ? (
-                <>
-                  <b>{fmtAuWeekdayDayMonth(placed)}</b>
-                  <em>{t.techs.length ? t.techs.map((x) => x.name).join(", ") : "nobody assigned yet"}</em>
-                </>
-              ) : (
-                <span className={"wb2-chip " + (t.dueDate < today ? "dan" : "warn")}>
-                  {t.dueDate < today ? rel.t : "Not placed"}
-                </span>
-              )}
-            </div>
-            <div className="wb2-trck">
-              {missing.length === 0 ? (
-                <span className="wb2-ckall">
-                  <Icon name="check" size={13} />
-                  Ready
-                </span>
-              ) : (
-                (["equipment", "access", "crew"] as const).map((g) => {
-                  const on = !missing.includes(g);
-                  return (
-                    <span
-                      key={g}
-                      className={"wb2-ckq" + (on ? " on" : "")}
-                      style={{ "--as": `var(--wb2-${g === "equipment" ? "eq" : g === "access" ? "acc" : "crew"})` } as CSSProperties}
-                      aria-label={`${GATE_LABEL[g]} — ${on ? "confirmed" : "not yet"}`}
-                    >
-                      {on ? <Icon name="check" size={12} /> : <i />}
-                    </span>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        );
-      })}
-
-      {done.length > 0 && (
-        <>
-          <div className="wb2-wkhd">
-            Ran <em>{done.length}</em>
-          </div>
-          {done.map((t) => (
-            <div
-              key={t.id}
-              className="wb2-triprow can-open donerow"
-              role="button"
-              tabIndex={0}
-              aria-label={`Open ${t.label}`}
-              onClick={() => onOpenTrip(t.id)}
-              onKeyDown={(e) => {
-                if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
-                  e.preventDefault();
-                  onOpenTrip(t.id);
-                }
-              }}
-            >
-              <div className="wb2-trt">
-                <b>{t.label}</b>
-                <em>{t.completionNote || "no close-out note"}</em>
-              </div>
-              <div className="wb2-trd">
-                <b>{t.completedAt ? fmtAuWeekdayDayMonth(t.completedAt) : "—"}</b>
-                <em>
-                  {t.status === "skipped"
-                    ? "skipped"
-                    : t.completedAt
-                      ? `ran ${agoLabel(t.completedAt, today)}`
-                      : ""}
-                </em>
-              </div>
-              <div className="wb2-trck">
-                <span className={"wb2-chip" + (t.status === "done" ? " ok" : "")}>
-                  {t.status === "done"
-                    ? t.actualHours !== null
-                      ? `${t.actualHours} h on site`
-                      : "Done"
-                    : "Skipped"}
-                </span>
-              </div>
-            </div>
-          ))}
-        </>
-      )}
-
-      {project.hoursBudget !== null && (
-        <p className="int-hint" style={{ marginTop: 8 }}>
-          {project.hoursLogged} of {project.hoursBudget} h used
-          {project.hoursLogged > project.hoursBudget ? " — over the labour budget." : "."}
-        </p>
-      )}
-    </div>
-  );
-}
-
-/** '2026-07-29 07:30:00' → '7:30am Wed 29/7' — string maths on the mirror's
-    wall-clock value, no Date() reinterpretation. */
-function bookingLabel(naive: string): string {
-  const [d, t] = [naive.slice(0, 10), naive.slice(11, 16)];
-  const h = parseInt(t.slice(0, 2), 10);
-  const hh = h % 12 === 0 ? 12 : h % 12;
-  const [y, m, day] = d.split("-").map((x) => parseInt(x, 10));
-  const dow = new Date(Date.UTC(y, m - 1, day)).getUTCDay();
-  const dows = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  return `${hh}:${t.slice(3, 5)}${h < 12 ? "am" : "pm"} ${dows[dow]} ${day}/${m}`;
-}
-
-/* ── pieces ── */
-
-function BlockModal({
-  onClose,
-  onBlock,
-}: {
-  onClose: () => void;
-  onBlock: (reason: string, on: string) => void;
-}) {
-  const [reason, setReason] = useState("");
-  const [on, setOn] = useState("");
-
-  return (
-    <WbModal
-      title="Block the project"
-      sub="A blocked job wants to move and can't — say who it's waiting on, so chasing is one call."
-      onClose={onClose}
-    >
-      <div className="fl-grid">
-        <label className="fl-f span">
-          <span>
-            Waiting on<i>*</i>
-          </span>
-          <input
-            value={on}
-            onChange={(e) => setOn(e.target.value)}
-            placeholder="Dave the sparky, the builder, council"
-            autoFocus
-          />
-        </label>
-        <label className="fl-f span">
-          <span>
-            Why<i>*</i>
-          </span>
-          <input
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Switchboard upgrade not done"
-          />
-        </label>
-      </div>
-      <div className="fl-foot">
-        <button className="pbtn ghost" onClick={onClose}>
-          Cancel
-        </button>
-        <button
-          className="pbtn primary"
-          disabled={!reason.trim() || !on.trim()}
-          onClick={() => onBlock(reason, on)}
-        >
-          Block it
-        </button>
-      </div>
-    </WbModal>
-  );
-}
-
-function ChecklistSection({
-  section,
-  items,
-  manage,
-  busy,
-  onToggle,
-  onRemove,
-  onAdd,
-}: {
-  section: string;
-  items: ProjectDetail["checklist"];
-  manage: boolean;
-  busy: boolean;
-  onToggle: (id: string, done: boolean) => void;
-  onRemove: (id: string) => void;
-  onAdd: (label: string) => void;
-}) {
-  const [adding, setAdding] = useState(false);
-  const [label, setLabel] = useState("");
-
-  return (
-    <div className="wb-day">
-      <div className="wb-dayhead">
-        {section}
-        {manage && (
-          <button
-            className="wb-add"
-            onClick={() => setAdding((v) => !v)}
-            aria-label={`Add to ${section}`}
-          >
-            Add
-          </button>
-        )}
-      </div>
-      {items.map((item) => (
-        <div className="wb-row" key={item.id}>
-          <button
-            className={"wb-tick" + (item.done ? " done" : "")}
-            disabled={busy}
-            onClick={() => onToggle(item.id, !item.done)}
-            aria-label={item.done ? `Untick ${item.label}` : `Tick ${item.label}`}
-          >
-            <Icon name="check" size={13} />
-          </button>
-          <span className="wb-who" style={item.done ? { opacity: 0.55 } : undefined}>
-            {item.label}
-          </span>
-          {manage && (
-            <button
-              className="fl-x"
-              aria-label="Remove item"
-              disabled={busy}
-              onClick={() => onRemove(item.id)}
-            >
-              <Icon name="x" size={13} />
-            </button>
-          )}
-        </div>
-      ))}
-      {adding && (
-        <div className="wb-row">
-          <input
-            className="wb-inline"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder="New item"
-            autoFocus
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && label.trim()) {
-                onAdd(label);
-                setLabel("");
-                setAdding(false);
-              }
-            }}
-          />
-          <button
-            className="pbtn ghost"
-            disabled={busy || !label.trim()}
-            onClick={() => {
-              onAdd(label);
-              setLabel("");
-              setAdding(false);
-            }}
-          >
-            Add
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function NewSectionAdder({
-  onAdd,
-  busy,
-}: {
-  onAdd: (section: string, label: string) => void;
-  busy: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [section, setSection] = useState("");
-  const [label, setLabel] = useState("");
-
-  if (!open) {
-    return (
-      <button className="pbtn ghost" onClick={() => setOpen(true)} style={{ marginTop: 8 }}>
-        <Icon name="plus" size={15} />
-        New section
-      </button>
-    );
-  }
-  return (
-    <div className="wb-row" style={{ marginTop: 8 }}>
-      <input
-        className="wb-inline"
-        value={section}
-        onChange={(e) => setSection(e.target.value)}
-        placeholder="Section — e.g. Defects"
-      />
-      <input
-        className="wb-inline"
-        value={label}
-        onChange={(e) => setLabel(e.target.value)}
-        placeholder="First item"
-      />
-      <button
-        className="pbtn ghost"
-        disabled={busy || !section.trim() || !label.trim()}
-        onClick={() => {
-          onAdd(section, label);
-          setSection("");
-          setLabel("");
-          setOpen(false);
-        }}
+    <div className="pj-one">
+      <JobSection
+        name="Documents and photos"
+        icon="file"
+        hue="pink"
+        action={
+          <Button size={32} icon="upload" disabled={uploading} onClick={() => picker.current?.click()}>
+            {uploading ? "Uploading the file" : "Upload file"}
+          </Button>
+        }
       >
-        Add
-      </button>
-    </div>
-  );
-}
-
-function DesignCard({
-  designId,
-  designName,
-  manage,
-  busy,
-  onSet,
-}: {
-  designId: string | null;
-  designName: string | null;
-  manage: boolean;
-  busy: boolean;
-  onSet: (id: string | null) => void;
-}) {
-  const [options, setOptions] = useState<{ id: string; name: string }[] | null>(null);
-  const [picking, setPicking] = useState(false);
-
-  const openPicker = async () => {
-    setPicking(true);
-    if (options === null) setOptions(await listDesignOptions());
-  };
-
-  return (
-    <div className="card2">
-      <div className="c2h">
-        <div>
-          <b>Design</b>
-          <em>
-            {designId
-              ? designName ?? "A Studio design is linked."
-              : "Link the Studio design behind this install."}
-          </em>
-        </div>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          {designId && (
-            /* Opens THE design, not the studio's front door. This button
-               already knew which one it meant; until `?design=` existed it
-               had no way to say so. */
-            <Link
-              href={`/dashboard/studio?design=${encodeURIComponent(designId)}`}
-              className="pbtn ghost"
-            >
-              Open Studio
-            </Link>
-          )}
-          {manage &&
-            (picking ? (
-              <>
-                <select
-                  className="wb-select"
-                  disabled={busy || options === null}
-                  defaultValue={designId ?? ""}
-                  onChange={(e) => {
-                    onSet(e.target.value || null);
-                    setPicking(false);
-                  }}
-                >
-                  <option value="">No design</option>
-                  {(options ?? []).map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.name}
-                    </option>
-                  ))}
-                </select>
-                <button className="pbtn ghost" onClick={() => setPicking(false)}>
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <button className="pbtn ghost" onClick={openPicker}>
-                {designId ? "Change" : "Link design"}
-              </button>
-            ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function NotesCard({
-  notes,
-  manage,
-  busy,
-  onSave,
-}: {
-  notes: string | null;
-  manage: boolean;
-  busy: boolean;
-  onSave: (text: string) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [text, setText] = useState(notes ?? "");
-
-  return (
-    <div className="card2">
-      <div className="c2h">
-        <div>
-          <b>Notes</b>
-          <em>Anything the next person on this job should know.</em>
-        </div>
-        {manage && !editing && (
-          <button
-            className="pbtn ghost"
-            style={{ marginLeft: "auto" }}
-            onClick={() => {
-              setText(notes ?? "");
-              setEditing(true);
-            }}
-          >
-            <Icon name="edit" size={15} />
-            Edit
-          </button>
-        )}
-      </div>
-      {editing ? (
-        <>
-          <NoteToken as="field"
-            label="project notes"
-            value={text}
-            onChange={setText}
-            rows={5}
-          />
-          <div className="fl-foot">
-            <button className="pbtn ghost" onClick={() => setEditing(false)} disabled={busy}>
-              Cancel
-            </button>
-            <button
-              className="pbtn primary"
-              disabled={busy}
-              onClick={() => {
-                onSave(text);
-                setEditing(false);
-              }}
-            >
-              Save notes
-            </button>
-          </div>
-        </>
-      ) : notes ? (
-        <p className="wb-notetext">{notes}</p>
-      ) : (
-        <p className="int-hint">Nothing yet.</p>
-      )}
-    </div>
-  );
-}
-
-function AttachJobModal({
-  sm8Connected,
-  onClose,
-  onAttach,
-}: {
-  sm8Connected: boolean;
-  onClose: () => void;
-  onAttach: (input: { jobNumber?: string; remoteId?: string; role?: string }) => void;
-}) {
-  const [role, setRole] = useState("install");
-  const [jobNumber, setJobNumber] = useState("");
-  const [query, setQuery] = useState("");
-  const [hits, setHits] = useState<JobSearchHit[]>([]);
-  const [searching, setSearching] = useState(false);
-
-  const doSearch = async (q: string) => {
-    setQuery(q);
-    if (q.trim().length < 2) {
-      setHits([]);
-      return;
-    }
-    setSearching(true);
-    setHits(await searchJobs(q));
-    setSearching(false);
-  };
-
-  return (
-    <WbModal
-      title="Attach a job"
-      sub={sm8Connected ? "Search ServiceM8, or type a number" : "Type the job number"}
-      onClose={onClose}
-      wide
-    >
-      <div className="fl-grid">
-        <label className="fl-f">
-          <span>Role on this project</span>
-          <select className="wb-select" value={role} onChange={(e) => setRole(e.target.value)}>
-            <option value="quote">Quote</option>
-            <option value="install">Install</option>
-            <option value="variation">Variation</option>
-            <option value="service">Service</option>
-            <option value="other">Other</option>
-          </select>
-        </label>
-        <label className="fl-f">
-          <span>Job number (typed)</span>
-          <input
-            value={jobNumber}
-            onChange={(e) => setJobNumber(e.target.value)}
-            placeholder="1042"
-          />
-        </label>
-      </div>
-
-      {sm8Connected && (
-        <>
-          <label className="fl-f span" style={{ marginTop: 10 }}>
-            <span>Or search ServiceM8 — number, client or address</span>
-            <input
-              value={query}
-              onChange={(e) => doSearch(e.target.value)}
-              placeholder="1042, or “Smith”"
-            />
-          </label>
-          {searching && <p className="int-hint">Searching ServiceM8</p>}
-          {hits.map((h) => (
-            <button
-              key={h.remoteId}
-              className="wb-row wb-hit"
-              onClick={() => onAttach({ remoteId: h.remoteId, role })}
-            >
-              <span className="wb-chip">#{h.jobNumber ?? "—"}</span>
-              <span className="wb-who">
-                <b>{h.clientName ?? "—"}</b>
-                {h.suburb && <em>, {h.suburb}</em>}
-              </span>
-              {h.status && <span className="wb-chip">{h.status}</span>}
-              {h.linkedTo.length > 0 && (
-                <span className="wb-chip bad">
-                  on {h.linkedTo.length} project{h.linkedTo.length === 1 ? "" : "s"}
-                </span>
-              )}
-            </button>
-          ))}
-        </>
-      )}
-
-      <div className="fl-foot">
-        <button className="pbtn ghost" onClick={onClose}>
-          Cancel
-        </button>
-        <button
-          className="pbtn primary"
-          disabled={!jobNumber.trim()}
-          onClick={() => onAttach({ jobNumber, role })}
-        >
-          Attach typed number
-        </button>
-      </div>
-    </WbModal>
-  );
-}
-
-/** Reads a File into the base64 body Claude's image blocks want. */
-function AddEquipmentModal({
-  onClose,
-  onAdd,
-}: {
-  onClose: () => void;
-  onAdd: (
-    input: {
-      description: string;
-      model?: string;
-      serial?: string;
-      locationNote?: string;
-      notes?: string;
-    },
-    photo: File | null
-  ) => void;
-}) {
-  const [description, setDescription] = useState("");
-  const [model, setModel] = useState("");
-  const [serial, setSerial] = useState("");
-  const [locationNote, setLocationNote] = useState("");
-  const [photo, setPhoto] = useState<File | null>(null);
-  const [keepPhoto, setKeepPhoto] = useState(true);
-  const [scanning, setScanning] = useState(false);
-  const [scanNote, setScanNote] = useState<string | null>(null);
-
-  const scan = async (file: File) => {
-    setPhoto(file);
-    setScanNote(null);
-    if (!file.type.startsWith("image/")) return;
-    setScanning(true);
-    await withCleanup(async () => {
-      const img = await fileToUprightBase64(file);
-      const res = await readEquipmentPhoto(img.data, img.mediaType);
-      if (res.ok) {
-        // A DRAFT, never a decision: prefill only what's empty, and say so.
-        if (res.read.description && !description) setDescription(res.read.description);
-        if (res.read.model && !model) setModel(res.read.model);
-        if (res.read.serial && !serial) setSerial(res.read.serial);
-        setScanNote(
-          res.read.model || res.read.serial
-            ? "Read from the nameplate — check it against the plate before saving."
-            : "Couldn't make out a model or serial — type them from the plate."
-        );
-      } else {
-        setScanNote(
-          res.reason === "no-key"
-            ? "Photo kept — reading nameplates needs Tiff, which isn't set up."
-            : res.reason
-        );
-      }
-    }, () => setScanning(false));
-  };
-
-  return (
-    <WbModal title="Add equipment" sub="What's on site, and where" onClose={onClose}>
-      <label className="fl-f span" style={{ marginBottom: 10 }}>
-        <span>Photo of the unit or its nameplate</span>
         <input
+          ref={picker}
           type="file"
-          accept="image/*"
-          capture="environment"
+          accept="image/*,application/pdf"
+          hidden
+          aria-label="A file for this project"
           onChange={(e) => {
             const f = e.target.files?.[0];
-            if (f) void scan(f);
+            e.target.value = "";
+            if (f) void upload(f);
           }}
         />
-      </label>
-      {scanning && <p className="int-hint">Reading the nameplate</p>}
-      {scanNote && <p className="int-hint">{scanNote}</p>}
-      {photo && (
-        <label className="wb2-carry" style={{ marginBottom: 10 }}>
-          <input
-            type="checkbox"
-            checked={keepPhoto}
-            onChange={(e) => setKeepPhoto(e.target.checked)}
-          />
-          Keep the photo with the project&apos;s files
-        </label>
-      )}
-      <div className="fl-grid">
-        <label className="fl-f span">
-          <span>
-            Description<i>*</i>
-          </span>
-          <input
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Ducted indoor unit"
-            autoFocus
-          />
-        </label>
-        <label className="fl-f">
-          <span>Model</span>
-          <input value={model} onChange={(e) => setModel(e.target.value)} placeholder="PEAD-M100" />
-        </label>
-        <label className="fl-f">
-          <span>Serial</span>
-          <input value={serial} onChange={(e) => setSerial(e.target.value)} />
-        </label>
-        <label className="fl-f span">
-          <span>Where on site</span>
-          <input
-            value={locationNote}
-            onChange={(e) => setLocationNote(e.target.value)}
-            placeholder="Roof space above hallway"
-          />
-        </label>
-      </div>
-      <div className="fl-foot">
-        <button className="pbtn ghost" onClick={onClose}>
-          Cancel
-        </button>
-        <button
-          className="pbtn primary"
-          disabled={!description.trim() || scanning}
-          onClick={() =>
-            onAdd({ description, model, serial, locationNote }, keepPhoto ? photo : null)
-          }
-        >
-          Add equipment
-        </button>
-      </div>
-    </WbModal>
+        {project.documents.length === 0 ? (
+          <p className="pj-none">No files yet.</p>
+        ) : (
+          <ul className="jov-rows" aria-label="Documents and photos">
+            {project.documents.map((d) => (
+              <li className="jov-row pj-row" key={d.id}>
+                <span className="pj-text">
+                  <b className="pj-name">
+                    <Fade>{d.fileName}</Fade>
+                  </b>
+                  <span className="pj-line">
+                    {`${d.mimeType.startsWith("image/") ? "Photo" : "File"}, ${fmtBytes(d.sizeBytes)}, ${agoLabel(auDayOf(d.uploadedAt), today)}`}
+                  </span>
+                </span>
+                <span className="pj-end">
+                  {d.url && (
+                    <LinkButton href={d.url} target="_blank" rel="noreferrer">
+                      Open
+                    </LinkButton>
+                  )}
+                  <Button kind="quiet" size={32} aria-label={`Remove ${d.fileName}`} disabled={busy || uploading} onClick={() => run(() => deleteDocument(d.id))}>
+                    Remove
+                  </Button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </JobSection>
+    </div>
   );
 }
 
-function EditMetaModal({
-  project,
-  onClose,
-  onSave,
-}: {
-  project: ProjectDetail;
-  onClose: () => void;
-  onSave: (patch: {
-    name?: string;
-    clientName?: string | null;
-    siteLabel?: string | null;
-    siteAddress?: string | null;
-  }) => void;
-}) {
-  const [name, setName] = useState(project.name);
-  const [clientName, setClientName] = useState(project.clientName ?? "");
-  const [siteLabel, setSiteLabel] = useState(project.siteLabel ?? "");
-  const [siteAddress, setSiteAddress] = useState(project.siteAddress ?? "");
+/* ── the forms over the page (project-forms.tsx), one at a time ── */
 
-  return (
-    <WbModal title="Edit project" onClose={onClose}>
-      <div className="fl-grid">
-        <label className="fl-f span">
-          <span>
-            Name<i>*</i>
-          </span>
-          <input value={name} onChange={(e) => setName(e.target.value)} />
-        </label>
-        <label className="fl-f">
-          <span>Client</span>
-          <input value={clientName} onChange={(e) => setClientName(e.target.value)} />
-        </label>
-        <label className="fl-f">
-          <span>Site label</span>
-          <input value={siteLabel} onChange={(e) => setSiteLabel(e.target.value)} />
-        </label>
-        <label className="fl-f span">
-          <span>Site address</span>
-          <input value={siteAddress} onChange={(e) => setSiteAddress(e.target.value)} />
-        </label>
-      </div>
-      <div className="fl-foot">
-        <button className="pbtn ghost" onClick={onClose}>
-          Cancel
-        </button>
-        <button
-          className="pbtn primary"
-          disabled={!name.trim()}
-          onClick={() =>
-            onSave({ name, clientName, siteLabel, siteAddress })
+function Forms({
+  form,
+  project,
+  today,
+  sm8Connected,
+  close,
+  submit,
+  onOpenAgreement,
+  onToast,
+}: {
+  form: OpenForm | null;
+  project: ProjectDetail;
+  today: string;
+  sm8Connected: boolean;
+  close: () => void;
+  submit: Run;
+  onOpenAgreement: (id: string) => void;
+  onToast: (message: string, undo?: () => void | Promise<void>) => void;
+}) {
+  if (!form) return null;
+  const id = project.id;
+  switch (form.kind) {
+    case "block":
+      return <BlockForm onClose={close} onBlock={(reason, on) => submit(() => setProjectBlocked(id, { reason, on }))} />;
+    case "edit":
+      return <EditProjectForm project={project} onClose={close} onSave={(patch) => submit(() => updateProjectMeta(id, patch))} />;
+    case "attach":
+      return <AttachJobForm sm8Connected={sm8Connected} onClose={close} onAttach={(input) => submit(() => attachJob(id, input))} />;
+    case "equipment":
+      return (
+        <EquipmentForm
+          onClose={close}
+          onAdd={(input, photo) =>
+            submit(async () => {
+              const res = await addEquipment(id, input);
+              if (!res.ok) return res;
+              if (photo) {
+                // the nameplate photo is site evidence: it lands with the
+                // project's files through the same slot flow as any upload
+                const up = await uploadFile(photo, "project_file");
+                if (up.ok) await attachDocumentToProject(up.file.documentId, id);
+              }
+              return res;
+            })
           }
-        >
-          Save
-        </button>
-      </div>
-    </WbModal>
-  );
+        />
+      );
+    case "claim":
+      return <ClaimForm project={project} onClose={close} onAdd={(input) => submit(() => addClaim(id, input))} />;
+    case "variation":
+      return <VariationForm onClose={close} onAdd={(input) => submit(() => addVariation(id, input))} />;
+    case "decide": {
+      const v = project.variations.find((x) => x.id === form.id);
+      if (!v) return null;
+      return <DecideForm to={form.to} variation={v} onClose={close} onDecide={(who) => submit(() => decideVariation(v.id, form.to, who))} />;
+    }
+    case "total":
+      return (
+        <TotalForm
+          cents={project.budgetCents}
+          onClose={close}
+          onSave={(cents) => submit(() => setProjectBudget(id, cents === null ? { cents: null } : { cents, source: "manual" }))}
+        />
+      );
+    case "trip":
+      return <TripForm today={today} onClose={close} onAdd={(input) => submit(() => createProjectVisit(id, input))} />;
+    case "milestone":
+      return <MilestoneForm today={today} onClose={close} onAdd={(input) => submit(() => addMilestone(id, input))} />;
+    case "promise":
+      return <DayForm heading="Promised finish" value={project.promisedFinish} today={today} onClose={close} onSave={(d) => submit(() => setProjectPromise(id, d))} />;
+    case "defects":
+      return <DayForm heading="Defects period ends" value={project.defectsEnd} today={today} onClose={close} onSave={(d) => submit(() => setProjectDefectsEnd(id, d))} />;
+    case "hours":
+      return <HoursForm hours={project.hoursBudget} onClose={close} onSave={(h) => submit(() => setProjectHoursBudget(id, h))} />;
+    case "section":
+      return <SectionForm onClose={close} onAdd={(section, label) => submit(() => addChecklistItem(id, section, label))} />;
+    case "design":
+      return <DesignForm designId={project.designId} onClose={close} onSave={(d) => submit(() => setProjectDesign(id, d))} />;
+    case "agreement":
+      /* New agreement, filled in from the project; Create is the handover
+         action, which carries the equipment and serials over */
+      return (
+        <AgreementForm
+          project={{ id, name: project.name, clientName: project.clientName, siteLabel: project.siteLabel, siteAddress: project.siteAddress }}
+          onOpenAgreement={onOpenAgreement}
+          onToast={onToast}
+          onClose={close}
+        />
+      );
+  }
 }

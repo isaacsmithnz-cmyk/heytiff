@@ -3,6 +3,7 @@ import { auth0 } from "@/lib/auth0";
 import { auMinutesNow, todayInAu } from "@/lib/au-dates";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import type { PayPeriod } from "@/components/timepay/timepay";
+import type { Settings } from "@/components/timepay/logic";
 import {
   EMPTY_SHEET,
   getMyWeek,
@@ -92,7 +93,19 @@ export async function loadMyTimesheet(requested?: string) {
   if (!orgId) return null;
   const [ctx, { settings }] = await Promise.all([timepayContext(), getPaySettings(orgId)]);
   if (!ctx?.staffId) return null;
+  return loadTimesheetFor({ orgId: ctx.orgId, staffId: ctx.staffId, today: ctx.today }, settings, requested);
+}
 
+/** My timesheet for one person, without a session: the page hands in who it
+    is from the cookie, the phone from its token (api/mobile/timesheet). The
+    same week, filled in and sent the same way: like the page, reading a
+    period whose send moment has passed SENDS it (lib/timepay/auto-submit),
+    and the holiday calendar is topped up first. */
+export async function loadTimesheetFor(
+  ctx: { orgId: string; staffId: string; today: string },
+  settings: Settings,
+  requested?: string,
+) {
   const cfg = periodConfig(settings);
   const { start, periods, index } = resolvePeriod(ctx.today, cfg, requested);
   const state = await stateFor(ctx.orgId, ctx.staffId);

@@ -1,8 +1,10 @@
 "use client";
 
+import { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import { CommandPaletteProvider } from "./command-palette-context";
 import { RecordDock } from "@/components/records/record-dock";
+import { StudioHost } from "@/components/studio/studio-keeper";
 
 /* The app frame — and NOTHING in it knows who you are.
 
@@ -43,6 +45,12 @@ export function AppShell({
         <main className="outlet" key={pathname}>
           {children}
         </main>
+        {/* Design's studio, kept alive behind other tabs and drawn here
+            rather than by its page (studio-keeper.tsx); its own Suspense,
+            because it reads the address's query */}
+        <Suspense fallback={null}>
+          <StudioHost />
+        </Suspense>
         {/* the cards set aside, under the page and never over it */}
         <RecordDock />
       </div>

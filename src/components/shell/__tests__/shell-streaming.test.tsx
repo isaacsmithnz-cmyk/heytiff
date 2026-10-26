@@ -25,6 +25,7 @@ jest.mock("@/components/notes/tiff-button", () => ({
 jest.mock("next/navigation", () => ({
   usePathname: () => "/dashboard",
   useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 const slots = {

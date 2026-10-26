@@ -124,7 +124,7 @@ describe("reading the org's tags", () => {
   it("falls back rather than rendering a tag with no colour or group", async () => {
     data.kb_tags = [{ id: "t-1", label: "Daikin", slug: "daikin", color: "chartreuse", kind: "vendor" }];
     const [tag] = await kbTagsForOrg(ORG);
-    expect(tag.color).toBe("#475569");
+    expect(tag.color).toBe("#9ca3af");
     expect(tag.kind).toBe("topic");
   });
 });

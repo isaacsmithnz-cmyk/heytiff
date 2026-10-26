@@ -144,10 +144,10 @@ describe("the window", () => {
 
 describe("the page label", () => {
   it("says one page as one page", () => {
-    expect(pageLabel({ pageFrom: 42, pageTo: 42 })).toBe("p.42");
+    expect(pageLabel({ pageFrom: 42, pageTo: 42 })).toBe("Page 42");
   });
 
   it("says a range when the passage straddles two", () => {
-    expect(pageLabel({ pageFrom: 42, pageTo: 43 })).toBe("p.42–43");
+    expect(pageLabel({ pageFrom: 42, pageTo: 43 })).toBe("Pages 42–43");
   });
 });

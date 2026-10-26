@@ -334,8 +334,9 @@ describe("sources", () => {
     const peek = screen.getByRole("dialog");
     expect(within(peek).getByText(/abnormal piping temperature/)).toBeInTheDocument();
     expect(within(peek).getByText(/STD compressor 1 OC/)).toBeInTheDocument();
-    expect(within(peek).getByText("p.41")).toBeInTheDocument();
-    expect(within(peek).getByText("p.106–107")).toBeInTheDocument();
+    expect(within(peek).getByText("Page 41")).toBeInTheDocument();
+    expect(within(peek).getByText("Pages 106–107")).toBeInTheDocument();
+    expect(within(peek).getByText(/pages 41 and 106–107/)).toBeInTheDocument();
   });
 
   /* ── a citation is a pointer, not a memento ──
@@ -853,7 +854,7 @@ describe("managing a thread", () => {
     render(<TiffAssistant />);
 
     await user.click(screen.getByRole("button", { name: /Rename “R32 pressures”/ }));
-    const field = screen.getByLabelText("Chat title");
+    const field = within(screen.getByRole("dialog", { name: "Rename this chat" })).getByLabelText("Title");
     expect(field).toHaveValue("R32 pressures");
 
     await user.clear(field);
@@ -871,8 +872,8 @@ describe("managing a thread", () => {
     render(<TiffAssistant />);
 
     await user.click(screen.getByRole("button", { name: /Rename “R32 pressures”/ }));
-    await user.clear(screen.getByLabelText("Chat title"));
-    await user.type(screen.getByLabelText("Chat title"), "Warranty steps{Enter}");
+    await user.clear(within(screen.getByRole("dialog", { name: "Rename this chat" })).getByLabelText("Title"));
+    await user.type(within(screen.getByRole("dialog", { name: "Rename this chat" })).getByLabelText("Title"), "Warranty steps{Enter}");
 
     expect(titles()).toEqual(["Warranty steps"]);
   });
@@ -883,7 +884,7 @@ describe("managing a thread", () => {
     render(<TiffAssistant />);
 
     await user.click(screen.getByRole("button", { name: /Rename “R32 pressures”/ }));
-    const field = screen.getByLabelText("Chat title");
+    const field = within(screen.getByRole("dialog", { name: "Rename this chat" })).getByLabelText("Title");
     expect(field).toHaveAttribute("maxLength", "60");
 
     await user.clear(field);
@@ -899,8 +900,8 @@ describe("managing a thread", () => {
     render(<TiffAssistant />);
 
     await user.click(screen.getByRole("button", { name: /Rename “R32 pressures”/ }));
-    await user.clear(screen.getByLabelText("Chat title"));
-    await user.type(screen.getByLabelText("Chat title"), "not this");
+    await user.clear(within(screen.getByRole("dialog", { name: "Rename this chat" })).getByLabelText("Title"));
+    await user.type(within(screen.getByRole("dialog", { name: "Rename this chat" })).getByLabelText("Title"), "not this");
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(titles()).toEqual(["R32 pressures"]);
@@ -914,8 +915,8 @@ describe("managing a thread", () => {
     render(<TiffAssistant />);
 
     await user.click(screen.getByRole("button", { name: /Rename “R32 pressures”/ }));
-    await user.clear(screen.getByLabelText("Chat title"));
-    await user.type(screen.getByLabelText("Chat title"), "not this");
+    await user.clear(within(screen.getByRole("dialog", { name: "Rename this chat" })).getByLabelText("Title"));
+    await user.type(within(screen.getByRole("dialog", { name: "Rename this chat" })).getByLabelText("Title"), "not this");
     await user.keyboard("{Escape}");
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -988,8 +989,8 @@ describe("managing a thread", () => {
     await waitFor(() => expect(stored()).toHaveLength(1));
 
     await user.click(screen.getByRole("button", { name: /Rename “why P8\?”/ }));
-    await user.clear(screen.getByLabelText("Chat title"));
-    await user.type(screen.getByLabelText("Chat title"), "P8 diagnosis{Enter}");
+    await user.clear(within(screen.getByRole("dialog", { name: "Rename this chat" })).getByLabelText("Title"));
+    await user.type(within(screen.getByRole("dialog", { name: "Rename this chat" })).getByLabelText("Title"), "P8 diagnosis{Enter}");
 
     expect(titles()).toEqual(["P8 diagnosis"]);
     // the header is showing the new name, and we are still in the thread

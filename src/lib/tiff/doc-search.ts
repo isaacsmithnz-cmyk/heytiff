@@ -186,7 +186,7 @@ export function snippetOf(
   return out;
 }
 
-/** "p.42" or "p.42–43" — the same shape the citation chips use. */
+/** "Page 42" or "Pages 42–43", as the search dialog lists a passage. */
 export function pageLabel(hit: { pageFrom: number; pageTo: number }): string {
-  return hit.pageTo > hit.pageFrom ? `p.${hit.pageFrom}–${hit.pageTo}` : `p.${hit.pageFrom}`;
+  return hit.pageTo > hit.pageFrom ? `Pages ${hit.pageFrom}–${hit.pageTo}` : `Page ${hit.pageFrom}`;
 }

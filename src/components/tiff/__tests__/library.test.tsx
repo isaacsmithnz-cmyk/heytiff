@@ -479,7 +479,7 @@ describe("opening a document", () => {
     await userEvent.click(screen.getByRole("button", { name: "City Multi fault codes" }));
 
     expect(
-      screen.getByRole("dialog", { name: "Search inside City Multi fault codes" })
+      screen.getByRole("dialog", { name: "City Multi fault codes" })
     ).toBeInTheDocument();
     // no tab was opened, and no URL was signed for one
     expect(open).not.toHaveBeenCalled();
@@ -495,9 +495,9 @@ describe("opening a document", () => {
     render(<Library docs={[doc({ category: "field", title: "Grille clips on the AP25", storageRef: null })]} canManage />);
 
     await userEvent.click(screen.getByRole("button", { name: "Grille clips on the AP25" }));
-    const panel = screen.getByRole("dialog", { name: /Search inside/ });
+    const panel = screen.getByRole("dialog", { name: "Grille clips on the AP25" });
     expect(within(panel).queryByRole("button", { name: /Open the PDF/ })).toBeNull();
-    expect(within(panel).getByText("Search inside it")).toBeInTheDocument();
+    expect(within(panel).getByLabelText("Search inside this document")).toBeInTheDocument();
   });
 
   /* Searching a document is reading it, so this is the one row affordance
@@ -506,7 +506,7 @@ describe("opening a document", () => {
     render(<Library docs={[doc()]} />);
 
     await userEvent.click(screen.getByRole("button", { name: "City Multi fault codes" }));
-    expect(screen.getByRole("dialog", { name: /Search inside/ })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "City Multi fault codes" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Edit/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Actions on/ })).not.toBeInTheDocument();
   });
@@ -514,7 +514,7 @@ describe("opening a document", () => {
   /* `?doc=` lands on the document's panel, as a click would */
   it("opens the document the address named", () => {
     render(<Library docs={[doc()]} initialDocId="d-1" />);
-    expect(screen.getByRole("dialog", { name: "Search inside City Multi fault codes" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "City Multi fault codes" })).toBeInTheDocument();
   });
 
   /* Nothing is indexed until the document has been read, and there is no file
@@ -1039,9 +1039,12 @@ describe("tagging a document after the fact", () => {
     await userEvent.click(within(await openActions("City Multi fault codes")).getByRole("menuitem", { name: "Edit details" }));
 
     const dialog = screen.getByRole("dialog", { name: "Edit document" });
-    // one off, one on
-    await userEvent.click(within(dialog).getByRole("button", { name: /Daikin/ }));
-    await userEvent.click(within(dialog).getByRole("button", { name: /VRV/ }));
+    // one off, one on, from the Tags field's menu
+    await userEvent.click(within(dialog).getByRole("combobox", { name: "Tags" }));
+    const menu = screen.getByRole("listbox", { name: "Tags" });
+    await userEvent.click(within(menu).getByRole("option", { name: "Daikin" }));
+    await userEvent.click(within(menu).getByRole("option", { name: "VRV" }));
+    await userEvent.keyboard("{Escape}");
     await userEvent.click(within(dialog).getByRole("button", { name: /Save details/ }));
 
     await waitFor(() =>
@@ -1057,14 +1060,15 @@ describe("tagging a document after the fact", () => {
     await userEvent.click(within(await openActions("City Multi fault codes")).getByRole("menuitem", { name: "Edit details" }));
 
     const dialog = screen.getByRole("dialog", { name: "Edit document" });
-    const box = within(dialog).getByLabelText("Find or create a tag");
+    await userEvent.click(within(dialog).getByRole("combobox", { name: "Tags" }));
+    const box = screen.getByLabelText("Find or create a tag");
 
     await userEvent.type(box, "daikin");
-    expect(within(dialog).queryByText(/^Create/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /^Create/ })).not.toBeInTheDocument();
 
     await userEvent.clear(box);
     await userEvent.type(box, "chiller");
-    expect(within(dialog).getByText(/^Create/)).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Create “Chiller” in Topics" })).toBeInTheDocument();
   });
 
   it("ticks a tag it just made onto the document", async () => {
@@ -1078,10 +1082,12 @@ describe("tagging a document after the fact", () => {
     await userEvent.click(within(await openActions("City Multi fault codes")).getByRole("menuitem", { name: "Edit details" }));
 
     const dialog = screen.getByRole("dialog", { name: "Edit document" });
-    await userEvent.type(within(dialog).getByLabelText("Find or create a tag"), "hydronic");
-    await userEvent.click(within(dialog).getByRole("button", { name: /System types/ }));
+    await userEvent.click(within(dialog).getByRole("combobox", { name: "Tags" }));
+    await userEvent.type(screen.getByLabelText("Find or create a tag"), "hydronic");
+    await userEvent.click(screen.getByRole("option", { name: "Create “Hydronic” in System types" }));
 
     await waitFor(() => expect(createKbTag).toHaveBeenCalledWith({ label: "Hydronic", kind: "system" }));
+    await userEvent.keyboard("{Escape}");
 
     await userEvent.click(within(dialog).getByRole("button", { name: /Save details/ }));
     await waitFor(() =>
@@ -1091,7 +1097,7 @@ describe("tagging a document after the fact", () => {
 });
 
 describe("managing the tags themselves", () => {
-  it("is a manager's sheet — staff never see the way in", () => {
+  it("is a manager's dialog — staff never see the way in", () => {
     render(<Library docs={[doc()]} tags={TAGS} />);
     expect(screen.queryByRole("button", { name: "Edit tags" })).not.toBeInTheDocument();
   });
@@ -1100,14 +1106,14 @@ describe("managing the tags themselves", () => {
     render(<Library docs={[doc()]} tags={TAGS} tagUsage={{ "t-daikin": 14 }} canManage />);
 
     await userEvent.click(screen.getByRole("button", { name: "Edit tags" }));
-    const sheet = screen.getByRole("dialog", { name: "Manage tags" });
+    const sheet = screen.getByRole("dialog", { name: "Tags" });
     expect(within(sheet).getByText("14 documents")).toBeInTheDocument();
 
     await userEvent.click(within(sheet).getByRole("button", { name: "Remove Daikin" }));
 
     expect(within(sheet).getByText("Remove “Daikin”?")).toBeInTheDocument();
     // the manuals are not what's being deleted, and the confirm says so
-    expect(within(sheet).getByText(/the documents stay/)).toBeInTheDocument();
+    expect(within(sheet).getByText(/The documents stay/)).toBeInTheDocument();
     expect(deleteKbTag).not.toHaveBeenCalled();
   });
 
@@ -1116,7 +1122,7 @@ describe("managing the tags themselves", () => {
     render(<Library docs={[doc()]} tags={TAGS} tagUsage={{ "t-daikin": 2 }} canManage />);
 
     await userEvent.click(screen.getByRole("button", { name: "Edit tags" }));
-    const sheet = screen.getByRole("dialog", { name: "Manage tags" });
+    const sheet = screen.getByRole("dialog", { name: "Tags" });
     await userEvent.click(within(sheet).getByRole("button", { name: "Remove Daikin" }));
     await userEvent.click(within(sheet).getByRole("button", { name: /Remove “Daikin”$/ }));
 
@@ -1128,13 +1134,13 @@ describe("managing the tags themselves", () => {
     render(<Library docs={[doc()]} tags={TAGS} canManage />);
 
     await userEvent.click(screen.getByRole("button", { name: "Edit tags" }));
-    const sheet = screen.getByRole("dialog", { name: "Manage tags" });
+    const sheet = screen.getByRole("dialog", { name: "Tags" });
     await userEvent.click(within(sheet).getByRole("button", { name: "Edit VRV" }));
 
     const box = within(sheet).getByLabelText("Rename VRV");
     await userEvent.clear(box);
     await userEvent.type(box, "VRV systems");
-    await userEvent.click(within(sheet).getByRole("button", { name: /Save/ }));
+    await userEvent.click(within(sheet).getByRole("button", { name: "Save tag" }));
 
     await waitFor(() =>
       expect(updateKbTag).toHaveBeenCalledWith("t-vrv", expect.objectContaining({ label: "VRV systems" }))

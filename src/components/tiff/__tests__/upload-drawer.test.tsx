@@ -2,9 +2,10 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { UploadDrawer } from "../upload-drawer";
 
-/* The upload drawer.
+/* Add documents (the upload dialog; a side sheet until the old-modals mock
+   of 27 October 2026).
 
-   What these pin: the drawer OFFERS a guess and never enforces it (title and
+   What these pin: the dialog OFFERS a guess and never enforces it (title and
    category arrive prefilled and editable); a file the bucket would refuse is
    refused here, before a slot is asked for; and the uploads run one after the
    other, each handing its document to the library's reading queue as it
@@ -61,10 +62,12 @@ describe("what the drawer offers before anything is stored", () => {
     await drop([pdf("PUZ-ZM250_installation-manual.pdf")]);
 
     expect(screen.getByDisplayValue("PUZ-ZM250 Installation Manual")).toBeInTheDocument();
-    expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe("install");
+    const category = screen.getByRole("combobox", { name: "Category" });
+    expect(category).toHaveTextContent("Installation documents");
 
-    await userEvent.selectOptions(screen.getByRole("combobox"), "specs");
-    expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe("specs");
+    await userEvent.click(category);
+    await userEvent.click(screen.getByRole("option", { name: "Manufacturer specs" }));
+    expect(screen.getByRole("combobox", { name: "Category" })).toHaveTextContent("Manufacturer specs");
   });
 
   it("refuses a file the bucket would refuse, before a slot is asked for", async () => {
@@ -86,7 +89,7 @@ describe("what the drawer offers before anything is stored", () => {
     render(
       <UploadDrawer large={{ left: 2, resetsOn: "2026-11-01" }} progress={{}} onIngest={jest.fn()} onClose={jest.fn()} />
     );
-    expect(screen.getByText(/2 of 2 large uploads left this month/)).toBeInTheDocument();
+    expect(screen.getByText("PDFs up to 50 MB; 2 of 2 large uploads, up to 150 MB, left this month.")).toBeInTheDocument();
     await drop([sized(pdf("2024_M-S-P_DATA_BOOK.pdf"), 131 * 1024 * 1024)]);
     expect(screen.queryByText(/too big/)).toBeNull();
     // and the upload itself is told the allowance, or it refuses the file again
@@ -180,7 +183,7 @@ describe("driving the uploads", () => {
         onClose={jest.fn()}
       />
     );
-    expect(screen.getByText("Ready — Tiff can quote it")).toBeInTheDocument();
+    expect(screen.getByText("Ready, Tiff can quote it")).toBeInTheDocument();
   });
 });
 
@@ -189,7 +192,7 @@ describe("closing", () => {
     const onClose = jest.fn();
     const { container } = render(<UploadDrawer progress={{}} onIngest={jest.fn()} onClose={onClose} />);
 
-    await userEvent.click(container.ownerDocument.querySelector(".tk-scrim") as HTMLElement);
+    await userEvent.click(container.ownerDocument.querySelector(".pt-scrim") as HTMLElement);
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -199,13 +202,6 @@ describe("closing", () => {
 
     await userEvent.keyboard("{Escape}");
     expect(onClose).toHaveBeenCalled();
-  });
-
-  it("locks the page behind it, and gives the scroll back on the way out", () => {
-    const { unmount } = render(<UploadDrawer progress={{}} onIngest={jest.fn()} onClose={jest.fn()} />);
-    expect(document.body.style.overflow).toBe("hidden");
-    unmount();
-    expect(document.body.style.overflow).toBe("");
   });
 
   it("holds the scrim shut while bytes are actually moving", async () => {
@@ -218,7 +214,7 @@ describe("closing", () => {
     await userEvent.click(screen.getByRole("button", { name: /Upload 1 document/ }));
     await waitFor(() => expect(uploadKbFile).toHaveBeenCalled());
 
-    await userEvent.click(container.ownerDocument.querySelector(".tk-scrim") as HTMLElement);
+    await userEvent.click(container.ownerDocument.querySelector(".pt-scrim") as HTMLElement);
     expect(onClose).not.toHaveBeenCalled();
 
     land({ ok: true, documentId: "d-1" });
@@ -260,10 +256,8 @@ describe("the drawer stays put while files are going up", () => {
 
   it("disables the close controls rather than letting them lose the progress", async () => {
     await startUpload();
-    // the footer button and the header ✕ both close, so both have to hold
-    const closers = screen.getAllByRole("button", { name: "Close" });
-    expect(closers).toHaveLength(2);
-    for (const button of closers) expect(button).toBeDisabled();
+    // the dialog has one Close, in its foot, and it holds
+    expect(screen.getByRole("button", { name: "Close" })).toBeDisabled();
   });
 });
 
@@ -274,15 +268,26 @@ describe("what the filename says about the gear", () => {
     <UploadDrawer tags={TAGS} progress={{}} onIngest={jest.fn()} onClose={jest.fn()} {...over} />
   );
 
+  /* The row's Tags field opens the tag menu, which portals to the body. */
+  const tagsOf = async (file: string) => {
+    const row = screen.getByText(file).closest(".tk-file") as HTMLElement;
+    await userEvent.click(within(row).getByRole("combobox", { name: "Tags" }));
+    return screen.getByRole("listbox", { name: "Tags" });
+  };
+
   it("ticks the tags the filename names, and sends them with the upload", async () => {
     uploadKbFile.mockResolvedValue({ ok: true, documentId: "d-1" });
     render(withTags());
     await drop([pdf("daikin-vrv-service-manual.pdf")]);
 
     const row = screen.getByText("daikin-vrv-service-manual.pdf").closest(".tk-file") as HTMLElement;
-    expect(within(row).getByRole("button", { name: /Daikin/ })).toHaveAttribute("aria-pressed", "true");
-    expect(within(row).getByRole("button", { name: /VRV/ })).toHaveAttribute("aria-pressed", "true");
-    expect(within(row).getByRole("button", { name: /Ducted/ })).toHaveAttribute("aria-pressed", "false");
+    // the field says what is ticked
+    expect(within(row).getByRole("combobox", { name: "Tags" })).toHaveTextContent("Daikin, VRV");
+    const menu = await tagsOf("daikin-vrv-service-manual.pdf");
+    expect(within(menu).getByRole("option", { name: "Daikin" })).toHaveAttribute("aria-selected", "true");
+    expect(within(menu).getByRole("option", { name: "VRV" })).toHaveAttribute("aria-selected", "true");
+    expect(within(menu).getByRole("option", { name: "Ducted" })).toHaveAttribute("aria-selected", "false");
+    await userEvent.keyboard("{Escape}");
 
     await userEvent.click(screen.getByRole("button", { name: /Upload 1 document/ }));
     await waitFor(() => expect(uploadKbFile).toHaveBeenCalled());
@@ -296,8 +301,9 @@ describe("what the filename says about the gear", () => {
     render(withTags());
     await drop([pdf("daikin-vrv-service-manual.pdf")]);
 
-    const row = screen.getByText("daikin-vrv-service-manual.pdf").closest(".tk-file") as HTMLElement;
-    await userEvent.click(within(row).getByRole("button", { name: /Daikin/ }));
+    const menu = await tagsOf("daikin-vrv-service-manual.pdf");
+    await userEvent.click(within(menu).getByRole("option", { name: "Daikin" }));
+    await userEvent.keyboard("{Escape}");
 
     await userEvent.click(screen.getByRole("button", { name: /Upload 1 document/ }));
     await waitFor(() => expect(uploadKbFile).toHaveBeenCalled());
@@ -308,33 +314,31 @@ describe("what the filename says about the gear", () => {
     render(withTags());
     await drop([pdf("scan-0043.pdf")]);
 
-    const row = screen.getByText("scan-0043.pdf").closest(".tk-file") as HTMLElement;
+    const menu = await tagsOf("scan-0043.pdf");
     for (const t of ["Daikin", "VRV", "Ducted"]) {
-      expect(within(row).getByRole("button", { name: new RegExp(t) })).toHaveAttribute(
-        "aria-pressed",
-        "false"
-      );
+      expect(within(menu).getByRole("option", { name: t })).toHaveAttribute("aria-selected", "false");
     }
   });
 
   /* A tag made while tagging the first file has to be on offer for the second
-     — the drawer owns the list from the moment it opens, not the page. */
+     — the dialog owns the list from the moment it opens, not the page. */
   it("offers a tag created on one file to the next one", async () => {
     createKbTag.mockResolvedValue({
       ok: true,
-      tag: { id: "t-hydronic", label: "Hydronic", slug: "hydronic", color: "#2563eb", kind: "system" },
+      tag: { id: "t-hydronic", label: "Hydronic", slug: "hydronic", color: "#a855f7", kind: "system" },
     });
 
     render(withTags());
     await drop([pdf("first.pdf")]);
 
-    const first = screen.getByText("first.pdf").closest(".tk-file") as HTMLElement;
-    await userEvent.type(within(first).getByLabelText("Find or create a tag"), "hydronic");
-    await userEvent.click(within(first).getByRole("button", { name: /System types/ }));
+    await tagsOf("first.pdf");
+    await userEvent.type(screen.getByLabelText("Find or create a tag"), "hydronic");
+    await userEvent.click(screen.getByRole("option", { name: "Create “Hydronic” in System types" }));
     await waitFor(() => expect(createKbTag).toHaveBeenCalled());
+    await userEvent.keyboard("{Escape}");
 
     await drop([pdf("first.pdf"), pdf("second.pdf")]);
-    const second = screen.getByText("second.pdf").closest(".tk-file") as HTMLElement;
-    expect(within(second).getByRole("button", { name: /Hydronic/ })).toBeInTheDocument();
+    const menu = await tagsOf("second.pdf");
+    expect(within(menu).getByRole("option", { name: "Hydronic" })).toBeInTheDocument();
   });
 });

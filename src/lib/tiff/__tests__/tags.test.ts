@@ -9,6 +9,7 @@ import {
   KB_TAG_SEEDS,
   KB_TAGS_PER_DOC_MAX,
   kbTagColorFor,
+  kbTagHue,
   kbTagLabel,
   kbTagSlug,
   sanitiseTagIds,
@@ -115,6 +116,22 @@ describe("the palette", () => {
   it("gives the same label the same colour every time", () => {
     expect(kbTagColorFor("Daikin")).toBe(kbTagColorFor("Daikin"));
     expect(KB_TAG_COLORS).toContain(kbTagColorFor("Daikin"));
+  });
+
+  /* on the palette, without red or blue (the old-modals mock, 27 October 2026) */
+  it("offers only the palette's bright values, never red or blue", () => {
+    expect(KB_TAG_COLORS).toEqual(["#f97316", "#facc15", "#22c55e", "#a855f7", "#ec4899", "#9ca3af"]);
+  });
+
+  it("draws a colour stored before the palette moved in the hue it snaps to", () => {
+    expect(kbTagHue("#2563eb")).toBe("purple"); // the old blue
+    expect(kbTagHue("#0891b2")).toBe("green"); // cyan
+    expect(kbTagHue("#be123c")).toBe("pink"); // wine
+    expect(kbTagHue("#ea580c")).toBe("orange");
+    expect(kbTagHue("#ca8a04")).toBe("yellow");
+    expect(kbTagHue("#475569")).toBe("grey"); // slate
+    expect(kbTagHue("chartreuse")).toBe("grey");
+    for (const c of KB_TAG_COLORS) expect(["red", "blue"]).not.toContain(kbTagHue(c));
   });
 
   it("knows its three groups and nothing else", () => {

@@ -346,6 +346,34 @@ describe("Menu, a line before an item", () => {
   });
 });
 
+describe("Menu, grouped, with items made from the filter (a document's tags, 27 October 2026)", () => {
+  const TAGS = [
+    { key: "d", label: "Daikin", group: "Manufacturers" },
+    { key: "m", label: "Mitsubishi Electric", group: "Manufacturers" },
+    { key: "s", label: "Multi-split", group: "System types" },
+  ];
+  const make = (q: string) => (q ? [{ key: `new:${q}`, label: `Create “${q}”`, rule: true }] : []);
+
+  it("labels each group once, above its first item, and the label is not an option", () => {
+    const anchor = { current: document.body };
+    render(<Menu open anchor={anchor} kind="listbox" filter extra={make} onClose={() => {}} onSelect={() => {}} label="Tags" items={TAGS} />);
+    expect(screen.getAllByText("Manufacturers")).toHaveLength(1);
+    expect(screen.getByText("System types")).toHaveClass("pt-menu-group");
+    expect(screen.getAllByRole("option")).toHaveLength(3);
+  });
+
+  it("adds what the filter makes after what it narrowed, and names its box", () => {
+    const anchor = { current: document.body };
+    const onSelect = jest.fn();
+    render(<Menu open anchor={anchor} kind="listbox" filter filterLabel="Find or create a tag" extra={make} onClose={() => {}} onSelect={onSelect} label="Tags" items={TAGS} />);
+    fireEvent.change(screen.getByRole("combobox", { name: "Find or create a tag" }), { target: { value: "mul" } });
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["Multi-split", "Create “mul”"]);
+    expect(screen.queryByText("Manufacturers")).toBeNull();
+    fireEvent.click(screen.getByRole("option", { name: "Create “mul”" }));
+    expect(onSelect).toHaveBeenCalledWith("new:mul");
+  });
+});
+
 describe("Chooser", () => {
   it("looks like a field: the chosen word or the placeholder, and the chevron", () => {
     render(<ChooserHarness />);

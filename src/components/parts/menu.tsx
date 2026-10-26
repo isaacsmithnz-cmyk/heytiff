@@ -37,6 +37,9 @@ export type MenuItem = {
   disabled?: boolean;
   /** a thin line above it, setting it apart from the items before */
   rule?: boolean;
+  /** the group it is listed under: a small grey label above the first item
+      of each group, as a tag picker groups its tags by kind */
+  group?: string;
 };
 
 export type MenuProps = {
@@ -56,6 +59,12 @@ export type MenuProps = {
   kind?: "menu" | "listbox";
   /** a filter box above the items */
   filter?: boolean;
+  /** the filter box's name and its placeholder, when "Filter" is not the word */
+  filterLabel?: string;
+  filterPlaceholder?: string;
+  /** items made from what is typed in the filter box, after the ones it
+      narrowed: "Create “Mul” in Topics". They are not filtered themselves. */
+  extra?: (query: string) => readonly MenuItem[];
   /** at least as wide as the trigger */
   matchWidth?: boolean;
   align?: FloatAlign;
@@ -72,7 +81,7 @@ export function Menu(props: MenuProps) {
 
 const first = (list: readonly MenuItem[]) => list.find((i) => !i.disabled)?.key ?? null;
 
-function MenuPanel({ anchor, onClose, onSelect, items, label, chosen, stay = false, kind = "menu", filter, matchWidth, align, id, tone = "white" }: MenuProps) {
+function MenuPanel({ anchor, onClose, onSelect, items, label, chosen, stay = false, kind = "menu", filter, filterLabel, filterPlaceholder, extra, matchWidth, align, id, tone = "white" }: MenuProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const filterRef = useRef<HTMLInputElement>(null);
@@ -83,7 +92,8 @@ function MenuPanel({ anchor, onClose, onSelect, items, label, chosen, stay = fal
 
   const ordered = [...items.filter((i) => !i.danger), ...items.filter((i) => i.danger)];
   const q = query.trim().toLowerCase();
-  const shown = q ? ordered.filter((i) => i.label.toLowerCase().includes(q)) : ordered;
+  const narrowed = (n: string) => [...(n ? ordered.filter((i) => i.label.toLowerCase().includes(n)) : ordered), ...(extra?.(n) ?? [])];
+  const shown = narrowed(q);
   const isChosen = (key: string) => (typeof chosen === "string" ? key === chosen : !!chosen?.includes(key));
   const [active, setActive] = useState<string | null>(() => ordered.find((i) => isChosen(i.key) && !i.disabled)?.key ?? first(ordered));
   const enabled = shown.filter((i) => !i.disabled);
@@ -185,8 +195,8 @@ function MenuPanel({ anchor, onClose, onSelect, items, label, chosen, stay = fal
             ref={filterRef}
             className="pt-menu-filter-input"
             type="text"
-            placeholder="Filter"
-            aria-label={`Filter ${label.toLowerCase()}`}
+            placeholder={filterPlaceholder ?? "Filter"}
+            aria-label={filterLabel ?? `Filter ${label.toLowerCase()}`}
             role="combobox"
             aria-expanded="true"
             aria-controls={listId}
@@ -196,8 +206,7 @@ function MenuPanel({ anchor, onClose, onSelect, items, label, chosen, stay = fal
             onChange={(e) => {
               const next = e.target.value;
               setQuery(next);
-              const n = next.trim().toLowerCase();
-              setActive(first(n ? ordered.filter((i) => i.label.toLowerCase().includes(n)) : ordered));
+              setActive(first(narrowed(next.trim().toLowerCase())));
             }}
           />
         </div>
@@ -214,7 +223,8 @@ function MenuPanel({ anchor, onClose, onSelect, items, label, chosen, stay = fal
       >
         {shown.map((item, i) => {
           const on = isChosen(item.key);
-          return (
+          const heads = item.group != null && item.group !== shown[i - 1]?.group;
+          const row = (
             <MenuRow
               key={item.key}
               item={item}
@@ -230,6 +240,13 @@ function MenuPanel({ anchor, onClose, onSelect, items, label, chosen, stay = fal
               onPick={() => pick(item)}
             />
           );
+          if (!heads) return row;
+          return [
+            <li key={`${item.key}-group`} className="pt-menu-group" role="presentation">
+              {item.group}
+            </li>,
+            row,
+          ];
         })}
         {shown.length === 0 && (
           <li className="pt-menu-empty" role="presentation">

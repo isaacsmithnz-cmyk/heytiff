@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useEffect, useEffectEvent, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { withoutPlaceTag } from "@/lib/brain/place-tag";
-import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { Tooltip } from "@/components/parts/tooltip";
@@ -24,6 +23,8 @@ import {
   threadWhen,
 } from "@/lib/tiff/conversations";
 import { Button } from "@/components/parts/button";
+import { ConfirmDialog, Dialog } from "@/components/parts/dialog";
+import { Field, TextInput } from "@/components/parts/field";
 import { Empty, Wrong } from "@/components/parts/states";
 import { Fade } from "@/components/parts/fade";
 import { Initials } from "@/components/parts/initials";
@@ -1709,24 +1710,8 @@ function CvSource({ m, docs, canManage }: { m: Msg; docs: SourceDoc[]; canManage
 
 /* ── what you can do to a conversation (brief §4A) ───────────────────────── */
 
-/* Both portal to <body>: `.page.in`'s will-change traps position:fixed inside
-   the shell. Outside `.fg` they inherit no ramp, so the `.fl-` family they
-   borrow from the fleet modals carries its own colours. */
-
-/* Escape closes every portal here. The family had the backdrop and the ✕ but
-   no key — with the rename field focused, the keyboard's own way out went
-   nowhere (round-1 finding, verified live). Window-level on purpose: the
-   modals don't trap focus, so the key must work wherever it lands. */
-function useEscape(onClose: () => void) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-}
-
+/* RENAME THIS CHAT (the old-modals mock, 27 October 2026): the Dialog part
+   at 400, one field, a form so Enter commits. */
 function RenameThread({
   thread,
   onSave,
@@ -1738,63 +1723,41 @@ function RenameThread({
 }) {
   const [title, setTitle] = useState(thread.title);
   const clean = title.trim();
-  useEscape(onClose);
+  const formId = useId();
 
-  if (typeof document === "undefined") return null;
-  return createPortal(
-    <div className="fl-ov" onClick={onClose}>
-      <div
-        className="fl-modal tk-sm"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Rename chat"
+  return (
+    <Dialog
+      heading="Rename this chat"
+      onClose={onClose}
+      foot={
+        <>
+          <Button kind="quiet" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button kind="main" type="submit" form={formId} disabled={!clean}>
+            Save name
+          </Button>
+        </>
+      }
+    >
+      {/* a form, so Enter commits — the only key anybody presses in a
+          one-field dialog */}
+      <form
+        id={formId}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (clean) onSave(clean);
+        }}
       >
-        <div className="fl-mh">
-          <span>
-            <b>Rename this chat</b>
-            <em>What you&rsquo;ll recognise it by in the list</em>
-          </span>
-          <button className="fl-x" aria-label="Close" onClick={onClose}>
-            <Icon name="x" size={16} />
-          </button>
-        </div>
-        {/* a form, so Enter commits — the only key anybody presses in a
-            one-field modal */}
-        <form
-          className="fl-mb"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (clean) onSave(clean);
-          }}
-        >
-          <label className="fl-f">
-            <span>Title</span>
-            <input
-              className="fl-i"
-              value={title}
-              maxLength={TITLE_MAX}
-              autoFocus
-              aria-label="Chat title"
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </label>
-          <div className="fl-foot">
-            <button type="button" className="fl-btn ghost" onClick={onClose}>
-              Cancel
-            </button>
-            <button type="submit" className="fl-btn primary" disabled={!clean}>
-              <Icon name="save" size={15} />
-              Save name
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>,
-    document.body
+        <Field label="Title">
+          <TextInput value={title} maxLength={TITLE_MAX} data-autofocus onChange={(e) => setTitle(e.target.value)} />
+        </Field>
+      </form>
+    </Dialog>
   );
 }
 
+/* DELETE A CHAT: ConfirmDialog, which names what goes. Keep it takes focus. */
 function DeleteThread({
   thread,
   kept = false,
@@ -1807,54 +1770,23 @@ function DeleteThread({
   onConfirm: () => void;
   onClose: () => void;
 }) {
-  useEscape(onClose);
-  if (typeof document === "undefined") return null;
-  return createPortal(
-    <div className="fl-ov" onClick={onClose}>
-      <div
-        className="fl-modal tk-sm"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Delete chat"
-      >
-        <div className="fl-mh">
-          <span>
-            <b>Delete “{thread.title}”?</b>
-            <em>The conversation, not anything in the library</em>
-          </span>
-          <button className="fl-x" aria-label="Close" onClick={onClose}>
-            <Icon name="x" size={16} />
-          </button>
-        </div>
-        <div className="fl-mb">
-          <p className="tk-confirm">
-            {thread.messages.length > 0 &&
-              `${thread.messages.length} ${plural(thread.messages.length, "message")} ${
-                thread.messages.length === 1 ? "goes" : "go"
-              } with it. `}
-            {kept
-              ? "It goes from your other devices too, and there is no undo."
-              : "Threads live on this device only, so there is no copy elsewhere and no undo."}
-          </p>
-          <div className="fl-foot">
-            <button className="fl-btn ghost" onClick={onClose}>
-              Keep it
-            </button>
-            {/* THE BUTTON SAYS THE VERB, NOT THE TITLE AGAIN. Repeating the
-                thread's name here wrapped the confirm onto two lines and
-                squeezed "Keep it" into a squat block beside it — a question
-                already asked in the heading, asked twice, at the cost of the
-                one control that undoes it. The heading names the thread; this
-                says what pressing it does. */}
-            <button className="fl-btn danger arm" onClick={onConfirm}>
-              Delete chat
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>,
-    document.body
+  const n = thread.messages.length;
+  return (
+    <ConfirmDialog
+      heading={`Delete “${thread.title}”?`}
+      /* THE BUTTON SAYS THE VERB, NOT THE TITLE AGAIN: the heading names the
+         thread; this says what pressing it does. */
+      confirm="Delete chat"
+      onConfirm={onConfirm}
+      onClose={onClose}
+    >
+      <p>
+        {n > 0 && `${n} ${plural(n, "message")} ${n === 1 ? "goes" : "go"} with it. `}
+        {kept
+          ? "It goes from your other devices too, and there is no undo."
+          : "Threads live on this device only, so there is no copy elsewhere and no undo."}
+      </p>
+    </ConfirmDialog>
   );
 }
 
@@ -2239,28 +2171,12 @@ function SourceChips({
   );
 }
 
-/* The peek panel. Portalled to <body> — `.page.in`'s will-change traps
-   position:fixed inside the shell — so it restates its own colours rather than
-   inheriting the ramp declared on `.fg`. */
+/* THE PEEK (the old-modals mock, 27 October 2026): the Dialog part at 560.
+   The document is the title; under it its category's dot and the pages
+   Tiff read, then each passage as she read it, in page order, at 16. */
 function SourcePeek({ source, onClose }: { source: SourceDoc; onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  /* Whether there is more passage below the fold. macOS overlay scrollbars
-     are invisible until touched, and on the live walk the well cut mid-word
-     with nothing saying so — the fade is the well admitting it continues. */
-  const [more, setMore] = useState(false);
-  const wellRef = useRef<HTMLDivElement>(null);
-  useEscape(onClose);
-
-  const refreshMore = useCallback(() => {
-    const el = wellRef.current;
-    if (!el) return;
-    setMore(el.scrollHeight - el.scrollTop - el.clientHeight > 8);
-  }, []);
-  // measured after first paint — the well has no height until the portal lands
-  useEffect(() => {
-    refreshMore();
-  }, [refreshMore]);
 
   const open = async () => {
     setError(null);
@@ -2288,60 +2204,57 @@ function SourcePeek({ source, onClose }: { source: SourceDoc; onClose: () => voi
 
   // read top to bottom in the peek, whatever order retrieval ranked them
   const passages = [...source.items].sort((a, b) => a.pageFrom - b.pageFrom);
+  const category = KB_CATEGORIES.find((c) => c.key === source.category);
 
-  if (typeof document === "undefined") return null;
-  return createPortal(
-    <div className="fl-ov" onClick={onClose}>
-      <div
-        className="fl-modal"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Source ${source.n}: ${source.title}`}
-      >
-        <div className="fl-mh">
-          <span>
-            <b>{source.title}</b>
-            <em>
-              <span className="tk-pkdot" style={{ background: colourOf(source.category) }} />
-              {KB_CATEGORIES.find((c) => c.key === source.category)?.label ?? "Document"},{" "}
-              {pagesLabel(source)}
-            </em>
-          </span>
-          <button className="fl-x" aria-label="Close" onClick={onClose}>
-            <Icon name="x" size={16} />
-          </button>
-        </div>
-        <div className="fl-mb">
-          {error && <div className="fl-err">{error}</div>}
-          <p className="tk-pklead">
-            {passages.length === 1 ? "What Tiff read on that page:" : "What Tiff read on those pages:"}
-          </p>
-          <div className="tk-pkw">
-            <div className="tk-pks" ref={wellRef} onScroll={refreshMore}>
-              {passages.map((item) => (
-                <blockquote key={item.chunkId} className="tk-pkq">
-                  {passages.length > 1 && <span className="tk-pkqp">{pagesOf(item)}</span>}
-                  {item.excerpt}
-                </blockquote>
-              ))}
-            </div>
-            <div className={`tk-pkfade${more ? " on" : ""}`} aria-hidden="true" />
-          </div>
-          <div className="fl-foot">
-            <button className="fl-btn ghost" onClick={onClose}>
-              Close
-            </button>
-            <button className="fl-btn primary" disabled={busy} onClick={open}>
-              <Icon name="arrowUR" size={15} />
-              Open document
-            </button>
-          </div>
-        </div>
+  return (
+    <Dialog
+      heading={source.title}
+      width={560}
+      onClose={onClose}
+      foot={
+        <>
+          <Button kind="quiet" onClick={onClose}>
+            Close
+          </Button>
+          <Button kind="main" disabled={busy} onClick={open}>
+            {busy ? "Opening the document" : "Open document"}
+          </Button>
+        </>
+      }
+    >
+      <div className="tk-pk">
+        <p className="tk-pkline">
+          <Dot hue={category?.hue ?? "grey"} />
+          {category?.label ?? "Document"}, {pageWords(passages)}
+        </p>
+        {error && <p className="tk-pkerr">{error}</p>}
+        <ul className="tk-pks" aria-label="What Tiff read">
+          {passages.map((item) => (
+            <li key={item.chunkId} className="tk-pkq">
+              {passages.length > 1 && <span className="tk-pkqp">{pageWord(item)}</span>}
+              {item.excerpt}
+            </li>
+          ))}
+        </ul>
       </div>
-    </div>,
-    document.body
+    </Dialog>
   );
+}
+
+/** "Page 14", "Pages 12–14": one passage's pages, as the peek labels it. */
+const pageWord = (s: { pageFrom: number; pageTo: number }): string =>
+  s.pageTo > s.pageFrom ? `Pages ${s.pageFrom}–${s.pageTo}` : `Page ${s.pageFrom}`;
+
+/** "page 14", "pages 14 and 22", "pages 12–14": every page the peek shows, once. */
+function pageWords(items: readonly { pageFrom: number; pageTo: number }[]): string {
+  const seen: string[] = [];
+  for (const i of items) {
+    const one = i.pageTo > i.pageFrom ? `${i.pageFrom}–${i.pageTo}` : `${i.pageFrom}`;
+    if (!seen.includes(one)) seen.push(one);
+  }
+  const many = seen.length > 1 || seen[0]?.includes("–");
+  const list = seen.length < 2 ? (seen[0] ?? "") : `${seen.slice(0, -1).join(", ")} and ${seen[seen.length - 1]}`;
+  return `${many ? "pages" : "page"} ${list}`;
 }
 
 /* A Tooltip only when there is something to say: a disabled control's reason. */

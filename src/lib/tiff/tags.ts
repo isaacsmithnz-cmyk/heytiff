@@ -1,3 +1,5 @@
+import type { Hue } from "@/components/parts/state";
+
 /* Tags on a document — the rules, the palette, and the starter set.
 
    Pure. Nothing in here reads the database or knows an org exists; the server
@@ -62,27 +64,22 @@ export const KB_TAG_PILLS_SHOWN = 3;
 
 /* ── the palette ─────────────────────────────────────────────────────────── */
 
-/* Decoration, never state.
+/* Decoration, never state, and on the palette (docs/design.md, rule 15).
 
-   #00A389 and #e0264f are "ok" and "danger" everywhere in this app, so neither
-   is in here: a tag that happened to be that teal would read as a status on a
-   row whose whole job is to report status honestly. The five category colours
-   are also avoided — a tag chip sitting beside a category chip in the same
-   green would claim a relationship that doesn't exist. */
+   The palette's bright values without red and without blue (the old-modals
+   mock, 27 October 2026, which Isaac left standing): red only means wrong
+   and blue only means press, so a tag in either would read as a state or a
+   button. Grey is last, so it can be the default. */
 export const KB_TAG_COLORS: readonly string[] = [
-  "#2563eb", // blue
-  "#7c3aed", // violet
-  "#db2777", // pink
-  "#ea580c", // orange
-  "#ca8a04", // mustard
-  "#0891b2", // cyan
-  "#4f46e5", // indigo
-  "#be123c", // wine
-  "#15803d", // forest
-  "#475569", // slate
+  "#f97316", // orange
+  "#facc15", // yellow
+  "#22c55e", // green
+  "#a855f7", // purple
+  "#ec4899", // pink
+  "#9ca3af", // grey
 ];
 
-export const KB_TAG_COLOR_DEFAULT = KB_TAG_COLORS[9];
+export const KB_TAG_COLOR_DEFAULT = KB_TAG_COLORS[5];
 
 const COLOR_RE = /^#[0-9a-f]{6}$/;
 
@@ -101,6 +98,28 @@ export function kbTagColorFor(label: string): string {
   let hash = 0;
   for (const ch of String(label ?? "")) hash = (hash * 31 + ch.codePointAt(0)!) >>> 0;
   return KB_TAG_COLORS[hash % KB_TAG_COLORS.length];
+}
+
+/** The palette hue a tag is DRAWN in. A tag made before the palette moved
+    keeps its stored hex (`asKbTagColor` accepts any), so what is shown is
+    snapped to the eight by its hue, and never to red or blue: a red leans to
+    pink or orange, a blue to green or purple, whichever is nearer. */
+export function kbTagHue(color: string | null | undefined): Exclude<Hue, "red" | "blue"> {
+  const m = /^#?([0-9a-f]{6})$/i.exec((color ?? "").trim());
+  if (!m) return "grey";
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(m[1]!.slice(i, i + 2), 16) / 255) as [number, number, number];
+  const max = Math.max(r, g, b);
+  const chroma = max - Math.min(r, g, b);
+  /* a slate or a near-grey has too little colour to have a hue */
+  if (chroma < 0.2) return "grey";
+  let h = max === r ? ((g - b) / chroma) % 6 : max === g ? (b - r) / chroma + 2 : (r - g) / chroma + 4;
+  h = (h * 60 + 360) % 360;
+  if (h >= 330) return "pink";
+  if (h < 40) return "orange";
+  if (h < 70) return "yellow";
+  if (h < 200) return "green";
+  if (h < 290) return "purple";
+  return "pink";
 }
 
 /* ── label and slug ──────────────────────────────────────────────────────── */

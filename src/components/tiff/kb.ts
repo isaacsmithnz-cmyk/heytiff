@@ -1,3 +1,5 @@
+import type { Hue } from "@/components/parts/state";
+
 /* Structure for the Library. The four categories are product structure (they
    drive the Library's rail and the /dashboard/tiff/library page); the library is empty until real uploads land (Documents/storage
    track), and every screen renders a per-category empty state until then. */
@@ -9,6 +11,9 @@ export type KbCategory = {
   label: string;
   icon: string;
   color: string;
+  /** The palette hue the category is drawn in on the app's own chrome (rule
+      15): the Library's blocks, and the dot beside a document's category. */
+  hue: Hue;
   blurb: string;
 };
 
@@ -23,11 +28,11 @@ export type KbCategory = {
    documents" and "Service documents" each have exactly one answer, and the
    blurb carries the topics that used to be in the name. */
 export const KB_CATEGORIES: KbCategory[] = [
-  { key: "install", label: "Installation documents", icon: "wrench", color: "#00E5C0", blurb: "Installation & commissioning manuals" },
+  { key: "install", label: "Installation documents", icon: "wrench", color: "#00E5C0", hue: "green", blurb: "Installation & commissioning manuals" },
   // the gauge, not the warning triangle: this card is servicing, not an alarm
-  { key: "faults", label: "Service documents", icon: "gauge", color: "#2E68FF", blurb: "Service manuals, fault codes & diagnosis" },
-  { key: "specs", label: "Manufacturer specs", icon: "file", color: "#f59e0b", blurb: "Datasheets, capacities & connections" },
-  { key: "sops", label: "Company SOPs", icon: "shield", color: "#8A2BE2", blurb: "How we do things here" },
+  { key: "faults", label: "Service documents", icon: "gauge", color: "#2E68FF", hue: "purple", blurb: "Service manuals, fault codes & diagnosis" },
+  { key: "specs", label: "Manufacturer specs", icon: "file", color: "#f59e0b", hue: "yellow", blurb: "Datasheets, capacities & connections" },
+  { key: "sops", label: "Company SOPs", icon: "shield", color: "#8A2BE2", hue: "pink", blurb: "How we do things here" },
   /* Written by the crew from the note widget, never uploaded — which is the
      blurb's whole job to say. Board cyan, not a new colour.
 
@@ -43,7 +48,7 @@ export const KB_CATEGORIES: KbCategory[] = [
      specs one card away — at 26px in a coloured chip they separate only by
      three hairlines. The pen shares its shape with nothing on the rail and
      says the true thing about where these come from. */
-  { key: "field", label: "Field notes", icon: "edit", color: "#007FA8", blurb: "What the crew learned on the job" },
+  { key: "field", label: "Field notes", icon: "edit", color: "#007FA8", hue: "grey", blurb: "What the crew learned on the job" },
 ];
 
 /* The preview-era `KbDoc` shape and its `kbCounts` helper are GONE. A document

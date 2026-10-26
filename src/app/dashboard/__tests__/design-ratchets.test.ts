@@ -535,7 +535,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "spacing off the scale — 2, 4, 8, 12, 16, 24, 32, 48", now: offScaleSpacing, baseline: 0 },
   { law: "cubic-bezier — two motion tokens, no custom curves", now: () => count(/cubic-bezier\(/g), baseline: 0 },
   { law: "distinct z-index values — six layers", now: distinctZ, baseline: 20 },
-  { law: "arrows on buttons — the word is the button; an arrow between two values is a fact", now: () => countTsx(onScreen("→")), baseline: 4 },
+  { law: "arrows on buttons — the word is the button; an arrow between two values is a fact", now: () => countTsx(onScreen("→")), baseline: 2 },
   { law: "middot chains — a sentence, or a label and a value; the seven left are keyboard hints", now: () => countTsx(onScreen("·")), baseline: 7 },
   { law: "inner-highlight glass edges — no glass", now: () => count(/inset 0 1px 0 rgba\(255/g), baseline: 0 },
   { law: "white-alpha hairlines on the dark chrome — one hairline token", now: () => count(/border(?:-[a-z]+)?\s*:\s*1px solid rgba\(255,\s*255,\s*255,\s*0?\.[0-2]\d*\)/g), baseline: 0 },
@@ -546,7 +546,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
      keyboard the same control back (law 24). */
   { law: "hover-revealed controls — shown on focus too, or not hidden", now: () => { let n = 0; for (const [sel, body] of blocks()) if (/:hover/.test(sel) && !/focus-within|focus-visible/.test(sel) && /\bopacity\s*:\s*1\b/.test(body)) n++; return n; }, baseline: 0 },
   { law: "pill, chip, tag and badge rules drawn as a box — state is a word, a chip is for a filter you tap", now: () => pills(outside("pills")), baseline: 22 },
-  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 21 },
+  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 20 },
   // ink and paper
   /* The OK colour on a selector that is not a state. It began as a count of
      every use (88), then the accent migration named accent-on-state as state
@@ -561,7 +561,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
       return n;
     }, baseline: 8 },
   { law: "focus rings drawn as an alpha tint — 2px of solid ink", now: faintRings, baseline: 0 },
-  { law: "colour declared on anchors — one link token", now: anchorColours, baseline: 12 },
+  { law: "colour declared on anchors — one link token", now: anchorColours, baseline: 11 },
   /* THE ACCENT. Teal, blue and violet in any spelling, doing any job, in a
      rule body. Ink and paper says none of it belongs on a working screen
      except the wordmark's "Tiff" and the drawing; what remains is the dark
@@ -584,7 +584,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "native `<select>` — a field with a chevron opens the app's own menu (rule 34)", now: () => countTsx(/<select\b/g), baseline: 40 },
   { law: "native time inputs — a clock time opens the wheel (rule 34)", now: () => countTsx(/type="time"/g), baseline: 0 },
   { law: "native colour inputs — a typed hex with a swatch", now: () => countTsx(/type="color"/g), baseline: 1 },
-  { law: "`title` tooltips — a title is not a label; the tooltip rule replaces them", now: () => countTsx(/\stitle=[{"]/g), baseline: 79 },
+  { law: "`title` tooltips — a title is not a label; the tooltip rule replaces them", now: () => countTsx(/\stitle=[{"]/g), baseline: 75 },
 ];
 
 describe("the design ratchets only go down", () => {

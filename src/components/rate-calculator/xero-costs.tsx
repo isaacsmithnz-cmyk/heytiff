@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { RC } from "./theme";
 import { money } from "./format";
-import { WsEyebrow } from "./ui";
-import { chipColor } from "./detail";
+import { CHARGED_TO } from "./detail";
 import type { BusinessCost } from "./engine";
 import {
   fleetCosted,
@@ -22,6 +20,9 @@ import type { PeriodChoice } from "@/lib/integrations/xero-pl";
 import { useHydrated } from "@/lib/use-hydrated";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 import { Button } from "@/components/parts/button";
+import { Chooser } from "@/components/parts/chooser";
+import { StateWord } from "@/components/parts/state";
+import { Tray } from "@/components/parts/tabs";
 
 /* Business costs, read from a connected Xero organisation.
 
@@ -33,7 +34,8 @@ import { Button } from "@/components/parts/button";
 
    AMOUNTS ARE XERO'S; THE ALLOCATION IS OURS. A chart of accounts doesn't know
    whether rent loads onto installs or service, so the amounts render read-only
-   and the allocation chips stay live — the same chips the manual editor uses.
+   and what each is charged to stays a choice — the same chooser the manual
+   editor uses.
 
    EXCLUSIONS ARE SHOWN, NOT APPLIED SILENTLY. Wages, super and vehicle lines
    are already in the calculator from the roster and the Vehicles step, so
@@ -41,32 +43,28 @@ import { Button } from "@/components/parts/button";
    the reason and the amount visible, and every one can be put back — a guess
    the user can't see is a guess they can't correct. */
 
-const ALLOC: BusinessCost["allocated_to"][] = ["shared", "install", "service"];
-
-const ALLOC_LABEL: Record<string, string> = {
-  shared: "Shared",
-  install: "Install",
-  service: "Service",
-};
-
 const REASON_LABEL: Record<string, string> = {
-  wages: "already counted from your staff",
-  super: "already derived from wages",
-  vehicle: "already counted in Vehicles",
-  tax: "a share of profit, not a cost to recover",
-  user: "you removed it",
+  wages: "Counted in Staff and wages",
+  super: "Counted in Staff and wages",
+  vehicle: "Counted in Vehicles",
+  tax: "A share of profit, not a cost",
+  user: "Left out by you",
 };
+
+const PERIODS = [
+  { value: "last-fy", label: "Last financial year" },
+  { value: "trailing-12", label: "Last 12 months" },
+] as const;
 
 /* Why a KEPT line is worth a second look. Each one is a judgement only the
    person who set up the chart of accounts can make, so the panel asks rather
    than deciding. */
 const NOTE_LABEL: Record<string, string> = {
-  depreciation:
-    "may already be in Vehicles — that step charges the write-down on each vehicle too",
-  subcontract: "job cost rather than overhead — allocate it, or take it out",
-  entertainment: "check this isn't personal spend",
-  "staff-cost": "paid to staff — check it isn't already in their wage on the roster",
-  insurance: "if the fleet's cover is in here, Vehicles may be charging it too",
+  depreciation: "May already be in Vehicles, which charges each vehicle's write-down too",
+  subcontract: "A job cost rather than an overhead: charge it to a side, or leave it out",
+  entertainment: "Check this isn't personal spend",
+  "staff-cost": "Paid to staff: check it isn't already in their wage on Team",
+  insurance: "If the fleet's cover is in here, Vehicles may be charging it too",
 };
 
 /* What a finished pull writes. Out here, not in `pull`'s try/catch, because
@@ -122,11 +120,9 @@ export function XeroCostsPanel({ s, patch, onFetch }: XeroCostsPanelProps) {
     }, () => setBusy(false));
   };
 
-  const cycleAlloc = (i: number) => {
+  const setAlloc = (i: number, to: BusinessCost["allocated_to"]) => {
     if (!snap) return;
-    const lines = snap.lines.map((l, n) =>
-      n === i ? { ...l, allocated_to: ALLOC[(ALLOC.indexOf(l.allocated_to) + 1) % ALLOC.length] } : l
-    );
+    const lines = snap.lines.map((l, n) => (n === i ? { ...l, allocated_to: to } : l));
     patch({ xeroCosts: { ...snap, lines } });
   };
 
@@ -209,186 +205,153 @@ export function XeroCostsPanel({ s, patch, onFetch }: XeroCostsPanelProps) {
   const stale = ageMonths !== null && ageMonths >= staleAfter;
 
   return (
-    <div className="rcx">
-      <div className="rcx-head">
-        <div className="rcx-per">
-          {(
-            [
-              ["last-fy", "Last financial year"],
-              ["trailing-12", "Last 12 months"],
-            ] as const
-          ).map(([v, label]) => (
-            <button
-              key={v}
-              className={`rcx-pbtn${choice === v ? " on" : ""}`}
-              onClick={() => setChoice(v)}
-              disabled={busy}
-            >
-              {label}
-            </button>
-          ))}
+    <>
+      <div className="rc-q">
+        <div className="rc-qhead">
+          <Tray options={PERIODS} value={choice} onChange={setChoice} ariaLabel="Which year" disabled={busy} />
+          <span className="rc-grow" />
+          <Button kind="xero" size={32} onClick={pull} disabled={busy}>
+            {busy ? "Reading Xero" : snap ? "Refresh" : "Pull from Xero"}
+          </Button>
         </div>
-        <Button kind="xero" size={36} className="rcx-go" onClick={pull} disabled={busy}>
-          {busy ? "Reading Xero" : snap ? "Refresh" : "Pull from Xero"}
-        </Button>
+
+        {error && (
+          <div className="rc-say">
+            <StateWord tone="wrong">Xero didn&apos;t answer</StateWord>
+            <p>{error}</p>
+          </div>
+        )}
+
+        {!snap && !error && (
+          <p className="rc-note">Reads the operating expenses off your profit and loss. Wages, super and vehicles stay out: the other steps have them.</p>
+        )}
+
+        {snap && (
+          <p className="rc-note">
+            {snap.period.label} from {snap.tenantName}, read{" "}
+            {snap.fetchedAt ? new Date(snap.fetchedAt).toLocaleDateString("en-AU") : "recently"}.
+            {snap.sections.length > 0 && <> {snap.sections.join(", ")} only.</>}
+          </p>
+        )}
+
+        {/* The explicit space before "old" is load-bearing: JSX drops the
+            leading space of a text chunk that wraps to a new line, and this
+            line shipped reading "more than 6 monthsold". */}
+        {snap && stale && (
+          <div className="rc-say">
+            <StateWord tone="look">
+              This snapshot is more than {staleAfter} month{staleAfter === 1 ? "" : "s"}{" "}
+              old
+            </StateWord>
+            <p>The profit and loss has moved since. Refresh it before quoting from these rates.</p>
+          </div>
+        )}
+
+        {snap && partial && (
+          <div className="rc-say">
+            <StateWord tone="look">{`Your books cover ${months} of these 12 months`}</StateWord>
+            {/* One string rather than interleaved JSX: these sentences carry
+                the two figures side by side, and a space lost to JSX
+                whitespace collapsing would run them together. */}
+            <p>
+              {snap.annualise
+                ? `${money(raw)} over ${months} month${months === 1 ? "" : "s"}, scaled to ${money(total)} for a year. ` +
+                  "That takes the months you have as typical; if they aren't, take the scaling off."
+                : `Pricing on ${money(raw)} as a full year, when it's ${months} month${months === 1 ? "" : "s"}, ` +
+                  "so your rate is carrying less overhead than the business really has."}
+            </p>
+            <Button size={32} onClick={() => patch({ xeroCosts: { ...snap, annualise: !snap.annualise } })}>
+              {snap.annualise ? "Use the unscaled figures" : `Scale up to a year (× ${factor.toFixed(1)})`}
+            </Button>
+          </div>
+        )}
+
+        {snap && vehicleLost && (
+          <div className="rc-say">
+            <StateWord tone="look">{`${money(vehicleHeld)} of vehicle cost isn't being counted anywhere`}</StateWord>
+            <p>It was held back for the Vehicles step, which has no running costs in it. Put them into Vehicles, or bring these lines into your overheads.</p>
+            <Button size={32} onClick={includeVehicles}>{`Add ${money(vehicleHeld)} to overheads`}</Button>
+          </div>
+        )}
+
+        {snap && (
+          <>
+            <div className="rc-cost-head"><span>Account</span><span>Charged to</span><span className="rc-r">A year</span><span /></div>
+            <div>
+              {snap.lines.map((l, i) => (
+                <div className="rc-cost" key={`${l.name}-${i}`}>
+                  <span className="rc-nm">{l.name}</span>
+                  <Chooser size={32} aria-label={`${l.name}, charged to`} options={CHARGED_TO} value={l.allocated_to}
+                    onChange={v => setAlloc(i, v as BusinessCost["allocated_to"])} />
+                  <span className="rc-r">{money(l.amount)}</span>
+                  <Button kind="quiet" size={32} onClick={() => exclude(i)} aria-label={`Leave out ${l.name}`}>Leave out</Button>
+                </div>
+              ))}
+            </div>
+            <div className="rc-total"><span>Overheads a year</span><span>{money(total)}</span></div>
+          </>
+        )}
       </div>
 
-      {error && <p className="rcx-err">{error}</p>}
-
-      {!snap && !error && (
-        <p className="rcx-note">
-          Reads the operating expenses off your profit &amp; loss. Wages, super and vehicle costs
-          are left out — this calculator already has those from your staff and Vehicles steps.
-        </p>
+      {/* Kept, but worth a look. Apart from "Left out" on purpose: these lines
+          ARE in the pool and priced, and the flag is a question about where
+          they belong, not a claim that they don't count. */}
+      {snap && snap.notes.length > 0 && (
+        <div className="rc-q">
+          <h3>Worth checking</h3>
+          <ul className="rc-list">
+            {snap.notes.map((n, i) => (
+              <li key={`${n.name}-${i}`}>
+                <span className="rc-list-w"><b>{n.name}</b><span>{NOTE_LABEL[n.note] ?? n.note}</span></span>
+                <span className="rc-r">{money(n.amount)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
-      {snap && (
-        <>
-          <p className="rcx-note">
-            {snap.period.label} from <b>{snap.tenantName}</b>, read{" "}
-            {snap.fetchedAt ? new Date(snap.fetchedAt).toLocaleDateString("en-AU") : "recently"}.
-            {snap.sections.length > 0 && <> Source: {snap.sections.join(", ")}.</>}
-          </p>
-          {/* The explicit space before "old" is load-bearing: JSX drops the
-              leading space of a text chunk that wraps to a new line, and this
-              banner shipped reading "more than 6 monthsold". */}
-          {stale && (
-            <p className="rcx-err">
-              This snapshot is more than {staleAfter} month{staleAfter === 1 ? "" : "s"}{" "}
-              old — the P&amp;L has moved since. Refresh it before quoting from these rates.
-            </p>
-          )}
-
-          {partial && (
-            <div className="rcx-part">
-              <b>
-                Your books cover {months} of these 12 months
-              </b>
-              {/* One string rather than interleaved JSX: these sentences carry
-                  the two figures side by side, and a space lost to JSX
-                  whitespace collapsing would run them together. */}
-              <em>
-                {snap.annualise
-                  ? `${money(raw)} over ${months} month${months === 1 ? "" : "s"}, scaled to ${money(total)} for a year. ` +
-                    "That assumes the months you have are typical — if they aren't, or if you're " +
-                    "still ramping up, take the scaling off and the rate will price on what actually happened."
-                  : `Pricing on ${money(raw)} as though it were a full year of overheads. It isn't — ` +
-                    `it's ${months} month${months === 1 ? "" : "s"} — so your rate is carrying less ` +
-                    "overhead than the business really has."}
-              </em>
-              <button className="rcx-add" onClick={() => patch({ xeroCosts: { ...snap, annualise: !snap.annualise } })}>
-                {snap.annualise ? "Use the unscaled figures" : `Scale up to a year (× ${factor.toFixed(1)})`}
-              </button>
-            </div>
-          )}
-
-          {vehicleLost && (
-            <div className="rcx-part">
-              <b>{money(vehicleHeld)} of vehicle cost isn&apos;t being counted anywhere</b>
-              <em>
-                It was held back because the Vehicles step is meant to have it, but that step has
-                no running costs in it. Either put those figures into Vehicles, or bring these
-                lines into your overheads here — right now they&apos;re in neither.
-              </em>
-              <button className="rcx-add" onClick={includeVehicles}>
-                Add {money(vehicleHeld)} to overheads
-              </button>
-            </div>
-          )}
-
-          <div className="rcx-lines">
-            {snap.lines.map((l, i) => (
-              <div className="rcx-line" key={`${l.name}-${i}`}>
-                <span className="rcx-nm">{l.name}</span>
-                {/* the same chip the manual editor uses — one visual language
-                    for "which side of the business does this load onto" */}
-                <button
-                  className="rca-chipbtn rcx-alloc"
-                  onClick={() => cycleAlloc(i)}
-                  aria-label={`Allocation for ${l.name}: ${ALLOC_LABEL[l.allocated_to] ?? l.allocated_to}`}
-                  style={{ color: chipColor(l.allocated_to).c, background: chipColor(l.allocated_to).bg }}
-                >
-                  {ALLOC_LABEL[l.allocated_to] ?? l.allocated_to}
-                </button>
-                <span className="rcx-amt">{money(l.amount)}</span>
-                <button className="rcx-x" onClick={() => exclude(i)} aria-label={`Remove ${l.name}`}>
-                  ×
-                </button>
+      {snap && snap.excluded.length > 0 && (
+        <div className="rc-q">
+          <h3>Left out</h3>
+          <div>
+            {snap.excluded.map((e, i) => (
+              <div className="rc-cost" key={`${e.name}-${i}`}>
+                <span className="rc-nm">{e.name}<span>{REASON_LABEL[e.reason] ?? e.reason}</span></span>
+                <span />
+                <span className="rc-r">{money(e.amount)}</span>
+                <Button kind="quiet" size={32} onClick={() => include(i)} aria-label={`Put back ${e.name}`}>Put back</Button>
               </div>
             ))}
           </div>
+        </div>
+      )}
 
-          <div className="rcx-total">
-            <WsEyebrow color={RC.install}>Overheads / yr</WsEyebrow>
-            <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 24, color: RC.install }}>
-              {money(total)}
-            </span>
-          </div>
+      {/* Accounts that exist in Xero and had nothing in this window.
 
-          {/* Kept, but worth a look. Separate from "Left out" on purpose: these
-              lines ARE in the pool and priced, and the flag is a question about
-              where they belong, not a claim that they don't count. */}
-          {snap.notes.length > 0 && (
-            <div className="rcx-ex">
-              <b>Worth checking</b>
-              <em>These are in your overheads. Have a look at whether they should be.</em>
-              {snap.notes.map((n, i) => (
-                <div className="rcx-exrow" key={`${n.name}-${i}`}>
-                  <span className="rcx-nm">{n.name}</span>
-                  <span className="rcx-why">{NOTE_LABEL[n.note] ?? n.note}</span>
-                  <span className="rcx-amt muted">{money(n.amount)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {snap.excluded.length > 0 && (
-            <div className="rcx-ex">
-              <b>Left out</b>
-              <em>So nothing is counted twice. Put any of them back if that&apos;s wrong.</em>
-              {snap.excluded.map((e, i) => (
-                <div className="rcx-exrow" key={`${e.name}-${i}`}>
-                  <span className="rcx-nm">{e.name}</span>
-                  <span className="rcx-why">{REASON_LABEL[e.reason] ?? e.reason}</span>
-                  <span className="rcx-amt muted">{money(e.amount)}</span>
-                  <button className="rcx-add" onClick={() => include(i)}>
-                    Include
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Accounts that exist in Xero and had nothing in this window.
-
-              A P&L only reports accounts with transactions, so an account the
-              import would handle WRONGLY is invisible until the period it
-              finally has a balance — `Income Tax Expense` sat nil through an
-              entire audit that way. Collapsed, because on a normal chart this
-              is a dozen quiet rows and nobody needs it open. */}
-          {snap.dormant.length > 0 && (
-            <details className="rcx-ex rcx-dorm">
-              <summary>
-                <b>{snap.dormant.length} account{snap.dormant.length === 1 ? "" : "s"} with nothing in this period</b>
-              </summary>
-              <em>
-                They&apos;re in your chart of accounts but had no transactions, so they aren&apos;t
-                priced. Here&apos;s what would happen to each if it did.
-              </em>
-              {snap.dormant.map((d, i) => (
-                <div className="rcx-exrow" key={`${d.name}-${i}`}>
-                  <span className="rcx-nm">{d.name}</span>
-                  <span className="rcx-why">
+          A P&L only reports accounts with transactions, so an account the
+          import would handle WRONGLY is invisible until the period it finally
+          has a balance — `Income Tax Expense` sat nil through an entire audit
+          that way. Closed, because on a normal chart this is a dozen quiet
+          rows and nobody needs it open. */}
+      {snap && snap.dormant.length > 0 && (
+        <details className="rc-q rc-dorm">
+          <summary>{snap.dormant.length} account{snap.dormant.length === 1 ? "" : "s"} had nothing this year</summary>
+          <ul className="rc-list">
+            {snap.dormant.map((d, i) => (
+              <li key={`${d.name}-${i}`}>
+                <span className="rc-list-w">
+                  <b>{d.name}</b>
+                  <span>
                     {d.verdict === "overhead"
-                      ? "would be added to overheads"
+                      ? "Would be added to overheads"
                       : REASON_LABEL[d.verdict] ?? NOTE_LABEL[d.verdict] ?? d.verdict}
                   </span>
-                </div>
-              ))}
-            </details>
-          )}
-        </>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
-    </div>
+    </>
   );
 }

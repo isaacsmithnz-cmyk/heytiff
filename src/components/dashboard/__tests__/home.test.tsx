@@ -219,6 +219,13 @@ describe("the three columns", () => {
     }
   });
 
+  /* Isaac, 26 October 2026: the feed in the middle, 30/40/30 */
+  it("sets the columns Today, Your feed, To do, left to right", () => {
+    draw();
+    const names = [...document.querySelectorAll(".hm-cols > .hm-sec")].map((s) => s.querySelector("h2, h3")?.textContent);
+    expect(names).toEqual(["Today", "Your feed", "To do"]);
+  });
+
   it("says nothing is new in Your feed when nothing is", () => {
     draw(today(), []);
     expect(within(section("Your feed")).getByText("Nothing new")).toBeInTheDocument();

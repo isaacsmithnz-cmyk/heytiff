@@ -8396,8 +8396,9 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    box in v2's dress, a row's time and tick, a line in its state's colour,
    and the count beside Home in the sidebar (decision 25). */
 .fg .wrap.hm { max-width:none; padding:24px 32px 48px; display:flex; flex-direction:column; gap:32px; }
-/* the three columns under Tiff's box (Isaac, 20 October) */
-.fg .hm-cols { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); align-items:stretch; }
+/* the three columns under Tiff's box (Isaac, 20 October): Today, Your feed
+   in the middle and widest, To do; 30/40/30 (Isaac, 26 October 2026) */
+.fg .hm-cols { display:grid; grid-template-columns:minmax(0,3fr) minmax(0,4fr) minmax(0,3fr); align-items:stretch; }
 /* a hairline between the columns, 32 either side (Isaac, 25 October 2026:
    the same lines the job's Overview separates its columns with) */
 .fg .hm-cols > .hm-sec { padding-inline:32px; }

@@ -184,12 +184,13 @@ export function HomeScreen({
           <HomeBox voice={voice} onStart={(words) => setChat((was) => ({ words, n: (was?.n ?? 0) + 1 }))} />
         </div>
         {/* three columns (Isaac, 20 October): Today, anything timed or due;
-            To do, what waits on you; Activity, what comes in */}
+            Your feed, what comes in; To do, what waits on you. The feed sits
+            in the middle and widest, 30/40/30 (Isaac, 26 October 2026) */}
         <HomeReplyContext.Provider value={(id) => setAsked((a) => ({ id, n: (a?.n ?? 0) + 1 }))}>
           <div className="hm-cols">
             <HomeToday view={today} due={todo.filter((r) => columnOf(r) === "today")} />
-            <HomeTodo rows={todo.filter((r) => columnOf(r) === "todo")} />
             <HomeFeed items={feed} replyTo={asked?.id ?? null} asked={asked?.n ?? 0} />
+            <HomeTodo rows={todo.filter((r) => columnOf(r) === "todo")} />
           </div>
         </HomeReplyContext.Provider>
         {addressed && (

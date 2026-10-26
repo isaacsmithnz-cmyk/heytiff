@@ -39,7 +39,11 @@ function mount() {
   return { onClose, user: userEvent.setup() };
 }
 
-const backdrop = () => fireEvent.click(document.querySelector(".vm-ov") as HTMLElement);
+const backdrop = () => {
+  const scrim = document.querySelector(".pt-scrim") as HTMLElement;
+  fireEvent.mouseDown(scrim);
+  fireEvent.click(scrim);
+};
 
 beforeEach(() => {
   uploadFile.mockReset().mockResolvedValue({ ok: true, file: { documentId: "doc-7" } });
@@ -59,16 +63,16 @@ describe("a scan in progress survives Escape", () => {
   it("keeps the window and the scan when Escape is pressed or the backdrop clicked", async () => {
     const { user, onClose } = mount();
     await user.upload(screen.getByLabelText("Scan document"), pdf());
-    await screen.findByText("Scanned");
+    await screen.findByText("Read from the check");
 
     await user.keyboard("{Escape}");
     expect(onClose).not.toHaveBeenCalled();
     backdrop();
     expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByText("Scanned")).toBeInTheDocument();
+    expect(screen.getByText("Read from the check")).toBeInTheDocument();
 
-    // the X still closes
-    await user.click(screen.getAllByRole("button", { name: "Close" })[0]);
+    // Cancel still closes
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -97,11 +101,9 @@ describe("the record, not the check", () => {
     const { user } = mount();
     expect(screen.getByText("File what it said")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /Enter manually/ }));
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "Right to work" }),
-      "Australian citizen"
-    );
+    await user.click(screen.getByRole("button", { name: "Enter it by hand" }));
+    await user.click(screen.getByRole("combobox", { name: "Right to work" }));
+    await user.click(screen.getByRole("option", { name: "Australian citizen" }));
 
     expect(screen.getByText("File the document")).toBeInTheDocument();
     expect(screen.queryByText("File what it said")).not.toBeInTheDocument();

@@ -6,8 +6,11 @@ import { uploadFile } from "@/lib/documents/upload-client";
 import { Plate } from "../plate";
 import { displayName, type Vehicle, type VehicleLog } from "../logic";
 import { entryFacts, entryTitle, logDocuments } from "./derive";
+import { VehicleLead } from "./event-row";
 import { DocPreview, DocRows } from "@/components/record-modal/doc-rows";
-import { Btn, Card, DetailGrid, Eyebrow, Inline, SubHeader } from "@/components/record-modal/parts";
+import { Button } from "@/components/parts/button";
+import { StateWord } from "@/components/parts/state";
+import { DetailGrid, FrameFoot, FrameTitle, Group, RecordError } from "@/components/record-modal/parts";
 
 /* One entry, read on its own: the facts a row could not hold, and the paper
    behind them.
@@ -36,6 +39,7 @@ export function EntryScreen({
   documents,
   today,
   error,
+  backWord = "Back",
   onBack,
   onCorrect,
   onResolve,
@@ -47,6 +51,8 @@ export function EntryScreen({
   documents: StoredDocument[];
   today: string;
   error: string | null;
+  /** "Close" when the screen was opened on its own, from the vehicle's page. */
+  backWord?: string;
   onBack: () => void;
   onCorrect: (log: VehicleLog) => void;
   onResolve: (logId: string) => void;
@@ -70,87 +76,84 @@ export function EntryScreen({
     setAttachWarn(null);
     const up = await uploadFile(file, paper.kind).catch(() => null);
     if (up?.ok) onAttach(log.id, up.file.documentId);
-    else setAttachWarn(up && !up.ok ? up.error : "That upload didn't finish — try again.");
+    else setAttachWarn(up && !up.ok ? up.error : "That upload didn't finish, so try it again");
   };
 
   return (
     <>
-      <SubHeader
-        eyebrow={displayName(vehicle)}
-        title={entryTitle(log, today)}
-        onBack={onBack}
-        right={<Plate plate={vehicle.plate} state={vehicle.plateState} size="sm" />}
-      />
+      <FrameTitle>{entryTitle(log, today)}</FrameTitle>
+      <VehicleLead name={displayName(vehicle)} plate={<Plate plate={vehicle.plate} state={vehicle.plateState} size="sm" />} />
+      {error && <RecordError>{error}</RecordError>}
 
-      <div className="vm-body">
-        {error && <div className="vm-err">{error}</div>}
+      {(log.kind === "service" || log.kind === "issue") && (
+        <Group name={log.kind === "service" ? "What was done" : "What's wrong"}>
+          <p className={log.note ? "rcw-note" : "rcw-note rcw-note--faint"}>
+            {log.note ?? (log.kind === "service" ? "No note on this service" : "No detail given")}
+          </p>
+          {log.workDone && <p className="rcw-note rcw-note--lines">{log.workDone}</p>}
+        </Group>
+      )}
 
-        {(log.kind === "service" || log.kind === "issue") && (
-          <Card>
-            <div className="vm-cardhead">
-              <Eyebrow>{log.kind === "service" ? "What was done" : "What's wrong"}</Eyebrow>
-            </div>
-            <div className={log.note ? "vm-entrynote" : "vm-entrynote faint"}>
-              {log.note ?? (log.kind === "service" ? "No note on this service" : "No detail given")}
-            </div>
-            {log.workDone && <div className="vm-worklist">{log.workDone}</div>}
-          </Card>
-        )}
+      <Group name="Details">
+        <DetailGrid
+          cols={4}
+          items={facts.map((f) => ({
+            label: f.label,
+            value: f.value,
+            tone: f.warn ? "warn" : f.faint ? "faint" : undefined,
+          }))}
+        />
+      </Group>
 
-        <Card>
-          <div className="vm-cardhead">
-            <Eyebrow>Details</Eyebrow>
-          </div>
-          <DetailGrid
-            cols={4}
-            items={facts.map((f) => ({
-              label: f.label,
-              value: f.value,
-              tone: f.warn ? "warn" : f.faint ? "faint" : undefined,
-            }))}
+      {paper && (
+        <Group
+          name={paper.heading}
+          action={
+            docs.length === 0 ? (
+              <Button kind="second" size={32} onClick={() => attachInput.current?.click()}>
+                {`Attach the ${paper.word}`}
+              </Button>
+            ) : only && openDoc === null ? (
+              <Button kind="quiet" size={32} onClick={() => setOpenDoc(only.id)}>
+                {`Show the ${paper.word}`}
+              </Button>
+            ) : null
+          }
+        >
+          <input
+            ref={attachInput}
+            type="file"
+            accept="image/*,application/pdf"
+            aria-label="Attach document"
+            hidden
+            onChange={(e) => {
+              void attach(e.target.files?.[0]);
+              e.target.value = "";
+            }}
           />
-        </Card>
+          {attachWarn && <StateWord tone="look">{attachWarn}</StateWord>}
+          {only ? (
+            openDoc !== null && <DocPreview doc={only} onClose={() => setOpenDoc(null)} height={480} />
+          ) : (
+            <DocRows docs={docs} openId={openDoc} onOpen={setOpenDoc} previewHeight={480} emptyText={paper.none} />
+          )}
+        </Group>
+      )}
 
-        {paper && (
-          <Card>
-            <div className="vm-cardhead">
-              <Eyebrow>{paper.heading}</Eyebrow>
-              {docs.length === 0 && (
-                <Inline onClick={() => attachInput.current?.click()}>Attach the {paper.word}</Inline>
-              )}
-              {only && openDoc === null && <Inline onClick={() => setOpenDoc(only.id)}>Show</Inline>}
-            </div>
-            <input
-              ref={attachInput}
-              type="file"
-              accept="image/*,application/pdf"
-              aria-label="Attach document"
-              hidden
-              onChange={(e) => {
-                void attach(e.target.files?.[0]);
-                e.target.value = "";
-              }}
-            />
-            {attachWarn && <div className="vm-warnline">{attachWarn}</div>}
-            {only ? (
-              openDoc !== null && <DocPreview doc={only} onClose={() => setOpenDoc(null)} height={480} />
-            ) : (
-              <DocRows docs={docs} openId={openDoc} onOpen={setOpenDoc} previewHeight={480} emptyText={paper.none} />
-            )}
-          </Card>
-        )}
-      </div>
-
-      <div className="fl-foot bar spread">
-        <Btn kind="outline" onClick={() => onCorrect(log)}>
+      <FrameFoot>
+        <Button kind="second" onClick={() => onCorrect(log)}>
           Correct entry
-        </Btn>
+        </Button>
+        <span className="mk-gap" />
+        <Button kind="quiet" onClick={onBack}>
+          {backWord}
+        </Button>
         {log.kind === "issue" && log.status === "open" && (
-          <Btn kind="primary" onClick={() => onResolve(log.id)}>
+          <Button kind="main" onClick={() => onResolve(log.id)}>
             Mark resolved
-          </Btn>
+          </Button>
         )}
-      </div>
+      </FrameFoot>
     </>
   );
 }

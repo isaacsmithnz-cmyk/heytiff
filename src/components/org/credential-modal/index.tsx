@@ -1,16 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
-import { Icon } from "@/components/shell/icon";
-import { BackBtn } from "@/components/record-modal/parts";
+import { useState } from "react";
+import { FrameTitle, RecordError, RecordFrame } from "@/components/record-modal/parts";
 import { scanInProgress } from "@/components/record-modal/scan-card";
 import type { StoredDocument } from "@/lib/documents/query";
-import {
-  orgCredBadge,
-  type OrgCredential,
-  type OrgCredentialInput,
-} from "@/lib/org/credentials";
+import type { OrgCredential, OrgCredentialInput } from "@/lib/org/credentials";
 import type {
   CredentialRecordInput,
   CredentialScanDetails,
@@ -31,20 +25,15 @@ import { UpdateScreen } from "./update-screen";
    the day of a job three years ago.
 
    Now the card is an identity and its terms are a history, and the modal wears
-   the vehicle card's own clothes: the `.vm` shell, its cards, its detail
-   grids, its scan panel, its menus. Deliberately literal — an owner who has
-   recorded a rego renewal already knows how to update a policy.
-
-   PORTALLED TO <body>, and that is not a preference: the shell keeps
-   `will-change` on `.page.in`, which makes it a containing block for
-   position:fixed, so a modal rendered inside the page would anchor to the page
-   and land halfway down the scroll.
+   the record window (record-modal/parts, the old-modals mock of 27 October
+   2026), as a licence and the vehicle's records do. Deliberately literal — an
+   owner who has recorded a rego renewal already knows how to update a policy.
 
    Nothing is fetched here. The screen hands down everything the credential
    owns and every write is one of its actions followed by router.refresh(),
    the same as the fleet and the same as everywhere else. */
 
-/* Three, and the two that are not "record" both wear a back chevron: the
+/* Three, and the two that are not "record" both have Back in the foot: the
    card's own details, and filing its next term. */
 export type Screen = "record" | "details" | "update";
 
@@ -85,20 +74,15 @@ export function CredentialModal({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /* Escape leaves the way the back chevron does: a sub-screen of an existing
-     card goes home, everything else closes. Never a surprise dismissal
-     mid-form. While a scan is in progress
-     it does nothing — see scanInProgress. */
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      if (scanInProgress()) return;
-      if (screen !== "record" && !adding) setScreen("record");
-      else onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [screen, adding, onClose]);
+  /* Escape and the scrim leave the way Back does: a sub-screen of an
+     existing card goes home, everything else closes. Never a surprise
+     dismissal mid-form. While a scan is in progress they do nothing — see
+     scanInProgress. */
+  const softClose = () => {
+    if (scanInProgress()) return;
+    if (screen !== "record" && !adding) setScreen("record");
+    else onClose();
+  };
 
   /* ONE PLACE THAT RUNS A WRITE, so every refusal lands in the same banner and
      the busy state can never be left on by a path that forgot to clear it. */
@@ -121,8 +105,6 @@ export function CredentialModal({
       ? run(() => onAdd(draft.identity, draft.term))
       : run(() => onSaveIdentity(draft.identity), () => setScreen("record"));
 
-  const badge = credential ? orgCredBadge(credential) : null;
-  const sub = screen !== "record" && !adding;
   const title = adding
     ? "Add licence or insurance"
     : screen === "details"
@@ -132,105 +114,66 @@ export function CredentialModal({
           ? "Update policy"
           : "Update licence"
         : credential.name;
-  const kind = adding
-    ? "Licences & insurance"
-    : sub
-      ? credential.name
-      : credential.kind === "insurance"
-        ? "Insurance policy"
-        : "Business licence";
 
-  return createPortal(
-    <div className="vm-ov" onClick={() => (scanInProgress() ? undefined : onClose())}>
-      <div
-        className="vm"
-        role="dialog"
-        aria-modal="true"
-        aria-label={adding ? "Add licence or insurance" : credential.name}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="vm-head sub">
-          <div className="vm-headl">
-            {sub ? (
-              <BackBtn onClick={() => setScreen("record")} />
-            ) : null}
-            <div className="vm-titles">
-              <h2 className="vm-title sub">{title}</h2>
-              <span className="vm-kind">{kind}</span>
-            </div>
-          </div>
-          <div className="vm-headr">
-            {badge && (
-              <span className="vm-badge" style={{ background: `${badge.color}18`, color: badge.color }}>
-                {badge.code}
-              </span>
-            )}
-            <button type="button" className="vm-iconbtn" aria-label="Close" onClick={onClose}>
-              <Icon name="x" size={18} />
-            </button>
-          </div>
-        </div>
-
-        {screen === "update" && credential ? (
-          <UpdateScreen
+  return (
+    <RecordFrame width={screen === "record" && !adding ? 720 : 560} onClose={softClose}>
+      <FrameTitle>{title}</FrameTitle>
+      {screen === "update" && credential ? (
+        <UpdateScreen
+          credential={credential}
+          records={records}
+          today={today}
+          pending={pending}
+          error={error}
+          /* Saved, it goes back to the card it just changed rather than
+             closing — the new term is the thing the person came to see. */
+          onRecord={(input) => void run(() => onRecord(input), () => setScreen("record"))}
+          /* A scan with no expiry is FILED rather than saved as a term, and
+             lands the same way: back on the card, listed with its paperwork.
+             A null record is the card's own. A refusal keeps this screen and
+             its scan, so pressing again is a retry. */
+          onFile={(documentId, details) => void run(() => onAttach(null, documentId, details), () => setScreen("record"))}
+          onCancel={() => {
+            setError(null);
+            setScreen("record");
+          }}
+        />
+      ) : screen === "details" || !credential ? (
+        <>
+          {error && <RecordError>{error}</RecordError>}
+          <IdentityScreen
             credential={credential}
-            records={records}
+            hasTerms={records.length > 0}
             today={today}
             pending={pending}
-            error={error}
-            /* Saved, it goes back to the card it just changed rather than
-               closing — the new term is the thing the person came to see. */
-            onRecord={(input) => void run(() => onRecord(input), () => setScreen("record"))}
-            /* A scan with no expiry is FILED rather than saved as a term, and
-               lands the same way: back on the card, listed with its paperwork.
-               A null record is the card's own. A refusal keeps this screen and
-               its scan, so pressing again is a retry. */
-            onFile={(documentId, details) => void run(() => onAttach(null, documentId, details), () => setScreen("record"))}
-            onCancel={() => {
-              setError(null);
-              setScreen("record");
-            }}
-          />
-        ) : screen === "details" || !credential ? (
-          <>
-            {error && (
-              <div className="vm-body">
-                <div className="vm-err">{error}</div>
-              </div>
-            )}
-            <IdentityScreen
-              credential={credential}
-              hasTerms={records.length > 0}
-              today={today}
-              pending={pending}
-              onSave={saveIdentity}
-              onDelete={credential ? () => void run(onDelete) : undefined}
-            />
-          </>
-        ) : (
-          <RecordScreen
-            credential={credential}
-            records={records}
-            documents={documents}
-            today={today}
-            warnDays={warnDays}
-            pending={pending}
-            error={error}
-            onAttach={(recordId, documentId) => void run(() => onAttach(recordId, documentId), () => undefined)}
-            onRemoveTerm={(recordId) => void run(() => onRemoveTerm(recordId), () => undefined)}
-            onUpdate={() => {
-              setError(null);
-              setScreen("update");
-            }}
-            onEdit={() => {
-              setError(null);
-              setScreen("details");
-            }}
+            onSave={saveIdentity}
+            onDelete={credential ? () => void run(onDelete) : undefined}
+            onBack={adding ? undefined : () => setScreen("record")}
             onClose={onClose}
           />
-        )}
-      </div>
-    </div>,
-    document.body,
+        </>
+      ) : (
+        <RecordScreen
+          credential={credential}
+          records={records}
+          documents={documents}
+          today={today}
+          warnDays={warnDays}
+          pending={pending}
+          error={error}
+          onAttach={(recordId, documentId) => void run(() => onAttach(recordId, documentId), () => undefined)}
+          onRemoveTerm={(recordId) => void run(() => onRemoveTerm(recordId), () => undefined)}
+          onUpdate={() => {
+            setError(null);
+            setScreen("update");
+          }}
+          onEdit={() => {
+            setError(null);
+            setScreen("details");
+          }}
+          onClose={onClose}
+        />
+      )}
+    </RecordFrame>
   );
 }

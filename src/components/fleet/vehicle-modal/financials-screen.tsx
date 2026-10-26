@@ -6,9 +6,11 @@ import { readFinanceAgreement, type ReadFinanceResult } from "@/app/actions/flee
 import type { StoredDocument } from "@/lib/documents/query";
 import { uploadFile } from "@/lib/documents/upload-client";
 import { dateFromDays } from "@/lib/fleet/map";
-import { DateField } from "@/components/ui/date-field";
-import { Icon } from "@/components/shell/icon";
+import { Button } from "@/components/parts/button";
+import { Field, TextInput } from "@/components/parts/field";
+import { Chooser } from "@/components/parts/chooser";
 import { Plate } from "../plate";
+import { VehicleLead } from "./event-row";
 import {
   FINANCE_KINDS,
   FINANCE_KIND_LABEL,
@@ -42,7 +44,17 @@ import {
   type FactRow,
 } from "./derive";
 import { DocRows } from "@/components/record-modal/doc-rows";
-import { Btn, Card, DetailGrid, Eyebrow, Field, Inline, MoneyInput, SubHeader, type DetailItem } from "@/components/record-modal/parts";
+import {
+  DateIn,
+  DetailGrid,
+  FrameFoot,
+  FrameTitle,
+  Group,
+  HistoryRow,
+  Nothing,
+  RecordError,
+  type DetailItem,
+} from "@/components/record-modal/parts";
 import { ScanCard, type ScanMode } from "@/components/record-modal/scan-card";
 
 /* The Financials screen: what the vehicle is worth, what it cost, what is owed
@@ -145,6 +157,7 @@ export function FinancialsScreen({
   finance,
   pending,
   error,
+  backWord = "Back",
   onBack,
   onSaveVehicle,
   onRecordFinance,
@@ -162,6 +175,8 @@ export function FinancialsScreen({
   finance: VehicleFinance[];
   pending: boolean;
   error: string | null;
+  /** "Close" when the screen was opened on its own, from the vehicle's page. */
+  backWord?: string;
   onBack: () => void;
   /** The purchase fields and the book value are the vehicle's own columns. */
   onSaveVehicle: (v: Vehicle) => void;
@@ -279,132 +294,141 @@ export function FinancialsScreen({
     else if (current) onAttachFinance(current.id, up.file.documentId);
   };
 
+  const showFields = panelOpen && (mode === "scanned" || mode === "manual");
+  const money = (label: string, value: string, onChange: (v: string) => void, placeholder?: string) => (
+    <Field label={`${label} ($)`}>
+      <TextInput inputMode="decimal" placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
+    </Field>
+  );
+
   return (
     <>
-      <SubHeader
-        eyebrow={displayName(vehicle)}
-        title="Financials"
-        onBack={onBack}
-        right={<Plate plate={vehicle.plate} state={vehicle.plateState} size="sm" />}
-      />
+      <FrameTitle>Financials</FrameTitle>
+      <VehicleLead name={displayName(vehicle)} plate={<Plate plate={vehicle.plate} state={vehicle.plateState} size="sm" />} />
+      {error && <RecordError>{error}</RecordError>}
 
-      <div className="vm-body">
-        {error && <div className="vm-err">{error}</div>}
-
-        {/* ---- value: Tiff's estimate, and the book value beside it ---- */}
-        <div className={`vm-value${valuation ? "" : " plain"}`}>
-          <div className="vm-valuel">
-            <Eyebrow tone={valuation ? "accent" : undefined}>{valuation ? "Tiff value" : "Value"}</Eyebrow>
+      {/* ---- value: Tiff's estimate, and the book value beside it ---- */}
+      <Group
+        name={valuation ? "Tiff value" : "Value"}
+        action={
+          !editingValue && (
+            <Button
+              kind="quiet"
+              size={32}
+              onClick={() => {
+                setValueDraft(String(vehicle.value));
+                setEditingValue(true);
+              }}
+            >
+              Edit book value
+            </Button>
+          )
+        }
+      >
+        <div className="rcw-value">
+          <div className="rcw-value-l">
             {valuation ? (
               <>
-                <span className={`vm-valuefig${valuationIsStale ? " stale" : ""}`}>{fmtMoney(valuation.point)}</span>
-                <span className="vm-valuerange">
+                <span className={`rcw-fig${valuationIsStale ? " rcw-fig--stale" : ""}`}>{fmtMoney(valuation.point)}</span>
+                <span className="rcw-value-line">
                   {fmtMoney(valuation.low)}–{fmtMoney(valuation.high)}
                 </span>
-                <ul className="vm-notes">
+                <ul className="rcw-value-notes">
                   {notes.map((n) => (
                     <li key={n}>{n}</li>
                   ))}
                 </ul>
-                <span className="vm-valuefoot">Estimate only. Does not account for modifications, accessories or condition.</span>
+                <span className="rcw-value-line">Estimate only. Does not account for modifications, accessories or condition.</span>
               </>
             ) : (
               <>
-                <span className="vm-valuefig">{fmtMoney(vehicle.value)}</span>
-                <span className="vm-valuerange">Book value, as entered. Run “Value with Tiff” in the register for a market estimate.</span>
+                <span className="rcw-fig">{fmtMoney(vehicle.value)}</span>
+                <span className="rcw-value-line">Book value, as entered. Run “Value with Tiff” in the register for a market estimate.</span>
               </>
             )}
           </div>
-          <div className="vm-book">
-            <span className="vm-fl">Book value</span>
+          <div className="rcw-value-r">
             {editingValue ? (
               <>
-                <MoneyInput value={valueDraft} onChange={setValueDraft} ariaLabel="Book value" placeholder={String(vehicle.value)} />
-                <div className="vm-bookacts">
-                  <Inline onClick={saveValue}>Save</Inline>
-                  <Inline muted onClick={() => setEditingValue(false)}>
+                <Field label="Book value ($)">
+                  <TextInput inputMode="decimal" placeholder={String(vehicle.value)} value={valueDraft} onChange={(e) => setValueDraft(e.target.value)} />
+                </Field>
+                <div className="rcw-acts">
+                  <Button kind="quiet" size={32} onClick={() => setEditingValue(false)}>
                     Cancel
-                  </Inline>
+                  </Button>
+                  <Button kind="second" size={32} onClick={saveValue}>
+                    Save book value
+                  </Button>
                 </div>
               </>
             ) : (
-              <>
-                {valuation && <b>{fmtMoney(vehicle.value)}</b>}
-                <em>Used in the fleet total</em>
-                <Inline
-                  onClick={() => {
-                    setValueDraft(String(vehicle.value));
-                    setEditingValue(true);
-                  }}
-                >
-                  Edit
-                </Inline>
-              </>
+              <DetailGrid
+                items={[{ label: "Book value", value: valuation ? fmtMoney(vehicle.value) : "Used in the fleet total" }]}
+              />
             )}
           </div>
         </div>
+      </Group>
 
-        {/* ---- the purchase, as the invoice prints it ---- */}
-        <Card>
-          <div className="vm-cardhead">
-            <Eyebrow>Purchase</Eyebrow>
-            {!editingPurchase && (
-              <Inline
-                onClick={() => {
-                  setP(purchaseFields(vehicle, today));
-                  setEditingPurchase(true);
-                }}
-              >
-                Edit
-              </Inline>
-            )}
-          </div>
-          {editingPurchase ? (
-            <>
-              <div className="vm-fields">
-                <Field label="Supplier">
-                  <input className="vm-input" placeholder="Dealer or seller" value={p.supplier} onChange={(e) => setP1("supplier")(e.target.value)} />
-                </Field>
-                <Field label="Invoice no.">
-                  <input className="vm-input" value={p.invoiceNo} onChange={(e) => setP1("invoiceNo")(e.target.value)} />
-                </Field>
-                <Field label="Date">
-                  <DateField size="lg" clearable today={today} value={p.date || null} onChange={(iso) => setP1("date")(iso ?? "")} aria-label="Purchase date" />
-                </Field>
-                <Field label="Price ex GST">
-                  <MoneyInput value={p.exGst} onChange={setP1("exGst")} ariaLabel="Price ex GST" />
-                </Field>
-                <Field label="GST">
-                  <MoneyInput value={p.gst} onChange={setP1("gst")} ariaLabel="GST" />
-                </Field>
-                <Field label="On-road costs">
-                  <MoneyInput value={p.onRoad} onChange={setP1("onRoad")} ariaLabel="On-road costs" />
-                </Field>
-                <Field label="Total price" req>
-                  <MoneyInput value={p.total} onChange={setP1("total")} ariaLabel="Total price" placeholder="What you paid" />
-                </Field>
-                <Field label={current ? "Deposit paid" : "Paid up front"}>
-                  <MoneyInput value={p.deposit} onChange={setP1("deposit")} ariaLabel="Deposit paid" />
-                </Field>
-                <Field label="Odometer at purchase">
-                  <input className="vm-input" inputMode="numeric" placeholder="km" value={p.odometer} onChange={(e) => setP1("odometer")(e.target.value)} />
-                </Field>
-              </div>
-              <div className="vm-acts">
-                <Btn kind="outline" onClick={() => setEditingPurchase(false)}>
-                  Cancel
-                </Btn>
-                <Btn kind="primary" onClick={savePurchase} disabled={pending}>
-                  Save purchase
-                </Btn>
-              </div>
-            </>
-          ) : (
-            <DetailGrid items={toItems(purchaseRows(vehicle, today, current))} />
-          )}
-          <div className="vm-divider">
-            <Eyebrow>Invoices</Eyebrow>
-            <Inline onClick={() => invoiceInput.current?.click()}>Add document</Inline>
+      {/* ---- the purchase, as the invoice prints it ---- */}
+      <Group
+        name="Purchase"
+        action={
+          !editingPurchase && (
+            <Button
+              kind="quiet"
+              size={32}
+              onClick={() => {
+                setP(purchaseFields(vehicle, today));
+                setEditingPurchase(true);
+              }}
+            >
+              Edit purchase
+            </Button>
+          )
+        }
+      >
+        {editingPurchase ? (
+          <>
+            <div className="mk-records-grid">
+              <Field label="Supplier">
+                <TextInput placeholder="Dealer or seller" value={p.supplier} onChange={(e) => setP1("supplier")(e.target.value)} />
+              </Field>
+              <Field label="Invoice no.">
+                <TextInput value={p.invoiceNo} onChange={(e) => setP1("invoiceNo")(e.target.value)} />
+              </Field>
+              <DateIn label="Purchase date" today={today} value={p.date} onChange={setP1("date")} />
+              {money("Price ex GST", p.exGst, setP1("exGst"))}
+              {money("GST", p.gst, setP1("gst"))}
+              {money("On-road costs", p.onRoad, setP1("onRoad"))}
+              {money("Total price", p.total, setP1("total"), "What you paid")}
+              {money(current ? "Deposit paid" : "Paid up front", p.deposit, setP1("deposit"))}
+              <Field label="Odometer at purchase (km)">
+                <TextInput inputMode="numeric" value={p.odometer} onChange={(e) => setP1("odometer")(e.target.value)} />
+              </Field>
+            </div>
+            <div className="rcw-acts">
+              <Button kind="quiet" size={32} onClick={() => setEditingPurchase(false)}>
+                Cancel
+              </Button>
+              <Button kind="second" size={32} onClick={savePurchase} disabled={pending}>
+                Save purchase
+              </Button>
+            </div>
+          </>
+        ) : (
+          <DetailGrid items={toItems(purchaseRows(vehicle, today, current))} />
+        )}
+      </Group>
+
+      <Group
+        name="Invoices"
+        action={
+          <>
+            <Button kind="second" size={32} onClick={() => invoiceInput.current?.click()}>
+              Add invoice
+            </Button>
             <input
               ref={invoiceInput}
               type="file"
@@ -413,83 +437,87 @@ export function FinancialsScreen({
               hidden
               onChange={attach("purchase_invoice")}
             />
-          </div>
-          <DocRows
-            docs={invoices}
-            openId={openDoc}
-            onOpen={(id) => {
-              setOpenDoc(id);
-              if (id) setOpenHist(null);
-            }}
-            emptyText="No invoice filed yet."
-          />
-        </Card>
+          </>
+        }
+      >
+        <DocRows
+          docs={invoices}
+          openId={openDoc}
+          onOpen={(id) => {
+            setOpenDoc(id);
+            if (id) setOpenHist(null);
+          }}
+          emptyText="No invoice filed yet."
+        />
+      </Group>
 
-        {/* ---- finance: the agreement in force, or the absence of one ---- */}
-        {current ? (
-          <Card>
-            <div className="vm-cardhead">
-              <Eyebrow>Finance agreement</Eyebrow>
-              <span className="vm-recordtools">
-                <span className="vm-added">{addedText(current)}</span>
-                {!panelOpen && <Inline onClick={() => setPanelOpen(true)}>Replace agreement</Inline>}
-              </span>
-            </div>
+      {/* ---- finance: the agreement in force, or the absence of one ---- */}
+      {current ? (
+        <>
+          <Group
+            name="Finance agreement"
+            aside={addedText(current)}
+            action={
+              !panelOpen && (
+                <Button kind="quiet" size={32} onClick={() => setPanelOpen(true)}>
+                  Replace agreement
+                </Button>
+              )
+            }
+          >
             <DetailGrid items={toItems(financeRows(current))} />
+          </Group>
 
-            {position && (
-              <div className="vm-position">
-                <div className="vm-poshead">
-                  <Eyebrow tone="accent">Estimated position</Eyebrow>
-                </div>
-                <div
-                  className="vm-progress"
-                  role="progressbar"
-                  aria-label="Repayments fallen due"
-                  aria-valuemin={0}
-                  aria-valuemax={position.total}
-                  aria-valuenow={position.made}
-                >
-                  <span style={{ width: `${Math.round(position.progress * 100)}%` }} />
-                </div>
-                <div className="vm-posgrid">
-                  {/* FALLEN DUE, not made. Nothing here tracks a payment —
-                      the note under the bar says so — and "Payments to date"
-                      read as "payments you have made", which contradicted it. */}
-                  <div>
-                    <span className="vm-fl">Fallen due</span>
-                    <b>
-                      {position.made} of {position.total}
-                    </b>
-                  </div>
-                  <div>
-                    <span className="vm-fl">Still to fall due</span>
-                    <b>{position.remaining}</b>
-                  </div>
-                  <div>
-                    <span className="vm-fl">Indicative payout</span>
-                    {position.payout != null ? <b>{fmtMoney(position.payout)}</b> : <b className="faint">—</b>}
-                  </div>
-                </div>
-                <div className="vm-posnote">
-                  This is the schedule, not a payment record — confirm the payout figure with {current.lender} before you
-                  sell or trade.
-                </div>
+          {position && (
+            <Group name="Estimated position">
+              <div
+                className="rcw-meter"
+                role="progressbar"
+                aria-label="Repayments fallen due"
+                aria-valuemin={0}
+                aria-valuemax={position.total}
+                aria-valuenow={position.made}
+              >
+                <span style={{ width: `${Math.round(position.progress * 100)}%` }} />
               </div>
-            )}
-
-            <div className="vm-divider">
-              <Eyebrow>Documents</Eyebrow>
-              <Inline onClick={() => agreementInput.current?.click()}>Add document</Inline>
-              <input
-                ref={agreementInput}
-                type="file"
-                accept="image/*,application/pdf"
-                aria-label="Add agreement document"
-                hidden
-                onChange={attach("finance_agreement")}
+              {/* FALLEN DUE, not made. Nothing here tracks a payment — the
+                  line under it says so — and "Payments to date" read as
+                  "payments you have made", which contradicted it. */}
+              <DetailGrid
+                items={[
+                  { label: "Fallen due", value: `${position.made} of ${position.total}` },
+                  { label: "Still to fall due", value: String(position.remaining) },
+                  {
+                    label: "Indicative payout",
+                    value: position.payout != null ? fmtMoney(position.payout) : "—",
+                    tone: position.payout != null ? undefined : "faint",
+                  },
+                ]}
               />
-            </div>
+              <p className="mk-records-sub">
+                {`This is the schedule, not a payment record: confirm the payout figure with ${current.lender} before you sell or trade.`}
+              </p>
+            </Group>
+          )}
+
+          <Group
+            name="Agreement documents"
+            action={
+              <>
+                <Button kind="second" size={32} onClick={() => agreementInput.current?.click()}>
+                  Add document
+                </Button>
+                <input
+                  ref={agreementInput}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  aria-label="Add agreement document"
+                  hidden
+                  onChange={attach("finance_agreement")}
+                />
+              </>
+            }
+          >
             <DocRows
               docs={financeDocuments(documents, current)}
               openId={openDoc}
@@ -499,199 +527,146 @@ export function FinancialsScreen({
               }}
               emptyText="No paperwork filed under this agreement yet."
             />
-          </Card>
-        ) : (
-          !panelOpen && (
-            <Card>
-              <div className="vm-nofin">
-                <div className="vm-statusl">
-                  <Eyebrow>Finance</Eyebrow>
-                  <span className="vm-headline">No finance agreement recorded</span>
-                  <span className="vm-subline">If the vehicle is financed, scan the agreement or enter it.</span>
-                </div>
-                <Btn kind="outline" onClick={() => setPanelOpen(true)}>
-                  Add finance agreement
-                </Btn>
-              </div>
-            </Card>
-          )
-        )}
-
-        {panelOpen && (
-          <ScanCard<ReadFinanceResult>
-            heading={current ? "Replace agreement" : "Add finance agreement"}
-            prompt="Scan or upload the finance agreement"
-            hint="PDF, JPG or photo."
-            attachLabel="Optional: attach the agreement"
-            docKind="finance_agreement"
-            read={(b64, mt) => readFinanceAgreement(b64, mt)}
-            onRead={(r, id) => {
-              fill(r);
-              setDocId(id);
-            }}
-            onAttached={(id) => setDocId(id)}
-            onCancel={closePanel}
-            mode={mode}
-            onMode={(m) => {
-              setMode(m);
-              if (m === "idle") {
-                setF(EMPTY_FIN);
-                setDocId(null);
-              }
-            }}
+          </Group>
+        </>
+      ) : (
+        !panelOpen && (
+          <Group
+            name="Finance"
+            action={
+              <Button kind="second" size={32} onClick={() => setPanelOpen(true)}>
+                Add finance agreement
+              </Button>
+            }
           >
-            <div className="vm-fields">
-              <Field label="Lender" req>
-                <input className="vm-input" placeholder="e.g. Macquarie Leasing" value={f.lender} onChange={(e) => set("lender")(e.target.value)} />
-              </Field>
-              <Field label="Agreement no.">
-                <input className="vm-input" value={f.agreementNo} onChange={(e) => set("agreementNo")(e.target.value)} />
-              </Field>
-              <Field label="Type">
-                <select
-                  className="vm-input"
-                  aria-label="Agreement type"
-                  value={f.kind}
-                  onChange={(e) => setF((prev) => ({ ...prev, kind: e.target.value as FinanceKind | "" }))}
-                >
-                  <option value="">Not stated</option>
-                  {FINANCE_KINDS.map((k) => (
-                    <option key={k} value={k}>
-                      {FINANCE_KIND_LABEL[k]}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Start" req>
-                <DateField size="lg" clearable today={today} value={f.startsOn || null} onChange={(iso) => set("startsOn")(iso ?? "")} aria-label="Agreement start" />
-              </Field>
-              <Field label="Term" req>
-                <select className="vm-input" aria-label="Term" value={f.termMonths} onChange={(e) => set("termMonths")(e.target.value)}>
-                  {termOptions.map((t) => (
-                    <option key={t} value={String(t)}>
-                      {t} months
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Repayment">
-                <MoneyInput value={f.repayment} onChange={set("repayment")} placeholder="742" ariaLabel="Repayment" />
-              </Field>
-              <Field label="Frequency">
-                <select
-                  className="vm-input"
-                  aria-label="Repayment frequency"
-                  value={f.frequency}
-                  onChange={(e) => setF((prev) => ({ ...prev, frequency: e.target.value as PaymentFrequency }))}
-                >
-                  {PAYMENT_FREQUENCIES.map((q) => (
-                    <option key={q} value={q}>
-                      {PAYMENT_FREQUENCY_LABEL[q]}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Rate (p.a.)">
-                <span className="vm-pct-in">
-                  <input inputMode="decimal" placeholder="7.45" aria-label="Interest rate" value={f.ratePct} onChange={(e) => set("ratePct")(e.target.value)} />
-                  <span>%</span>
-                </span>
-              </Field>
-              <Field label="Balloon">
-                <MoneyInput value={f.balloon} onChange={set("balloon")} ariaLabel="Balloon" />
-              </Field>
-              <Field label="Amount financed">
-                <MoneyInput value={f.amountFinanced} onChange={set("amountFinanced")} ariaLabel="Amount financed" />
-              </Field>
-            </div>
-            <div className="vm-acts">
-              <Btn kind="primary" onClick={saveFinance} disabled={!canSave || pending}>
-                {pending ? "Saving the agreement" : current ? "Replace agreement" : "Add agreement"}
-              </Btn>
-            </div>
-          </ScanCard>
-        )}
+            <Nothing>No finance agreement recorded</Nothing>
+          </Group>
+        )
+      )}
 
-        {previous.length > 0 && (
-          <Card className="vm-histcard">
-            <div className="vm-cardhead">
-              <Eyebrow>Previous agreements</Eyebrow>
-            </div>
-            {previous.map((agreement) => {
-              const expanded = openHist === agreement.id;
-              const docs = financeDocuments(documents, agreement);
-              const repayment = repaymentLabel(agreement);
-              return (
-                <div key={agreement.id} className="vm-hist">
-                  <button
-                    type="button"
-                    className="vm-histrow"
-                    aria-expanded={expanded}
-                    onClick={() => {
-                      setOpenHist(expanded ? null : agreement.id);
-                      setOpenDoc(null);
-                    }}
-                  >
-                    <span className="vm-docl">
-                      <b>
-                        {agreement.lender}
-                        {agreement.kind ? `, ${FINANCE_KIND_LABEL[agreement.kind]}` : ""}
-                      </b>
-                      <em>{docs.length === 1 ? "1 document" : `${docs.length} documents`}</em>
-                    </span>
-                    <span className="vm-histr">
-                      {repayment && <span>{repayment}</span>}
-                      <span className="vm-evdate">
-                        {fmtDay(agreement.startsOn)} – {fmtDay(financeEndsOn(agreement))}
-                      </span>
-                      <Icon name={expanded ? "chevU" : "chevR"} size={14} />
-                    </span>
-                  </button>
-                  {expanded && (
-                    <div className="vm-histbody">
-                      <div className="vm-inset">
-                        <DetailGrid dense items={toItems(financeRows(agreement))} />
-                      </div>
-                      <span className="vm-fl">Documents</span>
-                      <DocRows docs={docs} openId={openDoc} onOpen={setOpenDoc} emptyText="No paperwork filed." />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </Card>
-        )}
-
-        {/* ---- cost to run: actuals, never a forecast ---- */}
-        <Card>
-          <div className="vm-cardhead">
-            <Eyebrow>Cost to run, since {fmtDay(costs.sinceIso)}</Eyebrow>
+      {panelOpen && (
+        <ScanCard<ReadFinanceResult>
+          heading={current ? "Replace agreement" : "Add finance agreement"}
+          prompt="Scan or upload the finance agreement"
+          paper="the agreement"
+          attachLabel="Attach the agreement"
+          docKind="finance_agreement"
+          read={(b64, mt) => readFinanceAgreement(b64, mt)}
+          onRead={(r, id) => {
+            fill(r);
+            setDocId(id);
+          }}
+          onAttached={(id) => setDocId(id)}
+          onCancel={closePanel}
+          mode={mode}
+          onMode={(m) => {
+            setMode(m);
+            if (m === "idle") {
+              setF(EMPTY_FIN);
+              setDocId(null);
+            }
+          }}
+        >
+          <div className="mk-records-grid">
+            <Field label="Lender">
+              <TextInput placeholder="Macquarie Leasing" value={f.lender} onChange={(e) => set("lender")(e.target.value)} />
+            </Field>
+            <Field label="Agreement no.">
+              <TextInput value={f.agreementNo} onChange={(e) => set("agreementNo")(e.target.value)} />
+            </Field>
+            <Field label="Agreement type">
+              <Chooser
+                options={[{ value: "", label: "Not stated" }, ...FINANCE_KINDS.map((k) => ({ value: k, label: FINANCE_KIND_LABEL[k] }))]}
+                value={f.kind}
+                onChange={(v) => setF((prev) => ({ ...prev, kind: v as FinanceKind | "" }))}
+              />
+            </Field>
+            <DateIn label="Agreement start" today={today} value={f.startsOn} onChange={set("startsOn")} />
+            <Field label="Term">
+              <Chooser
+                options={termOptions.map((t) => ({ value: String(t), label: `${t} months` }))}
+                value={f.termMonths || null}
+                onChange={set("termMonths")}
+              />
+            </Field>
+            {money("Repayment", f.repayment, set("repayment"), "742")}
+            <Field label="Repayment frequency">
+              <Chooser
+                options={PAYMENT_FREQUENCIES.map((q) => ({ value: q, label: PAYMENT_FREQUENCY_LABEL[q] }))}
+                value={f.frequency}
+                onChange={(v) => setF((prev) => ({ ...prev, frequency: v as PaymentFrequency }))}
+              />
+            </Field>
+            <Field label="Interest rate (% a year)">
+              <TextInput inputMode="decimal" placeholder="7.45" value={f.ratePct} onChange={(e) => set("ratePct")(e.target.value)} />
+            </Field>
+            {money("Balloon", f.balloon, set("balloon"))}
+            {money("Amount financed", f.amountFinanced, set("amountFinanced"))}
           </div>
-          <div className="vm-costrow">
-            <div className="vm-costgrid">
-              {costs.items.map((i) => (
-                <div key={i.key}>
-                  <span className="vm-fl">{i.label}</span>
-                  {i.value != null ? <b>{fmtMoney(i.value)}</b> : <b className="faint">—</b>}
-                </div>
-              ))}
-            </div>
-            <div className="vm-total">
-              <span className="vm-fl">Total</span>
-              <b>{costs.known > 0 ? fmtMoney(costs.total) : "—"}</b>
-              <em>
-                {costs.known === 0
-                  ? "Nothing logged yet"
-                  : costs.perKm != null
-                    ? `${fmtCost(costs.perKm)} per km over ${fmtKm(costs.kmDriven ?? 0)} km`
-                    : `${costs.known} of ${costs.items.length} categories known`}
-              </em>
-            </div>
-          </div>
-        </Card>
-      </div>
+        </ScanCard>
+      )}
 
+      {previous.length > 0 && (
+        <Group name="Previous agreements">
+          {previous.map((agreement) => {
+            const expanded = openHist === agreement.id;
+            const docs = financeDocuments(documents, agreement);
+            return (
+              <HistoryRow
+                key={agreement.id}
+                name={`${agreement.lender}${agreement.kind ? `, ${FINANCE_KIND_LABEL[agreement.kind]}` : ""}`}
+                line={docs.length === 1 ? "1 document" : `${docs.length} documents`}
+                aside={[repaymentLabel(agreement), `${fmtDay(agreement.startsOn)} – ${fmtDay(financeEndsOn(agreement))}`]}
+                open={expanded}
+                onToggle={() => {
+                  setOpenHist(expanded ? null : agreement.id);
+                  setOpenDoc(null);
+                }}
+              >
+                <DetailGrid dense items={toItems(financeRows(agreement))} />
+                <DocRows docs={docs} openId={openDoc} onOpen={setOpenDoc} emptyText="No paperwork filed." />
+              </HistoryRow>
+            );
+          })}
+        </Group>
+      )}
 
+      {/* ---- cost to run: actuals, never a forecast ---- */}
+      <Group name={`Cost to run, since ${fmtDay(costs.sinceIso)}`}>
+        <DetailGrid
+          cols={4}
+          items={[
+            ...costs.items.map((i) => ({
+              label: i.label,
+              value: i.value != null ? fmtMoney(i.value) : "—",
+              tone: i.value != null ? undefined : ("faint" as const),
+            })),
+            {
+              label: "Total",
+              value: costs.known > 0 ? fmtMoney(costs.total) : "—",
+              tone: costs.known > 0 ? undefined : ("faint" as const),
+            },
+          ]}
+        />
+        <p className="mk-records-sub">
+          {costs.known === 0
+            ? "Nothing logged yet"
+            : costs.perKm != null
+              ? `${fmtCost(costs.perKm)} per km over ${fmtKm(costs.kmDriven ?? 0)} km`
+              : `${costs.known} of ${costs.items.length} categories known`}
+        </p>
+      </Group>
+
+      <FrameFoot>
+        <Button kind="quiet" onClick={onBack}>
+          {backWord}
+        </Button>
+        {showFields && (
+          <Button kind="main" onClick={() => void saveFinance()} disabled={!canSave || pending}>
+            {pending ? "Saving the agreement" : current ? "Replace agreement" : "Add agreement"}
+          </Button>
+        )}
+      </FrameFoot>
     </>
   );
 }

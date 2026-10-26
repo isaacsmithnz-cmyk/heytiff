@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { FleetActions } from "../../fleet-state";
 import type { StoredDocument } from "@/lib/documents/query";
@@ -195,26 +195,21 @@ it("Escape goes home from a sub-screen and closes from home", async () => {
 
 it("offers For sale beside Sold, and a change reaches saveVehicle", async () => {
   const { user, f } = mount();
-  const status = screen.getByRole("combobox", { name: "Status" });
-  expect(Array.from((status as HTMLSelectElement).options).map((o) => o.textContent)).toEqual([
-    "In service",
-    "Off road",
-    "For sale",
-    "Sold",
-  ]);
-  await user.selectOptions(status, "for_sale");
+  await user.click(screen.getByRole("combobox", { name: "Status" }));
+  expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["In service", "Off road", "For sale", "Sold"]);
+  await user.click(screen.getByRole("option", { name: "For sale" }));
   expect(f.saveVehicle).toHaveBeenCalledWith(expect.objectContaining({ id: "v1", status: "for_sale" }));
 });
 
 it("writes an odometer reading typed on the card as an odo log — Enter commits, Escape doesn't", async () => {
   const { user, f } = mount();
-  await user.click(screen.getByRole("button", { name: "Update" }));
+  await user.click(screen.getByRole("button", { name: "Update reading" }));
   const input = screen.getByRole("textbox", { name: "Odometer reading" });
   await user.clear(input);
   await user.type(input, "109,2a00{Escape}");
   expect(f.addLog).not.toHaveBeenCalled();
 
-  await user.click(screen.getByRole("button", { name: "Update" }));
+  await user.click(screen.getByRole("button", { name: "Update reading" }));
   await user.clear(screen.getByRole("textbox", { name: "Odometer reading" }));
   await user.type(screen.getByRole("textbox", { name: "Odometer reading" }), "109200{Enter}");
   expect(f.addLog).toHaveBeenCalledWith({ vehicleId: "v1", kind: "odo", odo: 109200 });
@@ -227,7 +222,7 @@ it("keeps logging on the card: the + on History offers fuel, an issue and a serv
   expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Log fuel", "Report an issue", "Log service"]);
   await user.click(screen.getByRole("menuitem", { name: "Log fuel" }));
   expect(screen.getByRole("heading", { name: "Log fuel" })).toBeInTheDocument();
-  expect(screen.getByText("Scan or upload the receipt")).toBeInTheDocument();
+  expect(screen.getByText("Snap or upload the receipt")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Back" }));
   expect(screen.getByRole("heading", { name: "WORK TRITON" })).toBeInTheDocument();
 });
@@ -319,7 +314,7 @@ describe("a history row opens the entry on its own screen", () => {
     // closed, it can be shown again
     await user.click(screen.getByRole("button", { name: "Close preview" }));
     expect(screen.queryByRole("img", { name: "IMG_2041.jpg" })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Show" }));
+    await user.click(screen.getByRole("button", { name: "Show the receipt" }));
     expect(screen.getByRole("img", { name: "IMG_2041.jpg" })).toBeInTheDocument();
     // nothing on this screen swaps the paper behind a figure
     expect(screen.queryByText(/Attach the receipt/)).not.toBeInTheDocument();
@@ -362,11 +357,13 @@ describe("a history row opens the entry on its own screen", () => {
   });
 });
 
-it("removes only on the second press, and Edit is a door", async () => {
+it("removes only once it has asked, and Edit is a door", async () => {
   const { user, f, onEdit, onClose } = mount();
   await user.click(screen.getByRole("button", { name: "Remove vehicle" }));
   expect(f.removeVehicle).not.toHaveBeenCalled();
-  await user.click(screen.getByRole("button", { name: "Confirm remove" }));
+  // it asks once, in its own dialog, and names what goes
+  const ask = screen.getByRole("dialog", { name: "Remove WORK TRITON?" });
+  await user.click(within(ask).getByRole("button", { name: "Remove vehicle" }));
   expect(f.removeVehicle).toHaveBeenCalledWith("v1");
   expect(onClose).toHaveBeenCalled();
   await user.click(screen.getByRole("button", { name: "Edit vehicle" }));
@@ -375,7 +372,8 @@ it("removes only on the second press, and Edit is a door", async () => {
 
 it("assigning a driver reaches the action, and the pool is a real option", async () => {
   const { user, f } = mount();
-  await user.selectOptions(screen.getByRole("combobox", { name: "Driver" }), "s1");
+  await user.click(screen.getByRole("combobox", { name: "Driver" }));
+  await user.click(screen.getByRole("option", { name: "Dane Poulos" }));
   expect(f.assignVehicle).toHaveBeenCalledWith("v1", "s1");
 });
 
@@ -385,7 +383,7 @@ it("the FINANCIALS card is the door to the Financials screen, and Back returns",
   mount();
   const user = userEvent.setup();
   expect(screen.getByText("No finance agreement recorded")).toBeInTheDocument(); // the card's third column
-  await user.click(screen.getByRole("button", { name: "Financials" }));
+  await user.click(screen.getByRole("button", { name: "Open financials" }));
   expect(screen.getByRole("heading", { name: "Financials" })).toBeInTheDocument();
   expect(screen.getByText(/^Cost to run, /)).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Back" }));
@@ -403,7 +401,11 @@ describe("a scan in progress survives Escape", () => {
     ok: true,
     file: { documentId, fileName: "scan.pdf", mimeType: "application/pdf", sizeBytes: 1, previewUrl: null },
   });
-  const backdrop = () => fireEvent.click(document.querySelector(".vm-ov") as HTMLElement);
+  const backdrop = () => {
+    const scrim = document.querySelector(".pt-scrim") as HTMLElement;
+    fireEvent.mouseDown(scrim);
+    fireEvent.click(scrim);
+  };
 
   it("keeps a renewal screen and its scan when Escape is pressed or the backdrop clicked", async () => {
     uploadFile.mockResolvedValue(stored("doc-7"));
@@ -423,11 +425,11 @@ describe("a scan in progress survives Escape", () => {
     const { user, onClose } = mount();
     await user.click(screen.getByRole("button", { name: "Update rego" }));
     await user.upload(screen.getByLabelText("Scan document"), pdf("rego-2027.pdf"));
-    await screen.findByText("Scanned");
+    await screen.findByText("Read from the notice");
 
     await user.keyboard("{Escape}");
     expect(screen.getByRole("heading", { name: "Registration" })).toBeInTheDocument();
-    expect(screen.getByText("Scanned")).toBeInTheDocument();
+    expect(screen.getByText("Read from the notice")).toBeInTheDocument();
     backdrop();
     expect(onClose).not.toHaveBeenCalled();
 
@@ -452,22 +454,26 @@ describe("a scan in progress survives Escape", () => {
       amountFinanced: null,
     });
     const { user, onClose } = mount();
-    await user.click(screen.getByRole("button", { name: "Financials" }));
+    await user.click(screen.getByRole("button", { name: "Open financials" }));
     await user.click(screen.getByRole("button", { name: "Add finance agreement" }));
     await user.upload(screen.getByLabelText("Scan document"), pdf("agreement.pdf"));
-    await screen.findByText("Scanned");
+    await screen.findByText("Read from the agreement");
 
     await user.keyboard("{Escape}");
     expect(screen.getByRole("heading", { name: "Financials" })).toBeInTheDocument();
-    expect(screen.getByText("Scanned")).toBeInTheDocument();
+    expect(screen.getByText("Read from the agreement")).toBeInTheDocument();
     backdrop();
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("still closes from the backdrop when nothing has been scanned", async () => {
+  /* The scrim is Escape's twin: from a sub-screen it goes home, and from
+     home it closes. */
+  it("still leaves from the backdrop when nothing has been scanned", async () => {
     const { user, onClose } = mount();
     await user.click(screen.getByRole("button", { name: /Insurance/ }));
     expect(screen.getByText("Scan or upload the certificate of insurance")).toBeInTheDocument();
+    backdrop();
+    expect(screen.getByRole("heading", { name: "WORK TRITON" })).toBeInTheDocument();
     backdrop();
     expect(onClose).toHaveBeenCalled();
   });
@@ -503,12 +509,12 @@ describe("a refused save keeps the screen, typing intact", () => {
     (f.recordRenewal as jest.Mock).mockResolvedValueOnce(false);
     await user.click(screen.getByRole("button", { name: "Update rego" }));
     await user.upload(screen.getByLabelText("Scan document"), pdf("rego-2027.pdf"));
-    await screen.findByText("Scanned");
+    await screen.findByText("Read from the notice");
 
     await user.click(screen.getByRole("button", { name: "Save renewal" }));
     await waitFor(() => expect(f.recordRenewal).toHaveBeenCalledTimes(1));
     expect(screen.getByRole("heading", { name: "Registration" })).toBeInTheDocument();
-    expect(screen.getByText("Scanned")).toBeInTheDocument();
+    expect(screen.getByText("Read from the notice")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Save renewal" }));
     await waitFor(() => expect(screen.getByRole("heading", { name: "WORK TRITON" })).toBeInTheDocument());
@@ -532,10 +538,10 @@ describe("a refused save keeps the screen, typing intact", () => {
     });
     const { user, f } = mount();
     (f.recordFinance as jest.Mock).mockResolvedValueOnce(false);
-    await user.click(screen.getByRole("button", { name: "Financials" }));
+    await user.click(screen.getByRole("button", { name: "Open financials" }));
     await user.click(screen.getByRole("button", { name: "Add finance agreement" }));
     await user.upload(screen.getByLabelText("Scan document"), pdf("agreement.pdf"));
-    await screen.findByText("Scanned");
+    await screen.findByText("Read from the agreement");
 
     await user.click(screen.getByRole("button", { name: "Add agreement" }));
     await waitFor(() => expect(f.recordFinance).toHaveBeenCalledTimes(1));
@@ -574,10 +580,10 @@ describe("one screen alone, for the vehicle's own page", () => {
     return { onClose, user: userEvent.setup() };
   };
 
-  it("closes on Back rather than stepping down to the card", async () => {
+  it("closes on its Close rather than stepping down to the card", async () => {
     const { onClose, user } = alone("rego");
     expect(screen.getByRole("heading", { name: "Registration" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Back" }));
+    await user.click(screen.getByRole("button", { name: "Close" }));
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(screen.queryByText("Vehicle details")).not.toBeInTheDocument();
   });

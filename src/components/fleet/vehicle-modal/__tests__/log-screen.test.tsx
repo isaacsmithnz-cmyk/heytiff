@@ -133,7 +133,7 @@ describe("Log fuel", () => {
     const { f, user } = mount("add:fuel");
     expect(screen.getByRole("heading", { name: "Log fuel" })).toBeInTheDocument();
     await user.upload(screen.getByLabelText("Scan document"), file("receipt.jpg", "image/jpeg"));
-    await screen.findByText("Scanned");
+    await screen.findByText("Read from the receipt");
     expect(uploadFile).toHaveBeenCalledWith(expect.anything(), "fuel_receipt");
     expect(screen.getByDisplayValue("62.4")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Shell Coburg")).toBeInTheDocument();
@@ -169,13 +169,12 @@ describe("Log fuel", () => {
 
   it("my own money needs a cost, and says why, before Save is offered", async () => {
     const { f, user } = mount("add:fuel");
-    await user.click(screen.getByText("Enter manually"));
+    await user.click(screen.getByRole("button", { name: "Enter it by hand" }));
     await user.type(screen.getByRole("textbox", { name: "Litres" }), "50");
-    await user.click(screen.getByRole("tab", { name: "My own money" }));
-    expect(screen.getByText(/Also claimed back to you/)).toBeInTheDocument();
-    expect(screen.getByText(/Enter what it cost/)).toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: "My own money" }));
+    expect(screen.getByText(/Add the cost, it's what you're paid back/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Log fuel" })).toBeDisabled();
-    await user.type(screen.getByRole("textbox", { name: "Cost" }), "80");
+    await user.type(screen.getByRole("textbox", { name: "Cost ($)" }), "80");
     await user.click(screen.getByRole("button", { name: "Log fuel" }));
     expect(logged(f)).toMatchObject({ paidWith: "own", cost: 80, source: "manual" });
   });
@@ -183,20 +182,22 @@ describe("Log fuel", () => {
   it("blocks a GST above an eleventh of the total", async () => {
     const { user } = mount("add:fuel");
     await user.upload(screen.getByLabelText("Scan document"), file("receipt.jpg", "image/jpeg"));
-    await screen.findByText("Scanned");
-    const gst = screen.getByRole("textbox", { name: "GST" });
+    await screen.findByText("Read from the receipt");
+    const gst = screen.getByRole("textbox", { name: "GST ($)" });
     await user.clear(gst);
     await user.type(gst, "40");
-    expect(screen.getByText(/more than an eleventh/)).toBeInTheDocument();
+    expect(screen.getByText(/More than an eleventh/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Log fuel" })).toBeDisabled();
   });
 
   it("survives Escape and the backdrop while the docket is held; Cancel still leaves", async () => {
     const { user, onClose } = mount("add:fuel");
     await user.upload(screen.getByLabelText("Scan document"), file("receipt.jpg", "image/jpeg"));
-    await screen.findByText("Scanned");
+    await screen.findByText("Read from the receipt");
     await user.keyboard("{Escape}");
-    fireEvent.click(document.querySelector(".vm-ov") as HTMLElement);
+    const scrim = document.querySelector(".pt-scrim") as HTMLElement;
+    fireEvent.mouseDown(scrim);
+    fireEvent.click(scrim);
     expect(screen.getByRole("heading", { name: "Log fuel" })).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Back" }));
@@ -208,7 +209,7 @@ describe("Log service", () => {
   it("scans the invoice and hands Save the record, the work and the invoice's date", async () => {
     const { f, user } = mount("add:service");
     await user.upload(screen.getByLabelText("Scan document"), file("braeside-12041.pdf", "application/pdf"));
-    await screen.findByText("Scanned");
+    await screen.findByText("Read from the invoice");
     expect(uploadFile).toHaveBeenCalledWith(expect.anything(), "service_record");
     expect(screen.getByDisplayValue("Braeside Auto")).toBeInTheDocument();
     expect(screen.getByDisplayValue("120,000 km logbook service")).toBeInTheDocument();
@@ -231,7 +232,7 @@ describe("Log service", () => {
   it("stays put, typing intact, when the server refuses the entry", async () => {
     const { f, user } = mount("add:service");
     (f.addLog as jest.Mock).mockResolvedValue(false);
-    await user.click(screen.getByText("Enter manually"));
+    await user.click(screen.getByRole("button", { name: "Enter it by hand" }));
     await user.type(screen.getByRole("textbox", { name: "Odometer at service (km)" }), "121000");
     await user.type(screen.getByRole("textbox", { name: "Workshop" }), "Braeside Auto");
     await user.click(screen.getByRole("button", { name: "Log service" }));
@@ -242,7 +243,7 @@ describe("Log service", () => {
 
   it("needs the odometer, and warns about a reading below the current one", async () => {
     const { user } = mount("add:service");
-    await user.click(screen.getByText("Enter manually"));
+    await user.click(screen.getByRole("button", { name: "Enter it by hand" }));
     expect(screen.getByRole("button", { name: "Log service" })).toBeDisabled();
     await user.type(screen.getByRole("textbox", { name: "Odometer at service (km)" }), "100000");
     expect(screen.getByText(/Lower than the current 108,375 km/)).toBeInTheDocument();

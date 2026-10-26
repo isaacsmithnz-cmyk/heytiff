@@ -1,10 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Icon } from "@/components/shell/icon";
+import { Button } from "@/components/parts/button";
 import type { StoredDocument } from "@/lib/documents/query";
 import { fmtDay } from "@/lib/format/day";
-import { Btn, Card, DetailGrid, Eyebrow, type DetailItem } from "@/components/record-modal/parts";
+import {
+  DetailGrid,
+  FrameFoot,
+  Group,
+  HistoryRow,
+  RecordError,
+  RecordStatus,
+  RemoveFromHistory,
+  type DetailItem,
+} from "@/components/record-modal/parts";
 import { AddDocument } from "@/components/record-modal/add-document";
 import { DocRows } from "@/components/record-modal/doc-rows";
 import type { OrgCredKind, OrgCredential } from "@/lib/org/credentials";
@@ -36,7 +45,7 @@ import {
    WHAT THIS SCREEN NO LONGER DOES is file the next term. That unrolled here as
    a panel below the history, off the bottom of a long modal; it is its own
    screen now (update-screen.tsx), reached by the one button in the status
-   card. */
+   card, now the foot's main button. */
 
 const CURRENT_LABEL: Record<OrgCredKind, string> = {
   insurance: "Current policy",
@@ -93,7 +102,6 @@ export function RecordScreen({
 
   const [openDoc, setOpenDoc] = useState<string | null>(null);
   const [openHist, setOpenHist] = useState<string | null>(null);
-  const [armedTerm, setArmedTerm] = useState<string | null>(null);
 
   const headline = credentialHeadline(kind, expiry, today, warnDays);
   const loose = looseDocuments(documents, records);
@@ -103,7 +111,7 @@ export function RecordScreen({
   const noTermLine = credential.expiryDate
     ? loose.length > 0
       ? `Expires ${fmtDay(credential.expiryDate)}`
-      : `Expires ${fmtDay(credential.expiryDate)} — nothing filed against it yet`
+      : `Expires ${fmtDay(credential.expiryDate)}, nothing filed against it yet`
     : loose.length > 0
       ? `${docsText} filed against this card`
       : "Nothing filed against this card yet";
@@ -118,156 +126,105 @@ export function RecordScreen({
     .filter(Boolean)
     .join(", ");
   const subline = !recorded ? noTermLine : termLine || credentialStatusText(days);
-  const tone = state === "none" ? "neutral" : state;
 
   const facts: DetailItem[] = current ? recordFacts(kind, current, state, credential.name) : [];
   const currentDocs = current ? recordDocuments(documents, current) : [];
 
   return (
     <>
-      <div className="vm-body">
-        {error && <div className="vm-err">{error}</div>}
+      {error && <RecordError>{error}</RecordError>}
 
-        <div className={`vm-status ${tone}`}>
-          <div className="vm-statusl">
-            <Eyebrow tone={state === "ok" ? "accent" : state === "none" ? undefined : "warn"}>Status</Eyebrow>
-            <span className="vm-headline">{headline}</span>
-            <span className="vm-subline">{subline}</span>
-          </div>
-          <div className="vm-statusr">
-            <Btn kind="primary" onClick={onUpdate}>
-              {UPDATE_LABEL[kind]}
-            </Btn>
-          </div>
-        </div>
+      <RecordStatus state={state} word={headline} line={subline} />
 
-        {current && (
-          <Card>
-            <div className="vm-cardhead">
-              <Eyebrow>{CURRENT_LABEL[kind]}</Eyebrow>
-              <span className="vm-added">{recordAddedText(current)}</span>
-            </div>
-            <DetailGrid items={facts} />
-            <div className="vm-divider">
-              <Eyebrow>Documents</Eyebrow>
-              <AddDocument docKind={CREDENTIAL_DOC_KIND[kind]} onAdded={(id) => onAttach(current.id, id)} />
-            </div>
-            <DocRows
-              docs={currentDocs}
-              openId={openDoc}
-              onOpen={(id) => {
-                setOpenDoc(id);
-                if (id) setOpenHist(null);
-              }}
-              emptyText={kind === "insurance" ? "No paperwork filed with this policy yet." : "No paperwork filed with this licence yet."}
-            />
-          </Card>
-        )}
+      {current && (
+        <Group name={CURRENT_LABEL[kind]} aside={recordAddedText(current)}>
+          <DetailGrid items={facts} />
+        </Group>
+      )}
 
-        {/* THE CARD'S OWN PAPERWORK, when it has no term to file it under.
+      {/* THE CARD'S OWN PAPERWORK sits here when it has no term to file it
+          under: a licence with no renewal date can hold no term at all, and a
+          certificate is exactly what a person opens that card to keep. */}
+      <Group
+        name="Documents"
+        action={<AddDocument docKind={CREDENTIAL_DOC_KIND[kind]} onAdded={(id) => onAttach(current ? current.id : null, id)} />}
+      >
+        <DocRows
+          docs={current ? currentDocs : loose}
+          openId={openDoc}
+          onOpen={(id) => {
+            setOpenDoc(id);
+            if (id) setOpenHist(null);
+          }}
+          emptyText={
+            current
+              ? kind === "insurance"
+                ? "No paperwork filed with this policy yet."
+                : "No paperwork filed with this licence yet."
+              : "No paperwork filed against this card yet."
+          }
+        />
+      </Group>
 
-            A term is a PERIOD and expires_on is NOT NULL, so a licence with no
-            renewal date on it can hold no term at all — and a certificate is
-            exactly the thing a person opens that card to keep. */}
-        {!current && (
-          <Card>
-            <div className="vm-cardhead">
-              <Eyebrow>Documents</Eyebrow>
-              <AddDocument docKind={CREDENTIAL_DOC_KIND[kind]} onAdded={(id) => onAttach(null, id)} />
-            </div>
-            <DocRows
-              docs={loose}
-              openId={openDoc}
-              onOpen={setOpenDoc}
-              emptyText="No paperwork filed against this card yet."
-            />
-          </Card>
-        )}
-
-        {/* ONLY WHEN THERE IS ONE. A card holding its first term was showing a
-            full-width panel headed POLICY HISTORY whose only content was the
-            sentence "No previous policy terms recorded" — a heading, a border
-            and a shadow spent on the absence of a thing. The history appears
-            the moment there is history, which is also the moment it means
-            something. */}
-        {history.length > 0 && (
-          <Card className="vm-histcard">
-            <div className="vm-cardhead">
-              <Eyebrow>{HISTORY_LABEL[kind]}</Eyebrow>
-            </div>
-            {history.map((r) => {
-              const expanded = openHist === r.id;
-              const docs = recordDocuments(documents, r);
-              return (
-                <div key={r.id} className="vm-hist">
-                  <button
-                    type="button"
-                    className="vm-histrow"
-                    aria-expanded={expanded}
-                    onClick={() => {
-                      setOpenHist(expanded ? null : r.id);
-                      setOpenDoc(null);
-                      setArmedTerm(null);
-                    }}
+      {/* ONLY WHEN THERE IS ONE: a heading spent on the absence of a thing
+          says nothing. The history appears the moment there is history. */}
+      {history.length > 0 && (
+        <Group name={HISTORY_LABEL[kind]}>
+          {history.map((r) => {
+            const expanded = openHist === r.id;
+            const docs = recordDocuments(documents, r);
+            return (
+              <HistoryRow
+                key={r.id}
+                name={recordEvent(kind, r)}
+                line={docs.length === 1 ? "1 document" : `${docs.length} documents`}
+                aside={[r.premium != null ? fmtCredMoney(r.premium) : null, fmtDay(r.expiresOn)]}
+                open={expanded}
+                onToggle={() => {
+                  setOpenHist(expanded ? null : r.id);
+                  setOpenDoc(null);
+                }}
+              >
+                <DetailGrid dense items={recordFacts(kind, r, "ok", credential.name)} />
+                <DocRows docs={docs} openId={openDoc} onOpen={setOpenDoc} emptyText="No paperwork filed." />
+                <div className="rcw-histfoot">
+                  <span>{recordAddedText(r) || "Filed by hand"}</span>
+                  <RemoveFromHistory
+                    label="Remove from history"
+                    heading={`Remove this ${kind === "insurance" ? "policy" : "licence"} from the history?`}
+                    confirm={kind === "insurance" ? "Remove policy" : "Remove licence"}
+                    disabled={pending}
+                    onConfirm={() => onRemoveTerm(r.id)}
                   >
-                    <span className="vm-docl">
-                      <b>{recordEvent(kind, r)}</b>
-                      <em>{docs.length === 1 ? "1 document" : `${docs.length} documents`}</em>
-                    </span>
-                    <span className="vm-histr">
-                      {r.premium != null && <span>{fmtCredMoney(r.premium)}</span>}
-                      <span className="vm-evdate">{fmtDay(r.expiresOn)}</span>
-                      <Icon name={expanded ? "chevU" : "chevR"} size={14} />
-                    </span>
-                  </button>
-                  {expanded && (
-                    <div className="vm-histbody">
-                      <div className="vm-inset">
-                        <DetailGrid dense items={recordFacts(kind, r, "ok", credential.name)} />
-                      </div>
-                      <span className="vm-fl">Documents</span>
-                      <DocRows docs={docs} openId={openDoc} onOpen={setOpenDoc} emptyText="No paperwork filed." />
-                      <div className="vm-attach">
-                        <span>{recordAddedText(r) || "Filed by hand"}</span>
-                        <button
-                          type="button"
-                          className={`vm-inline danger${armedTerm === r.id ? " arm" : ""}`}
-                          disabled={pending}
-                          onClick={() => (armedTerm === r.id ? onRemoveTerm(r.id) : setArmedTerm(r.id))}
-                        >
-                          {armedTerm === r.id ? "Click again to remove" : "Remove from history"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                    {`${recordEvent(kind, r)}, expiring ${fmtDay(r.expiresOn)}, comes out of the history. There is no undo.`}
+                  </RemoveFromHistory>
                 </div>
-              );
-            })}
-          </Card>
-        )}
+              </HistoryRow>
+            );
+          })}
+        </Group>
+      )}
 
-        {/* Paperwork that belongs to the card but sits under no term — filed
-            before the first term was recorded, or attached to the card itself.
-            It would otherwise be invisible, which is the one thing a document
-            store must never be. */}
-        {current && loose.length > 0 && (
-          <Card>
-            <div className="vm-cardhead">
-              <Eyebrow>Other documents</Eyebrow>
-            </div>
-            <DocRows docs={loose} openId={openDoc} onOpen={setOpenDoc} />
-          </Card>
-        )}
-      </div>
+      {/* Paperwork that belongs to the card but sits under no term. It would
+          otherwise be invisible, which a document store must never be. */}
+      {current && loose.length > 0 && (
+        <Group name="Other documents">
+          <DocRows docs={loose} openId={openDoc} onOpen={setOpenDoc} />
+        </Group>
+      )}
 
-      <div className="fl-foot bar spread">
-        <Btn kind="outline" onClick={onEdit} icon="edit">
+      <FrameFoot>
+        <Button kind="second" onClick={onEdit}>
           Edit details
-        </Btn>
-        <Btn kind="outline" onClick={onClose}>
+        </Button>
+        <span className="mk-gap" />
+        <Button kind="quiet" onClick={onClose}>
           Close
-        </Btn>
-      </div>
+        </Button>
+        <Button kind="main" onClick={onUpdate}>
+          {UPDATE_LABEL[kind]}
+        </Button>
+      </FrameFoot>
     </>
   );
 }

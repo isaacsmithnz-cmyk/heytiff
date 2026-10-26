@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { readOrgCredentialDocument, type ReadOrgCredResult } from "@/app/actions/org-credential-ai";
-import { Btn } from "@/components/record-modal/parts";
+import { Button } from "@/components/parts/button";
+import { FrameFoot, RecordError } from "@/components/record-modal/parts";
 import { fmtDay } from "@/lib/format/day";
 import { ScanCard, type ScanMode } from "@/components/record-modal/scan-card";
 import type { OrgCredential } from "@/lib/org/credentials";
@@ -107,56 +108,47 @@ export function UpdateScreen({
 
   return (
     <>
-      <div className="vm-body">
-        {error && <div className="vm-err">{error}</div>}
+      {error && <RecordError>{error}</RecordError>}
 
-        <ScanCard<ReadOrgCredResult>
-          heading={kind === "insurance" ? "The new certificate" : "The new licence"}
-          prompt={SCAN_COPY[kind].prompt}
-          hint={SCAN_COPY[kind].hint}
-          attachLabel={SCAN_COPY[kind].attach}
-          docKind={CREDENTIAL_DOC_KIND[kind]}
-          read={(b64, mt) => readOrgCredentialDocument(b64, mt, kind, credential.name)}
-          onRead={(r, id) => {
-            fill(r);
-            setDocId(id);
-          }}
-          onAttached={(id) => setDocId(id)}
-          mode={mode}
-          onMode={(m) => {
-            setMode(m);
-            if (m === "idle") {
-              setTerm(emptyTerm);
-              setDocId(null);
-            }
-          }}
-        >
-          <TermFields
-            kind={kind}
-            name={credential.name}
-            value={term}
-            onChange={setTerm}
-            today={today}
-            expiryRequired={docId === null}
-          />
-        </ScanCard>
-      </div>
+      <ScanCard<ReadOrgCredResult>
+        heading={kind === "insurance" ? "The new certificate" : "The new licence"}
+        prompt={SCAN_COPY[kind].prompt}
+        paper={SCAN_COPY[kind].paper}
+        attachLabel={SCAN_COPY[kind].attach}
+        docKind={CREDENTIAL_DOC_KIND[kind]}
+        read={(b64, mt) => readOrgCredentialDocument(b64, mt, kind, credential.name)}
+        onRead={(r, id) => {
+          fill(r);
+          setDocId(id);
+        }}
+        onAttached={(id) => setDocId(id)}
+        mode={mode}
+        onMode={(m) => {
+          setMode(m);
+          if (m === "idle") {
+            setTerm(emptyTerm);
+            setDocId(null);
+          }
+        }}
+      >
+        <TermFields kind={kind} name={credential.name} value={term} onChange={setTerm} today={today} />
+      </ScanCard>
 
-      <div className="fl-foot bar">
-        {/* What happens to the one it replaces, said where the decision is made
-            rather than as a caption on a screen nobody is reading yet. It only
-            appears when there IS one to keep — and never while the button is
-            filing a document, because then nothing moves into the history. */}
-        {current && !filingOnly && (
-          <span className="fl-footnote">
-            The {kind === "insurance" ? "policy" : "licence"} expiring {fmtDay(current.expiresOn)} moves into the history.
-          </span>
-        )}
-        <Btn kind="outline" onClick={onCancel}>
-          Cancel
-        </Btn>
+      {/* What happens to the one it replaces, said where the decision is made.
+          Only when there IS one to keep, and never while the button is filing
+          a document, because then nothing moves into the history. */}
+      {current && !filingOnly && showFields && (
+        <p className="mk-records-sub">
+          The {kind === "insurance" ? "policy" : "licence"} expiring {fmtDay(current.expiresOn)} moves into the history.
+        </p>
+      )}
+
+      <FrameFoot>
+        <Button kind="quiet" onClick={onCancel}>
+          Back
+        </Button>
         {showFields && (
-          <Btn kind="primary" onClick={save} disabled={!canSave}>
+          <Button kind="main" onClick={save} disabled={!canSave}>
             {pending
               ? "Saving the record"
               : filingOnly
@@ -164,9 +156,9 @@ export function UpdateScreen({
                 : kind === "insurance"
                   ? "Save policy"
                   : "Save licence"}
-          </Btn>
+          </Button>
         )}
-      </div>
+      </FrameFoot>
     </>
   );
 }

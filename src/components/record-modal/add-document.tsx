@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import type { DocumentKind } from "@/lib/documents/files";
 import { uploadFile } from "@/lib/documents/upload-client";
-import { Inline } from "./parts";
+import { Button } from "@/components/parts/button";
 
 /* "Add document" — the one affordance that puts a file on a record.
 
@@ -36,7 +36,9 @@ export function AddDocument({
   const input = useRef<HTMLInputElement>(null);
   return (
     <>
-      <Inline onClick={() => input.current?.click()}>{label}</Inline>
+      <Button kind="second" size={32} onClick={() => input.current?.click()}>
+        {label}
+      </Button>
       <input
         ref={input}
         type="file"

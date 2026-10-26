@@ -157,7 +157,7 @@ describe("green slip", () => {
 
   it("opens a document inline from its row, one at a time", async () => {
     const { user } = mount("ctp");
-    await user.click(screen.getByRole("button", { name: /Green slip greenslip\.jpg/ }));
+    await user.click(screen.getByRole("button", { name: "Open" }));
     expect(screen.getByAltText("greenslip.jpg")).toHaveAttribute("src", "https://signed/slip.jpg");
     expect(screen.getByRole("link", { name: "Download" })).toHaveAttribute("href", "https://signed/slip.jpg");
     await user.click(screen.getByRole("button", { name: "Close preview" }));
@@ -169,9 +169,9 @@ describe("green slip", () => {
     await user.click(screen.getByRole("button", { name: "Update green slip" }));
     await user.upload(screen.getByLabelText("Scan document"), new File(["x"], "slip-2027.jpg", { type: "image/jpeg" }));
 
-    await waitFor(() => expect(screen.getByText("Details read from document — check before saving")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Read from the green slip")).toBeInTheDocument());
     expect(screen.getByText("slip-2027.jpg")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("e.g. QBE")).toHaveValue("QBE");
+    expect(screen.getByPlaceholderText("QBE")).toHaveValue("QBE");
     expect(screen.getByLabelText("Expires")).toHaveTextContent("29/09/2027");
     expect(readRenewalDocument).toHaveBeenCalledWith(expect.any(String), expect.any(String), "ctp");
     expect(uploadFile).toHaveBeenCalledWith(expect.anything(), "green_slip");
@@ -198,10 +198,10 @@ describe("green slip", () => {
     const { user } = mount("ctp");
     await user.click(screen.getByRole("button", { name: "Update green slip" }));
     await user.upload(screen.getByLabelText("Scan document"), new File(["x"], "slip.jpg", { type: "image/jpeg" }));
-    await waitFor(() => expect(screen.getByText("Tiff couldn't read that one — enter the details below.")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Tiff couldn't read that one")).toBeInTheDocument());
     // manual mode, with the upload already attached
     expect(screen.getByText("Attached: slip.jpg")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("e.g. QBE")).toHaveValue("");
+    expect(screen.getByPlaceholderText("QBE")).toHaveValue("");
   });
 
   it("calls nothing attached when the upload failed too, and Upload is the retry", async () => {
@@ -211,23 +211,23 @@ describe("green slip", () => {
     await user.click(screen.getByRole("button", { name: "Update green slip" }));
     await user.upload(screen.getByLabelText("Scan document"), new File(["x"], "slip.jpg", { type: "image/jpeg" }));
     await waitFor(() =>
-      expect(screen.getByText("The document couldn't be stored — the details below will save without it.")).toBeInTheDocument(),
+      expect(screen.getByText("The document couldn't be stored, so the details save without it")).toBeInTheDocument(),
     );
     expect(readRenewalDocument).toHaveBeenCalled();
     // nothing landed, so nothing beside that line says it did
     expect(screen.queryByText(/Attached:/)).not.toBeInTheDocument();
-    expect(screen.getByText("Optional: attach the green slip")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Upload" })).toBeInTheDocument();
+    expect(screen.getByText("Attach the green slip")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Upload file" })).toBeInTheDocument();
     // the fields are open on a scan, so Escape and the backdrop still leave them be
     expect(document.querySelector("[data-scan-in-progress]")).not.toBeNull();
 
     await user.upload(screen.getByLabelText("Attach document"), new File(["x"], "slip.jpg", { type: "image/jpeg" }));
     await waitFor(() => expect(screen.getByText("Attached: slip.jpg")).toBeInTheDocument());
-    expect(screen.getByRole("button", { name: "Replace" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Replace file" })).toBeInTheDocument();
     expect(screen.queryByText(/couldn't be stored/)).not.toBeInTheDocument();
 
     // and what the retry stored is what Save files
-    await user.type(screen.getByPlaceholderText("e.g. QBE"), "QBE");
+    await user.type(screen.getByPlaceholderText("QBE"), "QBE");
     await user.click(screen.getByLabelText("Expires"));
     await user.click(screen.getByRole("button", { name: "Tuesday 29 September 2026" }));
     await user.click(screen.getByRole("button", { name: "Save green slip" }));
@@ -244,10 +244,10 @@ describe("green slip", () => {
   it("lists previous slips as history and opens one to its detail", async () => {
     const older: VehiclePolicy = { ...greenSlip, id: "p-old", provider: "NRMA", premium: 612, expiresOn: "2026-09-29", documentId: null, policyNumber: "CTP-2209" };
     const { user } = mount("ctp", { policies: [greenSlip, rego, older] });
-    const row = screen.getByRole("button", { name: /CTP, NRMA/ });
+    const row = screen.getByText("CTP, NRMA").closest(".rcw-histrow") as HTMLElement;
     expect(row).toHaveTextContent("$612");
     expect(row).toHaveTextContent("29 Sep 2026");
-    await user.click(row);
+    await user.click(within(row).getByRole("button", { name: "Open" }));
     expect(screen.getByText("CTP-2209")).toBeInTheDocument();
     expect(screen.getByText("No paperwork filed.")).toBeInTheDocument();
   });
@@ -312,12 +312,13 @@ describe("insurance with nothing on file", () => {
     expect(screen.getByText("No policy recorded")).toBeInTheDocument();
     expect(screen.getByText("Scan or upload the certificate of insurance")).toBeInTheDocument();
     // no record to fall back to, so the panel has no Cancel of its own — and
-    // the footer has none either: Back in the header is the way out
+    // the foot has none either: Back is the way out
     expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
 
-    await user.click(screen.getByText("Enter manually"));
-    await user.type(screen.getByPlaceholderText("e.g. NRMA"), "NRMA");
-    await user.selectOptions(screen.getByRole("combobox", { name: /cover/i }), "comprehensive");
+    await user.click(screen.getByRole("button", { name: "Enter it by hand" }));
+    await user.type(screen.getByPlaceholderText("NRMA"), "NRMA");
+    await user.click(screen.getByRole("combobox", { name: /cover/i }));
+    await user.click(screen.getByRole("option", { name: /Comprehensive/ }));
     // no expiry yet: nothing to save
     expect(screen.getByRole("button", { name: "Save policy" })).toBeDisabled();
 
@@ -343,12 +344,12 @@ describe("insurance with nothing on file", () => {
 
   it("scopes the fields to the kind: cover and excess for insurance, nothing of the green slip's", async () => {
     const { user } = mount("insurance", { policies: [] });
-    await user.click(screen.getByText("Enter manually"));
+    await user.click(screen.getByRole("button", { name: "Enter it by hand" }));
     expect(screen.getByRole("combobox", { name: /cover/i })).toBeInTheDocument();
-    expect(screen.getByText("Excess")).toBeInTheDocument();
+    expect(screen.getByText("Excess ($)")).toBeInTheDocument();
     expect(screen.queryByText("Garaging postcode")).not.toBeInTheDocument();
     expect(screen.queryByText("Safety check")).not.toBeInTheDocument();
-    const grid = screen.getByText("Excess").closest(".vm-fields") as HTMLElement;
+    const grid = screen.getByText("Excess ($)").closest(".mk-records-grid") as HTMLElement;
     expect(within(grid).queryByText("Term")).not.toBeInTheDocument();
   });
 });

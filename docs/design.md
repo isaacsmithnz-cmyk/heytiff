@@ -241,7 +241,6 @@ infinite loop into a strobe.
 |---|---|---|
 | `tcDots` | the three dots after "Thinking" in Tiff's chat, one rule with each dot delayed | Tiff is working: the Claude-style chat says so in words and dots, with no mark turning (Isaac, 20 October 2026) |
 | `ds-sheet-wait` | the sheet's outline while its raster downloads | a skeleton, breathing rather than swept because it is an outline: the plan lands into its place |
-| `vmShimmer` | the reading bar while a scanned document is read | a skeleton sweep for a scan in progress |
 | `tkShim` | a library shelf while it is searched | a sweep on the thing being searched |
 | `tkFlow` ×2 | a lane of the research trace, out to a shelf being searched and back from the shelf the answer is drawn from | a spinner, drawn as a pulse along the line that is waiting |
 | `tkCaret` | the last paragraph of an answer still streaming | a caret: "is that all of it" |

@@ -488,7 +488,7 @@ describe("the credential modal", () => {
     expect(within(dialog).getByText("7 Aug 2026")).toBeInTheDocument();
 
     // and the one before it, which the old modal would have destroyed
-    const history = within(dialog).getByText("Policy history").closest(".vm-card") as HTMLElement;
+    const history = within(dialog).getByText("Policy history").closest(".rcw-grp") as HTMLElement;
     expect(within(history).getByText("7 Aug 2025")).toBeInTheDocument();
     expect(within(history).getByText("$2,100")).toBeInTheDocument();
   });
@@ -500,7 +500,7 @@ describe("the credential modal", () => {
     await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
-    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    await user.click(within(dialog).getByRole("button", { name: "Enter it by hand" }));
 
     await user.type(within(dialog).getByLabelText("Insurer"), "CGU");
     // no expiry yet: nothing to save
@@ -551,7 +551,7 @@ describe("the credential modal", () => {
 
     await user.clear(within(dialog).getByLabelText("Number"));
     await user.type(within(dialog).getByLabelText("Number"), "PL-10");
-    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    await user.click(within(dialog).getByRole("button", { name: "Save details" }));
 
     expect(actions.onUpdateCredential).toHaveBeenCalledWith(
       "C2",
@@ -582,7 +582,7 @@ describe("the credential modal", () => {
     await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
-    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    await user.click(within(dialog).getByRole("button", { name: "Enter it by hand" }));
 
     // the shared popover picker: a button that opens the drawn calendar —
     // there is nothing to type a date into, well- or ill-formatted
@@ -590,17 +590,18 @@ describe("the credential modal", () => {
     expect(dialog.querySelector('input[type="date"]')).toBeNull();
   });
 
-  it("deletes only after a second, deliberate click", async () => {
+  it("deletes only once it has asked, in its own dialog", async () => {
     const user = userEvent.setup();
     const { actions } = setup();
 
     await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: /Edit details/ }));
-    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+    await user.click(within(dialog).getByRole("button", { name: "Delete card" }));
     expect(actions.onRemoveCredential).not.toHaveBeenCalled();
 
-    await user.click(within(dialog).getByRole("button", { name: /Click again to delete/ }));
+    const ask = screen.getByRole("dialog", { name: "Delete Public liability?" });
+    await user.click(within(ask).getByRole("button", { name: "Delete card" }));
     expect(actions.onRemoveCredential).toHaveBeenCalledWith("C2");
   });
 
@@ -609,7 +610,7 @@ describe("the credential modal", () => {
     setup();
     await user.click(screen.getByRole("button", { name: "Add a licence or policy" }));
     expect(
-      within(screen.getByRole("dialog")).queryByRole("button", { name: "Delete" })
+      within(screen.getByRole("dialog")).queryByRole("button", { name: "Delete card" })
     ).not.toBeInTheDocument();
   });
 
@@ -625,12 +626,12 @@ describe("the credential modal", () => {
     await user.click(screen.getByRole("button", { name: "Add a licence or policy" }));
     const dialog = screen.getByRole("dialog");
 
-    const type = within(dialog).getByRole("tablist", { name: "Type" });
+    const type = within(dialog).getByRole("radiogroup", { name: "Type" });
     const scan = within(dialog).getByText(/Scan or upload the/);
     expect(type.compareDocumentPosition(scan) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     expect(within(dialog).getByText("Scan or upload the licence certificate")).toBeInTheDocument();
-    await user.click(within(type).getByRole("tab", { name: "Insurance" }));
+    await user.click(within(type).getByRole("radio", { name: "Insurance" }));
     expect(
       within(dialog).getByText("Scan or upload the certificate of currency")
     ).toBeInTheDocument();
@@ -654,7 +655,7 @@ describe("the credential modal", () => {
     expect(within(dialog).queryByLabelText("Number")).not.toBeInTheDocument();
     expect(within(dialog).queryByLabelText("Issuer")).not.toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    await user.click(within(dialog).getByRole("button", { name: "Enter it by hand" }));
 
     // exactly one of each, and it is the TERM's
     expect(within(dialog).getByLabelText("Licence no.")).toBeInTheDocument();
@@ -689,11 +690,11 @@ describe("the credential modal", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
-  it("closes on the header X without writing", async () => {
+  it("closes on Cancel without writing", async () => {
     const user = userEvent.setup();
     const { actions } = setup();
     await user.click(screen.getByRole("button", { name: "Add a licence or policy" }));
-    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Close" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(actions.onAddCredential).not.toHaveBeenCalled();
   });
@@ -726,9 +727,9 @@ describe("the credential modal", () => {
 
     // nor in the boxes it asks for
     await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
-    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
-    expect(within(dialog).queryByLabelText("Limit of liability")).not.toBeInTheDocument();
-    expect(within(dialog).queryByLabelText("Excess")).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Enter it by hand" }));
+    expect(within(dialog).queryByLabelText("Limit of liability ($)")).not.toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Excess ($)")).not.toBeInTheDocument();
     expect(within(dialog).getByLabelText("Insurer")).toBeInTheDocument();
   });
 
@@ -754,9 +755,9 @@ describe("the credential modal", () => {
 
     // and the boxes to type them into, when the scan did not
     await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
-    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    await user.click(within(dialog).getByRole("button", { name: "Enter it by hand" }));
     expect(within(dialog).getByLabelText("Workers covered")).toBeInTheDocument();
-    expect(within(dialog).getByLabelText("Wages declared")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Wages declared ($)")).toBeInTheDocument();
   });
 
   /* The cover wording on a workers comp certificate is boilerplate — every NSW
@@ -786,9 +787,9 @@ describe("the credential modal", () => {
     expect(within(dialog).getByText("Cover")).toBeInTheDocument();
 
     await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
-    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    await user.click(within(dialog).getByRole("button", { name: "Enter it by hand" }));
     expect(within(dialog).queryByLabelText("Workers covered")).not.toBeInTheDocument();
-    expect(within(dialog).queryByLabelText("Wages declared")).not.toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Wages declared ($)")).not.toBeInTheDocument();
   });
 
   it("still offers them to the policy that prints them", async () => {
@@ -1422,7 +1423,7 @@ describe("adding a card by scanning it", () => {
       within(dialog).getByLabelText("Scan document"),
       new File(["x"], "licence.pdf", { type: "application/pdf" })
     );
-    await within(dialog).findByText("Scanned");
+    await within(dialog).findByText("Read from the certificate");
     await user.click(within(dialog).getByRole("button", { name: "Add card" }));
 
     expect(actions.onAddCredential).toHaveBeenCalledWith(
@@ -1472,7 +1473,7 @@ describe("scanning a certificate with no expiry on the update screen", () => {
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
     await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
-    await within(dialog).findByText("Scanned");
+    await within(dialog).findByText("Read from the certificate");
     return dialog;
   };
 
@@ -1497,7 +1498,7 @@ describe("scanning a certificate with no expiry on the update screen", () => {
     await user.click(within(dialog).getByRole("button", { name: "File the document" }));
 
     expect(await within(dialog).findByRole("button", { name: "Update policy" })).toBeInTheDocument();
-    expect(within(dialog).queryByText("Scanned")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Read from the certificate")).not.toBeInTheDocument();
   });
 
   it("keeps the certificate when the filing is refused, so pressing again is a retry", async () => {
@@ -1509,7 +1510,7 @@ describe("scanning a certificate with no expiry on the update screen", () => {
     await user.click(within(dialog).getByRole("button", { name: "File the document" }));
 
     expect(await within(dialog).findByText("That document couldn't be filed.")).toBeInTheDocument();
-    expect(within(dialog).getByText("Scanned")).toBeInTheDocument();
+    expect(within(dialog).getByText("Read from the certificate")).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "File the document" }));
     expect(actions.onAttachCredentialDoc).toHaveBeenCalledTimes(2);
   });
@@ -1553,18 +1554,16 @@ describe("scanning a certificate with no expiry on the update screen", () => {
     await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
-    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    await user.click(within(dialog).getByRole("button", { name: "Enter it by hand" }));
     expect(within(dialog).getByRole("button", { name: "Save policy" })).toBeDisabled();
   });
 });
 
-/* THE EXPIRY'S STAR SAYS WHEN THE BUTTON NEEDS ONE — the business side of the
-   same rule: a certificate waiting on the update screen is filed without an
-   expiry, and adding a card never needs one. */
-describe("the expiry's required star", () => {
+/* THE BUTTON SAYS WHEN IT NEEDS AN EXPIRY — the business side of the same
+   rule, now the star has gone with v2's fields: a certificate waiting on the
+   update screen is filed without an expiry, and adding a card never needs one. */
+describe("the expiry, when the button needs one", () => {
   const pdf = () => new File(["x"], "certificate.pdf", { type: "application/pdf" });
-  const star = (dialog: HTMLElement) =>
-    within(dialog).getByLabelText("Expiry").closest("label")?.querySelector(".vm-fl i") ?? null;
 
   beforeEach(() => {
     uploadFile.mockReset();
@@ -1592,30 +1591,31 @@ describe("the expiry's required star", () => {
     return dialog;
   };
 
-  it("shows on the update screen while only a term can be saved", async () => {
+  it("holds Save on the update screen while only a term can be saved", async () => {
     const user = userEvent.setup();
     setup();
     const dialog = await openUpdate(user);
-    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
-    expect(star(dialog)).not.toBeNull();
+    await user.click(within(dialog).getByRole("button", { name: "Enter it by hand" }));
+    expect(within(dialog).getByRole("button", { name: "Save policy" })).toBeDisabled();
   });
 
-  it("goes once a certificate is waiting, because the button files it without one", async () => {
+  it("files a waiting certificate without one", async () => {
     const user = userEvent.setup();
     setup();
     const dialog = await openUpdate(user);
     await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
-    await within(dialog).findByText("Scanned");
-    expect(star(dialog)).toBeNull();
+    await within(dialog).findByText("Read from the certificate");
+    expect(within(dialog).getByRole("button", { name: "File the document" })).toBeEnabled();
   });
 
-  it("never shows while adding a card", async () => {
+  it("never needs one while adding a card", async () => {
     const user = userEvent.setup();
     setup();
     await user.click(screen.getByRole("button", { name: "Add a licence or policy" }));
     const dialog = screen.getByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
-    expect(star(dialog)).toBeNull();
+    await user.type(within(dialog).getByLabelText(/^Name/), "ARC");
+    await user.click(within(dialog).getByRole("button", { name: "Enter it by hand" }));
+    expect(within(dialog).getByRole("button", { name: "Add card" })).toBeEnabled();
   });
 });
 
@@ -1679,7 +1679,7 @@ describe("the words on a business card", () => {
     expect(within(dialog).queryByText("Nothing filed against this card yet")).not.toBeInTheDocument();
   });
 
-  it("never says term, and asks for a second click rather than a tap", async () => {
+  it("never says term, and asks in a dialog rather than on a second click", async () => {
     const user = userEvent.setup();
     setup({
       records: { C2: [record(), record({ id: "R0", expiresOn: "2025-06-30", startsOn: "2024-07-01" })] },
@@ -1688,15 +1688,18 @@ describe("the words on a business card", () => {
     await user.click(screen.getByRole("button", { name: "Public liability" }));
     const dialog = screen.getByRole("dialog");
 
-    const history = within(dialog).getByText("Policy history").closest(".vm-card") as HTMLElement;
-    await user.click(within(history).getByText("30 Jun 2025"));
+    const history = within(dialog).getByText("Policy history").closest(".rcw-grp") as HTMLElement;
+    await user.click(within(history).getByRole("button", { name: "Open" }));
     await user.click(within(dialog).getByRole("button", { name: "Remove from history" }));
-    expect(within(dialog).getByRole("button", { name: "Click again to remove" })).toBeInTheDocument();
+    // it asks once, in its own dialog, without the word
+    const ask = screen.getByRole("dialog", { name: "Remove this policy from the history?" });
+    expect(words(ask)).not.toMatch(/\bterms?\b/i);
+    await user.click(within(ask).getByRole("button", { name: "Keep it" }));
     expect(within(dialog).getByText("Other documents")).toBeInTheDocument();
     expect(words(dialog)).not.toMatch(/\bterms?\b/i);
 
     await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
-    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    await user.click(within(dialog).getByRole("button", { name: "Enter it by hand" }));
     expect(dialog.textContent).toMatch(/The policy expiring/);
     expect(words(dialog)).not.toMatch(/\bterms?\b/i);
   });
@@ -1733,10 +1736,12 @@ describe("a scan in progress survives Escape", () => {
     await user.click(screen.getByRole("button", { name: "Add a licence or policy" }));
     const dialog = screen.getByRole("dialog");
     await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
-    await within(dialog).findByText("Scanned");
+    await within(dialog).findByText("Read from the certificate");
     await user.keyboard("{Escape}");
-    expect(within(screen.getByRole("dialog")).getByText("Scanned")).toBeInTheDocument();
-    fireEvent.click(document.querySelector(".vm-ov") as HTMLElement);
+    expect(within(screen.getByRole("dialog")).getByText("Read from the certificate")).toBeInTheDocument();
+    const scrim = document.querySelector(".pt-scrim") as HTMLElement;
+    fireEvent.mouseDown(scrim);
+    fireEvent.click(scrim);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
@@ -1747,7 +1752,7 @@ describe("a scan in progress survives Escape", () => {
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
     await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
-    await within(dialog).findByText("Scanned");
+    await within(dialog).findByText("Read from the certificate");
     await user.keyboard("{Escape}");
     expect(within(screen.getByRole("dialog")).getByRole("button", { name: "File the document" })).toBeInTheDocument();
   });

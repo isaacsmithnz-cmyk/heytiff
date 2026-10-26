@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
 import { scanInProgress } from "@/components/record-modal/scan-card";
+import { Button } from "@/components/parts/button";
+import { FrameFoot, FrameTitle, Nothing, RecordFrame } from "@/components/record-modal/parts";
 import type { StoredDocument } from "@/lib/documents/query";
 import { uploadFile } from "@/lib/documents/upload-client";
 import type { FleetActions } from "../fleet-state";
@@ -21,7 +22,6 @@ import { LogScreen } from "./log-screen";
 import { MainScreen } from "./main-screen";
 import { RenewalScreen } from "./renewal-screen";
 import { ServicesScreen } from "./services-screen";
-import { SubHeader } from "@/components/record-modal/parts";
 
 /* The vehicle modal: one modal, eight kinds of screen, one `screen` value.
 
@@ -42,7 +42,11 @@ import { SubHeader } from "@/components/record-modal/parts";
    history or from the services screen, and Back returns to whichever it
    was; the services screen goes back to the card. `from` remembers the one
    screen underneath — a trail would be a second navigation model for a modal
-   that is at most two screens deep. */
+   that is at most two screens deep.
+
+   It wears the record window (record-modal/parts, the old-modals mock of
+   27 October 2026): one Dialog that stays open while the screens change,
+   each screen writing its own title and foot. */
 
 export type { Screen } from "./derive";
 export { addScreen, logScreen } from "./derive";
@@ -105,34 +109,30 @@ export function VehicleModal({
     setFrom("main");
   };
 
-  /* Escape leaves the way the back chevron does: a sub-screen goes back, the
-     main screen closes. Two or three presses to get out from anywhere, never a
-     surprise dismissal mid-form. While a scan is in progress it does nothing,
-     and nor does a click on the backdrop: the renewal and financials screens
-     hold the scan panel, and leaving one threw away a document already read
-     and uploaded — see scanInProgress. The back chevron still goes back. */
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      if (scanInProgress()) return;
-      if (screen === "main" || single) onClose();
-      else {
-        setScreen(from);
-        setFrom("main");
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [screen, from, onClose, single]);
+  /* Escape and the scrim leave the way Back does: a sub-screen goes back,
+     the main screen closes. Two or three presses to get out from anywhere,
+     never a surprise dismissal mid-form. While a scan is in progress they do
+     nothing: the renewal and financials screens hold the scan panel, and
+     leaving one threw away a document already read and uploaded — see
+     scanInProgress. Back in the foot still goes back. */
+  const softClose = () => {
+    if (scanInProgress()) return;
+    if (screen === "main" || single) onClose();
+    else {
+      setScreen(from);
+      setFrom("main");
+    }
+  };
+  /* Opened on its own from the vehicle's page, Back closes, and says so. */
+  const backWord = single ? "Close" : "Back";
 
   const setPhoto = async (file: File) => {
     const up = await uploadFile(file, "vehicle_photo").catch(() => null);
     if (up?.ok) fleet.setVehiclePhoto(vehicle.id, up.file.documentId);
   };
 
-  return createPortal(
-    <div className="vm-ov" onClick={() => (scanInProgress() ? undefined : onClose())}>
-      <div className="vm" role="dialog" aria-modal="true" aria-label={vehicle.name || vehicle.plate} onClick={(e) => e.stopPropagation()}>
+  return (
+    <RecordFrame width={screen === "main" ? 960 : 720} onClose={softClose}>
         {screen === "main" ? (
           <MainScreen
             vehicle={vehicle}
@@ -166,6 +166,7 @@ export function VehicleModal({
             today={today}
             warnDays={warnDays}
             error={fleet.error}
+            backWord={backWord}
             onBack={back}
             onLog={() => open(addScreen("service"))}
             onOpen={(log) => open(logScreen(log.id))}
@@ -178,6 +179,7 @@ export function VehicleModal({
             today={today}
             pending={fleet.pending}
             error={fleet.error}
+            backWord={backWord}
             onBack={back}
             onSave={(log) => fleet.addLog(log)}
             onSaved={back}
@@ -193,6 +195,7 @@ export function VehicleModal({
                 documents={documents}
                 today={today}
                 error={fleet.error}
+                backWord={backWord}
                 onBack={back}
                 onCorrect={onCorrect}
                 onResolve={fleet.resolveIssue}
@@ -202,10 +205,13 @@ export function VehicleModal({
               /* Removed from under us — a correction that deleted it, another
                  tab. Nothing to show but the way back. */
               <>
-                <SubHeader eyebrow={vehicle.name || vehicle.plate} title="Entry" onBack={back} />
-                <div className="vm-body">
-                  <div className="vm-empty">That entry is no longer in the history.</div>
-                </div>
+                <FrameTitle>Entry</FrameTitle>
+                <Nothing>That entry is no longer in the history.</Nothing>
+                <FrameFoot>
+                  <Button kind="quiet" onClick={back}>
+                    {backWord}
+                  </Button>
+                </FrameFoot>
               </>
             );
           })()
@@ -221,6 +227,7 @@ export function VehicleModal({
             finance={finance}
             pending={fleet.pending}
             error={fleet.error}
+            backWord={backWord}
             onBack={back}
             onSaveVehicle={(v) => fleet.saveVehicle(v)}
             onRecordFinance={(input) => fleet.recordFinance({ ...input, vehicleId: vehicle.id })}
@@ -239,14 +246,13 @@ export function VehicleModal({
             policies={policies}
             pending={fleet.pending}
             error={fleet.error}
+            backWord={backWord}
             onBack={back}
             onSave={(input) => fleet.recordRenewal({ ...input, vehicleId: vehicle.id })}
             onSaved={back}
             onAttach={fleet.attachPolicyDocument}
           />
         )}
-      </div>
-    </div>,
-    document.body,
+    </RecordFrame>
   );
 }

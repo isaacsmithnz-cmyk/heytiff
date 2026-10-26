@@ -193,7 +193,7 @@ it("Log service from the services screen is a screen of the card, and Back retur
   const { user } = services(mixed);
   await user.click(screen.getByRole("button", { name: /log service/i }));
   expect(screen.getByRole("heading", { name: "Log service" })).toBeInTheDocument();
-  expect(screen.getByText("Scan or upload the service invoice")).toBeInTheDocument();
+  expect(screen.getByText("Snap or upload the service invoice")).toBeInTheDocument();
   // nothing entered, so nothing to save — the footer is not there, and Back is the way out
   expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Back" }));

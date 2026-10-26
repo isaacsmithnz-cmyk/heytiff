@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { DateField } from "@/components/ui/date-field";
-import { Btn, Field } from "@/components/record-modal/parts";
+import { ConfirmDialog } from "@/components/parts/dialog";
+import { Button } from "@/components/parts/button";
+import { Field, TextInput } from "@/components/parts/field";
+import { ColourDiscs, DateIn, FrameFoot } from "@/components/record-modal/parts";
 import { ScanCard, type ScanMode } from "@/components/record-modal/scan-card";
 import { readStaffLicenceDocument, type ReadLicenceResult } from "@/app/actions/staff-licence-ai";
 import { LICENCE_DOC_KIND, type LicenceTermInput } from "@/lib/staff/licence-records";
@@ -10,7 +12,8 @@ import { LIC_TYPES, defaultLicenceColor } from "@/lib/staff/licence";
 import type { LicenceInput } from "../types";
 import { SCAN_COPY, TermFields, emptyTerm, termInput, type Term } from "./term-fields";
 
-/* WHAT THE TICKET IS — its name and the colour it wears.
+/* WHAT THE TICKET IS — its name and the colour it wears (the old-modals
+   mock's "Add a licence or ticket", 560 wide).
 
    Two jobs in one screen, the same way the organisation's credential modal
    splits them. ADDING starts here with the scan panel open: photograph the
@@ -23,15 +26,6 @@ import { SCAN_COPY, TermFields, emptyTerm, termInput, type Term } from "./term-f
    person's word for the thing, it is what the history hangs off, and one
    oddly-worded card must not split a ticket's history in two. */
 
-const SWATCHES: { label: string; value: string }[] = [
-  { label: "Auto", value: "" },
-  { label: "Teal", value: "#00A389" },
-  { label: "Blue", value: "#2E68FF" },
-  { label: "Amber", value: "#F0A431" },
-  { label: "Violet", value: "#8A2BE2" },
-  { label: "Red", value: "#e0264f" },
-];
-
 export type IdentityDraft = { identity: LicenceInput; term?: LicenceTermInput };
 
 export function IdentityScreen({
@@ -42,6 +36,8 @@ export function IdentityScreen({
   pending,
   onSave,
   onDelete,
+  onBack,
+  onClose,
 }: {
   /** null = adding a new ticket. */
   licence: { typeName: string; licenceNumber: string | null; expiryDate: string | null; color: string | null } | null;
@@ -53,13 +49,16 @@ export function IdentityScreen({
   pending: boolean;
   onSave: (draft: IdentityDraft) => void;
   onDelete?: () => void;
+  /** Back to the ticket's record, when editing one. */
+  onBack?: () => void;
+  onClose: () => void;
 }) {
   const adding = licence === null;
   const [typeName, setTypeName] = useState(licence?.typeName ?? "");
   const [color, setColor] = useState(licence?.color ?? "");
   const [number, setNumber] = useState(licence?.licenceNumber ?? "");
   const [expiry, setExpiry] = useState(licence?.expiryDate ?? "");
-  const [armed, setArmed] = useState(false);
+  const [asking, setAsking] = useState(false);
 
   const [mode, setMode] = useState<ScanMode>("idle");
   const [term, setTerm] = useState<Term>(emptyTerm);
@@ -105,128 +104,95 @@ export function IdentityScreen({
 
   return (
     <>
-      <div className="vm-body">
-        {adding && (
-          <ScanCard<ReadLicenceResult>
-            heading="Scan the card"
-            prompt={SCAN_COPY.prompt}
-            hint={SCAN_COPY.hint}
-            attachLabel={SCAN_COPY.attach}
-            docKind={LICENCE_DOC_KIND}
-            read={(b64, mt) => readStaffLicenceDocument(b64, mt, staffId)}
-            onRead={(r, id) => {
-              fill(r);
-              setDocId(id);
-            }}
-            onAttached={(id) => setDocId(id)}
-            mode={mode}
-            onMode={(m) => {
-              setMode(m);
-              if (m === "idle") {
-                setTerm(emptyTerm);
-                setDocId(null);
-              }
-            }}
-          >
-            <TermFields value={term} onChange={setTerm} today={today} expiryRequired={false} />
-          </ScanCard>
-        )}
+      {adding && (
+        <ScanCard<ReadLicenceResult>
+          heading="Scan the card"
+          prompt={SCAN_COPY.prompt}
+          note={SCAN_COPY.note}
+          paper={SCAN_COPY.paper}
+          attachLabel={SCAN_COPY.attach}
+          docKind={LICENCE_DOC_KIND}
+          read={(b64, mt) => readStaffLicenceDocument(b64, mt, staffId)}
+          onRead={(r, id) => {
+            fill(r);
+            setDocId(id);
+          }}
+          onAttached={(id) => setDocId(id)}
+          mode={mode}
+          onMode={(m) => {
+            setMode(m);
+            if (m === "idle") {
+              setTerm(emptyTerm);
+              setDocId(null);
+            }
+          }}
+        >
+          <TermFields value={term} onChange={setTerm} today={today} />
+        </ScanCard>
+      )}
 
-        <div className="vm-card">
-          <div className="vm-cardhead">
-            <span className="vm-eyebrow">What it is</span>
-          </div>
+      <div className="mk-records-grid mk-records-grid--2">
+        <Field label="Licence or ticket" className="mk-records-wide">
+          <TextInput list="lic-types" placeholder="ARC licence" value={typeName} onChange={(e) => setTypeName(e.target.value)} />
+        </Field>
+        <datalist id="lic-types">
+          {LIC_TYPES.map((t) => (
+            <option key={t.name} value={t.name} />
+          ))}
+        </datalist>
 
-          {/* SOLO when the number is not asked here: one narrow field with two
-              empty thirds beside it reads as a form that lost its other fields,
-              so the name takes the room they left. */}
-          <div className={`vm-fields${!adding && !hasTerms ? "" : " solo"}`}>
-            <Field label="Licence or ticket" req>
-              <input
-                className="vm-input"
-                list="lic-types"
-                aria-label="Licence or ticket"
-                placeholder="e.g. ARC licence"
-                value={typeName}
-                onChange={(e) => setTypeName(e.target.value)}
-              />
-              <datalist id="lic-types">
-                {LIC_TYPES.map((t) => (
-                  <option key={t.name} value={t.name} />
-                ))}
-              </datalist>
+        {/* NOT WHILE ADDING. The number is what the scan above is about to
+            hand over, and the scan asks for it itself, on the term; "Enter it
+            by hand" is the way in without a photo.
+
+            It survives on the EDIT screen for a ticket with no term, like a
+            white card: a term's `expires_on` cannot be null, so a ticket that
+            never lapses keeps its number on itself. Once a term exists both
+            go: they are a cache of the newest term, and typing over them here
+            would describe a term that does not exist. */}
+        {!adding && !hasTerms && (
+          <>
+            <Field label="Licence no.">
+              <TextInput value={number} onChange={(e) => setNumber(e.target.value)} />
             </Field>
-
-            {/* NOT WHILE ADDING. The number is what the scan panel above is
-                about to hand over, and the panel asks for it itself, on the
-                term; "Enter manually" is the way in without a photo. Asked here
-                too, "Licence no." was on screen twice with nothing to say which
-                won, and the panel's copy silently did.
-
-                It survives on the EDIT screen for a ticket with no term, like a
-                white card: a term's `expires_on` cannot be null, so a ticket
-                that never lapses keeps its number on itself. Once a term exists
-                both go: they are a cache of the newest term, and typing over
-                them here would describe a term that does not exist. */}
-            {!adding && !hasTerms && (
-              <>
-                <Field label="Licence no.">
-                  <input
-                    className="vm-input"
-                    aria-label="Licence no."
-                    value={number}
-                    onChange={(e) => setNumber(e.target.value)}
-                  />
-                </Field>
-                <Field label="Expiry">
-                  <DateField
-                    size="lg"
-                    clearable
-                    today={today}
-                    value={expiry || null}
-                    onChange={(iso) => setExpiry(iso ?? "")}
-                    aria-label="Expiry"
-                  />
-                </Field>
-              </>
-            )}
-          </div>
-
-          <div className="vm-divider">
-            <span className="vm-eyebrow">Colour</span>
-          </div>
-          <div className="vm-sw" role="group" aria-label="Colour">
-            {SWATCHES.map((s) => (
-              <button
-                key={s.label}
-                type="button"
-                className={`vm-swb${color === s.value ? " on" : ""}${s.value ? "" : " auto"}`}
-                style={s.value ? { background: s.value } : undefined}
-                aria-label={s.label}
-                aria-pressed={color === s.value}
-                onClick={() => setColor(s.value)}
-              />
-            ))}
-          </div>
+            <DateIn label="Expiry" today={today} value={expiry} onChange={setExpiry} />
+          </>
+        )}
+        <div className="mk-records-wide">
+          <ColourDiscs value={color} onChange={setColor} />
         </div>
       </div>
 
-      <div className="fl-foot bar">
+      <FrameFoot>
         {onDelete && (
-          <button
-            type="button"
-            className={`vm-btn danger${armed ? " arm" : ""}`}
-            style={{ marginRight: "auto" }}
-            disabled={pending}
-            onClick={() => (armed ? onDelete() : setArmed(true))}
-          >
-            {armed ? "Click again to delete" : "Delete"}
-          </button>
+          <>
+            <Button kind="delete" disabled={pending} onClick={() => setAsking(true)}>
+              Delete licence
+            </Button>
+            <span className="mk-gap" />
+          </>
         )}
-        <Btn kind="primary" onClick={save} disabled={!canSave}>
-          {pending ? "Saving the licence" : adding ? "Add licence" : "Save"}
-        </Btn>
-      </div>
+        <Button kind="quiet" onClick={onBack ?? onClose}>
+          {onBack ? "Back" : "Cancel"}
+        </Button>
+        <Button kind="main" onClick={save} disabled={!canSave}>
+          {pending ? "Saving the licence" : adding ? "Add licence" : "Save details"}
+        </Button>
+      </FrameFoot>
+      {onDelete && (
+        <ConfirmDialog
+          open={asking}
+          heading={`Delete ${licence?.typeName || "this licence"}?`}
+          confirm="Delete licence"
+          onConfirm={() => {
+            setAsking(false);
+            onDelete();
+          }}
+          onClose={() => setAsking(false)}
+        >
+          <p>It comes off this person&apos;s papers, with its whole history. There is no undo.</p>
+        </ConfirmDialog>
+      )}
     </>
   );
 }

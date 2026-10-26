@@ -12,8 +12,9 @@ import {
   type VehicleLog,
 } from "../logic";
 import { fmtDay } from "./derive";
-import { EventRow } from "./event-row";
-import { Btn, Card, DetailGrid, Eyebrow, SubHeader, type DetailItem } from "@/components/record-modal/parts";
+import { EventRow, VehicleLead } from "./event-row";
+import { Button } from "@/components/parts/button";
+import { DetailGrid, FrameFoot, FrameTitle, Group, Nothing, RecordError, type DetailItem } from "@/components/record-modal/parts";
 
 /* Every service this vehicle has had, and the cycle they set.
 
@@ -32,6 +33,7 @@ export function ServicesScreen({
   today,
   warnDays,
   error,
+  backWord = "Back",
   onBack,
   onLog,
   onOpen,
@@ -43,6 +45,8 @@ export function ServicesScreen({
   /** The org's expiry window — the service-by-date limit reads it. */
   warnDays: number;
   error: string | null;
+  /** "Close" when the screen was opened on its own, from the vehicle's page. */
+  backWord?: string;
   onBack: () => void;
   onLog: () => void;
   onOpen: (log: VehicleLog) => void;
@@ -77,38 +81,34 @@ export function ServicesScreen({
 
   return (
     <>
-      <SubHeader
-        eyebrow={displayName(vehicle)}
-        title="Service"
-        onBack={onBack}
-        right={<Plate plate={vehicle.plate} state={vehicle.plateState} size="sm" />}
-      />
+      <FrameTitle>Service</FrameTitle>
+      <VehicleLead name={displayName(vehicle)} plate={<Plate plate={vehicle.plate} state={vehicle.plateState} size="sm" />} />
+      {error && <RecordError>{error}</RecordError>}
 
-      <div className="vm-body">
-        {error && <div className="vm-err">{error}</div>}
+      <Group name="The cycle">
+        <DetailGrid cols={4} items={cycle} />
+      </Group>
 
-        <div className={`vm-status ${due.state === "ok" ? "ok" : due.state}`}>
-          <div className="vm-statusl grow">
-            <DetailGrid cols={4} items={cycle} />
+      <Group name="Service history">
+        {services.length === 0 ? (
+          <Nothing>No services logged yet</Nothing>
+        ) : (
+          <div className="rcw-evrows">
+            {services.map((l) => (
+              <EventRow key={l.id} log={l} onOpen={onOpen} />
+            ))}
           </div>
-          <div className="vm-statusr">
-            <Btn kind="primary" icon="wrench" onClick={onLog}>
-              Log service
-            </Btn>
-          </div>
-        </div>
+        )}
+      </Group>
 
-        <Card className="vm-histcard">
-          <div className="vm-cardhead">
-            <Eyebrow>Service history</Eyebrow>
-          </div>
-          {services.length === 0 ? (
-            <div className="vm-empty">No services logged yet</div>
-          ) : (
-            services.map((l) => <EventRow key={l.id} log={l} onOpen={onOpen} />)
-          )}
-        </Card>
-      </div>
+      <FrameFoot>
+        <Button kind="quiet" onClick={onBack}>
+          {backWord}
+        </Button>
+        <Button kind="main" onClick={onLog}>
+          Log service
+        </Button>
+      </FrameFoot>
     </>
   );
 }

@@ -124,7 +124,7 @@ function mount(over: { finance?: VehicleFinance[]; documents?: StoredDocument[];
   return { onSaveVehicle, onRecordFinance, onAttachFinance, onAttachInvoice, onBack, user: userEvent.setup() };
 }
 
-const card = (eyebrow: string | RegExp): HTMLElement => screen.getByText(eyebrow).closest(".vm-card") as HTMLElement;
+const card = (eyebrow: string | RegExp): HTMLElement => screen.getByText(eyebrow).closest(".rcw-grp") as HTMLElement;
 
 beforeEach(() => {
   uploadFile.mockReset();
@@ -145,7 +145,7 @@ it("with no agreement, offers to add one and claims nothing about ownership", ()
 it("shows the agreement as the lender wrote it and where the schedule stands", () => {
   mount({ finance: [agreement], documents: [contract] });
   // the card's eyebrow; the contract document below it carries the same words as its name
-  expect(screen.getByText("Finance agreement", { selector: ".vm-eyebrow" })).toBeInTheDocument();
+  expect(screen.getByText("Finance agreement", { selector: ".rcw-gh-t" })).toBeInTheDocument();
   expect(screen.getByText("$742 / month")).toBeInTheDocument();
   expect(screen.getByText("1 Sep 2027")).toBeInTheDocument(); // ENDS: start plus term
   expect(screen.getByText("48 of 60")).toBeInTheDocument();
@@ -186,8 +186,8 @@ it("scanning an agreement fills the panel, and Add agreement records it as a sca
   await user.upload(screen.getByLabelText("Scan document"), new File(["x"], "loan.pdf", { type: "application/pdf" }));
   await waitFor(() => expect(screen.getByDisplayValue("Toyota Finance")).toBeInTheDocument());
   expect(uploadFile).toHaveBeenCalledWith(expect.any(File), "finance_agreement");
-  expect(screen.getByLabelText("Agreement type")).toHaveValue("loan");
-  expect(screen.getByLabelText("Term")).toHaveValue("48");
+  expect(screen.getByLabelText("Agreement type")).toHaveTextContent("Loan");
+  expect(screen.getByLabelText("Term")).toHaveTextContent("48 months");
 
   await user.click(screen.getByRole("button", { name: "Add agreement" }));
   expect(onRecordFinance).toHaveBeenCalledWith(
@@ -211,28 +211,28 @@ it("scanning an agreement fills the panel, and Add agreement records it as a sca
 it("will not save an agreement without a lender and a start date", async () => {
   const { user } = mount();
   await user.click(screen.getByRole("button", { name: "Add finance agreement" }));
-  await user.click(screen.getByRole("button", { name: "Enter manually" }));
+  await user.click(screen.getByRole("button", { name: "Enter it by hand" }));
   const save = screen.getByRole("button", { name: "Add agreement" });
   expect(save).toBeDisabled();
-  await user.type(screen.getByPlaceholderText("e.g. Macquarie Leasing"), "Westpac");
+  await user.type(screen.getByPlaceholderText("Macquarie Leasing"), "Westpac");
   expect(save).toBeDisabled(); // still no start date
 });
 
 it("edits the book value in place through the vehicle's own save", async () => {
   const { onSaveVehicle, user } = mount();
-  await user.click(within(screen.getByText("Book value").parentElement as HTMLElement).getByRole("button", { name: "Edit" }));
-  const input = screen.getByLabelText("Book value");
+  await user.click(screen.getByRole("button", { name: "Edit book value" }));
+  const input = screen.getByLabelText("Book value ($)");
   await user.clear(input);
   await user.type(input, "25000");
-  await user.click(screen.getByRole("button", { name: "Save" }));
+  await user.click(screen.getByRole("button", { name: "Save book value" }));
   expect(onSaveVehicle).toHaveBeenCalledWith(expect.objectContaining({ id: "v1", value: 25000 }));
 });
 
 it("edits the purchase as the invoice prints it", async () => {
   const { onSaveVehicle, user } = mount();
-  await user.click(within(card("Purchase")).getByRole("button", { name: "Edit" }));
+  await user.click(within(card("Purchase")).getByRole("button", { name: "Edit purchase" }));
   await user.type(screen.getByPlaceholderText("Dealer or seller"), "Sydney City Mitsubishi");
-  await user.type(screen.getByLabelText("GST"), "3635.45");
+  await user.type(screen.getByLabelText("GST ($)"), "3635.45");
   await user.click(screen.getByRole("button", { name: "Save purchase" }));
   expect(onSaveVehicle).toHaveBeenCalledWith(
     expect.objectContaining({

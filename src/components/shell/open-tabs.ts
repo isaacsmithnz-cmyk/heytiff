@@ -59,16 +59,33 @@ export function tabsServerSnapshot(): State {
   return EMPTY;
 }
 
-/** The page changed: the tab you're on now holds it, unless another already does. */
+/** A page is its path: its query is where you are on it (a view, the design
+    open on the canvas), which the tab keeps but which doesn't make it
+    another page. */
+const pathOf = (href: string) => href.split(/[?#]/)[0];
+
+/** The page changed, or where you are on it did: the tab you're on now holds
+    it, unless another already does. The whole address is kept, query and
+    all, so a tab you leave comes back to where you were on its page (Isaac,
+    26 October 2026: from Design's canvas to a job's tab and back, it opened
+    Design's list of designs, because the tab held only the path). */
 export function arrive(href: string): void {
   load();
   const { tabs, on } = state;
-  const holder = tabs.find((t) => t.href === href && !t.blank);
-  if (holder) {
-    if (holder.id !== on) set({ tabs: tabs.filter((t) => !(t.blank && t.id !== holder.id)), on: holder.id });
+  const current = tabs.find((t) => t.id === on);
+  /* still the page the tab you're on holds: only where you are on it moved */
+  if (current && !current.blank && pathOf(current.href) === pathOf(href)) {
+    if (current.href !== href) set({ tabs: tabs.map((t) => (t.id === current.id ? { id: t.id, href } : t)), on });
     return;
   }
-  const current = tabs.find((t) => t.id === on);
+  const holder = tabs.find((t) => !t.blank && pathOf(t.href) === pathOf(href));
+  if (holder) {
+    set({
+      tabs: tabs.filter((t) => !(t.blank && t.id !== holder.id)).map((t) => (t.id === holder.id ? { id: t.id, href } : t)),
+      on: holder.id,
+    });
+    return;
+  }
   if (!current) {
     const id = mint();
     set({ tabs: [...tabs, { id, href }], on: id });

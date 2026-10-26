@@ -7,7 +7,7 @@ import { act, render, screen, within } from "@testing-library/react";
 
 jest.mock("@/components/notes/tiff-button", () => ({ TiffButton: () => null }));
 let pathname = "/dashboard/jobs/j-3209";
-jest.mock("next/navigation", () => ({ usePathname: () => pathname, useRouter: () => ({ push: jest.fn() }) }));
+jest.mock("next/navigation", () => ({ usePathname: () => pathname, useRouter: () => ({ push: jest.fn() }), useSearchParams: () => new URLSearchParams() }));
 
 import { Topbar, tabName } from "../topbar";
 import { CommandPaletteProvider } from "../command-palette-context";

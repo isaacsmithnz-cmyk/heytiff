@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, type Ref } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type Ref } from "react";
 import { Button } from "@/components/parts/button";
 import { Dialog } from "@/components/parts/dialog";
 import { Fade } from "@/components/parts/fade";
 import { Icon } from "@/components/shell/icon";
-import type { CommsThread, CustomerSend, CustomerThread, ThreadBubble } from "@/lib/jobs/customer-messages";
+import { fileTypeWord, linkParts, type CommsThread, type CustomerSend, type CustomerThread, type MessageFile, type ThreadBubble } from "@/lib/jobs/customer-messages";
 
 /* THE CUSTOMER IN THE ACTIVITY FEED (Isaac, 26 October 2026, "Yes build",
    the tidied option B, laid out like a phone). Read only: nothing here
@@ -67,22 +67,79 @@ export function CustomerSendRow({
                 <span className="cv-result-line">{detail}</span>
               </>
             )}
-            {send.attachments > 0 && <Clip count={send.attachments} />}
           </span>
           {send.opening && <Fade className="jc-sendopen">{send.opening}</Fade>}
         </span>
         {end}
       </div>
+      {send.files.length > 0 && <FileRows files={send.files} className="jc-sendfiles" />}
     </div>
   );
 }
 
-function Clip({ count }: { count: number }) {
+/** How the page opens one of the job's files by its ServiceM8 uuid: the
+    same viewer its Documents and Photos open them in, or null where this
+    reader's files don't hold it. The feed is handed it by the job's page. */
+export const FileDoor = createContext<(id: string) => (() => void) | null>(() => null);
+
+/* WHAT CAME WITH A MESSAGE (Isaac, 26 October 2026: "It says that there's
+   one attachment, but you can't actually click it"): a quiet row each, a
+   paperclip, the file's name fading and its type in grey, which opens it
+   where the job's Documents and Photos do. One the mirror hasn't brought in
+   yet is greyed, says so, and opens nothing. */
+export function FileRows({ files, className, onOpened }: { files: readonly MessageFile[]; className?: string; onOpened?: () => void }) {
+  const door = useContext(FileDoor);
   return (
-    <span className="jc-clip" aria-label={count === 1 ? "1 attachment" : `${count} attachments`} role="img">
-      <Icon name="clip" size={14} />
-      <span aria-hidden="true">{count}</span>
-    </span>
+    <ul className={["jc-files", className].filter(Boolean).join(" ")} aria-label="Attachments">
+      {files.map((f) => {
+        const open = f.name ? door(f.id) : null;
+        const type = fileTypeWord(f.type);
+        const body = (
+          <>
+            <Icon name="clip" size={14} />
+            <Fade className="jc-filename">{f.name ?? "Attachment"}</Fade>
+            {f.name ? type && <span className="jc-filetype">{type}</span> : <span className="jc-filetype">Not synced yet</span>}
+          </>
+        );
+        return (
+          <li key={f.id}>
+            {open ? (
+              <button
+                type="button"
+                className="jc-file"
+                onClick={() => {
+                  onOpened?.();
+                  open();
+                }}
+              >
+                {body}
+              </button>
+            ) : (
+              <span className={`jc-file jc-file--off`} aria-disabled="true">
+                {body}
+              </span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** Words with their web addresses as links, in the words' own colour. */
+function Linked({ text }: { text: string }) {
+  return (
+    <>
+      {linkParts(text).map((p, i) =>
+        p.href ? (
+          <a key={i} className="jc-link" href={p.href} target="_blank" rel="noopener noreferrer">
+            {p.text}
+          </a>
+        ) : (
+          <span key={i}>{p.text}</span>
+        ),
+      )}
+    </>
   );
 }
 
@@ -114,26 +171,55 @@ export function CustomerThreadView({ thread }: { thread: CustomerThread }) {
   );
 }
 
-/** One message in a run: the name above the run's first, the bubble, which
-    opens the whole message, and the run's time and Seen under its last (a
-    paper under whichever carries it). */
+/** Lines a bubble shows whole; a longer message shows the first twelve,
+    fading, and its dots (Isaac, 26 October 2026: "that whole thing should
+    probably show in the thread. Anything longer than that, I would say have
+    the dots to show that there is more to open"). */
+export const BUBBLE_WHOLE_LINES = 16;
+
+/** One message in a run: the name above the run's first, the bubble with
+    its words and their links, what came with it under it, and the run's
+    time and Seen under its last. A message too long to show whole has its
+    dots, a button inside the bubble that opens the whole of it; the
+    bubble itself is not a button, so its links press as links. */
 function Bubble({ line: l, onOpen, lastRef }: { line: ThreadBubble; onOpen: (b: ThreadBubble) => void; lastRef?: Ref<HTMLDivElement> }) {
+  const words = useRef<HTMLDivElement | null>(null);
+  const [long, setLong] = useState(false);
+  useEffect(() => {
+    const el = words.current;
+    if (!el) return;
+    const measure = () => {
+      const line = parseFloat(getComputedStyle(el).lineHeight) || 22;
+      /* the whole of it, clamped or not: scrollHeight is the words' own height */
+      setLong(el.scrollHeight > line * BUBBLE_WHOLE_LINES + 1);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [l.words]);
   return (
     <div
       ref={lastRef}
       className={["jc-bm", `jc-bm--${l.side}`, l.name ? "jc-bm--first" : "", l.last ? "jc-bm--last" : ""].filter(Boolean).join(" ")}
     >
       {l.name && <p className="jc-bmname">{l.name}</p>}
-      <button type="button" className="jc-bubble" aria-haspopup="dialog" onClick={() => onOpen(l)}>
-        <Fade lines={3} className="jc-bubwords">
-          {l.words}
-        </Fade>
-      </button>
-      {(l.last || l.attachments > 0) && (
+      <div className="jc-bubble">
+        <div ref={words} className={`jc-bubwords${long ? " jc-bubwords--clamped" : ""}`}>
+          <Linked text={l.words} />
+        </div>
+        {long && (
+          <button type="button" className="jc-bubmore" aria-label="Show the whole message" aria-haspopup="dialog" onClick={() => onOpen(l)}>
+            •••
+          </button>
+        )}
+      </div>
+      {l.files.length > 0 && <FileRows files={l.files} />}
+      {l.last && (
         <p className="jc-bmtime">
-          {l.last && <span>{l.time}</span>}
-          {l.attachments > 0 && <Clip count={l.attachments} />}
-          {l.last && l.seen && <span>{l.seen}</span>}
+          <span>{l.time}</span>
+          {l.seen && <span>{l.seen}</span>}
         </p>
       )}
     </div>
@@ -214,7 +300,11 @@ function MessageDialog({ bubble, onClose }: { bubble: ThreadBubble; onClose: () 
         <dt>When</dt>
         <dd>{f.when}</dd>
       </dl>
-      <p className="cmsg-words">{f.text}</p>
+      <p className="cmsg-words">
+        <Linked text={f.text} />
+      </p>
+      {/* the same files, pressable: the dialog goes, and the file opens where the job's do */}
+      {f.files.length > 0 && <FileRows files={f.files} className="cmsg-files" onOpened={onClose} />}
     </Dialog>
   );
 }

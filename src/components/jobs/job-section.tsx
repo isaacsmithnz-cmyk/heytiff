@@ -11,9 +11,10 @@ import { Icon } from "@/components/shell/icon";
    The colours are Home's: To do yellow with a tick, the feed green with a
    bubble, as Home's Your feed. The Summary is pink: not blue (it means
    press), red (wrong) or orange (needs a look), and not purple, which is
-   Home's Today. */
+   Home's Today. A project's page (project-detail-screen.tsx) wears the same
+   recipe and takes purple and grey as well, as its mock draws them. */
 
-export type SectionHue = "pink" | "yellow" | "green";
+export type SectionHue = "pink" | "yellow" | "green" | "purple" | "grey";
 
 export function JobSection({
   name,

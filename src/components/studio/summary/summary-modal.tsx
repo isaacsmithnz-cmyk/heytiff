@@ -18,7 +18,7 @@ import { Icon } from "@/components/shell/icon";
 
    Shared rather than grown twice: the second one of these would have been a
    copy of the first's scrim, header, Escape key and footer rule, and the
-   Workboard already learned that lesson (see wb-modal.tsx). */
+   app learned that lesson once already (parts/dialog.tsx). */
 
 export function SummaryModal({
   title,

@@ -196,7 +196,15 @@ function linesOf(sections: BookView["sections"], folded: boolean, limit: number)
   return { sections: out, cut: left < 0 };
 }
 
-export function BookItems({ markupPct = null }: { markupPct?: number | null }) {
+export function BookItems({
+  markupPct = null,
+  book: started,
+}: {
+  markupPct?: number | null;
+  /** the book, its read started with the page (26 October 2026): asked for
+      after the page had drawn, it waited a whole page load behind it */
+  book?: Promise<Product[]>;
+}) {
   const [products, setProducts] = useState<Product[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [view, setView] = useState<BookViewKey>("used");
@@ -206,14 +214,14 @@ export function BookItems({ markupPct = null }: { markupPct?: number | null }) {
   const [busy, setBusy] = useState(false);
   const [wrong, setWrong] = useState<string | null>(null);
 
-  /* the whole book, once */
+  /* the whole book, once: the page's read when it started one, else asked
+     for here */
   useEffect(() => {
     let live = true;
-    fetch(ROUTE)
-      .then((r) => r.json() as Promise<Answer>)
-      .then((a) => {
+    const read: Promise<Product[] | null> = started ?? fetch(ROUTE).then((r) => r.json() as Promise<Answer>).then(productsIn);
+    read
+      .then((got) => {
         if (!live) return;
-        const got = productsIn(a);
         if (got) setProducts(got);
         else setFailed(true);
       })
@@ -223,7 +231,7 @@ export function BookItems({ markupPct = null }: { markupPct?: number | null }) {
     return () => {
       live = false;
     };
-  }, []);
+  }, [started]);
 
   const go = (v: BookViewKey) => {
     setView(v);

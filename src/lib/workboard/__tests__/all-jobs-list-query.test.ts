@@ -146,3 +146,47 @@ describe("a recorded session is not a booking", () => {
     expect(jobs[0].nextBooking).toBeNull();
   });
 });
+
+/* THE JOBS LIST'S CREW, folded into the jobs' own read (26 October 2026: it
+   was three waits after the jobs landed). The one diary read reaches back to
+   the board's window for the crew, and the next booking still counts only
+   from today. */
+describe("the crew, in the same read", () => {
+  beforeEach(() => {
+    tables.sm8_jobs = [jobRow({ uuid: "j-1", work_order_date: "2026-08-02 10:15:00" })];
+    tables.sm8_staff = [
+      { org_id: "org-1", uuid: "s-1", first: "Liv", last: "Nguyen" },
+      { org_id: "org-1", uuid: "s-2", first: "Sam", last: "Reed" },
+    ];
+    tables.sm8_job_activities = [
+      // last week, Sam: the crew's history, never the next booking
+      activity({ start_date: "2026-08-07 09:00:00", activity_was_scheduled: 1, staff_uuid: "s-2" }),
+      // next week, Liv: the next booking and who is on it
+      activity({ start_date: "2026-08-20 09:00:00", activity_was_scheduled: 1, staff_uuid: "s-1" }),
+    ];
+  });
+
+  it("names who is on the next booking, and keeps the next booking from today on", async () => {
+    const all = await loadAllJobs("org-1", TODAY, { includeMoney: false, crew: true });
+    expect(all.jobs[0].nextBooking).toBe("2026-08-20 09:00:00");
+    expect(all.crew?.["j-1"]).toEqual(["Liv Nguyen"]);
+  });
+
+  it("names the last day's crew when nothing is booked ahead", async () => {
+    tables.sm8_job_activities = [activity({ start_date: "2026-08-07 09:00:00", activity_was_scheduled: 1, staff_uuid: "s-2" })];
+    const all = await loadAllJobs("org-1", TODAY, { includeMoney: false, crew: true });
+    expect(all.jobs[0].nextBooking).toBeNull();
+    expect(all.crew?.["j-1"]).toEqual(["Sam Reed"]);
+  });
+
+  it("dates a work order's win from the jobs' own read", async () => {
+    const all = await loadAllJobs("org-1", TODAY, { includeMoney: false, crew: true });
+    expect(all.wonOn).toEqual({ "j-1": "2026-08-02" });
+  });
+
+  it("reads neither without being asked", async () => {
+    const all = await loadAllJobs("org-1", TODAY, { includeMoney: false });
+    expect(all.crew).toBeUndefined();
+    expect(all.wonOn).toBeUndefined();
+  });
+});

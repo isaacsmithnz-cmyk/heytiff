@@ -332,10 +332,55 @@ export function priceOfRow(r: StoredRow): { cents: number; net: boolean; pricedO
 
 const PAGE = 1000;
 
-/** Every current item in the book: the first page says how many there are,
-    and the rest are asked for at once rather than one after another (eight
-    pages in turn took seconds). */
+/** A row as price_book_items lays it out (docs/migrations/price_book_items.sql). */
+type ItemTuple = [
+  supplier_key: string,
+  code: string,
+  name: string,
+  times_bought: number | null,
+  uom: string | null,
+  cents: number,
+  on_list: boolean | null,
+  listed_on: string | null,
+  last_import_at: string | null,
+  priced_on: string | null,
+  paid_cents: number | null,
+  paid_on: string | null,
+];
+
+const fromTuple = ([supplier_key, code, name, times_bought, uom, cents, on_list, listed_on, last_import_at, priced_on, paid_cents, paid_on]: ItemTuple): FoundRow => ({
+  supplier_key,
+  code,
+  name,
+  times_bought,
+  uom,
+  cents,
+  on_list,
+  listed_on,
+  last_import_at,
+  priced_on,
+  paid_cents,
+  paid_on,
+});
+
+/** Every current item in the book, in ONE call: the database builds the
+    rows as one array (price_book_items), where the API's thousand-row pages
+    took a counted first page and eight more, ~1–1.5 s for 8,870 parts (26
+    October 2026). Should the function not answer, the pages still do. */
 export async function currentItems(orgId: string): Promise<BookItem[]> {
+  try {
+    const { data, error } = await supabaseAdmin.rpc("price_book_items", { p_org: orgId });
+    if (!error && Array.isArray(data)) return (data as ItemTuple[]).map((t) => asBookItem(fromTuple(t)));
+    console.error(`[price-book] price_book_items failed for org ${orgId}, reading by pages:`, error);
+  } catch (e) {
+    console.error(`[price-book] price_book_items threw for org ${orgId}, reading by pages:`, e);
+  }
+  return currentItemsByPage(orgId);
+}
+
+/** The same items by the API's pages: the first page says how many there
+    are, and the rest are asked for at once. */
+async function currentItemsByPage(orgId: string): Promise<BookItem[]> {
   const page = (from: number, count = false) =>
     supabaseAdmin
       .from("quote_price_items")

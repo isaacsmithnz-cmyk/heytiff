@@ -1,8 +1,9 @@
 /* What the Jobs list loads (v2, /dashboard/jobs) — server only.
 
    The same reads the Workboard makes for its All jobs, Projects and
-   Maintenance sides (page-data.ts), and two small ones of its own: who is
-   on each job's bookings, and the day each work order was won. The rows are
+   Maintenance sides (page-data.ts), with two things of its own folded into
+   the jobs' read: who is on each job's bookings, and the day each work
+   order was won. The rows are
    decided in jobs-list.ts; only they reach the page, so the boards' whole
    datasets stay on the server.
 
@@ -12,17 +13,14 @@
 
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
-import { supabaseAdmin } from "@/lib/supabase-server";
-import { inChunks } from "@/lib/in-chunks";
 import { jobsTimer } from "./jobs-timing";
 import { getConnectionView } from "@/lib/integrations/store";
 import { listSm8SyncStatus } from "@/lib/integrations/sm8-sync";
 import { freshenSm8AfterResponse } from "@/lib/integrations/sm8-freshness";
-import { ALL_JOBS_HORIZON_DAYS } from "./all-jobs";
 import { EMPTY_ALL_JOBS, loadAllJobs } from "./all-jobs-query";
 import { loadMaintenanceBoard } from "./board-query";
-import { plusDays, todayInZone } from "./dates";
-import { crewOf, jobsListRows, type JobsListRow } from "./jobs-list";
+import { todayInZone } from "./dates";
+import { jobsListRows, type JobsListRow } from "./jobs-list";
 import { loadProjectsBoard } from "./projects-board-query";
 import { getSm8Timezone } from "./query";
 
@@ -40,58 +38,6 @@ export type JobsListData = {
   truncated: boolean;
 };
 
-
-type Act = { job_uuid: string; staff_uuid: string | null; start_date: string | null };
-
-/** Who is on each job, and when each work order was won, for the jobs the
-    book already holds. The bookings are read back to the board's 56-day
-    window, so "the last day booked" is a recent one. */
-async function readJobExtras(
-  orgId: string,
-  jobs: readonly { remoteId: string; status: string | null }[],
-  today: string,
-): Promise<{ crew: Record<string, string[]>; wonOn: Record<string, string> }> {
-  const ids = jobs.map((j) => j.remoteId);
-  const workIds = jobs.filter((j) => j.status === "Work Order").map((j) => j.remoteId);
-  if (ids.length === 0) return { crew: {}, wonOn: {} };
-  const floor = `${plusDays(today, -ALL_JOBS_HORIZON_DAYS)} 00:00:00`;
-
-  const [acts, won] = await Promise.all([
-    inChunks(ids, 100, async (chunk) => {
-      const { data, error } = await supabaseAdmin
-        .from("sm8_job_activities")
-        .select("job_uuid, staff_uuid, start_date")
-        .eq("org_id", orgId)
-        .eq("active", 1)
-        .eq("activity_was_scheduled", 1)
-        .in("job_uuid", chunk)
-        .gte("start_date", floor);
-      if (error) console.error(`[jobs] couldn't read org ${orgId}'s bookings for the list:`, error);
-      return (data ?? []) as Act[];
-    }),
-    inChunks(workIds, 200, async (chunk) => {
-      const { data } = await supabaseAdmin.from("sm8_jobs").select("uuid, work_order_date").eq("org_id", orgId).in("uuid", chunk);
-      return (data ?? []) as { uuid: string; work_order_date: string | null }[];
-    }),
-  ]);
-
-  const staffIds = [...new Set(acts.map((a) => a.staff_uuid).filter((s): s is string => !!s))];
-  const names = new Map<string, string>();
-  if (staffIds.length) {
-    const rows = await inChunks(staffIds, 200, async (chunk) => {
-      const { data } = await supabaseAdmin.from("sm8_staff").select("uuid, first, last").eq("org_id", orgId).in("uuid", chunk);
-      return (data ?? []) as { uuid: string; first: string | null; last: string | null }[];
-    });
-    for (const s of rows) {
-      const name = [s.first, s.last].filter(Boolean).join(" ").trim();
-      if (name) names.set(s.uuid, name);
-    }
-  }
-
-  const wonOn: Record<string, string> = {};
-  for (const r of won) if (r.work_order_date && r.work_order_date.length >= 10) wonOn[r.uuid] = r.work_order_date.slice(0, 10);
-  return { crew: crewOf(acts, names, today), wonOn };
-}
 
 export async function loadJobsList(opts: { from?: string } = {}): Promise<JobsListData | null> {
   /* timed for a day, to the server's log only (./jobs-timing) */
@@ -115,16 +61,14 @@ export async function loadJobsList(opts: { from?: string } = {}): Promise<JobsLi
   const connected = connection !== "none";
   const today = todayInZone(connected ? zone : null);
 
-  /* the extras (who is on each job, when each was won) need the jobs, and
-     nothing else here: they are read the moment the jobs land, beside the
-     boards rather than after them */
-  const allJobsP = connected ? loadAllJobs(orgId, today, { includeMoney: moneyVisible, timer: clock }) : Promise.resolve(EMPTY_ALL_JOBS);
-  const [board, projectsBoard, allJobs, sync, extras] = await Promise.all([
+  /* who is on each job and when each was won come in the jobs' own waits
+     (`crew`): they were a wait of their own after the jobs landed, then a
+     third for the staff names (the Jobs list's timing, 26 October 2026) */
+  const [board, projectsBoard, allJobs, sync] = await Promise.all([
     clock.lap("maintenance", loadMaintenanceBoard(orgId, today)),
     clock.lap("projects", loadProjectsBoard(orgId, today, { includeMoney: false })),
-    clock.lap("jobs", allJobsP),
+    clock.lap("jobs", connected ? loadAllJobs(orgId, today, { includeMoney: moneyVisible, timer: clock, crew: true }) : Promise.resolve(EMPTY_ALL_JOBS)),
     clock.lap("sync", connected ? listSm8SyncStatus(orgId) : Promise.resolve(null)),
-    clock.lap("extras", allJobsP.then((a) => readJobExtras(orgId, a.jobs, today))),
   ]);
 
   /* looking at the list counts as looking, as the board's does */
@@ -176,8 +120,8 @@ export async function loadJobsList(opts: { from?: string } = {}): Promise<JobsLi
       bookedDate: t.bookedDate,
       techs: t.techs.map((x) => x.name),
     })),
-    crew: extras.crew,
-    wonOn: extras.wonOn,
+    crew: allJobs.crew ?? {},
+    wonOn: allJobs.wonOn ?? {},
     today,
     moneyVisible,
   });

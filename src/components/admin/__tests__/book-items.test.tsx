@@ -183,3 +183,18 @@ it("says when nothing matches a search", async () => {
   fireEvent.change(screen.getByLabelText("Search the price book"), { target: { value: "nothing like this" } });
   expect(screen.getByText("Nothing in the price book matches")).toBeInTheDocument();
 });
+
+/* The book's read starts with the page (26 October 2026): handed one, the
+   list draws from it and asks the route for nothing. */
+it("draws from the read the page started, without asking for the book again", async () => {
+  const { asked } = serve();
+  render(<BookItems markupPct={40} book={Promise.resolve(BOOK)} />);
+  expect(await screen.findByRole("button", { name: "PAIRED COIL 1/4+1/2X20M" })).toBeInTheDocument();
+  expect(asked).toEqual([]);
+});
+
+it("says so when the page's read fails", async () => {
+  serve();
+  render(<BookItems book={Promise.reject(new Error("down"))} />);
+  expect(await screen.findByText(/couldn.t be read/)).toBeInTheDocument();
+});

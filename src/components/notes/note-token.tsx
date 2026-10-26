@@ -2,6 +2,7 @@
 
 import { useRef, useState, type RefObject } from "react";
 import { Icon } from "@/components/shell/icon";
+import { Button, IconButton } from "@/components/parts/button";
 import { LiveWords, appendSpoken, useDictation } from "./dictation";
 import { RecordingMeter } from "./recording-card";
 import { READING_BACK_NOTE } from "./waits";
@@ -261,11 +262,11 @@ function Nudge({
       {/* a task was spotted, so the glyph is a task list. The sparkle said
           "something clever happened here", which is not the offer — the offer
           is that there is work buried in what you just wrote. */}
-      <Icon name="listCheck" size={15} />
+      <Icon name="listCheck" size={16} />
       <span className="wb2-nudgetext">There&apos;s something to do in this.</span>
-      <button
-        type="button"
-        className="pbtn sm"
+      <Button
+        kind="second"
+        size={32}
         onClick={(e) => {
           /* A click with no pointer behind it came from the keyboard, and
              nothing flies from a keyboard press (law 8). */
@@ -279,15 +280,8 @@ function Nudge({
         }}
       >
         Have a look
-      </button>
-      <button
-        type="button"
-        className="wb2-ico"
-        onClick={onDismiss}
-        aria-label="Close — leave it as a note"
-      >
-        <Icon name="x" size={13} />
-      </button>
+      </Button>
+      <IconButton glyph="close" size={32} label="Close, leave it as a note" onClick={onDismiss} />
     </div>
   );
 }

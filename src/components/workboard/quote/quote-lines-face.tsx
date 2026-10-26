@@ -28,6 +28,9 @@ import { QuoteLineItems, groupKey, sellEachOf } from "./quote-line-items";
 import { InServiceM8, QuoteCard, QuoteRail } from "./quote-rail";
 import { LinesButton, QuoteActions } from "./quote-actions";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
+import { Dialog } from "@/components/parts/dialog";
+import { Button } from "@/components/parts/button";
+import { Field, TextArea } from "@/components/parts/field";
 
 /* THE QUOTE, IN LAYOUT B (Isaac's pick, 21 October 2026; chat first since
    2026-10-13): the conversation with Tiff fills the left, and the rail
@@ -635,37 +638,41 @@ export function QuoteLinesFace({
             )
           )}
         </div>
-        {updating != null && (
-          <>
-            <div className="ql-vscrim" onClick={() => setUpdating(null)} />
-            <div className="ql-vdlg" role="dialog" aria-modal="true" aria-label="Update quote">
-              <h3>Update quote</h3>
-              <p>
-                {accepted.length > 0
-                  ? `${options > 1 ? `Option ${(accepted[0] ?? 0) + 1}` : "The quote"} is accepted, so this is a variation. The accepted quote stays as it is. The variation is priced as the difference, and the client approves it on its own.`
-                  : `The quote is approved, so this is version ${version + 1}. Version ${version} is kept as it stands, the approval comes off, and it goes back through Approve and Send.`}
-              </p>
-              <label className="ql-vwhat">
-                <span>What&apos;s changing</span>
-                <textarea className="wb2-fi" rows={3} value={updating} autoFocus disabled={busy} onChange={(e) => setUpdating(e.target.value)} />
-              </label>
-              <div className="wb2-jqacts">
-                <button type="button" className="pbtn ghost" disabled={busy} onClick={() => setUpdating(null)}>
-                  Cancel
-                </button>
-                {accepted.length > 0 ? (
-                  <button type="button" className="pbtn ghost qp-go" disabled={busy || !updating.trim()} onClick={() => void startVariation(updating.trim())}>
-                    {`Start variation ${(view?.variations ?? []).reduce((m, v) => Math.max(m, v.n), 0) + 1}`}
-                  </button>
-                ) : (
-                  <button type="button" className="pbtn ghost qp-go" disabled={busy || !updating.trim()} onClick={() => void startVersion(updating.trim())}>
-                    {`Start version ${version + 1}`}
-                  </button>
-                )}
-              </div>
-            </div>
-          </>
-        )}
+        {/* UPDATE QUOTE (the old-modals mock, 27 October 2026): the v2
+            Dialog, portalled to the body so it darkens the whole page */}
+        <Dialog
+          open={updating != null}
+          heading="Update quote"
+          width={560}
+          onClose={() => setUpdating(null)}
+          foot={
+            <>
+              <Button kind="quiet" disabled={busy} onClick={() => setUpdating(null)}>
+                Cancel
+              </Button>
+              {accepted.length > 0 ? (
+                <Button kind="main" disabled={busy || !updating?.trim()} onClick={() => void startVariation((updating ?? "").trim())}>
+                  {`Start variation ${(view?.variations ?? []).reduce((m, v) => Math.max(m, v.n), 0) + 1}`}
+                </Button>
+              ) : (
+                <Button kind="main" disabled={busy || !updating?.trim()} onClick={() => void startVersion((updating ?? "").trim())}>
+                  {`Start version ${version + 1}`}
+                </Button>
+              )}
+            </>
+          }
+        >
+          <div className="ql-vbody">
+            <p>
+              {accepted.length > 0
+                ? `${options > 1 ? `Option ${(accepted[0] ?? 0) + 1}` : "The quote"} is accepted, so this is a variation. The accepted quote stays as it is. The variation is priced as the difference, and the client approves it on its own.`
+                : `The quote is approved, so this is version ${version + 1}. Version ${version} is kept as it stands, the approval comes off, and it goes back through Approve and Send.`}
+            </p>
+            <Field label="What's changing">
+              <TextArea className="ql-vwhat" rows={3} value={updating ?? ""} data-autofocus disabled={busy} onChange={(e) => setUpdating(e.target.value)} />
+            </Field>
+          </div>
+        </Dialog>
         <QuoteRail
           progress={<QuoteStepsLine steps={steps} />}
           actions={actions}

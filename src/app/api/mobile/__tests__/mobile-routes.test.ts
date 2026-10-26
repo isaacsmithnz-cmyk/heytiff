@@ -71,6 +71,12 @@ jest.mock("@/lib/workboard/all-jobs-query", () => ({
     return [{ text: "Both outdoor units up" }];
   },
 }));
+jest.mock("@/lib/workboard/job-notes-query", () => ({
+  readOurJobNotes: async (orgId: string, id: string) => {
+    asked.push(`ours ${orgId} ${id}`);
+    return [{ id: "n1", text: "Pipe run is 14 m", at: "2026-10-26 09:12:00", author: "Lyle Irving" }];
+  },
+}));
 jest.mock("@/lib/integrations/links", () => ({
   sm8StaffLinkMap: async () => new Map([["sm8-lyle", "card-auth0|lyle"]]),
 }));
@@ -181,11 +187,17 @@ test("the search carries money only for someone who holds it", async () => {
 
 test("a job is read in the member's workspace, a claim opens its job, and money and designs follow the grants", async () => {
   const body = await (await job(req("jobs/claim-7", "auth0|lyle"), params("claim-7"))).json();
-  expect(body).toEqual({ detail: { uuid: "job-3342" }, notes: [{ text: "Both outdoor units up" }], focusRemoteId: "claim-7" });
+  expect(body).toEqual({
+    detail: { uuid: "job-3342" },
+    notes: [{ text: "Both outdoor units up" }],
+    ourNotes: [{ id: "n1", text: "Pipe run is 14 m", at: "2026-10-26 09:12:00", author: "Lyle Irving" }],
+    focusRemoteId: "claim-7",
+  });
   expect(asked).toEqual([
     "resolve org-diamond claim-7",
     'detail org-diamond job-3342 {"includeMoney":false,"includeDesigns":true,"timezone":"Australia/Sydney"}',
     "notes org-diamond job-3342 +1",
+    "ours org-diamond job-3342",
   ]);
 });
 

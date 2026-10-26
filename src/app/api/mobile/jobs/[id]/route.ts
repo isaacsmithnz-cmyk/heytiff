@@ -1,6 +1,7 @@
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
 import { familyMediaSources, readJobNotes, readMirrorJobDetail, resolveJobCard } from "@/lib/workboard/all-jobs-query";
+import { readOurJobNotes } from "@/lib/workboard/job-notes-query";
 import { ok, requireMobile } from "@/lib/mobile/auth";
 
 /* ONE JOB for the phone's job page: what the job sheet's card reads
@@ -12,7 +13,9 @@ import { ok, requireMobile } from "@/lib/mobile/auth";
    claims against, as the card does. Money rides only with
    `workboard_money`, designs only with `studio`, each asked here and handed
    down so the loader never reads what this person may not see. The notes
-   are the job's and its claims', as one stream, and not money-gated. */
+   are the job's and its claims', as one stream, and not money-gated; and
+   beside them HeyTiff's own diary entries on the job (`ourNotes`), the ones
+   typed on the sheet's pen or the phone's. */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireMobile(request, "workboard");
   if (ctx instanceof Response) return ctx;
@@ -33,6 +36,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   ]);
   if (!detail) return Response.json({ error: "That job isn't here." }, { status: 404, headers: { "cache-control": "no-store" } });
 
-  const notes = await readJobNotes(ctx.orgId, target.parentRemoteId, claims);
-  return ok({ detail, notes, focusRemoteId: target.focusRemoteId });
+  const [notes, ourNotes] = await Promise.all([
+    readJobNotes(ctx.orgId, target.parentRemoteId, claims),
+    readOurJobNotes(ctx.orgId, target.parentRemoteId),
+  ]);
+  return ok({ detail, notes, ourNotes, focusRemoteId: target.focusRemoteId });
 }

@@ -59,6 +59,21 @@ const nextConfig: NextConfig = {
     "puppeteer-core",
     "@sparticuz/chromium",
   ],
+  /* PAGES ARE REMEMBERED FOR THREE MINUTES (Isaac, 26 October 2026:
+     "Remember recently opened pages for a few minutes so switching back is
+     instant, even if the data can be a few minutes old"). Switching to a
+     tab, or back to a page, within three minutes of last seeing it draws it
+     from the browser's copy instead of asking the server again; the
+     default for a page that reads per request is to ask every time. A save
+     still refreshes it: revalidatePath and router.refresh empty this copy.
+
+     Next keeps whole pages alive across navigation (Chrome's tabs) only
+     with `cacheComponents`, which stays off for /hq's access gate: its
+     layout 404s a non-staff visitor, and a prerendered shell would stream
+     before that check (PR #185). */
+  experimental: {
+    staleTimes: { dynamic: 180 },
+  },
   // NEXT_DIST_DIR lets a second dev server (e.g. an agent preview) run
   // alongside the main one — next dev holds an exclusive lock per dist dir.
   distDir: process.env.NEXT_DIST_DIR || ".next",

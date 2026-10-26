@@ -77,6 +77,12 @@ jest.mock("@/lib/workboard/job-notes-query", () => ({
     return [{ id: "n1", text: "Pipe run is 14 m", at: "2026-10-26 09:12:00", author: "Lyle Irving" }];
   },
 }));
+jest.mock("@/lib/mobile/visits", () => ({
+  comingVisits: async (orgId: string, id: string, today: string) => {
+    asked.push(`coming ${orgId} ${id} ${today}`);
+    return [{ day: "2026-10-29", start: "2026-10-29 07:00:00", end: "2026-10-29 15:30:00", crew: ["Alex Morozoff", "David Kim"] }];
+  },
+}));
 jest.mock("@/lib/integrations/links", () => ({
   sm8StaffLinkMap: async () => new Map([["sm8-lyle", "card-auth0|lyle"]]),
 }));
@@ -191,6 +197,7 @@ test("a job is read in the member's workspace, a claim opens its job, and money 
     detail: { uuid: "job-3342" },
     notes: [{ text: "Both outdoor units up" }],
     ourNotes: [{ id: "n1", text: "Pipe run is 14 m", at: "2026-10-26 09:12:00", author: "Lyle Irving" }],
+    coming: [{ day: "2026-10-29", start: "2026-10-29 07:00:00", end: "2026-10-29 15:30:00", crew: ["Alex Morozoff", "David Kim"] }],
     focusRemoteId: "claim-7",
   });
   expect(asked).toEqual([
@@ -198,6 +205,7 @@ test("a job is read in the member's workspace, a claim opens its job, and money 
     'detail org-diamond job-3342 {"includeMoney":false,"includeDesigns":true,"timezone":"Australia/Sydney"}',
     "notes org-diamond job-3342 +1",
     "ours org-diamond job-3342",
+    "coming org-diamond job-3342 2026-10-26",
   ]);
 });
 

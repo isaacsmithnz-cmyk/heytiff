@@ -326,91 +326,20 @@
    introduction — the search-first landing that replaced them is `.tk-open`
    and `.tk-starts` in the `.tk-` block. Deleted rather than left behind,
    because unused CSS is what the next person copies. */
-.fg .tinput { margin-top:32px; flex:0 0 auto; position:relative; }
-/* wider blur and a shade less ink: at 8px the violet end bloomed off one
-   corner and read as a smear rather than a halo on the live walk */
-.fg .tinput .tib { position:absolute; inset:-5px; border-radius:var(--r-card); background:var(--ink); filter:blur(12px); opacity:.16; }
-.fg .tinput .tin { position:relative; display:flex; align-items:center; gap:16px; padding:12px; border-radius:var(--r-card); background:var(--paper); border:1px solid var(--paper); }
-.fg .tinput .tic { width:48px; height:48px; border-radius:var(--r-card); background:var(--bg); display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
-.fg .tinput .tic .tiffmk { --tb:36px; }
-.fg .tinput input { flex:1; min-width:0; background:none; border:none; outline:none; font-size:16px; font-weight:500; color:var(--ink); padding:16px 0; }
-.fg .tinput input::placeholder { color:var(--gray400); }
-.fg .tinput .tsend { position:relative; overflow:hidden; width:48px; height:48px; border-radius:var(--r-card); background:var(--ink); display:flex; align-items:center; justify-content:center; color:var(--paper); flex:0 0 auto; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .tinput .tsend:hover:not(:disabled) { background:var(--ink); color:var(--paper); }
-.fg .tinput .tsend:disabled { background:var(--tint-2);  box-shadow:none; cursor:not-allowed; }
-
-/* ── the bar says it is working ──
-   THE EYE IS ON THE BAR WHEN THE WAIT STARTS. You press send and look at what
-   you pressed; the thinking dots are up in the transcript and the lanes are
-   1.6px out in the corridor, so the composer itself said nothing between the
-   press and the first word and the screen read as frozen.
-
-   Two signals, one moment. The send glyph becomes a spinner — the control you
-   just used, reporting on what it started — and a sheen crosses the pill, the
-   same gesture the rail cards already make while they are being searched
-   (`tkShim`), so the bar and the shelves are visibly doing one thing. The
-   button is NOT disabled: a second question mid-answer drops the first, which
-   is a feature. */
-.fg .tinput .tsend.busy { background:var(--ink); color:var(--paper); }
-.fg .tinput .tsend.busy:hover { background:var(--ink); color:var(--paper); }
-.fg .tinput .tsend-spin { width:17px; height:17px; border-radius:50%; flex:none;
-  border:2px solid var(--on-ink-line); border-top-color:var(--paper); animation:tkSpin .8s linear infinite; }
-
-/* the sheen sits under the controls, which is why the row's children take a
-   layer of their own — otherwise it would wash over the typed text */
-.fg .tinput .tin.working::after { content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
-  border-radius:inherit;
-  background:var(--tint);
-  background-size:260% 100%; background-repeat:no-repeat; animation:tkShim 1.6s ease-in-out infinite; }
-.fg .tinput .tin > * { position:relative; z-index:var(--z-raised); }
-
-@media (prefers-reduced-motion:reduce) {
-  /* the global `.fg * { animation-duration:.001s }` turns an infinite
-     animation into a strobe, so both loops are dropped rather than sped up —
-     the spinner stays as a static ring, which still reads as "in progress" */
-  .fg .tinput .tsend-spin { animation:none; }
-  .fg .tinput .tin.working::after { animation:none; opacity:0; }
-}
-
-/* ── the ask bar's microphone ──
-   Every selector here is `.fg .tinput …` (0,3,0) on purpose. `.fg button` is
-   (0,1,1) and `.fg input` is (0,1,1); a bare `.tmic { background }` on a
-   <button> would silently lose to the reset, which is the trap that has now
-   bitten this stylesheet four times. Nothing in this block portals, so the
-   `.fg` scope is real and there is no `[class*="wb2-"]` carve-out to borrow.
-
-   A BARE MIC IS CORRECT HERE, and it is not a break with the token's
-   never-a-bare-mic rule. That rule exists because a lone microphone standing
-   in a corner advertises one way in and hides typing. This one is sitting on
-   a text field with a caret already blinking in it — the same reason the
-   token's own `field` and `line` postures wear a plain mic too. */
-.fg .tinput .tmic { width:44px; height:44px; border-radius:50%; flex:0 0 auto;
-  display:flex; align-items:center; justify-content:center;
-  border:1px solid var(--line); background:var(--paper); color:var(--gray500);
-  transition:border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-.fg .tinput .tmic:hover:not(:disabled) { border-color:var(--ink); color:var(--ink); background:var(--hov); }
-.fg .tinput .tmic:disabled { opacity:.45; cursor:not-allowed; }
-.fg .tinput .tmic:focus-visible, .fg .tinput .tmicx:focus-visible { outline:none;  box-shadow:var(--ring); }
 
 /* Stop wears the send button's shape and position — the control the thumb is
    already travelling to — but the only red in the resting UI, and only once
    the mic is actually open. Same rule the token's capsule follows. */
-.fg .tinput .tsend.live { background:var(--bad); }
-.fg .tinput .tsend.live:hover { background:var(--bad-t); color:var(--paper); }
+
 /* The gap is 16px so the row can breathe; the recording cluster is four things
    and needs to read as one, so it closes up while the mic is open. */
-.fg .tinput .tin.live { gap:8px; }
-.fg .tinput input:disabled { background:none; color:var(--ink); -webkit-text-fill-color:var(--ink); opacity:1; }
+
 .fg .tvsay { margin:8px 4px 0; font-size:13px; font-weight:600; color:var(--gray500); }
 .fg .tvsay.err { color:var(--bad-t); }
 /* On a phone the clock is the first thing to go: the bars already say it is
    listening, and a stop button that has been pushed off the row is worse than
    no timer. */
-@media (max-width:560px) {
-  .fg .tinput .tin { gap:8px; padding:8px; }
-  .fg .tinput .tin.live .wb2-capclock { display:none; }
-  .fg .tinput .tic { display:none; }
-}
+
 /* The 340px sidebar and its knowledge-base rows are GONE, replaced by the
    `.tk-rail` at the end of this file — deleted rather than left behind,
    because unused CSS is what the next person copies. Thread rows survived the
@@ -2418,52 +2347,21 @@
    changes it. Drift sits UNDER the row on its own line rather than competing
    with the match state — it is a second, separate question about the same
    person, and squeezing it inline made both unreadable. */
-.fg .tpr .xp-note { font-size:13px; font-weight:600; color:var(--gray500); line-height:1.55; margin:0 0 12px; }
-.fg .tpr .xp-note.bad { color:var(--bad-t); }
-.fg .tpr .xp-note b { color:var(--ink); }
+
 /* Advisory, not error: pay_settings is the record, and a business legitimately
    running Xero on another calendar is not a fault to correct. Amber says
    "check this", where red would say "you did something wrong". */
-.fg .tpr .xp-advisory { display:flex; align-items:flex-start; gap:8px; padding:8px 12px; margin:0 0 12px; border-radius:var(--r-button); background:var(--warn-tint); color:var(--warn-t); font-size:13px; font-weight:600; line-height:1.5; }
-.fg .tpr .xp-advisory .i { flex:0 0 auto; margin-top:1px; }
-
-.fg .tpr .xp-rows { display:flex; flex-direction:column; gap:8px; }
-.fg .tpr .xp-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:12px 12px; border-radius:var(--r-button); border:1px solid var(--line); background:var(--tint); }
-.fg .tpr .xp-who { flex:1 1 180px; min-width:0; }
-.fg .tpr .xp-who b { display:block; font-size:14px; font-weight:700; }
-.fg .tpr .xp-who em { display:block; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); margin-top:2px; }
-.fg .tpr .xp-act { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
-.fg .tpr .xp-pick { display:flex; align-items:center; gap:8px; }
-.fg .tpr .xp-pick select { height:34px; max-width:180px; padding:0 8px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--paper); font-size:13px; font-weight:600; }
-.fg .tpr .xp-btn { height:34px; padding:0 12px; border-radius:var(--r-button); font-size:13px; font-weight:700; background:var(--paper); border:1px solid var(--line); color:var(--gray700); transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .tpr .xp-btn:hover:not(:disabled) { background:var(--tint); }
-.fg .tpr .xp-btn.go { background:var(--press); border-color:var(--press); color:var(--paper); }
-.fg .tpr .xp-btn.go:hover:not(:disabled) { background:var(--press); border-color:var(--press); color:var(--paper); }
-.fg .tpr .xp-btn:disabled { opacity:.5; cursor:default; }
-.fg .tpr .xp-drift { flex:1 1 100%; display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding-top:8px; margin-top:2px; border-top:1px solid var(--line); font-size:12px; font-weight:600; color:var(--gray500); line-height:1.5; }
-.fg .tpr .xp-drift b { color:var(--ink); }
 
 /* Pay rates are asked for, not fetched — one Xero call PER PERSON, where
    everything else on this screen is one for the whole organisation. The strip
    says what it will spend before it spends it. */
-.fg .tpr .xp-pay { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px 12px; margin:0 0 12px; border-radius:var(--r-button); background:var(--tint); font-size:13px; font-weight:600; color:var(--gray500); }
-.fg .tpr .xp-pay span { flex:1 1 200px; }
-.fg .tpr .xp-pay .xp-btn { flex:0 0 auto; }
+
 /* agreement is quiet — a match needs no action, so it must not look like one */
-.fg .tpr .xp-drift.ok { color:var(--ok-t); }
-.fg .tpr .xp-drift i { font-style:normal; color:var(--gray400); }
 
 /* The weekly sweep's one line on Time & Pay. Amber advisory, not red: Xero
    changed and nobody has looked yet — a fact to act on, not a fault. */
 .fg .tp-drift { display:flex; align-items:center; gap:8px; padding:12px 16px; margin-bottom:16px; border-radius:var(--r-card); background:var(--warn-tint); color:var(--warn-t); font-size:13px; font-weight:600; line-height:1.5; }
 .fg .tp-drift .i { flex:0 0 auto; }
-
-.fg .tpr .xp-extra { margin-top:16px; padding:12px; border-radius:var(--r-button); border:1.5px dashed var(--line); background:var(--tint); }
-.fg .tpr .xp-extra b { display:block; font-size:13px; font-weight:700; color:var(--gray700); }
-.fg .tpr .xp-extra em { display:block; font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); margin-top:4px; line-height:1.5; }
-.fg .tpr .xp-extra ul { margin:8px 0 0; padding-left:16px; }
-.fg .tpr .xp-extra li { font-size:13px; font-weight:700; color:var(--ink); line-height:1.7; }
-.fg .tpr .xp-extra li span { font-weight:600; color:var(--gray400); }
 
 /* THE LOCK ON A CLOSED PERIOD IS GONE (2026-09-16). `.fg .tpr.locked
    .capprove / .cedit / .allbtn / .qform { display:none !important }` hid the
@@ -6419,7 +6317,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 
 /* the category dot. The ring beside a status word went (law 27): the word says what is happening, and the bar says how far. */
 .fg .tk-dot, .tk-sheet .tk-dot { width:9px; height:9px; border-radius:50%; flex:none; }
-@keyframes tkSpin { to { transform:rotate(360deg); } }
 
 /* Find-in-document, in its modal (doc-search.tsx).
 
@@ -6772,8 +6669,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 
 /* the input carries the page, so it is bigger here than it is under a
    transcript, and it loses the top margin that spaces it from one */
-.fg .tk-chatcol.landing .tinput { margin-top:0; }
-.fg .tk-chatcol.landing .tinput input { font-size:16px; padding:16px 0; }
 
 /* `.tk-starts` / `.tk-start` — the four canned-question pills — are DELETED,
    not parked: the component that rendered them is gone, and dead CSS in this
@@ -6894,14 +6789,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    explanation, and the disabled-state title still carries the long form.
    Worth ~70px of transcript at laptop heights, where the conversation was
    getting less than half the column. */
-.fg .page.tk-lock .tinput { margin-top:12px; }
-.fg .page.tk-lock .tinput .tib { display:none; }
-.fg .page.tk-lock .tinput .tin { gap:12px; padding:8px; border-radius:var(--r-card); border-color:var(--line); }
-.fg .page.tk-lock .tinput .tic { width:38px; height:38px; border-radius:var(--r-button); }
-.fg .page.tk-lock .tinput .tic .tiffmk { --tb:30px; }
-.fg .page.tk-lock .tinput input { font-size:16px; padding:8px 0; }
-.fg .page.tk-lock .tinput .tsend { width:40px; height:40px; border-radius:var(--r-button); }
-.fg .page.tk-lock .tinput .tmic { width:36px; height:36px; }
+
 .fg .page.tk-lock .tk-crow { margin-top:8px; gap:8px; padding:0 4px; }
 .fg .page.tk-lock .tk-clbl, .fg .page.tk-lock .tk-chint { display:none; }
 .fg .page.tk-lock .tk-mode { padding:2px; }

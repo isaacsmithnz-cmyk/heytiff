@@ -42,6 +42,7 @@ import { plusDays } from "./dates";
 import { readJobCheckInSessions } from "./job-check-ins-server";
 import { overriddenDays } from "./job-check-ins";
 import { summariseQuoteLines, type QuoteLine } from "./quote-worklist";
+import { crewOf } from "./jobs-list";
 import { sm8Handle } from "./sm8-mentions";
 import { jobMoneyOf, parseSm8AmountToCents, SM8_JOB_MONEY_COLUMNS } from "./job-money";
 import { materialLineOf, type JobMaterialLine, type JobPaymentEntry } from "./job-ledger";
@@ -83,6 +84,10 @@ export type AllJobsData = {
   truncated: boolean;
   /** ServiceM8 job uuid → the project that links it, for the tracked chip. */
   projectLinks: { remoteId: string; projectId: string }[];
+  /** Asked for with `crew`: who is on each job's bookings, by job uuid. */
+  crew?: Record<string, string[]>;
+  /** Asked for with `crew`: the day each work order was won, by job uuid. */
+  wonOn?: Record<string, string>;
 };
 
 export const EMPTY_ALL_JOBS: AllJobsData = { jobs: [], truncated: false, projectLinks: [] };
@@ -98,6 +103,8 @@ type JobRow = {
   date: string | null;
   quote_date: string | null;
   completion_date: string | null;
+  /** read for the Jobs list's won date only */
+  work_order_date?: string | null;
   total_invoice_amount?: string | null;
   invoice_sent?: number | null;
   invoice_date?: string | null;
@@ -236,14 +243,33 @@ export async function nextBookingOf(
 export async function loadAllJobs(
   orgId: string,
   today: string,
-  /** the Jobs list's timer, for a day (./jobs-timing) */
-  opts: { includeMoney?: boolean; timer?: JobsTimer } = {}
+  opts: {
+    includeMoney?: boolean;
+    /** the Jobs list's timer, for a day (./jobs-timing) */
+    timer?: JobsTimer;
+    /** the Jobs list's crew and won dates, read in the same waits as the
+        rest rather than after them */
+    crew?: boolean;
+  } = {}
 ): Promise<AllJobsData> {
   const includeMoney = opts.includeMoney ?? true;
+  const withCrew = opts.crew === true;
   const base =
     "uuid, generated_job_id, status, company_uuid, geo_city, category_uuid, " +
-    "job_description, date, quote_date, completion_date";
+    "job_description, date, quote_date, completion_date" +
+    (withCrew ? ", work_order_date" : "");
   const columns = includeMoney ? `${base}, ${SM8_JOB_MONEY_COLUMNS}` : base;
+
+  /* ASKED NOW, BESIDE THE LISTS, because nothing about them waits on the
+     jobs: the booking overlay's write state and zone (both cached for the
+     request, so nextBookingOf's own ask finds them answered), and, for the
+     crew, every staff name, a short list read whole. Each was a wait of its
+     own after the jobs landed (the Jobs list's timing, 26 October 2026). */
+  if (sm8BookingsAllowed()) {
+    void readBookingWriteState(orgId).catch(() => {});
+    void readBookingZone(orgId).catch(() => {});
+  }
+  const staffNamesP = withCrew ? readStaffNames(orgId) : Promise.resolve(new Map<string, string>());
 
   /* Open work is unbounded in age — a work order raised two years ago and
      never closed is exactly the row this tab exists to surface. Finished work
@@ -316,20 +342,26 @@ export async function loadAllJobs(
     /* The next diary block per job. Floored at today so a booking from last
        March can't read as "booked"; ordered ascending so the FIRST row seen
        for a job is its soonest. Only scheduled diary blocks count — recorded
-       time-on-site sessions (activity_was_scheduled=0) are not bookings. */
-    inChunks(jobIds, 200, async (chunk) => {
+       time-on-site sessions (activity_was_scheduled=0) are not bookings.
+       With the crew, the same read reaches back to the board's window, with
+       who each block is for: the next booking is the part from today on,
+       and the crew is all of it. A hundred jobs a chunk then, so a busy
+       window stays under the API's thousand rows a request. */
+    inChunks(jobIds, withCrew ? 100 : 200, async (chunk) => {
       const { data } = await supabaseAdmin
         .from("sm8_job_activities")
         /* with its uuid where the deployment books: the overlay is asked
            which of these we took out */
-        .select(sm8BookingsAllowed() ? "uuid, job_uuid, start_date" : "job_uuid, start_date")
+        .select(
+          [sm8BookingsAllowed() ? "uuid" : null, "job_uuid", "start_date", withCrew ? "staff_uuid" : null].filter(Boolean).join(", ")
+        )
         .eq("org_id", orgId)
         .eq("active", 1)
         .eq("activity_was_scheduled", 1)
         .in("job_uuid", chunk)
-        .gte("start_date", `${today} 00:00:00`)
+        .gte("start_date", withCrew ? doneFloor : `${today} 00:00:00`)
         .order("start_date", { ascending: true });
-      return (data ?? []) as unknown as { uuid?: string; job_uuid: string; start_date: string | null }[];
+      return (data ?? []) as unknown as { uuid?: string; job_uuid: string; start_date: string | null; staff_uuid?: string | null }[];
     }),
     /* WHAT HAS ACTUALLY BEEN PAID, per job. This is the collection story —
        the flags are not. `payment_received` is set on 45 jobs while 1,819
@@ -382,7 +414,9 @@ export async function loadAllJobs(
   );
 
   opts.timer?.mark("jobs.details");
-  const nextBooking = await nextBookingOf(orgId, jobIds, activities, today);
+  const fromToday = `${today} 00:00:00`;
+  const upcoming = withCrew ? activities.filter((a) => a.start_date != null && a.start_date >= fromToday) : activities;
+  const [nextBooking, staffNames] = await Promise.all([nextBookingOf(orgId, jobIds, upcoming, today), staffNamesP]);
   opts.timer?.mark("jobs.next");
 
   /* Summed here rather than in SQL, through the same parser the rest of the
@@ -412,13 +446,44 @@ export async function loadAllJobs(
     quote: r.status === "Quote" ? summariseQuoteLines(linesByQuote.get(r.uuid) ?? []) : null,
   }));
 
+  const wonOn: Record<string, string> = {};
+  if (withCrew) {
+    for (const r of rows) {
+      const won = r.work_order_date;
+      if (r.status === "Work Order" && won && won.length >= 10) wonOn[r.uuid] = won.slice(0, 10);
+    }
+  }
+
   return {
     jobs,
     truncated,
     projectLinks: ((projectJobRows ?? []) as { project_id: string; remote_id: string }[]).map(
       (r) => ({ remoteId: r.remote_id, projectId: r.project_id })
     ),
+    ...(withCrew
+      ? {
+          crew: crewOf(
+            activities.map((a) => ({ job_uuid: a.job_uuid, staff_uuid: a.staff_uuid ?? null, start_date: a.start_date })),
+            staffNames,
+            today,
+          ),
+          wonOn,
+        }
+      : {}),
   };
+}
+
+/** Every staff member's name in the mirror, by uuid: a short list, read
+    whole rather than asked for once the bookings name them. */
+async function readStaffNames(orgId: string): Promise<Map<string, string>> {
+  const names = new Map<string, string>();
+  const { data, error } = await supabaseAdmin.from("sm8_staff").select("uuid, first, last").eq("org_id", orgId);
+  if (error) console.error(`[jobs] couldn't read org ${orgId}'s staff names for the list:`, error);
+  for (const s of (data ?? []) as { uuid: string; first: string | null; last: string | null }[]) {
+    const name = [s.first, s.last].filter(Boolean).join(" ").trim();
+    if (name) names.set(s.uuid, name);
+  }
+  return names;
 }
 
 /* ── one job, in full, for the sheet ── */

@@ -21,7 +21,6 @@
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { inChunks } from "@/lib/in-chunks";
-import type { JobsTimer } from "./jobs-timing";
 import { sm8BookingsAllowed, sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { sm8Ours, withoutOurs } from "@/lib/integrations/sm8-echo";
 import {
@@ -245,8 +244,6 @@ export async function loadAllJobs(
   today: string,
   opts: {
     includeMoney?: boolean;
-    /** the Jobs list's timer, for a day (./jobs-timing) */
-    timer?: JobsTimer;
     /** the Jobs list's crew and won dates, read in the same waits as the
         rest rather than after them */
     crew?: boolean;
@@ -303,7 +300,6 @@ export async function loadAllJobs(
       .not("remote_id", "is", null),
   ]);
 
-  opts.timer?.mark("jobs.lists");
   const openAll = (openRows ?? []) as unknown as JobRow[];
   const truncated = openAll.length > ALL_JOBS_OPEN_CAP;
   const rows = [...openAll.slice(0, ALL_JOBS_OPEN_CAP), ...((doneRows ?? []) as unknown as JobRow[])];
@@ -413,11 +409,9 @@ export async function loadAllJobs(
     ])
   );
 
-  opts.timer?.mark("jobs.details");
   const fromToday = `${today} 00:00:00`;
   const upcoming = withCrew ? activities.filter((a) => a.start_date != null && a.start_date >= fromToday) : activities;
   const [nextBooking, staffNames] = await Promise.all([nextBookingOf(orgId, jobIds, upcoming, today), staffNamesP]);
-  opts.timer?.mark("jobs.next");
 
   /* Summed here rather than in SQL, through the same parser the rest of the
      money uses — an amount is a ServiceM8 string, and one place reads them. */

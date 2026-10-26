@@ -20,7 +20,7 @@ type Params = Promise<Record<string, string | string[] | undefined>>;
 
 export default async function JobsPage({ searchParams }: { searchParams: Params }) {
   if (!(await can("workboard"))) redirect("/dashboard");
-  const data = await loadJobsList({ from: "page" });
+  const data = await loadJobsList();
   if (!data) redirect("/dashboard");
   const initial = readListState(await searchParams, data.moneyVisible);
   /* every job's row goes to the browser for the views and the search,

@@ -6,6 +6,7 @@ import { componentShortlists, readQuoteSettings } from "@/lib/quotes/settings-qu
 import { rangeViews } from "@/lib/quotes/ranges-server";
 import { readSwaps } from "@/lib/quotes/lines-server";
 import { habitsFrom } from "@/lib/quotes/habits";
+import { bookProducts } from "@/lib/quotes/book-view-server";
 import { PriceBookScreen, type PricedPartsData } from "@/components/admin/price-book-screen";
 
 /* SETTINGS › PRICE BOOK — the business's own: its suppliers' price lists
@@ -37,5 +38,9 @@ export default async function PriceBookPage() {
     readPreferred(orgId).catch(() => new Set<string>()),
   ]).then(([components, ranges, swaps, preferred]) => ({ settings, components, ranges, habits: habitsFrom(swaps, preferred) }));
 
-  return <PriceBookScreen suppliers={suppliers} markupPct={settings.materialMarkupPct} parts={parts} />;
+  /* the book the Items tab opens on, started now rather than asked for
+     once the page has drawn: it streams in behind the page (26 October 2026) */
+  const book = bookProducts(orgId);
+
+  return <PriceBookScreen suppliers={suppliers} markupPct={settings.materialMarkupPct} parts={parts} book={book} />;
 }

@@ -196,8 +196,10 @@ describe("the view and the sheet agree", () => {
 });
 
 describe("the keyboard and reduced motion", () => {
-  /* Every control in the modal, and the words you click into to fix. */
-  const RINGED = [".fg .tm-aimx", ".fg .tm-x", ".fg .tm-rm", ".fg .tm-undo", ".fg .tm-words", ".fg .tm .pbtn"];
+  /* The words you click into to fix. The modal's buttons are the Button
+     and IconButton parts (the old-modals mock, 27 October 2026), which
+     carry their own ring. */
+  const RINGED = [".fg .tm-words"];
 
   /* On ink the ring is the ring on ink: paper outside, so it shows (law 32). */
   it.each(RINGED.map((c) => c.replace(/^\.fg (\.tm )?/, ".fg .tm ")))(

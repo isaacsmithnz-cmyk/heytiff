@@ -322,20 +322,11 @@ export function TiffModal({
             </span>
             {context && <Fade className="tm-ctx">{context}</Fade>}
             {c.aimed && c.targetLabel && (
-              <button
-                type="button"
-                className="tm-aimx"
-                aria-label={`Clear the tag — not about ${c.targetLabel}`}
-                onClick={c.dropAim}
-              >
-                <Icon name="x" size={16} />
-              </button>
+              <IconButton glyph="clear" size={32} label={`Clear the tag — not about ${c.targetLabel}`} onClick={c.dropAim} />
             )}
           </span>
           <IconButton glyph="minimise" label="Minimise" size={32} onClick={() => setSmall(true)} />
-          <button type="button" className="tm-x" aria-label="Close" onClick={(e) => close(e.detail === 0)}>
-            <Icon name="x" size={20} />
-          </button>
+          <IconButton glyph="close" size={32} label="Close" onClick={(e) => close(e.detail === 0)} />
         </header>
 
         <div className="tm-turns" ref={turnsRef}>
@@ -525,16 +516,17 @@ export function TurnView({
             <span key={d.kind}>{d.label}</span>
           ))}
           {turn.undo && (turn.noteId || turn.events) && (
-            <button
-              type="button"
-              className="tm-undo"
+            <Button
+              kind="quiet"
+              size={32}
               disabled={turn.undo === "busy"}
               /* A note's Undo takes back what it filed; a calendar line's
-                 takes its events off. */
+                 takes its events off. It does something, so it is a quiet
+                 button, not a link. */
               onClick={() => void (turn.events ? c.undoEvents(turn.key, turn.events) : c.undo(turn.key, turn.noteId!))}
             >
               Undo
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -578,14 +570,12 @@ function PlanRow({
         row.kb === "added" ? (
           <span className="tm-added">In the Library</span>
         ) : (
-          <button type="button" className="pbtn ghost" disabled={row.kb === "busy"} onClick={onLibrary}>
+          <Button kind="second" size={32} disabled={row.kb === "busy"} onClick={onLibrary}>
             Add to the Library
-          </button>
+          </Button>
         )
       ) : clearable ? (
-        <button type="button" className="tm-rm" aria-label={`Clear ${row.text} from the plan`} onClick={onClear}>
-          <Icon name="x" size={16} />
-        </button>
+        <IconButton glyph="clear" size={32} label={`Clear ${row.text} from the plan`} onClick={onClear} />
       ) : (
         <span />
       )}
@@ -604,9 +594,9 @@ function Quick({ answers, onAnswer }: { answers: QuickAnswer[]; onAnswer: (q: Qu
   return (
     <div className="tm-quick" ref={ref}>
       {held.map((q) => (
-        <button key={q.label} type="button" className="pbtn ghost" disabled={!answers.length} onClick={() => onAnswer(q)}>
+        <Button key={q.label} kind="second" size={32} disabled={!answers.length} onClick={() => onAnswer(q)}>
           {q.label}
-        </button>
+        </Button>
       ))}
     </div>
   );

@@ -4317,14 +4317,11 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .qt-job li em { font-style:normal; font-size:12px; font-weight:600; color:var(--info-t); }
 .fg .qt-job li.gone { color:var(--q); text-decoration:line-through; }
 .fg .ql-vs.ql-est { color:var(--warn-t); }
-/* Update quote on an accepted quote: a variation, asked what's changing (Isaac, 2026-10-10) */
-.fg .ql-vscrim { position:fixed; inset:0; z-index:var(--z-modal); background:rgba(21,26,36,.32); }
-.fg .ql-vdlg { position:fixed; z-index:var(--z-modal); top:20vh; left:50%; transform:translateX(-50%); width:min(480px, calc(100vw - 32px));
-  display:flex; flex-direction:column; gap:16px; padding:24px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); }
-.fg .ql-vdlg h3 { margin:0; font-size:20px; font-weight:700; color:var(--ink); }
-.fg .ql-vdlg p { margin:0; font-size:14px; line-height:1.5; color:var(--hd-body); }
-.fg .ql-vwhat { display:flex; flex-direction:column; gap:4px; font-size:13px; font-weight:500; color:var(--q); }
-.fg .ql-vwhat textarea { min-height:72px; padding:8px 12px; font:inherit; font-size:14px; color:var(--ink); resize:vertical; }
+/* Update quote (the old-modals mock, 27 October 2026): the Dialog part's,
+   portalled, so these are unscoped. What's changing is typed, so it is 16 (rule 13). */
+.ql-vbody { display:flex; flex-direction:column; gap:16px; }
+.pt-dialog .ql-vbody > p { margin:0; }
+.pt-dialog .pt-textarea.ql-vwhat { min-height:72px; font-size:16px; line-height:24px; }
 /* a variation, as the client gets it */
 .fg .lp-vto { font-size:16px; font-weight:700; }
 .fg .lp-vchg { display:flex; flex-direction:column; gap:4px; font-size:14px; }
@@ -5757,13 +5754,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
   transition:width var(--t-move) var(--ease), margin-right var(--t-move) var(--ease), opacity var(--t-move) var(--ease); }
 .fg .tm.speaking .tm-hmark { width:20px; margin-right:4px; opacity:1; }
 .fg .tm-ctx { font-size:13px; font-weight:500; color:var(--q); white-space:nowrap; overflow:hidden; }
-.fg .tm-aimx, .fg .tm-x, .fg .tm-rm { display:grid; place-items:center; flex:none; padding:0; color:var(--q);
-  transition:background-color var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease); }
-.fg .tm-aimx { width:24px; height:24px; border-radius:var(--r-control); }
-.fg .tm-x { width:32px; height:32px; border-radius:var(--r-button); }
-.fg .tm-aimx:hover, .fg .tm-x:hover, .fg .tm-rm:hover { background:var(--tint); }
-.fg .tm-aimx:focus-visible, .fg .tm-x:focus-visible, .fg .tm-rm:focus-visible,
-.fg .tm-undo:focus-visible, .fg .tm-words:focus-visible { outline:none; box-shadow:var(--ring); }
+/* the tag's cross, Close and Minimise are the IconButton part, at 32 */
+.fg .tm-words:focus-visible { outline:none; box-shadow:var(--ring); }
 
 /* the conversation: turns open by their own box, so a margin, never a gap */
 .fg .tm-turns { flex:0 1 auto; min-height:0; max-height:440px; overflow-y:auto; overscroll-behavior:contain;
@@ -5794,19 +5786,9 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
   font-size:12px; font-weight:700; color:var(--warn-t); box-shadow:inset 0 0 0 1.5px var(--warn-t); }
 .fg .tm-needs { font-size:13px; font-weight:600; color:var(--warn-t); white-space:nowrap; }
 .fg .tm-added { font-size:13px; font-weight:500; color:var(--q); white-space:nowrap; }
-.fg .tm-rm { width:24px; height:24px; border-radius:var(--r-control); opacity:0; }
-.fg .tm-row-plan:hover .tm-rm, .fg .tm-row-plan:focus-within .tm-rm { opacity:1; }
-.fg .tm .pbtn { height:36px; padding:0 12px; font-size:14px; }
-/* Done, Send, a quick answer, "Add to the Library", and the entry box's Save
-   and Sort it out: the ring the capture card's buttons wear, for the
-   keyboard only (law 32) */
-.fg .tm .pbtn:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .tm-quick { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
 .fg .tm-doors { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-top:12px;
   font-size:13px; font-weight:500; color:var(--q); }
-.fg .tm-undo { padding:0; font-size:13px; font-weight:600; color:var(--ink); text-decoration:underline;
-  text-underline-offset:2px; border-radius:var(--r-control); }
-.fg .tm-undo:disabled { color:var(--q); cursor:default; }
 
 /* the dock, the only buttons. Listening it is a plain row; otherwise the
    reply box, with the Tiff button on its end until you type. */
@@ -5839,13 +5821,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .tm .tm-head { gap:12px; height:64px; padding:0 16px 0 32px; }
 .fg .tm.speaking .tm-hmark { width:24px; margin-right:8px; }
 .fg .tm .tm-ctx { font-size:16px; color:var(--on-ink-q); }
-.fg .tm .tm-aimx, .fg .tm .tm-x, .fg .tm .tm-rm { color:var(--on-ink-q); }
-.fg .tm .tm-aimx { width:32px; height:32px; }
-.fg .tm .tm-x { width:40px; height:40px; }
-.fg .tm .tm-rm { width:32px; height:32px; }
-.fg .tm .tm-aimx:hover, .fg .tm .tm-x:hover, .fg .tm .tm-rm:hover { background:var(--on-ink-tint); }
-.fg .tm .tm-aimx:focus-visible, .fg .tm .tm-x:focus-visible, .fg .tm .tm-rm:focus-visible,
-.fg .tm .tm-undo:focus-visible, .fg .tm .tm-words:focus-visible, .fg .tm .pbtn:focus-visible { box-shadow:var(--ring-ink); }
+.fg .tm .tm-words:focus-visible { box-shadow:var(--ring-ink); }
 .fg .tm .tm-turns { max-height:572px; padding:0 32px 12px; }
 .fg .tm:not(:has(.tm-dock)) .tm-turns { padding-bottom:32px; }
 .fg .tm .tm-turn + .tm-turn { margin-top:24px; }
@@ -5867,14 +5843,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .tm .tm-qm { width:24px; height:24px; font-size:16px; color:var(--warn); box-shadow:inset 0 0 0 1.5px var(--warn); }
 .fg .tm .tm-needs { font-size:16px; color:var(--warn); }
 .fg .tm .tm-added { font-size:16px; color:var(--on-ink-q); }
-.fg .tm .pbtn { height:48px; padding:0 16px; font-size:16px; }
-.fg .tm .pbtn.ghost { background:none; border-color:var(--on-ink-line); color:var(--paper); }
-.fg .tm .pbtn.ghost:hover { background:var(--on-ink-tint); }
-.fg .tm .pbtn.primary, .fg .tm .pbtn.primary:hover { background:var(--paper); color:var(--ink); }
 .fg .tm .tm-quick { gap:12px; margin-top:16px; }
 .fg .tm .tm-doors { gap:16px; margin-top:16px; font-size:16px; color:var(--on-ink-q); }
-.fg .tm .tm-undo { font-size:16px; color:var(--paper); }
-.fg .tm .tm-undo:disabled { color:var(--on-ink-q); }
 .fg .tm .tm-dock { padding:16px 24px; border-top-color:var(--on-ink-line); }
 .fg .tm .wb2-recdot { width:12px; height:12px; }
 
@@ -6843,36 +6813,23 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 
 /* ── the quiet nudge ──
    A field mic filled the box; the words happen to contain something to do.
-   Dashed, unsaturated and dismissible — the field has already saved, so this
-   is an offer and ignoring it must cost nothing. */
-.wb2-nudge { display:flex; align-items:center; gap:8px; margin-top:8px; padding:8px 8px;
-  border:1px dashed rgba(0,127,168,.45); border-radius:var(--r-button); background:rgba(0,127,168,.06);
-  color:var(--gray700); font-size:13px; animation:wb2NudgeIn .3s var(--ease) both; }
-.wb2-nudge > svg { color:var(--wb2-cy, var(--ink)); flex:none; }
+   The field has already saved, so this is an offer and ignoring it must
+   cost nothing. A plain line under a hairline (the old-modals mock, 27
+   October 2026): the task glyph in ink, the sentence, Have a look as the
+   Button part's second at 32 and its close cross. No wash, no dashed edge. */
+.wb2-nudge { display:flex; align-items:center; gap:8px; min-height:44px; margin-top:8px; padding-top:8px;
+  border-top:1px solid var(--line); color:var(--ink); font-family:var(--font); font-size:14px; line-height:20px;
+  animation:wb2NudgeIn var(--t-move) var(--ease) both; }
+.wb2-nudge > svg { color:var(--ink); flex:none; }
 .wb2-nudgetext { flex:1; min-width:0; }
-@keyframes wb2NudgeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:none; } }
+@keyframes wb2NudgeIn { from { opacity:0; } to { opacity:1; } }
 @media (prefers-reduced-motion:reduce) {
   .wb2-nudge { animation:none; }
   }
 
-/* A smaller primary, for the nudge's inline action. Joins the portal-safe
-   list rather than relying on `.fg`, which does not reach out here. */
-.wb2 .pbtn.sm, .wb2-sheet .pbtn.sm,
-.wb2-nudge .pbtn.sm, .sws .pbtn.sm { height:29px; padding:0 12px; font-size:12px; border-radius:var(--r-button); }
-
-/* THE TOKEN HAS TO WORK OFF THE BOARD TOO. The fills above are scoped to
-   `.wb2` / `.wb2-sheet` / `.wb2-capcard`, which is fine while a control only
-   ever renders inside the workboard — and this one is meant to end up on
-   every screen. A `.pbtn` in a nudge on a staff card would otherwise be dark
-   text on white, indistinguishable from a label; that exact bug shipped once
-   on the capture overlay. So the nudge carries its fill itself rather than
-   inheriting an ancestor, as the strip's in-place review did until it went
-   with the old capture UI (2026-09-27). The nudge's one button is its
-   primary, never off, so it needs no ghost or disabled dress. */
-.wb2-nudge .pbtn:not(.ghost) {
-  background:var(--press); border:1px solid var(--press); color:var(--paper);
-  font-weight:700;box-shadow:var(--shadow-overlay); }
-.wb2-nudge .pbtn:not(.ghost):hover:not(:disabled) { background:var(--press); }
+/* A smaller primary. Joins the portal-safe list rather than relying on
+   `.fg`, which does not reach out here. */
+.wb2 .pbtn.sm, .wb2-sheet .pbtn.sm, .sws .pbtn.sm { height:29px; padding:0 12px; font-size:12px; border-radius:var(--r-button); }
 
 /* ── the debrief ── DELETED, deliberately.
 
@@ -9053,8 +9010,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .tm.tc-docked.tc-small { display:none; }
 .fg .tm.tc-docked .tm-head { height:48px; padding:0 8px 0 16px; gap:8px; border-bottom:1px solid var(--line); }
 .fg .tm.tc-docked .tm-ctx { font-size:14px; color:var(--q); }
-.fg .tm.tc-docked .tm-x, .fg .tm.tc-docked .tm-aimx { color:var(--q); width:32px; height:32px; }
-.fg .tm.tc-docked .tm-x:hover, .fg .tm.tc-docked .tm-aimx:hover { background:var(--hov); color:var(--ink); }
 .fg .tm.tc-docked .tm-turns { flex:1 1 auto; max-height:none; padding:16px; }
 .fg .tm.tc-docked .tm-tt, .fg .tm.tc-docked .tm-turn.live .tm-tt { color:var(--ink); font-size:14px; line-height:20px; }
 .fg .tm.tc-docked .tm-turn.past .tm-tt { color:var(--ink); }

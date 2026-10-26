@@ -577,3 +577,25 @@ describe("the new Home's text tokens clear 4.5:1 on every fill the page has", ()
     expect(ratio(hex("#d6293e"), WHITE)).toBeGreaterThan(4.5);
   });
 });
+
+/* THE ACTIVITY FEED'S BUBBLES, FILLED (Isaac, 26 October 2026: "Deep green
+   with white"): white words on the team's deep green, ink on the
+   customer's light grey. Both fills are read from the sheets, so a retune
+   of either re-checks it. */
+describe("the feed's filled bubbles", () => {
+  const code = CSS.replace(/\/\*[\s\S]*?\*\//g, "");
+  it("reads white on the team's deep green", () => {
+    expect(code).toMatch(/\.jc-bm--us \.jc-bubble \{[^}]*background:var\(--green-w\); color:var\(--white\)/);
+    expect(ratio(hex(token("white")), hex(token("green-w")))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("reads ink on the customer's light grey, a solid grey laid into white, never an ink alpha", () => {
+    expect(code).toMatch(/\.jc-bm--them \.jc-bubble \{[^}]*background:var\(--bubble-them\); color:var\(--ink\)/);
+    const mix = /^color-mix\(in srgb, var\(--grey\) (\d+)%, var\(--white\)\)$/.exec(token("bubble-them"));
+    expect(mix).not.toBeNull();
+    const grey = over(hex(token("grey")), Number(mix![1]) / 100, WHITE);
+    expect(ratio(hex(token("ink")), grey)).toBeGreaterThanOrEqual(4.5);
+    /* and it shows as a fill on the white page */
+    expect(ratio(grey, WHITE)).toBeGreaterThan(1.15);
+  });
+});

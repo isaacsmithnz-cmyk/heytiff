@@ -75,9 +75,12 @@ export type ThreadBubble = {
   kind: "bubble";
   key: string;
   side: "them" | "us";
-  /** said only where the speaker changes */
+  /** said once, above a run: where the speaker changes, or after a grey line */
   name: string | null;
   words: string;
+  /** the last of its run, which says the run's time (and Seen) under it, and
+      keeps the tucked corner on the speaker's side (Isaac, 26 October 2026) */
+  last: boolean;
   time: string;
   seen: string | null;
   attachments: number;
@@ -388,6 +391,7 @@ export function customerFeed(
         key: `msg:${m.id}`,
         side: m.side,
         name: who === speaker ? null : (m.name ?? (m.side === "them" ? opts.customer : "ServiceM8")),
+        last: true,
         /* a bubble reads as a text does: the paragraphs' blank lines closed up */
         words: m.text.trim().replace(/\n\s*\n+/g, "\n"),
         time: clockOf(m.stamp),
@@ -397,6 +401,13 @@ export function customerFeed(
       });
       speaker = who;
     }
+    /* A RUN is back-to-back messages from one speaker: anything else (a
+       grey line, another speaker) ends it, and only its last bubble says
+       the time */
+    lines.forEach((l, i) => {
+      const next = lines[i + 1];
+      if (l.kind === "bubble" && next?.kind === "bubble" && next.name === null) l.last = false;
+    });
     const kinds = new Set(msgs.map((m) => m.kind));
     const how = kinds.size > 1 ? "Email and text" : kinds.has("email") ? "Email" : "Text";
     const latest = moments.at(-1)!;

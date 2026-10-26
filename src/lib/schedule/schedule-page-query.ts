@@ -167,7 +167,7 @@ export async function loadSchedulePage(params: Record<string, string | string[] 
     its days and the panel reads this once, kept in the browser between
     switches and read again behind them (app/actions/schedule-panel). */
 export async function schedulePanelJobs(): Promise<PanelJob[]> {
-  const list = await loadJobsList({ from: "schedule-panel" });
+  const list = await loadJobsList();
   return (list?.rows ?? [])
     .filter((r) => r.key.startsWith(SM8))
     .map((r) => ({

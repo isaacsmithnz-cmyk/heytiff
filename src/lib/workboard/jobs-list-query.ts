@@ -13,7 +13,6 @@
 
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
-import { jobsTimer } from "./jobs-timing";
 import { getConnectionView } from "@/lib/integrations/store";
 import { listSm8SyncStatus } from "@/lib/integrations/sm8-sync";
 import { freshenSm8AfterResponse } from "@/lib/integrations/sm8-freshness";
@@ -39,11 +38,8 @@ export type JobsListData = {
 };
 
 
-export async function loadJobsList(opts: { from?: string } = {}): Promise<JobsListData | null> {
-  /* timed for a day, to the server's log only (./jobs-timing) */
-  const clock = jobsTimer(opts.from ?? "page");
+export async function loadJobsList(): Promise<JobsListData | null> {
   const session = await auth0.getSession();
-  clock.mark("session");
   const orgId = session?.orgId as string | undefined;
   if (!orgId) return null;
 
@@ -56,7 +52,6 @@ export async function loadJobsList(opts: { from?: string } = {}): Promise<JobsLi
     getConnectionView(orgId, "servicem8"),
     getSm8Timezone(orgId),
   ]);
-  clock.mark("grants");
   const connection = view === null ? "none" : view.status === "connected" ? "connected" : "attention";
   const connected = connection !== "none";
   const today = todayInZone(connected ? zone : null);
@@ -65,10 +60,10 @@ export async function loadJobsList(opts: { from?: string } = {}): Promise<JobsLi
      (`crew`): they were a wait of their own after the jobs landed, then a
      third for the staff names (the Jobs list's timing, 26 October 2026) */
   const [board, projectsBoard, allJobs, sync] = await Promise.all([
-    clock.lap("maintenance", loadMaintenanceBoard(orgId, today)),
-    clock.lap("projects", loadProjectsBoard(orgId, today, { includeMoney: false })),
-    clock.lap("jobs", connected ? loadAllJobs(orgId, today, { includeMoney: moneyVisible, timer: clock, crew: true }) : Promise.resolve(EMPTY_ALL_JOBS)),
-    clock.lap("sync", connected ? listSm8SyncStatus(orgId) : Promise.resolve(null)),
+    loadMaintenanceBoard(orgId, today),
+    loadProjectsBoard(orgId, today, { includeMoney: false }),
+    connected ? loadAllJobs(orgId, today, { includeMoney: moneyVisible, crew: true }) : Promise.resolve(EMPTY_ALL_JOBS),
+    connected ? listSm8SyncStatus(orgId) : Promise.resolve(null),
   ]);
 
   /* looking at the list counts as looking, as the board's does */
@@ -125,8 +120,6 @@ export async function loadJobsList(opts: { from?: string } = {}): Promise<JobsLi
     today,
     moneyVisible,
   });
-
-  clock.done({ rows: rows.length, jobs: allJobs.jobs.length });
 
   return {
     rows,

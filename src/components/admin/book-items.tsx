@@ -218,7 +218,13 @@ export function BookItems({
      for here */
   useEffect(() => {
     let live = true;
-    const read: Promise<Product[] | null> = started ?? fetch(ROUTE).then((r) => r.json() as Promise<Answer>).then(productsIn);
+    /* Promise.resolve, not `started` itself: the page's read reaches the
+       browser as React's own thenable, whose `then` hands back nothing, so
+       a `.catch` chained on it threw and the page fell to its error screen
+       (26 October 2026). Wrapped, it is a promise like any other. */
+    const read: Promise<Product[] | null> = started
+      ? Promise.resolve(started)
+      : fetch(ROUTE).then((r) => r.json() as Promise<Answer>).then(productsIn);
     read
       .then((got) => {
         if (!live) return;

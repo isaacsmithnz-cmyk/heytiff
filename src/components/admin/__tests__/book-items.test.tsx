@@ -198,3 +198,14 @@ it("says so when the page's read fails", async () => {
   render(<BookItems book={Promise.reject(new Error("down"))} />);
   expect(await screen.findByText(/couldn.t be read/)).toBeInTheDocument();
 });
+
+/* What the browser really gets from the page: React's own thenable, whose
+   `then` calls back and returns nothing. Chaining `.catch` on it threw and
+   the whole page fell to its error screen (26 October 2026). */
+it("draws from React's own thenable, whose then returns nothing", async () => {
+  const { asked } = serve();
+  const flight = { then: (ok: (v: Product[]) => void) => void ok(BOOK) } as unknown as Promise<Product[]>;
+  render(<BookItems markupPct={40} book={flight} />);
+  expect(await screen.findByRole("button", { name: "PAIRED COIL 1/4+1/2X20M" })).toBeInTheDocument();
+  expect(asked).toEqual([]);
+});

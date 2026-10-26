@@ -6,7 +6,7 @@
    drawing and the presses, not the router). The router's half has its own
    suites. */
 
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Conversation, ModalTurn } from "@/components/tiff/modal/use-conversation";
 import type { StoryEntry } from "@/lib/workboard/job-story";
@@ -21,6 +21,12 @@ const uploadFile = jest.fn();
 jest.mock("@/lib/documents/upload-client", () => ({ uploadFile: (...a: unknown[]) => uploadFile(...a) }));
 const deleteDocument = jest.fn(async (_id: string) => ({ ok: true }));
 jest.mock("@/app/actions/documents", () => ({ deleteDocument: (id: string) => deleteDocument(id) }));
+const addMyNote = jest.fn(async (..._a: unknown[]) => ({ ok: true, id: "my-1" }) as { ok: boolean; id?: string; error?: string });
+const deleteMyNote = jest.fn(async (..._a: unknown[]) => ({ ok: true }));
+jest.mock("@/app/actions/my-notes", () => ({
+  addMyNote: (...a: unknown[]) => addMyNote(...a),
+  deleteMyNote: (...a: unknown[]) => deleteMyNote(...a),
+}));
 
 beforeAll(() => {
   /* jsdom has no object URLs */
@@ -69,7 +75,6 @@ const talk = (over: Partial<JobNoteTalk> = {}): JobNoteTalk => ({
 const diary = (over: Partial<ConversationDiary> = {}): ConversationDiary => ({
   onOpenClaim: jest.fn(),
   onPhotos: jest.fn(),
-  onWrite: jest.fn(async () => undefined),
   onRemoveNote: jest.fn(),
   sender: null,
   notesSm8: null,
@@ -283,34 +288,56 @@ it("sends the box's words to Tiff with Send", async () => {
   expect(send).toHaveBeenCalled();
 });
 
-it("keeps the words as typed, a note on the job, with Tiff filing nothing", async () => {
+/* Isaac, 26 October 2026: "Unless it's a private note, you just hit add to
+   my notes instead". Send is the job's (Tiff files, and the one tidied note
+   goes to ServiceM8 by itself); Add to my notes keeps the words for you
+   alone: nothing written on the job, nothing filed, nothing sent. */
+it("keeps a private note in My notes, with nothing on the job and nothing to Tiff", async () => {
+  addMyNote.mockClear();
   const d = diary();
   const setDraft = jest.fn();
   const send = jest.fn();
-  draw({ c: convo({ draft: "  Grilles are in the van  ", setDraft, send }), d });
-  await userEvent.click(screen.getByRole("button", { name: "Save" }));
-  expect(d.onWrite).toHaveBeenCalledWith("Grilles are in the van", false, expect.any(String));
-  expect(setDraft).toHaveBeenCalledWith("");
+  draw({ c: convo({ draft: "  Ask Michael whether the deposit cleared  ", setDraft, send }), d });
+  await userEvent.click(screen.getByRole("button", { name: "Add to my notes" }));
+  expect(addMyNote).toHaveBeenCalledWith({ body: "Ask Michael whether the deposit cleared", source: "text" });
+  await waitFor(() => expect(setDraft).toHaveBeenCalledWith(""));
   expect(send).not.toHaveBeenCalled();
 });
 
-it("offers Save only once there are words", () => {
-  draw({ c: convo({ draft: "" }) });
-  expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+it("keeps the words in the box when My notes refused them", async () => {
+  addMyNote.mockResolvedValueOnce({ ok: false, error: "Your staff profile isn't set up yet." });
+  const setDraft = jest.fn();
+  draw({ c: convo({ draft: "Gate code 4471", setDraft }) });
+  await userEvent.click(screen.getByRole("button", { name: "Add to my notes" }));
+  await waitFor(() => expect(addMyNote).toHaveBeenCalled());
+  expect(setDraft).not.toHaveBeenCalled();
 });
 
-/* the walk of 25 October 2026: the ⓘ went (no hint text), and the Also in
-   ServiceM8 tick came inside the box's bottom row, after Add photo */
-it("has no ⓘ in the box, and the Also in ServiceM8 tick in its bottom row after Add photo", () => {
+it("offers Add to my notes only once there are words", () => {
+  draw({ c: convo({ draft: "" }) });
+  expect(screen.queryByRole("button", { name: "Add to my notes" })).toBeNull();
+});
+
+/* the walk of 25 October 2026: the ⓘ went (no hint text); the Also in
+   ServiceM8 tick went on 26 October, as a note on the job now goes by
+   itself */
+it("has no ⓘ and no Also in ServiceM8 tick: Add photo alone in the box's bottom row", () => {
   draw({
     c: convo({ draft: "Grilles are in the van" }),
     d: diary({ notesSm8: { owner: false } as never, sender: { state: "ready" } as never }),
   });
   expect(screen.queryByRole("button", { name: /^What Save/ })).toBeNull();
-  const tick = screen.getByRole("checkbox", { name: "Also in ServiceM8" });
-  const lead = tick.closest(".jc-lead") as HTMLElement;
+  expect(screen.queryByRole("checkbox", { name: "Also in ServiceM8" })).toBeNull();
+  const lead = screen.getByRole("button", { name: "Add photo" }).closest(".jc-lead") as HTMLElement;
   expect(lead.closest(".cv-boxbar")).not.toBeNull();
-  expect(lead.firstElementChild).toHaveTextContent("Add photo");
+});
+
+it("still says why your notes can't go to ServiceM8 yet, under the box", () => {
+  draw({
+    c: convo({ draft: "" }),
+    d: diary({ notesSm8: { owner: false } as never, sender: { state: "unlinked", noCard: false } as never }),
+  });
+  expect(screen.getByText("Link yourself to ServiceM8 first. An owner can do that in Integrations, ServiceM8.")).toBeInTheDocument();
 });
 
 it("(F) presses the feed's filter from the keyboard: each word is its own stop, and says whether it is pressed", async () => {

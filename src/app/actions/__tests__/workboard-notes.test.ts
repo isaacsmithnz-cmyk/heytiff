@@ -99,6 +99,20 @@ jest.mock("@/lib/workboard/note-brain", () => ({
   ...jest.requireActual("@/lib/workboard/note-brain"),
   readNote: jest.fn(),
 }));
+/* The send on to ServiceM8 (the one note on a job): a press, the
+   workspace's sending state, who the person is there, and the job sheet's
+   own send, each a stand-in that says what it was asked. */
+const press = { orgId: "org-1", userId: "auth0|me", staffId: "staff-me", at: 0 };
+jest.mock("@/lib/integrations/sm8-press", () => ({ sm8PressFromSession: async () => press }));
+let sm8Offered = true;
+const sm8State = { readable: true, kinds: ["note"], ownerKinds: ["note"], tenantId: "tenant-1", mode: "on" };
+jest.mock("@/lib/integrations/sm8-writes", () => ({
+  readSm8WriteState: async () => (sm8Offered ? sm8State : { ...sm8State, ownerKinds: [] }),
+}));
+let senderState = "ready";
+jest.mock("@/lib/integrations/links", () => ({ sm8NoteSender: async () => ({ state: senderState }) }));
+const sendEntryToSm8 = jest.fn(async (..._a: unknown[]) => ({ ok: true, state: null }) as { ok: boolean; state: null; error?: string });
+jest.mock("@/lib/integrations/sm8-note-entry", () => ({ sendEntryToSm8: (...a: unknown[]) => sendEntryToSm8(...a) }));
 
 import {
   clearFlag,
@@ -168,6 +182,7 @@ const proposalOf = (c: ConfirmedNote): NoteProposal => ({
   issueEntries: c.issueEntries.map((e) => ({ body: e.summary, equipmentHint: e.equipmentRef })),
   kbEntries: [],
   plainNote: "",
+  jobNote: "",
   say: "",
   clarify: null,
 });
@@ -763,6 +778,96 @@ describe("a job target", () => {
       target_kind: "job",
       target_id: "job-uuid",
     });
+  });
+});
+
+/* THE ONE NOTE ON A JOB (Isaac, 26 October 2026: "TIFF and service mate both
+   get the same note, but TIFF gets the features of the actions"; "It should
+   automatically go to sm8, no need for extra send option"). Job 2935's
+   words, as they'd be said on site. */
+describe("the one note on a job", () => {
+  const SAID =
+    "Um, so the pipe run to bed three is about 14 metres, so we'll need another 15 metre coil. Get David to grab that from Reece on Friday.";
+  const TIDIED = "Pipe run to Bed 3 is about 14 m, so we need another 15 m coil. @davidhann please grab it from Reece on Friday.";
+  const JOB_NOTE = { ...NOTE, target_kind: "job", target_id: "job-uuid", transcript: SAID };
+  const fileWith = (jobNote: string, over: Record<string, unknown> = {}) => {
+    rows.workboard_notes = { ...JOB_NOTE, ...over, proposal: { ...proposalOf(confirmed()), jobNote } };
+    return fileNote("n-1");
+  };
+
+  beforeEach(() => {
+    rows = { workboard_notes: JOB_NOTE, sm8_jobs: { uuid: "job-uuid" } };
+    lists.sm8_staff = [{ uuid: "u-david", first: "David", last: "Hann" }];
+    sendEntryToSm8.mockClear();
+    sm8Offered = true;
+    senderState = "ready";
+  });
+
+  it("is the note Tiff tidied, its mention a handle ServiceM8 knows", async () => {
+    expect((await fileWith(TIDIED)).ok).toBe(true);
+    expect(record()).toMatchObject({ jobNotes: [TIDIED] });
+  });
+
+  it("is the words as said when the tidy lost a figure", async () => {
+    expect((await fileWith(TIDIED.replace("14 m", "41 m"))).ok).toBe(true);
+    expect(record()).toMatchObject({ jobNotes: [SAID] });
+  });
+
+  it("is the words as said on a note read before Tiff tidied", async () => {
+    expect((await fileWith("")).ok).toBe(true);
+    expect(record()).toMatchObject({ jobNotes: [SAID] });
+  });
+
+  it("names a person ServiceM8 doesn't know without an @", async () => {
+    await fileWith(TIDIED.replace("@davidhann", "@davo"));
+    expect(record()).toMatchObject({ jobNotes: [TIDIED.replace("@davidhann", "davo")] });
+  });
+
+  describe("goes on to ServiceM8 by itself", () => {
+    beforeEach(() => {
+      process.env.SM8_WRITES = "attachment,note";
+    });
+    afterEach(() => {
+      delete process.env.SM8_WRITES;
+    });
+
+    it("as the person who said it, on its job, through the job sheet's own send", async () => {
+      expect((await fileWith(TIDIED)).ok).toBe(true);
+      expect(sendEntryToSm8).toHaveBeenCalledTimes(1);
+      expect(sendEntryToSm8).toHaveBeenCalledWith(press, sm8State, { jobUuid: "job-uuid", noteId: "n-1" }, expect.any(Number));
+    });
+
+    it("not while the person isn't linked to ServiceM8 yet, and the note is still filed", async () => {
+      senderState = "unlinked";
+      expect((await fileWith(TIDIED)).ok).toBe(true);
+      expect(record()).toMatchObject({ jobNotes: [TIDIED] });
+      expect(sendEntryToSm8).not.toHaveBeenCalled();
+    });
+
+    it("not where the workspace hasn't turned notes on", async () => {
+      sm8Offered = false;
+      await fileWith(TIDIED);
+      expect(sendEntryToSm8).not.toHaveBeenCalled();
+    });
+
+    it("a send ServiceM8 refuses leaves the note filed", async () => {
+      sendEntryToSm8.mockResolvedValueOnce({ ok: false, error: "ServiceM8 said no", state: null });
+      const err = jest.spyOn(console, "error").mockImplementation(() => {});
+      expect((await fileWith(TIDIED)).ok).toBe(true);
+      expect(err).toHaveBeenCalledWith(expect.stringContaining("ServiceM8 said no"));
+      err.mockRestore();
+    });
+
+    it("never from a note that isn't on a job", async () => {
+      rows = { workboard_notes: { ...NOTE, transcript: SAID }, projects: { id: "p-1" } };
+      await fileWith(TIDIED, { target_kind: "project", target_id: "p-1" });
+      expect(sendEntryToSm8).not.toHaveBeenCalled();
+    });
+  });
+
+  it("goes nowhere where this deployment doesn't send notes", async () => {
+    await fileWith(TIDIED);
+    expect(sendEntryToSm8).not.toHaveBeenCalled();
   });
 });
 

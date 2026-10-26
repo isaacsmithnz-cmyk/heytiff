@@ -186,6 +186,13 @@ export type NoteProposal = {
       the outdoor board separately" is a kb_entry; "cleared the E6" is not. */
   kbEntries: ProposedKbEntry[];
   plainNote: string;
+  /** THE NOTE ITSELF, tidied (Isaac, 26 October 2026): the whole of what was
+      said, as the job's diary keeps it and ServiceM8 gets it, one note for
+      both. The ums and false starts go; every figure, name and model stays;
+      a person it asks something of is their ServiceM8 handle. Filed on a job
+      only through note-tidy's `jobNoteWords`, which keeps the words as said
+      when a figure went missing. "" on every proposal stored before it. */
+  jobNote: string;
   /** What Tiff tells the person, in one or two short sentences, in the
       language they spoke (the Tiff modal, 2026-09-25). The ONE field that is
       not a record: nobody else reads it, so it is not written in English, and
@@ -210,6 +217,9 @@ export type NoteContext = {
   targetLabel?: string;
   /** Equipment already known at this site, for grounding "the middle one". */
   equipment?: string[];
+  /** The account's ServiceM8 people and their handles, for a job note's
+      mentions (sm8Roster): "David Hann" is @davidhann. */
+  handles?: { name: string; handle: string }[];
   /** What the org already knows about this job — the router's MEMORY
       (2026-08-06, the brain tool layer). Before this, the model met every
       note as a stranger: "tripped again" carried no again, and a repeat
@@ -395,6 +405,7 @@ export const NOTE_SCHEMA = {
       },
     },
     plain_note: str,
+    job_note: str,
     clarify_needed: { type: "boolean" },
     clarify_question: str,
     clarify_options: strArray,
@@ -411,6 +422,7 @@ export const NOTE_SCHEMA = {
     "issue_entries",
     "kb_entries",
     "plain_note",
+    "job_note",
     "clarify_needed",
     "clarify_question",
     "clarify_options",
@@ -433,6 +445,14 @@ export const TIFF_NOTE_SCHEMA = {
 };
 
 /* ── the instruction ──────────────────────────────────────────────────── */
+
+/** The ServiceM8 handles a job note may mention, one line; "" with none,
+    so a read without them is the prompt it always was. */
+export function handlesBlock(ctx: NoteContext): string {
+  const people = (ctx.handles ?? []).filter((h) => h.name.trim() && h.handle.trim()).slice(0, 80);
+  if (!people.length) return "";
+  return `ServiceM8 handles: ${people.map((h) => `${h.name} @${h.handle}`).join(", ")}.`;
+}
 
 /** The "what's already known" block — pure and exported so the tests can pin
     its exact wording without a network call.
@@ -724,6 +744,15 @@ const ROUTER_RULES = [
   "  that is always a kb_entry.",
   "- plain_note: anything that is genuinely just a remark. A note is",
   "  allowed to be a note — do not manufacture tasks to seem useful.",
+  "- job_note: ALWAYS the whole note again, tidied into the note the job",
+  "  keeps, the one the office and ServiceM8 read. Keep every fact exactly",
+  "  as said: every number and unit, measurement, model, name, place and",
+  "  day ('about 14 metres' stays 'about 14 m'). Drop the ums, repeats,",
+  "  false starts and anything said to you rather than about the job. Short",
+  "  plain sentences, a paragraph per topic. Write a person it asks",
+  "  something of as their ServiceM8 handle from the list, when they have",
+  "  one (@davidhann); anyone else by name. Add nothing that wasn't said:",
+  "  no greeting, no sign-off, no summary of what you filed.",
   "",
   "One note can produce several of these at once. Produce nothing for the",
   "parts of the note that do not call for it: empty arrays are correct.",
@@ -753,6 +782,7 @@ function noteFacts(ctx: NoteContext): string {
     ...(earlier ? [earlier] : []),
     ctx.targetLabel ? `\nThis note is about: ${ctx.targetLabel}.` : "",
     ctx.equipment?.length ? `Equipment on site: ${ctx.equipment.join(", ")}.` : "",
+    handlesBlock(ctx),
     historyBlock(ctx),
   ].join("\n");
 }
@@ -1204,6 +1234,7 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
     issueEntries: entries("issue_entries", "summary"),
     kbEntries,
     plainNote: clean(r.plain_note, BODY_MAX),
+    jobNote: clean(r.job_note, 4000),
     say,
     clarify,
   };

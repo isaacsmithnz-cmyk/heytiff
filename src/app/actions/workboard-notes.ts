@@ -132,6 +132,11 @@ import {
 import { startNoteVariation, variationRoute } from "@/lib/workboard/note-variation-start";
 import { VARIATION_KEPT, dropVariation, variationDraft } from "@/lib/quotes/lines-job-server";
 import { UNDO_HOLD_COLUMNS, undoHeldBySm8, type CreateRow } from "@/lib/integrations/sm8-note-plan";
+import { sm8PressFromSession } from "@/lib/integrations/sm8-press";
+import { offersSend } from "@/lib/integrations/sm8-write-plan";
+import { sm8NoteSender } from "@/lib/integrations/links";
+import { sm8Roster } from "@/lib/workboard/job-notes-query";
+import { jobNoteWords } from "@/lib/workboard/note-tidy";
 
 /* Smart Notes — capture, route, file, take back.
 
@@ -387,11 +392,13 @@ async function routingContext(
   target: NoteTarget,
   extra: Pick<NoteContext, "room" | "askWho" | "speak" | "earlier" | "receipt">,
 ): Promise<{ note: NoteContext; staff: NoteStaff[] }> {
-  const [staff, label, tz, history] = await Promise.all([
+  const [staff, label, tz, history, roster] = await Promise.all([
     assignableStaff(ctx.orgId),
     targetLabel(ctx.orgId, target),
     getSm8Timezone(ctx.orgId),
     jobHistory(ctx.orgId, target),
+    /* the ServiceM8 handles a job's note may mention */
+    target.kind === "job" ? sm8Roster(ctx.orgId).catch(() => []) : Promise.resolve([]),
   ]);
   const who = await authorContext(ctx.orgId, ctx.staffId, staff);
   return {
@@ -402,6 +409,7 @@ async function routingContext(
       targetLabel: label ?? undefined,
       todayISO: todayInZone(tz),
       equipment: history.equipment.length ? history.equipment : undefined,
+      ...(roster.length ? { handles: roster.map((p) => ({ name: p.name, handle: p.handle })) } : {}),
       history: {
         issues: history.issues.map((i) => ({
           summary: i.summary,
@@ -833,7 +841,7 @@ type Applied =
     always did; what only Undo reads is set on the record beside them. */
 async function applyConfirmed(
   ctx: Ctx,
-  note: Pick<NoteRow, "id" | "transcript">,
+  note: Pick<NoteRow, "id" | "transcript"> & { jobNote?: string },
   confirmed: ConfirmedNote,
   target: NoteTarget,
 ): Promise<Applied> {
@@ -1288,9 +1296,11 @@ async function applyConfirmed(
 
      `jobNotes` is the group the old review card's "keep it on the job"
      wrote, and the journal still counts, which is exactly what it means
-     here. */
+     here. The words are the note Tiff tidied from it where the filer
+     worked them out (note-tidy's `jobNoteWords`), the same words ServiceM8
+     gets; as said otherwise. */
   if (target.kind === "job") {
-    const words = trim(note.transcript, 4000);
+    const words = trim(note.jobNote || note.transcript, 4000);
     if (words) record("jobNotes", [words], "note on the job", "notes on the job");
   }
 
@@ -1470,7 +1480,13 @@ export async function fileNote(
     .select("id");
   if (!((claimed ?? []) as unknown[]).length) return { ok: false, error: SETTLED.applied };
 
-  const done = await applyConfirmed(ctx, note, toConfirmed(draft), target);
+  /* THE ONE NOTE (Isaac, 26 October 2026): on a job, the note Tiff tidied,
+     its mentions the roster's own handles, unless it lost a figure said */
+  const jobNote =
+    target.kind === "job" && plan.jobNote.trim()
+      ? jobNoteWords(said, plan.jobNote, new Set((await sm8Roster(ctx.orgId).catch(() => [])).map((p) => p.handle)))
+      : undefined;
+  const done = await applyConfirmed(ctx, { ...note, jobNote }, toConfirmed(draft), target);
   if (!done.ok) {
     await supabaseAdmin
       .from("workboard_notes")
@@ -1612,6 +1628,11 @@ export async function fileNote(
     p_applied: done.applied,
   });
 
+  /* AND ON TO SERVICEM8, with no Send (Isaac, 26 October 2026: "It should
+     automatically go to sm8, no need for extra send option"): a note filed
+     on a job goes as its author, through the job sheet's own send. */
+  if (target.kind === "job" && target.id) await sendOnToSm8(ctx, noteId, target.id);
+
   refreshHome(target);
   return {
     ok: true,
@@ -1623,6 +1644,35 @@ export async function fileNote(
     ...(variationsMade.length ? { variations: variationCards(variationsMade) } : {}),
     ...(ask ? { ask } : {}),
   };
+}
+
+/** A note just filed on a job, sent to ServiceM8 as the person who said it:
+    only where this deployment sends notes, the workspace offers them and
+    the person is linked and ready. Anywhere else it stays HeyTiff's, as a
+    note that never went says, and its line on the job says why. A send
+    that fails is logged and the note keeps its line; filing never waits on
+    ServiceM8 longer than the send's own budget. The sender is reached
+    lazily, as the journal reaches it: it brings the queue's drain (and the
+    server's runtime) with it, which nothing else here needs. */
+async function sendOnToSm8(ctx: Ctx, noteId: string, jobUuid: string): Promise<void> {
+  if (!sm8NotesAllowed()) return;
+  const startedAt = Date.now();
+  try {
+    const [{ readSm8WriteState }, { sendEntryToSm8 }] = await Promise.all([
+      import("@/lib/integrations/sm8-writes"),
+      import("@/lib/integrations/sm8-note-entry"),
+    ]);
+    const press = await sm8PressFromSession();
+    if (!press || press.orgId !== ctx.orgId) return;
+    const state = await readSm8WriteState(ctx.orgId);
+    if (!offersSend(state, "note")) return;
+    const sender = await sm8NoteSender(ctx.orgId, press.staffId, state.tenantId ?? undefined);
+    if (sender.state !== "ready") return;
+    const sent = await sendEntryToSm8(press, state, { jobUuid, noteId }, startedAt);
+    if (!sent.ok) console.error(`[sm8] note ${noteId} on job ${jobUuid} didn't go to ServiceM8 for org ${ctx.orgId}: ${sent.error}`);
+  } catch (err) {
+    console.error(`[sm8] couldn't send note ${noteId} on to ServiceM8 for org ${ctx.orgId}: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 /* ── VISITS (v2 step 6, slice B) ─────────────────────────────────────────

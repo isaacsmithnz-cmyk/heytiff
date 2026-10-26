@@ -12,7 +12,6 @@ import { CvBox } from "@/components/conversations/box";
 import {
   AlsoSm8,
   NoteDoors,
-  useAlsoSm8,
   withMentions,
   type DiaryNotesSm8,
   type Doors,
@@ -25,7 +24,8 @@ import { uploadFile } from "@/lib/documents/upload-client";
 import { RECEIPT_ACCEPT } from "@/lib/expenses/claim";
 import { fmtAuTime } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
-import { mintPressId } from "@/lib/workboard/press-id";
+import { addMyNote, deleteMyNote } from "@/app/actions/my-notes";
+import { WindowsContext } from "@/components/records/records-context";
 import { emptyStoryLine, filterStory, fmtStoryMinutes, type StoryEntry, type StoryFilter } from "@/lib/workboard/job-story";
 import { conversationDays, stampClock, type JobNoteTalk, type MadeCard, type MadeKind } from "@/lib/jobs/job-conversation";
 import type { FlagState } from "@/lib/integrations/sm8-note-plan";
@@ -103,8 +103,6 @@ const FILTERS: { key: FeedFilter; label: string }[] = [
 export type ConversationDiary = {
   onOpenClaim: (remoteId: string) => void;
   onPhotos: () => void;
-  /** Save: the pen's write. Absent until the card knows the job. */
-  onWrite?: (body: string, alsoSm8: boolean, composeId: string) => void | Promise<unknown>;
   onRemoveNote?: (id: string) => void;
   sender: NoteSender | null;
   notesSm8: DiaryNotesSm8 | null;
@@ -321,18 +319,28 @@ export function JobConversation({
     } else convo.send();
   };
 
-  /* SAVE: the words as they are, a note on the job, and nothing filed from
-     them. The pen's own write and its Also in ServiceM8. */
-  const [also, tick] = useAlsoSm8();
-  const sm8Tick = !!diary.notesSm8 && !!diary.onWrite;
+  /* ADD TO MY NOTES: the words kept for you alone (Isaac, 26 October 2026:
+     "Unless it's a private note, you just hit add to my notes instead").
+     Send is the job's: Tiff files from the note, and the one tidied note
+     goes to the job and to ServiceM8 by itself. My notes is private, so
+     nothing is filed and nothing is sent. */
+  const host = useContext(WindowsContext);
+  /* why your notes can't go to ServiceM8 yet, under the box */
+  const sm8Why = !!diary.notesSm8;
   const [keeping, setKeeping] = useState(false);
   const keep = () => {
     const words = convo.draft.trim();
-    if (!words || !diary.onWrite || keeping) return;
-    const sending = !!diary.notesSm8 && diary.sender?.state === "ready" && also;
+    if (!words || keeping) return;
     setKeeping(true);
-    convo.setDraft("");
-    void Promise.resolve(diary.onWrite(words, sending, mintPressId())).finally(() => setKeeping(false));
+    void addMyNote({ body: words, source: "text" })
+      .catch(() => ({ ok: false as const, error: "Couldn't keep that note." }))
+      .then((r) => {
+        if (!r.ok) return host?.toast(r.error);
+        convo.setDraft("");
+        const id = r.id;
+        host?.toast("Saved to My notes", id ? () => void deleteMyNote(id) : undefined);
+      })
+      .finally(() => setKeeping(false));
   };
 
   /* UNDO ON AN EARLIER NOTE: one press, one answer */
@@ -401,23 +409,21 @@ export function JobConversation({
           ranOut={ranOut}
           before={photo ? <PhotoChip photo={photo} onClear={clearPhoto} /> : null}
           lead={
-            /* Add photo, then the Also in ServiceM8 tick, 16 apart, in the
-               box's own bottom row (the walk of 25 October 2026) */
+            /* Add photo, in the box's own bottom row (the walk of 25
+               October 2026); a note on the job goes to ServiceM8 by itself,
+               so there is no tick beside it */
             <span className="jc-lead">
               {!photo && (
                 <Button kind="quiet" size={32} disabled={!canSend} onClick={() => picker.current?.click()}>
                   Add photo
                 </Button>
               )}
-              {sm8Tick && (
-                <AlsoSm8 part="tick" also={also} onTick={tick} sender={diary.sender} notesSm8={diary.notesSm8!} onConfirm={diary.onConfirm} />
-              )}
             </span>
           }
           extra={
-            diary.onWrite && convo.draft.trim() ? (
+            convo.draft.trim() ? (
               <Button kind="second" size={32} className="jc-keep" disabled={keeping} onClick={keep}>
-                {keeping ? "Saving" : "Save"}
+                {keeping ? "Saving" : "Add to my notes"}
               </Button>
             ) : null
           }
@@ -431,7 +437,7 @@ export function JobConversation({
           onChange={(e) => pick(e.target.files?.[0])}
         />
         {/* why the tick can't send yet, and its Yes / Not me, under the box */}
-        {sm8Tick && <AlsoSm8 part="why" also={also} onTick={tick} sender={diary.sender} notesSm8={diary.notesSm8!} onConfirm={diary.onConfirm} />}
+        {sm8Why && <AlsoSm8 part="why" also={false} onTick={() => {}} sender={diary.sender} notesSm8={diary.notesSm8!} onConfirm={diary.onConfirm} />}
       </div>
 
       <div className="jc-feed">

@@ -443,7 +443,6 @@ export function JobSheet({
     setFlags,
     flagsBusy,
     notesSm8,
-    writeNote,
     unwriteNote,
     replyNote,
     sendCopy,
@@ -2147,7 +2146,6 @@ export function JobSheet({
               diary={{
                 onOpenClaim: setOpenClaim,
                 onPhotos: () => go("photos"),
-                onWrite: cardId ? writeNote : undefined,
                 onRemoveNote: unwriteNote,
                 sender,
                 notesSm8,

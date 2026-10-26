@@ -67,7 +67,7 @@ beforeEach(() => {
       { org_id: ORG, uuid: JOB, generated_job_id: "2601", company_uuid: null, category_uuid: null, status: "Work Order", job_address: "14 Attunga Road, Miranda NSW 2228", geo_state: "NSW", job_description: "Supply and install a 5.0 kW split system", active: 1 },
     ],
     staff_profiles: [
-      staff("troy", "Troy", "Porter", "Crew lead"),
+      staff("troy", "Troy", "Porter", "Supervisor"),
       staff("dane", "Dane", "Whitmore", "Installer"),
       staff("sam", "Sam", "Ikpeba", "Apprentice"),
       staff("isaac", "Isaac", "Smith", "Owner"),
@@ -154,7 +154,7 @@ async function page(viewer: string, versionId: string) {
     rows: Object.fromEntries(
       [...container.querySelectorAll(".sws-people .sws-person")].map((r) => [r.querySelector("b")?.textContent ?? "", r.textContent ?? ""])
     ) as Record<string, string>,
-    presses: [...container.querySelectorAll("button, a.pbtn, a.sw-more")].map((b) => b.textContent ?? ""),
+    presses: [...container.querySelectorAll("button, a")].map((b) => b.textContent ?? ""),
   };
   unmount();
   return out;
@@ -179,7 +179,7 @@ async function paper(versionId: string) {
 /* ── the life of a SWMS ──────────────────────────────────────────────── */
 
 it("keeps every screen telling the same true story from issue to a finished job", async () => {
-  /* 1. THE CREW LEAD ISSUES IT on site: Troy in charge, Dane and Sam from the
+  /* 1. THE SUPERVISOR ISSUES IT on site: Troy in charge, Dane and Sam from the
         team, Kai from the plumber's. */
   const v1 = await issue();
   expect(await bell("dane")).toEqual(["Sign on to the SWMS"]);
@@ -200,8 +200,8 @@ it("keeps every screen telling the same true story from issue to a finished job"
   expect((await card("troy")).doors).toEqual(["Sign them on"]);
   const troyReads = await page("troy", v1.versionId);
   expect(troyReads.text).toMatch(/You signed on /);
-  expect(troyReads.rows["Kai Lindqvist"]).toMatch(/on Troy Porter's phone/);
-  expect(troyReads.rows["Troy Porter"]).toMatch(/^Troy PorterCrew lead/);
+  expect(troyReads.rows["Kai Lindqvist"]).toMatch(/On Troy Porter's phone/);
+  expect(troyReads.rows["Troy Porter"]).toMatch(/^TPTroy PorterSupervisor, in charge/);
 
   /* 3. DANE SIGNS ON AND RAISES SOMETHING — it reaches the person in charge. */
   as("dane");
@@ -213,7 +213,7 @@ it("keeps every screen telling the same true story from issue to a finished job"
     "Dane Whitmore raised: No anchor on the rear ridge",
   ]);
   const troyAnswers = await page("troy", v1.versionId);
-  expect(troyAnswers.text).toMatch(/An issue was raisedYours to answerNo anchor on the rear ridge/);
+  expect(troyAnswers.text).toMatch(/An issue was raisedYours to answerDWNo anchor on the rear ridge/);
   expect(troyAnswers.presses).toContain("Record it as sorted");
 
   /* 4. THE OFFICE CORRECTS A TYPO — a correction changes nothing about the
@@ -275,7 +275,7 @@ it("keeps every screen telling the same true story from issue to a finished job"
   expect((await card(null)).lines).toEqual([expect.stringMatching(/^Revised .*0 of 4 signed on/)]);
   expect((await page("dane", v3.versionId)).text).toMatch(/What changedEveryone signs on againCrane lift instead of a hoist, and a longer ladder/);
   /* the replaced version points at this one, without a version number */
-  expect((await page("dane", v1.versionId)).text).toMatch(/A newer SWMS replaced this one: Crane lift instead of a hoist, and a longer ladder\./);
+  expect((await page("dane", v1.versionId)).text).toMatch(/A newer SWMS replaced this oneCrane lift instead of a hoist, and a longer ladder/);
 
   /* 8. DANE LEAVES THE BUSINESS, and ServiceM8 closes the job. The bell and
         the card stop asking; the record keeps what it said. */
@@ -292,7 +292,7 @@ it("keeps every screen telling the same true story from issue to a finished job"
   mockDb.tables.sm8_jobs = [];
   const orphan = await paper(v3.versionId);
   expect(orphan.licences["Dane WhitmoreInstaller"]).toBe("ARC licence");
-  expect(orphan.licences["Troy PorterCrew lead"]).toBe("None on file");
+  expect(orphan.licences["Troy PorterSupervisor"]).toBe("None on file");
   expect(orphan.licences["Kai LindqvistLindqvist Plumbing"]).toBe("From outside the business, so none on file");
 });
 

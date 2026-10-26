@@ -364,6 +364,28 @@ everything looks fine").
   price and Recurring issues grey. Solid with the icon in ink, never blue,
   red or orange.
 
+#### On the SWMS sign-on
+
+His call on the mock of the old screens (27 October 2026: "For the swim
+sign on, change from crew lead to supervisor. Other than that, everything
+looks fine"), which left the mock's own choices standing.
+
+- **The sections wear Home's coloured block** (`.hm-blk` in `.sws-head`),
+  as a job's Overview does, despite old law 31: Before you start yellow
+  with a warning sign, Who it covers green with people, Sign on pink with a
+  pen. Two take the colours the Overview's ruling keeps off its blocks:
+  **Emergency is red** with a phone, despite rule 16, red only means wrong,
+  on the model of his red emergency contact on a person's page (it is the
+  one section someone has to find in a hurry); and **an issue and what
+  changed are orange**, a flag and a turn, because each is something that
+  needs a look. The block is solid with its icon in ink: no tint, no edge,
+  and never blue.
+- **The role that leads the work is "Supervisor"**, never "Crew lead": in
+  the template's steps (`lib/swms/library.ts`), on the button that tells
+  the person in charge about an issue, and in the tests. A SWMS issued
+  before the change keeps the words it was issued with, because a version
+  is frozen at issue.
+
 ### Named exemptions
 
 Isaac's own shapes on the new Home break some of the laws on purpose, on

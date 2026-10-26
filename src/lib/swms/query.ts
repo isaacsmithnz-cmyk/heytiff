@@ -234,7 +234,7 @@ export async function libraryApproval(orgId: string): Promise<{ approvedBy: stri
   return { approvedBy: nameIn(names, row.approved_by_staff_id), approvedAt: row.approved_at };
 }
 
-/** The business's owner, by name — who a blocked crew lead needs to ask. */
+/** The business's owner, by name — who a blocked supervisor needs to ask. */
 export async function ownerName(orgId: string): Promise<string | null> {
   const { data: org } = await supabaseAdmin
     .from("organizations")
@@ -550,7 +550,7 @@ export async function loadSwmsDocument(orgId: string, versionId: string): Promis
             ? {
                 at: eff.signon.at,
                 version: eff.version,
-                /* signed on someone else's phone — a workmate's or the crew lead's */
+                /* signed on someone else's phone — a workmate's or the supervisor's */
                 onPhoneOf:
                   eff.signon.signedByStaffId && eff.signon.signedByStaffId !== p.staffProfileId
                     ? nameIn(names, eff.signon.signedByStaffId)

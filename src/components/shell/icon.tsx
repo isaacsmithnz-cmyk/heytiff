@@ -126,6 +126,8 @@ export const ICON_PATHS: Record<string, string> = {
   listCheck:
     '<path d="m3 7 2 2 4-4"/><path d="m3 17 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>',
   edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  /* an issue raised with a SWMS (Lucide's flag) */
+  flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>',
   x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
   chevD: '<path d="m6 9 6 6 6-6"/>',
   /* Its mirror, for a disclosure that has to say which way it will go. A

@@ -29,7 +29,7 @@ describe("Button", () => {
     expect(b).toHaveClass("pt-btn", "pt-btn--36", "pt-btn--second");
   });
 
-  it.each(["main", "second", "quiet", "delete", "danger"] as const)("wears the %s kind", (kind) => {
+  it.each(["main", "second", "quiet", "delete", "danger", "xero"] as const)("wears the %s kind", (kind) => {
     render(<Button kind={kind}>Add visit</Button>);
     expect(screen.getByRole("button")).toHaveClass(`pt-btn--${kind}`);
   });
@@ -284,7 +284,10 @@ describe("controls.css", () => {
   it("takes its colours, corners, motion and font only from the tokens", () => {
     const used = [...CSS.matchAll(/var\(--([\w-]+)\)/g)].map((m) => m[1]);
     expect(used.filter((t) => !TOKENS.has(t))).toEqual([]);
-    expect(CSS).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+    // Xero's blue is the one hex, on its own button, named in docs/design.md
+    const xero = /\.pt-btn\.pt-btn--xero\s*\{[^}]*\}/;
+    expect(CSS).toMatch(xero);
+    expect(CSS.replace(xero, "")).not.toMatch(/#[0-9a-f]{3,8}\b/i);
     expect(CSS).not.toMatch(/\b(?:rgba?|hsla?)\(/);
     // blue only means press, spelled as the press (rule 17)
     expect(CSS).not.toMatch(/var\(--blue\)/);

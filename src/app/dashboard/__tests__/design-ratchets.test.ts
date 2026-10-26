@@ -406,9 +406,9 @@ const CSS_BUT_STUDIO = sheets(SRC)
   .filter((f) => path.relative(process.cwd(), f) !== STUDIO_SHEET)
   .map((f) => fs.readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, ""))
   .join("\n");
-function offPalette(): number {
+function offPalette(css = CSS_BUT_STUDIO): number {
   let n = 0;
-  for (const m of CSS_BUT_STUDIO.matchAll(/#[0-9a-fA-F]{3,8}\b/g)) {
+  for (const m of css.matchAll(/#[0-9a-fA-F]{3,8}\b/g)) {
     let h = m[0].toLowerCase();
     if (h.length === 4) h = `#${h[1]}${h[1]}${h[2]}${h[2]}${h[3]}${h[3]}`;
     else if (h.length === 9) h = h.slice(0, 7);
@@ -427,8 +427,9 @@ function offPalette(): number {
    are held the way the loops are: docs/design.md, "### Named exemptions",
    names each rule's class, the ratchet it breaks, and how many times.
 
-   Five ratchets take one: the gradients, the shadows, the bars at the left
-   edge, the Tailwind hexes and the pills. Each counts the sheets WITHOUT the
+   Six ratchets take one: the gradients, the shadows, the bars at the left
+   edge, the Tailwind hexes, the pills and the colours outside the 19, which
+   counts the sheets without the Studio's as it always has. Each counts the sheets WITHOUT the
    rule blocks its own rows cover, so the baselines do not move, and the hits
    in those blocks are held to the table exactly, both ways: a named rule
    that grows fails, and a row whose rule has gone fails until the row goes.
@@ -445,7 +446,12 @@ const EXEMPTABLE: Record<string, (css: string) => number> = {
   "bars at the left edge": leftBars,
   "Tailwind palette hexes": tailwindHexes,
   pills,
+  "colours outside the 19": offPalette,
 };
+
+/** The sheets a ratchet reads, when they are not all of them. */
+const SHEETS: Partial<Record<string, string>> = { "colours outside the 19": CSS_BUT_STUDIO };
+const sheetsFor = (ratchet: string) => SHEETS[ratchet] ?? CSS;
 
 type Exemption = { cls: string; ratchet: string; count: number };
 
@@ -506,7 +512,7 @@ function exempt(
 }
 
 /** The sheets as a ratchet counts them: without the rules named for it. */
-const outside = (ratchet: string) => exempt(CSS, classesFor(ratchet), EXEMPTABLE[ratchet]!).kept;
+const outside = (ratchet: string) => exempt(sheetsFor(ratchet), classesFor(ratchet), EXEMPTABLE[ratchet]!).kept;
 
 const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "type below 12px — the floor", now: small, baseline: 0 },
@@ -572,7 +578,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
     }, baseline: 125 },
   // v2, 18 October 2026: each first set wrong on purpose (-1), then to the count the run printed
   { law: "main buttons painted ink — the main button is blue (rule 22)", now: inkButtons, baseline: 0 },
-  { law: "colours outside the 19 — the palette, the token block included (rule 15)", now: offPalette, baseline: 43 },
+  { law: "colours outside the 19 — the palette, the token block included (rule 15)", now: () => offPalette(outside("colours outside the 19")), baseline: 43 },
   { law: "`text-overflow: ellipsis` — text that doesn't fit fades (rule 50)", now: () => count(/text-overflow\s*:\s*ellipsis/g), baseline: 0 },
   { law: "a typed \"…\" on screen — a wait says what it's doing; text that doesn't fit fades (rule 50)", now: () => countTsx(onScreen("…")), baseline: 2 },
   { law: "native `<select>` — a field with a chevron opens the app's own menu (rule 34)", now: () => countTsx(/<select\b/g), baseline: 51 },
@@ -624,7 +630,7 @@ describe("the design ratchets only go down", () => {
     it("holds every rule they cover to docs/design.md's table, both ways", () => {
       const held: Record<string, number> = {};
       for (const [ratchet, f] of Object.entries(EXEMPTABLE)) {
-        for (const [cls, n] of Object.entries(exempt(CSS, classesFor(ratchet), f).held)) {
+        for (const [cls, n] of Object.entries(exempt(sheetsFor(ratchet), classesFor(ratchet), f).held)) {
           held[`${ratchet} on .${cls}`] = n;
         }
       }

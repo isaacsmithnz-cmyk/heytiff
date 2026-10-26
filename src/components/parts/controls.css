@@ -46,6 +46,10 @@
 /* danger (25): the red block, only in the dialog that asks you to be sure;
    ink words, as on every solid hue but blue (the palette) */
 .pt-btn.pt-btn--danger { background: var(--red); color: var(--ink); border: 1px solid var(--red); cursor: pointer; }
+/* xero: Xero's own blue, white words, on a button that goes to Xero; the one
+   colour outside the palette a button wears, named in docs/design.md (Isaac,
+   27 October 2026). Like main, its hover keeps the blue. */
+.pt-btn.pt-btn--xero { background: #13b5ea; color: var(--white); border: 1px solid transparent; cursor: pointer; }
 
 /* a hover is one change, a fill (23) */
 .pt-btn.pt-btn--second:hover:not(:disabled):not([aria-disabled="true"]),

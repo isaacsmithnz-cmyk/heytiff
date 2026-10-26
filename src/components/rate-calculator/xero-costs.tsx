@@ -21,6 +21,7 @@ import {
 import type { PeriodChoice } from "@/lib/integrations/xero-pl";
 import { useHydrated } from "@/lib/use-hydrated";
 import { withCleanup } from "@/lib/ui/with-cleanup";
+import { Button } from "@/components/parts/button";
 
 /* Business costs, read from a connected Xero organisation.
 
@@ -227,9 +228,9 @@ export function XeroCostsPanel({ s, patch, onFetch }: XeroCostsPanelProps) {
             </button>
           ))}
         </div>
-        <button className="rcx-go" onClick={pull} disabled={busy}>
+        <Button kind="xero" size={36} className="rcx-go" onClick={pull} disabled={busy}>
           {busy ? "Reading Xero" : snap ? "Refresh" : "Pull from Xero"}
-        </button>
+        </Button>
       </div>
 
       {error && <p className="rcx-err">{error}</p>}

@@ -7,6 +7,8 @@ import { Icon } from "@/components/shell/icon";
    thin outline (23); quiet has no edge until you point at it (24); delete is
    a red word on the second button, and the red block only asks "are you
    sure" (25). Three heights, 32 in rows, 36 in forms, 44 on a phone (28).
+   Xero is Xero's own blue with white words, on a button that goes to Xero,
+   and is named in docs/design.md as outside the palette on his word.
 
    A hover is one change, a fill (23): the second, quiet and delete buttons
    take `--hov`, and the two solid ones keep their colour. A press moves 1px
@@ -17,7 +19,7 @@ import { Icon } from "@/components/shell/icon";
    fill, border, cursor) is two classes, (0,2,0), so it beats the reset's
    (0,1,1) inside the frame and in a portal alike. */
 
-export type ButtonKind = "main" | "second" | "quiet" | "delete" | "danger";
+export type ButtonKind = "main" | "second" | "quiet" | "delete" | "danger" | "xero";
 export type ControlSize = 32 | 36 | 44;
 
 type Common = {

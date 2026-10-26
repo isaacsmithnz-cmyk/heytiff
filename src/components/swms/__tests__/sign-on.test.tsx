@@ -77,16 +77,17 @@ const row = (name: string) =>
   screen.getAllByText(name).map((el) => el.closest(".sws-person")).find(Boolean) as HTMLElement;
 
 /* ONE PROMISE, NOT TWO. The paragraph says what signing means; a tick
-   repeating it was the same promise twice, and a greyed-out button that said
-   nothing left the reader hunting for what was missing. */
-it("signs you on once you've signed, and says so while the box is empty", async () => {
+   repeating it was the same promise twice. The dimmed button says the box
+   is still empty, with no hint text beside it. */
+it("signs you on once you've signed, and holds the button while the box is empty", async () => {
   const bell = jest.fn();
   window.addEventListener(BELL_REFRESH_EVENT, bell);
   render(<SwmsSignOn doc={doc()} me="dane" />);
 
   const button = screen.getByRole("button", { name: "Sign on" });
   expect(button).toBeDisabled();
-  expect(screen.getByText("Sign in the box to finish.")).toBeInTheDocument();
+  /* the dimmed button is enough: no hint text beside it */
+  expect(screen.queryByText(/Sign in the box/)).toBeNull();
   expect(screen.queryByRole("checkbox")).toBeNull();
   sign("Your signature");
   expect(button).toBeEnabled();

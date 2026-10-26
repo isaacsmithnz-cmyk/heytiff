@@ -128,8 +128,9 @@ function useSignOn(person: SwmsPerson, onSigned: () => void) {
     }, () => setBusy(false));
   };
 
-  /* a greyed-out button that says nothing leaves the reader hunting */
-  const word = tooLong ? "That signature is too long to keep. Clear it and sign again." : (error ?? (signed ? "" : "Sign in the box to finish."));
+  /* the dimmed button says the box is empty; words only for what went
+     wrong (no hint text, docs/design.md old law 3) */
+  const word = tooLong ? "That signature is too long to keep. Clear it and sign again." : (error ?? "");
   return {
     setPath,
     raising,
@@ -138,7 +139,6 @@ function useSignOn(person: SwmsPerson, onSigned: () => void) {
     setIssue,
     busy,
     word,
-    wrong: !!error || tooLong,
     ready: !busy && signed && !tooLong,
     submit,
   };
@@ -177,8 +177,8 @@ function SignOnCard({
       <SignaturePad onChange={s.setPath} label="Your signature" />
       <IssueOnSigning s={s} />
       <div className="sws-foot sws-foot--ruled">
-        <span className={s.wrong ? "sws-word sws-word--wrong" : "sws-word"}>{s.word}</span>
-        <Button kind="main" disabled={!s.ready} onClick={s.submit}>
+        {s.word && <span className="sws-word sws-word--wrong">{s.word}</span>}
+        <Button kind="main" className="sws-send" disabled={!s.ready} onClick={s.submit}>
           {s.busy ? "Signing on" : "Sign on"}
         </Button>
       </div>
@@ -212,7 +212,7 @@ function SignOnDialog({
       dismissable={false}
       foot={
         <>
-          {s.word && <span className={s.wrong ? "sws-word sws-word--wrong sws-footword" : "sws-word sws-footword"}>{s.word}</span>}
+          {s.word && <span className="sws-word sws-word--wrong sws-footword">{s.word}</span>}
           <Button kind="second" onClick={onClose}>
             Cancel
           </Button>

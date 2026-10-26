@@ -230,6 +230,8 @@
 .sws-word { min-width:0; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
 .sws-word.sws-word--wrong { color:var(--red-w); }
 .sws-word:empty { display:none; }
+/* the card's Sign on keeps the right whether or not a word stands beside it */
+.pt-btn.sws-send { margin-left:auto; }
 /* a quiet button's word stands level with the text above it */
 .pt-btn.sws-quiet { align-self:flex-start; margin-left:-12px; }
 .sws-done { display:flex; flex-direction:column; gap:12px; }

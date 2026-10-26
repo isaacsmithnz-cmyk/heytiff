@@ -6,6 +6,8 @@ import { buildDesignSnapshot, type DesignSnapshot } from "@/lib/studio/summary";
 import { planFigureBounds } from "@/lib/studio/figure-bounds";
 import { roomAreaM2, roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import type { DesignDocument, DesignObject } from "@/lib/studio/document";
+import { floorDisplayName } from "@/lib/studio/plans";
+import { sceneOf, type Scene3D } from "@/lib/studio/scene3d";
 
 /* THE DESIGNS, FOR THE PHONE TO LOOK AT (Isaac, 26 October 2026: the More
    page's Design). Read-only: the workspace's designs newest first, and one
@@ -13,6 +15,10 @@ import type { DesignDocument, DesignObject } from "@/lib/studio/document";
    hour), its rooms as polygons with their area and load, its units placed
    with their footprint, and the design's headline figures (the Summary's
    own `buildDesignSnapshot`). Nothing is drawn or changed on the phone.
+
+   And the design in 3D (Isaac, 27 October 2026: "build the 3D view into
+   the phone's Design"): the Studio's own `sceneOf`, which the phone hands
+   to the web's own 3D view (app/phone/3d), so it turns and looks the same.
 
    Session-free, for the workspace the phone's token check verified; the
    studio's own actions read the same table the same way (actions/studio's
@@ -123,8 +129,10 @@ const round = (v: number | null, places: number) => (v == null ? null : Math.rou
 
 const isRoom = (o: DesignObject): o is RoomObj => o.type === "room" && o.geometry.kind === "polygon";
 
-/** One design as the phone draws it, or null when it isn't this workspace's. */
-export async function readDesign(orgId: string, id: string): Promise<PhoneDesign | null> {
+type DesignRow = { id: string; name: string | null; updated_at: string; doc: DesignDocument };
+
+/** The workspace's design with its document brought up to date, or null. */
+async function loadDesign(orgId: string, id: string): Promise<DesignRow | null> {
   const { data, error } = await supabaseAdmin
     .from("studio_designs")
     .select("id, name, updated_at, doc")
@@ -133,12 +141,18 @@ export async function readDesign(orgId: string, id: string): Promise<PhoneDesign
     .maybeSingle();
   if (error || !data) return null;
   const row = data as { id: string; name: string | null; updated_at: string; doc: unknown };
-  let doc: DesignDocument;
   try {
-    doc = migrateDesign(row.doc).doc;
+    return { ...row, doc: migrateDesign(row.doc).doc };
   } catch {
     return null;
   }
+}
+
+/** One design as the phone draws it, or null when it isn't this workspace's. */
+export async function readDesign(orgId: string, id: string): Promise<PhoneDesign | null> {
+  const row = await loadDesign(orgId, id);
+  if (!row) return null;
+  const { doc } = row;
 
   const urls = await sign(doc.floors.flatMap((f) => f.plans.map((p) => p.imageRef)));
   const colourOf = new Map(doc.systems.map((s) => [s.id, s.colour]));
@@ -196,4 +210,18 @@ export async function readDesign(orgId: string, id: string): Promise<PhoneDesign
     systems: doc.systems.map((s) => ({ id: s.id, name: s.name, brand: s.brand, colour: s.colour, type: s.type })),
     floors,
   };
+}
+
+export type PhoneScene = {
+  scene: Scene3D;
+  /** the floors the 3D draws, bottom up, by the names the Studio shows */
+  floors: { id: string; name: string }[];
+};
+
+/** One design in 3D, or null when it isn't this workspace's. */
+export async function readScene(orgId: string, id: string): Promise<PhoneScene | null> {
+  const row = await loadDesign(orgId, id);
+  if (!row) return null;
+  const scene = sceneOf(row.doc);
+  return { scene, floors: scene.floors.map((f) => ({ id: f.id, name: floorDisplayName(f) })) };
 }

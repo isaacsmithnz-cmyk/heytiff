@@ -1,6 +1,6 @@
 /* A letter written on the paper it prints on: the details at the side draw
-   onto the letterhead as they're typed, Save sends the whole letter, and a
-   signature is only ever the signer's own. */
+   onto the letterhead as they're typed, Save letter sends the whole letter
+   and says so in a toast, and a signature is only ever the signer's own. */
 
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -49,7 +49,7 @@ beforeEach(() => jest.clearAllMocks());
 it("draws the details onto the letterhead as they're typed, and saves the whole letter", async () => {
   open();
   expect(paper().getByText("9 October 2026")).toBeInTheDocument();
-  await userEvent.type(screen.getByLabelText("To, a line each"), "Department of Home Affairs{enter}GPO Box 9984");
+  await userEvent.type(screen.getByLabelText("To"), "Department of Home Affairs{enter}GPO Box 9984");
   await userEvent.type(screen.getByLabelText("Re"), "Employment confirmation");
   expect(paper().getByText("Department of Home Affairs")).toBeInTheDocument();
   expect(paper().getByText("GPO Box 9984")).toBeInTheDocument();
@@ -57,40 +57,71 @@ it("draws the details onto the letterhead as they're typed, and saves the whole 
   expect(paper().getByText("Isaac Smith")).toBeInTheDocument();
   expect(paper().getByAltText("Signature of Isaac Smith")).toBeInTheDocument();
 
-  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  const saveButton = screen.getByRole("button", { name: "Save letter" });
+  await userEvent.click(saveButton);
   await waitFor(() => expect(saveLetter).toHaveBeenCalled());
   expect(saveLetter.mock.calls[0][0]).toEqual(
     expect.objectContaining({ recipient: "Department of Home Affairs\nGPO Box 9984", subject: "Employment confirmation", signerStaffId: "staff-1", withSignature: true })
   );
   expect(replace).toHaveBeenCalledWith("/dashboard/admin/letters/l-1");
-  expect(await screen.findByText("Saved.")).toBeInTheDocument();
+  expect(await screen.findByText("Letter saved")).toBeInTheDocument();
+  expect(saveButton).toBeDisabled();
+});
+
+it("holds Save letter until something changes", async () => {
+  open({ ...blankLetter("2026-10-09", "staff-1"), id: "l-1" });
+  const saveButton = screen.getByRole("button", { name: "Save letter" });
+  expect(saveButton).toBeDisabled();
+  await userEvent.type(screen.getByLabelText("Re"), "Car loan");
+  expect(saveButton).toBeEnabled();
+});
+
+it("says a failed save under the title, and keeps what was typed", async () => {
+  saveLetter.mockResolvedValueOnce({ ok: false, error: "Couldn't save the letter. Try again." } as never);
+  open();
+  await userEvent.type(screen.getByLabelText("Re"), "Employment confirmation");
+  await userEvent.click(screen.getByRole("button", { name: "Save letter" }));
+  const alert = await screen.findByRole("alert");
+  expect(alert).toHaveTextContent("Couldn't save the letter");
+  expect(alert).toHaveTextContent("Your changes are still here. Try again.");
+  expect(screen.getByLabelText("Re")).toHaveValue("Employment confirmation");
+  expect(screen.getByRole("button", { name: "Save letter" })).toBeEnabled();
 });
 
 it("offers only the signer their own signature, and says so for anyone else", async () => {
   open();
   expect(screen.getByRole("checkbox", { name: "Add my signature" })).toBeChecked();
-  await userEvent.selectOptions(screen.getByLabelText("Signed by"), "staff-2");
+  await userEvent.click(screen.getByRole("combobox", { name: "Signed by" }));
+  await userEvent.click(screen.getByRole("option", { name: "Sam Taylor, Technician" }));
   expect(screen.queryByRole("checkbox", { name: "Add my signature" })).toBeNull();
   expect(screen.getByText("Only Sam Taylor can add their signature, by opening this letter and saving it.")).toBeInTheDocument();
   expect(paper().queryByAltText(/Signature of/)).toBeNull();
   expect(paper().getByText("Technician")).toBeInTheDocument();
 });
 
-it("has a toolbar of worded buttons over the paper", async () => {
+it("has a toolbar of worded buttons over the paper, the headings in one chooser and the alignments in a tray", async () => {
   open();
   const bar = await screen.findByRole("toolbar", { name: "Formatting" });
-  for (const name of ["Bold", "Italic", "Underline", "Heading", "Bullets", "Numbers", "Centre", "Table", "Undo"]) {
+  for (const name of ["Bold", "Italic", "Underline", "Bullets", "Numbers", "Add table", "Undo", "Redo"]) {
     expect(within(bar).getByRole("button", { name })).toBeInTheDocument();
   }
+  expect(within(bar).getByRole("combobox", { name: "Text style" })).toHaveTextContent("Body text");
+  const align = within(bar).getByRole("radiogroup", { name: "Alignment" });
+  for (const name of ["Left", "Centre", "Right", "Justify"]) expect(within(align).getByRole("radio", { name })).toBeInTheDocument();
+  expect(within(align).getByRole("radio", { name: "Left" })).toHaveAttribute("aria-checked", "true");
+  await userEvent.click(within(bar).getByRole("combobox", { name: "Text style" }));
+  expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["Body text", "Heading", "Subheading"]);
 });
 
-it("deletes after a second press, and goes back to the list", async () => {
+it("asks before deleting, in a dialog, and goes back to the list", async () => {
   open({ ...blankLetter("2026-10-09", "staff-1"), id: "l-1" });
-  await userEvent.click(screen.getByRole("button", { name: "Delete" }));
-  await userEvent.click(screen.getByRole("button", { name: "Keep" }));
-  expect(deleteLetter).not.toHaveBeenCalled();
-  await userEvent.click(screen.getByRole("button", { name: "Delete" }));
   await userEvent.click(screen.getByRole("button", { name: "Delete letter" }));
+  expect(screen.getByRole("dialog", { name: "Delete this letter?" })).toHaveTextContent("It can't be brought back.");
+  await userEvent.click(screen.getByRole("button", { name: "Keep letter" }));
+  expect(deleteLetter).not.toHaveBeenCalled();
+  expect(screen.queryByRole("dialog")).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Delete letter" }));
+  await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Delete letter" }));
   await waitFor(() => expect(deleteLetter).toHaveBeenCalledWith("l-1"));
   expect(push).toHaveBeenCalledWith("/dashboard/documents?view=letter");
 });

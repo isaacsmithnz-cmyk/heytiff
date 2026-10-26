@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Icon } from "@/components/shell/icon";
 import { Button } from "@/components/parts/button";
 import { Loading, Wrong } from "@/components/parts/states";
+import { Chooser } from "@/components/parts/chooser";
+import { StateWord } from "@/components/parts/state";
+import { Setting, Wrong as WrongLine } from "@/components/settings/parts";
+import Link from "next/link";
 import type {
   LinkingData,
   LinkActionResult,
@@ -120,7 +123,7 @@ export function XeroPayroll({
 
   if (!data.connected) {
     return (
-      <p className="xp-note">
+      <p className="st2-xp-note">
         Xero isn&apos;t connected. An owner can connect it in Settings › Integrations, and these
         people can be matched afterwards.
       </p>
@@ -153,51 +156,44 @@ export function XeroPayroll({
   };
 
   return (
-    <div className="xp">
-      {error && <p className="xp-note bad">{error}</p>}
-
-      <p className="xp-note">
-        {linked.length} of {data.rows.length} matched to{" "}
-        <b>{data.tenantName ?? "Xero"}</b>. Nothing is changed in Xero — matching only tells
-        HeyTiff who is who.
-      </p>
+    <div className="st2-xp">
+      {error && <WrongLine>{error}</WrongLine>}
 
       {/* Pay rates cost one Xero call PER PERSON, so they are asked for
-          explicitly and the button says what it will spend. Everything else on
+          explicitly and the line says what it will spend. Everything else on
           this screen is one call for the whole organisation. */}
-      {linked.length > 0 && (
-        <div className="xp-pay">
-          {pay ? (
-            <span>
-              Pay rates read from Xero. HeyTiff still owns the wage — nothing was changed.
-              {unread > 0 &&
-                ` ${unread} couldn't be read, so the drift flag wasn't trusted — re-check when Xero answers.`}
-            </span>
-          ) : (
-            <span>
-              Compare wages against Xero? {linked.length} lookup{linked.length === 1 ? "" : "s"}.
-            </span>
-          )}
-          <button className="xp-btn" disabled={checking || busy} onClick={checkPay}>
+      <Setting
+        name={`${linked.length} of ${data.rows.length} matched to ${data.tenantName ?? "Xero"}`}
+        line={
+          linked.length === 0
+            ? null
+            : pay
+              ? `Pay rates read from Xero. HeyTiff still owns the wage.${
+                  unread > 0 ? ` ${unread} couldn't be read, so the drift flag wasn't trusted — re-check when Xero answers.` : ""
+                }`
+              : `Compare wages against Xero? ${linked.length} lookup${linked.length === 1 ? "" : "s"}.`
+        }
+      >
+        {linked.length > 0 && (
+          <Button kind="second" size={32} disabled={checking || busy} onClick={checkPay}>
             {checking ? "Reading the pay rates" : pay ? "Re-check" : "Check pay rates"}
-          </button>
-        </div>
-      )}
+          </Button>
+        )}
+      </Setting>
 
       {data.calendar?.note && (
-        <p className="xp-advisory">
-          <Icon name="info" size={15} />
-          {data.calendar.note}
+        <p className="st2-xp-note">
+          <StateWord tone="look">{data.calendar.note}</StateWord>
         </p>
       )}
 
       {data.elsewhere > 0 && (
-        <p className="xp-note">
+        <p className="st2-xp-note">
           {`${data.elsewhere} ${data.elsewhere === 1 ? "match belongs" : "matches belong"} to a different Xero organisation. They're kept, and apply again if you switch back.`}
         </p>
       )}
 
-      <div className="xp-rows">
+      <ul className="st2-xp-rows" aria-label="People and their Xero payroll match">
         {data.rows.map((row) => (
           <StaffRow
             key={row.staffProfileId}
@@ -212,46 +208,48 @@ export function XeroPayroll({
             onAdoptWage={() => run(() => onAdoptWage(row.staffProfileId))}
           />
         ))}
-      </div>
+      </ul>
 
+      {/* A match kept for someone archived here still holds a Xero employee,
+          so it can be let go from this list and no other. */}
       {data.archived.length > 0 && (
-        <div className="xp-extra">
-          <b>Matched, but archived here</b>
-          <em>
-            Their match is kept in case they come back, but it holds a Xero employee claimed and
-            it can only be unmatched from this list. They&apos;re left out of pay-rate checks.
-          </em>
-          {data.archived.map((a) => (
-            <div className="xp-row" key={a.staffProfileId}>
-              <span>
-                {a.name}
-                {a.remoteLabel ? <span> ↔ {a.remoteLabel}</span> : null}
-              </span>
-              <button
-                className="xp-btn"
-                disabled={busy}
-                onClick={() => run(() => onUnlink(a.staffProfileId))}
-              >
-                Unmatch
-              </button>
-            </div>
-          ))}
+        <div className="st2-xp-part">
+          <h3 className="st2-pay-h3">Matched, but archived here</h3>
+          <ul className="st2-xp-rows" aria-label="Matched, but archived here">
+            {data.archived.map((a) => (
+              <li className="st2-xp-row" key={a.staffProfileId}>
+                <span className="st2-xp-who">
+                  <b>{a.name}</b>
+                  {a.remoteLabel ? <em>{a.remoteLabel}</em> : null}
+                </span>
+                <span className="st2-xp-act">
+                  <Button kind="second" size={32} disabled={busy} onClick={() => run(() => onUnlink(a.staffProfileId))}>
+                    Unmatch
+                  </Button>
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
+      {/* On the Xero payroll with nobody here matched to them: Integrations
+          imports them as staff cards, matched on arrival. */}
       {data.unaccounted.length > 0 && (
-        <div className="xp-extra">
-          <b>In Xero, not here</b>
-          <em>
-            On the Xero payroll with nobody in this workspace matched to them. Import them as
-            staff cards from Admin → Integrations → Xero, where each field is reviewed before it
-            lands; they arrive matched, so this list empties itself.
-          </em>
-          <ul>
+        <div className="st2-xp-part">
+          <div className="st2-xp-parthead">
+            <h3 className="st2-pay-h3">In Xero, not here</h3>
+            <Link href="/dashboard/admin/integrations#xero" className="st2-link">
+              Import from Xero
+            </Link>
+          </div>
+          <ul className="st2-xp-rows" aria-label="In Xero, not here">
             {data.unaccounted.map((e) => (
-              <li key={e.employeeId}>
-                {e.name}
-                {e.jobTitle ? <span>, {e.jobTitle}</span> : null}
+              <li className="st2-xp-row" key={e.employeeId}>
+                <span className="st2-xp-who">
+                  <b>{e.name}</b>
+                  {e.jobTitle ? <em>{e.jobTitle}</em> : null}
+                </span>
               </li>
             ))}
           </ul>
@@ -290,73 +288,69 @@ function StaffRow({
   const suggested = row.employment?.kind === "suggest_subbie" ? row.employment.suggested : "";
 
   return (
-    <div className="xp-row">
-      <div className="xp-who">
+    <li className="st2-xp-row">
+      <span className="st2-xp-who">
         <b>{row.name}</b>
         <em>{describe(s)}</em>
-      </div>
+      </span>
 
-      <div className="xp-act">
+      <span className="st2-xp-act">
         {s.kind === "suggested" && (
           /* The reason rides on the button. "Matched by email" and "matched by
              name" are very different levels of evidence, and whoever presses
              this should be told which one they're trusting. */
-          <button className="xp-btn go" disabled={busy} onClick={() => onLink(s.employee.employeeId, "auto")}>
+          <Button kind="second" size={32} disabled={busy} onClick={() => onLink(s.employee.employeeId, "auto")}>
             Match by {s.reason}
-          </button>
+          </Button>
         )}
 
         {(s.kind === "linked" || s.kind === "linked_left" || s.kind === "linked_missing") && (
-          <button className="xp-btn" disabled={busy} onClick={onUnlink}>
+          <Button kind="second" size={32} disabled={busy} onClick={onUnlink}>
             Unmatch
-          </button>
+          </Button>
         )}
 
         {(s.kind === "unmatched" || s.kind === "ambiguous" || s.kind === "suggested") &&
           (picking ? (
-            <span className="xp-pick">
-              <select value={pick} onChange={(e) => setPick(e.target.value)} aria-label={`Xero employee for ${row.name}`}>
-                <option value="">Choose an employee</option>
-                {employees.map((e) => (
-                  <option key={e.employeeId} value={e.employeeId}>
-                    {e.name}
-                  </option>
-                ))}
-              </select>
-              <button className="xp-btn go" disabled={busy || !pick} onClick={() => onLink(pick, "manual")}>
+            <>
+              <Chooser
+                size={32}
+                className="st2-xp-pick"
+                aria-label={`Xero employee for ${row.name}`}
+                placeholder="Choose an employee"
+                options={employees.map((e) => ({ value: e.employeeId, label: e.name }))}
+                value={pick || null}
+                onChange={setPick}
+              />
+              <Button kind="second" size={32} disabled={busy || !pick} onClick={() => onLink(pick, "manual")}>
                 Match
-              </button>
-            </span>
+              </Button>
+            </>
           ) : (
-            <button className="xp-btn" disabled={busy} onClick={() => setPicking(true)}>
+            <Button kind="second" size={32} disabled={busy} onClick={() => setPicking(true)}>
               {s.kind === "suggested" ? "Someone else" : "Choose"}
-            </button>
+            </Button>
           ))}
-      </div>
+      </span>
 
       {/* Drift, never resolved on our own: HeyTiff owns employment_type, so
           Xero's answer is a suggestion with a button, and the contradiction
           case gets no button at all because neither side is obviously right. */}
       {row.employment?.kind === "suggest_subbie" && (
-        <div className="xp-drift">
-          <span>
-            Xero pays them as a contractor; here they&apos;re{" "}
-            {row.employmentType ? <b>{row.employmentType}</b> : <i>not set</i>}.
-          </span>
-          <button
-            className="xp-btn go"
-            disabled={busy}
-            onClick={() => onAdopt(suggested)}
-          >
-            Set to {suggested}
-          </button>
-        </div>
+        <Drift
+          says={
+            <>
+              Xero pays them as a contractor; here they&apos;re {row.employmentType ? <b>{row.employmentType}</b> : "not set"}.
+            </>
+          }
+          act={
+            <Button kind="second" size={32} disabled={busy} onClick={() => onAdopt(suggested)}>
+              Set to {suggested}
+            </Button>
+          }
+        />
       )}
-      {row.employment?.kind === "contradiction" && (
-        <div className="xp-drift">
-          <span>{row.employment.note}</span>
-        </div>
-      )}
+      {row.employment?.kind === "contradiction" && <Drift says={row.employment.note} />}
 
       {/* Wage drift, once someone has asked for it. HeyTiff owns the wage, so
           Xero's figure is shown beside ours with an adopt button — and only
@@ -370,25 +364,35 @@ function StaffRow({
       {(() => {
         const basis = payBasisDrift(row.payBasis, wage?.drift ?? null);
         if (!basis) return null;
-        if (basis.kind === "contradiction")
-          return (
-            <div className="xp-drift">
-              <span>{basis.note}</span>
-            </div>
-          );
+        if (basis.kind === "contradiction") return <Drift says={basis.note} />;
         return (
-          <div className="xp-drift">
-            <span>
-              Xero pays them a salary; here they&apos;re on an <b>hourly</b> basis, so their
-              timesheet asks for every day.
-            </span>
-            <button className="xp-btn go" disabled={busy} onClick={onAdoptBasis}>
-              Mark salaried
-            </button>
-          </div>
+          <Drift
+            says={
+              <>
+                Xero pays them a salary; here they&apos;re on an <b>hourly</b> basis, so their timesheet asks for every day.
+              </>
+            }
+            act={
+              <Button kind="second" size={32} disabled={busy} onClick={onAdoptBasis}>
+                Mark salaried
+              </Button>
+            }
+          />
         );
       })()}
-    </div>
+    </li>
+  );
+}
+
+/** Where Xero and HeyTiff disagree about a person: an orange word for the
+    look it needs (rule 17), the sentence, and the one button that settles it
+    when there is one. Agreement is a green word. */
+function Drift({ says, act, good = false }: { says: ReactNode; act?: ReactNode; good?: boolean }) {
+  return (
+    <span className="st2-xp-drift">
+      <StateWord tone={good ? "good" : "look"}>{says}</StateWord>
+      {act}
+    </span>
   );
 }
 
@@ -403,11 +407,14 @@ function WageRow({
 }) {
   if (drift.kind === "match") {
     return (
-      <div className="xp-drift ok">
-        <span>
-          Wage agrees with Xero — <b>{money(drift.rate)}</b>/hr.
-        </span>
-      </div>
+      <Drift
+        good
+        says={
+          <>
+            Wage agrees with Xero — <b>{money(drift.rate)}</b>/hr.
+          </>
+        }
+      />
     );
   }
 
@@ -419,25 +426,26 @@ function WageRow({
       ? ` (their ${money(drift.basis.annual)}/yr over 52 weeks at ${drift.basis.hoursPerWeek}h)`
       : "";
     return (
-      <div className="xp-drift">
-        <span>
-          {drift.here === null ? (
+      <Drift
+        says={
+          drift.here === null ? (
             <>
               No wage recorded here; Xero pays them <b>{money(drift.xero)}</b>/hr{basis}.
             </>
           ) : (
             <>
-              Xero pays them <b>{money(drift.xero)}</b>/hr{basis}, here they&apos;re{" "}
-              <b>{money(drift.here)}</b>/hr{" "}
-              <i>({drift.delta > 0 ? "+" : ""}
-              {money(drift.delta)})</i>.
+              Xero pays them <b>{money(drift.xero)}</b>/hr{basis}, here they&apos;re <b>{money(drift.here)}</b>/hr (
+              {drift.delta > 0 ? "+" : ""}
+              {money(drift.delta)}).
             </>
-          )}
-        </span>
-        <button className="xp-btn go" disabled={busy} onClick={onAdopt}>
-          Use Xero&apos;s
-        </button>
-      </div>
+          )
+        }
+        act={
+          <Button kind="second" size={32} disabled={busy} onClick={onAdopt}>
+            Use Xero&apos;s
+          </Button>
+        }
+      />
     );
   }
 
@@ -445,33 +453,29 @@ function WageRow({
      there's no denominator, so there is no honest hourly figure to offer. */
   if (drift.kind === "salary") {
     return (
-      <div className="xp-drift">
-        <span>
-          Xero has them on a salary of <b>{money(drift.annual)}</b>/yr but doesn&apos;t say their
-          weekly hours{drift.here !== null ? <>; here they&apos;re <b>{money(drift.here)}</b>/hr</> : ""}.
-          Set the hours in Xero and re-check to compare.
-        </span>
-      </div>
+      <Drift
+        says={
+          <>
+            Xero has them on a salary of <b>{money(drift.annual)}</b>/yr but doesn&apos;t say their weekly hours
+            {drift.here !== null ? (
+              <>
+                ; here they&apos;re <b>{money(drift.here)}</b>/hr
+              </>
+            ) : null}
+            . Set the hours in Xero and re-check to compare.
+          </>
+        }
+      />
     );
   }
 
   /* The read failed — which is a different sentence from "Xero has nothing
      comparable". This row didn't make it into any stored count. */
   if (drift.kind === "unreadable") {
-    return (
-      <div className="xp-drift">
-        <span>Couldn&apos;t read their pay from Xero — try re-checking in a moment.</span>
-      </div>
-    );
+    return <Drift says="Couldn't read their pay from Xero — try re-checking in a moment." />;
   }
 
-  if (drift.note) {
-    return (
-      <div className="xp-drift">
-        <span>{drift.note}</span>
-      </div>
-    );
-  }
+  if (drift.note) return <Drift says={drift.note} />;
   return null;
 }
 

@@ -24,3 +24,22 @@
 @media (max-width:820px) {
   .fg .st2-pay-holform { grid-template-columns:minmax(0,1fr); }
 }
+
+/* Xero payroll matching (timepay/xero-payroll.tsx): a row per person, their
+   name and what the match says, its buttons on the right; where Xero and
+   HeyTiff disagree, a word in its colour under the row with the one button
+   that settles it. The parts below (archived here, in Xero not here) under
+   their labels, as the holidays label their years. */
+.fg .st2-xp { display:flex; flex-direction:column; gap:12px; min-width:0; }
+.fg .st2-xp-note { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.fg .st2-xp-rows { display:flex; flex-direction:column; margin:0; padding:0; list-style:none; }
+.fg .st2-xp-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; padding:12px 0; border-top:1px solid var(--line); }
+.fg .st2-xp-who { flex:1 1 200px; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.fg .st2-xp-who b { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .st2-xp-who em { font-style:normal; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .st2-xp-act { flex:none; display:flex; align-items:center; gap:8px; }
+.fg .st2-xp-pick { width:200px; }
+.fg .st2-xp-drift { flex:1 1 100%; display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; font-size:14px; line-height:20px; }
+.fg .st2-xp-drift .pt-state { white-space:normal; }
+.fg .st2-xp-part { display:flex; flex-direction:column; gap:4px; min-width:0; padding-top:8px; }
+.fg .st2-xp-parthead { display:flex; align-items:center; justify-content:space-between; gap:16px; }

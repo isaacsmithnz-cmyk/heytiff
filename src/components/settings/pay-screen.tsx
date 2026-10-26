@@ -67,11 +67,7 @@ export function PayScreen({ pay, holidays, xero }: PayScreenProps) {
       )}
       {xero && (
         <Group heading="Xero payroll" anchor="xero-payroll">
-          {/* payroll matching keeps its own dress, scoped under Time & Pay's
-              root as it was inside the modal, until its own board is drawn */}
-          <div className="tpr">
-            <XeroPayroll {...xero} />
-          </div>
+          <XeroPayroll {...xero} />
         </Group>
       )}
     </>

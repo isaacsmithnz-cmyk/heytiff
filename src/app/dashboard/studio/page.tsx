@@ -8,6 +8,7 @@ import { installedPacks, type InstalledPackRef } from "@/lib/studio/packs/server
 import { loadPackWithOverrides } from "@/lib/studio/packs/overrides-server";
 import { libraryManifest, type LibraryManifest } from "@/lib/studio/packs/library";
 import { Studio } from "@/components/studio/studio";
+import { StudioKeep } from "@/components/studio/studio-keeper";
 
 /* THE LIBRARY COMES WITH THE PAGE. The start screen lists what the studio
    can design with — brand, system, series, model — and says what arrived
@@ -91,13 +92,17 @@ export default async function StudioPage({
   const buildStamp =
     process.env.VERCEL_DEPLOYMENT_ID ?? process.env.VERCEL_GIT_COMMIT_SHA ?? "";
 
+  /* handed to the keeper, which draws it beside the pages and keeps it
+     alive behind other tabs (studio-keeper.tsx) */
   return (
-    <Studio
-      sm8Jobs={sm8Connected && boardAccess}
-      openDesignId={openDesignId}
-      buildStamp={buildStamp}
-      brand={brand}
-      library={library}
-    />
+    <StudioKeep design={openDesignId}>
+      <Studio
+        sm8Jobs={sm8Connected && boardAccess}
+        openDesignId={openDesignId}
+        buildStamp={buildStamp}
+        brand={brand}
+        library={library}
+      />
+    </StudioKeep>
   );
 }

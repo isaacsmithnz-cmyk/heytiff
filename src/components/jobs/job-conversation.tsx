@@ -1,9 +1,8 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Button, IconButton } from "@/components/parts/button";
 import { Fade } from "@/components/parts/fade";
-import { Initials } from "@/components/parts/initials";
 import { StateWord, type Tone } from "@/components/parts/state";
 import { Icon } from "@/components/shell/icon";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
@@ -335,12 +334,16 @@ export function JobConversation({
     } else convo.send();
   };
 
-  /* ADD TO MY NOTES: the words kept for you alone (Isaac, 26 October 2026:
-     "Unless it's a private note, you just hit add to my notes instead").
-     Send is the job's: Tiff files from the note, and the one tidied note
-     goes to the job and to ServiceM8 by itself. My notes is private, so
-     nothing is filed and nothing is sent. */
+  /* MY NOTES ONLY: the words kept for you alone (Isaac, 26 October 2026:
+     "Unless it's a private note, you just hit add to my notes instead"; the
+     tick's name is his). ONE BUTTON, whose word says what it does, and Enter
+     does the same: Send is the job's (Tiff files from the note, and the one
+     tidied note goes to the job and to ServiceM8 by itself); ticked, it is
+     Save to my notes, private, with nothing filed and nothing sent. The tick
+     stays as you left it, here and next time: a private note sent by mistake
+     is worse than a job note kept by mistake, and the button always says. */
   const host = useContext(WindowsContext);
+  const [mineOnly, setMineOnly] = useMyNotesOnly();
   /* why your notes can't go to ServiceM8 yet, under the box */
   const sm8Why = !!diary.notesSm8;
   const [keeping, setKeeping] = useState(false);
@@ -413,35 +416,31 @@ export function JobConversation({
         <CvBox
           value={convo.draft}
           onChange={convo.setDraft}
-          onSubmit={send}
+          onSubmit={mineOnly ? keep : send}
           label="Tell Tiff about this job"
           placeholder="Tell Tiff about this job"
-          sendWord="Send"
-          sendLabel="Send to Tiff"
+          sendWord={mineOnly ? "Save to my notes" : "Send"}
+          sendLabel={mineOnly ? "Save to my notes" : "Send to Tiff"}
           worded
-          waiting={working || !canSend || photo?.state === "up"}
+          waiting={mineOnly ? keeping : working || !canSend || photo?.state === "up"}
           dict={voiceEnabled ? dict : null}
           voiceError={voiceErr}
           ranOut={ranOut}
           before={photo ? <PhotoChip photo={photo} onClear={clearPhoto} /> : null}
           lead={
-            /* Add photo, in the box's own bottom row (the walk of 25
-               October 2026); a note on the job goes to ServiceM8 by itself,
-               so there is no tick beside it */
+            /* the + (a photo or a file, Isaac, 26 October 2026: "Add photo
+               should be the plus button"), then My notes only, in the box's
+               own bottom row; a photo goes with Send, so not with a private
+               note */
             <span className="jc-lead">
-              {!photo && (
-                <Button kind="quiet" size={32} disabled={!canSend} onClick={() => picker.current?.click()}>
-                  Add photo
-                </Button>
+              {!photo && !mineOnly && (
+                <IconButton glyph="add" label="Add a photo or a file" size={32} disabled={!canSend} onClick={() => picker.current?.click()} />
               )}
+              <label className="wb2-flcheck">
+                <input type="checkbox" checked={mineOnly} onChange={(e) => setMineOnly(e.target.checked)} />
+                My notes only
+              </label>
             </span>
-          }
-          extra={
-            convo.draft.trim() ? (
-              <Button kind="second" size={32} className="jc-keep" disabled={keeping} onClick={keep}>
-                {keeping ? "Saving" : "Add to my notes"}
-              </Button>
-            ) : null
           }
         />
         <input
@@ -449,7 +448,7 @@ export function JobConversation({
           type="file"
           accept={RECEIPT_ACCEPT}
           hidden
-          aria-label="Add photo"
+          aria-label="Add a photo or a file"
           onChange={(e) => pick(e.target.files?.[0])}
         />
         {/* why the tick can't send yet, and its Yes / Not me, under the box */}
@@ -473,11 +472,7 @@ export function JobConversation({
             {live.map((t) =>
               t.who === "you" ? (
                 <div className="jc-entry" key={t.key}>
-                  <Message who={you} when={timeOf(t)}>
-                    <div className="cv-text cv-text--mine">
-                      <p>{t.text}</p>
-                    </div>
-                  </Message>
+                  <Bubble mine who={you} text={t.text} meta={<span>{timeOf(t)}</span>} />
                 </div>
               ) : (
                 <div className="jc-entry" key={t.key}>
@@ -497,9 +492,9 @@ export function JobConversation({
             )}
             {working && (
               <div className="jc-entry">
-                <Message who="Tiff" tiff working when="">
+                <TiffTurn working when="">
                   <p className="cv-now">Working through it</p>
-                </Message>
+                </TiffTurn>
               </div>
             )}
           </div>
@@ -529,6 +524,7 @@ export function JobConversation({
                   entry={item.entry}
                   talk={item.talk}
                   doors={doors}
+                  you={you}
                   lit={item.key === lit}
                   litRef={item.key === lit ? litRef : undefined}
                   replyOpen={openKey === item.key}
@@ -545,7 +541,7 @@ export function JobConversation({
                 />
               ) : item.talk ? (
                 <div className="jc-entry" key={item.key}>
-                  <TalkMessage talk={item.talk} />
+                  <TalkMessage talk={item.talk} you={you} />
                 </div>
               ) : null,
             )}
@@ -598,70 +594,112 @@ function PhotoChip({ photo, onClear }: { photo: BoxPhoto; onClear: () => void })
   );
 }
 
+/* MY NOTES ONLY, remembered in this browser: read through the store hook so
+   the server's first paint (unticked) and the browser's agree; blocked
+   storage starts it unticked. */
+const MINE_ONLY_KEY = "heytiff.box.myNotesOnly";
+const mineOnlyListeners = new Set<() => void>();
+const readMineOnly = () => {
+  try {
+    return localStorage.getItem(MINE_ONLY_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+function useMyNotesOnly(): [boolean, (on: boolean) => void] {
+  const on = useSyncExternalStore(
+    (fire) => {
+      mineOnlyListeners.add(fire);
+      return () => mineOnlyListeners.delete(fire);
+    },
+    readMineOnly,
+    () => false,
+  );
+  const set = (next: boolean) => {
+    /* worked out before the try: the compiler takes no conditional inside one */
+    const value = next ? "1" : "0";
+    try {
+      localStorage.setItem(MINE_ONLY_KEY, value);
+    } catch {
+      /* blocked storage: the tick lasts as long as the page */
+    }
+    for (const fire of mineOnlyListeners) fire();
+  };
+  return [on, set];
+}
+
 /** Undo on an earlier note's cards, from the conversation that reads it. */
 const UndoTalk = createContext<{ undo: (noteId: string) => void; busy: ReadonlySet<string> } | null>(null);
 
-/* ── a message ── */
+/* ── the conversation's sides (Isaac, 26 October 2026) ──
+   Your words on the right and everyone else's on the left, both in the
+   light grey; Tiff on the left with no bubble, her mark turning slowly
+   beside her name ("She can turn slowly, given that you won't have an extra
+   one down the bottom of the page"). Green stays the customer's thread's
+   alone, so a green bubble is always a text the customer got. */
 
-function Message({
+/** One person's words, in a bubble on their side, with its time and doors
+    under it (`meta`), and anything that hangs off the words (`after`). */
+function Bubble({
+  mine,
   who,
-  when,
-  tiff = false,
-  working = false,
+  text,
   lit = false,
   litRef,
-  head,
-  children,
+  after,
+  meta,
 }: {
+  mine: boolean;
   who: string;
-  when: string;
-  tiff?: boolean;
-  working?: boolean;
+  text: string;
   lit?: boolean;
   litRef?: React.Ref<HTMLElement>;
-  /** what the name line says after the time: a state, where it is */
-  head?: ReactNode;
-  children: ReactNode;
+  after?: ReactNode;
+  meta?: ReactNode;
 }) {
   return (
-    <article className={`cv-msg${lit ? " jc-lit" : ""}`} ref={litRef}>
-      <span className="cv-avatar">{tiff ? <TiffGlyph size={24} working={working} /> : <Initials name={who} size={32} beside />}</span>
-      <div className="cv-body">
-        <p className="cv-meta">
-          <b>{who}</b>
-          {when && <span>{when}</span>}
-          {head}
-        </p>
-        {children}
-      </div>
+    <div className="jc-talk">
+      <article className={["jc-bm", mine ? "jc-bm--you" : "jc-bm--them", "jc-bm--first", "jc-bm--last", lit ? "jc-lit" : ""].filter(Boolean).join(" ")} ref={litRef}>
+        <p className="jc-bmname">{who}</p>
+        <div className="jc-bubble">
+          <span className="jc-bubwords">{withMentions(text)}</span>
+        </div>
+        {after}
+        {meta && <div className="jc-bmtime jc-bmmeta">{meta}</div>}
+      </article>
+    </div>
+  );
+}
+
+/** Spoken, not typed: a mic beside the time. */
+const Spoken = () => (
+  <span className="jc-bmmic" role="img" aria-label="Said aloud">
+    <Icon name="mic" size={12} />
+  </span>
+);
+
+/** One of Tiff's turns: her mark and her name, her words with no bubble,
+    then whatever she made and the time. */
+function TiffTurn({ when, working = false, children }: { when: string; working?: boolean; children: ReactNode }) {
+  return (
+    <article className="jc-tiffturn">
+      <p className="jc-tiffname">
+        <TiffGlyph size={18} alive working={working} />
+        <b>Tiff</b>
+      </p>
+      {children}
+      {when && <p className="jc-bmtime">{when}</p>}
     </article>
   );
 }
 
-/** The words of a note: a card round them when they were said. */
-function Words({ text, spoken }: { text: string; spoken: boolean }) {
-  const words = (
-    <div className="cv-text cv-text--mine">
-      <p>{withMentions(text)}</p>
-    </div>
-  );
-  if (!spoken) return words;
-  return (
-    <div className="jc-voice">
-      <p className="jc-voice-head">
-        <Icon name="mic" size={14} />
-        Note from voice
-      </p>
-      {words}
-    </div>
-  );
-}
-
-/** A note on the job: ServiceM8's or ours, then what Tiff said back. */
+/** A note on the job: ServiceM8's or ours, then what Tiff said back. A note
+    Tiff tidied keeps the words as they were said behind As said. */
 function NoteMessage({
   entry,
   talk,
   doors,
+  you,
   lit,
   litRef,
   replyOpen,
@@ -670,6 +708,8 @@ function NoteMessage({
   entry: NoteEntry;
   talk: JobNoteTalk | null;
   doors: Doors;
+  /** the viewer's name, for a note read without the diary's `mine` */
+  you: string;
   lit: boolean;
   litRef?: React.Ref<HTMLElement>;
   replyOpen: boolean;
@@ -678,47 +718,70 @@ function NoteMessage({
   const ours = entry.origin === "heytiff";
   const flag = !ours && entry.sm8Uuid ? (doors.flags[entry.sm8Uuid] ?? null) : null;
   const who = entry.author?.trim() || talk?.authorName || (ours ? "Someone on the team" : "ServiceM8");
-  const head = (
-    <>
-      {flag ? (
-        <StateWord tone={FLAG_TONE[flag.tone ?? ""] ?? "info"}>{flag.text}</StateWord>
-      ) : entry.actionRequired ? (
-        <StateWord tone="look">Action required</StateWord>
-      ) : null}
-      {entry.fromClaim && <span>{`On #${entry.fromClaim}`}</span>}
-      {/* one of ours that never went to ServiceM8 says so, in grey */}
-      {ours && !entry.state && <span>In HeyTiff</span>}
-    </>
-  );
+  const mine = ours && (entry.mine ?? who === you);
+  const said = talk?.said.trim() ?? "";
+  const tidied = !!said && said !== entry.text.trim();
+  const [asSaid, setAsSaid] = useState(false);
   return (
     <div className="jc-entry">
-      <Message who={who} when={stampClock(entry.at)} lit={lit} litRef={litRef} head={head}>
-        <Words text={entry.text} spoken={!!talk?.spoken} />
-        <div className="jc-doors">
-          <NoteDoors entry={entry} doors={doors} replyOpen={replyOpen} onReplyOpen={onReplyOpen} />
-        </div>
-      </Message>
-      {talk && <Replies talk={talk} who={who} />}
+      <Bubble
+        mine={mine}
+        who={who}
+        text={entry.text}
+        lit={lit}
+        litRef={litRef}
+        after={tidied && asSaid ? <p className="jc-said">{said}</p> : null}
+        meta={
+          <>
+            <span>{stampClock(entry.at)}</span>
+            {talk?.spoken && <Spoken />}
+            {flag ? (
+              <StateWord tone={FLAG_TONE[flag.tone ?? ""] ?? "info"}>{flag.text}</StateWord>
+            ) : entry.actionRequired ? (
+              <StateWord tone="look">Action required</StateWord>
+            ) : null}
+            {entry.fromClaim && <span>{`On #${entry.fromClaim}`}</span>}
+            {/* one of ours that never went to ServiceM8 says so, in grey */}
+            {ours && !entry.state && <span>In HeyTiff</span>}
+            {tidied && (
+              <button type="button" className="jc-bmdoor" aria-expanded={asSaid} onClick={() => setAsSaid((v) => !v)}>
+                {asSaid ? "Hide" : "As said"}
+              </button>
+            )}
+            <NoteDoors entry={entry} doors={doors} replyOpen={replyOpen} onReplyOpen={onReplyOpen} />
+          </>
+        }
+      />
+      {talk && <Replies talk={talk} who={who} mine={mine} />}
     </div>
   );
 }
 
 /** A note Undo took back: the words, and Tiff's line saying so. */
-function TalkMessage({ talk }: { talk: JobNoteTalk }) {
+function TalkMessage({ talk, you }: { talk: JobNoteTalk; you: string }) {
   const who = talk.authorName ?? "Someone on the team";
+  const mine = who === you;
   return (
     <>
-      <Message who={who} when={stampClock(talk.stamp)}>
-        <Words text={talk.said} spoken={talk.spoken} />
-      </Message>
-      <Replies talk={talk} who={who} />
+      <Bubble
+        mine={mine}
+        who={who}
+        text={talk.said}
+        meta={
+          <>
+            <span>{stampClock(talk.stamp)}</span>
+            {talk.spoken && <Spoken />}
+          </>
+        }
+      />
+      <Replies talk={talk} who={who} mine={mine} />
     </>
   );
 }
 
 /** What followed a note's words: Tiff's lines and any answers to her. What
     she made hangs under her last line, with Undo where it still applies. */
-function Replies({ talk, who }: { talk: JobNoteTalk; who: string }) {
+function Replies({ talk, who, mine }: { talk: JobNoteTalk; who: string; mine: boolean }) {
   const undo = useContext(UndoTalk);
   const when = stampClock(talk.stamp);
   const last = talk.replies.map((r) => r.who).lastIndexOf("tiff");
@@ -726,13 +789,9 @@ function Replies({ talk, who }: { talk: JobNoteTalk; who: string }) {
     <>
       {talk.replies.map((r, i) =>
         r.who === "you" ? (
-          <Message key={i} who={who} when={when}>
-            <div className="cv-text cv-text--mine">
-              <p>{r.text}</p>
-            </div>
-          </Message>
+          <Bubble key={i} mine={mine} who={who} text={r.text} meta={<span>{when}</span>} />
         ) : (
-          <Message key={i} who="Tiff" tiff when={when}>
+          <TiffTurn key={i} when={when}>
             <div className="cv-text">
               <p>{r.text}</p>
             </div>
@@ -740,7 +799,7 @@ function Replies({ talk, who }: { talk: JobNoteTalk; who: string }) {
               <MadeList cards={talk.made.map((c) => ({ ...c, icon: MADE_ICON[c.kind] }))} undo={talk.undo && undo ? { noteId: talk.id, busy: undo.busy.has(talk.id), onUndo: undo.undo } : null}
               />
             )}
-          </Message>
+          </TiffTurn>
         ),
       )}
     </>
@@ -819,7 +878,7 @@ function LiveTiff({
     : [];
   const quick = asking ? (turn.quick ?? []) : [];
   return (
-    <Message who="Tiff" tiff when={when}>
+    <TiffTurn when={when}>
       {turn.text && (
         <div className="cv-text">
           <p>{turn.text}</p>
@@ -854,7 +913,7 @@ function LiveTiff({
           ))}
         </div>
       )}
-    </Message>
+    </TiffTurn>
   );
 }
 

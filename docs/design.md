@@ -327,6 +327,16 @@ the fourth on the customer's messages, below).
   palette's grey laid 22% into white, never an ink alpha) with ink. Runs
   from one speaker stack 2 apart with the inside corners at 6 and the
   card's 16 elsewhere, like iMessage.
+- **The Tiff conversation has sides** (`.jc-talk`, `.jc-tiffturn`), his
+  call on https://claude.ai/artifact/7aVi2krm8t7m6JAMNVSnVN (26 October
+  2026: "Let's do B… keep green to conversations with customers", "do no
+  bubble", "give the logo the colors. And have TIFF black"). Your notes are
+  on the right and everyone else's on the left, both in the light grey
+  (`--bubble-them`), so green stays a text the customer got. Tiff has no
+  bubble: her mark in her colours, turning slowly, beside her name in ink
+  ("She can turn slowly, given that you won't have an extra one down the
+  bottom of the page"). Under a bubble its time and doors are quiet words
+  with no underline, and Remove is the red word (rule 25).
 
 ### Named exemptions
 

@@ -773,7 +773,7 @@ export function NoteDoors({
   const sendable = ours && !state && !!entry.mine && !entry.hasCreate && canAnswer && !!doors.onSendCopy;
   const remove = ours && entry.id && doors.onRemoveNote && (
     <button
-      className="wb2-evdoor"
+      className="wb2-evdoor wb2-evdoor--remove"
       onClick={() => doors.onRemoveNote!(entry.id!)}
     >
       Remove
@@ -810,7 +810,7 @@ export function NoteDoors({
             </button>
           )}
           {acts.includes("undo") && doors.onTakeBack && (
-            <button className="wb2-evdoor" onClick={() => doors.onTakeBack!(entry.id!)}>
+            <button className={entry.replyTo ? "wb2-evdoor" : "wb2-evdoor wb2-evdoor--remove"} onClick={() => doors.onTakeBack!(entry.id!)}>
               {entry.replyTo ? NOTE_WORDS.door.undo : NOTE_WORDS.door.remove}
             </button>
           )}

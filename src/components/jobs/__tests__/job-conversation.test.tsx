@@ -35,6 +35,8 @@ beforeAll(() => {
 beforeEach(() => {
   uploadFile.mockReset();
   deleteDocument.mockClear();
+  /* My notes only is remembered per browser: each test starts unticked */
+  localStorage.clear();
 });
 
 import { JobConversation, type ConversationDiary } from "../job-conversation";
@@ -169,10 +171,10 @@ it("is a section like the others: the green block, Activity feed, the soft tabs 
   const box = screen.getByRole("textbox", { name: "Tell Tiff about this job" });
   const list = feed.querySelector(".jc-feed") as HTMLElement;
   expect(box.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  /* Send says its word, blue; Add photo is quiet */
+  /* Send says its word, blue; the + (a photo or a file) is quiet */
   expect(screen.getByRole("button", { name: "Send to Tiff" })).toHaveTextContent("Send");
   expect(screen.getByRole("button", { name: "Send to Tiff" })).toHaveClass("pt-btn--main");
-  expect(screen.getByRole("button", { name: "Add photo" })).toHaveClass("pt-btn--quiet");
+  expect(screen.getByRole("button", { name: "Add a photo or a file" })).toHaveClass("pt-btn--quiet");
 });
 
 it("filters what is already read: Photos shows the photos and leaves the notes", async () => {
@@ -203,13 +205,49 @@ it("opens the quote from its Quote sent entry, by the job's number", async () =>
   expect(onQuote).toHaveBeenCalled();
 });
 
-it("draws a voice note as a card round its words", () => {
+/* the conversation's sides (Isaac, 26 October 2026, on his mock
+   7aVi2krm…): yours on the right, everyone else's on the left, both the
+   light grey; Tiff unboxed with her mark turning; under a bubble its time,
+   a mic when it was said, and its doors as quiet words */
+it("draws your note on the right in a bubble, with a mic when it was said", () => {
   draw({
-    story: [note({ key: "ournote:n1", origin: "heytiff", id: "n1", author: "Isaac Smith", text: "Pipe through the robe" })],
-    talks: [talk({ spoken: true, replies: [], made: [] })],
+    story: [note({ key: "ournote:n1", origin: "heytiff", id: "n1", author: "Isaac Smith", text: "Pipe through the robe", mine: true })],
+    talks: [talk({ said: "Pipe through the robe", spoken: true, replies: [], made: [] })],
   });
-  const card = screen.getByText("Note from voice").closest(".jc-voice") as HTMLElement;
-  expect(within(card).getByText("Pipe through the robe")).toBeInTheDocument();
+  const bubble = screen.getByText("Pipe through the robe").closest(".jc-bm") as HTMLElement;
+  expect(bubble).toHaveClass("jc-bm--you");
+  expect(within(bubble).getByRole("img", { name: "Said aloud" })).toBeInTheDocument();
+  // the words were said as they stand: nothing to show As said
+  expect(within(bubble).queryByRole("button", { name: "As said" })).toBeNull();
+});
+
+it("keeps the words as said behind As said, when Tiff tidied the note", async () => {
+  draw({
+    story: [note({ key: "ournote:n1", origin: "heytiff", id: "n1", author: "Isaac Smith", text: "Pipe run to Bed 3 is about 14 m.", mine: true })],
+    talks: [talk({ said: "Um, so the pipe run to bed three is about 14 metres", spoken: true, replies: [], made: [] })],
+  });
+  const bubble = screen.getByText("Pipe run to Bed 3 is about 14 m.").closest(".jc-bm") as HTMLElement;
+  expect(within(bubble).queryByText("Um, so the pipe run to bed three is about 14 metres")).toBeNull();
+  await userEvent.click(within(bubble).getByRole("button", { name: "As said" }));
+  expect(within(bubble).getByText("Um, so the pipe run to bed three is about 14 metres")).toBeInTheDocument();
+  expect(within(bubble).getByRole("button", { name: "Hide" })).toHaveAttribute("aria-expanded", "true");
+});
+
+it("draws a teammate's note on the left with their name, and Tiff with her mark and no bubble", () => {
+  draw({
+    story: [
+      note({ key: "note:m1", text: "@lukeingold Can you get this equipment in next week", author: "Michael Diamond" }),
+      note({ key: "ournote:n1", origin: "heytiff", id: "n1", author: "Isaac Smith", text: "Get Lyle to order the grilles before lunch", mine: true, at: "2026-10-13 10:05:00" }),
+    ],
+    talks: [talk()],
+  });
+  const theirs = screen.getByText(/Can you get this equipment in next week/).closest(".jc-bm") as HTMLElement;
+  expect(theirs).toHaveClass("jc-bm--them");
+  expect(within(theirs).getByText("Michael Diamond")).toBeInTheDocument();
+  const tiff = screen.getByText("Done. A task for Lyle.").closest(".jc-tiffturn") as HTMLElement;
+  expect(tiff.querySelector(".jc-bubble")).toBeNull();
+  expect(tiff.querySelector(".tiffmk.alive")).not.toBeNull();
+  expect(within(tiff).getByText("Tiff")).toBeInTheDocument();
 });
 
 it("says what Tiff did under the note, with a card per thing she made and Undo", async () => {
@@ -291,47 +329,68 @@ it("sends the box's words to Tiff with Send", async () => {
 });
 
 /* Isaac, 26 October 2026: "Unless it's a private note, you just hit add to
-   my notes instead". Send is the job's (Tiff files, and the one tidied note
-   goes to ServiceM8 by itself); Add to my notes keeps the words for you
-   alone: nothing written on the job, nothing filed, nothing sent. */
-it("keeps a private note in My notes, with nothing on the job and nothing to Tiff", async () => {
+   my notes instead", then one button whose word says what it does, the tick
+   named "My notes only". Send is the job's (Tiff files, and the one tidied
+   note goes to ServiceM8 by itself); ticked, the same button and Enter keep
+   the words for you alone: nothing written on the job, filed or sent. */
+it("keeps a private note in My notes with My notes only ticked: the one button says so, and nothing goes to Tiff", async () => {
   addMyNote.mockClear();
-  const d = diary();
   const setDraft = jest.fn();
   const send = jest.fn();
-  draw({ c: convo({ draft: "  Ask Michael whether the deposit cleared  ", setDraft, send }), d });
-  await userEvent.click(screen.getByRole("button", { name: "Add to my notes" }));
+  draw({ c: convo({ draft: "  Ask Michael whether the deposit cleared  ", setDraft, send }) });
+  expect(screen.getByRole("button", { name: "Send to Tiff" })).toHaveTextContent("Send");
+  await userEvent.click(screen.getByRole("checkbox", { name: "My notes only" }));
+  const save = screen.getByRole("button", { name: "Save to my notes" });
+  expect(save).toHaveClass("pt-btn--main");
+  expect(screen.queryByRole("button", { name: "Send to Tiff" })).toBeNull();
+  await userEvent.click(save);
   expect(addMyNote).toHaveBeenCalledWith({ body: "Ask Michael whether the deposit cleared", source: "text" });
   await waitFor(() => expect(setDraft).toHaveBeenCalledWith(""));
   expect(send).not.toHaveBeenCalled();
+});
+
+it("saves with Enter too while My notes only is ticked", async () => {
+  addMyNote.mockClear();
+  const send = jest.fn();
+  draw({ c: convo({ draft: "Gate code 4471", send }) });
+  await userEvent.click(screen.getByRole("checkbox", { name: "My notes only" }));
+  fireEvent.keyDown(screen.getByRole("textbox", { name: "Tell Tiff about this job" }), { key: "Enter" });
+  await waitFor(() => expect(addMyNote).toHaveBeenCalledWith({ body: "Gate code 4471", source: "text" }));
+  expect(send).not.toHaveBeenCalled();
+});
+
+it("keeps My notes only as you left it, next time too", async () => {
+  const first = draw({ c: convo({ draft: "" }) });
+  await userEvent.click(screen.getByRole("checkbox", { name: "My notes only" }));
+  first.unmount();
+  draw({ c: convo({ draft: "" }) });
+  expect(screen.getByRole("checkbox", { name: "My notes only" })).toBeChecked();
+  expect(screen.getByRole("button", { name: "Save to my notes" })).toBeInTheDocument();
 });
 
 it("keeps the words in the box when My notes refused them", async () => {
   addMyNote.mockResolvedValueOnce({ ok: false, error: "Your staff profile isn't set up yet." });
   const setDraft = jest.fn();
   draw({ c: convo({ draft: "Gate code 4471", setDraft }) });
-  await userEvent.click(screen.getByRole("button", { name: "Add to my notes" }));
+  await userEvent.click(screen.getByRole("checkbox", { name: "My notes only" }));
+  await userEvent.click(screen.getByRole("button", { name: "Save to my notes" }));
   await waitFor(() => expect(addMyNote).toHaveBeenCalled());
   expect(setDraft).not.toHaveBeenCalled();
 });
 
-it("offers Add to my notes only once there are words", () => {
-  draw({ c: convo({ draft: "" }) });
-  expect(screen.queryByRole("button", { name: "Add to my notes" })).toBeNull();
-});
-
 /* the walk of 25 October 2026: the ⓘ went (no hint text); the Also in
    ServiceM8 tick went on 26 October, as a note on the job now goes by
-   itself */
-it("has no ⓘ and no Also in ServiceM8 tick: Add photo alone in the box's bottom row", () => {
+   itself; Add photo became the + ("Add photo should be the plus button") */
+it("has no ⓘ and no Also in ServiceM8 tick: the + then My notes only in the box's bottom row", () => {
   draw({
     c: convo({ draft: "Grilles are in the van" }),
     d: diary({ notesSm8: { owner: false } as never, sender: { state: "ready" } as never }),
   });
   expect(screen.queryByRole("button", { name: /^What Save/ })).toBeNull();
   expect(screen.queryByRole("checkbox", { name: "Also in ServiceM8" })).toBeNull();
-  const lead = screen.getByRole("button", { name: "Add photo" }).closest(".jc-lead") as HTMLElement;
+  const lead = screen.getByRole("button", { name: "Add a photo or a file" }).closest(".jc-lead") as HTMLElement;
   expect(lead.closest(".cv-boxbar")).not.toBeNull();
+  expect(within(lead).getByRole("checkbox", { name: "My notes only" })).toBeInTheDocument();
 });
 
 it("still says why your notes can't go to ServiceM8 yet, under the box", () => {
@@ -389,10 +448,10 @@ const pickPhoto = () =>
   fireEvent.change(picker(), { target: { files: [new File(["receipt"], "reece-receipt.jpg", { type: "image/jpeg" })] } });
 const CHIP = { name: "The photo going with your words" };
 
-it("draws Add photo as the box's second button, and uploads a photo as the expense form uploads a receipt", async () => {
+it("draws the + in the box, and uploads a photo as the expense form uploads a receipt", async () => {
   uploadFile.mockResolvedValue(landed);
   draw({ c: convo({ draft: "$85 at Reece for fittings" }) });
-  expect(screen.getByRole("button", { name: "Add photo" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Add a photo or a file" })).toBeInTheDocument();
   expect(picker().accept).toContain("image/jpeg");
   pickPhoto();
   expect(uploadFile).toHaveBeenCalledWith(expect.any(File), "receipt");
@@ -401,7 +460,7 @@ it("draws Add photo as the box's second button, and uploads a photo as the expen
   expect(chip.querySelector("img")?.getAttribute("src")).toBe("blob:reece");
   expect(within(chip).getByRole("button", { name: "Clear the photo" })).toBeInTheDocument();
   /* one photo a note: the button goes while one is in the box */
-  expect(screen.queryByRole("button", { name: "Add photo" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Add a photo or a file" })).toBeNull();
 });
 
 it("holds Send while the photo is still going up, and says so", async () => {
@@ -435,7 +494,7 @@ it("clears the photo: the chip and its upload go, and Send sends the words alone
   await userEvent.click(within(screen.getByRole("group", CHIP)).getByRole("button", { name: "Clear the photo" }));
   expect(screen.queryByRole("group", CHIP)).toBeNull();
   expect(deleteDocument).toHaveBeenCalledWith("doc1");
-  expect(screen.getByRole("button", { name: "Add photo" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Add a photo or a file" })).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "Send to Tiff" }));
   expect(c.send).toHaveBeenCalled();
   expect(c.sendWithReceipt).not.toHaveBeenCalled();

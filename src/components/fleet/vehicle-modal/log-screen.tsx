@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { readFuelReceipt, readServiceRecord, type ReadReceiptResult, type ReadServiceResult } from "@/app/actions/fleet-ai";
-import { DateField } from "@/components/ui/date-field";
+import { Button } from "@/components/parts/button";
+import { Field, TextArea, TextInput } from "@/components/parts/field";
+import { Tray } from "@/components/parts/tabs";
 import { Plate } from "../plate";
+import { VehicleLead } from "./event-row";
 import {
   FUEL_PAYERS,
   FUEL_PAYER_LABEL,
@@ -14,7 +17,7 @@ import {
   type NewLog,
   type Vehicle,
 } from "../logic";
-import { Btn, MoneyInput, Segmented, SubHeader } from "@/components/record-modal/parts";
+import { DateIn, FrameFoot, FrameTitle, RecordError } from "@/components/record-modal/parts";
 import { ScanCard, type ScanMode } from "@/components/record-modal/scan-card";
 
 /* Logging, as a screen of the card.
@@ -56,26 +59,19 @@ const SAVE: Record<LogKind, string> = {
 const SCAN = {
   fuel: {
     heading: "Receipt",
-    prompt: "Scan or upload the receipt",
-    hint: "PDF, JPG or photo. Tiff reads the litres, cost and servo.",
-    attach: "Optional: attach the receipt",
+    prompt: "Snap or upload the receipt",
+    paper: "the receipt",
+    attach: "Attach the receipt",
     docKind: "fuel_receipt",
   },
   service: {
     heading: "Invoice",
-    prompt: "Scan or upload the service invoice",
-    hint: "PDF, JPG or photo. Tiff reads the work done, the cost and the workshop.",
-    attach: "Optional: attach the invoice",
+    prompt: "Snap or upload the service invoice",
+    paper: "the invoice",
+    attach: "Attach the invoice",
     docKind: "service_record",
   },
 } as const;
-
-/* Whose money bought the fuel, and what follows from it. The two answers have
-   different consequences, so the consequence is said beside the choice. */
-const PAYER_NOTE: Record<FuelPayer, string> = {
-  company: "Logged against the vehicle.",
-  own: "Also claimed back to you as an expense.",
-};
 
 type Fields = {
   litres: string;
@@ -102,6 +98,7 @@ export function LogScreen({
   today,
   pending,
   error,
+  backWord = "Back",
   onBack,
   onSave,
   onSaved,
@@ -112,6 +109,8 @@ export function LogScreen({
   today: string;
   pending: boolean;
   error: string | null;
+  /** "Close" when the screen was opened on its own, from the vehicle's page. */
+  backWord?: string;
   onBack: () => void;
   /** Resolves to whether the entry landed. */
   onSave: (log: NewLog) => Promise<boolean> | void;
@@ -169,13 +168,6 @@ export function LogScreen({
           ? f.odo.trim() !== ""
           : f.note.trim() !== "");
 
-  const warnings = [
-    odoLow ? `Lower than the current ${fmtKm(vehicle.odometer)} km — check the reading.` : null,
-    gstOver ? `GST is more than an eleventh of the total — check the ${kind === "fuel" ? "receipt" : "invoice"}.` : null,
-    abnBad ? "An ABN is eleven digits." : null,
-    owingNoCost ? "Enter what it cost — that is what gets reimbursed." : null,
-  ].filter((w): w is string => w !== null);
-
   const save = async () => {
     if (!ready) return;
     const ok = await onSave({
@@ -197,193 +189,159 @@ export function LogScreen({
     if (ok !== false) onSaved();
   };
 
-  const odoField = (label: string, req: boolean) => (
-    <Field label={label} req={req}>
-      <input
-        className="vm-input"
-        inputMode="numeric"
-        placeholder={`Currently ${fmtKm(vehicle.odometer)}`}
-        aria-label={label}
-        value={f.odo}
-        onChange={(e) => set("odo")(e.target.value)}
-      />
+  /* The same checks the server makes, each said under its own field. */
+  const odoField = (label: string) => (
+    <Field label={label} error={odoLow ? `Lower than the current ${fmtKm(vehicle.odometer)} km. Check the reading.` : null}>
+      <TextInput inputMode="numeric" placeholder={`Now ${fmtKm(vehicle.odometer)}`} value={f.odo} onChange={(e) => set("odo")(e.target.value)} />
     </Field>
   );
-  const dateField = (label: string) => (
-    <Field label={label}>
-      <DateField size="lg" clearable today={today} max={today} value={f.on || null} onChange={(iso) => set("on")(iso ?? "")} aria-label={label} />
-    </Field>
-  );
+  const dateField = (label: string) => <DateIn label={label} today={today} max={today} value={f.on} onChange={set("on")} />;
   const taxFields = (
     <>
-      <Field label="GST">
-        <MoneyInput value={f.gst} onChange={set("gst")} placeholder="Only if printed" ariaLabel="GST" />
+      <Field
+        label="GST ($)"
+        error={gstOver ? `More than an eleventh of the total. Check the ${kind === "fuel" ? "receipt" : "invoice"}.` : null}
+      >
+        <TextInput inputMode="decimal" value={f.gst} onChange={(e) => set("gst")(e.target.value)} />
       </Field>
-      <Field label="Supplier ABN">
-        <input className="vm-input" inputMode="numeric" placeholder="e.g. 51 824 753 556" aria-label="Supplier ABN" value={f.abn} onChange={(e) => set("abn")(e.target.value)} />
+      <Field label="Supplier ABN" error={abnBad ? "An ABN is eleven digits" : null}>
+        <TextInput inputMode="numeric" placeholder="51 824 753 556" value={f.abn} onChange={(e) => set("abn")(e.target.value)} />
       </Field>
     </>
   );
 
-  /* Odometer readings are written in place on the card's Odometer card; the
+  /* Odometer readings are written in place on the card's Odometer; the
      branch stays so a `add:odo` screen still renders if something names it. */
   const fields =
     kind === "fuel" ? (
-      <>
+      <div className="mk-records-grid mk-records-grid--2">
         {/* FIRST, because it decides what this log produces beyond itself: a
             company card stops at the vehicle log, a personal one also raises
-            a reimbursement. */}
-        <div className="vm-typerow">
-          <span className="vm-fl">Paid with</span>
-          <Segmented
-            items={FUEL_PAYERS.map((p) => ({ key: p, label: FUEL_PAYER_LABEL[p] }))}
-            active={f.paidWith}
-            onSelect={(p) => setF((prev) => ({ ...prev, paidWith: p }))}
+            a reimbursement, which is still saved however the tray words it. */}
+        <div className="pt-field mk-records-wide">
+          <span className="pt-field-label">Paid with</span>
+          <Tray<FuelPayer>
+            options={FUEL_PAYERS.map((p) => ({ value: p, label: FUEL_PAYER_LABEL[p] }))}
+            value={f.paidWith}
+            onChange={(p) => setF((prev) => ({ ...prev, paidWith: p }))}
             ariaLabel="Paid with"
           />
-          <span className="vm-note">{PAYER_NOTE[f.paidWith]}</span>
         </div>
-        <div className="vm-fields">
-          <Field label="Litres" req>
-            <input className="vm-input" inputMode="decimal" placeholder="e.g. 62.4" aria-label="Litres" value={f.litres} onChange={(e) => set("litres")(e.target.value)} />
-          </Field>
-          <Field label="Cost" req={f.paidWith === "own"}>
-            <MoneyInput value={f.cost} onChange={set("cost")} placeholder="e.g. 158.40" ariaLabel="Cost" />
-          </Field>
-          <Field label="Station">
-            <input className="vm-input" placeholder="e.g. Shell Coburg" aria-label="Station" value={f.station} onChange={(e) => set("station")(e.target.value)} />
-          </Field>
-          {dateField("Date on receipt")}
-          {taxFields}
-          {odoField("Odometer (km)", false)}
-          <Field label="Note" wide>
-            <input className="vm-input" placeholder="Optional" aria-label="Note" value={f.note} onChange={(e) => set("note")(e.target.value)} />
-          </Field>
-        </div>
-      </>
+        <Field label="Litres">
+          <TextInput inputMode="decimal" placeholder="62.4" value={f.litres} onChange={(e) => set("litres")(e.target.value)} />
+        </Field>
+        <Field label="Cost ($)" error={owingNoCost ? "Add the cost, it's what you're paid back" : null}>
+          <TextInput inputMode="decimal" placeholder="158.40" value={f.cost} onChange={(e) => set("cost")(e.target.value)} />
+        </Field>
+        <Field label="Station">
+          <TextInput placeholder="Shell Coburg" value={f.station} onChange={(e) => set("station")(e.target.value)} />
+        </Field>
+        {dateField("Date on receipt")}
+        {taxFields}
+        {odoField("Odometer (km)")}
+        <Field label="Note">
+          <TextInput placeholder="Optional" value={f.note} onChange={(e) => set("note")(e.target.value)} />
+        </Field>
+      </div>
     ) : kind === "service" ? (
-      <div className="vm-fields">
+      <div className="mk-records-grid mk-records-grid--2">
         <Field label="Workshop">
-          <input className="vm-input" placeholder="e.g. Braeside Auto" aria-label="Workshop" value={f.station} onChange={(e) => set("station")(e.target.value)} />
+          <TextInput placeholder="Braeside Auto" value={f.station} onChange={(e) => set("station")(e.target.value)} />
         </Field>
         {dateField("Date on invoice")}
-        {odoField("Odometer at service (km)", true)}
-        <Field label="Cost">
-          <MoneyInput value={f.cost} onChange={set("cost")} placeholder="e.g. 480" ariaLabel="Cost" />
+        {odoField("Odometer at service (km)")}
+        <Field label="Cost ($)">
+          <TextInput inputMode="decimal" placeholder="480" value={f.cost} onChange={(e) => set("cost")(e.target.value)} />
         </Field>
         {taxFields}
-        <Field label="Summary" wide3>
-          <input className="vm-input" placeholder="e.g. 100,000 km logbook service" aria-label="Summary" value={f.note} onChange={(e) => set("note")(e.target.value)} />
+        <Field label="Summary" className="mk-records-wide">
+          <TextInput placeholder="100,000 km logbook service" value={f.note} onChange={(e) => set("note")(e.target.value)} />
         </Field>
-        <Field label="Work done" wide3>
-          <textarea className="vm-input vm-textarea" placeholder="One line per item, as the invoice lists them" aria-label="Work done" value={f.workDone} onChange={(e) => set("workDone")(e.target.value)} />
+        <Field label="Work done" className="mk-records-wide">
+          <TextArea rows={5} placeholder="One line per item" value={f.workDone} onChange={(e) => set("workDone")(e.target.value)} />
         </Field>
       </div>
     ) : kind === "odo" ? (
-      <div className="vm-fields">
-        {odoField("Odometer (km)", true)}
-        <Field label="Note" wide>
-          <input className="vm-input" placeholder="Optional" aria-label="Note" value={f.note} onChange={(e) => set("note")(e.target.value)} />
+      <div className="mk-records-grid mk-records-grid--2">
+        {odoField("Odometer (km)")}
+        <Field label="Note">
+          <TextInput placeholder="Optional" value={f.note} onChange={(e) => set("note")(e.target.value)} />
         </Field>
       </div>
     ) : (
-      <div className="vm-fields">
-        <Field label="What's wrong" req wide3>
-          <textarea className="vm-input vm-textarea" placeholder="e.g. Sliding door latch sticking — needs adjustment" aria-label="What's wrong" value={f.note} onChange={(e) => set("note")(e.target.value)} />
-        </Field>
-      </div>
+      <Field label="What's wrong">
+        <TextArea placeholder="Sliding door latch sticking" value={f.note} onChange={(e) => set("note")(e.target.value)} />
+      </Field>
     );
 
   return (
     <>
-      <SubHeader
-        eyebrow={displayName(vehicle)}
-        title={TITLE[kind]}
-        onBack={onBack}
-        right={<Plate plate={vehicle.plate} state={vehicle.plateState} size="sm" />}
-      />
+      <FrameTitle>{TITLE[kind]}</FrameTitle>
+      <VehicleLead name={displayName(vehicle)} plate={<Plate plate={vehicle.plate} state={vehicle.plateState} size="sm" />} />
+      {error && <RecordError>{error}</RecordError>}
 
-      <div className="vm-body">
-        {error && <div className="vm-err">{error}</div>}
-
-        {kind === "fuel" && (
-          <ScanCard<ReadReceiptResult>
-            heading={SCAN.fuel.heading}
-            prompt={SCAN.fuel.prompt}
-            hint={SCAN.fuel.hint}
-            attachLabel={SCAN.fuel.attach}
-            docKind={SCAN.fuel.docKind}
-            read={(b64, mt) => readFuelReceipt(b64, mt)}
-            onRead={(r, id) => {
-              fillFuel(r);
-              setDocId(id);
-            }}
-            onAttached={(id) => setDocId(id)}
-            mode={mode}
-            onMode={(m) => {
-              setMode(m);
-              if (m === "idle") {
-                setF(EMPTY);
-                setDocId(null);
-              }
-            }}
-          >
-            {fields}
-          </ScanCard>
-        )}
-        {kind === "service" && (
-          <ScanCard<ReadServiceResult>
-            heading={SCAN.service.heading}
-            prompt={SCAN.service.prompt}
-            hint={SCAN.service.hint}
-            attachLabel={SCAN.service.attach}
-            docKind={SCAN.service.docKind}
-            read={(b64, mt) => readServiceRecord(b64, mt)}
-            onRead={(r, id) => {
-              fillService(r);
-              setDocId(id);
-            }}
-            onAttached={(id) => setDocId(id)}
-            mode={mode}
-            onMode={(m) => {
-              setMode(m);
-              if (m === "idle") {
-                setF(EMPTY);
-                setDocId(null);
-              }
-            }}
-          >
-            {fields}
-          </ScanCard>
-        )}
-        {!scans && <div className="vm-card vm-record">{fields}</div>}
-
-        {showFields && warnings.length > 0 && (
-          <div className="vm-warnline" role="status">
-            {warnings.join(" ")}
-          </div>
-        )}
-      </div>
-
-      {showFields && (
-        <div className="fl-foot bar">
-          <Btn kind="primary" onClick={save} disabled={!ready}>
-            {pending ? "Saving the entry" : SAVE[kind]}
-          </Btn>
-        </div>
+      {kind === "fuel" && (
+        <ScanCard<ReadReceiptResult>
+          heading={SCAN.fuel.heading}
+          prompt={SCAN.fuel.prompt}
+          paper={SCAN.fuel.paper}
+          attachLabel={SCAN.fuel.attach}
+          docKind={SCAN.fuel.docKind}
+          read={(b64, mt) => readFuelReceipt(b64, mt)}
+          onRead={(r, id) => {
+            fillFuel(r);
+            setDocId(id);
+          }}
+          onAttached={(id) => setDocId(id)}
+          mode={mode}
+          onMode={(m) => {
+            setMode(m);
+            if (m === "idle") {
+              setF(EMPTY);
+              setDocId(null);
+            }
+          }}
+        >
+          {fields}
+        </ScanCard>
       )}
-    </>
-  );
-}
+      {kind === "service" && (
+        <ScanCard<ReadServiceResult>
+          heading={SCAN.service.heading}
+          prompt={SCAN.service.prompt}
+          paper={SCAN.service.paper}
+          attachLabel={SCAN.service.attach}
+          docKind={SCAN.service.docKind}
+          read={(b64, mt) => readServiceRecord(b64, mt)}
+          onRead={(r, id) => {
+            fillService(r);
+            setDocId(id);
+          }}
+          onAttached={(id) => setDocId(id)}
+          mode={mode}
+          onMode={(m) => {
+            setMode(m);
+            if (m === "idle") {
+              setF(EMPTY);
+              setDocId(null);
+            }
+          }}
+        >
+          {fields}
+        </ScanCard>
+      )}
+      {!scans && fields}
 
-function Field({ label, req, wide, wide3, children }: { label: string; req?: boolean; wide?: boolean; wide3?: boolean; children: ReactNode }) {
-  return (
-    <label className={`vm-ffield${wide ? " wide" : ""}${wide3 ? " wide3" : ""}`}>
-      <span className="vm-fl">
-        {label}
-        {req && <i aria-hidden>*</i>}
-      </span>
-      {children}
-    </label>
+      <FrameFoot>
+        <Button kind="quiet" onClick={onBack}>
+          {backWord}
+        </Button>
+        {showFields && (
+          <Button kind="main" onClick={() => void save()} disabled={!ready}>
+            {pending ? "Saving the entry" : SAVE[kind]}
+          </Button>
+        )}
+      </FrameFoot>
+    </>
   );
 }

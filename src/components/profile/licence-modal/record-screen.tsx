@@ -1,11 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { Icon } from "@/components/shell/icon";
+import { Button } from "@/components/parts/button";
 import { readStaffLicenceDocument, type ReadLicenceResult } from "@/app/actions/staff-licence-ai";
 import type { StoredDocument } from "@/lib/documents/query";
 import { fmtDay } from "@/lib/format/day";
-import { Btn, Card, DetailGrid, Eyebrow, type DetailItem } from "@/components/record-modal/parts";
+import {
+  DetailGrid,
+  FrameFoot,
+  Group,
+  HistoryRow,
+  Nothing,
+  RecordError,
+  RecordStatus,
+  RemoveFromHistory,
+  type DetailItem,
+} from "@/components/record-modal/parts";
 import { AddDocument } from "@/components/record-modal/add-document";
 import { DocRows } from "@/components/record-modal/doc-rows";
 import { ScanCard, type ScanMode } from "@/components/record-modal/scan-card";
@@ -91,7 +101,6 @@ export function RecordScreen({
   const [docId, setDocId] = useState<string | null>(null);
   const [openDoc, setOpenDoc] = useState<string | null>(null);
   const [openHist, setOpenHist] = useState<string | null>(null);
-  const [armedTerm, setArmedTerm] = useState<string | null>(null);
   /* Bumped once a scan has been filed, so a panel that stays on screen comes
      back EMPTY. The panel keeps its own file name and its own "couldn't read
      that one" line, and both belonged to the document that just left. */
@@ -151,8 +160,8 @@ export function RecordScreen({
   const noTermLine = licence.expiryDate
     ? `Expires ${fmtDay(licence.expiryDate)}`
     : loose.length > 0
-      ? "No expiry on this ticket."
-      : "Scan the card or enter the details below.";
+      ? "No expiry on this ticket"
+      : "Nothing filed against it yet";
   /* read into a name before the `||` below: React Compiler 1.0 refuses a
      logical whose left side holds a ternary or a `?.`, and gives up on the
      whole component when it meets one */
@@ -160,196 +169,141 @@ export function RecordScreen({
     .filter(Boolean)
     .join(", ");
   const subline = !recorded ? noTermLine : termLine || termStatusText(days);
-  const tone = state === "none" ? "neutral" : state;
 
   const facts: DetailItem[] = current ? termFacts(current, state) : [];
   const currentDocs = current ? termDocuments(documents, current) : [];
 
   return (
     <>
-      <div className="vm-body">
-        {error && <div className="vm-err">{error}</div>}
+      {error && <RecordError>{error}</RecordError>}
 
-        <div className={`vm-status ${tone}`}>
-          <div className="vm-statusl">
-            <Eyebrow tone={state === "ok" ? "accent" : state === "none" ? undefined : "warn"}>Status</Eyebrow>
-            <span className="vm-headline">{headline}</span>
-            <span className="vm-subline">{subline}</span>
-          </div>
-          {recorded && !panelOpen && (
-            <Btn kind="primary" onClick={() => setPanelOpen(true)}>
-              Record renewal
-            </Btn>
-          )}
-        </div>
+      <RecordStatus state={state} word={headline} line={subline} />
 
-        {current && (
-          <Card>
-            <div className="vm-cardhead">
-              <Eyebrow>Current card</Eyebrow>
-              <span className="vm-added">{termAddedText(current)}</span>
-            </div>
-            <DetailGrid items={facts} />
-            <div className="vm-divider">
-              <Eyebrow>Documents</Eyebrow>
-              <AddDocument docKind={LICENCE_DOC_KIND} onAdded={(id) => onAttach(current.id, id)} />
-            </div>
-            <DocRows
-              docs={currentDocs}
-              openId={openDoc}
-              onOpen={(id) => {
-                setOpenDoc(id);
-                if (id) setOpenHist(null);
-              }}
-              emptyText="No photo or scan filed with this card yet."
-            />
-          </Card>
-        )}
+      {current && (
+        <Group name="Current card" aside={termAddedText(current)}>
+          <DetailGrid items={facts} />
+        </Group>
+      )}
 
-        {/* THE TICKET'S OWN PAPERWORK, when it has no term to file it under.
+      {/* THE TICKET'S OWN PAPERWORK sits here when it has no term to file it
+          under. A term is a PERIOD and expires_on is NOT NULL, so a ticket
+          that never lapses — a white card — can hold no term at all, and its
+          photo is the only content it will ever have. */}
+      <Group
+        name="Documents"
+        action={<AddDocument docKind={LICENCE_DOC_KIND} onAdded={(id) => onAttach(current ? current.id : null, id)} />}
+      >
+        <DocRows
+          docs={current ? currentDocs : loose}
+          openId={openDoc}
+          onOpen={(id) => {
+            setOpenDoc(id);
+            if (id) setOpenHist(null);
+          }}
+          emptyText={current ? "No photo or scan filed with this card yet." : "No photo or scan filed against this ticket yet."}
+        />
+      </Group>
 
-            A term is a PERIOD and expires_on is NOT NULL, so a ticket that
-            never lapses — a white card, one of the four seeded types — can
-            hold no term at all. Its photo is the only content it will ever
-            have, and until this card existed there was nowhere to put it: the
-            one "Add document" on the screen lived inside the current term's.
+      {panelOpen && (
+        <ScanCard<ReadLicenceResult>
+          key={filed}
+          heading={current ? "Renew this licence" : "Scan the card"}
+          prompt={SCAN_COPY.prompt}
+          note={SCAN_COPY.note}
+          paper={SCAN_COPY.paper}
+          attachLabel={SCAN_COPY.attach}
+          docKind={LICENCE_DOC_KIND}
+          read={(b64, mt) => readStaffLicenceDocument(b64, mt, staffId)}
+          onRead={(r, id) => {
+            fill(r);
+            setDocId(id);
+          }}
+          onAttached={(id) => setDocId(id)}
+          onCancel={recorded ? () => setPanelOpen(false) : undefined}
+          mode={mode}
+          onMode={(m) => {
+            setMode(m);
+            if (m === "idle") {
+              setTerm(emptyTerm);
+              setDocId(null);
+            }
+          }}
+        >
+          <TermFields value={term} onChange={setTerm} today={today} />
+        </ScanCard>
+      )}
 
-            It takes the current term's slot because it is what the screen has
-            instead of one, and because a person who has just found Save
-            disabled for want of an expiry has to be able to SEE it. */}
-        {!current && (
-          <Card>
-            <div className="vm-cardhead">
-              <Eyebrow>Documents</Eyebrow>
-              <AddDocument docKind={LICENCE_DOC_KIND} onAdded={(id) => onAttach(null, id)} />
-            </div>
-            <DocRows
-              docs={loose}
-              openId={openDoc}
-              onOpen={setOpenDoc}
-              emptyText="No photo or scan filed against this ticket yet."
-            />
-          </Card>
-        )}
-
-        {/* ---- remind me: each chip is a task of your own ---- */}
-
-        {panelOpen && (
-          <ScanCard<ReadLicenceResult>
-            key={filed}
-            heading={current ? "Renew this ticket" : "Scan the card"}
-            prompt={SCAN_COPY.prompt}
-            hint={SCAN_COPY.hint}
-            attachLabel={SCAN_COPY.attach}
-            docKind={LICENCE_DOC_KIND}
-            read={(b64, mt) => readStaffLicenceDocument(b64, mt, staffId)}
-            onRead={(r, id) => {
-              fill(r);
-              setDocId(id);
-            }}
-            onAttached={(id) => setDocId(id)}
-            onCancel={recorded ? () => setPanelOpen(false) : undefined}
-            mode={mode}
-            onMode={(m) => {
-              setMode(m);
-              if (m === "idle") {
-                setTerm(emptyTerm);
-                setDocId(null);
-              }
-            }}
-          >
-            <TermFields value={term} onChange={setTerm} today={today} expiryRequired={docId === null} />
-          </ScanCard>
-        )}
-
-        <Card className="vm-histcard">
-          <div className="vm-cardhead">
-            <Eyebrow>Previous cards</Eyebrow>
-          </div>
-          {history.length === 0 ? (
-            <div className="vm-empty">No previous cards recorded.</div>
-          ) : (
-            history.map((r) => {
-              const expanded = openHist === r.id;
-              const docs = termDocuments(documents, r);
-              return (
-                <div key={r.id} className="vm-hist">
-                  <button
-                    type="button"
-                    className="vm-histrow"
-                    aria-expanded={expanded}
-                    onClick={() => {
-                      setOpenHist(expanded ? null : r.id);
-                      setOpenDoc(null);
-                      setArmedTerm(null);
-                    }}
+      <Group name="Previous cards">
+        {history.length === 0 ? (
+          <Nothing>No previous cards recorded.</Nothing>
+        ) : (
+          history.map((r) => {
+            const expanded = openHist === r.id;
+            const docs = termDocuments(documents, r);
+            return (
+              <HistoryRow
+                key={r.id}
+                name={termEvent(r)}
+                line={docs.length === 1 ? "1 document" : `${docs.length} documents`}
+                aside={[r.number, fmtDay(r.expiresOn)]}
+                open={expanded}
+                onToggle={() => {
+                  setOpenHist(expanded ? null : r.id);
+                  setOpenDoc(null);
+                }}
+              >
+                <DetailGrid dense items={termFacts(r, "ok")} />
+                <DocRows docs={docs} openId={openDoc} onOpen={setOpenDoc} emptyText="No paperwork filed." />
+                <div className="rcw-histfoot">
+                  <span>{termAddedText(r) || "Filed by hand"}</span>
+                  <RemoveFromHistory
+                    label="Remove from history"
+                    heading="Remove this card from the history?"
+                    confirm="Remove card"
+                    disabled={pending}
+                    onConfirm={() => onRemoveTerm(r.id)}
                   >
-                    <span className="vm-docl">
-                      <b>{termEvent(r)}</b>
-                      <em>{docs.length === 1 ? "1 document" : `${docs.length} documents`}</em>
-                    </span>
-                    <span className="vm-histr">
-                      {r.number && <span>{r.number}</span>}
-                      <span className="vm-evdate">{fmtDay(r.expiresOn)}</span>
-                      <Icon name={expanded ? "chevU" : "chevR"} size={14} />
-                    </span>
-                  </button>
-                  {expanded && (
-                    <div className="vm-histbody">
-                      <div className="vm-inset">
-                        <DetailGrid dense items={termFacts(r, "ok")} />
-                      </div>
-                      <span className="vm-fl">Documents</span>
-                      <DocRows docs={docs} openId={openDoc} onOpen={setOpenDoc} emptyText="No paperwork filed." />
-                      <div className="vm-attach">
-                        <span>{termAddedText(r) || "Filed by hand"}</span>
-                        <button
-                          type="button"
-                          className={`vm-inline danger${armedTerm === r.id ? " arm" : ""}`}
-                          disabled={pending}
-                          onClick={() => (armedTerm === r.id ? onRemoveTerm(r.id) : setArmedTerm(r.id))}
-                        >
-                          {armedTerm === r.id ? "Click again to remove" : "Remove from history"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                    {`${termEvent(r)}, expiring ${fmtDay(r.expiresOn)}, comes out of the licence's history. There is no undo.`}
+                  </RemoveFromHistory>
                 </div>
-              );
-            })
-          )}
-        </Card>
-
-        {/* Paperwork the ticket owns that sits under no term — filed before the
-            first renewal was recorded, or against the card itself. Invisible
-            otherwise, which is the one thing a document store must never be.
-            Only when there IS a term: with none, the DOCUMENTS card above is
-            already showing every one of these, and this would repeat it. */}
-        {current && loose.length > 0 && (
-          <Card>
-            <div className="vm-cardhead">
-              <Eyebrow>Other documents</Eyebrow>
-            </div>
-            <DocRows docs={loose} openId={openDoc} onOpen={setOpenDoc} />
-          </Card>
+              </HistoryRow>
+            );
+          })
         )}
-      </div>
+      </Group>
 
-      <div className="fl-foot bar spread">
-        <Btn kind="outline" onClick={onEdit} icon="edit">
+      {/* Paperwork the ticket owns that sits under no term — filed before the
+          first renewal was recorded, or against the card itself. Only when
+          there IS a term: with none, Documents above already lists these. */}
+      {current && loose.length > 0 && (
+        <Group name="Other documents">
+          <DocRows docs={loose} openId={openDoc} onOpen={setOpenDoc} />
+        </Group>
+      )}
+
+      {/* "Record renewal" left the status card for the foot (the mock's
+          notes): the screen's one main press is whichever the panel needs. */}
+      <FrameFoot>
+        <Button kind="second" onClick={onEdit}>
           Edit details
-        </Btn>
-        <span style={{ display: "flex", gap: 10 }}>
-          <Btn kind="outline" onClick={onClose}>
-            Close
-          </Btn>
-          {showFields && (
-            <Btn kind="primary" onClick={save} disabled={!canSave}>
-              {pending ? "Saving the card" : filingOnly ? "File the document" : "Save card"}
-            </Btn>
-          )}
-        </span>
-      </div>
+        </Button>
+        <span className="mk-gap" />
+        <Button kind="quiet" onClick={onClose}>
+          Close
+        </Button>
+        {showFields ? (
+          <Button kind="main" onClick={save} disabled={!canSave}>
+            {pending ? "Saving the card" : filingOnly ? "File the document" : "Save card"}
+          </Button>
+        ) : (
+          recorded &&
+          !panelOpen && (
+            <Button kind="main" onClick={() => setPanelOpen(true)}>
+              Record renewal
+            </Button>
+          )
+        )}
+      </FrameFoot>
     </>
   );
 }

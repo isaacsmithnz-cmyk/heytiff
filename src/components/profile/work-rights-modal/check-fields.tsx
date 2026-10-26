@@ -1,7 +1,8 @@
 "use client";
 
-import { DateField } from "@/components/ui/date-field";
-import { Field } from "@/components/record-modal/parts";
+import { Field, TextInput } from "@/components/parts/field";
+import { Chooser } from "@/components/parts/chooser";
+import { DateIn } from "@/components/record-modal/parts";
 import { WORK_RIGHTS, isNoVisa } from "@/lib/staff/work-rights";
 import type { WorkRightsCheckInput } from "@/lib/staff/work-rights-records";
 
@@ -24,15 +25,15 @@ import type { WorkRightsCheckInput } from "@/lib/staff/work-rights-records";
 export const SCAN_COPY = {
   heading: "File what it said",
   prompt: "Scan or upload what the check gave you",
-  hint: "PDF, JPG or photo.",
-  attach: "Optional: attach the visa check result or the grant letter",
+  paper: "the check",
+  attach: "Attach the visa check result or the grant letter",
 };
 
 export const SCAN_COPY_NO_VISA = {
   heading: "File the document",
   prompt: "Scan or upload the passport or citizenship certificate",
-  hint: "PDF, JPG or photo.",
-  attach: "Optional: attach the passport or citizenship certificate",
+  paper: "the document",
+  attach: "Attach the passport or citizenship certificate",
 };
 
 export type Check = {
@@ -75,66 +76,29 @@ export function CheckFields({
   const noVisa = value.status !== "" && isNoVisa(value.status);
 
   return (
-    <div className="vm-fields">
-      <Field label="Right to work" req>
-        <select
-          className="vm-input"
-          aria-label="Right to work"
-          value={value.status}
-          onChange={(e) => set("status")(e.target.value)}
-        >
-          <option value="">Select the right to work</option>
-          {WORK_RIGHTS.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
+    <div className="mk-records-grid mk-records-grid--2">
+      <Field label="Right to work" className="mk-records-wide">
+        <Chooser
+          placeholder="Choose the right to work"
+          options={WORK_RIGHTS.map((w) => ({ value: w, label: w }))}
+          value={value.status || null}
+          onChange={set("status")}
+        />
       </Field>
 
       {!noVisa && (
         <>
           <Field label="Visa">
-            <input
-              className="vm-input"
-              aria-label="Visa"
-              placeholder="e.g. 482 Temporary Skill Shortage"
-              value={value.visaType}
-              onChange={(e) => set("visaType")(e.target.value)}
-            />
+            <TextInput placeholder="482 Skills in Demand" value={value.visaType} onChange={(e) => set("visaType")(e.target.value)} />
           </Field>
           <Field label="Work condition">
-            <input
-              className="vm-input"
-              aria-label="Work condition"
-              placeholder="e.g. No work limitation"
-              value={value.hoursCondition}
-              onChange={(e) => set("hoursCondition")(e.target.value)}
-            />
+            <TextInput placeholder="No work limitation" value={value.hoursCondition} onChange={(e) => set("hoursCondition")(e.target.value)} />
           </Field>
-          <Field label="Visa expiry">
-            <DateField
-              size="lg"
-              clearable
-              today={today}
-              value={value.expiresOn || null}
-              onChange={(iso) => set("expiresOn")(iso ?? "")}
-              aria-label="Visa expiry"
-            />
-          </Field>
+          <DateIn label="Visa expiry" today={today} value={value.expiresOn} onChange={set("expiresOn")} />
         </>
       )}
 
-      <Field label="Checked on" req>
-        <DateField
-          size="lg"
-          clearable
-          today={today}
-          value={value.checkedOn || null}
-          onChange={(iso) => set("checkedOn")(iso ?? "")}
-          aria-label="Checked on"
-        />
-      </Field>
+      <DateIn label="Checked on" today={today} value={value.checkedOn} onChange={set("checkedOn")} />
     </div>
   );
 }

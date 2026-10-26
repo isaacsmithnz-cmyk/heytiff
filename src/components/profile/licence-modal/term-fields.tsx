@@ -1,7 +1,8 @@
 "use client";
 
-import { DateField } from "@/components/ui/date-field";
-import { Field } from "@/components/record-modal/parts";
+import { DateIn } from "@/components/record-modal/parts";
+import { Field, TextInput } from "@/components/parts/field";
+import { Chooser } from "@/components/parts/chooser";
 import { AU_LICENCE_STATES } from "@/lib/staff/licence-readers";
 import type { LicenceTermInput } from "@/lib/staff/licence-records";
 
@@ -15,11 +16,12 @@ import type { LicenceTermInput } from "@/lib/staff/licence-records";
    transcription of a government ID. */
 
 export const SCAN_COPY = {
-  prompt: "Scan or photograph the licence",
-  hint:
-    "Photo or PDF. Only the number, issuer, classes and expiry are read — not your name, " +
-    "date of birth or address.",
-  attach: "Optional: attach a photo of the card",
+  prompt: "Snap or upload the card",
+  /* A fact about what is kept, not a hint about the form: the reader never
+     takes a name, a birthday or an address off the card. */
+  note: "Only the number, issuer, classes and expiry are read, not your name, date of birth or address.",
+  paper: "the card",
+  attach: "Attach a photo of the card",
 };
 
 export type Term = {
@@ -57,80 +59,33 @@ export function TermFields({
   value,
   onChange,
   today,
-  expiryRequired,
 }: {
   value: Term;
   onChange: (t: Term) => void;
   today: string;
-  /** Whether the button can do nothing without an expiry, which is what the
-      star says. Adding never needs one, and a renewal needs one only while no
-      document is waiting: with one, the button files it instead. */
-  expiryRequired: boolean;
 }) {
   const set = (k: keyof Term) => (v: string) => onChange({ ...value, [k]: v });
   return (
-    <div className="vm-fields">
+    <div className="mk-records-grid">
       <Field label="Licence no.">
-        <input
-          className="vm-input"
-          aria-label="Licence no."
-          value={value.number}
-          onChange={(e) => set("number")(e.target.value)}
-        />
+        <TextInput value={value.number} onChange={(e) => set("number")(e.target.value)} />
       </Field>
       <Field label="Issued by">
-        <input
-          className="vm-input"
-          aria-label="Issued by"
-          placeholder="e.g. Service NSW"
-          value={value.issuer}
-          onChange={(e) => set("issuer")(e.target.value)}
-        />
+        <TextInput placeholder="Service NSW" value={value.issuer} onChange={(e) => set("issuer")(e.target.value)} />
       </Field>
       <Field label="State">
-        <select
-          className="vm-input"
-          aria-label="State"
-          value={value.issuingState}
-          onChange={(e) => set("issuingState")(e.target.value)}
-        >
-          <option value="">—</option>
-          {AU_LICENCE_STATES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
+        <Chooser
+          placeholder="State"
+          options={AU_LICENCE_STATES.map((st) => ({ value: st, label: st }))}
+          value={value.issuingState || null}
+          onChange={set("issuingState")}
+        />
       </Field>
       <Field label="Classes">
-        <input
-          className="vm-input"
-          aria-label="Classes"
-          placeholder="e.g. C, LR"
-          value={value.classes}
-          onChange={(e) => set("classes")(e.target.value)}
-        />
+        <TextInput placeholder="C, LR" value={value.classes} onChange={(e) => set("classes")(e.target.value)} />
       </Field>
-      <Field label="Issued">
-        <DateField
-          size="lg"
-          clearable
-          today={today}
-          value={value.startsOn || null}
-          onChange={(iso) => set("startsOn")(iso ?? "")}
-          aria-label="Issued"
-        />
-      </Field>
-      <Field label="Expiry" req={expiryRequired}>
-        <DateField
-          size="lg"
-          clearable
-          today={today}
-          value={value.expiresOn || null}
-          onChange={(iso) => set("expiresOn")(iso ?? "")}
-          aria-label="Expiry"
-        />
-      </Field>
+      <DateIn label="Issued" today={today} value={value.startsOn} onChange={set("startsOn")} />
+      <DateIn label="Expiry" today={today} value={value.expiresOn} onChange={set("expiresOn")} />
     </div>
   );
 }

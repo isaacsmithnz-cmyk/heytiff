@@ -99,8 +99,6 @@ const GROUNDS: Record<string, RGBA> = {
   "a white card": WHITE,
   "the outlet": ground([bgOf(".fg .outlet")]),
   "the timesheet's day card": ground([bgOf(".fg .ts2-card")]),
-  // the sunk card is a tint since the vm fold, so it is composited on the modal's white
-  "the vehicle modal's sunk card": ground([colour(token("vm-sunk"))]),
 };
 
 /* ── THE HOUSE TRAY: the switch and the two controls built on it ──
@@ -116,7 +114,6 @@ const HOUSE: [string, string][] = [
 /* ── ALPHA TRAYS: they hold everywhere, so they are checked everywhere ── */
 const ALPHA: [string, string][] = [
   ...HOUSE,
-  [".vm-seg", "vehicle modal — history filter"],
   /* `.wb2-filters` left this list with the tray itself (2026-09-16): the
      Urgent tabs' filters are the board toolbar's chips, each with its own
      hairline, so there is no shared track left to lose against its ground. */

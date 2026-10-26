@@ -182,7 +182,7 @@ describe("the licence modal", () => {
     expect(within(dialog).getByText("7 Aug 2026")).toBeInTheDocument();
 
     // and the one before it, which deleting-and-re-adding used to destroy
-    const history = within(dialog).getByText("Previous cards").closest(".vm-card") as HTMLElement;
+    const history = within(dialog).getByText("Previous cards").closest(".rcw-grp") as HTMLElement;
     expect(within(history).getByText("7 Aug 2024")).toBeInTheDocument();
   });
 
@@ -202,7 +202,7 @@ describe("the licence modal", () => {
     await openCard(user, "ARC licence");
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Record renewal" }));
-    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    await user.click(within(dialog).getByRole("button", { name: "Enter it by hand" }));
 
     await user.type(within(dialog).getByLabelText("Licence no."), "AU999");
     // no expiry yet: nothing to save
@@ -225,7 +225,7 @@ describe("the licence modal", () => {
     setup();
     await openCard(user, "White card");
     const dialog = screen.getByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    await user.click(within(dialog).getByRole("button", { name: "Enter it by hand" }));
 
     const expiry = within(dialog).getByLabelText("Expiry");
     expect(expiry.tagName).toBe("BUTTON");
@@ -248,7 +248,7 @@ describe("the licence modal", () => {
     expect(within(dialog).getByLabelText("Licence or ticket")).toHaveValue("ARC licence");
     await user.clear(within(dialog).getByLabelText("Licence no."));
     await user.type(within(dialog).getByLabelText("Licence no."), "AU777");
-    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    await user.click(within(dialog).getByRole("button", { name: "Save details" }));
 
     expect(onUpdate).toHaveBeenCalledWith(
       "L1",
@@ -273,17 +273,18 @@ describe("the licence modal", () => {
     expect(within(dialog).queryByLabelText("Expiry")).not.toBeInTheDocument();
   });
 
-  it("deletes only after a second, deliberate click", async () => {
+  it("deletes only once it has asked, in its own dialog", async () => {
     const user = userEvent.setup();
     const { onRemove } = setup();
 
     await openCard(user, "ARC licence");
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: /Edit details/ }));
-    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+    await user.click(within(dialog).getByRole("button", { name: "Delete licence" }));
     expect(onRemove).not.toHaveBeenCalled();
 
-    await user.click(within(dialog).getByRole("button", { name: /Click again to delete/ }));
+    const ask = screen.getByRole("dialog", { name: "Delete ARC licence?" });
+    await user.click(within(ask).getByRole("button", { name: "Delete licence" }));
     expect(onRemove).toHaveBeenCalledWith("L1");
   });
 
@@ -296,7 +297,7 @@ describe("adding one", () => {
     await user.click(screen.getByRole("button", { name: /Add a licence or ticket/ }));
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("Scan the card")).toBeInTheDocument();
-    expect(within(dialog).getByText(/Scan or photograph the licence/)).toBeInTheDocument();
+    expect(within(dialog).getByText("Snap or upload the card")).toBeInTheDocument();
   });
 
   it("says plainly that nothing else on the card is read", async () => {
@@ -324,10 +325,10 @@ describe("adding one", () => {
 
     expect(within(dialog).queryByLabelText("Licence no.")).not.toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    await user.click(within(dialog).getByRole("button", { name: "Enter it by hand" }));
 
     // exactly one, and it is the scan panel's
-    const panel = within(dialog).getByText("Scan the card").closest(".vm-card") as HTMLElement;
+    const panel = within(dialog).getByText("Scan the card").closest(".rcw-grp") as HTMLElement;
     expect(within(dialog).getAllByLabelText("Licence no.")).toHaveLength(1);
     expect(within(panel).getByLabelText("Licence no.")).toBeInTheDocument();
   });
@@ -342,7 +343,7 @@ describe("adding one", () => {
     await user.click(screen.getByRole("button", { name: /Add a licence or ticket/ }));
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText("Licence or ticket"), "ARC licence");
-    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    await user.click(within(dialog).getByRole("button", { name: "Enter it by hand" }));
     await user.type(within(dialog).getByLabelText("Licence no."), "AU999");
     await user.click(within(dialog).getByRole("button", { name: "Add licence" }));
 
@@ -525,7 +526,7 @@ describe("adding a ticket by scanning it", () => {
     await user.click(screen.getByRole("button", { name: /Add a licence or ticket/ }));
     const dialog = screen.getByRole("dialog");
     await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
-    await within(dialog).findByText("Scanned");
+    await within(dialog).findByText("Read from the card");
     await user.type(within(dialog).getByLabelText("Licence or ticket"), "White card");
     await user.click(within(dialog).getByRole("button", { name: "Add licence" }));
   };
@@ -586,7 +587,7 @@ describe("scanning a ticket with no expiry on the record panel", () => {
 
   const scan = async (user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) => {
     await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
-    await within(dialog).findByText("Scanned");
+    await within(dialog).findByText("Read from the card");
   };
 
   const scanWhiteCard = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -617,8 +618,8 @@ describe("scanning a ticket with no expiry on the record panel", () => {
     await user.click(within(dialog).getByRole("button", { name: "File the document" }));
 
     // a ticket with no term keeps its panel — it is the screen — back at the start
-    expect(await within(dialog).findByText("Scan or photograph the licence")).toBeInTheDocument();
-    expect(within(dialog).queryByText("Scanned")).not.toBeInTheDocument();
+    expect(await within(dialog).findByText("Snap or upload the card")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Read from the card")).not.toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "File the document" })).not.toBeInTheDocument();
   });
 
@@ -634,13 +635,13 @@ describe("scanning a ticket with no expiry on the record panel", () => {
     const dialog = screen.getByRole("dialog");
     await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
     expect(
-      await within(dialog).findByText("Tiff couldn't read that one — enter the details below.")
+      await within(dialog).findByText("Tiff couldn't read that one")
     ).toBeInTheDocument();
 
     await user.click(within(dialog).getByRole("button", { name: "File the document" }));
 
     expect(onAttachDoc).toHaveBeenCalledWith("L2", null, "doc-7", { number: "" });
-    expect(await within(dialog).findByText("Scan or photograph the licence")).toBeInTheDocument();
+    expect(await within(dialog).findByText("Snap or upload the card")).toBeInTheDocument();
     expect(within(dialog).queryByText(/Tiff couldn't read that one/)).not.toBeInTheDocument();
   });
 
@@ -668,7 +669,7 @@ describe("scanning a ticket with no expiry on the record panel", () => {
     await user.click(within(dialog).getByRole("button", { name: "File the document" }));
 
     expect(await within(dialog).findByText("That document couldn't be filed.")).toBeInTheDocument();
-    expect(within(dialog).getByText("Scanned")).toBeInTheDocument();
+    expect(within(dialog).getByText("Read from the card")).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "File the document" }));
     expect(onAttachDoc).toHaveBeenCalledTimes(2);
     expect(onAttachDoc).toHaveBeenLastCalledWith("L2", null, "doc-7", { number: "WC-12345" });
@@ -695,22 +696,18 @@ describe("scanning a ticket with no expiry on the record panel", () => {
     setup();
     await openCard(user, "White card");
     const dialog = screen.getByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    await user.click(within(dialog).getByRole("button", { name: "Enter it by hand" }));
     expect(within(dialog).getByRole("button", { name: "Save card" })).toBeDisabled();
   });
 });
 
-/* THE EXPIRY'S STAR SAYS WHEN THE BUTTON NEEDS ONE.
-
-   A term cannot be saved without an expiry, and the star said so everywhere,
-   including where the button no longer needs one: a scan waiting on the record
-   panel is filed as a document without one, and adding a ticket never needs
-   one at all. A star on a box the person can leave empty says the save will
-   refuse, and it won't. */
-describe("the expiry's required star", () => {
+/* THE BUTTON SAYS WHEN IT NEEDS AN EXPIRY. The star that marked the expiry
+   as required went with v2's fields (the old-modals mock, 27 October 2026);
+   what it said is the blue button's to say. A term cannot be saved without an
+   expiry, but a scan waiting on the record panel is filed as a document
+   without one, and adding a ticket never needs one at all. */
+describe("the expiry, when the button needs one", () => {
   const pdf = () => new File(["x"], "white-card.pdf", { type: "application/pdf" });
-  const star = (dialog: HTMLElement) =>
-    within(dialog).getByLabelText("Expiry").closest("label")?.querySelector(".vm-fl i") ?? null;
 
   beforeEach(() => {
     uploadFile.mockReset();
@@ -727,32 +724,33 @@ describe("the expiry's required star", () => {
     });
   });
 
-  it("shows on the record panel while only a term can be saved", async () => {
+  it("holds Save on the record panel while only a term can be saved", async () => {
     const user = userEvent.setup();
     setup();
     await openCard(user, "White card");
     const dialog = screen.getByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
-    expect(star(dialog)).not.toBeNull();
+    await user.click(within(dialog).getByRole("button", { name: "Enter it by hand" }));
+    expect(within(dialog).getByRole("button", { name: "Save card" })).toBeDisabled();
   });
 
-  it("goes once a scan is waiting, because the button files it without one", async () => {
+  it("files a waiting scan without one", async () => {
     const user = userEvent.setup();
     setup();
     await openCard(user, "White card");
     const dialog = screen.getByRole("dialog");
     await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
-    await within(dialog).findByText("Scanned");
-    expect(star(dialog)).toBeNull();
+    await within(dialog).findByText("Read from the card");
+    expect(within(dialog).getByRole("button", { name: "File the document" })).toBeEnabled();
   });
 
-  it("never shows while adding a ticket", async () => {
+  it("never needs one while adding a ticket", async () => {
     const user = userEvent.setup();
     setup();
     await user.click(screen.getByRole("button", { name: /Add a licence or ticket/ }));
     const dialog = screen.getByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
-    expect(star(dialog)).toBeNull();
+    await user.type(within(dialog).getByLabelText("Licence or ticket"), "White card");
+    await user.click(within(dialog).getByRole("button", { name: "Enter it by hand" }));
+    expect(within(dialog).getByRole("button", { name: "Add licence" })).toBeEnabled();
   });
 });
 
@@ -799,11 +797,11 @@ describe("the words on a ticket", () => {
     await openCard(user, "White card");
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).queryByText(/document filed against this ticket/)).not.toBeInTheDocument();
-    expect(within(dialog).getByText("No expiry on this ticket.")).toBeInTheDocument();
-    expect(within(dialog).queryByText("Scan the card or enter the details below.")).not.toBeInTheDocument();
+    expect(within(dialog).getByText("No expiry on this ticket")).toBeInTheDocument();
+    expect(within(dialog).queryByText(/enter the details below/)).not.toBeInTheDocument();
   });
 
-  it("never says term, and asks for a second click rather than a tap", async () => {
+  it("never says term, and asks in a dialog rather than on a second click", async () => {
     const user = userEvent.setup();
     setup({
       records: { L1: [term(), term({ id: "T0", expiresOn: "2024-08-07", startsOn: "2022-08-07" })] },
@@ -812,15 +810,18 @@ describe("the words on a ticket", () => {
     await openCard(user, "ARC licence");
     const dialog = screen.getByRole("dialog");
 
-    const history = within(dialog).getByText("Previous cards").closest(".vm-card") as HTMLElement;
-    await user.click(within(history).getByText("7 Aug 2024"));
+    const history = within(dialog).getByText("Previous cards").closest(".rcw-grp") as HTMLElement;
+    await user.click(within(history).getByRole("button", { name: "Open" }));
     await user.click(within(dialog).getByRole("button", { name: "Remove from history" }));
-    expect(within(dialog).getByRole("button", { name: "Click again to remove" })).toBeInTheDocument();
+    // it asks once, in its own dialog, in a card's words
+    const ask = screen.getByRole("dialog", { name: "Remove this card from the history?" });
+    expect(words(ask)).not.toMatch(/\bterms?\b/i);
+    await user.click(within(ask).getByRole("button", { name: "Keep it" }));
     expect(within(dialog).getByText("Other documents")).toBeInTheDocument();
     expect(words(dialog)).not.toMatch(/\bterms?\b/i);
 
     await user.click(within(dialog).getByRole("button", { name: "Record renewal" }));
-    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    await user.click(within(dialog).getByRole("button", { name: "Enter it by hand" }));
     expect(within(dialog).getByRole("button", { name: "Save card" })).toBeInTheDocument();
     expect(words(dialog)).not.toMatch(/\bterms?\b/i);
   });
@@ -841,7 +842,7 @@ describe("the words on a ticket", () => {
     await user.click(screen.getByRole("button", { name: /Add a licence or ticket/ }));
     const dialog = screen.getByRole("dialog");
     await user.upload(within(dialog).getByLabelText("Scan document"), new File(["x"], "white-card.pdf", { type: "application/pdf" }));
-    await within(dialog).findByText("Scanned");
+    await within(dialog).findByText("Read from the card");
     expect(within(dialog).queryByText(/Name it/)).not.toBeInTheDocument();
   });
 });
@@ -871,7 +872,7 @@ describe("a scan in progress survives Escape", () => {
     await user.click(screen.getByRole("button", { name: /Add a licence or ticket/ }));
     const dialog = screen.getByRole("dialog");
     await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
-    await within(dialog).findByText("Scanned");
+    await within(dialog).findByText("Read from the card");
     return dialog;
   };
 
@@ -881,14 +882,16 @@ describe("a scan in progress survives Escape", () => {
     await scanOnAdd(user);
     await user.keyboard("{Escape}");
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(within(screen.getByRole("dialog")).getByText("Scanned")).toBeInTheDocument();
+    expect(within(screen.getByRole("dialog")).getByText("Read from the card")).toBeInTheDocument();
   });
 
   it("keeps them when the backdrop is clicked", async () => {
     const user = userEvent.setup();
     setup();
     await scanOnAdd(user);
-    fireEvent.click(document.querySelector(".vm-ov") as HTMLElement);
+    const scrim = document.querySelector(".pt-scrim") as HTMLElement;
+    fireEvent.mouseDown(scrim);
+    fireEvent.click(scrim);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
@@ -906,7 +909,7 @@ describe("a scan in progress survives Escape", () => {
     await openCard(user, "White card");
     const dialog = screen.getByRole("dialog");
     await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
-    await within(dialog).findByText("Scanned");
+    await within(dialog).findByText("Read from the card");
     await user.keyboard("{Escape}");
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });

@@ -1,7 +1,7 @@
 "use client";
 
-import { DateField } from "@/components/ui/date-field";
-import { Field, MoneyInput } from "@/components/record-modal/parts";
+import { Field, TextInput } from "@/components/parts/field";
+import { DateIn } from "@/components/record-modal/parts";
 import { termFieldsFor, termLabelFor, type OrgCredKind } from "@/lib/org/credentials";
 import type { CredentialRecordInput } from "@/lib/org/credential-records";
 
@@ -21,20 +21,16 @@ export const KIND_LABEL: Record<OrgCredKind, string> = {
   insurance: "Certificate of currency",
 };
 
-export const SCAN_COPY: Record<OrgCredKind, { prompt: string; hint: string; attach: string }> = {
+export const SCAN_COPY: Record<OrgCredKind, { prompt: string; paper: string; attach: string }> = {
   insurance: {
     prompt: "Scan or upload the certificate of currency",
-    /* NOT "limit" — that box only exists on the papers that print one, and
-       promising it above a workers compensation certificate names a field the
-       screen is about to not show. The figures it does carry are named as
-       figures. */
-    hint: "PDF, JPG or photo.",
-    attach: "Optional: attach the certificate or policy schedule",
+    paper: "the certificate",
+    attach: "Attach the certificate or policy schedule",
   },
   licence: {
     prompt: "Scan or upload the licence certificate",
-    hint: "PDF, JPG or photo.",
-    attach: "Optional: attach the certificate",
+    paper: "the certificate",
+    attach: "Attach the certificate",
   },
 };
 
@@ -43,8 +39,8 @@ export const PROVIDER_LABEL: Record<OrgCredKind, string> = {
   licence: "Issued by",
 };
 const PROVIDER_HINT: Record<OrgCredKind, string> = {
-  insurance: "e.g. QBE",
-  licence: "e.g. Australian Refrigeration Council",
+  insurance: "QBE",
+  licence: "Australian Refrigeration Council",
 };
 const NUMBER_LABEL: Record<OrgCredKind, string> = {
   insurance: "Policy no.",
@@ -55,8 +51,8 @@ const COVER_LABEL: Record<OrgCredKind, string> = {
   licence: "Classes of work",
 };
 const COVER_HINT: Record<OrgCredKind, string> = {
-  insurance: "e.g. Public and products liability",
-  licence: "e.g. Split system — install and decommission",
+  insurance: "Public and products liability",
+  licence: "Split system, install and decommission",
 };
 const START_LABEL: Record<OrgCredKind, string> = {
   insurance: "Starts",
@@ -116,7 +112,6 @@ export function TermFields({
   value,
   onChange,
   today,
-  expiryRequired,
 }: {
   kind: OrgCredKind;
   /** The card's name — it decides which of the four optional facts this paper
@@ -127,10 +122,6 @@ export function TermFields({
   value: Term;
   onChange: (t: Term) => void;
   today: string;
-  /** Whether the button can do nothing without an expiry, which is what the
-      star says. Adding never needs one, and a renewal needs one only while no
-      document is waiting: with one, the button files it instead. */
-  expiryRequired: boolean;
 }) {
   const fields = termFieldsFor(kind, name);
   /* A paper's own word beats the kind's. On a workers compensation certificate
@@ -141,71 +132,33 @@ export function TermFields({
   const coverLabel = coverOverride ?? COVER_LABEL[kind];
   const set = (k: keyof Term) => (v: string) => onChange({ ...value, [k]: v });
   return (
-    <div className="vm-fields">
+    <div className="mk-records-grid">
       <Field label={PROVIDER_LABEL[kind]}>
-        <input
-          className="vm-input"
-          aria-label={PROVIDER_LABEL[kind]}
-          placeholder={PROVIDER_HINT[kind]}
-          value={value.issuer}
-          onChange={(e) => set("issuer")(e.target.value)}
-        />
+        <TextInput placeholder={PROVIDER_HINT[kind]} value={value.issuer} onChange={(e) => set("issuer")(e.target.value)} />
       </Field>
       <Field label={NUMBER_LABEL[kind]}>
-        <input
-          className="vm-input"
-          aria-label={NUMBER_LABEL[kind]}
-          value={value.number}
-          onChange={(e) => set("number")(e.target.value)}
-        />
+        <TextInput value={value.number} onChange={(e) => set("number")(e.target.value)} />
       </Field>
       {fields.includes("cover") && (
         <Field label={coverLabel}>
-          <input
-            className="vm-input"
-            aria-label={coverLabel}
-            placeholder={coverOverride ? "e.g. 423300 Air Conditioning and Heating Services" : COVER_HINT[kind]}
+          <TextInput
+            placeholder={coverOverride ? "423300 Air Conditioning and Heating Services" : COVER_HINT[kind]}
             value={value.cover}
             onChange={(e) => set("cover")(e.target.value)}
           />
         </Field>
       )}
       {fields.includes("sumInsured") && (
-        <Field label="Limit of liability">
-          <MoneyInput
-            value={value.sumInsured}
-            onChange={set("sumInsured")}
-            placeholder="20,000,000"
-            ariaLabel="Limit of liability"
-          />
+        <Field label="Limit of liability ($)">
+          <TextInput inputMode="decimal" placeholder="20,000,000" value={value.sumInsured} onChange={(e) => set("sumInsured")(e.target.value)} />
         </Field>
       )}
-      <Field label={START_LABEL[kind]}>
-        <DateField
-          size="lg"
-          clearable
-          today={today}
-          value={value.startsOn || null}
-          onChange={(iso) => set("startsOn")(iso ?? "")}
-          aria-label={START_LABEL[kind]}
-        />
-      </Field>
-      <Field label="Expiry" req={expiryRequired}>
-        <DateField
-          size="lg"
-          clearable
-          today={today}
-          value={value.expiresOn || null}
-          onChange={(iso) => set("expiresOn")(iso ?? "")}
-          aria-label="Expiry"
-        />
-      </Field>
+      <DateIn label={START_LABEL[kind]} today={today} value={value.startsOn} onChange={set("startsOn")} />
+      <DateIn label="Expiry" today={today} value={value.expiresOn} onChange={set("expiresOn")} />
       {fields.includes("workers") && (
         <Field label="Workers covered">
-          <input
-            className="vm-input"
+          <TextInput
             inputMode="numeric"
-            aria-label="Workers covered"
             placeholder="11"
             value={value.workersCount}
             /* Digits only on the way in. A head count is whole by nature, and
@@ -216,23 +169,18 @@ export function TermFields({
         </Field>
       )}
       {fields.includes("wages") && (
-        <Field label="Wages declared">
-          <MoneyInput
-            value={value.wages}
-            onChange={set("wages")}
-            placeholder="943,669"
-            ariaLabel="Wages declared"
-          />
+        <Field label="Wages declared ($)">
+          <TextInput inputMode="decimal" placeholder="943,669" value={value.wages} onChange={(e) => set("wages")(e.target.value)} />
         </Field>
       )}
       {fields.includes("premium") && (
-        <Field label={PRICE_LABEL[kind]}>
-          <MoneyInput value={value.premium} onChange={set("premium")} ariaLabel={PRICE_LABEL[kind]} />
+        <Field label={`${PRICE_LABEL[kind]} ($)`}>
+          <TextInput inputMode="decimal" value={value.premium} onChange={(e) => set("premium")(e.target.value)} />
         </Field>
       )}
       {fields.includes("excess") && (
-        <Field label="Excess">
-          <MoneyInput value={value.excess} onChange={set("excess")} ariaLabel="Excess" />
+        <Field label="Excess ($)">
+          <TextInput inputMode="decimal" value={value.excess} onChange={(e) => set("excess")(e.target.value)} />
         </Field>
       )}
     </div>

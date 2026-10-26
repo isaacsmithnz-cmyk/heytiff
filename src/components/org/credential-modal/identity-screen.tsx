@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { DateField } from "@/components/ui/date-field";
-import { Btn, Field, Segmented } from "@/components/record-modal/parts";
+import { ConfirmDialog } from "@/components/parts/dialog";
+import { Button } from "@/components/parts/button";
+import { Field, TextInput } from "@/components/parts/field";
+import { Tray } from "@/components/parts/tabs";
+import { ColourDiscs, DateIn, FrameFoot } from "@/components/record-modal/parts";
 import { ScanCard, type ScanMode } from "@/components/record-modal/scan-card";
 import { readOrgCredentialDocument, type ReadOrgCredResult } from "@/app/actions/org-credential-ai";
 import {
@@ -40,20 +43,10 @@ import { KIND_LABEL, SCAN_COPY, TermFields, emptyTerm, termInput, type Term } fr
    word for the thing, it is what the history hangs off, and one badly-worded
    certificate must not be able to split a policy's history in two. */
 
-/* The colours a card may wear. NO STATE COLOUR IS OFFERED HERE: a card's badge
-   says what the thing IS and its chip says how it is DOING, so danger red on a
-   badge put "#e0264f INS" one line above a teal "Valid" on the same card and
-   made the wall unreadable at a glance. Slate takes red's slot. Teal stays
-   because the registry itself issues it to the ARC authorisation — but it is
-   the registry's to give, not a decoration to pick. */
-const SWATCHES: { label: string; value: string }[] = [
-  { label: "Auto", value: "" },
-  { label: "Teal", value: "#00A389" },
-  { label: "Blue", value: "#2E68FF" },
-  { label: "Amber", value: "#F0A431" },
-  { label: "Violet", value: "#8A2BE2" },
-  { label: "Slate", value: "#5B6478" },
-];
+/* The colours a card may wear are the record window's (RECORD_COLOURS):
+   the palette's bright values, never red or blue. A card's colour says what
+   the thing IS and its state word says how it is DOING, so no state colour
+   is offered. */
 
 export type IdentityDraft = {
   identity: OrgCredentialInput;
@@ -69,6 +62,8 @@ export function IdentityScreen({
   pending,
   onSave,
   onDelete,
+  onBack,
+  onClose,
 }: {
   /** null = adding a new card. */
   credential: {
@@ -85,6 +80,9 @@ export function IdentityScreen({
   pending: boolean;
   onSave: (draft: IdentityDraft) => void;
   onDelete?: () => void;
+  /** Back to the card's record, when editing one. */
+  onBack?: () => void;
+  onClose: () => void;
 }) {
   const adding = credential === null;
   const [kind, setKind] = useState<OrgCredKind>(credential?.kind ?? "licence");
@@ -93,7 +91,7 @@ export function IdentityScreen({
   const [number, setNumber] = useState(credential?.number ?? "");
   const [issuer, setIssuer] = useState(credential?.issuer ?? "");
   const [expiry, setExpiry] = useState(credential?.expiryDate ?? "");
-  const [armed, setArmed] = useState(false);
+  const [asking, setAsking] = useState(false);
 
   /* The scan, offered only while adding. An existing card renews through the
      record panel on the screen behind this one — two doors to the same write
@@ -146,163 +144,119 @@ export function IdentityScreen({
 
   return (
     <>
-      <div className="vm-body">
-        <div className="vm-card">
-          <div className="vm-cardhead">
-            <span className="vm-eyebrow">What it is</span>
-          </div>
+      <div className="mk-records-grid mk-records-grid--2">
+        {/* Its own row above the boxes, because it is not one more field: it
+            chooses the reader, the words and the filing kind for everything
+            under it. */}
+        <div className="pt-field mk-records-wide">
+          <span className="pt-field-label">Type</span>
+          <Tray<OrgCredKind>
+            options={[
+              { value: "licence", label: "Licence" },
+              { value: "insurance", label: "Insurance" },
+            ]}
+            value={kind}
+            onChange={setKind}
+            ariaLabel="Type"
+          />
+        </div>
 
-          {/* Its own row above the boxes, because it is not one more field: it
-              chooses the reader, the words and the filing kind for everything
-              under it. A two-value choice is a segmented control everywhere
-              else in this app, and `.vm-seg` is the portalled twin of `.seg` —
-              `.fg` never reaches a modal on <body>. */}
-          <div className="vm-typerow">
-            <span className="vm-fl">Type</span>
-            <Segmented<OrgCredKind>
-              items={[
-                { key: "licence", label: "Licence" },
-                { key: "insurance", label: "Insurance" },
-              ]}
-              active={kind}
-              onSelect={setKind}
-              ariaLabel="Type"
-            />
-          </div>
+        <Field label="Name" className="mk-records-wide">
+          <TextInput
+            list="oc-names"
+            placeholder={kind === "insurance" ? "Public liability" : "Contractor licence"}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </Field>
+        <datalist id="oc-names">
+          {suggestions.map((t) => (
+            <option key={t.name} value={t.name} />
+          ))}
+        </datalist>
 
-          {/* SOLO when the boxes below own the number and the issuer: one
-              narrow field with two empty thirds beside it reads as a form that
-              lost its other fields, so Name takes the room they left. */}
-          <div className={`vm-fields${!adding && !hasTerms && !scanned ? "" : " solo"}`}>
-            <Field label="Name" req>
-              <input
-                className="vm-input"
-                list="oc-names"
-                aria-label="Name"
-                placeholder={kind === "insurance" ? "e.g. Public liability" : "e.g. Contractor licence"}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-              <datalist id="oc-names">
-                {suggestions.map((t) => (
-                  <option key={t.name} value={t.name} />
-                ))}
-              </datalist>
+        {/* NOT WHILE ADDING, AT ALL. This screen's headline act is "scan the
+            certificate", and the number and the issuer are the two things the
+            scan is about to hand over. They belong to a TERM, and the scan
+            below asks for them there.
+
+            They survive on the EDIT screen for the one card that can hold no
+            term: a licence with no renewal date, whose `expires_on` cannot be
+            null, so its number and issuer have nowhere else to live. Once a
+            term exists they go for good. */}
+        {!adding && !hasTerms && !scanned && (
+          <>
+            <Field label={kind === "insurance" ? "Policy no." : "Licence no."}>
+              <TextInput aria-label="Number" value={number} onChange={(e) => setNumber(e.target.value)} />
             </Field>
-
-            {/* NOT WHILE ADDING, AT ALL. This screen's headline act is "scan
-                the certificate", and the number and the issuer are the two
-                things the scan is about to hand over — asking for them by hand
-                first is the same mistake the Type box made, one row down. They
-                belong to a TERM, and the panel below asks for them there.
-
-                They survive on the EDIT screen for the one card that can hold
-                no term: a licence with no renewal date, whose `expires_on`
-                cannot be null, so its number and issuer have nowhere else to
-                live. Once a term exists they go for good — the newest one owns
-                those columns and typing over them here would describe a term
-                that does not exist. */}
-            {!adding && !hasTerms && !scanned && (
-              <>
-                <Field label={kind === "insurance" ? "Policy no." : "Licence no."}>
-                  <input
-                    className="vm-input"
-                    aria-label="Number"
-                    value={number}
-                    onChange={(e) => setNumber(e.target.value)}
-                  />
-                </Field>
-                <Field label={kind === "insurance" ? "Insurer" : "Issued by"}>
-                  <input
-                    className="vm-input"
-                    aria-label="Issuer"
-                    placeholder={kind === "insurance" ? "e.g. QBE" : "e.g. VBA"}
-                    value={issuer}
-                    onChange={(e) => setIssuer(e.target.value)}
-                  />
-                </Field>
-                <Field label="Expiry">
-                  <DateField
-                    size="lg"
-                    clearable
-                    today={today}
-                    value={expiry || null}
-                    onChange={(iso) => setExpiry(iso ?? "")}
-                    aria-label="Expiry"
-                  />
-                </Field>
-              </>
-            )}
-          </div>
-
-        </div>
-
-        {adding && (
-          <ScanCard<ReadOrgCredResult>
-            heading={`Scan the ${KIND_LABEL[kind]}`}
-            prompt={SCAN_COPY[kind].prompt}
-            hint={SCAN_COPY[kind].hint}
-            attachLabel={SCAN_COPY[kind].attach}
-            docKind={CREDENTIAL_DOC_KIND[kind]}
-            read={(b64, mt) => readOrgCredentialDocument(b64, mt, kind, name)}
-            onRead={(r, id) => {
-              fill(r);
-              setDocId(id);
-            }}
-            onAttached={(id) => setDocId(id)}
-            mode={mode}
-            onMode={(m) => {
-              setMode(m);
-              if (m === "idle") {
-                setTerm(emptyTerm);
-                setDocId(null);
-              }
-            }}
-          >
-            <TermFields kind={kind} name={name} value={term} onChange={setTerm} today={today} expiryRequired={false} />
-          </ScanCard>
+            <Field label={kind === "insurance" ? "Insurer" : "Issued by"}>
+              <TextInput aria-label="Issuer" placeholder={kind === "insurance" ? "QBE" : "VBA"} value={issuer} onChange={(e) => setIssuer(e.target.value)} />
+            </Field>
+            <DateIn label="Expiry" today={today} value={expiry} onChange={setExpiry} />
+          </>
         )}
-
-        {/* LAST, and its own card. It is the only cosmetic choice on the
-            screen, and while it lived inside "What it is" it sat between the
-            two questions that matter and the certificate drop zone — a colour
-            picker standing between a person and the thing they came to do. */}
-        <div className="vm-card">
-          <div className="vm-cardhead">
-            <span className="vm-eyebrow">Colour</span>
-          </div>
-          <div className="vm-sw" role="group" aria-label="Colour">
-            {SWATCHES.map((s) => (
-              <button
-                key={s.label}
-                type="button"
-                className={`vm-swb${color === s.value ? " on" : ""}${s.value ? "" : " auto"}`}
-                style={s.value ? { background: s.value } : undefined}
-                aria-label={s.label}
-                aria-pressed={color === s.value}
-                onClick={() => setColor(s.value)}
-              />
-            ))}
-          </div>
-        </div>
       </div>
 
-      <div className="fl-foot bar">
+      {adding && (
+        <ScanCard<ReadOrgCredResult>
+          heading={`Scan the ${KIND_LABEL[kind].toLowerCase()}`}
+          prompt={SCAN_COPY[kind].prompt}
+          paper={SCAN_COPY[kind].paper}
+          attachLabel={SCAN_COPY[kind].attach}
+          docKind={CREDENTIAL_DOC_KIND[kind]}
+          read={(b64, mt) => readOrgCredentialDocument(b64, mt, kind, name)}
+          onRead={(r, id) => {
+            fill(r);
+            setDocId(id);
+          }}
+          onAttached={(id) => setDocId(id)}
+          mode={mode}
+          onMode={(m) => {
+            setMode(m);
+            if (m === "idle") {
+              setTerm(emptyTerm);
+              setDocId(null);
+            }
+          }}
+        >
+          <TermFields kind={kind} name={name} value={term} onChange={setTerm} today={today} />
+        </ScanCard>
+      )}
+
+      {/* LAST: it is the only cosmetic choice on the screen, and it must not
+          stand between a person and the certificate they came to file. */}
+      <ColourDiscs value={color} onChange={setColor} />
+
+      <FrameFoot>
         {onDelete && (
-          <button
-            type="button"
-            className={`vm-btn danger${armed ? " arm" : ""}`}
-            style={{ marginRight: "auto" }}
-            disabled={pending}
-            onClick={() => (armed ? onDelete() : setArmed(true))}
-          >
-            {armed ? "Click again to delete" : "Delete"}
-          </button>
+          <>
+            <Button kind="delete" disabled={pending} onClick={() => setAsking(true)}>
+              Delete card
+            </Button>
+            <span className="mk-gap" />
+          </>
         )}
-        <Btn kind="primary" onClick={save} disabled={!canSave}>
-          {pending ? "Saving the card" : adding ? "Add card" : "Save"}
-        </Btn>
-      </div>
+        <Button kind="quiet" onClick={onBack ?? onClose}>
+          {onBack ? "Back" : "Cancel"}
+        </Button>
+        <Button kind="main" onClick={save} disabled={!canSave}>
+          {pending ? "Saving the card" : adding ? "Add card" : "Save details"}
+        </Button>
+      </FrameFoot>
+      {onDelete && (
+        <ConfirmDialog
+          open={asking}
+          heading={`Delete ${credential?.name || "this card"}?`}
+          confirm="Delete card"
+          onConfirm={() => {
+            setAsking(false);
+            onDelete();
+          }}
+          onClose={() => setAsking(false)}
+        >
+          <p>It comes off the organisation&apos;s papers, with its history and every document filed under it. There is no undo.</p>
+        </ConfirmDialog>
+      )}
     </>
   );
 }

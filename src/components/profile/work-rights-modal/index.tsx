@@ -1,13 +1,24 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { Icon } from "@/components/shell/icon";
+import { useRef, useState } from "react";
+import { Button } from "@/components/parts/button";
 import { readWorkRightsDocument, type ReadWorkRightsResult } from "@/app/actions/work-rights-ai";
 import type { StoredDocument } from "@/lib/documents/query";
 import { uploadFile } from "@/lib/documents/upload-client";
 import { fmtDay } from "@/lib/format/day";
-import { Btn, Card, DetailGrid, Eyebrow, Inline, type DetailItem } from "@/components/record-modal/parts";
+import {
+  DetailGrid,
+  FrameFoot,
+  FrameTitle,
+  Group,
+  HistoryRow,
+  Nothing,
+  RecordError,
+  RecordFrame,
+  RecordStatus,
+  RemoveFromHistory,
+  type DetailItem,
+} from "@/components/record-modal/parts";
 import { DocRows } from "@/components/record-modal/doc-rows";
 import { ScanCard, scanInProgress, type ScanMode } from "@/components/record-modal/scan-card";
 import {
@@ -52,8 +63,9 @@ import { withCleanup } from "@/lib/ui/with-cleanup";
    the employer verified is what they may rely on. See
    lib/staff/work-rights-records.ts.
 
-   PORTALLED TO <body>: the shell keeps `will-change` on `.page.in`, which
-   makes it a containing block for position:fixed. */
+   It wears the record window (record-modal/parts, the old-modals mock of
+   27 October 2026): one Dialog at 560, the status line, groups under a
+   hairline, and the action in the foot. */
 
 export function WorkRightsModal({
   staffId,
@@ -91,22 +103,15 @@ export function WorkRightsModal({
   const [docId, setDocId] = useState<string | null>(null);
   const [openDoc, setOpenDoc] = useState<string | null>(null);
   const [openHist, setOpenHist] = useState<string | null>(null);
-  const [armed, setArmed] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const attachInput = useRef<HTMLInputElement>(null);
 
-  /* Escape closes, and so does the backdrop, except while a scan is in
-     progress — see scanInProgress. The X and Close still close. */
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      if (scanInProgress()) return;
-      onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  /* Escape closes, and so does the scrim, except while a scan is in
+     progress — see scanInProgress. Close still closes. */
+  const softClose = () => {
+    if (!scanInProgress()) onClose();
+  };
 
   const run = async (fn: () => Promise<SaveResult>) => {
     setPending(true);
@@ -157,212 +162,153 @@ export function WorkRightsModal({
   const loose = looseCheckDocuments(documents, records);
   const who = subject?.trim();
 
-  return createPortal(
-    <div className="vm-ov" onClick={() => (scanInProgress() ? undefined : onClose())}>
-      <div
-        className="vm"
-        role="dialog"
-        aria-modal="true"
-        aria-label={who ? `Right to work — ${who}` : "Right to work"}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="vm-head sub">
-          <div className="vm-headl">
-            <div className="vm-titles">
-              <h2 className="vm-title sub">Right to work</h2>
-              <span className="vm-kind">{who ?? "Your record"}</span>
-            </div>
-          </div>
-          <div className="vm-headr">
-            <button type="button" className="vm-iconbtn" aria-label="Close" onClick={onClose}>
-              <Icon name="x" size={18} />
-            </button>
-          </div>
-        </div>
+  return (
+    <RecordFrame width={560} onClose={softClose}>
+      <FrameTitle>Right to work</FrameTitle>
+      {who && <p className="mk-records-lead">{who}</p>}
+      {error && <RecordError>{error}</RecordError>}
 
-        <div className="vm-body">
-          {error && <div className="vm-err">{error}</div>}
+      {/* THE WORDS ARE THE VERB. "A check" is the compliance industry's noun
+          for the row in the table; what a person DOES is check whether
+          someone may work here — look at a passport, or look a visa up — and
+          write down what they saw. Every button and heading is that verb, and
+          the action is in the foot (Isaac, on the walk: "I don't know what
+          record a check actually means"). */}
+      <RecordStatus state={state} word={checkHeadline(current, today, warnDays)} line={checkSubline(current)} />
 
-          <div className={`vm-status ${state === "none" ? "neutral" : state === "forever" ? "ok" : state}`}>
-            <div className="vm-statusl">
-              <Eyebrow tone={state === "ok" || state === "forever" ? "accent" : state === "none" ? undefined : "warn"}>
-                Status
-              </Eyebrow>
-              <span className="vm-headline">{checkHeadline(current, today, warnDays)}</span>
-              <span className="vm-subline">{checkSubline(current)}</span>
-            </div>
-            {/* THE ACTION IS IN THE FOOTER, not in here. A status card is a
-                thing you read; this one carried the screen's only black
-                button in its corner, competing with the headline beside it —
-                and the licence modal on the very same tab keeps its action in
-                the footer, so two windows on one screen put the same kind of
-                button in two places. Isaac, on the walk: "looks a bit weird",
-                and then "I don't know what record a check actually means".
+      {current && (
+        <Group name={`Checked ${fmtDay(current.checkedOn)}`} aside={checkAddedText(current)}>
+          {facts.length > 0 && <DetailGrid items={facts} />}
+        </Group>
+      )}
 
-                SO THE WORDS CHANGED TOO, everywhere in this window. "A check"
-                is the compliance industry's noun for the row in the table;
-                what a person DOES is check whether someone may work here —
-                look at a passport, or look a visa up — and write down what
-                they saw. Every button and heading is that verb now, and the
-                noun only appears where the verb has already given it its
-                meaning. */}
-          </div>
-
-          {current && (
-            <Card>
-              <div className="vm-cardhead">
-                <Eyebrow>Checked {fmtDay(current.checkedOn)}</Eyebrow>
-                <span className="vm-added">{checkAddedText(current)}</span>
-              </div>
-              {facts.length > 0 && <DetailGrid items={facts} />}
-              <div className={facts.length > 0 ? "vm-divider" : "vm-divider bare"}>
-                <Eyebrow>Evidence</Eyebrow>
-                <Inline onClick={() => attachInput.current?.click()}>Add document</Inline>
-                <input
-                  ref={attachInput}
-                  type="file"
-                  accept="image/*,application/pdf"
-                  aria-label="Add document"
-                  hidden
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    e.target.value = "";
-                    if (!file) return;
-                    const up = await uploadFile(file, WORK_RIGHTS_DOC_KIND).catch(() => null);
-                    if (up?.ok) void run(() => onAttach(current.id, up.file.documentId));
-                  }}
-                />
-              </div>
-              <DocRows
-                docs={currentDocs}
-                openId={openDoc}
-                onOpen={(id) => {
-                  setOpenDoc(id);
-                  if (id) setOpenHist(null);
+      {current && (
+        <Group
+          name="Evidence"
+          action={
+            <>
+              <Button kind="second" size={32} onClick={() => attachInput.current?.click()}>
+                Add document
+              </Button>
+              <input
+                ref={attachInput}
+                type="file"
+                accept="image/*,application/pdf"
+                aria-label="Add document"
+                hidden
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!file) return;
+                  const up = await uploadFile(file, WORK_RIGHTS_DOC_KIND).catch(() => null);
+                  if (up?.ok) void run(() => onAttach(current.id, up.file.documentId));
                 }}
-                emptyText="No evidence filed under this check yet."
               />
-            </Card>
-          )}
+            </>
+          }
+        >
+          <DocRows
+            docs={currentDocs}
+            openId={openDoc}
+            onOpen={(id) => {
+              setOpenDoc(id);
+              if (id) setOpenHist(null);
+            }}
+            emptyText="No evidence filed under this check yet."
+          />
+        </Group>
+      )}
 
+      {panelOpen && (
+        <ScanCard<ReadWorkRightsResult>
+          heading={noVisaStatus ? SCAN_COPY_NO_VISA.heading : recorded ? "Check it again" : SCAN_COPY.heading}
+          prompt={scanCopy.prompt}
+          paper={scanCopy.paper}
+          attachLabel={scanCopy.attach}
+          docKind={WORK_RIGHTS_DOC_KIND}
+          read={(b64, mt) => readWorkRightsDocument(b64, mt, staffId)}
+          onRead={(r, id) => {
+            fill(r);
+            setDocId(id);
+          }}
+          onAttached={(id) => setDocId(id)}
+          onCancel={recorded ? () => setPanelOpen(false) : undefined}
+          mode={mode}
+          onMode={(m) => {
+            setMode(m);
+            if (m === "idle") {
+              setCheck(emptyCheck);
+              setDocId(null);
+            }
+          }}
+        >
+          <CheckFields value={check} onChange={setCheck} today={today} />
+        </ScanCard>
+      )}
 
-          {panelOpen && (
-            <ScanCard<ReadWorkRightsResult>
-              heading={scanCopy.heading}
-              prompt={scanCopy.prompt}
-              hint={scanCopy.hint}
-              attachLabel={scanCopy.attach}
-              docKind={WORK_RIGHTS_DOC_KIND}
-              read={(b64, mt) => readWorkRightsDocument(b64, mt, staffId)}
-              onRead={(r, id) => {
-                fill(r);
-                setDocId(id);
-              }}
-              onAttached={(id) => setDocId(id)}
-              onCancel={recorded ? () => setPanelOpen(false) : undefined}
-              mode={mode}
-              onMode={(m) => {
-                setMode(m);
-                if (m === "idle") {
-                  setCheck(emptyCheck);
-                  setDocId(null);
-                }
-              }}
-            >
-              <CheckFields value={check} onChange={setCheck} today={today} />
-            </ScanCard>
-          )}
+      <Group name="Checked before">
+        {history.length === 0 ? (
+          <Nothing>Nothing checked before this.</Nothing>
+        ) : (
+          history.map((r) => {
+            const expanded = openHist === r.id;
+            const docs = checkDocuments(documents, r);
+            return (
+              <HistoryRow
+                key={r.id}
+                name={checkEvent(r)}
+                line={docs.length === 1 ? "1 document" : `${docs.length} documents`}
+                aside={[`Checked ${fmtDay(r.checkedOn)}`]}
+                open={expanded}
+                onToggle={() => {
+                  setOpenHist(expanded ? null : r.id);
+                  setOpenDoc(null);
+                }}
+              >
+                <DetailGrid dense items={checkFacts(r, "ok")} />
+                <DocRows docs={docs} openId={openDoc} onOpen={setOpenDoc} emptyText="No evidence filed." />
+                <div className="rcw-histfoot">
+                  <span>{checkAddedText(r) || "Filed by hand"}</span>
+                  <RemoveFromHistory
+                    label="Remove this check"
+                    heading="Remove this check?"
+                    confirm="Remove check"
+                    disabled={pending}
+                    onConfirm={() => void run(() => onRemoveCheck(r.id))}
+                  >
+                    {`The check of ${fmtDay(r.checkedOn)} comes out of the history. There is no undo.`}
+                  </RemoveFromHistory>
+                </div>
+              </HistoryRow>
+            );
+          })
+        )}
+      </Group>
 
-          <Card className="vm-histcard">
-            <div className="vm-cardhead">
-              <Eyebrow>Checked before</Eyebrow>
-            </div>
-            {history.length === 0 ? (
-              <div className="vm-empty">Nothing checked before this.</div>
-            ) : (
-              history.map((r) => {
-                const expanded = openHist === r.id;
-                const docs = checkDocuments(documents, r);
-                return (
-                  <div key={r.id} className="vm-hist">
-                    <button
-                      type="button"
-                      className="vm-histrow"
-                      aria-expanded={expanded}
-                      onClick={() => {
-                        setOpenHist(expanded ? null : r.id);
-                        setOpenDoc(null);
-                        setArmed(null);
-                      }}
-                    >
-                      <span className="vm-docl">
-                        <b>{checkEvent(r)}</b>
-                        <em>{docs.length === 1 ? "1 document" : `${docs.length} documents`}</em>
-                      </span>
-                      <span className="vm-histr">
-                        <span className="vm-evdate">checked {fmtDay(r.checkedOn)}</span>
-                        <Icon name={expanded ? "chevU" : "chevR"} size={14} />
-                      </span>
-                    </button>
-                    {expanded && (
-                      <div className="vm-histbody">
-                        <div className="vm-inset">
-                          <DetailGrid dense items={checkFacts(r, "ok")} />
-                        </div>
-                        <span className="vm-fl">Evidence</span>
-                        <DocRows docs={docs} openId={openDoc} onOpen={setOpenDoc} emptyText="No evidence filed." />
-                        <div className="vm-attach">
-                          <span>{checkAddedText(r) || "Filed by hand"}</span>
-                          <button
-                            type="button"
-                            className={`vm-inline danger${armed === r.id ? " arm" : ""}`}
-                            disabled={pending}
-                            onClick={() => (armed === r.id ? void run(() => onRemoveCheck(r.id)) : setArmed(r.id))}
-                          >
-                            {armed === r.id ? "Click again to remove" : "Remove this check"}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </Card>
+      {loose.length > 0 && (
+        <Group name="Other documents" aside="Not filed under a check">
+          <DocRows docs={loose} openId={openDoc} onOpen={setOpenDoc} />
+        </Group>
+      )}
 
-          {loose.length > 0 && (
-            <Card>
-              <div className="vm-cardhead">
-                <Eyebrow>Other documents</Eyebrow>
-                <span className="vm-caption">Not filed under a check</span>
-              </div>
-              <DocRows docs={loose} openId={openDoc} onOpen={setOpenDoc} />
-            </Card>
-          )}
-        </div>
-
-        <div className="fl-foot bar spread">
-          {/* left, as "Edit details" sits on the licence modal's footer */}
-          {recorded && !panelOpen ? (
-            <Btn kind="outline" onClick={() => setPanelOpen(true)} icon="shield">
+      <FrameFoot>
+        {recorded && !panelOpen && (
+          <>
+            <Button kind="second" onClick={() => setPanelOpen(true)}>
               Check it again
-            </Btn>
-          ) : (
-            <span />
-          )}
-          <span className="fl-footright">
-            <Btn kind="outline" onClick={onClose}>
-              Close
-            </Btn>
-            {showFields && (
-              <Btn kind="primary" onClick={save} disabled={!canSave}>
-                {pending ? "Saving the check" : "Save what you found"}
-              </Btn>
-            )}
-          </span>
-        </div>
-      </div>
-    </div>,
-    document.body,
+            </Button>
+            <span className="mk-gap" />
+          </>
+        )}
+        <Button kind="quiet" onClick={onClose}>
+          {showFields ? "Cancel" : "Close"}
+        </Button>
+        {showFields && (
+          <Button kind="main" onClick={save} disabled={!canSave}>
+            {pending ? "Saving the check" : "Save what you found"}
+          </Button>
+        )}
+      </FrameFoot>
+    </RecordFrame>
   );
 }

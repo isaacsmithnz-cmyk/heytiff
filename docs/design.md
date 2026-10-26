@@ -326,7 +326,13 @@ the fourth on the customer's messages, below).
   5:1; the customer's are a solid light grey (`--bubble-them`, the
   palette's grey laid 22% into white, never an ink alpha) with ink. Runs
   from one speaker stack 2 apart with the inside corners at 6 and the
-  card's 16 elsewhere, like iMessage.
+  card's 16 elsewhere, like iMessage. A message shows whole up to 16
+  lines; a longer one shows 12, fading, and a "•••" button inside the
+  bubble opens the whole of it, despite rule 50, text that doesn't fit
+  fades and is never cut with a "…": the fade stays, and the dots are a
+  button, not a mark of cutting. "have the dots to show that there is more
+  to open" (26 October 2026). The bubble itself is not a button, so the
+  links in it press as links.
 
 ### Named exemptions
 

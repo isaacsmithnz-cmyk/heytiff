@@ -8125,7 +8125,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jc-sendend { flex:none; display:flex; align-items:center; gap:8px; margin-left:auto; }
 .fg .jc-sendreply { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
 .fg .jc-sendseen { font-size:13px; line-height:18px; color:var(--q); }
-.fg .jc-clip { display:inline-flex; align-items:center; gap:2px; margin-left:8px; font-size:13px; line-height:18px; color:var(--q); vertical-align:middle; }
 .fg .jc-thread { gap:0; padding:4px 0 16px; }
 .fg .jc-thhead { display:flex; align-items:center; gap:12px; min-width:0; min-height:32px; }
 .fg .jc-thhead > .jc-made-icon { width:32px; justify-content:center; }
@@ -8145,17 +8144,23 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    the customer's light grey with ink. The card's corner, the inside ones
    tucked to the field's 6, and the run's last keeping its tuck on the
    speaker's side, as iMessage does (the scale has no 18: the card's 16). */
-.fg .jc-thbody .jc-bubble { display:block; max-width:100%; padding:8px 12px; border:0; border-radius:var(--r-card); font:inherit; text-align:left; cursor:pointer; }
+.fg .jc-thbody .jc-bubble { display:block; max-width:100%; padding:8px 12px; border-radius:var(--r-card); }
 .fg .jc-bm--us .jc-bubble { background:var(--green-w); color:var(--white); border-bottom-right-radius:var(--r-control); }
 .fg .jc-bm--them .jc-bubble { background:var(--bubble-them); color:var(--ink); border-bottom-left-radius:var(--r-control); }
 .fg .jc-bm--us:not(.jc-bm--first) .jc-bubble { border-top-right-radius:var(--r-control); }
 .fg .jc-bm--them:not(.jc-bm--first) .jc-bubble { border-top-left-radius:var(--r-control); }
-/* the ink ring stands outside the fill */
-.fg .jc-thbody .jc-bubble:focus-visible { outline:none; box-shadow:var(--ring); }
-/* the words fade themselves at the third line, so the fade reads on either fill */
+/* the words at 16/22, their own line breaks kept */
 .fg .jc-bubble .jc-bubwords { font-size:16px; line-height:22px; white-space:pre-line; overflow-wrap:anywhere; }
+/* A MESSAGE TOO LONG TO SHOW WHOLE (more than 16 lines, measured) shows
+   twelve, the words themselves fading so it reads on either fill, and its
+   dots under them open the whole of it (Isaac, 26 October 2026: "have the
+   dots to show that there is more to open"; docs/design.md, On a job's page) */
+.fg .jc-bubble .jc-bubwords--clamped { max-height:calc(22px * 12); overflow:hidden; -webkit-mask-image:linear-gradient(to bottom, var(--ink) calc(100% - 44px), transparent); mask-image:linear-gradient(to bottom, var(--ink) calc(100% - 44px), transparent); }
+.fg .jc-bubble .jc-bubmore { display:block; margin:4px 0 0; padding:0 4px; border:0; border-radius:var(--r-control); background:none; color:inherit; font:inherit; font-size:16px; line-height:22px; font-weight:600; cursor:pointer; }
+.fg .jc-bubble .jc-bubmore:focus-visible { outline:none; box-shadow:var(--ring); }
+/* a web address in a message: a link in the words' own colour */
+.fg .jc-bubble .jc-link, .pt-dialog .cmsg-words .jc-link { color:inherit; text-decoration:underline; text-underline-offset:2px; overflow-wrap:anywhere; }
 .fg .jc-bmtime { display:flex; align-items:center; gap:8px; margin:0; font-size:12px; line-height:16px; color:var(--q); }
-.fg .jc-bmtime .jc-clip { margin-left:0; font-size:12px; line-height:16px; }
 .fg .jc-thline { align-self:center; display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin:16px 0; font-size:13px; line-height:20px; color:var(--q); text-align:center; }
 .fg .jc-thline:last-child { margin-bottom:0; }
 .fg .jc-thline b { font-weight:600; color:var(--ink); }
@@ -8220,6 +8225,22 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
   .fg .jov-fact:first-child { border-radius:16px 16px 0 0; }
   .fg .jov-fact:last-child { border-radius:0 0 16px 16px; }
 }
+
+/* WHAT CAME WITH A MESSAGE (Isaac, 26 October 2026): a quiet row each,
+   the paperclip, the file's name fading and its type grey, opening it where
+   the job's Documents and Photos do; one not mirrored yet greyed. Outside
+   .fg as well, for the dialog's own list. */
+.jc-files { display:flex; flex-direction:column; gap:2px; max-width:100%; min-width:0; margin:0; padding:0; list-style:none; }
+.jc-files .jc-file { display:flex; align-items:center; gap:8px; max-width:100%; min-width:0; min-height:32px; padding:0 8px; border:0; border-radius:var(--r-button); background:none; font:inherit; font-size:13px; line-height:18px; font-weight:500; color:var(--ink); text-align:left; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.jc-files button.jc-file:hover { background:var(--hov); }
+.jc-files button.jc-file:focus-visible { outline:none; box-shadow:var(--ring); }
+.jc-files .jc-file > span:first-child { flex:none; display:inline-flex; color:var(--q); }
+.jc-files .jc-filename { flex:0 1 auto; min-width:0; }
+.jc-files .jc-filetype { flex:none; font-weight:400; color:var(--q); }
+.jc-files .jc-file--off { color:var(--q); cursor:default; }
+.fg .jc-bm--us .jc-files { align-items:flex-end; }
+.fg .jc-send > .jc-sendfiles { margin-left:calc(32px + 12px - 8px); }
+.pt-dialog .cmsg-files { margin-top:16px; }
 
 /* the whole message, in the dialog that portals outside .fg: who, when, and the words as plain text */
 .pt-dialog .cmsg-facts { display:grid; grid-template-columns:auto minmax(0,1fr); gap:4px 12px; margin:0 0 16px; font-size:13px; line-height:18px; }

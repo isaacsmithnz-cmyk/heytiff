@@ -1,6 +1,8 @@
 import {
   bareSubject,
   commsThreads,
+  fileTypeWord,
+  linkParts,
   isMoneySend,
   bookingWhen,
   customerFeed,
@@ -72,13 +74,15 @@ describe("ServiceM8's own sends", () => {
   it("makes one row of an invoice emailed and texted within five minutes, its amount for whoever sees money", () => {
     const invoice = sends().filter((s) => s.sort === "invoice");
     expect(invoice).toHaveLength(1);
-    expect(invoice[0]).toMatchObject({ words: "Invoice sent, $13,200", detail: "by email and text", seen: "Seen 12:58 pm", attachments: 1 });
+    expect(invoice[0]).toMatchObject({ words: "Invoice sent, $13,200", detail: "by email and text", seen: "Seen 12:58 pm" });
+    expect(invoice[0]!.files.map((f) => f.name)).toEqual(["Acme Air Invoice #3372"]);
     expect(sends(feed(false)).find((s) => s.sort === "invoice")!.words).toBe("Invoice sent");
   });
 
   it("says an arrival with who and how long, and a quote with its paper and when it was seen", () => {
     expect(sends().find((s) => s.day === "2026-10-16")).toMatchObject({ words: "On the way texted", detail: "Sam, about 23 minutes", icon: "car" });
-    expect(sends().find((s) => s.day === "2026-09-29")).toMatchObject({ words: "Quote emailed", attachments: 1, seen: "Seen 9:45 am" });
+    expect(sends().find((s) => s.day === "2026-09-29")).toMatchObject({ words: "Quote emailed", seen: "Seen 9:45 am" });
+    expect(sends().find((s) => s.day === "2026-09-29")!.files).toHaveLength(1);
     /* seen another day says the day */
     expect(sends().find((s) => s.day === "2026-10-12")!.seen).toBe("Seen Tue 13 Oct, 6:46 pm");
     /* a send of no known kind nobody answered: Emailed and its first words */
@@ -305,21 +309,22 @@ describe("Comms (Isaac, 26 October 2026)", () => {
     expect(labels).toContain("Tue 6 Oct");
   });
 
-  it("makes a run of one person in one thread on one day, its papers said once with its time", () => {
+  it("makes a run of one person in one thread on one day, each message keeping its own files", () => {
     const f = fixture3372();
+    const file = (id: string) => ({ id, name: `${id}.pdf`, type: ".pdf" });
     const t = commsThreads(
       [
-        { ...f[16]!, id: "a", stamp: "2026-10-20 11:00:00", attachments: 1 },
-        { ...f[16]!, id: "b", stamp: "2026-10-20 11:01:00", attachments: 2 },
+        { ...f[16]!, id: "a", stamp: "2026-10-20 11:00:00", files: [file("one")] },
+        { ...f[16]!, id: "b", stamp: "2026-10-20 11:01:00", files: [file("two"), file("three")] },
         { ...f[16]!, id: "c", stamp: "2026-10-21 09:00:00" },
       ],
       { customer: "Marco", today: null },
     );
     expect(t).toHaveLength(1);
-    expect(t[0]!.lines.map((l) => (l.kind === "day" ? "day" : `${l.name ?? "-"}:${l.last}:${l.attachments}`))).toEqual([
+    expect(t[0]!.lines.map((l) => (l.kind === "day" ? "day" : `${l.name ?? "-"}:${l.last}:${l.files.length}`))).toEqual([
       "day",
-      "Dana:false:0",
-      "-:true:3",
+      "Dana:false:1",
+      "-:true:2",
       "day",
       "Dana:true:0",
     ]);
@@ -328,5 +333,29 @@ describe("Comms (Isaac, 26 October 2026)", () => {
   it("knows ServiceM8's quotes and invoices, which a reader without money doesn't get", () => {
     const f = fixture3372();
     expect(f.filter(isMoneySend).map((m) => m.stamp)).toEqual(["2026-09-29 08:31:06", "2026-10-12 16:19:53", "2026-10-20 11:49:46", "2026-10-20 11:53:01"]);
+  });
+});
+
+describe("links and files (the walk of 26 October 2026)", () => {
+  it("makes an http or https address a link, its full stop left outside", () => {
+    expect(linkParts("View it at https://sm8.link/fa2w. Thanks")).toEqual([
+      { text: "View it at " },
+      { text: "https://sm8.link/fa2w", href: "https://sm8.link/fa2w" },
+      { text: ". Thanks" },
+    ]);
+    expect(linkParts("(see http://example.com/a_(b))")).toEqual([
+      { text: "(see " },
+      { text: "http://example.com/a_(b)", href: "http://example.com/a_(b)" },
+      { text: ")" },
+    ]);
+  });
+
+  it("leaves javascript: and mailto: as words", () => {
+    expect(linkParts("javascript:alert(1) or mailto:marco@example.com")).toEqual([{ text: "javascript:alert(1) or mailto:marco@example.com" }]);
+  });
+
+  it("names a file's type in capitals", () => {
+    expect(fileTypeWord(".pdf")).toBe("PDF");
+    expect(fileTypeWord(null)).toBeNull();
   });
 });

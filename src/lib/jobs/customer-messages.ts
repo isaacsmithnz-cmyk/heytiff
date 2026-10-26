@@ -26,6 +26,12 @@ import type { StoryEntry } from "@/lib/workboard/job-story";
    sends from the thread's first message to the end of its day sit inside
    it as grey lines. The thread stands in the feed by its latest moment. */
 
+/** One of a message's attachments: ServiceM8's uuid, and its name and type
+    as sm8_attachments holds them; both null while it isn't mirrored yet
+    (Isaac, 26 October 2026: "It says that there's one attachment, but you
+    can't actually click it"). */
+export type MessageFile = { id: string; name: string | null; type: string | null };
+
 /** One message, as the read hands it over: names resolved, text plain. */
 export type CustomerMessage = {
   id: string;
@@ -43,7 +49,9 @@ export type CustomerMessage = {
   to: string | null;
   /** an outbound email ServiceM8 saw opened: when, naive */
   seenStamp: string | null;
-  attachments: number;
+  /** its attachments, each as sm8_attachments names it, or unnamed where
+      the mirror hasn't brought it in yet */
+  files: MessageFile[];
   /** one of ServiceM8's own sends (the read decides: see templateMarked) */
   template: boolean;
 };
@@ -69,7 +77,7 @@ export type CustomerSend = {
   /** a short reply to it, said on its row: "Piero: YES" */
   reply: string | null;
   seen: string | null;
-  attachments: number;
+  files: MessageFile[];
   /** an invoice's amount, for whoever sees money; null otherwise */
   amountCents: number | null;
   /** the job or invoice numbers its subject and words name ("Job #3372") */
@@ -88,8 +96,9 @@ export type ThreadBubble = {
   last: boolean;
   time: string;
   seen: string | null;
-  attachments: number;
-  full: { subject: string | null; from: string | null; to: string | null; when: string; text: string };
+  /** what came with this message, said under its own bubble */
+  files: MessageFile[];
+  full: { subject: string | null; from: string | null; to: string | null; when: string; text: string; files: MessageFile[] };
 };
 
 export type ThreadLine = ThreadBubble | { kind: "line"; key: string; words: string; reply: string | null };
@@ -197,7 +206,7 @@ function sortOf(m: CustomerMessage): SendSort {
   /* a quote or an invoice goes WITH something: the paper attached, or
      ServiceM8's link to it. A follow-up that only names the quote is not
      the quote going out */
-  const carries = m.attachments > 0 || LINK.test(m.text);
+  const carries = m.files.length > 0 || LINK.test(m.text);
   if (carries && /\binvoice\b/i.test(said)) return "invoice";
   if (carries && /\bquot(?:e|ation)\b/i.test(said)) return "quote";
   return "other";
@@ -317,7 +326,7 @@ export function customerFeed(
     const by = both ? "by email and text" : null;
     const email = s.msgs.find((m) => m.kind === "email") ?? null;
     const seen = email ? seenWords(email) : null;
-    const attachments = s.msgs.reduce((n, m) => n + m.attachments, 0);
+    const files = s.msgs.flatMap((m) => m.files);
     let words: string;
     let detail: string | null = by;
     let opening: string | null = null;
@@ -363,7 +372,7 @@ export function customerFeed(
       line,
       reply: s.reply,
       seen,
-      attachments,
+      files,
       amountCents: cents,
       refs: [...new Set(s.msgs.flatMap((m) => [...`${m.subject ?? ""}\n${m.text}`.matchAll(/#\s?(\d+[A-Za-z]?)\b/g)].map((x) => x[1]!.toUpperCase())))],
     };
@@ -404,8 +413,8 @@ export function customerFeed(
         words: m.text.trim().replace(/\n\s*\n+/g, "\n"),
         time: clockOf(m.stamp),
         seen: seenWords(m),
-        attachments: m.attachments,
-        full: { subject: m.subject, from: m.from, to: m.to, when: `${fmtAuWeekdayDayMonth(day)}, ${clockOf(m.stamp)}`, text: m.text.trim() },
+        files: m.files,
+        full: { subject: m.subject, from: m.from, to: m.to, when: `${fmtAuWeekdayDayMonth(day)}, ${clockOf(m.stamp)}`, text: m.text.trim(), files: m.files },
       });
       speaker = who;
     }
@@ -502,8 +511,8 @@ export function commsThreads(messages: readonly CustomerMessage[], opts: { custo
       last: true,
       time: clockOf(m.stamp),
       seen: seenWords(m),
-      attachments: m.attachments,
-      full: { subject: m.subject, from: m.from, to: m.to, when: `${fmtAuWeekdayDayMonth(day)}, ${clockOf(m.stamp)}`, text: m.text.trim() },
+      files: m.files,
+      full: { subject: m.subject, from: m.from, to: m.to, when: `${fmtAuWeekdayDayMonth(day)}, ${clockOf(m.stamp)}`, text: m.text.trim(), files: m.files },
     });
     speaker = who;
   }
@@ -512,17 +521,6 @@ export function commsThreads(messages: readonly CustomerMessage[], opts: { custo
       const next = t.lines[i + 1];
       if (l.kind === "bubble" && next?.kind === "bubble" && next.name === null) l.last = false;
     });
-    /* a run's papers are said once, with its time, under its last bubble */
-    let papers = 0;
-    for (const l of t.lines) {
-      if (l.kind !== "bubble") {
-        papers = 0;
-        continue;
-      }
-      papers += l.attachments;
-      l.attachments = l.last ? papers : 0;
-      if (l.last) papers = 0;
-    }
   }
   return threads;
 }
@@ -628,4 +626,44 @@ export function phoneKey(raw: string | null | undefined): string | null {
   if (!d) return null;
   if (d.startsWith("61") && d.length === 11) return `0${d.slice(2)}`;
   return d;
+}
+
+/** A file's type in words for its row: ".pdf" is "PDF". */
+export function fileTypeWord(type: string | null): string | null {
+  const t = (type ?? "").trim().replace(/^\./, "");
+  return t ? t.toUpperCase() : null;
+}
+
+/** A message's words with their web addresses as links (Isaac, 26 October
+    2026: "It's also not showing clickable links"). Only http and https: a
+    `javascript:` or `mailto:` stays words. A full stop, comma or closing
+    bracket after an address is the sentence's, not the address's. Read off
+    the plain text only, never off an email's HTML. */
+export type LinkPart = { text: string; href?: string };
+export function linkParts(text: string): LinkPart[] {
+  const parts: LinkPart[] = [];
+  const re = /\bhttps?:\/\/[^\s<>"'`]+/gi;
+  let at = 0;
+  for (const m of text.matchAll(re)) {
+    let url = m[0];
+    /* the sentence's own punctuation, and a bracket the address didn't open */
+    while (/[.,;:!?'")\]]$/.test(url)) {
+      if (url.endsWith(")") && (url.match(/\(/g) ?? []).length >= (url.match(/\)/g) ?? []).length) break;
+      url = url.slice(0, -1);
+    }
+    let ok = false;
+    try {
+      const u = new URL(url);
+      ok = (u.protocol === "http:" || u.protocol === "https:") && !!u.hostname;
+    } catch {
+      ok = false;
+    }
+    const start = m.index ?? 0;
+    if (!ok) continue;
+    if (start > at) parts.push({ text: text.slice(at, start) });
+    parts.push({ text: url, href: url });
+    at = start + url.length;
+  }
+  if (at < text.length) parts.push({ text: text.slice(at) });
+  return parts.length ? parts : [{ text }];
 }

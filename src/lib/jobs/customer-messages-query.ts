@@ -57,16 +57,17 @@ function addresses(v: unknown): string | null {
   return s;
 }
 
-function countOf(v: unknown): number {
-  if (Array.isArray(v)) return v.length;
-  const s = str(v);
-  if (!s) return 0;
-  try {
-    const parsed: unknown = JSON.parse(s);
-    return Array.isArray(parsed) ? parsed.length : 0;
-  } catch {
-    return 0;
+/** attachment_uuids comes as a JSON array written as text, or an array. */
+function uuidsOf(v: unknown): string[] {
+  let list: unknown = v;
+  if (typeof v === "string") {
+    try {
+      list = JSON.parse(v);
+    } catch {
+      return [];
+    }
   }
+  return Array.isArray(list) ? list.filter((x): x is string => typeof x === "string" && !!x.trim()).map((x) => x.trim()) : [];
 }
 
 /** The feed's rows and threads alone. */
@@ -151,7 +152,7 @@ export async function readCustomerConversation(input: {
       from: side === "us" ? (staffName ?? fromEmail ?? fromPhone) : (fromEmail ?? fromPhone),
       to: kind === "email" ? toEmail : toPhone,
       seenStamp: kind === "email" && side === "us" && raw.opened !== false && raw.opened !== "false" ? str(raw.first_opened_at) : null,
-      attachments: countOf(raw.attachment_uuids),
+      files: uuidsOf(raw.attachment_uuids).map((id) => ({ id, name: null, type: null })),
       template: side === "us" && templateMarked(text),
       staffUuid,
       pattern: side === "us" && !templateMarked(text) ? openingPattern(text) : null,
@@ -182,6 +183,27 @@ export async function readCustomerConversation(input: {
     }),
   );
   for (const m of messages) if (m.pattern && known.get(`${m.kind}|${m.pattern}`)) m.template = true;
+
+  /* WHAT CAME WITH EACH MESSAGE, named as the job's own files are
+     (sm8_attachments); one the mirror hasn't brought in yet stays unnamed */
+  const fileIds = [...new Set(messages.flatMap((m) => m.files.map((f) => f.id)))];
+  if (fileIds.length) {
+    const { data: found } = await supabaseAdmin
+      .from("sm8_attachments")
+      .select("uuid, attachment_name, file_type")
+      .eq("org_id", orgId)
+      .eq("active", 1)
+      .in("uuid", fileIds);
+    const named = new Map(
+      ((found ?? []) as { uuid: string; attachment_name: string | null; file_type: string | null }[]).map((f) => [f.uuid.toLowerCase(), f]),
+    );
+    for (const m of messages) {
+      m.files = m.files.map((f) => {
+        const row = named.get(f.id.toLowerCase());
+        return row ? { id: f.id, name: (row.attachment_name ?? "").trim() || "Unnamed file", type: row.file_type } : f;
+      });
+    }
+  }
 
   const who =
     customer ?? firstName(anyContact?.first) ?? messages.find((m) => m.side === "them")?.from ?? messages.find((m) => m.side === "us")?.to ?? "the customer";

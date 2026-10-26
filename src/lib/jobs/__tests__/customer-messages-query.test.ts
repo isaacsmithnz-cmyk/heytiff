@@ -24,13 +24,14 @@ const table = (name: string) => {
     } else if (name === "sm8_job_messages") data = jobRows;
     else if (name === "sm8_job_contacts") data = [{ first: "Marco", last: "Rossi", mobile: "0400 000 001", phone: null, email: "marco@example.com" }];
     else if (name === "sm8_staff") data = [{ uuid: "s-dana", first: "Dana", last: "Lee" }];
+    else if (name === "sm8_attachments") data = [{ uuid: "A-1", attachment_name: "Acme Air Quote #3372", file_type: ".pdf" }];
     return Promise.resolve({ data, error: null }).then(res);
   };
   return chain;
 };
 jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: { from: (n: string) => table(n) } }));
 
-import { readCustomerMessages } from "../customer-messages-query";
+import { readCustomerConversation, readCustomerMessages } from "../customer-messages-query";
 import type { CustomerSend, CustomerThread, ThreadBubble } from "../customer-messages";
 
 const FOLLOW_UP = "Hi Marco!\n\nI hope you've been well.\n\nI just wanted to follow up on the quote we sent through last week.";
@@ -98,4 +99,19 @@ it("makes a send ServiceM8's own once its opening went out on five of the busine
 it("never asks about the customer's own messages", async () => {
   await readCustomerMessages({ orgId: "org-1", jobUuid: "job-1", money: true });
   expect(calls.filter((c) => c.ilike)).toHaveLength(1);
+});
+
+/* Isaac, 26 October 2026: "It says that there's one attachment, but you can't actually click it" */
+it("names what came with a message from the job's mirrored files, and leaves one not mirrored yet unnamed", async () => {
+  jobRows = [
+    { uuid: "e9", kind: "email", direction: "inbound", raw: { timestamp: "2026-10-06 10:03:39", subject: "Plans", message_text: "Attached", from_email: "marco@example.com", attachment_uuids: '["a-1","a-2"]' } },
+  ];
+  const { items } = await readCustomerConversation({ orgId: "org-1", jobUuid: "job-1", money: true, today: null });
+  const bubble = (items[0] as CustomerThread).lines[0] as ThreadBubble;
+  expect(bubble.files).toEqual([
+    { id: "a-1", name: "Acme Air Quote #3372", type: ".pdf" },
+    { id: "a-2", name: null, type: null },
+  ]);
+  const ask = calls.find((c) => c.table === "sm8_attachments")!;
+  expect(ask).toMatchObject({ eq: { org_id: "org-1", active: 1 }, in: ["uuid", ["a-1", "a-2"]] });
 });

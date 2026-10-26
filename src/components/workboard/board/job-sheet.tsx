@@ -2161,6 +2161,21 @@ export function JobSheet({
                 onUndoDone: undoDone,
                 onConfirm: confirmLink,
                 onQuote: () => go("quote"),
+                /* a message's file opens where the job's Documents and Photos
+                   open it, from the same read: a photo in the photo viewer,
+                   paper in the paper viewer; one this read doesn't hold opens
+                   nothing (Isaac, 26 October 2026) */
+                openFile: (id) => {
+                  const low = id.toLowerCase();
+                  if (media?.photos.some((p) => p.remoteId.toLowerCase() === low && p.kind !== "video")) {
+                    const hit = media.photos.find((p) => p.remoteId.toLowerCase() === low)!;
+                    return () => setViewer({ kind: "photos", id: hit.remoteId });
+                  }
+                  const doc = media?.documents.find((d) => d.remoteId.toLowerCase() === low);
+                  /* an invoice's paper is Billing's, and Billing is money's */
+                  if (!doc || (doc.origin === "Invoice" && !moneyVisible)) return null;
+                  return () => setViewer({ kind: "paper", id: doc.remoteId });
+                },
                 jobNumber: cardNumber,
               }}
               onToast={onToast}

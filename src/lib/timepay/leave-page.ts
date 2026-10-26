@@ -49,7 +49,13 @@ export type MyLeaveData = {
 export async function loadMyLeave(): Promise<MyLeaveData | null> {
   const ctx = await timepayContext();
   if (!ctx?.staffId) return null;
+  return loadLeaveFor({ orgId: ctx.orgId, staffId: ctx.staffId, today: ctx.today });
+}
 
+/** My leave for one person, without a session: the page hands in who it is
+    from the cookie, the phone from its token (api/mobile/leave). Both see the
+    same balances, requests and holidays, read the same way. */
+export async function loadLeaveFor(ctx: { orgId: string; staffId: string; today: string }): Promise<MyLeaveData> {
   const horizon = addDays(ctx.today, 365); // a full year — leave is planned that far out
   const [{ settings }, balances, requests, state, defaults] = await Promise.all([
     getPaySettings(ctx.orgId),

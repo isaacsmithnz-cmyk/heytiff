@@ -7980,8 +7980,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jc-convo .cv-msg { gap:12px; }
 .fg .jc-convo .cv-body { gap:4px; }
 /* a voice note: a card round the words, saying where they came from */
-.fg .jc-voice { display:flex; flex-direction:column; gap:8px; padding:12px 16px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--paper); }
-.fg .jc-voice-head { display:flex; align-items:center; gap:8px; margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
 /* a note an attention row sent you to: the selected fill behind it */
 .fg .cv-msg.jc-lit { margin:-8px; padding:8px; border-radius:var(--r-button); background:var(--sel); }
 /* a note's line and doors, the diary's own, under its words */
@@ -8049,6 +8047,28 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* a web address in a message: a link in the words' own colour */
 .fg .jc-bubble .jc-link, .pt-dialog .cmsg-words .jc-link { color:inherit; text-decoration:underline; text-underline-offset:2px; overflow-wrap:anywhere; }
 .fg .jc-bmtime { display:flex; align-items:center; gap:8px; margin:0; font-size:12px; line-height:16px; color:var(--q); }
+/* THE TIFF CONVERSATION'S SIDES (Isaac, 26 October 2026, on
+   https://claude.ai/artifact/7aVi2krm8t7m6JAMNVSnVN): your words on the
+   right and everyone else's on the left, both the light grey (`--bubble-them`;
+   green stays the customer's thread's, "us" in a text the customer got);
+   Tiff on the left with no bubble, her mark turning beside her name in ink.
+   Under a bubble its time and doors are quiet words with no underline,
+   Remove the red word (rule 25). */
+.fg .jc-talk { display:flex; flex-direction:column; }
+.fg .jc-talk .jc-bubble { display:block; max-width:100%; padding:8px 12px; border-radius:var(--r-card); }
+.fg .jc-bm--you { align-self:flex-end; align-items:flex-end; }
+.fg .jc-bm--you .jc-bubble { background:var(--bubble-them); color:var(--ink); border-bottom-right-radius:var(--r-control); }
+.fg .jc-bm.jc-lit .jc-bubble { box-shadow:var(--ring); }
+.fg .jc-bmmeta { flex-wrap:wrap; }
+.fg .jc-bm--you .jc-bmmeta { justify-content:flex-end; }
+.fg .jc-bmmeta .wb2-evmeta, .fg .jc-bmmeta .wb2-jcattsave { display:contents; }
+.fg .jc-bmmeta .wb2-evreply { flex-basis:100%; }
+.fg .jc-bmmic { display:inline-flex; }
+.fg .jc-bmdoor, .fg .jc-bmmeta .wb2-evdoor { margin:0; padding:0; border:0; background:none; font:inherit; font-size:12px; line-height:16px; font-weight:500; color:var(--q); text-decoration:none; cursor:pointer; }
+.fg .jc-bmmeta .wb2-evdoor--remove { color:var(--red-w); }
+.fg .jc-said { margin:0; max-width:100%; font-size:14px; line-height:20px; color:var(--q); white-space:pre-line; overflow-wrap:anywhere; }
+.fg .jc-tiffturn { display:flex; flex-direction:column; gap:8px; min-width:0; }
+.fg .jc-tiffname { display:flex; align-items:center; gap:8px; margin:0; font-size:14px; line-height:20px; font-weight:700; color:var(--ink); }
 .fg .jc-thline { align-self:center; display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin:16px 0; font-size:13px; line-height:20px; color:var(--q); text-align:center; }
 .fg .jc-thline:last-child { margin-bottom:0; }
 .fg .jc-thline b { font-weight:600; color:var(--ink); }
@@ -8065,7 +8085,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jc-comday { align-self:center; margin:8px 0; font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
 /* Undo: a link's dress, because it is a door back */
 .fg .cv-result .jc-undo,
-.fg .jc-undoall .jc-undo { flex:none; padding:0; border:0; background:none; font:inherit; font-size:14px; line-height:20px; font-weight:500; color:var(--link); text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
+.fg .jc-undoall .jc-undo { flex:none; padding:0; border:0; background:none; font:inherit; font-size:14px; line-height:20px; font-weight:500; color:var(--link); text-decoration:none; cursor:pointer; }
 .fg .jc-undo:disabled { color:var(--q); cursor:default; }
 .fg .jc-undo:focus-visible { outline:none; border-radius:var(--r-control); box-shadow:var(--ring); }
 .fg .jc-undoall { margin:0; }

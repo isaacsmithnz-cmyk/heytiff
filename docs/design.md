@@ -332,6 +332,16 @@ the fourth on the customer's messages, below).
   button, not a mark of cutting. "have the dots to show that there is more
   to open" (26 October 2026). The bubble itself is not a button, so the
   links in it press as links.
+- **The Tiff conversation has sides** (`.jc-talk`, `.jc-tiffturn`), his
+  call on https://claude.ai/artifact/7aVi2krm8t7m6JAMNVSnVN (26 October
+  2026: "Let's do B… keep green to conversations with customers", "do no
+  bubble", "give the logo the colors. And have TIFF black"). Your notes are
+  on the right and everyone else's on the left, both in the light grey
+  (`--bubble-them`), so green stays a text the customer got. Tiff has no
+  bubble: her mark in her colours, turning slowly, beside her name in ink
+  ("She can turn slowly, given that you won't have an extra one down the
+  bottom of the page"). Under a bubble its time and doors are quiet words
+  with no underline, and Remove is the red word (rule 25).
 
 ### Named exemptions
 

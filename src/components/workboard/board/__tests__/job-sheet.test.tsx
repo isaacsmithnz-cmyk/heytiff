@@ -876,7 +876,7 @@ describe("the attention strip", () => {
 
     await userEvent.click(strip.getByRole("button", { name: /Open in the diary/ }));
     expect(jobTab("Overview")).toHaveAttribute("aria-selected", "true");
-    const lit = convo().getByText("Send a 20% deposit invoice").closest(".cv-msg");
+    const lit = convo().getByText("Send a 20% deposit invoice").closest(".jc-bm");
     expect(lit).toHaveClass("jc-lit");
   });
 
@@ -991,9 +991,12 @@ describe("the attention strip", () => {
 /* ── the pen: the conversation's Save ── */
 
 /** Words typed in the conversation's box and kept as typed: the pen's write. */
+/* a private note: My notes only ticked, then the one button, which says so */
 const keepTyped = async (words: string) => {
   await userEvent.type(convo().getByRole("textbox", { name: "Tell Tiff about this job" }), words);
-  await userEvent.click(convo().getByRole("button", { name: "Add to my notes" }));
+  const tick = convo().getByRole("checkbox", { name: "My notes only" }) as HTMLInputElement;
+  if (!tick.checked) await userEvent.click(tick);
+  await userEvent.click(convo().getByRole("button", { name: "Save to my notes" }));
 };
 
 describe("writing on the job", () => {
@@ -1152,7 +1155,7 @@ it("(F) the strip's Reply opens the conversation at the note, with its box open;
     expect(jobTab("Overview")).toHaveAttribute("aria-selected", "true");
     const f = convo();
     /* the note it answers is lit, and its box is open */
-    expect(f.getByPlaceholderText(NOTE_WORDS.door.replyPlaceholder).closest(".cv-msg")).toHaveClass("jc-lit");
+    expect(f.getByPlaceholderText(NOTE_WORDS.door.replyPlaceholder).closest(".jc-bm")).toHaveClass("jc-lit");
     await userEvent.type(f.getByPlaceholderText(NOTE_WORDS.door.replyPlaceholder), "on my way");
     await userEvent.click(f.getByRole("button", { name: NOTE_WORDS.door.sendReply }));
     expect(noteSm8.replyToJobNote).toHaveBeenCalledWith(
@@ -1194,7 +1197,7 @@ it("(F) the strip's Reply opens the conversation at the note, with its box open;
     noteSm8.sendJobNoteToServiceM8.mockResolvedValue({ ok: true, state: sending });
     const { unmount } = render(<Job row={row()} {...props} />);
     await detailLanded();
-    const ev = (await convo().findByText("Not sent to ServiceM8. Is Isaac Smith you?")).closest(".cv-msg") as HTMLElement;
+    const ev = (await convo().findByText("Not sent to ServiceM8. Is Isaac Smith you?")).closest(".jc-bm") as HTMLElement;
     await userEvent.click(within(ev).getByRole("button", { name: NOTE_WORDS.door.yes }));
     expect(noteSm8.confirmMySm8Link).toHaveBeenCalledWith({ remoteId: ISAAC_SM8, answer: "yes" });
     await waitFor(() => expect(noteSm8.sendJobNoteToServiceM8).toHaveBeenCalledWith({ jobUuid: "j-1", noteId: "r-1" }));
@@ -1204,7 +1207,7 @@ it("(F) the strip's Reply opens the conversation at the note, with its box open;
     noteSm8.confirmMySm8Link.mockResolvedValue({ ok: true, sender: { ...confirm, state: "denied" } });
     render(<Job row={row()} {...props} />);
     await detailLanded();
-    const ev2 = (await convo().findByText("Not sent to ServiceM8. Is Isaac Smith you?")).closest(".cv-msg") as HTMLElement;
+    const ev2 = (await convo().findByText("Not sent to ServiceM8. Is Isaac Smith you?")).closest(".jc-bm") as HTMLElement;
     await userEvent.click(within(ev2).getByRole("button", { name: NOTE_WORDS.door.notMe }));
     await waitFor(() => expect(noteSm8.confirmMySm8Link).toHaveBeenLastCalledWith({ remoteId: ISAAC_SM8, answer: "no" }));
     expect(noteSm8.sendJobNoteToServiceM8).not.toHaveBeenCalled();
@@ -1323,7 +1326,8 @@ it("(F) the strip's Reply opens the conversation at the note, with its box open;
     expect(strip.queryByRole("button", { name: "Reply" })).toBeNull();
     expect(strip.getByRole("button", { name: "Make it a task" })).toBeInTheDocument();
     expect(convo().queryByRole("button", { name: "Reply" })).toBeNull();
-    expect(convo().queryByRole("checkbox")).toBeNull();
+    // the box's one tick is My notes only: nothing about ServiceM8
+    expect(convo().queryByRole("checkbox", { name: NOTE_WORDS.door.alsoInSm8 })).toBeNull();
     expect(noteSm8.readJobNoteStates).not.toHaveBeenCalled();
   });
 });

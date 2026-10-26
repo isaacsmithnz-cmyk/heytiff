@@ -133,9 +133,9 @@ export function LinkButton({ href, children, className, ...rest }: LinkButtonPro
    Claude's), and nothing else, so the glyph is one of those by type. Square, in
    the quiet dress, and its label is required: it is the button's only word
    for a screen reader, and a `title` is not a label (rule 25). */
-export type IconGlyph = "close" | "clear" | "mic" | "earlier" | "later" | "send" | "minimise";
+export type IconGlyph = "close" | "clear" | "mic" | "earlier" | "later" | "send" | "minimise" | "add";
 
-const GLYPH: Record<IconGlyph, string> = { close: "x", clear: "x", mic: "mic", earlier: "chevL", later: "chevR", send: "arrowUp", minimise: "minus" };
+const GLYPH: Record<IconGlyph, string> = { close: "x", clear: "x", mic: "mic", earlier: "chevL", later: "chevR", send: "arrowUp", minimise: "minus", add: "plus" };
 
 export type IconButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "className" | "children" | "aria-label"> & {
   glyph: IconGlyph;

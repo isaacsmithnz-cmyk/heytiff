@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState, type Ref } from "react";
 import { Button } from "@/components/parts/button";
 import { Dialog } from "@/components/parts/dialog";
 import { Fade } from "@/components/parts/fade";
 import { Icon } from "@/components/shell/icon";
-import type { CustomerSend, CustomerThread, ThreadBubble } from "@/lib/jobs/customer-messages";
+import type { CommsThread, CustomerSend, CustomerThread, ThreadBubble } from "@/lib/jobs/customer-messages";
 
 /* THE CUSTOMER IN THE ACTIVITY FEED (Isaac, 26 October 2026, "Yes build",
    the tidied option B, laid out like a phone). Read only: nothing here
@@ -105,28 +105,79 @@ export function CustomerThreadView({ thread }: { thread: CustomerThread }) {
               {l.reply && <b>{l.reply}</b>}
             </p>
           ) : (
-            <div
-              className={["jc-bm", `jc-bm--${l.side}`, l.name ? "jc-bm--first" : "", l.last ? "jc-bm--last" : ""].filter(Boolean).join(" ")}
-              key={l.key}
-            >
-              {l.name && <p className="jc-bmname">{l.name}</p>}
-              <button type="button" className="jc-bubble" aria-haspopup="dialog" onClick={() => setOpen(l)}>
-                <Fade lines={3} className="jc-bubwords">
-                  {l.words}
-                </Fade>
-              </button>
-              {/* the run's time, and Seen, once, under its last bubble; a paper on any of them */}
-              {(l.last || l.attachments > 0) && (
-                <p className="jc-bmtime">
-                  {l.last && <span>{l.time}</span>}
-                  {l.last && l.seen && <span>{l.seen}</span>}
-                  {l.attachments > 0 && <Clip count={l.attachments} />}
-                </p>
-              )}
-            </div>
+            <Bubble key={l.key} line={l} onOpen={setOpen} />
           ),
         )}
       </div>
+      {open && <MessageDialog bubble={open} onClose={() => setOpen(null)} />}
+    </div>
+  );
+}
+
+/** One message in a run: the name above the run's first, the bubble, which
+    opens the whole message, and the run's time and Seen under its last (a
+    paper under whichever carries it). */
+function Bubble({ line: l, onOpen, lastRef }: { line: ThreadBubble; onOpen: (b: ThreadBubble) => void; lastRef?: Ref<HTMLDivElement> }) {
+  return (
+    <div
+      ref={lastRef}
+      className={["jc-bm", `jc-bm--${l.side}`, l.name ? "jc-bm--first" : "", l.last ? "jc-bm--last" : ""].filter(Boolean).join(" ")}
+    >
+      {l.name && <p className="jc-bmname">{l.name}</p>}
+      <button type="button" className="jc-bubble" aria-haspopup="dialog" onClick={() => onOpen(l)}>
+        <Fade lines={3} className="jc-bubwords">
+          {l.words}
+        </Fade>
+      </button>
+      {(l.last || l.attachments > 0) && (
+        <p className="jc-bmtime">
+          {l.last && <span>{l.time}</span>}
+          {l.attachments > 0 && <Clip count={l.attachments} />}
+          {l.last && l.seen && <span>{l.seen}</span>}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* COMMS (Isaac, 26 October 2026, "Yes, build the Comms tab as mocked"):
+   every text and email with the customer, oldest at the top like a phone,
+   ServiceM8's own as messages too. Each thread (one channel, and for email
+   one subject) under a hairline, its head a grey icon, "Email" or "Text"
+   and the subject fading; the day centred where it changes. Opening it
+   lands on the newest: the page's own scroller brings the last bubble into
+   view, with no scroller of its own. */
+export function CommsView({ threads }: { threads: readonly CommsThread[] }) {
+  const [open, setOpen] = useState<ThreadBubble | null>(null);
+  const newest = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    newest.current?.scrollIntoView?.({ block: "end" });
+  }, []);
+  const lastThread = threads.length - 1;
+  return (
+    <div className="jc-comms">
+      {threads.map((t, ti) => (
+        <div className="jc-comthread" key={t.key}>
+          <div className="jc-comhead">
+            <span className="jc-made-icon" aria-hidden="true">
+              <Icon name={t.channel === "email" ? "mail" : "message"} size={16} />
+            </span>
+            <b className="jc-comkind">{t.channel === "email" ? "Email" : "Text"}</b>
+            {t.subject && <Fade className="jc-comsub">{t.subject}</Fade>}
+          </div>
+          <div className="jc-thbody">
+            {t.lines.map((l, li) =>
+              l.kind === "day" ? (
+                <p className="jc-comday" key={l.key}>
+                  {l.label}
+                </p>
+              ) : (
+                <Bubble key={l.key} line={l} onOpen={setOpen} lastRef={ti === lastThread && li === t.lines.length - 1 ? newest : undefined} />
+              ),
+            )}
+          </div>
+        </div>
+      ))}
       {open && <MessageDialog bubble={open} onClose={() => setOpen(null)} />}
     </div>
   );

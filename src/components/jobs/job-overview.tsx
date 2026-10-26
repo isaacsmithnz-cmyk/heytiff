@@ -274,6 +274,7 @@ export function JobOverview({
             voiceEnabled={scope.voiceEnabled}
             onUndoTalk={undoTalk}
             customer={read?.customer}
+            comms={read?.comms}
           />
         </div>
       </div>

@@ -8,7 +8,7 @@ import type { AppliedRecord } from "@/lib/workboard/note-applied";
 import type { EarlierTurn } from "@/lib/workboard/note-turns";
 import type { Tone } from "@/components/parts/state";
 import type { SummaryGroup } from "./job-summary-rows";
-import type { CustomerItem } from "./customer-messages";
+import type { CommsThread, CustomerItem } from "./customer-messages";
 
 /* A JOB'S OVERVIEW AS ITS CONVERSATION (v2, step 6, slice A; the board
    JC-1) — pure. What the job's page draws on Overview, decided here where
@@ -80,6 +80,8 @@ export type JobConversationRead = {
   /** The customer's texts and emails with the team, as threads, and
       ServiceM8's own sends as rows (customer-messages), oldest first. */
   customer?: CustomerItem[];
+  /** Every text and email with the customer, as Comms shows them (customer-messages). */
+  comms?: CommsThread[];
 };
 
 /* ── days ── */

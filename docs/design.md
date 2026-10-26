@@ -294,9 +294,10 @@ https://claude.ai/artifact/BH6voDn1axdk96JZCCUSTf).
 
 #### On a job's page
 
-Three of his calls on the job page (25 October 2026; the first two on his
-mock https://claude.ai/artifact/GL43j32Z8xBo3CXekExHuF, the third on the
-refined Overview A, https://claude.ai/artifact/SGFpbThni6YZF6HU3SZpPL).
+Four of his calls on the job page (25 and 26 October 2026; the first two
+on his mock https://claude.ai/artifact/GL43j32Z8xBo3CXekExHuF, the third
+on the refined Overview A, https://claude.ai/artifact/SGFpbThni6YZF6HU3SZpPL,
+the fourth on the customer's messages, below).
 
 - **Materials' groups have their icons in colour** (`.jm-ic`), despite old
   law 31, colour only where it means something. "Now just put some color or
@@ -316,6 +317,16 @@ refined Overview A, https://claude.ai/artifact/SGFpbThni6YZF6HU3SZpPL).
   that drew them ("Yes, build the refined Overview A", 25 October 2026).
   The block is solid with its icon in ink, as on Home and in the Library:
   no tint, no edge, and never blue, red or orange.
+- **The Activity feed's conversation bubbles are filled** (`.jc-bubble`),
+  despite old law 31, colour only where it means something, and "colour is
+  solid, never a tint" as it applies elsewhere: here green means "us", not
+  "good". "Deep green with white" (26 October 2026, on his mock
+  https://claude.ai/artifact/5PZn6N1iwYA99EnuRgNiHb). The team's bubbles
+  are the green word value (`--green-w`) with white words, which read at
+  5:1; the customer's are a solid light grey (`--bubble-them`, the
+  palette's grey laid 22% into white, never an ink alpha) with ink. Runs
+  from one speaker stack 2 apart with the inside corners at 6 and the
+  card's 16 elsewhere, like iMessage.
 
 ### Named exemptions
 

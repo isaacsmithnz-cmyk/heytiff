@@ -143,6 +143,41 @@ describe("a conversation is a thread", () => {
     expect((run[0] as CustomerThread).lines.map((l) => (l as ThreadBubble).name)).toEqual(["Marco", null, "Dana"]);
   });
 
+  /* Isaac, 26 October 2026: filled and grouped like iMessage */
+  it("groups back-to-back messages from one speaker into a run: the name above its first, the time on its last", () => {
+    const f = fixture3372();
+    const run = customerFeed(
+      [
+        { ...f[2]!, id: "a", stamp: "2026-10-06 10:00:00" },
+        { ...f[2]!, id: "b", stamp: "2026-10-06 10:01:00" },
+        { ...f[2]!, id: "c", stamp: "2026-10-06 10:02:00" },
+        { ...f[6]!, id: "d", stamp: "2026-10-06 10:03:00" },
+        { ...f[6]!, id: "e", stamp: "2026-10-06 10:04:00" },
+      ],
+      { customer: "Marco", money: true },
+    );
+    const bubbles = (run[0] as CustomerThread).lines as ThreadBubble[];
+    expect(bubbles.map((b) => [b.name, b.last])).toEqual([
+      ["Marco", false],
+      [null, false],
+      [null, true],
+      ["Dana", false],
+      [null, true],
+    ]);
+  });
+
+  it("ends a run at a ServiceM8 line, and starts the next with its name", () => {
+    const t = threads().find((x) => x.day === "2026-10-06")!;
+    expect(t.lines.map((l) => (l.kind === "bubble" ? `${l.name ?? "-"}:${l.last}` : "line"))).toEqual([
+      "Dana:true",
+      "Marco:true",
+      "line",
+      "Marco:true",
+      "Dana:true",
+      "line",
+    ]);
+  });
+
   it("says Seen only on the team's emails ServiceM8 saw opened", () => {
     const t = threads().find((x) => x.day === "2026-10-06")!;
     const bubbles = t.lines.filter((l): l is ThreadBubble => l.kind === "bubble");

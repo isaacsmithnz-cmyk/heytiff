@@ -119,7 +119,7 @@ export function XeroGroup({ connection, configured, sealed, notice, reach, peopl
             </StateWord>
           )}
             {ready && attention && (
-              <Button kind="second" size={32} onClick={() => setDialog("connect")}>
+              <Button kind="xero" size={32} onClick={() => setDialog("connect")}>
                 Reconnect Xero
               </Button>
             )}
@@ -131,7 +131,7 @@ export function XeroGroup({ connection, configured, sealed, notice, reach, peopl
       ) : (
         <Setting name="Not connected">
           {ready && (
-            <Button kind="main" size={32} onClick={() => setDialog("connect")}>
+            <Button kind="xero" size={32} onClick={() => setDialog("connect")}>
               Connect Xero
             </Button>
           )}

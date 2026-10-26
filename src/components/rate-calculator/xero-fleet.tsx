@@ -7,6 +7,7 @@ import { WsEyebrow } from "./ui";
 import { mergeSnapshot, periodChoiceOf, snapshotVehicleTotal, type RateCalcState, type XeroCostSnapshot } from "./state";
 import type { PeriodChoice } from "@/lib/integrations/xero-pl";
 import { withCleanup } from "@/lib/ui/with-cleanup";
+import { Button } from "@/components/parts/button";
 
 /* The fleet's running cost, read from the same Xero snapshot the Business step
    pulled. No second call and no second period: one P&L answers both steps, and
@@ -68,9 +69,9 @@ export function XeroFleetPanel({ s, patch, onFetch }: XeroFleetPanelProps) {
           Reads the vehicle lines off the same profit &amp; loss your business costs come from.
         </p>
         {error && <p className="rcx-err">{error}</p>}
-        <button className="rcx-go" onClick={pull} disabled={busy}>
+        <Button kind="xero" size={36} className="rcx-go" onClick={pull} disabled={busy}>
           {busy ? "Reading Xero" : "Pull from Xero"}
-        </button>
+        </Button>
       </div>
     );
   }
@@ -131,9 +132,9 @@ export function XeroFleetPanel({ s, patch, onFetch }: XeroFleetPanelProps) {
         </>
       )}
 
-      <button className="rcx-go" onClick={pull} disabled={busy} style={{ marginTop: 12 }}>
+      <Button kind="xero" size={36} className="rcx-go" onClick={pull} disabled={busy} style={{ marginTop: 12 }}>
         {busy ? "Reading Xero" : "Refresh"}
-      </button>
+      </Button>
     </div>
   );
 }

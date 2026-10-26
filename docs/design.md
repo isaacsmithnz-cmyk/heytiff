@@ -51,6 +51,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 - **23. The second button.** White with a thin outline. Every other action that needs a box.
 - **24. The quiet button.** No edge until you point at it. Toolbars and rows.
 - **25. Delete.** A red word on the second button; a red block only in the dialog that asks you to be sure.
+- **25a. Xero.** A button that goes to Xero (Connect, Reconnect, Pull from Xero, Refresh) is Xero's pale blue with white words, outside the palette on his word and named below.
 - **26. Links.** Ink, underlined. Going somewhere, not doing something.
 - **27. Icon-only.** Close, clear, the microphone, and the ‹ › of a date. Everything else has its word. The sidebar doesn't fold, so it has no collapse control.
 - **28. Three sizes.** 32 in rows and lists, 36 in forms and dialogs, 44 on a phone. A field and the button beside it match.
@@ -348,9 +349,9 @@ the fourth on the customer's messages, below).
 Isaac's own shapes on the new Home break some of the laws on purpose, on
 his word ("design exempt for now, but keep a note", 2026-09-24). A baseline
 raised to let them in would let the next rule in with them, unnamed, so
-they are held the way the loops are. Five ratchets take a named exemption:
-gradients, shadows, bars at the left edge, Tailwind palette hexes and
-pills. Each counts the sheets without the rule blocks its own rows cover,
+they are held the way the loops are. Six ratchets take a named exemption:
+gradients, shadows, bars at the left edge, Tailwind palette hexes, pills
+and colours outside the 19. Each counts the sheets without the rule blocks its own rows cover,
 so no baseline moves, and `design-ratchets.test.ts` holds the hits in those
 blocks to this table exactly, both ways: a named rule that grows fails, and
 a row whose rule has gone fails until the row goes. A block is covered only
@@ -362,6 +363,7 @@ day he said them.
 |---|---|---|---|---|
 | `.hd-page` | Tailwind palette hexes | 1 | "design exempt for now, but keep a note": `--hd-done`, the tick on finished work, is Tailwind's green 600 | 2026-09-24 |
 | `.wb2-jcattpill` | pills | 1 | "Our mention can just show our name inside a pill. in place of where it was in the note": a task made from a ServiceM8 note carries the note as ServiceM8 shows it, each person it names a pill where their handle stood, where law 26 says a plain word | 2026-09-29 |
+| `.pt-btn--xero` | colours outside the 19 | 1 | "give zero button its proper colors. This will be an exemption to the color rules. With a pale blue and white writing.": Xero's brand blue `#13b5ea` on a button that goes to Xero; white on it measures 2.4:1 | 2026-10-27 |
 
 What the guard cannot count is noted here on the same word:
 

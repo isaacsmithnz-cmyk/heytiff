@@ -121,8 +121,9 @@ export function EditProjectForm({ project, onClose, onSave }: Close & { project:
           <TextInput value={siteLabel} onChange={(e) => setSiteLabel(e.target.value)} />
         </Field>
       </div>
+      {/* two lines, as the address is kept: "26 Boomerang Ave" over "Lilli Pilli NSW 2229" */}
       <Field label="Site address">
-        <TextInput value={siteAddress} onChange={(e) => setSiteAddress(e.target.value)} />
+        <TextArea rows={2} value={siteAddress} onChange={(e) => setSiteAddress(e.target.value)} />
       </Field>
     </Form>
   );

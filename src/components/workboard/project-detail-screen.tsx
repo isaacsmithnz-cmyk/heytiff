@@ -22,7 +22,7 @@ import { namePage } from "@/components/shell/page-names";
 import { auDayOf, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { jobPageHref } from "@/lib/shell/links";
 import { PROJECT_TABS, parseProjectTab, type ProjectTab } from "@/lib/workboard/project-tabs";
-import { PROJECT_STAGES, SECTION_STAGES, checklistProgress, stageAdvice, stageIndex } from "@/lib/workboard/stages";
+import { PROJECT_STAGES, SECTION_STAGES, stageAdvice, stageIndex } from "@/lib/workboard/stages";
 import { deriveProjectMoney, fmtAud } from "@/lib/workboard/project-money";
 import type { ProjectDetail } from "@/lib/workboard/projects-query";
 import type { IssueRow, ProjectEntry } from "@/lib/workboard/notes-query";
@@ -692,14 +692,12 @@ function ChecklistSection({
   onAdding: (section: string | null) => void;
   onOpen: (form: OpenForm) => void;
 }) {
-  const progress = checklistProgress(project.checklist);
   const advice = stageAdvice(project.stage, project.checklist);
   return (
     <JobSection
       name="Checklist"
       icon="check"
       hue="yellow"
-      note={progress.total > 0 ? `${progress.done} of ${progress.total} ticked` : null}
       action={
         manage ? (
           <Button size={32} onClick={() => onOpen({ kind: "section" })}>

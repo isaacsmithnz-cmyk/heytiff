@@ -21,7 +21,6 @@ export function JobSection({
   icon,
   hue,
   action,
-  note,
   className,
   children,
 }: {
@@ -31,8 +30,6 @@ export function JobSection({
   hue: SectionHue;
   /** On the head's right: one quiet or second button, or the feed's tabs. */
   action?: ReactNode;
-  /** Beside the title, in grey: a fact with a figure ("4 of 15 ticked"). */
-  note?: ReactNode;
   className?: string;
   children: ReactNode;
 }) {
@@ -46,7 +43,6 @@ export function JobSection({
         <h2 className="jov-title" id={id}>
           {name}
         </h2>
-        {note != null && <span className="jov-note">{note}</span>}
         {action && <div className="jov-headact">{action}</div>}
       </div>
       {children}

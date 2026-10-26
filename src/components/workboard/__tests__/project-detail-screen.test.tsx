@@ -381,7 +381,7 @@ describe("stage moves (P5 — manual, checklist-aware)", () => {
 
   it("ticks are facts, not levers — no auto-advance ever fires", async () => {
     mount(detail({ stage: "Pre-install", checklist: checklist([]) }));
-    expect(screen.getByText("0 of 15 ticked")).toBeInTheDocument();
+    expect(screen.queryByText(/of 15 ticked/)).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("checkbox", { name: "Quote accepted" }));
     expect(act.toggleChecklistItem).toHaveBeenCalledWith("Approval & prep-0", true);
     expect(act.setProjectStage).not.toHaveBeenCalled();
@@ -676,6 +676,18 @@ describe("the project's forms", () => {
       siteLabel: "14 Bowden St",
       siteAddress: "",
     });
+  });
+
+  it("keeps a two-line site address on two lines", async () => {
+    mount(detail({ siteAddress: "26 Boomerang Ave\nLilli Pilli NSW 2229" }));
+    await action("Edit details");
+    const dialog = within(screen.getByRole("dialog", { name: "Edit project" }));
+    const address = dialog.getByLabelText("Site address");
+    expect(address.tagName).toBe("TEXTAREA");
+    expect(address).toHaveValue("26 Boomerang Ave\nLilli Pilli NSW 2229");
+    await userEvent.type(address, "{Enter}Australia");
+    await userEvent.click(dialog.getByRole("button", { name: "Save project" }));
+    expect(act.updateProjectMeta).toHaveBeenCalledWith("p-1", expect.objectContaining({ siteAddress: "26 Boomerang Ave\nLilli Pilli NSW 2229\nAustralia" }));
   });
 
   it("attaches a typed job number in its role", async () => {

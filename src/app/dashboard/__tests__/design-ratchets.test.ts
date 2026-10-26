@@ -581,10 +581,10 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "colours outside the 19 — the palette, the token block included (rule 15)", now: () => offPalette(outside("colours outside the 19")), baseline: 43 },
   { law: "`text-overflow: ellipsis` — text that doesn't fit fades (rule 50)", now: () => count(/text-overflow\s*:\s*ellipsis/g), baseline: 0 },
   { law: "a typed \"…\" on screen — a wait says what it's doing; text that doesn't fit fades (rule 50)", now: () => countTsx(onScreen("…")), baseline: 2 },
-  { law: "native `<select>` — a field with a chevron opens the app's own menu (rule 34)", now: () => countTsx(/<select\b/g), baseline: 51 },
+  { law: "native `<select>` — a field with a chevron opens the app's own menu (rule 34)", now: () => countTsx(/<select\b/g), baseline: 50 },
   { law: "native time inputs — a clock time opens the wheel (rule 34)", now: () => countTsx(/type="time"/g), baseline: 0 },
   { law: "native colour inputs — a typed hex with a swatch", now: () => countTsx(/type="color"/g), baseline: 1 },
-  { law: "`title` tooltips — a title is not a label; the tooltip rule replaces them", now: () => countTsx(/\stitle=[{"]/g), baseline: 98 },
+  { law: "`title` tooltips — a title is not a label; the tooltip rule replaces them", now: () => countTsx(/\stitle=[{"]/g), baseline: 96 },
 ];
 
 describe("the design ratchets only go down", () => {

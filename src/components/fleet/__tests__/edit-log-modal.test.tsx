@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { EditLogModal } from "../modals";
 import type { VehicleLog } from "../logic";
@@ -52,9 +52,9 @@ describe("EditLogModal", () => {
     expect(screen.queryByText("Snap or upload the receipt")).not.toBeInTheDocument();
   });
 
-  it("says the stored receipt is not replaceable from here", () => {
+  it("says what the entry is", () => {
     setup();
-    expect(screen.getByText(/remove the entry and log it again/)).toBeInTheDocument();
+    expect(screen.getByText("Fuel, 31 Jul 2026")).toBeInTheDocument();
   });
 
   it("hands back only a correction, anchored on the server's date", async () => {
@@ -62,7 +62,7 @@ describe("EditLogModal", () => {
     const litres = screen.getByDisplayValue("62.4");
     await user.clear(litres);
     await user.type(litres, "60.2");
-    await user.click(screen.getByRole("button", { name: /Save correction/ }));
+    await user.click(screen.getByRole("button", { name: /Save changes/ }));
 
     const patch = onSave.mock.calls[0][0];
     expect(patch.litres).toBe(60.2);
@@ -77,25 +77,28 @@ describe("EditLogModal", () => {
     await user.type(cost, "40");
 
     expect(screen.getByText(/More than an eleventh/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Save correction/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Save changes/ })).toBeDisabled();
   });
 
-  it("asks before removing, and says what removing actually does", async () => {
+  it("asks before deleting, once, and says what deleting actually does", async () => {
     const { onDelete, user } = setup();
-    await user.click(screen.getByRole("button", { name: /^Remove$/ }));
+    await user.click(screen.getByRole("button", { name: "Delete entry" }));
 
-    expect(screen.getByText(/odometer is recalculated/)).toBeInTheDocument();
-    expect(screen.getByText(/receipt stays on file/)).toBeInTheDocument();
+    const ask = screen.getByRole("dialog", { name: "Delete this fuel entry?" });
+    expect(within(ask).getByText(/62.4 L at Shell Coburg on 31 Jul 2026 comes off the history/)).toBeInTheDocument();
+    expect(within(ask).getByText(/odometer is recalculated/)).toBeInTheDocument();
+    expect(within(ask).getByText(/receipt stays on file/)).toBeInTheDocument();
     expect(onDelete).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: /Remove entry/ }));
+    await user.click(within(ask).getByRole("button", { name: "Delete entry" }));
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
 
-  it("backs out of the confirmation without removing anything", async () => {
+  it("backs out of the confirmation without deleting anything", async () => {
     const { onDelete, user } = setup();
-    await user.click(screen.getByRole("button", { name: /^Remove$/ }));
+    await user.click(screen.getByRole("button", { name: "Delete entry" }));
     await user.click(screen.getByRole("button", { name: /Keep it/ }));
+    expect(screen.queryByRole("dialog", { name: "Delete this fuel entry?" })).not.toBeInTheDocument();
     expect(screen.getByDisplayValue("62.4")).toBeInTheDocument();
     expect(onDelete).not.toHaveBeenCalled();
   });
@@ -137,7 +140,6 @@ describe("correcting a service", () => {
     expect(screen.getByDisplayValue(/Brake pads, front/)).toBeInTheDocument();
     expect(screen.getByDisplayValue("73.86")).toBeInTheDocument();
     expect(screen.queryByText("Litres")).not.toBeInTheDocument();
-    expect(screen.getByText(/service record on this entry stays as it is/)).toBeInTheDocument();
   });
 
   it("hands back the service's correction, dated from the invoice", async () => {
@@ -147,7 +149,7 @@ describe("correcting a service", () => {
     const work = screen.getByDisplayValue(/Brake pads, front/);
     await user.clear(work);
     await user.type(work, "Engine oil and filter");
-    await user.click(screen.getByRole("button", { name: /Save correction/ }));
+    await user.click(screen.getByRole("button", { name: /Save changes/ }));
     const patch = onSave.mock.calls[0][0];
     expect(patch.workDone).toBe("Engine oil and filter");
     expect(patch.station).toBe("Braeside Auto");

@@ -99,7 +99,6 @@ const GROUNDS: Record<string, RGBA> = {
   "a white card": WHITE,
   "the outlet": ground([bgOf(".fg .outlet")]),
   "the timesheet's day card": ground([bgOf(".fg .ts2-card")]),
-  "a form well on the page": ground([bgOf(".fg .outlet"), bgOf(".fg .lv-form")]),
   // the sunk card is a tint since the vm fold, so it is composited on the modal's white
   "the vehicle modal's sunk card": ground([colour(token("vm-sunk"))]),
 };

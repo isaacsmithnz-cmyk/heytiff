@@ -1200,7 +1200,7 @@ describe("handing the account over", () => {
     await user.click(screen.getByRole("radio", { name: /Liv Nguyen/ }));
 
     expect(screen.getByText("Liv Nguyen becomes the account owner.")).toBeInTheDocument();
-    expect(screen.getByText(/what you lose is the master’s protection/)).toBeInTheDocument();
+    expect(screen.getByText(/What you lose is the master’s protection/)).toBeInTheDocument();
     expect(screen.getByText(/Liv Nguyen becomes an owner as part of this/)).toBeInTheDocument();
   });
 

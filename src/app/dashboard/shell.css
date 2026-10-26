@@ -1099,20 +1099,12 @@
   text-decoration:underline; text-underline-offset:2px; }
 .fg .pdact:focus-visible { outline:2px solid var(--ink); outline-offset:2px; border-radius:var(--r-control); }
 
-/* THE SIGN-IN WARNING. It sits at the same weight as
-   `.carderr` above and share its shape on purpose: they are the same KIND of
-   thing — a line the card says back to you about what just happened, or is
-   about to. Amber before, teal after.
-
-   The warning is NOT hint text. It does not explain how to use the form; it
-   states the consequence of using it — that this becomes your sign-in
-   address and nothing in the app can undo it — which is a fact the form
-   itself cannot convey. */
-.fg .pacct-warn, .fg .pacct-ok { display:flex; align-items:flex-start; gap:8px;
+/* THE SIGN-IN CONFIRMATION: the line the card says back to you once the
+   address has moved. */
+.fg .pacct-ok { display:flex; align-items:flex-start; gap:8px;
   margin:12px 0 0; padding:12px 12px; border-radius:var(--r-button);
   font-size:13px; font-weight:600; line-height:1.5; }
-.fg .pacct-warn svg, .fg .pacct-ok svg { flex:none; margin-top:1px; }
-.fg .pacct-warn { color:var(--warn-t); background:var(--warn-tint); border:1px solid var(--warn); }
+.fg .pacct-ok svg { flex:none; margin-top:1px; }
 .fg .pacct-ok { color:var(--green-w); background:var(--tint); border:1px solid var(--line); }
 .fg .pacct-ok b { font-weight:700; }
 .fg .card2.readonly .carderr { display:none; }
@@ -2574,18 +2566,6 @@ button.fl-x { width:34px; height:34px; border-radius:var(--r-button); display:fl
 textarea.fl-i { min-height:86px; padding:12px 12px; resize:vertical; }
 select.fl-i { cursor:pointer; }
 
-/* WHO PAID — two buttons, not a select, because each answer has a consequence
-   worth spelling out under it. These render inside the modal, which portals to
-   <body>, so nothing here may be written under `.fg`: anything declared there
-   is ABSENT in a portal rather than merely outranked, which is how the .pbtn
-   family lost its hover once already. Unprefixed, like the rest of .fl-*. */
-.fl-pay { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
-.fl-payb { display:block; width:100%; text-align:left; padding:8px 12px 8px; border:1.5px solid var(--line); border-radius:var(--r-button); background:var(--paper); cursor:pointer; font:inherit; transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-.fl-payb:hover { background:var(--tint); }
-.fl-payb b { display:block; font-size:13px; font-weight:700; color:var(--ink); }
-.fl-payb em { display:block; font-style:normal; font-size:12px; font-weight:500; color:var(--q); margin-top:2px; line-height:1.35; }
-.fl-payb.on { border-color:var(--ink); background:var(--tint);  box-shadow:var(--ring); }
-.fl-payb.on em { color:var(--ink); }
 .fl-i.slim { height:36px; font-size:13px; margin-top:4px; padding:0 8px; border-radius:var(--r-control); }
 .fl-i.tall { min-height:120px; }
 /* THE ONE FOOTER (law 28). A row of buttons at the end of a form, the commit
@@ -2670,10 +2650,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .fl-qa.paused:hover { background:var(--paper); }
 .fg .fl-offnote { display:flex; align-items:center; gap:8px; background:var(--warn-tint); border:1px solid var(--warn); border-radius:var(--r-card); padding:12px 16px; font-size:13px; font-weight:600; color:var(--warn-t); }
 .dchip2.mute { color:var(--q); }
-.fl-warnhint { font-style:normal; font-size:12px; font-weight:600; color:var(--warn-t); }
-/* neutral sibling of fl-warnhint — explains a field rather than cautioning about
-   it. Literal colour, not a var: these modals portal to body, outside .fg. */
-.fl-hint { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
 
 /* ---- fleet r3: live Tiff valuations + receipt scanner ---- */
 .fg .fl-valuebtn { color:var(--ink); }
@@ -2704,24 +2680,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
    document printed no premium has no price element to push the rest right. */
 /* Current vs previous on a renewal document. Derived from the file list, so
    the tag can never disagree with what is above it. */
-.fl-scan { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; padding:32px 16px; border:1.5px dashed var(--line); border-radius:var(--r-card); background:var(--tint); cursor:pointer; transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fl-scan:hover, .fl-scan.over { border-color:var(--ink); background:var(--tint); }
-.fl-scan input { display:none; }
-.fl-scan .fl-scanic { display:flex; align-items:center; justify-content:center; color:var(--q); }
-.fl-scan b { font-size:14px; font-weight:700; color:var(--ink); }
-.fl-scan em { font-style:normal; font-size:13px; font-weight:600; color:var(--q); }
-.fl-modeline { display:block; margin:12px auto 0; font-size:13px; font-weight:700; color:var(--ink); }
-.fl-modeline:hover { text-decoration:underline; }
-.fl-modeline.inline { margin:0 0 0 auto; }
-.fl-readingwrap { display:flex; flex-direction:column; align-items:center; gap:12px; padding:24px 0 8px; }
-.fl-scanthumb { max-height:120px; max-width:100%; border-radius:var(--r-card); border:1px solid var(--line); }
-.fl-scanthumb.small { max-height:44px; border-radius:var(--r-button); }
-.fl-reading { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; color:var(--ink); }
-.fl-scanhead { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
-/* "Receipt saved" / "saving without it" — unscoped like the rest of this
-   block, because the log modal portals to <body> and never sees `.fg`. */
-.fl-keptline { display:flex; align-items:center; gap:8px; margin:-4px 0 12px; font-size:13px; font-weight:700; color:var(--ink); }
-.fl-keptline.warn { color:var(--warn-t); }
 
 /* ---- fleet r4: rego picker for borrowed vehicles ---- */
 .fg .fl-offnote { flex-wrap:wrap; }
@@ -2729,22 +2687,11 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .fl-offbtn:hover { background:var(--warn-tint); }
 
 /* ---- Time & Pay: shared entry chrome ----
-   The error line and the labelled fields My leave, the holidays section and
-   the sign-in email form still wear. My timesheet itself is v2 now, `.ts2-*`
+   The error line My leave and the holidays section still wear. My timesheet itself is v2 now, `.ts2-*`
    at the foot of this sheet. */
 .fg .tp-err { font-size:13px; font-weight:600; color:var(--red-d,var(--bad-t)); margin:-6px 0 12px; }
 /* what kept approved leave off the ServiceM8 board: somebody's to fix, not an error */
 .fg .tp-err.warn { color:var(--warn-t); }
-.fg .mts-f { display:flex; flex-direction:column; gap:4px; }
-.fg .mts-f span { font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .mts-f input, .fg .mts-f select { height:38px; padding:0 12px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--paper); font-family:var(--font); font-size:14px; font-weight:600; color:var(--ink); min-width:120px; }
-/* THE PLACEHOLDER IS LOAD-BEARING HERE, and had no rule at all. My leave puts
-   the SUGGESTED hours in it — `placeholder={String(suggested)}`, with a comment
-   saying leave it alone and the span's own working days get booked — so it is
-   the number a person reads to decide whether to type one. With no declaration
-   it fell to Chrome's UA rule (currentColor at 54%), which resolves to ~#787878
-   on white: 4.42:1, for the one placeholder in the app that carries a value. */
-.fg .mts-f input::placeholder { color:var(--q); font-weight:600; }
 
 /* A fortnight reads as two week-rows and a month as four-plus, which is how
    people actually think about a pay period — so the day tiles wrap at seven
@@ -2766,13 +2713,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
    screens. Removed rather than parked, as `.segsw` was: an unused block in
    this file has shadowed a live component at equal specificity before. */
 .fg .lv-pnote { font-size:13px; font-weight:600; color:var(--gray500); }
-.fg .lv-form { padding:16px 16px; border-radius:var(--r-card); background:var(--tint); border:1px solid var(--line); margin-bottom:24px; }
-/* IN THE COLUMN IT BELONGS TO. The form lives inside the requests card now,
-   directly under the button that opens it, so it squares its own corners into
-   that card rather than floating as a rounded block above the whole thing. */
-.fg .lv-col .lv-form { margin:0; border:0; border-bottom:1px solid var(--line); border-radius:0; }
-.fg .lv-frow { display:flex; flex-wrap:wrap; gap:12px; }
-.fg .lv-form .mts-f input, .fg .lv-form .mts-f select { height:38px; padding:0 12px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--paper); font-family:var(--font); font-size:14px; font-weight:600; color:var(--ink); }
 .fg .lv-cols { display:grid; grid-template-columns:1.4fr 1fr; gap:16px; align-items:start; }
 .fg .lv-col { border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; }
 .fg .lv-ch { padding:12px 16px; font-size:13px; font-weight:500; color:var(--gray700); background:var(--tint); border-bottom:1px solid var(--line); }
@@ -2829,10 +2769,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .au-plate.xl { flex:none; flex-direction:column; align-items:center; gap:0; padding:2px 12px 4px; border:2px solid var(--ink); border-radius:var(--r-control); background:var(--paper); box-shadow:none; font-size:20px; line-height:20px; }
 .au-plate.xl .st { padding-left:0; border-left:0; font-size:12px; line-height:12px; color:var(--ink); }
 
-/* log-modal vehicle picker: the select, and the chosen plate beside it.
-   Unscoped for the same reason .au-plate is — the modal lives on document.body. */
-.fl-pickrow { display:flex; align-items:center; gap:8px; }
-.fl-pickrow .fl-i { flex:1; min-width:0; }
 
 /* ===== Staff card, in React — plastic ID cards, credentials, My pay =====
    Additive only; the ported v3 rules above are untouched. The read views of
@@ -3219,37 +3155,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 
 /* "You" is a fact, not a state — the neutral chip, never the ok/danger pair. */
 
-/* ── Handing the account over (components/org/transfer-owner-modal) ──
-   A list you PICK from, then a panel that says what picking meant, then the
-   button. Not a select: the choice is a person, and a person is a name, an
-   address and a role — three lines a 46px box cannot hold, and the role is the
-   whole difference between a safe handover and a promotion riding along with
-   it. Rows rather than cards for the same reason the credential grid uses
-   cards: these are people in a list, not objects in a wallet. */
-.fg .ownlist { display:flex; flex-direction:column; gap:8px; max-height:290px; overflow-y:auto; }
-.fg .ownrow { display:flex; align-items:center; gap:12px; width:100%; padding:12px 12px; text-align:left;
-  border:1.5px solid var(--line); border-radius:var(--r-card); background:var(--paper); cursor:pointer;
-  transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.fg .ownrow:hover { border-color:var(--edge); background:var(--tint); }
-/* Selected is a RING plus a tick, never colour alone — the tick is what still
-   says "this one" to a screenshot in greyscale and to anyone who cannot
-   separate the two greys. */
-.fg .ownrow.on { border-color:var(--ink); background:var(--tint);  box-shadow:var(--ring); }
-.fg .ownrow:focus-visible { outline:none;  box-shadow:var(--ring); }
-.fg .ownrow-k { flex:1; min-width:0; display:block; }
-.fg .ownrow-k b { display:block; font-size:14px; font-weight:700; color:var(--ink); }
-.fg .ownrow-k i { display:block; margin-top:2px; font-style:normal; font-size:12px; font-weight:600; color:var(--q); overflow-wrap:anywhere; }
-.fg .ownrow-r { flex:0 0 auto; height:22px; padding:0 8px; display:inline-flex; align-items:center; border-radius:var(--r-control);
-  background:var(--tint-2); color:var(--gray700); font-size:12px; font-weight:700; }
-.fg .ownrow-t { flex:0 0 auto; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-  background:var(--ink); color:var(--paper); }
-/* What the choice costs, in the neutral panel rather than in a warning tone:
-   nothing here has gone wrong, and spending the status law's amber on a
-   consequence would blunt it where it means "something needs you". */
-.fg .ownwarn { margin-top:16px; padding:12px 16px; border-radius:var(--r-card); background:var(--tint-2);
-  display:flex; flex-direction:column; gap:8px; }
-.fg .ownwarn b { font-size:14px; font-weight:700; color:var(--ink); }
-.fg .ownwarn span { font-size:13px; font-weight:600; line-height:1.55; color:var(--gray700); }
 
 /* Colour swatches in the credential modal. Scoped like every field beside
    them: the modal portals to <body> inside a display:contents `.fg`, so the
@@ -6265,11 +6170,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* Touch has no hover, so the affordance is simply always visible there. */
 @media (hover:none){ .fl-log .fl-lfix { opacity:1; } }
 
-/* The remove confirmation. Says what happens rather than asking twice. */
-.fl-danger { display:flex; flex-direction:column; gap:8px; padding:16px 16px; border-radius:var(--r-card); background:var(--bad-tint); border:1px solid var(--bad); }
-.fl-danger b { font-size:16px; font-weight:700; color:var(--ink); }
-.fl-danger em { font-style:normal; font-size:13px; font-weight:500; line-height:1.55; color:var(--gray500); }
-.fl-danger .fl-foot { margin-top:4px; }
 
 /* A footer with a destructive action on the left and the commit pair right. */
 .fl-foot.spread { justify-content:space-between; }
@@ -8612,6 +8512,41 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
   .mk-records-grid, .mk-records-grid--2 { grid-template-columns:minmax(0,1fr); }
   .mk-records-jobrow { flex-direction:column; align-items:stretch; }
 }
+
+/* ===== V2: RECORD WINDOWS (the old-modals mock, 27 October 2026: Log fuel
+   and Correct this entry, Hand over the account, Change your sign-in
+   address; components/fleet/modals, org/transfer-owner-modal,
+   profile/signin-email-modal). No `.fg`: each opens in the Dialog part,
+   which portals to <body>. The fields, buttons, trays and state words are
+   the parts, laid out with `.mk-records-*` above; what is here is the paper
+   a record starts from and the list a dialog picks from. ===== */
+/* the paper a record starts from: its icon, what to do, and one button */
+.rcw-drop { display:flex; flex-direction:column; align-items:center; gap:8px; padding:24px; border:1px solid var(--edge); border-radius:var(--r-card); text-align:center; transition:background-color var(--t-fast) var(--ease); }
+.rcw-drop[data-over] { background:var(--hov); }
+.rcw-drop > .rcw-drop-ic { display:flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:var(--r-button); background:var(--soft); color:var(--ink); }
+.rcw-drop > .rcw-drop-what { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+/* the paper in hand: its picture, what was read and whether it was kept, and Scan again */
+.rcw-paper { display:flex; align-items:center; gap:12px; }
+.rcw-thumb { flex:none; display:flex; align-items:center; justify-content:center; width:64px; height:48px; border-radius:var(--r-control); background:var(--soft); object-fit:cover; font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+.rcw-paper-says { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.rcw-paper-says.rcw-reading { flex-direction:row; align-items:center; gap:8px; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+/* one of a few people, each a row under a hairline: the radio, the disc,
+   the name over the address, and what they are today */
+.rcw-pick { display:flex; flex-direction:column; border-top:1px solid var(--line); }
+.rcw-pick > .rcw-pickrow { display:flex; align-items:center; gap:12px; width:100%; min-height:48px; margin:0; padding:8px; border:0; border-bottom:1px solid var(--line); border-radius:var(--r-button); background:none; font:inherit; color:var(--ink); text-align:left; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.rcw-pick > .rcw-pickrow:hover { background:var(--hov); }
+.rcw-pick > .rcw-pickrow[aria-checked="true"] { background:var(--sel); }
+.rcw-pick > .rcw-pickrow:focus-visible { outline:none; box-shadow:var(--ring); }
+.rcw-pickrow > .rcw-radio { flex:none; box-sizing:border-box; width:16px; height:16px; border-radius:50%; border:1px solid var(--grey); background:var(--white); }
+.rcw-pickrow[aria-checked="true"] > .rcw-radio { border:5px solid var(--press); }
+.rcw-pickrow > .rcw-pickrow-k { flex:1; min-width:0; display:flex; flex-direction:column; }
+.rcw-pickrow-k > b { font-size:14px; line-height:20px; font-weight:600; }
+.rcw-pickrow-k > span { font-size:13px; line-height:18px; color:var(--q); }
+.rcw-pickrow > .rcw-pickrow-r { flex:none; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+/* what a choice costs, said in sentences */
+.rcw-says { display:flex; flex-direction:column; gap:8px; }
+.rcw-says > p, .rcw-sentence { margin:0; font-size:14px; line-height:20px; color:var(--ink); }
+.rcw-says b { font-weight:600; }
 
 /* ===== V2: SCHEDULE (v2, step 5; 6-revisions.md, 18 October; boards
    schedule-v8-*; components/schedule/schedule-board). A row per person,

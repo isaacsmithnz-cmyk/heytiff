@@ -236,10 +236,33 @@ export function customerFeed(
   opts: { customer: string; money: boolean; staffOf?: (m: CustomerMessage) => string | null },
 ): CustomerItem[] {
   const all = [...messages].sort((a, b) => (a.stamp < b.stamp ? -1 : a.stamp > b.stamp ? 1 : 0));
+  /* A TEMPLATE THE CUSTOMER ANSWERED starts the conversation (the walk of
+     26 October 2026: Piero's 10:03 reply opened a thread whose first half
+     was missing). An email of ServiceM8's is answered when an email of the
+     customer's comes back to it: under its subject, Re: and Fwd: aside,
+     within the week, or as the next email they sent that day. It is then the team's first
+     bubble, named for who sent it, with its Seen. Templates nobody answered
+     stay as rows. */
+  const answered = new Set<CustomerMessage>();
+  for (const t of all) {
+    if (!(t.side === "us" && t.template && t.kind === "email")) continue;
+    const subject = bareSubject(t.subject)?.toLowerCase() ?? null;
+    const at = secondsOf(t.stamp);
+    const back = all.some(
+      (m) =>
+        m.side === "them" &&
+        m.kind === "email" &&
+        m.stamp > t.stamp &&
+        /* under its subject within the week, or the next email they sent that day */
+        ((subject !== null && bareSubject(m.subject)?.toLowerCase() === subject && secondsOf(m.stamp) - at <= 7 * 86_400) ||
+          dayOf(m.stamp) === dayOf(t.stamp)),
+    );
+    if (back) answered.add(t);
+  }
   const sends: Draft[] = [];
   const real: CustomerMessage[] = [];
   for (const m of all) {
-    if (m.side === "us" && m.template) sends.push({ msgs: [m], sort: sortOf(m), reply: null });
+    if (m.side === "us" && m.template && !answered.has(m)) sends.push({ msgs: [m], sort: sortOf(m), reply: null });
     else real.push(m);
   }
 

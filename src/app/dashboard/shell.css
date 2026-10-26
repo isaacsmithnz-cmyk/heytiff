@@ -8118,10 +8118,14 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    the corner on the speaker's side tucked to the field's 6 (the scale has
    no 4). 4 from a bubble to its time, 12 where the speaker changes, 16
    round ServiceM8's grey lines, 16 under the thread. */
+/* the words, then a send of no known kind's first words 8 after them, fading */
+.fg .jc-sendtext { flex:1 1 auto; display:flex; align-items:baseline; gap:8px; min-width:0; }
 .fg .jc-send .jc-evwords { flex:none; }
 .fg .jc-sendopen { flex:1 1 auto; min-width:0; font-size:13px; line-height:18px; color:var(--q); }
-.fg .jc-sendreply { flex:none; margin-left:auto; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
-.fg .jc-sendseen { flex:none; margin-left:auto; font-size:13px; line-height:18px; color:var(--q); }
+/* on the right: the answer or Seen, then the Quote's door, 8 apart */
+.fg .jc-sendend { flex:none; display:flex; align-items:center; gap:8px; margin-left:auto; }
+.fg .jc-sendreply { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .jc-sendseen { font-size:13px; line-height:18px; color:var(--q); }
 .fg .jc-clip { display:inline-flex; align-items:center; gap:2px; margin-left:8px; font-size:13px; line-height:18px; color:var(--q); vertical-align:middle; }
 .fg .jc-thread { gap:0; padding:4px 0 16px; }
 .fg .jc-thhead { display:flex; align-items:center; gap:12px; min-width:0; min-height:32px; }

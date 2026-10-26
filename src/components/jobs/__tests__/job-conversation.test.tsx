@@ -430,7 +430,7 @@ it("draws ServiceM8's sends as rows and the conversation as a thread, oldest fir
   expect(reply.tagName).toBe("B");
   const thread = screen.getByText("Email with Marco").closest(".jc-thread") as HTMLElement;
   const bubbles = [...thread.querySelectorAll(".jc-bm")].map((b) => b.querySelector(".jc-bmtime")?.textContent);
-  expect(bubbles).toEqual(["10:03 am", "11:06 am", "11:51 amSeen 11:56 am"]);
+  expect(bubbles).toEqual(["9:31 amSeen 9:56 am", "10:03 am", "11:06 am", "11:51 amSeen 11:56 am"]);
   expect(within(thread).getByText("Booking for 2:00 pm texted").closest(".jc-thline")).toHaveTextContent("Marco: Yes");
   /* the newest day first: the invoice's day over the first quote's */
   const days = screen.getAllByText(/^(Tue 20 Oct|Tue 29 Sept?)$/).map((d) => d.textContent);
@@ -448,13 +448,31 @@ it("filters to the customer: the threads and ServiceM8's sends, and nothing else
   expect(screen.getByText("Second")).toBeInTheDocument();
 });
 
-it("says a quote sent once, as ServiceM8's send, where the feed would have said it twice", () => {
+it("says a quote sent once, as ServiceM8's send, which keeps the Quote sent row's door after its Seen", async () => {
+  const onQuote = jest.fn();
   draw({
     story: [{ kind: "milestone", key: "milestone:quoted", day: "2026-09-29", at: null, label: "Quote sent" }],
     customer: customer(),
+    d: diary({ onQuote, jobNumber: "3372" }),
   });
   expect(screen.queryByText("Quote sent")).toBeNull();
-  expect(screen.getAllByText("Quote emailed").length).toBeGreaterThan(0);
+  const door = screen.getByRole("button", { name: "Open quote #3372" });
+  const end = door.closest(".jc-sendend") as HTMLElement;
+  expect(end.closest(".jc-send")).toHaveTextContent("Quote emailed");
+  expect([...end.children].map((c) => c.textContent)).toEqual(["Seen 9:45 am", "Open quote #3372"]);
+  /* only the send that stands in for the row: the 12 October quote has none */
+  expect(screen.getAllByRole("button", { name: /^Open quote/ })).toHaveLength(1);
+  await userEvent.click(door);
+  expect(onQuote).toHaveBeenCalled();
+});
+
+it("draws a send nobody answered as Emailed, its first words after it, apart", () => {
+  draw({ customer: customerFeed([fixture3372()[1]!], { customer: "Marco", money: true }) });
+  const words = screen.getByText("Emailed");
+  const text = words.closest(".jc-sendtext") as HTMLElement;
+  expect(text.children[0]).toContainElement(words);
+  expect(text.children[1]).toHaveClass("jc-sendopen");
+  expect(text.children[1]).toHaveTextContent(/^I hope you've been well/);
 });
 
 it("opens the whole message from its bubble, read only, as plain text", async () => {

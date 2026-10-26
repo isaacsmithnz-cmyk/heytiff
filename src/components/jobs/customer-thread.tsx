@@ -25,25 +25,39 @@ import type { CustomerSend, CustomerThread, ThreadBubble } from "@/lib/jobs/cust
    the thread's span are grey lines in the middle. A bubble is a button: it
    opens the whole message in a dialog, its words as plain text. */
 
-export function CustomerSendRow({ send }: { send: CustomerSend }) {
+export function CustomerSendRow({ send, quoteDoor }: { send: CustomerSend; quoteDoor?: { label: string; onOpen: () => void } | null }) {
+  const end =
+    send.reply || send.seen || quoteDoor ? (
+      <span className="jc-sendend">
+        {send.reply ? <b className="jc-sendreply">{send.reply}</b> : send.seen ? <span className="jc-sendseen">{send.seen}</span> : null}
+        {/* the "Quote sent" row this send stands in for keeps its door (26 October 2026) */}
+        {quoteDoor && (
+          <Button kind="quiet" size={32} onClick={quoteDoor.onOpen}>
+            {quoteDoor.label}
+          </Button>
+        )}
+      </span>
+    ) : null;
   return (
     <div className="jc-entry jc-event jc-send">
       <div className="jc-evrow">
         <span className="jc-made-icon" aria-hidden="true">
           <Icon name={send.icon} size={16} />
         </span>
-        <span className="jc-evwords">
-          <b className="cv-result-name">{send.words}</b>
-          {send.detail && (
-            <>
-              {" "}
-              <span className="cv-result-line">{send.detail}</span>
-            </>
-          )}
-          {send.attachments > 0 && <Clip count={send.attachments} />}
+        <span className="jc-sendtext">
+          <span className="jc-evwords">
+            <b className="cv-result-name">{send.words}</b>
+            {send.detail && (
+              <>
+                {" "}
+                <span className="cv-result-line">{send.detail}</span>
+              </>
+            )}
+            {send.attachments > 0 && <Clip count={send.attachments} />}
+          </span>
+          {send.opening && <Fade className="jc-sendopen">{send.opening}</Fade>}
         </span>
-        {send.opening && <Fade className="jc-sendopen">{send.opening}</Fade>}
-        {send.reply ? <b className="jc-sendreply">{send.reply}</b> : send.seen ? <span className="jc-sendseen">{send.seen}</span> : null}
+        {end}
       </div>
     </div>
   );

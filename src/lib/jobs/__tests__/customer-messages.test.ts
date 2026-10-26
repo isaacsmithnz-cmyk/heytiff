@@ -77,19 +77,35 @@ describe("ServiceM8's own sends", () => {
     expect(sends().find((s) => s.day === "2026-09-29")).toMatchObject({ words: "Quote emailed", attachments: 1, seen: "Seen 9:45 am" });
     /* seen another day says the day */
     expect(sends().find((s) => s.day === "2026-10-12")!.seen).toBe("Seen Tue 13 Oct, 6:46 pm");
-    /* a send of no known kind: Emailed and its first words */
-    const follow = sends().find((s) => s.day === "2026-10-06" && s.sort === "other")!;
-    expect(follow.words).toBe("Emailed");
-    expect(follow.opening).toMatch(/^I hope you've been well/);
+    /* a send of no known kind nobody answered: Emailed and its first words */
+    const alone = customerFeed([fixture3372()[1]!], { customer: "Marco", money: true });
+    expect(alone[0]).toMatchObject({ kind: "send", words: "Emailed", seen: "Seen 9:56 am" });
+    expect((alone[0] as CustomerSend).opening).toMatch(/^I hope you've been well/);
   });
 });
 
 describe("a conversation is a thread", () => {
+  /* the walk of 26 October 2026: Piero's 10:03 reply opened a thread whose first half was missing */
+  it("starts with the template the customer answered, as the team's first bubble with its Seen", () => {
+    const t = threads().find((x) => x.day === "2026-10-06")!;
+    expect(t.lines[0]).toMatchObject({ kind: "bubble", side: "us", name: "Dana", time: "9:31 am", seen: "Seen 9:56 am" });
+    expect((t.lines[0] as ThreadBubble).words).toMatch(/^Hi Marco!\nI hope you've been well/);
+    /* nobody answered the quote of 29 September: it stays a row */
+    expect(sends().some((s) => s.day === "2026-09-29" && s.words === "Quote emailed")).toBe(true);
+    /* nor an answer another day under another subject */
+    const later = customerFeed(
+      [fixture3372()[1]!, { ...fixture3372()[2]!, stamp: "2026-10-08 10:00:00", subject: "Something else" }],
+      { customer: "Marco", money: true },
+    );
+    expect(later.map((i) => i.kind)).toEqual(["send", "thread"]);
+  });
+
   it("is the day's own messages, oldest first inside, standing in the feed by its latest moment", () => {
     const t = threads().find((x) => x.day === "2026-10-06")!;
     expect(t.title).toBe("Email with Marco");
     expect(t.subject).toBe("Your Quote from Acme Air (Ref #3372)");
     expect(t.lines.map((l) => (l.kind === "bubble" ? `${l.side}:${l.time}` : `line:${l.words}`))).toEqual([
+      "us:9:31 am",
       "them:10:03 am",
       "line:Booking for 2:00 pm texted",
       "them:11:06 am",
@@ -130,7 +146,7 @@ describe("a conversation is a thread", () => {
   it("says Seen only on the team's emails ServiceM8 saw opened", () => {
     const t = threads().find((x) => x.day === "2026-10-06")!;
     const bubbles = t.lines.filter((l): l is ThreadBubble => l.kind === "bubble");
-    expect(bubbles.map((b) => b.seen)).toEqual([null, null, "Seen 11:56 am"]);
+    expect(bubbles.map((b) => b.seen)).toEqual(["Seen 9:56 am", null, null, "Seen 11:56 am"]);
     const text = customerFeed([{ ...fixture3372()[16]!, seenStamp: "2026-10-20 12:00:00" }], { customer: "Marco", money: true });
     expect(((text[0] as CustomerThread).lines[0] as ThreadBubble).seen).toBeNull();
     const theirs = customerFeed([{ ...fixture3372()[2]!, seenStamp: "2026-10-06 12:00:00" }], { customer: "Marco", money: true });

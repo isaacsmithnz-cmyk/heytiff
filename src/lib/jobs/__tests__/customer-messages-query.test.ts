@@ -69,6 +69,8 @@ it("takes the HTML only where there is no text, and as text", async () => {
 });
 
 it("makes a send ServiceM8's own once its opening went out on five of the business's jobs, and not on four", async () => {
+  /* nobody answered it here, so as a template it is a row */
+  jobRows = jobRows.filter((r) => r.uuid !== "e2");
   others = { [FOLLOW_UP_PATTERN]: 3 };
   let items = await readCustomerMessages({ orgId: "org-1", jobUuid: "job-1", money: true });
   expect(items.some((i) => i.kind === "send")).toBe(false);

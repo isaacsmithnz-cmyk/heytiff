@@ -189,6 +189,11 @@ export function JobConversation({
   const [filter, setFilter] = useState<FeedFilter>("all");
   /* a row the customer's messages already say ("Quote sent") is said once */
   const unechoed = useMemo(() => withoutEchoes(story, customer), [story, customer]);
+  /* the days a quote's send stands in for the "Quote sent" row: it keeps that row's door */
+  const quoteDays = useMemo(() => {
+    const kept = new Set(unechoed);
+    return new Set(story.flatMap((e) => (e.kind === "milestone" && e.label === "Quote sent" && !kept.has(e) ? [e.day] : [])));
+  }, [story, unechoed]);
   const shown = useMemo(() => (filter === "customer" ? [] : filterStory(unechoed, filter)), [unechoed, filter]);
   const theirs = filter === "all" || filter === "customer" ? customer : NONE;
   const live = convo.turns;
@@ -486,7 +491,15 @@ export function JobConversation({
                 item.customer.kind === "thread" ? (
                   <CustomerThreadView key={item.key} thread={item.customer} />
                 ) : (
-                  <CustomerSendRow key={item.key} send={item.customer} />
+                  <CustomerSendRow
+                    key={item.key}
+                    send={item.customer}
+                    quoteDoor={
+                      item.customer.sort === "quote" && diary.onQuote && quoteDays.has(item.customer.day)
+                        ? { label: diary.jobNumber ? `Open quote #${diary.jobNumber}` : "Open the quote", onOpen: diary.onQuote }
+                        : null
+                    }
+                  />
                 )
               ) : item.entry?.kind === "note" ? (
                 <NoteMessage

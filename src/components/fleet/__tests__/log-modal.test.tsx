@@ -59,36 +59,39 @@ function setup(kind: "fuel" | "odo" = "odo", opts: { withFleet?: boolean } = { w
   return { onSave, user: userEvent.setup() };
 }
 
+/* The vehicle is a chooser now (rule 34), its options the plate and the name. */
+const picker = () => screen.getByRole("combobox", { name: "Vehicle" });
+async function pick(user: ReturnType<typeof userEvent.setup>, label: string) {
+  await user.click(picker());
+  await user.click(screen.getByRole("option", { name: label }));
+}
+
 describe("LogModal rego picker", () => {
-  it("lists working vehicles by rego, own vehicle first, and excludes sold", () => {
-    setup();
-    const picker = screen.getByRole("combobox") as HTMLSelectElement;
-    const labels = [...picker.options].map((o) => o.textContent);
-    expect(labels).toEqual(["MKT482 — VRF-04", "LRT906 — UTE-01"]);
-    expect(labels.join()).not.toContain("JTB114"); // sold vehicle is not loggable
-    expect(picker.value).toBe("vrf-04"); // defaults to the driver's own vehicle
-  });
-
-  /* A native <option> can only hold text, so the plate can't be styled inside
-     the list. It goes beside the select instead, showing the CHOSEN vehicle —
-     the one the answer to "right van?" actually depends on. */
-  it("shows the selected vehicle's plate beside the picker, and follows the pick", async () => {
+  it("lists working vehicles by rego, own vehicle first, and excludes sold", async () => {
     const { user } = setup();
-    const plate = () => document.querySelector(".fl-pickrow .au-plate")?.textContent;
-    expect(plate()).toBe("MKT482VIC");
-    await user.selectOptions(screen.getByRole("combobox"), "ute-01");
-    expect(plate()).toBe("LRT906VIC");
+    expect(picker()).toHaveTextContent("MKT482, VRF-04"); // defaults to the driver's own vehicle
+    await user.click(picker());
+    const labels = screen.getAllByRole("option").map((o) => o.textContent);
+    expect(labels).toEqual(["MKT482, VRF-04", "LRT906, UTE-01"]);
+    expect(labels.join()).not.toContain("JTB114"); // sold vehicle is not loggable
   });
 
-  it("is hidden when no fleet is passed (single-vehicle context)", () => {
+  it("follows the pick in the field", async () => {
+    const { user } = setup();
+    await pick(user, "LRT906, UTE-01");
+    expect(picker()).toHaveTextContent("LRT906, UTE-01");
+  });
+
+  it("is hidden when no fleet is passed (single-vehicle context), and the vehicle is still named", () => {
     setup("odo", { withFleet: false });
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(screen.getByText("VRF-04, Toyota Hiace ZR 2022")).toBeInTheDocument();
   });
 
   it("saves the log against the borrowed vehicle once picked", async () => {
     const { onSave, user } = setup();
-    await user.selectOptions(screen.getByRole("combobox"), "ute-01");
-    await user.type(screen.getByPlaceholderText(/Currently/), "158500");
+    await pick(user, "LRT906, UTE-01");
+    await user.type(screen.getByPlaceholderText(/^Now/), "158500");
     await user.click(screen.getByRole("button", { name: /Update odometer/ }));
 
     expect(onSave).toHaveBeenCalledTimes(1);
@@ -103,17 +106,17 @@ describe("LogModal rego picker", () => {
   it("moves the odometer guardrail to the selected vehicle", async () => {
     const { user } = setup();
     // 90,000 is above VRF-04's 84,120 — no warning while it's selected
-    await user.type(screen.getByPlaceholderText(/Currently/), "90000");
+    await user.type(screen.getByPlaceholderText(/^Now/), "90000");
     expect(screen.queryByText(/Lower than the current/)).not.toBeInTheDocument();
 
     // the same reading is below UTE-01's 158,300 — the warning follows the switch
-    await user.selectOptions(screen.getByRole("combobox"), "ute-01");
+    await pick(user, "LRT906, UTE-01");
     expect(screen.getByText(/Lower than the current 158,300 km/)).toBeInTheDocument();
   });
 
   it("offers the picker on the fuel scan step, before any receipt is read", () => {
     setup("fuel");
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    expect(picker()).toBeInTheDocument();
     expect(screen.getByText("Snap or upload the receipt")).toBeInTheDocument();
   });
 });

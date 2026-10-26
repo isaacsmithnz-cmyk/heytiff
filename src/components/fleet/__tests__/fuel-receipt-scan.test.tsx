@@ -92,7 +92,7 @@ describe("a docket Tiff cannot read", () => {
     await user.upload(input, file);
 
     await waitFor(() =>
-      expect(screen.getByText("Tiff couldn't read that one — enter the details below.")).toBeInTheDocument(),
+      expect(screen.getByText("Tiff couldn't read that one")).toBeInTheDocument(),
     );
     expect(screen.queryByText(/Demo read/)).toBeNull();
     // the photo is the record, and it is still filed against the entry
@@ -109,7 +109,7 @@ describe("a docket Tiff cannot read", () => {
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, new File(["docket"], "receipt.jpg", { type: "image/jpeg" }));
     await waitFor(() =>
-      expect(screen.getByText("Tiff couldn't read that one — enter the details below.")).toBeInTheDocument(),
+      expect(screen.getByText("Tiff couldn't read that one")).toBeInTheDocument(),
     );
     expect((screen.getByLabelText(/^Litres/) as HTMLInputElement).value).toBe("");
   });
@@ -127,7 +127,7 @@ describe("scanning a fuel docket", () => {
   it("says the receipt was kept", async () => {
     const { user } = setup();
     await scan(user);
-    expect(screen.getByText(/Receipt saved/)).toBeInTheDocument();
+    expect(screen.getByText(/Receipt filed/)).toBeInTheDocument();
   });
 
   it("hands Save the stored document, the tax figures and the docket's date", async () => {
@@ -154,7 +154,7 @@ describe("scanning a fuel docket", () => {
     readFuelReceipt.mockResolvedValue({ ok: false, reason: "no-key" });
     const { onSave, user } = setup();
     await scan(user);
-    expect(screen.getByText(/Receipt saved/)).toBeInTheDocument();
+    expect(screen.getByText(/Receipt filed/)).toBeInTheDocument();
 
     await user.type(screen.getByLabelText(/^Litres/), "62.4");
     await user.type(screen.getByLabelText(/^Cost/), "158.40");
@@ -178,7 +178,7 @@ describe("scanning a fuel docket", () => {
   it("blocks a GST bigger than an eleventh of the total", async () => {
     const { user } = setup();
     await scan(user);
-    const gst = screen.getByPlaceholderText("e.g. 14.40");
+    const gst = screen.getByPlaceholderText("14.40");
     await user.clear(gst);
     await user.type(gst, "40");
 
@@ -200,9 +200,9 @@ describe("scanning a fuel docket", () => {
   it("drops the stored photo when the scan is redone", async () => {
     const { user } = setup();
     await scan(user);
-    await user.click(screen.getByRole("button", { name: /re-scan/ }));
+    await user.click(screen.getByRole("button", { name: /Scan again/ }));
     expect(screen.getByText("Snap or upload the receipt")).toBeInTheDocument();
-    expect(screen.queryByText(/Receipt saved/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Receipt filed/)).not.toBeInTheDocument();
   });
 });
 
@@ -210,9 +210,13 @@ describe("scanning a fuel docket", () => {
    record-modal/scan-card): closing the modal mid-scan threw away a docket
    already stored, owned by nothing. */
 describe("a docket being scanned", () => {
-  const backdrop = () => fireEvent.click(document.querySelector(".fl-ov") as HTMLElement);
+  const backdrop = () => {
+    const scrim = document.querySelector(".pt-scrim") as HTMLElement;
+    fireEvent.mouseDown(scrim);
+    fireEvent.click(scrim);
+  };
 
-  it("survives Escape and the backdrop while it is read or waits to be checked; the X still closes", async () => {
+  it("survives Escape and the backdrop while it is read or waits to be checked; Cancel still closes", async () => {
     let finish: (v: unknown) => void = () => {};
     readFuelReceipt.mockReturnValue(new Promise((r) => (finish = r)));
     const { user, onClose } = setup();
@@ -224,12 +228,12 @@ describe("a docket being scanned", () => {
     expect(onClose).not.toHaveBeenCalled();
 
     finish(READ_OK);
-    await screen.findByText(/Receipt saved/);
+    await screen.findByText(/Receipt filed/);
     await user.keyboard("{Escape}");
     backdrop();
     expect(onClose).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "Close" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -292,7 +296,7 @@ describe("scanning a service invoice", () => {
     const { user } = setupService();
     const file = await scanInvoice(user);
     expect(uploadFile).toHaveBeenCalledWith(file, "service_record");
-    expect(screen.getByText(/Service record saved/)).toBeInTheDocument();
+    expect(screen.getByText(/Service record filed/)).toBeInTheDocument();
   });
 
   it("fills the form from the invoice and hands Save the record, the work and the invoice's date", async () => {
@@ -323,10 +327,10 @@ describe("scanning a service invoice", () => {
     const { onSave, user } = setupService();
     await scanInvoice(user);
     expect(screen.getByText(/Tiff couldn't read that one/)).toBeInTheDocument();
-    expect(screen.getByText(/Service record saved/)).toBeInTheDocument();
+    expect(screen.getByText(/Service record filed/)).toBeInTheDocument();
     expect(screen.queryByText(/Demo read/)).not.toBeInTheDocument();
 
-    await user.type(screen.getByPlaceholderText(/Currently/), "121000");
+    await user.type(screen.getByPlaceholderText(/^Now/), "121000");
     await user.click(screen.getByRole("button", { name: /Log service/ }));
     const log = onSave.mock.calls[0][0] as NewLog;
     expect(log.receiptDocumentId).toBe("doc-41");
@@ -337,7 +341,7 @@ describe("scanning a service invoice", () => {
   it("blocks a GST bigger than an eleventh of the total, as the docket does", async () => {
     const { user } = setupService();
     await scanInvoice(user);
-    const gst = screen.getByPlaceholderText("e.g. 43.64");
+    const gst = screen.getByPlaceholderText("43.64");
     await user.clear(gst);
     await user.type(gst, "200");
     expect(screen.getByText(/More than an eleventh/)).toBeInTheDocument();

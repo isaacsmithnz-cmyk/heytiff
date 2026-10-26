@@ -1,17 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { DateField } from "@/components/ui/date-field";
+import { ConfirmDialog, Dialog } from "@/components/parts/dialog";
+import { Button } from "@/components/parts/button";
+import { Field, TextArea, TextInput } from "@/components/parts/field";
+import { Chooser } from "@/components/parts/chooser";
+import { Tray } from "@/components/parts/tabs";
+import { StateWord } from "@/components/parts/state";
 import { scanInProgress } from "@/components/record-modal/scan-card";
 import { readFuelReceipt, readServiceRecord } from "@/app/actions/fleet-ai";
 import { uploadFile } from "@/lib/documents/upload-client";
 import type { FuelHandoff } from "@/lib/fleet/fuel-handoff";
 import { fileToUprightBase64 } from "@/lib/images/upright";
 import type { LogEdit } from "@/app/actions/fleet";
-import { Plate } from "./plate";
 import { LOG_WORD, fmtDay, logIso } from "./vehicle-modal/derive";
 import {
   FUEL_PAYERS,
@@ -27,103 +31,26 @@ import {
   modelLabel,
 } from "./logic";
 
-/* What is left here: the log modals (fuel / odometer / issue / service), the
-   correction modal, and the shared FleetModal shell they stand on. The vehicle
-   card, its renewal screens, the service history, one entry read on its own,
-   and the add/edit form live in ./vehicle-modal/ — one modal with screens, in
-   the Sep 2026 design. */
-
-/* Modals portal to <body> (fl-ov is unscoped in shell.css, like .fg-cmd) —
-   .page.in's will-change would trap position:fixed inside the shell. */
+/* What is left here: the log dialogs (fuel / odometer / issue / service) and
+   the correction dialog, on the v2 Dialog part (old-modals mock, 27 October
+   2026). The vehicle card, its renewal screens, the service history, one
+   entry read on its own, and the add/edit form live in ./vehicle-modal/. */
 
 function num(s: string): number {
   const n = parseFloat(s.replace(/[^0-9.\-]/g, ""));
   return Number.isFinite(n) ? n : 0;
 }
 
-export function FleetModal({
-  title,
-  sub,
-  wide,
-  onClose,
-  children,
-}: {
-  title: string;
-  /* ReactNode, not string: the detail modal sets its rego as a <Plate>, and a
-     plate that only renders inside the register is half a component. */
-  sub?: React.ReactNode;
-  wide?: boolean;
-  onClose: () => void;
-  children: React.ReactNode;
-}) {
-  /* Escape and the backdrop close the modal, except while a scan in it is being
-     read or waits to be checked — today, the fuel docket: then they do nothing
-     (see scanInProgress). The X still closes. */
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !scanInProgress()) onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  return createPortal(
-    <div className="fl-ov" onClick={() => (scanInProgress() ? undefined : onClose())}>
-      <div className={`fl-modal${wide ? " wide" : ""}`} onClick={(e) => e.stopPropagation()}>
-        <div className="fl-mh">
-          <span>
-            <b>{title}</b>
-            {sub && <em>{sub}</em>}
-          </span>
-          <button className="fl-x" aria-label="Close" onClick={onClose}>
-            <Icon name="x" size={16} />
-          </button>
-        </div>
-        <div className="fl-mb">{children}</div>
-      </div>
-    </div>,
-    document.body,
-  );
-}
-
-function Field({
-  label,
-  req,
-  children,
-  span,
-  hint,
-  /** "warn" for a caution; the default just explains what the field means. */
-  hintTone = "muted",
-}: {
-  label: string;
-  req?: boolean;
-  children: React.ReactNode;
-  span?: boolean;
-  hint?: string;
-  hintTone?: "warn" | "muted";
-}) {
-  return (
-    <label className={`fl-f${span ? " span" : ""}`}>
-      <span>
-        {label}
-        {req && <i>*</i>}
-      </span>
-      {children}
-      {hint && <em className={hintTone === "warn" ? "fl-warnhint" : "fl-hint"}>{hint}</em>}
-    </label>
-  );
-}
-
 /* ---------------- log fuel / odometer / issue / service ----------------
    Fuel opens in Scan mode: photograph or upload the receipt, Tiff reads
-   litres/cost/station (offline fallback = deterministic demo read), then a
-   confirm step with everything editable. Manual entry is one link away. */
+   litres/cost/station, then a confirm step with everything editable.
+   Entering it by hand is one press away. */
 
-const LOG_COPY: Record<LogKind, { title: string; sub: string; icon: string }> = {
-  fuel: { title: "Log fuel", sub: "Scan the receipt — Tiff reads it", icon: "fuel" },
-  odo: { title: "Update odometer", sub: "Current reading off the dash", icon: "gauge" },
-  issue: { title: "Report an issue", sub: "Flag something wrong with this vehicle", icon: "alert" },
-  service: { title: "Log service", sub: "Scan the invoice — Tiff reads it", icon: "wrench" },
+const LOG_COPY: Record<LogKind, { title: string; icon: string }> = {
+  fuel: { title: "Log fuel", icon: "fuel" },
+  odo: { title: "Update odometer", icon: "gauge" },
+  issue: { title: "Report an issue", icon: "alert" },
+  service: { title: "Log service", icon: "wrench" },
 };
 
 /* The capture flow's step. Fuel and service both open on a scan — the docket,
@@ -135,27 +62,35 @@ type CaptureMode = "scan" | "reading" | "confirm" | "manual";
 const SCAN_COPY = {
   fuel: {
     prompt: "Snap or upload the receipt",
-    hint: "Tiff reads the litres, cost & servo for you",
+    choose: "Choose a photo",
+    read: "Read from the receipt",
     reading: "Tiff is reading the receipt",
-    kept: "Receipt saved — it'll be filed against this financial year",
-    lost: "Couldn't store the photo — the entry will save without it.",
-    without: "This entry will save without the receipt photo.",
-    docKind: "fuel_receipt",
+    kept: "Receipt filed against this financial year",
+    lost: "Couldn't store the photo, so the entry saves without it",
+    without: "This entry saves without the receipt photo",
+    paper: "Receipt",
+    check: "Check the docket.",
     icon: "cam",
     accept: "image/*",
   },
   service: {
     prompt: "Snap or upload the service invoice",
-    hint: "Tiff reads the work done, the cost & the workshop for you",
+    choose: "Choose a file",
+    read: "Read from the invoice",
     reading: "Tiff is reading the invoice",
-    kept: "Service record saved — it'll be filed against this vehicle",
-    lost: "Couldn't store the record — the entry will save without it.",
-    without: "This entry will save without the service record.",
-    docKind: "service_record",
+    kept: "Service record filed against this vehicle",
+    lost: "Couldn't store the record, so the entry saves without it",
+    without: "This entry saves without the service record",
+    paper: "Invoice",
+    check: "Check the invoice.",
     icon: "upload",
     accept: "image/*,application/pdf",
   },
 } as const;
+
+const UNREAD = "Tiff couldn't read that one";
+
+const lowWords = (km: number) => `Lower than the current ${fmtKm(km)} km. Check the reading.`;
 
 export function LogModal({
   kind,
@@ -204,11 +139,9 @@ export function LogModal({
   // a seeded docket has been read already: the fields, not the scan zone
   const [mode, setMode] = useState<CaptureMode>(seed ? "confirm" : scans ? "scan" : "manual");
   const [thumb, setThumb] = useState<string | null>(null);
-  const [fileName, setFileName] = useState<string | null>(null);
   const [scanTag, setScanTag] = useState<"tiff" | null>(null);
   /* A record Tiff could not read is still kept; the fields open empty and
-     this says why. Fuel has no such state — its offline fallback is a demo
-     read, tagged as one. */
+     this says so. Nothing is ever invented in its place. */
   const [readWarn, setReadWarn] = useState<string | null>(null);
   /* The stored docket. Uploaded while Tiff reads it, so by the time the person
      has checked the figures the photo is already in the bucket and Save only
@@ -231,24 +164,18 @@ export function LogModal({
       return a.plate.localeCompare(b.plate);
     });
   const target = pickable.find((v) => v.id === vehicleId) ?? vehicle;
-  const vehiclePicker = pickable.length > 1 && (
-    /* A native <option> can only hold text, so the list stays plain and the
-       CHOSEN vehicle gets the plate beside the select — which is the one that
-       matters anyway: it's the answer to "am I about to log this against the
-       right van", asked at the moment the fuel docket is in the other hand. */
-    <Field label="Vehicle / rego" span>
-      <div className="fl-pickrow">
-        <select className="fl-i" value={target.id} onChange={(e) => setVehicleId(e.target.value)}>
-          {pickable.map((v) => (
-            <option key={v.id} value={v.id}>
-              {v.plate} — {v.name || modelLabel(v)}
-            </option>
-          ))}
-        </select>
-        <Plate plate={target.plate} state={target.plateState} size="sm" />
-      </div>
-    </Field>
-  );
+  /* The plate leads each option, because the plate is what is painted on the
+     van in the other hand when the question is "am I logging the right one". */
+  const vehiclePicker =
+    pickable.length > 1 ? (
+      <Field label="Vehicle" className="mk-records-wide">
+        <Chooser
+          options={pickable.map((v) => ({ value: v.id, label: `${v.plate}, ${v.name || modelLabel(v)}` }))}
+          value={target.id}
+          onChange={setVehicleId}
+        />
+      </Field>
+    ) : null;
 
   useEffect(() => {
     return () => {
@@ -261,7 +188,6 @@ export function LogModal({
     const image = file.type.startsWith("image/");
     if (kind === "fuel" ? !image : !(image || file.type === "application/pdf")) return;
     setThumb(image ? URL.createObjectURL(file) : null);
-    setFileName(file.name);
     setMode("reading");
     setReceiptWarn(null);
     setReadWarn(null);
@@ -292,7 +218,7 @@ export function LogModal({
         /* Nothing read, nothing invented: the fields open empty and the
            record, if it landed, is still filed. Said plainly. */
         setScanTag(null);
-        setReadWarn("Tiff couldn't read that one — enter the details below.");
+        setReadWarn(UNREAD);
       }
       setMode("confirm");
       return;
@@ -311,7 +237,7 @@ export function LogModal({
     ]);
 
     if (stored.ok) setReceiptId(stored.file.documentId);
-    else setReceiptWarn("Couldn't store the photo — the entry will save without it.");
+    else setReceiptWarn(SCAN_COPY.fuel.lost);
 
     let filled = false;
     if (read.ok) {
@@ -325,16 +251,12 @@ export function LogModal({
       filled = true;
     }
     if (!filled) {
-      /* NOTHING READ, NOTHING INVENTED. This filled the fill in from the
-         image's FILE SIZE — 45 to 75 litres, a price per litre, and a servo
-         off a list of five — and labelled it "Demo read — Tiff offline". It
-         ran on every failure, not just a missing key: a refusal, a file too
-         large, a dropped connection. On "My own money" those invented
-         figures became a reimbursement and a tax line, off a docket that
-         says something else. The card's own screen already answers this way,
-         and the docket is still kept either way. */
+      /* NOTHING READ, NOTHING INVENTED. This once filled the fields in from
+         the image's FILE SIZE and labelled it a demo read; on "My own money"
+         those invented figures became a reimbursement and a tax line. The
+         docket is still kept either way. */
       setScanTag(null);
-      setReadWarn("Tiff couldn't read that one — enter the details below.");
+      setReadWarn(UNREAD);
     }
     setMode("confirm");
   };
@@ -342,7 +264,6 @@ export function LogModal({
   const rescan = () => {
     setScanTag(null);
     setReadWarn(null);
-    setFileName(null);
     setLitres("");
     setCost("");
     setStation("");
@@ -361,10 +282,11 @@ export function LogModal({
     setMode("scan");
   };
 
+  const scan = scans ? SCAN_COPY[kind] : null;
   const odoLow = odo.trim() !== "" && num(odo) < target.odometer;
   /* The two tax figures get checked HERE as well as on the server, because
      these are the ones somebody types from a photo they are squinting at.
-     The server still refuses either one — this is the warning, not the gate. */
+     The server still refuses either one. */
   const gstOver = gst.trim() !== "" && cost.trim() !== "" && num(gst) > num(cost) / 11 + 0.01;
   const abnBad = abn.trim() !== "" && abn.replace(/\D/g, "").length !== 11;
   /* A tank on a personal card cannot be reimbursed without an amount, and the
@@ -400,276 +322,222 @@ export function LogModal({
     });
   };
 
+  const gstWrong = gstOver ? `More than an eleventh of the total. ${scan?.check ?? ""}`.trim() : null;
+  const abnWrong = abnBad ? "An ABN is eleven digits" : null;
+  const odoField = (label: string, wide = false) => (
+    <Field label={label} error={odoLow ? lowWords(target.odometer) : null} className={wide ? "mk-records-wide" : undefined}>
+      <TextInput type="number" placeholder={`Now ${fmtKm(target.odometer)}`} value={odo} onChange={(e) => setOdo(e.target.value)} />
+    </Field>
+  );
+  const dateField = (label: string) => (
+    <Field label={label}>
+      <DateField clearable today={today} max={today} value={bought || null} onChange={(iso) => setBought(iso ?? "")} />
+    </Field>
+  );
+  const taxFields = (
+    <>
+      <Field label="GST ($)" error={gstWrong}>
+        <TextInput type="number" placeholder={kind === "fuel" ? "14.40" : "43.64"} value={gst} onChange={(e) => setGst(e.target.value)} />
+      </Field>
+      <Field label="Supplier ABN" error={abnWrong}>
+        <TextInput inputMode="numeric" placeholder="51 824 753 556" value={abn} onChange={(e) => setAbn(e.target.value)} />
+      </Field>
+    </>
+  );
+
   const fuelFields = (
     <>
       {/* FIRST, because it decides what this log produces beyond itself: a
           company card stops at the vehicle log, a personal one also raises a
-          reimbursement. Two buttons rather than a select — there are two
-          answers and the consequence of each is worth spelling out. */}
-      <Field label="Paid with" req>
-        <div className="fl-pay">
-          {FUEL_PAYERS.map((p) => (
-            <button
-              key={p}
-              type="button"
-              className={"fl-payb" + (paidWith === p ? " on" : "")}
-              aria-pressed={paidWith === p}
-              onClick={() => setPaidWith(p)}
-            >
-              <b>{FUEL_PAYER_LABEL[p]}</b>
-              <em>{p === "company" ? "Logged against the vehicle" : "Also claimed back to you"}</em>
-            </button>
-          ))}
-        </div>
+          reimbursement, which is still saved however the tray words it. */}
+      <div className="pt-field mk-records-wide">
+        <span className="pt-field-label">Paid with</span>
+        <Tray
+          options={FUEL_PAYERS.map((p) => ({ value: p, label: FUEL_PAYER_LABEL[p] }))}
+          value={paidWith}
+          onChange={setPaidWith}
+          ariaLabel="Paid with"
+        />
+      </div>
+      <Field label="Litres">
+        <TextInput type="number" placeholder="62.4" value={litres} onChange={(e) => setLitres(e.target.value)} />
       </Field>
-      <Field label="Litres" req>
-        <input className="fl-i" type="number" placeholder="e.g. 62.4" value={litres} onChange={(e) => setLitres(e.target.value)} />
-      </Field>
-      <Field
-        label="Cost ($)"
-        req={paidWith === "own"}
-        hint={owingNoCost ? "Needed — this is what gets reimbursed" : undefined}
-        hintTone={owingNoCost ? "warn" : "muted"}
-      >
-        <input className="fl-i" type="number" placeholder="e.g. 158.40" value={cost} onChange={(e) => setCost(e.target.value)} />
+      <Field label="Cost ($)" error={owingNoCost ? "Add the cost, it's what you're paid back" : null}>
+        <TextInput type="number" placeholder="158.40" value={cost} onChange={(e) => setCost(e.target.value)} />
       </Field>
       <Field label="Station">
-        <input className="fl-i" placeholder="e.g. Shell Coburg" value={station} onChange={(e) => setStation(e.target.value)} />
+        <TextInput placeholder="Shell Coburg" value={station} onChange={(e) => setStation(e.target.value)} />
       </Field>
       {/* The docket's own date, not today's. A fill on Friday that gets logged
           on Monday belongs to Friday — and in June that is the difference
-          between two financial years. */}
-      <Field label="Date on receipt" hint={bought ? undefined : "Blank means today"}>
-        <DateField
-          size="lg"
-          clearable
-          today={today}
-          max={today}
-          value={bought || null}
-          onChange={(iso) => setBought(iso ?? "")}
-        />
-      </Field>
-      <Field
-        label="GST ($)"
-        hint={gstOver ? "More than an eleventh of the total — check the docket" : "Only if the receipt shows it"}
-        hintTone={gstOver ? "warn" : "muted"}
-      >
-        <input className="fl-i" type="number" placeholder="e.g. 14.40" value={gst} onChange={(e) => setGst(e.target.value)} />
-      </Field>
-      <Field
-        label="Supplier ABN"
-        hint={abnBad ? "An ABN is eleven digits" : undefined}
-        hintTone={abnBad ? "warn" : "muted"}
-      >
-        <input className="fl-i" inputMode="numeric" placeholder="e.g. 51 824 753 556" value={abn} onChange={(e) => setAbn(e.target.value)} />
-      </Field>
-      <Field
-        label="Odometer (km)"
-        hint={odoLow ? `Lower than the current ${fmtKm(target.odometer)} km — double-check the reading` : undefined}
-      >
-        <input
-          className="fl-i"
-          type="number"
-          placeholder={`Currently ${fmtKm(target.odometer)}`}
-          value={odo}
-          onChange={(e) => setOdo(e.target.value)}
-        />
-      </Field>
-      <Field label="Note" span>
-        <textarea className="fl-i" placeholder="Optional" value={note} onChange={(e) => setNote(e.target.value)} />
+          between two financial years. Left blank, it is today. */}
+      {dateField("Date on receipt")}
+      {taxFields}
+      {odoField("Odometer (km)")}
+      <Field label="Note">
+        <TextInput placeholder="Optional" value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
     </>
   );
 
   /* The service, as the workshop's invoice states it: who did it, when, at
      what reading, for how much, the GST and ABN the tax export wants, the one
-     line the history prints, and the itemised work under it. Fuel's tax
-     fields are the same fields with the same checks. */
+     line the history prints, and the itemised work under it. */
   const serviceFields = (
     <>
       <Field label="Workshop">
-        <input className="fl-i" placeholder="e.g. Braeside Auto" value={station} onChange={(e) => setStation(e.target.value)} />
+        <TextInput placeholder="Braeside Auto" value={station} onChange={(e) => setStation(e.target.value)} />
       </Field>
-      <Field label="Date on invoice" hint={bought ? undefined : "Blank means today"}>
-        <DateField
-          size="lg"
-          clearable
-          today={today}
-          max={today}
-          value={bought || null}
-          onChange={(iso) => setBought(iso ?? "")}
-        />
+      {dateField("Date on invoice")}
+      {odoField("Serviced at odo (km)")}
+      <Field label="Cost ($)">
+        <TextInput type="number" placeholder="480" value={cost} onChange={(e) => setCost(e.target.value)} />
       </Field>
-      <Field
-        label="Serviced at odo (km)"
-        req
-        hint={odoLow ? `Lower than the current ${fmtKm(target.odometer)} km — double-check the reading` : undefined}
-      >
-        <input
-          className="fl-i"
-          type="number"
-          placeholder={`Currently ${fmtKm(target.odometer)}`}
-          value={odo}
-          onChange={(e) => setOdo(e.target.value)}
-        />
+      {taxFields}
+      <Field label="Summary" className="mk-records-wide">
+        <TextInput placeholder="100,000 km logbook service" value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
-      <Field label="Cost ($)" hint="What the service cost — it feeds the card's cost to run">
-        <input className="fl-i" type="number" placeholder="e.g. 480" value={cost} onChange={(e) => setCost(e.target.value)} />
-      </Field>
-      <Field
-        label="GST ($)"
-        hint={gstOver ? "More than an eleventh of the total — check the invoice" : "Only if the invoice shows it"}
-        hintTone={gstOver ? "warn" : "muted"}
-      >
-        <input className="fl-i" type="number" placeholder="e.g. 43.64" value={gst} onChange={(e) => setGst(e.target.value)} />
-      </Field>
-      <Field
-        label="Supplier ABN"
-        hint={abnBad ? "An ABN is eleven digits" : undefined}
-        hintTone={abnBad ? "warn" : "muted"}
-      >
-        <input className="fl-i" inputMode="numeric" placeholder="e.g. 51 824 753 556" value={abn} onChange={(e) => setAbn(e.target.value)} />
-      </Field>
-      <Field label="Summary" span>
-        <input className="fl-i" placeholder="e.g. 100,000 km logbook service" value={note} onChange={(e) => setNote(e.target.value)} />
-      </Field>
-      <Field label="Work done" span>
-        <textarea className="fl-i tall" placeholder="One line per item, as the invoice lists them" value={workDone} onChange={(e) => setWorkDone(e.target.value)} />
+      <Field label="Work done" className="mk-records-wide">
+        <TextArea rows={5} placeholder="One line per item" value={workDone} onChange={(e) => setWorkDone(e.target.value)} />
       </Field>
     </>
   );
 
-  const scan = scans ? SCAN_COPY[kind] : null;
   const fields = kind === "fuel" ? fuelFields : kind === "service" ? serviceFields : null;
+  /* With no picker, which vehicle this is still has to be said: the old
+     title's line, moved into the body as a fact. */
+  const which = vehiclePicker ? null : <p className="mk-records-lead">{`${displayName(target)}, ${modelLabel(target)}`}</p>;
+  const grid = (body: React.ReactNode) => <div className="mk-records-grid mk-records-grid--2">{body}</div>;
+
+  /* Escape and the scrim leave it alone while a docket is being read or waits
+     to be checked (scanInProgress): closing then threw away a docket already
+     stored, owned by nothing. Cancel still closes. */
+  const softClose = () => {
+    if (!scanInProgress()) onClose();
+  };
+
+  const capturing = scan && (mode === "scan" || mode === "reading");
 
   return (
-    <FleetModal title={copy.title} sub={`${displayName(target)}, ${modelLabel(target)}`} onClose={onClose}>
-      {scan && mode === "scan" && (
+    <Dialog
+      heading={copy.title}
+      width={560}
+      onClose={softClose}
+      foot={
         <>
-          {vehiclePicker && <div className="fl-grid" style={{ marginBottom: 14 }}>{vehiclePicker}</div>}
-          <label
-            className={`fl-scan${dragOver ? " over" : ""}`}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragOver(true);
-            }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragOver(false);
-              void handleFile(e.dataTransfer.files?.[0]);
-            }}
-          >
-            {/* The docket is a phone photo, so its input opens the camera. A
-                service invoice is as often a dealer's PDF, so its input opens
-                the picker, where the camera is one choice among files. */}
-            <input
-              ref={fileRef}
-              type="file"
-              accept={scan.accept}
-              capture={kind === "fuel" ? "environment" : undefined}
-              onChange={(e) => void handleFile(e.target.files?.[0])}
-            />
-            {/* the camera, not a sparkle: this tile's job is "point your
-                phone at the docket", and the line under it already says who
-                reads it. The glyph should name the ACTION you take. */}
-            <span className="fl-scanic">
-              <Icon name={scan.icon} size={22} />
-            </span>
-            <b>{scan.prompt}</b>
-            <em>{scan.hint}</em>
-          </label>
-          <button className="fl-modeline" onClick={() => setMode("manual")}>
-            enter manually instead
-          </button>
-        </>
-      )}
-
-      {/* Both marked, so a stray Escape can't throw away a docket being read or
-          waiting to be checked — see scanInProgress. */}
-      {scan && mode === "reading" && (
-        <div className="fl-readingwrap" data-scan-in-progress="">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          {thumb && <img className="fl-scanthumb" src={thumb} alt="Receipt" />}
-          <div className="fl-reading">
-            <TiffGlyph size={24} working />
-            {scan.reading}
-          </div>
-        </div>
-      )}
-
-      {scan && mode === "confirm" && (
-        <>
-          <div className="fl-scanhead" data-scan-in-progress="">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            {thumb && <img className="fl-scanthumb small" src={thumb} alt="Receipt" />}
-            {scanTag ? (
-              <span className="dchip2 ok">
-                <TiffGlyph size={18} />
-                Read by Tiff — check &amp; save
-              </span>
-            ) : (
-              <span className="dchip2 warn">{readWarn ?? fileName}</span>
-            )}
-            <button className="fl-modeline inline" onClick={rescan}>
-              re-scan
-            </button>
-          </div>
-          {/* Whether the paper itself was KEPT is a separate fact from whether
-              Tiff could read it, and it is the one that matters at tax time —
-              so it gets said, either way, rather than being assumed. */}
-          <div className={`fl-keptline${receiptId ? "" : " warn"}`}>
-            <Icon name={receiptId ? "check" : "alert"} size={13} />
-            {receiptId ? scan.kept : receiptWarn ?? scan.without}
-          </div>
-          <div className="fl-grid">{vehiclePicker}{fields}</div>
-        </>
-      )}
-
-      {scan && mode === "manual" && <div className="fl-grid">{vehiclePicker}{fields}</div>}
-
-      {!scan && (
-        <div className="fl-grid">
-          {vehiclePicker}
-          {kind === "odo" && (
-            <Field
-              label="Odometer (km)"
-              req
-              span
-              hint={odoLow ? `Lower than the current ${fmtKm(target.odometer)} km — double-check the reading` : undefined}
-            >
-              <input
-                className="fl-i"
-                type="number"
-                placeholder={`Currently ${fmtKm(target.odometer)}`}
-                value={odo}
-                onChange={(e) => setOdo(e.target.value)}
-              />
-            </Field>
+          {scan && mode === "scan" && (
+            <>
+              <Button kind="quiet" onClick={() => setMode("manual")}>
+                Enter it by hand
+              </Button>
+              <span className="mk-gap" />
+            </>
           )}
-          <Field label={kind === "issue" ? "What's wrong" : "Note"} req={kind === "issue"} span>
-            <textarea
-              className="fl-i"
-              placeholder={kind === "issue" ? "e.g. Sliding door latch sticking — needs adjustment" : "Optional"}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-          </Field>
-        </div>
-      )}
-
-      <div className="fl-foot">
-        <button className="fl-btn ghost" onClick={onClose}>
-          Cancel
-        </button>
-        {(!scan || mode === "confirm" || mode === "manual") && (
-          <button className="fl-btn primary" disabled={!ready} onClick={save}>
-            <Icon name={copy.icon} size={15} />
-            {copy.title}
-          </button>
+          <Button kind="quiet" onClick={onClose}>
+            Cancel
+          </Button>
+          {!capturing && (
+            <Button kind="main" disabled={!ready} onClick={save}>
+              {copy.title}
+            </Button>
+          )}
+        </>
+      }
+    >
+      <div className="mk-form">
+        {which}
+        {scan && mode === "scan" && (
+          <>
+            {vehiclePicker && grid(vehiclePicker)}
+            <div
+              className="rcw-drop"
+              data-over={dragOver ? "" : undefined}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                void handleFile(e.dataTransfer.files?.[0]);
+              }}
+            >
+              {/* The docket is a phone photo, so its input opens the camera. A
+                  service invoice is as often a dealer's PDF, so its input opens
+                  the picker, where the camera is one choice among files. */}
+              <input
+                ref={fileRef}
+                type="file"
+                hidden
+                accept={scan.accept}
+                capture={kind === "fuel" ? "environment" : undefined}
+                aria-label={scan.prompt}
+                onChange={(e) => void handleFile(e.target.files?.[0])}
+              />
+              <span className="rcw-drop-ic">
+                <Icon name={scan.icon} size={20} />
+              </span>
+              <p className="rcw-drop-what">{scan.prompt}</p>
+              <Button kind="second" onClick={() => fileRef.current?.click()}>
+                {scan.choose}
+              </Button>
+            </div>
+          </>
         )}
+
+        {/* Both marked, so a stray Escape can't throw away a docket being read or
+            waiting to be checked — see scanInProgress. */}
+        {scan && mode === "reading" && (
+          <div className="rcw-paper" data-scan-in-progress="">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {thumb ? <img className="rcw-thumb" src={thumb} alt={scan.paper} /> : <span className="rcw-thumb">{scan.paper}</span>}
+            <span className="rcw-paper-says rcw-reading">
+              <TiffGlyph size={24} working />
+              {scan.reading}
+            </span>
+          </div>
+        )}
+
+        {scan && mode === "confirm" && (
+          <div className="rcw-paper" data-scan-in-progress="">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {thumb ? <img className="rcw-thumb" src={thumb} alt={scan.paper} /> : <span className="rcw-thumb">{scan.paper}</span>}
+            <span className="rcw-paper-says">
+              {scanTag ? <StateWord tone="good">{scan.read}</StateWord> : readWarn ? <StateWord tone="look">{readWarn}</StateWord> : null}
+              {/* Whether the paper itself was KEPT is a separate fact from whether
+                  Tiff could read it, and it is the one that matters at tax time —
+                  so it gets said, either way, rather than being assumed. */}
+              {receiptId ? (
+                <StateWord tone="info">{scan.kept}</StateWord>
+              ) : (
+                <StateWord tone="look">{receiptWarn ?? scan.without}</StateWord>
+              )}
+            </span>
+            <Button kind="quiet" size={32} onClick={rescan}>
+              Scan again
+            </Button>
+          </div>
+        )}
+
+        {scan && (mode === "confirm" || mode === "manual") && grid(<>{vehiclePicker}{fields}</>)}
+
+        {!scan &&
+          grid(
+            <>
+              {vehiclePicker}
+              {kind === "odo" && odoField("Odometer (km)", true)}
+              <Field label={kind === "issue" ? "What's wrong" : "Note"} className="mk-records-wide">
+                <TextArea
+                  placeholder={kind === "issue" ? "Sliding door latch sticking" : "Optional"}
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                />
+              </Field>
+            </>,
+          )}
       </div>
-    </FleetModal>
+    </Dialog>
   );
 }
 
@@ -677,19 +545,22 @@ export function LogModal({
 
 /* Editing a log, and removing one.
 
-   A SEPARATE MODAL from LogModal, deliberately. That one is a capture flow: it
-   opens on a camera, it has a scan step, and its whole shape is "get the
+   A SEPARATE DIALOG from LogModal, deliberately. That one is a capture flow:
+   it opens on a camera, it has a scan step, and its whole shape is "get the
    docket into the app". This is the opposite job — the figures already exist
    and one of them is wrong — so it opens on the fields, filled in, with no
-   camera anywhere near it. Bending the capture modal into doing both would
-   have meant a mode flag threaded through every branch of it.
+   camera anywhere near it.
 
    THE RECEIPT IS NOT REPLACEABLE HERE. A stored docket is the evidence for
    this entry; swapping it for a different photo after the fact is not a
    correction, it is a substitution. Wrong photo means remove the entry and log
-   it again, which leaves both acts on the record. The same holds for a
-   service record. An entry logged WITHOUT its paper can be given it from the
-   entry screen — adding evidence is not swapping it. */
+   it again, which leaves both acts on the record. An entry logged WITHOUT its
+   paper can be given it from the entry screen — adding evidence is not
+   swapping it.
+
+   DELETE ASKS ONCE, in ConfirmDialog, which says what actually happens:
+   "delete" is not quite what this does, and a person about to press it
+   deserves the real answer. */
 export function EditLogModal({
   log,
   today,
@@ -746,153 +617,129 @@ export function EditLogModal({
     });
   };
 
+  /* What the entry was, in the confirmation's own words: "62.4 L at Shell
+     Coburg on 31 July". */
+  const day = fmtDay(logIso(log, today));
+  const what = isFuel
+    ? [log.litres != null ? `${log.litres} L` : "The fill", log.station ? `at ${log.station}` : null, `on ${day}`].filter(Boolean).join(" ")
+    : `The ${LOG_WORD[log.kind].toLowerCase()} entry${log.station ? ` at ${log.station}` : ""} on ${day}`;
+
   return (
-    <FleetModal
-      title="Correct this entry"
-      sub={`${LOG_WORD[log.kind]}, ${fmtDay(logIso(log, today))}`}
-      onClose={onClose}
-    >
-      {confirming ? (
-        /* The one destructive act in the fleet screens, so it asks — and says
-           what actually happens, because "delete" is not quite what this does
-           and a person about to press it deserves the real answer. */
-        <div className="fl-danger">
-          <b>Remove this entry?</b>
-          <em>
-            It disappears from the history and the vehicle&rsquo;s odometer is recalculated from
-            what is left.{" "}
-            {log.kind === "fuel" && log.paidWith === "own"
-              ? /* The claim outlives the log on purpose — the money still left
-                   somebody's account — and the tax screen reads it instead
-                   from that moment. Saying "it stops counting towards tax"
-                   here was false for exactly the fills that cost a person
-                   their own money. */
-                "The reimbursement it raised stays, and becomes this purchase's tax line."
-              : "It stops counting towards tax."}
-            {log.hasReceipt && ` The ${paper} stays on file.`} The entry is kept, hidden, so a
-            figure that has already gone to your accountant can still be accounted for.
-          </em>
-          <div className="fl-foot">
-            <button className="fl-btn ghost" onClick={() => setConfirming(false)}>
-              Keep it
-            </button>
-            <button className="fl-btn danger arm" onClick={onDelete}>
-              <Icon name="x" size={15} />
-              Remove entry
-            </button>
-          </div>
-        </div>
-      ) : (
-        <>
-          {log.hasReceipt && (
-            <div className="fl-keptline">
-              <Icon name="receipt" size={13} />
-              The {paper} on this entry stays as it is — to change the {isFuel ? "photo" : "document"}, remove the entry and
-              log it again.
-            </div>
-          )}
-          {/* The fields in the ORDER THE LOG MODAL ASKS THEM, per kind, so
+    <>
+      <Dialog
+        heading="Correct this entry"
+        width={560}
+        onClose={onClose}
+        foot={
+          <>
+            <Button kind="delete" onClick={() => setConfirming(true)}>
+              Delete entry
+            </Button>
+            <span className="mk-gap" />
+            <Button kind="quiet" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button kind="main" disabled={!ready} onClick={save}>
+              Save changes
+            </Button>
+          </>
+        }
+      >
+        <div className="mk-form">
+          <p className="mk-records-lead">{`${LOG_WORD[log.kind]}, ${day}`}</p>
+          {/* The fields in the ORDER THE LOG DIALOG ASKS THEM, per kind, so
               correcting reads like logging did — a fill: litres, cost, station,
               date, GST, ABN, odometer, note; a service: workshop, date,
               odometer, cost, GST, ABN, summary, work done. */}
-          <div className="fl-grid">
+          <div className="mk-records-grid mk-records-grid--2">
             {isFuel && (
               <>
-                <Field label="Litres" req>
-                  <input className="fl-i" type="number" value={litres} onChange={(e) => setLitres(e.target.value)} />
+                <Field label="Litres">
+                  <TextInput type="number" value={litres} onChange={(e) => setLitres(e.target.value)} />
                 </Field>
                 <Field label="Cost ($)">
-                  <input className="fl-i" type="number" value={cost} onChange={(e) => setCost(e.target.value)} />
+                  <TextInput type="number" value={cost} onChange={(e) => setCost(e.target.value)} />
                 </Field>
                 <Field label="Station">
-                  <input className="fl-i" value={station} onChange={(e) => setStation(e.target.value)} />
+                  <TextInput value={station} onChange={(e) => setStation(e.target.value)} />
                 </Field>
               </>
             )}
             {isService && (
               <Field label="Workshop">
-                <input className="fl-i" value={station} onChange={(e) => setStation(e.target.value)} />
+                <TextInput value={station} onChange={(e) => setStation(e.target.value)} />
               </Field>
             )}
             {purchase && (
               <Field label={isFuel ? "Date on receipt" : "Date on invoice"}>
-                <DateField
-                  size="lg"
-                  clearable
-                  today={today}
-                  max={today}
-                  value={bought || null}
-                  onChange={(iso) => setBought(iso ?? "")}
-                />
+                <DateField clearable today={today} max={today} value={bought || null} onChange={(iso) => setBought(iso ?? "")} />
               </Field>
             )}
             {isService && (
               <>
                 <Field label="Serviced at odo (km)">
-                  <input className="fl-i" type="number" value={odo} onChange={(e) => setOdo(e.target.value)} />
+                  <TextInput type="number" value={odo} onChange={(e) => setOdo(e.target.value)} />
                 </Field>
                 <Field label="Cost ($)">
-                  <input className="fl-i" type="number" value={cost} onChange={(e) => setCost(e.target.value)} />
+                  <TextInput type="number" value={cost} onChange={(e) => setCost(e.target.value)} />
                 </Field>
               </>
             )}
             {purchase && (
               <>
-                <Field
-                  label="GST ($)"
-                  hint={gstOver ? `More than an eleventh of the total — check the ${paper}` : `Only if the ${paper} shows it`}
-                  hintTone={gstOver ? "warn" : "muted"}
-                >
-                  <input className="fl-i" type="number" value={gst} onChange={(e) => setGst(e.target.value)} />
+                <Field label="GST ($)" error={gstOver ? `More than an eleventh of the total. Check the ${paper}.` : null}>
+                  <TextInput type="number" value={gst} onChange={(e) => setGst(e.target.value)} />
                 </Field>
-                <Field
-                  label="Supplier ABN"
-                  hint={abnBad ? "An ABN is eleven digits" : undefined}
-                  hintTone={abnBad ? "warn" : "muted"}
-                >
-                  <input className="fl-i" inputMode="numeric" value={abn} onChange={(e) => setAbn(e.target.value)} />
+                <Field label="Supplier ABN" error={abnBad ? "An ABN is eleven digits" : null}>
+                  <TextInput inputMode="numeric" value={abn} onChange={(e) => setAbn(e.target.value)} />
                 </Field>
               </>
             )}
             {(isFuel || log.kind === "odo") && (
-              <Field label="Odometer (km)" span={!isFuel}>
-                <input className="fl-i" type="number" value={odo} onChange={(e) => setOdo(e.target.value)} />
+              <Field label="Odometer (km)" className={isFuel ? undefined : "mk-records-wide"}>
+                <TextInput type="number" value={odo} onChange={(e) => setOdo(e.target.value)} />
               </Field>
             )}
             {isService ? (
               <>
-                <Field label="Summary" span>
-                  <input className="fl-i" value={note} onChange={(e) => setNote(e.target.value)} />
+                <Field label="Summary" className="mk-records-wide">
+                  <TextInput value={note} onChange={(e) => setNote(e.target.value)} />
                 </Field>
-                <Field label="Work done" span>
-                  <textarea className="fl-i tall" value={workDone} onChange={(e) => setWorkDone(e.target.value)} />
+                <Field label="Work done" className="mk-records-wide">
+                  <TextArea rows={5} value={workDone} onChange={(e) => setWorkDone(e.target.value)} />
                 </Field>
               </>
             ) : (
-              <Field label={log.kind === "issue" ? "What's wrong" : "Note"} span>
-                <textarea className="fl-i" value={note} onChange={(e) => setNote(e.target.value)} />
+              <Field label={log.kind === "issue" ? "What's wrong" : "Note"} className={isFuel ? undefined : "mk-records-wide"}>
+                {isFuel ? (
+                  <TextInput value={note} onChange={(e) => setNote(e.target.value)} />
+                ) : (
+                  <TextArea value={note} onChange={(e) => setNote(e.target.value)} />
+                )}
               </Field>
             )}
           </div>
-
-          <div className="fl-foot spread">
-            <button className="fl-btn danger" onClick={() => setConfirming(true)}>
-              <Icon name="x" size={15} />
-              Remove
-            </button>
-            <span className="fl-footright">
-              <button className="fl-btn ghost" onClick={onClose}>
-                Cancel
-              </button>
-              <button className="fl-btn primary" disabled={!ready} onClick={save}>
-                <Icon name="check" size={15} />
-                Save correction
-              </button>
-            </span>
-          </div>
-        </>
-      )}
-    </FleetModal>
+        </div>
+      </Dialog>
+      <ConfirmDialog
+        open={confirming}
+        heading={`Delete this ${LOG_WORD[log.kind].toLowerCase()} entry?`}
+        confirm="Delete entry"
+        onConfirm={onDelete}
+        onClose={() => setConfirming(false)}
+      >
+        <p>
+          {`${what} comes off the history, and the odometer is recalculated from what is left. `}
+          {log.kind === "fuel" && log.paidWith === "own"
+            ? /* The claim outlives the log on purpose — the money still left
+                 somebody's account — and the tax screen reads it instead from
+                 that moment. */
+              "The reimbursement it raised stays, and becomes this purchase's tax line."
+            : "It stops counting towards tax."}
+          {log.hasReceipt && ` The ${paper} stays on file.`}
+        </p>
+      </ConfirmDialog>
+    </>
   );
 }
 

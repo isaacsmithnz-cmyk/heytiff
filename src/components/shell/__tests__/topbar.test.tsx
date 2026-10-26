@@ -13,7 +13,7 @@ import { fmtAuWeekdayDateLong, todayInAu } from "@/lib/au-dates";
    Home in the sidebar (./home-count). Its suite went with it; To do's and
    the count's pin what it did. */
 
-jest.mock("next/navigation", () => ({ usePathname: () => "/dashboard", useRouter: () => ({ push: jest.fn() }) }));
+jest.mock("next/navigation", () => ({ usePathname: () => "/dashboard", useRouter: () => ({ push: jest.fn() }), useSearchParams: () => new URLSearchParams() }));
 
 const draw = () =>
   render(

@@ -90,3 +90,37 @@ describe("open tabs", () => {
     expect(hrefs(again)).toEqual(["/dashboard", "/dashboard/team"]);
   });
 });
+
+/* A tab keeps where you were on its page, query and all (Isaac, 26 October
+   2026: Design's canvas, then a job's tab, then back to Design opened the
+   list of designs, because the tab held only the path). */
+describe("where you were on a page", () => {
+  it("keeps the design open on the canvas when you come back to its tab", async () => {
+    const s = await fresh();
+    s.arrive("/dashboard/studio");
+    s.arrive("/dashboard/studio?design=d1");
+    s.newTab("/dashboard/studio?design=d1");
+    s.arrive("/dashboard/jobs/3385");
+    const design = s.tabsSnapshot().tabs[0].id;
+    expect(s.choose(design)).toBe("/dashboard/studio?design=d1");
+  });
+
+  it("is still one page whatever its query: going to it switches to its tab", async () => {
+    const s = await fresh();
+    s.arrive("/dashboard/studio?design=d1");
+    s.newTab("/dashboard/studio?design=d1");
+    s.arrive("/dashboard/jobs");
+    s.arrive("/dashboard/studio");
+    expect(hrefs(s)).toEqual(["/dashboard/studio", "/dashboard/jobs"]);
+    expect(onHref(s)).toBe("/dashboard/studio");
+  });
+
+  it("follows a view changed on the page, in the tab you're on only", async () => {
+    const s = await fresh();
+    s.arrive("/dashboard/jobs");
+    s.newTab("/dashboard/jobs");
+    s.arrive("/dashboard/documents");
+    s.arrive("/dashboard/documents?view=letters");
+    expect(hrefs(s)).toEqual(["/dashboard/jobs", "/dashboard/documents?view=letters"]);
+  });
+});

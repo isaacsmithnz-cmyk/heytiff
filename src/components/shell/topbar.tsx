@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { Suspense, useEffect, useSyncExternalStore } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Icon } from "./icon";
 import { Fade } from "@/components/parts/fade";
 import { Clock } from "./clock";
@@ -53,16 +53,17 @@ export function Topbar({ today, tz = null }: { today: string; tz?: string | null
   const { tabs, on } = useSyncExternalStore(subscribeTabs, tabsSnapshot, tabsServerSnapshot);
   const names = useSyncExternalStore(subscribePageNames, pageNamesSnapshot, pageNamesServerSnapshot);
 
-  useEffect(() => {
-    arrive(pathname);
-  }, [pathname]);
-
+  /* where the browser is, query and all: going to a tab that's already
+     there would ask the server for the same page again */
   const go = (href: string | null) => {
-    if (href && href !== pathname) router.push(href);
+    if (href && href !== `${window.location.pathname}${window.location.search}`) router.push(href);
   };
 
   return (
     <header className="topbar fr-head" id="fg-topbar">
+      <Suspense fallback={null}>
+        <TabAddress />
+      </Suspense>
       <Clock today={today} tz={tz} />
       <div className="fr-tabs" role="tablist" aria-label="Open tabs">
         {tabs.map((t) => {
@@ -112,4 +113,18 @@ export function Topbar({ today, tz = null }: { today: string; tz?: string | null
       </div>
     </header>
   );
+}
+
+/* THE ADDRESS THE TAB YOU'RE ON HOLDS, query and all. The query is read
+   with useSearchParams, which a page's own replaceState keeps in step (the
+   canvas names its design in `?design=`, Jobs its view in `?view=`), so a
+   tab you leave by any way comes back to where you were. In a Suspense of
+   its own, so nothing above it waits on the query. */
+function TabAddress() {
+  const pathname = usePathname();
+  const search = useSearchParams().toString();
+  useEffect(() => {
+    arrive(search ? `${pathname}?${search}` : pathname);
+  }, [pathname, search]);
+  return null;
 }

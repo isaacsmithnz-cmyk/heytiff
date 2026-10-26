@@ -15,6 +15,7 @@
    Placeholders are {name} (a HeyTiff name), {sm8Name} (a ServiceM8 name),
    {n}, {files}, {notes}, {why} and {reason}; `fillWords` puts them in. */
 
+
 export const NOTE_WORDS = {
   scope: {
     notes:
@@ -189,4 +190,35 @@ export function fillWords(template: string, vars: Record<string, string | number
     const v = vars[key];
     return v === null || v === undefined || v === "" ? whole : String(v);
   });
+}
+
+/** A ServiceM8 sender (lib/integrations/links' NoteSender), as far as its
+    sentence reads it — said here so this module still imports nothing. */
+type SenderLike =
+  | { state: "ready" }
+  | { state: "unlinked"; noCard: boolean }
+  | { state: "confirm" | "denied" | "inactive"; sm8Name: string }
+  | { state: "bad_link" }
+  | { state: "unknown" };
+
+/** Why this person can't send a note yet, as the pen and a press both say
+    it: null when they can. The job sheet's tick, its Send to ServiceM8 and
+    the phone's pen read this one. */
+export function senderWords(s: SenderLike): string | null {
+  switch (s.state) {
+    case "ready":
+      return null;
+    case "unlinked":
+      return s.noCard ? NOTE_WORDS.press.noCard : NOTE_WORDS.press.unlinked;
+    case "confirm":
+      return fillWords(NOTE_WORDS.press.confirm, { sm8Name: s.sm8Name });
+    case "denied":
+      return fillWords(NOTE_WORDS.press.denied, { sm8Name: s.sm8Name });
+    case "inactive":
+      return fillWords(NOTE_WORDS.press.inactive, { sm8Name: s.sm8Name });
+    case "bad_link":
+      return NOTE_WORDS.press.badLink;
+    default:
+      return NOTE_WORDS.press.unknown;
+  }
 }

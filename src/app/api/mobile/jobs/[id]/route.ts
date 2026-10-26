@@ -1,7 +1,10 @@
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
 import { familyMediaSources, readJobNotes, readMirrorJobDetail, resolveJobCard } from "@/lib/workboard/all-jobs-query";
-import { readOurJobNotes } from "@/lib/workboard/job-notes-query";
+import { notesViewerOf, readOurJobNotes } from "@/lib/workboard/job-notes-query";
+import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
+import { offersSend } from "@/lib/integrations/sm8-write-plan";
+import { senderWords } from "@/lib/integrations/sm8-note-words";
 import { comingVisits } from "@/lib/mobile/visits";
 import { ok, requireMobile } from "@/lib/mobile/auth";
 
@@ -16,9 +19,13 @@ import { ok, requireMobile } from "@/lib/mobile/auth";
    down so the loader never reads what this person may not see. The notes
    are the job's and its claims', as one stream, and not money-gated; and
    beside them HeyTiff's own diary entries on the job (`ourNotes`), the ones
-   typed on the sheet's pen or the phone's. And its coming visits, a day
-   each with everyone booked on it (lib/mobile/visits), since the detail's
-   own nextBooking names only the first booking's one person. */
+   typed on the sheet's pen or the phone's. Where the deployment sends notes
+   to ServiceM8, each of those carries its line (sent, queued, refused), read
+   for this viewer, and `sm8Notes` says whether the pen's Also in ServiceM8
+   can send and, while it can't, why (the job sheet's sentence); null where
+   notes aren't offered at all. And its coming visits, a day each with
+   everyone booked on it (lib/mobile/visits), since the detail's own
+   nextBooking names only the first booking's one person. */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireMobile(request, "workboard");
   if (ctx instanceof Response) return ctx;
@@ -39,10 +46,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   ]);
   if (!detail) return Response.json({ error: "That job isn't here." }, { status: 404, headers: { "cache-control": "no-store" } });
 
+  const viewer = sm8NotesAllowed() ? await notesViewerOf(ctx.orgId, ctx.userId) : null;
   const [notes, ourNotes, coming] = await Promise.all([
     readJobNotes(ctx.orgId, target.parentRemoteId, claims),
-    readOurJobNotes(ctx.orgId, target.parentRemoteId),
+    viewer ? readOurJobNotes(ctx.orgId, target.parentRemoteId, 60, viewer) : readOurJobNotes(ctx.orgId, target.parentRemoteId),
     comingVisits(ctx.orgId, target.parentRemoteId, today),
   ]);
-  return ok({ detail, notes, ourNotes, coming, focusRemoteId: target.focusRemoteId });
+  const sender = viewer?.sender ?? { state: "unknown" as const };
+  const sm8Notes = viewer && offersSend(viewer.state, "note") ? { ready: sender.state === "ready", why: senderWords(sender) } : null;
+  return ok({ detail, notes, ourNotes, sm8Notes, coming, focusRemoteId: target.focusRemoteId });
 }

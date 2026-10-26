@@ -18,7 +18,7 @@ import { FaceSwitch } from "@/components/me/face-switch";
 import { NoteToken } from "@/components/notes/note-token";
 import { mentionedHandles } from "@/lib/workboard/sm8-mentions";
 import { mintPressId } from "@/lib/workboard/press-id";
-import { fillWords, NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
+import { fillWords, NOTE_WORDS, senderWords } from "@/lib/integrations/sm8-note-words";
 import type { FlagState, NoteState } from "@/lib/integrations/sm8-note-plan";
 import type { SendHold } from "@/lib/integrations/sm8-write-plan";
 import type { NoteSender } from "@/lib/integrations/links";
@@ -396,7 +396,7 @@ export function AlsoSm8({
   part?: "both" | "tick" | "why";
 }) {
   const ready = sender?.state === "ready";
-  const why = sender && !ready ? senderSentence(sender) : null;
+  const why = sender && !ready ? senderWords(sender) : null;
   const box = (
     <label className="wb2-flcheck">
       <input type="checkbox" checked={ready && also} disabled={!ready} onChange={(e) => onTick(e.target.checked)} />
@@ -421,26 +421,6 @@ export function AlsoSm8({
       )}
     </div>
   );
-}
-
-/** Why the viewer can't send yet, in the press sentence for it. */
-function senderSentence(s: NoteSender): string | null {
-  switch (s.state) {
-    case "ready":
-      return null;
-    case "unlinked":
-      return s.noCard ? NOTE_WORDS.press.noCard : NOTE_WORDS.press.unlinked;
-    case "confirm":
-      return fillWords(NOTE_WORDS.press.confirm, { sm8Name: s.sm8Name });
-    case "denied":
-      return fillWords(NOTE_WORDS.press.denied, { sm8Name: s.sm8Name });
-    case "inactive":
-      return fillWords(NOTE_WORDS.press.inactive, { sm8Name: s.sm8Name });
-    case "bad_link":
-      return NOTE_WORDS.press.badLink;
-    default:
-      return NOTE_WORDS.press.unknown;
-  }
 }
 
 /** Yes and Not me, for "Is <name> you?". Yes never sends by itself: the

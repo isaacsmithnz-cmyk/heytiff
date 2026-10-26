@@ -71,10 +71,20 @@ jest.mock("@/lib/workboard/all-jobs-query", () => ({
     return [{ text: "Both outdoor units up" }];
   },
 }));
+let noteOwnerKinds = ["note"];
+let sender: Record<string, unknown> = { state: "ready", sm8Name: "Lyle I" };
 jest.mock("@/lib/workboard/job-notes-query", () => ({
-  readOurJobNotes: async (orgId: string, id: string) => {
-    asked.push(`ours ${orgId} ${id}`);
+  readOurJobNotes: async (orgId: string, id: string, _limit?: number, viewer?: { staffId: string }) => {
+    asked.push(`ours ${orgId} ${id}${viewer ? ` as ${viewer.staffId}` : ""}`);
     return [{ id: "n1", text: "Pipe run is 14 m", at: "2026-10-26 09:12:00", author: "Lyle Irving" }];
+  },
+  notesViewerOf: async (orgId: string, userId: string) => {
+    asked.push(`viewer ${orgId} ${userId}`);
+    return {
+      staffId: `card-${userId}`,
+      state: { readable: true, kinds: ["note"], ownerKinds: noteOwnerKinds, tenantId: "tenant-1", mode: "on" },
+      sender: sender,
+    };
   },
 }));
 jest.mock("@/lib/mobile/visits", () => ({
@@ -92,6 +102,7 @@ import { GET as schedule } from "../schedule/route";
 import { GET as jobs } from "../jobs/route";
 import { GET as job } from "../jobs/[id]/route";
 import { MOBILE_AUDIENCE } from "@/lib/mobile/token";
+import { NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
 
 const DOMAIN = "tenant.example.auth0.com";
 const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");
@@ -197,6 +208,7 @@ test("a job is read in the member's workspace, a claim opens its job, and money 
     detail: { uuid: "job-3342" },
     notes: [{ text: "Both outdoor units up" }],
     ourNotes: [{ id: "n1", text: "Pipe run is 14 m", at: "2026-10-26 09:12:00", author: "Lyle Irving" }],
+    sm8Notes: null,
     coming: [{ day: "2026-10-29", start: "2026-10-29 07:00:00", end: "2026-10-29 15:30:00", crew: ["Alex Morozoff", "David Kim"] }],
     focusRemoteId: "claim-7",
   });
@@ -207,6 +219,32 @@ test("a job is read in the member's workspace, a claim opens its job, and money 
     "ours org-diamond job-3342",
     "coming org-diamond job-3342 2026-10-26",
   ]);
+});
+
+describe("where this deployment sends notes to ServiceM8", () => {
+  beforeEach(() => {
+    process.env.SM8_WRITES = "attachment,note";
+    noteOwnerKinds = ["note"];
+    sender = { state: "ready", sm8Name: "Lyle I" };
+  });
+
+  test("someone not linked to a ServiceM8 person sees why, in the job sheet's words", async () => {
+    sender = { state: "unlinked", noCard: false };
+    const body = await (await job(req("jobs/job-3342", "auth0|lyle"), params("job-3342"))).json();
+    expect(body.sm8Notes).toEqual({ ready: false, why: NOTE_WORDS.press.unlinked });
+  });
+
+  test("a job's own notes are read as the member, and the pen may send as their linked person", async () => {
+    const body = await (await job(req("jobs/job-3342", "auth0|lyle"), params("job-3342"))).json();
+    expect(body.sm8Notes).toEqual({ ready: true, why: null });
+    expect(asked).toEqual(expect.arrayContaining(["viewer org-diamond auth0|lyle", "ours org-diamond job-3342 as card-auth0|lyle"]));
+  });
+
+  test("where the owner hasn't turned notes on, the pen offers nothing", async () => {
+    noteOwnerKinds = [];
+    const body = await (await job(req("jobs/job-3342", "auth0|lyle"), params("job-3342"))).json();
+    expect(body.sm8Notes).toBeNull();
+  });
 });
 
 test("a job the workspace doesn't hold is a 404", async () => {

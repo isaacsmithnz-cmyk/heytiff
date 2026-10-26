@@ -251,6 +251,22 @@ async function viewerOr(orgId: string, viewer: NotesViewer | Promise<NotesViewer
   return { staffId: null, state: await readSm8WriteState(orgId), sender: null };
 }
 
+/** Who is looking, for the notes' lines and doors: their staff card, the
+    workspace's sending state and who they'd send as. The job sheet's card
+    and the phone's job page read it the same way, once per open, and only
+    where the deployment sends notes; the sender and the staff lookup are
+    reached lazily, as viewerOr reaches them. */
+export async function notesViewerOf(orgId: string, userId: string): Promise<NotesViewer> {
+  const [{ staffIdFor }, { readSm8WriteState }, { sm8NoteSender }] = await Promise.all([
+    import("@/lib/workboard/projects-query"),
+    import("@/lib/integrations/sm8-writes"),
+    import("@/lib/integrations/links"),
+  ]);
+  const [staffId, state] = await Promise.all([staffIdFor(orgId, userId), readSm8WriteState(orgId)]);
+  const sender = await sm8NoteSender(orgId, staffId, state.tenantId ?? undefined);
+  return { staffId, state, sender };
+}
+
 /** A row's line, as far as it is read: who wrote it, whether it was taken
     back, and why a press didn't queue it. */
 type LineRow = Pick<OurRow, "id" | "author_id" | "removed_at" | "sm8_refusal">;

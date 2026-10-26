@@ -34,19 +34,14 @@ import { requireOrg } from "@/lib/permissions-server";
 import { sm8PressFromSession, type Sm8Press } from "@/lib/integrations/sm8-press";
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
-import { offersSend, sendHold, sendRefusal, type Sm8WriteState } from "@/lib/integrations/sm8-write-plan";
+import { offersSend, sendHold, type Sm8WriteState } from "@/lib/integrations/sm8-write-plan";
 import { confirmSm8Link, sm8NoteSender, type NoteSender } from "@/lib/integrations/links";
 import { noteAskerOf, noteSourceOf, sourceStands } from "@/lib/integrations/sm8-note-source";
-import { NOTE_PRESS_BUDGET_MS, settlePressedWrites } from "@/lib/integrations/sm8-drain";
 import {
-  FLAG_UNDO_AFTER_SENT,
-  fillWords,
   flagState,
   NOTE_WORDS,
-  pressRefusalWords,
   replyText,
   type FlagState,
-  type NoteRefusal,
   type NoteState,
 } from "@/lib/integrations/sm8-note-plan";
 import { jobIsReal } from "@/lib/compliance/send";
@@ -56,14 +51,21 @@ import {
   readFlagStates,
   readOurJobNote,
   readOurJobNotes,
-  staffDisplayNames,
-  type NotesViewer,
   type OurJobNote,
 } from "@/lib/workboard/job-notes-query";
 import { mentionedHandles } from "@/lib/workboard/sm8-mentions";
 import { englishLine } from "@/lib/workboard/note-english";
 import { queueFlagChange, queueNoteCreate, queueNoteTakeBack } from "./sm8-note-queue";
 import { completeTask } from "./dashboard";
+import {
+  notOffered,
+  readHead,
+  refusalWords,
+  sendEntryToSm8,
+  senderWords,
+  settle,
+  viewerOf,
+} from "@/lib/integrations/sm8-note-entry";
 
 const WB = "/dashboard/workboard";
 /* The new Home (/dashboard): the desk's one job card opens over it, and its
@@ -121,100 +123,6 @@ async function gate(sending: boolean): Promise<Gated> {
   return { ok: true, orgId, press, state };
 }
 
-/** Why notes aren't offered here, in the owner's order of fixes. */
-const notOffered = (state: Sm8WriteState | null) =>
-  (state ? sendRefusal(state, "note") : null) ?? NOTE_WORDS.press.kindOff;
-
-/** The presser, as the lines read them: their doors, their ServiceM8 name. */
-async function viewerOf(orgId: string, press: Sm8Press, state?: Sm8WriteState | null): Promise<NotesViewer> {
-  const s = state ?? (await readSm8WriteState(orgId));
-  const sender = await sm8NoteSender(orgId, press.staffId, s.tenantId ?? undefined);
-  return { staffId: press.staffId, state: s, sender };
-}
-
-const sm8NameOf = (s: NoteSender | null | undefined) => (s && "sm8Name" in s ? s.sm8Name : "that ServiceM8 person");
-
-/** The press sentence for why a sender can't send: null when they can. */
-function senderWords(s: NoteSender): string | null {
-  switch (s.state) {
-    case "ready":
-      return null;
-    case "unlinked":
-      return s.noCard ? NOTE_WORDS.press.noCard : NOTE_WORDS.press.unlinked;
-    case "confirm":
-      return fillWords(NOTE_WORDS.press.confirm, { sm8Name: s.sm8Name });
-    case "denied":
-      return fillWords(NOTE_WORDS.press.denied, { sm8Name: s.sm8Name });
-    case "inactive":
-      return fillWords(NOTE_WORDS.press.inactive, { sm8Name: s.sm8Name });
-    case "bad_link":
-      return NOTE_WORDS.press.badLink;
-    default:
-      return NOTE_WORDS.press.unknown;
-  }
-}
-
-/** A queue helper's refusal, said to the person who pressed. `name` fills
-    "Only {name}, who sent it / marked it done". */
-async function refusalWords(
-  code: NoteRefusal,
-  ctx: {
-    orgId: string;
-    press: Sm8Press;
-    state?: Sm8WriteState | null;
-    /** what was pressed: a send, a take-back, or a flag's mark */
-    doing: "send" | "take_back" | "flag";
-    /** who sent it, or marked it done, when that's the refusal */
-    owner?: string | null;
-  }
-): Promise<string> {
-  /* a mark on its way out: final while an Undo can't follow it once it went
-     (read here, where the switch is this module's own) */
-  if (code === "in_flight") return FLAG_UNDO_AFTER_SENT ? NOTE_WORDS.press.inFlight : NOTE_WORDS.press.inFlightFinal;
-  /* the name the question and the refusal carry is the sender's own */
-  const sm8Name =
-    code === "confirm" || code === "denied" || code === "inactive"
-      ? sm8NameOf(await sm8NoteSender(ctx.orgId, ctx.press.staffId))
-      : null;
-  const owner =
-    code === "not_yours" && ctx.doing !== "send" && ctx.owner
-      ? ((await staffDisplayNames(ctx.orgId, [ctx.owner])).get(ctx.owner) ?? null)
-      : null;
-  return pressRefusalWords(code, {
-    doing: ctx.doing,
-    sm8Name,
-    owner,
-    notOffered: code === "not_offered" && ctx.doing !== "take_back" ? notOffered(ctx.state ?? null) : null,
-  });
-}
-
-/** The press's rows, sent in the foreground for a moment, then the drain. */
-async function settle(orgId: string, ids: readonly string[], startedAt: number): Promise<void> {
-  await settlePressedWrites(orgId, ids, { startedAt, budgetMs: NOTE_PRESS_BUDGET_MS }).catch((err: unknown) => {
-    console.error(`[sm8] a note press for org ${orgId} couldn't settle: ${err instanceof Error ? err.message : String(err)}`);
-  });
-}
-
-type NoteHead = {
-  id: string;
-  org_id: string;
-  target_kind: string;
-  target_id: string | null;
-  author_id: string | null;
-  reply_to_sm8_note_uuid: string | null;
-  removed_at: string | null;
-};
-
-async function readHead(orgId: string, noteId: string): Promise<NoteHead | null> {
-  if (!UUID.test(noteId)) return null;
-  const { data } = await supabaseAdmin
-    .from("workboard_notes")
-    .select("id, org_id, target_kind, target_id, author_id, reply_to_sm8_note_uuid, removed_at")
-    .eq("org_id", orgId)
-    .eq("id", noteId)
-    .maybeSingle();
-  return (data as NoteHead | null) ?? null;
-}
 
 /** Who a note's create was pressed by, or with no create its author: the
     one person who may take it back. */
@@ -405,26 +313,9 @@ export async function sendJobNoteToServiceM8(input: { jobUuid: string; noteId: s
   const startedAt = Date.now();
   const g = await gate(true);
   if (!g.ok) return g;
-  const { orgId, press } = g;
-  const job = typeof input?.jobUuid === "string" ? input.jobUuid.trim() : "";
-  const noteId = typeof input?.noteId === "string" ? input.noteId.trim() : "";
-
-  const head = await readHead(orgId, noteId);
-  if (!head || head.target_kind !== "job" || head.target_id !== job || head.removed_at) {
-    return { ok: false, error: NOTE_WORDS.press.noNote };
-  }
-  if (!press.staffId || head.author_id !== press.staffId) return { ok: false, error: NOTE_WORDS.press.notAuthor };
-
-  const queued = await queueNoteCreate(press, { noteId });
+  const sent = await sendEntryToSm8(g.press, g.state, input, startedAt);
   revalidateNotes();
-  if (!queued.ok) {
-    const error = await refusalWords(queued.refusal, { orgId, press, state: g.state, doing: "send" });
-    const now = await readOurJobNote(orgId, noteId, viewerOf(orgId, press, g.state));
-    return { ok: false, error, state: now?.state ?? null };
-  }
-  await settle(orgId, queued.rowIds, startedAt);
-  const now = await readOurJobNote(orgId, noteId, viewerOf(orgId, press, g.state));
-  return { ok: true, state: now?.state ?? null };
+  return sent;
 }
 
 /* ── taking one back ── */

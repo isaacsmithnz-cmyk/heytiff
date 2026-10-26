@@ -47,7 +47,7 @@ jest.mock("@/lib/supabase-server", () => ({
   },
 }));
 
-import { listDesigns, readDesign } from "../designs";
+import { listDesigns, readDesign, readScene } from "../designs";
 
 beforeEach(() => {
   signed.length = 0;
@@ -83,4 +83,14 @@ it("reads one design as the phone draws it: plan, rooms with area and load, unit
 
 it("is not there for another workspace", async () => {
   expect(await readDesign("o1", "x1")).toBeNull();
+});
+
+it("hands the phone the Studio's own 3D scene, with each floor's shown name", async () => {
+  const s = (await readScene("o1", "d1"))!;
+  // no reading of the plans, so the floor draws the zone drawn: 4 m by 3 m at 10 mm a unit
+  expect(s.scene.floors).toHaveLength(1);
+  expect(s.scene.floors[0]!.spaces).toEqual([{ name: "Kitchen", kind: "zone", pts: [[0, 0], [4, 0], [4, 3], [0, 3]], existing: false }]);
+  expect(s.scene.units).toEqual([expect.objectContaining({ id: "u1", outdoor: false, label: "MSZ-AP60VGKD", w: 1.1, d: 0.25, rot: 90 })]);
+  expect(s.floors).toEqual([{ id: s.scene.floors[0]!.id, name: "Ground floor" }]);
+  expect(await readScene("o1", "x1")).toBeNull();
 });

@@ -250,6 +250,14 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D): Promi
   };
   apply(look);
 
+  /* a picture taller than it is wide (a phone held upright) sees less
+     across, so until the house is first turned the view stands back by as
+     much to take it in, whatever size the picture settles at */
+  const home = camera.position.clone();
+  let turned = false;
+  controls.addEventListener("start", () => {
+    turned = true;
+  });
   const resize = () => {
     const w = host.clientWidth;
     const h = host.clientHeight;
@@ -258,6 +266,7 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D): Promi
     renderer.domElement.style.width = `${w}px`;
     renderer.domElement.style.height = `${h}px`;
     camera.aspect = w / h;
+    if (!turned) camera.position.copy(home).sub(controls.target).divideScalar(Math.min(1, camera.aspect)).add(controls.target);
     camera.updateProjectionMatrix();
   };
   const watch = new ResizeObserver(resize);

@@ -7,9 +7,9 @@ import { DocSearch } from "../doc-search";
    What these pin: a hit is a DOORWAY — pressing one opens the PDF at that
    passage's own page, which is the whole reason this exists rather than a note
    telling people to press Ctrl+F. And an empty result is a sentence, not a
-   blank panel: it names what was searched for and offers the other way to
-   look. The windowing and highlighting have their own suite; the action is
-   mocked here so the panel's behaviour is the panel's. */
+   blank panel: it names what was searched for. The windowing and
+   highlighting have their own suite; the action is mocked here so the
+   dialog's behaviour is the dialog's. */
 
 const kbDocUrl = jest.fn();
 const searchKbDoc = jest.fn();
@@ -38,7 +38,7 @@ afterEach(cleanup);
 
 const search = async (term: string) => {
   await userEvent.type(screen.getByLabelText("Search inside this document"), term);
-  await userEvent.click(screen.getByRole("button", { name: /Search/ }));
+  await userEvent.click(screen.getByRole("button", { name: /Search document/ }));
 };
 
 describe("searching", () => {
@@ -49,10 +49,11 @@ describe("searching", () => {
     await search("drain pump");
 
     expect(searchKbDoc).toHaveBeenCalledWith("d-1", "drain pump");
-    await screen.findByText("p.34");
-    const mark = document.querySelector("mark");
-    expect(mark).toHaveTextContent("Drain pump");
-    expect(screen.getByText(/1 passage matching/)).toBeInTheDocument();
+    await screen.findByText("Page 34");
+    // the term in ink at 600, not on a wash
+    expect(document.querySelector(".tk-dstxt strong")).toHaveTextContent("Drain pump");
+    expect(document.querySelector("mark")).toBeNull();
+    expect(screen.getByText("1 passage matches “drain pump”.")).toBeInTheDocument();
   });
 
   /* Two characters is the floor — one would match a prefix of half the manual,
@@ -61,20 +62,17 @@ describe("searching", () => {
     render(<DocSearch doc={DOC} onClose={jest.fn()} />);
 
     await userEvent.type(screen.getByLabelText("Search inside this document"), "P");
-    expect(screen.getByRole("button", { name: /Search/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Search document/ })).toBeDisabled();
     expect(searchKbDoc).not.toHaveBeenCalled();
   });
 
-  /* Not a dead end: the word may be in another manual, and the assistant is
-     the way to look across all of them. */
-  it("says what found nothing, and where else to look", async () => {
+  it("says what found nothing", async () => {
     searchKbDoc.mockResolvedValue({ ok: true, hits: [], capped: false });
     render(<DocSearch doc={DOC} onClose={jest.fn()} />);
 
     await search("zzznotathing");
 
-    expect(await screen.findByText(/Nothing in this document matches/)).toBeInTheDocument();
-    expect(screen.getByText(/ask Tiff/)).toBeInTheDocument();
+    expect(await screen.findByText("Nothing in this document matches “zzznotathing”.")).toBeInTheDocument();
   });
 
   it("admits when the list was cut rather than implying that's all of them", async () => {
@@ -108,7 +106,7 @@ describe("a hit is a doorway", () => {
     render(<DocSearch doc={DOC} onClose={jest.fn()} />);
     await search("drain pump");
 
-    await userEvent.click(await screen.findByRole("button", { name: /p\.34–35/ }));
+    await userEvent.click(await screen.findByRole("button", { name: /Pages 34–35/ }));
 
     await waitFor(() =>
       expect(tab.location.href).toBe("https://signed.example/doc.pdf?token=abc#page=34")
@@ -128,7 +126,7 @@ describe("a hit is a doorway", () => {
 
     render(<DocSearch doc={DOC} onClose={jest.fn()} />);
     await search("drain pump");
-    await userEvent.click(await screen.findByRole("button", { name: /p\.34/ }));
+    await userEvent.click(await screen.findByRole("button", { name: /Page 34/ }));
 
     expect(await screen.findByText("That file couldn't be opened.")).toBeInTheDocument();
     expect(tab.close).toHaveBeenCalled();

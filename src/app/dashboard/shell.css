@@ -6169,279 +6169,121 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 
 
 /* ══════════════════ TIFF — KNOWLEDGE BASE (.tk-) ══════════════════════════
-   The ask page and the library's upload drawer and tag sheet (the library
-   page itself is v2's `.lb2-`). Everything drawn on the page is
-   scoped `.fg .tk-…`: `.fg button` and `.fg input` are (0,1,1) resets, so a
-   bare `.tk-btn { background }` on a <button> renders transparent and a
-   `.tk-fi { font-size }` on an <input> silently inherits. Two classes, always.
-
-   THE DRAWER IS THE OPPOSITE PROBLEM. It portals to <body> (`.page.in`'s
-   will-change traps position:fixed inside the shell), which puts it OUTSIDE
-   `.fg` — where the --ink/--gray ramp is declared and where the font is set.
-   So the sheet and the scrim restate both, and the atoms shared with the page
-   (.tk-btn, .tk-abtn, .tk-dot, .tk-spin) are written once for both roots.
+   The ask page (the library page itself is v2's `.lb2-`). Everything drawn
+   on the page is scoped `.fg .tk-…`: `.fg button` and `.fg input` are
+   (0,1,1) resets, so a bare `.tk-abtn { background }` on a <button>
+   renders transparent. Two classes, always. Its dialogs (the upload, the
+   tags, the search, the peek) are the Dialog part, portalled outside `.fg`,
+   so their rules name `.pt-dialog` instead.
 
    NO MONOSPACE ANYWHERE, including the kind badge and the page counts —
    Jakarta carries them, per the brief's first hard constraint. */
 
-/* ── buttons: one family, both roots ── */
-.fg .tk-btn, .tk-sheet .tk-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:44px; padding:0 16px;
-  border:1px solid transparent; border-radius:var(--r-button); font-family:var(--font-jakarta), sans-serif; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap;
-  transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
-.fg .tk-btn.primary, .tk-sheet .tk-btn.primary { background:var(--press); color:var(--paper);  box-shadow:none; }
-.fg .tk-btn.primary:hover:not(:disabled), .tk-sheet .tk-btn.primary:hover:not(:disabled) { background:var(--press); }
-.fg .tk-btn.ghost, .tk-sheet .tk-btn.ghost { background:var(--paper); border-color:var(--line); color:var(--gray700); }
-.fg .tk-btn.ghost:hover:not(:disabled), .tk-sheet .tk-btn.ghost:hover:not(:disabled) { background:var(--tint); border-color:var(--line); color:var(--ink); }
-.fg .tk-btn:active:not(:disabled), .tk-sheet .tk-btn:active:not(:disabled) { transform:translateY(1px); }
-.fg .tk-btn:disabled, .tk-sheet .tk-btn:disabled { opacity:.45; pointer-events:none; }
-.fg .tk-btn:focus-visible, .tk-sheet .tk-btn:focus-visible { outline:none;  box-shadow:var(--ring); }
-
 /* the small row actions — Retry, Resume, edit, remove */
-.fg .tk-abtn, .tk-sheet .tk-abtn { display:inline-flex; align-items:center; justify-content:center; gap:4px; height:32px; padding:0 12px;
+.fg .tk-abtn { display:inline-flex; align-items:center; justify-content:center; gap:4px; height:32px; padding:0 12px;
   border:1px solid var(--line); border-radius:var(--r-button); background:var(--paper); color:var(--gray700);
   font-family:var(--font-jakarta), sans-serif; font-size:13px; font-weight:700; cursor:pointer;
   transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .tk-abtn:hover:not(:disabled), .tk-sheet .tk-abtn:hover:not(:disabled) { background:var(--tint); border-color:var(--line); color:var(--ink); }
-.fg .tk-abtn.dan:hover:not(:disabled), .tk-sheet .tk-abtn.dan:hover:not(:disabled) {
+.fg .tk-abtn:hover:not(:disabled) { background:var(--tint); border-color:var(--line); color:var(--ink); }
+.fg .tk-abtn.dan:hover:not(:disabled) {
   background:var(--bad-tint); border-color:var(--bad); color:var(--bad-t); }
-.fg .tk-abtn:disabled, .tk-sheet .tk-abtn:disabled { opacity:.45; pointer-events:none; }
-.fg .tk-abtn:focus-visible, .tk-sheet .tk-abtn:focus-visible { outline:none;  box-shadow:var(--ring); }
+.fg .tk-abtn:disabled { opacity:.45; pointer-events:none; }
+.fg .tk-abtn:focus-visible { outline:none;  box-shadow:var(--ring); }
 
-/* the category dot. The ring beside a status word went (law 27): the word says what is happening, and the bar says how far. */
-.fg .tk-dot, .tk-sheet .tk-dot { width:9px; height:9px; border-radius:50%; flex:none; }
+/* Find-in-document (doc-search.tsx), on the Dialog part (the old-modals
+   mock, 27 October 2026). Portalled outside `.fg`, so each rule names the
+   dialog: two classes beat any one-class reset. A hit is a row under a
+   hairline, its page on the left; the passage is grey and the term in ink
+   at 600, never on a wash. The list scrolls inside the dialog so the box
+   stays in view while you retype. */
+.pt-dialog .tk-ds { display:flex; flex-direction:column; gap:16px; }
+.pt-dialog .tk-dsbar { display:flex; align-items:center; gap:8px; margin:0; }
+.pt-dialog .tk-dsbar > .pt-input { flex:1 1 auto; }
+.pt-dialog .tk-dscount { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.pt-dialog .tk-dserr { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--red-w); }
+.pt-dialog .tk-dshits { max-height:46vh; overflow:auto; margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
+.pt-dialog .tk-dshit { display:flex; align-items:flex-start; gap:16px; box-sizing:border-box; width:100%; margin:0; padding:12px 8px;
+  border:0; border-bottom:1px solid var(--line); border-radius:0; background:none; font:inherit; color:var(--ink); text-align:left; cursor:pointer;
+  transition:background-color var(--t-fast) var(--ease); }
+.pt-dialog .tk-dshit:hover { background:var(--hov); }
+.pt-dialog .tk-dshit:focus-visible { outline:none; box-shadow:var(--ring); }
+.pt-dialog .tk-dsp { flex:none; width:96px; font-size:13px; line-height:20px; font-weight:600; color:var(--ink); white-space:nowrap; }
+.pt-dialog .tk-dstxt { display:flex; flex:1 1 auto; flex-direction:column; gap:2px; min-width:0; font-size:14px; line-height:20px; color:var(--q); }
+.pt-dialog .tk-dstxt b, .pt-dialog .tk-dstxt strong { font-weight:600; color:var(--ink); }
 
-/* Find-in-document, in its modal (doc-search.tsx).
+/* ── Add documents (upload-drawer.tsx), on the Dialog part (the old-modals
+   mock, 27 October 2026: the side sheet became a centred dialog, rule 51).
+   The drop is a card you act on (rule 35): the 16 corner, the edge, no
+   wash and no dashes. Each file is a row under a hairline; one still to
+   send opens its fields under its name. ── */
+.pt-dialog .tk-up { display:flex; flex-direction:column; gap:16px; }
+.pt-dialog .tk-upfact { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.pt-dialog .tk-drop { display:flex; flex-direction:column; align-items:center; gap:8px; padding:24px; text-align:center;
+  border:1px solid var(--edge); border-radius:var(--r-card); transition:border-color var(--t-fast) var(--ease); }
+.pt-dialog .tk-drop.over { border-color:var(--ink); }
+.pt-dialog .tk-drop > b { font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.pt-dialog .tk-dropic { display:grid; place-items:center; width:40px; height:40px; border-radius:var(--r-button); background:var(--soft); color:var(--ink); }
+.pt-dialog .tk-files { margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
+.pt-dialog .tk-file { display:flex; flex-direction:column; gap:12px; padding:8px 0; border-bottom:1px solid var(--line); }
+.pt-dialog .tk-file.open { padding:12px 0; }
+.pt-dialog .tk-fhd { display:flex; align-items:center; gap:12px; min-height:32px; }
+.pt-dialog .tk-fname { flex:1 1 auto; min-width:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.pt-dialog .tk-fsize { flex:none; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.pt-dialog .tk-fhd > .pt-state { flex:none; max-width:50%; }
+.pt-dialog .pt-btn.tk-frm, .pt-dialog .pt-btn.tgm-rm { color:var(--red-w); }
+.pt-dialog .tk-fform { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1.3fr) minmax(0,1fr); gap:16px 12px; }
+.pt-dialog .tk-fspan { grid-column:1 / -1; }
 
-   EVERY SELECTOR HERE IS PREFIXED `.fl-modal`, and that is load-bearing rather
-   than tidy: the panel is portalled to <body>, so the `.fg` ramp the rest of
-   this file hangs off never reaches it — and `.fl-modal button` is (0,1,1),
-   which beats a lone `.tk-dshit`. Two classes is what it takes to win, and a
-   result row that lost would render as the modal's stripped-bare button. */
-
-.fl-modal .tk-dsbar { display:flex; align-items:center; gap:8px; }
-.fl-modal .tk-dsbar .fl-i { flex:1 1 auto; min-width:0; }
-.fl-modal .tk-dscount { margin:16px 0 8px; font-size:13px; font-weight:700; color:var(--q); }
-.fl-modal .tk-dsnone { margin:12px 0 0; font-size:13px; font-weight:600; line-height:1.6; color:var(--gray500); }
-
-/* Capped so a hundred hits scroll inside the panel rather than growing it
-   past the viewport — `.fl-modal` already caps at 88vh, and a list that
-   pushed the search box off the top would be unusable at the one moment you
-   want to retype. */
-.fl-modal .tk-dshits { display:flex; flex-direction:column; gap:8px; max-height:46vh; overflow:auto; }
-.fl-modal .tk-dshit { display:flex; align-items:flex-start; gap:12px; width:100%; padding:12px 12px; text-align:left;
-  border:1px solid var(--line); border-radius:var(--r-button); background:var(--paper); cursor:pointer;
-  transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fl-modal .tk-dshit:hover { background:var(--tint); border-color:var(--line); }
-.fl-modal .tk-dshit:focus-visible { outline:none; border-color:var(--ink);   box-shadow:var(--ring); }
-.fl-modal .tk-dsp { flex:none; display:inline-flex; align-items:center; gap:4px; padding-top:1px;
-  color:var(--q); font-size:12px; font-weight:700; }
-.fl-modal .tk-dstxt { min-width:0; font-size:13px; font-weight:500; line-height:1.55; color:var(--ink); }
-.fl-modal .tk-dstxt b { display:block; margin-bottom:4px; font-size:13px; font-weight:700; color:var(--ink); }
-.fl-modal .tk-dstxt mark { padding:0 2px; border-radius:var(--r-control); background:var(--tint-2); color:inherit; font-weight:700; }
-
-/* the confirm line inside the assistant's (portalled, unscoped) modal */
-.fl-modal .tk-confirm { margin:0; font-size:14px; font-weight:600; line-height:1.6; color:var(--ink); }
-
-/* ── the upload drawer: portalled, so the ramp and the font start again ── */
-.tk-scrim { position:fixed; inset:0; z-index:var(--z-modal); background:var(--scrim); backdrop-filter:blur(5px);
-  animation:tkFade .28s both;
-  color:var(--ink); }
-@keyframes tkFade { from { opacity:0; } to { opacity:1; } }
-.tk-sheet { position:fixed; top:0; right:0; bottom:0; z-index:var(--z-modal); width:min(560px, 100vw);
-  display:flex; flex-direction:column; background:var(--paper); border-left:1px solid var(--line); box-shadow:var(--shadow-overlay); overflow-y:auto; overscroll-behavior:contain;
-  animation:tkSheetIn .32s var(--ease) both;
-  font-family:var(--font-jakarta), sans-serif; -webkit-font-smoothing:antialiased;
-  color:var(--ink); }
-/* docked to the edge, so the keyframe's `transform:none` end state is the
-   resting position — nothing here is centred by a translate */
-@keyframes tkSheetIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:none; } }
-.tk-sheet *, .tk-sheet *::before, .tk-sheet *::after { box-sizing:border-box; }
-.tk-sheet button { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
-.tk-shtop { position:sticky; top:0; z-index:var(--z-sticky); display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
-  padding:24px 24px 16px; background:var(--paper); border-bottom:1px solid var(--line); }
-.tk-shtop h2 { margin:0; font-size:20px; font-weight:700; }
-.tk-shtop p { margin:4px 0 0; font-size:13px; font-weight:600; color:var(--gray500); }
-.tk-shx { width:34px; height:34px; flex:none; display:grid; place-items:center; border-radius:var(--r-button); background:var(--tint);
-  border:1px solid var(--line); color:var(--gray700); transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.tk-shx:hover { background:var(--tint-2); color:var(--ink); }
-.tk-drop { margin:16px 24px; padding:32px 16px; display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center;
-  border:1.5px dashed var(--line); border-radius:var(--r-card); background:var(--tint);
-  transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-.tk-drop.over { border-color:var(--ink); background:var(--tint); }
-.tk-drop svg { color:var(--q); }
-.tk-drop b { font-size:14px; font-weight:700; color:var(--ink); }
-.tk-drop span { font-size:13px; font-weight:600; color:var(--gray400); }
-.tk-drop .tk-btn { margin-top:8px; height:38px; }
-.tk-files { display:flex; flex-direction:column; gap:12px; padding:0 24px 16px; }
-.tk-file { padding:12px 16px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); }
-.tk-file.bad { border-color:var(--bad); background:var(--bad-tint); }
-.tk-fhd { display:flex; align-items:center; gap:8px; }
-.tk-fhd b { flex:1 1 auto; min-width:0; font-size:14px; font-weight:700; white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.tk-fhd em { flex:none; font-style:normal; font-size:12px; font-weight:700; color:var(--gray400); }
-.tk-frr { margin:8px 0 0; font-size:13px; font-weight:700; color:var(--bad-t); }
-.tk-fform { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
-.tk-ff { display:flex; flex-direction:column; gap:4px; min-width:0; }
-.tk-ff.span { grid-column:1 / -1; }
-.tk-ff > span { font-size:12px; font-weight:700; color:var(--gray700); }
-.tk-fi { width:100%; height:38px; padding:0 12px; border:1.5px solid var(--line); border-radius:var(--r-control); background:var(--paper);
-  font-family:var(--font-jakarta), sans-serif; font-size:13px; font-weight:600; color:var(--ink); outline:none;
-  transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.tk-fi:focus { border-color:var(--ink);  box-shadow:var(--ring); }
-.tk-fst { display:flex; align-items:center; gap:8px; margin:12px 0 0; font-size:13px; font-weight:700; }
-.tk-fst.ok { color:var(--ok-t); }
-.tk-fst.work { color:var(--info-t); }
-.tk-fst.warn { color:var(--warn-t); }
-.tk-fst.dan { color:var(--bad-t); }
-.tk-shft { position:sticky; bottom:0; margin-top:auto; display:flex; justify-content:flex-end; gap:8px;
-  padding:16px 24px; background:var(--paper); border-top:1px solid var(--line); }
-
-@media (max-width:980px) {
-  .tk-fform { grid-template-columns:1fr; }
-}
-
-/* a press moves nothing under reduced motion */
-@media (prefers-reduced-motion:reduce) {
-  .fg .tk-btn:active:not(:disabled), .tk-sheet .tk-btn:active:not(:disabled) { transform:none; }
-}
-
-/* ══════════════════ TIFF — TAGS (.tgp- / .tgl- / .tgm-) ══════════════════
+/* ══════════════════ TIFF — TAGS (.tgf- / .tgm-) ══════════════════════════
    The second axis: category is the shelf, a tag is what's on the spine.
+   On the Dialog part (the old-modals mock, 27 October 2026), portalled
+   outside `.fg`, so each rule names `.pt-dialog`; the tag menu is the Menu
+   part's, portalled on its own, so its lead is unscoped.
 
-   THREE ROOTS, EVERY RULE. The picker renders in the library page (inside
-   `.fg`), in the upload drawer (`.tk-sheet`, portalled to <body>) and in the
-   edit modal (`.fl-modal`, also portalled). `.fg` styles do not reach inside a
-   portal and `.fg button` is a (0,1,1) reset that beats any single class, so
-   each control is written for all three prefixes — the same shape the `.tk-btn`
-   family above already carries, for the same reason. Dropping one root does
-   not fail loudly; it renders a bare browser button in one of three places.
+   THE TAG COLOUR IS DECORATION. It is snapped to the palette's bright
+   values without red or blue (`kbTagHue`), and drawn only as a dot or a
+   disc, never as text, a fill or an edge. */
 
-   THE TAG COLOUR IS DECORATION AND SAYS SO. It arrives as `--tgc` on the
-   element and is used for a dot, a tinted background and a border — never for
-   text at full strength, because a tag is not a state and #00A389/#e0264f mean
-   ok/danger everywhere else in this app. */
+/* the field's menu: a tick, then the tag's dot */
+.tgf-lead { display:inline-flex; align-items:center; gap:8px; }
+.tgf-tk { box-sizing:border-box; display:grid; place-items:center; width:16px; height:16px; border:1.5px solid var(--grey); border-radius:var(--r-control); }
+.tgf-tk.on { background:var(--press); border-color:var(--press); color:var(--white); }
+.pt-menu-lead:has(> .tgf-lead) { width:auto; }
+.pt-dialog .tgf-full { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
 
-.fg .tgp, .tk-sheet .tgp, .fl-modal .tgp { margin-top:12px; }
-.fg .tgp-top, .tk-sheet .tgp-top, .fl-modal .tgp-top {
-  display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
-.fg .tgp-lbl, .tk-sheet .tgp-lbl, .fl-modal .tgp-lbl {
-  font-size:12px; font-weight:700; color:var(--gray700); }
-.fg .tgp-clear, .tk-sheet .tgp-clear, .fl-modal .tgp-clear {
-  padding:0; border:none; background:none; font-family:var(--font-jakarta), sans-serif;
-  font-size:12px; font-weight:700; color:var(--link); cursor:pointer;
-  text-decoration:underline; text-underline-offset:3px; }
-.fg .tgp-clear:hover, .tk-sheet .tgp-clear:hover, .fl-modal .tgp-clear:hover { color:var(--q); }
+/* the palette, as discs: one of a few */
+.pt-dialog .tgf-discs { display:flex; align-items:center; gap:8px; }
+.pt-dialog .tgf-disc { box-sizing:border-box; width:20px; height:20px; margin:2px; padding:0; border:0; border-radius:50%; cursor:pointer; }
+.pt-dialog .tgf-disc[data-hue="orange"] { background:var(--orange); }
+.pt-dialog .tgf-disc[data-hue="yellow"] { background:var(--yellow); }
+.pt-dialog .tgf-disc[data-hue="green"] { background:var(--green); }
+.pt-dialog .tgf-disc[data-hue="purple"] { background:var(--purple); }
+.pt-dialog .tgf-disc[data-hue="pink"] { background:var(--pink); }
+.pt-dialog .tgf-disc[data-hue="grey"] { background:var(--grey); }
+.pt-dialog .tgf-disc[aria-checked="true"] { box-shadow:0 0 0 2px var(--white), 0 0 0 4px var(--ink); }
+.pt-dialog .tgf-disc:focus-visible { outline:none; box-shadow:var(--ring); }
 
-/* the find/create box — one control, because typing a name that doesn't exist
-   IS the create gesture and a separate "new tag" button would be a second
-   place to look for the same thing */
-.fg .tgp-find, .tk-sheet .tgp-find, .fl-modal .tgp-find {
-  position:relative; display:flex; align-items:center; gap:8px; height:36px; padding:0 12px;
-  border:1.5px solid var(--line); border-radius:var(--r-control); background:var(--paper);
-  transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.fg .tgp-find:focus-within, .tk-sheet .tgp-find:focus-within, .fl-modal .tgp-find:focus-within {
-  border-color:var(--ink);   box-shadow:var(--ring); }
-.fg .tgp-find svg, .tk-sheet .tgp-find svg, .fl-modal .tgp-find svg { flex:none; color:var(--gray400); }
-.fg .tgp-find input, .tk-sheet .tgp-find input, .fl-modal .tgp-find input {
-  flex:1 1 auto; min-width:0; height:100%; padding:0; border:none; background:none; outline:none;
-  font-family:var(--font-jakarta), sans-serif; font-size:13px; font-weight:600; color:var(--ink); }
-
-.fg .tgp-make, .tk-sheet .tgp-make, .fl-modal .tgp-make {
-  display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:8px; padding:8px 12px;
-  border:1px dashed var(--line); border-radius:var(--r-button); background:var(--tint); }
-.fg .tgp-make > span, .tk-sheet .tgp-make > span, .fl-modal .tgp-make > span {
-  font-size:12px; font-weight:600; color:var(--gray500); }
-.fg .tgp-make b, .tk-sheet .tgp-make b, .fl-modal .tgp-make b { font-weight:700; color:var(--ink); }
-.fg .tgp-mk, .tk-sheet .tgp-mk, .fl-modal .tgp-mk {
-  display:inline-flex; align-items:center; gap:4px; height:26px; padding:0 8px;
-  border:1px solid var(--line); border-radius:var(--r-control); background:var(--tint); color:var(--ink);
-  font-family:var(--font-jakarta), sans-serif; font-size:12px; font-weight:700; cursor:pointer;
-  transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .tgp-mk:hover:not(:disabled), .tk-sheet .tgp-mk:hover:not(:disabled), .fl-modal .tgp-mk:hover:not(:disabled) {
-  background:var(--ink); color:var(--paper); }
-.fg .tgp-mk:disabled, .tk-sheet .tgp-mk:disabled, .fl-modal .tgp-mk:disabled { opacity:.45; pointer-events:none; }
-
-.fg .tgp-grp, .tk-sheet .tgp-grp, .fl-modal .tgp-grp { margin-top:12px; }
-.fg .tgp-grp > em, .tk-sheet .tgp-grp > em, .fl-modal .tgp-grp > em {
-  display:block; margin-bottom:4px; font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .tgp-row, .tk-sheet .tgp-row, .fl-modal .tgp-row { display:flex; flex-wrap:wrap; gap:4px; }
-
-/* one tag, off and on. OFF is grey with a coloured dot; ON is the tag's own
-   colour at low alpha with the label in ink — a filled chip in the raw colour
-   would be a wall of saturation at twelve tags and would read as a status. */
-.fg .tgp-t, .tk-sheet .tgp-t, .fl-modal .tgp-t {
-  display:inline-flex; align-items:center; gap:4px; height:28px; padding:0 12px;
-  border:1px solid var(--line); border-radius:var(--r-control); background:var(--paper); color:var(--gray700);
-  font-family:var(--font-jakarta), sans-serif; font-size:12px; font-weight:700; cursor:pointer;
-  transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .tgp-t .tgp-d, .tk-sheet .tgp-t .tgp-d, .fl-modal .tgp-t .tgp-d {
-  width:7px; height:7px; border-radius:50%; flex:none; background:var(--tgc, var(--q)); }
-.fg .tgp-t svg, .tk-sheet .tgp-t svg, .fl-modal .tgp-t svg { flex:none; color:var(--tgc, var(--ink)); }
-.fg .tgp-t:hover:not(:disabled), .tk-sheet .tgp-t:hover:not(:disabled), .fl-modal .tgp-t:hover:not(:disabled) {
-  border-color:var(--line); background:var(--tint); }
-.fg .tgp-t.on, .tk-sheet .tgp-t.on, .fl-modal .tgp-t.on {
-  border-color:color-mix(in srgb, var(--tgc, var(--ink)) 45%, transparent);
-  background:color-mix(in srgb, var(--tgc, var(--ink)) 10%, var(--paper)); color:var(--ink); }
-.fg .tgp-t:disabled, .tk-sheet .tgp-t:disabled, .fl-modal .tgp-t:disabled { opacity:.4; pointer-events:none; }
-.fg .tgp-t:focus-visible, .tk-sheet .tgp-t:focus-visible, .fl-modal .tgp-t:focus-visible {
-  outline:none;   box-shadow:var(--ring); }
-
-.fg .tgp-none, .tk-sheet .tgp-none, .fl-modal .tgp-none,
-.fg .tgp-full, .tk-sheet .tgp-full, .fl-modal .tgp-full {
-  margin:8px 0 0; font-size:12px; font-weight:600; color:var(--gray400); }
-.fg .tgp-err, .tk-sheet .tgp-err, .fl-modal .tgp-err {
-  margin:8px 0 0; font-size:13px; font-weight:700; color:var(--bad-t); }
-
-/* the palette */
-.fg .tgs, .tk-sheet .tgs, .fl-modal .tgs { display:inline-flex; align-items:center; gap:4px; flex-wrap:wrap; }
-.fg .tgs-s, .tk-sheet .tgs-s, .fl-modal .tgs-s {
-  width:20px; height:20px; padding:0; flex:none; border:2px solid transparent; border-radius:50%;
-  cursor:pointer; transition:transform var(--t-move) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .tgs-s:hover, .tk-sheet .tgs-s:hover, .fl-modal .tgs-s:hover { }
-.fg .tgs-s.on, .tk-sheet .tgs-s.on, .fl-modal .tgs-s.on { border-color:var(--ink); }
-.fg .tgs-s:focus-visible, .tk-sheet .tgs-s:focus-visible, .fl-modal .tgs-s:focus-visible {
-  outline:none;   box-shadow:var(--ring); }
-
-/* ── the filter rail ── */
-/* a shorter chip than the category rail's, because there are more of them and
-   they are the narrower fact */
-
-/* ── the manage sheet ── */
-.tk-sheet .tgm { display:flex; flex-direction:column; gap:16px; padding:16px 24px; }
-.tk-sheet .tgm-new { padding:12px 16px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); }
-.tk-sheet .tgm-nrow { display:flex; align-items:center; gap:8px; }
-.tk-sheet .tgm-nrow .tk-fi { flex:1 1 auto; min-width:0; }
-.tk-sheet .tgm-nrow .tk-btn { height:38px; padding:0 12px; flex:none; }
-.tk-sheet .tgm-nopt { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:12px; }
-.tk-sheet .tgm-d { width:12px; height:12px; flex:none; border-radius:50%; }
-.tk-sheet .tgm-grp > em { display:block; margin-bottom:8px; font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); }
-.tk-sheet .tgm-grp > em span { margin-left:8px; color:var(--gray400); font-weight:700; }
-.tk-sheet .tgm-empty { margin:0 0 4px; font-size:12px; font-weight:600; color:var(--gray400); }
-.tk-sheet .tgm-row { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:var(--r-button);
-  transition:background var(--t-fast) var(--ease); }
-.tk-sheet .tgm-row:hover { background:var(--tint); }
-.tk-sheet .tgm-row b { flex:1 1 auto; min-width:0; font-size:14px; font-weight:700;
-  white-space:nowrap; overflow:hidden;
-  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.tk-sheet .tgm-row em { flex:none; font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
-.tk-sheet .tgm-edit { padding:12px 12px; border:1.5px solid var(--line); border-radius:var(--r-card);
-  background:var(--tint); }
-.tk-sheet .tgm-cbtn { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
-.tk-sheet .tgm-cbtn .tk-btn { height:38px; padding:0 12px; }
-
-/* the confirm, IN THE ROW rather than a second overlay: a modal over a drawer
-   is two scrims deep, and a panel pinned to the bottom of a fifty-tag sheet
-   would put the question forty rows below the button that asked it */
-.tk-sheet .tgm-conf { padding:12px 16px; border-radius:var(--r-card);
-  border:1px solid var(--bad); background:var(--bad-tint); }
-.tk-sheet .tgm-conf b { display:block; font-size:14px; font-weight:700; color:var(--ink); }
-.tk-sheet .tgm-conf span { display:block; margin-top:4px; font-size:13px; font-weight:600; line-height:1.55;
-  color:var(--gray500); }
-.tk-sheet .tk-btn.danger { background:var(--bad); color:var(--paper); }
-.tk-sheet .tk-btn.danger:hover:not(:disabled) { background:var(--bad-t); }
-
-@media (prefers-reduced-motion:reduce) {
-  .fg .tgs-s:hover, .tk-sheet .tgs-s:hover, .fl-modal .tgs-s:hover { transform:none; }
-}
+/* Tags: making one, then the groups, each a list under a hairline */
+.pt-dialog .tgm { display:flex; flex-direction:column; gap:24px; }
+.pt-dialog .tgm-err { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--red-w); }
+.pt-dialog .tgm-new, .pt-dialog .tgm-edit { display:flex; flex-direction:column; gap:16px; }
+.pt-dialog .tgm-nrow { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:end; }
+.pt-dialog .tgm-grp { display:flex; flex-direction:column; gap:8px; }
+.pt-dialog .tgm-gh { margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.pt-dialog .tgm-none { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.pt-dialog .tgm-rows { margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
+.pt-dialog .tgm-row { display:flex; align-items:center; gap:12px; min-height:44px; padding:4px 0; border-bottom:1px solid var(--line); }
+.pt-dialog .tgm-name { flex:1 1 auto; min-width:0; font-size:14px; line-height:20px; font-weight:600; overflow-wrap:anywhere; }
+.pt-dialog .tgm-used { flex:none; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+/* the confirm, IN THE ROW rather than a second dialog: a dialog over a
+   dialog is two scrims deep, and a question pinned to the foot of fifty
+   tags would sit forty rows below the button that asked it */
+.pt-dialog .tgm-conf { flex-wrap:wrap; gap:8px 12px; padding:12px 0; }
+.pt-dialog .tgm-ct { display:flex; flex-basis:100%; flex-direction:column; }
+.pt-dialog .tgm-ct > b { font-size:14px; line-height:20px; font-weight:600; }
+.pt-dialog .tgm-ct > span { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.pt-dialog .tgm-cbtn { display:flex; justify-content:flex-end; gap:8px; margin-left:auto; }
+.pt-dialog .tgm-editrow { display:block; padding:12px 0; }
 
 /* ══════════════════ TIFF — THE ASSISTANT (.tk- layout) ═══════════════════
    The two-column screen: transcript on the left, the category cards on the
@@ -6843,32 +6685,16 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    parked, because dead CSS in this file has shadowed a live component at
    equal specificity before. */
 
-/* ── portalled pieces (outside `.fg`, so unscoped and self-contained) ── */
-
-/* rename and delete-thread ask one question each; 560px of dialog around one
-   field reads as a form to fill in rather than a question to answer */
-.fl-modal.tk-sm { width:min(440px, 100%); }
-
-.tk-pkdot { display:inline-block; width:8px; height:8px; border-radius:50%; }
-.tk-pklead { margin:0 0 8px; font-size:12px; font-weight:500; color:var(--q); }
-/* The SCROLL moved off the quote and onto `.tk-pks`: a document can cite
-   several passages now, and they scroll as one column of quote wells. The
-   fade under them is the well admitting there is more — macOS overlay
-   scrollbars are invisible until touched, and the text used to just stop
-   mid-word (live-walk finding). `.on` is set from a scroll listener; the
-   fade never blocks a click (pointer-events:none) and never lies at the
-   bottom of the text (it goes out when the reader gets there). */
-.tk-pkw { position:relative; }
-.tk-pks { display:flex; flex-direction:column; gap:8px; max-height:44vh; overflow:auto;
-  overscroll-behavior:contain; }
-.tk-pkfade { position:absolute; left:0; right:0; bottom:0; height:44px; pointer-events:none;
-  background:linear-gradient(180deg, rgba(255,255,255,0), var(--paper) 82%); opacity:0; transition:opacity var(--t-fast) var(--ease); }
-.tk-pkfade.on { opacity:1; }
-.tk-pkq { margin:0; padding:16px 16px; border-radius:var(--r-card); background:var(--tint);
-  border:1px solid var(--line); font-family:var(--font-jakarta), sans-serif;
-  font-size:14px; font-weight:500; line-height:1.6; color:var(--ink); white-space:pre-wrap; }
-/* the page a passage came from, when the peek is showing more than one */
-.tk-pkqp { display:block; margin-bottom:4px; font-size:12px; font-weight:500; color:var(--q); }
+/* ── Tiff's source, on the Dialog part (the old-modals mock, 27 October
+   2026). Portalled outside `.fg`, so each rule names the dialog. Each
+   passage is a line under a hairline at 16, the words you read (rule 13);
+   no well, no tint. ── */
+.pt-dialog .tk-pk { display:flex; flex-direction:column; gap:16px; }
+.pt-dialog .tk-pkline { display:flex; align-items:center; gap:8px; margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.pt-dialog .tk-pkerr { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--red-w); }
+.pt-dialog .tk-pks { margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
+.pt-dialog .tk-pkq { margin:0; padding:12px 0; border-bottom:1px solid var(--line); font-size:16px; line-height:24px; color:var(--ink); white-space:pre-wrap; }
+.pt-dialog .tk-pkqp { display:block; margin-bottom:4px; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
 
 /* ══════════════════ TIFF — THE SEARCH LINES (.tk-lines) ══════════════════
    The signature move: four lines fan out from the composer to the four
@@ -9203,6 +9029,11 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* the remove dialog is portalled, outside `.fg` */
 .lb2-confirm { margin:0; font-size:14px; line-height:20px; color:var(--ink); }
 .lb2-confirm.lb2-err { margin-top:8px; font-weight:500; color:var(--red-w); }
+/* Edit document, on the Dialog part (the old-modals mock, 27 October 2026):
+   two columns, Title, Edition and Tags across both */
+.pt-dialog .lb2-form { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px 12px; }
+.pt-dialog .lb2-form > .lb2-span { grid-column:1 / -1; }
+.pt-dialog .lb2-form-err { grid-column:1 / -1; margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--red-w); }
 @media (max-width:1100px) {
   .fg .lb2-head { flex-wrap:wrap; }
   .fg .lb2-search { width:240px; }

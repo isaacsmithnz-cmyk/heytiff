@@ -1,16 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { Tooltip } from "@/components/parts/tooltip";
 import { Button, IconButton } from "@/components/parts/button";
 import { Chooser } from "@/components/parts/chooser";
-import { ConfirmDialog } from "@/components/parts/dialog";
+import { ConfirmDialog, Dialog } from "@/components/parts/dialog";
 import { Fade } from "@/components/parts/fade";
-import { TextInput } from "@/components/parts/field";
+import { Field, TextInput } from "@/components/parts/field";
 import { Menu, type MenuItem } from "@/components/parts/menu";
 import { Empty } from "@/components/parts/states";
 import { StateWord, type Tone } from "@/components/parts/state";
@@ -19,7 +18,7 @@ import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { KB_CATEGORIES, filterKbDocs, type KbCategoryKey } from "./kb";
 import { FieldReview } from "./field-review";
 import { UploadDrawer } from "./upload-drawer";
-import { TagPicker } from "./tag-picker";
+import { TagField } from "./tag-picker";
 import { TagManager } from "./tag-manager";
 import { DocSearch } from "./doc-search";
 import { allTools, toolBadge, toolMatches } from "@/components/toolbox/tools";
@@ -1154,9 +1153,9 @@ function DocRow({
 
 /* ── metadata, and removal ───────────────────────────────────────────────── */
 
-/* Today's edit form, kept as it is (its tag picker is styled for this modal),
-   with the category picked from the app's own chooser rather than a native
-   select. */
+/* EDIT DOCUMENT (the old-modals mock, 27 October 2026): the Dialog part at
+   560, fields with their labels above, the category and the tags each a
+   chooser. The subtitle that explained the form went (hint text). */
 function EditModal({
   doc,
   tags,
@@ -1195,78 +1194,52 @@ function EditModal({
       router.refresh();
     });
 
-  if (typeof document === "undefined") return null;
-  return createPortal(
-    <div className="fl-ov" onClick={onClose}>
-      <div className="fl-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Edit document">
-        <div className="fl-mh">
-          <span>
-            <b>Edit document</b>
-            <em>What it&rsquo;s called, where it sits, and what it&rsquo;s about</em>
-          </span>
-          <button className="fl-x" aria-label="Close" onClick={onClose}>
-            <Icon name="x" size={16} />
-          </button>
-        </div>
-        <div className="fl-mb">
-          {error && <div className="fl-err">{error}</div>}
-          <div className="fl-grid">
-            <label className="fl-f span">
-              <span>
-                Title<i>*</i>
-              </span>
-              <input className="fl-i" value={title} onChange={(e) => setTitle(e.target.value)} />
-            </label>
-            {!isFieldNote && (
-              <div className="fl-f">
-                <span>Category</span>
-                <Chooser
-                  aria-label="Category"
-                  value={category}
-                  onChange={setCategory}
-                  options={KB_CATEGORIES.filter((c) => c.key !== "field").map((c) => ({ value: c.key, label: c.label }))}
-                />
-              </div>
-            )}
-            <label className="fl-f">
-              <span>Source</span>
-              <input
-                className="fl-i"
-                placeholder="Mitsubishi Electric"
-                value={source}
-                onChange={(e) => setSource(e.target.value)}
-              />
-            </label>
-            <label className="fl-f span">
-              <span>Edition</span>
-              <input
-                className="fl-i"
-                placeholder="2026 revision B"
-                value={edition}
-                onChange={(e) => setEdition(e.target.value)}
-              />
-            </label>
-          </div>
-          <TagPicker
-            variant="modal"
+  return (
+    <Dialog
+      heading="Edit document"
+      width={560}
+      onClose={onClose}
+      foot={
+        <>
+          <Button kind="quiet" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button kind="main" disabled={busy || !title.trim()} onClick={save}>
+            {busy ? "Saving the details" : "Save details"}
+          </Button>
+        </>
+      }
+    >
+      <div className="lb2-form">
+        {error && <p className="lb2-form-err">{error}</p>}
+        <Field label="Title" className="lb2-span">
+          <TextInput value={title} data-autofocus onChange={(e) => setTitle(e.target.value)} />
+        </Field>
+        {!isFieldNote && (
+          <Field label="Category">
+            <Chooser
+              value={category}
+              onChange={setCategory}
+              options={KB_CATEGORIES.filter((c) => c.key !== "field").map((c) => ({ value: c.key, label: c.label }))}
+            />
+          </Field>
+        )}
+        <Field label="Source">
+          <TextInput placeholder="Mitsubishi Electric" value={source} onChange={(e) => setSource(e.target.value)} />
+        </Field>
+        <Field label="Edition" className="lb2-span">
+          <TextInput placeholder="2026 revision B" value={edition} onChange={(e) => setEdition(e.target.value)} />
+        </Field>
+        <div className="lb2-span">
+          <TagField
             tags={known}
             value={tagIds}
             onChange={setTagIds}
             onCreated={(tag) => setKnown((list) => (list.some((t) => t.id === tag.id) ? list : [...list, tag]))}
           />
-          <div className="fl-foot">
-            <button className="fl-btn ghost" onClick={onClose}>
-              Cancel
-            </button>
-            <button className="fl-btn primary" disabled={busy || !title.trim()} onClick={save}>
-              <Icon name="save" size={15} />
-              Save details
-            </button>
-          </div>
         </div>
       </div>
-    </div>,
-    document.body
+    </Dialog>
   );
 }
 

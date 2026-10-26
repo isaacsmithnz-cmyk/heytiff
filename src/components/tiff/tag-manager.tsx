@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { createPortal } from "react-dom";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Icon } from "@/components/shell/icon";
-import { ColorSwatches } from "./tag-picker";
+import { Dialog } from "@/components/parts/dialog";
+import { Button } from "@/components/parts/button";
+import { Field, TextInput } from "@/components/parts/field";
+import { Dot } from "@/components/parts/state";
+import { Tray } from "@/components/parts/tabs";
+import { ColourDiscs } from "./tag-picker";
 import { createKbTag, deleteKbTag, updateKbTag } from "@/app/actions/kb-tags";
 import {
   KB_TAG_KIND_LABELS,
   KB_TAG_KINDS,
   kbTagColorFor,
+  kbTagHue,
   kbTagLabel,
   type KbTagKind,
   type KbTagRef,
@@ -17,11 +21,10 @@ import {
 
 /* Managing the tags themselves — rename, recolour, regroup, remove.
 
-   A SHEET, NOT A PAGE, and the same sheet the uploads use: this is something
-   you do in the middle of tidying a library, and a route away from the rows
-   you were looking at would lose your place. Portalled to <body> for the
-   reason every dashboard overlay is — `.page.in` sets will-change, which traps
-   position:fixed inside the shell.
+   A DIALOG OVER THE LIBRARY, NOT A PAGE (the old-modals mock, 27 October
+   2026, where the side sheet became a centred dialog like every other form,
+   rule 51): this is something you do in the middle of tidying a library,
+   and a route away from the rows you were looking at would lose your place.
 
    REMOVING A TAG NAMES ITS COUNT FIRST. "Delete Daikin" means nothing; "Daikin
    is on 14 documents" is the fact somebody needs. The documents survive — only
@@ -44,19 +47,6 @@ export function TagManager({
   const [error, setError] = useState<string | null>(null);
   const [busy, start] = useTransition();
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [onClose]);
-
   const remove = (tag: KbTagRef) =>
     start(async () => {
       setError(null);
@@ -74,108 +64,93 @@ export function TagManager({
     items: tags.filter((t) => t.kind === kind),
   }));
 
-  if (typeof document === "undefined") return null;
-  return createPortal(
-    <>
-      <div className="tk-scrim" onClick={onClose} />
-      <aside className="tk-sheet" role="dialog" aria-modal="true" aria-label="Manage tags">
-        <header className="tk-shtop">
-          <div>
-            <h2>Tags</h2>
-            {tags.length > 0 && <p>{tags.length === 1 ? "1 tag" : `${tags.length} tags`}</p>}
-          </div>
-          <button type="button" className="tk-shx" aria-label="Close" onClick={onClose}>
-            <Icon name="x" size={15} />
-          </button>
-        </header>
+  return (
+    <Dialog
+      heading="Tags"
+      width={560}
+      onClose={onClose}
+      foot={
+        <Button kind="main" onClick={onClose}>
+          Close tags
+        </Button>
+      }
+    >
+      <div className="tgm">
+        {error && <p className="tgm-err">{error}</p>}
 
-        <div className="tgm">
-          {error && <p className="tgp-err">{error}</p>}
+        <NewTag onDone={() => router.refresh()} />
 
-          <NewTag onDone={() => router.refresh()} />
-
-          {tags.length === 0 ? (
-            <p className="tgp-none">No tags yet.</p>
-          ) : (
-            groups.map((g) => (
-              <div key={g.kind} className="tgm-grp">
-                <em>
-                  {KB_TAG_KIND_LABELS[g.kind]}
-                  <span>{g.items.length}</span>
-                </em>
-                {g.items.length === 0 ? (
-                  <p className="tgm-empty">Nothing in this group.</p>
-                ) : (
-                  g.items.map((t) =>
+        {tags.length === 0 ? (
+          <p className="tgm-none">No tags yet.</p>
+        ) : (
+          groups.map((g) => (
+            <section key={g.kind} className="tgm-grp" aria-label={KB_TAG_KIND_LABELS[g.kind]}>
+              <h3 className="tgm-gh">{KB_TAG_KIND_LABELS[g.kind]}</h3>
+              {g.items.length === 0 ? (
+                <p className="tgm-none">Nothing in this group.</p>
+              ) : (
+                <ul className="tgm-rows">
+                  {g.items.map((t) =>
                     /* THE CONFIRM REPLACES THE ROW, and so does the editor.
-                       An org has fifty tags; a panel pinned to the bottom of
-                       the sheet would put the question about the first one
-                       forty rows below the button that asked it, off the
-                       screen the person is looking at. */
+                       An org has fifty tags; a question pinned to the foot
+                       would sit forty rows below the button that asked it. */
                     confirming?.id === t.id ? (
-                      <div key={t.id} className="tgm-conf">
-                        <b>Remove “{t.label}”?</b>
-                        <span>
-                          {(usage[t.id] ?? 0) === 0
-                            ? "It isn't on anything."
-                            : `It comes off ${used(usage[t.id] ?? 0)} — the documents stay, and Tiff still quotes them.`}
+                      <li key={t.id} className="tgm-row tgm-conf">
+                        <span className="tgm-ct">
+                          <b>Remove “{t.label}”?</b>
+                          <span>
+                            {(usage[t.id] ?? 0) === 0
+                              ? "It isn't on anything."
+                              : `It comes off ${used(usage[t.id] ?? 0)}. The documents stay, and Tiff still quotes them.`}
+                          </span>
                         </span>
-                        <div className="tgm-cbtn">
-                          <button type="button" className="tk-btn ghost" onClick={() => setConfirming(null)}>
+                        <span className="tgm-cbtn">
+                          <Button size={32} onClick={() => setConfirming(null)}>
                             Keep it
-                          </button>
-                          <button
-                            type="button"
-                            className="tk-btn danger"
-                            disabled={busy}
-                            onClick={() => remove(t)}
-                          >
-                            Remove “{t.label}”
-                          </button>
-                        </div>
-                      </div>
+                          </Button>
+                          <Button kind="danger" size={32} disabled={busy} onClick={() => remove(t)}>
+                            {`Remove “${t.label}”`}
+                          </Button>
+                        </span>
+                      </li>
                     ) : editing === t.id ? (
-                      <EditTag
-                        key={t.id}
-                        tag={t}
-                        onClose={() => setEditing(null)}
-                        onSaved={() => {
-                          setEditing(null);
-                          router.refresh();
-                        }}
-                      />
+                      <li key={t.id} className="tgm-row tgm-editrow">
+                        <EditTag
+                          tag={t}
+                          onClose={() => setEditing(null)}
+                          onSaved={() => {
+                            setEditing(null);
+                            router.refresh();
+                          }}
+                        />
+                      </li>
                     ) : (
-                      <div key={t.id} className="tgm-row">
-                        <span className="tgm-d" style={{ background: t.color }} />
-                        <b>{t.label}</b>
-                        <em>{used(usage[t.id] ?? 0)}</em>
-                        <button type="button" className="tk-abtn" aria-label={`Edit ${t.label}`} onClick={() => setEditing(t.id)}>
+                      <li key={t.id} className="tgm-row">
+                        <Dot hue={kbTagHue(t.color)} />
+                        <b className="tgm-name">{t.label}</b>
+                        <span className="tgm-used">{used(usage[t.id] ?? 0)}</span>
+                        <Button kind="quiet" size={32} aria-label={`Edit ${t.label}`} onClick={() => setEditing(t.id)}>
                           Edit
-                        </button>
-                        <button type="button" className="tk-abtn dan" aria-label={`Remove ${t.label}`} onClick={() => setConfirming(t)}>
+                        </Button>
+                        <Button kind="quiet" size={32} className="tgm-rm" aria-label={`Remove ${t.label}`} onClick={() => setConfirming(t)}>
                           Remove
-                        </button>
-                      </div>
+                        </Button>
+                      </li>
                     )
-                  )
-                )}
-              </div>
-            ))
-          )}
-        </div>
-
-        <footer className="tk-shft">
-          <button type="button" className="tk-btn primary" onClick={onClose}>
-            Done
-          </button>
-        </footer>
-      </aside>
-    </>,
-    document.body
+                  )}
+                </ul>
+              )}
+            </section>
+          ))
+        )}
+      </div>
+    </Dialog>
   );
 }
 
 const used = (n: number) => `${n} ${n === 1 ? "document" : "documents"}`;
+
+const KIND_OPTIONS = KB_TAG_KINDS.map((k) => ({ value: k, label: KB_TAG_KIND_LABELS[k] }));
 
 /* ── making one from here ────────────────────────────────────────────────── */
 
@@ -186,8 +161,8 @@ function NewTag({ onDone }: { onDone: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, start] = useTransition();
 
-  // until somebody picks one, the swatch shown is the one the server would
-  // choose anyway — so the preview is honest rather than a placeholder grey
+  // until somebody picks one, the disc chosen is the one the server would
+  // choose anyway, so the preview is honest rather than a placeholder grey
   const shown = color ?? kbTagColorFor(kbTagLabel(label) || "tag");
 
   const save = () =>
@@ -206,41 +181,28 @@ function NewTag({ onDone }: { onDone: () => void }) {
   return (
     <div className="tgm-new">
       <div className="tgm-nrow">
-        <span className="tgm-d" style={{ background: shown }} />
-        <input
-          className="tk-fi"
-          value={label}
-          aria-label="New tag name"
-          placeholder="New tag — a brand, a system type, a topic"
-          onChange={(e) => {
-            setLabel(e.target.value);
-            setError(null);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && label.trim()) save();
-          }}
-        />
-        <button type="button" className="tk-btn primary" disabled={busy || !label.trim()} onClick={save}>
-          <Icon name="plus" size={14} />
-          Add
-        </button>
+        <Field label="New tag" error={error}>
+          <TextInput
+            value={label}
+            data-autofocus
+            onChange={(e) => {
+              setLabel(e.target.value);
+              setError(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && label.trim()) save();
+            }}
+          />
+        </Field>
+        <Button disabled={busy || !label.trim()} onClick={save}>
+          Add tag
+        </Button>
       </div>
-      <div className="tgm-nopt">
-        {KB_TAG_KINDS.map((k) => (
-          <button
-            key={k}
-            type="button"
-            className={`tgp-t${kind === k ? " on" : ""}`}
-            aria-pressed={kind === k}
-            style={{ "--tgc": shown } as React.CSSProperties}
-            onClick={() => setKind(k)}
-          >
-            {KB_TAG_KIND_LABELS[k]}
-          </button>
-        ))}
-        <ColorSwatches value={shown} onChange={setColor} label="New tag colour" />
+      <div className="pt-field">
+        <span className="pt-field-label">Kind</span>
+        <Tray options={KIND_OPTIONS} value={kind} onChange={setKind} ariaLabel="New tag kind" />
       </div>
-      {error && <p className="tgp-err">{error}</p>}
+      <ColourDiscs value={shown} onChange={setColor} label="New tag colour" />
     </div>
   );
 }
@@ -275,10 +237,8 @@ function EditTag({
 
   return (
     <div className="tgm-edit">
-      <div className="tgm-nrow">
-        <span className="tgm-d" style={{ background: color }} />
-        <input
-          className="tk-fi"
+      <Field label="Name" error={error}>
+        <TextInput
           value={label}
           aria-label={`Rename ${tag.label}`}
           onChange={(e) => {
@@ -286,31 +246,19 @@ function EditTag({
             setError(null);
           }}
         />
+      </Field>
+      <div className="pt-field">
+        <span className="pt-field-label">Kind</span>
+        <Tray options={KIND_OPTIONS} value={kind} onChange={setKind} ariaLabel={`Kind for ${tag.label}`} />
       </div>
-      <div className="tgm-nopt">
-        {KB_TAG_KINDS.map((k) => (
-          <button
-            key={k}
-            type="button"
-            className={`tgp-t${kind === k ? " on" : ""}`}
-            aria-pressed={kind === k}
-            style={{ "--tgc": color } as React.CSSProperties}
-            onClick={() => setKind(k)}
-          >
-            {KB_TAG_KIND_LABELS[k]}
-          </button>
-        ))}
-        <ColorSwatches value={color} onChange={setColor} label={`Colour for ${tag.label}`} />
-      </div>
-      {error && <p className="tgp-err">{error}</p>}
+      <ColourDiscs value={color} onChange={setColor} label={`Colour for ${tag.label}`} />
       <div className="tgm-cbtn">
-        <button type="button" className="tk-btn ghost" onClick={onClose}>
+        <Button kind="quiet" size={32} onClick={onClose}>
           Cancel
-        </button>
-        <button type="button" className="tk-btn primary" disabled={busy || !label.trim()} onClick={save}>
-          <Icon name="save" size={14} />
-          Save
-        </button>
+        </Button>
+        <Button size={32} disabled={busy || !label.trim()} onClick={save}>
+          Save tag
+        </Button>
       </div>
     </div>
   );

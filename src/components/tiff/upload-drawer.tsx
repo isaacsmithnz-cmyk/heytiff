@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
-import { Tooltip } from "@/components/parts/tooltip";
+import { Dialog } from "@/components/parts/dialog";
+import { Button } from "@/components/parts/button";
+import { Chooser } from "@/components/parts/chooser";
+import { Field, TextInput } from "@/components/parts/field";
+import { Fade } from "@/components/parts/fade";
+import { Dot, StateWord } from "@/components/parts/state";
 import { KB_CATEGORIES } from "./kb";
-import { TagPicker } from "./tag-picker";
+import { TagField } from "./tag-picker";
 import {
   checkKbUpload,
   fmtResets,
@@ -20,11 +24,9 @@ import { guessKbTags, type KbTagRef } from "@/lib/tiff/tags";
 import { uploadKbFile } from "@/lib/tiff/upload-client";
 import type { KbIngestProgress } from "@/lib/tiff/use-kb-ingest";
 
-/* Adding manuals — a drawer over the library, not a page away from it.
-
-   PORTALLED TO <body>, like every overlay in the dashboard: `.page.in` sets
-   will-change, which traps position:fixed inside the shell and would pin the
-   sheet to the scrolled page instead of the viewport.
+/* Adding manuals — a dialog over the library, not a page away from it (the
+   old-modals mock, 27 October 2026: the side sheet became the Dialog part,
+   centred like every other form, rule 51).
 
    ONE FILE AT A TIME, START TO FINISH. Uploads are sequential rather than
    parallel because the reading that follows them is: the page allowance is
@@ -33,9 +35,9 @@ import type { KbIngestProgress } from "@/lib/tiff/use-kb-ingest";
    pretending otherwise.
 
    CLOSING IS NOT CANCELLING. Everything handed over is already a row with a
-   bookmark, and the library drives it whether this drawer is open or not. The
-   scrim is held shut only while bytes are actually moving, because THAT is the
-   part a closed tab would lose. */
+   bookmark, and the library drives it whether this dialog is open or not.
+   Close, the scrim and Escape are held only while bytes are actually moving,
+   because THAT is the part a closed tab would lose. */
 
 type Phase = "queued" | "uploading" | "handed" | "error";
 
@@ -100,27 +102,7 @@ export function UploadDrawer({
   const [known, setKnown] = useState<KbTagRef[]>(tags);
   const [over, setOver] = useState(false);
   const [running, setRunning] = useState(false);
-  /* The Escape listener is bound once; without a ref it would forever read the
-     `running` of the render that bound it, which is always false. */
-  const runningRef = useRef(false);
-  useEffect(() => {
-    runningRef.current = running;
-  }, [running]);
   const picker = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      // an upload in flight lives in THIS component; Escape would unmount it
-      if (e.key === "Escape" && !runningRef.current) onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [onClose]);
 
   const add = (files: FileList | File[] | null) => {
     if (!files) return;
@@ -188,43 +170,42 @@ export function UploadDrawer({
       ? "Upload documents"
       : `Upload ${ready.length} ${ready.length === 1 ? "document" : "documents"}`;
 
-  const closeBtn = (
-    <button
-      type="button"
-      className="tk-shx"
-      aria-label="Close"
-      disabled={running}
-      onClick={() => {
-        if (!running) onClose();
-      }}
-    >
-      <Icon name="x" size={15} />
-    </button>
-  );
+  /* Closing is held while bytes are moving: Close, the scrim and Escape all
+     wait, because this component IS the upload. */
+  const close = () => {
+    if (!running) onClose();
+  };
 
-  if (typeof document === "undefined") return null;
-  return createPortal(
-    <>
-      <div
-        className="tk-scrim"
-        onClick={() => {
-          if (!running) onClose();
-        }}
-      />
-      <aside className="tk-sheet" role="dialog" aria-modal="true" aria-label="Add documents">
-        <header className="tk-shtop">
-          <div>
-            <h2>Add documents</h2>
-            <p>
-              PDFs up to 50 MB. Tiff reads every page it can, then answers from them.
-              {large &&
-                (large.left > 0
-                  ? ` A whole data book can go up to 150 MB: ${large.left} of ${KB_LARGE_PER_MONTH} large uploads left this month.`
-                  : ` This month's ${KB_LARGE_PER_MONTH} large uploads (up to 150 MB) are used; more from ${fmtResets(large.resetsOn)}.`)}
-            </p>
-          </div>
-          {running ? <Tooltip label="Uploading; this closes when the files have landed">{closeBtn}</Tooltip> : closeBtn}
-        </header>
+  return (
+    <Dialog
+      heading="Add documents"
+      width={720}
+      onClose={close}
+      dismissable={!running}
+      foot={
+        <>
+          {/* It used to say "Hide" while running, which promised a drawer you
+              could come back to — but this component IS the upload, so
+              closing it destroyed the progress and left a row nothing could
+              see. It stays shut until the files have landed. */}
+          <Button kind="quiet" disabled={running} onClick={close}>
+            Close
+          </Button>
+          <Button kind="main" disabled={running || ready.length === 0} onClick={() => void startUploads()}>
+            {label}
+          </Button>
+        </>
+      }
+    >
+      <div className="tk-up">
+        <p className="tk-upfact">
+          PDFs up to 50 MB
+          {large
+            ? large.left > 0
+              ? `; ${large.left} of ${KB_LARGE_PER_MONTH} large uploads, up to 150 MB, left this month.`
+              : `. This month's ${KB_LARGE_PER_MONTH} large uploads (up to 150 MB) are used; more from ${fmtResets(large.resetsOn)}.`
+            : "."}
+        </p>
 
         <div
           className={`tk-drop${over ? " over" : ""}`}
@@ -239,12 +220,11 @@ export function UploadDrawer({
             add(e.dataTransfer?.files ?? null);
           }}
         >
-          <Icon name="upload" size={26} />
+          <span className="tk-dropic" aria-hidden="true">
+            <Icon name="upload" size={20} />
+          </span>
           <b>Drop PDFs here</b>
-          <span>or pick them from your computer</span>
-          <button type="button" className="tk-btn ghost" onClick={() => picker.current?.click()}>
-            Choose files
-          </button>
+          <Button onClick={() => picker.current?.click()}>Choose files</Button>
           <input
             ref={picker}
             type="file"
@@ -259,7 +239,7 @@ export function UploadDrawer({
         </div>
 
         {items.length > 0 && (
-          <div className="tk-files">
+          <ul className="tk-files" aria-label="Documents to add">
             {items.map((item) => (
               <FileRow
                 key={item.key}
@@ -273,30 +253,10 @@ export function UploadDrawer({
                 onRemove={() => setItems((list) => list.filter((i) => i.key !== item.key))}
               />
             ))}
-          </div>
+          </ul>
         )}
-
-        <footer className="tk-shft">
-          {/* It used to say "Hide" while running, which promised a drawer you
-              could come back to — but this component IS the upload, so closing
-              it destroyed the progress and left a row nothing could see. It
-              stays shut until the files have landed. */}
-          <button type="button" className="tk-btn ghost" disabled={running} onClick={onClose}>
-            Close
-          </button>
-          <button
-            type="button"
-            className="tk-btn primary"
-            disabled={running || ready.length === 0}
-            onClick={() => void startUploads()}
-          >
-            <Icon name="upload" size={15} />
-            {label}
-          </button>
-        </footer>
-      </aside>
-    </>,
-    document.body
+      </div>
+    </Dialog>
   );
 }
 
@@ -315,139 +275,81 @@ function FileRow({
   onCreatedTag: (tag: KbTagRef) => void;
   onRemove: () => void;
 }) {
-  const colour = KB_CATEGORIES.find((c) => c.key === item.category)?.color ?? "var(--q)";
+  const hue = item.invalid ? "grey" : (KB_CATEGORIES.find((c) => c.key === item.category)?.hue ?? "grey");
   const editable = item.phase === "queued" && !item.invalid;
 
   return (
-    <div className={`tk-file${item.invalid ? " bad" : ""}`}>
+    <li className={`tk-file${editable ? " open" : ""}`}>
       <div className="tk-fhd">
-        <span className="tk-dot" style={{ background: colour }} />
-        <b>{item.file.name}</b>
-        <em>{fmtSize(item.file.size)}</em>
-        {item.phase === "queued" && (
-          <button type="button" className="tk-abtn dan" aria-label={`Remove ${item.file.name}`} onClick={onRemove}>
-            Remove
-          </button>
+        <Dot hue={hue} />
+        <b className="tk-fname">
+          <Fade>{item.file.name}</Fade>
+        </b>
+        {(editable || item.invalid) && <span className="tk-fsize">{fmtSize(item.file.size)}</span>}
+        {editable ? (
+          <Button kind="quiet" size={32} className="tk-frm" aria-label={`Remove ${item.file.name}`} onClick={onRemove}>
+            Remove file
+          </Button>
+        ) : item.invalid ? (
+          <>
+            <StateWord tone="wrong">{item.invalid}</StateWord>
+            <Button kind="quiet" size={32} className="tk-frm" aria-label={`Remove ${item.file.name}`} onClick={onRemove}>
+              Remove file
+            </Button>
+          </>
+        ) : (
+          <FileProgress item={item} progress={progress} />
         )}
       </div>
 
-      {item.invalid ? (
-        <p className="tk-frr">{item.invalid}</p>
-      ) : editable ? (
-        <>
+      {editable && (
         <div className="tk-fform">
-          <label className="tk-ff span">
-            <span>Title</span>
-            <input
-              className="tk-fi"
-              value={item.title}
-              onChange={(e) => onChange({ title: e.target.value })}
-            />
-          </label>
-          <label className="tk-ff">
-            <span>Category</span>
-            <select
-              className="tk-fi"
+          <Field label="Title">
+            <TextInput value={item.title} onChange={(e) => onChange({ title: e.target.value })} />
+          </Field>
+          <Field label="Category">
+            {/* Field notes are WRITTEN, never uploaded — they come from the
+                note widget's review card. Offering the shelf here would
+                invite a PDF into a category whose whole meaning is "a
+                person said this on a job". */}
+            <Chooser
               value={item.category}
-              onChange={(e) => onChange({ category: e.target.value as KbCategory })}
-            >
-              {/* Field notes are WRITTEN, never uploaded — they come from the
-                  note widget's review card. Offering the shelf here would
-                  invite a PDF into a category whose whole meaning is "a
-                  person said this on a job". */}
-              {KB_CATEGORIES.filter((c) => c.key !== "field").map((c) => (
-                <option key={c.key} value={c.key}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="tk-ff">
-            <span>Source</span>
-            <input
-              className="tk-fi"
-              placeholder="Brand or author (optional)"
-              value={item.source}
-              onChange={(e) => onChange({ source: e.target.value })}
+              onChange={(v) => onChange({ category: v as KbCategory })}
+              options={KB_CATEGORIES.filter((c) => c.key !== "field").map((c) => ({ value: c.key, label: c.label }))}
             />
-          </label>
+          </Field>
+          <Field label="Source">
+            <TextInput placeholder="Brand or author" value={item.source} onChange={(e) => onChange({ source: e.target.value })} />
+          </Field>
+          {/* `onCreated` only has the dialog's shared list to update — the
+              field ticks a tag it just made onto this file itself. */}
+          <div className="tk-fspan">
+            <TagField tags={tags} value={item.tagIds} onChange={(tagIds) => onChange({ tagIds })} onCreated={onCreatedTag} />
+          </div>
         </div>
-        {/* `onCreated` only has the drawer's shared list to update — the
-            picker ticks a tag it just made onto this file itself. */}
-        <TagPicker
-          variant="sheet"
-          tags={tags}
-          value={item.tagIds}
-          onChange={(tagIds) => onChange({ tagIds })}
-          onCreated={onCreatedTag}
-        />
-        </>
-      ) : (
-        <FileProgress item={item} progress={progress} />
       )}
-    </div>
+    </li>
   );
 }
 
+/* Where a file is up to, as a state word on its row (rule 17): grey while it
+   goes up and is read, green once Tiff can quote it, orange when it waits on
+   the month's pages, red when it failed. */
 function FileProgress({ item, progress }: { item: Pending; progress?: KbIngestProgress }) {
-  if (item.phase === "uploading") {
-    return (
-      <p className="tk-fst work">
-        Uploading the document
-      </p>
-    );
-  }
-
-  if (item.phase === "error") {
-    return (
-      <p className="tk-fst dan">
-        <Icon name="alert" size={13} />
-        {item.error ?? "That upload didn't finish."}
-      </p>
-    );
-  }
-
-  if (!progress) {
-    return (
-      <p className="tk-fst work">
-        Queued for reading
-      </p>
-    );
-  }
-
+  if (item.phase === "uploading") return <StateWord tone="info">Uploading the document</StateWord>;
+  if (item.phase === "error") return <StateWord tone="wrong">{item.error ?? "That upload didn't finish."}</StateWord>;
+  if (!progress) return <StateWord tone="info">Queued for reading</StateWord>;
   if (progress.status === "processing") {
     const known = progress.pageCount !== null && progress.pageCount > 0;
     return (
-      <p className="tk-fst work">
+      <StateWord tone="info">
         {known
           ? `Reading ${progress.pagesDone.toLocaleString("en-AU")} of ${progress.pageCount!.toLocaleString("en-AU")} pages`
           : "Reading the document"}
-      </p>
+      </StateWord>
     );
   }
-
-  if (progress.status === "paused") {
-    return (
-      <p className="tk-fst warn">
-        <Icon name="clock" size={13} />
-        Out of pages this month — it resumes on its own
-      </p>
-    );
-  }
-
-  if (progress.status === "failed") {
-    return (
-      <p className="tk-fst dan">
-        <Icon name="alert" size={13} />
-        {progress.error ?? "That document couldn't be read."}
-      </p>
-    );
-  }
-
-  return (
-    <p className="tk-fst ok">
-      <Icon name="check" size={13} />
-      Ready — Tiff can quote it
-    </p>
-  );
+  if (progress.status === "paused") return <StateWord tone="look">Out of pages this month, it resumes on its own</StateWord>;
+  if (progress.status === "failed") return <StateWord tone="wrong">{progress.error ?? "That document couldn't be read."}</StateWord>;
+  return <StateWord tone="good">Ready, Tiff can quote it</StateWord>;
 }

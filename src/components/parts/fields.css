@@ -82,6 +82,8 @@
 .pt-menu-hint { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
 .pt-menu-count { flex:none; font-size:13px; line-height:18px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
 .pt-menu-empty { padding:8px; font-size:14px; line-height:20px; color:var(--q); }
+/* a group's label above its first item (12, the captions' floor) */
+.pt-menu-group { padding:8px 8px 4px; font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
 /* New's panel (rule 44): dark, reaching out of the sidebar from the New
    button, square down the whole side where it leaves it (Isaac, 20 October:
    the bottom left "is curling up, it's not matching the design") */

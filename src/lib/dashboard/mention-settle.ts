@@ -11,6 +11,7 @@ import type { DiaryConversation, DiaryMessage } from "./diary-feed";
 import { asksIn, taskAfterReply } from "./mention-asks";
 import { listMyMentions } from "./mentions-query";
 import { logTaskEvent, missingTable } from "./task-events";
+import { pushToStaff } from "@/lib/mobile/push";
 
 /* ONE TASK PER ASK — the settle. Server only.
 
@@ -586,6 +587,13 @@ export async function settleMentionAsks(
     out.tasks += 1;
     await logTaskEvent(orgId, taskId, null, { kind: "created", to: r.staffId });
     await shareWithSiblings(m.id, taskId, res.read.title);
+    /* their phone hears it, opening the job the note is on (lib/mobile/push:
+       best effort, never in the way of the read) */
+    await pushToStaff(orgId, [r.staffId], {
+      title: c.jobLabel ? `${c.asker.name} on ${c.jobLabel}` : `${c.asker.name} asked you`,
+      body: res.read.title,
+      path: `/job?id=${encodeURIComponent(c.jobUuid)}`,
+    });
     rows.set(key, {
       ...(rows.get(key) ?? blank(held.id, r.staffId, m.id)),
       status: "read",

@@ -256,7 +256,7 @@ export async function giveTask(taskId: string, staffId: string): Promise<DashRes
 
   const { data } = await supabaseAdmin
     .from("tasks")
-    .select("assigned_to, status")
+    .select("assigned_to, status, title")
     .eq("org_id", ctx.orgId)
     .eq("id", taskId)
     .maybeSingle();
@@ -294,8 +294,28 @@ export async function giveTask(taskId: string, staffId: string): Promise<DashRes
     from: (data.assigned_to as string | null) ?? null,
     to,
   });
+  await ringTheirPhone(ctx.orgId, ctx.staffId, to, String(data.title ?? "").trim());
   refresh();
   return { ok: true };
+}
+
+/** The new assignee's phone hears it, after the answer (lib/mobile/push).
+    Both modules are reached lazily: the server's runtime and the sender come
+    with them, which nothing else here needs, and a phone never stands in the
+    way of the task being given. */
+async function ringTheirPhone(orgId: string, giver: string | null, to: string, title: string): Promise<void> {
+  try {
+    const [{ after }, { pushToStaff }] = await Promise.all([import("next/server"), import("@/lib/mobile/push")]);
+    after(async () => {
+      const { data: who } = giver
+        ? await supabaseAdmin.from("staff_profiles").select("full_name").eq("org_id", orgId).eq("id", giver).maybeSingle()
+        : { data: null };
+      const name = (who as { full_name: string | null } | null)?.full_name?.trim();
+      await pushToStaff(orgId, [to], { title: name ? `${name} gave you a task` : "A task for you", body: title || null });
+    });
+  } catch (err) {
+    console.error(`[push] couldn't ring the phone for a task in org ${orgId}: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 /** Tick a task done. Your own to-do, or `team` closing one out.

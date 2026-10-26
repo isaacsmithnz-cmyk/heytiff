@@ -4,9 +4,11 @@ import {
   customerFeed,
   htmlToText,
   openingPattern,
+  pairClaims,
   phoneKey,
   templateMarked,
   withoutEchoes,
+  withoutQuoted,
   type CustomerSend,
   type CustomerThread,
   type ThreadBubble,
@@ -204,9 +206,33 @@ describe("the feed's own rows", () => {
 });
 
 describe("the words", () => {
+  /* the walk of 26 October 2026: ServiceM8's text part read "Luke Ingold61457301636" */
+  it("keeps a signature's lines apart, as its HTML has them", () => {
+    expect(
+      htmlToText(
+        'Regards,</span><br /><br /><font size="2">Luke Ingold</font><div><font size="2"><span>61457301636</span><br /><span>Operations Manager</span></font></div><img src="x">',
+      ),
+    ).toBe("Regards,\n\nLuke Ingold\n61457301636\nOperations Manager");
+  });
+
+  it("reads the source's own line breaks as spaces, entities as their characters, and three breaks as two", () => {
+    expect(htmlToText("<p>I hope you&rsquo;ve been\r\nwell.</p>\r\n\r\n<p><br />\r\n<br />\r\nAll the best,<br />\r\nAcme&nbsp;Air &#8211; &#x2713;</p>")).toBe(
+      "I hope you’ve been well.\n\nAll the best,\nAcme Air – ✓",
+    );
+  });
+
+  it("cuts a reply's quote of what came before it, as a mail program heads it", () => {
+    const reply = htmlToText(
+      '<div>Thanks, Dana, just got the text.</div><div><br /></div><div>Marco</div><hr /><div><b>From:</b> Marco Rossi <br /><b>Sent:</b> Tuesday, 6 October 2026 10:03<br /><b>Subject:</b> Re: Your Quote</div><div><p>Hi Dana,</p></div>',
+    );
+    expect(withoutQuoted(reply)).toBe("Thanks, Dana, just got the text.\n\nMarco");
+    expect(withoutQuoted("Sounds good\n\nOn Tue, 6 Oct 2026 at 9:31 am, Dana Lee <dana@example.com> wrote:\n> Hi Marco")).toBe("Sounds good");
+    expect(withoutQuoted("From: the shop floor, all good")).toBe("From: the shop floor, all good");
+  });
+
   it("reads an email's HTML as text only, never as HTML", () => {
     expect(htmlToText('<p>Hi&nbsp;Marco,</p><p>See <b>below</b><br>Thanks &amp; regards</p><script>alert(1)</script><img src="x" onerror="y">')).toBe(
-      "Hi Marco,\nSee below\nThanks & regards",
+      "Hi Marco,\n\nSee below\nThanks & regards",
     );
   });
 
@@ -214,5 +240,44 @@ describe("the words", () => {
     expect(phoneKey("+61410585813")).toBe("0410585813");
     expect(phoneKey("0410 585 813")).toBe("0410585813");
     expect(phoneKey(null)).toBeNull();
+  });
+});
+
+describe("an invoice said once (the walk of 26 October 2026)", () => {
+  const claim = (over: Partial<Extract<StoryEntry, { kind: "claim" }>> = {}): StoryEntry => ({
+    kind: "claim",
+    key: "claim:c2:raised",
+    day: "2026-10-20",
+    at: null,
+    event: "raised",
+    remoteId: "c2",
+    title: "Payment 2, Final",
+    jobNumber: "3372",
+    amountCents: 1320000,
+    isFinal: true,
+    ...over,
+  });
+  const invoice = () => sends().find((s) => s.sort === "invoice")!;
+
+  it("is the send's row when the claim raised that day is worth the same", () => {
+    const story = [claim()];
+    expect(pairClaims(story, feed()).get(invoice().key)?.remoteId).toBe("c2");
+    expect(withoutEchoes(story, feed())).toEqual([]);
+  });
+
+  it("matches by the claim's number where the send says no amount, or another", () => {
+    const f = fixture3372();
+    const emailOnly = customerFeed([f[14]!], { customer: "Marco", money: true });
+    expect((emailOnly[0] as CustomerSend).amountCents).toBeNull();
+    expect((emailOnly[0] as CustomerSend).refs).toContain("3372");
+    expect(pairClaims([claim()], emailOnly).size).toBe(1);
+    expect(pairClaims([claim({ amountCents: 900000 })], feed()).size).toBe(1);
+  });
+
+  it("leaves both where neither the amount nor the number agrees, or the day differs", () => {
+    expect(pairClaims([claim({ amountCents: 900000, jobNumber: "3372A" })], feed()).size).toBe(0);
+    expect(pairClaims([claim({ day: "2026-10-21" })], feed()).size).toBe(0);
+    const story = [claim({ amountCents: 900000, jobNumber: "3372A" })];
+    expect(withoutEchoes(story, feed())).toEqual(story);
   });
 });

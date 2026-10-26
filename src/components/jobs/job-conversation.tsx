@@ -30,7 +30,7 @@ import { conversationDays, stampClock, type JobNoteTalk, type MadeCard, type Mad
 import type { FlagState } from "@/lib/integrations/sm8-note-plan";
 import type { NoteSender } from "@/lib/integrations/links";
 import { JobSection } from "./job-section";
-import { CommsView, CustomerSendRow, CustomerThreadView } from "./customer-thread";
+import { CommsView, CustomerSendRow, CustomerThreadView, FileDoor } from "./customer-thread";
 import { pairClaims, withoutEchoes, type CommsThread, type CustomerItem } from "@/lib/jobs/customer-messages";
 
 /* THE JOB'S ACTIVITY FEED (v2, step 6, slice A; the board JC-1; laid out
@@ -122,7 +122,12 @@ export type ConversationDiary = {
   onQuote?: () => void;
   /** The job's number, for that entry's button: "Open quote #3385". */
   jobNumber?: string | null;
+  /** How the page opens one of the job's files by its ServiceM8 uuid, in
+      the viewer its Documents and Photos use; null where it can't. */
+  openFile?: (id: string) => (() => void) | null;
 };
+
+const NO_FILE = () => null;
 
 /** A flag's tone, in the state words' own (rule 17). */
 const FLAG_TONE: Record<string, Tone> = { ok: "good", warn: "look", bad: "wrong" };
@@ -411,6 +416,7 @@ export function JobConversation({
 
   return (
     <UndoTalk.Provider value={undoTalk ? { undo: undoTalk, busy: undoing } : null}>
+    <FileDoor.Provider value={diary.openFile ?? NO_FILE}>
     <JobSection name="Activity feed" icon="chat" hue="green" className="jc-convo" action={tabs}>
       <div className="jc-foot">
         <CvBox
@@ -549,6 +555,7 @@ export function JobConversation({
         ))}
       </div>
     </JobSection>
+    </FileDoor.Provider>
     </UndoTalk.Provider>
   );
 }

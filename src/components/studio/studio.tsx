@@ -42,6 +42,7 @@ import {
   noteGesture,
   readTrail,
 } from "@/lib/studio/reload-breadcrumb";
+import { noteKeptDesign } from "./studio-keeper";
 import { RemoteDesignStore } from "@/lib/studio/remote-store";
 import { History } from "@/lib/studio/history";
 import {
@@ -488,7 +489,12 @@ export function Studio({
   const arriving = Boolean(openDesignId) && !arrived;
   const openedOnce = useRef(false);
   useEffect(() => {
-    if (!openDesignId || openedOnce.current) return;
+    /* `arrived` too: the studio is kept alive behind other tabs
+       (studio-keeper.tsx), and coming back re-runs this effect after its
+       cleanup let a re-run through; once the arrival has settled, the link
+       has been answered and the design open now is whatever was chosen
+       since */
+    if (!openDesignId || openedOnce.current || arrived) return;
     openedOnce.current = true;
     let live = true;
     void getStore()
@@ -509,7 +515,7 @@ export function Studio({
          named in the URL silently never opens. */
       openedOnce.current = false;
     };
-  }, [openDesignId, getStore, openDesign]);
+  }, [openDesignId, getStore, openDesign, arrived]);
 
   /* ── the URL says which design is open ──
 
@@ -558,9 +564,15 @@ export function Studio({
   /* the stamp as it was at mount — a document boots once, so the effect must
      not re-run, and a ref says that without silencing the dependency rule */
   const stampAtMount = useRef(buildStamp);
+  /* once per studio, not per showing: kept alive behind other tabs, the
+     studio's effects re-run each time it comes back, and that is not a boot */
+  const bootNoted = useRef(false);
   useEffect(() => {
-    setBuildStamp(stampAtMount.current);
-    noteBoot();
+    if (!bootNoted.current) {
+      bootNoted.current = true;
+      setBuildStamp(stampAtMount.current);
+      noteBoot();
+    }
     window.__htDiag = readTrail;
     const gesture = () => noteGesture();
     window.addEventListener("pointerdown", gesture, { passive: true });
@@ -580,6 +592,9 @@ export function Studio({
   }, [openId]);
   useEffect(() => {
     if (!arrived) return;
+    /* told first, so the keeper and the address agree the moment the
+       address changes */
+    noteKeptDesign(openId);
     try {
       const here = new URL(window.location.href);
       // `get` already answers null when absent, so this needs no `??`

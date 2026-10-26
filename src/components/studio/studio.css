@@ -66,6 +66,10 @@
    other dashboard pages keep their stable gutter. The dark frame itself (.fg /
    .fg .main padding) is untouched. */
 .fg .outlet:has(.dstudio) { scrollbar-gutter: auto; }
+/* Design's studio is drawn beside the pages, kept alive behind other tabs
+   (studio-keeper.tsx): while it shows, the page's own outlet holds only the
+   hold, and steps aside */
+html[data-studio-kept] .fg main.outlet { display: none; }
 
 /* ── FULLSCREEN — the Workboard's display mode, ported (see .ds-fsbtn) ──
    The same subtractive definition: sidebar, topbar and the frame's ambient fx

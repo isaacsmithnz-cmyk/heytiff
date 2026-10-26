@@ -624,15 +624,102 @@ it("draws a send nobody answered as Emailed, its first words after it, apart", (
   expect(text.children[1]).toHaveTextContent(/^I hope you've been well/);
 });
 
-it("opens the whole message from its bubble, read only, as plain text", async () => {
-  draw({ customer: customer() });
-  await userEvent.click(screen.getByRole("button", { name: /^Thanks, Dana, just got the text/ }));
-  const dialog = screen.getByRole("dialog", { name: "Re: Your Quote from Acme Air (Ref #3372)" });
-  expect(within(dialog).getByText("Thanks, Dana, just got the text re 2pm visit.")).toHaveClass("cmsg-words");
-  expect(within(dialog).getByText("Tue 6 Oct, 11:06 am")).toBeInTheDocument();
-  expect(within(dialog).queryByRole("textbox")).toBeNull();
-  await userEvent.click(within(dialog).getByRole("button", { name: "Close" }));
-  expect(screen.queryByRole("dialog")).toBeNull();
+/* THE WORDS' HEIGHT, as a browser would measure it: jsdom lays nothing
+   out, so a message is "long" here by its words, as Fade's own tests stub
+   the measure. A bubble's words over 16 lines of 22 are clamped. */
+const LONG = "LONG:";
+const measured = () => {
+  const was = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollHeight");
+  Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+    configurable: true,
+    get(this: HTMLElement) {
+      return this.classList.contains("jc-bubwords") && (this.textContent ?? "").startsWith(LONG) ? 22 * 20 : 22 * 3;
+    },
+  });
+  return () => {
+    if (was) Object.defineProperty(HTMLElement.prototype, "scrollHeight", was);
+  };
+};
+
+/* Isaac, 26 October 2026: "that whole thing should probably show in the
+   thread. Anything longer than that, I would say have the dots" */
+it("shows a message that fits in sixteen lines whole, with no dots", () => {
+  const undo = measured();
+  try {
+    draw({ customer: customer() });
+    expect(document.querySelector(".jc-bubwords--clamped")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Show the whole message" })).toBeNull();
+    /* the bubble isn't a button: its words are words */
+    expect(screen.getByText("Thanks, Dana, just got the text re 2pm visit.").closest("button")).toBeNull();
+  } finally {
+    undo();
+  }
+});
+
+it("clamps a longer one, and its dots open the whole message, read only, as plain text", async () => {
+  const undo = measured();
+  try {
+    const f = fixture3372();
+    const long = `${LONG} ${"The rest of a long email. ".repeat(40)}`;
+    draw({ customer: customerFeed([{ ...f[4]!, text: long }], { customer: "Marco", money: true }) });
+    const words = document.querySelector(".jc-bubwords") as HTMLElement;
+    expect(words).toHaveClass("jc-bubwords--clamped");
+    const dots = screen.getByRole("button", { name: "Show the whole message" });
+    expect(dots).toHaveTextContent("•••");
+    expect(dots.closest(".jc-bubble")).not.toBeNull();
+    await userEvent.click(dots);
+    const dialog = screen.getByRole("dialog", { name: "Re: Your Quote from Acme Air (Ref #3372)" });
+    expect(within(dialog).getByText(/^LONG: The rest of a long email/).closest(".cmsg-words")).not.toBeNull();
+    expect(within(dialog).getByText("Tue 6 Oct, 11:06 am")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("textbox")).toBeNull();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  } finally {
+    undo();
+  }
+});
+
+it("makes a web address in a bubble a link, its full stop outside it, and leaves javascript: and mailto: as words", () => {
+  const f = fixture3372();
+  draw({
+    customer: customerFeed([{ ...f[4]!, text: "Pay it at https://sm8.link/fa2w. Not javascript:alert(1) or mailto:marco@example.com" }], { customer: "Marco", money: true }),
+  });
+  const link = screen.getByRole("link", { name: "https://sm8.link/fa2w" });
+  expect(link).toHaveAttribute("href", "https://sm8.link/fa2w");
+  expect(link).toHaveAttribute("target", "_blank");
+  expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  expect(link.nextSibling?.textContent).toMatch(/^\. Not javascript/);
+  expect(screen.getAllByRole("link")).toHaveLength(1);
+});
+
+/* Isaac, 26 October 2026: "It says that there's one attachment, but you can't actually click it" */
+it("lists what came with a message, a row each, and opens it where the job's documents open", async () => {
+  const f = fixture3372();
+  const opened: string[] = [];
+  draw({
+    customer: customerFeed(
+      [
+        {
+          ...f[6]!,
+          files: [
+            { id: "f-1", name: "Acme Air Quote #3372", type: ".pdf" },
+            { id: "f-2", name: "Site photo", type: ".jpg" },
+            { id: "f-3", name: null, type: null },
+          ],
+        },
+      ],
+      { customer: "Marco", money: true },
+    ),
+    d: diary({ openFile: (id) => (id === "f-3" ? null : () => opened.push(id)) }),
+  });
+  const rows = within(screen.getByRole("list", { name: "Attachments" })).getAllByRole("listitem");
+  expect(rows.map((r) => r.textContent)).toEqual(["Acme Air Quote #3372PDF", "Site photoJPG", "AttachmentNot synced yet"]);
+  await userEvent.click(within(rows[0]!).getByRole("button"));
+  await userEvent.click(within(rows[1]!).getByRole("button"));
+  expect(opened).toEqual(["f-1", "f-2"]);
+  /* not mirrored yet: greyed, and nothing to press */
+  expect(within(rows[2]!).queryByRole("button")).toBeNull();
+  expect(rows[2]!.querySelector(".jc-file--off")).not.toBeNull();
 });
 
 /* filled and grouped like iMessage (Isaac, 26 October 2026: "Deep green with white") */
@@ -656,9 +743,6 @@ it("fills each side's bubbles its own way, and says a run's name once above it a
   ]);
   expect(run.map((b) => b.querySelector(".jc-bmname")?.textContent ?? null)).toEqual(["Marco", null, "Dana"]);
   expect(run.map((b) => b.querySelector(".jc-bmtime")?.textContent ?? null)).toEqual([null, "10:01 am", "10:02 amSeen 10:05 am"]);
-  /* each bubble still opens the whole message */
-  await userEvent.click(screen.getByRole("button", { name: "First" }));
-  expect(screen.getByRole("dialog")).toHaveTextContent("First");
 });
 
 /* the walk of 26 October 2026: the 20 October invoice showed twice */

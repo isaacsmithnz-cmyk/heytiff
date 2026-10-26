@@ -51,6 +51,9 @@ const readJobRecord = jest.fn(async (): Promise<JobRecordRead | null> => null);
 /* The job's page mode draws its conversation, whose Add photo reaches the
    documents actions ("use server", which jsdom can't load). */
 jest.mock("@/app/actions/documents", () => ({ deleteDocument: jest.fn(async () => ({ ok: true })) }));
+/* the Overview's conversation read: nothing beyond the card's own record, unless a test says */
+const readJobConversation = jest.fn(async (): Promise<unknown> => null);
+jest.mock("@/app/actions/job-conversation", () => ({ readJobConversation: () => readJobConversation() }));
 jest.mock("@/app/actions/workboard", () => ({
   readMirrorJob: (...a: unknown[]) => readMirrorJob(...(a as [])),
   readClaim: (...a: unknown[]) => readClaim(...(a as [])),
@@ -387,6 +390,8 @@ beforeEach(() => {
   readClaim.mockResolvedValue(null);
   readJobFiles.mockReset();
   readJobRecord.mockReset();
+  readJobConversation.mockReset();
+  readJobConversation.mockResolvedValue(null);
   cacheJobFiles.mockReset();
   readMirrorJob.mockResolvedValue(card(null));
   readJobFiles.mockResolvedValue(null);
@@ -2387,6 +2392,52 @@ describe("files on the job", () => {
     expect(face("documents").queryByText(/Money/)).toBeNull();
     /* a PDF opens IN the page — the shared viewer's iframe, not a new tab */
     await userEvent.click(within(filesSec).getByRole("button", { name: "Builder plans rev C.pdf" }));
+    const dialog = await screen.findByRole("dialog", { name: "Builder plans rev C.pdf" });
+    expect(dialog.querySelector("iframe")!.getAttribute("src")).toBe("https://signed/d-2.pdf");
+  });
+
+  /* Isaac, 26 October 2026: "It says that there's one attachment, but you can't actually click it" */
+  it("opens a message's file from the feed in the same viewer the job's documents open in", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobFiles.mockResolvedValueOnce(
+      files({ documents: [file({ remoteId: "d-2", name: "Builder plans rev C.pdf", fileType: ".pdf", kind: "document", url: "https://signed/d-2.pdf" })] }),
+    );
+    readJobConversation.mockResolvedValueOnce({
+      today: "2026-10-13",
+      notes: [],
+      tasks: [],
+      viewer: { id: null, name: null },
+      customer: [
+        {
+          kind: "thread",
+          key: "thread:2026-10-12",
+          day: "2026-10-12",
+          at: "2026-10-12 10:00:00",
+          icon: "mail",
+          title: "Email with Josh",
+          subject: "Plans",
+          lines: [
+            {
+              kind: "bubble",
+              key: "msg:m1",
+              side: "them",
+              name: "Josh",
+              words: "Here are the plans",
+              last: true,
+              time: "10:00 am",
+              seen: null,
+              files: [{ id: "D-2", name: "Builder plans rev C", type: ".pdf" }],
+              full: { subject: "Plans", from: null, to: null, when: "Mon 12 Oct, 10:00 am", text: "Here are the plans", files: [] },
+            },
+          ],
+        },
+      ],
+      comms: [],
+    });
+    render(<Job row={row()} {...props} />);
+    await detailLanded();
+    const row1 = await convo().findByRole("list", { name: "Attachments" });
+    await userEvent.click(within(row1).getByRole("button", { name: /^Builder plans rev C/ }));
     const dialog = await screen.findByRole("dialog", { name: "Builder plans rev C.pdf" });
     expect(dialog.querySelector("iframe")!.getAttribute("src")).toBe("https://signed/d-2.pdf");
   });

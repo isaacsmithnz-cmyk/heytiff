@@ -1,11 +1,14 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import {
+  commsThreads,
   customerFeed,
   htmlToText,
+  isMoneySend,
   withoutQuoted,
   openingPattern,
   phoneKey,
   templateMarked,
+  type CommsThread,
   type CustomerItem,
   type CustomerMessage,
 } from "./customer-messages";
@@ -66,8 +69,21 @@ function countOf(v: unknown): number {
   }
 }
 
+/** The feed's rows and threads alone. */
 export async function readCustomerMessages(input: { orgId: string; jobUuid: string; money: boolean }): Promise<CustomerItem[]> {
-  const { orgId, jobUuid, money } = input;
+  return (await readCustomerConversation({ ...input, today: null })).items;
+}
+
+/** The feed's rows and threads (All), and every message as Comms shows it. */
+export async function readCustomerConversation(input: {
+  orgId: string;
+  jobUuid: string;
+  money: boolean;
+  /** the account's today, for Comms' "Today" and "Yesterday" */
+  today: string | null;
+}): Promise<{ items: CustomerItem[]; comms: CommsThread[] }> {
+  const none = { items: [], comms: [] };
+  const { orgId, jobUuid, money, today } = input;
   const { data, error } = await supabaseAdmin
     .from("sm8_job_messages")
     .select("uuid, kind, direction, raw")
@@ -75,9 +91,9 @@ export async function readCustomerMessages(input: { orgId: string; jobUuid: stri
     .eq("related_object_uuid", jobUuid)
     .order("raw->>timestamp", { ascending: false })
     .limit(LIMIT);
-  if (error) return [];
+  if (error) return none;
   const rows = ((data ?? []) as Row[]).filter((r) => r.raw && (r.kind === "sms" || r.kind === "email"));
-  if (rows.length === 0) return [];
+  if (rows.length === 0) return none;
 
   const staffIds = [...new Set(rows.map((r) => str(r.raw!.sent_by_staff_uuid)).filter((x): x is string => !!x))];
   const [contactsRes, staffRes] = await Promise.all([
@@ -169,15 +185,18 @@ export async function readCustomerMessages(input: { orgId: string; jobUuid: stri
 
   const who =
     customer ?? firstName(anyContact?.first) ?? messages.find((m) => m.side === "them")?.from ?? messages.find((m) => m.side === "us")?.to ?? "the customer";
-  return customerFeed(
-    messages.filter((m) => m.stamp),
-    {
-      customer: who,
-      money,
-      staffOf: (m) => {
-        const id = (m as { staffUuid?: string | null }).staffUuid;
-        return id ? firstName(staff.get(id.toLowerCase())?.first) : null;
-      },
+  const dated = messages.filter((m) => m.stamp);
+  const items = customerFeed(dated, {
+    customer: who,
+    money,
+    staffOf: (m) => {
+      const id = (m as { staffUuid?: string | null }).staffUuid;
+      return id ? firstName(staff.get(id.toLowerCase())?.first) : null;
     },
-  );
+  });
+  /* COMMS: every message, ServiceM8's own as messages too; a quote or an
+     invoice of ServiceM8's, which says what the job is worth, only for a
+     reader who sees money */
+  const comms = commsThreads(money ? dated : dated.filter((m) => !isMoneySend(m)), { customer: who, today });
+  return { items, comms };
 }

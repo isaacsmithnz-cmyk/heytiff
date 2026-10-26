@@ -1,6 +1,7 @@
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { clock12 } from "@/lib/dashboard/task-record";
 import { fmtAud } from "@/lib/workboard/project-money";
+import { plusDays } from "@/lib/workboard/dates";
 import type { StoryEntry } from "@/lib/workboard/job-story";
 
 /* THE CUSTOMER'S TEXTS AND EMAILS IN A JOB'S ACTIVITY FEED (Isaac, 26
@@ -437,6 +438,95 @@ export function customerFeed(
 /** The feed's own rows ServiceM8's sends already say: a "Quote sent" or an
     "Invoice raised" on a day a quote or an invoice went out, so the job
     reads one row, not two. */
+/* ── Comms: every text and email, as a phone shows them ── */
+
+/** A line of a Comms thread: the day where it changes, or a message. */
+export type CommsLine = { kind: "day"; key: string; label: string } | ThreadBubble;
+
+/** A run of one channel, and for email one subject. */
+export type CommsThread = {
+  key: string;
+  channel: "sms" | "email";
+  subject: string | null;
+  lines: CommsLine[];
+};
+
+/** A ServiceM8 send that names what the job is worth: its quote or its invoice. */
+export function isMoneySend(m: CustomerMessage): boolean {
+  if (!(m.side === "us" && m.template)) return false;
+  const sort = sortOf(m);
+  return sort === "invoice" || sort === "quote";
+}
+
+const commsDay = (day: string, today: string | null) =>
+  today && day === today ? "Today" : today && day === plusDays(today, -1) ? "Yesterday" : fmtAuWeekdayDayMonth(day) || day;
+
+/** COMMS (Isaac, 26 October 2026, "Yes, build the Comms tab as mocked"):
+    every text and email with the customer, ServiceM8's own sends among them
+    as messages, oldest first like a phone. A thread is a run of one
+    channel, and for email one subject (Re: and Fwd: aside): a change of
+    either starts the next. The day is said where it changes from the
+    message before, across threads. A run is back-to-back messages from
+    one person in one thread on one day: the name above it, the time, the
+    papers and Seen under its last. Money: a reader who can't see what the
+    job is worth gets no ServiceM8 quote or invoice in it (the read leaves
+    them out, `isMoneySend`). */
+export function commsThreads(messages: readonly CustomerMessage[], opts: { customer: string; today: string | null }): CommsThread[] {
+  const all = [...messages].sort((a, b) => (a.stamp < b.stamp ? -1 : a.stamp > b.stamp ? 1 : 0));
+  const threads: CommsThread[] = [];
+  let lastKey: string | null = null;
+  let lastDay: string | null = null;
+  let speaker: string | null = null;
+  for (const m of all) {
+    const subject = m.kind === "email" ? bareSubject(m.subject) : null;
+    const key = `${m.kind}:${(subject ?? "").toLowerCase()}`;
+    if (key !== lastKey || threads.length === 0) {
+      threads.push({ key: `comms:${m.id}`, channel: m.kind, subject, lines: [] });
+      lastKey = key;
+      speaker = null;
+    }
+    const thread = threads.at(-1)!;
+    const day = dayOf(m.stamp);
+    if (day !== lastDay) {
+      thread.lines.push({ kind: "day", key: `day:${m.id}`, label: commsDay(day, opts.today) });
+      lastDay = day;
+      speaker = null;
+    }
+    const who = `${m.side}:${m.name ?? ""}`;
+    thread.lines.push({
+      kind: "bubble",
+      key: `msg:${m.id}`,
+      side: m.side,
+      name: who === speaker ? null : (m.name ?? (m.side === "them" ? opts.customer : "ServiceM8")),
+      words: m.text.trim().replace(/\n\s*\n+/g, "\n"),
+      last: true,
+      time: clockOf(m.stamp),
+      seen: seenWords(m),
+      attachments: m.attachments,
+      full: { subject: m.subject, from: m.from, to: m.to, when: `${fmtAuWeekdayDayMonth(day)}, ${clockOf(m.stamp)}`, text: m.text.trim() },
+    });
+    speaker = who;
+  }
+  for (const t of threads) {
+    t.lines.forEach((l, i) => {
+      const next = t.lines[i + 1];
+      if (l.kind === "bubble" && next?.kind === "bubble" && next.name === null) l.last = false;
+    });
+    /* a run's papers are said once, with its time, under its last bubble */
+    let papers = 0;
+    for (const l of t.lines) {
+      if (l.kind !== "bubble") {
+        papers = 0;
+        continue;
+      }
+      papers += l.attachments;
+      l.attachments = l.last ? papers : 0;
+      if (l.last) papers = 0;
+    }
+  }
+  return threads;
+}
+
 type ClaimEntry = Extract<StoryEntry, { kind: "claim" }>;
 
 /** AN INVOICE SAID ONCE (the walk of 26 October 2026: "Invoice sent,

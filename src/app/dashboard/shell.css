@@ -8159,6 +8159,17 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jc-thline { align-self:center; display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin:16px 0; font-size:13px; line-height:20px; color:var(--q); text-align:center; }
 .fg .jc-thline:last-child { margin-bottom:0; }
 .fg .jc-thline b { font-weight:600; color:var(--ink); }
+/* COMMS (Isaac, 26 October 2026, "Yes, build the Comms tab as mocked"):
+   every message oldest first; each thread (one channel, for email one
+   subject) under a hairline, 12 above and 16 below inside it; its head a
+   grey icon, Email or Text at 13/600 in ink and the subject grey, fading;
+   the day centred where it changes. The bubbles are the thread's own. */
+.fg .jc-comms { display:flex; flex-direction:column; min-width:0; }
+.fg .jc-comthread { display:flex; flex-direction:column; min-width:0; padding:12px 0 16px; border-bottom:1px solid var(--line); }
+.fg .jc-comhead { display:flex; align-items:center; gap:8px; min-width:0; min-height:24px; font-size:13px; line-height:18px; color:var(--q); }
+.fg .jc-comkind { flex:none; font-weight:600; color:var(--ink); }
+.fg .jc-comsub { flex:1 1 auto; }
+.fg .jc-comday { align-self:center; margin:8px 0; font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
 /* Undo: a link's dress, because it is a door back */
 .fg .cv-result .jc-undo,
 .fg .jc-undoall .jc-undo { flex:none; padding:0; border:0; background:none; font:inherit; font-size:14px; line-height:20px; font-weight:500; color:var(--link); text-decoration:underline; text-underline-offset:2px; cursor:pointer; }

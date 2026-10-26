@@ -6,8 +6,8 @@ import { todayInZone } from "@/lib/workboard/dates";
 import { readLines } from "@/lib/quotes/lines-server";
 import { readByHand } from "@/lib/quotes/lines-job-server";
 import { summaryFromQuote, type SummaryGroup } from "./job-summary-rows";
-import { readCustomerMessages } from "./customer-messages-query";
-import type { CustomerItem } from "./customer-messages";
+import { readCustomerConversation } from "./customer-messages-query";
+import type { CommsThread, CustomerItem } from "./customer-messages";
 import {
   madeCards,
   railTasksOf,
@@ -115,8 +115,8 @@ export async function readJobConversationFor(input: {
     quoteSummary(orgId, jobUuid),
     /* the customer's messages are a nicety beside the diary: a read that fails is none */
     Promise.resolve()
-      .then(() => readCustomerMessages({ orgId, jobUuid, money }))
-      .catch((): CustomerItem[] => []),
+      .then(() => readCustomerConversation({ orgId, jobUuid, money, today }))
+      .catch((): { items: CustomerItem[]; comms: CommsThread[] } => ({ items: [], comms: [] })),
   ]);
 
   const noteTaskIds = [...new Set(entries.flatMap((e) => e.record.taskIds))];
@@ -243,6 +243,7 @@ export async function readJobConversationFor(input: {
     }),
     viewer: { id: staffId, name: staffId ? (names.get(staffId) ?? null) : null },
     summary,
-    customer,
+    customer: customer.items,
+    comms: customer.comms,
   };
 }

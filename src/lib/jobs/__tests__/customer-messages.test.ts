@@ -1,5 +1,7 @@
 import {
   bareSubject,
+  commsThreads,
+  isMoneySend,
   bookingWhen,
   customerFeed,
   htmlToText,
@@ -279,5 +281,52 @@ describe("an invoice said once (the walk of 26 October 2026)", () => {
     expect(pairClaims([claim({ day: "2026-10-21" })], feed()).size).toBe(0);
     const story = [claim({ amountCents: 900000, jobNumber: "3372A" })];
     expect(withoutEchoes(story, feed())).toEqual(story);
+  });
+});
+
+describe("Comms (Isaac, 26 October 2026)", () => {
+  const threads = () => commsThreads(fixture3372(), { customer: "Marco", today: "2026-10-22" });
+
+  it("is every message, oldest first, a thread a run of one channel and one subject", () => {
+    const t = threads();
+    const bubbles = t.flatMap((x) => x.lines.filter((l): l is ThreadBubble => l.kind === "bubble"));
+    expect(bubbles).toHaveLength(17);
+    expect(t.map((x) => `${x.channel}:${x.subject ?? ""}`).slice(0, 4)).toEqual([
+      "email:Request for Air Conditioning Quote – 1 Example Street",
+      "email:Your Quote from Acme Air (Ref #3372)",
+      "sms:",
+      "email:Your Quote from Acme Air (Ref #3372)",
+    ]);
+  });
+
+  it("says the day once where it changes, across threads", () => {
+    const labels = threads().flatMap((x) => x.lines.filter((l) => l.kind === "day").map((l) => (l as { label: string }).label));
+    expect(new Set(labels).size).toBe(labels.length);
+    expect(labels).toContain("Tue 6 Oct");
+  });
+
+  it("makes a run of one person in one thread on one day, its papers said once with its time", () => {
+    const f = fixture3372();
+    const t = commsThreads(
+      [
+        { ...f[16]!, id: "a", stamp: "2026-10-20 11:00:00", attachments: 1 },
+        { ...f[16]!, id: "b", stamp: "2026-10-20 11:01:00", attachments: 2 },
+        { ...f[16]!, id: "c", stamp: "2026-10-21 09:00:00" },
+      ],
+      { customer: "Marco", today: null },
+    );
+    expect(t).toHaveLength(1);
+    expect(t[0]!.lines.map((l) => (l.kind === "day" ? "day" : `${l.name ?? "-"}:${l.last}:${l.attachments}`))).toEqual([
+      "day",
+      "Dana:false:0",
+      "-:true:3",
+      "day",
+      "Dana:true:0",
+    ]);
+  });
+
+  it("knows ServiceM8's quotes and invoices, which a reader without money doesn't get", () => {
+    const f = fixture3372();
+    expect(f.filter(isMoneySend).map((m) => m.stamp)).toEqual(["2026-09-29 08:31:06", "2026-10-12 16:19:53", "2026-10-20 11:49:46", "2026-10-20 11:53:01"]);
   });
 });

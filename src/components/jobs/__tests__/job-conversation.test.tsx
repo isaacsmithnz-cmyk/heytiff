@@ -38,7 +38,7 @@ beforeEach(() => {
 });
 
 import { JobConversation, type ConversationDiary } from "../job-conversation";
-import { customerFeed, type CustomerItem } from "@/lib/jobs/customer-messages";
+import { commsThreads, customerFeed, isMoneySend, type CommsThread, type CustomerItem } from "@/lib/jobs/customer-messages";
 import { fixture3372 } from "@/lib/jobs/__fixtures__/customer-3372";
 
 type Note = Extract<StoryEntry, { kind: "note" }>;
@@ -105,6 +105,7 @@ const draw = (p: {
   d?: ConversationDiary;
   onUndoTalk?: (id: string) => Promise<unknown>;
   customer?: CustomerItem[];
+  comms?: CommsThread[];
 }) =>
   render(
     <div className="fg">
@@ -121,6 +122,7 @@ const draw = (p: {
         voiceEnabled={false}
         onUndoTalk={p.onUndoTalk}
         customer={p.customer}
+        comms={p.comms}
       />
     </div>,
   );
@@ -162,7 +164,7 @@ it("is a section like the others: the green block, Activity feed, the soft tabs 
   expect(head.querySelector(".hm-blk")).toHaveClass("hm-blk--green");
   expect(within(head).getByRole("heading", { level: 2 })).toHaveTextContent("Activity feed");
   const filter = within(head).getByRole("group", { name: "Show in the feed" });
-  expect(within(filter).getAllByRole("button").map((t) => t.textContent)).toEqual(["All", "Customer", "Notes", "Photos"]);
+  expect(within(filter).getAllByRole("button").map((t) => t.textContent)).toEqual(["All", "Comms", "Notes", "Photos"]);
   /* the box comes before the feed */
   const box = screen.getByRole("textbox", { name: "Tell Tiff about this job" });
   const list = feed.querySelector(".jc-feed") as HTMLElement;
@@ -464,15 +466,76 @@ it("draws ServiceM8's sends as rows and the conversation as a thread, oldest fir
   expect(days).toEqual(["Tue 20 Oct", expect.stringMatching(/^Tue 29 Sept?$/)]);
 });
 
-it("filters to the customer: the threads and ServiceM8's sends, and nothing else", async () => {
-  draw({ story: [note({ key: "note:b", text: "Second" })], customer: customer() });
-  await userEvent.click(screen.getByRole("button", { name: "Customer" }));
-  expect(screen.getByRole("button", { name: "Customer" })).toHaveAttribute("aria-pressed", "true");
+/* COMMS (Isaac, 26 October 2026, "Yes, build the Comms tab as mocked") */
+const comms = (money = true) => commsThreads(money ? fixture3372() : fixture3372().filter((m) => !isMoneySend(m)), { customer: "Marco", today: "2026-10-22" });
+
+it("shows in Comms every message and nothing else, oldest first, ServiceM8's own as bubbles", async () => {
+  draw({ story: [note({ key: "note:b", text: "Second" })], customer: customer(), comms: comms() });
+  await userEvent.click(screen.getByRole("button", { name: "Comms" }));
+  expect(screen.getByRole("button", { name: "Comms" })).toHaveAttribute("aria-pressed", "true");
   expect(screen.queryByText("Second")).toBeNull();
-  expect(screen.getByText("Email with Marco")).toBeInTheDocument();
+  /* no rows: the sends are bubbles, and a YES its own */
+  expect(document.querySelector(".jc-send")).toBeNull();
+  const bubbles = [...document.querySelectorAll(".jc-comms .jc-bubble")].map((b) => b.textContent ?? "");
+  expect(bubbles).toHaveLength(17);
+  expect(bubbles[0]).toMatch(/^Dear Marco,/);
+  expect(bubbles.filter((b) => /^yes$/i.test(b))).toHaveLength(3);
+  expect(bubbles.at(-1)).toMatch(/^Filters have been ordered/);
   await userEvent.click(screen.getByRole("button", { name: "Notes" }));
-  expect(screen.queryByText("Email with Marco")).toBeNull();
+  expect(document.querySelector(".jc-comms")).toBeNull();
   expect(screen.getByText("Second")).toBeInTheDocument();
+});
+
+it("keeps ServiceM8's sends as rows in All", () => {
+  draw({ customer: customer(), comms: comms() });
+  expect(document.querySelector(".jc-comms")).toBeNull();
+  expect(screen.getByText("Booking for Wed 14 Oct, 2:00 pm texted")).toBeInTheDocument();
+});
+
+it("starts a thread where the channel or the subject changes, each under its hairline, and says the day once where it changes", async () => {
+  draw({ comms: comms() });
+  await userEvent.click(screen.getByRole("button", { name: "Comms" }));
+  const threads = [...document.querySelectorAll(".jc-comthread")] as HTMLElement[];
+  const heads = threads.map((t) => t.querySelector(".jc-comhead")!.textContent);
+  expect(heads.slice(0, 5)).toEqual([
+    "EmailRequest for Air Conditioning Quote – 1 Example Street",
+    "EmailYour Quote from Acme Air (Ref #3372)",
+    "Text",
+    "EmailYour Quote from Acme Air (Ref #3372)",
+    "Text",
+  ]);
+  const days = [...document.querySelectorAll(".jc-comday")].map((d) => d.textContent);
+  expect(days).toEqual(["Tue 29 Sept", "Tue 6 Oct", "Wed 7 Oct", "Mon 12 Oct", "Wed 14 Oct", "Fri 16 Oct", "Tue 20 Oct"].map((d) => expect.stringMatching(new RegExp(`^${d.replace("Sept", "Sept?")}$`))));
+  /* 6 October's later threads say no day: it hasn't changed */
+  expect(threads[2]!.querySelector(".jc-comday")).toBeNull();
+});
+
+it("brings the newest message into view when Comms opens, through the page's own scroller", async () => {
+  const seen: Element[] = [];
+  const into = jest.fn(function (this: Element) {
+    seen.push(this);
+  });
+  const was = Element.prototype.scrollIntoView;
+  Element.prototype.scrollIntoView = into;
+  try {
+    draw({ comms: comms() });
+    expect(into).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Comms" }));
+    expect(into).toHaveBeenCalledWith({ block: "end" });
+    expect(seen.at(-1)).toHaveTextContent(/Filters have been ordered/);
+    expect(seen.at(-1)).toHaveClass("jc-bm");
+  } finally {
+    Element.prototype.scrollIntoView = was;
+  }
+});
+
+it("leaves ServiceM8's quotes and invoices out of Comms for whoever can't see money", async () => {
+  draw({ comms: comms(false) });
+  await userEvent.click(screen.getByRole("button", { name: "Comms" }));
+  const bubbles = [...document.querySelectorAll(".jc-comms .jc-bubble")].map((b) => b.textContent ?? "");
+  expect(bubbles.some((b) => /\$13200|invoice|quotation/i.test(b))).toBe(false);
+  /* the team's own words about the quote stay */
+  expect(bubbles.some((b) => /follow up on the quote/.test(b))).toBe(true);
 });
 
 it("says a quote sent once, as ServiceM8's send, which keeps the Quote sent row's door after its Seen", async () => {

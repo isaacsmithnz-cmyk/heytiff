@@ -339,7 +339,7 @@ function roofStep(a: SwmsAnswers): SwmsStep {
         ? [c("admin", `Higher controls considered first (Qld WHS Regulation s 299(4)): ${a.qldFallReason.trim()}`)]
         : []),
     ],
-    who: "Crew lead",
+    who: "Supervisor",
     site: true,
   };
 }
@@ -371,7 +371,7 @@ function liftStep(a: SwmsAnswers): SwmsStep {
           c("engineering", "Unit raised with a rope hoist rated for that weight, from inside the fall-protected area; nobody under the load."),
           c("admin", "One person in charge of the lift; unit bolted to the roof frame before the hoist is released."),
         ],
-    who: "Crew lead, installer",
+    who: "Supervisor, installer",
     site: true,
   };
 }
@@ -422,7 +422,7 @@ function ceilingStep(a: SwmsAnswers): SwmsStep {
       c("admin", "Roof-space work in the cooler part of the day, with water and breaks outside the cavity; someone outside knows who is in the roof space and checks in."),
       c("ppe", "P2 respirator, goggles, head cover and long sleeves when working through insulation."),
     ],
-    who: "Crew lead, installer",
+    who: "Supervisor, installer",
     site: true,
   };
 }
@@ -442,7 +442,7 @@ function brazeStep(a: SwmsAnswers): SwmsStep {
       c("admin", "Valves shut and hoses purged after use; the area checked for smouldering before it's left."),
       c("ppe", "Filter-shade eyewear, leather gloves and covered skin."),
     ],
-    who: "Crew lead",
+    who: "Supervisor",
     site: false,
   };
 }
@@ -459,7 +459,7 @@ function testStep(): SwmsStep {
       c("admin", "Test pressure no higher than the system's maximum operating pressure and below relief settings, raised in stages; result recorded."),
       c("isolate", "Cylinder upright and strapped; nobody in line with joints or valves while under pressure; area ventilated."),
     ],
-    who: "Crew lead",
+    who: "Supervisor",
     site: false,
   };
 }
@@ -514,7 +514,7 @@ function chargeStep(a: SwmsAnswers): SwmsStep {
           ]),
       c("ppe", "Safety glasses, and gloves that protect against cold burns, when connecting and removing hoses."),
     ],
-    who: "Crew lead",
+    who: "Supervisor",
     site: flammable,
   };
 }

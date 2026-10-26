@@ -142,21 +142,16 @@
   .wzd-radio-in.wzd-radio-in { transition:none; }
 }
 
-/* ── shared with the sign-on and template pages ─────────────────────────── */
+/* ── shared with the template page ──────────────────────────────────────── */
 
 .sw-grp { display:flex; flex-direction:column; gap:8px; min-width:0; }
 .sw-gh { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 8px; }
 .sw-gh b { font-size:16px; font-weight:600; }
 .sw-gh span { font-size:13px; font-weight:500; color:var(--q); }
 .sw-text { margin:0; max-width:68ch; font-size:14px; font-weight:400; }
-.sw-note { margin:0; font-size:13px; font-weight:500; color:var(--q); }
 .sw-state.ok { color:var(--ok-t); }
 .sw-state.warn { color:var(--warn-t); }
 .sw-state.bad { color:var(--bad-t); }
-.sw-more { align-self:flex-start; padding:0; border:0; background:none; font:inherit; font-size:13px; font-weight:500;
-  color:var(--link); text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
-.sw-more:focus-visible { outline:none; box-shadow:var(--ring); }
-.sw-al { font-size:13px; font-weight:500; color:var(--q); }
 
 /* the template, read before it is approved */
 .sw-lib { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:4px; }
@@ -165,47 +160,115 @@
 /* the choice a control belongs to, under the control it qualifies */
 .sw-lib em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
 
-/* ── the sign-on and template pages ─────────────────────────────────────── */
-
+/* the template page's sheet */
 .sws { max-width:760px; display:flex; flex-direction:column; gap:16px; color:var(--ink); }
-/* The head block went with the frame (2026-09-20): the band holds the title
-   and the way back rides the crumb line above it. What is left is the line
-   under them, which is a fact about this SWMS and stays with it. */
-.sws-lede { margin:0; font-size:14px; color:var(--q); }
-.sws-back { align-self:flex-start; margin-bottom:8px; font-size:13px; font-weight:700; color:var(--q); text-decoration:none; }
-.sws-back:hover { color:var(--ink); }
-.sws-back:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .card2.sws-card { display:flex; flex-direction:column; gap:16px; margin-bottom:0; }
-/* WHAT YOU READ IS A GROUP; WHAT YOU PRESS KEEPS ITS EDGE (2026-09-21).
-   The frame rollout took the grey well away, so a white card with a hairline
-   on white paper is paper on paper and its edge does nothing — law 9, and the
-   pass the Fault Finder took for the same reason. What changed, Before you
-   start, Who it covers, the issues raised and the template's steps are all
-   read: they group by a hairline and the spacing scale. The two things you
-   act on — the sign-on form and the issue form — are still cards, because a
-   signature is not reading. The rows inside a group keep their own rules and
-   every control keeps its edge. */
-.sws-grp { display:flex; flex-direction:column; gap:16px; padding-top:16px; border-top:1px solid var(--line); }
-.sws-keys { margin:0; padding-left:24px; list-style:disc; display:flex; flex-direction:column; gap:8px; font-size:14px; max-width:68ch; }
-.sws-keys b { font-weight:600; }
+
+/* the signature pad: the sign-on, the certificate wizard and the staff card */
 .sws-pad { position:relative; width:100%; max-width:600px; aspect-ratio:3 / 1; border:1px solid var(--line); border-radius:var(--r-button);
   background:var(--paper); touch-action:none; cursor:crosshair; }
 .sws-pad canvas { position:absolute; inset:0; width:100%; height:100%; border-radius:var(--r-button); color:var(--ink); }
 .sws-pad > span { position:absolute; inset:0; display:grid; place-items:center; font-size:13px; font-weight:500; color:var(--q); pointer-events:none; }
 .sws-pad .pt-btn.sws-clear { position:absolute; right:8px; bottom:8px; }
-.sws-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.sws-actions > span { flex:1; min-width:0; font-size:13px; font-weight:500; }
-/* the app's own note field, which `.sw-field` never was — it had no rules at
-   all, so the issue box was a raw browser textarea inside a card */
-.fg .card2.sws-card .wb2-notes, .fg .sws-grp .wb2-notes { margin-bottom:0; }
-.sws-people { display:flex; flex-direction:column; }
-.sws-person { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:4px 12px; padding:8px 0; border-top:1px solid var(--line); }
-.sws-person:last-child { border-bottom:1px solid var(--line); }
-.sws-person > span:first-child { display:flex; flex-direction:column; gap:2px; min-width:0; }
-.sws-person b { font-size:14px; font-weight:600; }
-.sws-person em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
-.sws-person > span:last-child { display:flex; flex-direction:column; align-items:flex-end; gap:4px;
-  font-size:13px; font-weight:500; text-align:right; }
-/* what the person in charge presses, and anything that went wrong with it */
+
+/* ── the sign-on page, v2 (Isaac, 27 October 2026) ────────────────────────
+   The title and the printable SWMS's second button, a grey line naming the
+   job as a link, then two columns split by a hairline as a job's Overview
+   is: the briefing on the left, who it covers on the right, in view as the
+   briefing scrolls. Each section is Home's coloured block, the title at 16
+   and a grey fact; groups sit under hairlines, and the one card is what you
+   act on (rule 35). What the dialog holds is outside `.fg`, so the rules it
+   needs are not scoped to it. */
+
+.fg .wrap.sws-page { padding:24px 32px 96px; color:var(--ink); }
+.sws-top { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+.sws-id { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.sws-h1 { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
+.sws-line { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.sws-line .pt-link { color:var(--ink); }
+
+.sws-cols { display:grid; grid-template-columns:minmax(0,1fr) calc(360px + 32px + 1px); column-gap:32px; align-items:start; margin-top:24px; }
+.sws-main { display:flex; flex-direction:column; gap:32px; min-width:0; }
+.sws-side { align-self:stretch; min-width:0; padding-left:32px; border-left:1px solid var(--line); }
+.sws-stick { position:sticky; top:24px; display:flex; flex-direction:column; gap:32px; }
+
+/* the section recipe: Home's block, the title, the fact under the title */
+.sws-sec { display:flex; flex-direction:column; min-width:0; }
+.sws-head { display:flex; align-items:center; gap:12px; min-height:32px; margin-bottom:8px; }
+.sws-title { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.sws-fact { margin:0 0 12px calc(32px + 12px); font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+/* red only means wrong, and Emergency is Isaac's exception (docs/design.md, His rulings) */
+.fg .hm-blk--red { background:var(--red); }
+/* the one card: Sign on, or an issue being raised */
+.sws-sec.sws-card { gap:16px; padding:16px 24px 24px; border:1px solid var(--edge); border-radius:var(--r-card); }
+.sws-sec.sws-card > .sws-head { margin-bottom:0; }
+/* the pad takes the card's width, as it does the dialog's */
+.sws-card .sws-pad { max-width:none; }
+
+/* reading is 16 (rule 13): the statement, every control, the gear */
+.sws-read { margin:0; max-width:80ch; font-size:16px; line-height:24px; color:var(--ink); }
+.sws-ruled { padding-top:12px; border-top:1px solid var(--line); }
+.sws-g { display:flex; flex-direction:column; gap:8px; padding:16px 0; border-top:1px solid var(--line); }
+.sws-g:last-child { padding-bottom:0; }
+.sws-gh { display:flex; align-items:baseline; justify-content:space-between; gap:16px; }
+.sws-gh > span { flex:none; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.sws-gt { margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.sws-hz { margin:0; max-width:80ch; font-size:14px; line-height:20px; color:var(--q); }
+.sws-list { margin:0; padding-left:24px; list-style:disc; display:flex; flex-direction:column; gap:8px; max-width:80ch; font-size:16px; line-height:24px; }
+.sws-list b { font-weight:600; }
+
+/* Emergency: the label on the left, what to do on the right, 000 in bold */
+.sws-em { margin:0; border-top:1px solid var(--line); }
+.sws-em > div { display:grid; grid-template-columns:152px minmax(0,1fr); gap:12px; align-items:center; padding:8px 0; border-bottom:1px solid var(--line); }
+.sws-em dt { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.sws-em dd { margin:0; min-width:0; font-size:16px; line-height:24px; overflow-wrap:anywhere; }
+.sws-em b { font-weight:700; }
+
+/* the foot of the card and of the signed block: a word, then the buttons */
+.sws-foot { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.sws-foot--ruled { padding-top:16px; border-top:1px solid var(--line); }
+.sws-btns { display:flex; gap:8px; margin-left:auto; }
+.sws-word { min-width:0; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.sws-word.sws-word--wrong { color:var(--red-w); }
+.sws-word:empty { display:none; }
+/* the card's Sign on keeps the right whether or not a word stands beside it */
+.pt-btn.sws-send { margin-left:auto; }
+/* a quiet button's word stands level with the text above it */
+.pt-btn.sws-quiet { align-self:flex-start; margin-left:-12px; }
+.sws-done { display:flex; flex-direction:column; gap:12px; }
+.sws-ok { margin:0; font-size:14px; line-height:20px; font-weight:500; color:var(--green-w); }
+.sws-issue { width:100%; }
+.sws-go { margin:12px 0 0; font-size:14px; line-height:20px; }
+
+/* the issues raised, as rows (rule 39), flush with the section */
+.sws-sec .pt-rows { border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.sws-main > .pt-rows { border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.sws-sec .pt-row, .sws-main > .pt-rows .pt-row { padding-left:0; padding-right:0; }
 .sws-sorted { display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
-.sws-sorted em { font-style:normal; font-size:13px; font-weight:500; }
+
+/* who it covers: the initials, the name and its grey lines, the word */
+.sws-people { margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
+.sws-person { display:flex; align-items:flex-start; gap:12px; padding:8px 0; border-bottom:1px solid var(--line); }
+.sws-pt { flex:1; min-width:0; display:flex; flex-direction:column; padding-top:calc((32px - 20px) / 2); }
+.sws-pt b { font-size:14px; line-height:20px; font-weight:600; overflow-wrap:anywhere; }
+.sws-pt span { font-size:13px; line-height:18px; color:var(--q); overflow-wrap:anywhere; }
+.sws-pt span.sws-look { font-weight:500; color:var(--orange-w); }
+.sws-pend { flex:none; max-width:50%; min-height:32px; display:flex; flex-direction:column; align-items:flex-end; justify-content:center; gap:4px; text-align:right; }
+/* a state is a word in its colour here, as the mock drew it: no dot */
+.sws-pend .sws-state .pt-dot { display:none; }
+
+/* signing someone on, in the dialog */
+.sws-dlg { display:flex; flex-direction:column; gap:16px; }
+.pt-dialog .pt-dialog-body .sws-dlg > p { margin:0; }
+.pt-dialog .pt-dialog-body .sws-dlg > p.sws-dline { margin-top:-8px; font-size:14px; line-height:20px; color:var(--q); }
+.sws-footword { margin-right:auto; }
+
+@media (max-width:1100px) {
+  .sws-cols { grid-template-columns:minmax(0,1fr); row-gap:32px; }
+  .sws-side { padding-left:0; border-left:0; }
+  .sws-stick { position:static; }
+}
+@media (max-width:760px) {
+  .fg .wrap.sws-page { padding:16px 16px 96px; }
+  .sws-top { flex-direction:column; }
+  .sws-em > div { grid-template-columns:minmax(0,1fr); gap:2px; }
+}

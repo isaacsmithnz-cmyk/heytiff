@@ -1,15 +1,21 @@
 "use client";
 
 import { jobHref } from "@/lib/shell/links";
-import { useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { useRouter } from "next/navigation";
 import { clearSwmsIssue, raiseSwmsIssue, signOnSwms } from "@/app/actions/swms";
 import { BELL_REFRESH_EVENT } from "@/lib/dashboard/chips";
 import { HRCW } from "@/lib/swms/library";
 import type { SwmsDocument, SwmsPerson } from "@/lib/swms/query";
-import { siteWhen } from "@/lib/swms/when";
+import { siteDay, siteWhen } from "@/lib/swms/when";
+import { Button } from "@/components/parts/button";
+import { Dialog } from "@/components/parts/dialog";
+import { Field, TextArea } from "@/components/parts/field";
+import { Initials } from "@/components/parts/initials";
+import { Row, RowList } from "@/components/parts/row";
+import { StateWord } from "@/components/parts/state";
+import { Icon } from "@/components/shell/icon";
 import { SignaturePad } from "./controls";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 import "./swms.css";
@@ -22,23 +28,80 @@ import "./swms.css";
    briefing — the record says whose phone.
 
    A REPLACED VERSION IS READ-ONLY. Its sign-ons stand as history, and the
-   screen points at the version that replaced it, which asks again. */
+   screen points at the version that replaced it, which asks again.
 
-function SignOnForm({
-  person,
-  own,
-  inCharge = false,
-  responsible,
-  onSigned,
+   IN V2 (Isaac, 27 October 2026, on the mock of the old screens: "change
+   from crew lead to supervisor. Other than that, everything looks fine").
+   Two columns on desktop, split by a hairline as a job's Overview is: the
+   briefing on the left, read first and signed at its foot, and who it
+   covers on the right, in view while the briefing scrolls. Each section
+   wears Home's coloured block. The briefing is reading, so 16. Sign on is
+   the page's one card and its button the one blue; signing someone else on
+   opens over the page. */
+
+type BlockHue = "yellow" | "red" | "pink" | "green" | "orange";
+
+/** One section: Home's block in its colour with the icon in ink, the title
+    at 16, a grey fact under it, then what it holds. A card when it is
+    something you act on (rule 35), a group under its head otherwise. */
+function Section({
+  name,
+  icon,
+  hue,
+  fact,
+  card = false,
+  headingId,
+  children,
 }: {
-  person: SwmsPerson;
-  /** Signing on as yourself, or a helper on your phone. */
-  own: boolean;
-  /** You're the person in charge: you give the briefing, nobody gives it you. */
-  inCharge?: boolean;
-  responsible: string;
-  onSigned: () => void;
+  name: string;
+  icon: string;
+  hue: BlockHue;
+  fact?: ReactNode;
+  card?: boolean;
+  /** the title's id, when something inside is named by it */
+  headingId?: string;
+  children: ReactNode;
 }) {
+  const made = useId();
+  const id = headingId ?? made;
+  return (
+    <section className={card ? "sws-sec sws-card" : "sws-sec"} aria-labelledby={id}>
+      <div className="sws-head">
+        <span className={`hm-blk hm-blk--${hue}`} aria-hidden="true">
+          <Icon name={icon} size={18} />
+        </span>
+        <h2 className="sws-title" id={id}>
+          {name}
+        </h2>
+      </div>
+      {fact != null && <p className="sws-fact">{fact}</p>}
+      {children}
+    </section>
+  );
+}
+
+/** What signing means, in the words of whoever is signing. */
+function statement(person: SwmsPerson, own: boolean, inCharge: boolean, responsible: string): string {
+  if (inCharge) {
+    return own
+      ? "By signing I confirm I understand this SWMS and I'll follow it. I'll brief everyone it covers before work starts, and if a control can't be followed I'll stop the work."
+      : `By signing, ${person.name} confirms they understand this SWMS and will follow it. They'll brief everyone it covers before work starts, and if a control can't be followed they'll stop the work.`;
+  }
+  return own
+    ? `By signing I confirm I was consulted and briefed on this SWMS, I understand it, and I'll follow it. If a control can't be followed I'll stop work and tell ${responsible}.`
+    : `By signing, ${person.name} confirms they were consulted and briefed on this SWMS, understand it, and will follow it. If a control can't be followed they'll stop work and tell ${responsible}.`;
+}
+
+/** What a person is on this SWMS, in a grey line: their role, then whether
+    they are in charge, from outside the business, or you. */
+function roleLine(p: SwmsPerson, inCharge: boolean, you: boolean): string {
+  const role = p.team ? p.role || "Team member" : p.role ? `${p.role}, outside the business` : "Outside the business";
+  return [role, inCharge ? "in charge" : null, you ? "you" : null].filter(Boolean).join(", ");
+}
+
+/** The signature, the issue that can ride it, and the press that sends it,
+    for the card and the dialog alike. */
+function useSignOn(person: SwmsPerson, onSigned: () => void) {
   const [path, setPath] = useState("");
   const [raising, setRaising] = useState(false);
   const [issue, setIssue] = useState("");
@@ -65,64 +128,116 @@ function SignOnForm({
     }, () => setBusy(false));
   };
 
+  /* the dimmed button says the box is empty; words only for what went
+     wrong (no hint text, docs/design.md old law 3) */
+  const word = tooLong ? "That signature is too long to keep. Clear it and sign again." : (error ?? "");
+  return {
+    setPath,
+    raising,
+    startRaising: () => setRaising(true),
+    issue,
+    setIssue,
+    busy,
+    word,
+    ready: !busy && signed && !tooLong,
+    submit,
+  };
+}
+
+/** Raising an issue as you sign: a quiet button, then the box in its place. */
+function IssueOnSigning({ s }: { s: ReturnType<typeof useSignOn> }) {
+  return s.raising ? (
+    <Field label="Issue with this SWMS">
+      <TextArea rows={2} value={s.issue} onChange={(e) => s.setIssue(e.target.value)} />
+    </Field>
+  ) : (
+    <Button kind="quiet" size={32} className="sws-quiet" onClick={s.startRaising}>
+      Raise an issue
+    </Button>
+  );
+}
+
+/** Signing on as yourself: the one card on the page, at the briefing's foot. */
+function SignOnCard({
+  person,
+  inCharge,
+  responsible,
+  onSigned,
+}: {
+  person: SwmsPerson;
+  /** You're the person in charge: you give the briefing, nobody gives it you. */
+  inCharge: boolean;
+  responsible: string;
+  onSigned: () => void;
+}) {
+  const s = useSignOn(person, onSigned);
   return (
-    <div className="card2 sws-card">
-      <div className="sw-gh">
-        <b>{own ? "Sign on" : `Sign on ${person.name}`}</b>
-        {!own && <span>{person.role || "Outside the business"}, on your phone</span>}
+    <Section name="Sign on" icon="edit" hue="pink" card>
+      <p className="sws-read">{statement(person, true, inCharge, responsible)}</p>
+      <SignaturePad onChange={s.setPath} label="Your signature" />
+      <IssueOnSigning s={s} />
+      <div className="sws-foot sws-foot--ruled">
+        {s.word && <span className="sws-word sws-word--wrong">{s.word}</span>}
+        <Button kind="main" className="sws-send" disabled={!s.ready} onClick={s.submit}>
+          {s.busy ? "Signing on" : "Sign on"}
+        </Button>
       </div>
-      <p className="sw-text">
-        {inCharge
-          ? own
-            ? "By signing I confirm I understand this SWMS and I'll follow it. I'll brief everyone it covers before work starts, and if a control can't be followed I'll stop the work."
-            : `By signing, ${person.name} confirms they understand this SWMS and will follow it. They'll brief everyone it covers before work starts, and if a control can't be followed they'll stop the work.`
-          : own
-            ? `By signing I confirm I was consulted and briefed on this SWMS, I understand it, and I'll follow it. If a control can't be followed I'll stop work and tell ${responsible}.`
-            : `By signing, ${person.name} confirms they were consulted and briefed on this SWMS, understand it, and will follow it. If a control can't be followed they'll stop work and tell ${responsible}.`}
-      </p>
-      <SignaturePad onChange={setPath} label={own ? "Your signature" : `${person.name}'s signature`} />
-      {raising ? (
-        <div className="sw-grp">
-          <label className="sw-gh" htmlFor={`issue-${person.id}`}>
-            <b>Issue with this SWMS</b>
-          </label>
-          <textarea id={`issue-${person.id}`} className="wb2-notes" rows={2} value={issue} onChange={(e) => setIssue(e.target.value)} />
-        </div>
-      ) : (
-        <button type="button" className="sw-more" onClick={() => setRaising(true)}>
-          Raise an issue with this SWMS
-        </button>
-      )}
-      <div className="sws-actions">
-        {/* a greyed-out button that says nothing leaves the reader hunting */}
-        <span className={error || tooLong ? "sw-state bad" : undefined}>
-          {tooLong ? "That signature is too long to keep. Clear it and sign again." : (error ?? (signed ? "" : "Sign in the box to finish."))}
-        </span>
-        <button type="button" className="pbtn primary" disabled={busy || !signed || tooLong} onClick={submit}>
-          {busy ? "Signing on" : own ? "Sign on" : `Sign on ${person.name}`}
-        </button>
+    </Section>
+  );
+}
+
+/** Signing someone else on, on your phone: over the page, as a form is
+    (rule 51). A press on the dark around it keeps it open, so a signature
+    is never lost to a stray tap; Cancel and Escape close it. */
+function SignOnDialog({
+  person,
+  inCharge,
+  responsible,
+  onSigned,
+  onClose,
+}: {
+  person: SwmsPerson;
+  inCharge: boolean;
+  responsible: string;
+  onSigned: () => void;
+  onClose: () => void;
+}) {
+  const s = useSignOn(person, onSigned);
+  const first = person.name.trim().split(/\s+/)[0] || person.name;
+  return (
+    <Dialog
+      heading={`Sign on ${person.name}`}
+      onClose={onClose}
+      width={560}
+      dismissable={false}
+      foot={
+        <>
+          {s.word && <span className="sws-word sws-word--wrong sws-footword">{s.word}</span>}
+          <Button kind="second" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button kind="main" disabled={!s.ready} onClick={s.submit}>
+            {s.busy ? "Signing on" : `Sign on ${first}`}
+          </Button>
+        </>
+      }
+    >
+      <div className="sws-dlg">
+        <p className="sws-dline">{`${person.team ? person.role || "Team member" : person.role || "Outside the business"}, on your phone`}</p>
+        <p className="sws-read">{statement(person, false, inCharge, responsible)}</p>
+        <SignaturePad onChange={s.setPath} label={`${person.name}'s signature`} />
+        <IssueOnSigning s={s} />
       </div>
-    </div>
+    </Dialog>
   );
 }
 
 /** Something noticed after signing — the anchor found rusted on the roof. It
-    rides the sign-on already given, so the register stays one statement. */
-function RaiseIssue({
-  person,
-  open,
-  onOpen,
-  onClose,
-  onDone,
-}: {
-  person: SwmsPerson;
-  open: boolean;
-  onOpen: () => void;
-  onClose: () => void;
-  onDone: () => void;
-}) {
-  const raised = person.signon?.issue ?? null;
-  const [text, setText] = useState(raised ?? "");
+    rides the sign-on already given, so the register stays one statement. A
+    card, because it is something you act on, with the orange flag. */
+function IssueCard({ person, onClose, onDone }: { person: SwmsPerson; onClose: () => void; onDone: () => void }) {
+  const headingId = useId();
+  const [text, setText] = useState(person.signon?.issue ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -142,29 +257,21 @@ function RaiseIssue({
     }, () => setBusy(false));
   };
 
-  if (!open) {
-    return (
-      <button type="button" className="sw-more" onClick={onOpen}>
-        {raised ? "Change the issue you raised" : "Raise an issue with this SWMS"}
-      </button>
-    );
-  }
   return (
-    <div className="sw-grp">
-      <label className="sw-gh" htmlFor={`raise-${person.id}`}>
-        <b>Issue with this SWMS</b>
-      </label>
-      <textarea id={`raise-${person.id}`} className="wb2-notes" rows={2} value={text} onChange={(e) => setText(e.target.value)} />
-      <div className="sws-actions">
-        <span className={error ? "sw-state bad" : undefined}>{error}</span>
-        <button type="button" className="pbtn ghost" onClick={onClose}>
-          Cancel
-        </button>
-        <button type="button" className="pbtn primary" disabled={busy || !text.trim()} onClick={save}>
-          {busy ? "Telling the crew lead" : "Tell the crew lead"}
-        </button>
+    <Section name="Issue with this SWMS" icon="flag" hue="orange" card headingId={headingId}>
+      <TextArea rows={2} aria-labelledby={headingId} className="sws-issue" value={text} onChange={(e) => setText(e.target.value)} />
+      <div className="sws-foot">
+        <span className="sws-word sws-word--wrong">{error}</span>
+        <span className="sws-btns">
+          <Button kind="second" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button kind="main" disabled={busy || !text.trim()} onClick={save}>
+            {busy ? "Telling the supervisor" : "Tell the supervisor"}
+          </Button>
+        </span>
       </div>
-    </div>
+    </Section>
   );
 }
 
@@ -175,10 +282,10 @@ function SortedOnSite({ personId, onDone }: { personId: string; onDone: () => vo
   const [error, setError] = useState<string | null>(null);
   return (
     <span className="sws-sorted">
-      {error && <em className="sw-state bad">{error}</em>}
-      <button
-        type="button"
-        className="pbtn ghost sm"
+      {error && <span className="sws-word sws-word--wrong">{error}</span>}
+      <Button
+        kind="second"
+        size={32}
         disabled={busy}
         onClick={async () => {
           setBusy(true);
@@ -195,7 +302,7 @@ function SortedOnSite({ personId, onDone }: { personId: string; onDone: () => vo
         }}
       >
         {busy ? "Recording it as sorted" : "Record it as sorted"}
-      </button>
+      </Button>
     </span>
   );
 }
@@ -203,17 +310,16 @@ function SortedOnSite({ personId, onDone }: { personId: string; onDone: () => vo
 export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }) {
   const router = useRouter();
   const [helper, setHelper] = useState<string | null>(null);
-  /* the door lives in the card's action row; the box it opens takes the
-     card's width under it, rather than squeezing in beside a button. Held by
-     person, because a sign-on given on this phone is one this reader can add
-     to as well — what the helper found after they signed. */
+  /* the issue card that is open, held by person: your own, or a sign-on
+     given on this phone, which this reader can add to as well — what the
+     helper found after they signed */
   const [raising, setRaising] = useState<string | null>(null);
   const mine = doc.people.find((p) => p.staffProfileId === me) ?? null;
   const onIt = !!mine;
   /* THE PHONE THAT IS OUT. Anyone the SWMS covers and hasn't signed can sign
      on it — the business's own installer had a longer road than a stranger,
      who could always sign on the lead's phone. The record says whose. */
-  const unsigned = doc.people.filter((p) => !p.signon);
+  const helping = doc.latest && onIt && helper ? (doc.people.find((p) => p.id === helper && !p.signon) ?? null) : null;
   const latest = doc.versions[doc.versions.length - 1];
   /* WHAT CHANGED LEADS. Someone sent back to sign on again was shown the
      whole document with no word on what was different — the reason was
@@ -224,11 +330,19 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
   const openIssues = doc.people.filter((p) => p.signon?.issue && !p.signon.issueCleared);
   const c = doc.content;
   const inCharge = !!mine && mine.staffProfileId === doc.responsibleStaffId;
+  const raisingFor = doc.latest && raising ? (doc.people.find((p) => p.id === raising && p.signon) ?? null) : null;
   /** "Wed 16 Sept, 7:50am", and "before a correction" when one carried it —
       a time earlier than the issue needs saying why, and a version number
       means nothing to someone who joined after it. */
   const signedWhen = (sg: NonNullable<SwmsPerson["signon"]>) =>
     `${siteWhen(sg.at, c.jurisdiction)}${sg.version < doc.version ? ", before a correction" : ""}`;
+  /** In the list, a sign-on on the day this version was issued is its time
+      alone, "7:12am"; any other day keeps its day. */
+  const issuedDay = siteDay(doc.issuedAt, c.jurisdiction);
+  const signedShort = (sg: NonNullable<SwmsPerson["signon"]>) => {
+    const when = signedWhen(sg);
+    return siteDay(sg.at, c.jurisdiction) === issuedDay && when.startsWith(`${issuedDay}, `) ? when.slice(issuedDay.length + 2) : when;
+  };
 
   const signed = () => {
     setHelper(null);
@@ -237,95 +351,95 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
   };
 
   return (
-    /* Paper to the frame, the title in the band and the way back — to the job
-       it belongs to, or Home — on its own line above it (2026-09-20). The
-       address follows the band: it is the first fact about this SWMS, not a
-       subtitle of the screen. The 760 column stays; this is read and signed
-       on a phone in a yard. */
-    <div className="page in full">
-      <div className="wrap">
-        <div className="stg">
-          <ScreenBand
-            crumb={
-              doc.job ? (
-                <Link className="sws-back" href={jobHref(doc.job.uuid)}>
-                  {doc.job.number ? `← Job #${doc.job.number}` : "← The job"}
+    <div className="page in">
+      <div className="wrap sws-page">
+        {/* The way back is the job's open tab, and the grey line names the
+            job as a link (the crumb went with v2's tabs). */}
+        <header className="sws-top">
+          <div className="sws-id">
+            <h1 className="sws-h1">Safe Work Method Statement</h1>
+            {doc.job && (
+              <p className="sws-line">
+                {"For "}
+                <Link className="pt-link" href={jobHref(doc.job.uuid)}>
+                  {[doc.job.number ? `job ${doc.job.number}` : "the job", doc.job.clientName].filter(Boolean).join(", ")}
                 </Link>
-              ) : (
-                <Link className="sws-back" href="/dashboard">
-                  ← Home
-                </Link>
-              )
-            }
-            title="Safe Work Method Statement"
-          />
-          <ScreenPanel>
-          <div className="sws">
-            <p className="sws-lede">{doc.job?.address ?? "No address on the job"}</p>
+                {doc.job.address ? `, at ${doc.job.address}` : ""}
+              </p>
+            )}
+          </div>
+          <Button kind="second" href={`/swms/${doc.versionId}`} target="_blank" rel="noreferrer">
+            Open the printable SWMS
+          </Button>
+        </header>
 
+        <div className="sws-cols">
+          <div className="sws-main">
             {!doc.latest && latest && (
-              <div className="sws-grp">
-                <p className="sw-text">{`A newer SWMS replaced this one: ${latest.reason}.`}</p>
-                <div className="sws-actions">
-                  <span />
-                  <Link className="pbtn primary" href={`/dashboard/swms/${latest.id}`}>
-                    Open the current SWMS
-                  </Link>
-                </div>
-              </div>
+              <RowList label="This SWMS was replaced">
+                <Row
+                  name="A newer SWMS replaced this one"
+                  line={latest.reason}
+                  lines={2}
+                  end={
+                    <Button kind="main" size={32} href={`/dashboard/swms/${latest.id}`}>
+                      Open the current SWMS
+                    </Button>
+                  }
+                />
+              </RowList>
             )}
 
             {doc.latest && revision && (
-              <div className="sws-grp">
-                <div className="sw-gh">
-                  <b>What changed</b>
-                  <span>{revision.material ? "Everyone signs on again" : "A correction — sign-ons carry over"}</span>
-                </div>
-                <p className="sw-text">{revision.reason}</p>
-              </div>
+              <Section name="What changed" icon="rotate" hue="orange" fact={revision.material ? "Everyone signs on again" : "A correction — sign-ons carry over"}>
+                <p className="sws-read sws-ruled">{revision.reason}</p>
+              </Section>
             )}
-
-            {doc.latest && mine?.signon && <p className="sw-state ok">{`You signed on ${signedWhen(mine.signon)}.`}</p>}
 
             {/* IT LEADS THE PAGE for whoever has to answer it — the bell sent
                 them here for this, not for the briefing they wrote */}
             {doc.latest && inCharge && openIssues.length > 0 && (
-              <div className="sws-grp">
-                <div className="sw-gh">
-                  <b>{openIssues.length === 1 ? "An issue was raised" : `${openIssues.length} issues were raised`}</b>
-                  <span>Yours to answer</span>
-                </div>
-                <div className="sws-people">
+              <Section
+                name={openIssues.length === 1 ? "An issue was raised" : `${openIssues.length} issues were raised`}
+                icon="flag"
+                hue="orange"
+                fact="Yours to answer"
+              >
+                <RowList label="Issues raised">
                   {openIssues.map((p) => (
-                    <div key={p.id} className="sws-person">
-                      <span>
-                        <b>{p.signon!.issue}</b>
-                        <em>{`${p.name}, ${signedWhen(p.signon!)}`}</em>
-                      </span>
-                      <SortedOnSite personId={p.id} onDone={signed} />
-                    </div>
+                    <Row
+                      key={p.id}
+                      lead={<Initials name={p.name} size={32} beside />}
+                      name={p.signon!.issue}
+                      lines={2}
+                      line={`${p.name}, ${signedWhen(p.signon!)}`}
+                      end={<SortedOnSite personId={p.id} onDone={signed} />}
+                    />
                   ))}
-                </div>
+                </RowList>
                 {doc.job && (
-                  <Link className="sw-more" href={jobHref(doc.job.uuid)}>
-                    Open the job to revise the SWMS
-                  </Link>
+                  <p className="sws-go">
+                    <Link className="pt-link" href={jobHref(doc.job.uuid)}>
+                      Open the job to revise the SWMS
+                    </Link>
+                  </p>
                 )}
-              </div>
+              </Section>
             )}
 
             {/* READ FIRST. The page is the briefing on paper: what the work is,
                 how each step is kept safe, and what to do in an emergency —
                 then, below it, the signature that says it was read. */}
-            <div className="sws-grp">
-              <div className="sw-gh">
-                <b>Before you start</b>
-                <span>{`Issued ${siteWhen(doc.issuedAt, c.jurisdiction)}. ${inCharge ? "You're" : `${doc.responsible} is`} in charge on site.`}</span>
-              </div>
+            <Section
+              name="Before you start"
+              icon="alert"
+              hue="yellow"
+              fact={`Issued ${siteWhen(doc.issuedAt, c.jurisdiction)}. ${inCharge ? "You're" : `${doc.responsible} is`} in charge on site.`}
+            >
               {c.categories.length > 0 && (
-                <div className="sw-grp">
-                  <span className="sw-al">High-risk work on this job</span>
-                  <ul className="sws-keys">
+                <div className="sws-g">
+                  <h3 className="sws-gt">High-risk work on this job</h3>
+                  <ul className="sws-list">
                     {c.categories.map((k) => (
                       <li key={k.n}>
                         <b>{HRCW.find((h) => h.n === k.n)?.plain ?? `Category ${k.n}`}</b>
@@ -336,13 +450,13 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
                 </div>
               )}
               {c.steps.map((st, i) => (
-                <div key={st.key} className="sw-grp">
-                  <div className="sw-gh">
-                    <b>{`${i + 1}. ${st.title}`}</b>
+                <div key={st.key} className="sws-g">
+                  <div className="sws-gh">
+                    <h3 className="sws-gt">{`${i + 1}. ${st.title}`}</h3>
                     <span>{st.who}</span>
                   </div>
-                  <p className="sw-note">{st.hazards}</p>
-                  <ul className="sws-keys">
+                  <p className="sws-hz">{st.hazards}</p>
+                  <ul className="sws-list">
                     {st.controls.map((k) => (
                       <li key={k.text}>{k.text}</li>
                     ))}
@@ -351,9 +465,9 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
               ))}
               {/* signed for on the screen it is signed on, not only on paper */}
               {c.ppe.length > 0 && (
-                <div className="sw-grp">
-                  <span className="sw-al">Protective equipment</span>
-                  <ul className="sws-keys">
+                <div className="sws-g">
+                  <h3 className="sws-gt">Protective equipment</h3>
+                  <ul className="sws-list">
                     {c.ppe.map((x) => (
                       <li key={x}>{x}</li>
                     ))}
@@ -361,109 +475,130 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
                 </div>
               )}
               {c.siteNotes.length > 0 && (
-                <div className="sw-grp">
-                  <span className="sw-al">This site</span>
-                  <ul className="sws-keys">
+                <div className="sws-g">
+                  <h3 className="sws-gt">This site</h3>
+                  <ul className="sws-list">
                     {c.siteNotes.map((n) => (
                       <li key={n}>{n}</li>
                     ))}
                   </ul>
                 </div>
               )}
-              <div className="sw-grp">
-                <span className="sw-al">Emergency</span>
-                <p className="sw-text">
-                  {`Call 000. First aider: ${c.emergency.firstAider}. Nearest hospital: ${c.emergency.hospital}. Fire extinguisher: ${c.emergency.extinguisher.toLowerCase()}.`}
-                </p>
-              </div>
-              <div className="sws-actions">
-                {/* AFTER SIGNING, TOO: what you find when you get on the roof
-                    is after the briefing at the truck */}
-                <span>
-                  {doc.latest && mine?.signon && raising !== mine.id && (
-                    <RaiseIssue person={mine} open={false} onOpen={() => setRaising(mine.id)} onClose={() => setRaising(null)} onDone={signed} />
-                  )}
-                </span>
-                <a className="pbtn ghost" href={`/swms/${doc.versionId}`} target="_blank" rel="noreferrer">
-                  Open the printable SWMS
-                </a>
-              </div>
-              {doc.latest && mine?.signon && raising === mine.id && (
-                <RaiseIssue person={mine} open onOpen={() => setRaising(mine.id)} onClose={() => setRaising(null)} onDone={signed} />
-              )}
-            </div>
+            </Section>
+
+            {/* where someone in a hurry finds it: its own section, red */}
+            <Section name="Emergency" icon="phone" hue="red">
+              <dl className="sws-em">
+                <div>
+                  <dt>Call</dt>
+                  <dd>
+                    <b>000</b>
+                  </dd>
+                </div>
+                <div>
+                  <dt>First aider</dt>
+                  <dd>{c.emergency.firstAider}</dd>
+                </div>
+                <div>
+                  <dt>Nearest hospital</dt>
+                  <dd>{c.emergency.hospital}</dd>
+                </div>
+                <div>
+                  <dt>Fire extinguisher</dt>
+                  <dd>{c.emergency.extinguisher}</dd>
+                </div>
+              </dl>
+            </Section>
 
             {doc.latest && mine && !mine.signon && (
-              <SignOnForm person={mine} own inCharge={inCharge} responsible={doc.responsible} onSigned={signed} />
+              <SignOnCard person={mine} inCharge={inCharge} responsible={doc.responsible} onSigned={signed} />
             )}
 
-            <div className="sws-grp">
-              <div className="sw-gh">
-                <b>Who it covers</b>
-                <span>{`${doc.people.filter((p) => p.signon).length} of ${doc.people.length} signed on`}</span>
-              </div>
-              <div className="sws-people">
-                {doc.people.map((p) => (
-                  <div key={p.id} className="sws-person">
-                    <span>
-                      <b>{p.name}</b>
-                      <em>{p.team ? p.role || "Team member" : p.role || "Outside the business"}</em>
-                      {/* what they raised when they signed — the person in charge
-                          is told in their bell, and it stands here beside them */}
-                      {p.signon?.issue && (
-                        <em className={p.signon.issueCleared ? undefined : "sw-state warn"}>
-                          {p.signon.issueCleared
-                            ? `Raised: ${p.signon.issue} — sorted by ${p.signon.issueCleared.by}, ${siteWhen(p.signon.issueCleared.at, c.jurisdiction)}`
-                            : `Raised: ${p.signon.issue}`}
-                        </em>
-                      )}
-                    </span>
-                    <span className={p.signon ? "sw-state ok" : undefined}>
-                      {p.signon ? (
-                        `Signed on ${signedWhen(p.signon)}${p.signon.onPhoneOf ? `, on ${p.signon.onPhoneOf}'s phone` : ""}`
-                      ) : doc.latest && onIt && p.staffProfileId !== me && helper !== p.id ? (
-                        <button type="button" className="pbtn ghost sm" onClick={() => setHelper(p.id)}>
-                          Sign them on
-                        </button>
-                      ) : (
-                        "Not signed on"
-                      )}
-                      {/* a sign-on given on this phone is one this reader can
-                          still add to — what the helper found on the roof */}
-                      {doc.latest && p.signon && p.id !== mine?.id && p.signon.signedByStaffId === me && raising !== p.id && (
-                        <RaiseIssue person={p} open={false} onOpen={() => setRaising(p.id)} onClose={() => setRaising(null)} onDone={signed} />
-                      )}
-                    </span>
+            {/* AFTER SIGNING, TOO: what you find when you get on the roof is
+                after the briefing at the truck */}
+            {doc.latest && mine?.signon &&
+              (raisingFor?.id === mine.id ? (
+                <IssueCard key={mine.id} person={mine} onClose={() => setRaising(null)} onDone={signed} />
+              ) : (
+                <div className="sws-done">
+                  <p className="sws-ok">{`You signed on ${signedWhen(mine.signon)}.`}</p>
+                  <div className="sws-foot sws-foot--ruled">
+                    <Button kind="quiet" size={32} className="sws-quiet" onClick={() => setRaising(mine.id)}>
+                      {mine.signon.issue ? "Change the issue you raised" : "Raise an issue"}
+                    </Button>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {doc.latest && raising && raising !== mine?.id && (
-              <div className="card2 sws-card">
-                <RaiseIssue
-                  person={doc.people.find((p) => p.id === raising)!}
-                  open
-                  onOpen={() => setRaising(raising)}
-                  onClose={() => setRaising(null)}
-                  onDone={signed}
-                />
-              </div>
-            )}
-
-            {doc.latest && onIt && helper && unsigned.some((p) => p.id === helper) && (
-              <SignOnForm
-                key={helper}
-                person={unsigned.find((p) => p.id === helper)!}
-                own={false}
-                inCharge={unsigned.find((p) => p.id === helper)!.staffProfileId === doc.responsibleStaffId}
-                responsible={doc.responsible}
-                onSigned={signed}
-              />
-            )}
+                </div>
+              ))}
           </div>
-          </ScreenPanel>
+
+          <div className="sws-side">
+            <div className="sws-stick">
+              <Section name="Who it covers" icon="users" hue="green" fact={`${doc.people.filter((p) => p.signon).length} of ${doc.people.length} signed on`}>
+                <ul className="sws-people" aria-label="Who it covers">
+                  {doc.people.map((p) => {
+                    const you = !!me && p.staffProfileId === me;
+                    /* a sign-on given on this phone is one this reader can
+                       still add to — what the helper found on the roof */
+                    const canRaise = doc.latest && !!p.signon && p.id !== mine?.id && !!me && p.signon.signedByStaffId === me;
+                    return (
+                      <li key={p.id} className="sws-person">
+                        <Initials name={p.name} size={32} beside />
+                        <span className="sws-pt">
+                          <b>{p.name}</b>
+                          <span>{roleLine(p, !!p.staffProfileId && p.staffProfileId === doc.responsibleStaffId, you)}</span>
+                          {p.signon?.onPhoneOf && <span>{`On ${p.signon.onPhoneOf}'s phone`}</span>}
+                          {/* what they raised when they signed — the person in
+                              charge is told in their bell, and it stands here
+                              beside them */}
+                          {p.signon?.issue && (
+                            <span className={p.signon.issueCleared ? undefined : "sws-look"}>
+                              {p.signon.issueCleared
+                                ? `Raised: ${p.signon.issue} — sorted by ${p.signon.issueCleared.by}, ${siteWhen(p.signon.issueCleared.at, c.jurisdiction)}`
+                                : `Raised: ${p.signon.issue}`}
+                            </span>
+                          )}
+                        </span>
+                        <span className="sws-pend">
+                          {p.signon ? (
+                            <StateWord tone="good" className="sws-state">{`Signed on ${signedShort(p.signon)}`}</StateWord>
+                          ) : doc.latest && onIt && !you ? (
+                            <Button kind="second" size={32} onClick={() => setHelper(p.id)}>
+                              Sign them on
+                            </Button>
+                          ) : (
+                            <StateWord tone="look" className="sws-state">
+                              Not signed on
+                            </StateWord>
+                          )}
+                          {canRaise && raising !== p.id && (
+                            <Button kind="quiet" size={32} onClick={() => setRaising(p.id)}>
+                              {p.signon!.issue ? "Change the issue you raised" : "Raise an issue"}
+                            </Button>
+                          )}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </Section>
+
+              {raisingFor && raisingFor.id !== mine?.id && (
+                <IssueCard key={raisingFor.id} person={raisingFor} onClose={() => setRaising(null)} onDone={signed} />
+              )}
+            </div>
+          </div>
         </div>
+
+        {helping && (
+          <SignOnDialog
+            key={helping.id}
+            person={helping}
+            inCharge={helping.staffProfileId === doc.responsibleStaffId}
+            responsible={doc.responsible}
+            onSigned={signed}
+            onClose={() => setHelper(null)}
+          />
+        )}
       </div>
     </div>
   );

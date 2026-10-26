@@ -49,7 +49,7 @@ const doc = (over: Partial<SwmsDocument> = {}): SwmsDocument => ({
   siteCheckedBy: "Troy Porter",
   siteCheckedAt: "2026-09-15T21:40:00.000Z",
   people: [
-    person({ id: "p-troy", staffProfileId: "troy", name: "Troy Porter", role: "Crew lead", signon: withIssue("") }),
+    person({ id: "p-troy", staffProfileId: "troy", name: "Troy Porter", role: "Supervisor", signon: withIssue("") }),
     person({ id: "p-dane", staffProfileId: "dane", name: "Dane Whitmore" }),
     person({ id: "p-kai", name: "Kai Lindqvist", role: "Lindqvist Plumbing", team: false }),
   ],
@@ -72,17 +72,22 @@ const sign = (label: string) => {
   fireEvent.pointerUp(pad, { pointerId: 1 });
 };
 
+/** A person's row in Who it covers (their name also stands elsewhere, as the first aider). */
+const row = (name: string) =>
+  screen.getAllByText(name).map((el) => el.closest(".sws-person")).find(Boolean) as HTMLElement;
+
 /* ONE PROMISE, NOT TWO. The paragraph says what signing means; a tick
-   repeating it was the same promise twice, and a greyed-out button that said
-   nothing left the reader hunting for what was missing. */
-it("signs you on once you've signed, and says so while the box is empty", async () => {
+   repeating it was the same promise twice. The dimmed button says the box
+   is still empty, with no hint text beside it. */
+it("signs you on once you've signed, and holds the button while the box is empty", async () => {
   const bell = jest.fn();
   window.addEventListener(BELL_REFRESH_EVENT, bell);
   render(<SwmsSignOn doc={doc()} me="dane" />);
 
   const button = screen.getByRole("button", { name: "Sign on" });
   expect(button).toBeDisabled();
-  expect(screen.getByText("Sign in the box to finish.")).toBeInTheDocument();
+  /* the dimmed button is enough: no hint text beside it */
+  expect(screen.queryByText(/Sign in the box/)).toBeNull();
   expect(screen.queryByRole("checkbox")).toBeNull();
   sign("Your signature");
   expect(button).toBeEnabled();
@@ -96,7 +101,7 @@ it("signs you on once you've signed, and says so while the box is empty", async 
 
 it("sends an issue raised with the sign-on", async () => {
   render(<SwmsSignOn doc={doc()} me="dane" />);
-  await userEvent.click(screen.getByRole("button", { name: "Raise an issue with this SWMS" }));
+  await userEvent.click(screen.getByRole("button", { name: "Raise an issue" }));
   await userEvent.type(screen.getByRole("textbox", { name: "Issue with this SWMS" }), "No anchor on the rear ridge");
   sign("Your signature");
   await userEvent.click(screen.getByRole("button", { name: "Sign on" }));
@@ -112,10 +117,13 @@ it("shows who's signed on, and lets someone on it sign anyone else on their phon
   expect(screen.getByText("1 of 3 signed on")).toBeInTheDocument();
   expect(screen.getAllByRole("button", { name: "Sign them on" })).toHaveLength(2);
 
-  const kai = screen.getByText("Kai Lindqvist").closest(".sws-person") as HTMLElement;
+  const kai = row("Kai Lindqvist");
   await userEvent.click(within(kai).getByRole("button", { name: "Sign them on" }));
+  /* over the page, as a form is (rule 51), and named for who is signing */
+  const dialog = screen.getByRole("dialog", { name: "Sign on Kai Lindqvist" });
+  expect(within(dialog).getByText("Lindqvist Plumbing, on your phone")).toBeInTheDocument();
   sign("Kai Lindqvist's signature");
-  await userEvent.click(screen.getByRole("button", { name: "Sign on Kai Lindqvist" }));
+  await userEvent.click(within(dialog).getByRole("button", { name: "Sign on Kai" }));
   expect(signOnSwms).toHaveBeenCalledWith(expect.objectContaining({ personId: "p-kai" }));
 });
 
@@ -135,7 +143,7 @@ it("leads a revision with what changed", () => {
     />
   );
   const changed = screen.getByText("What changed");
-  expect(within(changed.closest(".sws-grp") as HTMLElement).getByText("Crane lift instead of a hoist")).toBeInTheDocument();
+  expect(within(changed.closest(".sws-sec") as HTMLElement).getByText("Crane lift instead of a hoist")).toBeInTheDocument();
   expect(screen.getByText("Everyone signs on again")).toBeInTheDocument();
   /* and it stands above the document it changed */
   expect(changed.compareDocumentPosition(screen.getByText("Before you start")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -155,7 +163,7 @@ it("shows an issue raised at sign-on beside the person who raised it", () => {
 it("offers someone who isn't on it nothing to sign", () => {
   render(<SwmsSignOn doc={doc()} me="manager" />);
   expect(screen.queryByRole("button", { name: /Sign on|Sign them on/ })).toBeNull();
-  const kai = screen.getByText("Kai Lindqvist").closest(".sws-person") as HTMLElement;
+  const kai = row("Kai Lindqvist");
   expect(within(kai).getByText("Not signed on")).toBeInTheDocument();
 });
 
@@ -172,7 +180,8 @@ it("points a replaced version at the one that replaced it, and takes no sign-on"
       me="dane"
     />
   );
-  expect(screen.getByText("A newer SWMS replaced this one: New isolation point.")).toBeInTheDocument();
+  expect(screen.getByText("A newer SWMS replaced this one")).toBeInTheDocument();
+  expect(screen.getByText("New isolation point")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Open the current SWMS" })).toHaveAttribute("href", "/dashboard/swms/v-2");
   expect(screen.queryByRole("button", { name: "Sign on" })).toBeNull();
 });
@@ -184,7 +193,10 @@ it("puts the reading before the signature, in plain words, in the site's own tim
   /* the SWMS comes first on the page, the signature after it */
   expect(reading.compareDocumentPosition(signing) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(screen.getByText("1. Get onto the roof and set fall protection")).toBeInTheDocument();
-  expect(screen.getByText(/Nearest hospital: Sutherland Hospital/)).toBeInTheDocument();
+  /* Emergency is its own section, a label and what to do */
+  const emergency = screen.getByRole("region", { name: "Emergency" });
+  expect(within(emergency).getByText("000")).toBeInTheDocument();
+  expect(within(emergency).getByText("Nearest hospital").nextElementSibling).toHaveTextContent("Sutherland Hospital");
   /* the gear the signature says they'll follow, on the screen it's signed on */
   expect(screen.getByText("Protective equipment")).toBeInTheDocument();
   expect(screen.getByText(/Fit-checked P2 respirator and hearing protection for drilling/)).toBeInTheDocument();
@@ -219,7 +231,7 @@ it("leads with the issue for whoever has to answer it, and records it as sorted"
   raised.people[1] = { ...raised.people[1], signon: withIssue("No anchor on the rear ridge") };
   render(<SwmsSignOn doc={raised} me="troy" />);
 
-  const card = screen.getByText("An issue was raised").closest(".sws-grp") as HTMLElement;
+  const card = screen.getByText("An issue was raised").closest(".sws-sec") as HTMLElement;
   expect(within(card).getByText("No anchor on the rear ridge")).toBeInTheDocument();
   expect(within(card).getByText(/^Dane Whitmore, Wed 16 Sept/)).toBeInTheDocument();
   expect(within(card).getByRole("link", { name: "Open the job to revise the SWMS" })).toHaveAttribute("href", "/dashboard/jobs/job-1");
@@ -249,12 +261,12 @@ it("keeps a door to raise an issue after you've signed", async () => {
   signed.people[1] = { ...signed.people[1], signon: withIssue("") };
   render(<SwmsSignOn doc={signed} me="dane" />);
 
-  await userEvent.click(screen.getByRole("button", { name: "Raise an issue with this SWMS" }));
-  /* the box takes the card's width under the row, not a slot beside a button */
+  await userEvent.click(screen.getByRole("button", { name: "Raise an issue" }));
+  /* a card of its own, where the signed line stood */
   const box = screen.getByRole("textbox", { name: "Issue with this SWMS" });
-  expect(box.closest(".sws-actions")).toBeNull();
+  expect(box.closest(".sws-card")).not.toBeNull();
   await userEvent.type(box, "The anchor is rusted");
-  await userEvent.click(screen.getByRole("button", { name: "Tell the crew lead" }));
+  await userEvent.click(screen.getByRole("button", { name: "Tell the supervisor" }));
   expect(raiseSwmsIssue).toHaveBeenCalledWith({ personId: "p-dane", issue: "The anchor is rusted" });
 });
 
@@ -264,10 +276,10 @@ it("lets whoever gave a sign-on on their phone add an issue to it", async () => 
   const given = doc();
   given.people[2] = { ...given.people[2], signon: withIssue("", { onPhoneOf: "Troy Porter", signedByStaffId: "troy" }) };
   render(<SwmsSignOn doc={given} me="troy" />);
-  const kai = screen.getByText("Kai Lindqvist").closest(".sws-person") as HTMLElement;
-  await userEvent.click(within(kai).getByRole("button", { name: "Raise an issue with this SWMS" }));
+  const kai = row("Kai Lindqvist");
+  await userEvent.click(within(kai).getByRole("button", { name: "Raise an issue" }));
   await userEvent.type(screen.getByRole("textbox", { name: "Issue with this SWMS" }), "Kai says the ladder is too short");
-  await userEvent.click(screen.getByRole("button", { name: "Tell the crew lead" }));
+  await userEvent.click(screen.getByRole("button", { name: "Tell the supervisor" }));
   expect(raiseSwmsIssue).toHaveBeenCalledWith({ personId: "p-kai", issue: "Kai says the ladder is too short" });
 });
 
@@ -275,7 +287,7 @@ it("offers nobody else's row that door", () => {
   const given = doc();
   given.people[2] = { ...given.people[2], signon: withIssue("", { onPhoneOf: "Troy Porter", signedByStaffId: "troy" }) };
   render(<SwmsSignOn doc={given} me="dane" />);
-  const kai = screen.getByText("Kai Lindqvist").closest(".sws-person") as HTMLElement;
+  const kai = row("Kai Lindqvist");
   expect(within(kai).queryByRole("button", { name: /Raise an issue/ })).toBeNull();
 });
 
@@ -285,14 +297,15 @@ it("keeps the in-charge words when someone else holds the phone", async () => {
   const unsigned = doc();
   unsigned.people[0] = { ...unsigned.people[0], signon: null };
   render(<SwmsSignOn doc={unsigned} me="dane" />);
-  const troy = screen.getByText("Troy Porter").closest(".sws-person") as HTMLElement;
+  const troy = row("Troy Porter");
   await userEvent.click(within(troy).getByRole("button", { name: "Sign them on" }));
   expect(screen.getByText(/They'll brief everyone it covers before work starts/)).toBeInTheDocument();
 });
 
 it("goes back to the job it came from", () => {
   render(<SwmsSignOn doc={doc()} me="dane" />);
-  expect(screen.getByRole("link", { name: "← Job #2601" })).toHaveAttribute("href", "/dashboard/jobs/job-1");
+  expect(screen.getByRole("link", { name: "job 2601" })).toHaveAttribute("href", "/dashboard/jobs/job-1");
+  expect(screen.getByText(/, at 14 Attunga Road, Miranda NSW 2228$/)).toBeInTheDocument();
 });
 
 it("says a sign-on a correction carried was given before it, without a version number", () => {
@@ -306,4 +319,45 @@ it("says a sign-on a correction carried was given before it, without a version n
   render(<SwmsSignOn doc={carried} me="troy" />);
   expect(screen.getByText("You signed on Wed 16 Sept, 7:50am, before a correction.")).toBeInTheDocument();
   expect(screen.queryByText(/version 1/)).toBeNull();
+});
+
+/* WHO IT COVERS, as v2 rows: the role in grey with who is in charge and who
+   is you, then a word in its colour; a sign-on on the day of issue is its
+   time alone */
+it("says who is in charge and who is you, and when each signed on", () => {
+  render(<SwmsSignOn doc={doc()} me="dane" />);
+  const troy = row("Troy Porter");
+  expect(within(troy).getByText("Supervisor, in charge")).toBeInTheDocument();
+  expect(within(troy).getByText("Signed on 7:50am")).toBeInTheDocument();
+  const dane = row("Dane Whitmore");
+  expect(within(dane).getByText("Team member, you")).toBeInTheDocument();
+  expect(within(dane).getByText("Not signed on")).toBeInTheDocument();
+  const kai = row("Kai Lindqvist");
+  expect(within(kai).getByText("Lindqvist Plumbing, outside the business")).toBeInTheDocument();
+});
+
+it("keeps the day on a sign-on given on another day", () => {
+  const later = doc();
+  later.people[0] = { ...later.people[0], signon: withIssue("", { at: "2026-09-17T21:50:00.000Z" }) };
+  render(<SwmsSignOn doc={later} me="dane" />);
+  expect(screen.getByText("Signed on Fri 18 Sept, 7:50am")).toBeInTheDocument();
+});
+
+/* the one card, and its button the page's only blue */
+it("puts the sign-on in the one card, after the emergency section", () => {
+  const { container } = render(<SwmsSignOn doc={doc()} me="dane" />);
+  expect(container.querySelectorAll(".sws-card")).toHaveLength(1);
+  expect(container.querySelectorAll(".pt-btn--main")).toHaveLength(1);
+  const emergency = screen.getByRole("region", { name: "Emergency" });
+  const card = screen.getByRole("region", { name: "Sign on" });
+  expect(emergency.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+it("closes the sign-on dialog on Cancel without signing anyone on", async () => {
+  render(<SwmsSignOn doc={doc()} me="troy" />);
+  const dane = row("Dane Whitmore");
+  await userEvent.click(within(dane).getByRole("button", { name: "Sign them on" }));
+  await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(signOnSwms).not.toHaveBeenCalled();
 });

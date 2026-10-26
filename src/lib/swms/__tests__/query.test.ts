@@ -31,7 +31,7 @@ beforeEach(() => {
     organizations: [{ id: ORG, primary_owner_user_id: "auth0|isaac" }],
     staff_profiles: [
       { org_id: ORG, id: "isaac", user_id: "auth0|isaac", first_name: "Isaac", last_name: "Smith", job_title: "Owner", status: "Active" },
-      { org_id: ORG, id: "troy", first_name: "Troy", last_name: "Porter", job_title: "Crew lead", status: "Active" },
+      { org_id: ORG, id: "troy", first_name: "Troy", last_name: "Porter", job_title: "Supervisor", status: "Active" },
       { org_id: ORG, id: "dane", first_name: "Dane", last_name: "Whitmore", job_title: null, status: "Active" },
     ],
     swms: [
@@ -213,7 +213,7 @@ describe("loadSwmsDocument", () => {
     expect(doc).toMatchObject({ version: 2, latest: true, responsible: "Troy Porter", siteCheckedBy: "Troy Porter" });
     expect(doc?.job).toMatchObject({ number: "2601", jurisdiction: "NSW" });
     expect(doc?.people.map((p) => [p.name, p.role, p.team, !!p.signon])).toEqual([
-      ["Troy Porter", "Crew lead", true, true],
+      ["Troy Porter", "Supervisor", true, true],
       ["Dane Whitmore", "", true, false],
       ["Kai Lindqvist", "", false, false],
     ]);

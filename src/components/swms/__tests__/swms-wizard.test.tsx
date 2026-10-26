@@ -37,7 +37,7 @@ const context = (over: Partial<SwmsWizardContext> = {}): SwmsWizardContext => ({
     categoryName: "Install",
   },
   team: [
-    { id: "troy", name: "Troy Porter", role: "Crew lead", booked: true, tickets: [{ name: "White Card", expires: null, current: true }] },
+    { id: "troy", name: "Troy Porter", role: "Supervisor", booked: true, tickets: [{ name: "White Card", expires: null, current: true }] },
     { id: "dane", name: "Dane Whitmore", role: "", booked: true, tickets: [] },
     { id: "sam", name: "Sam Ikpeba", role: "Electrician", booked: false, tickets: [] },
   ],
@@ -225,7 +225,7 @@ describe("what the job already says", () => {
     swmsWizardContext.mockImplementation(async () =>
       context({
         team: [
-          { id: "troy", name: "Troy Porter", role: "Crew lead", booked: true, tickets: [{ name: "White Card", expires: null, current: true }] },
+          { id: "troy", name: "Troy Porter", role: "Supervisor", booked: true, tickets: [{ name: "White Card", expires: null, current: true }] },
           { id: "dane", name: "Dane Whitmore", role: "", booked: true, tickets: [{ name: "HLTAID011 Provide First Aid", expires: "2027-01-01", current: true }] },
           { id: "sam", name: "Sam Ikpeba", role: "Electrician", booked: false, tickets: [{ name: "First aid", expires: "2020-01-01", current: false }] },
         ],
@@ -485,7 +485,7 @@ describe("a revision", () => {
         job: { ...context().job, address: "14 Attunga Road, Miranda", state: null, jurisdiction: null },
         /* someone the auto-pick would choose, if the last version's answer
            didn't stand */
-        team: [{ id: "troy", name: "Troy Porter", role: "Crew lead", booked: true, tickets: [{ name: "First aid", expires: "2027-03-01", current: true }] }],
+        team: [{ id: "troy", name: "Troy Porter", role: "Supervisor", booked: true, tickets: [{ name: "First aid", expires: "2027-03-01", current: true }] }],
       })
     );
     swmsPrevious.mockImplementation(async () => ({

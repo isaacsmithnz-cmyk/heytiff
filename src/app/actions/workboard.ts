@@ -31,8 +31,8 @@ import {
 import {
   readFlagStates,
   readJobAttention,
+  notesViewerOf,
   readOurJobNotes,
-  type NotesViewer,
   type OurJobNote,
 } from "@/lib/workboard/job-notes-query";
 import type { JobAttention } from "@/lib/workboard/job-attention";
@@ -41,7 +41,7 @@ import { sm8BookingsAllowed, sm8NotesAllowed, sm8WriteKindsEnabled } from "@/lib
 import { bookingZone, readBookingLines, type VerbView } from "@/lib/integrations/sm8-booking-read";
 import { BOOKINGS_OPEN_TO_MANAGERS, type BookingState } from "@/lib/integrations/sm8-booking-plan";
 import { orgPaymentTermsDays } from "@/lib/org/query";
-import { sm8NoteSender, type NoteSender } from "@/lib/integrations/links";
+import type { NoteSender } from "@/lib/integrations/links";
 import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
 import { offersSend, sendHold, type SendHold } from "@/lib/integrations/sm8-write-plan";
 import type { FlagState } from "@/lib/integrations/sm8-note-plan";
@@ -109,14 +109,6 @@ export type JobBookings = {
   lines: Record<string, BookingState>;
 };
 
-/** Who is looking, for the notes' doors: their staff card, the workspace's
-    sending state and who they'd send as. Read once per card open, and only
-    where the deployment sends notes. */
-async function notesViewer(orgId: string, userId: string): Promise<NotesViewer> {
-  const [staffId, state] = await Promise.all([staffIdFor(orgId, userId), readSm8WriteState(orgId)]);
-  const sender = await sm8NoteSender(orgId, staffId, state.tenantId ?? undefined);
-  return { staffId, state, sender };
-}
 import {
   readJobTracked,
   readMirrorJobDetail,
@@ -601,7 +593,7 @@ export async function readJobRecord(remoteId: string): Promise<JobRecordRead | n
      notes. Without them there is no viewer read at all, and the card is
      read exactly as it always was. */
   const viewerRead = sm8NotesAllowed()
-    ? notesViewer(ctx.orgId, ctx.userId).catch((err: unknown) => {
+    ? notesViewerOf(ctx.orgId, ctx.userId).catch((err: unknown) => {
         console.error(`[sm8] couldn't read who is looking at job ${id}: ${err instanceof Error ? err.message : String(err)}`);
         return null;
       })

@@ -43,6 +43,17 @@ export type MobileCtx = {
 
 export const ORG_HEADER = "x-heytiff-org";
 
+/* THE CONTEXTS requireMobile made, and only those: a press to ServiceM8 is
+   minted for the phone only from one of these (lib/integrations/sm8-press's
+   sm8PressFromMobile), so a look-alike object with the same fields is not a
+   verified person. */
+const verified = new WeakSet<object>();
+
+/** Whether `ctx` is one requireMobile made from a verified token. */
+export function isVerifiedMobile(ctx: unknown): ctx is MobileCtx {
+  return !!ctx && typeof ctx === "object" && verified.has(ctx);
+}
+
 const json = (status: number, error: string): Response =>
   Response.json({ error }, { status, headers: { "cache-control": "no-store" } });
 
@@ -89,13 +100,15 @@ export async function requireMobile(
   const caps = resolve(role, active.permissions);
   if (capability && !caps.has(capability)) return json(403, "You don't have access to that.");
 
-  return {
+  const ctx: MobileCtx = Object.freeze({
     userId,
     orgId: active.org_id,
     role,
     caps,
     orgIds: [active.org_id, ...rows.map((r) => r.org_id).filter((id) => id !== active.org_id)],
-  };
+  });
+  verified.add(ctx);
+  return ctx;
 }
 
 /** A route's answer: JSON the phone never caches. */

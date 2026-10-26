@@ -50,6 +50,8 @@ jest.mock("@/lib/workboard/job-notes-query", () => ({
   readOurJobNotes: async () => [],
   readFlagStates: async () => ({ flags: {}, held: new Set() }),
   readJobAttention: async () => ({ attention: { items: [], total: 0 }, assignable: [] }),
+  // who is looking is read for real: their staff card, then the settings
+  notesViewerOf: (...a: [string, string]) => jest.requireActual("@/lib/workboard/job-notes-query").notesViewerOf(...a),
 }));
 
 const readSm8WriteState = jest.fn(async () => state);
@@ -123,7 +125,9 @@ describe("where the deployment doesn't book (D-14)", () => {
     process.env.SM8_WRITES = setting;
     const r = await readJobRecord(JOB);
     expect(r && "bookings" in r).toBe(false);
-    expect(statements).toEqual(reads);
+    // in either order: the viewer is read beside the job
+    const byTable = (x: { table: string }, y: { table: string }) => x.table.localeCompare(y.table);
+    expect([...statements].sort(byTable)).toEqual([...reads].sort(byTable));
     expect(readSm8WriteState).toHaveBeenCalledTimes(settings);
     expect(readBookingLines).not.toHaveBeenCalled();
     expect(bookingZone).not.toHaveBeenCalled();

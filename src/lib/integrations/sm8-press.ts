@@ -16,10 +16,13 @@ import "server-only";
      cron. A background sender SENDS what a press queued; it never queues.
    - The brand lives in this process, so code that holds a session could
      still mint one. The import-boundary test (sm8-press.test.ts) is what
-     keeps minting to the "use server" actions, where a press is a press. */
+     keeps minting to the "use server" actions, where a press is a press,
+     and to the phone's routes, which mint one only from a context their
+     token check made (sm8PressFromMobile, below). */
 
 import { auth0 } from "@/lib/auth0";
 import { staffProfileIdFor } from "@/lib/fleet/query";
+import { isVerifiedMobile, type MobileCtx } from "@/lib/mobile/auth";
 
 declare const PRESS: unique symbol;
 
@@ -46,6 +49,18 @@ export async function sm8PressFromSession(): Promise<Sm8Press | null> {
   if (!orgId || !userId) return null;
   const staffId = await staffProfileIdFor(orgId, userId).catch(() => null);
   const press = Object.freeze({ orgId, userId, staffId: staffId ?? null, at: Date.now() });
+  minted.add(press);
+  return press as unknown as Sm8Press;
+}
+
+/** The press of whoever the phone's token says is pressing, now (native app,
+    phase 2). Only from a context lib/mobile/auth's requireMobile made, after
+    it verified Auth0's token and found the person's membership: anything
+    else, the same fields included, mints nothing. */
+export async function sm8PressFromMobile(ctx: MobileCtx): Promise<Sm8Press | null> {
+  if (!isVerifiedMobile(ctx)) return null;
+  const staffId = await staffProfileIdFor(ctx.orgId, ctx.userId).catch(() => null);
+  const press = Object.freeze({ orgId: ctx.orgId, userId: ctx.userId, staffId: staffId ?? null, at: Date.now() });
   minted.add(press);
   return press as unknown as Sm8Press;
 }

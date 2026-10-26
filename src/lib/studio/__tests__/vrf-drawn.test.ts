@@ -585,6 +585,31 @@ describe("sliding a joint along its pipe (Isaac, 2026-09-30)", () => {
     const tree = systemVrfTree(pack, doc.systems.find((s) => s.id === t.systemId)!, doc)!;
     expect(tree.drawn).toBe(true);
     expect(tree.sections.find((s) => s.to === t.heads[63])!.lengthM).toBeCloseTo(10);
+    // and the P125's branch comes with it, its end on the joint where it is now
+    const branch = runsOf(doc, t.systemId).find((r) => attachOf(r.props.startAttach)?.id === t.heads[125])!;
+    expect(branch.geometry.points.at(-1)).toEqual({ x: 38 * M, y: 0 });
+    expect(tree.sections.find((s) => s.to === t.heads[125])!.lengthM).toBeCloseTo(Math.hypot(2, 10));
+  });
+
+  /* 6 Bishops Ave, 2026-10-26: dragged free, a joint went where it was
+     dropped and its runs stayed where they had met it, so the plan showed it
+     3.3 m from its pipes and the metres were the old ones */
+  it("dragged free, every run on it follows it", () => {
+    const t = page144Drawn();
+    const j = jointAt(t.doc, 40 * M);
+    const to = { x: 40 * M, y: 4 * M };
+    const moved = t.doc.objects.map((o) => (o.id === j.id && o.geometry.kind === "point" ? { ...o, geometry: { ...o.geometry, at: to } } : o));
+    const doc = { ...t.doc, objects: reconcileAttachedRuns(moved, new Set([j.id])) };
+    const onIt = runsOf(doc, t.systemId).filter(
+      (r) => attachOf(r.props.startAttach)?.id === j.id || attachOf(r.props.endAttach)?.id === j.id
+    );
+    expect(onIt).toHaveLength(3);
+    for (const r of onIt) {
+      const pts = r.geometry.points;
+      expect(attachOf(r.props.endAttach)?.id === j.id ? pts.at(-1) : pts[0]).toEqual(to);
+    }
+    const tree = systemVrfTree(pack, doc.systems.find((s) => s.id === t.systemId)!, doc)!;
+    expect(tree.sections.find((s) => s.to === t.heads[125])!.lengthM).toBeCloseTo(6);
   });
 
   it("carries on through a T onto the next run (Isaac: \"even through T's\")", () => {

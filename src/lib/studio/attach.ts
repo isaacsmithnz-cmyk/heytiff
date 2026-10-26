@@ -26,14 +26,21 @@ const EPS = 1e-6;
 const near = (a: number, b: number) => Math.abs(a - b) < EPS;
 const samePt = (a: Point, b: Point) => near(a.x, b.x) && near(a.y, b.y);
 
-/** Current anchor point of an attach target. Units and risers anchor at their
-    centre; fitting/spigot/grille resolve with graph v1 — null until then, and
-    null for a missing or non-point target (leave the run alone). */
+/** the attach kinds that sit at a point: a run on one ends where it is */
+const POINT_ANCHORS: ReadonlySet<Attach["kind"]> = new Set(["unit", "riser", "joint", "branch-box"]);
+
+/** Current anchor point of an attach target. Units, risers, joints and
+    branch boxes anchor at their point (6 Bishops Ave, 2026-10-26: a joint
+    dragged off its pipes was left 3.3 m from them, because this answered
+    for units and risers only and the drag's preview, which carries every
+    point, said otherwise); fitting/spigot/grille resolve with graph v1 —
+    null until then, and null for a missing or non-point target (leave the
+    run alone). */
 export function anchorPointOf(
   byId: ReadonlyMap<string, DesignObject>,
   a: Attach
 ): Point | null {
-  if (a.kind !== "unit" && a.kind !== "riser") return null;
+  if (!POINT_ANCHORS.has(a.kind)) return null;
   const o = byId.get(a.id);
   return o && o.geometry.kind === "point" ? o.geometry.at : null;
 }

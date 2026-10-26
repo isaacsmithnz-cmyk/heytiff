@@ -35,11 +35,13 @@ const unit = (id: string, x: number, y: number, type = "unit"): DesignObject => 
   props: type === "unit" ? { role: "idu", model: "M1" } : { group: "A" },
 });
 
+type EndAttach = { kind: "unit" | "riser" | "joint" | "branch-box"; id: string };
+
 const run = (
   id: string,
   points: { x: number; y: number }[],
-  startAttach: { kind: "unit" | "riser"; id: string } | null,
-  endAttach: { kind: "unit" | "riser"; id: string } | null,
+  startAttach: EndAttach | null,
+  endAttach: EndAttach | null,
   type = "pipe-run"
 ): DesignObject => ({
   id,
@@ -134,6 +136,23 @@ describe("reconcileAttachedRuns", () => {
     ];
     const out = reconcileAttachedRuns(objects, new Set(["rs1"]));
     expect(ptsOf(out[1])).toEqual([pt(0, 10), pt(200, 10)]);
+  });
+
+  /* 6 Bishops Ave, 2026-10-26: a joint dragged off its pipes landed where it
+     was dropped and its three runs stayed where they had met it. The drag's
+     preview carried them; the commit, here, didn't know a joint. */
+  it("follows joints and branch boxes exactly like units", () => {
+    const objects = [
+      unit("j1", 60, 90, "joint"),
+      unit("bx1", 300, 40, "branch-box"),
+      run("r1", [pt(0, 0), pt(60, 50)], null, { kind: "joint", id: "j1" }),
+      run("r2", [pt(60, 50), pt(120, 0)], { kind: "joint", id: "j1" }, null),
+      run("r3", [pt(200, 0), pt(250, 0)], null, { kind: "branch-box", id: "bx1" }),
+    ];
+    const out = reconcileAttachedRuns(objects, new Set(["j1", "bx1"]));
+    expect(ptsOf(out[2])).toEqual([pt(0, 0), pt(60, 90)]);
+    expect(ptsOf(out[3])).toEqual([pt(60, 90), pt(120, 0)]);
+    expect(ptsOf(out[4])).toEqual([pt(200, 0), pt(300, 40)]);
   });
 
   it("reconciles duct-runs the same way", () => {
@@ -402,6 +421,27 @@ describe("normalizeDesign", () => {
     expect(ptsOf(out.objects[2])).toEqual([pt(0, 0), pt(140, 0), pt(140, 80)]);
     expect(out.objects[3].props.endAttach).toBeUndefined();
     expect(out.objects[3].props.startAttach).toEqual({ kind: "unit", id: "u1" });
+  });
+
+  /* the drawing as it was saved (6 Bishops Ave, upstairs): the joint between
+     the Study and Bedroom 3 sat 3.3 m from the point its three runs met, and
+     the metres were the runs' */
+  it("brings runs back onto a joint that was moved without them", () => {
+    const doc = createDesign({ name: "t", mode: "blank", now: "2026-01-01T00:00:00.000Z" });
+    const floorId = doc.floors[0].id;
+    const at = (o: DesignObject): DesignObject => ({ ...o, floorId });
+    doc.objects = [
+      at(unit("j1", 1175, 717, "joint")),
+      at(run("study", [pt(1280, 730), pt(1213, 630)], { kind: "unit", id: "u-study" }, { kind: "joint", id: "j1" })),
+      at(run("bed3", [pt(1339, 730), pt(1213, 630)], { kind: "unit", id: "u-bed3" }, { kind: "joint", id: "j1" })),
+      at(run("on", [pt(1213, 630), pt(1165, 557)], { kind: "joint", id: "j1" }, null)),
+      at(unit("u-study", 1280, 730)),
+      at(unit("u-bed3", 1339, 730)),
+    ];
+    const out = normalizeDesign(doc);
+    expect(ptsOf(out.objects[1]).at(-1)).toEqual(pt(1175, 717));
+    expect(ptsOf(out.objects[2]).at(-1)).toEqual(pt(1175, 717));
+    expect(ptsOf(out.objects[3])[0]).toEqual(pt(1175, 717));
   });
 
   it("is idempotent: a repaired doc comes back by reference", () => {

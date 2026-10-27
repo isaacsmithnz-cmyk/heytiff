@@ -181,22 +181,91 @@ function rawFloor(doc: DesignDocument, floor: Floor, ceiling: number): Raw | nul
 }
 
 const solid = (r: Raw) => r.spaces.filter((s) => WALLED.has(s.kind) && !s.existing);
-const stairOf = (r: Raw) => r.spaces.find((s) => s.kind === "stair");
+const stairsOf = (r: Raw) => r.spaces.filter((s) => s.kind === "stair");
 
-/** How far to move a floor so it stands over the ground floor. */
+/* HOW MUCH OF ONE FLOOR STANDS OVER ANOTHER'S WALLS (6 Bishops Ave, 27
+   October 2026: "It looks like the top floor is offset"). Its first floor
+   was drawn 4.4 m further up its page than the ground floor on its own, and
+   the two outlines still shared 60% as drawn, which was enough to leave it
+   there. So each way of standing it (as drawn, each stair over each stair,
+   middle over middle) is measured by the share of the smaller floor's walled
+   plan that lands on the other's, on a grid, every walled space counted, the
+   ones kept as well as the new: the house stacks on itself whatever is being
+   done to it. */
+const CELL_M = 0.25;
+/** as drawn unless another way stands this much more of it over the ground */
+const CLEARLY_BETTER = 0.1;
+
+function inside(pts: XZ[], x: number, z: number): boolean {
+  let hit = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, zi] = pts[i];
+    const [xj, zj] = pts[j];
+    if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) hit = !hit;
+  }
+  return hit;
+}
+
+/** the grid cells a floor's walled spaces cover, by the cell's middle */
+function cellsOf(r: Raw): Set<string> {
+  const cells = new Set<string>();
+  for (const s of r.spaces) {
+    if (!WALLED.has(s.kind)) continue;
+    const b = boxOf(s.pts);
+    if (!b) continue;
+    for (let i = Math.floor(b.x0 / CELL_M); i <= Math.ceil(b.x1 / CELL_M); i++)
+      for (let j = Math.floor(b.z0 / CELL_M); j <= Math.ceil(b.z1 / CELL_M); j++)
+        if (inside(s.pts, (i + 0.5) * CELL_M, (j + 0.5) * CELL_M)) cells.add(`${i},${j}`);
+  }
+  return cells;
+}
+
+/** the share of the smaller floor that stands over the other, `other` moved by `by` */
+function standing(ground: Set<string>, other: Set<string>, [dx, dz]: XZ): number {
+  const least = Math.min(ground.size, other.size);
+  if (!least) return 0;
+  const di = Math.round(dx / CELL_M);
+  const dj = Math.round(dz / CELL_M);
+  let on = 0;
+  for (const c of other) {
+    const [i, j] = c.split(",").map(Number);
+    if (ground.has(`${i + di},${j + dj}`)) on += 1;
+  }
+  return on / least;
+}
+
+/** How far to move a floor so it stands over the ground floor: as drawn when
+    its page draws it there, else the stair over stair that stands most of
+    it over the ground (a house can have more than one: on 6 Bishops Ave the
+    upper floor's first is the studio's at the back), else middle over
+    middle. Each later way has to stand clearly more of it over the ground
+    than the one before it to win. */
 export function lineUp(ground: Raw, other: Raw): XZ {
   const g = boxOf(solid(ground).flatMap((s) => s.pts));
   const o = boxOf(solid(other).flatMap((s) => s.pts));
   if (!g || !o) return [0, 0];
-  if (overlap(g, o) >= 0.5) return [0, 0];
-  const sg = stairOf(ground);
-  const so = stairOf(other);
-  if (sg && so) {
-    const [ax, az] = centroid(sg.pts);
-    const [bx, bz] = centroid(so.pts);
-    return [ax - bx, az - bz];
+  const gc = cellsOf(ground);
+  const oc = cellsOf(other);
+  /* a floor whose outline barely meets the ground's as drawn is never left
+     there, as before */
+  let best: XZ = [0, 0];
+  let bar = overlap(g, o) >= 0.5 ? standing(gc, oc, [0, 0]) + CLEARLY_BETTER : -1;
+  let stair: { by: XZ; share: number } | null = null;
+  for (const sg of stairsOf(ground))
+    for (const so of stairsOf(other)) {
+      const [ax, az] = centroid(sg.pts);
+      const [bx, bz] = centroid(so.pts);
+      const by: XZ = [ax - bx, az - bz];
+      const share = standing(gc, oc, by);
+      if (!stair || share > stair.share) stair = { by, share };
+    }
+  if (stair && stair.share > bar) {
+    best = stair.by;
+    bar = stair.share + CLEARLY_BETTER;
   }
-  return [(g.x0 + g.x1) / 2 - (o.x0 + o.x1) / 2, (g.z0 + g.z1) / 2 - (o.z0 + o.z1) / 2];
+  const middle: XZ = [(g.x0 + g.x1) / 2 - (o.x0 + o.x1) / 2, (g.z0 + g.z1) / 2 - (o.z0 + o.z1) / 2];
+  if (standing(gc, oc, middle) > bar) best = middle;
+  return best;
 }
 
 const shift = ([dx, dz]: XZ) => (p: XZ): XZ => [p[0] + dx, p[1] + dz];

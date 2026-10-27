@@ -127,6 +127,82 @@ describe("floors stack", () => {
   it("middle over middle with no stair to go by", () => {
     expect(lineUp(g([space("A", "room", [0, 0, 1000, 800])]), g([space("B", "room", [3000, 2000, 3400, 2400])]))).toEqual([-27, -18]);
   });
+
+  /* 6 Bishops Ave (Isaac, 27 October 2026: "It looks like the top floor is
+     offset"). Tiff's reading of its two pages, each space as the box she
+     read, in each page's own pixels and scale. The first floor is drawn
+     about 115 px higher up its page than the ground floor is on its own:
+     the front verandah is the same 286 px long on both, 115 px apart, and
+     the stair up is at 652-737 below and 524-624 above. Their outlines
+     still share 60% as drawn, which used to be enough to leave the floor
+     where its page put it, 4.4 m north of the floor it stands on. */
+  const onPage = (scaleMm: number, spaces: ReadSpace[]) => ({
+    floor: floor("f", 0),
+    openings: [],
+    read: true,
+    spaces: spaces.map((s) => ({ name: s.name, kind: s.kind, existing: s.existing, pts: s.outline.map((p) => [(p.x * scaleMm) / 1000, (p.y * scaleMm) / 1000] as [number, number]) })),
+  });
+  const bishopsGround = onPage(35.14388760928441, [
+    space("Ex. Garage", "garage", [560, 755, 718, 910], true),
+    space("Outdoor Entertaining", "outdoor", [560, 575, 718, 752]),
+    space("Outdoor stair over pool equip", "stair", [585, 685, 636, 727]),
+    space("Terrace", "outdoor", [930, 602, 1003, 747]),
+    space("Kitchen / Living / Dining", "room", [1018, 604, 1365, 890]),
+    space("Pantry", "cupboard", [1167, 604, 1205, 667]),
+    space("P'WD RM", "wet", [1167, 672, 1255, 737]),
+    space("Laundry", "wet", [1208, 604, 1265, 667]),
+    space("Stairs", "stair", [1270, 652, 1320, 737]),
+    space("Under Stairs Storage", "cupboard", [1290, 604, 1370, 647]),
+    space("Bags", "cupboard", [1322, 712, 1365, 734]),
+    space("Ex. Entry", "circulation", [1365, 822, 1495, 890], true),
+    space("Hall", "circulation", [1365, 677, 1425, 819], true),
+    space("Ex. Bath", "wet", [1375, 604, 1422, 675], true),
+    space("Ex. Guest Bed", "room", [1428, 719, 1555, 819], true),
+    space("Ex. Kids Play", "room", [1428, 604, 1555, 712], true),
+    space("Ex. Verandah", "outdoor", [1498, 604, 1612, 890], true),
+  ]);
+  const bishopsFirst = onPage(34.803996484313124, [
+    space("Storage", "cupboard", [563, 619, 580, 734], true),
+    space("Ens/Ldry", "wet", [563, 734, 712, 784]),
+    space("Void", "void", [563, 514, 580, 594], true),
+    space("Ex. Stairs Retained", "stair", [565, 594, 665, 619], true),
+    space("Kitchenette", "room", [565, 489, 720, 514], true),
+    space("Ex. Bedroom", "room", [580, 619, 700, 734], true),
+    space("Ex. Living", "room", [580, 514, 700, 594], true),
+    space("New Planter Below RF-02", "outdoor", [1005, 634, 1043, 779]),
+    space("Master Bed", "room", [1060, 629, 1172, 775]),
+    space("WIR", "cupboard", [1060, 557, 1170, 624]),
+    space("Master Ensuite", "wet", [1060, 486, 1170, 557]),
+    space("Hall", "circulation", [1175, 486, 1460, 656]),
+    space("Study", "room", [1175, 659, 1270, 775]),
+    space("Ex. Bed 4", "room", [1175, 486, 1265, 624], true),
+    space("Bath", "wet", [1273, 659, 1345, 775]),
+    space("Stair", "stair", [1280, 524, 1325, 624]),
+    space("Ex. Bed 3", "room", [1348, 664, 1495, 775], true),
+    space("Ex. Ensuite", "wet", [1368, 489, 1430, 552], true),
+    space("Ex. WIR", "cupboard", [1368, 554, 1440, 609], true),
+    space("Ex. Bed 2", "room", [1440, 489, 1552, 607], true),
+    space("Ex. Gym", "room", [1462, 612, 1552, 707], true),
+    space("Front Verandah", "outdoor", [1495, 489, 1612, 775], true),
+  ]);
+
+  it("over the floor it stands on when its page draws it somewhere else, by the stair the two share", () => {
+    const [dx, dz] = lineUp(bishopsGround, bishopsFirst);
+    const box = (r: typeof bishopsGround, name: string, [mx, mz]: number[] = [0, 0]) => {
+      const pts = r.spaces.find((s) => s.name === name)!.pts;
+      return { x0: Math.min(...pts.map((p) => p[0])) + mx, x1: Math.max(...pts.map((p) => p[0])) + mx, z0: Math.min(...pts.map((p) => p[1])) + mz, z1: Math.max(...pts.map((p) => p[1])) + mz };
+    };
+    // the stair up stands on the stair below, not on the studio's at the back
+    const below = box(bishopsGround, "Stairs");
+    const above = box(bishopsFirst, "Stair", [dx, dz]);
+    expect(Math.min(below.x1, above.x1) - Math.max(below.x0, above.x0)).toBeGreaterThan(1);
+    expect(Math.min(below.z1, above.z1) - Math.max(below.z0, above.z0)).toBeGreaterThan(2);
+    // and the verandah is one verandah again, to within the pages' scales
+    const v0 = box(bishopsGround, "Ex. Verandah");
+    const v1 = box(bishopsFirst, "Front Verandah", [dx, dz]);
+    expect(Math.abs(v0.z0 - v1.z0)).toBeLessThan(0.5);
+    expect(Math.abs(v0.z1 - v1.z1)).toBeLessThan(0.5);
+  });
 });
 
 describe("units and runs", () => {

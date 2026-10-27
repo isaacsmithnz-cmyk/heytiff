@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import { Button } from "@/components/parts/button";
 import { Chooser } from "@/components/parts/chooser";
 import { Dialog } from "@/components/parts/dialog";
@@ -298,6 +298,11 @@ function SupplierDialog({
   const [note, setNote] = useState<Note | null>(null);
   const [matching, setMatching] = useState<Matching | null>(null);
   const [reading, setReading] = useState<Reading | null>(null);
+  /* the discount as typed, and as last saved: the supplier's own until this
+     dialog saves another */
+  const [draft, setDraft] = useState(() => draftOf(s));
+  const [kept, setKept] = useState(() => draftOf(s));
+  const unsaved = s.pricing === "list_less" && !sameDiscount(draft, kept);
 
   /* an invoice itself, a PDF or a photo: Tiff reads its lines for the
      person to look over, and nothing goes in until they add them */
@@ -385,28 +390,48 @@ function SupplierDialog({
     }, () => setBusy(null));
   };
 
-  const saveDiscount = async (discountPct: number, rules: DiscountRule[]) => {
+  /** Saves the discount as typed; true once it's in. */
+  const saveDiscount = async (d: DiscountDraft): Promise<boolean> => {
     setBusy("discount");
     setNote(null);
+    let saved = false;
     await withCleanup(async () => {
       try {
         const a = (await (
           await fetch("/api/quoting/suppliers", {
             method: "PATCH",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ key: s.key, discountPct, rules }),
+            body: JSON.stringify({ key: s.key, ...asSaved(d) }),
           })
         ).json()) as { ok: boolean; reason?: string };
         if (!a.ok) {
           setNote({ tone: "bad", text: discountRefusal(a.reason) });
           return;
         }
+        saved = true;
+        setKept(d);
         setNote({ tone: "ok", text: `${s.name} discount saved.` });
         onImported();
       } catch {
         setNote({ tone: "bad", text: "The discount couldn't be saved. Try again." });
       }
     }, () => setBusy(null));
+    return saved;
+  };
+
+  /* Done keeps a discount typed and not saved, as Escape and the scrim do
+     (Isaac's walk, 27 October 2026: 31% typed, then Done, and the supplier
+     opened again at 30%). One that can't be saved holds the dialog open,
+     saying why. */
+  const close = async () => {
+    if (busy === "discount") return;
+    if (!unsaved) return onClose();
+    if (!discountReady(draft)) {
+      const why = okPct(draft.pct) ? "Give each range its codes and its discount, or remove it." : `A discount is 0 to ${MAX_DISCOUNT_PCT}%.`;
+      setNote({ tone: "bad", text: `The discount isn't saved. ${why}` });
+      return;
+    }
+    if (await saveDiscount(draft)) onClose();
   };
 
   const accept = (kind: Kind) =>
@@ -426,9 +451,9 @@ function SupplierDialog({
     <Dialog
       heading={s.name}
       width={720}
-      onClose={onClose}
+      onClose={() => void close()}
       foot={
-        <Button kind="second" size={36} onClick={onClose}>
+        <Button kind="second" size={36} disabled={busy === "discount"} onClick={() => void close()}>
           Done
         </Button>
       }
@@ -490,7 +515,7 @@ function SupplierDialog({
             onAdd={() => void addInvoice(reading)}
           />
         )}
-        {s.pricing === "list_less" && <SupplierDiscount supplier={s} busy={busy !== null} onSave={(discountPct, rules) => void saveDiscount(discountPct, rules)} />}
+        {s.pricing === "list_less" && <SupplierDiscount draft={draft} onDraft={setDraft} busy={busy !== null} onSave={() => void saveDiscount(draft)} />}
         <CodeLetters supplierKey={s.key} supplierName={s.name} />
       </div>
     </Dialog>
@@ -604,19 +629,38 @@ function MatchColumns({
 /* A list-price supplier's discount: what the business takes off every list
    price, and any range by the start of its codes that gets a different one
    (a business's PUMY range, say). The business's own; HeyTiff has none. */
+type DiscountDraft = { pct: string; rules: { prefix: string; pct: string }[] };
+
+const draftOf = (s: SupplierView): DiscountDraft => ({
+  pct: s.discountPct ? String(s.discountPct) : "",
+  rules: s.rules.map((r) => ({ prefix: r.prefix, pct: String(r.discountPct) })),
+});
+const okPct = (v: string) => v.trim() === "" || (Number(v) >= 0 && Number(v) <= MAX_DISCOUNT_PCT);
+/* a range added and left blank is no range */
+const filledRules = (d: DiscountDraft) => d.rules.filter((r) => r.prefix.trim() !== "" || r.pct.trim() !== "");
+const discountReady = (d: DiscountDraft) => okPct(d.pct) && filledRules(d).every((r) => r.prefix.trim() !== "" && r.pct.trim() !== "" && okPct(r.pct));
+/** The discount as it's sent and kept. */
+const asSaved = (d: DiscountDraft): { discountPct: number; rules: DiscountRule[] } => ({
+  discountPct: Number(d.pct) || 0,
+  rules: filledRules(d).map((r) => ({ prefix: r.prefix.trim(), discountPct: Number(r.pct) })),
+});
+const sameDiscount = (a: DiscountDraft, b: DiscountDraft) => JSON.stringify(asSaved(a)) === JSON.stringify(asSaved(b));
+
 function SupplierDiscount({
-  supplier,
+  draft,
+  onDraft,
   busy,
   onSave,
 }: {
-  supplier: SupplierView;
+  draft: DiscountDraft;
+  onDraft: Dispatch<SetStateAction<DiscountDraft>>;
   busy: boolean;
-  onSave: (discountPct: number, rules: DiscountRule[]) => void;
+  onSave: () => void;
 }) {
-  const [pct, setPct] = useState(supplier.discountPct ? String(supplier.discountPct) : "");
-  const [rules, setRules] = useState(supplier.rules.map((r) => ({ prefix: r.prefix, pct: String(r.discountPct) })));
-  const okPct = (v: string) => v.trim() === "" || (Number(v) >= 0 && Number(v) <= MAX_DISCOUNT_PCT);
-  const ready = okPct(pct) && rules.every((r) => r.prefix.trim() !== "" && r.pct.trim() !== "" && okPct(r.pct));
+  const { pct, rules } = draft;
+  const ready = discountReady(draft);
+  const setPct = (v: string) => onDraft((d) => ({ ...d, pct: v }));
+  const setRules = (f: (rs: DiscountDraft["rules"]) => DiscountDraft["rules"]) => onDraft((d) => ({ ...d, rules: f(d.rules) }));
   const setRule = (i: number, part: Partial<{ prefix: string; pct: string }>) =>
     setRules((rs) => rs.map((r, j) => (j === i ? { ...r, ...part } : r)));
   return (
@@ -644,7 +688,7 @@ function SupplierDiscount({
         <Button kind="second" size={36} disabled={busy} onClick={() => setRules((rs) => [...rs, { prefix: "", pct: "" }])}>
           Add a range
         </Button>
-        <Button kind="second" size={36} disabled={busy || !ready} onClick={() => onSave(Number(pct) || 0, rules.map((r) => ({ prefix: r.prefix.trim(), discountPct: Number(r.pct) })))}>
+        <Button kind="second" size={36} disabled={busy || !ready} onClick={onSave}>
           Save discount
         </Button>
       </div>

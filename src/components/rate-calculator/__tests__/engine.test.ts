@@ -446,3 +446,42 @@ describe("hours in a full day", () => {
     expect(hydrateState({ settings: { working_hours: 7.5 } }).settings.working_hours).toBe(7.5);
   });
 });
+
+/* A FLEET GIVEN AS ONE TOTAL with no vehicle records — every new business,
+   since the calculator never loads the fleet — follows the team's time
+   (Isaac, 27 October 2026). It used to land all on install. */
+describe("a fleet total with no vehicle records", () => {
+  const fleet = { months: [5150, 5150, 5150] }; // $61,800 a year
+
+  it("follows the split typed into Staff and wages (simple)", () => {
+    const r = calculate({ ...simpleData, vehicles: [], simpleVehicleData: fleet });
+    expect(r.instVehicle).toBeCloseTo(61_800 * 0.6, 6);
+    expect(r.svcVehicle).toBeCloseTo(61_800 * 0.3, 6);
+    expect(r.adminVehicle).toBeCloseTo(61_800 * 0.1, 6);
+    expect(r.vehicleBreakdown[0]).toMatchObject({ annual: 61_800, iPct: 60, sPct: 30, aPct: 10 });
+  });
+
+  it("follows the roster's time, weighted by contracted hours (detailed staff)", () => {
+    const staff = [
+      { id: "a", name: "A", hourly_wage: 40, employment_type: "Full-time", contracted_hours_per_week: 38, install_pct: 100, service_pct: 0, admin_pct: 0 },
+      { id: "b", name: "B", hourly_wage: 40, employment_type: "Full-time", contracted_hours_per_week: 19, install_pct: 0, service_pct: 100, admin_pct: 0 },
+    ];
+    const r = calculate({ ...detailedData, staff, timesheets: {}, vehicles: [], simpleVehicleData: fleet });
+    // 38 hours on install, 19 on service: two thirds and one third
+    expect(r.instVehicle).toBeCloseTo(61_800 * 2 / 3, 6);
+    expect(r.svcVehicle).toBeCloseTo(61_800 / 3, 6);
+    expect(r.adminVehicle).toBeCloseTo(0, 6);
+  });
+
+  it("puts nothing on install alone that the split says is service", () => {
+    const r = calculate({ ...simpleData, vehicles: [], simpleVehicleData: fleet });
+    expect(r.svcVehicle).toBeGreaterThan(0);
+    expect(r.instVehicle + r.svcVehicle + r.adminVehicle).toBeCloseTo(61_800, 6);
+  });
+
+  it("still follows the drivers when there are vehicle records", () => {
+    const r = calculate({ ...simpleData, simpleVehicleData: fleet });
+    const byDrivers = calculate({ ...simpleData, vehicles: [], simpleVehicleData: fleet });
+    expect(r.instVehicle).not.toBeCloseTo(byDrivers.instVehicle, 0);
+  });
+});

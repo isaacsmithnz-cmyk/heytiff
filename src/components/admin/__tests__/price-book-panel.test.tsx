@@ -199,6 +199,101 @@ it("saves a list-price supplier's discount, with a range of codes of its own", a
   expect(onImported).toHaveBeenCalled();
 });
 
+/* Isaac's walk, 27 October 2026: 31% typed, then Done, and the supplier
+   opened again at 30% */
+describe("a discount typed and not saved", () => {
+  const me = { ...acme, key: "me", name: "Mitsubishi Electric", pricing: "list_less" as const, discountPct: 30 };
+  let patched: unknown[];
+  const answer = (a: { ok: boolean; reason?: string }) => {
+    patched = [];
+    global.fetch = jest.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === "PATCH") {
+        patched.push(JSON.parse(String(init.body)));
+        return { json: async () => a } as Response;
+      }
+      return { json: async () => ({ ok: true, rules: [] }) } as Response;
+    }) as unknown as typeof fetch;
+  };
+  const typed = (pct: string) => {
+    render(<PriceBook suppliers={[me]} onImported={jest.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Mitsubishi Electric" }));
+    fireEvent.change(screen.getByLabelText("Off every list price, %"), { target: { value: pct } });
+  };
+
+  it("is saved by Done, which then closes", async () => {
+    answer({ ok: true });
+    typed("31");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    });
+    expect(patched).toEqual([{ key: "me", discountPct: 31, rules: [] }]);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("is saved by Escape too", async () => {
+    answer({ ok: true });
+    typed("31");
+    await act(async () => {
+      fireEvent.keyDown(document, { key: "Escape" });
+    });
+    expect(patched).toEqual([{ key: "me", discountPct: 31, rules: [] }]);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("holds the dialog open, saying why, when it can't be saved", async () => {
+    answer({ ok: true });
+    typed("95");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    });
+    expect(patched).toEqual([]);
+    expect(dialog().getByText("The discount isn't saved. A discount is 0 to 90%.")).toBeInTheDocument();
+    /* a range half given */
+    fireEvent.change(screen.getByLabelText("Off every list price, %"), { target: { value: "31" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add a range" }));
+    fireEvent.change(screen.getByLabelText("Codes starting"), { target: { value: "PUMY" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    });
+    expect(patched).toEqual([]);
+    expect(dialog().getByText("The discount isn't saved. Give each range its codes and its discount, or remove it.")).toBeInTheDocument();
+  });
+
+  it("holds the dialog open when the save is refused", async () => {
+    answer({ ok: false, reason: "Only an admin can change a discount." });
+    typed("31");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    });
+    expect(screen.getByRole("dialog", { name: "Mitsubishi Electric" })).toBeInTheDocument();
+    expect(dialog().getByText("Only an admin can change a discount.")).toBeInTheDocument();
+  });
+
+  it("isn't sent again when nothing changed, nor for a range added and left blank", async () => {
+    answer({ ok: true });
+    typed("30");
+    fireEvent.click(screen.getByRole("button", { name: "Add a range" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    });
+    expect(patched).toEqual([]);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("isn't sent twice once Save discount has saved it", async () => {
+    answer({ ok: true });
+    typed("31");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save discount" }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    });
+    expect(patched).toHaveLength(1);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});
+
 /* Isaac, 2026-10-05: the price book takes in invoices — the invoice itself,
    a PDF or a photo, as well as a spreadsheet of them. Tiff reads it; the
    person sees every line and what it does to the book before any goes in. */

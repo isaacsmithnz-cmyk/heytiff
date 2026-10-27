@@ -134,6 +134,7 @@ export function NewDesign({
   onBlank,
   onPlans,
   onClose,
+  again,
 }: {
   sm8Jobs?: boolean;
   jobSearch: JobSearch;
@@ -142,10 +143,13 @@ export function NewDesign({
   /** opens the design on the canvas; resolves once it's saved */
   onPlans: (name: string, job: JobPrefill | undefined, floors: Floor[], planImport: PlanImport) => Promise<void>;
   onClose: () => void;
+  /** the menu's Start again: the open design, on its name and its job, which
+      this dialog leaves as they are */
+  again?: { name: string; job: string | null };
 }) {
   const [stage, setStage] = useState<Stage>("start");
   const [picked, setPicked] = useState<StudioJobHit | null>(null);
-  const [name, setName] = useState("");
+  const [name, setName] = useState(again?.name ?? "");
   const [pages, setPages] = useState<PageImage[]>([]);
   const [sources, setSources] = useState<Source[]>([]);
   const [ticked, setTicked] = useState<number[]>([]);
@@ -184,6 +188,8 @@ export function NewDesign({
 
   const job = picked ? prefillFromJob(picked) : undefined;
   const designName = name.trim() || "Untitled design";
+  const heading = again ? "Start again" : "New design";
+  const jobWord = again ? again.job : job?.jobNumber ? `job ${job.jobNumber}` : null;
 
   const pickJob = (hit: StudioJobHit) => {
     setPicked(hit);
@@ -339,10 +345,17 @@ export function NewDesign({
   /* ── 1. the job, the name, the plans ── */
   if (stage === "start" || stage === "reading") {
     return (
-      <Dialog heading="New design" onClose={onClose} width={720} dismissable={stage === "start"} foot={<Button onClick={onClose}>Cancel</Button>}>
+      <Dialog heading={heading} onClose={onClose} width={720} dismissable={stage === "start"} foot={<Button onClick={onClose}>Cancel</Button>}>
         {filePicker}
         <div className="ds2-nd-form">
-          {sm8Jobs && (
+          {again?.job && (
+            <Field label="Job">
+              <div className="ds2-nd-job">
+                <b>{again.job}</b>
+              </div>
+            </Field>
+          )}
+          {sm8Jobs && !again && (
             <Field label="Job">
               {picked ? (
                 <div className="ds2-nd-job">
@@ -357,7 +370,7 @@ export function NewDesign({
           )}
           <Field label="Name">
             <TextInput
-              data-autofocus={sm8Jobs ? undefined : true}
+              data-autofocus={sm8Jobs && !again ? undefined : true}
               placeholder="Design name, e.g. 14 Harbour View Rd"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -519,7 +532,7 @@ export function NewDesign({
   const floorsCount = new Set(drafts.map((d) => d.level)).size;
   return (
     <Dialog
-      heading="New design"
+      heading={heading}
       onClose={onClose}
       width={960}
       dismissable={false}
@@ -543,7 +556,7 @@ export function NewDesign({
       <div className="ds2-nd-form">
         <p className="ds2-nd-fact">
           <b>{designName}</b>
-          {job?.jobNumber ? `, job ${job.jobNumber}` : ""}. {drafts.length === 1 ? "1 plan" : `${drafts.length} plans`} from{" "}
+          {jobWord ? `, ${jobWord}` : ""}. {drafts.length === 1 ? "1 plan" : `${drafts.length} plans`} from{" "}
           {pages.length === 1 ? "1 page" : `${pages.length} pages`}.
         </p>
         <ul className="ds2-nd-floors" aria-label="Floors">

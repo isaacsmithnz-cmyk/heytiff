@@ -17,6 +17,7 @@ export type { JobSearch };
 import {
   createDesign,
   newId,
+  startedAgain,
   type DesignDocument,
   type DesignObject,
   type DesignSettings,
@@ -105,6 +106,7 @@ import { suggestedRooms, withChecks, type PlanReading } from "@/lib/studio/readi
 import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
 import type { LibraryManifest } from "@/lib/studio/packs/library";
 import { Button } from "@/components/parts/button";
+import { ConfirmDialog } from "@/components/parts/dialog";
 import { AskTiffPill } from "@/components/notes/tiff-button";
 import Link from "next/link";
 import { openInTab, subscribeTabs, tabsServerSnapshot, tabsSnapshot } from "@/components/shell/open-tabs";
@@ -114,6 +116,7 @@ import { useNoteScopeScreen } from "@/components/notes/note-context";
 import { TIFF_APPLY, type TiffApply } from "@/lib/brain/ask-client";
 import type { RoofReading } from "@/lib/studio/reading";
 import { DesignHome } from "./home";
+import { NewDesign } from "./new-design";
 import { RoomsFromPlan } from "./rooms-from-plan";
 import { ALL_FLOORS, View3D, type Look3D } from "./view-3d";
 import { sceneOf, type Scene3D } from "@/lib/studio/scene3d";
@@ -164,6 +167,9 @@ const SWAP_OUT_MS = 200;
 const RETRY_BASE_MS = 5_000;
 const RETRY_MAX_MS = 60_000;
 const SWAP_PAINT_MS = 16; // one frame, so the arriving screen has a state to animate from
+/* how long Start again and Delete design wait on a save already on its way
+   before going ahead without it */
+const SETTLE_MAX_MS = 15_000;
 
 /* menu Export — the .heytiff-design.json download; round-trips through the
    Home screen's "Import design file" (openDesignJson) */
@@ -346,15 +352,61 @@ export function Studio({
     });
   }, []);
 
+  /* ── THE SAVE GATE: Start again and Delete design ──
+     Every save of the open design goes through here, so neither can be undone
+     by a save that was already on its way. A server save can't be called
+     back once it has left, so the ones in flight are counted, and Start
+     again waits for them to land before its own goes; anything still holding
+     the content it cleared (a document older than the moment it was pressed)
+     is dropped. A deleted design is never written again, here or in the
+     crash buffer. */
+  const inFlight = useRef(new Set<Promise<void>>());
+  const restarts = useRef(new Map<string, { at: string; settled: Promise<unknown> }>());
+  const deleted = useRef(new Set<string>());
+  const stale = useCallback((d: DesignDocument) => {
+    if (deleted.current.has(d.id)) return true;
+    const mark = restarts.current.get(d.id);
+    return Boolean(mark && d.meta.updatedAt < mark.at);
+  }, []);
+  /* the saves on their way now, landed or failed, or the cap */
+  const settleSaves = useCallback(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const cap = new Promise<void>((r) => {
+      timer = setTimeout(r, SETTLE_MAX_MS);
+    });
+    return Promise.race([Promise.allSettled([...inFlight.current]), cap]).then(() => clearTimeout(timer));
+  }, []);
+  const saveDoc = useCallback(
+    async (d: DesignDocument) => {
+      if (stale(d)) return;
+      const mark = restarts.current.get(d.id);
+      if (mark) await mark.settled;
+      if (stale(d)) return; // started again, or deleted, while it waited
+      const p = getStore().save(d);
+      inFlight.current.add(p);
+      const done = () => {
+        inFlight.current.delete(p);
+      };
+      p.then(done, done);
+      return p;
+    },
+    [getStore, stale]
+  );
+  const stashDoc = useCallback(
+    (d: DesignDocument) => {
+      if (!stale(d)) void getStore().stash?.(d);
+    },
+    [getStore, stale]
+  );
+
   /* Autosave: every change hits the local crash buffer immediately, then a
      debounced full save goes to the server. If the server is unreachable the
      design is still safe locally — the indicator says so. */
   useEffect(() => {
     if (!doc) return;
-    void getStore().stash?.(doc);
+    stashDoc(doc);
     const t = setTimeout(() => {
-      void getStore()
-        .save(doc)
+      void saveDoc(doc)
         .then(() => {
           retryIn.current = RETRY_BASE_MS;
           setSaveState("saved");
@@ -362,7 +414,7 @@ export function Studio({
         .catch(() => setSaveState("local"));
     }, 600);
     return () => clearTimeout(t);
-  }, [doc, getStore]);
+  }, [doc, saveDoc, stashDoc]);
 
   /* A failed save retries ITSELF. Nothing did before: the debounce only fires
      on the next edit, so a design saved while the connection was down could
@@ -395,8 +447,7 @@ export function Studio({
     const attempt = () => {
       const d = latestDoc.current;
       if (stopped || !d) return;
-      void getStore()
-        .save(d)
+      void saveDoc(d)
         .then(() => {
           if (stopped) return;
           retryIn.current = RETRY_BASE_MS;
@@ -421,14 +472,18 @@ export function Studio({
       clearTimeout(timer);
       window.removeEventListener("online", onOnline);
     };
-  }, [saveState, getStore]);
+  }, [saveState, saveDoc]);
 
   /* Tiff reading the plans of the design just started: while she reads, and what she read */
   const [readingNow, setReadingNow] = useState<{ id: string; state: "reading" | "read" | "failed"; rooms: number } | null>(null);
   const readPlans = useCallback(
     async (id: string) => {
       setReadingNow({ id, state: "reading", rooms: 0 });
+      const mark = restarts.current.get(id);
       const reading = await (planReader ?? readPlansOnServer)(id);
+      /* the design was started again (or deleted) while she read: what she
+         read was the plans it no longer has */
+      if (restarts.current.get(id) !== mark || deleted.current.has(id)) return;
       if (!reading) {
         setReadingNow({ id, state: "failed", rooms: 0 });
         return;
@@ -440,10 +495,10 @@ export function Studio({
         mutate((d) => (d.id === id ? { ...d, reading: withChecks(reading, d) } : d));
       } else {
         const stored = await getStore().load(id).catch(() => null);
-        if (stored) await getStore().save({ ...stored, reading: withChecks(reading, stored) }).catch(() => {});
+        if (stored) await saveDoc({ ...stored, reading: withChecks(reading, stored) }).catch(() => {});
       }
     },
-    [planReader, mutate, getStore]
+    [planReader, mutate, getStore, saveDoc]
   );
 
   const jobSearchFn = useCallback(
@@ -452,6 +507,7 @@ export function Studio({
   );
 
   const openDesign = useCallback((d: DesignDocument) => {
+    deleted.current.delete(d.id); // back, e.g. from a file: it saves again
     setDoc(d);
     // reopen straight into the canvas so you resume where you were working —
     // blank designs always, and any plan design that already has floors built.
@@ -692,11 +748,9 @@ export function Studio({
      has it) — this runs during the fade-out, then backToHome lands the swap */
   const flushSave = useCallback(async () => {
     if (doc) {
-      await getStore()
-        .save(doc)
-        .catch(() => {});
+      await saveDoc(doc).catch(() => {});
     }
-  }, [doc, getStore]);
+  }, [doc, saveDoc]);
 
   const backToHome = useCallback(
     (opts?: { autoNew?: boolean }) => {
@@ -712,14 +766,63 @@ export function Studio({
   const saveNow = useCallback(() => {
     if (!doc) return;
     setSaveState("saving");
-    void getStore()
-      .save(doc)
+    void saveDoc(doc)
       .then(() => {
         retryIn.current = RETRY_BASE_MS;
         setSaveState("saved");
       })
       .catch(() => setSaveState("local"));
-  }, [doc, getStore]);
+  }, [doc, saveDoc]);
+
+  /* ── the menu's Start again and Delete design ── */
+  const [asking, setAsking] = useState<"again" | "delete" | null>(null);
+  /* the plans step a new design from plans opens on, over this design */
+  const [plansAgain, setPlansAgain] = useState(false);
+  /* a new editor for the design started again: no undo back into what it cleared */
+  const [restartCount, setRestartCount] = useState(0);
+
+  /* Confirmed: the design keeps its id, name and job and loses everything
+     else, saved behind any save already on its way, then the plans step. */
+  const startAgain = useCallback(() => {
+    const cur = latestDoc.current;
+    if (!cur) return;
+    const fresh = startedAgain(cur);
+    restarts.current.set(cur.id, { at: fresh.meta.updatedAt, settled: settleSaves() });
+    setReadingNow(null);
+    setRestartCount((n) => n + 1);
+    setSaveState("saving");
+    setDoc(fresh);
+    setStep(0);
+    setPlansAgain(true);
+  }, [settleSaves]);
+
+  /* A design deleted goes for good: none of its saves still on the way may
+     put it back, in the store or the crash buffer. Home's Delete and the
+     menu's both come here. */
+  const removeDesign = useCallback(
+    async (id: string) => {
+      deleted.current.add(id);
+      await settleSaves();
+      await getStore()
+        .remove(id)
+        .catch(() => {});
+    },
+    [getStore, settleSaves]
+  );
+
+  /* New design from plans, and Start again, open the same way: saved, on
+     the canvas, then Tiff reads the plans while the floors are calibrated
+     (the Rooms page shows what she read once a floor has its scale) */
+  const openFromPlans = useCallback(
+    async (d: DesignDocument) => {
+      await throughSwap(async () => {
+        await saveDoc(d);
+        return d;
+      }, openDesign);
+      void readPlans(d.id);
+    },
+    [throughSwap, saveDoc, openDesign, readPlans]
+  );
 
   return (
     <div className="page in">
@@ -730,6 +833,7 @@ export function Studio({
       >
         {doc ? (
           <Editor
+            key={restartCount}
             doc={doc}
             brand={brand}
             step={step}
@@ -742,6 +846,8 @@ export function Studio({
             onHome={() => throughSwap(flushSave, () => backToHome())}
             onNew={() => throughSwap(flushSave, () => backToHome({ autoNew: true }))}
             onSaveNow={saveNow}
+            onStartAgain={() => setAsking("again")}
+            onDelete={() => setAsking("delete")}
             onAddVariant={addVariant}
             onSwitchVariant={switchVariant}
             onRenameVariant={renameVariant}
@@ -765,16 +871,9 @@ export function Studio({
                 return d;
               }, openDesign)
             }
-            onPlans={async (name, job, floors, planImport) => {
-              const d = { ...newDesignFor(name, "plan", job), floors, planImport };
-              await throughSwap(async () => {
-                await getStore().save(d);
-                return d;
-              }, openDesign);
-              /* Tiff reads the plans while the floors are calibrated; the
-                 Rooms page shows what she read once a floor has its scale */
-              void readPlans(d.id);
-            }}
+            onPlans={(name, job, floors, planImport) =>
+              openFromPlans({ ...newDesignFor(name, "plan", job), floors, planImport })
+            }
             onOpen={(id) =>
               throughSwap(
                 () => getStore().load(id),
@@ -784,13 +883,13 @@ export function Studio({
               )
             }
             onDelete={async (id) => {
-              await getStore()
-                .remove(id)
-                .catch(() => {});
+              await removeDesign(id);
               refreshRecents();
             }}
             onImport={(d) =>
               throughSwap(async () => {
+                /* a file is the design as it stands, whatever Start again did before */
+                restarts.current.delete(d.id);
                 await getStore().save(d);
                 return d;
               }, openDesign)
@@ -798,8 +897,70 @@ export function Studio({
           />
         )}
       </div>
+      {doc && (
+        <>
+          <ConfirmDialog
+            open={asking === "again"}
+            heading="Start this design again?"
+            cancel="Keep the design"
+            confirm="Start again"
+            onConfirm={() => {
+              setAsking(null);
+              startAgain();
+            }}
+            onClose={() => setAsking(null)}
+          >
+            Its rooms, systems, pipe runs, notes and plans are cleared. {doc.jobLink ? "It keeps its name and its job." : "It keeps its name."}
+          </ConfirmDialog>
+          <ConfirmDialog
+            open={asking === "delete"}
+            heading={`Delete ${doc.meta.name}?`}
+            confirm="Delete design"
+            onConfirm={() => {
+              setAsking(null);
+              const id = doc.id;
+              void throughSwap(() => removeDesign(id), () => backToHome());
+            }}
+            onClose={() => setAsking(null)}
+          >
+            The design, its floors and its systems go for good.
+          </ConfirmDialog>
+          {plansAgain && (
+            <NewDesign
+              again={{ name: doc.meta.name, job: doc.jobLink ? jobWordOf(doc) : null }}
+              jobSearch={jobSearchFn}
+              planImages={planImagesInst}
+              onBlank={(name) => {
+                setPlansAgain(false);
+                const fresh = startedAgain(doc);
+                const d: DesignDocument = {
+                  ...fresh,
+                  meta: { ...fresh.meta, name, mode: "blank" },
+                  floors: createDesign({ name, mode: "blank" }).floors,
+                };
+                void throughSwap(async () => {
+                  await saveDoc(d);
+                  return d;
+                }, openDesign);
+              }}
+              onPlans={async (name, _job, floors, planImport) => {
+                const fresh = startedAgain(doc);
+                await openFromPlans({ ...fresh, meta: { ...fresh.meta, name }, floors, planImport });
+                setPlansAgain(false);
+              }}
+              onClose={() => setPlansAgain(false)}
+            />
+          )}
+        </>
+      )}
     </div>
   );
+}
+
+/* The job a design is on, as Home's list says it. */
+function jobWordOf(doc: DesignDocument): string {
+  const number = doc.meta.jobNumber.trim() || doc.jobLink?.jobNumber || "";
+  return [number, doc.meta.client.trim()].filter(Boolean).join(" ") || "On a job";
 }
 
 /* Tiff's reading of a design's plans, from the server (api/studio/read-plans).
@@ -870,6 +1031,8 @@ function Editor({
   onHome,
   onNew,
   onSaveNow,
+  onStartAgain,
+  onDelete,
   onAddVariant,
   onSwitchVariant,
   onRenameVariant,
@@ -895,6 +1058,9 @@ function Editor({
   onNew: () => void;
   /** menu Save — explicit flush of the autosave pipeline */
   onSaveNow: () => void;
+  /** menu Start again and Delete design — each asks first (see `Studio`) */
+  onStartAgain: () => void;
+  onDelete: () => void;
   onAddVariant: () => void;
   onSwitchVariant: (id: string) => void;
   onRenameVariant: (label: string) => void;
@@ -1557,6 +1723,8 @@ function Editor({
             onSave={onSaveNow}
             onEditPlans={() => onStep(0)}
             onReference={hasReference ? () => setRefOpen(true) : undefined}
+            onStartAgain={onStartAgain}
+            onDelete={onDelete}
             settings={doc.settings}
             onSettings={(patch) =>
               mutate((d) => ({ ...d, settings: { ...d.settings, ...patch } }))
@@ -2033,6 +2201,8 @@ function StudioMenu({
   onSave,
   onEditPlans,
   onReference,
+  onStartAgain,
+  onDelete,
   settings,
   onSettings,
 }: {
@@ -2042,6 +2212,8 @@ function StudioMenu({
   onEditPlans: () => void;
   /** absent until plan pages exist — the item shows disabled */
   onReference?: () => void;
+  onStartAgain: () => void;
+  onDelete: () => void;
   settings: DesignSettings;
   onSettings: (patch: Partial<DesignSettings>) => void;
 }) {
@@ -2068,10 +2240,11 @@ function StudioMenu({
   const item = (
     icon: string,
     label: string,
-    action: (() => void) | undefined
+    action: (() => void) | undefined,
+    danger = false
   ) => (
     <button
-      className="ds-menu-item"
+      className={`ds-menu-item${danger ? " ds-menu-item--danger" : ""}`}
       role="menuitem"
       disabled={!action}
       onClick={() => {
@@ -2103,6 +2276,9 @@ function StudioMenu({
           <div className="ds-menu-sep" />
           {item("edit", "Edit plans", onEditPlans)}
           {item("library", "Reference sheets", onReference)}
+          <div className="ds-menu-sep" />
+          {item("rotate", "Start again", onStartAgain)}
+          {item("x", "Delete design", onDelete, true)}
           <div className="ds-menu-sep" />
           <div
             className="ds-menu-set"

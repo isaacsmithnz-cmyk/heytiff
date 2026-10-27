@@ -70,4 +70,32 @@ describe("the ducted kit's sizeless parts, as Quoting keeps them", () => {
     expect(matchesComponent("wall_controller", "PAR-41MAAM WIRED REMOTE CONTROLLER")).toBe(true);
     expect(matchesComponent("wall_controller", "AIRTOUCH 5 ZONE CONTROLLER")).toBe(false);
   });
+
+  /* Isaac's walk, 27 October 2026: the $28 wall plate for Mitsubishi's controller priced it */
+  it("knows a wall controller from what it mounts on and the other controllers in a book", async () => {
+    const { matchesComponent } = await import("../components");
+    for (const name of [
+      "Wired Controller with Backlit LCD",
+      "ME ACC WIRED CONTROLLER W/ BACKLIGHT",
+      "FUJ SIMPLE CONTROLLER",
+      "MHI BACKLIT TOUCHSCREEN CONTROLLER",
+      "ACT ACC 7-DAY WALL CONTROLLER WHITE",
+    ])
+      expect([name, matchesComponent("wall_controller", name)]).toEqual([name, true]);
+    for (const name of [
+      "Wall mount plate for Main Remote Controller",
+      "ME ACC WIRED REMOTE SENSOR",
+      "Wireless Remote Controller (24 hr timer)",
+      "DAI W/L CONTROLLER FOR FFA/FMA R/C",
+      "HAIER W/LESS CONTROLLER SUIT MH BH",
+      "Grille for Wired Controller Option",
+      "HAIER CENTRAL CONTROLLER 1-64 UNITS",
+      "Variable Speed Controller",
+      "EC Fan Controller (potentiometer)",
+      "HANWEST DEFROST CONTROLLER HDC-204 (EA)",
+      "TEMPERATURE CONTROLLER ET 46 (EA)",
+      "ULTRA PLUS A/C CONTROLLER W/BATT & DOCK (EA)",
+    ])
+      expect([name, matchesComponent("wall_controller", name)]).toEqual([name, false]);
+  });
 });

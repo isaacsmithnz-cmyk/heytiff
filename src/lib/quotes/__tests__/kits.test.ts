@@ -429,6 +429,35 @@ describe("a ducted kit's wall controller", () => {
   it("is the business's preferred when the unit's maker isn't known, as before", () => {
     expect(controllerOf(null, [me, dai])).toMatchObject({ name: me.name });
   });
+
+  /* Isaac's walk, 27 October 2026: the $28 plate it mounts on priced it */
+  it("is the controller, never the cheaper plate, sensor or handset of that maker", () => {
+    const own = [
+      product("Wall mount plate for Main Remote Controller", 2800, { brand: "Mitsubishi Electric" }),
+      product("ME ACC WIRED REMOTE SENSOR", 4220, { brand: "Mitsubishi Electric" }),
+      product("Wireless Remote Controller (24 hr timer)", 4200, { brand: "Mitsubishi Electric" }),
+      product("Wired Controller with Backlit LCD", 12530, { brand: "Mitsubishi Electric" }),
+    ];
+    expect(controllerOf("mitsubishi-electric", own)).toMatchObject({ name: "Wired Controller with Backlit LCD", costCents: 12530 });
+  });
+});
+
+/* Isaac's walk, 27 October 2026: a smoke alarm "with wired interconnect"
+   priced every metre of the interconnect */
+describe("a split kit's interconnect", () => {
+  const alarm = product("240V Hard Wired Photoelectric Smoke Alarm - 9V 1 Year Alkaline Backup Battery; Wired Interconnect", 2890);
+  const ac = product("Flat TPS 3C +E A/ C 7/0. 5 1.5mm PVC/ PVC Blue 450/ 750V per metre", 180);
+  /* a three-phase power cable on more of the business's quotes */
+  const power = product("Circular Unarm 4C +E 10mm PVC/ PVC Orange 0.6/ 1kV per metre", 1480, { quotes: 6 });
+  const interconnectOf = (books: Product[]) => expandKit("split", facts, [...book.filter((p) => !/INTERCONNECT/.test(p.name)), ...books], at)[1];
+
+  it("is a cable of three or four cores and earth, never a smoke alarm nor a power cable", () => {
+    expect(interconnectOf([alarm, ac, power])).toMatchObject({ name: ac.name, qty: 20, unit: "m", costCents: 180 });
+  });
+
+  it("goes on as not in the book when only the alarm says interconnect", () => {
+    expect(interconnectOf([alarm, power])).toMatchObject({ name: "Interconnect cable", costCents: 0 });
+  });
 });
 
 /* Isaac, 2026-10-18: "add breaker and min cable fields". A PUMY-SP112's book

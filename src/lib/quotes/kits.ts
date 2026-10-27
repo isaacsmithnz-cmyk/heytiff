@@ -263,6 +263,17 @@ const atLeast = (want: number, words: RegExp, phase: KitFacts["phase"] = null) =
   const least = Math.min(...rated.map((x) => x.a));
   return rated.filter((x) => x.a === least).map((x) => x.p);
 };
+/** The cable between the indoor and the outdoor: one that says interconnect,
+    or three or four cores and earth, at 1.5 or 2.5 mm² where it gives a size.
+    Never a smoke alarm "with wired interconnect", nor a power cable of four
+    cores at 10 mm² (Isaac's walk, 27 October 2026: a $28.90 smoke alarm
+    priced every metre of it). */
+export function isInterconnect(name: string): boolean {
+  if (!/interconnect|intcon|\b[34]\s*c(ore)?\s*\+\s*e\b|\b[34]ce\b/i.test(name)) return false;
+  if (/alarm|smoke|detector|heat|wireless/i.test(name)) return false;
+  const mm = /(?<![\d.])(\d+(?:\.\d+)?)\s*mm/i.exec(name);
+  return !mm || Number(mm[1]) <= 2.5;
+}
 const pipeWords = (pipe: PipeSize) => pipe.replace("+", " ");
 const metres = (m: number | null, what: string) => (m != null && m > 0 ? { qty: m, unit: "m" as const, why: `${m} m ${what}` } : null);
 const one = (why: string) => () => ({ qty: 1, unit: "" as const, why });
@@ -283,7 +294,7 @@ const SPLIT: KitPart[] = [
     rule: "With the pipe",
     group: "Pipe, power and controls",
     name: "Interconnect cable",
-    search: () => ({ text: "interconnect" }),
+    search: () => ({ text: "interconnect", pool: (all) => all.filter((p) => isInterconnect(p.name)) }),
     qty: (f) => metres(f.pipeM, "with the pipe"),
   },
   {

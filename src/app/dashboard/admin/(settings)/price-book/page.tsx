@@ -6,7 +6,7 @@ import { componentShortlists, readQuoteSettings } from "@/lib/quotes/settings-qu
 import { rangeViews } from "@/lib/quotes/ranges-server";
 import { readSwaps } from "@/lib/quotes/lines-server";
 import { habitsFrom } from "@/lib/quotes/habits";
-import { bookProducts } from "@/lib/quotes/book-view-server";
+import { bookFirst } from "@/lib/quotes/book-view-server";
 import { PriceBookScreen, type PricedPartsData } from "@/components/admin/price-book-screen";
 
 /* SETTINGS › PRICE BOOK — the business's own: its suppliers' price lists
@@ -38,9 +38,11 @@ export default async function PriceBookPage() {
     readPreferred(orgId).catch(() => new Set<string>()),
   ]).then(([components, ranges, swaps, preferred]) => ({ settings, components, ranges, habits: habitsFrom(swaps, preferred) }));
 
-  /* the book the Items tab opens on, started now rather than asked for
-     once the page has drawn: it streams in behind the page (26 October 2026) */
-  const book = bookProducts(orgId);
+  /* what the Items tab opens on, started now and streamed in behind the
+     page: the Most used parts, not the whole book (27 October 2026: the
+     whole of it was 2.8 MB here, and Items waited for every byte). The book
+     follows from its route, packed, for a shelf or a search. */
+  const first = bookFirst(orgId);
 
-  return <PriceBookScreen suppliers={suppliers} markupPct={settings.materialMarkupPct} parts={parts} book={book} />;
+  return <PriceBookScreen suppliers={suppliers} markupPct={settings.materialMarkupPct} parts={parts} first={first} />;
 }

@@ -11,6 +11,7 @@ import { Wrong } from "@/components/settings/parts";
 import { rollMetresOf, sellCents } from "@/lib/quotes/components";
 import type { Offer } from "@/lib/quotes/price-book";
 import { countsOf, viewOf, type BookView, type BookViewKey, type Family, type Product } from "@/lib/quotes/families";
+import { unpackBook, type FirstBook, type PackedBook } from "@/lib/quotes/book-pack";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* THE PRICE BOOK'S ITEMS (v2, 25 October 2026; the mock's Price book
@@ -26,7 +27,12 @@ import { withCleanup } from "@/lib/ui/with-cleanup";
 
    The whole book comes once a visit and is sorted here: a shelf, a search,
    Most used answer at once, with nothing asked of the server (Isaac,
-   2026-10-05: "the price book is slow to load").
+   2026-10-05: "the price book is slow to load"). It comes packed and behind
+   the page (27 October 2026, "make it fast"): the page sends the Most used
+   parts the tab opens on, so the table draws with the page, and the book's
+   2.8 MB of objects, which Items used to wait for, arrives as a packed
+   fraction of that while the first rows are already being read. A shelf or
+   a search asked for before it lands waits for it, saying so.
 
    A part's row shows the item a quote takes, the preferred one or else
    the lowest priced, and what it sells at, at the materials markup, by the
@@ -56,11 +62,11 @@ const otherWords = (o: Offer) =>
     : null;
 const refOf = (o: Offer) => `${o.supplierKey}|${o.code}`;
 
-type Answer = { ok: true; products: Product[] } | { ok: false; reason?: string };
+type Answer = { ok: true; book: PackedBook } | { ok: false; reason?: string };
 
 /* read OUT HERE rather than inside the try that asks for it: React Compiler
    gives up on a component with a value block inside a try */
-const productsIn = (a: Answer) => (a.ok ? a.products : null);
+const productsIn = (a: Answer) => (a.ok ? unpackBook(a.book) : null);
 const refusalOf = (a: { ok: boolean; reason?: string }) => (a.ok ? null : (a.reason ?? "That couldn't be saved. Try again."));
 
 /** How often a part goes on a quote, in words. */
@@ -198,14 +204,17 @@ function linesOf(sections: BookView["sections"], folded: boolean, limit: number)
 
 export function BookItems({
   markupPct = null,
-  book: started,
+  first: started,
 }: {
   markupPct?: number | null;
-  /** the book, its read started with the page (26 October 2026): asked for
-      after the page had drawn, it waited a whole page load behind it */
-  book?: Promise<Product[]>;
+  /** the Most used parts and the chooser's counts, read with the page */
+  first?: Promise<FirstBook>;
 }) {
-  const [products, setProducts] = useState<Product[] | null>(null);
+  const [first, setFirst] = useState<FirstBook | null>(null);
+  const [whole, setWhole] = useState<Product[] | null>(null);
+  /* what was put forward or taken back here, over whichever copy is drawn:
+     the book that lands after a press was read before it */
+  const [marks, setMarks] = useState<ReadonlyMap<string, Offer | null>>(new Map());
   const [failed, setFailed] = useState(false);
   const [view, setView] = useState<BookViewKey>("used");
   const [q, setQ] = useState("");
@@ -214,21 +223,34 @@ export function BookItems({
   const [busy, setBusy] = useState(false);
   const [wrong, setWrong] = useState<string | null>(null);
 
-  /* the whole book, once: the page's read when it started one, else asked
-     for here */
+  /* the first view, from the page's read. Promise.resolve, not `started`
+     itself: the page's read reaches the browser as React's own thenable,
+     whose `then` hands back nothing, so a `.catch` chained on it threw and
+     the page fell to its error screen (26 October 2026). Wrapped, it is a
+     promise like any other. A failed first view isn't the end: the book
+     still comes. */
+  useEffect(() => {
+    if (!started) return;
+    let live = true;
+    Promise.resolve(started)
+      .then((got) => {
+        if (live) setFirst(got);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [started]);
+
+  /* the whole book, once a visit, packed, asked for as the tab opens */
   useEffect(() => {
     let live = true;
-    /* Promise.resolve, not `started` itself: the page's read reaches the
-       browser as React's own thenable, whose `then` hands back nothing, so
-       a `.catch` chained on it threw and the page fell to its error screen
-       (26 October 2026). Wrapped, it is a promise like any other. */
-    const read: Promise<Product[] | null> = started
-      ? Promise.resolve(started)
-      : fetch(ROUTE).then((r) => r.json() as Promise<Answer>).then(productsIn);
-    read
+    fetch(ROUTE)
+      .then((r) => r.json() as Promise<Answer>)
+      .then(productsIn)
       .then((got) => {
         if (!live) return;
-        if (got) setProducts(got);
+        if (got) setWhole(got);
         else setFailed(true);
       })
       .catch(() => {
@@ -237,7 +259,11 @@ export function BookItems({
     return () => {
       live = false;
     };
-  }, [started]);
+  }, []);
+
+  const withMarks = (ps: Product[]) => (marks.size ? ps.map((p) => (marks.has(p.key) ? { ...p, preferred: marks.get(p.key)! } : p)) : ps);
+  const base = whole ?? first?.used ?? null;
+  const products = base ? withMarks(base) : null;
 
   const go = (v: BookViewKey) => {
     setView(v);
@@ -246,8 +272,7 @@ export function BookItems({
   };
 
   /** A part's preferred item, everywhere it's shown. */
-  const mark = (key: string, preferred: Offer | null) =>
-    setProducts((ps) => (ps ? ps.map((p) => (p.key === key ? { ...p, preferred } : p)) : ps));
+  const mark = (key: string, preferred: Offer | null) => setMarks((m) => new Map(m).set(key, preferred));
 
   const prefer = async (p: Product, o: Offer) => {
     const was = p.preferred;
@@ -290,8 +315,11 @@ export function BookItems({
   /* the most used and the preferred are short lists; a search from either
      looks through the whole book */
   const looking: BookViewKey = searching && !onShelf ? "all" : view;
-  const counts = products ? countsOf(products) : null;
-  const book = products ? viewOf(products, looking, searching ? q : "") : null;
+  /* the first view is Most used and nothing else; any other view waits for
+     the whole book */
+  const waiting = !whole && (looking !== "used" || searching);
+  const counts = whole ? countsOf(withMarks(whole)) : (first?.counts ?? null);
+  const book = products && !waiting ? viewOf(products, looking, searching ? q : "") : null;
   /* a shelf opens on its families; a search, the most used and the
      preferred list their parts */
   const folded = onShelf && !searching;
@@ -326,10 +354,10 @@ export function BookItems({
 
       {wrong && <Wrong>{wrong}</Wrong>}
 
-      {failed ? (
+      {failed && (waiting || !products) ? (
         <Wrong>The price book couldn&rsquo;t be read. Try again.</Wrong>
       ) : !book ? (
-        <Loading what="Sorting the price book" />
+        <Loading what={waiting && products ? "Reading the whole price book" : "Sorting the price book"} />
       ) : book.sections.length === 0 ? (
         <Empty
           what={

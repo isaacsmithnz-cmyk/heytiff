@@ -10,7 +10,7 @@ import { Loading } from "@/components/parts/states";
 import { SectionTitle } from "@/components/settings/parts";
 import { pricingWords } from "@/lib/quotes/price-book";
 import type { SupplierView } from "@/lib/quotes/price-book-server";
-import type { Product } from "@/lib/quotes/families";
+import type { FirstBook } from "@/lib/quotes/book-pack";
 import { BookItems } from "./book-items";
 import { PriceBook } from "./price-book-panel";
 import { LinksPanel } from "./links-panel";
@@ -45,15 +45,15 @@ export function PriceBookScreen({
   suppliers,
   markupPct,
   parts,
-  book,
+  first,
 }: {
   suppliers: SupplierView[];
   /** the materials markup, which a part sells at over what it costs */
   markupPct: number | null;
   /** read over the whole book, so it streams into its own tab */
   parts: Promise<PricedPartsData>;
-  /** the whole book as parts, read with the page and streamed into Items */
-  book?: Promise<Product[]>;
+  /** the Most used parts Items opens on, read with the page and streamed in */
+  first?: Promise<FirstBook>;
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("items");
@@ -96,7 +96,7 @@ export function PriceBookScreen({
         ]}
       />
       <section id={`pbp-${tab}`} role="tabpanel" aria-labelledby={`pbt-${tab}`} tabIndex={-1} className="st2-pb-panel">
-        {tab === "items" && <BookItems markupPct={markupPct} book={book} />}
+        {tab === "items" && <BookItems markupPct={markupPct} first={first} />}
         {tab === "suppliers" && (
           <PriceBook
             key={opened?.n ?? 0}

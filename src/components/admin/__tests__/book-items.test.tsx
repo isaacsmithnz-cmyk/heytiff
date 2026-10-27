@@ -7,7 +7,8 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BookItems } from "../book-items";
-import type { Product } from "@/lib/quotes/families";
+import { countsOf, type Product } from "@/lib/quotes/families";
+import { packBook, type FirstBook } from "@/lib/quotes/book-pack";
 
 const offer = (supplierKey: string, supplierName: string, code: string, name: string, netCents: number) => ({
   supplierKey,
@@ -58,7 +59,9 @@ const BOOK = [coil, small, daikin, daikinBig, fujitsu];
 
 const answer = (body: unknown) => ({ json: async () => body }) as Response;
 
-function serve(preferOk = true) {
+/** The route: the book packed, as it goes over the wire. `book: "never"`
+    holds it back for good, `book: "fail"` refuses it. */
+function serve(preferOk = true, book: "ok" | "never" | "fail" = "ok") {
   const posted: unknown[] = [];
   const asked: string[] = [];
   global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
@@ -67,10 +70,15 @@ function serve(preferOk = true) {
       return answer(preferOk ? { ok: true } : { ok: false, reason: "The price book needs money access." });
     }
     asked.push(url);
-    return answer({ ok: true, products: BOOK });
+    if (book === "never") return new Promise<Response>(() => {});
+    if (book === "fail") return answer({ ok: false });
+    return answer({ ok: true, book: packBook(BOOK) });
   }) as unknown as typeof fetch;
   return { posted, asked };
 }
+
+/** What the page sends: the Most used parts and the chooser's counts. */
+const FIRST: FirstBook = { used: [coil], counts: countsOf(BOOK) };
 
 const show = async (user: ReturnType<typeof userEvent.setup>, option: string) => {
   await user.click(screen.getByRole("combobox", { name: "Show" }));
@@ -184,18 +192,71 @@ it("says when nothing matches a search", async () => {
   expect(screen.getByText("Nothing in the price book matches")).toBeInTheDocument();
 });
 
-/* The book's read starts with the page (26 October 2026): handed one, the
-   list draws from it and asks the route for nothing. */
-it("draws from the read the page started, without asking for the book again", async () => {
-  const { asked } = serve();
-  render(<BookItems markupPct={40} book={Promise.resolve(BOOK)} />);
-  expect(await screen.findByRole("button", { name: "PAIRED COIL 1/4+1/2X20M" })).toBeInTheDocument();
-  expect(asked).toEqual([]);
+/* The page sends the Most used parts the tab opens on (27 October 2026,
+   "make it fast"): the table draws from them while the whole book is still
+   on its way, and the book follows from the route, packed. */
+it("draws Most used from the page's read while the book is still coming", async () => {
+  const user = userEvent.setup();
+  const { asked } = serve(true, "never");
+  render(<BookItems markupPct={40} first={Promise.resolve(FIRST)} />);
+  const name = await screen.findByRole("button", { name: "PAIRED COIL 1/4+1/2X20M" });
+  expect(within(name.closest(".st2-pb-row") as HTMLElement).getByText("$12.60 a metre")).toBeInTheDocument();
+  /* the chooser already knows the shelves, from the server's counts */
+  await show(user, "Units");
+  /* a shelf needs the whole book, and says it's waiting for it (after the
+     Loading part's half second, rule 41) */
+  expect(await screen.findByRole("status", {}, { timeout: 2000 })).toHaveTextContent("Reading the whole price book");
+  expect(asked).toEqual(["/api/quoting/price-book"]);
 });
 
-it("says so when the page's read fails", async () => {
+it("searches once the whole book lands", async () => {
   serve();
-  render(<BookItems book={Promise.reject(new Error("down"))} />);
+  render(<BookItems first={Promise.resolve(FIRST)} />);
+  await screen.findByRole("button", { name: "PAIRED COIL 1/4+1/2X20M" });
+  fireEvent.change(screen.getByLabelText("Search the price book"), { target: { value: "zena" } });
+  expect(await screen.findByText("DAIKIN ZENA HWS IND 2.5KW R32")).toBeInTheDocument();
+});
+
+it("keeps a preference made before the book landed when it lands", async () => {
+  let land: (r: Response) => void = () => {};
+  const posted: unknown[] = [];
+  global.fetch = jest.fn(async (_url: string, init?: RequestInit) => {
+    if (init?.method === "POST") {
+      posted.push(JSON.parse(String(init.body)));
+      return answer({ ok: true });
+    }
+    return new Promise<Response>((r) => (land = r));
+  }) as unknown as typeof fetch;
+  render(<BookItems first={Promise.resolve(FIRST)} />);
+  fireEvent.click(await screen.findByRole("button", { name: "PAIRED COIL 1/4+1/2X20M" }));
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Prefer AAD's PC1412 at $191.00" }));
+  });
+  expect(posted).toEqual([{ ref: "aad|PC1412", on: true }]);
+  /* the book was read before the press, so it doesn't know */
+  await act(async () => {
+    land(answer({ ok: true, book: packBook(BOOK) }));
+  });
+  expect(screen.getByRole("button", { name: "Stop preferring AAD's PC1412" })).toBeInTheDocument();
+});
+
+it("still draws Most used when the book can't be read, and says so on a search", async () => {
+  serve(true, "fail");
+  render(<BookItems first={Promise.resolve(FIRST)} />);
+  await screen.findByRole("button", { name: "PAIRED COIL 1/4+1/2X20M" });
+  fireEvent.change(screen.getByLabelText("Search the price book"), { target: { value: "zena" } });
+  expect(await screen.findByText(/couldn.t be read/)).toBeInTheDocument();
+});
+
+it("draws from the book when the page's read fails", async () => {
+  serve();
+  render(<BookItems first={Promise.reject(new Error("down"))} />);
+  expect(await screen.findByRole("button", { name: "PAIRED COIL 1/4+1/2X20M" })).toBeInTheDocument();
+});
+
+it("says so when nothing can be read", async () => {
+  serve(true, "fail");
+  render(<BookItems first={Promise.reject(new Error("down"))} />);
   expect(await screen.findByText(/couldn.t be read/)).toBeInTheDocument();
 });
 
@@ -203,9 +264,8 @@ it("says so when the page's read fails", async () => {
    `then` calls back and returns nothing. Chaining `.catch` on it threw and
    the whole page fell to its error screen (26 October 2026). */
 it("draws from React's own thenable, whose then returns nothing", async () => {
-  const { asked } = serve();
-  const flight = { then: (ok: (v: Product[]) => void) => void ok(BOOK) } as unknown as Promise<Product[]>;
-  render(<BookItems markupPct={40} book={flight} />);
+  serve(true, "never");
+  const flight = { then: (ok: (v: FirstBook) => void) => void ok(FIRST) } as unknown as Promise<FirstBook>;
+  render(<BookItems markupPct={40} first={flight} />);
   expect(await screen.findByRole("button", { name: "PAIRED COIL 1/4+1/2X20M" })).toBeInTheDocument();
-  expect(asked).toEqual([]);
 });

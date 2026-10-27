@@ -420,13 +420,20 @@ async function bookingRequest(
     record), with EXACTLY these six fields: the uuid, the job, the person,
     the start and the end on the account's wall clock, and the flag that
     makes it a scheduled booking — a string, as ServiceM8's schema types it
-    (U13). Never `active`, never a status, never anything else. */
+    (U13). Never `active`, never a status, never anything else.
+
+    `recorded`: a person's time on the job, clocked off on the phone
+    (isRecordedTime), goes with `activity_was_recorded` in that flag's place
+    — "logged after it happened", which ServiceM8's create schema says can't
+    be true with `activity_was_scheduled` (read off its reference on 27
+    October 2026). The same six fields, its end after its start. */
 export async function postSm8Booking(
   call: Sm8Call,
-  b: { uuid: string; jobUuid: string; staffUuid: string; start: string; end: string }
+  b: { uuid: string; jobUuid: string; staffUuid: string; start: string; end: string; recorded?: boolean }
 ): Promise<Sm8BookingResult> {
   if (!UUID.test(b.uuid) || !UUID.test(b.jobUuid) || !UUID.test(b.staffUuid)) return NOT_SENT;
   if (!BOOKING_STAMP.test(b.start) || !BOOKING_STAMP.test(b.end)) return NOT_SENT;
+  if (b.recorded === true && b.end <= b.start) return NOT_SENT;
   return bookingRequest(call, "POST jobactivity.json", "jobactivity.json", {
     method: "POST",
     json: {
@@ -435,7 +442,7 @@ export async function postSm8Booking(
       staff_uuid: b.staffUuid,
       start_date: b.start,
       end_date: b.end,
-      activity_was_scheduled: "1",
+      ...(b.recorded === true ? { activity_was_recorded: "1" } : { activity_was_scheduled: "1" }),
     },
   });
 }

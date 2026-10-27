@@ -136,13 +136,17 @@ export const bookingSubject = {
   lost: (seenEditDate: string) => `status:un:${seenEditDate.trim().replace(/\s+/g, "T")}`,
   undo: (createRowId: string) => `undo:${createRowId}`,
   clear: (activityUuid: string) => `clear:${activityUuid}`,
+  /** A person's time on a job, clocked on and off on the phone: one per
+      stint (job_check_ins), never a booking (isRecordedTime). */
+  time: (checkInId: string) => `time:${checkInId}`,
 };
 
 export type ParsedBookingSubject =
   | { via: "slot"; staffUuid: string; start: string; released: boolean }
   | { via: "status"; seenEditDate: string; to: "Work Order" | "Unsuccessful"; released: boolean }
   | { via: "undo"; createRowId: string; released: boolean }
-  | { via: "clear"; activityUuid: string; released: boolean };
+  | { via: "clear"; activityUuid: string; released: boolean }
+  | { via: "time"; checkInId: string; released: boolean };
 
 export function parseBookingSubject(s: string): ParsedBookingSubject | null {
   const was = /^(.+):was:([^:]+)$/.exec(s);
@@ -156,6 +160,8 @@ export function parseBookingSubject(s: string): ParsedBookingSubject | null {
   if (m) return { via: "undo", createRowId: m[1], released };
   m = /^clear:(\S+)$/.exec(subject);
   if (m) return { via: "clear", activityUuid: m[1], released };
+  m = /^time:(\S+)$/.exec(subject);
+  if (m) return { via: "time", checkInId: m[1], released };
   return null;
 }
 
@@ -891,6 +897,18 @@ export function isTakeOff(row: { payload?: unknown }): boolean {
 export function isAnyTime(row: { payload?: unknown }): boolean {
   const p = row.payload;
   return !!p && typeof p === "object" && (p as Record<string, unknown>).anyTime === true;
+}
+
+/** A person's time on a job, clocked on and off on the phone (Isaac, 26
+    October 2026: "give me a better clock in, clock off… people end up
+    clocked in all the time"): a create under a `time:` subject, sent as
+    time RECORDED after it happened (activity_was_recorded), never as a
+    booking. It rides the booking queue and sender, and nothing that draws
+    bookings draws it: the Schedule, the board, Home, the job's lines and
+    the bell each leave it out. Its start is in the past by nature, its job
+    may be finished, and its person's booking at the same start is no clash. */
+export function isRecordedTime(row: { subject?: string | null }): boolean {
+  return typeof row.subject === "string" && row.subject.startsWith("time:");
 }
 
 /** What a Clear of a leftover booking says, or a Take off in its own words.

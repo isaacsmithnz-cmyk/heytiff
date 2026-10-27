@@ -935,6 +935,73 @@ export async function queueTakeOff(
   return { ok: true, rowIds: queued.ids };
 }
 
+/* ── time on the job ── */
+
+export type RecordedTimeResult = { ok: true; rowId: string } | { ok: false; refusal: BookingRefusal };
+
+/** A person's time on a job, clocked off on the phone: ONE create per
+    stint (its subject names the check-in), sent as time recorded after it
+    happened (isRecordedTime), on the account's wall clock. Pressed again —
+    Try again, or a second Clock off of the same stint — it joins the row
+    already there: sent or on its way, it is left as it is; failed or
+    cancelled, it goes again under a new uuid. Only the person's own time:
+    the phone's route names them, never the request. */
+export async function queueRecordedTime(
+  press: Sm8Press,
+  state: Sm8WriteState,
+  input: { jobUuid: string; checkInId: string; staffUuid: string; start: string; end: string; zone: string; verbId: string }
+): Promise<RecordedTimeResult> {
+  if (!isSm8Press(press)) {
+    console.error("[sm8] refused to queue time on a job that nobody pressed for (no press, or a stale one)");
+    return { ok: false, refusal: "unqueued" };
+  }
+  const orgId = press.orgId;
+  const { jobUuid: given, checkInId, staffUuid, start, end, zone, verbId } = input ?? ({} as never);
+  if (
+    !UUID.test(given ?? "") ||
+    !UUID.test(checkInId ?? "") ||
+    !UUID.test(staffUuid ?? "") ||
+    !UUID.test(verbId ?? "") ||
+    !STAMP.test(start ?? "") ||
+    !STAMP.test(end ?? "") ||
+    end <= start ||
+    typeof zone !== "string" ||
+    !zone
+  ) {
+    return { ok: false, refusal: "unqueued" };
+  }
+  const jobUuid = given.toLowerCase();
+  if (localNow(zone, Date.now()) === null) return { ok: false, refusal: "zone_unknown" };
+  if (!wallTimeExists(start, zone) || !wallTimeExists(end, zone)) return { ok: false, refusal: "clocks_forward" };
+
+  if (!state.readable) return { ok: false, refusal: "unreadable" };
+  if (!offersSend(state, "booking")) return { ok: false, refusal: "not_offered" };
+
+  const subject = bookingSubject.time(checkInId.toLowerCase());
+  const queued = await enqueueSm8Writes(press, state, [
+    {
+      kind: "booking",
+      op: "create",
+      jobUuid,
+      subject,
+      payload: { name: BOOKING_WORDS.label.time },
+      ref: subject,
+      staffUuid,
+      start,
+      end,
+      zone,
+      verbId,
+    },
+  ]);
+  if (!queued) return { ok: false, refusal: "unqueued" };
+  if (queued.capped) return { ok: false, refusal: "capped" };
+  if (queued.ids[0]) return { ok: true, rowId: queued.ids[0] };
+  const key = dedupeKey("booking", jobUuid, subject);
+  const there = await readByKeys(orgId, [key]);
+  const row = there?.get(key);
+  return row ? { ok: true, rowId: row.id } : { ok: false, refusal: "unqueued" };
+}
+
 /* ── Try again ── */
 
 /** The one door for Try again on a line (try_again, and a take-back's
@@ -954,6 +1021,8 @@ export async function queueBookingRetry(press: Sm8Press, state: Sm8WriteState, i
   const row = read;
   const subject = parseBookingSubject(row.subject);
   if (!subject || subject.released) return { ok: false, refusal: "changed" };
+  /* time on the job goes again by its own door (queueRecordedTime) */
+  if (subject.via === "time") return { ok: false, refusal: "changed" };
   const hold = state.readable ? sendHold(state, "booking") : null;
   const offered = offersSend(state, "booking");
 

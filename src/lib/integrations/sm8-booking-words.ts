@@ -138,6 +138,7 @@ export const BOOKING_WORDS = {
     bookingUnsure: "HeyTiff couldn't tell whether the booking reached ServiceM8. Book it again if it isn't there.",
     /* the guards: each finishes its row sent, because it landed */
     timeNotKept: "ServiceM8 kept a different time for this booking. HeyTiff switched bookings off.",
+    workedNotKept: "ServiceM8 kept these hours at a different time. Look at the job in ServiceM8.",
     personNotKept: "ServiceM8 put this booking on someone else. HeyTiff switched bookings off.",
     fieldsNotKept: "ServiceM8 changed more than the status on this job. HeyTiff switched bookings off.",
     guardStopped: "HeyTiff switched bookings off after ServiceM8 kept something different on job {number}.",
@@ -243,6 +244,7 @@ export const BOOKING_WORDS = {
     undo: "Booking taken out of ServiceM8",
     clear: "Leftover booking cleared",
     off: "Booking taken off its job",
+    time: "Time on the job",
     fallback: "A booking",
   },
   /* The owner's ServiceM8 screen. */

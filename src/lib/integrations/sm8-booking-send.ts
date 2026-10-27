@@ -97,6 +97,7 @@ import {
   BOOKING_WORDS,
   isAnyTime,
   isFuture,
+  isRecordedTime,
   isTakeOff,
   reasonOf,
   STATUS_KEPT_FIELDS,
@@ -286,7 +287,9 @@ type Compared = "equal" | "person" | "time";
 
 function compare(a: Sm8LiveActivity, row: WriteRow): Compared {
   if (!same(a.staffUuid, row.booking_staff_uuid)) return "person";
-  if (a.start !== (row.booking_start ?? null) || a.end !== (row.booking_end ?? null) || a.scheduled !== 1) return "time";
+  /* time on the job is recorded, a booking scheduled: the flag is part of it */
+  const flagged = isRecordedTime(row) ? a.recorded === 1 : a.scheduled === 1;
+  if (a.start !== (row.booking_start ?? null) || a.end !== (row.booking_end ?? null) || !flagged) return "time";
   return "equal";
 }
 
@@ -484,8 +487,11 @@ async function sendBooking(
     if (!who || who.active !== 1) return end(done("cancelled", fillWords(BOOKING_WORDS.row.techInactive, { name: person })));
   }
 
-  /* ── 6. a create's start: ahead, unless the phone's Schedule booked it (isAnyTime) ── */
-  if (op === "create" && !isAnyTime(row) && !isFuture(row.booking_start, zone, t.clock())) return end(done("cancelled", BOOKING_WORDS.row.past));
+  /* ── 6. a create's start: ahead, unless the phone's Schedule booked it
+     (isAnyTime), or it is time already worked (isRecordedTime) ── */
+  if (op === "create" && !isAnyTime(row) && !isRecordedTime(row) && !isFuture(row.booking_start, zone, t.clock())) {
+    return end(done("cancelled", BOOKING_WORDS.row.past));
+  }
 
   /* ── 7. a create's status row ── */
   if (op === "create" && row.depends_on) {
@@ -616,6 +622,7 @@ async function sendBooking(
 
   /* ── one booking ── */
   async function sendCreate(): Promise<Finish> {
+    const recorded = isRecordedTime(row);
     let verify = [...(row.verify_uuids ?? [])];
     const postUuid = row.remote_uuid;
     let ownRuledOut = false;
@@ -670,7 +677,9 @@ async function sendBooking(
     if ("finish" in j) return { ...j.finish, ...kept };
     const job = j.got.found ? j.got.job : null;
     if (!job || job.active !== 1) return done("cancelled", BOOKING_WORDS.row.jobGone, kept);
-    if (job.status !== "Quote" && job.status !== "Work Order") {
+    /* time worked goes on a job finished since, as ServiceM8 takes it there */
+    const takes = recorded ? ["Quote", "Work Order", "Completed"] : ["Quote", "Work Order"];
+    if (!takes.includes(job.status ?? "")) {
       return done("cancelled", fillWords(BOOKING_WORDS.row.jobNotBookable, { status: job.status ?? BOOKING_WORDS.fill.status }), kept);
     }
     const b = await readLive((a) => readSm8JobBookings(sm8CallOf(a, "write"), jobUuid));
@@ -678,9 +687,11 @@ async function sendBooking(
     const mine = b.got.activities.find((a) => same(a.uuid, postUuid));
     /* ours already there, though no answer was lost: it is the booking */
     if (mine) return landedEarlier(postUuid, true, mine);
-    const taken = b.got.activities.some(
-      (a) => a.scheduled === 1 && same(a.staffUuid, row.booking_staff_uuid) && a.start === (row.booking_start ?? null)
-    );
+    /* the person's booking at the same start is their day, not a clash,
+       for time worked */
+    const taken =
+      !recorded &&
+      b.got.activities.some((a) => a.scheduled === 1 && same(a.staffUuid, row.booking_staff_uuid) && a.start === (row.booking_start ?? null));
     if (taken) return done("cancelled", fillWords(BOOKING_WORDS.row.slotTaken, { name: person }), kept);
 
     /* 4. THE POST, with the last check part of every attempt */
@@ -694,6 +705,7 @@ async function sendBooking(
           staffUuid: row.booking_staff_uuid ?? "",
           start: row.booking_start ?? "",
           end: row.booking_end ?? "",
+          ...(recorded ? { recorded: true } : {}),
         }),
       async () => {
         const c = await createStillWanted(orgId, row.id);
@@ -773,6 +785,9 @@ async function sendBooking(
     const sentAs = (extra: Partial<Finish>): Finish => done("sent", null, { remoteUuid: uuid, verifyUuids: [], ...kept, ...extra });
     const how = compare(a, row);
     if (how === "equal") return sentAs({ landedEditDate: a.editDate });
+    if (own && how === "time" && isRecordedTime(row)) {
+      return done("sent", BOOKING_WORDS.row.workedNotKept, { remoteUuid: uuid, verifyUuids: [], ...kept, landedEditDate: a.editDate });
+    }
     if (own && how === "time") {
       const again = await readAgain((x) => readSm8Booking(sm8CallOf(x, "write"), uuid));
       const second = again && !("finish" in again) && again.got.found ? again.got.activity : null;
@@ -801,6 +816,12 @@ async function sendBooking(
   function landedNow(uuid: string, found: Extract<ReadBack, { state: "found" }>, extra: Partial<Finish>): Finish {
     const remote = same(uuid, row.remote_uuid) ? {} : { remoteUuid: uuid };
     if (found.how === "equal") return done("sent", null, { ...extra, ...remote, landedEditDate: found.activity.editDate });
+    /* time on the job kept at other times is the person's hours as
+       ServiceM8 holds them, said on the row — never a guard that stops
+       every booking: nothing more goes after it */
+    if (found.how === "time" && isRecordedTime(row)) {
+      return done("sent", BOOKING_WORDS.row.workedNotKept, { ...extra, ...remote, landedEditDate: found.activity.editDate });
+    }
     const words = found.how === "person" ? BOOKING_WORDS.row.personNotKept : BOOKING_WORDS.row.timeNotKept;
     return {
       ...extra,

@@ -18,10 +18,12 @@ import {
 } from "@/lib/quotes/price-book";
 import { excelDate, readSheet, sheetNames } from "@/lib/quotes/xlsx";
 import { bookProducts } from "@/lib/quotes/book-view-server";
+import { packBook } from "@/lib/quotes/book-pack";
 import { importInvoiceRows, importPriceRows, readSuppliers, saveSupplierLayout } from "@/lib/quotes/price-book-server";
 
-/* The price book: the whole book as products (GET), sorted, searched and
-   viewed in the browser so a shelf or a search answers at once — or a
+/* The price book: the whole book as products (GET), packed (book-pack.ts),
+   sorted, searched and viewed in the browser so a shelf or a search answers
+   at once — or a
    supplier's new file taken in (POST,
    multipart: supplier, file, kind). `kind` is "list", a price list that
    replaces the last one, or "invoices", what was paid for the codes on them
@@ -47,7 +49,7 @@ async function gate(): Promise<{ orgId: string } | Response> {
 export async function GET() {
   const who = await gate();
   if (who instanceof Response) return who;
-  return Response.json({ ok: true, products: await bookProducts(who.orgId) });
+  return Response.json({ ok: true, book: packBook(await bookProducts(who.orgId)) });
 }
 
 /** The columns a person matched, from the form: known fields, column

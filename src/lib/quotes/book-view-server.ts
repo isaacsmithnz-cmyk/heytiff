@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { productsFrom, type Product } from "./families";
+import { countsOf, productsFrom, viewOf, type Product } from "./families";
+import type { FirstBook } from "./book-pack";
 import { currentItems, readPreferred, readSameDecisions, readSuppliers } from "./price-book-server";
 import { sameProductRefs } from "./same-items";
 
@@ -77,4 +78,12 @@ export async function bookProducts(orgId: string): Promise<Product[]> {
     quotesByCode(orgId),
   ]);
   return productsFrom(items, suppliers, same.confirmed, preferred, quotes);
+}
+
+/** The Items tab's first view, for the page to send: the Most used parts
+    and the chooser's counts. The whole book comes after, by its route. */
+export async function bookFirst(orgId: string): Promise<FirstBook> {
+  const products = await bookProducts(orgId);
+  const used = viewOf(products, "used", "").sections.flatMap((s) => s.families.flatMap((f) => f.products));
+  return { used, counts: countsOf(products) };
 }

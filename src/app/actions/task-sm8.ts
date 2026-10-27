@@ -40,7 +40,7 @@
 import { randomUUID } from "crypto";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
-import { sm8PressFromSession, type Sm8Press } from "@/lib/integrations/sm8-press";
+import { isSm8Press, sm8PressFromSession, type Sm8Press } from "@/lib/integrations/sm8-press";
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
 import { DONE_TTL_MS, offersSend, sendRefusal, type Sm8WriteState } from "@/lib/integrations/sm8-write-plan";
@@ -228,7 +228,20 @@ export async function sendTaskDone(input: { taskId: string }): Promise<TaskDoneR
   const startedAt = Date.now();
   const g = await gate();
   if (!g.ok) return g.result;
-  const { orgId, press } = g;
+  return sendDone(g.orgId, g.press, input, startedAt);
+}
+
+/** The same Done, for a tick on the phone's To do (native app, Isaac, 27
+    October 2026): its route checked the token and the Workboard, and minted
+    the press from them. A press that isn't one (a browser's plain copy, a
+    stale one) posts nothing. */
+export async function sendTaskDoneAs(press: Sm8Press, input: { taskId: string }): Promise<TaskDoneResult> {
+  if (!sm8NotesAllowed()) return QUIET;
+  if (!isSm8Press(press)) return { ok: false, error: "Not signed in." };
+  return sendDone(press.orgId, press, input, Date.now());
+}
+
+async function sendDone(orgId: string, press: Sm8Press, input: { taskId: string }, startedAt: number): Promise<TaskDoneResult> {
   const taskId = idOf(input?.taskId);
   if (!taskId || !press.staffId) return QUIET;
 
@@ -346,7 +359,17 @@ export async function takeBackTaskDone(input: { taskId: string }): Promise<TaskD
   const startedAt = Date.now();
   const g = await gate();
   if (!g.ok) return g.result;
-  const { orgId, press } = g;
+  return takeBackDone(g.orgId, g.press, input, startedAt);
+}
+
+/** The same take-back, for an Undo on the phone's To do: as sendTaskDoneAs. */
+export async function takeBackTaskDoneAs(press: Sm8Press, input: { taskId: string }): Promise<TaskDoneResult> {
+  if (!sm8NotesAllowed()) return QUIET;
+  if (!isSm8Press(press)) return { ok: false, error: "Not signed in." };
+  return takeBackDone(press.orgId, press, input, Date.now());
+}
+
+async function takeBackDone(orgId: string, press: Sm8Press, input: { taskId: string }, startedAt: number): Promise<TaskDoneResult> {
   const taskId = idOf(input?.taskId);
   if (!taskId) return QUIET;
 

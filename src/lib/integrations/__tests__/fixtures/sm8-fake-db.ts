@@ -329,7 +329,8 @@ export function makeFakeDb() {
     }
     /* a queue row's id is the database's gen_random_uuid(): the queue's
        helpers check a row id's shape before they read it */
-    if (row.id === undefined) row.id = table === "sm8_writes" ? randomUUID() : `${table.slice(0, 2)}${++idSeq}`;
+    /* uuid ids where the real table's are (job_check_ins: the phone's clock names a stint by it) */
+    if (row.id === undefined) row.id = table === "sm8_writes" || table === "job_check_ins" ? randomUUID() : `${table.slice(0, 2)}${++idSeq}`;
     return row;
   }
 

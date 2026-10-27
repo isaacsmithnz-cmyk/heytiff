@@ -45,7 +45,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { sm8BookingsAllowed } from "./sm8-kinds";
-import { localNow, reasonOf } from "./sm8-booking-plan";
+import { isRecordedTime, localNow, reasonOf } from "./sm8-booking-plan";
 import type { Sm8WriteState } from "./sm8-write-plan";
 
 const TABLE = "sm8_writes";
@@ -234,6 +234,7 @@ async function readGoneOf(orgId: string, tenant: string, uuids: readonly string[
 
 type SentRow = {
   id: string;
+  subject?: string | null;
   remote_uuid: string;
   sm8_job_uuid: string | null;
   booking_staff_uuid: string | null;
@@ -259,7 +260,7 @@ const standsElsewhere = (lastError: string | null) => {
 async function readSentCandidates(orgId: string, tenant: string, ask: BookingOverlayAsk, now: number): Promise<SentRow[] | null> {
   let q = supabaseAdmin
     .from(TABLE)
-    .select("id, remote_uuid, sm8_job_uuid, booking_staff_uuid, booking_start, booking_end, booking_zone, last_error, taken_back_at")
+    .select("id, subject, remote_uuid, sm8_job_uuid, booking_staff_uuid, booking_start, booking_end, booking_zone, last_error, taken_back_at")
     .eq("org_id", orgId)
     .eq("tenant_id", tenant)
     .eq("kind", "booking")
@@ -275,6 +276,8 @@ async function readSentCandidates(orgId: string, tenant: string, ask: BookingOve
     return null;
   }
   const sent = ((data ?? []) as SentRow[]).filter((r) => {
+    /* time on the job is never a booking to draw */
+    if (isRecordedTime(r)) return false;
     if (!r.remote_uuid || !r.sm8_job_uuid || !r.booking_staff_uuid || !r.booking_start || !r.booking_end) return false;
     if (standsElsewhere(r.last_error)) return false;
     const today = localNow(r.booking_zone, now)?.slice(0, 10);
@@ -363,7 +366,8 @@ async function readRows(orgId: string, tenant: string, jobUuids: readonly string
   const all = (data ?? []) as unknown as BookingOverlayRow[];
   const since = utcDay(now, LINE_DAYS + 1);
   const recent = (r: BookingOverlayRow) => !!r.booking_start && r.booking_start >= since;
-  const creates = all.filter((r) => r.op === "create" && recent(r));
+  /* time on the job draws no line among the bookings */
+  const creates = all.filter((r) => r.op === "create" && !isRecordedTime(r) && recent(r));
   const createIds = new Set(creates.map((c) => c.id));
   const statusIds = new Set(creates.map((c) => c.depends_on).filter((d): d is string => !!d));
   return all.filter(

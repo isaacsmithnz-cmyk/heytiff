@@ -205,7 +205,7 @@ export function makeSm8Bookings() {
       if (!j) return { ok: true as const, found: false as const };
       return { ok: true as const, found: true as const, job: { ...j, kept: { ...j.kept }, logged: { ...j.logged } } };
     },
-    postBooking: async (_call: unknown, b: { uuid: string; jobUuid: string; staffUuid: string; start: string; end: string }) => {
+    postBooking: async (_call: unknown, b: { uuid: string; jobUuid: string; staffUuid: string; start: string; end: string; recorded?: boolean }) => {
       posts.push({ ...b });
       if (activities.has(key(b.uuid))) return answer(409);
       const uuid = knobs.keepsOurUuid ? b.uuid : `f1f1f1${String(posts.length).padStart(2, "0")}-0000-4000-8000-00000000f1f1`;
@@ -217,8 +217,9 @@ export function makeSm8Bookings() {
         staffUuid: b.staffUuid,
         start: b.start,
         end: b.end,
-        scheduled: 1,
-        recorded: 0,
+        /* time worked is recorded, never scheduled: ServiceM8 holds one flag */
+        scheduled: b.recorded === true ? 0 : 1,
+        recorded: b.recorded === true ? 1 : 0,
         active: 1,
         editDate: tick(),
         ...kept,

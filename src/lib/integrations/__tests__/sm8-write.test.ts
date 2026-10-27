@@ -410,6 +410,24 @@ describe("a booking, as the app (two-way phase 3)", () => {
     expect(r).toEqual({ status: 200, outcome: { kind: "created", remoteUuid: BOOKING }, remote: null, recordUuid: BOOKING });
   });
 
+  it("(F) time on the job goes as the same six fields with activity_was_recorded in the scheduled flag's place, and never ends where it starts", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 200, headers: { "x-record-uuid": BOOKING } }));
+    await postSm8Booking(W("t"), { ...b, recorded: true });
+    const body = JSON.parse(call()[1].body as string);
+    expect(body).toEqual({
+      uuid: BOOKING,
+      job_uuid: JOB,
+      staff_uuid: STAFF,
+      start_date: "2026-10-06 20:00:00",
+      end_date: "2026-10-06 21:00:00",
+      activity_was_recorded: "1",
+    });
+    expect(body.activity_was_scheduled).toBeUndefined();
+    fetchMock.mockClear();
+    expect(await postSm8Booking(W("t"), { ...b, end: b.start, recorded: true })).toMatchObject({ outcome: { kind: "rejected" } });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("(F, B-4) makes a Quote a Work Order with the status ALONE, on job/{uuid}.json", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
     await postSm8JobStatus(W("t"), JOB, "Work Order");

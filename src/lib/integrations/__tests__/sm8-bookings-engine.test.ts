@@ -84,7 +84,7 @@ import { BOOKING_STATUS_WAIT_MS, BOOKING_WORDS, bookingLine, clearLine, localNow
 import { checkedIn } from "../sm8-booking-send";
 import { NOTE_WORDS } from "../sm8-note-words";
 import { WRITE_WORDS, offersSend, sendHold } from "../sm8-write-plan";
-import { queueBookIn, queueBookingRetry, queueBookingTakeBack, queueClear, queueMakeWorkOrder, queueMarkUnsuccessful, queueTakeOff } from "@/app/actions/sm8-booking-queue";
+import { queueBookIn, queueBookingRetry, queueBookingTakeBack, queueClear, queueMakeWorkOrder, queueMarkUnsuccessful, queueRecordedTime, queueTakeOff } from "@/app/actions/sm8-booking-queue";
 import { readBookingOverlay } from "../sm8-booking-overlay";
 
 const ORG = "org-1";
@@ -2327,6 +2327,98 @@ describe("Take off takes a booking off a job still open, as a Clear does a lefto
     await run();
     expect(row.status).toBe("sent");
     expect(sm8.active(LEFT)).toBe(false);
+  });
+});
+
+/* ── time on the job: a stint clocked off on the phone ── */
+
+const STINT = "c10c1c10-0000-4000-8000-00000000c001";
+const YESTERDAY = day(-1);
+/** Sam's stint yesterday on OTHER_JOB, finished since, 6:58 am to 3:00 pm. */
+const worked = async (over: Partial<{ start: string; end: string; staffUuid: string }> = {}) =>
+  queueRecordedTime(await pressAs(), await state(), {
+    jobUuid: OTHER_JOB,
+    checkInId: STINT,
+    staffUuid: SAM_SM8,
+    start: at(YESTERDAY, "06:58"),
+    end: at(YESTERDAY, "15:00"),
+    zone: ZONE,
+    verbId: randomUUID(),
+    ...over,
+  });
+const timeRow = () => creates().find((w) => String(w.subject).startsWith("time:"))!;
+
+describe("time on the job goes as recorded time, never as a booking (the phone's Clock off)", () => {
+  beforeEach(() => {
+    sm8.job(OTHER_JOB, { status: "Completed", kept: { generated_job_id: "9002" } as never });
+  });
+
+  it("(F) goes once, flagged recorded, on a job finished since, before now, beside the person's own booking at the same start", async () => {
+    /* Sam's booking that day starts the minute the stint does */
+    sm8.put({ uuid: LEFT, jobUuid: OTHER_JOB, staffUuid: SAM_SM8, start: at(YESTERDAY, "06:58"), end: at(YESTERDAY, "15:00") });
+    const q = await worked();
+    expect(q).toMatchObject({ ok: true });
+    expect(timeRow()).toMatchObject({
+      id: (q as { rowId: string }).rowId,
+      op: "create",
+      subject: `time:${STINT}`,
+      payload: { name: BOOKING_WORDS.label.time },
+      booking_staff_uuid: SAM_SM8,
+      booking_start: at(YESTERDAY, "06:58"),
+      booking_end: at(YESTERDAY, "15:00"),
+      status: "queued",
+    });
+    await run();
+    expect(postSm8Booking).toHaveBeenCalledTimes(1);
+    expect(postSm8Booking.mock.calls[0][1]).toMatchObject({ jobUuid: OTHER_JOB, staffUuid: SAM_SM8, start: at(YESTERDAY, "06:58"), end: at(YESTERDAY, "15:00"), recorded: true });
+    const r = timeRow();
+    expect(r).toMatchObject({ status: "sent", last_error: null });
+    expect(sm8.get(r.remote_uuid as string)).toMatchObject({ recorded: 1, scheduled: 0, active: 1 });
+    /* the same stint pressed again is the same row, and nothing more goes */
+    expect(await worked()).toEqual({ ok: true, rowId: r.id });
+    await run();
+    expect(postSm8Booking).toHaveBeenCalledTimes(1);
+  });
+
+  it("(F) is drawn nowhere a booking is: not on the job's lines, not among what we sent for the Schedule", async () => {
+    /* today's, so the Schedule would draw it were it a booking */
+    await worked({ start: at(day(0), "00:05"), end: at(day(0), "00:35") });
+    await run();
+    expect(timeRow().status).toBe("sent");
+    const over = await readBookingOverlay(ORG, await state(), { jobUuids: [OTHER_JOB] });
+    expect(over.rows.map((x) => x.id)).not.toContain(timeRow().id);
+    expect(over.sentNotMirrored.map((x) => x.rowId)).not.toContain(timeRow().id);
+  });
+
+  it("(F) kept at another time by ServiceM8 is sent, in its own words — and bookings stay on", async () => {
+    sm8.knobs.keeps = (b) => ({ end: hourOn(b.end) });
+    await worked();
+    await run();
+    expect(timeRow()).toMatchObject({ status: "sent", last_error: BOOKING_WORDS.row.workedNotKept });
+    expect(bookingsOn()).toBe(true);
+  });
+
+  it("(F) a stint that isn't one queues nothing: no press, an end not after its start, a person who isn't a uuid", async () => {
+    const s = await state();
+    const fakePress = { orgId: ORG, userId: "auth0|sam", staffId: "staff-sam", at: Date.now() } as unknown as Sm8Press;
+    const input = { jobUuid: OTHER_JOB, checkInId: STINT, staffUuid: SAM_SM8, start: at(YESTERDAY, "06:58"), end: at(YESTERDAY, "15:00"), zone: ZONE, verbId: randomUUID() };
+    expect(await queueRecordedTime(fakePress, s, input)).toEqual({ ok: false, refusal: "unqueued" });
+    expect(await worked({ end: at(YESTERDAY, "06:58") })).toEqual({ ok: false, refusal: "unqueued" });
+    expect(await worked({ staffUuid: "sam" })).toEqual({ ok: false, refusal: "unqueued" });
+    expect(creates()).toHaveLength(0);
+  });
+
+  it("(F) one that failed goes again by its own door, never a booking's Try again", async () => {
+    postSm8Booking.mockResolvedValueOnce({ status: 422, outcome: { kind: "rejected", status: 422 }, remote: null, recordUuid: null });
+    await worked();
+    await run();
+    const r = timeRow();
+    expect(r.status).toBe("failed");
+    expect(await queueBookingRetry(await pressAs(), await state(), { rowId: r.id as string })).toEqual({ ok: false, refusal: "changed" });
+    expect(await worked()).toEqual({ ok: true, rowId: r.id });
+    due(r);
+    await run();
+    expect(r.status).toBe("sent");
   });
 });
 

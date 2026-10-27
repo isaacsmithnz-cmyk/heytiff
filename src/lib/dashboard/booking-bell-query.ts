@@ -23,7 +23,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { sm8BookingsAllowed } from "@/lib/integrations/sm8-kinds";
 import { readBookingWriteState, readBookingZone } from "@/lib/integrations/sm8-booking-request";
 import { readMirrorBookings, type BookingOverlayRow } from "@/lib/integrations/sm8-booking-overlay";
-import { BOOKING_WORDS, bookingLine, clearLine, isTakeOff, type BookingState } from "@/lib/integrations/sm8-booking-plan";
+import { BOOKING_WORDS, bookingLine, clearLine, isRecordedTime, isTakeOff, type BookingState } from "@/lib/integrations/sm8-booking-plan";
 import { offersSend, sendHold, type Sm8WriteState } from "@/lib/integrations/sm8-write-plan";
 import type { BookingTroubleOp } from "./chips";
 
@@ -103,7 +103,8 @@ export async function myBookingTrouble(
 
   /* every create a line is drawn from: yours, and the ones behind a take-
      back of yours; then their status rows and their take-backs */
-  const creates = new Map(mine.filter((r) => r.op === "create").map((r) => [r.id, r]));
+  /* time on the job is the phone's to show, never a booking line */
+  const creates = new Map(mine.filter((r) => r.op === "create" && !isRecordedTime(r)).map((r) => [r.id, r]));
   const clears = mine.filter((r) => r.op === "delete" && !r.depends_on);
   const behind = mine.filter((r) => r.op === "delete" && !!r.depends_on && !creates.has(r.depends_on)).map((r) => r.depends_on!);
   const more = await byIds(orgId, tenant, behind);

@@ -1,4 +1,5 @@
 import { COMPONENT_KEYS, type ComponentKey } from "./components";
+import { GROUP_KEYS, type GroupKey } from "./install-groups";
 
 /* QUOTING SETTINGS — one row per business (quote_settings): the markup on
    units and on materials, the charge-out rate and the working day, and the
@@ -53,6 +54,10 @@ export type QuoteSettings = {
       (Isaac, 2026-10-10); the starter set until the business sets its own */
   starterTasks: StarterTask[];
   preferred: Partial<Record<ComponentKey, Preferred>>;
+  /** a supplier for a whole group of the common install items, by its key
+      (Isaac, 28 October 2026: "select Voltex and all ductwork will be quoted
+      at Voltex"); a group not in it is bought at the lowest price */
+  groupSuppliers: Partial<Record<GroupKey, string>>;
 };
 
 export type StarterWhen = "first" | "every" | "last";
@@ -122,6 +127,7 @@ export const DEFAULT_QUOTE_SETTINGS: QuoteSettings = {
   taskHours: { zone: null, grille: null, metre: null, visit: null },
   starterTasks: STARTER_TASKS,
   preferred: {},
+  groupSuppliers: {},
 };
 
 export const MAX_MARKUP_PCT = 300;
@@ -199,6 +205,16 @@ function preferredOf(raw: unknown): QuoteSettings["preferred"] {
   return out;
 }
 
+function groupSuppliersOf(raw: unknown): QuoteSettings["groupSuppliers"] {
+  const out: QuoteSettings["groupSuppliers"] = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  for (const key of GROUP_KEYS) {
+    const v = (raw as Record<string, unknown>)[key];
+    if (typeof v === "string" && v.trim()) out[key] = v.trim().slice(0, 40);
+  }
+  return out;
+}
+
 /** The one gate between a stored row (or a person's edit) and a quote. */
 export function normaliseQuoteSettings(raw: unknown): QuoteSettings {
   const r = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
@@ -219,6 +235,7 @@ export function normaliseQuoteSettings(raw: unknown): QuoteSettings {
     taskHours: taskHoursOf(r.task_hours ?? r.taskHours),
     starterTasks: starterTasksOf(r.starter_tasks ?? r.starterTasks),
     preferred: preferredOf(r.preferred),
+    groupSuppliers: groupSuppliersOf(r.group_suppliers ?? r.groupSuppliers),
   };
 }
 
@@ -244,5 +261,6 @@ export function quoteSettingsRow(s: QuoteSettings) {
     task_hours: s.taskHours,
     starter_tasks: s.starterTasks,
     preferred,
+    group_suppliers: s.groupSuppliers,
   };
 }

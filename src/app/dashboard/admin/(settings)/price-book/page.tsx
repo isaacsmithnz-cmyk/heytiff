@@ -36,7 +36,13 @@ export default async function PriceBookPage() {
     rangeViews(orgId, suppliers),
     readSwaps(orgId).catch(() => []),
     readPreferred(orgId).catch(() => new Set<string>()),
-  ]).then(([components, ranges, swaps, preferred]) => ({ settings, components, ranges, habits: habitsFrom(swaps, preferred) }));
+  ]).then(([components, ranges, swaps, preferred]) => ({
+    settings,
+    components,
+    ranges,
+    habits: habitsFrom(swaps, preferred),
+    suppliers: suppliers.map((s) => ({ key: s.key, name: s.name })),
+  }));
 
   /* what the Items tab opens on, started now and streamed in behind the
      page: the Most used parts, not the whole book (27 October 2026: the

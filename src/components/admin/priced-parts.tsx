@@ -10,6 +10,7 @@ import { StateWord } from "@/components/parts/state";
 import { Group, Wrong } from "@/components/settings/parts";
 import { saveQuoteSettings } from "@/app/actions/quote-settings";
 import type { ComponentKey } from "@/lib/quotes/components";
+import type { GroupKey } from "@/lib/quotes/install-groups";
 import type { ComponentGroup, ComponentOffer, ComponentShortlist } from "@/lib/quotes/settings-query";
 import type { QuoteSettings } from "@/lib/quotes/settings";
 import type { Habit } from "@/lib/quotes/habits";
@@ -45,9 +46,11 @@ export type PricedPartsData = {
   ranges: RangeView[];
   /** swaps made on three quotes or more, asked about (habits.ts) */
   habits: Habit[];
+  /** the business's suppliers, for a group bought from one of them */
+  suppliers: { key: string; name: string }[];
 };
 
-export function PricedParts({ settings, components, ranges, habits }: PricedPartsData) {
+export function PricedParts({ settings, components, ranges, habits, suppliers }: PricedPartsData) {
   const router = useRouter();
   const [saved, setSaved] = useState(settings);
   const [busy, setBusy] = useState(false);
@@ -86,11 +89,28 @@ export function PricedParts({ settings, components, ranges, habits }: PricedPart
     return save({ ...saved, preferred });
   };
 
+  /* a supplier for a whole group, or back to the lowest price */
+  const buyFrom = (group: GroupKey, supplierKey: string | null) => {
+    const groupSuppliers = { ...saved.groupSuppliers };
+    if (supplierKey) groupSuppliers[group] = supplierKey;
+    else delete groupSuppliers[group];
+    return save({ ...saved, groupSuppliers });
+  };
+
   const opened = components.find((c) => c.key === open) ?? null;
 
   return (
     <>
-      <CommonItems components={components} ranges={ranges} busy={busy} wrong={opened ? null : wrong} onChoose={setOpen} />
+      <CommonItems
+        components={components}
+        ranges={ranges}
+        suppliers={suppliers}
+        groupSuppliers={saved.groupSuppliers}
+        busy={busy}
+        wrong={opened ? null : wrong}
+        onChoose={setOpen}
+        onBuyFrom={(group, key) => void buyFrom(group, key)}
+      />
 
       {opened && (
         <ChooseItem

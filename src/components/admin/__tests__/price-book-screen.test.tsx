@@ -27,7 +27,7 @@ const aad: SupplierView = {
   itemCount: null,
 };
 
-const parts: PricedPartsData = { settings: DEFAULT_QUOTE_SETTINGS, components: [], ranges: [], habits: [] };
+const parts: PricedPartsData = { settings: DEFAULT_QUOTE_SETTINGS, components: [], ranges: [], habits: [], suppliers: [] };
 
 beforeEach(() => {
   global.fetch = jest.fn(async () => ({ ok: true, json: async () => ({ ok: true, products: [], rules: [], proposals: [], confirmed: 0, links: [] }) })) as unknown as typeof fetch;

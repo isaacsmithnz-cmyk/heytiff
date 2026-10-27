@@ -13,7 +13,9 @@ const render = (ui: ReactElement) => draw(<ToastProvider>{ui}</ToastProvider>);
 
 const empty: RangeView[] = RANGE_KEYS.map((kind) => ({ kind, items: [] }));
 
-const Items = ({ ranges }: { ranges: RangeView[] }) => <CommonItems components={[]} ranges={ranges} busy={false} wrong={null} onChoose={jest.fn()} />;
+const Items = ({ ranges }: { ranges: RangeView[] }) => (
+  <CommonItems components={[]} ranges={ranges} suppliers={[]} groupSuppliers={{}} busy={false} wrong={null} onChoose={jest.fn()} onBuyFrom={jest.fn()} />
+);
 
 /** A group opened, a part's row in it, and its button that opens the range. */
 const inGroup = (group: string) => {

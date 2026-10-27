@@ -190,9 +190,11 @@ export const auth0 = new Auth0Client({
    `getSession()` answers with that person. Nowhere else does anything
    change: outside a phone route there is no phone session, and a call with
    a request in hand is the SDK's own. */
-const sdkGetSession = auth0.getSession.bind(auth0);
-auth0.getSession = ((...args: unknown[]) => {
-  const phone = args.length === 0 ? phoneSession() : null;
-  if (phone) return Promise.resolve(phone);
-  return (sdkGetSession as (...a: unknown[]) => ReturnType<typeof sdkGetSession>)(...args);
-}) as typeof auth0.getSession;
+const sdkGetSession = typeof auth0.getSession === "function" ? auth0.getSession.bind(auth0) : null;
+if (sdkGetSession) {
+  auth0.getSession = ((...args: unknown[]) => {
+    const phone = args.length === 0 ? phoneSession() : null;
+    if (phone) return Promise.resolve(phone);
+    return (sdkGetSession as (...a: unknown[]) => ReturnType<typeof auth0.getSession>)(...args);
+  }) as typeof auth0.getSession;
+}

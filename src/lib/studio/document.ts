@@ -319,6 +319,32 @@ export function createDesign(opts: {
   };
 }
 
+/* The menu's Start again (Isaac, 27 October 2026: "delete the existing
+   design and start again"). The design a NEW design from plans begins as,
+   but this one: its id, so the job's link to it and anything else that
+   names it still finds it; its name, its job and when it was made; and its
+   place among its options. Everything drawn or read on it goes: the floors
+   and their plans, the rooms, systems, pipe runs and notes, the settings,
+   the approvals and Tiff's reading. The stored plan files stay, since an
+   option made from this design may still show them. */
+export function startedAgain(doc: DesignDocument, now = new Date().toISOString()): DesignDocument {
+  const fresh = createDesign({
+    name: doc.meta.name,
+    mode: "plan",
+    jobNumber: doc.meta.jobNumber,
+    client: doc.meta.client,
+    site: doc.meta.site,
+    now,
+  });
+  return {
+    ...fresh,
+    id: doc.id,
+    meta: { ...fresh.meta, createdAt: doc.meta.createdAt, variantLabel: doc.meta.variantLabel },
+    variants: doc.variants,
+    jobLink: doc.jobLink,
+  };
+}
+
 /* ── Serialisation (the round-trip the Stage-0 lock gate tests) ── */
 
 export function serializeDesign(doc: DesignDocument): string {

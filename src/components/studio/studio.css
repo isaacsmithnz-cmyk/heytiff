@@ -754,6 +754,11 @@ html[data-ds-display] .dstudio.editing {
   background: var(--tint);
   color: var(--ink);
 }
+/* Delete design: what ends the design is a red word, last (rules 25, 53) */
+.dstudio .ds-menu-item.ds-menu-item--danger,
+.dstudio .ds-menu-item.ds-menu-item--danger:hover:not(:disabled) {
+  color: var(--red-w);
+}
 .dstudio .ds-menu-item:disabled {
   opacity: 0.4;
   cursor: default;

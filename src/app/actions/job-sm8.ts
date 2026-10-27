@@ -2,7 +2,8 @@
 
 import { splitSendKeys, theirFileSendKey } from "@/lib/compliance/papers";
 import { complianceContext, jobIsReal, outgoing, trimId } from "@/lib/compliance/send";
-import { sm8PressFromSession } from "@/lib/integrations/sm8-press";
+import { isSm8Press, sm8PressFromSession, type Sm8Press } from "@/lib/integrations/sm8-press";
+import { supabaseAdmin } from "@/lib/supabase-server";
 import {
   enqueueAttachments,
   readJobSends,
@@ -194,3 +195,64 @@ export async function sendJobDocumentsToServiceM8(input: SendToSm8Input): Promis
 
   return { ok: true, trial: state.mode === "trial", sent, waiting, failed, already, sends };
 }
+
+/* ── a photo from the phone ── */
+
+/** How long a photo's landing waits on ServiceM8 before saying "Sending". */
+const PHOTO_BUDGET_MS = 8_000;
+
+/** A photo somebody took on the job with the phone, to ServiceM8 as one of
+    the job's photos (lib/mobile/job-photos; Isaac, 27 October 2026). Its
+    press is the phone's, minted in its route: a browser's copy of one is a
+    plain object, and isSm8Press refuses it. Only a LANDED `job_photo` on
+    this job that the presser took, and on the `workboard` grant that put it
+    there: a photo is the work, not the business's papers. What outlives the
+    budget goes on behind the answer. Never throws. */
+export async function sendJobPhotoAs(press: Sm8Press, input: { jobUuid: string; documentId: string }): Promise<{ ok: boolean }> {
+  if (!isSm8Press(press)) {
+    console.error("[sm8] refused to send a photo that nobody pressed for (no press, or a stale one)");
+    return { ok: false };
+  }
+  const startedAt = Date.now();
+  const orgId = press.orgId;
+  const job = trimId(input?.jobUuid);
+  const id = trimId(input?.documentId);
+  if (!job || !id || !press.staffId) return { ok: false };
+  try {
+    const { data } = await supabaseAdmin
+      .from("documents")
+      .select("id, kind, sm8_job_uuid, uploaded_at, uploaded_by, file_name, mime_type, size_bytes")
+      .eq("org_id", orgId)
+      .eq("id", id)
+      .maybeSingle();
+    const doc = data as {
+      id: string;
+      kind: string;
+      sm8_job_uuid: string | null;
+      uploaded_at: string | null;
+      uploaded_by: string | null;
+      file_name: string;
+      mime_type: string;
+      size_bytes: number;
+    } | null;
+    if (!doc || doc.kind !== "job_photo" || !doc.uploaded_at || doc.uploaded_by !== press.staffId) return { ok: false };
+    if ((doc.sm8_job_uuid ?? "").toLowerCase() !== job.toLowerCase()) return { ok: false };
+
+    const state = await readSm8WriteState(orgId);
+    if (sendRefusal(state, "attachment") || !state.tenantId) return { ok: false };
+    const queued = await enqueueAttachments(press, state, [
+      { jobUuid: job.toLowerCase(), documentId: doc.id, name: doc.file_name, mimeType: doc.mime_type, sizeBytes: doc.size_bytes, key: `photo:${doc.id}` },
+    ]);
+    if (!queued || queued.capped) return { ok: false };
+    if (queued.ids.length > 0) {
+      const pressRun = runSm8Writes(orgId, "send", { ids: queued.ids, budgetMs: PHOTO_BUDGET_MS });
+      const run = await settleWithin(pressRun, PHOTO_BUDGET_MS);
+      if (run === null || run.stopped === null) drainSm8WritesAfterResponse(orgId, { startedAt, behind: run === null ? pressRun : undefined });
+    }
+    return { ok: true };
+  } catch (err) {
+    console.error(`[sm8] photo ${id} on job ${job} for org ${orgId} couldn't be sent: ${err instanceof Error ? err.message : String(err)}`);
+    return { ok: false };
+  }
+}
+

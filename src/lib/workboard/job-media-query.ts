@@ -33,8 +33,8 @@ import { sm8Ours, withoutOurs } from "@/lib/integrations/sm8-echo";
 import { touchSm8Files } from "@/lib/integrations/sm8-file-cache";
 import { naiveInZone } from "./job-story";
 import { getSm8Timezone } from "./query";
-import { readJobSends, readSm8WriteState } from "@/lib/integrations/sm8-writes";
-import { sendHold, sendLine } from "@/lib/integrations/sm8-write-plan";
+import { sendLine } from "@/lib/integrations/sm8-write-plan";
+import { readJobSends } from "@/lib/integrations/sm8-job-sends";
 
 export type JobMediaRead = {
   items: JobMediaItem[];
@@ -286,9 +286,8 @@ export async function readOurJobDocuments(orgId: string, jobUuid: string): Promi
 export async function readOurJobPhotos(orgId: string, jobUuid: string): Promise<JobMediaItem[]> {
   const items = await readOurs(orgId, jobUuid, "job_photo");
   if (items.length === 0) return items;
-  const [sends, state] = await Promise.all([readJobSends(orgId, jobUuid.toLowerCase()), readSm8WriteState(orgId)]);
-  const hold = state.readable ? sendHold(state, "attachment") : null;
-  return items.map((it) => ({ ...it, sent: it.documentId ? sendLine(sends, [it.documentId], hold) : null }));
+  const sends = await readJobSends(orgId, jobUuid.toLowerCase());
+  return items.map((it) => ({ ...it, sent: it.documentId ? sendLine(sends, [it.documentId]) : null }));
 }
 
 async function readOurs(orgId: string, jobUuid: string, kind: "job_document" | "job_photo"): Promise<JobMediaItem[]> {

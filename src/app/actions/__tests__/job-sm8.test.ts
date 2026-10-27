@@ -49,7 +49,23 @@ const FRESH = { ...state };
    token the queue (stubbed) receives */
 const PRESS = { orgId: "org-1", userId: "auth0|isaac", staffId: "staff-isaac", at: 0 };
 let press: typeof PRESS | null = PRESS;
-jest.mock("@/lib/integrations/sm8-press", () => ({ sm8PressFromSession: async () => press }));
+jest.mock("@/lib/integrations/sm8-press", () => ({ sm8PressFromSession: async () => press, isSm8Press: (p: unknown) => p === PRESS }));
+
+/* the documents a photo's send reads, by id */
+let docs: Record<string, Record<string, unknown>> = {};
+jest.mock("@/lib/supabase-server", () => ({
+  supabaseAdmin: {
+    from: () => {
+      let id: unknown = null;
+      const q = {
+        select: () => q,
+        eq: (c: string, v: unknown) => ((c === "id" ? (id = v) : null), q),
+        maybeSingle: async () => ({ data: docs[String(id)] ?? null, error: null }),
+      };
+      return q;
+    },
+  },
+}));
 
 const readJobSends = jest.fn();
 const enqueueAttachments = jest.fn();
@@ -65,7 +81,7 @@ jest.mock("@/lib/integrations/sm8-writes", () => ({
 const scheduled: (() => unknown)[] = [];
 jest.mock("next/server", () => ({ after: (fn: () => unknown) => scheduled.push(fn) }));
 
-import { readJobSm8, sendJobDocumentsToServiceM8 } from "../job-sm8";
+import { readJobSm8, sendJobDocumentsToServiceM8, sendJobPhotoAs } from "../job-sm8";
 import { WRITE_WORDS } from "@/lib/integrations/sm8-write-plan";
 
 const office: Ctx = { orgId: "org-1", userId: "auth0|isaac", staffId: "staff-isaac", company: true, team: true };
@@ -429,3 +445,47 @@ describe("what comes back, tick by tick", () => {
     expect(runSm8Writes).not.toHaveBeenCalled();
   });
 });
+
+/* ── a photo from the phone ── */
+
+describe("a photo from the phone goes to ServiceM8 as one of the job's photos", () => {
+  const JOB = "0B1E0B1E-0000-4000-8000-000000002935";
+  const photo = (over: Record<string, unknown> = {}) => ({
+    id: "p-7",
+    kind: "job_photo",
+    sm8_job_uuid: JOB,
+    uploaded_at: "2026-10-27T00:42:00Z",
+    uploaded_by: "staff-isaac",
+    file_name: "2935 27 Oct 10.42.jpg",
+    mime_type: "image/jpeg",
+    size_bytes: 2_100_000,
+    ...over,
+  });
+  beforeEach(() => {
+    Object.assign(state, FRESH);
+    docs = { "p-7": photo() };
+    enqueueAttachments.mockReset().mockResolvedValue({ ids: ["w-1"], already: [], capped: false });
+    runSm8Writes.mockReset().mockResolvedValue({ stopped: null });
+  });
+
+  it("queues the landed photo its presser took, on this job, and sends it", async () => {
+    expect(await sendJobPhotoAs(PRESS as never, { jobUuid: JOB, documentId: "p-7" })).toEqual({ ok: true });
+    expect(enqueueAttachments).toHaveBeenCalledWith(PRESS, expect.anything(), [
+      { jobUuid: JOB.toLowerCase(), documentId: "p-7", name: "2935 27 Oct 10.42.jpg", mimeType: "image/jpeg", sizeBytes: 2_100_000, key: "photo:p-7" },
+    ]);
+    expect(runSm8Writes).toHaveBeenCalledWith("org-1", "send", expect.objectContaining({ ids: ["w-1"] }));
+  });
+
+  it("sends nothing for a forged press, someone else's photo, paper, a photo not landed, another job, or files switched off", async () => {
+    expect(await sendJobPhotoAs({ ...PRESS } as never, { jobUuid: JOB, documentId: "p-7" })).toEqual({ ok: false });
+    for (const over of [{ uploaded_by: "staff-lyle" }, { kind: "job_document" }, { uploaded_at: null }, { sm8_job_uuid: "another-job" }]) {
+      docs = { "p-7": photo(over) };
+      expect(await sendJobPhotoAs(PRESS as never, { jobUuid: JOB, documentId: "p-7" })).toEqual({ ok: false });
+    }
+    docs = { "p-7": photo() };
+    state.ownerKinds = [];
+    expect(await sendJobPhotoAs(PRESS as never, { jobUuid: JOB, documentId: "p-7" })).toEqual({ ok: false });
+    expect(enqueueAttachments).not.toHaveBeenCalled();
+  });
+});
+

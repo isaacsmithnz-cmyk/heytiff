@@ -2,8 +2,9 @@ import "server-only";
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import type { Sm8Press } from "@/lib/integrations/sm8-press";
-import { enqueueAttachments, readJobSends, readSm8WriteState, runSm8Writes } from "@/lib/integrations/sm8-writes";
-import { drainSm8WritesAfterResponse, settleWithin } from "@/lib/integrations/sm8-drain";
+import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
+import { readJobSends } from "@/lib/integrations/sm8-job-sends";
+import { sendJobPhotoAs } from "@/app/actions/job-sm8";
 import { sendHold, sendLine, sendRefusal, type SendLine } from "@/lib/integrations/sm8-write-plan";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import { landSlot, openSlot } from "@/lib/documents/upload-slots";
@@ -20,20 +21,17 @@ import type { MobileCtx } from "./auth";
    through here.
 
    LANDED, IT GOES TO SERVICEM8 as one of the job's photos, through the
-   file queue the Documents face sends by (enqueueAttachments), as the app.
-   A photo is the work, taken by whoever is on the job, so it goes on the
-   `workboard` grant that put it there, not the papers' `workboard_manage`.
-   ServiceM8 not taking files keeps it in HeyTiff and says why. The press
-   waits on ServiceM8 a few seconds and no longer: the rest goes behind it. */
+   file queue the Documents face sends by, as the app (actions/job-sm8's
+   sendJobPhotoAs, with the press this route minted). A photo is the work,
+   taken by whoever is on the job, so it goes on the `workboard` grant that
+   put it there, not the papers' `workboard_manage`. ServiceM8 not taking
+   files keeps it in HeyTiff and says why. */
 
 export const PHOTO_WORDS = {
   noJob: "That job isn't in HeyTiff.",
   noCard: "You need a staff card in HeyTiff to add photos.",
   notPhoto: "That isn't a photo.",
 } as const;
-
-/** How long a landing waits on ServiceM8 before saying "Sending". */
-const SEND_BUDGET_MS = 8_000;
 
 export type PhotoSlot = { documentId: string; uploadUrl: string };
 export type PhotoLanded = { documentId: string; sent: SendLine | null };
@@ -88,25 +86,9 @@ export async function landJobPhoto(ctx: MobileCtx, press: Sm8Press | null, jobId
   const landed = await landSlot(ctx.orgId, staffId, doc.id);
   if (!landed.ok) return { ok: false, error: landed.error, status: 409 };
 
-  const startedAt = Date.now();
+  if (press && press.orgId === ctx.orgId && press.userId === ctx.userId) await sendJobPhotoAs(press, { jobUuid: job, documentId: doc.id });
   const state = await readSm8WriteState(ctx.orgId);
   const refused = sendRefusal(state, "attachment");
-  if (!refused && state.tenantId && press && press.orgId === ctx.orgId && press.userId === ctx.userId) {
-    try {
-      const queued = await enqueueAttachments(press, state, [
-        { jobUuid: job.toLowerCase(), documentId: doc.id, name: doc.file_name, mimeType: doc.mime_type, sizeBytes: doc.size_bytes, key: `photo:${doc.id}` },
-      ]);
-      if (queued && !queued.capped && queued.ids.length > 0) {
-        /* as the Documents face's Send: what outlives the budget goes on
-           behind the answer, and the drain follows it (sm8-drain) */
-        const pressRun = runSm8Writes(ctx.orgId, "send", { ids: queued.ids, budgetMs: SEND_BUDGET_MS });
-        const run = await settleWithin(pressRun, SEND_BUDGET_MS);
-        if (run === null || run.stopped === null) drainSm8WritesAfterResponse(ctx.orgId, { startedAt, behind: run === null ? pressRun : undefined });
-      }
-    } catch (err) {
-      console.error(`[mobile] photo ${doc.id} on job ${job} for org ${ctx.orgId} couldn't be sent: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
   const sends = await readJobSends(ctx.orgId, job.toLowerCase());
   const sent = sendLine(sends, [doc.id], state.readable ? sendHold(state, "attachment") : null) ?? (refused ? { word: refused, tone: null } : null);
   return { ok: true, value: { documentId: doc.id, sent } };

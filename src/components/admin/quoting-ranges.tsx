@@ -8,7 +8,6 @@ import { TextInput } from "@/components/parts/field";
 import { Loading } from "@/components/parts/states";
 import { Tick } from "@/components/parts/tick";
 import { useToast } from "@/components/parts/toast";
-import { Group } from "@/components/settings/parts";
 import {
   RANGE_KINDS,
   lineLabel,
@@ -23,7 +22,8 @@ import {
 import { withCleanup } from "@/lib/ui/with-cleanup";
 import { dollars, Oops } from "./pb-bits";
 
-/* RANGES THAT COME IN SIZES, on Price book › What prices each part (Isaac,
+/* RANGES THAT COME IN SIZES, opened from a group of the common install
+   items on Price book › What prices each part (Isaac,
    2026-10-04: "you pick one item, say your Y 14-10-10, and Tiff finds the
    same range's other sizes in your price book for you to confirm once").
 
@@ -46,17 +46,17 @@ type SaveAnswer = { ok: true; range: RangeView } | { ok: false; reason: string }
 
 /** A range's items as the product lines they came from, each named by its
     plainest item's words: "Airloc smartfit y ins, AAD", its key sizes in it. */
-function linesIn(items: readonly RangeItemView[]): { key: string; label: string; items: RangeItemView[] }[] {
-  const out: { key: string; label: string; items: RangeItemView[] }[] = [];
+function linesIn(items: readonly RangeItemView[]): { key: string; label: string; words: string; items: RangeItemView[] }[] {
+  const out: { key: string; label: string; words: string; items: RangeItemView[] }[] = [];
   for (const i of items) {
     const line = out.find((l) => sameLine(l.items[0]!, i));
     if (line) line.items.push(i);
-    else out.push({ key: `${i.supplierKey}|${i.code}`, label: "", items: [i] });
+    else out.push({ key: `${i.supplierKey}|${i.code}`, label: "", words: "", items: [i] });
   }
   const words = (i: RangeItemView) => lineLabel(i.name) || i.name;
   return out.map((l) => {
     const plainest = [...l.items].sort((a, b) => words(a).length - words(b).length)[0]!;
-    return { ...l, label: `${words(plainest)}, ${plainest.supplierName}` };
+    return { ...l, words: words(plainest), label: `${words(plainest)}, ${plainest.supplierName}` };
   });
 }
 
@@ -64,10 +64,11 @@ const saveRefusal = (a: Extract<SaveAnswer, { ok: false }>) => a.reason;
 /* worked out here, not in the try that asks: the compiler can't lower a value block inside one */
 const withRange = (rs: RangeView[], range: RangeView) => rs.map((r) => (r.kind === range.kind ? range : r));
 
-export function RangesGroup({ initial }: { initial: RangeView[] }) {
+/** The business's ranges on the page, and a change to one saved: its items
+    in, its items out, said in a toast. */
+export function useRanges(initial: RangeView[]) {
   const toast = useToast();
   const [ranges, setRanges] = useState(initial);
-  const [open, setOpen] = useState<RangeKind | null>(null);
   const [busy, setBusy] = useState(false);
   const [wrong, setWrong] = useState<string | null>(null);
 
@@ -92,57 +93,32 @@ export function RangesGroup({ initial }: { initial: RangeView[] }) {
     }, () => setBusy(false));
   };
 
-  const opened = ranges.find((r) => r.kind === open) ?? null;
+  return { ranges, busy, wrong, setWrong, change };
+}
 
+export type RangesState = ReturnType<typeof useRanges>;
+
+/** One range opened, its changes saved through the page's ranges. */
+export function RangeDialog({ range, state, onClose }: { range: RangeView; state: RangesState; onClose: () => void }) {
+  const label = RANGE_KINDS[range.kind].label;
   return (
-    <Group heading="Ranges that come in sizes">
-      <div className="st2-pb-rows" role="table" aria-label="Ranges that come in sizes">
-        <div className="st2-pb-grid st2-pb-ranges st2-pb-head" role="row">
-          <span role="columnheader">Part</span>
-          <span role="columnheader">Your range</span>
-          <span role="columnheader">Sizes</span>
-          <span role="columnheader">
-            <span className="sr-only">Change it</span>
-          </span>
-        </div>
-        {ranges.map((r) => {
-          const k = RANGE_KINDS[r.kind];
-          const lines = linesIn(r.items);
-          return (
-            <div key={r.kind} className="st2-pb-grid st2-pb-ranges" role="row">
-              <span role="cell" className="st2-pb-name">
-                <b>{k.label}</b>
-                <span className="st2-pb-line">{k.by}</span>
-              </span>
-              <span role="cell" className={lines.length ? undefined : "st2-pb-none"}>
-                <Fade lines={2}>{lines.length ? lines.map((l) => l.label).join("; ") : "Not chosen"}</Fade>
-              </span>
-              <span role="cell">{r.items.length ? sizes(r.items.length) : ""}</span>
-              <span role="cell" className="st2-pb-act">
-                <Button kind="second" size={32} disabled={busy} aria-label={`${r.items.length ? "Change" : "Choose"} the range of ${k.noun}`} onClick={() => setOpen(r.kind)}>
-                  {r.items.length ? "Change range" : "Choose range"}
-                </Button>
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      {opened && (
-        <RangePicker
-          range={opened}
-          busy={busy}
-          wrong={wrong}
-          onAdd={(add) => change(opened.kind, add, [], `${RANGE_KINDS[opened.kind].label}: ${sizes(add.length)} added`)}
-          onRemove={(items) => void change(opened.kind, [], items, `${RANGE_KINDS[opened.kind].label}: ${sizes(items.length)} taken out`)}
-          onClose={() => {
-            setOpen(null);
-            setWrong(null);
-          }}
-        />
-      )}
-    </Group>
+    <RangePicker
+      range={range}
+      busy={state.busy}
+      wrong={state.wrong}
+      onAdd={(add) => state.change(range.kind, add, [], `${label}: ${sizes(add.length)} added`)}
+      onRemove={(items) => void state.change(range.kind, [], items, `${label}: ${sizes(items.length)} taken out`)}
+      onClose={() => {
+        state.setWrong(null);
+        onClose();
+      }}
+    />
   );
 }
+
+/** A range's items as the product lines they came from, in their words:
+    "Vortex flexible duct". */
+export const rangeLines = (items: readonly RangeItemView[]) => linesIn(items).map((l) => l.words);
 
 type Proposed = CandidateItem & { supplierKey: string; supplierName: string };
 

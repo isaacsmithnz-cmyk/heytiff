@@ -79,6 +79,10 @@
 .st2-pb-choices { grid-template-columns:minmax(0, 1fr) 128px 120px; }
 .st2-pb-lines { grid-template-columns:minmax(0, 1fr) auto; }
 .st2-pb-rows { display:flex; flex-direction:column; min-width:0; }
+/* COMMON INSTALL ITEMS (common-items.tsx): a group a row; a group opened, a
+   part a row — what it is, the item and its code, where from, what it costs */
+.st2-pb-groups { grid-template-columns:minmax(0, 1fr) 200px 136px; }
+.st2-pb-common { grid-template-columns:minmax(0, 0.9fr) minmax(0, 1.4fr) 168px 112px 136px; }
 .st2-pb-offerlist { display:flex; flex-direction:column; gap:2px; align-items:flex-end; font-variant-numeric:tabular-nums; }
 .st2-pb-offerlist .st2-pb-line { display:inline; }
 
@@ -96,6 +100,8 @@
    choices, the kit's example */
 .st2-pb-dlg { display:flex; flex-direction:column; gap:16px; min-width:0; font-family:var(--font); font-size:14px; line-height:20px; color:var(--ink); }
 .st2-pb-dlg > section { display:flex; flex-direction:column; gap:12px; min-width:0; padding-top:16px; border-top:1px solid var(--line); }
+/* a group's first section starts under the dialog's title, with no line */
+.st2-pb-dlg > section.st2-pb-first { padding-top:0; border-top:0; }
 .st2-pb-kv { display:flex; flex-direction:column; gap:8px; margin:0; }
 .st2-pb-kv > div { display:grid; grid-template-columns:120px minmax(0, 1fr); gap:16px; }
 .st2-pb-kv dt { font-weight:500; color:var(--q); }

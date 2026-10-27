@@ -59,8 +59,8 @@ it("streams what prices each part into its own tab", async () => {
   await act(async () => {
     fireEvent.click(screen.getByRole("tab", { name: "What prices each part" }));
   });
-  expect(await screen.findByRole("table", { name: "Preferred items" })).toBeInTheDocument();
-  expect(screen.getByRole("table", { name: "Ranges that come in sizes" })).toBeInTheDocument();
+  expect(await screen.findByRole("table", { name: "Common install items" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Open Ductwork" })).toBeInTheDocument();
 });
 
 it("asks which supplier Add items is for, and opens it on Suppliers", async () => {

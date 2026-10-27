@@ -1,20 +1,27 @@
 /* The ranges that come in sizes, on Price book › What prices each part
    (Isaac, 2026-10-04: "you pick one item, say your Y 14-10-10, and Tiff
    finds the same range's other sizes in your price book for you to confirm
-   once"). A part's row opens its range in a dialog. */
+   once"). A part's row in its group of the common install items opens its
+   range in a dialog (28 October 2026). */
 import { act, fireEvent, render as draw, screen, within } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { ToastProvider } from "@/components/parts/toast";
-import { RangesGroup } from "../quoting-ranges";
+import { CommonItems } from "../common-items";
 import { RANGE_KEYS, type CandidateLine, type RangeView } from "@/lib/quotes/ranges";
 
 const render = (ui: ReactElement) => draw(<ToastProvider>{ui}</ToastProvider>);
 
 const empty: RangeView[] = RANGE_KEYS.map((kind) => ({ kind, items: [] }));
 
-/** A part's row, and its button that opens the range. */
-const rowOf = (label: string) => screen.getByText(label).closest('[role="row"]') as HTMLElement;
-const openRange = (label: string) => within(rowOf(label)).getByRole("button", { name: /the range of/ });
+const Items = ({ ranges }: { ranges: RangeView[] }) => <CommonItems components={[]} ranges={ranges} busy={false} wrong={null} onChoose={jest.fn()} />;
+
+/** A group opened, a part's row in it, and its button that opens the range. */
+const inGroup = (group: string) => {
+  if (!screen.queryByRole("dialog", { name: group })) fireEvent.click(screen.getByRole("button", { name: `Open ${group}` }));
+  return within(screen.getByRole("dialog", { name: group }));
+};
+const rowOf = (group: string, label: string) => inGroup(group).getByText(label).closest('[role="row"]') as HTMLElement;
+const openRange = (group: string, label: string) => within(rowOf(group, label)).getByRole("button", { name: /the range of/ });
 
 const ys: CandidateLine[] = [
   {
@@ -49,15 +56,16 @@ const ys: CandidateLine[] = [
   },
 ];
 
-it("lists every part that comes in sizes, none chosen for a new business", () => {
-  render(<RangesGroup initial={empty} />);
-  const table = screen.getByRole("table", { name: "Ranges that come in sizes" });
-  expect(within(table).getAllByText("Not chosen")).toHaveLength(RANGE_KEYS.length);
-  expect(within(table).getByText("Isolators")).toBeInTheDocument();
-  expect(within(table).getByText("by amps")).toBeInTheDocument();
-  const choose = within(table).getAllByRole("button", { name: /^Choose the range of/ });
-  expect(choose).toHaveLength(RANGE_KEYS.length);
-  expect(choose[0]).toHaveTextContent("Choose range");
+it("lists every part that comes in sizes in its group, none chosen for a new business", () => {
+  render(<Items ranges={empty} />);
+  const ductwork = inGroup("Ductwork");
+  for (const name of ["Flexible duct", "Ys and BTOs", "Reducers", "Supply plenum", "Return plenum", "Zone damper"]) {
+    const row = ductwork.getByText(name).closest('[role="row"]') as HTMLElement;
+    expect(within(row).getByText("Every size in your book")).toBeInTheDocument();
+    expect(within(row).getByText("Lowest price")).toBeInTheDocument();
+    expect(within(row).getByRole("button", { name: /^Choose the range of/ })).toHaveTextContent("Choose range");
+  }
+  expect(ductwork.getAllByText("All sizes, by Ø")).toHaveLength(2);
 });
 
 it("makes a range from one product line: its sizes laid out ticked, the line's key sizes with them, and added on one press", async () => {
@@ -82,10 +90,10 @@ it("makes a range from one product line: its sizes laid out ticked, the line's k
     return { json: async () => ({ ok: true, lines: ys }) } as Response;
   }) as unknown as typeof fetch;
 
-  render(<RangesGroup initial={empty} />);
-  const row = rowOf("Ys and BTOs");
+  render(<Items ranges={empty} />);
+  const fittings = openRange("Ductwork", "Ys and BTOs");
   await act(async () => {
-    fireEvent.click(openRange("Ys and BTOs"));
+    fireEvent.click(fittings);
   });
   expect(screen.getByRole("dialog", { name: "Ys and BTOs" })).toBeInTheDocument();
   /* the lines the business's quotes use most come first, as the server sorts them */
@@ -117,16 +125,23 @@ it("makes a range from one product line: its sizes laid out ticked, the line's k
     },
   ]);
   expect(screen.getByText("Ys and BTOs: 2 sizes added")).toBeInTheDocument();
-  /* one product line, its key sizes in it */
-  expect(within(row).getByText("Airloc smartfit y ins, AAD")).toBeInTheDocument();
-  expect(within(row).getByText("2 sizes")).toBeInTheDocument();
+  /* the fittings a size a row, as the trade says them, each its item, code, supplier and price */
+  fireEvent.click(within(screen.getByRole("dialog", { name: "Ys and BTOs" })).getByRole("button", { name: "Done" }));
+  const y = rowOf("Ductwork", "Y 14-10-10");
+  expect(within(y).getByText("Ø350 → Ø250 / Ø250")).toBeInTheDocument();
+  expect(within(y).getByText("AIRLOC SMARTFIT Y 14-10-10 INS")).toBeInTheDocument();
+  expect(within(y).getByText("AY141010")).toBeInTheDocument();
+  expect(within(y).getByText("AAD")).toBeInTheDocument();
+  expect(within(y).getByText("$30.31")).toBeInTheDocument();
+  expect(rowOf("Ductwork", "Y 14-12-12")).toBeInTheDocument();
 });
 
 it("says which items have no size in their name, and never offers them", async () => {
   global.fetch = jest.fn(async () => ({ json: async () => ({ ok: true, lines: ys }) })) as unknown as typeof fetch;
-  render(<RangesGroup initial={empty} />);
+  render(<Items ranges={empty} />);
+  const fittings = openRange("Ductwork", "Ys and BTOs");
   await act(async () => {
-    fireEvent.click(openRange("Ys and BTOs"));
+    fireEvent.click(fittings);
   });
   fireEvent.click(within(screen.getByRole("list", { name: "Ys and BTOs in your price book" })).getAllByRole("button", { name: "Use this line" })[1]!);
   expect(screen.getAllByRole("checkbox")).toHaveLength(1);
@@ -159,9 +174,10 @@ it("lets a bracket say the widest outdoor it takes", async () => {
       }),
     } as Response;
   }) as unknown as typeof fetch;
-  render(<RangesGroup initial={empty} />);
+  render(<Items ranges={empty} />);
+  const brackets = openRange("Mounting", "Outdoor unit wall bracket");
   await act(async () => {
-    fireEvent.click(openRange("Wall brackets"));
+    fireEvent.click(brackets);
   });
   fireEvent.click(screen.getByRole("button", { name: "Use this line" }));
   fireEvent.change(screen.getByLabelText("Widest outdoor CWB180 takes, mm"), { target: { value: "900" } });
@@ -190,9 +206,12 @@ it("takes a product line out of a range", async () => {
       { supplierKey: "advantage_air", supplierName: "Advantage Air", code: "CEMOD25", name: "'Clip-in' motorised damper 250 dia", size: { mm: 250 }, words: "Ø250", buyCents: 3674 },
     ],
   };
-  render(<RangesGroup initial={empty.map((r) => (r.kind === "zone_damper" ? dampers : r))} />);
-  const row = rowOf("Zone dampers");
-  expect(within(row).getByText("Clip-in motorised damper, Advantage Air")).toBeInTheDocument();
+  render(<Items ranges={empty.map((r) => (r.kind === "zone_damper" ? dampers : r))} />);
+  const row = rowOf("Ductwork", "Zone damper");
+  expect(within(row).getByText("Clip-in motorised damper")).toBeInTheDocument();
+  expect(within(row).getByText("Advantage Air")).toBeInTheDocument();
+  expect(within(row).getByText("2 sizes")).toBeInTheDocument();
+  expect(within(row).getByText("from $35.24")).toBeInTheDocument();
   await act(async () => {
     fireEvent.click(within(row).getByRole("button", { name: "Change the range of zone dampers" }));
   });
@@ -212,5 +231,5 @@ it("takes a product line out of a range", async () => {
       ],
     },
   ]);
-  expect(within(row).getByText("Not chosen")).toBeInTheDocument();
+  expect(within(rowOf("Ductwork", "Zone damper")).getByText("Every size in your book")).toBeInTheDocument();
 });

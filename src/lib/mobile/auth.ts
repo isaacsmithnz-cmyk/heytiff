@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { resolve, type Capability } from "@/lib/permissions";
 import type { Role } from "@/lib/roles-shared";
 import { checkMobileToken, tenantKeys, type KeyLookup } from "./token";
+import { enterPhoneSession } from "@/lib/phone-session";
 
 /* WHO THE PHONE IS, AND FOR WHICH WORKSPACE (native app, phase 1).
 
@@ -52,6 +53,15 @@ const verified = new WeakSet<object>();
 /** Whether `ctx` is one requireMobile made from a verified token. */
 export function isVerifiedMobile(ctx: unknown): ctx is MobileCtx {
   return !!ctx && typeof ctx === "object" && verified.has(ctx);
+}
+
+/** Run the web's own server code as this verified phone user: inside `fn`,
+    `auth0.getSession()` is them (lib/phone-session), so its gates, its
+    capabilities and its presses are theirs, as on the web. Refuses a
+    context requireMobile didn't make. */
+export function actAsPhoneUser<T>(ctx: MobileCtx, fn: () => Promise<T>): Promise<T> {
+  if (!isVerifiedMobile(ctx)) return Promise.reject(new Error("Not a verified phone user"));
+  return enterPhoneSession({ orgId: ctx.orgId, userId: ctx.userId }, fn);
 }
 
 const json = (status: number, error: string): Response =>

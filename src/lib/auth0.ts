@@ -3,6 +3,7 @@ import type { SdkError } from "@auth0/nextjs-auth0/errors";
 import type { NextResponse } from "next/server";
 import { supabaseAdmin } from "./supabase-server";
 import { seedNameFor, splitName } from "./staff/name";
+import { phoneSession } from "./phone-session";
 
 /* Make sure the user has a staff card in this org. Best effort, like the
    profiles upsert: a failure here must never block login — /dashboard/profile
@@ -183,3 +184,17 @@ export const auth0 = new Auth0Client({
     return session;
   },
 });
+
+/* A PHONE ROUTE ACTING FOR SOMEONE (lib/phone-session): while one runs the
+   web's code for a person its token check verified, the app router's
+   `getSession()` answers with that person. Nowhere else does anything
+   change: outside a phone route there is no phone session, and a call with
+   a request in hand is the SDK's own. */
+const sdkGetSession = typeof auth0.getSession === "function" ? auth0.getSession.bind(auth0) : null;
+if (sdkGetSession) {
+  auth0.getSession = ((...args: unknown[]) => {
+    const phone = args.length === 0 ? phoneSession() : null;
+    if (phone) return Promise.resolve(phone);
+    return (sdkGetSession as (...a: unknown[]) => ReturnType<typeof auth0.getSession>)(...args);
+  }) as typeof auth0.getSession;
+}

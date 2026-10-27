@@ -112,7 +112,12 @@ export function SectionTabs(props: TabsProps) {
    ground; the chosen one is filled light and its word turns ink. 32 tall.
    A radiogroup: the arrows move the choice, as radios do. */
 
-export type TrayOption<T extends string> = { value: T; label: string };
+export type TrayOption<T extends string> = {
+  value: T;
+  label: string;
+  /** something on it to look at (amber), as a tab's tone (rule 29); no number */
+  tone?: "look";
+};
 
 export function Tray<T extends string>({
   options,
@@ -141,7 +146,7 @@ export function Tray<T extends string>({
             role="radio"
             aria-checked={on}
             tabIndex={reach ? 0 : -1}
-            className="pt-tray-opt"
+            className={o.tone ? "pt-tray-opt pt-tray-opt--look" : "pt-tray-opt"}
             disabled={disabled}
             data-value={o.value}
             onClick={() => onChange(o.value)}
@@ -152,6 +157,7 @@ export function Tray<T extends string>({
             }}
           >
             {o.label}
+            {o.tone && <span className="pt-tabs-sr">, something to look at</span>}
           </button>
         );
       })}

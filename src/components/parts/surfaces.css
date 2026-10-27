@@ -221,6 +221,8 @@
 }
 .pt-tray .pt-tray-opt:hover { color: var(--ink); }
 .pt-tray .pt-tray-opt[aria-checked="true"] { background: var(--sel); color: var(--ink); }
+/* something waiting on an option it isn't on: its word in amber (rule 29) */
+.pt-tray .pt-tray-opt.pt-tray-opt--look:not([aria-checked="true"]) { color: var(--orange-w); }
 .pt-tray .pt-tray-opt:focus-visible { outline: none; box-shadow: var(--ring); }
 
 @media (prefers-reduced-motion: reduce) {

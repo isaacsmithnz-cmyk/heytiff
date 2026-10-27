@@ -124,6 +124,7 @@ describe("the settings", () => {
       /* words, not figures: the basics every job starts with (Isaac, 10 Oct) */
       starterTasks: STARTER_TASKS,
       preferred: {},
+      groupSuppliers: {},
     });
     expect(normaliseQuoteSettings({ unit_markup_pct: null, material_markup_pct: "" })).toMatchObject({ unitMarkupPct: null, materialMarkupPct: null });
   });
@@ -155,6 +156,7 @@ describe("the settings", () => {
       taskHours: { zone: null, grille: null, metre: null, visit: null },
       starterTasks: STARTER_TASKS,
       preferred: { pair_coil_14_12: { supplierKey: "aad", code: "PC1412", rollM: 20 } },
+      groupSuppliers: {},
     });
     expect(normaliseQuoteSettings({ charge_out_cents: "16500" }).chargeOutCents).toBe(16500);
     expect(normaliseQuoteSettings({ charge_out_cents: 0 }).chargeOutCents).toBeNull();

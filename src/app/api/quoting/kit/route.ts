@@ -54,7 +54,7 @@ export async function GET(req: Request) {
     }
   }
   const [products, settings, ranges, packs] = await Promise.all([bookProducts(orgId), readQuoteSettings(orgId), readRangeOffers(orgId), installedPacks().catch(() => [])]);
-  const preview = kitPreview(kit, f, products, { ranges, components: settings.preferred });
+  const preview = kitPreview(kit, f, products, { ranges, components: settings.preferred, suppliers: settings.groupSuppliers });
   /* the makers whose data packs the example's unit can come from */
   const brands = [...new Set(packs.map((x) => x.brand))];
   return Response.json({ ok: true, kit, unit, brands, ...preview });

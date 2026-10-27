@@ -2,12 +2,13 @@
 
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/parts/button";
+import { Chooser } from "@/components/parts/chooser";
 import { Dialog } from "@/components/parts/dialog";
 import { Fade } from "@/components/parts/fade";
-import { StateWord } from "@/components/parts/state";
+import { StateWord, type Tone } from "@/components/parts/state";
 import { Group, Wrong } from "@/components/settings/parts";
 import type { ComponentKey } from "@/lib/quotes/components";
-import { INSTALL_GROUPS, fittingWords, suppliersWords, type GroupPart, type InstallGroup } from "@/lib/quotes/install-groups";
+import { INSTALL_GROUPS, fittingWords, suppliersWords, type GroupKey, type GroupPart, type InstallGroup } from "@/lib/quotes/install-groups";
 import { RANGE_KINDS, sizeWords, type RangeKind, type RangeView } from "@/lib/quotes/ranges";
 import type { ComponentShortlist } from "@/lib/quotes/settings-query";
 import { RangeDialog, rangeLines, useRanges, type RangesState } from "./quoting-ranges";
@@ -24,18 +25,33 @@ import { dollars, Oops } from "./pb-bits";
    parts, each by its trade name with what it is under it, then the item
    that prices it, its code, its supplier and what it costs. A part priced
    from one item opens its shortlist (Choose another); a part that comes in
-   sizes opens its range. The ductwork's fittings show a size a row. */
+   sizes opens its range. The ductwork's fittings show a size a row.
+
+   BUY ALL FROM ("select Voltex and all ductwork will be quoted at
+   Voltex"): a group can be bought from one supplier. Its parts are priced
+   from that supplier's items where it sells them, and say "Not at" it where
+   it doesn't; a part chosen on its own says "Your pick" and keeps it. */
+
+type Supplier = { key: string; name: string };
 
 type Props = {
   components: ComponentShortlist[];
   ranges: RangeView[];
+  /** the business's suppliers, and the one each group is bought from */
+  suppliers: Supplier[];
+  groupSuppliers: Partial<Record<GroupKey, string>>;
   busy: boolean;
   wrong: string | null;
   /** a preferred item's shortlist, opened over the group */
   onChoose: (key: ComponentKey) => void;
+  /** a group bought from one supplier; null: at the lowest price */
+  onBuyFrom: (group: GroupKey, supplierKey: string | null) => void;
 };
 
+type Note = { word: string; tone: Tone };
+
 const perUnit = (unit: "m" | "each") => (unit === "m" ? "a metre" : "each");
+const YOUR_PICK: Note = { word: "Your pick", tone: "info" };
 const sizes = (n: number) => `${n} size${n === 1 ? "" : "s"}`;
 
 /** The suppliers a group's parts are priced from today. */
@@ -49,9 +65,13 @@ function boughtFrom(g: InstallGroup, components: readonly ComponentShortlist[], 
   );
 }
 
-export function CommonItems({ components, ranges: initialRanges, busy, wrong, onChoose }: Props) {
+export function CommonItems({ components, ranges: initialRanges, suppliers, groupSuppliers, busy, wrong, onChoose, onBuyFrom }: Props) {
   const state = useRanges(initialRanges);
-  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const [openGroup, setOpenGroup] = useState<GroupKey | null>(null);
+  const supplierOf = (g: GroupKey): Supplier | null => {
+    const key = groupSuppliers[g];
+    return key ? (suppliers.find((x) => x.key === key) ?? { key, name: key }) : null;
+  };
   const [openRange, setOpenRange] = useState<RangeKind | null>(null);
   const group = INSTALL_GROUPS.find((g) => g.key === openGroup) ?? null;
   const range = state.ranges.find((r) => r.kind === openRange) ?? null;
@@ -68,7 +88,7 @@ export function CommonItems({ components, ranges: initialRanges, busy, wrong, on
           </span>
         </div>
         {INSTALL_GROUPS.map((g) => {
-          const from = suppliersWords(boughtFrom(g, components, state.ranges));
+          const from = supplierOf(g.key)?.name ?? suppliersWords(boughtFrom(g, components, state.ranges));
           return (
             <div key={g.key} className="st2-pb-grid st2-pb-groups" role="row">
               <span role="cell" className="st2-pb-name">
@@ -93,6 +113,9 @@ export function CommonItems({ components, ranges: initialRanges, busy, wrong, on
         <GroupDialog
           group={group}
           components={components}
+          suppliers={suppliers}
+          from={supplierOf(group.key)}
+          onBuyFrom={(key) => onBuyFrom(group.key, key)}
           state={state}
           busy={busy || state.busy}
           wrong={wrong}
@@ -110,6 +133,9 @@ export function CommonItems({ components, ranges: initialRanges, busy, wrong, on
 function GroupDialog({
   group,
   components,
+  suppliers,
+  from,
+  onBuyFrom,
   state,
   busy,
   wrong,
@@ -119,6 +145,9 @@ function GroupDialog({
 }: {
   group: InstallGroup;
   components: readonly ComponentShortlist[];
+  suppliers: readonly Supplier[];
+  from: Supplier | null;
+  onBuyFrom: (supplierKey: string | null) => void;
   state: RangesState;
   busy: boolean;
   wrong: string | null;
@@ -138,6 +167,17 @@ function GroupDialog({
       }
     >
       <div className="st2-pb-dlg">
+        <div className="st2-pb-buyfrom">
+          <span className="st2-pb-sub">Buy all from</span>
+          <Chooser
+            className="st2-pb-buyfrom-choose"
+            aria-label={`Buy all ${group.label.toLowerCase()} from`}
+            disabled={busy}
+            options={[{ value: "", label: "Lowest price" }, ...suppliers.map((x) => ({ value: x.key, label: x.name }))]}
+            value={from?.key ?? ""}
+            onChange={(v) => onBuyFrom(v || null)}
+          />
+        </div>
         {wrong && <Oops>{wrong}</Oops>}
         {group.sections.map((s, i) => (
           <section key={s.heading ?? i} aria-label={s.heading ?? group.label} className={s.heading ? undefined : "st2-pb-first"}>
@@ -155,7 +195,7 @@ function GroupDialog({
                 </span>
               </div>
               {s.parts.map((p) => (
-                <PartRows key={"component" in p ? p.component : p.range} part={p} components={components} ranges={state.ranges} busy={busy} onChoose={onChoose} onRange={onRange} />
+                <PartRows key={"component" in p ? p.component : p.range} part={p} components={components} ranges={state.ranges} from={from} busy={busy} onChoose={onChoose} onRange={onRange} />
               ))}
             </div>
           </section>
@@ -172,7 +212,7 @@ function Row({
   none = "Nothing chosen yet",
   code,
   from,
-  mine = false,
+  note = null,
   buy,
   act,
 }: {
@@ -183,7 +223,8 @@ function Row({
   none?: string;
   code: string;
   from: string;
-  mine?: boolean;
+  /** a word under the supplier: a part chosen on its own, or one its group's supplier hasn't got */
+  note?: Note | null;
   buy: string;
   act: ReactNode;
 }) {
@@ -205,7 +246,7 @@ function Row({
       </span>
       <span role="cell" className="st2-pb-name">
         <Fade>{from}</Fade>
-        {mine && <StateWord tone="info">Your pick</StateWord>}
+        {note && <StateWord tone={note.tone}>{note.word}</StateWord>}
       </span>
       <span role="cell" className="st2-pb-fig">
         {buy}
@@ -223,6 +264,7 @@ function PartRows({
   part,
   components,
   ranges,
+  from,
   busy,
   onChoose,
   onRange,
@@ -230,6 +272,8 @@ function PartRows({
   part: GroupPart;
   components: readonly ComponentShortlist[];
   ranges: readonly RangeView[];
+  /** the supplier the group is bought from */
+  from: Supplier | null;
   busy: boolean;
   onChoose: (key: ComponentKey) => void;
   onRange: (kind: RangeKind) => void;
@@ -250,7 +294,7 @@ function PartRows({
         item={pick ? pick.group.name : c && c.groups.length === 0 ? "Nothing in your price book yet" : null}
         code={pick ? [pick.offer.code, pick.offer.pack].filter(Boolean).join(", ") : ""}
         from={pick?.offer.supplierName ?? ""}
-        mine={pick?.overridden ?? false}
+        note={pick?.overridden ? YOUR_PICK : pick?.notAt ? { word: `Not at ${pick.notAt}`, tone: "look" } : null}
         buy={pick && c ? (per == null ? "Needs roll length" : `${dollars(per)} ${perUnit(c.unit)}`) : ""}
         act={choose}
       />
@@ -277,6 +321,7 @@ function PartRows({
             item={i.name}
             code={i.code}
             from={i.supplierName}
+            note={from && i.supplierKey !== from.key ? YOUR_PICK : null}
             buy={i.buyCents == null ? "No longer in the book" : dollars(i.buyCents)}
             act={n === sorted.length - 1 ? change : null}
           />
@@ -291,9 +336,10 @@ function PartRows({
       name={part.name}
       spec={part.spec}
       item={items.length ? rangeLines(items).join("; ") : null}
-      none="Every size in your book"
+      none={from ? `Every size from ${from.name} in your book` : "Every size in your book"}
       code={items.length ? sizes(items.length) : ""}
-      from={suppliersWords(items.map((i) => i.supplierName)) ?? "Lowest price"}
+      from={suppliersWords(items.map((i) => i.supplierName)) ?? from?.name ?? "Lowest price"}
+      note={from && items.some((i) => i.supplierKey !== from.key) ? YOUR_PICK : null}
       buy={least == null ? "" : items.length > 1 ? `from ${dollars(least)}` : dollars(least)}
       act={change}
     />

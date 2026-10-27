@@ -45,6 +45,10 @@ const data = (over: Partial<PricedPartsData> = {}): PricedPartsData => ({
   components: [coil],
   ranges: [],
   habits: [],
+  suppliers: [
+    { key: "aad", name: "AAD" },
+    { key: "reece", name: "Reece" },
+  ],
   ...over,
 });
 
@@ -214,4 +218,34 @@ it("prices a kit at the business's own example, given in its dialog", async () =
   expect(asked.at(-1)).toContain("model=FDYAN100");
   expect(asked.at(-1)).toContain("outlets=6");
   expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+/* Buy all from (Isaac, 28 October 2026: "select Voltex and all ductwork will
+   be quoted at Voltex"): a group bought from one supplier */
+describe("a group bought from one supplier", () => {
+  it("saves the supplier chosen for the group, and back to the lowest price", async () => {
+    saveQuoteSettingsMock.mockImplementation(async (s) => ({ ok: true, settings: s }));
+    draw(data());
+    const pipe = openGroup("Pipe");
+    fireEvent.click(pipe.getByRole("combobox", { name: "Buy all pipe from" }));
+    await act(async () => {
+      fireEvent.click(within(screen.getByRole("listbox")).getByRole("option", { name: "Reece" }));
+    });
+    expect(saveQuoteSettingsMock).toHaveBeenLastCalledWith(expect.objectContaining({ groupSuppliers: { pipe: "reece" } }));
+    fireEvent.click(pipe.getByRole("combobox", { name: "Buy all pipe from" }));
+    await act(async () => {
+      fireEvent.click(within(screen.getByRole("listbox")).getByRole("option", { name: "Lowest price" }));
+    });
+    expect(saveQuoteSettingsMock).toHaveBeenLastCalledWith(expect.objectContaining({ groupSuppliers: {} }));
+  });
+
+  it("names the group's supplier on the page, and says which parts it hasn't got", () => {
+    const notAtReece: ComponentShortlist = { ...coil, chosen: { ...coil.chosen!, notAt: "Reece" } };
+    draw(data({ components: [notAtReece], settings: { ...DEFAULT_QUOTE_SETTINGS, groupSuppliers: { pipe: "reece" } } }));
+    const pipeRow = within(screen.getByRole("table", { name: "Common install items" })).getByText("Pipe").closest('[role="row"]') as HTMLElement;
+    expect(within(pipeRow).getByText("Reece")).toBeInTheDocument();
+    const row = openGroup("Pipe").getByText("Pair coil 1/4 + 1/2").closest('[role="row"]') as HTMLElement;
+    expect(within(row).getByText("Not at Reece")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Buy all pipe from" })).toHaveTextContent("Reece");
+  });
 });

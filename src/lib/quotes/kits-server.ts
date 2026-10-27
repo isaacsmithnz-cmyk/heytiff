@@ -44,6 +44,7 @@ export async function addKit(
   const lines = expandKit(kit, f, products, at, { consumables: a.consumables, flush: a.flush, recovery: a.recovery }, byHand.supplier, {
     ranges,
     components: settings.preferred,
+    suppliers: settings.groupSuppliers,
   });
   let added = 0;
   for (const l of lines) {

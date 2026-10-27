@@ -13,6 +13,7 @@ import { netCents } from "./price-book";
 import { currentItems, readPreferred, readSameDecisions, readSuppliers, type BookItem, type SupplierView } from "./price-book-server";
 import { productsOf, refOf } from "./same-items";
 import { quotesByCode } from "./book-view-server";
+import { groupOfComponent } from "./install-groups";
 import { normaliseQuoteSettings, quoteSettingsRow, type QuoteSettings } from "./settings";
 
 /* The Quoting page's reads: the business's settings, and for each component
@@ -23,7 +24,7 @@ import { normaliseQuoteSettings, quoteSettingsRow, type QuoteSettings } from "./
 export async function readQuoteSettings(orgId: string): Promise<QuoteSettings> {
   const { data } = await supabaseAdmin
     .from("quote_settings")
-    .select("unit_markup_pct, material_markup_pct, charge_out_cents, day_hours, contingency_pct, contingency_hours, consumables_cents, new_circuit_cents, flush_cents, recovery_cents, usual_layout, show_lines, staff_rough_price, profit_target_pct, labour_cost_cents, task_hours, starter_tasks, preferred")
+    .select("unit_markup_pct, material_markup_pct, charge_out_cents, day_hours, contingency_pct, contingency_hours, consumables_cents, new_circuit_cents, flush_cents, recovery_cents, usual_layout, show_lines, staff_rough_price, profit_target_pct, labour_cost_cents, task_hours, starter_tasks, preferred, group_suppliers")
     .eq("org_id", orgId)
     .maybeSingle();
   return normaliseQuoteSettings(data ?? {});
@@ -65,6 +66,11 @@ export type ComponentChoice = {
   overridden: boolean;
   /** not chosen here, but put forward in the price book */
   preferred?: boolean;
+  /** priced from the supplier its group is bought from */
+  fromGroup?: boolean;
+  /** its group is bought from a supplier that doesn't sell it: that
+      supplier's name, and this is the lowest elsewhere */
+  notAt?: string;
 };
 
 export type ComponentShortlist = {
@@ -89,6 +95,42 @@ const lowestOf = (g: ComponentGroup) => rankPrice(g.offers[0]?.perUnitCents ?? n
 /** Lowest price per metre or each first, then the most used. */
 export function rankGroups(groups: ComponentGroup[]): ComponentGroup[] {
   return [...groups].sort((a, b) => lowestOf(a) - lowestOf(b) || b.uses - a.uses || a.name.localeCompare(b.name));
+}
+
+/** What prices a component: a person's choice for it, while that item is
+    still in the book; then the lowest of its group's supplier's items (28
+    October 2026: "select Voltex and all ductwork will be quoted at
+    Voltex"); then an item put forward in the price book; otherwise the
+    lowest priced item that can be priced. One its group's supplier doesn't
+    sell says so. Pure. */
+export function pickFor(
+  groups: readonly ComponentGroup[],
+  chosen: { supplierKey: string; code: string } | undefined,
+  preferred: ReadonlySet<string>,
+  from: { key: string; name: string } | null
+): ComponentChoice | null {
+  let pick: ComponentChoice | null = null;
+  if (chosen) {
+    const group = groups.find((g) => g.offers.some((o) => o.code === chosen.code && o.supplierKey === chosen.supplierKey));
+    const offer = group?.offers.find((o) => o.code === chosen.code && o.supplierKey === chosen.supplierKey);
+    if (group && offer) return { group, offer, overridden: true };
+  }
+  if (from) {
+    let best: { group: ComponentGroup; offer: ComponentOffer } | null = null;
+    for (const group of groups)
+      for (const offer of group.offers)
+        if (offer.supplierKey === from.key && rankPrice(offer.perUnitCents) < rankPrice(best?.offer.perUnitCents ?? null)) best = { group, offer };
+    if (best) return { ...best, overridden: false, fromGroup: true };
+  }
+  const put = (o: ComponentOffer) => preferred.has(`${o.supplierKey}|${o.code}`) && rankPrice(o.perUnitCents) < Infinity;
+  const putGroup = groups.find((g) => g.offers.some(put));
+  const putOffer = putGroup?.offers.find(put);
+  if (putGroup && putOffer) pick = { group: putGroup, offer: putOffer, overridden: false, preferred: true };
+  if (!pick) {
+    const group = groups.find((g) => rankPrice(g.offers[0]?.perUnitCents ?? null) < Infinity);
+    if (group) pick = { group, offer: group.offers[0]!, overridden: false };
+  }
+  return pick && from ? { ...pick, notAt: from.name } : pick;
 }
 
 export async function componentShortlists(
@@ -170,25 +212,9 @@ export async function componentShortlists(
         };
       })
     );
-    /* a person's choice for this component, while that item is still in
-       the book; then an item put forward in the price book; otherwise the
-       lowest priced item that can be priced */
-    let pick: ComponentChoice | null = null;
-    if (chosen) {
-      const group = groups.find((g) => g.offers.some((o) => o.code === chosen.code && o.supplierKey === chosen.supplierKey));
-      const offer = group?.offers.find((o) => o.code === chosen.code && o.supplierKey === chosen.supplierKey);
-      if (group && offer) pick = { group, offer, overridden: true };
-    }
-    if (!pick) {
-      const put = (o: ComponentOffer) => preferred.has(`${o.supplierKey}|${o.code}`) && rankPrice(o.perUnitCents) < Infinity;
-      const group = groups.find((g) => g.offers.some(put));
-      const offer = group?.offers.find(put);
-      if (group && offer) pick = { group, offer, overridden: false, preferred: true };
-    }
-    if (!pick) {
-      const group = groups.find((g) => rankPrice(g.offers[0]?.perUnitCents ?? null) < Infinity);
-      if (group) pick = { group, offer: group.offers[0]!, overridden: false };
-    }
+    const installGroup = groupOfComponent(key);
+    const from = installGroup ? settings.groupSuppliers[installGroup] : undefined;
+    const pick = pickFor(groups, chosen, preferred, from ? { key: from, name: supplierOf.get(from)?.name ?? from } : null);
     return { key, label: c.label, unit: c.unit, chosen: pick, groups: groups.slice(0, SHORTLIST) };
   });
 }

@@ -5,6 +5,7 @@ import type { LineFields } from "./lines";
 import { pickItem, supplierOffer, type BookQuery, type Pick } from "./lookups";
 import { inKind, isolatorOf, pickFromRange, RANGE_KINDS, sizeWords, type RangeKind, type RangeNeed, type RangeOffer, type RangeSize } from "./ranges";
 import type { ComponentKey } from "./components";
+import { groupOfComponent, groupOfRange, type GroupKey } from "./install-groups";
 import type { Preferred } from "./settings";
 import type { ZoningController } from "@/lib/studio/packs/schema";
 import type { VrfPlan } from "./vrf-kit";
@@ -209,7 +210,20 @@ export type KitEach = {
 export type KitPreferences = {
   ranges: ReadonlyMap<RangeKind, readonly RangeOffer[]>;
   components: Partial<Record<ComponentKey, Preferred>>;
+  /** a supplier for a whole group of the common install items (install-groups.ts) */
+  suppliers?: Partial<Record<GroupKey, string>>;
 };
+
+/** Where a part is bought from: the job's supplier, else the supplier its
+    group of the common install items is bought from (28 October 2026:
+    "select Voltex and all ductwork will be quoted at Voltex"), else none,
+    and the book's ranking picks. A part chosen on its own still wins: the
+    supplier only orders what's left to pick from. */
+function supplierFor(job: string | null, preferred: KitPreferences | null, component: ComponentKey | null | undefined, kind: RangeKind | null | undefined): string | null {
+  if (job) return job;
+  const group = (component ? groupOfComponent(component) : null) ?? (kind ? groupOfRange(kind) : null);
+  return (group && preferred?.suppliers?.[group]) || null;
+}
 
 const PIPE_COMPONENT: Record<PipeSize, ComponentKey> = {
   "1/4+3/8": "pair_coil_14_38",
@@ -768,7 +782,16 @@ export const KITS: Record<KitKey, { label: string; parts: KitPart[] }> = {
     at the size the job needs (the job's supplier's item first), else
     Quoting's preferred item for the part, at the job's supplier where it
     sells the same item. Null: nothing chosen, so the book is searched. */
-export function chosenFor(part: KitPart, f: KitFacts, products: readonly Product[], preferred: KitPreferences | null, supplier: string | null): Pick | null {
+export function chosenFor(
+  part: KitPart,
+  f: KitFacts,
+  products: readonly Product[],
+  preferred: KitPreferences | null,
+  supplier: string | null,
+  /** the job's own supplier: a part chosen on its own is bought there when it
+      sells the same item, never moved to its group's supplier */
+  jobSupplier: string | null = supplier
+): Pick | null {
   if (!preferred) return null;
   const r = part.range?.(f);
   const offers = r ? (preferred.ranges.get(r.kind) ?? []).filter((o) => !r.only || r.only(o.name)) : [];
@@ -785,7 +808,7 @@ export function chosenFor(part: KitPart, f: KitFacts, products: readonly Product
     const product = products.find((x) => x.offers.some((o) => o.supplierKey === p.supplierKey && o.code === p.code));
     const own = product?.offers.find((o) => o.supplierKey === p.supplierKey && o.code === p.code);
     /* another maker's: not this unit's part, so the book is searched */
-    if (product && own && !(part.ownMaker?.(f) && !sameMaker(product.brand, f.brand!))) return { product, offer: (supplier ? supplierOffer(product, supplier) : null) ?? own, why: "Your preferred" };
+    if (product && own && !(part.ownMaker?.(f) && !sameMaker(product.brand, f.brand!))) return { product, offer: (jobSupplier ? supplierOffer(product, jobSupplier) : null) ?? own, why: "Your preferred" };
   }
   return null;
 }
@@ -851,7 +874,7 @@ export function expandKit(
         continue;
       }
       for (const x of each) {
-        const picked = atSize(x.kind, x.need, products, preferred, supplier);
+        const picked = atSize(x.kind, x.need, products, preferred, supplierFor(supplier, preferred, null, x.kind));
         if (!picked) {
           out.push({ ...base, name: `${part.name} ${sizeWords(x.kind, x.need)}`, qty: x.qty, unit: "", costCents: 0, source: "unknown", why: `None at ${sizeWords(x.kind, x.need)} in your book` });
           continue;
@@ -875,7 +898,8 @@ export function expandKit(
           out.push({ ...base, name: x.name, qty: x.qty?.qty ?? 0, unit: x.qty?.unit ?? "", costCents: 0, source: "unknown", why: x.needs ?? "Not in your book" });
           continue;
         }
-        const picked = chosenFor({ ...part, range: undefined, component: () => x.component ?? null }, f, products, preferred, supplier) ?? pickItem(products, x.search, supplier);
+        const from = supplierFor(supplier, preferred, x.component, part.shows?.kind);
+        const picked = chosenFor({ ...part, range: undefined, component: () => x.component ?? null }, f, products, preferred, from, supplier) ?? pickItem(products, x.search, from);
         if (!picked) {
           out.push({ ...base, name: x.name, qty: x.qty.qty, unit: x.qty.unit, costCents: 0, source: "unknown", why: `${x.qty.why}; not in your book` });
           continue;
@@ -915,7 +939,8 @@ export function expandKit(
     /* a part sized by the unit or the layout comes only at its size: never
        the book's nearest word for it */
     const sized = part.none ? part.range?.(f) : null;
-    const picked = sized ? atSize(sized.kind, sized.need, products, preferred, supplier, sized.only) : (chosenFor(part, f, products, preferred, supplier) ?? pickItem(pool, s, supplier));
+    const from = supplierFor(supplier, preferred, part.component?.(f), part.range?.(f)?.kind ?? part.shows?.kind);
+    const picked = sized ? atSize(sized.kind, sized.need, products, preferred, from, sized.only) : (chosenFor(part, f, products, preferred, from, supplier) ?? pickItem(pool, s, from));
     if (!picked) {
       out.push({ ...base, name: part.nameFor?.(f) ?? part.name, qty: q.qty, unit: q.unit, costCents: 0, source: "unknown", why: sized && part.none ? part.none(f) : "Not in your book" });
       continue;

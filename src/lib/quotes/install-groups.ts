@@ -29,7 +29,10 @@ export type GroupPart =
 
 export type InstallSection = { heading?: string; parts: GroupPart[] };
 
-export type InstallGroup = { key: string; label: string; summary: string; sections: InstallSection[] };
+export const GROUP_KEYS = ["pipe", "cable", "drain", "mounting", "covering", "ductwork", "grilles", "controls"] as const;
+export type GroupKey = (typeof GROUP_KEYS)[number];
+
+export type InstallGroup = { key: GroupKey; label: string; summary: string; sections: InstallSection[] };
 
 const all = (kind: RangeKind) => `All sizes, ${RANGE_KINDS[kind].by}`;
 const range = (kind: RangeKind, name: string, spec = all(kind)): GroupPart => ({ range: kind, name, spec });
@@ -169,4 +172,15 @@ export function suppliersWords(names: readonly string[]): string | null {
   if (seen.length === 1) return seen[0]!;
   if (seen.length === 2) return `${seen[0]} and ${seen[1]}`;
   return `${seen[0]}, ${seen[1]} and ${seen.length - 2} more`;
+}
+
+/** The group a preferred item is in; null for one no group lists (the
+    isolator's and the wall bracket's single items, their ranges stand in). */
+export function groupOfComponent(key: ComponentKey): GroupKey | null {
+  return INSTALL_GROUPS.find((g) => g.sections.some((s) => s.parts.some((p) => "component" in p && p.component === key)))?.key ?? null;
+}
+
+/** The group a range is in. */
+export function groupOfRange(kind: RangeKind): GroupKey | null {
+  return INSTALL_GROUPS.find((g) => g.sections.some((s) => s.parts.some((p) => "range" in p && p.range === kind)))?.key ?? null;
 }

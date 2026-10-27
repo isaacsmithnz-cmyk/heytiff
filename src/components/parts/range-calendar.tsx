@@ -9,9 +9,11 @@ import { IconButton } from "./button";
    6 and 7).
 
    Monday first. A day off the person's roster is grey (for Monday to Friday,
-   the weekend). Today is ringed thin. A public holiday is struck through
-   with a small dot under its date, and the holidays on screen are named on
-   one line under the months. The days picked are blue discs with white
+   the weekend). Today is ringed thin. A public holiday is purple, as the
+   Calendar marks holidays, with a small dot under its date (Isaac, 27
+   October 2026: "mark public holidays as purple instead of having it
+   crossed out"), and the holidays on screen are named on one line under
+   the months. The days picked are blue discs with white
    numbers, and the run between them a light fill of the same blue: blue is
    a selection (rule 17), so nothing picked is ever ink.
 

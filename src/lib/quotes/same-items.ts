@@ -12,7 +12,7 @@
      "ASPEN MINI TANK PUMP 35LTR/HR FP1056" is AAD's FP1056).
    - SAME SIZE: the same kind of part (pair coil, duct tape, isolator…) with
      every size both names give the same — the pipe sizes, the length, the
-     amps, the poles, the colour — and at least two of them.
+     amps, the poles, a cable's cores, the colour — and at least two of them.
 
    A kit or set is never the same part as a single one, nor a fire-rated
    part the same as a standard one, nor a unit's indoor head the same as the
@@ -72,6 +72,20 @@ const KINDS: { kind: string; test: RegExp }[] = [
   { kind: "rubber feet", test: /rubber\s*feet|condenser\s*feet|anti.?vib|vibration\s*mount/i },
 ];
 
+/* A cable's fittings, its ties, clips, glands and the like, are parts of
+   their own, each its own kind, never the cable (Isaac's walk, 27 October
+   2026: 2.5 mm flex cable was proposed as 2.5 mm cable ties). */
+const CABLE_FITTING = /\bcable\s*(ties?|clips?|glands?|lugs?|saddles?|clamps?|trays?|markers?|joiners?|staples?|sleeves?)\b/i;
+
+/* Within a kind, what makes two of them different parts whatever sizes
+   they share: a cable for data, a shielded or screened one, flexible cord
+   and circular cable are never flat power cable, nor each other (the same
+   walk: a shielded pair proposed as twin and earth). */
+const APART: Record<string, RegExp[]> = {
+  cable: [/\bcat\s*-?\s*[3-8]a?e?\b|\b[uf]\/?utp\b|\bstp\b|\bdata\b|\brj\s*-?\s*45\b|\bcoax/i, /(?<!un)(shield|screen)/i, /\bflex(ible)?\b/i, /\bcirc(ular)?\b/i],
+};
+const apart = (kind: string, a: string, b: string) => (APART[kind] ?? []).some((re) => re.test(a) !== re.test(b));
+
 /* the parts that are never one with a plain one */
 const FLAGS: { flag: string; test: RegExp }[] = [
   { flag: "kit", test: /\b(KIT|SET)\b/i },
@@ -101,12 +115,22 @@ export function sizesOf(name: string): Sizes {
   for (const m of n.matchAll(/(?<![\d.])(\d+(?:\.\d+)?)\s*KW\b/g)) add("kW", num(m[1]!));
   for (const m of n.matchAll(/(?<![\d.])(\d+(?:\.\d+)?)\s*(?:L|LT|LTR|LITRE)S?\s*\/\s*(?:HR|H)\b/g)) add("L/hr", num(m[1]!));
   for (const m of n.matchAll(/(?<![\d.])(\d{2,4})\s*X\s*(\d{2,4})(?![\d.])/g)) add("dims", `${m[1]}x${m[2]}`);
+  /* a cable's cores: three core and earth is never twin and earth, nor a pair */
+  for (const m of n.matchAll(/(?<![\d.])(\d)\s*C(?:ORES?)?\s*(?:\+|&|AND)\s*E(?:ARTH)?(?![A-Z])/g)) add("cores", `${m[1]}C+E`);
+  if (/\bTWIN\s*(?:&|AND)\s*EARTH\b/.test(n)) add("cores", "2C+E");
+  for (const m of n.matchAll(/(?<![\d.])(\d)\s*CORES?\b(?!\s*(?:\+|&|AND)\s*E)/g)) add("cores", `${m[1]} core`);
+  if (/\bSINGLE\s*-?\s*CORE\b/.test(n)) add("cores", "1 core");
+  for (const m of n.matchAll(/(?<![\d./])(\d{1,2})\s*(?:PAIRS?|PR)\b(?!\s*CU)/g)) add("cores", `${m[1]} pair`);
   const colour = PLAIN_COLOURS.exec(n)?.[1];
   if (colour) add("colour", colour === "GRAY" ? "GREY" : colour);
   return out;
 }
 
-const kindOf = (name: string) => KINDS.find((k) => k.test.test(name))?.kind ?? null;
+const kindOf = (name: string) => {
+  const fitting = CABLE_FITTING.exec(name)?.[1];
+  if (fitting) return `cable ${fitting.toLowerCase().replace(/s$/, "")}`;
+  return KINDS.find((k) => k.test.test(name))?.kind ?? null;
+};
 const flagsOf = (name: string) => FLAGS.filter((f) => f.test.test(name)).map((f) => f.flag).join(",");
 
 const UNIT_WORDS: Record<string, (v: string) => string> = {
@@ -118,6 +142,7 @@ const UNIT_WORDS: Record<string, (v: string) => string> = {
   kW: (v) => `${v} kW`,
   "L/hr": (v) => `${v} L/hr`,
   dims: (v) => v.replace("x", " × "),
+  cores: (v) => v,
   colour: (v) => v.charAt(0) + v.slice(1).toLowerCase(),
 };
 
@@ -191,12 +216,13 @@ export function proposeSameItems(items: SameItem[], decided: Set<string>): SameP
     if (!kind) continue;
     byKind.set(kind, [...(byKind.get(kind) ?? []), { item: i, sizes: sizesOf(i.name), words: tokensOf(i.name) }]);
   }
-  for (const list of byKind.values()) {
+  for (const [kind, list] of byKind) {
     for (let x = 0; x < list.length; x++) {
       for (let y = x + 1; y < list.length; y++) {
         const p = list[x]!;
         const q = list[y]!;
         if (p.item.supplierKey === q.item.supplierKey) continue;
+        if (apart(kind, p.item.name, q.item.name)) continue;
         const shared = sharedSizes(p.sizes, q.sizes);
         if (!shared || shared.length < 2) continue;
         /* more sizes agreeing, then more words in common, ranks first */

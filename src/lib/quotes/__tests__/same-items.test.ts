@@ -130,3 +130,53 @@ describe("units", () => {
     expect(p.map((x) => [x.a.code, x.b.code])).toEqual([["DXK09ZSA-WF1", "3102874-1"]]);
   });
 });
+
+/* Isaac's walk, 27 October 2026: half of Matching's nine were plainly two
+   things, and "a universal fix, not just tailored to us". So the rules are
+   the trade's, whatever a supplier calls its cable. */
+describe("cable", () => {
+  const ge = (code: string, name: string): SameItem => ({ supplierKey: "ge", code, name });
+  const vx = (code: string, name: string): SameItem => ({ supplierKey: "vx", code, name });
+  const pairs = (items: SameItem[]) => proposeSameItems(items, new Set()).map((x) => [x.a.name, x.b.name]);
+
+  it("reads a cable's cores, however a supplier writes them", () => {
+    const cores = (name: string) => [...(sizesOf(name).get("cores") ?? [])];
+    expect(cores("3 CORE & EARTH ORANGE CABLE 1.5MM X 100M (COIL)")).toEqual(["3C+E"]);
+    expect(cores("Flat TPS 3C +E A/ C 7/0. 5 1.5mm PVC/ PVC Blue")).toEqual(["3C+E"]);
+    expect(cores("Cable Tps 2.5Mm 7/067 2C+E100M per metre")).toEqual(["2C+E"]);
+    expect(cores("1.5mm TPS Twin and Earth Flat Cable - 100m Roll")).toEqual(["2C+E"]);
+    expect(cores("1.5MM 1 PAIR CORE SHIELDED CABLE 100MTR (ROLL)")).toEqual(["1 pair"]);
+    expect(cores("Cat6 10G Cable 4Pr UnShielded LSZH Sheath Blue 305m")).toEqual(["4 pair"]);
+    expect(cores("SDI 6MM SINGLE CORE BLACK 100M")).toEqual(["1 core"]);
+    /* a pair coil is no pair of cores */
+    expect(cores('ARDENT PR CU 1/4" X 1/2" R410A 20M (COIL)')).toEqual([]);
+  });
+
+  it("never pairs three core and earth, or a shielded pair, with twin and earth", () => {
+    const te = vx("TPS15", "1.5mm TPS Twin and Earth Flat Cable - 100m Roll");
+    expect(pairs([ge("A", "3 CORE & EARTH ORANGE CABLE 1.5MM X 100M (COIL)"), te])).toEqual([]);
+    expect(pairs([ge("B", "1.5MM 1 PAIR CORE SHIELDED CABLE 100MTR (ROLL)"), te])).toEqual([]);
+    /* twin and earth however it's written still is */
+    expect(pairs([ge("C", "Cable Tps 1.5Mm 2C+E 100M per metre"), te])).toEqual([["Cable Tps 1.5Mm 2C+E 100M per metre", te.name]]);
+  });
+
+  it("never pairs data, shielded, flex or circular cable with flat power cable", () => {
+    const flat = vx("TPS25", "2.5mm TPS 2C+E Flat Cable 100m");
+    for (const name of [
+      "Cat6 Data Cable 2.5mm 100m",
+      "2.5mm 2C+E Screened Cable 100m",
+      "Flex Cable 2C+E 2.5mm 100m",
+      "Circular 2C+E 2.5mm 100m Cable",
+    ])
+      expect([name, pairs([ge("X", name), flat])]).toEqual([name, []]);
+    /* one data cable with another of the same length and colour still is */
+    expect(pairs([ge("D", "Cat6 10G Cable 4Pr UnShielded LSZH Sheath Blue 305m"), vx("E", "Cat6 Data Cable - UTP; 305m; Blue")])).toHaveLength(1);
+  });
+
+  it("never pairs a cable with its ties, nor ties with clips", () => {
+    expect(pairs([ge("F", "Flex Cable O/ D 2C +E 2.5mm PVC/ PVC Black per metre"), vx("G", "100 x 2.5mm Nylon Cable Ties - Black; 100 Pack")])).toEqual([]);
+    expect(pairs([ge("H", "Cable Tie Nylon Black 300mm 4.8mm"), vx("I", "Cable Clip Black 300mm 4.8mm")])).toEqual([]);
+    /* ties with ties of the same size still are */
+    expect(pairs([ge("J", "Cable Tie Nylon Std Duty Black L300 mm W4.8 mm"), vx("K", "B/LAND CABLE TIES 300MM X 4.8MM - BLACK (PACK)")])).toHaveLength(1);
+  });
+});

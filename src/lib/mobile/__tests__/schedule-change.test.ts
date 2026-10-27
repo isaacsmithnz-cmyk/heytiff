@@ -346,17 +346,20 @@ describe("who may", () => {
 describe("who isn't booked", () => {
   const LEO = "1e01e01e-0000-4000-8000-00000000a003";
   const PENDING = "9e9e9e9e-0000-4000-8000-00000000a009";
-  it("is the capacity crew with nothing that day: free, or off with when it ends — never the office or a placeholder", async () => {
+  it("is the capacity crew with nothing that day: free, off with when it ends, or free after a part of it — never the office or a placeholder", async () => {
+    const DAVID = "da0da0da-0000-4000-8000-00000000a004";
     fake.db.sm8_staff = [
       ...(fake.db.sm8_staff as Row[]),
       { org_id: ORG, uuid: LEO, first: "Leo", last: "Watanangura", active: 1 },
       { org_id: ORG, uuid: PENDING, first: "Pending", last: "Jobs", active: 1 },
+      { org_id: ORG, uuid: DAVID, first: "David", last: "Hann", active: 1 },
     ];
     fake.db.schedule_capacity_staff = [
-      { org_id: ORG, sm8_staff_uuid: SAM_SM8, included: true },
-      { org_id: ORG, sm8_staff_uuid: ALEX_SM8, included: true },
-      { org_id: ORG, sm8_staff_uuid: LEO, included: true },
-      { org_id: ORG, sm8_staff_uuid: PENDING, included: false },
+      { org_id: ORG, sm8_staff_uuid: SAM_SM8, included: true, daily_minutes: 480 },
+      { org_id: ORG, sm8_staff_uuid: ALEX_SM8, included: true, daily_minutes: 480 },
+      { org_id: ORG, sm8_staff_uuid: LEO, included: true, daily_minutes: 480 },
+      { org_id: ORG, sm8_staff_uuid: DAVID, included: true, daily_minutes: 480 },
+      { org_id: ORG, sm8_staff_uuid: PENDING, included: false, daily_minutes: 480 },
     ];
     fake.db.staff_profiles = [{ org_id: ORG, id: "staff-sam", job_title: "Apprentice" }];
     const d = TOMORROW;
@@ -364,7 +367,13 @@ describe("who isn't booked", () => {
       ORG,
       {
         dayISO: d,
-        activities: [{ uuid: ALEX_ON_JOB, jobUuid: JOB, staffUuid: ALEX_SM8, start: at(d, "07:00"), end: at(d, "15:00"), wasScheduled: 1 }],
+        activities: [
+          /* a whole day, with half an hour over: no room */
+          { uuid: ALEX_ON_JOB, jobUuid: JOB, staffUuid: ALEX_SM8, start: at(d, "07:30"), end: at(d, "15:00"), wasScheduled: 1 },
+          /* two service calls, overlapping a little: room after the last */
+          { uuid: "ac7ac7ac-0000-4000-8000-0000000c0001", jobUuid: JOB, staffUuid: DAVID, start: at(d, "07:30"), end: at(d, "09:00"), wasScheduled: 1 },
+          { uuid: "ac7ac7ac-0000-4000-8000-0000000c0002", jobUuid: OTHER_JOB, staffUuid: DAVID, start: at(d, "08:45"), end: at(d, "11:30"), wasScheduled: 1 },
+        ],
         staff: [],
         jobs: [],
         onSite: [],
@@ -377,6 +386,7 @@ describe("who isn't booked", () => {
     expect(crew).toEqual({
       free: [{ uuid: SAM_SM8, name: "Sam Tester", title: "Apprentice" }],
       off: [{ uuid: LEO, name: "Leo Watanangura", title: null, word: "Annual Leave", until: day(3), from: null, to: null }],
+      later: [{ uuid: DAVID, name: "David Hann", title: null, after: at(d, "11:30") }],
     });
   });
 });

@@ -600,3 +600,26 @@ describe("an outdoor on three phase", () => {
   });
 });
 
+
+/* The common install items (28 October 2026): an interconnect and a power
+   cable a business chose price the kit's lines, as a pair coil always has */
+describe("a split kit's cables, as the business chose them", () => {
+  const blue = product("Flat TPS 3C +E A/ C 7/0. 5 1.5mm PVC/ PVC Blue 450/ 750V per metre", 180);
+  const grey = product("INTERCONNECT 3C+E 1.5MM GREY PER METRE", 150);
+  const four = product("Cable Tps 4Mm 7/085 2C+E per metre", 354);
+  const fourRoll = product("TPS 4MM 2C+E 100M ROLL", 30000);
+  const books = [...book.filter((p) => !/INTERCONNECT|TPS 4MM/.test(p.name)), blue, grey, four, fourRoll];
+  const chose = (key: string, p: Product) => ({ ranges: new Map(), components: { [key]: { supplierKey: "s1", code: p.offers[0]!.code, rollM: null } } });
+  const lineOf = (name: RegExp, prefs: ReturnType<typeof chose> | null, f = facts) =>
+    expandKit("split", f, books, at, null, null, prefs as never).find((l) => name.test(l.name ?? ""));
+
+  it("takes the chosen interconnect over the cheapest", () => {
+    expect(lineOf(/INTERCONNECT|TPS 3C/, null)).toMatchObject({ name: grey.name });
+    expect(lineOf(/INTERCONNECT|TPS 3C/, chose("interconnect", blue))).toMatchObject({ name: blue.name, why: expect.stringMatching(/your preferred/i) });
+  });
+
+  it("takes the chosen 4 mm² cable for a circuit that needs it", () => {
+    expect(lineOf(/4Mm|4MM/, null, { ...facts, amps: 28 })).toMatchObject({ name: four.name });
+    expect(lineOf(/4Mm|4MM/, chose("power_cable_4", fourRoll), { ...facts, amps: 28 })).toMatchObject({ name: fourRoll.name, why: expect.stringMatching(/your preferred/i) });
+  });
+});

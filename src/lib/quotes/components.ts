@@ -29,6 +29,13 @@ const COIL = /pair(ed)?\s*-?\s*coil|paircoil|\bPR\s+CU\b/i;
 /* fire-rated pair coil is its own part, never the standard one */
 const NOT_COIL = [/\bFR\b|fire/i];
 const coil = (a: string, b: string) => new RegExp(`${a}\\s*(?:"|in)?\\s*[+&x]?\\s*${b}(?!\\d)`, "i");
+/* twin and earth: "TPS", "T&E", "2C+E" — never single-core building wire
+   (SDI), twin active with no earth, flex cord or the clips that hold it
+   (Isaac's walk, 2026-10-05: SDI 1 core red priced the circuit), nor
+   circular cable, which is two cores and earth but not flat TPS (28 October
+   2026: a circular 4 mm² priced the 4 mm² power cable) */
+const TWIN_AND_EARTH = /\btps\b|\bt\s*&\s*e\b|\b2\s*c\s*\+\s*e\b|twin\s*(&|and)\s*earth/i;
+const NOT_TWIN_AND_EARTH = [/angle|conduit|gland|\bsdi\b|\b1\s*core\b|single|active|flex|clips?\b|\bcirc(ular)?\b/i];
 
 export const QUOTE_COMPONENTS = {
   pair_coil_14_38: { label: "Pair coil 1/4 + 3/8", unit: "m", match: [COIL, coil("1/4", "3/8")], not: NOT_COIL },
@@ -36,14 +43,32 @@ export const QUOTE_COMPONENTS = {
   pair_coil_14_58: { label: "Pair coil 1/4 + 5/8", unit: "m", match: [COIL, coil("1/4", "5/8")], not: NOT_COIL },
   pair_coil_38_58: { label: "Pair coil 3/8 + 5/8", unit: "m", match: [COIL, coil("3/8", "5/8")], not: NOT_COIL },
   pair_coil_38_34: { label: "Pair coil 3/8 + 3/4", unit: "m", match: [COIL, coil("3/8", "3/4")], not: NOT_COIL },
-  /* twin and earth: "TPS", "T&E", "2C+E" — never single-core building wire
-     (SDI), twin active with no earth, flex cord or the clips that hold it
-     (Isaac's walk, 2026-10-05: SDI 1 core red priced the circuit) */
   power_cable: {
     label: "Power cable, 2.5 mm² TPS",
     unit: "m",
-    match: [/2\.5\s*mm/i, /\btps\b|\bt\s*&\s*e\b|\b2\s*c\s*\+\s*e\b|twin\s*(&|and)\s*earth/i],
-    not: [/angle|conduit|gland|\bsdi\b|\b1\s*core\b|single|active|flex|clips?\b/i],
+    match: [/2\.5\s*mm/i, TWIN_AND_EARTH],
+    not: NOT_TWIN_AND_EARTH,
+  },
+  /* the bigger circuits: what an outdoor's draw or its maker asks for */
+  power_cable_4: { label: "Power cable, 4 mm² TPS", unit: "m", match: [/(?<![\d.])4\s*mm/i, TWIN_AND_EARTH], not: NOT_TWIN_AND_EARTH },
+  power_cable_6: { label: "Power cable, 6 mm² TPS", unit: "m", match: [/(?<![\d.])6\s*mm/i, TWIN_AND_EARTH], not: NOT_TWIN_AND_EARTH },
+  /* the cable between the indoor and the outdoor: one that says interconnect,
+     or three or four cores and earth, at 1.5 or 2.5 mm² where it gives a size.
+     Never a smoke alarm "with wired interconnect", nor a power cable of four
+     cores at 10 mm² (Isaac's walk, 27 October 2026: a $28.90 smoke alarm
+     priced every metre of it) */
+  interconnect: {
+    label: "Interconnect cable",
+    unit: "m",
+    match: [/interconnect|intcon|\b[34]\s*c(ore)?\s*\+\s*e\b|\b[34]ce\b/i],
+    not: [/alarm|smoke|detector|heat|wireless/i, /(?<![\d.])(?:[3-9]|[1-9]\d+)(?:\.\d+)?\s*mm/i],
+  },
+  /* a VRF system's shielded pair, never data cable or a heat shield */
+  transmission_cable: {
+    label: "Transmission cable",
+    unit: "m",
+    match: [/(?<!un)shield/i],
+    not: [/\bcat\s*-?\s*[5-7]|rj\s*-?\s*45|heat\s*shield/i],
   },
   drain_hose: { label: "Drain hose", unit: "m", match: [/drain/i, /hose/i] },
   pipe_cover: {

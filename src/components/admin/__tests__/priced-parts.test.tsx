@@ -13,8 +13,9 @@ import type { ComponentShortlist } from "@/lib/quotes/settings-query";
 const saveQuoteSettingsMock = saveQuoteSettings as jest.Mock;
 
 /* Price book › What prices each part (it was on Quoting until 25 October
-   2026): the item each common component is priced from, the swaps made
-   often enough to ask about, the ranges and the kits. */
+   2026): the common install items in their groups (28 October 2026), each
+   part's item opened from its group, the swaps made often enough to ask
+   about, and the kits. */
 
 const coil: ComponentShortlist = {
   key: "pair_coil_14_12",
@@ -61,21 +62,39 @@ beforeEach(() => {
   (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ ok: true, json: async () => ({ ok: false }) }));
 });
 
-it("prices each component from one item, what it costs and sells at a metre, and says which", () => {
+/** A group of the common install items, opened. */
+const openGroup = (label: string) => {
+  fireEvent.click(screen.getByRole("button", { name: `Open ${label}` }));
+  return within(screen.getByRole("dialog", { name: label }));
+};
+
+it("lists the common install items in eight groups, each with where its parts come from", () => {
   draw(data());
-  const table = screen.getByRole("table", { name: "Preferred items" });
-  const row = within(table).getByText("Pair coil 1/4 + 1/2").closest('[role="row"]') as HTMLElement;
-  expect(within(row).getByText("PAIRED COIL 1/4+1/2X20M, PC1412")).toBeInTheDocument();
-  expect(within(row).getByText("AAD, 20 m coil")).toBeInTheDocument();
-  expect(within(row).getByText("Lowest price")).toBeInTheDocument();
+  const table = screen.getByRole("table", { name: "Common install items" });
+  const rows = within(table).getAllByRole("row").slice(1);
+  expect(rows.map((r) => r.querySelector("b")?.textContent)).toEqual(["Pipe", "Cable and power", "Drain", "Mounting", "Covering", "Ductwork", "Grilles and outlets", "Controls"]);
+  expect(within(rows[0]!).getByText("AAD")).toBeInTheDocument();
+  expect(within(rows[5]!).getByText("Lowest price")).toBeInTheDocument();
+});
+
+it("opens a group: each part by its name and what it is, then the item, its code, where it's from and what it costs", () => {
+  draw(data());
+  const pipe = openGroup("Pipe");
+  const row = pipe.getByText("Pair coil 1/4 + 1/2").closest('[role="row"]') as HTMLElement;
+  expect(within(row).getByText("Insulated, by the coil")).toBeInTheDocument();
+  expect(within(row).getByText("PAIRED COIL 1/4+1/2X20M")).toBeInTheDocument();
+  expect(within(row).getByText("PC1412, 20 m coil")).toBeInTheDocument();
+  expect(within(row).getByText("AAD")).toBeInTheDocument();
   expect(within(row).getByText("$9.55 a metre")).toBeInTheDocument();
-  expect(within(row).getByText("$13.37 a metre")).toBeInTheDocument();
+  /* a part nothing has priced yet says so */
+  const other = pipe.getByText("Pair coil 3/8 + 3/4").closest('[role="row"]') as HTMLElement;
+  expect(within(other).getByText("Nothing chosen yet")).toBeInTheDocument();
 });
 
 it("chooses another item to price a component, from its shortlist", async () => {
   saveQuoteSettingsMock.mockImplementation(async (s) => ({ ok: true, settings: s }));
   draw(data());
-  fireEvent.click(screen.getByRole("button", { name: "Choose what prices Pair coil 1/4 + 1/2" }));
+  fireEvent.click(openGroup("Pipe").getByRole("button", { name: "Choose what prices Pair coil 1/4 + 1/2" }));
   const dialog = within(screen.getByRole("dialog", { name: "What prices pair coil 1/4 + 1/2" }));
   /* the item in use says so; the lowest of several is in the state's green */
   expect(dialog.getByText("In use")).toBeInTheDocument();
@@ -86,7 +105,8 @@ it("chooses another item to price a component, from its shortlist", async () => 
   expect(saveQuoteSettingsMock).toHaveBeenCalledWith(
     expect.objectContaining({ preferred: { pair_coil_14_12: { supplierKey: "reece", code: "9800006-1", rollM: null } } })
   );
-  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.queryByRole("dialog", { name: "What prices pair coil 1/4 + 1/2" })).toBeNull();
+  expect(screen.getByRole("dialog", { name: "Pipe" })).toBeInTheDocument();
   expect(refresh).toHaveBeenCalled();
 });
 
@@ -94,8 +114,9 @@ it("saves a roll length a name doesn't say, and goes back to the lowest", async 
   saveQuoteSettingsMock.mockImplementation(async (s) => ({ ok: true, settings: s }));
   const overridden: ComponentShortlist = { ...coil, chosen: { ...coil.chosen!, overridden: true } };
   draw(data({ components: [overridden], settings: { ...DEFAULT_QUOTE_SETTINGS, preferred: { pair_coil_14_12: { supplierKey: "aad", code: "PC1412", rollM: null } } } }));
-  expect(screen.getByText("Override")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Choose what prices Pair coil 1/4 + 1/2" }));
+  const pipe = openGroup("Pipe");
+  expect(pipe.getByText("Your pick")).toBeInTheDocument();
+  fireEvent.click(pipe.getByRole("button", { name: "Choose what prices Pair coil 1/4 + 1/2" }));
   fireEvent.change(screen.getByLabelText("Roll length of PC1412, metres"), { target: { value: "15" } });
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "Save the length" }));
@@ -106,17 +127,17 @@ it("saves a roll length a name doesn't say, and goes back to the lowest", async 
     fireEvent.click(screen.getByRole("button", { name: "Go back to the lowest" }));
   });
   expect(saveQuoteSettingsMock).toHaveBeenLastCalledWith(expect.objectContaining({ preferred: {} }));
-  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.queryByRole("dialog", { name: "What prices pair coil 1/4 + 1/2" })).toBeNull();
 });
 
 it("says a refused choice in the dialog, and keeps it open", async () => {
   saveQuoteSettingsMock.mockResolvedValue({ ok: false, reason: "The settings couldn't be saved. Try again." });
   draw(data());
-  fireEvent.click(screen.getByRole("button", { name: "Choose what prices Pair coil 1/4 + 1/2" }));
+  fireEvent.click(openGroup("Pipe").getByRole("button", { name: "Choose what prices Pair coil 1/4 + 1/2" }));
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "Use 9800006-1 from Reece" }));
   });
-  expect(within(screen.getByRole("dialog")).getByRole("alert")).toHaveTextContent("The settings couldn't be saved. Try again.");
+  expect(within(screen.getByRole("dialog", { name: "What prices pair coil 1/4 + 1/2" })).getByRole("alert")).toHaveTextContent("The settings couldn't be saved. Try again.");
 });
 
 /* habits, slice 13.2: a swap made again and again, asked about, one press to say yes */

@@ -9,13 +9,13 @@ import { Field, TextInput } from "@/components/parts/field";
 import { StateWord } from "@/components/parts/state";
 import { Group, Wrong } from "@/components/settings/parts";
 import { saveQuoteSettings } from "@/app/actions/quote-settings";
-import { sellCents, type ComponentKey } from "@/lib/quotes/components";
+import type { ComponentKey } from "@/lib/quotes/components";
 import type { ComponentGroup, ComponentOffer, ComponentShortlist } from "@/lib/quotes/settings-query";
 import type { QuoteSettings } from "@/lib/quotes/settings";
 import type { Habit } from "@/lib/quotes/habits";
 import type { RangeView } from "@/lib/quotes/ranges";
 import { withCleanup } from "@/lib/ui/with-cleanup";
-import { RangesGroup } from "./quoting-ranges";
+import { CommonItems } from "./common-items";
 import { KitsSection } from "./quoting-kits";
 import { dollars, Oops } from "./pb-bits";
 
@@ -23,20 +23,20 @@ import { dollars, Oops } from "./pb-bits";
    2026; Isaac: "The price book will be fairly detailed. So it will need its
    own section").
 
-   PREFERRED ITEMS: each common component (pair coil by size, cable, drain
-   hose, isolator…) is priced from ONE price-book item — the LOWEST priced
-   per metre or each, by default (Isaac, 2026-09-30). Choose another opens
-   its shortlist and a person picks one; Use lowest goes back. The same item
-   at several suppliers is a row each, the lowest in the state's green. A
-   roll's length is read off the item's name; where it can't be, it can be
-   typed, and a metre can't be priced until it is.
+   COMMON INSTALL ITEMS (common-items.tsx, 28 October 2026): every part a
+   kit prices, in eight groups. A part priced from ONE price-book item — the
+   LOWEST priced per metre or each, by default (Isaac, 2026-09-30) — opens
+   its shortlist here (Choose another) and a person picks one; Use lowest
+   goes back. The same item at several suppliers is a row each, the lowest
+   in the state's green. A roll's length is read off the item's name; where
+   it can't be, it can be typed, and a metre can't be priced until it is.
 
    HABITS (slice 13.2): a swap made on three quotes or more, offered as the
    preferred item, one press to say yes.
 
-   RANGES: a part a kit needs at a size, from the business's own range of
-   it (quoting-ranges.tsx), and the KITS those ranges price, at the
-   business's own example (quoting-kits.tsx). */
+   A part a kit needs at a size comes from the business's own range of it
+   (quoting-ranges.tsx), opened from its group; the KITS those parts price
+   are at the business's own example (quoting-kits.tsx). */
 
 export type PricedPartsData = {
   settings: QuoteSettings;
@@ -46,8 +46,6 @@ export type PricedPartsData = {
   /** swaps made on three quotes or more, asked about (habits.ts) */
   habits: Habit[];
 };
-
-const perUnitWord = (unit: "m" | "each") => (unit === "m" ? "a metre" : "each");
 
 export function PricedParts({ settings, components, ranges, habits }: PricedPartsData) {
   const router = useRouter();
@@ -89,63 +87,10 @@ export function PricedParts({ settings, components, ranges, habits }: PricedPart
   };
 
   const opened = components.find((c) => c.key === open) ?? null;
-  const markupPct = saved.materialMarkupPct;
 
   return (
     <>
-      <Group heading="Preferred items">
-        {wrong && !opened && <Wrong>{wrong}</Wrong>}
-        <div className="st2-pb-rows" role="table" aria-label="Preferred items">
-          <div className="st2-pb-grid st2-pb-parts st2-pb-head" role="row">
-            <span role="columnheader">Component</span>
-            <span role="columnheader">Priced from</span>
-            <span role="columnheader" className="st2-pb-fig">
-              Buy
-            </span>
-            <span role="columnheader" className="st2-pb-fig">
-              Sells at
-            </span>
-            <span role="columnheader">
-              <span className="sr-only">Change it</span>
-            </span>
-          </div>
-          {components.map((c) => {
-            const pick = c.chosen;
-            const per = pick?.offer.perUnitCents ?? null;
-            return (
-              <div key={c.key} className="st2-pb-grid st2-pb-parts" role="row">
-                <span role="cell" className="st2-pb-name">
-                  <b>{c.label}</b>
-                  <span className="st2-pb-line">
-                    <Fade>{pick ? `${pick.group.name}, ${pick.offer.code}` : "Nothing in the price book prices this yet"}</Fade>
-                  </span>
-                </span>
-                <span role="cell" className="st2-pb-name">
-                  {pick && (
-                    <>
-                      <Fade>{pick.offer.pack ? `${pick.offer.supplierName}, ${pick.offer.pack}` : pick.offer.supplierName}</Fade>
-                      <StateWord tone={pick.overridden ? "look" : pick.preferred ? "good" : "info"}>{pick.overridden ? "Override" : pick.preferred ? "Preferred" : "Lowest price"}</StateWord>
-                    </>
-                  )}
-                </span>
-                <span role="cell" className="st2-pb-fig">
-                  {pick ? (per == null ? "Needs roll length" : `${dollars(per)} ${perUnitWord(c.unit)}`) : ""}
-                </span>
-                <span role="cell" className="st2-pb-fig">
-                  {pick && per != null && markupPct != null ? `${dollars(sellCents(per, markupPct))} ${perUnitWord(c.unit)}` : ""}
-                </span>
-                <span role="cell" className="st2-pb-act">
-                  {c.groups.length > 0 && (
-                    <Button kind="second" size={32} disabled={busy} aria-label={`Choose what prices ${c.label}`} onClick={() => setOpen(c.key)}>
-                      Choose another
-                    </Button>
-                  )}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </Group>
+      <CommonItems components={components} ranges={ranges} busy={busy} wrong={opened ? null : wrong} onChoose={setOpen} />
 
       {opened && (
         <ChooseItem
@@ -164,8 +109,6 @@ export function PricedParts({ settings, components, ranges, habits }: PricedPart
       )}
 
       {habits.length > 0 && <HabitsGroup habits={habits} onDone={() => router.refresh()} />}
-
-      <RangesGroup initial={ranges} />
 
       <KitsSection />
     </>

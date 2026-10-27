@@ -102,7 +102,6 @@ import {
   WRITE_LEASE_MS,
   WRITE_SEND_BY_MS,
   WRITE_WORDS,
-  type JobSend,
   type RemoteError,
   type Sm8WriteKind,
   type Sm8WriteMode,
@@ -2243,35 +2242,7 @@ export async function orgsWithDueSm8Writes(limit: number, now: number = Date.now
 
 /* ── what the card and the screen read ── */
 
-/** What has been sent from one job, by file. */
-export async function readJobSends(orgId: string, jobUuid: string): Promise<JobSend[]> {
-  const { data } = await supabaseAdmin
-    .from(TABLE)
-    .select("subject, status, last_error, attempts, remote_uuid")
-    .eq("org_id", orgId)
-    .eq("kind", "attachment")
-    .eq("sm8_job_uuid", jobUuid)
-    .limit(500);
-  const out: JobSend[] = [];
-  for (const r of (data ?? []) as {
-    subject: string;
-    status: string;
-    last_error: string | null;
-    attempts: number | null;
-    remote_uuid: string;
-  }[]) {
-    const documentId = subjectDocumentId(r.subject);
-    if (!documentId) continue;
-    out.push({
-      documentId,
-      status: readWriteStatus(r.status),
-      error: r.last_error ?? null,
-      attempts: r.attempts ?? 0,
-      remoteUuid: r.remote_uuid,
-    });
-  }
-  return out;
-}
+export { readJobSends } from "./sm8-job-sends";
 
 export type RecentSm8Write = {
   id: string;

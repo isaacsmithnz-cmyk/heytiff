@@ -5,17 +5,13 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { can, getDbRole } from "@/lib/permissions-server";
 import { hasMinRole } from "@/lib/roles";
 import { staffProfileIdFor } from "@/lib/fleet/query";
-import {
-  asDocumentKind,
-  checkUpload,
-  displayName,
-  refIsOrgs,
-  storageRef,
-  type DocumentKind,
-} from "@/lib/documents/files";
+import { asDocumentKind, refIsOrgs, type DocumentKind } from "@/lib/documents/files";
+import { landSlot, openSlot } from "@/lib/documents/upload-slots";
 import { DOCUMENTS_BUCKET } from "@/lib/documents/query";
 
-/* Uploading, for the whole platform.
+/* Uploading, for the whole platform. The two steps every screen shares
+   (the row, the slot, the landing) are lib/documents/upload-slots'; who may
+   upload what is decided here.
 
    THE BYTES NEVER PASS THROUGH A SERVER ACTION. The client asks for a slot, we
    mint a signed upload token, the browser PUTs the file straight to storage,
@@ -104,7 +100,7 @@ async function mayUpload(kind: DocumentKind): Promise<boolean> {
   if (kind === "project_file") return can("workboard");
   // The same tier on a ServiceM8 job: whoever can open the card can file the
   // paper that belongs on it.
-  if (kind === "job_document") return can("workboard");
+  if (kind === "job_document" || kind === "job_photo") return can("workboard");
   return can("team");
 }
 
@@ -122,49 +118,9 @@ export async function beginUpload(input: {
   if (!kind) return { ok: false, error: "That isn't something we store." };
   if (!(await mayUpload(kind))) return { ok: false, error: "You can't upload that." };
 
-  const check = checkUpload({
-    name: input.fileName,
-    type: input.mimeType,
-    size: input.sizeBytes,
-  });
-  if (!check.ok) return { ok: false, error: check.error };
-
-  const { data, error } = await supabaseAdmin
-    .from("documents")
-    .insert({
-      org_id: ctx.orgId,
-      kind,
-      // a placeholder only long enough to get an id back; the real key is
-      // written below, and the NOT NULL keeps the column honest meanwhile
-      storage_ref: `org/${ctx.orgId}/pending/${crypto.randomUUID()}`,
-      file_name: displayName(input.fileName),
-      mime_type: input.mimeType.toLowerCase(),
-      size_bytes: input.sizeBytes,
-      uploaded_by: ctx.staffId,
-    })
-    .select("id")
-    .maybeSingle();
-  if (error || !data) return { ok: false, error: "Couldn't start that upload." };
-
-  const documentId = String(data.id);
-  const ref = storageRef(ctx.orgId, kind, documentId, check.ext);
-
-  const { error: refErr } = await supabaseAdmin
-    .from("documents")
-    .update({ storage_ref: ref })
-    .eq("org_id", ctx.orgId)
-    .eq("id", documentId);
-  if (refErr) return { ok: false, error: "Couldn't start that upload." };
-
-  const { data: slot, error: slotErr } = await supabaseAdmin.storage
-    .from(DOCUMENTS_BUCKET)
-    .createSignedUploadUrl(ref);
-  if (slotErr || !slot) {
-    await supabaseAdmin.from("documents").delete().eq("org_id", ctx.orgId).eq("id", documentId);
-    return { ok: false, error: "Couldn't start that upload." };
-  }
-
-  return { ok: true, documentId, ref, token: slot.token, bucket: DOCUMENTS_BUCKET };
+  const slot = await openSlot(ctx.orgId, ctx.staffId, kind, input);
+  if (!slot.ok) return slot;
+  return { ok: true, documentId: slot.documentId, ref: slot.ref, token: slot.token, bucket: slot.bucket };
 }
 
 /* The browser reporting that the bytes landed. Until this runs the row is
@@ -173,26 +129,7 @@ export async function beginUpload(input: {
 export async function confirmUpload(documentId: string): Promise<DocResult> {
   const ctx = await context();
   if (!ctx?.staffId) return { ok: false, error: "No staff record for this account." };
-
-  const { data } = await supabaseAdmin
-    .from("documents")
-    .select("uploaded_by, storage_ref")
-    .eq("org_id", ctx.orgId)
-    .eq("id", documentId)
-    .maybeSingle();
-  if (!data) return { ok: false, error: "That upload no longer exists." };
-  // only the person handed the slot may close it
-  if (data.uploaded_by !== ctx.staffId) return { ok: false, error: "That isn't your upload." };
-  if (!refIsOrgs(String(data.storage_ref), ctx.orgId))
-    return { ok: false, error: "That file doesn't belong to this organisation." };
-
-  const { error } = await supabaseAdmin
-    .from("documents")
-    .update({ uploaded_at: new Date().toISOString() })
-    .eq("org_id", ctx.orgId)
-    .eq("id", documentId);
-  if (error) return { ok: false, error: "Couldn't finish that upload." };
-  return { ok: true };
+  return landSlot(ctx.orgId, ctx.staffId, documentId);
 }
 
 /** Remove a file — whoever uploaded it, or anyone with `team`. The object goes

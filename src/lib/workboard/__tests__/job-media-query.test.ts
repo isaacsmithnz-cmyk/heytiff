@@ -15,6 +15,8 @@ let ourRows: Record<string, unknown>[] = [];
 let staffRows: Record<string, unknown>[] = [];
 /* HeyTiff's own writes to ServiceM8, as the echo read finds them. */
 let writeRows: Record<string, unknown>[] = [];
+/* HeyTiff's file writes on the job, as readJobSends finds them. */
+let sendRows: Record<string, unknown>[] = [];
 const filtersBy: Record<string, Filter[]> = {};
 let signedFor: string[] = [];
 
@@ -23,9 +25,12 @@ jest.mock("@/lib/supabase-server", () => ({
     from: (table: string) => {
       filtersBy[table] = filtersBy[table] ?? [];
       const sub: Record<string, unknown> = {};
+      /* the kind this read asked for: a job's papers and its phone photos are two reads */
+      let kind: unknown = null;
       sub.select = () => sub;
       sub.eq = (col: string, val: unknown) => {
         filtersBy[table].push({ col, val });
+        if (col === "kind") kind = val;
         return sub;
       };
       sub.in = (col: string, val: unknown) => {
@@ -41,7 +46,15 @@ jest.mock("@/lib/supabase-server", () => ({
         return Promise.resolve({ data: table === "sm8_writes" ? writeRows : [], error: null });
       };
       sub.order = () => sub;
-      sub.limit = () => Promise.resolve({ data: table === "documents" ? ourRows : attachmentRows });
+      sub.limit = () =>
+        Promise.resolve({
+          data:
+            table === "documents"
+              ? ourRows.filter((r) => (r.kind ?? "job_document") === kind)
+              : table === "sm8_writes"
+                ? sendRows
+                : attachmentRows,
+        });
       sub.maybeSingle = () =>
         Promise.resolve({ data: table === "sm8_vendor" ? { timezone_name: "Australia/Brisbane" } : null });
       sub.then = (res: (v: { data: unknown[] }) => unknown) =>
@@ -70,6 +83,7 @@ jest.mock("@/lib/integrations/sm8-file-cache", () => ({
 }));
 
 import { readJobMedia, readJobMediaGroups } from "@/lib/workboard/job-media-query";
+import { documentSubject } from "@/lib/integrations/sm8-write-plan";
 
 const attachment = (over: Record<string, unknown> & { uuid: string }) => ({
   attachment_name: "IMG_4021.jpg",
@@ -84,6 +98,7 @@ beforeEach(() => {
   attachmentRows = [];
   documentRows = [];
   ourRows = [];
+  sendRows = [];
   staffRows = [];
   writeRows = [];
   signedFor = [];
@@ -449,6 +464,49 @@ describe("the files we filed ourselves", () => {
     await readJobMediaGroups("org-1", "job-1");
     expect(signedFor).toEqual([]);
     expect(filtersBy["sm8_vendor"]).toBeUndefined();
+  });
+});
+
+/* ── a photo taken on the job with the phone ──────────────────────────
+   A `job_photo` is a picture of the work (Isaac, 27 October 2026): it reads
+   among the job's photos, never as paper, newest first with ServiceM8's,
+   and says what ServiceM8 has of it in the Documents face's words. */
+
+describe("a photo taken on the job with the phone", () => {
+  const photo = (over: Record<string, unknown> = {}) => ({
+    id: "p-7",
+    kind: "job_photo",
+    file_name: "2935 27 Oct 10.42.jpg",
+    mime_type: "image/jpeg",
+    storage_ref: "org/org-1/job_photo/p-7.jpg",
+    uploaded_at: "2026-10-27T00:42:00Z",
+    uploaded_by: "staff-1",
+    ...over,
+  });
+
+  it("joins the job's photos, newest first beside ServiceM8's, and never its paper", async () => {
+    attachmentRows = [attachment({ uuid: "old", attachment_name: "Photo", file_type: ".jpg", timestamp: "2026-09-01 09:00:00" })];
+    ourRows = [photo()];
+    const groups = await readJobMediaGroups("org-1", "job-1");
+    expect(groups.photos.map((p) => p.remoteId)).toEqual(["doc:p-7", "old"]);
+    expect(groups.photos[0]).toMatchObject({ kind: "photo", documentId: "p-7", url: "https://signed/org/org-1/job_photo/p-7.jpg" });
+    expect(groups.documents).toHaveLength(0);
+    expect(filtersBy["documents"]).toEqual(expect.arrayContaining([{ col: "kind", val: "job_photo" }]));
+  });
+
+  it("says what ServiceM8 has of it: sending, in, or not sent and why", async () => {
+    ourRows = [photo()];
+    for (const [status, last_error, word, tone] of [
+      ["queued", null, "Sending to ServiceM8…", null],
+      ["sent", null, "In ServiceM8", "ok"],
+      ["failed", "ServiceM8 refused it.", "Not sent to ServiceM8. ServiceM8 refused it.", "bad"],
+    ] as const) {
+      sendRows = [{ subject: documentSubject("p-7"), status, last_error, attempts: status === "queued" ? 0 : 1, remote_uuid: "r-1" }];
+      const groups = await readJobMediaGroups("org-1", "job-1");
+      expect(groups.photos[0].sent).toEqual({ word, tone });
+    }
+    sendRows = [];
+    expect((await readJobMediaGroups("org-1", "job-1")).photos[0].sent).toBeNull();
   });
 });
 

@@ -49,6 +49,14 @@ export type DocumentKind =
      by the job (documents.sm8_job_uuid), and its own kind so no claim, notice
      or project can adopt it. */
   | "job_document"
+  /* A photo somebody took ON a ServiceM8 job with the phone (Isaac, 27
+     October 2026: "Ok go" to the mock where a phone photo lands on the job
+     and in ServiceM8). Owned by the job like a `job_document`, but a PICTURE
+     of the work, never paper: it reads among the job's photos, and it goes
+     to ServiceM8 as one of the job's photos as soon as it lands. Its own
+     kind so the Documents face never files it as a certificate, and so no
+     claim, notice or project can adopt it. */
+  | "job_photo"
   /* The invoice or receipt behind a vehicle's purchase price. Its own kind for
      the standing reason: an expense claim must not be able to adopt the van's
      purchase paperwork and land a $45,000 vehicle in someone's
@@ -102,6 +110,7 @@ export const DOCUMENT_KINDS: readonly DocumentKind[] = [
   "project_file",
   "job_file",
   "job_document",
+  "job_photo",
   "purchase_invoice",
   "insurance_policy",
   "rego_notice",

@@ -108,12 +108,19 @@ export const QUOTE_COMPONENTS = {
     match: [/\breturn\b|\br\/a\b|\br\/air\b/i, /\bbox\b|\bbx\b/i],
     not: [/grille|filter|plenum|damper/i],
   },
-  /* the indoor's own wired controller, never a zone controller or a remote's spares */
+  /* the indoor's own wired controller, never a zone controller or a remote's
+     spares: not the plate or grille it mounts on, a sensor, a wireless
+     handset and its receiver, a central controller for many units, nor a
+     fan's speed, defrost or temperature controller (Isaac's walk, 27 October
+     2026: the $28 wall plate for Mitsubishi's controller priced it) */
   wall_controller: {
     label: "Wall controller",
     unit: "each",
     match: [/controller|\bcontrol\s*panel\b|\bwired\s*remote\b/i],
-    not: [/zone|airtouch|damper|cable|bracket|cover|wifi|wi-fi|interface|battery|holder/i],
+    not: [
+      /zone|airtouch|damper|cable|bracket|cover|wifi|wi-fi|interface|batt(ery)?\b|holder|dock/i,
+      /plate|mount|grille|sensor|receiver|wireless|\bw\/l(ess)?\b|\bIR\b|central|variable\s*speed|potentiometer|defrost|temperature\s*controller|universal\s*controller/i,
+    ],
   },
 } as const satisfies Record<string, QuoteComponent>;
 

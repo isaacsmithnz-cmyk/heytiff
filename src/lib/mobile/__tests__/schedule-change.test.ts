@@ -77,6 +77,7 @@ import { BOOKING_WORDS, localNow } from "@/lib/integrations/sm8-booking-plan";
 import { changeSchedule, type ScheduleChange } from "../schedule-change";
 import { crewNotBooked } from "../schedule-crew";
 import type { MobileCtx } from "../auth";
+import type { PushMessage } from "../push";
 
 const ORG = "org-1";
 const TENANT = "vendor-1";
@@ -114,7 +115,7 @@ const ctx = (over: Partial<MobileCtx> = {}): MobileCtx => ({
   ...over,
 });
 
-const push = jest.fn(async () => 1);
+const push = jest.fn(async (_orgId: string, _staffIds: readonly string[], _message: PushMessage) => 1);
 async function change(c: ScheduleChange, opts: { tell?: boolean; who?: Partial<MobileCtx> } = {}) {
   getSession.mockResolvedValue({ orgId: ORG, user: { sub: "auth0|sam" } });
   const press = await sm8PressFromSession();
@@ -307,7 +308,7 @@ describe("a swap, a time, a take off and a booking", () => {
 describe("who may", () => {
   it("only an owner while bookings are the owner's, and only with their own press", async () => {
     booked(ALEX_ON_JOB, JOB, ALEX_SM8, at(TOMORROW, "07:00"), at(TOMORROW, "15:00"));
-    expect(await change({ do: "off", activity: ALEX_ON_JOB }, { who: { role: "manager" } })).toMatchObject({ ok: false, status: 403, error: BOOKING_WORDS.press.ownerOnly });
+    expect(await change({ do: "off", activity: ALEX_ON_JOB }, { who: { role: "staff" } })).toMatchObject({ ok: false, status: 403, error: BOOKING_WORDS.press.ownerOnly });
     expect(await change({ do: "off", activity: ALEX_ON_JOB }, { who: { caps: new Set(["workboard"]) as MobileCtx["caps"] } })).toMatchObject({ ok: false, status: 403 });
     expect(await change({ do: "off", activity: ALEX_ON_JOB }, { who: { userId: "auth0|alex" } })).toMatchObject({ ok: false, status: 401 });
     process.env.SM8_WRITES = "attachment,note";

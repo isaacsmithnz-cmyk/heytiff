@@ -95,7 +95,10 @@ jest.mock("@/lib/mobile/visits", () => ({
 }));
 jest.mock("@/lib/integrations/links", () => ({
   sm8StaffLinkMap: async () => new Map([["sm8-lyle", "card-auth0|lyle"]]),
+  listSm8StaffLinks: async () => [],
 }));
+/* the write state's module checks a press, and the press module reads a session */
+jest.mock("@/lib/auth0", () => ({ auth0: { getSession: async () => null } }));
 
 import { GET as me } from "../me/route";
 import { GET as schedule } from "../schedule/route";
@@ -184,6 +187,10 @@ test("the schedule reads the member's own workspace's day, with who's off", asyn
   const res = await schedule(req("schedule?day=2026-10-26", "auth0|lyle"));
   expect(res.status).toBe(200);
   expect(asked).toEqual(['schedule org-diamond 2026-10-26 {"away":true}']);
+  /* with the crew nobody booked, and no doors for someone who may not book */
+  const body = await res.json();
+  expect(body).toMatchObject({ free: [], off: [] });
+  expect(body.canChange).toBeUndefined();
 });
 
 test("a day that isn't a bare date is a 400 that never reaches the diary", async () => {

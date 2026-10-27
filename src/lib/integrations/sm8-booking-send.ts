@@ -96,6 +96,7 @@ import {
   BOOKING_TTL_MS,
   BOOKING_WORDS,
   isFuture,
+  isTakeOff,
   reasonOf,
   STATUS_KEPT_FIELDS,
   wallInstant,
@@ -1135,14 +1136,17 @@ async function sendBooking(
 
   /** A Clear's checks (2.7 delete step 3): the booking as read live, against
       the one its presser's confirm showed, and its job (`jobStatus`, read
-      live before it, active) still finished. */
+      live before it, active) still finished. A Take off (isTakeOff) asks
+      the same of the booking, and of its job only that it is there. */
   function clearRefusal(a: Sm8LiveActivity, jobStatus: string | null): Finish | null {
-    if (!same(a.jobUuid, row.sm8_job_uuid)) return done("cancelled", BOOKING_WORDS.row.notLeftover);
+    const off = isTakeOff(row);
+    if (!same(a.jobUuid, row.sm8_job_uuid)) return done("cancelled", off ? BOOKING_WORDS.row.changed : BOOKING_WORDS.row.notLeftover);
     if (isRecorded(a)) return done("cancelled", BOOKING_WORDS.row.checkIn);
     if (!isFuture(a.start, zone, t.clock())) return done("cancelled", BOOKING_WORDS.row.notFuture);
     if (!same(a.staffUuid, row.booking_staff_uuid) || a.start !== (row.booking_start ?? null) || a.end !== (row.booking_end ?? null)) {
       return done("cancelled", BOOKING_WORDS.row.changed);
     }
+    if (off) return jobStatus === null ? done("cancelled", BOOKING_WORDS.row.jobGone) : null;
     if (jobStatus !== "Completed" && jobStatus !== "Unsuccessful") return done("cancelled", BOOKING_WORDS.row.notLeftover);
     return null;
   }

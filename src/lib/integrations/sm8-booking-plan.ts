@@ -519,6 +519,8 @@ export type BookingRowIn = {
   landed_edit_date?: string | null;
   /** a status row's: "Work Order", or "Unsuccessful" for one an owner marked lost */
   job_status_to?: string | null;
+  /** `{ name }`, and a Take off's `off` (isTakeOff) */
+  payload?: unknown;
 };
 
 /** A status row, as far as a line reads it. */
@@ -869,30 +871,43 @@ export function statusLine(
   return null;
 }
 
-/** What a Clear of a leftover booking says. Once sent there is nothing to
-    say: the booking goes from the list, the Schedule and Home with it. A
-    Clear that didn't go offers Try again, or Look again where the booking or
-    the job moved, and no door where a re-press would meet the same thing (it
-    has started, or someone is checked in for it). Try again re-presses it
-    with the booking as the mirror has it then. */
+/** A Clear pressed as Take off (the phone's Schedule, Isaac, 27 October
+    2026: "I had to change a couple of guys around"): a booking on a job
+    still open, taken off so its person can go elsewhere. Its row is a
+    Clear's in every column, under a Clear's subject (one DELETE per
+    booking), and `payload.off` is all that says which: the sender then asks
+    the job to be there, not finished. */
+export function isTakeOff(row: { payload?: unknown }): boolean {
+  const p = row.payload;
+  return !!p && typeof p === "object" && (p as Record<string, unknown>).off === true;
+}
+
+/** What a Clear of a leftover booking says, or a Take off in its own words.
+    Once sent there is nothing to say: the booking goes from the list, the
+    Schedule and Home with it. A Clear that didn't go offers Try again, or
+    Look again where the booking or the job moved, and no door where a
+    re-press would meet the same thing (it has started, or someone is
+    checked in for it). Try again re-presses it with the booking as the
+    mirror has it then. */
 export function clearLine(row: BookingRowIn, hold: SendHold): BookingState | null {
+  const w = isTakeOff(row)
+    ? { waiting: ["line.offWaiting", BOOKING_WORDS.line.offWaiting], going: ["line.offing", BOOKING_WORDS.line.offing], trial: ["line.offTrial", BOOKING_WORDS.line.offTrial], not: ["line.notOff", BOOKING_WORDS.line.notOff] } as const
+    : { waiting: ["line.clearWaiting", BOOKING_WORDS.line.clearWaiting], going: ["line.clearing", BOOKING_WORDS.line.clearing], trial: ["line.clearTrial", BOOKING_WORDS.line.clearTrial], not: ["line.notCleared", BOOKING_WORDS.line.notCleared] } as const;
   const st = row.status;
   if (st === "queued") {
     const why = holdWhy(hold);
-    if (why) return line("line.clearWaiting", fillWords(BOOKING_WORDS.line.clearWaiting, { why }), null, []);
-    if (row.last_error) return line("line.clearWaiting", fillWords(BOOKING_WORDS.line.clearWaiting, { why: row.last_error }), "warn", []);
+    if (why) return line(w.waiting[0], fillWords(w.waiting[1], { why }), null, []);
+    if (row.last_error) return line(w.waiting[0], fillWords(w.waiting[1], { why: row.last_error }), "warn", []);
     if (row.attempts > 0) {
-      return line("line.clearWaiting", fillWords(BOOKING_WORDS.line.clearWaiting, { why: BOOKING_WORDS.why.retry }), "warn", []);
+      return line(w.waiting[0], fillWords(w.waiting[1], { why: BOOKING_WORDS.why.retry }), "warn", []);
     }
   }
-  if (st === "queued" || st === "sending") return line("line.clearing", BOOKING_WORDS.line.clearing, null, []);
+  if (st === "queued" || st === "sending") return line(w.going[0], w.going[1], null, []);
   if (st === "sent") return null;
-  if (st === "trial") return line("line.clearTrial", BOOKING_WORDS.line.clearTrial, null, []);
+  if (st === "trial") return line(w.trial[0], w.trial[1], null, []);
   const reason = reasonOf(row.last_error);
-  const text = row.last_error
-    ? fillWords(BOOKING_WORDS.line.notCleared, { reason: row.last_error })
-    : BOOKING_WORDS.line.notCleared.replace(/\s*\{reason\}$/, "");
-  if (reason === "notFuture" || reason === "checkIn") return line("line.notCleared", text, null, []);
-  if (reason === "changed" || reason === "notLeftover") return line("line.notCleared", text, null, ["look_again"]);
-  return line("line.notCleared", text, "bad", ["try_again"]);
+  const text = row.last_error ? fillWords(w.not[1], { reason: row.last_error }) : w.not[1].replace(/\s*\{reason\}$/, "");
+  if (reason === "notFuture" || reason === "checkIn") return line(w.not[0], text, null, []);
+  if (reason === "changed" || reason === "notLeftover") return line(w.not[0], text, null, ["look_again"]);
+  return line(w.not[0], text, "bad", ["try_again"]);
 }

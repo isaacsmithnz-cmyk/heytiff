@@ -195,6 +195,12 @@ export const BOOKING_WORDS = {
     clearWaiting: "Not cleared yet. {why}",
     notCleared: "Not cleared. {reason}",
     clearTrial: "Trial run, not cleared",
+    /* a Take off: a Clear of a booking on a job still open (the phone's
+       Schedule, Isaac, 27 October 2026) */
+    offing: "Taking it off in ServiceM8…",
+    offWaiting: "Not taken off yet. {why}",
+    notOff: "Not taken off. {reason}",
+    offTrial: "Trial run, not taken off",
   },
   why: {
     paused: "Sending is paused.",
@@ -236,6 +242,7 @@ export const BOOKING_WORDS = {
     lost: "Quote marked Unsuccessful",
     undo: "Booking taken out of ServiceM8",
     clear: "Leftover booking cleared",
+    off: "Booking taken off its job",
     fallback: "A booking",
   },
   /* The owner's ServiceM8 screen. */
@@ -271,5 +278,6 @@ export const BOOKING_WORDS = {
     bookingUnsure: "Booking may not have reached ServiceM8",
     bookingKeptOther: "Booking went into ServiceM8 at another time or on someone else",
     leftoverNotCleared: "Leftover booking not cleared",
+    offNotTaken: "Booking not taken off in ServiceM8",
   },
 } as const;

@@ -102,6 +102,8 @@ export type BookingOverlayRow = {
   booking_zone: string | null;
   landed_edit_date: string | null;
   seen_edit_date: string | null;
+  /** `{ name }`, and a Take off's `off` (sm8-booking-plan's isTakeOff) */
+  payload?: unknown;
   requested_by: string | null;
   requested_by_user: string | null;
   lease_until: string | null;
@@ -111,7 +113,7 @@ export type BookingOverlayRow = {
 };
 
 const ROW_COLUMNS =
-  "id, op, status, subject, sm8_job_uuid, remote_uuid, replaced_uuids, maybe_landed, verify_uuids, taken_back_at, last_error, attempts, depends_on, target_uuid, verb_id, booking_staff_uuid, booking_start, booking_end, booking_zone, landed_edit_date, seen_edit_date, requested_by, requested_by_user, lease_until, created_at, pressed_at";
+  "id, op, status, subject, sm8_job_uuid, remote_uuid, replaced_uuids, maybe_landed, verify_uuids, taken_back_at, last_error, attempts, depends_on, target_uuid, verb_id, booking_staff_uuid, booking_start, booking_end, booking_zone, landed_edit_date, seen_edit_date, requested_by, requested_by_user, lease_until, created_at, pressed_at, payload";
 
 export type BookingOverlay = {
   /** Lower case: of the uuids asked, and the ones sentNotMirrored draws. */

@@ -23,7 +23,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { sm8BookingsAllowed } from "@/lib/integrations/sm8-kinds";
 import { readBookingWriteState, readBookingZone } from "@/lib/integrations/sm8-booking-request";
 import { readMirrorBookings, type BookingOverlayRow } from "@/lib/integrations/sm8-booking-overlay";
-import { BOOKING_WORDS, bookingLine, clearLine, type BookingState } from "@/lib/integrations/sm8-booking-plan";
+import { BOOKING_WORDS, bookingLine, clearLine, isTakeOff, type BookingState } from "@/lib/integrations/sm8-booking-plan";
 import { offersSend, sendHold, type Sm8WriteState } from "@/lib/integrations/sm8-write-plan";
 import type { BookingTroubleOp } from "./chips";
 
@@ -36,7 +36,7 @@ const MOST = 5;
 const ROWS_CAP = 200;
 
 const COLUMNS =
-  "id, op, status, subject, sm8_job_uuid, remote_uuid, replaced_uuids, maybe_landed, verify_uuids, taken_back_at, last_error, attempts, depends_on, target_uuid, verb_id, booking_staff_uuid, booking_start, booking_end, booking_zone, landed_edit_date, seen_edit_date, requested_by, requested_by_user, lease_until, created_at, pressed_at";
+  "id, op, status, subject, sm8_job_uuid, remote_uuid, replaced_uuids, maybe_landed, verify_uuids, taken_back_at, last_error, attempts, depends_on, target_uuid, verb_id, booking_staff_uuid, booking_start, booking_end, booking_zone, landed_edit_date, seen_edit_date, requested_by, requested_by_user, lease_until, created_at, pressed_at, payload";
 
 /** The spellings a uuid may carry in the mirror. */
 const spellings = (u: string) => [...new Set([u, u.toLowerCase(), u.toUpperCase()])];
@@ -149,7 +149,7 @@ export async function myBookingTrouble(
   }
   for (const r of clears) {
     const said = clearLine(r, hold);
-    if (said?.tone === "bad" && r.sm8_job_uuid) bad.push({ at: pressedAt(r), job: r.sm8_job_uuid, op: "leftover" });
+    if (said?.tone === "bad" && r.sm8_job_uuid) bad.push({ at: pressedAt(r), job: r.sm8_job_uuid, op: isTakeOff(r) ? "off" : "leftover" });
   }
   if (bad.length === 0) return [];
 

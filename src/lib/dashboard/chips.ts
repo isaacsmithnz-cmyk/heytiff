@@ -883,8 +883,8 @@ export function sm8DoneChip(done: { taskId: string; title: string; op: "post" | 
     a booking that didn't go, one not taken out, one that may not have
     reached ServiceM8, one ServiceM8 kept at another time or on someone else
     (case 13 — the presser holds its Undo, so it never reads "didn't go"),
-    and a leftover's Clear that didn't go. */
-export type BookingTroubleOp = "notSent" | "stillIn" | "unsure" | "keptOther" | "leftover";
+    a leftover's Clear that didn't go, and a Take off that didn't. */
+export type BookingTroubleOp = "notSent" | "stillIn" | "unsure" | "keptOther" | "leftover" | "off";
 
 const BOOKING_BELL: Record<BookingTroubleOp, string> = {
   notSent: BOOKING_WORDS.bell.bookingNotSent,
@@ -892,6 +892,7 @@ const BOOKING_BELL: Record<BookingTroubleOp, string> = {
   unsure: BOOKING_WORDS.bell.bookingUnsure,
   keptOther: BOOKING_WORDS.bell.bookingKeptOther,
   leftover: BOOKING_WORDS.bell.leftoverNotCleared,
+  off: BOOKING_WORDS.bell.offNotTaken,
 };
 
 /** A booking of yours whose line is bad (two-way phase 3, PR E) — for the

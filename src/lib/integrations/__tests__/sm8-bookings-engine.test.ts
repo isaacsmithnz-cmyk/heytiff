@@ -80,11 +80,11 @@ jest.mock("@/lib/workboard/job-notes-query", () => ({
 
 import { sm8PressFromSession, type Sm8Press } from "../sm8-press";
 import { enqueueSm8Writes, readSm8WriteState, runSm8Writes } from "../sm8-writes";
-import { BOOKING_STATUS_WAIT_MS, BOOKING_WORDS, bookingLine, localNow, statusLine, wallInstant, type BookingMirrorIn } from "../sm8-booking-plan";
+import { BOOKING_STATUS_WAIT_MS, BOOKING_WORDS, bookingLine, clearLine, localNow, statusLine, wallInstant, type BookingMirrorIn } from "../sm8-booking-plan";
 import { checkedIn } from "../sm8-booking-send";
 import { NOTE_WORDS } from "../sm8-note-words";
 import { WRITE_WORDS, offersSend, sendHold } from "../sm8-write-plan";
-import { queueBookIn, queueBookingRetry, queueBookingTakeBack, queueClear, queueMakeWorkOrder, queueMarkUnsuccessful } from "@/app/actions/sm8-booking-queue";
+import { queueBookIn, queueBookingRetry, queueBookingTakeBack, queueClear, queueMakeWorkOrder, queueMarkUnsuccessful, queueTakeOff } from "@/app/actions/sm8-booking-queue";
 import { readBookingOverlay } from "../sm8-booking-overlay";
 
 const ORG = "org-1";
@@ -2232,6 +2232,101 @@ describe("Clear takes a leftover booking off a finished job (B-10)", () => {
     await run();
     Object.assign((fake.db.sm8_job_activities as Row[])[0], { start_date: at(TOMORROW, "10:00"), end_date: at(TOMORROW, "12:00") });
     expect(await queueBookingRetry(await pressAs(), await state(), { rowId: clearRow().id as string })).toEqual({ ok: false, refusal: "changed" });
+  });
+});
+
+/* ── Take off: a Clear of a booking on a job still open (the phone's Schedule) ── */
+
+/** A booking someone made in ServiceM8, tomorrow, on a job still a Work Order. */
+function onOpenJob(over: Row = {}): void {
+  sm8.job(OTHER_JOB, { status: "Work Order", kept: { generated_job_id: "9002" } as never });
+  fake.db.sm8_jobs[1].status = "Work Order";
+  sm8.put({ uuid: LEFT, jobUuid: OTHER_JOB, staffUuid: SAM_SM8, start: at(TOMORROW, "09:00"), end: at(TOMORROW, "11:00"), ...over });
+  mirrored(LEFT);
+}
+const takeOff = async (seen: { staffUuid: string; start: string; end: string } = { staffUuid: SAM_SM8, start: at(TOMORROW, "09:00"), end: at(TOMORROW, "11:00") }) =>
+  queueTakeOff(await pressAs(), await state(), { jobUuid: OTHER_JOB, activityUuid: LEFT, seen, verbId: randomUUID() });
+
+describe("Take off takes a booking off a job still open, as a Clear does a leftover (the phone's Schedule)", () => {
+  it("(F) is queued once with the mirror's copy and its mark, read live, DELETEd once, read back — and a double press is one row", async () => {
+    onOpenJob();
+    expect(await takeOff()).toMatchObject({ ok: true });
+    expect(await takeOff()).toMatchObject({ ok: true });
+    expect(deletesOf()).toHaveLength(1);
+    expect(clearRow()).toMatchObject({
+      op: "delete",
+      subject: `clear:${LEFT}`,
+      target_uuid: LEFT,
+      depends_on: null,
+      sm8_job_uuid: OTHER_JOB,
+      booking_staff_uuid: SAM_SM8,
+      booking_start: at(TOMORROW, "09:00"),
+      booking_end: at(TOMORROW, "11:00"),
+      payload: { name: BOOKING_WORDS.label.off, off: true },
+    });
+    expect(clearLine(clearRow() as never, null)).toMatchObject({ key: "line.offing", text: BOOKING_WORDS.line.offing });
+    await run();
+    expect(sm8.deletes).toEqual([LEFT]);
+    expect(sm8.active(LEFT)).toBe(false);
+    expect(clearRow()).toMatchObject({ status: "sent", target_uuid: LEFT, http_status: 200 });
+  });
+
+  it("(F) the press refuses recorded time, one started, one not as it was seen, and a booking or job gone — and queues nothing", async () => {
+    onOpenJob();
+    expect(await takeOff({ staffUuid: SAM_SM8, start: at(TOMORROW, "09:00"), end: at(TOMORROW, "12:00") })).toEqual({ ok: false, refusal: "changed" });
+    expect(await takeOff({ staffUuid: ALEX_SM8, start: at(TOMORROW, "09:00"), end: at(TOMORROW, "11:00") })).toEqual({ ok: false, refusal: "changed" });
+    (fake.db.sm8_job_activities as Row[])[0].activity_was_scheduled = 0;
+    expect(await takeOff()).toEqual({ ok: false, refusal: "check_in" });
+    Object.assign((fake.db.sm8_job_activities as Row[])[0], { activity_was_scheduled: 1, start_date: at(day(-1), "09:00"), end_date: at(day(-1), "11:00") });
+    expect(await takeOff({ staffUuid: SAM_SM8, start: at(day(-1), "09:00"), end: at(day(-1), "11:00") })).toEqual({ ok: false, refusal: "not_future" });
+    Object.assign((fake.db.sm8_job_activities as Row[])[0], { start_date: at(TOMORROW, "09:00"), end_date: at(TOMORROW, "11:00"), active: 0 });
+    expect(await takeOff()).toEqual({ ok: false, refusal: "changed" });
+    (fake.db.sm8_job_activities as Row[])[0].active = 1;
+    fake.db.sm8_jobs[1].active = 0;
+    expect(await takeOff()).toEqual({ ok: false, refusal: "changed" });
+    expect(deletesOf()).toHaveLength(0);
+  });
+
+  it("(F) the sender takes it off whatever the job's status, and refuses a check-in, a start now past, a move, and a job gone — each with no DELETE", async () => {
+    onOpenJob();
+    await takeOff();
+    /* finished meanwhile: still taken off, as the person asked */
+    sm8.jobs.get(OTHER_JOB)!.status = "Completed";
+    await run();
+    expect(clearRow()).toMatchObject({ status: "sent" });
+    expect(sm8.deletes).toEqual([LEFT]);
+    sm8.deletes.length = 0;
+
+    for (const [change, words] of [
+      [() => (sm8.get(LEFT)!.recorded = 1), BOOKING_WORDS.row.checkIn],
+      [() => sm8.moveThere(LEFT, { start: at(day(-1), "09:00"), end: at(day(-1), "11:00") }), BOOKING_WORDS.row.notFuture],
+      [() => sm8.moveThere(LEFT, { start: at(TOMORROW, "09:30"), end: at(TOMORROW, "11:30") }), BOOKING_WORDS.row.changed],
+      [() => (sm8.jobs.get(OTHER_JOB)!.active = 0), BOOKING_WORDS.row.jobGone],
+    ] as const) {
+      fake.db.sm8_writes = [];
+      onOpenJob();
+      await takeOff();
+      change();
+      await run();
+      expect(clearRow()).toMatchObject({ status: "cancelled", last_error: words });
+    }
+    expect(sm8.deletes).toEqual([]);
+  });
+
+  it("(F) one that failed says so in its own words, and its Try again goes again as a Take off", async () => {
+    onOpenJob();
+    await takeOff();
+    deleteSm8Booking.mockResolvedValueOnce({ status: 422, outcome: { kind: "rejected", status: 422 }, remote: null, recordUuid: null });
+    await run();
+    const row = clearRow();
+    expect(row).toMatchObject({ status: "failed", last_error: BOOKING_WORDS.row.removeRefused });
+    expect(clearLine(row as never, null)).toMatchObject({ key: "line.notOff", tone: "bad", acts: ["try_again"] });
+    expect(await queueBookingRetry(await pressAs(), await state(), { rowId: row.id as string })).toMatchObject({ ok: true });
+    expect(row.payload).toEqual({ name: BOOKING_WORDS.label.off, off: true });
+    due(row);
+    await run();
+    expect(row.status).toBe("sent");
+    expect(sm8.active(LEFT)).toBe(false);
   });
 });
 

@@ -52,6 +52,7 @@ import {
   clearLine,
   isFuture,
   isLeftover,
+  isTakeOff,
   localNow,
   parseBookingSubject,
   reasonOf,
@@ -148,10 +149,11 @@ type BookingRow = {
   seen_edit_date: string | null;
   requested_by: string | null;
   requested_by_user: string | null;
+  payload: unknown;
 };
 
 const ROW_COLUMNS =
-  "id, op, status, subject, tenant_id, sm8_job_uuid, remote_uuid, replaced_uuids, maybe_landed, verify_uuids, taken_back_at, last_error, attempts, lease_until, depends_on, target_uuid, verb_id, booking_staff_uuid, booking_start, booking_end, booking_zone, landed_edit_date, seen_edit_date, requested_by, requested_by_user";
+  "id, op, status, subject, tenant_id, sm8_job_uuid, remote_uuid, replaced_uuids, maybe_landed, verify_uuids, taken_back_at, last_error, attempts, lease_until, depends_on, target_uuid, verb_id, booking_staff_uuid, booking_start, booking_end, booking_zone, landed_edit_date, seen_edit_date, requested_by, requested_by_user, payload";
 
 const same = (a: string | null | undefined, b: string | null | undefined) =>
   !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -842,6 +844,86 @@ export async function queueClear(
   return { ok: true, rowIds: queued.ids };
 }
 
+/* ── Take off ── */
+
+/** Take a booking off its job — one made in ServiceM8, or by anyone — so
+    its person can go elsewhere (the phone's Schedule, Isaac, 27 October
+    2026). A Clear in every way but one: its job is open, not finished, and
+    `payload.off` says so to the sender, which reads the job and the booking
+    live again. The rules are a Clear's: a future, scheduled, active booking
+    with a person and an end, exactly as the person saw it (`seen`, only
+    compared; the row keeps the mirror's copy), never a check-in, and one
+    DELETE per booking — under the Clear's own subject, so a Clear and a Take
+    off of one booking are one row. There is no Undo on it: the phone's Undo
+    books the person back. */
+export async function queueTakeOff(
+  press: Sm8Press,
+  state: Sm8WriteState,
+  input: { jobUuid: string; activityUuid: string; seen: { staffUuid: string; start: string; end: string }; verbId: string }
+): Promise<ClearResult> {
+  if (!isSm8Press(press)) {
+    console.error("[sm8] refused a Take off that nobody pressed for (no press, or a stale one)");
+    return { ok: false, refusal: "unqueued" };
+  }
+  const orgId = press.orgId;
+  const { jobUuid: given, activityUuid, seen, verbId } = input ?? ({} as never);
+  if (!UUID.test(given ?? "") || !UUID.test(activityUuid ?? "") || !UUID.test(verbId ?? "")) {
+    return { ok: false, refusal: "unqueued" };
+  }
+  const jobUuid = given.toLowerCase();
+
+  /* 1. offered */
+  if (!state.readable) return { ok: false, refusal: "unreadable" };
+  if (!offersSend(state, "booking")) return { ok: false, refusal: "not_offered" };
+
+  /* 1b. ONE DELETE PER BOOKING, as a Clear's */
+  const others = await readDeletesOn(orgId, [activityUuid]);
+  if (!others) return { ok: false, refusal: "unqueued" };
+  if (others.some((d) => d.via === "clear" && onItsWay(d))) return { ok: true, rowIds: [] };
+  if (others.some((d) => d.via === "undo" && onItsWay(d))) return { ok: false, refusal: "taking_out" };
+
+  /* 2. the mirror's booking, on its job, still as it was seen */
+  const mirror = await readMirrorBookings(orgId, [activityUuid]);
+  if (!mirror) return { ok: false, refusal: "unqueued" };
+  const m = mirror.get(activityUuid.toLowerCase());
+  if (!m || !same(m.jobUuid, jobUuid) || Number(m.active) !== 1) return { ok: false, refusal: "changed" };
+  if (Number(m.scheduled) !== 1) return { ok: false, refusal: "check_in" };
+  if (!m.staffUuid || !m.start || !m.end) return { ok: false, refusal: "changed" };
+  const jobOf = (m.jobUuid ?? jobUuid).toLowerCase();
+  const { data: jobs, error: jobError } = await supabaseAdmin
+    .from("sm8_jobs")
+    .select("uuid, active")
+    .eq("org_id", orgId)
+    .in("uuid", spellings(jobOf));
+  if (jobError) return { ok: false, refusal: "unqueued" };
+  const job = ((jobs ?? []) as { uuid: string; active: unknown }[]).find((j) => same(j.uuid, jobOf));
+  if (!job || Number(job.active) !== 1) return { ok: false, refusal: "changed" };
+  const z = await bookingZone(orgId);
+  if (z.zone === null) return { ok: false, refusal: z.why === "unread" ? "unqueued" : "zone_unknown" };
+  if (!isFuture(m.start, z.zone, Date.now())) return { ok: false, refusal: "not_future" };
+  if (!same(m.staffUuid, seen?.staffUuid) || m.start !== seen?.start || m.end !== seen?.end) return { ok: false, refusal: "changed" };
+
+  /* 3. queue it, as the mirror has it */
+  const queued = await enqueueSm8Writes(press, state, [
+    {
+      kind: "booking",
+      op: "delete",
+      jobUuid: jobOf,
+      subject: bookingSubject.clear(m.uuid),
+      payload: { name: BOOKING_WORDS.label.off, off: true },
+      ref: m.uuid,
+      targetUuid: m.uuid,
+      staffUuid: m.staffUuid,
+      start: m.start,
+      end: m.end,
+      verbId,
+    },
+  ]);
+  if (!queued) return { ok: false, refusal: "unqueued" };
+  if (queued.capped) return { ok: false, refusal: "capped" };
+  return { ok: true, rowIds: queued.ids };
+}
+
 /* ── Try again ── */
 
 /** The one door for Try again on a line (try_again, and a take-back's
@@ -874,12 +956,21 @@ export async function queueBookingRetry(press: Sm8Press, state: Sm8WriteState, i
   }
 
   /* a Clear goes again with the booking as the mirror has it now, checked
-     against the booking as its last press saw it */
+     against the booking as its last press saw it; a Take off, as one */
   if (row.op === "delete") {
     const line = clearLine(row, hold);
     if (!line?.acts.includes("try_again")) return { ok: false, refusal: "changed" };
     if (!row.sm8_job_uuid || !row.target_uuid || !row.booking_staff_uuid || !row.booking_start || !row.verb_id) {
       return { ok: false, refusal: "changed" };
+    }
+    if (isTakeOff(row)) {
+      if (!row.booking_end) return { ok: false, refusal: "changed" };
+      return queueTakeOff(press, state, {
+        jobUuid: row.sm8_job_uuid,
+        activityUuid: row.target_uuid,
+        seen: { staffUuid: row.booking_staff_uuid, start: row.booking_start, end: row.booking_end },
+        verbId: row.verb_id,
+      });
     }
     return queueClear(press, state, {
       jobUuid: row.sm8_job_uuid,

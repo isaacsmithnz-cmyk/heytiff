@@ -229,23 +229,44 @@ describe("a move", () => {
     expect(push).toHaveBeenCalledTimes(1);
   });
 
-  it("a refusal leaves the day as it was: the booking this press queued is taken back before it goes", async () => {
+  it("the new booking goes first: ServiceM8 refusing it leaves the old one where it was, and nothing comes off", async () => {
     booked(ALEX_ON_JOB, JOB, ALEX_SM8, at(TOMORROW, "07:00"), at(TOMORROW, "15:00"));
-    /* the old job went from the mirror: its booking can't be taken off */
-    fake.db.sm8_jobs[0].active = 0;
+    postSm8Booking.mockResolvedValueOnce({ status: 422, outcome: { kind: "rejected", status: 422 }, remote: null, recordUuid: null });
     const answer = await change({ do: "move", activity: ALEX_ON_JOB, to: OTHER_JOB });
-    expect(answer).toMatchObject({ ok: false, error: BOOKING_WORDS.press.changed });
-    expect(creates()[0]).toMatchObject({ status: "cancelled" });
-    expect(creates()[0]!.taken_back_at).toBeTruthy();
+    expect(answer).toMatchObject({ ok: false, error: BOOKING_WORDS.row.refused });
     expect(deletes()).toHaveLength(0);
-    expect(postSm8Booking).not.toHaveBeenCalled();
     expect(sm8.active(ALEX_ON_JOB)).toBe(true);
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("refuses a booking that has started, a job that can't be booked, and the same job — before anything is queued", async () => {
-    booked(ALEX_ON_JOB, JOB, ALEX_SM8, at(day(-1), "07:00"), at(day(-1), "15:00"));
-    expect(await change({ do: "move", activity: ALEX_ON_JOB, to: OTHER_JOB })).toMatchObject({ ok: false, error: BOOKING_WORDS.press.notFuture });
+  it("a job gone from under the booking is refused before anything is queued", async () => {
+    booked(ALEX_ON_JOB, JOB, ALEX_SM8, at(TOMORROW, "07:00"), at(TOMORROW, "15:00"));
+    fake.db.sm8_jobs[0].active = 0;
+    expect(await change({ do: "move", activity: ALEX_ON_JOB, to: OTHER_JOB })).toMatchObject({ ok: false, error: BOOKING_WORDS.press.changed });
+    expect(writes()).toHaveLength(0);
+    expect(postSm8Booking).not.toHaveBeenCalled();
+  });
+
+  it("has ServiceM8's freedom: a booking under way or on a day gone moves, its person checked in or not — and their recorded time stays", async () => {
+    const YESTERDAY = day(-1);
+    booked(ALEX_ON_JOB, JOB, ALEX_SM8, at(YESTERDAY, "07:00"), at(YESTERDAY, "15:00"));
+    const CHECK_IN = "ac7ac7ac-0000-4000-8000-0000000b0009";
+    sm8.put({ uuid: CHECK_IN, jobUuid: JOB, staffUuid: ALEX_SM8, start: at(YESTERDAY, "07:05"), end: at(YESTERDAY, "15:02"), scheduled: 0, recorded: 1 });
+    const answer = await change({ do: "move", activity: ALEX_ON_JOB, to: OTHER_JOB, start: at(YESTERDAY, "09:30"), end: at(YESTERDAY, "15:00") });
+    expect(answer).toMatchObject({ ok: true, state: "sent", said: "Alex is on 9002 now" });
+    expect(sm8.active(ALEX_ON_JOB)).toBe(false);
+    expect(sm8.active(CHECK_IN)).toBe(true);
+    const [c] = creates();
+    expect(sm8.get(c!.remote_uuid as string)).toMatchObject({ jobUuid: OTHER_JOB, start: at(YESTERDAY, "09:30"), end: at(YESTERDAY, "15:00"), active: 1 });
+    expect(c!.payload).toEqual({ name: BOOKING_WORDS.label.create, anyTime: true });
+    expect(deletes()[0]!.payload).toEqual({ name: BOOKING_WORDS.label.off, off: true, anyTime: true });
+    /* and its Undo, the new booking under way, puts it back */
+    if (!answer.ok || !answer.undo) throw new Error("no undo");
+    expect(await change(answer.undo, { tell: false })).toMatchObject({ ok: true, state: "sent" });
+    expect(sm8.active(c!.remote_uuid as string)).toBe(false);
+  });
+
+  it("refuses a job that can't be booked, and the same job — before anything is queued", async () => {
     booked(ALEX_ON_JOB, JOB, ALEX_SM8, at(TOMORROW, "07:00"), at(TOMORROW, "15:00"));
     fake.db.sm8_jobs[1].status = "Completed";
     expect(await change({ do: "move", activity: ALEX_ON_JOB, to: OTHER_JOB })).toMatchObject({ ok: false, error: "This job is Completed in ServiceM8, so it can't be booked." });
@@ -272,12 +293,17 @@ describe("a swap, a time, a take off and a booking", () => {
     expect(push.mock.calls[0]).toEqual([ORG, ["staff-alex"], expect.objectContaining({ title: "Sam Tester moved you to 9002" })]);
   });
 
-  it("a new time is a booking at it and the old one off; the same start is refused", async () => {
+  it("a new time is a booking at it and the old one off, the same start too", async () => {
     booked(ALEX_ON_JOB, JOB, ALEX_SM8, at(TOMORROW, "07:00"), at(TOMORROW, "15:00"));
-    expect(await change({ do: "time", activity: ALEX_ON_JOB, start: at(TOMORROW, "07:00"), end: at(TOMORROW, "12:00") })).toMatchObject({ ok: false });
-    const answer = await change({ do: "time", activity: ALEX_ON_JOB, start: at(TOMORROW, "09:00"), end: at(TOMORROW, "15:00") });
-    expect(answer).toMatchObject({ ok: true, state: "sent", said: "Alex is on 9001 9:00 to 3:00 now" });
+    expect(await change({ do: "time", activity: ALEX_ON_JOB, start: at(TOMORROW, "07:00"), end: at(TOMORROW, "15:00") })).toMatchObject({ ok: false });
+    /* the same start takes the old one's place: it comes off first */
+    expect(await change({ do: "time", activity: ALEX_ON_JOB, start: at(TOMORROW, "07:00"), end: at(TOMORROW, "12:00") }, { tell: false })).toMatchObject({ ok: true, state: "sent" });
     expect(sm8.active(ALEX_ON_JOB)).toBe(false);
+    sync();
+    const shorter = creates()[0]!.remote_uuid as string;
+    const answer = await change({ do: "time", activity: shorter, start: at(TOMORROW, "09:00"), end: at(TOMORROW, "15:00") });
+    expect(answer).toMatchObject({ ok: true, state: "sent", said: "Alex is on 9001 9:00 to 3:00 now" });
+    expect(sm8.active(shorter)).toBe(false);
     expect(push.mock.calls[0]![2]).toMatchObject({ title: "Sam Tester changed your time on 9001" });
   });
 

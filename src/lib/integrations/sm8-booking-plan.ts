@@ -882,6 +882,17 @@ export function isTakeOff(row: { payload?: unknown }): boolean {
   return !!p && typeof p === "object" && (p as Record<string, unknown>).off === true;
 }
 
+/** A row pressed from the phone's Schedule, which has ServiceM8's own
+    freedom (Isaac, 27 October 2026: "It should have the same freedom as
+    ServiceM8"): its booking may start before now, and one under way, or on
+    a day gone, may come off — with someone checked in for it or not. What
+    stays is the one rule ServiceM8 itself keeps: recorded time is never
+    removed. `payload.anyTime` says so, on a create, an Undo and a Take off. */
+export function isAnyTime(row: { payload?: unknown }): boolean {
+  const p = row.payload;
+  return !!p && typeof p === "object" && (p as Record<string, unknown>).anyTime === true;
+}
+
 /** What a Clear of a leftover booking says, or a Take off in its own words.
     Once sent there is nothing to say: the booking goes from the list, the
     Schedule and Home with it. A Clear that didn't go offers Try again, or

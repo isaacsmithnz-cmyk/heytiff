@@ -104,7 +104,8 @@
 }
 .pt-cal-day.pt-cal-day:hover { background:var(--hov); }
 .pt-cal-day.pt-cal-day--off { color:var(--q); }
-.pt-cal-day.pt-cal-day--hol .pt-cal-num { text-decoration:line-through; }
+/* a public holiday in purple, as the Calendar marks holidays (Isaac, 27 October 2026: "mark public holidays as purple instead of having it crossed out") */
+.pt-cal-day.pt-cal-day--hol .pt-cal-num { color:var(--purple-w); font-weight:700; }
 .pt-cal-mark { position:absolute; bottom:2px; left:calc(50% - 2px); width:4px; height:4px; border-radius:var(--r-pill); background:currentColor; }
 .pt-cal-day.pt-cal-day--today { border-color:var(--ink); }
 .pt-cal-day.pt-cal-day.pt-cal-day--picked { background:var(--press); border-color:var(--press); color:var(--white); }

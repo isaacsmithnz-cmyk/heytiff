@@ -241,6 +241,9 @@ export type JobMediaItem = {
       everything ServiceM8 holds, which we may read but never take back off. */
   documentId?: string;
   addedBy?: string | null;
+  /** A photo of ours (taken with the phone): what ServiceM8 has of it, in
+      the Documents face's words. Absent everywhere else. */
+  sent?: { word: string; tone: "ok" | "warn" | "bad" | null } | null;
 };
 
 export type JobMediaGroups = {

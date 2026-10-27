@@ -33,6 +33,8 @@ import { sm8Ours, withoutOurs } from "@/lib/integrations/sm8-echo";
 import { touchSm8Files } from "@/lib/integrations/sm8-file-cache";
 import { naiveInZone } from "./job-story";
 import { getSm8Timezone } from "./query";
+import { readJobSends, readSm8WriteState } from "@/lib/integrations/sm8-writes";
+import { sendHold, sendLine } from "@/lib/integrations/sm8-write-plan";
 
 export type JobMediaRead = {
   items: JobMediaItem[];
@@ -272,11 +274,29 @@ export const ourDocumentRemoteId = (documentId: string) => `doc:${documentId}`;
     whatever its bytes are. Called `photo` it would join the diary's photo
     clusters, whose "+N" leads to a Photos face that never shows it. */
 export async function readOurJobDocuments(orgId: string, jobUuid: string): Promise<JobMediaItem[]> {
+  return readOurs(orgId, jobUuid, "job_document");
+}
+
+/** The photos somebody took on this job with the phone — ours, in
+    `documents` as `job_photo`, newest first, each with what ServiceM8 has
+    of it (`sent`, the Documents face's own words: sm8-write-plan's
+    sendLine). Once one is in ServiceM8 the mirror brings it back as one of
+    ServiceM8's; that copy is HeyTiff's echo and comes off the list
+    (sm8Ours), so the photo shows once. */
+export async function readOurJobPhotos(orgId: string, jobUuid: string): Promise<JobMediaItem[]> {
+  const items = await readOurs(orgId, jobUuid, "job_photo");
+  if (items.length === 0) return items;
+  const [sends, state] = await Promise.all([readJobSends(orgId, jobUuid.toLowerCase()), readSm8WriteState(orgId)]);
+  const hold = state.readable ? sendHold(state, "attachment") : null;
+  return items.map((it) => ({ ...it, sent: it.documentId ? sendLine(sends, [it.documentId], hold) : null }));
+}
+
+async function readOurs(orgId: string, jobUuid: string, kind: "job_document" | "job_photo"): Promise<JobMediaItem[]> {
   const { data } = await supabaseAdmin
     .from("documents")
     .select("id, file_name, mime_type, storage_ref, uploaded_at, uploaded_by")
     .eq("org_id", orgId)
-    .eq("kind", "job_document")
+    .eq("kind", kind)
     .eq("sm8_job_uuid", jobUuid)
     /* a slot handed out and never filled is nobody's file */
     .not("uploaded_at", "is", null)
@@ -312,7 +332,7 @@ export async function readOurJobDocuments(orgId: string, jobUuid: string): Promi
     remoteId: ourDocumentRemoteId(r.id),
     name: r.file_name,
     fileType: fileTypeForMime(r.mime_type),
-    kind: "document" as const,
+    kind: kind === "job_photo" ? ("photo" as const) : ("document" as const),
     origin: null,
     /* the account's own clock, the same naive shape ServiceM8's stamps
        arrive in, so the face's day reads the same for both */
@@ -360,9 +380,10 @@ export async function readJobMediaGroups(
   jobUuid: string,
   claims: readonly MediaSource[] = []
 ): Promise<JobMediaGroupsRead> {
-  const [read, ours] = await Promise.all([
+  const [read, ours, taken] = await Promise.all([
     readJobMedia(orgId, jobUuid, claims),
     readOurJobDocuments(orgId, jobUuid),
+    readOurJobPhotos(orgId, jobUuid),
   ]);
   const groups = groupJobMedia(read.items);
   const clipped =
@@ -370,7 +391,7 @@ export async function readJobMediaGroups(
     groups.documents.length > JOB_MEDIA_CAP ||
     groups.elsewhere.length > JOB_MEDIA_CAP;
   return {
-    photos: groups.photos.slice(0, JOB_MEDIA_CAP),
+    photos: byNewest(taken, groups.photos.slice(0, JOB_MEDIA_CAP)),
     documents: byNewest(ours, groups.documents.slice(0, JOB_MEDIA_CAP)),
     elsewhere: groups.elsewhere.slice(0, JOB_MEDIA_CAP),
     truncated: read.truncated || clipped,

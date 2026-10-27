@@ -44,7 +44,7 @@ function setup(over: Partial<RateCalcState> = {}) {
 describe("a window the books only partly cover", () => {
   it("says how many months there really are, and shows both figures", () => {
     setup({ xeroCosts: snap({ monthsCovered: 5 }) });
-    const banner = screen.getByText(/of these 12 months/i).closest(".rcx-part");
+    const banner = screen.getByText(/of these 12 months/i).closest(".rc-say");
     expect(banner).toHaveTextContent("Your books cover 5 of these 12 months");
     // what Xero said, beside what the rate is actually priced on
     expect(banner).toHaveTextContent("$12,000 over 5 months, scaled to $28,800 for a year");

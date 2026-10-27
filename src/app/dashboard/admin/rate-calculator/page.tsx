@@ -9,6 +9,10 @@ import { getPaySettings } from "@/lib/timepay/query";
 
 // Gated by `financials`, not by role: charge-out is built from wages. Owner
 // has it by default; an admin only if the owner grants it in Team.
+//
+// Outside the Settings frame on purpose (27 October 2026): the calculator's
+// own five steps stand where the side list would, with the way back to
+// Quoting above them, so the address stays and the frame does not.
 
 export default async function RateCalculatorPage() {
   const session = await auth0.getSession();
@@ -29,12 +33,16 @@ export default async function RateCalculatorPage() {
   ]);
 
   return (
-    <RateCalculator
-      initialState={row?.state ?? null}
-      initialUpdatedAt={row?.updatedAt ?? null}
-      roster={roster}
-      xeroConnected={connection?.status === "connected"}
-      orgSuperPct={pay?.settings.superPct ?? null}
-    />
+    <div className="page in">
+      <div className="wrap">
+        <RateCalculator
+          initialState={row?.state ?? null}
+          initialUpdatedAt={row?.updatedAt ?? null}
+          roster={roster}
+          xeroConnected={connection?.status === "connected"}
+          orgSuperPct={pay?.settings.superPct ?? null}
+        />
+      </div>
+    </div>
   );
 }

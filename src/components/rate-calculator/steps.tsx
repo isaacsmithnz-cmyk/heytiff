@@ -1,23 +1,25 @@
 "use client";
 
-/* Step bodies. Simple mode asks one question at a time (QuestionStack) and
-   edits simpleLabour/simpleBusiness/simpleVehicle; totals always come from
-   `calc`. Detailed bodies are unchanged power-user views.
+/* The five steps. Each is a title, then its questions as groups under a
+   hairline (rule 35), every one on the page at once: the figures are typed,
+   and Your rates beside them moves as they are. Simple asks for totals;
+   Detailed (detail.tsx) edits the engine's own lists.
 
-   `showToggle` (per-step, gated by the host): the Simple/Detailed toggle is
-   hidden on the first run and returns on later visits once the step has data
-   that Detailed can actually edit. */
+   `showToggle` (per step, gated by the host): Simple or Detailed is hidden
+   on the first run and returns on later visits once the step has data that
+   Detailed can actually edit. */
 
 import React from "react";
 import type { RiskSettings, Multipliers } from "./engine";
 import { costsToXeroPatch, fleetCosted, fleetOnXero, fleetSourceMixed, snapshotTotal, sourceSwitchVisible, type EntryMode } from "./state";
-import { RC } from "./theme";
-import { Tooltip } from "@/components/parts/tooltip";
 import { money, rate0 } from "./format";
-import { QuestionStack, RcIcon, WsEyebrow, WsHelpNote, WsSlider, WsToggle, NumInput, type StackQuestion } from "./ui";
+import { Amount, Bar, Facts, MoneyField, SettingRow } from "./ui";
 import { BusinessDetail, StaffDetail, VehiclesDetail, type StepBodyProps } from "./detail";
 import { XeroCostsPanel } from "./xero-costs";
 import { XeroFleetPanel } from "./xero-fleet";
+import { Button } from "@/components/parts/button";
+import { StateWord } from "@/components/parts/state";
+import { Tray } from "@/components/parts/tabs";
 
 /* The lazy import lives OUT HERE, not in the component. The deferral is
    unchanged — the module is still fetched on the first call — but React
@@ -25,125 +27,71 @@ import { XeroFleetPanel } from "./xero-fleet";
    and gives up on the WHOLE component when it meets one. */
 const rateCalcActions = () => import("@/app/actions/rate-calc");
 
-function StepHead({ eyebrow, title, mode, onMode, desc }: {
-  eyebrow: string; title: string; mode?: string; onMode?: (v: string) => void; desc?: string;
-}) {
+const MODES = [
+  { value: "Simple", label: "Simple" },
+  { value: "Detailed", label: "Detailed" },
+] as const;
+
+const SOURCES = [
+  { value: "manual", label: "Enter them myself" },
+  { value: "xero", label: "Use figures from Xero" },
+] as const;
+
+/** A step's title, and Simple or Detailed beside it where there is a choice. */
+function StepHead({ title, mode, onMode }: { title: string; mode?: EntryMode; onMode?: (v: EntryMode) => void }) {
   return (
-    <div>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14 }}>
-        <div>
-          <WsEyebrow color={RC.install}>{eyebrow}</WsEyebrow>
-          <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 25, letterSpacing: "-0.02em", color: RC.ink, lineHeight: 1.1, marginTop: 5, whiteSpace: "nowrap" }}>{title}</div>
-        </div>
-        {mode && onMode && <WsToggle value={mode} onChange={onMode} />}
-      </div>
-      {desc && <div style={{ fontSize: 13.5, color: RC.label, lineHeight: 1.55, maxWidth: 600, marginTop: 8 }}>{desc}</div>}
+    <div className="rc-steptop">
+      <h2>{title}</h2>
+      {mode && onMode && <Tray options={MODES} value={mode} onChange={onMode} ariaLabel="How much detail" />}
     </div>
   );
 }
 
-const NoteInfoIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, marginTop: 2 }}>
-    <circle cx="12" cy="12" r="10"></circle><path d="M12 16v-5"></path><path d="M12 8h.01"></path>
-  </svg>
-);
-const Note = ({ children }: { children: React.ReactNode }) => (
-  <div style={{ marginTop: 14, background: RC.installSoft, borderRadius: 12, padding: "12px 16px", fontSize: 12.5, color: "#1D4FD7", lineHeight: 1.55, display: "flex", gap: 9, alignItems: "flex-start" }}>
-    <NoteInfoIcon /><span>{children}</span>
-  </div>
-);
-const Body = ({ children }: { children: React.ReactNode }) => (
-  <div style={{ marginTop: 20, display: "flex", flexDirection: "column" }}>{children}</div>
-);
 const MONTH_LABELS = ["This month", "Last month", "2 months ago"];
 
-const stepBtnStyle: React.CSSProperties = { width: 28, height: 28, borderRadius: 8, fontSize: 16 };
-
-// 3-month entry row used by every simple mode
-function MonthInputs({ months, onChange }: { months: number[]; onChange: (m: number[]) => void }) {
+/** The three months every Simple step asks for. */
+function MonthFields({ months, onChange }: { months: number[]; onChange: (m: number[]) => void }) {
   return (
-    <div style={{ display: "flex", gap: 14 }}>
+    <div className="rc-months">
       {MONTH_LABELS.map((l, i) => (
-        <div key={l} style={{ flex: 1 }}>
-          <div style={{ fontSize: 12, color: RC.label, fontWeight: 600, marginBottom: 6 }}>{l}</div>
-          <NumInput value={months[i] || 0} onChange={n => { const m = [...months]; m[i] = n; onChange(m); }} />
-        </div>
+        <MoneyField key={l} label={l} value={months[i] || 0} onChange={n => { const m = [...months]; m[i] = n; onChange(m); }} />
       ))}
     </div>
   );
 }
 
-// stepper +/- row shared by count-style questions
-function StepperRow({ value, display, onMinus, onPlus, minWidth = 44 }: {
-  value: number; display?: string; onMinus: () => void; onPlus: () => void; minWidth?: number;
-}) {
+/** Whole numbers between two bounds, for a figure typed into a step. */
+const between = (lo: number, hi: number) => (n: number) => Math.max(lo, Math.min(hi, Math.round(n)));
+
+/** Xero is the source but the grant has gone: say so, and what to do. */
+function Disconnected() {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <button className="rca-stepbtn" style={stepBtnStyle} onClick={onMinus}>−</button>
-      <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 19, color: RC.ink, minWidth, textAlign: "center" }}>{display ?? value}</span>
-      <button className="rca-stepbtn" style={stepBtnStyle} onClick={onPlus}>+</button>
+    <div className="rc-say">
+      <StateWord tone="wrong">Xero is disconnected</StateWord>
+      <p>These figures are as Xero last gave them, and Refresh can&apos;t run. Enter them yourself, or reconnect Xero in Settings, Integrations.</p>
     </div>
   );
 }
 
-// One editable percentage row for the work split. The field is CONTROLLED and
-// its `onChange` runs through a clamping setter, so typing (or ±) can never push
-// the value past what's available — the input snaps back on the spot.
-function PctRow({ label, color, value, onChange }: {
-  label: string; color: string; value: number; onChange: (v: number) => void;
-}) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: RC.card2, borderRadius: 12, border: `1px solid ${RC.line}`, padding: "9px 14px" }}>
-      <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
-        <span style={{ width: 9, height: 9, borderRadius: "50%", background: color, flexShrink: 0 }} />
-        <span style={{ fontSize: 13, color: RC.ink, fontWeight: 700 }}>{label}</span>
-      </span>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-        <button className="rca-stepbtn" style={{ width: 26, height: 26, borderRadius: 7, fontSize: 15 }} onClick={() => onChange(value - 5)}>−</button>
-        <div style={{ display: "inline-flex", alignItems: "baseline", gap: 1, background: "#fff", borderRadius: 9, border: `1px solid ${RC.lineStrong}`, padding: "5px 10px", minWidth: 58, justifyContent: "center" }}>
-          <input value={String(value)} inputMode="numeric" aria-label={`${label} percent`}
-            onChange={e => { const d = e.target.value.replace(/[^0-9]/g, ""); onChange(d === "" ? 0 : parseInt(d, 10)); }}
-            style={{ width: 28, border: "none", background: "transparent", outline: "none", textAlign: "right", fontFamily: RC.head, fontWeight: 700, fontSize: 15, color, padding: 0 }} />
-          <span style={{ fontSize: 13, color: RC.faint, fontWeight: 700 }}>%</span>
-        </div>
-        <button className="rca-stepbtn" style={{ width: 26, height: 26, borderRadius: 7, fontSize: 15 }} onClick={() => onChange(value + 5)}>+</button>
-      </div>
-    </div>
-  );
-}
-
-// ── Step 1 · Staff & wages ──────────────────────────────────────────────
-export function StaffStep({ s, patch, calc, showToggle, revealAll }: StepBodyProps) {
+// ── Step 1 · Staff and wages ────────────────────────────────────────────
+export function StaffStep({ s, patch, calc, showToggle }: StepBodyProps) {
   const sl = s.simpleLabour;
   const totalLabour = calc.instLab + calc.svcLab + calc.adminLab;
   const wagesEntered = (sl.months || []).some(m => m > 0);
-  const [showBreakdown, setShowBreakdown] = React.useState(false);
-  // Breakdown of the projected "true cost" figure — gross wages projected to
-  // a year, plus the on-costs the engine loads on top.
+  // The true cost, as gross wages projected to a year plus the on-costs the
+  // engine loads on top.
   const bd = calc.staffBreakdown[0];
   const superPct = s.settings.super_pct ?? 12;
   const wcPct = s.settings.workers_comp_pct ?? 2;
   const grossWages = bd?.base ?? 0;
-  const costRows: [string, number][] = [
-    ["Gross wages", grossWages],
-    [`Superannuation (${superPct}%)`, grossWages * superPct / 100],
-    [`Workers comp (${wcPct}%)`, grossWages * wcPct / 100],
-    ["Leave loading", bd?.leaveLoading ?? 0],
-  ];
-  // Work split: Install and Service are the two editable shares; Admin is
-  // always the remainder (100 − the two), so the split can never total
-  // anything but 100%. Each setter clamps the edited share to what's left.
+  // Work split: Install and Service are the two typed shares; Admin is always
+  // the remainder (100 − the two), so the split can never total anything but
+  // 100%. Each field refuses a share past what's left.
   const install = sl.install_pct || 0;
   const service = sl.service_pct || 0;
   const admin = Math.max(0, 100 - install - service);
-  const setInstall = (v: number) => {
-    const i = Math.max(0, Math.min(100 - service, Math.round(v) || 0));
-    patch({ simpleLabour: { ...sl, install_pct: i, admin_pct: 100 - i - service } });
-  };
-  const setService = (v: number) => {
-    const sv = Math.max(0, Math.min(100 - install, Math.round(v) || 0));
-    patch({ simpleLabour: { ...sl, service_pct: sv, admin_pct: 100 - install - sv } });
-  };
+  const setInstall = (i: number) => patch({ simpleLabour: { ...sl, install_pct: i, admin_pct: 100 - i - service } });
+  const setService = (v: number) => patch({ simpleLabour: { ...sl, service_pct: v, admin_pct: 100 - install - v } });
   // Heal a legacy split that doesn't total 100 (older ± builds could persist
   // e.g. 65/30/10) by pinning admin to the remainder once, on load.
   const healSplit = React.useEffectEvent(() => {
@@ -155,548 +103,312 @@ export function StaffStep({ s, patch, calc, showToggle, revealAll }: StepBodyPro
     healSplit();
   }, [install, service, sl.admin_pct]);
 
-  const questions: StackQuestion[] = [
-    {
-      id: "wages",
-      title: "What did you pay in wages over the last 3 months?",
-      hint: "Gross pay before super — straight off your payroll totals",
-      answered: wagesEntered,
-      body: (
-        <>
-          <MonthInputs months={sl.months} onChange={m => patch({ simpleLabour: { ...sl, months: m } })} />
-          {wagesEntered && (
-            <div style={{ background: RC.serviceSoft, borderRadius: 14, marginTop: 14, overflow: "hidden" }}>
-              <button onClick={() => setShowBreakdown(v => !v)} aria-expanded={showBreakdown}
-                style={{ width: "100%", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", padding: "13px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                <div>
-                  <WsEyebrow color={RC.service}>Projected yearly true cost</WsEyebrow>
-                  <div style={{ fontSize: 12.5, color: RC.service, opacity: 0.85, marginTop: 3 }}>wages + super + workers comp + leave loading</div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-                  <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 26, letterSpacing: "-0.02em", color: RC.service }}>{money(totalLabour)}</span>
-                  <span style={{ display: "flex", color: RC.service, transform: showBreakdown ? "rotate(180deg)" : "none", transition: "transform .2s" }}><RcIcon name="chevD" size={18} /></span>
-                </div>
-              </button>
-              {showBreakdown && (
-                <div style={{ padding: "0 18px 14px" }}>
-                  <div style={{ height: 1, background: "rgba(23,112,58,.15)", marginBottom: 4 }} />
-                  {costRows.map(([l, v]) => (
-                    <div key={l} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "6px 0", fontSize: 12.5, borderBottom: `1px solid rgba(23,112,58,.08)` }}>
-                      <span style={{ color: RC.ink2 }}>{l}</span>
-                      <span style={{ fontFamily: RC.head, fontWeight: 700, color: RC.ink }}>{money(v)}</span>
-                    </div>
-                  ))}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", paddingTop: 9 }}>
-                    <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 12.5, color: RC.ink }}>True cost / yr</span>
-                    <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 15, color: RC.service }}>{money(totalLabour)}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </>
-      ),
-    },
-    {
-      id: "staff-count",
-      title: "How many staff in total?",
-      hint: "Used to estimate billable hours and utilisation",
-      answered: true,
-      body: (
-        <StepperRow value={sl.staff_count || 1}
-          onMinus={() => patch({ simpleLabour: { ...sl, staff_count: Math.max(1, (sl.staff_count || 1) - 1) } })}
-          onPlus={() => patch({ simpleLabour: { ...sl, staff_count: (sl.staff_count || 1) + 1 } })} />
-      ),
-    },
-    {
-      id: "split",
-      title: "Split that time across the work",
-      hint: "Roughly how the team's hours divide across install and service — Admin fills whatever's left",
-      answered: true, // always 100% by construction — Admin is the remainder
-      body: (
-        <>
-          {/* live proportion bar — always exactly full */}
-          <div style={{ display: "flex", height: 40, borderRadius: 12, overflow: "hidden", marginBottom: 14 }}>
-            {([["Install", install, RC.install], ["Service", service, RC.service], ["Admin", admin, RC.faint]] as [string, number, string][]).map(([l, v, c]) => v > 0 && (
-              <div key={l} style={{ width: `${v}%`, background: c, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: RC.head, fontWeight: 700, fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden", transition: "width .2s" }}>{v >= 18 ? `${l}, ${v}%` : v >= 8 ? `${v}%` : ""}</div>
-            ))}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <PctRow label="Install" color={RC.install} value={install} onChange={setInstall} />
-            <PctRow label="Service" color={RC.service} value={service} onChange={setService} />
-            {/* Admin — the remainder, shown but not editable */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: RC.card2, borderRadius: 12, border: `1px dashed ${RC.lineStrong}`, padding: "11px 14px" }}>
-              <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
-                <span style={{ width: 9, height: 9, borderRadius: "50%", background: RC.faint, flexShrink: 0 }} />
-                <span style={{ fontSize: 13, color: RC.ink, fontWeight: 700 }}>Admin</span>
-                <span style={{ fontSize: 11.5, color: RC.faint, whiteSpace: "nowrap" }}>the rest — overhead &amp; non-billable</span>
-              </span>
-              <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 17, color: RC.ink2, flexShrink: 0 }}>{admin}%</span>
-            </div>
-          </div>
-        </>
-      ),
-    },
-    {
-      id: "billable",
-      title: "Billable time assumption",
-      hint: "The share of paid hours spent on jobs you can invoice — the rest is travel, quoting, admin and downtime",
-      answered: true,
-      body: (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
-          <div style={{ fontSize: 12, color: RC.faint, maxWidth: 420, lineHeight: 1.5 }}>This drives your rate, so set it close to reality. 75% is the industry norm.</div>
-          <StepperRow value={sl.billable_pct ?? 75} display={`${sl.billable_pct ?? 75}%`} minWidth={54}
-            onMinus={() => patch({ simpleLabour: { ...sl, billable_pct: Math.max(40, (sl.billable_pct ?? 75) - 5) } })}
-            onPlus={() => patch({ simpleLabour: { ...sl, billable_pct: Math.min(95, (sl.billable_pct ?? 75) + 5) } })} />
-        </div>
-      ),
-    },
-  ];
+  const head = (
+    <StepHead title="Staff and wages"
+      mode={showToggle ? s.mode.staff : undefined}
+      onMode={showToggle ? (v => patch({ mode: { ...s.mode, staff: v } })) : undefined} />
+  );
+  if (s.mode.staff === "Detailed") return <>{head}<StaffDetail s={s} patch={patch} calc={calc} /></>;
 
   return (
     <>
-      <StepHead eyebrow={`Step 1 of 5, ${s.mode.staff}`} title="Staff & wages"
-        mode={showToggle ? s.mode.staff : undefined}
-        onMode={showToggle ? (v => patch({ mode: { ...s.mode, staff: v as EntryMode } })) : undefined} />
-      {s.mode.staff === "Detailed" ? <StaffDetail s={s} patch={patch} calc={calc} /> : (
-      <Body>
-        <WsHelpNote id="staff-simple" style={{ marginBottom: 16 }}><b>Simple mode</b> projects from your last 3 months of payroll — answer each question and your rates build live on the right.{showToggle && <> For the sharpest result, switch to <b>Detailed</b> to price each person from real timesheets.</>}</WsHelpNote>
-        <QuestionStack questions={questions} revealAll={revealAll} />
-      </Body>
-      )}
+      {head}
+      <div className="rc-q">
+        <h3>What did you pay in wages over the last 3 months?</h3>
+        <MonthFields months={sl.months} onChange={m => patch({ simpleLabour: { ...sl, months: m } })} />
+        {wagesEntered && (
+          <Facts rows={[
+            ["Gross wages", money(grossWages)],
+            [`Super, ${superPct}%`, money(grossWages * superPct / 100)],
+            [`Workers comp, ${wcPct}%`, money(grossWages * wcPct / 100)],
+            ["Leave loading", money(bd?.leaveLoading ?? 0)],
+            ["True cost a year", money(totalLabour)],
+          ]} />
+        )}
+      </div>
+      <div className="rc-q">
+        <SettingRow name="How many staff in total?">
+          <Amount label="How many staff" unit="people" value={sl.staff_count || 1} clamp={between(1, 999)}
+            onChange={n => patch({ simpleLabour: { ...sl, staff_count: n } })} />
+        </SettingRow>
+      </div>
+      <div className="rc-q">
+        <h3>Split that time across the work</h3>
+        <Bar parts={[
+          { name: "Install", share: install, hue: "purple", figure: `${install}%` },
+          { name: "Service", share: service, hue: "pink", figure: `${service}%` },
+          { name: "Admin", share: admin, hue: "grey", figure: `${admin}%` },
+        ]} />
+        <div>
+          <SettingRow name="Install">
+            <Amount label="Install percent" unit="%" value={install} clamp={between(0, 100 - service)} onChange={setInstall} />
+          </SettingRow>
+          <SettingRow name="Service">
+            <Amount label="Service percent" unit="%" value={service} clamp={between(0, 100 - install)} onChange={setService} />
+          </SettingRow>
+          <SettingRow name="Admin">
+            <span className="rc-ro">{admin}%</span>
+            <span className="rc-unit" />
+          </SettingRow>
+        </div>
+      </div>
+      <div className="rc-q">
+        <SettingRow name="Billable time" line="75% is usual for a trade">
+          <Amount label="Billable time" unit="% of paid hours" value={sl.billable_pct ?? 75} clamp={between(40, 95)}
+            onChange={n => patch({ simpleLabour: { ...sl, billable_pct: n } })} />
+        </SettingRow>
+      </div>
     </>
   );
 }
 
 // ── Step 2 · Business costs ─────────────────────────────────────────────
-export function BusinessStep({ s, patch, calc, showToggle, revealAll, xeroConnected }: StepBodyProps) {
+export function BusinessStep({ s, patch, calc, showToggle, xeroConnected }: StepBodyProps) {
   const sb = s.simpleBusiness;
   const onXero = s.costsSource === "xero";
   const entered = (sb.months || []).some(m => m > 0);
-  const questions: StackQuestion[] = [
-    {
-      id: "overheads",
-      title: "What did the business spend on overheads over the last 3 months?",
-      hint: "Rent, insurance, software, phones, accounting — not wages or vehicles, they have their own steps",
-      answered: entered,
-      body: (
-        <>
-          <MonthInputs months={sb.months} onChange={m => patch({ simpleBusiness: { ...sb, months: m } })} />
-          {/* One-way seed: the Xero snapshot already knows the overheads these
-              three boxes ask for. A suggestion the admin presses, never a
-              silent write — pricing keeps owning its inputs. */}
-          {!entered && s.xeroCosts && (
-            <button
-              className="rcx-add"
-              style={{ marginTop: 10 }}
-              onClick={() => {
-                const monthly = Math.round(snapshotTotal(s.xeroCosts) / 12);
-                patch({ simpleBusiness: { ...sb, months: [monthly, monthly, monthly] } });
-              }}
-            >
-              Seed from the Xero snapshot — about {money(Math.round(snapshotTotal(s.xeroCosts) / 12))} a month
-            </button>
-          )}
-          {entered && (
-            <div style={{ background: RC.installSoft, borderRadius: 14, padding: "13px 18px", marginTop: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div>
-                <WsEyebrow color={RC.install}>Projected overheads / yr</WsEyebrow>
-                <div style={{ fontSize: 12.5, color: RC.install, opacity: 0.85, marginTop: 3 }}>spread across every billable hour</div>
-              </div>
-              <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 26, letterSpacing: "-0.02em", color: RC.install }}>{money(calc.enteredBiz)}</div>
-            </div>
-          )}
-        </>
-      ),
-    },
-  ];
+  const monthly = Math.round(snapshotTotal(s.xeroCosts) / 12);
   return (
     <>
-      <StepHead eyebrow={`Step 2 of 5, ${onXero ? "From Xero" : s.mode.business}`} title="Business costs"
-        // The Simple/Detailed toggle is about how you TYPE costs in, so it has
+      <StepHead title="Business costs"
+        // Simple or Detailed is about how you TYPE costs in, so it has
         // nothing to say while Xero is the source.
         mode={showToggle && !onXero ? s.mode.business : undefined}
-        onMode={showToggle && !onXero ? (v => patch({ mode: { ...s.mode, business: v as EntryMode } })) : undefined} />
+        onMode={showToggle && !onXero ? (v => patch({ mode: { ...s.mode, business: v } })) : undefined} />
 
-      {/* The source switch. Shown whenever there is a choice to make: a grant
-          to switch onto, or a snapshot to walk away from. Hiding it while the
+      {/* The source. Shown whenever there is a choice to make: a grant to
+          switch onto, or a snapshot to walk away from. Hiding it while the
           source was "xero" and the grant was dead trapped the calculator on a
           frozen snapshot with no way back to manual — the audit's A8. */}
       {sourceSwitchVisible(!!xeroConnected, s.costsSource) && (
-        <div className="rcx-src">
-          <button className={`rcx-srcb${!onXero ? " on" : ""}`} onClick={() => patch({ costsSource: "manual" })}>
-            Enter them myself
-          </button>
-          <Tip label={xeroConnected ? null : "Xero isn't connected"}>
-            <button
-              className={`rcx-srcb${onXero ? " on" : ""}`}
-              onClick={() => patch(costsToXeroPatch(s))}
-              disabled={!xeroConnected}
-            >
-              Use figures from Xero
-            </button>
-          </Tip>
+        <div className="rc-src">
+          <Tray options={SOURCES} value={onXero ? "xero" : "manual"} ariaLabel="Where the costs come from"
+            onChange={v => {
+              if (v === "manual") patch({ costsSource: "manual" });
+              else if (xeroConnected) patch(costsToXeroPatch(s));
+            }} />
+          {!xeroConnected && !onXero && <span className="rc-note">Xero isn&apos;t connected</span>}
         </div>
       )}
-      {onXero && !xeroConnected && (
-        <p className="rcx-err">
-          Xero is disconnected, so these figures are a frozen snapshot and Refresh can&apos;t run.
-          Switch to &ldquo;Enter them myself&rdquo; to take over, or reconnect Xero in Admin →
-          Integrations.
-        </p>
-      )}
+      {onXero && !xeroConnected && <Disconnected />}
 
       {onXero ? (
-        <Body>
-          <XeroCostsPanel
-            s={s}
-            patch={patch}
-            onFetch={async (choice) =>
-              (await rateCalcActions()).fetchXeroBusinessCosts(choice)
-            }
-          />
-        </Body>
+        <XeroCostsPanel
+          s={s}
+          patch={patch}
+          onFetch={async (choice) =>
+            (await rateCalcActions()).fetchXeroBusinessCosts(choice)
+          }
+        />
       ) : s.mode.business === "Detailed" ? <BusinessDetail s={s} patch={patch} calc={calc} /> : (
-      <Body>
-        <WsHelpNote id="business-simple" style={{ marginBottom: 16 }}>Don&apos;t include wages or vehicle costs here — those live in their own steps, so nothing is double-counted.{showToggle && <> Switch to <b>Detailed</b> to itemise costs and choose whether each loads onto install, service, or both.</>}</WsHelpNote>
-        <QuestionStack questions={questions} revealAll={revealAll} />
-      </Body>
+        <div className="rc-q">
+          <h3>What did the business spend on overheads over the last 3 months?</h3>
+          <MonthFields months={sb.months} onChange={m => patch({ simpleBusiness: { ...sb, months: m } })} />
+          {/* One-way seed: the Xero snapshot already knows the overheads these
+              three ask for. A suggestion the admin presses, never a silent
+              write — pricing keeps owning its inputs. */}
+          {!entered && s.xeroCosts && (
+            <div className="rc-adds">
+              <Button kind="quiet" size={32} onClick={() => patch({ simpleBusiness: { ...sb, months: [monthly, monthly, monthly] } })}>
+                {`Use Xero's figures, about ${money(monthly)} a month`}
+              </Button>
+            </div>
+          )}
+          {entered && <Facts rows={[["Overheads a year", money(calc.enteredBiz)]]} />}
+        </div>
       )}
     </>
   );
 }
 
 // ── Step 3 · Vehicles ───────────────────────────────────────────────────
-export function VehiclesStep({ s, patch, calc, showToggle, revealAll, xeroConnected }: StepBodyProps) {
+const YES_NO = [
+  { value: "yes", label: "Yes" },
+  { value: "no", label: "No vehicles" },
+] as const;
+
+export function VehiclesStep({ s, patch, calc, showToggle, xeroConnected }: StepBodyProps) {
   const sv = s.simpleVehicle;
   const fleetTotal = calc.instVehicle + calc.svcVehicle + calc.adminVehicle;
   const hasCosts = fleetCosted(s);
   /* fleetOnXero, not the raw source: an explicit "no vehicles" must win the
      render, or a legacy row could show the Xero panel with the source switch
-     hidden (it hides under noVehicles) and no way back to the q1 card. */
+     hidden (it hides under noVehicles) and no way back to the question. */
   const onXeroFleet = fleetOnXero(s);
-  // Local "yes we run vehicles" choice; derived yes once costs exist, so a
-  // returning user with a costed fleet sees the whole stack answered.
+  // Local "yes we run vehicles"; a yes once costs exist, so a returning user
+  // with a costed fleet sees the question answered.
   const [saidYes, setSaidYes] = React.useState(hasCosts);
-  const runsVehicles = saidYes || hasCosts;
-
-  const choiceBtn = (active: boolean): React.CSSProperties => ({
-    flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 9, height: 52,
-    borderRadius: 13, cursor: "pointer", fontFamily: RC.head, fontWeight: 700, fontSize: 14,
-    border: active ? `1.5px solid ${RC.install}` : `1px solid ${RC.lineStrong}`,
-    background: active ? RC.installSoft : "#fff", color: active ? RC.install : RC.ink2,
-    boxShadow: active ? "none" : "0 1px 2px rgba(10,12,20,.04)", transition: "all .2s",
-  });
-
-  const q1: StackQuestion = {
-    id: "have-vehicles",
-    title: "Do you run vehicles for the business?",
-    hint: "Utes, vans, trucks — anything the business pays to keep on the road",
-    answered: s.noVehicles || runsVehicles,
-    hideNext: true, // the Yes choice advances the stack itself
-    body: (advance: () => void) => s.noVehicles ? (
-      <div style={{ display: "flex", alignItems: "center", gap: 14, background: RC.serviceSoft, borderRadius: 13, padding: "13px 16px" }}>
-        <span style={{ width: 38, height: 38, borderRadius: 11, background: "#fff", color: RC.service, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><RcIcon name="truck" size={19} /></span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 14, color: "#17703A" }}>No vehicles</div>
-          <div style={{ fontSize: 12, color: "#17703A", opacity: 0.85, marginTop: 1 }}>Your rates carry no vehicle recovery. You can add fleet costs any time.</div>
-        </div>
-        <button className="rca-btn ghost sm" onClick={() => { setSaidYes(false); patch({ noVehicles: false }); }}>I do have vehicles</button>
-      </div>
-    ) : (
-      <div style={{ display: "flex", gap: 12 }}>
-        <button style={choiceBtn(runsVehicles)} onClick={() => { setSaidYes(true); if (s.noVehicles) patch({ noVehicles: false }); advance(); }}>
-          <RcIcon name="truck" size={17} /> Yes — we run vehicles
-        </button>
-        <button style={choiceBtn(false)} onClick={() => { setSaidYes(false); patch({ noVehicles: true, simpleVehicle: { ...sv, months: [0, 0, 0] } }); }}>
-          No vehicles
-        </button>
-      </div>
-    ),
-  };
-
-  const q2: StackQuestion = {
-    id: "fleet-costs",
-    title: "What did the fleet cost to run over the last 3 months?",
-    hint: "Fuel, servicing, rego, insurance, tolls — across all vehicles combined",
-    answered: hasCosts,
-    body: (
-      <>
-        <MonthInputs months={sv.months} onChange={m => patch({ simpleVehicle: { ...sv, months: m } })} />
-        {hasCosts && (
-          <div style={{ background: RC.serviceSoft, borderRadius: 14, padding: "13px 18px", marginTop: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div>
-              <WsEyebrow color={RC.service}>Projected fleet cost / yr</WsEyebrow>
-              <div style={{ fontSize: 12.5, color: RC.service, opacity: 0.85, marginTop: 3 }}>split by each driver&apos;s install / service mix</div>
-            </div>
-            <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 26, letterSpacing: "-0.02em", color: RC.service }}>{money(fleetTotal)}</div>
-          </div>
-        )}
-        {s.vehicles.length > 0 && (
-          <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
-            {s.vehicles.map(v => (
-              <div key={v.vehicle_id} style={{ flex: 1, background: RC.card2, borderRadius: 13, border: `1px solid ${RC.line}`, padding: "12px 15px", display: "flex", alignItems: "center", gap: 11 }}>
-                <span style={{ width: 34, height: 34, borderRadius: 10, background: RC.installSoft, color: RC.install, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><RcIcon name="truck" size={17} /></span>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 13.5, letterSpacing: "-0.01em", color: RC.ink, whiteSpace: "nowrap" }}>{v.vehicle_name}, {v.rego_number}</div>
-                  <div style={{ fontSize: 11.5, color: RC.faint }}>{v.allocation}, driver: {s.staff.find(p => p.id === v.assigned_driver_id)?.name || "Unassigned"}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </>
-    ),
-  };
-
-  // Saying "No" collapses the stack to the single answered question.
-  const questions = s.noVehicles ? [q1] : runsVehicles ? [q1, q2] : [q1];
+  // A fleet on Xero, or one being costed vehicle by vehicle, is a yes too.
+  const runsVehicles = saidYes || hasCosts || onXeroFleet || s.mode.vehicles === "Detailed";
+  const answer = s.noVehicles ? "no" : runsVehicles ? "yes" : null;
+  const xeroOffered = !!xeroConnected || !!s.xeroCosts;
 
   return (
     <>
-      <StepHead eyebrow={`Step 3 of 5, ${onXeroFleet ? "From Xero" : s.mode.vehicles}`} title="Vehicles"
-        /* The Simple/Detailed toggle is about how you TYPE a fleet cost in, so
-           it has nothing to say while Xero is the source — same rule the
-           Business step follows. */
+      <StepHead title="Vehicles"
+        /* Simple or Detailed is about how you TYPE a fleet cost in, so it
+           has nothing to say while Xero is the source — the Business step's
+           rule. */
         mode={showToggle && !onXeroFleet ? s.mode.vehicles : undefined}
-        onMode={showToggle && !onXeroFleet ? (val => patch({ mode: { ...s.mode, vehicles: val as EntryMode } })) : undefined} />
+        onMode={showToggle && !onXeroFleet ? (v => patch({ mode: { ...s.mode, vehicles: v } })) : undefined} />
 
-      {/* Shown whenever there's a choice to make — a grant to switch onto, or a
-          snapshot to walk away from. Hiding it on disconnect would strand the
-          step on a frozen figure with no way back, which is the trap the
-          Business step's source switch was fixed for. */}
-      {!s.noVehicles && sourceSwitchVisible(!!xeroConnected, s.vehicleSource) && (
-        <div className="rcx-src">
-          <button className={`rcx-srcb${!onXeroFleet ? " on" : ""}`} onClick={() => patch({ vehicleSource: "manual" })}>
-            Enter them myself
-          </button>
-          <Tip label={xeroConnected || s.xeroCosts ? null : "Xero isn't connected"}>
-            <button
-              className={`rcx-srcb${onXeroFleet ? " on" : ""}`}
-              onClick={() => patch({ vehicleSource: "xero" })}
-              disabled={!xeroConnected && !s.xeroCosts}
-            >
-              Use figures from Xero
-            </button>
-          </Tip>
+      <div className="rc-q">
+        <div className="rc-qhead">
+          <h3>Do you run vehicles for the business?</h3>
+          <Tray options={YES_NO} value={answer as "yes" | "no"} ariaLabel="Do you run vehicles"
+            onChange={v => {
+              if (v === "yes") { setSaidYes(true); if (s.noVehicles) patch({ noVehicles: false }); }
+              else { setSaidYes(false); patch({ noVehicles: true, simpleVehicle: { ...sv, months: [0, 0, 0] } }); }
+            }} />
+        </div>
+        {s.noVehicles && <p className="rc-note">Your rates carry no vehicle cost.</p>}
+      </div>
+
+      {/* Shown whenever there's a choice to make — a grant to switch onto, or
+          a snapshot to walk away from: the trap the Business step's source
+          switch was fixed for. */}
+      {!s.noVehicles && runsVehicles && sourceSwitchVisible(!!xeroConnected, s.vehicleSource) && (
+        <div className="rc-src">
+          <Tray options={SOURCES} value={onXeroFleet ? "xero" : "manual"} ariaLabel="Where the fleet costs come from"
+            onChange={v => {
+              if (v === "manual") patch({ vehicleSource: "manual" });
+              else if (xeroOffered) patch({ vehicleSource: "xero" });
+            }} />
+          {!xeroOffered && <span className="rc-note">Xero isn&apos;t connected</span>}
         </div>
       )}
-      {onXeroFleet && !xeroConnected && (
-        <p className="rcx-err">
-          Xero is disconnected, so this is a frozen snapshot and Refresh can&apos;t run. Switch to
-          &ldquo;Enter them myself&rdquo; to take over, or reconnect Xero in Admin → Integrations.
-        </p>
-      )}
+      {onXeroFleet && !xeroConnected && <Disconnected />}
 
-      {/* The one combination where a dollar can be doubled and another dropped
-          in the same breath. Reached only by deliberately switching off Xero
-          here after the pull put the fleet on it, so it names both halves
-          rather than nagging. */}
+      {/* The one combination where a dollar can be doubled and another
+          dropped in the same breath: reached only by switching off Xero here
+          after the pull put the fleet on it, so it names both halves. */}
       {!s.noVehicles && fleetSourceMixed(s) && (
-        <div className="rcx-part" style={{ marginTop: 14 }}>
-          <b>Your business costs come from Xero but your fleet doesn&apos;t</b>
-          <em>
-            Two things to watch. Xero&apos;s vehicle lines have been taken out of your business
-            costs, so unless you enter them below they&apos;re in no pool at all. And your{" "}
-            <b>Insurance</b> and <b>Depreciation</b> accounts stay in business costs — don&apos;t
-            enter those here as well.
-          </em>
-          <button className="rcx-add" onClick={() => patch({ vehicleSource: "xero" })}>
-            Use Xero for the fleet too
-          </button>
+        <div className="rc-say">
+          <StateWord tone="look">Business costs come from Xero, the fleet doesn&apos;t</StateWord>
+          <p>Xero&apos;s vehicle lines left your business costs, so enter them below or they count nowhere. Your Insurance and Depreciation accounts stay in business costs: don&apos;t enter those here as well.</p>
+          <Button size={32} onClick={() => patch({ vehicleSource: "xero" })}>Use Xero for the fleet too</Button>
         </div>
       )}
 
-      {onXeroFleet ? (
-        <Body>
-          <XeroFleetPanel
-            s={s}
-            patch={patch}
-            onFetch={async (choice) =>
-              (await rateCalcActions()).fetchXeroBusinessCosts(choice)
-            }
-          />
-        </Body>
+      {s.noVehicles || !runsVehicles ? null : onXeroFleet ? (
+        <XeroFleetPanel
+          s={s}
+          patch={patch}
+          onFetch={async (choice) =>
+            (await rateCalcActions()).fetchXeroBusinessCosts(choice)
+          }
+        />
       ) : s.mode.vehicles === "Detailed" ? <VehiclesDetail s={s} patch={patch} calc={calc} /> : (
-      <Body>
-        <WsHelpNote id="vehicles-simple" style={{ marginBottom: 16 }}>Vehicle costs load onto the rate for the work each driver does — so the fleet is recovered through your charged hours.{showToggle && <> <b>Detailed</b> mode costs each vehicle individually (replacement cycle, fuel, rego, fit-out).</>}</WsHelpNote>
-        <QuestionStack key={questions.length} questions={questions} revealAll={revealAll} />
-      </Body>
+        <div className="rc-q">
+          <h3>What did the fleet cost to run over the last 3 months?</h3>
+          <MonthFields months={sv.months} onChange={m => patch({ simpleVehicle: { ...sv, months: m } })} />
+          {hasCosts && <Facts rows={[["Fleet a year", money(fleetTotal)]]} />}
+          {s.vehicles.length > 0 && (
+            <ul className="rc-list">
+              {s.vehicles.map(v => (
+                <li key={v.vehicle_id}>
+                  <span className="rc-list-w">
+                    <b>{v.vehicle_name}, {v.rego_number}</b>
+                    <span>{s.staff.find(p => p.id === v.assigned_driver_id)?.name ?? "Nobody assigned"}, {v.allocation}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </>
   );
 }
 
 // ── Step 4 · HVAC risk ──────────────────────────────────────────────────
-// One full-width row per rate. Both rows share the same left edge and the
-// same dollar scale (barMax), so the bars line up and compare directly:
-// solid = base cost per hour, striped = the risk buffer added on top.
-function RiskBar({ label, c, soft, be, m, barMax }: {
-  label: string; c: string; soft: string; be: number | null; m: number; barMax: number;
-}) {
-  if (be == null) return <div style={{ fontSize: 12.5, color: RC.faint }}>{label}: — (complete earlier steps)</div>;
-  const base = be / m, add = be - base;
-  const stripe = `repeating-linear-gradient(135deg, ${soft} 0 5px, #fff 5px 8px)`;
+/** One rate's break-even, as the cost an hour and the buffer on top. */
+function Buffer({ label, hue, be, m }: { label: string; hue: "purple" | "pink"; be: number | null; m: number }) {
+  if (be == null) return null;
+  const base = be / m;
+  const add = be - base;
   return (
-    <div>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 6 }}>
-        <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: RC.ink, fontWeight: 700, flexShrink: 0 }}>
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: c }} />{label}
-        </span>
-        <span style={{ fontSize: 12, color: RC.faint, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-          base <b style={{ color: RC.ink2 }}>${Math.round(base)}</b> + buffer <b style={{ color: RC.ink2 }}>${Math.round(add)}</b> {"→"} <b style={{ fontFamily: RC.head, fontSize: 13.5, color: c }}>${Math.round(be)}</b> break-even
-        </span>
-      </div>
-      <div style={{ display: "flex", height: 16, borderRadius: 8, overflow: "hidden", background: RC.card2 }}>
-        <div style={{ width: `${(base / barMax) * 100}%`, background: c, transition: "width .2s" }} />
-        <div style={{ width: `${(add / barMax) * 100}%`, background: stripe, borderLeft: `2px solid #fff`, boxShadow: `inset 0 0 0 1px ${soft}`, transition: "width .2s" }} />
-      </div>
+    <div className="rc-hours">
+      <div className="rc-hours-l"><span>{label}</span><span>{rate0(base)} + {rate0(add)} = {rate0(be)} to break even</span></div>
+      <Bar parts={[
+        { name: "Cost an hour", share: base, hue, figure: rate0(base) },
+        { name: "Buffer", share: add, hue: "grey", figure: rate0(add) },
+      ]} />
     </div>
   );
 }
 
-function RiskLegend() {
-  return (
-    <div style={{ display: "flex", gap: 16, alignItems: "center", fontSize: 11.5, color: RC.label }}>
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-        <span style={{ width: 18, height: 9, borderRadius: 3, background: RC.ink2, opacity: 0.55 }} /> base cost per hour
-      </span>
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-        <span style={{ width: 18, height: 9, borderRadius: 3, background: `repeating-linear-gradient(135deg, ${RC.lineStrong} 0 4px, #fff 4px 7px)`, boxShadow: `inset 0 0 0 1px ${RC.lineStrong}` }} /> risk buffer added
-      </span>
-    </div>
-  );
-}
+const RISK_ITEMS: [string, keyof RiskSettings, string][] = [
+  ["Warranty", "warranty", "% on install"],
+  ["Defects", "defect", "% on install"],
+  ["Callbacks", "callback", "% on service"],
+  ["Fault-finding", "diagnostic", "% on service"],
+];
 
-export function RiskStep({ s, patch, calc, revealAll }: StepBodyProps) {
-  const set = (k: keyof RiskSettings, val: number) => patch({ risk: { ...s.risk, [k]: val } });
-  const items: [string, keyof RiskSettings, string, string][] = [
-    ["Warranty allowance", "warranty", RC.install, "Manufacturer warranty re-visits"],
-    ["Defect allowance", "defect", RC.install, "Rework on installs that fail"],
-    ["Callback allowance", "callback", RC.service, "Return visits on service jobs"],
-    ["Diagnostic downtime", "diagnostic", RC.service, "Fault-finding that isn't billable"],
-  ];
+export function RiskStep({ s, patch, calc }: StepBodyProps) {
   const iM = 1 + (s.risk.warranty + s.risk.defect) / 100;
   const sM = 1 + (s.risk.callback + s.risk.diagnostic) / 100;
-  const barMax = Math.max(160, Math.ceil((Math.max(calc.beInst || 0, calc.beSvc || 0) * 1.15) / 20) * 20);
-
-  const questions: StackQuestion[] = [
-    {
-      id: "risk-buffers",
-      title: "How much buffer for the unbillable realities of HVAC?",
-      hint: "Callbacks, warranty returns and diagnostic time — the defaults suit most firms, drag to match yours",
-      answered: true,
-      body: (
-        <>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            {items.map(([l, k, c, desc]) => (
-              <div key={k} style={{ background: RC.card2, borderRadius: 14, border: `1px solid ${RC.line}`, padding: "14px 16px" }}>
-                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
-                  <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 13.5, letterSpacing: "-0.01em", color: RC.ink, whiteSpace: "nowrap" }}>{l}</span>
-                  <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 21, color: c }}>{s.risk[k]}%</span>
-                </div>
-                <div style={{ fontSize: 12, color: RC.faint, marginTop: 3, marginBottom: 14 }}>{desc}</div>
-                <WsSlider value={s.risk[k]} min={0} max={10} onChange={val => set(k, val)} color={c} />
-              </div>
-            ))}
-          </div>
-          <div style={{ background: RC.card2, borderRadius: 14, border: `1px solid ${RC.line}`, padding: "16px 18px", marginTop: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <WsEyebrow>How the buffer shapes your break-even</WsEyebrow>
-              <span style={{ fontSize: 12, color: RC.faint }}>Install +{s.risk.warranty + s.risk.defect}% · Service +{s.risk.callback + s.risk.diagnostic}%</span>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <RiskBar label="Install" c={RC.install} soft={RC.installSoft} be={calc.beInst} m={iM} barMax={barMax} />
-              <RiskBar label="Service" c={RC.service} soft={RC.serviceSoft} be={calc.beSvc} m={sM} barMax={barMax} />
-              <RiskLegend />
-            </div>
-          </div>
-        </>
-      ),
-    },
-  ];
-
   return (
     <>
-      <StepHead eyebrow="Step 4 of 5" title="HVAC risk buffer" />
-      <Body>
-        <QuestionStack questions={questions} revealAll={revealAll} stageFromTop={!revealAll} />
-        <Note>Defaults: Warranty 3%, Defect 2%, Callback 4%, Diagnostic 3%. Most HVAC firms run 6–10% combined across install and service.</Note>
-      </Body>
+      <StepHead title="HVAC risk" />
+      <div className="rc-q">
+        <h3>How much buffer for the work nobody pays for?</h3>
+        <div>
+          {RISK_ITEMS.map(([name, k, unit]) => (
+            <SettingRow key={k} name={name}>
+              <Amount label={name} unit={unit} value={s.risk[k]} clamp={between(0, 25)} onChange={n => patch({ risk: { ...s.risk, [k]: n } })} />
+            </SettingRow>
+          ))}
+        </div>
+      </div>
+      {calc.beInst != null && calc.beSvc != null && (
+        <div className="rc-q">
+          <h3>What the buffer adds</h3>
+          <Buffer label="Install" hue="purple" be={calc.beInst} m={iM} />
+          <Buffer label="Service" hue="pink" be={calc.beSvc} m={sM} />
+        </div>
+      )}
     </>
   );
 }
 
 // ── Step 5 · Profit target ──────────────────────────────────────────────
-export function ProfitStep({ s, patch, calc, revealAll }: StepBodyProps) {
-  const mults: [string, keyof Multipliers, number | null][] = [
-    ["After-hours", "afterHours", calc.afterHrs],
-    ["Emergency", "emergency", calc.emergency],
-  ];
+const MULTS: [string, keyof Multipliers][] = [
+  ["After hours", "afterHours"],
+  ["Emergency", "emergency"],
+];
 
-  const questions: StackQuestion[] = [
-    {
-      id: "margin",
-      title: "What profit margin are you targeting?",
-      hint: "Profit left after every cost is covered — rate = break-even ÷ (1 − margin). 20% is a healthy target",
-      answered: true,
-      body: (
-        <>
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
-            <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 26, color: RC.install }}>{s.profit.margin}%</span>
-          </div>
-          <WsSlider value={s.profit.margin} min={0} max={40} onChange={v => patch({ profit: { ...s.profit, margin: v } })} color={RC.install} />
-        </>
-      ),
-    },
-    {
-      id: "multipliers",
-      title: "Premium-time multipliers",
-      hint: "After-hours and emergency rates scale off your service rate",
-      answered: true,
-      body: (
-        <div style={{ display: "flex", gap: 12 }}>
-          {mults.map(([l, k, val]) => (
-            <div key={k} style={{ flex: 1, background: RC.card2, borderRadius: 14, border: `1px solid ${RC.line}`, padding: "14px 16px" }}>
-              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 13.5, color: RC.ink, fontWeight: 700, whiteSpace: "nowrap" }}>{l}</span>
-                <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 17, color: RC.violet }}>{s.multipliers[k].toFixed(2)}×</span>
-              </div>
-              <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 27, letterSpacing: "-0.02em", color: RC.ink, margin: "6px 0 12px" }}>{rate0(val)}<span style={{ fontSize: 13, color: RC.faint, fontWeight: 600, letterSpacing: 0 }}>/hr</span></div>
-              <WsSlider value={s.multipliers[k]} min={1} max={3} step={0.05} onChange={v => patch({ multipliers: { ...s.multipliers, [k]: v } })} color={RC.violet} />
-            </div>
-          ))}
-        </div>
-      ),
-    },
-    {
-      id: "cost-increase",
-      title: "Annual cost increase",
-      hint: "How much you expect wages and costs to rise each year — feeds the next-year projection",
-      answered: true,
-      body: (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
-          <div style={{ fontSize: 12.5, color: RC.faint }}>Next-year projection: install {rate0(calc.projInst)}, service {rate0(calc.projSvc)}</div>
-          <StepperRow value={s.profit.costIncrease ?? 3} display={`${s.profit.costIncrease ?? 3}%`} minWidth={52}
-            onMinus={() => patch({ profit: { ...s.profit, costIncrease: Math.max(0, (s.profit.costIncrease ?? 3) - 1) } })}
-            onPlus={() => patch({ profit: { ...s.profit, costIncrease: (s.profit.costIncrease ?? 3) + 1 } })} />
-        </div>
-      ),
-    },
-  ];
+/** A multiplier to two places, between 1 and 3. */
+const multiplier = (n: number) => Math.max(1, Math.min(3, Math.round(n * 100) / 100));
 
+export function ProfitStep({ s, patch, calc }: StepBodyProps) {
+  const figure = (k: keyof Multipliers) => (k === "afterHours" ? calc.afterHrs : calc.emergency);
   return (
     <>
-      <StepHead eyebrow="Step 5 of 5" title="Profit target" />
-      <Body>
-        <QuestionStack questions={questions} revealAll={revealAll} stageFromTop={!revealAll} />
-        <Note>You&apos;re on the last step — continue to see your full results and apply the new rates.</Note>
-      </Body>
+      <StepHead title="Profit target" />
+      <div className="rc-q">
+        <SettingRow name="Profit margin">
+          <Amount label="Profit margin" unit="%" value={s.profit.margin} clamp={between(0, 60)} onChange={n => patch({ profit: { ...s.profit, margin: n } })} />
+        </SettingRow>
+      </div>
+      <div className="rc-q">
+        <h3>Out of hours</h3>
+        <div>
+          {MULTS.map(([name, k]) => (
+            <SettingRow key={k} name={name}>
+              <Amount label={`${name}, times service`} unit={`× service${figure(k) != null ? `, ${rate0(figure(k))}` : ""}`}
+                value={s.multipliers[k]} clamp={multiplier} onChange={n => patch({ multipliers: { ...s.multipliers, [k]: n } })} />
+            </SettingRow>
+          ))}
+        </div>
+      </div>
+      <div className="rc-q">
+        <SettingRow name="Costs rise each year by"
+          line={calc.projInst != null && calc.projSvc != null ? `Next year: install ${rate0(calc.projInst)}, service ${rate0(calc.projSvc)}` : undefined}>
+          <Amount label="Costs rise each year by" unit="%" value={s.profit.costIncrease ?? 3} clamp={between(0, 20)}
+            onChange={n => patch({ profit: { ...s.profit, costIncrease: n } })} />
+        </SettingRow>
+      </div>
     </>
   );
-}
-
-/* A Tooltip only when there is something to say: why Xero's figures are off. */
-function Tip({ label, children }: { label: string | null; children: React.ReactElement<{ "aria-describedby"?: string }> }) {
-  return label ? <Tooltip label={label}>{children}</Tooltip> : children;
 }

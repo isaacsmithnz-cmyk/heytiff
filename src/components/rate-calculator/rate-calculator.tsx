@@ -1,13 +1,14 @@
 "use client";
 
-/* Rate Calculator workspace — HeyTiff admin.
-   Three-pane layout: setup rail · step body · live rates rail. State mirrors
-   the engine's documented shape exactly; every number comes from runEngine.
+/* THE RATE CALCULATOR (v2, 27 October 2026, on his mock). Its five steps
+   down the left, the step in the middle, Your rates on the right as you
+   type; then Your rates and Insights across the width. Every number comes
+   from runEngine; nothing here works one out.
 
    The outer <RateCalculator> owns persistence (debounced org-scoped save via
-   server action, localStorage crash buffer) and the example-data mode; the
-   inner <CalculatorApp> is the calculator itself and is remounted (key) when
-   switching between real and example data so all view state resets. */
+   server action, localStorage crash buffer); the inner <CalculatorApp> is the
+   calculator itself and is remounted (key) after Start fresh so all view
+   state resets. */
 
 import React from "react";
 import "./rate-calculator.css";
@@ -22,22 +23,21 @@ import {
   timesheetWeeks,
   type RateCalcState,
 } from "./state";
-import { RC } from "./theme";
-import { money, rate0, gstOf } from "./format";
-import { parseRate, RcIcon, WsEyebrow } from "./ui";
-import { Button } from "@/components/parts/button";
-import { LinkButton } from "@/components/parts/button";
+import { listed, money, rate0, gstOf } from "./format";
+import { parseRate } from "./ui";
+import { Button, LinkButton } from "@/components/parts/button";
+import { Dialog } from "@/components/parts/dialog";
+import { Field, TextInput } from "@/components/parts/field";
 import { StateWord, type Tone } from "@/components/parts/state";
-import { SectionTitle } from "@/components/settings/parts";
+import { StaffStep, BusinessStep, VehiclesStep, RiskStep, ProfitStep } from "./steps";
+import { YourRates } from "./overview";
+import { InsightsView } from "./insights";
+import { HelpDialog } from "./help-modal";
+import { SettingsDialog } from "./settings-panel";
+import { ReviewDue } from "./notif-banner";
 
 /** The engine's health, as a state word (rule 17). */
 const HEALTH_TONE: Record<string, Tone> = { danger: "wrong", warning: "look", success: "good", neutral: "info" };
-import { StaffStep, BusinessStep, VehiclesStep, RiskStep, ProfitStep } from "./steps";
-import { Overview } from "./overview";
-import { InsightsView } from "./insights";
-import { HelpModal } from "./help-modal";
-import { SettingsPanel } from "./settings-panel";
-import { NotifBanner } from "./notif-banner";
 
 // Lazy-load the server action module so importing this component never drags
 // the auth0 runtime into client bundles/tests (studio.tsx pattern).
@@ -112,203 +112,187 @@ const noBufferOnServer = () => NO_BUFFER;
 const RETIRED_EXAMPLE_ORG = "Blue Sky Air Conditioning";
 
 const STEP_META = [
-  { key: "staff", title: "Staff & wages" },
+  { key: "staff", title: "Staff and wages" },
   { key: "business", title: "Business costs" },
   { key: "vehicles", title: "Vehicles" },
   { key: "risk", title: "HVAC risk" },
   { key: "profit", title: "Profit target" },
 ] as const;
 
-// step summary lines (engine-derived)
+/** What a step comes to, for its line in the path: a figure, never a
+    description, and nothing at all until the step has been started. */
 function stepSummary(key: string, s: RateCalcState, calc: CalcResult): string {
   switch (key) {
-    case "staff": return `${s.mode.staff === "Simple" ? (s.simpleLabour.staff_count || s.staff.length) : s.staff.length} staff, ${money(calc.instLab + calc.svcLab + calc.adminLab)}/yr`;
-    case "business": return `${money(calc.enteredBiz)}/yr overheads`;
-    case "vehicles": return `${s.vehicles.length} vehicles, ${money(calc.instVehicle + calc.svcVehicle + calc.adminVehicle)}/yr`;
-    case "risk": return `Install ${s.risk.warranty + s.risk.defect}%, Service ${s.risk.callback + s.risk.diagnostic}%`;
+    case "staff": {
+      const n = s.mode.staff === "Simple" ? (s.simpleLabour.staff_count || s.staff.length) : s.staff.length;
+      return `${n} staff, ${money(calc.instLab + calc.svcLab + calc.adminLab)} a year`;
+    }
+    case "business": return `${money(calc.enteredBiz)} a year`;
+    case "vehicles": {
+      if (s.noVehicles) return "No vehicles";
+      const n = s.vehicles.length;
+      const fleet = money(calc.instVehicle + calc.svcVehicle + calc.adminVehicle);
+      return n > 0 ? `${n} vehicle${n === 1 ? "" : "s"}, ${fleet} a year` : `${fleet} a year`;
+    }
+    case "risk": return `Install ${s.risk.warranty + s.risk.defect}%, service ${s.risk.callback + s.risk.diagnostic}%`;
     case "profit": return `${s.profit.margin}% margin`;
     default: return "";
   }
 }
 
-// completion → rail node visuals. Solid teal ✓ = data entered (complete /
-// customised); outlined teal ✓ = running on sensible defaults (a valid
-// choice, still "done"); blue = editing now / in progress; gray = untouched.
-function nodeStyle(completion: string, cur: boolean) {
-  if (cur) return { bg: RC.install, border: "none", fg: "#fff", icon: null };
-  if (completion === "complete" || completion === "customised") return { bg: RC.service, border: "none", fg: "#fff", icon: "✓" };
-  if (completion === "defaults") return { bg: "#fff", border: `2px solid ${RC.service}`, fg: RC.service, icon: "✓" };
-  if (completion === "in_progress") return { bg: RC.installSoft, border: `2px solid ${RC.install}`, fg: RC.install, icon: null };
-  return { bg: "#fff", border: `2px solid ${RC.lineStrong}`, fg: RC.faint, icon: null };
+const TICK = (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="m4 8.5 2.5 2.5L12 5.5" />
+  </svg>
+);
+
+/* THE PATH. The way back to Quoting, the five steps with what each comes
+   to, then Your rates and Insights, which open once every step is done.
+   The step you are on is outlined in ink (rule 10, as a tab you are on);
+   a step with your figures in it wears a tick in green's word value, and
+   one running on the defaults a grey tick, since grey is for your
+   information (rule 17). No step is ever a black disc (rule 22). */
+function Path({ step, completions, s, calc, allDone, go }: {
+  step: number; completions: string[]; s: RateCalcState; calc: CalcResult; allDone: boolean; go: (n: number) => void;
+}) {
+  return (
+    <nav className="rc-path" aria-label="Rate calculator">
+      <LinkButton href="/dashboard/admin/quoting" className="rc-back">Back to Quoting</LinkButton>
+      <p className="rc-head">Set up</p>
+      {STEP_META.map((m, i) => {
+        const comp = completions[i];
+        const cur = i === step;
+        const done = comp === "complete" || comp === "customised";
+        const dflt = comp === "defaults";
+        const cls = ["rc-node", done ? "is-done" : dflt ? "is-dflt" : ""].filter(Boolean).join(" ");
+        return (
+          <button key={m.key} type="button" className={cls} aria-current={cur ? "step" : undefined} onClick={() => go(i)}>
+            <span className="rc-mark" aria-hidden="true">{(done || dflt) && !cur ? TICK : i + 1}</span>
+            <span className="rc-node-w">
+              <b>{m.title}</b>
+              {comp !== "not_started" && <span>{stepSummary(m.key, s, calc)}{dflt ? ", the usual" : ""}</span>}
+            </span>
+          </button>
+        );
+      })}
+      <p className="rc-head">Then</p>
+      {([["Your rates", 5], ["Insights", 6]] as const).map(([name, n]) => (
+        <button key={name} type="button" className="rc-node is-out" aria-current={step === n ? "page" : undefined} disabled={!allDone} onClick={() => go(n)}>
+          <span className="rc-mark" aria-hidden="true" />
+          <span className="rc-node-w">
+            <b>{name}</b>
+            {!allDone && <span>Once the five steps are done</span>}
+          </span>
+        </button>
+      ))}
+    </nav>
+  );
 }
 
-// ── persistent live-rates rail ──────────────────────────────────────────
-// One card per rate, filled in its accent gradient (Install blue, Service
-// green): the recommended rate is the hero with GST on its baseline and
-// break-even pilled underneath, and what you charge today sits in the frosted
-// bar at the foot — editable in place, chipped with the gap to recommended.
-function RateCard({ label, k, rec, be, ready, currentRates, patch }: {
-  label: string; k: "install" | "service";
-  rec: number | null; be: number | null; ready: boolean;
+/** How far what you charge sits from what's recommended, as a state word. */
+function Gap({ rec, cur }: { rec: number | null; cur: number | null }) {
+  if (rec == null || cur == null) return null;
+  const diff = Math.round(rec) - cur;
+  if (diff > 0) return <StateWord tone="look">{`$${diff} under`}</StateWord>;
+  return <StateWord tone="good">{diff < 0 ? `$${-diff} above` : "On target"}</StateWord>;
+}
+
+function RateBlock({ label, k, rec, be, ready, currentRates, patch }: {
+  label: string; k: "install" | "service"; rec: number | null; be: number | null; ready: boolean;
   currentRates: RateCalcState["currentRates"]; patch: (p: Partial<RateCalcState>) => void;
 }) {
   const cur = currentRates[k];
-  const roundedRec = rec == null ? null : Math.round(rec);
-  // diff > 0 → recommended sits above what you charge (raise); <= 0 → healthy.
-  const diff = (roundedRec != null && cur != null) ? roundedRec - cur : null;
+  const shown = ready && rec != null;
   return (
-    <div className={`rca-rc ${k}`}>
-      <div className="rca-rc-eyebrow">{label}</div>
-      <div className="rca-rc-rec">Recommended</div>
-
-      {/* recommended — the hero */}
-      <div className="rca-rc-hero">
-        {!ready ? (
-            // Ghost of the real figure, so the card holds its shape and reads as
-            // an empty field rather than a missing one. The waiting line below
-            // carries the meaning, so this is decorative.
-            <span className="rca-rc-fig ghost" aria-hidden="true">
-              <span className="cur">$</span><span className="val">—</span><span className="unit">/hr</span>
-            </span>
-          )
-          : roundedRec == null ? <span className="rca-rc-dash">—</span>
-          : <>
-              <span className="rca-rc-fig"><span className="cur">$</span><span className="val">{roundedRec}</span><span className="unit">/hr</span></span>
-              <span className="rca-rc-gst">+ GST <b>{gstOf(rec)}</b></span>
-            </>}
-      </div>
-
-      {!ready ? <div className="rca-rc-wait rca-pulse">waiting for your numbers</div>
-        : be == null ? <div className="rca-rc-wait">awaiting inputs</div>
-        : <div className="rca-rc-be"><span className="k">Break-even</span><span className="v">{rate0(be)}<span className="u">/hr</span></span></div>}
-
-      <div className="rca-rc-rule" />
-
-      {/* what you charge today — the bar is the field, so clicking it types */}
-      <label className="rca-rc-now">
-        <span className="rca-rc-now-l">
-          <span className="rca-rc-now-lab">You currently charge</span>
-          <span className="rca-rc-now-val">
-            <span className="fix">$</span>
-            <input value={cur == null ? "" : String(cur)} inputMode="decimal" placeholder="0"
-              aria-label={`Current ${label.toLowerCase()} rate`}
-              style={{ width: `${Math.max(1, String(cur ?? "").length)}ch` }}
-              onChange={e => patch({ currentRates: { ...currentRates, [k]: parseRate(e.target.value) } })} />
-            <span className="fix">/hr</span>
-          </span>
+    <div className="rc-rate">
+      <div className="rc-rate-top"><span>{label}</span><b>{shown ? rate0(rec) : "—"}</b></div>
+      {shown && <div className="rc-line"><span>an hour, {gstOf(rec)} with GST</span></div>}
+      <div className="rc-line"><span>Breaks even at</span><b>{ready && be != null ? rate0(be) : "—"}</b></div>
+      <div className="rc-line">
+        <span className="rc-charge">
+          You charge
+          <TextInput
+            size={32}
+            inputMode="decimal"
+            className="rc-num"
+            aria-label={`Current ${label.toLowerCase()} rate`}
+            value={cur == null ? "" : String(cur)}
+            onChange={(e) => patch({ currentRates: { ...currentRates, [k]: parseRate(e.target.value) } })}
+          />
         </span>
-        {ready && diff != null && (diff > 0
-          ? <span className="rca-rc-chip up">↑ ${diff}/hr</span>
-          : <span className="rca-rc-chip ok">✓ {diff < 0 ? `$${-diff} above` : "on target"}</span>)}
-      </label>
+        {ready && <Gap rec={rec} cur={cur} />}
+      </div>
     </div>
   );
 }
 
-function RatesRail({ s, calc, uplift, ready, missing, patch }: {
+/* YOUR RATES, beside every step. A card, since what you charge is typed
+   into it (rule 35). Until the numbers are in it says what's missing and
+   nothing else (rule 40). */
+function RatesCard({ s, calc, uplift, ready, missing, patch }: {
   s: RateCalcState; calc: CalcResult; uplift: number | null; ready: boolean;
   missing: string[]; patch: (p: Partial<RateCalcState>) => void;
 }) {
   return (
-    <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", overflowY: "auto", overflowX: "hidden", scrollbarGutter: "stable", paddingTop: 14 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, padding: "0 2px" }}>
-        <WsEyebrow color={RC.label}>Your rates</WsEyebrow>
-        <span style={{ fontSize: 11.5, color: RC.faint, display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}><span className={ready ? undefined : "rca-pulse"} style={{ width: 6, height: 6, borderRadius: "50%", background: ready ? RC.teal : RC.install, boxShadow: ready ? `0 0 8px ${RC.teal}` : "none" }} />{ready ? "updates as you edit" : "awaiting inputs"}</span>
-      </div>
-      {!ready && (
-        <div style={{ background: "#fff", borderRadius: 13, border: `1px solid rgba(10,12,20,.06)`, padding: "13px 15px", marginBottom: 12, fontSize: 12.5, color: "#1D4FD7", lineHeight: 1.5 }}>
-          <b>Almost there.</b> To see your rates, enter {missing.length === 1 ? missing[0] : missing.slice(0, -1).join(", ") + " and " + missing[missing.length - 1]}.
-        </div>
-      )}
-      <RateCard label="Install" k="install" rec={calc.recInst} be={calc.beInst} ready={ready} currentRates={s.currentRates} patch={patch} />
-      <RateCard label="Service" k="service" rec={calc.recSvc} be={calc.beSvc} ready={ready} currentRates={s.currentRates} patch={patch} />
-      <div className="rca-rc-sum">
-        <div className="rca-rc-sumrow">
-          <span className="k">Day rate (full day)</span>
-          <span className="v day">{ready ? money(calc.daily) : "—"}</span>
-        </div>
-        <div className="rca-rc-sumrow">
-          <span className="k">After-hrs / emergency</span>
-          <span className="v after">{ready ? `${rate0(calc.afterHrs)} / ${rate0(calc.emergency)}` : "—"}</span>
-        </div>
-        <div className="rca-rc-sumrow">
-          <span className="k">Confidence</span>
-          <span className="v conf">{ready ? calc.confidence.label : "—"}</span>
-        </div>
-      </div>
-      {ready && uplift != null && uplift > 0 && (
-        <div style={{ marginTop: "auto", paddingTop: 16 }}>
-          <div style={{ background: RC.serviceSoft, borderRadius: 13, padding: "12px 15px", fontSize: 12.5, color: "#17703A", lineHeight: 1.5 }}>
-            Re-pricing to recommended recovers <b>+{money(uplift)}/yr</b>.
-          </div>
-        </div>
-      )}
-    </div>
+    <aside className="rc-card" aria-labelledby="rc-yours">
+      <h2 id="rc-yours">Your rates</h2>
+      {!ready && <p>To see your rates, enter {listed(missing)}.</p>}
+      <RateBlock label="Install" k="install" rec={calc.recInst} be={calc.beInst} ready={ready} currentRates={s.currentRates} patch={patch} />
+      <RateBlock label="Service" k="service" rec={calc.recSvc} be={calc.beSvc} ready={ready} currentRates={s.currentRates} patch={patch} />
+      <dl className="rc-rows">
+        <div><dt>A full day on site</dt><dd>{ready && calc.daily != null ? money(calc.daily) : "—"}</dd></div>
+        <div><dt>After hours, emergency</dt><dd>{ready ? `${rate0(calc.afterHrs)}, ${rate0(calc.emergency)}` : "—"}</dd></div>
+        <div><dt>How sure</dt><dd>{ready ? calc.confidence.label : "—"}</dd></div>
+      </dl>
+      {ready && uplift != null && uplift > 0 && <p>Charging these recovers <b>{money(uplift)}</b> a year.</p>}
+    </aside>
   );
 }
 
-// ── Current-rates onboarding (after the help modal, empty mode) ──────────
-// Overlay is position:absolute inside .rca — keep it that way (see help-modal).
-function RatesIntro({ s, patch, onDone }: {
+/* WHAT YOU CHARGE NOW, on the first visit (his mock's "First visit"). The
+   figures the gap words in Your rates are measured from. */
+function FirstRates({ s, patch, onDone }: {
   s: RateCalcState; patch: (p: Partial<RateCalcState>) => void; onDone: () => void;
 }) {
   const [inst, setInst] = React.useState(s.currentRates.install != null ? String(s.currentRates.install) : "");
   const [svc, setSvc] = React.useState(s.currentRates.service != null ? String(s.currentRates.service) : "");
   const save = () => {
-    const i = parseFloat(inst), v = parseFloat(svc);
-    patch({ currentRates: { install: isNaN(i) ? null : i, service: isNaN(v) ? null : v } });
+    patch({ currentRates: { install: parseRate(inst), service: parseRate(svc) } });
     onDone();
   };
   const skip = () => { patch({ currentRates: { install: null, service: null } }); onDone(); };
-  const fieldWrap: React.CSSProperties = { flex: 1 };
-  const labelRow: React.CSSProperties = { display: "flex", alignItems: "center", gap: 8, marginBottom: 8 };
-  const box: React.CSSProperties = { display: "flex", alignItems: "baseline", gap: 4, background: RC.card2, borderRadius: 12, padding: "13px 16px", border: `1px solid ${RC.lineStrong}` };
-  const inputStyle: React.CSSProperties = { border: "none", background: "transparent", outline: "none", fontFamily: RC.head, fontWeight: 700, fontSize: 30, letterSpacing: "-0.02em", color: RC.ink, width: "100%", padding: 0 };
   return (
-    <div style={{ position: "absolute", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: RC.body }}>
-      <div style={{ position: "absolute", inset: 0, background: "rgba(5,5,5,0.45)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }} />
-      <div style={{ position: "relative", width: 580, background: "#fff", borderRadius: 24, boxShadow: "0 40px 100px rgba(5,5,5,0.4)", overflow: "hidden" }}>
-        <div style={{ padding: "28px 34px 0" }}>
-          <WsEyebrow>Rate Calculator, Step 1</WsEyebrow>
-          <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 29, letterSpacing: "-0.03em", color: RC.ink, lineHeight: 1.1, marginTop: 12 }}>What do you charge right now?</div>
-          <div style={{ fontSize: 14, color: RC.ink2, lineHeight: 1.6, marginTop: 9 }}>
-            Enter your current hourly charge-out rates. This is the baseline we&apos;ll compare against — so you can see exactly where you stand versus what your costs say you should charge. You can change these any time.
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 16, padding: "22px 34px" }}>
-          <div style={fieldWrap}>
-            <div style={labelRow}>
-              <span style={{ width: 9, height: 9, borderRadius: "50%", background: RC.install }} />
-              <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 13, color: RC.ink }}>Install</span>
-            </div>
-            <div style={box}>
-              <span style={{ fontSize: 18, color: RC.faint }}>$</span>
-              <input value={inst} onChange={e => setInst(e.target.value.replace(/[^0-9.]/g, ""))} placeholder="0" inputMode="decimal" style={inputStyle} />
-              <span style={{ fontSize: 14, color: RC.faint, fontWeight: 600 }}>/hr</span>
-            </div>
-          </div>
-          <div style={fieldWrap}>
-            <div style={labelRow}>
-              <span style={{ width: 9, height: 9, borderRadius: "50%", background: RC.service }} />
-              <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 13, color: RC.ink }}>Service</span>
-            </div>
-            <div style={box}>
-              <span style={{ fontSize: 18, color: RC.faint }}>$</span>
-              <input value={svc} onChange={e => setSvc(e.target.value.replace(/[^0-9.]/g, ""))} placeholder="0" inputMode="decimal" style={inputStyle} />
-              <span style={{ fontSize: 14, color: RC.faint, fontWeight: 600 }}>/hr</span>
-            </div>
-          </div>
-        </div>
-        <div style={{ padding: "0 34px 26px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <button onClick={skip} style={{ border: "none", background: "transparent", color: RC.faint, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: RC.body, textDecoration: "underline" }}>I don&apos;t know yet — skip</button>
-          <button className="rca-btn primary lg" onClick={save}>Start setup</button>
-        </div>
+    <Dialog
+      heading="What do you charge right now?"
+      onClose={skip}
+      width={560}
+      foot={
+        <>
+          <Button onClick={skip}>I don&apos;t know yet</Button>
+          <Button kind="main" onClick={save}>Start</Button>
+        </>
+      }
+    >
+      <div className="rc-two-fields">
+        <Field label="Install, an hour">
+          <TextInput inputMode="decimal" className="rc-num" data-autofocus value={inst} onChange={(e) => setInst(e.target.value.replace(/[^0-9.]/g, ""))} />
+        </Field>
+        <Field label="Service, an hour">
+          <TextInput inputMode="decimal" className="rc-num" value={svc} onChange={(e) => setSvc(e.target.value.replace(/[^0-9.]/g, ""))} />
+        </Field>
       </div>
-    </div>
+    </Dialog>
   );
 }
 
 type SaveState = "idle" | "saving" | "saved" | "local";
+
+const SAVE_WORDS: Record<SaveState, string> = {
+  idle: "saves as you type",
+  saving: "saving",
+  saved: "saved",
+  local: "saved on this computer, trying again",
+};
 
 // ── Calculator app (remounted per data mode) ────────────────────────────
 function CalculatorApp({ initial, hasData, showOnboarding, onPersist, onReset, saveState, xeroConnected, superOwned = false }: {
@@ -320,36 +304,34 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, onReset, s
   onReset: () => Promise<boolean>;
   saveState: SaveState;
   xeroConnected?: boolean;
-  /** pay_settings holds a super rate — the panel shows it read-only. */
+  /** pay_settings holds a super rate — the settings show it read-only. */
   superOwned?: boolean;
 }) {
-  // Returning users with a complete setup land on Results (the review moment);
-  // first-run / incomplete data lands on Step 1. Example mode simulates a
-  // returning user.
+  // Returning users with a complete setup land on Your rates (the review
+  // moment); a first run or an unfinished setup lands on Step 1.
   const [step, setStep] = React.useState(() => {
     if (!hasData) return 0;
     const run = runEngine(initial);
     return run.ready && allStepsDone(run.steps) ? 5 : 0;
-  }); // 0–4 steps, 5 = overview, 6 = insights
-  // Onboarding chain (help → rates intro) runs once per fresh empty setup; a
-  // manual "?" reopen must NOT re-trigger the intro. "Don't show again" is
-  // remembered for the session via sessionStorage — read in an effect so the
-  // server prerender and first client render agree.
+  }); // 0–4 steps, 5 = your rates, 6 = insights
+  // Onboarding chain (How to use, then what you charge) runs once per fresh
+  // empty setup; reopening How to use must NOT re-trigger the second.
+  // "Don't show this again" is remembered for the session.
   const helpDismissed = React.useSyncExternalStore(
     noStorageSubscription,
     helpDismissedNow,
     helpNotDismissed
   );
-  /* Each is null until somebody acts on that modal; until then the chain says
-     where we are. Dismissed already ⇒ the help is skipped and the rates intro
-     is where a fresh setup lands. */
+  /* Each is null until somebody acts on that dialog; until then the chain says
+     where we are. Dismissed already ⇒ How to use is skipped and what you
+     charge is where a fresh setup lands. */
   const [helpOpen, setHelpOpen] = React.useState<boolean | null>(null);
   const [introOpen, setIntroOpen] = React.useState<boolean | null>(null);
   const [chainDone, setChainDone] = React.useState(false);
   const showHelp = helpOpen ?? (showOnboarding && !helpDismissed);
   const showRatesIntro = introOpen ?? (showOnboarding && helpDismissed);
   /* Still owed the intro — false once it has been handed over, and false from
-     the start when the help was dismissed before this screen opened. */
+     the start when How to use was dismissed before this screen opened. */
   const chainOwed = showOnboarding && !chainDone && !helpDismissed;
   const [showSettings, setShowSettings] = React.useState(false);
   const [showBanner, setShowBanner] = React.useState(true);
@@ -366,26 +348,15 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, onReset, s
     pushUp();
   }, [s]);
   const { calc, health, steps, uplift, ready, missing } = runEngine(s);
-  const overview = step === 5;
+  const results = step === 5;
   const insights = step === 6;
   const StepBody = [StaffStep, BusinessStep, VehiclesStep, RiskStep, ProfitStep][step] || StaffStep;
   const completions = [steps.staff.completion, steps.business.completion, steps.vehicles.completion, steps.risk.completion, steps.profit.completion];
-  // Counter shows only genuinely-entered steps (not default-valid ones): staff/
-  // business/vehicles when actually filled in, risk/profit only when customised.
-  const enteredCount = [
-    completions[0] === "complete",
-    completions[1] === "complete",
-    completions[2] === "complete",
-    // risk/profit: "defaults" only survives runEngine once explicitly
-    // accepted, so accepted-defaults and customised both count.
-    completions[3] === "customised" || completions[3] === "defaults",
-    completions[4] === "customised" || completions[4] === "defaults",
-  ].filter(Boolean).length;
   const allDone = allStepsDone(steps);
 
   // Continue doubles as acceptance on the defaults steps, and the final
-  // Continue only reaches Results when every step is done — otherwise it
-  // walks the user back to the first incomplete step.
+  // Continue only reaches Your rates when every step is done — otherwise it
+  // walks back to the first unfinished step.
   const onContinue = () => {
     if (step === 3 && !s.riskAccepted) patch({ riskAccepted: true });
     if (step === 4) {
@@ -402,11 +373,11 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, onReset, s
     setStep(step + 1);
   };
 
-  // Simple/Detailed toggles are hidden for the first-run session and return
-  // on later visits (hasData) — per step, only where Detailed has data it can
-  // actually edit: Staff needs ~3 months of timesheets, Vehicles needs
-  // vehicle records; Business is ungated. Gates control toggle VISIBILITY
-  // only — a state already saved in Detailed keeps rendering Detailed.
+  // Simple/Detailed is hidden for the first-run session and returns on later
+  // visits (hasData) — per step, only where Detailed has data it can actually
+  // edit: Staff needs ~3 months of timesheets, Vehicles needs vehicle
+  // records; Business is ungated. Gates decide whether the choice SHOWS only —
+  // a state already saved in Detailed keeps rendering Detailed.
   const allowToggles = hasData;
   const toggleGates = [
     allowToggles && timesheetWeeks(s) >= 12,
@@ -427,99 +398,44 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, onReset, s
     if (chainOwed) { setChainDone(true); setIntroOpen(true); }
   };
 
-  const saveLabel = saveState === "saving" ? "saving your numbers"
-    : saveState === "local" ? "saved locally — will retry"
-    : saveState === "saved" ? "saved"
-    : "saves automatically";
+  const allButProfitDone = completions.slice(0, 4).every(c => DONE_COMPLETIONS.includes(c));
 
   return (
-    <div className="rca">
-      {showHelp && <HelpModal onClose={onHelpClose} />}
-      {showRatesIntro && <RatesIntro s={s} patch={patch} onDone={() => setIntroOpen(false)} />}
-      {showSettings && <SettingsPanel st={s} patch={patch} onClose={() => setShowSettings(false)} onReset={onReset} superOwned={superOwned} />}
+    <div className="rc">
+      {showHelp && <HelpDialog onClose={onHelpClose} />}
+      {showRatesIntro && <FirstRates s={s} patch={patch} onDone={() => setIntroOpen(false)} />}
+      {showSettings && <SettingsDialog st={s} patch={patch} onClose={() => setShowSettings(false)} onReset={onReset} superOwned={superOwned} />}
 
-      {/* inside the Settings frame, under Quoting (25 October 2026): the way
-          back to Quoting as a link in ink above the title (rule 26), the
-          title, and on its right the health as a state word and the two
-          doors as words */}
-      <LinkButton href="/dashboard/admin/quoting" className="rca-back">
-        Back to Quoting
-      </LinkButton>
-      <SectionTitle
-        tools={
-          <>
-            <StateWord tone={HEALTH_TONE[health.type] ?? "info"}>{health.status}</StateWord>
-            <Button kind="quiet" onClick={() => setHelpOpen(true)}>
-              How to use
-            </Button>
-            <Button kind="second" icon="settings" onClick={() => setShowSettings(true)}>
-              Settings
-            </Button>
-          </>
-        }
-      >
-        Rate calculator
-      </SectionTitle>
+      <Path step={step} completions={completions} s={s} calc={calc} allDone={allDone} go={setStep} />
 
-      {showBanner && !overview && !insights && reviewDue && <NotifBanner daysSince={daysSince} message={s.reviewState.message || null} onReview={() => { setShowBanner(false); setStep(0); }} onDismiss={() => setShowBanner(false)} />}
-
-      <div style={{ flex: 1, display: "flex", minHeight: 0, gap: 16, padding: "12px 20px 20px" }}>
-        {/* setup path rail — floating card */}
-        <div style={{ width: 236, flexShrink: 0, background: "#fff", borderRadius: 18, border: `1px solid rgba(10,12,20,.06)`, boxShadow: "0 1px 2px rgba(10,12,20,.04), 0 20px 50px -30px rgba(10,12,20,.18)", padding: "18px 16px 16px", display: "flex", flexDirection: "column", overflow: "hidden auto" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-            <WsEyebrow color={RC.label}>Setup path</WsEyebrow>
-            <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 13, color: RC.ink }}>{enteredCount}<span style={{ color: RC.faint }}> / 5</span></span>
-          </div>
-          {STEP_META.map((m, i) => {
-            const cur = i === step && !overview && !insights;
-            const comp = completions[i];
-            const ns = nodeStyle(comp, cur);
-            const last = i === STEP_META.length - 1;
-            const lineDone = DONE_COMPLETIONS.includes(comp);
-            return (
-              <div key={m.key} className="rca-step" style={{ animationDelay: `${i * 60}ms` }} onClick={() => setStep(i)}>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 28 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: "50%", flexShrink: 0, background: ns.bg, border: ns.border, display: "flex", alignItems: "center", justifyContent: "center", color: ns.fg, fontFamily: RC.head, fontWeight: 700, fontSize: 13, boxShadow: cur ? `0 0 0 5px ${RC.installSoft}` : "none", transition: "all .2s" }}>{ns.icon || i + 1}</div>
-                  {!last && <div style={{ flex: 1, width: 2, background: lineDone ? RC.service : "#ECEEF1", minHeight: 24, transition: "background .2s" }} />}
-                </div>
-                <div style={{ flex: 1, paddingBottom: last ? 0 : 13, paddingTop: 3, opacity: lineDone || cur ? 1 : 0.65 }}>
-                  <div className="rca-step-t" style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 13.5, letterSpacing: "-0.01em", color: cur ? RC.install : RC.ink, whiteSpace: "nowrap", transition: "color .2s" }}>{m.title}</div>
-                  <div style={{ fontSize: 11, color: RC.faint, marginTop: 1, whiteSpace: "nowrap" }}>{stepSummary(m.key, s, calc)}</div>
-                  {cur && <div style={{ display: "inline-block", marginTop: 6, fontSize: 10.5, fontWeight: 700, color: RC.install, background: RC.installSoft, padding: "3px 9px", borderRadius: 100 }}>Editing now</div>}
-                  {!cur && comp === "defaults" && <div style={{ display: "inline-block", marginTop: 6, fontSize: 10.5, fontWeight: 600, color: RC.faint, background: RC.card2, padding: "3px 9px", borderRadius: 100 }}>Using defaults</div>}
-                </div>
-              </div>
-            );
-          })}
-          <div style={{ marginTop: "auto", paddingTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-            {allDone ? (
-              <>
-                <button className={"rca-railbtn" + (overview ? " on" : "")} onClick={() => setStep(5)}>View results <RcIcon name="arrowUR" size={13} /></button>
-                <button className={"rca-railbtn" + (insights ? " on" : "")} onClick={() => setStep(6)}>Insights <RcIcon name="activity" size={13} /></button>
-              </>
-            ) : (
-              <div style={{ fontSize: 11.5, color: RC.faint, lineHeight: 1.5, textAlign: "center", padding: "8px 6px", border: `1.5px dashed ${RC.lineStrong}`, borderRadius: 11 }}>
-                Complete all 5 steps to see your results
-              </div>
-            )}
-          </div>
+      <div className="rc-body">
+        <div className="rc-top">
+          <h1>Rate calculator</h1>
+          <StateWord tone={HEALTH_TONE[health.type] ?? "info"}>{health.status}</StateWord>
+          <Button kind="quiet" onClick={() => setHelpOpen(true)}>How to use</Button>
+          <Button kind="second" icon="settings" onClick={() => setShowSettings(true)}>Settings</Button>
         </div>
 
-        {/* main */}
-        {overview ? <Overview s={s} calc={calc} health={health} uplift={uplift} ready={ready} missing={missing} go={setStep} patch={patch} /> : insights ? <InsightsView s={s} patch={patch} calc={calc} ready={ready} go={setStep} /> : (
-          <>
-            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-              <div className="rca-view" key={step} style={{ flex: 1, padding: "18px 10px 6px 2px", overflowY: "auto", overflowX: "hidden" }}>
-                <StepBody s={s} patch={patch} calc={calc} showToggle={toggleGates[step] ?? false} revealAll={hasData} xeroConnected={xeroConnected} />
+        {showBanner && !results && !insights && reviewDue && (
+          <ReviewDue daysSince={daysSince} message={s.reviewState.message || null} onReview={() => { setShowBanner(false); setStep(0); }} onDismiss={() => setShowBanner(false)} />
+        )}
+
+        {results ? (
+          <YourRates s={s} calc={calc} uplift={uplift} ready={ready} missing={missing} go={setStep} patch={patch} />
+        ) : insights ? (
+          <InsightsView s={s} patch={patch} calc={calc} ready={ready} go={setStep} />
+        ) : (
+          <div className="rc-cols">
+            <section className="rc-step" aria-label={STEP_META[step]?.title}>
+              <StepBody s={s} patch={patch} calc={calc} showToggle={toggleGates[step] ?? false} xeroConnected={xeroConnected} />
+              <div className="rc-foot">
+                <Button disabled={step === 0} onClick={() => setStep(Math.max(0, step - 1))}>Back</Button>
+                <span>Step {step + 1} of 5, {SAVE_WORDS[saveState]}</span>
+                <Button kind="main" onClick={onContinue}>{step === 4 && allButProfitDone ? "See your rates" : "Continue"}</Button>
               </div>
-              <div style={{ flexShrink: 0, padding: "14px 10px 0 2px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <button className="rca-btn ghost" disabled={step === 0} onClick={() => setStep(Math.max(0, step - 1))}>← Back</button>
-                <span style={{ fontSize: 12.5, color: RC.faint, whiteSpace: "nowrap" }}>Step {step + 1} of 5, {saveLabel}</span>
-                <button className="rca-btn primary" style={{ padding: "0 26px" }} onClick={onContinue}>{step === 4 && completions.slice(0, 4).every(c => DONE_COMPLETIONS.includes(c)) ? "See results" : "Continue"}</button>
-              </div>
-            </div>
-            <RatesRail s={s} calc={calc} uplift={uplift} ready={ready} missing={missing} patch={patch} />
-          </>
+            </section>
+            <RatesCard s={s} calc={calc} uplift={uplift} ready={ready} missing={missing} patch={patch} />
+          </div>
         )}
       </div>
     </div>

@@ -301,6 +301,50 @@ const sum = <T,>(arr: T[], fn?: (x: T) => number): number =>
   arr.reduce((a, x) => a + (fn ? fn(x) : (x as unknown as number)), 0);
 const safeDiv = (a: number, b: number): number => (b > 0 ? a / b : 0);
 
+/** A split of something between install, service and admin, in percent. */
+type Split = { i: number; s: number; a: number };
+
+/** How the team's paid hours divide between install, service and admin:
+    each person's split weighted by their contracted week. Null when there
+    is nobody to weigh. */
+function teamTimeSplit(staff: StaffMember[]): Split | null {
+  const hrs = (p: StaffMember) => p.contracted_hours_per_week || 38;
+  const total = sum(staff, hrs);
+  if (total <= 0) return null;
+  return {
+    i: sum(staff, p => (p.install_pct || 0) * hrs(p)) / total,
+    s: sum(staff, p => (p.service_pct || 0) * hrs(p)) / total,
+    a: sum(staff, p => (p.admin_pct || 0) * hrs(p)) / total,
+  };
+}
+
+/* A FLEET GIVEN AS ONE TOTAL (Simple, or Xero's vehicle lines), split
+   between install, service and admin. With vehicle records, by who drives
+   them: each driver's own split, or the vehicle's allocation. Without any,
+   which is every new business since the calculator never loads the fleet,
+   by how the team's time is split, the way a driver's own vehicle follows
+   that driver's time (Isaac, 27 October 2026, "Yes"). It used to go all on
+   install, so service jobs paid nothing towards the vans. Only with no
+   team to weigh either does it still fall to install. */
+function splitFleet(fleetAnnual: number, vehicles: VehicleRecord[], staff: StaffMember[], team: Split | null): { inst: number; svc: number; admin: number; split: Split } {
+  let split: Split;
+  if (vehicles.length > 0) {
+    let i = 0, s = 0, a = 0;
+    vehicles.forEach(v => {
+      const drv = staff.find(p => p.id === v.assigned_driver_id);
+      i += drv ? (drv.install_pct || 0) : v.allocation === "Install" ? 100 : 0;
+      s += drv ? (drv.service_pct || 0) : v.allocation === "Service" ? 100 : 0;
+      a += drv ? (drv.admin_pct || 0) : 0;
+    });
+    const tot = (i + s + a) || 100;
+    split = { i: i * 100 / tot, s: s * 100 / tot, a: a * 100 / tot };
+  } else {
+    const tot = team ? team.i + team.s + team.a : 0;
+    split = team && tot > 0 ? { i: team.i * 100 / tot, s: team.s * 100 / tot, a: team.a * 100 / tot } : { i: 100, s: 0, a: 0 };
+  }
+  return { inst: fleetAnnual * split.i / 100, svc: fleetAnnual * split.s / 100, admin: fleetAnnual * split.a / 100, split };
+}
+
 export function confidenceLabel(weeks: number): Confidence {
   if (weeks < 4) return { label: "Estimated — limited data", level: "low" };
   if (weeks < 12) return { label: "Building accuracy", level: "building" };
@@ -489,20 +533,10 @@ export function calculate(data: EngineData): CalcResult {
       if (data.simpleVehicleData) {
         const fleetAnn = fleetAnnualFrom(data.simpleVehicleData);
         if (fleetAnn !== null) {
-          if (vehicles.length > 0) {
-            let iSum = 0, sSum = 0, aSum = 0;
-            vehicles.forEach(v => {
-              const drv = staff.find(s => s.id === v.assigned_driver_id);
-              iSum += drv ? (drv.install_pct || 0) : v.allocation === "Install" ? 100 : 0;
-              sSum += drv ? (drv.service_pct || 0) : v.allocation === "Service" ? 100 : 0;
-              aSum += drv ? (drv.admin_pct || 0) : 0;
-            });
-            const tot = (iSum + sSum + aSum) || 100;
-            instVehicle2 = fleetAnn * iSum / tot; svcVehicle2 = fleetAnn * sSum / tot; adminVehicle2 = fleetAnn * aSum / tot;
-          } else {
-            instVehicle2 = fleetAnn; // no fleet records → all to install
-          }
-          vehicleBreakdown2.push({ id: "fleet-simple", annual: fleetAnn, iPct: 100, sPct: 0, aPct: 0 });
+          // no fleet records → the split typed into Staff and wages
+          const f = splitFleet(fleetAnn, vehicles, staff, { i: iPct, s: sPct, a: aPct });
+          instVehicle2 = f.inst; svcVehicle2 = f.svc; adminVehicle2 = f.admin;
+          vehicleBreakdown2.push({ id: "fleet-simple", annual: fleetAnn, iPct: f.split.i, sPct: f.split.s, aPct: f.split.a });
         }
       } else {
         vehicles.forEach(v => {
@@ -651,24 +685,10 @@ export function calculate(data: EngineData): CalcResult {
     // Split across install/service using the fleet's aggregate driver allocations.
     const fleetAnnual = fleetAnnualFrom(data.simpleVehicleData);
     if (fleetAnnual !== null) {
-      if (vehicles.length > 0) {
-        // Derive install/service/admin split from all drivers' allocations combined
-        let iSum = 0, sSum = 0, aSum = 0;
-        vehicles.forEach(v => {
-          const drv = staff.find(s => s.id === v.assigned_driver_id);
-          iSum += drv ? (drv.install_pct || 0) : v.allocation === "Install" ? 100 : 0;
-          sSum += drv ? (drv.service_pct || 0) : v.allocation === "Service" ? 100 : 0;
-          aSum += drv ? (drv.admin_pct || 0) : 0;
-        });
-        const tot = (iSum + sSum + aSum) || 100;
-        instVehicle  = fleetAnnual * iSum / tot;
-        svcVehicle   = fleetAnnual * sSum / tot;
-        adminVehicle = fleetAnnual * aSum / tot;
-      } else {
-        // No Fleet records — put full total against install as a safe default
-        instVehicle = fleetAnnual;
-      }
-      vehicleBreakdown.push({ id: "fleet-simple", annual: fleetAnnual, iPct: 100, sPct: 0, aPct: 0 });
+      // no fleet records → the roster's time, weighted by contracted hours
+      const f = splitFleet(fleetAnnual, vehicles, staff, teamTimeSplit(staff));
+      instVehicle = f.inst; svcVehicle = f.svc; adminVehicle = f.admin;
+      vehicleBreakdown.push({ id: "fleet-simple", annual: fleetAnnual, iPct: f.split.i, sPct: f.split.s, aPct: f.split.a });
     }
   } else {
     // Detailed mode — per-vehicle cost calculation

@@ -1150,10 +1150,14 @@ describe("the page turned round", () => {
     expect(screen.queryByRole("tablist", { name: "Conversation and line items" })).toBeNull();
     expect(screen.queryByRole("tab", { name: "Conversation" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Units" })).toBeNull();
-    /* what's to confirm is the conversation's, at its foot: the rail has none */
+    /* what's to confirm is the conversation's own tab (Isaac, 27 October
+       2026), never at its foot: the rail has none */
     const rail = within(screen.getByRole("complementary", { name: "On this quote" }));
     expect(rail.queryByRole("region", { name: "To confirm" })).toBeNull();
+    expect(screen.queryByText("Core hole 200 mm: not known yet")).toBeNull();
+    fireEvent.click(screen.getByRole("radio", { name: /^To confirm/ }));
     expect(screen.getByText("Core hole 200 mm: not known yet")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: "Conversation" }));
 
     /* the rail's buttons wait on knowing whether she's on */
     const items = await rail.findByRole("button", { name: "Line items" });
@@ -1230,6 +1234,7 @@ describe("the page turned round", () => {
       json: async () => (String(url).startsWith("/api/workboard/quote-session") ? asking : view([indoor, core, second])),
     }));
     render(<QuoteLinesFace job="job-3377" price={price} onPriced={jest.fn()} />);
+    fireEvent.click(await screen.findByRole("radio", { name: /^To confirm/ }));
     expect(await screen.findByText("Single or three phase?")).toBeVisible();
     fireEvent.click(await screen.findByRole("button", { name: "Preview quote" }));
     const rail = within(screen.getByRole("complementary", { name: "On this quote" }));
@@ -1257,9 +1262,10 @@ describe("the page turned round", () => {
     expect(screen.queryByRole("region", { name: "The quote" })).toBeNull();
   });
 
-  it("takes Price it from the conversation to the line's cost box in the line items", async () => {
+  it("takes Price it from what's to confirm to the line's cost box in the line items", async () => {
     tiffOn();
     face();
+    fireEvent.click(await screen.findByRole("radio", { name: /^To confirm/ }));
     fireEvent.click(await screen.findByRole("button", { name: "Price it" }));
     expect(screen.getByRole("button", { name: "Back to the conversation" })).toBeInTheDocument();
     expect(screen.getByLabelText("What one Core hole 200 mm costs you")).toHaveFocus();

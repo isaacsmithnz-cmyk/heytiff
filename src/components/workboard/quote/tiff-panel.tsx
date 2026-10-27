@@ -124,8 +124,11 @@ export function TiffPanel({
   /* Read the job: its sources, and which are ticked */
   const [sources, setSources] = useState<{ list: Source[]; left: number } | null>(null);
   const [ticked, setTicked] = useState<Set<string>>(new Set());
-  /* the conversation, or her reading of the job */
-  const [face, setFace] = useState<"talk" | "scope">("talk");
+  /* the conversation, her reading of the job, or what's to confirm: her
+     questions have their own tab so the conversation's foot stays its
+     newest words (Isaac, 27 October 2026: "move all of the questions away
+     from the bottom of the screen so they don't clog it up") */
+  const [face, setFace] = useState<"talk" | "scope" | "confirm">("talk");
   const last = useRef(0);
   const busyNow = useRef(false);
   const bottom = useRef<HTMLDivElement | null>(null);
@@ -479,12 +482,13 @@ export function TiffPanel({
       <div className="qc-face">
         <div className="qc-col">
           <Tray
-            ariaLabel="Conversation or scope"
+            ariaLabel="Conversation, scope or what's to confirm"
             value={face}
             onChange={setFace}
             options={[
               { value: "talk", label: "Conversation" },
               { value: "scope", label: "Scope" },
+              { value: "confirm", label: confirmTitle, tone: open.length > 0 ? "look" : undefined },
             ]}
           />
         </div>
@@ -492,6 +496,66 @@ export function TiffPanel({
       {face === "scope" && (
         <div className="qc-thread">
           <div className="qc-col">{scope}</div>
+        </div>
+      )}
+      {face === "confirm" && (
+        <div className="qc-thread">
+          <div className="qc-col">
+            {open.length > 0 || settled.length > 0 || confirm ? (
+              <section aria-label={confirmTitle}>
+                {open.map((q) => {
+                  const answers = (Array.isArray(q.body.answers) ? q.body.answers : []) as Answer[];
+                  const deltas = questions[q.id]?.deltas ?? [];
+                  const put = typeof q.body.put === "string" ? q.body.put : "";
+                  return (
+                    <div key={q.id} className="qt-qa">
+                      <p className="qt-q">
+                        {/* an item to settle: an orange dot and its number (Q5) */}
+                        <span className="qt-qn">
+                          <Dot hue="orange" />
+                          {numberOf.get(q.id)}
+                        </span>
+                        {String(q.body.question ?? "")}
+                      </p>
+                      {put && <p className="qt-put">{`I've put ${put}`}</p>}
+                      {answers.length > 0 && (
+                        <ul className="qt-ans">
+                          {answers.map((a, i) => (
+                            <li key={i}>
+                              <button type="button" disabled={busy || working || deltas[i] === null} onClick={() => void answer(q.id, i)}>
+                                <b>{a.label}</b>
+                                {deltaWords(deltas[i]) && <em>{deltaWords(deltas[i])}</em>}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
+                {settled.length > 0 && (
+                  <ul className="ql-checks qt-done" aria-label="Answered">
+                    {settled.map((q) => {
+                      const a = questions[q.id]!.answered!;
+                      const topic = typeof q.body.topic === "string" && q.body.topic ? q.body.topic : String(q.body.question ?? "");
+                      return (
+                        <li key={q.id} className="ok">
+                          <i aria-hidden="true" />
+                          <span>
+                            <b>{`${topic}: ${a.label}`}</b>
+                            <small>{a.typed ? "From your message" : "Tapped"}</small>
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                {confirm}
+              </section>
+            ) : (
+              <p className="qt-did">Nothing to confirm.</p>
+            )}
+          </div>
         </div>
       )}
       <div className="qc-thread" hidden={face !== "talk"}>
@@ -550,59 +614,6 @@ export function TiffPanel({
               <TiffGlyph working size={20} />
               Working on the quote
             </p>
-          )}
-          {(open.length > 0 || settled.length > 0 || confirm) && (
-            <section aria-label={confirmTitle}>
-              <h2 className="hd-ls-grp">{confirmTitle}</h2>
-              {open.map((q) => {
-                const answers = (Array.isArray(q.body.answers) ? q.body.answers : []) as Answer[];
-                const deltas = questions[q.id]?.deltas ?? [];
-                const put = typeof q.body.put === "string" ? q.body.put : "";
-                return (
-                  <div key={q.id} className="qt-qa">
-                    <p className="qt-q">
-                      {/* an item to settle: an orange dot and its number (Q5) */}
-                      <span className="qt-qn">
-                        <Dot hue="orange" />
-                        {numberOf.get(q.id)}
-                      </span>
-                      {String(q.body.question ?? "")}
-                    </p>
-                    {put && <p className="qt-put">{`I've put ${put}`}</p>}
-                    {answers.length > 0 && (
-                      <ul className="qt-ans">
-                        {answers.map((a, i) => (
-                          <li key={i}>
-                            <button type="button" disabled={busy || working || deltas[i] === null} onClick={() => void answer(q.id, i)}>
-                              <b>{a.label}</b>
-                              {deltaWords(deltas[i]) && <em>{deltaWords(deltas[i])}</em>}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                );
-              })}
-              {settled.length > 0 && (
-                <ul className="ql-checks qt-done" aria-label="Answered">
-                  {settled.map((q) => {
-                    const a = questions[q.id]!.answered!;
-                    const topic = typeof q.body.topic === "string" && q.body.topic ? q.body.topic : String(q.body.question ?? "");
-                    return (
-                      <li key={q.id} className="ok">
-                        <i aria-hidden="true" />
-                        <span>
-                          <b>{`${topic}: ${a.label}`}</b>
-                          <small>{a.typed ? "From your message" : "Tapped"}</small>
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-              {confirm}
-            </section>
           )}
           <div ref={bottom} />
         </div>

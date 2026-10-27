@@ -1,6 +1,15 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { TiffPanel } from "../tiff-panel";
 
+/* her questions and what the page has to confirm live on their own tab
+   (Isaac, 27 October 2026) */
+const toConfirm = async () => {
+  const tab = await screen.findByRole("radio", { name: /^To confirm/ });
+  await act(async () => {
+    fireEvent.click(tab);
+  });
+};
+
 /* Tiff on the quote, the page's main column (slice 5.1; the chat-first page,
    Isaac, 2026-10-13): off until her model is chosen; then her thread, what's
    To confirm with each answer priced at its foot, and the box to reply to
@@ -52,21 +61,26 @@ it("reads as off when her thread can't be read, rather than leaving the page wai
   expect(onStatus).toHaveBeenLastCalledWith({ on: false, spentUsd: null });
 });
 
-it("runs the conversation down the column, what's to confirm at its foot, then the reply box", async () => {
+it("ends the conversation with her newest words, then the reply box, and keeps what's to confirm on its own tab", async () => {
   (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond(thread));
   render(<TiffPanel job="j" onChanged={jest.fn()} confirm={<p>Core hole: not known yet</p>} />);
   const said = await screen.findByText("A 12.5 kW ducted, priced from your book.");
-  const confirm = screen.getByText("Core hole: not known yet");
-  const question = screen.getByText("Single or three phase?");
   const box = screen.getByLabelText("Message Tiff");
-  /* her question and the page's list, under one heading */
+  expect((said.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0).toBe(true);
+  /* none of the questions clog the conversation's foot */
+  expect(screen.queryByText("Single or three phase?")).toBeNull();
+  expect(screen.queryByText("Core hole: not known yet")).toBeNull();
+  /* the tab's word is amber while a question is open, and carries no number */
+  const tab = screen.getByRole("radio", { name: /^To confirm/ });
+  expect(tab).toHaveClass("pt-tray-opt--look");
+  expect(tab.textContent).not.toMatch(/\d/);
+  await toConfirm();
   const list = screen.getByRole("region", { name: "To confirm" });
-  expect(list).toContainElement(confirm);
+  const question = screen.getByText("Single or three phase?");
+  const confirm = screen.getByText("Core hole: not known yet");
   expect(list).toContainElement(question);
-  const before = (a: Element, b: Element) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
-  expect(before(said, question)).toBe(true);
-  expect(before(question, confirm)).toBe(true);
-  expect(before(confirm, box)).toBe(true);
+  expect(list).toContainElement(confirm);
+  expect((question.compareDocumentPosition(confirm) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0).toBe(true);
 });
 
 /* the first read lays the page out, and pricing her questions reads the
@@ -89,7 +103,9 @@ it("tells the page she's on before her questions are priced, and shows none open
   expect(onStatus).toHaveBeenLastCalledWith({ on: true, spentUsd: 0.71 });
   expect(screen.queryByText("Single or three phase?")).toBeNull();
   expect(onOpen).toHaveBeenLastCalledWith(0);
+  expect(screen.getByRole("radio", { name: /^To confirm/ })).not.toHaveClass("pt-tray-opt--look");
   await act(async () => priced({ ...thread, events: [] }));
+  await toConfirm();
   expect(screen.getByRole("button", { name: /Three phase/ })).toHaveTextContent("+$519.96");
   expect(onOpen).toHaveBeenLastCalledWith(1);
 });
@@ -177,6 +193,8 @@ it("prices each answer, and a tap makes it with no call to her", async () => {
     return respond(thread);
   });
   render(<TiffPanel job="j" onChanged={onChanged} />);
+  await screen.findByText("A 12.5 kW ducted, priced from your book.");
+  await toConfirm();
   const three = await screen.findByRole("button", { name: /Three phase/ });
   expect(three).toHaveTextContent("+$519.96");
   expect(screen.getByRole("button", { name: "Single phase" })).toBeInTheDocument();
@@ -223,8 +241,9 @@ it("shows each event once when two reads bring the same ones", async () => {
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
   });
   await act(async () => {});
-  expect(screen.getAllByText("Single or three phase?")).toHaveLength(1);
   expect(screen.getAllByText("A 12.5 kW ducted, priced from your book.")).toHaveLength(1);
+  await toConfirm();
+  expect(screen.getAllByText("Single or three phase?")).toHaveLength(1);
 });
 
 it("says why when she can't take the message", async () => {
@@ -321,7 +340,7 @@ it("shows the job, written out, on Scope: what changed since her last one, and w
   render(
     <TiffPanel job="j" onChanged={jest.fn()} />
   );
-  const tray = within(await screen.findByRole("radiogroup", { name: "Conversation or scope" }));
+  const tray = within(await screen.findByRole("radiogroup", { name: "Conversation, scope or what's to confirm" }));
   expect(tray.getByRole("radio", { name: "Conversation" })).toHaveAttribute("aria-checked", "true");
   /* the conversation holds no copy of it */
   await screen.findByText("A 12.5 kW ducted, priced from your book.");
@@ -338,7 +357,7 @@ it("shows the job, written out, on Scope: what changed since her last one, and w
 it("says on Scope what to do while she hasn't written the job out, and keeps the conversation as it was", async () => {
   (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond(thread));
   render(<TiffPanel job="j" onChanged={jest.fn()} />);
-  const tray = within(await screen.findByRole("radiogroup", { name: "Conversation or scope" }));
+  const tray = within(await screen.findByRole("radiogroup", { name: "Conversation, scope or what's to confirm" }));
   fireEvent.click(tray.getByRole("radio", { name: "Scope" }));
   expect(screen.getByText("Tell Tiff about the job in the conversation, and she writes it out here.")).toBeInTheDocument();
   /* the reply box stays under both */
@@ -366,6 +385,7 @@ it("numbers her questions as her message does, says what the quote has, and tick
   render(
     <TiffPanel job="j" onChanged={jest.fn()} />
   );
+  await toConfirm();
   const board = await screen.findByText("How far is the switchboard from the outdoor unit?");
   /* numbered from her asking: the answered one keeps its 1 */
   expect(board.querySelector(".qt-qn")).toHaveTextContent("2");
@@ -447,6 +467,7 @@ it("names her and when she said it over her words, and marks each open question 
   render(<TiffPanel job="j" onChanged={jest.fn()} />);
   const said = await screen.findByText("A 12.5 kW ducted, priced from your book.");
   expect(said.closest(".qt-msg")!.querySelector("time")).toHaveAttribute("dateTime", "2026-10-17T11:24:00Z");
+  await toConfirm();
   const q = await screen.findByText("Single or three phase?");
   expect(q.querySelector(".qt-qn .pt-dot--orange")).not.toBeNull();
 });

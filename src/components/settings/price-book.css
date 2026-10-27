@@ -12,6 +12,10 @@
    (0,1,1). */
 
 .fg .st2-pb-panel { display:flex; flex-direction:column; gap:24px; min-width:0; outline:none; }
+/* the book's tables are judged by their names, so the Price book takes the
+   page's width, past the frame's 760 column (Isaac's walk, 27 October 2026:
+   names faded before they ended, on Items and on Matching's pairs) */
+.fg .st2-body:has(> .st2-pb-panel) { max-width:none; }
 
 /* the search, and what to show beside it */
 .fg .st2-pb-items { display:flex; flex-direction:column; gap:16px; min-width:0; }

@@ -95,6 +95,7 @@ import {
   BOOKING_STATUS_WAIT_MS,
   BOOKING_TTL_MS,
   BOOKING_WORDS,
+  isAnyTime,
   isFuture,
   isTakeOff,
   reasonOf,
@@ -483,8 +484,8 @@ async function sendBooking(
     if (!who || who.active !== 1) return end(done("cancelled", fillWords(BOOKING_WORDS.row.techInactive, { name: person })));
   }
 
-  /* ── 6. a create's start ── */
-  if (op === "create" && !isFuture(row.booking_start, zone, t.clock())) return end(done("cancelled", BOOKING_WORDS.row.past));
+  /* ── 6. a create's start: ahead, unless the phone's Schedule booked it (isAnyTime) ── */
+  if (op === "create" && !isAnyTime(row) && !isFuture(row.booking_start, zone, t.clock())) return end(done("cancelled", BOOKING_WORDS.row.past));
 
   /* ── 7. a create's status row ── */
   if (op === "create" && row.depends_on) {
@@ -988,7 +989,7 @@ async function sendBooking(
         const now = refusal(booked);
         if (now) return held(now, target);
       }
-      if (checkedIn(booked, b.got.activities, zone)) return held(done("cancelled", BOOKING_WORDS.row.checkIn), target);
+      if (!isAnyTime(row) && checkedIn(booked, b.got.activities, zone)) return held(done("cancelled", BOOKING_WORDS.row.checkIn), target);
 
       /* 6 */
       if (!sendInTime()) return held(letGoHere());
@@ -1129,7 +1130,7 @@ async function sendBooking(
     ) {
       return changed;
     }
-    if (!isFuture(a.start, zone, t.clock())) return done("cancelled", BOOKING_WORDS.row.notFuture);
+    if (!isAnyTime(row) && !isFuture(a.start, zone, t.clock())) return done("cancelled", BOOKING_WORDS.row.notFuture);
     if (isRecorded(a)) return done("cancelled", BOOKING_WORDS.row.checkIn);
     return null;
   }
@@ -1142,7 +1143,7 @@ async function sendBooking(
     const off = isTakeOff(row);
     if (!same(a.jobUuid, row.sm8_job_uuid)) return done("cancelled", off ? BOOKING_WORDS.row.changed : BOOKING_WORDS.row.notLeftover);
     if (isRecorded(a)) return done("cancelled", BOOKING_WORDS.row.checkIn);
-    if (!isFuture(a.start, zone, t.clock())) return done("cancelled", BOOKING_WORDS.row.notFuture);
+    if (!isAnyTime(row) && !isFuture(a.start, zone, t.clock())) return done("cancelled", BOOKING_WORDS.row.notFuture);
     if (!same(a.staffUuid, row.booking_staff_uuid) || a.start !== (row.booking_start ?? null) || a.end !== (row.booking_end ?? null)) {
       return done("cancelled", BOOKING_WORDS.row.changed);
     }

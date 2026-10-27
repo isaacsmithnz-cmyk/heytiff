@@ -3,7 +3,7 @@ import "server-only";
 import { sm8BookingsAllowed } from "@/lib/integrations/sm8-kinds";
 import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
 import { offersSend, sendRefusal, type Sm8WriteState } from "@/lib/integrations/sm8-write-plan";
-import { BOOKING_WORDS, BOOKINGS_OPEN_TO_MANAGERS, localNow } from "@/lib/integrations/sm8-booking-plan";
+import { BOOKING_WORDS, BOOKINGS_OPEN_TO_MANAGERS } from "@/lib/integrations/sm8-booking-plan";
 import { bookingZone } from "@/lib/integrations/sm8-booking-zone";
 import type { MobileCtx } from "./auth";
 
@@ -29,10 +29,4 @@ export async function changeAllowed(ctx: MobileCtx): Promise<ChangeGate> {
     return { ok: false, error: z.why === "unread" ? BOOKING_WORDS.press.unreadable : BOOKING_WORDS.press.zoneUnknown, status: 409 };
   }
   return { ok: true, state, zone: z.zone };
-}
-
-/** The account's today, on its own clock: what the Schedule may change
-    from. Null where the zone isn't known. */
-export function zoneToday(zone: string, now: number = Date.now()): string | null {
-  return localNow(zone, now)?.slice(0, 10) ?? null;
 }

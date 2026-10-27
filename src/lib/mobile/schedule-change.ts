@@ -9,7 +9,7 @@ import { fillWords } from "@/lib/integrations/sm8-note-words";
 import { listSm8StaffLinks } from "@/lib/integrations/links";
 import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
 import { streetLine } from "@/lib/studio/job-link";
-import { BOOKING_PRESS_BUDGET_MS, BOOKING_WORDS, isFuture, placeName } from "@/lib/integrations/sm8-booking-plan";
+import { BOOKING_PRESS_BUDGET_MS, BOOKING_WORDS, placeName } from "@/lib/integrations/sm8-booking-plan";
 import { readMirrorBookings } from "@/lib/integrations/sm8-booking-overlay";
 import { sm8StaffNames } from "@/lib/integrations/sm8-booking-read";
 import {
@@ -38,10 +38,19 @@ import type { MobileCtx } from "./auth";
    THE GATES ARE BOOK IN'S (schedule-gate's changeAllowed), with the press
    the route minted from its own token check, for this workspace.
 
-   ALL OR NOTHING AT THE QUEUE: the new bookings are queued first, then what
-   comes off; one refused takes back whatever this press queued, so a
-   refusal leaves the day as it was. Once queued they go together, in the
-   foreground for a moment, and the answer says where each stands.
+   THE NEW BOOKING FIRST: it is queued and sent, and only once it is in
+   ServiceM8 is the old one queued and taken off; a refusal on the way takes
+   back what this press booked, so the day is as it was. A booking taking
+   the place of the one coming off (the same person, job and start) goes the
+   other way round, since ServiceM8 won't hold both. Each half is sent in
+   the foreground for a moment, and the answer says where each stands.
+
+   SERVICEM8'S OWN FREEDOM (Isaac, 27 October 2026: "It should have the
+   same freedom as ServiceM8"): any day, a booking under way or gone, a
+   start before now, someone checked in or not. Every row this presses
+   carries `payload.anyTime` (sm8-booking-plan's isAnyTime), and the queue
+   and the sender let it go where Book in and Clear on the web wouldn't. The
+   one rule kept is ServiceM8's own: recorded time is never removed.
 
    NOTHING TO THE CLIENT: ServiceM8's own booking confirmations are off for
    the account (checked 27 September). The person moved hears it from HeyTiff
@@ -213,15 +222,13 @@ function pickedSlot(start: string, end: string): { start: string; end: string } 
 type Planned = { steps: Step[]; said: string; undo: ScheduleChange | null; tell: { staffUuid: string; title: string; body: string; path: string }[] };
 
 /** What a change does, checked: the bookings it names, as they are now. */
-async function plan(orgId: string, press: Sm8Press, zone: string, change: ScheduleChange, presser: string): Promise<Planned | { error: string; status: number }> {
-  const now = Date.now();
+async function plan(orgId: string, press: Sm8Press, change: ScheduleChange, presser: string): Promise<Planned | { error: string; status: number }> {
   const bad = (error: string, status = 400) => ({ error, status });
   const readOne = async (uuid: string) => {
     if (!UUID.test(uuid)) return bad(BOOKING_WORDS.press.changed);
     const b = await readBooking(orgId, press, uuid);
     if (b === "failed") return bad(BOOKING_WORDS.press.unqueued, 503);
     if (!b) return bad(BOOKING_WORDS.press.changed, 409);
-    if (!isFuture(b.start, zone, now)) return bad(BOOKING_WORDS.press.notFuture, 409);
     return b;
   };
 
@@ -238,10 +245,10 @@ async function plan(orgId: string, press: Sm8Press, zone: string, change: Schedu
       const slot = change.start || change.end ? pickedSlot(text(change.start), text(change.end)) : { start: b.start, end: b.end };
       if (!slot) return bad(BOOKING_WORDS.press.unqueued);
       if (slot.start.slice(0, 10) !== b.start.slice(0, 10)) return bad(BOOKING_WORDS.press.crossesMidnight);
-      if (!isFuture(slot.start, zone, now)) return bad(BOOKING_WORDS.press.past, 409);
       const [jobs, names] = await Promise.all([readJobs(orgId, [to, b.jobUuid]), people([b.staffUuid])]);
       if (!jobs) return bad(BOOKING_WORDS.press.unqueued, 503);
       const toJob = jobs.get(low(to));
+      if (!jobs.get(low(b.jobUuid))?.active) return bad(BOOKING_WORDS.press.changed, 409);
       const bookable = bookableWords(toJob);
       if (bookable) return bad(bookable, 409);
       const name = first(names.get(low(b.staffUuid)));
@@ -292,10 +299,9 @@ async function plan(orgId: string, press: Sm8Press, zone: string, change: Schedu
       if (!slot) return bad(BOOKING_WORDS.press.unqueued);
       if (slot.start.slice(0, 10) !== b.start.slice(0, 10)) return bad(BOOKING_WORDS.press.crossesMidnight);
       if (slot.start === b.start && slot.end === b.end) return bad("That's the time it is already.");
-      /* the same start is the same booking to the queue: the old one has to
-         be out of ServiceM8 before a new one can take its place */
-      if (slot.start === b.start) return bad("Change the start as well, or take them off and book them again.");
-      if (!isFuture(slot.start, zone, now)) return bad(BOOKING_WORDS.press.past, 409);
+      /* the same start on one of ours is the same booking to the queue: it
+         has to be out of ServiceM8 before a new one can take its place */
+      if (slot.start === b.start && b.create) return bad("Change the start as well, or take them off and book them again.");
       const [jobs, names] = await Promise.all([readJobs(orgId, [b.jobUuid]), people([b.staffUuid])]);
       if (!jobs) return bad(BOOKING_WORDS.press.unqueued, 503);
       const job = jobs.get(low(b.jobUuid));
@@ -315,8 +321,9 @@ async function plan(orgId: string, press: Sm8Press, zone: string, change: Schedu
       const [jobs, names] = await Promise.all([readJobs(orgId, [b.jobUuid]), people([b.staffUuid])]);
       if (!jobs) return bad(BOOKING_WORDS.press.unqueued, 503);
       const job = jobs.get(low(b.jobUuid));
+      if (!job?.active) return bad(BOOKING_WORDS.press.changed, 409);
       const name = first(names.get(low(b.staffUuid)));
-      const number = job?.number ?? "the job";
+      const number = job.number;
       return {
         steps: [{ off: b }],
         said: `${name} is off ${number}`,
@@ -330,7 +337,6 @@ async function plan(orgId: string, press: Sm8Press, zone: string, change: Schedu
       if (!UUID.test(staff) || !UUID.test(jobUuid)) return bad(BOOKING_WORDS.press.unqueued);
       const slot = pickedSlot(text(change.start), text(change.end));
       if (!slot) return bad(BOOKING_WORDS.press.unqueued);
-      if (!isFuture(slot.start, zone, now)) return bad(BOOKING_WORDS.press.past, 409);
       const [jobs, names, active] = await Promise.all([readJobs(orgId, [jobUuid]), people([staff]), staffActive(orgId, staff)]);
       if (!jobs || active === "failed") return bad(BOOKING_WORDS.press.unqueued, 503);
       const job = jobs.get(low(jobUuid));
@@ -376,70 +382,115 @@ export async function changeSchedule(
   input: { change: ScheduleChange; tell: boolean },
   opts: { push?: typeof pushToStaff } = {}
 ): Promise<ChangeAnswer> {
-  const startedAt = Date.now();
   const g = await gate(ctx, pressed);
   if (!g.ok) return g;
   const { press, state, zone } = g;
   const orgId = ctx.orgId;
 
   const presser = (press.staffId ? (await staffDisplayNames(orgId, [press.staffId])).get(press.staffId) : undefined) ?? "Someone";
-  const planned = await plan(orgId, press, zone, input.change, presser);
+  const planned = await plan(orgId, press, input.change, presser);
   if ("error" in planned) return { ok: false, error: planned.error, status: planned.status };
 
   const verbId = randomUUID();
-  const queued: string[] = [];
   const creates: { rowId: string; step: Extract<Step, { book: unknown }>["book"] }[] = [];
-  const undoQueued = async () => {
-    for (const c of creates) await queueBookingTakeBack(press, state, { createRowId: c.rowId }).catch(() => null);
+  const offs: string[] = [];
+  const takeBackCreates = async () => {
+    for (const c of creates) await queueBookingTakeBack(press, state, { createRowId: c.rowId, anyTime: true }).catch(() => null);
   };
 
-  /* 1. the new bookings, one job at a time */
-  for (const s of planned.steps) {
-    if (!("book" in s)) continue;
-    const r = await queueBookIn(press, state, { jobUuid: s.book.jobUuid, verbId, zone, status: null, slots: [{ staffUuid: s.book.staffUuid, start: s.book.start, end: s.book.end }] });
-    if (!r.ok) {
-      await undoQueued();
-      return { ok: false, error: refusalWords(r.refusal, zone), status: 409 };
+  /** Queue the new bookings, one job at a time. A refusal says why. */
+  const queueCreates = async (): Promise<string | null> => {
+    for (const s of planned.steps) {
+      if (!("book" in s)) continue;
+      const r = await queueBookIn(press, state, {
+        jobUuid: s.book.jobUuid,
+        verbId,
+        zone,
+        status: null,
+        slots: [{ staffUuid: s.book.staffUuid, start: s.book.start, end: s.book.end }],
+        anyTime: true,
+      });
+      if (!r.ok) return refusalWords(r.refusal, zone);
+      if (r.rowIds.length === 0) return BOOKING_WORDS.press.onItsWay;
+      creates.push({ rowId: r.rowIds[0]!, step: s.book });
     }
-    if (r.rowIds.length === 0) {
-      await undoQueued();
-      return { ok: false, error: BOOKING_WORDS.press.onItsWay, status: 409 };
+    return null;
+  };
+  /** Queue what comes off: a booking of yours by its Undo, anything else by Take off. */
+  const queueOffs = async (): Promise<string | null> => {
+    for (const s of planned.steps) {
+      if (!("off" in s)) continue;
+      const b = s.off;
+      const r = b.create
+        ? await queueBookingTakeBack(press, state, { createRowId: b.create, anyTime: true })
+        : await queueTakeOff(press, state, { jobUuid: b.jobUuid, activityUuid: b.uuid, seen: { staffUuid: b.staffUuid, start: b.start, end: b.end }, verbId, anyTime: true });
+      if (!r.ok) return refusalWords(r.refusal, zone);
+      offs.push(...r.rowIds);
     }
-    queued.push(...r.rowIds);
-    creates.push({ rowId: r.rowIds[0]!, step: s.book });
-  }
-
-  /* 2. what comes off: a booking of yours by its Undo, anything else by
-     Take off */
-  for (const s of planned.steps) {
-    if (!("off" in s)) continue;
-    const b = s.off;
-    const r = b.create
-      ? await queueBookingTakeBack(press, state, { createRowId: b.create })
-      : await queueTakeOff(press, state, { jobUuid: b.jobUuid, activityUuid: b.uuid, seen: { staffUuid: b.staffUuid, start: b.start, end: b.end }, verbId });
-    if (!r.ok) {
-      await undoQueued();
-      return { ok: false, error: refusalWords(r.refusal, zone), status: 409 };
+    return null;
+  };
+  /** Send some rows in the foreground for a moment, and read where each stands. */
+  type Stands = { id: string; op: string; status: string; last_error: string | null; remote_uuid: string };
+  const settle = async (ids: string[]): Promise<Stands[] | null> => {
+    if (ids.length === 0) return [];
+    try {
+      await settlePressedWrites(orgId, ids, { startedAt: Date.now(), budgetMs: BOOKING_PRESS_BUDGET_MS });
+    } catch (err) {
+      console.error(`[mobile] a schedule change for org ${orgId} couldn't settle: ${err instanceof Error ? err.message : String(err)}`);
     }
-    queued.push(...r.rowIds);
-  }
+    const { data, error } = await supabaseAdmin.from("sm8_writes").select("id, op, status, last_error, remote_uuid").eq("org_id", orgId).in("id", ids);
+    return error ? null : ((data ?? []) as Stands[]);
+  };
+  const bad = (rows: Stands[]) => rows.filter((r) => r.status === "failed" || r.status === "cancelled");
+  const refused = (rows: Stands[]): ChangeAnswer => ({
+    ok: false,
+    error: bad(rows)[0]!.last_error ?? BOOKING_WORDS.press.unqueued,
+    status: 409,
+    retry: bad(rows).map((r) => r.id),
+  });
 
-  /* 3. sent in the foreground for a moment, the rest behind the answer */
-  try {
-    await settlePressedWrites(orgId, queued, { startedAt, budgetMs: BOOKING_PRESS_BUDGET_MS });
-  } catch (err) {
-    console.error(`[mobile] a schedule change for org ${orgId} couldn't settle: ${err instanceof Error ? err.message : String(err)}`);
-  }
-
-  /* 4. where each row stands */
-  const { data, error } = queued.length
-    ? await supabaseAdmin.from("sm8_writes").select("id, op, status, last_error, remote_uuid").eq("org_id", orgId).in("id", queued)
-    : { data: [], error: null };
-  if (error) return { ok: true, state: "waiting", said: planned.said, undo: null };
-  const rows = (data ?? []) as { id: string; op: string; status: string; last_error: string | null; remote_uuid: string }[];
-  const failed = rows.filter((r) => r.status === "failed" || r.status === "cancelled");
-  if (failed.length > 0) {
-    return { ok: false, error: failed[0]!.last_error ?? BOOKING_WORDS.press.unqueued, status: 409, retry: failed.map((r) => r.id) };
+  /* THE NEW BOOKING FIRST, AND THE OLD ONE OFF ONLY ONCE IT'S IN: a change
+     that fails half way leaves someone booked twice, never on nothing. The
+     one exception is a booking taking the place of the one coming off — the
+     same person, job and start — which ServiceM8 refuses while the old one
+     stands: there the old one comes off first. */
+  const replaces = planned.steps.some(
+    (s) => "book" in s && planned.steps.some((o) => "off" in o && same(o.off.jobUuid, s.book.jobUuid) && same(o.off.staffUuid, s.book.staffUuid) && o.off.start === s.book.start)
+  );
+  let rows: Stands[] = [];
+  if (!replaces) {
+    const why = await queueCreates();
+    if (why) {
+      await takeBackCreates();
+      return { ok: false, error: why, status: 409 };
+    }
+    const went = await settle(creates.map((c) => c.rowId));
+    if (!went) return { ok: true, state: "waiting", said: planned.said, undo: null };
+    if (bad(went).length > 0) {
+      await takeBackCreates();
+      return { ok: false, error: bad(went)[0]!.last_error ?? BOOKING_WORDS.press.unqueued, status: 409 };
+    }
+    const off = await queueOffs();
+    if (off) {
+      await takeBackCreates();
+      return { ok: false, error: off, status: 409 };
+    }
+    const out = await settle(offs);
+    if (!out) return { ok: true, state: "waiting", said: planned.said, undo: null };
+    rows = [...went, ...out];
+    if (bad(out).length > 0) return refused(out);
+  } else {
+    const off = await queueOffs();
+    if (off) return { ok: false, error: off, status: 409 };
+    const out = await settle(offs);
+    if (!out) return { ok: true, state: "waiting", said: planned.said, undo: null };
+    if (bad(out).length > 0) return refused(out);
+    const why = await queueCreates();
+    if (why) return { ok: false, error: why, status: 409 };
+    const went = await settle(creates.map((c) => c.rowId));
+    if (!went) return { ok: true, state: "waiting", said: planned.said, undo: null };
+    rows = [...out, ...went];
+    if (bad(went).length > 0) return refused(went);
   }
   const st: "sent" | "waiting" | "trial" = rows.every((r) => r.status === "trial") && rows.length > 0 ? "trial" : rows.every((r) => r.status === "sent") ? "sent" : "waiting";
 

@@ -50,6 +50,7 @@ import {
   bookingLine,
   bookingSubject,
   clearLine,
+  isAnyTime,
   isFuture,
   isLeftover,
   isTakeOff,
@@ -423,6 +424,8 @@ export async function queueBookIn(
     zone: string;
     status: { seenEditDate: string } | null;
     slots: readonly BookInSlot[];
+    /** pressed from the phone's Schedule: a start before now goes too (isAnyTime) */
+    anyTime?: boolean;
   }
 ): Promise<BookInResult> {
   if (!isSm8Press(press)) {
@@ -558,7 +561,7 @@ export async function queueBookIn(
     op: "create",
     jobUuid,
     subject,
-    payload: { name: BOOKING_WORDS.label.create },
+    payload: input.anyTime === true ? { name: BOOKING_WORDS.label.create, anyTime: true } : { name: BOOKING_WORDS.label.create },
     ref: subject,
     dependsOn: statusRowId ?? undefined,
     staffUuid: s.staffUuid,
@@ -633,7 +636,8 @@ async function stopLoneStatusRow(orgId: string, statusRowId: string, verbId: str
 export async function queueBookingTakeBack(
   press: Sm8Press,
   state: Sm8WriteState,
-  input: { createRowId: string }
+  /** `anyTime`: pressed from the phone's Schedule, so one under way comes out too (isAnyTime) */
+  input: { createRowId: string; anyTime?: boolean }
 ): Promise<TakeBackResult> {
   if (!isSm8Press(press)) {
     console.error("[sm8] refused a booking take-back that nobody pressed for (no press, or a stale one)");
@@ -686,7 +690,7 @@ export async function queueBookingTakeBack(
      landed is still stopped, whatever its start: that removes nothing. A
      zone HeyTiff doesn't know says nothing here — the sender asks again,
      with the zone, before anything goes. */
-  if (!removedThere && mayBeThere(create)) {
+  if (!removedThere && mayBeThere(create) && input.anyTime !== true) {
     const z = await bookingZone(orgId);
     const start = m?.start ?? create.booking_start;
     if (z.zone && start && !isFuture(start, z.zone, now)) return { ok: false, refusal: "not_future" };
@@ -726,7 +730,7 @@ export async function queueBookingTakeBack(
       op: "delete",
       jobUuid: stopped.sm8_job_uuid?.toLowerCase() ?? null,
       subject: bookingSubject.undo(stopped.id),
-      payload: { name: BOOKING_WORDS.label.undo },
+      payload: input.anyTime === true ? { name: BOOKING_WORDS.label.undo, anyTime: true } : { name: BOOKING_WORDS.label.undo },
       ref: stopped.id,
       dependsOn: stopped.id,
       verbId: stopped.verb_id ?? undefined,
@@ -859,7 +863,14 @@ export async function queueClear(
 export async function queueTakeOff(
   press: Sm8Press,
   state: Sm8WriteState,
-  input: { jobUuid: string; activityUuid: string; seen: { staffUuid: string; start: string; end: string }; verbId: string }
+  input: {
+    jobUuid: string;
+    activityUuid: string;
+    seen: { staffUuid: string; start: string; end: string };
+    verbId: string;
+    /** pressed from the phone's Schedule: one under way, or on a day gone, comes off too (isAnyTime) */
+    anyTime?: boolean;
+  }
 ): Promise<ClearResult> {
   if (!isSm8Press(press)) {
     console.error("[sm8] refused a Take off that nobody pressed for (no press, or a stale one)");
@@ -900,7 +911,7 @@ export async function queueTakeOff(
   if (!job || Number(job.active) !== 1) return { ok: false, refusal: "changed" };
   const z = await bookingZone(orgId);
   if (z.zone === null) return { ok: false, refusal: z.why === "unread" ? "unqueued" : "zone_unknown" };
-  if (!isFuture(m.start, z.zone, Date.now())) return { ok: false, refusal: "not_future" };
+  if (input.anyTime !== true && !isFuture(m.start, z.zone, Date.now())) return { ok: false, refusal: "not_future" };
   if (!same(m.staffUuid, seen?.staffUuid) || m.start !== seen?.start || m.end !== seen?.end) return { ok: false, refusal: "changed" };
 
   /* 3. queue it, as the mirror has it */
@@ -910,7 +921,7 @@ export async function queueTakeOff(
       op: "delete",
       jobUuid: jobOf,
       subject: bookingSubject.clear(m.uuid),
-      payload: { name: BOOKING_WORDS.label.off, off: true },
+      payload: input.anyTime === true ? { name: BOOKING_WORDS.label.off, off: true, anyTime: true } : { name: BOOKING_WORDS.label.off, off: true },
       ref: m.uuid,
       targetUuid: m.uuid,
       staffUuid: m.staffUuid,
@@ -952,7 +963,7 @@ export async function queueBookingRetry(press: Sm8Press, state: Sm8WriteState, i
     if (!create || create === "failed") return { ok: false, refusal: "changed" };
     const line = await lineOf(orgId, create, state, press);
     if (!line.acts.includes("take_out_again")) return { ok: false, refusal: "changed" };
-    return queueBookingTakeBack(press, state, { createRowId: create.id });
+    return queueBookingTakeBack(press, state, { createRowId: create.id, anyTime: isAnyTime(row) });
   }
 
   /* a Clear goes again with the booking as the mirror has it now, checked
@@ -970,6 +981,7 @@ export async function queueBookingRetry(press: Sm8Press, state: Sm8WriteState, i
         activityUuid: row.target_uuid,
         seen: { staffUuid: row.booking_staff_uuid, start: row.booking_start, end: row.booking_end },
         verbId: row.verb_id,
+        anyTime: isAnyTime(row),
       });
     }
     return queueClear(press, state, {
@@ -983,7 +995,7 @@ export async function queueBookingRetry(press: Sm8Press, state: Sm8WriteState, i
   /* a status line has no door of its own: its bookings carry them */
   if (row.op !== "create") return { ok: false, refusal: "changed" };
   const line = await lineOf(orgId, row, state, press);
-  if (line.acts.includes("take_out_again")) return queueBookingTakeBack(press, state, { createRowId: row.id });
+  if (line.acts.includes("take_out_again")) return queueBookingTakeBack(press, state, { createRowId: row.id, anyTime: isAnyTime(row) });
   /* a line that offers Look again instead (its status row was taken back, or
      a re-press would meet the same thing) sends the card there */
   if (!line.acts.includes("try_again")) {
@@ -994,9 +1006,9 @@ export async function queueBookingRetry(press: Sm8Press, state: Sm8WriteState, i
     return { ok: false, refusal: "changed" };
   }
 
-  /* its start still ahead, in the zone it was booked in */
+  /* its start still ahead, in the zone it was booked in — unless the phone's Schedule booked it */
   const now = Date.now();
-  if (!isFuture(row.booking_start, row.booking_zone, now)) return { ok: false, refusal: "past" };
+  if (!isAnyTime(row) && !isFuture(row.booking_start, row.booking_zone, now)) return { ok: false, refusal: "past" };
 
   /* its status row: taken back, a fresh one needs a fresh edit time (Look
      again); failed or cancelled, it goes again first, and the booking must
@@ -1021,6 +1033,7 @@ export async function queueBookingRetry(press: Sm8Press, state: Sm8WriteState, i
     zone: row.booking_zone,
     status,
     slots: [{ staffUuid: row.booking_staff_uuid, start: row.booking_start, end: row.booking_end }],
+    anyTime: isAnyTime(row),
   });
   if (!again.ok) return again;
   return { ok: true, rowIds: again.rowIds };

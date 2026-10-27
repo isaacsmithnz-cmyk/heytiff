@@ -16,13 +16,23 @@ import { DOCUMENTS_BUCKET } from "@/lib/documents/query";
 import { todayInAu } from "@/lib/au-dates";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { zonedParts } from "@/lib/dashboard/day-rail";
-import { hhmm, remindAtFrom } from "@/lib/dashboard/reminders";
+import { remindAtFrom } from "@/lib/dashboard/reminders";
 import { logTaskEvent } from "@/lib/dashboard/task-events";
 import { taskLinesOf } from "@/lib/dashboard/task-lines";
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { readTaskDoneLines, type TaskDoneLine } from "@/lib/dashboard/task-done-query";
 import type { NoteSender } from "@/lib/integrations/links";
 import { sendTaskDone, takeBackTaskDone } from "./task-sm8";
+import {
+  addOwnTask,
+  moveTaskDue,
+  removeTask,
+  tickTask,
+  untickTask,
+  type AddTaskResult,
+  type DashResult,
+  type TaskActor,
+} from "@/lib/dashboard/task-actions";
 
 /* Dashboard mutations — tasks and the noticeboard.
 
@@ -50,8 +60,10 @@ import { sendTaskDone, takeBackTaskDone } from "./task-sm8";
 */
 
 /** `note`: something the person should know although the action stood — a
-    Reopen that couldn't take back somebody else's Done (reopenTask). */
-export type DashResult = { ok: true; note?: string } | { ok: false; error: string };
+    Reopen that couldn't take back somebody else's Done (reopenTask). The
+    task rules themselves are lib/dashboard/task-actions', which the phone's
+    routes share. */
+export type { DashResult } from "@/lib/dashboard/task-actions";
 
 type Ctx = { orgId: string; staffId: string | null };
 
@@ -64,6 +76,9 @@ async function context(): Promise<Ctx | null> {
 }
 
 const refresh = () => revalidateHome();
+
+/** The session's person, as the task rules take them. */
+const actorOf = (ctx: Ctx): TaskActor => ({ orgId: ctx.orgId, staffId: ctx.staffId, team: () => can("team") });
 
 /* Attaching already-uploaded files to a notice.
 
@@ -108,7 +123,7 @@ const isISODate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
 
 /* ---------------- tasks ---------------- */
 
-export type AddTaskResult = { ok: true; taskId: string } | { ok: false; error: string };
+export type { AddTaskResult } from "@/lib/dashboard/task-actions";
 
 /** A task for yourself — the Tasks face's Save. No `team` gate: writing
     yourself a to-do is not a management action, and gating it would leave
@@ -122,29 +137,9 @@ export type AddTaskResult = { ok: true; taskId: string } | { ok: false; error: s
 export async function addTask(title: string): Promise<AddTaskResult> {
   const ctx = await context();
   if (!ctx?.staffId) return { ok: false, error: "Not signed in." };
-
-  const clean = typeof title === "string" ? title.trim().slice(0, 200).trim() : "";
-  if (!clean) return { ok: false, error: "Give the task a title." };
-
-  const { data, error } = await supabaseAdmin
-    .from("tasks")
-    .insert({
-      org_id: ctx.orgId,
-      title: clean,
-      detail: null,
-      assigned_to: ctx.staffId,
-      created_by: ctx.staffId,
-      due_date: null,
-      status: "open",
-    })
-    .select("id")
-    .single();
-  if (error || !data) return { ok: false, error: "Couldn't save that task." };
-
-  const taskId = String((data as { id: string }).id);
-  await logTaskEvent(ctx.orgId, taskId, ctx.staffId, { kind: "created", to: ctx.staffId });
-  refresh();
-  return { ok: true, taskId };
+  const r = await addOwnTask(actorOf(ctx), title);
+  if (r.ok) refresh();
+  return r;
 }
 
 /* ---------------- New › Task (v2, rules 44 and 51) ---------------- */
@@ -336,53 +331,8 @@ async function ringTheirPhone(orgId: string, giver: string | null, to: string, t
 export async function completeTask(taskId: string, opts: { postDone?: boolean } = {}): Promise<DashResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Not signed in." };
-
-  const { data } = await supabaseAdmin
-    .from("tasks")
-    .select("assigned_to, status, group_id")
-    .eq("org_id", ctx.orgId)
-    .eq("id", taskId)
-    .maybeSingle();
-  if (!data) return { ok: false, error: "That task no longer exists." };
-  if (data.status === "done") return { ok: false, error: "That task is already done." };
-
-  // your own to-do, a job's task for anyone, or a manager closing one out
-  const mine = (ctx.staffId && ctx.staffId === data.assigned_to) || data.assigned_to === null;
-  if (!mine && !(await can("team"))) return { ok: false, error: "That task isn't yours to complete." };
-
-  const { data: won, error } = await supabaseAdmin
-    .from("tasks")
-    .update({
-      status: "done",
-      done_at: new Date().toISOString(),
-      done_by: ctx.staffId,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("org_id", ctx.orgId)
-    .eq("id", taskId)
-    .eq("status", "open")
-    .select("id");
-  if (error) return { ok: false, error: "Couldn't complete that task." };
-  if ((won ?? []).length === 0) return { ok: false, error: "That task is already done." };
-  await logTaskEvent(ctx.orgId, taskId, ctx.staffId, { kind: "done" });
-  /* A task given to several people is one job: the others' copies close with it. */
-  if (data.group_id) {
-    const { data: rest } = await supabaseAdmin
-      .from("tasks")
-      .update({
-        status: "done",
-        done_at: new Date().toISOString(),
-        done_by: ctx.staffId,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("org_id", ctx.orgId)
-      .eq("group_id", data.group_id)
-      .eq("status", "open")
-      .select("id");
-    for (const r of (rest ?? []) as { id: string }[]) {
-      await logTaskEvent(ctx.orgId, r.id, ctx.staffId, { kind: "done" });
-    }
-  }
+  const r = await tickTask(actorOf(ctx), taskId);
+  if (!r.ok) return r;
   if (opts?.postDone === true && sm8NotesAllowed()) {
     await sendTaskDone({ taskId }).catch((err: unknown) => {
       console.error(`[sm8] the Done for task ${taskId} threw: ${err instanceof Error ? err.message : String(err)}`);
@@ -405,41 +355,8 @@ export async function completeTask(taskId: string, opts: { postDone?: boolean } 
 export async function reopenTask(taskId: string, opts: { takeBackDone?: boolean } = {}): Promise<DashResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Not signed in." };
-
-  const { data } = await supabaseAdmin
-    .from("tasks")
-    .select("assigned_to, status, group_id")
-    .eq("org_id", ctx.orgId)
-    .eq("id", taskId)
-    .maybeSingle();
-  if (!data) return { ok: false, error: "That task no longer exists." };
-  if (data.status !== "done") return { ok: false, error: "That task is already open." };
-
-  const mine = (ctx.staffId && ctx.staffId === data.assigned_to) || data.assigned_to === null;
-  if (!mine && !(await can("team"))) return { ok: false, error: "That task isn't yours to reopen." };
-
-  const { data: won, error } = await supabaseAdmin
-    .from("tasks")
-    .update({ status: "open", done_at: null, done_by: null, updated_at: new Date().toISOString() })
-    .eq("org_id", ctx.orgId)
-    .eq("id", taskId)
-    .eq("status", "done")
-    .select("id");
-  if (error) return { ok: false, error: "Couldn't reopen that task." };
-  if ((won ?? []).length === 0) return { ok: false, error: "That task is already open." };
-  await logTaskEvent(ctx.orgId, taskId, ctx.staffId, { kind: "reopened" });
-  if (data.group_id) {
-    const { data: rest } = await supabaseAdmin
-      .from("tasks")
-      .update({ status: "open", done_at: null, done_by: null, updated_at: new Date().toISOString() })
-      .eq("org_id", ctx.orgId)
-      .eq("group_id", data.group_id)
-      .eq("status", "done")
-      .select("id");
-    for (const r of (rest ?? []) as { id: string }[]) {
-      await logTaskEvent(ctx.orgId, r.id, ctx.staffId, { kind: "reopened" });
-    }
-  }
+  const r = await untickTask(actorOf(ctx), taskId);
+  if (!r.ok) return r;
   let note: string | undefined;
   if (opts?.takeBackDone === true && sm8NotesAllowed()) {
     const back = await takeBackTaskDone({ taskId }).catch((err: unknown) => {
@@ -466,44 +383,9 @@ export async function reopenTask(taskId: string, opts: { takeBackDone?: boolean 
 export async function setTaskDue(taskId: string, dueDate: string | null): Promise<DashResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Not signed in." };
-  if (dueDate !== null && !isISODate(dueDate)) return { ok: false, error: "Check the due date." };
-
-  const { data } = await supabaseAdmin
-    .from("tasks")
-    .select("assigned_to, created_by, status, remind_at, due_date")
-    .eq("org_id", ctx.orgId)
-    .eq("id", taskId)
-    .maybeSingle();
-  if (!data) return { ok: false, error: "That task no longer exists." };
-  if (data.status === "done")
-    return { ok: false, error: "That task is done. Reopen it to change its date." };
-
-  const mine =
-    ctx.staffId && (ctx.staffId === data.assigned_to || ctx.staffId === data.created_by);
-  if (!mine && !(await can("team"))) return { ok: false, error: "That task isn't yours to move." };
-
-  let remindAt: string | null = null;
-  if (dueDate && data.remind_at) {
-    const tz = await getSm8Timezone(ctx.orgId);
-    const was = zonedParts(String(data.remind_at), tz);
-    remindAt = was ? remindAtFrom(dueDate, hhmm(was.min), tz) : null;
-  }
-
-  const { error } = await supabaseAdmin
-    .from("tasks")
-    .update({ due_date: dueDate, remind_at: remindAt, updated_at: new Date().toISOString() })
-    .eq("org_id", ctx.orgId)
-    .eq("id", taskId);
-  if (error) return { ok: false, error: "Couldn't move that task." };
-  /* The history says the date MOVED, so a save that left it where it was
-     says nothing. Compared as days: the column is a date, and a driver may
-     hand one back with a time on it. */
-  const was = data.due_date ? String(data.due_date).slice(0, 10) : null;
-  if (was !== dueDate) {
-    await logTaskEvent(ctx.orgId, taskId, ctx.staffId, { kind: "due", from: was, to: dueDate });
-  }
-  refresh();
-  return { ok: true };
+  const r = await moveTaskDue(actorOf(ctx), taskId, dueDate);
+  if (r.ok) refresh();
+  return r;
 }
 
 /** Close an issue off. The same gate as the note that raised it: anyone who
@@ -741,26 +623,9 @@ export async function updateTask(
 export async function deleteTask(taskId: string): Promise<DashResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Not signed in." };
-
-  const { data } = await supabaseAdmin
-    .from("tasks")
-    .select("created_by")
-    .eq("org_id", ctx.orgId)
-    .eq("id", taskId)
-    .maybeSingle();
-  if (!data) return { ok: false, error: "That task is already gone." };
-
-  const mine = ctx.staffId && ctx.staffId === data.created_by;
-  if (!mine && !(await can("team"))) return { ok: false, error: "That task isn't yours to delete." };
-
-  const { error } = await supabaseAdmin
-    .from("tasks")
-    .delete()
-    .eq("org_id", ctx.orgId)
-    .eq("id", taskId);
-  if (error) return { ok: false, error: "Couldn't delete that task." };
-  refresh();
-  return { ok: true };
+  const r = await removeTask(actorOf(ctx), taskId);
+  if (r.ok) refresh();
+  return r;
 }
 
 /* ---------------- notices ---------------- */

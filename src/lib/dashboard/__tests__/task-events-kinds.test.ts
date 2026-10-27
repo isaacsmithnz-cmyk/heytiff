@@ -49,7 +49,8 @@ it("writes only kinds the CHECK allows, and knows every kind it allows", () => {
 
 it("names no kind in the actions that the CHECK lacks", () => {
   const allowed = new Set(kindsIn("task_events_kind_check"));
-  const actions = readFileSync(join(ROOT, "src", "app", "actions", "dashboard.ts"), "utf8");
+  /* the task rules are lib/dashboard/task-actions', which the web's actions and the phone's routes share */
+  const actions = ["src/app/actions/dashboard.ts", "src/lib/dashboard/task-actions.ts"].map((f) => readFileSync(join(ROOT, f), "utf8")).join("\n");
   const written = [...actions.matchAll(/logTaskEvent\([^;]*?kind:\s*"([a-z_]+)"/g)].map((m) => m[1]);
   // one per writer: addTask's created, giveTask's given, done, reopened, due
   // (the old Home's createTask wrote a sixth, and went with it)

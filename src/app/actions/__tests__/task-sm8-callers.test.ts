@@ -154,6 +154,24 @@ it("(F) nothing in the libraries or the API routes ticks a task, and a reply tha
   expect(byReply[0].flags).toEqual({});
 });
 
+/* ── the phone's To do (native app, Isaac, 27 October 2026) ── */
+
+it("(F) the phone posts a Done only from its tick route, and takes one back only from its Undo there", () => {
+  const route = "app/api/mobile/tasks/[id]/route.ts";
+  for (const fn of ["sendTaskDoneAs", "takeBackTaskDoneAs"]) {
+    const u = usesOf(fn);
+    expect({ fn, refs: u.refs }).toEqual({ fn, refs: [] });
+    expect({ fn, at: [...new Set(u.calls.map((c) => c.path))] }).toEqual({ fn, at: [route] });
+  }
+  /* the shared tick rule: the web's completeTask and that route, nothing else */
+  const ticked = usesOf("tickTask");
+  expect(ticked.refs).toEqual([]);
+  expect([...new Set(ticked.calls.map((c) => c.path))].sort()).toEqual(["app/actions/dashboard.ts", route]);
+  const reopened = usesOf("untickTask");
+  expect(reopened.refs).toEqual([]);
+  expect([...new Set(reopened.calls.map((c) => c.path))].sort()).toEqual(["app/actions/dashboard.ts", route]);
+});
+
 /* ── where a Done is read back ── */
 
 /** Every `<Tag …>` in src outside tests, with the attributes it is handed. */

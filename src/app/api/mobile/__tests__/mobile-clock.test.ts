@@ -78,6 +78,16 @@ const press = async (sub: string, body: unknown) => {
   return { status: res.status, body: (await res.json()) as Row };
 };
 
+/* THE CLOCK STANDS AT MIDDAY. A stint left open past midnight has no hours
+   (#959), so "two hours ago", read just after midnight, was yesterday and
+   these tests failed for everyone pushing between 12 and 2 am (29 October
+   2026). Only Date is held; timers and promises run as they do. */
+jest.useFakeTimers({
+  now: new Date(wallInstant(`${localNow(ZONE, Date.now())!.slice(0, 10)} 12:00:00`, ZONE, "earliest")!),
+  doNotFake: ["nextTick", "setImmediate", "setTimeout", "setInterval", "clearTimeout", "clearInterval", "queueMicrotask", "performance"],
+});
+afterAll(() => jest.useRealTimers());
+
 const today = localNow(ZONE, Date.now())!.slice(0, 10);
 const checkIns = () => fake.db.job_check_ins as Row[];
 const openOf = (user: string) => checkIns().find((c) => c.user_id === user && c.checked_out_at == null)!;

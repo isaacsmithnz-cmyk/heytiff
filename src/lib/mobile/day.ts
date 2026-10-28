@@ -7,7 +7,9 @@ import { bookingZone } from "@/lib/integrations/sm8-booking-zone";
 import { wallInstant } from "@/lib/integrations/sm8-booking-plan";
 import { getPaySettings, shiftDefaultsFor } from "@/lib/timepay/query";
 import { loadTimesheetFor } from "@/lib/timepay/page-data";
-import { periodConfig, periodStartFor } from "@/lib/timepay/period";
+import { addDays, periodConfig, periodStartFor } from "@/lib/timepay/period";
+import { approvedInSpan, holidaysInSpan, stateFor } from "@/lib/timepay/leave-query";
+import { classifyEmployment, presumesDays } from "@/lib/staff/employment";
 import { staffIdFor } from "@/lib/workboard/projects-query";
 import { streetLine } from "@/lib/studio/job-link";
 import { derivedDayHours, dowOf, expectedDay, expectsWork, normalHours, type WeekCtx } from "@/components/timepay/logic";
@@ -247,6 +249,35 @@ async function normalOf(ctx: MobileCtx): Promise<{ start: string; end: string } 
   const [{ settings }, own] = await Promise.all([getPaySettings(ctx.orgId), shiftDefaultsFor(ctx.orgId, [staffId]).catch(() => null)]);
   const h = normalHours(settings, own?.hours.get(staffId) ?? null);
   return { start: h.start, end: h.end };
+}
+
+/** Monday 0 … Sunday 6, the roster's own convention, of an ISO date. */
+const weekdayOf = (iso: string) => (new Date(`${iso}T00:00:00Z`).getUTCDay() + 6) % 7;
+
+/* THE DAYS YOU'RE ROSTERED ON, from today for `count` days: the phone puts
+   its "Clock on for the day?" reminder on these mornings and no others
+   (Isaac, 28 October 2026: "do the 7:15 reminder"). Your work days, less
+   the public holidays where you are and your approved leave. A casual has
+   no roster, so none. */
+export async function rosteredDays(ctx: MobileCtx, from: string, count = 8): Promise<string[]> {
+  const staffId = await staffIdFor(ctx.orgId, ctx.userId).catch(() => null);
+  if (!staffId) return [];
+  const until = addDays(from, count - 1);
+  const [{ settings }, own, profile, state] = await Promise.all([
+    getPaySettings(ctx.orgId),
+    shiftDefaultsFor(ctx.orgId, [staffId]).catch(() => null),
+    supabaseAdmin.from("staff_profiles").select("employment_type").eq("org_id", ctx.orgId).eq("id", staffId).maybeSingle(),
+    stateFor(ctx.orgId, staffId).catch(() => null),
+  ]);
+  const employment = (profile.data as { employment_type: string | null } | null)?.employment_type ?? null;
+  if (!presumesDays(classifyEmployment(employment))) return [];
+  const workDays = own?.workDays.get(staffId) ?? settings.workDays;
+  const [holidays, leave] = await Promise.all([holidaysInSpan(ctx.orgId, state, from, until).catch(() => []), approvedInSpan(ctx.orgId, from, until).catch(() => [])]);
+  const off = new Set(holidays.map((h) => h.date));
+  for (const l of leave.filter((x) => x.staffId === staffId)) for (let d = l.startDate; d <= l.endDate; d = addDays(d, 1)) off.add(d);
+  const out: string[] = [];
+  for (let d = from; d <= until; d = addDays(d, 1)) if (workDays.includes(weekdayOf(d)) && !off.has(d)) out.push(d);
+  return out;
 }
 
 /** Where the day stands: on since when, where you are now, and where it's

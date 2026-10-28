@@ -1,6 +1,7 @@
 import { sm8PressFromMobile } from "@/lib/integrations/sm8-press";
 import { ok, requireMobile } from "@/lib/mobile/auth";
-import { arriveAt, atOffice, changeStint, clockOffDay, clockOnDay, leave, readDay, type DayAnswer } from "@/lib/mobile/day";
+import { arriveAt, atOffice, changeStint, clockOffDay, clockOnDay, leave, readDay, rosteredDays, type DayAnswer } from "@/lib/mobile/day";
+import { todayInAu } from "@/lib/au-dates";
 
 /* YOUR DAY, from the phone: where it stands (GET, with `until` for the
    finish you're thinking of), and Clock on, Arrived, Left, At the office,
@@ -14,7 +15,9 @@ const no = (status: number, error: string) => Response.json({ error }, { status,
 export async function GET(request: Request) {
   const ctx = await requireMobile(request);
   if (ctx instanceof Response) return ctx;
-  return ok(await readDay(ctx, Date.now(), new URL(request.url).searchParams.get("until")));
+  const [state, startsOn] = await Promise.all([readDay(ctx, Date.now(), new URL(request.url).searchParams.get("until")), rosteredDays(ctx, todayInAu()).catch(() => [])]);
+  /* `startsOn`: the coming mornings you're rostered on, for the phone's "Clock on for the day?" reminder */
+  return ok({ ...state, startsOn });
 }
 
 export async function POST(request: Request) {

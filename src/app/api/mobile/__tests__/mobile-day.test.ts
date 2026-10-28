@@ -10,14 +10,36 @@
    past, as the mock is. */
 
 jest.mock("server-only", () => ({}));
-jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: {} }));
+let employment: string | null = "Full-time";
+jest.mock("@/lib/supabase-server", () => ({
+  supabaseAdmin: {
+    from: () => {
+      const q = { select: () => q, eq: () => q, maybeSingle: async () => ({ data: { employment_type: employment } }) };
+      return q;
+    },
+  },
+}));
+jest.mock("@/lib/workboard/projects-query", () => ({ staffIdFor: async () => "card-alex" }));
+jest.mock("@/lib/timepay/query", () => ({
+  getPaySettings: async () => ({ settings: { workDays: [0, 1, 2, 3, 4], defaultStart: "7:00 AM", defaultEnd: "3:00 PM" } }),
+  shiftDefaultsFor: async () => ({ hours: new Map(), workDays: new Map() }),
+}));
+jest.mock("@/lib/timepay/leave-query", () => ({
+  stateFor: async () => "NSW",
+  holidaysInSpan: async () => [{ date: "2026-11-03", name: "A public holiday" }],
+  approvedInSpan: async () => [
+    { staffId: "card-alex", startDate: "2026-11-05", endDate: "2026-11-06" },
+    { staffId: "card-someone-else", startDate: "2026-10-29", endDate: "2026-10-29" },
+  ],
+}));
 jest.mock("@/app/actions/timepay", () => ({ saveDay: async () => ({ ok: true }) }));
 jest.mock("@/lib/timepay/page-data", () => ({}));
 jest.mock("@/app/actions/sm8-booking-queue", () => ({}));
 jest.mock("@/lib/integrations/sm8-drain", () => ({}));
 jest.mock("@auth0/nextjs-auth0/server", () => ({ Auth0Client: class {} }));
 
-import { mergeJobs, sheetCall, stintTimes, summarise, toQuarter, type DayJob } from "@/lib/mobile/day";
+import { mergeJobs, rosteredDays, sheetCall, stintTimes, summarise, toQuarter, type DayJob } from "@/lib/mobile/day";
+import type { MobileCtx } from "@/lib/mobile/auth";
 
 /* 27 October 2026 is daylight time in Sydney: +11:00 */
 const at = (hm: string) => new Date(`2026-10-27T${hm}:00+11:00`).toISOString();
@@ -97,4 +119,13 @@ test("a job's times are changed only to times inside the day, in order, none sti
   expect(stintTimes({ ...day, from: at("10:30"), until: at("09:00") })).toEqual({ error: "It has to finish after it starts." });
   expect(stintTimes({ ...day, from: at("14:00"), until: at("17:00") })).toEqual({ error: "That time hasn't come yet." });
   expect(stintTimes({ ...day, from: "soon", until: at("10:00") })).toEqual({ error: "Pick the time." });
+});
+
+test("the morning reminder's days: the days you're rostered on, less public holidays and your approved leave; a casual, none", async () => {
+  const ctx = { orgId: "org-1", userId: "auth0|alex" } as MobileCtx;
+  /* Wed 28 Oct for eight days: Thu 29, Fri 30, Mon 2, and Tue 3 is a holiday here, Wed 4, Thu 5 and Fri 6 his leave */
+  expect(await rosteredDays(ctx, "2026-10-28")).toEqual(["2026-10-28", "2026-10-29", "2026-10-30", "2026-11-02", "2026-11-04"]);
+  employment = "Casual";
+  expect(await rosteredDays(ctx, "2026-10-28")).toEqual([]);
+  employment = "Full-time";
 });

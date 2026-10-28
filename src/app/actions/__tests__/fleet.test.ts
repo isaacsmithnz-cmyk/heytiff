@@ -96,12 +96,17 @@ jest.mock("@/lib/permissions-server", () => ({
   can: jest.fn(async (c: string) => caps.has(c)),
 }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
+const issuesPushed: string[] = [];
+jest.mock("@/lib/fleet/issue-push", () => ({
+  pushIssueReported: (orgId: string, i: { staffId: string | null; vehicleId: string; note: string | null }) => issuesPushed.push(`${orgId} ${i.staffId} ${i.vehicleId} ${i.note}`),
+}));
 
 import { addLog, assignVehicle, attachLogDocument, deleteLog, editLog, removeVehicle, resolveIssue } from "../fleet";
 
 const VEHICLE = { id: "v-1", status: "active", odometer: 84120, last_service_odo: 80000, assigned_to: null };
 
 beforeEach(() => {
+  issuesPushed.length = 0;
   [insert, update, del, select].forEach((m) => m.mockClear());
   eqs.length = 0;
   existingDocument = null;
@@ -605,5 +610,22 @@ describe("attaching a document to an existing log", () => {
     documentRow = null;
     const res = await attachLogDocument("log-1", "doc-41");
     expect(res.ok).toBe(false);
+  });
+});
+
+/* An issue reported tells whoever looks after the fleet (Isaac, 28 October
+   2026, the phone's Your vehicle); a fill or a reading tells nobody, and an
+   issue refused tells nobody either. */
+describe("an issue's push", () => {
+  it("goes out for an issue, with who reported it and the words", async () => {
+    expect((await addLog({ vehicleId: "v-1", kind: "issue", note: "brakes" })).ok).toBe(true);
+    expect(issuesPushed).toEqual(["org-1 staff-1 v-1 brakes"]);
+  });
+
+  it("not for a reading or a refused issue", async () => {
+    await addLog({ vehicleId: "v-1", kind: "odo", odo: 84500 });
+    vehicleRow = null; // the org-scoped lookup found nothing
+    expect((await addLog({ vehicleId: "someone-elses", kind: "issue", note: "x" })).ok).toBe(false);
+    expect(issuesPushed).toEqual([]);
   });
 });

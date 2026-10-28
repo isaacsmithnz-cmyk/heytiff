@@ -120,7 +120,7 @@ describe("the phone's expense claims", () => {
     ]);
     /* pending and approved, never the card's or a paid one */
     expect(out.owed).toBe(124.8);
-    expect(out.vehicles.map((v) => v.name)).toEqual(["DA04", "Pool ute, EZ12AB"]);
+    expect(out.vehicles.map((v) => v.name)).toEqual(["DA04, Isuzu D-Max", "EZ12AB, Toyota Hilux"]);
     expect(out).toMatchObject({ ownVehicleId: "v-alex", canFile: true, today: "2026-10-28" });
   });
 
@@ -145,6 +145,11 @@ describe("the phone's expense claims", () => {
     const r = await readPhoneReceipt(ctx, { data: "aGVsbG8=" });
     expect(asked).toContain("read fuel");
     expect(r.ok && r.value).toMatchObject({ category: "fuel", litres: 62.4, abn: "40004201307" });
+  });
+
+  it("reads with the fuel log's reader too when Your vehicle logs fuel, whatever the docket reads as", async () => {
+    await readPhoneReceipt(ctx, { data: "aGVsbG8=", fuel: true });
+    expect(asked).toContain("read fuel");
   });
 
   it("leaves an empty draft when the read fails", async () => {

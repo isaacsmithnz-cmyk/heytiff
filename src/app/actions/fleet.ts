@@ -312,6 +312,13 @@ export async function addLog(log: NewLog): Promise<FleetResult> {
       .eq("org_id", ctx.orgId)
       .eq("id", log.vehicleId);
   }
+  /* an issue: whoever looks after the fleet hears (lib/fleet/issue-push),
+     loaded only now, as the claim pushes are */
+  if (log.kind === "issue") {
+    await import("@/lib/fleet/issue-push")
+      .then((m) => m.pushIssueReported(ctx.orgId, { staffId: ctx.staffId, vehicleId: log.vehicleId, note: log.note ?? null }))
+      .catch(() => undefined);
+  }
   refresh();
   return { ok: true };
 }

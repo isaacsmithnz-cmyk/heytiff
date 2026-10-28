@@ -408,6 +408,40 @@ describe("SystemBuilder", () => {
    systems. For clicking on one room. It doesn't seem to make sense"). What
    serves it is one line with its card's word, and the way in is that
    system's editor, open on this zone. */
+/* DUCTED AS A SYSTEM TYPE (Isaac, 2026-10-28): a fourth family beside Split,
+   Multi and VRF; its list is ducted and bulkhead units, ranked against every
+   zone together, and Add puts the unit on the band */
+describe("the Ducted family", () => {
+  it("lists ducted units against the whole load, and Add puts one on the system", () => {
+    const made = claimed(house(), ["bed1", "bed2", "living"]);
+    const onCommit = jest.fn();
+    render(<SystemBuilder doc={made.doc} pack={pack} systemId={made.systemId} onCommit={onCommit} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /^Family of outdoor/ }));
+    expect(screen.getAllByRole("menuitemradio").map((m) => m.textContent)).toEqual(["Split", "Multi", "Ducted", "VRF"]);
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Ducted" }));
+
+    // only the forms that take a duct
+    fireEvent.click(screen.getByRole("button", { name: /^Head type/ }));
+    expect(screen.getAllByRole("menuitemradio").map((m) => m.textContent)).toEqual(["Ducted", "Bulkhead"]);
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Ducted" }));
+
+    const add = screen.getByRole("button", { name: "Add to the system" });
+    expect(screen.getByText(/^Covers every zone \(needs \d+\.\d kW\)$|kW short for every zone$/)).toBeInTheDocument();
+    fireEvent.click(add);
+
+    expect(stat("Type")).toHaveTextContent("Ducted");
+    expect(within(schematic()).getByRole("button", { name: /, serves the whole system$/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    const built = onCommit.mock.calls[0][0] as DesignDocument;
+    const sys = built.systems.find((x) => x.id === made.systemId)!;
+    expect(sys.type).toBe("ducted");
+    expect(sys.settings.family).toBe("ducted");
+    const allocs = allocationsOf(sys);
+    expect(allocs.find((a) => a.role === "idu")?.serves).toBe("system");
+    expect(allocs.find((a) => a.role === "odu")?.model).toBeTruthy();
+  });
+});
+
 /* ONE UNIT, SEVERAL ROOMS (Isaac, 2026-10-28: on a VRF, the bedrooms on
    their own bulkheads and the living rooms on one ducted VMA, "but I couldn't
    find a way of grouping those 3 rooms onto 1 indoor unit") */

@@ -89,8 +89,8 @@ interface Word {
 type DragPayload = { iduModel: string } | { oduModel: string };
 const DRAG_TYPE = "application/x-heytiff-builder-unit";
 
-const FAMILY_WORD: Record<SystemFamily, string> = { split: "Split", multi: "Multi", vrf: "VRF" };
-const FAMILIES: SystemFamily[] = ["split", "multi", "vrf"];
+const FAMILY_WORD: Record<SystemFamily, string> = { split: "Split", multi: "Multi", ducted: "Ducted", vrf: "VRF" };
+const FAMILIES: SystemFamily[] = ["split", "multi", "ducted", "vrf"];
 
 const kwText = (kw: number | null | undefined): string => (kw == null ? "—" : `${kw.toFixed(1)} kW`);
 const zoneName = (z: RoomObj): string => String(z.props.name ?? "Zone");
@@ -656,7 +656,10 @@ export function SystemBuilder({
 
   /* the head types the picker offers: the pack's styles, for the flow the
      family drives (a multi's heads are the ones its rules accept) */
-  const perRoom = view ? view.family !== "split" : false;
+  const perRoom = view ? view.family !== "split" && view.family !== "ducted" : false;
+  /* Ducted: one unit on the system, so the list is ducted and bulkhead
+     units, and Add puts it on the band */
+  const ductedFamily = view?.family === "ducted";
   /* a VRF's heads are City Multi heads, a multi's are its rules' */
   const headPool = view && (view.kind === "vrf" || view.family === "vrf") ? "vrf" : "multi";
   const headTypes = useMemo(
@@ -666,18 +669,28 @@ export function SystemBuilder({
           value: t.formFactor,
           label: t.label,
         })
-      ),
-    [perRoom, pack, basis, headPool]
+      ).filter((t) => !ductedFamily || DUCT_AIRWAY_FORMS.includes(t.value)),
+    [perRoom, pack, basis, headPool, ductedFamily]
   );
   const firstHeadType = view?.heads[0] ? (iduRowOf(pack, view.heads[0].model)?.form_factor ?? null) : null;
   const headType: FormFactor | null =
     (formFactor && headTypes.some((t) => t.value === formFactor) ? formFactor : null) ??
     (firstHeadType && headTypes.some((t) => t.value === firstHeadType) ? firstHeadType : null) ??
-    (headTypes.some((t) => t.value === "wall") ? "wall" : (headTypes[0]?.value ?? null));
+    (headTypes.some((t) => t.value === (ductedFamily ? "ducted" : "wall"))
+      ? ductedFamily
+        ? "ducted"
+        : "wall"
+      : (headTypes[0]?.value ?? null));
 
   /* the ranking lens: one zone on a split is the one load a pair is sized
      against; more zones, or a multi, rank nothing (each zone takes its own) */
-  const lensKw = view && view.family === "split" && view.zones.length === 1 ? view.zones[0].loadKw : null;
+  const lensKw = !view
+    ? null
+    : ductedFamily
+      ? view.zonesLoadKw
+      : view.family === "split" && view.zones.length === 1
+        ? view.zones[0].loadKw
+        : null;
 
   /* ── writes: every one is the engine's, on the draft ── */
   const write = (next: DesignDocument) => {
@@ -716,6 +729,7 @@ export function SystemBuilder({
   const chooseFromBrowser = (choice: UnitChoice) => {
     if (!view) return;
     const iduModel = choice.kind === "pair" ? choice.pair.idu.model : choice.idu.model;
+    if (ductedFamily) return dropBand(iduModel);
     const empty = view.zones.find((z) => !z.lines.some((l) => l.mine)) ?? view.zones[0];
     if (empty) dropHead(empty.zone.id, iduModel);
     else dropBand(iduModel);
@@ -726,7 +740,7 @@ export function SystemBuilder({
      one is clicked the first empty zone is the default, which is where you
      would have wanted it anyway. */
   const [aimedZone, setAimedZone] = useState<string | null>(aimZoneId);
-  const addTarget = view
+  const addTarget = view && !ductedFamily
     ? ((aimedZone ? view.zones.find((z) => z.zone.id === aimedZone) : null) ??
        view.zones.find((z) => !z.lines.some((l) => l.mine)) ??
        view.zones[0])
@@ -944,8 +958,15 @@ export function SystemBuilder({
                 formFactor={headType}
                 onFormFactor={setFormFactor}
                 brandLocked={!view.empty}
-                addLabel={addTarget ? `Add to ${addTarget.name}` : "Add to the band"}
+                addLabel={addTarget ? `Add to ${addTarget.name}` : ductedFamily ? "Add to the system" : "Add to the band"}
                 addNote={(kw) => {
+                  if (ductedFamily) {
+                    const all = view.zonesLoadKw;
+                    if (all == null) return null;
+                    return coversLoad(kw, all)
+                      ? `Covers every zone (needs ${all.toFixed(1)} kW)`
+                      : `${shortKw(all, kw).toFixed(1)} kW short for every zone`;
+                  }
                   const need = addTarget?.loadKw;
                   if (!addTarget || need == null) return null;
                   return coversLoad(kw, need)

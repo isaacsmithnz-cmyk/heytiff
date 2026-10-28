@@ -1,10 +1,7 @@
 /* THE SIDEBAR'S PLACES (docs/design.md rules 5 and 7).
 
-   v2 has seven places: Home, Conversations, Jobs, Schedule, Documents,
-   Library, Team. Design left on 28 October 2026 (Isaac: the design "should
-   probably live on the job card rather than as a separate section"): the
-   Studio opens from a quote's Design step and a job's Documents, and lights
-   Jobs. Each points at its own page, or at the screen that
+   v2 has eight places: Home, Conversations, Jobs, Schedule, Documents,
+   Library, Design, Team. Each points at its own page, or at the screen that
    does its job today until step 5 builds its page, and lights up on every
    route that will move into it. A place with no screen yet is left out
    rather than drawn as a dead row; it joins when its page lands.
@@ -47,9 +44,8 @@ export const PLACES: readonly Place[] = [
   },
   /* a job's own page (step 5) lights Jobs before the list has a page */
   { key: "conversations", label: "Conversations", icon: "chat", href: "/dashboard/conversations", under: ["/dashboard/my-notes"], capability: "tiff" },
-  /* the board's own pages (a project, a quote, the maintenance side, a job's card by `?job=`) are the Jobs place's: Jobs has their views;
-     so is the Studio, a job's design since 28 October 2026 */
-  { key: "jobs", label: "Jobs", icon: "folder", href: "/dashboard/jobs", under: ["/dashboard/workboard", "/dashboard/studio"], capability: "workboard" },
+  /* the board's own pages (a project, a quote, the maintenance side, a job's card by `?job=`) are the Jobs place's: Jobs has their views */
+  { key: "jobs", label: "Jobs", icon: "folder", href: "/dashboard/jobs", under: ["/dashboard/workboard"], capability: "workboard" },
   { key: "schedule", label: "Schedule", icon: "calendar", href: "/dashboard/schedule", under: [], capability: "workboard" },
   /* the Workboard's gate, which is the SWMS', the certificates' and the
      handover sheets' today; a SWMS's sign-on and a letter's editor are
@@ -66,6 +62,7 @@ export const PLACES: readonly Place[] = [
      /dashboard/tiff, is still the Library's */
   /* the field tools are the Library's Toolbox shelf; their own pages light it */
   { key: "library", label: "Library", icon: "books", href: "/dashboard/tiff/library", under: ["/dashboard/tiff", "/dashboard/toolbox"], anyOf: ["tiff", "toolbox"] },
+  { key: "design", label: "Design", icon: "design", href: "/dashboard/studio", under: [], capability: "studio" },
   /* Time & Pay and Assets moved into Team (its Timesheets, Leave, Expenses and Vehicles views); their old addresses still light it */
   /* everyone has Team (Isaac, 20 October 2026); without `team` it is the colleagues' names and mobiles and the notices */
   { key: "team", label: "Team", icon: "users", href: "/dashboard/team", under: ["/dashboard/timepay", "/dashboard/assets", "/dashboard/vehicles"] },

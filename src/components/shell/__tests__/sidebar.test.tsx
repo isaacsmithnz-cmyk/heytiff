@@ -89,7 +89,7 @@ describe("the places (rule 5)", () => {
     expect(places()).toEqual(["Home", "Team"]);
     cleanup();
     draw(userAs("owner"));
-    expect(places().slice(0, 7)).toEqual(["Home", "Conversations", "Jobs", "Schedule", "Documents", "Library", "Team"]);
+    expect(places().slice(0, 8)).toEqual(["Home", "Conversations", "Jobs", "Schedule", "Documents", "Library", "Design", "Team"]);
   });
 
   it("marks the place you're on", () => {
@@ -100,9 +100,9 @@ describe("the places (rule 5)", () => {
     expect(screen.getByRole("link", { name: "Home" })).not.toHaveAttribute("aria-current");
   });
 
-  it("is the seven places and nothing else: every screen has moved into one (20 October), and Design into a job's quote (28 October)", () => {
+  it("is the eight places and nothing else: every screen has moved into one (20 October)", () => {
     draw(userAs("owner"));
-    for (const gone of ["Workboard", "Toolbox", "Time & Pay", "Assets", "Design"]) expect(places()).not.toContain(gone);
+    for (const gone of ["Workboard", "Toolbox", "Time & Pay", "Assets"]) expect(places()).not.toContain(gone);
     expect(document.querySelector(".fr-places .fr-hair")).toBeNull();
   });
 

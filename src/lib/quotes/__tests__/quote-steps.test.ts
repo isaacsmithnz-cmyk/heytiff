@@ -1,4 +1,4 @@
-import { acceptedWords, linesSteps } from "../quote-steps";
+import { acceptedWords, designState, linesSteps, stepPassed } from "../quote-steps";
 
 /* Isaac, 2026-10-06: the progress line where Home has "Your day", and
    "You should still be able to manually approve" */
@@ -60,5 +60,41 @@ describe("a quote built on its kept lines", () => {
     expect(at(1, false)).toMatchObject({ state: "todo", words: "" });
     expect(at(2, false)).toMatchObject({ state: "todo", words: "Version 2" });
     expect(at(2, true)).toMatchObject({ state: "done", words: "Version 2 approved" });
+  });
+});
+
+/* Isaac, 28 October 2026: "Brief, Scope, Design (skippable), Priced, with the
+   Studio opening from the Design step" */
+describe("the Design step", () => {
+  const at = (design: "drawn" | "skipped" | "open" | null) => linesSteps({ lines: 3, unknown: 0, price: { kind: "priced", left: 0 }, design });
+  it("sits between Scope and Priced for someone with the Studio", () => {
+    expect(at("open").map((s) => s.label)).toEqual(["Brief", "Scope", "Design", "Priced", "Approved", "Sent", "Accepted"]);
+  });
+  it("isn't on the line at all without the Studio", () => {
+    expect(at(null).map((s) => s.key)).not.toContain("design");
+    expect(linesSteps({ lines: 3, unknown: 0, price: { kind: "priced", left: 0 } }).map((s) => s.key)).not.toContain("design");
+  });
+  it("is done once the job has a design, still to do with none, and says No design once it's skipped", () => {
+    expect(at("drawn")[2]).toMatchObject({ key: "design", label: "Design", state: "done" });
+    expect(at("open")[2]).toMatchObject({ key: "design", label: "Design", state: "todo" });
+    expect(at("skipped")[2]).toMatchObject({ key: "design", label: "No design", state: "skipped" });
+  });
+  it("counts a skipped step as passed, and nothing else", () => {
+    const [, scope, design, priced] = at("skipped");
+    expect([scope, design, priced].map(stepPassed)).toEqual([true, true, true]);
+    expect(stepPassed(at("open")[2])).toBe(false);
+  });
+});
+
+describe("where the job's design is", () => {
+  it("is drawn whenever the job has a design, whatever was pressed", () => {
+    expect(designState({ designs: 1, noDesign: true, onWithout: true })).toBe("drawn");
+  });
+  it("is skipped once No design is pressed, or the quote went on without one", () => {
+    expect(designState({ designs: 0, noDesign: true, onWithout: false })).toBe("skipped");
+    expect(designState({ designs: 0, noDesign: false, onWithout: true })).toBe("skipped");
+  });
+  it("is still open otherwise", () => {
+    expect(designState({ designs: 0, noDesign: false, onWithout: false })).toBe("open");
   });
 });

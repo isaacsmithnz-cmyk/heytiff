@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { stillToPrice } from "@/lib/quotes/lines-price";
 import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
-import type { PriceState, QuoteStep, StepKey } from "@/lib/quotes/quote-steps";
+import { stepPassed, type PriceState, type QuoteStep, type StepKey } from "@/lib/quotes/quote-steps";
 
 /* THE QUOTE PAGE'S OWN PARTS (Isaac, 2026-10-06, the mock-up he called
    "much cleaner"): the progress line where Home has "Your day", and the
@@ -57,12 +57,17 @@ export function QuoteStepsLine({ steps, onUndo }: { steps: QuoteStep[]; onUndo?:
      that's the option's own Accepted, on the Proposal */
   const accepted = steps.some((s) => s.key === "accepted" && s.state === "done");
   const undoable = accepted ? undefined : [...steps].reverse().find((s) => s.state === "done" && (s.key === "approved" || s.key === "sent"))?.key;
-  /* the step it's up to: the first not done, and none once the client said yes */
-  const now = accepted ? -1 : steps.findIndex((s) => s.state !== "done");
+  /* the step it's up to: the first not passed (a skipped step is passed, as
+     No design is), and none once the client said yes */
+  const now = accepted ? -1 : steps.findIndex((s) => !stepPassed(s));
   return (
     <ol className="qp-steps" aria-label="Where the quote is">
       {steps.map((s, i) => (
-        <li key={s.key} className={s.state === "done" ? "done" : i === now ? "now" : undefined} aria-current={i === now ? "step" : undefined}>
+        <li
+          key={s.key}
+          className={s.state === "done" ? "done" : s.state === "skipped" ? "skip" : i === now ? "now" : undefined}
+          aria-current={i === now ? "step" : undefined}
+        >
           <i aria-hidden="true" />
           <b>{s.label}</b>
           {onUndo && s.key === undoable && (

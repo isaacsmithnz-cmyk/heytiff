@@ -135,6 +135,7 @@ export function NewDesign({
   onPlans,
   onClose,
   again,
+  forJob,
 }: {
   sm8Jobs?: boolean;
   jobSearch: JobSearch;
@@ -146,10 +147,16 @@ export function NewDesign({
   /** the menu's Start again: the open design, on its name and its job, which
       this dialog leaves as they are */
   again?: { name: string; job: string | null };
+  /** the job it's started on, from the quote's Design step (Isaac, 28
+      October 2026): fixed, its street the name, nothing to search for */
+  forJob?: JobPrefill;
 }) {
   const [stage, setStage] = useState<Stage>("start");
   const [picked, setPicked] = useState<StudioJobHit | null>(null);
-  const [name, setName] = useState(again?.name ?? "");
+  /* held from the first draw: the studio lets go of the job it was opened
+     on as the design is saved, and the dialog keeps it till it closes */
+  const [fixed] = useState<JobPrefill | null>(forJob ?? null);
+  const [name, setName] = useState(again?.name ?? forJob?.name ?? "");
   const [pages, setPages] = useState<PageImage[]>([]);
   const [sources, setSources] = useState<Source[]>([]);
   const [ticked, setTicked] = useState<number[]>([]);
@@ -186,7 +193,7 @@ export function NewDesign({
     };
   }, [peek, peekFile]);
 
-  const job = picked ? prefillFromJob(picked) : undefined;
+  const job = fixed ?? (picked ? prefillFromJob(picked) : undefined);
   const designName = name.trim() || "Untitled design";
   const heading = again ? "Start again" : "New design";
   const jobWord = again ? again.job : job?.jobNumber ? `job ${job.jobNumber}` : null;
@@ -355,7 +362,15 @@ export function NewDesign({
               </div>
             </Field>
           )}
-          {sm8Jobs && !again && (
+          {fixed && (
+            <Field label="Job">
+              <div className="ds2-nd-job">
+                <b>{[fixed.jobNumber, fixed.client].filter(Boolean).join(" ") || "Job"}</b>
+                {fixed.site && <span>{fixed.site}</span>}
+              </div>
+            </Field>
+          )}
+          {sm8Jobs && !again && !fixed && (
             <Field label="Job">
               {picked ? (
                 <div className="ds2-nd-job">
@@ -370,7 +385,7 @@ export function NewDesign({
           )}
           <Field label="Name">
             <TextInput
-              data-autofocus={sm8Jobs && !again ? undefined : true}
+              data-autofocus={sm8Jobs && !again && !fixed ? undefined : true}
               placeholder="Design name, e.g. 14 Harbour View Rd"
               value={name}
               onChange={(e) => setName(e.target.value)}

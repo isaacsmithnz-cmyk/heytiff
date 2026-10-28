@@ -4,15 +4,40 @@
    (Q7, 17 October), each with its date or what's left to settle. Approved,
    Sent and Accepted are a person's say-so ("You should still be able to manually
    approve"), and Accepted can be marked at any point: a client who says yes
-   on the phone skips the two before it. Pure. */
+   on the phone skips the two before it. Pure.
+
+   DESIGN, BETWEEN SCOPE AND PRICED (Isaac, 28 October 2026: "Brief, Scope,
+   Design (skippable), Priced, with the Studio opening from the Design
+   step"). The scope says what goes in; the design measures it; the price
+   takes its quantities from the design, or assumes them where there isn't
+   one. A job with nothing to measure skips it, and the line says "No
+   design". Only for someone with the Studio: without it the line has no
+   Design step at all. */
 
 import { auDayOf, fmtAuDayMonth } from "@/lib/au-dates";
 
-export type StepKey = "brief" | "questions" | "buildup" | "approved" | "sent" | "accepted";
+export type StepKey = "brief" | "questions" | "design" | "buildup" | "approved" | "sent" | "accepted";
 /** done: settled. due: needs something before the quote is whole. next:
-    the one the corner button does. todo: not yet. */
-export type StepState = "done" | "due" | "next" | "todo";
+    the one the corner button does. todo: not yet. skipped: passed by on
+    purpose, which the line counts as settled (the Design step's No design). */
+export type StepState = "done" | "due" | "next" | "todo" | "skipped";
 export type QuoteStep = { key: StepKey; label: string; state: StepState; words: string };
+
+/** Where the job's design is, for the Design step: drawn, a design of the
+    job's is in the Studio; skipped, No design was pressed, or the quote was
+    approved without one; open, neither yet. */
+export type DesignState = "drawn" | "skipped" | "open";
+
+/** A step the line counts as behind it: settled, or skipped on purpose. */
+export const stepPassed = (s: QuoteStep) => s.state === "done" || s.state === "skipped";
+
+/** The Design step's state: a design of the job's always counts, whatever
+    was pressed before it; then No design; then a quote approved, sent or
+    accepted without one, which went on without it. */
+export function designState(input: { designs: number; noDesign: boolean; onWithout: boolean }): DesignState {
+  if (input.designs > 0) return "drawn";
+  return input.noDesign || input.onWithout ? "skipped" : "open";
+}
 
 /** What the price says, as far as the progress line needs it. */
 export type PriceState =
@@ -27,11 +52,21 @@ export type PriceState =
 const LABELS: Record<StepKey, string> = {
   brief: "Brief",
   questions: "Scope",
+  design: "Design",
   buildup: "Priced",
   approved: "Approved",
   sent: "Sent",
   accepted: "Accepted",
 };
+
+/** The Design step: Design while it's drawn or still to do, No design once
+    it's skipped. */
+const designStep = (d: DesignState): QuoteStep =>
+  d === "drawn"
+    ? { key: "design", label: LABELS.design, state: "done", words: "Drawn" }
+    : d === "skipped"
+      ? { key: "design", label: "No design", state: "skipped", words: "" }
+      : { key: "design", label: LABELS.design, state: "todo", words: "" };
 
 const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 
@@ -57,6 +92,9 @@ export function linesSteps(input: {
   sent?: { trial: boolean; at?: string } | null;
   /** when the approval that stands was given */
   approvedAt?: string | null;
+  /** where the job's design is (designState); absent without the Studio,
+      and then the line has no Design step */
+  design?: DesignState | null;
 }): QuoteStep[] {
   const step = (key: StepKey, state: StepState, words: string): QuoteStep => ({ key, label: LABELS[key], state, words });
   const { lines, unknown, price } = input;
@@ -78,6 +116,7 @@ export function linesSteps(input: {
        unknown could just be something that we haven't told Tiff yet");
        Scope, with what's left to settle, in layout C */
     step("questions", unknown > 0 ? "due" : lines > 0 ? "done" : "todo", unknown > 0 ? `${unknown} to settle` : lines > 0 ? "Settled" : ""),
+    ...(input.design ? [designStep(input.design)] : []),
     built,
     /* version 2 on, the version it's at (quote-versions.ts) */
     input.approved

@@ -3,7 +3,7 @@
    beside the switch. */
 import { readingFromQuote } from "@/lib/certs/from-quote";
 import type { QuoteLine } from "../lines";
-import { byHandOf, variationInSm8, variationMaterials, variationUntouched, withVariation, withVariationSent, withoutVariation, labourTasks, labourVisits, stageNamed, linesDraft, linesHours, linesMaterials, linesUnits, toggleAccepted, withApproval, withoutApproval, withSent, withLoading, withName, withProposal } from "../lines-job";
+import { byHandOf, variationInSm8, variationMaterials, variationUntouched, withVariation, withVariationSent, withoutVariation, labourTasks, labourVisits, stageNamed, linesDraft, linesHours, linesMaterials, linesUnits, toggleAccepted, withApproval, withoutApproval, withSent, withLoading, withName, withNoDesign, withProposal } from "../lines-job";
 import type { UnitSpecs } from "../lookups";
 import { acceptedOptions } from "../proposal";
 
@@ -254,6 +254,19 @@ describe("sent to ServiceM8 as a quote (7.3)", () => {
     expect(byHandOf({ byHand: sent }).sent).toEqual({ at: "t2", by: "u-isaac", trial: true });
     expect(withoutApproval(sent).sent).toBeNull();
     expect(byHandOf({ byHand: bh([]) })).not.toHaveProperty("sent");
+  });
+});
+
+/* Isaac, 28 October 2026: "Brief, Scope, Design (skippable), Priced" */
+describe("No design, on the Design step", () => {
+  it("is kept with who pressed it and when, and taken back", () => {
+    const skipped = withNoDesign(bh([]), true, "u-isaac", "t1");
+    expect(byHandOf({ byHand: skipped }).noDesign).toEqual({ at: "t1", by: "u-isaac" });
+    expect(byHandOf({ byHand: withNoDesign(skipped, false, "u-isaac", "t2") })).not.toHaveProperty("noDesign");
+  });
+  it("reads nothing from a draft that never had it, or a mark with no time", () => {
+    expect(byHandOf({ byHand: bh([]) })).not.toHaveProperty("noDesign");
+    expect(byHandOf({ byHand: { ...bh([]), noDesign: { by: "u" } } })).not.toHaveProperty("noDesign");
   });
 });
 

@@ -1288,3 +1288,47 @@ describe("the page turned round", () => {
     expect(screen.queryByRole("region", { name: "Add a line" })).toBeNull();
   });
 });
+
+/* the Design step (Isaac, 28 October 2026: "Brief, Scope, Design
+   (skippable), Priced, with the Studio opening from the Design step") */
+describe("the Design step", () => {
+  const answering = (extra: Record<string, unknown>) => {
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (_url: string, init?: { body?: string }) => {
+      const body = init?.body ? (JSON.parse(init.body) as Record<string, unknown>) : null;
+      if (body) posted.push(body);
+      const skipped = body?.op === "design" ? { noDesign: body.skip ? { at: "2026-10-28T00:00:00Z", by: "u-isaac" } : null } : {};
+      return { json: async () => ({ ...view([indoor, core]), ...extra, ...skipped }) };
+    });
+  };
+  const stages = () => screen.getByRole("list", { name: "Where the quote is" });
+
+  it("opens the Studio on the job, or passes the step by and says No design", async () => {
+    answering({ designs: [], noDesign: null });
+    render(<QuoteLinesFace job="job-3406" price={price} onPriced={jest.fn()} />);
+    const group = await screen.findByRole("region", { name: "Design" });
+    expect(within(stages()).getByText("Design")).toBeInTheDocument();
+    expect(within(group).getByRole("link", { name: "Design it" })).toHaveAttribute("href", "/dashboard/studio?job=job-3406");
+    fireEvent.click(within(group).getByRole("button", { name: "Price without a design" }));
+    await waitFor(() => expect(posted).toContainEqual(expect.objectContaining({ op: "design", skip: true })));
+    expect(await within(stages()).findByText("No design")).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Design" })).getByText("Priced without a design")).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Design" })).getByRole("link", { name: "Design it" })).toBeInTheDocument();
+  });
+
+  it("lists the job's designs, each opening in the Studio", async () => {
+    answering({ designs: [{ id: "dsn_1", name: "6 Bishops Avenue", updatedAt: "2026-10-27T03:00:00Z" }], noDesign: null });
+    render(<QuoteLinesFace job="job-3406" price={price} onPriced={jest.fn()} />);
+    const group = await screen.findByRole("region", { name: "Design" });
+    expect(within(group).getByText("6 Bishops Avenue")).toBeInTheDocument();
+    expect(within(group).getByRole("link", { name: "Open design" })).toHaveAttribute("href", "/dashboard/studio?design=dsn_1");
+    expect(within(group).queryByRole("button", { name: "Price without a design" })).toBeNull();
+  });
+
+  it("isn't on the quote for someone without the Studio", async () => {
+    answering({ designs: null });
+    render(<QuoteLinesFace job="job-3406" price={price} onPriced={jest.fn()} />);
+    await screen.findByRole("list", { name: "Where the quote is" });
+    expect(screen.queryByRole("region", { name: "Design" })).toBeNull();
+    expect(within(stages()).queryByText("Design")).toBeNull();
+  });
+});

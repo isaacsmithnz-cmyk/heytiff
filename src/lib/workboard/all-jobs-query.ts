@@ -1621,11 +1621,18 @@ export async function searchAllMirrorJobs(
   orgId: string,
   query: string,
   today: string,
-  opts: { includeMoney?: boolean; limit?: number } = {}
+  opts: {
+    includeMoney?: boolean;
+    limit?: number;
+    /** only jobs in these states: the phone's Move looks at open Work Orders
+        and Quotes alone, so finished jobs never crowd them out of the limit */
+    statuses?: readonly string[];
+  } = {}
 ): Promise<AllJobsMirrorJob[]> {
   const q = query.trim();
   if (q.length < 2) return [];
   const limit = opts.limit ?? 30;
+  const statuses = opts.statuses?.length ? [...opts.statuses] : null;
   const includeMoney = opts.includeMoney ?? true;
   const base =
     "uuid, generated_job_id, status, company_uuid, geo_city, category_uuid, " +
@@ -1634,9 +1641,15 @@ export async function searchAllMirrorJobs(
   const safe = q.replace(/[%,()"\\]/g, " ").trim();
   if (!safe) return [];
 
+  /* the jobs searched: active ones, in the states asked for, if any */
+  const own = () => {
+    const base = supabaseAdmin.from("sm8_jobs").select(columns).eq("org_id", orgId).eq("active", 1);
+    return statuses ? base.in("status", statuses) : base;
+  };
+
   const words = [...new Set(safe.toLowerCase().split(/\s+/).filter(Boolean))];
   if (words.length > 1) {
-    const { rows, names } = await searchMirrorByWords(orgId, words, columns, limit);
+    const { rows, names } = await searchMirrorByWords(orgId, words, columns, limit, statuses);
     return hydrateMirrorJobs(orgId, rows, today, includeMoney, names);
   }
 
@@ -1644,11 +1657,7 @@ export async function searchAllMirrorJobs(
     /* In number order, which puts the number typed FIRST: a prefix sorts
        before everything it starts. Unordered, "23" could hand back thirty of
        the hundred-odd jobs from 230 to 2399 and leave out job 23 itself. */
-    supabaseAdmin
-      .from("sm8_jobs")
-      .select(columns)
-      .eq("org_id", orgId)
-      .eq("active", 1)
+    own()
       .ilike("generated_job_id", `${safe}%`)
       .order("generated_job_id", { ascending: true })
       .limit(limit),
@@ -1664,21 +1673,13 @@ export async function searchAllMirrorJobs(
   const companies = (companyRows ?? []) as { uuid: string; name: string | null }[];
   const [{ data: byClient }, { data: byText }] = await Promise.all([
     companies.length
-      ? supabaseAdmin
-          .from("sm8_jobs")
-          .select(columns)
-          .eq("org_id", orgId)
-          .eq("active", 1)
+      ? own()
           .in("company_uuid", companies.map((c) => c.uuid))
           .order("date", { ascending: false })
           .limit(limit)
       : Promise.resolve({ data: [] }),
-    supabaseAdmin
-      .from("sm8_jobs")
-      .select(columns)
-      .eq("org_id", orgId)
-      .eq("active", 1)
-      .or(`job_description.ilike.%${safe}%,geo_city.ilike.%${safe}%`)
+    own()
+      .or(`job_description.ilike.%${safe}%,geo_city.ilike.%${safe}%,job_address.ilike.%${safe}%`)
       .order("date", { ascending: false })
       .limit(limit),
   ]);
@@ -1731,15 +1732,18 @@ const MAX_CLIENT_GROUPS = 8;
 
 /** A name has the word when one of its words starts with it. */
 const nameStartsWord = (w: string) => `name.ilike.${w}%,name.ilike.% ${w}%`;
-/** The job's own fields, where a word the client's name did not cover must be. */
+/** The job's own fields, where a word the client's name did not cover must be:
+    its number, what it is, its suburb, and its street (Isaac, 28 October
+    2026: "19 union" found nothing, though 3260 is at 19 Union St). */
 const jobFieldsHold = (w: string) =>
-  `generated_job_id.ilike.${w}%,job_description.ilike.%${w}%,geo_city.ilike.%${w}%`;
+  `generated_job_id.ilike.${w}%,job_description.ilike.%${w}%,geo_city.ilike.%${w}%,job_address.ilike.%${w}%`;
 
 async function searchMirrorByWords(
   orgId: string,
   words: string[],
   columns: string,
-  limit: number
+  limit: number,
+  statuses: string[] | null = null
 ): Promise<{ rows: JobRow[]; names: Map<string, string | null> }> {
   const clients = () =>
     supabaseAdmin.from("sm8_companies").select("uuid, name").eq("org_id", orgId).eq("active", 1);
@@ -1768,6 +1772,7 @@ async function searchMirrorByWords(
 
   const jobs = (left: readonly string[], ids: string[] | null) => {
     let q = supabaseAdmin.from("sm8_jobs").select(columns).eq("org_id", orgId).eq("active", 1);
+    if (statuses) q = q.in("status", statuses);
     if (ids) q = q.in("company_uuid", ids.slice(0, 200));
     for (const w of left) q = q.or(jobFieldsHold(w));
     return q.order("date", { ascending: false }).limit(limit);

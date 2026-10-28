@@ -73,7 +73,7 @@ describe("the ductwork and grilles on the job", () => {
 
     expect(named("Supply plenum 1360 × 178")!.sub).toMatch(/^Made for PEAD-M100JAA\(D\), \d × Ø\d+/);
     expect(named("Return plenum 1358 × 210")!.sub).toBe("Made for PEAD-M100JAA(D), 2 × Ø400");
-    const outlets = lines.filter((l) => l.name.startsWith("Square diffuser, "));
+    const outlets = lines.filter((l) => /^Square diffuser, \d+ neck$/.test(l.name));
     expect(outlets.reduce((n, l) => n + Number(l.qty), 0)).toBe(lay.outlets.length);
     expect(outlets.every((l) => l.shelf === "grilles")).toBe(true);
     expect(named("Return air grille 750 × 400, filter")!.qty).toBe("1");
@@ -104,5 +104,21 @@ describe("the ductwork and grilles on the job", () => {
     // not measured is not picked
     const unplaced = buildSummaryModel(house(false), pack);
     expect(unplaced.picklist.some((r) => r.name === "Flexible duct")).toBe(false);
+  });
+
+  it("names each outlet by its kind and size: a room's outlet made round and another a linear", () => {
+    const doc = house(true);
+    const sys = doc.systems[0];
+    const [lay] = systemDuctwork(doc, pack, sys);
+    const [a, b] = lay.outlets;
+    const picked = {
+      ...doc,
+      systems: [{ ...sys, settings: { ...sys.settings, ductOutlet: { [a.key]: { kind: "round" }, [b.key]: { kind: "linear", lengthMm: 1500 } } } }],
+    };
+    const lines = ductLines(picked, pack, picked.systems[0]);
+    expect(lines.find((l) => l.name === `Round diffuser, ${a.neckMm} neck`)).toMatchObject({ shelf: "grilles", qty: "1" });
+    expect(lines.find((l) => l.name === "Linear bar grille 1500 × 150")).toMatchObject({ shelf: "grilles", qty: "1" });
+    const squares = lines.filter((l) => l.name.startsWith("Square diffuser, ")).reduce((n, l) => n + Number(l.qty), 0);
+    expect(squares).toBe(lay.outlets.length - 2);
   });
 });

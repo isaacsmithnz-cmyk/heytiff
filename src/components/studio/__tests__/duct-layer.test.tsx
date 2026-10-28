@@ -13,6 +13,7 @@ import { createDesign, type DesignDocument, type DesignObject } from "@/lib/stud
 import { addBandUnit, allocationsOf, placeAllocation } from "@/lib/studio/builder";
 import { claimZone, newSystem } from "@/lib/studio/zones";
 import { draggedAt, fittingKinds, systemDuctwork } from "@/lib/studio/ductwork";
+import { outletPicks } from "@/lib/studio/outlets";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -74,7 +75,7 @@ describe("DuctLayer", () => {
     const h = house();
     const [lay] = systemDuctwork(h.doc, pack, h.doc.systems[0]);
     draw(h.doc);
-    expect(screen.getAllByRole("img", { name: /^Square diffuser \d+ neck, \d+ L\/s$/ })).toHaveLength(lay.outlets.length);
+    expect(screen.getAllByRole("img", { name: /^Square diffuser, \d+ neck, \d+ L\/s$/ })).toHaveLength(lay.outlets.length);
     expect(screen.getByRole("img", { name: "Return air grille 750 × 400, filter" })).toBeInTheDocument();
     expect(lay.fittings.length).toBeGreaterThan(0);
     for (const f of lay.fittings) expect(screen.getByRole("button", { name: f.name })).toBeInTheDocument();
@@ -136,5 +137,55 @@ describe("DuctLayer", () => {
     const doc = { ...h.doc, floors: [{ ...h.doc.floors[0], scaleMmPerUnit: null }] };
     const { container } = draw(doc);
     expect(container.querySelector(".ds-ducts")).toBeNull();
+  });
+
+  it("a click on an outlet opens its tray; Round and a neck are kept on the system, and a drag is not a click", () => {
+    const h = house();
+    const onMutate = jest.fn();
+    draw(h.doc, onMutate);
+    const [outlet] = screen.getAllByRole("img", { name: /^Square diffuser/ });
+    // a drag moves it and opens nothing
+    fireEvent.pointerDown(outlet, { clientX: 10, clientY: 10, pointerId: 1 });
+    fireEvent.pointerMove(outlet, { clientX: 60, clientY: 10, pointerId: 1 });
+    fireEvent.pointerUp(outlet, { clientX: 60, clientY: 10, pointerId: 1 });
+    expect(screen.queryByRole("button", { name: "Round" })).toBeNull();
+    // a click opens the tray and moves nothing
+    onMutate.mockClear();
+    fireEvent.pointerDown(outlet, { clientX: 10, clientY: 10, pointerId: 1 });
+    fireEvent.pointerUp(outlet, { clientX: 11, clientY: 10, pointerId: 1 });
+    expect(onMutate).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Square" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Round" }));
+    let after = onMutate.mock.calls[0][0](h.doc) as DesignDocument;
+    const [[key, pick]] = Object.entries(outletPicks(after.systems[0]));
+    expect(pick).toEqual({ kind: "round" });
+    fireEvent.click(screen.getByRole("button", { name: "300" }));
+    after = onMutate.mock.calls[1][0](after) as DesignDocument;
+    expect(outletPicks(after.systems[0])[key]).toEqual({ kind: "round", neckMm: 300 });
+  });
+
+  it("a linear is drawn at its length and height, and its end drawn further snaps to a stock length", () => {
+    const h = house();
+    const [lay] = systemDuctwork(h.doc, pack, h.doc.systems[0]);
+    const key = lay.outlets[0].key;
+    const doc = {
+      ...h.doc,
+      systems: h.doc.systems.map((s) => ({ ...s, settings: { ...s.settings, ductOutlet: { [key]: { kind: "linear" } } } })),
+    };
+    const onMutate = jest.fn();
+    draw(doc, onMutate);
+    const grille = screen.getByRole("img", { name: /^Linear bar grille 1200 × 150, \d+ L\/s$/ });
+    fireEvent.pointerDown(grille, { clientX: 0, clientY: 0, pointerId: 1 });
+    fireEvent.pointerUp(grille, { clientX: 0, clientY: 0, pointerId: 1 });
+    expect(screen.getByRole("spinbutton")).toHaveValue(1200);
+    const end = screen.getByRole("img", { name: "End of the grille" });
+    const x = Number(end.getAttribute("cx"));
+    const y = Number(end.getAttribute("cy"));
+    fireEvent.pointerDown(end, { clientX: x, clientY: y, pointerId: 2 });
+    fireEvent.pointerMove(end, { clientX: x + 35, clientY: y, pointerId: 2 });
+    fireEvent.pointerUp(end, { clientX: x + 35, clientY: y, pointerId: 2 });
+    const after = onMutate.mock.calls[0][0](doc) as DesignDocument;
+    // 1200 + 350 drawn on at 10 mm a unit is 1550: the nearest stock is 1500
+    expect(outletPicks(after.systems[0])[key]).toMatchObject({ kind: "linear", lengthMm: 1500, along: { x: 1, y: 0 } });
   });
 });

@@ -20,17 +20,35 @@ import type { DataPack } from "@/lib/studio/packs/schema";
 import { hasAllocations } from "@/lib/studio/allocations";
 import {
   dragDuctEnd,
+  drawLinearEnd,
+  linearEnds,
   setFittingKind,
   systemDuctwork,
   unitFace,
   type DuctFitting,
   type DuctLayout,
+  type DuctOutlet,
   type DuctRun,
   type FittingKind,
 } from "@/lib/studio/ductwork";
+import {
+  LINEAR_HEIGHTS_MM,
+  OUTLET_NECKS_MM,
+  outletName,
+  setOutletPick,
+  type OutletKind,
+  type OutletPick,
+} from "@/lib/studio/outlets";
 
 /** a square diffuser's face, from its neck: 250 → 600 */
 const faceMm = (neckMm: number): number => Math.round((neckMm * 2.4) / 10) * 10;
+/** a round diffuser's face, from its neck: 250 → 550 */
+const roundFaceMm = (neckMm: number): number => Math.round((neckMm * 2.2) / 10) * 10;
+/** a press that moves less than this on screen is a click, px */
+const CLICK_PX = 4;
+/** the outlet tray's width, px */
+const TRAY_W = 232;
+const KIND_WORD: Record<OutletKind, string> = { square: "Square", round: "Round", linear: "Linear" };
 /** a bend's radius on the plan, mm */
 const BEND_MM = 300;
 /** a collar's length off the plenum, mm */
@@ -78,13 +96,31 @@ export function DuctLayer({
   toWorld: (e: { clientX: number; clientY: number }) => Point;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
 }) {
-  const [drag, setDrag] = useState<{ systemId: string; key: string; at: Point } | null>(null);
+  /* what is held: an outlet or the return moving, or one end of a linear
+     being drawn; `from` is where the press began on screen, so a press
+     that hardly moves is a click */
+  const [drag, setDrag] = useState<{
+    systemId: string;
+    key: string;
+    at: Point;
+    end: 0 | 1 | null;
+    outlet: DuctOutlet | null;
+    from: { x: number; y: number };
+    moved: boolean;
+  } | null>(null);
   /* the circle whose Y / BTO pick is open */
   const [open, setOpen] = useState<string | null>(null);
+  /* the outlet whose tray is open */
+  const [chosen, setChosen] = useState<string | null>(null);
   const s = floor.scaleMmPerUnit;
   if (!s) return null;
-  /* while an end is dragged the runs follow it: lay out the draft */
-  const live = drag ? dragDuctEnd(doc, drag.systemId, drag.key, drag.at) : doc;
+  const held = (d: DesignDocument) => {
+    if (!drag || !drag.moved) return d;
+    if (drag.end != null && drag.outlet) return drawLinearEnd(d, drag.systemId, drag.outlet, drag.end, drag.at, s);
+    return dragDuctEnd(d, drag.systemId, drag.key, drag.at);
+  };
+  /* while something is held the runs follow it: lay out the draft */
+  const live = held(doc);
   const layouts: { systemId: string; lay: DuctLayout }[] = [];
   for (const sys of live.systems) {
     if (!hasAllocations(sys)) continue;
@@ -94,35 +130,46 @@ export function DuctLayer({
   const u = (mm: number) => mm / s;
   const fs = 11 / labelZoom;
 
-  const grab = (systemId: string, key: string) => (e: React.PointerEvent<SVGElement>) => {
-    if (!interactive) return;
-    e.stopPropagation();
-    const t = e.currentTarget;
-    try {
-      t.setPointerCapture(e.pointerId);
-    } catch {
-      /* jsdom */
-    }
-    setDrag({ systemId, key, at: toWorld(e) });
-  };
+  const grab = (systemId: string, key: string, end: 0 | 1 | null = null, outlet: DuctOutlet | null = null) =>
+    (e: React.PointerEvent<SVGElement>) => {
+      if (!interactive) return;
+      e.stopPropagation();
+      const t = e.currentTarget;
+      try {
+        t.setPointerCapture(e.pointerId);
+      } catch {
+        /* jsdom */
+      }
+      setDrag({ systemId, key, at: toWorld(e), end, outlet, from: { x: e.clientX, y: e.clientY }, moved: false });
+    };
   const move = (e: React.PointerEvent<SVGElement>) => {
     if (!drag) return;
     e.stopPropagation();
-    setDrag({ ...drag, at: toWorld(e) });
+    const moved = drag.moved || Math.hypot(e.clientX - drag.from.x, e.clientY - drag.from.y) >= CLICK_PX;
+    setDrag({ ...drag, at: toWorld(e), moved });
   };
   const drop = (e: React.PointerEvent<SVGElement>) => {
     if (!drag) return;
     e.stopPropagation();
     const d = drag;
     setDrag(null);
-    onMutate((doc) => dragDuctEnd(doc, d.systemId, d.key, d.at));
+    if (!d.moved) {
+      /* a click on an outlet opens its tray; again, closes it */
+      if (d.end == null && d.outlet) setChosen(chosen === d.key ? null : d.key);
+      return;
+    }
+    onMutate((doc) =>
+      d.end != null && d.outlet ? drawLinearEnd(doc, d.systemId, d.outlet, d.end, d.at, s) : dragDuctEnd(doc, d.systemId, d.key, d.at)
+    );
   };
-  const handlers = (systemId: string, key: string) => ({
-    onPointerDown: grab(systemId, key),
+  const handlers = (systemId: string, key: string, end: 0 | 1 | null = null, outlet: DuctOutlet | null = null) => ({
+    onPointerDown: grab(systemId, key, end, outlet),
     onPointerMove: move,
     onPointerUp: drop,
     onPointerCancel: () => setDrag(null),
   });
+  const choose = (systemId: string, o: DuctOutlet, change: OutletPick) =>
+    onMutate((doc) => setOutletPick(doc, systemId, o.key, change));
 
   const run = (r: DuctRun) => {
     const d = bendPathD(r.points, u(BEND_MM));
@@ -240,6 +287,182 @@ export function DuctLayer({
     );
   };
 
+  /* one outlet at its face size: a square diffuser, a round one, or a
+     linear bar grille along the ceiling */
+  const outletShape = (o: DuctOutlet) => {
+    if (o.kind === "linear") {
+      const ends = linearEnds(o, s);
+      if (!ends || !o.along) return null;
+      const h = u(o.heightMm ?? 150) / 2;
+      const n = { x: -o.along.y, y: o.along.x };
+      const corner = (p: Point, k: number) => `${p.x + n.x * h * k},${p.y + n.y * h * k}`;
+      const bars = Math.max(2, Math.round((o.heightMm ?? 150) / 30));
+      return (
+        <>
+          <polygon points={[corner(ends[0], 1), corner(ends[1], 1), corner(ends[1], -1), corner(ends[0], -1)].join(" ")} />
+          {Array.from({ length: bars }, (_, i) => {
+            const k = -1 + (2 * (i + 1)) / (bars + 1);
+            return (
+              <line
+                key={i}
+                className="inner"
+                x1={ends[0].x + n.x * h * k}
+                y1={ends[0].y + n.y * h * k}
+                x2={ends[1].x + n.x * h * k}
+                y2={ends[1].y + n.y * h * k}
+              />
+            );
+          })}
+        </>
+      );
+    }
+    if (o.kind === "round") {
+      const r = u(roundFaceMm(o.neckMm)) / 2;
+      return (
+        <>
+          <circle cx={o.at.x} cy={o.at.y} r={r} />
+          <circle className="inner" cx={o.at.x} cy={o.at.y} r={r * 0.66} />
+          <circle className="inner" cx={o.at.x} cy={o.at.y} r={r * 0.2} />
+        </>
+      );
+    }
+    const half = u(faceMm(o.neckMm)) / 2;
+    return (
+      <>
+        <rect x={o.at.x - half} y={o.at.y - half} width={half * 2} height={half * 2} />
+        <rect className="inner" x={o.at.x - half / 2} y={o.at.y - half / 2} width={half} height={half} />
+        <path
+          className="inner"
+          d={`M${o.at.x - half} ${o.at.y - half}L${o.at.x - half / 2} ${o.at.y - half / 2}M${o.at.x + half} ${o.at.y - half}L${o.at.x + half / 2} ${o.at.y - half / 2}M${o.at.x - half} ${o.at.y + half}L${o.at.x - half / 2} ${o.at.y + half / 2}M${o.at.x + half} ${o.at.y + half}L${o.at.x + half / 2} ${o.at.y + half / 2}`}
+        />
+      </>
+    );
+  };
+  /* the tray beside a chosen outlet: its kind, and its neck, or a linear's
+     length and height. It is the screen's size at any zoom */
+  const tray = (systemId: string, o: DuctOutlet) => {
+    const reach = o.kind === "linear" ? u((o.lengthMm ?? 1200) / 2) : u(faceMm(o.neckMm) / 2);
+    const px = 1 / zoom;
+    const name = outletName(o);
+    return (
+      <foreignObject x={o.at.x + reach + 10 * px} y={o.at.y - 24 * px} width={TRAY_W * px} height={180 * px} className="ds-outlet-fo">
+        <div
+          className="ds-outlet-tray"
+          role="group"
+          aria-label={`${name}, ${Math.round(o.ls)} L/s`}
+          style={{ width: TRAY_W, transform: `scale(${px})`, transformOrigin: "0 0" }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setChosen(null);
+          }}
+        >
+          <div className="seg">
+            {(["square", "round", "linear"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                aria-pressed={o.kind === k}
+                className={o.kind === k ? "on" : undefined}
+                onClick={() => choose(systemId, o, { kind: k })}
+              >
+                {KIND_WORD[k]}
+              </button>
+            ))}
+          </div>
+          {o.kind === "linear" ? (
+            <>
+              <label className="row">
+                <span>Length</span>
+                <input
+                  key={`${o.key}:${o.lengthMm}`}
+                  type="number"
+                  inputMode="numeric"
+                  min={300}
+                  step={100}
+                  defaultValue={o.lengthMm ?? 1200}
+                  onBlur={(e) => {
+                    const v = Math.round(Number(e.currentTarget.value));
+                    if (v >= 300 && v !== o.lengthMm) choose(systemId, o, { lengthMm: v });
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") e.currentTarget.blur();
+                  }}
+                />
+              </label>
+              <div className="row" role="group" aria-label="Height">
+                <span>Height</span>
+                <div className="seg">
+                  {LINEAR_HEIGHTS_MM.map((h) => (
+                    <button
+                      key={h}
+                      type="button"
+                      aria-pressed={(o.heightMm ?? 150) === h}
+                      className={(o.heightMm ?? 150) === h ? "on" : undefined}
+                      onClick={() => choose(systemId, o, { heightMm: h })}
+                    >
+                      {h}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="row" role="group" aria-label="Neck">
+              <span>Neck</span>
+              <div className="seg">
+                {[...new Set([...OUTLET_NECKS_MM, o.neckMm])]
+                  .sort((a, b) => a - b)
+                  .map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      aria-pressed={o.neckMm === n}
+                      className={o.neckMm === n ? "on" : undefined}
+                      onClick={() => choose(systemId, o, { neckMm: n })}
+                    >
+                      {n}
+                    </button>
+                  ))}
+              </div>
+            </div>
+          )}
+          <p className={o.over ? "air over" : "air"}>
+            {`${Math.round(o.ls)} L/s${o.over ? (o.kind === "linear" ? ", over 2 m/s across its face" : ", over 3 m/s at its neck") : ""}`}
+          </p>
+        </div>
+      </foreignObject>
+    );
+  };
+  const outlet = (systemId: string, o: DuctOutlet) => {
+    const isChosen = chosen === o.key && interactive;
+    const ends = o.kind === "linear" ? linearEnds(o, s) : null;
+    return (
+      <g key={o.key}>
+        <g
+          className={`ds-duct-outlet${interactive ? " grab" : ""}${drag?.key === o.key && drag.end == null ? " moving" : ""}${o.over ? " over" : ""}${isChosen ? " chosen" : ""}`}
+          role="img"
+          aria-label={`${outletName(o)}, ${Math.round(o.ls)} L/s`}
+          {...handlers(systemId, o.key, null, o)}
+        >
+          {outletShape(o)}
+        </g>
+        {isChosen &&
+          ends?.map((p, i) => (
+            <circle
+              key={i}
+              className="ds-outlet-end"
+              cx={p.x}
+              cy={p.y}
+              r={5 / zoom}
+              role="img"
+              aria-label={i === 0 ? "Start of the grille" : "End of the grille"}
+              {...handlers(systemId, `${o.key}#${i}`, i as 0 | 1, o)}
+            />
+          ))}
+      </g>
+    );
+  };
+
   return (
     <g className="ds-ducts" aria-label="Ductwork">
       {layouts.map(({ systemId, lay }) => {
@@ -266,25 +489,7 @@ export function DuctLayer({
               ];
               return <polygon key={i} className="ds-duct-collar" points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />;
             })}
-            {lay.outlets.map((o) => {
-              const half = u(faceMm(o.neckMm)) / 2;
-              return (
-                <g
-                  key={o.key}
-                  className={`ds-duct-outlet${interactive ? " grab" : ""}${drag?.key === o.key ? " moving" : ""}`}
-                  role="img"
-                  aria-label={`Square diffuser ${o.neckMm} neck, ${Math.round(o.ls)} L/s`}
-                  {...handlers(systemId, o.key)}
-                >
-                  <rect x={o.at.x - half} y={o.at.y - half} width={half * 2} height={half * 2} />
-                  <rect className="inner" x={o.at.x - half / 2} y={o.at.y - half / 2} width={half} height={half} />
-                  <path
-                    className="inner"
-                    d={`M${o.at.x - half} ${o.at.y - half}L${o.at.x - half / 2} ${o.at.y - half / 2}M${o.at.x + half} ${o.at.y - half}L${o.at.x + half / 2} ${o.at.y - half / 2}M${o.at.x - half} ${o.at.y + half}L${o.at.x - half / 2} ${o.at.y + half / 2}M${o.at.x + half} ${o.at.y + half}L${o.at.x + half / 2} ${o.at.y + half / 2}`}
-                  />
-                </g>
-              );
-            })}
+            {lay.outlets.map((o) => outlet(systemId, o))}
             <g
               className={`ds-duct-return${interactive ? " grab" : ""}${drag?.key === lay.ret.key ? " moving" : ""}`}
               role="img"
@@ -311,6 +516,8 @@ export function DuctLayer({
             {lay.supply.map(sizeTag)}
             {lay.returns[0] && sizeTag(lay.returns[0])}
             {lay.fittings.map((f) => junction(systemId, f))}
+            {/* the open tray last, over everything else */}
+            {interactive && lay.outlets.filter((o) => o.key === chosen).map((o) => <g key={`tray:${o.key}`}>{tray(systemId, o)}</g>)}
           </g>
         );
       })}

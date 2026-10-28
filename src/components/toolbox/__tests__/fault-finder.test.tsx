@@ -122,7 +122,7 @@ describe("FaultFinder — walking the tree", () => {
     const { container } = render(<FaultFinder />);
     const rail = container.querySelector(".ffg-links")!;
     const links = Array.from(rail.querySelectorAll("a")).map((a) => a.textContent!.trim());
-    expect(links).toEqual(["Running Pressures", "Heat Load", "Outdoor Unit Placement"]);
+    expect(links).toEqual(["Running Pressures", "Heat Load"]);
     // the dots were the retired teal and the app's danger red, on a link
     expect(rail.querySelectorAll(".dot2")).toHaveLength(0);
   });

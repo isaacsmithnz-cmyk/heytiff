@@ -172,7 +172,9 @@ export const NODES: MapNode[] = [
     kind: "feature",
     group: "Toolbox",
     blurb: "Placement rules and airflow-clearance guidance for outdoor units.",
-    detail: "Hand-authored lesson content — no pack data, no backend, fully standalone.",
+    detail:
+      "Hand-authored lesson content — no pack data, no backend, fully standalone. Off the Toolbox for now (Isaac, 28 October 2026: \"Just have the three of them in for now\"); the page sends a kept link to the Toolbox.",
+    status: "planned",
     href: "/dashboard/toolbox/outdoor-unit",
     paths: ["src/app/dashboard/toolbox/outdoor-unit", "src/lib/toolbox/outdoor-unit.ts"],
   },

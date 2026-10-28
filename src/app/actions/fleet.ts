@@ -269,7 +269,7 @@ export async function addLog(log: NewLog): Promise<FleetResult> {
     .maybeSingle();
   if (error || !created) return { ok: false, error: "Couldn't save that entry." };
 
-  if (purchase && log.receiptDocumentId) {
+  if ((purchase || log.kind === "issue") && log.receiptDocumentId) {
     await adoptReceipt(ctx, String(created.id), log.receiptDocumentId, log.kind);
   }
 
@@ -443,9 +443,12 @@ async function adoptReceipt(ctx: Ctx, logId: string, documentId: string, kind: N
    document of the wrong kind — an expense claim's receipt, a purchase invoice
    — is never claimed by a log, however it arrived. Odometer readings and
    issue reports own nothing. */
-const LOG_DOC_KIND: Partial<Record<NewLog["kind"], "fuel_receipt" | "service_record">> = {
+const LOG_DOC_KIND: Partial<Record<NewLog["kind"], "fuel_receipt" | "service_record" | "issue_photo">> = {
   fuel: "fuel_receipt",
   service: "service_record",
+  /* the photo taken when it was reported (Isaac, 28 October 2026: the
+     phone's Report an issue) — a picture of what's wrong, never paper */
+  issue: "issue_photo",
 };
 
 /* The paper for an entry that was logged without it — a docket found in the
@@ -464,7 +467,7 @@ export async function attachLogDocument(logId: string, documentId: string): Prom
   if (!row) return { ok: false, error: "That entry can't be changed." };
   const kind = String(row.kind) as NewLog["kind"];
   const docKind = LOG_DOC_KIND[kind];
-  if (!docKind) return { ok: false, error: "Only a fuel or service entry keeps a document." };
+  if (!docKind) return { ok: false, error: "Only a fuel, service or issue entry keeps a document." };
 
   const { data: existing } = await supabaseAdmin
     .from("documents")

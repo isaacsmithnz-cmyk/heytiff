@@ -27,9 +27,11 @@ import { DetailGrid, FrameFoot, FrameTitle, Group, RecordError } from "@/compone
    is swap the paper behind a figure — an entry logged WITHOUT its document can
    be given one, and an entry that has one keeps it (see attachLogDocument). */
 
-const PAPER: Partial<Record<VehicleLog["kind"], { word: string; kind: "fuel_receipt" | "service_record"; none: string; heading: string }>> = {
+const PAPER: Partial<Record<VehicleLog["kind"], { word: string; kind: "fuel_receipt" | "service_record" | "issue_photo"; none: string; heading: string }>> = {
   fuel: { word: "receipt", kind: "fuel_receipt", none: "No receipt was kept for this fill.", heading: "Receipt" },
   service: { word: "service record", kind: "service_record", none: "No record filed for this service.", heading: "Service record" },
+  /* the photo the phone took when it was reported (Isaac, 28 October 2026) */
+  issue: { word: "photo", kind: "issue_photo", none: "No photo was taken of this issue.", heading: "Photo" },
 };
 
 export function EntryScreen({

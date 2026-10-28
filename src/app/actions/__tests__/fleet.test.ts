@@ -378,6 +378,20 @@ describe("service logs carry their record", () => {
     expect(eqCalls("kind")).not.toContain("fuel_receipt");
   });
 
+  /* the phone's Report an issue, with a photo (Isaac, 28 October 2026) */
+  it("binds an issue's photo to the issue, as an issue photo and never as paper", async () => {
+    await addLog({ vehicleId: "v-1", kind: "issue", note: "Sliding door won't latch", receiptDocumentId: "doc-9" });
+    expect(update).toHaveBeenCalledWith("documents", { vehicle_log_id: "log-1" });
+    expect(eqCalls("kind")).toContain("issue_photo");
+    expect(eqCalls("kind")).not.toContain("fuel_receipt");
+    expect(eqCalls("kind")).not.toContain("service_record");
+  });
+
+  it("never binds a document to a reading", async () => {
+    await addLog({ vehicleId: "v-1", kind: "odo", odo: 84800, receiptDocumentId: "doc-9" });
+    expect(update).not.toHaveBeenCalledWith("documents", expect.anything());
+  });
+
   it("never puts a work list on a fuel log", async () => {
     await addLog({ vehicleId: "v-1", kind: "fuel", litres: 50, cost: 100, workDone: "stale" });
     expect(insert.mock.calls[0][1]).toMatchObject({ work_done: null });

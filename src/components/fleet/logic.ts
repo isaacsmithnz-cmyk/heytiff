@@ -186,8 +186,9 @@ export type NewLog = {
       is the common case; the server decides either way and refuses anything
       implausible. */
   purchasedOn?: string;
-  /** The stored paper — the docket photo, or the service record — already
-      uploaded, waiting to be adopted by the row this becomes. */
+  /** The stored paper — the docket photo, or the service record, or an
+      issue's photo — already uploaded, waiting to be adopted by the row this
+      becomes. */
   receiptDocumentId?: string;
   /** Service only: what the workshop did, one line per item as the invoice
       lists it. `note` stays the one line the history prints. */

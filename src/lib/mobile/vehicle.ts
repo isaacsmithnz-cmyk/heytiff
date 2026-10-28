@@ -87,7 +87,7 @@ export function entryOf(l: VehicleLog, me: string | null): PhoneEntry {
           : "A reading"
         : l.kind === "service"
           ? join([serviceName(l), at])
-          : join([issueName(l), l.status === "resolved" ? "fixed" : null]);
+          : join([issueName(l), l.hasReceipt ? "with a photo" : null, l.status === "resolved" ? "fixed" : null]);
   return {
     id: l.id,
     kind: l.kind,
@@ -164,7 +164,9 @@ export async function reportIssue(ctx: MobileCtx, body: Record<string, unknown>)
   const note = str(body.note, 500);
   if (!vehicleId) return bad("Which vehicle?");
   if (!note) return bad("Say what's wrong.");
-  const r = await actAsPhoneUser(ctx, () => addLog({ vehicleId, kind: "issue", note }));
+  /* the photo, when one was taken, uploaded as an issue_photo and adopted by this issue */
+  const photo = str(body.photoDocumentId, 60);
+  const r = await actAsPhoneUser(ctx, () => addLog({ vehicleId, kind: "issue", note, ...(photo ? { receiptDocumentId: photo } : {}) }));
   return r.ok ? { ok: true, value: null } : bad(r.error);
 }
 

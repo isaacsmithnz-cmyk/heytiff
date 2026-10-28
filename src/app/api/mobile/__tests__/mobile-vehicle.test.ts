@@ -133,6 +133,11 @@ describe("your vehicle on the phone", () => {
     ]);
   });
 
+  it("reports an issue with its photo, for the issue to adopt", async () => {
+    await reportIssue(ctx, { vehicleId: "v-zucky", note: "Door", photoDocumentId: "doc-9" });
+    expect(asked[1]).toBe(`log ${JSON.stringify({ vehicleId: "v-zucky", kind: "issue", note: "Door", receiptDocumentId: "doc-9" })}`);
+  });
+
   it("says why, in the action's words, when a reading goes backwards", async () => {
     refuse = "That reading is below the last one (57,000 km).";
     expect(await logReading(ctx, { vehicleId: "v-zucky", odo: 56000 })).toEqual({ ok: false, status: 400, error: refuse });

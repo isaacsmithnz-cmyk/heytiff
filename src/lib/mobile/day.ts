@@ -78,6 +78,10 @@ export const DAY_WORDS = {
   future: "That time hasn't come yet.",
   noTime: "Pick the time.",
   beforeOn: "That's before you clocked on.",
+  backwards: "It has to finish after it starts.",
+  noStint: "That time isn't in your day.",
+  changed: "Changed.",
+  removed: "Taken off your day.",
   off: "Clocked off at {at}.",
 } as const;
 
@@ -350,6 +354,50 @@ export async function atOffice(ctx: MobileCtx, at: unknown, now: number = Date.n
   const office = day.office ?? [];
   if (!office.some((o) => !o.until)) await setOffice(ctx, day, [...office, { from: t, until: null }]);
   return { ok: true, state: await readDay(ctx, now), said: "" };
+}
+
+/** A job's new times in the day: both readable, in order, inside the day, none of it still to come. */
+export function stintTimes(p: { from: unknown; until: unknown; onAt: string; now: number }): { from: string; until: string } | { error: string } {
+  const f = typeof p.from === "string" ? Date.parse(p.from) : NaN;
+  const u = typeof p.until === "string" ? Date.parse(p.until) : NaN;
+  if (Number.isNaN(f) || Number.isNaN(u)) return { error: DAY_WORDS.noTime };
+  if (u > p.now + 60_000) return { error: DAY_WORDS.future };
+  if (f < Date.parse(p.onAt)) return { error: DAY_WORDS.beforeOn };
+  if (u <= f) return { error: DAY_WORDS.backwards };
+  return { from: new Date(f).toISOString(), until: new Date(Math.min(u, p.now)).toISOString() };
+}
+
+/* A JOB'S TIME, CHANGED OR TAKEN OFF, before Clock off (Isaac, 28 October
+   2026: the Clock off sheet's rows, "tap a row to change it"). Only the
+   phone's own stints in the day that's on: ServiceM8's own check-ins are
+   ServiceM8's, and once the day is off its times have gone to ServiceM8. */
+export async function changeStint(ctx: MobileCtx, id: unknown, from: unknown, until: unknown, remove: boolean, now: number = Date.now()): Promise<DayAnswer> {
+  const day = await openDay(ctx);
+  if (!day) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
+  const stintId = typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id) ? id : null;
+  if (!stintId) return { ok: false, error: DAY_WORDS.noStint, status: 404 };
+  const { data: row } = await supabaseAdmin
+    .from("job_check_ins")
+    .select("id, checked_in_at")
+    .eq("org_id", ctx.orgId)
+    .eq("user_id", ctx.userId)
+    .eq("id", stintId)
+    .maybeSingle();
+  if (!row || (row as { checked_in_at: string }).checked_in_at < day.on_at) return { ok: false, error: DAY_WORDS.noStint, status: 404 };
+  if (remove) {
+    await supabaseAdmin.from("job_check_ins").delete().eq("org_id", ctx.orgId).eq("user_id", ctx.userId).eq("id", stintId);
+    return { ok: true, state: await readDay(ctx, now), said: DAY_WORDS.removed };
+  }
+  const t = stintTimes({ from, until, onAt: day.on_at, now });
+  if ("error" in t) return { ok: false, error: t.error, status: 400 };
+  const { error } = await supabaseAdmin
+    .from("job_check_ins")
+    .update({ checked_in_at: t.from, checked_out_at: t.until })
+    .eq("org_id", ctx.orgId)
+    .eq("user_id", ctx.userId)
+    .eq("id", stintId);
+  if (error) return { ok: false, error: DAY_WORDS.noStint, status: 400 };
+  return { ok: true, state: await readDay(ctx, now), said: DAY_WORDS.changed };
 }
 
 /** "3:00 PM", the timesheet's way, from an instant on the account's clock. */

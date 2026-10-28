@@ -13,7 +13,7 @@ describe("check-ins pressed on the card", () => {
       "Australia/Sydney",
       new Date("2026-10-01T08:00:00Z")
     );
-    expect(s).toEqual([{ uuid: "hey:1", staffId: "sm8-luke", start: "2026-10-01 07:32", end: "2026-10-01 16:05", live: false }]);
+    expect(s).toEqual([{ uuid: "hey:1", staffId: "sm8-luke", start: "2026-10-01 07:32", end: "2026-10-01 16:05", live: false, reason: null }]);
   });
 
   it("someone not in ServiceM8 appears under their own id", () => {

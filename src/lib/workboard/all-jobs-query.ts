@@ -19,6 +19,8 @@
    NO SESSION HERE — callers establish the right to ask. `includeMoney` is
    handed in, and when it is false the money columns are never selected. */
 
+import { readCheckInFixes, withFix } from "./check-in-fixes";
+import { REASON_WORDS } from "./job-check-ins";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { inChunks } from "@/lib/in-chunks";
 import { sm8BookingsAllowed, sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
@@ -597,7 +599,7 @@ export type JobVisit = {
       `sm8_job_activities` has no travel column, so there is nothing here to
       say. `leftOpen` marks someone who left a check-in open that day: on
       site, and their time for it unknown. */
-  crew: { name: string; title: string | null; leftOpen?: true; onSite?: true }[];
+  crew: { name: string; title: string | null; leftOpen?: true; onSite?: true; reason?: string }[];
 };
 
 /** A Studio design that names this job, slimmed to what a row says. */
@@ -937,7 +939,7 @@ export async function readMirrorJobDetail(
       .select(
         bookingsOn
           ? "uuid, start_date, end_date, staff_uuid, activity_was_scheduled, edit_date"
-          : "start_date, end_date, staff_uuid, activity_was_scheduled"
+          : "uuid, start_date, end_date, staff_uuid, activity_was_scheduled"
       )
       .eq("org_id", orgId)
       .eq("active", 1)
@@ -980,7 +982,7 @@ export async function readMirrorJobDetail(
       : Promise.resolve({ data: [] }),
   ]);
 
-  const acts = (actRows ?? []) as unknown as {
+  const actsRead = (actRows ?? []) as unknown as {
     uuid?: string;
     start_date: string | null;
     end_date: string | null;
@@ -988,6 +990,12 @@ export async function readMirrorJobDetail(
     activity_was_scheduled: number | null;
     edit_date?: string | null;
   }[];
+  /* a check-in left on that someone has since fixed ends where they said (check-in-fixes) */
+  const fixes = await readCheckInFixes(
+    orgId,
+    actsRead.filter((a) => a.activity_was_scheduled === 0 && a.uuid).map((a) => a.uuid!)
+  );
+  const acts = actsRead.map((a) => (a.activity_was_scheduled === 0 ? withFix(a, fixes) : a));
   const todayFloor = `${today} 00:00:00`;
   /* Only a dispatched booking may say "next on site". A recorded session
      (activity_was_scheduled=0) can share the same day — and its clock-off
@@ -1055,6 +1063,9 @@ export async function readMirrorJobDetail(
      (lib/workboard/job-check-ins). A stint still open is counted to now. */
   const ours = await readJobCheckInSessions(orgId, remoteId, opts.timezone ?? null, new Date());
   const ourDays = overriddenDays(ours.sessions);
+  /* why someone was there, from the phone's buttons: on the day, by person (Isaac, 28 October 2026) */
+  const reasonOn = new Map<string, string>();
+  for (const o of ours.sessions) if (o.reason && REASON_WORDS[o.reason]) reasonOn.set(`${o.start.slice(0, 10)}|${o.staffId}`, REASON_WORDS[o.reason]!);
   const liveOn = new Map<string, Set<string>>();
   for (const o of ours.sessions)
     if (o.live) liveOn.set(o.start.slice(0, 10), (liveOn.get(o.start.slice(0, 10)) ?? new Set()).add(o.staffId));
@@ -1199,6 +1210,7 @@ export async function readMirrorJobDetail(
           name: staffName.get(id) ?? ours.names.get(id)!,
           title: staffTitle.get(id) ?? null,
           ...(v.leftOpen.has(id) ? { leftOpen: true as const } : liveOn.get(day)?.has(id) ? { onSite: true as const } : {}),
+          ...(reasonOn.has(`${day}|${id}`) ? { reason: reasonOn.get(`${day}|${id}`)! } : {}),
         })),
       })),
     queue: queueName

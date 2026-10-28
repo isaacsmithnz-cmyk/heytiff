@@ -1324,6 +1324,18 @@ describe("the Design step", () => {
     expect(within(group).queryByRole("button", { name: "Price without a design" })).toBeNull();
   });
 
+  /* 2749, 28 October 2026: a work order in ServiceM8 has gone on past its
+     Design step, though its quote here was never marked accepted */
+  it("counts a job won in ServiceM8 as gone on without a design, still offering Design it", async () => {
+    answering({ designs: [], noDesign: null });
+    render(<QuoteLinesFace job="job-2749" price={price} onPriced={jest.fn()} jobStatus="Work Order" />);
+    const group = await screen.findByRole("region", { name: "Design" });
+    expect(within(stages()).getByText("No design")).toBeInTheDocument();
+    expect(within(group).getByText("Priced without a design")).toBeInTheDocument();
+    expect(within(group).getByRole("link", { name: "Design it" })).toHaveAttribute("href", "/dashboard/studio?job=job-2749");
+    expect(within(group).queryByRole("button", { name: "Price without a design" })).toBeNull();
+  });
+
   it("isn't on the quote for someone without the Studio", async () => {
     answering({ designs: null });
     render(<QuoteLinesFace job="job-3406" price={price} onPriced={jest.fn()} />);

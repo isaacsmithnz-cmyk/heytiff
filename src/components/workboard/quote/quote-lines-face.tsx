@@ -151,6 +151,7 @@ export function QuoteLinesFace({
   start = false,
   openAt = null,
   sendVariation: sendVariationTo,
+  jobStatus = null,
 }: {
   job: string;
   price: QuotePrice | null | undefined;
@@ -183,6 +184,9 @@ export function QuoteLinesFace({
   /** an accepted variation's lines to ServiceM8 on the job (decision 21,
       job-quote-send.tsx); without it, nothing is sent */
   sendVariation?: (option: number) => Promise<VariationSendAnswer>;
+  /** the job's state in ServiceM8 ("Quote", "Work Order"…): a job won or
+      closed there has gone on past its Design step, whatever this quote says */
+  jobStatus?: string | null;
 }) {
   const { view, post, reload } = useQuoteLines(job, true);
   const [at, setAt] = useState(openAt ?? 0);
@@ -237,12 +241,14 @@ export function QuoteLinesFace({
   const version = (versions[0]?.n ?? 0) + 1;
   const shown = viewing == null ? null : (versions.find((v) => v.n === viewing) ?? null);
   /* THE DESIGN STEP (28 October 2026): a design of the job's, No design
-     pressed, or the quote gone on without one (approved, sent, accepted);
-     none at all to someone without the Studio */
+     pressed, or the quote gone on without one (approved, sent, accepted, or
+     the job past Quote in ServiceM8: 2749, a work order, asked to be
+     designed); none at all to someone without the Studio */
   const designs = view?.designs ?? null;
+  const pastQuote = !!jobStatus && jobStatus.trim().toLowerCase() !== "quote";
   const design =
     view && designs
-      ? designState({ designs: designs.length, noDesign: !!view.noDesign, onWithout: !!view.approved || !!view.sent || accepted.length > 0 })
+      ? designState({ designs: designs.length, noDesign: !!view.noDesign, onWithout: !!view.approved || !!view.sent || accepted.length > 0 || pastQuote })
       : null;
   const steps = linesSteps({
     design,

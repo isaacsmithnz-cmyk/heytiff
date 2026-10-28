@@ -222,6 +222,7 @@ export function QuoteScreen({
               start={start}
               openAt={option}
               sendVariation={(o) => sendVariation(job, o)}
+              jobStatus={detail.status ?? null}
             />
           ) : onLines === false ? (
             <div className="qp-wait">

@@ -44,14 +44,25 @@ export type JobPrefill = {
   site: string;
 };
 
+/* a part of an address that is the suburb's, or after it: the state, or a
+   postcode at its end ("Surry Hills NSW 2010", "Mascot 2020"), or the country */
+const SUBURB_PART = /\b(?:NSW|VIC|QLD|SA|WA|TAS|ACT|NT)\b|\b\d{4}$/;
+const COUNTRY_PART = /^australia$/i;
+
 /** The street line alone — "12/3 Wallace St" — which is what a design is
-    called. Trailing punctuation is ServiceM8's, not the address's. */
+    called. Trailing punctuation is ServiceM8's, not the address's. An
+    address typed in one box comes on one line, "111 Goodlet St, Surry Hills
+    NSW 2010, Australia" (3446, found walking the quote's Design step on 28
+    October 2026): the street is what's before its suburb. */
 export function streetLine(address: string | null): string {
   const first = (address ?? "")
     .split("\n")
     .map((l) => l.trim())
     .find((l) => l.length > 0);
-  return (first ?? "").replace(/[,\s]+$/, "");
+  const line = (first ?? "").replace(/[,\s]+$/, "");
+  const parts = line.split(",").map((p) => p.trim());
+  const suburb = parts.findIndex((p, i) => i > 0 && (SUBURB_PART.test(p) || COUNTRY_PART.test(p)));
+  return suburb > 0 ? parts.slice(0, suburb).join(", ") : line;
 }
 
 /** The whole address on one line — "2 Spring St, Paddington NSW 2021" — for

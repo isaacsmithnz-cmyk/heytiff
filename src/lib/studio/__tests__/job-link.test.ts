@@ -40,6 +40,20 @@ describe("streetLine", () => {
     expect(streetLine(null)).toBe("");
     expect(streetLine("   ")).toBe("");
   });
+
+  /* 3446 and 3448, 28 October 2026: an address typed in one box */
+  it("takes what's before the suburb from an address on one line", () => {
+    expect(streetLine("111 Goodlet St, Surry Hills NSW 2010, Australia")).toBe("111 Goodlet St");
+    expect(streetLine("4/48 Avoca Street, Randwick NSW, Australia")).toBe("4/48 Avoca Street");
+    expect(streetLine("Unit 4, 48 Avoca Street, Randwick NSW 2031")).toBe("Unit 4, 48 Avoca Street");
+    expect(streetLine("Shop 3, 1200 Botany Rd, Mascot 2020")).toBe("Shop 3, 1200 Botany Rd");
+    expect(streetLine("1234 Pacific Highway, Pymble NSW 2073")).toBe("1234 Pacific Highway");
+  });
+
+  it("leaves a street with no suburb after it as it is", () => {
+    expect(streetLine("Level 2, 100 George St")).toBe("Level 2, 100 George St");
+    expect(streetLine("12 Sale Street")).toBe("12 Sale Street");
+  });
 });
 
 describe("flatAddress", () => {

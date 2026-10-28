@@ -10136,6 +10136,110 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
   stroke-width: 0.75;
   vector-effect: non-scaling-stroke;
 }
+.ds-duct-outlet circle {
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.ds-duct-outlet circle.inner {
+  fill: none;
+  stroke-width: 0.75;
+}
+.ds-duct-outlet polygon {
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.ds-duct-outlet.chosen rect,
+.ds-duct-outlet.chosen polygon,
+.ds-duct-outlet.chosen circle:not(.inner) {
+  stroke-width: 2.5;
+}
+/* more air than its size takes: the outline in the warning ink */
+.ds-duct-outlet.over rect:not(.inner),
+.ds-duct-outlet.over polygon,
+.ds-duct-outlet.over circle:not(.inner) {
+  stroke: var(--warn-t);
+}
+.ds-outlet-end {
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  cursor: ew-resize;
+}
+.ds-outlet-fo {
+  overflow: visible;
+}
+.ds-outlet-tray {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--paper);
+  border-radius: 16px;
+  box-shadow: var(--shadow-overlay);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink);
+}
+.ds-outlet-tray .seg {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+}
+.ds-outlet-tray .seg button {
+  flex: 1;
+  padding: 4px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
+  color: var(--q);
+  cursor: pointer;
+}
+.ds-outlet-tray .seg button.on {
+  background: var(--tint-2);
+  color: var(--ink);
+  font-weight: var(--fw-heading);
+}
+.ds-outlet-tray .row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.ds-outlet-tray .row span {
+  color: var(--q);
+}
+.ds-outlet-tray .row .seg {
+  flex: 1;
+}
+.ds-outlet-tray .row input {
+  width: 96px;
+  font: inherit;
+  color: var(--ink);
+  padding: 2px 4px;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  background: var(--paper);
+  text-align: right;
+}
+.ds-outlet-tray .air {
+  margin: 0;
+  color: var(--q);
+}
+.ds-outlet-tray .air.over {
+  color: var(--warn-t);
+}
 .ds-duct-outlet.grab,
 .ds-duct-return.grab {
   cursor: grab;

@@ -10126,6 +10126,11 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .ds-duct-fitting circle.grab {
   cursor: pointer;
 }
+.ds-duct.pick,
+.ds-duct-plenum.pick,
+.ds-duct-collar.pick {
+  cursor: pointer;
+}
 .ds-duct-pick .tray {
   fill: var(--paper);
   stroke: var(--edge);

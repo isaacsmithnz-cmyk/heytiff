@@ -23,6 +23,7 @@ import { allocationsOf, hasAllocations, roomsServed, type Allocation } from "./a
 import { loadShare } from "./coverage";
 import { roomLoadKw, type RoomObj } from "./loads-room";
 import { zoneIdsOf } from "./zones";
+import { DUCT_AIRWAY_FORMS } from "./form-factors";
 
 /** air speed at a supply outlet's neck and in a supply run, m/s */
 export const SUPPLY_MS = 3.0;
@@ -101,15 +102,37 @@ export interface UnitAir {
 const iduRow = (pack: DataPack, model: string): IndoorUnit | undefined =>
   pack.indoor_units.find((u) => u.model === model);
 
-/** does this unit send air down ducts? A ducted unit does. A bulkhead unit
-    sits in its bulkhead and blows straight into the room, so it takes no
-    ductwork, outlets or return of its own (Isaac, 28 October 2026: "the
-    units are bulkhead units VMXs. Which sit within the…", after the Studio
-    drew ducts and ceiling diffusers off each one) */
+/** does this unit send air down ducts? a ducted or bulkhead form */
 export function isAirUnit(pack: DataPack, a: Allocation): boolean {
   if (a.role !== "idu" || !a.model) return false;
   const row = iduRow(pack, a.model);
-  return row != null && row.form_factor === "ducted";
+  return row != null && DUCT_AIRWAY_FORMS.includes(row.form_factor);
+}
+
+/** whether the Studio draws this unit's ductwork. The person says, by unit
+    (`settings.ducts`); until they do, a ducted unit has it and a bulkhead
+    hasn't, since most bulkheads blow straight into their room (Isaac, 28
+    October 2026: "it automatically put random ductwork on to the unit when I
+    dropped the unit on the plan … Bulkheads can have ducts, but I can't
+    delete the ductwork from the design"). A unit with none sends no air down
+    ducts: no outlets, runs, return or duct materials. */
+export function ductsDrawn(sys: DesignSystem, unitId: string, form: string | null | undefined): boolean {
+  const set = sys.settings.ducts;
+  const said = set && typeof set === "object" && !Array.isArray(set) ? (set as Record<string, unknown>)[unitId] : undefined;
+  return typeof said === "boolean" ? said : form === "ducted";
+}
+
+/** the person's say on a unit's ductwork: drawn, or none */
+export function setDuctsDrawn(doc: DesignDocument, systemId: string, unitId: string, on: boolean): DesignDocument {
+  return {
+    ...doc,
+    systems: doc.systems.map((s) => {
+      if (s.id !== systemId) return s;
+      const cur = s.settings.ducts;
+      const prev = cur && typeof cur === "object" && !Array.isArray(cur) ? (cur as Record<string, boolean>) : {};
+      return { ...s, settings: { ...s.settings, ducts: { ...prev, [unitId]: on } } };
+    }),
+  };
 }
 
 /** the return grille that takes this airflow across its face */
@@ -125,6 +148,7 @@ export function returnGrilleFor(ls: number): { wMm: number; hMm: number } {
 export function unitAir(doc: DesignDocument, pack: DataPack, sys: DesignSystem, unit: Allocation): UnitAir | null {
   if (!isAirUnit(pack, unit)) return null;
   const row = iduRow(pack, unit.model)!;
+  if (!ductsDrawn(sys, unit.id, row.form_factor)) return null;
   const ls = row.airflow_ls;
   if (ls == null || ls <= 0) return null;
   const ids = unit.serves === "system" ? zoneIdsOf(sys) : roomsServed(unit);

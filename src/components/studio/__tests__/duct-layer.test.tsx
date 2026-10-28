@@ -1,7 +1,8 @@
 /* The ductwork on the plan (duct-layer.tsx): what the Studio lays out for a
    ducted unit is drawn — outlets, the return with its filter, a circle where
    two runs part named by its ducts, each run's size — an outlet dragged with
-   Select is kept where it was let go, and a circle is made a Y or a BTO. */
+   Select is kept where it was let go, a circle is made a Y or a BTO, and a
+   unit's ductwork can be taken off from the plan. */
 
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
@@ -15,6 +16,7 @@ import { claimZone, newSystem } from "@/lib/studio/zones";
 import { draggedAt, fittingKinds, systemDuctwork } from "@/lib/studio/ductwork";
 import { outletPicks } from "@/lib/studio/outlets";
 import { setZoning } from "@/lib/studio/zoning";
+import { ductsDrawn } from "@/lib/studio/airflow";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -205,5 +207,24 @@ describe("DuctLayer", () => {
     fireEvent.pointerUp(sensor, { clientX: 300, clientY: 300, pointerId: 1 });
     const after = onMutate.mock.calls[0][0](doc) as DesignDocument;
     expect(Object.entries(draggedAt(after.systems[0]))).toEqual([[`${unit.id}/sensor/living`, { x: 300, y: 300 }]]);
+  });
+
+  it("a click on a run offers Remove ductwork, which takes the unit's ductwork off", () => {
+    const h = house();
+    const onMutate = jest.fn();
+    const { container } = draw(h.doc, onMutate);
+    fireEvent.click(container.querySelector(".ds-duct.supply")!, { clientX: m(3), clientY: m(3) });
+    fireEvent.click(screen.getByRole("button", { name: "Remove ductwork" }));
+    const after: DesignDocument = onMutate.mock.calls[0][0](h.doc);
+    const unit = allocationsOf(after.systems[0]).find((a) => a.role === "idu")!;
+    expect(ductsDrawn(after.systems[0], unit.id, "ducted")).toBe(false);
+    expect(systemDuctwork(after, pack, after.systems[0])).toEqual([]);
+  });
+
+  it("offers nothing to take off without Select", () => {
+    const h = house();
+    const { container } = draw(h.doc, jest.fn(), false);
+    fireEvent.click(container.querySelector(".ds-duct.supply")!, { clientX: m(3), clientY: m(3) });
+    expect(screen.queryByRole("button", { name: "Remove ductwork" })).toBeNull();
   });
 });

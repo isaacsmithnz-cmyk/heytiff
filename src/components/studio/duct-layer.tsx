@@ -12,12 +12,16 @@
    With Select, an outlet or the return grille is dragged and the runs
    follow while it moves (the spot is kept on the system, settings.ductAt),
    and a circle is clicked to make it a Y or a BTO (settings.ductFitting);
-   clicking the lit one again leaves it to the day. */
+   clicking the lit one again leaves it to the day. A run, the plenum or a
+   collar is clicked to offer Remove ductwork, which takes the unit's
+   ductwork off (settings.ducts; Isaac, 28 October 2026: "I can't delete the
+   ductwork from the design"); Edit system puts it back. */
 
 import { useState } from "react";
 import type { DesignDocument, Floor, Point } from "@/lib/studio/document";
 import type { DataPack } from "@/lib/studio/packs/schema";
 import { hasAllocations } from "@/lib/studio/allocations";
+import { setDuctsDrawn } from "@/lib/studio/airflow";
 import {
   dragDuctEnd,
   drawLinearEnd,
@@ -112,6 +116,8 @@ export function DuctLayer({
   const [open, setOpen] = useState<string | null>(null);
   /* the outlet whose tray is open */
   const [chosen, setChosen] = useState<string | null>(null);
+  /* the unit whose Remove ductwork is offered, where its ductwork was clicked */
+  const [offer, setOffer] = useState<{ systemId: string; unitId: string; at: Point } | null>(null);
   const s = floor.scaleMmPerUnit;
   if (!s) return null;
   const held = (d: DesignDocument) => {
@@ -171,11 +177,29 @@ export function DuctLayer({
   const choose = (systemId: string, o: DuctOutlet, change: OutletPick) =>
     onMutate((doc) => setOutletPick(doc, systemId, o.key, change));
 
-  const run = (r: DuctRun) => {
+  /* a click on a unit's runs, plenum or collars offers to take them off */
+  const offerOn = (systemId: string, unitId: string) =>
+    interactive
+      ? {
+          onPointerDown: (e: React.PointerEvent<SVGElement>) => e.stopPropagation(),
+          onClick: (e: React.MouseEvent<SVGElement>) => {
+            e.stopPropagation();
+            setOpen(null);
+            setOffer(offer?.unitId === unitId ? null : { systemId, unitId, at: toWorld(e) });
+          },
+        }
+      : {};
+  const remove = () => {
+    const o = offer;
+    setOffer(null);
+    if (o) onMutate((doc) => setDuctsDrawn(doc, o.systemId, o.unitId, false));
+  };
+
+  const run = (r: DuctRun, systemId: string, unitId: string) => {
     const d = bendPathD(r.points, u(BEND_MM));
     const w = u(r.diaMm);
     return (
-      <g key={r.key} className={`ds-duct ${r.stream}`}>
+      <g key={r.key} className={`ds-duct ${r.stream}${interactive ? " pick" : ""}`} {...offerOn(systemId, unitId)}>
         <path
           className="ds-duct-edge"
           d={d}
@@ -237,6 +261,7 @@ export function DuctLayer({
           onClick={(e) => {
             if (!interactive) return;
             e.stopPropagation();
+            setOffer(null);
             setOpen(isOpen ? null : f.key);
           }}
           onKeyDown={(e) => {
@@ -523,6 +548,44 @@ export function DuctLayer({
     );
   };
 
+  /* Remove ductwork, beside where the ductwork was clicked, the screen's
+     size at any zoom like the Y / BTO tray */
+  const removeTray = (at: Point) => {
+    const px = 1 / zoom;
+    const bw = 150 * px;
+    const bh = 26 * px;
+    const pad = 3 * px;
+    const x = at.x + 8 * px;
+    const y = at.y - bh / 2 - pad;
+    return (
+      <g className="ds-duct-pick" role="group" aria-label="Ductwork">
+        <rect className="tray" x={x} y={y} width={bw + pad * 2} height={bh + pad * 2} rx={bh / 2 + pad} />
+        <g
+          className="opt"
+          role="button"
+          tabIndex={0}
+          aria-label="Remove ductwork"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            remove();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              remove();
+            }
+          }}
+        >
+          <rect x={x + pad} y={y + pad} width={bw} height={bh} rx={bh / 2} />
+          <text x={x + pad + bw / 2} y={y + pad + bh / 2 + 4.5 * px} fontSize={13 * px}>
+            Remove ductwork
+          </text>
+        </g>
+      </g>
+    );
+  };
+
   return (
     <g className="ds-ducts" aria-label="Ductwork">
       {layouts.map(({ systemId, lay }) => {
@@ -534,9 +597,13 @@ export function DuctLayer({
         const gh = u(lay.ret.hMm);
         return (
           <g key={lay.unitId}>
-            {lay.returns.map(run)}
-            {lay.supply.map(run)}
-            <polygon className="ds-duct-plenum" points={lay.plenum.map((p) => `${p.x},${p.y}`).join(" ")} />
+            {lay.returns.map((r) => run(r, systemId, lay.unitId))}
+            {lay.supply.map((r) => run(r, systemId, lay.unitId))}
+            <polygon
+              className={`ds-duct-plenum${interactive ? " pick" : ""}`}
+              points={lay.plenum.map((p) => `${p.x},${p.y}`).join(" ")}
+              {...offerOn(systemId, lay.unitId)}
+            />
             {lay.collars.map((c, i) => {
               const w = u(c.diaMm) / 2;
               const side = { x: -c.out.y, y: c.out.x };
@@ -547,7 +614,14 @@ export function DuctLayer({
                 { x: tip.x - side.x * w, y: tip.y - side.y * w },
                 { x: c.at.x - side.x * w, y: c.at.y - side.y * w },
               ];
-              return <polygon key={i} className="ds-duct-collar" points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />;
+              return (
+                <polygon
+                  key={i}
+                  className={`ds-duct-collar${interactive ? " pick" : ""}`}
+                  points={pts.map((p) => `${p.x},${p.y}`).join(" ")}
+                  {...offerOn(systemId, lay.unitId)}
+                />
+              );
             })}
             {lay.outlets.map((o) => outlet(systemId, o))}
             <g
@@ -582,6 +656,7 @@ export function DuctLayer({
           </g>
         );
       })}
+      {interactive && offer && layouts.some((l) => l.lay.unitId === offer.unitId) && removeTray(offer.at)}
     </g>
   );
 }

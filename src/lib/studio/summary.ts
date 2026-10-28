@@ -7,6 +7,7 @@
    menu, because they re-load every room in the engine); later stages add the
    design snapshot and the per-floor rooms & loads tables. */
 
+import { ductLines } from "./duct-materials";
 import type { DesignDocument, DesignSettings, DesignSystem } from "./document";
 import type { DataPack } from "./packs/schema";
 import {
@@ -201,7 +202,10 @@ export interface SummaryRoomRow {
     than running one long list, and the grouping is DERIVED here so the screen,
     the paper and the customer's sheet can never disagree about which pile a
     line belongs to. Refrigerant sits with Pipe: you buy it against the run. */
-export type SheetGroup = "pipe" | "electrical" | "components";
+/** the shelves a takeoff line goes on. Ductwork and Grilles are the price
+    book's own groups (quotes/install-groups.ts), for a ducted unit's air
+    side (duct-materials.ts) */
+export type SheetGroup = "pipe" | "electrical" | "components" | "ductwork" | "grilles";
 
 /** One takeoff line — a pipe coil, a component choice, a refrigerant top-up.
     Never a unit: units live in the rooms table (indoors) and the outdoor
@@ -502,6 +506,9 @@ export function buildSummaryModel(
               sub: c.sub ?? "",
               qty: c.value,
             }))),
+      /* a ducted unit's air side: flex as laid out, its Ys and BTOs, the
+         plenums made for it, its outlets and its return */
+      ...(pack ? ductLines(doc, pack, sys).map((l) => ({ group: l.shelf as SheetGroup, name: l.name, sub: l.sub, qty: l.qty })) : []),
       ...(topupKg != null && topupKg > 0
         ? [
             {

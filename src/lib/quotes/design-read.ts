@@ -10,6 +10,7 @@ import { blockingFindings, combinationWord, systemFindings } from "@/lib/studio/
 import { shortKw } from "@/lib/studio/fit";
 import { headPipeMm } from "@/lib/studio/pipe-sizes";
 import { spigotsOf } from "@/lib/studio/ducted";
+import { ductLines } from "@/lib/studio/duct-materials";
 import { formFactorLabel } from "@/lib/studio/form-factors";
 import { roomAreaM2, roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { KIND_WORD, servedRoomIds, systemKind, zoneIdsOf } from "@/lib/studio/zones";
@@ -225,7 +226,7 @@ function systemRead(doc: DesignDocument, pack: DataPack | null, sys: DesignSyste
     .filter((l) => !/pair coil$/i.test(l.name) && l.name !== "Additional refrigerant")
     .map((l) => `${l.name}: ${l.qty}${l.sub && l.sub !== "liquid / gas mm" ? ` (${l.sub})` : ""}`);
 
-  const air = airSide(doc, sys);
+  const air = airSide(doc, sys, book);
   const fails = book ? blockingFindings(systemFindings(doc, book, sys)).map((f) => (f.fix ? `${f.message}. ${f.fix}` : f.message)) : [];
   const word = book ? combinationWord(doc, book, sys) : null;
 
@@ -281,7 +282,11 @@ function unbookedRooms(doc: DesignDocument, sys: DesignSystem): { row: DesignRoo
 
 /** A system's air side as drawn: its plenums and their takeoffs, its
     outlets and duct runs; a ducted one says plainly when none is drawn. */
-function airSide(doc: DesignDocument, sys: DesignSystem): string[] {
+function airSide(doc: DesignDocument, sys: DesignSystem, book: DataPack | null): string[] {
+  /* a ducted unit the Studio lays the ductwork out for: what it puts on the
+     job, by the price book's names (duct-materials.ts) */
+  const laid = book ? ductLines(doc, book, sys) : [];
+  if (laid.length) return laid.map((l) => (l.qty === "—" ? `${l.name}: ${l.sub}` : `${l.qty} ${l.name}${l.sub ? ` (${l.sub})` : ""}`));
   const mine = doc.objects.filter((o) => o.systemId === sys.id);
   const count = (type: string, one: string, many: string) => {
     const n = mine.filter((o) => o.type === type).length;

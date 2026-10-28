@@ -22,7 +22,7 @@
 
 import { newId, type DesignDocument, type DesignObject, type DesignSystem } from "./document";
 import type { DataPack, IndoorUnit } from "./packs/schema";
-import { allocationsOf, hasAllocations, type Allocation } from "./allocations";
+import { allocationsOf, hasAllocations, roomsServed, type Allocation } from "./allocations";
 import { nextSystemColour } from "./modules";
 import { allVrfOnly, joinsVrf } from "./vrf";
 import type { RoomObj } from "./loads-room";
@@ -74,7 +74,7 @@ export function servedRoomIds(sys: DesignSystem, zoneIds: string[], allocs?: All
   const out = [...zoneIds];
   const units = allocs ?? (hasAllocations(sys) ? allocationsOf(sys) : []);
   for (const a of units) {
-    if (a.role === "idu" && a.roomId && !out.includes(a.roomId)) out.push(a.roomId);
+    for (const r of roomsServed(a)) if (!out.includes(r)) out.push(r);
   }
   return out;
 }

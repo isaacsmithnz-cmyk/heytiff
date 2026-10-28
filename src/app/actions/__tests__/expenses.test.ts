@@ -59,6 +59,12 @@ jest.mock("@/lib/au-dates", () => ({
   todayInAu: () => "2026-07-26",
 }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
+const pushed: string[] = [];
+jest.mock("@/lib/expenses/claim-push", () => ({
+  pushClaimSent: (orgId: string, c: { staffId: string; description: string; amount: number }) => pushed.push(`sent ${orgId} ${c.staffId} ${c.description} ${c.amount}`),
+  pushClaimDecided: (orgId: string, c: { staffId: string }, d: { status: string; note: string | null }) =>
+    pushed.push(`decided ${orgId} ${c.staffId} ${d.status}${d.note ? ` ${d.note}` : ""}`),
+}));
 
 import {
   approveClaim,
@@ -76,6 +82,7 @@ const goodClaim = {
 };
 
 beforeEach(() => {
+  pushed.length = 0;
   insert.mockClear();
   update.mockClear();
   claimRow = { status: "pending", staff_profile_id: "someone-else" };
@@ -352,5 +359,37 @@ describe("attaching a receipt to a job", () => {
       "expense_claims",
       expect.objectContaining({ job_kind: "none", job_id: null, job_label: null }),
     );
+  });
+});
+
+/* The phone's pushes (Isaac, 28 October 2026): whoever approves hears of a
+   claim, the person who sent it hears the decision; a card receipt asks
+   nobody anything, and nothing is pushed for a refusal. */
+describe("pushes", () => {
+  it("tells the approvers of a claim, never of a card receipt", async () => {
+    await submitClaim(goodClaim);
+    expect(pushed).toEqual(["sent org-1 me Copper fittings 84.5"]);
+    pushed.length = 0;
+    await submitClaim({ ...goodClaim, paidWith: "company" });
+    expect(pushed).toEqual([]);
+  });
+
+  it("pushes nothing for a claim it refused", async () => {
+    await submitClaim({ ...goodClaim, amount: 0 });
+    expect(pushed).toEqual([]);
+  });
+
+  it("tells the person who sent it the decision, with the reason for a no", async () => {
+    claimRow = { status: "pending", staff_profile_id: "someone-else", description: "Copper fittings", amount: 84.5 };
+    await approveClaim("c-1");
+    claimRow = { status: "pending", staff_profile_id: "someone-else", description: "Copper fittings", amount: 84.5 };
+    await declineClaim("c-2", "No receipt attached");
+    expect(pushed).toEqual(["decided org-1 someone-else approved", "decided org-1 someone-else declined No receipt attached"]);
+  });
+
+  it("pushes nothing when the decision is refused", async () => {
+    claimRow = { status: "pending", staff_profile_id: "me" };
+    await approveClaim("c-1");
+    expect(pushed).toEqual([]);
   });
 });

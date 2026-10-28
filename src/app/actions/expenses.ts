@@ -8,6 +8,7 @@ import { staffProfileIdFor } from "@/lib/fleet/query";
 import { todayInAu } from "@/lib/au-dates";
 import { jobCandidates } from "@/lib/dashboard/job-candidates";
 import type { JobCandidate } from "@/lib/workboard/note-match";
+import { pushClaimDecided, pushClaimSent } from "@/lib/expenses/claim-push";
 import {
   buildClaim,
   canTransition,
@@ -252,6 +253,9 @@ export async function submitClaim(
     }
   }
 
+  /* whoever approves hears of a claim; a card receipt asks nobody anything */
+  if (built.row.paid_with !== "company") pushClaimSent(ctx.orgId, { staffId: ctx.staffId, description: built.row.description, amount: built.row.amount });
+
   refresh();
   return { ok: true, id: String((data as { id: string }).id) };
 }
@@ -301,7 +305,7 @@ async function decide(
 
   const { data } = await supabaseAdmin
     .from("expense_claims")
-    .select("status, staff_profile_id")
+    .select("status, staff_profile_id, description, amount")
     .eq("org_id", ctx.orgId)
     .eq("id", claimId)
     .maybeSingle();
@@ -328,6 +332,12 @@ async function decide(
     .eq("id", claimId);
 
   if (error) return { ok: false, error: "Couldn't save that decision." };
+  /* the person who sent it hears, with the reason when it's no */
+  pushClaimDecided(
+    ctx.orgId,
+    { staffId: String(data.staff_profile_id), description: String(data.description ?? ""), amount: Number(data.amount ?? 0) },
+    { status, note },
+  );
   refresh();
   return { ok: true };
 }

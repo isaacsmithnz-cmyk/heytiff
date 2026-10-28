@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { normEmail } from "@/lib/integrations/match";
 import { ALLOWED_TYPES, MAX_BYTES } from "@/lib/documents/files";
 import { DOCUMENTS_BUCKET } from "@/lib/documents/query";
-import { addressOf, keptAttachments, nameOf, newEmailToken, senderVouchedFor, textOfEmail } from "./inbound";
+import { addressOf, keptAttachments, nameOf, newEmailToken, senderForged, textOfEmail } from "./inbound";
 
 /* EMAIL TO TIFF, on the database and at Resend (inbound.ts says why it is
    shaped this way). The address a business forwards to; which business and
@@ -116,8 +116,8 @@ async function resend<T>(path: string): Promise<T | null> {
 export type KeptFile = { name: string; contentType: string; size: number; path: string };
 
 /** An email taken in: fetched whole, its sender checked (one of the business's
-    own people, vouched for by their mail server, or it is refused and its words
-    aren't kept), its words and files kept. What's left for Tiff to read is the
+    own people, and not found forged by the receiving server, or it is refused
+    and its words aren't kept), its words and files kept. What's left for Tiff to read is the
     row. Returns what became of it. */
 export async function takeEmailIn(rowId: string, orgId: string, providerId: string): Promise<"received" | "refused" | "failed"> {
   const email = await resend<Received>(`/emails/receiving/${encodeURIComponent(providerId)}`);
@@ -126,10 +126,10 @@ export async function takeEmailIn(rowId: string, orgId: string, providerId: stri
     return "failed";
   }
   const sender = await teamSender(orgId, addressOf(email.from));
-  if (!sender || !senderVouchedFor(email.authentication)) {
+  if (!sender || senderForged(email.authentication)) {
     await supabaseAdmin
       .from("email_in_messages")
-      .update({ state: "refused", why: sender ? "Its sender's mail server didn't vouch for it." : "It didn't come from anyone on the team." })
+      .update({ state: "refused", why: sender ? "Its sender's own domain says it didn't send it." : "It didn't come from anyone on the team." })
       .eq("id", rowId);
     return "refused";
   }

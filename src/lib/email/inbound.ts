@@ -97,13 +97,19 @@ export function signedByResend(
     });
 }
 
-/** Whether a sender's own mail server vouched for it: DKIM or SPF passed, so
-    "From: isaac@…" isn't someone else using his name. Null (older mail, or
-    a receiver that couldn't tell) is not a pass. */
-export function senderVouchedFor(auth: { spf?: string | null; dkim?: string | null; dmarc?: string | null } | null | undefined): boolean {
+/** Whether the receiving server found a sender forged, so "From: isaac@…"
+    is someone else using his name: their domain's DMARC failed, or nothing
+    passed and a check their domain does publish failed (SPF names other
+    servers, a DKIM signature is broken). A domain that publishes nothing to
+    check is not forged, and nor is mail the receiver couldn't judge (null):
+    many small businesses have no SPF, DKIM or DMARC at all (Diamond Air's
+    first forward was refused for it, 28 October 2026), and for them the
+    long random address and the team's own addresses are the guard. */
+export function senderForged(auth: { spf?: string | null; dkim?: string | null; dmarc?: string | null } | null | undefined): boolean {
   if (!auth) return false;
-  if (auth.dmarc === "fail") return false;
-  return auth.dkim === "pass" || auth.spf === "pass";
+  if (auth.dmarc === "fail") return true;
+  if (auth.dkim === "pass" || auth.spf === "pass") return false;
+  return auth.spf === "fail" || auth.dkim === "fail";
 }
 
 /** What an email said, as plain words: its text part, else its HTML with the

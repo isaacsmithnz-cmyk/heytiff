@@ -16,6 +16,9 @@
                      no day, leftover bookings, open issues.
      notices         a notice you haven't read, until you do (decision 28).
      timesheets      sheets sent in and waiting on an approver (F-178).
+     emails          an email you forwarded to Tiff that she has read into
+                     a job, until you make it, file it or say it isn't one
+                     (28 October 2026: the bell is gone, so this is its door).
 
    A row says its state with a dot (rule 17): red for wrong or late, orange
    for needs a look, grey for your information. Wrong first, then a look,
@@ -54,7 +57,7 @@ export type TodoAct =
   /** a field issue with nothing to open: Make it a task, or Done, in Your feed */
   | { kind: "issue"; issueId: string; title: string };
 
-export type TodoSource = "reminder" | "assignment" | "alert" | "list" | "timesheets" | "notice";
+export type TodoSource = "reminder" | "assignment" | "alert" | "list" | "timesheets" | "notice" | "email";
 
 /** Which of Home's three columns a row stands in (Isaac, 20 October): Today
     is only what has a time ("anything with a specific time can go on today.
@@ -84,6 +87,10 @@ export type TodoRow = {
     render body is a hydration trap). */
 export type TodoReminder = { taskId: string; title: string; late: string };
 
+/** An email you forwarded to Tiff, read and waiting on you: its subject, the
+    day it came in, and the job it's for when she found one. */
+export type EmailWaiting = { id: string; subject: string; day: string; forJob: string | null };
+
 /** A notice you haven't read, current and not your own. */
 export type UnreadNotice = { id: string; title: string; from: string | null; day: string };
 
@@ -93,6 +100,8 @@ export type TodoExtras = {
   notices: UnreadNotice[];
   /** Sheets sent in and waiting on an approver; 0 without `approvals`. */
   timesheets: number;
+  /** Emails you forwarded to Tiff, read and waiting on you. */
+  emails?: EmailWaiting[];
 };
 
 export const EMPTY_TODO: TodoExtras = { reminders: [], assignments: [], notices: [], timesheets: 0 };
@@ -372,7 +381,19 @@ export function todoRows(input: TodoInput): TodoRow[] {
     act: { kind: "link", label: "Open", href: "/dashboard/team?view=notices" },
   }));
 
-  const all = [...reminders, ...given, ...alerts, ...list, ...timesheets, ...notices];
+  const emails: TodoRow[] = (input.emails ?? []).map((e) => ({
+    key: `email:${e.id}`,
+    source: "email",
+    col: "activity",
+    tone: "look",
+    name: e.subject,
+    line: e.forJob ? `Tiff read your email: it's for job ${e.forJob}` : "Tiff read your email: a new job",
+    lineTone: false,
+    tick: null,
+    act: { kind: "link", label: "Open", href: `/dashboard/conversations?open=email-${e.id}` },
+  }));
+
+  const all = [...reminders, ...given, ...alerts, ...list, ...timesheets, ...notices, ...emails];
   /* stable: each source is already in its own order */
   return all
     .map((row, i) => ({ row, i }))
@@ -388,13 +409,14 @@ export function bellCount(input: {
   reminders: readonly { taskId: string }[];
   assignments: readonly NewAssignment[];
   notices: readonly unknown[];
+  emails?: readonly unknown[];
 }): number {
   const alerts = new Set(input.chips.map((c) => c.key)).size;
   const news = assignmentsNotAlreadyDue(
     input.assignments,
     input.reminders.map((r) => r.taskId),
   ).length;
-  return alerts + input.reminders.length + news + input.notices.length;
+  return alerts + input.reminders.length + news + input.notices.length + (input.emails?.length ?? 0);
 }
 
 /** A row's column on Home. */

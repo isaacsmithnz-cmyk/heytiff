@@ -377,3 +377,32 @@ describe("bellCount, the sidebar's number", () => {
     expect(bellCount({ chips: [], reminders: [], assignments: [], notices: [] })).toBe(0);
   });
 });
+
+/* Email to Tiff (28 October 2026): "Isn't the bell gone from the desktop?"
+   It is, so an email Tiff has read into a job waits in To do, until it is
+   made, filed or put away, and opens its thread */
+describe("an email Tiff has read", () => {
+  it("is a row that opens its thread, saying the job it's for when she found one", () => {
+    const rows = todoRows(
+      input({
+        emails: [
+          { id: "e1", subject: "Tender – 40 Westbourne Street, Stanmore", day: "2026-10-29", forJob: null },
+          { id: "e2", subject: "Revised drawings, Rev D", day: "2026-10-29", forJob: "3444" },
+        ],
+      })
+    );
+    expect(byKey(rows, "email:e1")).toMatchObject({
+      source: "email",
+      col: "activity",
+      tone: "look",
+      name: "Tender – 40 Westbourne Street, Stanmore",
+      line: "Tiff read your email: a new job",
+      act: { kind: "link", label: "Open", href: "/dashboard/conversations?open=email-e1" },
+    });
+    expect(byKey(rows, "email:e2").line).toBe("Tiff read your email: it's for job 3444");
+  });
+
+  it("counts beside Home, as what came to you", () => {
+    expect(bellCount({ chips: [], reminders: [], assignments: [], notices: [], emails: [{}, {}] })).toBe(2);
+  });
+});

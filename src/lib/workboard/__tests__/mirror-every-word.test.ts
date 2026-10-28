@@ -83,6 +83,7 @@ const job = (uuid: string, over: Row): Row => ({
   status: "Completed",
   company_uuid: null,
   geo_city: null,
+  job_address: null,
   category_uuid: null,
   job_description: null,
   date: "2026-01-01 09:00:00",
@@ -112,6 +113,8 @@ beforeEach(() => {
     }),
     job("j-2702", { company_uuid: "c-abc", geo_city: "Mosman", job_description: "Roof unit" }),
     job("j-2800", { company_uuid: "c-chr", geo_city: "Mosman", job_description: "Split in the salon" }),
+    job("j-3260", { status: "Work Order", geo_city: "Balmain East", job_address: "19 Union St\nBalmain East NSW 2041" }),
+    job("j-3432", { status: "Work Order", geo_city: "Paddington", job_address: "1 union st Paddington " }),
   ];
   tables.sm8_categories = [];
   tables.sm8_job_activities = [];
@@ -164,5 +167,17 @@ describe("several words, every one landing", () => {
       ...tables.sm8_companies,
     ];
     expect(await numbers("hr constructions pty ltd")).toEqual(["3166", "2675", "2545"]);
+  });
+});
+
+/* The street (2026-10-28): "19 union" in the phone's Move found nothing, the
+   box saying "Number, client or street", though 3260 is at 19 Union St. */
+describe("the street a job is on", () => {
+  it("finds a job by its street number and name together", async () => {
+    expect(await numbers("19 union")).toEqual(["3260"]);
+  });
+
+  it("finds every job on a street by its name alone", async () => {
+    expect((await numbers("union")).sort()).toEqual(["3260", "3432"]);
   });
 });

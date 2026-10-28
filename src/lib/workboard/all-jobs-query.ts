@@ -1678,7 +1678,7 @@ export async function searchAllMirrorJobs(
       .select(columns)
       .eq("org_id", orgId)
       .eq("active", 1)
-      .or(`job_description.ilike.%${safe}%,geo_city.ilike.%${safe}%`)
+      .or(`job_description.ilike.%${safe}%,geo_city.ilike.%${safe}%,job_address.ilike.%${safe}%`)
       .order("date", { ascending: false })
       .limit(limit),
   ]);
@@ -1731,9 +1731,11 @@ const MAX_CLIENT_GROUPS = 8;
 
 /** A name has the word when one of its words starts with it. */
 const nameStartsWord = (w: string) => `name.ilike.${w}%,name.ilike.% ${w}%`;
-/** The job's own fields, where a word the client's name did not cover must be. */
+/** The job's own fields, where a word the client's name did not cover must be:
+    its number, what it is, its suburb, and its street (Isaac, 28 October
+    2026: "19 union" found nothing, though 3260 is at 19 Union St). */
 const jobFieldsHold = (w: string) =>
-  `generated_job_id.ilike.${w}%,job_description.ilike.%${w}%,geo_city.ilike.%${w}%`;
+  `generated_job_id.ilike.${w}%,job_description.ilike.%${w}%,geo_city.ilike.%${w}%,job_address.ilike.%${w}%`;
 
 async function searchMirrorByWords(
   orgId: string,

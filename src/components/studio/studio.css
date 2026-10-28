@@ -8426,6 +8426,95 @@ html[data-ds-display] .dstudio.editing {
   outline: none;
   box-shadow: var(--ring);
 }
+/* ONE UNIT, SEVERAL ROOMS: a unit given a group of the system's rooms, its
+   rooms held under it on the air it sends them (dashed, as the band's air) */
+.ds-sb-group {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
+  background: var(--paper);
+  transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.ds-sb-group.sel {
+  border-color: var(--ink);
+}
+.ds-sb-rail.dragging .ds-sb-group.over {
+  background: var(--tint-2);
+  border-style: dashed;
+  border-color: var(--ink);
+}
+.ds-sb-group-head {
+  appearance: none;
+  border: 0;
+  background: var(--tint);
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-control);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.ds-sb-group-head:hover,
+.ds-sb-group.sel .ds-sb-group-head {
+  background: var(--tint-2);
+}
+.ds-sb-group-head:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.ds-sb-group-model {
+  min-width: 0;
+  font-size: var(--fs-3);
+  font-weight: var(--fw-heading);
+  white-space: nowrap;
+}
+.ds-sb-group-facts {
+  min-width: 0;
+  font-size: var(--fs-1);
+  font-weight: var(--fw-label);
+  color: var(--q);
+  white-space: nowrap;
+}
+.ds-sb-group-rooms {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding-left: var(--s-5);
+}
+.ds-sb-group-air {
+  position: absolute;
+  left: var(--s-2);
+  top: 0;
+  width: 2px;
+  height: 100%;
+  overflow: visible;
+}
+.ds-sb-group-room {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+}
+.ds-sb-group-room:hover .ds-sb-zone-x,
+.ds-sb-group-room:focus-within .ds-sb-zone-x {
+  opacity: 1;
+}
+.ds-sb-group > .foot {
+  padding: 0 var(--s-1);
+}
 /* Add zone: under the zones, dashed, pressed while its list is open */
 .ds-sb-addwrap {
   position: relative;
@@ -8567,6 +8656,65 @@ html[data-ds-display] .dstudio.editing {
   font-size: var(--fs-2);
   font-weight: var(--fw-label);
   color: var(--q);
+}
+/* the rooms an open ducted or bulkhead unit serves, ticked */
+.ds-sb-serves {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.ds-sb-serve {
+  appearance: none;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  gap: var(--s-3);
+  align-items: center;
+  min-height: 36px;
+  padding: var(--s-2) var(--s-3);
+  border: 0;
+  border-radius: var(--r-control);
+  background: none;
+  font: inherit;
+  font-size: var(--fs-3);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.ds-sb-serve:hover:not(:disabled) {
+  background: var(--tint);
+}
+.ds-sb-serve:disabled {
+  cursor: default;
+}
+.ds-sb-serve:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.ds-sb-tick {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--edge);
+  border-radius: var(--r-control);
+  color: var(--paper);
+}
+.ds-sb-tick.on {
+  background: var(--press);
+  border-color: var(--press);
+}
+.ds-sb-serve-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ds-sb-serve-sub,
+.ds-sb-serve-kw {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-label);
+  color: var(--q);
+  font-variant-numeric: tabular-nums;
 }
 .ds-sb-sizes {
   display: flex;

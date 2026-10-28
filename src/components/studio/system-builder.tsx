@@ -18,6 +18,8 @@ import { vrfOutdoorsListing, vrfRatio } from "@/lib/studio/vrf";
 import { headSection, systemVrfTree, type SizedTree } from "@/lib/studio/vrf-tree";
 import { headPipeMm } from "@/lib/studio/pipe-sizes";
 import { formFactorSummary } from "@/lib/studio/select";
+import { roomsServed } from "@/lib/studio/allocations";
+import { DUCT_AIRWAY_FORMS } from "@/lib/studio/form-factors";
 import { UnitBrowser, type UnitChoice } from "./unit-browser";
 import {
   addBandUnit,
@@ -33,7 +35,9 @@ import {
   releaseSystem,
   removeAllocation,
   removeZone,
+  roomsLabel,
   roomVerdict,
+  setRoomsServed,
   swapAllocation,
   zonesToAdd,
   type Allocation,
@@ -1542,11 +1546,8 @@ function PipingRail({
       : `Needs ${Math.max(heads, view.zones.length)} ports`;
   const portsBad = multi && ports != null && heads > ports;
 
-  const n = view.zones.length;
   const vrf = view.oduRow ? view.oduRow.system_type === "vrf" : view.family === "vrf";
   const trunk = Boolean(band) || vrf;
-  const gutter = trunk ? GUT_TRUNK : GUT_OFF + Math.max(1, n) * GUT_SP + 8;
-  const xOf = (k: number) => GUT_OFF + (n - 1 - k) * GUT_SP;
   const zoneTone = (z: ZoneView): PipeTone => ({ on: z.lines.some((l) => l.mine), bad: z.cant, air: Boolean(band) });
   const trunkTone: PipeTone = band ? { on: true, air: true } : { on: Boolean(view.odu) };
   const note = band
@@ -1622,6 +1623,32 @@ function PipingRail({
     const first = (z: ZoneView) => Math.min(...zoneHeads(z).map((a) => rank.get(a.id) ?? Infinity), Infinity);
     return [...view.zones].sort((a, b) => first(a) - first(b));
   })();
+  /* ONE UNIT, SEVERAL ROOMS (Isaac, 2026-10-28). A unit given a group of the
+     system's rooms is one row, where its own room would be, its rooms held
+     under it: one line from the outdoor to it, air from it to each room */
+  const groupOf = new Map<string, Allocation>();
+  for (const a of view.heads) {
+    const served = roomsServed(a);
+    if (served.length > 1) for (const r of served) if (!groupOf.has(r)) groupOf.set(r, a);
+  }
+  const railRows: { z: ZoneView; group: { unit: Allocation; zones: ZoneView[] } | null }[] = [];
+  const grouped = new Set<string>();
+  for (const z of rows) {
+    const unit = groupOf.get(z.zone.id);
+    if (!unit) {
+      railRows.push({ z, group: null });
+      continue;
+    }
+    if (grouped.has(unit.id)) continue;
+    grouped.add(unit.id);
+    const zones = roomsServed(unit)
+      .map((id) => view.zones.find((x) => x.zone.id === id))
+      .filter((x): x is ZoneView => x != null);
+    railRows.push({ z: zones[0] ?? z, group: { unit, zones } });
+  }
+  const n = railRows.length;
+  const gutter = trunk ? GUT_TRUNK : GUT_OFF + Math.max(1, n) * GUT_SP + 8;
+  const xOf = (k: number) => GUT_OFF + (n - 1 - k) * GUT_SP;
   /* the fitting a VRF zone's heads hang off: a joint, header or branch box */
   const zoneFitting = (z: ZoneView) => {
     if (!tree) return null;
@@ -1643,7 +1670,7 @@ function PipingRail({
     return out;
   };
   const markedAt = new Map<string, number>();
-  rows.forEach((z, i) => {
+  railRows.forEach(({ z }, i) => {
     for (const f of [zoneFitting(z), ...upstreamOf(z)])
       if (f && !markedAt.has(f.nodeId)) markedAt.set(f.nodeId, i);
   });
@@ -1692,7 +1719,7 @@ function PipingRail({
       ];
     }
     return [
-      ...view.zones.slice(i + 1).map((below, j) => vline(below.zone.id, xOf(i + 1 + j), "full", zoneTone(below))),
+      ...railRows.slice(i + 1).map(({ z: below }, j) => vline(below.zone.id, xOf(i + 1 + j), "full", zoneTone(below))),
       vline(z.zone.id, xOf(i), "top", zoneTone(z)),
       hline("elbow", xOf(i), zoneTone(z)),
     ];
@@ -1700,7 +1727,7 @@ function PipingRail({
 
   const describe = `Schematic of ${sys.name}: ${
     view.odu ? `${oduModel} above` : "no outdoor yet, above"
-  } ${n} ${n === 1 ? "zone" : "zones"}${band ? `, ${band.model} on the band` : ""}`;
+  } ${view.zones.length} ${view.zones.length === 1 ? "zone" : "zones"}${band ? `, ${band.model} on the band` : ""}`;
 
   return (
     <section
@@ -1816,9 +1843,101 @@ function PipingRail({
           <div className="ds-sb-feed">{pipes(passing())}</div>
         )}
 
-        {rows.map((z, i) => {
+        {railRows.map(({ z, group }, i) => {
           const key = `zone:${z.zone.id}`;
           const aimed = z.zone.id === aimedZoneId;
+          if (group) {
+            const { unit, zones } = group;
+            const row = iduRowOf(pack, unit.model);
+            const unitKw = kwOf(pack, unit.model, draft.settings.sizingBasis);
+            const loads = zones.map((m) => m.loadKw);
+            const groupLoad = loads.some((l) => l != null) ? loads.reduce<number>((t, l) => t + (l ?? 0), 0) : null;
+            const airOf = (m: ZoneView): number | null =>
+              row?.airflow_ls == null
+                ? null
+                : groupLoad
+                  ? Math.round((row.airflow_ls * (m.loadKw ?? 0)) / groupLoad)
+                  : Math.round(row.airflow_ls / zones.length);
+            /* judged as one: the unit against its rooms' loads together */
+            const word: Word =
+              unitKw == null || groupLoad == null || groupLoad <= 0
+                ? { text: kwText(unitKw), tone: "quiet" }
+                : coversLoad(unitKw, groupLoad)
+                  ? { text: `Covered, ${unitKw.toFixed(1)} of ${groupLoad.toFixed(1)} kW`, tone: "ok" }
+                  : { text: `${shortKw(groupLoad, unitKw).toFixed(1)} kW short`, tone: "bad" };
+            const isSel = selected === unit.id;
+            const pipe = z.pipe;
+            return (
+              <div key={`group:${unit.id}`} className="ds-sb-row" style={{ paddingLeft: gutter }}>
+                {pipes(zonePipes(z, i))}
+                <div
+                  className={`ds-sb-group${isSel ? " sel" : ""}${over === key ? " over" : ""}`}
+                  {...targetProps(key, headOnly((m) => onDropHead(z.zone.id, m)))}
+                >
+                  <button
+                    type="button"
+                    className="ds-sb-group-head"
+                    aria-label={`${unit.model}, serves ${roomsLabel(zones.map((m) => m.name))}`}
+                    aria-pressed={isSel}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelect(unit.id);
+                    }}
+                  >
+                    <span className="ds-sb-zone-line">
+                      <span className="ds-sb-group-model">
+                        <Fade>{unit.model}</Fade>
+                      </span>
+                      <span className="ds-sb-zone-kw">{kwText(unitKw)}</span>
+                    </span>
+                    <span className="ds-sb-zone-line">
+                      <span className="ds-sb-group-facts">
+                        <Fade>
+                          {[row?.airflow_ls != null ? `${row.airflow_ls} L/s` : null, roomsLabel(zones.map((m) => m.name))]
+                            .filter(Boolean)
+                            .join(", ")}
+                        </Fade>
+                      </span>
+                      {pipe && <span className="ds-sb-zone-pipe">{pipe}</span>}
+                    </span>
+                  </button>
+                  <div className="ds-sb-group-rooms">
+                    {/* the air from the unit to its rooms, dashed as the band's is */}
+                    <svg className="ds-sb-group-air" aria-hidden="true">
+                      <line className="ds-sb-pipe on air" x1={1} y1={0} x2={1} y2="100%" />
+                    </svg>
+                    {zones.map((m) => {
+                      const air = airOf(m);
+                      return (
+                        <div key={m.zone.id} className="ds-sb-group-room">
+                          <span className="ds-sb-zone-name">{m.name}</span>
+                          <span className="ds-sb-zone-pipe">
+                            {[m.loadKw != null ? `${m.loadKw.toFixed(1)} kW` : null, air != null ? `${air} L/s` : null]
+                              .filter(Boolean)
+                              .join(", ")}
+                          </span>
+                          <button
+                            type="button"
+                            className="ds-sb-zone-x"
+                            aria-label={`Clear ${m.name} from ${sys.name}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onRemoveZone(m.zone.id);
+                            }}
+                          >
+                            <Icon name="x" size={12} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <span className="ds-sb-zone-line foot">
+                    <span className={`ds-sb-state ${word.tone}`}>{word.text}</span>
+                  </span>
+                </div>
+              </div>
+            );
+          }
           return (
             <div key={z.zone.id} className="ds-sb-row" style={{ paddingLeft: gutter }}>
               {pipes(zonePipes(z, i))}
@@ -2019,6 +2138,10 @@ function UnitDetail({
   const beforeOdu = view.odu?.model ?? "";
   const pipe = pipeSize(pack, sys, alloc, view.odu?.model ?? null, view.vrfTree);
   const kw = kwOf(pack, alloc.model, basis);
+  /* a ducted or bulkhead unit can be given a group of the system's rooms;
+     any other head serves the one room it is in */
+  const airway = current != null && DUCT_AIRWAY_FORMS.includes(current.form_factor);
+  const served = roomsServed(alloc);
 
   return (
     <div className="ds-sb-side-scroll ds-sb-pane">
@@ -2032,7 +2155,14 @@ function UnitDetail({
           </button>
         </div>
         <span className="ds-sb-side-sub">
-          {alloc.serves === "system" ? "Whole system" : zone ? zone.name : "No zone"}, {sys.name}
+          {alloc.serves === "system"
+            ? "Whole system"
+            : served.length > 1
+              ? roomsLabel(served.map((id) => view.zones.find((z) => z.zone.id === id)?.name ?? "").filter(Boolean))
+              : zone
+                ? zone.name
+                : "No zone"}
+          , {sys.name}
         </span>
       </div>
       {(kw != null || pipe) && (
@@ -2051,7 +2181,46 @@ function UnitDetail({
           )}
         </dl>
       )}
-      {alloc.serves !== "system" && (
+      {alloc.serves !== "system" && airway && (
+        <div className="ds-sb-serves" role="group" aria-label="Rooms it serves">
+          <span className="ds-sb-label">Rooms it serves</span>
+          {view.zones.map((z) => {
+            const on = served.includes(z.zone.id);
+            /* the units already in a room it does not serve, so a bedroom
+               with its own bulkhead says so */
+            const others = z.lines.filter((l) => l.alloc.id !== alloc.id).map((l) => l.alloc.model);
+            const last = on && served.length === 1;
+            return (
+              <button
+                key={z.zone.id}
+                type="button"
+                role="checkbox"
+                aria-checked={on}
+                className="ds-sb-serve"
+                disabled={last}
+                onClick={() => {
+                  const next = on ? served.filter((r) => r !== z.zone.id) : [...served, z.zone.id];
+                  onChange(setRoomsServed(draft, pack, { systemId: sys.id, allocationId: alloc.id, roomIds: next }));
+                }}
+              >
+                <span className={`ds-sb-tick${on ? " on" : ""}`} aria-hidden="true">
+                  {on && (
+                    <svg width="10" height="10" viewBox="0 0 16 16">
+                      <path d="M3.5 8.5l3 3 6-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                    </svg>
+                  )}
+                </span>
+                <span className="ds-sb-serve-name">
+                  {z.name}
+                  {!on && others.length > 0 && <span className="ds-sb-serve-sub">{others.join(", ")}</span>}
+                </span>
+                <span className="ds-sb-serve-kw">{kwText(z.loadKw)}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {alloc.serves !== "system" && !airway && (
         <label className="ds-sb-field">
           <span>Zone</span>
           <select

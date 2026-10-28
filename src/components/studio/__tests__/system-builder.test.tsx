@@ -408,6 +408,60 @@ describe("SystemBuilder", () => {
    systems. For clicking on one room. It doesn't seem to make sense"). What
    serves it is one line with its card's word, and the way in is that
    system's editor, open on this zone. */
+/* ONE UNIT, SEVERAL ROOMS (Isaac, 2026-10-28: on a VRF, the bedrooms on
+   their own bulkheads and the living rooms on one ducted VMA, "but I couldn't
+   find a way of grouping those 3 rooms onto 1 indoor unit") */
+describe("one ducted unit serving several rooms", () => {
+  function vrf() {
+    const made = claimed(house(), ["bed1", "bed2", "living", "study"]);
+    let d = addHead(made.doc, pack, { systemId: made.systemId, zoneId: "bed1", iduModel: "PEFY-P32VMS1-E" });
+    d = addHead(d, pack, { systemId: made.systemId, zoneId: "bed2", iduModel: "PEFY-P25VMS1-E" });
+    d = addHead(d, pack, { systemId: made.systemId, zoneId: "living", iduModel: "PEFY-P100VMA-E4" });
+    return { doc: d, systemId: made.systemId };
+  }
+
+  it("ticks the rooms an open ducted unit serves, and the rail holds them under it", () => {
+    const t = vrf();
+    const onCommit = jest.fn();
+    render(<SystemBuilder doc={t.doc} pack={pack} systemId={t.systemId} onCommit={onCommit} onClose={() => {}} />);
+    fireEvent.click(within(zoneCard("Living")).getByRole("button", { name: "PEFY-P100VMA-E4 in Living" }));
+
+    const serves = screen.getByRole("group", { name: "Rooms it serves" });
+    const tick = (name: string) => within(serves).getByRole("checkbox", { name: new RegExp(`^${name}`) });
+    expect(tick("Living")).toHaveAttribute("aria-checked", "true");
+    // its last room cannot be let go
+    expect(tick("Living")).toBeDisabled();
+    // a room with its own unit says which
+    expect(tick("Bed 1")).toHaveTextContent("PEFY-P32VMS1-E");
+
+    fireEvent.click(tick("Study"));
+    expect(tick("Study")).toHaveAttribute("aria-checked", "true");
+    expect(tick("Living")).not.toBeDisabled();
+
+    // the rail: one row for the unit, its two rooms under it, judged as one
+    const group = schematic().querySelector(".ds-sb-group") as HTMLElement;
+    expect(within(group).getByRole("button", { name: "PEFY-P100VMA-E4, serves Living and Study" })).toBeInTheDocument();
+    expect([...group.querySelectorAll(".ds-sb-zone-name")].map((n) => n.textContent)).toEqual(["Living", "Study"]);
+    expect(within(group).getByText(/^Covered, 11\.2 of \d+\.\d kW$|^\d+\.\d kW short$/)).toBeInTheDocument();
+    // the bedrooms keep their own cards
+    expect(zoneCard("Bed 1")).toBeTruthy();
+    expect(zoneCard("Study")).toBeUndefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    const built = onCommit.mock.calls[0][0] as DesignDocument;
+    const vma = allocationsOf(built.systems.find((s) => s.id === t.systemId)!).find((a) => a.model === "PEFY-P100VMA-E4")!;
+    expect([vma.roomId, vma.alsoServes]).toEqual(["living", ["study"]]);
+  });
+
+  it("a wall head serves the room it is in: no ticks", () => {
+    const made = claimed(house(), ["bed1", "study"]);
+    const doc = addHead(made.doc, pack, { systemId: made.systemId, zoneId: "bed1", iduModel: "MSZ-AP25VGD2" });
+    render(<SystemBuilder doc={doc} pack={pack} systemId={made.systemId} onCommit={() => {}} onClose={() => {}} />);
+    fireEvent.click(within(zoneCard("Bed 1")).getByRole("button", { name: "MSZ-AP25VGD2 in Bed 1" }));
+    expect(screen.queryByRole("group", { name: "Rooms it serves" })).toBeNull();
+  });
+});
+
 describe("ZoneStanding, in the zone's popup", () => {
   it("says what serves the zone and how it stands, and opens that system's editor on the zone", () => {
     const made = claimed(house(), ["bed1", "study"]);

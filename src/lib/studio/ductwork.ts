@@ -31,6 +31,7 @@ import type { DesignDocument, DesignObject, DesignSystem, Point } from "./docume
 import type { DataPack } from "./packs/schema";
 import { systemAir, ductCapacityLs, sizeForLs, SUPPLY_MS, type UnitAir } from "./airflow";
 import type { RoomObj } from "./loads-room";
+import { outletPicks, outletSpec, setOutletPick, snapLength, type OutletSpec } from "./outlets";
 
 /** the largest supply trunk two outlets may share, mm */
 export const TRUNK_MAX_MM = 300;
@@ -57,12 +58,12 @@ export type DuctStream = "supply" | "return";
 /** what a junction is made as, once the person says */
 export type FittingKind = "y" | "bto";
 
-export interface DuctOutlet {
+export interface DuctOutlet extends OutletSpec {
   /** `${unitId}/${roomId}/${i}`: what a drag is stored under */
   key: string;
   roomId: string;
+  /** its middle: where the run meets it */
   at: Point;
-  neckMm: number;
   ls: number;
 }
 
@@ -178,6 +179,45 @@ export function outletSpots(room: RoomObj, count: number): Point[] {
     const t = (i + 1) / (count + 1);
     return wide ? { x: minX + (maxX - minX) * t, y: cy } : { x: cx, y: minY + (maxY - minY) * t };
   });
+}
+
+/** the way a room runs: along its longer side */
+export function roomAlong(room: RoomObj): Point {
+  if (room.geometry.kind !== "polygon") return { x: 1, y: 0 };
+  const xs = room.geometry.points.map((p) => p.x);
+  const ys = room.geometry.points.map((p) => p.y);
+  return Math.max(...xs) - Math.min(...xs) >= Math.max(...ys) - Math.min(...ys) ? { x: 1, y: 0 } : { x: 0, y: 1 };
+}
+
+/** a linear grille's two ends */
+export function linearEnds(o: Pick<DuctOutlet, "at" | "along" | "lengthMm">, mmPerUnit: number): [Point, Point] | null {
+  if (!o.along || o.lengthMm == null) return null;
+  const half = o.lengthMm / 2 / mmPerUnit;
+  return [add(o.at, mul(o.along, -half)), add(o.at, mul(o.along, half))];
+}
+
+/** the system with one end of a linear grille drawn to a new spot: the
+    other end stays, the grille runs along or across the plan, and its
+    length snaps to a stock length */
+export function drawLinearEnd(
+  doc: DesignDocument,
+  systemId: string,
+  o: Pick<DuctOutlet, "key" | "at" | "along" | "lengthMm">,
+  end: 0 | 1,
+  to: Point,
+  mmPerUnit: number
+): DesignDocument {
+  const ends = linearEnds(o, mmPerUnit);
+  if (!ends) return doc;
+  const fixed = ends[1 - end];
+  const v = sub(to, fixed);
+  if (Math.hypot(v.x, v.y) < 1e-9) return doc;
+  const along = Math.abs(v.x) >= Math.abs(v.y) ? { x: Math.sign(v.x), y: 0 } : { x: 0, y: Math.sign(v.y) };
+  const lengthMm = snapLength(Math.hypot(v.x, v.y) * mmPerUnit);
+  const centre = add(fixed, mul(along, lengthMm / 2 / mmPerUnit));
+  /* `along` keeps pointing from end 0 to end 1 */
+  const way = end === 1 ? along : mul(along, -1);
+  return setOutletPick(dragDuctEnd(doc, systemId, o.key, centre), systemId, o.key, { along: way, lengthMm });
 }
 
 /** the positions the person dragged, by key */
@@ -298,6 +338,7 @@ export function unitDuctLayout(doc: DesignDocument, sys: DesignSystem, air: Unit
   if (!supplyFace || !returnFace) return null;
   const moved = draggedAt(sys);
   const picked = fittingKinds(sys);
+  const made = outletPicks(sys);
   const mm = (v: number) => v / s;
 
   /* the plenum's frame */
@@ -328,7 +369,8 @@ export function unitDuctLayout(doc: DesignDocument, sys: DesignSystem, air: Unit
     const spots = outletSpots(room, r.outlets.count);
     spots.forEach((p, i) => {
       const key = `${air.unit.id}/${r.roomId}/${i}`;
-      outlets.push({ key, roomId: r.roomId, at: moved[key] ?? p, neckMm: r.outlets.neckMm, ls: r.outlets.lsEach });
+      const spec = outletSpec(made[key], r.outlets.lsEach, r.outlets.neckMm, roomAlong(room));
+      outlets.push({ ...spec, key, roomId: r.roomId, at: moved[key] ?? p, ls: r.outlets.lsEach });
     });
   }
   const local = new Map(outlets.map((o) => [o.key, toL(o.at)]));

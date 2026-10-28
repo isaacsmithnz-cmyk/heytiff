@@ -60,7 +60,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 
 - **29. Views of a list.** Soft tabs under the title: words alone, the one you're on in a light fill. No outlines. No tab anywhere carries a number, and a screen's title carries no count beside it ("Team", not "Team 3 people"): a view with something waiting has its word in amber, red when something is wrong (Isaac, 20 October: "We need to rule it out everywhere").
 - **30. One of a few.** Day, Week, Month in a thin tray; the chosen one filled light.
-- **31. Section tabs.** Underlined, the one you're on standing on 2px of ink. No numbers on them, as rule 29: a tab with something to look at has its word in amber, red when something is wrong (Isaac, 20 October). A job has seven: Overview, Quote, Visits, Materials, Photos, Documents, Billing (Materials was Checklist until 25 October 2026, and `?tab=checklist` still lands on it). A project has six: Overview, Trips, Scope, Money, Site, Documents (27 October 2026). A person has five: Overview, Hours & leave, Papers, Pay, Access.
+- **31. Section tabs.** Underlined, the one you're on standing on 2px of ink. No numbers on them, as rule 29: a tab with something to look at has its word in amber, red when something is wrong (Isaac, 20 October). A job has eight: Overview, Quote, Design, Visits, Materials, Photos, Documents, Billing (Materials was Checklist until 25 October 2026, and `?tab=checklist` still lands on it). Design is the job's designs, so nobody goes through the quote to see one; the quote's Design step lists the same (Isaac, 28 October 2026). A project has six: Overview, Trips, Scope, Money, Site, Documents (27 October 2026). A person has five: Overview, Hours & leave, Papers, Pay, Access.
 - **32. Ticks and switches.** Blue when on. A switch saves itself.
 - **33. Fields.** 36 tall, a 6 corner, the label above. A wrong field gets a red edge and says why underneath.
 - **34. Menus to choose from.** A field with a chevron; opens a menu. A time opens a wheel: the hour, minutes in fives, am or pm. Nothing types a clock time.
@@ -314,6 +314,10 @@ the fourth on the customer's messages, below).
   Summary pink with a file, To do yellow with a tick, the Activity feed
   green with a bubble, the last two as Home's own. He approved the mock
   that drew them ("Yes, build the refined Overview A", 25 October 2026).
+  On a job being quoted or worked, the Summary's place is the job's Scope,
+  pink with a file: Tiff's written brief, a paragraph per system with its
+  sources, then Added, Not ours and To clarify, and Latest updates under it
+  in purple with a clock (Isaac picked the written brief, 28 October 2026).
   The block is solid with its icon in ink, as on Home and in the Library:
   no tint, no edge, and never blue, red or orange.
 - **The Activity feed's conversation bubbles are filled** (`.jc-bubble`),

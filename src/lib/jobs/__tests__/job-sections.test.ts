@@ -9,18 +9,28 @@ import {
 } from "../job-sections";
 import { jobHref, jobPageHref } from "@/lib/shell/links";
 
-/* A job's seven sections (docs/design.md rule 31), each the job card's own
+/* A job's eight sections (docs/design.md rule 31), each the job card's own
    faces (v2, step 5). */
 
 describe("the sections", () => {
-  it("are the rule's seven, in its order", () => {
-    expect(JOB_SECTIONS.map((s) => SECTION_LABEL[s])).toEqual(["Overview", "Quote", "Visits", "Materials", "Photos", "Documents", "Billing"]);
+  it("are the rule's eight, in its order", () => {
+    expect(JOB_SECTIONS.map((s) => SECTION_LABEL[s])).toEqual([
+      "Overview",
+      "Quote",
+      "Design",
+      "Visits",
+      "Materials",
+      "Photos",
+      "Documents",
+      "Billing",
+    ]);
   });
 
   it("each show the card's faces: Overview the summary and diary, Documents the files and compliance, Billing the money", () => {
     expect(SECTION_FACES).toEqual({
       overview: ["summary", "diary"],
       quote: ["quote"],
+      design: ["design"],
       visits: ["visits"],
       materials: ["checklist"],
       photos: ["photos"],
@@ -40,6 +50,14 @@ describe("the sections", () => {
   it("leave Billing out without the money grant, as the card's face is", () => {
     expect(sectionsFor(false)).not.toContain("billing");
     expect(sectionsFor(true)).toContain("billing");
+  });
+
+  /* Isaac, 28 October 2026: "a separate tab outside of the quoting" */
+  it("put Design after Quote for whoever has the Studio, and leave it out for anyone else", () => {
+    expect(sectionsFor(true, true).slice(0, 3)).toEqual(["overview", "quote", "design"]);
+    expect(sectionsFor(true, false)).not.toContain("design");
+    expect(sectionsFor(false)).not.toContain("design");
+    expect(sectionOfFace("design")).toBe("design");
   });
 });
 
@@ -63,6 +81,8 @@ describe("?tab=", () => {
     expect(parseSection("timeline", true)).toBe("overview");
     expect(parseSection(["quote", "visits"], true)).toBe("overview");
     expect(parseSection("billing", false)).toBe("overview");
+    expect(parseSection("design", true)).toBe("overview");
+    expect(parseSection("design", true, true)).toBe("design");
     expect(parseSection("billing", true)).toBe("billing");
   });
 });

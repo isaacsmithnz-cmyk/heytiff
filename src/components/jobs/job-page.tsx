@@ -31,12 +31,15 @@ export function JobPage({
   section: first,
   manage,
   moneyVisible,
+  studio = false,
   add = null,
 }: {
   row: AllJobRow;
   section: JobSection;
   manage: boolean;
   moneyVisible: boolean;
+  /** Holds the Studio: the job has a Design section. */
+  studio?: boolean;
   /** `?add=`: Documents' Make a document asked for a SWMS or a certificate */
   add?: "swms" | "certificate" | null;
 }) {
@@ -108,6 +111,7 @@ export function JobPage({
           row={row}
           manage={manage}
           moneyVisible={moneyVisible}
+          studio={studio}
           initialTab={SECTION_FACES[first][0]}
           page={{ section, onSection: goSection, actions, onAction: (key) => void onAction(key), add }}
           /* New agreement opens over the page (rule 51), the job filled in */

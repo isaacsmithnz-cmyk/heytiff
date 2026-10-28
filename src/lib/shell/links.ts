@@ -48,6 +48,15 @@ export const quoteHref = (job: string, opts: { start?: boolean; option?: number 
   return `/dashboard/jobs/${encodeURIComponent(job)}/quote${q ? `?${q}` : ""}`;
 };
 
+/** A design opens in the Studio. */
+export const designHref = (id: string) => `/dashboard/studio?design=${encodeURIComponent(id)}`;
+
+/** The Studio on a job (studio/page.tsx): its newest design, or New design
+    on the job when it has none; `fresh`, New design on it either way (the
+    job's Design section, 28 October 2026). */
+export const studioJobHref = (job: string, fresh = false) =>
+  `/dashboard/studio?job=${encodeURIComponent(job)}${fresh ? "&new=1" : ""}`;
+
 /** A maintenance visit opens its sheet over Jobs, the record host reading
     `?open=visit.<id>` (records/ref): the Workboard it opened on is retired
     (the old-code audit, 23 October 2026). */

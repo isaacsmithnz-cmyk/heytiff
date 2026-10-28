@@ -1,5 +1,7 @@
 "use server";
 
+import { readStoredJobScope } from "@/lib/workboard/job-scope-server";
+import type { JobScopeRead } from "@/lib/jobs/job-scope";
 import { revalidatePath } from "next/cache";
 import { projectHref } from "@/lib/shell/links";
 import { auth0 } from "@/lib/auth0";
@@ -69,6 +71,9 @@ export type JobRecordRead = {
   /** The stored "Where it's up to" paragraph, its money sentence already
       stripped for a reader without the grant. Null until one is written. */
   summary: JobSummaryRead | null;
+  /** The job's scope, the brief Tiff keeps at the top of Overview (lib/jobs/job-scope).
+      Absent on a reader that predates it. */
+  scope?: JobScopeRead | null;
   /* ── notes to ServiceM8 (two-way phase 2, PR B) — read only where the
      deployment sends notes; without them all three are empty, and the card
      is exactly what it was ── */
@@ -602,10 +607,11 @@ export async function readJobRecord(remoteId: string): Promise<JobRecordRead | n
      once), so it rides ungated beside the notes. */
   /* BOOKINGS ride the same round, only where the deployment books: without
      them not one read more is made, and the record has no `bookings` key */
-  const [notes, ourNotes, summary, moneyVisible, timezone, { status, number: jobNumber }, bookingsRead] = await Promise.all([
+  const [notes, ourNotes, summary, scope, moneyVisible, timezone, { status, number: jobNumber }, bookingsRead] = await Promise.all([
     readJobNotes(ctx.orgId, id, claims),
     viewerRead ? readOurJobNotes(ctx.orgId, id, 60, viewerRead) : readOurJobNotes(ctx.orgId, id),
     readStoredJobSummary(ctx.orgId, id),
+    readStoredJobScope(ctx.orgId, id),
     can("workboard_money"),
     getSm8Timezone(ctx.orgId),
     jobStatusOf(ctx.orgId, id),
@@ -659,7 +665,7 @@ export async function readJobRecord(remoteId: string): Promise<JobRecordRead | n
   const booking = bookingsRead === undefined ? {} : { bookings: bookingsRead };
 
   if (!moneyVisible) {
-    return { notes, ourNotes, attention, assignable, ledger: null, family: null, summary, ...sm8, ...booking };
+    return { notes, ourNotes, attention, assignable, ledger: null, family: null, summary, scope, ...sm8, ...booking };
   }
 
   /* PAYMENT TERMS COME FROM THE ORGANISATION'S OWN CARD — ServiceM8 mirrors
@@ -674,7 +680,7 @@ export async function readJobRecord(remoteId: string): Promise<JobRecordRead | n
     ),
     readNoDeposit(ctx.orgId, id),
   ]);
-  return { notes, ourNotes, attention, assignable, ledger, family, noDeposit, summary, ...sm8, ...booking };
+  return { notes, ourNotes, attention, assignable, ledger, family, noDeposit, summary, scope, ...sm8, ...booking };
 }
 
 /** Whether somebody ticked the job as taking no deposit. A read that fails

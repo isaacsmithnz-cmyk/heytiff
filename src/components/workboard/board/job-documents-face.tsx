@@ -13,6 +13,7 @@ import { ALLOWED_TYPES } from "@/lib/documents/files";
 import { documentGroupOf, opensInCard, type JobMediaItem } from "@/lib/workboard/job-media";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import { andList } from "@/lib/swms/library";
+import { designHref } from "@/lib/shell/links";
 import type { SwmsSummary } from "@/lib/swms/query";
 import type { CertSummary } from "@/lib/certs/query";
 import {
@@ -28,6 +29,7 @@ import {
 } from "@/lib/compliance/papers";
 import { sendLine, type JobSend, type SendHold, type SendLine } from "@/lib/integrations/sm8-write-plan";
 import { ComplianceChooser } from "./compliance-chooser";
+import { designRowLine } from "./job-design-face";
 import { StateLine } from "./state-line";
 
 /* A JOB'S DOCUMENTS (v2; the mock of 25 October 2026, frame 6). One heading,
@@ -581,12 +583,8 @@ export function JobDocumentsFace({
               key={d.id}
               lead={onPick ? <span className="jdoc-tick" aria-hidden="true" /> : undefined}
               name={d.name}
-              line={
-                `${d.floorCount} ${d.floorCount === 1 ? "floor" : "floors"}, ` +
-                `${d.systemCount} ${d.systemCount === 1 ? "system" : "systems"}, ` +
-                `edited ${editedOn(d.updatedAt)}`
-              }
-              href={`/dashboard/studio?design=${encodeURIComponent(d.id)}`}
+              line={designRowLine(d)}
+              href={designHref(d.id)}
             />
           ))}
         </Group>

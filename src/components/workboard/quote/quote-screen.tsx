@@ -81,6 +81,7 @@ export function QuoteScreen({
   detail,
   moneyVisible,
   financials,
+  studio = false,
   start = false,
   option = null,
 }: {
@@ -88,6 +89,8 @@ export function QuoteScreen({
   detail: Detail;
   moneyVisible: boolean;
   financials: boolean;
+  /** Holds the Studio: the job's tabs have Design, which the quote's Design step refers back to. */
+  studio?: boolean;
   /** from the job card's Create a quote (?start=1): straight into the reply box */
   start?: boolean;
   /** ?option=N: opened on that option, a variation Tiff started */
@@ -149,7 +152,7 @@ export function QuoteScreen({
   const facts = [kindWords(detail.status), detail.jobNumber ? `Job ${detail.jobNumber}` : "", (address ?? "").split(/\s*\n\s*/).filter(Boolean).join(", ")]
     .filter(Boolean)
     .join(", ");
-  const tabs: TabItem[] = sectionsFor(moneyVisible).map((key) => ({
+  const tabs: TabItem[] = sectionsFor(moneyVisible, studio).map((key) => ({
     key,
     label: SECTION_LABEL[key],
     ...(key === "quote" ? {} : { href: jobPageHref(job, key) }),

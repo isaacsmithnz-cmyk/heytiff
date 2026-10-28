@@ -306,6 +306,8 @@ describe("on a deployment that sends files only (production today)", () => {
        none) */
     expect(fake.log.map((s) => `${s.table}:${s.op}`).sort()).toEqual(
       [
+        /* the job's scope, read beside the summary (28 October 2026) */
+        "job_scopes",
         "job_summaries",
         "sm8_vendor",
         "sm8_jobs",

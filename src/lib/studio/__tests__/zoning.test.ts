@@ -12,7 +12,7 @@ import { assemblePack, type PackSource } from "../packs/loader";
 import { createDesign, type DesignDocument, type DesignObject } from "../document";
 import { addBandUnit, allocationsOf, placeAllocation } from "../builder";
 import { claimZone, newSystem } from "../zones";
-import { systemAir } from "../airflow";
+import { setDuctsDrawn, systemAir } from "../airflow";
 import { systemDuctwork } from "../ductwork";
 import { ductLines } from "../duct-materials";
 import { joinZone, setZoning, zoneKit, zoningOf, zonesOf } from "../zoning";
@@ -55,6 +55,7 @@ function house() {
   d = addBandUnit(d, pack, { systemId: made.systemId, iduModel: "PEAD-M100JAA(D)" });
   const unit = allocationsOf(d.systems[0]).find((a) => a.role === "idu")!;
   d = placeAllocation(d, pack, made.systemId, unit.id, d.floors[0].id, { x: m(7.3), y: m(6.25) });
+  d = setDuctsDrawn(d, made.systemId, unit.id, true);
   return { doc: d, systemId: made.systemId, unitId: unit.id };
 }
 const sysOf = (d: DesignDocument) => d.systems[0];

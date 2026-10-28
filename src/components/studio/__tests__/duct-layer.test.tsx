@@ -16,7 +16,7 @@ import { claimZone, newSystem } from "@/lib/studio/zones";
 import { draggedAt, fittingKinds, systemDuctwork } from "@/lib/studio/ductwork";
 import { outletPicks } from "@/lib/studio/outlets";
 import { setZoning } from "@/lib/studio/zoning";
-import { ductsDrawn } from "@/lib/studio/airflow";
+import { ductsDrawn, setDuctsDrawn } from "@/lib/studio/airflow";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -54,6 +54,7 @@ function house(): { doc: DesignDocument; systemId: string } {
   d = addBandUnit(d, pack, { systemId: made.systemId, iduModel: "PEAD-M100JAA(D)" });
   const unit = allocationsOf(d.systems[0]).find((a) => a.role === "idu")!;
   d = placeAllocation(d, pack, made.systemId, unit.id, d.floors[0].id, { x: m(6), y: m(6.25) });
+  d = setDuctsDrawn(d, made.systemId, unit.id, true);
   return { doc: d, systemId: made.systemId };
 }
 
@@ -217,7 +218,7 @@ describe("DuctLayer", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remove ductwork" }));
     const after: DesignDocument = onMutate.mock.calls[0][0](h.doc);
     const unit = allocationsOf(after.systems[0]).find((a) => a.role === "idu")!;
-    expect(ductsDrawn(after.systems[0], unit.id, "ducted")).toBe(false);
+    expect(ductsDrawn(after.systems[0], unit.id)).toBe(false);
     expect(systemDuctwork(after, pack, after.systems[0])).toEqual([]);
   });
 

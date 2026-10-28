@@ -2300,9 +2300,9 @@ function UnitDetail({
      any other head serves the one room it is in */
   const airway = current != null && DUCT_AIRWAY_FORMS.includes(current.form_factor);
   const served = roomsServed(alloc);
-  /* whether the Studio draws its ductwork: a bulkhead's starts off, a
-     ducted unit's on; Remove ductwork on the plan turns it off too */
-  const ducts = airway && ductsDrawn(sys, alloc.id, current?.form_factor);
+  /* whether the Studio draws its ductwork: every unit starts without it,
+     the person ticks it on; Remove ductwork on the plan turns it off too */
+  const ducts = airway && ductsDrawn(sys, alloc.id);
 
   return (
     <div className="ds-sb-side-scroll ds-sb-pane">

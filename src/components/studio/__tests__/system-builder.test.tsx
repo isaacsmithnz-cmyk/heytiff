@@ -245,6 +245,10 @@ describe("SystemBuilder", () => {
     // and says the air it gets from it and the outlets that carry it
     expect(within(zoneCard("Bed 1")).getByText("Covered")).toBeInTheDocument();
     expect(within(zoneCard("Study")).getByText("Covered")).toBeInTheDocument();
+    // dropped, it is the unit alone; ticking its ductwork on sends the air
+    expect(within(zoneCard("Study")).queryByText(/^\d+ L\/s, \d+ outlets?, Ø\d+$/)).toBeNull();
+    fireEvent.click(within(band).getByRole("button", { name: /PEAD-M125JAA\(D\)/ }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Ductwork" })).getByRole("checkbox", { name: "Draw its ductwork" }));
     expect(within(zoneCard("Study")).getByText(/^\d+ L\/s, \d+ outlets?, Ø\d+$/)).toBeInTheDocument();
     expect(within(zoneCard("Study")).queryByText("No unit yet")).toBeNull();
     expect(within(schematic()).getByText(/combination valid$/)).toBeInTheDocument();
@@ -493,6 +497,7 @@ describe("one ducted unit serving several rooms", () => {
     render(<SystemBuilder doc={t.doc} pack={pack} systemId={t.systemId} onCommit={onCommit} onClose={() => {}} />);
     fireEvent.click(within(zoneCard("Living")).getByRole("button", { name: "PEFY-P100VMA-E4 in Living" }));
     fireEvent.click(within(screen.getByRole("group", { name: "Rooms it serves" })).getByRole("checkbox", { name: /^Study/ }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Ductwork" })).getByRole("checkbox", { name: "Draw its ductwork" }));
 
     const zoning = screen.getByRole("group", { name: "Zoning" });
     expect(within(zoning).getByRole("button", { name: "Off" })).toHaveAttribute("aria-pressed", "true");

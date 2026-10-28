@@ -13,7 +13,7 @@ import { pointInPolygon } from "../geometry";
 import type { RoomObj } from "../loads-room";
 import { addBandUnit, allocationsOf, placeAllocation } from "../builder";
 import { claimZone, newSystem } from "../zones";
-import { ductCapacityLs, SUPPLY_MS } from "../airflow";
+import { ductCapacityLs, setDuctsDrawn, SUPPLY_MS } from "../airflow";
 import { dragDuctEnd, fittingName, inches, outletSpots, polylineM, setFittingKind, systemDuctwork, unitFace } from "../ductwork";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
@@ -56,6 +56,7 @@ function house() {
   for (const z of ["living", "kitchen", "master", "bed2", "bed3"]) d = claimZone(d, made.systemId, z);
   d = addBandUnit(d, pack, { systemId: made.systemId, iduModel: "PEAD-M100JAA(D)" });
   const unit = allocationsOf(d.systems.find((s) => s.id === made.systemId)!).find((a) => a.role === "idu")!;
+  d = setDuctsDrawn(d, made.systemId, unit.id, true);
   return { doc: d, systemId: made.systemId, unitId: unit.id };
 }
 const sysOf = (d: DesignDocument, id: string) => d.systems.find((s) => s.id === id)!;

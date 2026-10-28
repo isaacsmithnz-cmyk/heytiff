@@ -110,16 +110,15 @@ export function isAirUnit(pack: DataPack, a: Allocation): boolean {
 }
 
 /** whether the Studio draws this unit's ductwork. The person says, by unit
-    (`settings.ducts`); until they do, a ducted unit has it and a bulkhead
-    hasn't, since most bulkheads blow straight into their room (Isaac, 28
-    October 2026: "it automatically put random ductwork on to the unit when I
-    dropped the unit on the plan … Bulkheads can have ducts, but I can't
-    delete the ductwork from the design"). A unit with none sends no air down
-    ducts: no outlets, runs, return or duct materials. */
-export function ductsDrawn(sys: DesignSystem, unitId: string, form: string | null | undefined): boolean {
+    (`settings.ducts`); until they do, no unit has any, ducted or bulkhead: a
+    unit dropped on the plan is the unit alone (Isaac, 28 October 2026: "just
+    the unit, no duct or grilles, nothing … i add them in if i neeed to"). A
+    unit with none sends no air down ducts: no outlets, runs, return or duct
+    materials. */
+export function ductsDrawn(sys: DesignSystem, unitId: string): boolean {
   const set = sys.settings.ducts;
   const said = set && typeof set === "object" && !Array.isArray(set) ? (set as Record<string, unknown>)[unitId] : undefined;
-  return typeof said === "boolean" ? said : form === "ducted";
+  return said === true;
 }
 
 /** the person's say on a unit's ductwork: drawn, or none */
@@ -148,7 +147,7 @@ export function returnGrilleFor(ls: number): { wMm: number; hMm: number } {
 export function unitAir(doc: DesignDocument, pack: DataPack, sys: DesignSystem, unit: Allocation): UnitAir | null {
   if (!isAirUnit(pack, unit)) return null;
   const row = iduRow(pack, unit.model)!;
-  if (!ductsDrawn(sys, unit.id, row.form_factor)) return null;
+  if (!ductsDrawn(sys, unit.id)) return null;
   const ls = row.airflow_ls;
   if (ls == null || ls <= 0) return null;
   const ids = unit.serves === "system" ? zoneIdsOf(sys) : roomsServed(unit);

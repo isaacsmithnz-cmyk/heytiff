@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode, type Ref } from "react";
+import { useEffect, useRef, useState, type ReactNode, type Ref } from "react";
 import { Button, IconButton } from "@/components/parts/button";
 import { DictClock, LiveWords, type DictationState } from "@/components/notes/dictation";
 import { READING_BACK_NOTE } from "@/components/notes/waits";
@@ -74,14 +74,17 @@ export function CvBox({
      words are still being read back when Send is pressed, so the send waits
      for them to land in the box, then goes as if pressed then. */
   const [sendOnLand, setSendOnLand] = useState(false);
+  const sendPending = useRef(false);
+  if (sendOnLand && !listening) setSendOnLand(false);
   useEffect(() => {
-    if (!sendOnLand || listening) return;
-    setSendOnLand(false);
+    if (!sendPending.current || listening) return;
+    sendPending.current = false;
     if (!waiting && !empty) onSubmit();
-  }, [sendOnLand, listening, waiting, empty, onSubmit]);
+  }, [listening, waiting, empty, onSubmit]);
   const recording = !!dict?.recording;
   const sendNow = () => {
     dict?.stop();
+    sendPending.current = true;
     setSendOnLand(true);
   };
   return (

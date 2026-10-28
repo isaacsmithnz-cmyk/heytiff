@@ -97,6 +97,10 @@ describe("a ducted unit on the band", () => {
     let d = made.doc;
     for (const id of h.ids) d = claimZone(d, made.systemId, id);
     d = addBandUnit(d, pack, { systemId: made.systemId, iduModel: "PEAD-M100JAA(D)" });
+    // dropped, it is the unit alone; its ductwork is the person's to add
+    expect(systemAir(d, pack, d.systems.find((s) => s.id === made.systemId)!)).toEqual([]);
+    const idu = allocationsOf(d.systems.find((s) => s.id === made.systemId)!).find((a) => a.role === "idu")!;
+    d = setDuctsDrawn(d, made.systemId, idu.id, true);
     const sys = d.systems.find((s) => s.id === made.systemId)!;
     const [air] = systemAir(d, pack, sys);
     expect(air.model).toBe("PEAD-M100JAA(D)");
@@ -125,8 +129,9 @@ describe("a ducted unit on the band", () => {
     const made = newSystem(h.doc, pack.meta.version);
     let d = claimZone(made.doc, made.systemId, h.ids[0]);
     d = addBandUnit(d, pack, { systemId: made.systemId, iduModel: "PEAD-M100JAA(D)" });
+    const id = allocationsOf(d.systems.find((s) => s.id === made.systemId)!).find((a) => a.role === "idu")!.id;
+    d = setDuctsDrawn(d, made.systemId, id, true);
     const sys = d.systems.find((s) => s.id === made.systemId)!;
-    const id = allocationsOf(sys).find((a) => a.role === "idu")!.id;
     const off = { ...sys, settings: { ...sys.settings, returnFilter: { [id]: false } } };
     expect(systemAir(d, pack, off)[0].ret.filter).toBe(false);
   });
@@ -142,6 +147,7 @@ describe("a ducted unit given a group of rooms", () => {
     d = addHead(d, pack, { systemId: made.systemId, zoneId: "living", iduModel: "PEFY-P100VMA-E4" });
     const vma = allocationsOf(d.systems.find((s) => s.id === made.systemId)!).find((a) => a.model === "PEFY-P100VMA-E4")!;
     d = setRoomsServed(d, pack, { systemId: made.systemId, allocationId: vma.id, roomIds: ["living", "kitchen", "dining"] });
+    d = setDuctsDrawn(d, made.systemId, vma.id, true);
     const air = systemAir(d, pack, d.systems.find((s) => s.id === made.systemId)!);
     const group = air.find((a) => a.model === "PEFY-P100VMA-E4")!;
     expect(group.rooms.map((r) => r.name)).toEqual(["Living", "Kitchen", "Dining"]);

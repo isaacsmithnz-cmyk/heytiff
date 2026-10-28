@@ -91,6 +91,8 @@ import { nearestTabS, tabPath, tabShare, wallsOf, TAB_PAD_T, TAB_PAD_X } from "@
 import type { SizedSection } from "@/lib/studio/vrf-tree";
 import { usePipeUnits } from "./pipe-units";
 import { DuctLayer } from "./duct-layer";
+import { AirflowLayer } from "./airflow-layer";
+import { airflowMark, hitMark, isAirflowMark, pullDeg, type AirStream, type AirflowMark } from "@/lib/studio/airflow-marks";
 
 /** a branch box on the plan: PAC-MK34BC / MK54BC are both 450 × 280 mm (M-P0860 p.44) */
 const BOX_W_MM = 450;
@@ -236,7 +238,8 @@ export type CanvasTool =
   | "joint" // a refrigerant joint: on a run it cuts it and branches there
   | "branch-box" // a PUMY branch box: the heads' runs end on it
   | "component" // air component armed from the palette (Stage 7 — plenum first)
-  | "note"; // markup: a revision cloud round something, with its say in the margin
+  | "note" // markup: a revision cloud round something, with its say in the margin
+  | "airflow"; // markup: short wavy arrows showing which way the air moves
 
 /** the Draw flyout's armed options — what the next drawn line IS. Soft-drawn
     pipe and cable place dots that render as a smoothed curve; hard-drawn pipe
@@ -245,11 +248,14 @@ export interface DrawOptions {
   pipeForm: "soft" | "hard";
   drainMm: number;
   cableKind: "power" | "data";
+  /** the next airflow mark: blue supply or red return */
+  airStream: AirStream;
 }
 export const DEFAULT_DRAW: DrawOptions = {
   pipeForm: "hard",
   drainMm: 25,
   cableKind: "power",
+  airStream: "supply",
 };
 
 /** the tools that draft a polyline run (share the dot draft + anchors) */
@@ -826,6 +832,8 @@ type Drag =
   /** the tape measure: a reading, not an object — it lives only for the
       length of the drag and is never written to the document */
   | { kind: "tape"; from: Point }
+  /** pulling an airflow mark out the way the air goes */
+  | { kind: "airflow"; start: Point }
   /** dragging the note's cloud out over what it is about */
   | { kind: "note-rect"; start: Point }
   /** sliding a whole note — cloud and margin text travel together */
@@ -1066,6 +1074,8 @@ export function StudioCanvas({
   /* the live tape-measure reading. Deliberately component state and nothing
      else: it never reaches onMutate, so it makes no object, no undo entry and
      no mark on the drawing — let go and it's gone. */
+  /* the airflow mark being pulled out: where it was pressed, where it is pulled to */
+  const [airDraft, setAirDraft] = useState<{ a: Point; b: Point } | null>(null);
   const [tape, setTape] = useState<{ a: Point; b: Point } | null>(null);
   /* live crop rectangle while dragging a crop (or a split) over a sheet */
   const [liveCrop, setLiveCrop] = useState<{ sheetId: string; a: Point; b: Point } | null>(null);
@@ -2598,6 +2608,15 @@ export function StudioCanvas({
         if (noteEdit?.id === note.id) setNoteEdit(null);
         return;
       }
+      // airflow marks are markup too, over the drawing
+      const mark = [...doc.objects]
+        .reverse()
+        .find((o): o is AirflowMark => o.floorId === floor.id && isAirflowMark(o) && hitMark(o, w, floor.scaleMmPerUnit ?? 10, tol));
+      if (mark) {
+        onMutate((d) => ({ ...d, objects: d.objects.filter((o) => o.id !== mark.id) }));
+        if (selectedId === mark.id) onSelect(null);
+        return;
+      }
       // units next (on top of the plan), then risers
       for (let i = units.length - 1; i >= 0; i--) {
         const u = units[i];
@@ -3325,6 +3344,12 @@ export function StudioCanvas({
         }
         break;
       }
+      /* an airflow mark: press where it goes, pull the way the air goes */
+      case "airflow": {
+        setDrag({ kind: "airflow", start: w });
+        setAirDraft({ a: w, b: w });
+        break;
+      }
       case "calibrate": {
         tap(() =>
           setCalib((c) => (!c.a ? { a: w } : !c.b ? { a: c.a, b: w } : c))
@@ -3608,6 +3633,9 @@ export function StudioCanvas({
         setLiveRotate({ id: drag.id, deg });
         break;
       }
+      case "airflow":
+        setAirDraft({ a: drag.start, b: w });
+        break;
       case "tape": {
         // Shift holds the tape square to the plan, like the pipe tool
         setTape({ a: drag.from, b: e.shiftKey ? orthoSnap(drag.from, w) : w });
@@ -3622,6 +3650,18 @@ export function StudioCanvas({
     if (drag.kind === "tap-pan") {
       drag.commit();
       setDrag(null);
+      return;
+    }
+    /* letting go puts the mark down, pointing the way it was pulled; a
+       press that never travelled points along the plan */
+    if (drag.kind === "airflow") {
+      const pulled = airDraft;
+      setAirDraft(null);
+      setDrag(null);
+      if (pulled) {
+        const mark = airflowMark(floor.id, pulled.a, pullDeg(pulled.a, pulled.b, 8 / vp.zoom), draw.airStream);
+        onMutate((d) => ({ ...d, objects: [...d.objects, mark] }));
+      }
       return;
     }
     // letting go of the tape clears it — the reading was the whole point
@@ -5932,6 +5972,23 @@ export function StudioCanvas({
               </text>
             </g>
           )}
+
+          {/* ── markup: airflow marks, under the notes ── */}
+          <AirflowLayer
+            doc={doc}
+            floor={floor}
+            zoom={vp.zoom}
+            interactive={tool === "select" && !sim}
+            selectedId={selectedId}
+            draft={
+              tool === "airflow" && airDraft
+                ? { at: airDraft.a, deg: pullDeg(airDraft.a, airDraft.b, 8 / vp.zoom), stream: draw.airStream }
+                : null
+            }
+            toWorld={toWorld}
+            onSelect={onSelect}
+            onMutate={onMutate}
+          />
 
           {/* ── markup: notes ──
               Drawn LAST inside the world group, so a note sits over the work

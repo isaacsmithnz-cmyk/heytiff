@@ -124,7 +124,7 @@ describe("Draw tools — what a finished line commits as", () => {
     const { svg } = renderCanvas({
       doc,
       tool: "drain",
-      draw: { pipeForm: "hard", drainMm: 32, cableKind: "power" },
+      draw: { pipeForm: "hard", drainMm: 32, cableKind: "power", airStream: "supply" },
       onMutate: c.onMutate,
     });
     drawLine(svg, [
@@ -146,7 +146,7 @@ describe("Draw tools — what a finished line commits as", () => {
     const { svg } = renderCanvas({
       doc,
       tool: "cable",
-      draw: { pipeForm: "hard", drainMm: 25, cableKind: "data" },
+      draw: { pipeForm: "hard", drainMm: 25, cableKind: "data", airStream: "supply" },
       onMutate: c.onMutate,
     });
     drawLine(svg, [
@@ -169,7 +169,7 @@ describe("Draw tools — what a finished line commits as", () => {
     const { svg } = renderCanvas({
       doc,
       tool: "pipe",
-      draw: { pipeForm: "soft", drainMm: 25, cableKind: "power" },
+      draw: { pipeForm: "soft", drainMm: 25, cableKind: "power", airStream: "supply" },
       onMutate: c.onMutate,
     });
     drawLine(svg, [
@@ -189,7 +189,7 @@ describe("Draw tools — what a finished line commits as", () => {
     const { svg } = renderCanvas({
       doc,
       tool: "pipe",
-      draw: { pipeForm: "hard", drainMm: 25, cableKind: "power" },
+      draw: { pipeForm: "hard", drainMm: 25, cableKind: "power", airStream: "supply" },
       onMutate: c.onMutate,
     });
     drawLine(svg, [
@@ -253,7 +253,7 @@ describe("Draw tools — ending a line", () => {
     const { svg } = renderCanvas({
       doc,
       tool: "cable",
-      draw: { pipeForm: "hard", drainMm: 25, cableKind: "power" },
+      draw: { pipeForm: "hard", drainMm: 25, cableKind: "power", airStream: "supply" },
       onMutate: c.onMutate,
     });
     // two real dots, then the double-click's own click lands 2px away — the
@@ -274,7 +274,7 @@ describe("Draw tools — ending a line", () => {
     const { svg } = renderCanvas({
       doc,
       tool: "cable",
-      draw: { pipeForm: "hard", drainMm: 25, cableKind: "power" },
+      draw: { pipeForm: "hard", drainMm: 25, cableKind: "power", airStream: "supply" },
       onMutate: c.onMutate,
     });
     click(svg, sx(0), sy(0));
@@ -289,7 +289,7 @@ describe("Draw tools — ending a line", () => {
     const { svg } = renderCanvas({
       doc,
       tool: "pipe",
-      draw: { pipeForm: "soft", drainMm: 25, cableKind: "power" },
+      draw: { pipeForm: "soft", drainMm: 25, cableKind: "power", airStream: "supply" },
       onMutate: c.onMutate,
     });
     click(svg, sx(0), sy(0));

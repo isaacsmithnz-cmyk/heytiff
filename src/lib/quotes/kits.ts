@@ -339,6 +339,12 @@ const SPLIT: KitPart[] = [
       /* three phase: an RCBO or MCB of 3 or 4 poles, whatever the book calls it (no words to match: the pool is the search) */
       return f.phase === "3" ? { text: "", pool: atLeast(need, /rcbo|mcb|circuit breaker/i, "3") } : { text: "rcbo", pool: atLeast(need, /rcbo/i, f.phase) };
     },
+    /* the business's range of them, at or above what's needed, first (28 October 2026) */
+    shows: { kind: "rcbo" },
+    range: (f) => {
+      const need = breakerNeed(f);
+      return need != null ? { kind: "rcbo", need: { amps: need, phase: f.phase ?? null } } : null;
+    },
     qty: one("one for the new circuit"),
   },
   {
@@ -516,6 +522,7 @@ const DUCTED: KitPart[] = [
     name: "Spring hangers",
     skip: (f) => !f.underfloor,
     search: () => ({ text: "spring hanger" }),
+    component: () => "spring_hangers",
     qty: () => ({ qty: 4, unit: "", why: "one at each of the indoor's four hanging points" }),
   },
   /* the return at the size it's sized to, from the range: never a guessed

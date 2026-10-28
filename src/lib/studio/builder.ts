@@ -17,7 +17,7 @@
 import { newId, type DesignDocument, type DesignObject, type DesignSystem, type Point } from "./document";
 import type { DataPack, IndoorUnit, OutdoorUnit, PairTable } from "./packs/schema";
 import { indexNotation } from "./packs/schema";
-import { allocationsOf, hasAllocations, type Allocation } from "./allocations";
+import { allocationsOf, hasAllocations, roomsServed, servesRoom, type Allocation } from "./allocations";
 import { roomCoverage, systemCover, type CoverageCap } from "./coverage";
 import { checkMultiCompatibility, multiCapableIdus, UNDER_MINIMUM } from "./multi";
 import { vrfOutdoorsListing } from "./vrf";
@@ -64,7 +64,7 @@ function legacyFor(sys: DesignSystem, allocs: Allocation[]): Record<string, unkn
   const odu = allocs.find((a) => a.role === "odu");
   const heads = allocs.filter((a) => a.role === "idu" && a.model);
   const rooms: string[] = [...claimedZoneIds(sys)];
-  for (const h of heads) if (h.roomId && !rooms.includes(h.roomId)) rooms.push(h.roomId);
+  for (const h of heads) for (const r of roomsServed(h)) if (!rooms.includes(r)) rooms.push(r);
   settings.roomIds = rooms;
   if (sys.type === "split" || sys.type === "ducted") {
     const idu = heads[0];
@@ -331,15 +331,24 @@ export function removeZone(
 ): DesignDocument {
   const sys = doc.systems.find((s) => s.id === systemId);
   if (!sys) return doc;
+  /* a unit serving only this zone goes with it; one serving a group of
+     rooms stays, serving the rest */
   const gone = new Set(
     allocationsOf(sys)
-      .filter((a) => a.role === "idu" && a.roomId === zoneId)
+      .filter((a) => a.role === "idu" && servesRoom(a, zoneId) && withoutRoom(a, zoneId) == null)
       .map((a) => a.id)
   );
+  const shrinks = allocationsOf(sys).some((a) => servesRoom(a, zoneId) && !gone.has(a.id));
   let d = unclaimZone(doc, systemId, zoneId);
-  if (gone.size) {
+  if (gone.size || shrinks) {
     d = mapSystem(d, systemId, (s) =>
-      withAllocations(s, allocationsOf(s).filter((a) => !gone.has(a.id)), pack)
+      withAllocations(
+        s,
+        allocationsOf(s)
+          .filter((a) => !gone.has(a.id))
+          .map((a) => (servesRoom(a, zoneId) ? (withoutRoom(a, zoneId) ?? a) : a)),
+        pack
+      )
     );
     d = { ...d, objects: stripAttachesTo(d.objects.filter((o) => !gone.has(o.id)), gone) };
   }
@@ -374,7 +383,7 @@ export function releaseZones(
   let d = doc;
   for (const zoneId of zoneIds) {
     for (const s of d.systems) {
-      const holds = hasAllocations(s) && allocationsOf(s).some((a) => a.roomId === zoneId);
+      const holds = hasAllocations(s) && allocationsOf(s).some((a) => servesRoom(a, zoneId));
       if (!holds && !zoneIdsOf(s).includes(zoneId)) continue;
       d = pack ? removeZone(d, pack, s.id, zoneId) : unclaimZone(d, s.id, zoneId);
     }
@@ -397,12 +406,22 @@ export function moveZone(
   const from = doc.systems.find((s) => s.id === fromSystemId);
   const to = doc.systems.find((s) => s.id === toSystemId);
   if (!from || !to) return doc;
-  const moving = allocationsOf(from).filter((a) => a.role === "idu" && a.roomId === zoneId);
+  /* a unit serving only this zone moves with it; one serving a group of the
+     old system's rooms stays there, serving the rest */
+  const moving = allocationsOf(from).filter(
+    (a) => a.role === "idu" && servesRoom(a, zoneId) && withoutRoom(a, zoneId) == null
+  );
   const movingIds = new Set(moving.map((a) => a.id));
   let d = claimZone(doc, toSystemId, zoneId);
   d = unclaimZone(d, fromSystemId, zoneId);
   d = mapSystem(d, fromSystemId, (s) =>
-    withAllocations(s, allocationsOf(s).filter((a) => !movingIds.has(a.id)), pack)
+    withAllocations(
+      s,
+      allocationsOf(s)
+        .filter((a) => !movingIds.has(a.id))
+        .map((a) => (servesRoom(a, zoneId) ? (withoutRoom(a, zoneId) ?? a) : a)),
+      pack
+    )
   );
   d = mapSystem(d, toSystemId, (s) => withAllocations(s, [...allocationsOf(s), ...moving], pack));
   d = {
@@ -422,6 +441,54 @@ export function moveZone(
   };
   d = proposeOutdoor(d, pack, fromSystemId);
   return proposeOutdoor(d, pack, toSystemId);
+}
+
+/** an indoor unit with one of its rooms let go: the next room it serves
+    becomes its own; null when that was its only room */
+function withoutRoom(a: Allocation, zoneId: string): Allocation | null {
+  const rest = roomsServed(a).filter((r) => r !== zoneId);
+  if (rest.length === 0) return null;
+  const base: Allocation = { ...a, roomId: rest[0] };
+  delete base.alsoServes;
+  return rest.length > 1 ? { ...base, alsoServes: rest.slice(1) } : base;
+}
+
+/** THE ROOMS A UNIT SERVES (Isaac, 2026-10-28: on a VRF, Bed 1 and Bed 2 on
+    their own bulkheads and Living, Kitchen and Dining on one ducted VMA, "but
+    I couldn't find a way of grouping those 3 rooms onto 1 indoor unit"). The
+    ticks under an open ducted or bulkhead unit: the rooms, in the system's
+    order, that its air is branched to. Only the system's own zones count,
+    and it always keeps one; the first ticked is the room it is in. Its
+    capacity is shared among them by load (coverage.ts loadShare), and it is
+    still one unit on the outdoor, the joints and the ratio. */
+export function setRoomsServed(
+  doc: DesignDocument,
+  pack: DataPack,
+  opts: { systemId: string; allocationId: string; roomIds: readonly string[] }
+): DesignDocument {
+  const sys = doc.systems.find((s) => s.id === opts.systemId);
+  if (!sys) return doc;
+  const unit = allocationsOf(sys).find((a) => a.id === opts.allocationId);
+  if (!unit || unit.role !== "idu" || unit.serves === "system") return doc;
+  const zones = zoneIdsOf(sys);
+  const rooms = zones.filter((z) => opts.roomIds.includes(z));
+  if (rooms.length === 0) return doc;
+  const keep = unit.roomId && rooms.includes(unit.roomId) ? unit.roomId : rooms[0];
+  const also = rooms.filter((r) => r !== keep);
+  const next: Allocation = { ...unit, roomId: keep };
+  delete next.alsoServes;
+  if (also.length) next.alsoServes = also;
+  let d = mapSystem(doc, sys.id, (s) =>
+    withAllocations(s, allocationsOf(s).map((a) => (a.id === unit.id ? next : a)), pack)
+  );
+  /* placed, it says which room it is in the way the builder stamps it */
+  if (keep !== unit.roomId) {
+    d = {
+      ...d,
+      objects: d.objects.map((o) => (o.id === unit.id ? { ...o, props: { ...o.props, roomId: keep } } : o)),
+    };
+  }
+  return proposeOutdoor(d, pack, sys.id);
 }
 
 /** the plan's zones a system does not have yet: the ones without a system
@@ -730,6 +797,13 @@ export interface TrayItem {
   placing: TrayPlacing;
 }
 
+/** rooms named the way a sentence lists them: "Living, Kitchen and Dining" */
+export function roomsLabel(names: readonly string[]): string {
+  const n = names.filter(Boolean);
+  if (n.length <= 1) return n[0] ?? "";
+  return `${n.slice(0, -1).join(", ")} and ${n[n.length - 1]}`;
+}
+
 export function trayItems(doc: DesignDocument, pack: DataPack): TrayItem[] {
   const roomName = (id: string | null): string => {
     if (!id) return "";
@@ -742,14 +816,14 @@ export function trayItems(doc: DesignDocument, pack: DataPack): TrayItem[] {
     if (!hasAllocations(sys)) continue;
     const allocs = allocationsOf(sys);
     const rooms: string[] = [];
-    for (const a of allocs) if (a.role === "idu" && a.roomId && !rooms.includes(a.roomId)) rooms.push(a.roomId);
+    for (const a of allocs) for (const r of roomsServed(a)) if (!rooms.includes(r)) rooms.push(r);
     for (const a of allocs) {
       if (!a.model || placed.has(a.id)) continue;
       const spec = a.role === "idu" ? iduRow(pack, a.model) : oduRow(pack, a.model);
       if (!spec) continue;
       const base =
         a.role === "idu"
-          ? roomName(a.roomId) || "No room"
+          ? roomsLabel(roomsServed(a).map(roomName)) || roomName(a.roomId) || "No room"
           : rooms.length >= 2
             ? "Shared"
             : roomName(rooms[0] ?? null) || "No room";

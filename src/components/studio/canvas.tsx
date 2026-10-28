@@ -90,6 +90,7 @@ import { footprintBox, layoutPlanLabels, roomLabelFixed, roomLabelOffset, type P
 import { nearestTabS, tabPath, tabShare, wallsOf, TAB_PAD_T, TAB_PAD_X } from "@/lib/studio/room-tab";
 import type { SizedSection } from "@/lib/studio/vrf-tree";
 import { usePipeUnits } from "./pipe-units";
+import { DuctLayer } from "./duct-layer";
 
 /** a branch box on the plan: PAC-MK34BC / MK54BC are both 450 × 280 mm (M-P0860 p.44) */
 const BOX_W_MM = 450;
@@ -5035,6 +5036,21 @@ export function StudioCanvas({
               </g>
             );
           })}
+
+          {/* the ductwork the Studio lays out for each ducted unit on the
+              plan: runs, Ys and BTOs, outlets, the return (duct-layer.tsx) */}
+          {layers.pipes && pack && (
+            <DuctLayer
+              doc={doc}
+              pack={pack}
+              floor={floor}
+              zoom={zoom}
+              labelZoom={labelZoom}
+              interactive={tool === "select" && !sim}
+              toWorld={toWorld}
+              onMutate={onMutate}
+            />
+          )}
 
           {/* units (Stage 4) — to-scale footprint, role glyph, model */}
           {layers.units && units.map((u) => {

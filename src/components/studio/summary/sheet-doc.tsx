@@ -449,6 +449,8 @@ const PICK_GROUPS: { key: PicklistRow["group"]; label: string }[] = [
   { key: "pipe", label: "Pipe" },
   { key: "electrical", label: "Electrical" },
   { key: "components", label: "Components" },
+  { key: "ductwork", label: "Ductwork" },
+  { key: "grilles", label: "Grilles and outlets" },
 ];
 
 export function PicklistSection({

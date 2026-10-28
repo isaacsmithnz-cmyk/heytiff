@@ -31,6 +31,23 @@ export interface Allocation {
       the whole system — a ducted air handler, dropped above the zones, with
       the air branched to every zone the system claims */
   serves?: "zone" | "system";
+  /** the other rooms an indoor unit serves beside `roomId`: a ducted or
+      bulkhead unit given a group of the system's rooms, its air branched to
+      each (Isaac, 2026-10-28: Living, Kitchen and Dining on one VMA, the
+      bedrooms on their own bulkheads). Absent for a unit serving one room. */
+  alsoServes?: string[];
+}
+
+/** every room an indoor unit serves: its own, then the rooms it was given;
+    none for an outdoor or a unit serving the whole system */
+export function roomsServed(a: Allocation): string[] {
+  if (a.role !== "idu" || a.serves === "system" || !a.roomId) return [];
+  return [a.roomId, ...(a.alsoServes ?? [])];
+}
+
+/** does this indoor unit serve that room? */
+export function servesRoom(a: Allocation, roomId: string): boolean {
+  return roomsServed(a).includes(roomId);
 }
 
 /** has this system been through the builder? */
@@ -49,15 +66,19 @@ export function allocationsOf(sys: DesignSystem): Allocation[] {
     if (typeof a.id !== "string" || !a.id) continue;
     if (a.role !== "idu" && a.role !== "odu") continue;
     const serves = a.role === "idu" && a.serves === "system" ? "system" : "zone";
+    const roomId =
+      a.role === "idu" && serves === "zone" && typeof a.roomId === "string" && a.roomId ? a.roomId : null;
+    const also =
+      roomId && Array.isArray(a.alsoServes)
+        ? [...new Set(a.alsoServes.filter((r): r is string => typeof r === "string" && !!r && r !== roomId))]
+        : [];
     out.push({
       id: a.id,
       role: a.role,
       model: typeof a.model === "string" ? a.model : "",
-      roomId:
-        a.role === "idu" && serves === "zone" && typeof a.roomId === "string" && a.roomId
-          ? a.roomId
-          : null,
+      roomId,
       ...(a.role === "idu" ? { serves } : {}),
+      ...(also.length ? { alsoServes: also } : {}),
     });
   }
   return out;

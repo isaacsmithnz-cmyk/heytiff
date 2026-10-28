@@ -22,7 +22,7 @@
 
 import { newId, type DesignDocument, type DesignObject, type DesignSystem } from "./document";
 import type { DataPack, IndoorUnit } from "./packs/schema";
-import { allocationsOf, hasAllocations, type Allocation } from "./allocations";
+import { allocationsOf, hasAllocations, roomsServed, type Allocation } from "./allocations";
 import { nextSystemColour } from "./modules";
 import { allVrfOnly, joinsVrf } from "./vrf";
 import type { RoomObj } from "./loads-room";
@@ -74,7 +74,7 @@ export function servedRoomIds(sys: DesignSystem, zoneIds: string[], allocs?: All
   const out = [...zoneIds];
   const units = allocs ?? (hasAllocations(sys) ? allocationsOf(sys) : []);
   for (const a of units) {
-    if (a.role === "idu" && a.roomId && !out.includes(a.roomId)) out.push(a.roomId);
+    for (const r of roomsServed(a)) if (!out.includes(r)) out.push(r);
   }
   return out;
 }
@@ -163,13 +163,17 @@ export function renameSystem(doc: DesignDocument, systemId: string, name: string
 /** the family of outdoor the builder lists first: a word the user may have
     picked on the trail, else what the zones say — one zone is a split, more
     are a multi. Never a lock: the units decide the type. */
-export type SystemFamily = "split" | "multi" | "vrf";
+/** the family the builder's first crumb picks. Ducted joined Split, Multi
+    and VRF on Isaac's word (2026-10-28, "Ducted as a system type"): one
+    ducted unit on the system, its air branched to every zone */
+export type SystemFamily = "split" | "multi" | "ducted" | "vrf";
 
 export function familyOf(sys: DesignSystem): SystemFamily {
   const picked = sys.settings.family;
-  if (picked === "split" || picked === "multi" || picked === "vrf") return picked;
+  if (picked === "split" || picked === "multi" || picked === "ducted" || picked === "vrf") return picked;
   if (sys.type === "vrf") return "vrf";
   if (sys.type === "multi-split") return "multi";
+  if (sys.type === "ducted") return "ducted";
   return zoneIdsOf(sys).length >= 2 ? "multi" : "split";
 }
 
@@ -209,7 +213,8 @@ export function systemTypeFor(
   if (oduRow?.system_type === "multi") return "multi-split";
   if (oduRow?.system_type === "split") return "split";
   if (odu && !pack) return sys.type === "multi-split" ? "multi-split" : "split";
-  return familyOf(sys) === "multi" ? "multi-split" : "split";
+  const family = familyOf(sys);
+  return family === "multi" ? "multi-split" : family === "ducted" ? "ducted" : "split";
 }
 
 /** What a system IS, for the word on its card and in the builder's header:

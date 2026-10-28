@@ -4,7 +4,7 @@ import { roomLoadKw, type RoomObj } from "./loads-room";
 import { sizingCapacityKw, type SizingBasis } from "./loads";
 import { pointInPolygon } from "./geometry";
 import { moduleFor } from "./modules";
-import { allocationsOf, hasAllocations } from "./allocations";
+import { allocationsOf, hasAllocations, roomsServed } from "./allocations";
 import { zoneIdsOf } from "./zones";
 import { coverPct, coversLoad } from "./fit";
 
@@ -148,9 +148,16 @@ export function systemPairKw(
     of every zone the system claims, or an even split while loads are
     unknown; null when the zone is not the system's */
 function wholeSystemShare(doc: DesignDocument, sys: DesignSystem, roomId: string): number | null {
-  const ids = zoneIdsOf(sys);
-  if (!ids.includes(roomId)) return null;
-  const zones = ids
+  return loadShare(doc, zoneIdsOf(sys), roomId);
+}
+
+/** the part of a unit serving these rooms that one of them gets: its load
+    over theirs together — proportional dampers, so every room reads the same
+    percentage — or an even split while loads are unknown; null when the room
+    is not one of them */
+export function loadShare(doc: DesignDocument, roomIds: readonly string[], roomId: string): number | null {
+  if (!roomIds.includes(roomId)) return null;
+  const zones = roomIds
     .map((id) => doc.objects.find((o) => o.id === id))
     .filter((o): o is RoomObj => o != null && o.type === "room" && o.geometry.kind === "polygon");
   if (!zones.length) return null;
@@ -236,8 +243,12 @@ export function roomCoverage(
           });
           continue;
         }
-        if (a.roomId !== room.id) continue;
-        const kw = placedIduKw(doc, pack, sys, a.model, basis) ?? 0;
+        const served = roomsServed(a);
+        if (!served.includes(room.id)) continue;
+        /* a unit given a group of rooms shares its rating among them the way
+           a whole-system unit does among every zone */
+        const share = served.length > 1 ? (loadShare(doc, served, room.id) ?? 0) : 1;
+        const kw = (placedIduKw(doc, pack, sys, a.model, basis) ?? 0) * share;
         contributors.push({
           systemId: sys.id,
           systemName: sys.name,

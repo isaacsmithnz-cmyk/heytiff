@@ -63,7 +63,8 @@ export function ductLines(doc: DesignDocument, pack: DataPack, sys: DesignSystem
       shelf: "ductwork",
       name: `Flexible duct Ø${d.dia}`,
       sub: d.unmeasured ? `${d.stream}, set the plan's scale to measure` : `${d.stream}, as drawn`,
-      qty: d.unmeasured && d.m === 0 ? "—" : `${Math.ceil(d.m * 10) / 10} m`,
+      /* up to the next 10 cm, past float noise: 6.30 m is 6.3, not 6.4 */
+      qty: d.unmeasured && d.m === 0 ? "—" : `${Math.ceil(d.m * 10 - 1e-6) / 10} m`,
     }));
 
   /* plenums: one each as placed on its unit's face, made for that face */

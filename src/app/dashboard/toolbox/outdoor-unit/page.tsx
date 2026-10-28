@@ -1,22 +1,12 @@
 import { redirect } from "next/navigation";
 import { can } from "@/lib/permissions-server";
-import { ToolPage } from "@/components/toolbox/tool-page";
-import { OutdoorUnit } from "@/components/toolbox/outdoor-unit";
 
-export const metadata = { title: "Outdoor unit placement – Toolbox" };
-
-// Deep-linkable leaf — same `toolbox` gate as the index page: the capability
-// is revocable, so every route checks for itself, not just the nav entry.
+/* OFF THE TOOLBOX FOR NOW (Isaac, 28 October 2026: "remove the New South
+   Wales unit placement thing. Just have the three of them in for now"). A
+   link someone kept lands on the Toolbox; the rules and the drawing stay in
+   lib/toolbox/outdoor-unit and components/toolbox/outdoor-unit for when it
+   comes back. Same `toolbox` gate as every leaf: revoked goes to Home. */
 export default async function OutdoorUnitPage() {
   if (!(await can("toolbox"))) redirect("/dashboard");
-  return (
-    <ToolPage
-      accent="#8A2BE2"
-      accentInk="#6D28D9"
-      title="Outdoor Unit Placement"
-      compact
-    >
-      <OutdoorUnit />
-    </ToolPage>
-  );
+  redirect("/dashboard/tiff/library?view=toolbox");
 }

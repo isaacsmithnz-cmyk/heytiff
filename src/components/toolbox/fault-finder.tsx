@@ -370,10 +370,10 @@ export function FaultFinder({
           </section>
           <section className="tcard">
             <h3 className="tct">Related tools</h3>
-            {/* Outdoor Unit Placement was missing: the walk sends people to
-                clearance and recirculation on three paths and never named the
-                tool that answers it. The dots went with it — they were the
-                retired teal and the app's DANGER red, decorating a link. */}
+            {/* The Toolbox's other tools. Outdoor Unit Placement is off the
+                Toolbox for now (Isaac, 28 October 2026), so it is off here
+                too. The dots went long ago — they were the retired teal and
+                the app's DANGER red, decorating a link. */}
             <div className="ffg-links">
               <Link href="/dashboard/toolbox/running-pressures">
                 Running Pressures
@@ -381,10 +381,6 @@ export function FaultFinder({
               </Link>
               <Link href="/dashboard/toolbox/heat-load">
                 Heat Load
-                <Icon name="chevR" size={15} />
-              </Link>
-              <Link href="/dashboard/toolbox/outdoor-unit">
-                Outdoor Unit Placement
                 <Icon name="chevR" size={15} />
               </Link>
             </div>

@@ -100,25 +100,13 @@ export const TOOL_CATEGORIES: ToolCategory[] = [
       },
     ],
   },
-  {
-    key: "reference",
-    /* "Reference Library" until the naming pass: the app had four things
-       called a library, and the only one that should own the word outright is
-       Tiff's, which is an actual library of documents. This is a shelf of
-       reference TOOLS, so it says what it is. */
-    title: "Reference",
-    sub: "Specs & standards",
-    icon: "library",
-    accent: "#8A2BE2",
-    tools: [
-      {
-        name: "Outdoor Unit Placement",
-        desc: "Where it can sit — NSW",
-        href: "/dashboard/toolbox/outdoor-unit",
-        addedOn: "2026-07-24",
-      },
-    ],
-  },
+  /* THREE TOOLS FOR NOW (Isaac, 28 October 2026: "remove the New South
+     Wales unit placement thing. Just have the three of them in for now",
+     the phone's and the web's). Outdoor Unit Placement was the Reference
+     shelf's only tool, so the shelf went with it; its page sends anyone who
+     still has the link to the Toolbox, and its rules and drawing are kept
+     (lib/toolbox/outdoor-unit, components/toolbox/outdoor-unit) for when it
+     comes back. */
 ];
 
 /** Which badge a tool wears today, if any.

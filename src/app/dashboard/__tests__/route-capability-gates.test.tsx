@@ -25,7 +25,6 @@ jest.mock("next/navigation", () => ({
    gate is what's under test, so they render to nothing here */
 jest.mock("@/components/toolbox/tool-page", () => ({ ToolPage: () => null }));
 jest.mock("@/components/toolbox/heat-load", () => ({ HeatLoadCalculator: () => null }));
-jest.mock("@/components/toolbox/outdoor-unit", () => ({ OutdoorUnit: () => null }));
 jest.mock("@/components/toolbox/running-pressures", () => ({ RunningPressures: () => null }));
 jest.mock("@/components/toolbox/fault-finder", () => ({ FaultFinder: () => null }));
 jest.mock("@/components/tiff/library", () => ({ Library: () => null }));
@@ -118,7 +117,6 @@ import KnowledgePage from "../admin/knowledge/page";
 
 const LEAVES: [string, () => Promise<unknown>, string][] = [
   ["toolbox/heat-load", HeatLoadPage, "toolbox"],
-  ["toolbox/outdoor-unit", OutdoorUnitPage, "toolbox"],
   ["toolbox/running-pressures", RunningPressuresPage, "toolbox"],
   ["toolbox/troubleshooting", TroubleshootingPage, "toolbox"],
   ["tiff/library", LibraryPage, "tiff"],
@@ -143,6 +141,21 @@ describe("held → the page renders", () => {
     allowed = true;
     expect(await Page()).toBeTruthy();
     expect(redirect).not.toHaveBeenCalled();
+  });
+});
+
+/* Outdoor Unit Placement is off the Toolbox for now (Isaac, 28 October
+   2026): its page still checks the door, and a kept link lands on the
+   Toolbox */
+describe("toolbox/outdoor-unit", () => {
+  it("revoked → straight back to /dashboard", async () => {
+    allowed = false;
+    await expect(OutdoorUnitPage()).rejects.toThrow("REDIRECT:/dashboard");
+    expect(can).toHaveBeenCalledWith("toolbox");
+  });
+  it("held → the Toolbox", async () => {
+    allowed = true;
+    await expect(OutdoorUnitPage()).rejects.toThrow("REDIRECT:/dashboard/tiff/library?view=toolbox");
   });
 });
 

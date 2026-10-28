@@ -8,7 +8,6 @@ import { staffProfileIdFor } from "@/lib/fleet/query";
 import { todayInAu } from "@/lib/au-dates";
 import { jobCandidates } from "@/lib/dashboard/job-candidates";
 import type { JobCandidate } from "@/lib/workboard/note-match";
-import { pushClaimDecided, pushClaimSent } from "@/lib/expenses/claim-push";
 import {
   buildClaim,
   canTransition,
@@ -44,6 +43,11 @@ import {
    control: everything is re-decided here. */
 
 export type ExpenseResult = { ok: true } | { ok: false; error: string };
+
+/* THE PUSHES, loaded when a claim is sent or decided, not with this file:
+   they reach next/server's after(), which a screen's test that only
+   imports this file has no Request for. A push never stops the answer. */
+const pushes = () => import("@/lib/expenses/claim-push").catch(() => null);
 
 /** A submit says which row it made: Tiff's note router files a cost through
     this same action and keeps the id, so the cost's Undo can cancel it
@@ -254,7 +258,10 @@ export async function submitClaim(
   }
 
   /* whoever approves hears of a claim; a card receipt asks nobody anything */
-  if (built.row.paid_with !== "company") pushClaimSent(ctx.orgId, { staffId: ctx.staffId, description: built.row.description, amount: built.row.amount });
+  if (built.row.paid_with !== "company") {
+    const claim = { staffId: ctx.staffId, description: built.row.description, amount: built.row.amount };
+    await pushes().then((p) => p?.pushClaimSent(ctx.orgId, claim));
+  }
 
   refresh();
   return { ok: true, id: String((data as { id: string }).id) };
@@ -333,10 +340,12 @@ async function decide(
 
   if (error) return { ok: false, error: "Couldn't save that decision." };
   /* the person who sent it hears, with the reason when it's no */
-  pushClaimDecided(
-    ctx.orgId,
-    { staffId: String(data.staff_profile_id), description: String(data.description ?? ""), amount: Number(data.amount ?? 0) },
-    { status, note },
+  await pushes().then((p) =>
+    p?.pushClaimDecided(
+      ctx.orgId,
+      { staffId: String(data.staff_profile_id), description: String(data.description ?? ""), amount: Number(data.amount ?? 0) },
+      { status, note },
+    ),
   );
   refresh();
   return { ok: true };

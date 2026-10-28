@@ -11,7 +11,7 @@ const viewer = (caps: string[], role: "owner" | "admin" | "staff" | null = "staf
 
 describe("the sidebar's places (rules 5 and 7)", () => {
   it("draws only places whose page exists, in the rule's order", () => {
-    const order = ["home", "conversations", "jobs", "schedule", "documents", "library", "team"];
+    const order = ["home", "conversations", "jobs", "schedule", "documents", "library", "design", "team"];
     const keys = PLACES.map((p) => p.key);
     expect(keys.every((k) => order.includes(k))).toBe(true);
     expect([...keys].sort((a, b) => order.indexOf(a) - order.indexOf(b))).toEqual(keys);

@@ -58,10 +58,7 @@ export type NavItem = NavSub & {
 export type NavGroup = { label: string; items: NavItem[] };
 
 /* THE v2 PLACES, AND YOUR NAME'S MENU (docs/design.md rules 5 and 7;
-   places.ts draws the rail from the same, less Design: since 28 October
-   2026 the Studio opens from a job's quote, its Design step, and the rail
-   has seven places. ⌘K and Tiff still know Design by name, and Tiff is
-   told it's where you are while the Studio is open). The screens v2 retired
+   places.ts draws the rail from the same eight). The screens v2 retired
    (the Workboard, the Toolbox, Time & Pay, Assets, the Noticeboard, Action
    required) are gone from here too, names and all (Isaac, 23 October 2026:
    "Drop them entirely"): ⌘K and Tiff find a place by its v2 name. Their old

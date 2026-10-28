@@ -60,6 +60,15 @@ beforeEach(() => {
     /* someone with no link to ServiceM8: nobody to put it on */
     { org_id: ORG, sm8_job_uuid: "j-9999", user_id: "auth0|nobody", checked_in_at: "2026-10-27T01:00:00.000Z", checked_out_at: null, reason: null },
   ];
+  tables.sm8_jobs = [
+    { org_id: ORG, uuid: "j-2771", generated_job_id: "2771", job_address: "46 Gordon Street\nClontarf NSW 2093", geo_city: "Clontarf", status: "Work Order", category_uuid: "cat-service" },
+    { org_id: ORG, uuid: "j-3215", generated_job_id: "3215", job_address: "29 Wemyss St\nEnmore NSW 2042", geo_city: "Enmore", status: "Work Order", category_uuid: "cat-install" },
+    { org_id: ORG, uuid: "j-3304", generated_job_id: "3304", job_address: "88 Kirribilli Ave,\nKirribilli NSW 2061", geo_city: "Kirribilli", status: "Work Order", category_uuid: "cat-install" },
+  ];
+  tables.sm8_categories = [
+    { org_id: ORG, uuid: "cat-install", colour: "e7b5ff" },
+    { org_id: ORG, uuid: "cat-service", colour: "ffb5b5" },
+  ];
   tables.staff_profiles = [
     { org_id: ORG, id: "card-alex", user_id: "auth0|alex" },
     { org_id: ORG, id: "card-nobody", user_id: "auth0|nobody" },
@@ -68,9 +77,9 @@ beforeEach(() => {
 
 test("everyone's actual time: ServiceM8's check-ins, the phone's stints on the wall clock, ServiceM8 winning, left-on shown with no hours", async () => {
   expect(await actualOn(ORG, "2026-10-27", null)).toEqual([
-    { staffUuid: "sm8-leonardo", jobUuid: "j-2771", start: "2026-10-27 06:58:13", end: "2026-10-28 06:09:32", how: "servicem8", leftOn: true, reason: null },
-    { staffUuid: "sm8-alex", jobUuid: "j-3215", start: "2026-10-27 07:27:47", end: "2026-10-27 09:25:53", how: "servicem8", leftOn: false, reason: null },
-    { staffUuid: "sm8-alex", jobUuid: "j-3304", start: "2026-10-27 13:00:00", end: "2026-10-27 13:30:00", how: "phone", leftOn: false, reason: "site_meeting" },
+    expect.objectContaining({ staffUuid: "sm8-leonardo", jobUuid: "j-2771", start: "2026-10-27 06:58:13", end: "2026-10-28 06:09:32", how: "servicem8", leftOn: true, reason: null, number: "2771", where: "46 Gordon Street, Clontarf", colour: "ffb5b5" }),
+    expect.objectContaining({ staffUuid: "sm8-alex", jobUuid: "j-3215", start: "2026-10-27 07:27:47", end: "2026-10-27 09:25:53", how: "servicem8", leftOn: false, reason: null, number: "3215" }),
+    expect.objectContaining({ staffUuid: "sm8-alex", jobUuid: "j-3304", start: "2026-10-27 13:00:00", end: "2026-10-27 13:30:00", how: "phone", leftOn: false, reason: "site_meeting", number: "3304", colour: "e7b5ff" }),
   ]);
 });
 

@@ -20,8 +20,8 @@ import { framingOf, roofHeightAt, roofMesh, type Member, type Mesh, type RoofRec
    FLOORS STACK ON THEIR OWN PLANS, LINED UP (the plans of one house are
    rarely drawn in the same place on their sheets: two floors cropped off
    one page sit side by side). Each floor above or below the ground lines
-   up on the ground: on its own place when the two already overlap, else
-   stair over stair when both have one, else middle over middle. */
+   up on the ground: stair over stair when both have one, else on its own
+   place when the two already overlap, else middle over middle. */
 
 export type XZ = [number, number];
 
@@ -132,9 +132,10 @@ function boxOf(pts: XZ[]): Box | null {
   return b;
 }
 const area = (b: Box) => Math.max(0, b.x1 - b.x0) * Math.max(0, b.z1 - b.z0);
+const meet = (a: Box, b: Box): Box => ({ x0: Math.max(a.x0, b.x0), z0: Math.max(a.z0, b.z0), x1: Math.min(a.x1, b.x1), z1: Math.min(a.z1, b.z1) });
 /** how much of the smaller box the two share */
 function overlap(a: Box, b: Box): number {
-  const i = area({ x0: Math.max(a.x0, b.x0), z0: Math.max(a.z0, b.z0), x1: Math.min(a.x1, b.x1), z1: Math.min(a.z1, b.z1) });
+  const i = area(meet(a, b));
   const least = Math.min(area(a), area(b));
   return least > 0 ? i / least : 0;
 }
@@ -181,21 +182,57 @@ function rawFloor(doc: DesignDocument, floor: Floor, ceiling: number): Raw | nul
 }
 
 const solid = (r: Raw) => r.spaces.filter((s) => WALLED.has(s.kind) && !s.existing);
-const stairOf = (r: Raw) => r.spaces.find((s) => s.kind === "stair");
+const stairsOf = (r: Raw) => r.spaces.filter((s) => s.kind === "stair");
+/** every walled space's box, old or new: the building one floor stands on */
+const walledBoxes = (r: Raw) => r.spaces.filter((s) => WALLED.has(s.kind)).flatMap((s) => boxOf(s.pts) ?? []);
 
-/** How far to move a floor so it stands over the ground floor. */
+/** How much of the floor above stands on the floor below, moved by `d`:
+    each of its spaces' share of the floor below, never more than itself. */
+function standing(below: Box[], above: Box[], [dx, dz]: XZ): number {
+  let all = 0;
+  for (const a of above) {
+    const moved = { x0: a.x0 + dx, z0: a.z0 + dz, x1: a.x1 + dx, z1: a.z1 + dz };
+    let on = 0;
+    for (const b of below) on += area(meet(b, moved));
+    all += Math.min(on, area(moved));
+  }
+  return all;
+}
+
+/** As drawn stands unless a stair does this much better: a stair read a
+    little off must not walk two floors drawn in register out of it. */
+const CLEARLY_BETTER = 1.1;
+
+/** How far to move a floor so it stands over the ground floor.
+
+    A STAIR IS IN THE SAME PLACE ON BOTH FLOORS, so where both have one it
+    decides (6 Bishops Ave, 28 October 2026: its two plans sit 4.4 m apart
+    on their sheets yet still overlapped by more than half, so the first
+    floor stood 4.4 m out over the ground). Every stair below against every
+    stair above, since an outdoor stair or an old one kept is a stair too,
+    and as drawn: whichever stands most of the floor on the one below. */
 export function lineUp(ground: Raw, other: Raw): XZ {
   const g = boxOf(solid(ground).flatMap((s) => s.pts));
   const o = boxOf(solid(other).flatMap((s) => s.pts));
   if (!g || !o) return [0, 0];
-  if (overlap(g, o) >= 0.5) return [0, 0];
-  const sg = stairOf(ground);
-  const so = stairOf(other);
-  if (sg && so) {
-    const [ax, az] = centroid(sg.pts);
-    const [bx, bz] = centroid(so.pts);
-    return [ax - bx, az - bz];
+  const below = walledBoxes(ground);
+  const above = walledBoxes(other);
+  let best: XZ | null = null;
+  let most = standing(below, above, [0, 0]) * CLEARLY_BETTER;
+  for (const a of stairsOf(ground)) {
+    for (const b of stairsOf(other)) {
+      const [ax, az] = centroid(a.pts);
+      const [bx, bz] = centroid(b.pts);
+      const d: XZ = [ax - bx, az - bz];
+      const n = standing(below, above, d);
+      if (n > most) {
+        most = n;
+        best = d;
+      }
+    }
   }
+  if (best) return best;
+  if (overlap(g, o) >= 0.5) return [0, 0];
   return [(g.x0 + g.x1) / 2 - (o.x0 + o.x1) / 2, (g.z0 + g.z1) / 2 - (o.z0 + o.z1) / 2];
 }
 

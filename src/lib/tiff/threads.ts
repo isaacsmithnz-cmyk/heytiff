@@ -30,6 +30,9 @@ export type TiffMsg = {
   sources?: AskSourceItem[];
   /** What Tiff did before she answered, ticked in grey (Conversations). */
   steps?: string[];
+  /** The email to Tiff this answer is about (email_in_messages.id): its job
+      card is drawn under the words, its state read from the email's row. */
+  email?: string;
 };
 
 export type TiffThread = { id: string; title: string; updatedAt: number; messages: TiffMsg[] };
@@ -67,6 +70,7 @@ function msgOf(v: unknown): TiffMsg | null {
   if (m.truncated === true) out.truncated = true;
   if (Array.isArray(m.sources)) out.sources = m.sources as AskSourceItem[];
   if (Array.isArray(m.steps) && m.steps.every((s) => typeof s === "string")) out.steps = m.steps as string[];
+  if (typeof m.email === "string" && /^[0-9a-f-]{36}$/i.test(m.email)) out.email = m.email;
   return out;
 }
 

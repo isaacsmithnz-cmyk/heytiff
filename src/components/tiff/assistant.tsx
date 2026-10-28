@@ -76,6 +76,7 @@ import { RecordingCard } from "@/components/notes/recording-card";
 import { DotField } from "@/components/ui/dot-field";
 import { READING_BACK_NOTE } from "@/components/notes/waits";
 import { Waiting } from "@/components/ui/orb";
+import dynamic from "next/dynamic";
 
 /* The Library's asking surface, connected.
 
@@ -119,6 +120,10 @@ import { Waiting } from "@/components/ui/orb";
    model that wasn't connected. With the table applied the server keeps a
    copy that follows the person to other devices (lib/tiff/thread-sync.ts);
    without it, this device's copy is the only one. */
+/* the job card from a forwarded email (email-job-card.tsx), loaded only when
+   a thread has one: it brings the New job form and its actions with it */
+const EmailJobCard = dynamic(() => import("./email-job-card").then((m) => m.EmailJobCard), { ssr: false });
+
 type Msg = TiffMsg;
 type Thread = TiffThread;
 
@@ -1625,7 +1630,8 @@ function CvTurn({
           <div className={`cv-text${mine ? " cv-text--mine" : ""}`}>{mine ? <p>{m.text}</p> : <AnswerText text={m.text} />}</div>
           {m.truncated && <p className="cv-aside">That answer ran to its limit and stops mid-thought. Ask for the rest.</p>}
           {docs.length > 0 && <CvResults docs={docs} onPeek={onPeek} />}
-          {!mine && <CvSource m={m} docs={docs} canManage={canManage} />}
+          {m.email && <EmailJobCard id={m.email} />}
+          {!mine && !m.email && <CvSource m={m} docs={docs} canManage={canManage} />}
         </div>
       </article>
     </>

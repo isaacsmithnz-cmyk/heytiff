@@ -7540,6 +7540,23 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .cv-aside { margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
 /* what she read: a card each, its dot, its name, a grey line and Open */
 .fg .cv-results { display:flex; flex-direction:column; gap:8px; margin:4px 0 0; padding:0; list-style:none; }
+/* the job Tiff proposes from a forwarded email (components/tiff/email-job-card,
+   28 October 2026): a card, since it is acted on (rule 35); label and value
+   down it, the scope as a list, Create job, Change the details and Not a job
+   at its foot */
+.fg .cv-job { display:flex; flex-direction:column; gap:12px; max-width:720px; margin-top:4px; padding:16px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--paper); }
+.fg .cv-job-head { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .cv-job-facts { display:flex; flex-direction:column; gap:8px; margin:0; }
+.fg .cv-job-row { display:grid; grid-template-columns:112px minmax(0,1fr); gap:16px; font-size:14px; line-height:20px; }
+.fg .cv-job-row dt { font-weight:500; color:var(--q); }
+.fg .cv-job-row dd { margin:0; min-width:0; overflow-wrap:anywhere; color:var(--ink); }
+.fg .cv-job-row ul { display:flex; flex-direction:column; gap:4px; margin:0; padding-left:24px; list-style:disc; }
+.fg .cv-job-q { color:var(--q); }
+.fg .cv-job-foot { display:flex; align-items:center; gap:8px; padding-top:4px; }
+.fg .cv-job-grow { flex:1; }
+/* which job: each job a line, its own File on the right */
+.fg .cv-job-row ul.cv-job-picks { display:flex; flex-direction:column; gap:8px; margin:0; padding:0; list-style:none; }
+.fg .cv-job-pick { display:flex; align-items:center; justify-content:space-between; gap:12px; min-width:0; }
 .fg .cv-result { display:flex; align-items:center; gap:12px; min-width:0; padding:12px 16px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--paper); }
 .fg .cv-result-id { display:flex; flex-direction:column; flex:1; min-width:0; }
 .fg .cv-result-name { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }

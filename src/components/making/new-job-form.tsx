@@ -72,26 +72,41 @@ type Who = { kind: "none" } | { kind: "existing"; hit: ClientHit } | { kind: "ne
 type Site = { kind: "new" } | { kind: "previous"; site: SiteHit };
 type Wrong = { who?: string; where?: string; what?: string };
 
-export function NewJobForm({ onClose }: { onClose: () => void }) {
+/** A job read from an email (components/tiff/email-job-card): the form opens
+    with it filled in, on the email's own press, so the card's Create job and
+    this are one job. */
+export type NewJobInitial = {
+  pressId: string;
+  clientName: string;
+  address: string;
+  first: string;
+  last: string;
+  mobile: string;
+  email: string;
+  description: string;
+  via: "email";
+};
+
+export function NewJobForm({ onClose, initial, onMade }: { onClose: () => void; initial?: NewJobInitial; onMade?: (jobUuid: string) => void }) {
   const host = useContext(WindowsContext);
   const router = useRouter();
-  const [pressId] = useState(() => mintPressId());
-  const [q, setQ] = useState("");
+  const [pressId] = useState(() => initial?.pressId ?? mintPressId());
+  const [q, setQ] = useState(initial?.clientName ?? "");
   const [hits, setHits] = useState<ClientHit[]>([]);
   const [who, setWho] = useState<Who>({ kind: "none" });
   const [site, setSite] = useState<Site>({ kind: "new" });
   const [siteQ, setSiteQ] = useState("");
   const [sites, setSites] = useState<SiteHit[]>([]);
-  const [address, setAddress] = useState("");
+  const [address, setAddress] = useState(initial?.address ?? "");
   const [match, setMatch] = useState<SiteHit | null>(null);
-  const [first, setFirst] = useState("");
-  const [last, setLast] = useState("");
-  const [mobile, setMobile] = useState("");
-  const [email, setEmail] = useState("");
+  const [first, setFirst] = useState(initial?.first ?? "");
+  const [last, setLast] = useState(initial?.last ?? "");
+  const [mobile, setMobile] = useState(initial?.mobile ?? "");
+  const [email, setEmail] = useState(initial?.email ?? "");
   const [categories, setCategories] = useState<JobCategory[]>([]);
   const [category, setCategory] = useState<string | null>(null);
-  const [description, setDescription] = useState("");
-  const [via, setVia] = useState<Via | null>(null);
+  const [description, setDescription] = useState(initial?.description ?? "");
+  const [via, setVia] = useState<Via | null>(initial?.via ?? null);
   const [wrong, setWrong] = useState<Wrong>({});
   const [busy, setBusy] = useState(false);
   const [answer, setAnswer] = useState<CreateAnswer | null>(null);
@@ -113,11 +128,24 @@ export function NewJobForm({ onClose }: { onClose: () => void }) {
     };
   }, []);
 
-  /* the clients, as the name is typed */
+  /* the clients, as the name is typed; opened from an email, the one client
+     with exactly the name Tiff read is chosen when the search first answers,
+     and the site she read is kept (a builder's job is on a new site) */
+  const autoPick = useRef(initial ? initial.clientName.trim().toLowerCase() : "");
   useEffect(() => {
     if (who.kind !== "none" || q.trim().length < 2) return;
     let live = true;
-    const t = setTimeout(() => void searchNewJobClients(q).then((h) => live && setHits(h)), 200);
+    const t = setTimeout(
+      () =>
+        void searchNewJobClients(q).then((h) => {
+          if (!live) return;
+          const same = autoPick.current ? h.filter((c) => (c.name ?? "").trim().toLowerCase() === autoPick.current) : [];
+          autoPick.current = "";
+          if (same.length === 1) setWho({ kind: "existing", hit: same[0]! });
+          else setHits(h);
+        }),
+      200
+    );
     return () => {
       live = false;
       clearTimeout(t);
@@ -227,6 +255,7 @@ export function NewJobForm({ onClose }: { onClose: () => void }) {
     if (!alive.current) return;
     setAnswer(a);
     setBusy(false);
+    if (a.ok && a.line.state !== "failed" && a.line.state !== "cancelled") onMade?.(a.jobUuid);
     if (a.ok && (a.line.state === "in" || a.line.state === "partial")) {
       setPhase("opening");
       void openWhenRead(a.jobUuid, a.line.number ? `Job ${a.line.number} added` : "Job added");

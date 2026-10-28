@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button, IconButton, LinkButton } from "@/components/parts/button";
 import { Dialog } from "@/components/parts/dialog";
 import { Field, TextInput } from "@/components/parts/field";
-import { Dot, StateWord, type Hue, type Tone } from "@/components/parts/state";
+import { Dot, StateWord, type Hue } from "@/components/parts/state";
 import { Wrong } from "@/components/parts/states";
 import { Tray } from "@/components/parts/tabs";
 import { TimeField } from "@/components/parts/time-field";
@@ -30,7 +30,6 @@ import {
 import { upcomingHolidays } from "@/lib/timepay/leave";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { dateOfDay } from "@/lib/timepay/period";
-import { submitDayIndex } from "@/lib/timepay/auto-submit";
 import type { PayPeriod } from "./timepay";
 import {
   type DayClass,
@@ -43,10 +42,8 @@ import {
   type StaffWeek,
   DAY_WORD,
   breakLine,
-  cycleNoun,
   dayClass,
   dayLabel,
-  daysToCome,
   derive,
   derivedDayHours,
   dowOf,
@@ -55,8 +52,6 @@ import {
   expectedDay,
   expectsWork,
   isOver,
-  isWeekendRate,
-  lastDayToCome,
   ruleSummary,
   seedBreakMinutes,
   splitDay,
@@ -64,6 +59,7 @@ import {
   weekGroups,
 } from "./logic";
 import { legendFor } from "./tiles";
+import { BREAK_MAX, BREAK_STEP, SOURCE_NOTE, clampBreak, dayWord, sheetLine } from "./sheet-line";
 
 /* YOUR TIMESHEET (v2, step 5; the board 6-timesheet): the week as a row per
    day on the left, the day you opened in a card on the right, the period's
@@ -101,35 +97,6 @@ const KINDS = [
   { value: "off", label: DAY_WORD.off },
 ] as const;
 
-/** What to CALL a day: a worked weekend is at a premium for the day of the
-    week, not because it ran long, so it says so. */
-function dayWord(entry: DayEntry, cls: DayClass, dow: number, s: Settings): string {
-  return isWeekendRate(entry, dow, s) ? "Weekend rates" : DAY_WORD[cls];
-}
-
-/* Where a saved day came from, so a presumed day never reads as though the
-   person logged it. */
-const SOURCE_NOTE: Record<DaySource, string> = {
-  entered: "You logged this day.",
-  holiday: "Public holiday — the business is closed.",
-  leave: "Booked leave — this came from your leave, not from here.",
-  presumed: "Your normal day, filled in for you.",
-  expected: "Not yet. This day is marked as worked once the day is over.",
-  none: "Weekends aren't counted unless you add them.",
-};
-
-/* The sheet's state as one word (rule 17), in the cycle's noun. */
-const statusCopy = (
-  status: SheetState["status"],
-  noun: string,
-): { label: string; tone: Tone; sub: string } =>
-  ({
-    draft: { label: "Draft", tone: "look" as Tone, sub: "" },
-    submitted: { label: "Submitted", tone: "good" as Tone, sub: "With your manager. You'll be told if anything needs a look." },
-    approved: { label: "Approved", tone: "good" as Tone, sub: `Signed off. This ${noun} is closed.` },
-    sent_back: { label: "Sent back", tone: "wrong" as Tone, sub: "Your manager has a question — answer it and submit again." },
-  })[status];
-
 const MONTHS_FULL = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
@@ -147,11 +114,6 @@ function fullDay(w: WeekDay): string {
 /** "Mon 29", the row's day. */
 const shortDay = (w: WeekDay): string => `${w[0].charAt(0)}${w[0].slice(1).toLowerCase()} ${w[1]}`;
 
-/* The break's limits: the stepper went 0 to 120 in fives, and a typed
-   number keeps to the same. */
-const BREAK_STEP = 5;
-const BREAK_MAX = 120;
-const clampBreak = (n: number) => Math.min(BREAK_MAX, Math.max(0, Math.round(n)));
 
 /** A day's stored content as one string: the card's remount key, so the
     open card always shows what was saved rather than what it mounted with. */
@@ -751,23 +713,22 @@ export function MyTimesheet({
   const groups = weekGroups(me.days);
   const multiWeek = groups.length > 1;
   const period = periods[periodIndex];
-  const sent = sheet.status === "submitted" || sheet.status === "approved";
-  /* With the lock off, a sent week stays open while it runs; approved never
-     reopens. */
-  const openAfterSending = sheet.status === "submitted" && !settings.lock && period.live;
-  const frozenSent = sent && !openAfterSending;
+  /* where the sheet stands, and the line beside Send: sheet-line, which the
+     phone's timesheet says too */
+  const { frozenSent, reopened, noun, status, closedAtSend, canSend, sendWord, sub } = sheetLine({
+    status: sheet.status,
+    live: period.live,
+    pastSend,
+    settings,
+    ctx,
+    casual,
+    salaried,
+    entries: d.entries,
+  });
   const salariedRest = salaried && otDay !== selected;
   /* A closed period is history, except a sheet sent back with a question,
      which has to stay answerable wherever it sits. */
-  const reopened = sheet.status === "sent_back";
   const locked = frozenSent || (!period.live && !reopened) || salariedRest;
-  const noun = cycleNoun(settings.cycle);
-  const status = statusCopy(sheet.status, noun);
-
-  /* Sending waits for the days it would freeze; a sent-back sheet never
-     waits, since its answer IS a resubmission. */
-  const toCome = daysToCome(ctx);
-  const holdForDays = toCome > 0 && sheet.status !== "sent_back";
 
   const holidayByDate = useMemo(() => new Map(holidays.map((h) => [h.date, h.name])), [holidays]);
   const classes = me.days.map((entry, i) => dayClass(entry, i, settings, ctx));
@@ -820,43 +781,6 @@ export function MyTimesheet({
     ] as ([string, string] | null)[]
   ).filter((r): r is [string, string] => r !== null);
 
-  /* A draft past the send moment is closed when the workspace locks; one
-     with days on it was already sent by the loader on the way here. */
-  const closedAtSend = settings.lock && pastSend && sheet.status === "draft";
-
-  /* WHEN THIS SHEET GOES, said once, beside the button. */
-  const canSend = !sent && (period.live || reopened) && !closedAtSend && !holdForDays && d.entries > 0;
-  const lastAhead = lastDayToCome(ctx);
-  const submitAt = submitDayIndex(week, settings.submitDay);
-  const itSends = `it sends itself ${settings.submitDay} ${settings.submitTime}${
-    settings.lock ? " and locks" : ""
-  }`;
-  const sendLine = holdForDays
-    ? (casual ? "Add the days you worked. " : "") +
-      (lastAhead >= 0 && lastAhead < submitAt
-        ? `Send this ${noun} once ${dayLabel(week[lastAhead]!)} is over. If you don't, ${itSends}.`
-        : `${itSends.charAt(0).toUpperCase()}${itSends.slice(1)}.`)
-    : d.entries === 0
-      ? `${casual ? "Add" : "Log"} the days you worked to send this ${noun}.`
-      : `Ready to send. If you don't, ${itSends}.`;
-
-  const sub =
-    !period.live && !sent
-      ? "This period is closed."
-      : closedAtSend
-        ? `This ${noun} locked at ${settings.submitDay} ${settings.submitTime}.`
-        : salaried && !sent
-          ? `Salaried — your pay is the same every ${noun}, so there's nothing to fill in. Leave and public holidays arrive from where they're booked.${
-              settings.salariedOtPaid === false
-                ? " A long day is still worth recording, but your salary already covers the extra hours."
-                : ""
-            }`
-          : sheet.status === "draft"
-            ? sendLine
-            : openAfterSending
-              ? `${status.sub} You can still change it until the ${noun} ends.`
-              : status.sub;
-
   const mineNormal = ownNormal || ownWorkDays;
   const liveBlocks = upcoming(unavailable, todayISO);
   const yearHolidays = upcomingHolidays(holidays, todayISO);
@@ -871,7 +795,7 @@ export function MyTimesheet({
           <p className="ts2-sub">{sub}</p>
           {canSend && (
             <Button kind="second" icon="send" disabled={pending} onClick={() => run(() => submitWeek(periodStart))}>
-              {sheet.status === "sent_back" ? "Send again" : `Send ${noun}`}
+              {sendWord}
             </Button>
           )}
         </div>

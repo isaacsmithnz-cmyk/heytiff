@@ -19,7 +19,8 @@ import { headSection, systemVrfTree, type SizedTree } from "@/lib/studio/vrf-tre
 import { headPipeMm } from "@/lib/studio/pipe-sizes";
 import { formFactorSummary } from "@/lib/studio/select";
 import { roomsServed } from "@/lib/studio/allocations";
-import { outletsText, systemAir, type RoomAir } from "@/lib/studio/airflow";
+import { outletsText, systemAir, unitAir, type RoomAir } from "@/lib/studio/airflow";
+import { joinZone, setZoning, zoneKit, zoningOf, zonesOf, type UnitZoning, type ZoneControl } from "@/lib/studio/zoning";
 import { DUCT_AIRWAY_FORMS } from "@/lib/studio/form-factors";
 import { UnitBrowser, type UnitChoice } from "./unit-browser";
 import {
@@ -2113,6 +2114,139 @@ function PipingRail({
 
 /* ─────────────────────────── a head's detail ─────────────────────────── */
 
+/* ZONING on an open ducted unit (zoning.ts; Isaac, 2026-10-28: "build in
+   some zone dampers. And controllers and sensors"): Off, On/off or
+   Temperature; the zones its rooms make, a zone opened to tick which rooms
+   share it; the kit the brand's pack gives for that many zones; wireless or
+   wired sensors; and the zone that takes the spill */
+function ZoningPanel({
+  draft,
+  pack,
+  sys,
+  alloc,
+  onChange,
+}: {
+  draft: DesignDocument;
+  pack: DataPack;
+  sys: DesignSystem;
+  alloc: Allocation;
+  onChange: (next: DesignDocument | null, error?: string) => void;
+}) {
+  const [openZone, setOpenZone] = useState<string | null>(null);
+  const air = unitAir(draft, pack, sys, alloc);
+  if (!air || air.rooms.length === 0) return null;
+  const z = zoningOf(sys, alloc.id);
+  const zones = zonesOf(air, z);
+  const kit = zoneKit(pack, z, zones);
+  const set = (change: Partial<UnitZoning>) => onChange(setZoning(draft, sys.id, alloc.id, change));
+  const CONTROL: [ZoneControl, string][] = [
+    ["off", "Off"],
+    ["on_off", "On/off"],
+    ["temperature", "Temperature"],
+  ];
+  return (
+    <div className="ds-sb-zoning" role="group" aria-label="Zoning">
+      <span className="ds-sb-label">Zoning</span>
+      <div className="ds-sb-switch" role="group" aria-label="Zone control">
+        {CONTROL.map(([k, word]) => (
+          <button key={k} type="button" className="ds-sb-switch-opt" aria-pressed={z.control === k} onClick={() => set({ control: k })}>
+            {word}
+          </button>
+        ))}
+      </div>
+      {zones.length > 0 && (
+        <>
+          <div className="ds-sb-zones">
+            {zones.map((zone) => {
+              const isOpen = openZone === zone.key;
+              return (
+                <div key={zone.key} className="ds-sb-zone-group">
+                  <button
+                    type="button"
+                    className="ds-sb-serve"
+                    aria-expanded={isOpen}
+                    aria-label={`${zone.label} ${zone.name}`}
+                    onClick={() => setOpenZone(isOpen ? null : zone.key)}
+                  >
+                    <span className="ds-sb-zone-label">{zone.label}</span>
+                    <span className="ds-sb-serve-name">{zone.name}</span>
+                    <span className="ds-sb-serve-kw">{zone.roomIds.length === 1 ? "1 room" : `${zone.roomIds.length} rooms`}</span>
+                  </button>
+                  {isOpen && (
+                    <div className="ds-sb-serves" role="group" aria-label={`Rooms in ${zone.label}`}>
+                      {air.rooms.map((r) => {
+                        const on = zone.roomIds.includes(r.roomId);
+                        const alone = on && zone.roomIds.length === 1;
+                        return (
+                          <button
+                            key={r.roomId}
+                            type="button"
+                            role="checkbox"
+                            aria-checked={on}
+                            className="ds-sb-serve"
+                            disabled={alone}
+                            onClick={() => onChange(joinZone(draft, sys.id, alloc.id, air, r.roomId, on ? null : zone.key))}
+                          >
+                            <span className={`ds-sb-tick${on ? " on" : ""}`} aria-hidden="true">
+                              {on && (
+                                <svg width="10" height="10" viewBox="0 0 16 16">
+                                  <path d="M3.5 8.5l3 3 6-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                                </svg>
+                              )}
+                            </span>
+                            <span className="ds-sb-serve-name">{r.name}</span>
+                            <span className="ds-sb-serve-kw">{zones.find((x) => x.roomIds.includes(r.roomId))?.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <dl className="ds-sb-kv">
+            <dt>Controller</dt>
+            <dd>{kit.interfaceModel ?? (kit.problem ? "None fits" : "Zone controller")}</dd>
+          </dl>
+          {kit.problem && <p className="ds-sb-zoning-problem">{kit.problem}</p>}
+          {z.control === "temperature" && (
+            <div className="ds-sb-zoning-row">
+              <span className="ds-sb-label">Sensors</span>
+              <div className="ds-sb-switch" role="group" aria-label="Sensors">
+                {(["wireless", "wired"] as const).map((k) => (
+                  <button key={k} type="button" className="ds-sb-switch-opt" aria-pressed={z.sensors === k} onClick={() => set({ sensors: k })}>
+                    {k === "wireless" ? "Wireless" : "Wired"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {zones.length > 1 && (
+            <div className="ds-sb-zoning-row">
+              <span className="ds-sb-label">Spill zone</span>
+              <div className="ds-sb-switch" role="group" aria-label="Spill zone">
+                {zones.map((zone) => (
+                  <button
+                    key={zone.key}
+                    type="button"
+                    className="ds-sb-switch-opt"
+                    aria-pressed={z.spill === zone.key}
+                    aria-label={`Spill into ${zone.label} ${zone.name}`}
+                    onClick={() => set({ spill: z.spill === zone.key ? null : zone.key })}
+                  >
+                    {zone.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function UnitDetail({
   draft,
   pack,
@@ -2244,6 +2378,7 @@ function UnitDetail({
           })}
         </div>
       )}
+      {airway && <ZoningPanel draft={draft} pack={pack} sys={sys} alloc={alloc} onChange={onChange} />}
       {alloc.serves !== "system" && !airway && (
         <label className="ds-sb-field">
           <span>Zone</span>

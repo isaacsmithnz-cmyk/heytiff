@@ -8722,6 +8722,36 @@ html[data-ds-display] .dstudio.editing {
   color: var(--q);
   font-variant-numeric: tabular-nums;
 }
+/* zoning on an open ducted unit: its control, its zones (one opened to
+   tick its rooms), the kit, the sensors and the spill zone */
+.ds-sb-zoning {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.ds-sb-zones {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.ds-sb-zone-label {
+  font-weight: var(--fw-heading);
+  font-variant-numeric: tabular-nums;
+}
+.ds-sb-zone-group .ds-sb-serves {
+  padding-left: var(--s-4);
+}
+.ds-sb-zoning-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.ds-sb-zoning-problem {
+  margin: 0;
+  font-size: var(--fs-2);
+  color: var(--warn-t);
+}
 .ds-sb-sizes {
   display: flex;
   flex-direction: column;
@@ -10162,6 +10192,32 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .ds-duct-outlet.over polygon,
 .ds-duct-outlet.over circle:not(.inner) {
   stroke: var(--warn-t);
+}
+/* zoning: dampers across their runs, sensors and the controller on walls */
+.ds-zone-damper polygon,
+.ds-zone-sensor circle,
+.ds-zone-controller rect {
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.ds-zone-damper line {
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.ds-zone-sensor .dot {
+  fill: var(--ink);
+  stroke: none;
+}
+.ds-zone-controller .screen {
+  fill: none;
+  stroke-width: 0.75;
+}
+.ds-zone-sensor.grab,
+.ds-zone-controller.grab {
+  cursor: grab;
 }
 .ds-outlet-end {
   fill: var(--paper);

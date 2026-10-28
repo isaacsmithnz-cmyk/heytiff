@@ -205,7 +205,7 @@ export interface SummaryRoomRow {
 /** the shelves a takeoff line goes on. Ductwork and Grilles are the price
     book's own groups (quotes/install-groups.ts), for a ducted unit's air
     side (duct-materials.ts) */
-export type SheetGroup = "pipe" | "electrical" | "components" | "ductwork" | "grilles";
+export type SheetGroup = "pipe" | "electrical" | "components" | "ductwork" | "grilles" | "controls";
 
 /** One takeoff line — a pipe coil, a component choice, a refrigerant top-up.
     Never a unit: units live in the rooms table (indoors) and the outdoor

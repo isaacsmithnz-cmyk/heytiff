@@ -463,6 +463,66 @@ export function DuctLayer({
     );
   };
 
+  /* zoning: a damper across each zone's run with the zone's label, a
+     sensor a zone, and the controller; the sensors and the controller are
+     dragged like an outlet */
+  const zoneMarks = (systemId: string, lay: DuctLayout) => {
+    const zp = lay.zoning!;
+    return (
+      <g className="ds-zoning">
+        {zp.dampers.map((d) => {
+          const w = u(d.diaMm) / 2 + u(40);
+          const l = u(150);
+          const n = { x: -d.dir.y, y: d.dir.x };
+          const pt = (a: number, b: number) => `${d.at.x + d.dir.x * a + n.x * b},${d.at.y + d.dir.y * a + n.y * b}`;
+          return (
+            <g key={d.key} className="ds-zone-damper" role="img" aria-label={`Zone damper Ø${d.diaMm}, ${d.zone.label} ${d.zone.name}`}>
+              <polygon points={[pt(-l, -w), pt(l, -w), pt(l, w), pt(-l, w)].join(" ")} />
+              <line
+                x1={d.at.x + d.dir.x * -l + n.x * w}
+                y1={d.at.y + d.dir.y * -l + n.y * w}
+                x2={d.at.x + d.dir.x * l + n.x * -w}
+                y2={d.at.y + d.dir.y * l + n.y * -w}
+              />
+              <text className="ds-duct-label strong" x={d.at.x + n.x * (w + fs)} y={d.at.y + n.y * (w + fs) + fs * 0.35} fontSize={fs}>
+                {d.zone.label}
+              </text>
+            </g>
+          );
+        })}
+        {zp.sensors.map((sn) => (
+          <g
+            key={sn.key}
+            className={`ds-zone-sensor${interactive ? " grab" : ""}`}
+            role="img"
+            aria-label={`Sensor, ${sn.zone.label} ${sn.zone.name}`}
+            {...handlers(systemId, sn.key)}
+          >
+            <circle cx={sn.at.x} cy={sn.at.y} r={u(140)} />
+            <circle className="dot" cx={sn.at.x} cy={sn.at.y} r={u(50)} />
+            <text className="ds-duct-label" x={sn.at.x} y={sn.at.y + u(140) + fs * 1.2} fontSize={fs}>
+              {`Sensor, ${sn.zone.label}`}
+            </text>
+          </g>
+        ))}
+        {zp.controller && (
+          <g
+            className={`ds-zone-controller${interactive ? " grab" : ""}`}
+            role="img"
+            aria-label="Zone controller"
+            {...handlers(systemId, zp.controller.key)}
+          >
+            <rect x={zp.controller.at.x - u(180)} y={zp.controller.at.y - u(120)} width={u(360)} height={u(240)} rx={u(30)} />
+            <rect className="screen" x={zp.controller.at.x - u(140)} y={zp.controller.at.y - u(80)} width={u(280)} height={u(160)} rx={u(15)} />
+            <text className="ds-duct-label" x={zp.controller.at.x} y={zp.controller.at.y + u(120) + fs * 1.2} fontSize={fs}>
+              Controller
+            </text>
+          </g>
+        )}
+      </g>
+    );
+  };
+
   return (
     <g className="ds-ducts" aria-label="Ductwork">
       {layouts.map(({ systemId, lay }) => {
@@ -513,6 +573,7 @@ export function DuctLayer({
                 {`Return${lay.ret.filter ? ", filter" : ""}`}
               </text>
             </g>
+            {lay.zoning && zoneMarks(systemId, lay)}
             {lay.supply.map(sizeTag)}
             {lay.returns[0] && sizeTag(lay.returns[0])}
             {lay.fittings.map((f) => junction(systemId, f))}

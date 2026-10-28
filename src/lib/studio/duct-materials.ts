@@ -17,8 +17,9 @@ import type { DataPack } from "./packs/schema";
 import { systemAir } from "./airflow";
 import { unitDuctLayout } from "./ductwork";
 import { outletName, outletPicks, outletSpec } from "./outlets";
+import { damperCableSub, zoneKit, zoningOf, zonesOf } from "./zoning";
 
-export type DuctShelf = "ductwork" | "grilles";
+export type DuctShelf = "ductwork" | "grilles" | "controls";
 
 export interface DuctLine {
   shelf: DuctShelf;
@@ -55,6 +56,10 @@ export function ductLines(doc: DesignDocument, pack: DataPack, sys: DesignSystem
   const lines: DuctLine[] = [];
   const grilles = new Map<string, { sub: string; n: number }>();
   const grille = (name: string, sub: string) => grilles.set(name, { sub, n: (grilles.get(name)?.n ?? 0) + 1 });
+  /* zoning: dampers by size as laid out, the kit by unit, the cable a damper */
+  const dampers = new Map<number, number>();
+  let dampersUnsized = 0;
+  const controls: DuctLine[] = [];
   for (const air of systemAir(doc, pack, sys)) {
     const row = pack.indoor_units.find((u) => u.model === air.model);
     const lay = unitDuctLayout(doc, sys, air);
@@ -98,6 +103,13 @@ export function ductLines(doc: DesignDocument, pack: DataPack, sys: DesignSystem
       air.ret.filter ? "Filter in the grille" : "The unit's own filter"
     );
     grille("Return air box", "Behind the return grille");
+    const z = zoningOf(sys, air.unit.id);
+    const zones = zonesOf(air, z);
+    if (zones.length) {
+      if (lay?.zoning) for (const d of lay.zoning.dampers) dampers.set(d.diaMm, (dampers.get(d.diaMm) ?? 0) + 1);
+      else dampersUnsized += zones.length;
+      controls.push(...zoneKit(pack, z, zones).lines);
+    }
   }
   if (!flex.size && !unmeasured && !grilles.size) return [];
   const flexLines: DuctLine[] = [...flex]
@@ -119,5 +131,13 @@ export function ductLines(doc: DesignDocument, pack: DataPack, sys: DesignSystem
     .sort(([, a], [, b]) => a.rank - b.rank || b.size - a.size)
     .map(([name, o]) => ({ shelf: "grilles", name, sub: "Supply outlet", qty: String(o.n) }));
   const grilleLines: DuctLine[] = [...grilles].map(([name, g]) => ({ shelf: "grilles", name, sub: g.sub, qty: String(g.n) }));
-  return [...flexLines, ...fitLines, ...lines, ...outletLines, ...grilleLines];
+  const damperLines: DuctLine[] = [...dampers]
+    .sort(([a], [b]) => b - a)
+    .map(([d, n]) => ({ shelf: "ductwork", name: `Zone damper Ø${d}`, sub: "Motorised, on the zone's run", qty: String(n) }));
+  if (dampersUnsized) {
+    damperLines.push({ shelf: "ductwork", name: "Zone damper", sub: "Place the unit on a scaled plan to size", qty: "—" });
+  }
+  const damperCount = [...dampers.values()].reduce((a, b) => a + b, 0);
+  if (damperCount) controls.push({ shelf: "controls", name: "Zone damper cable", sub: damperCableSub(pack), qty: String(damperCount) });
+  return [...flexLines, ...fitLines, ...damperLines, ...lines, ...outletLines, ...grilleLines, ...controls];
 }

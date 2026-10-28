@@ -487,6 +487,39 @@ describe("one ducted unit serving several rooms", () => {
     expect([vma.roomId, vma.alsoServes]).toEqual(["living", ["study"]]);
   });
 
+  it("zones an open ducted unit: each room its own zone, rooms joined by ticks, the kit from the pack", () => {
+    const t = vrf();
+    const onCommit = jest.fn();
+    render(<SystemBuilder doc={t.doc} pack={pack} systemId={t.systemId} onCommit={onCommit} onClose={() => {}} />);
+    fireEvent.click(within(zoneCard("Living")).getByRole("button", { name: "PEFY-P100VMA-E4 in Living" }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Rooms it serves" })).getByRole("checkbox", { name: /^Study/ }));
+
+    const zoning = screen.getByRole("group", { name: "Zoning" });
+    expect(within(zoning).getByRole("button", { name: "Off" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(within(zoning).getByRole("button", { name: "Temperature" }));
+    expect(within(zoning).getByRole("button", { name: "Z1 Living" })).toBeInTheDocument();
+    expect(within(zoning).getByRole("button", { name: "Z2 Study" })).toBeInTheDocument();
+    expect(within(zoning).getByText("PAC-ZC04L240C-A")).toBeInTheDocument();
+
+    // open Z1 and tick Study into it: one zone
+    fireEvent.click(within(zoning).getByRole("button", { name: "Z1 Living" }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Rooms in Z1" })).getByRole("checkbox", { name: /^Study/ }));
+    expect(within(zoning).getByRole("button", { name: "Z1 Living and Study" })).toBeInTheDocument();
+    expect(within(zoning).queryByRole("button", { name: /^Z2 / })).toBeNull();
+
+    fireEvent.click(within(zoning).getByRole("button", { name: "Wired" }));
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    const built = onCommit.mock.calls[0][0] as DesignDocument;
+    const sys = built.systems.find((s) => s.id === t.systemId)!;
+    const vma = allocationsOf(sys).find((a) => a.model === "PEFY-P100VMA-E4")!;
+    expect((sys.settings.zoning as Record<string, unknown>)[vma.id]).toEqual({
+      control: "temperature",
+      sensors: "wired",
+      joined: { study: "living" },
+      spill: null,
+    });
+  });
+
   it("a wall head serves the room it is in: no ticks", () => {
     const made = claimed(house(), ["bed1", "study"]);
     const doc = addHead(made.doc, pack, { systemId: made.systemId, zoneId: "bed1", iduModel: "MSZ-AP25VGD2" });

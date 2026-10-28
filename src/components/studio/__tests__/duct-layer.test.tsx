@@ -14,6 +14,7 @@ import { addBandUnit, allocationsOf, placeAllocation } from "@/lib/studio/builde
 import { claimZone, newSystem } from "@/lib/studio/zones";
 import { draggedAt, fittingKinds, systemDuctwork } from "@/lib/studio/ductwork";
 import { outletPicks } from "@/lib/studio/outlets";
+import { setZoning } from "@/lib/studio/zoning";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -187,5 +188,22 @@ describe("DuctLayer", () => {
     const after = onMutate.mock.calls[0][0](doc) as DesignDocument;
     // 1200 + 350 drawn on at 10 mm a unit is 1550: the nearest stock is 1500
     expect(outletPicks(after.systems[0])[key]).toMatchObject({ kind: "linear", lengthMm: 1500, along: { x: 1, y: 0 } });
+  });
+
+  it("zoned, it draws a damper on each zone's run, a sensor a zone and the controller, and a sensor drags", () => {
+    const h = house();
+    const unit = allocationsOf(h.doc.systems[0]).find((a) => a.role === "idu")!;
+    const doc = setZoning(h.doc, h.systemId, unit.id, { control: "temperature" });
+    const onMutate = jest.fn();
+    draw(doc, onMutate);
+    expect(screen.getAllByRole("img", { name: /^Zone damper Ø\d+, Z\d / }).length).toBeGreaterThanOrEqual(4);
+    expect(screen.getAllByRole("img", { name: /^Sensor, Z\d / })).toHaveLength(4);
+    expect(screen.getByRole("img", { name: "Zone controller" })).toBeInTheDocument();
+    const [sensor] = screen.getAllByRole("img", { name: /^Sensor/ });
+    fireEvent.pointerDown(sensor, { clientX: 10, clientY: 10, pointerId: 1 });
+    fireEvent.pointerMove(sensor, { clientX: 300, clientY: 300, pointerId: 1 });
+    fireEvent.pointerUp(sensor, { clientX: 300, clientY: 300, pointerId: 1 });
+    const after = onMutate.mock.calls[0][0](doc) as DesignDocument;
+    expect(Object.entries(draggedAt(after.systems[0]))).toEqual([[`${unit.id}/sensor/living`, { x: 300, y: 300 }]]);
   });
 });

@@ -2,6 +2,8 @@ import { render } from "@testing-library/react";
 import { createDesign, type DesignDocument, type DesignObject } from "@/lib/studio/document";
 import { createNote, noteLayoutOf, NOTE_LEGACY_FONT_W, type NoteObject } from "@/lib/studio/notes";
 import { PlanFigure, planFigureBounds } from "../summary/plan-figure";
+import { grille } from "@/lib/studio/grilles";
+import { AIRFLOW_INKS } from "@/lib/studio/airflow-marks";
 
 /* The static print/export plan figure — a self-contained SVG mirror of the
    canvas. These pin the structural contract the print document and the PNG
@@ -85,6 +87,21 @@ describe("PlanFigure", () => {
     expect(container.querySelector("style")?.textContent).toContain("Plus Jakarta Sans");
     // calibrated floor gets a scale bar
     expect(container.querySelectorAll(".ds-pf-bar")).toHaveLength(1);
+  });
+
+  it("prints a drawn duct at its width and a placed grille, in their stream's ink", () => {
+    const d = fixtureDoc();
+    d.objects.push(
+      { id: "k1", type: "duct-run", systemId: "sys1", floorId: "f1", geometry: { kind: "polyline", points: [{ x: 100, y: 300 }, { x: 300, y: 300 }] }, plane: "room", props: { diaMm: 250, stream: "return" } },
+      grille("f1", "sys1", { x: 300, y: 300 }, "supply", { wMm: 300, hMm: 300 })
+    );
+    const { container } = render(<PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale={false} legend={false} urls={{}} />);
+    const walls = container.querySelector(".ds-pfduct polyline")!;
+    expect(walls.getAttribute("stroke")).toBe(AIRFLOW_INKS.return);
+    expect(Number(walls.getAttribute("stroke-width"))).toBeCloseTo(25, 6); // 250 mm at 10 mm a unit
+    const g = container.querySelector(".ds-pf-grille")!;
+    expect(g.getAttribute("stroke")).toBe(AIRFLOW_INKS.supply);
+    expect(g.querySelectorAll("line")).toHaveLength(2);
   });
 
   /* A crop clips the raster; a freeform crop clips it to its outline, so the

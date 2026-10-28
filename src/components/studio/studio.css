@@ -6284,6 +6284,8 @@ html[data-ds-display] .dstudio.editing {
   color: var(--gray500);
   border-radius:var(--r-pill);
   padding: 4px 12px;
+  /* a grille's "300 × 300" is one chip, never three lines */
+  white-space: nowrap;
   transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
 }
 .dstudio .ds-hud-chip.on {

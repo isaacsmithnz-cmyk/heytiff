@@ -83,6 +83,37 @@ jest.mock("@/app/actions/timepay", () => ({
   sendBackWeek: async (staff: string, period: string, q: string) => (asked.push(`send back as ${await as()}: ${staff} ${period} "${q}"`), { ok: true }),
 }));
 
+const claim = (id: string, staffProfileId: string, over: Record<string, unknown> = {}) => ({
+  id,
+  staffProfileId,
+  staffName: staffProfileId === "card-alex" ? "Alex Lorenz" : "Isaac Smith",
+  expenseDate: "2026-10-27",
+  description: "Copper fittings, flux and silfos, for #3215, Jay Matthews",
+  category: "materials",
+  amount: 96.8,
+  gstAmount: 8.8,
+  supplier: "Reece",
+  paidWith: "own",
+  job: null,
+  status: "pending",
+  reviewNote: null,
+  createdAt: "2026-10-27T22:10:00Z",
+  receipts: [{ url: "https://signed/receipt", image: true }],
+  ...over,
+});
+jest.mock("@/lib/expenses/query", () => ({
+  teamClaims: async () => [
+    claim("ec-1", "card-alex"),
+    claim("ec-2", "card-isaac"),
+    claim("ec-3", "card-alex", { status: "approved" }),
+    claim("ec-4", "card-alex", { status: "recorded", paidWith: "company" }),
+  ],
+}));
+jest.mock("@/app/actions/expenses", () => ({
+  approveClaim: async (id: string) => (asked.push(`approve claim as ${await as()}: ${id}`), { ok: true }),
+  declineClaim: async (id: string, why: string) => (asked.push(`decline claim as ${await as()}: ${id} "${why}"`), why ? { ok: true } : { ok: false, error: "Give a reason so they know what to fix." }),
+}));
+
 import { GET, POST } from "../approvals/route";
 import { MOBILE_AUDIENCE } from "@/lib/mobile/token";
 
@@ -138,4 +169,32 @@ test("decisions are the web's own actions, as the token's person; a refusal come
   const r = await call("POST", "auth0|isaac", { do: "leave", id: "lr-1", decision: "decline", reason: "" });
   expect(r.status).toBe(400);
   expect((await r.json()).error).toBe("Give a reason.");
+});
+
+test("claims someone else sent and is waiting on, with the receipt; never your own, a card receipt or a decided one", async () => {
+  const body = await (await call("GET", "auth0|isaac")).json();
+  expect(body.claims).toEqual([
+    {
+      id: "ec-1",
+      staffName: "Alex Lorenz",
+      description: "Copper fittings, flux and silfos, for #3215, Jay Matthews",
+      supplier: "Reece",
+      expenseDate: "2026-10-27",
+      categoryLabel: "Materials",
+      amount: 96.8,
+      gstAmount: 8.8,
+      jobLabel: null,
+      fromFuel: null,
+      receipts: [{ url: "https://signed/receipt", image: true }],
+    },
+  ]);
+});
+
+test("a claim is approved, or declined with its reason, by the web's own actions as the token's person", async () => {
+  await call("POST", "auth0|isaac", { do: "claim", id: "ec-1", decision: "approve" });
+  await call("POST", "auth0|isaac", { do: "claim", id: "ec-1", decision: "decline", reason: "No receipt attached" });
+  expect(asked).toEqual(['approve claim as auth0|isaac@org-1: ec-1', 'decline claim as auth0|isaac@org-1: ec-1 "No receipt attached"']);
+  const r = await call("POST", "auth0|isaac", { do: "claim", id: "ec-1", decision: "decline", reason: "" });
+  expect((await r.json()).error).toBe("Give a reason so they know what to fix.");
+  expect((await call("POST", "auth0|alex", { do: "claim", id: "ec-1", decision: "approve" })).status).toBe(403);
 });

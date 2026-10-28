@@ -4,6 +4,9 @@ import { staffIdFor } from "@/lib/workboard/projects-query";
 import { derive, type WeekCtx } from "@/components/timepay/logic";
 import { approveLeave, declineLeave } from "@/app/actions/leave";
 import { approveWeek, sendBackWeek } from "@/app/actions/timepay";
+import { approveClaim, declineClaim } from "@/app/actions/expenses";
+import { CATEGORY_LABEL } from "@/lib/expenses/claim";
+import { teamClaims } from "@/lib/expenses/query";
 import { actAsPhoneUser, ok, requireMobile } from "@/lib/mobile/auth";
 
 /* APPROVALS ON THE PHONE (Isaac, 28 October 2026): leave asked for, and
@@ -13,14 +16,19 @@ import { actAsPhoneUser, ok, requireMobile } from "@/lib/mobile/auth";
    approveWeek, sendBackWeek) run as the phone's verified person
    (actAsPhoneUser), so every rule they keep is kept the same way: no
    approving your own, a decline and a send-back each need their reason,
-   approved leave clashing with a sent sheet is refused. */
+   approved leave clashing with a sent sheet is refused.
+
+   EXPENSE CLAIMS joined them (Isaac, 28 October 2026, "Looks good" on the
+   phone's expense claims): someone else's, sent and waiting, with the
+   receipt to look at first; approved (approveClaim) or declined with the
+   reason (declineClaim). Paying one stays on the web, beside Xero. */
 
 const no = (status: number, error: string) => Response.json({ error }, { status, headers: { "cache-control": "no-store" } });
 
 export async function GET(request: Request) {
   const ctx = await requireMobile(request);
   if (ctx instanceof Response) return ctx;
-  if (!ctx.caps.has("approvals")) return no(403, "You don't approve leave or timesheets here.");
+  if (!ctx.caps.has("approvals")) return no(403, "You don't approve leave, timesheets or claims here.");
   const me = await staffIdFor(ctx.orgId, ctx.userId).catch(() => null);
 
   const leave = (await pendingRequests(ctx.orgId))
@@ -64,7 +72,22 @@ export async function GET(request: Request) {
         });
     });
   });
-  return ok({ leave, sheets });
+  const claims = (await teamClaims(ctx.orgId).catch(() => []))
+    .filter((c) => c.status === "pending" && c.paidWith === "own" && c.staffProfileId !== me)
+    .map((c) => ({
+      id: c.id,
+      staffName: c.staffName,
+      description: c.description,
+      supplier: c.supplier,
+      expenseDate: c.expenseDate,
+      categoryLabel: CATEGORY_LABEL[c.category],
+      amount: c.amount,
+      gstAmount: c.gstAmount,
+      jobLabel: c.job?.label ?? null,
+      fromFuel: c.fuelLog ? (c.fuelLog.vehicle ?? "") : null,
+      receipts: c.receipts ?? [],
+    }));
+  return ok({ leave, sheets, claims });
 }
 
 export async function POST(request: Request) {
@@ -102,5 +125,15 @@ export async function POST(request: Request) {
     if (!r) return no(400, "Approve or send back.");
     return r.ok ? ok({ ok: true }) : no(400, r.error);
   }
-  return no(400, "Say which leave or timesheet.");
+  if (body?.do === "claim" && text(body.id)) {
+    const r =
+      body.decision === "approve"
+        ? await actAsPhoneUser(ctx, () => approveClaim(text(body.id)))
+        : body.decision === "decline"
+          ? await actAsPhoneUser(ctx, () => declineClaim(text(body.id), text(body.reason)))
+          : null;
+    if (!r) return no(400, "Approve or decline.");
+    return r.ok ? ok({ ok: true }) : no(400, r.error);
+  }
+  return no(400, "Say which leave, timesheet or claim.");
 }

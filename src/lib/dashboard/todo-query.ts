@@ -14,7 +14,8 @@ import { lateness } from "./reminders";
 import { dueReminders } from "./reminders-query";
 import { newAssignments } from "./assignments-query";
 import { isCurrent } from "./notices";
-import { EMPTY_TODO, type TodoExtras, type UnreadNotice } from "./todo";
+import { EMPTY_TODO, type EmailWaiting, type TodoExtras, type UnreadNotice } from "./todo";
+import { forExistingJob, sureJob, threadTitleOf, type EmailProposal } from "@/lib/email/proposal";
 import type { StaffNames } from "./tasks-query";
 
 /** How far back an unread notice is looked for: the board's own window. */
@@ -84,6 +85,35 @@ export async function pendingTimesheetCount(orgId: string, viewerStaffId: string
   return error ? 0 : (count ?? 0);
 }
 
+/** How far back an email to Tiff still waits on you. */
+const EMAIL_LOOK_DAYS = 30;
+
+/** The emails you forwarded to Tiff that she has read into a card, and that
+    nobody has made, filed or put away yet: newest first. */
+export async function emailsWaiting(orgId: string, staffProfileId: string): Promise<EmailWaiting[]> {
+  const { data: me } = await supabaseAdmin.from("staff_profiles").select("user_id").eq("org_id", orgId).eq("id", staffProfileId).maybeSingle();
+  const sub = (me?.user_id as string | null) ?? null;
+  if (!sub) return [];
+  const since = new Date(Date.now() - EMAIL_LOOK_DAYS * 24 * 3600 * 1000).toISOString();
+  const { data, error } = await supabaseAdmin
+    .from("email_in_messages")
+    .select("id, subject, received_at, proposal")
+    .eq("org_id", orgId)
+    .eq("sender_sub", sub)
+    .eq("state", "read")
+    .gte("received_at", since)
+    .order("received_at", { ascending: false })
+    .limit(10);
+  if (error || !data) return [];
+  return (data as { id: string; subject: string | null; received_at: string; proposal: EmailProposal | null }[]).flatMap((r) => {
+    const p = r.proposal;
+    /* only what drew a card: new work, or a job already here */
+    if (!p || !(p.isJob || forExistingJob(p))) return [];
+    const forJob = forExistingJob(p) ? (sureJob(p)?.number ?? null) : null;
+    return [{ id: r.id, subject: threadTitleOf(r.subject, p), day: r.received_at.slice(0, 10), forJob }];
+  });
+}
+
 /** Everything To do reads beyond what the page already holds. */
 export async function loadTodoExtras(ctx: {
   orgId: string;
@@ -101,16 +131,18 @@ export async function loadTodoExtras(ctx: {
     };
   }
   const now = ctx.now ?? new Date();
-  const [due, given, notices, timesheets] = await Promise.all([
+  const [due, given, notices, timesheets, emails] = await Promise.all([
     dueReminders(orgId, staff, now).catch(() => []),
     newAssignments(orgId, staff).catch(() => []),
     unreadNotices(orgId, staff, today, names).catch(() => []),
     caps.has("approvals") ? pendingTimesheetCount(orgId, staff).catch(() => 0) : Promise.resolve(0),
+    caps.has("tiff") ? emailsWaiting(orgId, staff).catch(() => []) : Promise.resolve([]),
   ]);
   return {
     reminders: due.map((r) => ({ taskId: r.taskId, title: r.title, late: lateness(r.remindAt, now) })),
     assignments: given,
     notices,
     timesheets,
+    ...(emails.length ? { emails } : {}),
   };
 }

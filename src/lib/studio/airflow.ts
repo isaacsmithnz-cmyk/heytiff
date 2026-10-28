@@ -23,7 +23,6 @@ import { allocationsOf, hasAllocations, roomsServed, type Allocation } from "./a
 import { loadShare } from "./coverage";
 import { roomLoadKw, type RoomObj } from "./loads-room";
 import { zoneIdsOf } from "./zones";
-import { DUCT_AIRWAY_FORMS } from "./form-factors";
 
 /** air speed at a supply outlet's neck and in a supply run, m/s */
 export const SUPPLY_MS = 3.0;
@@ -102,11 +101,15 @@ export interface UnitAir {
 const iduRow = (pack: DataPack, model: string): IndoorUnit | undefined =>
   pack.indoor_units.find((u) => u.model === model);
 
-/** does this unit send air down ducts? a ducted or bulkhead form */
+/** does this unit send air down ducts? A ducted unit does. A bulkhead unit
+    sits in its bulkhead and blows straight into the room, so it takes no
+    ductwork, outlets or return of its own (Isaac, 28 October 2026: "the
+    units are bulkhead units VMXs. Which sit within the…", after the Studio
+    drew ducts and ceiling diffusers off each one) */
 export function isAirUnit(pack: DataPack, a: Allocation): boolean {
   if (a.role !== "idu" || !a.model) return false;
   const row = iduRow(pack, a.model);
-  return row != null && DUCT_AIRWAY_FORMS.includes(row.form_factor);
+  return row != null && row.form_factor === "ducted";
 }
 
 /** the return grille that takes this airflow across its face */

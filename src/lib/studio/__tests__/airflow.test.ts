@@ -146,8 +146,8 @@ describe("a ducted unit given a group of rooms", () => {
     const group = air.find((a) => a.model === "PEFY-P100VMA-E4")!;
     expect(group.rooms.map((r) => r.name)).toEqual(["Living", "Kitchen", "Dining"]);
     expect(group.rooms.reduce((a, r) => a + r.ls, 0)).toBeCloseTo(533, 6);
-    // the bedroom's bulkhead sends its own air to its own room
-    expect(air.find((a) => a.model === "PEFY-P32VMS1-E")!.rooms.map((r) => r.name)).toEqual(["Bed 1"]);
+    // the bedroom's bulkhead blows straight into its room: no ducts of its own
+    expect(air.find((a) => a.model === "PEFY-P32VMS1-E")).toBeUndefined();
     expect(outletsText(group.rooms[0])).toMatch(/^\d+ outlets?, Ø\d+$/);
   });
 });

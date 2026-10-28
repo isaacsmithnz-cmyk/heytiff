@@ -1,6 +1,6 @@
 import { sm8PressFromMobile } from "@/lib/integrations/sm8-press";
 import { ok, requireMobile } from "@/lib/mobile/auth";
-import { arriveAt, atOffice, changeStint, clockOffDay, clockOnDay, leave, readDay, rosteredDays, type DayAnswer } from "@/lib/mobile/day";
+import { arriveAt, atOffice, changeStint, clockOffDay, clockOnDay, leave, readDay, rosteredDays, setReason, type DayAnswer } from "@/lib/mobile/day";
 import { todayInAu } from "@/lib/au-dates";
 
 /* YOUR DAY, from the phone: where it stands (GET, with `until` for the
@@ -32,15 +32,17 @@ export async function POST(request: Request) {
     from?: unknown;
     until?: unknown;
     remove?: unknown;
+    reason?: unknown;
   } | null;
   let answer: DayAnswer;
   if (body?.do === "on") answer = await clockOnDay(ctx, body.at, body.where);
   else if (body?.do === "arrive") answer = await arriveAt(ctx, body.jobUuid, body.at);
   else if (body?.do === "leave") answer = await leave(ctx, body.jobUuid, body.at);
   else if (body?.do === "office") answer = await atOffice(ctx, body.at);
+  else if (body?.do === "reason") answer = await setReason(ctx, body.jobUuid, body.reason);
   else if (body?.do === "stint") answer = await changeStint(ctx, body.id, body.from, body.until, body.remove === true);
   else if (body?.do === "off") answer = await clockOffDay(ctx, await sm8PressFromMobile(ctx), body.at);
-  else return no(400, "Say on, arrive, leave, office, stint or off.");
+  else return no(400, "Say on, arrive, leave, office, reason, stint or off.");
   if (!answer.ok) return no(answer.status, answer.error);
   return ok({ state: answer.state, said: answer.said });
 }

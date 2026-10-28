@@ -57,7 +57,7 @@ export const INSTALL_GROUPS: InstallGroup[] = [
   {
     key: "cable",
     label: "Cable and power",
-    summary: "Interconnect, power cable, isolator, transmission cable",
+    summary: "Interconnect, power cable, RCBO, isolator, transmission cable",
     sections: [
       {
         parts: [
@@ -65,6 +65,7 @@ export const INSTALL_GROUPS: InstallGroup[] = [
           { component: "power_cable", name: "Power cable", spec: "Twin and earth, 2.5 mm²" },
           { component: "power_cable_4", name: "Power cable", spec: "Twin and earth, 4 mm²" },
           { component: "power_cable_6", name: "Power cable", spec: "Twin and earth, 6 mm²" },
+          range("rcbo", "RCBO"),
           range("isolator", "Isolator"),
           { component: "transmission_cable", name: "Transmission cable", spec: "VRF, shielded" },
         ],
@@ -88,13 +89,14 @@ export const INSTALL_GROUPS: InstallGroup[] = [
   {
     key: "mounting",
     label: "Mounting",
-    summary: "Wall bracket, ground mount, hanging kit",
+    summary: "Wall bracket, ground mount, hanging kit, spring hangers",
     sections: [
       {
         parts: [
           range("wall_bracket", "Outdoor unit wall bracket"),
           { component: "ground_mount", name: "Outdoor unit ground mount", spec: "Pad, stand or rubber mounts" },
           { component: "hanging_kit", name: "Indoor unit hanging kit", spec: "Ducted indoor" },
+          { component: "spring_hangers", name: "Spring hangers", spec: "Underfloor ducted" },
         ],
       },
     ],

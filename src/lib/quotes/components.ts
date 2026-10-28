@@ -119,6 +119,13 @@ export const QUOTE_COMPONENTS = {
     match: [/\bzone\b.*\bcable\b|\bdamper\b.*\bcable\b/i],
     not: [/barrel|joiner|bridge|cpu|cat\s*5|nova\s*kit/i],
   },
+  /* an underfloor ducted indoor hung on springs: a spring hanger, never a duct's strap */
+  spring_hangers: {
+    label: "Spring hangers",
+    unit: "each",
+    match: [/spring\s*hangers?|hangers?\b.*\bspring/i],
+    not: [/strap|flex[-\s]*duct/i],
+  },
   condensate_pump: {
     label: "Condensate pump",
     unit: "each",

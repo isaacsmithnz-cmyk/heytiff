@@ -22,6 +22,7 @@ import { familyLabel, familyWords } from "./families";
 
 export type RangeKind =
   | "isolator"
+  | "rcbo"
   | "wall_bracket"
   | "zone_damper"
   | "flex_duct"
@@ -273,6 +274,16 @@ export const RANGE_KINDS: Record<RangeKind, Kind> = {
     not: [/bracket|lock\s*off|mount|vib|pad|box|plate|stand/i],
     sizeOf: (n) => isolatorOf(n),
   },
+  /* the new circuit's breaker: an RCBO, or on three phase a breaker of three
+     or four poles, at or above what the outdoor draws */
+  rcbo: {
+    label: "RCBOs",
+    noun: "RCBOs",
+    by: "by amps",
+    match: [/\brcbo\b|\bmcb\b|circuit\s*breaker/i],
+    not: [/din\s*rail|busbar|bus\s*bar|chassis|enclosure|cover|blank|link|lock/i],
+    sizeOf: (n) => isolatorOf(n),
+  },
   wall_bracket: {
     label: "Wall brackets",
     noun: "wall brackets",
@@ -414,7 +425,8 @@ export function cleanSize(kind: RangeKind, raw: unknown): RangeSize | null {
     return list.length >= lo && list.length <= hi && list.every((n): n is number => n !== null) ? list : null;
   };
   switch (kind) {
-    case "isolator": {
+    case "isolator":
+    case "rcbo": {
       const amps = num(r.amps, 1, 400);
       const poles = num(r.poles, 1, 4);
       return amps == null ? null : { amps, poles };
@@ -477,6 +489,7 @@ const mmWords = (sizes: number[]) => {
 export function sizeWords(kind: RangeKind, s: RangeSize): string {
   switch (kind) {
     case "isolator":
+    case "rcbo":
       return `${s.amps} A${s.poles ? `, ${s.poles} pole` : ""}`;
     case "wall_bracket":
       return `${s.kg} kg${s.maxWidthMm ? `, outdoors up to ${s.maxWidthMm} mm wide` : ""}`;
@@ -513,7 +526,8 @@ const near = (a: number | undefined, b: number | undefined) => a != null && b !=
     plenum's sizes exactly. */
 export function fitOf(kind: RangeKind, s: RangeSize, need: RangeNeed): number | null {
   switch (kind) {
-    case "isolator": {
+    case "isolator":
+    case "rcbo": {
       if (s.amps == null || need.amps == null || s.amps < need.amps) return null;
       if (need.phase === "3" && s.poles != null && s.poles < 3) return null;
       if (need.phase === "1" && s.poles != null && s.poles > 2) return null;
@@ -601,6 +615,7 @@ function sizeKey(kind: RangeKind, s: RangeSize): string {
   const sorted = (v?: number[]) => [...(v ?? [])].sort((x, y) => x - y).join("/");
   switch (kind) {
     case "isolator":
+    case "rcbo":
       return `${s.amps}`;
     case "wall_bracket":
       return `${s.kg}`;

@@ -623,3 +623,29 @@ describe("a split kit's cables, as the business chose them", () => {
     expect(lineOf(/4Mm|4MM/, chose("power_cable_4", fourRoll), { ...facts, amps: 28 })).toMatchObject({ name: fourRoll.name, why: expect.stringMatching(/your preferred/i) });
   });
 });
+
+/* More of the common install items (28 October 2026: "Yes, add them"): the
+   business's RCBOs by amps, and its spring hangers, price the kit */
+describe("a kit's RCBO and spring hangers, as the business keeps them", () => {
+  const uniline20 = product("UniLine Single Module RCBO - 20A; 30mA; 4.5kA; C-Curve; Type A; 1P+N", 4500);
+  const uniline32 = product("UniLine Single Module RCBO - 32A; 30mA; 6kA; C-Curve; Type A; 1P+N", 4990);
+  const springs = product("SPRING HANGER KIT UNDERFLOOR 4 PACK", 4200);
+  const books = [...book, uniline20, uniline32, springs];
+  const range = (items: Product[], amps: number[]) =>
+    new Map([["rcbo" as const, items.map((p, i) => ({ size: { amps: amps[i]!, poles: 1 }, perUnitCents: p.offers[0]!.netCents, supplierKey: "s1", code: p.offers[0]!.code, name: p.name }))]]);
+
+  it("takes the RCBO from the business's range at the size the outdoor draws", () => {
+    const prefs = { ranges: range([uniline20, uniline32], [20, 32]), components: {} };
+    const rcbo = (amps: number) => expandKit("split", { ...facts, amps }, books, at, null, null, prefs).find((l) => /RCBO/.test(l.name ?? ""));
+    /* without its range, the cheapest RCBO at or above the draw: the book's own */
+    expect(expandKit("split", facts, books, at).find((l) => /RCBO/.test(l.name ?? ""))).toMatchObject({ name: "RCBO 20A 30MA 1P+N" });
+    expect(rcbo(18)).toMatchObject({ name: uniline20.name, why: expect.stringMatching(/your range/i) });
+    expect(rcbo(28)).toMatchObject({ name: uniline32.name });
+  });
+
+  it("takes the spring hangers the business chose, under a floor", () => {
+    const prefs = { ranges: new Map(), components: { spring_hangers: { supplierKey: "s1", code: springs.offers[0]!.code, rollM: null } } };
+    const hangers = expandKit("ducted", { ...facts, underfloor: true }, books, { optionIndex: 0, system: "Ducted" }, null, null, prefs).find((l) => /SPRING/.test(l.name ?? ""));
+    expect(hangers).toMatchObject({ name: springs.name, qty: 4, why: expect.stringMatching(/your preferred/i) });
+  });
+});

@@ -41,3 +41,15 @@ it("knows interconnect, the bigger power cables and transmission cable by their 
   expect(matchesComponent("transmission_cable", "1.5MM 1 PAIR CORE SHIELDED CABLE 100MTR (ROLL)")).toBe(true);
   expect(matchesComponent("transmission_cable", "Cat6 10G Cable 4Pr UnShielded LSZH Sheath Blue 305m")).toBe(false);
 });
+
+it("reads an RCBO's rating and poles, and keeps its range to breakers", async () => {
+  const { RANGE_KINDS, inKind, fitOf } = await import("../ranges");
+  const name = "UniLine Single Module RCBO - 20A; 30mA; 4.5kA; C-Curve; Type A; 1P+N; Universal";
+  expect(inKind("rcbo", name)).toBe(true);
+  expect(RANGE_KINDS.rcbo.sizeOf(name)).toEqual({ amps: 20, poles: 1 });
+  expect(inKind("rcbo", "DIN RAIL RCBO BUSBAR 12 POLE")).toBe(false);
+  expect(fitOf("rcbo", { amps: 20, poles: 1 }, { amps: 18, phase: "1" })).toBe(20);
+  expect(fitOf("rcbo", { amps: 20, poles: 1 }, { amps: 18, phase: "3" })).toBeNull();
+  expect(matchesComponent("spring_hangers", "SPRING HANGER KIT UNDERFLOOR 4 PACK")).toBe(true);
+  expect(matchesComponent("spring_hangers", "FLEX DUCT HANGING STRAP 25M")).toBe(false);
+});

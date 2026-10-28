@@ -294,11 +294,11 @@ describe("starting a variation from the words", () => {
       expect.objectContaining({
         title: "Add to the quote: return grille in Bed 2",
         assigned_to: "s-me",
-        detail: "Nothing is accepted on the quote on #3209 — Richards yet, so this changes the quote itself rather than starting a variation.",
+        detail: "Nothing is accepted on the quote on #3209 — Richards in HeyTiff yet, so this changes the quote itself rather than starting a variation: reprice it from the job's Quote tab.",
       }),
     ]);
     expect(res.turns.at(-1)!.text).toBe(
-      "There's no accepted quote on this job, so there's no variation to start. I've made it a task instead: Add to the quote: return grille in Bed 2.",
+      "Nothing is accepted on this job's quote in HeyTiff, so there's no variation to start; a quote accepted in ServiceM8 has no lines here to copy. Reprice it from the Quote tab. I've made it a task instead: Add to the quote: return grille in Bed 2.",
     );
     expect(res.variations).toEqual([expect.objectContaining({ how: "task", title: "Add to the quote: return grille in Bed 2", href: null, undo: true })]);
     expect(appliedOf(noteRow().applied).taskIds).toEqual([tasks()[0]!.id]);

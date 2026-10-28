@@ -855,9 +855,10 @@ async function applyConfirmed(
      problem and then refuses to open anything; a bring-item with no job has
      no visit to be brought to. Those are dead ends and they stay refused.
 
-     But it was too broad, and the schema says so: `tasks` has NO job column
-     at all — org, title, assignee, due date, status. A task from a note has
-     always stood on its own and always landed on the assignee's dashboard.
+     But it was too broad: a task from a note can stand on its own, and
+     always lands on the assignee's dashboard. (`tasks` has since gained
+     `sm8_job_uuid`, and a note said on a job's card puts its tasks on that
+     job, below; one with no job is still a good task.)
      The only thing insisting otherwise was this guard and the review card's
      Save rule, which is why "tell Lyle to ring the wholesaler" — a perfectly
      good task about no job in particular — could not be saved at all.
@@ -978,6 +979,11 @@ async function applyConfirmed(
           remindAt !== null && isRemindKind(t.remindKind) && t.remindKind === "by" ? "by" : null,
         status: "open",
         group_id: groupId,
+        /* THE JOB THE NOTE WAS SAID ON. Left off, the task form went looking
+           for a job in the task's own words and found "140" in "140
+           single-phase outdoor": job #140, a 2024 job in Bellevue Hill, on a
+           task about #2845 (Isaac, 28 October 2026). */
+        sm8_job_uuid: target.kind === "job" ? (target.id ?? null) : null,
       };
     });
 

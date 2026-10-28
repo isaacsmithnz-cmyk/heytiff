@@ -136,7 +136,7 @@ export function variationTaskTitle(what: string, why: VariationWhy): string {
 export function variationTaskDetail(why: VariationWhy, job: string | null): string {
   const on = job ? ` on ${job}` : "";
   return why === "unaccepted"
-    ? `Nothing is accepted on the quote${on} yet, so this changes the quote itself rather than starting a variation.`
+    ? `Nothing is accepted on the quote${on} in HeyTiff yet, so this changes the quote itself rather than starting a variation: reprice it from the job's Quote tab.`
     : `Starting a variation${on} needs money access: someone who has it starts it on the job's quote.`;
 }
 
@@ -185,7 +185,7 @@ export function variationDoneLine(v: VariationMade): string {
   const title = variationTaskTitle(v.what, v.why ?? "unaccepted");
   return v.why === "money"
     ? `Starting a variation needs money access, so I've made it a task for you: ${title}.`
-    : `There's no accepted quote on this job, so there's no variation to start. I've made it a task instead: ${title}.`;
+    : `Nothing is accepted on this job's quote in HeyTiff, so there's no variation to start; a quote accepted in ServiceM8 has no lines here to copy. Reprice it from the Quote tab. I've made it a task instead: ${title}.`;
 }
 
 /** Her line when `startVariation` refused it: its own words. */

@@ -19,6 +19,7 @@ import { zonedParts } from "@/lib/dashboard/day-rail";
 import { remindAtFrom } from "@/lib/dashboard/reminders";
 import { logTaskEvent } from "@/lib/dashboard/task-events";
 import { taskLinesOf } from "@/lib/dashboard/task-lines";
+import { namedJobNumber } from "@/lib/dashboard/task-job-number";
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { readTaskDoneLines, type TaskDoneLine } from "@/lib/dashboard/task-done-query";
 import type { NoteSender } from "@/lib/integrations/links";
@@ -518,10 +519,13 @@ export async function readTaskForEdit(taskId: string): Promise<{ ok: true; task:
   };
   const jobUuid = (data.sm8_job_uuid as string | null) ?? null;
   const label = jobUuid ? await jobLabelOf(ctx.orgId, jobUuid) : null;
-  /* the job its words name ("Proceed with 3450 Kingsford"), offered */
+  /* the job its words name ("Proceed with 3450 Kingsford", "#2845"),
+     offered. A bare number is a job only when a name follows it or a # or
+     "job" comes before it: "140 single-phase outdoor" is a unit, and it
+     offered job #140 (Isaac, 28 October 2026). */
   let suggestedJob: TaskForEdit["suggestedJob"] = null;
   if (!jobUuid) {
-    const n = /\b(\d{3,6}[A-Z]?)\b/.exec(String(data.title ?? ""))?.[1];
+    const n = namedJobNumber(String(data.title ?? ""));
     if (n) {
       const { data: hit } = await supabaseAdmin.from("sm8_jobs").select("uuid").eq("org_id", ctx.orgId).eq("generated_job_id", n).limit(1).maybeSingle();
       const uuid = (hit as { uuid?: string } | null)?.uuid;

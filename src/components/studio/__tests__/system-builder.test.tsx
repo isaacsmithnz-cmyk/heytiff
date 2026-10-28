@@ -242,10 +242,10 @@ describe("SystemBuilder", () => {
     expect(within(band).getByText(/\d+(\.\d+)? \/ \d+(\.\d+)? mm/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Head type: Ducted/ })).toBeInTheDocument();
     // every zone reads the whole-system unit against all the zones' load,
-    // and names it as the unit that serves it
+    // and says the air it gets from it and the outlets that carry it
     expect(within(zoneCard("Bed 1")).getByText("Covered")).toBeInTheDocument();
     expect(within(zoneCard("Study")).getByText("Covered")).toBeInTheDocument();
-    expect(within(zoneCard("Study")).getByText("PEAD-M125JAA(D)")).toBeInTheDocument();
+    expect(within(zoneCard("Study")).getByText(/^\d+ L\/s, \d+ outlets?, Ø\d+$/)).toBeInTheDocument();
     expect(within(zoneCard("Study")).queryByText("No unit yet")).toBeNull();
     expect(within(schematic()).getByText(/combination valid$/)).toBeInTheDocument();
   });

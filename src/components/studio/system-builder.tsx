@@ -19,6 +19,7 @@ import { headSection, systemVrfTree, type SizedTree } from "@/lib/studio/vrf-tre
 import { headPipeMm } from "@/lib/studio/pipe-sizes";
 import { formFactorSummary } from "@/lib/studio/select";
 import { roomsServed } from "@/lib/studio/allocations";
+import { outletsText, systemAir, type RoomAir } from "@/lib/studio/airflow";
 import { DUCT_AIRWAY_FORMS } from "@/lib/studio/form-factors";
 import { UnitBrowser, type UnitChoice } from "./unit-browser";
 import {
@@ -1667,6 +1668,12 @@ function PipingRail({
       .filter((x): x is ZoneView => x != null);
     railRows.push({ z: zones[0] ?? z, group: { unit, zones } });
   }
+  /* the air each ducted unit sends its rooms, and the outlets that carry it
+     (airflow.ts): under a band unit or a group, a room says its L/s */
+  const airs = systemAir(draft, pack, sys);
+  const airIn = (unitId: string, roomId: string): RoomAir | null =>
+    airs.find((u) => u.unit.id === unitId)?.rooms.find((r) => r.roomId === roomId) ?? null;
+  const airText = (r: RoomAir | null): string | null => (r ? `${Math.round(r.ls)} L/s, ${outletsText(r)}` : null);
   const n = railRows.length;
   const gutter = trunk ? GUT_TRUNK : GUT_OFF + Math.max(1, n) * GUT_SP + 8;
   const xOf = (k: number) => GUT_OFF + (n - 1 - k) * GUT_SP;
@@ -1873,12 +1880,6 @@ function PipingRail({
             const unitKw = kwOf(pack, unit.model, draft.settings.sizingBasis);
             const loads = zones.map((m) => m.loadKw);
             const groupLoad = loads.some((l) => l != null) ? loads.reduce<number>((t, l) => t + (l ?? 0), 0) : null;
-            const airOf = (m: ZoneView): number | null =>
-              row?.airflow_ls == null
-                ? null
-                : groupLoad
-                  ? Math.round((row.airflow_ls * (m.loadKw ?? 0)) / groupLoad)
-                  : Math.round(row.airflow_ls / zones.length);
             /* judged as one: the unit against its rooms' loads together */
             const word: Word =
               unitKw == null || groupLoad == null || groupLoad <= 0
@@ -1928,15 +1929,14 @@ function PipingRail({
                       <line className="ds-sb-pipe on air" x1={1} y1={0} x2={1} y2="100%" />
                     </svg>
                     {zones.map((m) => {
-                      const air = airOf(m);
+                      const air = airText(airIn(unit.id, m.zone.id));
                       return (
                         <div key={m.zone.id} className="ds-sb-group-room">
-                          <span className="ds-sb-zone-name">{m.name}</span>
-                          <span className="ds-sb-zone-pipe">
-                            {[m.loadKw != null ? `${m.loadKw.toFixed(1)} kW` : null, air != null ? `${air} L/s` : null]
-                              .filter(Boolean)
-                              .join(", ")}
+                          <span className="ds-sb-zone-line">
+                            <span className="ds-sb-zone-name">{m.name}</span>
+                            <span className="ds-sb-zone-pipe">{kwText(m.loadKw)}</span>
                           </span>
+                          {air && <span className="ds-sb-zone-air">{air}</span>}
                           <button
                             type="button"
                             className="ds-sb-zone-x"
@@ -2025,8 +2025,11 @@ function PipingRail({
                 )}
                 {z.lines.length === 0 && (
                   <span className="ds-sb-zone-line">
-                    {/* a zone the band feeds has its unit: the one above */}
-                    <span className="ds-sb-zone-none">{band ? band.model : "No unit yet"}</span>
+                    {/* a zone the band feeds has its unit, the one above, and
+                        says the air it gets and the outlets that carry it */}
+                    <span className="ds-sb-zone-none">
+                      {band ? (airText(airIn(band.id, z.zone.id)) ?? band.model) : "No unit yet"}
+                    </span>
                     {z.word.text && <span className={`ds-sb-state ${z.word.tone}`}>{z.word.text}</span>}
                   </span>
                 )}

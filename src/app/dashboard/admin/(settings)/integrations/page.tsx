@@ -4,6 +4,8 @@ import { hasMinRole } from "@/lib/roles";
 import { getDbRole } from "@/lib/permissions-server";
 import { IntegrationsScreen } from "@/components/integrations/integrations-screen";
 import { loadServicem8, loadXero, type Query } from "./load";
+import { emailInAddress } from "@/lib/email/inbound";
+import { lastEmailIn, readEmailAddress } from "@/lib/email/inbound-server";
 
 /* SETTINGS › INTEGRATIONS (v2, 25 October 2026): ServiceM8 and Xero on one
    page, as the mock draws them (Isaac: "just should be called integration.
@@ -25,10 +27,16 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
   const params = await searchParams;
   const from = Array.isArray(params.from) ? params.from[0] : params.from;
   const orgId = session.orgId as string;
-  const [servicem8, xero] = await Promise.all([
+  const [servicem8, xero, address, last] = await Promise.all([
     loadServicem8(orgId, from === "servicem8" ? params : {}),
     loadXero(orgId, from === "xero" ? params : {}),
+    readEmailAddress(orgId),
+    lastEmailIn(orgId),
   ]);
+  const email = {
+    address: address ? emailInAddress(address.token) : null,
+    last: last ? { at: last.at, from: last.fromName ?? last.fromAddress, subject: last.subject, refused: last.state === "refused" } : null,
+  };
 
-  return <IntegrationsScreen servicem8={servicem8} xero={xero} />;
+  return <IntegrationsScreen servicem8={servicem8} xero={xero} email={email} />;
 }

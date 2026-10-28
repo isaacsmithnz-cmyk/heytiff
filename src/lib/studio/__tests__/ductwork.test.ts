@@ -1,6 +1,7 @@
 /* The ductwork the Studio lays out for a ducted unit (ductwork.ts; Isaac,
-   2026-10-28, A: "the Studio draws them for you … joining neighbours with a
-   BTO, and you drag to change"). The mock's house: a PEAD-M100JAA(D) in the
+   2026-10-28, A: "the Studio draws them for you … and you drag to change";
+   then square routes, and every junction "just a circle" named by its ducts,
+   a Y or a BTO once picked). The mock's house: a PEAD-M100JAA(D) in the
    hall ceiling, five rooms around it, on a plan at 10 mm a unit. */
 
 import { readFileSync, existsSync } from "fs";
@@ -13,7 +14,7 @@ import type { RoomObj } from "../loads-room";
 import { addBandUnit, allocationsOf, placeAllocation } from "../builder";
 import { claimZone, newSystem } from "../zones";
 import { ductCapacityLs, SUPPLY_MS } from "../airflow";
-import { dragDuctEnd, inches, outletSpots, polylineM, systemDuctwork, unitFace } from "../ductwork";
+import { dragDuctEnd, fittingName, inches, outletSpots, polylineM, setFittingKind, systemDuctwork, unitFace } from "../ductwork";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -86,22 +87,73 @@ describe("the unit in the hall ceiling", () => {
     expect(new Set(lay.outlets.map((o) => o.roomId))).toEqual(new Set(["living", "kitchen", "master", "bed2", "bed3"]));
   });
 
-  it("joins neighbours on one trunk with a fitting named in inches, never over Ø300 or its air", () => {
+  it("joins neighbours on one run, parting at a circle named by its ducts biggest first, never over Ø300 or its air", () => {
     const h = placed();
     const [lay] = systemDuctwork(h.doc, pack, sysOf(h.doc, h.systemId));
     expect(lay.fittings.length).toBeGreaterThan(0);
     for (const f of lay.fittings) {
-      expect(f.name).toBe(`${f.kind === "y" ? "Y" : "BTO"} ${inches(f.inMm)}-${inches(f.outMm[0])}-${inches(f.outMm[1])}`);
-      expect(f.inMm).toBeLessThanOrEqual(300);
+      expect(f.kind).toBeNull();
+      expect(f.ductsMm).toEqual([...f.ductsMm].sort((a, b) => b - a));
+      expect(f.name).toBe(`Fitting ${f.ductsMm.map(inches).join("-")}`);
       const trunk = lay.supply.find((r) => r.key === `trunk:${f.key}`)!;
+      expect(trunk.diaMm).toBeLessThanOrEqual(300);
       expect(ductCapacityLs(trunk.diaMm, SUPPLY_MS)).toBeGreaterThanOrEqual(trunk.ls - 1e-9);
+      // the trunk ends at the circle, and the two runs leave it
+      expect(trunk.points[trunk.points.length - 1]).toEqual(f.at);
+      const [, a, b] = f.key.match(/^fit:(.+)\+(.+)$/)!;
+      for (const k of [a, b]) expect(lay.supply.find((r) => r.key === `run:${k}`)!.points[0]).toEqual(f.at);
     }
-    // a Y joins two outlets in one room; a BTO two rooms
-    const [a, b] = lay.fittings[0].key.slice(4).split("+").map((k) => k.split("/")[1]);
-    expect(lay.fittings[0].kind).toBe(a === b ? "y" : "bto");
-    // one spigot a trunk, every outlet at the end of exactly one run
-    expect(lay.spigots).toHaveLength(lay.outlets.length - lay.fittings.length);
-    for (const o of lay.outlets) expect(lay.supply.filter((r) => r.key === `run:${o.key}`)).toHaveLength(1);
+    // one collar a run off the plenum, every outlet at the end of exactly one run
+    expect(lay.collars).toHaveLength(lay.outlets.length - lay.fittings.length);
+    for (const o of lay.outlets) {
+      const runs = lay.supply.filter((r) => r.key === `run:${o.key}`);
+      expect(runs).toHaveLength(1);
+      expect(runs[0].points[runs[0].points.length - 1]).toEqual(o.at);
+    }
+  });
+
+  it("bends square: every leg runs along or across the unit", () => {
+    const h = placed();
+    const [lay] = systemDuctwork(h.doc, pack, sysOf(h.doc, h.systemId));
+    for (const r of lay.supply) {
+      for (let i = 1; i < r.points.length; i++) {
+        const dx = Math.abs(r.points[i].x - r.points[i - 1].x);
+        const dy = Math.abs(r.points[i].y - r.points[i - 1].y);
+        expect(Math.min(dx, dy)).toBeLessThan(1e-6);
+      }
+    }
+  });
+
+  it("no two runs cross", () => {
+    const h = placed();
+    const [lay] = systemDuctwork(h.doc, pack, sysOf(h.doc, h.systemId));
+    type Seg = [Point, Point];
+    const segs = (r: { points: Point[] }): Seg[] => r.points.slice(1).map((p, i) => [r.points[i], p]);
+    const crosses = ([a, b]: Seg, [c, d]: Seg) => {
+      const cr = (p: Point, q: Point, r: Point) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+      const d1 = cr(c, d, a);
+      const d2 = cr(c, d, b);
+      const d3 = cr(a, b, c);
+      const d4 = cr(a, b, d);
+      return d1 * d2 < 0 && d3 * d4 < 0;
+    };
+    for (let i = 0; i < lay.supply.length; i++)
+      for (let j = i + 1; j < lay.supply.length; j++)
+        for (const p of segs(lay.supply[i])) for (const q of segs(lay.supply[j])) expect(crosses(p, q)).toBe(false);
+  });
+
+  it("a circle picked as a Y or a BTO takes that name, and goes back to the day", () => {
+    const h = placed();
+    const [lay] = systemDuctwork(h.doc, pack, sysOf(h.doc, h.systemId));
+    const f = lay.fittings[0];
+    const asBto = setFittingKind(h.doc, h.systemId, f.key, "bto");
+    expect(systemDuctwork(asBto, pack, sysOf(asBto, h.systemId))[0].fittings[0]).toMatchObject({
+      kind: "bto",
+      name: fittingName(f.ductsMm, "bto"),
+    });
+    expect(fittingName([250, 350, 250], "y")).toBe("Y 14-10-10");
+    const back = setFittingKind(asBto, h.systemId, f.key, null);
+    expect(systemDuctwork(back, pack, sysOf(back, h.systemId))[0].fittings[0].name).toBe(f.name);
   });
 
   it("measures every run along what is drawn", () => {
@@ -113,16 +165,20 @@ describe("the unit in the hall ceiling", () => {
     }
   });
 
-  it("sends the air back down two Ø400s from a grille out from the return face", () => {
+  it("puts the return grille under the unit on its box, and runs two Ø400s back once it is dragged away", () => {
     const h = placed();
     const [lay] = systemDuctwork(h.doc, pack, sysOf(h.doc, h.systemId));
-    expect(lay.returns).toHaveLength(2);
-    expect(lay.returns.every((r) => r.diaMm === 400)).toBe(true);
-    expect(lay.ret).toMatchObject({ wMm: 750, hMm: 400, filter: true, runs: 2 });
+    expect(lay.ret).toMatchObject({ wMm: 750, hMm: 400, filter: true, runs: 2, moved: false });
+    expect(lay.returns).toEqual([]);
     const unit = h.doc.objects.find((o) => o.id === h.unitId)!;
     const face = unitFace(unit, "return", 10)!;
     // the return face is the other side of the unit from the supply face
     expect(face.out.y).toBe(-unitFace(unit, "supply", 10)!.out.y);
+    expect(lay.ret.at.y).toBeCloseTo(face.mid.y + face.out.y * 30, 6);
+    const d = dragDuctEnd(h.doc, h.systemId, lay.ret.key, { x: m(10), y: m(4) });
+    const [away] = systemDuctwork(d, pack, sysOf(d, h.systemId));
+    expect(away.returns).toHaveLength(2);
+    expect(away.returns.every((r) => r.diaMm === 400 && r.lengthM > 0)).toBe(true);
   });
 
   it("an outlet dragged elsewhere stays there, and its run follows", () => {

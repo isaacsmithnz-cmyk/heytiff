@@ -1,7 +1,8 @@
 /* Design Studio — what a ducted unit's air side puts on the job: its
    ductwork and its grilles, named the way the price book's common install
    items name them (quotes/install-groups.ts: "Flexible duct", "Ys and BTOs"
-   a size each, "Supply plenum", "Return plenum", "Square diffuser", "Return
+   a size each — a junction not yet picked as either is a "Fitting" of its
+   sizes, "Supply plenum", "Return plenum", "Square diffuser", "Return
    air grille", "Return air box"), so a line on the sheet, the picklist and
    what Tiff reads is a part a business already prices.
 
@@ -67,7 +68,7 @@ export function ductLines(doc: DesignDocument, pack: DataPack, sys: DesignSystem
         /* the size is in the NAME: the picklist sums a part by name, and
            plenums made for two faces are two parts */
         name: `Supply plenum ${supply.w} × ${supply.h}`,
-        sub: `Made for ${air.model}${lay ? `, ${sizes(lay.spigots.map((s) => s.diaMm))}` : ""}`,
+        sub: `Made for ${air.model}${lay ? `, ${sizes(lay.collars.map((c) => c.diaMm))}` : ""}`,
         qty: "1",
       });
     }
@@ -95,7 +96,12 @@ export function ductLines(doc: DesignDocument, pack: DataPack, sys: DesignSystem
   }
   const fitLines: DuctLine[] = [...fittings]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([name, n]) => ({ shelf: "ductwork", name, sub: name.startsWith("Y") ? "One room, two outlets" : "Branch take-off", qty: String(n) }));
+    .map(([name, n]) => ({
+      shelf: "ductwork",
+      name,
+      sub: name.startsWith("Y ") ? "Y" : name.startsWith("BTO ") ? "Branch take-off" : "Y or BTO",
+      qty: String(n),
+    }));
   const outletLines: DuctLine[] = [...outlets]
     .sort(([a], [b]) => b - a)
     .map(([neck, n]) => ({ shelf: "grilles", name: `Square diffuser, ${neck} neck`, sub: "Supply outlet", qty: String(n) }));

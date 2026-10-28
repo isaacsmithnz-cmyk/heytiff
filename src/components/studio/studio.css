@@ -10063,12 +10063,15 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .dstudio .ds3-empty { display: flex; align-items: center; justify-content: center; height: 100%; padding: 24px; background: var(--paper); border-radius: var(--r-card); }
 
 /* THE DUCTWORK the Studio lays out for a ducted unit (duct-layer.tsx): runs
-   at their true width, a corrugation down their middle, the return hatched
-   by its dashes; outlets and the return grille at their face, dragged with
+   at their true width with a line down their middle, square bends, the
+   return's edge dashed; the plenum a box with a collar for each run; a
+   circle where two runs part, made a Y or a BTO from the two-button tray
+   beside it; outlets and the return grille at their face, dragged with
    Select */
 .ds-duct path {
   fill: none;
-  stroke-linecap: round;
+  stroke-linecap: butt;
+  stroke-linejoin: round;
 }
 .ds-duct-edge {
   stroke: var(--q);
@@ -10080,16 +10083,44 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
   opacity: 0;
 }
 .ds-duct-core {
-  stroke: var(--q);
-  opacity: 0.6;
+  stroke: var(--ink);
 }
 .ds-duct-plenum,
-.ds-duct-spigot,
+.ds-duct-collar,
 .ds-duct-fitting circle {
   fill: var(--paper);
   stroke: var(--ink);
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
+}
+.ds-duct-fitting circle.grab {
+  cursor: pointer;
+}
+.ds-duct-pick .tray {
+  fill: var(--paper);
+  stroke: var(--edge);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.ds-duct-pick .opt {
+  cursor: pointer;
+}
+.ds-duct-pick .opt rect {
+  fill: transparent;
+}
+.ds-duct-pick .opt.on rect {
+  fill: var(--tint-2);
+}
+.ds-duct-pick .opt text {
+  font-family: var(--font);
+  font-weight: var(--fw-label);
+  fill: var(--q);
+  text-anchor: middle;
+  pointer-events: none;
+}
+.ds-duct-pick .opt.on text {
+  font-weight: var(--fw-heading);
+  fill: var(--ink);
 }
 .ds-duct-outlet rect,
 .ds-duct-return rect {
@@ -10123,8 +10154,4 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
   stroke-width: 3px;
   stroke-linejoin: round;
   pointer-events: none;
-}
-.ds-duct-label.quiet {
-  font-weight: var(--fw-label);
-  fill: var(--q);
 }

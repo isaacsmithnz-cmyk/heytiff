@@ -122,6 +122,15 @@ test("a job's times are changed only to times inside the day, in order, none sti
   expect(stintTimes({ ...day, from: "soon", until: at("10:00") })).toEqual({ error: "Pick the time." });
 });
 
+/* the review of 29 October 2026: the sheet offers quarter hours, so on at 7:05 its
+   7:00 and, at 2:53, its 3:00 are the day's start and now, not refusals */
+test("a time rounded to the quarter just past the day's start or now is held to it", () => {
+  const day = { onAt: at("07:05"), now: Date.parse(at("14:53")) };
+  expect(stintTimes({ ...day, from: at("07:00"), until: at("09:00") })).toEqual({ from: at("07:05"), until: at("09:00") });
+  expect(stintTimes({ ...day, from: at("13:00"), until: at("15:00") })).toEqual({ from: at("13:00"), until: at("14:53") });
+  expect(stintTimes({ ...day, from: at("06:45"), until: at("09:00") })).toEqual({ error: "That's before you clocked on." });
+});
+
 test("the morning reminder's days: the days you're rostered on, less public holidays and your approved leave; a casual, none", async () => {
   const ctx = { orgId: "org-1", userId: "auth0|alex" } as MobileCtx;
   /* Wed 28 Oct for eight days: Thu 29, Fri 30, Mon 2, and Tue 3 is a holiday here, Wed 4, Thu 5 and Fri 6 his leave */

@@ -1,5 +1,5 @@
 import { ok, requireMobile } from "@/lib/mobile/auth";
-import { logFuel } from "@/lib/mobile/expenses";
+import { landReceipt, logFuel, receiptSlot } from "@/lib/mobile/expenses";
 import { fixEntry, logReading, readPhoneVehicle, reportIssue } from "@/lib/mobile/vehicle";
 
 /* YOUR VEHICLE for the phone (lib/mobile/vehicle): yours as its driver
@@ -16,7 +16,21 @@ export async function POST(request: Request) {
   const ctx = await requireMobile(request);
   if (ctx instanceof Response) return ctx;
   const body = ((await request.json().catch(() => null)) ?? {}) as Record<string, unknown>;
-  const run = body.do === "fuel" ? logFuel : body.do === "odo" ? logReading : body.do === "issue" ? reportIssue : body.do === "fix" ? fixEntry : null;
+  const run =
+    body.do === "fuel"
+      ? logFuel
+      : body.do === "odo"
+        ? logReading
+        : body.do === "issue"
+          ? reportIssue
+          : body.do === "fix"
+            ? fixEntry
+            : /* an issue's photo: its slot, and its landing */
+              body.do === "slot"
+              ? (c: typeof ctx, b: Record<string, unknown>) => receiptSlot(c, { ...b, kind: "issue_photo" })
+              : body.do === "land"
+                ? landReceipt
+                : null;
   if (!run) return Response.json({ error: "What should happen?" }, { status: 400, headers: { "cache-control": "no-store" } });
   const r = await run(ctx, body);
   if (!r.ok) return Response.json({ error: r.error }, { status: r.status, headers: { "cache-control": "no-store" } });

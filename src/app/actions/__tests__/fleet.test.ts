@@ -96,6 +96,10 @@ jest.mock("@/lib/permissions-server", () => ({
   can: jest.fn(async (c: string) => caps.has(c)),
 }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
+const claimsPushed: string[] = [];
+jest.mock("@/lib/expenses/claim-push", () => ({
+  pushClaimSent: (orgId: string, c: { staffId: string; description: string; amount: number }) => claimsPushed.push(`${orgId} ${c.staffId} ${c.description} ${c.amount}`),
+}));
 const issuesPushed: string[] = [];
 jest.mock("@/lib/fleet/issue-push", () => ({
   pushIssueReported: (orgId: string, i: { staffId: string | null; vehicleId: string; note: string | null }) => issuesPushed.push(`${orgId} ${i.staffId} ${i.vehicleId} ${i.note}`),
@@ -107,6 +111,7 @@ const VEHICLE = { id: "v-1", status: "active", odometer: 84120, last_service_odo
 
 beforeEach(() => {
   issuesPushed.length = 0;
+  claimsPushed.length = 0;
   [insert, update, del, select].forEach((m) => m.mockClear());
   eqs.length = 0;
   existingDocument = null;
@@ -378,6 +383,20 @@ describe("service logs carry their record", () => {
     expect(eqCalls("kind")).not.toContain("fuel_receipt");
   });
 
+  /* the phone's Report an issue, with a photo (Isaac, 28 October 2026) */
+  it("binds an issue's photo to the issue, as an issue photo and never as paper", async () => {
+    await addLog({ vehicleId: "v-1", kind: "issue", note: "Sliding door won't latch", receiptDocumentId: "doc-9" });
+    expect(update).toHaveBeenCalledWith("documents", { vehicle_log_id: "log-1" });
+    expect(eqCalls("kind")).toContain("issue_photo");
+    expect(eqCalls("kind")).not.toContain("fuel_receipt");
+    expect(eqCalls("kind")).not.toContain("service_record");
+  });
+
+  it("never binds a document to a reading", async () => {
+    await addLog({ vehicleId: "v-1", kind: "odo", odo: 84800, receiptDocumentId: "doc-9" });
+    expect(update).not.toHaveBeenCalledWith("documents", expect.anything());
+  });
+
   it("never puts a work list on a fuel log", async () => {
     await addLog({ vehicleId: "v-1", kind: "fuel", litres: 50, cost: 100, workDone: "stale" });
     expect(insert.mock.calls[0][1]).toMatchObject({ work_done: null });
@@ -394,6 +413,15 @@ describe("fuel paid from your own pocket", () => {
 
   const claimInsert = () =>
     insert.mock.calls.find((c) => c[0] === "expense_claims")?.[1] as Record<string, unknown>;
+
+  /* the review of 29 October 2026: the most common claim a tradie makes told nobody */
+  it("tells whoever approves of the claim it raised, and a company fill tells nobody", async () => {
+    await own({ station: "Ampol Alexandria" });
+    expect(claimsPushed).toEqual(["org-1 staff-1 Fuel — Ampol Alexandria 158.4"]);
+    claimsPushed.length = 0;
+    await addLog({ vehicleId: "v-1", kind: "fuel", litres: 50, cost: 100, paidWith: "company" });
+    expect(claimsPushed).toEqual([]);
+  });
 
   it("records who paid on the log", async () => {
     await own();

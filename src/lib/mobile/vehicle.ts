@@ -21,6 +21,7 @@ import {
 } from "@/lib/fleet/vehicle-page";
 import { orgExpiryWindow } from "@/lib/org/query";
 import { actAsPhoneUser, type MobileCtx } from "@/lib/mobile/auth";
+import { supabaseAdmin } from "@/lib/supabase-server";
 
 /* YOUR VEHICLE ON THE PHONE (Isaac, 28 October 2026, "Yes, build it" on
    https://claude.ai/artifact/1FjPQpZ1uVmmiL9BmCKkQx): the web's vehicle page
@@ -87,7 +88,7 @@ export function entryOf(l: VehicleLog, me: string | null): PhoneEntry {
           : "A reading"
         : l.kind === "service"
           ? join([serviceName(l), at])
-          : join([issueName(l), l.status === "resolved" ? "fixed" : null]);
+          : join([issueName(l), l.hasReceipt ? "with a photo" : null, l.status === "resolved" ? "fixed" : null]);
   return {
     id: l.id,
     kind: l.kind,
@@ -164,7 +165,9 @@ export async function reportIssue(ctx: MobileCtx, body: Record<string, unknown>)
   const note = str(body.note, 500);
   if (!vehicleId) return bad("Which vehicle?");
   if (!note) return bad("Say what's wrong.");
-  const r = await actAsPhoneUser(ctx, () => addLog({ vehicleId, kind: "issue", note }));
+  /* the photo, when one was taken, uploaded as an issue_photo and adopted by this issue */
+  const photo = str(body.photoDocumentId, 60);
+  const r = await actAsPhoneUser(ctx, () => addLog({ vehicleId, kind: "issue", note, ...(photo ? { receiptDocumentId: photo } : {}) }));
   return r.ok ? { ok: true, value: null } : bad(r.error);
 }
 
@@ -181,6 +184,23 @@ export async function fixEntry(ctx: MobileCtx, body: Record<string, unknown>): P
   }
   if (typeof body.station === "string") patch.station = str(body.station, 120);
   if (typeof body.note === "string") patch.note = str(body.note, 500);
+  /* A FILL OR A SERVICE KEEPS ITS TAX HALF. editLog re-reads the GST, the
+     ABN and the docket's date from what it's sent, as the web's correction
+     always sends them; the phone corrects the litres or the cost, so the
+     stored three go with it, or a correction would wipe the GST credit and
+     move the claim's date (the review of 29 October 2026). */
+  const { data: row } = await supabaseAdmin
+    .from("vehicle_logs")
+    .select("kind, gst, supplier_abn, logged_on")
+    .eq("org_id", ctx.orgId)
+    .eq("id", id)
+    .maybeSingle();
+  const stored = row as { kind: string; gst: number | string | null; supplier_abn: string | null; logged_on: string | null } | null;
+  if (stored && (stored.kind === "fuel" || stored.kind === "service")) {
+    if (stored.gst !== null && stored.gst !== undefined) patch.gst = Number(stored.gst);
+    if (stored.supplier_abn) patch.abn = stored.supplier_abn;
+    if (stored.logged_on) patch.purchasedOn = stored.logged_on;
+  }
   const r = await actAsPhoneUser(ctx, () => editLog(id, patch));
   return r.ok ? { ok: true, value: null } : bad(r.error);
 }

@@ -103,7 +103,8 @@ type Done<T> = { ok: true; value: T } | { ok: false; status: number; error: stri
 const bad = (error: string, status = 400): Done<never> => ({ ok: false, status, error });
 const str = (v: unknown, max = 200): string => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const num = (v: unknown): number | null => {
-  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() ? Number(v) : NaN;
+  /* "57,912" and "1 121.50" are numbers as people type them */
+  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() ? Number(v.replace(/[,\s$]/g, "")) : NaN;
   return Number.isFinite(n) ? n : null;
 };
 
@@ -153,7 +154,8 @@ export async function readPhoneReceipt(ctx: MobileCtx, body: Record<string, unkn
 export async function receiptSlot(ctx: MobileCtx, body: Record<string, unknown>): Promise<Done<{ documentId: string; uploadUrl: string }>> {
   const staffId = await staffProfileIdFor(ctx.orgId, ctx.userId);
   if (!staffId) return bad("Your account isn't linked to a staff record.", 403);
-  const kind = body.kind === "fuel_receipt" ? "fuel_receipt" : "receipt";
+  /* the kind its record adopts: a claim's receipt, a fill's docket, an issue's photo */
+  const kind = body.kind === "fuel_receipt" ? "fuel_receipt" : body.kind === "issue_photo" ? "issue_photo" : "receipt";
   const size = num(body.sizeBytes);
   const slot = await openSlot(ctx.orgId, staffId, kind, {
     fileName: str(body.fileName, 120) || "receipt.jpg",

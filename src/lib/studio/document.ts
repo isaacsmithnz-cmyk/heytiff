@@ -320,28 +320,25 @@ export function createDesign(opts: {
 }
 
 /* The menu's Start again (Isaac, 27 October 2026: "delete the existing
-   design and start again"). The design a NEW design from plans begins as,
-   but this one: its id, so the job's link to it and anything else that
-   names it still finds it; its name, its job and when it was made; and its
-   place among its options. Everything drawn or read on it goes: the floors
-   and their plans, the rooms, systems, pipe runs and notes, the settings,
-   the approvals and Tiff's reading. The stored plan files stay, since an
-   option made from this design may still show them. */
+   design and start again"; and 28 October, after it took the plans with it:
+   "it should just clear your things that you've added onto the plan. But not
+   lose any of the data of the plans. Like the room sizes and all that").
+
+   The plans and what was read off them stay: the floors with their sheets,
+   scale and north, the rooms as drawn, the settings, the plan-upload session
+   and Tiff's reading. What was added on top goes: the systems and everything
+   they own (units, pipe, cable and drain runs, joints, plenums), the notes,
+   the pins and the approvals. A room keeps its size and its load inputs and
+   comes off its system. Its id, name, job and place among its options stay
+   too, so the job's link to it still finds it. */
 export function startedAgain(doc: DesignDocument, now = new Date().toISOString()): DesignDocument {
-  const fresh = createDesign({
-    name: doc.meta.name,
-    mode: "plan",
-    jobNumber: doc.meta.jobNumber,
-    client: doc.meta.client,
-    site: doc.meta.site,
-    now,
-  });
   return {
-    ...fresh,
-    id: doc.id,
-    meta: { ...fresh.meta, createdAt: doc.meta.createdAt, variantLabel: doc.meta.variantLabel },
-    variants: doc.variants,
-    jobLink: doc.jobLink,
+    ...doc,
+    meta: { ...doc.meta, updatedAt: now },
+    objects: doc.objects.filter((o) => o.type === "room").map((o) => (o.systemId === null ? o : { ...o, systemId: null })),
+    systems: [],
+    packPins: {},
+    simApprovals: [],
   };
 }
 

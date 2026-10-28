@@ -132,7 +132,7 @@ describe("a design, as Tiff reads it", () => {
     ]);
   });
 
-  it("reads a ducted unit over its zones: each zone's share, the unit's pipe, and its air side by the price book's names, the flex not measured until it is placed", () => {
+  it("reads a ducted unit over its zones: each zone's share, the unit's pipe, and and that no air side is drawn until the person draws one", () => {
     const { doc } = house();
     const made = newSystem(doc, pack.meta.version);
     let d = made.doc;
@@ -148,15 +148,8 @@ describe("a design, as Tiff reads it", () => {
       covers: "no",
       pipe: { drawn: false },
       charge: "Pre-charged, pipe not drawn",
-      air_side: [
-        "Flexible duct: Place the unit on a scaled plan to measure",
-        "1 Supply plenum 1060 × 178 (Made for PEAD-M71JAA(D))",
-        "1 Return plenum 1058 × 210 (Made for PEAD-M71JAA(D), 2 × Ø350)",
-        "3 Square diffuser, 250 neck (Supply outlet)",
-        "1 Square diffuser, 200 neck (Supply outlet)",
-        "1 Return air grille 600 × 400, filter (Filter in the grille)",
-        "1 Return air box (Behind the return grille)",
-      ],
+      // nothing is drawn off a unit for it: Tiff reads that none is drawn
+      air_side: ["No outlets, duct runs or return grille drawn"],
     });
     /* the unit shared out by load: no zone carries a pipe of its own */
     expect(sys.rooms.map((r) => [r.room, r.unit, r.capacity_kw, r.short_kw, r.pipe])).toEqual([

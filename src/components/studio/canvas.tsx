@@ -90,9 +90,10 @@ import { footprintBox, layoutPlanLabels, roomLabelFixed, roomLabelOffset, type P
 import { nearestTabS, tabPath, tabShare, wallsOf, TAB_PAD_T, TAB_PAD_X } from "@/lib/studio/room-tab";
 import type { SizedSection } from "@/lib/studio/vrf-tree";
 import { usePipeUnits } from "./pipe-units";
-import { DuctLayer } from "./duct-layer";
 import { AirflowLayer } from "./airflow-layer";
-import { airflowMark, hitMark, isAirflowMark, pullDeg, type AirStream, type AirflowMark } from "@/lib/studio/airflow-marks";
+import { AIRFLOW_INKS, airflowMark, hitMark, isAirflowMark, pullDeg, type AirStream, type AirflowMark } from "@/lib/studio/airflow-marks";
+import { GrilleLayer } from "./grille-layer";
+import { GRILLE_SIZES, grille, hitGrille, isGrille, type Grille, type GrilleSize } from "@/lib/studio/grilles";
 
 /** a branch box on the plan: PAC-MK34BC / MK54BC are both 450 × 280 mm (M-P0860 p.44) */
 const BOX_W_MM = 450;
@@ -112,13 +113,11 @@ import {
   spigotsOf,
   distributeSpigots,
   formatDia,
-  suggestedMainDucts,
   type PlenumSpigot,
 } from "@/lib/studio/ducted";
 import {
   hasFactorySpigots,
   spigotDiametersMm,
-  spigotLabel,
   type DataPack,
   type IndoorUnit,
   type OpeningSpec,
@@ -234,6 +233,7 @@ export type CanvasTool =
   | "pipe" // refrigerant run — endpoints snap to unit/riser anchors
   | "drain" // condensate drain — straight segments, size picked at draw
   | "cable" // power/data cable — dots smoothed into a curve
+  | "duct" // supply or return duct — straight segments, Ø picked at draw
   | "riser"
   | "joint" // a refrigerant joint: on a run it cuts it and branches there
   | "branch-box" // a PUMY branch box: the heads' runs end on it
@@ -248,6 +248,9 @@ export interface DrawOptions {
   pipeForm: "soft" | "hard";
   drainMm: number;
   cableKind: "power" | "data";
+  /** the next duct: its diameter and whether it carries supply or return */
+  ductMm: number;
+  ductStream: AirStream;
   /** the next airflow mark: blue supply or red return */
   airStream: AirStream;
 }
@@ -255,15 +258,17 @@ export const DEFAULT_DRAW: DrawOptions = {
   pipeForm: "hard",
   drainMm: 25,
   cableKind: "power",
+  ductMm: 250,
+  ductStream: "supply",
   airStream: "supply",
 };
 
 /** the tools that draft a polyline run (share the dot draft + anchors) */
-export const isRunTool = (t: CanvasTool): t is "pipe" | "drain" | "cable" =>
-  t === "pipe" || t === "drain" || t === "cable";
+export const isRunTool = (t: CanvasTool): t is "pipe" | "drain" | "cable" | "duct" =>
+  t === "pipe" || t === "drain" || t === "cable" || t === "duct";
 
 /** the object types those tools commit (hit/erase/drag-follow treat alike) */
-const RUN_TYPES = new Set(["pipe-run", "drain-run", "cable-run"]);
+const RUN_TYPES = new Set(["pipe-run", "drain-run", "cable-run", "duct-run"]);
 /** what a run's end can attach to (graph.ts Attach) */
 type AnchorKind = "unit" | "riser" | "joint" | "branch-box";
 
@@ -325,10 +330,13 @@ export type AirComponentKind =
   | "wall-controller"
   | "zone-sensor";
 
-/** The armed component + its HUD options (plenum: the supply⌇return toggle). */
+/** The armed component + its HUD options (plenum: the supply⌇return toggle;
+    grille: that, its face size and whether it is turned up the plan). */
 export interface ArmedComponent {
   kind: AirComponentKind;
   stream: "supply" | "return";
+  size?: GrilleSize;
+  turned?: boolean;
 }
 
 const CLOSE_SNAP_PX = 12; // screen px to close a polygon on its first vertex
@@ -1861,15 +1869,10 @@ export function StudioCanvas({
     for (const u of units) {
       const row = ahuRow(u);
       if (!row) continue;
-      // a placed plenum, a built-in return OR a factory-spigot face fixes the
-      // orientation (spec §1a): each is a published, fixed connection, so the
-      // unit knows which face is which the moment it's placed
       const builtInReturn = row.return_opening === "built-in";
-      const anySpigots = (["supply", "return"] as const).some((e) =>
-        hasFactorySpigots(openingOf(row, e))
-      );
-      const determined =
-        builtInReturn || anySpigots || plenums.some((p) => p.props.unitId === u.id);
+      /* only a plenum the person placed fixes it on the plan: a built-in
+         return or factory spigots are the unit's own, and draw nothing */
+      const determined = plenums.some((p) => p.props.unitId === u.id);
       for (const end of ["supply", "return"] as const) {
         const builtIn = end === "return" && builtInReturn;
         const spigots = hasFactorySpigots(openingOf(row, end));
@@ -2617,6 +2620,14 @@ export function StudioCanvas({
         if (selectedId === mark.id) onSelect(null);
         return;
       }
+      const gr = [...doc.objects]
+        .reverse()
+        .find((o): o is Grille => o.floorId === floor.id && isGrille(o) && hitGrille(o, w, floor.scaleMmPerUnit ?? 10, tol));
+      if (gr) {
+        onMutate((d) => ({ ...d, objects: d.objects.filter((o) => o.id !== gr.id) }));
+        if (selectedId === gr.id) onSelect(null);
+        return;
+      }
       // units next (on top of the plan), then risers
       for (let i = units.length - 1; i >= 0; i--) {
         const u = units[i];
@@ -2841,6 +2852,8 @@ export function StudioCanvas({
           ? { type: "drain-run", props: { sizeMm: draw.drainMm } }
           : tool === "cable"
             ? { type: "cable-run", props: { kind: draw.cableKind } }
+            : tool === "duct"
+              ? { type: "duct-run", props: { diaMm: draw.ductMm, stream: draw.ductStream } }
             : {
                 type: "pipe-run",
                 // hard-drawn is the default every pre-Draw run already is —
@@ -3226,7 +3239,17 @@ export function StudioCanvas({
         break;
       }
       case "component": {
-        // Step 2 ships the plenum: land on the glowing AHU end
+        // a grille goes down where it is clicked, as the HUD set it
+        if (component?.kind === "grille") {
+          const c = component;
+          tap(() => {
+            const g = grille(floor.id, activeSystemId ?? null, w, c.stream, c.size ?? GRILLE_SIZES[c.stream][0], c.turned ? 90 : 0);
+            // it stays armed: a room's grilles go down one after another
+            onMutate((d) => ({ ...d, objects: [...d.objects, g] }));
+          });
+          break;
+        }
+        // the plenum: land on the glowing AHU end
         tap(() => {
           const end = nearestPlenumEnd(w);
           if (end) addPlenum(end);
@@ -3235,7 +3258,8 @@ export function StudioCanvas({
       }
       case "pipe":
       case "drain":
-      case "cable": {
+      case "cable":
+      case "duct": {
         tap(() => {
           const anchor = nearestAnchor(w);
           /* a refrigerant run's end on another run of its system branches
@@ -4141,6 +4165,8 @@ export function StudioCanvas({
       tag = liq && gas ? `Ø${liq}/${gas}` : null;
     } else if (r.type === "drain-run") {
       tag = `Ø${Number(r.props.sizeMm) || 25} drain`;
+    } else if (r.type === "duct-run") {
+      tag = `Ø${Number(r.props.diaMm) || 250} ${r.props.stream === "return" ? "return" : "supply"}`;
     } else if (r.type === "cable-run") {
       tag = r.props.kind === "data" ? "Data" : "Power";
     }
@@ -4588,7 +4614,7 @@ export function StudioCanvas({
          guess */
       : isRunTool(tool)
         ? {
-            icon: tool === "cable" ? "zap" : tool === "drain" ? "droplet" : "pipe",
+            icon: tool === "cable" ? "zap" : tool === "drain" ? "droplet" : tool === "duct" ? "wind" : "pipe",
             text:
               tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft")
                 ? `Click to start, then click the points the line should curve through. ${runEnds}`
@@ -4623,6 +4649,8 @@ export function StudioCanvas({
                       ? "Now the area for the new floor — drag a rectangle, or click each corner"
                       : "Drag a rectangle, or click each corner, around the area this floor keeps",
             }
+          : tool === "component" && component?.kind === "grille"
+            ? { icon: "wind", text: `Click where the ${component.stream} grille goes` }
           : tool === "component" && component?.kind === "plenum"
             ? {
                 icon: "wind",
@@ -5031,7 +5059,13 @@ export function StudioCanvas({
                 : (sysColour.get(r.systemId ?? "") ?? "#888");
             const curved = isCurvedRun(r);
             const cls =
-              r.type === "drain-run" ? "ds-drain" : r.type === "cable-run" ? "ds-cable" : "ds-pipe";
+              r.type === "drain-run"
+                ? "ds-drain"
+                : r.type === "cable-run"
+                  ? "ds-cable"
+                  : r.type === "duct-run"
+                    ? `ds-ductrun ${r.props.stream === "return" ? "return" : "supply"}`
+                    : "ds-pipe";
             const label = runLabelText(r, pts);
             const spot = planLabels?.runs.get(r.id);
             return (
@@ -5040,7 +5074,21 @@ export function StudioCanvas({
                 className={`${cls}${litRuns.has(r.id) ? " sel" : ""}${loose ? " loose" : ""}`}
                 style={{ color: colour }}
               >
-                {curved ? (
+                {r.type === "duct-run" ? (
+                  /* a duct at its true width: the stream's ink for its walls,
+                     paper down its middle, so it reads as a tube */
+                  (() => {
+                    const line = pts.map((p) => `${p.x},${p.y}`).join(" ");
+                    const width = Math.max((Number(r.props.diaMm) || 250) / (mm ?? 10), 4 / zoom);
+                    const ink = AIRFLOW_INKS[r.props.stream === "return" ? "return" : "supply"];
+                    return (
+                      <>
+                        <polyline points={line} stroke={ink} strokeWidth={width} />
+                        <polyline className="ds-ductrun-core" points={line} strokeWidth={Math.max(width - 3 / zoom, 1 / zoom)} />
+                      </>
+                    );
+                  })()
+                ) : curved ? (
                   <path d={smoothPathD(pts)} />
                 ) : (
                   <polyline points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
@@ -5077,35 +5125,21 @@ export function StudioCanvas({
             );
           })}
 
-          {/* the ductwork the Studio lays out for each ducted unit on the
-              plan: runs, Ys and BTOs, outlets, the return (duct-layer.tsx) */}
-          {layers.pipes && pack && (
-            <DuctLayer
-              doc={doc}
-              pack={pack}
-              floor={floor}
-              zoom={zoom}
-              labelZoom={labelZoom}
-              interactive={tool === "select" && !sim}
-              toWorld={toWorld}
-              onMutate={onMutate}
-            />
-          )}
-
           {/* units (Stage 4) — to-scale footprint, role glyph, model */}
           {layers.units && units.map((u) => {
             const at = pointAt(u);
             const widthMm = Number(u.props.widthMm ?? 800);
             const fp = footprint(widthMm, Number(u.props.depthMm ?? 300));
             const colour = sysColour.get(u.systemId ?? "") ?? "#888";
-            /* air-capable ducted-form AHUs grow their air side (spec §1a):
-               a straight-through flow arrow, dashed socket outlines on the
-               unoccupied end faces, and the fused built-in return box */
+            /* an air-capable unit's air side — its flow arrow and face
+               labels — shows once a plenum the person placed has oriented
+               it. Nothing is drawn onto a unit for being dropped (Isaac, 28
+               October 2026: "Any unit that's placed on the canvas should not
+               have anything … Drop the unit, then add pipe duct drain
+               cables, whatever you want to put on"). */
             const air = ahuRow(u);
             const perMm = fp.w / Math.max(widthMm, 1);
             const ends = air ? ahuEnds.filter((e) => e.unit.id === u.id) : [];
-            const sockD = 150 * perMm;
-            const builtInD = 350 * perMm; // engine's default plenum depth
             const rot = unitRotDeg(u); // simple units only; AHUs stay at 0
             const rk = u.id === selectedId ? unitRotKnob(u, zoom) : null;
             return (
@@ -5180,109 +5214,6 @@ export function StudioCanvas({
                     </>
                   );
                 })()}
-                {ends.map((e) => {
-                  // inside the rotate group: the unit's own frame
-                  const f = endFaceLocal(e.unit, e.end);
-                  if (e.builtIn) {
-                    /* built-in return: the fused box + its return spigots pop
-                       up automatically (spec §1a) — a default fan of return
-                       takeoffs since the data book only says "spigots on it" */
-                    const box = (
-                      <rect
-                        className="ds-plenum-builtin"
-                        x={f.a.x}
-                        y={f.dir === 1 ? f.mid.y : f.mid.y - builtInD}
-                        width={f.b.x - f.a.x}
-                        height={builtInD}
-                        fill="url(#ds-plenum-hatch)"
-                      />
-                    );
-                    const n = Math.min(3, Math.max(1, suggestedMainDucts(air?.airflow_ls ?? null, 289) ?? 2));
-                    const r = (350 * perMm) / 2;
-                    const outY = f.mid.y + f.dir * builtInD;
-                    const spigs = Array.from({ length: n }, (_, i) => {
-                      const cx = f.a.x + ((i + 1) / (n + 1)) * (f.b.x - f.a.x);
-                      return (
-                        <rect
-                          key={i}
-                          className="ds-spigot-fixed"
-                          x={cx - r}
-                          y={f.dir === 1 ? outY - builtInD * 0.4 : outY}
-                          width={r * 2}
-                          height={builtInD * 0.4}
-                        />
-                      );
-                    });
-                    return (
-                      <g key={e.end} className="ds-plenum-builtin-g">
-                        {box}
-                        {spigs}
-                      </g>
-                    );
-                  }
-                  if (e.spigots) {
-                    /* factory spigots: no plenum body at all — the takeoffs
-                       stand straight off the unit face. Sized openings draw at
-                       TRUE diameter and carry the book's label ("2 × Ø400");
-                       an unsized "spigots" answer falls back to an
-                       airflow-derived fan, drawn greyed like any derived
-                       default (spec §1b). */
-                    const opening = openingOf(e.row, e.end);
-                    const dias = spigotDiametersMm(opening);
-                    const derived = dias.length === 0;
-                    const n = derived
-                      ? Math.min(3, Math.max(1, suggestedMainDucts(air?.airflow_ls ?? null, 289) ?? 2))
-                      : dias.length;
-                    const stub = 150 * perMm;
-                    const label = spigotLabel(opening);
-                    return (
-                      <g key={e.end} className={`ds-ahu-spigots${derived ? " derived" : ""}`}>
-                        {Array.from({ length: n }, (_, i) => {
-                          const r = ((derived ? 350 : dias[i]) * perMm) / 2;
-                          const cx = f.a.x + ((i + 1) / (n + 1)) * (f.b.x - f.a.x);
-                          return (
-                            <rect
-                              key={i}
-                              className="ds-spigot-fixed"
-                              x={cx - r}
-                              y={f.dir === 1 ? f.mid.y : f.mid.y - stub}
-                              width={r * 2}
-                              height={stub}
-                            />
-                          );
-                        })}
-                        {layers.labels && label ? (
-                          <text
-                            className="ds-spigot-label"
-                            x={f.mid.x}
-                            y={
-                              f.dir === 1
-                                ? f.mid.y + stub + 10 / zoom
-                                : f.mid.y - stub - 4 / zoom
-                            }
-                            fontSize={9 / labelZoom}
-                          >
-                            {label}
-                          </text>
-                        ) : null}
-                      </g>
-                    );
-                  }
-                  if (e.occupied) return null; // a plenum object renders there
-                  // a bare undetermined unit is a plain rectangle — the socket
-                  // hint only shows the SECOND face once oriented (spec §1a)
-                  if (!e.determined) return null;
-                  return (
-                    <rect
-                      key={e.end}
-                      className="ds-ahu-socket"
-                      x={f.a.x}
-                      y={f.dir === 1 ? f.mid.y : f.mid.y - sockD}
-                      width={f.b.x - f.a.x}
-                      height={sockD}
-                    />
-                  );
-                })}
                 </g>
                 {/* No text on the unit. Role and model used to sit stacked on
                     every box, and with face labels, spigot diameters and pipe
@@ -5971,6 +5902,30 @@ export function StudioCanvas({
                 {formatMeters(unitsToMeters(dist(tape.a, tape.b), mm))}
               </text>
             </g>
+          )}
+
+          {/* grilles the person placed from the component palette */}
+          {layers.units && (
+            <GrilleLayer
+              doc={doc}
+              floor={floor}
+              zoom={vp.zoom}
+              interactive={tool === "select" && !sim}
+              selectedId={selectedId}
+              ghost={
+                tool === "component" && component?.kind === "grille" && cursor
+                  ? {
+                      at: cursor,
+                      deg: component.turned ? 90 : 0,
+                      stream: component.stream,
+                      size: component.size ?? GRILLE_SIZES[component.stream][0],
+                    }
+                  : null
+              }
+              toWorld={toWorld}
+              onSelect={onSelect}
+              onMutate={onMutate}
+            />
           )}
 
           {/* ── markup: airflow marks, under the notes ── */}

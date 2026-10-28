@@ -1,22 +1,23 @@
-/* Design Studio — what a ducted unit's air side puts on the job: its
-   ductwork and its grilles, named the way the price book's common install
-   items name them (quotes/install-groups.ts: "Flexible duct", "Ys and BTOs"
-   a size each — a junction not yet picked as either is a "Fitting" of its
-   sizes, "Supply plenum", "Return plenum", "Square diffuser", "Return
-   air grille", "Return air box"), so a line on the sheet, the picklist and
-   what Tiff reads is a part a business already prices. Round diffusers and
-   linear bar grilles (outlets.ts) the same way, by their size.
+/* Design Studio — what a system's air side puts on the job: the ducts,
+   plenums and grilles the person DREW for it, named the way the price
+   book's common install items name them (quotes/install-groups.ts:
+   "Flexible duct" a size each, "Supply plenum", "Return plenum", "Square
+   diffuser", "Linear bar grille", "Return air grille"), so a line on the
+   sheet, the picklist and what Tiff reads is a part a business already
+   prices.
 
-   Lengths are the runs the Studio lays out (ductwork.ts), summed by size;
-   before the unit is on a calibrated plan the runs are not measured, and the
-   flex says so rather than guessing. Everything else is known from the air
-   each room gets (airflow.ts) whether or not the unit is placed. Pure. */
+   Nothing here is laid out for the person (Isaac, 28 October 2026: "Drop
+   the unit, then add pipe duct drain cables, whatever you want to put on
+   … Do not attach things to it"): a duct is counted because it was drawn,
+   a grille because it was placed. A duct on a plan with no scale is not
+   measured, and says so rather than guessing. The zoning kit is the one
+   part that is not drawn: it is what Edit system was told. Pure. */
 
-import type { DesignDocument, DesignSystem } from "./document";
+import type { DesignDocument, DesignSystem, Point } from "./document";
 import type { DataPack } from "./packs/schema";
+import { polylineLength, unitsToMeters } from "./geometry";
 import { systemAir } from "./airflow";
-import { unitDuctLayout } from "./ductwork";
-import { outletName, outletPicks, outletSpec } from "./outlets";
+import { grilleName, grilleSize, grilleStream, isGrille } from "./grilles";
 import { damperCableSub, zoneKit, zoningOf, zonesOf } from "./zoning";
 
 export type DuctShelf = "ductwork" | "grilles" | "controls";
@@ -25,7 +26,7 @@ export interface DuctLine {
   shelf: DuctShelf;
   name: string;
   sub: string;
-  /** "5.5 m", "3", or "—" for flex not measured yet */
+  /** "5.5 m", "3", or "—" for a duct not measured yet */
   qty: string;
 }
 
@@ -36,108 +37,80 @@ const faceOf = (o: unknown): { w: number; h: number } | null => {
   return typeof f.w_mm === "number" && typeof f.h_mm === "number" ? { w: f.w_mm, h: f.h_mm } : null;
 };
 
-const sizes = (mm: number[]): string => {
-  const by = new Map<number, number>();
-  for (const d of mm) by.set(d, (by.get(d) ?? 0) + 1);
-  return [...by]
-    .sort(([a], [b]) => b - a)
-    .map(([d, n]) => `${n} × Ø${d}`)
-    .join(", ");
-};
+const streamWord = (s: unknown): "Supply" | "Return" => (s === "return" ? "Return" : "Supply");
 
-/** the ductwork and grilles one system's ducted units put on the job */
+/** the ductwork, plenums and grilles drawn for one system, and its zoning kit */
 export function ductLines(doc: DesignDocument, pack: DataPack, sys: DesignSystem): DuctLine[] {
-  const flex = new Map<number, number>();
-  let unmeasured = false;
-  const fittings = new Map<string, number>();
-  /* by name: "Square diffuser, 250 neck", "Linear grille 1500 × 150" */
-  const outlets = new Map<string, { n: number; rank: number; size: number }>();
-  const picks = outletPicks(sys);
-  const lines: DuctLine[] = [];
+  const mine = doc.objects.filter((o) => o.systemId === sys.id);
+  const scaleOf = new Map(doc.floors.map((f) => [f.id, f.scaleMmPerUnit ?? null]));
+
+  /* ducts: by size and stream, metres where the plan is scaled */
+  const ducts = new Map<string, { dia: number; stream: "Supply" | "Return"; m: number; unmeasured: boolean }>();
+  for (const o of mine) {
+    if (o.type !== "duct-run" || o.geometry.kind !== "polyline") continue;
+    const dia = Number(o.props.diaMm) || 250;
+    const stream = streamWord(o.props.stream);
+    const key = `${stream}/${dia}`;
+    const cur = ducts.get(key) ?? { dia, stream, m: 0, unmeasured: false };
+    const mm = scaleOf.get(o.floorId) ?? null;
+    if (mm) cur.m += unitsToMeters(polylineLength(o.geometry.points as Point[]), mm);
+    else cur.unmeasured = true;
+    ducts.set(key, cur);
+  }
+  const ductLines: DuctLine[] = [...ducts.values()]
+    .sort((a, b) => b.stream.localeCompare(a.stream) || b.dia - a.dia)
+    .map((d) => ({
+      shelf: "ductwork",
+      name: `Flexible duct Ø${d.dia}`,
+      sub: d.unmeasured ? `${d.stream}, set the plan's scale to measure` : `${d.stream}, as drawn`,
+      qty: d.unmeasured && d.m === 0 ? "—" : `${Math.ceil(d.m * 10) / 10} m`,
+    }));
+
+  /* plenums: one each as placed on its unit's face, made for that face */
+  const plenumLines: DuctLine[] = [];
+  for (const o of mine) {
+    if (o.type !== "plenum") continue;
+    const unit = doc.objects.find((u) => u.id === o.props.unitId);
+    const model = unit ? String(unit.props.model ?? "") : "";
+    const row = pack.indoor_units.find((u) => u.model === model);
+    const stream = streamWord(o.props.stream);
+    const face = faceOf(stream === "Return" ? row?.return_opening : row?.supply_opening);
+    plenumLines.push({
+      shelf: "ductwork",
+      /* the size is in the NAME: the picklist sums a part by name, and
+         plenums made for two faces are two parts */
+      name: face ? `${stream} plenum ${face.w} × ${face.h}` : `${stream} plenum`,
+      sub: model ? `Made for ${model}` : "",
+      qty: "1",
+    });
+  }
+
+  /* grilles: by name, as placed */
   const grilles = new Map<string, { sub: string; n: number }>();
-  const grille = (name: string, sub: string) => grilles.set(name, { sub, n: (grilles.get(name)?.n ?? 0) + 1 });
-  /* zoning: dampers by size as laid out, the kit by unit, the cable a damper */
-  const dampers = new Map<number, number>();
-  let dampersUnsized = 0;
+  for (const o of mine) {
+    if (!isGrille(o)) continue;
+    const stream = grilleStream(o);
+    const name = grilleName(stream, grilleSize(o));
+    grilles.set(name, { sub: stream === "return" ? "Return" : "Supply outlet", n: (grilles.get(name)?.n ?? 0) + 1 });
+  }
+  const grilleLines: DuctLine[] = [...grilles]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([name, g]) => ({ shelf: "grilles", name, sub: g.sub, qty: String(g.n) }));
+
+  /* zoning: the kit Edit system was told, a damper a zone */
   const controls: DuctLine[] = [];
+  let dampers = 0;
   for (const air of systemAir(doc, pack, sys)) {
-    const row = pack.indoor_units.find((u) => u.model === air.model);
-    const lay = unitDuctLayout(doc, sys, air);
-    if (lay) {
-      for (const r of [...lay.supply, ...lay.returns]) flex.set(r.diaMm, (flex.get(r.diaMm) ?? 0) + r.lengthM);
-      for (const f of lay.fittings) fittings.set(f.name, (fittings.get(f.name) ?? 0) + 1);
-    } else {
-      unmeasured = true;
-    }
-    for (const r of air.rooms) {
-      for (let i = 0; i < r.outlets.count; i++) {
-        const o = outletSpec(picks[`${air.unit.id}/${r.roomId}/${i}`], r.outlets.lsEach, r.outlets.neckMm, { x: 1, y: 0 });
-        const name = outletName(o);
-        const rank = ["square", "round", "linear"].indexOf(o.kind);
-        const size = o.kind === "linear" ? (o.lengthMm ?? 0) * 1000 + (o.heightMm ?? 0) : o.neckMm;
-        outlets.set(name, { n: (outlets.get(name)?.n ?? 0) + 1, rank, size });
-      }
-    }
-    const supply = faceOf(row?.supply_opening);
-    if (supply) {
-      lines.push({
-        shelf: "ductwork",
-        /* the size is in the NAME: the picklist sums a part by name, and
-           plenums made for two faces are two parts */
-        name: `Supply plenum ${supply.w} × ${supply.h}`,
-        sub: `Made for ${air.model}${lay ? `, ${sizes(lay.collars.map((c) => c.diaMm))}` : ""}`,
-        qty: "1",
-      });
-    }
-    const back = faceOf(row?.return_opening);
-    if (back) {
-      lines.push({
-        shelf: "ductwork",
-        name: `Return plenum ${back.w} × ${back.h}`,
-        sub: `Made for ${air.model}, ${air.ret.runs} × Ø${air.ret.diaMm}`,
-        qty: "1",
-      });
-    }
-    grille(
-      `Return air grille ${air.ret.grille.wMm} × ${air.ret.grille.hMm}${air.ret.filter ? ", filter" : ""}`,
-      air.ret.filter ? "Filter in the grille" : "The unit's own filter"
-    );
-    grille("Return air box", "Behind the return grille");
     const z = zoningOf(sys, air.unit.id);
     const zones = zonesOf(air, z);
-    if (zones.length) {
-      if (lay?.zoning) for (const d of lay.zoning.dampers) dampers.set(d.diaMm, (dampers.get(d.diaMm) ?? 0) + 1);
-      else dampersUnsized += zones.length;
-      controls.push(...zoneKit(pack, z, zones).lines);
-    }
+    if (!zones.length) continue;
+    dampers += zones.length;
+    controls.push(...zoneKit(pack, z, zones).lines);
   }
-  if (!flex.size && !unmeasured && !grilles.size) return [];
-  const flexLines: DuctLine[] = [...flex]
-    .sort(([a], [b]) => b - a)
-    .map(([d, m]) => ({ shelf: "ductwork", name: `Flexible duct Ø${d}`, sub: "As laid out on the plan", qty: `${Math.ceil(m * 10) / 10} m` }));
-  if (unmeasured) {
-    flexLines.push({ shelf: "ductwork", name: "Flexible duct", sub: "Place the unit on a scaled plan to measure", qty: "—" });
-  }
-  const fitLines: DuctLine[] = [...fittings]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([name, n]) => ({
-      shelf: "ductwork",
-      name,
-      sub: name.startsWith("Y ") ? "Y" : name.startsWith("BTO ") ? "Branch take-off" : "Y or BTO",
-      qty: String(n),
-    }));
-  /* square, round, then linear; the biggest of each first */
-  const outletLines: DuctLine[] = [...outlets]
-    .sort(([, a], [, b]) => a.rank - b.rank || b.size - a.size)
-    .map(([name, o]) => ({ shelf: "grilles", name, sub: "Supply outlet", qty: String(o.n) }));
-  const grilleLines: DuctLine[] = [...grilles].map(([name, g]) => ({ shelf: "grilles", name, sub: g.sub, qty: String(g.n) }));
-  const damperLines: DuctLine[] = [...dampers]
-    .sort(([a], [b]) => b - a)
-    .map(([d, n]) => ({ shelf: "ductwork", name: `Zone damper Ø${d}`, sub: "Motorised, on the zone's run", qty: String(n) }));
-  if (dampersUnsized) {
-    damperLines.push({ shelf: "ductwork", name: "Zone damper", sub: "Place the unit on a scaled plan to size", qty: "—" });
-  }
-  const damperCount = [...dampers.values()].reduce((a, b) => a + b, 0);
-  if (damperCount) controls.push({ shelf: "controls", name: "Zone damper cable", sub: damperCableSub(pack), qty: String(damperCount) });
-  return [...flexLines, ...fitLines, ...damperLines, ...lines, ...outletLines, ...grilleLines, ...controls];
+  const damperLines: DuctLine[] = dampers
+    ? [{ shelf: "ductwork", name: "Zone damper", sub: "Motorised, one on each zone's run", qty: String(dampers) }]
+    : [];
+  if (dampers) controls.push({ shelf: "controls", name: "Zone damper cable", sub: damperCableSub(pack), qty: String(dampers) });
+
+  return [...ductLines, ...damperLines, ...plenumLines, ...grilleLines, ...controls];
 }

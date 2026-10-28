@@ -366,7 +366,15 @@ export function JobMoneyGlance({
           : null;
   return (
     <>
-      <b className="jov-fig">{figure !== null ? fmtAud(figure) : "—"}</b>
+      {/* THE BASIS ON THE FIGURE, as Billing wears its own: the Overview read
+          $80,850 and Billing $73,500 for the same job, one inc GST and one ex,
+          and neither cell said which (Isaac, 28 October 2026: "it's getting
+          its numbers mixed up"). GST is never derived, so it is said, not
+          converted. */}
+      <b className="jov-fig">
+        {figure !== null ? fmtAud(figure) : "—"}
+        {figure !== null && m.basis && <span className="jb-basis"> {m.basis === "ex" ? "ex GST" : MONEY_BASIS}</span>}
+      </b>
       {owing !== null ? (
         m.overdue !== null ? (
           <StateWord tone="wrong">{m.overdue === 1 ? "1 day overdue" : `${m.overdue} days overdue`}</StateWord>

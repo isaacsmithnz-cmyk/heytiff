@@ -4119,6 +4119,16 @@ html[data-ds-display] .dstudio.editing {
   vector-effect: non-scaling-stroke;
 }
 .dstudio .ds-drain.sel polyline { stroke-width: 3.5px; }
+/* ducts: drawn at their true width in the stream's ink (blue supply, red
+   return) with paper down the middle, a tube; scaled with the plan, so no
+   non-scaling stroke */
+.dstudio .ds-ductrun polyline {
+  fill: none;
+  stroke-linejoin: miter;
+  stroke-linecap: butt;
+}
+.dstudio .ds-ductrun .ds-ductrun-core { stroke: var(--paper); }
+.dstudio .ds-ductrun.sel .ds-ductrun-core { stroke: var(--line); }
 /* cables: dash-dot curve */
 .dstudio .ds-cable path {
   fill: none;
@@ -6328,21 +6338,6 @@ html[data-ds-display] .dstudio.editing {
   text-anchor: middle;
   dominant-baseline: central;
 }
-/* built-in return: integral hatched box fused to the AHU body */
-.dstudio .ds-plenum-builtin {
-  stroke: currentColor;
-  stroke-width: 1.6px;
-  vector-effect: non-scaling-stroke;
-}
-/* empty plenum mounting faces — the dashed "plenum goes here" sockets */
-.dstudio .ds-ahu-socket {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.2px;
-  stroke-dasharray: 4 3;
-  opacity: 0.55;
-  vector-effect: non-scaling-stroke;
-}
 /* Airflow direction earns its OWN colour and weight instead of inheriting the
    system tint. It answers a different question from everything else on the
    plan — which way the air actually goes — and at 1.2px / 0.7 opacity in the
@@ -6390,24 +6385,6 @@ html[data-ds-display] .dstudio.editing {
   font-family: var(--font);
   opacity: 0.75;
 }
-/* built-in return: fused box + auto return spigots (spec §1a) */
-.dstudio .ds-spigot-fixed {
-  fill: #fff;
-  stroke: currentColor;
-  stroke-width: 1.4px;
-  vector-effect: non-scaling-stroke;
-}
-/* factory spigots straight off the unit face (no plenum body). Sized from the
-   book they draw solid at true Ø; an unsized "spigots" answer is an
-   airflow-derived fan, greyed + dashed like any derived default. */
-.dstudio .ds-spigot-label {
-  fill: currentColor;
-  text-anchor: middle;
-  font-weight: 700;
-  paint-order: stroke;
-  stroke: #fff;
-  stroke-width: 3px;
-}
 /* ── plan text halo ──────────────────────────────────────────────────
    `paint-order: stroke` lays a white outline UNDER the glyphs so a label
    stays readable over drawing linework. The default MITER join fires a long
@@ -6420,7 +6397,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-unit-model,
 .dstudio .ds-plenum-label,
 .dstudio .ds-spigot-dia,
-.dstudio .ds-spigot-label,
 .dstudio .ds-tape-len,
 /* the room name + area were the ONLY plan labels left off this rule — the
    most important text on the drawing was the one bit of it with no halo */
@@ -6433,12 +6409,6 @@ html[data-ds-display] .dstudio.editing {
   stroke-linejoin: round;
   stroke-linecap: round;
 }
-
-.dstudio .ds-ahu-spigots.derived .ds-spigot-fixed {
-  stroke: var(--gray500);
-  stroke-dasharray: 4 3;
-}
-.dstudio .ds-ahu-spigots.derived .ds-spigot-label { fill: var(--gray500); }
 /* plenum drop zones — one per long face while a plenum is armed */
 .dstudio .ds-plenum-dropzone {
   fill: var(--ok-t);
@@ -10092,133 +10062,6 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .dstudio .ds3-none { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; }
 .dstudio .ds3-empty { display: flex; align-items: center; justify-content: center; height: 100%; padding: 24px; background: var(--paper); border-radius: var(--r-card); }
 
-/* THE DUCTWORK the Studio lays out for a ducted unit (duct-layer.tsx): runs
-   at their true width with a line down their middle, square bends, the
-   return's edge dashed; the plenum a box with a collar for each run; a
-   circle where two runs part, made a Y or a BTO from the two-button tray
-   beside it; outlets and the return grille at their face, dragged with
-   Select */
-.ds-duct path {
-  fill: none;
-  stroke-linecap: butt;
-  stroke-linejoin: round;
-}
-.ds-duct-edge {
-  stroke: var(--q);
-}
-.ds-duct-body {
-  stroke: var(--paper);
-}
-.ds-duct.return .ds-duct-core {
-  opacity: 0;
-}
-.ds-duct-core {
-  stroke: var(--ink);
-}
-.ds-duct-plenum,
-.ds-duct-collar,
-.ds-duct-fitting circle {
-  fill: var(--paper);
-  stroke: var(--ink);
-  stroke-width: 1.5;
-  vector-effect: non-scaling-stroke;
-}
-.ds-duct-fitting circle.grab {
-  cursor: pointer;
-}
-.ds-duct-pick .tray {
-  fill: var(--paper);
-  stroke: var(--edge);
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
-}
-.ds-duct-pick .opt {
-  cursor: pointer;
-}
-.ds-duct-pick .opt rect {
-  fill: transparent;
-}
-.ds-duct-pick .opt.on rect {
-  fill: var(--tint-2);
-}
-.ds-duct-pick .opt text {
-  font-family: var(--font);
-  font-weight: var(--fw-label);
-  fill: var(--q);
-  text-anchor: middle;
-  pointer-events: none;
-}
-.ds-duct-pick .opt.on text {
-  font-weight: var(--fw-heading);
-  fill: var(--ink);
-}
-.ds-duct-outlet rect,
-.ds-duct-return rect {
-  fill: var(--paper);
-  stroke: var(--ink);
-  stroke-width: 1.5;
-  vector-effect: non-scaling-stroke;
-}
-.ds-duct-outlet .inner,
-.ds-duct-return .inner {
-  fill: none;
-  stroke: var(--ink);
-  stroke-width: 0.75;
-  vector-effect: non-scaling-stroke;
-}
-.ds-duct-outlet circle {
-  fill: var(--paper);
-  stroke: var(--ink);
-  stroke-width: 1.5;
-  vector-effect: non-scaling-stroke;
-}
-.ds-duct-outlet circle.inner {
-  fill: none;
-  stroke-width: 0.75;
-}
-.ds-duct-outlet polygon {
-  fill: var(--paper);
-  stroke: var(--ink);
-  stroke-width: 1.5;
-  vector-effect: non-scaling-stroke;
-}
-.ds-duct-outlet.chosen rect,
-.ds-duct-outlet.chosen polygon,
-.ds-duct-outlet.chosen circle:not(.inner) {
-  stroke-width: 2.5;
-}
-/* more air than its size takes: the outline in the warning ink */
-.ds-duct-outlet.over rect:not(.inner),
-.ds-duct-outlet.over polygon,
-.ds-duct-outlet.over circle:not(.inner) {
-  stroke: var(--warn-t);
-}
-/* zoning: dampers across their runs, sensors and the controller on walls */
-.ds-zone-damper polygon,
-.ds-zone-sensor circle,
-.ds-zone-controller rect {
-  fill: var(--paper);
-  stroke: var(--ink);
-  stroke-width: 1.5;
-  vector-effect: non-scaling-stroke;
-}
-.ds-zone-damper line {
-  stroke: var(--ink);
-  stroke-width: 1.5;
-  vector-effect: non-scaling-stroke;
-}
-.ds-zone-sensor .dot {
-  fill: var(--ink);
-  stroke: none;
-}
-.ds-zone-controller .screen {
-  fill: none;
-  stroke-width: 0.75;
-}
-.ds-zone-sensor.grab,
-.ds-zone-controller.grab {
-  cursor: grab;
-}
 /* airflow marks: their own footprint takes the press; a picked one wears a
    dashed ring */
 .ds-airflow-hit {
@@ -10238,99 +10081,19 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .ds-airflow-draft {
   opacity: 0.6;
 }
-.ds-outlet-end {
-  fill: var(--paper);
-  stroke: var(--ink);
-  stroke-width: 1.5;
-  vector-effect: non-scaling-stroke;
-  cursor: ew-resize;
-}
-.ds-outlet-fo {
-  overflow: visible;
-}
-.ds-outlet-tray {
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--paper);
-  border-radius: 16px;
-  box-shadow: var(--shadow-overlay);
-  font-family: var(--font);
-  font-size: 13px;
-  line-height: 18px;
-  color: var(--ink);
-}
-.ds-outlet-tray .seg {
-  display: flex;
-  gap: 2px;
-  padding: 2px;
-  border: 1px solid var(--edge);
-  border-radius: 999px;
-}
-.ds-outlet-tray .seg button {
-  flex: 1;
-  padding: 4px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  font: inherit;
-  color: var(--q);
-  cursor: pointer;
-}
-.ds-outlet-tray .seg button.on {
-  background: var(--tint-2);
-  color: var(--ink);
-  font-weight: var(--fw-heading);
-}
-.ds-outlet-tray .row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-top: 8px;
-  border-top: 1px solid var(--line);
-}
-.ds-outlet-tray .row span {
-  color: var(--q);
-}
-.ds-outlet-tray .row .seg {
-  flex: 1;
-}
-.ds-outlet-tray .row input {
-  width: 96px;
-  font: inherit;
-  color: var(--ink);
-  padding: 2px 4px;
-  border: 1px solid var(--edge);
-  border-radius: 6px;
-  background: var(--paper);
-  text-align: right;
-}
-.ds-outlet-tray .air {
-  margin: 0;
-  color: var(--q);
-}
-.ds-outlet-tray .air.over {
-  color: var(--warn-t);
-}
-.ds-duct-outlet.grab,
-.ds-duct-return.grab {
+/* grilles placed from the component palette: grabbed by their face, a
+   picked one wears a dashed ring */
+.ds-grille.grab {
   cursor: grab;
 }
-.ds-duct-outlet.moving,
-.ds-duct-return.moving {
-  cursor: grabbing;
+.ds-grille-ring {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
 }
-.ds-duct-label {
-  font-family: var(--font);
-  font-weight: var(--fw-heading);
-  fill: var(--ink);
-  text-anchor: middle;
-  paint-order: stroke;
-  stroke: var(--paper);
-  stroke-width: 3px;
-  stroke-linejoin: round;
+.ds-grille-ghost {
+  opacity: 0.6;
   pointer-events: none;
 }

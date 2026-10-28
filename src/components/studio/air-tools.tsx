@@ -9,7 +9,8 @@
 import { useEffect, useRef } from "react";
 import { Icon } from "@/components/shell/icon";
 import { Tooltip } from "@/components/parts/tooltip";
-import type { AirComponentKind } from "./canvas";
+import type { AirComponentKind, ArmedComponent } from "./canvas";
+import { GRILLE_SIZES, sizeText } from "@/lib/studio/grilles";
 
 export interface PaletteEntry {
   kind: AirComponentKind;
@@ -28,7 +29,7 @@ export const PALETTE_ENTRIES: PaletteEntry[] = [
   { kind: "reducer", label: "Reducer", icon: "chevR", enabled: false, reason: "coming — Step 6" },
   { kind: "zone-motor", label: "Zone motor", icon: "zap", enabled: false, reason: "coming — Step 6" },
   { kind: "plenum", label: "Plenum", icon: "wind", enabled: true },
-  { kind: "grille", label: "Grille", icon: "square", enabled: false, reason: "coming — Step 3" },
+  { kind: "grille", label: "Grille", icon: "square", enabled: true },
   { kind: "wall-controller", label: "Wall controller", icon: "calc", enabled: false, reason: "coming — Step 5" },
   { kind: "zone-sensor", label: "Zone sensor", icon: "thermo", enabled: false, reason: "coming — Step 6" },
 ];
@@ -131,6 +132,60 @@ export function PlenumHud({
           Supply
         </button>
         {returnBuiltIn ? <Tooltip label="Return plenum is built into this air handler">{ret}</Tooltip> : ret}
+      </div>
+    </OptionsHud>
+  );
+}
+
+/** Grille variant: supply or return, the face size, and whether it is
+    turned up the plan, all set before the click that puts it down */
+export function GrilleHud({
+  comp,
+  onChange,
+}: {
+  comp: ArmedComponent;
+  onChange: (patch: Partial<ArmedComponent>) => void;
+}) {
+  const sizes = GRILLE_SIZES[comp.stream];
+  const size = comp.size ?? sizes[0];
+  const stream = (s: "supply" | "return", label: string) => (
+    <button
+      className={`ds-hud-chip${comp.stream === s ? " on" : ""}`}
+      aria-pressed={comp.stream === s}
+      onClick={() => onChange({ stream: s, size: GRILLE_SIZES[s][0] })}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <OptionsHud label="Grille">
+      <div className="ds-hud-seg">
+        {stream("supply", "Supply")}
+        {stream("return", "Return")}
+      </div>
+      <div className="ds-hud-seg">
+        {sizes.map((s) => {
+          const on = s.wMm === size.wMm && s.hMm === size.hMm;
+          return (
+            <button
+              key={sizeText(s)}
+              className={`ds-hud-chip${on ? " on" : ""}`}
+              aria-pressed={on}
+              onClick={() => onChange({ size: s })}
+            >
+              {sizeText(s)}
+            </button>
+          );
+        })}
+      </div>
+      <div className="ds-hud-seg">
+        <button
+          className={`ds-hud-chip${comp.turned ? " on" : ""}`}
+          aria-pressed={!!comp.turned}
+          onClick={() => onChange({ turned: !comp.turned })}
+        >
+          Turned
+        </button>
       </div>
     </OptionsHud>
   );

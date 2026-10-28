@@ -2,6 +2,7 @@
 
 import type { DesignDocument, DesignObject, Floor, Point } from "@/lib/studio/document";
 import { AIRFLOW_INKS, isAirflowMark, markShapes, streamOf } from "@/lib/studio/airflow-marks";
+import { grilleShape, grilleSize, grilleStream, isGrille } from "@/lib/studio/grilles";
 import {
   areaUnitsToM2,
   formatArea,
@@ -104,7 +105,7 @@ export function PlanFigure({
   );
   const runs = onFloor.filter(
     (o): o is DesignObject & { geometry: { kind: "polyline"; points: Point[] } } =>
-      (o.type === "pipe-run" || o.type === "drain-run" || o.type === "cable-run") &&
+      (o.type === "pipe-run" || o.type === "drain-run" || o.type === "cable-run" || o.type === "duct-run") &&
       o.geometry.kind === "polyline"
   );
   const units = onFloor.filter(
@@ -129,7 +130,9 @@ export function PlanFigure({
           ? r.props.kind === "data"
             ? "Data"
             : "Power"
-          : null;
+          : r.type === "duct-run"
+            ? `Ø${Number(r.props.diaMm) || 250} ${r.props.stream === "return" ? "return" : "supply"}`
+            : null;
     return [len, tag].filter(Boolean).join(", ");
   };
   const unitFp = (o: (typeof units)[number]) => {
@@ -336,12 +339,30 @@ export function PlanFigure({
             const curved =
               r.type === "cable-run" || (r.type === "pipe-run" && r.props.form === "soft");
             const cls =
-              r.type === "drain-run" ? "ds-pfdrain" : r.type === "cable-run" ? "ds-pfcable" : "ds-pipe";
+              r.type === "drain-run"
+                ? "ds-pfdrain"
+                : r.type === "cable-run"
+                  ? "ds-pfcable"
+                  : r.type === "duct-run"
+                    ? "ds-pfduct"
+                    : "ds-pipe";
             const label = runText(r);
             const spot = planLabels?.runs.get(r.id);
             return (
               <g key={r.id} className={cls} style={{ color: colourOf(r) }}>
-                {curved ? (
+                {r.type === "duct-run" ? (
+                  /* a duct at its true width, as the canvas draws it */
+                  (() => {
+                    const line = pts.map((p) => `${p.x},${p.y}`).join(" ");
+                    const width = Math.max((Number(r.props.diaMm) || 250) / (scale ?? 10), 4 * u);
+                    return (
+                      <g fill="none">
+                        <polyline points={line} stroke={AIRFLOW_INKS[r.props.stream === "return" ? "return" : "supply"]} strokeWidth={width} />
+                        <polyline points={line} stroke="#fff" strokeWidth={Math.max(width - 3 * u, u)} />
+                      </g>
+                    );
+                  })()
+                ) : curved ? (
                   <path d={smoothPathD(pts)} />
                 ) : (
                   <polyline points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
@@ -513,6 +534,20 @@ export function PlanFigure({
                   <path d={sh.line} fill="none" stroke={AIRFLOW_INKS[stream]} strokeWidth={1.8 * u} strokeLinecap="round" strokeLinejoin="round" />
                   <path d={sh.head} fill={AIRFLOW_INKS[stream]} />
                 </g>
+              ))}
+            </g>
+          );
+        })}
+
+        {/* grilles the person placed, through the canvas's geometry */}
+        {onFloor.filter(isGrille).map((o) => {
+          const stream = grilleStream(o);
+          const sh = grilleShape(o.geometry.at, o.geometry.rotation ?? 0, stream, grilleSize(o), scale ?? 10);
+          return (
+            <g key={o.id} className="ds-pf-grille" stroke={AIRFLOW_INKS[stream]}>
+              <polygon points={sh.outline.map((p) => `${p.x},${p.y}`).join(" ")} fill="#fff" strokeWidth={1.6 * u} />
+              {sh.lines.map(([a, b], i) => (
+                <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} strokeWidth={u} />
               ))}
             </g>
           );

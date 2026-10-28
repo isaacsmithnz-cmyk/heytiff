@@ -124,7 +124,7 @@ describe("Draw tools — what a finished line commits as", () => {
     const { svg } = renderCanvas({
       doc,
       tool: "drain",
-      draw: { pipeForm: "hard", drainMm: 32, cableKind: "power", airStream: "supply" },
+      draw: { pipeForm: "hard", drainMm: 32, cableKind: "power", ductMm: 250, ductStream: "supply", airStream: "supply" },
       onMutate: c.onMutate,
     });
     drawLine(svg, [
@@ -140,13 +140,42 @@ describe("Draw tools — what a finished line commits as", () => {
     expect(pts[1].y).toBeCloseTo(pts[0].y, 3);
   });
 
+  it("duct: commits a duct-run carrying the armed size and stream, ortho-snapped", () => {
+    const doc = mkDoc();
+    const c = captureCommit(doc);
+    const { svg } = renderCanvas({
+      doc,
+      tool: "duct",
+      draw: { pipeForm: "hard", drainMm: 25, cableKind: "power", ductMm: 300, ductStream: "return", airStream: "supply" },
+      onMutate: c.onMutate,
+    });
+    drawLine(svg, [
+      { x: 0, y: 0 },
+      { x: 200, y: 30 },
+    ]);
+    const o = lastObj(c.get());
+    expect(o.type).toBe("duct-run");
+    expect(o.props).toMatchObject({ diaMm: 300, stream: "return" });
+    const pts = (o.geometry as { points: { x: number; y: number }[] }).points;
+    expect(pts[1].y).toBeCloseTo(pts[0].y, 3);
+  });
+
+  it("a duct renders at its true width with its size and stream", () => {
+    const doc = mkDoc([runLine("k1", "duct-run", { diaMm: 250, stream: "supply" })]);
+    const { svg } = renderCanvas({ doc, tool: "select" });
+    const g = svg.querySelector("g.ds-ductrun.supply")!;
+    expect(g.querySelectorAll("polyline")).toHaveLength(2);
+    const labels = [...svg.querySelectorAll("text.ds-pipe-len")].map((t) => t.textContent);
+    expect(labels.some((l) => l?.includes("Ø250 supply"))).toBe(true);
+  });
+
   it("cable: commits a cable-run carrying the armed kind, dots placed free", () => {
     const doc = mkDoc();
     const c = captureCommit(doc);
     const { svg } = renderCanvas({
       doc,
       tool: "cable",
-      draw: { pipeForm: "hard", drainMm: 25, cableKind: "data", airStream: "supply" },
+      draw: { pipeForm: "hard", drainMm: 25, cableKind: "data", ductMm: 250, ductStream: "supply", airStream: "supply" },
       onMutate: c.onMutate,
     });
     drawLine(svg, [
@@ -169,7 +198,7 @@ describe("Draw tools — what a finished line commits as", () => {
     const { svg } = renderCanvas({
       doc,
       tool: "pipe",
-      draw: { pipeForm: "soft", drainMm: 25, cableKind: "power", airStream: "supply" },
+      draw: { pipeForm: "soft", drainMm: 25, cableKind: "power", ductMm: 250, ductStream: "supply", airStream: "supply" },
       onMutate: c.onMutate,
     });
     drawLine(svg, [
@@ -189,7 +218,7 @@ describe("Draw tools — what a finished line commits as", () => {
     const { svg } = renderCanvas({
       doc,
       tool: "pipe",
-      draw: { pipeForm: "hard", drainMm: 25, cableKind: "power", airStream: "supply" },
+      draw: { pipeForm: "hard", drainMm: 25, cableKind: "power", ductMm: 250, ductStream: "supply", airStream: "supply" },
       onMutate: c.onMutate,
     });
     drawLine(svg, [
@@ -253,7 +282,7 @@ describe("Draw tools — ending a line", () => {
     const { svg } = renderCanvas({
       doc,
       tool: "cable",
-      draw: { pipeForm: "hard", drainMm: 25, cableKind: "power", airStream: "supply" },
+      draw: { pipeForm: "hard", drainMm: 25, cableKind: "power", ductMm: 250, ductStream: "supply", airStream: "supply" },
       onMutate: c.onMutate,
     });
     // two real dots, then the double-click's own click lands 2px away — the
@@ -274,7 +303,7 @@ describe("Draw tools — ending a line", () => {
     const { svg } = renderCanvas({
       doc,
       tool: "cable",
-      draw: { pipeForm: "hard", drainMm: 25, cableKind: "power", airStream: "supply" },
+      draw: { pipeForm: "hard", drainMm: 25, cableKind: "power", ductMm: 250, ductStream: "supply", airStream: "supply" },
       onMutate: c.onMutate,
     });
     click(svg, sx(0), sy(0));
@@ -289,7 +318,7 @@ describe("Draw tools — ending a line", () => {
     const { svg } = renderCanvas({
       doc,
       tool: "pipe",
-      draw: { pipeForm: "soft", drainMm: 25, cableKind: "power", airStream: "supply" },
+      draw: { pipeForm: "soft", drainMm: 25, cableKind: "power", ductMm: 250, ductStream: "supply", airStream: "supply" },
       onMutate: c.onMutate,
     });
     click(svg, sx(0), sy(0));

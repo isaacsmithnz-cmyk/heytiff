@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode, Ref } from "react";
+import { useEffect, useRef, useState, type ReactNode, type Ref } from "react";
 import { Button, IconButton } from "@/components/parts/button";
 import { DictClock, LiveWords, type DictationState } from "@/components/notes/dictation";
 import { READING_BACK_NOTE } from "@/components/notes/waits";
@@ -69,6 +69,24 @@ export function CvBox({
 }) {
   const listening = !!dict && (dict.recording || dict.transcribing);
   const empty = !value.trim();
+  /* SEND WHILE RECORDING STOPS IT AND SENDS (Isaac, 28 October 2026: "I
+     couldn't even hit send. I had to wait for the timer to run out"). The
+     words are still being read back when Send is pressed, so the send waits
+     for them to land in the box, then goes as if pressed then. */
+  const [sendOnLand, setSendOnLand] = useState(false);
+  const sendPending = useRef(false);
+  if (sendOnLand && !listening) setSendOnLand(false);
+  useEffect(() => {
+    if (!sendPending.current || listening) return;
+    sendPending.current = false;
+    if (!waiting && !empty) onSubmit();
+  }, [listening, waiting, empty, onSubmit]);
+  const recording = !!dict?.recording;
+  const sendNow = () => {
+    dict?.stop();
+    sendPending.current = true;
+    setSendOnLand(true);
+  };
   return (
     <form
       className="cv-box"
@@ -134,11 +152,12 @@ export function CvBox({
           <Button
             kind="main"
             size={32}
-            type="submit"
+            type={recording ? "button" : "submit"}
+            onClick={recording ? sendNow : undefined}
             aria-label={sendLabel ?? sendWord}
-            className={`cv-send${waiting ? " cv-send--wait" : ""}`}
-            aria-busy={waiting || undefined}
-            disabled={waiting || listening || empty}
+            className={`cv-send${waiting || sendOnLand ? " cv-send--wait" : ""}`}
+            aria-busy={waiting || sendOnLand || undefined}
+            disabled={recording ? waiting : waiting || listening || empty}
           >
             {sendWord}
           </Button>
@@ -148,11 +167,12 @@ export function CvBox({
             glyph="send"
             kind="main"
             size={32}
-            type="submit"
+            type={recording ? "button" : "submit"}
+            onClick={recording ? sendNow : undefined}
             label={sendLabel ?? sendWord}
-            className={`cv-send${waiting ? " cv-send--wait" : ""}`}
-            aria-busy={waiting || undefined}
-            disabled={waiting || listening || empty}
+            className={`cv-send${waiting || sendOnLand ? " cv-send--wait" : ""}`}
+            aria-busy={waiting || sendOnLand || undefined}
+            disabled={recording ? waiting : waiting || listening || empty}
           />
         )}
       </div>

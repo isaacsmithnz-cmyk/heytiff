@@ -1,16 +1,15 @@
-/* What a ducted unit's air side puts on the job (duct-materials.ts), named
-   the way the price book's common install items name them, so each line is
-   a part a business already prices. The mock's house: a PEAD-M100JAA(D) in
-   the hall ceiling serving four rooms. */
+/* What a system's air side puts on the job (duct-materials.ts): only what
+   the person drew, named the way the price book's common install items name
+   them. The house: a PEAD-M100JAA(D) in the hall ceiling serving four rooms. */
 
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { PACK_SECTIONS, type DataPack, type PackMeta } from "../packs/schema";
 import { assemblePack, type PackSource } from "../packs/loader";
-import { createDesign, type DesignDocument, type DesignObject } from "../document";
+import { createDesign, newId, type DesignDocument, type DesignObject, type Point } from "../document";
 import { addBandUnit, allocationsOf, placeAllocation } from "../builder";
 import { claimZone, newSystem } from "../zones";
-import { systemDuctwork } from "../ductwork";
+import { grille } from "../grilles";
 import { ductLines } from "../duct-materials";
 import { buildSummaryModel } from "../summary";
 
@@ -53,72 +52,64 @@ function house(placed: boolean): DesignDocument {
   return placeAllocation(d, pack, made.systemId, unit.id, d.floors[0].id, { x: m(6), y: m(6.25) });
 }
 
+/** a duct the person drew, in plan units */
+function duct(d: DesignDocument, points: Point[], diaMm: number, stream: "supply" | "return"): DesignDocument {
+  const run = {
+    id: newId("obj"),
+    type: "duct-run",
+    systemId: d.systems[0].id,
+    floorId: d.floors[0].id,
+    plane: "ceiling-cavity",
+    geometry: { kind: "polyline", points },
+    props: { diaMm, stream },
+  } as DesignObject;
+  return { ...d, objects: [...d.objects, run] };
+}
+const put = (d: DesignDocument, o: DesignObject): DesignDocument => ({ ...d, objects: [...d.objects, o] });
+
 describe("the ductwork and grilles on the job", () => {
-  it("flex by size as laid out, the fittings by name, plenums made for the unit, outlets by neck, the return with its filter", () => {
+  it("a unit on the plan with nothing drawn off it puts nothing on the job", () => {
     const doc = house(true);
-    const sys = doc.systems[0];
-    const [lay] = systemDuctwork(doc, pack, sys);
-    const lines = ductLines(doc, pack, sys);
-    const named = (n: string) => lines.find((l) => l.name === n);
-
-    // every size laid out, its metres the runs' summed and rounded up
-    const bySize = new Map<number, number>();
-    for (const r of [...lay.supply, ...lay.returns]) bySize.set(r.diaMm, (bySize.get(r.diaMm) ?? 0) + r.lengthM);
-    for (const [d, metres] of bySize) {
-      const l = named(`Flexible duct Ø${d}`)!;
-      expect(l.shelf).toBe("ductwork");
-      expect(l.qty).toBe(`${Math.ceil(metres * 10) / 10} m`);
-    }
-    for (const f of lay.fittings) expect(Number(named(f.name)!.qty)).toBeGreaterThan(0);
-
-    expect(named("Supply plenum 1360 × 178")!.sub).toMatch(/^Made for PEAD-M100JAA\(D\), \d × Ø\d+/);
-    expect(named("Return plenum 1358 × 210")!.sub).toBe("Made for PEAD-M100JAA(D), 2 × Ø400");
-    const outlets = lines.filter((l) => /^Square diffuser, \d+ neck$/.test(l.name));
-    expect(outlets.reduce((n, l) => n + Number(l.qty), 0)).toBe(lay.outlets.length);
-    expect(outlets.every((l) => l.shelf === "grilles")).toBe(true);
-    expect(named("Return air grille 750 × 400, filter")!.qty).toBe("1");
-    expect(named("Return air box")!.qty).toBe("1");
+    expect(ductLines(doc, pack, doc.systems[0])).toEqual([]);
   });
 
-  it("before the unit is on the plan, the flex is not measured and says so", () => {
-    const lines = ductLines(house(false), pack, house(false).systems[0]);
-    expect(lines.find((l) => l.name === "Flexible duct")).toEqual({
-      shelf: "ductwork",
-      name: "Flexible duct",
-      sub: "Place the unit on a scaled plan to measure",
-      qty: "—",
-    });
-    expect(lines.some((l) => l.name.startsWith("Flexible duct Ø"))).toBe(false);
-    // what the air alone decides is still there
-    expect(lines.some((l) => l.name.startsWith("Square diffuser, "))).toBe(true);
-    expect(lines.some((l) => l.name === "Return air grille 750 × 400, filter")).toBe(true);
+  it("ducts by size and stream as drawn, grilles by name as placed", () => {
+    let d = house(true);
+    const sys = d.systems[0].id;
+    const f = d.floors[0].id;
+    d = duct(d, [{ x: m(6), y: m(6) }, { x: m(6), y: m(3) }, { x: m(3), y: m(3) }], 250, "supply"); // 6 m
+    d = duct(d, [{ x: m(6), y: m(6) }, { x: m(9), y: m(6) }], 250, "supply"); // 3 m
+    d = duct(d, [{ x: m(6), y: m(7) }, { x: m(8), y: m(7) }], 400, "return"); // 2 m
+    d = put(d, grille(f, sys, { x: m(3), y: m(3) }, "supply", { wMm: 300, hMm: 300 }));
+    d = put(d, grille(f, sys, { x: m(9), y: m(6) }, "supply", { wMm: 300, hMm: 300 }));
+    d = put(d, grille(f, sys, { x: m(2), y: m(1) }, "supply", { wMm: 1200, hMm: 100 }));
+    d = put(d, grille(f, sys, { x: m(8), y: m(7) }, "return", { wMm: 750, hMm: 400 }));
+    const lines = ductLines(d, pack, d.systems[0]);
+    expect(lines).toEqual([
+      { shelf: "ductwork", name: "Flexible duct Ø250", sub: "Supply, as drawn", qty: "9 m" },
+      { shelf: "ductwork", name: "Flexible duct Ø400", sub: "Return, as drawn", qty: "2 m" },
+      { shelf: "grilles", name: "Linear bar grille 1200 × 100", sub: "Supply outlet", qty: "1" },
+      { shelf: "grilles", name: "Return air grille 750 × 400", sub: "Return", qty: "1" },
+      { shelf: "grilles", name: "Square diffuser 300 × 300", sub: "Supply outlet", qty: "2" },
+    ]);
+  });
+
+  it("a duct on a plan with no scale is counted but not measured", () => {
+    let d = house(true);
+    d = { ...d, floors: [{ ...d.floors[0], scaleMmPerUnit: null }] };
+    d = duct(d, [{ x: 0, y: 0 }, { x: 100, y: 0 }], 200, "supply");
+    expect(ductLines(d, pack, d.systems[0])).toEqual([
+      { shelf: "ductwork", name: "Flexible duct Ø200", sub: "Supply, set the plan's scale to measure", qty: "—" },
+    ]);
   });
 
   it("goes on the sheet's Ductwork and Grilles shelves and into the picklist that goes to the job card", () => {
-    const doc = house(true);
-    const model = buildSummaryModel(doc, pack);
+    let d = house(true);
+    d = duct(d, [{ x: m(6), y: m(6) }, { x: m(6), y: m(3) }], 250, "supply");
+    d = put(d, grille(d.floors[0].id, d.systems[0].id, { x: m(6), y: m(3) }, "supply", { wMm: 300, hMm: 300 }));
+    const model = buildSummaryModel(d, pack);
     const sys = model.systems[0];
-    expect(sys.lines.some((l) => l.group === "ductwork" && l.name.startsWith("Flexible duct Ø"))).toBe(true);
-    expect(sys.lines.some((l) => l.group === "grilles" && l.name === "Return air box")).toBe(true);
-    expect(model.picklist.find((r) => r.name === "Return air grille 750 × 400, filter")).toMatchObject({ group: "grilles", qty: "1" });
-    // not measured is not picked
-    const unplaced = buildSummaryModel(house(false), pack);
-    expect(unplaced.picklist.some((r) => r.name === "Flexible duct")).toBe(false);
-  });
-
-  it("names each outlet by its kind and size: a room's outlet made round and another a linear", () => {
-    const doc = house(true);
-    const sys = doc.systems[0];
-    const [lay] = systemDuctwork(doc, pack, sys);
-    const [a, b] = lay.outlets;
-    const picked = {
-      ...doc,
-      systems: [{ ...sys, settings: { ...sys.settings, ductOutlet: { [a.key]: { kind: "round" }, [b.key]: { kind: "linear", lengthMm: 1500 } } } }],
-    };
-    const lines = ductLines(picked, pack, picked.systems[0]);
-    expect(lines.find((l) => l.name === `Round diffuser, ${a.neckMm} neck`)).toMatchObject({ shelf: "grilles", qty: "1" });
-    expect(lines.find((l) => l.name === "Linear bar grille 1500 × 150")).toMatchObject({ shelf: "grilles", qty: "1" });
-    const squares = lines.filter((l) => l.name.startsWith("Square diffuser, ")).reduce((n, l) => n + Number(l.qty), 0);
-    expect(squares).toBe(lay.outlets.length - 2);
+    expect(sys.lines.some((l) => l.group === "ductwork" && l.name === "Flexible duct Ø250")).toBe(true);
+    expect(model.picklist.find((r) => r.name === "Square diffuser 300 × 300")).toMatchObject({ group: "grilles", qty: "1" });
   });
 });

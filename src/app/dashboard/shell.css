@@ -7574,6 +7574,10 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .cv-box:has(.cv-words:focus-visible) { border-color:var(--ink); }
 .fg .cv-box .cv-words { display:block; width:100%; min-height:24px; max-height:240px; field-sizing:content; padding:0; border:0; outline:none; resize:none; background:transparent; font:inherit; font-size:16px; line-height:24px; font-weight:400; color:var(--ink); }
 .fg .cv-box .cv-words::placeholder { color:var(--q); opacity:1; }
+/* the words said while recording ride inside the box's own ceiling: the
+   paragraph LiveWords scrolls is the one that needs the cap, or a long
+   dictation spills over the bar below (Isaac, 28 October 2026) */
+.fg .cv-box .cv-live .wb2-lwbox { max-height:240px; }
 .fg .cv-boxbar { display:flex; align-items:center; gap:8px; }
 .fg .cv-boxbar .cv-send { margin-left:auto; }
 /* "Send fades until she's done" (6-revisions.md) */

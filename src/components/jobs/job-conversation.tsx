@@ -977,7 +977,9 @@ function EventCard({
     }
     case "visit": {
       const open = new Set(entry.leftOpen);
-      const crew = entry.crew.map((n) => (open.has(n) ? `${n}, check-in left open` : n)).join(open.size ? "; " : ", ");
+      const crew = entry.crew
+        .map((n) => (open.has(n) ? `${n}, check-in left open` : entry.reasons?.[n] ? `${n}, ${entry.reasons[n]}` : n))
+        .join(open.size || entry.reasons ? "; " : ", ");
       return card("clock", entry.minutes > 0 ? `On site, ${fmtStoryMinutes(entry.minutes)}` : "On site", crew || "Nobody named");
     }
     case "photos":

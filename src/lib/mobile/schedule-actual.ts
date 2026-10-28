@@ -6,6 +6,8 @@ import { wallInstant } from "@/lib/integrations/sm8-booking-plan";
 import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
 import { listSm8StaffLinks } from "@/lib/integrations/links";
 import { sm8CheckInLeftOpen } from "@/lib/workboard/all-jobs";
+import { streetLine } from "@/lib/studio/job-link";
+import { readCheckInFixes } from "@/lib/workboard/check-in-fixes";
 import { wallMinute } from "./clock";
 
 /* WHAT WAS ACTUALLY DONE ON A DAY, beside its bookings (Isaac, 28 October
@@ -35,6 +37,15 @@ export type ActualSpan = {
   leftOn: boolean;
   /** why you were there, on the phone's own time: site_meeting, helping, or plain labour */
   reason: string | null;
+  /** the job, for one the day's bookings don't name (a drop-in) */
+  number: string | null;
+  where: string;
+  colour: string | null;
+  status: string | null;
+  /** ServiceM8's check-in it is, for fixing one left on */
+  activityUuid?: string;
+  /** its end was fixed in HeyTiff */
+  fixed?: boolean;
 };
 
 const low = (s: string) => s.toLowerCase();
@@ -46,7 +57,7 @@ export async function actualOn(orgId: string, dayISO: string, only: string | nul
   const ceil = `${nextDay(dayISO)} 00:00:00`;
   let q = supabaseAdmin
     .from("sm8_job_activities")
-    .select("job_uuid, staff_uuid, start_date, end_date")
+    .select("uuid, job_uuid, staff_uuid, start_date, end_date")
     .eq("org_id", orgId)
     .eq("active", 1)
     .eq("activity_was_scheduled", 0)
@@ -55,17 +66,31 @@ export async function actualOn(orgId: string, dayISO: string, only: string | nul
   if (only) q = q.in("staff_uuid", [...new Set([only, low(only), only.toUpperCase()])]);
   const [{ data: recorded }, zone, state] = await Promise.all([q, bookingZone(orgId), readSm8WriteState(orgId).catch(() => null)]);
 
-  const theirs: ActualSpan[] = ((recorded ?? []) as { job_uuid: string | null; staff_uuid: string | null; start_date: string | null; end_date: string | null }[])
-    .filter((r): r is { job_uuid: string; staff_uuid: string; start_date: string; end_date: string | null } => !!r.job_uuid && !!r.staff_uuid && !!r.start_date)
-    .map((r) => ({
+  type Recorded = { uuid: string; job_uuid: string; staff_uuid: string; start_date: string; end_date: string | null };
+  const rows = ((recorded ?? []) as { uuid: string; job_uuid: string | null; staff_uuid: string | null; start_date: string | null; end_date: string | null }[]).filter(
+    (r): r is Recorded => !!r.job_uuid && !!r.staff_uuid && !!r.start_date
+  );
+  /* a check-in left on that's been fixed ends where it was fixed (check-in-fixes) */
+  const fixes = await readCheckInFixes(orgId, rows.map((r) => r.uuid));
+  const theirs: ActualSpan[] = rows.map((r) => {
+    const fixedEnd = fixes.get(r.uuid.toLowerCase()) ?? null;
+    const end = fixedEnd ?? r.end_date;
+    return {
       staffUuid: r.staff_uuid,
       jobUuid: r.job_uuid,
       start: r.start_date,
-      end: r.end_date && r.end_date > r.start_date ? r.end_date : null,
+      end: end && end > r.start_date ? end : null,
       how: "servicem8" as const,
-      leftOn: !!r.end_date && sm8CheckInLeftOpen(r.start_date, r.end_date),
+      activityUuid: r.uuid,
+      ...(fixedEnd ? { fixed: true } : {}),
+      leftOn: !fixedEnd && !!r.end_date && sm8CheckInLeftOpen(r.start_date, r.end_date),
       reason: null,
-    }));
+      number: null,
+      where: "",
+      colour: null,
+      status: null,
+    };
+  });
 
   /* the phone's own stints, for the people whose sign-in is linked to a ServiceM8 staff member */
   const mine: ActualSpan[] = [];
@@ -94,7 +119,7 @@ export async function actualOn(orgId: string, dayISO: string, only: string | nul
       const start = wallMinute(r.checked_in_at, z);
       const end = r.checked_out_at ? wallMinute(r.checked_out_at, z) : null;
       if (!start) continue;
-      mine.push({ staffUuid, jobUuid: r.sm8_job_uuid, start, end, how: "phone", leftOn: !!end && sm8CheckInLeftOpen(start, end), reason: r.reason });
+      mine.push({ staffUuid, jobUuid: r.sm8_job_uuid, start, end, how: "phone", leftOn: !!end && sm8CheckInLeftOpen(start, end), reason: r.reason, number: null, where: "", colour: null, status: null });
     }
   }
 
@@ -102,5 +127,25 @@ export async function actualOn(orgId: string, dayISO: string, only: string | nul
   const covers = (a: ActualSpan, b: ActualSpan) =>
     low(a.staffUuid) === low(b.staffUuid) && low(a.jobUuid) === low(b.jobUuid) && a.start < (b.end ?? "9999") && b.start < (a.end ?? "9999");
   const kept = mine.filter((m) => !theirs.some((t) => covers(t, m)));
-  return [...theirs, ...kept].sort((a, b) => (a.start < b.start ? -1 : 1));
+  const all = [...theirs, ...kept].sort((a, b) => (a.start < b.start ? -1 : 1));
+
+  /* each job's number, street and colour */
+  const uuids = [...new Set(all.flatMap((a) => [a.jobUuid, low(a.jobUuid), a.jobUuid.toUpperCase()]))];
+  if (!uuids.length) return all;
+  const { data: jobs } = await supabaseAdmin
+    .from("sm8_jobs")
+    .select("uuid, generated_job_id, job_address, geo_city, status, category_uuid")
+    .eq("org_id", orgId)
+    .in("uuid", uuids);
+  const jobRows = (jobs ?? []) as { uuid: string; generated_job_id: string | null; job_address: string | null; geo_city: string | null; status: string | null; category_uuid: string | null }[];
+  const cats = [...new Set(jobRows.map((j) => j.category_uuid).filter((c): c is string => !!c))];
+  const { data: catRows } = cats.length ? await supabaseAdmin.from("sm8_categories").select("uuid, colour").eq("org_id", orgId).in("uuid", cats) : { data: [] };
+  const colourOf = new Map(((catRows ?? []) as { uuid: string; colour: string | null }[]).map((c) => [c.uuid, c.colour]));
+  const jobOf = new Map(jobRows.map((j) => [low(j.uuid), j]));
+  return all.map((a) => {
+    const j = jobOf.get(low(a.jobUuid));
+    return j
+      ? { ...a, number: j.generated_job_id, where: [streetLine(j.job_address), j.geo_city?.trim()].filter(Boolean).join(", "), colour: j.category_uuid ? colourOf.get(j.category_uuid) ?? null : null, status: j.status }
+      : a;
+  });
 }

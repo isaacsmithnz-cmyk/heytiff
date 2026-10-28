@@ -94,6 +94,8 @@ export type StoryEntry =
       /** Of the crew, who left a check-in open that day — on site, their
           time unknown. The minutes leave them out; the lines must say so. */
       leftOpen: string[];
+      /** Why someone was there, where the phone's buttons said: name → "site meeting". */
+      reasons?: Record<string, string>;
     }
   | {
       kind: "photos";
@@ -344,6 +346,7 @@ export function buildJobStory(inputs: StoryInputs): StoryEntry[] {
          is, not in a feed line about a day's work. */
       crew: v.crew.map((c) => c.name),
       leftOpen: v.crew.filter((c) => c.leftOpen).map((c) => c.name),
+      ...(v.crew.some((c) => c.reason) ? { reasons: Object.fromEntries(v.crew.filter((c) => c.reason).map((c) => [c.name, c.reason!])) } : {}),
     });
   }
 

@@ -36,5 +36,5 @@ export async function GET(request: Request) {
   const seesAll = ctx.role === "owner" || ctx.caps.has("workboard_manage");
   const [crew, me] = await Promise.all([crewNotBooked(ctx.orgId, payload, tenant), seesAll ? Promise.resolve(null) : tenant().then((t) => staffUuidOf(ctx, t)).catch(() => null)]);
   const actual = seesAll || me ? await actualOn(ctx.orgId, day, seesAll ? null : me).catch(() => []) : [];
-  return ok({ ...payload, ...crew, actual, ...(gate.ok ? { canChange: true } : {}) });
+  return ok({ ...payload, ...crew, actual, ...(seesAll ? { canFix: true } : {}), ...(gate.ok ? { canChange: true } : {}) });
 }

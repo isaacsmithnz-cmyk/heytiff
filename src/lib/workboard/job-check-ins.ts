@@ -16,7 +16,7 @@ import { naiveInZone } from "./job-story";
 
    Still open and within the day, a stint runs to now, and says so. Pure. */
 
-export type CheckInRow = { id: string; userId: string; inAt: string; outAt: string | null };
+export type CheckInRow = { id: string; userId: string; inAt: string; outAt: string | null; reason?: string | null };
 
 /** Who a HeyTiff user is on the card: their name, and the ServiceM8 staff
     member they are, when that is known. */
@@ -30,7 +30,12 @@ export type OurSession = {
   end: string;
   /** still checked in, and counted to now */
   live: boolean;
+  /** why they were there, from the phone's buttons: site_meeting, helping; none is plain labour */
+  reason?: string | null;
 };
+
+/** A reason as the card says it. */
+export const REASON_WORDS: Record<string, string> = { site_meeting: "site meeting", helping: "helping out" };
 
 export const heyStaffId = (userId: string) => `hey:${userId}`;
 
@@ -46,7 +51,7 @@ export function ourSessions(
     const end = naiveInZone(r.outAt ?? now.toISOString(), timezone);
     if (!start || !end) continue;
     const who = people.get(r.userId);
-    out.push({ uuid: `hey:${r.id}`, staffId: who?.sm8StaffUuid ?? heyStaffId(r.userId), start, end, live: r.outAt === null });
+    out.push({ uuid: `hey:${r.id}`, staffId: who?.sm8StaffUuid ?? heyStaffId(r.userId), start, end, live: r.outAt === null, reason: r.reason ?? null });
   }
   return out;
 }

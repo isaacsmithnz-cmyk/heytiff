@@ -11,6 +11,7 @@ import { getOwnVehicle, listVehiclePicker, staffProfileIdFor } from "@/lib/fleet
 import { landSlot, openSlot } from "@/lib/documents/upload-slots";
 import { actAsPhoneUser, type MobileCtx } from "@/lib/mobile/auth";
 import { costDescription } from "@/lib/workboard/note-cost";
+import { choicesOf, type VehicleChoice } from "@/lib/mobile/vehicle-choices";
 
 /* EXPENSE CLAIMS ON THE PHONE (Isaac, 28 October 2026, "Looks good" on
    https://claude.ai/artifact/XaSepXSBuJq5FcAT8ZDE3o): More › Expense claims,
@@ -55,7 +56,7 @@ export type PhoneExpenses = {
   owed: number;
   today: string;
   /** the vehicles fuel can go on, yours first */
-  vehicles: { id: string; name: string; odometer: number }[];
+  vehicles: VehicleChoice[];
   ownVehicleId: string | null;
   /** no staff card: nothing can be filed */
   canFile: boolean;
@@ -87,12 +88,7 @@ export async function readPhoneExpenses(ctx: MobileCtx): Promise<PhoneExpenses> 
     listVehiclePicker(ctx.orgId).catch(() => []),
     getOwnVehicle(ctx.orgId, staffId).catch(() => null),
   ]);
-  const usable = picker.filter((v) => v.status !== "sold");
-  const vehicles = [...usable.filter((v) => v.id === own?.id), ...usable.filter((v) => v.id !== own?.id)].map((v) => ({
-    id: v.id,
-    name: [v.name, v.plate].filter((x) => x && x.trim()).join(", ") || `${v.make} ${v.model}`.trim(),
-    odometer: v.odometer,
-  }));
+  const vehicles = choicesOf(picker, own?.id ?? null);
   return {
     claims: claims.map(phoneClaim),
     owed: owedTotal(claims.filter((c) => c.paidWith === "own")),

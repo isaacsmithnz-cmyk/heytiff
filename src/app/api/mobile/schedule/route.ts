@@ -3,6 +3,8 @@ import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
 import { ok, requireMobile } from "@/lib/mobile/auth";
 import { changeAllowed } from "@/lib/mobile/schedule-gate";
 import { crewNotBooked } from "@/lib/mobile/schedule-crew";
+import { actualOn } from "@/lib/mobile/schedule-actual";
+import { staffUuidOf } from "@/lib/mobile/clock";
 
 /* ONE DAY OF THE DIARY for the phone's Today and Schedule: everyone's
    bookings on the day, with who's off, as the Schedule tab reads it
@@ -13,6 +15,11 @@ import { crewNotBooked } from "@/lib/mobile/schedule-crew";
    and `off`. And `canChange` where this person may change the day's
    bookings from the phone (lib/mobile/schedule-gate, Book in's gates): any
    day, as in ServiceM8 (Isaac, 27 October 2026).
+
+   And `actual`, what was actually done on the day beside its bookings
+   (lib/mobile/schedule-actual, Isaac 28 October 2026): everyone's for
+   someone who manages the schedule, otherwise only your own, since it's
+   people's hours.
 
    The day is a CHOICE the phone hands in, so it is held to a bare ISO date
    before it rides into a string comparison. */
@@ -26,6 +33,8 @@ export async function GET(request: Request) {
   }
   const [payload, gate] = await Promise.all([loadScheduleDay(ctx.orgId, day, { away: true }), changeAllowed(ctx)]);
   const tenant = async () => (gate.ok ? gate.state : await readSm8WriteState(ctx.orgId)).tenantId;
-  const crew = await crewNotBooked(ctx.orgId, payload, tenant);
-  return ok({ ...payload, ...crew, ...(gate.ok ? { canChange: true } : {}) });
+  const seesAll = ctx.role === "owner" || ctx.caps.has("workboard_manage");
+  const [crew, me] = await Promise.all([crewNotBooked(ctx.orgId, payload, tenant), seesAll ? Promise.resolve(null) : tenant().then((t) => staffUuidOf(ctx, t)).catch(() => null)]);
+  const actual = seesAll || me ? await actualOn(ctx.orgId, day, seesAll ? null : me).catch(() => []) : [];
+  return ok({ ...payload, ...crew, actual, ...(gate.ok ? { canChange: true } : {}) });
 }

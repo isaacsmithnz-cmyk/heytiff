@@ -90,7 +90,7 @@ test("ServiceM8's own check-in wins on the same job at the same time; the phone'
   const name = (u: string) => ({ jobUuid: u, number: u.slice(2), where: "" });
   const stints = [
     { id: "c-1", jobUuid: "j-3215", inAt: at("07:28"), outAt: at("09:24") },
-    { id: "c-2", jobUuid: "j-3304", inAt: at("12:55"), outAt: at("13:25") },
+    { id: "c-2", jobUuid: "j-3304", inAt: at("12:55"), outAt: at("13:25"), reason: "site_meeting" },
   ];
   const theirs = [{ jobUuid: "J-3215", from: at("07:27"), until: at("09:25") }];
   const { jobs, toSend } = mergeJobs(stints, theirs, name, at("15:00"));
@@ -100,6 +100,7 @@ test("ServiceM8's own check-in wins on the same job at the same time; the phone'
   ]);
   expect(toSend.map((s) => s.id)).toEqual(["c-2"]);
   expect(jobs[1]!.stintId).toBe("c-2");
+  expect(jobs[1]!.reason).toBe("site_meeting");
 });
 
 test("the normal day is a floor: a short or normal rostered day leaves it standing, only more is written", () => {

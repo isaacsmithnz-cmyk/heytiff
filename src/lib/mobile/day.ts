@@ -49,13 +49,21 @@ export type DayJob = ClockJob & {
   how: "phone" | "servicem8";
   /** the phone's stint it is, to send once */
   stintId?: string;
+  /** why you were there (site_meeting, helping), or plain labour */
+  reason?: string | null;
 };
+
+/** A stint of the phone's, with why you were there. */
+type Stint = CheckIn & { reason?: string | null };
+
+/** The reasons the phone's buttons give, as kept. */
+export const REASONS = ["site_meeting", "helping"] as const;
 
 export type DaySummary = {
   from: string;
   until: string;
   minutes: number;
-  jobs: (ClockJob & { from: string; until: string; minutes: number; how: DayJob["how"]; stintId?: string })[];
+  jobs: (ClockJob & { from: string; until: string; minutes: number; how: DayJob["how"]; stintId?: string; reason?: string | null })[];
   office: { minutes: number; spans: { from: string; until: string }[] };
   travel: number;
 };
@@ -65,7 +73,7 @@ export type DayPlace = ClockJob & { address: string; lat: number | null; lng: nu
 export type DayState = {
   day: { id: string; workDate: string; onAt: string; offAt: string | null } | null;
   /** where you are now: a job's stint, or the office */
-  at: { kind: "job"; job: ClockJob; since: string } | { kind: "office"; since: string } | null;
+  at: { kind: "job"; job: ClockJob; since: string; stintId: string; reason: string | null } | { kind: "office"; since: string } | null;
   jobs: DayJob[];
   summary: DaySummary | null;
   /** your normal day ("7:00 AM", "3:00 PM"): the morning ask starts an hour before it */
@@ -151,21 +159,22 @@ async function dayRow(ctx: MobileCtx, today: string): Promise<DayRow | null> {
 }
 
 /** The person's stints in the day. */
-async function stintsIn(ctx: MobileCtx, from: string, until: string | null): Promise<CheckIn[]> {
+async function stintsIn(ctx: MobileCtx, from: string, until: string | null): Promise<Stint[]> {
   let q = supabaseAdmin
     .from("job_check_ins")
-    .select("id, sm8_job_uuid, checked_in_at, checked_out_at")
+    .select("id, sm8_job_uuid, checked_in_at, checked_out_at, reason")
     .eq("org_id", ctx.orgId)
     .eq("user_id", ctx.userId)
     .gte("checked_in_at", from)
     .order("checked_in_at", { ascending: true });
   if (until) q = q.lte("checked_in_at", until);
   const { data } = await q;
-  return ((data ?? []) as { id: string; sm8_job_uuid: string; checked_in_at: string; checked_out_at: string | null }[]).map((r) => ({
+  return ((data ?? []) as { id: string; sm8_job_uuid: string; checked_in_at: string; checked_out_at: string | null; reason: string | null }[]).map((r) => ({
     id: r.id,
     jobUuid: r.sm8_job_uuid,
     inAt: r.checked_in_at,
     outAt: r.checked_out_at,
+    reason: r.reason,
   }));
 }
 
@@ -206,16 +215,16 @@ const overlaps = (a: { from: string; until: string | null }, b: { from: string; 
    the same job at the same time as the phone's stint; the phone's stints
    fill everything else, and are the ones that still need sending. */
 export function mergeJobs(
-  stints: CheckIn[],
+  stints: Stint[],
   theirs: { jobUuid: string; from: string; until: string }[],
   name: (jobUuid: string) => ClockJob,
   now: string
-): { jobs: DayJob[]; toSend: CheckIn[] } {
+): { jobs: DayJob[]; toSend: Stint[] } {
   const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
   const mine = stints.filter((s) => !theirs.some((t) => same(t.jobUuid, s.jobUuid) && overlaps({ from: s.inAt, until: s.outAt }, t, now)));
   const jobs: DayJob[] = [
     ...theirs.map((t) => ({ ...name(t.jobUuid), from: t.from, until: t.until, how: "servicem8" as const })),
-    ...mine.map((s) => ({ ...name(s.jobUuid), from: s.inAt, until: s.outAt, how: "phone" as const, stintId: s.id })),
+    ...mine.map((s) => ({ ...name(s.jobUuid), from: s.inAt, until: s.outAt, how: "phone" as const, stintId: s.id, reason: s.reason ?? null })),
   ].sort((a, b) => (a.from < b.from ? -1 : 1));
   return { jobs, toSend: mine };
 }
@@ -231,7 +240,7 @@ export function sheetCall(p: { entered: boolean; rostered: boolean; casual: bool
 }
 
 /** The day's jobs, read: the phone's stints and ServiceM8's own check-ins, merged. */
-async function jobsIn(ctx: MobileCtx, day: DayRow, now: string): Promise<{ jobs: DayJob[]; toSend: CheckIn[] }> {
+async function jobsIn(ctx: MobileCtx, day: DayRow, now: string): Promise<{ jobs: DayJob[]; toSend: Stint[] }> {
   const until = day.off_at ?? now;
   const zone = await zoneOf(ctx.orgId);
   const state = await readSm8WriteState(ctx.orgId).catch(() => null);
@@ -295,7 +304,10 @@ export async function readDay(ctx: MobileCtx, now: number = Date.now(), until?: 
   if (!row.off_at) {
     const open = await openCheckIn(ctx.orgId, ctx.userId);
     const stop = office[office.length - 1];
-    if (open && open.inAt >= row.on_at) at = { kind: "job", job: (await jobsOf(ctx.orgId, [open.jobUuid])).get(open.jobUuid.toLowerCase()) ?? { jobUuid: open.jobUuid, number: null, where: "" }, since: open.inAt };
+    if (open && open.inAt >= row.on_at) {
+      const reason = jobs.find((j) => j.stintId === open.id)?.reason ?? null;
+      at = { kind: "job", job: (await jobsOf(ctx.orgId, [open.jobUuid])).get(open.jobUuid.toLowerCase()) ?? { jobUuid: open.jobUuid, number: null, where: "" }, since: open.inAt, stintId: open.id, reason };
+    }
     else if (stop && !stop.until) at = { kind: "office", since: stop.from };
   }
   return {
@@ -429,6 +441,30 @@ export async function changeStint(ctx: MobileCtx, id: unknown, from: unknown, un
     .eq("id", stintId);
   if (error) return { ok: false, error: DAY_WORDS.noStint, status: 400 };
   return { ok: true, state: await readDay(ctx, now), said: DAY_WORDS.changed };
+}
+
+/** Why you're at a job, on the stint you're on there (or the one you just left), while the day is on.
+    A reason the buttons don't give, or none, is plain labour. */
+export async function setReason(ctx: MobileCtx, jobUuid: unknown, reason: unknown, now: number = Date.now()): Promise<DayAnswer> {
+  const day = await openDay(ctx);
+  if (!day) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
+  const j = jobOf(jobUuid);
+  if (!j) return { ok: false, error: DAY_WORDS.noJob, status: 404 };
+  const why = typeof reason === "string" && (REASONS as readonly string[]).includes(reason) ? reason : null;
+  const spell = [...new Set([j, j.toLowerCase(), j.toUpperCase()])];
+  const { data } = await supabaseAdmin
+    .from("job_check_ins")
+    .select("id")
+    .eq("org_id", ctx.orgId)
+    .eq("user_id", ctx.userId)
+    .in("sm8_job_uuid", spell)
+    .gte("checked_in_at", day.on_at)
+    .order("checked_in_at", { ascending: false })
+    .limit(1);
+  const id = ((data ?? []) as { id: string }[])[0]?.id;
+  if (!id) return { ok: false, error: DAY_WORDS.noStint, status: 404 };
+  await supabaseAdmin.from("job_check_ins").update({ reason: why }).eq("org_id", ctx.orgId).eq("id", id);
+  return { ok: true, state: await readDay(ctx, now), said: "" };
 }
 
 /** "3:00 PM", the timesheet's way, from an instant on the account's clock. */

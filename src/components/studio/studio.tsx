@@ -116,7 +116,6 @@ import { useNoteScopeScreen } from "@/components/notes/note-context";
 import { TIFF_APPLY, type TiffApply } from "@/lib/brain/ask-client";
 import type { RoofReading } from "@/lib/studio/reading";
 import { DesignHome } from "./home";
-import { NewDesign } from "./new-design";
 import { RoomsFromPlan } from "./rooms-from-plan";
 import { ALL_FLOORS, View3D, type Look3D } from "./view-3d";
 import { sceneOf, type Scene3D } from "@/lib/studio/scene3d";
@@ -803,13 +802,11 @@ export function Studio({
 
   /* ── the menu's Start again and Delete design ── */
   const [asking, setAsking] = useState<"again" | "delete" | null>(null);
-  /* the plans step a new design from plans opens on, over this design */
-  const [plansAgain, setPlansAgain] = useState(false);
   /* a new editor for the design started again: no undo back into what it cleared */
   const [restartCount, setRestartCount] = useState(0);
 
-  /* Confirmed: the design keeps its id, name and job and loses everything
-     else, saved behind any save already on its way, then the plans step. */
+  /* Confirmed: the design keeps its plans and rooms and loses what was
+     added on them, saved behind any save already on its way, on the canvas. */
   const startAgain = useCallback(() => {
     const cur = latestDoc.current;
     if (!cur) return;
@@ -819,8 +816,7 @@ export function Studio({
     setRestartCount((n) => n + 1);
     setSaveState("saving");
     setDoc(fresh);
-    setStep(0);
-    setPlansAgain(true);
+    setStep(fresh.meta.mode === "blank" || fresh.floors.length > 0 ? 1 : 0);
   }, [settleSaves]);
 
   /* A design deleted goes for good: none of its saves still on the way may
@@ -941,7 +937,7 @@ export function Studio({
             }}
             onClose={() => setAsking(null)}
           >
-            Its rooms, systems, pipe runs, notes and plans are cleared. {doc.jobLink ? "It keeps its name and its job." : "It keeps its name."}
+            Its systems, units, pipe runs and notes are cleared. {doc.jobLink ? "It keeps its plans, its rooms, its name and its job." : "It keeps its plans, its rooms and its name."}
           </ConfirmDialog>
           <ConfirmDialog
             open={asking === "delete"}
@@ -956,42 +952,10 @@ export function Studio({
           >
             The design, its floors and its systems go for good.
           </ConfirmDialog>
-          {plansAgain && (
-            <NewDesign
-              again={{ name: doc.meta.name, job: doc.jobLink ? jobWordOf(doc) : null }}
-              jobSearch={jobSearchFn}
-              planImages={planImagesInst}
-              onBlank={(name) => {
-                setPlansAgain(false);
-                const fresh = startedAgain(doc);
-                const d: DesignDocument = {
-                  ...fresh,
-                  meta: { ...fresh.meta, name, mode: "blank" },
-                  floors: createDesign({ name, mode: "blank" }).floors,
-                };
-                void throughSwap(async () => {
-                  await saveDoc(d);
-                  return d;
-                }, openDesign);
-              }}
-              onPlans={async (name, _job, floors, planImport) => {
-                const fresh = startedAgain(doc);
-                await openFromPlans({ ...fresh, meta: { ...fresh.meta, name }, floors, planImport });
-                setPlansAgain(false);
-              }}
-              onClose={() => setPlansAgain(false)}
-            />
-          )}
         </>
       )}
     </div>
   );
-}
-
-/* The job a design is on, as Home's list says it. */
-function jobWordOf(doc: DesignDocument): string {
-  const number = doc.meta.jobNumber.trim() || doc.jobLink?.jobNumber || "";
-  return [number, doc.meta.client.trim()].filter(Boolean).join(" ") || "On a job";
 }
 
 /* Tiff's reading of a design's plans, from the server (api/studio/read-plans).

@@ -1,13 +1,14 @@
 /* The menu's Start again and Delete design (Isaac, 27 October 2026: "make
    it so that you can restart a design or delete the existing design and
-   start again ... Start again should bring you back to the part where you
-   upload plans for the first time").
+   start again"; and 28 October, after it took the plans with it: "it should
+   just clear your things that you've added onto the plan. But not lose any
+   of the data of the plans. Like the room sizes and all that").
 
-   What has to hold: both ask first; Start again keeps the design's id, name
-   and job and clears the rest, then opens the same plans step a new design
-   from plans opens on, and what is uploaded there is read and built as a new
-   design's would be; a save already on its way can't write the old design
-   back over the cleared one; and Delete design deletes, then lands on Home. */
+   What has to hold: both ask first; Start again keeps the design's id, name,
+   job, floors, plans, rooms, settings and Tiff's reading, clears the systems
+   and everything on them, and stays on the canvas; a save already on its way
+   can't write the old design back over the cleared one; and Delete design
+   deletes, then lands on Home. */
 
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -52,7 +53,7 @@ class FakePlanImages implements PlanImages {
   async remove() {}
 }
 
-/* a design on job 3151 with a floor, a room, a system and Tiff's reading */
+/* a design on job 3151 with a floor, a room on a system, its unit, and Tiff's reading */
 function drawn(): DesignDocument {
   const d = createDesign({
     name: "Farran St",
@@ -69,11 +70,20 @@ function drawn(): DesignDocument {
     {
       id: "rm1",
       type: "room",
-      systemId: null,
+      systemId: "sys1",
       floorId,
       geometry: { kind: "polygon", points: [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 200 }, { x: 0, y: 200 }] },
       plane: "room",
       props: { name: "Lounge", shape: "rect" },
+    },
+    {
+      id: "u1",
+      type: "unit",
+      systemId: "sys1",
+      floorId,
+      geometry: { kind: "point", at: { x: 100, y: 20 } },
+      plane: "room",
+      props: { role: "idu", model: "MSZ-AP35VGD", roomId: "rm1" },
     },
   ];
   d.settings = { ...d.settings, climateZone: "6" };
@@ -122,7 +132,7 @@ describe("the Studio menu's Start again and Delete design", () => {
     await menuPick(user, "Start again");
 
     const ask = screen.getByRole("dialog", { name: "Start this design again?" });
-    expect(ask).toHaveTextContent("Its rooms, systems, pipe runs, notes and plans are cleared. It keeps its name and its job.");
+    expect(ask).toHaveTextContent("Its systems, units, pipe runs and notes are cleared. It keeps its plans, its rooms, its name and its job.");
     await user.click(within(ask).getByRole("button", { name: "Keep the design" }));
 
     expect(screen.queryByRole("dialog", { name: "Start this design again?" })).toBeNull();
@@ -130,52 +140,31 @@ describe("the Studio menu's Start again and Delete design", () => {
     expect(screen.getByTestId("studio-canvas")).toBeInTheDocument();
     await new Promise((r) => setTimeout(r, 700)); // past the autosave's wait
     const kept = stored(doc.id)!;
-    expect(kept.objects).toHaveLength(1);
+    expect(kept.objects).toHaveLength(2);
     expect(kept.systems).toHaveLength(1);
     expect(kept.floors).toHaveLength(1);
   });
 
-  it("confirmed, clears the design but its name and job, then opens the plans step a new design opens on", async () => {
+  it("confirmed, clears the systems and what's on them, and keeps the plans, the rooms and the rest, on the canvas", async () => {
     const doc = drawn();
-    const reader = jest.fn<ReturnType<PlanReader>, Parameters<PlanReader>>(async () => ({ floors: {} }) as never);
-    const fake = new FakePlanImages();
-    const user = await openOn(doc, { planReader: reader, planImages: fake });
+    const user = await openOn(doc);
     await menuPick(user, "Start again");
     await user.click(within(screen.getByRole("dialog", { name: "Start this design again?" })).getByRole("button", { name: "Start again" }));
 
-    const plans = await screen.findByRole("dialog", { name: "Start again" });
-    expect(within(plans).getByText("Drop the plans")).toBeInTheDocument();
-    expect(within(plans).getByPlaceholderText(/Design name/)).toHaveValue("Farran St");
-    expect(within(plans).getByText("3151 Diamond Air")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Start again" })).toBeNull();
+    expect(screen.getByTestId("studio-canvas")).toBeInTheDocument();
 
-    await waitFor(() => expect(stored(doc.id)!.objects).toHaveLength(0));
+    await waitFor(() => expect(stored(doc.id)!.systems).toHaveLength(0));
     const cleared = stored(doc.id)!;
     expect(cleared.id).toBe(doc.id);
     expect(cleared.meta.name).toBe("Farran St");
-    expect(cleared.meta.mode).toBe("plan");
     expect(cleared.meta.createdAt).toBe(doc.meta.createdAt);
     expect([cleared.meta.jobNumber, cleared.meta.client, cleared.meta.site]).toEqual(["3151", "Diamond Air", "12 Farran St"]);
     expect(cleared.jobLink).toEqual(doc.jobLink);
-    expect(cleared.floors).toEqual([]);
-    expect(cleared.systems).toEqual([]);
-    expect(cleared.planImport).toBeNull();
-    expect(cleared.settings.climateZone).toBeNull();
-    expect(cleared.reading ?? null).toBeNull();
-
-    /* and the plans go in exactly as a new design's do: stored, built, read */
-    pdfToPages.mockResolvedValue([page(1)]);
-    fireEvent.change(document.querySelector('.pt-dialog input[type="file"]')!, {
-      target: { files: [new File(["%PDF"], "set.pdf", { type: "application/pdf" })] },
-    });
-    await user.click(await screen.findByRole("button", { name: "Start design, 1 floor" }));
-    expect(await screen.findByTestId("studio-canvas")).toBeInTheDocument();
-    await waitFor(() => expect(stored(doc.id)!.floors).toHaveLength(1));
-    const rebuilt = stored(doc.id)!;
-    expect(rebuilt.floors[0].plans[0].imageRef).toBe("org/o1/up_1.png");
-    expect(rebuilt.planImport?.sources).toEqual([{ ref: "org/o1/src_1.pdf", kind: "pdf" }]);
-    expect(rebuilt.jobLink).toEqual(doc.jobLink);
-    expect(reader).toHaveBeenCalledWith(doc.id);
-    expect(fake.uploads).toBe(1);
+    expect(cleared.floors).toEqual(doc.floors);
+    expect(cleared.objects).toEqual([{ ...doc.objects[0], systemId: null }]);
+    expect(cleared.settings.climateZone).toBe("6");
+    expect(cleared.reading).toEqual(doc.reading);
     // the same design, not a second one beside it
     expect(JSON.parse(window.localStorage.getItem("heytiff.studio.index")!)).toHaveLength(1);
   });
@@ -211,20 +200,19 @@ describe("the Studio menu's Start again and Delete design", () => {
 
     await menuPick(user, "Start again");
     await user.click(within(screen.getByRole("dialog", { name: "Start this design again?" })).getByRole("button", { name: "Start again" }));
-    await screen.findByRole("dialog", { name: "Start again" });
 
     /* the cleared design waits behind the save in flight */
     await new Promise((r) => setTimeout(r, 900));
-    expect(store.calls.every((d) => d.objects.length === 1)).toBe(true);
+    expect(store.calls.every((d) => d.systems.length === 1)).toBe(true);
 
     /* the old save lands late; the cleared one still lands after it */
     store.hold = false;
     [...store.held].reverse().forEach((go) => go());
-    await waitFor(() => expect(store.server?.objects).toHaveLength(0));
+    await waitFor(() => expect(store.server?.systems).toHaveLength(0));
     expect(store.server!.id).toBe(doc.id);
     expect(store.server!.meta.name).toBe("Farran St!");
     await new Promise((r) => setTimeout(r, 700));
-    expect(store.server!.objects).toHaveLength(0);
+    expect(store.server!.objects).toHaveLength(1);
     expect(store.server!.systems).toHaveLength(0);
   });
 

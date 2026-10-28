@@ -134,7 +134,6 @@ export function NewDesign({
   onBlank,
   onPlans,
   onClose,
-  again,
   forJob,
 }: {
   sm8Jobs?: boolean;
@@ -144,9 +143,6 @@ export function NewDesign({
   /** opens the design on the canvas; resolves once it's saved */
   onPlans: (name: string, job: JobPrefill | undefined, floors: Floor[], planImport: PlanImport) => Promise<void>;
   onClose: () => void;
-  /** the menu's Start again: the open design, on its name and its job, which
-      this dialog leaves as they are */
-  again?: { name: string; job: string | null };
   /** the job it's started on, from the quote's Design step (Isaac, 28
       October 2026): fixed, its street the name, nothing to search for */
   forJob?: JobPrefill;
@@ -156,7 +152,7 @@ export function NewDesign({
   /* held from the first draw: the studio lets go of the job it was opened
      on as the design is saved, and the dialog keeps it till it closes */
   const [fixed] = useState<JobPrefill | null>(forJob ?? null);
-  const [name, setName] = useState(again?.name ?? forJob?.name ?? "");
+  const [name, setName] = useState(forJob?.name ?? "");
   const [pages, setPages] = useState<PageImage[]>([]);
   const [sources, setSources] = useState<Source[]>([]);
   const [ticked, setTicked] = useState<number[]>([]);
@@ -195,8 +191,8 @@ export function NewDesign({
 
   const job = fixed ?? (picked ? prefillFromJob(picked) : undefined);
   const designName = name.trim() || "Untitled design";
-  const heading = again ? "Start again" : "New design";
-  const jobWord = again ? again.job : job?.jobNumber ? `job ${job.jobNumber}` : null;
+  const heading = "New design";
+  const jobWord = job?.jobNumber ? `job ${job.jobNumber}` : null;
 
   const pickJob = (hit: StudioJobHit) => {
     setPicked(hit);
@@ -355,13 +351,6 @@ export function NewDesign({
       <Dialog heading={heading} onClose={onClose} width={720} dismissable={stage === "start"} foot={<Button onClick={onClose}>Cancel</Button>}>
         {filePicker}
         <div className="ds2-nd-form">
-          {again?.job && (
-            <Field label="Job">
-              <div className="ds2-nd-job">
-                <b>{again.job}</b>
-              </div>
-            </Field>
-          )}
           {fixed && (
             <Field label="Job">
               <div className="ds2-nd-job">
@@ -370,7 +359,7 @@ export function NewDesign({
               </div>
             </Field>
           )}
-          {sm8Jobs && !again && !fixed && (
+          {sm8Jobs && !fixed && (
             <Field label="Job">
               {picked ? (
                 <div className="ds2-nd-job">
@@ -385,7 +374,7 @@ export function NewDesign({
           )}
           <Field label="Name">
             <TextInput
-              data-autofocus={sm8Jobs && !again && !fixed ? undefined : true}
+              data-autofocus={sm8Jobs && !fixed ? undefined : true}
               placeholder="Design name, e.g. 14 Harbour View Rd"
               value={name}
               onChange={(e) => setName(e.target.value)}

@@ -2,7 +2,7 @@
    address, which business a forwarded email is for, and only a post Resend
    signed, sent just now. */
 import { createHmac } from "node:crypto";
-import { addressOf, emailInAddress, keptAttachments, nameOf, newEmailToken, senderVouchedFor, signedByResend, textOfEmail, tokenFromRecipients } from "../inbound";
+import { addressOf, emailInAddress, keptAttachments, nameOf, newEmailToken, senderForged, signedByResend, textOfEmail, tokenFromRecipients } from "../inbound";
 
 it("makes an address no one could guess or misread", () => {
   const a = newEmailToken();
@@ -45,12 +45,16 @@ describe("a post Resend signed", () => {
   });
 });
 
-it("takes a sender only when their own mail server vouched for them", () => {
-  expect(senderVouchedFor({ spf: "pass", dkim: "pass", dmarc: "pass" })).toBe(true);
-  expect(senderVouchedFor({ spf: "fail", dkim: "pass", dmarc: "gray" })).toBe(true);
-  expect(senderVouchedFor({ spf: "pass", dkim: "fail", dmarc: "fail" })).toBe(false);
-  expect(senderVouchedFor({ spf: "gray", dkim: "gray", dmarc: "gray" })).toBe(false);
-  expect(senderVouchedFor(null)).toBe(false);
+it("refuses a sender only when the receiver found them forged, never for a domain that publishes nothing", () => {
+  expect(senderForged({ spf: "pass", dkim: "pass", dmarc: "pass" })).toBe(false);
+  expect(senderForged({ spf: "fail", dkim: "pass", dmarc: "gray" })).toBe(false);
+  expect(senderForged({ spf: "pass", dkim: "fail", dmarc: "fail" })).toBe(true);
+  expect(senderForged({ spf: "fail", dkim: "none", dmarc: "none" })).toBe(true);
+  expect(senderForged({ spf: "neutral", dkim: "fail", dmarc: "none" })).toBe(true);
+  // no SPF, DKIM or DMARC to check (Diamond Air, 28 October 2026), or nothing judged
+  expect(senderForged({ spf: "gray", dkim: "gray", dmarc: "gray" })).toBe(false);
+  expect(senderForged({ spf: "softfail", dkim: "none", dmarc: "none" })).toBe(false);
+  expect(senderForged(null)).toBe(false);
 });
 
 it("keeps an email's words, from its text or else its HTML", () => {

@@ -68,3 +68,8 @@
 .pt-dialog .st2-int-pchoose { width:280px; }
 .pt-dialog .st2-int-plinked { display:flex; flex-direction:column; align-items:flex-start; gap:4px; margin-top:12px; padding-top:8px; border-top:1px solid var(--line); }
 .pt-dialog .st2-int-plinked .st2-int-people { align-self:stretch; }
+
+/* EMAIL TO TIFF (email-group.tsx, 28 October 2026): the address in bold, and
+   Copy beside it; a long address wraps rather than leaves the column */
+.fg .int-email { display:inline-flex; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; }
+.fg .int-email-addr { font-weight:600; overflow-wrap:anywhere; }

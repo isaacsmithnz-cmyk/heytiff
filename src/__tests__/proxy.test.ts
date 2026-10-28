@@ -23,7 +23,7 @@ jest.mock("@/lib/auth0", () => ({
 }));
 
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
-import { config, MOBILE_PATH, proxy } from "@/proxy";
+import { config, EMAIL_IN_PATH, MOBILE_PATH, proxy } from "@/proxy";
 import { HOOK_PATH } from "@/lib/integrations/sm8-hook-plan";
 
 const env = process.env;
@@ -164,6 +164,29 @@ describe("the phone's routes", () => {
     for (const url of ["/api/mobilex", "/api/mobile", "/dashboard/mobile/", `/x${MOBILE_PATH}me`]) {
       expect([url, runs(url)]).toEqual([url, true]);
     }
+  });
+});
+
+/* Resend's post of an email sent to Tiff is a machine's, signed, and the
+   route checks the signature: it is neither moved nor given the session's
+   work, and only that one path is let through (28 October 2026). */
+describe("email to Tiff", () => {
+  test("the path let through is where the route lives", () => {
+    expect(existsSync(join(__dirname, "..", "app", EMAIL_IN_PATH, "route.ts"))).toBe(true);
+  });
+
+  test("reaches the route on any host: no move, no session work", async () => {
+    for (const host of ["heytiff.vercel.app", "go.hey-tiff.com"]) {
+      const res = await proxy(new NextRequest(`https://${host}${EMAIL_IN_PATH}`, { method: "POST", headers: { host } }));
+      expect([host, res.status, res.headers.get("location")]).toEqual([host, 200, null]);
+    }
+    expect(middlewareSpy).not.toHaveBeenCalled();
+  });
+
+  test("the matcher leaves out that path, and only it", () => {
+    const runs = (url: string) => unstable_doesMiddlewareMatch({ config, url });
+    expect(runs(EMAIL_IN_PATH)).toBe(false);
+    for (const url of ["/api/email/inbox", "/api/email", "/dashboard/email/in"]) expect([url, runs(url)]).toEqual([url, true]);
   });
 });
 

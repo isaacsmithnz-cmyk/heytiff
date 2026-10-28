@@ -28,6 +28,14 @@ jest.mock("../load", () => ({
   loadXero: (...a: unknown[]) => loadXero(...a),
 }));
 
+/* Tiff's email address and what came in last (28 October 2026): read beside the apps */
+const readEmailAddress = jest.fn(async (..._a: unknown[]): Promise<unknown> => null);
+const lastEmailIn = jest.fn(async (..._a: unknown[]): Promise<unknown> => null);
+jest.mock("@/lib/email/inbound-server", () => ({
+  readEmailAddress: (...a: unknown[]) => readEmailAddress(...a),
+  lastEmailIn: (...a: unknown[]) => lastEmailIn(...a),
+}));
+
 import IntegrationsPage from "../page";
 import Servicem8IntegrationPage from "../servicem8/page";
 import XeroIntegrationPage from "../xero/page";
@@ -45,6 +53,17 @@ beforeEach(() => {
 });
 
 describe("the page", () => {
+  it("hands Email to Tiff the business's address and what came in last", async () => {
+    readEmailAddress.mockResolvedValueOnce({ token: "k7m2q9xwab", madeAt: "2026-10-29T00:00:00Z" });
+    lastEmailIn.mockResolvedValueOnce({ at: "2026-10-29T22:12:00Z", fromName: "Isaac Smith", fromAddress: "isaac@x.au", subject: "Fw: Tender", state: "refused" });
+    const props = await page();
+    expect(readEmailAddress).toHaveBeenCalledWith("org-1");
+    expect(props.email).toEqual({
+      address: "tiff-k7m2q9xwab@in.hey-tiff.com",
+      last: { at: "2026-10-29T22:12:00Z", from: "Isaac Smith", subject: "Fw: Tender", refused: true },
+    });
+  });
+
   it("is owner-only: anyone else goes to the dashboard, nobody signed in to sign in", async () => {
     role = "admin";
     await expect(page()).rejects.toThrow("redirect /dashboard");
@@ -58,7 +77,7 @@ describe("the page", () => {
     const props = await page();
     expect(loadServicem8).toHaveBeenCalledWith("org-1", {});
     expect(loadXero).toHaveBeenCalledWith("org-1", {});
-    expect(props).toEqual({ servicem8: { app: "servicem8" }, xero: { app: "xero" } });
+    expect(props).toEqual({ servicem8: { app: "servicem8" }, xero: { app: "xero" }, email: { address: null, last: null } });
   });
 
   it("reads them side by side, not one after the other", async () => {

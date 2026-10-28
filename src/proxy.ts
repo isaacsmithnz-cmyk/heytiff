@@ -90,12 +90,19 @@ const HOOK_PATH = "/api/integrations/servicem8/webhook/";
    would answer every call from the phone with a 401 it could not explain. */
 export const MOBILE_PATH = "/api/mobile/";
 
+/* EMAIL TO TIFF IS LET THROUGH TOO (28 October 2026). Resend posts each email
+   sent to a business's Tiff address here; it is a machine's call, signed,
+   and the route's own check of that signature (api/email/in) is the whole
+   gate. A 308 would lose the post, and there is no session to roll. */
+export const EMAIL_IN_PATH = "/api/email/in";
+
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   if (path.startsWith(CRON_PATH)) return NextResponse.next();
   if (path.startsWith(HOOK_PATH)) return NextResponse.next();
   if (path.startsWith(MOBILE_PATH)) return NextResponse.next();
+  if (path === EMAIL_IN_PATH) return NextResponse.next();
 
   const moved = canonicalHostRedirect(request);
   if (moved) return moved;
@@ -162,6 +169,6 @@ export const config = {
      (MOBILE_PATH); the checks at the top of proxy() stay, for a matcher that
      ever drifts. proxy.test holds both. */
   matcher: [
-    "/((?!_next/static|_next/image|brand/|favicon.ico|sitemap.xml|robots.txt|api/integrations/servicem8/webhook/|api/mobile/).*)",
+    "/((?!_next/static|_next/image|brand/|favicon.ico|sitemap.xml|robots.txt|api/integrations/servicem8/webhook/|api/mobile/|api/email/in$).*)",
   ],
 };

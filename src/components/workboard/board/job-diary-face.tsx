@@ -579,8 +579,8 @@ function DiaryEntry({
           </div>
           <div className="wb2-evmeta">
             {entry.crew
-              .map((name) => (open.has(name) ? `${name}, check-in left open` : name))
-              .join(open.size > 0 ? " — " : ", ") || "Nobody named"}
+              .map((name) => (open.has(name) ? `${name}, check-in left open` : entry.reasons?.[name] ? `${name}, ${entry.reasons[name]}` : name))
+              .join(open.size > 0 || entry.reasons ? " — " : ", ") || "Nobody named"}
           </div>
         </Ev>
       );

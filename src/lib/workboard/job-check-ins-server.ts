@@ -14,15 +14,16 @@ export async function readJobCheckInSessions(
 ): Promise<{ sessions: OurSession[]; names: Map<string, string> }> {
   const { data } = await supabaseAdmin
     .from("job_check_ins")
-    .select("id, user_id, checked_in_at, checked_out_at")
+    .select("id, user_id, checked_in_at, checked_out_at, reason")
     .eq("org_id", orgId)
     .eq("sm8_job_uuid", jobUuid)
     .order("checked_in_at", { ascending: true });
-  const rows: CheckInRow[] = ((data ?? []) as { id: string; user_id: string; checked_in_at: string; checked_out_at: string | null }[]).map((r) => ({
+  const rows: CheckInRow[] = ((data ?? []) as { id: string; user_id: string; checked_in_at: string; checked_out_at: string | null; reason?: string | null }[]).map((r) => ({
     id: r.id,
     userId: r.user_id,
     inAt: r.checked_in_at,
     outAt: r.checked_out_at,
+    reason: r.reason ?? null,
   }));
   if (rows.length === 0) return { sessions: [], names: new Map() };
 

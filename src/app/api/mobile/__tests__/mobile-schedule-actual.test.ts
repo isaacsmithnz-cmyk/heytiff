@@ -48,9 +48,9 @@ import { actualOn } from "@/lib/mobile/schedule-actual";
 const ORG = "org-1";
 beforeEach(() => {
   tables.sm8_job_activities = [
-    { org_id: ORG, active: 1, activity_was_scheduled: 0, job_uuid: "j-3215", staff_uuid: "sm8-alex", start_date: "2026-10-27 07:27:47", end_date: "2026-10-27 09:25:53" },
-    { org_id: ORG, active: 1, activity_was_scheduled: 0, job_uuid: "j-2771", staff_uuid: "sm8-leonardo", start_date: "2026-10-27 06:58:13", end_date: "2026-10-28 06:09:32" },
-    { org_id: ORG, active: 1, activity_was_scheduled: 1, job_uuid: "j-3304", staff_uuid: "sm8-leonardo", start_date: "2026-10-27 07:00:00", end_date: "2026-10-27 15:00:00" },
+    { org_id: ORG, uuid: "act-alex", active: 1, activity_was_scheduled: 0, job_uuid: "j-3215", staff_uuid: "sm8-alex", start_date: "2026-10-27 07:27:47", end_date: "2026-10-27 09:25:53" },
+    { org_id: ORG, uuid: "act-leonardo", active: 1, activity_was_scheduled: 0, job_uuid: "j-2771", staff_uuid: "sm8-leonardo", start_date: "2026-10-27 06:58:13", end_date: "2026-10-28 06:09:32" },
+    { org_id: ORG, uuid: "act-booked", active: 1, activity_was_scheduled: 1, job_uuid: "j-3304", staff_uuid: "sm8-leonardo", start_date: "2026-10-27 07:00:00", end_date: "2026-10-27 15:00:00" },
   ];
   tables.job_check_ins = [
     /* Alex's phone at 3215 at the same time: ServiceM8's wins */
@@ -60,6 +60,7 @@ beforeEach(() => {
     /* someone with no link to ServiceM8: nobody to put it on */
     { org_id: ORG, sm8_job_uuid: "j-9999", user_id: "auth0|nobody", checked_in_at: "2026-10-27T01:00:00.000Z", checked_out_at: null, reason: null },
   ];
+  tables.check_in_fixes = [];
   tables.sm8_jobs = [
     { org_id: ORG, uuid: "j-2771", generated_job_id: "2771", job_address: "46 Gordon Street\nClontarf NSW 2093", geo_city: "Clontarf", status: "Work Order", category_uuid: "cat-service" },
     { org_id: ORG, uuid: "j-3215", generated_job_id: "3215", job_address: "29 Wemyss St\nEnmore NSW 2042", geo_city: "Enmore", status: "Work Order", category_uuid: "cat-install" },
@@ -85,4 +86,10 @@ test("everyone's actual time: ServiceM8's check-ins, the phone's stints on the w
 
 test("one person's actual time only, when that's all they may see", async () => {
   expect((await actualOn(ORG, "2026-10-27", "sm8-alex")).map((a) => a.jobUuid)).toEqual(["j-3215", "j-3304"]);
+});
+
+test("a check-in left on that's been fixed ends where it was fixed, and counts", async () => {
+  tables.check_in_fixes = [{ org_id: ORG, sm8_activity_uuid: "act-leonardo", ends_at: "2026-10-27 15:00:00" }];
+  const leo = (await actualOn(ORG, "2026-10-27", "sm8-leonardo"))[0]!;
+  expect(leo).toEqual(expect.objectContaining({ activityUuid: "act-leonardo", end: "2026-10-27 15:00:00", leftOn: false, fixed: true }));
 });

@@ -7,6 +7,7 @@ import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
 import { listSm8StaffLinks } from "@/lib/integrations/links";
 import { sm8CheckInLeftOpen } from "@/lib/workboard/all-jobs";
 import { streetLine } from "@/lib/studio/job-link";
+import { readCheckInFixes } from "@/lib/workboard/check-in-fixes";
 import { wallMinute } from "./clock";
 
 /* WHAT WAS ACTUALLY DONE ON A DAY, beside its bookings (Isaac, 28 October
@@ -41,6 +42,10 @@ export type ActualSpan = {
   where: string;
   colour: string | null;
   status: string | null;
+  /** ServiceM8's check-in it is, for fixing one left on */
+  activityUuid?: string;
+  /** its end was fixed in HeyTiff */
+  fixed?: boolean;
 };
 
 const low = (s: string) => s.toLowerCase();
@@ -52,7 +57,7 @@ export async function actualOn(orgId: string, dayISO: string, only: string | nul
   const ceil = `${nextDay(dayISO)} 00:00:00`;
   let q = supabaseAdmin
     .from("sm8_job_activities")
-    .select("job_uuid, staff_uuid, start_date, end_date")
+    .select("uuid, job_uuid, staff_uuid, start_date, end_date")
     .eq("org_id", orgId)
     .eq("active", 1)
     .eq("activity_was_scheduled", 0)
@@ -61,21 +66,31 @@ export async function actualOn(orgId: string, dayISO: string, only: string | nul
   if (only) q = q.in("staff_uuid", [...new Set([only, low(only), only.toUpperCase()])]);
   const [{ data: recorded }, zone, state] = await Promise.all([q, bookingZone(orgId), readSm8WriteState(orgId).catch(() => null)]);
 
-  const theirs: ActualSpan[] = ((recorded ?? []) as { job_uuid: string | null; staff_uuid: string | null; start_date: string | null; end_date: string | null }[])
-    .filter((r): r is { job_uuid: string; staff_uuid: string; start_date: string; end_date: string | null } => !!r.job_uuid && !!r.staff_uuid && !!r.start_date)
-    .map((r) => ({
+  type Recorded = { uuid: string; job_uuid: string; staff_uuid: string; start_date: string; end_date: string | null };
+  const rows = ((recorded ?? []) as { uuid: string; job_uuid: string | null; staff_uuid: string | null; start_date: string | null; end_date: string | null }[]).filter(
+    (r): r is Recorded => !!r.job_uuid && !!r.staff_uuid && !!r.start_date
+  );
+  /* a check-in left on that's been fixed ends where it was fixed (check-in-fixes) */
+  const fixes = await readCheckInFixes(orgId, rows.map((r) => r.uuid));
+  const theirs: ActualSpan[] = rows.map((r) => {
+    const fixedEnd = fixes.get(r.uuid.toLowerCase()) ?? null;
+    const end = fixedEnd ?? r.end_date;
+    return {
       staffUuid: r.staff_uuid,
       jobUuid: r.job_uuid,
       start: r.start_date,
-      end: r.end_date && r.end_date > r.start_date ? r.end_date : null,
+      end: end && end > r.start_date ? end : null,
       how: "servicem8" as const,
-      leftOn: !!r.end_date && sm8CheckInLeftOpen(r.start_date, r.end_date),
+      activityUuid: r.uuid,
+      ...(fixedEnd ? { fixed: true } : {}),
+      leftOn: !fixedEnd && !!r.end_date && sm8CheckInLeftOpen(r.start_date, r.end_date),
       reason: null,
       number: null,
       where: "",
       colour: null,
       status: null,
-    }));
+    };
+  });
 
   /* the phone's own stints, for the people whose sign-in is linked to a ServiceM8 staff member */
   const mine: ActualSpan[] = [];

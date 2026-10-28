@@ -269,12 +269,20 @@ export async function addLog(log: NewLog): Promise<FleetResult> {
     .maybeSingle();
   if (error || !created) return { ok: false, error: "Couldn't save that entry." };
 
-  if (purchase && log.receiptDocumentId) {
+  if ((purchase || log.kind === "issue") && log.receiptDocumentId) {
     await adoptReceipt(ctx, String(created.id), log.receiptDocumentId, log.kind);
   }
 
   if (ownMoney) {
     const raised = await raiseFuelReimbursement(ctx, String(created.id), log, tax.columns.logged_on);
+    /* the claim it raised tells whoever approves, as a claim sent does (lib/expenses/claim-push) */
+    if (raised && ctx.staffId) {
+      const staffId = ctx.staffId;
+      const figures = claimFigures({ cost: log.cost, gst: log.gst ?? null, station: log.station, spentOn: tax.columns.logged_on });
+      await import("@/lib/expenses/claim-push")
+        .then((m) => m.pushClaimSent(ctx.orgId, { staffId, description: String(figures.description), amount: Number(log.cost ?? 0) }))
+        .catch(() => undefined);
+    }
     if (!raised) {
       /* The log is saved and correct, but the money is not coming back. Unlike
          a missing receipt photo this is NOT safe to swallow — say so, and say
@@ -443,9 +451,12 @@ async function adoptReceipt(ctx: Ctx, logId: string, documentId: string, kind: N
    document of the wrong kind — an expense claim's receipt, a purchase invoice
    — is never claimed by a log, however it arrived. Odometer readings and
    issue reports own nothing. */
-const LOG_DOC_KIND: Partial<Record<NewLog["kind"], "fuel_receipt" | "service_record">> = {
+const LOG_DOC_KIND: Partial<Record<NewLog["kind"], "fuel_receipt" | "service_record" | "issue_photo">> = {
   fuel: "fuel_receipt",
   service: "service_record",
+  /* the photo taken when it was reported (Isaac, 28 October 2026: the
+     phone's Report an issue) — a picture of what's wrong, never paper */
+  issue: "issue_photo",
 };
 
 /* The paper for an entry that was logged without it — a docket found in the
@@ -464,7 +475,7 @@ export async function attachLogDocument(logId: string, documentId: string): Prom
   if (!row) return { ok: false, error: "That entry can't be changed." };
   const kind = String(row.kind) as NewLog["kind"];
   const docKind = LOG_DOC_KIND[kind];
-  if (!docKind) return { ok: false, error: "Only a fuel or service entry keeps a document." };
+  if (!docKind) return { ok: false, error: "Only a fuel, service or issue entry keeps a document." };
 
   const { data: existing } = await supabaseAdmin
     .from("documents")

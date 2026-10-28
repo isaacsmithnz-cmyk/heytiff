@@ -1,6 +1,7 @@
 "use client";
 
 import type { DesignDocument, DesignObject, Floor, Point } from "@/lib/studio/document";
+import { AIRFLOW_INKS, isAirflowMark, markShapes, streamOf } from "@/lib/studio/airflow-marks";
 import {
   areaUnitsToM2,
   formatArea,
@@ -501,6 +502,21 @@ export function PlanFigure({
               </g>
             );
           })}
+
+        {/* airflow marks, through the same geometry the canvas draws them by */}
+        {onFloor.filter(isAirflowMark).map((o) => {
+          const stream = streamOf(o);
+          return (
+            <g key={o.id} className="ds-pf-airflow">
+              {markShapes(o.geometry.at, o.geometry.rotation ?? 0, stream, scale ?? 10).map((sh, i) => (
+                <g key={i}>
+                  <path d={sh.line} fill="none" stroke={AIRFLOW_INKS[stream]} strokeWidth={1.8 * u} strokeLinecap="round" strokeLinejoin="round" />
+                  <path d={sh.head} fill={AIRFLOW_INKS[stream]} />
+                </g>
+              ))}
+            </g>
+          );
+        })}
 
         {/* markup — drawn last, over the work it is about */}
         {notes.map((n) => {

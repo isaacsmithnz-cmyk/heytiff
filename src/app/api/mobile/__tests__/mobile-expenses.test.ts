@@ -220,6 +220,13 @@ describe("the phone's expense claims", () => {
     );
   });
 
+  /* the review of 29 October 2026: "57,912" was dropped without a word */
+  it("reads a figure typed with a comma or a dollar sign", async () => {
+    await logFuel(ctx, { vehicleId: "v-alex", odo: "40,388", cost: "$1,121.50", paidWith: "company" });
+    expect(asked[1]).toContain('"odo":40388');
+    expect(asked[1]).toContain('"cost":1121.5');
+  });
+
   it("opens the photo's slot as the kind its record adopts, and lands it", async () => {
     await receiptSlot(ctx, { kind: "receipt", fileName: "receipt.jpg", mimeType: "image/jpeg", sizeBytes: 412000 });
     await receiptSlot(ctx, { kind: "fuel_receipt", fileName: "docket.jpg", mimeType: "image/jpeg", sizeBytes: 300000 });

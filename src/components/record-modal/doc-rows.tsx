@@ -27,6 +27,7 @@ const TITLE: Partial<Record<StoredDocument["kind"], string>> = {
   org_insurance: "Certificate of insurance",
   fuel_receipt: "Fuel docket",
   service_record: "Service record",
+  issue_photo: "Issue photo",
   vehicle_photo: "Photo",
   receipt: "Receipt",
 };

@@ -96,6 +96,11 @@ export type DocumentKind =
      and nothing else, so it can neither count as fuel in the tax export nor
      be reimbursed through an expense claim. */
   | "service_record"
+  /* A photo of what's wrong with a vehicle, taken with the phone when the
+     issue is reported (Isaac, 28 October 2026: the phone's Report an issue,
+     "with a photo if it helps"). Adopted by that issue's log and nothing
+     else: its own kind so no claim, no tax line and no service can take it. */
+  | "issue_photo"
   | "other";
 
 export const DOCUMENT_KINDS: readonly DocumentKind[] = [
@@ -120,6 +125,7 @@ export const DOCUMENT_KINDS: readonly DocumentKind[] = [
   "org_licence",
   "org_insurance",
   "service_record",
+  "issue_photo",
   "other",
 ];
 

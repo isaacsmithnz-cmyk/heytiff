@@ -17,6 +17,7 @@ import { saveDay } from "@/app/actions/timepay";
 import { endCheckIn, jobOf, openCheckIn, startCheckIn, type CheckIn } from "@/lib/workboard/check-in-rules";
 import { jobsOf, sendTime, staffUuidOf, wallMinute, type ClockJob } from "./clock";
 import { actAsPhoneUser, type MobileCtx } from "./auth";
+import { readCheckInFixes, withFix } from "@/lib/workboard/check-in-fixes";
 
 /* YOUR DAY ON THE PHONE (Isaac, 28 October 2026): "GPS tracking only starts
    when you clock on for the day, or when you get to the first job… Clocking
@@ -187,15 +188,19 @@ async function sm8CheckIns(ctx: MobileCtx, staffUuid: string | null, zone: strin
   const spell = [...new Set([staffUuid, staffUuid.toLowerCase(), staffUuid.toUpperCase()])];
   const { data } = await supabaseAdmin
     .from("sm8_job_activities")
-    .select("job_uuid, start_date, end_date")
+    .select("uuid, job_uuid, start_date, end_date")
     .eq("org_id", ctx.orgId)
     .eq("active", 1)
     .eq("activity_was_scheduled", 0)
     .in("staff_uuid", spell)
     .gte("start_date", a)
     .lte("start_date", b);
+  type Act = { uuid: string; job_uuid: string; start_date: string | null; end_date: string | null };
+  const acts = (data ?? []) as Act[];
+  /* a check-in left on and fixed counts to its fixed end (check_in_fixes), as the job card and the schedule count it */
+  const fixes = await readCheckInFixes(ctx.orgId, acts.map((r) => r.uuid)).catch(() => new Map<string, string>());
   const out: { jobUuid: string; from: string; until: string }[] = [];
-  for (const r of (data ?? []) as { job_uuid: string; start_date: string | null; end_date: string | null }[]) {
+  for (const r of acts.map((x) => withFix(x, fixes))) {
     const s = wallInstant(r.start_date, zone, "earliest");
     const e = wallInstant(r.end_date, zone, "latest");
     /* an SM8 check-in left open has no end yet: it isn't a stretch of time */
@@ -399,15 +404,23 @@ export async function atOffice(ctx: MobileCtx, at: unknown, now: number = Date.n
   return { ok: true, state: await readDay(ctx, now), said: "" };
 }
 
-/** A job's new times in the day: both readable, in order, inside the day, none of it still to come. */
+/** The phone offers times to the quarter hour: one rounded past the day's start or past now is meant as that. */
+const QUARTER_MS = 15 * 60_000;
+
+/** A job's new times in the day: both readable, in order, inside the day, none of it still to come.
+    A time the quarter-hour rounding put just before Clock on, or just after now, is held to it
+    (the review of 29 October 2026: on at 7:05, the sheet's 7:00 was refused). */
 export function stintTimes(p: { from: unknown; until: unknown; onAt: string; now: number }): { from: string; until: string } | { error: string } {
   const f = typeof p.from === "string" ? Date.parse(p.from) : NaN;
   const u = typeof p.until === "string" ? Date.parse(p.until) : NaN;
   if (Number.isNaN(f) || Number.isNaN(u)) return { error: DAY_WORDS.noTime };
-  if (u > p.now + 60_000) return { error: DAY_WORDS.future };
-  if (f < Date.parse(p.onAt)) return { error: DAY_WORDS.beforeOn };
-  if (u <= f) return { error: DAY_WORDS.backwards };
-  return { from: new Date(f).toISOString(), until: new Date(Math.min(u, p.now)).toISOString() };
+  const on = Date.parse(p.onAt);
+  if (u > p.now + QUARTER_MS) return { error: DAY_WORDS.future };
+  if (f < on - QUARTER_MS) return { error: DAY_WORDS.beforeOn };
+  const from = Math.max(f, on);
+  const until = Math.min(u, p.now);
+  if (until <= from) return { error: DAY_WORDS.backwards };
+  return { from: new Date(from).toISOString(), until: new Date(until).toISOString() };
 }
 
 /* A JOB'S TIME, CHANGED OR TAKEN OFF, before Clock off (Isaac, 28 October
@@ -516,7 +529,14 @@ export async function clockOffDay(ctx: MobileCtx, press: Sm8Press | null, at: un
   if (!day) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
   const t = timeOf(at, now, day.on_at);
   if (typeof t !== "string") return { ok: false, error: t.error, status: 400 };
-  await endCheckIn(ctx.orgId, ctx.userId, t).catch(() => null);
+  /* A stint that began after the time you finished (you clocked off at your
+     booking's end from the reminder, after the phone put you on another job)
+     closes where it began, with no time, never left open for tomorrow to
+     find (the review of 29 October 2026). */
+  await endCheckIn(ctx.orgId, ctx.userId, t).catch(async () => {
+    const open = await openCheckIn(ctx.orgId, ctx.userId).catch(() => null);
+    if (open) await endCheckIn(ctx.orgId, ctx.userId, open.inAt).catch(() => null);
+  });
   const office = leaveOffice(day.office ?? [], t);
   const { error } = await supabaseAdmin.from("staff_days").update({ off_at: t, office }).eq("org_id", ctx.orgId).eq("id", day.id).is("off_at", null);
   if (error) return { ok: false, error: DAY_WORDS.notOn, status: 409 };

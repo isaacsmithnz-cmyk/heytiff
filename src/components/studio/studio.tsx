@@ -2543,7 +2543,7 @@ function DrawTool({
       window.removeEventListener("keydown", onKey);
     };
   }, [open]);
-  const on = isRunTool(tool) || tool === "riser" || tool === "joint" || tool === "branch-box";
+  const on = isRunTool(tool) || tool === "riser" || tool === "joint" || tool === "branch-box" || tool === "airflow";
   const arm = (t: CanvasTool, patch?: Partial<DrawOptions>) => {
     if (patch) onDraw({ ...draw, ...patch });
     onTool(t);
@@ -2630,6 +2630,18 @@ function DrawTool({
               >
                 Coming — Step 4
               </button>
+            </div>
+          </div>
+          {/* airflow marks: short wavy arrows, blue supply and red return,
+              pressed down and pulled the way the air goes */}
+          <div className="ds-drawrow">
+            <span className="ds-drawk">
+              <Icon name="wind" size={14} />
+              Airflow
+            </span>
+            <div className="ds-drawchips">
+              {chip("Supply", draw.airStream === "supply", "airflow", { airStream: "supply" })}
+              {chip("Return", draw.airStream === "return", "airflow", { airStream: "return" })}
             </div>
           </div>
           {/* the riser rides along: not linework (a point that joins floors),

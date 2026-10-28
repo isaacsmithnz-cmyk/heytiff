@@ -107,6 +107,14 @@ describe("every other kind is unchanged", () => {
     expect((await beginUpload({ kind: "receipt", ...png })).ok).toBe(true);
   });
 
+  /* a driver with no `assets_all` still reports what's wrong with the van,
+     photo and all (Isaac, 28 October 2026) */
+  it("lets any signed-in member upload a photo of an issue", async () => {
+    dbRole = "staff";
+    capTeam = false;
+    expect((await beginUpload({ kind: "issue_photo", ...png })).ok).toBe(true);
+  });
+
   it("keeps everything else on `team`", async () => {
     dbRole = "admin";
     capTeam = true;

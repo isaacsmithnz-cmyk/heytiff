@@ -10224,6 +10224,25 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .ds-zone-controller.grab {
   cursor: grab;
 }
+/* airflow marks: their own footprint takes the press; a picked one wears a
+   dashed ring */
+.ds-airflow-hit {
+  fill: transparent;
+  stroke: none;
+}
+.ds-airflow-mark.grab {
+  cursor: grab;
+}
+.ds-airflow-ring {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+}
+.ds-airflow-draft {
+  opacity: 0.6;
+}
 .ds-outlet-end {
   fill: var(--paper);
   stroke: var(--ink);

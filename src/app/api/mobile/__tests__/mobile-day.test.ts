@@ -17,7 +17,7 @@ jest.mock("@/app/actions/sm8-booking-queue", () => ({}));
 jest.mock("@/lib/integrations/sm8-drain", () => ({}));
 jest.mock("@auth0/nextjs-auth0/server", () => ({ Auth0Client: class {} }));
 
-import { mergeJobs, sheetCall, summarise, toQuarter, type DayJob } from "@/lib/mobile/day";
+import { mergeJobs, sheetCall, stintTimes, summarise, toQuarter, type DayJob } from "@/lib/mobile/day";
 
 /* 27 October 2026 is daylight time in Sydney: +11:00 */
 const at = (hm: string) => new Date(`2026-10-27T${hm}:00+11:00`).toISOString();
@@ -88,4 +88,13 @@ test("the normal day is a floor: a short or normal rostered day leaves it standi
   expect(sheetCall({ ...day, rostered: false, hours: 4 })).toBe("write");
   expect(sheetCall({ ...day, casual: true, hours: 5 })).toBe("write");
   expect(sheetCall({ ...day, entered: true, hours: 10 })).toBe("kept");
+});
+
+test("a job's times are changed only to times inside the day, in order, none still to come", () => {
+  const day = { onAt: at("07:00"), now: Date.parse(at("15:00")) };
+  expect(stintTimes({ ...day, from: at("09:00"), until: at("10:30") })).toEqual({ from: at("09:00"), until: at("10:30") });
+  expect(stintTimes({ ...day, from: at("06:30"), until: at("08:00") })).toEqual({ error: "That's before you clocked on." });
+  expect(stintTimes({ ...day, from: at("10:30"), until: at("09:00") })).toEqual({ error: "It has to finish after it starts." });
+  expect(stintTimes({ ...day, from: at("14:00"), until: at("17:00") })).toEqual({ error: "That time hasn't come yet." });
+  expect(stintTimes({ ...day, from: "soon", until: at("10:00") })).toEqual({ error: "Pick the time." });
 });

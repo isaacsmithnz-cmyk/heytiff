@@ -181,3 +181,24 @@ describe("the street a job is on", () => {
     expect((await numbers("union")).sort()).toEqual(["3260", "3432"]);
   });
 });
+
+/* Only open work, where a booking can go (2026-10-28): Move looks at open
+   Work Orders and Quotes alone, so 3260A, finished, at the same address
+   never stands in for 3260. */
+describe("only the states asked for", () => {
+  beforeEach(() => {
+    tables.sm8_jobs.push(job("j-3260A", { status: "Completed", geo_city: "Balmain East", job_address: "19 Union St\nBalmain East NSW 2041" }));
+  });
+
+  it("finds finished jobs too when no state is asked for", async () => {
+    expect((await numbers("19 union")).sort()).toEqual(["3260", "3260A"]);
+  });
+
+  it("finds only open Work Orders and Quotes when those are asked for, by one word or several", async () => {
+    const open = async (query: string) =>
+      (await searchAllMirrorJobs(ORG, query, TODAY, { includeMoney: false, statuses: ["Work Order", "Quote"] })).map((j) => j.jobNumber).sort();
+    expect(await open("19 union")).toEqual(["3260"]);
+    expect(await open("union")).toEqual(["3260", "3432"]);
+    expect(await open("3260")).toEqual(["3260"]);
+  });
+});

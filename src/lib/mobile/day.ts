@@ -5,12 +5,12 @@ import type { Sm8Press } from "@/lib/integrations/sm8-press";
 import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
 import { bookingZone } from "@/lib/integrations/sm8-booking-zone";
 import { wallInstant } from "@/lib/integrations/sm8-booking-plan";
-import { getPaySettings } from "@/lib/timepay/query";
+import { getPaySettings, shiftDefaultsFor } from "@/lib/timepay/query";
 import { loadTimesheetFor } from "@/lib/timepay/page-data";
 import { periodConfig, periodStartFor } from "@/lib/timepay/period";
 import { staffIdFor } from "@/lib/workboard/projects-query";
 import { streetLine } from "@/lib/studio/job-link";
-import { derivedDayHours, dowOf, expectedDay, expectsWork, type WeekCtx } from "@/components/timepay/logic";
+import { derivedDayHours, dowOf, expectedDay, expectsWork, normalHours, type WeekCtx } from "@/components/timepay/logic";
 import { saveDay } from "@/app/actions/timepay";
 import { endCheckIn, jobOf, openCheckIn, startCheckIn, type CheckIn } from "@/lib/workboard/check-in-rules";
 import { jobsOf, sendTime, staffUuidOf, wallMinute, type ClockJob } from "./clock";
@@ -66,6 +66,8 @@ export type DayState = {
   at: { kind: "job"; job: ClockJob; since: string } | { kind: "office"; since: string } | null;
   jobs: DayJob[];
   summary: DaySummary | null;
+  /** your normal day ("7:00 AM", "3:00 PM"): the morning ask starts an hour before it */
+  normal: { start: string; end: string } | null;
 };
 
 export const DAY_WORDS = {
@@ -234,6 +236,15 @@ async function jobsIn(ctx: MobileCtx, day: DayRow, now: string): Promise<{ jobs:
   return mergeJobs(stints, theirs, name, now);
 }
 
+/** The person's own normal day, or the workspace's. */
+async function normalOf(ctx: MobileCtx): Promise<{ start: string; end: string } | null> {
+  const staffId = await staffIdFor(ctx.orgId, ctx.userId).catch(() => null);
+  if (!staffId) return null;
+  const [{ settings }, own] = await Promise.all([getPaySettings(ctx.orgId), shiftDefaultsFor(ctx.orgId, [staffId]).catch(() => null)]);
+  const h = normalHours(settings, own?.hours.get(staffId) ?? null);
+  return { start: h.start, end: h.end };
+}
+
 /** Where the day stands: on since when, where you are now, and where it's
     gone, to now or to the finish the person is thinking of (`until`). */
 export async function readDay(ctx: MobileCtx, now: number = Date.now(), until?: string | null): Promise<DayState> {
@@ -241,8 +252,8 @@ export async function readDay(ctx: MobileCtx, now: number = Date.now(), until?: 
   const nowIso = new Date(now).toISOString();
   const thinking = until && !Number.isNaN(Date.parse(until)) && Date.parse(until) <= now ? new Date(Date.parse(until)).toISOString() : null;
   const today = wallMinute(nowIso, zone)?.slice(0, 10) ?? nowIso.slice(0, 10);
-  const row = await dayRow(ctx, today);
-  if (!row) return { day: null, at: null, jobs: [], summary: null };
+  const [row, normal] = await Promise.all([dayRow(ctx, today), normalOf(ctx)]);
+  if (!row) return { day: null, at: null, jobs: [], summary: null, normal };
   const { jobs } = await jobsIn(ctx, row, nowIso);
   const office = row.office ?? [];
   let at: DayState["at"] = null;
@@ -257,6 +268,7 @@ export async function readDay(ctx: MobileCtx, now: number = Date.now(), until?: 
     at,
     jobs,
     summary: summarise({ onAt: row.on_at, until: row.off_at ?? (thinking && thinking >= row.on_at ? thinking : nowIso) }, jobs, office),
+    normal,
   };
 }
 

@@ -74,12 +74,16 @@ it("asks the crew and days she worked out as a question, not in passing", () => 
 });
 
 /* Isaac, 2026-10-17, on 27 Milroy ("check design tool"): "I think Tiff can
-   already read the studio design. Or can she not?" She couldn't */
-it("reads the job's Studio design before choosing a unit, takes it over the brief's guess, and asks where they disagree", () => {
+   already read the studio design. Or can she not?" She couldn't. 28 October
+   2026, after 3406: the scope decides what goes in, the design measures it */
+it("reads the job's Studio design first, takes its measurements, and asks before it changes what the scope puts in", () => {
   const p = sessionSystemPrompt();
   expect(p).toMatch(/Read the job's Studio design \(read_design\) with your first lookups/);
-  expect(p).toMatch(/it's the business's own design of this job, so its units, rooms, loads and pipe runs go on from it, source said, the design quoted in why, over a guess from the brief/);
-  expect(p).toMatch(/Where the design and the brief disagree, say so and ask\. The design outranks the airflow guide and the business's usual, never the person's word in this conversation\./);
+  expect(p).toMatch(/The scope decides what goes in, each system and its units: the brief, the drawings and the person\./);
+  expect(p).toMatch(/The design measures it: where there is one, its pipe runs and their sizes, its takeoff, its ducts and grilles, its refrigerant and each room's load go on from it, source said, the design quoted in why/);
+  expect(p).toMatch(/Where the design's systems or units differ from the scope, say what differs and ask which stands, even when asked to quote what the design has; never take a system or a line off the quote because the design hasn't got it\./);
+  expect(p).toMatch(/The design outranks the airflow guide and the business's usual, never the person's word in this conversation\./);
+  expect(p).not.toMatch(/over a guess from the brief/);
   /* the same for every business */
   expect(p).not.toMatch(/Diamond Air|Milroy/);
 });

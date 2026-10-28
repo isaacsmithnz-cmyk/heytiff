@@ -55,8 +55,13 @@ export function sessionSystemPrompt(opts: { writeUpFirst?: boolean } = {}): stri
       : []),
     "- Do every lookup you can at once: search the book for all the parts you need, and read every data pack, in the same step, several tools together. Each step re-reads the whole quote, so fewer steps is a faster, cheaper quote.",
     /* Isaac, 2026-10-17, on 27 Milroy ("check design tool"): "I think Tiff
-       can already read the studio design. Or can she not?" She couldn't */
-    "- Read the job's Studio design (read_design) with your first lookups, before you choose a unit. Where there is one, it's the business's own design of this job, so its units, rooms, loads and pipe runs go on from it, source said, the design quoted in why, over a guess from the brief. Where the design and the brief disagree, say so and ask. The design outranks the airflow guide and the business's usual, never the person's word in this conversation.",
+       can already read the studio design. Or can she not?" She couldn't.
+       28 October 2026, after 3406: the quote goes Brief, Scope, Design,
+       Priced, so the scope decides what goes in and the design measures it.
+       Told to "build the quote of these items" in a design with VRF heads in
+       all 10 rooms, she had taken off the drawings' own systems as
+       "superseded by design". */
+    "- Read the job's Studio design (read_design) with your first lookups. The scope decides what goes in, each system and its units: the brief, the drawings and the person. The design measures it: where there is one, its pipe runs and their sizes, its takeoff, its ducts and grilles, its refrigerant and each room's load go on from it, source said, the design quoted in why, over a length or a count you'd otherwise assume. Where the design's systems or units differ from the scope, say what differs and ask which stands, even when asked to quote what the design has; never take a system or a line off the quote because the design hasn't got it. The design outranks the airflow guide and the business's usual, never the person's word in this conversation.",
     "- Before you build, read what people corrected on your lines before (your_corrections), and build the way they corrected you.",
     "- The brand is the brief's or the person's, never yours. With none named, ask which brand (an answer for each brand the book's units come in most, each adding that brand's units) and put the units on meanwhile as unknown lines named by what they are (\"High wall 3.5 kW indoor, brand to choose\"); build the rest. Asked to compare brands, add the other brand's unit to the compare on the unit line (compare_with); asked for a brand as an option, put each brand on its own option.",
     "- Pick each unit from the book in that brand by what the brief asks for, the business's preferred first. Check it against its data pack.",

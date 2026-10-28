@@ -5,7 +5,7 @@ import { staffProfileIdFor } from "@/lib/fleet/query";
 import { auDayOf, fmtAuWeekdayDate } from "@/lib/au-dates";
 import { JOB_WORDS } from "@/lib/integrations/sm8-job-words";
 import { jobDescriptionOf } from "@/lib/email/proposal";
-import { emailJobView, markMade, markNotAJob, readEmailRow, type EmailJobView } from "@/lib/email/made-server";
+import { emailJobView, markFiled, markMade, markNotAJob, readEmailRow, type EmailJobView } from "@/lib/email/made-server";
 import { createNewJob, type CreateAnswer } from "./job-new";
 
 /* EMAIL TO TIFF, THE CARD (Isaac, 28 October 2026, the mock he said "Build it
@@ -68,6 +68,14 @@ export async function createJobFromEmail(id: string): Promise<MadeAnswer> {
 export async function emailJobMade(id: string, jobUuid: string): Promise<boolean> {
   const { orgId, userId } = await requireOrg("tiff");
   return markMade(orgId, id, jobUuid, userId, await staffProfileIdFor(orgId, userId));
+}
+
+/** Filed on a job already here: the email's files on its Documents, its words
+    on its notes. */
+export async function fileEmailOnJob(id: string, jobUuid: string): Promise<boolean> {
+  const { orgId, userId } = await requireOrg("tiff");
+  if (!/^[0-9a-f-]{36}$/i.test(jobUuid)) return false;
+  return markFiled(orgId, id, jobUuid, userId, await staffProfileIdFor(orgId, userId));
 }
 
 export async function notAJob(id: string): Promise<boolean> {

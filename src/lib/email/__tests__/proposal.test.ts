@@ -2,7 +2,7 @@
    answer is believed, what she says over the card, and the words a ServiceM8
    job is made of. Truecut Building's real tender for 40 Westbourne Street,
    Stanmore is the example. */
-import { EMAIL_JOB_SCHEMA, dueWords, emailJobPrompt, jobDescriptionOf, parseEmailJobRead, threadTitleOf, tiffSays, type EmailProposal } from "../proposal";
+import { EMAIL_JOB_SCHEMA, dueWords, emailJobPrompt, forExistingJob, jobDescriptionOf, parseEmailJobRead, sureJob, threadTitleOf, tiffSays, type EmailProposal } from "../proposal";
 
 const raw = {
   isJob: true,
@@ -84,5 +84,38 @@ describe("what Tiff says over the card", () => {
       "This doesn't read as a request for work (A supplier's invoice), so I haven't proposed a job. Make one from New › Job if it is."
     );
     expect(tiffSays(null, "Tiff was busy.")).toBe("I couldn't read this one: Tiff was busy. Forward it again, or make the job from New › Job.");
+  });
+});
+
+/* "What if I just forward documents that were sent to us for an existing
+   job?" (28 October 2026): the jobs are found in the business's own records,
+   and the card offers one only when it is sure */
+describe("an email about a job already here", () => {
+  const job = (n: string, found: "number" | "thread" | "site" | "client") => ({ uuid: `u-${n}`, number: n, address: "40 Westbourne Street\nStanmore NSW 2048", client: "Truecut Building", status: "Quote", found });
+  const p = (over: Partial<EmailProposal> = {}): EmailProposal => ({ ...parseEmailJobRead({ ...raw, isJob: false, aboutJob: true, jobNumbers: ["3444"] }), clientMatch: null, siteMatch: null, ...over });
+
+  it("reads the numbers written in it, digits only", () => {
+    expect(parseEmailJobRead({ ...raw, jobNumbers: ["#3444", "Job 3444", "x", "1234567890123"] }).jobNumbers).toEqual(["3444"]);
+  });
+
+  it("is sure of a job whose number is in the email, whose thread is on it, or the one open job at the site", () => {
+    expect(sureJob(p({ jobs: [job("3444", "number"), job("3500", "client")] }))?.number).toBe("3444");
+    expect(sureJob(p({ jobs: [job("3471", "thread")] }))?.number).toBe("3471");
+    expect(sureJob(p({ jobs: [job("3444", "site")] }))?.number).toBe("3444");
+    expect(sureJob(p({ jobs: [job("3444", "site"), job("3445", "site")] }))).toBeNull();
+    expect(sureJob(p({ jobs: [job("3500", "client")] }))).toBeNull();
+  });
+
+  it("is for an existing job when it's about one, or asks for new work at a site with an open job", () => {
+    expect(forExistingJob(p({ jobs: [job("3500", "client")] }))).toBe(true);
+    expect(forExistingJob(p({ isJob: true, aboutJob: false, jobs: [job("3500", "client")] }))).toBe(false);
+    expect(forExistingJob(p({ isJob: true, aboutJob: false, jobs: [job("3444", "site")] }))).toBe(true);
+    expect(forExistingJob(p({ jobs: [] }))).toBe(false);
+  });
+
+  it("says which job and how she knows, or that she can't tell", () => {
+    expect(tiffSays(p({ jobs: [job("3444", "number")] }), null)).toContain("This is for job 3444 at 40 Westbourne Street (its number is in the email). File it on that job?");
+    expect(tiffSays(p({ jobs: [job("3444", "client"), job("3500", "client")] }), null)).toContain("I can't tell which. Pick the job to file it on.");
+    expect(tiffSays(p({ jobs: [] }), null)).toContain("none of yours matched its number, site or client");
   });
 });

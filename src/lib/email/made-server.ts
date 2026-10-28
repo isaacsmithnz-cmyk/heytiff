@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { DOCUMENTS_BUCKET } from "@/lib/documents/query";
 import { ALLOWED_TYPES, storageRef } from "@/lib/documents/files";
 import type { KeptFile } from "./inbound-server";
+import { writeJobNote } from "@/lib/workboard/job-note-write";
 import type { EmailProposal } from "./proposal";
 
 /* An email to Tiff, after its card: what the card shows, and a job made from
@@ -14,7 +15,7 @@ import type { EmailProposal } from "./proposal";
 
 export type EmailJobView = {
   id: string;
-  state: "received" | "read" | "made" | "not_a_job" | "refused" | "failed";
+  state: "received" | "read" | "made" | "filed" | "not_a_job" | "refused" | "failed";
   proposal: EmailProposal | null;
   files: { name: string; size: number }[];
   /** what couldn't be kept, in words */
@@ -35,9 +36,11 @@ type Row = {
   job_uuid: string | null;
   from_name: string | null;
   received_at: string;
+  subject: string | null;
+  body: string | null;
 };
 
-const COLS = "id, org_id, state, proposal, files, why, job_uuid, from_name, received_at";
+const COLS = "id, org_id, state, proposal, files, why, job_uuid, from_name, received_at, subject, body";
 
 export async function readEmailRow(orgId: string, id: string): Promise<Row | null> {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
@@ -108,16 +111,50 @@ export async function fileOnJob(orgId: string, row: Row, jobUuid: string, staffI
 export async function markMade(orgId: string, id: string, jobUuid: string, by: string, staffId: string | null): Promise<boolean> {
   const row = await readEmailRow(orgId, id);
   if (!row) return false;
-  if (row.state === "made") return row.job_uuid === jobUuid;
+  if (row.state === "made" || row.state === "filed") return row.job_uuid === jobUuid;
   const { data: claimed } = await supabaseAdmin
     .from("email_in_messages")
     .update({ state: "made", job_uuid: jobUuid, decided_by: by, decided_at: new Date().toISOString() })
     .eq("org_id", orgId)
     .eq("id", id)
-    .neq("state", "made")
+    .not("state", "in", "(filed,made)")
     .select("id");
   if (!claimed?.length) return true;
   await fileOnJob(orgId, row, jobUuid, staffId);
+  return true;
+}
+
+/** What goes on the job's notes from an email filed on it: whose it was and
+    what it said, in the 4,000 characters a note holds. */
+export function noteOfEmail(row: { subject: string | null; body: string | null; from_name: string | null; proposal: EmailProposal | null }): string {
+  const p = row.proposal;
+  const who = p ? [[p.contact.first, p.contact.last].filter(Boolean).join(" "), p.client].filter(Boolean).join(", ") : "";
+  const head = `Email${who ? ` from ${who}` : ""}${row.from_name ? `, forwarded to Tiff by ${row.from_name}` : ""}: ${row.subject ?? ""}`.trim();
+  const out = `${head}\n\n${row.body ?? ""}`.trim();
+  return out.length > 4000 ? out.slice(0, 4000).trimEnd() : out;
+}
+
+/** The email filed on a job already here: its files on the job's Documents and
+    its words on the job's notes (one note, however often it's pressed: the
+    email's own id is the pen's). Once: a second call finds it filed. */
+export async function markFiled(orgId: string, id: string, jobUuid: string, userId: string, staffId: string | null): Promise<boolean> {
+  const row = await readEmailRow(orgId, id);
+  if (!row) return false;
+  if (row.state === "filed" || row.state === "made") return row.job_uuid === jobUuid;
+  const { data: real } = await supabaseAdmin.from("sm8_jobs").select("uuid").eq("org_id", orgId).eq("uuid", jobUuid).maybeSingle();
+  if (!real) return false;
+  const { data: claimed } = await supabaseAdmin
+    .from("email_in_messages")
+    .update({ state: "filed", job_uuid: jobUuid, decided_by: userId, decided_at: new Date().toISOString() })
+    .eq("org_id", orgId)
+    .eq("id", id)
+    .not("state", "in", "(filed,made)")
+    .select("id");
+  if (!claimed?.length) return true;
+  await fileOnJob(orgId, row, jobUuid, staffId);
+  await writeJobNote({ orgId, userId, jobUuid, body: noteOfEmail(row), composeId: row.id }).catch((err) =>
+    console.error("[email-in] the email's note couldn't go on the job:", err instanceof Error ? err.message : err)
+  );
   return true;
 }
 

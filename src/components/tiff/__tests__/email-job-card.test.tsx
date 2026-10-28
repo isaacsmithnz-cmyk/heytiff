@@ -7,7 +7,9 @@ const readEmailJob = jest.fn();
 const createJobFromEmail = jest.fn();
 const emailJobMade = jest.fn();
 const notAJob = jest.fn();
+const fileEmailOnJob = jest.fn();
 jest.mock("@/app/actions/email-in-job", () => ({
+  fileEmailOnJob: (...a: unknown[]) => fileEmailOnJob(...a),
   readEmailJob: (...a: unknown[]) => readEmailJob(...a),
   createJobFromEmail: (...a: unknown[]) => createJobFromEmail(...a),
   emailJobMade: (...a: unknown[]) => emailJobMade(...a),
@@ -29,6 +31,8 @@ const view = (over: Record<string, unknown> = {}) => ({
   state: "read",
   proposal: {
     isJob: true,
+    aboutJob: false,
+    jobNumbers: [],
     notJobWhy: "",
     summary: "",
     client: "Truecut Building",
@@ -56,7 +60,7 @@ const draw = async () => {
 };
 
 beforeEach(() => {
-  for (const f of [readEmailJob, createJobFromEmail, emailJobMade, notAJob]) f.mockReset();
+  for (const f of [readEmailJob, createJobFromEmail, emailJobMade, notAJob, fileEmailOnJob]) f.mockReset();
   formProps = null;
   readEmailJob.mockResolvedValue(view());
 });
@@ -124,4 +128,46 @@ it("draws nothing for an email that isn't a request for work", async () => {
   readEmailJob.mockResolvedValue(view({ proposal: { ...view().proposal, isJob: false } }));
   await draw();
   expect(screen.queryByRole("heading", { name: "New job" })).toBeNull();
+});
+
+/* "What if I just forward documents that were sent to us for an existing
+   job?" (28 October 2026) */
+describe("documents for a job already here", () => {
+  const job = (n: string, found: string) => ({ uuid: `u-${n}`, number: n, address: "40 Westbourne Street\nStanmore NSW 2048", client: "Truecut Building", status: "Work Order", found });
+  const about = (jobs: unknown[]) => view({ proposal: { ...view().proposal, isJob: false, aboutJob: true, jobs } });
+
+  it("offers the one job it's sure of, says how it knows, and files the email on it", async () => {
+    readEmailJob.mockResolvedValue(about([job("3444", "number")]));
+    fileEmailOnJob.mockResolvedValue(true);
+    await draw();
+    expect(screen.getByRole("heading", { name: "For job 3444" })).toBeInTheDocument();
+    expect(screen.getByText("Its number is in the email")).toBeInTheDocument();
+    expect(screen.getByText("To the job's notes")).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "File on job 3444" }));
+    });
+    expect(fileEmailOnJob).toHaveBeenCalledWith(ID, "u-3444");
+    expect(screen.getByText("Filed on job 3444")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open job 3444" })).toBeInTheDocument();
+  });
+
+  it("asks which job when it isn't sure, each with its own File", async () => {
+    readEmailJob.mockResolvedValue(about([job("3444", "client"), job("3500", "client")]));
+    fileEmailOnJob.mockResolvedValue(true);
+    await draw();
+    expect(screen.getByRole("heading", { name: "Which job?" })).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "File on job 3500" }));
+    });
+    expect(fileEmailOnJob).toHaveBeenCalledWith(ID, "u-3500");
+    expect(screen.getByText("Filed on job 3500")).toBeInTheDocument();
+  });
+
+  it("turns into a new job on Make a new job instead", async () => {
+    readEmailJob.mockResolvedValue(about([job("3444", "number")]));
+    await draw();
+    fireEvent.click(screen.getByRole("button", { name: "Make a new job instead" }));
+    expect(screen.getByRole("heading", { name: "New job" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create job" })).toBeInTheDocument();
+  });
 });

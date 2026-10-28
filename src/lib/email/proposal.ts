@@ -16,6 +16,8 @@ export const EMAIL_JOB_SCHEMA = {
   type: "object",
   properties: {
     isJob: { type: "boolean" },
+    aboutJob: { type: "boolean" },
+    jobNumbers: { type: "array", items: { type: "string" } },
     notJobWhy: { type: "string" },
     summary: { type: "string" },
     client: { type: "string" },
@@ -29,7 +31,7 @@ export const EMAIL_JOB_SCHEMA = {
     scope: { type: "array", items: { type: "string" } },
     excluded: { type: "array", items: { type: "string" } },
   },
-  required: ["isJob", "notJobWhy", "summary", "client", "contactFirst", "contactLast", "contactMobile", "contactPhone", "contactEmail", "site", "due", "scope", "excluded"],
+  required: ["isJob", "aboutJob", "jobNumbers", "notJobWhy", "summary", "client", "contactFirst", "contactLast", "contactMobile", "contactPhone", "contactEmail", "site", "due", "scope", "excluded"],
   additionalProperties: false,
 } as const;
 
@@ -39,8 +41,10 @@ export function emailJobPrompt(us: { business: string; forwarder: string | null;
     `You are Tiff, the assistant at ${us.business}, an Australian air-conditioning business. ` +
     `${us.forwarder ?? "Someone on the team"} forwarded you the email below (and any files with it). ` +
     "Read it as a request for work and fill in:\n" +
-    "- isJob: true when someone is asking this business for work: a quote, a tender, a price, a job or a visit. False for anything else (an invoice, a newsletter, a reply about a job already under way)\n" +
-    '- notJobWhy: when isJob is false, what it is instead, in a few words; otherwise ""\n' +
+    "- isJob: true when someone is asking this business for NEW work: a quote, a tender, a price, a job or a visit. False for anything else\n" +
+    "- aboutJob: true when it is about work already asked for or under way: revised drawings or a specification, a variation, site details, a reply in an earlier conversation. False otherwise\n" +
+    "- jobNumbers: any job, quote or reference numbers written in the email or its subject that could be this business's own job number (digits only, as written); [] when none\n" +
+    '- notJobWhy: when isJob and aboutJob are both false, what it is instead, in a few words; otherwise ""\n' +
     "- summary: one or two plain sentences on what is asked, where and by whom, as you would tell the person who forwarded it. No greeting\n" +
     `- client: the company (or person) asking for the work, as they name themselves. Never ${us.business}, and never the person who forwarded it\n` +
     '- contactFirst, contactLast, contactMobile, contactPhone, contactEmail: the person at the client to deal with, from their signature or their own address; "" for anything not written\n' +
@@ -54,6 +58,10 @@ export function emailJobPrompt(us: { business: string; forwarder: string | null;
 
 export type EmailJobRead = {
   isJob: boolean;
+  /** about work already asked for or under way */
+  aboutJob: boolean;
+  /** numbers written in it that could be one of the business's job numbers */
+  jobNumbers: string[];
   notJobWhy: string;
   summary: string;
   client: string;
@@ -77,6 +85,8 @@ export function parseEmailJobRead(raw: unknown): EmailJobRead {
   const email = str(r.contactEmail, 200);
   return {
     isJob: r.isJob === true,
+    aboutJob: r.aboutJob === true,
+    jobNumbers: Array.isArray(r.jobNumbers) ? [...new Set(r.jobNumbers.map((n) => str(n, 12).replace(/\D/g, "")).filter((n) => n.length >= 2 && n.length <= 8))].slice(0, 6) : [],
     notJobWhy: str(r.notJobWhy, 200),
     summary: str(r.summary, 600),
     client: str(r.client, 100),
@@ -97,12 +107,54 @@ export function parseEmailJobRead(raw: unknown): EmailJobRead {
 export type ClientMatch = { uuid: string; name: string; builder: boolean };
 export type SiteMatch = { uuid: string; name: string | null; address: string | null; parentName: string | null };
 /** What Tiff proposes: her read, and what it matched here. */
-export type EmailProposal = EmailJobRead & { clientMatch: ClientMatch | null; siteMatch: SiteMatch | null };
+/** A job of the business's own this email may be about, and how it was found:
+    its number written in the email, an earlier email on the same thread
+    filed on it, an open job at the same street, or the client's open jobs. */
+export type JobCandidate = { uuid: string; number: string | null; address: string | null; client: string | null; status: string | null; found: "number" | "thread" | "site" | "client" };
+export type EmailProposal = EmailJobRead & {
+  clientMatch: ClientMatch | null;
+  siteMatch: SiteMatch | null;
+  /** the jobs it may be about, the strongest first */
+  jobs?: JobCandidate[];
+};
+
+/** Whether the first job found is sure enough to offer on its own: its
+    number is in the email, the thread is already on it, or it is the one
+    open job at that street. */
+export function sureJob(p: EmailProposal): JobCandidate | null {
+  const jobs = p.jobs ?? [];
+  const first = jobs[0];
+  if (!first) return null;
+  if (first.found === "number" || first.found === "thread") return first;
+  if (first.found === "site" && jobs.filter((j) => j.found === "site").length === 1) return first;
+  return null;
+}
+
+/** How a job was found, in words. */
+export const FOUND_WORDS: Record<JobCandidate["found"], string> = {
+  number: "Its number is in the email",
+  thread: "An earlier email on this thread went on it",
+  site: "An open job at this site",
+  client: "One of this client's open jobs",
+};
+
+/** Whether the card is about a job already here, rather than a new one: the
+    email is about one, or it asks for new work at a site with an open job. */
+export const forExistingJob = (p: EmailProposal) => (p.jobs?.length ?? 0) > 0 && (p.aboutJob || sureJob(p) !== null);
 
 /** What Tiff says over the card, in her own words. */
 export function tiffSays(p: EmailProposal | null, failed: string | null): string {
   if (failed) return `I couldn't read this one: ${failed} Forward it again, or make the job from New › Job.`;
   if (!p) return "";
+  if (forExistingJob(p)) {
+    const sure = sureJob(p);
+    if (sure) {
+      const where = sure.address ? ` at ${sure.address.split("\n")[0]}` : "";
+      return `${p.summary} This is for job ${sure.number ?? ""}${where} (${FOUND_WORDS[sure.found].toLowerCase()}). File it on that job?`.replace(/\s+/g, " ").trim();
+    }
+    return `${p.summary} It looks like it's about one of your jobs, but I can't tell which. Pick the job to file it on.`.replace(/\s+/g, " ").trim();
+  }
+  if (p.aboutJob && !p.isJob) return `${p.summary} It's about a job already under way, but none of yours matched its number, site or client. Find the job and add it there, or make a new one from New › Job.`.replace(/\s+/g, " ").trim();
   if (!p.isJob) return `This doesn't read as a request for work${p.notJobWhy ? ` (${p.notJobWhy.replace(/\.$/, "")})` : ""}, so I haven't proposed a job. Make one from New › Job if it is.`;
   const known = p.clientMatch ? `${p.clientMatch.name} is already a client${p.siteMatch ? "" : p.clientMatch.builder ? "; the site is new for them" : ""}.` : `${p.client || "They"} aren't a client yet; Create job adds them.`;
   const due = p.due ? ` It's due ${dueWords(p.due)}.` : "";

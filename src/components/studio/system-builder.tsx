@@ -19,7 +19,7 @@ import { headSection, systemVrfTree, type SizedTree } from "@/lib/studio/vrf-tre
 import { headPipeMm } from "@/lib/studio/pipe-sizes";
 import { formFactorSummary } from "@/lib/studio/select";
 import { roomsServed } from "@/lib/studio/allocations";
-import { ductsDrawn, outletsText, setDuctsDrawn, systemAir, unitAir, type RoomAir } from "@/lib/studio/airflow";
+import { outletsText, systemAir, unitAir, type RoomAir } from "@/lib/studio/airflow";
 import { joinZone, setZoning, zoneKit, zoningOf, zonesOf, type UnitZoning, type ZoneControl } from "@/lib/studio/zoning";
 import { DUCT_AIRWAY_FORMS } from "@/lib/studio/form-factors";
 import { UnitBrowser, type UnitChoice } from "./unit-browser";
@@ -2300,9 +2300,6 @@ function UnitDetail({
      any other head serves the one room it is in */
   const airway = current != null && DUCT_AIRWAY_FORMS.includes(current.form_factor);
   const served = roomsServed(alloc);
-  /* whether the Studio draws its ductwork: every unit starts without it,
-     the person ticks it on; Remove ductwork on the plan turns it off too */
-  const ducts = airway && ductsDrawn(sys, alloc.id);
 
   return (
     <div className="ds-sb-side-scroll ds-sb-pane">
@@ -2341,26 +2338,6 @@ function UnitDetail({
             </>
           )}
         </dl>
-      )}
-      {airway && (
-        <div className="ds-sb-serves" role="group" aria-label="Ductwork">
-          <button
-            type="button"
-            role="checkbox"
-            aria-checked={ducts}
-            className="ds-sb-serve"
-            onClick={() => onChange(setDuctsDrawn(draft, sys.id, alloc.id, !ducts))}
-          >
-            <span className={`ds-sb-tick${ducts ? " on" : ""}`} aria-hidden="true">
-              {ducts && (
-                <svg width="10" height="10" viewBox="0 0 16 16">
-                  <path d="M3.5 8.5l3 3 6-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                </svg>
-              )}
-            </span>
-            <span className="ds-sb-serve-name">Draw its ductwork</span>
-          </button>
-        </div>
       )}
       {alloc.serves !== "system" && airway && (
         <div className="ds-sb-serves" role="group" aria-label="Rooms it serves">

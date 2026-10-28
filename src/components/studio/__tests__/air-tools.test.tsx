@@ -56,7 +56,7 @@ describe("air dock group (studio toolrail)", () => {
      whole verb's width on a bar that had started wrapping on a laptop. It is
      still signposted — a named row that is plainly not ready beats a verb
      missing from the list with nothing to explain the gap. */
-  it("Duct is parked until Step 4, inside the Draw flyout", async () => {
+  it("Duct is drawn from the Draw flyout: supply or return, and its size", async () => {
     const { user } = await openBlankDesignOnCanvas();
 
     // gone from the bench itself
@@ -65,11 +65,14 @@ describe("air dock group (studio toolrail)", () => {
     // Draw draws for a system
     await user.click(screen.getByRole("button", { name: "Add a system" }));
     await user.click(screen.getByRole("button", { name: "Draw" }));
-    const fly = screen.getByRole("menu", { name: "Draw a line" });
-    expect(within(fly).getByText("Duct")).toBeInTheDocument();
-    const duct = within(fly).getByRole("menuitem", { name: /Coming — Step 4/ });
-    expect(duct).toBeDisabled();
-    expect(duct).not.toHaveAttribute("title");
+    expect(screen.getByRole("menu", { name: "Draw a line" })).toBeInTheDocument();
+    const ductRow = () => within(screen.getByRole("menu", { name: "Draw a line" })).getByText("Duct").closest(".ds-drawrow") as HTMLElement;
+    await user.click(within(ductRow()).getByRole("menuitemradio", { name: "Ø300" }));
+    // armed: the flyout folds; open again, the duct's picks are the ones on
+    expect(screen.queryByRole("menu", { name: "Draw a line" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Draw" }));
+    expect(within(ductRow()).getByRole("menuitemradio", { name: "Ø300" })).toHaveAttribute("aria-checked", "true");
+    expect(within(ductRow()).getByRole("menuitemradio", { name: "Supply" })).toHaveAttribute("aria-checked", "true");
   });
 
   it("Component gates on a system, then on a zone it serves", async () => {
@@ -112,12 +115,12 @@ describe("air dock group (studio toolrail)", () => {
 });
 
 describe("component palette", () => {
-  it("ships all eight entries with only Plenum live, the rest naming their step", () => {
+  it("ships all eight entries with Plenum and Grille live, the rest naming their step", () => {
     expect(PALETTE_ENTRIES).toHaveLength(8);
     const onPick = jest.fn();
     render(<ComponentPalette onPick={onPick} onClose={() => {}} />);
 
-    const enabled = ["Plenum"];
+    const enabled = ["Plenum", "Grille"];
     for (const e of PALETTE_ENTRIES) {
       const btn = screen.getByRole("menuitem", { name: new RegExp(e.label) });
       if (enabled.includes(e.label)) {
@@ -128,16 +131,17 @@ describe("component palette", () => {
       }
     }
     // reasons match the build plan's steps
-    expect(screen.getByRole("menuitem", { name: /Grille/ }).textContent).toContain("Step 3");
     expect(screen.getByRole("menuitem", { name: /Takeoff/ }).textContent).toContain("Step 4");
     expect(screen.getByRole("menuitem", { name: /Wall controller/ }).textContent).toContain("Step 5");
     expect(screen.getByRole("menuitem", { name: /Zone motor/ }).textContent).toContain("Step 6");
 
     fireEvent.click(screen.getByRole("menuitem", { name: /Plenum/ }));
     expect(onPick).toHaveBeenCalledWith("plenum");
-    // disabled entries never pick
     fireEvent.click(screen.getByRole("menuitem", { name: /Grille/ }));
-    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(onPick).toHaveBeenLastCalledWith("grille");
+    // disabled entries never pick
+    fireEvent.click(screen.getByRole("menuitem", { name: /Takeoff/ }));
+    expect(onPick).toHaveBeenCalledTimes(2);
   });
 
   it("closes on Escape and on an outside mousedown", () => {

@@ -66,7 +66,7 @@ import { setPipeUnits, usePipeUnits } from "./pipe-units";
 import { SchematicView } from "./vrf-schematic";
 import { useArmedInk, setArmedInk } from "./note-ink";
 import { pairPipeSizes } from "@/lib/studio/components";
-import { ComponentPalette, PlenumHud } from "./air-tools";
+import { ComponentPalette, GrilleHud, PlenumHud } from "./air-tools";
 import { claimZone, newSystem, toggleZone, zoneIdsOf } from "@/lib/studio/zones";
 import { doneBlockers, systemFindings } from "@/lib/studio/verdict";
 import { SystemsPanel } from "./systems-panel";
@@ -1890,6 +1890,7 @@ function Editor({
             airComp={airComp}
             onArmComponent={armComponent}
             onAirStream={(s) => setAirComp((c) => (c ? { ...c, stream: s } : c))}
+            onAirPatch={(patch) => setAirComp((c) => (c ? { ...c, ...patch } : c))}
             onComponentPlaced={onComponentPlaced}
             selectedId={selectedId}
             onSelect={(id) => {
@@ -2614,22 +2615,21 @@ function DrawTool({
               {chip("Data", draw.cableKind === "data", "cable", { cableKind: "data" })}
             </div>
           </div>
-          {/* parked until Step 4, and it says so the way the component palette
-              says it — a named row that is plainly not ready, rather than a
-              verb missing from the list with nothing to explain the gap */}
+          {/* duct: drawn like drain, a straight run at a time, supply or
+              return and its diameter picked here (Isaac, 28 October 2026:
+              "Drop the unit, then add pipe duct drain cables, whatever you
+              want to put on") */}
           <div className="ds-drawrow">
-            <span className="ds-drawk off">
+            <span className="ds-drawk">
               <Icon name="wind" size={14} />
               Duct
             </span>
             <div className="ds-drawchips">
-              <button
-                className="ds-drawchip"
-                role="menuitem"
-                disabled
-              >
-                Coming — Step 4
-              </button>
+              {chip("Supply", draw.ductStream === "supply", "duct", { ductStream: "supply" })}
+              {chip("Return", draw.ductStream === "return", "duct", { ductStream: "return" })}
+              {[150, 200, 250, 300, 350, 400].map((mm) =>
+                chip(`Ø${mm}`, draw.ductMm === mm, "duct", { ductMm: mm })
+              )}
             </div>
           </div>
           {/* airflow marks: short wavy arrows, blue supply and red return,
@@ -3263,6 +3263,7 @@ function DesignPanel({
   airComp,
   onArmComponent,
   onAirStream,
+  onAirPatch,
   onComponentPlaced,
   selectedId,
   onSelect,
@@ -3306,6 +3307,7 @@ function DesignPanel({
   airComp: ArmedComponent | null;
   onArmComponent: (kind: AirComponentKind) => void;
   onAirStream: (s: "supply" | "return") => void;
+  onAirPatch: (patch: Partial<ArmedComponent>) => void;
   onComponentPlaced: () => void;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
@@ -3596,6 +3598,7 @@ function DesignPanel({
             crosshair cursor. */}
         {/* options HUD — floating pill strip, top-centre over the canvas,
             while a tool with options is armed (Step 2: the plenum variant) */}
+        {tool === "component" && airComp?.kind === "grille" && <GrilleHud comp={airComp} onChange={onAirPatch} />}
         {tool === "component" && airComp?.kind === "plenum" && (
           <PlenumHud
             stream={airComp.stream}

@@ -9,6 +9,7 @@
    1400×732 mm at world (0,0) → footprint 140×73.2 world units; its supply end
    face sits at world x=+70 → screen x≈439, the return end at x=−70 → ≈361. */
 
+import { grille } from "@/lib/studio/grilles";
 import { render, fireEvent } from "@testing-library/react";
 import { StudioCanvas, type ArmedComponent } from "../canvas";
 import {
@@ -214,8 +215,7 @@ describe("plenum rendering", () => {
   it("a bare undetermined AHU is a PLAIN rectangle — no sockets, arrow or labels", () => {
     const doc = mkDoc([ahu()]);
     const { svg } = renderCanvas({ doc });
-    // nothing connected → no drop hints, no arrow, no supply?/return? clutter
-    expect(svg.querySelectorAll(".ds-ahu-socket")).toHaveLength(0);
+    // nothing connected → no arrow, no supply?/return? clutter
     expect(svg.querySelector(".ds-ahu-flow")).toBeNull();
     expect(svg.querySelectorAll(".ds-ahu-face-label")).toHaveLength(0);
   });
@@ -230,7 +230,6 @@ describe("plenum rendering", () => {
   it("a fitted supply plenum: base WIDEST on the unit, tapering OUT (spec §1b)", () => {
     const doc = mkDoc([ahu(), plenum()]);
     const { svg } = renderCanvas({ doc });
-    expect(svg.querySelectorAll(".ds-ahu-socket")).toHaveLength(1); // return only
     const body = svg.querySelector(".ds-plenum-body")!;
     const pts = body.getAttribute("points")!.split(" ").map((p) => {
       const [x, y] = p.split(",").map(Number);
@@ -372,17 +371,15 @@ describe("plenum rendering", () => {
 describe("built-in return (pack flag)", () => {
   const builtIn = peadRow("built-in");
 
-  it("determines the unit on placement: return spigots + arrow pop up, supply socket hints", () => {
+  /* Isaac, 28 October 2026: "Any unit that's placed on the canvas should not
+     have anything … Do not attach things to it" */
+  it("draws nothing off the unit when it is dropped: no box, spigots or arrow", () => {
     const doc = mkDoc([ahu()]);
     const { svg } = renderCanvas({ doc, row: builtIn });
-    // built-in return orients the unit without any plenum (spec §1a)
-    expect(svg.querySelector(".ds-plenum-builtin")).not.toBeNull();
-    expect(svg.querySelectorAll(".ds-spigot-fixed").length).toBeGreaterThan(0); // return spigots
-    expect(svg.querySelector(".ds-ahu-flow")).not.toBeNull(); // arrow appears
-    const labels = [...svg.querySelectorAll(".ds-ahu-face-label")].map((t) => t.textContent);
-    expect(labels.sort()).toEqual(["RETURN", "SUPPLY"]);
-    // only the supply face is open → one socket hint
-    expect(svg.querySelectorAll(".ds-ahu-socket")).toHaveLength(1);
+    expect(svg.querySelector(".ds-plenum-builtin")).toBeNull();
+    expect(svg.querySelector(".ds-spigot-fixed")).toBeNull();
+    expect(svg.querySelector(".ds-ahu-flow")).toBeNull();
+    expect(svg.querySelectorAll(".ds-ahu-face-label")).toHaveLength(0);
   });
 
   it("refuses a return plenum on that unit — its drop zone never offers", () => {
@@ -404,30 +401,13 @@ describe("factory spigots on the unit (pack opening)", () => {
   /** the PEA-M HAA case: the book publishes takeoffs, not an opening */
   const sized = peadRow({ spigots: [{ count: 2, dia_mm: 400 }] });
 
-  it("determines the unit — no plenum body, takeoffs drawn, size labelled", () => {
+  it("draws nothing off the unit when it is dropped: no takeoffs, label or arrow", () => {
     const doc = mkDoc([ahu()]);
     const { svg } = renderCanvas({ doc, row: sized });
-    // spigots ARE the connection: nothing is fabricated, so no plenum body
     expect(svg.querySelector(".ds-plenum-body")).toBeNull();
-    expect(svg.querySelector(".ds-plenum-builtin")).toBeNull();
-    // ...but the face is visibly connected: 2 takeoffs + the book's label
-    const g = svg.querySelector(".ds-ahu-spigots")!;
-    expect(g).not.toBeNull();
-    expect(g.classList.contains("derived")).toBe(false); // published, not derived
-    expect(g.querySelectorAll(".ds-spigot-fixed")).toHaveLength(2);
-    expect(svg.querySelector(".ds-spigot-label")!.textContent).toBe("2 × Ø400");
-    // and the unit is oriented on placement, exactly like a built-in return
-    expect(svg.querySelector(".ds-ahu-flow")).not.toBeNull();
-  });
-
-  it("draws the takeoffs at TRUE diameter (Ø400 at the unit's mm-per-px)", () => {
-    const doc = mkDoc([ahu()]);
-    const { svg } = renderCanvas({ doc, row: sized });
-    const rect = svg.querySelector(".ds-ahu-spigots .ds-spigot-fixed")!;
-    // the AHU is 1400 mm wide; its drawn footprint sets mm→world scale
-    const fpW = Number(svg.querySelector(".ds-unit rect")!.getAttribute("width"));
-    const perMm = fpW / 1400;
-    expect(Number(rect.getAttribute("width"))).toBeCloseTo(400 * perMm, 3);
+    expect(svg.querySelector(".ds-ahu-spigots")).toBeNull();
+    expect(svg.querySelector(".ds-spigot-label")).toBeNull();
+    expect(svg.querySelector(".ds-ahu-flow")).toBeNull();
   });
 
   it("refuses a plenum on the spigot face — its drop zone never offers", () => {
@@ -461,14 +441,32 @@ describe("factory spigots on the unit (pack opening)", () => {
     expect(onMutate).toHaveBeenCalled();
   });
 
-  it("an UNSIZED 'spigots' answer still connects — derived fan, no size label", () => {
+});
+
+describe("a grille from the component palette", () => {
+  it("goes down where it is clicked, as the HUD set it, and the tool stays armed", () => {
     const doc = mkDoc([ahu()]);
-    const { svg } = renderCanvas({ doc, row: peadRow("spigots") });
-    const g = svg.querySelector(".ds-ahu-spigots")!;
-    expect(g).not.toBeNull();
-    expect(g.classList.contains("derived")).toBe(true); // greyed: nothing published
-    expect(g.querySelectorAll(".ds-spigot-fixed").length).toBeGreaterThan(0);
-    expect(svg.querySelector(".ds-spigot-label")).toBeNull(); // no size to state
+    let next: DesignDocument | undefined;
+    const onComponentPlaced = jest.fn();
+    const { svg } = renderCanvas({
+      doc,
+      component: { kind: "grille", stream: "return", size: { wMm: 600, hMm: 100 }, turned: true },
+      onMutate: (fn) => (next = fn(doc)),
+      onComponentPlaced,
+    });
+    clickAt(svg, 200, 120);
+    const g = next!.objects.find((o) => o.type === "grille")!;
+    expect(g).toMatchObject({ systemId: "sys1", props: { stream: "return", wMm: 600, hMm: 100 } });
+    expect((g.geometry as { rotation?: number }).rotation).toBe(90);
+    expect(onComponentPlaced).not.toHaveBeenCalled();
+  });
+
+  it("draws as a face on the plan, nothing joined to it", () => {
+    const g = grille("flr", "sys1", { x: 100, y: 100 }, "supply", { wMm: 300, hMm: 300 });
+    const { svg } = renderCanvas({ doc: mkDoc([ahu(), g]) });
+    const face = svg.querySelector(".ds-grille")!;
+    expect(face).toHaveAttribute("aria-label", "Supply grille");
+    expect(face.querySelectorAll("line")).toHaveLength(2); // a diffuser's diagonals
   });
 });
 

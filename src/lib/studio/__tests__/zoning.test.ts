@@ -12,8 +12,7 @@ import { assemblePack, type PackSource } from "../packs/loader";
 import { createDesign, type DesignDocument, type DesignObject } from "../document";
 import { addBandUnit, allocationsOf, placeAllocation } from "../builder";
 import { claimZone, newSystem } from "../zones";
-import { setDuctsDrawn, systemAir } from "../airflow";
-import { systemDuctwork } from "../ductwork";
+import { systemAir } from "../airflow";
 import { ductLines } from "../duct-materials";
 import { joinZone, setZoning, zoneKit, zoningOf, zonesOf } from "../zoning";
 
@@ -55,7 +54,6 @@ function house() {
   d = addBandUnit(d, pack, { systemId: made.systemId, iduModel: "PEAD-M100JAA(D)" });
   const unit = allocationsOf(d.systems[0]).find((a) => a.role === "idu")!;
   d = placeAllocation(d, pack, made.systemId, unit.id, d.floors[0].id, { x: m(7.3), y: m(6.25) });
-  d = setDuctsDrawn(d, made.systemId, unit.id, true);
   return { doc: d, systemId: made.systemId, unitId: unit.id };
 }
 const sysOf = (d: DesignDocument) => d.systems[0];
@@ -131,39 +129,20 @@ describe("the kit, from the brand's pack", () => {
   });
 });
 
-describe("on the plan and the sheet", () => {
-  it("a damper on each zone's own run, never two on one, a sensor a zone and the controller", () => {
+describe("on the sheet", () => {
+  it("a damper a zone, the kit and a cable a damper; nothing is drawn on the plan for it", () => {
     const h = house();
     let d = setZoning(h.doc, h.systemId, h.unitId, { control: "temperature" });
     d = joinZone(d, h.systemId, h.unitId, airOf(d), "kitchen", "living");
-    const [lay] = systemDuctwork(d, pack, sysOf(d));
-    const zp = lay.zoning!;
-    expect(zp.zones).toHaveLength(4);
-    for (const zone of zp.zones) expect(zp.dampers.some((x) => x.zone.key === zone.key)).toBe(true);
-    expect(new Set(zp.dampers.map((x) => x.key)).size).toBe(zp.dampers.length);
-    // every outlet sits behind exactly one damper
-    for (const o of lay.outlets) {
-      const behind = zp.dampers.filter((x) => {
-        const run = x.key.slice("damper:".length);
-        return run === `run:${o.key}` || (run.startsWith("trunk:") && run.includes(o.key));
-      });
-      expect(behind).toHaveLength(1);
-    }
-    expect(zp.sensors.map((x) => x.zone.label)).toEqual(["Z1", "Z2", "Z3", "Z4"]);
-    expect(zp.controller).not.toBeNull();
-
-    // on the sheet: dampers by size, the kit and a cable a damper
     const lines = ductLines(d, pack, sysOf(d));
-    const dampers = lines.filter((l) => l.name.startsWith("Zone damper Ø")).reduce((n, l) => n + Number(l.qty), 0);
-    expect(dampers).toBe(zp.dampers.length);
-    expect(lines.find((l) => l.name === "Zone damper cable")).toMatchObject({ shelf: "controls", qty: String(zp.dampers.length) });
+    expect(lines.find((l) => l.name === "Zone damper")).toMatchObject({ shelf: "ductwork", qty: "4" });
+    expect(lines.find((l) => l.name === "Zone damper cable")).toMatchObject({ shelf: "controls", qty: "4" });
     expect(lines.find((l) => l.name === "Zone interface PAC-ZC04L240C-A")).toMatchObject({ shelf: "controls", qty: "1" });
+    expect(d.objects.length).toBe(h.doc.objects.length);
   });
 
-  it("zoning off puts nothing on the plan or the sheet", () => {
+  it("zoning off puts nothing on the sheet", () => {
     const h = house();
-    const [lay] = systemDuctwork(h.doc, pack, sysOf(h.doc));
-    expect(lay.zoning).toBeNull();
     expect(ductLines(h.doc, pack, sysOf(h.doc)).some((l) => /zone/i.test(l.name))).toBe(false);
   });
 });

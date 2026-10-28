@@ -14,7 +14,7 @@ import { roomLoadKw } from "../loads-room";
 import { addBandUnit, addHead, setRoomsServed } from "../builder";
 import { allocationsOf } from "../allocations";
 import { claimZone, newSystem } from "../zones";
-import { setDuctsDrawn,
+import {
   ductCapacityLs,
   outletsText,
   returnGrilleFor,
@@ -97,10 +97,6 @@ describe("a ducted unit on the band", () => {
     let d = made.doc;
     for (const id of h.ids) d = claimZone(d, made.systemId, id);
     d = addBandUnit(d, pack, { systemId: made.systemId, iduModel: "PEAD-M100JAA(D)" });
-    // dropped, it is the unit alone; its ductwork is the person's to add
-    expect(systemAir(d, pack, d.systems.find((s) => s.id === made.systemId)!)).toEqual([]);
-    const idu = allocationsOf(d.systems.find((s) => s.id === made.systemId)!).find((a) => a.role === "idu")!;
-    d = setDuctsDrawn(d, made.systemId, idu.id, true);
     const sys = d.systems.find((s) => s.id === made.systemId)!;
     const [air] = systemAir(d, pack, sys);
     expect(air.model).toBe("PEAD-M100JAA(D)");
@@ -129,9 +125,8 @@ describe("a ducted unit on the band", () => {
     const made = newSystem(h.doc, pack.meta.version);
     let d = claimZone(made.doc, made.systemId, h.ids[0]);
     d = addBandUnit(d, pack, { systemId: made.systemId, iduModel: "PEAD-M100JAA(D)" });
-    const id = allocationsOf(d.systems.find((s) => s.id === made.systemId)!).find((a) => a.role === "idu")!.id;
-    d = setDuctsDrawn(d, made.systemId, id, true);
     const sys = d.systems.find((s) => s.id === made.systemId)!;
+    const id = allocationsOf(sys).find((a) => a.role === "idu")!.id;
     const off = { ...sys, settings: { ...sys.settings, returnFilter: { [id]: false } } };
     expect(systemAir(d, pack, off)[0].ret.filter).toBe(false);
   });
@@ -147,21 +142,12 @@ describe("a ducted unit given a group of rooms", () => {
     d = addHead(d, pack, { systemId: made.systemId, zoneId: "living", iduModel: "PEFY-P100VMA-E4" });
     const vma = allocationsOf(d.systems.find((s) => s.id === made.systemId)!).find((a) => a.model === "PEFY-P100VMA-E4")!;
     d = setRoomsServed(d, pack, { systemId: made.systemId, allocationId: vma.id, roomIds: ["living", "kitchen", "dining"] });
-    d = setDuctsDrawn(d, made.systemId, vma.id, true);
     const air = systemAir(d, pack, d.systems.find((s) => s.id === made.systemId)!);
     const group = air.find((a) => a.model === "PEFY-P100VMA-E4")!;
     expect(group.rooms.map((r) => r.name)).toEqual(["Living", "Kitchen", "Dining"]);
     expect(group.rooms.reduce((a, r) => a + r.ls, 0)).toBeCloseTo(533, 6);
+    // the bedroom's bulkhead sends its own air to its own room
+    expect(air.find((a) => a.model === "PEFY-P32VMS1-E")!.rooms.map((r) => r.name)).toEqual(["Bed 1"]);
     expect(outletsText(group.rooms[0])).toMatch(/^\d+ outlets?, Ø\d+$/);
-    // the bedroom's bulkhead blows straight in until it's given ductwork,
-    // then sends its own air to its own room
-    expect(air.find((a) => a.model === "PEFY-P32VMS1-E")).toBeUndefined();
-    const vms = allocationsOf(d.systems.find((s) => s.id === made.systemId)!).find((a) => a.model === "PEFY-P32VMS1-E")!;
-    d = setDuctsDrawn(d, made.systemId, vms.id, true);
-    const ducted = systemAir(d, pack, d.systems.find((s) => s.id === made.systemId)!);
-    expect(ducted.find((a) => a.model === "PEFY-P32VMS1-E")!.rooms.map((r) => r.name)).toEqual(["Bed 1"]);
-    // and a ducted unit's can be taken off
-    d = setDuctsDrawn(d, made.systemId, vma.id, false);
-    expect(systemAir(d, pack, d.systems.find((s) => s.id === made.systemId)!).map((a) => a.model)).toEqual(["PEFY-P32VMS1-E"]);
   });
 });

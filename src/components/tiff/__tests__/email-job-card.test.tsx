@@ -1,0 +1,127 @@
+/* The job Tiff proposes from a forwarded email, in Conversations (28 October
+   2026): what she read, made only on Create job, put away by Not a job, or
+   made from the New job form filled in. */
+import { act, fireEvent, render, screen } from "@testing-library/react";
+
+const readEmailJob = jest.fn();
+const createJobFromEmail = jest.fn();
+const emailJobMade = jest.fn();
+const notAJob = jest.fn();
+jest.mock("@/app/actions/email-in-job", () => ({
+  readEmailJob: (...a: unknown[]) => readEmailJob(...a),
+  createJobFromEmail: (...a: unknown[]) => createJobFromEmail(...a),
+  emailJobMade: (...a: unknown[]) => emailJobMade(...a),
+  notAJob: (...a: unknown[]) => notAJob(...a),
+}));
+let formProps: Record<string, unknown> | null = null;
+jest.mock("@/components/making/new-job-form", () => ({
+  NewJobForm: (p: Record<string, unknown>) => {
+    formProps = p;
+    return <div role="dialog" aria-label="New job form" />;
+  },
+}));
+
+import { EmailJobCard } from "../email-job-card";
+
+const ID = "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b";
+const view = (over: Record<string, unknown> = {}) => ({
+  id: ID,
+  state: "read",
+  proposal: {
+    isJob: true,
+    notJobWhy: "",
+    summary: "",
+    client: "Truecut Building",
+    contact: { first: "Matt", last: "Glass", mobile: "0412 345 678", phone: "", email: "matt@truecut.example" },
+    site: "40 Westbourne Street, Stanmore NSW 2048",
+    due: "2026-11-07",
+    scope: ["Modify the existing underfloor AC", "Extend it to the attic"],
+    excluded: ["The secondary dwelling"],
+    clientMatch: { uuid: "c1", name: "Truecut Building", builder: true },
+    siteMatch: null,
+  },
+  files: [{ name: "A-101 Architectural.pdf", size: 16_000_000 }],
+  why: "Not kept: Schedule.xlsx",
+  jobUuid: null,
+  jobNumber: null,
+  fromName: "Isaac Smith",
+  receivedAt: "2026-10-29T22:12:00Z",
+  ...over,
+});
+
+const draw = async () => {
+  await act(async () => {
+    render(<EmailJobCard id={ID} />);
+  });
+};
+
+beforeEach(() => {
+  for (const f of [readEmailJob, createJobFromEmail, emailJobMade, notAJob]) f.mockReset();
+  formProps = null;
+  readEmailJob.mockResolvedValue(view());
+});
+
+it("shows what Tiff read: the client already here, a new site for them, the scope, the files and what wasn't kept", async () => {
+  await draw();
+  expect(screen.getByRole("heading", { name: "New job" })).toBeInTheDocument();
+  expect(screen.getByText(/already a client/)).toBeInTheDocument();
+  expect(screen.getByText(/a new site for them/)).toBeInTheDocument();
+  expect(screen.getByText("Matt Glass, 0412 345 678, matt@truecut.example")).toBeInTheDocument();
+  expect(screen.getByText("Saturday 7 November")).toBeInTheDocument();
+  expect(screen.getByText("Extend it to the attic")).toBeInTheDocument();
+  expect(screen.getByText("The secondary dwelling")).toBeInTheDocument();
+  expect(screen.getByText("A-101 Architectural.pdf, to the job's Documents")).toBeInTheDocument();
+  expect(screen.getByText("Schedule.xlsx")).toBeInTheDocument();
+});
+
+it("makes the job only on Create job, and then says so with Open job", async () => {
+  createJobFromEmail.mockResolvedValue({ ok: true, jobUuid: "j-1", number: "3471" });
+  await draw();
+  expect(createJobFromEmail).not.toHaveBeenCalled();
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+  });
+  expect(createJobFromEmail).toHaveBeenCalledWith(ID);
+  expect(screen.getByText("Job 3471 made in ServiceM8")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Open job 3471" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Create job" })).toBeNull();
+});
+
+it("says why a job couldn't be made, and keeps the buttons", async () => {
+  createJobFromEmail.mockResolvedValue({ ok: false, error: "New jobs are off. Turn them on in Settings › Integrations." });
+  await draw();
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+  });
+  expect(screen.getByRole("alert")).toHaveTextContent("New jobs are off.");
+  expect(screen.getByRole("button", { name: "Create job" })).toBeEnabled();
+});
+
+it("opens the New job form filled in, on the email's own press, and files the email on the job it makes", async () => {
+  await draw();
+  fireEvent.click(screen.getByRole("button", { name: "Change the details" }));
+  expect(screen.getByRole("dialog", { name: "New job form" })).toBeInTheDocument();
+  expect(formProps?.initial).toMatchObject({ pressId: ID, clientName: "Truecut Building", address: "40 Westbourne Street, Stanmore NSW 2048", first: "Matt", via: "email" });
+  await act(async () => {
+    (formProps!.onMade as (u: string) => void)("j-2");
+  });
+  expect(emailJobMade).toHaveBeenCalledWith(ID, "j-2");
+  expect(screen.getByText("Job made in ServiceM8")).toBeInTheDocument();
+});
+
+it("puts the card away on Not a job, and draws nothing for an email that isn't work", async () => {
+  notAJob.mockResolvedValue(true);
+  await draw();
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Not a job" }));
+  });
+  expect(notAJob).toHaveBeenCalledWith(ID);
+  expect(screen.getByText("Not a job")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Create job" })).toBeNull();
+});
+
+it("draws nothing for an email that isn't a request for work", async () => {
+  readEmailJob.mockResolvedValue(view({ proposal: { ...view().proposal, isJob: false } }));
+  await draw();
+  expect(screen.queryByRole("heading", { name: "New job" })).toBeNull();
+});

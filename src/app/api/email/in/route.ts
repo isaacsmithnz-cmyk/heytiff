@@ -1,6 +1,7 @@
 import { after, type NextRequest } from "next/server";
 import { signedByResend, tokenFromRecipients } from "@/lib/email/inbound";
 import { noteEmailIn, orgForToken, takeEmailIn } from "@/lib/email/inbound-server";
+import { readEmailIntoJob } from "@/lib/email/proposal-server";
 
 /* Where Resend posts an email sent to Tiff (Isaac, 28 October 2026: "forward
    an email for a builder into tiff to create a job, read scope etc").
@@ -18,7 +19,9 @@ import { noteEmailIn, orgForToken, takeEmailIn } from "@/lib/email/inbound-serve
    ONE ROW AN EMAIL, made before the answer, so a second delivery of the same
    post finds it and does nothing. The email itself is fetched, its sender
    checked and its files kept behind the answer (after()), because a tender
-   set can be tens of megabytes and the post shouldn't wait for it. */
+   set can be tens of megabytes and the post shouldn't wait for it; then
+   Tiff reads it into the job she proposes, in the forwarder's Conversations
+   (proposal-server.ts). */
 
 export const maxDuration = 300;
 
@@ -48,7 +51,9 @@ export async function POST(request: NextRequest) {
   if (!row) return new Response("Couldn't keep it", { status: 503 });
   after(async () => {
     const took = await takeEmailIn(row.id, orgId, d.email_id!);
-    console.log(`[email-in] ${took}`);
+    /* taken from the team: Tiff reads it into a job, in the forwarder's Conversations */
+    const read = took === "received" ? await readEmailIntoJob(row.id) : null;
+    console.log(`[email-in] ${took}${read ? `, ${read}` : ""}`);
   });
   return new Response("Taken", { status: 200 });
 }

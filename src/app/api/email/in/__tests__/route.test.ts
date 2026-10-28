@@ -13,6 +13,9 @@ const noteEmailIn = jest.fn();
 const takeEmailIn = jest.fn();
 jest.mock("@/lib/email/inbound-server", () => ({ orgForToken: (...a: unknown[]) => orgForToken(...a), noteEmailIn: (...a: unknown[]) => noteEmailIn(...a), takeEmailIn: (...a: unknown[]) => takeEmailIn(...a) }));
 
+const readEmailIntoJob = jest.fn();
+jest.mock("@/lib/email/proposal-server", () => ({ readEmailIntoJob: (...a: unknown[]) => readEmailIntoJob(...a) }));
+
 import { POST } from "../route";
 
 const key = Buffer.from("route-test-key");
@@ -28,7 +31,8 @@ const email = { email_id: "e1", from: "Isaac <isaac@diamondair.com.au>", subject
 beforeEach(() => {
   process.env.RESEND_INBOUND_SECRET = `whsec_${key.toString("base64")}`;
   afterQueue.length = 0;
-  for (const f of [orgForToken, noteEmailIn, takeEmailIn]) f.mockReset();
+  for (const f of [orgForToken, noteEmailIn, takeEmailIn, readEmailIntoJob]) f.mockReset();
+  readEmailIntoJob.mockResolvedValue("read");
   orgForToken.mockResolvedValue("org-1");
   noteEmailIn.mockResolvedValue({ id: "row-1" });
   takeEmailIn.mockResolvedValue("received");
@@ -42,6 +46,15 @@ it("takes a signed email for a business's address, and fetches it behind the ans
   expect(takeEmailIn).not.toHaveBeenCalled();
   await afterQueue[0]!();
   expect(takeEmailIn).toHaveBeenCalledWith("row-1", "org-1", "e1");
+  /* taken from the team, Tiff reads it into a job */
+  expect(readEmailIntoJob).toHaveBeenCalledWith("row-1");
+});
+
+it("doesn't read an email it refused", async () => {
+  takeEmailIn.mockResolvedValue("refused");
+  await POST(post(email));
+  await afterQueue[0]!();
+  expect(readEmailIntoJob).not.toHaveBeenCalled();
 });
 
 it("refuses a post Resend didn't sign, and reads nothing", async () => {

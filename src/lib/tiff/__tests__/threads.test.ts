@@ -116,3 +116,12 @@ describe("what changed since the server was last sent it", () => {
     expect(threadSig(a)).not.toBe(threadSig({ ...a, messages: [...a.messages, { role: "tiff", text: "yes", at: 1 }] }));
   });
 });
+
+/* Email to Tiff (28 October 2026): her answer carries the email it is about,
+   and its card is drawn from it; anything else in that place is dropped */
+it("keeps the email an answer is about, and only an id", () => {
+  const id = "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b";
+  const thread = (email: unknown) => ({ id: `email-${id}`, title: "Tender", updatedAt: 2, messages: [{ role: "tiff", text: "A tender.", at: 1, email }] });
+  expect(threadOf(thread(id))?.messages[0]).toEqual({ role: "tiff", text: "A tender.", at: 1, email: id });
+  expect(threadOf(thread("<script>"))?.messages[0]).toEqual({ role: "tiff", text: "A tender.", at: 1 });
+});

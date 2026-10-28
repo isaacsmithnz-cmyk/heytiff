@@ -85,7 +85,7 @@ export function wallMinute(iso: string, zone: string): string | null {
 /** A stint's row in the queue, by the key the queue gives it. */
 const timeKey = (c: Pick<CheckIn, "id" | "jobUuid">) => dedupeKey("booking", c.jobUuid.toLowerCase(), bookingSubject.time(c.id.toLowerCase()));
 
-async function jobsOf(orgId: string, uuids: string[]): Promise<Map<string, ClockJob>> {
+export async function jobsOf(orgId: string, uuids: string[]): Promise<Map<string, ClockJob>> {
   const out = new Map<string, ClockJob>();
   if (uuids.length === 0) return out;
   const spell = [...new Set(uuids.flatMap((u) => [u, u.toLowerCase(), u.toUpperCase()]))];
@@ -103,7 +103,7 @@ async function jobsOf(orgId: string, uuids: string[]): Promise<Map<string, Clock
 const jobFor = (jobs: Map<string, ClockJob>, uuid: string): ClockJob => jobs.get(uuid.toLowerCase()) ?? { jobUuid: uuid, number: null, where: "" };
 
 /** The person's ServiceM8 staff member, by their link. */
-async function staffUuidOf(ctx: MobileCtx, tenantId: string | null): Promise<string | null> {
+export async function staffUuidOf(ctx: MobileCtx, tenantId: string | null): Promise<string | null> {
   if (!tenantId) return null;
   const card = await staffProfileIdFor(ctx.orgId, ctx.userId).catch(() => null);
   if (!card) return null;
@@ -134,7 +134,7 @@ async function bookingEndOf(orgId: string, staffUuid: string | null, on: CheckIn
 }
 
 /** Why a stint's time won't go, or what it goes with. */
-async function cantSend(ctx: MobileCtx): Promise<{ why: string } | { staffUuid: string; zone: string; state: Awaited<ReturnType<typeof readSm8WriteState>> }> {
+export async function cantSend(ctx: MobileCtx): Promise<{ why: string } | { staffUuid: string; zone: string; state: Awaited<ReturnType<typeof readSm8WriteState>> }> {
   if (!sm8BookingsAllowed()) return { why: CLOCK_WORDS.notTaking };
   const state = await readSm8WriteState(ctx.orgId);
   if (!offersSend(state, "booking")) return { why: CLOCK_WORDS.notTaking };
@@ -190,7 +190,7 @@ export async function readClock(ctx: MobileCtx, now: number = Date.now()): Promi
 
 /** A finished stint's time, to ServiceM8, sent there and then where it can
     be. Never throws: the stint stands in HeyTiff whatever happens here. */
-async function sendTime(ctx: MobileCtx, press: Sm8Press | null, stint: CheckIn): Promise<void> {
+export async function sendTime(ctx: MobileCtx, press: Sm8Press | null, stint: CheckIn): Promise<void> {
   if (!stint.outAt || !press || press.orgId !== ctx.orgId || press.userId !== ctx.userId) return;
   try {
     const c = await cantSend(ctx);

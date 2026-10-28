@@ -483,13 +483,21 @@ describe("shapes as the privacy boundary", () => {
      two of them have no read scope — so the shape must still drop them. The
      deprecated payment_* detail fields belong to the JobPayment endpoint,
      whose scope is a WRITE scope we refuse to ask for. */
-  it("the job shape still refuses badges, coordinates and the write-scope payment detail", () => {
+  it("the job keeps where it is only when ServiceM8 vouches for the geocode, both halves or neither", () => {
+    const at = (r: Record<string, unknown>) => spec("jobs").shape({ uuid: "j-3", ...r })!;
+    expect(at({ lat: -33.91, lng: 151.19, geo_is_valid: 1 })).toMatchObject({ lat: -33.91, lng: 151.19 });
+    expect(at({ lat: "-33.91", lng: "151.19", geo_is_valid: "1" })).toMatchObject({ lat: -33.91, lng: 151.19 });
+    expect(at({ lat: -33.91, lng: 151.19, geo_is_valid: 0 })).toMatchObject({ lat: null, lng: null });
+    expect(at({ lat: -33.91, geo_is_valid: 1 })).toMatchObject({ lat: null, lng: null });
+    expect(at({ lat: 0, lng: 0, geo_is_valid: 1 })).toMatchObject({ lat: null, lng: null });
+    expect(at({})).toMatchObject({ lat: null, lng: null });
+  });
+
+  it("the job shape still refuses badges and the write-scope payment detail", () => {
     const shaped = spec("jobs").shape({
       uuid: "j-2",
       generated_job_id: "1043",
       badges: '["b-1"]',
-      lat: -33.91,
-      lng: 151.19,
       billing_address: "PO Box 12, Mascot",
       payment_method: "Credit card",
       payment_amount: "500.00",
@@ -499,8 +507,6 @@ describe("shapes as the privacy boundary", () => {
     })!;
     for (const banned of [
       "badges",
-      "lat",
-      "lng",
       "billing_address",
       "payment_method",
       "payment_amount",

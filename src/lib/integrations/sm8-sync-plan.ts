@@ -126,6 +126,19 @@ const contactShape = (parentKey: "company_uuid" | "job_uuid") =>
     };
   };
 
+/** A coordinate as ServiceM8 sends it (a number, or a numeric string), or null. */
+const coordOrNull = (v: unknown, limit: number): number | null => {
+  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
+  return Number.isFinite(n) && Math.abs(n) <= limit && n !== 0 ? n : null;
+};
+
+/** The job's geocode, both halves or neither, only when ServiceM8 vouches for it. */
+function positionOf(r: Raw): { lat: number | null; lng: number | null } {
+  const lat = intOrNull(r.geo_is_valid) === 1 ? coordOrNull(r.lat, 90) : null;
+  const lng = intOrNull(r.geo_is_valid) === 1 ? coordOrNull(r.lng, 180) : null;
+  return lat !== null && lng !== null ? { lat, lng } : { lat: null, lng: null };
+}
+
 const shapeJob = (r: Raw): MirrorRow | null => {
   const uuid = uuidOf(r);
   if (!uuid) return null;
@@ -138,8 +151,14 @@ const shapeJob = (r: Raw): MirrorRow | null => {
      anyone without it. An absence in the mirror was never the safeguard it
      looked like: it protected the columns from the OWNER of the data.
 
+     WHERE THE JOB IS rides here too: ServiceM8's own geocode of the address
+     (`lat`, `lng`), kept only when it says the geocode is good
+     (`geo_is_valid` 1, its docs: "if 0, don't use lat, lng"). The phone's day
+     clock reads it to put your time on the job you've arrived at (Isaac,
+     28 October 2026). It was left out until there was a use for it.
+
      Still deliberately absent, and the pick list IS that boundary — the test
-     below pins it: badges (the only badge scope is a WRITE scope), lat/lng,
+     below pins it: badges (the only badge scope is a WRITE scope),
      billing_address, and the four DEPRECATED on-job payment detail fields
      (payment_method / payment_date / payment_amount / payment_note), which
      ServiceM8's own docs redirect to the JobPayment endpoint. That endpoint
@@ -155,6 +174,7 @@ const shapeJob = (r: Raw): MirrorRow | null => {
     status: textOrNull(r.status),
     company_uuid: textOrNull(r.company_uuid),
     job_address: textOrNull(r.job_address),
+    ...positionOf(r),
     geo_city: textOrNull(r.geo_city),
     geo_state: textOrNull(r.geo_state),
     geo_postcode: textOrNull(r.geo_postcode),

@@ -698,9 +698,10 @@ describe("a clean walk", () => {
     // Money rides through to the mirror now, verbatim; the gate that decides
     // who may READ it is in the loaders, not in the absence of a column.
     expect(jobRows[0]).toMatchObject({ total_invoice_amount: "999.00" });
-    // What still never arrives: write-scope territory and coordinates.
+    // What still never arrives: write-scope territory. Where the job is
+    // arrives only when ServiceM8 vouches for its geocode, and it doesn't here.
     expect(jobRows[0]).not.toHaveProperty("badges");
-    expect(jobRows[0]).not.toHaveProperty("lat");
+    expect(jobRows[0]).toMatchObject({ lat: null, lng: null });
 
     const jobs = stateUpsertFor("jobs")!;
     expect(jobs).toMatchObject({

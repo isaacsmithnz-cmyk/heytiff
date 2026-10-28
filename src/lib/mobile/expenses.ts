@@ -153,7 +153,7 @@ export async function readPhoneReceipt(ctx: MobileCtx, body: Record<string, unkn
 }
 
 /** A slot for the receipt's bytes, of the kind its record will adopt. */
-export async function receiptSlot(ctx: MobileCtx, body: Record<string, unknown>): Promise<Done<{ documentId: string; signedUrl: string }>> {
+export async function receiptSlot(ctx: MobileCtx, body: Record<string, unknown>): Promise<Done<{ documentId: string; uploadUrl: string }>> {
   const staffId = await staffProfileIdFor(ctx.orgId, ctx.userId);
   if (!staffId) return bad("Your account isn't linked to a staff record.", 403);
   const kind = body.kind === "fuel_receipt" ? "fuel_receipt" : "receipt";
@@ -164,7 +164,7 @@ export async function receiptSlot(ctx: MobileCtx, body: Record<string, unknown>)
     sizeBytes: size && size > 0 ? Math.round(size) : 0,
   });
   if (!slot.ok) return bad(slot.error);
-  return { ok: true, value: { documentId: slot.documentId, signedUrl: slot.signedUrl } };
+  return { ok: true, value: { documentId: slot.documentId, uploadUrl: slot.signedUrl } };
 }
 
 /** The bytes landed. */

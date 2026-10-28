@@ -103,7 +103,8 @@ type Done<T> = { ok: true; value: T } | { ok: false; status: number; error: stri
 const bad = (error: string, status = 400): Done<never> => ({ ok: false, status, error });
 const str = (v: unknown, max = 200): string => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const num = (v: unknown): number | null => {
-  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() ? Number(v) : NaN;
+  /* "57,912" and "1 121.50" are numbers as people type them */
+  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() ? Number(v.replace(/[,\s$]/g, "")) : NaN;
   return Number.isFinite(n) ? n : null;
 };
 

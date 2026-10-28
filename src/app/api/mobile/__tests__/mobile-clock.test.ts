@@ -78,6 +78,14 @@ const press = async (sub: string, body: unknown) => {
   return { status: res.status, body: (await res.json()) as Row };
 };
 
+/* THE CLOCK STANDS AT MIDDAY. Stints here start hours "ago"; run just after
+   midnight, that is yesterday, and a stint across midnight is one this route
+   won't send (the push of 29 October 2026, at 00:30, failed on exactly that).
+   Only Date is faked: timers and promises run as they do. */
+jest.useFakeTimers({
+  now: new Date("2026-10-28T02:00:00Z"),
+  doNotFake: ["nextTick", "setImmediate", "setTimeout", "setInterval", "clearTimeout", "clearInterval", "clearImmediate", "queueMicrotask", "hrtime", "performance"],
+});
 const today = localNow(ZONE, Date.now())!.slice(0, 10);
 const checkIns = () => fake.db.job_check_ins as Row[];
 const openOf = (user: string) => checkIns().find((c) => c.user_id === user && c.checked_out_at == null)!;

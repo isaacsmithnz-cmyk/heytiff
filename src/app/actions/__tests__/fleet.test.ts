@@ -96,6 +96,10 @@ jest.mock("@/lib/permissions-server", () => ({
   can: jest.fn(async (c: string) => caps.has(c)),
 }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
+const claimsPushed: string[] = [];
+jest.mock("@/lib/expenses/claim-push", () => ({
+  pushClaimSent: (orgId: string, c: { staffId: string; description: string; amount: number }) => claimsPushed.push(`${orgId} ${c.staffId} ${c.description} ${c.amount}`),
+}));
 const issuesPushed: string[] = [];
 jest.mock("@/lib/fleet/issue-push", () => ({
   pushIssueReported: (orgId: string, i: { staffId: string | null; vehicleId: string; note: string | null }) => issuesPushed.push(`${orgId} ${i.staffId} ${i.vehicleId} ${i.note}`),
@@ -107,6 +111,7 @@ const VEHICLE = { id: "v-1", status: "active", odometer: 84120, last_service_odo
 
 beforeEach(() => {
   issuesPushed.length = 0;
+  claimsPushed.length = 0;
   [insert, update, del, select].forEach((m) => m.mockClear());
   eqs.length = 0;
   existingDocument = null;
@@ -408,6 +413,15 @@ describe("fuel paid from your own pocket", () => {
 
   const claimInsert = () =>
     insert.mock.calls.find((c) => c[0] === "expense_claims")?.[1] as Record<string, unknown>;
+
+  /* the review of 29 October 2026: the most common claim a tradie makes told nobody */
+  it("tells whoever approves of the claim it raised, and a company fill tells nobody", async () => {
+    await own({ station: "Ampol Alexandria" });
+    expect(claimsPushed).toEqual(["org-1 staff-1 Fuel — Ampol Alexandria 158.4"]);
+    claimsPushed.length = 0;
+    await addLog({ vehicleId: "v-1", kind: "fuel", litres: 50, cost: 100, paidWith: "company" });
+    expect(claimsPushed).toEqual([]);
+  });
 
   it("records who paid on the log", async () => {
     await own();

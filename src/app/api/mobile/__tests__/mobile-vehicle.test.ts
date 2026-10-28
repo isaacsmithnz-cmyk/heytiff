@@ -21,6 +21,19 @@ jest.mock("@/lib/mobile/auth", () => ({
 }));
 jest.mock("@/lib/au-dates", () => ({ ...jest.requireActual("@/lib/au-dates"), todayInAu: () => "2026-10-28" }));
 jest.mock("@/lib/org/query", () => ({ orgExpiryWindow: async () => ({ warnDays: 30, email: false }) }));
+/* the stored log a correction reads its tax half from */
+let storedLog: Record<string, unknown> | null = null;
+jest.mock("@/lib/supabase-server", () => ({
+  supabaseAdmin: {
+    from: () => {
+      const q: Record<string, unknown> = {};
+      q.select = () => q;
+      q.eq = () => q;
+      q.maybeSingle = async () => ({ data: storedLog });
+      return q;
+    },
+  },
+}));
 
 let staffId: string | null = "card-isaac";
 let assigned = true;
@@ -69,6 +82,7 @@ import { fixEntry, logReading, readPhoneVehicle, reportIssue } from "@/lib/mobil
 const ctx = { userId: "auth0|isaac", orgId: "org-diamond", role: "owner", caps: new Set(), orgIds: ["org-diamond"] } as never;
 
 beforeEach(() => {
+  storedLog = null;
   asked.length = 0;
   staffId = "card-isaac";
   assigned = true;
@@ -143,6 +157,19 @@ describe("your vehicle on the phone", () => {
     expect(await logReading(ctx, { vehicleId: "v-zucky", odo: 56000 })).toEqual({ ok: false, status: 400, error: refuse });
     expect(await logReading(ctx, { vehicleId: "v-zucky", odo: "" })).toMatchObject({ ok: false });
     expect(await reportIssue(ctx, { vehicleId: "v-zucky", note: "  " })).toMatchObject({ ok: false });
+  });
+
+  /* the review of 29 October 2026: a phone correction wiped a fill's GST and ABN */
+  it("keeps a fill's GST, ABN and docket date when the phone corrects its litres", async () => {
+    storedLog = { kind: "fuel", gst: "11.05", supplier_abn: "40004201307", logged_on: "2026-10-27" };
+    await fixEntry(ctx, { id: "f1", litres: "62.5" });
+    expect(asked).toEqual(["as auth0|isaac", `fix f1 ${JSON.stringify({ litres: 62.5, gst: 11.05, abn: "40004201307", purchasedOn: "2026-10-27" })}`]);
+  });
+
+  it("sends no tax half for a reading or an issue", async () => {
+    storedLog = { kind: "issue", gst: null, supplier_abn: null, logged_on: "2026-10-26" };
+    await fixEntry(ctx, { id: "i1", note: "Door latch" });
+    expect(asked[1]).toBe(`fix i1 ${JSON.stringify({ note: "Door latch" })}`);
   });
 
   it("corrects an entry through the web's editLog, only the fields sent", async () => {

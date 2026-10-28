@@ -275,6 +275,14 @@ export async function addLog(log: NewLog): Promise<FleetResult> {
 
   if (ownMoney) {
     const raised = await raiseFuelReimbursement(ctx, String(created.id), log, tax.columns.logged_on);
+    /* the claim it raised tells whoever approves, as a claim sent does (lib/expenses/claim-push) */
+    if (raised && ctx.staffId) {
+      const staffId = ctx.staffId;
+      const figures = claimFigures({ cost: log.cost, gst: log.gst ?? null, station: log.station, spentOn: tax.columns.logged_on });
+      await import("@/lib/expenses/claim-push")
+        .then((m) => m.pushClaimSent(ctx.orgId, { staffId, description: String(figures.description), amount: Number(log.cost ?? 0) }))
+        .catch(() => undefined);
+    }
     if (!raised) {
       /* The log is saved and correct, but the money is not coming back. Unlike
          a missing receipt photo this is NOT safe to swallow — say so, and say

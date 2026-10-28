@@ -13,16 +13,20 @@ import { CAPABILITIES, resolve } from "@/lib/permissions";
 import type { Role } from "@/lib/roles-shared";
 
 /* ⌘K's and Tiff's screens are v2's (Isaac, 23 October 2026: the old names,
-   "Drop them entirely"): the eight places and your name's menu, the same
-   list the sidebar draws (places.ts). */
+   "Drop them entirely"): the places and your name's menu, the same list
+   the sidebar draws (places.ts), and Design, which the rail no longer
+   draws (28 October 2026: the Studio opens from a job's quote) but ⌘K and
+   Tiff still know by name. */
 
 const viewer = (role: Role | null) => ({ caps: resolve(role), role });
 const keys = (v: NavViewer) => navFor(v).map((n) => n.key);
 
 describe("nav config", () => {
-  it("is the eight places, then your name's menu", () => {
+  it("is the places, then your name's menu, and Design, which the rail doesn't draw", () => {
     expect(NAV_GROUPS.map((g) => g.label)).toEqual(["Places", "Yours"]);
-    expect(NAV_GROUPS[0].items.map((i) => i.label)).toEqual(PLACES.map((p) => p.label));
+    expect(NAV_GROUPS[0].items.map((i) => i.label).filter((l) => l !== "Design")).toEqual(PLACES.map((p) => p.label));
+    expect(NAV_GROUPS[0].items.map((i) => i.label)).toContain("Design");
+    expect(PLACES.map((p) => p.label)).not.toContain("Design");
     expect(NAV_GROUPS[1].items.map((i) => i.label)).toEqual(YOURS.map((p) => p.label));
   });
 

@@ -18,8 +18,8 @@ import { StudioHold } from "./studio-hold";
 
    Which studio comes back is the address's call. Coming back to where the
    kept studio is (its design, or the list of designs) shows it. Asking for
-   something else (the Design place in the sidebar, which is the list, while
-   the kept studio has a design open; a link to another design) starts a new
+   something else (the list of designs while the kept studio has a design
+   open; a link to another design) starts a new
    studio there, as a page always has. The studio tells the keeper which
    design it has open whenever that changes (noteKeptDesign), before it
    writes the address, so the two always agree.

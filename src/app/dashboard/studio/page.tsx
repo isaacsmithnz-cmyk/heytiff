@@ -9,6 +9,9 @@ import { loadPackWithOverrides } from "@/lib/studio/packs/overrides-server";
 import { libraryManifest, type LibraryManifest } from "@/lib/studio/packs/library";
 import { Studio } from "@/components/studio/studio";
 import { StudioKeep } from "@/components/studio/studio-keeper";
+import { readJobDesigns, studioJobOf } from "@/lib/studio/job-designs-server";
+import { prefillFromJob, type JobPrefill } from "@/lib/studio/job-link";
+import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 
 /* THE LIBRARY COMES WITH THE PAGE. The start screen lists what the studio
    can design with — brand, system, series, model — and says what arrived
@@ -83,6 +86,22 @@ export default async function StudioPage({
   const asked = params.design;
   const openDesignId = typeof asked === "string" && asked ? asked : undefined;
 
+  /* `?job=<id>` — THE QUOTE'S DESIGN STEP (Isaac, 28 October 2026: "with
+     the Studio opening from the Design step"). The job's newest design
+     opens, as its own link would; with none, New design opens on the job,
+     its street for the name and no job to search for. The id is re-resolved
+     inside this org (a claim opens its parent), and reading the job needs
+     the Workboard, as the job search does. */
+  const askedJob = typeof params.job === "string" ? params.job.trim().slice(0, 80) : "";
+  let forJob: JobPrefill | undefined;
+  if (askedJob && !openDesignId && orgId && boardAccess) {
+    const target = await resolveJobCard(orgId, askedJob);
+    const [newest] = await readJobDesigns(orgId, target.parentRemoteId, 1);
+    if (newest) redirect(`/dashboard/studio?design=${encodeURIComponent(newest.id)}`);
+    const hit = await studioJobOf(orgId, target.parentRemoteId);
+    if (hit) forJob = prefillFromJob(hit);
+  }
+
   /* Which deployment served this page. `VERCEL_DEPLOYMENT_ID` is the same
      value Skew Protection keys on, and it is read HERE because only the server
      can see it. The client uses it for one purpose: noticing that a tab has
@@ -95,10 +114,11 @@ export default async function StudioPage({
   /* handed to the keeper, which draws it beside the pages and keeps it
      alive behind other tabs (studio-keeper.tsx) */
   return (
-    <StudioKeep design={openDesignId}>
+    <StudioKeep design={openDesignId} job={forJob?.remoteId}>
       <Studio
         sm8Jobs={sm8Connected && boardAccess}
         openDesignId={openDesignId}
+        forJob={forJob}
         buildStamp={buildStamp}
         brand={brand}
         library={library}

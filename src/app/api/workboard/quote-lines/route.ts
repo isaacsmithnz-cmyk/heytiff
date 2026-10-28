@@ -6,7 +6,8 @@ import { addKit } from "@/lib/quotes/kits-server";
 import { packMakers } from "@/lib/quotes/lookups-server";
 import { linesFit } from "@/lib/quotes/fit-server";
 import { normaliseKitFacts } from "@/lib/quotes/kits";
-import { approveProposal, markAccepted, markVariation, nameOption, readByHand, saveProposal, setLoading, setSupplier, startVariation, startVersion } from "@/lib/quotes/lines-job-server";
+import { approveProposal, markAccepted, markVariation, nameOption, readByHand, saveProposal, setLoading, setNoDesign, setSupplier, startVariation, startVersion } from "@/lib/quotes/lines-job-server";
+import { readJobDesigns } from "@/lib/studio/job-designs-server";
 import { readVersions } from "@/lib/quotes/quote-versions-server";
 import { stageNamed, variationMaterials } from "@/lib/quotes/lines-job";
 import { approvalStands } from "@/lib/quotes/lines-proposal";
@@ -34,7 +35,7 @@ import { changesWithoutMoney, lineWithoutMoney, patchWithoutMoney } from "@/lib/
    through with Tiff; its money goes only to `financials`, taken out here
    (money-hidden.ts), and pricing it, approving it and what follows are
    theirs. Marking it accepted is the board's managers'. */
-type Gate = { ok: true; orgId: string; userId: string; money: boolean; manage: boolean } | { ok: false; res: Response };
+type Gate = { ok: true; orgId: string; userId: string; money: boolean; manage: boolean; studio: boolean } | { ok: false; res: Response };
 
 async function gate(): Promise<Gate> {
   const session = await auth0.getSession();
@@ -43,8 +44,10 @@ async function gate(): Promise<Gate> {
   if (!orgId || !userId || !(await can("workboard"))) {
     return { ok: false, res: Response.json({ ok: false, reason: "A quote needs access to Jobs." }, { status: 403 }) };
   }
-  const [money, manage] = await Promise.all([can("financials"), can("workboard_manage")]);
-  return { ok: true, orgId, userId, money, manage };
+  /* the Studio decides whether the quote has a Design step: someone without
+     it has no design to draw, and the line goes Scope, then Priced */
+  const [money, manage, studio] = await Promise.all([can("financials"), can("workboard_manage"), can("studio")]);
+  return { ok: true, orgId, userId, money, manage, studio };
 }
 
 /* what only someone who sees money may do to a quote, and what only a manager */
@@ -56,8 +59,8 @@ async function bookSuppliers(orgId: string) {
   return (await readSuppliers(orgId).catch(() => [])).filter((s) => (s.itemCount ?? 0) > 0 || (s.invoiceItems ?? 0) > 0).map((s) => ({ key: s.key, name: s.name }));
 }
 
-async function view(orgId: string, jobUuid: string, userId: string, money = true) {
-  const [engine, lines, changes, byHand, settings, day, suppliers, templates, versions, packs] = await Promise.all([
+async function view(orgId: string, jobUuid: string, userId: string, money = true, studio = false) {
+  const [engine, lines, changes, byHand, settings, day, suppliers, templates, versions, packs, designs] = await Promise.all([
     readEngine(orgId, jobUuid),
     readLines(orgId, jobUuid),
     readChanges(orgId, jobUuid, 50),
@@ -68,6 +71,7 @@ async function view(orgId: string, jobUuid: string, userId: string, money = true
     orgTemplates(orgId).catch(() => null),
     readVersions(orgId, jobUuid).catch(() => []),
     packMakers(),
+    studio ? readJobDesigns(orgId, jobUuid).catch(() => []) : Promise.resolve(null),
   ]);
   /* the business's own task hours, beside each option's (slice 8.1) */
   const options = Math.max(0, ...lines.map((l) => l.optionIndex + 1));
@@ -94,6 +98,10 @@ async function view(orgId: string, jobUuid: string, userId: string, money = true
     variations: byHand.variations,
     /* sent to ServiceM8 as a quote (7.3) */
     sent: byHand.sent ?? null,
+    /* the Design step (28 October 2026): the job's designs, newest first,
+       null without the Studio; and whether No design was pressed */
+    designs,
+    noDesign: byHand.noDesign ?? null,
     /* the quote as it stood at each approval before this one, newest first */
     versions: money ? versions : [],
     suppliers: money ? suppliers : [],
@@ -115,7 +123,7 @@ export async function GET(req: Request) {
   const job = (new URL(req.url).searchParams.get("job") ?? "").trim().slice(0, 80);
   if (!job) return Response.json({ ok: false, reason: "No job named." }, { status: 400 });
   const target = await resolveJobCard(g.orgId, job);
-  return Response.json(await view(g.orgId, target.parentRemoteId, g.userId, g.money));
+  return Response.json(await view(g.orgId, target.parentRemoteId, g.userId, g.money, g.studio));
 }
 
 export async function POST(req: Request) {
@@ -284,9 +292,15 @@ export async function POST(req: Request) {
     case "undo":
       result = await undoChange(g.orgId, jobUuid, typeof body.change === "number" ? body.change : -1, g.userId);
       break;
+    /* the Design step's No design, or taken back: anyone quoting decides
+       it, as they decide the scope, and only with the Studio to design in */
+    case "design":
+      if (!g.studio) return Response.json({ ok: false, reason: "Designing needs access to the Studio." }, { status: 403 });
+      result = await setNoDesign(g.orgId, jobUuid, body.skip === true, g.userId);
+      break;
     default:
       return Response.json({ ok: false, reason: "Not something a quote's lines can do." }, { status: 400 });
   }
-  const now = await view(g.orgId, jobUuid, g.userId, g.money);
+  const now = await view(g.orgId, jobUuid, g.userId, g.money, g.studio);
   return Response.json(result.ok ? { ...now, onJob, opened } : { ...now, ok: false, reason: result.reason, stale: result.stale ?? false }, { status: 200 });
 }

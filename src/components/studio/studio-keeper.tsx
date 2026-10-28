@@ -30,7 +30,11 @@ import { StudioHold } from "./studio-hold";
 
 const STUDIO = "/dashboard/studio";
 
-type Kept = { element: ReactNode; key: number; design: string | null };
+/* `job`: the job a studio was opened on to start its first design (the
+   quote's Design step, `?job=`), until it has answered: a design started on
+   it, or the New design dialog closed. Design it again on a job asks again,
+   so a studio already kept elsewhere gives way to a new one there. */
+type Kept = { element: ReactNode; key: number; design: string | null; job: string | null };
 
 let kept: Kept | null = null;
 let seq = 0;
@@ -49,24 +53,31 @@ export function noteKeptDesign(id: string | null): void {
   if (kept) kept.design = id;
 }
 
-/** Keep this studio, unless the kept one is already where it asks to be.
+/** The kept studio has answered the job it was opened on. */
+export function noteKeptJobAnswered(): void {
+  if (kept) kept.job = null;
+}
+
+/** Keep this studio, unless the kept one is already where it asks to be:
+    on its design, and still on the job it was asked to start one on.
     Out here, not in the component: React Compiler won't lower a module
     counter's `++` inside a hook. */
-function keep(element: ReactNode, design: string | null): void {
-  if (kept && kept.design === design) return;
+function keep(element: ReactNode, design: string | null, job: string | null): void {
+  if (kept && kept.design === design && (job === null || kept.job === job)) return;
   seq += 1;
-  kept = { element, key: seq, design };
+  kept = { element, key: seq, design, job };
   for (const w of watchers) w();
 }
 
 /** The Design page's studio, handed to the keeper. Draws only the studio's
     dark hold, which shows while the keeper hasn't drawn it yet (a first load,
     or a new studio for another design) and steps aside once it has. */
-export function StudioKeep({ design, children }: { design?: string; children: ReactNode }) {
+export function StudioKeep({ design, job, children }: { design?: string; job?: string; children: ReactNode }) {
   const asked = design ?? null;
+  const onJob = job ?? null;
   useEffect(() => {
-    keep(children, asked);
-  }, [asked, children]);
+    keep(children, asked, onJob);
+  }, [asked, onJob, children]);
   return <StudioHold />;
 }
 

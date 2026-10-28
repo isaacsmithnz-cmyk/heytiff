@@ -44,6 +44,9 @@ export type ByHand = {
   /** the approved quote sent to ServiceM8 as a quote (7.3): when, by
       whom, and whether it was only a trial run */
   sent?: { at: string; by: string; trial: boolean } | null;
+  /** No design pressed on the Design step (Isaac, 28 October 2026): when,
+      and by whom. A design of the job's drawn since outranks it. */
+  noDesign?: { at: string; by: string } | null;
 };
 
 /** A VARIATION TO THE ACCEPTED QUOTE: an option of its own, started as a
@@ -183,11 +186,16 @@ export function byHandOf(draft: unknown): ByHand {
   }
   const rawSent = o.sent && typeof o.sent === "object" ? (o.sent as Record<string, unknown>) : null;
   const sent = rawSent && typeof rawSent.at === "string" && rawSent.at ? { at: rawSent.at, by: said(rawSent.by, 120), trial: rawSent.trial === true } : null;
-  return { accepted, names, loading, compare, supplier, proposal, researched, variations, ...(sent ? { sent } : {}) };
+  const rawNoDesign = o.noDesign && typeof o.noDesign === "object" ? (o.noDesign as Record<string, unknown>) : null;
+  const noDesign = rawNoDesign && typeof rawNoDesign.at === "string" && rawNoDesign.at ? { at: rawNoDesign.at, by: said(rawNoDesign.by, 120) } : null;
+  return { accepted, names, loading, compare, supplier, proposal, researched, variations, ...(sent ? { sent } : {}), ...(noDesign ? { noDesign } : {}) };
 }
 
 /** The approved quote sent to ServiceM8 as a quote, or a trial run of it. */
 export const withSent = (b: ByHand, by: string, now: string, trial: boolean): ByHand => ({ ...b, sent: { at: now, by, trial } });
+
+/** No design pressed on the Design step, or taken back. */
+export const withNoDesign = (b: ByHand, on: boolean, by: string, now: string): ByHand => ({ ...b, noDesign: on ? { at: now, by } : null });
 
 /** A variation started on option `option`, a copy of the accepted one: the
     next number, its words, and its name for the proposal and ServiceM8. */

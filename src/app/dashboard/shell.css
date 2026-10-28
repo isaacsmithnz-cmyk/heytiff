@@ -3824,6 +3824,10 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .qp-steps > li.done b { color:var(--green-w); }
 .fg .qp-steps > li.now > i { border-color:var(--orange); background:var(--orange); box-shadow:0 0 0 2px var(--white), 0 0 0 4px var(--orange); }
 .fg .qp-steps > li.now b { color:var(--orange-w); }
+/* passed on purpose (the Design step's No design, 28 October 2026): the join
+   on is green, as for a step done, but the dot stays open and the name grey */
+.fg .qp-steps > li.skip > i { border-color:var(--green); }
+.fg .qp-steps > li.skip::after { background:var(--green); }
 /* THE BODY: the conversation, or the line items, fills the left; the rail,
    400 wide, beside it with no rule between: its own scroll, and the quote's
    buttons pinned at its foot under a thin line (layout B, 21 October 2026) */
@@ -3839,6 +3843,10 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    rail, then Update quote and Mark accepted. Every one 36 */
 .fg .qc-dock { flex:none; display:flex; flex-direction:column; align-items:stretch; gap:8px; padding:12px 0 24px; border-top:1px solid var(--line); background:var(--white); }
 .fg .qc-pair { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0, 1fr); gap:8px; }
+/* the Design step's group (quote-design.tsx): what the job has, in grey, and
+   Design it beside it once the step is passed by */
+.fg .qc-dsl { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.fg .qc-dsk { display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .fg .qc-pair > .pt-btn, .fg .qc-dock > .pt-btn { min-width:0; }
 /* Share's word after Copy the link: quiet, under the button */
 .fg .qc-said { margin:0; font-size:12px; color:var(--q); text-align:center; }

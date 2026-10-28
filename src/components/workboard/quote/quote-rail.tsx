@@ -16,7 +16,8 @@ import type { Sm8Quote } from "../board/job-quote-card";
    chat-first quote page, Isaac, 2026-10-13), in layout B (his pick, 21
    October 2026: "Price on top, buttons pinned"). Read top to bottom like a
    checkout, on its own scroll, 400 wide: where the quote is, in colour;
-   what's To confirm when Tiff isn't on for the business (with her on, it's
+   the Design step, to someone with the Studio (quote-design.tsx, 28
+   October 2026); what's To confirm when Tiff isn't on for the business (with her on, it's
    the conversation's, till the paper stands in its place: then Before you
    approve is here); the price, to someone who sees money; Line items under
    it; what goes to ServiceM8 once it's accepted; and the job in ServiceM8.
@@ -228,6 +229,7 @@ export function InServiceM8({
 
 export function QuoteRail({
   progress,
+  design,
   confirm,
   confirmTitle,
   card,
@@ -239,6 +241,9 @@ export function QuoteRail({
 }: {
   /** where the quote is, in colour, at the rail's top */
   progress: ReactNode;
+  /** the Design step: the job's designs, or Design it (quote-design.tsx);
+      nothing without the Studio */
+  design?: ReactNode;
   /** what's To confirm, or Before you approve on the paper, when the
       conversation isn't there to hold it */
   confirm: ReactNode;
@@ -260,6 +265,7 @@ export function QuoteRail({
     <aside className="qc-rail" aria-label="On this quote">
       <div className="qc-scroll">
         <div>{progress}</div>
+        {design}
         {confirm && (
           <section className="qc-rs" aria-label={confirmTitle}>
             <h2 className="qc-h">{confirmTitle}</h2>

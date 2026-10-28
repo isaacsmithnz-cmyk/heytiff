@@ -43,7 +43,7 @@ import {
   noteGesture,
   readTrail,
 } from "@/lib/studio/reload-breadcrumb";
-import { noteKeptDesign } from "./studio-keeper";
+import { noteKeptDesign, noteKeptJobAnswered } from "./studio-keeper";
 import { RemoteDesignStore } from "@/lib/studio/remote-store";
 import { History } from "@/lib/studio/history";
 import {
@@ -200,6 +200,7 @@ export function Studio({
   sm8Jobs,
   jobSearch,
   openDesignId,
+  forJob,
   buildStamp,
   brand: servedBrand,
   library,
@@ -217,6 +218,10 @@ export function Studio({
   /** `?design=<id>` — open this design instead of landing on Home. What a
       link from the Workboard's job sheet arrives with. */
   openDesignId?: string;
+  /** `?job=<id>` with no design on it yet — the quote's Design step (Isaac,
+      28 October 2026): New design opens on the job, READ ON THE SERVER by
+      the route, its street for the name and nothing to search for. */
+  forJob?: JobPrefill;
   /** Which build this tab is running, READ ON THE SERVER by the route. Only
       the reload breadcrumb uses it: it is how a tab that came back on a
       DIFFERENT deployment can say so, rather than guessing from the page. */
@@ -269,8 +274,12 @@ export function Studio({
   );
   /** how long to wait before the next automatic retry (see the effect below) */
   const retryIn = useRef(RETRY_BASE_MS);
-  /* menu New lands on Home with the new-design wizard already open */
-  const [homeAutoNew, setHomeAutoNew] = useState(false);
+  /* menu New lands on Home with the new-design wizard already open; so does
+     a studio opened on a job (`forJob`) */
+  const [homeAutoNew, setHomeAutoNew] = useState(Boolean(forJob));
+  /* the job it was opened on, until answered: a design started on it, or
+     the New design dialog closed (studio-keeper.tsx) */
+  const [jobAsk, setJobAsk] = useState<JobPrefill | null>(forJob ?? null);
 
   const [swapping, setSwapping] = useState(false);
   /* true only while the OLD screen is leaving. The well's colour keys off this so
@@ -663,6 +672,24 @@ export function Studio({
     }
   }, [openId, arrived]);
 
+  /* ── the job it was opened on, once answered ──
+     A design started on it, or the New design dialog closed: the keeper
+     hears it (Design it again on the job asks again), and `?job=` leaves the
+     address, so a reload or a redraw of the page never asks it twice. */
+  const askingJob = jobAsk !== null && openId === null;
+  useEffect(() => {
+    if (askingJob) return;
+    noteKeptJobAnswered();
+    try {
+      const here = new URL(window.location.href);
+      if (!here.searchParams.has("job")) return;
+      here.searchParams.delete("job");
+      window.history.replaceState(null, "", `${here.pathname}${here.search}`);
+    } catch {
+      /* no history or URL in this environment */
+    }
+  }, [askingJob]);
+
   /* undo/redo restores an exact prior document — no updatedAt bump */
   const replaceDoc = useCallback((d: DesignDocument) => {
     setSaveState("saving");
@@ -864,16 +891,20 @@ export function Studio({
             openFailed={openFailed}
             library={library}
             planImages={planImagesInst}
-            onBlank={(name, job) =>
-              throughSwap(async () => {
+            forJob={jobAsk ?? undefined}
+            onForJobDone={() => setJobAsk(null)}
+            onBlank={(name, job) => {
+              setJobAsk(null);
+              return throughSwap(async () => {
                 const d = newDesignFor(name, "blank", job);
                 await getStore().save(d);
                 return d;
-              }, openDesign)
-            }
-            onPlans={(name, job, floors, planImport) =>
-              openFromPlans({ ...newDesignFor(name, "plan", job), floors, planImport })
-            }
+              }, openDesign);
+            }}
+            onPlans={(name, job, floors, planImport) => {
+              setJobAsk(null);
+              return openFromPlans({ ...newDesignFor(name, "plan", job), floors, planImport });
+            }}
             onOpen={(id) =>
               throughSwap(
                 () => getStore().load(id),

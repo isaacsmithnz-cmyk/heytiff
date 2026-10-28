@@ -6,7 +6,8 @@ import { againstFirst, missingFromFirst, type QuoteLine } from "@/lib/quotes/lin
 import { stillUnknown } from "@/lib/quotes/lines-price";
 import type { Fit } from "@/lib/quotes/fit";
 import type { QuotePrice } from "@/lib/quotes/quote-price-server";
-import { linesSteps } from "@/lib/quotes/quote-steps";
+import { designState, linesSteps } from "@/lib/quotes/quote-steps";
+import { QuoteDesign, type QuoteDesignRow } from "./quote-design";
 import { toConfirmOf } from "@/lib/quotes/quote-card";
 import { cents2 } from "@/lib/quotes/quote-sum";
 import { QuoteStepsLine, leftOn, priceState } from "./quote-parts";
@@ -78,6 +79,11 @@ export type LinesView = {
   versions?: QuoteVersion[];
   /** sent to ServiceM8 as a quote (7.3), or a trial run of it */
   sent?: { at: string; by: string; trial: boolean } | null;
+  /** the job's designs, newest first, for the Design step; null to
+      someone without the Studio, whose line has no Design step */
+  designs?: QuoteDesignRow[] | null;
+  /** No design pressed on the Design step */
+  noDesign?: { at: string; by: string } | null;
   /** each option's name, and its loading on labour (lines-job.ts) */
   optionNames?: string[];
   loading?: Record<number, { pct: number; reason: string }>;
@@ -230,7 +236,16 @@ export function QuoteLinesFace({
   /* the version the quote is at: one more than the last kept */
   const version = (versions[0]?.n ?? 0) + 1;
   const shown = viewing == null ? null : (versions.find((v) => v.n === viewing) ?? null);
+  /* THE DESIGN STEP (28 October 2026): a design of the job's, No design
+     pressed, or the quote gone on without one (approved, sent, accepted);
+     none at all to someone without the Studio */
+  const designs = view?.designs ?? null;
+  const design =
+    view && designs
+      ? designState({ designs: designs.length, noDesign: !!view.noDesign, onWithout: !!view.approved || !!view.sent || accepted.length > 0 })
+      : null;
   const steps = linesSteps({
+    design,
     accepted,
     approved: view?.approved ?? false,
     version,
@@ -675,6 +690,11 @@ export function QuoteLinesFace({
         </Dialog>
         <QuoteRail
           progress={<QuoteStepsLine steps={steps} />}
+          design={
+            designs && design ? (
+              <QuoteDesign job={job} designs={designs} state={design} busy={busy} onSkip={(skip) => void act({ op: "design", skip })} />
+            ) : null
+          }
           actions={actions}
           lines={
             tiff !== null && chat ? (

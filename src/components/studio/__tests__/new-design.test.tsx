@@ -212,3 +212,37 @@ describe("New design, from the plans", () => {
     expect(screen.getByText("Drop the plans")).toBeInTheDocument();
   });
 });
+
+/* the quote's Design step (Isaac, 28 October 2026: "with the Studio opening
+   from the Design step"): opened on a job with no design yet, New design is
+   already open on it, named after its street, with no job to search for */
+describe("New design, opened on a job", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    pdfToPages.mockReset();
+  });
+  const job = { remoteId: "job-3406", name: "6 Bishops Avenue", jobNumber: "3406", client: "Tandem", site: "6 Bishops Avenue, Randwick NSW 2031" };
+
+  it("opens on the job, its street the name, and puts the design on it", async () => {
+    const user = userEvent.setup();
+    render(<Studio store={new LocalDesignStore(window.localStorage)} planImages={new FakePlanImages()} sm8Jobs forJob={job} />);
+    const dialog = await screen.findByRole("dialog", { name: "New design" });
+    expect(within(dialog).getByText("3406 Tandem")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("combobox", { name: "Find the ServiceM8 job" })).toBeNull();
+    expect(within(dialog).queryByLabelText("Find the ServiceM8 job")).toBeNull();
+    expect(within(dialog).getByPlaceholderText(/Design name/)).toHaveValue("6 Bishops Avenue");
+
+    await user.click(within(dialog).getByRole("button", { name: "Start with a blank canvas" }));
+    await waitFor(() => expect(saved().jobLink).toMatchObject({ remoteId: "job-3406", jobNumber: "3406" }));
+    expect(saved().meta).toMatchObject({ name: "6 Bishops Avenue", jobNumber: "3406", client: "Tandem" });
+  });
+
+  it("closed without a design, leaves the list of designs as it was", async () => {
+    const user = userEvent.setup();
+    render(<Studio store={new LocalDesignStore(window.localStorage)} planImages={new FakePlanImages()} sm8Jobs forJob={job} />);
+    const dialog = await screen.findByRole("dialog", { name: "New design" });
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "New design" })).toBeNull());
+    expect(window.localStorage.getItem(INDEX) ?? "[]").toBe("[]");
+  });
+});

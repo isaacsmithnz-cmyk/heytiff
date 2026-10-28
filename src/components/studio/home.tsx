@@ -97,6 +97,8 @@ export function DesignHome({
   openFailed,
   library,
   planImages,
+  forJob,
+  onForJobDone,
   onBlank,
   onPlans,
   onOpen,
@@ -106,6 +108,10 @@ export function DesignHome({
   /** null while the list is still being fetched */
   recents: DesignSummary[] | null;
   autoNew?: boolean;
+  /** the job New design opens on (the quote's Design step), its job fixed */
+  forJob?: JobPrefill;
+  /** told when New design on that job closes without a design */
+  onForJobDone?: () => void;
   sm8Jobs?: boolean;
   jobSearch: JobSearch;
   openFailed?: boolean;
@@ -272,9 +278,13 @@ export function DesignHome({
           sm8Jobs={sm8Jobs}
           jobSearch={jobSearch}
           planImages={planImages}
+          forJob={forJob}
           onBlank={onBlank}
           onPlans={onPlans}
-          onClose={() => setCreating(false)}
+          onClose={() => {
+            setCreating(false);
+            onForJobDone?.();
+          }}
         />
       )}
       <ConfirmDialog

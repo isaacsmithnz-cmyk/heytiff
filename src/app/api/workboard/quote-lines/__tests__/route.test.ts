@@ -11,6 +11,7 @@ jest.mock("@/lib/permissions-server", () => ({ can: async (g: string) => grants.
 jest.mock("@/lib/workboard/all-jobs-query", () => ({ resolveJobCard: async () => ({ parentRemoteId: "job-1" }) }));
 const changeLine = jest.fn(async () => ({ ok: true, line: null }));
 const approveProposal = jest.fn(async () => ({ ok: true, byHand: {} }));
+const setNoDesign = jest.fn(async () => ({ ok: true }));
 const LINE = {
   id: "l1", version: 1, updatedAt: "", updatedBy: "", optionIndex: 0, system: "", group: "Units", position: 0, name: "PEA-M125HAA",
   code: "PEA-M125HAA", supplierKey: "aad", kind: "unit", qty: 1, unit: "", costCents: 400000, sellCents: 520000, source: "said", why: "", duct: false,
@@ -38,10 +39,12 @@ jest.mock("@/lib/quotes/lines-job-server", () => ({
   nameOption: jest.fn(),
   saveProposal: jest.fn(),
   setLoading: jest.fn(),
+  setNoDesign: (...a: unknown[]) => (setNoDesign as jest.Mock)(...a),
   setSupplier: jest.fn(),
   startVariation: jest.fn(),
   startVersion: jest.fn(),
 }));
+jest.mock("@/lib/studio/job-designs-server", () => ({ readJobDesigns: async () => [{ id: "dsn_1", name: "6 Bishops Avenue", updatedAt: "2026-10-27T03:00:00Z" }] }));
 jest.mock("@/lib/quotes/quote-versions-server", () => ({ readVersions: async () => [{ n: 1, what: "", approvedAt: null, madeAt: "", options: [{ name: "Option 1", exGstCents: 1, incGstCents: 1, lines: [] }] }] }));
 jest.mock("@/lib/templates/query", () => ({ orgTemplates: async () => null }));
 jest.mock("@/lib/quotes/price-book-server", () => ({ readSuppliers: async () => [{ key: "aad", name: "AAD", itemCount: 9 }] }));
@@ -60,6 +63,7 @@ beforeEach(() => {
   grants.clear();
   changeLine.mockClear();
   approveProposal.mockClear();
+  setNoDesign.mockClear();
 });
 
 it("is the Workboard's: a tech reads the quote's work, never its money", async () => {
@@ -92,4 +96,27 @@ it("lets a tech change the work, never a price, and keeps pricing and approving 
   expect(approveProposal).not.toHaveBeenCalled();
   expect((await post({ op: "supplier", key: "aad" })).status).toBe(403);
   expect((await post({ op: "accept", option: 0 })).status).toBe(403);
+});
+
+/* the Design step (Isaac, 28 October 2026): the job's designs and No design
+   go to whoever has the Studio, and only they press No design */
+it("gives the job's designs to whoever has the Studio, and nothing to anyone else", async () => {
+  grants.add("workboard");
+  const without = await (await get()).json();
+  expect(without.designs).toBeNull();
+  grants.add("studio");
+  const a = await (await get()).json();
+  expect(a.designs).toEqual([{ id: "dsn_1", name: "6 Bishops Avenue", updatedAt: "2026-10-27T03:00:00Z" }]);
+  expect(a.noDesign).toBeNull();
+});
+
+it("keeps No design for anyone quoting with the Studio, a tech included", async () => {
+  grants.add("workboard");
+  expect((await post({ op: "design", skip: true })).status).toBe(403);
+  expect(setNoDesign).not.toHaveBeenCalled();
+  grants.add("studio");
+  await post({ op: "design", skip: true });
+  expect(setNoDesign).toHaveBeenCalledWith("org-a", "job-1", true, "u-tech");
+  await post({ op: "design", skip: false });
+  expect(setNoDesign).toHaveBeenLastCalledWith("org-a", "job-1", false, "u-tech");
 });

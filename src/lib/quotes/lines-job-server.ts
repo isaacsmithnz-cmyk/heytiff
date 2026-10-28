@@ -10,6 +10,7 @@ import {
   withCompared,
   withLoading,
   withName,
+  withNoDesign,
   withProposal,
   withResearched,
   withSupplier,
@@ -198,6 +199,10 @@ export async function dropVariation(orgId: string, cardId: string, option: numbe
   const saved = await changeByHand(orgId, cardId, by, (x) => withoutVariation(x, option));
   return saved.ok ? { ok: true } : saved;
 }
+
+/** No design pressed on the quote's Design step, or taken back. */
+export const setNoDesign = (orgId: string, cardId: string, on: boolean, by: string) =>
+  changeByHand(orgId, cardId, by, (b) => withNoDesign(b, on, by, new Date().toISOString()));
 
 /** Sets option `i`'s loading, or takes it off. */
 export const setLoading = (orgId: string, cardId: string, i: number, loading: unknown, by: string) => changeByHand(orgId, cardId, by, (b) => withLoading(b, i, loading));

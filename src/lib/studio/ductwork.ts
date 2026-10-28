@@ -32,6 +32,7 @@ import type { DataPack } from "./packs/schema";
 import { systemAir, ductCapacityLs, sizeForLs, SUPPLY_MS, type UnitAir } from "./airflow";
 import type { RoomObj } from "./loads-room";
 import { outletPicks, outletSpec, setOutletPick, snapLength, type OutletSpec } from "./outlets";
+import { zoningOf, zonesOf, type Zone } from "./zoning";
 
 /** the largest supply trunk two outlets may share, mm */
 export const TRUNK_MAX_MM = 300;
@@ -46,6 +47,12 @@ const LEG_MM = 500;
 const STEP_MM = 450;
 /** a junction keeps this far from a bend or a run's end, mm */
 const CLEAR_MM = 300;
+/** a zone damper sits this far down its run from where the run starts */
+const DAMPER_IN_MM = 600;
+/** a zone sensor sits this far in from its room's wall */
+const SENSOR_IN_MM = 350;
+/** the controller sits this far past the return grille */
+const CONTROLLER_OUT_MM = 900;
 /** a junction keeps this far from the outlet the run ends at, so the circle
     stands clear of the diffuser, mm */
 const CLEAR_END_MM = 700;
@@ -99,6 +106,25 @@ export interface DuctCollar {
   diaMm: number;
 }
 
+/** a motorised damper on a run that feeds one zone */
+export interface ZoneDamper {
+  key: string;
+  zone: Zone;
+  at: Point;
+  /** the way its run goes there */
+  dir: Point;
+  diaMm: number;
+}
+
+/** what zoning puts on the plan: a damper on each zone's runs, a sensor a
+    zone under temperature control, and the controller */
+export interface ZonePlan {
+  zones: Zone[];
+  dampers: ZoneDamper[];
+  sensors: { key: string; zone: Zone; at: Point }[];
+  controller: { key: string; at: Point } | null;
+}
+
 export interface DuctLayout {
   unitId: string;
   model: string;
@@ -112,6 +138,8 @@ export interface DuctLayout {
   /** none while the grille sits under the unit on its box */
   returns: DuctRun[];
   fittings: DuctFitting[];
+  /** null while zoning is off */
+  zoning: ZonePlan | null;
   /** rooms the unit serves that are on another floor: counted, not drawn */
   offFloor: string[];
 }
@@ -438,6 +466,8 @@ export function unitDuctLayout(doc: DesignDocument, sys: DesignSystem, air: Unit
   const supply: DuctRun[] = [];
   const fittings: DuctFitting[] = [];
   const collars: DuctCollar[] = [];
+  /* each run and the outlets it feeds, for the zone dampers */
+  const feeds = new Map<string, DuctOutlet[]>();
   const runOf = (key: string, o: { diaMm: number; ls: number }, pts: L[]): DuctRun => {
     const points = pts.map(toW);
     return { key, stream: "supply", diaMm: o.diaMm, ls: o.ls, points, lengthM: polylineM(points, s) };
@@ -452,6 +482,7 @@ export function unitDuctLayout(doc: DesignDocument, sys: DesignSystem, air: Unit
     collars.push({ at: toW(c), out: outward[t.face], diaMm: dia });
     if (!t.near) {
       supply.push(runOf(`run:${t.far.key}`, { diaMm: dia, ls }, route(c, t.face, t.target, turn, leg)));
+      feeds.set(`run:${t.far.key}`, [t.far]);
       continue;
     }
     /* two outlets: the run to the farther, the nearer off it at a circle;
@@ -475,6 +506,9 @@ export function unitDuctLayout(doc: DesignDocument, sys: DesignSystem, air: Unit
     supply.push(runOf(`trunk:${key}`, { diaMm: dia, ls }, trunk));
     supply.push(runOf(`run:${t.far.key}`, { diaMm: t.far.neckMm, ls: t.far.ls }, carry));
     supply.push(runOf(`run:${t.near.key}`, { diaMm: t.near.neckMm, ls: t.near.ls }, branch));
+    feeds.set(`trunk:${key}`, [t.far, t.near]);
+    feeds.set(`run:${t.far.key}`, [t.far]);
+    feeds.set(`run:${t.near.key}`, [t.near]);
     const ductsMm = [dia, t.far.neckMm, t.near.neckMm].sort((x, y) => y - x);
     const kind = picked[key] ?? null;
     fittings.push({ key, at: toW(at), kind, ductsMm, name: fittingName(ductsMm, kind) });
@@ -505,6 +539,60 @@ export function unitDuctLayout(doc: DesignDocument, sys: DesignSystem, air: Unit
     }
   }
 
+  /* zoning: a damper on the first run down from the plenum that feeds one
+     zone only, a sensor a zone, and the controller past the return */
+  let zoning: ZonePlan | null = null;
+  const z = zoningOf(sys, air.unit.id);
+  const zones = zonesOf(air, z);
+  if (zones.length) {
+    const zoneOf = (roomId: string) => zones.find((x) => x.roomIds.includes(roomId))!;
+    const dampers: ZoneDamper[] = [];
+    const runAt = (r: DuctRun): { at: Point; dir: Point } => {
+      let left = Math.min(mm(DAMPER_IN_MM), polylineM(r.points, s) * 1000 * 0.4 / s);
+      for (let i = 1; i < r.points.length; i++) {
+        const a = r.points[i - 1];
+        const b = r.points[i];
+        const l = dist(a, b);
+        const dir = l > 0 ? mul(sub(b, a), 1 / l) : { x: 1, y: 0 };
+        if (left <= l || i === r.points.length - 1) return { at: add(a, mul(dir, Math.min(left, l))), dir };
+        left -= l;
+      }
+      return { at: r.points[0], dir: { x: 1, y: 0 } };
+    };
+    for (const r of supply) {
+      const fed = feeds.get(r.key);
+      if (!fed) continue;
+      const zs = new Set(fed.map((o) => zoneOf(o.roomId).key));
+      if (zs.size !== 1) continue;
+      /* a trunk to one zone carries the damper; its two runs on then don't */
+      if (r.key.startsWith("run:")) {
+        const trunk = supply.find((t) => t.key.startsWith("trunk:") && feeds.get(t.key)?.some((o) => `run:${o.key}` === r.key));
+        if (trunk && new Set(feeds.get(trunk.key)!.map((o) => zoneOf(o.roomId).key)).size === 1) continue;
+      }
+      const { at, dir } = runAt(r);
+      dampers.push({ key: `damper:${r.key}`, zone: zoneOf(fed[0].roomId), at, dir, diaMm: r.diaMm });
+    }
+    const sensors: ZonePlan["sensors"] = [];
+    if (z.control === "temperature") {
+      for (const zone of zones) {
+        const key = `${air.unit.id}/sensor/${zone.key}`;
+        const room = doc.objects.find((o) => o.id === zone.roomIds[0]) as RoomObj | undefined;
+        if (!room || room.geometry.kind !== "polygon" || room.floorId !== unitObj.floorId) continue;
+        const xs = room.geometry.points.map((p) => p.x);
+        const ys = room.geometry.points.map((p) => p.y);
+        const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+        const unitAt = unitObj.geometry.at;
+        /* on the side wall further from the unit, halfway along */
+        const west = Math.abs(Math.min(...xs) - unitAt.x) > Math.abs(Math.max(...xs) - unitAt.x);
+        const x = west ? Math.min(...xs) + mm(SENSOR_IN_MM) : Math.max(...xs) - mm(SENSOR_IN_MM);
+        sensors.push({ key, zone, at: moved[key] ?? { x, y: cy } });
+      }
+    }
+    const ctlKey = `${air.unit.id}/controller`;
+    const past = add(returnFace.mid, mul(returnFace.out, mm(air.ret.grille.hMm + CONTROLLER_OUT_MM)));
+    zoning = { zones, dampers, sensors, controller: { key: ctlKey, at: moved[ctlKey] ?? past } };
+  }
+
   return {
     unitId: air.unit.id,
     model: air.model,
@@ -525,6 +613,7 @@ export function unitDuctLayout(doc: DesignDocument, sys: DesignSystem, air: Unit
     supply,
     returns,
     fittings,
+    zoning,
     offFloor,
   };
 }

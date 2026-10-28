@@ -33,4 +33,5 @@ export const SHEET_GROUPS: { key: SheetGroup; label: string }[] = [
   { key: "components", label: "Components" },
   { key: "ductwork", label: "Ductwork" },
   { key: "grilles", label: "Grilles and outlets" },
+  { key: "controls", label: "Controls" },
 ];

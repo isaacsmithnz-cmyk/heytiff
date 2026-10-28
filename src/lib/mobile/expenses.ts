@@ -138,7 +138,8 @@ export async function readPhoneReceipt(ctx: MobileCtx, body: Record<string, unkn
     litres: null,
     abn: null,
   };
-  if (res.category === "fuel") {
+  /* a fuel docket, or anything logged as fuel from Your vehicle */
+  if (res.category === "fuel" || body.fuel === true) {
     const fuel = await actAsPhoneUser(ctx, () => readFuelReceipt(data, mediaType)).catch(() => null);
     if (fuel?.ok) {
       draft.litres = fuel.litres;

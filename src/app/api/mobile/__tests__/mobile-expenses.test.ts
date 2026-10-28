@@ -147,6 +147,11 @@ describe("the phone's expense claims", () => {
     expect(r.ok && r.value).toMatchObject({ category: "fuel", litres: 62.4, abn: "40004201307" });
   });
 
+  it("reads with the fuel log's reader too when Your vehicle logs fuel, whatever the docket reads as", async () => {
+    await readPhoneReceipt(ctx, { data: "aGVsbG8=", fuel: true });
+    expect(asked).toContain("read fuel");
+  });
+
   it("leaves an empty draft when the read fails", async () => {
     readCategory = "fail";
     expect(await readPhoneReceipt(ctx, { data: "aGVsbG8=" })).toMatchObject({ ok: true, value: { read: false, total: null } });

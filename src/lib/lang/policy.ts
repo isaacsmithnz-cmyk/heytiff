@@ -42,7 +42,7 @@
    genuinely broken is Chinese, and it is broken identically under every
    configuration Supabase offers — no segmenter, so a whole run of Han is one
    token. That is a segmenter problem, not a language-configuration one, and
-   the vector leg (voyage-4, multilingual) is what carries it meanwhile.
+   the vector leg (voyage-4-large, multilingual) is what carries it meanwhile.
 
    WHY A CONSTANT RATHER THAN A SETTING. One business, one language on the
    board — and a settings row would not actually buy the guarantee it looks

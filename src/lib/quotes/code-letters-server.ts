@@ -2,6 +2,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { CODE_LETTERS_PROMPT, CODE_LETTERS_SCHEMA, parseLettersRead, ruleKey, rulePattern, type KeptRule, type LetterRule, type LettersRead } from "./code-letters";
+import { SONNET_FALLBACK } from "@/lib/tiff/sonnet-fallback";
 
 /* A maker's code letters: its document read by Tiff (code-letters.ts says
    what's asked and what's believed), and the rules a person keeps.
@@ -10,9 +11,6 @@ import { CODE_LETTERS_PROMPT, CODE_LETTERS_SCHEMA, parseLettersRead, ruleKey, ru
 /* Sonnet (Isaac, 2026-10-05: "I would use Sonnet"): finding a legend in a
    brochure and copying it out is well within it, at half Opus's price. */
 const MODEL = "claude-sonnet-5-5";
-/* If the model declines on policy grounds, the API re-runs the same request
-   on this one inside the same call, as the proposal writer does. */
-const FALLBACK_MODEL = "claude-opus-4-8";
 
 export const LETTERS_MEDIA = ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 export type LettersMedia = (typeof LETTERS_MEDIA)[number];
@@ -40,8 +38,7 @@ export async function readCodeLetters(
     const response = await client.beta.messages.create({
       model: MODEL,
       max_tokens: 16000,
-      betas: ["server-side-fallback-2026-06-01"],
-      fallbacks: [{ model: FALLBACK_MODEL }],
+      ...SONNET_FALLBACK,
       /* medium, set rather than left to the default: which part of a code a
          letter belongs to is reading, not copying */
       output_config: { effort: "medium", format: { type: "json_schema", schema: CODE_LETTERS_SCHEMA } },

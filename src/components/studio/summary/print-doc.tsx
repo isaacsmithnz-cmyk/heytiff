@@ -5,6 +5,7 @@ import { createPortal, flushSync } from "react-dom";
 import {
   hasSheet,
   planPageOrientation,
+  PLAN_FILL_MM,
   type PrintModel,
   type PrintVariant,
   type SheetSections,
@@ -17,6 +18,7 @@ import {
   type PixelTrim,
 } from "@/lib/studio/plans";
 import { PicklistSection, SheetDoc } from "./sheet-doc";
+import { useStudioFlow } from "../flow";
 import { PlanFigure } from "./plan-figure";
 import { NO_BRAND, type OrgBrand } from "@/lib/org/brand";
 import { themeVars } from "@/lib/org/theme";
@@ -100,6 +102,8 @@ export function PrintDoc({
   onReady: () => void;
 }) {
   const { options } = model;
+  /* the next flow: a plan page fills the paper inside the sheet's frame */
+  const fill = useStudioFlow() === "next";
   /* onReady fires EXACTLY once per mount, however often the parent re-renders
      with a fresh callback identity — the latch is a ref, the callback is read
      through a ref, and only true unmount disarms (an `on` flag flipped in the
@@ -224,7 +228,7 @@ export function PrintDoc({
                measured the way the figure measures itself */
             const frame = planFigureBounds(v.doc, printed);
             const way = frame
-              ? planPageOrientation(frame, options.paper, options.orientation)
+              ? planPageOrientation(frame, options.paper, options.orientation, fill ? PLAN_FILL_MM : undefined)
               : options.orientation;
             const turned = way !== options.orientation;
             /* A TURNED PAGE DRAWS ITS OWN FRAME. The sheet's is `position:
@@ -236,7 +240,7 @@ export function PrintDoc({
             return (
               <section
                 key={floor.id}
-                className={`ds-print-page ${way}${turned ? " turned" : ""}`}
+                className={`ds-print-page ${way}${turned ? " turned" : ""}${fill ? " fill" : ""}`}
                 style={turned && hasSheet(options.sections) ? themeVars(brand.color) : undefined}
               >
                 {turned && (

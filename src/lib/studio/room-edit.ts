@@ -153,12 +153,41 @@ export function readHeightOf(doc: DesignDocument, floorId: string, name: string)
   return level ? { m: level.ceilingMm / 1000, from: short(level.source) || "the sections" } : null;
 }
 
+/** Whether two outlines meet: a corner of one on, in, or within `gap` of
+    the other. Rooms either side of a wall are `gap` apart, a wall's width. */
+export function touches(a: Point[], b: Point[], gap: number): boolean {
+  const near = (p: Point, poly: Point[]) =>
+    within(p, poly) || poly.some((q, i) => distToSegment(p, q, poly[(i + 1) % poly.length]) <= gap);
+  return a.some((p) => near(p, b)) || b.some((p) => near(p, a));
+}
+
+function within(p: Point, poly: Point[]): boolean {
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i];
+    const b = poly[j];
+    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) c = !c;
+  }
+  return c;
+}
+
+/** The rooms picked to join, if they can be: each one meets one before it,
+    within a wall's width (300 mm), so the join never draws over a hall. */
+export function canJoin(doc: DesignDocument, ids: string[]): boolean {
+  const rooms = ids.map((id) => doc.objects.find((o) => o.id === id && o.type === "room"));
+  if (rooms.length < 2 || rooms.some((r) => !r || r.geometry.kind !== "polygon" || r.floorId !== rooms[0]!.floorId)) return false;
+  const floor = doc.floors.find((f) => f.id === rooms[0]!.floorId);
+  const gap = floor?.scaleMmPerUnit ? 300 / floor.scaleMmPerUnit : 0;
+  const pts = rooms.map((r) => (r!.geometry.kind === "polygon" ? r!.geometry.points : []));
+  return pts.slice(1).every((p, i) => pts.slice(0, i + 1).some((q) => touches(p, q, gap)));
+}
+
 /** Rooms picked together as one, under the first one's name: the outline
     traced round them across the walls between, what sat in the others now
     in it, and the others off any system that claimed them. */
 export function joinRooms(doc: DesignDocument, pack: DataPack | null, ids: string[]): DesignDocument {
+  if (!canJoin(doc, ids)) return doc;
   const rooms = ids.map((id) => doc.objects.find((o) => o.id === id && o.type === "room")).filter((o): o is DesignObject => !!o);
-  if (rooms.length < 2) return doc;
   const [first, ...rest] = rooms;
   const floor = doc.floors.find((f) => f.id === first.floorId);
   if (!floor || rest.some((r) => r.floorId !== first.floorId)) return doc;

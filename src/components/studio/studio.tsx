@@ -72,6 +72,7 @@ import { claimZone, newSystem, toggleZone, zoneIdsOf } from "@/lib/studio/zones"
 import { doneBlockers, systemFindings } from "@/lib/studio/verdict";
 import { SystemsPanel } from "./systems-panel";
 import { SetupPanel } from "./setup-panel";
+import { pastPrint, sheetUnitOf } from "@/lib/studio/figure-bounds";
 import { RoomPanel, RoomsPanel } from "./rooms-panel";
 import { foundOn, joinRooms, keepFound } from "@/lib/studio/room-edit";
 import type { Suggestion } from "@/lib/studio/rooms-from-reading";
@@ -1246,6 +1247,8 @@ function Editor({
      Shift to join */
   const [roomsOpen, setRoomsOpen] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
+  /* every room Tiff found on the plan, or the living spaces only */
+  const [showAllFound, setShowAllFound] = useState(false);
   const promptedFloors = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (step !== 1 || !activeFloorId || flow === "next") return;
@@ -1971,7 +1974,7 @@ function Editor({
               else setEditingRoomId(id);
             }}
             onOpenRoom={(id) => (flow === "next" ? setSelectedId(id) : setEditingRoomId(id))}
-            found={flow === "next" && showRooms ? found : undefined}
+            found={flow === "next" && showRooms ? (showAllFound ? found : found?.filter((s) => s.keep)) : undefined}
             onFound={(key, more) => {
               const id = newId("obj");
               const floorId = activeFloorId;
@@ -2084,6 +2087,8 @@ function Editor({
               doc={doc}
               floorId={activeFloor.id}
               found={found ?? []}
+              showAll={showAllFound}
+              onShowAll={setShowAllFound}
               picked={picked}
               onKeep={(keys) => {
                 const floorId = activeFloor.id;
@@ -3490,6 +3495,9 @@ function DesignPanel({
   const floor = doc.floors.find((f) => f.id === activeFloorId) ?? null;
   const [zoomApi, setZoomApi] = useState<ZoomApi | null>(null);
   const [zoomPct, setZoomPct] = useState(100);
+  /* the next flow: the sheet's unit, to say when words have stopped
+     following the plan in (figure-bounds.ts canvasUnit) */
+  const paperU = useStudioFlow() === "next" && floor ? sheetUnitOf(doc, floor) : null;
   const wheelMode = useWheelMode();
   /* the Draw flyout's armed options (pipe form, drain size, cable kind) —
      view state: what the NEXT line is, never what a drawn one was */
@@ -3736,6 +3744,7 @@ function DesignPanel({
             −
           </button>
           <span className="ds-zoomval">{zoomPct}%</span>
+          {paperU != null && pastPrint(paperU, zoomPct / 100) && <span className="ds-zoom-past">Past print size</span>}
           <button aria-label="Zoom in" onClick={() => zoomApi?.zoomIn()}>
             +
           </button>

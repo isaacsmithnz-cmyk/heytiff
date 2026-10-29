@@ -135,6 +135,7 @@ import {
 import type { SimRuntime } from "@/lib/studio/sim-runtime";
 import { SimOverlay } from "./sim-overlay";
 import { useStudioFlow } from "./flow";
+import { CALLOUT_FONT_REF, canvasUnit, sheetUnitOf } from "@/lib/studio/figure-bounds";
 import { insertCorner, removeCorner, shapeAfterEdit, wallsAfterInsert, wallsAfterRemove } from "@/lib/studio/room-edit";
 import type { Suggestion } from "@/lib/studio/rooms-from-reading";
 import {
@@ -4250,7 +4251,12 @@ export function StudioCanvas({
      stays readable) and like UI above it (constant on screen, never
      ballooning). Use this for text — never for stroke widths, which should
      stay hairline at every zoom. */
-  const labelZoom = Math.max(zoom, 1);
+  const paperU = flow === "next" ? sheetUnitOf(doc, floor) : null;
+  /* the next flow: the canvas is the paper. Words sit at the size they
+     print, in the drawing's units off the same sheet unit the PDF uses, so
+     they grow and shrink with the plan as the plan does and their layout is
+     the PDF's; past twice print size they stop growing (figure-bounds.ts) */
+  const labelZoom = paperU ? 1 / canvasUnit(paperU, zoom) : Math.max(zoom, 1);
   const mm = floor.scaleMmPerUnit;
 
   /** a run's words: its length, then its size (or a drain's, or a cable's kind) */
@@ -4496,7 +4502,7 @@ export function StudioCanvas({
      WORLD size depends on the zoom. Set below the note's 13 on purpose: a
      written instruction must stay the loudest thing on a sheet, and this is
      machine data. */
-  const calloutFontW = CALLOUT_FONT_PX / Math.max(vp.zoom, 1);
+  const calloutFontW = paperU ? CALLOUT_FONT_REF * canvasUnit(paperU, vp.zoom) : CALLOUT_FONT_PX / Math.max(vp.zoom, 1);
 
   /** The room a unit serves, by name — the one thing the callout says that
       has to be looked up rather than read straight off the object. Stamped
@@ -6081,6 +6087,7 @@ export function StudioCanvas({
             doc={doc}
             floor={floor}
             zoom={vp.zoom}
+            pen={paperU ? 1 / labelZoom : undefined}
             interactive={tool === "select" && !sim}
             selectedId={selectedId}
             draft={

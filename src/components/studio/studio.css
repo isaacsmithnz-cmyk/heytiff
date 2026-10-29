@@ -2849,6 +2849,8 @@ html[data-ds-display] .dstudio.editing {
 }
 /* the readout, named rather than matched as "the span in here" — the scroll
    toggle's icons are spans too, and must not inherit its width or its ink */
+/* the next flow: the plan is zoomed past the size its words follow it to */
+.dstudio .ds-zoomctl .ds-zoom-past { padding: 0 8px; font: 500 12px var(--font); color: var(--q); white-space: nowrap; }
 .dstudio .ds-zoomctl .ds-zoomval {
   min-width: 44px;
   text-align: center;
@@ -5637,6 +5639,13 @@ html[data-ds-display] .dstudio.editing {
 #ds-printdoc.paper-a4 .ds-print-page.landscape .ds-print-plan { height: 136mm; }
 #ds-printdoc.paper-a3 .ds-print-page.portrait .ds-print-plan { height: 346mm; }
 #ds-printdoc.paper-a3 .ds-print-page.landscape .ds-print-plan { height: 224mm; }
+/* the next flow's plan page, the whole paper inside the sheet's frame
+   (16mm a side, below), less the one-line caption. Twin of `PLAN_FILL_MM`
+   in lib/studio/export.ts; built at runtime like the rows above */
+#ds-printdoc.paper-a4 .ds-print-page.portrait.fill .ds-print-plan { height: 255mm; }
+#ds-printdoc.paper-a4 .ds-print-page.landscape.fill .ds-print-plan { height: 168mm; }
+#ds-printdoc.paper-a3 .ds-print-page.portrait.fill .ds-print-plan { height: 378mm; }
+#ds-printdoc.paper-a3 .ds-print-page.landscape.fill .ds-print-plan { height: 255mm; }
 
 /* print: reveal only the print document. The studio grid children are
    display:none'd outright — visibility:hidden alone keeps their layout and
@@ -5754,6 +5763,8 @@ html[data-ds-display] .dstudio.editing {
     position: relative;
     padding: 20mm;
   }
+  /* the next flow: 10mm of paper, the frame's 4mm band, 2mm clear */
+  #ds-printdoc .ds-print-page.fill { padding: 16mm; }
   #ds-printdoc .ds-print-variant-block:last-child .ds-print-page:last-child { break-after: auto; }
   /* a plan that prints bigger the other way round goes on the turned page
      (the named @page print-doc.tsx injects), and the page is the whole sheet

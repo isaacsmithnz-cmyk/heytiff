@@ -20,7 +20,7 @@ import type { DesignDocument } from "@/lib/studio/document";
 import { boundsOfPoints, formatArea, isAxisAlignedRect, polygonArea, unitsToMeters } from "@/lib/studio/geometry";
 import { ORIENT_LABELS, ORIENT_MULT, orientationFromWalls, type GlazingLevel, type Orientation, type RoomCondition } from "@/lib/studio/loads";
 import { roomAreaM2, roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
-import { readHeightOf } from "@/lib/studio/room-edit";
+import { canJoin, readHeightOf } from "@/lib/studio/room-edit";
 import type { Suggestion } from "@/lib/studio/rooms-from-reading";
 import { zoneIdsOf } from "@/lib/studio/zones";
 
@@ -37,6 +37,8 @@ export function RoomsPanel({
   doc,
   floorId,
   found,
+  showAll,
+  onShowAll,
   picked,
   onKeep,
   onOpen,
@@ -48,6 +50,9 @@ export function RoomsPanel({
   doc: DesignDocument;
   floorId: string;
   found: Suggestion[];
+  /** every room she found, or the living spaces only (the plan shows the same) */
+  showAll: boolean;
+  onShowAll: (all: boolean) => void;
   /** rooms picked together with Shift */
   picked: readonly string[];
   onKeep: (keys: string[]) => void;
@@ -64,6 +69,8 @@ export function RoomsPanel({
   const rooms = doc.objects.filter((o): o is RoomObj => o.type === "room" && o.floorId === floorId && o.geometry.kind === "polygon");
   const pickedRooms = picked.map((id) => rooms.find((r) => r.id === id)).filter((r): r is RoomObj => !!r);
   const lived = found.filter((s) => s.keep);
+  const listed = showAll ? found : lived;
+  const joinable = pickedRooms.length >= 2 && canJoin(doc, pickedRooms.map((r) => r.id));
   const m2 = (s: Suggestion) => (mm ? formatArea((polygonArea(s.points) * mm * mm) / 1e6) : "");
 
   return (
@@ -82,14 +89,19 @@ export function RoomsPanel({
           </div>
           <div className="ds-su-row">
             <span className="v">
-              {mm ? `${formatArea(pickedRooms.reduce((t, r) => t + (roomAreaM2(doc, r) ?? 0), 0))} as one, ` : ""}
-              named {String(pickedRooms[0].props.name ?? "Room")}
+              {joinable
+                ? `${mm ? `${formatArea(pickedRooms.reduce((t, r) => t + (roomAreaM2(doc, r) ?? 0), 0))} as one, ` : ""}named ${String(pickedRooms[0].props.name ?? "Room")}`
+                : pickedRooms.length === 2
+                  ? "These two don't touch"
+                  : "These don't all touch"}
             </span>
           </div>
           <div className="ds-su-acts">
-            <button type="button" className="ds-su-main" onClick={onJoin}>
-              Join as one room
-            </button>
+            {joinable && (
+              <button type="button" className="ds-su-main" onClick={onJoin}>
+                Join as one room
+              </button>
+            )}
             <button type="button" className="ds-su-second" onClick={onApart}>
               Keep them apart
             </button>
@@ -135,7 +147,7 @@ export function RoomsPanel({
             </div>
           )}
           <ul className="ds-rp-list">
-            {found.map((s) => (
+            {listed.map((s) => (
               <li key={s.key} className="ds-rp-found">
                 <span className="n">
                   <Fade>{s.name}</Fade>
@@ -147,6 +159,13 @@ export function RoomsPanel({
               </li>
             ))}
           </ul>
+          {found.length > lived.length && (
+            <div className="ds-su-acts">
+              <button type="button" className="ds-su-second" onClick={() => onShowAll(!showAll)}>
+                {showAll ? "Living spaces only" : `Show all ${found.length} Tiff found`}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

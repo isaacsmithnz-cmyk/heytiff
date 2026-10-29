@@ -1,6 +1,6 @@
 import { createDesign, type DesignDocument, type DesignObject } from "../document";
 import type { ReadOpening, SheetReading } from "../reading";
-import { foundOn, insertCorner, joinRooms, keepFound, removeCorner, shapeAfterEdit, wallsAfterInsert, wallsAfterRemove, wallsWithOpenings } from "../room-edit";
+import { canJoin, foundOn, insertCorner, joinRooms, keepFound, removeCorner, shapeAfterEdit, wallsAfterInsert, wallsAfterRemove, wallsWithOpenings } from "../room-edit";
 import { glassM2, suggestionsFor } from "../rooms-from-reading";
 
 const rect = (x: number, y: number, w: number, h: number) => [
@@ -195,6 +195,14 @@ describe("join", () => {
     expect(j.objects.find((o) => o.id === "u1")!.props.roomId).toBe(bed.id);
     /* the room it took in isn't offered again */
     expect(foundOn(j, "gf").map((s) => s.name)).toEqual(["Garage"]);
+  });
+
+  test("rooms that don't meet don't join: the hall between stays a hall", () => {
+    const d = keepFound(design(), "gf", ["s1:0", "s1:2"]);
+    const [bed, garage] = d.objects.filter((o) => o.type === "room");
+    /* the garage is 1 m below the bedroom, three walls' width */
+    expect(canJoin(d, [bed.id, garage.id])).toBe(false);
+    expect(joinRooms(d, null, [bed.id, garage.id])).toBe(d);
   });
 
   test("one room on its own is not a join", () => {

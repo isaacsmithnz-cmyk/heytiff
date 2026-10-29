@@ -46,6 +46,7 @@ import {
 import { defaultFloorName, imageToPage, labelPagesSequentially, pdfPagesAt, pdfToPages, type PageImage, type PlanImages } from "@/lib/studio/plans";
 import type { TrimRect } from "@/lib/studio/plan-trim";
 import { JobSearchField, type JobSearch } from "./job-search";
+import { useStudioFlow } from "./flow";
 
 type Stage = "start" | "reading" | "pages" | "peek" | "floors" | "crop";
 type Source = { kind: "pdf" | "image"; file: File };
@@ -94,21 +95,35 @@ async function storePlans(
   pages: PageImage[],
   drafts: FloorDraft[],
   onProgress: (done: number, total: number) => void,
+  /* the next flow: what's already on its way up, started as the files were
+     dropped and the pages ticked; everything else goes up at once, together */
+  early?: { source: (s: Source) => Promise<string> | undefined; page: (i: number) => Promise<string> | undefined },
 ): Promise<{ floors: Floor[]; planImport: PlanImport }> {
   const used = [...new Set(drafts.map((d) => d.page))].sort((a, b) => a - b);
   const total = sources.length + used.length;
   let done = 0;
   const stored: PlanImportSource[] = [];
-  for (const s of sources) {
-    onProgress(done, total);
-    stored.push({ ref: await planImages.uploadSource(s.file), kind: s.kind });
-    done = done + 1;
-  }
   const refs: Record<number, string> = {};
-  for (const i of used) {
-    onProgress(done, total);
-    refs[i] = await planImages.upload(pages[i]);
-    done = done + 1;
+  if (early) {
+    const tick = <T,>(p: Promise<T>) => p.then((v) => (onProgress(++done, total), v));
+    onProgress(0, total);
+    const [srcRefs, pageRefs] = await Promise.all([
+      Promise.all(sources.map((s) => tick(early.source(s) ?? planImages.uploadSource(s.file)))),
+      Promise.all(used.map((i) => tick(early.page(i) ?? planImages.upload(pages[i])))),
+    ]);
+    sources.forEach((s, k) => stored.push({ ref: srcRefs[k], kind: s.kind }));
+    used.forEach((i, k) => (refs[i] = pageRefs[k]));
+  } else {
+    for (const s of sources) {
+      onProgress(done, total);
+      stored.push({ ref: await planImages.uploadSource(s.file), kind: s.kind });
+      done = done + 1;
+    }
+    for (const i of used) {
+      onProgress(done, total);
+      refs[i] = await planImages.upload(pages[i]);
+      done = done + 1;
+    }
   }
   const words = wordsFrom(pages, drafts);
   const planImport = importFrom(stored, drafts, refs);
@@ -164,6 +179,42 @@ export function NewDesign({
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const adding = useRef(false);
+  /* THE NEXT FLOW STARTS THE SLOW PARTS EARLY: the source goes up as it's
+     dropped, a page is drawn in full as it's ticked and goes up as soon as
+     it is, so Start design waits on what's left, not on all of it. A design
+     never started leaves what went up behind, as an abandoned one does. */
+  const flow = useStudioFlow();
+  const sourceUp = useRef(new Map<File, Promise<string>>());
+  const drawn = useRef(new Map<number, Promise<PageImage>>());
+  const pageUp = useRef(new Map<number, Promise<string>>());
+  const sendEarly = (list: Source[]) => {
+    if (flow !== "next") return;
+    for (const x of list) {
+      const up = planImages.uploadSource(x.file);
+      up.catch(() => sourceUp.current.delete(x.file));
+      sourceUp.current.set(x.file, up);
+    }
+  };
+  const drawPage = (i: number): Promise<PageImage> => {
+    const had = drawn.current.get(i);
+    if (had) return had;
+    const p = pagesRef.current[i];
+    const made = p.previewOf
+      ? fullPages(pagesRef.current, [i], () => {}).then((full) => ({ ...full[i], label: p.label }))
+      : Promise.resolve(p);
+    drawn.current.set(i, made);
+    void made
+      .then((full) => {
+        if (!pageUp.current.has(i)) {
+          const up = planImages.upload(full);
+          up.catch(() => pageUp.current.delete(i));
+          pageUp.current.set(i, up);
+        }
+        setPages((cur) => cur.map((x, k) => (k === i && x.previewOf ? full : x)));
+      })
+      .catch(() => drawn.current.delete(i));
+    return made;
+  };
 
   /* the pages' pictures are object URLs: let them go when the dialog does */
   const pagesRef = useRef(pages);
@@ -229,6 +280,7 @@ export function NewDesign({
       labelPagesSequentially(all);
       setPages(all);
       setSources((s) => [...s, ...read.sources]);
+      sendEarly(read.sources);
       const fresh = read.pages.map((_, k) => base + k);
       if (!(await ready(fresh, all))) {
         setStage("floors");
@@ -244,6 +296,7 @@ export function NewDesign({
     }
     setPages(read.pages);
     setSources(read.sources);
+    sendEarly(read.sources);
     if (read.pages.length > PICK_OVER) {
       setTicked([]);
       setStage("pages");
@@ -265,7 +318,19 @@ export function NewDesign({
     setBusy({ word: "Getting the pages ready", done: 0, total: chosen.length });
     let full: PageImage[];
     try {
-      full = await fullPages(all, chosen, (done, total) => setBusy({ word: "Getting the pages ready", done, total }));
+      if (flow === "next") {
+        pagesRef.current = all;
+        full = [...all];
+        let done = 0;
+        await Promise.all(
+          chosen.map((i) =>
+            drawPage(i).then((p) => {
+              full[i] = p;
+              setBusy({ word: "Getting the pages ready", done: ++done, total: chosen.length });
+            }),
+          ),
+        );
+      } else full = await fullPages(all, chosen, (done, total) => setBusy({ word: "Getting the pages ready", done, total }));
     } catch (e) {
       setBusy(null);
       setError(failed(e));
@@ -276,7 +341,10 @@ export function NewDesign({
     return full;
   };
 
-  const toggle = (i: number) => setTicked((t) => (t.includes(i) ? t.filter((x) => x !== i) : [...t, i].sort((a, b) => a - b)));
+  const toggle = (i: number) => {
+    if (flow === "next" && !ticked.includes(i)) void drawPage(i).catch(() => {});
+    setTicked((t) => (t.includes(i) ? t.filter((x) => x !== i) : [...t, i].sort((a, b) => a - b)));
+  };
 
   /* Use these pages: floors for the ticked pages, keeping what's set on a page already there */
   const takePages = async () => {
@@ -305,7 +373,14 @@ export function NewDesign({
     setBusy({ word: "Saving the plans", done: 0, total: 1 });
     let made: Awaited<ReturnType<typeof storePlans>>;
     try {
-      made = await storePlans(planImages, sources, pages, drafts, (done, total) => setBusy({ word: "Saving the plans", done, total }));
+      made = await storePlans(
+        planImages,
+        sources,
+        pages,
+        drafts,
+        (done, total) => setBusy({ word: "Saving the plans", done, total }),
+        flow === "next" ? { source: (x) => sourceUp.current.get(x.file), page: (i) => pageUp.current.get(i) } : undefined,
+      );
     } catch (e) {
       setBusy(null);
       setError(`The plans didn't save: ${failed(e)}. Your pages are still here; try again.`);

@@ -20,6 +20,7 @@ export function AirflowLayer({
   doc,
   floor,
   zoom,
+  pen = 1 / zoom,
   interactive,
   selectedId,
   draft,
@@ -30,6 +31,9 @@ export function AirflowLayer({
   doc: DesignDocument;
   floor: Floor;
   zoom: number;
+  /** a line's pixel, in world units: a screen pixel, or in the next flow
+      the printed page's, so the arrow weighs what it prints at */
+  pen?: number;
   /** Select is armed and nothing is simulating */
   interactive: boolean;
   selectedId: string | null;
@@ -48,7 +52,7 @@ export function AirflowLayer({
     <g key={key} className={cls} aria-hidden="true">
       {markShapes(at, deg, stream, mm).map((s, i) => (
         <g key={i}>
-          <path d={s.line} fill="none" stroke={AIRFLOW_INKS[stream]} strokeWidth={1.8 / zoom} strokeLinecap="round" strokeLinejoin="round" />
+          <path d={s.line} fill="none" stroke={AIRFLOW_INKS[stream]} strokeWidth={1.8 * pen} strokeLinecap="round" strokeLinejoin="round" />
           <path d={s.head} fill={AIRFLOW_INKS[stream]} stroke="none" />
         </g>
       ))}

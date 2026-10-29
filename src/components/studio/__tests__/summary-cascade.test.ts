@@ -25,7 +25,7 @@
 
 import { readFileSync } from "fs";
 import { join } from "path";
-import { PLAN_BOX_MM } from "@/lib/studio/export";
+import { PLAN_BOX_MM, PLAN_FILL_MM } from "@/lib/studio/export";
 
 /* comments stripped: the fixes' own comments NAME the things being asserted
    against, so a substring match would pass on reverted code */
@@ -70,6 +70,17 @@ describe("Summary sheet cascade", () => {
     expect(heightOf("#ds-printdoc.paper-a4 .ds-print-page.landscape .ds-print-plan")).toBe(PLAN_BOX_MM.A4.landscape.h);
     expect(heightOf("#ds-printdoc.paper-a3 .ds-print-page.portrait .ds-print-plan")).toBe(PLAN_BOX_MM.A3.portrait.h);
     expect(heightOf("#ds-printdoc.paper-a3 .ds-print-page.landscape .ds-print-plan")).toBe(PLAN_BOX_MM.A3.landscape.h);
+  });
+
+  it("sizes the next flow's full-page plan box as PLAN_FILL_MM says", () => {
+    const heightOf = (sel: string): number | null => {
+      const esc = sel.replace(/[.#]/g, (c) => `\\${c}`).replace(/ /g, "\\s+");
+      const m = new RegExp(`${esc}\\s*\\{[^}]*height:\\s*(\\d+)mm`).exec(css);
+      return m ? Number(m[1]) : null;
+    };
+    for (const paper of ["A4", "A3"] as const)
+      for (const way of ["portrait", "landscape"] as const)
+        expect(heightOf(`#ds-printdoc.paper-${paper.toLowerCase()} .ds-print-page.${way}.fill .ds-print-plan`)).toBe(PLAN_FILL_MM[paper][way].h);
   });
 
   /* a turned plan page is the named page the print document injects, and it

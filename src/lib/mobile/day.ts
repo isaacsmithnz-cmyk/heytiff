@@ -482,7 +482,10 @@ export function stintTimes(p: { from: unknown; until: unknown; onAt: string; now
    2026: the Clock off sheet's rows, "tap a row to change it"). Only the
    phone's own stints in the day that's on: ServiceM8's own check-ins are
    ServiceM8's, and once the day is off its times have gone to ServiceM8. */
-export async function changeStint(ctx: MobileCtx, id: unknown, from: unknown, until: unknown, remove: boolean, now: number = Date.now()): Promise<DayAnswer> {
+/* A JOINED STRETCH CHANGES WHOLE: its row is its first stint with the later
+   ones joined on (joinDay), so new times for it are that stint's, and the
+   joined ones go, or they'd join back on past the times you set. */
+export async function changeStint(ctx: MobileCtx, id: unknown, from: unknown, until: unknown, remove: boolean, now: number = Date.now(), joined?: unknown): Promise<DayAnswer> {
   const day = await openDay(ctx);
   if (!day) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
   const stintId = typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id) ? id : null;
@@ -495,12 +498,18 @@ export async function changeStint(ctx: MobileCtx, id: unknown, from: unknown, un
     .eq("id", stintId)
     .maybeSingle();
   if (!row || (row as { checked_in_at: string }).checked_in_at < day.on_at) return { ok: false, error: DAY_WORDS.noStint, status: 404 };
+  const others = (Array.isArray(joined) ? joined : []).filter((x): x is string => typeof x === "string" && /^[0-9a-f-]{36}$/i.test(x) && x !== stintId).slice(0, 50);
+  const dropOthers = async () => {
+    if (others.length) await supabaseAdmin.from("job_check_ins").delete().eq("org_id", ctx.orgId).eq("user_id", ctx.userId).gte("checked_in_at", day.on_at).in("id", others);
+  };
   if (remove) {
     await supabaseAdmin.from("job_check_ins").delete().eq("org_id", ctx.orgId).eq("user_id", ctx.userId).eq("id", stintId);
+    await dropOthers();
     return { ok: true, state: await readDay(ctx, now), said: DAY_WORDS.removed };
   }
   const t = stintTimes({ from, until, onAt: day.on_at, now });
   if ("error" in t) return { ok: false, error: t.error, status: 400 };
+  await dropOthers();
   const { error } = await supabaseAdmin
     .from("job_check_ins")
     .update({ checked_in_at: t.from, checked_out_at: t.until })

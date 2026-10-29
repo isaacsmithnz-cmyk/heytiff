@@ -24,7 +24,15 @@
 
 const ENDPOINT = "https://api.voyageai.com/v1/embeddings";
 
-export const EMBED_MODEL = "voyage-4";
+/* voyage-4-large since 29 October 2026 (Isaac: "you can move it if you
+   want, if it's better"): the voyage-4 family's best for retrieval, 1.87%
+   ahead of voyage-4 on Voyage's own average, and the same embedding space
+   ("embeddings generated from different models can be used
+   interchangeably", Voyage's launch post, 15 January 2026), so the vectors
+   stored under voyage-4 still match while they are embedded again. Same
+   1024 dimensions by default (docs.voyageai.com/docs/embeddings, read the
+   same day). */
+export const EMBED_MODEL = "voyage-4-large";
 
 /** Matches kb_chunks.embedding — extensions.vector(1024). */
 export const EMBED_DIM = 1024;

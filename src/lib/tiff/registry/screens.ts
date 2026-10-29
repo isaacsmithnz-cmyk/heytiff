@@ -79,7 +79,7 @@ export type FoundRecord =
           what "open Bobo" is read against. */
       calledBy?: string[];
     }
-  | { kind: RecordKind; reason: "not allowed" | "couldn't check" };
+  | { kind: RecordKind; reason: "not allowed" | "couldn't check" | "none" };
 
 const findRecord: TiffTool = {
   name: "find_record",
@@ -89,7 +89,9 @@ const findRecord: TiffTool = {
   description:
     "Find a person, client, project or ServiceM8 job by name, number or address, the way the " +
     "search box does. Returns up to five of each kind with the id open_record takes. If more " +
-    "than one could be what they meant, ask which, naming the choices; never guess.",
+    "than one could be what they meant, ask which, naming the choices; never guess. A person's " +
+    "card is a staff card in Team: when staff comes back as none, say they have no card in Team, " +
+    "and never open a client or anything else of that name in its place unless they ask for it.",
   inputSchema: {
     type: "object",
     properties: {
@@ -110,7 +112,11 @@ const findRecord: TiffTool = {
           return;
         }
         try {
-          out.push(...(await search(viewer, kind, query)));
+          const found = await search(viewer, kind, query);
+          /* "Open Alex Lorenz's card" opened a ServiceM8 client of that name
+             (Isaac, 29 October 2026): Alex has no card in Team, and nothing
+             said so. A person searched for and not found says it. */
+          out.push(...(found.length || kind !== "staff" ? found : [{ kind, reason: "none" as const }]));
         } catch {
           out.push({ kind, reason: "couldn't check" });
         }
@@ -149,14 +155,25 @@ async function search(viewer: Viewer, kind: RecordKind, query: string): Promise<
       detail: [p.clientName, p.siteLabel, p.stage].filter(Boolean).join(", "),
     }));
   }
-  return (await searchAllMirrorJobs(viewer.orgId, query, viewer.today, { includeMoney: false, limit: 5 })).map(
+  const jobs = (await searchAllMirrorJobs(viewer.orgId, query, viewer.today, { includeMoney: false, limit: 5 })).map(
     (j) => ({
       kind,
       id: j.remoteId,
+      number: j.jobNumber,
       label: jobLabel(j.jobNumber, j.clientName),
       detail: [j.status].filter(Boolean).join(", "),
     })
   );
+  return exactJob(query, jobs).map(({ number: _number, ...j }) => j);
+}
+
+/* A JOB NAMED BY ITS NUMBER IS THAT JOB (Isaac, 29 October 2026: "open job
+   1352" asked "1352 or 1352A?"). The search matches 1352A too, and it is a
+   different job; a number said exactly opens the one that carries it. */
+export function exactJob<T extends { number: string | null }>(query: string, jobs: readonly T[]): T[] {
+  const said = query.trim().replace(/^job\s+/i, "").replace(/^#/, "").trim().toLowerCase();
+  const exact = said ? jobs.filter((j) => (j.number ?? "").toLowerCase() === said) : [];
+  return exact.length === 1 ? exact : [...jobs];
 }
 
 const jobLabel = (number: string | null, client: string | null) =>

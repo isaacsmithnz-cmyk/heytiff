@@ -44,7 +44,7 @@ jest.mock("@/lib/workboard/all-jobs-query", () => ({
 
 import { ALL_SCREENS } from "@/components/shell/nav";
 import { TIFF_TOOLS, runTool, toolsFor, type Outcome, type Viewer } from "..";
-import { openByName } from "../screens";
+import { exactJob, openByName } from "../screens";
 
 const viewer = (caps: string[], role: Viewer["role"] = "staff"): Viewer => ({
   orgId: "org-1",
@@ -316,3 +316,33 @@ describe("open_document, a manual at its page", () => {
     expect((await outcome(lib, "open_document", { doc: "d-other", page: 1 })).kind).toBe("result");
   });
 });
+
+describe("finding what was asked for (Isaac's test of Tiff, 29 October 2026)", () => {
+  const all = viewer(["team", "workboard"], "owner");
+
+  it("says a person has no card in Team, beside a client of the same name", async () => {
+    searchStaff.mockResolvedValueOnce([]);
+    searchClients.mockResolvedValueOnce([{ uuid: "c-alex", name: "Alex lorenz", address: null }]);
+    const o = await outcome(all, "find_record", { query: "Alex Lorenz", kinds: ["staff", "client"] });
+    const found = o.kind === "result" ? (o.value as FoundRecordLike[]) : [];
+    expect(found).toContainEqual({ kind: "staff", reason: "none" });
+    expect(found).toContainEqual(expect.objectContaining({ kind: "client", id: "c-alex" }));
+  });
+
+  it("finds the one job a number names, not the job beside it with a letter", async () => {
+    searchAllMirrorJobs.mockResolvedValueOnce([
+      { remoteId: "j-1352", jobNumber: "1352", clientName: "Ian & Delwyn", status: "Work Order" },
+      { remoteId: "j-1352a", jobNumber: "1352A", clientName: "Ian & Delwyn", status: "Completed" },
+    ]);
+    const o = await outcome(all, "find_record", { query: "1352", kinds: ["job"] });
+    expect(o.kind === "result" && o.value).toEqual([{ kind: "job", id: "j-1352", label: "#1352 — Ian & Delwyn", detail: "Work Order" }]);
+  });
+
+  it("still offers both when the words don't name one exactly", () => {
+    const jobs = [{ number: "1352" }, { number: "1352A" }];
+    expect(exactJob("job #1352", jobs)).toEqual([{ number: "1352" }]);
+    expect(exactJob("1352a", jobs)).toEqual([{ number: "1352A" }]);
+    expect(exactJob("Holbrook", jobs)).toEqual(jobs);
+  });
+});
+type FoundRecordLike = Record<string, unknown>;

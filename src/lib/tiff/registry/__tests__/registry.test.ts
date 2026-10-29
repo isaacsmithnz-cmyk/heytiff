@@ -68,8 +68,8 @@ describe("the gates", () => {
     ]);
   });
 
-  it("a library-only viewer holds kb_search, and can move only to a screen", () => {
-    expect(toolsFor(viewer(["tiff"])).map((t) => t.name)).toEqual(["kb_search", "open_screen"]);
+  it("a library-only viewer holds kb_search, and can move only to a screen or a document", () => {
+    expect(toolsFor(viewer(["tiff"])).map((t) => t.name)).toEqual(["kb_search", "open_screen", "open_document"]);
   });
 
   it("a viewer with neither holds no read", () => {

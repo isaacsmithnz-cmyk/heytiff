@@ -81,13 +81,29 @@ export async function POST(request: Request) {
      `maxDuration` rather than getting its own. */
   const remaining = DRIVE_BUDGET_MS - (Date.now() - started);
   after(async () => {
+    let last: Awaited<ReturnType<typeof driveDocument>> | null = null;
     try {
-      await driveDocument(documentId, orgId, remaining);
+      last = await driveDocument(documentId, orgId, remaining);
     } finally {
       // handed back rather than left to expire, so the next caller can start
       await releaseLease(documentId, orgId);
     }
+    if (last?.status === "ready") await askForDrawings(request, documentId, orgId);
   });
 
   return Response.json({ ...first, continuing: true });
+}
+
+/* ITS DRAWINGS NEXT, in an invocation of their own (api/tiff/drawings), so
+   reading them never runs out of the time this one has left. Best effort: a
+   document whose drawings weren't asked for is as readable as it was. */
+async function askForDrawings(request: Request, documentId: string, orgId: string): Promise<void> {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return;
+  const base = process.env.APP_BASE_URL ?? new URL(request.url).origin;
+  await fetch(`${base}/api/tiff/drawings`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" },
+    body: JSON.stringify({ documentId, orgId }),
+  }).catch((err: unknown) => console.error(`[kb-drawings] couldn't ask for ${documentId}'s drawings: ${err instanceof Error ? err.message : String(err)}`));
 }

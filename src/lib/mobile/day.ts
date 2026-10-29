@@ -607,14 +607,48 @@ export async function placesFor(ctx: MobileCtx, now: number = Date.now()): Promi
     }
   }
 
-  const { data: openJobs } = await supabaseAdmin
-    .from("sm8_jobs")
-    .select("uuid, generated_job_id, job_address, geo_city, lat, lng")
-    .eq("org_id", ctx.orgId)
-    .eq("active", 1)
-    .in("status", ["Work Order", "Quote"])
-    .not("lat", "is", null)
-    .not("lng", "is", null)
-    .limit(2000);
-  return { office, booked, open: ((openJobs ?? []) as JobRow[]).map(placeOf) };
+  /* AN OPEN JOB WITH SOME LIFE IN IT (Isaac, 29 October 2026: 993, a quote
+     from January 2025 nobody closed, put him "at" 3 Farran Street, the house
+     next to his own). ServiceM8 keeps a job open until someone closes it, and
+     most never are: 259 of Diamond Air's 356 open quotes and 439 of its 570
+     work orders hadn't been touched in 60 days. A job counts only when it
+     changed, or has a visit, within RECENT_DAYS either side of today. */
+  const [from, until] = recentWindow(today);
+  const [{ data: openJobs }, { data: visits }] = await Promise.all([
+    supabaseAdmin
+      .from("sm8_jobs")
+      .select("uuid, generated_job_id, job_address, geo_city, lat, lng, edit_date")
+      .eq("org_id", ctx.orgId)
+      .eq("active", 1)
+      .in("status", ["Work Order", "Quote"])
+      .not("lat", "is", null)
+      .not("lng", "is", null)
+      .limit(2000),
+    supabaseAdmin
+      .from("sm8_job_activities")
+      .select("job_uuid")
+      .eq("org_id", ctx.orgId)
+      .eq("active", 1)
+      .gte("start_date", `${from} 00:00:00`)
+      .lte("start_date", `${until} 23:59:59`)
+      .limit(10000),
+  ]);
+  const visited = new Set(((visits ?? []) as { job_uuid: string }[]).map((v) => v.job_uuid.toLowerCase()));
+  const open = ((openJobs ?? []) as (JobRow & { edit_date: string | null })[]).filter((j) => hasLife(j, from, visited));
+  return { office, booked, open: open.map(placeOf) };
+}
+
+/** How far either side of today an open job's change or visit keeps it a place to drop in at. */
+export const RECENT_DAYS = 60;
+
+/** The days RECENT_DAYS either side of `today` (YYYY-MM-DD). */
+export function recentWindow(today: string): [string, string] {
+  const at = Date.parse(`${today}T00:00:00Z`);
+  const day = (n: number) => new Date(at + n * 86_400_000).toISOString().slice(0, 10);
+  return [day(-RECENT_DAYS), day(RECENT_DAYS)];
+}
+
+/** An open job changed since `from`, or with a visit in the window. */
+export function hasLife(j: { uuid: string; edit_date: string | null }, from: string, visited: ReadonlySet<string>): boolean {
+  return (!!j.edit_date && j.edit_date.slice(0, 10) >= from) || visited.has(j.uuid.toLowerCase());
 }

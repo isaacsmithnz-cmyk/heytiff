@@ -18,6 +18,13 @@ const SAME: [RegExp, string][] = [
 /** The phone's screen for a web address, or null where it has none. */
 export function phonePath(href: string): string | null {
   const [path, query = ""] = href.split("?");
+  /* a Library document, at its page: the phone's own manual screen */
+  if (/^\/dashboard\/tiff\/library\/?$/.test(path ?? "")) {
+    const q = new URLSearchParams(query);
+    const doc = q.get("doc");
+    const page = Number(q.get("page"));
+    if (doc) return `/manual?id=${encodeURIComponent(doc)}${Number.isInteger(page) && page > 0 ? `&page=${page}` : ""}`;
+  }
   const job = /^\/dashboard\/jobs\/([^/]+)\/?$/.exec(path ?? "");
   if (job) return `/job?id=${job[1]}`;
   const jobs = /^\/dashboard\/jobs\/?$/.test(path ?? "") ? new URLSearchParams(query).get("q") : null;

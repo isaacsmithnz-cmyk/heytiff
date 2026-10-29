@@ -38,7 +38,7 @@ jest.mock("@/app/actions/sm8-booking-queue", () => ({}));
 jest.mock("@/lib/integrations/sm8-drain", () => ({}));
 jest.mock("@auth0/nextjs-auth0/server", () => ({ Auth0Client: class {} }));
 
-import { mergeJobs, rosteredDays, sheetCall, stintTimes, summarise, toQuarter, type DayJob } from "@/lib/mobile/day";
+import { hasLife, mergeJobs, recentWindow, rosteredDays, sheetCall, stintTimes, summarise, toQuarter, type DayJob } from "@/lib/mobile/day";
 import type { MobileCtx } from "@/lib/mobile/auth";
 
 /* 27 October 2026 is daylight time in Sydney: +11:00 */
@@ -138,4 +138,19 @@ test("the morning reminder's days: the days you're rostered on, less public holi
   employment = "Casual";
   expect(await rosteredDays(ctx, "2026-10-28")).toEqual([]);
   employment = "Full-time";
+});
+
+/* 993, 3 Farran Street: a quote from January 2025 nobody closed, next door
+   to Isaac's own house, put him "at" it on 29 October 2026. An open job is a
+   place to drop in at only with a change or a visit in the last or next 60
+   days. */
+test("an open job counts as somewhere you dropped in only with some life in it", () => {
+  const [from, until] = recentWindow("2026-10-29");
+  expect([from, until]).toEqual(["2026-08-30", "2026-12-28"]);
+  const none = new Set<string>();
+  expect(hasLife({ uuid: "fc8d5c66-993", edit_date: "2025-01-06 14:20:00" }, from, none)).toBe(false);
+  expect(hasLife({ uuid: "f720048c-1352", edit_date: "2026-10-29 13:38:02" }, from, none)).toBe(true);
+  /* untouched for months, but a visit booked: still a place */
+  expect(hasLife({ uuid: "ABC-OLD", edit_date: "2026-03-01 09:00:00" }, from, new Set(["abc-old"]))).toBe(true);
+  expect(hasLife({ uuid: "no-date", edit_date: null }, from, none)).toBe(false);
 });

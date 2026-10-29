@@ -285,3 +285,34 @@ describe("openByName, the free open", () => {
     expect(await openByName(both, "other org")).toBeNull();
   });
 });
+
+describe("open_document, a manual at its page", () => {
+  /* Isaac, 29 October 2026: Tiff offered to open the PUMY-SP140's manual and
+     "Open" landed on the Library's front. A document opens at its own
+     address, from this workspace's Library only, named from the record. */
+  const lib = viewer(["tiff"]);
+  beforeEach(() => {
+    tables.kb_documents = [
+      { org_id: "org-1", id: "d-im", title: "PUMY-SP80-140VYKMD2-A IM", page_count: 32 },
+      { org_id: "org-2", id: "d-other", title: "Not ours", page_count: 10 },
+    ];
+  });
+
+  it("opens the document at the page, with its own title", async () => {
+    expect(await outcome(lib, "open_document", { doc: "d-im", page: 4 })).toEqual({
+      kind: "screen",
+      href: "/dashboard/tiff/library?doc=d-im&page=4",
+      label: "PUMY-SP80-140VYKMD2-A IM, page 4",
+      line: "Opening PUMY-SP80-140VYKMD2-A IM, page 4.",
+    });
+  });
+
+  it("drops a page the document doesn't have, and opens it at its start", async () => {
+    const o = await outcome(lib, "open_document", { doc: "d-im", page: 99 });
+    expect(o.kind === "screen" && o.href).toBe("/dashboard/tiff/library?doc=d-im");
+  });
+
+  it("opens nothing from another workspace's Library", async () => {
+    expect((await outcome(lib, "open_document", { doc: "d-other", page: 1 })).kind).toBe("result");
+  });
+});

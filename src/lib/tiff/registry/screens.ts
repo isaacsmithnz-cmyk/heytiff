@@ -240,7 +240,50 @@ async function lookUp(orgId: string, kind: RecordKind, id: string): Promise<{ hr
   return { href: links.jobHref(id), label: jobLabel(job.generated_job_id, client) };
 }
 
-export const SCREEN_TOOLS: readonly TiffTool[] = [openScreen, findRecord, openRecord];
+/* ── open_document ──────────────────────────────────────────────────────
+
+   A MANUAL AT ITS PAGE (Isaac, 29 October 2026: asked for the feet spacing
+   on a PUMY-SP140, Tiff said it was in the Library and offered to open it,
+   and "Open" landed on the Library's front, a loop back to where he had
+   started). The page an answer came from, or the drawing it couldn't read,
+   opened where it is: the document's id as kb_search gave it, checked
+   against this workspace's own Library, and its title from the record. */
+
+const openDocument: TiffTool = {
+  name: "open_document",
+  label: "Opening the manual",
+  risk: "screen",
+  gate: { capability: "tiff" },
+  description:
+    "Open one Library document at a page, by the doc id and a page kb_search gave you, when " +
+    "they want to see it: the page an answer came from, or a drawing or table you couldn't read " +
+    "them in words. Opening ends your turn: say nothing after it.",
+  inputSchema: {
+    type: "object",
+    properties: { doc: str, page: { type: "integer" } },
+    required: ["doc"],
+    additionalProperties: false,
+  },
+  run: async (viewer, input) => {
+    const id = String(input.doc ?? "").trim();
+    if (!id) return result({ refused: "Name the document by the doc id kb_search gave you." });
+    const { data } = await supabaseAdmin
+      .from("kb_documents")
+      .select("id, title, page_count")
+      .eq("org_id", viewer.orgId)
+      .eq("id", id)
+      .maybeSingle();
+    const doc = data as { id: string; title: string | null; page_count: number | null } | null;
+    if (!doc) return result({ refused: "That document isn't in this workspace's Library." });
+    const asked = typeof input.page === "number" && Number.isInteger(input.page) && input.page > 0 ? input.page : null;
+    const page = asked && (!doc.page_count || asked <= doc.page_count) ? asked : null;
+    const title = doc.title?.trim() || "the manual";
+    const label = page ? `${title}, page ${page}` : title;
+    return { kind: "screen", href: links.documentHref(doc.id, page), label, line: recordLine(label) };
+  },
+};
+
+export const SCREEN_TOOLS: readonly TiffTool[] = [openScreen, findRecord, openRecord, openDocument];
 
 /* ── the free open ────────────────────────────────────────────────────── */
 

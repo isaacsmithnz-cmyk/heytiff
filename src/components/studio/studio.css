@@ -10145,3 +10145,38 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
   opacity: 0.6;
   pointer-events: none;
 }
+
+/* ── the next flow: Scale and north, once for the set (setup-panel.tsx) ──
+   A group under thin lines in the right column, never a dialog over the
+   plan. Rows are a label and a value; the main button is the press blue,
+   the rest the second button (rules 22, 23, 35). */
+.dstudio .ds-su {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 12px;
+  padding: 4px var(--ds-ck-pad-r) 16px var(--ds-ck-pad-l);
+}
+.dstudio .ds-su-head h2 { margin: 0; font: 600 20px/28px var(--font); color: var(--ink); }
+.dstudio .ds-su-sub { margin: 0; font: 500 13px/18px var(--font); color: var(--q); }
+.dstudio .ds-su-grp { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.dstudio .ds-su-row { display: flex; align-items: baseline; gap: 12px; min-height: 24px; font: 400 14px/20px var(--font); color: var(--ink); }
+.dstudio .ds-su-row .k { flex: none; width: 64px; font: 500 13px/18px var(--font); color: var(--q); }
+.dstudio .ds-su-row .v { flex: 1; min-width: 0; }
+.dstudio .ds-su-row .v b { font-weight: 600; }
+.dstudio .ds-su-acts { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.dstudio .ds-su-fill { flex: 1; }
+.dstudio .ds-su-main,
+.dstudio .ds-su-second {
+  height: 36px;
+  border-radius: var(--r-button);
+  font: 600 14px var(--font);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.dstudio .ds-su-main { border: none; background: var(--press); color: var(--paper); }
+.dstudio .ds-su-second { border: 1px solid var(--edge); background: var(--paper); color: var(--ink); }
+.dstudio .ds-su-second:hover { background: var(--hov); }
+.dstudio .ds-su-main:focus-visible,
+.dstudio .ds-su-second:focus-visible { outline: none; box-shadow: var(--ring); }

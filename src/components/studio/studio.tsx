@@ -71,6 +71,9 @@ import { GRILLE_SIZES, grilleSize, grilleStream, isGrille, type Grille } from "@
 import { claimZone, newSystem, toggleZone, zoneIdsOf } from "@/lib/studio/zones";
 import { doneBlockers, systemFindings } from "@/lib/studio/verdict";
 import { SystemsPanel } from "./systems-panel";
+import { SetupPanel } from "./setup-panel";
+import { StudioFlowContext, useStudioFlow, type StudioFlow } from "./flow";
+import { setupNeeds, shareAcrossSet } from "@/lib/studio/plan-set";
 import { InstallQuestions } from "./install-questions";
 import { isAirCapable, moduleFor } from "@/lib/studio/modules";
 import { SystemBuilder, ZoneStanding } from "./system-builder";
@@ -194,6 +197,7 @@ export type PackLoader = () => Promise<{
 
 
 export function Studio({
+  flow = "current",
   store,
   planImages,
   packLoader,
@@ -238,6 +242,8 @@ export function Studio({
       what arrived since this browser last looked. Absent (the tests, the
       harness), Home has no library door at all. */
   library?: LibraryManifest;
+  /** the shipping flow, or the reworked one under test (flow.tsx) */
+  flow?: StudioFlow;
 }) {
   // the store is browser-only; create it lazily so SSR prerender never touches
   // it. Server rows are the source of truth; localStorage is the crash buffer.
@@ -690,10 +696,14 @@ export function Studio({
     }
   }, [askingJob]);
 
-  /* undo/redo restores an exact prior document — no updatedAt bump */
+  /* undo/redo restores an exact prior document — no updatedAt bump. Except
+     Tiff's read: it lands outside the undo history, so a snapshot taken
+     before it arrived has none, and restoring that snapshot used to throw
+     a paid read away (Isaac, 29 October 2026: "I don't want to have to redo
+     all of TIFF's things"). The read on the design now always stays. */
   const replaceDoc = useCallback((d: DesignDocument) => {
     setSaveState("saving");
-    setDoc(d);
+    setDoc((cur) => (cur && cur.id === d.id && cur.reading && !d.reading ? { ...d, reading: cur.reading } : d));
   }, []);
 
   /* ── design variations: sibling documents sharing a variants[] roster ── */
@@ -849,6 +859,7 @@ export function Studio({
   );
 
   return (
+    <StudioFlowContext.Provider value={flow}>
     <div className="page in">
       <div
         className={`dstudio${doc ? " editing" : ""}${
@@ -956,6 +967,7 @@ export function Studio({
         </>
       )}
     </div>
+    </StudioFlowContext.Provider>
   );
 }
 
@@ -1067,6 +1079,8 @@ function Editor({
 }) {
   /* inches or mm, the one choice the plan, the joints and the schematic read */
   const pipeUnits = usePipeUnits();
+  /* the shipping flow, or the reworked one under test (flow.tsx) */
+  const flow = useStudioFlow();
   /* ── undo/redo: record the outgoing document before every mutation ── */
   const historyRef = useRef(new History<DesignDocument>(50));
   const docRef = useRef(doc);
@@ -1086,10 +1100,12 @@ function Editor({
   const mutate = useCallback(
     (fn: (d: DesignDocument) => DesignDocument) => {
       historyRef.current.record(docRef.current);
-      onMutate(fn);
+      /* the next flow: a scale or a north set on one floor reaches the rest
+         of its set, so no floor of one drawing set asks twice */
+      onMutate(flow === "next" ? (d) => shareAcrossSet(d, fn(d)) : fn);
       syncHist();
     },
-    [onMutate, syncHist]
+    [onMutate, syncHist, flow]
   );
 
   const undo = useCallback(() => {
@@ -1217,18 +1233,21 @@ function Editor({
      so dismiss/skip doesn't re-nag. A confirmed scale then chains into the
      "Set north" step modal. */
   const [calibPrompt, setCalibPrompt] = useState(false);
+  /* the next flow: Scale and north in the right column, opened by the pill
+     and on its own while any floor of the set still needs either */
+  const [setupOpen, setSetupOpen] = useState(false);
   const [northPrompt, setNorthPrompt] = useState(false);
   /* the Rooms page: the floor whose rooms Tiff read, open over the canvas */
   const [roomsFor, setRoomsFor] = useState<string | null>(null);
   const promptedFloors = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (step !== 1 || !activeFloorId) return;
+    if (step !== 1 || !activeFloorId || flow === "next") return;
     const f = doc.floors.find((x) => x.id === activeFloorId);
     if (f && f.scaleMmPerUnit == null && !promptedFloors.current.has(activeFloorId)) {
       promptedFloors.current.add(activeFloorId);
       setCalibPrompt(true);
     }
-  }, [step, activeFloorId, doc.floors]);
+  }, [step, activeFloorId, doc.floors, flow]);
 
   const activeFloor = doc.floors.find((f) => f.id === activeFloorId) ?? null;
 
@@ -1806,6 +1825,7 @@ function Editor({
             />
           ) : (
           <CanvasControls
+            onSetup={flow === "next" ? () => setSetupOpen(true) : undefined}
             floors={doc.floors}
             floor={activeFloor}
             onFloor={setPickedFloorId}
@@ -1938,6 +1958,7 @@ function Editor({
             legendOpen={legendOpen}
             onLegend={setLegendOpen}
             onCalibrated={() => {
+              if (flow === "next") return;
               const d = docRef.current;
               const f = d.floors.find((x) => x.id === activeFloorId);
               /* her rooms first, once the floor has a scale to measure them by,
@@ -1985,6 +2006,19 @@ function Editor({
           aria-hidden={step !== 1 ? true : undefined}
           inert={step !== 1 ? true : undefined}
         >
+          {flow === "next" &&
+          (setupOpen ||
+            setupNeeds(doc).scale.includes(activeFloor.id) ||
+            setupNeeds(doc).north.includes(activeFloor.id)) ? (
+            <SetupPanel
+              doc={doc}
+              floorId={activeFloor.id}
+              onMutate={mutate}
+              onMeasure={() => changeTool("calibrate")}
+              onTurnNorth={() => changeTool("set-north")}
+              onDone={() => setSetupOpen(false)}
+            />
+          ) : (
           <SystemsPanel
             doc={doc}
             pack={pack}
@@ -2006,6 +2040,7 @@ function Editor({
             onSwitchVariant={onSwitchVariant}
             onRenameVariant={onRenameVariant}
           />
+          )}
         </aside>
       )}
 
@@ -2854,7 +2889,10 @@ function CanvasControls({
   simFlag,
   simOn,
   onToggleSim,
+  onSetup,
 }: {
+  /** the next flow: the pill opens Scale and north in the right column */
+  onSetup?: () => void;
   floors: DesignDocument["floors"];
   floor: DesignDocument["floors"][number];
   onFloor: (id: string) => void;
@@ -3012,7 +3050,8 @@ function CanvasControls({
           onClick={() => {
             setFloorMenuOpen(false);
             setLayersOpen(false);
-            setCalibOpen((v) => !v);
+            if (onSetup) onSetup();
+            else setCalibOpen((v) => !v);
           }}
         >
           <Icon name="ruler" size={13} />

@@ -883,6 +883,10 @@ export function redetectOrientations(
     const walls = Array.isArray(o.props.externalWalls)
       ? (o.props.externalWalls as number[])
       : [];
+    /* a room with no walls marked keeps the facing it has: Tiff's rooms
+       come faced by their windows, and setting north used to wipe every
+       one of them (7 Cutler, 29 October 2026: a west room's load fell 23%) */
+    if (walls.length === 0) return o;
     const orientation = orientationFromWalls(o.geometry.points, walls, bearingDeg);
     const props = { ...o.props };
     if (orientation) props.orientation = orientation;

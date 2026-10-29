@@ -368,6 +368,11 @@ describe("redetectOrientations", () => {
     expect(rot.props.orientation).toBe("S");
   });
 
+  it("keeps the facing of a room with no walls marked: Tiff's rooms come faced by their windows", () => {
+    const [room] = redetectOrientations([roomObj({ externalWalls: [], orientation: "W", fromReading: true })], "flr", 0);
+    expect(room.props.orientation).toBe("W");
+  });
+
   it("leaves manually-locked room orientations untouched", () => {
     const [room] = redetectOrientations(
       [roomObj({ orientation: "E", orientationLocked: true })],

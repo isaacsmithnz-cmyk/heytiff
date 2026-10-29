@@ -2182,6 +2182,38 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-vertex:hover {
   fill: var(--teal);
 }
+/* the next flow: the picked room's pressed corner (Delete takes it off),
+   and the wall middles a new corner is pulled out of */
+.dstudio .ds-vertex.on {
+  fill: var(--ink);
+}
+.dstudio .ds-vertex.add {
+  stroke: var(--q);
+  stroke-width: 1.5;
+  cursor: copy;
+}
+/* rooms picked together with Shift, to join */
+.dstudio .ds-room.picked polygon {
+  stroke: var(--ink);
+  stroke-width: 2.4;
+}
+/* Tiff's rooms not on the plan yet: an outline only, dashed, the served
+   ones in the room colour; a click keeps one */
+.dstudio .ds-found polygon {
+  fill: none;
+  stroke: var(--q);
+  stroke-width: 1.4;
+  stroke-dasharray: 6 4;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-found.lived polygon {
+  stroke: #d98f1f;
+}
+.dstudio .ds-found text {
+  fill: var(--q);
+  font-weight: 600;
+  pointer-events: none;
+}
 .dstudio .ds-draft polyline,
 .dstudio .ds-draft rect {
   fill: rgba(37, 99, 235, 0.08);
@@ -10180,3 +10212,82 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .dstudio .ds-su-second:hover { background: var(--hov); }
 .dstudio .ds-su-main:focus-visible,
 .dstudio .ds-su-second:focus-visible { outline: none; box-shadow: var(--ring); }
+
+/* ROOMS IN THE RIGHT COLUMN (the next flow; rooms-panel.tsx): the floor's
+   rooms, what Tiff found, and the picked room's panel, on the set-up
+   column's rows and buttons */
+.dstudio .ds-rp-h { margin: 0; font: 600 14px/20px var(--font); color: var(--ink); }
+.dstudio .ds-rp-none { margin: 0; font: 400 14px/20px var(--font); color: var(--q); }
+.dstudio .ds-rp-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.dstudio .ds-rp-row,
+.dstudio .ds-rp-found {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: 400 14px/20px var(--font);
+  color: var(--ink);
+  text-align: left;
+}
+.dstudio .ds-rp-row { cursor: pointer; border-radius: var(--r-button); }
+.dstudio .ds-rp-row:hover { background: var(--hov); }
+.dstudio .ds-rp-row:focus-visible { outline: none; box-shadow: var(--ring); }
+.dstudio .ds-rp-row .n,
+.dstudio .ds-rp-found .n { flex: 1; min-width: 0; font-weight: 600; }
+.dstudio .ds-rp-row .f,
+.dstudio .ds-rp-found .f { flex: none; font: 500 13px/18px var(--font); color: var(--q); }
+.dstudio .ds-rp-keep {
+  flex: none;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--edge);
+  border-radius: var(--r-button);
+  background: var(--paper);
+  font: 600 13px var(--font);
+  color: var(--ink);
+  cursor: pointer;
+}
+.dstudio .ds-rp-keep:hover { background: var(--hov); }
+.dstudio .ds-rp-keep:focus-visible { outline: none; box-shadow: var(--ring); }
+.dstudio .ds-rp-keep:disabled,
+.dstudio .ds-su-main:disabled { opacity: 0.5; cursor: default; }
+.dstudio .ds-rp-name-in {
+  width: 100%;
+  height: 36px;
+  padding: 0 8px;
+  margin-left: -8px;
+  border: 1px solid transparent;
+  border-radius: var(--r-button);
+  background: none;
+  font: 600 20px/28px var(--font);
+  color: var(--ink);
+}
+.dstudio .ds-rp-name-in:hover { border-color: var(--edge); }
+.dstudio .ds-rp-name-in:focus-visible { outline: none; border-color: var(--edge); box-shadow: var(--ring); }
+.dstudio .ds-rp-load { display: flex; align-items: baseline; gap: 8px; }
+.dstudio .ds-rp-load b { font: 600 24px/32px var(--font); color: var(--ink); }
+.dstudio .ds-rp-load span { font: 500 13px/18px var(--font); color: var(--q); }
+.dstudio .ds-rp .ds-su-row { align-items: center; }
+.dstudio .ds-rp .ds-su-row .k { width: 76px; }
+.dstudio .ds-rp-height { display: flex; align-items: center; gap: 8px; }
+.dstudio .ds-rp-num {
+  width: 64px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--edge);
+  border-radius: var(--r-button);
+  background: var(--paper);
+  font: 500 14px var(--font);
+  color: var(--ink);
+}
+.dstudio .ds-rp-num:focus-visible { outline: none; box-shadow: var(--ring); }
+.dstudio .ds-rp { overflow-y: auto; }
+.dstudio .ds-rp-del { flex: none; width: 100%; color: var(--bad-t); }
+/* a tray takes the column's width under its word: three choices don't fit beside it */
+.dstudio .ds-rp .ds-su-row.ds-rp-tray { flex-direction: column; align-items: stretch; gap: 4px; }
+.dstudio .ds-rp .ds-su-row.ds-rp-tray .k { width: auto; }
+.dstudio .ds-rp-from { margin: 0; font: 500 13px/18px var(--font); color: var(--q); }

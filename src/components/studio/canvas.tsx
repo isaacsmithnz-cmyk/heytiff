@@ -134,6 +134,9 @@ import {
 } from "@/lib/studio/plans";
 import type { SimRuntime } from "@/lib/studio/sim-runtime";
 import { SimOverlay } from "./sim-overlay";
+import { useStudioFlow } from "./flow";
+import { insertCorner, removeCorner, shapeAfterEdit, wallsAfterInsert, wallsAfterRemove } from "@/lib/studio/room-edit";
+import type { Suggestion } from "@/lib/studio/rooms-from-reading";
 import {
   areaUnitsToM2,
   boundsOfPoints,
@@ -824,7 +827,9 @@ type Drag =
       commit: () => void;
     }
   | { kind: "move"; id: string; startWorld: Point; orig: Point[]; memberIds: ReadonlySet<string> }
-  | { kind: "vertex"; id: string; index: number; orig: Point[] }
+  /* `free`: a corner just pulled out of a wall moves on its own, even on a
+     room drawn as a rectangle; `inserted` is the wall it came from */
+  | { kind: "vertex"; id: string; index: number; orig: Point[]; free?: boolean; inserted?: number }
   | { kind: "rect"; start: Point }
   | { kind: "sheet"; id: string; startWorld: Point; orig: Point }
   /* `free`: a joint or riser dragged off its pipe's line stops sliding along
@@ -935,6 +940,10 @@ export function StudioCanvas({
   armedInk = DEFAULT_NOTE_INK,
   runSizes,
   wheelMode = "pan",
+  found,
+  onFound,
+  picked,
+  onPickMore,
 }: {
   doc: DesignDocument;
   floor: Floor;
@@ -1019,7 +1028,17 @@ export function StudioCanvas({
   /** systemId → the pairing's line sizes; pipe-run labels autosize from this
       (per-run props override) */
   runSizes?: ReadonlyMap<string, { liquidMm: number; gasMm: number }>;
+  /** the next flow: Tiff's rooms on this floor that aren't on the plan yet,
+      drawn dashed; a click keeps one, Shift-click keeps it and picks it too */
+  found?: Suggestion[];
+  onFound?: (key: string, more: boolean) => void;
+  /** the next flow: rooms picked together with Shift, to join */
+  picked?: readonly string[];
+  onPickMore?: (roomId: string) => void;
 }) {
+  const flow = useStudioFlow();
+  /* the next flow: the corner last pressed on the picked room, for Delete */
+  const [pickedCorner, setCorner] = useState<{ id: string; index: number } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
@@ -2215,6 +2234,27 @@ export function StudioCanvas({
       }
       if ((e.key === "Delete" || e.key === "Backspace") && !isTyping(e) && selectedId) {
         e.preventDefault();
+        /* the next flow: a picked corner comes off its room, never the room
+           with it; a triangle keeps its three */
+        if (flow === "next" && pickedCorner?.id === selectedId) {
+          const at = pickedCorner.index;
+          onMutate((d) => ({
+            ...d,
+            objects: d.objects.map((o) => {
+              if (o.id !== selectedId || o.geometry.kind !== "polygon") return o;
+              const points = removeCorner(o.geometry.points, at);
+              if (!points) return o;
+              const walls = Array.isArray(o.props.externalWalls) ? (o.props.externalWalls as number[]) : [];
+              return {
+                ...o,
+                geometry: { kind: "polygon", points },
+                props: { ...o.props, shape: shapeAfterEdit(points), externalWalls: wallsAfterRemove(walls, at, o.geometry.points.length) },
+              };
+            }),
+          }));
+          setCorner(null);
+          return;
+        }
         onMutate((d) => {
           // a room takes its units (and their plenums) with it, the same way
           // a room move carries them — and frees its id from every system
@@ -2250,7 +2290,7 @@ export function StudioCanvas({
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
     };
-  }, [selectedId, onMutate, onSelect, units, doc.objects, ahuRow, setDraftPipe, deleteRoom]);
+  }, [selectedId, onMutate, onSelect, units, doc.objects, ahuRow, setDraftPipe, deleteRoom, flow, pickedCorner]);
 
   /* ── document intents ── */
   /* A closed boundary lands the room on the plan LOOSE — the user tweaks its
@@ -3208,7 +3248,19 @@ export function StudioCanvas({
           break;
         }
         const hit = hitRoom(w);
+        if (hit && flow === "next" && e.shiftKey && onPickMore) {
+          onPickMore(hit);
+          pan();
+          break;
+        }
+        const found1 = !hit && flow === "next" ? found?.find((s) => pointInPolygon(w, s.points)) : undefined;
+        if (found1) {
+          const more = e.shiftKey;
+          tap(() => onFound?.(found1.key, more));
+          break;
+        }
         if (hit) {
+          if (hit !== selectedId) setCorner(null);
           onSelect(hit);
           const room = rooms.find((r) => r.id === hit)!;
           /* A saved room is PINNED: it selects on click but drags the plan, so
@@ -3503,8 +3555,9 @@ export function StudioCanvas({
         // box (opposite corner fixed). Polygon rooms edit each vertex freely.
         const room = rooms.find((r) => r.id === drag.id);
         const keepRect =
-          room?.props.shape === "rect" ||
-          (room?.props.shape == null && isAxisAlignedRect(drag.orig));
+          !drag.free &&
+          (room?.props.shape === "rect" ||
+            (room?.props.shape == null && isAxisAlignedRect(drag.orig)));
         let points: Point[];
         if (keepRect) {
           points = rectResize(drag.orig, drag.index, w);
@@ -3729,6 +3782,25 @@ export function StudioCanvas({
             x: liveGeom.dx ?? 0,
             y: liveGeom.dy ?? 0,
           });
+        } else if (flow === "next") {
+          const { id, points } = liveGeom;
+          const at = drag.inserted;
+          onMutate((d) => ({
+            ...d,
+            objects: d.objects.map((o) => {
+              if (o.id !== id) return o;
+              const walls = Array.isArray(o.props.externalWalls) ? (o.props.externalWalls as number[]) : [];
+              return {
+                ...o,
+                geometry: { kind: "polygon", points },
+                props: {
+                  ...o.props,
+                  shape: shapeAfterEdit(points),
+                  ...(at != null ? { externalWalls: wallsAfterInsert(walls, at) } : {}),
+                },
+              };
+            }),
+          }));
         } else {
           commitGeometry(liveGeom.id, liveGeom.points);
         }
@@ -4118,9 +4190,36 @@ export function StudioCanvas({
       }
     }
     const room = rooms.find((r) => r.id === id);
-    // corners only pull on the room being sized — saved rooms are pinned
-    if (room && adjust?.id === id)
+    // corners only pull on the room being sized — saved rooms are pinned —
+    // and, in the next flow, on the picked one
+    const next = flow === "next" && selectedId === id;
+    if (room && (adjust?.id === id || next)) {
       setDrag({ kind: "vertex", id, index, orig: roomPoints(room) });
+      if (next) setCorner({ id, index });
+    }
+  };
+
+  /* the next flow: a new corner pulled out of the middle of a picked room's
+     wall, dragged from where it was pressed */
+  const startCornerInsert = (id: string, edge: number) => (e: React.PointerEvent) => {
+    e.stopPropagation();
+    const capTarget = e.target as Element;
+    if (capTarget.setPointerCapture) {
+      try {
+        capTarget.setPointerCapture(e.pointerId);
+      } catch {
+        /* jsdom */
+      }
+    }
+    const room = rooms.find((r) => r.id === id);
+    if (!room) return;
+    const pts = roomPoints(room);
+    const a = pts[edge];
+    const b = pts[(edge + 1) % pts.length];
+    const orig = insertCorner(pts, edge, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+    setDrag({ kind: "vertex", id, index: edge + 1, orig, free: true, inserted: edge });
+    setLiveGeom({ id, points: orig });
+    setCorner({ id, index: edge + 1 });
   };
 
   const confirmCalibration = () => {
@@ -4863,6 +4962,29 @@ export function StudioCanvas({
             );
           })}
 
+          {/* the next flow: Tiff's rooms not on the plan yet, dashed, under
+              the kept ones; a click keeps one */}
+          {flow === "next" &&
+            found?.map((s) => {
+              const c = polygonCentroid(s.points);
+              /* the name at 12 px, smaller in a small room, left off when
+                 it can't be read inside it; the column names it anyway */
+              const b = boundsOfPoints(s.points);
+              const px = b ? Math.min(12, ((b.maxX - b.minX) * zoom) / (s.name.length * 0.62)) : 12;
+              return (
+                <g key={s.key} className={`ds-found${s.keep ? " lived" : ""}`}>
+                  {/* named on hover too, for a room too small to print it in */}
+                  <title>{s.name}</title>
+                  <polygon points={s.points.map((p) => `${p.x},${p.y}`).join(" ")} />
+                  {px >= 8 && (
+                    <text x={c.x} y={c.y} fontSize={px / zoom} textAnchor="middle" dominantBaseline="middle">
+                      {s.name}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+
           {/* rooms */}
           {rooms.map((r) => {
             const pts = roomPoints(r);
@@ -4871,6 +4993,9 @@ export function StudioCanvas({
             const selected = r.id === selectedId;
             // the room being sized reads as loose (dashed) until it's saved
             const loose = adjust?.id === r.id;
+            /* the next flow: the picked room's corners are out, and a wall's
+               middle pulls a new one */
+            const reshaping = flow === "next" && selected && tool === "select" && !loose;
             /* while an IDU is armed the fit verdict IS the room's paint;
                rooms with no load yet read neutral rather than pretending */
             const armLoad = armedIdu ? roomLoadKw(doc, r as RoomObj) : null;
@@ -4901,7 +5026,7 @@ export function StudioCanvas({
                   loose ? " loose" : ""
                 }${armedIdu ? ` armfit-${armFit ?? "none"}` : ""}${
                   isTarget || ownZone ? " droptgt" : ""
-                }${owners.length ? " zoned" : ""}`}
+                }${owners.length ? " zoned" : ""}${picked?.includes(r.id) ? " picked" : ""}`}
                 style={zoneStyle}
               >
                 <polygon points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
@@ -5033,18 +5158,32 @@ export function StudioCanvas({
                           : `${placing.model} lands here`}
                   </text>
                 )}
-                {loose &&
-                  tool === "select" &&
+                {((loose && tool === "select") || reshaping) &&
                   pts.map((p, i) => (
                     <circle
                       key={i}
-                      className="ds-vertex"
+                      className={`ds-vertex${reshaping && pickedCorner?.id === r.id && pickedCorner.index === i ? " on" : ""}`}
                       cx={p.x}
                       cy={p.y}
                       r={5 / zoom}
                       onPointerDown={startVertexDrag(r.id, i)}
                     />
                   ))}
+                {reshaping &&
+                  !drag &&
+                  pts.map((p, i) => {
+                    const q = pts[(i + 1) % pts.length];
+                    return (
+                      <circle
+                        key={`m${i}`}
+                        className="ds-vertex add"
+                        cx={(p.x + q.x) / 2}
+                        cy={(p.y + q.y) / 2}
+                        r={3.5 / zoom}
+                        onPointerDown={startCornerInsert(r.id, i)}
+                      />
+                    );
+                  })}
               </g>
             );
           })}

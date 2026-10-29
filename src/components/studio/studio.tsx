@@ -72,6 +72,9 @@ import { claimZone, newSystem, toggleZone, zoneIdsOf } from "@/lib/studio/zones"
 import { doneBlockers, systemFindings } from "@/lib/studio/verdict";
 import { SystemsPanel } from "./systems-panel";
 import { SetupPanel } from "./setup-panel";
+import { RoomPanel, RoomsPanel } from "./rooms-panel";
+import { foundOn, joinRooms, keepFound } from "@/lib/studio/room-edit";
+import type { Suggestion } from "@/lib/studio/rooms-from-reading";
 import { StudioFlowContext, useStudioFlow, type StudioFlow } from "./flow";
 import { setupNeeds, shareAcrossSet } from "@/lib/studio/plan-set";
 import { InstallQuestions } from "./install-questions";
@@ -1239,6 +1242,10 @@ function Editor({
   const [northPrompt, setNorthPrompt] = useState(false);
   /* the Rooms page: the floor whose rooms Tiff read, open over the canvas */
   const [roomsFor, setRoomsFor] = useState<string | null>(null);
+  /* the next flow: the Rooms column is open, and the rooms picked with
+     Shift to join */
+  const [roomsOpen, setRoomsOpen] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
   const promptedFloors = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (step !== 1 || !activeFloorId || flow === "next") return;
@@ -1250,6 +1257,19 @@ function Editor({
   }, [step, activeFloorId, doc.floors, flow]);
 
   const activeFloor = doc.floors.find((f) => f.id === activeFloorId) ?? null;
+  /* the next flow: Tiff's rooms on this floor not on the plan yet; the room
+     picked on the plan; the Rooms column, open by hand, while rooms are
+     picked to join, or on a floor with none yet and some found */
+  const found = useMemo(
+    () => (flow === "next" && activeFloorId ? foundOn(doc, activeFloorId) : undefined),
+    [flow, doc, activeFloorId],
+  );
+  const pickedRoom =
+    flow === "next" ? (doc.objects.find((o) => o.id === selectedId && o.type === "room") ?? null) : null;
+  const showRooms =
+    roomsOpen ||
+    picked.length > 0 ||
+    (!!found?.length && !doc.objects.some((o) => o.type === "room" && o.floorId === activeFloorId));
 
   /* ── systems (Stage 4): product pack, active system, armed placement ── */
   const [pack, setPack] = useState<DataPack | null>(null);
@@ -1790,7 +1810,11 @@ function Editor({
               </span>
             )}
             {step === 1 && activeFloor?.scaleMmPerUnit != null && doc.reading?.floors[activeFloor.id]?.length ? (
-              <button type="button" className="ds-save ds-reading read ds-reading-open" onClick={() => setRoomsFor(activeFloor.id)}>
+              <button
+                type="button"
+                className="ds-save ds-reading read ds-reading-open"
+                onClick={() => (flow === "next" ? setRoomsOpen(true) : setRoomsFor(activeFloor.id))}
+              >
                 <span className="dot" />
                 Rooms Tiff found
               </button>
@@ -1943,9 +1967,30 @@ function Editor({
             onPlaced={onPlaced}
             onClaimToggle={onClaimToggle}
             onRoomCreated={(id) => {
-              setEditingRoomId(id);
+              if (flow === "next") setSelectedId(id);
+              else setEditingRoomId(id);
             }}
-            onOpenRoom={(id) => setEditingRoomId(id)}
+            onOpenRoom={(id) => (flow === "next" ? setSelectedId(id) : setEditingRoomId(id))}
+            found={flow === "next" && showRooms ? found : undefined}
+            onFound={(key, more) => {
+              const id = newId("obj");
+              const floorId = activeFloorId;
+              mutate((d) => keepFound(d, floorId, [key], { [key]: id }));
+              setRoomsOpen(true);
+              if (more) setPicked((p) => [...p, id]);
+            }}
+            picked={picked}
+            onPickMore={(id) => {
+              setRoomsOpen(true);
+              setPicked((p) => {
+                /* Shift on a room already picked takes it back out; the
+                   room picked by a plain click is the first */
+                if (p.includes(id)) return p.filter((x) => x !== id);
+                const first = p.length === 0 && selectedId && selectedId !== id ? [selectedId] : [];
+                return [...p, ...first, id];
+              });
+              setSelectedId(null);
+            }}
             remarkRoomId={remarkRoomId}
             reshapeRoomId={reshapeRoomId}
             onReshapeConsumed={() => setReshapeRoomId(null)}
@@ -2017,6 +2062,51 @@ function Editor({
               onMeasure={() => changeTool("calibrate")}
               onTurnNorth={() => changeTool("set-north")}
               onDone={() => setSetupOpen(false)}
+            />
+          ) : flow === "next" && pickedRoom ? (
+            <RoomPanel
+              doc={doc}
+              roomId={pickedRoom.id}
+              onMutate={mutate}
+              onMarkWalls={() => setRemarkRoomId(pickedRoom.id)}
+              onEditSystem={(systemId) => {
+                setActiveSystemId(systemId);
+                setBuilderOpen({ focus: null, systemId, zoneId: pickedRoom.id });
+              }}
+              onDelete={() => {
+                const id = pickedRoom.id;
+                setSelectedId(null);
+                mutate((d) => deleteZone(d, pack, id));
+              }}
+            />
+          ) : flow === "next" && showRooms ? (
+            <RoomsPanel
+              doc={doc}
+              floorId={activeFloor.id}
+              found={found ?? []}
+              picked={picked}
+              onKeep={(keys) => {
+                const floorId = activeFloor.id;
+                /* the column stays open once its first room is kept */
+                setRoomsOpen(true);
+                mutate((d) => keepFound(d, floorId, keys));
+              }}
+              onOpen={(id) => {
+                setPicked([]);
+                setSelectedId(id);
+              }}
+              onJoin={() => {
+                const ids = picked;
+                setPicked([]);
+                mutate((d) => joinRooms(d, pack, ids));
+                setSelectedId(ids[0]);
+              }}
+              onApart={() => setPicked([])}
+              onDraw={() => changeTool("room-rect")}
+              onDone={() => {
+                setPicked([]);
+                setRoomsOpen(false);
+              }}
             />
           ) : (
           <SystemsPanel
@@ -3337,6 +3427,10 @@ function DesignPanel({
   onLegend,
   onCalibrated,
   onClaimToggle,
+  found,
+  onFound,
+  picked,
+  onPickMore,
 }: {
   doc: DesignDocument;
   /** the design in 3D, when the top bar's switch says 3D; the canvas otherwise */
@@ -3387,6 +3481,11 @@ function DesignPanel({
   onCalibrated: () => void;
   /** claim mode (the zones flow): a zone clicked while the claim tool is up */
   onClaimToggle?: (roomId: string) => void;
+  /** the next flow: Tiff's rooms not on the plan, and the rooms picked to join */
+  found?: Suggestion[];
+  onFound?: (key: string, more: boolean) => void;
+  picked?: readonly string[];
+  onPickMore?: (roomId: string) => void;
 }) {
   const floor = doc.floors.find((f) => f.id === activeFloorId) ?? null;
   const [zoomApi, setZoomApi] = useState<ZoomApi | null>(null);
@@ -3612,6 +3711,10 @@ function DesignPanel({
             onClaimToggle={onClaimToggle}
             deleteRoom={(d, id) => deleteZone(d, pack, id)}
             onOpenRoom={onOpenRoom}
+            found={found}
+            onFound={onFound}
+            picked={picked}
+            onPickMore={onPickMore}
             remarkRoomId={remarkRoomId}
             reshapeRoomId={reshapeRoomId}
             onReshapeConsumed={onReshapeConsumed}

@@ -267,7 +267,8 @@ export const READS: readonly TiffTool[] = [
     gate: { capability: "tiff" },
     description:
       "Search the knowledge base — manuals AND field notes the crew has taught. Returns " +
-      "excerpts with their sources; field notes carry who learned them and where.",
+      "excerpts with their sources; field notes carry who learned them and where. Each " +
+      "excerpt carries its doc id and pages, for open_document.",
     inputSchema: {
       type: "object",
       properties: { query: str },
@@ -279,6 +280,7 @@ export const READS: readonly TiffTool[] = [
       /* The loop wants excerpts, not the full retrieval trace. */
       return result(
         found.chunks.slice(0, 8).map((c) => ({
+          doc: c.documentId,
           title: c.title,
           category: c.category,
           heading: c.heading,

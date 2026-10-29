@@ -24,3 +24,9 @@ it("opens nothing for a page the phone hasn't got", () => {
   expect(phonePath("/dashboard/admin/integrations/servicem8")).toBeNull();
   expect(phonePath("/dashboard/analytics")).toBeNull();
 });
+
+it("opens a Library document on the phone's manual screen, at its page", () => {
+  expect(phonePath("/dashboard/tiff/library?doc=d-im&page=4")).toBe("/manual?id=d-im&page=4");
+  expect(phonePath("/dashboard/tiff/library?doc=d-im")).toBe("/manual?id=d-im");
+  expect(phonePath("/dashboard/tiff/library")).toBe("/library");
+});

@@ -36,6 +36,10 @@ export const projectsHref = "/dashboard/jobs?view=projects";
     Workboard's, whose old address still lands here). */
 export const projectHref = (id: string) => `/dashboard/jobs/projects/${encodeURIComponent(id)}`;
 
+/** One document in the Library, its search panel open on arrival, at a page where one is named. */
+export const documentHref = (id: string, page?: number | null) =>
+  `/dashboard/tiff/library?doc=${encodeURIComponent(id)}${page ? `&page=${page}` : ""}`;
+
 /** A job's quote, full screen, under its job (24 October 2026; it was the
     Workboard's): `start` opens with the reply box ready for the brief, and
     `option` on that option. */

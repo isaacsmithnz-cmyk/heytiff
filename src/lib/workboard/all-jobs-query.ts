@@ -41,7 +41,7 @@ import {
 } from "./job-media-query";
 import { plusDays } from "./dates";
 import { readJobCheckInSessions } from "./job-check-ins-server";
-import { overriddenDays } from "./job-check-ins";
+import { countedSessions } from "./job-check-ins";
 import { summariseQuoteLines, type QuoteLine } from "./quote-worklist";
 import { crewOf } from "./jobs-list";
 import { sm8Handle } from "./sm8-mentions";
@@ -1062,17 +1062,13 @@ export async function readMirrorJobDetail(
      has one, their ServiceM8 sessions on this job that day give way to it
      (lib/workboard/job-check-ins). A stint still open is counted to now. */
   const ours = await readJobCheckInSessions(orgId, remoteId, opts.timezone ?? null, new Date());
-  const ourDays = overriddenDays(ours.sessions);
   /* why someone was there, from the phone's buttons: on the day, by person (Isaac, 28 October 2026) */
   const reasonOn = new Map<string, string>();
   for (const o of ours.sessions) if (o.reason && REASON_WORDS[o.reason]) reasonOn.set(`${o.start.slice(0, 10)}|${o.staffId}`, REASON_WORDS[o.reason]!);
   const liveOn = new Map<string, Set<string>>();
   for (const o of ours.sessions)
     if (o.live) liveOn.set(o.start.slice(0, 10), (liveOn.get(o.start.slice(0, 10)) ?? new Set()).add(o.staffId));
-  const sessionsRead = [
-    ...acts.filter((a) => !(a.activity_was_scheduled === 0 && a.start_date && ourDays.has(`${a.start_date.slice(0, 10)}|${a.staff_uuid ?? ""}`))),
-    ...ours.sessions.map((o) => ({ uuid: o.uuid, start_date: o.start, end_date: o.end, staff_uuid: o.staffId, activity_was_scheduled: 0 })),
-  ];
+  const sessionsRead = countedSessions(acts, ours.sessions);
 
   let minutes = 0;
   let sessions = 0;

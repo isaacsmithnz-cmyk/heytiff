@@ -3,7 +3,7 @@
 
 /** A long time away before coming back to a job: keeping it stretches the
     stint before it, `stintId` from `stintFrom`, to `until`. */
-export type Away = { from: string; until: string; stintId: string; stintFrom: string };
+export type Away = { from: string; until: string; stintId: string; stintFrom: string; joined?: string[] };
 
 /** A piece of time on a job: the phone's stint, or ServiceM8's own check-in. */
 export type JoinPiece = {
@@ -51,26 +51,32 @@ export function joinDay<T extends JoinPiece>(jobs: readonly T[], office: readonl
       const k = rows.findIndex((r, at) => at > i && !!r && same(r.jobUuid, a.jobUuid));
       const b = k < 0 ? null : rows[k];
       if (!b || b.how !== "phone") break;
-      /* everywhere else you were in the gap: other jobs, and the office */
+      const left = a.until;
+      /* everywhere else you were WHOLLY IN THE GAP: other jobs and the office. One that overlaps
+         either stint isn't a stop between them, and stretching to it would count its time twice
+         (the review of 29 October 2026) */
       const between = [
         ...rows.slice(i + 1, k).filter((r): r is T => !!r).map((r) => ({ from: r.from, until: r.until ?? r.from })),
-        ...office.filter((o) => o.until && o.from >= a.until! && o.until <= b.from).map((o) => ({ from: o.from, until: o.until! })),
-      ].sort((x, y) => (x.from < y.from ? -1 : 1));
+        ...office.filter((o) => !!o.until).map((o) => ({ from: o.from, until: o.until! })),
+      ]
+        .filter((x) => x.from >= left && x.until <= b.from)
+        .sort((x, y) => (x.from < y.from ? -1 : 1));
       if (between.length) {
-        /* a stop elsewhere: the drives there and back are the first job's */
+        /* a stop elsewhere: the drives there and back are the first job's, each only when it's
+           short; a long one is time away, never stretched onto the job */
         const first = between[0]!;
         const last = between.reduce((m, x) => (x.until > m ? x.until : m), first.until);
-        if (first.from > a.until) a.until = first.from;
-        if (last < b.from) b.from = last;
+        if (Date.parse(first.from) - Date.parse(left) <= AWAY_KEPT_MS) a.until = first.from;
+        if (Date.parse(b.from) - Date.parse(last) <= AWAY_KEPT_MS) b.from = last;
         break;
       }
-      if (Date.parse(b.from) - Date.parse(a.until) > AWAY_KEPT_MS) {
+      if (Date.parse(b.from) - Date.parse(left) > AWAY_KEPT_MS) {
         /* away long: kept off the job unless kept on the sheet */
-        if (a.stintId) b.away = { from: a.until, until: b.from, stintId: a.stintId, stintFrom: a.from };
+        if (a.stintId) b.away = { from: left, until: b.from, stintId: a.stintId, stintFrom: a.from, joined: a.joined ?? [] };
         break;
       }
-      /* out and back: one stretch on the job */
-      a.until = b.until;
+      /* out and back: one stretch on the job, to the later end (still there wins) */
+      a.until = b.until === null ? null : b.until > left ? b.until : left;
       a.joined = [...(a.joined ?? []), ...(b.stintId ? [b.stintId] : []), ...(b.joined ?? [])];
       if (b.reason && !a.reason) a.reason = b.reason;
       rows[k] = null;

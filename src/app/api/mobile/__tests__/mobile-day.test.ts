@@ -195,7 +195,7 @@ describe("the day's pieces, joined", () => {
   it("away more than two hours stays off the job, offered to keep", () => {
     const day = joinDay([piece("1352", "7:15", "10:00", "s1"), piece("1352", "13:30", "15:00", "s2")], []);
     expect(day).toHaveLength(2);
-    expect(day[1]!.away).toEqual({ from: at("10:00"), until: at("13:30"), stintId: "s1", stintFrom: at("7:15") });
+    expect(day[1]!.away).toEqual({ from: at("10:00"), until: at("13:30"), stintId: "s1", stintFrom: at("7:15"), joined: [] });
     /* exactly two hours still stays on */
     expect(joinDay([piece("1352", "7:00", "10:00", "s1"), { ...piece("1352", "7:00", "15:00", "s2"), from: new Date(Date.parse(at("10:00")) + AWAY_KEPT_MS).toISOString() }], [])).toHaveLength(1);
   });
@@ -243,5 +243,48 @@ describe("Clock on, with where the morning watch saw you arrive", () => {
       stint: null,
     });
     expect(clockOnPlan("2026-10-28T20:28:00.000Z", "office", null)).toEqual({ onAt: "2026-10-28T20:28:00.000Z", office: [{ from: "2026-10-28T20:28:00.000Z", until: null }], stint: null });
+  });
+});
+
+/* The review of 29 October 2026, each seen failing before its fix. */
+describe("the day's pieces, joined: what the review found", () => {
+  const at = (hm: string) => {
+    const [h, m] = hm.split(":").map(Number);
+    return new Date(Date.UTC(2026, 9, 29, h! - 11, m!)).toISOString();
+  };
+  const piece = (job: string, from: string, until: string | null, id: string, how: DayJob["how"] = "phone"): DayJob => ({
+    jobUuid: job, number: job, where: "", from: at(from), until: until ? at(until) : null, how, ...(how === "phone" ? { stintId: id } : {}),
+  });
+
+  it("a long gap after a joined stretch offers to keep it with the stretch's own stints", () => {
+    const day = joinDay([piece("X", "7:00", "9:00", "s1"), piece("X", "9:20", "10:00", "s2"), piece("X", "13:00", "15:00", "s3")], []);
+    expect(day.map((j) => [j.from, j.until])).toEqual([[at("7:00"), at("10:00")], [at("13:00"), at("15:00")]]);
+    expect(day[1]!.away).toEqual({ from: at("10:00"), until: at("13:00"), stintId: "s1", stintFrom: at("7:00"), joined: ["s2"] });
+  });
+
+  it("joining keeps the later end: a stint inside another never shortens it", () => {
+    const day = joinDay([piece("X", "7:00", "12:00", "s1"), piece("X", "9:00", "10:00", "s2")], []);
+    expect(day.map((j) => [j.from, j.until])).toEqual([[at("7:00"), at("12:00")]]);
+  });
+
+  it("a stop elsewhere stretches only a short drive: a long one stays off the job", () => {
+    const day = joinDay([piece("X", "7:00", "10:00", "s1"), piece("X", "14:00", "15:00", "s2")], [{ from: at("10:15"), until: at("10:30") }]);
+    expect(day.map((j) => [j.from, j.until])).toEqual([[at("7:00"), at("10:15")], [at("14:00"), at("15:00")]]);
+  });
+
+  it("a check-in elsewhere that overlaps the job is no stop between: nothing is stretched over it", () => {
+    const day = joinDay([piece("X", "8:00", "12:00", "s1"), piece("Y", "11:00", "11:30", "y", "servicem8"), piece("X", "12:30", "13:00", "s2")], []);
+    const x = day.filter((j) => j.jobUuid === "X");
+    expect(x.map((j) => [j.from, j.until])).toEqual([[at("8:00"), at("13:00")]]);
+  });
+});
+
+describe("Clock on at the office after a job earlier in the morning (the review of 29 October 2026)", () => {
+  it("the office starts at the press, and the job ends there", () => {
+    expect(clockOnPlan("2026-10-28T20:00:00.000Z", "office", { place: "J", at: "2026-10-28T19:30:00.000Z", left: null })).toEqual({
+      onAt: "2026-10-28T19:30:00.000Z",
+      office: [{ from: "2026-10-28T20:00:00.000Z", until: null }],
+      stint: { jobUuid: "J", from: "2026-10-28T19:30:00.000Z", until: "2026-10-28T20:00:00.000Z" },
+    });
   });
 });

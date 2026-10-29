@@ -219,6 +219,8 @@ type Ctx = {
   out: Sm8DrainResult;
   counts: Counts;
   wroteNotes: boolean;
+  /** Bookings as they were and as they landed in this drain: their people are told once, at its end. */
+  bookings: { before: Map<string, Record<string, unknown>>; after: Record<string, unknown>[] };
   /** When the last read started: the next waits HOOK_READ_GAP_MS. */
   lastReadAt: number | null;
   /** The flight's end, as this drain last wrote it. */
@@ -251,6 +253,7 @@ export async function drainSm8Hooks(
     out,
     counts: {},
     wroteNotes: false,
+    bookings: { before: new Map(), after: [] },
     lastReadAt: null,
     flightUntil: "",
   };
@@ -306,6 +309,15 @@ export async function drainSm8Hooks(
         const next = ctx.wait ? nextReadyAt(again, clock()) : null;
         if (next === null || !fitsLease(next, READ_NEED_MS, ctx.end)) break;
         await ctx.sleep(next - clock());
+      }
+    }
+    if (ctx.bookings.after.length) {
+      /* everyone whose bookings changed in this drain, told once however many changed (the
+         review of 29 October 2026: six bookings handed to someone else were six pushes each) */
+      const told = await import("@/lib/mobile/booking-push").catch(() => null);
+      if (told) {
+        type B = Parameters<typeof told.tellBookingChanges>[2][number];
+        await told.tellBookingChanges(orgId, ctx.bookings.before as unknown as Map<string, B>, ctx.bookings.after as unknown as B[]);
       }
     }
     if (ctx.wroteNotes) {
@@ -794,7 +806,7 @@ async function readOne(ctx: Ctx, row: QueueRow, held: Held): Promise<string | nu
     .eq("uuid", shaped.uuid as string)
     .maybeSingle();
   if (had.error) return "db";
-  /* a booking as it was, so its person can be told what changed (lib/mobile/booking-push) */
+  /* a booking as it was, so its person can be told what changed, once, at the drain's end (lib/mobile/booking-push) */
   const told = row.object === "job_activities" ? await import("@/lib/mobile/booking-push").catch(() => null) : null;
   const before = told ? await told.bookingsBefore(orgId, [shaped.uuid as string]).catch(() => null) : null;
   const { error } = await supabaseAdmin
@@ -804,7 +816,15 @@ async function readOne(ctx: Ctx, row: QueueRow, held: Held): Promise<string | nu
     console.error(`[sm8] live updates for org ${orgId}: couldn't store a ${row.object} record: ${error.message}`);
     return "db";
   }
-  if (told && before) await told.tellBookingChanges(orgId, before, [shaped as unknown as Parameters<typeof told.tellBookingChanges>[2][number]]);
+  if (told && before) {
+    const key = String(shaped.uuid ?? "").toLowerCase();
+    /* the first sight in this drain is how it was before; the last landing is how it is */
+    if (!ctx.bookings.before.has(key)) {
+      const was = before.get(key);
+      if (was) ctx.bookings.before.set(key, was as unknown as Record<string, unknown>);
+    }
+    ctx.bookings.after = [...ctx.bookings.after.filter((b) => String(b.uuid ?? "").toLowerCase() !== key), shaped as Record<string, unknown>];
+  }
   ctx.out.written += 1;
   const c = (ctx.counts[row.object] ??= { new: 0, changed: 0 });
   if (had.data) c.changed += 1;

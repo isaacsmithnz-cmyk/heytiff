@@ -404,10 +404,13 @@ export function clockOnPlan(
 ): { onAt: string; office: DayStop[]; stint: { jobUuid: string; from: string; until: string | null } | null } {
   const onAt = arrived && arrived.at < pressed ? arrived.at : pressed;
   if (arrived?.place === "office") return { onAt, office: [{ from: arrived.at, until: arrived.left }], stint: null };
+  /* pressed at the office after a job earlier in the morning: the office from the press, the job
+     ending there at the latest, never the office over the job (the review of 29 October 2026) */
+  const atOffice = where === "office";
   return {
     onAt,
-    office: where === "office" ? [{ from: onAt, until: null }] : [],
-    stint: arrived ? { jobUuid: arrived.place, from: arrived.at, until: arrived.left } : null,
+    office: atOffice ? [{ from: pressed, until: null }] : [],
+    stint: arrived ? { jobUuid: arrived.place, from: arrived.at, until: arrived.left ?? (atOffice ? pressed : null) } : null,
   };
 }
 
@@ -678,7 +681,7 @@ export async function placesFor(ctx: MobileCtx, now: number = Date.now()): Promi
      work orders hadn't been touched in 60 days. A job counts only when it
      changed, or has a visit, within RECENT_DAYS either side of today. */
   const [from, until] = recentWindow(today);
-  const [{ data: openJobs }, { data: visits }] = await Promise.all([
+  const [{ data: openJobs }, visits] = await Promise.all([
     supabaseAdmin
       .from("sm8_jobs")
       .select("uuid, generated_job_id, job_address, geo_city, lat, lng, edit_date")
@@ -688,18 +691,33 @@ export async function placesFor(ctx: MobileCtx, now: number = Date.now()): Promi
       .not("lat", "is", null)
       .not("lng", "is", null)
       .limit(2000),
-    supabaseAdmin
+    visitedBetween(ctx.orgId, from, until),
+  ]);
+  const visited = visits;
+  const open = ((openJobs ?? []) as (JobRow & { edit_date: string | null })[]).filter((j) => hasLife(j, from, visited));
+  return { office, booked, open: open.map(placeOf) };
+}
+
+/** Every job with a visit in the window, read a page at a time: the API answers 1,000 rows at most,
+    and the window held 1,307 on 29 October 2026 (the review that night). */
+async function visitedBetween(orgId: string, from: string, until: string): Promise<Set<string>> {
+  const out = new Set<string>();
+  for (let page = 0; page < 30; page++) {
+    const { data, error } = await supabaseAdmin
       .from("sm8_job_activities")
-      .select("job_uuid")
-      .eq("org_id", ctx.orgId)
+      .select("uuid, job_uuid")
+      .eq("org_id", orgId)
       .eq("active", 1)
       .gte("start_date", `${from} 00:00:00`)
       .lte("start_date", `${until} 23:59:59`)
-      .limit(10000),
-  ]);
-  const visited = new Set(((visits ?? []) as { job_uuid: string }[]).map((v) => v.job_uuid.toLowerCase()));
-  const open = ((openJobs ?? []) as (JobRow & { edit_date: string | null })[]).filter((j) => hasLife(j, from, visited));
-  return { office, booked, open: open.map(placeOf) };
+      .order("uuid", { ascending: true })
+      .range(page * 1000, page * 1000 + 999);
+    if (error) break;
+    const rows = (data ?? []) as { job_uuid: string | null }[];
+    for (const r of rows) if (r.job_uuid) out.add(r.job_uuid.toLowerCase());
+    if (rows.length < 1000) break;
+  }
+  return out;
 }
 
 /** How far either side of today an open job's change or visit keeps it a place to drop in at. */

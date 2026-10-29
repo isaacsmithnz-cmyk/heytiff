@@ -115,33 +115,16 @@ describe("air dock group (studio toolrail)", () => {
 });
 
 describe("component palette", () => {
-  it("ships all eight entries with Plenum and Grille live, the rest naming their step", () => {
+  it("shows only what is built: Plenum and Grille, never a build-plan step", () => {
     expect(PALETTE_ENTRIES).toHaveLength(8);
     const onPick = jest.fn();
     render(<ComponentPalette onPick={onPick} onClose={() => {}} />);
-
-    const enabled = ["Plenum", "Grille"];
-    for (const e of PALETTE_ENTRIES) {
-      const btn = screen.getByRole("menuitem", { name: new RegExp(e.label) });
-      if (enabled.includes(e.label)) {
-        expect(btn).toBeEnabled();
-      } else {
-        expect(btn).toBeDisabled();
-        expect(btn.textContent).toContain("coming — Step");
-      }
-    }
-    // reasons match the build plan's steps
-    expect(screen.getByRole("menuitem", { name: /Takeoff/ }).textContent).toContain("Step 4");
-    expect(screen.getByRole("menuitem", { name: /Wall controller/ }).textContent).toContain("Step 5");
-    expect(screen.getByRole("menuitem", { name: /Zone motor/ }).textContent).toContain("Step 6");
-
+    expect(screen.getAllByRole("menuitem").map((b) => b.textContent)).toEqual(["Plenum", "Grille"]);
+    expect(screen.queryByText(/coming/)).toBeNull();
     fireEvent.click(screen.getByRole("menuitem", { name: /Plenum/ }));
     expect(onPick).toHaveBeenCalledWith("plenum");
     fireEvent.click(screen.getByRole("menuitem", { name: /Grille/ }));
     expect(onPick).toHaveBeenLastCalledWith("grille");
-    // disabled entries never pick
-    fireEvent.click(screen.getByRole("menuitem", { name: /Takeoff/ }));
-    expect(onPick).toHaveBeenCalledTimes(2);
   });
 
   it("closes on Escape and on an outside mousedown", () => {

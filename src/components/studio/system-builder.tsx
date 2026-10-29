@@ -961,6 +961,13 @@ export function SystemBuilder({
                 onFormFactor={setFormFactor}
                 brandLocked={!view.empty}
                 addLabel={addTarget ? `Add to ${addTarget.name}` : ductedFamily ? "Add to the system" : "Add to the band"}
+                isAdded={
+                  ductedFamily
+                    ? (model) =>
+                        hasAllocations(view.sys) &&
+                        allocationsOf(view.sys).some((a) => a.role === "idu" && a.model === model)
+                    : undefined
+                }
                 addNote={(kw) => {
                   if (ductedFamily) {
                     const all = view.zonesLoadKw;

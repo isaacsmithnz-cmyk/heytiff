@@ -114,6 +114,7 @@ export function UnitBrowser({
   mode = "pair",
   embedded = false,
   addLabel = "Add to plan",
+  isAdded,
   onDragRow,
   formFactor = null,
   onFormFactor,
@@ -138,6 +139,9 @@ export function UnitBrowser({
   embedded?: boolean;
   /** what the detail panel's button says it does */
   addLabel?: string;
+  /** a unit the host already has, where it can take only one (a ducted
+      system's): its button says Added rather than offering it again */
+  isAdded?: (model: string) => boolean;
   /** rows become drag sources for the HOST's drop targets: the host writes
       the choice into the transfer in its own format */
   onDragRow?: (choice: UnitChoice, transfer: DataTransfer) => void;
@@ -672,6 +676,7 @@ export function UnitBrowser({
           }
           onAdd={() => choose(selectedOption)}
           addLabel={addLabel}
+          added={isAdded?.(selectedOption.idu.model) ?? false}
           addNote={addNote?.(selectedOption.capacityKw) ?? null}
         />
       ) : null}
@@ -1049,6 +1054,7 @@ function DetailPanel({
   onAdd,
   addLabel,
   addNote = null,
+  added = false,
 }: {
   option: UnitOption;
   /** null in per-room flow: the outdoor is the SYSTEM's, chosen once, so the
@@ -1062,6 +1068,9 @@ function DetailPanel({
   onAdd: () => void;
   addLabel: string;
   addNote?: string | null;
+  /** already on the system: the button says so (walk of 29 October 2026,
+      where it still read "Add to the system" after the add) */
+  added?: boolean;
 }) {
   const rows = (group: SpecGroup) =>
     specsInGroup(group).map((s) => (
@@ -1112,8 +1121,9 @@ function DetailPanel({
         <button
           className="ds-ub-addbtn"
           onClick={onAdd}
+          disabled={added}
         >
-          {addLabel}
+          {added ? "Added" : addLabel}
         </button>
       </div>
     </div>

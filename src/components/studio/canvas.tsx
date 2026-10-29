@@ -146,6 +146,7 @@ import {
   formatMeters,
   MIN_ZOOM,
   mmPerUnitFromCalibration,
+  typedMeters,
   orthoSnap,
   squareInto,
   distToSmoothed,
@@ -4119,8 +4120,8 @@ export function StudioCanvas({
   };
 
   const confirmCalibration = () => {
-    const meters = parseFloat(calibMeters);
-    if (!calib.a || !calib.b || !Number.isFinite(meters)) return;
+    const meters = typedMeters(calibMeters);
+    if (!calib.a || !calib.b || meters == null) return;
     const mm = mmPerUnitFromCalibration(calib.a, calib.b, meters);
     if (!mm) return;
     onMutate((d) => ({
@@ -4886,7 +4887,9 @@ export function StudioCanvas({
             const tab = roomSpot?.tab;
             /* the dots go in the tab when there is one, else in the corner */
             const corner = owners.length >= 2 && !tab ? topLeftOf(pts) : null;
-            const tabPx = 1 / labelZoom;
+            /* the room's own label scale: under the plan's when the room is
+               too small on screen for the words (plan-labels.ts fitIn) */
+            const tabPx = roomSpot?.px ?? 1 / labelZoom;
             return (
               <g
                 key={r.id}
@@ -4965,17 +4968,18 @@ export function StudioCanvas({
                     <text
                       x={roomSpot.x}
                       y={roomSpot.y}
-                      fontSize={13 / labelZoom}
+                      fontSize={13 * tabPx}
                       className={`ds-room-name${tab ? " in-tab" : ""}`}
                     >
                       {String(r.props.name ?? "Zone")}
                       {/* spill rooms wear the ⤢ chip (ducted spec §9c) */}
                       {isSpillRoom(r) ? " ⤢" : ""}
                     </text>
+                    {!roomSpot.nameOnly && (
                     <text
                       x={roomSpot.x}
-                      y={roomSpot.y + 16 / labelZoom}
-                      fontSize={11 / labelZoom}
+                      y={roomSpot.y + 16 * tabPx}
+                      fontSize={11 * tabPx}
                       className={`ds-room-area${tab ? " in-tab" : ""}`}
                     >
                       {mm ? formatArea(areaUnitsToM2(areaU, mm)) : "not calibrated"}
@@ -4988,6 +4992,7 @@ export function StudioCanvas({
                         </tspan>
                       )}
                     </text>
+                    )}
                   </>
                 )}
                 {/* back to automatic: offered on the selected room once its

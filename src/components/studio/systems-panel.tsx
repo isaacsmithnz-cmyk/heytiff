@@ -567,6 +567,18 @@ function Rack({
               onArmPlace(item.placing);
             }}
             onDragEnd={() => onArmPlace(null)}
+            /* a click picks it up too, and the next click on the plan puts it
+               down (walk of 29 October 2026: a click did nothing, so the
+               plan's next click went somewhere else) */
+            role="button"
+            tabIndex={0}
+            onClick={() => onArmPlace(item.placing)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onArmPlace(item.placing);
+              }
+            }}
           >
             <GripGlyph />
             <span className="ds-zp-unit-dot" aria-hidden="true" />

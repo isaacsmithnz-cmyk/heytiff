@@ -1316,6 +1316,10 @@ function Editor({
   }, [mutate, packVersion]);
   const onBuildSystem = useCallback((systemId: string) => {
     setActiveSystemId(systemId);
+    /* the builder ends zone picking: left on, the next click on the plan
+       (placing a unit, say) quietly gave that zone to the system (walk of
+       29 October 2026: the Hall joined System 1) */
+    setTool((t) => (t === "claim" ? "select" : t));
     setBuilderOpen({ focus: null, systemId });
   }, []);
   /* the install questions, one system at a time, from its card */
@@ -1334,6 +1338,7 @@ function Editor({
       const target = next.systems.find((s) => s.id === to);
       if (target && doneBlockers(systemFindings(next, pack, target)).length) {
         setActiveSystemId(to);
+        setTool((t) => (t === "claim" ? "select" : t));
         setBuilderOpen({ focus: null, systemId: to, start: next });
         return;
       }
@@ -1457,6 +1462,7 @@ function Editor({
       armPlace(null);
       return;
     }
+    setTool((t) => (t === "claim" ? "select" : t));
     setBuilderOpen({ focus: null, systemId: activeSystemId });
   }, [placing, armPlace, activeSystemId]);
 
@@ -2093,6 +2099,7 @@ function Editor({
                   /* the editor replaces the popup, open on this zone */
                   setEditingRoomId(null);
                   setActiveSystemId(systemId);
+                  setTool((t) => (t === "claim" ? "select" : t));
                   setBuilderOpen({ focus: null, systemId, zoneId });
                 }}
               />

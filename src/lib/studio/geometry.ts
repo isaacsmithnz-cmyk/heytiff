@@ -420,6 +420,19 @@ export function mmPerUnitFromCalibration(
   return (realMeters * 1000) / d;
 }
 
+/** The distance typed against a scale line, in metres. Plans are dimensioned
+    in millimetres, so the figure read straight off one ("4000", "4,000") is
+    taken as millimetres: no line anybody calibrates against is 100 m long
+    (walk of 29 October 2026, where "4000" set every room 1000 times too big).
+    Below 100 it is metres, as the box asks. Null when it isn't a number. */
+export function typedMeters(raw: string): number | null {
+  const t = raw.trim().replace(/[\s,]/g, "");
+  if (!/^\d*\.?\d+$/.test(t)) return null;
+  const n = Number(t);
+  if (!(n > 0)) return null;
+  return n >= 100 ? n / 1000 : n;
+}
+
 export const unitsToMeters = (units: number, mmPerUnit: number): number =>
   (units * mmPerUnit) / 1000;
 

@@ -7,6 +7,7 @@ import type { DesignDocument } from "@/lib/studio/document";
 import type { OrgBrand } from "@/lib/org/brand";
 import type { DataPack } from "@/lib/studio/packs/schema";
 import { systemFindings } from "@/lib/studio/verdict";
+import { roomsWithoutSupply, unitsNotPlaced } from "@/lib/studio/send-gaps";
 import type { PlanImages } from "@/lib/studio/plans";
 import {
   buildDesignSnapshot,
@@ -131,6 +132,20 @@ export function SummaryView({
           model.unserved.length === 1 ? "room has" : "rooms have"
         } no unit`,
         detail: "Listed under Not served yet.",
+      });
+    /* nothing is drawn off a unit, so a ducted room reads covered with no
+       grille in it and a chosen unit can sit off the plan (send-gaps.ts) */
+    const dry = roomsWithoutSupply(doc, model);
+    if (dry.length > 0)
+      out.push({
+        title: `${dry.length} ducted ${dry.length === 1 ? "room has" : "rooms have"} no supply grille`,
+        detail: `${dry.map((d) => d.room).join(", ")}. Place one from Component, Grille.`,
+      });
+    const off = unitsNotPlaced(doc, pack);
+    if (off.length > 0)
+      out.push({
+        title: `${off.length} ${off.length === 1 ? "unit isn't" : "units aren't"} on the plan`,
+        detail: `${off.join(", ")}. Drag ${off.length === 1 ? "it" : "them"} from Units to place.`,
       });
     /* THE SIMULATION WENT AWAY, AND YOU ARE THE ONLY ONE WHO CAN BE TOLD.
        An approved simulation pins to the design it was approved against, so

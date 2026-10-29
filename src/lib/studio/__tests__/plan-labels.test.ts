@@ -106,6 +106,21 @@ describe("the plan's words", () => {
     expect(Math.abs(at2.x - 300)).toBeCloseTo(Math.abs(at1.x - 300) * 2);
   });
 
+  /* walk of 29 October 2026: on a phone-sized view Bedroom 01's tab ran past
+     its own wall and read as a second room */
+  it("a tab never comes out wider or taller than its room: the words shrink, then the area goes", () => {
+    const big = layoutPlanLabels({ rooms: [room("r", square(0, 0, 600), "Bedroom 01", "15.6 m²")], runs: [], solids: [], px: 1 });
+    expect(big.rooms.get("r")!.px).toBe(1);
+    const small = layoutPlanLabels({ rooms: [room("r", square(0, 0, 90), "Bedroom 01", "15.6 m²")], runs: [], solids: [], px: 1 });
+    const s = small.rooms.get("r")!;
+    expect(s.px).toBeLessThan(1);
+    expect(s.box.x1 - s.box.x0).toBeLessThanOrEqual(90);
+    expect(s.box.y1 - s.box.y0).toBeLessThanOrEqual(45);
+    const tiny = layoutPlanLabels({ rooms: [room("r", square(0, 0, 40), "Bedroom 01", "15.6 m²")], runs: [], solids: [], px: 1 });
+    expect(tiny.rooms.get("r")!.nameOnly).toBe(true);
+    expect(tiny.rooms.get("r")!.box.x1 - tiny.rooms.get("r")!.box.x0).toBeLessThanOrEqual(40);
+  });
+
   it("a tab put on a wall by hand stays there, and the other words go round it (Isaac: a kitchen island under it)", () => {
     const polygon = square(0, 0, 600);
     // clockwise from the first corner: the bottom wall runs 1200–1800, so its middle is 0.625 of the way

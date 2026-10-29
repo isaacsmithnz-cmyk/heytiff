@@ -9,6 +9,7 @@ import { sm8CheckInLeftOpen } from "@/lib/workboard/all-jobs";
 import { streetLine } from "@/lib/studio/job-link";
 import { readCheckInFixes } from "@/lib/workboard/check-in-fixes";
 import { wallMinute } from "./clock";
+import { joinDay, type JoinPiece } from "./day-join";
 
 /* WHAT WAS ACTUALLY DONE ON A DAY, beside its bookings (Isaac, 28 October
    2026: "can your schedule then show what you actually did. Alongside your
@@ -127,7 +128,7 @@ export async function actualOn(orgId: string, dayISO: string, only: string | nul
   const covers = (a: ActualSpan, b: ActualSpan) =>
     low(a.staffUuid) === low(b.staffUuid) && low(a.jobUuid) === low(b.jobUuid) && a.start < (b.end ?? "9999") && b.start < (a.end ?? "9999");
   const kept = mine.filter((m) => !theirs.some((t) => covers(t, m)));
-  const all = [...theirs, ...kept].sort((a, b) => (a.start < b.start ? -1 : 1));
+  const all = joinedSpans([...theirs, ...kept]).sort((a, b) => (a.start < b.start ? -1 : 1));
 
   /* each job's number, street and colour */
   const uuids = [...new Set(all.flatMap((a) => [a.jobUuid, low(a.jobUuid), a.jobUuid.toUpperCase()]))];
@@ -147,5 +148,25 @@ export async function actualOn(orgId: string, dayISO: string, only: string | nul
     return j
       ? { ...a, number: j.generated_job_id, where: [streetLine(j.job_address), j.geo_city?.trim()].filter(Boolean).join(", "), colour: j.category_uuid ? colourOf.get(j.category_uuid) ?? null : null, status: j.status }
       : a;
+  });
+}
+
+/* THE SAME JOINING AS THE PERSON'S OWN DAY (lib/mobile/day's joinDay), one
+   person at a time: out and back to a job is one stretch on it, and a stop
+   elsewhere leaves the drives on the first job, so the schedule's Actual
+   reads what the Clock off sheet does. A long time away stays two pieces. */
+export function joinedSpans(spans: readonly ActualSpan[]): ActualSpan[] {
+  const people = new Map<string, ActualSpan[]>();
+  for (const s of spans) people.set(low(s.staffUuid), [...(people.get(low(s.staffUuid)) ?? []), s]);
+  return [...people.values()].flatMap((own) => {
+    const keyed = own.map((s, i) => ({ s, id: String(i) }));
+    const joined = joinDay<JoinPiece>(
+      keyed.map(({ s, id }) => ({ jobUuid: s.jobUuid, from: s.start, until: s.end, how: s.how, stintId: id, reason: s.reason })),
+      [],
+    );
+    return joined.map((j) => {
+      const s = keyed[Number(j.stintId)]!.s;
+      return { ...s, start: j.from, end: j.until, leftOn: s.leftOn || (j.joined ?? []).some((id) => keyed[Number(id)]!.s.leftOn) };
+    });
   });
 }

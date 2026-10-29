@@ -33,9 +33,11 @@ export async function POST(request: Request) {
     until?: unknown;
     remove?: unknown;
     reason?: unknown;
+    /** where the morning watch saw you arrive before you clocked on */
+    arrived?: unknown;
   } | null;
   let answer: DayAnswer;
-  if (body?.do === "on") answer = await clockOnDay(ctx, body.at, body.where);
+  if (body?.do === "on") answer = await clockOnDay(ctx, body.at, body.where, Date.now(), body.arrived);
   else if (body?.do === "arrive") answer = await arriveAt(ctx, body.jobUuid, body.at);
   else if (body?.do === "leave") answer = await leave(ctx, body.jobUuid, body.at);
   else if (body?.do === "office") answer = await atOffice(ctx, body.at);

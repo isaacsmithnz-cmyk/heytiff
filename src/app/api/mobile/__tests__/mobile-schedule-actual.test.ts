@@ -43,7 +43,7 @@ jest.mock("@/lib/integrations/sm8-press", () => ({}));
 jest.mock("@/app/actions/sm8-booking-queue", () => ({}));
 jest.mock("@/lib/integrations/sm8-drain", () => ({}));
 
-import { actualOn } from "@/lib/mobile/schedule-actual";
+import { actualOn, joinedSpans, type ActualSpan } from "@/lib/mobile/schedule-actual";
 
 const ORG = "org-1";
 beforeEach(() => {
@@ -92,4 +92,20 @@ test("a check-in left on that's been fixed ends where it was fixed, and counts",
   tables.check_in_fixes = [{ org_id: ORG, sm8_activity_uuid: "act-leonardo", ends_at: "2026-10-27 15:00:00" }];
   const leo = (await actualOn(ORG, "2026-10-27", "sm8-leonardo"))[0]!;
   expect(leo).toEqual(expect.objectContaining({ activityUuid: "act-leonardo", end: "2026-10-27 15:00:00", leftOn: false, fixed: true }));
+});
+
+/* The schedule reads a day joined as the person's own Clock off sheet does
+   (lib/mobile/day-join): Isaac at 1352 at 7:15, up the road for a coffee,
+   back at 7:42, is one stretch on 1352; Alex's day is his own. */
+test("out and back is one stretch on the schedule too, one person at a time", () => {
+  const span = (staffUuid: string, jobUuid: string, start: string, end: string | null): ActualSpan => ({
+    staffUuid, jobUuid, start, end, how: "phone", leftOn: false, reason: null, number: null, where: "", colour: null, status: null,
+  });
+  const out = joinedSpans([
+    span("isaac", "j-1352", "2026-10-29 07:15:00", "2026-10-29 07:25:00"),
+    span("isaac", "j-1352", "2026-10-29 07:42:00", "2026-10-29 15:00:00"),
+    span("alex", "j-1352", "2026-10-29 07:30:00", "2026-10-29 09:00:00"),
+  ]);
+  expect(out.filter((s) => s.staffUuid === "isaac").map((s) => [s.start, s.end])).toEqual([["2026-10-29 07:15:00", "2026-10-29 15:00:00"]]);
+  expect(out.filter((s) => s.staffUuid === "alex")).toHaveLength(1);
 });

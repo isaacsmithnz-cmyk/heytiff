@@ -172,6 +172,8 @@ test("your own week, the period asked for, today in Australia, worked out by the
     ["2026-10-28", "No entry"],
   ]);
   expect(body.totals.worked).toBe(17);
+  /* hourly here; a salaried person whose overtime is inside the salary sees Worked and Paid side by side */
+  expect(body.pay).toEqual({ salaried: false, otPaid: DEFAULT_SETTINGS.salariedOtPaid });
 });
 
 test("without a period it's the current one", async () => {

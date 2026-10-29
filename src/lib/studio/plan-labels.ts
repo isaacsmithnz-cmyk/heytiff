@@ -87,6 +87,11 @@ export interface PlacedLabel extends LabelSpot {
   /** a room's label on its wall (room-tab.ts): the box IS the tab, and the
       spot is its first line's start */
   tab?: RoomTab;
+  /** a room's words: world units per px for THIS room, at or under the
+      layout's own, so the tab never comes out bigger than its room */
+  px?: number;
+  /** a room so small the name alone fits: its area line is left off */
+  nameOnly?: boolean;
 }
 
 export interface PlanLabels {
@@ -107,6 +112,24 @@ const PIPE_HALF = 2.5;
 const PAD = 2;
 
 export const textWidthPx = (text: string, size: number): number => text.length * size * CHAR_EM;
+
+/* A room's words never outgrow the room (walk of 29 October 2026: on a
+   phone-sized view Bedroom 01's tab ran past its own wall and read as a
+   second room). The tab may take this much of the room's width and height;
+   past that its words shrink, and below MIN_FIT the area line goes. */
+const FIT_W = 0.9;
+const FIT_H = 0.45;
+const MIN_FIT = 0.6;
+
+/** how far a block of `w` × `h` px has to shrink to sit in `poly` */
+export function fitIn(poly: readonly Point[], w: number, h: number, px: number): number {
+  const xs = poly.map((p) => p.x);
+  const ys = poly.map((p) => p.y);
+  const W = Math.max(...xs) - Math.min(...xs);
+  const H = Math.max(...ys) - Math.min(...ys);
+  if (!(w > 0 && h > 0 && px > 0)) return 1;
+  return Math.min(1, (W * FIT_W) / (w * px), (H * FIT_H) / (h * px));
+}
 
 /** the box a line of text covers, anchored at `at` (its baseline) */
 function textBox(at: LabelSpot, w: number, size: number, px: number, lines = 1, lineGap = 0): Box {
@@ -228,18 +251,37 @@ export function layoutPlanLabels(input: PlanLabelsIn): PlanLabels {
   const tabOf = (r: RoomLabelIn) => {
     if (r.polygon.length < 3 || !r.lines.length) return null;
     const walls = wallsOf(r.polygon);
-    const sz = tabSizePx(
-      r.lines.map((l, i) => ({ text: l.text, size: l.size, weight: i === 0 ? 700 : 600 })),
-      r.lineGap,
-      r.badge ?? 0
-    );
-    return { walls, size: { w: sz.w * px, h: sz.h * px }, firstBaseline: sz.firstBaseline };
+    const measure = (lines: RoomLabelIn["lines"]) =>
+      tabSizePx(
+        lines.map((l, i) => ({ text: l.text, size: l.size, weight: i === 0 ? 700 : 600 })),
+        r.lineGap,
+        r.badge ?? 0
+      );
+    let sz = measure(r.lines);
+    let k = fitIn(r.polygon, sz.w, sz.h, px);
+    let nameOnly = false;
+    if (k < MIN_FIT && r.lines.length > 1) {
+      const one = measure(r.lines.slice(0, 1));
+      const k1 = fitIn(r.polygon, one.w, one.h, px);
+      if (k1 >= k) [sz, k, nameOnly] = [one, k1, true];
+    }
+    const rpx = px * k;
+    return { walls, size: { w: sz.w * rpx, h: sz.h * rpx }, firstBaseline: sz.firstBaseline, rpx, nameOnly };
   };
   const putTab = (r: RoomLabelIn, f: NonNullable<ReturnType<typeof tabOf>>, at: number): boolean => {
-    const tab = placeTab(f.walls, at, f.size, px);
+    const { rpx } = f;
+    const tab = placeTab(f.walls, at, f.size, rpx);
     if (!tab) return false;
     const box: Box = { x0: tab.x0, y0: tab.y0, x1: tab.x1, y1: tab.y1 };
-    rooms.set(r.id, { x: tab.x0 + TAB_PAD_X * px, y: tab.y0 + f.firstBaseline * px, anchor: "start", box, tab });
+    rooms.set(r.id, {
+      x: tab.x0 + TAB_PAD_X * rpx,
+      y: tab.y0 + f.firstBaseline * rpx,
+      anchor: "start",
+      box,
+      tab,
+      px: rpx,
+      ...(f.nameOnly ? { nameOnly: true } : {}),
+    });
     placed.push(box);
     tabbed.add(r.id);
     return true;
@@ -255,7 +297,7 @@ export function layoutPlanLabels(input: PlanLabelsIn): PlanLabels {
     if (tabbed.has(r.id) || r.edge != null || r.fixed) continue;
     const f = tabOf(r);
     if (!f) continue;
-    const at = autoTabS(f.walls, f.size, px, (t) => crowding({ x0: t.x0, y0: t.y0, x1: t.x1, y1: t.y1 }));
+    const at = autoTabS(f.walls, f.size, f.rpx, (t) => crowding({ x0: t.x0, y0: t.y0, x1: t.x1, y1: t.y1 }));
     if (at != null) putTab(r, f, at);
   }
 
@@ -275,14 +317,16 @@ export function layoutPlanLabels(input: PlanLabelsIn): PlanLabels {
     const size = r.lines[0].size;
     const w = Math.max(...r.lines.map((l) => textWidthPx(l.text, l.size)));
     const lines = r.lines.length;
-    const blockH = (ASCENT * size + (lines - 1) * r.lineGap + DESCENT * size) * px;
-    const stepX = (w / 2 + PAD * 4) * px;
-    const stepY = blockH + PAD * 2 * px;
+    /* the words shrink to the room here too, as a tab's do */
+    const rpx = px * fitIn(r.polygon, w, ASCENT * size + (lines - 1) * r.lineGap + DESCENT * size, px);
+    const blockH = (ASCENT * size + (lines - 1) * r.lineGap + DESCENT * size) * rpx;
+    const stepX = (w / 2 + PAD * 4) * rpx;
+    const stepY = blockH + PAD * 2 * rpx;
     const candidates: { spot: LabelSpot; box: Box; d: number }[] = [];
     for (let i = -4; i <= 4; i++)
       for (let j = -3; j <= 3; j++) {
         const spot: LabelSpot = { x: c.x + i * stepX, y: c.y + j * stepY, anchor: "middle" };
-        const box = textBox(spot, w, size, px, lines, r.lineGap);
+        const box = textBox(spot, w, size, rpx, lines, r.lineGap);
         /* the whole block stays inside the room */
         const corners = [
           { x: box.x0, y: box.y0 },
@@ -295,7 +339,7 @@ export function layoutPlanLabels(input: PlanLabelsIn): PlanLabels {
       }
     candidates.sort((a, b) => a.d - b.d);
     const got = pick(candidates)!;
-    rooms.set(r.id, { ...got.spot, box: got.box });
+    rooms.set(r.id, { ...got.spot, box: got.box, px: rpx });
     placed.push(got.box);
   }
 

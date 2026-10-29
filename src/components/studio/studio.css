@@ -5294,6 +5294,9 @@ html[data-ds-display] .dstudio.editing {
   /* x hidden so the info-tip tooltips can't push a horizontal scrollbar */
   overflow: hidden auto;
 }
+/* the body scrolls; its blocks never squash to fit it (a squashed
+   .ds-rm-dims cut "Height not on the plan?" in half) */
+.ds-rm-body > * { flex-shrink: 0; }
 .ds-rm-field { display: flex; flex-direction: column; gap: 4px; }
 .ds-rm-field > span {
   font-size: 12px;
@@ -6238,18 +6241,12 @@ html[data-ds-display] .dstudio.editing {
   transition: background var(--t-fast) var(--ease);
 }
 .dstudio .ds-pal-item:hover:not(:disabled) { background: var(--tint); }
-.dstudio .ds-pal-item.off { opacity: 0.45; cursor: not-allowed; }
 .dstudio .ds-pal-ic { color: var(--gray500); display: flex; }
 .dstudio .ds-pal-item:hover:not(:disabled) .ds-pal-ic { color: var(--ink); }
 .dstudio .ds-pal-nm {
   font-size: 12px;
   font-weight: 700;
   color: var(--ink);
-}
-.dstudio .ds-pal-why {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--gray500);
 }
 
 /* options HUD — floating pill strip, top-centre over the canvas */
@@ -7665,16 +7662,18 @@ html[data-ds-display] .dstudio.editing {
   font-weight: var(--fw-label);
   color: var(--q);
 }
-/* the list's filters on one line: the column is narrower than the window
-   the list was drawn for */
+/* the list's filters: one line where they fit, and a second rather than
+   cut off where they don't (a ducted list adds Airflow and Power, and at
+   1440 wide the search box lost its words and Power its edge — walk of
+   29 October 2026) */
 .ds-sb-picker .ds-ub-filters {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: var(--s-3);
   padding: var(--s-4) var(--s-5);
 }
 .ds-sb-picker .ds-ub-filters .ds-ub-search {
-  flex: 1;
-  min-width: 100px;
+  flex: 1 1 160px;
+  min-width: 160px;
   width: auto;
 }
 .ds-sb-picker .ds-ub-filters input:not(.ds-ub-search) {

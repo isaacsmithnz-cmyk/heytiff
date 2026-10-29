@@ -292,6 +292,8 @@ export function PlanFigure({
           const pts = r.geometry.points;
           const spot = planLabels?.rooms.get(r.id);
           const tab = spot?.tab;
+          /* the room's own label scale, as on the canvas (plan-labels fitIn) */
+          const lu = spot?.px ?? u;
           return (
             <g key={r.id} className="ds-room">
               <polygon points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
@@ -300,29 +302,31 @@ export function PlanFigure({
                   again over the tab, then its dashed edge */}
               {tab && (
                 <>
-                  <path className="ds-room-tab" d={tabPath(tab, u)} />
+                  <path className="ds-room-tab" d={tabPath(tab, lu)} />
                   {/* a path, not a polygon: paper's rooms have no states to
                       take a stroke from, and a polygon is what counts a room */}
                   <path className="ds-room-wall" d={`M ${pts.map((p) => `${p.x} ${p.y}`).join(" L ")} Z`} />
-                  <path className="ds-room-tab-edge" d={tabPath(tab, u, true)} />
+                  <path className="ds-room-tab-edge" d={tabPath(tab, lu, true)} />
                 </>
               )}
               {spot && labelBacks && !tab && backOf(spot.box)}
               {spot && (
                 <>
-                  <text x={spot.x} y={spot.y} fontSize={13 * u} className={`ds-room-name${tab ? " in-tab" : ""}`}>
+                  <text x={spot.x} y={spot.y} fontSize={13 * lu} className={`ds-room-name${tab ? " in-tab" : ""}`}>
                     {String(r.props.name ?? "Room")}
                   </text>
-                  <text
-                    x={spot.x}
-                    y={spot.y + 16 * u}
-                    fontSize={11 * u}
-                    className={`ds-room-area${tab ? " in-tab" : ""}`}
-                  >
-                    {scale
-                      ? formatArea(areaUnitsToM2(polygonArea(pts), scale))
-                      : "not calibrated"}
-                  </text>
+                  {!spot.nameOnly && (
+                    <text
+                      x={spot.x}
+                      y={spot.y + 16 * lu}
+                      fontSize={11 * lu}
+                      className={`ds-room-area${tab ? " in-tab" : ""}`}
+                    >
+                      {scale
+                        ? formatArea(areaUnitsToM2(polygonArea(pts), scale))
+                        : "not calibrated"}
+                    </text>
+                  )}
                 </>
               )}
             </g>

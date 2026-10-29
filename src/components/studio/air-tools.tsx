@@ -1,8 +1,7 @@
 "use client";
 
 /* Design Studio — the air-side tool chrome (Stage 7, Step 2): the component
-   palette flyout (all eight entries, unbuilt ones disabled with their coming
-   step) and the options HUD framework with its first variant (plenum
+   palette flyout (the built entries of the eight) and the options HUD framework with its first variant (plenum
    supply ⌇ return). The dock buttons themselves live in studio.tsx's
    toolrail; the canvas does the placing. Spec §3b–3c. */
 
@@ -63,19 +62,20 @@ export function ComponentPalette({
   return (
     <div className="ds-pal" role="menu" aria-label="Air components" ref={boxRef}>
       <div className="ds-pal-grid">
-        {PALETTE_ENTRIES.map((e) => (
+        {/* only what is built: the rest named the build plan's step
+            ("coming — Step 6") to the person designing (walk of 29 October
+            2026). Each turns up here when its entry is switched on. */}
+        {PALETTE_ENTRIES.filter((e) => e.enabled).map((e) => (
           <button
             key={e.kind}
             role="menuitem"
-            className={`ds-pal-item${e.enabled ? "" : " off"}`}
-            disabled={!e.enabled}
-            onClick={() => e.enabled && onPick(e.kind)}
+            className="ds-pal-item"
+            onClick={() => onPick(e.kind)}
           >
             <span className="ds-pal-ic">
               <Icon name={e.icon as never} size={16} />
             </span>
             <span className="ds-pal-nm">{e.label}</span>
-            {!e.enabled && <span className="ds-pal-why">{e.reason}</span>}
           </button>
         ))}
       </div>

@@ -19,6 +19,7 @@ import {
   clampViewport,
   PAN_KEEP_PX,
   mmPerUnitFromCalibration,
+  typedMeters,
   areaUnitsToM2,
   unitsToMeters,
   isAxisAlignedRect,
@@ -127,6 +128,17 @@ describe("calibration accuracy (the lock-gate case)", () => {
   it("rejects degenerate input", () => {
     expect(mmPerUnitFromCalibration({ x: 1, y: 1 }, { x: 1, y: 1 }, 5)).toBeNull();
     expect(mmPerUnitFromCalibration({ x: 0, y: 0 }, { x: 10, y: 0 }, 0)).toBeNull();
+  });
+
+  it("reads the figure off a plan (millimetres) as millimetres, and a small one as metres", () => {
+    expect(typedMeters("4000")).toBe(4);
+    expect(typedMeters("4,000")).toBe(4);
+    expect(typedMeters(" 3 600 ")).toBe(3.6);
+    expect(typedMeters("3.6")).toBe(3.6);
+    expect(typedMeters("12")).toBe(12);
+    expect(typedMeters("")).toBeNull();
+    expect(typedMeters("abc")).toBeNull();
+    expect(typedMeters("0")).toBeNull();
   });
 
   it("re-calibrating rescales derived areas proportionally (areas are computed, never stored)", () => {

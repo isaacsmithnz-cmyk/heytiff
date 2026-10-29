@@ -332,12 +332,12 @@ export type AirComponentKind =
   | "zone-sensor";
 
 /** The armed component + its HUD options (plenum: the supply⌇return toggle;
-    grille: that, its face size and whether it is turned up the plan). */
+    grille: that and its face size). A grille goes down square to the plan
+    and is turned on its ring afterwards, like a unit. */
 export interface ArmedComponent {
   kind: AirComponentKind;
   stream: "supply" | "return";
   size?: GrilleSize;
-  turned?: boolean;
 }
 
 const CLOSE_SNAP_PX = 12; // screen px to close a polygon on its first vertex
@@ -2187,10 +2187,10 @@ export function StudioCanvas({
            only the tool left to cancel, so that is what goes. */
         if (!draftUpRef.current) toolDoneRef.current();
       }
-      // [ / ] rotate the selected simple unit in 90° steps
+      // [ / ] rotate the selected simple unit, or grille, in 90° steps
       if ((e.key === "[" || e.key === "]") && !isTyping(e) && selectedId) {
-        const u = units.find((x) => x.id === selectedId);
-        if (u && u.type === "unit" && u.geometry.kind === "point") {
+        const u = units.find((x) => x.id === selectedId) ?? doc.objects.find((x) => x.id === selectedId && isGrille(x));
+        if (u && (u.type === "unit" || isGrille(u)) && u.geometry.kind === "point") {
           e.preventDefault();
           const step = e.key === "]" ? 90 : -90;
           onMutate((d) => ({
@@ -2246,7 +2246,7 @@ export function StudioCanvas({
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
     };
-  }, [selectedId, onMutate, onSelect, units, ahuRow, setDraftPipe, deleteRoom]);
+  }, [selectedId, onMutate, onSelect, units, doc.objects, ahuRow, setDraftPipe, deleteRoom]);
 
   /* ── document intents ── */
   /* A closed boundary lands the room on the plan LOOSE — the user tweaks its
@@ -3244,7 +3244,7 @@ export function StudioCanvas({
         if (component?.kind === "grille") {
           const c = component;
           tap(() => {
-            const g = grille(floor.id, activeSystemId ?? null, w, c.stream, c.size ?? GRILLE_SIZES[c.stream][0], c.turned ? 90 : 0);
+            const g = grille(floor.id, activeSystemId ?? null, w, c.stream, c.size ?? GRILLE_SIZES[c.stream][0]);
             // it stays armed: a room's grilles go down one after another
             onMutate((d) => ({ ...d, objects: [...d.objects, g] }));
           });
@@ -5921,7 +5921,7 @@ export function StudioCanvas({
                 tool === "component" && component?.kind === "grille" && cursor
                   ? {
                       at: cursor,
-                      deg: component.turned ? 90 : 0,
+                      deg: 0,
                       stream: component.stream,
                       size: component.size ?? GRILLE_SIZES[component.stream][0],
                     }

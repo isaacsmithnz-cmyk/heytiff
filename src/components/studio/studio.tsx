@@ -67,6 +67,7 @@ import { SchematicView } from "./vrf-schematic";
 import { useArmedInk, setArmedInk } from "./note-ink";
 import { pairPipeSizes } from "@/lib/studio/components";
 import { ComponentPalette, GrilleHud, PlenumHud } from "./air-tools";
+import { GRILLE_SIZES, grilleSize, grilleStream, isGrille, type Grille } from "@/lib/studio/grilles";
 import { claimZone, newSystem, toggleZone, zoneIdsOf } from "@/lib/studio/zones";
 import { doneBlockers, systemFindings } from "@/lib/studio/verdict";
 import { SystemsPanel } from "./systems-panel";
@@ -3605,7 +3606,34 @@ function DesignPanel({
             crosshair cursor. */}
         {/* options HUD — floating pill strip, top-centre over the canvas,
             while a tool with options is armed (Step 2: the plenum variant) */}
-        {tool === "component" && airComp?.kind === "grille" && <GrilleHud comp={airComp} onChange={onAirPatch} />}
+        {tool === "component" && airComp?.kind === "grille" && (
+          <GrilleHud
+            stream={airComp.stream}
+            size={airComp.size ?? GRILLE_SIZES[airComp.stream][0]}
+            onStream={(st) => onAirPatch({ stream: st, size: GRILLE_SIZES[st][0] })}
+            onSize={(size) => onAirPatch({ size })}
+          />
+        )}
+        {/* the same bar for a grille picked on the plan: what it is and its
+            size, changed in place */}
+        {tool === "select" &&
+          (() => {
+            const g = doc.objects.find((o): o is Grille => o.id === selectedId && isGrille(o));
+            if (!g) return null;
+            const patch = (props: Partial<Grille["props"]>) =>
+              onMutate((d) => ({
+                ...d,
+                objects: d.objects.map((o) => (o.id === g.id ? { ...o, props: { ...o.props, ...props } } : o)),
+              }));
+            return (
+              <GrilleHud
+                stream={grilleStream(g)}
+                size={grilleSize(g)}
+                onStream={(stream) => patch({ stream })}
+                onSize={(sz) => patch({ wMm: sz.wMm, hMm: sz.hMm })}
+              />
+            );
+          })()}
         {tool === "component" && airComp?.kind === "plenum" && (
           <PlenumHud
             stream={airComp.stream}

@@ -450,15 +450,61 @@ describe("a grille from the component palette", () => {
     const onComponentPlaced = jest.fn();
     const { svg } = renderCanvas({
       doc,
-      component: { kind: "grille", stream: "return", size: { wMm: 600, hMm: 100 }, turned: true },
+      component: { kind: "grille", stream: "return", size: { wMm: 600, hMm: 100 } },
       onMutate: (fn) => (next = fn(doc)),
       onComponentPlaced,
     });
     clickAt(svg, 200, 120);
     const g = next!.objects.find((o) => o.type === "grille")!;
     expect(g).toMatchObject({ systemId: "sys1", props: { stream: "return", wMm: 600, hMm: 100 } });
-    expect((g.geometry as { rotation?: number }).rotation).toBe(90);
+    // square to the plan: it is turned afterwards, on its ring
+    expect((g.geometry as { rotation?: number }).rotation).toBeUndefined();
     expect(onComponentPlaced).not.toHaveBeenCalled();
+  });
+
+  /* picked, a grille turns and sizes like a unit does (Isaac, 29 October
+     2026: "Don't you just rotate it? Like the units."). A 600 mm square at
+     world (0,0) is 60 units across, 33.6 px at the test's 0.56 zoom. */
+  const picked = (onMutate: (fn: (d: DesignDocument) => DesignDocument) => void) => {
+    const g = { ...grille("flr", "sys1", { x: 0, y: 0 }, "supply", { wMm: 600, hMm: 600 }), id: "g1" };
+    const doc = mkDoc([g]);
+    const utils = renderCanvas({ doc, selectedId: "g1", onMutate });
+    return { ...utils, doc };
+  };
+  const s = (wx: number, wy: number) => pt(400 + wx * 0.56, 300 + wy * 0.56);
+
+  it("] and [ turn a picked grille 90° at a time", () => {
+    let next: DesignDocument | undefined;
+    const { doc } = picked((fn) => (next = fn(next ?? doc)));
+    fireEvent.keyDown(window, { key: "]" });
+    expect((next!.objects[0].geometry as { rotation?: number }).rotation).toBe(90);
+    fireEvent.keyDown(window, { key: "[" });
+    fireEvent.keyDown(window, { key: "[" });
+    expect((next!.objects[0].geometry as { rotation?: number }).rotation).toBe(270);
+  });
+
+  it("dragging its ring turns it", () => {
+    let next: DesignDocument | undefined;
+    const { doc, getByTestId } = picked((fn) => (next = fn(doc)));
+    const ring = getByTestId("grille-ring");
+    const r = Number(ring.getAttribute("r"));
+    fireEvent.pointerDown(ring, s(0, -r)); // the grip, straight up
+    fireEvent.pointerMove(ring, s(r, 0)); // a quarter turn clockwise
+    fireEvent.pointerUp(ring, s(r, 0));
+    expect((next!.objects[0].geometry as { rotation?: number }).rotation).toBeCloseTo(90, 0);
+  });
+
+  it("dragging an edge sizes it, the far edge staying put, on 25 mm steps", () => {
+    let next: DesignDocument | undefined;
+    const { doc, getByTestId } = picked((fn) => (next = fn(doc)));
+    const east = getByTestId("grille-edge-e");
+    fireEvent.pointerDown(east, s(30, 0));
+    fireEvent.pointerMove(east, s(40.4, 3)); // 104 mm out, a little off the line
+    fireEvent.pointerUp(east, s(40.4, 3));
+    const g = next!.objects[0];
+    expect(g.props).toMatchObject({ wMm: 700, hMm: 600 });
+    // the west edge is still at x = -30: the centre moved half the growth
+    expect((g.geometry as { at: { x: number; y: number } }).at).toEqual({ x: 5, y: 0 });
   });
 
   it("draws as a face on the plan, nothing joined to it", () => {

@@ -31,7 +31,8 @@ export function pagesToRead(texts: readonly string[], described: ReadonlySet<num
   return out.slice(0, Math.max(0, cap));
 }
 
-export async function describeDrawings(documentId: string, orgId: string): Promise<DrawingsOutcome> {
+/** `renew` keeps the document's lease while the pages are read, when the caller holds one. */
+export async function describeDrawings(documentId: string, orgId: string, renew?: () => Promise<void>): Promise<DrawingsOutcome> {
   const { data } = await supabaseAdmin
     .from("kb_documents")
     .select("status, chunk_count, storage_ref, title")
@@ -74,6 +75,10 @@ export async function describeDrawings(documentId: string, orgId: string): Promi
 
   const read = await readDrawings(bytes, pages);
   if (!read.ok) return { ok: false, error: read.error };
+  await renew?.().catch(() => undefined);
+  /* the count as it is now, not as it was before the read */
+  const { data: fresh } = await supabaseAdmin.from("kb_documents").select("chunk_count").eq("org_id", orgId).eq("id", documentId).maybeSingle();
+  if (fresh) doc.chunk_count = (fresh as { chunk_count: number | null }).chunk_count;
 
   const texts = read.pages.map((p) => p.text);
   if (texts.length) {

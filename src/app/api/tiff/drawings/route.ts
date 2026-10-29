@@ -3,6 +3,7 @@ import { auth0 } from "@/lib/auth0";
 import { authorised } from "@/lib/integrations/cron-auth";
 import { can } from "@/lib/permissions-server";
 import { describeDrawings } from "@/lib/tiff/drawings-run";
+import { claimDocument, releaseLease, renewLease } from "@/lib/tiff/lease";
 
 /* A document's drawings, read into words (lib/tiff/drawings-run), in an
    invocation of their own: the ingest route asks for it once a document is
@@ -28,8 +29,18 @@ export async function POST(request: Request) {
 
   const org = orgId;
   after(async () => {
-    const r = await describeDrawings(documentId, org).catch((err: unknown) => ({ ok: false as const, error: err instanceof Error ? err.message : String(err) }));
-    if (!r.ok) console.error(`[kb-drawings] ${documentId}: ${r.error}`);
+    /* the document's own lease, as ingestion and the scanned pages hold it: two writers numbering
+       chunks from the same count would collide (the review of 29 October 2026) */
+    if (!(await claimDocument(documentId, org))) {
+      console.warn(`[kb-drawings] ${documentId}: busy, its drawings wait for the next ask`);
+      return;
+    }
+    try {
+      const r = await describeDrawings(documentId, org, () => renewLease(documentId, org)).catch((err: unknown) => ({ ok: false as const, error: err instanceof Error ? err.message : String(err) }));
+      if (!r.ok) console.error(`[kb-drawings] ${documentId}: ${r.error}`);
+    } finally {
+      await releaseLease(documentId, org);
+    }
   });
   return Response.json({ started: true });
 }

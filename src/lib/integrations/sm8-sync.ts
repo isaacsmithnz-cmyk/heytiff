@@ -801,6 +801,9 @@ export async function runSm8Sync(
 
       let storeFailed = false;
       for (const part of chunk(shaped)) {
+        /* bookings as they were, so each person can be told what changed of theirs (lib/mobile/booking-push) */
+        const told = spec.table === "sm8_job_activities" ? await import("@/lib/mobile/booking-push").catch(() => null) : null;
+        const before = told ? await told.bookingsBefore(orgId, part.map((r) => String(r.uuid ?? ""))).catch(() => null) : null;
         const { error } = await supabaseAdmin
           .from(spec.table)
           .upsert(part, { onConflict: "org_id,uuid" });
@@ -809,6 +812,7 @@ export async function runSm8Sync(
           storeFailed = true;
           break;
         }
+        if (told && before) await told.tellBookingChanges(orgId, before, part as unknown as Parameters<typeof told.tellBookingChanges>[2]);
       }
       if (storeFailed) {
         resumeCursor = walkCursor; // re-read the page whose rows didn't land

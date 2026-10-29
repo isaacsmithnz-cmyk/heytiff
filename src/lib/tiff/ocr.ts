@@ -142,13 +142,26 @@ export function contiguousRuns(pages: readonly PageText[]): PageText[][] {
 
 /** A new PDF holding just these pages of `bytes`, in the order given.
     1-based page numbers, like everything else a person says out loud. */
+/* A PAGE'S WAYS TO OTHER PAGES STAY BEHIND. `copyPages` copies everything a
+   page reaches, and an article thread (/B) or a link (/Annots) reaches
+   another page, which reaches the next: Daikin's RZA R32 ducted manual
+   sliced ONE page as 25.5 MB, the whole manual, over the reader's 32 MB
+   limit once encoded, so none of its drawings could be read (29 October
+   2026). Three of its pages without them are 107 KB. Neither is read off the
+   page, so the pages being read lose nothing; the source is this call's own
+   copy of the file. */
 export async function slicePdf(
   bytes: Uint8Array,
   pages: readonly number[]
 ): Promise<Uint8Array> {
-  const { PDFDocument } = await import("pdf-lib");
+  const { PDFDocument, PDFName } = await import("pdf-lib");
   const source = await PDFDocument.load(bytes, { ignoreEncryption: false });
   const slice = await PDFDocument.create();
+  for (const n of new Set(pages)) {
+    const node = source.getPage(n - 1).node;
+    node.delete(PDFName.of("B"));
+    node.delete(PDFName.of("Annots"));
+  }
 
   const copied = await slice.copyPages(
     source,

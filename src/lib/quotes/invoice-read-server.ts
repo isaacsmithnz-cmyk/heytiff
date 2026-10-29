@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { INVOICE_LINES_PROMPT, INVOICE_LINES_SCHEMA, parseInvoiceRead, withBookPrices, type HeldItem, type InvoiceRead, type ReadInvoice } from "./invoice-read";
 import { todayInSydney, type Supplier } from "./price-book";
+import { SONNET_FALLBACK } from "@/lib/tiff/sonnet-fallback";
 
 /* A supplier's invoice read by Tiff (invoice-read.ts says what's asked and
    what's believed), each line beside what a quote pays for that code now
@@ -13,9 +14,6 @@ import { todayInSydney, type Supplier } from "./price-book";
    sonnet"): copying an invoice's lines off a page is well within it, at
    half the price a read. */
 const MODEL = "claude-sonnet-5-5";
-/* If the model declines on policy grounds, the API re-runs the same request
-   on this one inside the same call, as the proposal writer does. */
-const FALLBACK_MODEL = "claude-opus-4-8";
 
 /** What Tiff reads an invoice from: a PDF, or a photo of one. */
 export const INVOICE_MEDIA = ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/gif"] as const;
@@ -40,8 +38,7 @@ async function askTiff(bytes: Buffer, mediaType: InvoiceMedia, client: Anthropic
     const response = await client.beta.messages.create({
       model: MODEL,
       max_tokens: 16000,
-      betas: ["server-side-fallback-2026-06-01"],
-      fallbacks: [{ model: FALLBACK_MODEL }],
+      ...SONNET_FALLBACK,
       /* medium, set rather than left to the default: which column is the
          price after the line's discount, and which quantity was supplied,
          is reading, not copying */

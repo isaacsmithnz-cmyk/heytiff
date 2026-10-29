@@ -8,6 +8,7 @@ import { writeThreads } from "@/lib/tiff/threads-server";
 import type { TiffThread } from "@/lib/tiff/threads";
 import type { KeptFile } from "./inbound-server";
 import { EMAIL_JOB_SCHEMA, emailJobPrompt, parseEmailJobRead, threadTitleOf, tiffSays, type ClientMatch, type EmailJobRead, type EmailProposal, type JobCandidate, type SiteMatch } from "./proposal";
+import { SONNET_FALLBACK } from "@/lib/tiff/sonnet-fallback";
 
 export type { EmailProposal } from "./proposal";
 
@@ -21,7 +22,6 @@ export type { EmailProposal } from "./proposal";
 /* Sonnet, as the invoice reader: reading an email and its drawings for who,
    where and what is well within it. */
 const MODEL = "claude-sonnet-5-5";
-const FALLBACK_MODEL = "claude-opus-4-8";
 /* what goes to Tiff with the words: the first six files, under 18 MB in all
    (a request is at most 32 MB once the files are base64) */
 const READ_FILES = 6;
@@ -193,8 +193,7 @@ async function askTiff(row: Row, business: string, client: Anthropic): Promise<{
     const response = await client.beta.messages.create({
       model: MODEL,
       max_tokens: 8000,
-      betas: ["server-side-fallback-2026-06-01"],
-      fallbacks: [{ model: FALLBACK_MODEL }],
+      ...SONNET_FALLBACK,
       output_config: { effort: "medium", format: { type: "json_schema", schema: EMAIL_JOB_SCHEMA } },
       /* the files and the email BEFORE the ask */
       messages: [{ role: "user", content: [...files, { type: "text", text: email }, { type: "text", text: emailJobPrompt({ business, forwarder: row.from_name, today: todayInSydney() }) }] }],

@@ -794,6 +794,9 @@ async function readOne(ctx: Ctx, row: QueueRow, held: Held): Promise<string | nu
     .eq("uuid", shaped.uuid as string)
     .maybeSingle();
   if (had.error) return "db";
+  /* a booking as it was, so its person can be told what changed (lib/mobile/booking-push) */
+  const told = row.object === "job_activities" ? await import("@/lib/mobile/booking-push").catch(() => null) : null;
+  const before = told ? await told.bookingsBefore(orgId, [shaped.uuid as string]).catch(() => null) : null;
   const { error } = await supabaseAdmin
     .from(spec.table)
     .upsert({ ...shaped, org_id: orgId, synced_at: iso(clock()) }, { onConflict: "org_id,uuid" });
@@ -801,6 +804,7 @@ async function readOne(ctx: Ctx, row: QueueRow, held: Held): Promise<string | nu
     console.error(`[sm8] live updates for org ${orgId}: couldn't store a ${row.object} record: ${error.message}`);
     return "db";
   }
+  if (told && before) await told.tellBookingChanges(orgId, before, [shaped as unknown as Parameters<typeof told.tellBookingChanges>[2][number]]);
   ctx.out.written += 1;
   const c = (ctx.counts[row.object] ??= { new: 0, changed: 0 });
   if (had.data) c.changed += 1;

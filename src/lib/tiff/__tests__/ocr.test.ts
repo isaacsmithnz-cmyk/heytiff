@@ -46,6 +46,25 @@ const SPECIFIER = "pdfjs-dist/legacy/build/pdf.mjs";
    the result with the same reader ingestion uses. Cheap to run: the fixture is
    three pages, and page 3 is the textless stand-in for a scanned one. */
 describe("slicing pages out of a PDF", () => {
+  /* Daikin's RZA R32 ducted manual: an article thread on every page reaches
+     the next, so one page sliced out carried the whole 25.5 MB manual. */
+  it("leaves the pages a page links to behind", async () => {
+    const { PDFDocument, PDFName } = await import("pdf-lib");
+    const doc = await PDFDocument.create();
+    const first = doc.addPage();
+    const heavy = doc.addPage();
+    /* 200 KB that won't compress, hung off the heavy page */
+    const { randomBytes } = await import("node:crypto");
+    heavy.node.set(PDFName.of("Weight"), doc.context.register(doc.context.stream(new Uint8Array(randomBytes(200_000)))));
+    /* a thread from the first page to the heavy one, as the manual has */
+    const bead = doc.context.obj({ P: heavy.ref });
+    first.node.set(PDFName.of("B"), doc.context.obj([doc.context.register(bead)]));
+    const bytes = await doc.save({ useObjectStreams: false });
+    const sliced = await slicePdf(bytes, [1]);
+    expect(bytes.length).toBeGreaterThan(100_000);
+    expect(sliced.length).toBeLessThan(5_000);
+  });
+
   it("produces a readable PDF of exactly the pages asked for, in order", async () => {
     const source = new Uint8Array(await fs.readFile(FIXTURE));
     const sliced = await slicePdf(source, [3, 1]);

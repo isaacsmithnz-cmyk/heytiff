@@ -7,6 +7,7 @@ import { Wrong } from "@/components/settings/parts";
 import { NewJobForm } from "@/components/making/new-job-form";
 import { jobPageHref } from "@/lib/shell/links";
 import { FOUND_WORDS, dueWords, forExistingJob, sureJob, type JobCandidate } from "@/lib/email/proposal";
+import { aShare } from "@/lib/email/share-links";
 import type { EmailJobView } from "@/lib/email/made-server";
 import { createJobFromEmail, emailJobMade, fileEmailOnJob, notAJob, readEmailJob } from "@/app/actions/email-in-job";
 import { withCleanup } from "@/lib/ui/with-cleanup";
@@ -25,6 +26,11 @@ import { withCleanup } from "@/lib/ui/with-cleanup";
    A NEW JOB: who, the contact, where, how it came in, when it's due, the
    scope as written and where the files go; then Create job, Change the
    details (the New job form, filled in) and Not a job.
+
+   A LINK TO THE PLANS (29 October 2026: "She could at least bring the link
+   for you to click on straight from the job card"): a tender folder the
+   email points to rather than carries opens from here, and from the job's
+   Documents once the email is on a job (share-links.ts).
 
    Its state is the email's own row, read when it is drawn, so the thread
    never holds a stale card. */
@@ -96,6 +102,20 @@ export function EmailJobCard({ id }: { id: string }) {
   };
 
   const files = view.files.length > 0 && <Row k="Files">{`${view.files.map((f) => f.name).join(", ")}, to the job's Documents`}</Row>;
+  const links = view.links.length > 0 && (
+    <Row k={view.links.length === 1 ? "Link" : "Links"}>
+      <ul className="cv-job-links">
+        {view.links.map((l) => (
+          <li key={l.url}>
+            <Button kind="quiet" size={32} href={l.url} target="_blank" rel="noopener noreferrer">
+              {l.name}
+            </Button>
+            {`${l.name === l.what ? "" : `, ${aShare(l.what)}`}, to the job's Documents`}
+          </li>
+        ))}
+      </ul>
+    </Row>
+  );
   const notKept = view.why && <Row k="Not kept">{view.why.replace(/^Not kept: /, "")}</Row>;
   const done =
     (view.state === "made" || view.state === "filed") && view.jobUuid ? (
@@ -146,6 +166,7 @@ export function EmailJobCard({ id }: { id: string }) {
             </Row>
           )}
           {files}
+          {links}
           <Row k="The email">To the job&apos;s notes</Row>
           {notKept}
         </dl>
@@ -207,6 +228,7 @@ export function EmailJobCard({ id }: { id: string }) {
           </Row>
         )}
         {files}
+        {links}
         {notKept}
       </dl>
       {wrong && <Wrong>{wrong}</Wrong>}

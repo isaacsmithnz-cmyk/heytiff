@@ -242,6 +242,32 @@ it("groups by what a paper is, Compliance last, with no Money group and no count
   expect(within(group("Drawings")).getByText("1 floor, 2 systems, edited Sun 18 Oct")).toBeInTheDocument();
 });
 
+/* "She could at least bring the link for you to click on straight from the
+   job card" (29 October 2026) */
+it("puts the tender folder an email pointed to under From the client, opening in a new tab, with nothing to tick", async () => {
+  const url = "https://watershedmanly-my.sharepoint.com/:f:/g/personal/x/abc?e=1";
+  const open = jest.spyOn(window, "open").mockImplementation(() => null);
+  face({
+    links: [{ url, name: "260917 Tender Issue", what: "OneDrive folder", emailId: "e1", from: "Shaheer Khan" }],
+    documents: [item({ remoteId: "c1", name: "Plans rev C.pdf", origin: "Emailed in" })],
+    onPick: () => {},
+    picked: new Set(),
+  });
+  const client = group("From the client");
+  expect(within(client).getAllByRole("listitem").map((li) => li.querySelector(".pt-row-name")?.textContent)).toEqual(["260917 Tender Issue", "Plans rev C.pdf"]);
+  expect(within(rowOf("260917 Tender Issue")).getByText("OneDrive folder, from Shaheer Khan's email")).toBeInTheDocument();
+  expect(within(rowOf("260917 Tender Issue")).queryByRole("checkbox")).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "260917 Tender Issue" }));
+  expect(open).toHaveBeenCalledWith(url, "_blank", "noopener,noreferrer");
+  open.mockRestore();
+});
+
+it("draws From the client for a link alone, and the job isn't empty", () => {
+  face({ links: [{ url: "https://we.tl/t-1", name: "WeTransfer", what: "WeTransfer", emailId: "e1", from: null }] });
+  expect(within(group("From the client")).getByText("from an email")).toBeInTheDocument();
+  expect(screen.queryByText("No documents on this job")).toBeNull();
+});
+
 it("says what is missing when the job has no paper, and nothing explaining it", () => {
   face({ swms: [], certificates: [], papers: [] });
   expect(screen.getByText("No documents on this job")).toBeInTheDocument();

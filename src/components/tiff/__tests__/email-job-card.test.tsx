@@ -45,6 +45,7 @@ const view = (over: Record<string, unknown> = {}) => ({
     siteMatch: null,
   },
   files: [{ name: "A-101 Architectural.pdf", size: 16_000_000 }],
+  links: [],
   why: "Not kept: Schedule.xlsx",
   jobUuid: null,
   jobNumber: null,
@@ -76,6 +77,24 @@ it("shows what Tiff read: the client already here, a new site for them, the scop
   expect(screen.getByText("The secondary dwelling")).toBeInTheDocument();
   expect(screen.getByText("A-101 Architectural.pdf, to the job's Documents")).toBeInTheDocument();
   expect(screen.getByText("Schedule.xlsx")).toBeInTheDocument();
+  expect(screen.queryByText("Link")).toBeNull();
+});
+
+/* "She could at least bring the link for you to click on straight from the
+   job card" (29 October 2026) */
+it("brings the tender folder the email pointed to, to open in a new tab, and says it goes to the job's Documents", async () => {
+  const url = "https://watershedmanly-my.sharepoint.com/:f:/g/personal/x/abc?e=1";
+  readEmailJob.mockResolvedValue(view({ files: [], why: null, links: [{ url, name: "260917 Tender Issue", what: "OneDrive folder" }] }));
+  await draw();
+  expect(screen.getByText("Link")).toBeInTheDocument();
+  const a = screen.getByRole("link", { name: "260917 Tender Issue" });
+  expect(a).toHaveAttribute("href", url);
+  expect(a).toHaveAttribute("target", "_blank");
+  expect(a).toHaveAttribute("rel", "noopener noreferrer");
+  /* a word button, never underlined text (Isaac, 29 October 2026) */
+  expect(a).toHaveClass("pt-btn--quiet");
+  expect(a).not.toHaveClass("pt-link");
+  expect(a.closest("li")).toHaveTextContent("260917 Tender Issue, a OneDrive folder, to the job's Documents");
 });
 
 it("makes the job only on Create job, and then says so with Open job", async () => {

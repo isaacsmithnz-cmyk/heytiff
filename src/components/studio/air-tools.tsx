@@ -5,11 +5,11 @@
    supply ⌇ return). The dock buttons themselves live in studio.tsx's
    toolrail; the canvas does the placing. Spec §3b–3c. */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { Tooltip } from "@/components/parts/tooltip";
-import type { AirComponentKind, ArmedComponent } from "./canvas";
-import { GRILLE_SIZES, sizeText } from "@/lib/studio/grilles";
+import type { AirComponentKind } from "./canvas";
+import { GRILLE_SIZES, sizeText, typedGrilleMm, type GrilleSize } from "@/lib/studio/grilles";
 
 export interface PaletteEntry {
   kind: AirComponentKind;
@@ -137,22 +137,26 @@ export function PlenumHud({
   );
 }
 
-/** Grille variant: supply or return, the face size, and whether it is
-    turned up the plan, all set before the click that puts it down */
+/** Grille variant: supply or return and the face size, for the grille about
+    to go down or the one picked on the plan. The usual sizes are one press;
+    any other is typed, width × height in mm, and lands on Enter or on
+    leaving the field. A grille is turned on the plan, on its ring. */
 export function GrilleHud({
-  comp,
-  onChange,
+  stream,
+  size,
+  onStream,
+  onSize,
 }: {
-  comp: ArmedComponent;
-  onChange: (patch: Partial<ArmedComponent>) => void;
+  stream: "supply" | "return";
+  size: GrilleSize;
+  onStream: (s: "supply" | "return") => void;
+  onSize: (s: GrilleSize) => void;
 }) {
-  const sizes = GRILLE_SIZES[comp.stream];
-  const size = comp.size ?? sizes[0];
-  const stream = (s: "supply" | "return", label: string) => (
+  const chip = (s: "supply" | "return", label: string) => (
     <button
-      className={`ds-hud-chip${comp.stream === s ? " on" : ""}`}
-      aria-pressed={comp.stream === s}
-      onClick={() => onChange({ stream: s, size: GRILLE_SIZES[s][0] })}
+      className={`ds-hud-chip${stream === s ? " on" : ""}`}
+      aria-pressed={stream === s}
+      onClick={() => onStream(s)}
     >
       {label}
     </button>
@@ -160,33 +164,56 @@ export function GrilleHud({
   return (
     <OptionsHud label="Grille">
       <div className="ds-hud-seg">
-        {stream("supply", "Supply")}
-        {stream("return", "Return")}
+        {chip("supply", "Supply")}
+        {chip("return", "Return")}
       </div>
       <div className="ds-hud-seg">
-        {sizes.map((s) => {
+        {GRILLE_SIZES[stream].map((s) => {
           const on = s.wMm === size.wMm && s.hMm === size.hMm;
           return (
             <button
               key={sizeText(s)}
               className={`ds-hud-chip${on ? " on" : ""}`}
               aria-pressed={on}
-              onClick={() => onChange({ size: s })}
+              onClick={() => onSize(s)}
             >
               {sizeText(s)}
             </button>
           );
         })}
       </div>
-      <div className="ds-hud-seg">
-        <button
-          className={`ds-hud-chip${comp.turned ? " on" : ""}`}
-          aria-pressed={!!comp.turned}
-          onClick={() => onChange({ turned: !comp.turned })}
-        >
-          Turned
-        </button>
-      </div>
+      {/* keyed by the size, so a press on a chip or a drag on the plan
+          puts the fields back to what the grille now is */}
+      <span className="ds-hud-size" key={sizeText(size)}>
+        <MmField label="Width, mm" value={size.wMm} onCommit={(wMm) => onSize({ ...size, wMm })} />
+        <span aria-hidden="true">×</span>
+        <MmField label="Height, mm" value={size.hMm} onCommit={(hMm) => onSize({ ...size, hMm })} />
+        <span className="ds-hud-unit">mm</span>
+      </span>
     </OptionsHud>
+  );
+}
+
+/** one face dimension, typed: a value out of range goes back to what it was */
+function MmField({ label, value, onCommit }: { label: string; value: number; onCommit: (mm: number) => void }) {
+  const [draft, setDraft] = useState(String(value));
+  const land = () => {
+    const mm = typedGrilleMm(draft);
+    if (mm == null) setDraft(String(value));
+    else if (mm !== value) onCommit(mm);
+  };
+  return (
+    <input
+      className="ds-hud-mm"
+      inputMode="numeric"
+      aria-label={label}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={land}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") land();
+        if (e.key === "Escape") setDraft(String(value));
+      }}
+    />
   );
 }

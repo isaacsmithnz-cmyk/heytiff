@@ -2842,8 +2842,7 @@ html[data-ds-display] .dstudio.editing {
    One treatment in one place — surface, edge, shadow, and the inverted
    ink ramp every child reads through. Anything new that floats over the
    canvas joins this list rather than restating it. */
-.dstudio .ds-legend,
-.dstudio .ds-hud {
+.dstudio .ds-legend {
   background: var(--ds-dark);
   border: 1px solid var(--on-ink-line);
   box-shadow: var(--shadow-overlay);
@@ -6249,53 +6248,81 @@ html[data-ds-display] .dstudio.editing {
   color: var(--ink);
 }
 
-/* options HUD — floating pill strip, top-centre over the canvas */
+/* options bar — top-centre over the canvas while a component is armed or a
+   grille is picked. A white menu surface (rule 36) holding thin trays whose
+   chosen word is filled light (rule 30): it was an ink pill with a teal pick,
+   the black-and-blue Isaac read as a black button (29 October 2026). */
 .dstudio .ds-hud {
   position: absolute;
-  top: 56px;                                  
+  top: 56px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 20;
   display: flex;
   align-items: center;
   gap: 8px;
-  border-radius:var(--r-pill);
+  max-width: calc(100% - 32px);
+  background: var(--paper);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-overlay);
   padding: 4px 4px 4px 12px;
 }
 .dstudio .ds-hud-label {
   font-size: 12px;
   font-weight: 500;
-  color: var(--gray500);
+  color: var(--q);
 }
 .dstudio .ds-hud-seg {
   display: flex;
-  gap: 4px;
-                                                                                                                                                        
-  background: rgba(0, 0, 0, 0.32);
-  border-radius:var(--r-pill);
+  gap: 2px;
+  border: 1px solid var(--edge);
+  border-radius: var(--r-button);
   padding: 2px;
 }
 .dstudio .ds-hud-chip {
   font-size: 12px;
-  font-weight: 700;
-  color: var(--gray500);
-  border-radius:var(--r-pill);
-  padding: 4px 12px;
+  font-weight: 600;
+  color: var(--q);
+  border-radius: var(--r-control);
+  padding: 4px 8px;
   /* a grille's "300 × 300" is one chip, never three lines */
   white-space: nowrap;
-  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 .dstudio .ds-hud-chip.on {
-  /* same "armed" language as the room pill's chosen shape */
-  background: var(--teal);
-  color: #0b0d13;
-  box-shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.5);
+  background: var(--sel);
+  color: var(--ink);
 }
 .dstudio .ds-hud-chip:hover:not(.on):not(:disabled) {
-  background: var(--on-ink-tint-2);
+  background: var(--tint);
   color: var(--ink);
 }
 .dstudio .ds-hud-chip:disabled { opacity: 0.4; cursor: not-allowed; }
+/* a grille's size, typed: width × height, mm */
+.dstudio .ds-hud-size {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 8px;
+  font-size: 12px;
+  color: var(--q);
+}
+.dstudio .ds-hud-mm {
+  width: 56px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--edge);
+  border-radius: var(--r-control);
+  background: var(--paper);
+  font: 600 12px var(--font);
+  color: var(--ink);
+  text-align: right;
+}
+.dstudio .ds-hud-mm:focus {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
 /* canvas: plenums — the ceiling-cavity (~85 %) opacity family */
 .dstudio .ds-plenum { opacity: 0.85; }
 .dstudio .ds-plenum-body {
@@ -10087,12 +10114,32 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .ds-grille.grab {
   cursor: grab;
 }
+/* a picked grille: the unit's rotate ring in the grille's stream colour, and
+   a handle on each edge that pulls it */
 .ds-grille-ring {
   fill: none;
-  stroke: var(--ink);
-  stroke-width: 1;
-  stroke-dasharray: 4 3;
-  vector-effect: non-scaling-stroke;
+  stroke: currentColor;
+  opacity: 0.8;
+}
+.ds-grille-grip {
+  fill: #fff;
+  stroke: currentColor;
+  pointer-events: none;
+}
+.ds-grille-ring-hit {
+  fill: none;
+  stroke: transparent;
+  pointer-events: stroke;
+  cursor: grab;
+}
+.ds-grille-handle {
+  fill: #fff;
+}
+.ds-grille-handle.ew {
+  cursor: ew-resize;
+}
+.ds-grille-handle.ns {
+  cursor: ns-resize;
 }
 .ds-grille-ghost {
   opacity: 0.6;

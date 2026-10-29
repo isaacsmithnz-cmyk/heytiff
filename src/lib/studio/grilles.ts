@@ -38,6 +38,67 @@ export const GRILLE_SIZES: Record<AirStream, GrilleSize[]> = {
 
 export const sizeText = (s: GrilleSize): string => `${s.wMm} × ${s.hMm}`;
 
+/** a face is never smaller or larger than these, mm; a dragged edge lands on
+    the step, so a grille pulled out by hand reads 650, never 647 */
+export const GRILLE_MIN_MM = 100;
+export const GRILLE_MAX_MM = 3000;
+export const GRILLE_STEP_MM = 25;
+
+/** a face size typed into the bar, mm: a whole number in range, or nothing */
+export function typedGrilleMm(raw: string): number | null {
+  const t = raw.trim().replace(/[\s,]/g, "");
+  if (!/^\d+$/.test(t)) return null;
+  const n = Number(t);
+  return n >= GRILLE_MIN_MM && n <= GRILLE_MAX_MM ? n : null;
+}
+
+const stepMm = (mm: number) =>
+  Math.min(GRILLE_MAX_MM, Math.max(GRILLE_MIN_MM, Math.round(mm / GRILLE_STEP_MM) * GRILLE_STEP_MM));
+
+/** an edge of the face: along its width (e, w) or across it (n, s), in the
+    grille's own frame, so a turned grille is pulled by its own ends */
+export type GrilleEdge = "n" | "e" | "s" | "w";
+
+/** the face with `edge` dragged to world point `w`: the opposite edge stays
+    where it is, the size lands on the step, and the centre moves with it */
+export function resizeGrille(
+  at: Point,
+  deg: number,
+  s: GrilleSize,
+  edge: GrilleEdge,
+  w: Point,
+  mmPerUnit: number
+): { at: Point; size: GrilleSize } {
+  const rad = (deg * Math.PI) / 180;
+  const u = { x: Math.cos(rad), y: Math.sin(rad) }; // along the width
+  const v = { x: -Math.sin(rad), y: Math.cos(rad) }; // across it
+  const d = { x: w.x - at.x, y: w.y - at.y };
+  const along = edge === "e" || edge === "w";
+  const axis = along ? u : v;
+  const half = (along ? s.wMm : s.hMm) / 2 / mmPerUnit;
+  const sign = edge === "e" || edge === "s" ? 1 : -1;
+  const reach = (d.x * axis.x + d.y * axis.y) * sign; // past the centre, toward the edge
+  const mm = stepMm((reach + half) * mmPerUnit);
+  // the fixed edge sits at -half along the dragged direction
+  const shift = (mm / 2 / mmPerUnit - half) * sign;
+  return {
+    at: { x: at.x + axis.x * shift, y: at.y + axis.y * shift },
+    size: along ? { wMm: mm, hMm: s.hMm } : { wMm: s.wMm, hMm: mm },
+  };
+}
+
+/** the middle of each edge, world units, for the handles that drag it */
+export function grilleEdges(at: Point, deg: number, s: GrilleSize, mmPerUnit: number): Record<GrilleEdge, Point> {
+  const rad = (deg * Math.PI) / 180;
+  const hw = s.wMm / 2 / mmPerUnit;
+  const hh = s.hMm / 2 / mmPerUnit;
+  const p = (x: number, y: number): Point => ({
+    x: at.x + x * Math.cos(rad) - y * Math.sin(rad),
+    y: at.y + x * Math.sin(rad) + y * Math.cos(rad),
+  });
+  return { n: p(0, -hh), e: p(hw, 0), s: p(0, hh), w: p(-hw, 0) };
+}
+
 export type Grille = DesignObject & {
   type: typeof GRILLE_TYPE;
   geometry: { kind: "point"; at: Point; rotation?: number };
@@ -56,8 +117,8 @@ export function grilleSize(o: Grille): GrilleSize {
   return { wMm: w > 0 ? w : 300, hMm: h > 0 ? h : 300 };
 }
 
-/** a new grille, centred where it was clicked; `deg` turns it (90 stands a
-    linear grille up the plan) */
+/** a new grille, centred where it was clicked, square to the plan; it is
+    turned afterwards on its ring, like a unit */
 export function grille(
   floorId: string,
   systemId: string | null,

@@ -7,7 +7,7 @@
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Studio } from "../studio";
-import { ComponentPalette, PlenumHud, PALETTE_ENTRIES } from "../air-tools";
+import { ComponentPalette, GrilleHud, PlenumHud, PALETTE_ENTRIES } from "../air-tools";
 import { LocalDesignStore } from "@/lib/studio/store";
 
 /* The Zone tool lives on the canvas toolbar — one button, the shape choice
@@ -157,5 +157,44 @@ describe("plenum options HUD", () => {
     expect(ret).toHaveAccessibleDescription("Return plenum is built into this air handler");
     fireEvent.click(ret);
     expect(onStream).not.toHaveBeenCalled();
+  });
+});
+
+describe("the grille bar", () => {
+  const bar = (onSize = jest.fn(), onStream = jest.fn()) => {
+    render(<GrilleHud stream="supply" size={{ wMm: 300, hMm: 300 }} onStream={onStream} onSize={onSize} />);
+    return { onSize, onStream };
+  };
+
+  it("takes a usual size in one press", async () => {
+    const user = userEvent.setup();
+    const { onSize } = bar();
+    expect(screen.getByRole("button", { name: "300 × 300" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: "1200 × 100" }));
+    expect(onSize).toHaveBeenCalledWith({ wMm: 1200, hMm: 100 });
+  });
+
+  it("takes any other size typed, on Enter", async () => {
+    const user = userEvent.setup();
+    const { onSize } = bar();
+    const w = screen.getByRole("textbox", { name: "Width, mm" });
+    await user.clear(w);
+    await user.type(w, "825{Enter}");
+    expect(onSize).toHaveBeenLastCalledWith({ wMm: 825, hMm: 300 });
+  });
+
+  it("puts back a size out of range", async () => {
+    const user = userEvent.setup();
+    const { onSize } = bar();
+    const h = screen.getByRole("textbox", { name: "Height, mm" });
+    await user.clear(h);
+    await user.type(h, "20{Enter}");
+    expect(onSize).not.toHaveBeenCalled();
+    expect(h).toHaveValue("300");
+  });
+
+  it("has no Turned: a grille is turned on the plan, on its ring", () => {
+    bar();
+    expect(screen.queryByRole("button", { name: "Turned" })).toBeNull();
   });
 });

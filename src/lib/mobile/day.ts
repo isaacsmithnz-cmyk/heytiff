@@ -18,6 +18,9 @@ import { endCheckIn, jobOf, openCheckIn, startCheckIn, type CheckIn } from "@/li
 import { jobsOf, sendTime, staffUuidOf, wallMinute, type ClockJob } from "./clock";
 import { actAsPhoneUser, type MobileCtx } from "./auth";
 import { readCheckInFixes, withFix } from "@/lib/workboard/check-in-fixes";
+import { joinDay, type Away } from "./day-join";
+
+export { AWAY_KEPT_MS, joinDay, type Away } from "./day-join";
 
 /* YOUR DAY ON THE PHONE (Isaac, 28 October 2026): "GPS tracking only starts
    when you clock on for the day, or when you get to the first job… Clocking
@@ -52,6 +55,12 @@ export type DayJob = ClockJob & {
   stintId?: string;
   /** why you were there (site_meeting, helping), or plain labour */
   reason?: string | null;
+  /** later stints of the same job joined onto this one (joinDay) */
+  joined?: string[];
+  /** a long time away before coming back to this job, left off it unless kept
+      (joinDay): keeping it stretches the stint before it, `stintId` from
+      `stintFrom`, to `until` */
+  away?: Away | null;
 };
 
 /** A stint of the phone's, with why you were there. */
@@ -64,7 +73,7 @@ export type DaySummary = {
   from: string;
   until: string;
   minutes: number;
-  jobs: (ClockJob & { from: string; until: string; minutes: number; how: DayJob["how"]; stintId?: string; reason?: string | null })[];
+  jobs: (ClockJob & { from: string; until: string; minutes: number; how: DayJob["how"]; stintId?: string; reason?: string | null; joined?: string[]; away?: Away | null })[];
   office: { minutes: number; spans: { from: string; until: string }[] };
   travel: number;
 };
@@ -253,7 +262,8 @@ async function jobsIn(ctx: MobileCtx, day: DayRow, now: string): Promise<{ jobs:
   const [stints, theirs] = await Promise.all([stintsIn(ctx, day.on_at, day.off_at), sm8CheckIns(ctx, staffUuid, zone, day.on_at, until)]);
   const names = await jobsOf(ctx.orgId, [...stints.map((s) => s.jobUuid), ...theirs.map((t) => t.jobUuid)]);
   const name = (u: string): ClockJob => names.get(u.toLowerCase()) ?? { jobUuid: u, number: null, where: "" };
-  return mergeJobs(stints, theirs, name, now);
+  const merged = mergeJobs(stints, theirs, name, now);
+  return { jobs: joinDay(merged.jobs, day.office ?? []), toSend: merged.toSend };
 }
 
 /** The person's own normal day, or the workspace's. */
@@ -310,8 +320,10 @@ export async function readDay(ctx: MobileCtx, now: number = Date.now(), until?: 
     const open = await openCheckIn(ctx.orgId, ctx.userId);
     const stop = office[office.length - 1];
     if (open && open.inAt >= row.on_at) {
-      const reason = jobs.find((j) => j.stintId === open.id)?.reason ?? null;
-      at = { kind: "job", job: (await jobsOf(ctx.orgId, [open.jobUuid])).get(open.jobUuid.toLowerCase()) ?? { jobUuid: open.jobUuid, number: null, where: "" }, since: open.inAt, stintId: open.id, reason };
+      /* since you first got there, when the day's pieces joined onto it */
+      const piece = jobs.find((j) => j.stintId === open.id || (j.joined ?? []).includes(open.id));
+      const reason = piece?.reason ?? null;
+      at = { kind: "job", job: (await jobsOf(ctx.orgId, [open.jobUuid])).get(open.jobUuid.toLowerCase()) ?? { jobUuid: open.jobUuid, number: null, where: "" }, since: piece?.from ?? open.inAt, stintId: open.id, reason };
     }
     else if (stop && !stop.until) at = { kind: "office", since: stop.from };
   }
@@ -342,18 +354,61 @@ async function openDay(ctx: MobileCtx): Promise<DayRow | null> {
   return (data as DayRow | null) ?? null;
 }
 
-/** Clock on for the day: from the office, the first job, or a press. */
-export async function clockOnDay(ctx: MobileCtx, at: unknown, where: unknown, now: number = Date.now()): Promise<DayAnswer> {
-  const t = timeOf(at, now);
-  if (typeof t !== "string") return { ok: false, error: t.error, status: 400 };
+/* WHERE THE MORNING WATCH SAW YOU ARRIVE, before you clocked on: the office
+   or your first booking, when, and when you left it again if you did. Only
+   a time already past and from this morning counts. */
+export type Arrived = { place: "office" | string; at: string; left: string | null };
+const MORNING_MS = 12 * 3_600_000;
+
+export function arrivedOf(raw: unknown, now: number): Arrived | null {
+  const r = (raw && typeof raw === "object" ? raw : null) as { jobUuid?: unknown; at?: unknown; left?: unknown } | null;
+  if (!r) return null;
+  const at = typeof r.at === "string" ? Date.parse(r.at) : NaN;
+  if (!Number.isFinite(at) || at > now || now - at > MORNING_MS) return null;
+  const left = typeof r.left === "string" ? Date.parse(r.left) : NaN;
+  const place = r.jobUuid === "office" ? "office" : jobOf(r.jobUuid);
+  if (!place) return null;
+  return { place, at: new Date(at).toISOString(), left: Number.isFinite(left) && left > at && left <= now ? new Date(left).toISOString() : null };
+}
+
+/** Clock on for the day: from the office, the first job, or a press. Your
+    time where the morning watch saw you arrive starts from that arrival
+    (Isaac, 29 October 2026: at 1352 at 7:15, clocked on from up the road at
+    7:28, and his time there started at 7:45), and the day no later. */
+export async function clockOnDay(ctx: MobileCtx, at: unknown, where: unknown, now: number = Date.now(), arrivedRaw?: unknown): Promise<DayAnswer> {
+  const pressed = timeOf(at, now);
+  if (typeof pressed !== "string") return { ok: false, error: pressed.error, status: 400 };
   if (await openDay(ctx)) return { ok: false, error: DAY_WORDS.already, status: 409 };
   const zone = await zoneOf(ctx.orgId);
-  const office: DayStop[] = where === "office" ? [{ from: t, until: null }] : [];
+  const arrived = arrivedOf(arrivedRaw, now);
+  const job = arrived && arrived.place !== "office" ? (await jobsOf(ctx.orgId, [arrived.place])).get(arrived.place.toLowerCase()) : undefined;
+  const dayOf = (iso: string) => wallMinute(iso, zone)?.slice(0, 10) ?? iso.slice(0, 10);
+  const plan = clockOnPlan(pressed, where, arrived && (arrived.place === "office" || job) && dayOf(arrived.at) === dayOf(pressed) ? { ...arrived, place: job?.jobUuid ?? "office" } : null);
   const { error } = await supabaseAdmin
     .from("staff_days")
-    .insert({ org_id: ctx.orgId, user_id: ctx.userId, work_date: wallMinute(t, zone)?.slice(0, 10) ?? t.slice(0, 10), on_at: t, office });
+    .insert({ org_id: ctx.orgId, user_id: ctx.userId, work_date: dayOf(plan.onAt), on_at: plan.onAt, office: plan.office });
   if (error) return { ok: false, error: DAY_WORDS.already, status: 409 };
+  if (plan.stint) {
+    await startCheckIn(ctx.orgId, ctx.userId, plan.stint.jobUuid, plan.stint.from);
+    if (plan.stint.until) await endCheckIn(ctx.orgId, ctx.userId, plan.stint.until, plan.stint.jobUuid).catch(() => null);
+  }
   return { ok: true, state: await readDay(ctx, now), said: DAY_WORDS.on };
+}
+
+/** What Clock on writes: the day's start, its office stop, and the stint the
+    morning's arrival starts. The day starts no later than the arrival. Pure. */
+export function clockOnPlan(
+  pressed: string,
+  where: unknown,
+  arrived: Arrived | null,
+): { onAt: string; office: DayStop[]; stint: { jobUuid: string; from: string; until: string | null } | null } {
+  const onAt = arrived && arrived.at < pressed ? arrived.at : pressed;
+  if (arrived?.place === "office") return { onAt, office: [{ from: arrived.at, until: arrived.left }], stint: null };
+  return {
+    onAt,
+    office: where === "office" ? [{ from: onAt, until: null }] : [],
+    stint: arrived ? { jobUuid: arrived.place, from: arrived.at, until: arrived.left } : null,
+  };
 }
 
 async function setOffice(ctx: MobileCtx, day: DayRow, office: DayStop[]) {
@@ -427,7 +482,10 @@ export function stintTimes(p: { from: unknown; until: unknown; onAt: string; now
    2026: the Clock off sheet's rows, "tap a row to change it"). Only the
    phone's own stints in the day that's on: ServiceM8's own check-ins are
    ServiceM8's, and once the day is off its times have gone to ServiceM8. */
-export async function changeStint(ctx: MobileCtx, id: unknown, from: unknown, until: unknown, remove: boolean, now: number = Date.now()): Promise<DayAnswer> {
+/* A JOINED STRETCH CHANGES WHOLE: its row is its first stint with the later
+   ones joined on (joinDay), so new times for it are that stint's, and the
+   joined ones go, or they'd join back on past the times you set. */
+export async function changeStint(ctx: MobileCtx, id: unknown, from: unknown, until: unknown, remove: boolean, now: number = Date.now(), joined?: unknown): Promise<DayAnswer> {
   const day = await openDay(ctx);
   if (!day) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
   const stintId = typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id) ? id : null;
@@ -440,12 +498,18 @@ export async function changeStint(ctx: MobileCtx, id: unknown, from: unknown, un
     .eq("id", stintId)
     .maybeSingle();
   if (!row || (row as { checked_in_at: string }).checked_in_at < day.on_at) return { ok: false, error: DAY_WORDS.noStint, status: 404 };
+  const others = (Array.isArray(joined) ? joined : []).filter((x): x is string => typeof x === "string" && /^[0-9a-f-]{36}$/i.test(x) && x !== stintId).slice(0, 50);
+  const dropOthers = async () => {
+    if (others.length) await supabaseAdmin.from("job_check_ins").delete().eq("org_id", ctx.orgId).eq("user_id", ctx.userId).gte("checked_in_at", day.on_at).in("id", others);
+  };
   if (remove) {
     await supabaseAdmin.from("job_check_ins").delete().eq("org_id", ctx.orgId).eq("user_id", ctx.userId).eq("id", stintId);
+    await dropOthers();
     return { ok: true, state: await readDay(ctx, now), said: DAY_WORDS.removed };
   }
   const t = stintTimes({ from, until, onAt: day.on_at, now });
   if ("error" in t) return { ok: false, error: t.error, status: 400 };
+  await dropOthers();
   const { error } = await supabaseAdmin
     .from("job_check_ins")
     .update({ checked_in_at: t.from, checked_out_at: t.until })

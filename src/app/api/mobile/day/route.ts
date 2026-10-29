@@ -33,14 +33,18 @@ export async function POST(request: Request) {
     until?: unknown;
     remove?: unknown;
     reason?: unknown;
+    /** where the morning watch saw you arrive before you clocked on */
+    arrived?: unknown;
+    /** the stints joined onto the one being changed */
+    joined?: unknown;
   } | null;
   let answer: DayAnswer;
-  if (body?.do === "on") answer = await clockOnDay(ctx, body.at, body.where);
+  if (body?.do === "on") answer = await clockOnDay(ctx, body.at, body.where, Date.now(), body.arrived);
   else if (body?.do === "arrive") answer = await arriveAt(ctx, body.jobUuid, body.at);
   else if (body?.do === "leave") answer = await leave(ctx, body.jobUuid, body.at);
   else if (body?.do === "office") answer = await atOffice(ctx, body.at);
   else if (body?.do === "reason") answer = await setReason(ctx, body.jobUuid, body.reason);
-  else if (body?.do === "stint") answer = await changeStint(ctx, body.id, body.from, body.until, body.remove === true);
+  else if (body?.do === "stint") answer = await changeStint(ctx, body.id, body.from, body.until, body.remove === true, Date.now(), body.joined);
   else if (body?.do === "off") answer = await clockOffDay(ctx, await sm8PressFromMobile(ctx), body.at);
   else return no(400, "Say on, arrive, leave, office, reason, stint or off.");
   if (!answer.ok) return no(answer.status, answer.error);

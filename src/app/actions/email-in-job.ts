@@ -6,6 +6,7 @@ import { auDayOf, fmtAuWeekdayDate } from "@/lib/au-dates";
 import { JOB_WORDS } from "@/lib/integrations/sm8-job-words";
 import { jobDescriptionOf } from "@/lib/email/proposal";
 import { emailJobView, markFiled, markMade, markNotAJob, readEmailRow, type EmailJobView } from "@/lib/email/made-server";
+import { withClientNow } from "@/lib/email/proposal-server";
 import { createNewJob, type CreateAnswer } from "./job-new";
 
 /* EMAIL TO TIFF, THE CARD (Isaac, 28 October 2026, the mock he said "Build it
@@ -31,7 +32,9 @@ export async function createJobFromEmail(id: string): Promise<MadeAnswer> {
   const row = await readEmailRow(orgId, id);
   if (!row?.proposal) return { ok: false, error: "There's no job read from this email." };
   if (row.state === "made" && row.job_uuid) return { ok: true, jobUuid: row.job_uuid, number: null };
-  const p = row.proposal;
+  /* the client as the card shows it: looked for again, so a job never makes a
+     second of a client already here */
+  const p = (await withClientNow(orgId, row.proposal))!;
   if (!p.isJob) return { ok: false, error: "This email doesn't read as a job. Change the details to make one." };
   const clientName = p.clientMatch?.name ?? p.client;
   if (!clientName) return { ok: false, error: "The email doesn't say who the client is. Change the details to say." };

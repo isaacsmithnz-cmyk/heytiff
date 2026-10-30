@@ -89,6 +89,27 @@ export function normName(v: string | null | undefined): string {
     .trim();
 }
 
+/** A company's name without what only the paperwork adds: an email's "JT
+    Construct Pty Ltd" is the client kept as "JT Construct" (Isaac, 30 October
+    2026: "JT construct is already a client"). Only the legal ending goes, so
+    "JT Construct" and "JT Developments" stay two companies. */
+export function companyKey(v: string | null | undefined): string {
+  const name = normName(v);
+  return name.replace(/(?:\s+(?:pty|proprietary|ltd|limited|p l|pl|inc|incorporated|llc))+$/, "") || name;
+}
+
+/** The one company with this name, ignoring the legal ending; the name exactly
+    as written settles two that differ only by it. Null when it can't tell:
+    never a near one, which would put a job on the wrong client. */
+export function oneCompanyNamed<T extends { name: string | null }>(companies: readonly T[], name: string): T | null {
+  const key = companyKey(name);
+  if (!key) return null;
+  const same = companies.filter((c) => companyKey(c.name) === key);
+  if (same.length === 1) return same[0]!;
+  const exact = same.filter((c) => normName(c.name) === normName(name));
+  return exact.length === 1 ? exact[0]! : null;
+}
+
 /** A name reduced to its sorted parts, so "Dan Smith" and "Smith Dan" are the
     same key. Returns "" when there is nothing to compare — and an empty key
     must never match another empty key. */

@@ -1,7 +1,7 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { normName } from "@/lib/integrations/match";
+import { companyKey, oneCompanyNamed } from "@/lib/integrations/match";
 import { DOCUMENTS_BUCKET } from "@/lib/documents/query";
 import { todayInSydney } from "@/lib/quotes/price-book";
 import { writeThreads } from "@/lib/tiff/threads-server";
@@ -42,11 +42,11 @@ type Row = {
 const like = (s: string) => s.replace(/[%_\\]/g, (c) => `\\${c}`);
 
 /** The client a read names, when exactly one of the business's clients has
-    that name: never a near one, which would put a tender on the wrong
-    builder. A builder is a client with sites of its own. */
+    that name, whatever legal ending either wears: never a near one, which
+    would put a tender on the wrong builder. A builder is a client with sites
+    of its own. */
 export async function clientMatchOf(orgId: string, name: string): Promise<ClientMatch | null> {
-  const want = normName(name);
-  if (want.length < 2) return null;
+  if (companyKey(name).length < 2) return null;
   const { data } = await supabaseAdmin
     .from("sm8_companies")
     .select("uuid, name")
@@ -55,11 +55,20 @@ export async function clientMatchOf(orgId: string, name: string): Promise<Client
     .is("parent_company_uuid", null)
     .ilike("name", `%${like(name.trim().split(/\s+/)[0]!)}%`)
     .limit(40);
-  const same = ((data ?? []) as { uuid: string; name: string | null }[]).filter((c) => normName(c.name) === want);
-  if (same.length !== 1) return null;
-  const hit = same[0]!;
+  const hit = oneCompanyNamed((data ?? []) as { uuid: string; name: string | null }[], name);
+  if (!hit) return null;
   const { count } = await supabaseAdmin.from("sm8_companies").select("uuid", { count: "exact", head: true }).eq("org_id", orgId).eq("active", 1).eq("parent_company_uuid", hit.uuid);
   return { uuid: hit.uuid, name: hit.name ?? name, builder: (count ?? 0) > 0 };
+}
+
+/** What an undecided email's read says, with its client looked for again: it
+    may have been read before they were a client, or before the match knew them
+    (the Krui Street email said "a new client" of JT Construct). A match already
+    made stands, and so does a read with no client to look for. */
+export async function withClientNow(orgId: string, p: EmailProposal | null): Promise<EmailProposal | null> {
+  if (!p || p.clientMatch || !p.client) return p;
+  const clientMatch = await clientMatchOf(orgId, p.client).catch(() => null);
+  return clientMatch ? { ...p, clientMatch } : p;
 }
 
 /** A site already here at the street the read gives (matchPreviousSite's

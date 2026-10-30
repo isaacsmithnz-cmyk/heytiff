@@ -1,6 +1,7 @@
-/* The job Tiff proposes from a forwarded email, in Conversations (28 October
-   2026): what she read, made only on Create job, put away by Not a job, or
-   made from the New job form filled in. */
+/* The job Tiff proposes from a forwarded email, in the Inbox (28 October 2026;
+   30 October: the decision at the top, Add to job, not File): what she read,
+   made only on Create job, put away by Not a job, or made from the New job form
+   filled in. */
 import { act, fireEvent, render, screen } from "@testing-library/react";
 
 const readEmailJob = jest.fn();
@@ -23,7 +24,17 @@ jest.mock("@/components/making/new-job-form", () => ({
   },
 }));
 
-import { EmailJobCard } from "../email-job-card";
+import { EmailJobActions, EmailJobFacts, useEmailJob } from "../email-job-card";
+
+function EmailJobCard({ id }: { id: string }) {
+  const job = useEmailJob(id);
+  return (
+    <>
+      <EmailJobActions job={job} />
+      <EmailJobFacts job={job} />
+    </>
+  );
+}
 
 const ID = "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b";
 const view = (over: Record<string, unknown> = {}) => ({
@@ -46,6 +57,8 @@ const view = (over: Record<string, unknown> = {}) => ({
   },
   files: [{ name: "A-101 Architectural.pdf", size: 16_000_000 }],
   links: [],
+  subject: "Fwd: Attic extension",
+  body: "Please quote.",
   why: "Not kept: Schedule.xlsx",
   jobUuid: null,
   jobNumber: null,
@@ -94,7 +107,7 @@ it("brings the tender folder the email pointed to, to open in a new tab, and say
   /* a word button, never underlined text (Isaac, 29 October 2026) */
   expect(a).toHaveClass("pt-btn--quiet");
   expect(a).not.toHaveClass("pt-link");
-  expect(a.closest("li")).toHaveTextContent("260917 Tender Issue, a OneDrive folder, to the job's Documents");
+  expect(a.closest("li")).toHaveTextContent("260917 Tender Issue a OneDrive folder, to the job's Documents");
 });
 
 it("makes the job only on Create job, and then says so with Open job", async () => {
@@ -155,7 +168,7 @@ describe("documents for a job already here", () => {
   const job = (n: string, found: string) => ({ uuid: `u-${n}`, number: n, address: "40 Westbourne Street\nStanmore NSW 2048", client: "Truecut Building", status: "Work Order", found });
   const about = (jobs: unknown[]) => view({ proposal: { ...view().proposal, isJob: false, aboutJob: true, jobs } });
 
-  it("offers the one job it's sure of, says how it knows, and files the email on it", async () => {
+  it("offers the one job it's sure of, says how it knows, and adds the email to it", async () => {
     readEmailJob.mockResolvedValue(about([job("3444", "number")]));
     fileEmailOnJob.mockResolvedValue(true);
     await draw();
@@ -163,23 +176,23 @@ describe("documents for a job already here", () => {
     expect(screen.getByText("Its number is in the email")).toBeInTheDocument();
     expect(screen.getByText("To the job's notes")).toBeInTheDocument();
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "File on job 3444" }));
+      fireEvent.click(screen.getByRole("button", { name: "Add to job 3444" }));
     });
     expect(fileEmailOnJob).toHaveBeenCalledWith(ID, "u-3444");
-    expect(screen.getByText("Filed on job 3444")).toBeInTheDocument();
+    expect(screen.getByText("Added to job 3444")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open job 3444" })).toBeInTheDocument();
   });
 
-  it("asks which job when it isn't sure, each with its own File", async () => {
+  it("asks which job when it isn't sure, each with its own Add", async () => {
     readEmailJob.mockResolvedValue(about([job("3444", "client"), job("3500", "client")]));
     fileEmailOnJob.mockResolvedValue(true);
     await draw();
     expect(screen.getByRole("heading", { name: "Which job?" })).toBeInTheDocument();
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "File on job 3500" }));
+      fireEvent.click(screen.getByRole("button", { name: "Add to job 3500" }));
     });
     expect(fileEmailOnJob).toHaveBeenCalledWith(ID, "u-3500");
-    expect(screen.getByText("Filed on job 3500")).toBeInTheDocument();
+    expect(screen.getByText("Added to job 3500")).toBeInTheDocument();
   });
 
   it("turns into a new job on Make a new job instead", async () => {

@@ -6,22 +6,33 @@ import type { KbCategory } from "./files";
    and the times the place shows, kept pure so they can be proven without a
    screen. The place itself is components/conversations. */
 
-/** The views of the list (rule 29): All and Team. Only me went (Isaac,
-    24 October 2026): your notes are Your name › Notes, and a note isn't a
-    conversation. */
-export type ConvView = "all" | "team";
+/** The views of the list (rule 29): Inbox and Chats (Isaac, 30 October
+    2026: "you can have inbox and chats as your two sections"). Inbox is every
+    email sent to Tiff by anyone in the business; Chats is your own talk with
+    her. Team (shared chats, never built) and Only me (your notes, now Your
+    name › Notes) went. */
+export type ConvView = "inbox" | "chats";
 
 export const CONV_VIEWS: readonly { key: ConvView; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "team", label: "Team" },
+  { key: "inbox", label: "Inbox" },
+  { key: "chats", label: "Chats" },
 ];
 
-export const viewOf = (v: unknown): ConvView => (v === "team" ? v : "all");
+/** An email's own thread: `email-<the email's id>` (proposal-server). */
+export const EMAIL_THREAD = "email-";
+export const isEmailThread = (id: string | null | undefined): boolean => Boolean(id?.startsWith(EMAIL_THREAD));
+
+/** The view an address opens: the one it names, else Chats for a chat it
+    opens, else Inbox. An old `?view=team` lands on Inbox. */
+export function viewOf(v: unknown, open: string | null = null): ConvView {
+  if (v === "inbox" || v === "chats") return v;
+  return open && !isEmailThread(open) ? "chats" : "inbox";
+}
 
 /** The view and the open thread, as the address carries them. */
 export function withConvState(href: string, s: { view: ConvView; open: string | null }): string {
   const url = new URL(href);
-  if (s.view === "all") url.searchParams.delete("view");
+  if (s.view === "inbox") url.searchParams.delete("view");
   else url.searchParams.set("view", s.view);
   if (s.open) url.searchParams.set("open", s.open);
   else url.searchParams.delete("open");
@@ -70,6 +81,24 @@ export function threadWhen(ts: number, now: number): string {
   if (n === 1) return "Yesterday";
   if (n < 7) return weekday(ts);
   return dayMonth(ts, now);
+}
+
+/** When an email came in, as its row says it: at 2:12 pm, yesterday, on
+    Tuesday, on 24 October. */
+export function forwardedWhen(ts: number, now: number): string {
+  const n = daysAgo(ts, now);
+  if (n <= 0) return `at ${clockOf(ts)}`;
+  if (n === 1) return "yesterday";
+  if (n < 7) return `on ${weekday(ts)}`;
+  return `on ${dayMonth(ts, now)}`;
+}
+
+/** When an email came in, in full: today at 2:12 pm, yesterday at 7:48 pm,
+    on Tuesday at 9:00 am. */
+export function forwardedAt(ts: number, now: number): string {
+  const n = daysAgo(ts, now);
+  if (n <= 0) return `today at ${clockOf(ts)}`;
+  return `${forwardedWhen(ts, now)} at ${clockOf(ts)}`;
 }
 
 /** A key that is the same for every moment of one calendar day. */

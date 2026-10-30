@@ -27,6 +27,9 @@ export type EmailJobView = {
   jobNumber: string | null;
   fromName: string | null;
   receivedAt: string;
+  /** what the email said, as the Inbox shows it under Tiff's read */
+  subject: string | null;
+  body: string | null;
 };
 
 type Row = {
@@ -70,6 +73,8 @@ export async function emailJobView(orgId: string, id: string): Promise<EmailJobV
     jobNumber,
     fromName: row.from_name,
     receivedAt: row.received_at,
+    subject: row.subject,
+    body: row.body,
   };
 }
 

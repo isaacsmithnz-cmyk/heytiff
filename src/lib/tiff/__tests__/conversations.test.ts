@@ -1,4 +1,4 @@
-import { MISS_STEP, categoryHue, clockOf, dayLabel, noteTitle, stepsFromTrace, threadWhen, viewOf, withConvState } from "../conversations";
+import { MISS_STEP, categoryHue, clockOf, forwardedWhen, dayLabel, noteTitle, stepsFromTrace, threadWhen, viewOf, withConvState } from "../conversations";
 
 /* The words and times Conversations shows (the board v2-board-conversations). */
 
@@ -53,18 +53,29 @@ describe("her steps", () => {
 });
 
 describe("the address and the rest", () => {
-  it("writes the view and what is open, and leaves All bare", () => {
-    expect(withConvState("http://x/dashboard/conversations", { view: "all", open: null })).toBe("/dashboard/conversations");
-    expect(withConvState("http://x/dashboard/conversations?view=team", { view: "all", open: "t-1" })).toBe("/dashboard/conversations?open=t-1");
-    expect(withConvState("http://x/dashboard/conversations", { view: "team", open: null })).toBe("/dashboard/conversations?view=team");
+  it("writes the view and what is open, and leaves Inbox bare", () => {
+    expect(withConvState("http://x/dashboard/conversations", { view: "inbox", open: null })).toBe("/dashboard/conversations");
+    expect(withConvState("http://x/dashboard/conversations?view=chats", { view: "inbox", open: "email-1" })).toBe("/dashboard/conversations?open=email-1");
+    expect(withConvState("http://x/dashboard/conversations", { view: "chats", open: "t-1" })).toBe("/dashboard/conversations?view=chats&open=t-1");
   });
 
-  it("reads a view, and anything else is All", () => {
-    expect(viewOf("team")).toBe("team");
-    // Only me went: your notes are Your name › Notes
-    expect(viewOf("me")).toBe("all");
-    expect(viewOf("everything")).toBe("all");
-    expect(viewOf(undefined)).toBe("all");
+  it("reads a view: the one named, else Chats for a chat it opens, else Inbox", () => {
+    expect(viewOf("chats")).toBe("chats");
+    expect(viewOf("inbox", "t-1")).toBe("inbox");
+    expect(viewOf(undefined, "t-1")).toBe("chats");
+    expect(viewOf(undefined, "email-6a3e5b78-0003-41de-bc30-08d2572017a0")).toBe("inbox");
+    // Team and Only me went: an old address lands on Inbox
+    expect(viewOf("team")).toBe("inbox");
+    expect(viewOf("me")).toBe("inbox");
+    expect(viewOf(undefined)).toBe("inbox");
+  });
+
+  it("says when an email came in as its row does", () => {
+    const now = new Date(2026, 9, 30, 21, 0).getTime();
+    expect(forwardedWhen(new Date(2026, 9, 30, 14, 12).getTime(), now)).toBe("at 2:12 pm");
+    expect(forwardedWhen(new Date(2026, 9, 29, 19, 48).getTime(), now)).toBe("yesterday");
+    expect(forwardedWhen(new Date(2026, 9, 27, 9, 0).getTime(), now)).toBe("on Tuesday");
+    expect(forwardedWhen(new Date(2026, 9, 21, 9, 0).getTime(), now)).toBe("on 21 October");
   });
 
   it("snaps each kind of document to the eight, and no two to one", () => {

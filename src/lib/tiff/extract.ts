@@ -34,6 +34,8 @@ export type PdfDoc = {
       right with a wide gap marked by two spaces — for tables, where one
       line of text per row is the whole point (the price books). */
   pageLines(n: number): Promise<string[]>;
+  /** The date the PDF says it was made ("D:20230713174433+10'00'"), raw, or null. */
+  made?(): Promise<string | null>;
   destroy(): Promise<void>;
 };
 
@@ -118,6 +120,11 @@ export async function openPdf(bytes: Uint8Array): Promise<PdfDoc> {
 
   return {
     numPages: doc.numPages,
+    async made() {
+      const meta = await doc.getMetadata().catch(() => null);
+      const at = (meta?.info as { CreationDate?: unknown } | undefined)?.CreationDate;
+      return typeof at === "string" ? at : null;
+    },
     async pageText(n: number) {
       const page = await doc.getPage(n);
       const content = await page.getTextContent();

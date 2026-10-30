@@ -133,6 +133,7 @@ export function JobMaterialsFace({
   onTick,
   onRemove,
   onAdd,
+  bought,
 }: {
   /** True while the detail read is still out. */
   loading: boolean;
@@ -146,6 +147,8 @@ export function JobMaterialsFace({
   onTick: (id: string, picked: boolean) => void;
   onRemove: (id: string) => void;
   onAdd: (input: { kind: "material"; name: string; qty: string; sub?: string }) => void;
+  /** What was bought for the job (purchases/job-bought), above the list. */
+  bought?: ReactNode;
 }) {
   const made = useId();
   /* the job's day, for a stamp's "6:52am" against "Fri 14 Aug" */
@@ -333,6 +336,8 @@ export function JobMaterialsFace({
           </ul>
         </Dialog>
       )}
+
+      {bought}
 
       {anything && (
         <div className="jm-shelves">

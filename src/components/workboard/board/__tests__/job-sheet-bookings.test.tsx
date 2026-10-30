@@ -55,6 +55,8 @@ jest.mock("@/app/actions/job-check-ins", () => ({
   checkIn: jest.fn(async () => null),
   checkOut: jest.fn(async () => null),
 }));
+/* Materials' Bought: nothing bought on these jobs */
+jest.mock("@/app/actions/purchases", () => ({ jobBought: async () => ({ lines: [], allowanceCents: null, money: false }) }));
 jest.mock("@/app/actions/job-picklist", () => ({
   listJobPicklist: jest.fn(async () => []),
   setPicklistItemPicked: jest.fn(async () => null),

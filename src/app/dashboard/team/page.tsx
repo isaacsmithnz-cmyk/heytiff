@@ -11,6 +11,7 @@ import { loadTimepaySection } from "@/lib/timepay/section";
 import { loadFleetPage } from "@/lib/fleet/page-data";
 import { loadNoticeBoard } from "@/lib/dashboard/page-data";
 import { readTeamView, teamViewsFor } from "@/lib/team/views";
+import { loadPurchasesView } from "@/lib/purchases/purchase-list-server";
 
 /* TEAM (v2, step 5; the board "Team, People"). One place for the people
    and what they hand in: People, Timesheets, Leave, Expenses, Vehicles and
@@ -29,6 +30,9 @@ import { readTeamView, teamViewsFor } from "@/lib/team/views";
      still decide what each face may do and see.
    - Vehicles is the Fleet register (loadFleetPage), asked for only with
      `assets_all`, Assets' gate.
+   - Purchases is every docket, service record and receipt scanned
+     (loadPurchasesView), asked for only with `financials`: what was paid,
+     and what it did to the price book. `?purchase=` opens one.
    - Notices is the noticeboard's own read, which everyone has.
 
    Inviting: WHICH roles this viewer may create is decided here
@@ -51,6 +55,7 @@ export default async function TeamRoute({ searchParams }: { searchParams: Params
 
   const params = await searchParams;
   const period = typeof params.period === "string" ? params.period : undefined;
+  const openPurchase = typeof params.purchase === "string" && /^[0-9a-f-]{36}$/i.test(params.purchase) ? params.purchase : null;
 
   /* EVERYONE HAS TEAM (Isaac, 20 October 2026). Without `team` it is the
      colleagues' names, what they do and their mobiles, and the notices:
@@ -69,12 +74,13 @@ export default async function TeamRoute({ searchParams }: { searchParams: Params
     return <TeamPage data={lean} view={readTeamView(params.view, views)} />;
   }
 
-  const [expiry, timepayAll, assetsAll] = await Promise.all([
+  const [expiry, timepayAll, assetsAll, financials] = await Promise.all([
     orgExpiryWindow(orgId),
     can("timepay_all"),
     can("assets_all"),
+    can("financials"),
   ]);
-  const [staff, orphans, actorRole, caps, timepay, fleet, notices] = await Promise.all([
+  const [staff, orphans, actorRole, caps, timepay, fleet, notices, purchases] = await Promise.all([
     listStaff(orgId, expiry.warnDays),
     /* A member with no staff card is invisible everywhere else on this page:
        People reads cards, and the invites are unaccepted ones, so somebody
@@ -86,6 +92,7 @@ export default async function TeamRoute({ searchParams }: { searchParams: Params
     timepayAll ? loadTimepaySection(period) : Promise.resolve(null),
     assetsAll ? loadFleetPage({ withRegister: true }) : Promise.resolve(null),
     loadNoticeBoard(),
+    financials ? loadPurchasesView(orgId, openPurchase) : Promise.resolve(null),
   ]);
   const inviteRoles = invitableRoles(actorRole, caps);
   const canInvite = inviteRoles.length > 0;
@@ -100,7 +107,7 @@ export default async function TeamRoute({ searchParams }: { searchParams: Params
   const appUrl = process.env.APP_BASE_URL ?? (host ? `${proto}://${host}` : "http://localhost:3000");
 
   const register = fleet?.register ?? null;
-  const views = teamViewsFor({ timepay: !!timepay, fleet: !!register });
+  const views = teamViewsFor({ timepay: !!timepay, fleet: !!register, purchases: !!purchases });
 
   const data: TeamPageData = {
     people: {
@@ -125,6 +132,7 @@ export default async function TeamRoute({ searchParams }: { searchParams: Params
     timepay,
     fleet: register && fleet ? { register, today: fleet.today, warnDays: fleet.warnDays } : null,
     notices,
+    purchases,
     views,
     directory: null,
   };

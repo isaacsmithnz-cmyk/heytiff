@@ -62,6 +62,12 @@ export type DocumentKind =
      purchase paperwork and land a $45,000 vehicle in someone's
      reimbursements. Owned by the VEHICLE (documents.vehicle_id), not a log. */
   | "purchase_invoice"
+  /* A supplier's docket or invoice behind a PURCHASE (Isaac, 29 October
+     2026: "add purchase, photo of the invoice"): what was bought for jobs
+     and stock. Not `purchase_invoice`, which is a VEHICLE's purchase price
+     and is adopted by the vehicle; not `receipt`, which an expense claim
+     adopts and reimburses. Owned by the purchase (documents.purchase_id). */
+  | "purchase_docket"
   /* Renewal paperwork. Three kinds, not one "renewal" with a flag, for the
      standing reason — and because they land on different expiry dates. Each
      upload is a NEW document: the newest is current and the ones under it are
@@ -117,6 +123,7 @@ export const DOCUMENT_KINDS: readonly DocumentKind[] = [
   "job_document",
   "job_photo",
   "purchase_invoice",
+  "purchase_docket",
   "insurance_policy",
   "rego_notice",
   "green_slip",

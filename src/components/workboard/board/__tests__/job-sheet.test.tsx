@@ -95,6 +95,8 @@ jest.mock("@/app/actions/job-customer", () => ({
   readCustomerForEdit: (...a: unknown[]) => readCustomerForEdit(...a),
   saveCustomer: (...a: unknown[]) => saveCustomer(...a),
 }));
+/* Materials' Bought: nothing bought on these jobs */
+jest.mock("@/app/actions/purchases", () => ({ jobBought: async () => ({ lines: [], allowanceCents: null, money: false }) }));
 jest.mock("@/app/actions/job-picklist", () => ({
   listJobPicklist: (...a: unknown[]) => listJobPicklist(...(a as [])),
   setPicklistItemPicked: (...a: unknown[]) => setPicklistItemPicked(...(a as [])),

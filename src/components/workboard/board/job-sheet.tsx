@@ -221,6 +221,8 @@ const SWMS_CLOSED = new Set(["Completed", "Unsuccessful"]);
    (components/making/expense-form): a job's cost is an expense claim. Loaded
    when it is first asked for, as the form's readers and actions are its own. */
 const ExpenseForm = lazy(() => import("@/components/making/expense-form").then((m) => ({ default: m.ExpenseForm })));
+const JobBought = lazy(() => import("@/components/purchases/job-bought").then((m) => ({ default: m.JobBought })));
+const AddPurchase = lazy(() => import("@/components/purchases/add-purchase").then((m) => ({ default: m.AddPurchase })));
 
 /** Where a quote is made, as the Quote section's own link goes: a quote
     not started yet starts with Tiff. */
@@ -349,6 +351,9 @@ export function JobSheet({
   const [taskAsk, setTaskAsk] = useState(0);
   /* Add › Cost's form, open over the job */
   const [costing, setCosting] = useState(false);
+  /* Add › Purchase, and what Materials' Bought reloads on once one's added */
+  const [buying, setBuying] = useState(false);
+  const [bought, setBought] = useState(0);
   /* WHERE THE QUOTE STANDS, for Add's Quote, which reads Variation once a
      quote is accepted: the Quote section's own read, asked the first time
      the reader reaches for Add. Undefined until it lands, null when it
@@ -1373,6 +1378,8 @@ export function JobSheet({
     { key: "quote", label: variation ? "Variation" : "Quote" },
     /* a cost on a job is an expense claim, and anyone may claim one */
     { key: "cost", label: "Cost" },
+    /* a supplier's docket, its lines onto this job (purchases), on a ServiceM8 job */
+    ...(cardId ? [{ key: "purchase", label: "Purchase" }] : []),
     /* a SWMS is a before-work paper: none is made once ServiceM8 has the job closed */
     ...(SWMS_CLOSED.has(detail?.status ?? "") ? [] : [{ key: "swms", label: "SWMS" }]),
     { key: "certificate", label: "Certificate" },
@@ -1396,6 +1403,10 @@ export function JobSheet({
         return;
       case "cost":
         setCosting(true);
+        return;
+      case "purchase":
+        go("checklist");
+        setBuying(true);
         return;
       case "swms":
         go("compliance");
@@ -1538,6 +1549,13 @@ export function JobSheet({
               onTick={tickChecklistItem}
               onRemove={removeChecklistItem}
               onAdd={addChecklistItem}
+              bought={
+                cardId ? (
+                  <Suspense fallback={null}>
+                    <JobBought jobUuid={cardId} version={bought} />
+                  </Suspense>
+                ) : null
+              }
             />
           )}
     </>
@@ -1771,6 +1789,19 @@ export function JobSheet({
                 .join(", "),
             }}
             onClose={() => setCosting(false)}
+          />
+        </Suspense>
+      )}
+
+      {/* Add › Purchase: the docket, its lines onto this job first */}
+      {buying && cardId && (
+        <Suspense fallback={null}>
+          <AddPurchase
+            job={{ jobUuid: cardId, label: [cardNumber, detail?.clientName ?? row.clientName].filter(Boolean).join(", ") || "This job", sub: detail?.suburb ?? row.suburb ?? undefined }}
+            onClose={() => {
+              setBuying(false);
+              setBought((n) => n + 1);
+            }}
           />
         </Suspense>
       )}

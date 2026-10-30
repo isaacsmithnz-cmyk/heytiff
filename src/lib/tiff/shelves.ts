@@ -27,6 +27,8 @@ export type Shelving = {
   shelf: string;
   /** "Mitsubishi Electric · Ducted and zoning" */
   shelfName: string;
+  /** the shelf's name on its brand's own page: "Ducted and zoning" */
+  systems: string;
   /** the maker's name on the cover, or null */
   maker: string | null;
   /** the cover's colour: the maker's tag colour, or null for the plain cover */
@@ -65,9 +67,30 @@ function initialsOf(label: string): string | null {
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** The cover's big words: "PUMY-SP80-140VYKMD2-A SM UL2023" is
-    "PUMY-SP80-140VYKMD2-A"; "ME - Zone Wireless Sensor" is "Zone Wireless
-    Sensor". The whole title where nothing would be left. Pure. */
+/** A model code as you'd say it: its series over its size range, a line
+    each (Isaac, 30 October 2026, the covers' third go). "PUMY-SP80-140VYKMD2-A"
+    is "PUMY" / "SP80–140", "PUHY-EP-YNW-A" is "PUHY" / "EP", and "PAC-MK34BC /
+    PAC-MK54BC branch box" is "PAC" / "MK34 / MK54" / "branch box". Null for a
+    name that doesn't start with one. Pure. */
+export function modelName(name: string): string | null {
+  const first = name.match(/^([A-Z]{2,5})-/);
+  if (!first) return null;
+  const series = first[1]!;
+  const sizes: string[] = [];
+  let rest = name;
+  for (;;) {
+    const code = rest.match(new RegExp(`^${series}-([A-Z]*\\d+(?:-\\d+)?|[A-Z]+)[A-Z0-9-]*\\s*(?:/\\s*)?`));
+    if (!code) break;
+    sizes.push(code[1]!.replace(/(\d)-(\d)/, "$1–$2"));
+    rest = rest.slice(code[0].length);
+  }
+  if (!sizes.length) return null;
+  return [series, sizes.join(" / "), rest.trim()].filter(Boolean).join("\n");
+}
+
+/** The cover's big words: "PUMY-SP80-140VYKMD2-A SM UL2023" is "PUMY" over
+    "SP80–140"; "ME - Zone Wireless Sensor" is "Zone Wireless Sensor". The
+    whole title where nothing would be left. Pure. */
 export function coverName(title: string, maker: string | null): string {
   let s = title.trim();
   if (maker) {
@@ -81,7 +104,8 @@ export function coverName(title: string, maker: string | null): string {
     if (next === s) break;
     s = next;
   }
-  return s.trim() || title.trim();
+  s = s.trim();
+  return s ? (modelName(s) ?? s) : title.trim();
 }
 
 /** "Ducted and zoning"; a name in capitals keeps them ("VRF and ducted"). */
@@ -136,7 +160,7 @@ export function shelvesOf(docs: readonly ShelfDoc[], tagsOf: Readonly<Record<str
   for (const { d, brand, systems } of read) {
     if (!brand) {
       const shelfName = KIND_SHELF[d.category] ?? "Other documents";
-      out.set(d.id, { shelf: `kind:${d.category}`, shelfName, maker: null, color: null, name: coverName(d.title, null) });
+      out.set(d.id, { shelf: `kind:${d.category}`, shelfName, systems: shelfName, maker: null, color: null, name: coverName(d.title, null) });
       continue;
     }
     const root = systems.length ? find(`${brand.id}|${systems[0]}`) : null;
@@ -144,6 +168,7 @@ export function shelvesOf(docs: readonly ShelfDoc[], tagsOf: Readonly<Record<str
     out.set(d.id, {
       shelf: root ? `brand:${root}` : `brand:${brand.id}`,
       shelfName: together.length ? `${brand.label} · ${systemsName(together)}` : brand.label,
+      systems: together.length ? systemsName(together) : "Other documents",
       maker: brand.label,
       color: brand.color,
       name: coverName(d.title, brand.label),

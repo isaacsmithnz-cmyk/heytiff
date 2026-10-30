@@ -29,7 +29,9 @@ export async function GET(request: Request) {
         pageCount: d.pageCount,
         hasFile: !!d.storageRef,
         uploadedAt: d.uploadedAt,
-        ...(s ? { shelf: s.shelf, shelfName: s.shelfName, maker: s.maker, color: s.color, cover: s.name } : {}),
+        /* the year it came out, on its cover (lib/tiff/released) */
+        year: d.released ? Number(d.released.slice(0, 4)) : null,
+        ...(s ? { shelf: s.shelf, shelfName: s.shelfName, systems: s.systems, maker: s.maker, color: s.color, cover: s.name } : {}),
       };
     }),
   );

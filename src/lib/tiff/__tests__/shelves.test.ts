@@ -1,4 +1,4 @@
-import { coverName, shelvesOf, type ShelfDoc } from "../shelves";
+import { coverName, modelName, shelvesOf, type ShelfDoc } from "../shelves";
 import type { KbTagRef } from "../tags";
 
 const tag = (id: string, label: string, kind: KbTagRef["kind"], color = "#2563eb"): KbTagRef => ({ id, label, slug: label.toLowerCase().replace(/\s+/g, "-"), color, kind });
@@ -13,15 +13,15 @@ const doc = (id: string, title: string, category = "install", more: Partial<Shel
 
 describe("a cover's name is the title less its maker and what kind of document it is", () => {
   test.each([
-    ["PUMY-SP80-140VYKMD2-A SM UL2023", "Mitsubishi Electric", "PUMY-SP80-140VYKMD2-A"],
-    ["PUMY-SP80-140VYKMD2-A IM", "Mitsubishi Electric", "PUMY-SP80-140VYKMD2-A"],
-    ["PEA-M100-160HAA Jan2023", "Mitsubishi Electric", "PEA-M100-160HAA"],
-    ["PUHY-EP-YNW-A IM Jun2020", "Mitsubishi Electric", "PUHY-EP-YNW-A"],
+    ["PUMY-SP80-140VYKMD2-A SM UL2023", "Mitsubishi Electric", "PUMY\nSP80–140"],
+    ["PUMY-SP80-140VYKMD2-A IM", "Mitsubishi Electric", "PUMY\nSP80–140"],
+    ["PEA-M100-160HAA Jan2023", "Mitsubishi Electric", "PEA\nM100–160"],
+    ["PUHY-EP-YNW-A IM Jun2020", "Mitsubishi Electric", "PUHY\nEP"],
     ["ME - Zone Wireless Sensor", "Mitsubishi Electric", "Zone Wireless Sensor"],
     ["ME- Zone Wireless Receiver", "Mitsubishi Electric", "Zone Wireless Receiver"],
     ["ME Zone Controller Brochure 2026", "Mitsubishi Electric", "Zone Controller"],
     ["Large Capacity Ducted Systems Flyer 2023-12", "Mitsubishi Electric", "Large Capacity Ducted Systems"],
-    ["PAC-MK34BC / PAC-MK54BC branch box installation manual", "Mitsubishi Electric", "PAC-MK34BC / PAC-MK54BC branch box"],
+    ["PAC-MK34BC / PAC-MK54BC branch box installation manual", "Mitsubishi Electric", "PAC\nMK34 / MK54\nbranch box"],
     ["Daikin RZA R32 Ducted", "Daikin", "RZA R32 Ducted"],
     ["Daikin VRV Diagnosis Manual", "Daikin", "VRV"],
   ])("%s", (title, maker, name) => {
@@ -49,8 +49,10 @@ describe("shelves", () => {
 
   test("a maker's systems that share a document share a shelf, the most used first", () => {
     expect(s.get("pumy")!.shelfName).toBe("Mitsubishi Electric · VRF");
+    expect(s.get("pumy")!.systems).toBe("VRF");
     expect(s.get("bbox")!.shelf).toBe(s.get("pumy")!.shelf);
     expect(s.get("zone")!.shelfName).toBe("Mitsubishi Electric · Ducted and zoning");
+    expect(s.get("zone")!.systems).toBe("Ducted and zoning");
     expect(s.get("pea")!.shelf).toBe(s.get("zone")!.shelf);
     expect(s.get("pea")!.shelf).not.toBe(s.get("pumy")!.shelf);
   });
@@ -61,7 +63,7 @@ describe("shelves", () => {
   });
 
   test("a cover is coloured by its maker's tag", () => {
-    expect(s.get("pumy")).toMatchObject({ maker: "Mitsubishi Electric", color: "#2563eb", name: "PUMY-P200YKMD2-A" });
+    expect(s.get("pumy")).toMatchObject({ maker: "Mitsubishi Electric", color: "#2563eb", name: "PUMY\nP200" });
     expect(s.get("rza")).toMatchObject({ maker: "Daikin", color: "#db2777", name: "RZA R32 Ducted" });
   });
 
@@ -70,6 +72,20 @@ describe("shelves", () => {
   });
 
   test("a document with no maker sits on its kind's shelf, in plain", () => {
-    expect(s.get("sop")).toMatchObject({ shelf: "kind:sops", shelfName: "Company SOPs", maker: null, color: null });
+    expect(s.get("sop")).toMatchObject({ shelf: "kind:sops", shelfName: "Company SOPs", systems: "Company SOPs", maker: null, color: null });
+  });
+});
+
+describe("modelName", () => {
+  it("reads a model code as its series over its size range", () => {
+    expect(modelName("PUMY-SP80-140VYKMD2-A")).toBe("PUMY\nSP80–140");
+    expect(modelName("PUMY-P250-300YBMD")).toBe("PUMY\nP250–300");
+    expect(modelName("PUMY-P200YKMD2-A")).toBe("PUMY\nP200");
+  });
+
+  it("is null for a name that isn't one", () => {
+    expect(modelName("RZA R32 Ducted")).toBeNull();
+    expect(modelName("Zone Wireless Sensor")).toBeNull();
+    expect(modelName("VRV")).toBeNull();
   });
 });

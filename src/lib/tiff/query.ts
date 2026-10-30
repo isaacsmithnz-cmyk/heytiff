@@ -30,11 +30,13 @@ export type KbDocRow = {
   uploadedById: string | null;
   uploadedAt: string | null;
   updatedAt: string;
+  /** When the manual came out, the first of its month (lib/tiff/released); null until it's read. */
+  released?: string | null;
 };
 
 const COLUMNS =
   "id, category, title, source, edition, file_name, kind, storage_ref, size_bytes, page_count, " +
-  "scanned_pages, status, error, next_page, chunk_count, uploaded_by, uploaded_at, updated_at";
+  "scanned_pages, status, error, next_page, chunk_count, uploaded_by, uploaded_at, updated_at, released";
 
 function toRow(r: Record<string, unknown>): KbDocRow {
   return {
@@ -56,6 +58,7 @@ function toRow(r: Record<string, unknown>): KbDocRow {
     uploadedById: (r.uploaded_by as string) ?? null,
     uploadedAt: (r.uploaded_at as string) ?? null,
     updatedAt: String(r.updated_at ?? ""),
+    released: (r.released as string) ?? null,
   };
 }
 

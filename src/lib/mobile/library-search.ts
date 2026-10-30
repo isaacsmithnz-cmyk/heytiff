@@ -2,7 +2,8 @@ import "server-only";
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { kbDocsForOrg, type KbDocRow } from "@/lib/tiff/query";
-import { kbTagsByDocument } from "@/lib/tiff/tags-query";
+import { kbTagsByDocument, kbTagsForOrg } from "@/lib/tiff/tags-query";
+import { shelvesOf } from "@/lib/tiff/shelves";
 import type { KbTagRef } from "@/lib/tiff/tags";
 import { isSearchable, normaliseQuery, searchTerms, snippetOf, type Segment } from "@/lib/tiff/doc-search";
 import { ftsQueryOf } from "@/lib/tiff/query-prep";
@@ -43,15 +44,20 @@ type Ranked = { id: string; document_id: string };
 
 /** Pages read for one search, before the best are kept. */
 const CANDIDATES = 40;
+/** Read for a search of one brand's manuals, most of which the index's best won't be. */
+const CANDIDATES_ONE_BRAND = 160;
 
 /** The pages to choose from: every word together first, then any of them. */
-async function pagesFor(orgId: string, q: string): Promise<Ranked[]> {
+async function pagesFor(orgId: string, q: string, wide: boolean): Promise<Ranked[]> {
   const ask = async (query: string, k: number) => {
     if (!query) return [];
     const { data } = await supabaseAdmin.rpc("kb_fts", { p_org: orgId, p_query: query, p_cats: null, p_k: k, p_doc: null });
     return ((data ?? []) as Ranked[]).filter((r) => r && r.id && r.document_id);
   };
-  const [all, any] = await Promise.all([ask(normaliseQuery(q), LIBRARY_PAGE_HITS), ask(ftsQueryOf(q, []), CANDIDATES)]);
+  const [all, any] = await Promise.all([
+    ask(normaliseQuery(q), wide ? CANDIDATES : LIBRARY_PAGE_HITS),
+    ask(ftsQueryOf(q, []), wide ? CANDIDATES_ONE_BRAND : CANDIDATES),
+  ]);
   const seen = new Set(all.map((r) => r.id));
   return [...all, ...any.filter((r) => !seen.has(r.id))];
 }
@@ -67,11 +73,13 @@ export function wordsSaid(content: string, q: string): number {
 }
 
 /** What the Library says about what was typed, in this workspace only. */
-export async function searchLibrary(orgId: string, raw: string): Promise<LibrarySearch> {
+export async function searchLibrary(orgId: string, raw: string, brand?: string | null): Promise<LibrarySearch> {
   if (!isSearchable(raw)) return { manuals: [], pages: [] };
   const q = normaliseQuery(raw);
-  const [docs, tagsOf, ranked] = await Promise.all([kbDocsForOrg(orgId), kbTagsByDocument(orgId), pagesFor(orgId, q)]);
-  const ready = docs.filter((d) => d.status === "ready");
+  const [docs, tagsOf, orgTags, ranked] = await Promise.all([kbDocsForOrg(orgId), kbTagsByDocument(orgId), kbTagsForOrg(orgId), pagesFor(orgId, q, !!brand)]);
+  /* searched from a brand's own page: that brand's manuals only, as its shelves show them */
+  const shelving = brand ? shelvesOf(docs, tagsOf, orgTags) : null;
+  const ready = docs.filter((d) => d.status === "ready" && (!shelving || shelving.get(d.id)?.maker === brand));
   const titleOf = new Map(ready.map((d) => [d.id, d.title]));
   const hits = ranked.filter((r) => titleOf.has(r.document_id));
 

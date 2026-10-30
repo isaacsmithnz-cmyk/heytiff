@@ -7,5 +7,8 @@ import { ok, requireMobile } from "@/lib/mobile/auth";
 export async function GET(request: Request) {
   const ctx = await requireMobile(request, "tiff");
   if (ctx instanceof Response) return ctx;
-  return ok(await searchLibrary(ctx.orgId, new URL(request.url).searchParams.get("q") ?? ""));
+  const params = new URL(request.url).searchParams;
+  /* from a brand's own page: that brand's manuals only */
+  const brand = params.get("brand")?.trim().slice(0, 120) || null;
+  return ok(await searchLibrary(ctx.orgId, params.get("q") ?? "", brand));
 }

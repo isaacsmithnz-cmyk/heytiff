@@ -159,6 +159,11 @@ describe("searching every manual as you type", () => {
     expect(body).toEqual({ manuals: ["doc-1", "note-1"], pages: [] });
   });
 
+  test("from a brand's own page, only that brand's manuals: a manual of no brand's isn't one", async () => {
+    const body = await (await everywhere(req("library/search?q=E6&brand=Daikin", "auth0|lyle"))).json();
+    expect(body).toEqual({ manuals: [], pages: [] });
+  });
+
   test("one letter reads nothing", async () => {
     expect(await (await everywhere(req("library/search?q=E", "auth0|lyle"))).json()).toEqual({ manuals: [], pages: [] });
     expect(asked).toEqual([]);

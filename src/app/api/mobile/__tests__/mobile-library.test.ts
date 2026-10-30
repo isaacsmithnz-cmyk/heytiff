@@ -26,15 +26,26 @@ jest.mock("@/lib/supabase-server", () => ({
       const q = {
         select: () => q,
         eq: (c: string, v: unknown) => ((f[c] = v), q),
+        in: () => q,
         order: () => q,
         maybeSingle: async () => {
           asked.push(`doc ${f.org_id} ${f.id}`);
           return { data: f.id === "doc-1" ? { storage_ref: docRef } : null, error: null };
         },
         then: (res: (v: unknown) => unknown) =>
-          res(table === "memberships" ? { data: members.filter((m) => m.user_id === f.user_id), error: null } : { data: [], error: null }),
+          res(
+            table === "memberships"
+              ? { data: members.filter((m) => m.user_id === f.user_id), error: null }
+              : table === "kb_chunks"
+                ? (asked.push(`chunks ${f.org_id}`), { data: [{ id: "c1", content: "E6: compressor lock or start failure. Check the compressor leads.", page_from: 112, page_to: 112 }], error: null })
+                : { data: [], error: null },
+          ),
       };
       return q;
+    },
+    rpc: async (name: string, args: { p_org: string; p_query: string }) => {
+      asked.push(`${name} ${args.p_org} "${args.p_query}"`);
+      return { data: args.p_query === "E6" ? [{ id: "c1", document_id: "doc-1" }] : [], error: null };
     },
   },
 }));
@@ -55,6 +66,7 @@ jest.mock("@/lib/tiff/query", () => ({
 
 import { GET as library } from "../library/route";
 import { GET as search } from "../library/[id]/search/route";
+import { GET as everywhere } from "../library/search/route";
 import { GET as file } from "../library/[id]/file/route";
 import { MOBILE_AUDIENCE } from "@/lib/mobile/token";
 
@@ -115,6 +127,41 @@ test("the shelves list the workspace's documents, with no storage reference", as
     ["note-1", false],
   ]);
   expect(JSON.stringify(body)).not.toContain("org/org-diamond");
+});
+
+test("each document says its cover and its shelf: with no maker tagged or named, its kind's", async () => {
+  const body = await (await library(req("library", "auth0|lyle"))).json();
+  expect(body.map((d: { shelfName: string; cover: string; maker: string | null }) => [d.shelfName, d.cover, d.maker])).toEqual([
+    ["Service documents", "Daikin FTXM-R", null],
+    ["Field notes", "Long runs on the FTXM-R", null],
+  ]);
+});
+
+describe("searching every manual as you type", () => {
+  test("is refused without a token or the Library grant", async () => {
+    expect((await everywhere(req("library/search?q=E6"))).status).toBe(401);
+    members[0]!.permissions = { tiff: false };
+    expect((await everywhere(req("library/search?q=E6", "auth0|lyle"))).status).toBe(403);
+    expect(asked).toEqual([]);
+  });
+
+  test("says the manuals named and the pages, inside the workspace, every word together and any of them", async () => {
+    const body = await (await everywhere(req("library/search?q=E6", "auth0|lyle"))).json();
+    expect(asked).toEqual(expect.arrayContaining(["docs org-diamond", 'kb_fts org-diamond "E6"', "chunks org-diamond"]));
+    expect(body.manuals).toEqual([]);
+    expect(body.pages).toEqual([{ documentId: "doc-1", title: "Daikin FTXM-R service manual", pageFrom: 112, pageTo: 112, segments: expect.any(Array) }]);
+    expect(body.pages[0].segments.some((s: { text: string; hit: boolean }) => s.hit && s.text === "E6")).toBe(true);
+  });
+
+  test("a manual's name is found without a page", async () => {
+    const body = await (await everywhere(req("library/search?q=ftxm", "auth0|lyle"))).json();
+    expect(body).toEqual({ manuals: ["doc-1", "note-1"], pages: [] });
+  });
+
+  test("one letter reads nothing", async () => {
+    expect(await (await everywhere(req("library/search?q=E", "auth0|lyle"))).json()).toEqual({ manuals: [], pages: [] });
+    expect(asked).toEqual([]);
+  });
 });
 
 test("a search reads inside the workspace's document and marks the matches", async () => {

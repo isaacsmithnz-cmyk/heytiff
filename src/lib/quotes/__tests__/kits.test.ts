@@ -1,5 +1,5 @@
 import type { Product } from "../families";
-import { cableSizeOf, consumablesEstimate, expandKit, indoorFacts, KITS, normaliseKitFacts, stillToSize, zoneKitOf } from "../kits";
+import { cableSizeOf, consumablesEstimate, expandKit, indoorFacts, KITS, normaliseKitFacts, stillToSize, zoneKitOf, CHANGEOVER_RUN_M } from "../kits";
 import type { ZoningController } from "@/lib/studio/packs/schema";
 import zoning from "../../../../data/packs/mitsubishi-electric@2026.1/zoning_controllers.json";
 
@@ -127,6 +127,7 @@ it("reads a unit's pipe off its data pack's connections, and makes a person's fa
     outlets: 40,
     outletMm: null,
     replacing: false,
+    newCircuit: false,
     keptPipe: null,
     underfloor: false,
   });
@@ -163,10 +164,36 @@ it("adds the business's own allowances: consumables always, recovery and a flush
   const swap = expandKit("split", { ...facts, replacing: true }, book, at, allowances).filter((l) => l.group === "Allowances");
   expect(swap.map((l) => [l.name, l.costCents, l.source, l.why])).toEqual([
     ["Consumables", 3182, "assumed", "your allowance, a head"],
-    ["Refrigerant recovery and removal", 15000, "assumed", "your allowance, a system"],
-    ["Pipe flush", 0, "unknown", "Not set in Quoting"],
+    ["Decommissioning and removal of old system", 15000, "assumed", "your allowance, a system"],
   ]);
   expect(expandKit("split", facts, book, at).some((l) => l.group === "Allowances")).toBe(false);
+});
+
+/* 3423, 31 October 2026: on new pipe a flush was put on and taken off every
+   time, and so was an RCBO on the circuit that stays; the power run was asked
+   for three times and sat at nothing */
+describe("a changeover", () => {
+  const swap = { ...facts, powerM: null, drainM: null, replacing: true };
+  it("stays on its old circuit, with no breaker and no flush on new pipe", () => {
+    const names = expandKit("split", swap, book, at, { consumables: 3182, flush: 9000, recovery: 15000 }).map((l) => l.name);
+    expect(names.some((n) => /rcbo/i.test(n ?? ""))).toBe(false);
+    expect(names).not.toContain("Pipe flush");
+    expect(names).toContain("Decommissioning and removal of old system");
+  });
+  it("takes its power and drain at a short run, as an assumption, and says what sizes the cable", () => {
+    const lines = expandKit("split", swap, book, at);
+    const power = lines.find((l) => /tps/i.test(l.name ?? ""))!;
+    expect(power).toMatchObject({ qty: CHANGEOVER_RUN_M, unit: "m", source: "assumed" });
+    expect(power.why).toMatch(/from the isolator, on the old circuit.*the outdoor runs at up to 18 A/);
+    expect(lines.find((l) => /drain/i.test(l.name ?? ""))).toMatchObject({ qty: CHANGEOVER_RUN_M, source: "assumed" });
+    expect(lines.some((l) => l.source === "unknown")).toBe(false);
+  });
+  it("keeps a run it was given, and a new circuit brings its breaker and leaves the run to be said", () => {
+    expect(expandKit("split", { ...swap, drainM: 7 }, book, at).find((l) => /drain/i.test(l.name ?? ""))).toMatchObject({ qty: 7 });
+    const circuit = expandKit("split", { ...swap, newCircuit: true }, book, at);
+    expect(circuit.some((l) => /rcbo/i.test(l.name ?? ""))).toBe(true);
+    expect(circuit.find((l) => l.name === "Power cable")).toMatchObject({ source: "unknown", why: "Needs the run" });
+  });
 });
 
 /* SWAPS (slice 9.1): the old pipe stays only at the size the new unit's data

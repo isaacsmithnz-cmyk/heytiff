@@ -43,8 +43,9 @@ class LocalPlanImages implements PlanImages {
     this.urls.set(ref, body.url);
     return body.url;
   }
-  async remove(): Promise<void> {
-    /* plans are never deleted from storage */
+  /* only what a dialog sent up early and didn't use (new-design.tsx) */
+  async remove(ref: string): Promise<void> {
+    await fetch("/studio-next/api/remove", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ref }) });
   }
 }
 

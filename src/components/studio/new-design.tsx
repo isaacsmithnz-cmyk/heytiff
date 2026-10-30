@@ -181,8 +181,7 @@ export function NewDesign({
   const adding = useRef(false);
   /* THE NEXT FLOW STARTS THE SLOW PARTS EARLY: the source goes up as it's
      dropped, a page is drawn in full as it's ticked and goes up as soon as
-     it is, so Start design waits on what's left, not on all of it. A design
-     never started leaves what went up behind, as an abandoned one does. */
+     it is, so Start design waits on what's left, not on all of it. */
   const flow = useStudioFlow();
   const sourceUp = useRef(new Map<File, Promise<string>>());
   const drawn = useRef(new Map<number, Promise<PageImage>>());
@@ -195,12 +194,31 @@ export function NewDesign({
       sourceUp.current.set(x.file, up);
     }
   };
-  const drawPage = (i: number): Promise<PageImage> => {
+  /* and what went up early and isn't used is taken away again when the
+     dialog goes: all of it if no design was made, a page ticked and then
+     unticked if one was. `kept` is what the design took, set before it is
+     handed over, because handing it over closes this dialog. */
+  const kept = useRef<Set<string> | null>(null);
+  const leftBehind = useRef(() => {});
+  useEffect(() => {
+    leftBehind.current = () => {
+      const keep = kept.current ?? new Set<string>();
+      void Promise.allSettled([...sourceUp.current.values(), ...pageUp.current.values()]).then((all) =>
+        all.forEach((r) => {
+          if (r.status === "fulfilled" && !keep.has(r.value)) planImages.remove(r.value).catch(() => {});
+        })
+      );
+    };
+  });
+  useEffect(() => () => leftBehind.current(), []);
+  /* `from` is the pages as they are now, when that is newer than the last render's */
+  const drawPage = (i: number, from?: PageImage[]): Promise<PageImage> => {
     const had = drawn.current.get(i);
     if (had) return had;
-    const p = pagesRef.current[i];
+    const list = from ?? pagesRef.current;
+    const p = list[i];
     const made = p.previewOf
-      ? fullPages(pagesRef.current, [i], () => {}).then((full) => ({ ...full[i], label: p.label }))
+      ? fullPages(list, [i], () => {}).then((full) => ({ ...full[i], label: p.label }))
       : Promise.resolve(p);
     drawn.current.set(i, made);
     void made
@@ -319,14 +337,16 @@ export function NewDesign({
     let full: PageImage[];
     try {
       if (flow === "next") {
-        pagesRef.current = all;
         full = [...all];
-        let done = 0;
+        /* a count kept on an object: the compiler won't take a `++` on a
+           variable the callbacks share */
+        const tally = { done: 0 };
         await Promise.all(
           chosen.map((i) =>
-            drawPage(i).then((p) => {
+            drawPage(i, all).then((p) => {
               full[i] = p;
-              setBusy({ word: "Getting the pages ready", done: ++done, total: chosen.length });
+              tally.done += 1;
+              setBusy({ word: "Getting the pages ready", done: tally.done, total: chosen.length });
             }),
           ),
         );
@@ -372,6 +392,11 @@ export function NewDesign({
     setError(null);
     setBusy({ word: "Saving the plans", done: 0, total: 1 });
     let made: Awaited<ReturnType<typeof storePlans>>;
+    /* out of the try: the compiler takes no conditional inside one */
+    const early =
+      flow === "next"
+        ? { source: (x: Source) => sourceUp.current.get(x.file), page: (i: number) => pageUp.current.get(i) }
+        : undefined;
     try {
       made = await storePlans(
         planImages,
@@ -379,16 +404,21 @@ export function NewDesign({
         pages,
         drafts,
         (done, total) => setBusy({ word: "Saving the plans", done, total }),
-        flow === "next" ? { source: (x) => sourceUp.current.get(x.file), page: (i) => pageUp.current.get(i) } : undefined,
+        early,
       );
     } catch (e) {
       setBusy(null);
       setError(`The plans didn't save: ${failed(e)}. Your pages are still here; try again.`);
       return;
     }
+    kept.current = new Set([
+      ...made.planImport.sources.map((x) => x.ref),
+      ...made.floors.flatMap((f) => f.plans.map((pl) => pl.imageRef)),
+    ]);
     try {
       await onPlans(designName, job, made.floors, made.planImport);
     } catch (e) {
+      kept.current = null;
       setBusy(null);
       setError(`The design didn't save: ${failed(e)}. Try again.`);
     }

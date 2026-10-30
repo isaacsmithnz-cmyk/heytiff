@@ -69,6 +69,7 @@ import { GET as search } from "../library/[id]/search/route";
 import { GET as everywhere } from "../library/search/route";
 import { GET as file } from "../library/[id]/file/route";
 import { MOBILE_AUDIENCE } from "@/lib/mobile/token";
+import { wordsSaid } from "@/lib/mobile/library-search";
 
 const DOMAIN = "tenant.example.auth0.com";
 const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");
@@ -184,4 +185,11 @@ test("a file is signed only when it's the workspace's own", async () => {
   docRef = null;
   expect((await file(req("library/doc-1/file", "auth0|lyle"), params("doc-1"))).status).toBe(404);
   expect((await file(req("library/gone/file", "auth0|lyle"), params("gone"))).status).toBe(404);
+});
+
+test("a page with more of the words typed beats one that says one word often", () => {
+  const feet = "The two installation feet are 600 mm apart on the PUMY-SP140.";
+  const names = "PUMY-SP80 PUMY-SP112 PUMY-SP125 PUMY-SP140 PUMY PUMY PUMY";
+  expect(wordsSaid(feet, "pumy 140 feet")).toBe(3);
+  expect(wordsSaid(names, "pumy 140 feet")).toBe(2);
 });

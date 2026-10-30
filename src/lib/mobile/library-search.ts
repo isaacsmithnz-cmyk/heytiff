@@ -41,16 +41,29 @@ export function manualsNamed(q: string, docs: readonly Pick<KbDocRow, "id" | "ti
 
 type Ranked = { id: string; document_id: string };
 
-/** The best pages: every word together first, then any of them, to fill the list. */
+/** Pages read for one search, before the best are kept. */
+const CANDIDATES = 40;
+
+/** The pages to choose from: every word together first, then any of them. */
 async function pagesFor(orgId: string, q: string): Promise<Ranked[]> {
-  const ask = async (query: string) => {
+  const ask = async (query: string, k: number) => {
     if (!query) return [];
-    const { data } = await supabaseAdmin.rpc("kb_fts", { p_org: orgId, p_query: query, p_cats: null, p_k: LIBRARY_PAGE_HITS, p_doc: null });
+    const { data } = await supabaseAdmin.rpc("kb_fts", { p_org: orgId, p_query: query, p_cats: null, p_k: k, p_doc: null });
     return ((data ?? []) as Ranked[]).filter((r) => r && r.id && r.document_id);
   };
-  const [all, any] = await Promise.all([ask(normaliseQuery(q)), ask(ftsQueryOf(q, []))]);
+  const [all, any] = await Promise.all([ask(normaliseQuery(q), LIBRARY_PAGE_HITS), ask(ftsQueryOf(q, []), CANDIDATES)]);
   const seen = new Set(all.map((r) => r.id));
-  return [...all, ...any.filter((r) => !seen.has(r.id))].slice(0, LIBRARY_PAGE_HITS);
+  return [...all, ...any.filter((r) => !seen.has(r.id))];
+}
+
+/** How many of the words typed a page says: a page with more of them
+    beats one that says one word often ("pumy 140 feet" wants the page with
+    the feet, not the page that names the PUMY twenty times). Pure. */
+export function wordsSaid(content: string, q: string): number {
+  const hay = words(content);
+  return searchTerms(q)
+    .map((t) => words(t).trim())
+    .filter((t) => t.length >= 2 && hay.includes(t)).length;
 }
 
 /** What the Library says about what was typed, in this workspace only. */
@@ -74,10 +87,15 @@ export async function searchLibrary(orgId: string, raw: string): Promise<Library
     : { data: [] };
   const chunks = new Map(((data ?? []) as { id: string; content: string | null; page_from: number | null; page_to: number | null }[]).map((c) => [c.id, c]));
   const terms = searchTerms(q);
+  /* the most of the words typed first; the index's own order otherwise */
+  const best = hits
+    .map((h, at) => ({ h, at, said: wordsSaid(chunks.get(h.id)?.content ?? "", q) }))
+    .sort((a, b) => b.said - a.said || a.at - b.at)
+    .slice(0, LIBRARY_PAGE_HITS);
 
   return {
     manuals: manualsNamed(q, ready, tagsOf),
-    pages: hits.flatMap((h) => {
+    pages: best.flatMap(({ h }) => {
       const c = chunks.get(h.id);
       if (!c) return [];
       const from = Number(c.page_from) || 1;

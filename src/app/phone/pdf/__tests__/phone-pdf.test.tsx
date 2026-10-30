@@ -7,7 +7,7 @@ import { act, render } from "@testing-library/react";
 const openSigned = jest.fn();
 jest.mock("../load-pdf", () => ({ openSigned: (...a: unknown[]) => openSigned(...a) }));
 
-import { boxesOf, isOurs, PhonePdf } from "../phone-pdf";
+import { boxesOf, isOurs, PhonePdf, seenOf } from "../phone-pdf";
 
 const STORE = "https://store.example.co";
 const ours = `${STORE}/storage/v1/object/sign/kb/org/o1/kb/d1.pdf?token=t`;
@@ -65,6 +65,30 @@ describe("boxesOf", () => {
   it("outlines nothing on text turned on its side, or a page that doesn't say it", () => {
     expect(boxesOf([{ ...run, transform: [0, 10, -10, 0, 10, 120] }], ["4220"], page)).toEqual([]);
     expect(boxesOf([run], ["4230"], page)).toEqual([]);
+  });
+});
+
+describe("seenOf", () => {
+  /* a page 360 wide and 500 tall, 100 down the layout */
+  const page = { left: 10, top: 100, width: 360, height: 500 };
+
+  it("is the part of the page the zoomed screen shows, as fractions of it", () => {
+    /* zoomed 3×: a screen 130 by 260 of the layout, its corner at (100, 200) */
+    const b = seenOf(page, { left: 100, top: 200, width: 130, height: 260 })!;
+    expect(b.left).toBeCloseTo(90 / 360);
+    expect(b.top).toBeCloseTo(100 / 500);
+    expect(b.width).toBeCloseTo(130 / 360);
+    expect(b.height).toBeCloseTo(260 / 500);
+  });
+
+  it("stops at the page's edges", () => {
+    const b = seenOf(page, { left: 300, top: 550, width: 130, height: 260 })!;
+    expect(b.left + b.width).toBeCloseTo(1);
+    expect(b.top + b.height).toBeCloseTo(1);
+  });
+
+  it("is nothing for a page off the screen", () => {
+    expect(seenOf(page, { left: 0, top: 700, width: 130, height: 260 })).toBeNull();
   });
 });
 

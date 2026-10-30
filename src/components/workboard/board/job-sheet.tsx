@@ -32,7 +32,6 @@ import {
   setPicklistItemPicked,
   type JobPicklistItem,
 } from "@/app/actions/job-picklist";
-import { JobBought } from "@/components/purchases/job-bought";
 import { JobMaterialsFace } from "./job-materials-face";
 import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
@@ -222,6 +221,7 @@ const SWMS_CLOSED = new Set(["Completed", "Unsuccessful"]);
    (components/making/expense-form): a job's cost is an expense claim. Loaded
    when it is first asked for, as the form's readers and actions are its own. */
 const ExpenseForm = lazy(() => import("@/components/making/expense-form").then((m) => ({ default: m.ExpenseForm })));
+const JobBought = lazy(() => import("@/components/purchases/job-bought").then((m) => ({ default: m.JobBought })));
 const AddPurchase = lazy(() => import("@/components/purchases/add-purchase").then((m) => ({ default: m.AddPurchase })));
 
 /** Where a quote is made, as the Quote section's own link goes: a quote
@@ -1549,7 +1549,13 @@ export function JobSheet({
               onTick={tickChecklistItem}
               onRemove={removeChecklistItem}
               onAdd={addChecklistItem}
-              bought={cardId ? <JobBought jobUuid={cardId} version={bought} /> : null}
+              bought={
+                cardId ? (
+                  <Suspense fallback={null}>
+                    <JobBought jobUuid={cardId} version={bought} />
+                  </Suspense>
+                ) : null
+              }
             />
           )}
     </>

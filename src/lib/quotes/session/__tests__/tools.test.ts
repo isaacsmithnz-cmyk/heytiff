@@ -177,7 +177,7 @@ describe("her tools, run", () => {
 
   /* 3423, Isaac, 30 October 2026: "Two technicians for the changeover": a
      client would hold the business to it */
-  it.each(["Two technicians for the changeover", "Replaced in one day", "12 hours on site", "2 installers"])("keeps who goes and how long off the proposal: %s", async (words) => {
+  it.each(["Two technicians for the changeover", "Replaced in one day", "Both units replaced in one visit", "12 hours on site", "2 installers"])("keeps who goes and how long off the proposal: %s", async (words) => {
     expect(await run("write_proposal", { title: words })).toMatchObject({ ok: false });
   });
 
@@ -287,6 +287,7 @@ describe("her tools, run", () => {
     const out = await run("settle", { settled: [{ question: 41, answer: "14 m" }, { question: 99, answer: "yes" }] });
     expect(out).toMatchObject({ ok: true, said: "14 m", detail: { settled: [{ question: 41, answer: "14 m" }] }, value: { settled: 1, notOpen: [99] } });
     expect(await run("settle", { settled: [{ question: 99, answer: "yes" }] })).toMatchObject({ ok: false, error: "None of those is open. Open: 41." });
+    expect(await run("settle", { settled: [{ question: 1, answer: "14 m" }] })).toMatchObject({ ok: true, detail: { settled: [{ question: 41, answer: "14 m" }] } });
     expect(await run("settle", { settled: [] })).toMatchObject({ ok: false });
   });
 
@@ -455,6 +456,11 @@ describe("a price the person gave", () => {
     expect(newLineOf({ name: "AirTouch upgrade", group: "Zoning", kind: "material", qty: 1, source: "assumed", why: "guess", sell_each_cents: 148000 })).not.toHaveProperty("sellCents");
     expect(patchOf({ id: "l1", version: 1, source: "said", why: "“$1,480”", sell_each_cents: 148000 })).toMatchObject({ patch: { sellCents: 148000 } });
     expect(newLineOf({ name: "Flex 250", group: "Ductwork and grilles", kind: "material", qty: 5, source: "assumed", why: "a bag an outlet", duct: true })).toMatchObject({ duct: true });
+  });
+  /* 3423's replay, 31 October 2026: "350 ex" on a labour line priced at one hour, with no word */
+  it("is refused on a labour line, saying where it goes", () => {
+    expect(newLineOf({ name: "Removal", group: "Labour", kind: "labour", qty: 1, source: "said", why: "“350 ex”", sell_each_cents: 35000 })).toEqual({ error: expect.stringMatching(/can't hold a set price.*kind material, group Allowances/) });
+    expect(newLineOf({ name: "Install", group: "Labour", kind: "labour", qty: 12, source: "said", why: "“six hours”" })).toMatchObject({ qty: 12 });
   });
 });
 

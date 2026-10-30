@@ -63,8 +63,11 @@ export type KitFacts = {
   /** ducted: how many outlets, and their size, mm */
   outlets?: number | null;
   outletMm?: number | null;
-  /** an old system comes out: its refrigerant recovered, the pipe flushed */
+  /** an old system comes out: its refrigerant recovered, and the circuit it
+      ran on stays (no breaker, the power run only the isolator's) */
   replacing?: boolean;
+  /** an old system comes out, and this one needs its own new circuit too */
+  newCircuit?: boolean;
   /** ducted: the indoor goes under the floor, hung on springs, its outlets
       floor grilles on boots (3377) */
   underfloor?: boolean;
@@ -324,7 +327,7 @@ const SPLIT: KitPart[] = [
     },
     /* Quoting's power cables are the single-phase TPS at 2.5, 4 and 6 mm² */
     component: (f) => (f.phase === "3" ? null : (POWER_COMPONENT[cableSizeOf(f) ?? ""] ?? null)),
-    qty: (f) => metres(f.powerM, "from the board"),
+    qty: (f) => metres(f.powerM, f.replacing && !f.newCircuit ? "from the isolator, on the old circuit" : "from the board"),
   },
   {
     key: "breaker",
@@ -852,12 +855,23 @@ function atSize(kind: RangeKind, need: RangeNeed, products: readonly Product[], 
    On a line not known yet too, so it counts once a person prices it. */
 const ductOf = (part: KitPart) => (part.duct ? { duct: true } : {});
 
+/** What a changeover's short runs are taken at when nobody gave them: the
+    isolator to the outdoor, and the drain. An assumption on the line, for a
+    person to change, so a like-for-like swap never sits at nothing or stops
+    to ask (3423, 31 October 2026: asked three times for a run nobody knew). */
+export const CHANGEOVER_RUN_M = 3;
+const changeoverRuns = (f: KitFacts): KitFacts =>
+  f.replacing ? { ...f, powerM: f.powerM ?? (f.newCircuit ? null : CHANGEOVER_RUN_M), drainM: f.drainM ?? CHANGEOVER_RUN_M } : f;
+/* the parts sized by what the outdoor draws: their why says what it draws
+   (Isaac, 31 October 2026: "she didn't look at max running current") */
+const SIZED_BY_DRAW = new Set(["power", "breaker", "isolator"]);
+
 /** A kit's parts as lines for one option and system, each picked from the
     book; a part with a fact missing, or that the book hasn't got, is a line
     nobody knows the price of yet, saying why. */
 export function expandKit(
   kit: KitKey,
-  f: KitFacts,
+  given: KitFacts,
   products: Product[],
   at: { optionIndex: number; system: string },
   allowances: KitAllowances | null = null,
@@ -869,9 +883,12 @@ export function expandKit(
   only: string | null = null
 ): Partial<LineFields>[] {
   const out: Partial<LineFields>[] = [];
+  const f = changeoverRuns(given);
   for (const part of KITS[kit].parts) {
     if (only && part.key !== only) continue;
     if (part.skip?.(f)) continue;
+    /* a changeover stays on the circuit it had, unless it's said to need its own */
+    if (part.key === "breaker" && f.replacing && !f.newCircuit) continue;
     /* a part at several sizes: a line for each, from the range */
     if (part.many) {
       const base = { optionIndex: at.optionIndex, system: at.system, group: part.group, kind: "material" as const, ...ductOf(part) };
@@ -964,7 +981,7 @@ export function expandKit(
       unit: q.unit,
       costCents: cost,
       source: swap ? "fitted" : "assumed",
-      why: `${swap}${q.why}; ${picked.why.toLowerCase()}`,
+      why: `${swap}${q.why}; ${picked.why.toLowerCase()}${SIZED_BY_DRAW.has(part.key) && f.amps != null ? `; the outdoor runs at up to ${f.amps} A` : ""}`,
     });
   }
   /* the business's own allowances, at what it set them at; one it hasn't
@@ -1002,12 +1019,13 @@ export function expandKit(
       });
     } else allow("Consumables", allowances.consumables, heads > 1 ? `your allowance, a head, for each of ${heads}` : "your allowance, a head", heads);
     if (f.replacing) {
-      allow("Refrigerant recovery and removal", allowances.recovery, "your allowance, a system");
-      allow(
-        "Pipe flush",
-        allowances.flush,
-        f.keptPipe && f.pipe === f.keptPipe ? `your allowance, a system; the old ${f.keptPipe.replace("+", " + ")} kept, the size the unit takes` : "your allowance, a system"
-      );
+      /* 3423, Isaac, 30 October 2026: "instead of saying refrigerant recovery,
+         maybe just say removal or decommissioning and removal of old systems" */
+      allow("Decommissioning and removal of old system", allowances.recovery, "your allowance, a system");
+      /* only pipe that stays is flushed: new pipe has nothing to flush */
+      if (f.keptPipe) {
+        allow("Pipe flush", allowances.flush, f.pipe === f.keptPipe ? `your allowance, a system; the old ${f.keptPipe.replace("+", " + ")} kept, the size the unit takes` : "your allowance, a system");
+      }
     }
   }
   return out;
@@ -1099,6 +1117,7 @@ export function normaliseKitFacts(raw: unknown): KitFacts {
     outlets: n(r.outlets, 40),
     outletMm: n(r.outletMm, 600),
     replacing: r.replacing === true || r.replacing === "yes" || r.replacing === "keep",
+    newCircuit: r.newCircuit === true,
     underfloor: r.underfloor === true || r.underfloor === "yes",
     keptPipe: r.replacing === "keep" && (OLD_PIPES as readonly unknown[]).includes(r.keptPipe) ? (r.keptPipe as OldPipe) : null,
     ...layoutFacts(r),

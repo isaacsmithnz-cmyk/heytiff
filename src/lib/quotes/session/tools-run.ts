@@ -131,7 +131,42 @@ const visitRead = (v: LineVisit) => ({
   tasks: v.tasks.map((t) => ({ task: t.task, hours: t.hours, ...(t.byHand ? (t.was != null ? { person_changed_from: t.was } : { person_added: true }) : {}) })),
 });
 
+/** What changes the quote's money: each hands back the totals as they now
+    stand, so the figure she says is the figure on the page. On 3423 she said
+    "about $207 ex GST so far" from a read taken before the units and labour
+    went on, and made up a reason for it (Isaac, 30 October 2026). */
+const CHANGES_MONEY = new Set(["add_lines", "change_line", "remove_line", "add_kit", "copy_option", "build_labour"]);
+
+/** Who goes or how long it takes, on the client's paper: they'd hold the
+    business to it if one person goes or it's done sooner (3423, Isaac, 30
+    October 2026: "Two technicians for the changeover"). */
+const CREW_OR_TIME = /\b(?:\d+|one|two|three|four|five|six)\s+(?:technicians?|techs?|installers?|tradesm[ae]n|people|persons?|guys|men|workers|crew)\b|\b\d+(?:\.\d+)?\s*(?:hours?|hrs?|person-hours?)\b|\b(?:\d+|full|half|one|two|three|four|five|a)[ -]days?\b/i;
+
+/** Every string the proposal's write puts on the paper. */
+const proposalWords = (input: Record<string, unknown>): string[] => {
+  const out: string[] = [];
+  const walk = (v: unknown) => {
+    if (typeof v === "string") out.push(v);
+    else if (Array.isArray(v)) v.forEach(walk);
+    else if (v && typeof v === "object") Object.values(v).forEach(walk);
+  };
+  walk([input.title, input.intro, input.summary, input.work, input.included]);
+  return out;
+};
+
 export function makeTools(store: QuoteStore) {
+  const run = makeToolRun(store);
+  return async function runTool(name: string, input: Record<string, unknown>): Promise<ToolOutcome> {
+    const out = await run(name, input);
+    if (!out.ok || !CHANGES_MONEY.has(name)) return out;
+    const now = await store.totals().catch(() => null);
+    if (!now?.ok) return out;
+    const value = out.value && typeof out.value === "object" && !Array.isArray(out.value) ? out.value : { result: out.value };
+    return { ...out, value: { ...value, each_option_ex_gst_cents_now: now.options } };
+  };
+}
+
+function makeToolRun(store: QuoteStore) {
   return async function runTool(name: string, input: Record<string, unknown>): Promise<ToolOutcome> {
     const label = TOOL_LABELS[name] ?? name;
     const fail = (error: string): ToolOutcome => ({ ok: false, error, label });
@@ -423,6 +458,8 @@ export function makeTools(store: QuoteStore) {
         return { ok: true, label, said: `${parts.length} ${parts.length === 1 ? "part" : "parts"}`, value: { planned: parts.length }, detail: { option, parts } };
       }
       case "write_proposal": {
+        const named = proposalWords(input).find((w) => CREW_OR_TIME.test(w));
+        if (named) return fail(`"${named}" says who goes or how long it takes, and the client would hold the business to it. Say the work, never the crew, the hours or the days.`);
         const patch: Partial<LinesProposal> = {};
         if (typeof input.title === "string") patch.title = input.title;
         if (typeof input.intro === "string") patch.intro = input.intro;

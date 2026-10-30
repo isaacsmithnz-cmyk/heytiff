@@ -87,7 +87,7 @@ it("shows the total in its card, each system with its total, and every line's qt
      claims no state against the target */
   const card = within(screen.getByRole("region", { name: "The quote" }));
   expect(card.getByText("Total ex GST, so far").nextElementSibling).toHaveTextContent("$1,334.38");
-  expect(card.getByText("$1,467.82 inc GST")).toBeInTheDocument();
+  expect(card.getByText("$1,467.82").closest("em")).toHaveTextContent("$1,467.82 inc GST");
   const profit = card.getByText("20%, $266.88").closest(".qp-profit")!;
   expect(profit.querySelector(".pt-state")).toBeNull();
   expect(profit).toHaveTextContent(/^Profitso far/);
@@ -826,7 +826,7 @@ describe("the quote card", () => {
     expect(cardIn().getByText("At your 20%").closest(".pt-state")).toHaveClass("pt-state--good");
     expect(cardIn().getByText("At your 20%").closest(".qp-profit")).toHaveTextContent("20%, $266.88");
     /* the figure itself in green (layout B, 21 October 2026) */
-    expect(cardIn().getByText("20%, $266.88")).toHaveClass("good");
+    expect(cardIn().getByText("20%, $266.88").closest("b")).toHaveClass("good");
     expect(within(cardIn().getByRole("list", { name: "Its parts" })).getByText("Units").parentElement).toHaveTextContent("$1,334.38");
   });
 
@@ -838,7 +838,7 @@ describe("the quote card", () => {
     const word = cardIn().getByText("Under your 30% target by $180.62. $1,525.00 ex GST would meet it");
     expect(word.closest(".pt-state")).toHaveClass("pt-state--look");
     expect(word.closest(".qp-profit")).toHaveTextContent("20%, $266.88");
-    expect(cardIn().getByText("20%, $266.88")).toHaveClass("look");
+    expect(cardIn().getByText("20%, $266.88").closest("b")).toHaveClass("look");
   });
 
   /* the red sentence waited until nothing was left to price: a price to
@@ -954,7 +954,7 @@ describe("a variation to the accepted quote", () => {
     /* one more diffuser at $12.89 + 40%, the line rounded to the cent */
     expect(screen.getByRole("tab", { name: /Variation 1/ })).toHaveTextContent("+$18.04");
     expect(screen.getByText("Variation 1, ex GST")).toBeInTheDocument();
-    expect(screen.getByText(/^New total /)).toBeInTheDocument();
+    expect(screen.getByText(/^New total/)).toBeInTheDocument();
     await openGroup("Units");
     await openGroup("Ductwork and grilles");
     expect(document.querySelectorAll(".ql-vs")).toHaveLength(1);

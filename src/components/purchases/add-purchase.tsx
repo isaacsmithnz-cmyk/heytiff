@@ -253,9 +253,10 @@ export function AddPurchase({ job, resume, onClose }: { job?: Job | null; resume
       const res = await addPurchase(up.file.documentId);
       if (!res.ok) setError(res.error);
       else setPurchase(res.purchase);
-    } finally {
-      setReading(false);
+    } catch {
+      setError("The docket couldn't be read. Try again.");
     }
+    setReading(false);
   };
 
   const apply = (res: PurchaseResult, said: string | null, ids: string[]) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { IconButton } from "@/components/parts/button";
 import { TextInput } from "@/components/parts/field";
@@ -19,7 +19,7 @@ import { useFleetActions } from "@/components/fleet/fleet-state";
 import type { Register } from "@/components/fleet/fleet-types";
 import { NoticesBoard } from "@/components/dashboard/notices-board";
 import { Button } from "@/components/parts/button";
-import { TeamPurchases, type PurchasesData } from "@/components/purchases/team-purchases";
+import type { PurchasesData } from "@/components/purchases/team-purchases";
 import type { TimepaySection } from "@/lib/timepay/section";
 import type { NoticeBoardData } from "@/lib/dashboard/page-data";
 import { TEAM_VIEW_LABEL, teamViewHref, type TeamView } from "@/lib/team/views";
@@ -54,6 +54,9 @@ export type TeamPageData = {
 };
 
 const PANEL = "tm2-panel";
+
+/* Purchases' own code (the docket reader's dialog with it) loads when the view is opened */
+const TeamPurchases = lazy(() => import("@/components/purchases/team-purchases").then((m) => ({ default: m.TeamPurchases })));
 
 /** The register, under Fleet's own actions. A hook needs a component. */
 function TeamVehicles({ fleet }: { fleet: NonNullable<TeamPageData["fleet"]> }) {
@@ -209,7 +212,11 @@ export function TeamPage({ data, view: asked }: { data: TeamPageData; view: Team
           <TeamExpenses claims={timepay.claims} canApprove={timepay.canApprove} canPay={timepay.financials} />
         )}
         {view === "vehicles" && fleet && <TeamVehicles fleet={fleet} />}
-        {view === "purchases" && data.purchases && <TeamPurchases data={data.purchases} adding={adding} onAdded={() => setAdding(false)} />}
+        {view === "purchases" && data.purchases && (
+          <Suspense fallback={null}>
+            <TeamPurchases data={data.purchases} adding={adding} onAdded={() => setAdding(false)} />
+          </Suspense>
+        )}
         {view === "notices" && (
           <NoticesBoard
             embedded

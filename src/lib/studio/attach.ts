@@ -26,14 +26,15 @@ const EPS = 1e-6;
 const near = (a: number, b: number) => Math.abs(a - b) < EPS;
 const samePt = (a: Point, b: Point) => near(a.x, b.x) && near(a.y, b.y);
 
-/** Current anchor point of an attach target. Units and risers anchor at their
-    centre; fitting/spigot/grille resolve with graph v1 — null until then, and
-    null for a missing or non-point target (leave the run alone). */
+/** Current anchor point of an attach target. Units, risers and grilles (a
+    duct ends on one in the next flow) anchor at their centre; fitting and
+    spigot resolve with graph v1 — null until then, and null for a missing or
+    non-point target (leave the run alone). */
 export function anchorPointOf(
   byId: ReadonlyMap<string, DesignObject>,
   a: Attach
 ): Point | null {
-  if (a.kind !== "unit" && a.kind !== "riser") return null;
+  if (a.kind !== "unit" && a.kind !== "riser" && a.kind !== "grille") return null;
   const o = byId.get(a.id);
   return o && o.geometry.kind === "point" ? o.geometry.at : null;
 }

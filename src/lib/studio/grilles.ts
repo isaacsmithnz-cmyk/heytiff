@@ -38,6 +38,42 @@ export const GRILLE_SIZES: Record<AirStream, GrilleSize[]> = {
 
 export const sizeText = (s: GrilleSize): string => `${s.wMm} × ${s.hMm}`;
 
+/* WHAT A SUPPLY GRILLE IS AND WHERE IT SITS (the next flow; board 7 of the
+   Studio rework mocks): a square or round diffuser or a linear bar grille,
+   in the ceiling, a wall or the floor. A grille placed before these were
+   offered has neither: it reads as it always did, square when its face is
+   square, else linear, and says nothing of where it sits. */
+export type GrilleStyle = "square" | "round" | "linear";
+export type GrilleMount = "ceiling" | "wall" | "floor";
+export const GRILLE_STYLES: GrilleStyle[] = ["square", "round", "linear"];
+export const GRILLE_MOUNTS: GrilleMount[] = ["ceiling", "wall", "floor"];
+
+/** the sizes offered for each kind of supply face; a round one is its neck,
+    width and height both */
+export const STYLE_SIZES: Record<GrilleStyle, GrilleSize[]> = {
+  square: [
+    { wMm: 300, hMm: 300 },
+    { wMm: 450, hMm: 450 },
+    { wMm: 600, hMm: 600 },
+  ],
+  round: [
+    { wMm: 150, hMm: 150 },
+    { wMm: 200, hMm: 200 },
+    { wMm: 250, hMm: 250 },
+    { wMm: 300, hMm: 300 },
+  ],
+  linear: [
+    { wMm: 600, hMm: 100 },
+    { wMm: 900, hMm: 100 },
+    { wMm: 1200, hMm: 100 },
+    { wMm: 1500, hMm: 150 },
+  ],
+};
+
+/** the sizes a grille of this stream and style is offered in */
+export const sizesFor = (stream: AirStream, style: GrilleStyle | null): GrilleSize[] =>
+  stream === "return" || !style ? GRILLE_SIZES[stream] : STYLE_SIZES[style];
+
 /** a face is never smaller or larger than these, mm; a dragged edge lands on
     the step, so a grille pulled out by hand reads 650, never 647 */
 export const GRILLE_MIN_MM = 100;
@@ -102,7 +138,7 @@ export function grilleEdges(at: Point, deg: number, s: GrilleSize, mmPerUnit: nu
 export type Grille = DesignObject & {
   type: typeof GRILLE_TYPE;
   geometry: { kind: "point"; at: Point; rotation?: number };
-  props: { stream: AirStream; wMm: number; hMm: number };
+  props: { stream: AirStream; wMm: number; hMm: number; style?: GrilleStyle; mount?: GrilleMount };
 };
 
 export function isGrille(o: DesignObject): o is Grille {
@@ -117,6 +153,19 @@ export function grilleSize(o: Grille): GrilleSize {
   return { wMm: w > 0 ? w : 300, hMm: h > 0 ? h : 300 };
 }
 
+/** a supply grille's kind as picked, or null for a return or one placed
+    before kinds were offered */
+export function grilleStyle(o: Grille): GrilleStyle | null {
+  const st = o.props.style;
+  return grilleStream(o) === "supply" && (st === "square" || st === "round" || st === "linear") ? st : null;
+}
+
+/** where a grille sits, or null if nobody said */
+export function grilleMount(o: Grille): GrilleMount | null {
+  const m = o.props.mount;
+  return m === "ceiling" || m === "wall" || m === "floor" ? m : null;
+}
+
 /** a new grille, centred where it was clicked, square to the plan; it is
     turned afterwards on its ring, like a unit */
 export function grille(
@@ -125,7 +174,8 @@ export function grille(
   at: Point,
   stream: AirStream,
   size: GrilleSize,
-  deg = 0
+  deg = 0,
+  kind: { style?: GrilleStyle | null; mount?: GrilleMount | null } = {}
 ): Grille {
   return {
     id: newId("obj"),
@@ -134,15 +184,24 @@ export function grille(
     floorId,
     plane: "room",
     geometry: { kind: "point", at, ...(deg ? { rotation: deg } : {}) },
-    props: { stream, wMm: size.wMm, hMm: size.hMm },
+    props: {
+      stream,
+      wMm: size.wMm,
+      hMm: size.hMm,
+      ...(stream === "supply" && kind.style ? { style: kind.style } : {}),
+      ...(kind.mount ? { mount: kind.mount } : {}),
+    },
   } as Grille;
 }
 
 /** what a grille is called on the sheet and to Tiff: a square supply is a
-    diffuser, a long one a linear bar grille, any return a return air grille */
-export function grilleName(stream: AirStream, s: GrilleSize): string {
+    diffuser, a long one a linear bar grille, a round one a round diffuser by
+    its neck, any return a return air grille */
+export function grilleName(stream: AirStream, s: GrilleSize, style: GrilleStyle | null = null): string {
   if (stream === "return") return `Return air grille ${sizeText(s)}`;
-  return s.wMm === s.hMm ? `Square diffuser ${sizeText(s)}` : `Linear bar grille ${sizeText(s)}`;
+  if (style === "round") return `Round diffuser Ø${s.wMm}`;
+  const square = style ? style === "square" : s.wMm === s.hMm;
+  return square ? `Square diffuser ${sizeText(s)}` : `Linear bar grille ${sizeText(s)}`;
 }
 
 /** the face's corners and the lines across it, world units. A square
@@ -153,7 +212,8 @@ export function grilleShape(
   deg: number,
   stream: AirStream,
   s: GrilleSize,
-  mmPerUnit: number
+  mmPerUnit: number,
+  style: GrilleStyle | null = null
 ): { outline: Point[]; lines: [Point, Point][] } {
   const hw = s.wMm / 2 / mmPerUnit;
   const hh = s.hMm / 2 / mmPerUnit;
@@ -161,9 +221,16 @@ export function grilleShape(
   const c = Math.cos(rad);
   const n = Math.sin(rad);
   const p = (x: number, y: number): Point => ({ x: at.x + x * c - y * n, y: at.y + x * n + y * c });
-  const outline = [p(-hw, -hh), p(hw, -hh), p(hw, hh), p(-hw, hh)];
   const lines: [Point, Point][] = [];
-  if (stream === "supply" && s.wMm === s.hMm) {
+  /* a round diffuser: its rim, and a ring inside it */
+  if (stream === "supply" && style === "round") {
+    const ring = (r: number, k: number) => Array.from({ length: k }, (_, i) => p(Math.cos((i / k) * Math.PI * 2) * r, Math.sin((i / k) * Math.PI * 2) * r));
+    const inner = ring(hw * 0.55, 20);
+    inner.forEach((q, i) => lines.push([q, inner[(i + 1) % inner.length]]));
+    return { outline: ring(hw, 32), lines };
+  }
+  const outline = [p(-hw, -hh), p(hw, -hh), p(hw, hh), p(-hw, hh)];
+  if (stream === "supply" && (style ? style === "square" : s.wMm === s.hMm)) {
     lines.push([outline[0], outline[2]], [outline[1], outline[3]]);
   } else if (stream === "supply") {
     for (const f of [-1 / 3, 1 / 3]) lines.push([p(-hw, hh * f * 2), p(hw, hh * f * 2)]);

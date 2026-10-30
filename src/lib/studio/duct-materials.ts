@@ -15,9 +15,9 @@
 
 import type { DesignDocument, DesignSystem, Point } from "./document";
 import type { DataPack } from "./packs/schema";
-import { polylineLength, unitsToMeters } from "./geometry";
+import { polylineLength, smoothedLength, unitsToMeters } from "./geometry";
 import { systemAir } from "./airflow";
-import { grilleName, grilleSize, grilleStream, isGrille } from "./grilles";
+import { grilleMount, grilleName, grilleSize, grilleStream, grilleStyle, isGrille } from "./grilles";
 import { damperCableSub, zoneKit, zoningOf, zonesOf } from "./zoning";
 
 export type DuctShelf = "ductwork" | "grilles" | "controls";
@@ -44,24 +44,29 @@ export function ductLines(doc: DesignDocument, pack: DataPack, sys: DesignSystem
   const mine = doc.objects.filter((o) => o.systemId === sys.id);
   const scaleOf = new Map(doc.floors.map((f) => [f.id, f.scaleMmPerUnit ?? null]));
 
-  /* ducts: by size and stream, metres where the plan is scaled */
-  const ducts = new Map<string, { dia: number; stream: "Supply" | "Return"; m: number; unmeasured: boolean }>();
+  /* ducts: by kind, size and stream, metres where the plan is scaled. A
+     rigid one is drawn straight; a flex one is drawn as a curve and measured
+     along it. One drawn before the two were offered is flex, as it always
+     was, measured as drawn. */
+  const ducts = new Map<string, { rigid: boolean; dia: number; stream: "Supply" | "Return"; m: number; unmeasured: boolean }>();
   for (const o of mine) {
     if (o.type !== "duct-run" || o.geometry.kind !== "polyline") continue;
     const dia = Number(o.props.diaMm) || 250;
     const stream = streamWord(o.props.stream);
-    const key = `${stream}/${dia}`;
-    const cur = ducts.get(key) ?? { dia, stream, m: 0, unmeasured: false };
+    const rigid = o.props.form === "rigid";
+    const key = `${rigid ? "rigid" : "flex"}/${stream}/${dia}`;
+    const cur = ducts.get(key) ?? { rigid, dia, stream, m: 0, unmeasured: false };
     const mm = scaleOf.get(o.floorId) ?? null;
-    if (mm) cur.m += unitsToMeters(polylineLength(o.geometry.points as Point[]), mm);
+    const pts = o.geometry.points as Point[];
+    if (mm) cur.m += unitsToMeters(o.props.form === "flex" ? smoothedLength(pts) : polylineLength(pts), mm);
     else cur.unmeasured = true;
     ducts.set(key, cur);
   }
   const ductLines: DuctLine[] = [...ducts.values()]
-    .sort((a, b) => b.stream.localeCompare(a.stream) || b.dia - a.dia)
+    .sort((a, b) => Number(b.rigid) - Number(a.rigid) || b.stream.localeCompare(a.stream) || b.dia - a.dia)
     .map((d) => ({
       shelf: "ductwork",
-      name: `Flexible duct Ø${d.dia}`,
+      name: `${d.rigid ? "Rigid" : "Flexible"} duct Ø${d.dia}`,
       sub: d.unmeasured ? `${d.stream}, set the plan's scale to measure` : `${d.stream}, as drawn`,
       /* up to the next 10 cm, past float noise: 6.30 m is 6.3, not 6.4 */
       qty: d.unmeasured && d.m === 0 ? "—" : `${Math.ceil(d.m * 10 - 1e-6) / 10} m`,
@@ -86,17 +91,20 @@ export function ductLines(doc: DesignDocument, pack: DataPack, sys: DesignSystem
     });
   }
 
-  /* grilles: by name, as placed */
-  const grilles = new Map<string, { sub: string; n: number }>();
+  /* grilles: by name, as placed, and by where they sit when somebody said */
+  const grilles = new Map<string, { name: string; sub: string; n: number }>();
   for (const o of mine) {
     if (!isGrille(o)) continue;
     const stream = grilleStream(o);
-    const name = grilleName(stream, grilleSize(o));
-    grilles.set(name, { sub: stream === "return" ? "Return" : "Supply outlet", n: (grilles.get(name)?.n ?? 0) + 1 });
+    const name = grilleName(stream, grilleSize(o), grilleStyle(o));
+    const mount = grilleMount(o);
+    const key = `${name}/${mount ?? ""}`;
+    const sub = `${stream === "return" ? "Return" : "Supply outlet"}${mount ? `, ${mount}` : ""}`;
+    grilles.set(key, { name, sub, n: (grilles.get(key)?.n ?? 0) + 1 });
   }
-  const grilleLines: DuctLine[] = [...grilles]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([name, g]) => ({ shelf: "grilles", name, sub: g.sub, qty: String(g.n) }));
+  const grilleLines: DuctLine[] = [...grilles.values()]
+    .sort((a, b) => a.name.localeCompare(b.name) || a.sub.localeCompare(b.sub))
+    .map((g) => ({ shelf: "grilles", name: g.name, sub: g.sub, qty: String(g.n) }));
 
   /* zoning: the kit Edit system was told, a damper a zone */
   const controls: DuctLine[] = [];

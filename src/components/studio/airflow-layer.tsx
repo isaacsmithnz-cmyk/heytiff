@@ -5,7 +5,8 @@
    for return"). Every mark on the floor, whichever system is picked. With
    Select, a click picks a mark (Delete removes it, as anything picked) and a
    drag moves it; the draft while the Airflow tool is pulling is drawn here
-   too. */
+   too. In the next flow a picked mark also turns: drag the dot at its head
+   round, Shift for 15° steps (board 11 of the Studio rework mocks). */
 
 import { useState } from "react";
 import type { DesignDocument, Floor, Point } from "@/lib/studio/document";
@@ -20,7 +21,8 @@ export function AirflowLayer({
   doc,
   floor,
   zoom,
-  pen = 1 / zoom,
+  pen: penIn,
+  turnable = false,
   interactive,
   selectedId,
   draft,
@@ -34,6 +36,8 @@ export function AirflowLayer({
   /** a line's pixel, in world units: a screen pixel, or in the next flow
       the printed page's, so the arrow weighs what it prints at */
   pen?: number;
+  /** a picked mark shows the dot it is turned by */
+  turnable?: boolean;
   /** Select is armed and nothing is simulating */
   interactive: boolean;
   selectedId: string | null;
@@ -43,7 +47,9 @@ export function AirflowLayer({
   onSelect: (id: string | null) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
 }) {
+  const pen = penIn ?? 1 / zoom;
   const [drag, setDrag] = useState<{ id: string; from: Point; screen: Point; to: Point; moved: boolean } | null>(null);
+  const [turn, setTurn] = useState<{ id: string; deg: number } | null>(null);
   const mm = floor.scaleMmPerUnit ?? UNSCALED_MM;
   const marks = doc.objects.filter((o): o is AirflowMark => o.floorId === floor.id && isAirflowMark(o));
   if (!marks.length && !draft) return null;
@@ -64,9 +70,11 @@ export function AirflowLayer({
       {marks.map((o) => {
         const moving = drag?.id === o.id && drag.moved;
         const at = moving ? { x: o.geometry.at.x + drag.to.x - drag.from.x, y: o.geometry.at.y + drag.to.y - drag.from.y } : o.geometry.at;
-        const deg = o.geometry.rotation ?? 0;
+        const deg = turn?.id === o.id ? turn.deg : (o.geometry.rotation ?? 0);
         const stream = streamOf(o);
         const r = 500 / mm;
+        const rad = (deg * Math.PI) / 180;
+        const grip = { x: at.x + Math.cos(rad) * r, y: at.y + Math.sin(rad) * r };
         return (
           <g
             key={o.id}
@@ -114,6 +122,49 @@ export function AirflowLayer({
             <circle cx={at.x} cy={at.y} r={r} className="ds-airflow-hit" />
             {selectedId === o.id && <circle cx={at.x} cy={at.y} r={r} className="ds-airflow-ring" />}
             {shape(o.id, at, deg, stream, "")}
+            {turnable && interactive && selectedId === o.id && (
+              <circle
+                cx={grip.x}
+                cy={grip.y}
+                r={6 / zoom}
+                className="ds-airflow-grip"
+                strokeWidth={2 / zoom}
+                style={{ color: AIRFLOW_INKS[stream] }}
+                data-testid="airflow-turn"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  try {
+                    e.currentTarget.setPointerCapture(e.pointerId);
+                  } catch {
+                    /* jsdom */
+                  }
+                  setTurn({ id: o.id, deg });
+                }}
+                onPointerMove={(e) => {
+                  if (turn?.id !== o.id) return;
+                  e.stopPropagation();
+                  const w = toWorld(e);
+                  let next = (Math.atan2(w.y - o.geometry.at.y, w.x - o.geometry.at.x) * 180) / Math.PI;
+                  if (e.shiftKey) next = Math.round(next / 15) * 15;
+                  setTurn({ id: o.id, deg: next });
+                }}
+                onPointerUp={(e) => {
+                  if (turn?.id !== o.id) return;
+                  e.stopPropagation();
+                  const t = turn;
+                  setTurn(null);
+                  onMutate((doc) => ({
+                    ...doc,
+                    objects: doc.objects.map((x) =>
+                      x.id === t.id && x.geometry.kind === "point"
+                        ? { ...x, geometry: { ...x.geometry, rotation: Math.round(t.deg * 10) / 10 } }
+                        : x
+                    ),
+                  }));
+                }}
+                onPointerCancel={() => setTurn(null)}
+              />
+            )}
           </g>
         );
       })}

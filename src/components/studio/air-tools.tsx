@@ -9,7 +9,17 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { Tooltip } from "@/components/parts/tooltip";
 import type { AirComponentKind } from "./canvas";
-import { GRILLE_SIZES, sizeText, typedGrilleMm, type GrilleSize } from "@/lib/studio/grilles";
+import {
+  GRILLE_MOUNTS,
+  GRILLE_SIZES,
+  GRILLE_STYLES,
+  sizeText,
+  sizesFor,
+  typedGrilleMm,
+  type GrilleMount,
+  type GrilleSize,
+  type GrilleStyle,
+} from "@/lib/studio/grilles";
 
 export interface PaletteEntry {
   kind: AirComponentKind;
@@ -88,12 +98,15 @@ export function ComponentPalette({
 export function OptionsHud({
   label,
   children,
+  wide = false,
 }: {
   label: string;
   children: React.ReactNode;
+  /** a bar with many choices: it wraps onto a second row rather than run off the plan */
+  wide?: boolean;
 }) {
   return (
-    <div className="ds-hud" role="toolbar" aria-label={`${label} options`}>
+    <div className={`ds-hud${wide ? " wide" : ""}`} role="toolbar" aria-label={`${label} options`}>
       <span className="ds-hud-label">{label}</span>
       {children}
     </div>
@@ -215,5 +228,115 @@ function MmField({ label, value, onCommit }: { label: string; value: number; onC
         if (e.key === "Escape") setDraft(String(value));
       }}
     />
+  );
+}
+
+/* ── THE AIR BAR (the next flow; board 7 of the Studio rework mocks): one
+   button on the bench, and while it is armed one bar over the plan with
+   everything the air side puts down. What goes down next, supply or return,
+   then that thing's own choices: a grille's kind, where it sits and its
+   size; a duct's size. A rigid duct is drawn straight, a flex one as a
+   curve; both end on a grille. ── */
+
+export type AirKind = "grille" | "duct" | "flex" | "arrow" | "sensor" | "controller" | "plenum";
+
+export interface AirState {
+  kind: AirKind;
+  stream: "supply" | "return";
+  style: GrilleStyle;
+  mount: GrilleMount;
+  size: GrilleSize;
+  ductMm: number;
+}
+
+export const DEFAULT_AIR: AirState = {
+  kind: "grille",
+  stream: "supply",
+  style: "square",
+  mount: "ceiling",
+  size: { wMm: 300, hMm: 300 },
+  ductMm: 250,
+};
+
+const KIND_WORDS: [AirKind, string][] = [
+  ["grille", "Grille"],
+  ["duct", "Duct"],
+  ["flex", "Flex"],
+  ["arrow", "Arrow"],
+  ["sensor", "Sensor"],
+  ["controller", "Controller"],
+  ["plenum", "Plenum"],
+];
+const STYLE_WORDS: Record<GrilleStyle, string> = { square: "Square", round: "Round", linear: "Linear" };
+const MOUNT_WORDS: Record<GrilleMount, string> = { ceiling: "Ceiling", wall: "Wall", floor: "Floor" };
+export const DUCT_SIZES = [150, 200, 250, 300, 350, 400];
+
+/** what a size chip says: a round face by its neck */
+const sizeWord = (s: GrilleSize, style: GrilleStyle | null) => (style === "round" ? `Ø${s.wMm}` : sizeText(s));
+
+export function AirBar({
+  air,
+  onAir,
+  plenum,
+  picked,
+}: {
+  air: AirState;
+  onAir: (next: AirState) => void;
+  /** the system's indoor unit takes a plenum */
+  plenum: boolean;
+  /** a grille picked on the plan: its own choices, and no kinds */
+  picked?: boolean;
+}) {
+  const chip = (on: boolean, label: string, act: () => void) => (
+    <button key={label} className={`ds-hud-chip${on ? " on" : ""}`} aria-pressed={on} onClick={act}>
+      {label}
+    </button>
+  );
+  const set = (patch: Partial<AirState>) => onAir({ ...air, ...patch });
+  const grilleStyle = air.stream === "supply" ? air.style : null;
+  const sizes = sizesFor(air.stream, grilleStyle);
+  const streams = air.kind !== "sensor" && air.kind !== "controller";
+  return (
+    <OptionsHud label={picked ? "Grille" : "Air"} wide>
+      {!picked && (
+        <div className="ds-hud-seg">
+          {KIND_WORDS.filter(([k]) => k !== "plenum" || plenum).map(([k, word]) => chip(air.kind === k, word, () => set({ kind: k })))}
+        </div>
+      )}
+      {streams && (
+        <div className="ds-hud-seg">
+          {chip(air.stream === "supply", "Supply", () =>
+            set({ stream: "supply", size: sizesFor("supply", air.style)[0] })
+          )}
+          {chip(air.stream === "return", "Return", () => set({ stream: "return", size: GRILLE_SIZES.return[0] }))}
+        </div>
+      )}
+      {air.kind === "grille" && air.stream === "supply" && (
+        <div className="ds-hud-seg">
+          {GRILLE_STYLES.map((st) => chip(air.style === st, STYLE_WORDS[st], () => set({ style: st, size: sizesFor("supply", st)[0] })))}
+        </div>
+      )}
+      {air.kind === "grille" && (
+        <div className="ds-hud-seg">{GRILLE_MOUNTS.map((m) => chip(air.mount === m, MOUNT_WORDS[m], () => set({ mount: m })))}</div>
+      )}
+      {air.kind === "grille" && (
+        <div className="ds-hud-seg">
+          {sizes.map((sz) =>
+            chip(sz.wMm === air.size.wMm && sz.hMm === air.size.hMm, sizeWord(sz, grilleStyle), () => set({ size: sz }))
+          )}
+        </div>
+      )}
+      {air.kind === "grille" && grilleStyle !== "round" && (
+        <span className="ds-hud-size" key={sizeText(air.size)}>
+          <MmField label="Width, mm" value={air.size.wMm} onCommit={(wMm) => set({ size: { ...air.size, wMm } })} />
+          <span aria-hidden="true">×</span>
+          <MmField label="Height, mm" value={air.size.hMm} onCommit={(hMm) => set({ size: { ...air.size, hMm } })} />
+          <span className="ds-hud-unit">mm</span>
+        </span>
+      )}
+      {(air.kind === "duct" || air.kind === "flex") && (
+        <div className="ds-hud-seg">{DUCT_SIZES.map((mm) => chip(air.ductMm === mm, `Ø${mm}`, () => set({ ductMm: mm })))}</div>
+      )}
+    </OptionsHud>
   );
 }

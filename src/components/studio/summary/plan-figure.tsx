@@ -2,17 +2,9 @@
 
 import type { DesignDocument, DesignObject, Floor, Point } from "@/lib/studio/document";
 import { AIRFLOW_INKS, isAirflowMark, markShapes, streamOf } from "@/lib/studio/airflow-marks";
-import { grilleShape, grilleSize, grilleStream, isGrille } from "@/lib/studio/grilles";
-import {
-  areaUnitsToM2,
-  formatArea,
-  formatMeters,
-  polygonArea,
-  polylineLength,
-  smoothedLength,
-  smoothPathD,
-  unitsToMeters,
-} from "@/lib/studio/geometry";
+import { grilleShape, grilleSize, grilleStream, grilleStyle, isGrille } from "@/lib/studio/grilles";
+import { deviceHalf, deviceLetter, isDevice } from "@/lib/studio/devices";
+import { areaUnitsToM2, formatArea, polygonArea, smoothPathD, unitsToMeters } from "@/lib/studio/geometry";
 import {
   cloudPath,
   isNote,
@@ -31,7 +23,8 @@ import {
   sheetUnitOf,
 } from "@/lib/studio/figure-bounds";
 import { unitGlyph, type LayerFlags } from "../canvas";
-import { footprintBox, layoutPlanLabels, roomLabelFixed } from "@/lib/studio/plan-labels";
+import { paperFootprint, paperLayout, paperRunText } from "@/lib/studio/paper-labels";
+import { useStudioFlow } from "../flow";
 import { tabPath } from "@/lib/studio/room-tab";
 import type { UnitMark } from "@/lib/studio/export";
 
@@ -84,6 +77,7 @@ export function PlanFigure({
       mark the canvas does; absent, every head is the plain box */
   markOf?: (model: string) => UnitMark | undefined;
 }) {
+  const flow = useStudioFlow();
   const bounds = planFigureBounds(doc, floor);
   const unit = sheetUnitOf(doc, floor);
   if (!bounds || unit == null) return null;
@@ -117,64 +111,14 @@ export function PlanFigure({
       o.type === "riser" && o.geometry.kind === "point"
   );
   /** a run's words on paper: its length, and a drain's size or a cable's kind */
-  const runText = (r: (typeof runs)[number]): string => {
-    const pts = r.geometry.points;
-    const curved = r.type === "cable-run" || (r.type === "pipe-run" && r.props.form === "soft");
-    const len = scale
-      ? formatMeters(unitsToMeters(curved ? smoothedLength(pts) : polylineLength(pts), scale))
-      : null;
-    const tag =
-      r.type === "drain-run"
-        ? `Ø${Number(r.props.sizeMm) || 25} drain`
-        : r.type === "cable-run"
-          ? r.props.kind === "data"
-            ? "Data"
-            : "Power"
-          : r.type === "duct-run"
-            ? `Ø${Number(r.props.diaMm) || 250} ${r.props.stream === "return" ? "return" : "supply"}`
-            : null;
-    return [len, tag].filter(Boolean).join(", ");
-  };
-  const unitFp = (o: (typeof units)[number]) => {
-    const widthMm = Number(o.props.widthMm ?? 800);
-    const depthMm = Number(o.props.depthMm ?? 300);
-    return scale
-      ? { w: widthMm / scale, h: depthMm / scale }
-      : { w: 45 * u, h: 45 * u * (depthMm / Math.max(widthMm, 1)) };
-  };
+  const runText = (r: (typeof runs)[number]): string => paperRunText(r, floor);
+  const unitFp = (o: (typeof units)[number]) => paperFootprint(o, floor, u);
   /* the words placed as the canvas places them (plan-labels.ts): off the
-     pipes, the units and each other */
-  const planLabels = layers.labels
-    ? layoutPlanLabels({
-        px: u,
-        rooms: rooms.map((r) => ({
-          id: r.id,
-          polygon: r.geometry.points,
-          /* its tab where it was put on the wall; the old inside spot only
-             when that is all there is — the canvas reads it the same way */
-          edge: typeof r.props.labelEdge === "number" ? r.props.labelEdge : null,
-          fixed: typeof r.props.labelEdge === "number" ? undefined : roomLabelFixed(r.props, r.geometry.points),
-          lineGap: 16,
-          lines: [
-            { text: String(r.props.name ?? "Room"), size: 13 },
-            {
-              text: scale ? formatArea(areaUnitsToM2(polygonArea(r.geometry.points), scale)) : "not calibrated",
-              size: 11,
-            },
-          ],
-        })),
-        runs: layers.pipes ? runs.map((r) => ({ id: r.id, points: r.geometry.points, text: runText(r), size: 11 })) : [],
-        solids: [
-          ...(layers.units
-            ? units.map((o) => {
-                const fp = unitFp(o);
-                return footprintBox(o.geometry.at, fp.w, fp.h, (o.geometry as { rotation?: number }).rotation ?? 0);
-              })
-            : []),
-          ...risers.map((o) => footprintBox(o.geometry.at, 24 * u, 24 * u)),
-        ],
-      })
-    : null;
+     pipes, the units and each other; in the next flow the callouts move
+     clear of them too (paper-labels.ts), as the canvas shows them */
+  const paper = paperLayout(doc, floor, u, { ...layers, air: flow === "next" });
+  const planLabels = paper.labels;
+  const calloutAt = (o: DesignObject) => (flow === "next" ? (paper.callouts.get(o.id) ?? null) : calloutOf(o));
 
   const labelBacks = doc.settings.labelBacks === true;
   const backOf = (b: { x0: number; y0: number; x1: number; y1: number }) => (
@@ -341,7 +285,9 @@ export function PlanFigure({
           runs.map((r) => {
             const pts = r.geometry.points;
             const curved =
-              r.type === "cable-run" || (r.type === "pipe-run" && r.props.form === "soft");
+              r.type === "cable-run" ||
+              (r.type === "pipe-run" && r.props.form === "soft") ||
+              (r.type === "duct-run" && r.props.form === "flex");
             const cls =
               r.type === "drain-run"
                 ? "ds-pfdrain"
@@ -359,10 +305,18 @@ export function PlanFigure({
                   (() => {
                     const line = pts.map((p) => `${p.x},${p.y}`).join(" ");
                     const width = Math.max((Number(r.props.diaMm) || 250) / (scale ?? 10), 4 * u);
-                    return (
+                    const ink = AIRFLOW_INKS[r.props.stream === "return" ? "return" : "supply"];
+                    const core = Math.max(width - 3 * u, u);
+                    /* a flex one along its curve */
+                    return curved ? (
                       <g fill="none">
-                        <polyline points={line} stroke={AIRFLOW_INKS[r.props.stream === "return" ? "return" : "supply"]} strokeWidth={width} />
-                        <polyline points={line} stroke="#fff" strokeWidth={Math.max(width - 3 * u, u)} />
+                        <path d={smoothPathD(pts)} stroke={ink} strokeWidth={width} />
+                        <path d={smoothPathD(pts)} stroke="#fff" strokeWidth={core} />
+                      </g>
+                    ) : (
+                      <g fill="none">
+                        <polyline points={line} stroke={ink} strokeWidth={width} />
+                        <polyline points={line} stroke="#fff" strokeWidth={core} />
                       </g>
                     );
                   })()
@@ -473,7 +427,7 @@ export function PlanFigure({
             door is the whole reason the geometry lives in lib and not here. */}
         {layers.units &&
           units.map((o) => {
-            const off = calloutOf(o);
+            const off = calloutAt(o);
             if (!off) return null;
             const at = o.geometry.at;
             const fp = unitFp(o);
@@ -546,7 +500,7 @@ export function PlanFigure({
         {/* grilles the person placed, through the canvas's geometry */}
         {onFloor.filter(isGrille).map((o) => {
           const stream = grilleStream(o);
-          const sh = grilleShape(o.geometry.at, o.geometry.rotation ?? 0, stream, grilleSize(o), scale ?? 10);
+          const sh = grilleShape(o.geometry.at, o.geometry.rotation ?? 0, stream, grilleSize(o), scale ?? 10, grilleStyle(o));
           return (
             <g key={o.id} className="ds-pf-grille" stroke={AIRFLOW_INKS[stream]}>
               <polygon points={sh.outline.map((p) => `${p.x},${p.y}`).join(" ")} fill="#fff" strokeWidth={1.6 * u} />
@@ -556,6 +510,30 @@ export function PlanFigure({
             </g>
           );
         })}
+
+        {/* zone sensors and wall controllers, where they were put */}
+        {layers.units &&
+          onFloor.filter(isDevice).map((o) => {
+            const at = o.geometry.at;
+            const half = deviceHalf(o.type, scale, 5 * u);
+            return (
+              <g key={o.id} className="ds-pf-device" style={{ color: colourOf(o) }}>
+                <rect
+                  x={at.x - half}
+                  y={at.y - half}
+                  width={half * 2}
+                  height={half * 2}
+                  rx={o.type === "zone-sensor" ? half : half * 0.3}
+                  fill="#fff"
+                  stroke="currentColor"
+                  strokeWidth={1.2 * u}
+                />
+                <text x={at.x} y={at.y + half * 0.42} fontSize={half * 1.2} fill="currentColor" fontWeight={700} textAnchor="middle">
+                  {deviceLetter(o.type)}
+                </text>
+              </g>
+            );
+          })}
 
         {/* markup — drawn last, over the work it is about */}
         {notes.map((n) => {

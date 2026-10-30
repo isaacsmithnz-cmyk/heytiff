@@ -4155,11 +4155,17 @@ html[data-ds-display] .dstudio.editing {
 /* ducts: drawn at their true width in the stream's ink (blue supply, red
    return) with paper down the middle, a tube; scaled with the plan, so no
    non-scaling stroke */
-.dstudio .ds-ductrun polyline {
+.dstudio .ds-ductrun polyline,
+.dstudio .ds-ductrun path {
   fill: none;
   stroke-linejoin: miter;
   stroke-linecap: butt;
 }
+/* the dot a picked airflow mark is turned by */
+.dstudio .ds-airflow-grip { fill: var(--paper); stroke: currentColor; cursor: grab; }
+/* zone sensors and wall controllers: a white plate in the system's colour */
+.dstudio .ds-device rect { fill: var(--paper); stroke: currentColor; }
+.dstudio .ds-device text { fill: currentColor; font-weight: 700; text-anchor: middle; }
 .dstudio .ds-ductrun .ds-ductrun-core { stroke: var(--paper); }
 .dstudio .ds-ductrun.sel .ds-ductrun-core { stroke: var(--line); }
 /* cables: dash-dot curve */
@@ -6311,6 +6317,9 @@ html[data-ds-display] .dstudio.editing {
   box-shadow: var(--shadow-overlay);
   padding: 4px 4px 4px 12px;
 }
+/* the Air bar: its choices wrap to a second row, centred, rather than run
+   off the plan */
+.dstudio .ds-hud.wide { flex-wrap: wrap; justify-content: center; }
 .dstudio .ds-hud-label {
   font-size: 12px;
   font-weight: 500;

@@ -16,12 +16,15 @@ import {
   grilleShape,
   grilleSize,
   grilleStream,
+  grilleStyle,
   isGrille,
   resizeGrille,
   type Grille,
   type GrilleEdge,
   type GrilleSize,
+  type GrilleStyle,
 } from "@/lib/studio/grilles";
+import { reconcileAttachedRuns } from "@/lib/studio/attach";
 
 /** a press that moves less than this on screen is a click, px */
 const CLICK_PX = 4;
@@ -57,7 +60,7 @@ export function GrilleLayer({
   interactive: boolean;
   selectedId: string | null;
   /** the grille the armed component would put down, under the pointer */
-  ghost: { at: Point; deg: number; stream: AirStream; size: GrilleSize } | null;
+  ghost: { at: Point; deg: number; stream: AirStream; size: GrilleSize; style?: GrilleStyle | null } | null;
   toWorld: (e: { clientX: number; clientY: number }) => Point;
   onSelect: (id: string | null) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
@@ -67,8 +70,8 @@ export function GrilleLayer({
   const grilles = doc.objects.filter((o): o is Grille => o.floorId === floor.id && isGrille(o));
   if (!grilles.length && !ghost) return null;
 
-  const face = (key: string, at: Point, deg: number, stream: AirStream, size: GrilleSize, cls: string) => {
-    const s = grilleShape(at, deg, stream, size, mm);
+  const face = (key: string, at: Point, deg: number, stream: AirStream, size: GrilleSize, cls: string, style: GrilleStyle | null = null) => {
+    const s = grilleShape(at, deg, stream, size, mm, style);
     const ink = AIRFLOW_INKS[stream];
     return (
       <g key={key} className={cls} aria-hidden="true">
@@ -93,17 +96,22 @@ export function GrilleLayer({
       /* jsdom */
     }
   };
+  /* a duct that ends on the grille comes with it (attach.ts), in the same
+     change, so one undo puts both back */
   const commit = (id: string, at: Point, deg: number, size: GrilleSize) =>
     onMutate((doc) => ({
       ...doc,
-      objects: doc.objects.map((x) =>
-        x.id === id && x.geometry.kind === "point"
-          ? {
-              ...x,
-              geometry: { ...x.geometry, at, rotation: deg },
-              props: { ...x.props, wMm: size.wMm, hMm: size.hMm },
-            }
-          : x
+      objects: reconcileAttachedRuns(
+        doc.objects.map((x) =>
+          x.id === id && x.geometry.kind === "point"
+            ? {
+                ...x,
+                geometry: { ...x.geometry, at, rotation: deg },
+                props: { ...x.props, wMm: size.wMm, hMm: size.hMm },
+              }
+            : x
+        ),
+        new Set([id])
       ),
     }));
 
@@ -190,7 +198,7 @@ export function GrilleLayer({
               }}
               onPointerCancel={() => setDrag(null)}
             >
-              {face(o.id, at, deg, stream, size, "")}
+              {face(o.id, at, deg, stream, size, "", grilleStyle(o))}
             </g>
             {picked &&
               (["n", "e", "s", "w"] as const).filter(room).map((edge) => {
@@ -231,7 +239,7 @@ export function GrilleLayer({
           </g>
         );
       })}
-      {ghost && face("ghost", ghost.at, ghost.deg, ghost.stream, ghost.size, "ds-grille-ghost")}
+      {ghost && face("ghost", ghost.at, ghost.deg, ghost.stream, ghost.size, "ds-grille-ghost", ghost.style ?? null)}
     </g>
   );
 }

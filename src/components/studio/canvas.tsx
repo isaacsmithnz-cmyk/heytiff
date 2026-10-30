@@ -87,13 +87,15 @@ import { pipeRefusal } from "@/lib/studio/pipe-rules";
 import { strayFittingIds } from "@/lib/studio/verdict";
 import { pairSize, sizeTone, vrfPipeViews, type FittingView } from "@/lib/studio/pipe-sizes";
 import { footprintBox, layoutPlanLabels, roomLabelFixed, roomLabelOffset, type PlanLabels } from "@/lib/studio/plan-labels";
+import { airSolids, paperLayout } from "@/lib/studio/paper-labels";
 import { nearestTabS, tabPath, tabShare, wallsOf, TAB_PAD_T, TAB_PAD_X } from "@/lib/studio/room-tab";
 import type { SizedSection } from "@/lib/studio/vrf-tree";
 import { usePipeUnits } from "./pipe-units";
 import { AirflowLayer } from "./airflow-layer";
 import { AIRFLOW_INKS, airflowMark, hitMark, isAirflowMark, pullDeg, type AirStream, type AirflowMark } from "@/lib/studio/airflow-marks";
 import { GrilleLayer } from "./grille-layer";
-import { GRILLE_SIZES, grille, hitGrille, isGrille, type Grille, type GrilleSize } from "@/lib/studio/grilles";
+import { GRILLE_SIZES, grille, hitGrille, isGrille, type Grille, type GrilleMount, type GrilleSize, type GrilleStyle } from "@/lib/studio/grilles";
+import { device, deviceHalf, deviceLetter, isDevice, type Device, type DeviceKind } from "@/lib/studio/devices";
 
 /** a branch box on the plan: PAC-MK34BC / MK54BC are both 450 × 280 mm (M-P0860 p.44) */
 const BOX_W_MM = 450;
@@ -256,6 +258,9 @@ export interface DrawOptions {
   /** the next duct: its diameter and whether it carries supply or return */
   ductMm: number;
   ductStream: AirStream;
+  /** the next flow's Air bar: a rigid duct drawn straight, or flex drawn as
+      a curve; unset, a duct is drawn as it always was */
+  ductForm?: "rigid" | "flex";
   /** the next airflow mark: blue supply or red return */
   airStream: AirStream;
 }
@@ -274,15 +279,18 @@ export const isRunTool = (t: CanvasTool): t is "pipe" | "drain" | "cable" | "duc
 
 /** the object types those tools commit (hit/erase/drag-follow treat alike) */
 const RUN_TYPES = new Set(["pipe-run", "drain-run", "cable-run", "duct-run"]);
-/** what a run's end can attach to (graph.ts Attach) */
-type AnchorKind = "unit" | "riser" | "joint" | "branch-box";
+/** what a run's end can attach to (graph.ts Attach); a duct in the next
+    flow also ends on a grille */
+type AnchorKind = "unit" | "riser" | "joint" | "branch-box" | "grille";
 
 /** does this run render as a smoothed curve? cables always; pipe when soft */
 export const isCurvedRun = (o: {
   type: string;
   props: Record<string, unknown>;
 }): boolean =>
-  o.type === "cable-run" || (o.type === "pipe-run" && o.props.form === "soft");
+  o.type === "cable-run" ||
+  (o.type === "pipe-run" && o.props.form === "soft") ||
+  (o.type === "duct-run" && o.props.form === "flex");
 
 /** Canvas layer visibility (transient view state, not persisted). */
 export interface LayerFlags {
@@ -342,6 +350,9 @@ export interface ArmedComponent {
   kind: AirComponentKind;
   stream: "supply" | "return";
   size?: GrilleSize;
+  /** the next flow's Air bar: what the grille is and where it sits */
+  style?: GrilleStyle | null;
+  mount?: GrilleMount | null;
 }
 
 const CLOSE_SNAP_PX = 12; // screen px to close a polygon on its first vertex
@@ -1285,6 +1296,8 @@ export function StudioCanvas({
       ),
     [doc.objects, inScope]
   );
+  /* zone sensors and wall controllers placed on the plan (devices.ts) */
+  const devices = useMemo(() => doc.objects.filter((o): o is Device => inScope(o) && isDevice(o)), [doc.objects, inScope]);
 
   /* Notes are FLOOR-wide and system-agnostic (notes.ts): the markup belongs to
      the drawing, so switching the canvas to another system must never take
@@ -1304,9 +1317,9 @@ export function StudioCanvas({
   const [liveSlide, setLiveSlide] = useState<Map<string, Point[]> | null>(null);
   const pointById = useMemo(() => {
     const m = new Map<string, { id: string; geometry: { at: Point } }>();
-    for (const o of [...units, ...risers, ...joints, ...boxes]) m.set(o.id, o);
+    for (const o of [...units, ...risers, ...joints, ...boxes, ...devices]) m.set(o.id, o);
     return m;
-  }, [units, risers, joints, boxes]);
+  }, [units, risers, joints, boxes, devices]);
   /** live anchor for an attach target: the point object being dragged, or a
       unit travelling with a mid-drag room move; null when the target is at
       rest (render from the document) */
@@ -1408,11 +1421,18 @@ export function StudioCanvas({
       Pipe endpoints snap to these; the nearest within range lights up BEFORE
       the click (the show-the-snap-target-first rule). */
   const anchors = useMemo(
-    () =>
-      [...units, ...risers, ...joints, ...boxes]
+    () => [
+      ...[...units, ...risers, ...joints, ...boxes]
         .filter((o) => o.systemId === activeSystemId)
         .map((o) => ({ kind: o.type as AnchorKind, id: o.id, at: pointAt(o) })),
-    [units, risers, joints, boxes, activeSystemId, pointAt]
+      /* the next flow: a duct ends on a grille of its system, and follows it */
+      ...(flow === "next" && tool === "duct"
+        ? doc.objects
+            .filter((o): o is Grille => o.floorId === floor.id && isGrille(o) && o.systemId === activeSystemId)
+            .map((o) => ({ kind: "grille" as const, id: o.id, at: o.geometry.at }))
+        : []),
+    ],
+    [units, risers, joints, boxes, activeSystemId, pointAt, flow, tool, doc.objects, floor.id]
   );
 
 
@@ -2502,7 +2522,13 @@ export function StudioCanvas({
   /** system objects hit first (they sit on top of rooms): plenum bodies,
       unit footprints, riser discs, then run segments */
   const hitSystemObject =
-    (w: Point): { id: string; kind: "unit" | "riser" | "joint" | "branch-box" | "pipe-run" | "plenum" } | null => {
+    (w: Point): { id: string; kind: "unit" | "riser" | "joint" | "branch-box" | "pipe-run" | "plenum" | "device" } | null => {
+      for (let i = devices.length - 1; i >= 0; i--) {
+        const o = devices[i];
+        const half = deviceHalf(o.type, floor.scaleMmPerUnit, 7 / vp.zoom);
+        const at = pointAt(o);
+        if (Math.abs(w.x - at.x) <= half && Math.abs(w.y - at.y) <= half) return { id: o.id, kind: "device" };
+      }
       for (let i = plenums.length - 1; i >= 0; i--) {
         const s = plenumShapes.get(plenums[i].id);
         if (s && pointInPolygon(w, s.body)) return { id: plenums[i].id, kind: "plenum" };
@@ -2664,6 +2690,15 @@ export function StudioCanvas({
       if (mark) {
         onMutate((d) => ({ ...d, objects: d.objects.filter((o) => o.id !== mark.id) }));
         if (selectedId === mark.id) onSelect(null);
+        return;
+      }
+      const dev = [...devices].reverse().find((o) => {
+        const half = deviceHalf(o.type, floor.scaleMmPerUnit, 7 / vp.zoom) + tol;
+        return Math.abs(w.x - o.geometry.at.x) <= half && Math.abs(w.y - o.geometry.at.y) <= half;
+      });
+      if (dev) {
+        onMutate((d) => ({ ...d, objects: d.objects.filter((o) => o.id !== dev.id) }));
+        if (selectedId === dev.id) onSelect(null);
         return;
       }
       const gr = [...doc.objects]
@@ -2899,7 +2934,7 @@ export function StudioCanvas({
           : tool === "cable"
             ? { type: "cable-run", props: { kind: draw.cableKind } }
             : tool === "duct"
-              ? { type: "duct-run", props: { diaMm: draw.ductMm, stream: draw.ductStream } }
+              ? { type: "duct-run", props: { diaMm: draw.ductMm, stream: draw.ductStream, ...(draw.ductForm ? { form: draw.ductForm } : {}) } }
             : {
                 type: "pipe-run",
                 // hard-drawn is the default every pre-Draw run already is —
@@ -3233,7 +3268,7 @@ export function StudioCanvas({
             kind: "callout",
             id: co.id,
             startWorld: w,
-            orig: calloutOf(u) ?? defaultCalloutOffset(fp),
+            orig: calloutDrawnAt(u) ?? defaultCalloutOffset(fp),
           });
           break;
         }
@@ -3242,8 +3277,8 @@ export function StudioCanvas({
           onSelect(sys.id);
           // plenums are anchored (their position derives from the AHU) and
           // runs are polylines — only units/risers/joints start a point drag
-          if (sys.kind === "unit" || sys.kind === "riser" || sys.kind === "joint" || sys.kind === "branch-box") {
-            const o = [...units, ...risers, ...joints, ...boxes].find((x) => x.id === sys.id)!;
+          if (sys.kind === "unit" || sys.kind === "riser" || sys.kind === "joint" || sys.kind === "branch-box" || sys.kind === "device") {
+            const o = [...units, ...risers, ...joints, ...boxes, ...devices].find((x) => x.id === sys.id)!;
             setDrag({ kind: "point", id: sys.id, startWorld: w, orig: pointAt(o) });
           }
           break;
@@ -3297,11 +3332,20 @@ export function StudioCanvas({
         break;
       }
       case "component": {
+        // a sensor or a controller goes where it is clicked, and stays armed
+        if (component?.kind === "zone-sensor" || component?.kind === "wall-controller") {
+          const kind: DeviceKind = component.kind;
+          tap(() => onMutate((d) => ({ ...d, objects: [...d.objects, device(floor.id, activeSystemId ?? null, w, kind)] })));
+          break;
+        }
         // a grille goes down where it is clicked, as the HUD set it
         if (component?.kind === "grille") {
           const c = component;
           tap(() => {
-            const g = grille(floor.id, activeSystemId ?? null, w, c.stream, c.size ?? GRILLE_SIZES[c.stream][0]);
+            const g = grille(floor.id, activeSystemId ?? null, w, c.stream, c.size ?? GRILLE_SIZES[c.stream][0], 0, {
+              style: c.style,
+              mount: c.mount,
+            });
             // it stays armed: a room's grilles go down one after another
             onMutate((d) => ({ ...d, objects: [...d.objects, g] }));
           });
@@ -3327,9 +3371,12 @@ export function StudioCanvas({
           // so runs stay horizontal/vertical (anchors always win). The curved
           // draws — soft pipe, cable — place their dots free: the smoothing
           // is the point.
-          const curved = tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft");
+          const curved =
+            tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft") || (tool === "duct" && draw.ductForm === "flex");
           const prev = draftPipe[draftPipe.length - 1];
-          const p = anchor ? anchor.at : onRun ? onRun.at : prev && !curved ? orthoSnap(prev, w) : w;
+          /* the next flow: Shift holds a curved draw to a straight stretch */
+          const straight = prev && (!curved || (flow === "next" && e.shiftKey));
+          const p = anchor ? anchor.at : onRun ? onRun.at : straight ? orthoSnap(prev, w) : w;
           /* a joint about to go on a run stands in as that end until it exists */
           const here = anchor ?? (onRun ? { kind: "joint" as const, id: "" } : null);
           const why =
@@ -4340,6 +4387,8 @@ export function StudioCanvas({
             const fp = footprint(BOX_W_MM, BOX_D_MM);
             return footprintBox(pointAt(o), fp.w, fp.h);
           }),
+          /* the next flow: off the grilles, sensors and controllers too, as on paper */
+          ...(paperU ? airSolids(doc, floor, 5 * paperU) : []),
         ],
       })
     : null;
@@ -4503,6 +4552,11 @@ export function StudioCanvas({
      written instruction must stay the loudest thing on a sheet, and this is
      machine data. */
   const calloutFontW = paperU ? CALLOUT_FONT_REF * canvasUnit(paperU, vp.zoom) : CALLOUT_FONT_PX / Math.max(vp.zoom, 1);
+  /* in the next flow a callout sits where the paper prints it, moved clear
+     of the words, the notes and the other callouts (paper-labels.ts); the
+     one in the hand stays under the pointer */
+  const paperCallouts = paperU ? paperLayout(doc, floor, paperU, { ...layers, air: true }, liveCallout).callouts : null;
+  const calloutDrawnAt = (u: DesignObject) => paperCallouts?.get(u.id) ?? calloutOf(u);
 
   /** The room a unit serves, by name — the one thing the callout says that
       has to be looked up rather than read straight off the object. Stamped
@@ -4535,7 +4589,7 @@ export function StudioCanvas({
   const callouts = (() => {
     const out: { id: string; lay: CalloutLayout; placed: boolean; colour: string }[] = [];
     for (const u of units) {
-      const stored = calloutOf(u);
+      const stored = calloutDrawnAt(u);
       const at = pointAt(u);
       const fp = footprint(
         Number(u.props.widthMm ?? 800),
@@ -4761,6 +4815,8 @@ export function StudioCanvas({
             }
           : tool === "component" && component?.kind === "grille"
             ? { icon: "wind", text: `Click where the ${component.stream} grille goes` }
+          : tool === "component" && (component?.kind === "zone-sensor" || component?.kind === "wall-controller")
+            ? { icon: "thermo", text: `Click where the ${component.kind === "zone-sensor" ? "sensor" : "controller"} goes` }
           : tool === "component" && component?.kind === "plenum"
             ? {
                 icon: "wind",
@@ -5230,15 +5286,22 @@ export function StudioCanvas({
               >
                 {r.type === "duct-run" ? (
                   /* a duct at its true width: the stream's ink for its walls,
-                     paper down its middle, so it reads as a tube */
+                     paper down its middle, so it reads as a tube; a flex one
+                     along its curve */
                   (() => {
                     const line = pts.map((p) => `${p.x},${p.y}`).join(" ");
                     const width = Math.max((Number(r.props.diaMm) || 250) / (mm ?? 10), 4 / zoom);
+                    const core = Math.max(width - 3 / zoom, 1 / zoom);
                     const ink = AIRFLOW_INKS[r.props.stream === "return" ? "return" : "supply"];
-                    return (
+                    return curved ? (
+                      <>
+                        <path d={smoothPathD(pts)} stroke={ink} strokeWidth={width} />
+                        <path className="ds-ductrun-core" d={smoothPathD(pts)} strokeWidth={core} />
+                      </>
+                    ) : (
                       <>
                         <polyline points={line} stroke={ink} strokeWidth={width} />
-                        <polyline className="ds-ductrun-core" points={line} strokeWidth={Math.max(width - 3 / zoom, 1 / zoom)} />
+                        <polyline className="ds-ductrun-core" points={line} strokeWidth={core} />
                       </>
                     );
                   })()
@@ -6058,6 +6121,35 @@ export function StudioCanvas({
             </g>
           )}
 
+          {/* zone sensors and wall controllers, where they were put: a
+              sensor's round plate, a controller's square one */}
+          {layers.units &&
+            devices.map((o) => {
+              const at = pointAt(o);
+              const half = deviceHalf(o.type, floor.scaleMmPerUnit, 7 / vp.zoom);
+              return (
+                <g
+                  key={o.id}
+                  className={`ds-device${selectedId === o.id ? " sel" : ""}`}
+                  style={{ color: sysColour.get(o.systemId ?? "") ?? "#888" }}
+                  role="img"
+                  aria-label={o.type === "zone-sensor" ? "Zone sensor" : "Wall controller"}
+                >
+                  <rect
+                    x={at.x - half}
+                    y={at.y - half}
+                    width={half * 2}
+                    height={half * 2}
+                    rx={o.type === "zone-sensor" ? half : half * 0.3}
+                    strokeWidth={(selectedId === o.id ? 2.4 : 1.4) / vp.zoom}
+                  />
+                  <text x={at.x} y={at.y + half * 0.42} fontSize={half * 1.2}>
+                    {deviceLetter(o.type)}
+                  </text>
+                </g>
+              );
+            })}
+
           {/* grilles the person placed from the component palette */}
           {layers.units && (
             <GrilleLayer
@@ -6073,6 +6165,7 @@ export function StudioCanvas({
                       deg: 0,
                       stream: component.stream,
                       size: component.size ?? GRILLE_SIZES[component.stream][0],
+                      style: component.stream === "supply" ? (component.style ?? null) : null,
                     }
                   : null
               }
@@ -6088,6 +6181,7 @@ export function StudioCanvas({
             floor={floor}
             zoom={vp.zoom}
             pen={paperU ? 1 / labelZoom : undefined}
+            turnable={flow === "next"}
             interactive={tool === "select" && !sim}
             selectedId={selectedId}
             draft={

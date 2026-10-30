@@ -66,8 +66,8 @@ import { setPipeUnits, usePipeUnits } from "./pipe-units";
 import { SchematicView } from "./vrf-schematic";
 import { useArmedInk, setArmedInk } from "./note-ink";
 import { pairPipeSizes } from "@/lib/studio/components";
-import { ComponentPalette, GrilleHud, PlenumHud } from "./air-tools";
-import { GRILLE_SIZES, grilleSize, grilleStream, isGrille, type Grille } from "@/lib/studio/grilles";
+import { AirBar, ComponentPalette, DEFAULT_AIR, GrilleHud, PlenumHud, type AirState } from "./air-tools";
+import { GRILLE_SIZES, grilleMount, grilleSize, grilleStream, grilleStyle, isGrille, type Grille } from "@/lib/studio/grilles";
 import { claimZone, newSystem, toggleZone, zoneIdsOf } from "@/lib/studio/zones";
 import { doneBlockers, systemFindings } from "@/lib/studio/verdict";
 import { SystemsPanel } from "./systems-panel";
@@ -2658,12 +2658,15 @@ function DrawTool({
   draw,
   onDraw,
   disabled,
+  air = true,
 }: {
   tool: CanvasTool;
   onTool: (t: CanvasTool) => void;
   draw: DrawOptions;
   onDraw: (d: DrawOptions) => void;
   disabled: boolean;
+  /** duct and airflow are drawn from here; the next flow has them on Air */
+  air?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -2682,7 +2685,8 @@ function DrawTool({
       window.removeEventListener("keydown", onKey);
     };
   }, [open]);
-  const on = isRunTool(tool) || tool === "riser" || tool === "joint" || tool === "branch-box" || tool === "airflow";
+  const on =
+    (isRunTool(tool) && (air || tool !== "duct")) || tool === "riser" || tool === "joint" || tool === "branch-box" || (air && tool === "airflow");
   const arm = (t: CanvasTool, patch?: Partial<DrawOptions>) => {
     if (patch) onDraw({ ...draw, ...patch });
     onTool(t);
@@ -2757,6 +2761,7 @@ function DrawTool({
               return and its diameter picked here (Isaac, 28 October 2026:
               "Drop the unit, then add pipe duct drain cables, whatever you
               want to put on") */}
+          {air && (
           <div className="ds-drawrow">
             <span className="ds-drawk">
               <Icon name="wind" size={14} />
@@ -2770,8 +2775,10 @@ function DrawTool({
               )}
             </div>
           </div>
+          )}
           {/* airflow marks: short wavy arrows, blue supply and red return,
               pressed down and pulled the way the air goes */}
+          {air && (
           <div className="ds-drawrow">
             <span className="ds-drawk">
               <Icon name="wind" size={14} />
@@ -2782,6 +2789,7 @@ function DrawTool({
               {chip("Return", draw.airStream === "return", "airflow", { airStream: "return" })}
             </div>
           </div>
+          )}
           {/* the riser rides along: not linework (a point that joins floors),
               but it belongs to the same "put pipework on the plan" verb */}
           <div className="ds-drawrow">
@@ -3497,11 +3505,36 @@ function DesignPanel({
   const [zoomPct, setZoomPct] = useState(100);
   /* the next flow: the sheet's unit, to say when words have stopped
      following the plan in (figure-bounds.ts canvasUnit) */
-  const paperU = useStudioFlow() === "next" && floor ? sheetUnitOf(doc, floor) : null;
+  const next = useStudioFlow() === "next";
+  const paperU = next && floor ? sheetUnitOf(doc, floor) : null;
   const wheelMode = useWheelMode();
   /* the Draw flyout's armed options (pipe form, drain size, cable kind) —
      view state: what the NEXT line is, never what a drawn one was */
   const [draw, setDraw] = useState<DrawOptions>(DEFAULT_DRAW);
+  /* the next flow's Air bar: what goes down next on the air side, kept
+     between arms so the bench button picks up where it left off */
+  const [air, setAir] = useState<AirState>(DEFAULT_AIR);
+  const returnBuiltIn = airGate.row?.return_opening === "built-in";
+  const armAir = (a0: AirState) => {
+    const a = a0.kind === "plenum" && a0.stream === "return" && returnBuiltIn ? { ...a0, stream: "supply" as const } : a0;
+    setAir(a);
+    if (a.kind === "duct" || a.kind === "flex") {
+      setDraw((d) => ({ ...d, ductStream: a.stream, ductMm: a.ductMm, ductForm: a.kind === "flex" ? "flex" : "rigid" }));
+      onTool("duct");
+    } else if (a.kind === "arrow") {
+      setDraw((d) => ({ ...d, airStream: a.stream }));
+      onTool("airflow");
+    } else if (a.kind === "sensor" || a.kind === "controller") {
+      onArmComponent(a.kind === "sensor" ? "zone-sensor" : "wall-controller");
+    } else if (a.kind === "plenum") {
+      onArmComponent("plenum");
+      onAirPatch({ stream: a.stream });
+    } else {
+      onArmComponent("grille");
+      onAirPatch({ stream: a.stream, size: a.size, style: a.stream === "supply" ? a.style : null, mount: a.mount });
+    }
+  };
+  const airOn = next && (tool === "duct" || tool === "airflow" || (tool === "component" && airComp != null));
   /* The armed note ink — "what I am marking up in right now". Not on the
      design (every note keeps its own colour once drawn) but not component
      state either: it used to be, and it died on every reload AND was deaf to
@@ -3640,21 +3673,41 @@ function DesignPanel({
             draw={draw}
             onDraw={setDraw}
             disabled={!activeSystemId}
+            air={!next}
           />
-          {/* Air group (Stage 7): gates on rooms + an air-capable AHU (spec
-              §2). Duct moved into the Draw flyout — it was a disabled button
-              holding a whole verb's width on the bench, and the bar had
-              started wrapping on a laptop. */}
-          <div className="ds-pal-wrap">
-            {airGate.ok ? (
-              componentBtn
-            ) : (
-              <Tooltip label={`${airGate.reason.charAt(0).toUpperCase()}${airGate.reason.slice(1)}`}>{componentBtn}</Tooltip>
-            )}
-            {paletteOpen && airGate.ok && (
-              <ComponentPalette onPick={onArmComponent} onClose={() => onPalette(false)} />
-            )}
-          </div>
+          {next ? (
+            /* the next flow: everything on the air side behind one button,
+               its choices in one bar over the plan */
+            (() => {
+              const b = (
+                <button
+                  className={`ds-tool${airOn ? " on" : ""}`}
+                  aria-label="Air"
+                  disabled={!activeSystemId}
+                  onClick={() => (airOn ? onTool("select") : armAir(air))}
+                >
+                  <Icon name="wind" size={15} />
+                  Air
+                </button>
+              );
+              return activeSystemId ? b : <Tooltip label="Pick a system first">{b}</Tooltip>;
+            })()
+          ) : (
+            /* Air group (Stage 7): gates on rooms + an air-capable AHU (spec
+               §2). Duct moved into the Draw flyout — it was a disabled button
+               holding a whole verb's width on the bench, and the bar had
+               started wrapping on a laptop. */
+            <div className="ds-pal-wrap">
+              {airGate.ok ? (
+                componentBtn
+              ) : (
+                <Tooltip label={`${airGate.reason.charAt(0).toUpperCase()}${airGate.reason.slice(1)}`}>{componentBtn}</Tooltip>
+              )}
+              {paletteOpen && airGate.ok && (
+                <ComponentPalette onPick={onArmComponent} onClose={() => onPalette(false)} />
+              )}
+            </div>
+          )}
           {/* crop + move-plans live in the Calibrate dropdown now (plan-prep) */}
           <span className="ds-tb-sep" aria-hidden="true" />
           {/* Note gets a group of its own, at the end, because it is the one
@@ -3757,7 +3810,8 @@ function DesignPanel({
             crosshair cursor. */}
         {/* options HUD — floating pill strip, top-centre over the canvas,
             while a tool with options is armed (Step 2: the plenum variant) */}
-        {tool === "component" && airComp?.kind === "grille" && (
+        {airOn && <AirBar air={air} onAir={armAir} plenum={airGate.ok} />}
+        {!next && tool === "component" && airComp?.kind === "grille" && (
           <GrilleHud
             stream={airComp.stream}
             size={airComp.size ?? GRILLE_SIZES[airComp.stream][0]}
@@ -3776,6 +3830,35 @@ function DesignPanel({
                 ...d,
                 objects: d.objects.map((o) => (o.id === g.id ? { ...o, props: { ...o.props, ...props } } : o)),
               }));
+            if (next) {
+              /* the next flow: the Air bar's grille choices, for this one;
+                 only what changed is written, so a grille placed before kinds
+                 were offered keeps saying nothing it wasn't told */
+              const size = grilleSize(g);
+              const now: AirState = {
+                ...air,
+                kind: "grille",
+                stream: grilleStream(g),
+                style: grilleStyle(g) ?? (size.wMm === size.hMm ? "square" : "linear"),
+                mount: grilleMount(g) ?? "ceiling",
+                size,
+              };
+              return (
+                <AirBar
+                  picked
+                  air={now}
+                  plenum={false}
+                  onAir={(a) => {
+                    const p: Partial<Grille["props"]> = {};
+                    if (a.stream !== now.stream) p.stream = a.stream;
+                    if (a.style !== now.style) p.style = a.style;
+                    if (a.mount !== now.mount) p.mount = a.mount;
+                    if (a.size.wMm !== size.wMm || a.size.hMm !== size.hMm) Object.assign(p, { wMm: a.size.wMm, hMm: a.size.hMm });
+                    patch(p);
+                  }}
+                />
+              );
+            }
             return (
               <GrilleHud
                 stream={grilleStream(g)}
@@ -3785,7 +3868,7 @@ function DesignPanel({
               />
             );
           })()}
-        {tool === "component" && airComp?.kind === "plenum" && (
+        {!next && tool === "component" && airComp?.kind === "plenum" && (
           <PlenumHud
             stream={airComp.stream}
             onStream={onAirStream}

@@ -3812,8 +3812,8 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    the rest grey. Names only. The ring stands off the dot on white, so the
    line keeps 4 either side for it */
 .fg .qp-steps { margin:0; padding:4px 4px 0; list-style:none; display:flex; }
-.fg .qp-steps > li { position:relative; flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding-top:16px; }
-.fg .qp-steps > li:last-child { flex:0 0 auto; }
+.fg .qp-steps > li { position:relative; flex:1 1 auto; min-width:0; padding-right:8px; display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding-top:16px; }
+.fg .qp-steps > li:last-child { flex:0 0 auto; padding-right:0; }
 .fg .qp-steps > li > i { position:absolute; top:0; left:0; box-sizing:border-box; width:12px; height:12px;
   border-radius:50%; border:2px solid var(--edge); background:var(--white); }
 .fg .qp-steps > li::after { content:""; position:absolute; top:5px; left:12px; right:0; height:2px; background:var(--line); }
@@ -3835,6 +3835,9 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .qc-main { min-width:0; min-height:0; display:flex; flex-direction:column; }
 .fg .qc-rail { min-height:0; display:flex; flex-direction:column; }
 .fg .qc-scroll { flex:1; min-height:0; overflow:auto; display:flex; flex-direction:column; gap:24px; padding:24px 0; }
+/* what's in the scroll keeps its height: it scrolls, nothing is squashed
+   (3423: Line items was cut in half above the dock) */
+.fg .qc-scroll > * { flex:none; }
 .fg .qc-rs { display:flex; flex-direction:column; gap:12px; }
 .fg .qc-h { margin:0; font-size:16px; font-weight:600; line-height:24px; color:var(--ink); }
 .fg .qc-note { flex:none; margin:12px 0 0; }
@@ -3877,6 +3880,16 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .qc-who time { font-size:13px; font-weight:500; color:var(--q); }
 .fg .qc-says { display:flex; flex-direction:column; gap:12px; padding-left:32px; }
 .fg .qc-says > p { margin:0; font-size:16px; line-height:24px; color:var(--ink); white-space:pre-line; }
+/* her points and her numbered questions (herWords in tiff-panel.tsx) */
+.fg .qc-list { margin:0; padding:0 0 0 24px; display:flex; flex-direction:column; gap:8px; font-size:16px; line-height:24px; color:var(--ink); }
+.fg ul.qc-list { list-style:disc; }
+.fg ol.qc-list { list-style:decimal; }
+.fg .qc-says b { font-weight:600; }
+/* what lands in the thread after the page opened eases in (Isaac, 30 October
+   2026): once, on the speed for something moving */
+.fg .qc-in { animation:qcIn var(--t-move) var(--ease) both; }
+@keyframes qcIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion:reduce) { .fg .qc-in { animation:none; } }
 /* a run of what she did, together */
 .fg .qt-dids { display:flex; flex-direction:column; gap:4px; }
 /* her working folded to one line, opened to every step and note (option A, 17 Oct) */
@@ -3920,6 +3933,20 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .qp-parts li { display:grid; grid-template-columns:8px minmax(0, 1fr) auto; gap:8px; align-items:center; font-size:14px; color:var(--hd-ink); }
 .fg .qp-parts i { width:8px; height:8px; border-radius:50%; }
 .fg .qp-parts b { font-weight:600; font-variant-numeric:tabular-nums; }
+/* THE MONEY ROLLS (Isaac, 30 October 2026: "roll up and down like a slot
+   machine"): each digit a column of 0 to 9 drawn by the sheet, on its value;
+   the figure itself is in the markup, for reading and for a screen reader.
+   Nothing rolls as the page opens: data-live comes after the first paint. */
+.fg .rf { position:relative; display:inline-block; font-variant-numeric:tabular-nums; }
+.fg .rf-text { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.fg .rf-roll { display:inline-flex; vertical-align:top; }
+.fg .rf-d { display:inline-block; height:1lh; overflow:hidden; }
+.fg .rf-d::before { content:"0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9"; display:block; white-space:pre; text-align:center; transform:translateY(calc(var(--d) * -1lh)); transition:transform var(--t-roll) var(--ease); }
+@starting-style { .fg .rf[data-live] .rf-d::before { transform:translateY(0); } }
+.fg .rf-c::before { content:attr(data-c); white-space:pre; }
+.fg .ql-split > span { transition:flex-grow var(--t-roll) var(--ease); }
+.fg .qb-bar i { transition:width var(--t-roll) var(--ease); }
+@media (prefers-reduced-motion:reduce) { .fg .rf-d::before, .fg .ql-split > span, .fg .qb-bar i { transition:none; } }
 .fg .qp-profit { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:4px 8px; align-items:baseline; }
 .fg .qp-profit > span { display:flex; align-items:baseline; gap:8px; font-size:14px; font-weight:600; color:var(--ink); }
 .fg .qp-profit > span small { font-size:13px; font-weight:500; color:var(--q); }

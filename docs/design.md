@@ -347,6 +347,16 @@ the fourth on the customer's messages, below).
   bottom of the page"). Under a bubble its time and doors are quiet words
   with no underline, and Remove is the red word (rule 25).
 
+#### On a quote
+
+- **The money rolls** (`.rf`, `components/parts/rolling-figure.tsx`), past law
+  8's 300 ms and on a token of its own, `--t-roll`, 600 ms: "the money should
+  roll up and down like a slot machine sort of thing" (30 October 2026). Each
+  digit is a column that turns to its value when the quote changes. Nothing
+  rolls as a page opens, and under reduced motion each is simply there. What
+  lands in Tiff's conversation after the page opened eases in on `--t-move`
+  ("Things should transition in smoothly even messages").
+
 #### On a letter
 
 - **The letter editor's rail wears Home's coloured block** (`.hm-blk` in

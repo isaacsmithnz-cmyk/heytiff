@@ -64,12 +64,16 @@ async function quoteHeld(orgId: string): Promise<string | null> {
 
 /** Whether the card offers the send, and whether a press would only be a
     trial run. */
-export async function quoteSendOffered(): Promise<{ offered: boolean; trial: boolean }> {
+export async function quoteSendOffered(): Promise<{ offered: boolean; trial: boolean; held?: string | null }> {
   const g = await gate();
   if ("error" in g) return { offered: false, trial: false };
   const state = await readSm8WriteState(g.orgId);
   /* quotes on their own trial run say so, however the connection is set */
-  return { offered: offersSend(state, "quote"), trial: state.mode === "trial" || (await quotesOnTrial(g.orgId)) };
+  const trial = state.mode === "trial" || (await quotesOnTrial(g.orgId));
+  const refused = sendRefusal(state, "quote");
+  /* what holds it, in words, so the quote's page never just loses its button
+     (3423, Isaac, 30 October 2026: "I've lost the ability to send jobs") */
+  return { offered: offersSend(state, "quote"), trial, held: refused === QUOTE_WORDS.press.scope && trial ? null : refused };
 }
 
 export type QuoteSendAnswer =

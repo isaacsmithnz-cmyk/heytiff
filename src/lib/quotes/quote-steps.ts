@@ -115,7 +115,9 @@ export function linesSteps(input: {
     /* Unknowns on the page of 7 Oct; To confirm from 10 Oct (Isaac: "an
        unknown could just be something that we haven't told Tiff yet");
        Scope, with what's left to settle, in layout C */
-    step("questions", unknown > 0 ? "due" : lines > 0 ? "done" : "todo", unknown > 0 ? `${unknown} to settle` : lines > 0 ? "Settled" : ""),
+    /* approved, a person has stood behind it: the line never sits back on
+       Scope past a green Approved (3423, Isaac, 30 October 2026) */
+    step("questions", unknown > 0 && !input.approved ? "due" : lines > 0 ? "done" : "todo", unknown > 0 && !input.approved ? `${unknown} to settle` : lines > 0 ? "Settled" : ""),
     ...(input.design ? [designStep(input.design)] : []),
     built,
     /* version 2 on, the version it's at (quote-versions.ts) */

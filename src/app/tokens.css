@@ -205,7 +205,7 @@
   /* v2 (rule 20): the kinds of job in the eight, in this fixed order, ventilation grey */
   --chart-1:var(--blue); --chart-2:var(--orange); --chart-3:var(--green); --chart-4:var(--purple); --chart-5:var(--pink); --chart-6:var(--yellow); --chart-7:var(--grey);
   --chart-seq-1:#86b6ef; --chart-seq-2:#5598e7; --chart-seq-3:#2a78d6; --chart-seq-4:#1c5cab;
-  --t-fast:120ms; --t-move:200ms; --ease:ease-out;
+  --t-fast:120ms; --t-move:200ms; --t-roll:600ms; --ease:ease-out;
   --z-raised:1; --z-sticky:10; --z-overlay:100; --z-modal:200; --z-toast:300;
   --r-control:6px; --r-button:10px; --r-card:16px; --r-pill:999px;
   --s-1:2px; --s-2:4px; --s-3:8px; --s-4:12px; --s-5:16px; --s-6:24px; --s-7:32px; --s-8:48px;

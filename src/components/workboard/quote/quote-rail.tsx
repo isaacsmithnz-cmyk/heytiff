@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Button } from "@/components/parts/button";
+import { RollingFigure } from "@/components/parts/rolling-figure";
 import { StateWord } from "@/components/parts/state";
 import { Icon } from "@/components/shell/icon";
 import { auDayOf, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -78,8 +79,8 @@ export function QuoteCard({
       <div className="qp-card">
         <div className="qp-tot">
           <span>{`Variation ${variation.n}, ex GST`}</span>
-          <b>{signed(ex)}</b>
-          <em>{`New total ${cents2(b.exGstCents)}`}</em>
+          <b><RollingFigure value={signed(ex)} /></b>
+          <em>New total <RollingFigure value={cents2(b.exGstCents)} /></em>
         </div>
         {building}
         <ul className="qp-parts" aria-label="Its parts">
@@ -87,7 +88,7 @@ export function QuoteCard({
             <li key={p.key}>
               <i style={{ background: PART_COLOUR[p.key] }} aria-hidden="true" />
               <span>{p.label}</span>
-              <b>{signed(p.cents)}</b>
+              <b><RollingFigure value={signed(p.cents)} /></b>
             </li>
           ))}
         </ul>
@@ -97,7 +98,7 @@ export function QuoteCard({
               Profit
               {left ? <small>so far</small> : ex !== 0 && <small>{`${Math.round((profit / ex) * 1000) / 10}% of it`}</small>}
             </span>
-            <b>{signed(profit)}</b>
+            <b><RollingFigure value={signed(profit)} /></b>
           </div>
         )}
       </div>
@@ -124,8 +125,8 @@ export function QuoteCard({
     <div className="qp-card">
       <div className="qp-tot">
         <span>{unset ? "Price" : label}</span>
-        {unset ? <b className="qc-wait">Not set</b> : <b>{b ? cents2(b.exGstCents) : "–"}</b>}
-        {price && !price.ok ? <em>{unsetWords(price.unset)}</em> : b ? <em>{`${cents2(b.incGstCents)} inc GST`}</em> : null}
+        {unset ? <b className="qc-wait">Not set</b> : <b>{b ? <RollingFigure value={cents2(b.exGstCents)} /> : "–"}</b>}
+        {price && !price.ok ? <em>{unsetWords(price.unset)}</em> : b ? <em><RollingFigure value={cents2(b.incGstCents)} /> inc GST</em> : null}
       </div>
       {building}
       {b && (
@@ -135,7 +136,7 @@ export function QuoteCard({
               <li key={p.key}>
                 <i style={{ background: PART_COLOUR[p.key] }} aria-hidden="true" />
                 <span>{p.label}</span>
-                <b>{cents2(p.cents)}</b>
+                <b><RollingFigure value={cents2(p.cents)} /></b>
               </li>
             ))}
           </ul>
@@ -152,7 +153,7 @@ export function QuoteCard({
                 Profit
                 {left && <small>so far</small>}
               </span>
-              <b className={tone === "good" ? "good" : tone === "look" ? "look" : undefined}>{`${profit.pct}%, ${cents2(profit.profitCents)}`}</b>
+              <b className={tone === "good" ? "good" : tone === "look" ? "look" : undefined}><RollingFigure value={`${profit.pct}%, ${cents2(profit.profitCents)}`} /></b>
               {tone && words && (
                 <StateWord tone={tone} className="qp-pword">
                   {words}

@@ -175,6 +175,12 @@ describe("her tools, run", () => {
     expect(await run("plan_parts", { parts: [] })).toMatchObject({ ok: false });
   });
 
+  /* 3423, Isaac, 30 October 2026: "Two technicians for the changeover": a
+     client would hold the business to it */
+  it.each(["Two technicians for the changeover", "Replaced in one day", "12 hours on site", "2 installers"])("keeps who goes and how long off the proposal: %s", async (words) => {
+    expect(await run("write_proposal", { title: words })).toMatchObject({ ok: false });
+  });
+
   it("writes an option's words into the proposal, leaving what she didn't give", async () => {
     const out = await run("write_proposal", { option: 0, summary: "A wall split in the living room.", work: [{ area: "Living", items: ["Unit above the window"] }] });
     expect(out).toMatchObject({ ok: true, said: "option 1" });

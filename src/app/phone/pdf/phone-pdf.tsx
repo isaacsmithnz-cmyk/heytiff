@@ -195,7 +195,7 @@ export function PhonePdf() {
 
   if (failed) return <p style={{ margin: 24, font: "15px/22px system-ui, sans-serif", color: "#5f6a79" }}>This manual couldn&apos;t be opened here.</p>;
   return (
-    <div style={{ minHeight: "100vh", background: "#f4f4f5", padding: "8px 10px 24px", display: "grid", gap: 10, alignContent: "start", overflowAnchor: "auto" }}>
+    <div style={{ minHeight: "100vh", background: "#dcdce1", padding: "10px 12px 24px", display: "grid", gap: 10, alignContent: "start", overflowAnchor: "auto" }}>
       {Array.from({ length: pages }, (_, i) => i + 1).map((n) => (
         <div
           key={n}
@@ -204,7 +204,7 @@ export function PhonePdf() {
             if (el) sheets.current.set(n, el);
             else sheets.current.delete(n);
           }}
-          style={{ position: "relative", aspectRatio: `1 / ${ratios[n] ?? first}`, background: "#fff", borderRadius: 4, boxShadow: "0 1px 3px rgba(5,5,5,.12)", overflow: "hidden" }}
+          style={{ position: "relative", aspectRatio: `1 / ${ratios[n] ?? first}`, background: "#fff", boxShadow: "0 1px 6px rgba(5,5,5,.14)", overflow: "hidden" }}
         >
           {doc && near.has(n) ? (
             <Sheet

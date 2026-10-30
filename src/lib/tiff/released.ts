@@ -46,3 +46,11 @@ export function releasedOf(doc: { title: string | null; fileName: string | null;
   }
   return pdfDate(pdfMade, now);
 }
+
+/** A manual's edition where it says more than when it came out ("Si30 - 701_A", "REVISED EDITION-A"); null for
+    one that's only a date ("July 2023"), which the year says already. Pure. */
+export function editionWords(edition: string | null | undefined): string | null {
+  const e = String(edition ?? "").trim();
+  if (!e) return null;
+  return /^(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*)?(?:19|20)\d{2}$/i.test(e) ? null : e;
+}

@@ -27,6 +27,7 @@ jest.mock("@/lib/supabase-server", () => ({
         select: () => q,
         eq: (c: string, v: unknown) => ((f[c] = v), q),
         in: () => q,
+        like: (c: string, v: unknown) => ((f[`${c} like`] = v), q),
         order: () => q,
         maybeSingle: async () => {
           asked.push(`doc ${f.org_id} ${f.id}`);
@@ -36,7 +37,9 @@ jest.mock("@/lib/supabase-server", () => ({
           res(
             table === "memberships"
               ? { data: members.filter((m) => m.user_id === f.user_id), error: null }
-              : table === "kb_chunks"
+              : table === "kb_chunks" && f["heading like"]
+                ? (asked.push(`drawings ${f.org_id} ${f.document_id} ${f["heading like"]}`), { count: 6, error: null })
+                : table === "kb_chunks"
                 ? (asked.push(`chunks ${f.org_id}`), { data: [{ id: "c1", content: "E6: compressor lock or start failure. Check the compressor leads.", page_from: 112, page_to: 112 }], error: null })
                 : { data: [], error: null },
           ),
@@ -53,7 +56,22 @@ jest.mock("@/lib/tiff/query", () => ({
   kbDocsForOrg: async (orgId: string) => {
     asked.push(`docs ${orgId}`);
     return [
-      { id: "doc-1", category: "faults", title: "Daikin FTXM-R service manual", source: "Daikin", edition: "2024", status: "ready", pageCount: 220, storageRef: "org/org-diamond/kb/doc-1.pdf", uploadedAt: "2026-10-01" },
+      {
+        id: "doc-1",
+        category: "faults",
+        title: "Daikin FTXM-R service manual",
+        source: "Daikin",
+        edition: "Si30 - 701_A",
+        status: "ready",
+        pageCount: 220,
+        scannedPages: 0,
+        storageRef: "org/org-diamond/kb/doc-1.pdf",
+        fileName: "FTXM-R_SM.pdf",
+        sizeBytes: 14_298_220,
+        uploadedById: "card-isaac",
+        uploadedAt: "2026-10-01",
+        released: "2023-07-01",
+      },
       { id: "note-1", category: "field", title: "Long runs on the FTXM-R", source: null, edition: null, status: "ready", pageCount: null, storageRef: null, uploadedAt: "2026-10-20" },
     ];
   },
@@ -62,12 +80,14 @@ jest.mock("@/lib/tiff/query", () => ({
     return [{ chunkId: "c1", content: "E6: compressor lock or start failure. Check the compressor leads.", pageFrom: 112, pageTo: 112, heading: "Error codes" }];
   },
   signKbRef: async (ref: string) => `https://signed/${ref}`,
+  kbUploaderNames: async () => ({ "card-isaac": "Isaac Smith" }),
 }));
 
 import { GET as library } from "../library/route";
 import { GET as search } from "../library/[id]/search/route";
 import { GET as everywhere } from "../library/search/route";
 import { GET as file } from "../library/[id]/file/route";
+import { GET as details } from "../library/[id]/route";
 import { MOBILE_AUDIENCE } from "@/lib/mobile/token";
 import { wordsSaid } from "@/lib/mobile/library-search";
 
@@ -197,4 +217,35 @@ test("a page with more of the words typed beats one that says one word often", (
   const names = "PUMY-SP80 PUMY-SP112 PUMY-SP125 PUMY-SP140 PUMY PUMY PUMY";
   expect(wordsSaid(feet, "pumy 140 feet")).toBe(3);
   expect(wordsSaid(names, "pumy 140 feet")).toBe(2);
+});
+
+describe("a manual's details", () => {
+  test("are refused without the Library grant", async () => {
+    members[0]!.permissions = { tiff: false };
+    expect((await details(req("library/doc-1", "auth0|lyle"), params("doc-1"))).status).toBe(403);
+  });
+
+  test("say what it is, when it came out, its pages and drawings, its file, and who added it when", async () => {
+    const body = await (await details(req("library/doc-1", "auth0|lyle"), params("doc-1"))).json();
+    expect(body).toMatchObject({
+      id: "doc-1",
+      title: "Daikin FTXM-R service manual",
+      category: "faults",
+      released: "2023-07-01",
+      edition: "Si30 - 701_A",
+      pageCount: 220,
+      drawings: 6,
+      fileName: "FTXM-R_SM.pdf",
+      sizeBytes: 14_298_220,
+      addedBy: "Isaac Smith",
+      addedAt: "2026-10-01",
+    });
+    expect(body.storageRef).toBeUndefined();
+    expect(asked).toContain("drawings org-diamond doc-1 Drawing, page %");
+  });
+
+  test("of a document not in the workspace's Library, say so", async () => {
+    const res = await details(req("library/doc-9", "auth0|lyle"), params("doc-9"));
+    expect(res.status).toBe(404);
+  });
 });

@@ -118,8 +118,15 @@ export function senderForged(auth: { spf?: string | null; dkim?: string | null; 
 export function textOfEmail(text: string | null | undefined, html: string | null | undefined): string {
   let out = (text ?? "").trim();
   if (!out && html) {
+    /* a link keeps its address, the way a plain-text part writes it
+       ("260917 Tender Issue <https://…>"): the plans are often behind one
+       (share-links.ts). Marked, so the tag strip below leaves it. */
     out = html
       .replace(/<(style|script|head)[\s\S]*?<\/\1>/gi, "")
+      .replace(/<a\b[^>]*?\bhref\s*=\s*["'](https?:[^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi, (_, href: string, inner: string) => {
+        const words = inner.replace(/<[^>]+>/g, "").trim();
+        return words && words !== href ? `${words} \u0001${href}\u0002` : `\u0001${href}\u0002`;
+      })
       .replace(/<br\s*\/?>/gi, "\n")
       .replace(/<\/(p|div|tr|li|h[1-6]|blockquote)>/gi, "\n")
       .replace(/<li[^>]*>/gi, "• ")
@@ -130,6 +137,8 @@ export function textOfEmail(text: string | null | undefined, html: string | null
       .replace(/&gt;/g, ">")
       .replace(/&quot;/g, '"')
       .replace(/&#39;|&apos;/g, "'")
+      .replace(/\u0001/g, "<")
+      .replace(/\u0002/g, ">")
       .replace(/[ \t]+\n/g, "\n")
       .replace(/\n{3,}/g, "\n\n")
       .trim();

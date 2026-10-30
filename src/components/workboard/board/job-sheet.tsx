@@ -1654,6 +1654,7 @@ export function JobSheet({
             <JobDocumentsFace
               documents={media ? media.documents : null}
               elsewhere={media ? media.elsewhere : null}
+              links={media?.links ?? null}
               designs={detail?.designs ?? []}
               swms={swms}
               swmsFailed={swmsFailed}

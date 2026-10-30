@@ -20,6 +20,7 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { DOCUMENTS_BUCKET, SIGNED_URL_SECONDS } from "@/lib/documents/query";
 import { isPartialInvoicePaper } from "./job-family";
+import { jobShareLinks, type JobShareLink } from "@/lib/email/share-links";
 import {
   fileTypeForMime,
   groupJobMedia,
@@ -365,7 +366,27 @@ function byNewest(a: readonly JobMediaItem[], b: readonly JobMediaItem[]): JobMe
   return out;
 }
 
-export type JobMediaGroupsRead = ReturnType<typeof groupJobMedia> & { truncated: boolean };
+export type JobMediaGroupsRead = ReturnType<typeof groupJobMedia> & {
+  truncated: boolean;
+  /** the plans an email made or filed on this job pointed to (share-links.ts) */
+  links?: JobShareLink[];
+};
+
+/** The links in the emails made into or filed on this job: a tender folder
+    the builder sent instead of files opens from the job's Documents. A
+    failed read is no links, never a wrong one. */
+async function readJobShareLinks(orgId: string, jobUuid: string): Promise<JobShareLink[]> {
+  const { data, error } = await supabaseAdmin
+    .from("email_in_messages")
+    .select("id, body, proposal")
+    .eq("org_id", orgId)
+    .eq("job_uuid", jobUuid)
+    .in("state", ["made", "filed"])
+    .order("received_at", { ascending: false })
+    .limit(10);
+  if (error || !data) return [];
+  return jobShareLinks(data as { id: string; body: string | null; proposal: { client?: string; contact?: { first?: string; last?: string } } | null }[]);
+}
 
 /** The sheet's shape — grouped, then capped PER LENS. `truncated` is true
     when anything anywhere was left off: the DB window, or either lens.
@@ -379,10 +400,11 @@ export async function readJobMediaGroups(
   jobUuid: string,
   claims: readonly MediaSource[] = []
 ): Promise<JobMediaGroupsRead> {
-  const [read, ours, taken] = await Promise.all([
+  const [read, ours, taken, links] = await Promise.all([
     readJobMedia(orgId, jobUuid, claims),
     readOurJobDocuments(orgId, jobUuid),
     readOurJobPhotos(orgId, jobUuid),
+    readJobShareLinks(orgId, jobUuid).catch((): JobShareLink[] => []),
   ]);
   const groups = groupJobMedia(read.items);
   const clipped =
@@ -394,5 +416,6 @@ export async function readJobMediaGroups(
     documents: byNewest(ours, groups.documents.slice(0, JOB_MEDIA_CAP)),
     elsewhere: groups.elsewhere.slice(0, JOB_MEDIA_CAP),
     truncated: read.truncated || clipped,
+    links,
   };
 }

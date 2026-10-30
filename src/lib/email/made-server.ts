@@ -5,6 +5,7 @@ import { ALLOWED_TYPES, storageRef } from "@/lib/documents/files";
 import type { KeptFile } from "./inbound-server";
 import { writeJobNote } from "@/lib/workboard/job-note-write";
 import type { EmailProposal } from "./proposal";
+import { shareLinksIn, type ShareLink } from "./share-links";
 
 /* An email to Tiff, after its card: what the card shows, and a job made from
    it. The job's files: each kept PDF and picture copied onto the job's
@@ -18,6 +19,8 @@ export type EmailJobView = {
   state: "received" | "read" | "made" | "filed" | "not_a_job" | "refused" | "failed";
   proposal: EmailProposal | null;
   files: { name: string; size: number }[];
+  /** the plans it points to rather than carries (share-links.ts) */
+  links: ShareLink[];
   /** what couldn't be kept, in words */
   why: string | null;
   jobUuid: string | null;
@@ -61,6 +64,7 @@ export async function emailJobView(orgId: string, id: string): Promise<EmailJobV
     state: row.state,
     proposal: row.proposal,
     files: (row.files ?? []).map((f) => ({ name: f.name, size: f.size })),
+    links: shareLinksIn(row.body),
     why: row.why,
     jobUuid: row.job_uuid,
     jobNumber,

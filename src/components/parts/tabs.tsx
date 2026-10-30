@@ -101,8 +101,8 @@ export function ViewTabs(props: TabsProps) {
 
 /* A RECORD'S SECTIONS (rule 31). Underlined: the one you're on stands on
    2px of ink. A tab with something to look at has its word in amber, red
-   when something is wrong (`tone`). A job has seven: Overview, Quote,
-   Visits, Checklist, Photos, Documents, Billing. */
+   when something is wrong (`tone`). A job has eight: Overview, Quote,
+   Design, Visits, Materials, Photos, Documents, Billing. */
 export function SectionTabs(props: TabsProps) {
   return <Tabs {...props} kind="pt-stab" />;
 }

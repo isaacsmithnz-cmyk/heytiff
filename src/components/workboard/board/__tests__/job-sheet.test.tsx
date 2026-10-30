@@ -659,6 +659,10 @@ describe("the customer, on Overview", () => {
 
 /* ── the refresh kick ── */
 
+/* the summary's own asks, apart from the scope's twin kick */
+const summaryAsks = () => (fetchMock.mock.calls as unknown as unknown[][]).filter((c) => String(c[0]) === "/api/workboard/job-summary");
+const scopeAsks = () => (fetchMock.mock.calls as unknown as unknown[][]).filter((c) => String(c[0]) === "/api/workboard/job-scope");
+
 describe("the summary refresh", () => {
   /* Everything the kick waits for: detail, record, files and picklist all
      landed — the same inputs the story is merged from. */
@@ -685,13 +689,23 @@ describe("the summary refresh", () => {
     });
     render(<Job row={row()} {...props} />);
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe("/api/workboard/job-summary");
+    await waitFor(() => expect(summaryAsks()).toHaveLength(1));
+    const [, init] = summaryAsks()[0] as unknown as [string, RequestInit];
     expect(JSON.parse(String(init.body))).toEqual({ job: "j-1" });
     /* once: a later render does not ask again */
     await new Promise((r) => setTimeout(r, 0));
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(summaryAsks()).toHaveLength(1);
+  });
+
+  /* the job's scope, kept by Tiff (28 October 2026): the same kick, once,
+     for a job being quoted or worked */
+  it("asks Tiff to bring the scope up to date once, on a job being worked", async () => {
+    allLanded();
+    render(<Job row={row()} {...props} />);
+    await waitFor(() => expect(scopeAsks()).toHaveLength(1));
+    expect(JSON.parse(String((scopeAsks()[0] as unknown as [string, RequestInit])[1].body))).toEqual({ job: "j-1" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(scopeAsks()).toHaveLength(1);
   });
 
   it("does not kick when the stored stamp matches the story's", async () => {
@@ -732,7 +746,7 @@ describe("the summary refresh", () => {
     await waitFor(() => expect(readJobFiles).toHaveBeenCalled());
     await waitFor(() => expect(listJobPicklist).toHaveBeenCalled());
     await new Promise((r) => setTimeout(r, 0));
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(summaryAsks()).toHaveLength(0);
   });
 
   it("never kicks while the files are still out — the story would be short", async () => {

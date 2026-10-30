@@ -12,7 +12,9 @@ import type { StoryEntry } from "@/lib/workboard/job-story";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import { JobConversation, type ConversationDiary } from "./job-conversation";
 import { JobFacts } from "./job-facts";
+import { JobScope } from "./job-scope";
 import { JobSummary } from "./job-summary";
+import type { JobScopeRead } from "@/lib/jobs/job-scope";
 import { JobTodo } from "./job-todo";
 import { useTasksChanged } from "@/lib/tasks/changed";
 import dynamic from "next/dynamic";
@@ -30,7 +32,8 @@ const TaskForm = dynamic(() => import("@/components/making/task-form").then((m) 
        for whoever sees money, Money;
      what the page puts under the strip: a tracked job's board;
      two columns split by a full-height hairline: on the left the Summary
-       (job-summary.tsx) and To do (job-todo.tsx), on the right the
+       (job-summary.tsx), or the job's scope and its latest updates once Tiff
+       has written one (job-scope.tsx, 28 October 2026), and To do (job-todo.tsx), on the right the
        Activity feed (job-conversation.tsx), Tiff's box at its head.
 
    Every section is one recipe (job-section.tsx): a coloured block and its
@@ -97,6 +100,7 @@ export function JobOverview({
   loading,
   moneyVisible,
   detail,
+  scope: brief = null,
   fallbackWhat,
   diary,
   onToast,
@@ -111,6 +115,8 @@ export function JobOverview({
   loading: boolean;
   moneyVisible: boolean;
   detail: MirrorJobDetail | null;
+  /** The job's scope, Tiff's brief: drawn in the Summary's place once there is one. */
+  scope?: JobScopeRead | null;
   /** The row's title, until the detail's description is read. */
   fallbackWhat: string | null;
   diary: ConversationDiary;
@@ -247,7 +253,11 @@ export function JobOverview({
       {under}
       <div className="jov-cols">
         <div className={`jov-main${mainFits ? " jov-main--stick" : ""}`} ref={mainRef}>
-          <JobSummary fromQuote={read?.summary ?? null} description={what} read={readDone || !!read || (!cardId && !loading)} />
+          {brief ? (
+            <JobScope scope={brief} />
+          ) : (
+            <JobSummary fromQuote={read?.summary ?? null} description={what} read={readDone || !!read || (!cardId && !loading)} />
+          )}
           <JobTodo
             tasks={tasks}
             tasksRead={!!read}

@@ -35,6 +35,8 @@ import {
 import { JobMaterialsFace } from "./job-materials-face";
 import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
+import { scopeWanted, type JobScopeRead } from "@/lib/jobs/job-scope";
+import { JobDesignFace } from "./job-design-face";
 import { JobQuoteCard } from "./job-quote-card";
 import { JobVisits, VisitDialog, type ComingVisit } from "./job-visit-tasks";
 import { sm8QuoteOf } from "../quote/sm8-quote-of";
@@ -154,6 +156,7 @@ export type JobSheetTab =
   | "summary"
   | "diary"
   | "quote"
+  | "design"
   | "money"
   | "visits"
   | "checklist"
@@ -167,6 +170,7 @@ const FACE_NAME: Record<TabKey, string> = {
   summary: "Summary",
   diary: "Timeline",
   quote: "Quote",
+  design: "Design",
   money: "Billing",
   visits: "Visits",
   checklist: "Materials",
@@ -252,6 +256,7 @@ export function JobSheet({
   row,
   manage,
   moneyVisible,
+  studio = false,
   initialTab,
   onCreateAgreement,
   onOpenTracked,
@@ -264,6 +269,8 @@ export function JobSheet({
   row: AllJobRow;
   manage: boolean;
   moneyVisible: boolean;
+  /** Holds the Studio: the job has a Design section. */
+  studio?: boolean;
   /** The face to open on, for a door that knows what it came for — a
       mention opens the job's Diary. Summary otherwise, and Summary for Money
       without the grant, because that face is absent. */
@@ -818,6 +825,32 @@ export function JobSheet({
     })
       .catch(() => {
         /* a summary that won't refresh keeps its stored words */
+      });
+  }, [cardId, detail, record, recordFailed, media, picklist, story]);
+
+  /* THE SCOPE'S KICK, the summary's twin: once the story's stamp has left
+     the stored scope behind on a job being quoted or worked, Tiff brings the
+     scope up to date (route job-scope, which re-compares), and the Overview
+     draws what she wrote as soon as it lands */
+  const scopeKicked = useRef(false);
+  useEffect(() => {
+    if (scopeKicked.current) return;
+    if (!cardId || !detail || record === undefined || record === null || recordFailed) return;
+    if (media === null || picklist === null || !scopeWanted(detail.status)) return;
+    const stamp = storyStamp(story);
+    if (!stamp || record.scope?.stamp === stamp) return;
+    scopeKicked.current = true;
+    void fetch("/api/workboard/job-scope", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ job: cardId }),
+    })
+      .then((r) => r.json())
+      .then((res: { ok?: boolean; scope?: JobScopeRead | null }) => {
+        if (res?.ok && res.scope && alive.current) setRecord((cur) => (cur ? { ...cur, scope: res.scope } : cur));
+      })
+      .catch(() => {
+        /* a scope that won't refresh keeps its stored words */
       });
   }, [cardId, detail, record, recordFailed, media, picklist, story]);
 
@@ -1601,6 +1634,14 @@ export function JobSheet({
           )}
     </>
   );
+  /* THE JOB'S DESIGNS, a section of their own (Isaac, 28 October 2026: "a
+     separate tab outside of the quoting"), for whoever holds the Studio */
+  const faceDesign = (
+    <>
+          {studio &&
+            panel("design", <JobDesignFace job={row.id} designs={detail?.designs ?? []} loading={detail === null} />)}
+    </>
+  );
   const faceDocuments = (
     <>
           {/* ONE DOCUMENTS SECTION (v2, the mock of 25 October 2026): one
@@ -2065,7 +2106,7 @@ export function JobSheet({
   /* THE JOB'S PAGE (v2, step 5): the head, then the section's faces. */
   const status = (cardStatus ?? "").trim();
   /* no numbers on the sections (rule 31, Isaac, 20 October) */
-  const sections = sectionsFor(moneyVisible).map((key) => ({ key, label: SECTION_LABEL[key] }));
+  const sections = sectionsFor(moneyVisible, studio).map((key) => ({ key, label: SECTION_LABEL[key] }));
   /* ACTIONS (rule 53): only what's done to the job itself. Its stage
      first, then what the page does (pin it, copy the link), then the
      card's own two once-per-job acts for a manager. Nothing here ends a
@@ -2133,6 +2174,7 @@ export function JobSheet({
               loading={loading && !detail}
               moneyVisible={moneyVisible}
               detail={detail}
+              scope={record?.scope ?? null}
               fallbackWhat={row.title}
               head={
                 <JobProgressLine
@@ -2229,6 +2271,7 @@ export function JobSheet({
           {faceChecklist}
           {facePhotos}
           {faceQuote}
+          {faceDesign}
           {faceDocuments}
         </div>
         {footer}

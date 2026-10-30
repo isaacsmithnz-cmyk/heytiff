@@ -198,12 +198,13 @@ const pageOf = (section: JobSection): JobSheetPage => ({
   onAction,
 });
 
-const draw = (section: JobSection, extra: { moneyVisible?: boolean; manage?: boolean } = {}) =>
+const draw = (section: JobSection, extra: { moneyVisible?: boolean; manage?: boolean; studio?: boolean } = {}) =>
   render(
     <JobSheet
       row={row()}
       manage={extra.manage ?? true}
       moneyVisible={extra.moneyVisible ?? false}
+      studio={extra.studio ?? false}
       initialTab="summary"
       page={pageOf(section)}
       onCreateAgreement={onCreateAgreement}
@@ -338,6 +339,15 @@ describe("the job's sections are the card's faces", () => {
     draw("overview");
     await ready();
     expect(tabWords()).toEqual(["Overview", "Quote", "Visits", "Materials", "Photos", "Documents"]);
+  });
+
+  /* Isaac, 28 October 2026: "a separate tab outside of the quoting" */
+  it("has Design after Quote for whoever holds the Studio", async () => {
+    draw("design", { studio: true });
+    await ready();
+    expect(tabWords()).toEqual(["Overview", "Quote", "Design", "Visits", "Materials", "Photos", "Documents"]);
+    expect(screen.getByRole("region", { name: "Design" })).toBeVisible();
+    expect(await screen.findByText("No design on this job")).toBeInTheDocument();
   });
 
   /* the refined Overview A (Isaac, 25 October 2026): the stages line, the

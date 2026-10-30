@@ -7158,6 +7158,26 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jov-none { margin:0; font-size:14px; line-height:20px; color:var(--q); }
 .fg .jov-row.jov-none { justify-content:flex-start; }
 .fg .jov-words { margin:16px 0 0; font-size:16px; line-height:24px; color:var(--ink); white-space:pre-wrap; overflow-wrap:anywhere; }
+/* THE SCOPE, a written brief (job-scope.tsx; layout B of 28 October 2026):
+   a grey line on where it came from, then a heading at 14/700 and a
+   paragraph at 14 per system, its sources grey at 13 after it, then the
+   numbered questions with who answers them, and the latest updates as a
+   day beside who and what */
+.fg .jsc { display:flex; flex-direction:column; gap:16px; padding-top:8px; max-width:68ch; }
+.fg .jsc-lede { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.fg .jsc-part { display:flex; flex-direction:column; gap:4px; }
+.fg .jsc-h { margin:0; font-size:14px; line-height:20px; font-weight:700; color:var(--ink); }
+.fg .jsc-p { margin:0; font-size:14px; line-height:22px; color:var(--ink); overflow-wrap:anywhere; }
+.fg .jsc-from { margin-left:8px; font-size:13px; color:var(--q); }
+.fg .jsc-ul { margin:0; padding-left:16px; font-size:14px; line-height:22px; color:var(--ink); }
+.fg .jsc-ol { margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
+.fg .jsc-ol > li { display:grid; grid-template-columns:24px minmax(0, 1fr) auto; gap:8px; align-items:baseline; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px; line-height:20px; color:var(--ink); }
+.fg .jsc-n, .fg .jsc-who { font-size:13px; color:var(--q); }
+.fg .jsc-ups { margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
+.fg .jsc-ups > li { display:grid; grid-template-columns:96px minmax(0, 1fr); gap:12px; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px; line-height:20px; color:var(--ink); }
+.fg .jsc-on { font-size:13px; color:var(--q); }
+.fg .jsc-ups b { display:block; font-size:13px; font-weight:600; }
+.fg .jsc-said { display:block; }
 /* To do: a task's tick, and its words as the door to its own form (Isaac, 24 October 2026) */
 .fg .jov-task { justify-content:flex-start; align-items:flex-start; gap:8px; padding:8px 0; }
 .fg .jc-task { display:flex; flex-direction:column; min-width:0; }

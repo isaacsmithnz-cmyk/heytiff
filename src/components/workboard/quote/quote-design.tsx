@@ -5,6 +5,7 @@ import { Row, RowList } from "@/components/parts/row";
 import { openInTab } from "@/components/shell/open-tabs";
 import { auDayOf, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import type { DesignState } from "@/lib/quotes/quote-steps";
+import { designHref, studioJobHref } from "@/lib/shell/links";
 
 /* THE DESIGN STEP, IN THE RAIL (Isaac, 28 October 2026: "Brief, Scope,
    Design (skippable), Priced, with the Studio opening from the Design
@@ -16,15 +17,12 @@ import type { DesignState } from "@/lib/quotes/quote-steps";
    still here, for a job won without one that wants one for the install.
 
    The Studio opens in a tab of its own, so the quote keeps this one, as
-   Open job does. Coming back to the quote reads its designs again. */
+   Open job does. Coming back to the quote reads its designs again. The job's
+   own Design section lists the same designs, outside the quote. */
 
 /** One of the job's designs, as the quote's lines route gives it. */
 export type QuoteDesignRow = { id: string; name: string; updatedAt: string };
 
-/** Design it: the Studio on the job (studio/page.tsx), its newest design or
-    a new one on it. */
-export const designItHref = (job: string) => `/dashboard/studio?job=${encodeURIComponent(job)}`;
-const designHref = (id: string) => `/dashboard/studio?design=${encodeURIComponent(id)}`;
 
 /* the Studio in a tab of its own, so the quote keeps this one */
 const keepQuote = (href: string) => {
@@ -48,7 +46,8 @@ export function QuoteDesign({
   /** No design pressed (true), or taken back (false) */
   onSkip: (skip: boolean) => void;
 }) {
-  const designIt = designItHref(job);
+  /* Design it: the Studio on the job, its newest design or a new one on it */
+  const designIt = studioJobHref(job);
   return (
     <section className="qc-rs" aria-label="Design">
       <h2 className="qc-h">Design</h2>

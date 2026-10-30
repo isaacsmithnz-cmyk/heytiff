@@ -9,7 +9,7 @@ import { JobPage } from "@/components/jobs/job-page";
 
 /* ONE JOB, A PAGE OF ITS OWN (v2, step 5, "Jobs and a job"), inside the
    dashboard frame: its name, one grey line, Open in ServiceM8, Add and
-   Actions, and its seven sections, each the job card's own faces.
+   Actions, and its eight sections, each the job card's own faces.
 
    The id is the job's ServiceM8 uuid, resolved inside the caller's org as
    the quote page resolves it, so a foreign id is a 404, not a leak. A
@@ -17,8 +17,8 @@ import { JobPage } from "@/components/jobs/job-page";
    where its claims are, so one job never has two pages (rule 11: two tabs
    never show the same page). The Workboard's gate is this page's gate.
 
-   `?tab=` names the section: one of the seven; anything else, and Billing
-   without the money grant, is Overview.
+   `?tab=` names the section: one of the eight; anything else, Billing
+   without the money grant and Design without the Studio, is Overview.
 
    Awaits the request on purpose: under the dashboard's loading.tsx the
    frame paints at once and this streams in behind it (the layout stays
@@ -40,13 +40,14 @@ export default async function JobPageRoute({
   const job = id.trim().slice(0, 80);
   if (!job) notFound();
 
-  const [target, moneyVisible, manage, search] = await Promise.all([
+  const [target, moneyVisible, manage, studio, search] = await Promise.all([
     resolveJobCard(orgId, job),
     can("workboard_money"),
     can("workboard_manage"),
+    can("studio"),
     searchParams,
   ]);
-  const section = parseSection(search.tab, moneyVisible);
+  const section = parseSection(search.tab, moneyVisible, studio);
   if (target.parentRemoteId !== job) redirect(jobPageHref(target.parentRemoteId, moneyVisible ? "billing" : section));
 
   /* the row the card opens on, read inside this org's mirror: null for a
@@ -58,5 +59,5 @@ export default async function JobPageRoute({
      Certificate does; anything else asks for nothing */
   const add = search.add === "swms" || search.add === "certificate" ? search.add : null;
 
-  return <JobPage row={row} section={section} manage={manage} moneyVisible={moneyVisible} add={add} />;
+  return <JobPage row={row} section={section} manage={manage} moneyVisible={moneyVisible} studio={studio} add={add} />;
 }

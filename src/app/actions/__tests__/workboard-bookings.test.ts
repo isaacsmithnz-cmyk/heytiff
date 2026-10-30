@@ -111,11 +111,13 @@ afterAll(() => {
 describe("where the deployment doesn't book (D-14)", () => {
   it.each([
     /* files only: the job's status, and nothing of ServiceM8's sending */
-    ["1", [{ table: "sm8_jobs", columns: "status, generated_job_id" }], 0],
+    /* every card open also reads the job's scope, beside its summary (28 October 2026) */
+    ["1", [{ table: "job_scopes", columns: "brief, story_stamp, written_at" }, { table: "sm8_jobs", columns: "status, generated_job_id" }], 0],
     /* notes: the notes' viewer too — their staff card and the settings, once */
     [
       "attachment,note",
       [
+        { table: "job_scopes", columns: "brief, story_stamp, written_at" },
         { table: "staff_profiles", columns: "id" },
         { table: "sm8_jobs", columns: "status, generated_job_id" },
       ],

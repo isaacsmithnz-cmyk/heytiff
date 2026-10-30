@@ -7096,7 +7096,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    the title at 16, at most one button on the right), 8, then rows of at
    least 32 with a hairline above the first and under each; 24 between
    sections. The feed's turns wear the Conversations place's own rules
-   (`cv-msg`, `cv-meta`, `cv-text`, `cv-result`, `cv-box`), so a message
+   (`cv-text`, `cv-result`, `cv-box`), so a message
    reads the same in both places; what is here is their rows. */
 .fg .jov { display:flex; flex-direction:column; gap:24px; min-width:0; }
 /* the strip of facts */
@@ -7201,11 +7201,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jc-day { display:flex; flex-direction:column; }
 .fg .jc-dayname { margin:0; padding:16px 0 8px; font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
 .fg .jc-entry { display:flex; flex-direction:column; gap:8px; min-width:0; padding:8px 0; border-bottom:1px solid var(--line); }
-.fg .jc-convo .cv-msg { gap:12px; }
-.fg .jc-convo .cv-body { gap:4px; }
 /* a voice note: a card round the words, saying where they came from */
 /* a note an attention row sent you to: the selected fill behind it */
-.fg .cv-msg.jc-lit { margin:-8px; padding:8px; border-radius:var(--r-button); background:var(--sel); }
 /* a note's line and doors, the diary's own, under its words */
 .fg .jc-doors:empty { display:none; }
 .fg .jc-doors { display:flex; flex-direction:column; align-items:flex-start; gap:4px; font-size:13px; line-height:18px; color:var(--q); }
@@ -7524,9 +7521,16 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .cv-rows .cv-row:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .cv-row-title { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
 .fg .cv-row-when { font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.fg .cv-row-top { display:flex; align-items:baseline; gap:12px; min-width:0; }
+.fg .cv-row-top .cv-row-title { flex:1; min-width:0; }
+.fg .cv-row-top .pt-state { flex:none; }
 
 .fg .cv-main { display:flex; flex-direction:column; min-width:0; min-height:0; }
 .fg .cv-pane { flex:1; display:flex; flex-direction:column; gap:16px; min-height:0; padding:24px 32px 32px 48px; }
+.fg .cv-item-head { display:flex; flex-direction:column; gap:4px; padding-bottom:16px; border-bottom:1px solid var(--line); }
+.fg .cv-item-subject { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .cv-item-from { margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.fg .cv-item-head .cv-job-foot { margin-top:8px; padding-top:4px; }
 .fg .cv-pane-head { display:flex; align-items:center; justify-content:flex-end; gap:8px; min-height:32px; }
 .fg .cv-scroll { flex:1; min-height:0; overflow-y:auto; }
 .fg .cv-start { display:flex; align-items:center; justify-content:center; min-height:100%; }
@@ -7535,12 +7539,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .cv-day { display:flex; align-items:center; gap:16px; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
 .fg .cv-day::before,
 .fg .cv-day::after { content:""; flex:1; height:1px; background:var(--line); }
-.fg .cv-msg { display:grid; grid-template-columns:32px minmax(0,1fr); gap:16px; align-items:start; }
-.fg .cv-avatar { display:flex; justify-content:center; padding-top:2px; }
-.fg .cv-body { display:flex; flex-direction:column; gap:8px; min-width:0; }
-.fg .cv-meta { display:flex; align-items:baseline; gap:8px; margin:0; font-size:14px; line-height:20px; }
-.fg .cv-meta b { font-weight:600; color:var(--ink); }
-.fg .cv-meta span { font-size:13px; line-height:18px; font-weight:400; color:var(--q); font-variant-numeric:tabular-nums; }
 /* her steps, done in grey; what she is doing now in ink */
 .fg .cv-steps { display:flex; flex-direction:column; gap:4px; margin:0; padding:0; list-style:none; }
 .fg .cv-steps li { display:flex; align-items:flex-start; gap:8px; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
@@ -7553,7 +7551,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .cv-text ol { margin:0; }
 .fg .cv-text ul,
 .fg .cv-text ol { display:flex; flex-direction:column; gap:4px; padding-left:24px; }
-.fg .cv-text.cv-text--mine p { white-space:pre-wrap; overflow-wrap:anywhere; }
 .fg .cv-text .tk-tw { overflow-x:auto; }
 .fg .cv-text .tk-tbl th { font-size:12px; line-height:16px; font-weight:500; color:var(--q); background:transparent; border-bottom:1px solid var(--line); }
 .fg .cv-text .tk-tbl td { font-weight:400; }

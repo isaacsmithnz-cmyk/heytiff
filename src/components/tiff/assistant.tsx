@@ -19,6 +19,7 @@ import {
   clockOf,
   dayKeyOf,
   dayLabel,
+  isEmailThread,
   stepsFromTrace,
   threadWhen,
 } from "@/lib/tiff/conversations";
@@ -27,7 +28,6 @@ import { ConfirmDialog, Dialog } from "@/components/parts/dialog";
 import { Field, TextInput } from "@/components/parts/field";
 import { Empty, Wrong } from "@/components/parts/states";
 import { Fade } from "@/components/parts/fade";
-import { Initials } from "@/components/parts/initials";
 import { Dot } from "@/components/parts/state";
 import { CvBox } from "@/components/conversations/box";
 import { CvList } from "@/components/conversations/list";
@@ -50,15 +50,15 @@ let latchedHandoff: AskHandoff | undefined;
 
 const NO_HANDOFF: AskHandoff = { text: null, doc: null };
 
-const askHandoffAtMount = () => {
+export const askHandoffAtMount = () => {
   if (latchedHandoff === undefined) latchedHandoff = consumeAskHandoff();
   return latchedHandoff;
 };
 const forgetAskHandoff = () => {
   latchedHandoff = undefined;
 };
-const noAskHandoff = () => NO_HANDOFF;
-const noHandoffSubscription = () => () => {};
+export const noAskHandoff = () => NO_HANDOFF;
+export const noHandoffSubscription = () => () => {};
 import type { KbRecentDoc } from "@/lib/tiff/query";
 import {
   cardNote,
@@ -76,7 +76,6 @@ import { RecordingCard } from "@/components/notes/recording-card";
 import { DotField } from "@/components/ui/dot-field";
 import { READING_BACK_NOTE } from "@/components/notes/waits";
 import { Waiting } from "@/components/ui/orb";
-import dynamic from "next/dynamic";
 
 /* The Library's asking surface, connected.
 
@@ -122,7 +121,6 @@ import dynamic from "next/dynamic";
    without it, this device's copy is the only one. */
 /* the job card from a forwarded email (email-job-card.tsx), loaded only when
    a thread has one: it brings the New job form and its actions with it */
-const EmailJobCard = dynamic(() => import("./email-job-card").then((m) => m.EmailJobCard), { ssr: false });
 
 type Msg = TiffMsg;
 type Thread = TiffThread;
@@ -347,6 +345,20 @@ export type ConversationParts = {
   count: number;
 };
 
+/** An email open in the Inbox: its own head and what Tiff read, then anything
+    asked about it, in its thread. */
+export type OpenEmail = {
+  threadId: string;
+  title: string;
+  /** the thread for someone who has none of their own; null until it's read */
+  seed: TiffThread | null;
+  head: ReactNode;
+  read: ReactNode;
+};
+
+/** What was said after Tiff's read of an email. */
+const afterRead = (messages: Msg[]) => messages.slice(messages.findIndex((m) => m.email) + 1);
+
 export function TiffAssistant({
   counts = { install: 0, faults: 0, specs: 0, sops: 0, field: 0 },
   readyCount = 0,
@@ -359,6 +371,7 @@ export function TiffAssistant({
   initialThreadId = null,
   onOpenChange,
   you = "You",
+  email = null,
 }: {
   counts?: Record<KbCategoryKey, number>;
   /** Ready documents across every shelf — nothing can be researched at zero. */
@@ -381,6 +394,8 @@ export function TiffAssistant({
   onOpenChange?: (id: string | null) => void;
   /** Conversations: the asker's name, beside their own turns. */
   you?: string;
+  /** Conversations: the email open in the Inbox, in place of a chat. */
+  email?: OpenEmail | null;
 }) {
   const conv = layout === "conversations";
   const hydrated = useHydrated();
@@ -455,6 +470,7 @@ export function TiffAssistant({
      including the history as it was THEN, which is not the same as the history
      now that a partial answer has been kept in the thread. */
   const [failure, setFailure] = useState<{
+    threadId: string;
     message: string;
     question: string;
     research: boolean;
@@ -491,12 +507,14 @@ export function TiffAssistant({
   const showViz = (event: VizEvent) => setViz((prev) => reduceViz(prev, event));
 
   const threads = threadState ?? (hydrated ? loadThreads() : []);
+  /* An email's thread lives in the Inbox; Chats is your own talk with her. */
+  const chats = conv ? threads.filter((t) => !isEmailThread(t.id)) : threads;
   /* CONVERSATIONS ONLY KEEPS THEM (Isaac, 20 October: "Conversations are just
      where conversations are stored"; they start on Home). With none named, it
      opens the newest, unless a document handed a question over to ask. */
   const shownId =
-    activeId ?? (conv && !prefill && !scope && !handoff.ask ? ([...threads].sort((a, b) => b.updatedAt - a.updatedAt)[0]?.id ?? null) : null);
-  const active = threads.find((t) => t.id === shownId) ?? null;
+    activeId ?? (conv && !prefill && !scope && !handoff.ask ? ([...chats].sort((a, b) => b.updatedAt - a.updatedAt)[0]?.id ?? null) : null);
+  const active = email ? (threads.find((t) => t.id === email.threadId) ?? email.seed) : (threads.find((t) => t.id === shownId) ?? null);
   /* The held thread is written but not yet shown, so it must not appear in
      "Pick up where you left off" either — a card inviting you to resume the
      question you are watching being asked. */
@@ -576,8 +594,9 @@ export function TiffAssistant({
      the transcript keeps `followRef` honest; this effect only acts on it. */
   useEffect(() => {
     const el = chatRef.current;
-    if (el && followRef.current) el.scrollTop = el.scrollHeight;
-  }, [active?.messages.length, live?.text, streaming]);
+    /* an open email starts at its top, where the decision and her read are */
+    if (el && followRef.current && (!email || streaming)) el.scrollTop = el.scrollHeight;
+  }, [active?.messages.length, live?.text, streaming, email]);
 
   const onChatScroll = () => {
     const el = chatRef.current;
@@ -797,7 +816,7 @@ export function TiffAssistant({
             // a half-drawn search under a failure message is decoration on
             // top of bad news
             showViz({ t: "error" });
-            setFailure({ message: event.message, question, research: researchMode, history });
+            setFailure({ threadId, message: event.message, question, research: researchMode, history });
             // bad news is read in the thread, with Try again under it
             openHeld();
             break;
@@ -824,9 +843,9 @@ export function TiffAssistant({
     let next: Thread[];
 
     if (active) {
-      next = threads.map((t) =>
-        t.id === active.id ? { ...t, updatedAt: at, messages: [...t.messages, msg] } : t
-      );
+      next = threads.some((t) => t.id === active.id)
+        ? threads.map((t) => (t.id === active.id ? { ...t, updatedAt: at, messages: [...t.messages, msg] } : t))
+        : [{ ...active, updatedAt: at, messages: [...active.messages, msg] }, ...threads];
     } else {
       threadId = newThreadId(at);
       const title = trimmed.length > 52 ? `${trimmed.slice(0, 52).trimEnd()}…` : trimmed;
@@ -1052,18 +1071,18 @@ export function TiffAssistant({
      nothing to draw, and a loading list is nothing for half a second
      anyway (rule 41). */
   if (conv) {
-    const sorted = [...threads].sort((a, b) => b.updatedAt - a.updatedAt);
+    const sorted = [...chats].sort((a, b) => b.updatedAt - a.updatedAt);
     const list = !hydrated ? null : sorted.length > 0 ? (
       <CvList
-        label="Your conversations with Tiff"
+        label="Your chats with Tiff"
         rows={sorted.map((t) => ({ id: t.id, title: t.title, when: threadWhen(t.updatedAt, now) }))}
         openId={active?.id ?? null}
         onOpen={openThread}
       />
     ) : (
       <Empty
-        what="No conversations yet"
-        line="Talk to Tiff on Home and the conversation is kept here."
+        what="No chats yet"
+        line="Talk to Tiff on Home and the chat is kept here."
         action={
           <Button kind="second" size={32} href="/dashboard">
             Go to Home
@@ -1072,58 +1091,62 @@ export function TiffAssistant({
       />
     );
     const messages = active?.messages ?? [];
+    /* in an email, her read is drawn by the Inbox; what was asked after it is
+       a chat like any other */
+    const shown = email ? afterRead(messages) : messages;
     const pane = (
-      <section className="cv-pane" aria-label={active ? active.title : "New conversation"}>
-        <div className="cv-pane-head">
-          {active && (
-            <>
-              <Button kind="quiet" size={32} aria-label={`Rename “${active.title}”`} onClick={() => setRenaming(active)}>
-                Rename
-              </Button>
-              <Button kind="delete" size={32} aria-label={`Delete “${active.title}”`} onClick={() => setRemoving(active)}>
-                Delete
-              </Button>
-            </>
-          )}
-        </div>
-        <div className="cv-scroll" ref={chatRef} onScroll={onChatScroll}>
-          {active ? (
+      <section className="cv-pane" aria-label={email ? email.title : active ? active.title : "New conversation"}>
+        {email ? (
+          email.head
+        ) : (
+          <div className="cv-pane-head">
+            {active && (
+              <>
+                <Button kind="quiet" size={32} aria-label={`Rename “${active.title}”`} onClick={() => setRenaming(active)}>
+                  Rename
+                </Button>
+                <Button kind="delete" size={32} aria-label={`Delete “${active.title}”`} onClick={() => setRemoving(active)}>
+                  Delete
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+        <div className="cv-scroll" key={email?.threadId} ref={chatRef} onScroll={onChatScroll}>
+          {active || email ? (
             <div className="cv-msgs">
-              {messages.map((m, i) => (
+              {email?.read}
+              {shown.map((m, i) => (
                 <CvTurn
                   key={i}
                   m={m}
-                  day={i === 0 || dayKeyOf(messages[i - 1].at) !== dayKeyOf(m.at) ? dayLabel(m.at, now) : null}
+                  day={!email && (i === 0 || dayKeyOf(shown[i - 1].at) !== dayKeyOf(m.at)) ? dayLabel(m.at, now) : null}
                   you={you}
                   titles={docTitles}
                   canManage={canManage}
                   onPeek={setPeek}
                 />
               ))}
-              {live && live.threadId === active.id && (
-                <article className="cv-msg" aria-busy="true">
-                  <span className="cv-avatar">
-                    <TiffGlyph size={24} working />
-                  </span>
-                  <div className="cv-body">
-                    <p className="cv-meta">
-                      <b>Tiff</b>
+              {live && live.threadId === active?.id && (
+                <article className="jc-tiffturn" aria-busy="true">
+                  <p className="jc-tiffname">
+                    <TiffGlyph size={18} alive working />
+                    <b>Tiff</b>
+                  </p>
+                  {live.steps.length > 0 && <CvSteps steps={live.steps} />}
+                  {live.text ? (
+                    <div className="cv-text">
+                      <AnswerText text={live.text} />
+                    </div>
+                  ) : (
+                    /* what she is doing now, in ink, under the steps she has done */
+                    <p className="cv-now" role="status">
+                      {workingNote(viz)}
                     </p>
-                    {live.steps.length > 0 && <CvSteps steps={live.steps} />}
-                    {live.text ? (
-                      <div className="cv-text">
-                        <AnswerText text={live.text} />
-                      </div>
-                    ) : (
-                      /* what she is doing now, in ink, under the steps she has done */
-                      <p className="cv-now" role="status">
-                        {workingNote(viz)}
-                      </p>
-                    )}
-                  </div>
+                  )}
                 </article>
               )}
-              {failure && (
+              {failure && failure.threadId === active?.id && (
                 <div className="cv-fail">
                   <Wrong
                     word="No answer"
@@ -1145,7 +1168,7 @@ export function TiffAssistant({
           onChange={setTyped}
           onSubmit={() => send(input)}
           label="Ask Tiff"
-          placeholder={active ? "Reply to Tiff" : "Ask Tiff about this document"}
+          placeholder={email ? "Ask Tiff about this email" : active ? "Reply to Tiff" : "Ask Tiff about this document"}
           sendWord="Send"
           waiting={working}
           dict={voiceEnabled ? dict : null}
@@ -1169,7 +1192,7 @@ export function TiffAssistant({
     );
     return (
       <>
-        {frame ? frame({ list, pane, count: hydrated ? threads.length : 0 }) : (
+        {frame ? frame({ list, pane, count: hydrated ? chats.length : 0 }) : (
           <>
             {list}
             {pane}
@@ -1619,21 +1642,32 @@ function CvTurn({
           <span>{day}</span>
         </div>
       )}
-      <article className="cv-msg">
-        <span className="cv-avatar">{mine ? <Initials name={you} size={32} beside /> : <TiffGlyph size={24} />}</span>
-        <div className="cv-body">
-          <p className="cv-meta">
-            <b>{mine ? you : "Tiff"}</b>
-            <span>{clockOf(m.at)}</span>
+      {mine ? (
+        <div className="jc-talk">
+          <article className="jc-bm jc-bm--you jc-bm--first jc-bm--last">
+            <p className="jc-bmname">{you}</p>
+            <div className="jc-bubble">
+              <span className="jc-bubwords">{m.text}</span>
+            </div>
+            <p className="jc-bmtime">{clockOf(m.at)}</p>
+          </article>
+        </div>
+      ) : (
+        <article className="jc-tiffturn">
+          <p className="jc-tiffname">
+            <TiffGlyph size={18} alive />
+            <b>Tiff</b>
           </p>
           {m.steps && m.steps.length > 0 && <CvSteps steps={m.steps} />}
-          <div className={`cv-text${mine ? " cv-text--mine" : ""}`}>{mine ? <p>{m.text}</p> : <AnswerText text={m.text} />}</div>
+          <div className="cv-text">
+            <AnswerText text={m.text} />
+          </div>
           {m.truncated && <p className="cv-aside">That answer ran to its limit and stops mid-thought. Ask for the rest.</p>}
           {docs.length > 0 && <CvResults docs={docs} onPeek={onPeek} />}
-          {m.email && <EmailJobCard id={m.email} />}
-          {!mine && !m.email && <CvSource m={m} docs={docs} canManage={canManage} />}
-        </div>
-      </article>
+          <CvSource m={m} docs={docs} canManage={canManage} />
+          <p className="jc-bmtime">{clockOf(m.at)}</p>
+        </article>
+      )}
     </>
   );
 }

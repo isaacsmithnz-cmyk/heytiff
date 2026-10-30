@@ -5,6 +5,7 @@ import { ALLOWED_TYPES, storageRef } from "@/lib/documents/files";
 import type { KeptFile } from "./inbound-server";
 import { writeJobNote } from "@/lib/workboard/job-note-write";
 import type { EmailProposal } from "./proposal";
+import { withClientNow } from "./proposal-server";
 import { shareLinksIn, type ShareLink } from "./share-links";
 
 /* An email to Tiff, after its card: what the card shows, and a job made from
@@ -65,7 +66,7 @@ export async function emailJobView(orgId: string, id: string): Promise<EmailJobV
   return {
     id: row.id,
     state: row.state,
-    proposal: row.proposal,
+    proposal: row.state === "read" ? await withClientNow(orgId, row.proposal) : row.proposal,
     files: (row.files ?? []).map((f) => ({ name: f.name, size: f.size })),
     links: shareLinksIn(row.body),
     why: row.why,

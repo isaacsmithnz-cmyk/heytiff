@@ -2,7 +2,9 @@ import {
   matchOne,
   nameKey,
   normEmail,
+  companyKey,
   normName,
+  oneCompanyNamed,
   staffName,
   suggestMatches,
   type RemoteCandidate,
@@ -194,5 +196,39 @@ describe("suggestMatches", () => {
       suggestions: [],
       ambiguous: [],
     });
+  });
+});
+
+describe("a company's name", () => {
+  it("leaves off what only the paperwork adds", () => {
+    expect(companyKey("JT Construct Pty Ltd")).toBe("jt construct");
+    expect(companyKey("JT Construct Pty. Ltd.")).toBe("jt construct");
+    expect(companyKey("JT CONSTRUCT P/L")).toBe("jt construct");
+    expect(companyKey("Truecut Building Limited")).toBe("truecut building");
+    expect(companyKey("JT Construct")).toBe("jt construct");
+  });
+
+  it("keeps a word that is the name, and anything that isn't a legal ending", () => {
+    expect(companyKey("Limited")).toBe("limited");
+    expect(companyKey("JT Developments")).toBe("jt developments");
+    expect(companyKey("Pty Plumbing")).toBe("pty plumbing");
+  });
+
+  const co = (name: string) => ({ name });
+
+  /* the Krui Street tender: 65 jobs under JT Construct, and the card said "a new client" */
+  it("finds the client an email names with its legal ending, and not a near one", () => {
+    const clients = [co("JT Construct"), co("JT Developments"), co("JTM AUTO")];
+    expect(oneCompanyNamed(clients, "JT Construct Pty Ltd")?.name).toBe("JT Construct");
+    expect(oneCompanyNamed(clients, "JT Constructions")).toBeNull();
+    expect(oneCompanyNamed(clients, "JT")).toBeNull();
+  });
+
+  it("takes the exact name when two differ only by the ending, and no one when it can't tell", () => {
+    const both = [co("Truecut Building"), co("Truecut Building Pty Ltd")];
+    expect(oneCompanyNamed(both, "Truecut Building Pty Ltd")?.name).toBe("Truecut Building Pty Ltd");
+    expect(oneCompanyNamed(both, "Truecut Building")?.name).toBe("Truecut Building");
+    expect(oneCompanyNamed(both, "Truecut Building Limited")).toBeNull();
+    expect(oneCompanyNamed([], "Truecut")).toBeNull();
   });
 });

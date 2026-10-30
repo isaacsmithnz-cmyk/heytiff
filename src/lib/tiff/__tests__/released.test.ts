@@ -1,6 +1,6 @@
 /* When a manual came out: printed on its title, file or edition, else the PDF's own date. */
 
-import { pdfDate, printedDate, releasedOf } from "../released";
+import { editionWords, pdfDate, printedDate, releasedOf } from "../released";
 
 const NOW = new Date("2026-10-30T00:00:00Z");
 
@@ -52,5 +52,21 @@ describe("releasedOf", () => {
       "2026-01-01",
     );
     expect(releasedOf({ title: "Daikin VRV Diagnosis Manual", fileName: null, edition: "Si30 - 701_A" }, null, NOW)).toBeNull();
+  });
+});
+
+describe("editionWords", () => {
+  it("keeps an edition that says more than the year", () => {
+    expect(editionWords("Si30 - 701_A")).toBe("Si30 - 701_A");
+    expect(editionWords("REVISED EDITION-A")).toBe("REVISED EDITION-A");
+    expect(editionWords("Product Release 2023")).toBe("Product Release 2023");
+  });
+
+  it("drops one that's only a date, or nothing", () => {
+    expect(editionWords("July 2023")).toBeNull();
+    expect(editionWords("Sep. 2022")).toBeNull();
+    expect(editionWords("2024")).toBeNull();
+    expect(editionWords("  ")).toBeNull();
+    expect(editionWords(null)).toBeNull();
   });
 });

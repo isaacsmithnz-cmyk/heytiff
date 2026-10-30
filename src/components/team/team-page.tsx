@@ -18,6 +18,8 @@ import { FleetRegister } from "@/components/fleet/register";
 import { useFleetActions } from "@/components/fleet/fleet-state";
 import type { Register } from "@/components/fleet/fleet-types";
 import { NoticesBoard } from "@/components/dashboard/notices-board";
+import { Button } from "@/components/parts/button";
+import { TeamPurchases, type PurchasesData } from "@/components/purchases/team-purchases";
 import type { TimepaySection } from "@/lib/timepay/section";
 import type { NoticeBoardData } from "@/lib/dashboard/page-data";
 import { TEAM_VIEW_LABEL, teamViewHref, type TeamView } from "@/lib/team/views";
@@ -43,6 +45,8 @@ export type TeamPageData = {
   /** the Fleet register, present only with `assets_all` */
   fleet: { register: Register; today: string; warnDays: number } | null;
   notices: NoticeBoardData;
+  /** Purchases, present only with `financials` */
+  purchases?: PurchasesData | null;
   /** without `team`: the colleagues' names, roles and mobiles, which People shows instead of the records */
   directory: DirectoryPerson[] | null;
   /** the views this reader has, in order */
@@ -77,6 +81,7 @@ export function TeamPage({ data, view: asked }: { data: TeamPageData; view: Team
   const [query, setQuery] = useState("");
   const [showLeft, setShowLeft] = useState(false);
   const [sort, setSort] = useState<PeopleSort>("name");
+  const [adding, setAdding] = useState(false);
 
   const go = (next: TeamView) => {
     setView(next);
@@ -85,6 +90,7 @@ export function TeamPage({ data, view: asked }: { data: TeamPageData; view: Team
       if (next === "people") url.searchParams.delete("view");
       else url.searchParams.set("view", next);
       if (next !== "timesheets") url.searchParams.delete("period");
+      url.searchParams.delete("purchase");
       window.history.replaceState(null, "", url.toString());
     }
   };
@@ -129,7 +135,14 @@ export function TeamPage({ data, view: asked }: { data: TeamPageData; view: Team
               )}
             </div>
           )}
-          {people.canInvite && <AddPersonButton roles={people.inviteRoles} />}
+          {/* the view's own main button: Add a purchase on Purchases, Add a person elsewhere */}
+          {view === "purchases" ? (
+            <Button kind="main" onClick={() => setAdding(true)}>
+              Add a purchase
+            </Button>
+          ) : (
+            people.canInvite && <AddPersonButton roles={people.inviteRoles} />
+          )}
         </div>
       </header>
 
@@ -196,6 +209,7 @@ export function TeamPage({ data, view: asked }: { data: TeamPageData; view: Team
           <TeamExpenses claims={timepay.claims} canApprove={timepay.canApprove} canPay={timepay.financials} />
         )}
         {view === "vehicles" && fleet && <TeamVehicles fleet={fleet} />}
+        {view === "purchases" && data.purchases && <TeamPurchases data={data.purchases} adding={adding} onAdded={() => setAdding(false)} />}
         {view === "notices" && (
           <NoticesBoard
             embedded

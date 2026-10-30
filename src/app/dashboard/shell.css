@@ -9106,3 +9106,43 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .pt-dialog .jv-file:focus-within { box-shadow:var(--ring); }
 .pt-dialog .jv-file input { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); opacity:0; }
 .pt-dialog .jv-photoname { font-size:13px; line-height:18px; color:var(--q); }
+
+/* ===== PURCHASES (Isaac, 29 October 2026, "Build" on the mock
+   DMsn3JEQ…; components/purchases/*). The Add a purchase dialog wears
+   Materials' rows (`jm-row`), portalled outside `.fg`, so nothing here is
+   scoped to it. Bought sits above the van's list in Materials' own box.
+   Team's list is a plain table: hairlines, figures lined up, a second line
+   in grey under a cell that has one. ===== */
+.pu-file { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
+.pu-quiet { margin:0 0 12px; font-size:13px; line-height:18px; color:var(--q); }
+.pu-group { margin:16px 0 4px; font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+.pu-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px; }
+.pu-head .pu-group { margin:0; }
+.pu-line--placed .jm-name { color:var(--q); }
+.pu-money { min-width:72px; }
+.pu-price { display:flex; align-items:center; gap:8px; flex:none; }
+.pu-price .pu-price-in { width:96px; }
+.pu-which .pt-search { margin-bottom:8px; }
+.pu-which button.pu-job { display:flex; align-items:baseline; gap:8px; width:100%; min-height:32px; padding:4px 0; border:0; background:none; font:inherit; font-size:14px; line-height:20px; text-align:left; color:var(--ink); cursor:pointer; }
+.pu-which button.pu-job:hover .jm-name, .pu-which button.pu-job:focus-visible .jm-name { text-decoration:underline; }
+.pu-back { margin-top:16px; }
+.pu-said { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:16px; padding-top:12px; border-top:1px solid var(--line); font-size:14px; line-height:20px; color:var(--ink); }
+.pu-reading { display:flex; flex-direction:column; align-items:center; gap:12px; padding:24px 0; text-align:center; }
+.pu-against { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin:0 0 8px; font-size:14px; line-height:20px; color:var(--ink); font-variant-numeric:tabular-nums; }
+.pu-open { color:var(--ink); text-decoration:underline; }
+.pu-total .jm-text { flex:1 1 auto; font-weight:600; color:var(--ink); }
+.pu-table { width:100%; border-collapse:collapse; font-size:14px; line-height:20px; color:var(--ink); }
+.pu-table th { padding:8px 12px 8px 0; border-bottom:1px solid var(--line); font-size:12px; line-height:16px; font-weight:500; color:var(--q); text-align:left; }
+.pu-table td { padding:8px 12px 8px 0; border-bottom:1px solid var(--line); vertical-align:top; max-width:320px; }
+.pu-table .pu-num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.pu-table .pu-date { white-space:nowrap; }
+.pu-two { display:block; }
+.pu-cell-q { display:block; font-size:13px; line-height:18px; color:var(--q); }
+.pu-foot td { font-weight:600; border-bottom:0; }
+.pu-opened { display:flex; flex-direction:column; gap:16px; }
+.pu-opened-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.pu-title { margin:0 0 4px; font-size:20px; line-height:28px; font-weight:600; color:var(--ink); }
+.pu-opened-acts { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.pu-split { display:grid; grid-template-columns:240px minmax(0,1fr); gap:24px; align-items:start; }
+.pu-docket { width:100%; border:1px solid var(--edge); border-radius:var(--r-card); }
+@media (max-width:900px) { .pu-split { grid-template-columns:minmax(0,1fr); } }

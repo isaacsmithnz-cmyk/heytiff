@@ -79,7 +79,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 - **41. Loading.** Nothing for half a second, then Tiff's mark, turning at her working speed, in the middle of where the page will be. A page never wears a skeleton: one shaped like the page never matched it (Isaac, 20 October 2026).
 - **42. When something goes wrong.** A red dot and word, what it means for you, and what to do.
 - **43. Search.** Results by kind; the last row asks Tiff, with Enter.
-- **44. The New menu.** Job, Task and Note: the same three on every page (Note joined on 24 October 2026, Isaac: "Yes to new note"). It fills in only the record you are on, which you can clear: a task made on a job's page is for that job, and made anywhere else it is a general task. A quote is made on its job, through Add. The panel reaches out from the New button, dark, square where it leaves the panel.
+- **44. The New menu.** Job, Task and Note: the same three on every page (Note joined on 24 October 2026, Isaac: "Yes to new note"). It fills in only the record you are on, which you can clear: a task made on a job's page is for that job, and made anywhere else it is a general task. A quote is made on its job, through Add. The panel reaches out from the New button, dark, square where it leaves the panel. On the phone New also holds Purchase, the camera on a supplier's docket (Isaac, 29 October 2026).
 
 ### Motion, shape and the rest
 
@@ -95,7 +95,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 - **51. The form.** Opens over the page you're on. The record it's for is a field, filled in, that you can change or clear. Saving keeps you where you were, with a toast and Undo. A document opens in its own tab.
 - **52. Other doors.** A section's own button, like Book a visit, opens the same form with the record filled in. Tiff reads the same page.
 - **53. Actions.** Only what's done to the record itself: its stage, pin, copy the link, print, then what ends it in red. Making is Add's job.
-- **54. Add, on a record.** Makes what belongs to that record. On a job: Visit, Task, Quote (Variation once accepted), Cost, SWMS, Certificate. Opens white, like every menu from the page.
+- **54. Add, on a record.** Makes what belongs to that record. On a job: Visit, Task, Quote (Variation once accepted), Cost, Purchase, SWMS, Certificate. Opens white, like every menu from the page. Purchase is a supplier's docket, photographed, its lines onto the job (Isaac, 29 October 2026); every purchase is also kept under Team, Purchases.
 
 ## The palette
 

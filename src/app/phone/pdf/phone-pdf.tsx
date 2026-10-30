@@ -74,12 +74,23 @@ export function boxesOf(items: readonly unknown[], marks: readonly string[], pag
   return out;
 }
 
+/** The part of a page the zoomed screen shows, as fractions of the page;
+    null when the page is off it. Rects in the layout's own pixels. Pure. */
+export function seenOf(page: { left: number; top: number; width: number; height: number }, screen: { left: number; top: number; width: number; height: number }): Box | null {
+  const left = Math.max(page.left, screen.left);
+  const top = Math.max(page.top, screen.top);
+  const right = Math.min(page.left + page.width, screen.left + screen.width);
+  const bottom = Math.min(page.top + page.height, screen.top + screen.height);
+  if (right <= left || bottom <= top || !page.width || !page.height) return null;
+  return { left: (left - page.left) / page.width, top: (top - page.top) / page.height, width: (right - left) / page.width, height: (bottom - top) / page.height };
+}
+
 const say = (m: PdfSaid) => {
   window.ReactNativeWebView?.postMessage(JSON.stringify(m));
   if (window.parent !== window) window.parent.postMessage({ heytiffPdf: m }, "*");
 };
 
-/** The most pixels a page is drawn with, zoomed in: about 24 MB of picture. */
+/** The most pixels a whole page is drawn with: about 24 MB of picture. */
 const MOST_PIXELS = 6_000_000;
 
 export function PhonePdf() {
@@ -89,7 +100,8 @@ export function PhonePdf() {
   const [ratios, setRatios] = useState<Record<number, number>>({});
   const [first, setFirst] = useState(1.414);
   const [near, setNear] = useState<Set<number>>(new Set());
-  const [sharp, setSharp] = useState(1);
+  /* zoomed in: how far, and the part of each page on screen, drawn again at that sharpness once the fingers stop */
+  const [zoom, setZoom] = useState<{ scale: number; seen: Record<number, Box> } | null>(null);
   /* where the app asked to go: a new `n` goes there again */
   const [want, setWant] = useState<{ page: number; marks: string[]; n: number } | null>(null);
   /* the last of those whose words were brought into view, so a page drawn again doesn't pull you back */
@@ -137,21 +149,40 @@ export function PhonePdf() {
 
   const pages = doc?.numPages ?? 0;
 
-  /* zoomed in, the pages are drawn again sharper once the fingers stop */
+  /* zoomed in for the small print: once the fingers stop, the part of the
+     page on screen is drawn again as sharp as the zoom, over the page. A
+     whole page that sharp would be hundreds of megabytes; the part on screen
+     is the screen's own pixels. */
   useEffect(() => {
     const vv = window.visualViewport;
-    if (!vv) return;
+    if (!vv || !pages) return;
     let t: ReturnType<typeof setTimeout> | undefined;
+    const settle = () => {
+      if (vv.scale < 1.2) return setZoom(null);
+      /* the page's place is in the layout's pixels; the zoomed screen is a window onto them */
+      const screen = { left: vv.offsetLeft, top: vv.offsetTop, width: vv.width, height: vv.height };
+      const seen: Record<number, Box> = {};
+      for (const [n, el] of sheets.current) {
+        const r = el.getBoundingClientRect();
+        const b = seenOf({ left: r.left, top: r.top, width: r.width, height: r.height }, screen);
+        if (b) seen[n] = b;
+      }
+      setZoom({ scale: vv.scale, seen });
+    };
     const on = () => {
       clearTimeout(t);
-      t = setTimeout(() => setSharp(Math.max(1, Math.min(4, Math.round(vv.scale * 2) / 2))), 250);
+      t = setTimeout(settle, 200);
     };
     vv.addEventListener("resize", on);
+    vv.addEventListener("scroll", on);
+    window.addEventListener("scroll", on, { passive: true });
     return () => {
       clearTimeout(t);
       vv.removeEventListener("resize", on);
+      vv.removeEventListener("scroll", on);
+      window.removeEventListener("scroll", on);
     };
-  }, []);
+  }, [pages]);
 
   /* as it scrolls: the page in view, said to the app as it changes, and the
      pages within a screen and a half of it drawn, the rest left blank paper */
@@ -210,7 +241,7 @@ export function PhonePdf() {
             <Sheet
               doc={doc}
               n={n}
-              sharp={sharp}
+              zoom={zoom?.seen[n] ? { scale: zoom.scale, seen: zoom.seen[n]! } : null}
               marks={want && want.page === n ? want.marks : null}
               focus={want && want.page === n && want.n > shown ? want.n : 0}
               onFocused={setShown}
@@ -227,7 +258,7 @@ export function PhonePdf() {
 function Sheet({
   doc,
   n,
-  sharp,
+  zoom,
   marks,
   focus,
   onFocused,
@@ -235,13 +266,14 @@ function Sheet({
 }: {
   doc: PDFDocumentProxy;
   n: number;
-  sharp: number;
+  zoom: { scale: number; seen: Box } | null;
   marks: string[] | null;
   focus: number;
   onFocused: (n: number) => void;
   onRatio: (n: number, r: number) => void;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
+  const close = useRef<HTMLCanvasElement>(null);
   const [read, setRead] = useState<{ said: string; boxes: Box[] }>({ said: "", boxes: [] });
 
   useEffect(() => {
@@ -254,7 +286,7 @@ function Sheet({
         if (!live || !el) return;
         const base = p.getViewport({ scale: 1 });
         onRatio(n, base.height / base.width);
-        const across = (el.parentElement?.clientWidth ?? window.innerWidth) * (window.devicePixelRatio || 1) * sharp;
+        const across = (el.parentElement?.clientWidth ?? window.innerWidth) * (window.devicePixelRatio || 1);
         const scale = Math.min(across / base.width, Math.sqrt(MOST_PIXELS / (base.width * base.height)));
         const viewport = p.getViewport({ scale });
         el.width = Math.round(viewport.width);
@@ -267,7 +299,40 @@ function Sheet({
       live = false;
       task?.cancel();
     };
-  }, [doc, n, sharp, onRatio]);
+  }, [doc, n, onRatio]);
+
+  /* the part on screen, zoomed: drawn at the zoom's sharpness, laid exactly over the page */
+  const z = zoom ? `${zoom.scale}|${zoom.seen.left}|${zoom.seen.top}|${zoom.seen.width}|${zoom.seen.height}` : "";
+  useEffect(() => {
+    const el = close.current;
+    if (!z || !el) return;
+    const [scale, left, top, width, height] = z.split("|").map(Number) as [number, number, number, number, number];
+    let live = true;
+    let task: RenderTask | null = null;
+    void doc
+      .getPage(n)
+      .then((p) => {
+        if (!live) return;
+        const base = p.getViewport({ scale: 1 });
+        /* the page as wide as it shows, in the phone's pixels at this zoom */
+        const across = (el.parentElement?.clientWidth ?? window.innerWidth) * (window.devicePixelRatio || 1) * scale;
+        const viewport = p.getViewport({ scale: across / base.width });
+        el.width = Math.max(1, Math.round(viewport.width * width));
+        el.height = Math.max(1, Math.round(viewport.height * height));
+        task = p.render({
+          canvas: el,
+          canvasContext: el.getContext("2d")!,
+          viewport,
+          transform: [1, 0, 0, 1, -viewport.width * left, -viewport.height * top],
+        });
+        return task.promise;
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+      task?.cancel();
+    };
+  }, [doc, n, z]);
 
   const said = marks?.join("\u0000") ?? "";
   const boxes = said && read.said === said ? read.boxes : [];
@@ -299,6 +364,18 @@ function Sheet({
   return (
     <>
       <canvas ref={canvas} style={{ display: "block", width: "100%", height: "100%" }} />
+      {zoom ? (
+        <canvas
+          ref={close}
+          style={{
+            position: "absolute",
+            left: `${zoom.seen.left * 100}%`,
+            top: `${zoom.seen.top * 100}%`,
+            width: `${zoom.seen.width * 100}%`,
+            height: `${zoom.seen.height * 100}%`,
+          }}
+        />
+      ) : null}
       {boxes.map((b, i) => (
         <span
           key={i}

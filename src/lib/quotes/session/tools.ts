@@ -182,7 +182,7 @@ const lineFields = {
   source: { type: "string", enum: [...SOURCES], description: "said: the brief or the person said it. assumed: your judgement. unknown: not known yet. fitted: made to fit something else on the quote." },
   why: { type: "string", description: "said: the words, quoted. assumed: the reason. unknown: what's needed to know it. fitted: what it was made to fit." },
   sell_each_cents: { type: "integer", description: "A price for one of it, ex GST, in cents, that the person gave you or ServiceM8's quote gives its own line: only with source said, and their words or ServiceM8's line in why. Never a price of your own." },
-  duct: { type: "boolean", description: "True for ductwork, grilles and the return: what the duct contingency covers." },
+  duct: { type: "boolean", description: "True for ductwork, grilles and the return: what the duct contingency covers. Leave it off on a changeover whose air side follows the old layout." },
 };
 
 export const SESSION_TOOLS: ToolDef[] = [
@@ -360,6 +360,7 @@ export const SESSION_TOOLS: ToolDef[] = [
         outlet_mm: { type: "number", description: "Ducted: the outlets' size, mm, as the brief, a plan or the person gives it. Where none gives it, the airflow guide's for the air each carries, never the business's usual" },
         replacing: { type: "string", enum: ["no", "yes", "keep"], description: "An old system comes out; keep: and its pipe is kept" },
         new_circuit: { type: "boolean", description: "Replacing, and the new unit needs its own new circuit: only when the person says so or the old circuit can't carry its running current. Otherwise it stays on the old circuit, with no breaker and a short run from the isolator" },
+        layout_stays: { type: "boolean", description: "Replacing a ducted system, and the new air side follows the old layout: its grilles or ducts kept, or renewed where they run. True leaves its ductwork out of the duct contingency, which covers a layout changing on site. False where rooms, outlets or runs are changing." },
         underfloor: { type: "boolean", description: "Ducted: the indoor goes under the floor, its outlets floor grilles on boots" },
         kept_pipe: { type: "string", enum: [...OLD_PIPES] },
         zones: { type: "integer", description: "Ducted, zoned: how many zones. The kit takes the maker's zone system from its data: its interface, its own controller in place of the unit's, a sensor in every zone" },
@@ -732,6 +733,7 @@ export function kitAskOf(raw: unknown): {
       replacing: r.replacing === "yes" || r.replacing === "keep" ? r.replacing : "",
       keptPipe: r.kept_pipe,
       newCircuit: r.new_circuit === true,
+      layoutStays: r.layout_stays === true,
       underfloor: r.underfloor === true,
       takeoffs: r.takeoffs,
       fittings: list(r.fittings)?.map((x) => ({ inMm: x.in_mm, outsMm: x.outs_mm, count: x.count })),

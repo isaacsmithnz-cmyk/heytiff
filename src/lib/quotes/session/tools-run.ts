@@ -332,7 +332,12 @@ function makeToolRun(store: QuoteStore) {
           ok: true,
           label,
           said: `${KIT_WORD[k.kit]}, ${res.added} parts${still.length ? `, ${still.length} to settle` : ""}`,
-          value: still.length ? { added: res.added, still_to_settle: still } : { added: res.added },
+          value: {
+            added: res.added,
+            ...(still.length ? { still_to_settle: still } : {}),
+            /* the replay of 3372: the kit said it, and her own air-side lines still carried the contingency */
+            ...(k.facts.replacing && k.facts.layoutStays ? { layout_stays: "This job's air side follows the old layout: leave duct off every line you add to it, so no duct contingency lands." } : {}),
+          },
         };
       }
       /* the guide's figure and its reason for each check: hers to say, the

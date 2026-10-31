@@ -92,6 +92,17 @@ it("the ducted kit adds flex and an outlet to each outlet, and a return", () => 
   expect(lines.some((l) => l.name === "Floor boot")).toBe(false);
 });
 
+it("a ducted changeover that follows the old layout has nothing for the duct contingency; a new layout does", () => {
+  const ducted = [...book, product("VORTEX FLEX R1.0 250MM X 6M", 3045), product("CONE DIFFUSER 250MM", 1887)];
+  const air = (l: { duct?: boolean }) => l.duct === true;
+  const given = { ...facts, outlets: 5, outletMm: 250 };
+  expect(expandKit("ducted", given, ducted, at).some(air)).toBe(true);
+  expect(expandKit("ducted", { ...given, replacing: true }, ducted, at).some(air)).toBe(true);
+  expect(expandKit("ducted", { ...given, replacing: true, layoutStays: true }, ducted, at).some(air)).toBe(false);
+  /* only a changeover has an old layout to follow */
+  expect(expandKit("ducted", { ...given, layoutStays: true }, ducted, at).some(air)).toBe(true);
+});
+
 it("a ducted kit under the floor takes floor grilles on boots and hangs the indoor on springs (3377)", () => {
   const lines = expandKit("ducted", { ...facts, outlets: 6, outletMm: 200, underfloor: true }, [...book, product("FLOOR GRILLE 350X150 ANODISED", 3500), product("UNI BOOT 350X150 200MM", 2800), product("SPRING HANGER 15-30KG", 2286)], at);
   expect(lines.find((l) => l.name === "FLOOR GRILLE 350X150 ANODISED")).toMatchObject({ qty: 6 });
@@ -128,6 +139,7 @@ it("reads a unit's pipe off its data pack's connections, and makes a person's fa
     outletMm: null,
     replacing: false,
     newCircuit: false,
+    layoutStays: false,
     keptPipe: null,
     underfloor: false,
   });

@@ -68,6 +68,9 @@ export type KitFacts = {
   replacing?: boolean;
   /** an old system comes out, and this one needs its own new circuit too */
   newCircuit?: boolean;
+  /** an old system comes out, and the new air side follows the old layout:
+      nothing for the business's duct contingency to cover */
+  layoutStays?: boolean;
   /** ducted: the indoor goes under the floor, hung on springs, its outlets
       floor grilles on boots (3377) */
   underfloor?: boolean;
@@ -852,8 +855,11 @@ function atSize(kind: RangeKind, need: RangeNeed, products: readonly Product[], 
 /* the flag rides on the line into the quote (lines.ts keeps it), so a
    kit's ductwork carries the business's duct contingency like a hand-built
    quote's does: before it, a kit-built ducted quote priced it at nothing.
-   On a line not known yet too, so it counts once a person prices it. */
-const ductOf = (part: KitPart) => (part.duct ? { duct: true } : {});
+   On a line not known yet too, so it counts once a person prices it. The
+   contingency covers a layout changing on site: where a changeover keeps the
+   old layout there is no such change (3372, a 14 kW swap with its grilles
+   kept, carried a new build's share and hours). */
+const ductOf = (part: KitPart, f: KitFacts) => (part.duct && !(f.replacing && f.layoutStays) ? { duct: true } : {});
 
 /** What a changeover's short runs are taken at when nobody gave them: the
     isolator to the outdoor, and the drain. An assumption on the line, for a
@@ -891,7 +897,7 @@ export function expandKit(
     if (part.key === "breaker" && f.replacing && !f.newCircuit) continue;
     /* a part at several sizes: a line for each, from the range */
     if (part.many) {
-      const base = { optionIndex: at.optionIndex, system: at.system, group: part.group, kind: "material" as const, ...ductOf(part) };
+      const base = { optionIndex: at.optionIndex, system: at.system, group: part.group, kind: "material" as const, ...ductOf(part, f) };
       const each = part.many(f);
       if (each == null) {
         out.push({ ...base, name: part.name, qty: 0, unit: "", costCents: 0, source: "unknown", why: part.none?.(f) ?? "Needs the layout" });
@@ -910,7 +916,7 @@ export function expandKit(
     /* a part that is several items, each its own line (a VRF's pipe at each
        size, its joints by part) */
     if (part.each) {
-      const base = { optionIndex: at.optionIndex, system: at.system, group: part.group, kind: "material" as const, ...ductOf(part) };
+      const base = { optionIndex: at.optionIndex, system: at.system, group: part.group, kind: "material" as const, ...ductOf(part, f) };
       const items = part.each(f);
       if (items == null) {
         const needs = typeof part.needs === "function" ? part.needs(f) : part.needs;
@@ -952,7 +958,7 @@ export function expandKit(
     }
     const q = part.qty(f);
     const s = part.search(f);
-    const base = { optionIndex: at.optionIndex, system: at.system, group: part.group, kind: "material" as const, ...ductOf(part) };
+    const base = { optionIndex: at.optionIndex, system: at.system, group: part.group, kind: "material" as const, ...ductOf(part, f) };
     if (!q || !s) {
       const needs = typeof part.needs === "function" ? part.needs(f) : part.needs;
       const why = !s ? (needs ?? (part.key === "pair-coil" && f.keptPipe ? "Needs the unit's details to check the old pipe" : "Needs the unit's details")) : "Needs the run";
@@ -1118,6 +1124,7 @@ export function normaliseKitFacts(raw: unknown): KitFacts {
     outletMm: n(r.outletMm, 600),
     replacing: r.replacing === true || r.replacing === "yes" || r.replacing === "keep",
     newCircuit: r.newCircuit === true,
+    layoutStays: r.layoutStays === true,
     underfloor: r.underfloor === true || r.underfloor === "yes",
     keptPipe: r.replacing === "keep" && (OLD_PIPES as readonly unknown[]).includes(r.keptPipe) ? (r.keptPipe as OldPipe) : null,
     ...layoutFacts(r),

@@ -119,6 +119,8 @@ export type JobStoryServerRead = {
   workDone: string | null;
   status: string | null;
   clientName: string | null;
+  /** The day the job was made. */
+  createdOn: string | null;
 };
 
 /** The same inputs the card fetches, assembled where the writer runs. The
@@ -185,6 +187,7 @@ export async function readJobStoryForSummary(
     workDone: detail.workDone,
     status: detail.status,
     clientName: detail.clientName,
+    createdOn: detail.date,
   };
 }
 

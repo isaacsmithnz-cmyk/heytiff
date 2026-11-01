@@ -7204,6 +7204,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jsc-n, .fg .jsc-who { font-size:13px; color:var(--q); }
 .fg .jsc-ups { margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
 .fg .jsc-ups > li { display:grid; grid-template-columns:96px minmax(0, 1fr); gap:12px; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px; line-height:20px; color:var(--ink); }
+.fg .jsc-ups > li.jsc-up-act { grid-template-columns:96px minmax(0, 1fr) auto; align-items:start; }
 .fg .jsc-on { font-size:13px; color:var(--q); }
 .fg .jsc-ups b { display:block; font-size:13px; font-weight:600; }
 .fg .jsc-said { display:block; }

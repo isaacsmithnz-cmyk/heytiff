@@ -1,4 +1,5 @@
-import { SCOPE_SCHEMA, scopeOf, scopePrompt, scopeWanted } from "../job-scope";
+import type { StoryEntry } from "@/lib/workboard/job-story";
+import { SCOPE_SCHEMA, scopeMoved, scopeOf, scopePrompt, scopeStamp, scopeWanted } from "../job-scope";
 
 /* A job's scope, as Tiff's written brief (Isaac, 28 October 2026: "a common
    point where a quote can get built from"): what she's handed, and how her
@@ -25,6 +26,7 @@ describe("reading Tiff's brief back", () => {
       notOurs: ["Solar panels off and back on"],
       clarify: [{ q: "Who removes the old units?", who: "Builder" }],
       updates: [{ on: "Wed 28 Oct", from: "Isaac Smith's note", said: "Added the exhaust fans." }],
+      undoSaid: "",
     });
   });
 
@@ -62,11 +64,60 @@ describe("what Tiff is handed", () => {
 });
 
 describe("whose jobs get one", () => {
-  it("a job being quoted or worked, and no other", () => {
-    expect(scopeWanted("Quote")).toBe(true);
-    expect(scopeWanted(" work order ")).toBe(true);
-    expect(scopeWanted("Completed")).toBe(false);
-    expect(scopeWanted("Unsuccessful")).toBe(false);
-    expect(scopeWanted(null)).toBe(false);
+  it("a job being quoted or worked, made since the first of October", () => {
+    expect(scopeWanted("Quote", "2026-10-01 00:00:00")).toBe(true);
+    expect(scopeWanted(" work order ", "2026-10-29")).toBe(true);
+    expect(scopeWanted("Quote", "2026-09-30 00:00:00")).toBe(false);
+    expect(scopeWanted("Quote", null)).toBe(false);
+    expect(scopeWanted("Completed", "2026-10-29")).toBe(false);
+    expect(scopeWanted("Unsuccessful", "2026-10-29")).toBe(false);
+    expect(scopeWanted(null, "2026-10-29")).toBe(false);
+  });
+});
+
+describe("what a rewrite is due on", () => {
+  const note = (key: string, removed = false) => ({ kind: "note", key, day: "2026-10-28", at: "2026-10-28 14:40:00", text: "x", removed }) as unknown as StoryEntry;
+  const booking = { kind: "booking", key: "booking:1", day: "2026-11-04", at: null, start: "2026-11-04 11:30:00", crew: [] } as unknown as StoryEntry;
+  const photos = { kind: "photos", key: "photos:1", day: "2026-11-01", at: null, count: 2, shown: [] } as unknown as StoryEntry;
+
+  it("moves on a new note and not on a booking or a photo", () => {
+    const stamp = scopeStamp([note("a")]);
+    expect(scopeStamp([booking, photos, note("a")])).toBe(stamp);
+    expect(scopeStamp([note("b"), note("a")])).not.toBe(stamp);
+  });
+
+  it("moves when a note is taken back off the job", () => {
+    expect(scopeStamp([note("b", true), note("a")])).toBe(scopeStamp([note("a")]));
+    expect(scopeStamp([note("b", true), note("a")])).not.toBe(scopeStamp([note("b"), note("a")]));
+  });
+
+  it("still gives a job with no note its first brief, and nothing without a story", () => {
+    expect(scopeStamp([booking])).toBe("no-notes");
+    expect(scopeStamp([])).toBeNull();
+  });
+});
+
+describe("whether a rewrite changed anything", () => {
+  const base = { lede: "L", systems: [], added: [], notOurs: [], clarify: [], updates: [], undoSaid: "" };
+  it("doesn't count its words on the change itself", () => {
+    expect(scopeMoved(base, { ...base, undoSaid: "Took it out.", updates: [{ on: "x", from: "y", said: "z" }] })).toBe(false);
+    expect(scopeMoved(base, { ...base, added: [{ text: "Exhaust fans", from: "a note" }] })).toBe(true);
+  });
+});
+
+describe("the brief as it stands", () => {
+  const was = { lede: "As it stands.", systems: [], added: [], notOurs: [], clarify: [], updates: [], undoSaid: "Took it out." };
+  const read = { status: "Quote", clientName: "C", scope: null, workDone: null, lines: [] };
+  it("is handed over with what was taken out", () => {
+    const p = scopePrompt({ ...read, previous: was, setAside: [{ on: "Sun 1 Nov", said: "Added exhaust fans." }] });
+    expect(p).toContain("As it stands.");
+    expect(p).toContain("Sun 1 Nov: Added exhaust fans.");
+    expect(p).not.toContain("undoSaid");
+  });
+  it("never hands over a priced line of the quote's scope", () => {
+    const p = scopePrompt({ ...read, workDone: "Slab penetrations.\nTotal: $55,011.00 + GST\nOption: decommissioning." });
+    expect(p).toContain("Slab penetrations.");
+    expect(p).toContain("Option: decommissioning.");
+    expect(p).not.toContain("55,011");
   });
 });

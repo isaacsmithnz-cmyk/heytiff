@@ -11,7 +11,15 @@
    job. Each system says the sheets or notes it came from.
 
    NO MONEY, as the Summary: the brief says what's going in, never what it
-   costs. Money-shaped story entries never reach the writer. */
+   costs. Money-shaped story entries never reach the writer, and neither does
+   a priced line of the quote's scope.
+
+   KEPT UP TO DATE (slice 2). A new note on the job moves `scopeStamp`, and
+   Tiff is handed the brief as it stands and changes only what the note
+   changes. A booking, a visit, a photo or a payment doesn't move it: none of
+   them says what's going in. */
+
+import type { StoryEntry } from "@/lib/workboard/job-story";
 
 /** One system, area by area: "First floor, front: ducted, a zone per room". */
 export type ScopeSystem = {
@@ -28,6 +36,8 @@ export type ScopeAdded = { text: string; from: string };
 export type ScopeQuestion = { q: string; who: string };
 /** What came in lately and what it did to the scope. */
 export type ScopeUpdate = { on: string; from: string; said: string };
+/** What someone took out with Undo: Tiff leaves it out until the record asks again. */
+export type ScopeSetAside = { on: string; said: string };
 
 export type JobScope = {
   lede: string;
@@ -36,6 +46,9 @@ export type JobScope = {
   notOurs: string[];
   clarify: ScopeQuestion[];
   updates: ScopeUpdate[];
+  /** What taking the newest change back would do, in the past tense: the
+      line Undo leaves, written with the change so Undo needs no read. */
+  undoSaid: string;
 };
 
 /** The stored brief, as the Overview reads it. */
@@ -43,6 +56,8 @@ export type JobScopeRead = JobScope & {
   /** The story stamp it was written at: a newer story asks for a rewrite. */
   stamp: string;
   writtenAt: string;
+  /** There is an earlier brief to go back to. */
+  canUndo: boolean;
 };
 
 /* Clamped on our side as well as asked of the model: a rule the schema
@@ -97,8 +112,9 @@ export const SCOPE_SCHEMA = {
         additionalProperties: false,
       },
     },
+    undoSaid: { type: "string" },
   },
-  required: ["lede", "systems", "added", "notOurs", "clarify", "updates"],
+  required: ["lede", "systems", "added", "notOurs", "clarify", "updates", "undoSaid"],
   additionalProperties: false,
 } as const;
 
@@ -111,7 +127,8 @@ export const SCOPE_SYSTEM_PROMPT =
   "English, short sentences.\n\n" +
   "`lede`: one or two sentences: what the job is and where its scope comes from (whose " +
   "drawings or brief, their date, a site visit), and anything missing from them that " +
-  "matters, such as no mechanical drawings.\n\n" +
+  "matters, such as no mechanical drawings. On a small service job, say the fault as it was " +
+  "reported and stop: never list what a small job hasn't got.\n\n" +
   "`systems`: one per system, area by area, in the order of the building. `area` is where " +
   "(\"Ground floor\", \"First floor, front\", \"Studio\"); `kind` is the system in a few " +
   "words (\"ducted, under the floor\", \"VRV heads\", \"split system\"). `text` is a short " +
@@ -121,15 +138,24 @@ export const SCOPE_SYSTEM_PROMPT =
   "sheet as the record names it (\"A201\"), or who said it and when (\"Sam, 27 Oct\", " +
   "\"Tandem's email, 8 Oct\").\n\n" +
   "`added`: what was asked for on top of the original brief or drawings (a builder's or " +
-  "client's call, a note), each with where it came from. Leave it empty when nothing was.\n\n" +
+  "client's call, a note), each with where it came from. An option in our own quote isn't " +
+  "added: say it in the system it belongs to. Leave it empty when nothing was.\n\n" +
   "`notOurs`: work the record puts with others (the builder, another trade), each short.\n\n" +
   "`clarify`: questions the record leaves open that change what goes in or what it costs, " +
   "each with `who` can answer it (\"Architect\", \"Builder\", \"Client\"), or \"\" when " +
-  "the record doesn't say. Drop a question the record has since answered.\n\n" +
-  "`updates`: the newest things on the record that shaped this scope, newest first, at " +
+  "the record doesn't say. Drop a question the record has since answered. Ask only about " +
+  "what goes in: never about a booking's time or who's attending.\n\n" +
+  "`updates`: the newest things on the record that changed what's going in, newest first, at " +
   "most four: `on` is its day as the record gives it (\"Tue 27 Oct\"), `from` who or what " +
   "it came from (\"Sam Lee's note\", \"the builder's email\"), `said` what it did to the " +
-  "scope in one sentence.\n\n" +
+  "scope in one sentence. A booking, a visit or a photo is not an update.\n\n" +
+  "When you're handed the brief as it stands, start from it: change only what the newer " +
+  "record changes and keep every other sentence word for word. Keep its `updates` and add " +
+  "one at the top saying exactly what changed. If nothing changes what's going in, hand it " +
+  "back as it is. `undoSaid` is one short past-tense sentence for taking that newest change " +
+  "back (\"Took out the cover and the exhaust fans.\"), or \"\" when you weren't handed a " +
+  "brief. What's listed as taken out, someone took out of this scope: leave it out unless " +
+  "a record entry dated after it asks for it again.\n\n" +
   "When the record disagrees with itself, the person's later word stands over the drawings, " +
   "and the drawings over an earlier note; say the disagreement in `clarify` unless someone " +
   "has settled it. Never invent a room, a unit, a size or a fact the record doesn't give; " +
@@ -143,12 +169,21 @@ export function scopePrompt(read: {
   scope: string | null;
   workDone: string | null;
   lines: readonly string[];
+  /** The brief as it stands, for Tiff to change only what moved. */
+  previous?: JobScope | null;
+  setAside?: readonly ScopeSetAside[];
 }): string {
+  /* a sent quote's scope carries its total: the writer never sees a priced line */
+  const workDone = read.workDone?.split("\n").filter((l) => !/\$\s?\d/.test(l)).join("\n") || null;
+  const was = read.previous;
+  const previous = was && { lede: was.lede, systems: was.systems, added: was.added, notOurs: was.notOurs, clarify: was.clarify, updates: was.updates };
   return [
     `Client: ${read.clientName ?? "unknown"}`,
     `Job status: ${read.status ?? "unknown"}`,
     read.scope ? `The job, in the office's own words:\n${read.scope}` : null,
-    read.workDone ? `ServiceM8's invoice description, on a quoted job usually the quote's scope:\n${read.workDone}` : null,
+    workDone ? `ServiceM8's invoice description, on a quoted job usually the quote's scope:\n${workDone}` : null,
+    previous ? `The brief as it stands:\n${JSON.stringify(previous)}` : null,
+    read.setAside?.length ? `Taken out of this scope:\n${read.setAside.map((s) => `${s.on}: ${s.said}`).join("\n")}` : null,
     `The job's record, newest first:\n${read.lines.join("\n")}`,
   ]
     .filter(Boolean)
@@ -190,12 +225,37 @@ export function scopeOf(raw: unknown): JobScope | null {
     .slice(0, MAX.updates);
   const lede = str(r.lede, MAX.lede);
   if (!lede && systems.length === 0 && added.length === 0) return null;
-  return { lede, systems, added, notOurs, clarify, updates };
+  return { lede, systems, added, notOurs, clarify, updates, undoSaid: str(r.undoSaid, MAX.line) };
 }
 
-/** Whose jobs get a brief: one being quoted or worked. A finished or lost
-    job keeps the brief it has and is never written for. */
-export const scopeWanted = (status: string | null | undefined): boolean => {
+/** Whether a rewrite changed what's going in. Its words on the change itself
+    don't count: a brief handed back as it was is no change, and leaves
+    nothing to undo. */
+export function scopeMoved(a: JobScope, b: JobScope): boolean {
+  const body = ({ lede, systems, added, notOurs, clarify }: JobScope) => JSON.stringify({ lede, systems, added, notOurs, clarify });
+  return body(a) !== body(b);
+}
+
+/** What a rewrite is due on: the job's notes (emails filed and calls land as
+    notes), not the whole story. A job with no note yet still gets its first
+    brief; its first note moves this. Null only when the job has no story. */
+export function scopeStamp(entries: readonly StoryEntry[]): string | null {
+  if (entries.length === 0) return null;
+  const notes = entries.filter((e) => e.kind === "note" && !e.removed);
+  if (notes.length === 0) return "no-notes";
+  const newest = notes[0];
+  return [newest.day, newest.at ?? "", newest.key, String(notes.length)].join("|");
+}
+
+/** The first day a job can get a brief (Isaac, 1 November 2026: "any jobs
+    created in the last month. Anything before that, don't worry about").
+    A fixed day, not a rolling month, so no job loses its brief by ageing. */
+export const SCOPE_JOBS_FROM = "2026-10-01";
+
+/** Whose jobs get a brief: one created since SCOPE_JOBS_FROM and being quoted
+    or worked. A finished or lost job keeps the brief it has and is never
+    written for. */
+export const scopeWanted = (status: string | null | undefined, createdOn: string | null | undefined): boolean => {
   const s = (status ?? "").trim().toLowerCase();
-  return s === "quote" || s === "work order";
+  return (s === "quote" || s === "work order") && (createdOn ?? "").slice(0, 10) >= SCOPE_JOBS_FROM;
 };

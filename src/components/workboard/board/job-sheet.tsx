@@ -35,7 +35,7 @@ import {
 import { JobMaterialsFace } from "./job-materials-face";
 import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
-import { scopeWanted, type JobScopeRead } from "@/lib/jobs/job-scope";
+import { scopeStamp, scopeWanted, type JobScopeRead } from "@/lib/jobs/job-scope";
 import { JobDesignFace } from "./job-design-face";
 import { JobQuoteCard } from "./job-quote-card";
 import { JobVisits, VisitDialog, type ComingVisit } from "./job-visit-tasks";
@@ -832,14 +832,17 @@ export function JobSheet({
      the stored scope behind on a job being quoted or worked, Tiff brings the
      scope up to date (route job-scope, which re-compares), and the Overview
      draws what she wrote as soon as it lands */
-  const scopeKicked = useRef(false);
+  const scopeAsked = useRef<string | null>(null);
+  const scopeInFlight = useRef(false);
+  const [scopeStuckAt, setScopeStuckAt] = useState<string | null>(null);
+  const scopeDue = !!detail && scopeWanted(detail.status, detail.date) && media !== null && picklist !== null;
+  const scopeStampNow = scopeDue ? scopeStamp(story) : null;
   useEffect(() => {
-    if (scopeKicked.current) return;
-    if (!cardId || !detail || record === undefined || record === null || recordFailed) return;
-    if (media === null || picklist === null || !scopeWanted(detail.status)) return;
-    const stamp = storyStamp(story);
-    if (!stamp || record.scope?.stamp === stamp) return;
-    scopeKicked.current = true;
+    if (!cardId || !scopeStampNow || record === undefined || record === null || recordFailed) return;
+    if (record.scope?.stamp === scopeStampNow || scopeAsked.current === scopeStampNow || scopeInFlight.current) return;
+    const asked = scopeStampNow;
+    scopeAsked.current = asked;
+    scopeInFlight.current = true;
     void fetch("/api/workboard/job-scope", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -847,12 +850,31 @@ export function JobSheet({
     })
       .then((r) => r.json())
       .then((res: { ok?: boolean; scope?: JobScopeRead | null }) => {
-        if (res?.ok && res.scope && alive.current) setRecord((cur) => (cur ? { ...cur, scope: res.scope } : cur));
+        scopeInFlight.current = false;
+        if (!alive.current) return;
+        if (res?.ok && res.scope) setRecord((cur) => (cur ? { ...cur, scope: res.scope } : cur));
+        if (!res?.ok || res.scope?.stamp !== asked) setScopeStuckAt(asked);
       })
       .catch(() => {
         /* a scope that won't refresh keeps its stored words */
+        scopeInFlight.current = false;
+        if (alive.current) setScopeStuckAt(asked);
       });
-  }, [cardId, detail, record, recordFailed, media, picklist, story]);
+  }, [cardId, record, recordFailed, scopeStampNow]);
+  const scopeReading = !!record?.scope && !!scopeStampNow && record.scope.stamp !== scopeStampNow && scopeStuckAt !== scopeStampNow;
+  const undoScope = async () => {
+    setErr(null);
+    const res = await fetch("/api/workboard/job-scope", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ job: cardId, undo: true }),
+    })
+      .then((r) => r.json() as Promise<{ ok?: boolean; scope?: JobScopeRead | null; reason?: string }>)
+      .catch(() => ({ ok: false, scope: null, reason: "That didn't undo. Try again." }));
+    if (!alive.current) return;
+    if (res.ok && res.scope) setRecord((cur) => (cur ? { ...cur, scope: res.scope } : cur));
+    else setErr(res.reason ?? "That didn't undo. Try again.");
+  };
 
   const makeProject = () => {
     setErr(null);
@@ -2176,6 +2198,8 @@ export function JobSheet({
               moneyVisible={moneyVisible}
               detail={detail}
               scope={record?.scope ?? null}
+              scopeReading={scopeReading}
+              onUndoScope={undoScope}
               fallbackWhat={row.title}
               head={
                 <JobProgressLine

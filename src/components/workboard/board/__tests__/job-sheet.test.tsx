@@ -21,6 +21,7 @@ import type { ClaimDetailRead } from "@/lib/workboard/all-jobs-query";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
 import { deriveFamilyMoney, type FamilyMoney } from "@/lib/workboard/job-family";
 import { buildJobStory, storyStamp } from "@/lib/workboard/job-story";
+import { scopeStamp, type JobScopeRead } from "@/lib/jobs/job-scope";
 import type { JobPaper, JobPapersRead, PaperChoices } from "@/lib/compliance/papers";
 import type {
   AddPapersResult,
@@ -666,8 +667,8 @@ const scopeAsks = () => (fetchMock.mock.calls as unknown as unknown[][]).filter(
 describe("the summary refresh", () => {
   /* Everything the kick waits for: detail, record, files and picklist all
      landed — the same inputs the story is merged from. */
-  const allLanded = (over: Partial<JobRecordRead> = {}) => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
+  const allLanded = (over: Partial<JobRecordRead> = {}, made?: string) => {
+    readMirrorJob.mockResolvedValueOnce(card(made ? { ...detail(), date: made } : detail()));
     readJobRecord.mockResolvedValueOnce(record(over));
     readJobFiles.mockResolvedValueOnce({
       photos: [],
@@ -697,15 +698,89 @@ describe("the summary refresh", () => {
     expect(summaryAsks()).toHaveLength(1);
   });
 
-  /* the job's scope, kept by Tiff (28 October 2026): the same kick, once,
-     for a job being quoted or worked */
-  it("asks Tiff to bring the scope up to date once, on a job being worked", async () => {
-    allLanded();
+  /* the job's scope, kept by Tiff (28 October 2026): asked for once per new
+     note, on a job made since the first of October */
+  const OCT = "2026-10-08 00:00:00";
+  const stored = (over: Partial<JobScopeRead> = {}): JobScopeRead => ({
+    lede: "Four systems.",
+    systems: [],
+    added: [],
+    notOurs: [],
+    clarify: [],
+    updates: [{ on: "Wed 28 Oct", from: "Isaac Smith", said: "Added exhaust fans." }],
+    undoSaid: "Took out the exhaust fans.",
+    stamp: "older",
+    writtenAt: "2026-10-28T04:00:00Z",
+    canUndo: true,
+    ...over,
+  });
+
+  it("asks Tiff to bring the scope up to date once, on a job made since October", async () => {
+    allLanded({}, OCT);
     render(<Job row={row()} {...props} />);
     await waitFor(() => expect(scopeAsks()).toHaveLength(1));
     expect(JSON.parse(String((scopeAsks()[0] as unknown as [string, RequestInit])[1].body))).toEqual({ job: "j-1" });
     await new Promise((r) => setTimeout(r, 0));
     expect(scopeAsks()).toHaveLength(1);
+  });
+
+  it("never asks on a job made before October", async () => {
+    allLanded({}, "2026-09-30 00:00:00");
+    render(<Job row={row()} {...props} />);
+    await waitFor(() => expect(summaryAsks()).toHaveLength(1));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(scopeAsks()).toHaveLength(0);
+  });
+
+  it("asks again when the job's notes change with the page open, with no reload", async () => {
+    allLanded({ ourNotes: [{ id: "our-9", text: "Ring the builder", at: "2026-08-27T23:30:00.000Z", author: "Isaac Smith" }] }, OCT);
+    render(<Job row={row()} {...props} />);
+    await waitFor(() => expect(scopeAsks()).toHaveLength(1));
+    const f = convo();
+    await waitFor(() => expect(f.getByText("Ring the builder")).toBeInTheDocument());
+    await userEvent.click(f.getByRole("button", { name: "Remove" }));
+    await waitFor(() => expect(scopeAsks()).toHaveLength(2));
+  });
+
+  it("says it's reading, draws the new brief, and Undo puts the old one back", async () => {
+    const newer = (stamp: string) => stored({ lede: "Now with exhaust fans.", stamp });
+    let asked = "";
+    const rest = fetchMock.getMockImplementation();
+    let release: () => void = () => {};
+    const held = new Promise<void>((r) => (release = r));
+    fetchMock.mockImplementation(async (...a: unknown[]) => {
+      if (String(a[0]) !== "/api/workboard/job-scope") return (rest as (...x: unknown[]) => Promise<Response>)(...a);
+      const body = JSON.parse(String((a[1] as RequestInit).body)) as { undo?: boolean };
+      if (body.undo) return { json: async () => ({ ok: true, scope: stored({ lede: "Four systems.", stamp: asked, canUndo: false }) }) } as Response;
+      await held;
+      return { json: async () => ({ ok: true, scope: newer(asked) }) } as Response;
+    });
+    const d = detail();
+    asked = scopeStamp(
+      buildJobStory({
+        detail: { date: OCT, quoteDate: d.quoteDate, quoteSentOn: d.quoteSentOn ?? null, workOrderDate: d.workOrderDate, completionDate: d.completionDate, visits: d.visits, booked: d.booked, checklist: d.checklist, designs: d.designs },
+        notes: [],
+        ourNotes: [],
+        ledger: null,
+        family: null,
+        invoicedOn: null,
+        media: [],
+        picklist: [],
+        timezone: null,
+      })
+    ) as string;
+    allLanded({ scope: stored() }, OCT);
+    render(<Job row={row()} {...props} />);
+    expect(await screen.findByText("Reading the new note")).toBeInTheDocument();
+    expect(screen.getByText("Four systems.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+    release();
+    expect(await screen.findByText("Now with exhaust fans.")).toBeInTheDocument();
+    expect(screen.queryByText("Reading the new note")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(await screen.findByText("Four systems.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+    expect(scopeAsks()).toHaveLength(2);
   });
 
   it("does not kick when the stored stamp matches the story's", async () => {

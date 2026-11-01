@@ -14,6 +14,7 @@ import { planOf, type PlannedPart } from "@/lib/quotes/build-progress";
 import { researchDetailOf } from "@/lib/quotes/research";
 import { replyBlocks, type ReplySpan } from "@/lib/quotes/session/reply-blocks";
 import { latestAsked } from "@/lib/quotes/session/answers";
+import { isFirstTurn, stepOf, timeLeft, turnStartOf } from "@/lib/quotes/session/time-left";
 import { WRITE_UP_KEYS, WRITE_UP_SECTIONS, writeUpAgainst, writeUpOf } from "@/lib/quotes/write-up";
 import { fmtAud } from "@/lib/workboard/project-money";
 
@@ -50,6 +51,32 @@ type QState = { deltas: (number | null)[]; answered: { index: number; label: str
 type View = { ok: boolean; on?: boolean; working?: boolean; spentUsd?: number; events?: Ev[]; names?: Record<string, string>; me?: string; questions?: Record<number, QState> };
 type Answer = { label: string };
 type Source = { id: string; label: string; text: string };
+
+/** What she's doing and about how long is left, while she works. Until the turn's first event is back, it counts from when this appeared. */
+function TimeLeft({ since, first, step }: { since: number | null; first: boolean; step: string | null }) {
+  const [opened] = useState(() => Date.now());
+  const [now, setNow] = useState(opened);
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const left = timeLeft((now - (since ?? opened)) / 1000, first);
+  const word = step ?? (first ? "Reading the job" : "Working on the quote");
+  return (
+    <div className="qt-est qc-in">
+      <p className="qt-working">
+        <TiffGlyph working size={20} />
+        {word}
+        {left && <span className="qt-left">{left.words}</span>}
+      </p>
+      {left && (
+        <div className="qb-bar" role="progressbar" aria-label={word} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(left.percent)} aria-valuetext={left.words}>
+          <i style={{ width: `${left.percent}%` }} />
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** The web's mark: on a price researched from it, and on the line that uses one (12.2). */
 export function Globe({ size = 14 }: { size?: number }) {
@@ -672,10 +699,7 @@ export function TiffPanel({
           )}
           {thread.length > 0 && <div className="qt-thread">{thread}</div>}
           {working && (
-            <p className="qt-working qc-in">
-              <TiffGlyph working size={20} />
-              Working on the quote
-            </p>
+            <TimeLeft since={turnStartOf(events)} first={isFirstTurn(events)} step={stepOf(events)} />
           )}
           <div ref={bottom} />
         </div>

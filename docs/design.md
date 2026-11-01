@@ -76,7 +76,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 
 - **39. A row.** Time or tick, dot, name in bold, a line under it in grey, then a state word or one button on the right.
 - **40. Nothing there yet.** Says what's missing and leads with the action.
-- **41. Loading.** Nothing for half a second, then Tiff's mark, turning at her working speed, in the middle of where the page will be. A page never wears a skeleton: one shaped like the page never matched it (Isaac, 20 October 2026).
+- **41. Loading.** Nothing for half a second, then Tiff's mark, turning at her working speed, in the middle of where the page will be. A page never wears a skeleton: one shaped like the page never matched it (Isaac, 20 October 2026). Tiff building a quote is a wait with a known shape: her mark, what she's doing, and a thin bar with about how long is left, drawn from how long her turns usually take, held short of the end until she's done (Isaac, 1 November 2026).
 - **42. When something goes wrong.** A red dot and word, what it means for you, and what to do.
 - **43. Search.** Results by kind; the last row asks Tiff, with Enter.
 - **44. The New menu.** Job, Task and Note: the same three on every page (Note joined on 24 October 2026, Isaac: "Yes to new note"). It fills in only the record you are on, which you can clear: a task made on a job's page is for that job, and made anywhere else it is a general task. A quote is made on its job, through Add. The panel reaches out from the New button, dark, square where it leaves the panel. On the phone New also holds Purchase, the camera on a supplier's docket (Isaac, 29 October 2026).

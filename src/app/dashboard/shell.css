@@ -4107,6 +4107,8 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .qt-mile { margin:0; display:flex; align-items:center; gap:12px; font-size:12px; font-weight:600; color:var(--hd-today); }
 .fg .qt-mile::before, .fg .qt-mile::after { content:""; flex:1; height:1px; background:var(--hd-rule); }
 .fg .qt-working { margin:0; display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--info-t); }
+.fg .qt-est { display:flex; flex-direction:column; gap:8px; width:100%; max-width:420px; }
+.fg .qt-left { margin-left:auto; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; white-space:nowrap; }
 .fg .qt-box { display:flex; align-items:flex-end; gap:8px; padding:4px 4px 4px 12px; border:1px solid var(--hd-edge); border-radius:var(--r-card); background:var(--paper); }
 .fg .qt-box:focus-within { border-color:var(--ink); }
 .fg .qt-in { flex:1; min-width:0; min-height:32px; max-height:160px; padding:4px 0; border:0; background:none; font:inherit; font-size:14px; line-height:1.5; color:var(--hd-ink); resize:none; }

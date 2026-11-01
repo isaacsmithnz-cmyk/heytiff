@@ -1,10 +1,6 @@
 import { beginKbUpload } from "@/app/actions/kb";
 import { actAsPhoneUser, ok, requireMobile } from "@/lib/mobile/auth";
-import { checkKbUpload, isLargeKb } from "@/lib/tiff/files";
-import { guessKbCategory, titleFromFilename } from "@/lib/tiff/guess";
-import { kbLargeAllowance } from "@/lib/tiff/large";
-import { guessKbTags } from "@/lib/tiff/tags";
-import { ensureKbSeedTags, kbTagsForOrg } from "@/lib/tiff/tags-query";
+import { kbOffer } from "@/lib/mobile/library-from-file";
 
 /* ADDING A MANUAL FROM THE PHONE (Isaac, 30 October 2026: "Can you add to the
    library? On your phone yet? And does it give you the same result as
@@ -21,20 +17,7 @@ export async function GET(request: Request) {
   if (ctx instanceof Response) return ctx;
 
   const q = new URL(request.url).searchParams;
-  const file = (q.get("file") ?? "").slice(0, 300);
-  const size = Number(q.get("size"));
-  const large = isLargeKb(size) ? await kbLargeAllowance(ctx.orgId, ctx.role === "owner") : null;
-  const check = checkKbUpload({ type: q.get("mime") ?? "", size }, large);
-
-  await ensureKbSeedTags(ctx.orgId);
-  const tags = await kbTagsForOrg(ctx.orgId);
-  return ok({
-    refused: check.ok ? null : check.error,
-    title: titleFromFilename(file),
-    category: guessKbCategory(file),
-    tagIds: guessKbTags(file, tags),
-    tags: tags.map((t) => ({ id: t.id, label: t.label, kind: t.kind })),
-  });
+  return ok(await kbOffer(ctx, (q.get("file") ?? "").slice(0, 300), Number(q.get("size")), q.get("mime") ?? ""));
 }
 
 export async function POST(request: Request) {

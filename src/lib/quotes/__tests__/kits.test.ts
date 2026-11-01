@@ -92,15 +92,13 @@ it("the ducted kit adds flex and an outlet to each outlet, and a return", () => 
   expect(lines.some((l) => l.name === "Floor boot")).toBe(false);
 });
 
-it("a ducted changeover that follows the old layout has nothing for the duct contingency; a new layout does", () => {
+/* Isaac, 1 November 2026: "I would still have contingency for a ducted changeover, given that plenum sizes and things would be different" */
+it("a ducted changeover's ductwork carries the duct contingency, as a new one's does", () => {
   const ducted = [...book, product("VORTEX FLEX R1.0 250MM X 6M", 3045), product("CONE DIFFUSER 250MM", 1887)];
   const air = (l: { duct?: boolean }) => l.duct === true;
   const given = { ...facts, outlets: 5, outletMm: 250 };
   expect(expandKit("ducted", given, ducted, at).some(air)).toBe(true);
   expect(expandKit("ducted", { ...given, replacing: true }, ducted, at).some(air)).toBe(true);
-  expect(expandKit("ducted", { ...given, replacing: true, layoutStays: true }, ducted, at).some(air)).toBe(false);
-  /* only a changeover has an old layout to follow */
-  expect(expandKit("ducted", { ...given, layoutStays: true }, ducted, at).some(air)).toBe(true);
 });
 
 it("a ducted kit under the floor takes floor grilles on boots and hangs the indoor on springs (3377)", () => {
@@ -139,7 +137,6 @@ it("reads a unit's pipe off its data pack's connections, and makes a person's fa
     outletMm: null,
     replacing: false,
     newCircuit: false,
-    layoutStays: false,
     keptPipe: null,
     underfloor: false,
   });

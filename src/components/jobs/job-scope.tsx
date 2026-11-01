@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { JobScopeRead } from "@/lib/jobs/job-scope";
 import { JobSection } from "./job-section";
 
@@ -13,11 +14,28 @@ import { JobSection } from "./job-section";
 
    LATEST UPDATES under it, purple: what came in lately and what it did to
    the scope, newest first, so nobody reads the whole feed to see what moved.
+   While Tiff reads a new note the brief stays as it was and the top row says
+   so. Only the newest change has Undo, and only while there's one to go back to.
 
    Tiff keeps it (lib/workboard/job-scope-server.ts): written from
    everything on the job, rewritten when something new lands. */
 
-export function JobScope({ scope }: { scope: JobScopeRead }) {
+export function JobScope({
+  scope,
+  reading = false,
+  onUndo,
+}: {
+  scope: JobScopeRead;
+  /** Tiff is reading something new on the job. */
+  reading?: boolean;
+  onUndo?: () => Promise<void>;
+}) {
+  const [undoing, setUndoing] = useState(false);
+  const undo = () => {
+    if (!onUndo) return;
+    setUndoing(true);
+    void onUndo().finally(() => setUndoing(false));
+  };
   return (
     <>
       <JobSection name="Scope" icon="file" hue="pink" className="jov-summary">
@@ -67,18 +85,32 @@ export function JobScope({ scope }: { scope: JobScopeRead }) {
           )}
         </div>
       </JobSection>
-      {scope.updates.length > 0 && (
+      {(scope.updates.length > 0 || reading) && (
         <JobSection name="Latest updates" icon="clock" hue="purple">
           <ul className="jsc-ups">
-            {scope.updates.map((u, i) => (
-              <li key={i}>
-                <span className="jsc-on">{u.on}</span>
-                <span>
-                  <b>{u.from}</b>
-                  <span className="jsc-said">{u.said}</span>
-                </span>
+            {reading && (
+              <li>
+                <span className="jsc-on">Now</span>
+                <span className="jov-none">Reading the new note</span>
               </li>
-            ))}
+            )}
+            {scope.updates.map((u, i) => {
+              const offerUndo = i === 0 && scope.canUndo && !reading && !!onUndo;
+              return (
+                <li key={i} className={offerUndo ? "jsc-up-act" : undefined}>
+                  <span className="jsc-on">{u.on}</span>
+                  <span>
+                    <b>{u.from}</b>
+                    <span className="jsc-said">{u.said}</span>
+                  </span>
+                  {offerUndo && (
+                    <button type="button" className="pt-btn pt-btn--quiet pt-btn--32" disabled={undoing} onClick={undo}>
+                      Undo
+                    </button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </JobSection>
       )}

@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { JobScope } from "../job-scope";
 import type { JobScopeRead } from "@/lib/jobs/job-scope";
 
@@ -15,8 +15,10 @@ const scope = (over: Partial<JobScopeRead> = {}): JobScopeRead => ({
   notOurs: ["Solar panels off and back on", "Hot water and the pool heat pump"],
   clarify: [{ q: "Who removes the old units?", who: "Builder" }],
   updates: [{ on: "Wed 28 Oct", from: "Isaac Smith, the builder's call", said: "Added exhaust fans in the three bathrooms." }],
+  undoSaid: "",
   stamp: "s",
   writtenAt: "2026-10-28T04:00:00Z",
+  canUndo: false,
   ...over,
 });
 
@@ -48,4 +50,29 @@ it("lists the latest updates under it, and leaves out what it hasn't got", () =>
   expect(screen.queryByRole("region", { name: "Latest updates" })).toBeNull();
   expect(screen.queryByRole("heading", { name: "Added" })).toBeNull();
   expect(screen.queryByRole("heading", { name: "To clarify" })).toBeNull();
+});
+
+const twoUpdates = { canUndo: true, updates: [{ on: "Wed 28 Oct", from: "Isaac Smith", said: "Added exhaust fans." }, { on: "Tue 27 Oct", from: "Luke", said: "Started." }] };
+
+it("offers Undo on the newest change alone", async () => {
+  const onUndo = jest.fn(async () => {});
+  render(<JobScope scope={scope(twoUpdates)} onUndo={onUndo} />);
+  const buttons = screen.getAllByRole("button", { name: "Undo" });
+  expect(buttons).toHaveLength(1);
+  expect(buttons[0].closest("li")).toHaveTextContent("Added exhaust fans.");
+  fireEvent.click(buttons[0]);
+  await waitFor(() => expect(onUndo).toHaveBeenCalledTimes(1));
+});
+
+it("offers no Undo when there's nothing to go back to", () => {
+  render(<JobScope scope={scope()} onUndo={async () => {}} />);
+  expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+});
+
+it("says it's reading a new note above the brief it still shows, with no Undo meanwhile", () => {
+  render(<JobScope scope={scope(twoUpdates)} reading onUndo={async () => {}} />);
+  const rows = within(screen.getByRole("region", { name: "Latest updates" })).getAllByRole("listitem");
+  expect(rows[0]).toHaveTextContent("NowReading the new note");
+  expect(screen.getByRole("region", { name: "Scope" })).toHaveTextContent("Four systems");
+  expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
 });

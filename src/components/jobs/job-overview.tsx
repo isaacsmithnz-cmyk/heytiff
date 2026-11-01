@@ -101,6 +101,8 @@ export function JobOverview({
   moneyVisible,
   detail,
   scope: brief = null,
+  scopeReading = false,
+  onUndoScope,
   fallbackWhat,
   diary,
   onToast,
@@ -117,6 +119,9 @@ export function JobOverview({
   detail: MirrorJobDetail | null;
   /** The job's scope, Tiff's brief: drawn in the Summary's place once there is one. */
   scope?: JobScopeRead | null;
+  /** Tiff is reading something new on the job. */
+  scopeReading?: boolean;
+  onUndoScope?: () => Promise<void>;
   /** The row's title, until the detail's description is read. */
   fallbackWhat: string | null;
   diary: ConversationDiary;
@@ -254,7 +259,7 @@ export function JobOverview({
       <div className="jov-cols">
         <div className={`jov-main${mainFits ? " jov-main--stick" : ""}`} ref={mainRef}>
           {brief ? (
-            <JobScope scope={brief} />
+            <JobScope scope={brief} reading={scopeReading} onUndo={onUndoScope} />
           ) : (
             <JobSummary fromQuote={read?.summary ?? null} description={what} read={readDone || !!read || (!cardId && !loading)} />
           )}

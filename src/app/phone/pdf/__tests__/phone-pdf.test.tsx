@@ -62,6 +62,34 @@ describe("boxesOf", () => {
     expect(boxesOf([run], ["CHECK", "e"], page)).toHaveLength(1);
   });
 
+  it("never outlines a word inside another, and a number only whole", () => {
+    const product = { str: "Product 4220", transform: [10, 0, 0, 10, 10, 120], width: 60 };
+    expect(boxesOf([product], ["duct"], page)).toEqual([]);
+    expect(boxesOf([product], ["42"], page)).toEqual([]);
+    expect(boxesOf([{ ...product, str: "Ducted 4220" }], ["duct"], page)).toHaveLength(1);
+  });
+
+  it("outlines what was searched said together, and not its words elsewhere on the page", () => {
+    const air = { str: "Air Volume", transform: [10, 0, 0, 10, 10, 100], width: 50 };
+    const whole = { str: "Supply Air Duct", transform: [10, 0, 0, 10, 10, 120], width: 75 };
+    const boxes = boxesOf([air, whole], ["supply air duct", "supply", "air", "duct"], page);
+    expect(boxes).toHaveLength(1);
+    expect(boxes[0]!.width).toBeCloseTo(75 / 100);
+  });
+
+  it("outlines it across runs where it crosses them", () => {
+    const a = { str: "Supply", transform: [10, 0, 0, 10, 10, 120], width: 30 };
+    const b = { str: "Air Duct 1", transform: [10, 0, 0, 10, 45, 120], width: 50 };
+    const boxes = boxesOf([a, b], ["supply air duct"], page);
+    expect(boxes).toHaveLength(2);
+    expect(boxes[1]!.width).toBeCloseTo((5 * 8) / 100);
+  });
+
+  it("falls back to the words one by one where the page doesn't say them together", () => {
+    const apart = { str: "Air Volume and Supply", transform: [10, 0, 0, 10, 10, 120], width: 105 };
+    expect(boxesOf([apart], ["supply air duct", "supply", "air", "duct"], page)).toHaveLength(2);
+  });
+
   it("outlines nothing on text turned on its side, or a page that doesn't say it", () => {
     expect(boxesOf([{ ...run, transform: [0, 10, -10, 0, 10, 120] }], ["4220"], page)).toEqual([]);
     expect(boxesOf([run], ["4230"], page)).toEqual([]);

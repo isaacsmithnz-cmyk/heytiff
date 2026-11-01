@@ -19,7 +19,8 @@ import { openSigned } from "./load-pdf";
    into HeyTiff's own storage is read, so a stranger handing it anything
    else is shown nothing. */
 
-export type PdfPosted = { url?: string; page?: number; marks?: string[] };
+/** `bare`: the app's full screen, the pages to the screen's edges. */
+export type PdfPosted = { url?: string; page?: number; marks?: string[]; bare?: boolean };
 export type PdfSaid = { pdf: "ready" } | { pdf: "at"; page: number; pages: number } | { pdf: "failed" };
 
 declare global {
@@ -49,29 +50,52 @@ const times = (m: number[], t: number[]) => [
   m[1]! * t[4]! + m[3]! * t[5]! + m[5]!,
 ];
 
-/** The outlines for the words searched, on a page's own text: each place a
-    run of text says one, the run's share of its width where the word falls.
-    Text a drawing was read into has no run on the page, so it has no
-    outline. Pure. */
+/** Where a searched word may sit: at the start of a word, so "duct" is in
+    "ducted" but never "Product", and a number whole, so "42" isn't in "4220".
+    A mark of several words allows any space between them. */
+const whereSaid = (mark: string) => {
+  const parts = mark.split(/\s+/).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp(`(?<![\\p{L}\\p{N}])${parts.join("\\s+")}${/\d$/.test(mark) ? "(?!\\d)" : ""}`, "gu");
+};
+
+/** The outlines for the words searched, on a page's own text (Isaac, 1 November
+    2026: "The search isn't perfect", every "air" and the "duct" of "Product"
+    outlined for "Supply air duct"). What was searched, said together, is all
+    that's outlined where the page says it; only where it doesn't are its words
+    outlined one by one. Each outline is the run's share of its width where the
+    words fall, across runs where they cross. Text a drawing was read into has
+    no run on the page, so it has no outline. In reading order. Pure. */
 export function boxesOf(items: readonly unknown[], marks: readonly string[], page: { transform: number[]; width: number; height: number }): Box[] {
-  const words = [...new Set(marks.map((m) => m.trim().toLowerCase()).filter((m) => m.length >= 2))];
-  const out: Box[] = [];
+  const said = [...new Set(marks.map((m) => m.trim().toLowerCase().replace(/\s+/g, " ")).filter((m) => m.length >= 2))];
+  /* the page's runs as one string, a space between them */
+  const runs: { from: number; to: number; t: number[]; w: number; h: number }[] = [];
+  let text = "";
   for (const it of items as TextBit[]) {
-    if (!it.str || !it.transform) continue;
+    if (!it.str?.trim() || !it.transform) continue;
     const t = times(page.transform, it.transform);
     /* runs set across the page; a run turned on its side isn't outlined */
     if (Math.abs(t[1]!) > Math.abs(t[0]!)) continue;
-    const s = it.str.toLowerCase();
-    const h = Math.hypot(t[2]!, t[3]!);
-    const w = it.width ?? 0;
-    for (const word of words) {
-      for (let at = s.indexOf(word); at >= 0 && out.length < 60; at = s.indexOf(word, at + word.length)) {
-        const x = t[4]! + (w * at) / s.length;
-        out.push({ left: x / page.width, top: (t[5]! - h) / page.height, width: (w * word.length) / s.length / page.width, height: h / page.height });
+    runs.push({ from: text.length, to: text.length + it.str.length, t, w: it.width ?? 0, h: Math.hypot(t[2]!, t[3]!) });
+    text += `${it.str.toLowerCase()} `;
+  }
+  const boxesFor = (found: readonly string[]) => {
+    const out: Box[] = [];
+    for (const mark of found) {
+      for (const m of text.matchAll(whereSaid(mark))) {
+        const end = m.index + m[0].length;
+        for (const r of runs) {
+          const a = Math.max(m.index, r.from);
+          const b = Math.min(end, r.to);
+          if (b <= a || out.length >= 60) continue;
+          const each = r.w / (r.to - r.from);
+          out.push({ left: (r.t[4]! + each * (a - r.from)) / page.width, top: (r.t[5]! - r.h) / page.height, width: (each * (b - a)) / page.width, height: r.h / page.height });
+        }
       }
     }
-  }
-  return out;
+    return out.sort((x, y) => x.top - y.top || x.left - y.left);
+  };
+  const together = boxesFor(said.filter((m) => m.includes(" ")));
+  return together.length > 0 ? together : boxesFor(said.filter((m) => !m.includes(" ")));
 }
 
 /** The part of a page the zoomed screen shows, as fractions of the page;
@@ -104,6 +128,7 @@ export function PhonePdf() {
   const [zoom, setZoom] = useState<{ scale: number; seen: Record<number, Box> } | null>(null);
   /* where the app asked to go: a new `n` goes there again */
   const [want, setWant] = useState<{ page: number; marks: string[]; n: number } | null>(null);
+  const [bare, setBare] = useState(false);
   /* the last of those whose words were brought into view, so a page drawn again doesn't pull you back */
   const [shown, setShown] = useState(0);
   const url = useRef<string | null>(null);
@@ -129,6 +154,17 @@ export function PhonePdf() {
           setFirst(one.height / one.width);
           setDoc(d);
         }, lost);
+      }
+      if (typeof p.bare === "boolean") {
+        /* the same place on the same page once the edges have gone */
+        const top = [...sheets.current.values()].find((el) => el.getBoundingClientRect().bottom > 0);
+        const box = top?.getBoundingClientRect();
+        const along = box ? -box.top / box.height : 0;
+        setBare(p.bare);
+        requestAnimationFrame(() => {
+          const now = top?.getBoundingClientRect();
+          if (now) window.scrollBy(0, now.top + along * now.height);
+        });
       }
       if (typeof p.page === "number" || Array.isArray(p.marks)) {
         setWant({ page: Math.max(1, Math.floor(p.page ?? 1)), marks: (p.marks ?? []).filter((m) => typeof m === "string").slice(0, 12), n: ++asked.current });
@@ -226,7 +262,7 @@ export function PhonePdf() {
 
   if (failed) return <p style={{ margin: 24, font: "15px/22px system-ui, sans-serif", color: "#5f6a79" }}>This manual couldn&apos;t be opened here.</p>;
   return (
-    <div style={{ minHeight: "100vh", background: "#dcdce1", padding: "10px 12px 24px", display: "grid", gap: 10, alignContent: "start", overflowAnchor: "auto" }}>
+    <div style={{ minHeight: "100vh", background: "#dcdce1", padding: bare ? "0 0 24px" : "10px 12px 24px", display: "grid", gap: bare ? 6 : 10, alignContent: "start", overflowAnchor: "auto" }}>
       {Array.from({ length: pages }, (_, i) => i + 1).map((n) => (
         <div
           key={n}

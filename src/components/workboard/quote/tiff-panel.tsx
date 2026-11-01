@@ -15,8 +15,9 @@ import { researchDetailOf } from "@/lib/quotes/research";
 import { replyBlocks, type ReplySpan } from "@/lib/quotes/session/reply-blocks";
 import { latestAsked } from "@/lib/quotes/session/answers";
 import { isFirstTurn, stepOf, timeLeft, turnStartOf } from "@/lib/quotes/session/time-left";
-import { WRITE_UP_KEYS, WRITE_UP_SECTIONS, writeUpAgainst, writeUpOf } from "@/lib/quotes/write-up";
+import { writeUpOf } from "@/lib/quotes/write-up";
 import { fmtAud } from "@/lib/workboard/project-money";
+import { QuoteScope, type QuoteScopeWords } from "./quote-scope";
 
 /* TIFF ON THE QUOTE: the page's main column (the chat-first quote page,
    Isaac, 2026-10-13; it was a grey card in the rail, slice 5.1). The
@@ -134,6 +135,7 @@ export function TiffPanel({
   confirmTitle = "To confirm",
   hidden = false,
   start = false,
+  words,
 }: {
   job: string;
   onChanged: () => void;
@@ -141,6 +143,8 @@ export function TiffPanel({
   onOpen?: (n: number) => void;
   /** the parts she said she'd build, while she builds them; null when she isn't (5.2) */
   onPlan?: (plan: { option: number; parts: PlannedPart[] } | null) => void;
+  /** the proposal's words, which Scope opens with */
+  words?: QuoteScopeWords;
   /** whether she's on for the business, once read, and what she has cost
       (sent only to someone who sees money): the page's layout, and its rail */
   onStatus?: (status: { on: boolean; spentUsd: number | null }) => void;
@@ -384,11 +388,9 @@ export function TiffPanel({
   };
 
   const who = (author: string) => (author === me ? "You" : (names[author] ?? "Someone"));
-  /* the job, written out: her newest write-up, against the one before it */
+  /* the job, written out: her newest write-up */
   const writeUps = events.filter((e) => e.kind === "tool" && e.body.name === "write_up" && e.body.ok !== false);
   const latest = writeUps.length ? writeUpOf((writeUps[writeUps.length - 1]!.body.detail as { writeUp?: unknown } | undefined)?.writeUp) : null;
-  const prior = writeUps.length > 1 ? writeUpOf((writeUps[writeUps.length - 2]!.body.detail as { writeUp?: unknown } | undefined)?.writeUp) : null;
-  const written = latest ? writeUpAgainst(latest, prior) : null;
   const open = answersIn ? events.filter((e) => e.kind === "question" && !questions[e.id]?.answered) : [];
   /* her questions numbered as her message numbers them: from 1 in each
      asking; the latest asking's answered ones stay, ticked (Isaac,
@@ -541,30 +543,7 @@ export function TiffPanel({
   }
   endSteps();
 
-  /* her reading of the job: her newest write-up, against the one before it */
-  const scope = written ? (
-    <section className="qt-job" aria-label="The job">
-      <header>
-        <b>The job</b>
-        <em>{prior ? "Changed" : "Written"}</em>
-      </header>
-      {WRITE_UP_KEYS.filter((k) => written[k].length > 0).map((k) => (
-        <section key={k}>
-          <h4>{WRITE_UP_SECTIONS[k]}</h4>
-          <ul>
-            {written[k].map((item, i) => (
-              <li key={i} className={item.state === "same" ? undefined : item.state}>
-                {item.text}
-                {item.state === "changed" && <em> Changed</em>}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
-    </section>
-  ) : (
-    <p className="qt-noscope">Tell Tiff about the job in the conversation, and she writes it out here.</p>
-  );
+  const scope = <QuoteScope words={words} writeUp={latest} />;
 
   return (
     <div className="qt" hidden={hidden}>

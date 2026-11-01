@@ -17,6 +17,7 @@ import type { Sm8Quote } from "../board/job-quote-card";
    chat-first quote page, Isaac, 2026-10-13), in layout B (his pick, 21
    October 2026: "Price on top, buttons pinned"). Read top to bottom like a
    checkout, on its own scroll, 400 wide: where the quote is, in colour;
+   every option and its total, to pick from;
    the Design step, to someone with the Studio (quote-design.tsx, 28
    October 2026); what's To confirm when Tiff isn't on for the business (with her on, it's
    the conversation's, till the paper stands in its place: then Before you
@@ -31,7 +32,7 @@ import type { Sm8Quote } from "../board/job-quote-card";
 const PART_COLOUR: Record<string, string> = { units: "var(--chart-1)", materials: "var(--chart-3)", labour: "var(--chart-2)" };
 
 /** a variation's figures: the difference it makes */
-const signed = (c: number) => `${c > 0 ? "+" : c < 0 ? "−" : ""}${cents2(Math.abs(c))}`;
+export const signed = (c: number) => `${c > 0 ? "+" : c < 0 ? "−" : ""}${cents2(Math.abs(c))}`;
 
 /** THE QUOTE (it replaces the head's ledger, 2026-10-10): the total, the
     screen's one big figure, its three parts and their split, and the profit
@@ -228,8 +229,30 @@ export function InServiceM8({
   );
 }
 
+/** ONE ROW AN OPTION, EVERY OPTION'S TOTAL (Isaac's walk of 3423, 30 October
+    2026; they were tabs over the line items): the row picks which option the
+    price under it and the line items show. A variation says the difference
+    it makes. Nothing for a quote with one option. */
+export function OptionRows({ rows, onPick }: { rows: { option: number; name: string; line: string; total: string | null; on: boolean }[]; onPick: (option: number) => void }) {
+  if (rows.length < 2) return null;
+  return (
+    <section className="qc-opts" aria-label="Options">
+      {rows.map((r) => (
+        <button key={r.option} type="button" className={r.on ? "qc-opt on" : "qc-opt"} aria-pressed={r.on} onClick={() => onPick(r.option)}>
+          <span>
+            <b>{r.name}</b>
+            {r.line && <em>{r.line}</em>}
+          </span>
+          {r.total && <b>{r.total}</b>}
+        </button>
+      ))}
+    </section>
+  );
+}
+
 export function QuoteRail({
   progress,
+  options,
   design,
   confirm,
   confirmTitle,
@@ -242,6 +265,8 @@ export function QuoteRail({
 }: {
   /** where the quote is, in colour, at the rail's top */
   progress: ReactNode;
+  /** every option and its total, to pick from */
+  options?: ReactNode;
   /** the Design step: the job's designs, or Design it (quote-design.tsx);
       nothing without the Studio */
   design?: ReactNode;
@@ -266,6 +291,7 @@ export function QuoteRail({
     <aside className="qc-rail" aria-label="On this quote">
       <div className="qc-scroll">
         <div>{progress}</div>
+        {options}
         {design}
         {confirm && (
           <section className="qc-rs" aria-label={confirmTitle}>

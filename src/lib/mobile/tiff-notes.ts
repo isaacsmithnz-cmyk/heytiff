@@ -15,7 +15,7 @@ import {
 } from "@/app/actions/workboard-notes";
 import { looksLikeMove, looksLikeQuestion, priceIntent } from "@/lib/brain/intent";
 import { openName, parseMove } from "@/lib/tiff/moves";
-import { filesNothing } from "@/lib/workboard/note-draft";
+import { filesNothing, planRows } from "@/lib/workboard/note-draft";
 import type { NoteProposal, NoteStaff } from "@/lib/workboard/note-brain";
 import { KEPT_AS_SAID, WHICH_JOB, earlierTurns } from "@/lib/workboard/note-turns";
 import { askLine, lastTiff, planView, tiffSince } from "@/components/tiff/modal/plan-view";
@@ -56,7 +56,7 @@ export type PhoneTurn =
   | { kind: "said"; say: string; failed: boolean };
 
 export type SayInput =
-  | { do: "say"; words: string; source: "voice" | "text"; before: { who: "you" | "tiff"; text: string }[]; target?: NoteTarget }
+  | { do: "say"; words: string; source: "voice" | "text"; before: { who: "you" | "tiff"; text: string }[]; target?: NoteTarget; withFiles?: boolean }
   | { do: "reply"; noteId: string; words: string }
   | { do: "job"; noteId: string; target: NoteTarget }
   | { do: "visit"; noteId: string; answer: string }
@@ -170,8 +170,9 @@ export async function tiffSays(input: SayInput): Promise<PhoneTurn[]> {
     return [{ kind: "said", say: k?.ok ? KEPT_AS_SAID : NOT_REACHED, failed: !k?.ok }];
   }
   if (!r.ok) return [{ kind: "said", say: r.error, failed: !r.kept }];
-  /* NOTHING TO FILE IS NOT A NOTE: set aside, and answered instead */
-  if (filesNothing(r.proposal)) {
+  /* NOTHING TO FILE IS NOT A NOTE: set aside, and answered instead. With a file,
+     a task or a visit is what's being filed; words alone are about the file. */
+  if (filesNothing(r.proposal) || (input.withFiles && planRows(r.proposal).length === 0)) {
     await dismissNote(r.noteId).catch(() => null);
     return [{ kind: "ask" }];
   }

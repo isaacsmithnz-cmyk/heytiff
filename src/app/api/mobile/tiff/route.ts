@@ -50,7 +50,7 @@ export async function POST(request: Request) {
 
   const encoder = new TextEncoder();
   const shaped = body;
-  const files = await readTiffFiles(ctx, fileIds).catch(() => []);
+  const files = await readTiffFiles(ctx, fileIds, shaped.question).catch(() => []);
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       let open = true;

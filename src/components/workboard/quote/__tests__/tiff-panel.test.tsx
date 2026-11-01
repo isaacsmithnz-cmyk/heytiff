@@ -222,9 +222,21 @@ it("sends a message and shows her working", async () => {
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
   });
   expect(posted).toContainEqual({ job: "j", message: "Make it three phase" });
-  expect(await screen.findByText("Working on the quote")).toBeInTheDocument();
+  expect(await screen.findByText("Reading the job")).toBeInTheDocument();
+  /* about how long is left, a first turn being the long one */
+  const bar = screen.getByRole("progressbar", { name: "Reading the job" });
+  expect(bar).toHaveAttribute("aria-valuetext", "about 1 min 40 left");
+  expect(screen.getByText("about 1 min 40 left")).toBeInTheDocument();
   /* the send waits while she works: one turn at a time */
   expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+});
+
+it("gives a change no bar until a few seconds in, a quick answer being over by then", async () => {
+  const finished = { id: 1, turnId: "t1", kind: "usage", author: "tiff", at: "2026-11-01T00:00:00.000Z", body: { usd: 0.1, rounds: 1, models: [] } };
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond({ ...thread, working: true, events: [finished] }));
+  render(<TiffPanel job="j" onChanged={jest.fn()} />);
+  expect(await screen.findByText("Working on the quote")).toBeInTheDocument();
+  expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
 });
 
 /* Isaac's production test, 2026-10-12: two reads from the same point (the

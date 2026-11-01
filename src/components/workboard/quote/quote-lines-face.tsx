@@ -26,7 +26,7 @@ import type { QuoteVersion } from "@/lib/quotes/quote-versions";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 import type { Sm8Quote } from "../board/job-quote-card";
 import { QuoteLineItems, groupKey, sellEachOf } from "./quote-line-items";
-import { InServiceM8, QuoteCard, QuoteRail } from "./quote-rail";
+import { InServiceM8, OptionRows, QuoteCard, QuoteRail, signed } from "./quote-rail";
 import { LinesButton, QuoteActions } from "./quote-actions";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
 import { Dialog } from "@/components/parts/dialog";
@@ -605,6 +605,7 @@ export function QuoteLinesFace({
             /* behind the paper, the review is the rail's */
             confirm={paper ? null : confirm}
             confirmTitle={confirmTitle}
+            words={{ proposal: view?.proposal ?? null, optionNames: view?.optionNames ?? [], options: quoteOptions }}
             onChanged={() => {
               reload();
               onPriced();
@@ -696,6 +697,23 @@ export function QuoteLinesFace({
         </Dialog>
         <QuoteRail
           progress={<QuoteStepsLine steps={steps} />}
+          options={
+            <OptionRows
+              onPick={setAt}
+              rows={Array.from({ length: options }, (_, i) => {
+                const v = (view?.variations ?? []).find((x) => x.option === i);
+                const mine = price && price.ok ? price.options[i] : undefined;
+                const of = v && price && price.ok ? price.options[v.of] : undefined;
+                return {
+                  option: i,
+                  on: i === at,
+                  name: v ? `Variation ${v.n}` : `Option ${i + 1}`,
+                  line: v ? v.what : (view?.optionNames?.[i] ?? ""),
+                  total: !money ? null : !mine ? "–" : v && of ? signed(mine.build.exGstCents - of.build.exGstCents) : cents2(mine.build.exGstCents),
+                };
+              })}
+            />
+          }
           design={
             designs && design ? (
               <QuoteDesign job={job} designs={designs} state={design} busy={busy} onSkip={(skip) => void act({ op: "design", skip })} />

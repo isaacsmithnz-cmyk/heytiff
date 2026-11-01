@@ -61,8 +61,6 @@ const centsOf = (typed: string): number | null => {
   return Number.isFinite(n) && n >= 0 ? Math.round(n * 1000) / 10 : NaN;
 };
 const qtyWords = (l: QuoteLine) => `${l.qty}${l.unit ? ` ${l.unit}` : ""}`;
-/** a variation's figures: the difference it makes */
-const signed = (c: number) => `${c > 0 ? "+" : c < 0 ? "−" : ""}${fmtAud(Math.abs(c))}`;
 
 /** A box that commits on Enter or leaving it, and says nothing until then. */
 function Field({ value, label, onCommit, disabled }: { value: string; label: string; onCommit: (typed: string) => void; disabled: boolean }) {
@@ -389,21 +387,6 @@ export function QuoteLineItems({
 
   return (
     <>
-      {options > 1 && (
-        <div className="ql-opts" role="tablist" aria-label="Options">
-          {Array.from({ length: options }, (_, i) => {
-            const v = (view?.variations ?? []).find((x) => x.option === i);
-            const mine = price && price.ok ? price.options[i] : undefined;
-            const of = v && price && price.ok ? price.options[v.of] : undefined;
-            return (
-              <button key={i} type="button" role="tab" aria-selected={i === at} className={i === at ? "ql-opt on" : "ql-opt"} onClick={() => onOption(i)}>
-                <span>{v ? `Variation ${v.n}` : view?.optionNames?.[i] ? `${i + 1}. ${view.optionNames[i]}` : `Option ${i + 1}`}</span>
-                {money && <b>{mine ? (v && of ? signed(mine.build.exGstCents - of.build.exGstCents) : fmtAud(mine.build.exGstCents)) : "–"}</b>}
-              </button>
-            );
-          })}
-        </div>
-      )}
       <div className="ql-sumrow">
         {all.length > 0 && !variation && (
           <TextBox

@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { proposalOf } from "@/lib/quotes/lines-proposal";
 import { TiffPanel } from "../tiff-panel";
 
 /* her questions and what the page has to confirm live on their own tab
@@ -343,27 +344,38 @@ it("shows a researched price with its page, and Use it puts it on the line (12.2
 
 /* layout B (Isaac, 21 October 2026): her reading of the job is Scope's, a
    tray away from the conversation, never scrolled away in the thread */
-it("shows the job, written out, on Scope: what changed since her last one, and what's settled struck through", async () => {
-  const wrote = (id: number, writeUp: Record<string, string[]>) => ({ id, turnId: "t1", kind: "tool", author: "tiff", body: { name: "write_up", label: "Wrote the job out", said: "the job, written out", ok: true, detail: { writeUp } }, at: "2026-10-10T00:00:00Z" });
-  const first = { read: ["Luke: two ducted systems"], visits: ["Rough-in: 2 people, 3.5 days, 55 h"], unpriced: ["The sandstone core: not in your book"] };
-  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () =>
-    respond({ ...thread, events: [...thread.events, wrote(90, first), wrote(91, { ...first, visits: ["Rough-in: 2 people, 3.5 days, 57 h"], unpriced: [] })] })
-  );
-  render(
-    <TiffPanel job="j" onChanged={jest.fn()} />
-  );
+it("writes Scope as a scope: the proposal's words, what it's priced on, and what's to check on site", async () => {
+  const wrote = (id: number, writeUp: Record<string, unknown>) => ({ id, turnId: "t1", kind: "tool", author: "tiff", body: { name: "write_up", label: "Wrote the job out", said: "the job, written out", ok: true, detail: { writeUp } }, at: "2026-10-10T00:00:00Z" });
+  const written = {
+    read: ["Luke: two ducted systems"],
+    unpriced: ["Nothing unpriced."],
+    pricedOn: [{ what: "Labour", said: "Option 1 is 12 h" }],
+    toCheck: [{ what: "Wall brackets", said: "The old ones may be fine to reuse" }],
+  };
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond({ ...thread, events: [...thread.events, wrote(90, { read: ["An older one"] }), wrote(91, written)] }));
+  const proposal = { ...proposalOf({}), title: "Air conditioning replacement", intro: "Unit 2 is at the end of its life.", options: [{ summary: "Fit a new split.", areas: [], included: [] }, { summary: "The same work in both.", areas: [], included: [] }] };
+  render(<TiffPanel job="j" onChanged={jest.fn()} words={{ proposal, optionNames: ["unit 2", ""], options: [0, 1] }} />);
   const tray = within(await screen.findByRole("radiogroup", { name: "Conversation, scope or what's to confirm" }));
-  expect(tray.getByRole("radio", { name: "Conversation" })).toHaveAttribute("aria-checked", "true");
-  /* the conversation holds no copy of it */
   await screen.findByText("A 12.5 kW ducted, priced from your book.");
-  expect(screen.queryByRole("region", { name: "The job" })).toBeNull();
+  /* the conversation holds no copy of it */
+  expect(screen.queryByRole("region", { name: "Scope" })).toBeNull();
   fireEvent.click(tray.getByRole("radio", { name: "Scope" }));
-  const job = within(screen.getByRole("region", { name: "The job" }));
-  expect(job.getByText("Changed", { selector: "header em" })).toBeInTheDocument();
-  expect(job.getByText("Luke: two ducted systems")).toBeInTheDocument();
-  expect(job.getByText("Rough-in: 2 people, 3.5 days, 57 h").closest("li")).toHaveClass("changed");
-  expect(job.getByText("Rough-in: 2 people, 3.5 days, 55 h").closest("li")).toHaveClass("gone");
-  expect(job.getByText("The sandstone core: not in your book").closest("li")).toHaveClass("gone");
+  const scope = within(screen.getByRole("region", { name: "Scope" }));
+  expect(scope.getAllByRole("heading").map((h) => h.textContent)).toEqual(["Air conditioning replacement", "Option 1, unit 2", "Option 2", "Priced on", "To check on site"]);
+  expect(scope.getByText("Labour").nextElementSibling).toHaveTextContent("Option 1 is 12 h");
+  expect(scope.getByText("Wall brackets").nextElementSibling).toHaveTextContent("The old ones may be fine to reuse");
+  expect(scope.queryByText("Luke: two ducted systems")).toBeNull();
+  expect(scope.queryByText("Nothing unpriced.")).toBeNull();
+});
+
+it("keeps what an older write-up said on Scope: the work, then its visits and what it assumed", async () => {
+  const old = { id: 90, turnId: "t1", kind: "tool", author: "tiff", body: { name: "write_up", label: "Wrote the job out", said: "the job, written out", ok: true, detail: { writeUp: { work: ["Fit the unit"], visits: ["Install: 2 people"], assuming: ["5 m of pipe"], unpriced: ["The core hole"] } } }, at: "2026-10-10T00:00:00Z" };
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond({ ...thread, events: [...thread.events, old] }));
+  render(<TiffPanel job="j" onChanged={jest.fn()} />);
+  const tray = within(await screen.findByRole("radiogroup", { name: "Conversation, scope or what's to confirm" }));
+  fireEvent.click(tray.getByRole("radio", { name: "Scope" }));
+  const scope = within(screen.getByRole("region", { name: "Scope" }));
+  for (const said of ["Fit the unit", "Install: 2 people", "5 m of pipe", "The core hole"]) expect(scope.getByText(said)).toBeInTheDocument();
 });
 
 it("says on Scope what to do while she hasn't written the job out, and keeps the conversation as it was", async () => {

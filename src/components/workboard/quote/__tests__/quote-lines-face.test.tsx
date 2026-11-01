@@ -333,7 +333,7 @@ it("copies option 1 to a new option, and says what an option changed from it", a
     fireEvent.click(screen.getByRole("button", { name: "Copy option 1 to a new option" }));
   });
   expect(posted).toContainEqual({ job: "job-3377", op: "copy", from: 0, to: 2 });
-  fireEvent.click(screen.getByRole("tab", { name: /Option 2/ }));
+  fireEvent.click(screen.getByRole("button", { name: /^Option 2/ }));
   await openGroup("Units");
   expect(screen.getByText("Added")).toBeInTheDocument();
   expect(screen.getByText("Not in this option: Ducted indoor, under the floor")).toBeInTheDocument();
@@ -871,17 +871,23 @@ describe("the quote card", () => {
     expect(cardIn().queryByText(/your \d+%/)).toBeNull();
   });
 
-  it("names each option on its button", async () => {
+  it("lists every option at the rail's top, its name and its total, and picks the one open", async () => {
     only([indoor, { ...indoor, id: "l3", optionIndex: 1 }], { optionNames: ["Mitsubishi Electric ducted", ""] });
     face();
-    expect(await screen.findByRole("tab", { name: /1\. Mitsubishi Electric ducted/ })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Option 2/ })).toBeInTheDocument();
+    const rows = within(await screen.findByRole("region", { name: "Options" }));
+    const first = rows.getByRole("button", { name: /^Option 1/ });
+    expect(first).toHaveTextContent("Mitsubishi Electric ducted");
+    expect(first).toHaveTextContent(/\$[\d,]+\.\d\d/);
+    expect(first).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(rows.getByRole("button", { name: /^Option 2/ }));
+    expect(rows.getByRole("button", { name: /^Option 2/ })).toHaveAttribute("aria-pressed", "true");
+    expect(first).toHaveAttribute("aria-pressed", "false");
   });
 
   it("says which option it totals when the quote has more than one: the one open", async () => {
     only([indoor, { ...indoor, id: "l3", optionIndex: 1 }]);
     face();
-    fireEvent.click(await screen.findByRole("tab", { name: /Option 2/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Option 2/ }));
     expect(cardIn().getByText(/^Option 2, total ex GST/)).toBeInTheDocument();
   });
 
@@ -950,9 +956,9 @@ describe("a variation to the accepted quote", () => {
     });
     const onToast = jest.fn();
     render(<QuoteLinesFace job="job-3377" price={priceFor([indoor, diffuser, ...varied])} onPriced={jest.fn()} onToast={onToast} meta={{ title: "Ducted", client: "Andrew", site: null, jobNumber: "3377" }} />);
-    fireEvent.click(await screen.findByRole("tab", { name: /Variation 1/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Variation 1/ }));
     /* one more diffuser at $12.89 + 40%, the line rounded to the cent */
-    expect(screen.getByRole("tab", { name: /Variation 1/ })).toHaveTextContent("+$18.04");
+    expect(screen.getByRole("button", { name: /^Variation 1/ })).toHaveTextContent("+$18.04");
     expect(screen.getByText("Variation 1, ex GST")).toBeInTheDocument();
     expect(screen.getByText(/^New total/)).toBeInTheDocument();
     await openGroup("Units");

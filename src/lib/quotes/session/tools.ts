@@ -544,7 +544,7 @@ export const SESSION_TOOLS: ToolDef[] = [
   {
     name: "write_up",
     description:
-      "Write the job out, the way an estimator does on paper before pricing: what you read (the brief, the notes, the plans, each in a line), the sizing (each system's load and the unit it takes, and why), the work (system by system, what goes in and where), the visits (each stage, its crew and days), what you can't price yet, and what you're assuming. Short lines, plain words. The person sees it at the top of your panel, and you build every line from it. Write it again, whole, when the job changes.",
+      "Write the job out, the way an estimator does on paper before pricing: what you read (the brief, the notes, the plans, each in a line), the sizing (each system's load and the unit it takes, and why), the work (system by system, what goes in and where), the visits (each stage, its crew and days), what you can't price yet (leave it empty when nothing is), and what you're assuming. priced_on is what the price stands on, each a short name and what it is (\"Labour\": \"Option 1 is 12 h. Option 2 is 16 h, two people for a day\"; \"Runs, each unit\": \"5 m pipe, 3 m drain, 3 m power\"). to_check is what someone must look at on site, each a short name and why (\"Wall brackets\": \"The old ones may be fine to reuse\"). Short lines, plain words. The person reads priced_on and to_check on the quote's Scope, and you build every line from all of it. Write it again, whole, when the job changes.",
     input_schema: {
       type: "object",
       properties: {
@@ -554,6 +554,8 @@ export const SESSION_TOOLS: ToolDef[] = [
         visits: { type: "array", items: { type: "string" } },
         unpriced: { type: "array", items: { type: "string" } },
         assuming: { type: "array", items: { type: "string" } },
+        priced_on: { type: "array", items: { type: "object", properties: { what: { type: "string" }, said: { type: "string" } }, required: ["what", "said"], additionalProperties: false } },
+        to_check: { type: "array", items: { type: "object", properties: { what: { type: "string" }, said: { type: "string" } }, required: ["what", "said"], additionalProperties: false } },
       },
       additionalProperties: false,
     },

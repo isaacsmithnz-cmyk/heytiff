@@ -68,6 +68,39 @@ export async function beginJobPhoto(
   return { ok: true, value: { documentId: slot.documentId, uploadUrl: slot.signedUrl } };
 }
 
+/** A slot for one PDF on this job, from Tiff's box: filed with the job's documents, as the job card's Documents face files one. */
+export async function beginJobPdf(
+  ctx: MobileCtx,
+  jobId: string,
+  file: { fileName?: unknown; mimeType?: unknown; sizeBytes?: unknown }
+): Promise<Answer<PhotoSlot>> {
+  const staffId = await staffProfileIdFor(ctx.orgId, ctx.userId).catch(() => null);
+  if (!staffId) return { ok: false, error: PHOTO_WORDS.noCard, status: 403 };
+  const job = await jobOf(ctx.orgId, jobId);
+  if (!job) return { ok: false, error: PHOTO_WORDS.noJob, status: 404 };
+  const fileName = typeof file.fileName === "string" ? file.fileName : "";
+  const mimeType = typeof file.mimeType === "string" ? file.mimeType : "";
+  const sizeBytes = typeof file.sizeBytes === "number" ? file.sizeBytes : 0;
+  if (mimeType.toLowerCase() !== "application/pdf") return { ok: false, error: "That isn't a PDF.", status: 400 };
+  const slot = await openSlot(ctx.orgId, staffId, "job_document", { fileName, mimeType, sizeBytes }, job);
+  if (!slot.ok) return { ok: false, error: slot.error, status: 400 };
+  return { ok: true, value: { documentId: slot.documentId, uploadUrl: slot.signedUrl } };
+}
+
+/** The PDF's bytes are in: it shows among the job's documents. It stays in HeyTiff, as the Documents face leaves one until someone sends it. */
+export async function landJobPdf(ctx: MobileCtx, jobId: string, documentId: string): Promise<Answer<{ documentId: string }>> {
+  const staffId = await staffProfileIdFor(ctx.orgId, ctx.userId).catch(() => null);
+  if (!staffId) return { ok: false, error: PHOTO_WORDS.noCard, status: 403 };
+  const job = await jobOf(ctx.orgId, jobId);
+  if (!job) return { ok: false, error: PHOTO_WORDS.noJob, status: 404 };
+  const { data } = await supabaseAdmin.from("documents").select("kind, sm8_job_uuid").eq("org_id", ctx.orgId).eq("id", documentId).maybeSingle();
+  const doc = data as { kind: string; sm8_job_uuid: string | null } | null;
+  if (!doc || doc.kind !== "job_document" || doc.sm8_job_uuid !== job) return { ok: false, error: "That upload no longer exists.", status: 404 };
+  const landed = await landSlot(ctx.orgId, staffId, documentId);
+  if (!landed.ok) return { ok: false, error: landed.error, status: 409 };
+  return { ok: true, value: { documentId } };
+}
+
 /** The photo's bytes are in: it shows on the job, and goes to ServiceM8. */
 export async function landJobPhoto(ctx: MobileCtx, press: Sm8Press | null, jobId: string, documentId: string): Promise<Answer<PhotoLanded>> {
   const staffId = await staffProfileIdFor(ctx.orgId, ctx.userId).catch(() => null);

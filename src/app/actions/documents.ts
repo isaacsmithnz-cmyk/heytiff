@@ -105,6 +105,8 @@ async function mayUpload(kind: DocumentKind): Promise<boolean> {
   // A supplier's docket comes from whoever bought the stuff: the same tier
   // that may add a purchase (actions/purchases.ts).
   if (kind === "purchase_docket") return can("workboard");
+  // Handed to Tiff in her box on the phone, by the phone's own route.
+  if (kind === "tiff_file") return false;
   return can("team");
 }
 

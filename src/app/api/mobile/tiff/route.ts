@@ -3,6 +3,7 @@ import { toolsFor } from "@/lib/tiff/registry";
 import { viewerForUser } from "@/lib/tiff/registry/viewer";
 import { requireMobile } from "@/lib/mobile/auth";
 import { phonePath } from "@/lib/mobile/screens";
+import { readTiffFiles, TIFF_FILE_LOOK } from "@/lib/mobile/tiff-files";
 
 /* TALKING TO TIFF from the phone: the web's own brain (/api/brain/ask, its
    `answer` loop and its tools, gated per tool by the viewer's capabilities),
@@ -10,7 +11,9 @@ import { phonePath } from "@/lib/mobile/screens";
    `tool` as she reaches for a reader, `delta` as she writes, one `err` on a
    failure, `done`. Where she'd take you to a page, `screen` carries the
    phone's own screen for it (lib/mobile/screens), and nothing where the
-   phone has none; her quick prices and design changes stay on the web. */
+   phone has none; her quick prices and design changes stay on the web.
+   `files` are ids of photos and PDFs this person added (lib/mobile/tiff-files):
+   read for this answer, and with nothing typed she's asked to have a look. */
 
 export const maxDuration = 120;
 
@@ -29,8 +32,12 @@ export async function POST(request: Request) {
   if (!tools.some((t) => t.risk === "read")) return no(403, NO_ACCESS);
 
   let body: AskBody | null;
+  let fileIds: unknown = null;
   try {
-    body = shapeAsk(await request.json());
+    const raw = (await request.json()) as Record<string, unknown> | null;
+    fileIds = raw?.files;
+    const asked = typeof raw?.question === "string" ? raw.question.trim() : "";
+    body = shapeAsk(Array.isArray(fileIds) && fileIds.length > 0 && !asked ? { ...raw, question: TIFF_FILE_LOOK } : raw);
   } catch {
     return no(400, UNREADABLE);
   }
@@ -43,6 +50,7 @@ export async function POST(request: Request) {
 
   const encoder = new TextEncoder();
   const shaped = body;
+  const files = await readTiffFiles(ctx, fileIds).catch(() => []);
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       let open = true;
@@ -55,7 +63,7 @@ export async function POST(request: Request) {
         }
       };
       try {
-        for await (const event of answer(viewer, shaped, { signal: abort.signal })) {
+        for await (const event of answer(viewer, shaped, { signal: abort.signal, files })) {
           if (event.type === "delta") write({ t: "delta", text: event.text });
           else if (event.type === "tool") write({ t: "tool", name: event.name, label: event.label });
           else if (event.type === "error") write({ t: "err", message: event.message });

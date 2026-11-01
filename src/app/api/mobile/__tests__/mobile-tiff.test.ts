@@ -53,6 +53,10 @@ jest.mock("@/lib/brain/turn", () => ({
     yield { type: "done" };
   },
 }));
+jest.mock("@/lib/mobile/tiff-files", () => ({
+  TIFF_FILE_LOOK: "Have a look at what I've attached.",
+  readTiffFiles: async (ctx: { userId: string }, ids: unknown) => (ids ? (asked.push(`files ${ctx.userId} ${JSON.stringify(ids)}`), [{ type: "text", text: "read" }]) : []),
+}));
 const kept: { op: string; owner: unknown; upsert?: unknown; remove?: unknown }[] = [];
 jest.mock("@/lib/tiff/threads-server", () => ({
   readThreads: async (owner: unknown) => (kept.push({ op: "read", owner }), { kept: true, threads: [{ id: "t-1", title: "Stanmore", updatedAt: 1, messages: [] }] }),
@@ -104,6 +108,11 @@ it("answers in the web's own words for the verified person, the phone's screen f
     { t: "done" },
   ]);
   expect(asked).toEqual(["viewer org-diamond auth0|lyle", 'answer org-diamond "When is Stanmore booked?"']);
+});
+
+it("reads what was attached for the verified person, and with no words asks her to have a look", async () => {
+  await lines(await ask(req("tiff", { question: "", files: ["d1"] }, "auth0|lyle")));
+  expect(asked).toEqual(["viewer org-diamond auth0|lyle", 'files auth0|lyle ["d1"]', `answer org-diamond "Have a look at what I've attached."`]);
 });
 
 it("refuses without a token check, with nothing to ask about, or a question it can't read", async () => {

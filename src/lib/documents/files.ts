@@ -107,6 +107,11 @@ export type DocumentKind =
      "with a photo if it helps"). Adopted by that issue's log and nothing
      else: its own kind so no claim, no tax line and no service can take it. */
   | "issue_photo"
+  /* A photo or PDF handed to Tiff in her box on the phone, for her to read
+     (Isaac, 1 November 2026: "the plus symbol to add photo or other file").
+     Owned by nobody but whoever added it, and only ever read back for them:
+     its own kind so no claim, notice, job or vehicle can adopt it. */
+  | "tiff_file"
   | "other";
 
 export const DOCUMENT_KINDS: readonly DocumentKind[] = [
@@ -133,6 +138,7 @@ export const DOCUMENT_KINDS: readonly DocumentKind[] = [
   "org_insurance",
   "service_record",
   "issue_photo",
+  "tiff_file",
   "other",
 ];
 

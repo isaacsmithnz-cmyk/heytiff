@@ -28,7 +28,7 @@
 const ENDPOINT = "https://api.elevenlabs.io/v1/speech-to-text";
 const MODEL_ID = "scribe_v2";
 
-/* Long enough for a two-minute site note over a bad connection, short enough
+/* Long enough for a four-minute site note over a bad connection, short enough
    that a wedged upstream fails the request rather than hanging it. */
 const HTTP_TIMEOUT_MS = 120_000;
 

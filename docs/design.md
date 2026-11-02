@@ -53,6 +53,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 - **25. Delete.** A red word on the second button; a red block only in the dialog that asks you to be sure.
 - **25a. Xero.** A button that goes to Xero (Connect, Reconnect, Pull from Xero, Refresh) is Xero's pale blue with white words, outside the palette on his word and named below.
 - **25b. ServiceM8.** A button that goes to ServiceM8 (Send to ServiceM8) is ServiceM8's own green, `#7DC836` from their site, with ink words, outside the palette on his word (Isaac, 2 November 2026: "That could be an exception for anything service mate"). A fill only: as a word on white it can't be read.
+- **25c. Quoting.** The button that starts a quote (Quote this job, Build the quote) is bright orange, `#F97316`, with ink words, as a quote is orange in ServiceM8, so blue stays the one thing to press on a job (Isaac, 3 November 2026: "all of these buttons are blue"; "Maybe quoting can be orange, like it is in Service Mate").
 - **26. Links.** Ink, underlined. Going somewhere, not doing something.
 - **27. Icon-only.** Close, clear, the microphone, and the ‹ › of a date. Everything else has its word. The sidebar doesn't fold, so it has no collapse control.
 - **28. Three sizes.** 32 in rows and lists, 36 in forms and dialogs, 44 on a phone. A field and the button beside it match.

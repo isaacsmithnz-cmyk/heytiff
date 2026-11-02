@@ -38,7 +38,7 @@ jest.mock("@/app/actions/sm8-booking-queue", () => ({}));
 jest.mock("@/lib/integrations/sm8-drain", () => ({}));
 jest.mock("@auth0/nextjs-auth0/server", () => ({ Auth0Client: class {} }));
 
-import { AWAY_KEPT_MS, arrivedOf, clockOnPlan, hasLife, joinDay, mergeJobs, recentWindow, rosteredDays, sheetCall, stintTimes, summarise, toQuarter, type DayJob } from "@/lib/mobile/day";
+import { AWAY_KEPT_MS, arrivedOf, clockOnPlan, hasLife, joinDay, mayUndo, mergeJobs, recentWindow, rosteredDays, sheetCall, stintTimes, summarise, toQuarter, type DayJob } from "@/lib/mobile/day";
 import type { MobileCtx } from "@/lib/mobile/auth";
 
 /* 27 October 2026 is daylight time in Sydney: +11:00 */
@@ -286,5 +286,15 @@ describe("Clock on at the office after a job earlier in the morning (the review 
       office: [{ from: "2026-10-28T20:00:00.000Z", until: null }],
       stint: { jobUuid: "J", from: "2026-10-28T19:30:00.000Z", until: "2026-10-28T20:00:00.000Z" },
     });
+  });
+});
+
+describe("taking back a clock on", () => {
+  const on = "2026-11-03T07:58:00.000Z";
+  it("can within two hours", () => {
+    expect(mayUndo(on, Date.parse("2026-11-03T09:58:00.000Z"))).toBe(true);
+  });
+  it("can't after, or a slip late in the day would take the day's work", () => {
+    expect(mayUndo(on, Date.parse("2026-11-03T09:58:01.000Z"))).toBe(false);
   });
 });

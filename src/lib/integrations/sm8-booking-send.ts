@@ -73,6 +73,7 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { withSm8Renewal, type Renewed } from "./sm8-renew";
 import { sm8CallOf } from "./sm8-http";
+import { sm8PressStaff } from "./links";
 import {
   deleteSm8Booking,
   postSm8Booking,
@@ -341,6 +342,7 @@ async function sendBooking(
   const live = state.mode === "live" && access !== null ? access : null;
   if (!row.sm8_job_uuid) return { finish: done("cancelled", BOOKING_WORDS.row.jobGone), access };
   const jobUuid: string = row.sm8_job_uuid;
+  const asStaffUuid = live ? await sm8PressStaff(orgId, row.requested_by ?? null, row.tenant_id) : undefined;
 
   /** One live read, the account asking, renewed once on a 401. BEFORE a
       write, a read that no longer fits the claim lets the row go; AFTER one
@@ -563,7 +565,7 @@ async function sendBooking(
     /* 2. the POST, with the last check inside every attempt */
     if (!sendInTime()) return letGo();
     const posted = await writeApp(
-      (a) => postSm8JobStatus(sm8CallOf(a, "write"), jobUuid, target),
+      (a) => postSm8JobStatus(sm8CallOf(a, "write"), jobUuid, target, asStaffUuid),
       async () => {
         const c = pressedAlone ? await statusStillWantedAlone(orgId, row) : await statusStillWanted(orgId, row, zone, t.clock());
         if (c === "go") return null;
@@ -706,6 +708,7 @@ async function sendBooking(
           start: row.booking_start ?? "",
           end: row.booking_end ?? "",
           ...(recorded ? { recorded: true } : {}),
+          asStaffUuid,
         }),
       async () => {
         const c = await createStillWanted(orgId, row.id);
@@ -1017,7 +1020,7 @@ async function sendBooking(
       let outMeanwhile = null as Sm8LiveActivity | "none" | null;
       let tries = 0;
       const sent = await writeApp(
-        (a) => deleteSm8Booking(sm8CallOf(a, "write"), target),
+        (a) => deleteSm8Booking(sm8CallOf(a, "write"), target, asStaffUuid),
         async (a) => {
           /* the first attempt goes on the read just made */
           if (tries++ === 0) return null;

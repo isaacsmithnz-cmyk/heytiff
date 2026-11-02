@@ -64,6 +64,7 @@ jest.mock("@/lib/integrations/links", () => ({
     { remoteId: "a1e0a1e0-0000-4000-8000-00000000a002", staffProfileId: "staff-alex" },
   ]),
   sm8DeniedLinks: jest.fn(async () => new Set()),
+  sm8PressStaff: jest.fn(async () => undefined),
 }));
 /* the press's settle, on the tests' clock: the run the action would start */
 const mockSettle = jest.fn();

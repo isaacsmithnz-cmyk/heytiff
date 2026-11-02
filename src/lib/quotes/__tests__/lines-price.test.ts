@@ -41,7 +41,9 @@ it("sells a part at the business's markup, and labour at its rate, as the old en
   expect(o!.build.groups.find((g) => g.name === "Units")!.sellCents).toBe(133438);
   expect(o!.build.groups.find((g) => g.name === "Pipe, power and controls")!.sellCents).toBe(16625);
   expect(o!.build.labour.sellCents).toBe(80 * 14000);
-  expect(o!.build.exGstCents).toBe(133438 + 16625 + 1_120_000);
+  expect(o!.build.buildExGstCents).toBe(133438 + 16625 + 1_120_000);
+  expect(o!.build.exGstCents).toBe(1270500);
+  expect(o!.build.roundUpCents).toBe(437);
   expect(o!.labourFrom).toBe("you");
   expect(o!.profit).toBeNull();
 });
@@ -96,7 +98,7 @@ it("adds an option's loading on its labour, and none without a reason", () => {
   const [plain] = priceLines([indoor, install], [], s, { pct: null, labourCostCents: null });
   const [loaded] = priceLines([indoor, install], [], s, { pct: null, labourCostCents: null }, { 0: { pct: 12, reason: "Parapet access" } });
   /* 80 h at $140 is $11,200; 12% of it is $1,344 */
-  expect(loaded!.build.exGstCents - plain!.build.exGstCents).toBe(134400);
+  expect(loaded!.build.buildExGstCents - plain!.build.buildExGstCents).toBe(134400);
   const [unsaid] = priceLines([indoor, install], [], s, { pct: null, labourCostCents: null }, { 0: { pct: 12, reason: "" } });
   expect(unsaid!.build.exGstCents).toBe(plain!.build.exGstCents);
   expect(unsaid!.build.loadingNeedsReason).toBe(true);

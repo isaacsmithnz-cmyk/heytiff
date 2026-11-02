@@ -119,6 +119,8 @@ export function optionLines(draft: ProposalDraft, i: number, build: BuildUp, sho
   if (build.labour.hours > 0 && extraCents > 0) {
     out.push({ name: "Labour, duct contingency", quantity: build.labour.hours, unitPriceCents: extraCents / build.labour.hours, unitCostCents: null });
   }
+  /* the total's own round up, so the lines come to the quote's total */
+  if (build.roundUpCents) out.push({ name: "Rounding", quantity: 1, unitPriceCents: build.roundUpCents, unitCostCents: 0 });
   return out;
 }
 

@@ -1,7 +1,7 @@
 /* The build-up's rules, on a 12.5 kW Mitsubishi ducted system with five
    zones and on a wall split, each written out as the lines a quote prices,
    at one business's settings. */
-import { priceBuildUp, trunkingLengths, wallBracketCode, type BuildLine } from "../buildup";
+import { priceBuildUp, roundedUp, trunkingLengths, wallBracketCode, type BuildLine } from "../buildup";
 import { ONE_BUSINESS } from "./fixtures/one-business";
 
 const line = (l: Omit<BuildLine, "supplierKey" | "code"> & Partial<BuildLine>): BuildLine => ({ code: null, supplierKey: "aad", ...l });
@@ -89,3 +89,15 @@ describe("a price offered below the build-up", () => {
   });
 });
 
+
+describe("a quote's total, rounded up", () => {
+  const at = (cents: number) => roundedUp({ ...priceBuildUp([], [], { unitMarkupPct: 0, materialMarkupPct: 0, chargeOutCents: 0, dayHours: 8, contingency: null }), exGstCents: cents });
+  it("goes up to the next $5, ex GST, with its GST from that", () => {
+    expect(at(769619)).toMatchObject({ exGstCents: 770000, gstCents: 77000, incGstCents: 847000, roundUpCents: 381 });
+    expect(at(844416)).toMatchObject({ exGstCents: 844500, gstCents: 84450, incGstCents: 928950, roundUpCents: 84 });
+  });
+  it("leaves a total already on $5, and nothing, as they are", () => {
+    expect(at(770000)).toMatchObject({ exGstCents: 770000, roundUpCents: 0 });
+    expect(at(0)).toMatchObject({ exGstCents: 0, incGstCents: 0, roundUpCents: 0 });
+  });
+});

@@ -1,4 +1,4 @@
-import { priceBuildUp, type BuildLine, type BuildSettings, type BuildUp, type Loading, type Visit } from "./buildup";
+import { priceBuildUp, roundedUp, type BuildLine, type BuildSettings, type BuildUp, type Loading, type Visit } from "./buildup";
 import type { QuoteLine } from "./lines";
 import { hourCostOf, profitAt, type Profit } from "./profit";
 import type { OptionLabour } from "./proposal";
@@ -76,7 +76,7 @@ export function priceLines(
     const known = mine.filter((l) => !stillUnknown(l));
     const parts = known.filter((l) => l.kind !== "labour");
     const labour = known.filter((l) => l.kind === "labour");
-    const build = priceBuildUp(parts.map(buildLineOf), labour.map((l) => visitOf(l, s.dayHours)), s, loadings[i] ?? null);
+    const build = roundedUp(priceBuildUp(parts.map(buildLineOf), labour.map((l) => visitOf(l, s.dayHours)), s, loadings[i] ?? null));
     /* every line's own cost: parts at what one costs, an hour at its line's
        cost; the contingency's share at buy and its hours at the business's
        hour, when it has one */

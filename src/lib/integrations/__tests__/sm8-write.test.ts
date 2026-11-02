@@ -67,6 +67,52 @@ beforeEach(() => {
 });
 afterEach(() => jest.restoreAllMocks());
 
+describe("a photo or a booking goes as the person who pressed", () => {
+  const STAFF = "985a32ef-398b-489f-882a-20fe666a5ebb";
+  const BOOKING = {
+    uuid: "7d3f2c1e-5b6a-4c8d-9e0f-1a2b3c4d5e6f",
+    jobUuid: "01a0e66a-cb5d-7c94-9d9a-d878f143765d",
+    staffUuid: STAFF,
+    start: "2026-11-06 07:00:00",
+    end: "2026-11-06 09:00:00",
+  };
+  const asOf = (call: number) => ((fetchMock.mock.calls[call] as [string, RequestInit])[1].headers as Record<string, string>)["x-impersonate-uuid"];
+
+  it("names them on a photo, and on nobody when HeyTiff doesn't know who", async () => {
+    fetchMock.mockImplementation(async () => new Response(null, { status: 200, headers: { "x-record-uuid": UPLOAD.uuid } }));
+    await postSm8Attachment(W("t"), { ...UPLOAD, asStaffUuid: STAFF });
+    await postSm8Attachment(W("t"), UPLOAD);
+    expect(asOf(0)).toBe(STAFF);
+    expect(asOf(1)).toBeUndefined();
+  });
+
+  it("names them on a booking, on time worked, on a delete and on a job's status", async () => {
+    fetchMock.mockImplementation(async () => new Response(null, { status: 200, headers: { "x-record-uuid": BOOKING.uuid } }));
+    await postSm8Booking(W("t"), { ...BOOKING, asStaffUuid: STAFF });
+    await postSm8Booking(W("t"), { ...BOOKING, recorded: true, asStaffUuid: STAFF });
+    await deleteSm8Booking(W("t"), BOOKING.uuid, STAFF);
+    await postSm8JobStatus(W("t"), BOOKING.jobUuid, "Work Order", STAFF);
+    expect([asOf(0), asOf(1), asOf(2), asOf(3)]).toEqual([STAFF, STAFF, STAFF, STAFF]);
+  });
+
+  it.each([400, 401, 403])("goes once more as the connection when the person is refused with a %i", async (status) => {
+    fetchMock
+      .mockResolvedValueOnce(new Response("{}", { status }))
+      .mockResolvedValueOnce(new Response(null, { status: 200, headers: { "x-record-uuid": UPLOAD.uuid } }));
+    const res = await postSm8Attachment(W("t"), { ...UPLOAD, asStaffUuid: STAFF });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(asOf(0)).toBe(STAFF);
+    expect(asOf(1)).toBeUndefined();
+    expect(res.status).toBe(200);
+  });
+
+  it("doesn't send twice on anything else", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 500 }));
+    await postSm8Booking(W("t"), { ...BOOKING, asStaffUuid: STAFF });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("putting a file on a job", () => {
   it("is one multipart POST to attachment.json, the record and the bytes together", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 200, headers: { "x-record-uuid": UPLOAD.uuid } }));

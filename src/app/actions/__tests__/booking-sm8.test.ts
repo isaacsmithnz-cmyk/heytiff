@@ -449,7 +449,7 @@ describe("Mark Unsuccessful, from Analytics: the owner's", () => {
   it("(F) an owner's press makes the Quote Unsuccessful in ServiceM8, its status alone", async () => {
     const r = await markUnsuccessful({ jobUuid: JOB, pressId: randomUUID() });
     expect(r).toMatchObject({ ok: true, state: "sent" });
-    expect(postSm8JobStatus.mock.calls.map((c) => c.slice(1))).toEqual([[JOB, "Unsuccessful"]]);
+    expect(postSm8JobStatus.mock.calls.map((c) => c.slice(1))).toEqual([[JOB, "Unsuccessful", ALEX]]);
     expect(writes()).toEqual([expect.objectContaining({ op: "update", job_status_from: "Quote", job_status_to: "Unsuccessful" })]);
   });
 

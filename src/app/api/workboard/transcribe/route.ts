@@ -24,14 +24,14 @@ import { transcribeAudio, TRADE_KEYTERMS } from "@/lib/voice/transcribe";
    every caller, and the gate — which is the part that was actually wrong —
    is fixed in place. */
 
-/* Long enough to read back the two minutes the recorder now allows, and the
+/* Long enough to read back the four minutes the recorder now allows, and the
    same ceiling `tiff/ask` runs on — which is the one value in this codebase
    proven to deploy on the current plan. It was unset until 2026-08-06, making
    this the only heavy route in the app running on a platform default nobody
    chose (ingest and embed-backfill take 300, ask takes 120). */
 export const maxDuration = 120;
 
-/* The recorder stops itself at two minutes (MAX_RECORDING_SECONDS in
+/* The recorder stops itself at four minutes (MAX_RECORDING_SECONDS in
    components/notes/dictation), so nothing the app sends can approach this.
    It stays because a route handler is reachable directly and a hand-rolled
    POST is not bound by a client-side clock. */
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "There was no recording to read." }, { status: 400 });
     }
     if (file.size > MAX_BYTES) {
-      return Response.json({ error: "That recording is too long. Keep it under two minutes." }, { status: 413 });
+      return Response.json({ error: "That recording is too long. Keep it under four minutes." }, { status: 413 });
     }
     audio = file;
   } catch {

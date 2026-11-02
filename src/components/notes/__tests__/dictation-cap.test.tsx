@@ -121,7 +121,7 @@ describe("the recorder stops itself", () => {
     expect(screen.getByTestId("rec")).toHaveTextContent("true");
   });
 
-  it("stops at two minutes", async () => {
+  it("stops at four minutes", async () => {
     render(<Probe onTranscript={jest.fn()} />);
     screen.getByText("start").click();
     await settle();
@@ -180,7 +180,7 @@ describe("the recorder stops itself", () => {
     expect(onTranscript.mock.calls[1]?.[1]).toEqual({ capped: false });
   });
 
-  it("gives a fresh two minutes when the mic is pressed again", async () => {
+  it("gives a fresh four minutes when the mic is pressed again", async () => {
     render(<Probe onTranscript={jest.fn()} />);
     screen.getByText("start").click();
     await settle();

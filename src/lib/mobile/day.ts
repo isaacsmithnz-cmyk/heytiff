@@ -628,7 +628,7 @@ export async function clockOffDay(ctx: MobileCtx, press: Sm8Press | null, at: un
 /* THE PLACES THE PHONE WATCHES FOR, never where the person is: the office,
    today's bookings, and the open jobs it could pass. Each with ServiceM8's
    own geocode where it has one; the phone finds the rest from the address. */
-export async function placesFor(ctx: MobileCtx, now: number = Date.now()): Promise<{ office: string | null; booked: (DayPlace & { start: string; end: string | null })[]; open: DayPlace[] }> {
+export async function placesFor(ctx: MobileCtx, now: number = Date.now()): Promise<{ office: string | null; booked: (DayPlace & { start: string; end: string | null })[]; next: (DayPlace & { start: string; end: string | null }) | null; open: DayPlace[] }> {
   const zone = await zoneOf(ctx.orgId);
   const today = wallMinute(new Date(now).toISOString(), zone)?.slice(0, 10) ?? new Date(now).toISOString().slice(0, 10);
   const { data: org } = await supabaseAdmin.from("organizations").select("address, suburb, state, postcode").eq("id", ctx.orgId).maybeSingle();
@@ -648,6 +648,10 @@ export async function placesFor(ctx: MobileCtx, now: number = Date.now()): Promi
   const state = await readSm8WriteState(ctx.orgId).catch(() => null);
   const staffUuid = state ? await staffUuidOf(ctx, state.tenantId).catch(() => null) : null;
   let booked: (DayPlace & { start: string; end: string | null })[] = [];
+  /* YOUR FIRST BOOKING OF THE NEXT DAY YOU HAVE ONE (Isaac, 3 November 2026, at 3479 with nothing asking
+     him to clock on): the phone sets the morning's fence when the app last ran, usually at Clock off,
+     so at Clock off it has to know tomorrow. */
+  let next: (DayPlace & { start: string; end: string | null }) | null = null;
   if (staffUuid) {
     const spell = [...new Set([staffUuid, staffUuid.toLowerCase(), staffUuid.toUpperCase()])];
     const { data: acts } = await supabaseAdmin
@@ -672,6 +676,28 @@ export async function placesFor(ctx: MobileCtx, now: number = Date.now()): Promi
         return j && s !== null ? [{ ...placeOf(j), start: new Date(s).toISOString(), end: e === null ? null : new Date(e).toISOString() }] : [];
       });
     }
+    const { data: ahead } = await supabaseAdmin
+      .from("sm8_job_activities")
+      .select("job_uuid, start_date, end_date")
+      .eq("org_id", ctx.orgId)
+      .eq("active", 1)
+      .eq("activity_was_scheduled", 1)
+      .in("staff_uuid", spell)
+      .gt("start_date", `${today} 23:59:59`)
+      .order("start_date", { ascending: true })
+      .limit(1);
+    const coming = ((ahead ?? []) as { job_uuid: string; start_date: string; end_date: string | null }[])[0];
+    if (coming) {
+      const { data: js } = await supabaseAdmin
+        .from("sm8_jobs")
+        .select("uuid, generated_job_id, job_address, geo_city, lat, lng")
+        .eq("org_id", ctx.orgId)
+        .in("uuid", [coming.job_uuid, coming.job_uuid.toLowerCase(), coming.job_uuid.toUpperCase()]);
+      const j = ((js ?? []) as JobRow[])[0];
+      const s = wallInstant(coming.start_date, zone, "earliest");
+      const e = coming.end_date ? wallInstant(coming.end_date, zone, "latest") : null;
+      if (j && s !== null) next = { ...placeOf(j), start: new Date(s).toISOString(), end: e === null ? null : new Date(e).toISOString() };
+    }
   }
 
   /* AN OPEN JOB WITH SOME LIFE IN IT (Isaac, 29 October 2026: 993, a quote
@@ -695,7 +721,7 @@ export async function placesFor(ctx: MobileCtx, now: number = Date.now()): Promi
   ]);
   const visited = visits;
   const open = ((openJobs ?? []) as (JobRow & { edit_date: string | null })[]).filter((j) => hasLife(j, from, visited));
-  return { office, booked, open: open.map(placeOf) };
+  return { office, booked, next, open: open.map(placeOf) };
 }
 
 /** Every job with a visit in the window, read a page at a time: the API answers 1,000 rows at most,

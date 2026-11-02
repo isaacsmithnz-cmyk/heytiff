@@ -60,17 +60,18 @@ const REALTIME = process.env.NEXT_PUBLIC_VOICE_REALTIME === "1";
    minutes". A limit nobody enforced, announced by a message nobody could
    reach.
 
-   Two minutes is the real one now, and it lives HERE rather than in a posture
+   Four minutes is the real one now (Isaac, 3 November 2026: "a 2-minute timer
+   is potentially too little"), and it lives HERE rather than in a posture
    so that every mic in the app inherits it — the capsule, the strip, the
    field, the line, the debrief and Tiff's ask bar. A cap that only applied to
    the screen someone happened to be building would be exactly the kind of
    fork this file exists to prevent.
 
    IT STOPS, IT DOES NOT DISCARD. Hitting the ceiling runs the same path as
-   pressing stop, so the two minutes you already said are transcribed and
+   pressing stop, so the four minutes you already said are transcribed and
    kept. Throwing away a long recording because it ran long is the one
    outcome nobody would forgive. */
-export const MAX_RECORDING_SECONDS = 120;
+export const MAX_RECORDING_SECONDS = 240;
 
 /* WHAT COUNTS AS A VOICE, for the "was anything said" count that decides
    whether `handOver` may bin a take unheard. */
@@ -254,7 +255,7 @@ export function useDictation({
 
        (not capped)  you stopped, or handed over to the keyboard. The words
                      are yours to look at; there is nothing to explain.
-       capped        the two-minute clock ran out mid-sentence. Same words,
+       capped        the four-minute clock ran out mid-sentence. Same words,
                      same box, but SAY SO — this ending was not chosen.
 
      Callers that only ever append (the field mics, Tiff's ask bar) can

@@ -3,6 +3,7 @@ import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
 import { labourOf, unitsOf } from "@/lib/quotes/quote-sum";
 import type { LinesProposal } from "@/lib/quotes/lines-proposal";
 import type { QuoteLine } from "@/lib/quotes/lines";
+import { answeredOf, settledIn } from "@/lib/quotes/session/answers";
 import { isFirstTurn, stepOf, turnStartOf } from "@/lib/quotes/session/time-left";
 import { questionOf } from "@/lib/quotes/session/tools";
 import { notPricedOf, pricedOnOf, writeUpOf } from "@/lib/quotes/write-up";
@@ -13,7 +14,17 @@ import { notPricedOf, pricedOnOf, writeUpOf } from "@/lib/quotes/write-up";
    phone and the figures are the web's. Someone without money access gets no
    figure at all: the web's route has already taken them out. Pure. */
 
-export type PhoneLine = { name: string; second: string; cents: number | null; hours: number | null; check: boolean };
+export type PhoneLine = {
+  name: string;
+  second: string;
+  /** `second` is the model she picked, there to be read (Isaac, 3 November 2026: "That should be clear as day") */
+  model: boolean;
+  /** what a labour line was worked out from */
+  tasks: { task: string; hours: number }[];
+  cents: number | null;
+  hours: number | null;
+  check: boolean;
+};
 export type PhoneGroup = { name: string; cents: number | null; lines: PhoneLine[] };
 export type PhoneOption = {
   /** the option's few words, "Units 2 and 12"; "" where it has only its number */
@@ -49,8 +60,10 @@ export type QuestionPrices = Record<number, { deltas: (number | null)[]; answere
 
 /** A name beside what someone did, and when. */
 export type Mark = { by: string | null; at: string };
-export type PhoneTurn = { id: number; side: "me" | "them" | "tiff" | "mark" | "fault"; who: string | null; at: string; text: string };
-export type PhoneQuestion = { id: number; question: string; answers: { label: string; delta: number | null; can: boolean }[] };
+/** The question an answer is to, with what else could have been said. */
+export type PhoneAsked = { event: number; question: string; answers: string[] };
+export type PhoneTurn = { id: number; side: "me" | "them" | "tiff" | "mark" | "fault"; who: string | null; at: string; text: string; to?: PhoneAsked };
+export type PhoneQuestion = { id: number; question: string; put: string; answers: { label: string; delta: number | null; can: boolean }[] };
 /** What she's doing, for the phone's bar: it counts from `since`. */
 export type PhoneDoing = { step: string | null; since: string | null; first: boolean };
 export type QuoteWord = { word: string; tone: "look" | "good" | "info" };
@@ -60,15 +73,69 @@ const nameOf = (names: Record<string, string>, who: string) => names[who] ?? nul
 /** Her words as plain lines: the phone doesn't draw her bold. */
 const plain = (text: string) => text.replace(/\*\*(.+?)\*\*/g, "$1").trim();
 
-/** The conversation as it reads, in order: yours, hers, what was marked, what went wrong. */
+/** The numbered list closing what she says, and its heading if she gave one, when it's the questions still open: the chat asks each of those itself. */
+function withoutAskedList(text: string, open: number): string {
+  if (open === 0) return text;
+  const lines = text.split("\n");
+  let from = lines.length;
+  while (from > 0 && /^\s*\d+[.)]\s/.test(lines[from - 1]!)) from--;
+  if (lines.length - from !== open) return text;
+  if (from > 0 && lines[from - 1]!.trim().endsWith(":")) from--;
+  return lines.slice(0, from).join("\n").trim();
+}
+
+const askedOf = (e: Thread): PhoneAsked | null => {
+  const q = questionOf(e.body);
+  return "error" in q ? null : { event: e.id, question: q.question, answers: q.answers.map((a) => a.label) };
+};
+
+/** What a message answers, and its words alone: tapped, or said with the question in front so she knows which it's to. */
+function answerIn(e: Thread, asked: ReadonlyMap<number, PhoneAsked>): { to: PhoneAsked; text: string } | null {
+  const text = String(e.body.text ?? "").trim();
+  if (typeof e.body.answered === "number") return { to: asked.get(e.body.answered) ?? { event: e.body.answered, question: String(e.body.question ?? ""), answers: [] }, text };
+  for (const a of asked.values()) if (text.startsWith(`${a.question} `)) return { to: a, text: text.slice(a.question.length).trim() };
+  return null;
+}
+
+/** The conversation as it reads, in order: yours, hers, what was marked, what went wrong. A question comes in where it was answered, over its answer; one still open is the screen's to ask, last. (Isaac, 3 November 2026: "I need to make it so that the questions appear in the chat itself") */
 export function phoneTurns(events: readonly Thread[], names: Record<string, string>, me: string): PhoneTurn[] {
-  const out: PhoneTurn[] = [];
+  /* one she settled from words that didn't come with it has no answer to sit over: it follows what she said */
+  const asked = new Map<number, PhoneAsked>();
+  const overAnswer = new Set<number>();
   for (const e of events) {
+    const a = e.kind === "question" ? askedOf(e) : null;
+    if (a) asked.set(e.id, a);
     if (e.kind === "message") {
-      const text = typeof e.body.answered === "number" ? `${String(e.body.question ?? "")} ${String(e.body.text ?? "")}` : String(e.body.text ?? "");
-      out.push({ id: e.id, side: e.author === me ? "me" : "them", who: nameOf(names, e.author), at: e.at, text: text.trim() });
+      const to = answerIn(e, asked)?.to.event;
+      if (to !== undefined) overAnswer.add(to);
+    }
+  }
+  const settled = answeredOf(events);
+
+  const out: PhoneTurn[] = [];
+  const open = new Set<number>();
+  const seen = new Map<number, PhoneAsked>();
+  const followed = new Set<number>();
+  for (const e of events) {
+    if (e.kind === "question") {
+      const a = asked.get(e.id);
+      if (a) {
+        open.add(e.id);
+        seen.set(e.id, a);
+      }
+    } else if (e.kind === "tool") {
+      for (const s of settledIn(e.body)) open.delete(s.question);
+    } else if (e.kind === "message") {
+      const answer = answerIn(e, seen);
+      if (typeof e.body.answered === "number") open.delete(e.body.answered);
+      out.push({ id: e.id, side: e.author === me ? "me" : "them", who: nameOf(names, e.author), at: e.at, text: answer ? answer.text : String(e.body.text ?? "").trim(), ...(answer ? { to: answer.to } : {}) });
     } else if (e.kind === "reply" && e.body.working !== true) {
-      out.push({ id: e.id, side: "tiff", who: null, at: e.at, text: plain(String(e.body.text ?? "")) });
+      out.push({ id: e.id, side: "tiff", who: null, at: e.at, text: withoutAskedList(plain(String(e.body.text ?? "")), open.size) });
+      for (const id of open) {
+        if (!settled.has(id) || overAnswer.has(id) || followed.has(id)) continue;
+        followed.add(id);
+        out.push({ id, side: "tiff", who: null, at: e.at, text: seen.get(id)!.question });
+      }
     } else if (e.kind === "milestone") {
       const by = e.author === me ? "you" : (nameOf(names, e.author) ?? "someone");
       out.push({ id: e.id, side: "mark", who: null, at: e.at, text: `${String(e.body.text ?? "")} by ${by}` });
@@ -92,6 +159,7 @@ export function openQuestions(events: readonly Thread[], priced: QuestionPrices 
     out.push({
       id: e.id,
       question: q.question,
+      put: q.put ?? "",
       answers: q.answers.map((a, i) => ({ label: a.label, delta: deltas[i] ?? null, can: deltas.length === 0 || deltas[i] !== null })),
     });
   }
@@ -135,7 +203,9 @@ function groupsOf(lines: readonly QuoteLine[], price: OptionPrice | null): Phone
       cents: labour ? (price?.build.labour.sellCents ?? null) : fromBuild,
       lines: mine.map((l) => ({
         name: l.name,
-        second: l.kind === "labour" ? l.why : l.why || l.code || "",
+        second: l.kind === "unit" ? l.code || l.why : l.visit ? "" : l.kind === "labour" ? l.why : l.why || l.code || "",
+        model: l.kind === "unit" && !!l.code,
+        tasks: l.visit?.tasks.map((t) => ({ task: t.task, hours: t.hours })) ?? [],
         cents: l.kind === "labour" ? null : (sold.get(l.id) ?? null),
         hours: l.kind === "labour" ? l.qty : null,
         check: l.source === "assumed" || l.source === "unknown" || !!l.estimate,

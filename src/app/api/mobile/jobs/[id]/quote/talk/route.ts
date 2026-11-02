@@ -1,6 +1,6 @@
 import { POST as talkPost } from "@/app/api/workboard/quote-session/route";
 import { actAsPhoneUser, requireMobile } from "@/lib/mobile/auth";
-import { asPhone, readPhoneSources, readPhoneTalk } from "@/lib/mobile/phone-quote-server";
+import { asPhone, putOnLines, readPhoneSources, readPhoneTalk } from "@/lib/mobile/phone-quote-server";
 
 /* TIFF'S SESSION ON A QUOTE, from the phone: the web's own route as the token's
    person, the same thread on either. GET reads it, or with ?sources=1 what she'd
@@ -26,7 +26,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!body) return Response.json({ error: "That request couldn't be read." }, { status: 400, headers: { "cache-control": "no-store" } });
   /* only what the phone sends: a researched price stays on the web */
   const said = body.op === "answer" ? { job, op: "answer", event: body.event, answer: body.answer } : { job, message: body.message, ...(Array.isArray(body.sources) ? { sources: body.sources } : {}) };
-  return actAsPhoneUser(ctx, async () =>
-    asPhone(await talkPost(new Request(web, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(said) }))),
-  );
+  return actAsPhoneUser(ctx, async () => {
+    /* Build the quote on a job that's never had one (Isaac, 3 November 2026, 3479: "Tiff builds on the quote's lines") */
+    if (body.op !== "answer") await putOnLines(ctx, job);
+    return asPhone(await talkPost(new Request(web, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(said) })));
+  });
 }

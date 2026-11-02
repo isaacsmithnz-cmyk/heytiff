@@ -93,6 +93,8 @@ export type DayState = {
 export const DAY_WORDS = {
   on: "Your day is on.",
   already: "Your day is already on.",
+  undone: "Your day is off again.",
+  tooLateToUndo: "Your day has been on too long to undo. Clock off and change its times.",
   notOn: "Your day isn't on. Clock on first.",
   noJob: "That job isn't in HeyTiff.",
   future: "That time hasn't come yet.",
@@ -412,6 +414,28 @@ export function clockOnPlan(
     office: atOffice ? [{ from: pressed, until: null }] : [],
     stint: arrived ? { jobUuid: arrived.place, from: arrived.at, until: arrived.left ?? (atOffice ? pressed : null) } : null,
   };
+}
+
+/* TAKING BACK A CLOCK ON (Isaac, 3 November 2026: the phone clocks you on at
+   your booking, "have an undo or whatever"). The day and its stints go, and
+   only the phone's: nothing reaches ServiceM8 or the timesheet until Clock
+   off, so nothing has gone anywhere. Not after a couple of hours, or a slip
+   late in the day would take a day's work with it. */
+const UNDO_MS = 2 * 3_600_000;
+
+/** Whether a day that went on at `onAt` can still be taken back. Pure. */
+export function mayUndo(onAt: string, now: number): boolean {
+  return now - Date.parse(onAt) <= UNDO_MS;
+}
+
+export async function undoClockOn(ctx: MobileCtx, now: number = Date.now()): Promise<DayAnswer> {
+  const day = await openDay(ctx);
+  if (!day) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
+  if (!mayUndo(day.on_at, now)) return { ok: false, error: DAY_WORDS.tooLateToUndo, status: 409 };
+  await supabaseAdmin.from("job_check_ins").delete().eq("org_id", ctx.orgId).eq("user_id", ctx.userId).gte("checked_in_at", day.on_at);
+  const { error } = await supabaseAdmin.from("staff_days").delete().eq("org_id", ctx.orgId).eq("id", day.id).is("off_at", null);
+  if (error) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
+  return { ok: true, state: await readDay(ctx, now), said: DAY_WORDS.undone };
 }
 
 async function setOffice(ctx: MobileCtx, day: DayRow, office: DayStop[]) {

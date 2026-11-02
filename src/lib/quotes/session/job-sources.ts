@@ -16,7 +16,7 @@
 
 export type JobSource = {
   id: string;
-  kind: "description" | "sm8_quote" | "note" | "earlier" | "design";
+  kind: "description" | "scope" | "sm8_quote" | "note" | "earlier" | "design";
   /** what it is, as the list shows it: "Note, 6 Oct, Luke" */
   label: string;
   text: string;
@@ -38,6 +38,8 @@ const same = (t: string) => t.replace(/\s+/g, " ").trim().toLowerCase();
 
 export function jobSources(input: {
   description: string | null;
+  /** the brief at the top of the job's Overview, as it stands */
+  scope?: string | null;
   sm8Quote: string | null;
   notes: readonly { id: string; text: string; at: string | null; by: string | null }[];
   /** what the person answered on the old builder, question by question */
@@ -48,6 +50,8 @@ export function jobSources(input: {
   const out: JobSource[] = [];
   const description = squash(input.description ?? "");
   if (description) out.push({ id: "description", kind: "description", label: "The job's description", text: description, at: null });
+  const scope = squash(input.scope ?? "");
+  if (scope) out.push({ id: "scope", kind: "scope", label: "The job's scope", text: scope, at: null });
   const quote = squash(input.sm8Quote ?? "");
   if (quote) out.push({ id: "sm8_quote", kind: "sm8_quote", label: "ServiceM8's quote", text: quote, at: null });
   /* the business's own design of the job (Isaac, 2026-10-17): that there is

@@ -250,9 +250,35 @@ export function OptionRows({ rows, onPick }: { rows: { option: number; name: str
   );
 }
 
+/** What's landed on the job since the quote was priced (the scope on the
+    quote, Isaac's yes, 2 November 2026): nothing when nothing has. Leave out
+    takes a thing off this list and leaves it in the job's brief. */
+export function AddedRows({ items, onLeave, onPrice }: { items: { text: string; from: string }[]; onLeave: (text: string) => void; onPrice: () => void }) {
+  if (items.length === 0) return null;
+  const heading = `${items.length} added since it was priced`;
+  return (
+    <section className="qc-added" aria-label={heading}>
+      <h2>{heading}</h2>
+      <ul>
+        {items.map((a) => (
+          <li key={a.text}>
+            <span>
+              {a.text}
+              {a.from && <em>{a.from}</em>}
+            </span>
+            <Button kind="quiet" size={32} onClick={() => onLeave(a.text)}>Leave out</Button>
+          </li>
+        ))}
+      </ul>
+      <Button kind="second" size={36} onClick={onPrice}>Price them</Button>
+    </section>
+  );
+}
+
 export function QuoteRail({
   progress,
   options,
+  added,
   design,
   confirm,
   confirmTitle,
@@ -267,6 +293,8 @@ export function QuoteRail({
   progress: ReactNode;
   /** every option and its total, to pick from */
   options?: ReactNode;
+  /** what's landed on the job since it was priced, under the options */
+  added?: ReactNode;
   /** the Design step: the job's designs, or Design it (quote-design.tsx);
       nothing without the Studio */
   design?: ReactNode;
@@ -292,6 +320,7 @@ export function QuoteRail({
       <div className="qc-scroll">
         <div>{progress}</div>
         {options}
+        {added}
         {design}
         {confirm && (
           <section className="qc-rs" aria-label={confirmTitle}>

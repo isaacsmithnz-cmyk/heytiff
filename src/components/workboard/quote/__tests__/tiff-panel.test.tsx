@@ -521,3 +521,37 @@ it("folds a turn's working into one row, past the questions she asked on the way
   expect(screen.getAllByRole("button", { name: /^Worked through it/ })).toHaveLength(1);
   expect(screen.getByRole("button", { name: "Worked through it 3 steps" })).toBeInTheDocument();
 });
+
+/* Price them: the page's words go once, what's in the box stays, and the
+   rail only clears when she has them */
+describe("words the page says for the person", () => {
+  const mount = (answer: unknown) => {
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (_u: string, init?: { method?: string; body?: string }) => {
+      if (init?.method !== "POST") return respond(thread);
+      posted.push(JSON.parse(init.body ?? "{}"));
+      return respond(answer);
+    });
+    const onSaid = jest.fn();
+    const say = { id: 1, text: "Price what's been added: A pump." };
+    const view = render(<TiffPanel job="j" onChanged={jest.fn()} say={say} onSaid={onSaid} />);
+    return { onSaid, say, view };
+  };
+
+  it("sends them once and tells the page", async () => {
+    const { onSaid, say, view } = mount({ ok: true });
+    await act(async () => {});
+    await act(async () => {});
+    view.rerender(<TiffPanel job="j" onChanged={jest.fn()} say={say} onSaid={onSaid} />);
+    await act(async () => {});
+    expect(posted.filter((p) => p.message === say.text)).toHaveLength(1);
+    expect(onSaid).toHaveBeenCalledTimes(1);
+  });
+
+  it("doesn't tell the page when she can't take them", async () => {
+    const { onSaid } = mount({ ok: false, reason: "Tiff is working on this quote." });
+    await act(async () => {});
+    await act(async () => {});
+    expect(onSaid).not.toHaveBeenCalled();
+    expect(await screen.findByText("Tiff is working on this quote.")).toBeInTheDocument();
+  });
+});

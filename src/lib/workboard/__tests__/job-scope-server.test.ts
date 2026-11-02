@@ -13,18 +13,20 @@ const updated = jest.fn();
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
     from: () => ({
-      select: () => ({ eq: () => ({ eq: () => ({ maybeSingle }) }) }),
+      select: () => ({ eq: () => ({ eq: () => ({ maybeSingle, limit: () => ({ maybeSingle: hasLines }) }) }) }),
       upsert,
       update: (change: unknown) => (update(change), whereUpdate),
     }),
   },
 }));
+const hasLines = jest.fn(async () => ({ data: { id: "l-1" } }));
+jest.mock("@/lib/quotes/lines-job-server", () => ({ readByHand: async () => ({ proposal: null }) }));
 const readJobStoryForSummary = jest.fn();
 jest.mock("../all-jobs-query", () => ({ resolveJobCard: async (_o: string, id: string) => ({ parentRemoteId: id }) }));
 jest.mock("../query", () => ({ getSm8Timezone: async () => "Australia/Sydney" }));
 jest.mock("../job-summary", () => ({ readJobStoryForSummary: (...a: unknown[]) => readJobStoryForSummary(...a) }));
 
-import { refreshJobScope, undoJobScope } from "../job-scope-server";
+import { refreshJobScope, takeOffQuoteRail, undoJobScope } from "../job-scope-server";
 import { scopeStamp } from "@/lib/jobs/job-scope";
 import type { StoryEntry } from "../job-story";
 
@@ -156,5 +158,38 @@ describe("Undo", () => {
     maybeSingle.mockResolvedValue({ data: row() });
     expect(await undoJobScope("org", "j-1", "Sam Lee")).toEqual({ ok: false, reason: "There's nothing to undo." });
     expect(update).not.toHaveBeenCalled();
+  });
+});
+
+describe("the quote's rail", () => {
+  const PUMP = { text: "Condensate pump in unit 12", from: "Isaac Smith's note" };
+  const withPump = { ...BRIEF, added: [PUMP] };
+  const writes = (added: object) => ({ stop_reason: "end_turn", content: [{ type: "text", text: JSON.stringify(added) }] });
+
+  beforeEach(() => hasLines.mockResolvedValue({ data: { id: "l-1" } }));
+
+  it("holds what a note added while the quote has lines", async () => {
+    maybeSingle.mockResolvedValue({ data: row() });
+    const create = jest.fn(async () => writes(withPump));
+    const res = await refreshJobScope("org", "j-1", { messages: { create } } as unknown as Anthropic);
+    expect(res.ok && res.scope?.sincePriced).toEqual([PUMP]);
+    expect(update.mock.calls[0][0]).toMatchObject({ since_priced: [PUMP] });
+  });
+
+  it("holds nothing when the quote has no lines yet", async () => {
+    hasLines.mockResolvedValue({ data: null } as never);
+    maybeSingle.mockResolvedValue({ data: row() });
+    const create = jest.fn(async () => writes(withPump));
+    const res = await refreshJobScope("org", "j-1", { messages: { create } } as unknown as Anthropic);
+    expect(res.ok && res.scope?.sincePriced).toEqual([]);
+  });
+
+  it("takes a thing off the rail and leaves it in the brief, with no read", async () => {
+    maybeSingle.mockResolvedValue({ data: row({ brief: withPump, since_priced: [PUMP] }) });
+    const res = await takeOffQuoteRail("org", "j-1", [PUMP.text]);
+    expect(res.ok && res.scope?.sincePriced).toEqual([]);
+    expect(res.ok && res.scope?.added).toEqual([PUMP]);
+    expect(update.mock.calls[0][0]).toMatchObject({ since_priced: [] });
+    expect(update.mock.calls[0][0]).not.toHaveProperty("brief");
   });
 });

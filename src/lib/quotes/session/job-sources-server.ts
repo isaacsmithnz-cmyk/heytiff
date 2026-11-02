@@ -5,6 +5,8 @@ import { readOurJobNotes } from "@/lib/workboard/job-notes-query";
 import { readSm8QuoteBrief } from "../sm8-quote-brief-server";
 import { readStoredProposal } from "../old-draft-server";
 import { designsOnJob } from "../design-read-server";
+import { scopeWords } from "@/lib/jobs/job-scope";
+import { readStoredJobScope } from "@/lib/workboard/job-scope-server";
 import { jobSources, type JobSource } from "./job-sources";
 
 /* Read the job (job-sources.ts says what's read and why nothing is judged
@@ -14,7 +16,7 @@ import { jobSources, type JobSource } from "./job-sources";
    role, by org; the route gates. */
 
 export async function readJobSources(orgId: string, cardId: string): Promise<{ sources: JobSource[]; left: number }> {
-  const [job, theirs, ours, sm8Quote, old, designs] = await Promise.all([
+  const [job, theirs, ours, sm8Quote, old, designs, scope] = await Promise.all([
     supabaseAdmin.from("sm8_jobs").select("job_description").eq("org_id", orgId).eq("uuid", cardId).maybeSingle(),
     familyMediaSources(orgId, cardId)
       .then((claims) => readJobNotes(orgId, cardId, claims))
@@ -23,9 +25,11 @@ export async function readJobSources(orgId: string, cardId: string): Promise<{ s
     readSm8QuoteBrief(orgId, cardId).catch(() => null),
     readStoredProposal(orgId, cardId).catch(() => null),
     designsOnJob(orgId, cardId).catch(() => []),
+    readStoredJobScope(orgId, cardId).catch(() => null),
   ]);
   return jobSources({
     description: (job.data as { job_description: string | null } | null)?.job_description ?? null,
+    scope: scope ? scopeWords(scope) : null,
     sm8Quote,
     notes: [
       ...theirs.map((n) => ({ id: `sm8-${n.remoteId}`, text: n.text, at: n.writtenAt, by: n.writtenBy })),

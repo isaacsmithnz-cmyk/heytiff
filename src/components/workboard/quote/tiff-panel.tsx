@@ -136,6 +136,8 @@ export function TiffPanel({
   hidden = false,
   start = false,
   words,
+  say = null,
+  onSaid,
 }: {
   job: string;
   onChanged: () => void;
@@ -157,6 +159,10 @@ export function TiffPanel({
   hidden?: boolean;
   /** opened from the job card to start the quote: the reply box takes the keys */
   start?: boolean;
+  /** words the page says to her for the person (Price them), once each */
+  say?: { id: number; text: string } | null;
+  /** she has them */
+  onSaid?: () => void;
 }) {
   /* null until her thread is first read: the page lays out nothing of hers
      or the lines' until it knows which */
@@ -283,9 +289,9 @@ export function TiffPanel({
   });
   const talking = dict.recording || dict.arming || dict.transcribing;
 
-  const send = async (readJob = false) => {
-    const message = typed.trim();
-    if ((!message && !readJob) || busy) return;
+  const send = async (readJob = false, words?: string): Promise<boolean> => {
+    const message = (words ?? typed).trim();
+    if ((!message && !readJob) || busy) return false;
     setBusy(true);
     setNote(null);
     const r = await fetch(ROUTE, {
@@ -295,12 +301,30 @@ export function TiffPanel({
     }).catch(() => null);
     const a = r ? ((await r.json().catch(() => null)) as { ok: boolean; reason?: string } | null) : null;
     setBusy(false);
-    if (!a?.ok) return setNote(a?.reason ?? "That didn't send. Try again.");
-    setTyped("");
+    if (!a?.ok) {
+      setNote(a?.reason ?? "That didn't send. Try again.");
+      return false;
+    }
+    if (words === undefined) setTyped("");
     busyNow.current = true;
     setWorking(true);
     void read(false);
+    return true;
   };
+
+  /* the page's words (Price them): what's in the box stays in the box */
+  const saidLast = useRef(0);
+  const sayNow = useEffectEvent((text: string) => {
+    void send(false, text).then((sent) => {
+      if (sent) onSaid?.();
+    });
+  });
+  useEffect(() => {
+    if (!say || !on || busy || saidLast.current === say.id) return;
+    saidLast.current = say.id;
+    const { text } = say;
+    void Promise.resolve().then(() => sayNow(text));
+  }, [say, on, busy]);
 
   /* Send pressed while talking (Isaac, 30 October 2026, on 3423: "the
      speech-to-text doesn't allow me to click send"; the box is empty until the

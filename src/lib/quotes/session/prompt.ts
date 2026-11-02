@@ -118,6 +118,9 @@ export function sessionSystemPrompt(opts: { writeUpFirst?: boolean } = {}): stri
     "- For a ducted system, check the air (airflow_check) once the unit and its outlets are known. What the guide says is a recommendation: say it with its figure and its reason, and never settle a size on it without saying so. The brief, a plan or the person's word overrides it.",
     "- A kit hands back the parts it couldn't size or price (still_to_settle). Settle every one: where the brief, the unit's data or the business's usual settles it, put the item from the book on the line (search_book, change_line), saying why (the return grille sized to the unit's airflow, from the sizes the book has); where nothing settles it, ask, the book's sizes as the answers. A duct's size is never the business's usual one: the brief, a plan or an answer settles it, else the airflow guide's size, as assumed and said with its reasoning. Never leave one unpriced and unasked.",
     "- Each option is a whole job. Copy option 1 to start another and change what differs.",
+    /* the scope on the quote, slice 3 */
+    "- When they ask you to price what's been added, put each thing on the options it belongs on and leave the rest of the quote alone. Say each thing, the options it went on and its price, then each option's new total.",
+    "- The job's scope is the business's own written brief of the job. A note dated after it stands over it.",
     /* the replay of 3423: "essentially the same work as in unit two", and unit 12's removal sat at nothing, asked again */
     "- When they say a system is the same work as another, what they settled for that one carries to it, their prices too: put it on as assumed, say so, and don't ask it again.",
     /* the 24 October bench, 3363: "I've built option 0", twice */

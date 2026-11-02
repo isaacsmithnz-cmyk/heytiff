@@ -5,6 +5,7 @@ import { GET as linesGet, POST as linesPost } from "@/app/api/workboard/quote-li
 import { GET as priceGet } from "@/app/api/workboard/quote-price/route";
 import { GET as sendGet } from "@/app/api/workboard/quote-send/route";
 import { GET as talkGet } from "@/app/api/workboard/quote-session/route";
+import { readEngine } from "@/lib/quotes/lines-server";
 import type { QuotePrice } from "@/lib/quotes/quote-price-server";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { actAsPhoneUser, type MobileCtx } from "./auth";
@@ -94,6 +95,11 @@ export function pressQuote(ctx: MobileCtx, id: string, body: { op: "approve" } |
     if (r.ok && a?.ok !== false) return Response.json({ ok: true }, { headers: { "cache-control": "no-store" } });
     return Response.json({ error: a?.reason ?? "That didn't go through. Try again." }, { status: r.ok ? 409 : r.status, headers: { "cache-control": "no-store" } });
   });
+}
+
+/** Tiff builds on the quote's lines, so a quote still on the old engine moves over first, as the web's quote screen moves it when it opens. Call it as the person. */
+export async function putOnLines(ctx: MobileCtx, job: string): Promise<void> {
+  if ((await readEngine(ctx.orgId, job)) !== "lines") await linesPost(say("/api/workboard/quote-lines", { job, op: "switch", engine: "lines" }));
 }
 
 /** Send to ServiceM8, the plan read fresh so what goes is the quote as it stands. */

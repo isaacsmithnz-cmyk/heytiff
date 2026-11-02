@@ -26,7 +26,8 @@ import type { QuoteVersion } from "@/lib/quotes/quote-versions";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 import type { Sm8Quote } from "../board/job-quote-card";
 import { QuoteLineItems, groupKey, sellEachOf } from "./quote-line-items";
-import { InServiceM8, OptionRows, QuoteCard, QuoteRail, signed } from "./quote-rail";
+import { AddedRows, InServiceM8, OptionRows, QuoteCard, QuoteRail, signed } from "./quote-rail";
+import { priceThemWords, withoutAdded, type JobScopeRead, type ScopeAdded } from "@/lib/jobs/job-scope";
 import { LinesButton, QuoteActions } from "./quote-actions";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
 import { Dialog } from "@/components/parts/dialog";
@@ -105,6 +106,12 @@ export type LinesView = {
   /** each option's labour by the business's own task hours (task-hours.ts) */
   tasks?: ({ hours: number; words: string; quoted: number } | null)[];
 };
+
+/** The job's brief, brought up to date or changed (route job-scope). */
+const askScope = (body: Record<string, unknown>) =>
+  fetch("/api/workboard/job-scope", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+    .then((r) => r.json() as Promise<{ ok?: boolean; scope?: JobScopeRead | null }>)
+    .catch(() => null);
 
 /** The quote's kept lines, read once and after every change. */
 export function useQuoteLines(job: string, enabled: boolean) {
@@ -265,6 +272,36 @@ export function QuoteLinesFace({
 
   /* the left: the conversation or the line items, or the line items alone */
   const chat = tiff?.on === true;
+
+  /* what's landed since it was priced: asking brings the brief up to date
+     first, which costs a read only if something's moved (job-scope-server.ts) */
+  const [added, setAdded] = useState<ScopeAdded[]>([]);
+  const [say, setSay] = useState<{ id: number; text: string } | null>(null);
+  useEffect(() => {
+    if (!chat) return;
+    let live = true;
+    void askScope({ job }).then((a) => {
+      if (live && a?.ok) setAdded(a.scope?.sincePriced ?? []);
+    });
+    return () => {
+      live = false;
+    };
+  }, [job, chat]);
+  const takeOff = (texts: string[]) => {
+    const was = added;
+    setAdded(withoutAdded(was, texts));
+    void askScope({ job, off: texts }).then((a) => {
+      if (a?.ok) return;
+      setAdded(was);
+      setNote("That didn't save. Try again.");
+    });
+  };
+  const priceThem = () => {
+    setPaper(false);
+    setViewing(null);
+    setTab("chat");
+    setSay({ id: (say?.id ?? 0) + 1, text: priceThemWords(added) });
+  };
   const linesUp = tiff !== null && (!chat || tab === "lines");
 
   /* the quote's state word, for the line under the job's name: where it has
@@ -606,6 +643,8 @@ export function QuoteLinesFace({
             confirm={paper ? null : confirm}
             confirmTitle={confirmTitle}
             words={{ proposal: view?.proposal ?? null, optionNames: view?.optionNames ?? [], options: quoteOptions }}
+            say={say}
+            onSaid={() => takeOff(added.map((a) => a.text))}
             onChanged={() => {
               reload();
               onPriced();
@@ -713,6 +752,11 @@ export function QuoteLinesFace({
                 };
               })}
             />
+          }
+          added={
+            chat && !view?.accepted?.length ? (
+              <AddedRows items={added} onLeave={(text) => takeOff([text])} onPrice={priceThem} />
+            ) : null
           }
           design={
             designs && design ? (

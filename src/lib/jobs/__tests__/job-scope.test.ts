@@ -1,5 +1,5 @@
 import type { StoryEntry } from "@/lib/workboard/job-story";
-import { SCOPE_SCHEMA, scopeMoved, scopeOf, scopePrompt, scopeStamp, scopeWanted } from "../job-scope";
+import { SCOPE_SCHEMA, newlyAdded, priceThemWords, scopeMoved, scopeOf, scopePrompt, scopeStamp, scopeWanted, stillAdded, wordsWithoutMoney } from "../job-scope";
 
 /* A job's scope, as Tiff's written brief (Isaac, 28 October 2026: "a common
    point where a quote can get built from"): what she's handed, and how her
@@ -119,5 +119,25 @@ describe("the brief as it stands", () => {
     expect(p).toContain("Slab penetrations.");
     expect(p).toContain("Option: decommissioning.");
     expect(p).not.toContain("55,011");
+  });
+});
+
+describe("the scope on the quote", () => {
+  const scope = (added: string[]) => ({ lede: "A job.", systems: [], added: added.map((text) => ({ text, from: "A note" })), notOurs: [], clarify: [], updates: [], undoSaid: "" });
+
+  it("finds what a rewrite added, however it's spaced or cased", () => {
+    expect(newlyAdded(scope(["New trunking"]), scope(["new  trunking", "A pump"])).map((a) => a.text)).toEqual(["A pump"]);
+  });
+
+  it("keeps waiting only what the brief still has", () => {
+    expect(stillAdded(scope(["A pump", "Gone", "A pump"]).added, scope(["A pump"])).map((a) => a.text)).toEqual(["A pump"]);
+  });
+
+  it("drops a person's line that names a price", () => {
+    expect(wordsWithoutMoney("Unit 2 gets trunking\n$85 for it\n350 ex for the removal\nUnit 12 too")).toBe("Unit 2 gets trunking\nUnit 12 too");
+  });
+
+  it("says what Price them asks for", () => {
+    expect(priceThemWords(scope(["New trunking", "A pump"]).added)).toBe("Price what's been added: New trunking; A pump.");
   });
 });

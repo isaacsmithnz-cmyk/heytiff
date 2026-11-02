@@ -839,7 +839,7 @@ export function JobSheet({
   const scopeStampNow = scopeDue ? scopeStamp(story) : null;
   useEffect(() => {
     if (!cardId || !scopeStampNow || record === undefined || record === null || recordFailed) return;
-    if (record.scope?.stamp === scopeStampNow || scopeAsked.current === scopeStampNow || scopeInFlight.current) return;
+    if ((record.scope?.stamp === scopeStampNow && !record.scope.quoteDue) || scopeAsked.current === scopeStampNow || scopeInFlight.current) return;
     const asked = scopeStampNow;
     scopeAsked.current = asked;
     scopeInFlight.current = true;

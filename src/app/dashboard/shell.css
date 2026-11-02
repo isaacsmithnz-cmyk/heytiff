@@ -3847,6 +3847,12 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .qc-opt b { font-weight:600; }
 .fg .qc-opt span { min-width:0; display:flex; flex-direction:column; }
 .fg .qc-opt em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
+.fg .qc-added { display:flex; flex-direction:column; gap:8px; }
+.fg .qc-added h2 { margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--warn-t); }
+.fg .qc-added ul { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:8px; }
+.fg .qc-added li { display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:start; gap:8px; font-size:14px; line-height:20px; color:var(--ink); }
+.fg .qc-added li span { min-width:0; display:flex; flex-direction:column; }
+.fg .qc-added em { font-style:normal; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
 .fg .qc-h { margin:0; font-size:16px; font-weight:600; line-height:24px; color:var(--ink); }
 .fg .qc-note { flex:none; margin:12px 0 0; }
 /* the quote's buttons, pinned: Preview quote and Approve quote side by side,

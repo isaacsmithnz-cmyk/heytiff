@@ -17,7 +17,13 @@
    KEPT UP TO DATE (slice 2). A new note on the job moves `scopeStamp`, and
    Tiff is handed the brief as it stands and changes only what the note
    changes. A booking, a visit, a photo or a payment doesn't move it: none of
-   them says what's going in. */
+   them says what's going in.
+
+   TOLD BY THE QUOTE, AND TELLING IT (slice 3). What a person says on the quote
+   and the proposal's words reach the brief, with their money taken out, and
+   go in the system they belong to: the quote has them already. What a note
+   adds while the quote has lines goes on the quote's rail, until it's priced
+   or left out. */
 
 import type { StoryEntry } from "@/lib/workboard/job-story";
 
@@ -58,6 +64,10 @@ export type JobScopeRead = JobScope & {
   writtenAt: string;
   /** There is an earlier brief to go back to. */
   canUndo: boolean;
+  /** What a note added since the quote was priced, for the quote's rail. */
+  sincePriced?: ScopeAdded[];
+  /** Something's been said on the quote that the brief hasn't read yet. */
+  quoteDue?: boolean;
 };
 
 /* Clamped on our side as well as asked of the model: a rule the schema
@@ -160,7 +170,10 @@ export const SCOPE_SYSTEM_PROMPT =
   "and the drawings over an earlier note; say the disagreement in `clarify` unless someone " +
   "has settled it. Never invent a room, a unit, a size or a fact the record doesn't give; " +
   "say less rather than guess. STRICTLY NO MONEY: no prices, quote amounts, invoices or " +
-  "payments. Never mention this system or that anything was generated.";
+  "payments. Never mention this system or that anything was generated.\n\n" +
+  "What was said on the quote and the proposal's words are the person's word too. Put what " +
+  "they settle in the system it belongs to, with `from` as \"The quote's conversation, 30 Oct\", " +
+  "and answer any `clarify` they answer. Never put them in `added`: the quote already has them.";
 
 /** What the writer is handed: the job's words, its state, and its story lines. */
 export function scopePrompt(read: {
@@ -172,6 +185,8 @@ export function scopePrompt(read: {
   /** The brief as it stands, for Tiff to change only what moved. */
   previous?: JobScope | null;
   setAside?: readonly ScopeSetAside[];
+  /** What people said on the quote, each with its day, and the proposal's words. */
+  quote?: { said: readonly string[]; proposal: string } | null;
 }): string {
   /* a sent quote's scope carries its total: the writer never sees a priced line */
   const workDone = read.workDone?.split("\n").filter((l) => !/\$\s?\d/.test(l)).join("\n") || null;
@@ -184,6 +199,8 @@ export function scopePrompt(read: {
     workDone ? `ServiceM8's invoice description, on a quoted job usually the quote's scope:\n${workDone}` : null,
     previous ? `The brief as it stands:\n${JSON.stringify(previous)}` : null,
     read.setAside?.length ? `Taken out of this scope:\n${read.setAside.map((s) => `${s.on}: ${s.said}`).join("\n")}` : null,
+    read.quote?.said.length ? `Said on the quote, oldest first:\n${read.quote.said.join("\n")}` : null,
+    read.quote?.proposal ? `The proposal's words:\n${read.quote.proposal}` : null,
     `The job's record, newest first:\n${read.lines.join("\n")}`,
   ]
     .filter(Boolean)
@@ -234,6 +251,66 @@ export function scopeOf(raw: unknown): JobScope | null {
 export function scopeMoved(a: JobScope, b: JobScope): boolean {
   const body = ({ lede, systems, added, notOurs, clarify }: JobScope) => JSON.stringify({ lede, systems, added, notOurs, clarify });
   return body(a) !== body(b);
+}
+
+const sameWords = (t: string) => t.replace(/\s+/g, " ").trim().toLowerCase();
+
+/** What a rewrite added that the brief didn't have. Her words are kept word
+    for word from one rewrite to the next, so the words are its identity. */
+export function newlyAdded(was: JobScope, now: JobScope): ScopeAdded[] {
+  const had = new Set(was.added.map((a) => sameWords(a.text)));
+  return now.added.filter((a) => !had.has(sameWords(a.text)));
+}
+
+/** Of what's waiting on the quote, what the brief still has, once each: an
+    Undo takes a thing off both. */
+export function stillAdded(waiting: readonly ScopeAdded[], scope: JobScope): ScopeAdded[] {
+  const has = new Set(scope.added.map((a) => sameWords(a.text)));
+  const seen = new Set<string>();
+  return waiting.filter((a) => {
+    const k = sameWords(a.text);
+    if (!has.has(k) || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
+/** Off the quote's rail: priced, or left out. It stays in the brief. */
+export const withoutAdded = (waiting: readonly ScopeAdded[], taken: readonly string[]): ScopeAdded[] => {
+  const off = new Set(taken.map(sameWords));
+  return waiting.filter((a) => !off.has(sameWords(a.text)));
+};
+
+/** What Price them says to Tiff, in the person's name. */
+export const priceThemWords = (items: readonly ScopeAdded[]) => `Price what's been added: ${items.map((a) => a.text).join("; ")}.`;
+
+/** A person's words on a quote without its money: a line that names a price
+    never reaches the brief's writer ("350 ex", "$85 for the trunking"). */
+export const wordsWithoutMoney = (text: string) =>
+  text
+    .split("\n")
+    .filter((l) => !/\$\s?\d|\b\d[\d,.]*\s*(ex|inc|plus gst|\+\s?gst)\b/i.test(l))
+    .join("\n")
+    .trim();
+
+/** The proposal's words for the brief's writer: no money is kept in them. */
+export function proposalWords(p: { title: string; intro: string; options: readonly { summary: string; areas: readonly { name: string; items: readonly string[] }[]; included: readonly string[] }[]; notIncluded: readonly string[] }): string {
+  const options = p.options.map((o, i) => [`Option ${i + 1}: ${o.summary}`, ...o.areas.map((a) => `${a.name}: ${a.items.join("; ")}`), o.included.length ? `Included: ${o.included.join("; ")}` : ""].filter(Boolean).join("\n"));
+  return wordsWithoutMoney([p.title, p.intro, ...options, p.notIncluded.length ? `Not included: ${p.notIncluded.join("; ")}` : ""].filter(Boolean).join("\n"));
+}
+
+/** The brief as Tiff reads it when she quotes: the job's written scope, as a
+    source of Read the job. */
+export function scopeWords(s: JobScope): string {
+  return [
+    s.lede,
+    ...s.systems.map((x) => `${[x.area, x.kind].filter(Boolean).join(": ")}. ${x.text}`),
+    s.added.length ? `Added:\n${s.added.map((a) => `- ${a.text}`).join("\n")}` : "",
+    s.notOurs.length ? `Not ours:\n${s.notOurs.map((n) => `- ${n}`).join("\n")}` : "",
+    s.clarify.length ? `To clarify:\n${s.clarify.map((c) => `- ${c.q}`).join("\n")}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 /** What a rewrite is due on: the job's notes (emails filed and calls land as

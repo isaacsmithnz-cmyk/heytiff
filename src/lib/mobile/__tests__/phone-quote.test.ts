@@ -46,7 +46,7 @@ test("Mark ready to send waits on her questions, and says so", () => {
 });
 
 test("a line she assumed is one to check", () => {
-  const q = phoneQuoteOf(view({ lines: [line({ source: "assumed", why: "run not given" })] }), price, [], 0, false, {});
+  const q = phoneQuoteOf(view({ lines: [line({ kind: "material", source: "assumed", why: "run not given" })] }), price, [], 0, false, {});
   expect(q.options[0]!.groups[0]!.lines[0]).toMatchObject({ check: true, second: "run not given" });
   expect(q.scope.check).toEqual(["Outdoor: run not given"]);
 });
@@ -93,10 +93,53 @@ test("an open question carries its answers' prices; one the book can't make can'
     {
       id: 1,
       question: "How long is the run?",
+      put: "",
       answers: [
         { label: "3 m is right", delta: 0, can: true },
         { label: "5 m", delta: null, can: false },
       ],
     },
   ]);
+});
+
+const pad = (id: number) => ev(id, "question", { question: "Pad or brackets?", put: "Rubber feet", answers: [{ label: "Pad only", changes: [] }, { label: "Brackets", changes: [] }] });
+const crew = (id: number) => ev(id, "question", { question: "What crew?", answers: [] });
+
+test("a unit's line says the model she picked, not the words she took it from", () => {
+  const q = phoneQuoteOf(view({ lines: [line({ name: "Indoor unit, Study", code: "MSZ-AP35VGKD2-A2", why: '"high wall three point five kilowatt"' })] }), price, [], 0, false, {});
+  expect(q.options[0]!.groups[0]!.lines[0]).toMatchObject({ name: "Indoor unit, Study", second: "MSZ-AP35VGKD2-A2", model: true });
+});
+
+test("a unit with no model yet says why, and isn't called a model", () => {
+  const q = phoneQuoteOf(view({ lines: [line({ code: null, source: "unknown", why: "brand to choose" })] }), price, [], 0, false, {});
+  expect(q.options[0]!.groups[0]!.lines[0]).toMatchObject({ second: "brand to choose", model: false });
+});
+
+test("a labour line worked out task by task carries its tasks", () => {
+  const visit = { stage: "Install", people: 3, tasks: [{ task: "Drain 2 runs to gutter", hours: 1.5, byHand: false, was: null }] };
+  const q = phoneQuoteOf(view({ lines: [line({ kind: "labour", code: null, name: "Install: 3 people, 1 day", why: "Worked out task by task", visit } as Partial<QuoteLine>)] }), price, [], 0, false, {});
+  expect(q.options[0]!.groups[0]!.lines[0]).toMatchObject({ second: "", tasks: [{ task: "Drain 2 runs to gutter", hours: 1.5 }] });
+});
+
+test("an answer tapped is your words, under her question", () => {
+  const turns = phoneTurns([pad(1), ev(2, "reply", { text: "Built." }), ev(3, "message", { text: "Pad only", answered: 1, index: 0, question: "Pad or brackets?" }, "me")], {}, "me");
+  expect(turns.at(-1)).toMatchObject({ side: "me", text: "Pad only", to: { event: 1, question: "Pad or brackets?", answers: ["Pad only", "Brackets"] } });
+});
+
+test("an answer in your own words comes apart from the question sent with it", () => {
+  const turns = phoneTurns([crew(1), ev(2, "reply", { text: "Built." }), ev(3, "message", { text: "What crew? Three guys" }, "me")], {}, "me");
+  expect(turns.at(-1)).toMatchObject({ side: "me", text: "Three guys", to: { event: 1, question: "What crew?" } });
+});
+
+test("her closing list of open questions goes, the chat asks them; a list that isn't them stays", () => {
+  const said = (text: string, ...asks: Thread[]) => phoneTurns([...asks, ev(9, "reply", { text })], {}, "me")[0]!.text;
+  expect(said("Built.\n\nQuestions still open:\n1. Pad or brackets?\n2. What crew?", pad(1), crew(2))).toBe("Built.");
+  expect(said("Built.\n1. Pad or brackets?\n2. What crew?", pad(1))).toContain("1. Pad");
+  expect(said("Steps:\n1. Rough in\n2. Install")).toContain("1. Rough in");
+});
+
+test("a question she settled from words that came without it follows what she said, once", () => {
+  const settle = ev(4, "tool", { name: "settle", detail: { settled: [{ question: 1, answer: "3 guys" }] } });
+  const turns = phoneTurns([crew(1), ev(2, "reply", { text: "Built." }), ev(3, "message", { text: "Three guys" }, "me"), settle, ev(5, "reply", { text: "Done." })], {}, "me");
+  expect(turns.map((t) => t.text)).toEqual(["Built.", "What crew?", "Three guys", "Done."]);
 });

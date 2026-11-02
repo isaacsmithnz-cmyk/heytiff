@@ -52,6 +52,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 - **24. The quiet button.** No edge until you point at it. Toolbars and rows.
 - **25. Delete.** A red word on the second button; a red block only in the dialog that asks you to be sure.
 - **25a. Xero.** A button that goes to Xero (Connect, Reconnect, Pull from Xero, Refresh) is Xero's pale blue with white words, outside the palette on his word and named below.
+- **25b. ServiceM8.** A button that goes to ServiceM8 (Send to ServiceM8) is ServiceM8's own green, `#7DC836` from their site, with ink words, outside the palette on his word (Isaac, 2 November 2026: "That could be an exception for anything service mate"). A fill only: as a word on white it can't be read.
 - **26. Links.** Ink, underlined. Going somewhere, not doing something.
 - **27. Icon-only.** Close, clear, the microphone, and the ‹ › of a date. Everything else has its word. The sidebar doesn't fold, so it has no collapse control.
 - **28. Three sizes.** 32 in rows and lists, 36 in forms and dialogs, 44 on a phone. A field and the button beside it match.

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { stillToPrice } from "@/lib/quotes/lines-price";
-import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
-import { stepPassed, type PriceState, type QuoteStep, type StepKey } from "@/lib/quotes/quote-steps";
+export { leftOn, priceState } from "@/lib/quotes/quote-left";
+import type { QuotePrice } from "@/lib/quotes/quote-price-server";
+import { stepPassed, type QuoteStep, type StepKey } from "@/lib/quotes/quote-steps";
 
 /* THE QUOTE PAGE'S OWN PARTS (Isaac, 2026-10-06, the mock-up he called
    "much cleaner"): the progress line where Home has "Your day", and the
@@ -31,19 +31,6 @@ export function useQuotePrice(job: string, enabled: boolean, version: string | n
     };
   }, [job, enabled, version, read]);
   return enabled ? read?.price : undefined;
-}
-
-/** What's left to price on an option: its unpriced lines, and its labour
-    when nothing gives it. */
-export const leftOn = (o: OptionPrice) => stillToPrice({ unpriced: o.unpriced, labourFrom: o.labourFrom, labourCents: o.build.labour.sellCents });
-
-/** The price as the progress line needs it. */
-export function priceState(price: QuotePrice | null | undefined): PriceState {
-  if (!price) return { kind: "hidden" };
-  if (!price.ok) return { kind: "unset" };
-  const anything = price.options.some((o) => o.rows > 0 || o.build.labour.sellCents > 0);
-  if (!anything) return { kind: "empty" };
-  return { kind: "priced", left: price.options.reduce((n, o) => n + leftOn(o).length, 0) };
 }
 
 /* ── the progress line ── */

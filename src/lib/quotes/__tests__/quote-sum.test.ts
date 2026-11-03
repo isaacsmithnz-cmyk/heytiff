@@ -73,15 +73,16 @@ const b = o!.build;
 const sum = (rows: { cents: number }[]) => rows.reduce((t, r) => t + r.cents, 0);
 
 it("prices 3231 as the mock-ups read it", () => {
-  expect(b.exGstCents).toBe(1419935);
-  expect(b.incGstCents).toBe(1561929);
+  expect(b.buildExGstCents).toBe(1419935);
+  expect(b.exGstCents).toBe(1420000);
+  expect(b.incGstCents).toBe(1562000);
 });
 
 it("splits the total into Units, Materials and Labour, the contingency's hours in the labour's 43", () => {
   const parts = quoteParts(b, 40 + 3);
   expect(parts.map((p) => [p.label, p.cents])).toEqual([
     ["Units", 393454],
-    ["Materials", 424481],
+    ["Materials", 424546], // 424481, and the 65 cents the total rounded up by
     ["Labour, 43 h", 602000],
   ]);
   expect(sum(parts)).toBe(b.exGstCents);

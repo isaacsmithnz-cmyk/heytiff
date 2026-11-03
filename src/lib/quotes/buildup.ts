@@ -97,7 +97,20 @@ export type BuildUp = {
   exGstCents: number;
   gstCents: number;
   incGstCents: number;
+  /** what rounding the quote's total up added, inside `exGstCents` (roundedUp) */
+  roundUpCents?: number;
 };
+
+/** A quote's total goes up to the next this, ex GST. */
+export const ROUND_UP_CENTS = 500;
+
+/** The quote's total ex GST, up to the next $5, its GST and inc GST from that
+    (Isaac, 3 November 2026: "Let's round all quotes up to the nearest $5"). */
+export function roundedUp(b: BuildUp): BuildUp {
+  const ex = Math.ceil(b.exGstCents / ROUND_UP_CENTS) * ROUND_UP_CENTS;
+  const gst = Math.round(ex / 10);
+  return { ...b, exGstCents: ex, gstCents: gst, incGstCents: ex + gst, roundUpCents: ex - b.exGstCents };
+}
 
 const markup = (cents: number, pct: number) => Math.round(cents * (1 + pct / 100));
 

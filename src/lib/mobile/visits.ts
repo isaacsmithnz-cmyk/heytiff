@@ -9,11 +9,16 @@ import { supabaseAdmin } from "@/lib/supabase-server";
    scheduled diary rows from today on. A day runs from the first of the crew
    on to the last off. People are named by ServiceM8's staff row, matched
    whatever case the uuid arrived in. Org-scoped like every read here; the
-   caller has already decided the reader may see the job. */
+   caller has already decided the reader may see the job.
 
-export type ComingVisit = { day: string; start: string; end: string | null; crew: string[] };
+   And each person's own booking on the day (`people`), so the phone can
+   change one: its day, its time, who's on it (Isaac, 2 November 2026:
+   "Can't click next visit"). */
 
-type Row = { start_date: string | null; end_date: string | null; staff_uuid: string | null };
+export type VisitPerson = { activity: string; staffUuid: string; name: string; start: string; end: string | null };
+export type ComingVisit = { day: string; start: string; end: string | null; crew: string[]; people: VisitPerson[] };
+
+type Row = { uuid: string; start_date: string | null; end_date: string | null; staff_uuid: string | null };
 
 /** At most this many days ahead are listed: a page, not a diary. */
 const DAYS = 6;
@@ -21,7 +26,7 @@ const DAYS = 6;
 export async function comingVisits(orgId: string, jobUuid: string, today: string): Promise<ComingVisit[]> {
   const { data } = await supabaseAdmin
     .from("sm8_job_activities")
-    .select("start_date, end_date, staff_uuid")
+    .select("uuid, start_date, end_date, staff_uuid")
     .eq("org_id", orgId)
     .eq("active", 1)
     .eq("job_uuid", jobUuid)
@@ -49,15 +54,20 @@ export async function comingVisits(orgId: string, jobUuid: string, today: string
   const byDay = new Map<string, ComingVisit>();
   for (const r of rows) {
     const day = r.start_date.slice(0, 10);
-    const v = byDay.get(day) ?? { day, start: r.start_date, end: r.end_date, crew: [] };
+    const v = byDay.get(day) ?? { day, start: r.start_date, end: r.end_date, crew: [], people: [] };
     if (r.start_date < v.start) v.start = r.start_date;
     if (r.end_date && (!v.end || r.end_date > v.end)) v.end = r.end_date;
     const who = r.staff_uuid ? names.get(r.staff_uuid.toLowerCase()) : undefined;
     if (who && !v.crew.includes(who)) v.crew.push(who);
+    if (who && r.staff_uuid) v.people.push({ activity: r.uuid, staffUuid: r.staff_uuid, name: who, start: r.start_date, end: r.end_date });
     byDay.set(day, v);
   }
   return [...byDay.values()]
     .sort((a, b) => a.day.localeCompare(b.day))
     .slice(0, DAYS)
-    .map((v) => ({ ...v, crew: [...v.crew].sort((a, b) => a.localeCompare(b)) }));
+    .map((v) => ({
+      ...v,
+      crew: [...v.crew].sort((a, b) => a.localeCompare(b)),
+      people: [...v.people].sort((a, b) => a.name.localeCompare(b.name) || a.start.localeCompare(b.start)),
+    }));
 }

@@ -1350,3 +1350,49 @@ describe("the Design step", () => {
     expect(within(stages()).queryByText("Design")).toBeNull();
   });
 });
+
+/* AFTER IT'S SENT (slice 4, Isaac, 4 November 2026: "yes" to the mock's
+   page "After it's sent"): opened from the job's Since the quote, Update
+   quote has what's changing written in; starting version 2 asks Tiff to
+   price it, and it comes off Since the quote */
+describe("after it's sent", () => {
+  const study = { text: "Concealed fan coil unit next to the Study", from: "Anna Vaughan's email, Tue 3 Nov" };
+  const brief = { lede: "", systems: [], added: [study], notOurs: [], clarify: [], updates: [], undoSaid: "", stamp: "s", writtenAt: "", canUndo: false, sincePriced: [study], quoted: { on: "Wed 28 Oct", version: 1 }, accepted: false };
+  const session = { ok: true, on: true, working: false, spentUsd: 0, me: "u-isaac", names: {}, events: [], questions: {} };
+  beforeEach(() => {
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string, init?: { body?: string }) => {
+      const body = init?.body ? JSON.parse(init.body) : null;
+      if (body) posted.push({ url: String(url).split("?")[0], ...body });
+      const answer = String(url).startsWith("/api/workboard/quote-session")
+        ? session
+        : String(url).startsWith("/api/workboard/job-scope")
+          ? { ok: true, scope: body?.off ? { ...brief, sincePriced: [] } : brief }
+          : { ...view([indoor, core]), ok: true, approved: true, proposal: null };
+      return { json: async () => answer };
+    });
+  });
+
+  it("opens Update quote from Since the quote, written in, and has Tiff price version 2", async () => {
+    render(<QuoteLinesFace job="job-3377" price={price} onPriced={jest.fn()} update />);
+    const dialog = within(await screen.findByRole("dialog", { name: "Update quote" }));
+    expect(dialog.getByText(/^The quote was sent on Wed 28 Oct and isn't accepted, so this is version 2\./)).toBeInTheDocument();
+    expect(dialog.getByLabelText("What's changing")).toHaveValue("Concealed fan coil unit next to the Study (Anna Vaughan's email, Tue 3 Nov).");
+    await act(async () => {
+      fireEvent.click(dialog.getByRole("button", { name: "Start version 2" }));
+    });
+    expect(posted).toContainEqual(expect.objectContaining({ op: "version", what: "Concealed fan coil unit next to the Study (Anna Vaughan's email, Tue 3 Nov)." }));
+    await waitFor(() => expect(posted).toContainEqual(expect.objectContaining({ url: "/api/workboard/quote-session", message: "Price what's been added: Concealed fan coil unit next to the Study." })));
+    await waitFor(() => expect(posted).toContainEqual(expect.objectContaining({ url: "/api/workboard/job-scope", off: [study.text] })));
+  });
+
+  it("says on the rail what's landed since it was sent, with Update quote", async () => {
+    render(<QuoteLinesFace job="job-3377" price={price} onPriced={jest.fn()} />);
+    expect(await screen.findByRole("heading", { name: "1 added since it was sent" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Price them" })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Update quote" })).toBeNull();
+    fireEvent.click(within(screen.getByRole("region", { name: "1 added since it was sent" })).getByRole("button", { name: "Update quote" }));
+    expect(within(screen.getByRole("dialog", { name: "Update quote" })).getByLabelText("What's changing")).toHaveValue(
+      "Concealed fan coil unit next to the Study (Anna Vaughan's email, Tue 3 Nov).",
+    );
+  });
+});

@@ -23,7 +23,14 @@
    and the proposal's words reach the brief, with their money taken out, and
    go in the system they belong to: the quote has them already. What a note
    adds while the quote has lines goes on the quote's rail, until it's priced
-   or left out. */
+   or left out.
+
+   AFTER IT'S SENT (slice 4). Once ServiceM8 has sent the quote (its quote
+   sent stamp: every quote goes out from ServiceM8) or the job is accepted,
+   the brief is the scope as quoted, and what's waiting on the quote is Since
+   the quote: on the Overview and the rail alike, Update quote takes it into
+   the next version, or a variation once it's accepted, and Tiff prices the
+   difference. */
 
 import type { StoryEntry } from "@/lib/workboard/job-story";
 
@@ -68,7 +75,13 @@ export type JobScopeRead = JobScope & {
   sincePriced?: ScopeAdded[];
   /** Something's been said on the quote that the brief hasn't read yet. */
   quoteDue?: boolean;
+  /** ServiceM8 sent the quote: the day, and which version went. */
+  quoted?: ScopeQuoted | null;
+  /** The job is past Quote in ServiceM8. */
+  accepted?: boolean;
 };
+
+export type ScopeQuoted = { on: string; version: number };
 
 /* Clamped on our side as well as asked of the model: a rule the schema
    can't state is a rule that will eventually be broken. */
@@ -280,6 +293,21 @@ export const withoutAdded = (waiting: readonly ScopeAdded[], taken: readonly str
   const off = new Set(taken.map(sameWords));
   return waiting.filter((a) => !off.has(sameWords(a.text)));
 };
+
+/** Gone to the client: what lands now is Since the quote, for the next
+    version or a variation, not a price to change. */
+export const pastQuote = (s: Pick<JobScopeRead, "quoted" | "accepted">): boolean => !!s.quoted || !!s.accepted;
+
+/** Which version ServiceM8 sent: one more than the versions kept before it
+    went. Each kept version is the quote as it stood before the next. */
+export const sentVersion = (sentMs: number, keptAt: readonly string[]): number =>
+  1 + keptAt.filter((at) => Date.parse(at) < sentMs).length;
+
+/** The line under Scope as quoted. */
+export const quotedLine = (q: ScopeQuoted): string => `${q.version > 1 ? `Version ${q.version} sent` : "Sent"} from ServiceM8, ${q.on}`;
+
+/** What's changing, for Update quote, in the brief's words with where each came from. */
+export const changingWords = (items: readonly ScopeAdded[]): string => items.map((a) => a.text.replace(/[.\s]+$/, "") + (a.from ? ` (${a.from})` : "")).join("; ") + (items.length ? "." : "");
 
 /** What Price them says to Tiff, in the person's name. */
 export const priceThemWords = (items: readonly ScopeAdded[]) => `Price what's been added: ${items.map((a) => a.text).join("; ")}.`;

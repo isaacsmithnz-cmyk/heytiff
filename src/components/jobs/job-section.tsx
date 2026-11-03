@@ -12,20 +12,24 @@ import { Icon } from "@/components/shell/icon";
    bubble, as Home's Your feed. The Summary is pink: not blue (it means
    press), red (wrong) or orange (needs a look), and not purple, which is
    Home's Today. A project's page (project-detail-screen.tsx) wears the same
-   recipe and takes purple and grey as well, as its mock draws them. */
+   recipe and takes purple and grey as well, as its mock draws them. Since
+   the quote is orange, the colour of quoting (25c). */
 
-export type SectionHue = "pink" | "yellow" | "green" | "purple" | "grey";
+export type SectionHue = "pink" | "yellow" | "green" | "purple" | "grey" | "orange";
 
 export function JobSection({
   name,
   icon,
   hue,
   action,
+  line,
   className,
   children,
 }: {
   /** The section's title. */
   name: string;
+  /** A fact under the title, in grey: Scope as quoted's day it was sent. */
+  line?: string | null;
   icon: string;
   hue: SectionHue;
   /** On the head's right: one quiet or second button, or the feed's tabs. */
@@ -45,6 +49,7 @@ export function JobSection({
         </h2>
         {action && <div className="jov-headact">{action}</div>}
       </div>
+      {line && <p className="jov-sub">{line}</p>}
       {children}
     </section>
   );

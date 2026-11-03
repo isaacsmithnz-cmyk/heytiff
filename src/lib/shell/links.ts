@@ -41,10 +41,11 @@ export const documentHref = (id: string, page?: number | null) =>
   `/dashboard/tiff/library?doc=${encodeURIComponent(id)}${page ? `&page=${page}` : ""}`;
 
 /** A job's quote, full screen, under its job (24 October 2026; it was the
-    Workboard's): `start` opens with the reply box ready for the brief, and
-    `option` on that option. */
-export const quoteHref = (job: string, opts: { start?: boolean; option?: number | null } = {}) => {
-  const q = [opts.start ? "start=1" : null, opts.option != null ? `option=${opts.option}` : null].filter(Boolean).join("&");
+    Workboard's): `start` opens with the reply box ready for the brief,
+    `option` on that option, and `update` on Update quote with what's landed
+    since it was sent written in (the job's Since the quote). */
+export const quoteHref = (job: string, opts: { start?: boolean; option?: number | null; update?: boolean } = {}) => {
+  const q = [opts.start ? "start=1" : null, opts.option != null ? `option=${opts.option}` : null, opts.update ? "update=1" : null].filter(Boolean).join("&");
   return `/dashboard/jobs/${encodeURIComponent(job)}/quote${q ? `?${q}` : ""}`;
 };
 

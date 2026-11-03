@@ -875,6 +875,20 @@ export function JobSheet({
     if (res.ok && res.scope) setRecord((cur) => (cur ? { ...cur, scope: res.scope } : cur));
     else setErr(res.reason ?? "That didn't undo. Try again.");
   };
+  /* Leave out, off Since the quote: it stays in the brief (slice 4) */
+  const leaveScope = async (text: string) => {
+    setErr(null);
+    const res = await fetch("/api/workboard/job-scope", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ job: cardId, off: [text] }),
+    })
+      .then((r) => r.json() as Promise<{ ok?: boolean; scope?: JobScopeRead | null; reason?: string }>)
+      .catch(() => ({ ok: false, scope: null, reason: "That didn't save. Try again." }));
+    if (!alive.current) return;
+    if (res.ok && res.scope) setRecord((cur) => (cur ? { ...cur, scope: res.scope } : cur));
+    else setErr(res.reason ?? "That didn't save. Try again.");
+  };
 
   const makeProject = () => {
     setErr(null);
@@ -2200,6 +2214,8 @@ export function JobSheet({
               scope={record?.scope ?? null}
               scopeReading={scopeReading}
               onUndoScope={undoScope}
+              onLeaveScope={leaveScope}
+              scopeUpdateHref={cardId ? quoteHref(cardId, { update: true }) : undefined}
               fallbackWhat={row.title}
               head={
                 <JobProgressLine

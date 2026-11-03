@@ -84,6 +84,7 @@ export function QuoteScreen({
   studio = false,
   start = false,
   option = null,
+  update = false,
 }: {
   job: string;
   detail: Detail;
@@ -95,6 +96,8 @@ export function QuoteScreen({
   start?: boolean;
   /** ?option=N: opened on that option, a variation Tiff started */
   option?: number | null;
+  /** ?update=1: from the job's Since the quote, Update quote with what's changing written in */
+  update?: boolean;
 }) {
   const [media, setMedia] = useState<JobMediaGroupsRead | null>(null);
   const [family, setFamily] = useState<FamilyMoney | null>(null);
@@ -226,6 +229,7 @@ export function QuoteScreen({
               openAt={option}
               sendVariation={(o) => sendVariation(job, o)}
               jobStatus={detail.status ?? null}
+              update={update}
             />
           ) : onLines === false ? (
             <div className="qp-wait">

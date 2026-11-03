@@ -308,11 +308,13 @@ export async function rosteredDays(ctx: MobileCtx, from: string, count = 8): Pro
 
 /** Where the day stands: on since when, where you are now, and where it's
     gone, to now or to the finish the person is thinking of (`until`). */
-export async function readDay(ctx: MobileCtx, now: number = Date.now(), until?: string | null): Promise<DayState> {
+export async function readDay(ctx: MobileCtx, now: number = Date.now(), until?: string | null, on?: string | null): Promise<DayState> {
   const zone = await zoneOf(ctx.orgId);
   const nowIso = new Date(now).toISOString();
   const thinking = until && !Number.isNaN(Date.parse(until)) && Date.parse(until) <= now ? new Date(Date.parse(until)).toISOString() : null;
-  const today = wallMinute(nowIso, zone)?.slice(0, 10) ?? nowIso.slice(0, 10);
+  const realToday = wallMinute(nowIso, zone)?.slice(0, 10) ?? nowIso.slice(0, 10);
+  /* a day already over, for its wrap-up the morning after: a week back at most */
+  const today = on && /^\d{4}-\d{2}-\d{2}$/.test(on) && on <= realToday && Date.parse(`${realToday}T12:00:00Z`) - Date.parse(`${on}T12:00:00Z`) <= 7 * 86_400_000 ? on : realToday;
   const [row, normal] = await Promise.all([dayRow(ctx, today), normalOf(ctx)]);
   if (!row) return { day: null, at: null, jobs: [], summary: null, normal };
   const { jobs } = await jobsIn(ctx, row, nowIso);

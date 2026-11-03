@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useEffectEvent, useState } from "react";
-import { fmtAud } from "@/lib/workboard/project-money";
+import { fmtAddition, fmtAud } from "@/lib/workboard/project-money";
 import type { CompareColumn, CompareView } from "@/lib/quotes/compare-server";
 
 /* COMPARE ON A UNIT LINE (slice 10.2, the mock-up of 8 October): the unit on
@@ -19,7 +19,7 @@ const WAIT_MS = 3000;
 const WAIT_FOR_MS = 120_000;
 
 const money = (c: number | null) => (c == null ? "–" : fmtAud(c));
-const diff = (c: number | null) => (c == null ? "" : c === 0 ? "Same" : `${c > 0 ? "+" : "−"}${fmtAud(Math.abs(c))}`);
+const diff = (c: number | null) => (c == null ? "" : fmtAddition(c) || "Same");
 
 export function CompareCard({ job, lineId, onClose, onChanged }: { job: string; lineId: string; onClose: () => void; onChanged: () => void }) {
   const [view, setView] = useState<CompareView | null>(null);

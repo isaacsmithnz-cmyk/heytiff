@@ -107,7 +107,7 @@ it("tells the page she's on before her questions are priced, and shows none open
   expect(screen.getByRole("radio", { name: /^To confirm/ })).not.toHaveClass("pt-tray-opt--look");
   await act(async () => priced({ ...thread, events: [] }));
   await toConfirm();
-  expect(screen.getByRole("button", { name: /Three phase/ })).toHaveTextContent("+$519.96");
+  expect(screen.getByRole("button", { name: /Three phase/ })).toHaveTextContent("+$520");
   expect(onOpen).toHaveBeenLastCalledWith(1);
 });
 
@@ -197,7 +197,7 @@ it("prices each answer, and a tap makes it with no call to her", async () => {
   await screen.findByText("A 12.5 kW ducted, priced from your book.");
   await toConfirm();
   const three = await screen.findByRole("button", { name: /Three phase/ });
-  expect(three).toHaveTextContent("+$519.96");
+  expect(three).toHaveTextContent("+$520");
   expect(screen.getByRole("button", { name: "Single phase" })).toBeInTheDocument();
   await act(async () => {
     fireEvent.click(three);

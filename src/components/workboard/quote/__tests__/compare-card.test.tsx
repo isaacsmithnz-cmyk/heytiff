@@ -55,7 +55,7 @@ it("sets the unit on the quote beside the book's, each priced, with its specs or
   (global as unknown as { fetch: unknown }).fetch = respondWith({ ok: true });
   render(<CompareCard job="j" lineId="l1" onClose={jest.fn()} onChanged={jest.fn()} />);
   expect(await screen.findByText("Downstairs on option 1, side by side")).toBeInTheDocument();
-  expect(screen.getByText("+$667.11")).toBeInTheDocument();
+  expect(screen.getByText("+$667")).toBeInTheDocument();
   expect(screen.getByText("On option 1")).toBeInTheDocument();
   expect(screen.getAllByText("No data pack").length).toBeGreaterThan(0);
   expect(screen.getByText("880 mm tall, 53 kg, 16 A")).toBeInTheDocument();

@@ -90,6 +90,12 @@ export function deriveProjectMoney(input: {
 
 /** "$54,000" — whole dollars unless the cents are real ("$1,234.50").
     Deterministic string maths, no Intl, so server and client never disagree. */
+/** A price addition to the nearest dollar, sign and all: "+$5", "−$467"; "" when it comes to nothing (Isaac, 3 November 2026: "just do the nearest dollar value"). */
+export function fmtAddition(cents: number): string {
+  const dollars = Math.round(Math.abs(cents) / 100);
+  return dollars === 0 ? "" : `${cents > 0 ? "+" : "−"}${fmtAud(dollars * 100)}`;
+}
+
 export function fmtAud(cents: number): string {
   const rounded = Math.round(cents);
   const neg = rounded < 0;

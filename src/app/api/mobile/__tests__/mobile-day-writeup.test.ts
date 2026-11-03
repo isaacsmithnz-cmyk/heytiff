@@ -24,6 +24,7 @@ jest.mock("@/lib/supabase-server", () => ({
       q.eq = (c: string, v: unknown) => keep((r) => r[c] === v);
       q.in = (c: string, vs: unknown[]) => keep((r) => vs.includes(r[c]));
       q.gte = (c: string, v: string) => keep((r) => String(r[c]) >= v);
+      q.is = (c: string, v: unknown) => keep((r) => (r[c] ?? null) === v);
       q.not = (c: string, _op: string, v: string) => keep((r) => !String(r[c]).startsWith(v.replace("%", "")));
       q.maybeSingle = async () => ({ data: (tables[table] ?? []).find((r) => tests.every((t) => t(r))) ?? null });
       q.then = (res: (v: { data: Row[] }) => unknown) => Promise.resolve({ data: (tables[table] ?? []).filter((r) => tests.every((t) => t(r))) }).then(res);
@@ -62,13 +63,17 @@ const at = (iso: string) => Date.parse(iso);
 beforeEach(() => {
   process.env.ANTHROPIC_API_KEY = "k";
   create.mockReset();
-  tables.staff_profiles = [{ org_id: "org-1", user_id: "auth0|isaac", first_name: "Isaac", full_name: "Isaac Smith" }];
+  tables.staff_profiles = [
+    { org_id: "org-1", id: "card-isaac", user_id: "auth0|isaac", first_name: "Isaac", full_name: "Isaac Smith" },
+    { org_id: "org-1", id: "card-dave", user_id: "auth0|dave", first_name: "David", full_name: "David Hann" },
+  ];
+  tables.sm8_jobs = [{ org_id: "org-1", uuid: "j-1352", job_address: "9/6 Holbrook Avenue\nKirribilli NSW 2061" }];
   tables.workboard_notes = [
     { org_id: "org-1", author_id: "card-isaac", target_kind: "job", target_id: "j-1352", transcript: "Pipes run balcony to lounge and bedroom heads. Lounge head up and wired, bedroom tomorrow", created_at: "2026-10-29T01:00:00.000Z" },
     { org_id: "org-1", author_id: "card-isaac", target_kind: "job", target_id: "j-1352", transcript: "yesterday's note", created_at: "2026-10-27T01:00:00.000Z" },
     { org_id: "org-1", author_id: "card-dave", target_kind: "job", target_id: "j-1352", transcript: "Dave's own note", created_at: "2026-10-29T02:00:00.000Z" },
   ];
-  tables.documents = [1, 2, 3, 4].map((n) => ({ org_id: "org-1", uploaded_by: "card-isaac", kind: "job_photo", sm8_job_uuid: "j-1352", created_at: `2026-10-29T0${n}:00:00.000Z` }));
+  tables.documents = [1, 2, 3, 4].map((n) => ({ id: `p${n}`, org_id: "org-1", uploaded_by: "card-isaac", kind: "job_photo", sm8_job_uuid: "j-1352", created_at: `2026-10-29T0${n}:00:00.000Z` }));
   tables.tiff_threads = [
     {
       org_id: "org-1",
@@ -105,8 +110,23 @@ test("the day written up: each job's own notes, photos and questions; a job with
   create.mockResolvedValue({ stop_reason: "end_turn", content: [{ type: "text", text: JSON.stringify({ entries: ["Pipes run from the balcony to the lounge and bedroom heads. The PUMY-SP140's feet are 600 mm apart. Lounge head up and wired; bedroom head to finish tomorrow."] }) }] });
   const { entries } = await writeUpDay(ctx, null);
   expect(entries).toEqual([
-    { jobUuid: "j-1352", number: "1352", where: "9/6 Holbrook Avenue", line: "Isaac, 7:15 to 3:00 · 4 photos · 1 question to the Library", name: "Isaac", photos: 4, asked: 1, text: expect.stringContaining("600 mm apart") },
-    { jobUuid: "j-3372", number: "3372", where: "12 Pittwater Rd", line: "Isaac, 3:00 to 3:15", name: "Isaac", photos: 0, asked: 0, text: "" },
+    {
+      jobUuid: "j-1352",
+      number: "1352",
+      where: "9/6 Holbrook Avenue",
+      line: "Isaac, 7:15 to 3:00 · 4 photos · 1 question to the Library",
+      name: "Isaac",
+      photos: 4,
+      asked: 1,
+      text: expect.stringContaining("600 mm apart"),
+      /* the wrap-up's: your own notes and photos today, and everyone else's notes on the job */
+      spans: [{ from: "2026-10-28T20:15:00.000Z", until: "2026-10-29T04:00:00.000Z" }],
+      address: "9/6 Holbrook Avenue, Kirribilli NSW 2061",
+      mine: [{ at: "2026-10-29T01:00:00.000Z", text: expect.stringContaining("Lounge head up") }],
+      photoIds: ["p1", "p2", "p3", "p4"],
+      others: [{ name: "David", at: "2026-10-29T02:00:00.000Z", text: "Dave's own note" }],
+    },
+    { jobUuid: "j-3372", number: "3372", where: "12 Pittwater Rd", line: "Isaac, 3:00 to 3:15", name: "Isaac", photos: 0, asked: 0, text: "", spans: [{ from: "2026-10-29T04:00:00.000Z", until: "2026-10-29T04:15:00.000Z" }], address: null, mine: [], photoIds: [], others: [] },
   ]);
   /* only the job with something said is sent, with today's own note and nobody else's */
   const sent = create.mock.calls[0]![0].messages[0].content as string;
@@ -128,7 +148,7 @@ test("when the writing fails, each entry is still its time", async () => {
 });
 
 test("the material reads job by job", () => {
-  expect(promptOf([{ jobUuid: "j", number: "1352", where: "Holbrook Ave", spans: [], notes: ["a note"], photos: 0, asked: [] }])).toBe(
+  expect(promptOf([{ jobUuid: "j", number: "1352", where: "Holbrook Ave", spans: [], notes: ["a note"], photos: 0, asked: [], mine: [], photoIds: [], others: [], address: null }])).toBe(
     "Job 1: 1352, Holbrook Ave\nNotes:\n- a note\nQuestions:\n(no questions)",
   );
 });

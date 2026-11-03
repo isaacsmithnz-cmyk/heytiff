@@ -3,6 +3,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { bookingZone } from "@/lib/integrations/sm8-booking-zone";
+import { wallInstant } from "@/lib/integrations/sm8-booking-plan";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import { SONNET_FALLBACK } from "@/lib/tiff/sonnet-fallback";
 import { wallMinute } from "./clock";
@@ -38,10 +39,30 @@ export type JobDay = {
   notes: string[];
   photos: number;
   asked: Asked[];
+  /** for the wrap-up: your notes there today with their times, your photos' ids, and everyone else's notes on it today */
+  mine: { at: string; text: string }[];
+  photoIds: string[];
+  others: { name: string; at: string; text: string }[];
+  address: string | null;
 };
 /** `line` is the first line at the finish asked about; `name`, `photos` and
     `asked` are its parts, for the phone to say again at another finish. */
-export type WriteupEntry = { jobUuid: string; number: string | null; where: string; line: string; name: string | null; photos: number; asked: number; text: string };
+export type WriteupEntry = {
+  jobUuid: string;
+  number: string | null;
+  where: string;
+  line: string;
+  name: string | null;
+  photos: number;
+  asked: number;
+  text: string;
+  /** the wrap-up's, one job at a time (Isaac, 2 November 2026: "when you hit clock off, it brings you through the notes for the day") */
+  spans: { from: string; until: string }[];
+  address: string | null;
+  mine: { at: string; text: string }[];
+  photoIds: string[];
+  others: { name: string; at: string; text: string }[];
+};
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
 
@@ -95,14 +116,14 @@ export function askedThere(threads: readonly { messages: unknown }[], spans: rea
 }
 
 /** Everything the person left on each job that day, read from where it is kept. */
-async function gather(ctx: MobileCtx, summary: DaySummary, dayFrom: string): Promise<JobDay[]> {
+async function gather(ctx: MobileCtx, summary: DaySummary, dayFrom: string, midnight: string): Promise<JobDay[]> {
   const jobs = jobsOfDay(summary);
   if (!jobs.length) return [];
   const staffId = await staffProfileIdFor(ctx.orgId, ctx.userId).catch(() => null);
   const uuids = jobs.map((j) => j.jobUuid);
   /* the mirror keeps ServiceM8's uuids as text: either case finds them */
   const either = [...new Set(uuids.flatMap((u) => [u, u.toLowerCase()]))];
-  const [notes, photos, threads] = await Promise.all([
+  const [notes, photos, threads, theirs, facts] = await Promise.all([
     staffId
       ? supabaseAdmin
           .from("workboard_notes")
@@ -112,12 +133,13 @@ async function gather(ctx: MobileCtx, summary: DaySummary, dayFrom: string): Pro
           .eq("target_kind", "job")
           .in("target_id", uuids)
           .gte("created_at", dayFrom)
+          .is("removed_at", null)
           .order("created_at", { ascending: true })
       : Promise.resolve({ data: [] }),
     staffId
       ? supabaseAdmin
           .from("documents")
-          .select("sm8_job_uuid")
+          .select("id, sm8_job_uuid")
           .eq("org_id", ctx.orgId)
           .eq("uploaded_by", staffId)
           .eq("kind", "job_photo")
@@ -131,10 +153,34 @@ async function gather(ctx: MobileCtx, summary: DaySummary, dayFrom: string): Pro
       .eq("user_sub", ctx.userId)
       .gte("updated_at", dayFrom)
       .not("id", "like", "email-%"),
+    /* everyone else's notes on these jobs today, for "Already on the job today" */
+    supabaseAdmin
+      .from("workboard_notes")
+      .select("target_id, transcript, created_at, author_id")
+      .eq("org_id", ctx.orgId)
+      .eq("target_kind", "job")
+      .in("target_id", uuids)
+      .gte("created_at", midnight)
+      .is("removed_at", null)
+      .order("created_at", { ascending: true }),
+    supabaseAdmin.from("sm8_jobs").select("uuid, job_address").eq("org_id", ctx.orgId).in("uuid", either),
   ]);
-  const noteRows = (notes.data ?? []) as { target_id: string; transcript: string | null }[];
-  const photoRows = (photos.data ?? []) as { sm8_job_uuid: string | null }[];
+  const noteRows = (notes.data ?? []) as { target_id: string; transcript: string | null; created_at: string }[];
+  const photoRows = (photos.data ?? []) as { id: string; sm8_job_uuid: string | null }[];
   const threadRows = (threads.data ?? []) as { messages: unknown }[];
+  const otherRows = ((theirs.data ?? []) as { target_id: string; transcript: string | null; created_at: string; author_id: string | null }[]).filter(
+    (n) => n.author_id !== staffId && n.transcript?.trim(),
+  );
+  const authors = [...new Set(otherRows.map((n) => n.author_id).filter((a): a is string => !!a))];
+  const names = new Map<string, string>();
+  if (authors.length) {
+    const { data } = await supabaseAdmin.from("staff_profiles").select("id, first_name, full_name").eq("org_id", ctx.orgId).in("id", authors);
+    for (const r of (data ?? []) as { id: string; first_name: string | null; full_name: string | null }[]) {
+      const n = r.first_name?.trim() || r.full_name?.trim().split(/\s+/)[0];
+      if (n) names.set(r.id, n);
+    }
+  }
+  const addresses = new Map(((facts.data ?? []) as { uuid: string; job_address: string | null }[]).map((r) => [r.uuid.toLowerCase(), r.job_address?.trim().replace(/\s*\n\s*/g, ", ") || null]));
   return jobs.map((j) => {
     const k = j.jobUuid.toLowerCase();
     return {
@@ -142,6 +188,12 @@ async function gather(ctx: MobileCtx, summary: DaySummary, dayFrom: string): Pro
       notes: noteRows.filter((n) => n.target_id.toLowerCase() === k && n.transcript?.trim()).map((n) => clip(n.transcript!.trim(), NOTE_CAP)),
       photos: photoRows.filter((p) => p.sm8_job_uuid?.toLowerCase() === k).length,
       asked: askedThere(threadRows, j.spans),
+      mine: noteRows.filter((n) => n.target_id.toLowerCase() === k && n.transcript?.trim()).map((n) => ({ at: n.created_at, text: clip(n.transcript!.trim(), NOTE_CAP) })),
+      photoIds: photoRows.filter((p) => p.sm8_job_uuid?.toLowerCase() === k).map((p) => p.id),
+      others: otherRows
+        .filter((n) => n.target_id.toLowerCase() === k)
+        .map((n) => ({ name: (n.author_id && names.get(n.author_id)) || "Someone", at: n.created_at, text: clip(n.transcript!.trim(), NOTE_CAP) })),
+      address: addresses.get(k) ?? null,
     };
   });
 }
@@ -226,14 +278,35 @@ export async function written(jobs: readonly JobDay[]): Promise<string[]> {
 
 /** The day's entries, one per job on the Clock off sheet, to the finish the
     person is thinking of (`until`), ready to change and keep. */
-export async function writeUpDay(ctx: MobileCtx, until?: string | null, now: number = Date.now()): Promise<{ entries: WriteupEntry[] }> {
-  const state = await readDay(ctx, now, until);
-  if (!state.day || !state.summary) return { entries: [] };
+export async function writeUpDay(
+  ctx: MobileCtx,
+  until?: string | null,
+  now: number = Date.now(),
+  on?: string | null
+): Promise<{ entries: WriteupEntry[]; day: { workDate: string; onAt: string; offAt: string | null; minutes: number } | null }> {
+  const state = await readDay(ctx, now, until, on);
+  if (!state.day || !state.summary) return { entries: [], day: null };
   const [zone, name] = await Promise.all([bookingZone(ctx.orgId).then((z) => z.zone ?? "Australia/Sydney"), firstNameOf(ctx)]);
-  const jobs = await gather(ctx, state.summary, state.day.onAt);
+  const midnight = new Date(wallInstant(`${state.day.workDate} 00:00:00`, zone, "earliest") ?? Date.parse(state.day.onAt)).toISOString();
+  const jobs = await gather(ctx, state.summary, state.day.onAt, midnight < state.day.onAt ? midnight : state.day.onAt);
   const texts = await written(jobs);
   return {
-    entries: jobs.map((j, i) => ({ jobUuid: j.jobUuid, number: j.number, where: j.where, line: lineOf(name, j, zone), name, photos: j.photos, asked: j.asked.length, text: texts[i] ?? "" })),
+    entries: jobs.map((j, i) => ({
+      jobUuid: j.jobUuid,
+      number: j.number,
+      where: j.where,
+      line: lineOf(name, j, zone),
+      name,
+      photos: j.photos,
+      asked: j.asked.length,
+      text: texts[i] ?? "",
+      spans: j.spans,
+      address: j.address,
+      mine: j.mine,
+      photoIds: j.photoIds,
+      others: j.others,
+    })),
+    day: { workDate: state.day.workDate, onAt: state.day.onAt, offAt: state.day.offAt, minutes: state.summary.minutes },
   };
 }
 

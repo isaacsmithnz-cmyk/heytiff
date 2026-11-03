@@ -16,7 +16,7 @@ import { replyBlocks, type ReplySpan } from "@/lib/quotes/session/reply-blocks";
 import { latestAsked } from "@/lib/quotes/session/answers";
 import { isFirstTurn, stepOf, timeLeft, turnStartOf } from "@/lib/quotes/session/time-left";
 import { writeUpOf } from "@/lib/quotes/write-up";
-import { fmtAud } from "@/lib/workboard/project-money";
+import { fmtAddition, fmtAud } from "@/lib/workboard/project-money";
 import { QuoteScope, type QuoteScopeWords } from "./quote-scope";
 
 /* TIFF ON THE QUOTE: the page's main column (the chat-first quote page,
@@ -90,7 +90,7 @@ export function Globe({ size = 14 }: { size?: number }) {
 }
 
 /** A price difference as an answer shows it: nothing for none. */
-const deltaWords = (c: number | null | undefined) => (c == null || Math.round(c) === 0 ? "" : `${c > 0 ? "+" : "−"}${fmtAud(Math.abs(Math.round(c)))}`);
+const deltaWords = (c: number | null | undefined) => (c == null ? "" : fmtAddition(c));
 
 /** Words as she or you wrote them: a blank line starts a paragraph. */
 const paras = (text: string) =>

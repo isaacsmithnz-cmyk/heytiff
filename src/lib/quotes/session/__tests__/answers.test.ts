@@ -70,7 +70,7 @@ describe("an answer's price", () => {
   it("is the quote priced with its changes, less the quote as it is", () => {
     /* the three-phase unit $400 more at cost, $500 at 25%; the isolator
        $23.60 off, $33.04 at 40% */
-    expect(answerDeltas(phase, [outdoor, iso], price, 11200, settings)).toEqual([0, 46500, null]); // 50000 - 3304, between totals rounded up to $5
+    expect(answerDeltas(phase, [outdoor, iso], price, 11200, settings)).toEqual([0, 46700, null]); // 50000 - 3304, to the nearest dollar
   });
 
   it("can't be made when its line has gone, or its item isn't in the book", () => {

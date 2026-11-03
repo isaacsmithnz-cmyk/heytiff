@@ -46,15 +46,16 @@ function newQuoteLine(l: NewLine, price: Priced, hourCostCents: number | null, n
   return p ? { ...base, name: p.name, code: p.code, supplierKey: p.supplierKey, kind: l.kind === "unit" || p.kind === "unit" ? "unit" : "material", costCents: p.costCents, source: l.source } : null;
 }
 
-const totalOf = (lines: QuoteLine[], s: BuildSettings) => priceLines(lines, [], s, { pct: null, labourCostCents: null }).reduce((n, o) => n + o.build.exGstCents, 0);
+/* before the total's round up to $5, or a small addition would read $5 or nothing */
+const totalOf = (lines: QuoteLine[], s: BuildSettings) => priceLines(lines, [], s, { pct: null, labourCostCents: null }).reduce((n, o) => n + o.build.buildExGstCents, 0);
 
-/** What each answer does to the quote's price, ex GST, cents: null for one
-    that can't be made. */
+/** What each answer does to the quote's price, ex GST, cents to the nearest
+    dollar: null for one that can't be made. */
 export function answerDeltas(q: Question, lines: readonly QuoteLine[], price: Priced, hourCostCents: number | null, s: BuildSettings): (number | null)[] {
   const now = totalOf([...lines], s);
   return q.answers.map((a) => {
     const after = withChanges(lines, a.changes, price, hourCostCents);
-    return after ? totalOf(after, s) - now : null;
+    return after ? Math.round((totalOf(after, s) - now) / 100) * 100 || 0 : null;
   });
 }
 

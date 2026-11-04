@@ -9,7 +9,7 @@
    and some wall brackets; Leonardo then says 8 m of 3/8 5/8 and a roll of
    tape; Isaac, a moment later, 2 lengths of trunking. */
 
-import { amount, dayAllowed, foundOf, keyOf, planAdd, rankCandidates, settle, viewOf, type Candidate, type Ready, type UsedRow } from "../used-plan";
+import { amount, changeFrom, dayAllowed, foundOf, keyOf, planAdd, rankCandidates, settle, tripsOf, viewOf, type Candidate, type Ready, type UsedRow } from "../used-plan";
 
 const COIL = { supplierKey: "reece", code: "PC3858", name: "Pair coil 3/8 x 5/8" };
 const at = (hm: string) => `2026-11-02T${hm}:00.000Z`;
@@ -139,4 +139,52 @@ test("a list's day: up to tomorrow and two weeks back", () => {
   expect(dayAllowed("2026-10-20", "2026-11-03")).toBe(true);
   expect(dayAllowed("2026-10-19", "2026-11-03")).toBe(false);
   expect(dayAllowed("3 Nov", "2026-11-03")).toBe(false);
+});
+
+describe("across trips: each trip its own list, the job so far adds them up", () => {
+  /* 1937, Fantail Building: Isaac's real list from Wednesday 4 November, and Friday if he went back */
+  const ISAAC = "auth0|isaac";
+  const names = new Map([[ISAAC, "Isaac"], ["auth0|leo", "Leonardo"]]);
+  const DRAIN = { supplier_key: "reece", code: "D20", name: "Drain 20 mm", unit: "m" };
+  const wed = (over: Partial<UsedRow>) => row({ day: "2026-11-04", added_by: ISAAC, created_at: "2026-11-04T05:37:18Z", ...over });
+  const fri = (over: Partial<UsedRow>) => row({ day: "2026-11-06", added_by: ISAAC, created_at: "2026-11-05T23:12:00Z", ...over });
+  const rows = [
+    fri({ id: "f1", ...DRAIN, qty: "3.000" }),
+    fri({ id: "f2", name: "All Purpose Sealant Silicone 300g Cartridge Clear", qty: "1.000" }),
+    wed({ id: "w1", ...DRAIN, qty: "6.000" }),
+    wed({ id: "w2", name: "Star Plug Wall Anchor Green 7mm PVC for 10-1 2G Screws", qty: "10.000", created_at: "2026-11-04T05:37:19Z" }),
+    wed({ id: "w3", name: "All Purpose Sealant Silicone 300g Cartridge Clear", qty: "1.000", created_at: "2026-11-04T05:37:20Z" }),
+    wed({ id: "w4", name: "Gone", qty: "1.000", removed_at: "2026-11-04T06:00:00Z" }),
+  ];
+
+  test("Friday: Wednesday is the trip before, the job so far is both", () => {
+    const { trips, total } = tripsOf(rows, names, ISAAC, "2026-11-06");
+    expect(trips.map((t) => [t.day, t.people, t.lines.map((l) => l.id)])).toEqual([["2026-11-04", ["Isaac"], ["w1", "w2", "w3"]]]);
+    expect(total.map((x) => [x.name, x.qty, x.unit, x.days])).toEqual([
+      ["Drain 20 mm", 9, "m", ["2026-11-04", "2026-11-06"]],
+      ["Star Plug Wall Anchor Green 7mm PVC for 10-1 2G Screws", 10, null, ["2026-11-04"]],
+      ["All Purpose Sealant Silicone 300g Cartridge Clear", 2, null, ["2026-11-04", "2026-11-06"]],
+    ]);
+  });
+
+  test("the newest trip first, and everyone who put something on it", () => {
+    const more = [...rows, row({ id: "o1", day: "2026-10-02", added_by: "auth0|leo", name: "Tape", qty: 1, created_at: "2026-10-02T03:00:00Z" }), wed({ id: "w5", added_by: "auth0|leo", name: "Tape", qty: 2, created_at: "2026-11-04T06:10:00Z" })];
+    const { trips, total } = tripsOf(more, names, ISAAC, "2026-11-06");
+    expect(trips.map((t) => [t.day, t.people])).toEqual([["2026-11-04", ["Isaac", "Leonardo"]], ["2026-10-02", ["Leonardo"]]]);
+    expect(total.find((x) => x.name === "Tape")).toMatchObject({ qty: 3, days: ["2026-10-02", "2026-11-04"] });
+  });
+
+  test("the same thing in another unit is its own line, not added", () => {
+    const { total } = tripsOf([wed({ id: "a", name: "Trunking", qty: 6, unit: "m" }), fri({ id: "b", name: "Trunking", qty: 2, unit: null })], names, ISAAC, "2026-11-06");
+    expect(total.map((x) => [x.qty, x.unit])).toEqual([[6, "m"], [2, null]]);
+  });
+
+  test("on the day itself there's no earlier trip", () => {
+    expect(tripsOf(rows.filter((r) => r.day === "2026-11-04"), names, ISAAC, "2026-11-04").trips).toEqual([]);
+  });
+
+  test("a list can be changed for two weeks", () => {
+    expect(changeFrom("2026-11-06")).toBe("2026-10-23");
+    expect(dayAllowed(changeFrom("2026-11-06"), "2026-11-06")).toBe(true);
+  });
 });

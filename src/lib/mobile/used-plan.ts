@@ -227,3 +227,35 @@ export function dayAllowed(day: unknown, today: string): day is string {
   const t = Date.parse(`${today}T12:00:00Z`);
   return Number.isFinite(at) && at <= t + 86_400_000 && at >= t - 14 * 86_400_000;
 }
+
+/** The first day a list may still be changed, two weeks back from today. */
+export const changeFrom = (today: string) => new Date(Date.parse(`${today}T12:00:00Z`) - 14 * 86_400_000).toISOString().slice(0, 10);
+
+/* ---- the job across its trips (Isaac, 4 November 2026: "How does used
+   work across multiple trips"; then "That's good" to the mock: today's list
+   first, then each earlier trip under its date and who was there, then what
+   the job has used so far) ---- */
+
+/** An earlier trip's list: its day, the people who put things on it, and its lines. */
+export type UsedTrip = { day: string; people: string[]; lines: UsedLine[] };
+/** One thing across every trip: the amounts added up, and the days it was used on. */
+export type UsedTotal = { key: string; name: string; unit: string | null; qty: number; days: string[] };
+
+/** Every trip's list but today's, newest first, and the job so far, today's included. The same thing in
+    another unit stays its own line: 6 m and 2 lengths don't add. */
+export function tripsOf(rows: readonly UsedRow[], names: ReadonlyMap<string, string>, me: string, today: string): { trips: UsedTrip[]; total: UsedTotal[] } {
+  const live = rows.filter((r) => !r.removed_at).sort((a, b) => (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0));
+  const byDay = new Map<string, UsedRow[]>();
+  for (const r of live) if (r.day !== today) byDay.set(r.day, [...(byDay.get(r.day) ?? []), r]);
+  const trips = [...byDay.entries()]
+    .sort(([a], [b]) => (a < b ? 1 : -1))
+    .map(([day, rs]) => ({ day, people: [...new Set(rs.map((r) => names.get(r.added_by) ?? "Someone"))], lines: rs.map((r) => viewOf(r, names, me)) }));
+  const totals = new Map<string, UsedTotal>();
+  for (const r of live) {
+    const key = `${keyOfRow(r)}|${r.unit ?? ""}`;
+    const had = totals.get(key);
+    if (!had) totals.set(key, { key, name: r.name, unit: r.unit, qty: round(Number(r.qty)), days: [r.day] });
+    else totals.set(key, { ...had, name: r.name, qty: round(had.qty + Number(r.qty)), days: had.days.includes(r.day) ? had.days : [...had.days, r.day].sort() });
+  }
+  return { trips, total: [...totals.values()] };
+}

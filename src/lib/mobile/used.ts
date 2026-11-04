@@ -8,12 +8,14 @@ import type { MobileCtx } from "./auth";
 import {
   amount,
   askOf,
+  changeFrom,
   dayAllowed,
   keyOf,
   peopleOf,
   planAdd,
   settle,
   stepsOf,
+  tripsOf,
   viewOf,
   type Ask,
   type Choice,
@@ -22,6 +24,8 @@ import {
   type Step,
   type UsedLine,
   type UsedRow,
+  type UsedTotal,
+  type UsedTrip,
 } from "./used-plan";
 
 /* WHAT WAS USED ON A JOB TODAY, read and written (used-plan has the rules,
@@ -86,6 +90,25 @@ export async function readUsed(ctx: MobileCtx, job: string, day: string): Promis
   return { day, lines: (await view(ctx, rows)).lines };
 }
 
+export type UsedTrips = { today: string; from: string; trips: UsedTrip[]; total: UsedTotal[] };
+
+/** The job's earlier trips, each its own list, and the job so far (today's list is read on its own, as the wrap-up does). */
+export async function readTrips(ctx: MobileCtx, job: string, now: number = Date.now()): Promise<UsedTrips> {
+  const today = await todayOf(ctx.orgId, now);
+  const { data, error } = await supabaseAdmin
+    .from("job_materials_used")
+    .select(COLUMNS)
+    .eq("org_id", ctx.orgId)
+    .eq("sm8_job_uuid", job)
+    .is("removed_at", null)
+    .order("day", { ascending: false })
+    .limit(1000);
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as UsedRow[];
+  const { names } = await view(ctx, rows);
+  return { today, from: changeFrom(today), ...tripsOf(rows, names, ctx.userId, today) };
+}
+
 /** What was said goes on the list: the new things as lines, a repeat as a question. */
 export async function addUsed(ctx: MobileCtx, job: string, day: string, words: string, found: readonly Ready[]): Promise<{ added: UsedLine[]; asks: Ask[]; lines: UsedLine[] }> {
   const staff = await staffProfileIdFor(ctx.orgId, ctx.userId).catch(() => null);
@@ -148,6 +171,8 @@ export async function changeUsed(ctx: MobileCtx, job: string, lineId: string, ch
     const { data } = await supabaseAdmin.from("job_materials_used").select(COLUMNS).eq("org_id", ctx.orgId).eq("sm8_job_uuid", job).eq("id", lineId).is("removed_at", null).maybeSingle();
     const row = data as UsedRow | null;
     if (!row) return { error: "That's no longer on the list.", status: 404 };
+    /* a trip's list is yours to change for two weeks, as it is to add to; past that it only reads */
+    if (!dayAllowed(row.day, await todayOf(ctx.orgId))) return { error: "That list is more than two weeks old, so it stays as it is.", status: 409 };
     const who = { by: ctx.userId, staff, at: new Date().toISOString() };
     let patch: Record<string, unknown>;
     if (change.do === "settle") patch = settle(row, change.said, change.how, who);
@@ -171,7 +196,7 @@ export async function changeUsed(ctx: MobileCtx, job: string, lineId: string, ch
       .eq("id", lineId)
       .eq("updated_at", row.updated_at)
       .select(COLUMNS);
-    if (error?.code === "23505") return { error: `${(patch.name as string) ?? row.name} is already on today's list. Change its amount there.`, status: 409 };
+    if (error?.code === "23505") return { error: `${(patch.name as string) ?? row.name} is already on that list. Change its amount there.`, status: 409 };
     if (error) throw new Error(error.message);
     if (!done?.length) continue;
     const after = done[0] as UsedRow;

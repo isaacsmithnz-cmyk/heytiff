@@ -115,4 +115,21 @@ describe("after it's sent", () => {
     expect(screen.getByRole("region", { name: "Scope" })).toHaveTextContent(study.text);
     expect(screen.queryByRole("region", { name: "Since the quote" })).toBeNull();
   });
+
+  it("says what's in version 2 in grey, with no Leave out and no Update quote", () => {
+    render(<JobScope scope={sent({ sincePriced: [{ ...study, version: 2 }] })} updateHref="/q" onLeave={jest.fn(async () => {})} />);
+    const since = screen.getByRole("region", { name: "Since the quote" });
+    expect(since).toHaveTextContent(study.text);
+    expect(since).toHaveTextContent("In version 2");
+    expect(within(since).queryByRole("button", { name: "Leave out" })).toBeNull();
+    expect(within(since).queryByRole("link", { name: "Update quote" })).toBeNull();
+  });
+
+  it("once version 2 is sent, has it in Added, saying it went in version 2", () => {
+    render(<JobScope scope={sent({ sincePriced: [{ ...study, version: 2 }], quoted: { on: "Wed 4 Nov", version: 2 } })} />);
+    expect(screen.queryByRole("region", { name: "Since the quote" })).toBeNull();
+    const quoted = screen.getByRole("region", { name: "Scope as quoted" });
+    expect(quoted).toHaveTextContent("Version 2 sent from ServiceM8, Wed 4 Nov");
+    expect(quoted).toHaveTextContent(study.text + "Version 2, from " + study.from);
+  });
 });

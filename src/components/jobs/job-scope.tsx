@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { Button } from "@/components/parts/button";
-import { pastQuote, quotedLine, withoutAdded, type JobScopeRead } from "@/lib/jobs/job-scope";
+import { StateWord } from "@/components/parts/state";
+import { pastQuote, quotedLine, sinceRows, versionFrom, type JobScopeRead } from "@/lib/jobs/job-scope";
 import { JobSection } from "./job-section";
 
 /* THE SCOPE, AT THE TOP OF A JOB'S OVERVIEW (Isaac, 28 October 2026: "a
@@ -23,8 +24,10 @@ import { JobSection } from "./job-section";
    day ServiceM8 sent it and which version, and under it SINCE THE QUOTE,
    orange, what's landed since and isn't in the price: each row with Leave
    out, and Update quote, which opens the quote's own Update quote with what's
-   changing written in. While it waits it's out of Added; once it's taken
-   into a version or a variation it's back in Added.
+   changing written in. While it waits it's out of Added. Taken into a
+   version, it stays here in grey, "In version 2", without Leave out, until
+   ServiceM8 sends that version; then it's in Added as "Version 2, from …".
+   Taken into a variation, it's back in Added.
 
    Tiff keeps it (lib/workboard/job-scope-server.ts): written from
    everything on the job, rewritten when something new lands. */
@@ -47,8 +50,16 @@ export function JobScope({
 }) {
   const [undoing, setUndoing] = useState(false);
   const [leaving, setLeaving] = useState<string | null>(null);
-  const since = pastQuote(scope) ? (scope.sincePriced ?? []) : [];
-  const added = withoutAdded(scope.added, since.map((a) => a.text));
+  const rows = pastQuote(scope) ? sinceRows(scope) : { open: [], inVersion: [], sent: [] };
+  const since = [...rows.open, ...rows.inVersion];
+  const words = (t: string) => t.replace(/\s+/g, " ").trim().toLowerCase();
+  const waiting = new Set(since.map((a) => words(a.text)));
+  const sent = new Map(rows.sent.map((a) => [words(a.text), a]));
+  /* the brief's own order: what's waiting is out, what went in a sent version says which */
+  const added = scope.added.filter((a) => !waiting.has(words(a.text))).map((a) => {
+    const went = sent.get(words(a.text));
+    return went ? { ...a, from: versionFrom({ ...went, from: a.from || went.from }) } : a;
+  });
   const leave = (text: string) => {
     if (!onLeave) return;
     setLeaving(text);
@@ -114,7 +125,7 @@ export function JobScope({
           icon="plus"
           hue="orange"
           action={
-            updateHref ? (
+            updateHref && rows.open.length > 0 ? (
               <Button kind="quote" size={32} href={updateHref}>
                 Update quote
               </Button>
@@ -128,10 +139,16 @@ export function JobScope({
                   <b>{a.text}</b>
                   {a.from && <span className="jsc-said">{a.from}</span>}
                 </span>
-                {onLeave && (
-                  <Button kind="quiet" size={32} disabled={leaving != null} onClick={() => leave(a.text)}>
-                    Leave out
-                  </Button>
+                {a.version ? (
+                  <StateWord tone="info">
+                    In version {a.version}
+                  </StateWord>
+                ) : (
+                  onLeave && (
+                    <Button kind="quiet" size={32} disabled={leaving != null} onClick={() => leave(a.text)}>
+                      Leave out
+                    </Button>
+                  )
                 )}
               </li>
             ))}

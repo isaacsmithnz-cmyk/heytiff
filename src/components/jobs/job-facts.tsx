@@ -4,6 +4,7 @@ import { useId, type ReactNode } from "react";
 import { Button } from "@/components/parts/button";
 import { Initials } from "@/components/parts/initials";
 import { StateWord } from "@/components/parts/state";
+import { Icon } from "@/components/shell/icon";
 import type { NextVisit } from "@/lib/jobs/job-conversation";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 
@@ -26,7 +27,12 @@ import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
    A cell with a tab behind it opens it from anywhere on it (Next visit to
    Visits, Money to Billing): its name is the button and stretches over the
    cell, and its own buttons still press on their own. The customer column
-   that stood under the tiles came into Site and Contact. */
+   that stood under the tiles came into Site and Contact.
+
+   Each cell is a white card on the Overview's grey ground, its label at 13
+   with an icon (Isaac, 4 November 2026, "2, check laws"): Site a house and
+   Contact a person in grey, Next visit a calendar in pink, Money a dollar
+   in purple, each in its word value. */
 
 /** A dialable href, or null when the field isn't one number.
 
@@ -51,6 +57,14 @@ export function phoneWords(raw: string): string {
   return raw.trim();
 }
 
+const LOOK: Record<string, { icon: string; hue: "grey" | "pink" | "purple" }> = {
+  Site: { icon: "home", hue: "grey" },
+  Contact: { icon: "user", hue: "grey" },
+  Contacts: { icon: "user", hue: "grey" },
+  "Next visit": { icon: "calendar", hue: "pink" },
+  Money: { icon: "dollar", hue: "purple" },
+};
+
 function Fact({
   label,
   onOpen,
@@ -67,15 +81,24 @@ function Fact({
   children: ReactNode;
 }) {
   const id = useId();
+  const look = LOOK[label];
+  const name = look ? (
+    <span className="jov-labname">
+      <Icon name={look.icon} size={16} />
+      {label}
+    </span>
+  ) : (
+    label
+  );
   return (
     <section className={["jov-fact", onOpen ? "jov-fact--door" : "", className ?? ""].filter(Boolean).join(" ")} aria-labelledby={id}>
-      <div className="jov-lab">
+      <div className={`jov-lab${look ? ` jov-lab--${look.hue}` : ""}`}>
         {onOpen ? (
           <button type="button" className="jov-open" id={id} onClick={onOpen}>
-            {label}
+            {name}
           </button>
         ) : (
-          <span id={id}>{label}</span>
+          <span id={id}>{name}</span>
         )}
         {aside}
       </div>

@@ -1,5 +1,5 @@
 import type { StoryEntry } from "@/lib/workboard/job-story";
-import { SCOPE_SCHEMA, newlyAdded, priceThemWords, scopeMoved, scopeOf, scopePrompt, scopeStamp, scopeWanted, stillAdded, wordsWithoutMoney } from "../job-scope";
+import { SCOPE_SCHEMA, changingWords, newlyAdded, pastQuote, priceThemWords, quotedLine, sentVersion, scopeMoved, scopeOf, scopePrompt, scopeStamp, scopeWanted, stillAdded, wordsWithoutMoney } from "../job-scope";
 
 /* A job's scope, as Tiff's written brief (Isaac, 28 October 2026: "a common
    point where a quote can get built from"): what she's handed, and how her
@@ -139,5 +139,35 @@ describe("the scope on the quote", () => {
 
   it("says what Price them asks for", () => {
     expect(priceThemWords(scope(["New trunking", "A pump"]).added)).toBe("Price what's been added: New trunking; A pump.");
+  });
+});
+
+describe("after it's sent", () => {
+  it("is past the quote once ServiceM8 sent it or the job's accepted", () => {
+    expect(pastQuote({ quoted: null, accepted: false })).toBe(false);
+    expect(pastQuote({ quoted: { on: "Wed 28 Oct", version: 1 }, accepted: false })).toBe(true);
+    expect(pastQuote({ quoted: null, accepted: true })).toBe(true);
+    expect(pastQuote({})).toBe(false);
+  });
+
+  it("names the version ServiceM8 sent: one more than those kept before it went", () => {
+    const sent = Date.parse("2026-11-04T01:00:00Z");
+    expect(sentVersion(sent, [])).toBe(1);
+    expect(sentVersion(sent, ["2026-11-03T22:00:00Z"])).toBe(2);
+    /* version 2 started after the send: version 1 is still the one sent */
+    expect(sentVersion(sent, ["2026-11-04T03:00:00Z"])).toBe(1);
+  });
+
+  it("says when it went, and which version once there's more than one", () => {
+    expect(quotedLine({ on: "Wed 28 Oct", version: 1 })).toBe("Sent from ServiceM8, Wed 28 Oct");
+    expect(quotedLine({ on: "Wed 4 Nov", version: 2 })).toBe("Version 2 sent from ServiceM8, Wed 4 Nov");
+  });
+
+  it("writes what's changing in the brief's words, with where each came from", () => {
+    expect(changingWords([{ text: "Concealed fan coil unit next to the Study", from: "Anna Vaughan's email, Tue 3 Nov" }])).toBe(
+      "Concealed fan coil unit next to the Study (Anna Vaughan's email, Tue 3 Nov).",
+    );
+    expect(changingWords([{ text: "New trunking.", from: "" }, { text: "A pump", from: "Isaac's note" }])).toBe("New trunking; A pump (Isaac's note).");
+    expect(changingWords([])).toBe("");
   });
 });

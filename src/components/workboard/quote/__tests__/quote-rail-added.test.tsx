@@ -23,3 +23,12 @@ it("says how many, where each came from, and offers both acts", () => {
   fireEvent.click(screen.getByRole("button", { name: "Price them" }));
   expect(onPrice).toHaveBeenCalledTimes(1);
 });
+
+it("after it's sent, offers Update quote in place of Price them", () => {
+  const onPrice = jest.fn();
+  render(<AddedRows items={items} since="sent" onLeave={jest.fn()} onPrice={onPrice} />);
+  expect(screen.getByRole("heading", { name: "2 added since it was sent" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Price them" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Update quote" }));
+  expect(onPrice).toHaveBeenCalledTimes(1);
+});

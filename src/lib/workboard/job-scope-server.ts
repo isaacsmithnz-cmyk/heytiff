@@ -13,13 +13,17 @@ import {
   stillAdded,
   withoutAdded,
   wordsWithoutMoney,
+  sentVersion,
   type JobScopeRead,
   type ScopeAdded,
+  type ScopeQuoted,
   type ScopeSetAside,
 } from "@/lib/jobs/job-scope";
 import { readByHand } from "@/lib/quotes/lines-job-server";
 import { resolveJobCard } from "./all-jobs-query";
 import { getSm8Timezone } from "./query";
+import { wallInstant } from "@/lib/integrations/sm8-booking-plan";
+import { zoneOr } from "@/lib/au-dates";
 import { isMoneyStoryEntry, storyLineOf } from "./job-story";
 import { readJobStoryForSummary } from "./job-summary";
 
@@ -39,7 +43,12 @@ import { readJobStoryForSummary } from "./job-summary";
    the quote that the brief has read, so a turn on the quote is one read at
    most, the next time someone looks. What a NOTE adds while the quote has
    lines waits on `since_priced` for the quote's rail; what the quote's own
-   conversation adds never does, or she'd be asked to price her own work. */
+   conversation adds never does, or she'd be asked to price her own work.
+
+   AFTER IT'S SENT (slice 4). The same list is Since the quote once ServiceM8
+   has sent it or the job's accepted: `withQuoteState` says which, from the
+   job's own row, on every read, so a send in ServiceM8 shows the next time
+   anyone looks and nothing is stored twice. */
 
 const MODEL = "claude-sonnet-5-5";
 const MAX_TOKENS = 6000;
@@ -64,7 +73,34 @@ export async function readStoredJobScope(orgId: string, jobUuid: string): Promis
   const row = await readRow(orgId, jobUuid);
   const scope = asScope(row);
   if (!scope) return null;
-  return { ...scope, quoteDue: (await quoteStampOf(orgId, jobUuid)) !== (row?.quote_stamp ?? null) };
+  const [quoteStamp, state] = await Promise.all([quoteStampOf(orgId, jobUuid), quoteStateOf(orgId, jobUuid)]);
+  return { ...scope, quoteDue: quoteStamp !== (row?.quote_stamp ?? null), ...state };
+}
+
+/** Whether ServiceM8 has sent the quote, on what day and which version, and
+    whether the job's past Quote. ServiceM8's stamp is its wall time. */
+async function quoteStateOf(orgId: string, jobUuid: string): Promise<{ quoted: ScopeQuoted | null; accepted: boolean }> {
+  const [{ data: job }, { data: kept }, timezone] = await Promise.all([
+    supabaseAdmin.from("sm8_jobs").select("status, quote_sent_stamp").eq("org_id", orgId).eq("uuid", jobUuid).maybeSingle(),
+    supabaseAdmin.from("quote_versions").select("made_at").eq("org_id", orgId).eq("sm8_job_uuid", jobUuid),
+    getSm8Timezone(orgId),
+  ]);
+  const row = job as { status?: string | null; quote_sent_stamp?: string | null } | null;
+  const accepted = !!row?.status && row.status.trim().toLowerCase() !== "quote";
+  const zone = zoneOr(timezone);
+  const sentMs = wallInstant(row?.quote_sent_stamp ?? null, zone, "earliest");
+  if (sentMs == null) return { quoted: null, accepted };
+  const on = new Intl.DateTimeFormat("en-AU", { weekday: "short", day: "numeric", month: "short", timeZone: zone }).format(new Date(sentMs)).replace(",", "");
+  const keptAt = ((kept ?? []) as { made_at?: string | null }[]).map((k) => k.made_at ?? "").filter(Boolean);
+  return { quoted: { on, version: sentVersion(sentMs, keptAt) }, accepted };
+}
+
+/** A brief as the Overview and the quote read it: with whether it's gone to
+    the client. */
+export async function withQuoteState(orgId: string, remoteId: string, scope: JobScopeRead | null): Promise<JobScopeRead | null> {
+  if (!scope) return null;
+  const { parentRemoteId } = await resolveJobCard(orgId, remoteId);
+  return { ...scope, ...(await quoteStateOf(orgId, parentRemoteId)) };
 }
 
 /** The newest thing a person said on the quote or Tiff wrote for its proposal;

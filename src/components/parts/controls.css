@@ -50,6 +50,9 @@
    colour outside the palette a button wears, named in docs/design.md (Isaac,
    27 October 2026). Like main, its hover keeps the blue. */
 .pt-btn.pt-btn--xero { background: #13b5ea; color: var(--white); border: 1px solid transparent; cursor: pointer; }
+/* quote (25c): orange, ink words, on the button that starts or updates a
+   quote, as a quote is orange in ServiceM8 (Isaac, 3 November 2026) */
+.pt-btn.pt-btn--quote { background: var(--orange); color: var(--ink); border: 1px solid var(--orange); cursor: pointer; }
 
 /* a hover is one change, a fill (23) */
 .pt-btn.pt-btn--second:hover:not(:disabled):not([aria-disabled="true"]),

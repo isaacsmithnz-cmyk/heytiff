@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { JobScopeRead } from "@/lib/jobs/job-scope";
+import { Button } from "@/components/parts/button";
+import { pastQuote, quotedLine, withoutAdded, type JobScopeRead } from "@/lib/jobs/job-scope";
 import { JobSection } from "./job-section";
 
 /* THE SCOPE, AT THE TOP OF A JOB'S OVERVIEW (Isaac, 28 October 2026: "a
@@ -17,6 +18,14 @@ import { JobSection } from "./job-section";
    While Tiff reads a new note the brief stays as it was and the top row says
    so. Only the newest change has Undo, and only while there's one to go back to.
 
+   AFTER IT'S SENT (slice 4, Isaac, 4 November 2026, "yes" to the mock's
+   page "After it's sent", DDfCy926GBnc6e7c7Fuqp5): Scope as quoted, with the
+   day ServiceM8 sent it and which version, and under it SINCE THE QUOTE,
+   orange, what's landed since and isn't in the price: each row with Leave
+   out, and Update quote, which opens the quote's own Update quote with what's
+   changing written in. While it waits it's out of Added; once it's taken
+   into a version or a variation it's back in Added.
+
    Tiff keeps it (lib/workboard/job-scope-server.ts): written from
    everything on the job, rewritten when something new lands. */
 
@@ -24,13 +33,27 @@ export function JobScope({
   scope,
   reading = false,
   onUndo,
+  updateHref,
+  onLeave,
 }: {
   scope: JobScopeRead;
   /** Tiff is reading something new on the job. */
   reading?: boolean;
   onUndo?: () => Promise<void>;
+  /** The quote, opened on Update quote with what's changing written in. */
+  updateHref?: string;
+  /** Leave out: off Since the quote; it stays in the brief. */
+  onLeave?: (text: string) => Promise<void>;
 }) {
   const [undoing, setUndoing] = useState(false);
+  const [leaving, setLeaving] = useState<string | null>(null);
+  const since = pastQuote(scope) ? (scope.sincePriced ?? []) : [];
+  const added = withoutAdded(scope.added, since.map((a) => a.text));
+  const leave = (text: string) => {
+    if (!onLeave) return;
+    setLeaving(text);
+    void onLeave(text).finally(() => setLeaving(null));
+  };
   const undo = () => {
     if (!onUndo) return;
     setUndoing(true);
@@ -38,7 +61,7 @@ export function JobScope({
   };
   return (
     <>
-      <JobSection name="Scope" icon="file" hue="pink" className="jov-summary">
+      <JobSection name={scope.quoted ? "Scope as quoted" : "Scope"} line={scope.quoted ? quotedLine(scope.quoted) : null} icon="file" hue="pink" className="jov-summary">
         <div className="jsc">
           {scope.lede && <p className="jsc-lede">{scope.lede}</p>}
           {scope.systems.map((s, i) => (
@@ -50,11 +73,11 @@ export function JobScope({
               </p>
             </div>
           ))}
-          {scope.added.length > 0 && (
+          {added.length > 0 && (
             <div className="jsc-part">
               <h3 className="jsc-h">Added</h3>
               <ul className="jsc-ul">
-                {scope.added.map((a, i) => (
+                {added.map((a, i) => (
                   <li key={i}>
                     {a.text}
                     {a.from && <span className="jsc-from">{a.from}</span>}
@@ -85,6 +108,36 @@ export function JobScope({
           )}
         </div>
       </JobSection>
+      {since.length > 0 && (
+        <JobSection
+          name="Since the quote"
+          icon="plus"
+          hue="orange"
+          action={
+            updateHref ? (
+              <Button kind="quote" size={32} href={updateHref}>
+                Update quote
+              </Button>
+            ) : undefined
+          }
+        >
+          <ul className="jsc-since">
+            {since.map((a) => (
+              <li key={a.text}>
+                <span>
+                  <b>{a.text}</b>
+                  {a.from && <span className="jsc-said">{a.from}</span>}
+                </span>
+                {onLeave && (
+                  <Button kind="quiet" size={32} disabled={leaving != null} onClick={() => leave(a.text)}>
+                    Leave out
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </JobSection>
+      )}
       {(scope.updates.length > 0 || reading) && (
         <JobSection name="Latest updates" icon="clock" hue="purple">
           <ul className="jsc-ups">

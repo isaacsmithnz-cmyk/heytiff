@@ -51,6 +51,8 @@ export default async function JobQuotePage({
      (v2 step 6, slice D) */
   const raw = typeof sp.option === "string" ? Number(sp.option) : NaN;
   const option = Number.isInteger(raw) && raw >= 0 && raw <= 19 ? raw : null;
+  /* ?update=1 from the job's Since the quote: Update quote, what's changing written in */
+  const update = sp.update === "1";
 
-  return <QuoteScreen job={target.parentRemoteId} detail={detail} moneyVisible={moneyVisible} financials={financials} studio={studio} start={start} option={option} />;
+  return <QuoteScreen job={target.parentRemoteId} detail={detail} moneyVisible={moneyVisible} financials={financials} studio={studio} start={start} option={option} update={update} />;
 }

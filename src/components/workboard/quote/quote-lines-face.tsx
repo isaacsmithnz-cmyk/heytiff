@@ -27,7 +27,7 @@ import type { JobMediaItem } from "@/lib/workboard/job-media";
 import type { Sm8Quote } from "../board/job-quote-card";
 import { QuoteLineItems, groupKey, sellEachOf } from "./quote-line-items";
 import { AddedRows, InServiceM8, OptionRows, QuoteCard, QuoteRail, signed } from "./quote-rail";
-import { priceThemWords, withoutAdded, type JobScopeRead, type ScopeAdded } from "@/lib/jobs/job-scope";
+import { changingWords, pastQuote as goneToClient, priceThemWords, withoutAdded, type JobScopeRead, type ScopeAdded, type ScopeQuoted } from "@/lib/jobs/job-scope";
 import { LinesButton, QuoteActions } from "./quote-actions";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
 import { Dialog } from "@/components/parts/dialog";
@@ -159,6 +159,7 @@ export function QuoteLinesFace({
   openAt = null,
   sendVariation: sendVariationTo,
   jobStatus = null,
+  update = false,
 }: {
   job: string;
   price: QuotePrice | null | undefined;
@@ -194,6 +195,9 @@ export function QuoteLinesFace({
   /** the job's state in ServiceM8 ("Quote", "Work Order"…): a job won or
       closed there has gone on past its Design step, whatever this quote says */
   jobStatus?: string | null;
+  /** opened from the job's Since the quote (?update=1): Update quote, with
+      what's changing written in */
+  update?: boolean;
 }) {
   const { view, post, reload } = useQuoteLines(job, true);
   const [at, setAt] = useState(openAt ?? 0);
@@ -276,12 +280,17 @@ export function QuoteLinesFace({
   /* what's landed since it was priced: asking brings the brief up to date
      first, which costs a read only if something's moved (job-scope-server.ts) */
   const [added, setAdded] = useState<ScopeAdded[]>([]);
+  /* whether ServiceM8 has sent it (slice 4): what's landed is then Since
+     the quote, for Update quote, not a price to change */
+  const [gone, setGone] = useState<{ quoted: ScopeQuoted | null; accepted: boolean } | null>(null);
   const [say, setSay] = useState<{ id: number; text: string } | null>(null);
   useEffect(() => {
     if (!chat) return;
     let live = true;
     void askScope({ job }).then((a) => {
-      if (live && a?.ok) setAdded(a.scope?.sincePriced ?? []);
+      if (!live || !a?.ok) return;
+      setAdded(a.scope?.sincePriced ?? []);
+      setGone(a.scope ? { quoted: a.scope.quoted ?? null, accepted: !!a.scope.accepted } : null);
     });
     return () => {
       live = false;
@@ -302,6 +311,26 @@ export function QuoteLinesFace({
     setTab("chat");
     setSay({ id: (say?.id ?? 0) + 1, text: priceThemWords(added) });
   };
+  /* AFTER IT'S SENT (slice 4): Update quote, with what's landed written in
+     as what's changing; once the version or variation is started, Tiff is
+     asked to price it, and it comes off Since the quote. A quote whose
+     approval came off since it was sent is changed as it is: she prices it. */
+  const after = accepted.length > 0 || (!!gone && goneToClient(gone));
+  const [fromScope, setFromScope] = useState(false);
+  const updateFromScope = () => {
+    if (!(accepted.length > 0 || view?.approved)) return priceThem();
+    setFromScope(true);
+    setUpdating(changingWords(added));
+  };
+  /* from the job's Since the quote: once, as soon as there's something to update */
+  const opened = useRef(false);
+  const openUpdate = useEffectEvent(updateFromScope);
+  const updateReady = update && !!view && after && added.length > 0;
+  useEffect(() => {
+    if (!updateReady || opened.current) return;
+    opened.current = true;
+    openUpdate();
+  }, [updateReady]);
   const linesUp = tiff !== null && (!chat || tab === "lines");
 
   /* the quote's state word, for the line under the job's name: where it has
@@ -382,6 +411,8 @@ export function QuoteLinesFace({
     setUpdating(null);
     if (typeof v.opened === "number") setAt(v.opened);
     onPriced();
+    if (fromScope) priceThem();
+    setFromScope(false);
   };
   /* VERSION 2 (quote-versions.ts): Update quote on an approved quote nobody
      has accepted keeps it as it stood; the approval comes off */
@@ -395,6 +426,8 @@ export function QuoteLinesFace({
     setPaper(false);
     onPriced();
     onToast?.(`Version ${version} kept. This is version ${version + 1}, to approve again`);
+    if (fromScope) priceThem();
+    setFromScope(false);
   };
   const markVariation = async (op: "variation-approve" | "variation-accept", option: number, accepting: boolean) => {
     setBusy(true);
@@ -705,10 +738,20 @@ export function QuoteLinesFace({
           open={updating != null}
           heading="Update quote"
           width={560}
-          onClose={() => setUpdating(null)}
+          onClose={() => {
+            setUpdating(null);
+            setFromScope(false);
+          }}
           foot={
             <>
-              <Button kind="quiet" disabled={busy} onClick={() => setUpdating(null)}>
+              <Button
+                kind="quiet"
+                disabled={busy}
+                onClick={() => {
+                  setUpdating(null);
+                  setFromScope(false);
+                }}
+              >
                 Cancel
               </Button>
               {accepted.length > 0 ? (
@@ -727,7 +770,9 @@ export function QuoteLinesFace({
             <p>
               {accepted.length > 0
                 ? `${options > 1 ? `Option ${(accepted[0] ?? 0) + 1}` : "The quote"} is accepted, so this is a variation. The accepted quote stays as it is. The variation is priced as the difference, and the client approves it on its own.`
-                : `The quote is approved, so this is version ${version + 1}. Version ${version} is kept as it stands, the approval comes off, and it goes back through Approve and Send.`}
+                : gone?.quoted
+                  ? `The quote was sent on ${gone.quoted.on} and isn't accepted, so this is version ${version + 1}. Version ${version} is kept as it was sent, and version ${version + 1} goes through Approve and Send.`
+                  : `The quote is approved, so this is version ${version + 1}. Version ${version} is kept as it stands, the approval comes off, and it goes back through Approve and Send.`}
             </p>
             <Field label="What's changing">
               <TextArea className="ql-vwhat" rows={3} value={updating ?? ""} data-autofocus disabled={busy} onChange={(e) => setUpdating(e.target.value)} />
@@ -754,8 +799,13 @@ export function QuoteLinesFace({
             />
           }
           added={
-            chat && !view?.accepted?.length ? (
-              <AddedRows items={added} onLeave={(text) => takeOff([text])} onPrice={priceThem} />
+            chat ? (
+              <AddedRows
+                items={added}
+                since={after ? (gone?.quoted ? "sent" : "accepted") : "priced"}
+                onLeave={(text) => takeOff([text])}
+                onPrice={after ? updateFromScope : priceThem}
+              />
             ) : null
           }
           design={

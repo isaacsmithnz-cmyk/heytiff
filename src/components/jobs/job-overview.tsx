@@ -103,6 +103,8 @@ export function JobOverview({
   scope: brief = null,
   scopeReading = false,
   onUndoScope,
+  onLeaveScope,
+  scopeUpdateHref,
   fallbackWhat,
   diary,
   onToast,
@@ -122,6 +124,10 @@ export function JobOverview({
   /** Tiff is reading something new on the job. */
   scopeReading?: boolean;
   onUndoScope?: () => Promise<void>;
+  /** Leave out, off Since the quote. */
+  onLeaveScope?: (text: string) => Promise<void>;
+  /** The quote, opened on Update quote with what's changing written in. */
+  scopeUpdateHref?: string;
   /** The row's title, until the detail's description is read. */
   fallbackWhat: string | null;
   diary: ConversationDiary;
@@ -259,7 +265,7 @@ export function JobOverview({
       <div className="jov-cols">
         <div className={`jov-main${mainFits ? " jov-main--stick" : ""}`} ref={mainRef}>
           {brief ? (
-            <JobScope scope={brief} reading={scopeReading} onUndo={onUndoScope} />
+            <JobScope scope={brief} reading={scopeReading} onUndo={onUndoScope} onLeave={onLeaveScope} updateHref={scopeUpdateHref} />
           ) : (
             <JobSummary fromQuote={read?.summary ?? null} description={what} read={readDone || !!read || (!cardId && !loading)} />
           )}

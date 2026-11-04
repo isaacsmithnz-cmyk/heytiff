@@ -76,3 +76,43 @@ it("says it's reading a new note above the brief it still shows, with no Undo me
   expect(screen.getByRole("region", { name: "Scope" })).toHaveTextContent("Four systems");
   expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
 });
+
+describe("after it's sent", () => {
+  const study = { text: "Concealed fan coil unit next to the Study", from: "Anna Vaughan's email, Tue 3 Nov" };
+  const sent = (over: Partial<JobScopeRead> = {}) =>
+    scope({ added: [...scope().added, study], sincePriced: [study], quoted: { on: "Wed 28 Oct", version: 1 }, ...over });
+
+  it("is the scope as quoted, with the day ServiceM8 sent it", () => {
+    render(<JobScope scope={sent()} />);
+    const s = screen.getByRole("region", { name: "Scope as quoted" });
+    expect(s).toHaveTextContent("Sent from ServiceM8, Wed 28 Oct");
+  });
+
+  it("puts what's landed since under Since the quote, out of Added, with Update quote", () => {
+    render(<JobScope scope={sent()} updateHref="/dashboard/jobs/j1/quote?update=1" />);
+    const added = screen.getByRole("region", { name: "Scope as quoted" });
+    expect(added).not.toHaveTextContent(study.text);
+    const since = screen.getByRole("region", { name: "Since the quote" });
+    expect(since).toHaveTextContent(study.text + study.from);
+    expect(within(since).getByRole("link", { name: "Update quote" })).toHaveAttribute("href", "/dashboard/jobs/j1/quote?update=1");
+  });
+
+  it("leaves a thing out from its row", async () => {
+    const onLeave = jest.fn(async () => {});
+    render(<JobScope scope={sent()} onLeave={onLeave} />);
+    fireEvent.click(within(screen.getByRole("region", { name: "Since the quote" })).getByRole("button", { name: "Leave out" }));
+    await waitFor(() => expect(onLeave).toHaveBeenCalledWith(study.text));
+  });
+
+  it("is the same once the job's accepted, with no sent day to give", () => {
+    render(<JobScope scope={sent({ quoted: null, accepted: true })} />);
+    expect(screen.getByRole("region", { name: "Scope" })).not.toHaveTextContent("Sent from ServiceM8");
+    expect(screen.getByRole("region", { name: "Since the quote" })).toHaveTextContent(study.text);
+  });
+
+  it("before it's sent, keeps what's waiting on the quote in Added and draws no Since the quote", () => {
+    render(<JobScope scope={sent({ quoted: null })} />);
+    expect(screen.getByRole("region", { name: "Scope" })).toHaveTextContent(study.text);
+    expect(screen.queryByRole("region", { name: "Since the quote" })).toBeNull();
+  });
+});

@@ -253,9 +253,21 @@ export function OptionRows({ rows, onPick }: { rows: { option: number; name: str
 /** What's landed on the job since the quote was priced (the scope on the
     quote, Isaac's yes, 2 November 2026): nothing when nothing has. Leave out
     takes a thing off this list and leaves it in the job's brief. */
-export function AddedRows({ items, onLeave, onPrice }: { items: { text: string; from: string }[]; onLeave: (text: string) => void; onPrice: () => void }) {
+export function AddedRows({
+  items,
+  since = "priced",
+  onLeave,
+  onPrice,
+}: {
+  items: { text: string; from: string }[];
+  /** what it's landed since: before it's sent, Price them; after, Update
+      quote, orange as quoting is (25c, slice 4) */
+  since?: "priced" | "sent" | "accepted";
+  onLeave: (text: string) => void;
+  onPrice: () => void;
+}) {
   if (items.length === 0) return null;
-  const heading = `${items.length} added since it was priced`;
+  const heading = `${items.length} added since it was ${since}`;
   return (
     <section className="qc-added" aria-label={heading}>
       <h2>{heading}</h2>
@@ -270,7 +282,11 @@ export function AddedRows({ items, onLeave, onPrice }: { items: { text: string; 
           </li>
         ))}
       </ul>
-      <Button kind="second" size={36} onClick={onPrice}>Price them</Button>
+      {since === "priced" ? (
+        <Button kind="second" size={36} onClick={onPrice}>Price them</Button>
+      ) : (
+        <Button kind="quote" size={36} onClick={onPrice}>Update quote</Button>
+      )}
     </section>
   );
 }

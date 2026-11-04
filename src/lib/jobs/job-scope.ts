@@ -30,7 +30,9 @@
    the brief is the scope as quoted, and what's waiting on the quote is Since
    the quote: on the Overview and the rail alike, Update quote takes it into
    the next version, or a variation once it's accepted, and Tiff prices the
-   difference. */
+   difference. An item taken into a version stays on the list with that
+   version's number: "In version 2" until ServiceM8 sends it, then it's in
+   Added as "Version 2, from …". */
 
 import type { StoryEntry } from "@/lib/workboard/job-story";
 
@@ -45,7 +47,12 @@ export type ScopeSystem = {
   from: string[];
 };
 
-export type ScopeAdded = { text: string; from: string };
+export type ScopeAdded = {
+  text: string;
+  from: string;
+  /** Taken into this version of the quote by Update quote. */
+  version?: number;
+};
 export type ScopeQuestion = { q: string; who: string };
 /** What came in lately and what it did to the scope. */
 export type ScopeUpdate = { on: string; from: string; said: string };
@@ -302,6 +309,28 @@ export const pastQuote = (s: Pick<JobScopeRead, "quoted" | "accepted">): boolean
     went. Each kept version is the quote as it stood before the next. */
 export const sentVersion = (sentMs: number, keptAt: readonly string[]): number =>
   1 + keptAt.filter((at) => Date.parse(at) < sentMs).length;
+
+/** Since the quote, as the job shows it: what's still open, what's in a
+    version not yet sent, and what went in a version ServiceM8 has sent (or
+    one the client has since accepted). */
+export function sinceRows(s: Pick<JobScopeRead, "sincePriced" | "quoted" | "accepted">): { open: ScopeAdded[]; inVersion: ScopeAdded[]; sent: ScopeAdded[] } {
+  const all = s.sincePriced ?? [];
+  const sentUpTo = s.accepted ? Infinity : (s.quoted?.version ?? 0);
+  return {
+    open: all.filter((a) => !a.version),
+    inVersion: all.filter((a) => !!a.version && a.version > sentUpTo),
+    sent: all.filter((a) => !!a.version && a.version <= sentUpTo),
+  };
+}
+
+/** Where a thing that went in a sent version came from, on Added. */
+export const versionFrom = (a: ScopeAdded): string => (a.version ? `Version ${a.version}${a.from ? `, from ${a.from}` : ""}` : a.from);
+
+/** Into a version: the items stay on the list, marked with its number. */
+export const intoVersion = (waiting: readonly ScopeAdded[], taken: readonly string[], version: number): ScopeAdded[] => {
+  const into = new Set(taken.map(sameWords));
+  return waiting.map((a) => (into.has(sameWords(a.text)) ? { ...a, version } : a));
+};
 
 /** The line under Scope as quoted. */
 export const quotedLine = (q: ScopeQuoted): string => `${q.version > 1 ? `Version ${q.version} sent` : "Sent"} from ServiceM8, ${q.on}`;

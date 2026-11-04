@@ -12,6 +12,7 @@ import {
   scopeWanted,
   stillAdded,
   withoutAdded,
+  intoVersion,
   wordsWithoutMoney,
   sentVersion,
   type JobScopeRead,
@@ -249,13 +250,14 @@ export async function undoJobScope(orgId: string, remoteId: string, who: string 
 }
 
 /** Off the quote's rail, priced or left out. It stays in the brief, and asks
-    nothing of Tiff. */
-export async function takeOffQuoteRail(orgId: string, remoteId: string, taken: readonly string[]): Promise<ScopeRefreshResult> {
+    nothing of Tiff. Taken into a version (`into`), it stays on the list with
+    that version's number, so the job can say "In version 2" until it's sent. */
+export async function takeOffQuoteRail(orgId: string, remoteId: string, taken: readonly string[], into?: number | null): Promise<ScopeRefreshResult> {
   const { parentRemoteId: jobUuid } = await resolveJobCard(orgId, remoteId);
   const row = await readRow(orgId, jobUuid);
   const scope = asScope(row);
   if (!row || !scope) return { ok: false, reason: "There's no scope on this job." };
-  const waiting = withoutAdded(sincePricedOf(row), taken);
+  const waiting = into ? intoVersion(sincePricedOf(row), taken, into) : withoutAdded(sincePricedOf(row), taken);
   const writtenAt = new Date().toISOString();
   const wrote = await writeOver(orgId, jobUuid, row, { since_priced: waiting, written_at: writtenAt });
   if (!wrote) return { ok: false, reason: "The scope has just changed. Have another look." };

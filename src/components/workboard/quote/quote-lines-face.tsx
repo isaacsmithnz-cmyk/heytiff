@@ -289,17 +289,21 @@ export function QuoteLinesFace({
     let live = true;
     void askScope({ job }).then((a) => {
       if (!live || !a?.ok) return;
-      setAdded(a.scope?.sincePriced ?? []);
+      /* what's been taken into a version is being priced there already */
+      setAdded((a.scope?.sincePriced ?? []).filter((x) => !x.version));
       setGone(a.scope ? { quoted: a.scope.quoted ?? null, accepted: !!a.scope.accepted } : null);
     });
     return () => {
       live = false;
     };
   }, [job, chat]);
-  const takeOff = (texts: string[]) => {
+  /* into: the version Update quote just started, so the job can say "In
+     version 2" until ServiceM8 sends it */
+  const into = useRef<number | null>(null);
+  const takeOff = (texts: string[], version: number | null = null) => {
     const was = added;
     setAdded(withoutAdded(was, texts));
-    void askScope({ job, off: texts }).then((a) => {
+    void askScope({ job, off: texts, ...(version ? { into: version } : {}) }).then((a) => {
       if (a?.ok) return;
       setAdded(was);
       setNote("That didn't save. Try again.");
@@ -426,7 +430,10 @@ export function QuoteLinesFace({
     setPaper(false);
     onPriced();
     onToast?.(`Version ${version} kept. This is version ${version + 1}, to approve again`);
-    if (fromScope) priceThem();
+    if (fromScope) {
+      into.current = version + 1;
+      priceThem();
+    }
     setFromScope(false);
   };
   const markVariation = async (op: "variation-approve" | "variation-accept", option: number, accepting: boolean) => {
@@ -643,7 +650,9 @@ export function QuoteLinesFace({
         pdf={money && view?.approved && !variation ? `/api/workboard/quote-pdf?job=${encodeURIComponent(job)}` : null}
         /* the client can say yes once it's approved, or on another option */
         acceptable={!!view?.approved || accepted.length > 0}
-        update={(accepted.length > 0 || !!view?.approved) && !variation}
+        /* once something's landed since it was sent, the rail's own Update
+           quote, with it written in, is the one */
+        update={(accepted.length > 0 || !!view?.approved) && !variation && !(chat && after && added.length > 0)}
         options={options}
         at={at}
         accepted={accepted.includes(at)}
@@ -677,7 +686,13 @@ export function QuoteLinesFace({
             confirmTitle={confirmTitle}
             words={{ proposal: view?.proposal ?? null, optionNames: view?.optionNames ?? [], options: quoteOptions }}
             say={say}
-            onSaid={() => takeOff(added.map((a) => a.text))}
+            onSaid={() => {
+              takeOff(
+                added.map((a) => a.text),
+                into.current,
+              );
+              into.current = null;
+            }}
             onChanged={() => {
               reload();
               onPriced();

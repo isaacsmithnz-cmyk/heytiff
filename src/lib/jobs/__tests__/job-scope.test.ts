@@ -1,5 +1,5 @@
 import type { StoryEntry } from "@/lib/workboard/job-story";
-import { SCOPE_SCHEMA, changingWords, newlyAdded, pastQuote, priceThemWords, quotedLine, sentVersion, scopeMoved, scopeOf, scopePrompt, scopeStamp, scopeWanted, stillAdded, wordsWithoutMoney } from "../job-scope";
+import { SCOPE_SCHEMA, changingWords, intoVersion, newlyAdded, sinceRows, versionFrom, pastQuote, priceThemWords, quotedLine, sentVersion, scopeMoved, scopeOf, scopePrompt, scopeStamp, scopeWanted, stillAdded, wordsWithoutMoney } from "../job-scope";
 
 /* A job's scope, as Tiff's written brief (Isaac, 28 October 2026: "a common
    point where a quote can get built from"): what she's handed, and how her
@@ -169,5 +169,28 @@ describe("after it's sent", () => {
     );
     expect(changingWords([{ text: "New trunking.", from: "" }, { text: "A pump", from: "Isaac's note" }])).toBe("New trunking; A pump (Isaac's note).");
     expect(changingWords([])).toBe("");
+  });
+
+  describe("taken into a version", () => {
+    const study = { text: "Concealed fan coil unit next to the Study", from: "Anna Vaughan's email" };
+    const pump = { text: "A condensate pump", from: "Isaac's note" };
+
+    it("marks what's taken with the version's number and keeps the rest open", () => {
+      expect(intoVersion([study, pump], ["concealed fan coil unit  next to the study"], 2)).toEqual([{ ...study, version: 2 }, pump]);
+    });
+
+    it("is in version 2 until ServiceM8 sends it, then it went", () => {
+      const list = [{ ...study, version: 2 }, pump];
+      expect(sinceRows({ sincePriced: list, quoted: { on: "Wed 28 Oct", version: 1 }, accepted: false })).toEqual({ open: [pump], inVersion: [{ ...study, version: 2 }], sent: [] });
+      expect(sinceRows({ sincePriced: list, quoted: { on: "Wed 4 Nov", version: 2 }, accepted: false })).toEqual({ open: [pump], inVersion: [], sent: [{ ...study, version: 2 }] });
+      /* accepted: whichever version the client said yes to went */
+      expect(sinceRows({ sincePriced: list, quoted: null, accepted: true }).sent).toEqual([{ ...study, version: 2 }]);
+    });
+
+    it("says on Added which version it went in", () => {
+      expect(versionFrom({ ...study, version: 2 })).toBe("Version 2, from Anna Vaughan's email");
+      expect(versionFrom({ text: "x", from: "", version: 3 })).toBe("Version 3");
+      expect(versionFrom(pump)).toBe("Isaac's note");
+    });
   });
 });

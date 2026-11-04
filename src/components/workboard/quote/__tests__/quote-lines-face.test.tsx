@@ -1382,7 +1382,7 @@ describe("after it's sent", () => {
     });
     expect(posted).toContainEqual(expect.objectContaining({ op: "version", what: "Concealed fan coil unit next to the Study (Anna Vaughan's email, Tue 3 Nov)." }));
     await waitFor(() => expect(posted).toContainEqual(expect.objectContaining({ url: "/api/workboard/quote-session", message: "Price what's been added: Concealed fan coil unit next to the Study." })));
-    await waitFor(() => expect(posted).toContainEqual(expect.objectContaining({ url: "/api/workboard/job-scope", off: [study.text] })));
+    await waitFor(() => expect(posted).toContainEqual(expect.objectContaining({ url: "/api/workboard/job-scope", off: [study.text], into: 2 })));
   });
 
   it("says on the rail what's landed since it was sent, with Update quote", async () => {
@@ -1390,9 +1390,26 @@ describe("after it's sent", () => {
     expect(await screen.findByRole("heading", { name: "1 added since it was sent" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Price them" })).toBeNull();
     expect(screen.queryByRole("dialog", { name: "Update quote" })).toBeNull();
+    /* one Update quote: the rail's, with what's landed written in */
+    expect(screen.getAllByRole("button", { name: "Update quote" })).toHaveLength(1);
     fireEvent.click(within(screen.getByRole("region", { name: "1 added since it was sent" })).getByRole("button", { name: "Update quote" }));
     expect(within(screen.getByRole("dialog", { name: "Update quote" })).getByLabelText("What's changing")).toHaveValue(
       "Concealed fan coil unit next to the Study (Anna Vaughan's email, Tue 3 Nov).",
     );
+  });
+
+  it("leaves what's in version 2 off the rail, and keeps the actions' Update quote", async () => {
+    const inV2 = { ...brief, sincePriced: [{ ...study, version: 2 }] };
+    (global as unknown as { fetch: jest.Mock }).fetch = jest.fn(async (url: string) => ({
+      json: async () =>
+        String(url).startsWith("/api/workboard/quote-session")
+          ? session
+          : String(url).startsWith("/api/workboard/job-scope")
+            ? { ok: true, scope: inV2 }
+            : { ...view([indoor, core]), ok: true, approved: true, proposal: null },
+    }));
+    render(<QuoteLinesFace job="job-3377" price={price} onPriced={jest.fn()} />);
+    expect(await screen.findByRole("button", { name: "Update quote" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /added since it was/ })).toBeNull();
   });
 });

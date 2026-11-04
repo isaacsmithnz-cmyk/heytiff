@@ -8,7 +8,8 @@ import { takeOffQuoteRail, undoJobScope, refreshJobScope, withQuoteState } from 
    anything moved is decided here, so asking again costs a derive, never a
    second read. No money in it, so no money gate. `undo` puts the brief back
    as it was before Tiff's newest change, and asks nothing of her; nor does
-   `off`, which takes what's been priced or left out off the quote's rail.
+   `off`, which takes what's been priced or left out off the quote's rail,
+   or with `into`, marks it as taken into that version of the quote.
    Every answer says whether the quote has gone to the client (slice 4). */
 
 export const maxDuration = 120;
@@ -22,18 +23,20 @@ export async function POST(req: Request) {
   let job: string | null = null;
   let undo = false;
   let off: string[] = [];
+  let into: number | null = null;
   try {
-    const body = (await req.json()) as { job?: unknown; undo?: unknown; off?: unknown };
+    const body = (await req.json()) as { job?: unknown; undo?: unknown; off?: unknown; into?: unknown };
     job = typeof body.job === "string" ? body.job.trim().slice(0, 80) : null;
     undo = body.undo === true;
     off = Array.isArray(body.off) ? body.off.filter((t): t is string => typeof t === "string").slice(0, 12) : [];
+    into = typeof body.into === "number" && Number.isInteger(body.into) && body.into >= 2 && body.into <= 99 ? body.into : null;
   } catch {
     job = null;
   }
   if (!job) return Response.json({ ok: false, reason: "No job named." }, { status: 400 });
 
   if (off.length) {
-    const done = await takeOffQuoteRail(orgId, job, off);
+    const done = await takeOffQuoteRail(orgId, job, off, into);
     return Response.json(done.ok ? { ok: true, scope: await withQuoteState(orgId, job, done.scope) } : done);
   }
   if (undo) {

@@ -8,6 +8,9 @@
 
 const asked: string[] = [];
 let rows: { uuid: string; start_date: string | null; end_date: string | null; staff_uuid: string | null }[] = [];
+/* ServiceM8's recorded time, and the phone's own check-ins, for a missed visit */
+let recorded: { start_date: string }[] = [];
+let stints: { checked_in_at: string }[] = [];
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
     from: (table: string) => {
@@ -16,12 +19,14 @@ jest.mock("@/lib/supabase-server", () => ({
         select: () => q,
         eq: (c: string, v: unknown) => (f.push(`${c}=${v}`), q),
         gte: (c: string, v: unknown) => (f.push(`${c}>=${v}`), q),
+        lt: (c: string, v: unknown) => (f.push(`${c}<${v}`), q),
         in: (c: string, v: string[]) => (f.push(`${c} in ${v.length}`), q),
         order: () => q,
         limit: () => q,
         then: (res: (v: unknown) => unknown) => {
           asked.push(`${table} ${f.join(" ")}`);
-          if (table === "sm8_job_activities") return res({ data: rows, error: null });
+          if (table === "sm8_job_activities") return res({ data: f.includes("activity_was_scheduled=0") ? recorded : rows, error: null });
+          if (table === "job_check_ins") return res({ data: stints, error: null });
           return res({
             data: [
               { uuid: "aaa-alex", first: "Alex", last: "Morozoff" },
@@ -38,10 +43,12 @@ jest.mock("@/lib/supabase-server", () => ({
   },
 }));
 
-import { comingVisits } from "../visits";
+import { comingVisits, missedVisits } from "../visits";
 
 beforeEach(() => {
   asked.length = 0;
+  recorded = [];
+  stints = [];
 });
 
 test("a crewed day is one visit with everyone on it, from the first on to the last off", async () => {
@@ -78,4 +85,46 @@ test("a job with nothing coming has no visits, and reads no names", async () => 
 test("a booking with nobody on it is still a day, with no names", async () => {
   rows = [{ uuid: "act-9", start_date: "2026-11-02 09:00:00", end_date: null, staff_uuid: null }];
   expect(await comingVisits("org-diamond", "job-1352", "2026-10-26")).toEqual([{ day: "2026-11-02", start: "2026-11-02 09:00:00", end: null, crew: [], people: [] }]);
+});
+
+describe("missed: over, and no one there that day or since", () => {
+  /* Wednesday 4 November 2026, 7:18 am in Sydney: 3488's Monday booking, 3:00 to 4:00, had no one go */
+  const now = Date.parse("2026-11-03T20:18:00Z");
+  const monday = { uuid: "act-3488", start_date: "2026-11-02 15:00:00", end_date: "2026-11-02 16:00:00", staff_uuid: "ccc-isaac" };
+
+  test("Monday's booking no one went to is still the job's, to move", async () => {
+    rows = [monday];
+    expect(await missedVisits("org-diamond", "job-3488", now, "Australia/Sydney")).toEqual([
+      {
+        day: "2026-11-02",
+        start: "2026-11-02 15:00:00",
+        end: "2026-11-02 16:00:00",
+        crew: ["Isaac Smith"],
+        people: [{ activity: "act-3488", staffUuid: "ccc-isaac", name: "Isaac Smith", start: "2026-11-02 15:00:00", end: "2026-11-02 16:00:00" }],
+      },
+    ]);
+    /* a fortnight back, up to now on the account's clock */
+    expect(asked[0]).toBe("sm8_job_activities org_id=org-diamond active=1 job_uuid=job-3488 activity_was_scheduled=1 start_date>=2026-10-21 00:00:00 start_date<2026-11-04 07:18:00");
+  });
+
+  test("someone checked in on the job that day or since: it happened, nothing to move", async () => {
+    rows = [monday];
+    recorded = [{ start_date: "2026-11-02 15:10:00" }];
+    expect(await missedVisits("org-diamond", "job-3488", now, "Australia/Sydney")).toEqual([]);
+    recorded = [];
+    /* the phone's own, Tuesday 9:00 am in Sydney */
+    stints = [{ checked_in_at: "2026-11-02T22:00:00Z" }];
+    expect(await missedVisits("org-diamond", "job-3488", now, "Australia/Sydney")).toEqual([]);
+  });
+
+  test("time on the job before the missed day doesn't cover it", async () => {
+    rows = [monday];
+    recorded = [{ start_date: "2026-10-28 08:00:00" }];
+    expect((await missedVisits("org-diamond", "job-3488", now, "Australia/Sydney")).map((v) => v.day)).toEqual(["2026-11-02"]);
+  });
+
+  test("a booking still running isn't missed yet", async () => {
+    rows = [{ ...monday, start_date: "2026-11-04 07:00:00", end_date: "2026-11-04 09:00:00" }];
+    expect(await missedVisits("org-diamond", "job-3488", now, "Australia/Sydney")).toEqual([]);
+  });
 });

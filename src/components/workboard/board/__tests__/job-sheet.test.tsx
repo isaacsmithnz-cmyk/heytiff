@@ -196,8 +196,10 @@ jest.mock("@/app/actions/job-documents", () => ({
   attachJobDocument: (...a: unknown[]) => attachJobDocument(...(a as [string, string])),
   removeJobDocument: (...a: unknown[]) => removeJobDocument(...(a as [string])),
 }));
+const saveJobNote = jest.fn(async (_job: string, body: string, _o?: { id?: string }) => ({ id: "n-saved", text: body, at: "2026-11-06 15:42:00", author: "Isaac Smith" }));
 jest.mock("@/app/actions/job-notes", () => ({
   addJobNote: (...a: unknown[]) => addJobNote(...(a as [string, string])),
+  saveJobNote: (job: string, body: string, o?: { id?: string }) => saveJobNote(job, body, o),
   removeJobNote: (...a: unknown[]) => removeJobNote(...(a as [])),
   taskFromJobNote: (...a: unknown[]) => taskFromJobNote(...(a as [])),
   dismissJobNote: (...a: unknown[]) => dismissJobNote(...(a as [])),
@@ -1083,29 +1085,24 @@ describe("the attention strip", () => {
 
 /** Words typed in the conversation's box and kept as typed: the pen's write. */
 /* a private note: My notes only ticked, then the one button, which says so */
-const keepTyped = async (words: string) => {
-  await userEvent.type(convo().getByRole("textbox", { name: "Tell Tiff about this job" }), words);
-  const tick = convo().getByRole("checkbox", { name: "My notes only" }) as HTMLInputElement;
-  if (!tick.checked) await userEvent.click(tick);
-  await userEvent.click(convo().getByRole("button", { name: "Save to my notes" }));
+const saveTyped = async (words: string) => {
+  await userEvent.type(convo().getByRole("textbox", { name: "Write a note on this job" }), words);
+  await userEvent.click(convo().getByRole("button", { name: "Save" }));
 };
 
 describe("writing on the job", () => {
-  /* Isaac, 26 October 2026: a note on the job is Send's (Tiff files it, and
-     the one tidied note goes to ServiceM8 by itself); the box's other door
-     keeps words privately, in My notes */
-  it("keeps a private note in My notes: nothing written on the job, nothing sent", async () => {
+  /* Isaac, 6 November 2026: "Save creates a raw note, tiff processes it like
+     she does today": the box's Save files the words as written on the job,
+     with no Tiff, and the server sends it on to ServiceM8 as any job note */
+  it("saves the words as written on the job, with no Tiff", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<Job row={row()} {...props} />);
     await detailLanded();
     await waitFor(() => expect(readJobRecord).toHaveBeenCalled());
-
-    const f = convo();
-    await keepTyped("Drain kit still to go on");
-    const { addMyNote } = jest.requireMock("@/app/actions/my-notes") as { addMyNote: jest.Mock };
-    await waitFor(() => expect(addMyNote).toHaveBeenCalledWith({ body: "Drain kit still to go on", source: "text" }));
-    expect(addJobNote).not.toHaveBeenCalled();
-    expect(f.queryByText("Drain kit still to go on", { ignore: "textarea" })).toBeNull();
+    saveJobNote.mockClear();
+    await saveTyped("Drain kit still to go on");
+    await waitFor(() => expect(saveJobNote).toHaveBeenCalledWith(expect.any(String), "Drain kit still to go on", { id: expect.any(String) }));
+    expect(routeNote).not.toHaveBeenCalled();
   });
 
   it("takes one back off when asked", async () => {
@@ -1260,17 +1257,16 @@ it("(F) the strip's Reply opens the conversation at the note, with its box open;
     expect(screen.queryByRole("region", { name: "Open on this job" })).toBeNull();
   });
   /* the tick went on 26 October 2026: a note on the job goes by itself */
-  it("offers no Also in ServiceM8 tick, and a private note sends nothing to ServiceM8", async () => {
+  it("offers no Also in ServiceM8 tick, and Save sends nothing from the page: the server sends it on", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(withNotes({ attention: { items: [], total: 0 } }));
     render(<Job row={row()} {...props} />);
     await detailLanded();
     await waitFor(() => expect(readJobRecord).toHaveBeenCalled());
     expect(convo().queryByRole("checkbox", { name: NOTE_WORDS.door.alsoInSm8 })).toBeNull();
-    await keepTyped("Drain kit");
-    const { addMyNote } = jest.requireMock("@/app/actions/my-notes") as { addMyNote: jest.Mock };
-    await waitFor(() => expect(addMyNote).toHaveBeenCalled());
-    expect(addJobNote).not.toHaveBeenCalled();
+    saveJobNote.mockClear();
+    await saveTyped("Drain kit");
+    await waitFor(() => expect(saveJobNote).toHaveBeenCalled());
     expect(noteSm8.sendJobNoteToServiceM8).not.toHaveBeenCalled();
   });
 

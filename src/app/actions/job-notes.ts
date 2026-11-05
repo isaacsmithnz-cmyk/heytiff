@@ -10,6 +10,8 @@ import { sm8Ours } from "@/lib/integrations/sm8-echo";
 import { NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
 import { takeBackJobNote } from "./job-note-sm8";
 import { writeJobNote } from "@/lib/workboard/job-note-write";
+import { sendNoteOnToSm8 } from "@/lib/integrations/sm8-note-send-on";
+import { sm8PressFromSession } from "@/lib/integrations/sm8-press";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -45,6 +47,18 @@ const WB = "/dashboard/workboard";
 export async function addJobNote(jobUuid: string, body: string, opts: { id?: string } = {}): Promise<OurJobNote> {
   const { orgId, userId } = await requireOrg("workboard");
   const note = await writeJobNote({ orgId, userId, jobUuid, body, composeId: opts?.id });
+  revalidatePath(WB);
+  return note;
+}
+
+/** Save: the words as written, on the job, with no Tiff, and on to
+    ServiceM8 as any job note goes (Isaac, 6 November 2026: "Save creates a
+    raw note, tiff processes it like she does today"). The box's other way
+    out, Tiff's arrow, is the note router's. */
+export async function saveJobNote(jobUuid: string, body: string, opts: { id?: string } = {}): Promise<OurJobNote> {
+  const { orgId, userId } = await requireOrg("workboard");
+  const note = await writeJobNote({ orgId, userId, jobUuid, body, composeId: opts?.id });
+  await sendNoteOnToSm8(sm8PressFromSession, orgId, note.id, jobUuid.trim());
   revalidatePath(WB);
   return note;
 }

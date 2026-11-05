@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button, IconButton } from "@/components/parts/button";
 import { Fade } from "@/components/parts/fade";
 import { StateWord, type Tone } from "@/components/parts/state";
@@ -23,7 +23,7 @@ import { uploadFile } from "@/lib/documents/upload-client";
 import { RECEIPT_ACCEPT } from "@/lib/expenses/claim";
 import { fmtAuTime } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
-import { addMyNote, deleteMyNote } from "@/app/actions/my-notes";
+import { removeJobNote, saveJobNote } from "@/app/actions/job-notes";
 import { WindowsContext } from "@/components/records/records-context";
 import { emptyStoryLine, filterStory, fmtStoryMinutes, type StoryEntry, type StoryFilter } from "@/lib/workboard/job-story";
 import { conversationDays, stampClock, type JobNoteTalk, type MadeCard, type MadeKind } from "@/lib/jobs/job-conversation";
@@ -168,6 +168,8 @@ export function JobConversation({
   viewerName,
   voiceEnabled,
   onUndoTalk,
+  jobUuid = null,
+  onSaved,
   customer = NONE,
   comms = NO_COMMS,
 }: {
@@ -188,6 +190,10 @@ export function JobConversation({
   /** Undo on a note told to Tiff before: what it made is taken back
       (`undoNote`), and the conversation reads again. */
   onUndoTalk?: (noteId: string) => Promise<unknown>;
+  /** The job Save files on. */
+  jobUuid?: string | null;
+  /** A note Save filed, or its Undo took back: the feed reads again. */
+  onSaved?: () => void;
   /** The customer's threads and ServiceM8's sends (customer-messages). */
   customer?: CustomerItem[];
   /** Every text and email with the customer, as Comms shows them. */
@@ -339,32 +345,27 @@ export function JobConversation({
     } else convo.send();
   };
 
-  /* MY NOTES ONLY: the words kept for you alone (Isaac, 26 October 2026:
-     "Unless it's a private note, you just hit add to my notes instead"; the
-     tick's name is his). ONE BUTTON, whose word says what it does, and Enter
-     does the same: Send is the job's (Tiff files from the note, and the one
-     tidied note goes to the job and to ServiceM8 by itself); ticked, it is
-     Save to my notes, private, with nothing filed and nothing sent. The tick
-     stays as you left it, here and next time: a private note sent by mistake
-     is worse than a job note kept by mistake, and the button always says. */
+  /* SAVE: the words as written, on the job, with no Tiff, and on to
+     ServiceM8 as any job note goes (Isaac, 6 November 2026: "Save creates a
+     raw note, tiff processes it like she does today"). It took the place of
+     My notes only: a note just for you is made in Notes ("have a my notes
+     section, then add new note. It will stay contained to you there"). */
   const host = useContext(WindowsContext);
-  const [mineOnly, setMineOnly] = useMyNotesOnly();
   /* why your notes can't go to ServiceM8 yet, under the box */
   const sm8Why = !!diary.notesSm8;
-  const [keeping, setKeeping] = useState(false);
-  const keep = () => {
+  const [saving, setSaving] = useState(false);
+  const save = () => {
     const words = convo.draft.trim();
-    if (!words || keeping) return;
-    setKeeping(true);
-    void addMyNote({ body: words, source: "text" })
-      .catch(() => ({ ok: false as const, error: "Couldn't keep that note." }))
-      .then((r) => {
-        if (!r.ok) return host?.toast(r.error);
+    if (!words || saving || !jobUuid) return;
+    setSaving(true);
+    void saveJobNote(jobUuid, words, { id: crypto.randomUUID() })
+      .then((note) => {
         convo.setDraft("");
-        const id = r.id;
-        host?.toast("Saved to My notes", id ? () => void deleteMyNote(id) : undefined);
+        onSaved?.();
+        host?.toast("Saved", () => void removeJobNote(note.id).then(() => onSaved?.()));
       })
-      .finally(() => setKeeping(false));
+      .catch(() => host?.toast("Couldn't save that note."))
+      .finally(() => setSaving(false));
   };
 
   /* UNDO ON AN EARLIER NOTE: one press, one answer */
@@ -422,30 +423,26 @@ export function JobConversation({
         <CvBox
           value={convo.draft}
           onChange={convo.setDraft}
-          onSubmit={mineOnly ? keep : send}
-          label="Tell Tiff about this job"
-          placeholder="Tell Tiff about this job"
-          sendWord={mineOnly ? "Save to my notes" : "Send"}
-          sendLabel={mineOnly ? "Save to my notes" : "Send to Tiff"}
-          worded
-          waiting={mineOnly ? keeping : working || !canSend || photo?.state === "up"}
+          onSubmit={send}
+          label="Write a note on this job"
+          placeholder="Write a note on this job"
+          sendWord="Tiff"
+          sendLabel="Send to Tiff"
+          onSave={!photo && canSend ? save : undefined}
+          saving={saving}
+          waiting={working || !canSend || photo?.state === "up"}
           dict={voiceEnabled ? dict : null}
           voiceError={voiceErr}
           ranOut={ranOut}
           before={photo ? <PhotoChip photo={photo} onClear={clearPhoto} /> : null}
           lead={
             /* the + (a photo or a file, Isaac, 26 October 2026: "Add photo
-               should be the plus button"), then My notes only, in the box's
-               own bottom row; a photo goes with Send, so not with a private
-               note */
+               should be the plus button"); a photo goes to Tiff, so Save
+               steps aside while one is on */
             <span className="jc-lead">
-              {!photo && !mineOnly && (
+              {!photo && (
                 <IconButton glyph="add" label="Add a photo or a file" size={32} disabled={!canSend} onClick={() => picker.current?.click()} />
               )}
-              <label className="wb2-flcheck">
-                <input type="checkbox" checked={mineOnly} onChange={(e) => setMineOnly(e.target.checked)} />
-                My notes only
-              </label>
             </span>
           }
         />
@@ -599,40 +596,6 @@ function PhotoChip({ photo, onClear }: { photo: BoxPhoto; onClear: () => void })
       <IconButton glyph="clear" label="Clear the photo" size={32} onClick={onClear} />
     </div>
   );
-}
-
-/* MY NOTES ONLY, remembered in this browser: read through the store hook so
-   the server's first paint (unticked) and the browser's agree; blocked
-   storage starts it unticked. */
-const MINE_ONLY_KEY = "heytiff.box.myNotesOnly";
-const mineOnlyListeners = new Set<() => void>();
-const readMineOnly = () => {
-  try {
-    return localStorage.getItem(MINE_ONLY_KEY) === "1";
-  } catch {
-    return false;
-  }
-};
-function useMyNotesOnly(): [boolean, (on: boolean) => void] {
-  const on = useSyncExternalStore(
-    (fire) => {
-      mineOnlyListeners.add(fire);
-      return () => mineOnlyListeners.delete(fire);
-    },
-    readMineOnly,
-    () => false,
-  );
-  const set = (next: boolean) => {
-    /* worked out before the try: the compiler takes no conditional inside one */
-    const value = next ? "1" : "0";
-    try {
-      localStorage.setItem(MINE_ONLY_KEY, value);
-    } catch {
-      /* blocked storage: the tick lasts as long as the page */
-    }
-    for (const fire of mineOnlyListeners) fire();
-  };
-  return [on, set];
 }
 
 /** Undo on an earlier note's cards, from the conversation that reads it. */

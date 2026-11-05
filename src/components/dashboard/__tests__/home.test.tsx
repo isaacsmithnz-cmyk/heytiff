@@ -23,6 +23,9 @@ const reopenTask = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
 jest.mock("@/app/actions/dashboard", () => ({
   completeTask: (...a: unknown[]) => completeTask(...a),
   reopenTask: (...a: unknown[]) => reopenTask(...a),
+  /* the task's own form, which a row of new work opens */
+  taskPeople: jest.fn(async () => ({ people: [], me: null })),
+  readTaskForEdit: jest.fn(() => new Promise(() => {})),
 }));
 const snoozeReminder = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
 jest.mock("@/app/actions/job-note-sm8", () => ({ replyToJobNote: jest.fn() }));
@@ -257,8 +260,9 @@ describe("To do's Reply, on Home", () => {
     const feed = [...Array.from({ length: 10 }, (_, i) => mention(i + 1)), mention(0)];
     draw(today(), [link("task:m1", "Which fans for Rozelle?", "Reply", `/dashboard?reply=${NOTE}`, { source: "list" })], feed);
     const todo = section("To do");
-    expect(within(todo).queryByRole("link", { name: /Reply/ })).toBeNull();
-    await userEvent.click(within(todo).getByRole("button", { name: "Reply, Which fans for Rozelle?" }));
+    expect(within(todo).queryByRole("link", { name: /Rozelle/ })).toBeNull();
+    /* the row itself is the Reply (Isaac, 5 November 2026) */
+    await userEvent.click(within(todo).getByRole("button", { name: "Which fans for Rozelle?" }));
     const items = within(screen.getByRole("list", { name: "Your feed" })).getAllByRole("listitem");
     expect(within(items[0]).getByRole("textbox", { name: "Reply to Luke Parker" })).toBeInTheDocument();
     expect(refresh).not.toHaveBeenCalled();
@@ -266,16 +270,18 @@ describe("To do's Reply, on Home", () => {
 });
 
 describe("To do", () => {
-  it("(F) has no count, and every row has one button that goes where it should", () => {
+  it("(F) has no count, and no buttons: each row goes where its button went (Isaac, 5 November 2026)", () => {
     draw();
     const s = section("To do");
     expect(within(s).queryByText(String(ROWS.length))).toBeNull();
-    expect(within(s).getByRole("link", { name: "Renew, Hilux, XQG41B" })).toHaveAttribute("href", "/dashboard/assets?v=v1&screen=rego");
-    expect(within(s).getByRole("link", { name: "Reply, Which fans for Rozelle?" })).toHaveAttribute("href", "/dashboard/desk?ask=n-77");
-    expect(within(s).getByRole("link", { name: "Review, Timesheets" })).toHaveAttribute("href", "/dashboard/timepay");
-    expect(within(s).getByRole("link", { name: "Open, Toolbox talk" })).toHaveAttribute("href", "/dashboard/notices");
+    expect(within(s).getByRole("link", { name: "Hilux, XQG41B" })).toHaveAttribute("href", "/dashboard/assets?v=v1&screen=rego");
+    expect(within(s).getByRole("link", { name: "Which fans for Rozelle?" })).toHaveAttribute("href", "/dashboard/desk?ask=n-77");
+    expect(within(s).getByRole("link", { name: "Timesheets" })).toHaveAttribute("href", "/dashboard/timepay");
+    expect(within(s).getByRole("link", { name: "Toolbox talk" })).toHaveAttribute("href", "/dashboard/notices");
+    expect(within(s).queryByRole("link", { name: /^(Renew|Reply|Review|Open), / })).toBeNull();
+    expect(within(s).queryByRole("button", { name: /^(Got it|Open|Book in), / })).toBeNull();
+    /* a reminder keeps Later, the one thing nothing else does */
     expect(within(s).getByRole("button", { name: "Later, Ring the Hilux dealer" })).toBeInTheDocument();
-    expect(within(s).getByRole("button", { name: "Got it, Measure up Rozelle" })).toBeInTheDocument();
   });
 
   it("(F) says each row's state with its dot, and the trouble in its colour", () => {
@@ -296,23 +302,22 @@ describe("To do", () => {
     expect(screen.queryByText("Ring the Hilux dealer")).toBeNull();
   });
 
-  it("(F) Got it says you've seen it, and the row goes", async () => {
+  it("(F) opening new work says you've seen it", async () => {
     const asked = jest.fn();
     window.addEventListener("heytiff:bell-refresh", asked);
     draw();
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Got it, Measure up Rozelle" }));
+      fireEvent.click(within(section("To do")).getByRole("button", { name: "Measure up Rozelle" }));
     });
     expect(acknowledgeTask).toHaveBeenCalledWith("a1");
     expect(completeTask).not.toHaveBeenCalled();
-    expect(screen.queryByText("Measure up Rozelle")).toBeNull();
     // the sidebar's count asks again, and the page reads again
     expect(asked).toHaveBeenCalled();
     expect(refresh).toHaveBeenCalled();
     window.removeEventListener("heytiff:bell-refresh", asked);
   });
 
-  it("(F) a won job's Book in opens the Visit form over Home with the job filled in, and its row still opens the job", async () => {
+  it("(F) a won job's row opens Book in over Home with the job filled in", async () => {
     const won: TodoRow = {
       key: "job:j1",
       source: "list",
@@ -324,9 +329,9 @@ describe("To do", () => {
       act: { kind: "bookIn", label: "Book in", jobUuid: "j1", href: "/dashboard/jobs/j1?tab=visits" },
     };
     draw(today(), [won]);
-    expect(within(rowOf("Job 2380, Kingsford")).getAllByRole("link")[0]).toHaveAttribute("href", "/dashboard/jobs/j1?tab=visits");
+    expect(within(rowOf("Job 2380, Kingsford")).queryByRole("link")).toBeNull();
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Book in, Job 2380, Kingsford" }));
+      fireEvent.click(screen.getByRole("button", { name: "Job 2380, Kingsford" }));
     });
     const form = screen.getByRole("dialog", { name: "Book a visit" });
     expect(within(form).getByText("Job 2380, Kingsford")).toBeInTheDocument();

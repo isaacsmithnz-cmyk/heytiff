@@ -295,6 +295,17 @@ here rather than in the table below, each with his words and the day.
     are cards, though a column is not pressed.
   Tiff's box stays as it is, outlined. The hairline between the columns
   goes. A hover is still one change, a fill (rule 23): nothing lifts more.
+- **To do's rows have no buttons: the row is the door** (`home-todo.tsx`),
+  despite rule 39's one button on the right (Isaac, 5 November 2026, on
+  https://claude.ai/artifact/LHfRit1ThXLpobEXwZGPWK: "remove the action
+  buttons… You should just be able to click on whatever item it is… For
+  tasks, maybe just a tick to say done", then "build both"). Pressed
+  anywhere, a row goes where its button went; a won job's opens Book in
+  over Home. A task and a reminder keep their tick, and a reminder keeps
+  Later as a clock, an icon-only button despite rule 27, since nothing
+  else puts it off. Opening new work given to you is its Got it. Your feed
+  follows: its Open and Got it go, and it keeps Reply, and a field issue's
+  Make it a task and Done, which no door does.
 
 #### On a person's page
 
@@ -315,6 +326,18 @@ His calls on the job page (25 and 26 October and 3 and 4 November 2026; the firs
 on his mock https://claude.ai/artifact/GL43j32Z8xBo3CXekExHuF, the third
 on the refined Overview A, https://claude.ai/artifact/SGFpbThni6YZF6HU3SZpPL,
 the fourth on the customer's messages, below).
+
+- **The head is the job's plate, with the way back above it**
+  (`.jp-plate`, `.jp-back`; Isaac, 5 November 2026, B on
+  https://claude.ai/artifact/SJyEw4dkCb7MLp1bgCzypJ). The job's number in
+  a solid box of its colour, white on it, as a Schedule card has it (rule
+  19), with no hairline; beside it the job's address on one line at 24,
+  and the client under it in small print ("the contact is potentially
+  different, so we're not necessarily doubling the information"). A job
+  with no address is named by its client. Above it, a chevron and the
+  screen you came from in ink, a word button with no underline: Back to
+  it as you left it, and Jobs when there is nowhere to go back to (a
+  link, a refresh). It is one word, not a breadcrumb.
 
 - **Materials' groups have their icons in colour** (`.jm-ic`), despite old
   law 31, colour only where it means something. "Now just put some color or

@@ -7052,6 +7052,28 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jp-id { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:4px; }
 /* the job's colour dot beside its name, and no line under it (Isaac's mock, 25 October 2026) */
 .fg .jp-name { display:flex; align-items:center; gap:12px; margin:0; min-width:0; font-size:24px; font-weight:600; line-height:32px; color:var(--ink); }
+/* THE JOB'S PLATE (Isaac, 5 November 2026, B on
+   https://claude.ai/artifact/SJyEw4dkCb7MLp1bgCzypJ): the number in a
+   solid box of the job's colour, white on it, as a Schedule card has it
+   (rule 19), and the address beside it at the head's 24. No hairline. */
+.fg .jp-plate--red { --jp-hue:var(--red-w); }
+.fg .jp-plate--orange { --jp-hue:var(--orange-w); }
+.fg .jp-plate--yellow { --jp-hue:var(--yellow-w); }
+.fg .jp-plate--green { --jp-hue:var(--green-w); }
+.fg .jp-plate--blue { --jp-hue:var(--press); }
+.fg .jp-plate--purple { --jp-hue:var(--purple-w); }
+.fg .jp-plate--pink { --jp-hue:var(--pink-w); }
+.fg .jp-plate--grey { --jp-hue:var(--q); }
+.fg .jp-num { flex:none; display:inline-flex; align-items:center; justify-content:center; min-width:64px; align-self:stretch; min-height:40px; padding:0 12px; border-radius:var(--r-button); background:var(--jp-hue, var(--q)); color:var(--white); font-size:16px; line-height:24px; font-weight:700; font-variant-numeric:tabular-nums; }
+.fg .jp-top:has(.jp-num) { align-items:center; }
+.fg .jp-id.jp-plate { flex-direction:row; align-items:center; gap:12px; }
+.fg .jp-named { min-width:0; display:flex; flex-direction:column; }
+.fg .jp-client { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+/* THE WAY BACK (way-back.tsx): a word button in ink above the plate */
+.fg .jp-back { align-self:flex-start; display:inline-flex; align-items:center; gap:4px; margin:0 0 -8px -4px; padding:2px 8px 2px 4px; border:0; border-radius:var(--r-button); background:none;
+  font:inherit; font-size:13px; line-height:18px; font-weight:500; color:var(--ink); text-decoration:none; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.fg .jp-back:hover { background-color:var(--hov); }
+.fg .jp-back:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .jp-acts { flex:none; display:flex; align-items:center; gap:8px; }
 /* Add's and Actions' chevron, after the word */
 .fg .jp-chev { display:inline-flex; margin-left:4px; vertical-align:middle; }

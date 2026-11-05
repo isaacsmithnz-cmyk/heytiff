@@ -134,12 +134,15 @@ export function LinkButton({ href, children, className, ...rest }: LinkButtonPro
 
 /* ICON-ONLY (rule 27). Close, clear, the microphone and the ‹ › of a date,
    and a chat's Send and Minimise (Isaac, 20 October 2026: Tiff's chat as
-   Claude's), and nothing else, so the glyph is one of those by type. Square, in
+   Claude's), and a reminder's Later on Home's To do, a clock (Isaac,
+   5 November 2026: the rows lost their buttons, "maybe just a tick to say
+   done and whatever other action you think you need"), and nothing else,
+   so the glyph is one of those by type. Square, in
    the quiet dress, and its label is required: it is the button's only word
    for a screen reader, and a `title` is not a label (rule 25). */
-export type IconGlyph = "close" | "clear" | "mic" | "earlier" | "later" | "send" | "minimise" | "add";
+export type IconGlyph = "close" | "clear" | "mic" | "earlier" | "later" | "send" | "minimise" | "add" | "snooze";
 
-const GLYPH: Record<IconGlyph, string> = { close: "x", clear: "x", mic: "mic", earlier: "chevL", later: "chevR", send: "arrowUp", minimise: "minus", add: "plus" };
+const GLYPH: Record<IconGlyph, string> = { close: "x", clear: "x", mic: "mic", earlier: "chevL", later: "chevR", send: "arrowUp", minimise: "minus", add: "plus", snooze: "clock" };
 
 export type IconButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "className" | "children" | "aria-label"> & {
   glyph: IconGlyph;

@@ -2,7 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { remindKindOf } from "./reminders";
 import { asNoticeKind } from "./notices";
 import { tallyPoll, type PollOptionRow, type PollVoteRow } from "./polls";
-import { asRsvpAnswer, tallyRsvp, type RsvpRow } from "./events";
+import { asRsvpAnswer, rsvpPeople, tallyRsvp, type RsvpRow } from "./events";
 import { asReaction, tallyReactions, type ReactionRow } from "./reactions";
 import {
   mentionsOf,
@@ -155,7 +155,7 @@ export async function listNotices(
       .select(
         // one literal, not a concatenation: supabase-js infers the row type
         // FROM this string, and a `+` erases that back to unknown
-        "id, title, body, pinned, posted_by, created_at, revision, edited_at, kind, expires_at, archived_at, poll_multi, event_date, event_time, event_location",
+        "id, title, body, pinned, posted_by, created_at, revision, edited_at, kind, expires_at, archived_at, poll_multi, event_date, event_time, event_location, event_plus_one, event_ask_diet, event_answer_by",
       )
       .eq("org_id", orgId)
       .order("pinned", { ascending: false })
@@ -236,7 +236,17 @@ export async function listNotices(
               date: String(r.event_date).slice(0, 10),
               time: r.event_time ? String(r.event_time).slice(0, 5) : null,
               location: typeof r.event_location === "string" && r.event_location ? r.event_location : null,
-              rsvp: tallyRsvp(rsvps.get(id) ?? [], staffProfileId),
+              plusOne: r.event_plus_one === true,
+              askDiet: r.event_ask_diet === true,
+              answerBy: r.event_answer_by ? String(r.event_answer_by).slice(0, 10) : null,
+              rsvp: tallyRsvp(rsvps.get(id) ?? [], staffProfileId, r.event_plus_one === true),
+              people: rsvpPeople(rsvps.get(id) ?? []),
+              myDiet: (rsvps.get(id) ?? []).find((x) => x.staffId === staffProfileId)?.diet ?? null,
+              /* allergies are health: the poster sorts them with the venue, nobody else reads them */
+              diets:
+                r.event_ask_diet === true && !!poster && poster === staffProfileId
+                  ? (rsvps.get(id) ?? []).flatMap((x) => (x.diet ? [{ name: x.staffName, diet: x.diet }] : []))
+                  : null,
             }
           : null,
       reactions: tallyReactions(reactions.get(id) ?? [], staffProfileId),
@@ -299,7 +309,7 @@ async function rsvpsFor(
 
   const { data } = await supabaseAdmin
     .from("notice_rsvps")
-    .select("notice_id, staff_profile_id, answer")
+    .select("notice_id, staff_profile_id, answer, diet")
     .eq("org_id", orgId)
     .in("notice_id", [...noticeIds]);
 
@@ -309,7 +319,7 @@ async function rsvpsFor(
     const key = String(r.notice_id);
     const list = out.get(key) ?? [];
     const staffId = String(r.staff_profile_id);
-    list.push({ staffId, staffName: name(staffId), answer });
+    list.push({ staffId, staffName: name(staffId), answer, diet: typeof r.diet === "string" && r.diet.trim() ? r.diet : null });
     out.set(key, list);
   }
   return out;

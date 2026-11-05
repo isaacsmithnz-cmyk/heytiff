@@ -346,6 +346,12 @@ the fourth on the customer's messages, below).
   allowance is "a red line and how much over"). Used is grey, overtime's
   extra hours orange, and only what passes the quoted figure red, with
   the state word beside it saying how much ("4.25 h over").
+  Where the quote holds no hours (a ServiceM8 quote of one price), Labour
+  says "Hours not quoted" and its quiet Add hours opens in the line, visit
+  by visit, people and days at the working day, with no pop-up; Materials
+  says "Not quoted" with Add amount. Once added, the line reads as a quoted
+  one and says who planned it, with Change (Isaac, 5 November 2026, on
+  https://claude.ai/artifact/Gbw8CZCxNYBJSDEHTaAyv9: "Yes, build it").
 - **The Activity feed's conversation bubbles are filled** (`.jc-bubble`),
   despite old law 31, colour only where it means something, and "colour is
   solid, never a tint" as it applies elsewhere: here green means "us", not

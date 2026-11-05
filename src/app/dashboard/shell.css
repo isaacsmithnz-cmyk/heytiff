@@ -7445,6 +7445,19 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jtr-thing b { font-weight:500; overflow-wrap:anywhere; }
 .fg .jtr-amt { flex:none; font-size:14px; line-height:20px; color:var(--ink); font-variant-numeric:tabular-nums; }
 .fg .jtr-rows .jov-row:last-child, .fg .jtr-line:last-child { border-bottom:0; }
+/* Add hours and Add amount, in the line (Isaac, 5 November 2026) */
+.fg .jtr-by { display:flex; align-items:center; gap:4px; font-size:13px; line-height:18px; color:var(--q); }
+.fg .jtr-plan { display:flex; flex-direction:column; gap:8px; padding:8px 0 4px; }
+.fg .jtr-visit { display:flex; align-items:center; gap:8px; font-size:14px; line-height:20px; color:var(--q); }
+.fg .jtr-visit b { width:56px; flex:none; font-weight:600; color:var(--ink); }
+.fg .jtr-num { width:56px; flex:none; font-variant-numeric:tabular-nums; }
+.fg .jtr-money { width:120px; flex:none; font-variant-numeric:tabular-nums; }
+.fg .jtr-vh { margin-left:auto; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .jtr-addvisit { align-self:flex-start; margin-left:-12px; }
+.fg .jtr-wrong { margin:0; font-size:13px; line-height:18px; color:var(--red-w); }
+.fg .jtr-tot { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; padding-top:8px; border-top:1px solid var(--line); color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .jtr-tot b { font-weight:600; color:var(--ink); }
+.fg .jtr-acts { display:flex; gap:8px; }
 @media (max-width:1100px) {
   .fg .jov-cols { grid-template-columns:minmax(0,1fr); row-gap:16px; }
   .fg .jov-main--stick { position:static; }

@@ -291,7 +291,7 @@ export function JobOverview({
       {under}
       <div className="jov-cols">
         <div className={`jov-main${mainFits ? " jov-main--stick" : ""}`} ref={mainRef}>
-          {moneyVisible && cardId && tracker !== "none" && <JobTracker read={tracker} />}
+          {moneyVisible && cardId && tracker !== "none" && <JobTracker read={tracker} jobId={cardId} onRead={setTracker} />}
           {brief ? (
             <JobScope scope={brief} reading={scopeReading} onUndo={onUndoScope} onLeave={onLeaveScope} updateHref={scopeUpdateHref} />
           ) : (

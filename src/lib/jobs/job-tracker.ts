@@ -14,14 +14,46 @@ import type { Tone } from "@/components/parts/state";
    bar in orange. Only what the paid hours pass the quote by is red.
    MATERIALS: what was said used on the job (job_materials_used), priced
    from the price book at cost, against the quote's materials at cost.
-   EQUIPMENT: the quote's units, at cost, as quoted. */
+   EQUIPMENT: the quote's units, at cost, as quoted.
+
+   WHERE THE QUOTE DOESN'T SAY (Isaac, 5 November 2026, on 1352, a ServiceM8
+   quote of one price: "say hours were not quoted. Add manually", "visit one
+   2 guys 1 day / Add visit, visit 2 3 guys 1 day"): someone who sees money
+   adds the labour visit by visit, people x days x the working day, and the
+   materials as a sum at cost (job_tracker_plans). A quote's own hours or
+   materials always stand; the plan is read only where it has none. */
 
 export type TrackerItem = { name: string; detail: string | null; amount: string | null; noPrice?: boolean };
 export type TrackerDay = { day: string; who: string; hours: number; paidAs: number | null };
+/** One visit as it was priced, where the quote doesn't say. */
+export type PlanVisit = { people: number; days: number };
 export type TrackerRead = {
-  labour: { quotedHours: number | null; workedHours: number; paidHours: number; days: TrackerDay[]; leftOn: number };
+  labour: {
+    /** the quote's hours, else the plan's; null when neither says */
+    quotedHours: number | null;
+    workedHours: number;
+    paidHours: number;
+    days: TrackerDay[];
+    leftOn: number;
+    /** true where the quote has no hours of its own, so they can be added */
+    canPlan?: boolean;
+    /** the hours as added by hand, with who added them */
+    plan?: { visits: PlanVisit[]; dayHours: number; by: string | null } | null;
+    /** the business's working day, for the form; null when it has none set */
+    dayHours?: number | null;
+  };
   /** cents, at cost; null where the reader doesn't see costs */
-  materials: { allowance: number | null; spent: number | null; unpriced: number; count: number; items: TrackerItem[] };
+  materials: {
+    allowance: number | null;
+    spent: number | null;
+    unpriced: number;
+    count: number;
+    items: TrackerItem[];
+    /** true where the quote has no materials and the reader sees costs */
+    canPlan?: boolean;
+    /** the allowance as added by hand, with who added it */
+    plan?: { by: string | null } | null;
+  };
   equipment: { total: number | null; items: TrackerItem[] };
 };
 
@@ -82,7 +114,7 @@ export function trackerLabour(l: TrackerRead["labour"]): TrackerLook {
   const extra = r2(p - w);
   const under = extra > 0 ? `Overtime adds ${fmtHours(extra)}, paid as ${fmtHours(p)}` : null;
   const q = l.quotedHours;
-  if (q === null || q <= 0) return { tone: "info", word: "No hours quoted", parts: [], label: `Labour: ${fmtHours(w)} worked`, under };
+  if (q === null || q <= 0) return { tone: "info", word: "Hours not quoted", parts: [], label: `Labour: ${fmtHours(w)} worked`, under };
   const scale = Math.max(q, p);
   if (p > q) {
     const parts: Part[] = [
@@ -109,7 +141,7 @@ export function trackerMaterials(m: TrackerRead["materials"]): TrackerLook {
   const under = m.unpriced > 0 ? `${m.unpriced} without a price` : null;
   if (m.spent === null) return { tone: "info", word: m.count ? "As used" : "Nothing yet", parts: [], label: `Materials: ${m.count} used`, under: null };
   const a = m.allowance;
-  if (a === null || a <= 0) return { tone: "info", word: "Not on the quote", parts: [], label: `Materials: ${fmtAud(m.spent)} used`, under };
+  if (a === null || a <= 0) return { tone: "info", word: "Not quoted", parts: [], label: `Materials: ${fmtAud(m.spent)} used`, under };
   const s = m.spent;
   if (s > a) {
     return {
@@ -130,4 +162,37 @@ export function trackerMaterials(m: TrackerRead["materials"]): TrackerLook {
 export function qtyWord(qty: number, unit: string | null): string {
   const q = Math.round(qty * 1000) / 1000;
   return unit ? `${q} ${unit}` : `${q} used`;
+}
+
+/* ── the plan, where the quote doesn't say ── */
+
+export const PLAN_MAX_VISITS = 20;
+
+/** A plan's visits as typed, kept only where each is a real visit: whole
+    people from 1 to 50, days above nothing up to 100, at most 20 visits.
+    Null when anything typed isn't one; an empty list is no plan. Pure. */
+export function cleanVisits(raw: unknown): PlanVisit[] | null {
+  if (!Array.isArray(raw) || raw.length > PLAN_MAX_VISITS) return null;
+  const out: PlanVisit[] = [];
+  for (const v of raw) {
+    const people = Number((v as { people?: unknown } | null)?.people);
+    const days = Number((v as { days?: unknown } | null)?.days);
+    if (!Number.isInteger(people) || people < 1 || people > 50) return null;
+    if (!Number.isFinite(days) || days <= 0 || days > 100) return null;
+    out.push({ people, days: Math.round(days * 100) / 100 });
+  }
+  return out;
+}
+
+/** The hours a plan comes to: people x days x the working day. Pure. */
+export const planHours = (visits: readonly PlanVisit[], dayHours: number) =>
+  r2(visits.reduce((a, v) => a + v.people * v.days * dayHours, 0));
+
+const dayWord = (d: number) => `${r2(d)} ${d === 1 ? "day" : "days"}`;
+
+/** A plan as said: "3 people for 2 days, then 4 for 2 days". Pure. */
+export function planWords(visits: readonly PlanVisit[]): string {
+  return visits
+    .map((v, i) => (i === 0 ? `${v.people} ${v.people === 1 ? "person" : "people"} for ${dayWord(v.days)}` : `${v.people} for ${dayWord(v.days)}`))
+    .join(", then ");
 }

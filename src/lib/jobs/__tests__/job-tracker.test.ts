@@ -1,5 +1,5 @@
 import { DEFAULT_SETTINGS, type Settings } from "@/components/timepay/logic";
-import { dayName, dowOfDay, fmtHours, labourDays, paidHours, qtyWord, trackerLabour, trackerMaterials } from "../job-tracker";
+import { cleanVisits, dayName, dowOfDay, fmtHours, labourDays, paidHours, planHours, planWords, qtyWord, trackerLabour, trackerMaterials } from "../job-tracker";
 
 /* Saturday at double time, as 1352's crew was paid, and no weekday overtime */
 const DOUBLE_SAT: Settings = { ...DEFAULT_SETTINGS, otAfter: 24, dblAfter: 24, rules: { ...DEFAULT_SETTINGS.rules, sat: { on: true, rate: 2, up: null } } };
@@ -53,7 +53,7 @@ describe("the job tracker's labour", () => {
 
   it("has no bar without quoted hours", () => {
     const l = trackerLabour({ quotedHours: null, workedHours: 95.25, paidHours: 95.25, days: [], leftOn: 0 });
-    expect(l).toMatchObject({ tone: "info", word: "No hours quoted", parts: [], under: null });
+    expect(l).toMatchObject({ tone: "info", word: "Hours not quoted", parts: [], under: null });
   });
 });
 
@@ -77,5 +77,43 @@ describe("the job tracker's materials", () => {
   it("says a quantity as it was said", () => {
     expect(qtyWord(0.5, "roll")).toBe("0.5 roll");
     expect(qtyWord(3, null)).toBe("3 used");
+  });
+});
+
+describe("what a job was priced at, where the quote doesn't say", () => {
+  it("adds visits up as people times days times the working day", () => {
+    const visits = [
+      { people: 3, days: 2 },
+      { people: 4, days: 2 },
+    ];
+    expect(planHours(visits, 8)).toBe(112);
+    expect(planHours([{ people: 2, days: 0.5 }], 7.6)).toBe(7.6);
+    expect(planHours([], 8)).toBe(0);
+  });
+
+  it("says the plan as the trade would", () => {
+    expect(planWords([{ people: 3, days: 2 }, { people: 4, days: 2 }])).toBe("3 people for 2 days, then 4 for 2 days");
+    expect(planWords([{ people: 1, days: 1 }])).toBe("1 person for 1 day");
+    expect(planWords([{ people: 2, days: 0.5 }])).toBe("2 people for 0.5 days");
+  });
+
+  it("keeps only real visits", () => {
+    expect(cleanVisits([{ people: "2", days: "1.5" }])).toEqual([{ people: 2, days: 1.5 }]);
+    expect(cleanVisits([])).toEqual([]);
+    expect(cleanVisits([{ people: 0, days: 1 }])).toBeNull();
+    expect(cleanVisits([{ people: 2.5, days: 1 }])).toBeNull();
+    expect(cleanVisits([{ people: 2, days: 0 }])).toBeNull();
+    expect(cleanVisits([{ people: 2, days: 101 }])).toBeNull();
+    expect(cleanVisits("3 guys")).toBeNull();
+    expect(cleanVisits(Array.from({ length: 21 }, () => ({ people: 1, days: 1 })))).toBeNull();
+  });
+
+  it("judges planned hours like quoted ones", () => {
+    const l = trackerLabour({ quotedHours: planHours([{ people: 3, days: 2 }, { people: 4, days: 2 }], 8), workedHours: 95.25, paidHours: 105.25, days: [], leftOn: 0 });
+    expect(l).toMatchObject({ tone: "good", word: "6.75 h left" });
+  });
+
+  it("says materials weren't quoted where nothing gives an allowance", () => {
+    expect(trackerMaterials({ allowance: null, spent: 39561, unpriced: 0, count: 5, items: [] })).toMatchObject({ tone: "info", word: "Not quoted", parts: [] });
   });
 });

@@ -36,11 +36,10 @@ it("(F) keeps the note in My notes, and asks nobody else", async () => {
   expect(toast).toHaveBeenCalledWith("Saved to My notes");
 });
 
-it("asks for the words first, and keeps the form when it didn't save", async () => {
+it("waits for the words first, and keeps the form when it didn't save", async () => {
   const onClose = draw();
-  await act(async () => fireEvent.click(screen.getByRole("button", { name: "Save to My notes" })));
+  expect(screen.getByRole("button", { name: "Save to My notes" })).toBeDisabled();
   expect(addMyNote).not.toHaveBeenCalled();
-  expect(screen.getByText("Write something first.")).toBeInTheDocument();
   (addMyNote as jest.Mock).mockResolvedValueOnce({ ok: false, error: "Couldn't keep that note." });
   say("Hello");
   await act(async () => fireEvent.click(screen.getByRole("button", { name: "Save to My notes" })));

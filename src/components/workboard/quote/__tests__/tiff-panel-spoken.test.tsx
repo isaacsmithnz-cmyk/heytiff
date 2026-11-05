@@ -15,6 +15,8 @@ jest.mock("@/components/notes/dictation", () => ({
   },
 }));
 jest.mock("@/components/notes/use-reply-draft", () => ({ useReplyDraft: () => undefined }));
+/* this deployment hears: the box shows its microphone */
+jest.mock("@/components/notes/note-context", () => ({ useNoteScope: () => ({ voiceEnabled: true }) }));
 
 import { TiffPanel } from "../tiff-panel";
 
@@ -30,7 +32,7 @@ beforeEach(() => {
 it("takes Send while you're talking: stops the microphone, then sends the words once they're back", async () => {
   const { rerender } = render(<TiffPanel job="j" onChanged={jest.fn()} />);
   await act(async () => {});
-  const sendBtn = screen.getByRole("button", { name: "Send" });
+  const sendBtn = screen.getByRole("button", { name: "Send to Tiff" });
   expect(sendBtn).toBeEnabled();
   fireEvent.click(sendBtn);
   expect(dict.stop).toHaveBeenCalledTimes(1);
@@ -55,7 +57,7 @@ it("has Send off when nothing's typed and the microphone is closed", async () =>
   Object.assign(dict, { recording: false });
   render(<TiffPanel job="j" onChanged={jest.fn()} />);
   await act(async () => {});
-  expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Send to Tiff" })).toBeDisabled();
 });
 
 it("draws her points as a list, with no asterisks", async () => {

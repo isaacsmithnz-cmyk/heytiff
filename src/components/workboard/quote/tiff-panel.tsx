@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useEffectEvent, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { IconButton } from "@/components/parts/button";
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { Dot } from "@/components/parts/state";
 import { Fade } from "@/components/parts/fade";
 import { Tray } from "@/components/parts/tabs";
 import { Icon } from "@/components/shell/icon";
-import { appendSpoken, DictClock, LiveWords, useDictation } from "@/components/notes/dictation";
+import { appendSpoken, useDictation } from "@/components/notes/dictation";
+import { useNoteScope } from "@/components/notes/note-context";
+import { CvBox } from "@/components/conversations/box";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { useReplyDraft } from "@/components/notes/use-reply-draft";
 import { fmtAuTime } from "@/lib/au-dates";
@@ -278,16 +279,13 @@ export function TiffPanel({
   useReplyDraft("quote", job, typed, (text) => setTyped((now) => now || text), on === true);
 
   /* the microphone (rule 27): what you say joins what's typed, to read
-     before it's sent */
-  const [sendSpoken, setSendSpoken] = useState(false);
+     before it's sent; where this deployment can hear (Isaac, 6 November 2026:
+     the one box, the same everywhere) */
+  const { voiceEnabled } = useNoteScope();
   const dict = useDictation({
     onTranscript: (said) => setTyped((now) => appendSpoken(now, said)),
-    onError: (said) => {
-      setSendSpoken(false);
-      setNote(said);
-    },
+    onError: setNote,
   });
-  const talking = dict.recording || dict.arming || dict.transcribing;
 
   const send = async (readJob = false, words?: string): Promise<boolean> => {
     const message = (words ?? typed).trim();
@@ -326,19 +324,6 @@ export function TiffPanel({
     void Promise.resolve().then(() => sayNow(text));
   }, [say, on, busy]);
 
-  /* Send pressed while talking (Isaac, 30 October 2026, on 3423: "the
-     speech-to-text doesn't allow me to click send"; the box is empty until the
-     words are back, so Send was off until the timer was stopped): once the
-     words are in the box, they go */
-  const sendWhenWritten = useEffectEvent(() => {
-    setSendSpoken(false);
-    void send();
-  });
-  useEffect(() => {
-    if (!sendSpoken || talking) return;
-    void Promise.resolve().then(() => sendWhenWritten());
-  }, [sendSpoken, talking]);
-
   /* from the job card's Create a quote: straight into the box, once */
   useEffect(() => {
     if (!on || !start || started.current || !box.current) return;
@@ -372,20 +357,6 @@ export function TiffPanel({
     if (!a?.ok) return setNote("The job couldn't be read just now. Try again.");
     setSources({ list: a.sources ?? [], left: a.left ?? 0 });
     setTicked(new Set((a.sources ?? []).map((s) => s.id)));
-  };
-
-  const sendTyped = () => {
-    if (!talking) return void send();
-    /* Send while the microphone's open: it stops, and what you said goes */
-    setSendSpoken(true);
-    if (!dict.transcribing) dict.stop();
-  };
-  /* Enter sends and Shift+Enter is a new line, as in any chat; never
-     mid-word in an input method, where Enter is choosing the word */
-  const keys = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing || e.keyCode === 229) return;
-    e.preventDefault();
-    sendTyped();
   };
 
   const answer = async (event: number, index: number) => {
@@ -710,55 +681,24 @@ export function TiffPanel({
       <div className="qc-comp">
         <div className="qc-col">
           {note && <p className="wb2-sherr">{note}</p>}
-          <div className="qt-box qc-box">
-            {/* what you're saying, as you say it (Isaac, 21 October 2026: "the
-                voice to text doesn't seem to be showing properly"), in the
-                box in place of what you typed, the words gliding in and a
-                fixed one melting into place, as every Tiff box has it (Isaac,
-                5 November 2026: "line them up") */}
-            {dict.recording ? (
-              <div className="qt-in" role="group" aria-label="Recording" aria-live="polite">
-                <LiveWords said={typed} text={dict.interim} />
-              </div>
-            ) : (
-              <textarea
-                ref={box}
-                className="qt-in"
-                rows={1}
-                value={typed}
-                placeholder={events.length === 0 ? "Tell Tiff about the job" : "Reply"}
-                aria-label="Message Tiff"
-                onChange={(e) => setTyped(e.target.value)}
-                onKeyDown={keys}
-              />
-            )}
-            {(dict.arming || dict.transcribing || (dict.recording && !dict.interim && !typed.trim())) && (
-              <p className="qc-live" aria-live="polite">
-                {dict.transcribing ? "Writing down what you said" : "Listening"}
-              </p>
-            )}
-            <div className="qc-boxfoot">
-              {dict.recording || dict.arming ? (
-                <>
-                  <span className="tc-rec">
-                    <span className="tc-recdot" aria-hidden="true" />
-                    <DictClock seconds={dict.seconds} />
-                  </span>
-                  <span className="tc-sp" />
-                  <button type="button" className="pt-btn pt-btn--second pt-btn--32 pt-btn--icon tc-stop" aria-label="Stop and add what you said" onClick={() => dict.stop()}>
-                    <span aria-hidden="true" />
-                  </button>
-                </>
-              ) : (
-                <IconButton glyph="mic" size={32} label="Speak instead of typing" disabled={dict.transcribing} onClick={() => dict.start()} />
-              )}
-              {/* Send as Claude's, an arrow, as every Tiff box has it (rule 25;
-                  Isaac, 20 October 2026: "the input section should be
-                  identical throughout the software"; it was Q6's word Send);
-                  it fades while she works, one turn at a time */}
-              <IconButton glyph="send" kind="main" size={32} label="Send" className="qc-send" disabled={busy || working || sendSpoken || (!talking && !typed.trim())} onClick={sendTyped} />
-            </div>
-          </div>
+          {/* THE ONE BOX (Isaac, 6 November 2026: "every input box is the
+              same"): Conversations' own, its words as you say them, Stop
+              leaving them in it, and Tiff's button; Send pressed while you
+              talk stops and sends (Isaac, 30 October 2026, on 3423: "the
+              speech-to-text doesn't allow me to click send"). No Save here:
+              talking to her is the point. */}
+          <CvBox
+            value={typed}
+            onChange={setTyped}
+            onSubmit={() => void send()}
+            label="Message Tiff"
+            placeholder={events.length === 0 ? "Tell Tiff about the job" : "Reply"}
+            sendWord="Tiff"
+            sendLabel="Send to Tiff"
+            waiting={busy || working}
+            dict={voiceEnabled ? dict : null}
+            boxRef={box}
+          />
         </div>
       </div>
     </div>

@@ -16,28 +16,57 @@ import { tallyPoll, type PollResult } from "./polls";
    round-tripping it through UTC only creates a way for a phone in another
    state to show the wrong hour. */
 
-export type RsvpAnswer = "yes" | "maybe" | "no";
+export type RsvpAnswer = "yes" | "maybe" | "no" | "plus_one";
 
 /* Order matters: this is the order the answers appear, and "Going" first is
    the question the poster is actually asking. */
 export const RSVP_ANSWERS: readonly RsvpAnswer[] = ["yes", "maybe", "no"];
 
+/* AN EVENT PARTNERS MAY COME TO (Isaac, 6 November 2026, the Christmas party:
+   "Just Me", "Me + 1", "Not going to make it") answers three other ways.
+   Maybe goes: a dinner booking needs a number. */
+export const RSVP_ANSWERS_PLUS_ONE: readonly RsvpAnswer[] = ["yes", "plus_one", "no"];
+
 export const RSVP_LABEL: Record<RsvpAnswer, string> = {
   yes: "Going",
   maybe: "Maybe",
   no: "Can't make it",
+  plus_one: "Me + 1",
 };
+
+const RSVP_LABEL_PLUS_ONE: Record<RsvpAnswer, string> = { ...RSVP_LABEL, yes: "Just me" };
+
+/** The answers an event offers, in order. */
+export function rsvpAnswers(plusOne: boolean): readonly RsvpAnswer[] {
+  return plusOne ? RSVP_ANSWERS_PLUS_ONE : RSVP_ANSWERS;
+}
+
+/** An answer's words on this event. */
+export function rsvpLabel(answer: RsvpAnswer, plusOne: boolean): string {
+  return (plusOne ? RSVP_LABEL_PLUS_ONE : RSVP_LABEL)[answer];
+}
 
 /** Narrow an untrusted answer, or null if it isn't one. Unlike a notice kind
     there is no sensible default — an unreadable RSVP is simply no RSVP. */
 export function asRsvpAnswer(value: unknown): RsvpAnswer | null {
-  return RSVP_ANSWERS.includes(value as RsvpAnswer) ? (value as RsvpAnswer) : null;
+  return value === "yes" || value === "maybe" || value === "no" || value === "plus_one" ? value : null;
 }
+
+/** An answer this event takes: Me + 1 only where partners may come, Maybe only where they may not. */
+export function rsvpAnswerFor(value: unknown, plusOne: boolean): RsvpAnswer | null {
+  const a = asRsvpAnswer(value);
+  return a && rsvpAnswers(plusOne).includes(a) ? a : null;
+}
+
+/** Coming at all: the two answers that say yes. */
+export const isComing = (a: RsvpAnswer | null | undefined) => a === "yes" || a === "plus_one";
 
 export type RsvpRow = {
   staffId: string;
   staffName: string;
   answer: RsvpAnswer;
+  /** Allergies or dietary needs, as they typed them. */
+  diet?: string | null;
 };
 
 export type EventDetail = {
@@ -46,27 +75,49 @@ export type EventDetail = {
   /** "HH:MM" in 24h, or null for an all-day / time-to-be-confirmed event. */
   time: string | null;
   location: string | null;
+  /** Partners may come: the answers are Just me / Me + 1 / Can't make it. */
+  plusOne: boolean;
+  /** Each person coming says their allergies or dietary needs. */
+  askDiet: boolean;
+  /** ISO yyyy-mm-dd to answer by, or null. */
+  answerBy: string | null;
   /** The RSVPs, in the poll's own shape so one component renders both. */
   rsvp: PollResult;
+  /** Heads coming, partners counted. */
+  people: number;
+  /** The viewer's own allergies or dietary needs. */
+  myDiet: string | null;
+  /** Everyone's, for whoever posted the event and nobody else: a name and what they wrote. */
+  diets: { name: string; diet: string }[] | null;
 };
 
 /** RSVPs as a poll result: three fixed answers, one pick each. */
-export function tallyRsvp(rows: readonly RsvpRow[], viewerStaffId: string | null): PollResult {
+export function tallyRsvp(rows: readonly RsvpRow[], viewerStaffId: string | null, plusOne = false): PollResult {
+  const answers = rsvpAnswers(plusOne);
   return tallyPoll({
-    options: RSVP_ANSWERS.map((a, i) => ({ id: a, label: RSVP_LABEL[a], position: i })),
-    votes: rows.map((r) => ({ optionId: r.answer, staffId: r.staffId, staffName: r.staffName })),
+    options: answers.map((a, i) => ({ id: a, label: rsvpLabel(a, plusOne), position: i })),
+    votes: rows.filter((r) => answers.includes(r.answer)).map((r) => ({ optionId: r.answer, staffId: r.staffId, staffName: r.staffName })),
     multi: false,
     viewerStaffId,
   });
 }
 
+/** How many people are coming: one for Just me or Going, two for Me + 1. */
+export function rsvpPeople(rows: readonly Pick<RsvpRow, "answer">[]): number {
+  return rows.reduce((n, r) => n + (r.answer === "plus_one" ? 2 : r.answer === "yes" ? 1 : 0), 0);
+}
+
 /* The one-line headcount — "3 going · 1 maybe". Silent about the answers
    nobody gave, because "0 maybe" is noise, and silent entirely until somebody
-   has replied. */
+   has replied. Where partners may come it counts heads, partners in:
+   "16 coming, 2 can't". */
 export function rsvpSummary(rsvp: PollResult): string | null {
   const count = (id: RsvpAnswer) => rsvp.options.find((o) => o.id === id)?.votes ?? 0;
   const parts: string[] = [];
-  if (count("yes") > 0) parts.push(`${count("yes")} going`);
+  if (rsvp.options.some((o) => o.id === "plus_one")) {
+    const people = count("yes") + 2 * count("plus_one");
+    if (people > 0) parts.push(`${people} coming`);
+  } else if (count("yes") > 0) parts.push(`${count("yes")} going`);
   if (count("maybe") > 0) parts.push(`${count("maybe")} maybe`);
   if (count("no") > 0) parts.push(`${count("no")} can't`);
   return parts.length > 0 ? parts.join(", ") : null;

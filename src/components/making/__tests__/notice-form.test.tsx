@@ -164,6 +164,9 @@ describe("an event", () => {
         eventTime: "09:00",
         eventLocation: "Daikin training centre, Mascot",
         expiresAt: "2026-11-13",
+        eventPlusOne: false,
+        eventAskDiet: false,
+        eventAnswerBy: null,
       }),
     );
     expect(toast).toHaveBeenCalledWith("Event posted", expect.any(Function));
@@ -178,7 +181,7 @@ const posted = (over: Partial<BoardNotice> = {}): BoardNotice =>
     pinned: false,
     kind: "event",
     expiresAt: "2026-11-13",
-    event: { date: "2026-11-13", time: "07:00", location: "The depot", rsvp: { options: [], voters: 0, myOptionIds: [], multi: false } },
+    event: { date: "2026-11-13", time: "07:00", location: "The depot", plusOne: true, askDiet: false, answerBy: "2026-11-11", people: 0, myDiet: null, diets: null, rsvp: { options: [], voters: 0, myOptionIds: [], multi: false } },
     poll: null,
     ...over,
   }) as BoardNotice;
@@ -203,6 +206,9 @@ describe("an edit", () => {
       eventDate: "2026-11-13",
       eventTime: "07:00",
       eventLocation: "The yard",
+      eventPlusOne: true,
+      eventAskDiet: false,
+      eventAnswerBy: "2026-11-11",
     });
     expect(toast).toHaveBeenCalledWith("Event saved", expect.any(Function));
     // Undo: what it said, and the file it added comes out again
@@ -217,6 +223,9 @@ describe("an edit", () => {
       eventDate: "2026-11-13",
       eventTime: "07:00",
       eventLocation: "The depot",
+      eventPlusOne: true,
+      eventAskDiet: false,
+      eventAnswerBy: "2026-11-11",
     });
     expect(deleteDocument).toHaveBeenCalledWith("doc-Map.pdf");
   });
@@ -226,5 +235,14 @@ describe("an edit", () => {
     expect(within(dialog()).getByRole("heading", { name: "Edit poll" })).toBeInTheDocument();
     expect(within(dialog()).queryByRole("textbox", { name: /^Answer / })).toBeNull();
     expect(within(dialog()).getByLabelText("Title")).toHaveValue("Which Friday?");
+  });
+});
+
+describe("an event partners may come to", () => {
+  it("is edited with the partner and allergy ticks as they stand, and refuses an answer-by day after the event", async () => {
+    draw(posted({ event: { ...posted().event!, plusOne: false, askDiet: false, answerBy: "2026-11-20" } }));
+    expect(screen.getByRole("checkbox", { name: "They can bring a partner" })).not.toBeChecked();
+    expect(within(dialog()).getByText("The answer-by day comes after the event.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled();
   });
 });

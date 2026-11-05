@@ -19,10 +19,12 @@ import {
   reactToNotice,
   setNoticeArchived,
   setRsvp,
+  setRsvpDiet,
 } from "@/app/actions/dashboard";
 import { expiryLabel, partitionNotices } from "@/lib/dashboard/notices";
 import { nextSelection, type PollResult } from "@/lib/dashboard/polls";
-import { eventWhen, rsvpSummary } from "@/lib/dashboard/events";
+import { eventWhen, isComing, rsvpSummary, type RsvpAnswer } from "@/lib/dashboard/events";
+import { fmtAuWeekdayDateLong } from "@/lib/au-dates";
 import {
   nextReaction,
   REACTIONS,
@@ -159,15 +161,19 @@ function EventBlock({
   pending,
   today,
   onRsvp,
+  onDiet,
 }: {
   event: NonNullable<BoardNotice["event"]>;
   closed: boolean;
   pending: boolean;
   today: string;
   onRsvp: (answer: string | null) => void;
+  onDiet: (diet: string) => void;
 }) {
   const when = eventWhen(event.date, event.time, today);
   const summary = rsvpSummary(event.rsvp);
+  const coming = isComing((event.rsvp.myOptionIds[0] ?? null) as RsvpAnswer | null);
+  const [diet, setDiet] = useState(event.myDiet ?? "");
 
   return (
     <>
@@ -184,6 +190,12 @@ function EventBlock({
             {event.location}
           </span>
         )}
+        {event.answerBy && !when.past && (
+          <span className="nb-whenline">
+            <Icon name="clock" size={13} />
+            Answer by {fmtAuWeekdayDateLong(event.answerBy)}
+          </span>
+        )}
         {summary && <span className="nb-whensum">{summary}</span>}
       </div>
       <PollBlock
@@ -192,6 +204,38 @@ function EventBlock({
         pending={pending}
         onVote={(ids) => onRsvp(ids[0] ?? null)}
       />
+      {/* allergies once you're coming (Isaac, 6 November 2026), saved as you leave the field */}
+      {event.askDiet && coming && !closed && !when.past && (
+        <label className="nb-diet">
+          <span className="nb-dietlabel">{event.rsvp.myOptionIds[0] === "plus_one" ? "Allergies or dietary needs, for you and your partner" : "Allergies or dietary needs"}</span>
+          <input
+            className="pt-input"
+            value={diet}
+            maxLength={300}
+            disabled={pending}
+            onChange={(e) => setDiet(e.target.value)}
+            onBlur={() => {
+              if (diet.trim() !== (event.myDiet ?? "")) onDiet(diet);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            }}
+          />
+        </label>
+      )}
+      {/* the poster's alone: they sort it with the venue */}
+      {event.diets && event.diets.length > 0 && (
+        <div className="nb-diets">
+          <span className="nb-dietlabel">Allergies and dietary needs</span>
+          <ul>
+            {event.diets.map((d) => (
+              <li key={d.name}>
+                <b>{d.name}</b> {d.diet}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </>
   );
 }
@@ -551,6 +595,7 @@ type Acts = {
   onArmRemove: (id: string | null) => void;
   onVote: (noticeId: string, optionIds: string[]) => void;
   onRsvp: (noticeId: string, answer: string | null) => void;
+  onDiet: (noticeId: string, diet: string) => void;
   onReact: (noticeId: string, emoji: string | null) => void;
   onComment: (noticeId: string, body: string, parentId: string | null) => void;
   onDeleteComment: (commentId: string) => void;
@@ -649,6 +694,7 @@ function NoticeCard({ notice: n, acts }: { notice: BoardNotice; acts: Acts }) {
           pending={acts.pending}
           today={acts.today}
           onRsvp={(answer) => acts.onRsvp(n.id, answer)}
+          onDiet={(diet) => acts.onDiet(n.id, diet)}
         />
       )}
       <ReactionRow
@@ -765,6 +811,7 @@ export function NoticesBoard({
     onArmRemove: setArmedRemove,
     onVote: (noticeId, optionIds) => run(() => castPollVote(noticeId, optionIds)),
     onRsvp: (noticeId, answer) => run(() => setRsvp(noticeId, answer)),
+    onDiet: (noticeId, diet) => run(() => setRsvpDiet(noticeId, diet)),
     onReact: (noticeId, emoji) => run(() => reactToNotice(noticeId, emoji)),
     onComment: (noticeId, body, parentId) =>
       run(() => commentOnNotice({ noticeId, body, parentId })),

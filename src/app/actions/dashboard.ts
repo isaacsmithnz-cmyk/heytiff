@@ -7,7 +7,8 @@ import { can } from "@/lib/permissions-server";
 import { listFleetStaff, staffProfileIdFor } from "@/lib/fleet/query";
 import { asNoticeKind, noticeLifecycle } from "@/lib/dashboard/notices";
 import { cleanPollOptions, POLL_ERROR_TEXT } from "@/lib/dashboard/polls";
-import { asRsvpAnswer, isEventTime } from "@/lib/dashboard/events";
+import { isEventTime } from "@/lib/dashboard/events";
+import { answerEvent } from "@/lib/dashboard/event-answer";
 import { asReaction } from "@/lib/dashboard/reactions";
 import { mentionedIds, MAX_COMMENT } from "@/lib/dashboard/comments";
 import { mentionableStaff, pollOptionIds } from "@/lib/dashboard/tasks-query";
@@ -652,6 +653,12 @@ export async function postNotice(input: {
   eventDate?: string;
   eventTime?: string;
   eventLocation?: string;
+  /** kind === "event" only: partners may come (Just me / Me + 1 / Can't make it). */
+  eventPlusOne?: boolean;
+  /** kind === "event" only: each person coming says their allergies or dietary needs. */
+  eventAskDiet?: boolean;
+  /** kind === "event" only: ISO yyyy-mm-dd to answer by, on or before the event. */
+  eventAnswerBy?: string | null;
   /** Files already uploaded by this person and not yet on a notice. */
   documentIds?: string[];
 }): Promise<NoticePosted> {
@@ -683,6 +690,8 @@ export async function postNotice(input: {
     if (!input.eventDate || !isISODate(input.eventDate))
       return { ok: false, error: "An event needs a date." };
     if (eventTime && !isEventTime(eventTime)) return { ok: false, error: "Check the start time." };
+    const by = answerByError(input.eventAnswerBy, input.eventDate);
+    if (by) return { ok: false, error: by };
   }
 
   // An event comes off the board once it's happened, unless the poster said
@@ -706,6 +715,9 @@ export async function postNotice(input: {
       event_date: kind === "event" ? input.eventDate : null,
       event_time: kind === "event" ? eventTime : null,
       event_location: kind === "event" ? input.eventLocation?.trim().slice(0, 200) || null : null,
+      event_plus_one: kind === "event" && input.eventPlusOne === true,
+      event_ask_diet: kind === "event" && input.eventAskDiet === true,
+      event_answer_by: kind === "event" ? input.eventAnswerBy || null : null,
     })
     .select("id, revision")
     .maybeSingle();
@@ -744,8 +756,22 @@ export async function postNotice(input: {
       { onConflict: "notice_id,staff_profile_id" },
     );
   }
+  /* the team hears on their phones; loaded here, not at the top, so the push's
+     server-only pieces stay out of every other action this file holds */
+  if (kind === "event" && input.eventDate) {
+    const { pushEventPosted } = await import("@/lib/dashboard/event-push");
+    pushEventPosted(ctx.orgId, { id: data.id as string, title: title.slice(0, 200), date: input.eventDate, posterId: ctx.staffId });
+  }
   refresh();
   return { ok: true, id: data.id as string };
+}
+
+/** What's wrong with an answer-by day, or null: a real day, on or before the event's. */
+function answerByError(answerBy: string | null | undefined, eventDate: string | undefined): string | null {
+  if (!answerBy) return null;
+  if (!isISODate(answerBy)) return "Check the answer-by day.";
+  if (eventDate && answerBy > eventDate) return "The answer-by day comes after the event.";
+  return null;
 }
 
 /* Editing is the AUTHOR's alone. A `team` holder can remove a notice but not
@@ -771,6 +797,9 @@ export async function editNotice(input: {
   eventDate?: string;
   eventTime?: string;
   eventLocation?: string;
+  eventPlusOne?: boolean;
+  eventAskDiet?: boolean;
+  eventAnswerBy?: string | null;
   /** Files added while editing — the ones already on it stay put. */
   documentIds?: string[];
 }): Promise<DashResult> {
@@ -799,6 +828,8 @@ export async function editNotice(input: {
       return { ok: false, error: "An event needs a date." };
     if (nextEventTime && !isEventTime(nextEventTime))
       return { ok: false, error: "Check the start time." };
+    const by = answerByError(input.eventAnswerBy, input.eventDate);
+    if (by) return { ok: false, error: by };
   }
   const nextEventLocation = isEvent ? input.eventLocation?.trim().slice(0, 200) || null : null;
   const eventMoved =
@@ -825,6 +856,9 @@ export async function editNotice(input: {
             event_date: input.eventDate,
             event_time: nextEventTime,
             event_location: nextEventLocation,
+            event_plus_one: input.eventPlusOne === true,
+            event_ask_diet: input.eventAskDiet === true,
+            event_answer_by: input.eventAnswerBy || null,
           }
         : {}),
       // changing WHEN it comes down is not a change to WHAT IT SAYS, so it
@@ -937,49 +971,18 @@ export async function castPollVote(
 export async function setRsvp(noticeId: string, answer: string | null): Promise<DashResult> {
   const ctx = await context();
   if (!ctx?.staffId) return { ok: false, error: "No staff record for this account." };
+  const r = await answerEvent(ctx.orgId, ctx.staffId, noticeId, { answer });
+  if (r.ok) refresh();
+  return r;
+}
 
-  const { data } = await supabaseAdmin
-    .from("notices")
-    .select("kind, event_date, archived_at")
-    .eq("org_id", ctx.orgId)
-    .eq("id", noticeId)
-    .maybeSingle();
-  if (!data) return { ok: false, error: "That event no longer exists." };
-  if (data.kind !== "event") return { ok: false, error: "That notice isn't an event." };
-  if (data.archived_at) return { ok: false, error: "That event has been filed away." };
-
-  const eventDate = data.event_date ? String(data.event_date).slice(0, 10) : null;
-  if (eventDate && eventDate < todayInAu())
-    return { ok: false, error: "That event has already happened." };
-
-  if (answer === null) {
-    const { error } = await supabaseAdmin
-      .from("notice_rsvps")
-      .delete()
-      .eq("org_id", ctx.orgId)
-      .eq("notice_id", noticeId)
-      .eq("staff_profile_id", ctx.staffId);
-    if (error) return { ok: false, error: "Couldn't record that." };
-    refresh();
-    return { ok: true };
-  }
-
-  const valid = asRsvpAnswer(answer);
-  if (!valid) return { ok: false, error: "That isn't an answer to this event." };
-
-  const { error } = await supabaseAdmin.from("notice_rsvps").upsert(
-    {
-      org_id: ctx.orgId,
-      notice_id: noticeId,
-      staff_profile_id: ctx.staffId,
-      answer: valid,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "notice_id,staff_profile_id" },
-  );
-  if (error) return { ok: false, error: "Couldn't record that." };
-  refresh();
-  return { ok: true };
+/** Your allergies or dietary needs for an event you're coming to; empty clears them. */
+export async function setRsvpDiet(noticeId: string, diet: string): Promise<DashResult> {
+  const ctx = await context();
+  if (!ctx?.staffId) return { ok: false, error: "No staff record for this account." };
+  const r = await answerEvent(ctx.orgId, ctx.staffId, noticeId, { diet });
+  if (r.ok) refresh();
+  return r;
 }
 
 /* Commenting. Intrinsic — a noticeboard where only management may speak is a

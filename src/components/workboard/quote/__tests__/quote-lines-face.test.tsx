@@ -247,7 +247,7 @@ it("takes a line off with its version", async () => {
   face();
   await openGroup("Units");
   await act(async () => {
-    fireEvent.click(screen.getByLabelText("Take Ducted indoor, under the floor off"));
+    fireEvent.click(screen.getByRole("button", { name: "Remove Ducted indoor, under the floor" }));
   });
   expect(posted).toContainEqual({ job: "job-3377", op: "remove", id: "l1", version: 1 });
 });
@@ -343,8 +343,8 @@ it("copies option 1 to a new option, and says what an option changed from it", a
 it("swaps a line for another item of its kind from the book, and makes it preferred from the next quote", async () => {
   face();
   await openGroup("Units");
-  fireEvent.click(screen.getByRole("button", { name: "Ducted indoor, under the floor" }));
-  expect(screen.getByLabelText("Search your book for another Ducted indoor, under the floor")).toHaveValue("Ducted indoor");
+  fireEvent.click(screen.getByRole("button", { name: "Swap Ducted indoor, under the floor" }));
+  expect(screen.getByLabelText("Swap Ducted indoor, under the floor for")).toHaveValue("Ducted indoor");
   const pick = await screen.findByRole("button", { name: /ANTI VIBRATION FEET/ }, { timeout: 2000 });
   await act(async () => {
     fireEvent.click(pick);
@@ -378,7 +378,7 @@ it("keeps a unit named by what it is, in its room, when another unit is picked f
   face();
   await openGroup("Units");
   await screen.findByText("Indoor unit, Bed 1");
-  fireEvent.click(screen.getByRole("button", { name: "Indoor unit, Bed 1" }));
+  fireEvent.click(screen.getByRole("button", { name: "Swap Indoor unit, Bed 1" }));
   const pick = await screen.findByRole("button", { name: /HWS IND 3.5KW/ }, { timeout: 2000 });
   await act(async () => {
     fireEvent.click(pick);
@@ -471,7 +471,7 @@ it("offers the same item from each supplier, and takes the one picked over the c
   });
   face();
   await openGroup("Units");
-  fireEvent.click(screen.getByRole("button", { name: "Ducted indoor, under the floor" }));
+  fireEvent.click(screen.getByRole("button", { name: "Swap Ducted indoor, under the floor" }));
   const fromReece = await screen.findByRole("button", { name: /From Reece/ }, { timeout: 2000 });
   expect(fromReece).toHaveTextContent("$14.90 each");
   await act(async () => {
@@ -1038,6 +1038,90 @@ describe("version 2 before it's accepted", () => {
     expect(screen.queryByRole("button", { name: "Mark accepted" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Back to the line items" }));
     expect(screen.queryByRole("article", { name: "Version 1" })).not.toBeInTheDocument();
+  });
+});
+
+/* Isaac, 6 November 2026, on 3054: "Need to be able to remove line items,
+   swap them out etc on web and mobile" */
+describe("Swap and Remove on a line", () => {
+  const twin = line({ id: "l1b", optionIndex: 1 });
+  /* a remove answers with its change, so its Undo can name it */
+  const withTwin = () => {
+    let n = 20;
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string, init?: { body?: string }) => {
+      const body = init?.body ? (JSON.parse(init.body) as Record<string, unknown>) : null;
+      if (body) posted.push(body);
+      const v = view([indoor, core, twin]);
+      return {
+        json: async () => {
+          if (String(url).startsWith("/api/workboard/quote-lookup")) return { ok: true, hits: [] };
+          return body?.op === "remove" ? { ...v, changes: [{ id: n++, lineId: body.id, action: "remove", before: {}, after: null, why: "", madeBy: "u-isaac", madeAt: "" }, ...v.changes] } : v;
+        },
+      };
+    });
+  };
+
+  it("asks whether a line on both options comes off this one or both, and its toast's Undo puts both back", async () => {
+    withTwin();
+    const onToast = jest.fn();
+    render(<QuoteLinesFace job="job-3377" price={price} onPriced={jest.fn()} onToast={onToast} />);
+    await openGroup("Units");
+    fireEvent.click(screen.getByRole("button", { name: "Remove Ducted indoor, under the floor" }));
+    expect(screen.getByRole("menuitem", { name: "From Option 1" })).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitem", { name: "From both options" }));
+    });
+    expect(posted).toContainEqual({ job: "job-3377", op: "remove", id: "l1", version: 1 });
+    expect(posted).toContainEqual({ job: "job-3377", op: "remove", id: "l1b", version: 1 });
+    expect(onToast).toHaveBeenCalledWith("Ducted indoor, under the floor removed from both options", expect.any(Function));
+    await act(async () => {
+      onToast.mock.calls[0][1]();
+    });
+    expect(posted.filter((b) => b.op === "undo")).toEqual([
+      { job: "job-3377", op: "undo", change: 21 },
+      { job: "job-3377", op: "undo", change: 20 },
+    ]);
+  });
+
+  it("takes a line that's on one option off at a press", async () => {
+    const onToast = jest.fn();
+    render(<QuoteLinesFace job="job-3377" price={price} onPriced={jest.fn()} onToast={onToast} />);
+    await openGroup("Core holes");
+    await act(async () => {
+      fireEvent.click(within(screen.getByRole("region", { name: "Core holes" })).getByRole("button", { name: "Remove Core hole 200 mm" }));
+    });
+    expect(screen.queryByRole("menuitem")).toBeNull();
+    expect(posted).toContainEqual({ job: "job-3377", op: "remove", id: "l2", version: 1 });
+  });
+
+  it("swaps the same line on the other option as well, unless unticked", async () => {
+    withTwin();
+    (global as unknown as { fetch: jest.Mock }).fetch.mockImplementation(async (url: string, init?: { body?: string }) => {
+      if (init?.body) posted.push(JSON.parse(init.body));
+      return {
+        json: async () =>
+          String(url).startsWith("/api/workboard/quote-lookup")
+            ? { ok: true, hits: [{ product: { key: "mitsubishi|PEA-M140HAA", name: "PEA-M140HAA", category: "units", offers: [], cheapest: { supplierKey: "mitsubishi", supplierName: "Mitsubishi", code: "PEA-M140HAA", name: "PEA-M140HAA", netCents: 120000 }, preferred: null, brand: null, quotes: 0 }, why: "In your book", buyCents: 120000 }] }
+            : view([indoor, core, twin]),
+      };
+    });
+    face();
+    await openGroup("Units");
+    fireEvent.click(screen.getByRole("button", { name: "Swap Ducted indoor, under the floor" }));
+    expect(screen.getByLabelText("On Option 2 as well")).toBeChecked();
+    fireEvent.click(await screen.findByRole("button", { name: /PEA-M140HAA/ }));
+    await waitFor(() => expect(posted).toContainEqual(expect.objectContaining({ op: "change", id: "l1b", patch: expect.objectContaining({ code: "PEA-M140HAA", costCents: 120000 }) })));
+    expect(posted).toContainEqual(expect.objectContaining({ op: "change", id: "l1", patch: expect.objectContaining({ code: "PEA-M140HAA" }) }));
+  });
+
+  it("offers Swap and Remove beside Price it on a line nobody knows the price of", async () => {
+    face();
+    fireEvent.click(await screen.findByRole("button", { name: "Swap" }));
+    expect(screen.getByLabelText("Swap Core hole 200 mm for")).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getAllByRole("button", { name: "Remove Core hole 200 mm" })[0]!);
+    });
+    expect(posted).toContainEqual({ job: "job-3377", op: "remove", id: "l2", version: 1 });
   });
 });
 

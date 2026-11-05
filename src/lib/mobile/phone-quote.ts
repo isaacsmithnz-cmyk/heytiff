@@ -3,6 +3,8 @@ import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
 import { labourOf, unitsOf } from "@/lib/quotes/quote-sum";
 import type { LinesProposal } from "@/lib/quotes/lines-proposal";
 import type { QuoteLine } from "@/lib/quotes/lines";
+import { stillUnknown } from "@/lib/quotes/lines-price";
+import { twinsOf } from "@/lib/quotes/line-twins";
 import { answeredOf, settledIn } from "@/lib/quotes/session/answers";
 import { isFirstTurn, stepOf, turnStartOf } from "@/lib/quotes/session/time-left";
 import { questionOf } from "@/lib/quotes/session/tools";
@@ -24,6 +26,18 @@ export type PhoneLine = {
   cents: number | null;
   hours: number | null;
   check: boolean;
+  /* to change it from the phone (Isaac, 6 November 2026, on 3054: "Need to
+     be able to remove line items, swap them out etc on web and mobile"):
+     which line and the version read, how many, whether nobody knows its
+     price yet, whether it can be swapped for one from the book, and the same
+     line on the other options. Never what it costs. */
+  id: string;
+  version: number;
+  qty: number;
+  unit: string;
+  unknown: boolean;
+  swap: boolean;
+  twins: { id: string; version: number; option: number }[];
 };
 export type PhoneGroup = { name: string; cents: number | null; lines: PhoneLine[] };
 export type PhoneOption = {
@@ -48,6 +62,8 @@ export type PhoneOption = {
 export type LinesView = {
   money: boolean;
   lines: QuoteLine[];
+  /** changes after it was accepted, each an option of its own */
+  variations?: { option: number }[];
   accepted: number[];
   optionNames: string[];
   sent: { trial: boolean; at?: string; by?: string } | null;
@@ -191,7 +207,7 @@ export function scopeOf(events: readonly Thread[], lines: readonly QuoteLine[], 
   };
 }
 
-function groupsOf(lines: readonly QuoteLine[], price: OptionPrice | null): PhoneGroup[] {
+function groupsOf(lines: readonly QuoteLine[], price: OptionPrice | null, all: readonly QuoteLine[], skip: ReadonlySet<number>, money: boolean): PhoneGroup[] {
   const names = [...new Set(lines.map((l) => l.group))];
   const sold = new Map((price?.build.groups ?? []).flatMap((g) => g.lines.map((l) => [l.key, l.sellCents] as const)));
   return names.map((name) => {
@@ -209,6 +225,13 @@ function groupsOf(lines: readonly QuoteLine[], price: OptionPrice | null): Phone
         cents: l.kind === "labour" ? null : (sold.get(l.id) ?? null),
         hours: l.kind === "labour" ? l.qty : null,
         check: l.source === "assumed" || l.source === "unknown" || !!l.estimate,
+        id: l.id,
+        version: l.version,
+        qty: l.qty,
+        unit: l.unit,
+        unknown: stillUnknown(l),
+        swap: money && l.kind !== "labour",
+        twins: skip.has(l.optionIndex) ? [] : twinsOf(l, all, skip).map((t) => ({ id: t.id, version: t.version, option: t.optionIndex })),
       })),
     };
   });
@@ -234,7 +257,13 @@ function optionOf(i: number, view: LinesView, price: OptionPrice | null): PhoneO
     profitCents: price?.profit?.profitCents ?? null,
     profitPct: price?.profit?.pct ?? null,
     left: price ? leftOn(price).length : 0,
-    groups: groupsOf(view.lines.filter((l) => l.optionIndex === i), price),
+    groups: groupsOf(
+      view.lines.filter((l) => l.optionIndex === i),
+      price,
+      view.lines,
+      new Set((view.variations ?? []).map((v) => v.option)),
+      view.money
+    ),
     summary: words?.summary ?? "",
     areas: words?.areas ?? [],
     included: words?.included ?? [],

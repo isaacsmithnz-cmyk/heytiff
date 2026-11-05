@@ -219,7 +219,7 @@ export function QuoteScreen({
               price={price}
               onStage={setStage}
               onPriced={() => setLinesRev((n) => n + 1)}
-              onToast={(m) => toast(m)}
+              onToast={(m, undo) => toast(m, undo)}
               send={<JobQuoteSend job={job} visible version={`lines-${linesRev}`} />}
               sendQuote={(onSent, sentAt) => <JobQuoteSend job={job} visible as="quote" look="button" sentAt={sentAt} version={`lines-${linesRev}`} onSent={onSent} />}
               sm8={sm8}

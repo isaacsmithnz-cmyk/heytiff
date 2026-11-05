@@ -25,7 +25,8 @@ import { VersionPaper } from "./version-paper";
 import type { QuoteVersion } from "@/lib/quotes/quote-versions";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 import type { Sm8Quote } from "../board/job-quote-card";
-import { QuoteLineItems, groupKey, sellEachOf } from "./quote-line-items";
+import { QuoteLineItems, RemoveLine, groupKey, sellEachOf } from "./quote-line-items";
+import { optionsWords, twinsOf } from "@/lib/quotes/line-twins";
 import { AddedRows, InServiceM8, OptionRows, QuoteCard, QuoteRail, signed } from "./quote-rail";
 import { changingWords, pastQuote as goneToClient, priceThemWords, withoutAdded, type JobScopeRead, type ScopeAdded, type ScopeQuoted } from "@/lib/jobs/job-scope";
 import { LinesButton, QuoteActions } from "./quote-actions";
@@ -165,7 +166,8 @@ export function QuoteLinesFace({
   price: QuotePrice | null | undefined;
   /** told the quote's state word, for the line under the job's name */
   onStage?: (stage: QuoteStage | null) => void;
-  onToast?: (message: string) => void;
+  /** a few words, and the action's own Undo where it has one */
+  onToast?: (message: string, undo?: () => void) => void;
   /** what goes to ServiceM8 once an option is accepted (job-quote-send.tsx) */
   send?: ReactNode;
   /** the approved quote sent to ServiceM8 as a quote, before it's accepted
@@ -385,6 +387,36 @@ export function QuoteLinesFace({
     }
   };
 
+  /* LINES TAKEN OFF (Isaac, 6 November 2026, on 3054: "Need to be able to
+     remove line items, swap them out"): one option's, or the same line on
+     every option it's on, one at a time against the version each was read
+     at, and one toast whose Undo puts them all back */
+  const removeLines = async (ls: QuoteLine[]) => {
+    const undo: number[] = [];
+    for (const l of ls) {
+      const v = await act({ op: "remove", id: l.id, version: l.version });
+      if (!v?.ok) break;
+      const c = v.changes.find((x) => x.action === "remove" && x.lineId === l.id);
+      if (c) undo.push(c.id);
+    }
+    if (undo.length === 0) return;
+    const gone = ls.slice(0, undo.length);
+    onToast?.(`${gone[0].name} removed from ${optionsWords(gone)}`, () => {
+      void (async () => {
+        for (const id of [...undo].reverse()) await act({ op: "undo", change: id });
+      })();
+    });
+  };
+
+  /* Swap from To confirm: the line items up, its group open, its pick list */
+  const [swapAsk, setSwapAsk] = useState<{ id: string; n: number } | null>(null);
+  const swapOnLine = (l: QuoteLine) => {
+    setPaper(false);
+    setTab("lines");
+    showGroups([groupKey(l)], true);
+    setSwapAsk((was) => ({ id: l.id, n: (was?.n ?? 0) + 1 }));
+  };
+
   /* a line nobody knows the price of, from To confirm: the line items up,
      its group open, then its cost box, in view and ready to type */
   const priceOnLine = (l: QuoteLine) => {
@@ -509,6 +541,8 @@ export function QuoteLinesFace({
   /** a thing to confirm; an estimate is confirmed from the list itself, and
       a line nobody knows the price of is priced on the line */
   type Check = { tone: "due" | "info" | "ok"; text: string; confirm?: QuoteLine; price?: QuoteLine };
+  const variationOptions = new Set((view?.variations ?? []).map((v) => v.option));
+  const twinsFor = (l: QuoteLine) => (variationOptions.has(l.optionIndex) ? [] : twinsOf(l, all, variationOptions));
   const checksFor = (i: number): Check[] => {
     const mine = all.filter((l) => l.optionIndex === i);
     const oi = price && price.ok ? price.options[i] : undefined;
@@ -550,10 +584,15 @@ export function QuoteLinesFace({
             <i aria-hidden="true" />
             <span>{c.text}</span>
             {c.price && !paper && money && (
+              /* priced, swapped for one from the book, or taken off (3054) */
               <span className="ql-chkacts">
-                <button type="button" className="pbtn ghost sm" onClick={() => priceOnLine(c.price!)}>
+                <Button size={32} onClick={() => priceOnLine(c.price!)}>
                   Price it
-                </button>
+                </Button>
+                <Button size={32} disabled={busy} onClick={() => swapOnLine(c.price!)}>
+                  Swap
+                </Button>
+                <RemoveLine line={c.price} twins={twinsFor(c.price)} busy={busy} onRemove={(ls) => void removeLines(ls)} />
               </span>
             )}
             {/* confirming an estimate confirms its price: the route takes
@@ -610,6 +649,8 @@ export function QuoteLinesFace({
         setViewing(n);
         setPaper(true);
       }}
+      onRemove={(ls) => void removeLines(ls)}
+      swapAsk={swapAsk}
     />
   );
 

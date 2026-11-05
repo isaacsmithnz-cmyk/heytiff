@@ -143,3 +143,17 @@ test("a question she settled from words that came without it follows what she sa
   const turns = phoneTurns([crew(1), ev(2, "reply", { text: "Built." }), ev(3, "message", { text: "Three guys" }, "me"), settle, ev(5, "reply", { text: "Done." })], {}, "me");
   expect(turns.map((t) => t.text)).toEqual(["Built.", "What crew?", "Three guys", "Done."]);
 });
+
+/* Isaac, 6 November 2026, on 3054: "Need to be able to remove line items, swap them out etc on web and mobile" */
+test("each line carries what the phone needs to change it, its twins on the other options, and still no cost", () => {
+  const plenum = (o: Partial<QuoteLine>) => line({ id: "p1", group: "Ductwork and grilles", name: "Return plenum", code: null, kind: "material", costCents: 0, source: "unknown", ...o });
+  const q = phoneQuoteOf(view({ lines: [plenum({}), plenum({ id: "p2", optionIndex: 1, version: 3 })], optionNames: ["", ""] }), null, [], 0, false, {});
+  expect(q.options[0]!.groups[0]!.lines[0]).toMatchObject({ id: "p1", version: 1, qty: 1, unknown: true, swap: true, twins: [{ id: "p2", version: 3, option: 1 }] });
+  expect(q.options[1]!.groups[0]!.lines[0]!.twins).toEqual([{ id: "p1", version: 1, option: 0 }]);
+  expect(JSON.stringify(q)).not.toContain("costCents");
+  /* a variation's option is its own change */
+  const v = phoneQuoteOf(view({ lines: [plenum({}), plenum({ id: "p2", optionIndex: 1 })], variations: [{ option: 1 }] }), null, [], 0, false, {});
+  expect(v.options[0]!.groups[0]!.lines[0]!.twins).toEqual([]);
+  /* a tech swaps nothing: the book carries prices */
+  expect(phoneQuoteOf(view({ money: false }), null, [], 0, false, {}).options[0]!.groups[0]!.lines[0]!.swap).toBe(false);
+});

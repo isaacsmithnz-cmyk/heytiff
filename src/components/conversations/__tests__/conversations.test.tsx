@@ -316,7 +316,8 @@ describe("Chats: the threads and the open one", () => {
     const pane = screen.getByRole("region", { name: "Last 10 kW Mitsubishi ducted" });
     expect(within(pane).getByText("Today")).toBeInTheDocument();
     expect(within(pane).getAllByText("Isaac Smith")).toHaveLength(2);
-    expect(within(pane).getAllByText("Tiff")).toHaveLength(2);
+    /* her name on each of her turns, and on her button in the box */
+    expect(within(pane).getAllByText("Tiff", { selector: "b" })).toHaveLength(2);
     expect(within(pane).getAllByText("10:42 am").length).toBeGreaterThan(0);
     // the job conversation's look: your words on the right in a bubble, hers plain
     expect(within(pane).getByText("When did we last put in a 10 kW ducted?").closest(".jc-bm--you")).not.toBeNull();
@@ -385,7 +386,7 @@ describe("the box", () => {
     localStorage.setItem(STORE_KEY, JSON.stringify(threads()));
     render(<Conversations {...props()} />);
     await user.type(box(), "what does P8 mean?");
-    await user.click(screen.getByRole("button", { name: "Send" }));
+    await user.click(screen.getByRole("button", { name: "Send to Tiff" }));
 
     expect(asks).toHaveLength(1);
     expect(asks[0]).toMatchObject({ question: "what does P8 mean?", research: true });
@@ -441,12 +442,12 @@ describe("the box", () => {
     expect(screen.getByText("Searched your library: 3 matching passages")).toBeInTheDocument();
     expect(screen.getByText("Read PEAD-M100JAA installation manual")).toBeInTheDocument();
     await user.type(box(), "next");
-    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Send to Tiff" })).toBeDisabled();
     act(() => {
       emit({ t: "delta", text: "Check the filter." });
       emit({ t: "done" });
     });
-    expect(screen.getByRole("button", { name: "Send" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Send to Tiff" })).toBeEnabled();
     await waitFor(() => expect((stored().find((t) => t.id === "t-e6")!.messages.at(-1) as { steps?: string[] }).steps).toEqual([
       "Searched your library: 3 matching passages",
       "Read PEAD-M100JAA installation manual",

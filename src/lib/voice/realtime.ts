@@ -123,6 +123,36 @@ export function mergeCommitted(prev: string, incoming: string): string {
   return `${prev} ${add}`;
 }
 
+/* WHAT THE WORDS IN THE AIR HAD. A long stretch said without a pause the
+   model counts as a gap can come back committed without its start: Isaac's
+   note of 5 November 2026 showed "I'm just doing a test of the voice note.
+   This seems…" the whole way through, and at Stop the box read "This
+   seems…", the first sentence gone. So when a commit's opening words are
+   found further into the partial it replaces, the partial's words before
+   them are kept in front of it. Three words of a head at least, not counting
+   ums, so a filler the model left out isn't put back; and a commit whose
+   start can't be found in the partial is taken as it is. */
+const FILLERS: ReadonlySet<string> = new Set(["um", "umm", "uh", "uhh", "er", "erm", "ah", "eh", "hmm", "mm"]);
+const HEAD_MIN_WORDS = 3;
+const bare = (w: string) => w.toLowerCase().replace(/[^\p{L}\p{N}']/gu, "");
+
+/** The words of `partial` before where `committed` starts in it, when the commit left them out; "" when it didn't. */
+export function keptHead(partial: string, committed: string): string {
+  const pw = partial.split(/\s+/).filter(Boolean);
+  const cw = committed.split(/\s+/).filter(Boolean);
+  const m = Math.min(3, cw.length);
+  if (!m || pw.length <= m) return "";
+  const want = cw.slice(0, m).map(bare);
+  for (let k = 0; k + m <= pw.length; k++) {
+    if (!want.every((w, i) => bare(pw[k + i]!) === w)) continue;
+    const head = pw.slice(0, k).filter((w) => bare(w) && !FILLERS.has(bare(w)));
+    /* the commit has to cover most of what followed, or the match is a coincidence */
+    if (head.length < HEAD_MIN_WORDS || cw.length < (pw.length - k) * 0.6) return "";
+    return head.join(" ");
+  }
+  return "";
+}
+
 /** The one sentence a live failure is allowed to say. The caller's job on
     seeing it is not to explain it — it's to fall back to the recording it
     has been keeping all along. */
@@ -155,10 +185,13 @@ export function applyMessage(state: Transcript, raw: unknown): Applied {
     case "final_transcript_with_timestamps":
     case "committed_transcript":
     case "committed_transcript_with_timestamps":
+    {
+      const head = keptHead(state.partial, text);
       return {
         kind: "transcript",
-        next: { committed: mergeCommitted(state.committed, text), partial: "" },
+        next: { committed: mergeCommitted(state.committed, head ? `${head} ${text.trim()}` : text), partial: "" },
       };
+    }
 
     default:
       return { kind: "ignored" };

@@ -5,6 +5,7 @@ import {
   REALTIME_KEYTERM_MAX_CHARS,
   applyMessage,
   audioFormatFor,
+  keptHead,
   mergeCommitted,
   visibleText,
   type Transcript,
@@ -110,6 +111,38 @@ describe("transcript accumulation", () => {
       { message_type: "committed_transcript", text: "The condensate pump is blocked." },
     ]);
     expect(state.committed).toBe("The condensate pump is blocked.");
+  });
+
+  /* Isaac's note of 5 November 2026: the first sentence showed the whole
+     way through, and the commit at Stop came back without it. */
+  it("keeps the start of a long stretch the commit left out", () => {
+    const said =
+      "I'm just doing a test of the voice note. This seems to be a little bit smoother, which is good. The voice is coming through a lot faster.";
+    const state = fold([
+      { message_type: "partial_transcript", text: said },
+      {
+        message_type: "committed_transcript",
+        text: "This seems to be a little bit smoother, which is good. The voice is coming through a lot faster.",
+      },
+    ]);
+    expect(state.committed).toBe(said);
+  });
+
+  it("doesn't put back an um the commit left out, or keep a head it can't place", () => {
+    expect(
+      fold([
+        { message_type: "partial_transcript", text: "Um, uh tell Lyle he needs to order the grilles" },
+        { message_type: "committed_transcript", text: "Tell Lyle he needs to order the grilles." },
+      ]).committed,
+    ).toBe("Tell Lyle he needs to order the grilles.");
+    /* a word fixed at the start: the commit's own words are what's kept */
+    expect(
+      fold([
+        { message_type: "partial_transcript", text: "Take the label down to two days" },
+        { message_type: "committed_transcript", text: "Take the labour down to two days." },
+      ]).committed,
+    ).toBe("Take the labour down to two days.");
+    expect(keptHead("tell Lyle he needs", "Tell Lyle he needs to order the grilles.")).toBe("");
   });
 
   it("ignores session_started and anything unrecognised", () => {

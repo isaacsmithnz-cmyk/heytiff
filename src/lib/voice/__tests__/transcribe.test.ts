@@ -165,6 +165,18 @@ describe("an upstream refusal", () => {
     expect(sent!.getAll("keyterms")).toEqual(["Lyle", "grilles"]);
   });
 
+  it("asks for no ums, false starts or sighs, as the live transport does", async () => {
+    let sent: FormData | null = null;
+    global.fetch = jest.fn(async (_url: unknown, init?: { body?: unknown }) => {
+      sent = init?.body as FormData;
+      return { ok: true, json: async () => ({ text: "hi" }) };
+    }) as unknown as typeof fetch;
+
+    await transcribeAudio(new Blob(["x"]), {});
+    expect(sent!.get("no_verbatim")).toBe("true");
+    expect(sent!.get("tag_audio_events")).toBe("false");
+  });
+
   it("an unreadable body still logs the status rather than throwing", async () => {
     global.fetch = jest.fn(async () => ({
       ok: false,

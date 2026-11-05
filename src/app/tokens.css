@@ -159,6 +159,9 @@
      where the paper ring's ink edge would vanish (law 32) */
   --ring-ink:0 0 0 2px var(--ink2), 0 0 0 4px var(--paper);
   --shadow-overlay:0 12px 32px rgba(10,12,20,.16);
+  /* a card resting on the white page, lifted (Home's columns and the job's
+     Overview, Isaac 5 November 2026): the one other shadow */
+  --shadow-card:0 1px 2px rgba(10,12,20,.05), 0 4px 16px rgba(10,12,20,.07);
   --scrim:rgba(10,11,16,.45); /* the one veil under a modal or a sheet; a lightbox is darker on purpose */
 
   /* THE DAY VOCABULARY — Time & Pay's nine day states, a colour each, read

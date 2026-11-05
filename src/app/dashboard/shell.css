@@ -3939,6 +3939,8 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .qc-boxfoot { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
 /* what you're saying, as you say it, in the box's own words size */
 .fg .qc-live { margin:0; padding:0 4px; font-size:16px; line-height:24px; color:var(--q); }
+/* the words as you say them stand in the box's place, and scroll in it as the box would */
+.fg .qc-box .qt-in .wb2-lwbox { max-height:240px; }
 /* A SECOND STEP'S GO (the paper's Save, Read it, a kit's Add): the outline
    in the colour of pressing, one change on hover. It has to beat
    `.wb2 .pbtn.ghost` (0,3,0) and its hover (0,5,0); disabled, it is the
@@ -7084,6 +7086,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jm-add { display:flex; align-items:center; gap:8px; }
 .fg .jm-find { flex:1 1 auto; min-width:0; display:flex; }
 .fg .jm-find > .pt-input { flex:1 1 auto; min-width:0; }
+/* the words as you say the list: the field's line box, so they sit where its text would */
+.fg .jm-find > .wb2-lwbox { line-height:30px; }
 .fg .jm-add .jm-qtyin { flex:none; width:72px; }
 .fg .jm-wait { flex:none; font-size:13px; line-height:18px; color:var(--q); }
 .fg .jm-err { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--red-w); }

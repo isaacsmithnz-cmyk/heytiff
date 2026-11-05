@@ -9,8 +9,9 @@ import { LiveWords } from "../dictation";
    one of those swapped the paragraph, which read as flicker.
 
    The fix is a rendering decision, and it is the kind that looks like a
-   detail and is actually the whole behaviour: words are keyed by POSITION,
-   so React mounts only the spans just appended. jsdom cannot see a CSS
+   detail and is actually the whole behaviour: words are keyed by WHO THEY
+   ARE, matched against the guess before, so React mounts only the words
+   that are new. jsdom cannot see a CSS
    animation, but it can see the thing the animation hangs off — whether a
    span is the same DOM node as it was a moment ago. A word that survives is
    a word that does not re-glide.
@@ -50,18 +51,36 @@ it("keeps the words already said, and mounts only what arrived", () => {
   expect(after[1]).toBe(before[1]);
 });
 
-/* Scribe revises what it already sent. The corrected word must change in
-   place: re-mounting it would flash a word mid-sentence, which is worse
-   than the wrong word was. */
-it("corrects a word without re-mounting it", () => {
-  const { rerender } = render(<LiveWords text="order the grills" />);
+/* Scribe revises what it already sent. The corrected word is a new word,
+   and glides in where the old one stood, as the phone melts it in (Isaac,
+   5 November 2026: "morphing into the correct word", then "line them up");
+   the words either side of it stay put. */
+it("glides a corrected word in, and leaves its neighbours be", () => {
+  const { rerender } = render(<LiveWords text="order the grills today" />);
   const before = words();
 
-  rerender(<LiveWords text="order the grilles" />);
+  rerender(<LiveWords text="order the grilles today" />);
   const after = words();
 
-  expect(after[2]).toBe(before[2]);
-  expect(after[2].textContent).toBe("grilles");
+  expect(after.map((w) => w.textContent)).toEqual(["order", "the", "grilles", "today"]);
+  expect(after[2]).not.toBe(before[2]);
+  expect(after[0]).toBe(before[0]);
+  expect(after[1]).toBe(before[1]);
+  expect(after[3]).toBe(before[3]);
+});
+
+/* Keyed by position, a word put in mid-sentence handed every word after it
+   the letters of the one before. Keyed by who they are, they keep theirs. */
+it("puts a word in mid-sentence without touching the words after it", () => {
+  const { rerender } = render(<LiveWords text="tell Lyle the grilles" />);
+  const before = words();
+
+  rerender(<LiveWords text="tell Lyle about the grilles" />);
+  const after = words();
+
+  expect(after.map((w) => w.textContent)).toEqual(["tell", "Lyle", "about", "the", "grilles"]);
+  expect(after[3]).toBe(before[2]);
+  expect(after[4]).toBe(before[3]);
 });
 
 it("ignores the engine's stray whitespace rather than rendering empty words", () => {

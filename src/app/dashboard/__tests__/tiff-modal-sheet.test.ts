@@ -172,10 +172,11 @@ describe("the view and the sheet agree", () => {
 
   /* Listening, the modal's box holds Done too, and Done has the focus: an
      edge lit for anything focused in it lit a box nobody was typing in. */
-  it("ends the chat's box in Send", () => {
-    // the chat's box ends in a microphone and Send, as Claude's does, not a Tiff button
+  it("ends the chat's box in Tiff's button", () => {
+    // the chat's box is the one box (conversations/box, 6 November 2026): a microphone and her button, not the old Tiff mark button
     expect(MODAL).not.toMatch(/className="tiffbtn/);
-    expect(MODAL).toMatch(/glyph="send"/);
+    expect(MODAL).toMatch(/<CvBox/);
+    expect(MODAL).toMatch(/sendLabel="Send to Tiff"/);
     // one size rule for a box's button on the page, and one in the modal (1.3x): the dock carries none of its own
     expect(rules.some(([sel]) => /\.tm-dock\s+\.tiffbtn/.test(sel))).toBe(false);
     expect(body(".fg .tm .tiffbtn-box")).toMatch(/--tb:48px/);

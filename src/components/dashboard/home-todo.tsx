@@ -269,7 +269,7 @@ export function ColumnHead({
 }) {
   const H = level === 1 ? "h1" : "h2";
   return (
-    <div className="hm-head">
+    <div className={`hm-head hm-head--${hue}`}>
       <span className={`hm-blk hm-blk--${hue}`} aria-hidden="true">
         <Icon name={icon} size={18} />
       </span>

@@ -7396,15 +7396,17 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jov-line .jcl-step.on .jcl-sl b { text-decoration:underline; text-underline-offset:4px; }
 /* THE GROUND AND ITS CARDS (Isaac, 4 November 2026, Apple Health's cards
    on https://claude.ai/artifact/8L3hw5D8QxHZidsAAQNcX6: "2, check laws",
-   then "build it"). Under the tabs the Overview stands on the soft fill,
-   and the stages line, each fact and each section is a white card on it,
-   with no edge; the hairline between the columns goes. Each section's
-   icon and title take its hue's word value, in the block's place. Named
-   in docs/design.md, "On a job's page". */
-.fg .jov { gap:16px; padding:16px; border-radius:var(--r-card); background:var(--soft); }
-.fg .jov-line { padding:12px 12px 8px; border-radius:var(--r-card); background:var(--paper); }
+   then "build it"). Under the tabs the stages line, each fact and each
+   section is a white card with no edge; the hairline between the columns
+   goes. Each section's icon and title take its hue's word value, in the
+   block's place. Since 5 November 2026 ("Yes, lift it", to match Home's
+   "C, lifted") the soft ground is gone and the cards are lifted off the
+   white page by the card shadow. Named in docs/design.md, "On a job's
+   page". */
+.fg .jov { gap:16px; }
+.fg .jov-line { padding:12px 12px 8px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
 .fg .jov-facts, .fg .jov-facts--3 { gap:16px; border:0; background:none; }
-.fg .jov-fact, .fg .jov-fact:first-child, .fg .jov-fact:last-child { padding:12px 16px; border-radius:var(--r-card); background:var(--paper); }
+.fg .jov-fact, .fg .jov-fact:first-child, .fg .jov-fact:last-child { padding:12px 16px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
 .fg .jov-fact + .jov-fact { border-left:0; }
 .fg .jov-fact--door:hover { background:var(--paper); outline:1px solid var(--edge); outline-offset:-1px; }
 .fg .jov-lab { gap:8px; min-height:18px; font-size:13px; line-height:18px; }
@@ -7416,7 +7418,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jov-main { gap:16px; }
 .fg .jov-main--stick { top:16px; }
 .fg .jov-side { padding-left:0; border-left:0; }
-.fg .jov .jov-sec { padding:12px 16px 8px; border-radius:var(--r-card); background:var(--paper); }
+.fg .jov .jov-sec { padding:12px 16px 8px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
 .fg .jov .jov-head { gap:8px; }
 .fg .jov .jov-head .hm-blk { width:auto; height:auto; background:none; color:inherit; }
 .fg .jov .jov-title { color:inherit; }
@@ -7737,13 +7739,18 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .wrap.hm { max-width:none; padding:24px 32px 48px; display:flex; flex-direction:column; gap:32px; }
 /* the three columns under Tiff's box (Isaac, 20 October): Today, Your feed
    in the middle and widest, To do; 30/40/30 (Isaac, 26 October 2026) */
-.fg .hm-cols { display:grid; grid-template-columns:minmax(0,3fr) minmax(0,4fr) minmax(0,3fr); align-items:stretch; }
-/* a hairline between the columns, 32 either side (Isaac, 25 October 2026:
-   the same lines the job's Overview separates its columns with) */
-.fg .hm-cols > .hm-sec { padding-inline:32px; }
-.fg .hm-cols > .hm-sec:first-child { padding-left:0; }
-.fg .hm-cols > .hm-sec:last-child { padding-right:0; }
-.fg .hm-cols > .hm-sec + .hm-sec { border-left:1px solid var(--line); }
+.fg .hm-cols { display:grid; grid-template-columns:minmax(0,3fr) minmax(0,4fr) minmax(0,3fr); align-items:stretch; gap:16px; }
+/* each column a white card lifted off the white page, no edge (Isaac, 5
+   November 2026, "C, lifted", docs/design.md "On Home"): the card shadow,
+   its name and glyph in its colour's word value, as the job's Overview */
+.fg .hm-cols > .hm-sec { padding:12px 16px 8px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
+.fg .hm-cols .hm-head { gap:8px; }
+.fg .hm-cols .hm-blk { width:auto; height:auto; background:none; color:inherit; }
+.fg .hm-cols .hm-h { font-size:16px; line-height:24px; color:inherit; }
+.fg .hm-cols .hm-head--purple { color:var(--purple-w); }
+.fg .hm-cols .hm-head--yellow { color:var(--yellow-w); }
+.fg .hm-cols .hm-head--green { color:var(--green-w); }
+.fg .hm-cols .hm-headlinks, .fg .hm-cols .hm-headlink { color:var(--ink); }
 /* a column's head: a solid block of its colour, its glyph in ink on it */
 .fg .hm-blk { display:inline-flex; align-items:center; justify-content:center; flex:none; width:32px; height:32px; border-radius:var(--r-button); color:var(--ink); }
 .fg .hm-blk--purple { background:var(--purple); }

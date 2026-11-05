@@ -122,7 +122,7 @@ Nineteen values: each of the eight hues has a bright value (dots, blocks, charts
 
 **Ink at an alpha** (lines and fills, not new colours): line 8%, edge 14%, selected 7%, hover 4%, soft fill 5%. On the ink sidebar, white at 12% marks the place you're on.
 
-**The one shadow:** 0 12px 32px at 16% of a near-black, for anything that floats. **The scrim** behind a dialog: near-black at 45%.
+**The one shadow:** 0 12px 32px at 16% of a near-black, for anything that floats. **The card shadow** (`--shadow-card`): 0 1px 2px at 5% and 0 4px 16px at 7%, for a card resting on the white page, and only where His rulings name it (On Home, On a job's page). **The scrim** behind a dialog: near-black at 45%.
 
 **Text on a solid block** (a bar, a column's head on Home): ink on every hue but blue, which takes white. A schedule card's number box is the exception: the hue's word value with white words (rule 19).
 
@@ -165,7 +165,7 @@ The scale is 12, 13, 14, 16, 20, 24, 32. Nothing is set at 40 any more.
 
 - **Spacing** on the scale: 2, 4, 8, 12, 16, 24, 32, 48.
 - **Six named layers**, as above.
-- **One shadow**, only on things that float.
+- **One shadow**, only on things that float; the card shadow only where His rulings name it.
 - **Focus:** a 2px ink ring with white between, on every ground.
 - **Flat:** no gradients, glass, glow or texture.
 - **No eyebrows:** no capitals or tracked labels; a title stands alone.
@@ -280,6 +280,22 @@ this list the way it holds the loops: both ways, by name.
 Some of Isaac's calls break a rule no ratchet counts, so they are written
 here rather than in the table below, each with his words and the day.
 
+#### On Home
+
+- **Home's three columns are white cards lifted off the white page**
+  (`.hm-cols > .hm-sec`, `--shadow-card`), each column's name and glyph in
+  its colour's word value with no block, as the job's Overview names its
+  sections (Isaac, 5 November 2026, on
+  https://claude.ai/artifact/ENNSiAcvz4rSAm2hxQsPbU, told it needs the
+  one-shadow law set aside: "C, lifted"). Two rules give way, on Home only:
+  - one shadow, only on things that float: each column rests on the page
+    with the card shadow, its own token, which the shadows ratchet does not
+    count, as it does not count the overlay's;
+  - rule 35, a card is something you act on: Today, Your feed and To do
+    are cards, though a column is not pressed.
+  Tiff's box stays as it is, outlined. The hairline between the columns
+  goes. A hover is still one change, a fill (rule 23): nothing lifts more.
+
 #### On a person's page
 
 Two of his calls on Team's person page (20 October 2026, on his mock
@@ -322,17 +338,20 @@ the fourth on the customer's messages, below).
   in purple with a clock (Isaac picked the written brief, 28 October 2026).
   The block is solid with its icon in ink, as on Home and in the Library:
   no tint, no edge, and never blue, red or orange.
-- **The Overview stands on a grey ground, its parts as white cards, and
+- **The Overview's parts are white cards lifted off the white page, and
   each section's name is in its colour** (`.jov`, `.jov-head--<hue>`),
   Apple Health's cards (Isaac, 4 November 2026, on
   https://claude.ai/artifact/8L3hw5D8QxHZidsAAQNcX6: "2, check laws", then
-  "Unless you have other ideas, you can build it"). Three rules give way,
-  on the Overview only:
-  - rule 1, a plain white page: under the section tabs the Overview is the
-    soft fill, ink at 5%, already in the palette;
+  "Unless you have other ideas, you can build it"). It first stood on a
+  grey ground; on 5 November 2026 the ground went and the cards were
+  lifted, to match Home (on https://claude.ai/artifact/ENNSiAcvz4rSAm2hxQsPbU:
+  "Yes, lift it"). Three rules give way, on the Overview only:
+  - one shadow, only on things that float: the stages line, each fact and
+    each section rests on the page with the card shadow, as Home's columns
+    do;
   - rule 35, a card is something you act on: the stages line, each fact
-    and each section is a white card on that ground, 16 corner, no edge,
-    though most are not pressed;
+    and each section is a white card, 16 corner, no edge, though most are
+    not pressed;
   - the ruling above, the coloured block: on the Overview the block goes,
     and the section's icon and its 16/600 title take the hue's word value
     instead. A green Activity feed or a yellow To do sits near rule 17's

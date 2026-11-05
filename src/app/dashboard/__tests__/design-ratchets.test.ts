@@ -92,12 +92,15 @@ function offScaleRadii(): number {
 
    `var(--shadow-overlay)` is the one shadow itself (rule 36), so it
    is not counted, as the ring token is not (18 October 2026, v2's parts:
-   the Dialog part wears it and the count fell 48 → 13). */
+   the Dialog part wears it and the count fell 48 → 13). Nor is
+   `var(--shadow-card)`, the card lifted off the white page, the one other
+   shadow and a token of its own (Isaac, 5 November 2026: "C, lifted";
+   docs/design.md, "On Home"). */
 function shadows(css = CSS): number {
   let n = 0;
   for (const m of css.matchAll(/box-shadow\s*:\s*([^;}]+)/g)) {
     const v = m[1].trim();
-    if (v !== "none" && !/^0 0 0 \d/.test(v) && !/^inset/.test(v) && !/^var\(--(?:ring|shadow-overlay\)$)/.test(v)) n++;
+    if (v !== "none" && !/^0 0 0 \d/.test(v) && !/^inset/.test(v) && !/^var\(--(?:ring|shadow-(?:overlay|card)\)$)/.test(v)) n++;
   }
   for (const _ of css.matchAll(/[\w-]+\s*:\s*[^;}]*drop-shadow\([^;}]*/g)) n++;
   return n;
@@ -594,7 +597,7 @@ describe("the design ratchets only go down", () => {
   it("defines every token the design doc names", () => {
     const root = fs.readFileSync(path.join(process.cwd(), "src/app/tokens.css"), "utf8");
     for (const name of [
-      "paper", "ground", "line", "tint", "tint-2", "link", "ring", "ring-bad", "ring-warn", "shadow-overlay", "ok-t", "ok-tint",
+      "paper", "ground", "line", "tint", "tint-2", "link", "ring", "ring-bad", "ring-warn", "shadow-overlay", "shadow-card", "ok-t", "ok-tint",
       "on-ink-line", "t-fast", "t-move", "ease", "z-raised", "z-sticky", "z-overlay", "z-modal", "z-toast",
       "r-control", "r-button", "r-card", "r-pill", "s-1", "s-8", "fs-1", "fs-8", "fw-body", "fw-display",
     ]) {

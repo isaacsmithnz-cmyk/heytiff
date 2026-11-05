@@ -3782,3 +3782,47 @@ describe("compliance on the page", () => {
   });
 });
 
+
+/* ── what the page already read ── */
+
+describe("a card the page read for arrives full", () => {
+  /* Isaac, 5 November 2026: "it has all the placeholders empty and then it's
+     like it refreshes and fills it all in". The page reads these on the
+     server, side by side, and the card draws them on its first paint. */
+  const first = (over: Record<string, unknown> = {}) => ({
+    cardId: "j-1",
+    mirror: { ...card(detail()), cards: 1 },
+    record: record(),
+    files: null,
+    picklist: [],
+    favourites: [],
+    conversation: null,
+    ...over,
+  });
+
+  it("draws the facts with no Reading, and reads none of it again", async () => {
+    render(<Job row={row()} {...props} first={first()} />);
+    const facts = document.querySelector(".jov-facts") as HTMLElement;
+    expect(within(facts).queryByText(/^Reading the/)).toBeNull();
+    await act(async () => {});
+    expect(readMirrorJob).not.toHaveBeenCalled();
+    expect(readJobRecord).not.toHaveBeenCalled();
+    expect(readJobFiles).not.toHaveBeenCalled();
+    expect(listJobPicklist).not.toHaveBeenCalled();
+    expect(listJobPhotoFavourites).not.toHaveBeenCalled();
+    expect(readJobConversation).not.toHaveBeenCalled();
+  });
+
+  it("reads for itself only what the page left out", async () => {
+    render(<Job row={row()} {...props} first={first({ record: undefined })} />);
+    await waitFor(() => expect(readJobRecord).toHaveBeenCalledWith("j-1"));
+    expect(readMirrorJob).not.toHaveBeenCalled();
+    expect(readJobFiles).not.toHaveBeenCalled();
+  });
+
+  it("uses none of it for another job's card", async () => {
+    render(<Job row={row()} {...props} first={first({ cardId: "j-other" })} />);
+    await detailLanded();
+    expect(readMirrorJob).toHaveBeenCalled();
+  });
+});

@@ -103,6 +103,7 @@ const taskActions = () => import("@/app/actions/dashboard");
 
 export function JobOverview({
   cardId,
+  firstRead,
   label,
   story,
   loading,
@@ -121,6 +122,9 @@ export function JobOverview({
   under,
 }: {
   cardId: string | null;
+  /** The read below as the page already made it, on the server: drawn at
+      once, and read again only when something changes it. */
+  firstRead?: JobConversationRead | null;
   /** What the job is called where Tiff says where words are going. */
   label?: string;
   story: StoryEntry[];
@@ -171,9 +175,12 @@ export function JobOverview({
   });
 
   /* THE READ, and every reason to read it again */
-  const [read, setRead] = useState<JobConversationRead | null>(null);
+  const [read, setRead] = useState<JobConversationRead | null>(() => firstRead ?? null);
   /* the read answered or failed: the Summary reads the description then */
-  const [readDone, setReadDone] = useState(false);
+  const [readDone, setReadDone] = useState(() => firstRead !== undefined);
+  /* the page's own read stands for the first one (Strict Mode's second
+     mount reads, which is only development) */
+  const skipFirst = useRef(firstRead !== undefined);
   const [kick, setKick] = useState(0);
   const again = () => setKick((k) => k + 1);
   const readAgain = useCallback(() => setKick((k) => k + 1), []);
@@ -183,6 +190,10 @@ export function JobOverview({
   const landed = tiff.landed?.noteIds.join(",") ?? "";
   useEffect(() => {
     if (!cardId) return;
+    if (skipFirst.current) {
+      skipFirst.current = false;
+      return;
+    }
     let live = true;
     void readJobConversation(cardId)
       .then((r) => {

@@ -61,13 +61,15 @@ export function useJobDiary({
 }: JobDiaryInput) {
   /* OUR OWN WRITING arrives on the record read and is then LOCAL: a note
      typed at the diary's head has to be on screen at once. */
-  const [ourNotes, setOurNotes] = useState<OurJobNote[] | null>(null);
+  /* Started from a record the page already read (the job page reads it
+     on the server, so the card arrives full); null until one lands. */
+  const [ourNotes, setOurNotes] = useState<OurJobNote[] | null>(() => (record === undefined ? null : (record?.ourNotes ?? [])));
   /* NOTES TO SERVICEM8 (two-way phase 2), seeded from the record read and
      then local for the same reason: who the viewer sends as changes the
      moment they answer "Is <name> you?", and a flag's line the moment they
      mark it. All empty where the deployment sends no notes. */
-  const [sender, setSender] = useState<NoteSender | null>(null);
-  const [flags, setFlags] = useState<Record<string, FlagState>>({});
+  const [sender, setSender] = useState<NoteSender | null>(() => record?.sender ?? null);
+  const [flags, setFlags] = useState<Record<string, FlagState>>(() => record?.flags ?? {});
   /* each press kicks the poll, so its own note gets its own looks */
   const [pollKick, setPollKick] = useState(0);
   /* An answer that lands after the card has gone draws nothing. */

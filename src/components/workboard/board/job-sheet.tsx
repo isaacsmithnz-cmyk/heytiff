@@ -15,8 +15,10 @@ import {
   readJobFiles,
   readJobRecord,
   readMirrorJob,
+  type JobCardRead,
   type JobRecordRead,
 } from "@/app/actions/workboard";
+import type { JobConversationRead } from "@/lib/jobs/job-conversation";
 import { paymentsTotalCents } from "@/lib/workboard/job-ledger";
 import { claimFor, isPartialInvoiceLine } from "@/lib/workboard/job-family";
 import { readBilling } from "@/lib/workboard/job-billing";
@@ -252,6 +254,26 @@ export type JobSheetPage = {
   add?: "swms" | "certificate" | null;
 };
 
+/** WHAT THE PAGE ALREADY READ, on the server and all at once, so the card
+    arrives full instead of drawing its placeholders and filling them in one
+    read at a time (Isaac, 5 November 2026: "it has all the placeholders
+    empty and then it's like it refreshes and fills it all in"). The browser
+    sends a card's own reads one after another, so ten of them took seconds;
+    the server makes them side by side. Each part is absent where its read
+    failed, and the card then reads that part itself, as it always did.
+    `cardId` is the job these were read for: a card that turns out to be
+    another (a claim's parent) uses none of them. */
+export type JobCardFirst = {
+  cardId: string;
+  mirror?: JobCardRead;
+  record?: JobRecordRead | null;
+  files?: JobMediaGroupsRead | null;
+  picklist?: JobPicklistItem[];
+  favourites?: string[];
+  conversation?: JobConversationRead | null;
+  customerEdit?: boolean;
+};
+
 export function JobSheet({
   row,
   manage,
@@ -262,10 +284,13 @@ export function JobSheet({
   onOpenTracked,
   onToast,
   page,
+  first,
 }: {
   /** The job's own page: its head, the section's faces under it (the
       card over the screen went on 24 October 2026). */
   page: JobSheetPage;
+  /** What the page read before the card was drawn (JobCardFirst). */
+  first?: JobCardFirst;
   row: AllJobRow;
   manage: boolean;
   moneyVisible: boolean;
@@ -283,12 +308,15 @@ export function JobSheet({
   onToast: (message: string, undo?: () => void | Promise<void>) => void;
 }) {
   const router = useRouter();
-  const [detail, setDetail] = useState<MirrorJobDetail | null>(null);
+  /* the page's reads, kept only where they were read for this job's card */
+  const [overviewFirst] = useState(() => page.section === "overview");
+  const [pageRead] = useState(() => (first && first.mirror?.detail?.remoteId === first.cardId ? first : null));
+  const [detail, setDetail] = useState<MirrorJobDetail | null>(() => pageRead?.mirror?.detail ?? null);
   /* how many cards ServiceM8 bills the job across, read with the detail */
-  const [cards, setCards] = useState<number | null>(null);
+  const [cards, setCards] = useState<number | null>(() => pageRead?.mirror?.cards ?? null);
   /* The job's files AS READ. What the faces show is `media`, below: this,
      less ServiceM8's copies of files we sent that our own rows show. */
-  const [mediaRead, setMedia] = useState<JobMediaGroupsRead | null>(null);
+  const [mediaRead, setMedia] = useState<JobMediaGroupsRead | null>(() => pageRead?.files ?? null);
   const [mediaNote, setMediaNote] = useState<string | null>(null);
   /* Photos cached but not yet looked at. Null until a read reports; 0 once the
      job is fully in the bank. */
@@ -298,9 +326,9 @@ export function JobSheet({
      across three cards reads as $6,268 until the family arrives and $31,340
      after, and painting the wrong number first breaks this sheet's own rule
      that what fills in was ABSENT, not wrong. */
-  const [record, setRecord] = useState<JobRecordRead | null | undefined>(undefined);
+  const [record, setRecord] = useState<JobRecordRead | null | undefined>(() => pageRead?.record);
   const [recordFailed, setRecordFailed] = useState(false);
-  const [picklist, setPicklist] = useState<JobPicklistItem[] | null>(null);
+  const [picklist, setPicklist] = useState<JobPicklistItem[] | null>(() => pageRead?.picklist ?? null);
   /* bumped when the Quote section's Rooms adds a pair, so the Materials
      list and the Price read it again */
   /* WHICH OF THIS JOB'S PHOTOS ARE STARRED. Its own read on its own clock,
@@ -308,13 +336,13 @@ export function JobSheet({
      question the card asks of it. Null until it lands: an empty Set would
      draw every star hollow for a moment on a job whose photos are all
      starred, which is the picture being wrong rather than absent. */
-  const [favourites, setFavourites] = useState<Set<string> | null>(null);
+  const [favourites, setFavourites] = useState<Set<string> | null>(() => (pageRead?.favourites ? new Set(pageRead.favourites) : null));
   /* OUR OWN WRITING, and what the job still wants — both arrive on the
      record read and both are then LOCAL, because a note typed at the diary's
      head and a suggestion just answered have to leave the screen at once.
      Seeded from the read rather than derived from it for exactly that
      reason: derived state can't be edited. */
-  const [attention, setAttention] = useState<JobAttention | null>(null);
+  const [attention, setAttention] = useState<JobAttention | null>(() => pageRead?.record?.attention ?? null);
   /* the note the strip's Reply sent the reader to, by its ServiceM8 uuid */
   const [replyFor, setReplyFor] = useState<string | null>(null);
   /* BOOKINGS TO SERVICEM8 (two-way phase 3), seeded from the record read
@@ -323,8 +351,8 @@ export function JobSheet({
      bookings we took out, and the rows a Book in queued that no read has
      shown yet — the poll runs while any of them waits. All empty where the
      deployment books nothing. */
-  const [bkVerbs, setBkVerbs] = useState<VerbView[]>([]);
-  const [bkLines, setBkLines] = useState<Record<string, BookingState>>({});
+  const [bkVerbs, setBkVerbs] = useState<VerbView[]>(() => pageRead?.record?.bookings?.verbs ?? []);
+  const [bkLines, setBkLines] = useState<Record<string, BookingState>>(() => pageRead?.record?.bookings?.lines ?? {});
   const [bkGone, setBkGone] = useState<ReadonlySet<string>>(() => new Set());
   const [bkPending, setBkPending] = useState<ReadonlySet<string>>(() => new Set());
   const [bkKick, setBkKick] = useState(0);
@@ -332,7 +360,7 @@ export function JobSheet({
   const [bookIn, setBookIn] = useState<{ n: number; seed: BookInSeed | null } | null>(null);
   /* the leftover whose Clear is being asked, by lower-case uuid */
   const [clearAsk, setClearAsk] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !pageRead);
   /* THE STEP whose part is open below, when the progress line opened it;
      null otherwise. A door that came back from the quote page opens
      on Quoted. */
@@ -343,13 +371,13 @@ export function JobSheet({
   /* EDIT CUSTOMER (customer details to ServiceM8): offered only where the
      deployment saves them, the reader runs the board and the owner has them
      on — asked once, for a manager, and never anywhere else */
-  const [customerEdit, setCustomerEdit] = useState(false);
+  const [customerEdit, setCustomerEdit] = useState(() => pageRead?.customerEdit === true);
   const [editingCustomer, setEditingCustomer] = useState(false);
   /* THE VISIT PRESSED on Visits, by its key: its dialog is open */
   const [visitOpen, setVisitOpen] = useState<string | null>(null);
   /* The claim this card was opened FOR, when a clone's row was clicked. It
      names the row in the ledger — the card is always the job. */
-  const [focus, setFocus] = useState<string | null>(null);
+  const [focus, setFocus] = useState<string | null>(() => pageRead?.mirror?.focusRemoteId ?? null);
   /* Which claim's modal is open, and whether the number's list is showing. */
   const [openClaim, setOpenClaim] = useState<string | null>(null);
   /* ADD (rule 54): what belongs to the job, each item a door to the flow the
@@ -408,6 +436,7 @@ export function JobSheet({
   /* No setLoading(true) here: the sheet is KEYED BY JOB, so a different job
      is a different component with `loading` already true. */
   useEffect(() => {
+    if (pageRead) return;
     let live = true;
     void readMirrorJob(row.id).then((res) => {
       if (!live) return;
@@ -419,10 +448,10 @@ export function JobSheet({
     return () => {
       live = false;
     };
-  }, [row.id]);
+  }, [row.id, pageRead]);
 
   useEffect(() => {
-    if (!manage) return;
+    if (!manage || pageRead?.customerEdit !== undefined) return;
     let live = true;
     void customerEditOffered()
       .then((on) => live && setCustomerEdit(on))
@@ -430,7 +459,7 @@ export function JobSheet({
     return () => {
       live = false;
     };
-  }, [manage]);
+  }, [manage, pageRead]);
 
   /* THE COMPANION READS FOLLOW THE CARD, not the row that was clicked. A
      clone's row opens its parent, so asking for the clone's files, ledger or
@@ -510,7 +539,7 @@ export function JobSheet({
   });
 
   useEffect(() => {
-    if (!cardId) return;
+    if (!cardId || (pageRead?.cardId === cardId && pageRead.files !== undefined)) return;
     let live = true;
     void readJobFiles(cardId)
       .then((m) => {
@@ -520,14 +549,14 @@ export function JobSheet({
     return () => {
       live = false;
     };
-  }, [cardId]);
+  }, [cardId, pageRead]);
 
   /* The stars on this job's photos. Ours, not ServiceM8's — see
      docs/migrations/job_photo_favourites.sql. A read that fails leaves the
      set EMPTY rather than null: the stars go hollow, which is honest, and
      the tiles stay clickable. */
   useEffect(() => {
-    if (!cardId) return;
+    if (!cardId || (pageRead?.cardId === cardId && pageRead.favourites !== undefined)) return;
     let live = true;
     void listJobPhotoFavourites(cardId)
       .then((rows) => {
@@ -539,7 +568,7 @@ export function JobSheet({
     return () => {
       live = false;
     };
-  }, [cardId]);
+  }, [cardId, pageRead]);
 
   /* After Issue, Email to the builder: the card's own letter, with the PDF
      ticked, whose draft starts with the job's contact — the builder. */
@@ -565,7 +594,7 @@ export function JobSheet({
   /* Our OWN material picklist — pushed here from a Studio design. On its own
      clock like the files; a job with none renders nothing. */
   useEffect(() => {
-    if (!cardId) return;
+    if (!cardId || (pageRead?.cardId === cardId && pageRead.picklist !== undefined)) return;
     let live = true;
     void listJobPicklist(cardId)
       .then((p) => {
@@ -578,7 +607,7 @@ export function JobSheet({
     return () => {
       live = false;
     };
-  }, [cardId]);
+  }, [cardId, pageRead]);
 
   /* Notes and the ledger, on their own clock like the files. `ledger` comes
      back null for a reader without money — the gate is server-side, so this
@@ -587,7 +616,7 @@ export function JobSheet({
      and the money face says the figures didn't load — never the netted
      fallback, which is the exact number this feature exists to stop. */
   useEffect(() => {
-    if (!cardId) return;
+    if (!cardId || (pageRead?.cardId === cardId && pageRead.record !== undefined)) return;
     let live = true;
     void readJobRecord(cardId)
       .then((r) => {
@@ -606,7 +635,7 @@ export function JobSheet({
     return () => {
       live = false;
     };
-  }, [cardId, setOurNotes, setSender, setFlags]);
+  }, [cardId, pageRead, setOurNotes, setSender, setFlags]);
 
   /* Bringing the bytes across, a few per round, with the BROWSER as the loop.
      Two rails: a hard round cap, and STOP ON NO PROGRESS.
@@ -2206,6 +2235,8 @@ export function JobSheet({
             {seen.has("overview") && (
             <JobOverview
               cardId={cardId}
+              /* only for an Overview drawn with the page: one opened later reads afresh */
+              firstRead={overviewFirst && pageRead?.cardId === cardId ? pageRead?.conversation : undefined}
               label={[cardNumber, detail?.clientName ?? row.clientName].filter(Boolean).join(" ") || undefined}
               story={story}
               loading={loading && !detail}

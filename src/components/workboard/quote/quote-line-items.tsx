@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { againstFirst, isProvisional, missingFromFirst, PROVISIONAL, type LineFields, type QuoteLine } from "@/lib/quotes/lines";
 import { offerFor, type BookHit } from "@/lib/quotes/lookups";
@@ -13,6 +13,8 @@ import { namedUnit, unitRoleOf } from "@/lib/quotes/unit-name";
 import { visitSummary, withHours, withoutTask, withTask, type LineVisit } from "@/lib/quotes/line-visit";
 import type { Variation } from "@/lib/quotes/lines-job";
 import { Button } from "@/components/parts/button";
+import { Menu } from "@/components/parts/menu";
+import { alsoWords, optionsWords, twinsOf } from "@/lib/quotes/line-twins";
 import { Tooltip } from "@/components/parts/tooltip";
 import { Icon } from "@/components/shell/icon";
 import { Globe } from "./tiff-panel";
@@ -26,7 +28,10 @@ import type { LinesView } from "./quote-lines-face";
    with its code under its name and a dot for where it came from. Qty, cost
    each and sell each are typed in place on every line; the total is always
    qty × sell. A line is added from the business's own book (searched as it
-   buys: lookups.ts) or by hand, and taken off with its ×. At the foot, the
+   buys: lookups.ts) or by hand. Each row ends in Swap, the book's other
+   items like it, and Remove, the red word; a line that's on other options
+   too asks which (Isaac, 6 November 2026, on 3054: "Need to be able to
+   remove line items, swap them out etc on web and mobile"). At the foot, the
    versions kept and every change with who made it, and Undo; the total and
    its parts are the rail's card now (quote-rail.tsx). Every group starts
    shut, its band its name and its total, and opens on a press (Isaac,
@@ -239,6 +244,8 @@ export function QuoteLineItems({
   act,
   onCompared,
   onOpenVersion,
+  onRemove,
+  swapAsk = null,
 }: {
   job: string;
   view: LinesView | null;
@@ -259,6 +266,10 @@ export function QuoteLineItems({
   onCompared: () => void;
   /** a version kept at an approval, opened on the paper */
   onOpenVersion: (n: number) => void;
+  /** lines taken off, one option's or the same line on several, with Undo */
+  onRemove: (lines: QuoteLine[]) => void;
+  /** Swap pressed elsewhere (To confirm): this line's pick list opens */
+  swapAsk?: { id: string; n: number } | null;
 }) {
   const [search, setSearch] = useState("");
   const [hits, setHits] = useState<BookHit[] | null>(null);
@@ -266,6 +277,12 @@ export function QuoteLineItems({
   const [kitOpen, setKitOpen] = useState(false);
   /* the line whose pick list is open (Select preferred item, slice 2.4) */
   const [swapping, setSwapping] = useState<string | null>(null);
+  /* Swap from To confirm: the line's group is opened there, its list here */
+  const [askedSwap, setAskedSwap] = useState(0);
+  if (swapAsk && swapAsk.n !== askedSwap) {
+    setAskedSwap(swapAsk.n);
+    setSwapping(swapAsk.id);
+  }
   /* the unit line whose compare is open (compare-card.tsx) */
   const [comparing, setComparing] = useState<string | null>(null);
   /* each group's rows carry an id its band's button names */
@@ -281,6 +298,9 @@ export function QuoteLineItems({
   /* a variation: its lines against the accepted option's */
   const variation: Variation | null = (view?.variations ?? []).find((v) => v.option === at) ?? null;
   const base = variation?.of ?? 0;
+  /* a variation's option is its own change, never the same line again */
+  const variationOptions = new Set((view?.variations ?? []).map((v) => v.option));
+  const twins = (l: QuoteLine) => (variationOptions.has(l.optionIndex) ? [] : twinsOf(l, all, variationOptions));
 
   const change = (l: QuoteLine, patch: Partial<LineFields>) => void act({ op: "change", id: l.id, version: l.version, patch });
 
@@ -525,7 +545,7 @@ export function QuoteLineItems({
             {money && <th className="n">Cost each</th>}
             {money && <th className="n">Sell each</th>}
             {money && <th className="n">Total</th>}
-            <th aria-label="Take off" />
+            <th aria-label="Swap or remove" />
           </tr>
         </thead>
       </table>
@@ -587,18 +607,7 @@ export function QuoteLineItems({
                                   <i className={`ql-d ${fitOf.get(l.id)?.state === "fitted" ? "fitted" : l.source}`} />
                                 </Tooltip>
                                 <span className="nm">
-                                  {l.kind !== "labour" && money ? (
-                                    <button
-                                      type="button"
-                                      className="ql-nmbtn"
-                                      aria-expanded={swapping === l.id}
-                                      onClick={() => setSwapping(swapping === l.id ? null : l.id)}
-                                    >
-                                      {l.name}
-                                    </button>
-                                  ) : (
-                                    l.name
-                                  )}
+                                  {l.name}
                                   {view?.researched?.[l.id] && (
                                     <Tooltip label={`From the web: ${view.researched[l.id]!.title}`}>
                                       <a className="ql-web" href={view.researched[l.id]!.url} target="_blank" rel="noopener noreferrer" aria-label={`From the web: ${view.researched[l.id]!.title}`}>
@@ -684,15 +693,21 @@ export function QuoteLineItems({
                             )}
                             {money && <td className="n">{unknown ? "—" : cents2(Math.round((each ?? 0) * l.qty))}</td>}
                             <td className="x">
-                              <button
-                                type="button"
-                                className="ql-x"
-                                aria-label={`Take ${l.name} off`}
-                                disabled={busy}
-                                onClick={() => void act({ op: "remove", id: l.id, version: l.version })}
-                              >
-                                ×
-                              </button>
+                              <span className="ql-acts">
+                                {l.kind !== "labour" && money && (
+                                  <Button
+                                    kind="quiet"
+                                    size={32}
+                                    aria-expanded={swapping === l.id}
+                                    aria-label={`Swap ${l.name}`}
+                                    disabled={busy}
+                                    onClick={() => setSwapping(swapping === l.id ? null : l.id)}
+                                  >
+                                    Swap
+                                  </Button>
+                                )}
+                                <RemoveLine line={l} twins={twins(l)} busy={busy} onRemove={onRemove} />
+                              </span>
                             </td>
                           </tr>,
                           l.visit ? <LabourTasks key={`${l.id}-tasks`} line={l} visit={l.visit} busy={busy} onChange={(visit) => change(l, { visit })} /> : null,
@@ -701,24 +716,24 @@ export function QuoteLineItems({
                               <td colSpan={6}>
                                 <PickList
                                   line={l}
+                                  twins={twins(l)}
                                   busy={busy}
                                   onCancel={() => setSwapping(null)}
-                                  onPick={(h, prefer, offer) => {
+                                  onPick={(h, prefer, offer, also) => {
                                     setSwapping(null);
-                                    void act({
-                                      op: "change",
-                                      id: l.id,
-                                      version: l.version,
-                                      patch: {
-                                        /* a unit for a unit stays named by what it is, in the room it was */
-                                        name: l.kind === "unit" && h.product.category === "units" ? namedUnit(unitRoleOf(null, { name: h.product.name, code: offer.code }, { name: l.name }), l.name, h.product.name) : h.product.name,
-                                        code: offer.code,
-                                        supplierKey: offer.supplierKey,
-                                        costCents: offer.netCents,
-                                        sellCents: null,
-                                      },
-                                      why: "Select preferred item",
-                                    }).then(() => {
+                                    const patch = {
+                                      /* a unit for a unit stays named by what it is, in the room it was */
+                                      name: l.kind === "unit" && h.product.category === "units" ? namedUnit(unitRoleOf(null, { name: h.product.name, code: offer.code }, { name: l.name }), l.name, h.product.name) : h.product.name,
+                                      code: offer.code,
+                                      supplierKey: offer.supplierKey,
+                                      costCents: offer.netCents,
+                                      sellCents: null,
+                                      /* a known part now: off To confirm */
+                                      ...(l.source === "unknown" ? { source: "by_hand" as const } : {}),
+                                    };
+                                    void (async () => {
+                                      for (const t of [l, ...also]) await act({ op: "change", id: t.id, version: t.version, patch, why: "Select preferred item" });
+                                    })().then(() => {
                                       if (prefer)
                                         void fetch("/api/quoting/preferred", {
                                           method: "POST",
@@ -805,19 +820,60 @@ export function QuoteLineItems({
   );
 }
 
+/** REMOVE, the red word at the end of a line (rule 25). A line that's on
+    other options too asks which: this option's, or every one it's on. */
+export function RemoveLine({ line, twins, busy, onRemove, size = 32 }: { line: QuoteLine; twins: QuoteLine[]; busy: boolean; onRemove: (lines: QuoteLine[]) => void; size?: 32 | 36 }) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button
+        ref={ref}
+        kind="delete"
+        size={size}
+        aria-label={`Remove ${line.name}`}
+        aria-haspopup={twins.length > 0 ? "menu" : undefined}
+        aria-expanded={twins.length > 0 ? open : undefined}
+        disabled={busy}
+        onClick={() => (twins.length > 0 ? setOpen((v) => !v) : onRemove([line]))}
+      >
+        Remove
+      </Button>
+      <Menu
+        open={open}
+        anchor={ref}
+        label={`Remove ${line.name}`}
+        align="end"
+        onClose={() => setOpen(false)}
+        onSelect={(k) => {
+          setOpen(false);
+          onRemove(k === "all" ? [line, ...twins] : [line]);
+        }}
+        items={[
+          { key: "one", label: `From Option ${line.optionIndex + 1}` },
+          { key: "all", label: `From ${optionsWords([line, ...twins])}`, danger: true },
+        ]}
+      />
+    </>
+  );
+}
+
 /** SELECT PREFERRED ITEM (slice 2.4): every item of the line's kind and size
     in the business's book, as it buys them, at its cost and as it would
     land on this quote. The one chosen goes on the line at once and, unless
     unticked, is the business's preferred from the next quote. */
 function PickList({
   line,
+  twins,
   busy,
   onPick,
   onCancel,
 }: {
   line: QuoteLine;
+  /** the same line on other options, swapped with it unless unticked */
+  twins: QuoteLine[];
   busy: boolean;
-  onPick: (h: BookHit, prefer: boolean, offer: Offer) => void;
+  onPick: (h: BookHit, prefer: boolean, offer: Offer, also: QuoteLine[]) => void;
   onCancel: () => void;
 }) {
   const size = /(\d{3})\s*(?:mm|MM)?\b/.exec(line.name)?.[1] ?? null;
@@ -830,6 +886,8 @@ function PickList({
   const [q, setQ] = useState(words);
   const [hits, setHits] = useState<BookHit[] | null>(null);
   const [prefer, setPrefer] = useState(true);
+  const [also, setAlso] = useState(true);
+  const pick = (h: BookHit, o: Offer) => onPick(h, prefer, o, also ? twins : []);
   useEffect(() => {
     let live = true;
     const t = setTimeout(() => {
@@ -846,7 +904,13 @@ function PickList({
   return (
     <div className="ql-pop">
       <div className="ql-addrow">
-        <input className="wb2-fi" value={q} onChange={(e) => setQ(e.target.value)} aria-label={`Search your book for another ${line.name}`} />
+        <input className="wb2-fi" value={q} onChange={(e) => setQ(e.target.value)} aria-label={`Swap ${line.name} for`} placeholder={`Swap ${line.name} for`} />
+        {twins.length > 0 && (
+          <label className="ql-prefer">
+            <input type="checkbox" checked={also} onChange={(e) => setAlso(e.target.checked)} />
+            {alsoWords(twins)}
+          </label>
+        )}
         <label className="ql-prefer">
           <input type="checkbox" checked={prefer} onChange={(e) => setPrefer(e.target.checked)} />
           Your preferred from the next quote
@@ -862,7 +926,7 @@ function PickList({
           const others = h.product.offers.filter((o) => o.netCents > 0 && !(o.supplierKey === offer?.supplierKey && o.code === offer?.code));
           return [
             <li key={h.product.key}>
-              <button type="button" disabled={busy || isOn(offer) || !offer} onClick={() => offer && onPick(h, prefer, offer)}>
+              <button type="button" disabled={busy || isOn(offer) || !offer} onClick={() => offer && pick(h, offer)}>
                 <span>
                   {h.product.name}
                   <small>{`${offer ? `${offer.supplierName}, ${offer.code}` : ""}, ${isOn(offer) ? "on this quote now" : h.why.toLowerCase()}`}</small>
@@ -872,7 +936,7 @@ function PickList({
             </li>,
             ...others.map((o) => (
               <li key={`${h.product.key}|${o.supplierKey}|${o.code}`} className="ql-alt">
-                <button type="button" disabled={busy || isOn(o)} onClick={() => onPick(h, prefer, o)}>
+                <button type="button" disabled={busy || isOn(o)} onClick={() => pick(h, o)}>
                   <span>
                     {`From ${o.supplierName}`}
                     <small>{`${o.code}${isOn(o) ? ", on this quote now" : ""}`}</small>

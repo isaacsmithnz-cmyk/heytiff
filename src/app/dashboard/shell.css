@@ -4006,7 +4006,7 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .ql-lt col.cq { width:80px; }
 .fg .ql-lt col.cc, .fg .ql-lt col.ce { width:100px; }
 .fg .ql-lt col.ct { width:108px; }
-.fg .ql-lt col.cx { width:36px; }
+.fg .ql-lt col.cx { width:156px; }
 .fg .ql-colh { position:sticky; top:0; z-index:10; background:var(--paper); }
 .fg .ql-colh th { padding:12px 12px 8px 0; font-size:12px; font-weight:600; color:var(--q); text-align:left; border-bottom:1px solid var(--hd-rule); }
 .fg .ql-colh th:first-child { padding-left:16px; }
@@ -4055,9 +4055,13 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .ql-hits b { font-weight:600; font-variant-numeric:tabular-nums; }
 .fg .ql-hits li.none { padding:8px 12px; font-size:13px; color:var(--q); }
 .fg .ql-hits li.ql-alt button { padding-left:24px; font-size:13px; }
-.fg .ql-nmbtn { padding:0; border:0; background:none; font:inherit; color:inherit; text-align:left; cursor:pointer; }
-.fg .ql-nmbtn:hover, .fg .ql-nmbtn[aria-expanded="true"] { text-decoration:underline; text-underline-offset:3px; }
-.fg .ql-nmbtn:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
+/* a line's Swap and Remove (3054, 6 November 2026): shown on the row the
+   pointer is on, and always to the keyboard and to touch (law 24) */
+.fg .ql-acts { display:flex; gap:4px; justify-content:flex-end; }
+@media (hover:hover) {
+  .fg .ql-it .ql-acts { opacity:0; transition:opacity var(--t-fast) ease-out; }
+  .fg .ql-it:hover .ql-acts, .fg .ql-it:focus-within .ql-acts, .fg .ql-it .ql-acts:has([aria-expanded="true"]) { opacity:1; }
+}
 .fg .ql-pickrow td { padding:4px 16px 12px; background:var(--tint); border-top:0; }
 .fg .ql-pop { display:flex; flex-direction:column; gap:8px; padding:12px; border:1px solid var(--hd-edge); border-radius:var(--r-button); background:var(--paper); }
 .fg .ql-prefer { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--hd-ink); }
@@ -4259,7 +4263,7 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .ql-checks li.due > i { background:var(--warn-t); }
 .fg .ql-checks li.info > i { background:var(--info-t); }
 /* an estimate, confirmed from the list (Isaac, 2026-10-10) */
-.fg .ql-chkacts { grid-column:2; display:flex; gap:8px; padding-top:4px; }
+.fg .ql-chkacts { grid-column:2; display:flex; flex-wrap:wrap; gap:8px; padding-top:4px; }
 /* the job, written out first (Isaac, 2026-10-10): a white card at the top of her panel */
 .fg .ql-vs.ql-est { color:var(--warn-t); }
 /* Update quote (the old-modals mock, 27 October 2026): the Dialog part's,

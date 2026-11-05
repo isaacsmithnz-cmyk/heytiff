@@ -159,7 +159,7 @@ export function CvBox({
             <span aria-hidden="true" />
           </button>
         ) : dict ? (
-          <IconButton glyph="mic" label="Speak instead of typing" size={32} disabled={dict.transcribing} onClick={dict.start} />
+          <IconButton glyph="mic" label="Speak instead of typing" size={32} disabled={dict.transcribing || waiting} onClick={dict.start} />
         ) : null}
         {extra}
         {onSave && tiff && !recording && !empty && (

@@ -2,11 +2,14 @@
 
 import { Fade } from "@/components/parts/fade";
 import { Button, IconButton } from "@/components/parts/button";
-import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
+import { useContext, useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { screenLabelFor } from "@/components/shell/nav";
-import { DictClock, LiveWords } from "@/components/notes/dictation";
+import { LiveWords, type DictationState } from "@/components/notes/dictation";
+import { CvBox } from "@/components/conversations/box";
+import { WindowsContext } from "@/components/records/records-context";
+import { saveJobNote } from "@/app/actions/job-notes";
 import { useNoteScope } from "@/components/notes/note-context";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import type { EarlierTurn, TiffRoom } from "@/lib/workboard/note-turns";
@@ -237,9 +240,10 @@ export function TiffModal({
 
   /* The live turn rides at the end of the list under its own key, so when it
      becomes a turn it is the SAME element: the words settle where they are. */
-  const all: ModalTurn[] = c.live
-    ? [...c.turns, { key: c.live.key, who: "you", text: c.live.said ?? c.draft, enter: c.live.enter }]
-    : c.turns;
+  const all: ModalTurn[] =
+    c.live && c.live.said !== null
+      ? [...c.turns, { key: c.live.key, who: "you", text: c.live.said, enter: c.live.enter }]
+      : c.turns;
   let lastYou = -1;
   let lastTiff = -1;
   all.forEach((t, i) => {
@@ -604,99 +608,73 @@ function Quick({ answers, onAnswer }: { answers: QuickAnswer[]; onAnswer: (q: Qu
 
 /* ── the box ── */
 
-/* THE BOX, AS CLAUDE'S IS (Isaac, 20 October 2026: "It needs to be minimal
-   and look like a chat conversation in Claude… Little microphone symbol, the
-   send can turn blue once there's content in there"; the board
-   https://claude.ai/artifact/7Z74AT18cUFjexk68UovpB, built as mocked).
-   One rounded box: your words, then a small microphone and Send as an
-   arrow, grey until there is something to send. The microphone records in
-   the box: a red dot and the time, with Stop; what you say comes up in the
-   conversation as you say it, as it always has, and Stop gives it to her.
-   No Type instead, Start again or Done. While she thinks the box stays,
-   and Send waits. */
+/* THE BOX IS THE ONE BOX (Isaac, 6 November 2026: "ideally every input box
+   is the same and gives the ability to use your voice"; the mock
+   https://claude.ai/artifact/SatZBSG6d18juMFyohe5dc, "Build"): Conversations'
+   own (conversations/box), as Home, a job and the Library have it. Your words
+   come up in the box as you say them, and Stop leaves them there; Tiff's
+   button sends them, and where the chat is about a job, Save files them on it
+   as written, with no Tiff. Her microphone is this conversation's, so
+   listening opens and folds the face as it always has. */
 export function Dock({ c, onEmpty }: { c: Conversation; onEmpty: (byKey: boolean) => void }) {
-  const listening = c.stage === "listening";
   const working = c.stage === "thinking" || c.stage === "answering";
-  const typed = c.draft.trim() !== "";
-  const field = useRef<HTMLTextAreaElement | null>(null);
-  const stop = useRef<HTMLButtonElement | null>(null);
-  /* focus is in the chat from the moment it opens: on the box to type, or on
-     Stop while she listens (on the box, a pause would be read as you typing) */
+  const host = useContext(WindowsContext);
+  const [saving, setSaving] = useState(false);
+  const job = c.target.kind === "job" && c.target.id ? c.target.id : null;
+  const save = () => {
+    const words = c.draft.trim();
+    if (!job || !words || saving) return;
+    setSaving(true);
+    void saveJobNote(job, words, { id: crypto.randomUUID() })
+      .then(() => {
+        c.setDraft("");
+        host?.toast(c.targetLabel ? `Saved on ${c.targetLabel}` : "Saved");
+      })
+      .catch(() => host?.toast("Couldn't save that note."))
+      .finally(() => setSaving(false));
+  };
+  /* the conversation's microphone, as the box draws one: pressed, she
+     listens as the chat's own Tiff button listens; Stop leaves the words in
+     the box, or on nothing closes the chat as it always has */
+  const mic: DictationState | null = c.voiceEnabled
+    ? {
+        ...c.dict,
+        /* the conversation says when she is listening: a microphone that
+           would not open leaves the box to type in */
+        recording: c.stage === "listening",
+        arming: false,
+        start: () => c.talk(null),
+        stop: () => {
+          if (!c.done()) onEmpty(false);
+        },
+        cancel: () => c.clear(),
+      }
+    : null;
+  /* focus is in the chat from the moment it opens: on Stop while she listens,
+     on the box to type otherwise, so Escape and the keys stay hers */
+  const foot = useRef<HTMLElement | null>(null);
+  const listening = c.stage === "listening";
   useEffect(() => {
-    if (listening) stop.current?.focus({ preventScroll: true });
-    else if (!working && !c.fixing) field.current?.focus({ preventScroll: true });
-  }, [working, listening, c.fixing]);
-  /* the box grows with what is in it, to five lines */
-  useLayoutEffect(() => {
-    const el = field.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
-  }, [c.draft, listening]);
-  const canSend = typed && !working && !listening;
-
+    const at = foot.current;
+    if (!at) return;
+    const to = listening ? at.querySelector<HTMLElement>(".tc-stop") : working ? null : at.querySelector<HTMLElement>(".cv-words");
+    to?.focus({ preventScroll: true });
+  }, [listening, working]);
   return (
-    <footer className="tm-dock tc-dock">
-      <form
-        className="tc-box"
-        onPointerDown={(e) => {
-          /* a tap in the box while she listens says "I'm still going" */
-          if (listening && !(e.target as Element).closest("button")) c.keepListening();
-        }}
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (canSend) c.send();
-        }}
-      >
-        {!c.fixing && (
-          <textarea
-            ref={field}
-            className="tc-in"
-            rows={1}
-            value={listening ? "" : c.draft}
-            /* while your words are read back nothing is typed in front of them */
-            readOnly={c.stage === "thinking"}
-            onChange={(e) => (listening ? c.typeInstead(e.target.value) : c.setDraft(e.target.value))}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                if (canSend) c.send();
-              }
-            }}
-            placeholder="Reply to Tiff"
-            aria-label="Reply to Tiff"
-            autoComplete="off"
-          />
-        )}
-        <div className="tc-row">
-          {listening && (
-            <span className="tc-rec">
-              <span className="tc-recdot" aria-hidden="true" />
-              <DictClock seconds={c.seconds} />
-            </span>
-          )}
-          <span className="tc-sp" />
-          {listening ? (
-            <button
-              type="button"
-              className="pt-btn pt-btn--second pt-btn--32 pt-btn--icon tc-stop"
-              aria-label="Stop"
-              ref={(el) => {
-                stop.current = el;
-                c.bindQuiet(el);
-              }}
-              onClick={(e) => {
-                if (!c.done()) onEmpty(e.detail === 0);
-              }}
-            >
-              <span aria-hidden="true" />
-            </button>
-          ) : c.voiceEnabled ? (
-            <IconButton glyph="mic" label="Speak instead of typing" size={32} disabled={working} onClick={(e) => c.talk(e.currentTarget, e.detail === 0)} />
-          ) : null}
-          <IconButton glyph="send" kind="main" type="submit" label="Send" size={32} disabled={!(canSend || (c.fixing && typed))} />
-        </div>
-      </form>
+    <footer className="tm-dock tc-dock" ref={foot}>
+      <CvBox
+        value={c.draft}
+        onChange={c.setDraft}
+        onSubmit={c.send}
+        label="Reply to Tiff"
+        placeholder="Reply to Tiff"
+        sendWord="Tiff"
+        sendLabel="Send to Tiff"
+        waiting={working}
+        dict={mic}
+        onSave={job ? save : undefined}
+        saving={saving}
+      />
       {c.error && (
         <p className="tm-err" role="alert">
           {c.error}

@@ -3,7 +3,9 @@
 import { useContext, useState } from "react";
 import { Dialog } from "@/components/parts/dialog";
 import { Button } from "@/components/parts/button";
-import { Field, TextArea } from "@/components/parts/field";
+import { CvBox } from "@/components/conversations/box";
+import { appendSpoken, useDictation } from "@/components/notes/dictation";
+import { useNoteScope } from "@/components/notes/note-context";
 import { WindowsContext } from "@/components/records/records-context";
 import { addMyNote, editMyNote } from "@/app/actions/my-notes";
 
@@ -16,11 +18,26 @@ import { addMyNote, editMyNote } from "@/app/actions/my-notes";
 
    The same form edits one, from Notes' Edit: `note` is the one it opens on. */
 
+/* THE ONE BOX (Isaac, 6 November 2026: "every input box is the same and
+   gives the ability to use your voice"; "have a my notes section, then add
+   new note. It will stay contained to you there"): Conversations' own box,
+   its microphone, and one way out, Save. No Tiff here: a note just for you
+   is kept as written. */
 export function NoteForm({ onClose, note }: { onClose: () => void; note?: { id: string; body: string } }) {
   const host = useContext(WindowsContext);
+  const { voiceEnabled } = useNoteScope();
   const [words, setWords] = useState(note?.body ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [spoken, setSpoken] = useState(false);
+  const dict = useDictation({
+    onTranscript: (said) => {
+      setSpoken(true);
+      setError(null);
+      setWords((now) => appendSpoken(now, said));
+    },
+    onError: setError,
+  });
 
   async function save() {
     if (!words.trim()) {
@@ -28,7 +45,7 @@ export function NoteForm({ onClose, note }: { onClose: () => void; note?: { id: 
       return;
     }
     setSaving(true);
-    const r = await (note ? editMyNote(note.id, words) : addMyNote({ body: words, source: "text" })).catch(() => ({
+    const r = await (note ? editMyNote(note.id, words) : addMyNote({ body: words, source: spoken ? "voice" : "text" })).catch(() => ({
       ok: false as const,
       error: "Couldn't keep that note.",
     }));
@@ -47,43 +64,33 @@ export function NoteForm({ onClose, note }: { onClose: () => void; note?: { id: 
       width={560}
       onClose={onClose}
       foot={
-        <>
-          <Button kind="second" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button kind="main" onClick={() => void save()} disabled={saving}>
-            {saving ? "Saving" : note ? "Save changes" : "Save to My notes"}
-          </Button>
-        </>
+        <Button kind="second" onClick={onClose}>
+          Cancel
+        </Button>
       }
     >
-      <form
-        className="mk-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void save();
-        }}
-      >
-        <Field label="Note" error={error}>
-          <TextArea
-            value={words}
-            rows={5}
-            invalid={!!error}
-            data-autofocus
-            onKeyDown={(e) => {
-              /* ⌘ or Ctrl with Enter saves; Enter is a new line */
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                void save();
-              }
-            }}
-            onChange={(e) => {
-              setWords(e.target.value);
-              if (error) setError(null);
-            }}
-          />
-        </Field>
-      </form>
+      {/* the dialog stands outside the page's frame (a portal), and the box's
+          dress is the frame's: so the frame comes with it, boxless, as
+          Tiff's chat does (tiff-host) */}
+      <div className="fg mk-form" style={{ display: "contents" }}>
+        <CvBox
+          value={words}
+          onChange={(v) => {
+            setWords(v);
+            if (error) setError(null);
+          }}
+          onSubmit={() => void save()}
+          label="Note"
+          placeholder="Write yourself a note"
+          sendWord="Save"
+          sendLabel={note ? "Save changes" : "Save to My notes"}
+          tiff={false}
+          onSave={() => void save()}
+          saving={saving}
+          dict={voiceEnabled ? dict : null}
+          voiceError={error}
+        />
+      </div>
     </Dialog>
   );
 }

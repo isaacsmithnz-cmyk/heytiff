@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { proposalOf } from "@/lib/quotes/lines-proposal";
+import { NoteScopeProvider } from "@/components/notes/note-context";
 import { TiffPanel } from "../tiff-panel";
 
 /* her questions and what the page has to confirm live on their own tab
@@ -220,7 +221,7 @@ it("sends a message and shows her working", async () => {
   const box = await screen.findByLabelText("Message Tiff");
   fireEvent.change(box, { target: { value: "Make it three phase" } });
   await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    fireEvent.click(screen.getByRole("button", { name: "Send to Tiff" }));
   });
   expect(posted).toContainEqual({ job: "j", message: "Make it three phase" });
   expect(await screen.findByText("Reading the job")).toBeInTheDocument();
@@ -229,7 +230,7 @@ it("sends a message and shows her working", async () => {
   expect(bar).toHaveAttribute("aria-valuetext", "about 1 min 40 left");
   expect(screen.getByText("about 1 min 40 left")).toBeInTheDocument();
   /* the send waits while she works: one turn at a time */
-  expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Send to Tiff" })).toBeDisabled();
 });
 
 it("gives a change no bar until a few seconds in, a quick answer being over by then", async () => {
@@ -251,7 +252,7 @@ it("shows each event once when two reads bring the same ones", async () => {
   expect(await screen.findByText("A 12.5 kW ducted, priced from your book.")).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText("Message Tiff"), { target: { value: "Carry on" } });
   await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    fireEvent.click(screen.getByRole("button", { name: "Send to Tiff" }));
   });
   await act(async () => {});
   expect(screen.getAllByText("A 12.5 kW ducted, priced from your book.")).toHaveLength(1);
@@ -266,7 +267,7 @@ it("says why when she can't take the message", async () => {
   render(<TiffPanel job="j" onChanged={jest.fn()} />);
   fireEvent.change(await screen.findByLabelText("Message Tiff"), { target: { value: "And another" } });
   await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    fireEvent.click(screen.getByRole("button", { name: "Send to Tiff" }));
   });
   expect(screen.getByText("Tiff is still working on the last one.")).toBeInTheDocument();
   expect(screen.getByText("Ready when you are.")).toBeInTheDocument();
@@ -466,13 +467,18 @@ it("folds her working notes in with her steps, open while she works", async () =
 /* every Tiff box is Conversations' box (Isaac, 20 October 2026: "the input
    section should be identical throughout the software"; 25 October, walking:
    the quote's was the one with Send in words) */
-it("ends the conversation with the reply box: the microphone, then a blue Send arrow, as every Tiff box has", async () => {
+it("ends the conversation with the reply box: the microphone, then Tiff's blue button, her arrow and her name, as every Tiff box has", async () => {
   (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond(thread));
-  render(<TiffPanel job="j" onChanged={jest.fn()} />);
+  /* where this deployment hears, the box has its microphone */
+  render(
+    <NoteScopeProvider voiceEnabled>
+      <TiffPanel job="j" onChanged={jest.fn()} />
+    </NoteScopeProvider>
+  );
   const box = await screen.findByLabelText("Message Tiff");
-  const send = screen.getByRole("button", { name: "Send" });
-  expect(send).toHaveTextContent("");
-  expect(send).toHaveClass("pt-btn--main", "pt-btn--icon");
+  const send = screen.getByRole("button", { name: "Send to Tiff" });
+  expect(send).toHaveTextContent("Tiff");
+  expect(send).toHaveClass("pt-btn--main");
   expect(send).toBeDisabled();
   const mic = screen.getByRole("button", { name: "Speak instead of typing" });
   expect(mic).toHaveClass("pt-btn--icon");

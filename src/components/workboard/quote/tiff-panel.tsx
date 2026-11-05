@@ -6,7 +6,7 @@ import { Dot } from "@/components/parts/state";
 import { Fade } from "@/components/parts/fade";
 import { Tray } from "@/components/parts/tabs";
 import { Icon } from "@/components/shell/icon";
-import { appendSpoken, DictClock, useDictation } from "@/components/notes/dictation";
+import { appendSpoken, DictClock, LiveWords, useDictation } from "@/components/notes/dictation";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { useReplyDraft } from "@/components/notes/use-reply-draft";
 import { fmtAuTime } from "@/lib/au-dates";
@@ -711,22 +711,30 @@ export function TiffPanel({
         <div className="qc-col">
           {note && <p className="wb2-sherr">{note}</p>}
           <div className="qt-box qc-box">
-            <textarea
-              ref={box}
-              className="qt-in"
-              rows={1}
-              value={typed}
-              placeholder={events.length === 0 ? "Tell Tiff about the job" : "Reply"}
-              aria-label="Message Tiff"
-              onChange={(e) => setTyped(e.target.value)}
-              onKeyDown={keys}
-            />
             {/* what you're saying, as you say it (Isaac, 21 October 2026: "the
-                voice to text doesn't seem to be showing properly"): the box
-                showed nothing while it listened */}
-            {(dict.recording || dict.arming || dict.transcribing) && (
+                voice to text doesn't seem to be showing properly"), in the
+                box in place of what you typed, the words gliding in and a
+                fixed one melting into place, as every Tiff box has it (Isaac,
+                5 November 2026: "line them up") */}
+            {dict.recording ? (
+              <div className="qt-in" role="group" aria-label="Recording" aria-live="polite">
+                <LiveWords said={typed} text={dict.interim} />
+              </div>
+            ) : (
+              <textarea
+                ref={box}
+                className="qt-in"
+                rows={1}
+                value={typed}
+                placeholder={events.length === 0 ? "Tell Tiff about the job" : "Reply"}
+                aria-label="Message Tiff"
+                onChange={(e) => setTyped(e.target.value)}
+                onKeyDown={keys}
+              />
+            )}
+            {(dict.arming || dict.transcribing || (dict.recording && !dict.interim && !typed.trim())) && (
               <p className="qc-live" aria-live="polite">
-                {dict.transcribing ? "Writing down what you said" : dict.interim || "Listening"}
+                {dict.transcribing ? "Writing down what you said" : "Listening"}
               </p>
             )}
             <div className="qc-boxfoot">

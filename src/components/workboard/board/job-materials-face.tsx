@@ -11,7 +11,7 @@ import { Tick } from "@/components/parts/tick";
 import { Tooltip } from "@/components/parts/tooltip";
 import { Icon } from "@/components/shell/icon";
 import { Waiting } from "@/components/ui/orb";
-import { useDictation } from "@/components/notes/dictation";
+import { LiveWords, useDictation } from "@/components/notes/dictation";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { splitSpokenList } from "@/lib/workboard/spoken-materials";
 import { onShelves } from "@/lib/workboard/material-shelves";
@@ -255,23 +255,30 @@ export function JobMaterialsFace({
         }}
       >
         <span className="jm-find">
-          <TextInput
-            ref={fieldRef}
-            size={32}
-            value={text}
-            onChange={(e) => {
-              setText(e.target.value);
-              setSub("");
-            }}
-            onKeyDown={onFieldKey}
-            placeholder="Add a material"
-            aria-label="Add a material"
-            role="combobox"
-            aria-autocomplete="list"
-            aria-expanded={shownHits.length > 0}
-            aria-controls={shownHits.length > 0 ? `${made}-book` : undefined}
-            aria-activedescendant={active >= 0 && shownHits.length > 0 ? `${made}-hit${active}` : undefined}
-          />
+          {/* the list as you say it rides along the field, in the field's own
+              box, as every voice box shows your words (Isaac, 5 November 2026:
+              "line them up"); it showed nothing until Done */}
+          {dict.recording ? (
+            <LiveWords line text={dict.interim} className="pt-input pt-input--32" label="The materials you're saying" />
+          ) : (
+            <TextInput
+              ref={fieldRef}
+              size={32}
+              value={text}
+              onChange={(e) => {
+                setText(e.target.value);
+                setSub("");
+              }}
+              onKeyDown={onFieldKey}
+              placeholder="Add a material"
+              aria-label="Add a material"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={shownHits.length > 0}
+              aria-controls={shownHits.length > 0 ? `${made}-book` : undefined}
+              aria-activedescendant={active >= 0 && shownHits.length > 0 ? `${made}-hit${active}` : undefined}
+            />
+          )}
         </span>
         <TextInput size={32} className="jm-qtyin" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="Qty" aria-label="Quantity" />
         {dict.recording ? (

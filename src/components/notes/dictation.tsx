@@ -6,6 +6,7 @@ import { playChime } from "@/lib/voice/chime";
 import { clearRun, markStopped, markTranscript } from "@/lib/voice/timing";
 import { Orb } from "@/components/ui/orb";
 import { withCleanup } from "@/lib/ui/with-cleanup";
+import { morphWords, type Said } from "@/lib/voice/morph-words";
 
 /* Dictation, extracted from the note pill so every box you'd type a paragraph
    into can have it (Isaac, 2026-08-02: "anywhere that you need to enter notes
@@ -935,10 +936,13 @@ const WORD_STEP_MAX_MS = 210;
     arrival shoved every word already said sideways. Isaac: less erratic,
     a smooth fast glide.
 
-    Words keyed by POSITION is what buys that. React mounts only the spans
-    just appended, so the glide runs on those alone; a revised word updates
-    its text in place and stays put, which is exactly right — re-flashing a
-    word you already read is the jitter, not the fix.
+    Words keyed by WHO THEY ARE is what buys that (lib/voice/morph-words).
+    Each new guess is matched against the last: a word that stayed keeps its
+    span and sits still, so the glide runs only on what is new. A word the
+    model fixed is new too, and glides in where the old one stood. Keyed by
+    position it swapped its letters in place, and a word put in mid-sentence
+    shifted the letters of every word after it; the phone already melted the
+    fix in, and the two are now one (Isaac, 5 November 2026: "line them up").
 
     `said` is NOT split into words. It is the record, not the arrival — it
     has already been read, it never animates, and splitting it would put
@@ -984,10 +988,12 @@ export function LiveWords({
      most dictations are short. Measured after layout rather than guessed
      from length, because wrapping depends on the width it got. */
   const [scrolled, setScrolled] = useState(false);
-  /** How many word spans were on screen last time round, which is the only
-      way to tell the words that just landed from the ones being read. */
-  const shown = useRef(0);
-  const words = text.split(/\s+/).filter(Boolean);
+  /** The words on screen last time round, by name: the only way to tell
+      the words that just landed from the ones being read. */
+  const shown = useRef<ReadonlySet<string>>(new Set());
+  /* the words as they're shown, each named against the guess before */
+  const [river, setRiver] = useState<{ text: string; words: Said[]; next: number }>({ text: "", words: [], next: 0 });
+  if (river.text !== text) setRiver({ text, ...morphWords(river.words, text, river.next) });
 
   /* A LAYOUT EFFECT, NOT AN EFFECT, and both halves need it to be:
 
@@ -1005,11 +1011,17 @@ export function LiveWords({
     if (!el) return;
 
     const spans = el.querySelectorAll<HTMLElement>(".wb2-lw");
-    for (let i = shown.current; i < spans.length; i++) {
-      const step = Math.min((i - shown.current) * WORD_STEP_MS, WORD_STEP_MAX_MS);
-      spans[i]!.style.animationDelay = `${step}ms`;
+    const now = new Set<string>();
+    let landed = 0;
+    for (const span of spans) {
+      const name = span.dataset.w ?? "";
+      if (!shown.current.has(name)) {
+        span.style.animationDelay = `${Math.min(landed * WORD_STEP_MS, WORD_STEP_MAX_MS)}ms`;
+        landed++;
+      }
+      now.add(name);
     }
-    shown.current = spans.length;
+    shown.current = now;
 
     /* Ride the newest word, down the box or along it — the field mics that
        are one line have the same problem in the other axis, and a disabled
@@ -1023,7 +1035,7 @@ export function LiveWords({
       el.scrollTop = el.scrollHeight;
       setScrolled(el.scrollHeight > el.clientHeight + 1);
     }
-  }, [said, text, line, free]);
+  }, [said, river, line, free]);
 
   /* AND MEASURED AGAIN WHEN THE BOX HAS FINISHED OPENING. The window eases
      three lines open over 300 ms the first time there is anything to show,
@@ -1080,9 +1092,11 @@ export function LiveWords({
           <span className="wb2-lwsaid">{said.trim()}</span>{" "}
         </>
       )}
-      {words.map((word, i) => (
-        <Fragment key={i}>
-          <span className="wb2-lw">{word}</span>{" "}
+      {river.words.map((word) => (
+        <Fragment key={word.id}>
+          <span className="wb2-lw" data-w={word.id}>
+            {word.w}
+          </span>{" "}
         </Fragment>
       ))}
     </p>

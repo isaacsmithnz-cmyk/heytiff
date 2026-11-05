@@ -122,17 +122,24 @@ const THING_ICON: Record<FeedItem["filter"], string> = { approvals: "check", you
 type MakeTask = { title: string; issueId: string };
 
 /** The item's words, as the door to what it is about. */
-function Opener({ item, onTask, children }: { item: FeedItem; onTask: (taskId: string) => void; children: ReactNode }) {
+function Opener({ item, onTask, onOpen, children }: { item: FeedItem; onTask: (taskId: string) => void; onOpen?: () => void; children: ReactNode }) {
   const open = item.open;
   if (open && "href" in open)
     return (
-      <Link className="hm-feed-open" href={open.href}>
+      <Link className="hm-feed-open" href={open.href} onClick={onOpen}>
         {children}
       </Link>
     );
   if (open)
     return (
-      <button type="button" className="hm-feed-open" onClick={() => onTask(open.taskId)}>
+      <button
+        type="button"
+        className="hm-feed-open"
+        onClick={() => {
+          onOpen?.();
+          onTask(open.taskId);
+        }}
+      >
         {children}
       </button>
     );
@@ -172,7 +179,22 @@ function FeedEntry({
         <Initials name={item.who.name} size={32} beside />
       )}
       <div className="hm-feed-body">
-        <Opener item={item} onTask={onTask}>
+        {/* THE ITEM IS ITS OWN DOOR (Isaac, 5 November 2026, as To do's
+            rows): its Open went, since the words open the same place, and
+            its Got it, since opening new work is seeing it */}
+        <Opener
+          item={item}
+          onTask={onTask}
+          onOpen={
+            act?.kind === "gotit"
+              ? () => {
+                  void acknowledgeTask(act.taskId)
+                    .catch(() => null)
+                    .then(() => router.refresh());
+                }
+              : undefined
+          }
+        >
           {/* WHO AND WHAT, AS A SENTENCE THAT WRAPS (Isaac, 25 October 2026:
               "we're not losing all of the text off to the right… three lines
               max"): the name in bold and what they did after it, running to
@@ -208,16 +230,11 @@ function FeedEntry({
             }}
           />
         ) : (
-          (item.reply || act) && (
+          (item.reply || act?.kind === "issue") && (
             <div className="hm-feed-acts">
               {item.reply && !sent && (
                 <Button size={32} onClick={() => setReplying(true)}>
                   Reply
-                </Button>
-              )}
-              {act?.kind === "link" && (
-                <Button size={32} href={act.href}>
-                  {act.label}
                 </Button>
               )}
               {act?.kind === "issue" && (
@@ -237,19 +254,6 @@ function FeedEntry({
                     Done
                   </Button>
                 </>
-              )}
-              {act?.kind === "gotit" && (
-                <Button
-                  size={32}
-                  onClick={() => {
-                    onGone(item.key);
-                    void acknowledgeTask(act.taskId)
-                      .catch(() => null)
-                      .then(() => router.refresh());
-                  }}
-                >
-                  Got it
-                </Button>
               )}
             </div>
           )

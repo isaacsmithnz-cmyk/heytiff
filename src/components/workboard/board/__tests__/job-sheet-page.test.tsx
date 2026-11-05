@@ -248,16 +248,22 @@ beforeEach(() => {
 
 describe("the job's page head", () => {
   /* Isaac's mock of 25 October 2026: the grey line under the name goes */
-  it("names the job beside its colour dot, with no grey line under it and no breadcrumb", async () => {
+  it("names the job by its plate: the number in its colour's box, the address, the client in small print, and the way back above (Isaac, 5 November 2026)", async () => {
     const { container } = draw("visits");
     await ready();
     const h1 = screen.getByRole("heading", { level: 1 });
-    expect(h1).toHaveTextContent("Richards Building");
-    /* the job's colour, snapped to the eight, beside its name */
-    expect(h1.querySelector(".pt-dot--blue")).not.toBeNull();
+    /* the address on one line, never the client twice */
+    expect(h1).toHaveTextContent("59 Woorarra Avenue, North Narrabeen");
+    const plate = container.querySelector(".jp-plate")!;
+    expect(plate).toHaveClass("jp-plate--blue");
+    expect(plate.querySelector(".jp-num")).toHaveTextContent(/^3209$/);
+    expect(plate.querySelector(".jp-client")).toHaveTextContent("Richards Building");
+    /* no grey line of stage or kind, and no breadcrumb: one word back */
     expect(container.querySelector(".jp-line, .jp-facts, .jp-stage")).toBeNull();
-    expect(container.querySelector(".jp-head")).not.toHaveTextContent(/Work order|Job 3209|Woorarra|Accepted/);
+    expect(container.querySelector(".jp-head")).not.toHaveTextContent(/Work order|Job 3209|Accepted/);
     expect(container.querySelector(".wb2-crumbline, .int-back")).toBeNull();
+    /* opened with nowhere to go back to, the way back is Jobs */
+    expect(screen.getByRole("link", { name: "Jobs" })).toHaveAttribute("href", "/dashboard/jobs");
   });
 
   it("is a page, not a card: no dialog, no scrim, no band, no rail, nothing to close", async () => {

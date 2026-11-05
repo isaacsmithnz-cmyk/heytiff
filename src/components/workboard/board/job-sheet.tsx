@@ -242,6 +242,20 @@ const quotePage = (job: string, started: boolean) => quoteHref(job, { start: !st
     head instead of the card's band and rail. The page holds which section
     is open (its `?tab=`); a door inside the card that moves to a face moves
     the page to that face's section. */
+/** The job's header names it by its address on one line (Isaac, 5 November
+    2026), the suburb until the job's been read, and its client where it
+    has no address at all. */
+export function jobPlateName(detail: Pick<MirrorJobDetail, "address" | "geoLine" | "clientName"> | null, row: Pick<AllJobRow, "suburb" | "clientName">): string {
+  const client = detail?.clientName ?? row.clientName ?? "Unnamed client";
+  if (!detail) return row.suburb?.trim() || client;
+  const line = (detail.address ?? "")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .join(", ");
+  return line || detail.geoLine?.trim() || client;
+}
+
 export type JobSheetPage = {
   section: JobSection;
   onSection: (section: JobSection) => void;
@@ -2199,7 +2213,9 @@ export function JobSheet({
     <>
       <div className="wb2-sheet jc jp-sheet">
         <JobPageHead
-          name={detail?.clientName ?? row.clientName ?? "Unnamed client"}
+          name={jobPlateName(detail, row)}
+          number={cardNumber}
+          client={detail?.clientName ?? row.clientName ?? null}
           hue={jobHue(categoryColour, status.toLowerCase() === "unsuccessful")}
           sm8Href={sm8Href}
           add={{ items: addItems, onPick: addPick, disabled: !cardId, onReach: askQuote }}

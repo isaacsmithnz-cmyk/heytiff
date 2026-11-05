@@ -6,7 +6,7 @@ import { completeTask, reopenTask } from "@/app/actions/dashboard";
 import { snoozeReminder } from "@/app/actions/reminders";
 import { acknowledgeTask } from "@/app/actions/assignments";
 import { WindowsContext } from "@/components/records/records-context";
-import { Button, LinkButton } from "@/components/parts/button";
+import { IconButton, LinkButton } from "@/components/parts/button";
 import { Menu } from "@/components/parts/menu";
 import { Row, RowList } from "@/components/parts/row";
 import { Empty } from "@/components/parts/states";
@@ -20,8 +20,12 @@ import { SNOOZE, SNOOZE_LABEL, type Snooze } from "@/lib/dashboard/reminders";
 import { TODO_HOME_CAP, type TodoRow } from "@/lib/dashboard/todo";
 
 /* HOME › TO DO (v2, rule 39): a dot, the name in bold, a grey line or the
-   trouble in its colour, and ONE second button on the right that does the
-   thing. A task leads with a tick. The rows are built on the server
+   trouble in its colour, and the row itself is the door: pressed anywhere,
+   it goes where its one button went (Isaac, 5 November 2026, on
+   https://claude.ai/artifact/LHfRit1ThXLpobEXwZGPWK: "remove the action
+   buttons… You should just be able to click on whatever item it is").
+   A task leads with a tick; a reminder keeps Later, a clock on the right,
+   since nothing else puts it off. The rows are built on the server
    (lib/dashboard/todo); this file draws them and does the three things a
    row can do where you are: tick it done (with Undo), put a reminder off
    (Later), or say you've seen new work (Got it).
@@ -105,16 +109,15 @@ function LaterButton({ name, onPick }: { name: string; onPick: (s: Snooze) => vo
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button
+      <IconButton
         ref={ref}
+        glyph="snooze"
         size={32}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Later, ${name}`}
+        label={`Later, ${name}`}
         onClick={() => setOpen((o) => !o)}
-      >
-        Later
-      </Button>
+      />
       <Menu
         anchor={ref}
         open={open}
@@ -155,48 +158,32 @@ export function TodoList({ rows, label, cap }: { rows: readonly TodoRow[]; label
       .catch(() => null)
       .then(after);
   };
-  const gotIt = (row: TodoRow, taskId: string) => {
-    hide(row.key);
-    void acknowledgeTask(taskId)
-      .catch(() => null)
-      .then(after);
-  };
 
+  /* the one thing a row keeps on its right: a reminder's Later */
   const end = (row: TodoRow) => {
     const a = row.act;
-    if (a.kind === "later") return <LaterButton name={row.name} onPick={(s) => later(row, a.taskId, s)} />;
-    if (a.kind === "gotit")
-      return (
-        <Button size={32} aria-label={`Got it, ${row.name}`} onClick={() => gotIt(row, a.taskId)}>
-          Got it
-        </Button>
-      );
-    if (a.kind === "task")
-      return (
-        <Button size={32} aria-label={`Open, ${row.name}`} onClick={() => setOpened(a.taskId)}>
-          Open
-        </Button>
-      );
-    /* a field issue with nothing to open is Your feed's, never To do's */
-    if (a.kind === "issue") return null;
-    if (a.kind === "bookIn")
-      return (
-        <Button size={32} aria-label={`${a.label}, ${row.name}`} onClick={() => setBooking({ uuid: a.jobUuid, label: row.name })}>
-          {a.label}
-        </Button>
-      );
+    return a.kind === "later" ? <LaterButton name={row.name} onPick={(s) => later(row, a.taskId, s)} /> : undefined;
+  };
+  /* where the row goes, pressed anywhere: where its button went */
+  const door = (row: TodoRow): { href?: string; onClick?: () => void } => {
+    const a = row.act;
     const reply = replyOf(row);
-    if (reply)
-      return (
-        <Button size={32} aria-label={`${a.label}, ${row.name}`} onClick={reply}>
-          {a.label}
-        </Button>
-      );
-    return (
-      <Button size={32} href={a.href} aria-label={`${a.label}, ${row.name}`}>
-        {a.label}
-      </Button>
-    );
+    if (reply) return { onClick: reply };
+    if (a.kind === "link") return { href: a.href };
+    /* a won job: Book in over Home, the job filled in */
+    if (a.kind === "bookIn") return { onClick: () => setBooking({ uuid: a.jobUuid, label: row.name }) };
+    if (a.kind === "task") return { onClick: () => setOpened(a.taskId) };
+    /* new work: opening it is seeing it */
+    if (a.kind === "gotit")
+      return {
+        onClick: () => {
+          setOpened(a.taskId);
+          void acknowledgeTask(a.taskId)
+            .catch(() => null)
+            .then(after);
+        },
+      };
+    return row.tick ? { onClick: () => setOpened(row.tick) } : {};
   };
 
   if (shown.length === 0) return null;
@@ -222,14 +209,7 @@ export function TodoList({ rows, label, cap }: { rows: readonly TodoRow[]; label
             lines={3}
             name={row.name}
             line={row.lineTone ? <span className={`hm-line hm-line--${row.tone}`}>{row.line}</span> : row.line}
-            href={replyOf(row) ? undefined : row.act.kind === "link" || row.act.kind === "bookIn" ? row.act.href : undefined}
-            onClick={
-              row.act.kind === "task"
-                ? () => setOpened((row.act as { taskId: string }).taskId)
-                : row.tick
-                  ? () => setOpened(row.tick)
-                  : (replyOf(row) ?? undefined)
-            }
+            {...door(row)}
             end={end(row)}
           />
         ))}

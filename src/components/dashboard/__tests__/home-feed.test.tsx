@@ -54,7 +54,7 @@ const LUKE = item({
 });
 const LEAVE = item({ key: "alert:leave-queue:1", filter: "approvals", who: { name: "Leave to approve", sm8: false }, what: "Alex, 3 to 5 Nov", act: { kind: "link", label: "Review", href: "/dashboard/team?view=leave" } });
 const NEWJOB = item({ key: "event:new:j1", filter: "jobs", who: { name: "New job", sm8: true }, what: "3444 Stanmore", act: { kind: "link", label: "Open", href: "/dashboard/jobs/j1" } });
-const GIVEN = item({ key: "assignment:t1", filter: "you", who: { name: "Order the PEAD", sm8: false }, what: "Given to you by Dane", unread: true, act: { kind: "gotit", taskId: "t1" } });
+const GIVEN = item({ key: "assignment:t1", filter: "you", who: { name: "Order the PEAD", sm8: false }, what: "Given to you by Dane", unread: true, act: { kind: "gotit", taskId: "t1" }, open: { taskId: "t1" } });
 
 const draw = (items: FeedItem[] = [LUKE, LEAVE, NEWJOB, GIVEN]) => render(<HomeFeed items={items} />);
 const list = () => screen.getByRole("list", { name: "Your feed" });
@@ -107,11 +107,12 @@ it("(F) keeps your words and says why when the reply didn't go", async () => {
   expect(within(luke).getByRole("textbox", { name: "Reply to Luke Parker" })).toHaveValue("On it");
 });
 
-it("(F) Got it takes work given to you out of the feed", async () => {
+it("(F) opening work given to you says you've seen it, with no Got it button (Isaac, 5 November 2026)", async () => {
   draw();
-  await userEvent.click(within(list()).getByRole("button", { name: "Got it" }));
+  expect(within(list()).queryByRole("button", { name: "Got it" })).toBeNull();
+  const item = within(list()).getByText("Order the PEAD").closest("li")!;
+  await userEvent.click(item.querySelector(".hm-feed-open")!);
   expect(acknowledgeTask).toHaveBeenCalledWith("t1");
-  expect(within(list()).queryByText("Order the PEAD")).toBeNull();
 });
 
 it("(F) says nothing is here when a filter holds nothing", async () => {

@@ -1,7 +1,12 @@
 import { notFound, redirect } from "next/navigation";
 import { can } from "@/lib/permissions-server";
 import { auth0 } from "@/lib/auth0";
-import { openMirrorJob } from "@/app/actions/workboard";
+import { openMirrorJob, readJobFiles, readJobRecord, readMirrorJob } from "@/app/actions/workboard";
+import { listJobPicklist } from "@/app/actions/job-picklist";
+import { listJobPhotoFavourites } from "@/app/actions/job-photo-favourites";
+import { readJobConversation } from "@/app/actions/job-conversation";
+import { customerEditOffered } from "@/app/actions/job-customer";
+import type { JobCardFirst } from "@/components/workboard/board/job-sheet";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { parseSection } from "@/lib/jobs/job-sections";
 import { jobPageHref } from "@/lib/shell/links";
@@ -51,13 +56,30 @@ export default async function JobPageRoute({
   if (target.parentRemoteId !== job) redirect(jobPageHref(target.parentRemoteId, moneyVisible ? "billing" : section));
 
   /* the row the card opens on, read inside this org's mirror: null for a
-     job it doesn't hold */
-  const row = await openMirrorJob(target.parentRemoteId);
+     job it doesn't hold. AND WHAT THE CARD READS FIRST, beside it: the
+     browser sends a card's reads one after another, so the card drew its
+     placeholders and filled them in over seconds (Isaac, 5 November 2026:
+     "it has all the placeholders empty and then it's like it refreshes and
+     fills it all in"). Here they go side by side and the card arrives
+     full. A read that fails is left out, and the card reads it itself. */
+  const card = target.parentRemoteId;
+  const kept = <T,>(p: Promise<T>): Promise<T | undefined> => p.catch(() => undefined);
+  const [row, mirror, record, files, picklist, favourites, conversation, customerEdit] = await Promise.all([
+    openMirrorJob(card),
+    kept(readMirrorJob(card)),
+    kept(readJobRecord(card)),
+    kept(readJobFiles(card)),
+    kept(listJobPicklist(card)),
+    kept(listJobPhotoFavourites(card).then((rows) => rows.map((r) => r.remoteId))),
+    kept(readJobConversation(card)),
+    manage ? kept(customerEditOffered()) : Promise.resolve(undefined),
+  ]);
   if (!row) notFound();
+  const first: JobCardFirst = { cardId: card, mirror, record, files, picklist, favourites, conversation, customerEdit };
 
   /* `?add=`: Documents' Make a document, asking for what Add › SWMS or Add ›
      Certificate does; anything else asks for nothing */
   const add = search.add === "swms" || search.add === "certificate" ? search.add : null;
 
-  return <JobPage row={row} section={section} manage={manage} moneyVisible={moneyVisible} studio={studio} add={add} />;
+  return <JobPage row={row} section={section} manage={manage} moneyVisible={moneyVisible} studio={studio} add={add} first={first} />;
 }

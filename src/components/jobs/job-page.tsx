@@ -3,7 +3,7 @@
 import { useContext, useEffect, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { MenuItem } from "@/components/parts/menu";
-import { JobSheet } from "@/components/workboard/board/job-sheet";
+import { JobSheet, type JobCardFirst } from "@/components/workboard/board/job-sheet";
 import { AgreementForm, jobOfRow } from "@/components/workboard/board/agreement-form";
 import { ToastHost, useBoardToasts } from "@/components/workboard/board/toasts";
 import { WindowsContext, useRecords } from "@/components/records/records-context";
@@ -28,11 +28,12 @@ import type { AllJobRow } from "@/lib/workboard/all-jobs";
 
 export function JobPage({
   row,
-  section: first,
+  section: firstSection,
   manage,
   moneyVisible,
   studio = false,
   add = null,
+  first,
 }: {
   row: AllJobRow;
   section: JobSection;
@@ -42,12 +43,14 @@ export function JobPage({
   studio?: boolean;
   /** `?add=`: Documents' Make a document asked for a SWMS or a certificate */
   add?: "swms" | "certificate" | null;
+  /** What the page read on the server for the card (JobCardFirst). */
+  first?: JobCardFirst;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const records = useRecords();
   const remember = useContext(WindowsContext)?.remember;
-  const [section, setSection] = useState<JobSection>(first);
+  const [section, setSection] = useState<JobSection>(firstSection);
   const { toasts, toast, dismiss } = useBoardToasts();
   const [agreementFrom, setAgreementFrom] = useState<AllJobRow | null>(null);
 
@@ -112,7 +115,8 @@ export function JobPage({
           manage={manage}
           moneyVisible={moneyVisible}
           studio={studio}
-          initialTab={SECTION_FACES[first][0]}
+          initialTab={SECTION_FACES[firstSection][0]}
+          first={first}
           page={{ section, onSection: goSection, actions, onAction: (key) => void onAction(key), add }}
           /* New agreement opens over the page (rule 51), the job filled in */
           onCreateAgreement={(r) => setAgreementFrom(r)}

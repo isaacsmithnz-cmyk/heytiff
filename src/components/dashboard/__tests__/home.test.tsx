@@ -156,7 +156,7 @@ describe("the box", () => {
     const field = screen.getByRole("textbox", { name: "What's happening on site?" });
     expect(field).toHaveAttribute("placeholder", "What's happening on site?");
     expect(screen.getByRole("button", { name: "Speak instead of typing" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send to Tiff" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   });
 
@@ -176,14 +176,14 @@ describe("the box", () => {
 
   it("(F) Send with nothing typed does nothing", async () => {
     draw();
-    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    await userEvent.click(screen.getByRole("button", { name: "Send to Tiff" }));
     expect(open).not.toHaveBeenCalled();
   });
 
   it("(F) Send starts the conversation on the page, in place of the columns, and no window opens", async () => {
     draw();
     await userEvent.type(screen.getByRole("textbox", { name: "What's happening on site?" }), "Finished the Rifkin install");
-    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    await userEvent.click(screen.getByRole("button", { name: "Send to Tiff" }));
     const chat = screen.getByRole("region", { name: "Talking to Tiff" });
     expect(chat).toHaveTextContent("Finished the Rifkin install");
     expect(open).not.toHaveBeenCalled();

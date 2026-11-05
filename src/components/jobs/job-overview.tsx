@@ -333,6 +333,11 @@ export function JobOverview({
             viewerName={read?.viewer.name ?? null}
             voiceEnabled={scope.voiceEnabled}
             onUndoTalk={undoTalk}
+            jobUuid={cardId ?? null}
+            onSaved={() => {
+              router.refresh();
+              again();
+            }}
             customer={read?.customer}
             comms={read?.comms}
           />

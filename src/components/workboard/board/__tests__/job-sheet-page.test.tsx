@@ -369,7 +369,7 @@ describe("the job's sections are the card's faces", () => {
     expect([...over.querySelectorAll(".jov-main .jov-title")].map((h) => h.textContent)).toEqual(["Summary", "To do"]);
     expect([...over.querySelectorAll(".jov-side .jov-title")].map((h) => h.textContent)).toEqual(["Activity feed"]);
     expect(screen.getByRole("region", { name: "Activity feed" })).toBeVisible();
-    expect(screen.getByRole("textbox", { name: "Tell Tiff about this job" })).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "Write a note on this job" })).toBeVisible();
     expect(screen.queryByRole("complementary", { name: "About the job" })).toBeNull();
     /* Next visit opens Visits and Money opens Billing, from anywhere on the cell */
     await userEvent.click(facts.getByRole("button", { name: "Next visit" }));

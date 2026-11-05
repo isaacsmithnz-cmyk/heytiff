@@ -170,7 +170,7 @@ describe("the head (v2)", () => {
     sessionStorage.clear();
     render(<Library docs={[doc()]} />, { landing: true });
     await userEvent.type(screen.getByRole("textbox", { name: "Ask the Library anything" }), "what does P8 mean?");
-    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    await userEvent.click(screen.getByRole("button", { name: "Send to Tiff" }));
     expect(JSON.parse(sessionStorage.getItem("heytiff.tiff.ask.v1")!)).toEqual({ ask: "what does P8 mean?" });
     expect(push).toHaveBeenCalledWith("/dashboard/conversations");
   });

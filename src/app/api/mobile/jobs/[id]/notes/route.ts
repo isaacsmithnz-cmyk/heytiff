@@ -1,12 +1,15 @@
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { writeJobNote } from "@/lib/workboard/job-note-write";
 import { ok, requireMobile } from "@/lib/mobile/auth";
+import { sendNoteOnToSm8 } from "@/lib/integrations/sm8-note-send-on";
+import { sm8PressFromMobile } from "@/lib/integrations/sm8-press";
 
 /* WRITING A NOTE ON A JOB from the phone: the job sheet's pen, on the
    phone's token (lib/workboard/job-note-write, which actions/job-notes
    addJobNote shares). The same tier as the sheet, `workboard`: writing on
    the job you are standing on is the whole feature. It lands in HeyTiff's
-   diary for the job; nothing goes to ServiceM8 from here.
+   diary for the job, and goes on to ServiceM8 only when the box's Save asks
+   (`sendOn`).
 
    The job is a CHOICE the phone hands in, so it is only ever written on
    inside the caller's own workspace (a clone writes on the job it claims
@@ -20,7 +23,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const no = (status: number, error: string) => Response.json({ error }, { status, headers: { "cache-control": "no-store" } });
 
   const id = (await params).id.trim().slice(0, 80);
-  const input = (await request.json().catch(() => null)) as { body?: unknown; id?: unknown } | null;
+  const input = (await request.json().catch(() => null)) as { body?: unknown; id?: unknown; sendOn?: unknown } | null;
   const body = typeof input?.body === "string" ? input.body : "";
   if (!id) return no(400, "Which job?");
   if (!body.trim()) return no(400, "Nothing to write.");
@@ -35,6 +38,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       body,
       composeId: input?.id as string | undefined,
     });
+    /* Save, from the phone's box: the words as written, and on to ServiceM8
+       as any job note goes, behind the same gate Tiff's filing has. The
+       day's wrap-up asks for its own send after, so it doesn't ask here. */
+    if (input?.sendOn === true) await sendNoteOnToSm8(() => sm8PressFromMobile(ctx), ctx.orgId, note.id, parentRemoteId);
     return ok(note);
   } catch (err) {
     return no(400, err instanceof Error ? err.message : "Couldn't save that note.");

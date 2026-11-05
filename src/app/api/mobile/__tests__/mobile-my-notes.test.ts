@@ -49,7 +49,15 @@ jest.mock("@/app/actions/my-notes", () => ({
   deleteMyNote: async (id: string) => (kept.push(`delete as ${await who()}: ${id}`), { ok: true }),
 }));
 
-import { POST } from "../my-notes/route";
+jest.mock("@/lib/fleet/query", () => ({ staffProfileIdFor: async (org: string, user: string) => (user === "auth0|isaac" && org === "org-1" ? "staff-isaac" : null) }));
+jest.mock("@/lib/notes/my-notes-query", () => ({
+  listMyNotes: async (org: string, staff: string) =>
+    staff === "staff-isaac" && org === "org-1"
+      ? [{ id: "sn-2", body: "Book the ute in", source: "text", sourceNoteId: null, createdAt: "2026-11-06T04:10:00Z", updatedAt: "2026-11-06T04:10:00Z", archivedAt: null }]
+      : [],
+}));
+
+import { GET, POST } from "../my-notes/route";
 import { DELETE } from "../my-notes/[id]/route";
 import { MOBILE_AUDIENCE } from "@/lib/mobile/token";
 
@@ -84,4 +92,12 @@ test("kept for the token's own person, and its Undo deletes it as them", async (
   expect((await POST(req("auth0|isaac", "POST", { body: "  " }))).status).toBe(400);
   expect((await DELETE(req("auth0|isaac", "DELETE"), { params: Promise.resolve({ id: "sn-1" }) })).status).toBe(200);
   expect(kept).toEqual(["keep as auth0|isaac@org-1: Check the 3304 gas (voice)", "keep as auth0|isaac@org-1:    (text)", "delete as auth0|isaac@org-1: sn-1"]);
+});
+
+/* More › Notes on the phone (Isaac, 6 November 2026): your own, and only yours */
+test("reads back the token's own person's notes, and nobody else's", async () => {
+  expect((await GET(req(null, "GET"))).status).toBe(401);
+  expect(await (await GET(req("auth0|isaac", "GET"))).json()).toEqual({ notes: [{ id: "sn-2", body: "Book the ute in", at: "2026-11-06T04:10:00Z" }] });
+  members = [{ user_id: "auth0|lyle", org_id: "org-1", role: "staff", permissions: {} }];
+  expect(await (await GET(req("auth0|lyle", "GET"))).json()).toEqual({ notes: [] });
 });

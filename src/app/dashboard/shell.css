@@ -7737,6 +7737,14 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .cv-box .cv-live .wb2-lwbox { max-height:240px; }
 .fg .cv-boxbar { display:flex; align-items:center; gap:8px; }
 .fg .cv-boxbar .cv-send { margin-left:auto; }
+/* TIFF'S BUTTON AND ITS LITTLE i (Isaac, 6 November 2026): the i sits on
+   the button's corner until it has been read once, and pressed, a few words
+   stand over the box saying what she does with them */
+.fg .cv-tiffat { position:relative; display:inline-flex; flex:none; }
+.fg .cv-info { position:absolute; top:-7px; right:-7px; display:grid; place-items:center; width:18px; height:18px; padding:0; border:1px solid var(--edge); border-radius:50%; background:var(--paper); color:var(--ink); font:inherit; font-size:12px; line-height:1; font-weight:700; cursor:pointer; }
+.fg .cv-info:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .cv-tip { position:absolute; right:0; bottom:calc(100% + 12px); z-index:var(--z-overlay); width:260px; padding:12px 16px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-overlay); font-size:14px; line-height:20px; font-weight:400; color:var(--ink); text-align:left; }
+.fg .cv-tip b { display:block; font-weight:700; }
 /* "Send fades until she's done" (6-revisions.md) */
 .fg .cv-boxbar .pt-btn.cv-send--wait { opacity:.4; }
 .fg .cv-say { margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }

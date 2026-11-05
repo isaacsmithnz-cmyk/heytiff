@@ -19,6 +19,9 @@ jest.mock("next/navigation", () => ({
 }));
 jest.mock("@/lib/brain/ask-client", () => ({ askBrain: () => {} }));
 const openRecordByName = jest.fn(async (_words: string) => null as { href: string; label: string; line: string } | null);
+/* Save in the chat's box files a job note as written (actions/job-notes) */
+const saveJobNote = jest.fn(async (_job: string, body: string) => ({ id: "n-saved", text: body, at: "2026-11-06 15:42:00", author: "Isaac Smith" }));
+jest.mock("@/app/actions/job-notes", () => ({ saveJobNote: (job: string, body: string) => saveJobNote(job, body) }));
 jest.mock("@/app/actions/tiff-open", () => ({ openRecordByName: (w: string) => openRecordByName(w) }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   routeNote: () => new Promise(() => {}),
@@ -69,7 +72,7 @@ it("renders an open modal, listening, with no window", () => {
   );
   expect(html).toContain('aria-label="Tiff"');
   expect(html).toContain('aria-label="Stop"');
-  expect(html).toContain('aria-label="Send"');
+  expect(html).toContain('aria-label="Send to Tiff"');
 });
 
 it("renders one opened on typed words, with no window", () => {

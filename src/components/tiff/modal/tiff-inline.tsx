@@ -87,7 +87,8 @@ export function TiffInline({ words, onBack }: { words: string; onBack: () => voi
   }, [c.turns, threadId, at]);
 
   /* the live turn rides at the end, as in the window, so it settles where it is */
-  const all: ModalTurn[] = c.live ? [...c.turns, { key: c.live.key, who: "you", text: c.live.said ?? c.draft, enter: c.live.enter }] : c.turns;
+  /* while you speak your words are in the box (conversations/box), as in every box */
+  const all: ModalTurn[] = c.live && c.live.said !== null ? [...c.turns, { key: c.live.key, who: "you", text: c.live.said, enter: c.live.enter }] : c.turns;
   let lastYou = -1;
   let lastTiff = -1;
   all.forEach((t, i) => {

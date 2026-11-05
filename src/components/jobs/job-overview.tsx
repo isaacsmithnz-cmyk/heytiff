@@ -16,6 +16,8 @@ import { JobScope } from "./job-scope";
 import { JobSummary } from "./job-summary";
 import type { JobScopeRead } from "@/lib/jobs/job-scope";
 import { JobTodo } from "./job-todo";
+import { JobTracker } from "./job-tracker";
+import type { TrackerRead } from "@/lib/jobs/job-tracker";
 import { useTasksChanged } from "@/lib/tasks/changed";
 import dynamic from "next/dynamic";
 
@@ -34,7 +36,13 @@ const TaskForm = dynamic(() => import("@/components/making/task-form").then((m) 
      two columns split by a full-height hairline: on the left the Summary
        (job-summary.tsx), or the job's scope and its latest updates once Tiff
        has written one (job-scope.tsx, 28 October 2026), and To do (job-todo.tsx), on the right the
-       Activity feed (job-conversation.tsx), Tiff's box at its head.
+       Activity feed (job-conversation.tsx), Tiff's box at its head;
+     for whoever sees money, the Job tracker (job-tracker.tsx) heads the
+       left column: labour, materials and equipment against the quote
+       (Isaac, 4 November 2026, "build it").
+
+   It all stands on a grey ground, each part a white card (design.md, "On
+   a job's page").
 
    Every section is one recipe (job-section.tsx): a coloured block and its
    title, at most one button on the right, then rows under hairlines.
@@ -191,6 +199,25 @@ export function JobOverview({
     };
   }, [cardId, kick, filedHere, ours, landed]);
 
+  /* THE JOB TRACKER'S READ, a route of its own (the card's server actions
+     run one at a time): only for whoever sees money */
+  const [tracker, setTracker] = useState<TrackerRead | null | "none">(null);
+  useEffect(() => {
+    if (!cardId || !moneyVisible) return;
+    let live = true;
+    void fetch(`/api/workboard/job-tracker?job=${encodeURIComponent(cardId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { ok?: boolean; tracker?: TrackerRead } | null) => {
+        if (live) setTracker(j?.ok && j.tracker ? j.tracker : "none");
+      })
+      .catch(() => {
+        if (live) setTracker("none");
+      });
+    return () => {
+      live = false;
+    };
+  }, [cardId, moneyVisible]);
+
   /* a task made, changed or ticked anywhere on the page (New › Task, a row's
      own form) is read again here: it never reached this To do until a
      reload (25 October 2026) */
@@ -264,6 +291,7 @@ export function JobOverview({
       {under}
       <div className="jov-cols">
         <div className={`jov-main${mainFits ? " jov-main--stick" : ""}`} ref={mainRef}>
+          {moneyVisible && cardId && tracker !== "none" && <JobTracker read={tracker} />}
           {brief ? (
             <JobScope scope={brief} reading={scopeReading} onUndo={onUndoScope} onLeave={onLeaveScope} updateHref={scopeUpdateHref} />
           ) : (

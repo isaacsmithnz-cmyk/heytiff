@@ -2039,7 +2039,9 @@ describe("the job's once-per-job acts", () => {
 
   it("shows a one-card job's value in Money at once, nothing paid, and only the paid word waits", async () => {
     const { cell } = await moneyCell(1, 0);
-    expect(cell.getByText("$13,833.76")).toHaveClass("jov-fig");
+    /* "at once" is before the record (it never lands here), not on the first
+       tick: a slow runner can take a tick more to land the card's read */
+    expect(await cell.findByText("$13,833.76")).toHaveClass("jov-fig");
     expect(cell.getByText("Reading the payments")).toHaveClass("jov-cap");
   });
 

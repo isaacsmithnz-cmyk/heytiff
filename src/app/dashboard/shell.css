@@ -225,6 +225,10 @@
 .fg .nb-whenline { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .nb-whenline svg { color:var(--q); flex:0 0 auto; }
 .fg .nb-whensum { font-size:13px; font-weight:600; color:var(--gray400); padding-left:24px; }
+.fg .nb-diet, .fg .nb-diets { display:flex; flex-direction:column; gap:4px; margin-top:12px; }
+.fg .nb-dietlabel { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .nb-diets ul { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:4px; font-size:14px; line-height:20px; }
+.fg .nb-diets b { font-weight:600; }
 
 /* The v3 row-of-stats `.hstats` / `.hstat` block lived here. It was dead — no
    screen rendered that markup after the hero became a greeting plus an action

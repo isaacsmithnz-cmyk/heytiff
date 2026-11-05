@@ -72,6 +72,14 @@ jest.mock("@/lib/fleet/query", () => ({
   getOwnVehicle: async () => ({ name: "", make: "Toyota", model: "Hiace", plate: "XQG 41B", plateState: "NSW", odometer: 1 }),
 }));
 jest.mock("@/lib/au-dates", () => ({ todayInAu: () => "2026-10-26" }));
+jest.mock("@/lib/team/birthday-sharing", () => ({
+  readBirthdaySharing: async () => ({ shareBirthday: true, shareAge: false }),
+  setBirthdaySharing: async (orgId: string, staffId: string, change: Record<string, boolean>) => {
+    asked.push(`share ${orgId} ${staffId} ${JSON.stringify(change)}`);
+    const shareBirthday = change.shareBirthday ?? true;
+    return { shareBirthday, shareAge: shareBirthday && (change.shareAge ?? false) };
+  },
+}));
 jest.mock("@/lib/timepay/leave-page", () => ({
   loadLeaveFor: async (ctx: { orgId: string; staffId: string; today: string }) => {
     asked.push(`leave ${ctx.orgId} ${ctx.staffId} ${ctx.today}`);
@@ -80,7 +88,7 @@ jest.mock("@/lib/timepay/leave-page", () => ({
 }));
 
 import { GET as media } from "../jobs/[id]/media/route";
-import { GET as card } from "../card/route";
+import { GET as card, POST as cardPost } from "../card/route";
 import { GET as leave } from "../leave/route";
 import { MOBILE_AUDIENCE } from "@/lib/mobile/token";
 
@@ -165,4 +173,18 @@ test("someone with no staff card in the workspace is told so, for the card and t
   cards = {};
   expect((await card(req("card", "auth0|lyle"))).status).toBe(404);
   expect((await leave(req("leave", "auth0|lyle"))).status).toBe(404);
+});
+
+test("your birthday ticks show on your card, and save for your own card alone", async () => {
+  const body = await (await card(req("card", "auth0|lyle"))).json();
+  expect(body).toMatchObject({ shareBirthday: true, shareAge: false });
+  asked.length = 0;
+  const post = new Request("https://app.test/api/mobile/card", {
+    method: "POST",
+    headers: req("card", "auth0|lyle").headers,
+    body: JSON.stringify({ shareAge: true, staffId: "card-someone-else" }),
+  });
+  const saved = await (await cardPost(post)).json();
+  expect(asked).toEqual(["staffId org-diamond auth0|lyle", 'share org-diamond card-lyle {"shareAge":true}']);
+  expect(saved).toEqual({ shareBirthday: true, shareAge: true });
 });

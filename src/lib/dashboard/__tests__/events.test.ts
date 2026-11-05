@@ -3,6 +3,8 @@ import {
   eventWhen,
   fmtTime,
   isEventTime,
+  rsvpAnswerFor,
+  rsvpPeople,
   rsvpSummary,
   tallyRsvp,
   type RsvpRow,
@@ -132,5 +134,27 @@ describe("eventWhen", () => {
   it("carries the time through, or null when there isn't one", () => {
     expect(eventWhen(TODAY, "17:30", TODAY).time).toBe("5:30pm");
     expect(eventWhen(TODAY, null, TODAY).time).toBeNull();
+  });
+});
+
+describe("an event partners may come to", () => {
+  const row = (staffId: string, staffName: string, answer: "yes" | "plus_one" | "no" | "maybe") => ({ staffId, staffName, answer });
+  it("answers Just me, Me + 1, Can't make it, and leaves Maybe out", () => {
+    const poll = tallyRsvp([row("s1", "Ana", "plus_one"), row("s2", "Bo", "maybe")], "s1", true);
+    expect(poll.options.map((o) => o.label)).toEqual(["Just me", "Me + 1", "Can't make it"]);
+    expect(poll.options.find((o) => o.id === "plus_one")?.votes).toBe(1);
+    expect(poll.myOptionIds).toEqual(["plus_one"]);
+    expect(poll.voters).toBe(1);
+  });
+  it("counts heads, partners in", () => {
+    const rows = [row("s1", "Ana", "plus_one"), row("s2", "Bo", "yes"), row("s3", "Cy", "no")];
+    expect(rsvpPeople(rows)).toBe(3);
+    expect(rsvpSummary(tallyRsvp(rows, null, true))).toBe("3 coming, 1 can't");
+  });
+  it("takes Me + 1 only where partners may come, and Maybe only where they may not", () => {
+    expect(rsvpAnswerFor("plus_one", true)).toBe("plus_one");
+    expect(rsvpAnswerFor("plus_one", false)).toBeNull();
+    expect(rsvpAnswerFor("maybe", true)).toBeNull();
+    expect(rsvpAnswerFor("maybe", false)).toBe("maybe");
   });
 });

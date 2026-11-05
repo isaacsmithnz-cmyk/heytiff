@@ -82,6 +82,10 @@ export function NoticeForm({
   const [eventDate, setEventDate] = useState(notice?.event?.date ?? "");
   const [eventTime, setEventTime] = useState(notice?.event?.time ?? "");
   const [eventLocation, setEventLocation] = useState(notice?.event?.location ?? "");
+  const [plusOne, setPlusOne] = useState(notice?.event?.plusOne ?? false);
+  const [askDiet, setAskDiet] = useState(notice?.event?.askDiet ?? false);
+  const [answerBy, setAnswerBy] = useState(notice?.event?.answerBy ?? "");
+  const byId = useId();
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [pending, setPending] = useState(false);
@@ -96,7 +100,7 @@ export function NoticeForm({
   const blocked =
     !title.trim() ||
     (composingPoll && !draftPoll.ok) ||
-    (showingEvent && (!eventDate || (!!eventTime && !isEventTime(eventTime))));
+    (showingEvent && (!eventDate || (!!eventTime && !isEventTime(eventTime)) || (!!answerBy && answerBy > eventDate)));
 
   const close = () => {
     for (const f of files) if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
@@ -148,7 +152,9 @@ export function NoticeForm({
     setPending(true);
     setError(null);
     const documentIds = files.map((f) => f.documentId);
-    const when = showingEvent ? { eventDate, eventTime: eventTime || undefined, eventLocation } : {};
+    const when = showingEvent
+      ? { eventDate, eventTime: eventTime || undefined, eventLocation, eventPlusOne: plusOne, eventAskDiet: askDiet, eventAnswerBy: answerBy || null }
+      : {};
     if (notice) {
       // an EDIT reaches the wording, and an event's when/where, but never a
       // poll's answers, which are fixed once people start voting
@@ -173,7 +179,14 @@ export function NoticeForm({
         expiresAt: notice.expiresAt,
         documentIds: [],
         ...(notice.event
-          ? { eventDate: notice.event.date, eventTime: notice.event.time ?? undefined, eventLocation: notice.event.location ?? "" }
+          ? {
+              eventDate: notice.event.date,
+              eventTime: notice.event.time ?? undefined,
+              eventLocation: notice.event.location ?? "",
+              eventPlusOne: notice.event.plusOne,
+              eventAskDiet: notice.event.askDiet,
+              eventAnswerBy: notice.event.answerBy,
+            }
           : {}),
       };
       host?.toast(`${word[0]!.toUpperCase()}${word.slice(1)} saved`, async () => {
@@ -261,6 +274,12 @@ export function NoticeForm({
             </div>
             <Field label="Where">
               <TextInput value={eventLocation} onChange={(e) => setEventLocation(e.target.value)} />
+            </Field>
+            {/* Isaac, 6 November 2026, the Christmas party: partners, allergies, a day to answer by */}
+            <Tick label="They can bring a partner" checked={plusOne} onChange={setPlusOne} />
+            <Tick label="Ask about allergies and dietary needs" checked={askDiet} onChange={setAskDiet} />
+            <Field label="Answer by" id={byId} error={answerBy && eventDate && answerBy > eventDate ? "The answer-by day comes after the event." : null}>
+              <DateField id={byId} value={answerBy || null} today={today} max={eventDate || undefined} clearable placeholder="No day" onChange={(iso) => setAnswerBy(iso ?? "")} />
             </Field>
           </>
         )}

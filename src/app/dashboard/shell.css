@@ -7390,16 +7390,80 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jov-line .jcl-step.now .jcl-sl b, .fg .jov-line .jcl-step.warn .jcl-sl b { color:var(--orange-w); }
 .fg .jov-line .jcl-step.bad .jcl-sl b { color:var(--red-w); }
 .fg .jov-line .jcl-step.on .jcl-sl b { text-decoration:underline; text-underline-offset:4px; }
+/* THE GROUND AND ITS CARDS (Isaac, 4 November 2026, Apple Health's cards
+   on https://claude.ai/artifact/8L3hw5D8QxHZidsAAQNcX6: "2, check laws",
+   then "build it"). Under the tabs the Overview stands on the soft fill,
+   and the stages line, each fact and each section is a white card on it,
+   with no edge; the hairline between the columns goes. Each section's
+   icon and title take its hue's word value, in the block's place. Named
+   in docs/design.md, "On a job's page". */
+.fg .jov { gap:16px; padding:16px; border-radius:var(--r-card); background:var(--soft); }
+.fg .jov-line { padding:12px 12px 8px; border-radius:var(--r-card); background:var(--paper); }
+.fg .jov-facts, .fg .jov-facts--3 { gap:16px; border:0; background:none; }
+.fg .jov-fact, .fg .jov-fact:first-child, .fg .jov-fact:last-child { padding:12px 16px; border-radius:var(--r-card); background:var(--paper); }
+.fg .jov-fact + .jov-fact { border-left:0; }
+.fg .jov-fact--door:hover { background:var(--paper); outline:1px solid var(--edge); outline-offset:-1px; }
+.fg .jov-lab { gap:8px; min-height:18px; font-size:13px; line-height:18px; }
+.fg .jov-labname { display:inline-flex; align-items:center; gap:8px; }
+.fg .jov-labname svg { flex:none; }
+.fg .jov-lab--pink { color:var(--pink-w); }
+.fg .jov-lab--purple { color:var(--purple-w); }
+.fg .jov-cols { grid-template-columns:minmax(0,1fr) 460px; column-gap:16px; }
+.fg .jov-main { gap:16px; }
+.fg .jov-main--stick { top:16px; }
+.fg .jov-side { padding-left:0; border-left:0; }
+.fg .jov .jov-sec { padding:12px 16px 8px; border-radius:var(--r-card); background:var(--paper); }
+.fg .jov .jov-head { gap:8px; }
+.fg .jov .jov-head .hm-blk { width:auto; height:auto; background:none; color:inherit; }
+.fg .jov .jov-title { color:inherit; }
+.fg .jov .jov-head--pink { color:var(--pink-w); }
+.fg .jov .jov-head--yellow { color:var(--yellow-w); }
+.fg .jov .jov-head--green { color:var(--green-w); }
+.fg .jov .jov-head--purple { color:var(--purple-w); }
+.fg .jov .jov-head--grey { color:var(--q); }
+.fg .jov .jov-head--orange { color:var(--orange-w); }
+.fg .jov .jov-headact { color:var(--ink); }
+/* THE JOB TRACKER (job-tracker.tsx): a line per part of the quote, its
+   name and state, then its figure and Show, then a 6 tall bar: used grey,
+   overtime orange, past the quote red (design.md, "On a job's page") */
+.fg .jtr { margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
+.fg .jtr-line { display:flex; flex-direction:column; padding:8px 0; border-bottom:1px solid var(--line); }
+.fg .jtr-top { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:24px; }
+.fg .jtr-name { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .jtr-fig { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:14px; line-height:20px; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .jtr-fig b { font-weight:600; color:var(--ink); }
+.fg .jtr-show { margin-right:-12px; }
+.fg .jtr-bar { display:flex; flex-direction:column; gap:4px; padding:4px 0; }
+.fg .jtr-meter { display:flex; gap:2px; height:6px; overflow:hidden; border-radius:var(--r-control); background:var(--soft); }
+.fg .jtr-meter i { display:block; flex:none; height:100%; }
+.fg .jtr-used { background:var(--grey); }
+.fg .jtr-ot { background:var(--orange); }
+.fg .jtr-over { background:var(--red); }
+.fg .jtr-under { font-size:13px; line-height:18px; font-weight:500; color:var(--orange-w); }
+.fg .jtr-rows { margin-top:4px; }
+.fg .jtr-thing { display:flex; flex-direction:column; min-width:0; }
+.fg .jtr-thing b { font-weight:500; overflow-wrap:anywhere; }
+.fg .jtr-amt { flex:none; font-size:14px; line-height:20px; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .jtr-rows .jov-row:last-child, .fg .jtr-line:last-child { border-bottom:0; }
+/* Add hours and Add amount, in the line (Isaac, 5 November 2026) */
+.fg .jtr-by { display:flex; align-items:center; gap:4px; font-size:13px; line-height:18px; color:var(--q); }
+.fg .jtr-plan { display:flex; flex-direction:column; gap:8px; padding:8px 0 4px; }
+.fg .jtr-visit { display:flex; align-items:center; gap:8px; font-size:14px; line-height:20px; color:var(--q); }
+.fg .jtr-visit b { width:56px; flex:none; font-weight:600; color:var(--ink); }
+.fg .jtr-num { width:56px; flex:none; font-variant-numeric:tabular-nums; }
+.fg .jtr-money { width:120px; flex:none; font-variant-numeric:tabular-nums; }
+.fg .jtr-vh { margin-left:auto; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .jtr-addvisit { align-self:flex-start; margin-left:-12px; }
+.fg .jtr-wrong { margin:0; font-size:13px; line-height:18px; color:var(--red-w); }
+.fg .jtr-tot { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; padding-top:8px; border-top:1px solid var(--line); color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .jtr-tot b { font-weight:600; color:var(--ink); }
+.fg .jtr-acts { display:flex; gap:8px; }
 @media (max-width:1100px) {
-  .fg .jov-cols { grid-template-columns:minmax(0,1fr); row-gap:32px; }
-  .fg .jov-side { padding-left:0; border-left:0; }
+  .fg .jov-cols { grid-template-columns:minmax(0,1fr); row-gap:16px; }
   .fg .jov-main--stick { position:static; }
 }
 @media (max-width:760px) {
   .fg .jov-facts, .fg .jov-facts--3 { grid-template-columns:minmax(0,1fr); }
-  .fg .jov-fact + .jov-fact { border-left:0; border-top:1px solid var(--line); }
-  .fg .jov-fact:first-child { border-radius:16px 16px 0 0; }
-  .fg .jov-fact:last-child { border-radius:0 0 16px 16px; }
 }
 
 /* ===== V2: A PROJECT'S PAGE (Isaac, 27 October 2026, on the old screens'

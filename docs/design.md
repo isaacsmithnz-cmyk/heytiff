@@ -295,7 +295,7 @@ https://claude.ai/artifact/BH6voDn1axdk96JZCCUSTf).
 
 #### On a job's page
 
-Four of his calls on the job page (25 and 26 October 2026; the first two
+His calls on the job page (25 and 26 October and 3 and 4 November 2026; the first two
 on his mock https://claude.ai/artifact/GL43j32Z8xBo3CXekExHuF, the third
 on the refined Overview A, https://claude.ai/artifact/SGFpbThni6YZF6HU3SZpPL,
 the fourth on the customer's messages, below).
@@ -322,6 +322,36 @@ the fourth on the customer's messages, below).
   in purple with a clock (Isaac picked the written brief, 28 October 2026).
   The block is solid with its icon in ink, as on Home and in the Library:
   no tint, no edge, and never blue, red or orange.
+- **The Overview stands on a grey ground, its parts as white cards, and
+  each section's name is in its colour** (`.jov`, `.jov-head--<hue>`),
+  Apple Health's cards (Isaac, 4 November 2026, on
+  https://claude.ai/artifact/8L3hw5D8QxHZidsAAQNcX6: "2, check laws", then
+  "Unless you have other ideas, you can build it"). Three rules give way,
+  on the Overview only:
+  - rule 1, a plain white page: under the section tabs the Overview is the
+    soft fill, ink at 5%, already in the palette;
+  - rule 35, a card is something you act on: the stages line, each fact
+    and each section is a white card on that ground, 16 corner, no edge,
+    though most are not pressed;
+  - the ruling above, the coloured block: on the Overview the block goes,
+    and the section's icon and its 16/600 title take the hue's word value
+    instead. A green Activity feed or a yellow To do sits near rule 17's
+    state words, but a title is 16 and bold with an icon, where a state is
+    13 with a dot. A project's page, the letter editor and the SWMS sign-on
+    keep the block.
+  The facts' labels are 13/500 with an icon: Site a house and Contact a
+  person in grey, Next visit a calendar in pink, Money a dollar in purple.
+- **The Job tracker's bar turns red past the quote** (`.jtr-over`),
+  despite rule 16, no chart is red (Isaac, 3 November 2026: over the
+  allowance is "a red line and how much over"). Used is grey, overtime's
+  extra hours orange, and only what passes the quoted figure red, with
+  the state word beside it saying how much ("4.25 h over").
+  Where the quote holds no hours (a ServiceM8 quote of one price), Labour
+  says "Hours not quoted" and its quiet Add hours opens in the line, visit
+  by visit, people and days at the working day, with no pop-up; Materials
+  says "Not quoted" with Add amount. Once added, the line reads as a quoted
+  one and says who planned it, with Change (Isaac, 5 November 2026, on
+  https://claude.ai/artifact/Gbw8CZCxNYBJSDEHTaAyv9: "Yes, build it").
 - **The Activity feed's conversation bubbles are filled** (`.jc-bubble`),
   despite old law 31, colour only where it means something, and "colour is
   solid, never a tint" as it applies elsewhere: here green means "us", not

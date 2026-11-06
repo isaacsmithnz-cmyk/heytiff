@@ -403,6 +403,8 @@ function inkButtons(): number {
 const PALETTE = new Set([
   "#ef4444", "#be123c", "#f97316", "#b45309", "#facc15", "#a16207", "#22c55e", "#15803d",
   "#2563eb", "#a855f7", "#7e22ce", "#ec4899", "#9d174d", "#9ca3af", "#5f6a79", "#050505", "#ffffff",
+  /* a job card's orange, yellow and pink (Isaac, 6 November 2026, B) */
+  "#ea580c", "#eab308", "#db2777",
 ]);
 const STUDIO_SHEET = "src/components/studio/studio.css";
 const CSS_BUT_STUDIO = sheets(SRC)

@@ -35,6 +35,11 @@
   --red:#EF4444; --red-w:#BE123C; --orange:#F97316; --orange-w:#B45309; --yellow:#FACC15; --yellow-w:#A16207;
   --green:#22C55E; --green-w:#15803D; --blue:#2563EB; --purple:#A855F7; --purple-w:#7E22CE; --pink:#EC4899; --pink-w:#9D174D;
   --grey:#9CA3AF; --white:#FFFFFF;
+  /* A job's card (rule 19): orange, yellow and pink fill a number box a step
+     deeper than their bright, as their word values read brown there (Isaac, 6
+     November 2026, B on https://claude.ai/artifact/ETHPi3KobpjSLS8nAjMXS7:
+     "the oranges, they look very browny"). Yellow's box takes ink. */
+  --orange-card:#EA580C; --yellow-card:#EAB308; --pink-card:#DB2777;
   /* the customer's bubble in a job's Activity feed: a solid light grey, the
      palette's grey laid 22% into white (never an ink alpha), which ink
      reads on at 17:1 (Isaac, 26 October 2026, "Deep green with white") */

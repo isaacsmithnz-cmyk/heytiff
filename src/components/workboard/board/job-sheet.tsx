@@ -2218,7 +2218,7 @@ export function JobSheet({
         <JobPageHead
           name={jobPlateName(detail, row)}
           number={cardNumber}
-          hue={jobHue(categoryColour, status.toLowerCase() === "unsuccessful")}
+          hue={jobHue(categoryColour, status)}
           sm8Href={sm8Href}
           add={{ items: addItems, onPick: addPick, disabled: !cardId, onReach: askQuote }}
           actions={{ items: actionItems, onPick: actionPick }}

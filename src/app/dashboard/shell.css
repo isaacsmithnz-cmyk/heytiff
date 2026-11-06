@@ -7053,16 +7053,18 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jp-name { display:flex; align-items:center; gap:12px; margin:0; min-width:0; font-size:24px; font-weight:600; line-height:32px; color:var(--ink); }
 /* THE JOB'S PLATE (Isaac, 5 November 2026, B on
    https://claude.ai/artifact/SJyEw4dkCb7MLp1bgCzypJ): the number in a
-   solid box of the job's colour, white on it, as a Schedule card has it
-   (rule 19), and the client beside it at the head's 24. No hairline. */
+   solid box of the job's card colour, white on it (ink on yellow), as a
+   Schedule card has it (rule 19), and the client beside it at the head's 24. No hairline. */
 .fg .jp-plate--red { --jp-hue:var(--red-w); }
-.fg .jp-plate--orange { --jp-hue:var(--orange-w); }
-.fg .jp-plate--yellow { --jp-hue:var(--yellow-w); }
+.fg .jp-plate--orange { --jp-hue:var(--orange-card); }
+.fg .jp-plate--yellow { --jp-hue:var(--yellow-card); }
 .fg .jp-plate--green { --jp-hue:var(--green-w); }
 .fg .jp-plate--blue { --jp-hue:var(--press); }
 .fg .jp-plate--purple { --jp-hue:var(--purple-w); }
-.fg .jp-plate--pink { --jp-hue:var(--pink-w); }
+.fg .jp-plate--pink { --jp-hue:var(--pink-card); }
 .fg .jp-plate--grey { --jp-hue:var(--q); }
+/* ink on the yellow box, as white is 2.1:1 there */
+.fg .jp-plate--yellow .jp-num { color:var(--ink); }
 .fg .jp-num { flex:none; display:inline-flex; align-items:center; justify-content:center; min-width:64px; align-self:stretch; min-height:40px; padding:0 12px; border-radius:var(--r-button); background:var(--jp-hue, var(--q)); color:var(--white); font-size:16px; line-height:24px; font-weight:700; font-variant-numeric:tabular-nums; }
 .fg .jp-top:has(.jp-num) { align-items:center; }
 .fg .jp-id.jp-plate { flex-direction:row; align-items:center; gap:12px; }
@@ -8259,15 +8261,18 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* A BOOKING'S CARD (Isaac, 23 October 2026, E of "Schedule card colour"):
    the job's number in a solid box of its colour, the rest white inside a
    hairline of the same colour, three lines at 12. The colour is the card's
-   own token; a done card's is grey. */
+   own token (orange, yellow and pink their card values, 6 November 2026); a
+   done card's is grey. */
 .fg .sc-card--red { --sc-hue:var(--red-w); }
-.fg .sc-card--orange { --sc-hue:var(--orange-w); }
-.fg .sc-card--yellow { --sc-hue:var(--yellow-w); }
+.fg .sc-card--orange { --sc-hue:var(--orange-card); }
+.fg .sc-card--yellow { --sc-hue:var(--yellow-card); }
 .fg .sc-card--green { --sc-hue:var(--green-w); }
 .fg .sc-card--blue { --sc-hue:var(--press); }
 .fg .sc-card--purple { --sc-hue:var(--purple-w); }
-.fg .sc-card--pink { --sc-hue:var(--pink-w); }
+.fg .sc-card--pink { --sc-hue:var(--pink-card); }
 .fg .sc-card--grey { --sc-hue:var(--q); }
+/* ink on the yellow box, as white is 2.1:1 there */
+.fg .sc-card--yellow .sc-cn { color:var(--ink); }
 /* TIME OFF IS A BOOKING'S CARD whose box holds a clock on the soft grey, in
    a grey hairline (Isaac, 6 November 2026, "Build it" on the block out mock):
    ServiceM8's own time off, regular days off and blocks out made here alike */

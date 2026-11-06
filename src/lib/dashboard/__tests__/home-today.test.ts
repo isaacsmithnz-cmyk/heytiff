@@ -97,7 +97,7 @@ describe("todayRows", () => {
     );
     expect(rows.map((r) => [r.time, r.name, r.line, r.hue, r.state?.word ?? null])).toEqual([
       ["9:00 to 11:30", "Bellevue Hill, Job 3342", "Installation, with Lyle and Callum", "blue", "On now"],
-      ["12:45 to 1:45", "Riverview, Job 3361", "Quote, you", "orange", null],
+      ["12:45 to 1:45", "Riverview, Job 3361", "Quote, you", "pink", null],
     ]);
   });
 

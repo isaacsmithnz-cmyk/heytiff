@@ -4555,63 +4555,22 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
 /* the lead already carries its own 8px shoulder inside the tinted box */
 .wb2-jcsec.ups > .wb2-jcdhead { margin-bottom:0; }
 
-/* ── the diary ── */
+/* ── a section's head, and a note's line and doors (the diary's, kept for
+   the job's conversation) ── */
 .wb2-jcdhead { display:flex; align-items:baseline; gap:8px; }
 .wb2-jcdhead b { font-size:16px; font-weight:700; }
 .wb2-jcdhead em { margin-left:auto; font-style:normal; font-size:12px; font-weight:500; color:var(--q); white-space:nowrap; }
-/* the day markers wear a hairline rule out to the card's edge */
-.wb2-jcday { display:flex; align-items:center; gap:8px; margin:16px 0 2px 32px;
-  font-size:12px; font-weight:500; color:var(--q); }
-.wb2-jcday::after { content:""; flex:1; height:1px; background:var(--wb2-line2); }
-.wb2-ev { display:grid; grid-template-columns:28px minmax(0,1fr); gap:12px; padding:8px 0; position:relative; }
-.wb2-ev::before { content:""; position:absolute; left:13px; top:0; bottom:0; width:1px; background:var(--wb2-line2); }
-.wb2-ev:last-child::before { bottom:40%; }
-/* THE NOTE THE FLAG CHIP SENT YOU TO — lit, not shouted: the chip was
-   amber, so the entry it leads to is the same amber, and the tint sits
-   behind the words rather than replacing their ground. */
-.wb2-ev.flag { background:var(--warn-tint); border-radius:var(--r-button);
-  box-shadow:inset 0 0 0 1px var(--warn);; }
-/* NO horizontal margin or padding on the lit row: `.wb2-ev::before` is the
-   timeline spine, positioned from the row's own left edge, so shifting the
-   box by 6px slid the spine 6px off every dot above and below it. The tint
-   hugs the dot instead — and negative margins on a row have already cost
-   this card a defect once (`.wb2-doc`, #561). */
-.wb2-evdot { width:27px; height:27px; border-radius:50%; background:var(--paper); border:1px solid var(--wb2-line);
-  display:inline-flex; align-items:center; justify-content:center; color:var(--gray500);
-  position:relative; z-index:1; align-self:start; margin-top:1px; }
-.wb2-evdot.ok { background:var(--ok-tint); border-color:var(--ok-tint); color:var(--ok-t); }
-.wb2-evdot.cy { background:var(--info-tint); border-color:var(--info-t); color:var(--ink); }
-.wb2-evb { min-width:0; padding-top:4px; }
-.wb2-evhd { font-size:14px; font-weight:700; }
-.wb2-evhd .wb2-chip { margin-left:8px; vertical-align:middle; }
-.wb2-evamt { color:var(--ink); font-variant-numeric:tabular-nums; }
 .wb2-evmeta { margin-top:1px; font-size:12px; font-weight:600; color:var(--gray500); }
-/* a note's words — bordered like paper, the job type's colour on its spine.
-   pre-wrap because a note holds its author's own line breaks. */
-.wb2-evcard { margin-top:4px; background:var(--paper); border:1px solid var(--wb2-line2); border-radius:var(--r-card); padding:8px 12px;
-  font-size:14px; font-weight:500; color:var(--gray700); line-height:1.55; max-width:68ch;
-  overflow-wrap:anywhere; white-space:pre-wrap; }
 .wb2-mention { font-weight:700; color:var(--ink); }
-.wb2-evphotos { display:flex; gap:4px; margin-top:8px; flex-wrap:wrap; }
-.wb2-evphotos img, .wb2-evphotos .pending, .wb2-evphotos .more {
-  width:76px; height:76px; border-radius:var(--r-button); object-fit:cover; border:1px solid var(--wb2-line2); }
-.wb2-evphotos .pending { display:inline-flex; align-items:center; justify-content:center;
-  background:var(--tint); color:var(--gray400); }
-.wb2-evphotos .more { display:inline-flex; align-items:center; justify-content:center;
-  background:var(--tint); color:var(--gray700); font-size:14px; font-weight:700;
-  border:0; cursor:pointer; font-family:inherit; transition:background var(--t-fast) var(--ease); }
-.wb2-evphotos .more:hover { background:var(--tint-2); }
 .wb2-evdoor { display:inline-flex; align-items:center; gap:4px; margin-top:4px; padding:0;
   border:0; background:none; font-family:inherit; font-size:12px; font-weight:700;
   color:var(--ink); cursor:pointer; }
 .wb2-evdoor:hover { text-decoration:underline; }
 .wb2-evdoor:focus-visible { outline:none; box-shadow:var(--ring);; border-radius:var(--r-control); }
-/* NOTES TO SERVICEM8 (two-way phase 2): a reply sits under the note it
-   answers, indented one step, and a note's reply box (and the pen's Also in
-   ServiceM8) opens under its words. Both on the spacing scale; nothing else
-   is new — the doors are `.wb2-evdoor` and a row of them is the strip's own
-   `.wb2-jcattsave`. */
-.wb2-evthread { padding-left:24px; }
+/* NOTES TO SERVICEM8 (two-way phase 2): a note's reply box (and the Also
+   in ServiceM8 tick, where it says why) opens under its words, on the
+   spacing scale; nothing else is new — the doors are `.wb2-evdoor` and a
+   row of them is the strip's own `.wb2-jcattsave`. */
 .wb2-evreply { display:grid; gap:8px; margin-top:8px; }
 /* THE DIARY FILTER IS A FaceSwitch, AND THE SHEET IS PORTALLED OUTSIDE
    `.fg` — so `.fg .seg` and `.fg .me-fshd` never reach it (the exact drift
@@ -5949,6 +5908,11 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .wb2-notes.wb2-lwbox { height:calc(var(--lwrows) * 1lh + 26px);
 
   background:var(--paper); resize:none; }
+/* The same arithmetic in a form's own box, parts/field's TextArea, which the
+   field mic wears when it stands in a Field (note-token): 18px is
+   `.pt-textarea`'s padding and border. Three classes, because the box's own
+   rule names its class twice and sets `height:auto`. */
+.pt-textarea.pt-textarea.wb2-lwbox { height:calc(var(--lwrows) * 1lh + 18px); resize:none; }
 
 /* ── and the box the CARD wears ── */
 .wb2-livetext {
@@ -7831,8 +7795,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .hm-feed-yours { margin:0; font-size:13px; line-height:20px; color:var(--q); overflow-wrap:anywhere; }
 .fg .hm-feed-acts { display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
 .fg .hm-feed-reply { display:flex; flex-direction:column; gap:4px; margin-top:4px; }
-.fg .hm-feed-replyrow { display:flex; gap:8px; align-items:center; }
-.fg .hm-feed-replyrow > :first-child { flex:1 1 auto; min-width:0; }
 .fg .hm-feed-err { margin:0; font-size:13px; line-height:20px; color:var(--red-w); }
 .fg .hm-head { display:flex; align-items:center; gap:12px; padding-bottom:12px; border-bottom:1px solid var(--line); }
 .fg .hm-h { margin:0; font-size:20px; line-height:28px; font-weight:600; color:var(--ink); }

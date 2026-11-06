@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { TaskForm } from "../task-form";
 import { WindowsContext } from "@/components/records/records-context";
 import { completeTask, deleteTask, makeTasks, readTaskForEdit, taskPeople, updateTask, type TaskForEdit } from "@/app/actions/dashboard";
+import { NoteScopeProvider } from "@/components/notes/note-context";
 
 /* New › Task and a job's Add › Task (rules 44 and 51): what needs doing,
    the job (filled in on a job's page, clearable), when, and who; saving
@@ -16,6 +17,19 @@ jest.mock("@/app/actions/dashboard", () => ({
   completeTask: jest.fn(async () => ({ ok: true })),
   reopenTask: jest.fn(async () => ({ ok: true })),
 }));
+/** The engine, with its transcript handed over by the test. */
+const heard: { say?: (words: string) => void } = {};
+jest.mock("@/components/notes/dictation", () => {
+  const actual = jest.requireActual("@/components/notes/dictation");
+  return {
+    ...actual,
+    useDictation: (opts: { onTranscript: (w: string) => void }) => {
+      const react = jest.requireActual("react") as typeof import("react");
+      heard.say = opts.onTranscript;
+      return { recording: false, arming: false, transcribing: false, interim: "", seconds: 0, barsRef: react.createRef(), start: jest.fn(), stop: jest.fn(), handOver: jest.fn(), cancel: jest.fn(), restart: jest.fn() };
+    },
+  };
+});
 jest.mock("@/app/actions/palette", () => ({
   searchPalette: jest.fn(async () => ({
     staff: [],
@@ -131,6 +145,35 @@ describe("the task form", () => {
 
 /* Add date, then Add time (Isaac, 24 October 2026): a day alone is due any
    time that day; a time comes only when Add time is pressed */
+/* 7 November 2026 (Isaac: "Fix all of those"): the box takes the voice, as
+   every other box does, where the workspace has it */
+describe("what needs doing, said", () => {
+  it("has the microphone where voice is on, and what is said is the task", async () => {
+    const onClose = jest.fn();
+    render(
+      <NoteScopeProvider voiceEnabled>
+        <WindowsContext.Provider value={{ toast } as never}>
+          <TaskForm onClose={onClose} />
+        </WindowsContext.Provider>
+      </NoteScopeProvider>,
+    );
+    await act(async () => {});
+    expect(screen.getByRole("button", { name: "Dictate — what needs doing" })).toBeInTheDocument();
+    act(() => heard.say!("Order the grilles"));
+    expect(screen.getByLabelText("What needs doing")).toHaveValue("Order the grilles");
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Add task" })));
+    expect(makeTasks).toHaveBeenCalledWith(expect.objectContaining({ text: "Order the grilles" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
+  it("has none where voice is off, and the box is still the label's", async () => {
+    draw();
+    await act(async () => {});
+    expect(screen.queryByRole("button", { name: /^Dictate/ })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("What needs doing")).toHaveFocus();
+  });
+});
+
 describe("when a task is due", () => {
   it("adds a date first, and a time only once there is a date", async () => {
     draw();

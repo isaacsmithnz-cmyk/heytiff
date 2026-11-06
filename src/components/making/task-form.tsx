@@ -3,7 +3,8 @@
 import { useContext, useEffect, useId, useState } from "react";
 import { Dialog } from "@/components/parts/dialog";
 import { Button } from "@/components/parts/button";
-import { Field, TextArea } from "@/components/parts/field";
+import { Field } from "@/components/parts/field";
+import { NoteToken } from "@/components/notes/note-token";
 import { Chooser } from "@/components/parts/chooser";
 import { TimeField } from "@/components/parts/time-field";
 import { DateField } from "@/components/ui/date-field";
@@ -288,20 +289,27 @@ export function TaskForm({
       >
         {loadError ? <p className="mk-error">{loadError}</p> : null}
         <Field label="What needs doing" error={error}>
-          <TextArea
+          {/* said or typed: the microphone puts the words in the box, where
+              they are lines like any typed ones (no Tiff offer, the form is
+              already making them tasks) */}
+          <NoteToken
+            as="field"
+            label="what needs doing"
+            offer={false}
             value={title}
             rows={3}
-            invalid={!!error}
-            data-autofocus
-            onKeyDown={(e) => {
-              /* Enter is a new line, a new task; ⌘ or Ctrl with Enter saves */
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                void save();
-              }
+            box={{
+              "data-autofocus": true,
+              onKeyDown: (e) => {
+                /* Enter is a new line, a new task; ⌘ or Ctrl with Enter saves */
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  void save();
+                }
+              },
             }}
-            onChange={(e) => {
-              setTitle(e.target.value);
+            onChange={(next) => {
+              setTitle(next);
               if (error) setError(null);
             }}
           />

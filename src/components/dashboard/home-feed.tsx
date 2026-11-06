@@ -7,8 +7,8 @@ import { acknowledgeTask } from "@/app/actions/assignments";
 import { resolveIssue } from "@/app/actions/dashboard";
 import { replyToJobNote, type ReplyResult } from "@/app/actions/job-note-sm8";
 import { Button, LinkButton } from "@/components/parts/button";
-import { TextInput } from "@/components/parts/field";
 import { Initials } from "@/components/parts/initials";
+import { NoteToken } from "@/components/notes/note-token";
 import { Empty } from "@/components/parts/states";
 import { Fade } from "@/components/parts/fade";
 import { Tray } from "@/components/parts/tabs";
@@ -64,8 +64,12 @@ const keep = (f: FeedFilter) => {
   listeners.forEach((fn) => fn());
 };
 
+/** The job card's reply, here: the same box, said or typed (no Tiff offer —
+    a reply is a reply), and Send under it (Isaac, 7 November 2026: "Fix all
+    of those", the feed's reply was one line with no microphone). */
 function ReplyBox({ item, onSent }: { item: FeedItem; onSent: (words: string) => void }) {
   const [words, setWords] = useState("");
+  const [spoken, setSpoken] = useState(false);
   const [composeId] = useState(newComposeId);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,6 +83,7 @@ function ReplyBox({ item, onSent }: { item: FeedItem; onSent: (words: string) =>
       jobUuid: reply.jobUuid,
       sourceNoteUuid: reply.sourceNoteUuid,
       words: w,
+      spoken,
       composeId,
       ...(reply.closesTaskId ? { closesTaskId: reply.closesTaskId } : {}),
     }).catch((): ReplyResult => ({ ok: false, error: "That didn't send. Try again." }));
@@ -87,22 +92,20 @@ function ReplyBox({ item, onSent }: { item: FeedItem; onSent: (words: string) =>
     else setError(got.error);
   };
   return (
-    <form
-      className="hm-feed-reply"
-      onSubmit={(e) => {
-        e.preventDefault();
-        void send();
-      }}
-    >
-      <div className="hm-feed-replyrow">
-        <TextInput
-          aria-label={`Reply to ${item.who.name}`}
-          placeholder={`Reply to ${item.who.name.split(" ")[0]}`}
-          value={words}
-          disabled={sending}
-          autoFocus
-          onChange={(e) => setWords(e.target.value)}
-        />
+    <div className="hm-feed-reply">
+      <NoteToken
+        as="field"
+        label="a reply"
+        offer={false}
+        rows={2}
+        value={words}
+        onChange={setWords}
+        onSpoken={() => setSpoken(true)}
+        placeholder={`Reply to ${item.who.name.split(" ")[0]}`}
+        disabled={sending}
+        box={{ "aria-label": `Reply to ${item.who.name}`, autoFocus: true }}
+      />
+      <div className="wb2-jcattsave">
         <Button kind="main" size={36} disabled={sending || !words.trim()} onClick={() => void send()}>
           {sending ? "Sending" : "Send"}
         </Button>
@@ -112,7 +115,7 @@ function ReplyBox({ item, onSent }: { item: FeedItem; onSent: (words: string) =>
           {error}
         </p>
       )}
-    </form>
+    </div>
   );
 }
 

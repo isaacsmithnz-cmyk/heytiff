@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState, type RefObject } from "react";
+import { useRef, useState, type KeyboardEventHandler, type RefObject } from "react";
 import { Icon } from "@/components/shell/icon";
 import { Button, IconButton } from "@/components/parts/button";
+import { useFieldWiring } from "@/components/parts/field";
 import { LiveWords, appendSpoken, useDictation } from "./dictation";
 import { RecordingMeter } from "./recording-card";
 import { READING_BACK_NOTE } from "./waits";
@@ -53,6 +54,17 @@ import { sniff } from "@/lib/notes/sniff";
    every posture is still a control you can type into. */
 
 export type Posture = "strip" | "field" | "line";
+
+/** field only — what a form gives its own textarea, carried onto the box so
+    a form's box keeps what it did before it had a microphone. */
+export type BoxAttrs = {
+  "aria-label"?: string;
+  autoFocus?: boolean;
+  /** the dialog's first focus (parts/dialog) */
+  "data-autofocus"?: boolean;
+  maxLength?: number;
+  onKeyDown?: KeyboardEventHandler<HTMLTextAreaElement>;
+};
 
 function Strip({
   label,
@@ -300,6 +312,7 @@ export function NoteToken({
   className,
   offer = true,
   onSpoken,
+  box,
 }: {
   /** Where this one is standing. No default: the corner — the only posture
       that was ever the obvious one — is now the Tiff button in the frame. */
@@ -323,6 +336,9 @@ export function NoteToken({
   rows?: number;
   disabled?: boolean;
   className?: string;
+  /** field only — the textarea's own attributes: its name where no label
+      wraps it, its first focus, its limit, its keys. */
+  box?: BoxAttrs;
 }) {
   if (as === "strip")
     return (
@@ -349,6 +365,7 @@ export function NoteToken({
       className={className}
       offer={offer}
       onSpoken={onSpoken}
+      box={box}
     />
   );
 }
@@ -365,6 +382,7 @@ function FieldPosture({
   className,
   offer: offering,
   onSpoken,
+  box: attrs,
 }: {
   as: Posture;
   label: string;
@@ -377,8 +395,19 @@ function FieldPosture({
   className?: string;
   offer: boolean;
   onSpoken?: () => void;
+  box?: BoxAttrs;
 }) {
   const mic = useFieldMic(value, onChange, onSpoken);
+  /* A FIELD STANDING IN A FORM'S FIELD WEARS THE FORM'S BOX (7 November
+     2026). The postures were made for the sheets, in `.wb2-notes`; a form's
+     box is parts/field's TextArea, tied to its label and its error by the
+     Field around it. Given a microphone, a form's box keeps all of that —
+     its edge, its size, its red edge when wrong, the label that names it —
+     and only gains the microphone under it. Outside a Field nothing
+     changes. */
+  const wired = useFieldWiring({});
+  const inForm = wired.id !== undefined;
+  const boxClass = inForm ? `pt-textarea${wired.invalid ? " pt-textarea--invalid" : ""}` : "wb2-notes";
   const { dict } = mic;
   const line = useRef<HTMLInputElement | null>(null);
   const box = useRef<HTMLTextAreaElement | null>(null);
@@ -492,7 +521,7 @@ function FieldPosture({
           either way at rows=3. */}
       {river ? (
         <LiveWords
-          className="wb2-notes"
+          className={boxClass}
           rows={rows}
           label={label}
           said={value}
@@ -500,8 +529,12 @@ function FieldPosture({
         />
       ) : (
         <textarea
+          {...attrs}
           ref={box}
-          className="wb2-notes"
+          className={boxClass}
+          id={wired.id}
+          aria-invalid={inForm ? wired.invalid || undefined : undefined}
+          aria-describedby={wired.describedBy}
           rows={rows}
           placeholder={dict.recording ? "Listening" : placeholder}
           value={value}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Dialog } from "@/components/parts/dialog";
 import { Button, IconButton } from "@/components/parts/button";
 import { Field, TextArea, TextInput } from "@/components/parts/field";
+import { NoteToken } from "@/components/notes/note-token";
 import { Chooser } from "@/components/parts/chooser";
 import { Tray } from "@/components/parts/tabs";
 import { StateWord } from "@/components/parts/state";
@@ -501,13 +502,17 @@ export function NewJobForm({ onClose, initial, onMade }: { onClose: () => void; 
           </Field>
         )}
         <Field label="The job" error={wrong.what}>
-          <TextArea
+          {/* said or typed, as the customer put it (no Tiff offer: the words
+              are already the job's) */}
+          <NoteToken
+            as="field"
+            label="the job"
+            offer={false}
             value={description}
             rows={3}
-            invalid={!!wrong.what}
             placeholder="What they're after, in their words"
-            onChange={(e) => {
-              setDescription(e.target.value);
+            onChange={(next) => {
+              setDescription(next);
               setWrong((w) => ({ ...w, what: undefined }));
             }}
           />

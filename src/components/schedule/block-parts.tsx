@@ -132,19 +132,15 @@ export function BlockForm({ onClose, onMade }: { onClose: () => void; onMade: ()
     }
     setSaving(true);
     setError(null);
-    try {
-      const r = await makeScheduleBlock({ what, where, minutes: Number(minutes) });
-      if (!r.ok) {
-        setError(r.error);
-        return;
-      }
-      onMade();
-      onClose();
-    } catch (e) {
-      setError(thrownWords(e, "That didn't save. Try again."));
-    } finally {
-      setSaving(false);
+    /* no `finally`: the React Compiler can't lower one (compiler-ratchet) */
+    const r = await makeScheduleBlock({ what, where, minutes: Number(minutes) }).catch((e: unknown) => ({ ok: false as const, error: thrownWords(e, "That didn't save. Try again.") }));
+    setSaving(false);
+    if (!r.ok) {
+      setError(r.error);
+      return;
     }
+    onMade();
+    onClose();
   };
 
   return (

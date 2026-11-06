@@ -88,7 +88,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 - **45. Three speeds.** 120 ms for pointing, 200 for something moving, and a new 280 for a panel sliding across.
 - **46. Corners.** 6 fields, 10 buttons and tabs, 16 cards and dialogs, 40 the page's two curves, round for discs.
 - **47. Pills.** Only for a person's name in a note. Never for a state.
-- **48. On a phone.** The ink is a bar across the top and the page curls into it at its top left (40), square elsewhere. The menu is the sidebar itself, curling at its foot. Controls 44; the box at the bottom.
+- **48. On a phone.** The ink is a bar across the top and the page curls into it at its top left (40), square elsewhere. The menu is the sidebar itself, curling at its foot. Controls 44; the box at the bottom. On a job's card a bar of the job's doing takes the bottom instead (Note, Photos, Used, Add, More), and Note brings the box up from it as a sheet (Isaac, 6 November 2026: "Build it" to the bar's mock). The card is pushed over the tabs, so the bar never sits on the menu.
 - **49. Words.** Sentence case, a verb and a noun on every button, no exclamation marks, no "successfully", waits that say what they're doing.
 - **50. Text that doesn't fit.** Fades out at its end, as Claude does. Never cut with a "…".
 

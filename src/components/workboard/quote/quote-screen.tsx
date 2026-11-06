@@ -201,7 +201,7 @@ export function QuoteScreen({
               <Fade>{name}</Fade>
             </h1>
             <p className="qp-line">
-              <Dot hue={jobHue(detail.categoryColour, detail.status === "Unsuccessful")} />
+              <Dot hue={jobHue(detail.categoryColour, detail.status)} />
               <Fade className="qp-facts">{facts ? `${facts}.` : ""}</Fade>
               {stage && <span className={stage.settle ? "qp-stage settle" : "qp-stage"}>{stage.word}</span>}
               <OpenJob job={job} jobNumber={detail.jobNumber ?? null} />

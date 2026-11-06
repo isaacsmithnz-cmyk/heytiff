@@ -85,7 +85,7 @@ async function readJobs(orgId: string, uuids: readonly string[], numbers: readon
   const colourOf = new Map(categories.map((c) => [c.uuid, c.colour]));
   const jobOf = (r: JobRow): DocJob => ({
     label: jobLabel(r.generated_job_id, r.company_uuid ? clientOf.get(r.company_uuid) ?? null : null, r.geo_city),
-    hue: jobHue(r.category_uuid ? colourOf.get(r.category_uuid) : null, (r.status ?? "").trim().toLowerCase() === "unsuccessful"),
+    hue: jobHue(r.category_uuid ? colourOf.get(r.category_uuid) : null, r.status),
   });
   return {
     byUuid: new Map(byU.map((r) => [r.uuid, jobOf(r)])),

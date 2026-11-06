@@ -351,7 +351,7 @@ export function jobsListRows(input: JobsListInput): JobsListRow[] {
     client: r.clientName ?? "Unnamed client",
     site: r.suburb,
     kind: r.categoryName ?? (r.statusLabel === "Quote" ? "Quote" : "Job"),
-    hue: jobHue(r.categoryColour),
+    hue: jobHue(r.categoryColour, r.statusLabel),
     who: input.crew[r.id] ?? [],
     valueCents: moneyVisible ? (r.money?.valueCents ?? null) : null,
     words: words(r.number, r.clientName, r.suburb, r.title, r.categoryName, r.tracked?.label),

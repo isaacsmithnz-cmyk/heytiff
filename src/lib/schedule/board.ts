@@ -198,8 +198,8 @@ export function boardOf(payloads: readonly SchedulePayload[]): Board {
     number: b.jobNumber,
     client: b.clientName,
     suburb: b.suburb,
-    /* red follows the Unsuccessful status, never the category (rule 18) */
-    hue: jobHue(b.categoryColour, b.status === "Unsuccessful"),
+    /* red follows the Unsuccessful status and orange the Quote, never the category (rule 18) */
+    hue: jobHue(b.categoryColour, b.status),
     startMin: b.startMin,
     endMin: b.endMin,
     with: [...new Set((byJob.get(b.remoteId) ?? []).filter((n) => n !== me))],

@@ -9,9 +9,11 @@ import { transformSync } from "@babel/core";
 
    React Compiler skips a component SILENTLY: lint is quiet, the build is
    green and jest passes, and the component runs without its memoisation.
-   The diary's pen re-renders on every key pressed, and it once reached for
+   The diary's pen re-rendered on every key pressed, and it once reached for
    browser storage with a conditional inside a try, which the compiler can't
-   lower, so it skipped the Pen whole. The only proof is the compiler's own
+   lower, so it skipped the Pen whole. The pen went with the Diary face; a
+   note's doors and its reply box, which re-renders on every key the same
+   way, are what is left of that file. The only proof is the compiler's own
    report and its cache slots, run here against the source with the plugin
    the build uses. (job-sheet.tsx is left out: it skips on main too.) */
 
@@ -52,9 +54,9 @@ describe.each(FILES)("%s", (file) => {
   });
 });
 
-it("names the diary's pen among what compiled", () => {
+it("names a note's doors, its reply box and the Also in ServiceM8 tick among what compiled", () => {
   const names = compile("src/components/workboard/board/job-diary-face.tsx")
     .events.filter((e) => e.kind === "CompileSuccess")
     .map((e) => e.fnName);
-  expect(names).toContain("Pen");
+  expect(names).toEqual(expect.arrayContaining(["NoteDoors", "ReplyBox", "AlsoSm8"]));
 });

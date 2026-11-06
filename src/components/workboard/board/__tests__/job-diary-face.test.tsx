@@ -1,16 +1,17 @@
-/* THE DIARY TALKS BACK (two-way phase 2, PR B) — and, where the deployment
+/* A NOTE TALKS BACK (two-way phase 2, PR B) — and, where the deployment
    sends no notes, is exactly what it was.
 
-   The face only draws: every line's words and every door come from the
+   The doors only draw: every line's words and every door come from the
    state the server sent (noteState, flagState), and this suite holds that
-   the doors are the right ones for whoever is looking, that a reply sits
-   under what it answers (and is never lost when that isn't drawn), and that
-   the question "Is <name> you?" stands where a send would. */
+   the doors are the right ones for whoever is looking, and that the
+   question "Is <name> you?" stands where a send would. The Diary face they
+   were drawn in is gone; the job's conversation draws them now, so each
+   note here is drawn as it does, its words and then NoteDoors. */
 
+import { useState } from "react";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { JobDiaryFace } from "../job-diary-face";
-import type { StoryEntry } from "@/lib/workboard/job-story";
+import { AlsoSm8, NoteDoors, withMentions, type Doors, type NoteEntry } from "../job-diary-face";
 import { noteState, NOTE_WORDS, type FlagState, type NoteState, type QueueRowIn } from "@/lib/integrations/sm8-note-plan";
 import type { NoteSender } from "@/lib/integrations/links";
 
@@ -29,7 +30,7 @@ const ISAAC_SM8 = "5a1b2c3d-0000-4000-8000-00000000aaaa";
 const LYLE_SM8 = "5a1b2c3d-0000-4000-8000-00000000bbbb";
 const SENT_AS = "9a9a9a9a-0000-4000-8000-000000000001";
 
-type Note = Extract<StoryEntry, { kind: "note" }>;
+type Note = NoteEntry;
 
 const theirs = (over: Partial<Note> = {}): Note => ({
   kind: "note",
@@ -98,7 +99,20 @@ const lineFor = (c: QueueRowIn | null, opts: { refusal?: "confirm" | "unlinked" 
     sm8Name: "Isaac Smith",
   });
 
-function draw(entries: StoryEntry[], props: Partial<React.ComponentProps<typeof JobDiaryFace>> = {}) {
+/** One note as the conversation draws it: its words, then its doors, with
+    the reply box's open or shut held the way a feed holds it. */
+function Drawn({ entry, doors, open }: { entry: Note; doors: Doors; open: boolean }) {
+  const [replyOpen, setReplyOpen] = useState(open);
+  return (
+    <div data-note={entry.key}>
+      <p data-words>{withMentions(entry.text)}</p>
+      <NoteDoors entry={entry} doors={doors} replyOpen={replyOpen} onReplyOpen={setReplyOpen} />
+    </div>
+  );
+}
+
+/** `open` is the note (by key) whose reply box starts open. */
+function draw(entries: Note[], props: Partial<Doors> & { open?: string } = {}) {
   const handlers = {
     onReply: jest.fn(async () => null as string | null),
     onSendCopy: jest.fn(),
@@ -107,92 +121,46 @@ function draw(entries: StoryEntry[], props: Partial<React.ComponentProps<typeof 
     onUndoDone: jest.fn(),
     onConfirm: jest.fn(async () => null as string | null),
     onRemoveNote: jest.fn(),
-    onWrite: jest.fn(),
   };
+  const { open, ...over } = props;
+  const doors: Doors = { sender: ready, notesSm8: offered, flags: {}, flagsBusy: new Set(), ...handlers, ...over };
   const view = render(
-    <JobDiaryFace
-      entries={entries}
-      loading={false}
-      moneyVisible={false}
-      onOpenClaim={jest.fn()}
-      onPhotos={jest.fn()}
-      sender={ready}
-      notesSm8={offered}
-      {...handlers}
-      {...props}
-    />
+    <>
+      {entries.map((e) => (
+        <Drawn key={e.key} entry={e} doors={doors} open={open === e.key} />
+      ))}
+    </>
   );
   return { ...view, ...handlers };
 }
 
-/** The note cards (their words, mentions and all) in a part of the page. */
-const cards = (within: ParentNode = document) => [...within.querySelectorAll(".wb2-evcard")] as HTMLElement[];
-/** The entry (its frame) whose words start so — mentions are spans of their
-    own, so the words are read whole. */
+/** The note whose words start so — mentions are spans of their own, so the
+    words are read whole. */
 const evOf = (start: string) => {
-  const card = cards().find((c) => c.textContent?.startsWith(start));
-  if (!card) throw new Error(`no note starting "${start}"`);
-  return card.closest(".wb2-ev") as HTMLElement;
+  const note = [...document.querySelectorAll<HTMLElement>("[data-note]")].find((n) =>
+    n.querySelector("[data-words]")?.textContent?.startsWith(start)
+  );
+  if (!note) throw new Error(`no note starting "${start}"`);
+  return note;
 };
 
-beforeEach(() => {
-  localStorage.clear();
-});
-
 describe("where the deployment sends no notes", () => {
-  it("(F) is the diary it was: Action required, In HeyTiff and Remove, and no Reply, tick box or line", async () => {
+  it("(F) is what it was: Remove on ours, nothing on theirs, and no Reply or line", async () => {
     const view = draw(
       [
         theirs({ actionRequired: true }),
         ours({ key: "ournote:plain", id: "plain", text: "Drain kit still to go on", replyTo: undefined, state: undefined, hasCreate: undefined, mine: undefined, removed: undefined, sm8Uuid: undefined }),
       ],
-      { sender: undefined, notesSm8: undefined, flags: undefined }
+      { sender: null, notesSm8: null }
     );
-    expect(screen.getByText("Action required")).toBeInTheDocument();
-    expect(screen.getByText("In HeyTiff")).toBeInTheDocument();
+    expect(within(evOf("@isaacsmith")).queryAllByRole("button")).toHaveLength(0);
     expect(screen.queryByRole("button", { name: "Reply" })).toBeNull();
-    expect(screen.queryByRole("checkbox")).toBeNull();
     expect(screen.queryByText(NOTE_WORDS.door.sendToSm8)).toBeNull();
     // Remove sits straight under the words, as it always did
     const remove = screen.getByRole("button", { name: "Remove" });
-    expect(remove.parentElement).toHaveClass("wb2-evb");
+    expect(remove.parentElement).toBe(evOf("Drain kit still to go on"));
     await userEvent.click(remove);
     expect(view.onRemoveNote).toHaveBeenCalledWith("plain");
-  });
-});
-
-/* A check-in left open (sm8CheckInLeftOpen) is a person on site whose time
-   is unknown: the hours leave them out, so the entry names them with it.
-   Job #3237's 12 Sep, off the live mirror. */
-describe("a visit with a check-in left open", () => {
-  type Visit = Extract<StoryEntry, { kind: "visit" }>;
-  const visit = (over: Partial<Visit>): Visit => ({
-    kind: "visit",
-    key: "visit:2026-09-12",
-    day: "2026-09-12",
-    at: null,
-    minutes: 406,
-    crew: ["Oleksii Khalameida", "Louis Jones"],
-    leftOpen: ["Louis Jones"],
-    ...over,
-  });
-
-  it("keeps the believable hours and names who they leave out", () => {
-    draw([visit({})]);
-    expect(screen.getByText("Site visit — 6h 46m")).toBeInTheDocument();
-    expect(screen.getByText("Oleksii Khalameida — Louis Jones, check-in left open")).toBeInTheDocument();
-  });
-
-  it("says no figure when nothing that day can be believed", () => {
-    draw([visit({ minutes: 0, crew: ["Louis Jones"] })]);
-    expect(screen.getByText("Site visit")).toBeInTheDocument();
-    expect(screen.queryByText(/Site visit —/)).toBeNull();
-    expect(screen.getByText("Louis Jones, check-in left open")).toBeInTheDocument();
-  });
-
-  it("is the plain comma list it always was when nobody left one open", () => {
-    draw([visit({ leftOpen: [] })]);
-    expect(screen.getByText("Oleksii Khalameida, Louis Jones")).toBeInTheDocument();
   });
 });
 
@@ -254,11 +222,6 @@ describe("Reply", () => {
     expect(view.onReply).not.toHaveBeenCalled();
   });
 
-  it("opens where the strip's Reply sent the reader", () => {
-    draw([theirs()], { replyFor: ASK });
-    expect(screen.getByPlaceholderText(NOTE_WORDS.door.replyPlaceholder)).toBeInTheDocument();
-  });
-
   it("a reply of ours that went, and mentions you, can be answered too — not by its author", () => {
     const lyle: NoteSender = { state: "ready", staffUuid: LYLE_SM8, remoteId: LYLE_SM8, sm8Name: "Lyle Irving", handle: "lyleirving" };
     const sent = ours({ sm8Uuid: SENT_AS, mine: false, state: lineFor(create({ status: "sent" }), { viewerIsSender: false }) });
@@ -281,8 +244,8 @@ describe("Reply", () => {
       expect(screen.queryByRole("button", { name: "Reply" })).toBeNull();
       unmount();
     }
-    // nor where the strip's Reply named it
-    draw([ours({ sm8Uuid: SENT_AS, mine: false, removed: true, state: takingOut })], { sender: lyle, replyFor: SENT_AS });
+    // nor with its box asked open, as the strip's Reply asks
+    draw([ours({ sm8Uuid: SENT_AS, mine: false, removed: true, state: takingOut })], { sender: lyle, open: "ournote:r1" });
     expect(screen.queryByPlaceholderText(NOTE_WORDS.door.replyPlaceholder)).toBeNull();
   });
 });
@@ -306,7 +269,6 @@ describe("our own notes' lines and doors", () => {
     const { unmount } = draw([ours({ state })]);
     expect(within(evOf("@lyleirving")).getByRole("button", { name: "Undo" })).toBeInTheDocument();
     expect(screen.getByText(state.text!)).toBeInTheDocument();
-    expect(screen.queryByText("In HeyTiff")).toBeNull();
     unmount();
 
     const entry = draw([ours({ key: "ournote:d1", id: "d1", text: "Drain kit still to go on", replyTo: null, state })]);
@@ -366,7 +328,6 @@ describe("our own notes' lines and doors", () => {
     const view = draw([plain]);
     await userEvent.click(screen.getByRole("button", { name: NOTE_WORDS.door.sendToSm8 }));
     expect(view.onSendCopy).toHaveBeenCalledWith("d1");
-    expect(screen.getByText("In HeyTiff")).toBeInTheDocument();
     view.unmount();
     draw([{ ...plain, mine: false }]);
     expect(screen.queryByRole("button", { name: NOTE_WORDS.door.sendToSm8 })).toBeNull();
@@ -374,35 +335,11 @@ describe("our own notes' lines and doors", () => {
   });
 });
 
-describe("where a reply is drawn (verifier 14)", () => {
-  it("(F) under the note it answers; a reply to one of ours under ours; one whose source isn't drawn in the day — never missing", () => {
-    const isaacReply = ours({ sm8Uuid: SENT_AS, state: lineFor(create({ status: "sent" })) });
-    const lyleReply = ours({ key: "ournote:r2", id: "r2", text: "@isaacsmith cheers", replyTo: SENT_AS, author: "Lyle Irving", at: "2026-09-20 11:00:00", mine: false });
-    const orphan = ours({ key: "ournote:r3", id: "r3", text: "@lyleirving done that", replyTo: "7e7e7e7e-0000-4000-8000-0000000000ff", at: "2026-09-20 12:00:00" });
-    draw([orphan, lyleReply, isaacReply, theirs()]);
-    const ask = evOf("@isaacsmith can you order the grilles");
-    const thread = ask.querySelector(".wb2-evthread") as HTMLElement;
-    expect(cards(thread).map((c) => c.textContent)).toContain("@lyleirving on my way");
-    // Lyle's reply to Isaac's reply sits under Isaac's
-    const isaac = evOf("@lyleirving on my way");
-    expect(cards(isaac.querySelector(".wb2-evthread") as HTMLElement).map((c) => c.textContent)).toEqual(["@isaacsmith cheers"]);
-    // the one whose note isn't drawn stands in the day, on its own
-    const alone = evOf("@lyleirving done that");
-    expect(alone.closest(".wb2-evthread")).toBeNull();
-    // all four are there, each once
-    expect(cards().map((c) => c.textContent).sort()).toEqual(
-      ["@isaacsmith can you order the grilles", "@lyleirving on my way", "@isaacsmith cheers", "@lyleirving done that"].sort()
-    );
-  });
-});
-
 describe("a flagged note", () => {
   const flagged = theirs({ key: `note:${FLAG}`, sm8Uuid: FLAG, text: "call the builder", actionRequired: true });
 
-  it("says where it stands in place of Action required, and Mark done goes with the edit time it was read at", async () => {
+  it("Mark done goes with the edit time it was read at", async () => {
     const view = draw([flagged], { flags: { [FLAG]: { key: "flag.flagged", text: NOTE_WORDS.flag.flagged, tone: "warn", acts: ["mark_done"] } } });
-    expect(screen.queryByText("Action required")).toBeNull();
-    expect(screen.getByText(NOTE_WORDS.flag.flagged)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: NOTE_WORDS.door.markDone }));
     expect(view.onMarkDone).toHaveBeenCalledWith(FLAG, "2026-09-20 09:00:00");
   });
@@ -417,7 +354,6 @@ describe("a flagged note", () => {
     undo.unmount();
     draw([flagged], { notesSm8: null, flags: { [FLAG]: { key: "flag.flagged", text: NOTE_WORDS.flag.flagged, tone: "warn", acts: ["mark_done"] } } });
     expect(screen.queryByRole("button", { name: NOTE_WORDS.door.markDone })).toBeNull();
-    expect(screen.getByText(NOTE_WORDS.flag.flagged)).toBeInTheDocument();
   });
 
   it("(F) while a press on the flag is out, its doors wait for the answer", async () => {
@@ -443,39 +379,29 @@ describe("a flagged note", () => {
   });
 });
 
-describe("the pen", () => {
-  it("(F) ticked, it writes with Also in ServiceM8 and the pen's own id; the same words twice are the same id", async () => {
-    const view = draw([]);
-    /* the save hasn't landed yet */
-    view.onWrite.mockImplementation(() => new Promise(() => {}));
+describe("Also in ServiceM8", () => {
+  it("ticked, it hands the tick on", async () => {
+    const onTick = jest.fn();
+    render(<AlsoSm8 also={false} onTick={onTick} sender={ready} notesSm8={offered} />);
     await userEvent.click(screen.getByRole("checkbox", { name: NOTE_WORDS.door.alsoInSm8 }));
-    const box = screen.getByLabelText("a note on this job");
-    await userEvent.type(box, "Drain kit still to go on{Enter}");
-    expect(view.onWrite).toHaveBeenCalledWith("Drain kit still to go on", true, expect.stringMatching(/^[0-9a-f-]{36}$/));
-    const first = view.onWrite.mock.calls[0][2];
-    await userEvent.type(box, "Drain kit still to go on{Enter}");
-    // the first save hasn't landed: the same words are the same entry
-    expect(view.onWrite.mock.calls[1][2]).toBe(first);
-    // different words are a different note
-    await userEvent.type(box, "Coil pricing{Enter}");
-    expect(view.onWrite.mock.calls[2][2]).not.toBe(first);
-    // and the tick is remembered
-    expect(localStorage.getItem("heytiff.diary.alsoSm8")).toBe("1");
-  });
-
-  it("unticked, nothing goes to ServiceM8", async () => {
-    const view = draw([]);
-    await userEvent.type(screen.getByLabelText("a note on this job"), "Drain kit{Enter}");
-    expect(view.onWrite).toHaveBeenCalledWith("Drain kit", false, expect.any(String));
+    expect(onTick).toHaveBeenCalledWith(true);
   });
 
   it("while you can't send, the box is off and says why — with Link people for an owner", () => {
-    draw([], { sender: { state: "unlinked", noCard: false }, notesSm8: { ...offered, owner: true } });
+    render(<AlsoSm8 also={false} onTick={jest.fn()} sender={{ state: "unlinked", noCard: false }} notesSm8={{ ...offered, owner: true }} />);
     expect(screen.getByRole("checkbox", { name: NOTE_WORDS.door.alsoInSm8 })).toBeDisabled();
     expect(screen.getByText(NOTE_WORDS.press.unlinked)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: NOTE_WORDS.door.linkPeople })).toHaveAttribute(
       "href",
       "/dashboard/admin/integrations/servicem8"
     );
+  });
+});
+
+describe("withMentions", () => {
+  it("wears a mention as a callout, and never an @ inside an email address", () => {
+    render(<p>{withMentions("@lyleirving sent to josh@lsdb.com.au")}</p>);
+    expect([...document.querySelectorAll(".wb2-mention")].map((m) => m.textContent)).toEqual(["@lyleirving"]);
+    expect(screen.getByText(/sent to josh@lsdb\.com\.au/)).toBeInTheDocument();
   });
 });

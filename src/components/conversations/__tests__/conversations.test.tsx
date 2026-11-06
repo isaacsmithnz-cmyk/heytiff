@@ -20,10 +20,24 @@ let script: (emit: (e: AskEvent) => void, input: AskInput) => void = (emit) => {
   emit({ t: "done" });
 };
 
-jest.mock("@/lib/tiff/ask-client", () => ({
-  askTiff: async (input: AskInput) => {
-    asks.push(input);
-    script(input.onEvent, input);
+/* Conversations asks the one Tiff, the brain Home asks (Isaac, 7 November
+   2026: "Fix all of those"): the script's events reach it as the brain's */
+type BrainIn = { question: string; history?: { who: "you" | "tiff"; text: string }[]; screen?: string; signal?: AbortSignal };
+type BrainOn = { onDelta: (t: string) => void; onTool: (l: string) => void; onError: (m: string) => void; onDone: () => void; onScreen?: (h: string, l: string) => void };
+const push = jest.fn();
+jest.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh: jest.fn(), replace: jest.fn() }) }));
+jest.mock("@/lib/tiff/ask-client", () => ({ askTiff: jest.fn() }));
+jest.mock("@/lib/brain/ask-client", () => ({
+  askBrain: async (input: BrainIn, on: BrainOn) => {
+    const asked = { question: input.question, history: (input.history ?? []).map((t) => ({ role: t.who === "tiff" ? "assistant" : "user", text: t.text })), screen: input.screen } as unknown as AskInput;
+    asks.push(asked);
+    script((e) => {
+      if (e.t === "delta") on.onDelta(e.text);
+      else if (e.t === "done") on.onDone();
+      else if (e.t === "err") on.onError(e.message);
+      else if ((e as { t: string }).t === "tool") on.onTool((e as unknown as { label: string }).label);
+      else if ((e as { t: string }).t === "screen") on.onScreen?.((e as unknown as { href: string }).href, "");
+    }, asked);
   },
 }));
 
@@ -389,7 +403,8 @@ describe("the box", () => {
     await user.click(screen.getByRole("button", { name: "Send to Tiff" }));
 
     expect(asks).toHaveLength(1);
-    expect(asks[0]).toMatchObject({ question: "what does P8 mean?", research: true });
+    /* the one Tiff, told she's asked from Conversations */
+    expect(asks[0]).toMatchObject({ question: "what does P8 mean?", screen: "Conversations" });
     expect(await screen.findByText("P8 is a piping temperature fault.")).toBeInTheDocument();
     await waitFor(() => expect(stored().find((t) => t.id === "t-ducted")!.messages.at(-1)!.text).toBe("P8 is a piping temperature fault."));
     expect(stored()).toHaveLength(2);
@@ -424,23 +439,15 @@ describe("the box", () => {
     localStorage.setItem(STORE_KEY, JSON.stringify(threads()));
     render(<Conversations {...props({ initial: { view: "chats", open: "t-e6" } })} />);
     await user.type(box(), "coil icing{Enter}");
-    expect(screen.getByText("Searching the library")).toHaveAttribute("role", "status");
-    act(() =>
-      emit({
-        t: "trace",
-        categories: {
-          install: { hits: 3, topDoc: "PEAD-M100JAA installation manual" },
-          faults: { hits: 0, topDoc: null },
-          specs: { hits: 0, topDoc: null },
-          sops: { hits: 0, topDoc: null },
-          field: { hits: 0, topDoc: null },
-        },
-        winners: ["install"],
-        terms: ["coil"],
-      }),
-    );
-    expect(screen.getByText("Searched your library: 3 matching passages")).toBeInTheDocument();
-    expect(screen.getByText("Read PEAD-M100JAA installation manual")).toBeInTheDocument();
+    expect(screen.getByText("Thinking")).toHaveAttribute("role", "status");
+    /* what she reaches for, as Home's Tiff does: her readers' own words */
+    const tool = (label: string) => ({ t: "tool", label }) as unknown as AskEvent;
+    act(() => {
+      emit(tool("Searching the manuals"));
+      emit(tool("Reading PEAD-M100JAA installation manual"));
+    });
+    expect(screen.getByText("Searching the manuals")).toBeInTheDocument();
+    expect(screen.getByText("Reading PEAD-M100JAA installation manual")).toBeInTheDocument();
     await user.type(box(), "next");
     expect(screen.getByRole("button", { name: "Send to Tiff" })).toBeDisabled();
     act(() => {
@@ -449,10 +456,25 @@ describe("the box", () => {
     });
     expect(screen.getByRole("button", { name: "Send to Tiff" })).toBeEnabled();
     await waitFor(() => expect((stored().find((t) => t.id === "t-e6")!.messages.at(-1) as { steps?: string[] }).steps).toEqual([
-      "Searched your library: 3 matching passages",
-      "Read PEAD-M100JAA installation manual",
+      "Searching the manuals",
+      "Reading PEAD-M100JAA installation manual",
     ]));
   });
+
+  it("goes where she opens a screen, with what she said kept in the thread", async () => {
+    const user = userEvent.setup();
+    push.mockClear();
+    script = (emit) => {
+      emit({ t: "delta", text: "Here's 3423." });
+      emit({ t: "screen", href: "/dashboard/jobs?open=3423" } as unknown as AskEvent);
+    };
+    localStorage.setItem(STORE_KEY, JSON.stringify(threads()));
+    render(<Conversations {...props({ initial: { view: "chats", open: "t-e6" } })} />);
+    await user.type(box(), "open 3423{Enter}");
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard/jobs?open=3423"));
+    await waitFor(() => expect(stored().find((t) => t.id === "t-e6")!.messages.at(-1)!.text).toBe("Here's 3423."));
+  });
+
 
   it("says what went wrong and offers to try the same question again", async () => {
     const user = userEvent.setup();

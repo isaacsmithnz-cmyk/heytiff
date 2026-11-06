@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/parts/button";
 import { Empty } from "@/components/parts/states";
@@ -56,6 +57,7 @@ export type ConversationsProps = {
 const emailIdOf = (thread: string | null) => (isEmailThread(thread) ? thread!.slice(EMAIL_THREAD.length) : null);
 
 function Place({ counts, readyCount, canManage, docTitles, voiceEnabled, initial, you, inbox }: ConversationsProps) {
+  const router = useRouter();
   const hydrated = useHydrated();
   /* A question handed over (the Library, the Toolbox) is a chat, whatever the
      address says: it arrives with none. */
@@ -122,6 +124,7 @@ function Place({ counts, readyCount, canManage, docTitles, voiceEnabled, initial
       onOpenChange={openThread}
       you={you}
       email={email}
+      onMove={(href) => router.push(href)}
       frame={({ list, pane }) => {
         const tabs = CONV_VIEWS.map((v) => ({
           key: v.key,

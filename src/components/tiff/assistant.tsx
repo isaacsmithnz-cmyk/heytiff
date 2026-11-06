@@ -10,6 +10,7 @@ import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { useHydrated } from "@/lib/use-hydrated";
 import { kbDocUrl } from "@/app/actions/kb";
 import { askTiff, type AskSourceItem, type AskTurn } from "@/lib/tiff/ask-client";
+import { askBrain } from "@/lib/brain/ask-client";
 import { askPrefill, consumeAskHandoff, type AskHandoff, type AskScope } from "@/lib/tiff/ask-handoff";
 import { loadThreads, STORE_KEY, type TiffMsg, type TiffThread } from "@/lib/tiff/threads";
 import { pullThreads, pushThreads } from "@/lib/tiff/thread-sync";
@@ -372,6 +373,7 @@ export function TiffAssistant({
   onOpenChange,
   you = "You",
   email = null,
+  onMove,
 }: {
   counts?: Record<KbCategoryKey, number>;
   /** Ready documents across every shelf — nothing can be researched at zero. */
@@ -396,6 +398,8 @@ export function TiffAssistant({
   you?: string;
   /** Conversations: the email open in the Inbox, in place of a chat. */
   email?: OpenEmail | null;
+  /** Conversations: Tiff opened a screen (`/dashboard/…`): go there. */
+  onMove?: (href: string) => void;
 }) {
   const conv = layout === "conversations";
   const hydrated = useHydrated();
@@ -726,11 +730,13 @@ export function TiffAssistant({
        shelf performs — retrieval covers the whole library, and the sweep
        converging on the winner is the page's story (a stocked-shelves-only
        gate shipped once and reduced it to one line straight to the answer). */
-    showViz({ t: researchMode ? "submit" : "reset" });
+    /* Conversations' Tiff isn't a search of the shelves: no rail, no chips */
+    const searching = researchMode && !conv;
+    showViz({ t: searching ? "submit" : "reset" });
     setLiveBoth({
       threadId,
       question,
-      research: researchMode,
+      research: searching,
       text: "",
       missed: false,
       widenedFrom: null,
@@ -738,6 +744,63 @@ export function TiffAssistant({
       sources: [],
       steps: [],
     });
+
+    /* CONVERSATIONS ASKS THE ONE TIFF (Isaac, 7 November 2026: "Fix all of
+       those", Tiff asked two ways): the brain Home, a job and the Tiff button
+       ask (/api/brain/ask), with her readers and her moves, so a chat begun on
+       Home goes on here as the same Tiff, as the phone's do. What she reaches
+       for is her steps; a screen she opens is the end of the turn. */
+    if (conv) {
+      let moved: string | null = null;
+      let over = false;
+      const finish = () => {
+        if (over) return;
+        over = true;
+        const state = liveRef.current;
+        if (state) commitLive(state);
+        setLiveBoth(null);
+        openHeld();
+        if (moved) onMove?.(moved);
+      };
+      void askBrain(
+        {
+          question,
+          screen: "Conversations",
+          history: history.map((t) => ({ who: t.role === "assistant" ? ("tiff" as const) : ("you" as const), text: t.text })),
+          signal: controller.signal,
+        },
+        {
+          onDelta: (text) => {
+            if (controller.signal.aborted) return;
+            if (!liveRef.current?.text) openHeld();
+            patchLive((prev) => ({ ...prev, text: prev.text + text }));
+          },
+          onTool: (label) => {
+            if (controller.signal.aborted || !label) return;
+            patchLive((prev) => (prev.steps[prev.steps.length - 1] === label ? prev : { ...prev, steps: [...prev.steps, label] }));
+          },
+          onScreen: (href) => {
+            if (controller.signal.aborted) return;
+            moved = href;
+            finish();
+          },
+          onDone: () => {
+            if (controller.signal.aborted) return;
+            finish();
+          },
+          onError: (message) => {
+            if (controller.signal.aborted || over) return;
+            over = true;
+            const state = liveRef.current;
+            if (state) commitLive(state);
+            setLiveBoth(null);
+            setFailure({ threadId, message, question, research: researchMode, history });
+            openHeld();
+          },
+        }
+      );
+      return;
+    }
 
     void askTiff({
       question,

@@ -16,6 +16,8 @@ jest.mock("@/components/notes/dictation", () => {
   };
 });
 
+import { NoteScopeProvider } from "@/components/notes/note-context";
+
 import { JobMaterialsFace } from "../job-materials-face";
 
 const BOOK: Record<string, { code: string; name: string; supplier: string; priceCents: number | null }[]> = {
@@ -31,7 +33,11 @@ beforeEach(() => {
 });
 
 const face = (onAdd = jest.fn()) => {
-  render(<JobMaterialsFace loading={false} sm8={[]} items={[]} timezone={null} manage ready onTick={jest.fn()} onRemove={jest.fn()} onAdd={onAdd} />);
+  render(
+    <NoteScopeProvider voiceEnabled>
+      <JobMaterialsFace loading={false} sm8={[]} items={[]} timezone={null} manage ready onTick={jest.fn()} onRemove={jest.fn()} onAdd={onAdd} />
+    </NoteScopeProvider>
+  );
   return onAdd;
 };
 
@@ -87,6 +93,12 @@ it("Escape puts the price book away and leaves what was typed", async () => {
   fireEvent.keyDown(field, { key: "Escape" });
   expect(screen.queryByRole("listbox")).toBeNull();
   expect(field).toHaveValue("pair coil");
+});
+
+it("no microphone where the workspace has voice off", () => {
+  render(<JobMaterialsFace loading={false} sm8={[]} items={[]} timezone={null} manage ready onTick={jest.fn()} onRemove={jest.fn()} onAdd={jest.fn()} />);
+  expect(screen.queryByRole("button", { name: "Say the materials" })).toBeNull();
+  expect(screen.getByLabelText("Add a material")).toBeInTheDocument();
 });
 
 it("the microphone is the one icon-only button, and the To do kind is gone", () => {

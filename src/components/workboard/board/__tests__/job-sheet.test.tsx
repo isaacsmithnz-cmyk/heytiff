@@ -549,25 +549,22 @@ it("lands on Overview, the stages line over the tiles", async () => {
 /* ── the band ── */
 
 describe("the head (Isaac's mock, 25 October 2026)", () => {
-  it("is named by its client where it has no address, with its number in the job's colour (Isaac, 5 November 2026)", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail({ address: null, geoLine: null })));
+  it("is named by its client beside its number in the job's colour, the address left to Site (Isaac, 6 November 2026)", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<Job row={row()} {...props} />);
     await detailLanded();
     const h1 = screen.getByRole("heading", { level: 1 });
-    expect(h1).toHaveTextContent("Laing + Simmons Double Bay");
+    expect(h1).toHaveTextContent(/^Laing \+ Simmons Double Bay$/);
     expect(document.querySelector(".jp-num")).toHaveTextContent(/^3137$/);
-    /* the client isn't said twice */
-    expect(document.querySelector(".jp-client")).toBeNull();
     expect(document.querySelector(".jp-line, .jp-facts, .jp-stage")).toBeNull();
-    expect(document.querySelector(".jp-head")).not.toHaveTextContent(/Work order|Job 3137/);
+    expect(document.querySelector(".jp-head")).not.toHaveTextContent(/Work order|Job 3137|Rose Bay/);
   });
 
-  it("is named by where it is, with the client under it in small print", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail({ address: null })));
-    render(<Job row={row()} {...props} />);
+  it("is named by where it is when it has no client", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail({ clientName: null, address: null })));
+    render(<Job row={row({ clientName: null })} {...props} />);
     await detailLanded();
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Rose Bay NSW 2029");
-    expect(document.querySelector(".jp-client")).toHaveTextContent("Laing + Simmons Double Bay");
   });
 });
 
@@ -623,7 +620,7 @@ describe("the customer, on Overview", () => {
     await userEvent.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Edit customer" })).toBeNull());
     /* the page is still there under it */
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Rose Bay NSW 2029");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Laing + Simmons Double Bay");
   });
 
   it("puts the customer in the strip's Contact: a contact's email as a mailto link, and their role", async () => {

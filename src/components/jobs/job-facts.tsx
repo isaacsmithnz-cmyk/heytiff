@@ -13,8 +13,9 @@ import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
    edge's colour, its cells split by hairlines, each under a 12/500 grey
    label.
 
-     Site        the job's number in bold, then its address as written;
-                 their PO under it, where they gave one
+     Site        the job's address as written, their PO under it, where
+                 they gave one; its number is the header's (Isaac,
+                 6 November 2026, the client beside the number up top)
      Contact     who to ring: a disc, the name in bold, the role grey and
                  the numbers underlined to ring; Edit at the label's right
                  where saving customers is on
@@ -140,9 +141,7 @@ export function JobFacts({
           <p className="jov-cap">Reading the job</p>
         ) : (
           <>
-            {detail.jobNumber && <b className="jov-strong">Job {detail.jobNumber}</b>}
-            {where && <p className="jov-addr">{where}</p>}
-            {!detail.jobNumber && !where && <p className="jov-cap">No address on the job</p>}
+            {where ? <p className="jov-addr">{where}</p> : <p className="jov-cap">No address on the job</p>}
             {detail.purchaseOrder && (
               <p className="jov-po">
                 <span>Their PO</span> <b>{detail.purchaseOrder}</b>

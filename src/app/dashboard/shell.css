@@ -7054,7 +7054,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* THE JOB'S PLATE (Isaac, 5 November 2026, B on
    https://claude.ai/artifact/SJyEw4dkCb7MLp1bgCzypJ): the number in a
    solid box of the job's colour, white on it, as a Schedule card has it
-   (rule 19), and the address beside it at the head's 24. No hairline. */
+   (rule 19), and the client beside it at the head's 24. No hairline. */
 .fg .jp-plate--red { --jp-hue:var(--red-w); }
 .fg .jp-plate--orange { --jp-hue:var(--orange-w); }
 .fg .jp-plate--yellow { --jp-hue:var(--yellow-w); }
@@ -7067,7 +7067,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jp-top:has(.jp-num) { align-items:center; }
 .fg .jp-id.jp-plate { flex-direction:row; align-items:center; gap:12px; }
 .fg .jp-named { min-width:0; display:flex; flex-direction:column; }
-.fg .jp-client { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
 /* THE WAY BACK (way-back.tsx): a word button in ink above the plate */
 .fg .jp-back { align-self:flex-start; display:inline-flex; align-items:center; gap:4px; margin:0 0 -8px -4px; padding:2px 8px 2px 4px; border:0; border-radius:var(--r-button); background:none;
   font:inherit; font-size:13px; line-height:18px; font-weight:500; color:var(--ink); text-decoration:none; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }

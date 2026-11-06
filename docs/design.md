@@ -331,10 +331,12 @@ the fourth on the customer's messages, below).
   (`.jp-plate`, `.jp-back`; Isaac, 5 November 2026, B on
   https://claude.ai/artifact/SJyEw4dkCb7MLp1bgCzypJ). The job's number in
   a solid box of its colour, white on it, as a Schedule card has it (rule
-  19), with no hairline; beside it the job's address on one line at 24,
-  and the client under it in small print ("the contact is potentially
-  different, so we're not necessarily doubling the information"). A job
-  with no address is named by its client. Above it, a chevron and the
+  19), with no hairline; beside it the job's client at 24, as Schedule,
+  Jobs, the tab and Recents name a job, and the address is the Site
+  card's, under the stages line, which no longer repeats the number (6
+  November, on https://claude.ai/artifact/Wtc1ZrZYkAp1aaedxSn2J4: "job
+  number, client name, then underneath it, the site would show the
+  address"). A job with no client is named by its address. Above it, a chevron and the
   screen you came from in ink, a word button with no underline: Back to
   it as you left it, and Jobs when there is nowhere to go back to (a
   link, a refresh). It is one word, not a breadcrumb.

@@ -248,16 +248,16 @@ beforeEach(() => {
 
 describe("the job's page head", () => {
   /* Isaac's mock of 25 October 2026: the grey line under the name goes */
-  it("names the job by its plate: the number in its colour's box, the address, the client in small print, and the way back above (Isaac, 5 November 2026)", async () => {
+  it("names the job by its plate: the number in its colour's box, the client beside it, and the way back above (Isaac, 5 and 6 November 2026)", async () => {
     const { container } = draw("visits");
     await ready();
     const h1 = screen.getByRole("heading", { level: 1 });
-    /* the address on one line, never the client twice */
-    expect(h1).toHaveTextContent("59 Woorarra Avenue, North Narrabeen");
+    /* the client, as Schedule and Jobs name a job; the address is Site's */
+    expect(h1).toHaveTextContent(/^Richards Building$/);
     const plate = container.querySelector(".jp-plate")!;
     expect(plate).toHaveClass("jp-plate--blue");
     expect(plate.querySelector(".jp-num")).toHaveTextContent(/^3209$/);
-    expect(plate.querySelector(".jp-client")).toHaveTextContent("Richards Building");
+    expect(container.querySelector(".jp-head")).not.toHaveTextContent(/Woorarra/);
     /* no grey line of stage or kind, and no breadcrumb: one word back */
     expect(container.querySelector(".jp-line, .jp-facts, .jp-stage")).toBeNull();
     expect(container.querySelector(".jp-head")).not.toHaveTextContent(/Work order|Job 3209|Accepted/);

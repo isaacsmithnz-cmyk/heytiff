@@ -400,6 +400,20 @@ async function leaveStands(orgId: string, row: WriteRow): Promise<"yes" | "faile
     if (error) return "failed";
     return (data as { status?: string } | null)?.status === "approved" ? "yes" : LEAVE_WORDS.row.notApproved;
   }
+  if (s.via === "block") {
+    /* `<id>@<placed_at, ms>`: this placing, still on the person's day */
+    const [id, at] = s.id.split("@");
+    const { data, error } = await supabaseAdmin
+      .from("schedule_blocks")
+      .select("id, day, placed_at, removed_at")
+      .eq("org_id", orgId)
+      .eq("id", id ?? "")
+      .maybeSingle();
+    if (error) return "failed";
+    const b = data as { day: string | null; placed_at: string | null; removed_at: string | null } | null;
+    const same = !!b?.placed_at && String(Date.parse(b.placed_at)) === at;
+    return b && !b.removed_at && b.day && same ? "yes" : LEAVE_WORDS.row.blockGone;
+  }
   const { data, error } = await supabaseAdmin.from("staff_unavailability").select("id").eq("org_id", orgId).eq("id", s.id).maybeSingle();
   if (error) return "failed";
   return data ? "yes" : LEAVE_WORDS.row.dayOffGone;

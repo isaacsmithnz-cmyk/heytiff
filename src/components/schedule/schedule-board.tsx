@@ -22,6 +22,9 @@ import { BOOKING_LENGTHS_MIN } from "@/lib/integrations/sm8-booking-plan";
 import { thrownWords } from "@/lib/stale-deploy";
 import type { PanelJob, SchedulePage } from "@/lib/schedule/schedule-page-query";
 import { RegularDaysOffForm } from "@/components/making/regular-days-off-form";
+import { BlockDialog, BlockForm, OffCard, PileCard, offWhen } from "@/components/schedule/block-parts";
+import { placeScheduleBlock, removeScheduleBlock, unplaceScheduleBlock } from "@/app/actions/schedule-blocks";
+import type { PileBlock } from "@/lib/schedule/blocks";
 import {
   DAY_JOB_MINUTES,
   MAX_DAYS,
@@ -45,6 +48,7 @@ import {
   weekdayWord,
   fillWord,
   workingDaysFrom,
+  type DayAway,
   type DayBlock,
   type Fit,
   type PersonRow,
@@ -143,21 +147,21 @@ export function BookingCard({
    slow, and three seconds of it was this list, which no switch changes). The
    board remounts with each day or week, so the jobs live here, outside it:
    shown at once from the last read, and read again behind. */
-let panelKept: PanelJob[] | null = null;
+let panelKept: { jobs: PanelJob[]; blocks: PileBlock[] } | null = null;
 
-function usePanelJobs(): { jobs: PanelJob[] | null; reload: () => void } {
-  const [jobs, setJobs] = useState<PanelJob[] | null>(panelKept);
+function usePanelJobs(): { jobs: PanelJob[] | null; blocks: PileBlock[]; reload: () => void } {
+  const [kept, setKept] = useState(panelKept);
   const reload = useCallback(() => {
     void loadSchedulePanel()
       .then((r) => {
         if (!r.ok) return;
-        panelKept = r.jobs;
-        setJobs(r.jobs);
+        panelKept = { jobs: r.jobs, blocks: r.blocks };
+        setKept(panelKept);
       })
       .catch(() => {});
   }, []);
   useEffect(() => reload(), [reload]);
-  return { jobs, reload };
+  return { jobs: kept?.jobs ?? null, blocks: kept?.blocks ?? [], reload };
 }
 
 /* DISPLAY OUTLIVES THE BOARD (Isaac, 25 October 2026: on Open display,
@@ -189,7 +193,8 @@ const watchDisplay = (fn: () => void) => {
   };
 };
 
-type Held = { job: PanelJob; minutes: number; days: number };
+/** What's picked up in Jobs: a job to book, or a block out to put on someone (one or the other). */
+type Held = { job: PanelJob | null; block: PileBlock | null; minutes: number; days: number };
 type Slot = { day: string; start: number; minutes: number };
 
 /** Book in's engine, as the Visit form drives it: read ServiceM8 for the
@@ -228,6 +233,9 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [ask, setAsk] = useState<Ask | null>(null);
   const [daysOff, setDaysOff] = useState<{ profile: string; name: string } | null>(null);
+  const [blockForm, setBlockForm] = useState(false);
+  /** a placed block, pressed */
+  const [blockOpen, setBlockOpen] = useState<{ away: DayAway; who: string; day: string } | null>(null);
   /* the month's filter and the day whose panel is open beside it */
   const [monthFilter, setMonthFilter] = useState<MonthFilter>("all");
   const [pickedDay, setPickedDay] = useState<string | null>(null);
@@ -308,12 +316,65 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
 
   const pick = (job: PanelJob) => {
     setAsk(null);
-    setHeld((h) => (h?.job.uuid === job.uuid ? null : { job, minutes: h?.minutes ?? 120, days: h?.days ?? 1 }));
+    setHeld((h) => (h?.job?.uuid === job.uuid ? null : { job, block: null, minutes: h?.job ? h.minutes : 120, days: h?.job ? h.days : 1 }));
   };
+  const pickBlock = (block: PileBlock) => {
+    setAsk(null);
+    setHeld((h) => (h?.block?.id === block.id ? null : { job: null, block, minutes: block.minutes, days: 1 }));
+  };
+
+  /** A block out from Jobs, onto a person's day, with Undo. */
+  const placeOn = (row: PersonRow, day: string, start: number) => {
+    const block = held?.block;
+    if (!block || busy) return;
+    setBusy(row.staffUuid);
+    void placeScheduleBlock(block.id, { staffUuid: row.staffUuid, day, startMin: start })
+      .then((r) => {
+        setBusy(null);
+        if (!r.ok) {
+          toast({ text: r.error });
+          return;
+        }
+        const text = `${block.what} on ${row.name}'s day, ${weekdayWord(day)}, ${spanWord(start, start + block.minutes)}`;
+        toast({
+          text: r.note ? `${text}. ${r.note}` : text,
+          undo: () => {
+            void unplaceScheduleBlock(block.id).then(() => {
+              router.refresh();
+              panel.reload();
+            });
+          },
+        });
+        setHeld(null);
+        setAt(null);
+        router.refresh();
+        panel.reload();
+      })
+      .catch((e) => {
+        setBusy(null);
+        toast({ text: thrownWords(e, "That didn't go on. Try again.") });
+      });
+  };
+
+  /** A placed block, back into Jobs, or off altogether. */
+  const blockBack = (away: DayAway, remove: boolean) => {
+    if (!away.blockId) return;
+    setBlockOpen(null);
+    void (remove ? removeScheduleBlock(away.blockId) : unplaceScheduleBlock(away.blockId))
+      .then((r) => {
+        toast({ text: r.ok ? (remove ? `${away.word} taken off` : `${away.word} back in Jobs`) : r.error });
+        router.refresh();
+        panel.reload();
+      })
+      .catch((e) => toast({ text: thrownWords(e, "That didn't change. Try again.") }));
+  };
+  const openOff = data.canBlock
+    ? (row: PersonRow, away: DayAway, day: string) => (away.blockId ? () => setBlockOpen({ away, who: row.name, day: longDay(day) }) : undefined)
+    : () => undefined;
 
   /** Book one person on the held job, and say so with Undo. */
   const book = (row: PersonRow, slots: Slot[]) => {
-    if (!held || busy) return;
+    if (!held?.job || busy) return;
     /* picking up and dropping still show who's free; only the booking is off */
     if (!data.canBook) {
       toast({ text: "Booking from here is off for you." });
@@ -351,6 +412,10 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
   /** A drop (or a click) on a person's row. */
   const dropOn = (row: PersonRow, place: { min: number; day: string }) => {
     if (!held) return;
+    if (held.block) {
+      placeOn(row, place.day, week ? WORK_START : Math.min(place.min, board.stripEnd - held.minutes));
+      return;
+    }
     if (!week) {
       const start = Math.min(place.min, board.stripEnd - held.minutes);
       book(row, [{ day: place.day, start, minutes: held.minutes }]);
@@ -439,9 +504,9 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
           {weeks ? (
             <WeeksGrid data={data} filter={monthFilter} picked={pickedDay} pick={(d) => setPickedDay((p) => (p === d ? null : d))} />
           ) : week ? (
-            <WeekRows board={board} held={held} at={at} busy={busy} setAt={setAt} dropOn={dropOn} nameDoor={openDaysOff} shut={shut} />
+            <WeekRows board={board} held={held} at={at} busy={busy} setAt={setAt} dropOn={dropOn} nameDoor={openDaysOff} shut={shut} offDoor={openOff} />
           ) : (
-            <DayRows board={board} held={held} at={at} busy={busy} setAt={setAt} dropOn={dropOn} nameDoor={openDaysOff} shut={shut} />
+            <DayRows board={board} held={held} at={at} busy={busy} setAt={setAt} dropOn={dropOn} nameDoor={openDaysOff} shut={shut} offDoor={openOff} />
           )}
           {ask ? (
             <div className="sc-ask" role="alertdialog" aria-label="Some of those days">
@@ -488,10 +553,43 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
             />
           ) : null
         ) : (
-          <JobsPanel jobs={panel.jobs} canBook={data.canBook} held={held} week={week} pick={pick} setHeld={setHeld} />
+          <JobsPanel
+            jobs={panel.jobs}
+            blocks={panel.blocks}
+            canBook={data.canBook}
+            canBlock={data.canBlock}
+            held={held}
+            week={week}
+            pick={pick}
+            pickBlock={pickBlock}
+            setHeld={setHeld}
+            newBlock={() => setBlockForm(true)}
+            removeHeld={() => {
+              const b = held?.block;
+              if (!b) return;
+              setHeld(null);
+              void removeScheduleBlock(b.id)
+                .then((r) => {
+                  toast({ text: r.ok ? `${b.what} taken off` : r.error });
+                  panel.reload();
+                })
+                .catch((e) => toast({ text: thrownWords(e, "That didn't change. Try again.") }));
+            }}
+          />
         )}
       </div>
       {daysOff ? <RegularDaysOffForm staffProfileId={daysOff.profile} name={daysOff.name} today={data.today} onClose={() => setDaysOff(null)} /> : null}
+      {blockForm ? <BlockForm onClose={() => setBlockForm(false)} onMade={() => panel.reload()} /> : null}
+      {blockOpen ? (
+        <BlockDialog
+          away={blockOpen.away}
+          who={blockOpen.who}
+          day={blockOpen.day}
+          onClose={() => setBlockOpen(null)}
+          onBack={() => blockBack(blockOpen.away, false)}
+          onRemove={() => blockBack(blockOpen.away, true)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -535,11 +633,13 @@ type RowsProps = {
   nameDoor: (row: PersonRow) => (() => void) | undefined;
   /** the days the business is shut, by name */
   shut: ReadonlyMap<string, string>;
+  /** a block out on a row opens what it offers, where the viewer may change it */
+  offDoor: (row: PersonRow, away: DayAway, day: string) => (() => void) | undefined;
 };
 
 const pct = (min: number, a: number, b: number) => ((min - a) / (b - a)) * 100;
 
-function DayRows({ board, held, at, busy, setAt, dropOn, nameDoor, shut }: RowsProps) {
+function DayRows({ board, held, at, busy, setAt, dropOn, nameDoor, shut, offDoor }: RowsProps) {
   const { stripStart: a, stripEnd: b } = board;
   const day = board.days[0];
   const hours: number[] = [];
@@ -569,7 +669,10 @@ function DayRows({ board, held, at, busy, setAt, dropOn, nameDoor, shut }: RowsP
         const fit: Fit | null = held ? fitOf(d, start, end) : null;
         const hot = !!held && at?.staff === row.staffUuid;
         const dim = !!fit && (fit.kind === "busy" || fit.kind === "away");
-        const stack = stackDay(d.blocks);
+        /* time off takes a line of the lane as a booking does, so nothing is
+           drawn over anything; only bookings over bookings are two at once */
+        const stack = stackDay([...d.blocks, ...d.away]);
+        const clash = stackDay(d.blocks).clash;
         return (
           <div
             key={row.staffUuid}
@@ -577,7 +680,7 @@ function DayRows({ board, held, at, busy, setAt, dropOn, nameDoor, shut }: RowsP
             /* a line a booking, where two are at once (the row's own 64 is the first) */
             style={stack.lines > 1 ? { minHeight: `calc(64px + ${stack.lines - 1} * 56px)` } : undefined}
           >
-            <Who row={row} line={busy === row.staffUuid ? "Booking" : dayLine(d)} door={nameDoor(row)} clash={stack.clash.size > 0 && busy !== row.staffUuid} />
+            <Who row={row} line={busy === row.staffUuid ? "Booking" : dayLine(d)} door={nameDoor(row)} clash={clash.size > 0 && busy !== row.staffUuid} />
             <div
               className="sc-track"
               onDragOver={(e) => {
@@ -602,9 +705,19 @@ function DayRows({ board, held, at, busy, setAt, dropOn, nameDoor, shut }: RowsP
               ))}
               <i className="sc-after" style={{ left: `${pct(WORK_END, a, b)}%` }} />
               {d.away.map((x) => (
-                <div key={x.key} className="sc-away" style={{ left: `${pct(Math.max(x.startMin, a), a, b)}%`, width: `${pct(Math.min(x.endMin, b), a, b) - pct(Math.max(x.startMin, a), a, b)}%` }}>
-                  {x.word}
-                </div>
+                <OffCard
+                  key={x.key}
+                  away={x}
+                  who={row.name}
+                  when={offWhen(x)}
+                  className="sc-blk"
+                  onOpen={offDoor(row, x, day)}
+                  style={{
+                    left: `${pct(Math.max(x.startMin, a), a, b)}%`,
+                    width: `${pct(Math.min(x.endMin, b), a, b) - pct(Math.max(x.startMin, a), a, b)}%`,
+                    top: `calc(6px + ${stack.line.get(x.key) ?? 0} * 56px)`,
+                  }}
+                />
               ))}
               {d.blocks.map((blk) => (
                 <BookingCard
@@ -612,7 +725,7 @@ function DayRows({ board, held, at, busy, setAt, dropOn, nameDoor, shut }: RowsP
                   blk={blk}
                   crew={blk.with.length + 1}
                   when={clockWord(blk.startMin, true)}
-                  clash={stack.clash.has(blk.key)}
+                  clash={clash.has(blk.key)}
                   className="sc-blk"
                   style={{
                     left: `${pct(blk.startMin, a, b)}%`,
@@ -629,7 +742,9 @@ function DayRows({ board, held, at, busy, setAt, dropOn, nameDoor, shut }: RowsP
                     width: `${pct(fit.kind === "free" ? end : fit.to, a, b) - pct(fit.kind === "free" ? start : fit.from, a, b)}%`,
                   }}
                 >
-                  <Fade>{hot && fit.kind === "free" ? `Drop to book ${row.name.split(" ")[0]}, ${spanWord(start, end)}` : fitWord(fit, start, end)}</Fade>
+                  <Fade>
+                    {hot && fit.kind === "free" ? `Drop to ${held?.block ? "block out" : "book"} ${row.name.split(" ")[0]}, ${spanWord(start, end)}` : fitWord(fit, start, end)}
+                  </Fade>
                 </div>
               ) : null}
             </div>
@@ -653,7 +768,7 @@ function weekBars(row: PersonRow): { key: string; first: number; last: number; b
   return out;
 }
 
-function WeekRows({ board, held, at, busy, setAt, dropOn, nameDoor, shut }: RowsProps) {
+function WeekRows({ board, held, at, busy, setAt, dropOn, nameDoor, shut, offDoor }: RowsProps) {
   const days = board.days;
   const col = at && held ? days.indexOf(at.day) : -1;
   const span = held && col >= 0 ? workingDaysFrom(days[col], held.days) : [];
@@ -708,9 +823,7 @@ function WeekRows({ board, held, at, busy, setAt, dropOn, nameDoor, shut }: Rows
               ))}
               {row.days.map((d, i) =>
                 d.away.map((x) => (
-                  <div key={x.key} className="sc-wbar sc-awayb" style={{ gridColumn: `${i + 1}` }}>
-                    {x.word}
-                  </div>
+                  <OffCard key={x.key} away={x} who={row.name} when={offWhen(x)} className="sc-wbar" onOpen={offDoor(row, x, d.day)} style={{ gridColumn: `${i + 1}` }} />
                 )),
               )}
               {fit && fit.free.length > 0 && shown.length > 0 ? (
@@ -721,7 +834,7 @@ function WeekRows({ board, held, at, busy, setAt, dropOn, nameDoor, shut }: Rows
                   <Fade>
                     {fit.not.length === 0
                       ? hot
-                        ? `Drop to book ${row.name.split(" ")[0]}, ${listDays(fit.free)}`
+                        ? `Drop to ${held?.block ? "block out" : "book"} ${row.name.split(" ")[0]}, ${listDays(fit.free)}`
                         : `Free ${listDays(fit.free)}`
                       : `Free ${listDays(fit.free)}`}
                   </Fade>
@@ -966,19 +1079,31 @@ const SHOWN = 40;
 
 function JobsPanel({
   jobs,
+  blocks,
   canBook,
+  canBlock,
   held,
   week,
   pick,
+  pickBlock,
   setHeld,
+  newBlock,
+  removeHeld,
 }: {
   /** null until the first read lands */
   jobs: PanelJob[] | null;
+  /** the blocks out waiting to go on someone's day */
+  blocks: PileBlock[];
   canBook: boolean;
+  canBlock: boolean;
   held: Held | null;
   week: boolean;
   pick: (j: PanelJob) => void;
+  pickBlock: (b: PileBlock) => void;
   setHeld: (h: Held | null) => void;
+  newBlock: () => void;
+  /** the held block out, taken away */
+  removeHeld: () => void;
 }) {
   const host = useContext(WindowsContext);
   const [tab, setTab] = useState<Tab>("book");
@@ -1000,7 +1125,26 @@ function JobsPanel({
 
   return (
     <aside className="sc-panel" aria-label="Jobs">
-      <h2 className="sc-h2">Jobs</h2>
+      <div className="sc-panelhead">
+        <h2 className="sc-h2">Jobs</h2>
+        {canBlock ? (
+          <Button kind="second" size={32} icon="plus" onClick={newBlock}>
+            Block out time
+          </Button>
+        ) : null}
+      </div>
+      {/* BLOCKS OUT, in their own group at the top of Jobs, above the search
+          and the tabs, which never hide them (Isaac, 6 November 2026: "should
+          it sit under jobs?", then "Sweet"); each leaves once it's on a day */}
+      {canBlock && blocks.length > 0 ? (
+        <ul className="sc-jobs sc-offs" aria-label="Blocked out">
+          {blocks.map((b) => (
+            <li key={b.id}>
+              <PileCard block={b} picked={held?.block?.id === b.id} onPick={() => pickBlock(b)} />
+            </li>
+          ))}
+        </ul>
+      ) : null}
       <SearchField label="Find a job, client or site" value={q} onChange={setQ} />
       <Tray
         ariaLabel="Which jobs"
@@ -1012,7 +1156,21 @@ function JobsPanel({
         value={tab}
         onChange={setTab}
       />
-      {held ? (
+      {held?.block ? (
+        <div className="sc-held">
+          <span className="sc-heldn">
+            <Fade>
+              {held.block.what}, {lengthWord(held.block.minutes)}
+            </Fade>
+          </span>
+          <Button kind="quiet" size={32} onClick={() => setHeld(null)}>
+            Put it down
+          </Button>
+          <Button kind="quiet" size={32} onClick={removeHeld}>
+            Take it off
+          </Button>
+        </div>
+      ) : held?.job ? (
         <div className="sc-held">
           <span className="sc-heldn">
             <Dot hue={held.job.hue} />
@@ -1043,14 +1201,14 @@ function JobsPanel({
                   job's colour, a hairline of it, the rest white */}
               <button
                 type="button"
-                className={`sc-job sc-card sc-card--${j.hue}${held?.job.uuid === j.uuid ? " sc-picked" : ""}`}
+                className={`sc-job sc-card sc-card--${j.hue}${held?.job?.uuid === j.uuid ? " sc-picked" : ""}`}
                 draggable
-                aria-pressed={held?.job.uuid === j.uuid}
+                aria-pressed={held?.job?.uuid === j.uuid}
                 aria-label={jobName(j)}
                 onDragStart={(e) => {
                   e.dataTransfer.setData("text/plain", j.uuid);
                   e.dataTransfer.effectAllowed = "copy";
-                  if (held?.job.uuid !== j.uuid) pick(j);
+                  if (held?.job?.uuid !== j.uuid) pick(j);
                 }}
                 onClick={() => pick(j)}
               >

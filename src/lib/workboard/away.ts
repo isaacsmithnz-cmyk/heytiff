@@ -49,6 +49,9 @@ export type ScheduleAway = {
   name: string | null;
   start: string;
   end: string;
+  /** A block out made in HeyTiff (lib/schedule/blocks): its id, and where it is. */
+  blockId?: string;
+  where?: string | null;
 };
 
 /** The business shut for the day, or part of it. */

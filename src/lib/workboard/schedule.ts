@@ -123,6 +123,9 @@ export type LaneAway = {
   endMin: number;
   /** The whole day, 00:00 to 23:59: the lane is off, not a span of it. */
   whole: boolean;
+  /** A block out made in HeyTiff: its id, and where it is. */
+  blockId?: string;
+  where?: string | null;
 };
 
 export type ScheduleLane = {
@@ -337,7 +340,7 @@ export function layoutScheduleDay(input: {
     if (!uuid) continue;
     const span = awaySpanOnDay(a, input.away!.dayISO);
     const list = awayByStaff.get(uuid) ?? [];
-    list.push({ key: a.uuid, word: awayWord(a), ...span });
+    list.push({ key: a.uuid, word: awayWord(a), ...span, ...(a.blockId ? { blockId: a.blockId, where: a.where ?? null } : {}) });
     awayByStaff.set(uuid, list);
   }
 

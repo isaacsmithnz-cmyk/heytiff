@@ -27,6 +27,8 @@ import { isLeftover } from "@/lib/integrations/sm8-booking-plan";
 import type { Sm8WriteState } from "@/lib/integrations/sm8-write-plan";
 import { streetLine } from "@/lib/studio/job-link";
 import { availabilityOnDay, type AvailabilityRow, type ScheduleAway, type ScheduleClosed } from "./away";
+import { withBlocks } from "@/lib/schedule/blocks";
+import { readDayBlocks } from "@/lib/schedule/blocks-store";
 
 export type SchedulePayload = {
   dayISO: string;
@@ -143,7 +145,13 @@ export async function loadScheduleDay(
 ): Promise<SchedulePayload> {
   const dayFloor = `${dayISO} 00:00:00`;
   const dayCeil = `${plusDays(dayISO, 1)} 00:00:00`;
-  const offRead = opts.away ? readDayAvailability(orgId, dayISO) : Promise.resolve(null);
+  /* ServiceM8's time off, with HeyTiff's blocks out laid in (lib/schedule/blocks):
+     a block shows even where the mirror can't answer */
+  const offRead = opts.away
+    ? Promise.all([readDayAvailability(orgId, dayISO), readDayBlocks(orgId, dayISO)]).then(([mirror, blocks]) =>
+        mirror || blocks.length ? { away: withBlocks(mirror?.away ?? [], blocks), closed: mirror?.closed ?? [] } : null,
+      )
+    : Promise.resolve(null);
 
   /* The week's per-day booking count was a third read here, for the numbers
      on the strip's day chips; the chips are the day's name alone now. */

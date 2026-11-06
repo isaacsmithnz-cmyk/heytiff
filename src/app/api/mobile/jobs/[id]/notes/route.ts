@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { writeJobNote } from "@/lib/workboard/job-note-write";
 import { ok, requireMobile } from "@/lib/mobile/auth";
@@ -40,8 +41,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     });
     /* Save, from the phone's box: the words as written, and on to ServiceM8
        as any job note goes, behind the same gate Tiff's filing has. The
-       day's wrap-up asks for its own send after, so it doesn't ask here. */
-    if (input?.sendOn === true) await sendNoteOnToSm8(() => sm8PressFromMobile(ctx), ctx.orgId, note.id, parentRemoteId);
+       day's wrap-up asks for its own send after, so it doesn't ask here.
+       The send goes after the answer: Saved never waits on ServiceM8 (Isaac,
+       6 November 2026: "it should be instant if it's just writing it
+       straight away"). */
+    if (input?.sendOn === true) after(() => sendNoteOnToSm8(() => sm8PressFromMobile(ctx), ctx.orgId, note.id, parentRemoteId));
     return ok(note);
   } catch (err) {
     return no(400, err instanceof Error ? err.message : "Couldn't save that note.");

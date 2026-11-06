@@ -15,6 +15,14 @@ jest.mock("@/app/actions/booking-sm8", () => ({ bookJobIn: jest.fn(), readBookIn
 const loadSchedulePanel = jest.fn();
 jest.mock("@/app/actions/schedule-panel", () => ({ loadSchedulePanel: () => loadSchedulePanel() }));
 jest.mock("@/components/making/regular-days-off-form", () => ({ RegularDaysOffForm: () => null }));
+const placeScheduleBlock = jest.fn();
+const unplaceScheduleBlock = jest.fn();
+jest.mock("@/app/actions/schedule-blocks", () => ({
+  makeScheduleBlock: jest.fn(),
+  placeScheduleBlock: (...a: unknown[]) => placeScheduleBlock(...a),
+  unplaceScheduleBlock: (...a: unknown[]) => unplaceScheduleBlock(...a),
+  removeScheduleBlock: jest.fn(),
+}));
 
 const DAY = "2026-10-26";
 const payload = (dayISO: string): SchedulePayload => ({ dayISO, activities: [], staff: [], jobs: [], onSite: [], addresses: {} });
@@ -29,6 +37,7 @@ const page = (over: Partial<SchedulePage> = {}): SchedulePage => ({
   team: [],
   profiles: {},
   canTeam: false,
+  canBlock: false,
   ...over,
 });
 const JOB: PanelJob = { uuid: "j-3450", number: "3450", client: "BRC Build", site: "Kingsford", kind: "Install", hue: "purple", state: "Waiting on a day", tone: "look", toBook: true, words: "3450 brc build kingsford install" };
@@ -128,5 +137,44 @@ describe("Jobs, to drag", () => {
     expect(box.querySelector(".pt-search-icon svg")).not.toBeNull();
     await userEvent.type(within(box).getByRole("textbox", { name: "Find a job, client or site" }), "nothing like it");
     expect(within(jobs).getByText("No job matches that.")).toBeInTheDocument();
+  });
+});
+
+/* Block out time (Isaac, 6 November 2026, "Build it" on option B): a block
+   waits in its own group at the top of Jobs, above the search and the tabs,
+   and goes onto a person's day as a job does. */
+describe("Block out time", () => {
+  const BLOCK = { id: "b-1", what: "Supplier meeting", where: "Warehouse", minutes: 120 };
+  const LUKE = "3edd29df-0000-0000-0000-000000000001";
+  const withLuke = (): SchedulePayload => ({ ...payload(DAY), staff: [{ uuid: LUKE, name: "Luke Ingold" }] as SchedulePayload["staff"] });
+
+  it("shows waiting blocks above the search, apart from the jobs, only to someone who runs the board", async () => {
+    loadSchedulePanel.mockResolvedValue({ ok: true, jobs: [JOB], blocks: [BLOCK] });
+    render(<ScheduleBoard data={page({ canBlock: true })} />);
+    const group = await screen.findByRole("list", { name: "Blocked out" });
+    expect(within(group).getByRole("button", { name: "Supplier meeting, Warehouse, 2 h" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Block out time" })).toBeInTheDocument();
+    /* the group comes before the search box */
+    const search = screen.getByLabelText("Find a job, client or site");
+    expect(group.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    cleanup();
+    render(<ScheduleBoard data={page({ canBlock: false })} />);
+    await screen.findByRole("button", { name: "3450 BRC Build" });
+    expect(screen.queryByRole("list", { name: "Blocked out" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Block out time" })).toBeNull();
+  });
+
+  it("puts a picked block on the person whose row is pressed, with Undo", async () => {
+    loadSchedulePanel.mockResolvedValue({ ok: true, jobs: [JOB], blocks: [BLOCK] });
+    placeScheduleBlock.mockResolvedValue({ ok: true, id: "b-1", note: null });
+    render(<ScheduleBoard data={page({ canBlock: true, payloads: [withLuke()] })} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Supplier meeting, Warehouse, 2 h" }));
+    const track = document.querySelector(".sc-track") as HTMLElement;
+    track.getBoundingClientRect = () => ({ left: 0, width: 1000, top: 0, height: 64, right: 1000, bottom: 64, x: 0, y: 0, toJSON: () => ({}) });
+    await userEvent.click(track);
+    await waitFor(() => expect(placeScheduleBlock).toHaveBeenCalled());
+    const [id, place] = placeScheduleBlock.mock.calls[0];
+    expect(id).toBe("b-1");
+    expect(place).toMatchObject({ staffUuid: LUKE, day: DAY });
   });
 });

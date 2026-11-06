@@ -6,6 +6,7 @@ jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refre
 jest.mock("@/app/actions/booking-sm8", () => ({ bookJobIn: jest.fn(), readBookInContext: jest.fn(), takeBackBooking: jest.fn() }));
 jest.mock("@/app/actions/schedule-panel", () => ({ loadSchedulePanel: jest.fn() }));
 jest.mock("@/components/making/regular-days-off-form", () => ({ RegularDaysOffForm: () => null }));
+jest.mock("@/app/actions/schedule-blocks", () => ({ makeScheduleBlock: jest.fn(), placeScheduleBlock: jest.fn(), unplaceScheduleBlock: jest.fn(), removeScheduleBlock: jest.fn() }));
 
 /* A booking's card (Isaac, 23 October 2026, E of "Schedule card colour"):
    the job number in a coloured box, a coloured hairline, the rest white. */

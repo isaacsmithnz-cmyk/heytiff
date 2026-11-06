@@ -8253,7 +8253,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .sc-holding .sc-track, .fg .sc-holding .sc-cell { cursor:copy; }
 .fg .sc-vl { position:absolute; top:0; bottom:0; border-left:1px solid var(--line); }
 .fg .sc-after { position:absolute; top:0; bottom:0; right:0; background:var(--soft); }
-.fg .sc-blk, .fg .sc-away, .fg .sc-fit { position:absolute; top:8px; bottom:8px; box-sizing:border-box; padding:4px 8px; border-radius:var(--r-button); display:flex; flex-direction:column; justify-content:center; min-width:0; overflow:hidden; }
+.fg .sc-blk, .fg .sc-fit { position:absolute; top:8px; bottom:8px; box-sizing:border-box; padding:4px 8px; border-radius:var(--r-button); display:flex; flex-direction:column; justify-content:center; min-width:0; overflow:hidden; }
 .fg .sc-blk { color:var(--ink); text-decoration:none; }
 .fg .sc-blk:focus-visible, .fg .sc-wbar:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
 /* A BOOKING'S CARD (Isaac, 23 October 2026, E of "Schedule card colour"):
@@ -8268,6 +8268,14 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .sc-card--purple { --sc-hue:var(--purple-w); }
 .fg .sc-card--pink { --sc-hue:var(--pink-w); }
 .fg .sc-card--grey { --sc-hue:var(--q); }
+/* TIME OFF IS A BOOKING'S CARD whose box holds a clock on the soft grey, in
+   a grey hairline (Isaac, 6 November 2026, "Build it" on the block out mock):
+   ServiceM8's own time off, regular days off and blocks out made here alike */
+.fg .sc-card--off { --sc-hue:var(--q); }
+.fg .sc-card--off .sc-cn { background:var(--soft); color:var(--ink); }
+.fg .sc-blk.sc-card--off, .fg .sc-wbar.sc-card--off { font:inherit; text-align:left; }
+.fg button.sc-card--off.sc-blk, .fg button.sc-card--off.sc-wbar { cursor:pointer; }
+.fg .sc-holding button.sc-card--off.sc-blk { cursor:copy; }
 .fg .sc-card { flex-direction:row; align-items:stretch; justify-content:flex-start; padding:0; border:1px solid var(--sc-hue, var(--q)); border-radius:var(--r-control); background:var(--white); color:var(--ink); text-decoration:none; overflow:hidden; }
 .fg .sc-blk.sc-card { bottom:auto; height:52px; }
 .fg .sc-wbar.sc-card { flex-direction:row; padding:0; }
@@ -8280,7 +8288,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .sc-c3 b { font-weight:600; color:var(--ink); }
 .fg .sc-crew { display:inline-flex; align-items:center; gap:2px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
 .fg .sc-cs { margin-left:auto; flex:none; font-size:12px; line-height:16px; }
-.fg .sc-away { left:0; right:0; background:var(--soft); color:var(--q); font-size:13px; line-height:18px; align-items:center; }
 .fg .sc-fit { font-size:12px; line-height:16px; font-weight:600; pointer-events:none; }
 .fg .sc-fit.sc-ok { background:var(--sel); box-shadow:inset 0 0 0 2px var(--ink); color:var(--ink); }
 .fg .sc-fit.sc-part { background:transparent; color:var(--warn-t); }
@@ -8294,7 +8301,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .sc-cells { position:relative; display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); grid-auto-flow:row dense; gap:4px 0; padding:8px 0; align-content:start; }
 .fg .sc-cell { border-left:1px solid var(--line); margin:-8px 0; }
 .fg .sc-wbar { position:relative; margin:0 4px; box-sizing:border-box; padding:4px 8px; border-radius:var(--r-button); display:flex; flex-direction:column; min-width:0; text-decoration:none; }
-.fg .sc-awayb { background:var(--soft); color:var(--q); font-size:13px; line-height:18px; }
 .fg .sc-fitw { font-size:12px; line-height:16px; font-weight:600; pointer-events:none; }
 .fg .sc-fitw.sc-ok { background:var(--sel); box-shadow:inset 0 0 0 2px var(--ink); }
 .fg .sc-fitw.sc-part { background:transparent; box-shadow:inset 0 0 0 1px var(--edge); color:var(--warn-t); }
@@ -8307,6 +8313,9 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .sc-panel { width:320px; flex:none; display:flex; flex-direction:column; gap:12px; min-height:0; padding-left:24px; border-left:1px solid var(--line); }
 .fg .sc-panel .pt-tray { align-self:flex-start; flex:none; }
 .fg .sc-h2 { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .sc-panelhead { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+/* blocks out waiting, in their own group above the search, a hairline under them */
+.fg .sc-jobs.sc-offs { flex:none; overflow:visible; padding-bottom:12px; border-bottom:1px solid var(--line); }
 .fg .sc-off { margin:0; font-size:13px; line-height:18px; color:var(--q); }
 .fg .sc-held { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:12px; border-radius:var(--r-card); background:var(--sel); }
 .fg .sc-heldn { flex:1 1 100%; display:flex; align-items:center; gap:8px; min-width:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }

@@ -23,6 +23,9 @@
    ONE ROW PER THING (sm8_writes' dedupe_key):
      leave:<leave_requests.id>       the approved request, once
      dayoff:<staff_unavailability.id> a casual's day off, once
+     block:<schedule_blocks.id>@<placed_at, ms>  a block out placed on a
+                                     person's day, once per placing (taken
+                                     back and placed again is a new row)
      remove:<the create row's id>    taking either off the board, once
    Leave is approved once and cancelled once (a decision is final), and a
    day off is a new row each time it goes up, so nothing here is ever
@@ -44,22 +47,26 @@ export const LEAVE_MAX_DAYS = 366;
 /** A leave stamp as it goes: the wall clock, to the second. */
 export const LEAVE_STAMP = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
 
-/** Where a leave row comes from: a request, or a casual's day off. */
-export type LeaveSource = "leave" | "dayoff";
+/** Where a leave row comes from: a request, a casual's day off, or a block
+    out placed on someone's day (lib/schedule/blocks). */
+export type LeaveSource = "leave" | "dayoff" | "block";
 
 export const leaveSubject = {
   leave: (requestId: string) => `leave:${requestId}`,
   dayOff: (blockId: string) => `dayoff:${blockId}`,
+  /** a block out, by its id and the moment it was placed: `<id>@<ms>` */
+  block: (placing: string) => `block:${placing}`,
   remove: (createRowId: string) => `remove:${createRowId}`,
 };
 
 export type ParsedLeaveSubject =
   | { via: "leave"; id: string }
   | { via: "dayoff"; id: string }
+  | { via: "block"; id: string }
   | { via: "remove"; createRowId: string };
 
 export function parseLeaveSubject(s: string): ParsedLeaveSubject | null {
-  const m = /^(leave|dayoff|remove):(\S+)$/.exec(s);
+  const m = /^(leave|dayoff|block|remove):(\S+)$/.exec(s);
   if (!m) return null;
   if (m[1] === "remove") return { via: "remove", createRowId: m[2] };
   return { via: m[1] as LeaveSource, id: m[2] };

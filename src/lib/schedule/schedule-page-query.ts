@@ -56,6 +56,8 @@ export type SchedulePage = {
   profiles: Record<string, string>;
   /** may set the team's regular days off */
   canTeam: boolean;
+  /** may block out time: make blocks in Jobs and put them on people (lib/schedule/blocks) */
+  canBlock: boolean;
 };
 
 const SM8 = "sm8:";
@@ -133,14 +135,15 @@ export async function loadSchedulePage(params: Record<string, string | string[] 
       closed: new Set(team.filter((t) => t.holiday).map((t) => t.dayISO)),
     });
     const shown = new Set(days);
-    return { view, day, today, days, payloads: [], canBook: false, capacity: all.filter((d) => shown.has(d.dayISO)), team, profiles: {}, canTeam: false };
+    return { view, day, today, days, payloads: [], canBook: false, capacity: all.filter((d) => shown.has(d.dayISO)), team, profiles: {}, canTeam: false, canBlock: false };
   }
 
-  const [mayPress, rules, links, canTeam, read] = await Promise.all([
+  const [mayPress, rules, links, canTeam, canBlock, read] = await Promise.all([
     booking ? mayPressBookings() : Promise.resolve(false),
     readRegularDaysOff(orgId),
     sm8StaffByProfile(orgId),
     can("team"),
+    can("workboard_manage").catch(() => false),
     Promise.all(days.map((d) => loadScheduleDay(orgId, d, state ? { state, away: true } : { away: true }))),
   ]);
   /* regular days off (TAFE, RDOs) laid over ServiceM8's own time off */
@@ -158,6 +161,7 @@ export async function loadSchedulePage(params: Record<string, string | string[] 
     team: [],
     profiles,
     canTeam,
+    canBlock,
   };
 }
 

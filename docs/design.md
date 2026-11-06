@@ -243,16 +243,11 @@ infinite loop into a strobe.
 |---|---|---|
 | `tcDots` | the three dots after "Thinking" in Tiff's chat, one rule with each dot delayed | Tiff is working: the Claude-style chat says so in words and dots, with no mark turning (Isaac, 20 October 2026) |
 | `ds-sheet-wait` | the sheet's outline while its raster downloads | a skeleton, breathing rather than swept because it is an outline: the plan lands into its place |
-| `tkShim` | a library shelf while it is searched | a sweep on the thing being searched |
-| `tkFlow` ×2 | a lane of the research trace, out to a shelf being searched and back from the shelf the answer is drawn from | a spinner, drawn as a pulse along the line that is waiting |
-| `tkCaret` | the last paragraph of an answer still streaming | a caret: "is that all of it" |
 | `wb2CursorBlink` | the board's answer while it streams | a caret |
-| `fgPulse` ×3 | the recording dot beside the recording clock (the Tiff modal's dock, the ask bar's recording card); the row microphone while it listens; Time & Pay's live period | a live dot: something is open right now |
+| `fgPulse` ×3 | the recording dot beside the recording clock (the Tiff modal's dock, a note posture's row); the row microphone while it listens; Time & Pay's live period | a live dot: something is open right now |
 | `int-pulse` | an integration's backfill while it runs | a live dot |
 | `orbSpin` | the orb, as the dictation meter | the orb: the microphone is open |
 | `orbSaySweep` | the wait's word beside the working mark | the wait's label, lit while Tiff works: the caret's job on a word |
-| `dotfSwell` | the mark while you talk, in the Tiff modal and the ask bar's recording card | the microphone is open: a wave through the mark |
-| `dotfTurn`, `dotfZip`, `dotfFire` | the Tiff modal's cloud while Tiff has the words | Tiff is working: the mark as a turning cloud until the answer comes back |
 | `tiffGyro`, `tiffNod`, `tiffSheen`, `tiffGimbalA`, `tiffGimbalB`, `tiffArc` | the Tiff button and the mark wherever it stands for Tiff; the rules are declared on every mark but held paused until the mark is working | Tiff is working (rule 8, v2). Since 18 October 2026 the mark is still at rest (Isaac, 17 October: "The mark does not turn at rest. It can stay still."), which retires the override of 24 September. Home's mark (`.tiffmk.alive`) runs them at rest, in the colours, from 20 October (Isaac), and the page's hold (`.pg-hold`, rule 41) runs them working |
 | `tiffCyc` ×2 | the two runs of light on a working mark's rings, their gradient stops cycling blue, purple, pink, red, orange, yellow, green | Tiff is working: colour on the mark means she's busy (rule 8). The gradients are only shown on a working mark |
 | `tiffCycRing` ×2 | a working mark's two faint rings, in the same cycle, and Home's mark's at rest | Tiff is working (rule 8); Home's mark is alive (rule 8, 20 October) |
@@ -268,9 +263,9 @@ this list the way it holds the loops: both ways, by name.
 
 | Glyph | On | Why it has no word |
 |---|---|---|
-| `mic` | `wb2-striprnd`, `wb2-micgo`, `tmic` | the microphone of the dictation controls, on a note strip, a note row and the ask bar: the field beside it is the word, and a microphone is the one glyph the trade reads without one |
+| `mic` | `wb2-striprnd`, `wb2-micgo` | the microphone of the dictation controls, on a note strip and a note row: the field beside it is the word, and a microphone is the one glyph the trade reads without one |
 | `square` | `wb2-striprnd`, `wb2-micgo`, `wb2-dictmic` | stop, in the same controls: it takes the microphone's seat while it listens |
-| `x` | `wb2-striprnd`, `wb2-dictx` ×2, `wb2-ico` | the recording's cross beside stop, and the recording card's own cross in Tiff's ask bar (the capture card had a second, and went with the old capture UI, 2026-09-27): each closes a recording, and its label says what closing costs ("Discard") |
+| `x` | `wb2-striprnd`, `wb2-dictx` ×2 | the recording's cross beside stop (the capture card had a second, and went with the old capture UI, 2026-09-27; the recording card in the Library's ask bar had a third, and went with the bar, 2026-11-07): each closes a recording, and its label says what closing costs ("Discard") |
 | `plus` | `wb2-striprnd`, `wb2-addgo` | a note composer's commit at the end of its one-line field: the placeholder is the word and Enter is the same press. A form's save is a word; a composer's send is the glyph |
 | `rotate` | `ds-tool` ×2 | undo and redo in the Studio toolbar, the candidates law 25 named |
 | `x` | `camdel`, `ds-plancard-x` | a thumbnail's cross, on a photo badge and on a plan page in the Studio's import: a picture has no room for a word |

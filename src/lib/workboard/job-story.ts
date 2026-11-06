@@ -152,8 +152,6 @@ export type MilestoneLabel =
   | "Job completed"
   | "Invoice raised";
 
-export type StoryDay = { day: string; entries: StoryEntry[] };
-
 export type StoryFilter = "all" | "notes" | "photos" | "money" | "visits";
 
 /** The checklist rows the merge reads — a structural subset of the action's
@@ -527,65 +525,6 @@ function claimEntry(
   };
 }
 
-/** The feed, day-grouped for the markers. Days arrive already newest-first. */
-export function groupStoryDays(entries: readonly StoryEntry[]): StoryDay[] {
-  const days: StoryDay[] = [];
-  for (const e of entries) {
-    const cur = days[days.length - 1];
-    if (cur && cur.day === e.day) cur.entries.push(e);
-    else days.push({ day: e.day, entries: [e] });
-  }
-  return days;
-}
-
-/** WHERE EACH REPLY OF OURS IS DRAWN (two-way phase 2), in what is shown:
-    1. under the ServiceM8 note it answers, when that note is drawn;
-    2. under our own entry whose ServiceM8 copy it answers (a reply to one
-       of our replies — the echo hides that copy, and our row stands for it);
-    3. otherwise in the day list, as an entry of its own — a source someone
-       removed in ServiceM8, or one outside the notes read.
-    A reply is never dropped because its source isn't on the screen. Each
-    thread reads oldest first, as a conversation does. */
-export function threadReplies(entries: readonly StoryEntry[]): {
-  children: Map<string, StoryEntry[]>;
-  threaded: Set<string>;
-} {
-  const theirs = new Map<string, string>();
-  const ours = new Map<string, string>();
-  for (const e of entries) {
-    if (e.kind !== "note" || !e.sm8Uuid) continue;
-    if (e.origin === "servicem8") theirs.set(e.sm8Uuid, e.key);
-    else ours.set(e.sm8Uuid, e.key);
-  }
-  const parentOf = new Map<string, string>();
-  for (const e of entries) {
-    if (e.kind !== "note" || e.origin !== "heytiff" || !e.replyTo) continue;
-    const parent = theirs.get(e.replyTo) ?? ours.get(e.replyTo);
-    if (parent && parent !== e.key) parentOf.set(e.key, parent);
-  }
-  /* a chain that comes back on itself is drawn flat: never lost */
-  const loops = (key: string) => {
-    const seen = new Set<string>([key]);
-    for (let p = parentOf.get(key); p; p = parentOf.get(p)) {
-      if (seen.has(p)) return true;
-      seen.add(p);
-    }
-    return false;
-  };
-  const children = new Map<string, StoryEntry[]>();
-  const threaded = new Set<string>();
-  for (const e of entries) {
-    const parent = parentOf.get(e.key);
-    if (!parent || loops(e.key)) continue;
-    threaded.add(e.key);
-    const list = children.get(parent) ?? [];
-    list.push(e);
-    children.set(parent, list);
-  }
-  for (const list of children.values()) list.sort((a, b) => ((a.at ?? "") < (b.at ?? "") ? -1 : (a.at ?? "") > (b.at ?? "") ? 1 : 0));
-  return { children, threaded };
-}
-
 /** What counts as a money entry — the claim events, the payment rows and
     the invoice milestone: everything the grant gates. Said once, because
     two readers depend on the SAME line: the diary's Money filter shows
@@ -617,11 +556,6 @@ export function filterStory(
         return isMoneyStoryEntry(e);
     }
   });
-}
-
-/** The day the story began — "Since Mon 12 Jan" at the diary's head. */
-export function storySince(entries: readonly StoryEntry[]): string | null {
-  return entries.length > 0 ? entries[entries.length - 1].day : null;
 }
 
 /* ── the summary's side of the module ── */

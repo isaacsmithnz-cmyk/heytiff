@@ -1,7 +1,7 @@
 import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Conversations, type ConversationsProps } from "../conversations";
-import type { AskEvent, AskInput, AskSourceItem } from "@/lib/tiff/ask-client";
+import type { AskEvent, AskSourceItem } from "@/lib/tiff/ask-client";
 import { STORE_KEY } from "@/lib/tiff/threads";
 import type { InboxEmail } from "@/lib/email/inbox";
 import { resetThreadSync } from "@/lib/tiff/thread-sync";
@@ -14,8 +14,10 @@ import { resetThreadSync } from "@/lib/tiff/thread-sync";
    network is the ask stream, scripted here, and the threads' server copy,
    which answers "not kept" as it does until the table is applied. */
 
-const asks: AskInput[] = [];
-let script: (emit: (e: AskEvent) => void, input: AskInput) => void = (emit) => {
+/** What reached the brain, with the history as the turns it was made from. */
+type Asked = { question: string; history: { role: "user" | "assistant"; text: string }[]; screen?: string };
+const asks: Asked[] = [];
+let script: (emit: (e: AskEvent) => void, input: Asked) => void = (emit) => {
   emit({ t: "delta", text: "P8 is a piping temperature fault." });
   emit({ t: "done" });
 };
@@ -26,10 +28,9 @@ type BrainIn = { question: string; history?: { who: "you" | "tiff"; text: string
 type BrainOn = { onDelta: (t: string) => void; onTool: (l: string) => void; onError: (m: string) => void; onDone: () => void; onScreen?: (h: string, l: string) => void };
 const push = jest.fn();
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh: jest.fn(), replace: jest.fn() }) }));
-jest.mock("@/lib/tiff/ask-client", () => ({ askTiff: jest.fn() }));
 jest.mock("@/lib/brain/ask-client", () => ({
   askBrain: async (input: BrainIn, on: BrainOn) => {
-    const asked = { question: input.question, history: (input.history ?? []).map((t) => ({ role: t.who === "tiff" ? "assistant" : "user", text: t.text })), screen: input.screen } as unknown as AskInput;
+    const asked: Asked = { question: input.question, history: (input.history ?? []).map((t) => ({ role: t.who === "tiff" ? ("assistant" as const) : ("user" as const), text: t.text })), screen: input.screen };
     asks.push(asked);
     script((e) => {
       if (e.t === "delta") on.onDelta(e.text);
@@ -97,8 +98,6 @@ const threads = () => [
 ];
 
 const props = (over: Partial<ConversationsProps> = {}): ConversationsProps => ({
-  counts: { install: 3, faults: 0, specs: 0, sops: 0, field: 0 },
-  readyCount: 3,
   canManage: true,
   docTitles: {},
   voiceEnabled: false,

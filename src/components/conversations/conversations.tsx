@@ -8,7 +8,6 @@ import { ViewTabs } from "@/components/parts/tabs";
 import { ToastProvider } from "@/components/parts/toast";
 import { TiffAssistant, askHandoffAtMount, noAskHandoff, noHandoffSubscription } from "@/components/tiff/assistant";
 import { useEmailJob } from "@/components/tiff/email-job-card";
-import type { KbCategoryKey } from "@/components/tiff/kb";
 import { inboxLine, inboxWord, type InboxEmail, type InboxEmailState } from "@/lib/email/inbox";
 import { threadTitleOf } from "@/lib/email/proposal";
 import { CONV_VIEWS, EMAIL_THREAD, isEmailThread, withConvState, type ConvView } from "@/lib/tiff/conversations";
@@ -27,9 +26,8 @@ import { CvList } from "./list";
      lib/email/inbox.ts). Each opens at its decision: Create job, or Add to job
      N. It's where the place opens, and its word goes amber while an email
      waits on someone.
-   - Chats is your own talk with Tiff. They are the Library's own threads and
-     its own ask (components/tiff/assistant.tsx, its `conversations` layout):
-     one Tiff, two ways to lay her out. A question handed over from the Library
+   - Chats is your own talk with Tiff, her threads and her ask
+     (components/tiff/assistant.tsx). A question handed over from the Library
      or the Toolbox lands here.
 
    Team (shared chats, never built) went on 30 October ("Why do we need the
@@ -42,8 +40,6 @@ import { CvList } from "./list";
    so an answer still arriving keeps arriving while the other view is up. */
 
 export type ConversationsProps = {
-  counts: Record<KbCategoryKey, number>;
-  readyCount: number;
   canManage: boolean;
   docTitles: Record<string, string>;
   voiceEnabled: boolean;
@@ -56,7 +52,7 @@ export type ConversationsProps = {
 
 const emailIdOf = (thread: string | null) => (isEmailThread(thread) ? thread!.slice(EMAIL_THREAD.length) : null);
 
-function Place({ counts, readyCount, canManage, docTitles, voiceEnabled, initial, you, inbox }: ConversationsProps) {
+function Place({ canManage, docTitles, voiceEnabled, initial, you, inbox }: ConversationsProps) {
   const router = useRouter();
   const hydrated = useHydrated();
   /* A question handed over (the Library, the Toolbox) is a chat, whatever the
@@ -114,9 +110,6 @@ function Place({ counts, readyCount, canManage, docTitles, voiceEnabled, initial
 
   return (
     <TiffAssistant
-      layout="conversations"
-      counts={counts}
-      readyCount={readyCount}
       canManage={canManage}
       docTitles={docTitles}
       voiceEnabled={voiceEnabled}

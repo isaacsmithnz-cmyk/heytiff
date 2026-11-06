@@ -1,4 +1,4 @@
-import { MISS_STEP, categoryHue, clockOf, forwardedWhen, dayLabel, noteTitle, stepsFromTrace, threadWhen, viewOf, withConvState } from "../conversations";
+import { categoryHue, clockOf, forwardedWhen, dayLabel, noteTitle, threadWhen, viewOf, withConvState } from "../conversations";
 
 /* The words and times Conversations shows (the board v2-board-conversations). */
 
@@ -24,31 +24,6 @@ describe("times", () => {
     expect(dayLabel(at(2026, 10, 12), NOW)).toBe("Yesterday");
     expect(dayLabel(at(2026, 10, 10), NOW)).toBe("Saturday");
     expect(dayLabel(at(2026, 10, 2), NOW)).toBe("Friday 2 October");
-  });
-});
-
-describe("her steps", () => {
-  const trace = (hits: Partial<Record<"install" | "faults" | "specs" | "sops" | "field", [number, string | null]>>, winners: ("install" | "faults" | "specs" | "sops" | "field")[]) => ({
-    t: "trace" as const,
-    categories: Object.fromEntries(
-      (["install", "faults", "specs", "sops", "field"] as const).map((k) => [k, { hits: hits[k]?.[0] ?? 0, topDoc: hits[k]?.[1] ?? null }]),
-    ) as Record<"install" | "faults" | "specs" | "sops" | "field", { hits: number; topDoc: string | null }>,
-    winners,
-    terms: [],
-  });
-
-  it("are what the search reported: how much matched, and what she read first", () => {
-    expect(stepsFromTrace(trace({ install: [3, "PEAD manual"], faults: [1, "Fault book"] }, ["install", "faults"]))).toEqual([
-      "Searched your library: 4 matching passages",
-      "Read PEAD manual",
-      "Read Fault book",
-    ]);
-    expect(stepsFromTrace(trace({ install: [1, "PEAD manual"] }, ["install"]))[0]).toBe("Searched your library: 1 matching passage");
-  });
-
-  it("are nothing when nothing matched; the miss says that itself", () => {
-    expect(stepsFromTrace(trace({}, []))).toEqual([]);
-    expect(MISS_STEP).toMatch(/nothing in it covers this/);
   });
 });
 

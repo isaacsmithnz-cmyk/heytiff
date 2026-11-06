@@ -5,6 +5,7 @@ import { Button, IconButton } from "@/components/parts/button";
 import { ConfirmDialog } from "@/components/parts/dialog";
 import { Chooser } from "@/components/parts/chooser";
 import { Field, TextArea, TextInput } from "@/components/parts/field";
+import { NoteToken } from "@/components/notes/note-token";
 import { Tray } from "@/components/parts/tabs";
 import { Tick } from "@/components/parts/tick";
 import {
@@ -659,7 +660,8 @@ export function SwmsWizard({
         </div>
       </Group>
       <Field label="Anything different about this site" id="swz-notes">
-        <TextArea rows={3} value={a.siteNotes} onChange={(e) => set({ siteNotes: e.target.value })} />
+        {/* said or typed */}
+        <NoteToken as="field" label="anything different about this site" offer={false} rows={3} value={a.siteNotes} onChange={(siteNotes) => set({ siteNotes })} />
       </Field>
     </div>
   );

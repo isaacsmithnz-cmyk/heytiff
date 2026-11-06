@@ -1,5 +1,4 @@
 import type { Hue } from "@/components/parts/state";
-import type { AskEvent } from "./ask-client";
 import type { KbCategory } from "./files";
 
 /* CONVERSATIONS (v2, step 5; the board v2-board-conversations): the words
@@ -104,30 +103,10 @@ export function forwardedAt(ts: number, now: number): string {
 /** A key that is the same for every moment of one calendar day. */
 export const dayKeyOf = (ts: number): number => startOfDay(ts);
 
-/* ── what Tiff did, ticked in grey ──────────────────────────────────────── */
-
-/* Her working steps come off the search's own report (the `trace` event),
-   so a step is only ever something she did: how much of the library matched,
-   and the documents she read first. Nothing is written to look busier. */
-export function stepsFromTrace(trace: Extract<AskEvent, { t: "trace" }>): string[] {
-  const cats = Object.values(trace.categories ?? {});
-  const total = cats.reduce((n, c) => n + (c?.hits ?? 0), 0);
-  if (total === 0) return [];
-  const steps = [`Searched your library: ${total.toLocaleString("en-AU")} matching ${total === 1 ? "passage" : "passages"}`];
-  for (const w of trace.winners.slice(0, 3)) {
-    const doc = trace.categories[w]?.topDoc;
-    const step = doc ? `Read ${doc}` : null;
-    if (step && !steps.includes(step)) steps.push(step);
-  }
-  return steps;
-}
-
-export const MISS_STEP = "Searched your library: nothing in it covers this";
-
 /* ── a library document's dot ───────────────────────────────────────────── */
 
 /* The five kinds of document, in the eight (rule 15), snapped by hue from
-   the colours the Library's rail still wears: installation's teal to green,
+   the colours the categories carry (tiff/kb): installation's teal to green,
    service's blue, specs' amber to orange, SOPs' violet to purple. Field
    notes' cyan would snap to blue beside service's, so it takes grey. The
    dot always stands beside the kind's own word. */

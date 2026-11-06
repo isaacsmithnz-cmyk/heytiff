@@ -32,6 +32,12 @@ beforeAll(() => {
   /* jsdom has no object URLs */
   URL.revokeObjectURL = jest.fn();
 });
+/* the i asks the server whether the person has read it anywhere: not yet */
+const infoFetch = jest.fn(async (_url: string, _init?: RequestInit) => ({ ok: true, json: async () => ({ read: false }) }));
+beforeAll(() => {
+  global.fetch = infoFetch as unknown as typeof fetch;
+});
+
 beforeEach(() => {
   uploadFile.mockReset();
   deleteDocument.mockClear();
@@ -366,8 +372,10 @@ it("keeps the words in the box when the save fails", async () => {
    "I symbol can disappear after the first press probably" */
 it("puts a little i on Tiff's button that says what she does, until it has been read once", async () => {
   const first = draw({ c: convo({ draft: "Luke, order the grilles" }) });
-  const info = screen.getByRole("button", { name: "What Tiff does with it" });
+  const info = await screen.findByRole("button", { name: "What Tiff does with it" });
   await userEvent.click(info);
+  /* read once is read for the person, on the phone too */
+  await waitFor(() => expect(infoFetch).toHaveBeenCalledWith("/api/tiff/info-read", { method: "POST" }));
   expect(screen.getByRole("note")).toHaveTextContent("Tiff reads it");
   expect(screen.getByRole("note")).toHaveTextContent("Save keeps it as written.");
   await userEvent.click(document.body);

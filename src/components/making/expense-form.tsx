@@ -4,7 +4,8 @@ import { useContext, useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog } from "@/components/parts/dialog";
 import { Button, IconButton } from "@/components/parts/button";
-import { Field, TextArea, TextInput } from "@/components/parts/field";
+import { Field, TextInput } from "@/components/parts/field";
+import { NoteToken } from "@/components/notes/note-token";
 import { Chooser } from "@/components/parts/chooser";
 import { Tray } from "@/components/parts/tabs";
 import { Loading } from "@/components/parts/states";
@@ -542,7 +543,7 @@ export function ExpenseForm({
                   </Field>
                 </div>
                 <Field label="Note">
-                  <TextArea rows={2} value={draft.note} onChange={(e) => set({ note: e.target.value })} />
+                  <NoteToken as="field" label="the note" offer={false} rows={2} value={draft.note} onChange={(note) => set({ note })} />
                 </Field>
               </section>
             )}

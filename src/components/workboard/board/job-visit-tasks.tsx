@@ -4,7 +4,8 @@ import { useEffect, useId, useRef, useState, type DragEvent, type ReactNode } fr
 import { Icon } from "@/components/shell/icon";
 import { Button, buttonClass } from "@/components/parts/button";
 import { Dialog } from "@/components/parts/dialog";
-import { Field, TextArea, TextInput } from "@/components/parts/field";
+import { Field, TextInput } from "@/components/parts/field";
+import { NoteToken } from "@/components/notes/note-token";
 import { Initials } from "@/components/parts/initials";
 import { Menu, type MenuItem } from "@/components/parts/menu";
 import { Row, RowList } from "@/components/parts/row";
@@ -626,7 +627,16 @@ function IssueDialog({
       <div className="mk-form">
         <p className="jv-dline">{[`${task.name}.`, day ? `${fmtAuWeekdayDayMonth(day)},` : "", `${client}.`].filter(Boolean).join(" ")}</p>
         <Field label="What's wrong">
-          <TextArea data-autofocus value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} />
+          {/* said or typed; the 500 holds for said words too, which no
+              maxLength stops */}
+          <NoteToken
+            as="field"
+            label="what's wrong"
+            offer={false}
+            value={note}
+            box={{ "data-autofocus": true, maxLength: 500 }}
+            onChange={(next) => setNote(next.slice(0, 500))}
+          />
         </Field>
         <div className="jv-photo">
           <label className={buttonClass("second", 32, "jv-file")} aria-disabled={busy ? "true" : undefined}>

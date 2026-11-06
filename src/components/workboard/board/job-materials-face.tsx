@@ -12,6 +12,7 @@ import { Tooltip } from "@/components/parts/tooltip";
 import { Icon } from "@/components/shell/icon";
 import { Waiting } from "@/components/ui/orb";
 import { LiveWords, useDictation } from "@/components/notes/dictation";
+import { useNoteScope } from "@/components/notes/note-context";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { splitSpokenList } from "@/lib/workboard/spoken-materials";
 import { onShelves } from "@/lib/workboard/material-shelves";
@@ -209,6 +210,8 @@ export function JobMaterialsFace({
      price book, and nothing is added until a person ticks them */
   const [spoken, setSpoken] = useState<{ name: string; qty: string; hit: MaterialHit | null; on: boolean }[] | null>(null);
   const [voiceErr, setVoiceErr] = useState<string | null>(null);
+  /* the mic only where the workspace has voice on, as every other box */
+  const { voiceEnabled } = useNoteScope();
   const dict = useDictation({
     onTranscript: (said) => {
       setVoiceErr(null);
@@ -259,7 +262,7 @@ export function JobMaterialsFace({
               box, as every voice box shows your words (Isaac, 5 November 2026:
               "line them up"); it showed nothing until Done */}
           {dict.recording ? (
-            <LiveWords line text={dict.interim} className="pt-input pt-input--32" label="The materials you're saying" />
+            <LiveWords line said={text} text={dict.interim} className="pt-input pt-input--32" label="The materials you're saying" />
           ) : (
             <TextInput
               ref={fieldRef}
@@ -287,9 +290,9 @@ export function JobMaterialsFace({
           </Button>
         ) : dict.transcribing ? (
           <Waiting note="Reading back what you said" className="jm-wait" />
-        ) : (
+        ) : voiceEnabled ? (
           <IconButton glyph="mic" size={32} label="Say the materials" onClick={dict.start} disabled={!ready} />
-        )}
+        ) : null}
         <Button type="submit" size={32} disabled={!text.trim() || !ready}>
           Add
         </Button>

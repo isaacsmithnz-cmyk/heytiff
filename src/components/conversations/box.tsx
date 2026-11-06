@@ -202,13 +202,18 @@ export function CvBox({
   );
 }
 
-/** Where the little i is remembered as read, on this device, and read
-    through the store hook so the server's first paint (no i) and the
-    browser's agree. A device that keeps nothing remembers it for the page. */
+/** Where the little i is remembered as read: for the person, on the server
+    (api/tiff/info-read), so pressed on the phone it's gone here too, and on
+    this device as well, so it never flashes in. Read through the store hook
+    so the server's first paint (no i) and the browser's agree; until the
+    server has said, an i this device hasn't seen read stays hidden. A device
+    that keeps nothing remembers it for the page. */
 const READ_KEY = "heytiff.tiff-info-read";
 const readListeners = new Set<() => void>();
 let readNow = false;
-const infoRead = () => {
+/** What the server said: true, false, or null for "not kept" (each device for itself). */
+let serverRead: boolean | null | undefined;
+const localRead = () => {
   if (readNow) return true;
   try {
     return window.localStorage.getItem(READ_KEY) === "1";
@@ -216,22 +221,45 @@ const infoRead = () => {
     return false;
   }
 };
+const keepLocal = () => {
+  readNow = true;
+  try {
+    window.localStorage.setItem(READ_KEY, "1");
+  } catch {
+    /* kept for the page only */
+  }
+};
+const infoRead = () => localRead() || serverRead === undefined || serverRead === true;
+let asked = false;
+const askServer = () => {
+  if (asked) return;
+  asked = true;
+  void Promise.resolve()
+    .then(() => fetch("/api/tiff/info-read", { cache: "no-store" }))
+    .then((r) => (r.ok ? (r.json() as Promise<{ read?: boolean | null }>) : { read: null }))
+    .catch(() => ({ read: null }))
+    .then((b) => {
+      serverRead = typeof b.read === "boolean" ? b.read : null;
+      if (serverRead) keepLocal();
+      for (const fire of readListeners) fire();
+    });
+};
 function useInfoRead(): [boolean, () => void] {
   const read = useSyncExternalStore(
     (fire) => {
       readListeners.add(fire);
+      if (!localRead()) askServer();
       return () => readListeners.delete(fire);
     },
     infoRead,
     () => true,
   );
   const mark = () => {
-    readNow = true;
-    try {
-      window.localStorage.setItem(READ_KEY, "1");
-    } catch {
-      /* kept for the page only */
-    }
+    keepLocal();
+    serverRead = true;
+    void Promise.resolve()
+      .then(() => fetch("/api/tiff/info-read", { method: "POST" }))
+      .catch(() => undefined);
     for (const fire of readListeners) fire();
   };
   return [read, mark];

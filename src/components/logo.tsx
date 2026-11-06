@@ -6,10 +6,10 @@
 
 /* THE MARK'S GEOMETRY, AS DATA. The two strokes used to be typed into the JSX
    below and nowhere else, which was fine while the SVG was the only thing that
-   drew them. The capture card now renders the same chevron as a field of dots
-   (lib/ui/dot-mark), and a second copy of these numbers is a second logo that
-   drifts the first time this one is touched — the same argument `TiffMark` was
-   extracted for one level up. One array, two renderers.
+   drew them. Tiff's mark (notes/tiff-mark) draws the same chevron, and a
+   second copy of these numbers is a second logo that drifts the first time
+   this one is touched — the same argument `TiffMark` was extracted for one
+   level up. One array, every renderer.
 
    `viewBox` is 100 × 100 and the coordinates are in that space. */
 export const CHEVRON_STROKES = [

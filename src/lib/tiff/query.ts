@@ -98,14 +98,6 @@ export async function kbCategoryCounts(orgId: string): Promise<Record<KbCategory
   return counts;
 }
 
-/** One line of the landing's "Recently added" strip. */
-export type KbRecentDoc = {
-  id: string;
-  title: string;
-  category: KbCategory;
-  pageCount: number | null;
-};
-
 /* Every document's CURRENT name, by id.
 
    A CITATION IS A POINTER, NOT A MEMENTO. The title travels with each source

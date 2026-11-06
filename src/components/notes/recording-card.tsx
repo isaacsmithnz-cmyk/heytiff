@@ -1,45 +1,16 @@
 "use client";
 
-import { Icon } from "@/components/shell/icon";
-import { DictClock, LevelOrb, LiveWords, type DictationState } from "./dictation";
+import { DictClock, LevelOrb, type DictationState } from "./dictation";
 
-/* THE RECORDING STAGE, ONCE.
+/* THE RECORDING INSTRUMENT, ONCE.
 
-   Every door into the microphone showed this: the Tiff button's sheet, the
-   debrief card in Home's journal, and Tiff's own ask bar. Isaac's rule, and
-   the reason this file exists — "the input section should be identical
-   throughout the software; they just appear in different places." The
-   debrief card went on 2026-09-25 and the sheet with the old capture UI on
-   2026-09-27 — every Tiff button opens the Tiff modal, which listens in its
-   own dock — so Tiff's ask bar is where it stands now.
-
-   IT IS THE CONTENT, NOT THE CONTAINER, and that split is what let the same
-   card stand in three places that were shaped differently. The sheet
-   portalled itself over a scrim, the debrief and Tiff's composer grew in the
-   page, and none of that was decided here. What IS decided here is
-   everything you look at while you are talking: what you have said so far,
-   the clock, and the three ways out.
-
-   THE THREE WAYS OUT ARE ALL THE ENGINE'S, so this needs no callbacks and
-   no flow. `handOver` stops and keeps the words for the box, `restart` bins
-   this take and opens a fresh mic, `stop` ends it for real — all three come
-   off `useDictation`, which every door already holds. That is the whole
-   reason a shared card was possible at all: the postures differed, the
-   engine never did.
-
-   EVERY BUTTON IS `type="button"`, AND THAT IS LOAD-BEARING. Tiff's composer
-   is a `<form>`, and a bare `<button>` inside one defaults to `submit` — so
-   the moment this card was reused there, "Start again" would have asked
-   Tiff the half-finished question instead of binning the take. The note
-   postures never sat in a form and never needed it, which is exactly how a
-   shared component inherits a bug from the one place it did not have to
-   think about.
-
-   WHAT HAPPENS TO THE WORDS AFTERWARDS IS NOT THIS CARD'S BUSINESS, and it
-   genuinely differed. The note flow sorted them and asked you to check what
-   was made of them; Tiff drops them in the ask box and waits for you to
-   press send, because a question already knows what it is. Identical up to
-   `Done`, and deliberately not past it. */
+   Every door into the microphone showed the same stage: the Tiff button's
+   sheet, the debrief card in Home's journal, and Tiff's own ask bar. Isaac's
+   rule, and the reason this file exists: "the input section should be
+   identical throughout the software; they just appear in different places."
+   The sheet and the debrief went in September 2026, and the Library's ask
+   bar, the card's last door, in November; what is left is the meter the
+   note postures carry in their rows. */
 
 export type RecordingMeterProps = {
   dict: DictationState;
@@ -82,115 +53,6 @@ export function RecordingMeter({ dict, compact }: RecordingMeterProps) {
     <div className={"wb2-recwave" + (compact ? " compact" : "")}>
       <DictClock seconds={dict.seconds} big={!compact} />
       <LevelOrb innerRef={dict.barsRef} />
-    </div>
-  );
-}
-
-export type RecordingCardProps = {
-  dict: DictationState;
-  /** What is already captured — the box's value, whatever box that is. The
-      live words are joined onto it here rather than by the caller, so every
-      door performs the same join. */
-  text: string;
-};
-
-export function RecordingCard({ dict, text }: RecordingCardProps) {
-  /* WHAT YOU HAVE ALREADY SAID STAYS ON SCREEN (Isaac, 2026-08-10, walking a
-     second leg): "if I click talk, it looks like you're starting again
-     because it doesn't show you what text it's already got on there."
-
-     It was never starting again — every leg appends, and the words were safe
-     the whole time. But this stage REPLACED the box with the meter, so a
-     second leg looked exactly like a first one. The card was hiding the only
-     evidence that it had kept anything.
-
-     IT IS NOT A TEXTAREA ANY MORE, and that is the whole of the smoothness
-     (Isaac, 2026-08-19: "words are appearing a bit jumpy when arriving as you
-     speak"). A textarea can only take the sentence as ONE STRING, so every
-     partial swapped the lot — the per-word glide `LiveWords` was written for
-     could not run inside it, a burst of three words appeared in one frame,
-     and nothing rode the newest word, so past four lines the words you were
-     saying were below the fold. The record and the arrival are two different
-     things and now render as two: `said` is the ink you have already read,
-     the live words glide in after it.
-
-     IT STILL SHOWS NOTHING ON AN EMPTY FIRST LEG — an empty box in that
-     space is the hole #367's audit closed, and a window with no words in it
-     is exactly that. What changed is how it ARRIVES: it used to snap open at
-     the first word and shove the meter and every button down mid-sentence,
-     and it now eases open once (`wb2LiveIn`) and then holds a FIXED height
-     for the rest of the recording. One soft growth, then nothing on this
-     card moves again except the words. */
-  const shows = Boolean(text.trim() || dict.interim);
-
-  return (
-    <div className="wb2-caprec">
-      {shows && <LiveWords className="wb2-livetext" said={text} text={dict.interim} />}
-      {/* THE CLOCK HOLDS THE BOTTOM LEFT. It used to stand beside the meter,
-          above the words; with the instrument lifted out of this card (the
-          field spans stages, so it is mounted by the door — see the ask bar
-          in ../tiff/assistant) there is nothing for it to stand beside. On
-          the actions row it needs no wrapper: `.wb2-capact` is flush right,
-          and one auto margin pushes everything else across.
-
-          Tabular figures are load-bearing at this size — proportional digits
-          make the whole row twitch on every tick. */}
-      <div className="wb2-capact">
-        <DictClock seconds={dict.seconds} big />
-        {/* THE WAY OUT TO THE KEYBOARD, and during a recording it is the only
-            thing this slot does. Audited 2026-08-10: the strongest position on
-            the row went to a Default switch — a control about what the Tiff
-            button does NEXT time, with its Talk half already pressed, half of
-            it inert and all of it about later. The preference returns the
-            moment the mic closes, which is the only place you can act on it.
-
-            It keeps every word: `handOver` puts what you have said in the box
-            rather than routing it, so changing your mind mid-sentence costs
-            nothing. */}
-        <button type="button" className="pbtn ghost wb2-modeone" onClick={dict.handOver}>
-          <Icon name="keyboard" size={15} />
-          Type instead
-        </button>
-        {/* START THAT ONE AGAIN (Isaac, 2026-08-10). The way to redo a fluffed
-            recording was to close the card — losing the tag it came with — and
-            open it again. It BINS what you have said, on purpose and without
-            asking: a confirm step would make the fast path slower than
-            starting over by hand, and the two chimes (thrown away, then
-            listening) are the receipt.
-
-            Ghost, not primary. It is the recovery, and the card must not offer
-            two bright buttons to a person mid-sentence. */}
-        <button
-          type="button"
-          className="pbtn ghost"
-          onClick={dict.restart}
-        >
-          <Icon name="rotate" size={14} sw={1.9} />
-          Start again
-        </button>
-        {/* DONE, NOT GO (Isaac, 2026-08-10, after walking it on prod:
-            "annoyingly you have to push go twice").
-
-            It was Go for half a day, on the argument that both presses are
-            simply the way onward. Walking it says otherwise: you press a
-            button called Go, and nothing goes — it stops the mic and hands you
-            a box to check. Two presses is the design and it is the right one,
-            but only ONE of them commits anything, and that is the one allowed
-            to be called Go. So this stage ends with `Done` and the next one
-            commits. A chat composer works the same way: the mic button stops,
-            the send button sends, and nobody confuses them.
-
-            AND THE SQUARE IS GONE. It survived two rounds of argument — "that
-            black square next to go is weird", answered by making it smaller,
-            thinner and paler — and Isaac's verdict on the third look was that
-            it is still stupid. He is right, and the reason is that the
-            original defence stopped being true: the glyph was there because
-            the word "Go" did not say the microphone was closing. "Done" does.
-            A stop mark beside it is the same thing said twice. */}
-        <button type="button" className="pbtn wb2-prim" onClick={dict.stop}>
-          Done
-        </button>
-      </div>
     </div>
   );
 }

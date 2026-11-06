@@ -6,6 +6,21 @@ jest.mock("@/app/actions/job-documents", () => ({ attachJobDocument: (...a: unkn
 
 import { JobVisits, VisitDialog, type ComingVisit, type PastVisit } from "../job-visit-tasks";
 import type { JobTask, TaskUpdate } from "@/lib/workboard/visit-tasks";
+import { NoteScopeProvider } from "@/components/notes/note-context";
+
+/** The engine, with its transcript handed over by the test. */
+const heard: { say?: (words: string) => void } = {};
+jest.mock("@/components/notes/dictation", () => {
+  const actual = jest.requireActual("@/components/notes/dictation");
+  return {
+    ...actual,
+    useDictation: (opts: { onTranscript: (w: string) => void }) => {
+      const react = jest.requireActual("react") as typeof import("react");
+      heard.say = opts.onTranscript;
+      return { recording: false, arming: false, transcribing: false, interim: "", seconds: 0, barsRef: react.createRef(), start: jest.fn(), stop: jest.fn(), handOver: jest.fn(), cancel: jest.fn(), restart: jest.fn() };
+    },
+  };
+});
 
 /* Isaac's mock of 25 October 2026, frames 1 to 4 (job 2043 JT Construct):
    "now I think we're ready to build" */
@@ -220,6 +235,38 @@ describe("on the day", () => {
     });
     expect(sent("PUT")).toEqual([{ job: "job-1", edit: { kind: "issue", id: ID(3), note: "No gas on site", documentId: "7a1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4c" } }]);
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  /* 7 November 2026 (Isaac: "Fix all of those"): what's wrong takes the
+     voice where the workspace has it */
+  it("takes what's wrong said, where voice is on, and saves it on the task", async () => {
+    render(
+      <NoteScopeProvider voiceEnabled>
+        <JobVisits job="job-1" visible client="JT Construct" zone="Australia/Sydney" coming={COMING} previous={PAST} workOrderDate="2026-08-01 00:00:00" onBook={onBook} onOpen={onOpen} />
+      </NoteScopeProvider>,
+    );
+    await screen.findByText("1 of 4 done");
+    fireEvent.click(onTheDay().getByRole("button", { name: "Started" }));
+    fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "Issue" }));
+    const dialog = within(screen.getByRole("dialog", { name: "An issue with this task" }));
+    expect(dialog.getByLabelText("What's wrong")).toHaveFocus();
+    expect(dialog.getByRole("button", { name: "Dictate — what's wrong" })).toBeInTheDocument();
+    act(() => heard.say!("No gas on site"));
+    expect(dialog.getByLabelText("What's wrong")).toHaveValue("No gas on site");
+    await act(async () => {
+      fireEvent.click(dialog.getByRole("button", { name: "Save issue" }));
+    });
+    expect(sent("PUT")).toEqual([{ job: "job-1", edit: { kind: "issue", id: ID(3), note: "No gas on site", documentId: null } }]);
+  });
+
+  it("has no microphone on what's wrong where voice is off", async () => {
+    mount();
+    await screen.findByText("1 of 4 done");
+    fireEvent.click(onTheDay().getByRole("button", { name: "Started" }));
+    fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "Issue" }));
+    const dialog = within(screen.getByRole("dialog", { name: "An issue with this task" }));
+    expect(dialog.queryByRole("button", { name: /^Dictate/ })).toBeNull();
+    expect(dialog.getByLabelText("What's wrong")).toHaveAttribute("maxLength", "500");
   });
 
   it("clears an issue a task has", async () => {

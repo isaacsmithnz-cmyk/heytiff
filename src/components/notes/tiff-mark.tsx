@@ -26,8 +26,8 @@ import { CHEVRON_STROKES } from "@/components/logo";
    a step darker, because a white face on white is nothing. The rings follow:
    light-headed on ink, coloured on paper.
 
-   The shapes are `CHEVRON_STROKES`, the same data the logo and the dot field
-   draw from, so there is still one chevron in the codebase. */
+   The shapes are `CHEVRON_STROKES`, the same data the logo draws from, so
+   there is still one chevron in the codebase. */
 
 export type Ground = "ink" | "paper";
 

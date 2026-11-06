@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { FeedItem } from "@/lib/dashboard/your-feed";
 
@@ -25,8 +25,22 @@ jest.mock("@/components/making/task-form", () => ({
 }));
 jest.mock("@/app/actions/reminders", () => ({ snoozeReminder: jest.fn() }));
 jest.mock("@/app/actions/booking-sm8", () => ({ readBookInContext: jest.fn(), bookJobIn: jest.fn(), takeBackBooking: jest.fn() }));
+/** The engine, with its transcript handed over by the test. */
+const heard: { say?: (words: string) => void } = {};
+jest.mock("@/components/notes/dictation", () => {
+  const actual = jest.requireActual("@/components/notes/dictation");
+  return {
+    ...actual,
+    useDictation: (opts: { onTranscript: (w: string) => void }) => {
+      const react = jest.requireActual("react") as typeof import("react");
+      heard.say = opts.onTranscript;
+      return { recording: false, arming: false, transcribing: false, interim: "", seconds: 0, barsRef: react.createRef(), start: jest.fn(), stop: jest.fn(), handOver: jest.fn(), cancel: jest.fn(), restart: jest.fn() };
+    },
+  };
+});
 
 import { HomeFeed } from "../home-feed";
+import { NoteScopeProvider } from "@/components/notes/note-context";
 
 const item = (over: Partial<FeedItem> & Pick<FeedItem, "key" | "filter">): FeedItem => ({
   who: { name: "Someone", sm8: false },
@@ -91,7 +105,7 @@ it("(F) replies where the mention is: the reply goes to ServiceM8 through the jo
   await userEvent.click(within(luke).getByRole("button", { name: "Reply" }));
   await userEvent.type(within(luke).getByRole("textbox", { name: "Reply to Luke Parker" }), "Ordering them now");
   await userEvent.click(within(luke).getByRole("button", { name: "Send" }));
-  expect(replyToJobNote).toHaveBeenCalledWith(expect.objectContaining({ jobUuid: "job-1", sourceNoteUuid: "n1", words: "Ordering them now", closesTaskId: "t9" }));
+  expect(replyToJobNote).toHaveBeenCalledWith(expect.objectContaining({ jobUuid: "job-1", sourceNoteUuid: "n1", words: "Ordering them now", spoken: false, closesTaskId: "t9" }));
   expect(await within(luke).findByText("You: Ordering them now")).toBeInTheDocument();
   expect(within(luke).queryByRole("button", { name: "Reply" })).toBeNull();
   expect(refresh).toHaveBeenCalled();
@@ -102,9 +116,41 @@ it("(F) keeps your words and says why when the reply didn't go", async () => {
   draw();
   const luke = within(list()).getByText("Luke Parker").closest("li")!;
   await userEvent.click(within(luke).getByRole("button", { name: "Reply" }));
-  await userEvent.type(within(luke).getByRole("textbox", { name: "Reply to Luke Parker" }), "On it{Enter}");
+  await userEvent.type(within(luke).getByRole("textbox", { name: "Reply to Luke Parker" }), "On it");
+  await userEvent.click(within(luke).getByRole("button", { name: "Send" }));
   expect(await within(luke).findByRole("alert")).toHaveTextContent("That job isn't in ServiceM8's copy any more.");
   expect(within(luke).getByRole("textbox", { name: "Reply to Luke Parker" })).toHaveValue("On it");
+});
+
+/* 7 November 2026 (Isaac: "Fix all of those"): the feed's reply is the job
+   card's, so it can be said where the workspace has voice */
+it("(F) a reply can be said, as on the job's card, and goes as said", async () => {
+  replyToJobNote.mockResolvedValue({ ok: true, note: {} });
+  render(
+    <NoteScopeProvider voiceEnabled>
+      <HomeFeed items={[LUKE]} />
+    </NoteScopeProvider>,
+  );
+  const luke = within(list()).getByText("Luke Parker").closest("li")!;
+  await userEvent.click(within(luke).getByRole("button", { name: "Reply" }));
+  const box = within(luke).getByRole("textbox", { name: "Reply to Luke Parker" });
+  expect(box).toHaveFocus();
+  expect(box).toHaveAttribute("placeholder", "Reply to Luke");
+  expect(within(luke).getByRole("button", { name: "Dictate — a reply" })).toBeInTheDocument();
+  act(() => heard.say!("Ordering them now"));
+  expect(box).toHaveValue("Ordering them now");
+  /* a reply is a reply: no offer to sort it out with Tiff */
+  expect(within(luke).queryByText(/something to do in this/)).toBeNull();
+  await userEvent.click(within(luke).getByRole("button", { name: "Send" }));
+  expect(replyToJobNote).toHaveBeenCalledWith(expect.objectContaining({ sourceNoteUuid: "n1", words: "Ordering them now", spoken: true, closesTaskId: "t9" }));
+  expect(await within(luke).findByText("You: Ordering them now")).toBeInTheDocument();
+});
+
+it("(F) a reply has no microphone where the workspace has no voice", async () => {
+  draw([LUKE]);
+  const luke = within(list()).getByText("Luke Parker").closest("li")!;
+  await userEvent.click(within(luke).getByRole("button", { name: "Reply" }));
+  expect(within(luke).queryByRole("button", { name: /^Dictate/ })).toBeNull();
 });
 
 it("(F) opening work given to you says you've seen it, with no Got it button (Isaac, 5 November 2026)", async () => {

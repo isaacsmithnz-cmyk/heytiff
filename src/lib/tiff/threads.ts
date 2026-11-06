@@ -3,8 +3,8 @@ import type { AskSourceItem } from "./ask-client";
 /* TIFF'S THREADS: what one is, where the browser keeps it, and how the
    browser's copy and the server's agree.
 
-   A thread is a person's conversation with Tiff. The Library's ask and v2's
-   Conversations show the same threads (components/tiff/assistant.tsx). They
+   A thread is a person's conversation with Tiff, shown in v2's
+   Conversations (components/tiff/assistant.tsx). They
    lived in localStorage alone, which lost them at the cutover and kept them
    on one device; docs/migrations/tiff_threads.sql gives them a table, NOT
    YET APPLIED. Until it is, the browser's copy is the only one and nothing

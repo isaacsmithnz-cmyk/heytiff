@@ -293,9 +293,8 @@ describe("the orb-say chip is readable on every surface it stands on", () => {
      The light well is the darkest of the five, and its dot grid is the darkest
      PIXEL anywhere under the chip — 1px dots on a 26px pitch, under the ask
      bar, which a scan of `background-color` alone never sees. */
-  const WELL = hex("#EDEFF4"); // .fg .outlet — under Tiff's ask bar
+  const WELL = hex("#EDEFF4"); // .fg .outlet, the page's well
   const SAY_GROUNDS: Record<string, number[]> = {
-    "the transcript bubble #fff (.fg .tmsg.bot .tmb)": WHITE,
     "the notes card #fff (.fg .card2)": WHITE,
     "the portalled sheet #fff (.wb2-sheet)": WHITE,
     "the light well #EDEFF4 (.fg .outlet)": WELL,
@@ -346,12 +345,13 @@ describe("the orb-say chip is readable on every surface it stands on", () => {
     expect(m![1]!.toLowerCase()).toBe(resolved().toLowerCase());
   });
 
-  /* The two rules that outranked the chip. `.fg .tvsay` is (0,2,0) and
-     `.wb2-dicthint` is (0,1,0) declared 3,700 lines later — both beat
-     `.orb-say` (0,1,0), so the sphere was grey in four of the five slots and
-     so was the word under prefers-reduced-motion. */
-  it("keeps its own colour in the slots that set a grey on the same element", () => {
-    const rule = CSS.match(/\.orb-say\.tvsay, \.orb-say\.wb2-dicthint \{([^}]*)\}/);
+  /* The rule that outranked the chip. `.wb2-dicthint` is (0,1,0) declared
+     3,700 lines later, so it beats `.orb-say` (0,1,0), and the sphere was
+     grey in that slot and so was the word under prefers-reduced-motion.
+     (`.fg .tvsay`, under the Library's ask bar, did the same until the bar
+     went.) */
+  it("keeps its own colour in the slot that sets a grey on the same element", () => {
+    const rule = CSS.match(/\.orb-say\.wb2-dicthint \{([^}]*)\}/);
     expect(rule).not.toBeNull();
     expect(rule![1]).toMatch(/color: *var\(--say-ink\)/);
   });
@@ -398,12 +398,12 @@ describe("quiet text on the dark chrome", () => {
   });
 
   /* THE SWEEP. Every white-alpha `color:` under a shell selector, held to the
-     text floor — scoped to the chrome, because `.wb2-dusk` (the elevated dark)
-     and `.idc` are dark surfaces with DIFFERENT grounds and would be measured
-     against the wrong one here. Those are named so the omission is a decision,
+     text floor — scoped to the chrome, because `.wb2-toast` and `.idc` are
+     dark surfaces with DIFFERENT grounds and would be measured against the
+     wrong one here. Those are named so the omission is a decision,
      not an oversight. (The old Home's dark `.hm-card` was one, and went with
      that Home.) */
-  const OTHER_DARK = /wb2-dusk|wb2-capcard|wb2-caprec|wb2-toast|idc|nb-lb-open/;
+  const OTHER_DARK = /wb2-toast|idc|nb-lb-open/;
   const code = CSS.replace(/\/\*[\s\S]*?\*\//g, "");
   /* The chrome's text is written as the tokens since the sweep (2026-09-15):
      `--on-ink-q` is the quiet paper, `--paper` the full one. Both resolve to an

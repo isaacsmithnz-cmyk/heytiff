@@ -5,10 +5,9 @@ import { DOTS, Orb, Waiting } from "../orb";
 
    THE PROJECTION IS UNPROVABLE HERE and deliberately untested — jsdom has no
    layout, no `perspective` and no compositor, so where a dot LANDS is the
-   browser's answer and nothing in this file can ask the question. That is the
-   same line the search lines draw (tiff/research-lines.tsx): the geometry is
-   the renderer's, the choreography is ours, and only the second one is
-   asserted.
+   browser's answer and nothing in this file can ask the question: the
+   geometry is the renderer's, the choreography is ours, and only the second
+   one is asserted.
 
    What IS provable is the shell handed to the renderer — that the sphere is a
    sphere and not a heap, that every dot carries the two angles the stylesheet
@@ -145,8 +144,8 @@ describe("the wait, named", () => {
   });
 
   /* Callers pass the class of the slot the plain grey line used to hold —
-     `tvsay` under Tiff's ask bar, `wb2-dicthint` on the note postures — so
-     the chip inherits those margins and nothing around the control moves. */
+     `wb2-dicthint` on the note postures, `cv-say` under a box — so the chip
+     inherits those margins and nothing around the control moves. */
   it("takes the caller's slot class without losing its own", () => {
     const { container } = render(<Waiting note="Reading it back" className="wb2-dicthint" />);
     const chip = container.querySelector(".orb-say");

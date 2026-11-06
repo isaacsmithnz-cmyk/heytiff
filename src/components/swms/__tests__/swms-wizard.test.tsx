@@ -3,7 +3,7 @@
    problem takes you to its answer, and nothing issues until the site has
    been walked. */
 
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { SwmsPrevious, SwmsWizardContext } from "@/app/actions/swms";
 import { BELL_REFRESH_EVENT } from "@/lib/dashboard/chips";
@@ -21,7 +21,22 @@ jest.mock("@/app/actions/swms", () => ({
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn(), push: jest.fn() }) }));
 
+/** The engine, with its transcript handed over by the test. */
+const heard: { say?: (words: string) => void } = {};
+jest.mock("@/components/notes/dictation", () => {
+  const actual = jest.requireActual("@/components/notes/dictation");
+  return {
+    ...actual,
+    useDictation: (opts: { onTranscript: (w: string) => void }) => {
+      const react = jest.requireActual("react") as typeof import("react");
+      heard.say = opts.onTranscript;
+      return { recording: false, arming: false, transcribing: false, interim: "", seconds: 0, barsRef: react.createRef(), start: jest.fn(), stop: jest.fn(), handOver: jest.fn(), cancel: jest.fn(), restart: jest.fn() };
+    },
+  };
+});
+
 import { SwmsWizard } from "../swms-wizard";
+import { NoteScopeProvider } from "@/components/notes/note-context";
 
 const context = (over: Partial<SwmsWizardContext> = {}): SwmsWizardContext => ({
   job: {
@@ -122,7 +137,10 @@ describe("what the job already says", () => {
     await tab("Who it covers");
     expect(screen.getByRole("button", { name: "Back" })).toHaveClass("pt-btn--second");
     expect(screen.getByLabelText("First aider")).toHaveClass("pt-chooser");
-    expect(dialog.querySelector('[class*="wb2-"], .pbtn, .seg, select, [class^="sw-"]')).toBeNull();
+    /* the one exception is the field mic's own frame round the site's notes
+       (7 November 2026): the box in it is v2's TextArea */
+    expect(screen.getByLabelText("Anything different about this site")).toHaveClass("pt-textarea");
+    expect(dialog.querySelector('[class*="wb2-"]:not(.wb2-dict), .pbtn, .seg, select, [class^="sw-"]')).toBeNull();
   });
 
   /* A MELBOURNE JOB whose address never spells "VIC" was written to New South
@@ -391,6 +409,35 @@ describe("the review", () => {
     await userEvent.click(screen.getByRole("button", { name: "Sign on now" }));
     expect(onSignOn).toHaveBeenCalledWith("v-1");
     window.removeEventListener(BELL_REFRESH_EVENT, bell);
+  });
+
+  /* 7 November 2026 (Isaac: "Fix all of those"): what's different about the
+     site takes the voice where the workspace has it */
+  it("takes what's different about the site said, where voice is on, and issues with it", async () => {
+    render(
+      <NoteScopeProvider voiceEnabled>
+        <SwmsWizard jobUuid="job-1" reviseVersionId={null} onClose={onClose} onIssued={onIssued} onSignOn={onSignOn} onOpen={onOpen} />
+      </NoteScopeProvider>,
+    );
+    await ready();
+    await fillInstall();
+    await userEvent.type(screen.getByLabelText("Their name"), "Kai Lindqvist");
+    await tab("How it's done");
+    expect(screen.getByRole("button", { name: "Dictate — anything different about this site" })).toBeInTheDocument();
+    act(() => heard.say!("Dog in the yard"));
+    expect(screen.getByLabelText("Anything different about this site")).toHaveValue("Dog in the yard");
+    await tab("Review");
+    await userEvent.click(screen.getByRole("checkbox", { name: /walked this site/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Issue the SWMS" }));
+    expect(issueSwms).toHaveBeenCalledWith(expect.objectContaining({ answers: expect.objectContaining({ siteNotes: "Dog in the yard" }) }));
+  });
+
+  it("has no microphone on the site's notes where voice is off", async () => {
+    open();
+    await ready();
+    await tab("How it's done");
+    expect(screen.getByLabelText("Anything different about this site")).toHaveAttribute("id", "swz-notes");
+    expect(screen.queryByRole("button", { name: /^Dictate/ })).toBeNull();
   });
 
   /* the tick is right there, but a greyed-out button that says nothing is

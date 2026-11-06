@@ -1,10 +1,8 @@
 "use client";
 
 /* The browser's half of asking — reads /api/brain/ask's NDJSON and hands the
-   caller typed events. Same reader shape as tiff/ask-client, small enough to
-   not share code with it: the two wires will drift apart when the assistant
-   swaps onto this brain, and a premature abstraction would have to survive
-   that. */
+   caller typed events. Conversations asks through it too since 7 November
+   2026, when the Library's own reader of /api/tiff/ask went. */
 
 import type { NoteTarget } from "@/app/actions/workboard-notes";
 

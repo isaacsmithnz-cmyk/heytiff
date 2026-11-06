@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { FleetActions } from "../../fleet-state";
 import type { NewLog, Vehicle } from "../../logic";
 import { VehicleModal } from "..";
+import { NoteScopeProvider } from "@/components/notes/note-context";
 
 /* Logging as a screen of the card. What is under test is what Save hands the
    register's addLog — the stored document, the tax figures, the paper's date,
@@ -22,6 +23,20 @@ jest.mock("@/app/actions/fleet-ai", () => ({
   readFinanceAgreement: jest.fn(async () => ({ ok: false, reason: "no-key" })),
   readPurchaseInvoice: jest.fn(async () => ({ ok: false, reason: "no-key" })),
 }));
+
+/** The engine, with its transcript handed over by the test. */
+const heard: { say?: (words: string) => void } = {};
+jest.mock("@/components/notes/dictation", () => {
+  const actual = jest.requireActual("@/components/notes/dictation");
+  return {
+    ...actual,
+    useDictation: (opts: { onTranscript: (w: string) => void }) => {
+      const react = jest.requireActual("react") as typeof import("react");
+      heard.say = opts.onTranscript;
+      return { recording: false, arming: false, transcribing: false, interim: "", seconds: 0, barsRef: react.createRef(), start: jest.fn(), stop: jest.fn(), handOver: jest.fn(), cancel: jest.fn(), restart: jest.fn() };
+    },
+  };
+});
 
 const TODAY = "2026-09-02";
 
@@ -93,25 +108,27 @@ function fleet(): FleetActions {
   };
 }
 
-function mount(screenName: "add:fuel" | "add:service" | "add:odo" | "add:issue") {
+function mount(screenName: "add:fuel" | "add:service" | "add:odo" | "add:issue", voiceEnabled = false) {
   const f = fleet();
   const onClose = jest.fn();
   render(
-    <VehicleModal
-      vehicle={triton}
-      logs={[]}
-      eco={{}}
-      documents={[]}
-      policies={[]}
-      finance={[]}
-      staff={[]}
-      today={TODAY} warnDays={30}
-      fleet={f}
-      initialScreen={screenName}
-      onClose={onClose}
-      onEdit={jest.fn()}
-      onCorrect={jest.fn()}
-    />,
+    <NoteScopeProvider voiceEnabled={voiceEnabled}>
+      <VehicleModal
+        vehicle={triton}
+        logs={[]}
+        eco={{}}
+        documents={[]}
+        policies={[]}
+        finance={[]}
+        staff={[]}
+        today={TODAY} warnDays={30}
+        fleet={f}
+        initialScreen={screenName}
+        onClose={onClose}
+        onEdit={jest.fn()}
+        onCorrect={jest.fn()}
+      />
+    </NoteScopeProvider>,
   );
   return { f, onClose, user: userEvent.setup() };
 }
@@ -267,5 +284,21 @@ describe("Update odometer and Report an issue", () => {
     await user.click(screen.getByRole("button", { name: "Report issue" }));
     expect(logged(f)).toEqual({ vehicleId: "v1", kind: "issue", note: "Wiper blade split" });
     await waitFor(() => expect(screen.getByRole("heading", { name: "WORK TRITON" })).toBeInTheDocument());
+  });
+
+  it("an issue has no microphone where the workspace has no voice", () => {
+    mount("add:issue");
+    expect(screen.queryByRole("button", { name: /^Dictate/ })).toBeNull();
+  });
+
+  /* 7 November 2026 (Isaac: "Fix all of those"): what's wrong takes the
+     voice where the workspace has it */
+  it("an issue can be said, where voice is on, and its words are what's logged", async () => {
+    const { f, user } = mount("add:issue", true);
+    expect(screen.getByRole("button", { name: "Dictate — what's wrong" })).toBeInTheDocument();
+    act(() => heard.say!("Wiper blade split"));
+    expect(screen.getByRole("textbox", { name: "What's wrong" })).toHaveValue("Wiper blade split");
+    await user.click(screen.getByRole("button", { name: "Report issue" }));
+    expect(logged(f)).toEqual({ vehicleId: "v1", kind: "issue", note: "Wiper blade split" });
   });
 });

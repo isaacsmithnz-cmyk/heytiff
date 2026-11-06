@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { Conversations } from "@/components/conversations/conversations";
-import { kbCategoryCounts, kbDocTitles } from "@/lib/tiff/query";
+import { kbDocTitles } from "@/lib/tiff/query";
 import { isTranscriptionConfigured } from "@/lib/voice/transcribe";
 import { viewOf } from "@/lib/tiff/conversations";
 import { readInbox } from "@/lib/email/inbox-server";
@@ -13,15 +13,14 @@ import { readInbox } from "@/lib/email/inbox-server";
    were a third, Only me, and are Your name › Notes now: an old `?view=me` goes
    there.
 
-   Gated as the Library's ask is, by `tiff`: All is asking Tiff, and a
-   leaf route is deep-linkable, so the route is gated, not just the row in
-   the sidebar.
+   Gated by `tiff`, asking Tiff's own capability: a leaf route is
+   deep-linkable, so the route is gated, not just the row in the sidebar.
 
    The threads are not read here. They are this browser's (localStorage),
    and the server's copy, once docs/migrations/tiff_threads.sql is applied,
    is fetched by the page itself (lib/tiff/thread-sync.ts). What is read
-   here is the Inbox's rows and what the assistant needs to answer: how many
-   documents are ready, and their current names for what she cites. */
+   here is the Inbox's rows and what the assistant needs to draw her
+   answers: the documents' current names, for what she cites. */
 
 type Params = Promise<Record<string, string | string[] | undefined>>;
 
@@ -37,8 +36,7 @@ export default async function ConversationsPage({ searchParams }: { searchParams
   const userSub = session?.user?.sub as string | undefined;
   if (!orgId || !userSub) redirect("/dashboard");
 
-  const [counts, canManage, docTitles, inbox] = await Promise.all([kbCategoryCounts(orgId), can("tiff_manage"), kbDocTitles(orgId), readInbox(orgId, userSub).catch(() => [])]);
-  const readyCount = Object.values(counts).reduce((sum, n) => sum + n, 0);
+  const [canManage, docTitles, inbox] = await Promise.all([can("tiff_manage"), kbDocTitles(orgId), readInbox(orgId, userSub).catch(() => [])]);
 
   const open = one(params.open)?.slice(0, 80) || null;
   const view = viewOf(one(params.view), open);
@@ -46,8 +44,6 @@ export default async function ConversationsPage({ searchParams }: { searchParams
 
   return (
     <Conversations
-      counts={counts}
-      readyCount={readyCount}
       canManage={canManage}
       docTitles={docTitles}
       voiceEnabled={isTranscriptionConfigured()}

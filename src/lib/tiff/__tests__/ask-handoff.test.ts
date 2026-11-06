@@ -1,52 +1,20 @@
 import {
   ASK_HANDOFF_KEY,
   CODE_CAP,
-  TITLE_CAP,
-  askPrefill,
   consumeAskHandoff,
   faultCodePrefill,
   writeAskScope,
   writeAskText,
 } from "../ask-handoff";
 
-/* The note a library row leaves for the composer.
+/* The note a library row or the Fault Finder leaves for the box.
 
-   What these pin: the opener is a sentence somebody can finish, the document
-   is named in it, and the note is read exactly once — a second read has to
-   come back empty or a refresh would re-ask a question that was already
-   asked. */
+   What these pin: the opener is a sentence somebody can finish, a library
+   row hands over the document itself, and the note is read exactly once — a
+   second read has to come back empty or a refresh would re-ask a question
+   that was already asked. */
 
 beforeEach(() => sessionStorage.clear());
-
-describe("the opener", () => {
-  it("names the document and leaves the caret mid-sentence", () => {
-    expect(askPrefill("City Multi fault codes")).toBe("In “City Multi fault codes”, ");
-  });
-
-  it("keeps a long title readable rather than filling the composer with it", () => {
-    const long = "Mitsubishi Electric ".repeat(12).trim();
-    const prefill = askPrefill(long);
-
-    expect(prefill.length).toBeLessThan(long.length);
-    expect(prefill).toMatch(/…”, $/);
-    expect(prefill.startsWith("In “Mitsubishi Electric")).toBe(true);
-  });
-
-  it("quotes a title right on the cap in full", () => {
-    const exact = "x".repeat(TITLE_CAP);
-    expect(askPrefill(exact)).toBe(`In “${exact}”, `);
-    expect(askPrefill("y".repeat(TITLE_CAP + 1))).toContain("…");
-  });
-
-  it("flattens a title that carries line breaks", () => {
-    expect(askPrefill("  City Multi\nfault codes\t ")).toBe("In “City Multi fault codes”, ");
-  });
-
-  it("has nothing to say about a document with no title", () => {
-    expect(askPrefill("   ")).toBe("");
-    expect(askPrefill(undefined as unknown as string)).toBe("");
-  });
-});
 
 /* The Fault Finder's version of the same note. A diagnosis that lands on a
    code is the one place these trees can't answer, so the code travels here

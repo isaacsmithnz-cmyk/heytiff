@@ -1,10 +1,24 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { EditLogModal } from "../modals";
 import type { VehicleLog } from "../logic";
+import { NoteScopeProvider } from "@/components/notes/note-context";
 
 jest.mock("@/app/actions/fleet-ai", () => ({ readFuelReceipt: jest.fn(), readServiceRecord: jest.fn() }));
 jest.mock("@/lib/documents/upload-client", () => ({ uploadFile: jest.fn() }));
+/** The engine, with its transcript handed over by the test. */
+const heard: { say?: (words: string) => void } = {};
+jest.mock("@/components/notes/dictation", () => {
+  const actual = jest.requireActual("@/components/notes/dictation");
+  return {
+    ...actual,
+    useDictation: (opts: { onTranscript: (w: string) => void }) => {
+      const react = jest.requireActual("react") as typeof import("react");
+      heard.say = opts.onTranscript;
+      return { recording: false, arming: false, transcribing: false, interim: "", seconds: 0, barsRef: react.createRef(), start: jest.fn(), stop: jest.fn(), handOver: jest.fn(), cancel: jest.fn(), restart: jest.fn() };
+    },
+  };
+});
 
 /* Correcting an entry. The modal opens on the FIGURES, not on a camera — this
    is the job LogModal deliberately doesn't do. */
@@ -27,17 +41,19 @@ const fuelLog = (over: Partial<VehicleLog> = {}): VehicleLog => ({
   ...over,
 });
 
-function setup(log = fuelLog()) {
+function setup(log = fuelLog(), voiceEnabled = false) {
   const onSave = jest.fn();
   const onDelete = jest.fn();
   render(
-    <EditLogModal
-      log={log}
-      today={TODAY}
-      onSave={onSave}
-      onDelete={onDelete}
-      onClose={jest.fn()}
-    />,
+    <NoteScopeProvider voiceEnabled={voiceEnabled}>
+      <EditLogModal
+        log={log}
+        today={TODAY}
+        onSave={onSave}
+        onDelete={onDelete}
+        onClose={jest.fn()}
+      />
+    </NoteScopeProvider>,
   );
   return { onSave, onDelete, user: userEvent.setup() };
 }
@@ -108,6 +124,18 @@ describe("EditLogModal", () => {
     expect(screen.queryByText("GST ($)")).not.toBeInTheDocument();
     expect(screen.queryByText("Supplier ABN")).not.toBeInTheDocument();
     expect(screen.getByDisplayValue("Brakes squealing")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Dictate/ })).toBeNull();
+  });
+
+  /* 7 November 2026 (Isaac: "Fix all of those"): what's wrong takes the
+     voice where the workspace has it */
+  it("adds what's said to an issue's words, where voice is on, and saves them", async () => {
+    const { onSave, user } = setup(fuelLog({ kind: "issue", litres: undefined, cost: undefined, note: "Brakes squealing" }), true);
+    expect(screen.getByRole("button", { name: "Dictate — what's wrong" })).toBeInTheDocument();
+    act(() => heard.say!("Front left"));
+    expect(screen.getByLabelText("What's wrong")).toHaveValue("Brakes squealing Front left");
+    await user.click(screen.getByRole("button", { name: /Save changes/ }));
+    expect(onSave.mock.calls[0][0]).toMatchObject({ note: "Brakes squealing Front left" });
   });
 });
 

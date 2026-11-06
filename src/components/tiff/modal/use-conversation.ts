@@ -3,7 +3,6 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { withoutPlaceTag } from "@/lib/brain/place-tag";
 import { appendSpoken, useDictation } from "@/components/notes/dictation";
-import { GATHER_MS } from "@/components/ui/dot-field";
 import { askBrain, TIFF_APPLY } from "@/lib/brain/ask-client";
 import { looksLikeDesignWords, looksLikeMove, looksLikeQuestion, priceIntent } from "@/lib/brain/intent";
 import {
@@ -83,6 +82,8 @@ import type { TiffLanded } from "./tiff-context";
    is still here; a note that was waiting when you closed it is set aside
    (keep the words, apply none of it), as the capture flow always did. */
 
+/** How long the mark takes to gather from the button you pressed. */
+const GATHER_MS = 1420;
 /** The cloud's floor before it may fall. */
 export const CLOUD_MS = 1850;
 /** How far into the fall the face zone starts to close: the dots are most of

@@ -2,11 +2,9 @@ import {
   buildJobStory,
   emptyStoryLine,
   filterStory,
-  groupStoryDays,
   stampDay,
   storyEventLabel,
   storyLineOf,
-  storySince,
   storyStamp,
   STORY_PHOTOS_SHOWN,
   type StoryEntry,
@@ -208,7 +206,7 @@ describe("buildJobStory — order", () => {
     ]);
   });
 
-  it("day groups arrive newest day first and groupStoryDays keeps them whole", () => {
+  it("days arrive newest first, each day's entries together", () => {
     const story = buildJobStory(
       inputs({
         notes: [
@@ -217,8 +215,8 @@ describe("buildJobStory — order", () => {
         ],
       })
     );
-    const days = groupStoryDays(story);
-    expect(days.map((d) => d.day)).toEqual(["2026-06-12", "2026-05-15", "2026-01-12"]);
+    const days = story.map((e) => e.day).filter((d, i, all) => i === 0 || all[i - 1] !== d);
+    expect(days).toEqual(["2026-06-12", "2026-05-15", "2026-01-12"]);
   });
 });
 
@@ -557,11 +555,6 @@ describe("filters and framing", () => {
     expect(filterStory(story, "money").every((e) => e.kind !== "note")).toBe(true);
     expect(filterStory(story, "money").length).toBe(2);
     expect(filterStory(story, "notes").every((e) => e.kind === "note")).toBe(true);
-  });
-
-  it("storySince is the oldest day on the feed", () => {
-    const story = buildJobStory(inputs({ notes: [note()] }));
-    expect(storySince(story)).toBe("2026-01-12");
   });
 
   it("an empty story names what was checked, money words only behind the grant", () => {

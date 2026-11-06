@@ -1,10 +1,11 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { TiffAssistant } from "../assistant";
+import { TiffAssistant, type ConversationParts } from "../assistant";
 import { READING_BACK_NOTE } from "@/components/notes/waits";
-import type { AskEvent, AskInput } from "@/lib/tiff/ask-client";
+import { STORE_KEY } from "@/lib/tiff/threads";
+import { resetThreadSync } from "@/lib/tiff/thread-sync";
 
-/* THE ASK BAR'S MICROPHONE.
+/* THE BOX'S MICROPHONE, in Conversations.
 
    Speaking to Tiff is typing with your voice and nothing more: no sieve, no
    routing, no review — which is exactly what makes it worth pinning, because
@@ -13,21 +14,19 @@ import type { AskEvent, AskInput } from "@/lib/tiff/ask-client";
 
    What these hold down:
    · a deployment with no key offers no mic, and the box still works;
-   · interim words are SHOWN and never COMMITTED — a discarded recording
-     leaves nothing behind, which is the bug you get for free by binding the
-     box straight to the live transcript;
-   · a transcript APPENDS, so two presses make one sentence;
-   · Send is gone, not disabled, while the mic is open — there is nothing to
-     send yet;
-   · a failure says so instead of dying quietly. */
+   · interim words are SHOWN and never COMMITTED: the box takes the words
+     only once they land;
+   · a transcript APPENDS, so two presses make one question, and it joins
+     what was already typed;
+   · a failure says so instead of dying quietly, and two minutes says why it
+     stopped. */
 
-const asks: AskInput[] = [];
-jest.mock("@/lib/tiff/ask-client", () => ({
-  askTiff: async (input: AskInput) => {
+const asks: { question: string }[] = [];
+jest.mock("@/lib/brain/ask-client", () => ({
+  askBrain: async (input: { question: string }, on: { onDelta: (t: string) => void; onDone: () => void }) => {
     asks.push(input);
-    const emit = input.onEvent as (e: AskEvent) => void;
-    emit({ t: "delta", text: "Thirty millimetres." });
-    emit({ t: "done" });
+    on.onDelta("Thirty millimetres.");
+    on.onDone();
   },
 }));
 
@@ -35,7 +34,7 @@ jest.mock("@/app/actions/kb", () => ({
   kbDocUrl: async () => ({ ok: true as const, url: "https://signed.example/doc.pdf" }),
 }));
 
-/* The engine is replaced, but only the engine. `LevelOrb`, `clockOf` and
+/* The engine is replaced, but only the engine. `LevelOrb`, `LiveWords` and
    `appendSpoken` stay real — `appendSpoken` in particular IS the behaviour
    under test here, and a test that reimplements the join can't fail when the
    join changes. */
@@ -51,8 +50,6 @@ const mockCtl: {
   start: jest.Mock;
   stop: jest.Mock;
   cancel: jest.Mock;
-  /* The card's other two ways out, so its buttons do what they say here
-     rather than nothing (its own wiring is held in recording-card.test). */
   restart: jest.Mock;
   handOver: jest.Mock;
 } = { start: jest.fn(), stop: jest.fn(), cancel: jest.fn(), restart: jest.fn(), handOver: jest.fn() };
@@ -88,7 +85,7 @@ jest.mock("@/components/notes/dictation", () => {
 
 /* The engine's own contract, mirrored: words arrive while `transcribing` is
    still true, because the real hook clears it in a `finally` AFTER the
-   callback. Getting this backwards in a test hides the disabled-input focus
+   callback. Getting this backwards in a test hides the disabled-box focus
    bug the component works around. */
 const landTranscript = (text: string, capped = false) =>
   act(() => {
@@ -100,17 +97,36 @@ const landTranscript = (text: string, capped = false) =>
   });
 
 const speak = async (user: ReturnType<typeof userEvent.setup>) => {
-  await user.click(screen.getByLabelText("Ask by voice"));
+  await user.click(screen.getByRole("button", { name: "Speak instead of typing" }));
   act(() => mockCtl.setRecording?.(true));
 };
 
-const box = () => screen.getByLabelText("Ask Tiff") as HTMLInputElement;
+const box = () => screen.getByRole("textbox", { name: "Ask Tiff" });
+const send = () => screen.getByRole("button", { name: "Send to Tiff" });
+
+const frame = ({ list, pane }: ConversationParts) => (
+  <>
+    {list}
+    {pane}
+  </>
+);
+/* An open chat, so the box is at its foot. */
+const draw = (voiceEnabled = true) => {
+  localStorage.setItem(
+    STORE_KEY,
+    JSON.stringify([{ id: "t-1", title: "Clearances", updatedAt: Date.now(), messages: [{ role: "user", text: "FTXM71?", at: Date.now() }] }])
+  );
+  return render(<TiffAssistant frame={frame} voiceEnabled={voiceEnabled} />);
+};
 
 beforeEach(() => {
   jest.clearAllMocks();
   localStorage.clear();
+  sessionStorage.clear();
   asks.length = 0;
   mockCbs.current = null;
+  resetThreadSync();
+  (globalThis as { fetch?: unknown }).fetch = jest.fn(async () => ({ ok: false, status: 503, json: async () => ({ ok: false }) }));
 });
 
 afterEach(cleanup);
@@ -118,12 +134,11 @@ afterEach(cleanup);
 describe("no key on the deployment", () => {
   it("offers no mic, and the box still works", async () => {
     const user = userEvent.setup();
-    render(<TiffAssistant voiceEnabled={false} />);
-
-    expect(screen.queryByLabelText("Ask by voice")).not.toBeInTheDocument();
+    draw(false);
+    expect(screen.queryByRole("button", { name: "Speak instead of typing" })).not.toBeInTheDocument();
 
     await user.type(box(), "clearance above an FTXM71");
-    await user.click(screen.getByLabelText("Send"));
+    await user.click(send());
     expect(asks[0]?.question).toBe("clearance above an FTXM71");
   });
 });
@@ -131,146 +146,63 @@ describe("no key on the deployment", () => {
 describe("dictating a question", () => {
   it("shows the mic and starts the engine when it is pressed", async () => {
     const user = userEvent.setup();
-    render(<TiffAssistant voiceEnabled />);
-
-    await user.click(screen.getByLabelText("Ask by voice"));
+    draw();
+    await user.click(screen.getByRole("button", { name: "Speak instead of typing" }));
     expect(mockCtl.start).toHaveBeenCalledTimes(1);
   });
 
-  /* THE BAR HANDS ITS SPACE TO THE SHARED CARD. What used to be a stop ■ and
-     a discard × crammed into the composer is now the same recording card the
-     Tiff button's sheet and the diary's entry card show — so what these
-     assert is that the ask bar gives way to it, and that the three ways out
-     of a recording are the card's three, not a second set invented here. */
-  it("gives the bar over to the recording card, with the card's three ways out", async () => {
+  /* Live words are SHOWN, never HELD: if the box were bound to the live
+     transcript, the tail of a half-heard question would be left in it. */
+  it("shows the live words while you speak, and the box takes only what lands", async () => {
     const user = userEvent.setup();
-    render(<TiffAssistant voiceEnabled />);
+    draw();
     await speak(user);
-
-    // the composer is gone — there is nothing to send yet, and no box to type in
-    expect(screen.queryByLabelText("Send")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Ask Tiff")).not.toBeInTheDocument();
-
-    // …and what replaced it is the card every other door opens, with the mark
-    // standing over it — the instrument this bar has always had, now the logo
-    // itself rather than a sphere
-    expect(document.querySelector('.dotf[data-stage="mark"]')).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Start again/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Type instead/ })).toBeInTheDocument();
-    expect(screen.getByLabelText("Discard the recording")).toBeInTheDocument();
-  });
-
-  /* NOT ONE OF THEM MAY SUBMIT. The card sits inside Tiff's `<form>`, where a
-     bare `<button>` defaults to `type="submit"` — so "Start again" would have
-     asked the half-finished question instead of binning the take. The note
-     postures never sat in a form, which is exactly how a shared component
-     inherits a bug from the one place that never had to think about it. */
-  it("never lets a card button submit the question", async () => {
-    const user = userEvent.setup();
-    render(<TiffAssistant voiceEnabled />);
-    await speak(user);
-
-    for (const name of [/Start again/, /Type instead/, /^Done$/]) {
-      expect(screen.getByRole("button", { name })).toHaveAttribute("type", "button");
-    }
-
-    await user.click(screen.getByRole("button", { name: /Start again/ }));
-    expect(asks).toHaveLength(0);
-    // it bins the take and listens again: the recording goes on
-    expect(mockCtl.restart).toHaveBeenCalledTimes(1);
-    expect(mockCtl.stop).not.toHaveBeenCalled();
-  });
-
-  /* The rule is unchanged and the place it is kept moved: live words are
-     SHOWN, never HELD. They used to be shown in the ask box; the box is not
-     on screen while the mic is open, so they are shown where the card shows
-     them — joined onto whatever was already captured, by the same
-     `appendSpoken` the committed transcript uses. */
-  it("SHOWS the live words without committing them", async () => {
-    const user = userEvent.setup();
-    render(<TiffAssistant voiceEnabled />);
-    await speak(user);
-
     act(() => mockCtl.setInterim?.("minimum clearance above"));
-    expect(screen.getByLabelText("What you have said so far")).toHaveTextContent(
-      "minimum clearance above"
-    );
+    expect(screen.getByRole("group", { name: "Recording" })).toHaveTextContent("minimum clearance above");
 
-    /* Thrown away mid-sentence. If the box had been bound to the live
-       transcript, the tail of a half-heard question would still be sitting
-       in it — this is the whole reason interim text is display-only. */
-    await user.click(screen.getByLabelText("Discard the recording"));
-    expect(mockCtl.cancel).toHaveBeenCalledTimes(1);
-    act(() => {
-      mockCtl.setRecording?.(false);
-      mockCtl.setInterim?.("");
-    });
-    expect(box()).toHaveValue("");
+    landTranscript("minimum clearance above an FTXM71?");
+    expect(box()).toHaveValue("minimum clearance above an FTXM71?");
   });
 
-  /* WHAT YOU HAVE ALREADY SAID STAYS ON SCREEN, on the second leg as on the
-     first (Isaac, 2026-08-10: "if I click talk, it looks like you're starting
-     again because it doesn't show you what text it's already got on there").
-     Tiff appends across legs exactly as the note card does, so the card must
-     show the join, not just the newest words. */
-  it("keeps the first leg on screen while the second one is being said", async () => {
+  it("puts the transcript in the box, gives the caret back, and sends exactly that", async () => {
     const user = userEvent.setup();
-    render(<TiffAssistant voiceEnabled />);
-
+    draw();
     await speak(user);
-    landTranscript("what is the minimum clearance");
-
-    await speak(user);
-    act(() => mockCtl.setInterim?.("above an FTXM71?"));
-    expect(screen.getByLabelText("What you have said so far")).toHaveTextContent(
-      "what is the minimum clearance above an FTXM71?"
-    );
-  });
-
-  it("puts the transcript in the box and sends exactly that", async () => {
-    const user = userEvent.setup();
-    render(<TiffAssistant voiceEnabled />);
-    await speak(user);
-    await user.click(screen.getByRole("button", { name: "Done" }));
+    await user.click(screen.getByRole("button", { name: "Stop" }));
     expect(mockCtl.stop).toHaveBeenCalledTimes(1);
 
     landTranscript("What is the minimum clearance above an FTXM71?");
     expect(box()).toHaveValue("What is the minimum clearance above an FTXM71?");
     expect(box()).not.toBeDisabled();
+    expect(box()).toHaveFocus();
 
-    await user.click(screen.getByLabelText("Send"));
+    await user.click(send());
     expect(asks[0]?.question).toBe("What is the minimum clearance above an FTXM71?");
   });
 
   it("appends, so two presses make one question", async () => {
     const user = userEvent.setup();
-    render(<TiffAssistant voiceEnabled />);
-
+    draw();
     await speak(user);
     landTranscript("What is the minimum clearance");
     await speak(user);
     landTranscript("above an FTXM71?");
-
     expect(box()).toHaveValue("What is the minimum clearance above an FTXM71?");
   });
 
   it("appends to what was already typed rather than replacing it", async () => {
     const user = userEvent.setup();
-    render(<TiffAssistant voiceEnabled />);
-
+    draw();
     await user.type(box(), "FTXM71 —");
     await speak(user);
     landTranscript("what is the clearance above it?");
-
     expect(box()).toHaveValue("FTXM71 — what is the clearance above it?");
   });
 
   it("says so when the recording could not be read, and the box still works", async () => {
     const user = userEvent.setup();
-    render(<TiffAssistant voiceEnabled />);
+    draw();
     await speak(user);
-
     act(() => {
       mockCtl.setRecording?.(false);
       mockCbs.current?.onError?.("Nothing was recorded. Try again, or type it.");
@@ -278,7 +210,7 @@ describe("dictating a question", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent("Nothing was recorded");
     await user.type(box(), "typed instead");
-    await user.click(screen.getByLabelText("Send"));
+    await user.click(send());
     expect(asks[0]?.question).toBe("typed instead");
   });
 });
@@ -286,12 +218,11 @@ describe("dictating a question", () => {
 describe("running out of time", () => {
   it("keeps the words, says why it stopped, and lets you carry straight on", async () => {
     const user = userEvent.setup();
-    render(<TiffAssistant voiceEnabled />);
-
+    draw();
     await speak(user);
     landTranscript("what is the minimum clearance", true);
     expect(box()).toHaveValue("what is the minimum clearance");
-    expect(screen.getByRole("status")).toHaveTextContent("Two minutes");
+    expect(screen.getByRole("status")).toHaveTextContent("two minutes");
 
     /* The mic is live again immediately — this is a pause, not a failure. */
     await speak(user);
@@ -299,68 +230,33 @@ describe("running out of time", () => {
     expect(box()).toHaveValue("what is the minimum clearance above an FTXM71?");
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
-    await user.click(screen.getByLabelText("Send"));
+    await user.click(send());
     expect(asks[0]?.question).toBe("what is the minimum clearance above an FTXM71?");
   });
 });
 
-/* ── the three states of the bar, and the two orbs in them ───────────────── */
-
-/* THE MICROPHONE'S OWN WAIT USED TO SAY NOTHING FOR ITSELF. While a finished
-   recording was being turned into words the bar showed one line of flat grey
-   text — the same treatment the two-minute notice and the failure line use,
-   which put a passing state in the typeface of bad news. It gets the chip the
-   transcript's waits get, and the pair reads as one object handing over: the
-   orb in the bar BREATHES with your voice while the mic is open, then the
-   same sphere carries on turning under the bar until the words land. */
-
-describe("the bar while a recording is read back", () => {
-  it("meters the voice while the mic is open, and names the wait after it closes", async () => {
+describe("the box while a recording is read back", () => {
+  /* The word is on the page, in a live region, rather than in an `aria-label`
+     nobody can see — and it carries no punctuation, because the ellipsis is
+     the stylesheet's. */
+  it("names the wait, unpunctuated, and the box waits for the words", async () => {
     const user = userEvent.setup();
-    render(<TiffAssistant voiceEnabled />);
-
-    // nothing is listening yet, so there is no instrument and nothing to read back
-    expect(document.querySelector(".dotf")).toBeNull();
+    draw();
     expect(screen.queryByText(READING_BACK_NOTE)).not.toBeInTheDocument();
-
     await speak(user);
-    expect(document.querySelector('.dotf[data-stage="mark"]')).not.toBeNull();
-    expect(screen.queryByText(READING_BACK_NOTE)).not.toBeInTheDocument();
-
-    /* The mic closes and the engine takes over: the field goes and the chip
-       comes. This bar shows the two in separate branches, so the mark does NOT
-       fly out into a cloud here — it leaves and the named wait takes its place.
-       The capture sheet is where one body holds both stages and the journey
-       actually happens; pinning that difference is the point of this line. */
     act(() => {
       mockCtl.setRecording?.(false);
       mockCtl.setTranscribing?.(true);
     });
-    expect(document.querySelector(".dotf")).toBeNull();
-    expect(screen.getByText(READING_BACK_NOTE)).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(READING_BACK_NOTE);
+    expect(READING_BACK_NOTE).not.toMatch(/[….]/);
+    expect(box()).toBeDisabled();
 
-    // …and the whole thing is gone once the words are in the box
     act(() => {
       mockCbs.current?.onTranscript("what is the clearance", { capped: false });
       mockCtl.setTranscribing?.(false);
     });
     expect(screen.queryByText(READING_BACK_NOTE)).not.toBeInTheDocument();
     expect(box()).toHaveValue("what is the clearance");
-  });
-
-  /* The word is on the page, in a live region, rather than in an `aria-label`
-     nobody can see — and it carries no punctuation, because the ellipsis is
-     the stylesheet's. */
-  it("announces the wait as text, unpunctuated", async () => {
-    const user = userEvent.setup();
-    render(<TiffAssistant voiceEnabled />);
-    await speak(user);
-    act(() => {
-      mockCtl.setRecording?.(false);
-      mockCtl.setTranscribing?.(true);
-    });
-
-    expect(screen.getByRole("status")).toHaveTextContent(READING_BACK_NOTE);
-    expect(READING_BACK_NOTE).not.toMatch(/[….]/);
   });
 });

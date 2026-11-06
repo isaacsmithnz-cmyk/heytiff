@@ -4,6 +4,7 @@ import { useState } from "react";
 import { readFuelReceipt, readServiceRecord, type ReadReceiptResult, type ReadServiceResult } from "@/app/actions/fleet-ai";
 import { Button } from "@/components/parts/button";
 import { Field, TextArea, TextInput } from "@/components/parts/field";
+import { NoteToken } from "@/components/notes/note-token";
 import { Tray } from "@/components/parts/tabs";
 import { Plate } from "../plate";
 import { VehicleLead } from "./event-row";
@@ -270,7 +271,7 @@ export function LogScreen({
       </div>
     ) : (
       <Field label="What's wrong">
-        <TextArea placeholder="Sliding door latch sticking" value={f.note} onChange={(e) => set("note")(e.target.value)} />
+        <NoteToken as="field" label="what's wrong" offer={false} placeholder="Sliding door latch sticking" value={f.note} onChange={set("note")} />
       </Field>
     );
 

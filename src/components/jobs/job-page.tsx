@@ -58,7 +58,7 @@ export function JobPage({
   const title = row.number ? `Job ${row.number}` : "Job";
   const sub = row.clientName ?? null;
   const label = jobTabLabel(row.number, row.clientName);
-  const hue = jobHue(row.categoryColour, (row.statusLabel ?? "").trim().toLowerCase() === "unsuccessful");
+  const hue = jobHue(row.categoryColour, row.statusLabel);
 
   /* the open tab's name, and the sidebar's Recents */
   useEffect(() => {

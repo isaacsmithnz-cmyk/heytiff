@@ -74,7 +74,7 @@ export function todayRows(rail: Pick<HomeRail, "blocks" | "tasks" | "crew" | "no
       key: `job:${b.key}`,
       kind: "job",
       time: b.endMin > b.startMin ? `${clock(b.startMin)} to ${clock(b.endMin)}` : clock(b.startMin),
-      hue: jobHue(b.categoryColour, (b.status ?? "").trim().toLowerCase() === "unsuccessful"),
+      hue: jobHue(b.categoryColour, b.status),
       name,
       line,
       state,

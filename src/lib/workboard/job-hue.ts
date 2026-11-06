@@ -3,8 +3,11 @@ import type { Hue } from "@/components/parts/state";
 /* A JOB'S COLOUR, SNAPPED TO THE EIGHT (docs/design.md, rule 18): its
    ServiceM8 category's colour, taken to the nearest of the palette's hues by
    its hue alone; a category with no hue (a grey, a white, a black, or none)
-   is grey. Red follows the Unsuccessful status, never the category, so a
-   red-ish category snaps to the hue beside red that it leans to. Pure. */
+   is grey. Two statuses go over the category: Unsuccessful is red and a Quote
+   is orange (Isaac, 6 November 2026: "Quotes should be orange"). So no
+   category is ever red or orange: a red-ish category snaps to the hue beside
+   red that it leans to, and an orange one is pink ("Pink"), so a booked job is
+   never taken for a quote. Pure. */
 
 /** The palette's hues round the wheel, by where each one's band starts. */
 const BANDS: readonly [number, Hue][] = [
@@ -16,8 +19,10 @@ const BANDS: readonly [number, Hue][] = [
   [290, "pink"],
 ];
 
-export function jobHue(colour: string | null | undefined, unsuccessful = false): Hue {
-  if (unsuccessful) return "red";
+export function jobHue(colour: string | null | undefined, status?: string | null): Hue {
+  const said = (status ?? "").trim().toLowerCase();
+  if (said === "unsuccessful") return "red";
+  if (said === "quote") return "orange";
   const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec((colour ?? "").trim());
   if (!m) return "grey";
   const hex = m[1]!.length === 3 ? [...m[1]!].map((c) => c + c).join("") : m[1]!;
@@ -33,5 +38,6 @@ export function jobHue(colour: string | null | undefined, unsuccessful = false):
   if (h >= 345) return "pink";
   let hue: Hue = "orange";
   for (const [from, name] of BANDS) if (h >= from) hue = name;
-  return hue;
+  /* orange is the quote's */
+  return hue === "orange" ? "pink" : hue;
 }

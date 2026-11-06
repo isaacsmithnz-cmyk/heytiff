@@ -242,18 +242,21 @@ const quotePage = (job: string, started: boolean) => quoteHref(job, { start: !st
     head instead of the card's band and rail. The page holds which section
     is open (its `?tab=`); a door inside the card that moves to a face moves
     the page to that face's section. */
-/** The job's header names it by its address on one line (Isaac, 5 November
-    2026), the suburb until the job's been read, and its client where it
-    has no address at all. */
+/** The job's header names it by its client, beside its number, as
+    Schedule, Jobs, the tab and Recents name a job (Isaac, 6 November 2026:
+    "job number, client name, then underneath it, the site would show the
+    address"); the address is the Site card's. A job with no client is
+    named by its address on one line, or its suburb until it's been read. */
 export function jobPlateName(detail: Pick<MirrorJobDetail, "address" | "geoLine" | "clientName"> | null, row: Pick<AllJobRow, "suburb" | "clientName">): string {
-  const client = detail?.clientName ?? row.clientName ?? "Unnamed client";
-  if (!detail) return row.suburb?.trim() || client;
+  const client = (detail?.clientName ?? row.clientName ?? "").trim();
+  if (client) return client;
+  if (!detail) return row.suburb?.trim() || "Unnamed client";
   const line = (detail.address ?? "")
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean)
     .join(", ");
-  return line || detail.geoLine?.trim() || client;
+  return line || detail.geoLine?.trim() || "Unnamed client";
 }
 
 export type JobSheetPage = {
@@ -2215,7 +2218,6 @@ export function JobSheet({
         <JobPageHead
           name={jobPlateName(detail, row)}
           number={cardNumber}
-          client={detail?.clientName ?? row.clientName ?? null}
           hue={jobHue(categoryColour, status.toLowerCase() === "unsuccessful")}
           sm8Href={sm8Href}
           add={{ items: addItems, onPick: addPick, disabled: !cardId, onReach: askQuote }}

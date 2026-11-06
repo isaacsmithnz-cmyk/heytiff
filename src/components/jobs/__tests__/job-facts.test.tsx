@@ -36,9 +36,9 @@ it("has three cells without money", () => {
   expect(screen.queryByRole("region", { name: "Money" })).toBeNull();
 });
 
-it("says the job's number and its address in Site, and falls back to the geo line", () => {
+it("says the job's address in Site, not its number (the header's), and falls back to the geo line", () => {
   const { unmount } = render(<JobFacts {...base} />);
-  expect(cell("Site").getByText("Job 3385")).toBeInTheDocument();
+  expect(cell("Site").queryByText(/Job 3385/)).toBeNull();
   expect(cell("Site").getByText(/8\/36 Abbott Road/)).toHaveTextContent("Seven Hills NSW 2147");
   unmount();
   render(<JobFacts {...base} detail={detail({ address: null, geoLine: "Rose Bay NSW 2029" })} />);

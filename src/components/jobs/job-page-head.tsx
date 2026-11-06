@@ -14,13 +14,14 @@ import { WayBack } from "./way-back";
      the way back, the screen you came from (way-back.tsx);
      the job's plate, as a Schedule card draws a booking (rule 19): its
        number in a solid box of the job's colour, white on it, and beside
-       it the job's address, with the client in small print under it
-       (Isaac, 5 November 2026, B on
-       https://claude.ai/artifact/SJyEw4dkCb7MLp1bgCzypJ, then "put the
-       client underneath the address as well, in small print. The contact
-       is potentially different"). The scope is Overview's to say. A job
-       with no address is named by its client, and one with no number
-       wears its dot;
+       it the job's client, as Schedule, Jobs and the tab name a job (Isaac,
+       5 November 2026, B on
+       https://claude.ai/artifact/SJyEw4dkCb7MLp1bgCzypJ; 6 November, on
+       https://claude.ai/artifact/Wtc1ZrZYkAp1aaedxSn2J4: "job number,
+       client name, then underneath it, the site would show the address").
+       The address is the Site card's and the scope Overview's. A job with
+       no client is named by its address, and one with no number wears
+       its dot;
      on the right, one second button, Actions, with a chevron, opening a
        white menu (rules 36, 53 and 54): what Add made first ("Add visit",
        "Add task"), then what's done to the job, then Open in ServiceM8
@@ -41,12 +42,10 @@ const SM8 = "open-in-servicem8";
 const inSentence = (word: string) => (/^[A-Z]{2,}\b/.test(word) ? word : word.charAt(0).toLowerCase() + word.slice(1));
 
 export type JobPageHeadProps = {
-  /** the job's address on one line, or its client where it has none */
+  /** the job's client, or its address where it has none */
   name: string;
   /** the job's number, in the plate's coloured box */
   number?: string | null;
-  /** the job's client, in small print under the address */
-  client?: string | null;
   hue: Hue;
   /** ServiceM8's own page for the job, when there is one */
   sm8Href: string | null;
@@ -57,7 +56,7 @@ export type JobPageHeadProps = {
   onSection: (key: string) => void;
 };
 
-export function JobPageHead({ name, number = null, client = null, hue, sm8Href, add, actions, sections, section, onSection }: JobPageHeadProps) {
+export function JobPageHead({ name, number = null, hue, sm8Href, add, actions, sections, section, onSection }: JobPageHeadProps) {
   const actRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const chevron = (
@@ -75,11 +74,6 @@ export function JobPageHead({ name, number = null, client = null, hue, sm8Href, 
             <h1 className="jp-name">
               <Fade>{name}</Fade>
             </h1>
-            {client && client !== name && (
-              <p className="jp-client">
-                <Fade>{client}</Fade>
-              </p>
-            )}
           </div>
         </div>
         <div className="jp-acts">

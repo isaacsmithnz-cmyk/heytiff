@@ -55,6 +55,9 @@ jest.mock("@/lib/supabase-server", () => ({
 }));
 
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
+/* Save answers once the note is on the job; the send runs after the answer */
+const scheduled: (() => unknown)[] = [];
+jest.mock("next/server", () => ({ after: (fn: () => unknown) => void scheduled.push(fn) }));
 let caps = new Set<string>(["workboard"]);
 jest.mock("@/lib/permissions-server", () => ({
   requireOrg: async (c?: string) => {
@@ -138,16 +141,22 @@ describe("addJobNote", () => {
    processes it like she does today"): the words as written, on the job, and
    on to ServiceM8 behind the gate Tiff's filing has. */
 describe("saveJobNote", () => {
-  it("files the words as written on the job, then sends them on", async () => {
+  it("files the words as written on the job, answers, then sends them on", async () => {
     sentOn.length = 0;
+    scheduled.length = 0;
     const saved = await saveJobNote("job-uuid", "Rough-in done upstairs");
     expect(saved.text).toBe("Rough-in done upstairs");
+    /* Saved never waits on ServiceM8 (Isaac, 6 November 2026: "it should be instant") */
+    expect(sentOn).toEqual([]);
+    await Promise.all(scheduled.map((fn) => fn()));
     expect(sentOn).toEqual([`org-1 ${saved.id} job-uuid`]);
   });
 
   it("sends nothing on when the note isn't filed", async () => {
     sentOn.length = 0;
+    scheduled.length = 0;
     await expect(saveJobNote("job-uuid", "   ")).rejects.toThrow(/Nothing to write/);
+    expect(scheduled).toEqual([]);
     expect(sentOn).toEqual([]);
   });
 });

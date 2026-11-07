@@ -113,6 +113,25 @@ export function remindAtFrom(
   return instantAt(dueDate, h * 60 + m, zoneOf(tz));
 }
 
+/** The day a time of day next comes round on the zone's clock: today while
+    it's still ahead, else tomorrow. A reminder with a time and no day nudges
+    then, rather than never (Isaac, 8 November 2026, after "remind me to get
+    this quote sent off" filed a task with no nudge: "If there's no day, then
+    7 AM would just be the next occurrence… If you give it a day or a date,
+    then it will just follow suit"). Null for a time that can't be read. */
+export function nextDayFor(
+  time: string | null | undefined,
+  tz: string | null | undefined,
+  now: Date = new Date(),
+): string | null {
+  const at = toHHMM(time);
+  if (!at) return null;
+  const zone = zoneOf(tz);
+  const today = todayInZone(zone, now);
+  const [h, m] = at.split(":").map(Number);
+  return Date.parse(instantAt(today, h * 60 + m, zone)) > now.getTime() ? today : plusDays(today, 1);
+}
+
 /* ── at, or by ────────────────────────────────────────────────────────── */
 
 /** How to read the moment on a task.

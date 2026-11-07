@@ -207,14 +207,13 @@ describe("the draft rules", () => {
     expect(toConfirmed(toDraft(reminder({ remindTime: "" }))).tasks[0].remindTime).toBeNull();
   });
 
-  it("never sends a time without the day it belongs to", () => {
-    /* A time with no date is not a moment. `remindAtFrom` would refuse it
-       server-side anyway, so sending it would put a value in the payload that
-       cannot become anything — and would look, in the database, like a
-       reminder that simply never fired. */
-    const d = toDraft(reminder({ dueDate: "" }));
-    expect(d.tasks[0].remindTime).toBe("06:30"); // the draft still remembers it
-    expect(toConfirmed(d).tasks[0].remindTime).toBeNull(); // the wire does not
+  it("sends a time without a day, for the server to put on its next occurrence", () => {
+    /* "Remind me to get this quote sent off" came back as 07:00 and no day,
+       and the time was dropped here, so Tiff promised a 7am nudge that never
+       came (Isaac, 8 November 2026: "Not having a day in it shouldn't hold it
+       out"). The server picks the day, on the account's own clock. */
+    const c = toConfirmed(toDraft(reminder({ dueDate: "" }))).tasks[0];
+    expect(c).toMatchObject({ dueDate: null, remindTime: "06:30", remindKind: "at" });
   });
 
   /* THE DEBRIEF'S LEFTOVERS ARE OFF THE WIRE. The router has no note-lines

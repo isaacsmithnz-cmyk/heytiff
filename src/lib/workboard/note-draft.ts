@@ -104,13 +104,14 @@ export function toConfirmed(d: Draft): ConfirmedNote {
         detail: t.detail,
         assigneeId: t.assigneeId,
         dueDate: t.dueDate || null,
-        /* A time with no day is not a moment, so it never travels alone —
-           `remindAtFrom` would refuse it server-side anyway, and sending it
-           would put a value in the payload that cannot become anything. */
-        remindTime: (t.dueDate && t.remindTime) || null,
-        /* Travels with the time, for the same reason: a kind with no moment
-           to qualify is refused by the database and means nothing here. */
-        remindKind: (t.dueDate && t.remindTime && t.remindKind) || null,
+        /* A time with no day travels too: the server files it on the next
+           day that clock comes round, on the account's own zone (`nextDayFor`;
+           Isaac, 8 November 2026: "If there's no day, then 7 AM would just be
+           the next occurrence"). */
+        remindTime: t.remindTime || null,
+        /* Travels with the time: a kind with no moment to qualify is refused
+           by the database and means nothing here. */
+        remindKind: (t.remindTime && t.remindKind) || null,
       })),
     bringItems: d.bringItems.filter((b) => b.on && b.text.trim()).map((b) => b.text),
     flags: d.flags

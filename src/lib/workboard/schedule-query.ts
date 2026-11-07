@@ -133,6 +133,21 @@ export async function readAvailabilitySpan(orgId: string, firstISO: string, last
   return rows;
 }
 
+/** EVERYONE ACTIVE IN SERVICEM8, A to Z by the board: each gets a row on
+    the Schedule's Day and Week whether or not anything is on, so time can
+    be blocked out for anyone (Isaac, 8 November 2026: "Yes it should").
+    Nothing on a failed read: the board falls back to the people booked. */
+export async function readActiveStaff(orgId: string): Promise<{ uuid: string; name: string }[]> {
+  try {
+    const { data } = await supabaseAdmin.from("sm8_staff").select("uuid, first, last").eq("org_id", orgId).eq("active", 1);
+    return ((data ?? []) as { uuid: string; first: string | null; last: string | null }[])
+      .map((s) => ({ uuid: s.uuid, name: [s.first, s.last].filter(Boolean).join(" ").trim() }))
+      .filter((s) => s.name !== "");
+  } catch {
+    return [];
+  }
+}
+
 export async function loadScheduleDay(
   orgId: string,
   dayISO: string,

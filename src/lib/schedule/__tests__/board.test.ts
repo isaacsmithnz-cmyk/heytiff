@@ -52,15 +52,15 @@ describe("the days", () => {
     expect(weekOf("2026-10-25")[0]).toBe("2026-10-19");
   });
   it("Earlier and Later step a weekday, or a week", () => {
-    expect(stepDay("day", "2026-10-23", 1)).toBe("2026-10-26");
-    expect(stepDay("day", "2026-10-26", -1)).toBe("2026-10-23");
+    expect(stepDay("day", "2026-10-23", 1)).toBe("2026-10-24");
+    expect(stepDay("day", "2026-10-26", -1)).toBe("2026-10-25");
     expect(stepDay("week", "2026-10-21", 1)).toBe("2026-10-26");
   });
   it("a job of days skips the weekend", () => {
     expect(workingDaysFrom("2026-10-23", 3)).toEqual(["2026-10-23", "2026-10-26", "2026-10-27"]);
   });
-  it("a weekend asked for the day view shows the Monday after; a bad day is today", () => {
-    expect(readScheduleParams({ day: "2026-10-24" }, "2026-10-21")).toEqual({ view: "day", day: "2026-10-26" });
+  it("a weekend asked for the day view is that day; a bad day is today", () => {
+    expect(readScheduleParams({ day: "2026-10-24" }, "2026-10-21")).toEqual({ view: "day", day: "2026-10-24" });
     expect(readScheduleParams({ view: "week", day: "nope" }, "2026-10-21")).toEqual({ view: "week", day: "2026-10-21" });
   });
 });

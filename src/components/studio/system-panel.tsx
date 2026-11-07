@@ -361,6 +361,13 @@ export function SystemPanel({
   const [nameDraft, setNameDraft] = useState("");
   /** covered rooms unfolded by hand, when a long system folds them */
   const [openRooms, setOpenRooms] = useState<string[]>(() => (aimZoneId ? [aimZoneId] : []));
+  /* a room aimed at unfolds: adjusted while rendering when the aim changes,
+     as React has state follow a prop, not in an effect */
+  const [aimSeen, setAimSeen] = useState(aimZoneId);
+  if (aimZoneId !== aimSeen) {
+    setAimSeen(aimZoneId);
+    if (aimZoneId && !openRooms.includes(aimZoneId)) setOpenRooms([...openRooms, aimZoneId]);
+  }
 
   /* what is pushed over the system, deepest last. A Swap from the plan opens on
      its unit, a move that could not be installed on the outdoors, where the fix is */
@@ -399,10 +406,9 @@ export function SystemPanel({
   useEffect(() => {
     if (depth) rootRef.current?.querySelector<HTMLElement>(".ds-syp-layer:not([hidden]) .ds-stack-back")?.focus();
   }, [depth]);
-  /* a room aimed at unfolds and comes into view */
+  /* and comes into view */
   useEffect(() => {
     if (!aimZoneId) return;
-    setOpenRooms((o) => (o.includes(aimZoneId) ? o : [...o, aimZoneId]));
     const groups = rootRef.current ? [...rootRef.current.querySelectorAll("[data-zone]")] : [];
     groups.find((g) => g.getAttribute("data-zone") === aimZoneId)?.scrollIntoView?.({ block: "nearest" });
   }, [aimZoneId]);

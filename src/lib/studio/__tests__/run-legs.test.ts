@@ -1,4 +1,4 @@
-import { distToSmoothed, formatMeters, polylineLength, smoothedLength, smoothPathD, unitsToMeters } from "../geometry";
+import { distToSmoothed, polylineLength, smoothedLength, smoothPathD, unitsToMeters } from "../geometry";
 import { deleteJoint, jointOnRun } from "../joints";
 import { paperRunText } from "../paper-labels";
 import {

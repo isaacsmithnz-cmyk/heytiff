@@ -129,10 +129,7 @@ import {
   isPlenumOf,
   isSpillRoom,
   plenumBody,
-  spigotsOf,
-  distributeSpigots,
   formatDia,
-  type PlenumSpigot,
 } from "@/lib/studio/ducted";
 import {
   hasFactorySpigots,

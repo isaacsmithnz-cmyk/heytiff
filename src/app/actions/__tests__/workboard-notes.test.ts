@@ -277,6 +277,31 @@ describe("tasks", () => {
     expect(rows[1].remind_kind).toBeNull();
   });
 
+  it("puts a time with no day on the next time that clock comes round", async () => {
+    /* Isaac, 8 November 2026, of a 7am nudge Tiff promised and never set:
+       "If there's no day, then 7 AM would just be the next occurrence". The
+       account's clock is Brisbane here (UTC+10, no daylight saving). */
+    jest.useFakeTimers({ now: new Date("2026-08-03T23:37:00Z"), doNotFake: ["nextTick", "setImmediate", "queueMicrotask"] }); // 9:37 am, 4 August
+    try {
+      lists.staff_profiles = [{ id: "s-lyle" }];
+      await file(
+        confirmed({
+          tasks: [
+            { title: "Send the quote", detail: "", assigneeId: "s-lyle", dueDate: null, remindTime: "07:00", remindKind: "at" },
+            { title: "Ring the client", detail: "", assigneeId: "s-lyle", dueDate: null, remindTime: "18:00", remindKind: "by" },
+            { title: "Order the grilles", detail: "", assigneeId: "s-lyle", dueDate: "2026-08-10", remindTime: "07:00", remindKind: "at" },
+          ],
+        })
+      );
+      const [quote, ring, grilles] = rowsFor("tasks");
+      expect(quote).toMatchObject({ due_date: "2026-08-05", remind_at: "2026-08-04T21:00:00.000Z" }); // tomorrow, 7 am
+      expect(ring).toMatchObject({ due_date: "2026-08-04", remind_at: "2026-08-04T08:00:00.000Z", remind_kind: "by" }); // tonight, 6 pm
+      expect(grilles).toMatchObject({ due_date: "2026-08-10", remind_at: "2026-08-09T21:00:00.000Z" }); // the day said stands
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it("never stores a kind on a task that named no hour", async () => {
     /* The database refuses the pair outright — a deadline with no moment is
        not a weaker fact, it is a meaningless one — so the filing must not

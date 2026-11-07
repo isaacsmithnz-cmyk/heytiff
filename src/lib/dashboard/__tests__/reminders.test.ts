@@ -2,6 +2,7 @@ import {
   HHMM,
   hhmm,
   lateness,
+  nextDayFor,
   remindAtFrom,
   snoozeUntil,
   toHHMM,
@@ -198,5 +199,36 @@ describe("how late it is", () => {
     expect(lateness(at, after(179))).toBe("2 hours ago");
     expect(lateness(at, after(60 * 25))).toBe("yesterday");
     expect(lateness(at, after(60 * 24 * 3))).toBe("3 days ago");
+  });
+});
+
+describe("a time with no day", () => {
+  /* Isaac, 8 November 2026: "If there's no day, then 7 AM would just be the
+     next occurrence, which would be tomorrow morning… if I said, remind me to
+     do it by 6 PM, then that would mean 6 PM tonight". 9:37 am on Sunday 8
+     November in Sydney is 22:37 UTC on the 7th, daylight saving on. */
+  const now = new Date("2026-11-07T22:37:00Z");
+
+  it("is tomorrow once the time has gone by today", () => {
+    expect(nextDayFor("07:00", SYD, now)).toBe("2026-11-09");
+  });
+
+  it("is today while the time is still ahead", () => {
+    expect(nextDayFor("18:00", SYD, now)).toBe("2026-11-08");
+  });
+
+  it("is tomorrow at the very minute, which has already come", () => {
+    expect(nextDayFor("09:37", SYD, now)).toBe("2026-11-09");
+  });
+
+  it("reads the day on the account's clock, not the server's", () => {
+    /* Still the 7th in UTC, already the 8th in Sydney: 10 pm Sydney is ahead */
+    expect(nextDayFor("22:00", SYD, now)).toBe("2026-11-08");
+    expect(remindAtFrom(nextDayFor("07:00", SYD, now), "07:00", SYD)).toBe("2026-11-08T20:00:00.000Z");
+  });
+
+  it("is nothing for a time it can't read", () => {
+    expect(nextDayFor("", SYD, now)).toBeNull();
+    expect(nextDayFor(null, SYD, now)).toBeNull();
   });
 });

@@ -26,7 +26,7 @@ import { aliasFromAnswer, normAlias } from "@/lib/staff/aliases";
 import { aliasesByStaff, learnAlias } from "@/lib/staff/aliases-query";
 import { NAME_COLUMNS } from "@/lib/dashboard/tasks-query";
 import { ACTED_KINDS } from "@/lib/dashboard/task-events";
-import { remindAtFrom, isRemindKind } from "@/lib/dashboard/reminders";
+import { nextDayFor, remindAtFrom, isRemindKind } from "@/lib/dashboard/reminders";
 import { workdayHours } from "@/lib/dashboard/reminders-query";
 import { jobCandidates } from "@/lib/dashboard/job-candidates";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -939,17 +939,26 @@ async function applyConfirmed(
        whole batch, and only when there are tasks to write. */
     const tz = await getSm8Timezone(ctx.orgId);
 
+    /* A TIME WITH NO DAY is the next time that clock comes round: "remind me"
+       at 9:37 on a Sunday is 7:00 on Monday, and "by 6 pm" is tonight. Given
+       a day, the day stands (Isaac, 8 November 2026: "Not having a day in it
+       shouldn't hold it out"). */
+    const dated = wanted.map((t) => ({
+      ...t,
+      dueDate: t.dueDate || (t.remindTime ? nextDayFor(t.remindTime, tz) : null),
+    }));
+
     /* ONE TASK FOR TWO PEOPLE. The plan lists a task once per person, so
        "Luke and Isaac, order the pump" arrives as two rows with the same
        words. Rows that agree on title, detail, day and time share a group, and
        completing any of them completes all (see completeTask). */
-    const sameJob = (t: (typeof wanted)[number]) =>
+    const sameJob = (t: (typeof dated)[number]) =>
       JSON.stringify([trim(t.title, 200), trim(t.detail, 1000), t.dueDate ?? null, t.remindTime ?? null, t.remindKind ?? null]);
     const heads = new Map<string, number>();
-    for (const t of wanted) heads.set(sameJob(t), (heads.get(sameJob(t)) ?? 0) + 1);
+    for (const t of dated) heads.set(sameJob(t), (heads.get(sameJob(t)) ?? 0) + 1);
     const groups = new Map<string, string>();
 
-    const rows = wanted.map((t) => {
+    const rows = dated.map((t) => {
       const key = sameJob(t);
       let groupId: string | null = null;
       if ((heads.get(key) ?? 0) > 1) {

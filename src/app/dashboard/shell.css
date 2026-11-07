@@ -6551,8 +6551,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jl-pick .pt-chooser.jl-pick-ch { width:auto; min-width:176px; padding-left:48px; }
 .fg .jl-note { margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
 /* the table: a grid per row, so the head and the rows share the columns */
-.fg .jl-table { --jl-cols:80px minmax(0,1.6fr) minmax(0,1fr) minmax(0,1.3fr) minmax(0,1fr) 112px; min-width:0; }
-.fg .jl-table.jl-table--money { --jl-cols:80px minmax(0,1.6fr) minmax(0,1fr) minmax(0,1.3fr) minmax(0,1fr) 112px 112px; }
+.fg .jl-table { --jl-cols:minmax(0,2.4fr) minmax(0,1.3fr) minmax(0,1fr) 112px; min-width:0; }
+.fg .jl-table.jl-table--money { --jl-cols:minmax(0,2.4fr) minmax(0,1.3fr) minmax(0,1fr) 112px 112px; }
 .fg .jl-rows { margin:0; padding:0; list-style:none; }
 /* Show more, under the hundred a view draws */
 .fg .jl-more { display:flex; justify-content:center; padding:24px 0; }
@@ -6562,10 +6562,27 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jl-rows .jl-row:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .jl-cell { display:flex; flex-direction:column; justify-content:center; min-width:0; font-size:14px; line-height:20px; font-weight:400; }
 .fg .jl-row--head .jl-cell { font-size:12px; line-height:16px; font-weight:500; }
-.fg .jl-numv { font-weight:500; font-variant-numeric:tabular-nums; }
+/* THE JOB AS ITS CARD (Isaac, 5 November 2026: "make it so that the job
+   section looks like the job cards ... the number on the side, the color"):
+   a Schedule card at the table's size, the number in a solid box of the
+   job's card colour (white on it, ink on yellow), a hairline of it, and the
+   client, the suburb and the kind inside, so Client and Kind are no longer
+   columns of their own */
+.fg .jl-card--red { --jl-hue:var(--red-w); }
+.fg .jl-card--orange { --jl-hue:var(--orange-card); }
+.fg .jl-card--yellow { --jl-hue:var(--yellow-card); --jl-on:var(--ink); }
+.fg .jl-card--green { --jl-hue:var(--green-w); }
+.fg .jl-card--blue { --jl-hue:var(--press); }
+.fg .jl-card--purple { --jl-hue:var(--purple-w); }
+.fg .jl-card--pink { --jl-hue:var(--pink-card); }
+.fg .jl-card--grey { --jl-hue:var(--q); }
+.fg .jl-card { display:flex; align-items:stretch; min-width:0; max-width:440px; min-height:72px; border:1px solid var(--jl-hue, var(--q)); border-radius:var(--r-control); background:var(--white); overflow:hidden; }
+.fg .jl-cn { flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:72px; padding:0 12px; background:var(--jl-hue, var(--q)); color:var(--jl-on, var(--white)); font-size:16px; line-height:24px; font-weight:700; font-variant-numeric:tabular-nums; }
+.fg .jl-cn-ours { font-size:12px; line-height:16px; font-weight:500; }
+.fg .jl-cb { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; justify-content:center; padding:8px 12px; }
 .fg .jl-name { font-weight:600; }
 .fg .jl-sub { font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
-.fg .jl-kind { flex-direction:row; align-items:center; justify-content:flex-start; gap:8px; }
+.fg .jl-kindw { font-size:13px; line-height:18px; font-weight:500; color:var(--ink); }
 /* the row's one dot is its kind's: the state is the word alone, as the board draws it */
 .fg .jl-state .pt-state .pt-dot { display:none; }
 .fg .jl-state .pt-state { font-size:14px; line-height:20px; max-width:100%; }

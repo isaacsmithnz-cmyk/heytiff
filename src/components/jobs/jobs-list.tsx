@@ -7,7 +7,7 @@ import { Empty } from "@/components/parts/states";
 import { Fade } from "@/components/parts/fade";
 import { Initials } from "@/components/parts/initials";
 import { SearchField } from "@/components/parts/search-field";
-import { Dot, StateWord } from "@/components/parts/state";
+import { StateWord } from "@/components/parts/state";
 import { ViewTabs } from "@/components/parts/tabs";
 import { RecordLink } from "@/components/records/record-link";
 import { sm8Gap } from "@/components/workboard/board/sm8-gap";
@@ -45,17 +45,20 @@ function JobRow({ row, money }: { row: JobsListRow; money: boolean }) {
   return (
     <li>
       <RecordLink href={row.href} className="jl-row">
-        <span className="jl-cell jl-num">
-          {row.number && <span className="jl-numv">{row.number}</span>}
-          {row.numberOurs && <span className="jl-sub">HeyTiff</span>}
-        </span>
-        <span className="jl-cell jl-client">
-          <Fade className="jl-name">{row.client}</Fade>
-          {row.site && <Fade className="jl-sub">{row.site}</Fade>}
-        </span>
-        <span className="jl-cell jl-kind">
-          <Dot hue={row.hue} />
-          <Fade>{row.kind}</Fade>
+        <span className="jl-cell jl-job">
+          <span className={`jl-card jl-card--${row.hue}`}>
+            {row.number && (
+              <span className="jl-cn">
+                {row.number}
+                {row.numberOurs && <span className="jl-cn-ours">HeyTiff</span>}
+              </span>
+            )}
+            <span className="jl-cb">
+              <Fade className="jl-name">{row.client}</Fade>
+              {row.site && <Fade className="jl-sub">{row.site}</Fade>}
+              <Fade className="jl-kindw">{row.kind}</Fade>
+            </span>
+          </span>
         </span>
         <span className="jl-cell jl-state">
           <StateWord tone={row.tone}>{row.state}</StateWord>
@@ -235,8 +238,6 @@ export function JobsList({ data, initial }: { data: JobsListData; initial: ListS
           <div className={money ? "jl-table jl-table--money" : "jl-table"}>
             <div className="jl-row jl-row--head" aria-hidden="true">
               <span className="jl-cell">Job</span>
-              <span className="jl-cell">Client and site</span>
-              <span className="jl-cell">Kind</span>
               <span className="jl-cell">Where it&apos;s up to</span>
               <span className="jl-cell">Next</span>
               <span className="jl-cell">Who</span>

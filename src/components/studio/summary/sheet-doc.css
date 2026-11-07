@@ -1223,3 +1223,391 @@
   .dsd-rt tr { break-inside: avoid; }
   .dsd-rt thead { break-after: avoid; }
 }
+
+/* ═══ THE NEXT FLOW'S DOCUMENT (sheet-doc-next.tsx) ═══════════════════════════
+   Boards Summary-1 and Summary-2, under docs/design.md. Everything from here to
+   the end of the file is `dsn-`, or scoped to `.dsn-summary`, so the current
+   flow's sheet and chrome are untouched.
+
+   The palette's own values, named once: ink, the quiet grey, its two lines, and
+   the word values for good and needs a look. State is a word with a dot beside
+   it, never a pill or a fill; no tint, no teal, no gradient, no capitals. The
+   business's colour reaches the letterhead's name and rule and nothing else.
+
+   THE SCREEN READS AT THE APP'S SIZES AND PAPER AT THE BOARD'S, the same
+   document, the sizes in one place. The floor of 12 is the screen's. */
+.dsn {
+  --dsn-ink: #050505;
+  --dsn-quiet: #5f6a79;
+  --dsn-line: rgba(5, 5, 5, 0.08);
+  --dsn-edge: rgba(5, 5, 5, 0.14);
+  --dsn-good: #15803d;
+  --dsn-look: #b45309;
+  --dsn-body: 13px;
+  --dsn-body-lh: 18px;
+  --dsn-head: 12px;
+  --dsn-head-lh: 16px;
+  --dsn-sub: 14px;
+  --dsn-sub-lh: 20px;
+  --dsn-cell: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  max-width: 880px;
+  margin: 0 auto;
+  width: 100%;
+  background: #fff;
+  color: var(--dsn-ink);
+  font-family: var(--font, "Plus Jakarta Sans", sans-serif);
+  font-size: var(--dsn-body);
+  line-height: var(--dsn-body-lh);
+  font-variant-numeric: tabular-nums;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.dsn-q { color: var(--dsn-quiet); }
+
+/* the pager: a table only on paper (below) */
+.dsn-pg,
+.dsn-pg > thead,
+.dsn-pg > tfoot,
+.dsn-pg > tbody,
+.dsn-pg > * > tr,
+.dsn-pg > * > tr > td {
+  display: block;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.dsn-pg > thead,
+.dsn-pg > tfoot { display: none; }
+.dsn-pg > tbody > tr > td.dsn-pg-c {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ── the masthead ── */
+.dsn-mast { display: flex; align-items: flex-start; gap: 24px; }
+.dsn-job { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.dsn h1 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  color: var(--dsn-ink);
+}
+.dsn-sub {
+  margin: 0;
+  font-size: var(--dsn-sub);
+  line-height: var(--dsn-sub-lh);
+  color: var(--dsn-quiet);
+}
+.dsn-where { display: flex; flex-direction: column; }
+.dsn-src { margin-top: 4px; }
+.dsn-ident {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  max-width: 45%;
+  text-align: right;
+  color: var(--dsn-quiet);
+}
+.dsn-ident b {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 700;
+  color: var(--dsn-brand, var(--dsn-ink));
+}
+.dsn-logo {
+  display: block;
+  max-width: 180px;
+  max-height: 56px;
+  margin-bottom: 4px;
+  object-fit: contain;
+}
+.dsn-rule { height: 1.5px; background: var(--dsn-brand, var(--dsn-ink)); }
+
+/* the owner types into the letterhead: the document's own type until pointed
+   at, and a plain ink ring on focus */
+.dsn .dsd-f {
+  width: auto;
+  min-width: 4ch;
+  max-width: 100%;
+  margin: 0;
+  padding: 0 2px;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
+  letter-spacing: normal;
+  border-bottom: 1px solid transparent;
+  field-sizing: content;
+}
+.dsn .dsd-f:hover { background: rgba(5, 5, 5, 0.04); border-bottom-color: var(--dsn-edge); }
+.dsn .dsd-f:focus {
+  background: #fff;
+  border-bottom-color: transparent;
+  box-shadow: none;
+  outline: 2px solid var(--dsn-ink);
+  outline-offset: 1px;
+}
+.dsn .dsd-f::placeholder { color: var(--dsn-quiet); font-weight: inherit; }
+
+/* ── the four figures: one big, the rest beside it ── */
+.dsn-figs {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr 1fr;
+  gap: 16px;
+  margin: 0;
+}
+.dsn-figs > div { display: flex; flex-direction: column; min-width: 0; }
+.dsn-figs dt { color: var(--dsn-quiet); }
+.dsn-figs dd { margin: 0; font-size: 16px; line-height: 24px; font-weight: 700; }
+.dsn-figs .dsn-big dd:first-of-type { font-size: 26px; line-height: 32px; }
+.dsn-figs dd.dsn-q {
+  font-size: var(--dsn-body);
+  line-height: var(--dsn-body-lh);
+  font-weight: 400;
+}
+
+/* ── a system: a rule across, not a band and not a card ── */
+.dsn-sys { display: flex; flex-direction: column; gap: 8px; }
+.dsn-sys p { margin: 0; }
+.dsn-sysh {
+  display: flex;
+  align-items: baseline;
+  gap: 8px 12px;
+  padding-top: 12px;
+  border-top: 1.5px solid var(--dsn-ink);
+}
+.dsn-sysh b { flex: none; font-size: 14px; line-height: 20px; font-weight: 700; }
+.dsn-sysh .dsn-q { flex: 1; min-width: 0; }
+.dsn-dot {
+  flex: none;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  align-self: center;
+}
+/* a state word and its dot */
+.dsn-st {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.dsn-st::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.dsn-ok { color: var(--dsn-good); }
+.dsn-look { color: var(--dsn-look); }
+.dsn-info { color: var(--dsn-quiet); }
+
+/* ── tables ── */
+.dsn-tw { overflow-x: auto; }
+.dsn-t { width: 100%; border-collapse: collapse; }
+.dsn-t th {
+  padding: 0 8px var(--dsn-cell) 0;
+  text-align: left;
+  font-size: var(--dsn-head);
+  line-height: var(--dsn-head-lh);
+  font-weight: 500;
+  color: var(--dsn-quiet);
+  border-bottom: 1px solid var(--dsn-edge);
+}
+.dsn-t td {
+  padding: var(--dsn-cell) 8px var(--dsn-cell) 0;
+  vertical-align: top;
+  border-bottom: 1px solid var(--dsn-line);
+}
+.dsn-t th:last-child,
+.dsn-t td:last-child { padding-right: 0; }
+.dsn-t .dsn-n { text-align: right; white-space: nowrap; }
+.dsn-t .dsn-n .dsn-st { justify-content: flex-end; }
+.dsn-t tr.dsn-g td {
+  padding-top: 12px;
+  font-weight: 700;
+  border-bottom-color: var(--dsn-edge);
+}
+
+/* ── Materials ── */
+.dsn-math {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1.5px solid var(--dsn-brand, var(--dsn-ink));
+}
+.dsn-math h2 { flex: none; margin: 0; font-size: 16px; line-height: 24px; font-weight: 700; }
+.dsn-math > .dsn-q { flex: 1; min-width: 0; }
+.dsn-math .dsd-pick-act { align-self: center; }
+.dsn-notes { display: flex; flex-direction: column; gap: 4px; }
+.dsn-notes h3 { margin: 0 0 4px; font-size: 14px; line-height: 20px; font-weight: 700; }
+.dsn-notes p { margin: 0; }
+
+/* the foot of a page on a screen; on paper the page box prints it */
+.dsn-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 8px;
+  border-top: 1px solid var(--dsn-edge);
+  color: var(--dsn-quiet);
+}
+
+/* ── the owner's chrome round it (summary.tsx) ── */
+.dstudio .dsn-summary { gap: 24px; }
+.dstudio .dsn-summary .ds-chrome {
+  margin: 0;
+  padding: 0 0 8px;
+  border-radius: 0;
+  background: var(--paper, #fff);
+  border-bottom: 1px solid rgba(5, 5, 5, 0.08);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.dstudio .dsn-summary .ds-chrome-warn,
+.dstudio .dsn-summary .ds-chrome-ok {
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--r-button, 10px);
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: #b45309;
+}
+.dstudio .dsn-summary .ds-chrome-warn::before,
+.dstudio .dsn-summary .ds-chrome-ok::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.dstudio .dsn-summary .ds-chrome-ok { color: #15803d; }
+.dstudio .dsn-summary .ds-chrome-ok svg { display: none; }
+.dstudio .dsn-summary .ds-chrome-warn b {
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  font-weight: inherit;
+  color: inherit;
+}
+.dstudio .dsn-summary .ds-chrome-warn svg { color: inherit; }
+.dstudio .dsn-summary .ds-chrome-warn:hover { background: rgba(5, 5, 5, 0.04); }
+.dstudio .dsn-summary .ds-chrome-warn:focus-visible,
+.dstudio .dsn-summary .ds-chrome-btn:focus-visible {
+  box-shadow: none;
+  outline: 2px solid #050505;
+  outline-offset: 2px;
+}
+.dstudio .dsn-summary .ds-chrome-btn { font-weight: 600; }
+.dstudio .dsn-summary .ds-chrome-btn:hover { background: rgba(5, 5, 5, 0.04); }
+.dstudio .dsn-summary .ds-chrome-btn.on { background: rgba(5, 5, 5, 0.07); border-color: rgba(5, 5, 5, 0.14); }
+.dstudio .dsn-summary .ds-chrome-btn.cta,
+.dstudio .dsn-summary .ds-chrome-btn.cta:hover,
+.dstudio .dsn-summary .ds-chrome-btn.cta.on {
+  background: var(--blue, #2563eb);
+  border-color: var(--blue, #2563eb);
+  color: #fff;
+}
+.dstudio .dsn-summary .ds-chrome-list {
+  padding: 0 0 12px;
+  border: 0;
+  border-bottom: 1px solid rgba(5, 5, 5, 0.08);
+  border-radius: 0;
+  background: none;
+}
+.dstudio .dsn-summary .ds-chrome-list b { font-weight: 600; color: #050505; }
+.dstudio .dsn-summary .ds-chrome-list span { font-weight: 400; line-height: 18px; color: #5f6a79; }
+/* the job on the letterhead: word buttons, no outline until pointed at */
+.dstudio .dsn-summary .ds-letter-src { font-weight: 500; color: #5f6a79; }
+.dstudio .dsn-summary .ds-letter-attach,
+.dstudio .dsn-summary .ds-letter-unlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  margin: 0;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--r-button, 10px);
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: #050505;
+  text-decoration: none;
+}
+.dstudio .dsn-summary .ds-letter-attach { margin-left: -8px; }
+.dstudio .dsn-summary .ds-letter-attach:hover,
+.dstudio .dsn-summary .ds-letter-unlink:hover { background: rgba(5, 5, 5, 0.04); color: #050505; }
+.dstudio .dsn-summary .ds-letter-attach:focus-visible,
+.dstudio .dsn-summary .ds-letter-unlink:focus-visible {
+  box-shadow: none;
+  border-radius: var(--r-button, 10px);
+  outline: 2px solid #050505;
+  outline-offset: 2px;
+}
+/* who has worked on it: a group under a thin line, under the document */
+.dstudio .dsn-summary .ds-contrib {
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid rgba(5, 5, 5, 0.08);
+}
+.dstudio .dsn-summary .ds-contrib-av { background: rgba(5, 5, 5, 0.05); }
+.dstudio .dsn-summary .ds-contrib-nm { font-weight: 600; }
+.dstudio .dsn-summary .ds-contrib-when { color: #5f6a79; }
+.dstudio .dsn-summary .ds-contrib-list + .ds-contrib-note { display: none; }
+
+/* ── on paper ── */
+@media print {
+  /* no ground of its own on paper: a page box paints under the page's
+     content, so a white document hides the footer. The paper is white */
+  .dsn {
+    display: block;
+    max-width: none;
+    background: none;
+    --dsn-body: 11px;
+    --dsn-body-lh: 16px;
+    --dsn-head: 9.5px;
+    --dsn-head-lh: 13px;
+    --dsn-sub: 12px;
+    --dsn-sub-lh: 17px;
+    --dsn-cell: 6px;
+  }
+  /* the page boxes print-doc.tsx declares, and the paper's own margin held open
+     in the document: `.dsn-pg-b` is the foot's 12mm and a little air */
+  .dsn-page { page: dsn-sheet; padding: 0 14mm; }
+  .dsn-page.dsn-lead { page: dsn-lead; }
+  .dsn-second { break-before: page; }
+  .dsn-pg { display: table; width: 100%; border-collapse: collapse; }
+  .dsn-pg > thead { display: table-header-group; }
+  .dsn-pg > tfoot { display: table-footer-group; }
+  .dsn-pg > tbody { display: table-row-group; }
+  .dsn-pg > * > tr { display: table-row; }
+  .dsn-pg > * > tr > td { display: table-cell; }
+  .dsn-pg-t { height: 12mm; }
+  .dsn-pg-b { height: 18mm; }
+  .dsn-pg > tbody > tr > td.dsn-pg-c { display: table-cell; }
+  .dsn-pg-c > * + * { margin-top: 22px; }
+  .dsn-foot,
+  .dsn .dsd-pick-act { display: none; }
+  .dsn-tw { overflow: visible; }
+  .dsn-sysh { break-after: avoid; }
+  .dsn-t tr { break-inside: avoid; }
+  .dsn-t tr.dsn-g { break-after: avoid; }
+  .dsn .dsd-f { border: 0; background: transparent; padding: 0; }
+  #ds-printdoc .ds-print-variant-block:last-child .dsn-cover:last-child { break-after: auto; }
+}

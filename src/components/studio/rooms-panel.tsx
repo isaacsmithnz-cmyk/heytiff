@@ -23,6 +23,18 @@ import { roomAreaM2, roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { canJoin, readHeightOf } from "@/lib/studio/room-edit";
 import type { Suggestion } from "@/lib/studio/rooms-from-reading";
 import { zoneIdsOf } from "@/lib/studio/zones";
+import { Icon } from "@/components/shell/icon";
+
+/** the column's way back: it names the screen behind */
+function Back({ to, onBack }: { to?: string; onBack?: () => void }) {
+  if (!to || !onBack) return null;
+  return (
+    <button type="button" className="ds-stack-back" onClick={onBack}>
+      <Icon name="chevL" size={16} />
+      {to}
+    </button>
+  );
+}
 
 const KIND_WORD: Partial<Record<Suggestion["kind"], string>> = {
   wet: "wet",
@@ -46,7 +58,10 @@ export function RoomsPanel({
   onApart,
   onDraw,
   onDone,
+  back,
 }: {
+  /** the screen behind, by name */
+  back?: string;
   doc: DesignDocument;
   floorId: string;
   found: Suggestion[];
@@ -75,6 +90,7 @@ export function RoomsPanel({
 
   return (
     <section className="ds-su ds-rp" aria-label="Rooms">
+      <Back to={back} onBack={onDone} />
       <div className="ds-su-head">
         <h2>Rooms</h2>
       </div>
@@ -199,7 +215,19 @@ export function RoomPanel({
   onMarkWalls,
   onEditSystem,
   onDelete,
+  back,
+  onBack,
+  onMove,
+  onTakeOff,
+  onAddTo,
 }: {
+  /** the screen behind, by name */
+  back?: string;
+  onBack?: () => void;
+  /** this room to another system, or off the one it's on, or onto one */
+  onMove?: (from: string, to: string) => void;
+  onTakeOff?: (from: string) => void;
+  onAddTo?: (to: string) => void;
   doc: DesignDocument;
   roomId: string;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
@@ -235,6 +263,7 @@ export function RoomPanel({
 
   return (
     <section className="ds-su ds-rp" aria-label={String(p.name ?? "Room")}>
+      <Back to={back} onBack={onBack} />
       <div className="ds-rp-name">
         <input
           className="ds-rp-name-in"
@@ -331,6 +360,28 @@ export function RoomPanel({
             <button type="button" className="ds-su-second" onClick={() => onEditSystem(owner.id)}>
               Edit {owner.name}
             </button>
+            {onTakeOff && (
+              <button type="button" className="ds-su-second" onClick={() => onTakeOff(owner.id)}>
+                Take off {owner.name}
+              </button>
+            )}
+            {onMove &&
+              doc.systems
+                .filter((s) => s.id !== owner.id)
+                .map((s) => (
+                  <button key={s.id} type="button" className="ds-su-second" onClick={() => onMove(owner.id, s.id)}>
+                    Move to {s.name}
+                  </button>
+                ))}
+          </div>
+        )}
+        {!owner && onAddTo && doc.systems.length > 0 && (
+          <div className="ds-su-acts">
+            {doc.systems.map((s) => (
+              <button key={s.id} type="button" className="ds-su-second" onClick={() => onAddTo(s.id)}>
+                Add to {s.name}
+              </button>
+            ))}
           </div>
         )}
       </div>

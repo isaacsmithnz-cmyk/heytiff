@@ -1,7 +1,7 @@
 /* The ticket that lets a headless browser print one design, and the options
    a browser may ask for. The print page trusts nothing else. */
 
-import { pdfFileName, readPdfOptions, readPdfTicket, signPdfTicket } from "../pdf-request";
+import { pdfFileName, readPdfFlow, readPdfOptions, readPdfTicket, signPdfTicket } from "../pdf-request";
 
 const OLD = process.env.AUTH0_SECRET;
 beforeAll(() => {
@@ -18,6 +18,15 @@ const ticket = () => ({
 });
 
 describe("the ticket", () => {
+  it("carries the next flow's word and nothing else", () => {
+    const t = ticket();
+    expect(readPdfTicket(signPdfTicket({ ...t, flow: "next" }))).toEqual({ ...t, flow: "next" });
+    expect(readPdfTicket(signPdfTicket({ ...t, flow: "other" as never }))).toEqual(t);
+    expect(readPdfFlow("next")).toEqual({ flow: "next" });
+    expect(readPdfFlow("current")).toEqual({});
+    expect(readPdfFlow(undefined)).toEqual({});
+  });
+
   it("reads back what was signed", () => {
     const t = ticket();
     expect(readPdfTicket(signPdfTicket(t))).toEqual(t);

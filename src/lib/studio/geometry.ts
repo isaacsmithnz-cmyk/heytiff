@@ -79,22 +79,36 @@ export function polylineLength(points: Point[]): number {
    dots and rendered as a Catmull-Rom spline through every dot — the person
    marks where the line passes, the curve is the tool's job. The spline is
    converted to cubic beziers for SVG; length is measured by sampling the same
-   curve, so the label never reads the (shorter) chord distance. ── */
+   curve, so the label never reads the (shorter) chord distance. A leg listed
+   in `straight` (leg i: dot i to dot i + 1, see run-legs.ts) is a straight line,
+   and a curve either side of it leaves along it, so there is no kink. ── */
 
 /** Catmull-Rom control points → cubic-bezier segments through every point. */
 function splineSegments(
-  points: Point[]
+  points: Point[],
+  straight?: readonly number[]
 ): { a: Point; c1: Point; c2: Point; b: Point }[] {
   const segs: { a: Point; c1: Point; c2: Point; b: Point }[] = [];
+  const isStraight = (leg: number) => straight?.includes(leg) ?? false;
+  /* `length` along the line from a to b, from `at` */
+  const along = (at: Point, a: Point, b: Point, length: number): Point => {
+    const d = dist(a, b) || 1;
+    return { x: at.x + ((b.x - a.x) / d) * length, y: at.y + ((b.y - a.y) / d) * length };
+  };
   for (let i = 0; i < points.length - 1; i++) {
     const p0 = points[i - 1] ?? points[i];
     const p1 = points[i];
     const p2 = points[i + 1];
     const p3 = points[i + 2] ?? points[i + 1];
+    const third = dist(p1, p2) / 3;
+    if (isStraight(i)) {
+      segs.push({ a: p1, c1: along(p1, p1, p2, third), c2: along(p2, p2, p1, third), b: p2 });
+      continue;
+    }
     segs.push({
       a: p1,
-      c1: { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 },
-      c2: { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 },
+      c1: isStraight(i - 1) ? along(p1, p0, p1, third) : { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 },
+      c2: isStraight(i + 1) ? along(p2, p3, p2, third) : { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 },
       b: p2,
     });
   }
@@ -102,18 +116,34 @@ function splineSegments(
 }
 
 /** SVG path `d` for the spline through the dots (straight line for 2 dots). */
-export function smoothPathD(points: Point[]): string {
+export function smoothPathD(points: Point[], straight?: readonly number[]): string {
   if (points.length === 0) return "";
   const d = [`M ${points[0].x} ${points[0].y}`];
-  for (const s of splineSegments(points))
+  for (const s of splineSegments(points, straight))
     d.push(`C ${s.c1.x} ${s.c1.y}, ${s.c2.x} ${s.c2.y}, ${s.b.x} ${s.b.y}`);
   return d.join(" ");
 }
 
+/** the smoothed curve as points along it, first dot to last */
+export function sampleSmoothed(points: Point[], straight?: readonly number[], samplesPerSeg = 16): Point[] {
+  const out: Point[] = points.slice(0, 1);
+  for (const s of splineSegments(points, straight)) {
+    for (let i = 1; i <= samplesPerSeg; i++) {
+      const t = i / samplesPerSeg;
+      const u = 1 - t;
+      out.push({
+        x: u * u * u * s.a.x + 3 * u * u * t * s.c1.x + 3 * u * t * t * s.c2.x + t * t * t * s.b.x,
+        y: u * u * u * s.a.y + 3 * u * u * t * s.c1.y + 3 * u * t * t * s.c2.y + t * t * t * s.b.y,
+      });
+    }
+  }
+  return out;
+}
+
 /** Arc length of the smoothed curve, by sampling each bezier segment. */
-export function smoothedLength(points: Point[], samplesPerSeg = 16): number {
+export function smoothedLength(points: Point[], straight?: readonly number[], samplesPerSeg = 16): number {
   let len = 0;
-  for (const s of splineSegments(points)) {
+  for (const s of splineSegments(points, straight)) {
     let prev = s.a;
     for (let i = 1; i <= samplesPerSeg; i++) {
       const t = i / samplesPerSeg;
@@ -141,10 +171,11 @@ export function smoothedLength(points: Point[], samplesPerSeg = 16): number {
 export function distToSmoothed(
   p: Point,
   points: Point[],
+  straight?: readonly number[],
   samplesPerSeg = 12
 ): number {
   let best = Infinity;
-  for (const s of splineSegments(points)) {
+  for (const s of splineSegments(points, straight)) {
     let prev = s.a;
     for (let i = 1; i <= samplesPerSeg; i++) {
       const t = i / samplesPerSeg;

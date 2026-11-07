@@ -14,6 +14,9 @@ import type { SheetGroup, SummaryRoomRow } from "@/lib/studio/summary";
 export const fmt = (n: number | null, unit: string): string =>
   n == null ? "—" : `${n % 1 === 0 ? n : n.toFixed(1)} ${unit}`;
 export const pct = (n: number | null): string => (n == null ? "—" : `${n}%`);
+/** every kW and m² to one decimal, the way the next flow's columns line up */
+export const fmt1 = (n: number | null, unit: string): string =>
+  n == null ? "—" : `${n.toFixed(1)} ${unit}`;
 
 /** covered / short / unknown → the cell's state class. Semantic, and
     deliberately not the page accent (see the design-system note in memory). */

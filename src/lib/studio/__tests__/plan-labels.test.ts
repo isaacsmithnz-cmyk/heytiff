@@ -2,7 +2,7 @@
    titles … is it smart enough to know where it's been placed and if
    something's on top of it?"). */
 
-import { footprintBox, layoutPlanLabels, roomLabelFixed, roomLabelOffset, textWidthPx, type LabelSpot, type RoomLabelIn } from "../plan-labels";
+import { footprintBox, layoutPlanLabels, roomLabelFixed, roomLabelOffset, runLabelStyle, textWidthPx, type LabelSpot, type RoomLabelIn } from "../plan-labels";
 import type { Point } from "../document";
 
 const square = (x0: number, y0: number, s: number): Point[] => [
@@ -168,5 +168,29 @@ describe("the plan's words", () => {
     const out = layoutPlanLabels({ rooms: [room("z6", polygon, "Zone 6", "27.7 m²")], runs: [], solids: [unit], px: 1.1 });
     const b = out.rooms.get("z6")!.box;
     expect(b.x1 <= unit.x0 || unit.x1 <= b.x0 || b.y1 <= unit.y0 || unit.y1 <= b.y0).toBe(true);
+  });
+});
+
+describe("a duct's words", () => {
+  const duct = { id: "d", text: "5.40 m, Ø400 supply", points: [{ x: 0, y: 0 }, { x: 400, y: 0 }] };
+  const ductRun = (props: Record<string, unknown>) => ({ type: "duct-run", props });
+
+  it("are smaller on a duct the next flow drew, and a pipe's keep their size", () => {
+    expect(runLabelStyle(ductRun({ form: "flex", diaMm: 400 }), 20)).toEqual({ size: 8, half: 10 });
+    expect(runLabelStyle(ductRun({ diaMm: 400 }), 20)).toEqual({ size: 11, half: 0 });
+    expect(runLabelStyle({ type: "pipe-run", props: {} }, 20)).toEqual({ size: 11, half: 0 });
+  });
+
+  it("sit clear of its walls, not its middle", () => {
+    const out = layoutPlanLabels({ rooms: [], runs: [{ ...duct, size: 8, half: 40 }], solids: [], px: 1 });
+    const box = out.runs.get("d")!.box;
+    expect(box.y1 <= -40 || box.y0 >= 40).toBe(true);
+  });
+
+  it("go round another duct's walls", () => {
+    const other = { id: "o", text: "", size: 8, half: 40, points: [{ x: 0, y: -60 }, { x: 400, y: -60 }] };
+    const out = layoutPlanLabels({ rooms: [], runs: [other, { ...duct, size: 8, half: 10 }], solids: [], px: 1 });
+    const box = out.runs.get("d")!.box;
+    expect(box.y0).toBeGreaterThanOrEqual(10);
   });
 });

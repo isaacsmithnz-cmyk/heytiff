@@ -58,7 +58,14 @@ export interface PdfTicket {
   orgId: string;
   designId: string;
   options: ExportOptions;
+  /** which flow's document to print, when it isn't the one that ships. Absent
+      on every ticket the current flow makes */
+  flow?: "next";
 }
+
+/** Only the next flow's word survives; a request that asks for anything else
+    prints the document as it ships. */
+export const readPdfFlow = (raw: unknown): { flow?: "next" } => (raw === "next" ? { flow: "next" } : {});
 
 function key(): Buffer {
   const secret = process.env.AUTH0_SECRET;
@@ -82,7 +89,7 @@ export function readPdfTicket(token: string | undefined, now: number = Date.now(
   const want = createHmac("sha256", key()).update(body).digest();
   const got = Buffer.from(sig, "base64url");
   if (got.length !== want.length || !timingSafeEqual(got, want)) return null;
-  let parsed: { orgId?: unknown; designId?: unknown; options?: unknown; exp?: unknown };
+  let parsed: { orgId?: unknown; designId?: unknown; options?: unknown; exp?: unknown; flow?: unknown };
   try {
     parsed = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
   } catch {
@@ -94,6 +101,7 @@ export function readPdfTicket(token: string | undefined, now: number = Date.now(
     orgId: parsed.orgId,
     designId: parsed.designId,
     options: readPdfOptions(parsed.options, parsed.designId),
+    ...readPdfFlow(parsed.flow),
   };
 }
 

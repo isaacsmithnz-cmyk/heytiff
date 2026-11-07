@@ -24,6 +24,7 @@ import type { DesignDocument } from "@/lib/studio/document";
 import type { DataPack } from "@/lib/studio/packs/schema";
 import { allocationsOf, hasAllocations } from "@/lib/studio/allocations";
 import { KIND_WORD, systemKind } from "@/lib/studio/zones";
+import { systemWordColour } from "@/lib/studio/modules";
 import { brandName } from "@/lib/studio/verdict";
 import { systemVrfTree } from "@/lib/studio/vrf-tree";
 import {
@@ -199,8 +200,9 @@ export function InstallQuestions({
             <div className="ds-iq-stat">
               <span className="k">System</span>
               {/* the name in its own colour, the way the plan and the panel
-                  carry it, so the screen says which system it is asking about */}
-              <span className="v sys" style={{ "--sc": sys.colour } as CSSProperties}>
+                  carry it, so the screen says which system it is asking about;
+                  words take the hue's word value (rule 18a) */}
+              <span className="v sys" style={{ "--sc": systemWordColour(sys.colour) } as CSSProperties}>
                 {sys.name}
               </span>
             </div>

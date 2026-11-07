@@ -39,6 +39,8 @@ import { pushOutcome } from "./picklist-push";
 import { PlanFigure } from "./plan-figure";
 import { PrintDoc } from "./print-doc";
 import { PicklistSection, SheetDoc } from "./sheet-doc";
+import { SheetDocNext } from "./sheet-doc-next";
+import { useStudioFlow } from "../flow";
 import { PdfPages, SendViewer, pageOfPart } from "./send-viewer";
 import { SheetPlans } from "./sheet-plans";
 import { SummaryModal } from "./summary-modal";
@@ -359,6 +361,11 @@ export function SendCard({
     });
   };
 
+  /* the flow this dialog opened in goes with a PDF made on the server: the
+     headless browser has no studio round it to ask */
+  const nextFlow = useStudioFlow() === "next";
+  const flowField = nextFlow ? { flow: "next" } : {};
+
   /* ── paper ── */
   const [printing, setPrinting] = useState<{
     model: PrintModel;
@@ -477,6 +484,7 @@ export function SendCard({
       body: JSON.stringify({
         designId: doc.id,
         name: doc.meta.name,
+        ...flowField,
         jobUuid,
         options: {
           ...opts,
@@ -511,6 +519,7 @@ export function SendCard({
     const body = {
       designId: doc.id,
       name: doc.meta.name,
+      ...flowField,
       options: {
         ...opts,
         sections,
@@ -726,8 +735,19 @@ export function SendCard({
     ? `Design summary, ${doc.meta.variantLabel.toLowerCase()}`
     : "Design summary";
 
-  /* the sheet as sent — the preview shrinks it, the full view does not */
-  const sheet = (
+  /* the sheet as sent — the preview shrinks it, the full view does not. On the
+     next flow paper is its own document; a link still opens the customer's
+     page as it stands, so the picture of a link stays the picture of that */
+  const sheet = nextFlow && paper ? (
+    <SheetDocNext
+      doc={doc}
+      model={model}
+      brand={brand}
+      preparedOn={preparedOn}
+      sections={sections}
+      plansFollow={floorsOn.length > 0}
+    />
+  ) : (
     <SheetDoc
       doc={doc}
       model={model}

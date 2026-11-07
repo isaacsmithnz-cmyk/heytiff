@@ -99,6 +99,8 @@ describe("the air side, next flow", () => {
     expect(ductLines(d, pack, d.systems[0])).toEqual([
       { shelf: "ductwork", name: "Rigid duct Ø300", sub: "Supply, as drawn", qty: "3 m" },
       { shelf: "ductwork", name: "Flexible duct Ø200", sub: "Supply, as drawn", qty: `${Math.ceil(curve * 10 - 1e-6) / 10} m` },
+      /* the one dropped on the other's end made a fitting */
+      { shelf: "ductwork", name: "Reducer 12-8", sub: "Supply", qty: "1" },
     ]);
   });
 

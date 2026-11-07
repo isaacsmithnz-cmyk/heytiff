@@ -11,14 +11,19 @@
 import { useState } from "react";
 import type { DesignDocument, Floor, Point } from "@/lib/studio/document";
 import { AIRFLOW_INKS, type AirStream } from "@/lib/studio/airflow-marks";
+import { supplyInkOf } from "@/lib/studio/duct-size";
 import {
   grilleEdges,
   grilleShape,
   grilleSize,
+  grilleSplit,
   grilleStream,
   grilleStyle,
   isGrille,
   resizeGrille,
+  respotSplitRuns,
+  splitShape,
+  supplyAtWidth,
   type Grille,
   type GrilleEdge,
   type GrilleSize,
@@ -60,7 +65,7 @@ export function GrilleLayer({
   interactive: boolean;
   selectedId: string | null;
   /** the grille the armed component would put down, under the pointer */
-  ghost: { at: Point; deg: number; stream: AirStream; size: GrilleSize; style?: GrilleStyle | null } | null;
+  ghost: { at: Point; deg: number; stream: AirStream; size: GrilleSize; style?: GrilleStyle | null; supplyMm?: number | null } | null;
   toWorld: (e: { clientX: number; clientY: number }) => Point;
   onSelect: (id: string | null) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
@@ -70,9 +75,25 @@ export function GrilleLayer({
   const grilles = doc.objects.filter((o): o is Grille => o.floorId === floor.id && isGrille(o));
   if (!grilles.length && !ghost) return null;
 
-  const face = (key: string, at: Point, deg: number, stream: AirStream, size: GrilleSize, cls: string, style: GrilleStyle | null = null) => {
+  const face = (key: string, at: Point, deg: number, stream: AirStream, size: GrilleSize, cls: string, style: GrilleStyle | null = null, supplyMm: number | null = null, supplyInk: string = AIRFLOW_INKS.supply) => {
+    if (supplyMm) {
+      /* one face: its outline in the plan's ink, each side in its stream's */
+      const c = splitShape(at, deg, size, supplyMm, mm);
+      return (
+        <g key={key} className={cls} aria-hidden="true">
+          <polygon points={c.outline.map((p) => `${p.x},${p.y}`).join(" ")} fill="#fff" stroke="#050505" strokeWidth={1.6 / zoom} />
+          {c.supply.map(([a, b], i) => (
+            <line key={`s${i}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={supplyInk} strokeWidth={1 / zoom} />
+          ))}
+          {c.ret.map(([a, b], i) => (
+            <line key={`r${i}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={AIRFLOW_INKS.return} strokeWidth={1 / zoom} />
+          ))}
+          <line x1={c.divider[0].x} y1={c.divider[0].y} x2={c.divider[1].x} y2={c.divider[1].y} stroke="#050505" strokeWidth={1.6 / zoom} />
+        </g>
+      );
+    }
     const s = grilleShape(at, deg, stream, size, mm, style);
-    const ink = AIRFLOW_INKS[stream];
+    const ink = stream === "supply" ? supplyInk : AIRFLOW_INKS[stream];
     return (
       <g key={key} className={cls} aria-hidden="true">
         <polygon
@@ -88,6 +109,12 @@ export function GrilleLayer({
     );
   };
 
+  /* a combined face's supply side at the width it is being pulled to */
+  const liveSupply = (o: Grille, size: GrilleSize) => {
+    const split = grilleSplit(o);
+    return split ? supplyAtWidth(split.supplyMm, grilleSize(o).wMm, size.wMm) : null;
+  };
+
   const capture = (e: React.PointerEvent<Element>) => {
     e.stopPropagation();
     try {
@@ -99,21 +126,35 @@ export function GrilleLayer({
   /* a duct that ends on the grille comes with it (attach.ts), in the same
      change, so one undo puts both back */
   const commit = (id: string, at: Point, deg: number, size: GrilleSize) =>
-    onMutate((doc) => ({
-      ...doc,
-      objects: reconcileAttachedRuns(
-        doc.objects.map((x) =>
-          x.id === id && x.geometry.kind === "point"
-            ? {
-                ...x,
-                geometry: { ...x.geometry, at, rotation: deg },
-                props: { ...x.props, wMm: size.wMm, hMm: size.hMm },
-              }
-            : x
+    onMutate((doc) => {
+      const ids = new Set([id]);
+      return {
+        ...doc,
+        objects: reconcileAttachedRuns(
+          respotSplitRuns(
+            doc.objects.map((x) =>
+              x.id === id && x.geometry.kind === "point"
+                ? {
+                    ...x,
+                    geometry: { ...x.geometry, at, rotation: deg },
+                    props: {
+                      ...x.props,
+                      wMm: size.wMm,
+                      hMm: size.hMm,
+                      ...(Number(x.props.supplyMm) > 0
+                        ? { supplyMm: supplyAtWidth(Number(x.props.supplyMm), Number(x.props.wMm), size.wMm) }
+                        : {}),
+                    },
+                  }
+                : x
+            ),
+            ids,
+            mm
+          ),
+          ids
         ),
-        new Set([id])
-      ),
-    }));
+      };
+    });
 
   return (
     <g className="ds-grilles" aria-label="Grilles">
@@ -140,7 +181,7 @@ export function GrilleLayer({
             key={o.id}
             className={`ds-grille${interactive ? " grab" : ""}${selectedId === o.id ? " picked" : ""}`}
             role="img"
-            aria-label={stream === "supply" ? "Supply grille" : "Return grille"}
+            aria-label={grilleSplit(o) ? "Supply and return grille" : stream === "supply" ? "Supply grille" : "Return grille"}
           >
             {picked && (
               <g className="ds-grille-turn" style={{ color: ink }}>
@@ -198,7 +239,7 @@ export function GrilleLayer({
               }}
               onPointerCancel={() => setDrag(null)}
             >
-              {face(o.id, at, deg, stream, size, "", grilleStyle(o))}
+              {face(o.id, at, deg, stream, size, "", grilleStyle(o), liveSupply(o, size), supplyInkOf(doc.objects, o.id) ?? AIRFLOW_INKS.supply)}
             </g>
             {picked &&
               (["n", "e", "s", "w"] as const).filter(room).map((edge) => {
@@ -239,7 +280,7 @@ export function GrilleLayer({
           </g>
         );
       })}
-      {ghost && face("ghost", ghost.at, ghost.deg, ghost.stream, ghost.size, "ds-grille-ghost", ghost.style ?? null)}
+      {ghost && face("ghost", ghost.at, ghost.deg, ghost.stream, ghost.size, "ds-grille-ghost", ghost.style ?? null, ghost.supplyMm ?? null)}
     </g>
   );
 }

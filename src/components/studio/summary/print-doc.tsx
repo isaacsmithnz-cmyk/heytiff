@@ -18,6 +18,7 @@ import {
   type PixelTrim,
 } from "@/lib/studio/plans";
 import { PicklistSection, SheetDoc } from "./sheet-doc";
+import { SheetDocNext } from "./sheet-doc-next";
 import { useStudioFlow } from "../flow";
 import { PlanFigure } from "./plan-figure";
 import { NO_BRAND, type OrgBrand } from "@/lib/org/brand";
@@ -50,6 +51,33 @@ const formatDay = (iso: string): string =>
     year: "numeric",
   });
 
+/* THE NEXT FLOW'S PAGE FOOTERS, from the print engine's own page count, so a
+   front page that runs to two sheets still numbers the plans right.
+
+   THE PAGE KEEPS NO MARGIN, for the reason above: a margin is where a browser
+   stamps its date and URL. A margin box with no margin to sit in has no height
+   of its own, so each one is given a height and pulled up out of the paper's
+   foot, over the room the document's table foot holds clear on every page
+   (`.dsn-pg-b`, sheet-doc.css). Footers and page counts checked on a PDF from
+   headless Chrome, 31 October 2026. Plan pages are an unnamed page and print
+   none: the sheet takes the whole page. */
+const FOOT_MM = 12;
+const SIDE_MM = 14;
+
+export function nextPageBoxes(size: string): string {
+  const box = (at: "left" | "right", content: string, width: string) =>
+    `@bottom-${at} { content: ${content}; width: ${width}; height: ${FOOT_MM}mm; ` +
+    `margin-top: -${FOOT_MM}mm; margin-${at}: ${SIDE_MM}mm; vertical-align: top; text-align: ${at}; ` +
+    `font-family: var(--font-jakarta, "Plus Jakarta Sans"), sans-serif; font-size: 11px; line-height: 16px; color: #5f6a79; }`;
+  const page = (name: string, sentence: string) =>
+    `@page ${name} { size: ${size}; margin: 0; ` +
+    box("left", `"Page " counter(page) " of " counter(pages) "${sentence}"`, "120mm") +
+    " " +
+    box("right", `"Prepared with HeyTiff"`, "60mm") +
+    " }";
+  return `${page("dsn-lead", ". The plans follow the materials.")}\n${page("dsn-sheet", "")}`;
+}
+
 function VariantCover({
   v,
   brand,
@@ -62,6 +90,20 @@ function VariantCover({
   /** what the Send dialog ticked — the customer's copy has no picklist */
   sections: SheetSections;
 }) {
+  const next = useStudioFlow() === "next";
+  if (next)
+    return (
+      <section className="ds-print-cover dsn-cover">
+        <SheetDocNext
+          doc={v.doc}
+          model={v.sheet}
+          brand={brand}
+          preparedOn={preparedOn}
+          sections={sections}
+          plansFollow={v.floors.length > 0}
+        />
+      </section>
+    );
   return (
     <section className="ds-print-cover">
       <SheetDoc
@@ -102,7 +144,9 @@ export function PrintDoc({
   onReady: () => void;
 }) {
   const { options } = model;
-  /* the next flow: a plan page fills the paper inside the sheet's frame */
+  /* the next flow: its document (sheet-doc-next.tsx), and a plan page that
+     fills the paper. The document has no frame, so a turned plan page draws
+     none either */
   const fill = useStudioFlow() === "next";
   /* onReady fires EXACTLY once per mount, however often the parent re-renders
      with a fresh callback identity — the latch is a ref, the callback is read
@@ -150,10 +194,11 @@ export function PrintDoc({
     const turned = options.orientation === "portrait" ? "landscape" : "portrait";
     el.textContent =
       `@page { size: ${options.paper} ${options.orientation}; margin: 0; }\n` +
-      `@page ds-turned { size: ${options.paper} ${turned}; margin: 0; }`;
+      `@page ds-turned { size: ${options.paper} ${turned}; margin: 0; }` +
+      (fill ? `\n${nextPageBoxes(`${options.paper} ${options.orientation}`)}` : "");
     document.head.appendChild(el);
     return () => el.remove();
-  }, [options.paper, options.orientation]);
+  }, [options.paper, options.orientation, fill]);
 
   /* fire onReady once every sheet URL is decoded (the SVG <image>s share the
      browser cache, so decoding here means they render). Next paint via rAF,
@@ -241,9 +286,9 @@ export function PrintDoc({
               <section
                 key={floor.id}
                 className={`ds-print-page ${way}${turned ? " turned" : ""}${fill ? " fill" : ""}`}
-                style={turned && hasSheet(options.sections) ? themeVars(brand.color) : undefined}
+                style={turned && !fill && hasSheet(options.sections) ? themeVars(brand.color) : undefined}
               >
-                {turned && (
+                {turned && !fill && (
                   <>
                     <div className="ds-print-tband" aria-hidden="true" />
                     <div className="ds-print-twell" aria-hidden="true" />

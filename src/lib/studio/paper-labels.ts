@@ -16,6 +16,7 @@
    `paperLabelsIn`; the canvas asks the same question at the same size, so a
    callout the canvas shows nudged prints nudged, to the same spot. */
 
+import { ductLabel } from "./duct-size";
 import type { DesignDocument, DesignObject, Floor, Point } from "./document";
 import { calloutContent, calloutLayout, calloutOf, type CalloutPlacement } from "./callouts";
 import { CALLOUT_FONT_REF, planFigureBounds } from "./figure-bounds";
@@ -24,14 +25,14 @@ import {
   formatArea,
   formatMeters,
   polygonArea,
-  polylineLength,
-  smoothedLength,
   unitsToMeters,
 } from "./geometry";
+import { fittingLabelIn } from "./duct-fitting";
+import { ductJunctions, runLengthUnits } from "./run-legs";
 import { isNote, noteLayoutOf, noteRect, type NoteRect } from "./notes";
 import { grilleSize, isGrille } from "./grilles";
 import { deviceHalf, isDevice } from "./devices";
-import { footprintBox, layoutPlanLabels, roomLabelFixed, type Box, type PlanLabels, type PlanLabelsIn } from "./plan-labels";
+import { footprintBox, layoutPlanLabels, roomLabelFixed, runLabelStyle, type Box, type PlanLabels, type PlanLabelsIn } from "./plan-labels";
 
 type PointObject = DesignObject & { geometry: { kind: "point"; at: Point } };
 
@@ -63,6 +64,22 @@ export function airSolids(doc: DesignDocument, floor: Floor, minUnits: number): 
     });
 }
 
+const boxOf = (r: NoteRect): Box => ({ x0: r.x, y0: r.y, x1: r.x + r.w, y1: r.y + r.h });
+
+/** the notes' words and clouds: they stay where they were written */
+export function noteSolids(doc: DesignDocument, floor: Floor): Box[] {
+  return doc.objects
+    .filter((o) => o.floorId === floor.id)
+    .filter(isNote)
+    .flatMap((n) => [boxOf(noteLayoutOf(n).box), boxOf(noteRect(n))]);
+}
+
+/** the figure's bounds, for what may move inside them */
+export function figureBox(doc: DesignDocument, floor: Floor): Box | undefined {
+  const b = planFigureBounds(doc, floor);
+  return b ? { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h } : undefined;
+}
+
 const RUN_TYPES = new Set(["pipe-run", "drain-run", "cable-run", "duct-run"]);
 
 /** a unit's footprint on paper, in world units */
@@ -77,8 +94,8 @@ export function paperFootprint(o: DesignObject, floor: Floor, u: number): { w: n
 export function paperRunText(r: DesignObject & { geometry: { kind: "polyline"; points: Point[] } }, floor: Floor): string {
   const pts = r.geometry.points;
   const scale = floor.scaleMmPerUnit;
-  const curved = r.type === "cable-run" || (r.type === "pipe-run" && r.props.form === "soft");
-  const len = scale ? formatMeters(unitsToMeters(curved ? smoothedLength(pts) : polylineLength(pts), scale)) : null;
+  if (r.type === "duct-run" && r.props.form) return ductLabel(r.props, scale ? unitsToMeters(runLengthUnits(r, pts), scale) : null);
+  const len = scale ? formatMeters(unitsToMeters(runLengthUnits(r, pts), scale)) : null;
   const tag =
     r.type === "drain-run"
       ? `Ø${Number(r.props.sizeMm) || 25} drain`
@@ -105,6 +122,7 @@ export function paperLabelsIn(doc: DesignDocument, floor: Floor, u: number, laye
       RUN_TYPES.has(o.type) && o.geometry.kind === "polyline"
   );
   const points = (type: string) => onFloor.filter((o): o is PointObject => o.type === type && o.geometry.kind === "point");
+  const fittings = ductJunctions(runs);
   return {
     px: u,
     rooms: rooms.map((r) => ({
@@ -123,7 +141,12 @@ export function paperLabelsIn(doc: DesignDocument, floor: Floor, u: number, laye
         },
       ],
     })),
-    runs: layers.pipes ? runs.map((r) => ({ id: r.id, points: r.geometry.points, text: paperRunText(r, floor), size: 11 })) : [],
+    runs: layers.pipes
+      ? [
+          ...runs.map((r) => ({ id: r.id, points: r.geometry.points, text: paperRunText(r, floor), ...runLabelStyle(r, scale) })),
+          ...fittings.map((j) => fittingLabelIn(j, scale)),
+        ]
+      : [],
     solids: [
       ...(layers.units
         ? points("unit").map((o) => {
@@ -132,12 +155,14 @@ export function paperLabelsIn(doc: DesignDocument, floor: Floor, u: number, laye
           })
         : []),
       ...points("riser").map((o) => footprintBox(o.geometry.at, 24 * u, 24 * u)),
+      ...(layers.pipes ? fittings.map((j) => footprintBox(j.at, j.diasMm[0] / (scale ?? 10), j.diasMm[0] / (scale ?? 10))) : []),
       ...(layers.air ? airSolids(doc, floor, 5 * u) : []),
+      ...(layers.air ? noteSolids(doc, floor) : []),
     ],
+    ...(layers.air ? { leadersWithin: figureBox(doc, floor) } : {}),
   };
 }
 
-const boxOf = (r: NoteRect): Box => ({ x0: r.x, y0: r.y, x1: r.x + r.w, y1: r.y + r.h });
 
 const overlap = (a: Box, b: Box): number =>
   Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) * Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
@@ -167,12 +192,11 @@ export function clearCallouts(
   const units = onFloor.filter((o): o is PointObject => o.type === "unit" && o.geometry.kind === "point");
   const fontSize = CALLOUT_FONT_REF * u;
   const air = fontSize * AIR_EM;
-  const bounds = planFigureBounds(doc, floor);
-  const within = bounds ? { x0: bounds.x, y0: bounds.y, x1: bounds.x + bounds.w, y1: bounds.y + bounds.h } : null;
+  const within = figureBox(doc, floor) ?? null;
 
   const taken: Box[] = [
     ...(labels ? [...labels.rooms.values(), ...labels.runs.values()].map((l) => l.box) : []),
-    ...onFloor.filter(isNote).flatMap((n) => [boxOf(noteLayoutOf(n).box), boxOf(noteRect(n))]),
+    ...noteSolids(doc, floor),
     ...units.map((o) => {
       const fp = paperFootprint(o, floor, u);
       return footprintBox(o.geometry.at, fp.w, fp.h, (o.geometry as { rotation?: number }).rotation ?? 0);

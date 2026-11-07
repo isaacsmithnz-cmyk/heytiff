@@ -9,11 +9,7 @@ import { latestInstalledPack } from "@/lib/studio/packs/server";
 import { loadPackWithOverrides } from "@/lib/studio/packs/overrides-server";
 import { trimPackForLive } from "@/lib/studio/packs/live-trim";
 import type { DataPack } from "@/lib/studio/packs/schema";
-import {
-  buildDesignSnapshot,
-  buildSummaryModel,
-  designBasis,
-} from "@/lib/studio/summary";
+import { buildSummaryModel } from "@/lib/studio/summary";
 import { simApprovalState } from "@/lib/studio/sim-approval";
 import { LiveSheet } from "./live-sheet";
 import { SHARE_TTL_DAYS, shareExpiresAt } from "@/lib/studio/share";
@@ -136,8 +132,6 @@ export default async function LivePage({
      render body is a hydration failure waiting for midnight. en-AU because
      the reader is the installer's customer, not the server's locale. */
   const model = buildSummaryModel(doc, pack);
-  const snapshot = buildDesignSnapshot(doc);
-  const basis = designBasis(doc);
   const day: Intl.DateTimeFormatOptions = {
     day: "numeric",
     month: "long",
@@ -159,8 +153,6 @@ export default async function LivePage({
       planUrls={planUrls}
       brand={brand}
       model={model}
-      snapshot={snapshot}
-      basis={basis}
       preparedOn={preparedOn}
       expiresOn={expiresOn}
       /* absent, not disabled: nothing on this sheet advertises a simulation

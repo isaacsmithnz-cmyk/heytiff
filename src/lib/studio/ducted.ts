@@ -232,11 +232,19 @@ export function plenumBody(opts: {
     onFace.length === 0
       ? 0
       : onFace.reduce((a, s) => a + s.diaMm, 0) + SPIGOT_GAP_MM * (onFace.length + 1);
-  const overSpigot = needed > baseWMm;
+  const overFront = needed > baseWMm;
   // a return box keeps its full width to the far face; supply narrows —
   // 1 spigot → a near-point (arrow), more → widens toward (never past) the base
   const rectangular = opts.stream === "return";
-  const spigotFaceWMm = rectangular || overSpigot ? baseWMm : needed;
+  const spigotFaceWMm = rectangular || overFront ? baseWMm : needed;
+  const depthMm = rectangular ? RETURN_PLENUM_DEPTH_MM : supplyPlenumDepthMm(opts.spigots.length);
+  /* a slope seats what fits along it, the same gap and Ø as the far face */
+  const slopeMm = Math.hypot((baseWMm - spigotFaceWMm) / 2, depthMm);
+  const overSlope = (["left", "right"] as const).some((side) => {
+    const on = opts.spigots.filter((s) => s.face === side);
+    return on.length > 0 && on.reduce((a, s) => a + s.diaMm, 0) + SPIGOT_GAP_MM * (on.length + 1) > slopeMm;
+  });
+  const overSpigot = overFront || overSlope;
   const openingHMm = real?.h_mm ?? null;
   /* the OTHER way a duct fails to fit: a round takeoff can't be taller than
      the opening it lands on. A 150 high plenum can't take a 10" (250 Ø)
@@ -251,9 +259,7 @@ export function plenumBody(opts: {
     /* depth follows EVERY connected spigot, not just the ones on the far
        face — a plenum fed by two side takeoffs still has to run out far
        enough to reach them (field sketch 2026-07-23) */
-    depthMm: rectangular
-      ? RETURN_PLENUM_DEPTH_MM
-      : supplyPlenumDepthMm(opts.spigots.length),
+    depthMm,
     builtIn,
     factorySpigots,
     derived,

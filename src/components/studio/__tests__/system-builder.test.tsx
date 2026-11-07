@@ -402,6 +402,36 @@ describe("SystemBuilder", () => {
     expect(zoneCard("Study")).toHaveClass("aimed");
     expect(zoneCard("Bed 1")).not.toHaveClass("aimed");
   });
+
+  /* ADD LANDS WHERE IT SAYS (the 11-05 walk: Bedroom 01 aimed, Add to
+     Bedroom 01 pressed, and the unit went into the Kitchen) */
+  it("puts the unit Add adds in the aimed zone, not the first empty one", () => {
+    const made = claimed(house(), ["bed1", "study"]);
+    render(<SystemBuilder doc={made.doc} pack={pack} systemId={made.systemId} onCommit={() => {}} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Put the next unit in Study" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add to Study" }));
+    expect(zoneCard("Study").querySelectorAll(".ds-sb-head-model")).toHaveLength(1);
+    expect(zoneCard("Bed 1").querySelectorAll(".ds-sb-head-model")).toHaveLength(0);
+  });
+
+  /* ANOTHER SPLIT WITHOUT A DROP. "Add another split" was reachable only by
+     dropping a row on the short zone's slot: Add on a zone whose split is
+     there makes a split of its own beside it */
+  it("a second unit for a split's zone comes as a split of its own", () => {
+    const made = claimed(house(), ["bed1"]);
+    const doc = addHead(made.doc, pack, { systemId: made.systemId, zoneId: "bed1", iduModel: "MSZ-AP25VGD2" });
+    const onCommit = jest.fn();
+    render(<SystemBuilder doc={doc} pack={pack} systemId={made.systemId} onCommit={onCommit} onClose={() => {}} />);
+    const list = screen.getByRole("region", { name: "Choose a unit" });
+    fireEvent.change(within(list).getByRole("searchbox", { name: "Search units" }), { target: { value: "MSZ-AP20VGD" } });
+    fireEvent.click(within(list.querySelector(".ds-ub-table tbody") as HTMLElement).getByText("MSZ-AP20VGD").closest("tr")!);
+    fireEvent.click(screen.getByRole("button", { name: "Add to Bed 1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    const built = onCommit.mock.calls[0][0] as DesignDocument;
+    const serving = built.systems.filter((s) => allocationsOf(s).some((a) => a.role === "idu" && a.roomId === "bed1"));
+    expect(serving).toHaveLength(2);
+    expect(allocationsOf(built.systems.find((s) => s.id === made.systemId)!).filter((a) => a.role === "idu")).toHaveLength(1);
+  });
 });
 
 /* A ZONE'S POPUP IS ABOUT THE ZONE (Isaac, 2026-09-23: "It says build
@@ -439,6 +469,30 @@ describe("the Ducted family", () => {
     const allocs = allocationsOf(sys);
     expect(allocs.find((a) => a.role === "idu")?.serves).toBe("system");
     expect(allocs.find((a) => a.role === "odu")?.model).toBeTruthy();
+  });
+
+  /* ONE UNIT ON THE BAND (the 11-05 walk: a second Add appended a second
+     whole-system unit the rail never drew, and Done stayed off) */
+  it("Add on a ducted system that has its unit swaps it", () => {
+    const made = claimed(house(), ["bed1", "bed2", "living"]);
+    const onCommit = jest.fn();
+    render(<SystemBuilder doc={made.doc} pack={pack} systemId={made.systemId} onCommit={onCommit} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /^Family of outdoor/ }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Ducted" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Head type/ }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Ducted" }));
+    const list = screen.getByRole("region", { name: "Choose a unit" });
+    const pick = (model: string) => {
+      fireEvent.change(within(list).getByRole("searchbox", { name: "Search units" }), { target: { value: model } });
+      fireEvent.click(within(list.querySelector(".ds-ub-table tbody") as HTMLElement).getByText(model).closest("tr")!);
+      fireEvent.click(screen.getByRole("button", { name: "Add to the system" }));
+    };
+    pick("PEA-M125GAA");
+    pick("PEA-M140GAA");
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    const built = onCommit.mock.calls[0][0] as DesignDocument;
+    const band = allocationsOf(built.systems.find((x) => x.id === made.systemId)!).filter((a) => a.serves === "system");
+    expect(band.map((a) => a.model)).toEqual(["PEA-M140GAA"]);
   });
 });
 

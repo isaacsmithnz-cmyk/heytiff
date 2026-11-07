@@ -41,6 +41,7 @@ import { Fade } from "@/components/parts/fade";
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -72,7 +73,7 @@ import { zoneIdsOf } from "@/lib/studio/zones";
 import { isAirCapable } from "@/lib/studio/modules";
 import { deleteZone } from "@/lib/studio/builder";
 import { allocationsOf, hasAllocations } from "@/lib/studio/allocations";
-import { attachOf, riserGapOf, setRiserHeight } from "@/lib/studio/graph";
+import { attachOf, riserGapOf, setRiserHeight, type Attach } from "@/lib/studio/graph";
 import {
   branchBoxObject,
   deleteJoint,
@@ -86,15 +87,31 @@ import {
 import { pipeRefusal } from "@/lib/studio/pipe-rules";
 import { strayFittingIds } from "@/lib/studio/verdict";
 import { pairSize, sizeTone, vrfPipeViews, type FittingView } from "@/lib/studio/pipe-sizes";
-import { footprintBox, layoutPlanLabels, roomLabelFixed, roomLabelOffset, type PlanLabels } from "@/lib/studio/plan-labels";
-import { airSolids, paperLayout } from "@/lib/studio/paper-labels";
+import { footprintBox, layoutPlanLabels, roomLabelFixed, roomLabelOffset, runLabelStyle, type PlanLabels } from "@/lib/studio/plan-labels";
+import { airSolids, figureBox, noteSolids, paperLayout } from "@/lib/studio/paper-labels";
+import { ductFaceSpot, offsetPoint } from "@/lib/studio/duct-face";
+import { plenumFigure, plenumShape, plenumsFromDucts, type PlenumShape } from "@/lib/studio/unit-plenum";
 import { nearestTabS, tabPath, tabShare, wallsOf, TAB_PAD_T, TAB_PAD_X } from "@/lib/studio/room-tab";
 import type { SizedSection } from "@/lib/studio/vrf-tree";
 import { usePipeUnits } from "./pipe-units";
 import { AirflowLayer } from "./airflow-layer";
 import { AIRFLOW_INKS, airflowMark, hitMark, isAirflowMark, pullDeg, type AirStream, type AirflowMark } from "@/lib/studio/airflow-marks";
 import { GrilleLayer } from "./grille-layer";
-import { GRILLE_SIZES, grille, hitGrille, isGrille, type Grille, type GrilleMount, type GrilleSize, type GrilleStyle } from "@/lib/studio/grilles";
+import { FreeDuctEnd, PaintedDuct, PaintedFitting, RiserDisc } from "./painted-duct";
+import { NoteBackdrop, NoteBlurControl } from "./note-backdrop";
+import {
+  chooseDuctStream,
+  cutDuctAt,
+  nearestOnDucts,
+  spreadDuctStream,
+  thinStroke,
+  unitFaceToward,
+  type DuctTouch,
+} from "@/lib/studio/duct-draw";
+import { DUCT_LABEL_STYLE, ductLabel, ductWidth, plenumInkOf, riserMark } from "@/lib/studio/duct-size";
+import { ductLinesOn, fittingKey, fittingLabelIn, fittingName, linePathD } from "@/lib/studio/duct-fitting";
+import { ductFreeEnds, ductJunctions, isCurvedRun, legsProp, legsWithoutDot, nextDot, runLengthUnits, straightLegsOf, type StraightLegs } from "@/lib/studio/run-legs";
+import { GRILLE_SIZES, grille, grilleSize, grilleSplit, grilleStream, halfOf, hitGrille, isGrille, pulledGrille, splitSideOff, type Grille, type GrilleMount, type GrilleSize, type GrilleStyle } from "@/lib/studio/grilles";
 import { device, deviceHalf, deviceLetter, isDevice, type Device, type DeviceKind } from "@/lib/studio/devices";
 
 /** a branch box on the plan: PAC-MK34BC / MK54BC are both 450 × 280 mm (M-P0860 p.44) */
@@ -159,8 +176,6 @@ import {
   pointInPolygon,
   polygonArea,
   polygonCentroid,
-  polylineLength,
-  smoothedLength,
   smoothPathD,
   screenToWorld,
   unitsToMeters,
@@ -186,6 +201,7 @@ import {
   noteLeader,
   noteRect,
   noteScaleOf,
+  noteBlurOf,
   noteText,
   noteWrapOf,
   rectFromDrag,
@@ -258,8 +274,8 @@ export interface DrawOptions {
   /** the next duct: its diameter and whether it carries supply or return */
   ductMm: number;
   ductStream: AirStream;
-  /** the next flow's Air bar: a rigid duct drawn straight, or flex drawn as
-      a curve; unset, a duct is drawn as it always was */
+  /** the next flow's Air bar: a rigid duct drawn in straight legs, or flex
+      drawn as a curve; unset, a duct is drawn as it always was */
   ductForm?: "rigid" | "flex";
   /** the next airflow mark: blue supply or red return */
   airStream: AirStream;
@@ -283,14 +299,9 @@ const RUN_TYPES = new Set(["pipe-run", "drain-run", "cable-run", "duct-run"]);
     flow also ends on a grille */
 type AnchorKind = "unit" | "riser" | "joint" | "branch-box" | "grille";
 
-/** does this run render as a smoothed curve? cables always; pipe when soft */
-export const isCurvedRun = (o: {
-  type: string;
-  props: Record<string, unknown>;
-}): boolean =>
-  o.type === "cable-run" ||
-  (o.type === "pipe-run" && o.props.form === "soft") ||
-  (o.type === "duct-run" && o.props.form === "flex");
+/** does the armed tool draw a curve through its dots? */
+const drawsCurve = (t: CanvasTool, draw: DrawOptions): boolean =>
+  t === "cable" || (t === "pipe" && draw.pipeForm === "soft") || (t === "duct" && draw.ductForm === "flex");
 
 /** Canvas layer visibility (transient view state, not persisted). */
 export interface LayerFlags {
@@ -353,6 +364,8 @@ export interface ArmedComponent {
   /** the next flow's Air bar: what the grille is and where it sits */
   style?: GrilleStyle | null;
   mount?: GrilleMount | null;
+  /** a linear face doing supply and return: this much of it is supply */
+  supplyMm?: number | null;
 }
 
 const CLOSE_SNAP_PX = 12; // screen px to close a polygon on its first vertex
@@ -654,138 +667,64 @@ const PLENUM_SNAP_PX = 20; // screen px to snap the plenum ghost onto an AHU end
    rectangle (no special case here). Spigots are
    RECTANGLES (plan view of a round takeoff) standing off the spigot face at
    true width; side-face spigots ride the left/right edges. ── */
-interface PlenumSpigotRect {
-  id: string;
-  /** 4 corners of the spigot rectangle (plan view of the takeoff) */
-  rect: Point[];
-  /** centre (cap-tick anchor + hit target) */
-  cx: number;
-  cy: number;
-  /** outward normal — cap-tick direction */
-  nx: number;
-  ny: number;
-  capped: boolean;
-  /** its own diameter (mm) — every takeoff is labelled AT the takeoff */
-  diaMm: number;
-}
-interface PlenumShape {
-  body: Point[];
-  spigots: PlenumSpigotRect[];
-  labelAt: Point;
-}
-
-function plenumShape(opts: {
-  /** face midpoint (on the AHU long face — air flows through the depth) */
-  cx: number;
-  cy: number;
-  /** unit vector pointing OUT of that face (the unit's rotation is in here) */
-  out: Point;
-  /** unit vector running ALONG the face, so the shape turns with the unit */
-  ax: Point;
-  /** half the BASE width — on the unit, the widest edge (world units) */
-  baseHalf: number;
-  /** half the SPIGOT-FACE width — the narrow far edge (world units, ≤ base) */
-  spigotHalf: number;
-  /** plan protrusion from the unit face (world units) */
-  depth: number;
-  spigots: (PlenumSpigot & { r: number })[];
-}): PlenumShape {
-  const { cx, cy, out, ax, baseHalf, depth } = opts;
-  /* The whole shape is laid out in the FACE's own frame — `a` runs across the
-     face, `o` out of it — and mapped to world through the unit's basis. That
-     is what lets a rotated AHU carry its plenum round with it; the frame is
-     (1,0)/(0,±1) for an unrotated unit, which is the geometry this drew before
-     ducted units could turn. */
-  const P = (a: number, o: number): Point => ({
-    x: cx + ax.x * a + out.x * o,
-    y: cy + ax.y * a + out.y * o,
-  });
-  const V = (a: number, o: number): Point => ({
-    x: ax.x * a + out.x * o,
-    y: ax.y * a + out.y * o,
-  });
-  const hBase = baseHalf;
-  /* The far face is exactly as wide as the ducts landing ON it — no artificial
-     lip. With every takeoff on the SIDES the face is nothing and the body
-     closes to a true V point, which is how these are drawn by hand (field
-     sketch 2026-07-23); the old 12% floor left a stub that read as a mistake. */
-  const hSpig = Math.min(hBase, opts.spigotHalf);
-  const stub = depth * 0.4; // how far the spigot rectangles stand off the face
-
-  // trapezoid: WIDE on the unit (±hBase) → NARROW at the spigot face (±hSpig)
-  const body: Point[] = [
-    P(-hBase, 0),
-    P(-hSpig, depth),
-    P(hSpig, depth),
-    P(hBase, 0),
-  ];
-
-  const spigots: PlenumSpigotRect[] = opts.spigots.map((s) => {
-    if (s.face === "front") {
-      /* front spigots: t ∈ 0..1 left→right along the (narrow) spigot face.
-         Rectangle: Ø across the face, stub standing off it */
-      const a = -hSpig + s.t * 2 * hSpig;
-      return {
-        id: s.id,
-        rect: [
-          P(a - s.r, depth),
-          P(a - s.r, depth + stub),
-          P(a + s.r, depth + stub),
-          P(a + s.r, depth),
-        ],
-        cx: P(a, depth + stub / 2).x,
-        cy: P(a, depth + stub / 2).y,
-        nx: out.x,
-        ny: out.y,
-        capped: s.capped === true,
-        diaMm: s.diaMm,
-      };
-    }
-    /* side spigot: it comes off the SLOPED edge, so the takeoff has to be
-       square to that edge — Ø along the slope, stub along the slope's outward
-       normal. Drawing it axis-aligned (the old ±y × ±x box) left the duct
-       hanging off the angled face at a visible angle (field feedback
-       2026-07-25). */
-    const sgn = s.face === "left" ? -1 : 1;
-    // the sloped edge, base corner → spigot-face corner
-    const ea = sgn * hSpig - sgn * hBase;
-    const eo = depth;
-    const len = Math.hypot(ea, eo) || 1;
-    const ta = ea / len; // unit tangent along the edge
-    const to = eo / len;
-    // its normal, flipped to point AWAY from the body (outward across the face)
-    let na = to;
-    let no = -ta;
-    if (na * sgn < 0) {
-      na = -na;
-      no = -no;
-    }
-    const pa = sgn * hBase + ea * s.t; // seat of the takeoff on the edge
-    const po = eo * s.t;
-    return {
-      id: s.id,
-      rect: [
-        P(pa - ta * s.r, po - to * s.r), // edge footprint, Ø wide
-        P(pa - ta * s.r + na * stub, po - to * s.r + no * stub),
-        P(pa + ta * s.r + na * stub, po + to * s.r + no * stub),
-        P(pa + ta * s.r, po + to * s.r),
-      ],
-      cx: P(pa + (na * stub) / 2, po + (no * stub) / 2).x,
-      cy: P(pa + (na * stub) / 2, po + (no * stub) / 2).y,
-      nx: V(na, no).x,
-      ny: V(na, no).y,
-      capped: s.capped === true,
-      diaMm: s.diaMm,
-    };
-  });
-
-  /* the label sits CENTRED ON the plenum body — a label belongs on the thing
-     it names, and centring also keeps it clear of the takeoffs, which stand
-     off the far face rather than over the body. */
-  return { body, spigots, labelAt: P(0, depth / 2) };
-}
 
 /** the pack's air-opening for one stream of an indoor unit, or null */
+/* the next flow: a duct on a unit comes off the face its stream leaves by, in
+   line with where it is going, not out of the unit's middle. A rigid one turns
+   square off the face when it doesn't leave straight. */
+function ductOffFaces(
+  points: Point[],
+  start: Attach | null,
+  end: Attach | null,
+  ctx: {
+    objects: DesignObject[];
+    draw: DrawOptions;
+    /* mm a unit, or the grid a unit's size stands in for off a plan with no scale */
+    mm: number | null | undefined;
+    grid: number;
+  }
+) {
+  const spot = (a: Attach | null, toward: Point) => {
+    if (a?.kind === "grille") {
+      /* a combined grille: the duct lands on the side its stream belongs to */
+      const g = ctx.objects.find((o) => o.id === a.id);
+      const split = g && isGrille(g) ? grilleSplit(g) : null;
+      if (!g || !split || !isGrille(g)) return null;
+      const off = splitSideOff(grilleSize(g), split.supplyMm, ctx.draw.ductStream, ctx.mm ?? 10);
+      return { point: offsetPoint(g.geometry.at, g.geometry.rotation ?? 0, off), off };
+    }
+    if (a?.kind !== "unit") return null;
+    const u = ctx.objects.find((o) => o.id === a.id);
+    if (!u || u.geometry.kind !== "point") return null;
+    const widthMm = Number(u.props.widthMm ?? 800);
+    const depthMm = Number(u.props.depthMm ?? 300);
+    const fp = ctx.mm
+      ? { w: widthMm / ctx.mm, h: depthMm / ctx.mm }
+      : { w: ctx.grid * 0.9, h: ctx.grid * 0.9 * (depthMm / Math.max(widthMm, 1)) };
+    return ductFaceSpot({
+      at: u.geometry.at,
+      rotation: u.geometry.rotation ?? 0,
+      w: fp.w,
+      h: fp.h,
+      flip: u.props.airFlip === true,
+      stream: ctx.draw.ductStream,
+      toward,
+      dia: (ctx.draw.ductMm * fp.w) / Math.max(widthMm, 1),
+    });
+  };
+  const square = ctx.draw.ductForm !== "flex";
+  let pts = points;
+  const s = pts.length >= 2 ? spot(start, pts[1]) : null;
+  if (s) pts = square ? [s.point, ...squareInto([s.point], pts[1]).slice(1), ...pts.slice(1)] : [s.point, ...pts.slice(1)];
+  const e = pts.length >= 2 ? spot(end, pts[pts.length - 2]) : null;
+  if (e) pts = square ? [...squareInto(pts.slice(0, -1), e.point), e.point] : [...pts.slice(0, -1), e.point];
+  return {
+    points: pts,
+    start: s && start ? { ...start, off: s.off } : start,
+    end: e && end ? { ...end, off: e.off } : end,
+  };
+}
+
 function openingOf(row: IndoorUnit | null, end: "supply" | "return"): OpeningSpec | null {
   if (!row) return null;
   return (end === "return" ? row.return_opening : row.supply_opening) ?? null;
@@ -796,8 +735,12 @@ function defaultViewport(
   w: number,
   h: number,
   grid: number,
-  notes: NoteObject[] = []
+  notes: NoteObject[] = [],
+  /* the next flow: the tools float over the canvas's foot, so the frame is
+     the part above them — a plan fitted under the bench is half hidden */
+  foot = 0
 ): Viewport {
+  h = Math.max(1, h - foot);
   const b = boundsOfPoints(points);
   if (!b) {
     // empty floor: centre the origin, one grid cell ≈ 56 screen px
@@ -827,9 +770,28 @@ function defaultViewport(
     scroll can pan (see readWheel), the drag is a fallback and the click can be
     forgiving again. */
 const TAP_SLOP_PX = 10;
+/** a drawn stroke keeps a dot only this far off the line between its neighbours */
+const STROKE_THIN_PX = 8;
+
+const midOf = (pts: readonly Point[]): Point => ({
+  x: pts.reduce((sum, p) => sum + p.x, 0) / (pts.length || 1),
+  y: pts.reduce((sum, p) => sum + p.y, 0) / (pts.length || 1),
+});
+
+interface DuctLanding {
+  at: Point;
+  anchor?: { kind: AnchorKind; id: string };
+  touch: DuctTouch;
+  /** on a duct's run rather than its end: that duct is cut here */
+  cut: boolean;
+}
 
 type Drag =
   | { kind: "pan"; startScreen: Point; origVp: Viewport }
+  /** the next flow's duct tool: a press is a click until it travels, then it draws */
+  | { kind: "duct-stroke"; startScreen: Point; started: boolean; fresh: boolean; baseLen: number; straight: boolean; click: () => void }
+  /** two fingers move the plan under the duct tool, where one finger draws */
+  | { kind: "two-finger"; startMid: Point; origVp: Viewport }
   /** undecided: a click-to-place gesture that hasn't moved far enough to be
       a pan yet. `commit` is the placement it will run on release. */
   | {
@@ -860,6 +822,7 @@ type Drag =
   | { kind: "tape"; from: Point }
   /** pulling an airflow mark out the way the air goes */
   | { kind: "airflow"; start: Point }
+  | { kind: "grille-pull"; start: Point }
   /** dragging the note's cloud out over what it is about */
   | { kind: "note-rect"; start: Point }
   /** sliding a whole note — cloud and margin text travel together */
@@ -930,6 +893,7 @@ export function StudioCanvas({
   roomFits,
   onPlaced,
   component = null,
+  airOverlay = null,
   onComponentPlaced,
   iduSpec,
   pack,
@@ -946,6 +910,7 @@ export function StudioCanvas({
   grayscale = false,
   onZoomApi,
   onZoomChange,
+  coveredFoot = 0,
   sim = null,
   bare = false,
   draw = DEFAULT_DRAW,
@@ -990,6 +955,9 @@ export function StudioCanvas({
   onZoomApi?: (api: ZoomApi) => void;
   /** current zoom percentage, for the toolbar readout */
   onZoomChange?: (pct: number) => void;
+  /** screen px at the canvas's foot that the tools float over: every frame
+      (opening, re-fit, Fit) stops above them */
+  coveredFoot?: number;
   /** system that pipe/riser/place drawing tags objects with (Stage 4) */
   activeSystemId?: string | null;
   /** armed unit for the place tool */
@@ -1003,6 +971,8 @@ export function StudioCanvas({
   onPlaced?: () => void;
   /** armed air component for the component tool (Stage 7 — plenum first) */
   component?: ArmedComponent | null;
+  /** the next flow: the Air screen's figures, over the plan */
+  airOverlay?: { id: string; at: Point; text: string; fast: boolean }[] | null;
   onComponentPlaced?: () => void;
   /** pack-row resolver for placed indoor units — plenum specs + air
       capability come from unit DATA, never system type (ducted spec §11.1) */
@@ -1120,6 +1090,10 @@ export function StudioCanvas({
      no mark on the drawing — let go and it's gone. */
   /* the airflow mark being pulled out: where it was pressed, where it is pulled to */
   const [airDraft, setAirDraft] = useState<{ a: Point; b: Point } | null>(null);
+  /* the next flow: a linear grille being pulled across what it fills */
+  const [grillePull, setGrillePull] = useState<{ a: Point; b: Point } | null>(null);
+  /* where the pull really is: the plan can be a frame behind the pointer */
+  const grillePullAt = useRef<Point | null>(null);
   const [tape, setTape] = useState<{ a: Point; b: Point } | null>(null);
   /* live crop rectangle while dragging a crop (or a split) over a sheet */
   const [liveCrop, setLiveCrop] = useState<{ sheetId: string; a: Point; b: Point } | null>(null);
@@ -1174,6 +1148,9 @@ export function StudioCanvas({
      render, after the handlers are made */
   const planLabelsRef = useRef<PlanLabels | null>(null);
   const [notePanel, setNotePanel] = useState<Size>({ w: 264, h: 172 });
+  const underNotesId = `under-notes-${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
+  /* the blur slider while it is held: only letting go writes the document */
+  const [liveBlur, setLiveBlur] = useState<{ id: string; blur: number } | null>(null);
   const measureNotePanel = useCallback((el: HTMLDivElement | null) => {
     if (!el) return;
     const r = el.getBoundingClientRect();
@@ -1363,23 +1340,35 @@ export function StudioCanvas({
      first click attached to. The dots are KEYED to the tool that placed them
      — switching draw tools mid-draft must not carry them across, or a half
      drawn pipe double-clicked as a drain would commit as the wrong type. */
-  const [runDraft, setRunDraft] = useState<{ tool: CanvasTool; pts: Point[] }>({
+  const [runDraft, setRunDraft] = useState<{ tool: CanvasTool; pts: Point[]; legs: number[] }>({
     tool,
     pts: [],
+    legs: [],
   });
   const draftPipe = useMemo(
     () => (runDraft.tool === tool ? runDraft.pts : []),
     [runDraft, tool]
   );
+  /* the legs of a curved draft that Shift made straight (run-legs.ts) */
+  const draftLegs = useMemo(
+    () => (runDraft.tool === tool ? runDraft.legs : []),
+    [runDraft, tool]
+  );
   const setDraftPipe = useCallback(
-    (v: Point[] | ((p: Point[]) => Point[])) =>
+    (v: Point[] | ((p: Point[]) => Point[]), straightLeg?: boolean) =>
       setRunDraft((cur) => {
-        const prev = cur.tool === tool ? cur.pts : [];
-        return { tool, pts: typeof v === "function" ? v(prev) : v };
+        const mine = cur.tool === tool;
+        const pts = typeof v === "function" ? v(mine ? cur.pts : []) : v;
+        const had = mine ? cur.legs : [];
+        return { tool, pts, legs: pts.length === 0 ? [] : straightLeg ? [...had, pts.length - 2] : had };
       }),
     [tool]
   );
   const pipeStartAttach = useRef<{ kind: AnchorKind; id: string } | null>(null);
+  /* what a next-flow duct started on, kept to its commit */
+  const [ductStart, setDuctStart] = useState<DuctLanding | null>(null);
+  /* the fingers down, for two to move the plan under the duct tool */
+  const touches = useRef(new Map<number, Point>());
   /* a refrigerant pipe that can't exist is refused where it would attach
      (pipe-rules.ts); the reason stands in the hint window for a moment */
   const [refusal, setRefusal] = useState<string | null>(null);
@@ -1421,7 +1410,7 @@ export function StudioCanvas({
       Pipe endpoints snap to these; the nearest within range lights up BEFORE
       the click (the show-the-snap-target-first rule). */
   const anchors = useMemo(
-    () => [
+    (): { kind: AnchorKind; id: string; at: Point; stream?: AirStream }[] => [
       ...[...units, ...risers, ...joints, ...boxes]
         .filter((o) => o.systemId === activeSystemId)
         .map((o) => ({ kind: o.type as AnchorKind, id: o.id, at: pointAt(o) })),
@@ -1429,10 +1418,20 @@ export function StudioCanvas({
       ...(flow === "next" && tool === "duct"
         ? doc.objects
             .filter((o): o is Grille => o.floorId === floor.id && isGrille(o) && o.systemId === activeSystemId)
-            .map((o) => ({ kind: "grille" as const, id: o.id, at: o.geometry.at }))
+            .flatMap((o) => {
+              /* a combined grille is two landings, one on each side: the side is the stream */
+              const split = grilleSplit(o);
+              if (!split) return [{ kind: "grille" as const, id: o.id, at: o.geometry.at, stream: grilleStream(o) }];
+              return (["supply", "return"] as const).map((stream) => ({
+                kind: "grille" as const,
+                id: o.id,
+                at: offsetPoint(o.geometry.at, o.geometry.rotation ?? 0, splitSideOff(grilleSize(o), split.supplyMm, stream, floor.scaleMmPerUnit ?? 10)),
+                stream,
+              }));
+            })
         : []),
     ],
-    [units, risers, joints, boxes, activeSystemId, pointAt, flow, tool, doc.objects, floor.id]
+    [units, risers, joints, boxes, activeSystemId, pointAt, flow, tool, doc.objects, floor.id, floor.scaleMmPerUnit]
   );
 
 
@@ -1635,8 +1634,9 @@ export function StudioCanvas({
     return pts;
   }, [rooms, roomPoints, notes, doc.objects, floor.id, floor.plans, sheetSize, sheetPos]);
 
+  const footRef = useRef(coveredFoot);
   const [vp, setVp] = useState<Viewport>(() =>
-    defaultViewport(contentPoints(), size.w, size.h, grid, notes)
+    defaultViewport(contentPoints(), size.w, size.h, grid, notes, coveredFoot)
   );
   const mountContent = useRef({ points: contentPoints(), grid, notes });
   const measured = useRef(false);
@@ -1769,7 +1769,8 @@ export function StudioCanvas({
           sizeRef.current.w,
           sizeRef.current.h,
           fitExtrasRef.current.grid,
-          fitExtrasRef.current.notes
+          fitExtrasRef.current.notes,
+          footRef.current
         )
       );
     userFramed.current = false;
@@ -1784,7 +1785,7 @@ export function StudioCanvas({
   /** nearest connection anchor within snap range of a world point */
   const nearestAnchor = useCallback(
     (w: Point) => {
-      let best: { kind: AnchorKind; id: string; at: Point } | null = null;
+      let best: { kind: AnchorKind; id: string; at: Point; stream?: AirStream } | null = null;
       let bestD = ANCHOR_SNAP_PX / vp.zoom;
       for (const a of anchors) {
         const d = dist(a.at, w);
@@ -1796,6 +1797,57 @@ export function StudioCanvas({
       return best;
     },
     [anchors, vp.zoom]
+  );
+
+  /* the next flow: a duct dropped on another's free end, or on a fitting, joins
+     it there. Nothing is attached: it is where the ends are (run-legs.ts) */
+  const ductDropSpots = useMemo(
+    () =>
+      flow === "next" && tool === "duct"
+        ? [...ductFreeEnds(runs), ...ductJunctions(runs)].map((j) => j.at)
+        : [],
+    [flow, tool, runs]
+  );
+  const nearestDuctDrop = useCallback(
+    (w: Point) => {
+      const last = draftPipe[draftPipe.length - 1];
+      let best: Point | null = null;
+      let bestD = ANCHOR_SNAP_PX / vp.zoom;
+      for (const at of ductDropSpots) {
+        const d = dist(at, w);
+        if (d <= bestD && !(last && dist(at, last) < 1e-6)) {
+          best = at;
+          bestD = d;
+        }
+      }
+      return best;
+    },
+    [ductDropSpots, vp.zoom, draftPipe]
+  );
+  /* anywhere along a duct too: it is cut there when the new duct is committed */
+  const ductOnAt = useCallback(
+    (w: Point) => {
+      if (flow !== "next" || tool !== "duct") return null;
+      const on = nearestOnDucts(runs, w, (r) => Math.max(ductWidth(Number(r.props.diaMm) || 250, floor.scaleMmPerUnit ?? 10, 1 / vp.zoom) / 2, HIT_EDGE_PX / vp.zoom));
+      const last = draftPipe[draftPipe.length - 1];
+      return on && last && dist(on.at, last) < TAP_SLOP_PX / vp.zoom ? null : on;
+    },
+    [flow, tool, runs, floor.scaleMmPerUnit, vp.zoom, draftPipe]
+  );
+  /** what a duct would land on here, of everything it can: the nearest thing to the eye first */
+  const ductLanding = useCallback(
+    (w: Point): DuctLanding | null => {
+      const anchor = nearestAnchor(w);
+      if (anchor) return { at: anchor.at, anchor: { kind: anchor.kind, id: anchor.id }, touch: { stream: anchor.stream ?? null, decides: anchor.stream != null }, cut: false };
+      const drop = nearestDuctDrop(w);
+      if (drop) {
+        const joins = [...ductFreeEnds(runs), ...ductJunctions(runs)].find((j) => j.at === drop);
+        return { at: drop, touch: { stream: joins?.stream ?? null }, cut: false };
+      }
+      const on = ductOnAt(w);
+      return on ? { at: on.at, touch: { stream: on.stream }, cut: true } : null;
+    },
+    [nearestAnchor, nearestDuctDrop, ductOnAt, runs]
   );
 
   /** where a click lands on one of the active system's refrigerant runs on
@@ -1827,6 +1879,16 @@ export function StudioCanvas({
   const plenums = useMemo(
     () => doc.objects.filter((o) => inScope(o) && o.type === "plenum"),
     [doc.objects, inScope]
+  );
+
+  /* the next flow's are made by the ducts on the unit's faces, and only drawn:
+     there is nothing to pick, the duct is the thing to change (unit-plenum.ts) */
+  const drawnPlenums = useMemo(
+    () =>
+      floor.scaleMmPerUnit
+        ? [...plenums, ...units.flatMap((u) => plenumsFromDucts(doc.objects, u, iduSpec?.(String(u.props.model ?? "")), floor.scaleMmPerUnit))]
+        : plenums,
+    [plenums, units, doc.objects, iduSpec, floor.scaleMmPerUnit]
   );
 
   /** the pack row of a placed unit IF it is an air-capable air handler */
@@ -2009,7 +2071,7 @@ export function StudioCanvas({
         unitId: string;
       }
     >();
-    for (const p of plenums) {
+    for (const p of drawnPlenums) {
       const unit = units.find((u) => u.id === String(p.props.unitId ?? ""));
       if (!unit) continue;
       const end = p.props.end === "return" ? ("return" as const) : ("supply" as const);
@@ -2019,39 +2081,11 @@ export function StudioCanvas({
       const perMm = fp.w / Math.max(widthMm, 1); // world units per mm (works uncalibrated)
       const row = iduSpec?.(String(unit.props.model ?? "")) ?? null;
       const opening = openingOf(row, end);
-      /* Re-pack on the way out, not just on add/delete. `t` is machine-
-         assigned today (there is no drag-slide yet), and designs saved before
-         the packing fix still carry evenly-spaced values that overlap once the
-         diameters differ. Normalising here heals them without a migration —
-         revisit when spigots become draggable and `t` is genuinely the
-         installer's own placement. */
-      const sp = distributeSpigots(spigotsOf(p.props));
-      const body = plenumBody({
-        opening,
-        unitWidthMm: widthMm, // the mounting face is a LONG face (spec §1a)
-        spigots: sp,
-        stream: end, // return draws as a box; supply tapers to its spigots
-      });
-      if (body.builtIn || body.factorySpigots) continue; // no drawn plenum object
       const f = endFace(unit, end); // rotated: the plenum turns with its AHU
-      // base = the discharge opening (a plenum box fans wider than the slim
-      // unit end, so it is NOT clamped to the mounting-face length)
-      const baseHalf = (body.baseWMm * perMm) / 2;
+      const figure = plenumFigure({ props: p.props, widthMm, perMm, opening, face: f });
+      if (!figure) continue; // no drawn plenum object
       m.set(p.id, {
-        ...plenumShape({
-          cx: f.mid.x,
-          cy: f.mid.y,
-          out: f.out,
-          ax: f.ax,
-          baseHalf,
-          spigotHalf: (body.spigotFaceWMm * perMm) / 2,
-          depth: body.depthMm * perMm,
-          spigots: sp.map((s) => ({ ...s, r: (s.diaMm * perMm) / 2 })),
-        }),
-        label: body.label,
-        derived: body.derived,
-        overSpigot: body.overSpigot,
-        overHeight: body.overHeight,
+        ...figure,
         unitId: unit.id,
       });
     }
@@ -2078,7 +2112,8 @@ export function StudioCanvas({
           r.width,
           r.height,
           mountContent.current.grid,
-          mountContent.current.notes
+          mountContent.current.notes,
+          footRef.current
         ),
         { w: r.width, h: r.height }
       );
@@ -2105,10 +2140,31 @@ export function StudioCanvas({
           sizeRef.current.w,
           sizeRef.current.h,
           fitExtrasRef.current.grid,
-          fitExtrasRef.current.notes
+          fitExtrasRef.current.notes,
+          footRef.current
         )
       );
   }, [sheetDims, commitVp]);
+
+  /* the tools are measured after the canvas first frames, so their foot
+     re-frames a view that is still the content's */
+  useEffect(() => {
+    if (footRef.current === coveredFoot) return;
+    footRef.current = coveredFoot;
+    if (userFramed.current || !measured.current) return;
+    const pts = contentPointsRef.current();
+    if (boundsOfPoints(pts))
+      commitVp(
+        defaultViewport(
+          pts,
+          sizeRef.current.w,
+          sizeRef.current.h,
+          fitExtrasRef.current.grid,
+          fitExtrasRef.current.notes,
+          coveredFoot
+        )
+      );
+  }, [coveredFoot, commitVp]);
 
   /* ── coordinate helpers ── */
   const toWorld = useCallback(
@@ -2571,7 +2627,7 @@ export function StudioCanvas({
         const pts = runs[i].geometry.points;
         // curved runs are grabbed by the curve you can see, not the dots
         if (isCurvedRun(runs[i])) {
-          if (distToSmoothed(w, pts) <= tol)
+          if (distToSmoothed(w, pts, straightLegsOf(runs[i].props)) <= tol)
             return { id: runs[i].id, kind: "pipe-run" };
           continue;
         }
@@ -2647,6 +2703,19 @@ export function StudioCanvas({
       objects: d.objects.map((o) =>
         o.id === id ? { ...o, props: { ...o.props, ink } } : o
       ),
+    }));
+  };
+
+  const noteBlurNow = (n: NoteObject) => (liveBlur?.id === n.id ? liveBlur.blur : noteBlurOf(n));
+  const setNoteBlur = (id: string, blur: number) => {
+    setLiveBlur(null);
+    onMutate((d) => ({
+      ...d,
+      objects: d.objects.map((o) => {
+        if (o.id !== id) return o;
+        const { blur: _gone, ...props } = o.props;
+        return { ...o, props: blur > 0 ? { ...props, blur } : props };
+      }),
     }));
   };
 
@@ -2755,7 +2824,7 @@ export function StudioCanvas({
         const pts = runs[i].geometry.points;
         const curved = isCurvedRun(runs[i]);
         // the gate is the distance to what's visible; the ranking too
-        const gate = curved ? distToSmoothed(w, pts) : Infinity;
+        const gate = curved ? distToSmoothed(w, pts, straightLegsOf(runs[i].props)) : Infinity;
         if (curved && gate >= bestDist) continue;
         let segI = -1, segD = Infinity;
         for (let j = 0; j < pts.length - 1; j++) {
@@ -2775,7 +2844,12 @@ export function StudioCanvas({
             // drop the later endpoint of the nearest segment (DUCTR splice)
             const removed = bestSeg + 1;
             const next = pts.filter((_, k) => k !== removed);
-            const props = { ...o.props };
+            const { straight: _legs, ...rest } = o.props;
+            void _legs;
+            const props: Record<string, unknown> = {
+              ...rest,
+              ...legsProp(legsWithoutDot(straightLegsOf(o.props) ?? [], removed), next.length),
+            };
             if (removed === 0) delete props.startAttach;
             if (removed === pts.length - 1) delete props.endAttach;
             return [{ ...o, geometry: { kind: "polyline" as const, points: next }, props }];
@@ -2916,16 +2990,43 @@ export function StudioCanvas({
     [activeSystemId, onMutate, floor.id, runLanding, vp.zoom]
   );
 
+  const ductCtx = useMemo(
+    () => ({ objects: doc.objects, draw, mm: floor.scaleMmPerUnit, grid }),
+    [doc.objects, draw, floor.scaleMmPerUnit, grid]
+  );
+  /* a new duct's stream: it is whatever it touches (duct-draw.ts) */
+  const ductStreamFor = useCallback(
+    (drawn: Point[], start: DuctLanding | null, end: DuctLanding | null): AirStream => {
+      const faceOf = (l: DuctLanding | null, toward: Point | undefined) => {
+        const u = l?.anchor?.kind === "unit" ? doc.objects.find((o) => o.id === l.anchor?.id) : null;
+        return u && u.geometry.kind === "point" && toward
+          ? unitFaceToward({ at: u.geometry.at, rotation: u.geometry.rotation ?? 0, flip: u.props.airFlip === true }, toward)
+          : null;
+      };
+      return chooseDuctStream(start?.touch ?? null, end?.touch ?? null, faceOf(start, drawn[1]) ?? faceOf(end, drawn[drawn.length - 2]));
+    },
+    [doc.objects]
+  );
   const commitPipe = useCallback(
     (
-      points: Point[],
-      endAttach: { kind: AnchorKind; id: string } | null,
+      drawn: Point[],
+      endDrawn: { kind: AnchorKind; id: string } | null,
       /* the end landed on another refrigerant run: a joint goes there first,
          cutting it (joints.ts), and the new run ends on the joint */
-      landOn?: { runId: string; seg: number; at: Point }
+      landOn?: { runId: string; seg: number; at: Point },
+      /* the legs Shift made straight on a curved line */
+      legs: StraightLegs = [],
+      /* what a next-flow duct landed on */
+      ductEnd: DuctLanding | null = null
     ) => {
-      if (!activeSystemId || points.length < 2) return;
-      const startAttach = pipeStartAttach.current;
+      if (!activeSystemId || drawn.length < 2) return;
+      const nextDuct = flow === "next" && tool === "duct";
+      const ductStream = nextDuct ? ductStreamFor(drawn, ductStart, ductEnd) : draw.ductStream;
+      const { points, start: startAttach, end: endAttach } = nextDuct
+        ? ductOffFaces(drawn, pipeStartAttach.current, endDrawn, { ...ductCtx, draw: { ...draw, ductStream } })
+        : { points: drawn, start: pipeStartAttach.current, end: endDrawn };
+      const cuts = nextDuct ? [ductStart, ductEnd].filter((l) => l?.cut).map((l) => ({ at: l!.at, id: newId("obj") })) : [];
+      const runId = newId("obj");
       const landId = landOn ? newId("obj") : null;
       // what the armed Draw tool commits: the type + its picked-at-draw props
       const runKind: { type: string; props: Record<string, unknown> } =
@@ -2934,7 +3035,7 @@ export function StudioCanvas({
           : tool === "cable"
             ? { type: "cable-run", props: { kind: draw.cableKind } }
             : tool === "duct"
-              ? { type: "duct-run", props: { diaMm: draw.ductMm, stream: draw.ductStream, ...(draw.ductForm ? { form: draw.ductForm } : {}) } }
+              ? { type: "duct-run", props: { diaMm: draw.ductMm, stream: ductStream, ...(draw.ductForm ? { form: draw.ductForm } : {}) } }
             : {
                 type: "pipe-run",
                 // hard-drawn is the default every pre-Draw run already is —
@@ -2945,12 +3046,10 @@ export function StudioCanvas({
         const landed = landOn && landId ? jointOnRun(d0, landOn.runId, landOn.seg, landOn.at, landId) : null;
         const d = landed?.doc ?? d0;
         const end = landed ? { kind: "joint" as const, id: landed.jointId } : endAttach;
-        return {
-          ...d,
-          objects: [
-            ...d.objects,
+        const objects = [
+            ...cuts.reduce((now, c) => cutDuctAt(now, c.at, c.id), d.objects),
             {
-              id: newId("obj"),
+              id: runId,
               type: runKind.type,
               systemId: activeSystemId,
               floorId: floor.id,
@@ -2958,18 +3057,54 @@ export function StudioCanvas({
               plane: "room",
               props: {
                 ...runKind.props,
+                ...(drawsCurve(tool, draw) ? legsProp(legs, points.length) : {}),
                 ...(startAttach ? { startAttach } : {}),
                 ...(end ? { endAttach: end } : {}),
               },
             } satisfies DesignObject,
-          ],
-        };
+        ];
+        return { ...d, objects: nextDuct ? spreadDuctStream(objects, runId) : objects };
       });
       setDraftPipe([]);
       pipeStartAttach.current = null;
+      setDuctStart(null);
     },
-    [activeSystemId, onMutate, floor.id, tool, draw, setDraftPipe]
+    [activeSystemId, onMutate, floor.id, tool, draw, setDraftPipe, flow, ductCtx, ductStart, ductStreamFor]
   );
+
+  /* the next flow's duct tool, one click: a dot, or it lands and is done */
+  const ductClick = (w: Point, shift: boolean) => {
+    const curved = drawsCurve(tool, draw);
+    const prev = draftPipe[draftPipe.length - 1];
+    const landing = ductLanding(w);
+    const p = landing?.at ?? (prev ? nextDot(prev, w, shift) : w);
+    if (draftPipe.length === 0) {
+      pipeStartAttach.current = landing?.anchor ?? null;
+      setDuctStart(landing);
+      setDraftPipe([p]);
+    } else if (landing) {
+      const pts = [...(shift && !curved && landing.anchor ? squareInto(draftPipe, p) : draftPipe), p];
+      commitPipe(pts, landing.anchor ?? null, undefined, shift && curved ? [...draftLegs, pts.length - 2] : draftLegs, landing);
+    } else {
+      setDraftPipe((pts) => [...pts, p], shift && curved);
+    }
+  };
+  /* a stroke let go: its few dots, and whatever it landed on */
+  const ductStrokeDone = (stroke: Extract<Drag, { kind: "duct-stroke" }>) => {
+    const base = draftPipe.slice(0, stroke.baseLen);
+    const drawn = draftPipe.slice(stroke.baseLen - 1);
+    if (base.length === 0 || drawn.length < 2) return;
+    const dots = stroke.straight ? drawn : thinStroke(drawn, STROKE_THIN_PX / vp.zoom);
+    const last = dots[dots.length - 1];
+    const startSpot = base[base.length - 1];
+    const landing = dist(last, startSpot) < TAP_SLOP_PX / vp.zoom ? null : ductLanding(last);
+    const pts = [...base, ...dots.slice(1, -1), landing?.at ?? last];
+    commitPipe(pts, landing?.anchor ?? null, undefined, stroke.straight ? [...draftLegs, base.length - 1] : draftLegs, landing);
+  };
+  /* a stroke given up: back to what was there before it */
+  const ductStrokeDropped = (stroke: Extract<Drag, { kind: "duct-stroke" }>) => {
+    if (stroke.started) setDraftPipe(stroke.fresh ? [] : (pts) => pts.slice(0, stroke.baseLen));
+  };
 
   /* Enter finishes a drawn run open — the ending that can't misfire. The
      double-click's own first click lands an extra dot (collapsed at commit,
@@ -2979,11 +3114,11 @@ export function StudioCanvas({
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable || aDialogHasTheKeys()) return;
-      if (e.key === "Enter") commitPipe(draftPipe, null);
+      if (e.key === "Enter") commitPipe(draftPipe, null, undefined, draftLegs);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [tool, draftPipe, commitPipe]);
+  }, [tool, draftPipe, draftLegs, commitPipe]);
 
   /* ── areas drawn on a plan sheet (Crop and Split) ──
      One gesture draws either shape: drag a rectangle, or click each corner of
@@ -3055,6 +3190,14 @@ export function StudioCanvas({
   /* ── pointer handlers ── */
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     const w = toWorld(e);
+    if (e.pointerType === "touch") {
+      touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (touches.current.size === 2 && flow === "next" && tool === "duct") {
+        if (drag?.kind === "duct-stroke") ductStrokeDropped(drag);
+        setDrag({ kind: "two-finger", startMid: midOf([...touches.current.values()]), origVp: vp });
+        return;
+      }
+    }
     const pan = () =>
       setDrag({ kind: "pan", startScreen: { x: e.clientX, y: e.clientY }, origVp: vp });
     /* A click-to-place tool no longer commits on pointer-DOWN. It parks the
@@ -3338,6 +3481,13 @@ export function StudioCanvas({
           tap(() => onMutate((d) => ({ ...d, objects: [...d.objects, device(floor.id, activeSystemId ?? null, w, kind)] })));
           break;
         }
+        // the next flow: a linear grille is pressed at one end and pulled to the other
+        if (flow === "next" && component?.kind === "grille" && (component.style === "linear" || component.supplyMm)) {
+          setDrag({ kind: "grille-pull", start: w });
+          setGrillePull({ a: w, b: w });
+          grillePullAt.current = w;
+          break;
+        }
         // a grille goes down where it is clicked, as the HUD set it
         if (component?.kind === "grille") {
           const c = component;
@@ -3362,21 +3512,36 @@ export function StudioCanvas({
       case "drain":
       case "cable":
       case "duct": {
+        /* the next flow's duct: press and drag draws it, with a finger or a mouse */
+        if (tool === "duct" && flow === "next") {
+          const shift = e.shiftKey;
+          setDrag({
+            kind: "duct-stroke",
+            startScreen: { x: e.clientX, y: e.clientY },
+            started: false,
+            fresh: draftPipe.length === 0,
+            baseLen: Math.max(draftPipe.length, 1),
+            straight: false,
+            click: () => ductClick(w, shift),
+          });
+          break;
+        }
         tap(() => {
           const anchor = nearestAnchor(w);
           /* a refrigerant run's end on another run of its system branches
              there: a joint goes on it (anchors win when both are in reach) */
           const onRun = !anchor && tool === "pipe" ? runLanding(w) : null;
+          const onDuctEnd = anchor ? null : nearestDuctDrop(w);
           // free first vertex; later vertices ortho-snap to the previous point
           // so runs stay horizontal/vertical (anchors always win). The curved
           // draws — soft pipe, cable — place their dots free: the smoothing
-          // is the point.
-          const curved =
-            tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft") || (tool === "duct" && draw.ductForm === "flex");
+          // is the point. The next flow: every line is free, and Shift makes
+          // the leg straight (run-legs.ts).
+          const curved = drawsCurve(tool, draw);
           const prev = draftPipe[draftPipe.length - 1];
-          /* the next flow: Shift holds a curved draw to a straight stretch */
-          const straight = prev && (!curved || (flow === "next" && e.shiftKey));
-          const p = anchor ? anchor.at : onRun ? onRun.at : straight ? orthoSnap(prev, w) : w;
+          const straight = flow === "next" ? e.shiftKey : !curved;
+          const straightLeg = flow === "next" && curved && e.shiftKey;
+          const p = anchor ? anchor.at : onRun ? onRun.at : (onDuctEnd ?? (prev ? nextDot(prev, w, straight) : w));
           /* a joint about to go on a run stands in as that end until it exists */
           const here = anchor ?? (onRun ? { kind: "joint" as const, id: "" } : null);
           const why =
@@ -3409,10 +3574,13 @@ export function StudioCanvas({
             // landing on an anchor completes the run — the magnetic connection;
             // with Shift a straight run turns square into it
             const pts = [...(e.shiftKey && !curved ? squareInto(draftPipe, p) : draftPipe), p];
-            if (anchor) commitPipe(pts, { kind: anchor.kind, id: anchor.id });
-            else commitPipe(pts, null, onRun!);
+            const legs = straightLeg ? [...draftLegs, pts.length - 2] : draftLegs;
+            if (anchor) commitPipe(pts, { kind: anchor.kind, id: anchor.id }, undefined, legs);
+            else commitPipe(pts, null, onRun!, legs);
+          } else if (onDuctEnd) {
+            commitPipe([...draftPipe, p], null, undefined, straightLeg ? [...draftLegs, draftPipe.length - 1] : draftLegs);
           } else {
-            setDraftPipe((pts) => [...pts, p]);
+            setDraftPipe((pts) => [...pts, p], straightLeg);
           }
         });
         break;
@@ -3556,6 +3724,7 @@ export function StudioCanvas({
   const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
     const w = toWorld(e);
     setCursor(w);
+    if (touches.current.has(e.pointerId)) touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     /* Hover naming is a RESTING read: it goes quiet the moment a gesture, a
        drawing tool or the simulation takes over, so it can never sit over the
        work in hand — and during sim that corner is the sim's own readout. */
@@ -3568,6 +3737,27 @@ export function StudioCanvas({
         const dy = (e.clientY - drag.startScreen.y) / vp.zoom;
         if (dx || dy) userFramed.current = true;
         commitVp({ ...vp, x: drag.origVp.x - dx, y: drag.origVp.y - dy });
+        break;
+      }
+      case "duct-stroke": {
+        if (!drag.started) {
+          if (Math.abs(e.clientX - drag.startScreen.x) <= TAP_SLOP_PX && Math.abs(e.clientY - drag.startScreen.y) <= TAP_SLOP_PX) break;
+          /* a line not begun begins where it was pressed; one begun runs on from its last dot */
+          if (drag.fresh) drag.click();
+        }
+        if (!drag.started || drag.straight !== e.shiftKey) setDrag({ ...drag, started: true, straight: e.shiftKey });
+        const { baseLen } = drag;
+        setDraftPipe((pts) => {
+          /* let go of by a right-click or Esc */
+          if (pts.length === 0) return pts;
+          if (e.shiftKey) return [...pts.slice(0, baseLen), nextDot(pts[baseLen - 1], w, true)];
+          return dist(pts[pts.length - 1], w) * vp.zoom < 3 ? pts : [...pts, w];
+        });
+        break;
+      }
+      case "two-finger": {
+        const mid = midOf([...touches.current.values()]);
+        commitVp({ ...vp, x: drag.origVp.x - (mid.x - drag.startMid.x) / vp.zoom, y: drag.origVp.y - (mid.y - drag.startMid.y) / vp.zoom });
         break;
       }
       /* the gesture is still undecided — the moment it travels past the slop
@@ -3766,6 +3956,10 @@ export function StudioCanvas({
       case "airflow":
         setAirDraft({ a: drag.start, b: w });
         break;
+      case "grille-pull":
+        grillePullAt.current = w;
+        setGrillePull({ a: drag.start, b: w });
+        break;
       case "tape": {
         // Shift holds the tape square to the plan, like the pipe tool
         setTape({ a: drag.from, b: e.shiftKey ? orthoSnap(drag.from, w) : w });
@@ -3774,8 +3968,19 @@ export function StudioCanvas({
     }
   };
 
-  const onPointerUp = () => {
+  const onPointerUp = (e?: React.PointerEvent<SVGSVGElement>) => {
+    if (e) touches.current.delete(e.pointerId);
     if (!drag) return;
+    if (drag.kind === "two-finger") {
+      setDrag(null);
+      return;
+    }
+    if (drag.kind === "duct-stroke") {
+      if (drag.started) ductStrokeDone(drag);
+      else drag.click();
+      setDrag(null);
+      return;
+    }
     // released without travelling: the gesture was a click after all
     if (drag.kind === "tap-pan") {
       drag.commit();
@@ -3791,6 +3996,28 @@ export function StudioCanvas({
       if (pulled) {
         const mark = airflowMark(floor.id, pulled.a, pullDeg(pulled.a, pulled.b, 8 / vp.zoom), draw.airStream);
         onMutate((d) => ({ ...d, objects: [...d.objects, mark] }));
+      }
+      return;
+    }
+    /* letting go puts the grille down between the two ends, the supply side
+       at the end it was pressed; a press that never travelled is a click, at
+       the size in the bar */
+    if (drag.kind === "grille-pull") {
+      const pulled = { a: drag.start, b: grillePullAt.current ?? drag.start };
+      setGrillePull(null);
+      setDrag(null);
+      if (component?.kind === "grille") {
+        const c = component;
+        const mm = floor.scaleMmPerUnit ?? 10;
+        const size = c.size ?? GRILLE_SIZES[c.stream][0];
+        const travelled = Math.hypot(pulled.b.x - pulled.a.x, pulled.b.y - pulled.a.y) * vp.zoom >= 6;
+        const put = travelled ? pulledGrille(pulled.a, pulled.b, size.hMm, mm) : { at: pulled.a, deg: 0, size };
+        const g = grille(floor.id, activeSystemId ?? null, put.at, c.stream, put.size, put.deg, {
+          style: c.style,
+          mount: c.mount,
+          supplyMm: c.supplyMm ? halfOf(put.size.wMm) : null,
+        });
+        onMutate((d) => ({ ...d, objects: [...d.objects, g] }));
       }
       return;
     }
@@ -4219,7 +4446,7 @@ export function StudioCanvas({
       while (pts.length >= 2 && dist(pts[pts.length - 1], pts[pts.length - 2]) <= tol)
         pts.pop();
       // everything collapsed into one spot: a dot is not a line — keep drafting
-      if (pts.length >= 2) commitPipe(pts, null);
+      if (pts.length >= 2) commitPipe(pts, null, undefined, draftLegs);
     }
   };
 
@@ -4308,9 +4535,10 @@ export function StudioCanvas({
 
   /** a run's words: its length, then its size (or a drain's, or a cable's kind) */
   const runLabelText = (r: DesignObject, pts: Point[]): string => {
+    if (r.type === "duct-run" && r.props.form) return ductLabel(r.props, mm ? unitsToMeters(runLengthUnits(r, pts), mm) : null);
     const sized = r.type === "pipe-run" ? pipeView.byRun.get(r.id) : undefined;
     const len = mm
-      ? formatMeters(unitsToMeters(isCurvedRun(r) ? smoothedLength(pts) : polylineLength(pts), mm))
+      ? formatMeters(unitsToMeters(runLengthUnits(r, pts), mm))
       : null;
     let tag: string | null = null;
     if (sized) {
@@ -4332,6 +4560,10 @@ export function StudioCanvas({
   /* every word on the plan placed knowing what is under it (plan-labels.ts):
      a room's name moves off a pipe or a unit, and a pipe's words go beside
      the copper where nothing else is */
+  /* the next flow: where ducts meet, as they are drawn this moment */
+  const ductsNow = runs.map((r) => ({ ...r, geometry: { kind: "polyline", points: liveRunPoints(r) } }));
+  const fittingsNow = ductJunctions(ductsNow);
+  const onFitting = ductLinesOn(fittingsNow, (dia) => ductWidth(dia, mm ?? 10, 1 / zoom));
   const planLabels = layers.labels
     ? layoutPlanLabels({
         px: 1 / labelZoom,
@@ -4370,10 +4602,13 @@ export function StudioCanvas({
           };
         }),
         runs: layers.pipes
-          ? runs.map((r) => {
-              const pts = liveRunPoints(r);
-              return { id: r.id, points: pts, text: runLabelText(r, pts), size: 11 };
-            })
+          ? [
+              ...runs.map((r) => {
+                const pts = liveRunPoints(r);
+                return { id: r.id, points: pts, text: runLabelText(r, pts), ...runLabelStyle(r, mm) };
+              }),
+              ...fittingsNow.map((j) => fittingLabelIn(j, mm)),
+            ]
           : [],
         solids: [
           ...(layers.units
@@ -4383,13 +4618,16 @@ export function StudioCanvas({
               })
             : []),
           ...[...risers, ...joints].map((o) => footprintBox(pointAt(o), 24 / zoom, 24 / zoom)),
+          ...(layers.pipes ? fittingsNow.map((j) => footprintBox(j.at, j.diasMm[0] / (mm ?? 10), j.diasMm[0] / (mm ?? 10))) : []),
           ...boxes.map((o) => {
             const fp = footprint(BOX_W_MM, BOX_D_MM);
             return footprintBox(pointAt(o), fp.w, fp.h);
           }),
           /* the next flow: off the grilles, sensors and controllers too, as on paper */
           ...(paperU ? airSolids(doc, floor, 5 * paperU) : []),
+          ...(paperU ? noteSolids(doc, floor) : []),
         ],
+        ...(paperU ? { leadersWithin: figureBox(doc, floor) } : {}),
       })
     : null;
   useEffect(() => {
@@ -4780,7 +5018,9 @@ export function StudioCanvas({
         ? {
             icon: tool === "cable" ? "zap" : tool === "drain" ? "droplet" : tool === "duct" ? "wind" : "pipe",
             text:
-              tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft")
+              flow === "next"
+                ? `Click to start, then click the points the line goes through. Hold Shift for a straight line. ${runEnds}`
+                : tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft")
                 ? `Click to start, then click the points the line should curve through. ${runEnds}`
                 : `Click to start, then click at each bend. Hold Shift over a unit to go in at a right angle. ${runEnds}`,
           }
@@ -4854,6 +5094,11 @@ export function StudioCanvas({
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onPointerCancel={(e) => {
+          touches.current.delete(e.pointerId);
+          if (drag?.kind === "duct-stroke") ductStrokeDropped(drag);
+          if (drag?.kind === "duct-stroke" || drag?.kind === "two-finger") setDrag(null);
+        }}
         onPointerLeave={() => setHoverUnitId(null)}
         onDoubleClick={onDoubleClick}
         onContextMenu={onContextMenu}
@@ -4886,6 +5131,8 @@ export function StudioCanvas({
           </>
         )}
         <g transform={`scale(${zoom}) translate(${-vp.x} ${-vp.y})`}>
+          {/* everything under the notes, which a note can blur behind its words */}
+          <g id={underNotesId}>
           {/* plenum hatch (8% tint + 45° lines, constant screen density) and
               the AHU flow-arrow head — world-space defs, active-system tint */}
           <defs>
@@ -5268,6 +5515,7 @@ export function StudioCanvas({
                 ? `var(--pipe-${sizeTone(sized.gasMm)})`
                 : (sysColour.get(r.systemId ?? "") ?? "#888");
             const curved = isCurvedRun(r);
+            const legs = straightLegsOf(r.props);
             const cls =
               r.type === "drain-run"
                 ? "ds-drain"
@@ -5290,13 +5538,25 @@ export function StudioCanvas({
                      along its curve */
                   (() => {
                     const line = pts.map((p) => `${p.x},${p.y}`).join(" ");
+                    /* a duct with a form wears its size's colour (duct-size.ts) */
+                    if (r.props.form) {
+                      return (
+                        <PaintedDuct
+                          d={curved ? (onFitting.get(r.id) ? linePathD(onFitting.get(r.id)!) : smoothPathD(pts, legs)) : undefined}
+                          points={curved ? undefined : onFitting.get(r.id) ? onFitting.get(r.id)!.map((p) => `${p.x},${p.y}`).join(" ") : line}
+                          diaMm={Number(r.props.diaMm) || 250}
+                          mmPerUnit={mm ?? 10}
+                          pen={1 / zoom}
+                        />
+                      );
+                    }
                     const width = Math.max((Number(r.props.diaMm) || 250) / (mm ?? 10), 4 / zoom);
                     const core = Math.max(width - 3 / zoom, 1 / zoom);
                     const ink = AIRFLOW_INKS[r.props.stream === "return" ? "return" : "supply"];
                     return curved ? (
                       <>
-                        <path d={smoothPathD(pts)} stroke={ink} strokeWidth={width} />
-                        <path className="ds-ductrun-core" d={smoothPathD(pts)} strokeWidth={core} />
+                        <path d={smoothPathD(pts, legs)} stroke={ink} strokeWidth={width} />
+                        <path className="ds-ductrun-core" d={smoothPathD(pts, legs)} strokeWidth={core} />
                       </>
                     ) : (
                       <>
@@ -5306,7 +5566,7 @@ export function StudioCanvas({
                     );
                   })()
                 ) : curved ? (
-                  <path d={smoothPathD(pts)} />
+                  <path d={smoothPathD(pts, legs)} />
                 ) : (
                   <polyline points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
                 )}
@@ -5323,6 +5583,16 @@ export function StudioCanvas({
                       <circle key={i} className="ds-pipe-open" cx={at.x} cy={at.y} r={5 / zoom} />
                     )
                   )}
+                {label && spot?.leader && (
+                  <line
+                    stroke="currentColor"
+                    x1={spot.leader[0].x}
+                    y1={spot.leader[0].y}
+                    x2={spot.leader[1].x}
+                    y2={spot.leader[1].y}
+                    strokeWidth={1 / labelZoom}
+                  />
+                )}
                 {label && spot && labelBacks && (
                   <rect
                     className="ds-label-back"
@@ -5334,8 +5604,32 @@ export function StudioCanvas({
                   />
                 )}
                 {label && spot && (
-                  <text x={spot.x} y={spot.y} fontSize={11 / labelZoom} className="ds-pipe-len" style={{ textAnchor: spot.anchor }}>
+                  <text x={spot.x} y={spot.y} fontSize={runLabelStyle(r, mm).size / labelZoom} className="ds-pipe-len" style={{ textAnchor: spot.anchor, ...(r.type === "duct-run" && r.props.form ? DUCT_LABEL_STYLE : null) }}>
                     {label}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+
+          {/* where ducts meet: the shape they make, and a free end's circle */}
+          {layers.pipes && ductFreeEnds(ductsNow).map((j) => (
+            <FreeDuctEnd key={fittingKey(j)} j={j} mmPerUnit={mm ?? 10} pen={1 / zoom} />
+          ))}
+          {layers.pipes && fittingsNow.map((j) => {
+            const spot = planLabels?.runs.get(fittingKey(j));
+            return (
+              <g key={fittingKey(j)}>
+                {spot?.leader && (
+                  <line stroke={DUCT_LABEL_STYLE.fill} x1={spot.leader[0].x} y1={spot.leader[0].y} x2={spot.leader[1].x} y2={spot.leader[1].y} strokeWidth={1 / zoom} />
+                )}
+                <PaintedFitting j={j} mmPerUnit={mm ?? 10} pen={1 / zoom} />
+                {spot && labelBacks && (
+                  <rect className="ds-label-back" x={spot.box.x0} y={spot.box.y0} width={spot.box.x1 - spot.box.x0} height={spot.box.y1 - spot.box.y0} rx={2 / labelZoom} />
+                )}
+                {spot && (
+                  <text x={spot.x} y={spot.y} fontSize={8 / labelZoom} className="ds-pipe-len" style={{ textAnchor: spot.anchor, ...DUCT_LABEL_STYLE }}>
+                    {fittingName(j)}
                   </text>
                 )}
               </g>
@@ -5362,7 +5656,7 @@ export function StudioCanvas({
             return (
               <g
                 key={u.id}
-                className={`ds-unit${u.id === selectedId ? " sel" : ""}`}
+                className={`ds-unit${u.id === selectedId ? " sel" : ""}${u.plane === "floor-cavity" ? " under" : ""}`}
                 style={{ color: colour }}
               >
                 {/* the glyph and, on AHUs, its whole air side turn together */}
@@ -5539,10 +5833,10 @@ export function StudioCanvas({
           {/* plenums (Stage 7 Step 2) — anchored to their AHU end; position is
               derived from the unit each render, so moving the AHU carries
               them. Concealed (ceiling-cavity) read: the ~85 % opacity family. */}
-          {layers.units && plenums.map((p) => {
+          {layers.units && drawnPlenums.map((p) => {
             const s = plenumShapes.get(p.id);
             if (!s) return null;
-            const colour = sysColour.get(p.systemId ?? "") ?? "#888";
+            const colour = plenumInkOf(p.props) ?? sysColour.get(p.systemId ?? "") ?? "#888";
             return (
               <g
                 key={p.id}
@@ -5576,7 +5870,7 @@ export function StudioCanvas({
                         the fitter is already looking — not rolled into one bar
                         under the plenum that has to be read back against the
                         drawing to work out which duct is which. */}
-                    {layers.labels && (
+                    {layers.labels && !p.props.fromDucts && (
                       <text
                         className="ds-spigot-dia"
                         x={sp.cx}
@@ -5588,7 +5882,7 @@ export function StudioCanvas({
                     )}
                   </g>
                 ))}
-                {layers.labels && (
+                {layers.labels && !p.props.fromDucts && (
                   <text
                     className={`ds-plenum-label${s.derived ? " derived" : ""}`}
                     x={s.labelAt.x}
@@ -5682,6 +5976,8 @@ export function StudioCanvas({
           {/* risers (Stage 4) — disc + group letter, one per floor per group */}
           {layers.pipes && risers.map((r) => {
             const at = pointAt(r);
+            if (flow === "next")
+              return <RiserDisc key={r.id} at={at} mark={riserMark(doc.objects, r)} mmPerUnit={mm ?? 10} pen={1 / zoom} selected={r.id === selectedId} />;
             const colour = strayFits.has(r.id) ? "var(--bad-t)" : (sysColour.get(r.systemId ?? "") ?? "#888");
             const tee =
               doc.objects.filter(
@@ -5803,13 +6099,22 @@ export function StudioCanvas({
                   ? []
                   : anchors.map((a) => (
                       <circle
-                        key={`${a.kind}:${a.id}`}
-                        className={`ds-anchor${near?.id === a.id ? " ready" : ""}`}
+                        key={`${a.kind}:${a.id}:${a.stream ?? ""}`}
+                        className={`ds-anchor${near?.id === a.id && near.stream === a.stream ? " ready" : ""}`}
                         cx={a.at.x}
                         cy={a.at.y}
-                        r={(near?.id === a.id ? 9 : 5) / zoom}
+                        r={(near?.id === a.id && near.stream === a.stream ? 9 : 5) / zoom}
                       />
                     ))),
+                ...(tool === "duct" && cursor
+                  ? ductDropSpots.map((at) => {
+                      const ready = !near && nearestDuctDrop(cursor) === at;
+                      return <circle key={`drop:${at.x}/${at.y}`} className={`ds-anchor${ready ? " ready" : ""}`} cx={at.x} cy={at.y} r={(ready ? 9 : 5) / zoom} />;
+                    })
+                  : []),
+                ...(tool === "duct" && cursor && !near && !nearestDuctDrop(cursor) && ductOnAt(cursor)
+                  ? [<circle key="on-duct" className="ds-anchor ready" cx={ductOnAt(cursor)!.at.x} cy={ductOnAt(cursor)!.at.y} r={9 / zoom} />]
+                  : []),
                 ...(landing
                   ? [
                       tool === "riser" ? (
@@ -5839,25 +6144,26 @@ export function StudioCanvas({
               curved ones preview the live spline through every dot */}
           {draftPipe.length > 0 &&
             (() => {
-              const curved =
-                tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft");
+              const curved = drawsCurve(tool, draw);
+              const straight = flow === "next" ? shiftDown : !curved;
               const target = cursor
-                ? nearestAnchor(cursor)?.at ?? (tool === "pipe" ? runLanding(cursor)?.at : undefined)
+                ? nearestAnchor(cursor)?.at ?? nearestDuctDrop(cursor) ?? ductOnAt(cursor)?.at ?? (tool === "pipe" ? runLanding(cursor)?.at : undefined)
                 : undefined;
               const head = target && shiftDown && !curved ? squareInto(draftPipe, target) : draftPipe;
-              const tail = cursor
-                ? [
-                    target ??
-                      (curved
-                        ? cursor
-                        : orthoSnap(draftPipe[draftPipe.length - 1], cursor)),
-                  ]
-                : [];
-              const pts = [...head, ...tail];
+              const tail = cursor ? [target ?? nextDot(draftPipe[draftPipe.length - 1], cursor, straight)] : [];
+              /* what the commit will make of it: off the unit's face */
+              const from = anchors.find((a) => a.kind === "unit" && a.at.x === draftPipe[0].x && a.at.y === draftPipe[0].y);
+              const pts =
+                flow === "next" && tool === "duct"
+                  ? ductOffFaces([...head, ...tail], from ? { kind: "unit", id: from.id } : null, null, {
+                      ...ductCtx,
+                      draw: { ...draw, ductStream: ductStreamFor([...head, ...tail], ductStart, cursor ? ductLanding(cursor) : null) },
+                    }).points
+                  : [...head, ...tail];
               return (
                 <g className="ds-pipe-draft">
                   {curved ? (
-                    <path d={smoothPathD(pts)} fill="none" />
+                    <path d={smoothPathD(pts, flow === "next" && shiftDown && tail.length > 0 ? [...draftLegs, pts.length - 2] : draftLegs)} fill="none" />
                   ) : (
                     <polyline points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
                   )}
@@ -5865,7 +6171,7 @@ export function StudioCanvas({
                     draftPipe.map((p, i) => (
                       <circle key={i} cx={p.x} cy={p.y} r={3 / zoom} className="dot" />
                     ))}
-                  <circle cx={draftPipe[0].x} cy={draftPipe[0].y} r={4 / zoom} />
+                  <circle cx={pts[0].x} cy={pts[0].y} r={4 / zoom} />
                 </g>
               );
             })()}
@@ -6150,6 +6456,24 @@ export function StudioCanvas({
               );
             })}
 
+          {/* the next flow: the Air screen's figures beside each room's grille */}
+          {airOverlay?.map((t) => (
+            <text
+              key={t.id}
+              x={t.at.x}
+              y={t.at.y - 12 / vp.zoom}
+              textAnchor="middle"
+              fontSize={12 / vp.zoom}
+              fontWeight={600}
+              fill={t.fast ? "#BE123C" : "#050505"}
+              stroke="#fff"
+              strokeWidth={3 / vp.zoom}
+              paintOrder="stroke"
+              className="ds-air-tag"
+            >
+              {t.text}
+            </text>
+          ))}
           {/* grilles the person placed from the component palette */}
           {layers.units && (
             <GrilleLayer
@@ -6159,13 +6483,24 @@ export function StudioCanvas({
               interactive={tool === "select" && !sim}
               selectedId={selectedId}
               ghost={
-                tool === "component" && component?.kind === "grille" && cursor
+                tool === "component" && component?.kind === "grille" && grillePull
+                  ? (() => {
+                      const put = pulledGrille(grillePull.a, grillePull.b, (component.size ?? GRILLE_SIZES[component.stream][0]).hMm, floor.scaleMmPerUnit ?? 10);
+                      return {
+                        ...put,
+                        stream: component.stream,
+                        style: component.stream === "supply" ? (component.style ?? null) : null,
+                        supplyMm: component.supplyMm ? halfOf(put.size.wMm) : null,
+                      };
+                    })()
+                  : tool === "component" && component?.kind === "grille" && cursor
                   ? {
                       at: cursor,
                       deg: 0,
                       stream: component.stream,
                       size: component.size ?? GRILLE_SIZES[component.stream][0],
                       style: component.stream === "supply" ? (component.style ?? null) : null,
+                      supplyMm: component.supplyMm ?? null,
                     }
                   : null
               }
@@ -6193,6 +6528,16 @@ export function StudioCanvas({
             onSelect={onSelect}
             onMutate={onMutate}
           />
+
+          </g>
+
+          {notes.map((stored) => {
+            const n = noteAt(stored);
+            const blur = noteBlurNow(n);
+            if (blur <= 0) return null;
+            const lay = noteLayoutOf(n);
+            return <NoteBackdrop key={stored.id} id={`${underNotesId}-${stored.id}`} under={underNotesId} box={lay.box} fontSize={lay.fontSize} blur={blur} />;
+          })}
 
           {/* ── markup: notes ──
               Drawn LAST inside the world group, so a note sits over the work
@@ -6548,6 +6893,13 @@ export function StudioCanvas({
                   );
                 })}
               </div>
+              {flow === "next" && (
+                <NoteBlurControl
+                  blur={noteBlurNow(live)}
+                  onLive={(blur) => setLiveBlur({ id: noteEdit.id, blur })}
+                  onCommit={(blur) => setNoteBlur(noteEdit.id, blur)}
+                />
+              )}
               <div className="ds-note-actions">
                 <button
                   className="ds-calib-cancel"
@@ -6573,6 +6925,41 @@ export function StudioCanvas({
           );
         })()}
 
+      {/* a clicked note: what is behind its words */}
+      {flow === "next" &&
+        tool === "select" &&
+        !noteEdit &&
+        !liveNote &&
+        (() => {
+          const n = notes.find((x) => x.id === selectedId);
+          if (!n) return null;
+          const { box } = noteLayoutOf(n);
+          const c0 = worldToScreen({ x: box.x, y: box.y }, vp);
+          const c1 = worldToScreen({ x: box.x + box.w, y: box.y + box.h }, vp);
+          return (
+            <div
+              className="ds-note-editor ds-note-blur-card"
+              ref={measureNotePanel}
+              role="dialog"
+              aria-label="Note background"
+              style={anchorFloating({
+                anchor: { x: (c0.x + c1.x) / 2, y: c0.y },
+                panel: notePanel,
+                box: size,
+                reserveTop: 46,
+                reserveBottom: 40,
+                avoid: { x0: c0.x, y0: c0.y, x1: c1.x, y1: c1.y },
+              })}
+            >
+              <NoteBlurControl
+                blur={noteBlurNow(n)}
+                onLive={(blur) => setLiveBlur({ id: n.id, blur })}
+                onCommit={(blur) => setNoteBlur(n.id, blur)}
+              />
+            </div>
+          );
+        })()}
+
       {/* in-progress guidance while a step tool is active — a window tucked
           into the canvas's own top-right corner, taking its outer radius from
           the canvas so it reads as part of the sheet rather than a pill
@@ -6585,7 +6972,7 @@ export function StudioCanvas({
           <Icon name="x" size={14} />
           <span className="ds-tool-hint-t">{refusal}</span>
         </div>
-      ) : toolHint && hintsOn && (
+      ) : toolHint && hintsOn && flow !== "next" && (
         <div className="ds-tool-hint" role="status">
           <Icon name={toolHint.icon} size={14} />
           <span className="ds-tool-hint-t">{toolHint.text}</span>

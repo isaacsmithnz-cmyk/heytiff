@@ -297,6 +297,26 @@ export function addBandUnit(
 ): DesignDocument {
   const sys = doc.systems.find((s) => s.id === opts.systemId);
   if (!sys || !iduRow(pack, opts.iduModel)) return doc;
+  /* ONE UNIT ON THE BAND. A second Add used to append another whole-system
+     unit beside the first: the rail drew one, the outdoor could take
+     neither and Done stayed off (the 11-05 walk). Add on a band that has its
+     unit swaps it, keeping its id, so where it is placed on the plan stays. */
+  const band = allocationsOf(sys).filter((a) => a.role === "idu" && a.serves === "system");
+  if (band.length) {
+    const swapped: Allocation = { ...band[0], model: opts.iduModel };
+    const extra = new Set(band.slice(1).map((a) => a.id));
+    let d = mapSystem(doc, sys.id, (s) =>
+      withAllocations(
+        s,
+        allocationsOf(s)
+          .filter((a) => !extra.has(a.id))
+          .map((a) => (a.id === swapped.id ? swapped : a)),
+        pack
+      )
+    );
+    d = restampPlaced(d, pack, swapped);
+    return proposeOutdoor(withPin(d, pack), pack, sys.id);
+  }
   const unit: Allocation = {
     id: newId("obj"),
     role: "idu",

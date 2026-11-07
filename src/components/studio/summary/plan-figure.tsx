@@ -1,13 +1,21 @@
 "use client";
 
+import { faceFrame, openingFor, plenumFigure, plenumsFromDucts } from "@/lib/studio/unit-plenum";
 import type { DesignDocument, DesignObject, Floor, Point } from "@/lib/studio/document";
 import { AIRFLOW_INKS, isAirflowMark, markShapes, streamOf } from "@/lib/studio/airflow-marks";
-import { grilleShape, grilleSize, grilleStream, grilleStyle, isGrille } from "@/lib/studio/grilles";
+import { DUCT_LABEL_STYLE, ductWidth, plenumInkOf, RISER_PAINT, riserMark, supplyInkOf } from "@/lib/studio/duct-size";
+import { ductLinesOn, fittingKey, fittingName, linePathD } from "@/lib/studio/duct-fitting";
+import { NoteBackdrop } from "../note-backdrop";
+import { FreeDuctEnd, PaintedDuct, PaintedFitting, RiserDisc } from "../painted-duct";
+import { grilleShape, grilleSize, grilleSplit, grilleStream, grilleStyle, isGrille, splitShape } from "@/lib/studio/grilles";
 import { deviceHalf, deviceLetter, isDevice } from "@/lib/studio/devices";
 import { areaUnitsToM2, formatArea, polygonArea, smoothPathD, unitsToMeters } from "@/lib/studio/geometry";
+import { ductFreeEnds, ductJunctions, isCurvedRun, straightLegsOf } from "@/lib/studio/run-legs";
+import { runLabelStyle } from "@/lib/studio/plan-labels";
 import {
   cloudPath,
   isNote,
+  noteBlurOf,
   leaderStart,
   noteInkOf,
   noteLeader,
@@ -102,6 +110,7 @@ export function PlanFigure({
       (o.type === "pipe-run" || o.type === "drain-run" || o.type === "cable-run" || o.type === "duct-run") &&
       o.geometry.kind === "polyline"
   );
+  const onFitting = ductLinesOn(ductJunctions(runs), (dia) => ductWidth(dia, scale ?? 10, u));
   const units = onFloor.filter(
     (o): o is DesignObject & { geometry: { kind: "point"; at: Point } } =>
       o.type === "unit" && o.geometry.kind === "point"
@@ -164,6 +173,7 @@ export function PlanFigure({
         .ds-pf .ds-unit rect { fill: #fff; stroke: currentColor; stroke-width: 1.6px; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-unit-detail { fill: none; stroke: currentColor; stroke-width: 1.2px; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-unit-hub { fill: currentColor; stroke: none; }
+        .ds-pf .ds-pf-plenum polygon { fill: #fff; stroke: currentColor; stroke-width: 1.2px; vector-effect: non-scaling-stroke; }
         /* A CALLOUT PRINTS, so its words are text on white paper and the note
            palette's 4.5:1 floor applies — which four of the six system colours
            fail (amber 2.0, teal 3.1, orange 3.7, violet 4.1). The identity
@@ -196,6 +206,8 @@ export function PlanFigure({
         </filter>
       )}
       <g filter={grayscale ? `url(#${pid}-desat)` : undefined}>
+        {/* everything under the notes, which a note can blur behind its words */}
+        <g id={`${pid}-under`}>
         {/* plan sheets under everything — crop clips, never re-rasters */}
         {layers.plan &&
           floor.plans.map((s) => {
@@ -284,10 +296,8 @@ export function PlanFigure({
         {layers.pipes &&
           runs.map((r) => {
             const pts = r.geometry.points;
-            const curved =
-              r.type === "cable-run" ||
-              (r.type === "pipe-run" && r.props.form === "soft") ||
-              (r.type === "duct-run" && r.props.form === "flex");
+            const curved = isCurvedRun(r);
+            const legs = straightLegsOf(r.props);
             const cls =
               r.type === "drain-run"
                 ? "ds-pfdrain"
@@ -304,14 +314,25 @@ export function PlanFigure({
                   /* a duct at its true width, as the canvas draws it */
                   (() => {
                     const line = pts.map((p) => `${p.x},${p.y}`).join(" ");
+                    if (r.props.form) {
+                      return (
+                        <PaintedDuct
+                          d={curved ? (onFitting.get(r.id) ? linePathD(onFitting.get(r.id)!) : smoothPathD(pts, legs)) : undefined}
+                          points={curved ? undefined : onFitting.get(r.id) ? onFitting.get(r.id)!.map((p) => `${p.x},${p.y}`).join(" ") : line}
+                          diaMm={Number(r.props.diaMm) || 250}
+                          mmPerUnit={scale ?? 10}
+                          pen={u}
+                        />
+                      );
+                    }
                     const width = Math.max((Number(r.props.diaMm) || 250) / (scale ?? 10), 4 * u);
                     const ink = AIRFLOW_INKS[r.props.stream === "return" ? "return" : "supply"];
                     const core = Math.max(width - 3 * u, u);
                     /* a flex one along its curve */
                     return curved ? (
                       <g fill="none">
-                        <path d={smoothPathD(pts)} stroke={ink} strokeWidth={width} />
-                        <path d={smoothPathD(pts)} stroke="#fff" strokeWidth={core} />
+                        <path d={smoothPathD(pts, legs)} stroke={ink} strokeWidth={width} />
+                        <path d={smoothPathD(pts, legs)} stroke="#fff" strokeWidth={core} />
                       </g>
                     ) : (
                       <g fill="none">
@@ -321,20 +342,51 @@ export function PlanFigure({
                     );
                   })()
                 ) : curved ? (
-                  <path d={smoothPathD(pts)} />
+                  <path d={smoothPathD(pts, legs)} />
                 ) : (
                   <polyline points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
+                )}
+                {label && spot?.leader && (
+                  <line
+                    stroke="currentColor"
+                    x1={spot.leader[0].x}
+                    y1={spot.leader[0].y}
+                    x2={spot.leader[1].x}
+                    y2={spot.leader[1].y}
+                    strokeWidth={u}
+                  />
                 )}
                 {label && spot && labelBacks && backOf(spot.box)}
                 {label && spot && (
                   <text
                     x={spot.x}
                     y={spot.y}
-                    fontSize={11 * u}
+                    fontSize={runLabelStyle(r, scale).size * u}
                     className="ds-pipe-len"
-                    style={{ textAnchor: spot.anchor }}
+                    style={{ textAnchor: spot.anchor, ...(r.props.form ? DUCT_LABEL_STYLE : null) }}
                   >
                     {label}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+
+        {/* where ducts meet, as the canvas draws it */}
+        {layers.pipes && ductFreeEnds(runs).map((j) => <FreeDuctEnd key={fittingKey(j)} j={j} mmPerUnit={scale ?? 10} pen={u} />)}
+        {layers.pipes &&
+          ductJunctions(runs).map((j) => {
+            const spot = planLabels?.runs.get(fittingKey(j));
+            return (
+              <g key={fittingKey(j)}>
+                {spot?.leader && (
+                  <line stroke={DUCT_LABEL_STYLE.fill} x1={spot.leader[0].x} y1={spot.leader[0].y} x2={spot.leader[1].x} y2={spot.leader[1].y} strokeWidth={u} />
+                )}
+                <PaintedFitting j={j} mmPerUnit={scale ?? 10} pen={u} />
+                {spot && labelBacks && backOf(spot.box)}
+                {spot && (
+                  <text x={spot.x} y={spot.y} fontSize={8 * u} className="ds-pipe-len" style={{ textAnchor: spot.anchor, ...DUCT_LABEL_STYLE }}>
+                    {fittingName(j)}
                   </text>
                 )}
               </g>
@@ -359,7 +411,7 @@ export function PlanFigure({
                unit on paper is what names it on the canvas: its callout,
                where somebody placed it, and the rooms table under the plan. */
             return (
-              <g key={o.id} className="ds-unit" style={{ color: colourOf(o) }}>
+              <g key={o.id} className={`ds-unit${o.plane === "floor-cavity" ? " under" : ""}`} style={{ color: colourOf(o) }}>
                 <g transform={rot ? `rotate(${rot} ${at.x} ${at.y})` : undefined}>
                   {(() => {
                     const mark = markOf?.(String(o.props.model ?? ""));
@@ -375,10 +427,40 @@ export function PlanFigure({
             );
           })}
 
+        {/* the plenums the ducts on a unit made, as on the canvas (unit-plenum.ts) */}
+        {layers.units &&
+          scale != null &&
+          units.flatMap((o) => {
+            const mark = markOf?.(String(o.props.model ?? ""));
+            const widthMm = Number(o.props.widthMm ?? 800);
+            const fp = unitFp(o);
+            return plenumsFromDucts(doc.objects, o, mark, scale).map((p) => {
+              const end = p.props.end === "return" ? ("return" as const) : ("supply" as const);
+              const figure = plenumFigure({
+                props: p.props,
+                widthMm,
+                perMm: fp.w / Math.max(widthMm, 1),
+                opening: openingFor(mark, end),
+                face: faceFrame(o.geometry.at, (o.geometry as { rotation?: number }).rotation ?? 0, fp.h, o.props.airFlip === true, end),
+              });
+              if (!figure) return null;
+              return (
+                <g key={p.id} className="ds-pf-plenum" style={{ color: plenumInkOf(p.props) ?? colourOf(o) }}>
+                  <polygon points={figure.body.map((pt) => `${pt.x},${pt.y}`).join(" ")} />
+                  {figure.spigots.map((sp) => (
+                    <polygon key={sp.id} points={sp.rect.map((pt) => `${pt.x},${pt.y}`).join(" ")} />
+                  ))}
+                </g>
+              );
+            });
+          })}
+
         {/* risers — disc + group letter */}
         {layers.pipes &&
           risers.map((r) => {
             const at = r.geometry.at;
+            if (flow === "next")
+              return <RiserDisc key={r.id} at={at} mark={riserMark(doc.objects, r)} mmPerUnit={scale ?? 10} pen={u} />;
             return (
               <g key={r.id} className="ds-riser" style={{ color: colourOf(r) }}>
                 <circle cx={at.x} cy={at.y} r={10 * u} />
@@ -500,9 +582,26 @@ export function PlanFigure({
         {/* grilles the person placed, through the canvas's geometry */}
         {onFloor.filter(isGrille).map((o) => {
           const stream = grilleStream(o);
+          const split = grilleSplit(o);
+          const supplyInk = supplyInkOf(doc.objects, o.id) ?? AIRFLOW_INKS.supply;
+          if (split) {
+            const c = splitShape(o.geometry.at, o.geometry.rotation ?? 0, grilleSize(o), split.supplyMm, scale ?? 10);
+            return (
+              <g key={o.id} className="ds-pf-grille">
+                <polygon points={c.outline.map((p) => `${p.x},${p.y}`).join(" ")} fill="#fff" stroke="#050505" strokeWidth={1.6 * u} />
+                {c.supply.map(([a, b], i) => (
+                  <line key={`s${i}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={supplyInk} strokeWidth={u} />
+                ))}
+                {c.ret.map(([a, b], i) => (
+                  <line key={`r${i}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={AIRFLOW_INKS.return} strokeWidth={u} />
+                ))}
+                <line x1={c.divider[0].x} y1={c.divider[0].y} x2={c.divider[1].x} y2={c.divider[1].y} stroke="#050505" strokeWidth={1.6 * u} />
+              </g>
+            );
+          }
           const sh = grilleShape(o.geometry.at, o.geometry.rotation ?? 0, stream, grilleSize(o), scale ?? 10, grilleStyle(o));
           return (
-            <g key={o.id} className="ds-pf-grille" stroke={AIRFLOW_INKS[stream]}>
+            <g key={o.id} className="ds-pf-grille" stroke={stream === "supply" ? supplyInk : AIRFLOW_INKS[stream]}>
               <polygon points={sh.outline.map((p) => `${p.x},${p.y}`).join(" ")} fill="#fff" strokeWidth={1.6 * u} />
               {sh.lines.map(([a, b], i) => (
                 <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} strokeWidth={u} />
@@ -534,6 +633,15 @@ export function PlanFigure({
               </g>
             );
           })}
+
+        </g>
+
+        {notes.map((n) => {
+          const blur = noteBlurOf(n);
+          if (blur <= 0) return null;
+          const lay = noteLayoutOf(n);
+          return <NoteBackdrop key={n.id} id={`${pid}-blur-${n.id}`} under={`${pid}-under`} box={lay.box} fontSize={lay.fontSize} blur={blur} />;
+        })}
 
         {/* markup — drawn last, over the work it is about */}
         {notes.map((n) => {
@@ -675,12 +783,12 @@ export function PlanFigure({
                   cx={lx + padd + sw}
                   cy={cy0(2)}
                   r={sw / 2}
-                  fill="#fff"
-                  stroke="#3c4356"
+                  fill={flow === "next" ? RISER_PAINT.body : "#fff"}
+                  stroke={flow === "next" ? RISER_PAINT.body : "#3c4356"}
                   strokeWidth={1.2}
                   vectorEffect="non-scaling-stroke"
                 />,
-                "Riser"
+                flow === "next" ? "Riser: DR duct, PR pipe" : "Riser"
               )}
               {floorSystems.map((s, i) =>
                 item(

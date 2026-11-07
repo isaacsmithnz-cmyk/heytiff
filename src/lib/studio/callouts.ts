@@ -147,6 +147,7 @@ export function calloutContent(
   const w = Math.round(Number(o.props.widthMm ?? 0));
   const d = Math.round(Number(o.props.depthMm ?? 0));
   if (w > 0 && d > 0) lines.push(`${w} × ${d} mm`);
+  if (o.plane === "floor-cavity") lines.push("Under floor");
   return { model: String(o.props.model ?? ""), lines };
 }
 

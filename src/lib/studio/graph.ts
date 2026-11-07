@@ -28,8 +28,9 @@
 
    Pure functions: (objects, floors) in → nodes/edges/paths out. No React. */
 
-import type { DesignDocument, DesignObject, Floor } from "./document";
-import { polylineLength, smoothedLength, unitsToMeters } from "./geometry";
+import type { DesignDocument, DesignObject, Floor, Point } from "./document";
+import { unitsToMeters } from "./geometry";
+import { runLengthUnits } from "./run-legs";
 
 /* Attach kinds: unit/riser are live today (graph v0); fitting/spigot/grille
    are the Stage-7 duct anchors (ducted spec §13) — accepted now so duct-run
@@ -37,6 +38,8 @@ import { polylineLength, smoothedLength, unitsToMeters } from "./geometry";
 export interface Attach {
   kind: "unit" | "riser" | "joint" | "branch-box" | "fitting" | "spigot" | "grille";
   id: string;
+  /** a duct on a unit: the spot on its casing, in the unit's own frame (duct-face.ts) */
+  off?: Point;
 }
 
 const ATTACH_KINDS: ReadonlySet<string> = new Set([
@@ -52,9 +55,13 @@ const ATTACH_KINDS: ReadonlySet<string> = new Set([
 export function attachOf(v: unknown): Attach | null {
   if (typeof v !== "object" || v === null) return null;
   const a = v as Record<string, unknown>;
-  return typeof a.kind === "string" && ATTACH_KINDS.has(a.kind) && typeof a.id === "string"
-    ? { kind: a.kind as Attach["kind"], id: a.id }
-    : null;
+  if (typeof a.kind !== "string" || !ATTACH_KINDS.has(a.kind) || typeof a.id !== "string") return null;
+  const off = a.off as Point | undefined;
+  return {
+    kind: a.kind as Attach["kind"],
+    id: a.id,
+    ...(off && typeof off.x === "number" && typeof off.y === "number" ? { off: { x: off.x, y: off.y } } : {}),
+  };
 }
 
 export interface GraphEdge {
@@ -215,10 +222,7 @@ export function buildSystemGraph(
     const scale = floorById.get(o.floorId)?.scaleMmPerUnit ?? null;
     // a soft-drawn run is the smoothed curve through its dots — the takeoff
     // must measure the pipe that gets installed, not the chords between dots
-    const drawnUnits =
-      o.props.form === "soft"
-        ? smoothedLength(o.geometry.points)
-        : polylineLength(o.geometry.points);
+    const drawnUnits = runLengthUnits(o, o.geometry.points);
     const lengthM = scale != null ? unitsToMeters(drawnUnits, scale) : null;
     if (start && end && nodes.has(start.id) && nodes.has(end.id)) {
       const riseM = elevationOf(nodes.get(end.id)!) - elevationOf(nodes.get(start.id)!);
@@ -249,9 +253,18 @@ export function buildSystemGraph(
           r.type === "pipe-run" &&
           (attachOf(r.props.startAttach)?.id === id || attachOf(r.props.endAttach)?.id === id)
       );
+    /* a riser only a duct goes up is no refrigerant pipe (7 Cutler's Study,
+       31 October 2026): its height is on the ductwork (duct-materials.ts) */
+    const ductOn = (id: string) =>
+      mine.some(
+        (r) =>
+          r.type === "duct-run" &&
+          (attachOf(r.props.startAttach)?.id === id || attachOf(r.props.endAttach)?.id === id)
+      );
     for (let i = 0; i < sorted.length - 1; i++) {
       const lower = sorted[i];
       const upper = sorted[i + 1];
+      if (!runOn(lower.id) && !runOn(upper.id) && (ductOn(lower.id) || ductOn(upper.id))) continue;
       const h = elevationOf(upper) - elevationOf(lower);
       const manual = manualRiserM(lower);
       edges.push({

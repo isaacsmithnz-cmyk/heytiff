@@ -39,11 +39,19 @@ export function VrfSchematic({
   sys,
   units,
   onEdit,
+  plainSource = false,
+  fitWords = false,
 }: {
   doc: DesignDocument;
   pack: DataPack;
   sys: DesignSystem;
   units: PipeUnits;
+  /** the next flow's pop-up: where the drawing comes from is a grey word,
+      never a caption that explains (law 3) */
+  plainSource?: boolean;
+  /** the next flow's pop-up: a head's box is as wide as its longest line,
+      and the columns make room, so a long zone name never spills out */
+  fitWords?: boolean;
   /** change the document from the schematic (Delete, Erase): the host's own
       mutate, so its undo takes it back. Absent, the schematic only reads. */
   onEdit?: (fn: (d: DesignDocument) => DesignDocument) => void;
@@ -59,6 +67,18 @@ export function VrfSchematic({
   const row = tree?.sections.some((x) => x.edges.some((e) => e.startsWith("riser-gap:"))) ? RISER_ROW : ROW;
   const layout = useMemo(() => {
     if (!tree || !tree.sections.length) return null;
+    /* THE BOXES FIT THEIR WORDS (the pop-up's mocks, 4 to 7 November 2026):
+       12px semibold runs near 7px a character, and a box keeps 8 each side */
+    let headW = HEAD_W;
+    if (fitWords) {
+      for (const a of allocationsOf(sys)) {
+        if (a.role !== "idu") continue;
+        const room = a.roomId ? doc.objects.find((o) => o.id === a.roomId) : undefined;
+        const name = room ? String(room.props.name ?? "") : "";
+        headW = Math.max(headW, Math.ceil(Math.max(a.model.length, name.length) * 7) + 16);
+      }
+    }
+    const col = Math.max(COL, headW + 16);
     const kids = new Map<string, SizedSection[]>();
     const tos = new Set<string>();
     for (const s of tree.sections) {
@@ -76,7 +96,7 @@ export function VrfSchematic({
       depth = Math.max(depth, d);
       const ch = (kids.get(id) ?? []).filter((s) => !seen.has(s.to));
       if (!ch.length) {
-        pos.set(id, { x: PAD + leaf * COL + COL / 2, y: PAD + 18 + d * row });
+        pos.set(id, { x: PAD + leaf * col + col / 2, y: PAD + 18 + d * row });
         /* not `leaf++`: React Compiler 1.0 cannot lower an update to a
            variable this closure captures, and refuses the whole component */
         leaf = leaf + 1;
@@ -92,11 +112,12 @@ export function VrfSchematic({
       root,
       pos,
       fit,
-      w: Math.max(PAD * 2 + leaf * COL, ODU_W + PAD * 2),
+      w: Math.max(PAD * 2 + leaf * col, ODU_W + PAD * 2),
+      headW,
       /* room under the lowest heads for their floor and height */
       h: PAD * 2 + 36 + depth * row + 42,
     };
-  }, [tree, row]);
+  }, [tree, row, fitWords, sys, doc]);
 
   const allocs = allocationsOf(sys);
   const oduModel = allocs.find((a) => a.role === "odu")?.model ?? "Outdoor";
@@ -405,7 +426,11 @@ export function VrfSchematic({
         <span className="ds-schem-odu">{oduModel}</span>
         {word && <span className={`ds-schem-word${word === "Fails" ? " bad" : ""}`}>{word}</span>}
         <span className="ds-schem-src">
-          {tree.drawn ? "As drawn on the plan" : "From the zones, until the pipework reaches every head"}
+          {tree.drawn
+            ? "As drawn on the plan"
+            : plainSource
+              ? "Not drawn yet"
+              : "From the zones, until the pipework reaches every head"}
         </span>
       </header>
       {/* NOT PIPED YET (Isaac, 2026-09-30: "there's no pipe work connecting to
@@ -571,7 +596,7 @@ export function VrfSchematic({
               );
             return (
               <g key={id} className={`ds-schem-head${on ? " on" : ""}`} onClick={() => setPicked(on ? null : id)}>
-                <rect x={p.x - HEAD_W / 2} y={p.y} width={HEAD_W} height={36} rx={4} />
+                <rect x={p.x - layout.headW / 2} y={p.y} width={layout.headW} height={36} rx={4} />
                 <text x={p.x} y={p.y + 15}>
                   {headModel(id)}
                 </text>

@@ -21,21 +21,27 @@ const uploadFile = jest.fn();
 jest.mock("@/lib/documents/upload-client", () => ({ uploadFile: (...a: unknown[]) => uploadFile(...a) }));
 const deleteDocument = jest.fn(async (_id: string) => ({ ok: true }));
 jest.mock("@/app/actions/documents", () => ({ deleteDocument: (id: string) => deleteDocument(id) }));
-const addMyNote = jest.fn(async (..._a: unknown[]) => ({ ok: true, id: "my-1" }) as { ok: boolean; id?: string; error?: string });
-const deleteMyNote = jest.fn(async (..._a: unknown[]) => ({ ok: true }));
-jest.mock("@/app/actions/my-notes", () => ({
-  addMyNote: (...a: unknown[]) => addMyNote(...a),
-  deleteMyNote: (...a: unknown[]) => deleteMyNote(...a),
+const saveJobNote = jest.fn(async (_job: string, body: string, _o?: { id?: string }) => ({ id: "n1", text: body, at: "2026-11-06 15:42:00", author: "Isaac Smith" }));
+const removeJobNote = jest.fn(async (..._a: unknown[]) => ({ ok: true, gone: true }));
+jest.mock("@/app/actions/job-notes", () => ({
+  saveJobNote: (job: string, body: string, o?: { id?: string }) => saveJobNote(job, body, o),
+  removeJobNote: (...a: unknown[]) => removeJobNote(...a),
 }));
 
 beforeAll(() => {
   /* jsdom has no object URLs */
   URL.revokeObjectURL = jest.fn();
 });
+/* the i asks the server whether the person has read it anywhere: not yet */
+const infoFetch = jest.fn(async (_url: string, _init?: RequestInit) => ({ ok: true, json: async () => ({ read: false }) }));
+beforeAll(() => {
+  global.fetch = infoFetch as unknown as typeof fetch;
+});
+
 beforeEach(() => {
   uploadFile.mockReset();
   deleteDocument.mockClear();
-  /* My notes only is remembered per browser: each test starts unticked */
+  /* the little i on Tiff's button is remembered per browser: each test starts unread */
   localStorage.clear();
 });
 
@@ -120,6 +126,7 @@ const draw = (p: {
         diary={p.d ?? diary()}
         convo={p.c ?? convo()}
         canSend
+        jobUuid="job-3465"
         viewerName="Isaac Smith"
         voiceEnabled={false}
         onUndoTalk={p.onUndoTalk}
@@ -168,11 +175,11 @@ it("is a section like the others: the green block, Activity feed, the soft tabs 
   const filter = within(head).getByRole("group", { name: "Show in the feed" });
   expect(within(filter).getAllByRole("button").map((t) => t.textContent)).toEqual(["All", "Comms", "Notes", "Photos"]);
   /* the box comes before the feed */
-  const box = screen.getByRole("textbox", { name: "Tell Tiff about this job" });
+  const box = screen.getByRole("textbox", { name: "Write a note on this job" });
   const list = feed.querySelector(".jc-feed") as HTMLElement;
   expect(box.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  /* Send says its word, blue; the + (a photo or a file) is quiet */
-  expect(screen.getByRole("button", { name: "Send to Tiff" })).toHaveTextContent("Send");
+  /* Tiff's button says her name by her arrow, blue; the + (a photo or a file) is quiet */
+  expect(screen.getByRole("button", { name: "Send to Tiff" })).toHaveTextContent("Tiff");
   expect(screen.getByRole("button", { name: "Send to Tiff" })).toHaveClass("pt-btn--main");
   expect(screen.getByRole("button", { name: "Add a photo or a file" })).toHaveClass("pt-btn--quiet");
 });
@@ -328,60 +335,61 @@ it("sends the box's words to Tiff with Send", async () => {
   expect(send).toHaveBeenCalled();
 });
 
-/* Isaac, 26 October 2026: "Unless it's a private note, you just hit add to
-   my notes instead", then one button whose word says what it does, the tick
-   named "My notes only". Send is the job's (Tiff files, and the one tidied
-   note goes to ServiceM8 by itself); ticked, the same button and Enter keep
-   the words for you alone: nothing written on the job, filed or sent. */
-it("keeps a private note in My notes with My notes only ticked: the one button says so, and nothing goes to Tiff", async () => {
-  addMyNote.mockClear();
+/* Isaac, 6 November 2026: "Save creates a raw note, tiff processes it like
+   she does today", and "save to my notes can probably be removed": Save
+   files the words as written on the job, with no Tiff; Tiff's button is
+   hers. A note just for you is made in Notes. */
+it("Save files the words as written on the job, and nothing goes to Tiff", async () => {
+  saveJobNote.mockClear();
   const setDraft = jest.fn();
   const send = jest.fn();
-  draw({ c: convo({ draft: "  Ask Michael whether the deposit cleared  ", setDraft, send }) });
-  expect(screen.getByRole("button", { name: "Send to Tiff" })).toHaveTextContent("Send");
-  await userEvent.click(screen.getByRole("checkbox", { name: "My notes only" }));
-  const save = screen.getByRole("button", { name: "Save to my notes" });
-  expect(save).toHaveClass("pt-btn--main");
-  expect(screen.queryByRole("button", { name: "Send to Tiff" })).toBeNull();
+  draw({ c: convo({ draft: "  Rough-in done upstairs  ", setDraft, send }) });
+  expect(screen.queryByRole("checkbox", { name: "My notes only" })).toBeNull();
+  const save = screen.getByRole("button", { name: "Save" });
+  expect(save).toHaveClass("pt-btn--second");
+  expect(screen.getByRole("button", { name: "Send to Tiff" })).toHaveClass("pt-btn--main");
   await userEvent.click(save);
-  expect(addMyNote).toHaveBeenCalledWith({ body: "Ask Michael whether the deposit cleared", source: "text" });
+  expect(saveJobNote).toHaveBeenCalledWith("job-3465", "Rough-in done upstairs", { id: expect.any(String) });
   await waitFor(() => expect(setDraft).toHaveBeenCalledWith(""));
   expect(send).not.toHaveBeenCalled();
 });
 
-it("saves with Enter too while My notes only is ticked", async () => {
-  addMyNote.mockClear();
-  const send = jest.fn();
-  draw({ c: convo({ draft: "Gate code 4471", send }) });
-  await userEvent.click(screen.getByRole("checkbox", { name: "My notes only" }));
-  fireEvent.keyDown(screen.getByRole("textbox", { name: "Tell Tiff about this job" }), { key: "Enter" });
-  await waitFor(() => expect(addMyNote).toHaveBeenCalledWith({ body: "Gate code 4471", source: "text" }));
-  expect(send).not.toHaveBeenCalled();
+it("has no Save with nothing in the box", () => {
+  draw({ c: convo({ draft: "   " }) });
+  expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
 });
 
-it("keeps My notes only as you left it, next time too", async () => {
-  const first = draw({ c: convo({ draft: "" }) });
-  await userEvent.click(screen.getByRole("checkbox", { name: "My notes only" }));
-  first.unmount();
-  draw({ c: convo({ draft: "" }) });
-  expect(screen.getByRole("checkbox", { name: "My notes only" })).toBeChecked();
-  expect(screen.getByRole("button", { name: "Save to my notes" })).toBeInTheDocument();
-});
-
-it("keeps the words in the box when My notes refused them", async () => {
-  addMyNote.mockResolvedValueOnce({ ok: false, error: "Your staff profile isn't set up yet." });
+it("keeps the words in the box when the save fails", async () => {
+  saveJobNote.mockRejectedValueOnce(new Error("Couldn't save that note"));
   const setDraft = jest.fn();
   draw({ c: convo({ draft: "Gate code 4471", setDraft }) });
-  await userEvent.click(screen.getByRole("checkbox", { name: "My notes only" }));
-  await userEvent.click(screen.getByRole("button", { name: "Save to my notes" }));
-  await waitFor(() => expect(addMyNote).toHaveBeenCalled());
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(saveJobNote).toHaveBeenCalled());
   expect(setDraft).not.toHaveBeenCalled();
+});
+
+/* "put a little information symbol on arrow to explain what it does", and
+   "I symbol can disappear after the first press probably" */
+it("puts a little i on Tiff's button that says what she does, until it has been read once", async () => {
+  const first = draw({ c: convo({ draft: "Luke, order the grilles" }) });
+  const info = await screen.findByRole("button", { name: "What Tiff does with it" });
+  await userEvent.click(info);
+  /* read once is read for the person, on the phone too */
+  await waitFor(() => expect(infoFetch).toHaveBeenCalledWith("/api/tiff/info-read", { method: "POST" }));
+  expect(screen.getByRole("note")).toHaveTextContent("Tiff reads it");
+  expect(screen.getByRole("note")).toHaveTextContent("Save keeps it as written.");
+  await userEvent.click(document.body);
+  expect(screen.queryByRole("note")).toBeNull();
+  expect(screen.queryByRole("button", { name: "What Tiff does with it" })).toBeNull();
+  first.unmount();
+  draw({ c: convo({ draft: "" }) });
+  expect(screen.queryByRole("button", { name: "What Tiff does with it" })).toBeNull();
 });
 
 /* the walk of 25 October 2026: the ⓘ went (no hint text); the Also in
    ServiceM8 tick went on 26 October, as a note on the job now goes by
    itself; Add photo became the + ("Add photo should be the plus button") */
-it("has no ⓘ and no Also in ServiceM8 tick: the + then My notes only in the box's bottom row", () => {
+it("has no Also in ServiceM8 tick: the + in the box's bottom row", () => {
   draw({
     c: convo({ draft: "Grilles are in the van" }),
     d: diary({ notesSm8: { owner: false } as never, sender: { state: "ready" } as never }),
@@ -390,7 +398,6 @@ it("has no ⓘ and no Also in ServiceM8 tick: the + then My notes only in the bo
   expect(screen.queryByRole("checkbox", { name: "Also in ServiceM8" })).toBeNull();
   const lead = screen.getByRole("button", { name: "Add a photo or a file" }).closest(".jc-lead") as HTMLElement;
   expect(lead.closest(".cv-boxbar")).not.toBeNull();
-  expect(within(lead).getByRole("checkbox", { name: "My notes only" })).toBeInTheDocument();
 });
 
 it("still says why your notes can't go to ServiceM8 yet, under the box", () => {

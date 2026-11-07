@@ -92,12 +92,15 @@ function offScaleRadii(): number {
 
    `var(--shadow-overlay)` is the one shadow itself (rule 36), so it
    is not counted, as the ring token is not (18 October 2026, v2's parts:
-   the Dialog part wears it and the count fell 48 → 13). */
+   the Dialog part wears it and the count fell 48 → 13). Nor is
+   `var(--shadow-card)`, the card lifted off the white page, the one other
+   shadow and a token of its own (Isaac, 5 November 2026: "C, lifted";
+   docs/design.md, "On Home"). */
 function shadows(css = CSS): number {
   let n = 0;
   for (const m of css.matchAll(/box-shadow\s*:\s*([^;}]+)/g)) {
     const v = m[1].trim();
-    if (v !== "none" && !/^0 0 0 \d/.test(v) && !/^inset/.test(v) && !/^var\(--(?:ring|shadow-overlay\)$)/.test(v)) n++;
+    if (v !== "none" && !/^0 0 0 \d/.test(v) && !/^inset/.test(v) && !/^var\(--(?:ring|shadow-(?:overlay|card)\)$)/.test(v)) n++;
   }
   for (const _ of css.matchAll(/[\w-]+\s*:\s*[^;}]*drop-shadow\([^;}]*/g)) n++;
   return n;
@@ -400,6 +403,8 @@ function inkButtons(): number {
 const PALETTE = new Set([
   "#ef4444", "#be123c", "#f97316", "#b45309", "#facc15", "#a16207", "#22c55e", "#15803d",
   "#2563eb", "#a855f7", "#7e22ce", "#ec4899", "#9d174d", "#9ca3af", "#5f6a79", "#050505", "#ffffff",
+  /* a job card's orange, yellow and pink (Isaac, 6 November 2026, B) */
+  "#ea580c", "#eab308", "#db2777",
 ]);
 const STUDIO_SHEET = "src/components/studio/studio.css";
 const CSS_BUT_STUDIO = sheets(SRC)
@@ -528,7 +533,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
      Isaac agreed to the re-base; docs/design.md names the two that stay (the
      photo thumbnail's star, the Studio's close-ready vertex) and records that
      the donut's three go with the Studio's new design. */
-  { law: "shadows that are not a focus ring — one shadow, overlays only", now: () => shadows(outside("shadows")), baseline: 10 },
+  { law: "shadows that are not a focus ring — one shadow, overlays only", now: () => shadows(outside("shadows")), baseline: 9 },
   { law: "bars at the left edge — selection is a fill, state is a word; the one left is the cap on the schedule's blocks", now: () => leftBars(outside("bars at the left edge")), baseline: 0 },
   // round two
   { law: "Tailwind palette hexes — colour comes from the tokens; his are named below", now: () => tailwindHexes(outside("Tailwind palette hexes")), baseline: 0 },
@@ -546,7 +551,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
      keyboard the same control back (law 24). */
   { law: "hover-revealed controls — shown on focus too, or not hidden", now: () => { let n = 0; for (const [sel, body] of blocks()) if (/:hover/.test(sel) && !/focus-within|focus-visible/.test(sel) && /\bopacity\s*:\s*1\b/.test(body)) n++; return n; }, baseline: 0 },
   { law: "pill, chip, tag and badge rules drawn as a box — state is a word, a chip is for a filter you tap", now: () => pills(outside("pills")), baseline: 22 },
-  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 20 },
+  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 19 },
   // ink and paper
   /* The OK colour on a selector that is not a state. It began as a count of
      every use (88), then the accent migration named accent-on-state as state
@@ -575,7 +580,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
         n += (body.match(/var\(--(?:teal|teal-d|blue|violet|violet-d|hm-teal|tool-accent)\b|#00e5c0|#00a389|#2e68ff|#8a2be2|#007fa8|#0089b8|rgba\(0,\s*229,\s*192,|rgba\(0,\s*163,\s*137,|rgba\(46,\s*104,\s*255,|rgba\(138,\s*43,\s*226,/gi) ?? []).length;
       }
       return n;
-    }, baseline: 124 },
+    }, baseline: 123 },
   // v2, 18 October 2026: each first set wrong on purpose (-1), then to the count the run printed
   { law: "main buttons painted ink — the main button is blue (rule 22)", now: inkButtons, baseline: 0 },
   { law: "colours outside the 19 — the palette, the token block included (rule 15)", now: () => offPalette(outside("colours outside the 19")), baseline: 43 },
@@ -584,7 +589,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "native `<select>` — a field with a chevron opens the app's own menu (rule 34)", now: () => countTsx(/<select\b/g), baseline: 40 },
   { law: "native time inputs — a clock time opens the wheel (rule 34)", now: () => countTsx(/type="time"/g), baseline: 0 },
   { law: "native colour inputs — a typed hex with a swatch", now: () => countTsx(/type="color"/g), baseline: 1 },
-  { law: "`title` tooltips — a title is not a label; the tooltip rule replaces them", now: () => countTsx(/\stitle=[{"]/g), baseline: 74 },
+  { law: "`title` tooltips — a title is not a label; the tooltip rule replaces them", now: () => countTsx(/\stitle=[{"]/g), baseline: 72 },
 ];
 
 describe("the design ratchets only go down", () => {
@@ -594,7 +599,7 @@ describe("the design ratchets only go down", () => {
   it("defines every token the design doc names", () => {
     const root = fs.readFileSync(path.join(process.cwd(), "src/app/tokens.css"), "utf8");
     for (const name of [
-      "paper", "ground", "line", "tint", "tint-2", "link", "ring", "ring-bad", "ring-warn", "shadow-overlay", "ok-t", "ok-tint",
+      "paper", "ground", "line", "tint", "tint-2", "link", "ring", "ring-bad", "ring-warn", "shadow-overlay", "shadow-card", "ok-t", "ok-tint",
       "on-ink-line", "t-fast", "t-move", "ease", "z-raised", "z-sticky", "z-overlay", "z-modal", "z-toast",
       "r-control", "r-button", "r-card", "r-pill", "s-1", "s-8", "fs-1", "fs-8", "fw-body", "fw-display",
     ]) {

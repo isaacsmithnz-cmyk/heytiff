@@ -93,6 +93,8 @@ export type DayState = {
 export const DAY_WORDS = {
   on: "Your day is on.",
   already: "Your day is already on.",
+  undone: "Your day is off again.",
+  tooLateToUndo: "Your day has been on too long to undo. Clock off and change its times.",
   notOn: "Your day isn't on. Clock on first.",
   noJob: "That job isn't in HeyTiff.",
   future: "That time hasn't come yet.",
@@ -306,11 +308,13 @@ export async function rosteredDays(ctx: MobileCtx, from: string, count = 8): Pro
 
 /** Where the day stands: on since when, where you are now, and where it's
     gone, to now or to the finish the person is thinking of (`until`). */
-export async function readDay(ctx: MobileCtx, now: number = Date.now(), until?: string | null): Promise<DayState> {
+export async function readDay(ctx: MobileCtx, now: number = Date.now(), until?: string | null, on?: string | null): Promise<DayState> {
   const zone = await zoneOf(ctx.orgId);
   const nowIso = new Date(now).toISOString();
   const thinking = until && !Number.isNaN(Date.parse(until)) && Date.parse(until) <= now ? new Date(Date.parse(until)).toISOString() : null;
-  const today = wallMinute(nowIso, zone)?.slice(0, 10) ?? nowIso.slice(0, 10);
+  const realToday = wallMinute(nowIso, zone)?.slice(0, 10) ?? nowIso.slice(0, 10);
+  /* a day already over, for its wrap-up the morning after: a week back at most */
+  const today = on && /^\d{4}-\d{2}-\d{2}$/.test(on) && on <= realToday && Date.parse(`${realToday}T12:00:00Z`) - Date.parse(`${on}T12:00:00Z`) <= 7 * 86_400_000 ? on : realToday;
   const [row, normal] = await Promise.all([dayRow(ctx, today), normalOf(ctx)]);
   if (!row) return { day: null, at: null, jobs: [], summary: null, normal };
   const { jobs } = await jobsIn(ctx, row, nowIso);
@@ -404,11 +408,36 @@ export function clockOnPlan(
 ): { onAt: string; office: DayStop[]; stint: { jobUuid: string; from: string; until: string | null } | null } {
   const onAt = arrived && arrived.at < pressed ? arrived.at : pressed;
   if (arrived?.place === "office") return { onAt, office: [{ from: arrived.at, until: arrived.left }], stint: null };
+  /* pressed at the office after a job earlier in the morning: the office from the press, the job
+     ending there at the latest, never the office over the job (the review of 29 October 2026) */
+  const atOffice = where === "office";
   return {
     onAt,
-    office: where === "office" ? [{ from: onAt, until: null }] : [],
-    stint: arrived ? { jobUuid: arrived.place, from: arrived.at, until: arrived.left } : null,
+    office: atOffice ? [{ from: pressed, until: null }] : [],
+    stint: arrived ? { jobUuid: arrived.place, from: arrived.at, until: arrived.left ?? (atOffice ? pressed : null) } : null,
   };
+}
+
+/* TAKING BACK A CLOCK ON (Isaac, 3 November 2026: the phone clocks you on at
+   your booking, "have an undo or whatever"). The day and its stints go, and
+   only the phone's: nothing reaches ServiceM8 or the timesheet until Clock
+   off, so nothing has gone anywhere. Not after a couple of hours, or a slip
+   late in the day would take a day's work with it. */
+const UNDO_MS = 2 * 3_600_000;
+
+/** Whether a day that went on at `onAt` can still be taken back. Pure. */
+export function mayUndo(onAt: string, now: number): boolean {
+  return now - Date.parse(onAt) <= UNDO_MS;
+}
+
+export async function undoClockOn(ctx: MobileCtx, now: number = Date.now()): Promise<DayAnswer> {
+  const day = await openDay(ctx);
+  if (!day) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
+  if (!mayUndo(day.on_at, now)) return { ok: false, error: DAY_WORDS.tooLateToUndo, status: 409 };
+  await supabaseAdmin.from("job_check_ins").delete().eq("org_id", ctx.orgId).eq("user_id", ctx.userId).gte("checked_in_at", day.on_at);
+  const { error } = await supabaseAdmin.from("staff_days").delete().eq("org_id", ctx.orgId).eq("id", day.id).is("off_at", null);
+  if (error) return { ok: false, error: DAY_WORDS.notOn, status: 409 };
+  return { ok: true, state: await readDay(ctx, now), said: DAY_WORDS.undone };
 }
 
 async function setOffice(ctx: MobileCtx, day: DayRow, office: DayStop[]) {
@@ -625,7 +654,7 @@ export async function clockOffDay(ctx: MobileCtx, press: Sm8Press | null, at: un
 /* THE PLACES THE PHONE WATCHES FOR, never where the person is: the office,
    today's bookings, and the open jobs it could pass. Each with ServiceM8's
    own geocode where it has one; the phone finds the rest from the address. */
-export async function placesFor(ctx: MobileCtx, now: number = Date.now()): Promise<{ office: string | null; booked: (DayPlace & { start: string; end: string | null })[]; open: DayPlace[] }> {
+export async function placesFor(ctx: MobileCtx, now: number = Date.now()): Promise<{ office: string | null; booked: (DayPlace & { start: string; end: string | null })[]; next: (DayPlace & { start: string; end: string | null }) | null; open: DayPlace[] }> {
   const zone = await zoneOf(ctx.orgId);
   const today = wallMinute(new Date(now).toISOString(), zone)?.slice(0, 10) ?? new Date(now).toISOString().slice(0, 10);
   const { data: org } = await supabaseAdmin.from("organizations").select("address, suburb, state, postcode").eq("id", ctx.orgId).maybeSingle();
@@ -645,6 +674,10 @@ export async function placesFor(ctx: MobileCtx, now: number = Date.now()): Promi
   const state = await readSm8WriteState(ctx.orgId).catch(() => null);
   const staffUuid = state ? await staffUuidOf(ctx, state.tenantId).catch(() => null) : null;
   let booked: (DayPlace & { start: string; end: string | null })[] = [];
+  /* YOUR FIRST BOOKING OF THE NEXT DAY YOU HAVE ONE (Isaac, 3 November 2026, at 3479 with nothing asking
+     him to clock on): the phone sets the morning's fence when the app last ran, usually at Clock off,
+     so at Clock off it has to know tomorrow. */
+  let next: (DayPlace & { start: string; end: string | null }) | null = null;
   if (staffUuid) {
     const spell = [...new Set([staffUuid, staffUuid.toLowerCase(), staffUuid.toUpperCase()])];
     const { data: acts } = await supabaseAdmin
@@ -669,6 +702,28 @@ export async function placesFor(ctx: MobileCtx, now: number = Date.now()): Promi
         return j && s !== null ? [{ ...placeOf(j), start: new Date(s).toISOString(), end: e === null ? null : new Date(e).toISOString() }] : [];
       });
     }
+    const { data: ahead } = await supabaseAdmin
+      .from("sm8_job_activities")
+      .select("job_uuid, start_date, end_date")
+      .eq("org_id", ctx.orgId)
+      .eq("active", 1)
+      .eq("activity_was_scheduled", 1)
+      .in("staff_uuid", spell)
+      .gt("start_date", `${today} 23:59:59`)
+      .order("start_date", { ascending: true })
+      .limit(1);
+    const coming = ((ahead ?? []) as { job_uuid: string; start_date: string; end_date: string | null }[])[0];
+    if (coming) {
+      const { data: js } = await supabaseAdmin
+        .from("sm8_jobs")
+        .select("uuid, generated_job_id, job_address, geo_city, lat, lng")
+        .eq("org_id", ctx.orgId)
+        .in("uuid", [coming.job_uuid, coming.job_uuid.toLowerCase(), coming.job_uuid.toUpperCase()]);
+      const j = ((js ?? []) as JobRow[])[0];
+      const s = wallInstant(coming.start_date, zone, "earliest");
+      const e = coming.end_date ? wallInstant(coming.end_date, zone, "latest") : null;
+      if (j && s !== null) next = { ...placeOf(j), start: new Date(s).toISOString(), end: e === null ? null : new Date(e).toISOString() };
+    }
   }
 
   /* AN OPEN JOB WITH SOME LIFE IN IT (Isaac, 29 October 2026: 993, a quote
@@ -678,7 +733,7 @@ export async function placesFor(ctx: MobileCtx, now: number = Date.now()): Promi
      work orders hadn't been touched in 60 days. A job counts only when it
      changed, or has a visit, within RECENT_DAYS either side of today. */
   const [from, until] = recentWindow(today);
-  const [{ data: openJobs }, { data: visits }] = await Promise.all([
+  const [{ data: openJobs }, visits] = await Promise.all([
     supabaseAdmin
       .from("sm8_jobs")
       .select("uuid, generated_job_id, job_address, geo_city, lat, lng, edit_date")
@@ -688,18 +743,33 @@ export async function placesFor(ctx: MobileCtx, now: number = Date.now()): Promi
       .not("lat", "is", null)
       .not("lng", "is", null)
       .limit(2000),
-    supabaseAdmin
+    visitedBetween(ctx.orgId, from, until),
+  ]);
+  const visited = visits;
+  const open = ((openJobs ?? []) as (JobRow & { edit_date: string | null })[]).filter((j) => hasLife(j, from, visited));
+  return { office, booked, next, open: open.map(placeOf) };
+}
+
+/** Every job with a visit in the window, read a page at a time: the API answers 1,000 rows at most,
+    and the window held 1,307 on 29 October 2026 (the review that night). */
+async function visitedBetween(orgId: string, from: string, until: string): Promise<Set<string>> {
+  const out = new Set<string>();
+  for (let page = 0; page < 30; page++) {
+    const { data, error } = await supabaseAdmin
       .from("sm8_job_activities")
-      .select("job_uuid")
-      .eq("org_id", ctx.orgId)
+      .select("uuid, job_uuid")
+      .eq("org_id", orgId)
       .eq("active", 1)
       .gte("start_date", `${from} 00:00:00`)
       .lte("start_date", `${until} 23:59:59`)
-      .limit(10000),
-  ]);
-  const visited = new Set(((visits ?? []) as { job_uuid: string }[]).map((v) => v.job_uuid.toLowerCase()));
-  const open = ((openJobs ?? []) as (JobRow & { edit_date: string | null })[]).filter((j) => hasLife(j, from, visited));
-  return { office, booked, open: open.map(placeOf) };
+      .order("uuid", { ascending: true })
+      .range(page * 1000, page * 1000 + 999);
+    if (error) break;
+    const rows = (data ?? []) as { job_uuid: string | null }[];
+    for (const r of rows) if (r.job_uuid) out.add(r.job_uuid.toLowerCase());
+    if (rows.length < 1000) break;
+  }
+  return out;
 }
 
 /** How far either side of today an open job's change or visit keeps it a place to drop in at. */

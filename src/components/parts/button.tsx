@@ -8,7 +8,9 @@ import { Icon } from "@/components/shell/icon";
    a red word on the second button, and the red block only asks "are you
    sure" (25). Three heights, 32 in rows, 36 in forms, 44 on a phone (28).
    Xero is Xero's own blue with white words, on a button that goes to Xero,
-   and is named in docs/design.md as outside the palette on his word.
+   and is named in docs/design.md as outside the palette on his word. Quote
+   is orange with ink words, on the button that starts or updates a quote
+   (25c), as a quote is orange in ServiceM8.
 
    A hover is one change, a fill (23): the second, quiet and delete buttons
    take `--hov`, and the two solid ones keep their colour. A press moves 1px
@@ -19,7 +21,7 @@ import { Icon } from "@/components/shell/icon";
    fill, border, cursor) is two classes, (0,2,0), so it beats the reset's
    (0,1,1) inside the frame and in a portal alike. */
 
-export type ButtonKind = "main" | "second" | "quiet" | "delete" | "danger" | "xero";
+export type ButtonKind = "main" | "second" | "quiet" | "delete" | "danger" | "xero" | "quote";
 export type ControlSize = 32 | 36 | 44;
 
 type Common = {
@@ -132,12 +134,15 @@ export function LinkButton({ href, children, className, ...rest }: LinkButtonPro
 
 /* ICON-ONLY (rule 27). Close, clear, the microphone and the ‹ › of a date,
    and a chat's Send and Minimise (Isaac, 20 October 2026: Tiff's chat as
-   Claude's), and nothing else, so the glyph is one of those by type. Square, in
+   Claude's), and a reminder's Later on Home's To do, a clock (Isaac,
+   5 November 2026: the rows lost their buttons, "maybe just a tick to say
+   done and whatever other action you think you need"), and nothing else,
+   so the glyph is one of those by type. Square, in
    the quiet dress, and its label is required: it is the button's only word
    for a screen reader, and a `title` is not a label (rule 25). */
-export type IconGlyph = "close" | "clear" | "mic" | "earlier" | "later" | "send" | "minimise" | "add";
+export type IconGlyph = "close" | "clear" | "mic" | "earlier" | "later" | "send" | "minimise" | "add" | "snooze";
 
-const GLYPH: Record<IconGlyph, string> = { close: "x", clear: "x", mic: "mic", earlier: "chevL", later: "chevR", send: "arrowUp", minimise: "minus", add: "plus" };
+const GLYPH: Record<IconGlyph, string> = { close: "x", clear: "x", mic: "mic", earlier: "chevL", later: "chevR", send: "arrowUp", minimise: "minus", add: "plus", snooze: "clock" };
 
 export type IconButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "className" | "children" | "aria-label"> & {
   glyph: IconGlyph;

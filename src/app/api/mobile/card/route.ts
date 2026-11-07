@@ -3,6 +3,7 @@ import { staffIdFor } from "@/lib/workboard/projects-query";
 import { orgExpiryWindow } from "@/lib/org/query";
 import { getOwnVehicle } from "@/lib/fleet/query";
 import { ok, requireMobile } from "@/lib/mobile/auth";
+import { readBirthdaySharing, setBirthdaySharing } from "@/lib/team/birthday-sharing";
 
 /* YOUR CARD for the phone: who you are on the team, as your own profile
    page reads it (getStaff), and the vehicle assigned to you. Your own card
@@ -20,9 +21,10 @@ export async function GET(request: Request) {
   if (!staffId) return Response.json({ error: "There's no staff card for you here yet." }, { status: 404, headers: { "cache-control": "no-store" } });
 
   const expiry = await orgExpiryWindow(ctx.orgId);
-  const [staff, vehicle] = await Promise.all([
+  const [staff, vehicle, sharing] = await Promise.all([
     getStaff(ctx.orgId, staffId, { pay: false, notes: false }, expiry.warnDays),
     getOwnVehicle(ctx.orgId, staffId).catch(() => null),
+    readBirthdaySharing(ctx.orgId, staffId),
   ]);
   if (!staff) return Response.json({ error: "There's no staff card for you here yet." }, { status: 404, headers: { "cache-control": "no-store" } });
 
@@ -40,6 +42,7 @@ export async function GET(request: Request) {
     email: staff.row.email || null,
     phone: text("phone"),
     birthday: text("birthday"),
+    ...sharing,
     state: text("state"),
     emergency: text("emergency_name")
       ? {
@@ -54,4 +57,22 @@ export async function GET(request: Request) {
       ? { name: vehicle.name || null, make: vehicle.make, model: vehicle.model, plate: vehicle.plate, plateState: vehicle.plateState }
       : null,
   });
+}
+
+/* YOUR BIRTHDAY TICKS (Isaac, 6 November 2026: "Staff have to opt in, tick to
+   share bday, tick to share age"): Share my birthday and Share my age, each
+   saving itself; your own card's alone. */
+export async function POST(request: Request) {
+  const ctx = await requireMobile(request);
+  if (ctx instanceof Response) return ctx;
+  const staffId = await staffIdFor(ctx.orgId, ctx.userId);
+  if (!staffId) return Response.json({ error: "There's no staff card for you here yet." }, { status: 404, headers: { "cache-control": "no-store" } });
+  const body = (await request.json().catch(() => null)) as { shareBirthday?: unknown; shareAge?: unknown } | null;
+  const change = {
+    ...(typeof body?.shareBirthday === "boolean" ? { shareBirthday: body.shareBirthday } : {}),
+    ...(typeof body?.shareAge === "boolean" ? { shareAge: body.shareAge } : {}),
+  };
+  if (!Object.keys(change).length) return Response.json({ error: "Nothing to change." }, { status: 400, headers: { "cache-control": "no-store" } });
+  const saved = await setBirthdaySharing(ctx.orgId, staffId, change);
+  return saved ? ok(saved) : Response.json({ error: "Couldn't save that." }, { status: 500, headers: { "cache-control": "no-store" } });
 }

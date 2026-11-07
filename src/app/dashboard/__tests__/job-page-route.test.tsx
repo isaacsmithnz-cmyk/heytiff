@@ -20,12 +20,26 @@ const resolveJobCard = jest.fn(async (_org: string, id: string) => ({ parentRemo
 jest.mock("@/lib/workboard/all-jobs-query", () => ({ resolveJobCard: (o: string, id: string) => resolveJobCard(o, id) }));
 /* this org's mirror holds one job */
 const openMirrorJob = jest.fn(async (id: string) => (id === "j-3209" ? { id, number: "3209", clientName: "Richards Building" } : null));
-jest.mock("@/app/actions/workboard", () => ({ openMirrorJob: (id: string) => openMirrorJob(id) }));
+/* what the card reads first, made here beside the row */
+const readMirrorJob = jest.fn(async (id: string) => ({ detail: { remoteId: id }, focusRemoteId: null, cards: 1 }));
+const readJobRecord = jest.fn(async (_id: string): Promise<{ ourNotes: never[] } | null> => ({ ourNotes: [] }));
+const readJobFiles = jest.fn(async (_id: string) => null);
+jest.mock("@/app/actions/workboard", () => ({
+  openMirrorJob: (id: string) => openMirrorJob(id),
+  readMirrorJob: (id: string) => readMirrorJob(id),
+  readJobRecord: (id: string) => readJobRecord(id),
+  readJobFiles: (id: string) => readJobFiles(id),
+}));
+jest.mock("@/app/actions/job-picklist", () => ({ listJobPicklist: async () => [] }));
+jest.mock("@/app/actions/job-photo-favourites", () => ({ listJobPhotoFavourites: async () => [{ remoteId: "ph-1" }] }));
+jest.mock("@/app/actions/job-conversation", () => ({ readJobConversation: async () => null }));
+const customerEditOffered = jest.fn(async () => true);
+jest.mock("@/app/actions/job-customer", () => ({ customerEditOffered: () => customerEditOffered() }));
 jest.mock("@/components/jobs/job-page", () => ({ JobPage: () => null }));
 
 import JobPageRoute from "../jobs/[id]/page";
 
-type Props = { row: { id: string }; section: string; manage: boolean; moneyVisible: boolean; add: string | null };
+type Props = { row: { id: string }; section: string; manage: boolean; moneyVisible: boolean; add: string | null; first: Record<string, unknown> };
 const visit = async (id: string, search: Record<string, string | string[] | undefined> = {}) =>
   (await JobPageRoute({ params: Promise.resolve({ id }), searchParams: Promise.resolve(search) })) as { props: Props };
 
@@ -36,6 +50,9 @@ beforeEach(() => {
   redirect.mockClear();
   resolveJobCard.mockClear();
   openMirrorJob.mockClear();
+  readMirrorJob.mockClear();
+  readJobRecord.mockClear();
+  customerEditOffered.mockClear();
 });
 
 describe("the gate", () => {
@@ -96,5 +113,36 @@ describe("?add=", () => {
     expect((await visit("j-3209", { tab: "documents", add: "certificate" })).props).toMatchObject({ add: "certificate" });
     expect((await visit("j-3209", { add: "quote" })).props).toMatchObject({ add: null });
     expect((await visit("j-3209")).props).toMatchObject({ add: null });
+  });
+});
+
+describe("what the card reads first", () => {
+  it("is read beside the row and handed in, so the card arrives full", async () => {
+    const page = await visit("j-3209");
+    expect(readMirrorJob).toHaveBeenCalledWith("j-3209");
+    expect(readJobRecord).toHaveBeenCalledWith("j-3209");
+    expect(page.props.first).toMatchObject({
+      cardId: "j-3209",
+      mirror: { detail: { remoteId: "j-3209" } },
+      record: { ourNotes: [] },
+      files: null,
+      picklist: [],
+      favourites: ["ph-1"],
+      conversation: null,
+    });
+  });
+
+  it("leaves out a read that failed, for the card to make itself", async () => {
+    readJobRecord.mockRejectedValueOnce(new Error("down"));
+    const page = await visit("j-3209");
+    expect(page.props.first.record).toBeUndefined();
+    expect(page.props.first.mirror).toBeDefined();
+  });
+
+  it("asks whether customers can be edited only of someone who manages", async () => {
+    expect((await visit("j-3209")).props.first.customerEdit).toBeUndefined();
+    expect(customerEditOffered).not.toHaveBeenCalled();
+    held = new Set(["workboard", "workboard_manage"]);
+    expect((await visit("j-3209")).props.first.customerEdit).toBe(true);
   });
 });

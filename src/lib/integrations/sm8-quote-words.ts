@@ -35,7 +35,7 @@ export const QUOTE_WORDS = {
   },
   /* Why a send couldn't go, said on the card. */
   press: {
-    kindOff: "Sending accepted quotes to ServiceM8 is switched off. An owner can change that in Integrations, ServiceM8.",
+    kindOff: "Sending quotes to ServiceM8 is switched off. An owner can change that in Integrations, ServiceM8.",
     capped: "Sending to ServiceM8 is paused. An owner can change that in Integrations, ServiceM8.",
     unreadable: "HeyTiff couldn't read the ServiceM8 settings. Nothing was sent.",
     unqueued: "HeyTiff couldn't send that. Nothing went; try again.",

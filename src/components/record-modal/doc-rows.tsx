@@ -20,6 +20,7 @@ const TITLE: Partial<Record<StoredDocument["kind"], string>> = {
   rego_notice: "Rego notice",
   insurance_policy: "Certificate of insurance",
   purchase_invoice: "Purchase invoice",
+  purchase_docket: "Supplier's docket",
   finance_agreement: "Finance agreement",
   licence: "Licence card",
   work_rights: "Work rights evidence",

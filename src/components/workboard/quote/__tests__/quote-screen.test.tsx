@@ -147,6 +147,14 @@ it("takes each other tab to the job's page on that section, and stays on Quote",
   expect(push).not.toHaveBeenCalled();
 });
 
+it("has the job's Design tab, after Quote, for whoever holds the Studio", async () => {
+  render(<QuoteScreen job={JOB} detail={detail} moneyVisible={false} financials={false} studio />);
+  await screen.findByText("Lines, no value");
+  const tabs = screen.getByRole("tablist", { name: "The job" });
+  expect(within(tabs).getAllByRole("tab").map((t) => t.querySelector(".pt-stab-word")!.textContent)).toEqual(["Overview", "Quote", "Design", "Visits", "Materials", "Photos", "Documents"]);
+  expect(within(tabs).getByRole("tab", { name: "Design" })).toHaveAttribute("href", `/dashboard/jobs/${JOB}?tab=design`);
+});
+
 it("leaves Billing out of the job's tabs for someone without the money", async () => {
   render(<QuoteScreen job={JOB} detail={detail} moneyVisible={false} financials={false} />);
   await screen.findByText("Lines, no value");

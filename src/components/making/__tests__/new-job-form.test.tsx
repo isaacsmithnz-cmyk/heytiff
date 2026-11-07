@@ -27,7 +27,22 @@ jest.mock("@/app/actions/workboard", () => ({ openMirrorJob: (...a: unknown[]) =
 const push = jest.fn();
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
+/** The engine, with its transcript handed over by the test. */
+const heard: { say?: (words: string) => void } = {};
+jest.mock("@/components/notes/dictation", () => {
+  const actual = jest.requireActual("@/components/notes/dictation");
+  return {
+    ...actual,
+    useDictation: (opts: { onTranscript: (w: string) => void }) => {
+      const react = jest.requireActual("react") as typeof import("react");
+      heard.say = opts.onTranscript;
+      return { recording: false, arming: false, transcribing: false, interim: "", seconds: 0, barsRef: react.createRef(), start: jest.fn(), stop: jest.fn(), handOver: jest.fn(), cancel: jest.fn(), restart: jest.fn() };
+    },
+  };
+});
+
 import { NewJobForm } from "../new-job-form";
+import { NoteScopeProvider } from "@/components/notes/note-context";
 
 const BUILDER = { uuid: "c0c0c0c0-0000-4000-8000-0000000000b1", name: "Built By MK", address: "1 Office St", sites: 14, contacts: [{ name: "Jake Breen", mobile: "0400 000 000", phone: null, email: "jake@builtbymk.com.au" }] };
 const PERSON = { uuid: "c0c0c0c0-0000-4000-8000-0000000000c1", name: "Tim Scott", address: "702/22 Sir John Young Cres, Woolloomooloo", sites: 0, contacts: [] };
@@ -94,6 +109,34 @@ describe("New job", () => {
     expect(screen.getByText("Say where the job is.")).toBeInTheDocument();
     expect(screen.getByText("Say what the job is.")).toBeInTheDocument();
     expect(createNewJob).not.toHaveBeenCalled();
+  });
+
+  /* 7 November 2026 (Isaac: "Fix all of those"): the job's words take the
+     voice where the workspace has it, and still say when they're missing */
+  it("takes the job said, where voice is on, and creates it with those words", async () => {
+    render(
+      <NoteScopeProvider voiceEnabled>
+        <WindowsContext.Provider value={{ toast } as never}>
+          <NewJobForm onClose={jest.fn()} />
+        </WindowsContext.Provider>
+      </NoteScopeProvider>,
+    );
+    expect(screen.getByRole("button", { name: "Dictate — the job" })).toBeInTheDocument();
+    await user().click(create());
+    expect(screen.getByLabelText("The job")).toHaveAttribute("aria-invalid", "true");
+    await typeName("Tim");
+    await pickCustomer(/Tim Scott/);
+    act(() => heard.say!("Service call"));
+    expect(screen.getByLabelText("The job")).toHaveValue("Service call");
+    expect(screen.queryByText("Say what the job is.")).toBeNull();
+    await user().click(create());
+    await waitFor(() => expect(createNewJob).toHaveBeenCalled());
+    expect(createNewJob.mock.calls[0]![0]).toMatchObject({ description: "Service call" });
+  });
+
+  it("has no microphone on the job where voice is off", () => {
+    draw();
+    expect(screen.queryByRole("button", { name: /^Dictate/ })).toBeNull();
   });
 
   it("brings up repeat customers as their name is typed, and offers a new one", async () => {

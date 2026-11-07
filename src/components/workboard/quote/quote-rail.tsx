@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Button } from "@/components/parts/button";
+import { RollingFigure } from "@/components/parts/rolling-figure";
 import { StateWord } from "@/components/parts/state";
 import { Icon } from "@/components/shell/icon";
 import { auDayOf, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -16,6 +17,7 @@ import type { Sm8Quote } from "../board/job-quote-card";
    chat-first quote page, Isaac, 2026-10-13), in layout B (his pick, 21
    October 2026: "Price on top, buttons pinned"). Read top to bottom like a
    checkout, on its own scroll, 400 wide: where the quote is, in colour;
+   every option and its total, to pick from;
    the Design step, to someone with the Studio (quote-design.tsx, 28
    October 2026); what's To confirm when Tiff isn't on for the business (with her on, it's
    the conversation's, till the paper stands in its place: then Before you
@@ -30,7 +32,7 @@ import type { Sm8Quote } from "../board/job-quote-card";
 const PART_COLOUR: Record<string, string> = { units: "var(--chart-1)", materials: "var(--chart-3)", labour: "var(--chart-2)" };
 
 /** a variation's figures: the difference it makes */
-const signed = (c: number) => `${c > 0 ? "+" : c < 0 ? "−" : ""}${cents2(Math.abs(c))}`;
+export const signed = (c: number) => `${c > 0 ? "+" : c < 0 ? "−" : ""}${cents2(Math.abs(c))}`;
 
 /** THE QUOTE (it replaces the head's ledger, 2026-10-10): the total, the
     screen's one big figure, its three parts and their split, and the profit
@@ -78,8 +80,8 @@ export function QuoteCard({
       <div className="qp-card">
         <div className="qp-tot">
           <span>{`Variation ${variation.n}, ex GST`}</span>
-          <b>{signed(ex)}</b>
-          <em>{`New total ${cents2(b.exGstCents)}`}</em>
+          <b><RollingFigure value={signed(ex)} /></b>
+          <em>New total <RollingFigure value={cents2(b.exGstCents)} /></em>
         </div>
         {building}
         <ul className="qp-parts" aria-label="Its parts">
@@ -87,7 +89,7 @@ export function QuoteCard({
             <li key={p.key}>
               <i style={{ background: PART_COLOUR[p.key] }} aria-hidden="true" />
               <span>{p.label}</span>
-              <b>{signed(p.cents)}</b>
+              <b><RollingFigure value={signed(p.cents)} /></b>
             </li>
           ))}
         </ul>
@@ -97,7 +99,7 @@ export function QuoteCard({
               Profit
               {left ? <small>so far</small> : ex !== 0 && <small>{`${Math.round((profit / ex) * 1000) / 10}% of it`}</small>}
             </span>
-            <b>{signed(profit)}</b>
+            <b><RollingFigure value={signed(profit)} /></b>
           </div>
         )}
       </div>
@@ -124,8 +126,8 @@ export function QuoteCard({
     <div className="qp-card">
       <div className="qp-tot">
         <span>{unset ? "Price" : label}</span>
-        {unset ? <b className="qc-wait">Not set</b> : <b>{b ? cents2(b.exGstCents) : "–"}</b>}
-        {price && !price.ok ? <em>{unsetWords(price.unset)}</em> : b ? <em>{`${cents2(b.incGstCents)} inc GST`}</em> : null}
+        {unset ? <b className="qc-wait">Not set</b> : <b>{b ? <RollingFigure value={cents2(b.exGstCents)} /> : "–"}</b>}
+        {price && !price.ok ? <em>{unsetWords(price.unset)}</em> : b ? <em><RollingFigure value={cents2(b.incGstCents)} /> inc GST</em> : null}
       </div>
       {building}
       {b && (
@@ -135,7 +137,7 @@ export function QuoteCard({
               <li key={p.key}>
                 <i style={{ background: PART_COLOUR[p.key] }} aria-hidden="true" />
                 <span>{p.label}</span>
-                <b>{cents2(p.cents)}</b>
+                <b><RollingFigure value={cents2(p.cents)} /></b>
               </li>
             ))}
           </ul>
@@ -152,7 +154,7 @@ export function QuoteCard({
                 Profit
                 {left && <small>so far</small>}
               </span>
-              <b className={tone === "good" ? "good" : tone === "look" ? "look" : undefined}>{`${profit.pct}%, ${cents2(profit.profitCents)}`}</b>
+              <b className={tone === "good" ? "good" : tone === "look" ? "look" : undefined}><RollingFigure value={`${profit.pct}%, ${cents2(profit.profitCents)}`} /></b>
               {tone && words && (
                 <StateWord tone={tone} className="qp-pword">
                   {words}
@@ -227,8 +229,72 @@ export function InServiceM8({
   );
 }
 
+/** ONE ROW AN OPTION, EVERY OPTION'S TOTAL (Isaac's walk of 3423, 30 October
+    2026; they were tabs over the line items): the row picks which option the
+    price under it and the line items show. A variation says the difference
+    it makes. Nothing for a quote with one option. */
+export function OptionRows({ rows, onPick }: { rows: { option: number; name: string; line: string; total: string | null; on: boolean }[]; onPick: (option: number) => void }) {
+  if (rows.length < 2) return null;
+  return (
+    <section className="qc-opts" aria-label="Options">
+      {rows.map((r) => (
+        <button key={r.option} type="button" className={r.on ? "qc-opt on" : "qc-opt"} aria-pressed={r.on} onClick={() => onPick(r.option)}>
+          <span>
+            <b>{r.name}</b>
+            {r.line && <em>{r.line}</em>}
+          </span>
+          {r.total && <b>{r.total}</b>}
+        </button>
+      ))}
+    </section>
+  );
+}
+
+/** What's landed on the job since the quote was priced (the scope on the
+    quote, Isaac's yes, 2 November 2026): nothing when nothing has. Leave out
+    takes a thing off this list and leaves it in the job's brief. */
+export function AddedRows({
+  items,
+  since = "priced",
+  onLeave,
+  onPrice,
+}: {
+  items: { text: string; from: string }[];
+  /** what it's landed since: before it's sent, Price them; after, Update
+      quote, orange as quoting is (25c, slice 4) */
+  since?: "priced" | "sent" | "accepted";
+  onLeave: (text: string) => void;
+  onPrice: () => void;
+}) {
+  if (items.length === 0) return null;
+  const heading = `${items.length} added since it was ${since}`;
+  return (
+    <section className="qc-added" aria-label={heading}>
+      <h2>{heading}</h2>
+      <ul>
+        {items.map((a) => (
+          <li key={a.text}>
+            <span>
+              {a.text}
+              {a.from && <em>{a.from}</em>}
+            </span>
+            <Button kind="quiet" size={32} onClick={() => onLeave(a.text)}>Leave out</Button>
+          </li>
+        ))}
+      </ul>
+      {since === "priced" ? (
+        <Button kind="second" size={36} onClick={onPrice}>Price them</Button>
+      ) : (
+        <Button kind="quote" size={36} onClick={onPrice}>Update quote</Button>
+      )}
+    </section>
+  );
+}
+
 export function QuoteRail({
   progress,
+  options,
+  added,
   design,
   confirm,
   confirmTitle,
@@ -241,6 +307,10 @@ export function QuoteRail({
 }: {
   /** where the quote is, in colour, at the rail's top */
   progress: ReactNode;
+  /** every option and its total, to pick from */
+  options?: ReactNode;
+  /** what's landed on the job since it was priced, under the options */
+  added?: ReactNode;
   /** the Design step: the job's designs, or Design it (quote-design.tsx);
       nothing without the Studio */
   design?: ReactNode;
@@ -265,6 +335,8 @@ export function QuoteRail({
     <aside className="qc-rail" aria-label="On this quote">
       <div className="qc-scroll">
         <div>{progress}</div>
+        {options}
+        {added}
         {design}
         {confirm && (
           <section className="qc-rs" aria-label={confirmTitle}>

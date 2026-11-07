@@ -1,4 +1,6 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { proposalOf } from "@/lib/quotes/lines-proposal";
+import { NoteScopeProvider } from "@/components/notes/note-context";
 import { TiffPanel } from "../tiff-panel";
 
 /* her questions and what the page has to confirm live on their own tab
@@ -106,7 +108,7 @@ it("tells the page she's on before her questions are priced, and shows none open
   expect(screen.getByRole("radio", { name: /^To confirm/ })).not.toHaveClass("pt-tray-opt--look");
   await act(async () => priced({ ...thread, events: [] }));
   await toConfirm();
-  expect(screen.getByRole("button", { name: /Three phase/ })).toHaveTextContent("+$519.96");
+  expect(screen.getByRole("button", { name: /Three phase/ })).toHaveTextContent("+$520");
   expect(onOpen).toHaveBeenLastCalledWith(1);
 });
 
@@ -196,7 +198,7 @@ it("prices each answer, and a tap makes it with no call to her", async () => {
   await screen.findByText("A 12.5 kW ducted, priced from your book.");
   await toConfirm();
   const three = await screen.findByRole("button", { name: /Three phase/ });
-  expect(three).toHaveTextContent("+$519.96");
+  expect(three).toHaveTextContent("+$520");
   expect(screen.getByRole("button", { name: "Single phase" })).toBeInTheDocument();
   await act(async () => {
     fireEvent.click(three);
@@ -219,12 +221,24 @@ it("sends a message and shows her working", async () => {
   const box = await screen.findByLabelText("Message Tiff");
   fireEvent.change(box, { target: { value: "Make it three phase" } });
   await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    fireEvent.click(screen.getByRole("button", { name: "Send to Tiff" }));
   });
   expect(posted).toContainEqual({ job: "j", message: "Make it three phase" });
-  expect(await screen.findByText("Working on the quote")).toBeInTheDocument();
+  expect(await screen.findByText("Reading the job")).toBeInTheDocument();
+  /* about how long is left, a first turn being the long one */
+  const bar = screen.getByRole("progressbar", { name: "Reading the job" });
+  expect(bar).toHaveAttribute("aria-valuetext", "about 1 min 40 left");
+  expect(screen.getByText("about 1 min 40 left")).toBeInTheDocument();
   /* the send waits while she works: one turn at a time */
-  expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Send to Tiff" })).toBeDisabled();
+});
+
+it("gives a change no bar until a few seconds in, a quick answer being over by then", async () => {
+  const finished = { id: 1, turnId: "t1", kind: "usage", author: "tiff", at: "2026-11-01T00:00:00.000Z", body: { usd: 0.1, rounds: 1, models: [] } };
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond({ ...thread, working: true, events: [finished] }));
+  render(<TiffPanel job="j" onChanged={jest.fn()} />);
+  expect(await screen.findByText("Working on the quote")).toBeInTheDocument();
+  expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
 });
 
 /* Isaac's production test, 2026-10-12: two reads from the same point (the
@@ -238,7 +252,7 @@ it("shows each event once when two reads bring the same ones", async () => {
   expect(await screen.findByText("A 12.5 kW ducted, priced from your book.")).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText("Message Tiff"), { target: { value: "Carry on" } });
   await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    fireEvent.click(screen.getByRole("button", { name: "Send to Tiff" }));
   });
   await act(async () => {});
   expect(screen.getAllByText("A 12.5 kW ducted, priced from your book.")).toHaveLength(1);
@@ -253,7 +267,7 @@ it("says why when she can't take the message", async () => {
   render(<TiffPanel job="j" onChanged={jest.fn()} />);
   fireEvent.change(await screen.findByLabelText("Message Tiff"), { target: { value: "And another" } });
   await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    fireEvent.click(screen.getByRole("button", { name: "Send to Tiff" }));
   });
   expect(screen.getByText("Tiff is still working on the last one.")).toBeInTheDocument();
   expect(screen.getByText("Ready when you are.")).toBeInTheDocument();
@@ -331,27 +345,38 @@ it("shows a researched price with its page, and Use it puts it on the line (12.2
 
 /* layout B (Isaac, 21 October 2026): her reading of the job is Scope's, a
    tray away from the conversation, never scrolled away in the thread */
-it("shows the job, written out, on Scope: what changed since her last one, and what's settled struck through", async () => {
-  const wrote = (id: number, writeUp: Record<string, string[]>) => ({ id, turnId: "t1", kind: "tool", author: "tiff", body: { name: "write_up", label: "Wrote the job out", said: "the job, written out", ok: true, detail: { writeUp } }, at: "2026-10-10T00:00:00Z" });
-  const first = { read: ["Luke: two ducted systems"], visits: ["Rough-in: 2 people, 3.5 days, 55 h"], unpriced: ["The sandstone core: not in your book"] };
-  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () =>
-    respond({ ...thread, events: [...thread.events, wrote(90, first), wrote(91, { ...first, visits: ["Rough-in: 2 people, 3.5 days, 57 h"], unpriced: [] })] })
-  );
-  render(
-    <TiffPanel job="j" onChanged={jest.fn()} />
-  );
+it("writes Scope as a scope: the proposal's words, what it's priced on, and what's to check on site", async () => {
+  const wrote = (id: number, writeUp: Record<string, unknown>) => ({ id, turnId: "t1", kind: "tool", author: "tiff", body: { name: "write_up", label: "Wrote the job out", said: "the job, written out", ok: true, detail: { writeUp } }, at: "2026-10-10T00:00:00Z" });
+  const written = {
+    read: ["Luke: two ducted systems"],
+    unpriced: ["Nothing unpriced."],
+    pricedOn: [{ what: "Labour", said: "Option 1 is 12 h" }],
+    toCheck: [{ what: "Wall brackets", said: "The old ones may be fine to reuse" }],
+  };
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond({ ...thread, events: [...thread.events, wrote(90, { read: ["An older one"] }), wrote(91, written)] }));
+  const proposal = { ...proposalOf({}), title: "Air conditioning replacement", intro: "Unit 2 is at the end of its life.", options: [{ summary: "Fit a new split.", areas: [], included: [] }, { summary: "The same work in both.", areas: [], included: [] }] };
+  render(<TiffPanel job="j" onChanged={jest.fn()} words={{ proposal, optionNames: ["unit 2", ""], options: [0, 1] }} />);
   const tray = within(await screen.findByRole("radiogroup", { name: "Conversation, scope or what's to confirm" }));
-  expect(tray.getByRole("radio", { name: "Conversation" })).toHaveAttribute("aria-checked", "true");
-  /* the conversation holds no copy of it */
   await screen.findByText("A 12.5 kW ducted, priced from your book.");
-  expect(screen.queryByRole("region", { name: "The job" })).toBeNull();
+  /* the conversation holds no copy of it */
+  expect(screen.queryByRole("region", { name: "Scope" })).toBeNull();
   fireEvent.click(tray.getByRole("radio", { name: "Scope" }));
-  const job = within(screen.getByRole("region", { name: "The job" }));
-  expect(job.getByText("Changed", { selector: "header em" })).toBeInTheDocument();
-  expect(job.getByText("Luke: two ducted systems")).toBeInTheDocument();
-  expect(job.getByText("Rough-in: 2 people, 3.5 days, 57 h").closest("li")).toHaveClass("changed");
-  expect(job.getByText("Rough-in: 2 people, 3.5 days, 55 h").closest("li")).toHaveClass("gone");
-  expect(job.getByText("The sandstone core: not in your book").closest("li")).toHaveClass("gone");
+  const scope = within(screen.getByRole("region", { name: "Scope" }));
+  expect(scope.getAllByRole("heading").map((h) => h.textContent)).toEqual(["Air conditioning replacement", "Option 1, unit 2", "Option 2", "Priced on", "To check on site"]);
+  expect(scope.getByText("Labour").nextElementSibling).toHaveTextContent("Option 1 is 12 h");
+  expect(scope.getByText("Wall brackets").nextElementSibling).toHaveTextContent("The old ones may be fine to reuse");
+  expect(scope.queryByText("Luke: two ducted systems")).toBeNull();
+  expect(scope.queryByText("Nothing unpriced.")).toBeNull();
+});
+
+it("keeps what an older write-up said on Scope: the work, then its visits and what it assumed", async () => {
+  const old = { id: 90, turnId: "t1", kind: "tool", author: "tiff", body: { name: "write_up", label: "Wrote the job out", said: "the job, written out", ok: true, detail: { writeUp: { work: ["Fit the unit"], visits: ["Install: 2 people"], assuming: ["5 m of pipe"], unpriced: ["The core hole"] } } }, at: "2026-10-10T00:00:00Z" };
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond({ ...thread, events: [...thread.events, old] }));
+  render(<TiffPanel job="j" onChanged={jest.fn()} />);
+  const tray = within(await screen.findByRole("radiogroup", { name: "Conversation, scope or what's to confirm" }));
+  fireEvent.click(tray.getByRole("radio", { name: "Scope" }));
+  const scope = within(screen.getByRole("region", { name: "Scope" }));
+  for (const said of ["Fit the unit", "Install: 2 people", "5 m of pipe", "The core hole"]) expect(scope.getByText(said)).toBeInTheDocument();
 });
 
 it("says on Scope what to do while she hasn't written the job out, and keeps the conversation as it was", async () => {
@@ -442,13 +467,18 @@ it("folds her working notes in with her steps, open while she works", async () =
 /* every Tiff box is Conversations' box (Isaac, 20 October 2026: "the input
    section should be identical throughout the software"; 25 October, walking:
    the quote's was the one with Send in words) */
-it("ends the conversation with the reply box: the microphone, then a blue Send arrow, as every Tiff box has", async () => {
+it("ends the conversation with the reply box: the microphone, then Tiff's blue button, her arrow and her name, as every Tiff box has", async () => {
   (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond(thread));
-  render(<TiffPanel job="j" onChanged={jest.fn()} />);
+  /* where this deployment hears, the box has its microphone */
+  render(
+    <NoteScopeProvider voiceEnabled>
+      <TiffPanel job="j" onChanged={jest.fn()} />
+    </NoteScopeProvider>
+  );
   const box = await screen.findByLabelText("Message Tiff");
-  const send = screen.getByRole("button", { name: "Send" });
-  expect(send).toHaveTextContent("");
-  expect(send).toHaveClass("pt-btn--main", "pt-btn--icon");
+  const send = screen.getByRole("button", { name: "Send to Tiff" });
+  expect(send).toHaveTextContent("Tiff");
+  expect(send).toHaveClass("pt-btn--main");
   expect(send).toBeDisabled();
   const mic = screen.getByRole("button", { name: "Speak instead of typing" });
   expect(mic).toHaveClass("pt-btn--icon");
@@ -496,4 +526,38 @@ it("folds a turn's working into one row, past the questions she asked on the way
   expect(await screen.findByText("A 10 kW ducted.")).toBeInTheDocument();
   expect(screen.getAllByRole("button", { name: /^Worked through it/ })).toHaveLength(1);
   expect(screen.getByRole("button", { name: "Worked through it 3 steps" })).toBeInTheDocument();
+});
+
+/* Price them: the page's words go once, what's in the box stays, and the
+   rail only clears when she has them */
+describe("words the page says for the person", () => {
+  const mount = (answer: unknown) => {
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (_u: string, init?: { method?: string; body?: string }) => {
+      if (init?.method !== "POST") return respond(thread);
+      posted.push(JSON.parse(init.body ?? "{}"));
+      return respond(answer);
+    });
+    const onSaid = jest.fn();
+    const say = { id: 1, text: "Price what's been added: A pump." };
+    const view = render(<TiffPanel job="j" onChanged={jest.fn()} say={say} onSaid={onSaid} />);
+    return { onSaid, say, view };
+  };
+
+  it("sends them once and tells the page", async () => {
+    const { onSaid, say, view } = mount({ ok: true });
+    await act(async () => {});
+    await act(async () => {});
+    view.rerender(<TiffPanel job="j" onChanged={jest.fn()} say={say} onSaid={onSaid} />);
+    await act(async () => {});
+    expect(posted.filter((p) => p.message === say.text)).toHaveLength(1);
+    expect(onSaid).toHaveBeenCalledTimes(1);
+  });
+
+  it("doesn't tell the page when she can't take them", async () => {
+    const { onSaid } = mount({ ok: false, reason: "Tiff is working on this quote." });
+    await act(async () => {});
+    await act(async () => {});
+    expect(onSaid).not.toHaveBeenCalled();
+    expect(await screen.findByText("Tiff is working on this quote.")).toBeInTheDocument();
+  });
 });

@@ -53,7 +53,7 @@ export function JobQuoteSend({
 }) {
   const asQuote = as === "quote";
   const [seen, setSeen] = useState<Seen | null | undefined>(undefined);
-  const [offer, setOffer] = useState<{ offered: boolean; trial: boolean }>({ offered: false, trial: false });
+  const [offer, setOffer] = useState<{ offered: boolean; trial: boolean; held?: string | null }>({ offered: false, trial: false });
   const [sending, setSending] = useState(false);
   const [answer, setAnswer] = useState<QuoteSendAnswer | null>(null);
   const [reads, setReads] = useState(0);
@@ -103,7 +103,7 @@ export function JobQuoteSend({
 
   if (look === "button") {
     if (!plan.ok) return <StateWord tone="look">{plan.why}</StateWord>;
-    if (!offer.offered) return null;
+    if (!offer.offered) return offer.held ? <StateWord tone="look">{offer.held}</StateWord> : null;
     return (
       <>
         <Button kind="main" disabled={sending || !fresh} onClick={() => void send()}>

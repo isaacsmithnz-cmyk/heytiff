@@ -139,6 +139,7 @@ const serverRead = (over: Partial<JobStoryServerRead> = {}): JobStoryServerRead 
     workDone: null,
     status: "Completed",
     clientName: "Susie Peterson",
+    createdOn: null,
     ...over,
   };
 };

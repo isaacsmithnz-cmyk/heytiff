@@ -42,6 +42,8 @@ jest.mock("@/app/actions/job-check-ins", () => ({
   checkIn: jest.fn(async () => null),
   checkOut: jest.fn(async () => null),
 }));
+/* Materials' Bought: nothing bought on these jobs */
+jest.mock("@/app/actions/purchases", () => ({ jobBought: async () => ({ lines: [], allowanceCents: null, money: false }) }));
 jest.mock("@/app/actions/job-picklist", () => ({
   listJobPicklist: jest.fn(async () => []),
   setPicklistItemPicked: jest.fn(async () => null),
@@ -257,14 +259,14 @@ beforeEach(() => {
 });
 
 describe("the job's Add", () => {
-  it("leads the Actions menu with Visit, Task, Quote, Cost, SWMS, Certificate in that order", async () => {
+  it("leads the Actions menu with Visit, Task, Quote, Cost, Purchase, SWMS, Certificate in that order", async () => {
     await open();
     const add = screen.getByRole("button", { name: "Actions" });
     expect(add).toHaveClass("pt-btn--second");
     expect(add).toHaveAttribute("aria-haspopup", "menu");
     const menu = await addMenu();
     expect(add).toHaveAttribute("aria-expanded", "true");
-    expect(items(menu)).toEqual(["Add visit", "Add task", "Add quote", "Add cost", "Add SWMS", "Add certificate"]);
+    expect(items(menu)).toEqual(["Add visit", "Add task", "Add quote", "Add cost", "Add purchase", "Add SWMS", "Add certificate"]);
     /* Add's items come first */
     expect(within(menu).getAllByRole("menuitem")[0]).toHaveTextContent("Add visit");
   });
@@ -309,19 +311,19 @@ describe("the job's Add", () => {
   describe("hides what the reader may not use", () => {
     it("has no Task without Workboard manage", async () => {
       await open({ manage: false });
-      expect(items(await addMenu())).toEqual(["Add visit", "Add quote", "Add cost", "Add SWMS", "Add certificate"]);
+      expect(items(await addMenu())).toEqual(["Add visit", "Add quote", "Add cost", "Add purchase", "Add SWMS", "Add certificate"]);
     });
 
     it("has no Visit where Book in isn't offered", async () => {
       readJobRecord.mockResolvedValue(record(bookings({ canBook: false })));
       await open();
-      expect(items(await addMenu())).toEqual(["Add task", "Add quote", "Add cost", "Add SWMS", "Add certificate"]);
+      expect(items(await addMenu())).toEqual(["Add task", "Add quote", "Add cost", "Add purchase", "Add SWMS", "Add certificate"]);
     });
 
     it("has no SWMS once ServiceM8 has the job closed, as the Compliance section doesn't", async () => {
       readMirrorJob.mockResolvedValue({ detail: detail({ status: "Completed" }), focusRemoteId: null });
       await open();
-      expect(items(await addMenu())).toEqual(["Add visit", "Add task", "Add quote", "Add cost", "Add certificate"]);
+      expect(items(await addMenu())).toEqual(["Add visit", "Add task", "Add quote", "Add cost", "Add purchase", "Add certificate"]);
     });
   });
 

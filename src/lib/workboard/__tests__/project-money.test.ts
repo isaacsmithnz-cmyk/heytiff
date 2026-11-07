@@ -7,6 +7,7 @@
 import {
   claimedLine,
   deriveProjectMoney,
+  fmtAddition,
   fmtAud,
   parseAudToCents,
   type ClaimFact,
@@ -143,5 +144,17 @@ describe("parseAudToCents", () => {
     expect(parseAudToCents("1.234")).toBeNull();
     expect(parseAudToCents("12,34")).toBe(1_234_00); // commas are cosmetic, not positional
     expect(parseAudToCents("200000000")).toBeNull(); // past the $100M sanity cap
+  });
+});
+
+describe("fmtAddition", () => {
+  it("says an addition to the nearest dollar, with its sign", () => {
+    expect(fmtAddition(506)).toBe("+$5");
+    expect(fmtAddition(51996)).toBe("+$520");
+    expect(fmtAddition(-123456)).toBe("−$1,235");
+  });
+  it("says nothing when it comes to nothing", () => {
+    expect(fmtAddition(0)).toBe("");
+    expect(fmtAddition(49)).toBe("");
   });
 });

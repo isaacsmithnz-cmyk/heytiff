@@ -2,35 +2,26 @@
 
 import { useCallback, useEffect, useEffectEvent, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { withoutPlaceTag } from "@/lib/brain/place-tag";
-import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
-import { Tooltip } from "@/components/parts/tooltip";
-import { navHref } from "@/components/shell/nav";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { useHydrated } from "@/lib/use-hydrated";
 import { kbDocUrl } from "@/app/actions/kb";
-import { askTiff, type AskSourceItem, type AskTurn } from "@/lib/tiff/ask-client";
-import { askPrefill, consumeAskHandoff, type AskHandoff, type AskScope } from "@/lib/tiff/ask-handoff";
+import type { AskSourceItem, AskTurn } from "@/lib/tiff/ask-client";
+import { askBrain } from "@/lib/brain/ask-client";
+import { consumeAskHandoff, type AskHandoff, type AskScope } from "@/lib/tiff/ask-handoff";
 import { loadThreads, STORE_KEY, type TiffMsg, type TiffThread } from "@/lib/tiff/threads";
 import { pullThreads, pushThreads } from "@/lib/tiff/thread-sync";
-import {
-  MISS_STEP,
-  categoryHue,
-  clockOf,
-  dayKeyOf,
-  dayLabel,
-  stepsFromTrace,
-  threadWhen,
-} from "@/lib/tiff/conversations";
+import { categoryHue, clockOf, dayKeyOf, dayLabel, isEmailThread, threadWhen } from "@/lib/tiff/conversations";
 import { Button } from "@/components/parts/button";
 import { ConfirmDialog, Dialog } from "@/components/parts/dialog";
 import { Field, TextInput } from "@/components/parts/field";
 import { Empty, Wrong } from "@/components/parts/states";
 import { Fade } from "@/components/parts/fade";
-import { Initials } from "@/components/parts/initials";
 import { Dot } from "@/components/parts/state";
 import { CvBox } from "@/components/conversations/box";
 import { CvList } from "@/components/conversations/list";
+import { KB_CATEGORIES } from "./kb";
+import { appendSpoken, useDictation } from "@/components/notes/dictation";
 
 /* THE HANDOFF IS READ ONCE PER MOUNT, as a store rather than in an effect.
 
@@ -50,79 +41,44 @@ let latchedHandoff: AskHandoff | undefined;
 
 const NO_HANDOFF: AskHandoff = { text: null, doc: null };
 
-const askHandoffAtMount = () => {
+export const askHandoffAtMount = () => {
   if (latchedHandoff === undefined) latchedHandoff = consumeAskHandoff();
   return latchedHandoff;
 };
 const forgetAskHandoff = () => {
   latchedHandoff = undefined;
 };
-const noAskHandoff = () => NO_HANDOFF;
-const noHandoffSubscription = () => () => {};
-import type { KbRecentDoc } from "@/lib/tiff/query";
-import {
-  cardNote,
-  cardState,
-  reduceViz,
-  workingNote,
-  IDLE_VIZ,
-  type ResearchViz,
-  type VizEvent,
-} from "@/lib/tiff/research-viz";
-import { ResearchLines } from "./research-lines";
-import { KB_CATEGORIES, type KbCategoryKey } from "./kb";
-import { appendSpoken, useDictation } from "@/components/notes/dictation";
-import { RecordingCard } from "@/components/notes/recording-card";
-import { DotField } from "@/components/ui/dot-field";
-import { READING_BACK_NOTE } from "@/components/notes/waits";
-import { Waiting } from "@/components/ui/orb";
-import dynamic from "next/dynamic";
+export const noAskHandoff = () => NO_HANDOFF;
+export const noHandoffSubscription = () => () => {};
 
-/* The Library's asking surface, connected.
+/* CONVERSATIONS' TIFF: your chats with her, and the open one (v2, the board
+   v2-board-conversations; components/conversations lays the place out).
 
-   TWO COLUMNS, AND THE RIGHT ONE IS THE POINT. The transcript sits beside the
-   category cards rather than under them: the cards stay on screen while the
-   answer grows (bottom cards scroll away mid-answer), they double as the way
-   into the library when nothing is being asked, and the horizontal gap between
-   composer and cards is where the search lines are drawn. Under 1100px they
-   stack and nothing is lost.
+   The assistant makes two halves, the list of threads and the open
+   conversation with its box at the foot, and hands them to `frame`, which
+   puts them on the page beside whatever else the place shows (its title, its
+   views), so an answer still arriving keeps arriving while another view is
+   up. It used to have a second layout, the Library's own ask with its
+   landing, its shelves and the search lines drawn between them; nothing drew
+   that one any more, and it went.
 
-   WHERE THE ANSWER COMES FROM IS A CHOICE, AND IT LOOKS LIKE ONE. "Answer
-   from" offers two options under the box — your library, or general knowledge
-   — with the live one lit. General knowledge answers from what Tiff already
-   knows and says so; your library answers only from the company's own
-   documents and cites the page. You can see which one you are about to get
-   BEFORE you press send, and every answer carries the same distinction
-   afterwards: a researched answer has chips under it, a general one has an
-   offer to go and look. With no ready documents the library option is disabled
-   and says why, because an option that finds nothing teaches you not to trust
-   the feature.
+   SHE IS THE ONE TIFF. The box asks the brain Home, a job and the Tiff
+   button ask (/api/brain/ask), so a chat begun on Home goes on here as the
+   same Tiff, as the phone's do.
 
-   THE ANSWER ARRIVES AS IT IS WRITTEN. `askTiff` reads the NDJSON stream and
-   this component appends deltas to one live message, which is committed to the
-   thread when the stream ends. Threads live in localStorage as before, on a
-   bumped key: messages now carry sources and whether they were researched, and
-   v1 rows have neither.
-
-   THE LINES SHOW WHERE IT IS LOOKING, AND THEY ARE NOT DECORATION. The
-   overlay measures `.tk-stage`, `.tk-composer` and the `.tk-rcat` cards
-   off the live DOM, and every state it draws comes from an event this
-   component already receives: submit, the server's `trace` with its real hit
-   counts and winners, `miss`, the first delta, done. The choreography itself
-   is a pure machine in lib/tiff/research-viz.ts, so it can be proven in a test
-   that cannot see a single coordinate. Nothing here waits to look busier. */
+   THE ANSWER ARRIVES AS IT IS WRITTEN. `askBrain` reads the stream and this
+   component appends its words to one live message, which is committed to the
+   thread when the stream ends. */
 
 /* A message and a thread are lib/tiff/threads.ts's, which the server's copy
    shares (docs/migrations/tiff_threads.sql, NOT YET APPLIED). Threads live in
-   localStorage under `STORE_KEY` as before, a bumped key: messages carry
-   sources and whether they were researched, and v1 rows have neither. v1
-   rows are ignored rather than migrated: they are preview-era replies from a
-   model that wasn't connected. With the table applied the server keeps a
-   copy that follows the person to other devices (lib/tiff/thread-sync.ts);
-   without it, this device's copy is the only one. */
-/* the job card from a forwarded email (email-job-card.tsx), loaded only when
-   a thread has one: it brings the New job form and its actions with it */
-const EmailJobCard = dynamic(() => import("./email-job-card").then((m) => m.EmailJobCard), { ssr: false });
+   localStorage under `STORE_KEY`, a bumped key: messages carry sources and
+   whether they were researched (older answers do, from when the Library's ask
+   searched the shelves), and v1 rows have neither. v1 rows are ignored rather
+   than migrated: they are preview-era replies from a model that wasn't
+   connected. With the table applied the server keeps a copy that follows the
+   person to other devices (lib/tiff/thread-sync.ts); without it, this
+   device's copy is the only one. */
 
 type Msg = TiffMsg;
 type Thread = TiffThread;
@@ -134,23 +90,8 @@ const HISTORY_TURNS = 8;
     to read in the two-column list without wrapping. */
 const TITLE_MAX = 60;
 
-
-/* THE QUICK-START PILLS ARE GONE, not restyled. Four canned questions — "R32
-   running pressures at 35°C", "Size a VRF for a 3-storey office" — sat under
-   the box on every visit and were, at best, a demo of what a question looks
-   like to somebody who already asks them for a living. They cost a row of the
-   landing, they taught nothing after the first read, and two of the four were
-   about a category this workspace might hold nothing in. The box and its
-   placeholder are the invitation. */
-
-function ago(ts: number): string {
-  const s = Math.max(0, (Date.now() - ts) / 1000);
-  if (s < 60) return "Just now";
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  if (s < 172800) return "Yesterday";
-  return new Date(ts).toLocaleDateString(undefined, { day: "numeric", month: "short" });
-}
+/** What the pane says while she works and no word of the answer has come. */
+const THINKING = "Thinking";
 
 const plural = (count: number, one: string, many = `${one}s`) => (count === 1 ? one : many);
 
@@ -330,59 +271,61 @@ function AnswerText({ text }: { text: string }) {
 
 /* ── the screen ──────────────────────────────────────────────────────────── */
 
-/* TWO LAYOUTS, ONE TIFF. `library` is the Library's ask, as it always was.
-   `conversations` is v2's Conversations place (the board
-   v2-board-conversations): the same threads, the same ask and the same
-   stream, laid out as a list of threads and the open conversation with its
-   box at the foot. The assistant makes the two halves and hands them to
-   `frame`, which puts them on the page beside whatever else the place shows
-   (its title, its views), so the stream keeps running while
-   another view is up. Nothing about asking is written twice. */
+/* What the assistant hands `frame`: the same threads, the same ask and the
+   same stream, as a list and an open conversation, for the place to lay out
+   beside its title and its views. Nothing about asking is written twice. */
 export type ConversationParts = {
   /** The threads, newest first: a title in bold over its time in grey. */
   list: ReactNode;
   /** The open conversation, or a new one, with the box at its foot. */
   pane: ReactNode;
-  /** How many threads there are, for the view's count. */
-  count: number;
 };
 
+/** An email open in the Inbox: its own head and what Tiff read, then anything
+    asked about it, in its thread. */
+export type OpenEmail = {
+  threadId: string;
+  title: string;
+  /** the thread for someone who has none of their own; null until it's read */
+  seed: TiffThread | null;
+  head: ReactNode;
+  read: ReactNode;
+};
+
+/** What was said after Tiff's read of an email. */
+const afterRead = (messages: Msg[]) => messages.slice(messages.findIndex((m) => m.email) + 1);
+
 export function TiffAssistant({
-  counts = { install: 0, faults: 0, specs: 0, sops: 0, field: 0 },
-  readyCount = 0,
   canManage = false,
-  recentDocs = [],
   docTitles = {},
   voiceEnabled = false,
-  layout = "library",
   frame,
   initialThreadId = null,
   onOpenChange,
   you = "You",
+  email = null,
+  onMove,
 }: {
-  counts?: Record<KbCategoryKey, number>;
-  /** Ready documents across every shelf — nothing can be researched at zero. */
-  readyCount?: number;
   canManage?: boolean;
-  /** The last few documents to land, newest first. Read on the server. */
-  recentDocs?: KbRecentDoc[];
-  /** Every document's current name, by id — what the citation chips prefer
-      over the title stored alongside the answer. */
+  /** Every document's current name, by id — what the cards of what she read
+      prefer over the title stored alongside the answer. */
   docTitles?: Record<string, string>;
-  /** ELEVENLABS_API_KEY is set on this deployment. No key, no mic — the ask
-      bar is a plain text field either way. */
+  /** ELEVENLABS_API_KEY is set on this deployment. No key, no mic — the box
+      is a plain text field either way. */
   voiceEnabled?: boolean;
-  layout?: "library" | "conversations";
-  /** Conversations: lays the list and the open conversation out on the page. */
-  frame?: (parts: ConversationParts) => ReactNode;
-  /** Conversations: the thread the address opened. */
+  /** Lays the list and the open conversation out on the page. */
+  frame: (parts: ConversationParts) => ReactNode;
+  /** The thread the address opened. */
   initialThreadId?: string | null;
-  /** Conversations: the open thread changed, so the page can say so in the address. */
+  /** The open thread changed, so the page can say so in the address. */
   onOpenChange?: (id: string | null) => void;
-  /** Conversations: the asker's name, beside their own turns. */
+  /** The asker's name, beside their own turns. */
   you?: string;
+  /** The email open in the Inbox, in place of a chat. */
+  email?: OpenEmail | null;
+  /** Tiff opened a screen (`/dashboard/…`): go there. */
+  onMove?: (href: string) => void;
 }) {
-  const conv = layout === "conversations";
   const hydrated = useHydrated();
   // null = "not touched yet": until the first send, render straight from storage
   const [threadState, setThreadState] = useState<Thread[] | null>(null);
@@ -391,23 +334,13 @@ export function TiffAssistant({
   const prefill = handoff.text;
   /* THE DOCUMENT THIS CONVERSATION IS ABOUT, when a library row sent us here.
      It is a control, not a sentence: the row used to type `In “…”, ` into the
-     box and the search read the whole library anyway, so the only trace of
-     the choice was words that filtered nothing. Shown as a chip you can
-     clear, and cleared is the whole library again. */
+     box, and the only trace of the choice was words that filtered nothing.
+     Shown as a chip you can clear, and cleared is the whole library again. */
   const [scope, setScope] = useState<AskScope | null>(() => handoff.doc);
   /* null until the box is touched: until then the handoff's opener IS the box,
      and with no handoff that is the empty string it always was. */
   const [typed, setTyped] = useState<string | null>(null);
   const input = typed ?? prefill ?? "";
-  /* The switch starts where the headline points. "Ask the library" over a bar
-     set to General knowledge shipped once — the first question of every visit
-     answered from the wrong place and then offered to look properly, which is
-     the headline's promise sold as an upsell. Library whenever it has anything
-     in it; at zero the option is disabled and General is all there is. */
-  const [researchPick, setResearchPick] = useState<boolean | null>(null);
-  /* Naming a document IS choosing the library — there is nothing to search in
-     general knowledge — so the scope decides the switch while it stands. */
-  const research = scope ? true : (researchPick ?? readyCount > 0);
   const [peek, setPeek] = useState<SourceDoc | null>(null);
 
   /* The thread being renamed, and the one being removed. Held as the row
@@ -416,36 +349,13 @@ export function TiffAssistant({
   const [renaming, setRenaming] = useState<Thread | null>(null);
   const [removing, setRemoving] = useState<Thread | null>(null);
 
-  /* THE FIRST QUESTION IS SEARCHED FROM THE BAR IT WAS ASKED IN.
-     Sending used to switch to the transcript in the same tick, so by the
-     first painted frame the hero bar had already become the reply bar at the
-     foot of the column — and every run, on every question, appeared to leave
-     the little bar. The landing's own composer never once had a pipe on it,
-     which is the one place the mechanism is worth watching.
-
-     So a NEW research thread is held: the row is written and the search runs,
-     but the landing stays until the answer actually starts. The runs sweep
-     out of the bar that was just typed in, and the page turns into a
-     conversation when there is a conversation to show. A ref beside it
-     because the release happens inside stream callbacks, which close over the
-     state as it was when the request went out. */
-  const [holdId, setHoldId] = useState<string | null>(null);
-  const holdRef = useRef<string | null>(null);
-
   /* The answer being written. Held apart from the thread rather than mutated
      into it, so a delta doesn't rewrite localStorage sixty times a second; it
      is committed once, when the stream ends. */
   type Live = {
     threadId: string;
-    question: string;
-    research: boolean;
     text: string;
-    missed: boolean;
-  /** the title of the document that covered nothing, once the search widened */
-  widenedFrom: string | null;
-    truncated: boolean;
-    sources: AskSourceItem[];
-    /** What she did before answering, off the search's own report. */
+    /** What she did before answering: her readers' own words. */
     steps: string[];
   };
   const [live, setLive] = useState<Live | null>(null);
@@ -455,16 +365,14 @@ export function TiffAssistant({
      including the history as it was THEN, which is not the same as the history
      now that a partial answer has been kept in the thread. */
   const [failure, setFailure] = useState<{
+    threadId: string;
     message: string;
     question: string;
-    research: boolean;
     history: AskTurn[];
   } | null>(null);
 
-  const inputRef = useRef<HTMLInputElement>(null);
-  /** Conversations' box: a textarea, where the Library's bar is one line. */
   const boxRef = useRef<HTMLTextAreaElement>(null);
-  const focusBox = () => (inputRef.current ?? boxRef.current)?.focus();
+  const focusBox = () => boxRef.current?.focus();
   /* The clock the times are read against, once per visit: a "Today" that
      turned into "Yesterday" mid-read would be the page moving under you. */
   const [now] = useState(nowMs);
@@ -476,51 +384,29 @@ export function TiffAssistant({
      gone back to re-read a table while the rest of the answer arrives. */
   const followRef = useRef(true);
 
-  /* Whether WE put the extra history entry there. A ref, not `history.state`:
-     the router replaceStates over the current entry on its own commits and can
-     drop custom keys, so the entry survives but a marker on it may not. */
-  const pushedRef = useRef(false);
-
-  /* What the search lines and the category cards are doing. The refs below are
-     the overlay's measuring points — the stage it draws inside, the composer
-     every line leaves from, and the card each one arrives at. */
-  const [viz, setViz] = useState<ResearchViz>(IDLE_VIZ);
-  const stageRef = useRef<HTMLDivElement>(null);
-  const composerRef = useRef<HTMLFormElement>(null);
-  const cardRefs = useRef(new Map<KbCategoryKey, HTMLElement>());
-  const showViz = (event: VizEvent) => setViz((prev) => reduceViz(prev, event));
-
   const threads = threadState ?? (hydrated ? loadThreads() : []);
+  /* An email's thread lives in the Inbox; Chats is your own talk with her. */
+  const chats = threads.filter((t) => !isEmailThread(t.id));
   /* CONVERSATIONS ONLY KEEPS THEM (Isaac, 20 October: "Conversations are just
      where conversations are stored"; they start on Home). With none named, it
      opens the newest, unless a document handed a question over to ask. */
   const shownId =
-    activeId ?? (conv && !prefill && !scope && !handoff.ask ? ([...threads].sort((a, b) => b.updatedAt - a.updatedAt)[0]?.id ?? null) : null);
-  const active = threads.find((t) => t.id === shownId) ?? null;
-  /* The held thread is written but not yet shown, so it must not appear in
-     "Pick up where you left off" either — a card inviting you to resume the
-     question you are watching being asked. */
-  const recent = [...threads]
-    .filter((t) => t.id !== holdId)
-    .sort((a, b) => b.updatedAt - a.updatedAt)
-    .slice(0, 8);
+    activeId ?? (!prefill && !scope && !handoff.ask ? ([...chats].sort((a, b) => b.updatedAt - a.updatedAt)[0]?.id ?? null) : null);
+  const active = email ? (threads.find((t) => t.id === email.threadId) ?? email.seed) : (threads.find((t) => t.id === shownId) ?? null);
 
   const streaming = live !== null;
-  const canResearch = readyCount > 0;
 
   /* SPEAKING TO TIFF IS JUST TYPING WITH YOUR VOICE.
 
-     Everything said to the ask bar is a question, so there is no sieve, no
+     Everything said to the box is a question, so there is no sieve, no
      routing and no review — the words land in the box, the caret comes back,
      and you still press send. That is the whole difference between this mic
      and the token's: the token has to work out what your words BECOME, and
      this one already knows. It is also why the box is not wrapped in a note
      scope; there is no target for a note that is never taken.
 
-     The ENGINE is the token's, imported unchanged. The five controls PR #287
-     collapsed were five copies of an engine wearing different clothes; this
-     is the opposite and the shape the file asks for — one engine, and the
-     clothes belong to the composer it sits in. */
+     The ENGINE is the token's, imported unchanged: one engine, and the
+     clothes belong to the box it sits in. */
   const [voiceErr, setVoiceErr] = useState<string | null>(null);
   /** The last recording stopped at the two-minute ceiling. Appending is
       already the right answer for a question, so nothing changes about where
@@ -537,33 +423,15 @@ export function TiffAssistant({
 
   const listening = dict.recording || dict.transcribing;
 
-  /* THE BAR IS WHERE THE EYE IS WHEN THE WAIT STARTS. You press send and then
-     look at what you just pressed — but the only sign anything was happening
-     lived elsewhere: three dots inside a sheet further up the transcript, and
-     1.6px lanes out in the corridor. Between the press and the first word the
-     composer said nothing at all, and the screen read as frozen (reported
-     live, 2026-08-08).
-
-     `working` is the whole flight, not just the silence before the first
-     token: an answer still arriving is still work, and a spinner that stopped
-     mid-stream would claim it had finished. The button stays ENABLED
-     throughout — asking again mid-answer aborts the first and is a feature,
-     not an accident — so this is a statement, never a lock. */
+  /* `working` is the whole flight, not just the silence before the first
+     word: an answer still arriving is still work, and a box that stopped
+     waiting mid-stream would claim it had finished. */
   const working = Boolean(live) && !listening;
-
-  /* THE LIVE WORDS ARE NOT SHOWN IN THIS BOX ANY MORE, because the box is not
-     on screen while the mic is open — the shared recording card has the space,
-     and it joins the interim words onto what is already captured exactly the
-     way this did (`sofar`, in notes/recording-card). The rule the join exists
-     to keep is unchanged and now kept in one place: interim words are SHOWN,
-     never HELD. Committing them would race the transcript that replaces them
-     and leave the tail of a half-heard sentence behind if the recording were
-     thrown away. */
 
   /* The caret comes back when the mic lets go. Focusing inside `onTranscript`
      misses every time: the box is still disabled at that moment, because the
      engine clears `transcribing` in a `finally` AFTER the callback — and
-     focus() on a disabled input does nothing at all. */
+     focus() on a disabled box does nothing at all. */
   const wasListening = useRef(false);
   useEffect(() => {
     if (wasListening.current && !listening) focusBox();
@@ -576,8 +444,9 @@ export function TiffAssistant({
      the transcript keeps `followRef` honest; this effect only acts on it. */
   useEffect(() => {
     const el = chatRef.current;
-    if (el && followRef.current) el.scrollTop = el.scrollHeight;
-  }, [active?.messages.length, live?.text, streaming]);
+    /* an open email starts at its top, where the decision and her read are */
+    if (el && followRef.current && (!email || streaming)) el.scrollTop = el.scrollHeight;
+  }, [active?.messages.length, live?.text, streaming, email]);
 
   const onChatScroll = () => {
     const el = chatRef.current;
@@ -587,11 +456,10 @@ export function TiffAssistant({
     followRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
   };
 
-  /* Arriving from "Ask Tiff" on a library row: the document left a
-     sentence-opener behind, and this is where it is picked up.
+  /* Arriving with words left behind (the Fault Finder's question about a
+     code): they are picked up here.
 
-     NOTHING IS SENT. The opener goes in the box, Research goes on because the
-     question is about a document in the library, and the caret sits at the end
+     NOTHING IS SENT. The opener goes in the box and the caret sits at the end
      waiting for the actual question. A prefill that asked itself would be
      putting words in somebody's mouth and spending a question they never
      asked. Read-once, so a refresh doesn't hand it over again. */
@@ -651,27 +519,6 @@ export function TiffAssistant({
     setLive(next);
   };
 
-  /* Let the held thread through. Called the moment there is something to READ
-     — the first word, a miss, a failure, or an answer that finished without
-     one — because until then the landing is showing the better view of what
-     is happening. Idempotent: every stream ends through one of these doors
-     and several can fire in the same breath. */
-  const openHeld = () => {
-    const id = holdRef.current;
-    if (!id) return;
-    holdRef.current = null;
-    setHoldId(null);
-    setActiveId(id);
-    markOpened(id);
-  };
-
-  /* Give it up without opening it — leaving, starting over, or a question
-     that replaced this one before it ever landed. */
-  const dropHold = () => {
-    holdRef.current = null;
-    setHoldId(null);
-  };
-
   const patchLive = (patch: (prev: Live) => Live) => {
     const prev = liveRef.current;
     if (!prev) return;
@@ -686,125 +533,68 @@ export function TiffAssistant({
       role: "tiff",
       text: state.text,
       at: nowMs(),
-      researched: state.research && !state.missed,
-      ...(state.missed ? { missed: true } : {}),
-      ...(state.widenedFrom !== null ? { widenedFrom: state.widenedFrom } : {}),
-      ...(state.truncated ? { truncated: true } : {}),
-      ...(state.sources.length ? { sources: state.sources } : {}),
       ...(state.steps.length ? { steps: state.steps } : {}),
     });
   };
 
-  const run = (threadId: string, question: string, researchMode: boolean, history: AskTurn[]) => {
+  /* CONVERSATIONS ASKS THE ONE TIFF (Isaac, 7 November 2026: "Fix all of
+     those", Tiff asked two ways): the brain Home, a job and the Tiff button
+     ask (/api/brain/ask), with her readers and her moves, so a chat begun on
+     Home goes on here as the same Tiff, as the phone's do. What she reaches
+     for is her steps; a screen she opens is the end of the turn. */
+  const run = (threadId: string, question: string, history: AskTurn[]) => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
 
     setFailure(null);
-    /* Only a research question has anywhere to look, so only a research
-       question draws lines. A general one clears whatever the last answer left
-       behind rather than leaving a stale rail under a new conversation. Every
-       shelf performs — retrieval covers the whole library, and the sweep
-       converging on the winner is the page's story (a stocked-shelves-only
-       gate shipped once and reduced it to one line straight to the answer). */
-    showViz({ t: researchMode ? "submit" : "reset" });
-    setLiveBoth({
-      threadId,
-      question,
-      research: researchMode,
-      text: "",
-      missed: false,
-      widenedFrom: null,
-      truncated: false,
-      sources: [],
-      steps: [],
-    });
+    setLiveBoth({ threadId, text: "", steps: [] });
 
-    void askTiff({
-      question,
-      research: researchMode,
-      history,
-      documentId: scope?.docId ?? null,
-      signal: controller.signal,
-      onEvent: (event) => {
-        if (controller.signal.aborted) return;
-        switch (event.t) {
-          case "trace":
-            /* Where Tiff looked, with real numbers — the cards light from
-               these and from nothing else. The winning card also names the
-               document it ranked first, which is the one the citations under
-               the answer are about to be checked against.
-
-               Mapped over the category list rather than named one by one: the
-               hand-written version listed four while the rail rendered five,
-               so Field notes could win the search and still sit dark with "—"
-               under it. Everything else on both sides of this already knew
-               about the fifth. */
-            showViz({
-              t: "trace",
-              winners: event.winners,
-              hits: Object.fromEntries(
-                KB_CATEGORIES.map((c) => [c.key, event.categories[c.key]?.hits])
-              ),
-              topDocs: Object.fromEntries(
-                KB_CATEGORIES.map((c) => [c.key, event.categories[c.key]?.topDoc])
-              ),
-            });
-            patchLive((prev) => ({ ...prev, steps: stepsFromTrace(event) }));
-            break;
-          case "miss":
-            showViz({ t: "miss" });
-            patchLive((prev) => ({ ...prev, missed: true, steps: [MISS_STEP] }));
-            // the banner explaining the miss belongs in the thread, not here
-            openHeld();
-            break;
-          case "widened":
-            /* The named document covered nothing, so the search read the rest
-               of the library. Said on the answer, because an answer quoted
-               from somewhere other than the manual you asked about is a
-               different answer. */
-            patchLive((prev) => ({ ...prev, widenedFrom: scope?.title ?? "" }));
-            break;
-          case "delta":
-            // the first word is when the search stops and the answer starts —
-            // and when a held landing gives way to the conversation
-            if (!liveRef.current?.text) {
-              showViz({ t: "firstDelta" });
-              openHeld();
-            }
-            patchLive((prev) => ({ ...prev, text: prev.text + event.text }));
-            break;
-          case "trunc":
-            patchLive((prev) => ({ ...prev, truncated: true }));
-            break;
-          case "sources":
-            patchLive((prev) => ({ ...prev, sources: event.items }));
-            break;
-          case "done": {
-            const state = liveRef.current;
-            if (state) commitLive(state);
-            setLiveBoth(null);
-            showViz({ t: "done" });
-            // an answer that finished without a single word still has to land
-            // somewhere a person can see it
-            openHeld();
-            break;
-          }
-          case "err": {
-            const state = liveRef.current;
-            if (state) commitLive(state);
-            setLiveBoth(null);
-            // a half-drawn search under a failure message is decoration on
-            // top of bad news
-            showViz({ t: "error" });
-            setFailure({ message: event.message, question, research: researchMode, history });
-            // bad news is read in the thread, with Try again under it
-            openHeld();
-            break;
-          }
-        }
+    let moved: string | null = null;
+    let over = false;
+    const finish = () => {
+      if (over) return;
+      over = true;
+      const state = liveRef.current;
+      if (state) commitLive(state);
+      setLiveBoth(null);
+      if (moved) onMove?.(moved);
+    };
+    void askBrain(
+      {
+        question,
+        screen: "Conversations",
+        history: history.map((t) => ({ who: t.role === "assistant" ? ("tiff" as const) : ("you" as const), text: t.text })),
+        signal: controller.signal,
       },
-    });
+      {
+        onDelta: (text) => {
+          if (controller.signal.aborted) return;
+          patchLive((prev) => ({ ...prev, text: prev.text + text }));
+        },
+        onTool: (label) => {
+          if (controller.signal.aborted || !label) return;
+          patchLive((prev) => (prev.steps[prev.steps.length - 1] === label ? prev : { ...prev, steps: [...prev.steps, label] }));
+        },
+        onScreen: (href) => {
+          if (controller.signal.aborted) return;
+          moved = href;
+          finish();
+        },
+        onDone: () => {
+          if (controller.signal.aborted) return;
+          finish();
+        },
+        onError: (message) => {
+          if (controller.signal.aborted || over) return;
+          over = true;
+          const state = liveRef.current;
+          if (state) commitLive(state);
+          setLiveBoth(null);
+          setFailure({ threadId, message, question, history });
+        },
+      }
+    );
   };
 
   /** The last few turns, text only — what the route replays as context. */
@@ -814,7 +604,7 @@ export function TiffAssistant({
       text: m.text,
     }));
 
-  const send = (text: string, researchMode: boolean = research) => {
+  const send = (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
 
@@ -824,155 +614,49 @@ export function TiffAssistant({
     let next: Thread[];
 
     if (active) {
-      next = threads.map((t) =>
-        t.id === active.id ? { ...t, updatedAt: at, messages: [...t.messages, msg] } : t
-      );
+      next = threads.some((t) => t.id === active.id)
+        ? threads.map((t) => (t.id === active.id ? { ...t, updatedAt: at, messages: [...t.messages, msg] } : t))
+        : [{ ...active, updatedAt: at, messages: [...active.messages, msg] }, ...threads];
     } else {
       threadId = newThreadId(at);
       const title = trimmed.length > 52 ? `${trimmed.slice(0, 52).trimEnd()}…` : trimmed;
       next = [{ id: threadId, title, updatedAt: at, messages: [msg] }, ...threads];
-      /* A research question is HELD on the landing while it searches, so the
-         runs leave the bar it was typed in; a general one has nothing to draw
-         and opens straight away. Either way the row is already written — the
-         hold is a view, not a delay in recording anything. */
-      if (researchMode && !conv) {
-        holdRef.current = threadId;
-        setHoldId(threadId);
-      } else {
-        setActiveId(threadId);
-        // the landing→thread transition, whichever door it came through
-        markOpened(threadId);
-      }
+      setActiveId(threadId);
+      /* the page names the open thread in its address (`?open=`), so a link
+         or a refresh opens it again */
+      onOpenChange?.(threadId);
     }
 
     persist(next);
     setTyped("");
     followRef.current = true;
-    run(threadId!, trimmed, researchMode, historyOf(active?.messages ?? []));
+    run(threadId!, trimmed, historyOf(active?.messages ?? []));
   };
 
   const retry = () => {
     const id = active?.id ?? activeId;
     if (!failure || !id) return;
-    const { question, research: mode, history } = failure;
+    const { question, history } = failure;
     setFailure(null);
-    run(id, question, mode, history);
+    run(id, question, history);
   };
 
-  const researchThis = (question: string) => {
-    setResearchPick(true);
-    send(question, true);
-  };
-
-  /* A document from the "Recently added" strip. The SAME opener the library's
-     "Ask Tiff" writes into session storage — but nothing is stored here,
-     because the composer is already on screen: the sentence goes straight in
-     the box with the caret after it. Research goes on for the same reason it
-     does on the handoff — the question is about a document in the library —
-     and nothing is sent. A prefill that asked itself would be putting words in
-     somebody's mouth. */
-  const askAboutDoc = (title: string) => {
-    const opener = askPrefill(title);
-    if (!opener) return;
-    setTyped(opener);
-    if (readyCount > 0) setResearchPick(true);
-    focusBox();
-  };
-
-  /* ── leaving a conversation, every way there is ─────────────────────────
-     One bundle, because every exit owes the same debts: stop the stream, drop
-     the live answer, drop the failure, give the rail back to the screen
-     (`reset` — it belongs to the question that was asked), and land on the
-     landing. `commit` is the one choice: a NAVIGATION keeps a half-written
-     answer in the thread (goHome, browser back — the reader is coming back),
-     while starting over does not (New chat, delete — the old behaviour). */
-  const leaveThread = (commit: boolean) => {
-    const state = liveRef.current;
-    if (commit && state) commitLive(state);
+  /* ── leaving a conversation ─────────────────────────────────────────────
+     Every exit owes the same debts: stop the stream, drop the live answer and
+     drop the failure. A half-written answer is not kept (opening another
+     thread, deleting this one). */
+  const leaveThread = () => {
     abortRef.current?.abort();
     setLiveBoth(null);
     setFailure(null);
-    showViz({ t: "reset" });
-    dropHold();
     setActiveId(null);
   };
 
-  /* Opening a thread owns one history entry, so the browser's own back button
-     closes the chat instead of leaving the page. The URL is deliberately
-     UNCHANGED: the router only dispatches on a pushState that carries a url,
-     so a bare entry is invisible to it — no refetch, no remount. */
-  const markOpened = (id: string) => {
-    /* Conversations names the open thread in its address instead (the page
-       writes `?open=`), so a link or a refresh opens it again. */
-    if (conv) {
-      onOpenChange?.(id);
-      return;
-    }
-    try {
-      window.history.pushState({ tiffChat: id }, "");
-      pushedRef.current = true;
-    } catch {
-      /* a history that refuses the push just means back leaves the page */
-    }
-  };
-
-  /* Closing from ON-SCREEN consumes the entry we pushed, so the stack never
-     grows past one. State is already closed by the caller — the popstate this
-     triggers finds nothing left to do, which is exactly why the handler below
-     is written to be idempotent. */
-  const settleHistory = () => {
-    if (conv) {
-      onOpenChange?.(null);
-      return;
-    }
-    if (!pushedRef.current) return;
-    pushedRef.current = false;
-    window.history.back();
-  };
-
-  /* The browser's back (and forward) button, made to mean something here. It
-     binds ONCE — an effect event says that outright, where an empty dep array
-     over a closure reading `leaveThread` needed a disable to keep. */
-  const onPop = useEffectEvent((e: PopStateEvent) => {
-    if (conv) return; // no entry of ours: the address is the page's
-    const id = (e.state as { tiffChat?: string } | null)?.tiffChat;
-    if (typeof id === "string") {
-      // forward, onto an entry we own: reopen the thread if it still exists
-      pushedRef.current = true;
-      if (loadThreads().some((t) => t.id === id)) {
-        followRef.current = true;
-        setActiveId(id);
-      }
-      return;
-    }
-    // back, off our entry: leave the chat, keeping a half-written answer
-    pushedRef.current = false;
-    leaveThread(true);
-  });
-  useEffect(() => {
-    const handler = (e: PopStateEvent) => onPop(e);
-    window.addEventListener("popstate", handler);
-    return () => window.removeEventListener("popstate", handler);
-  }, []);
-
-  /** The header's back button: out of the chat, thread kept, input kept. */
-  const goHome = () => {
-    leaveThread(true);
-    settleHistory();
-  };
-
-  const newChat = () => {
-    leaveThread(false);
-    settleHistory();
-    setTyped("");
-    focusBox();
-  };
-
   const openThread = (id: string) => {
-    leaveThread(false);
+    leaveThread();
     followRef.current = true;
     setActiveId(id);
-    markOpened(id);
+    onOpenChange?.(id);
   };
 
   /* Renaming touches the title and nothing else — `updatedAt` orders the list
@@ -984,13 +668,13 @@ export function TiffAssistant({
     setRenaming(null);
   };
 
-  /* Deleting the conversation you are IN puts you back on the landing rather
-     than leaving the transcript of a thread that no longer exists on screen —
-     and takes the stream, the failure and the rail with it. */
+  /* Deleting the conversation you are IN leaves no transcript of a thread
+     that no longer exists on screen, and takes the stream and the failure
+     with it. */
   const deleteThread = (id: string) => {
     if (active?.id === id) {
-      leaveThread(false);
-      settleHistory();
+      leaveThread();
+      onOpenChange?.(null);
     }
     persist(threads.filter((t) => t.id !== id));
     setRemoving(null);
@@ -1006,20 +690,6 @@ export function TiffAssistant({
     askedHandoff.current = true;
     askHandedOver(handoff.ask);
   }, [handoff.ask, hydrated]);
-
-  /* The last question asked, for the "search the library for this" offer under
-     a general answer. */
-  const lastQuestion = [...(active?.messages ?? [])].reverse().find((m) => m.role === "user")?.text ?? "";
-  const lastMsg = active?.messages[active.messages.length - 1];
-  const offerResearch =
-    !streaming &&
-    !failure &&
-    canResearch &&
-    lastMsg?.role === "tiff" &&
-    !lastMsg.researched &&
-    // a miss already went and looked; offering to look again is a taunt
-    !lastMsg.missed &&
-    Boolean(lastQuestion);
 
   const dialogs = (
     <>
@@ -1042,7 +712,7 @@ export function TiffAssistant({
     </>
   );
 
-  /* ── Conversations (v2): the list and the open conversation ─────────────
+  /* ── the list and the open conversation ─────────────────────────────────
      The board v2-board-conversations. The list is every thread, newest
      first. The pane is the open one under a "Today" divider: each turn with
      the asker's initials or Tiff's mark, the name and the time, then the
@@ -1051,29 +721,34 @@ export function TiffAssistant({
      before hydration: the threads are this browser's, so the server has
      nothing to draw, and a loading list is nothing for half a second
      anyway (rule 41). */
-  if (conv) {
-    const sorted = [...threads].sort((a, b) => b.updatedAt - a.updatedAt);
-    const list = !hydrated ? null : sorted.length > 0 ? (
-      <CvList
-        label="Your conversations with Tiff"
-        rows={sorted.map((t) => ({ id: t.id, title: t.title, when: threadWhen(t.updatedAt, now) }))}
-        openId={active?.id ?? null}
-        onOpen={openThread}
-      />
-    ) : (
-      <Empty
-        what="No conversations yet"
-        line="Talk to Tiff on Home and the conversation is kept here."
-        action={
-          <Button kind="second" size={32} href="/dashboard">
-            Go to Home
-          </Button>
-        }
-      />
-    );
-    const messages = active?.messages ?? [];
-    const pane = (
-      <section className="cv-pane" aria-label={active ? active.title : "New conversation"}>
+  const sorted = [...chats].sort((a, b) => b.updatedAt - a.updatedAt);
+  const list = !hydrated ? null : sorted.length > 0 ? (
+    <CvList
+      label="Your chats with Tiff"
+      rows={sorted.map((t) => ({ id: t.id, title: t.title, when: threadWhen(t.updatedAt, now) }))}
+      openId={active?.id ?? null}
+      onOpen={openThread}
+    />
+  ) : (
+    <Empty
+      what="No chats yet"
+      line="Talk to Tiff on Home and the chat is kept here."
+      action={
+        <Button kind="second" size={32} href="/dashboard">
+          Go to Home
+        </Button>
+      }
+    />
+  );
+  const messages = active?.messages ?? [];
+  /* in an email, her read is drawn by the Inbox; what was asked after it is
+     a chat like any other */
+  const shown = email ? afterRead(messages) : messages;
+  const pane = (
+    <section className="cv-pane" aria-label={email ? email.title : active ? active.title : "New conversation"}>
+      {email ? (
+        email.head
+      ) : (
         <div className="cv-pane-head">
           {active && (
             <>
@@ -1086,513 +761,94 @@ export function TiffAssistant({
             </>
           )}
         </div>
-        <div className="cv-scroll" ref={chatRef} onScroll={onChatScroll}>
-          {active ? (
-            <div className="cv-msgs">
-              {messages.map((m, i) => (
-                <CvTurn
-                  key={i}
-                  m={m}
-                  day={i === 0 || dayKeyOf(messages[i - 1].at) !== dayKeyOf(m.at) ? dayLabel(m.at, now) : null}
-                  you={you}
-                  titles={docTitles}
-                  canManage={canManage}
-                  onPeek={setPeek}
+      )}
+      <div className="cv-scroll" key={email?.threadId} ref={chatRef} onScroll={onChatScroll}>
+        {active || email ? (
+          <div className="cv-msgs">
+            {email?.read}
+            {shown.map((m, i) => (
+              <CvTurn
+                key={i}
+                m={m}
+                day={!email && (i === 0 || dayKeyOf(shown[i - 1].at) !== dayKeyOf(m.at)) ? dayLabel(m.at, now) : null}
+                you={you}
+                titles={docTitles}
+                canManage={canManage}
+                onPeek={setPeek}
+              />
+            ))}
+            {live && live.threadId === active?.id && (
+              <article className="jc-tiffturn" aria-busy="true">
+                <p className="jc-tiffname">
+                  <TiffGlyph size={18} alive working />
+                  <b>Tiff</b>
+                </p>
+                {live.steps.length > 0 && <CvSteps steps={live.steps} />}
+                {live.text ? (
+                  <div className="cv-text">
+                    <AnswerText text={live.text} />
+                  </div>
+                ) : (
+                  /* what she is doing now, in ink, under the steps she has done */
+                  <p className="cv-now" role="status">
+                    {THINKING}
+                  </p>
+                )}
+              </article>
+            )}
+            {failure && failure.threadId === active?.id && (
+              <div className="cv-fail">
+                <Wrong
+                  word="No answer"
+                  means={failure.message}
+                  action={
+                    <Button kind="second" size={32} icon="rotate" onClick={retry}>
+                      Try again
+                    </Button>
+                  }
                 />
-              ))}
-              {live && live.threadId === active.id && (
-                <article className="cv-msg" aria-busy="true">
-                  <span className="cv-avatar">
-                    <TiffGlyph size={24} working />
-                  </span>
-                  <div className="cv-body">
-                    <p className="cv-meta">
-                      <b>Tiff</b>
-                    </p>
-                    {live.steps.length > 0 && <CvSteps steps={live.steps} />}
-                    {live.text ? (
-                      <div className="cv-text">
-                        <AnswerText text={live.text} />
-                      </div>
-                    ) : (
-                      /* what she is doing now, in ink, under the steps she has done */
-                      <p className="cv-now" role="status">
-                        {workingNote(viz)}
-                      </p>
-                    )}
-                  </div>
-                </article>
-              )}
-              {failure && (
-                <div className="cv-fail">
-                  <Wrong
-                    word="No answer"
-                    means={failure.message}
-                    action={
-                      <Button kind="second" size={32} icon="rotate" onClick={retry}>
-                        Try again
-                      </Button>
-                    }
-                  />
-                </div>
-              )}
-            </div>
-          ) : null}
-        </div>
-        {(active || prefill || scope) && (
-        <CvBox
-          value={input}
-          onChange={setTyped}
-          onSubmit={() => send(input)}
-          label="Ask Tiff"
-          placeholder={active ? "Reply to Tiff" : "Ask Tiff about this document"}
-          sendWord="Send"
-          waiting={working}
-          dict={voiceEnabled ? dict : null}
-          voiceError={voiceErr}
-          ranOut={ranOut}
-          boxRef={boxRef}
-          before={
-            scope ? (
-              <p className="cv-scope">
-                <Icon name="library" size={14} />
-                <Fade className="cv-scope-doc">{scope.title.trim() || "One document"}</Fade>
-                <Button kind="quiet" size={32} onClick={() => setScope(null)}>
-                  Ask the whole library
-                </Button>
-              </p>
-            ) : undefined
-          }
-        />
-        )}
-      </section>
-    );
-    return (
-      <>
-        {frame ? frame({ list, pane, count: hydrated ? threads.length : 0 }) : (
-          <>
-            {list}
-            {pane}
-          </>
-        )}
-        {dialogs}
-      </>
-    );
-  }
-
-  return (
-    /* `tk-lock` closes the height chain so the transcript scrolls INSIDE
-       `.tchat` instead of growing the page — but only while a thread is open.
-       The landing was designed to page-scroll (it grows with the thread list),
-       and locking it would clip the composer's glow at the column edge. */
-    <div className={`page in${active ? " tk-lock" : ""}`}>
-      <div className="tk-stage" ref={stageRef}>
-        <div className={`tk-chatcol${active ? "" : " landing"}`}>
-          {active ? (
-            <>
-              <div className="tchathead">
-                {/* the way OUT is the first thing in the row, where every
-                    other screen's crumb already lives */}
-                <button type="button" className="tk-abtn" aria-label="Back to the library" onClick={goHome}>
-                  <Icon name="chevL" size={14} />
-                  Library
-                </button>
-                {/* the brand mark, not a robot: the same chevron as the
-                    sidebar and the Tiff button, because the thing answering
-                    is HeyTiff — a bot glyph here was the generic-AI badge on
-                    the one screen that should feel most like the product */}
-                <span className="tb2">
-                  <TiffGlyph label="HeyTiff" />
-                </span>
-                <div className="tcht">
-                  <b>{active.title}</b>
-                  <em>Library</em>
-                </div>
-                {/* the two things you can do TO a conversation, next to the
-                    one thing you can do instead of it */}
-                <button type="button" className="tk-abtn" aria-label={`Rename “${active.title}”`} onClick={() => setRenaming(active)}>
-                  Rename
-                </button>
-                <button type="button" className="tk-abtn dan" aria-label={`Delete “${active.title}”`} onClick={() => setRemoving(active)}>
-                  Delete
-                </button>
-                <button className="pbtn ghost" onClick={newChat}>
-                  <Icon name="plus" size={15} />
-                  New chat
-                </button>
               </div>
-
-              <div className="tchat" ref={chatRef} onScroll={onChatScroll}>
-                {active.messages.map((m, i) => (
-                  /* No avatar on Tiff's turn. The answer is a full-width sheet
-                     and the question is a short dark bubble on the right —
-                     which of the two is speaking was never in doubt, and the
-                     glyph sat at the BOTTOM of a long answer (flex-end),
-                     level with the citations it had nothing to do with. */
-                  <div key={i} className={`tmsg ${m.role === "user" ? "user" : "bot"}`}>
-                    <div className="tmw">
-                      {m.missed && <MissBanner canManage={canManage} />}
-                      {m.widenedFrom !== undefined && <WidenedNote title={m.widenedFrom} />}
-                      {/* The citations and the truncation note live INSIDE the
-                          sheet. Both are statements about this answer — where
-                          it came from, where it stopped — and underneath it on
-                          the page they read as three grey pills belonging to
-                          nothing in particular. */}
-                      <div className="tmb">
-                        {m.role === "tiff" ? <AnswerText text={m.text} /> : m.text}
-                        {m.truncated && (
-                          <p className="tk-trunc">
-                            That answer ran to its limit and stops mid-thought — ask for the rest.
-                          </p>
-                        )}
-                        {m.sources && m.sources.length > 0 && (
-                          <SourceChips sources={m.sources} titles={docTitles} onPeek={setPeek} />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {live && live.threadId === active.id && (
-                  <div className="tmsg bot">
-                    <div className="tmw">
-                      {live.missed && <MissBanner canManage={canManage} />}
-                      {live.widenedFrom !== null && <WidenedNote title={live.widenedFrom} />}
-                      {/* One sheet across thinking and streaming: the container
-                          is already on screen when the first token lands, so
-                          the answer fills a space instead of shoving the
-                          conversation down as it arrives. */}
-                      <div className={`tmb${live.text ? " streaming" : ""}`}>
-                        {live.text ? (
-                          <AnswerText text={live.text} />
-                        ) : (
-                          /* THE WAIT NAMES ITSELF NOW. This was three bouncing
-                             dots under an `aria-label` reading "Tiff is
-                             thinking" — a sentence written for screen readers
-                             about a state no sighted reader could name, and
-                             wrong besides: through most of that wait Tiff is
-                             not thinking, it is out at the shelves. The word
-                             comes off the same machine the rail draws from
-                             (`workingNote`), so the corridor and the sheet
-                             cannot tell two different stories about the same
-                             moment. */
-                          <Waiting note={workingNote(viz)} />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {failure && (
-                  <div className="tmsg bot">
-                    {/* no avatar here either — and the old one was the TEAL
-                        assistant tile wrapped round an alert glyph, which is
-                        the one colour a failure should not arrive in */}
-                    <div className="tmw">
-                      <div className="tk-fail" role="alert">
-                        <span>{failure.message}</span>
-                        <button type="button" className="tk-retry" onClick={retry}>
-                          <Icon name="rotate" size={14} />
-                          Try again
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {offerResearch && (
-                  <div className="tk-offer">
-                    <button type="button" className="tk-again" onClick={() => researchThis(lastQuestion)}>
-                      <Icon name="library" size={14} />
-                      Search the library for this
-                    </button>
-                  </div>
-                )}
-              </div>
-            </>
-          ) : (
-            <Landing
-              returning={recent.length > 0}
-              recent={recent}
-              readyCount={readyCount}
-              recentDocs={recentDocs}
-              onOpen={openThread}
-              onRename={setRenaming}
-              onDelete={setRemoving}
-              onAskAbout={askAboutDoc}
-            />
-          )}
-
-          <form
-            className="tk-composer"
-            ref={composerRef}
-            onSubmit={(e) => {
-              e.preventDefault();
-              send(input);
-            }}
-          >
-            {dict.recording ? (
-              /* THE SAME CARD EVERY OTHER DOOR SHOWS (Isaac: "the input
-                 section should be identical throughout the software — they
-                 just appear in different places").
-
-                 The ask bar used to grow its own recording UI: a 22px orb, a
-                 small clock, a discard × and a stop ■, all crammed into the
-                 bar itself. Nothing was wrong with any of it except that it
-                 was a SECOND one — and on this very screen the topbar's Tiff
-                 button opened a completely different card for the same act of
-                 talking. Two mics, two answers to "is it hearing me", one
-                 page.
-
-                 So the bar hands its space to `RecordingCard` and gets it
-                 back when the mic closes. What arrives is what the capture
-                 sheet and the debrief showed, while they stood: what you have
-                 said so far, the clock at a size worth reading, and Type
-                 instead / Start again / Done. (Both went — the debrief on
-                 2026-09-25, the sheet with the old capture UI on 2026-09-27 —
-                 and this is the card's last door.)
-
-                 IN THE PAGE, NOT OVER IT — the debrief's precedent (Isaac,
-                 2026-08-13: "match how the global one does it but in line").
-                 A scrim to dictate a question would put the conversation you
-                 are asking about behind a dim sheet. `tk-rec` only says how
-                 the card arrives; nothing about what it is made of.
-
-                 WHAT COMES AFTER `Done` IS STILL TIFF'S. The words land in
-                 the ask box and you press Send — no sorting, no review,
-                 because a question already knows what it is. Identical up to
-                 Done, deliberately not past it. */
-              <div className="wb2-capcard tk-rec wb2-dusk" role="group" aria-label="Recording">
-                <div className="wb2-capribbon">
-                  <span className="wb2-recdot" aria-hidden="true" />
-                  <b>Recording</b>
-                  {/* No chip. The note card's chip says where the words are
-                      going, and here that is the "Answer from" row still live
-                      directly underneath — saying it twice, two inches apart,
-                      is how the two of them come to disagree. */}
-                  <button
-                    type="button"
-                    className="wb2-ico"
-                    onClick={dict.cancel}
-                    aria-label="Discard the recording"
-                  >
-                    <Icon name="x" size={14} />
-                  </button>
-                </div>
-                {/* THE SAME INSTRUMENT THIS BAR ALWAYS HAD, mounted the way
-                    the capture sheet mounted it: above the card rather than
-                    inside it. The field is the mark while the mic is open, and
-                    it would be the cloud while the words are read back — the
-                    same dots making the journey, which inside the card would
-                    be unmounted and rebuilt between the two, so the flight
-                    would become a cut.
-
-                    IT IS THE MARK ONLY, HERE. This bar shows the recording and
-                    the read-back in two different branches, so a field spanning
-                    them would be remounted between the two anyway; giving it
-                    the cloud would buy the cut it is meant to avoid. The bar
-                    keeps its named wait, and the journey ships in the Tiff
-                    modal, where one face holds every stage. */}
-                <div className="wb2-capfield">
-                  <DotField stage="mark" size={252} />
-                </div>
-                <RecordingCard dict={dict} text={input} />
-              </div>
-            ) : (
-            <div className="tinput">
-              <div className="tib"></div>
-              <div className={`tin${working ? " working" : ""}`}>
-                {/* the mark, not a sparkle: the sparkle was the generic AI
-                    badge AND the Field-notes icon two inches away — the bar
-                    is HeyTiff's own voice and wears its own mark (Isaac's
-                    call, and the visual one too) */}
-                <div className="tic">
-                  <TiffGlyph label="HeyTiff" />
-                </div>
-                <input
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => setTyped(e.target.value)}
-                  placeholder={active ? "Ask a follow-up" : "Ask Tiff anything"}
-                  aria-label="Ask Tiff"
-                  disabled={listening}
-                />
-                {voiceEnabled && (
-                  <button
-                    type="button"
-                    className="tmic"
-                    onClick={dict.start}
-                    disabled={dict.transcribing}
-                    aria-label="Ask by voice"
-                  >
-                    <Icon name="mic" size={19} />
-                  </button>
-                )}
-                {/* The spinner REPLACES the arrow rather than sitting
-                    beside it: one control, and what it shows is what the
-                    page is doing. Still submits — a new question mid-answer
-                    drops the old one, which is the behaviour. */}
-                {/* `aria-busy`, NOT a changed label: the button is the
-                    send button whether or not an answer is in flight, and
-                    renaming a control for a passing state is how a screen
-                    reader loses track of what it is. */}
-                <button
-                  className={`tsend${working ? " busy" : ""}`}
-                  type="submit"
-                  aria-label="Send"
-                  aria-busy={working}
-                  disabled={listening}
-                >
-                  {working ? (
-                    <span className="tsend-spin" aria-hidden="true" />
-                  ) : (
-                    <Icon name="send" size={18} />
-                  )}
-                </button>
-              </div>
-            </div>
             )}
-
-            {/* THE THIRD WAIT, AND IT GETS THE SAME OBJECT AS THE OTHER TWO.
-                Reading a recording back is a wait with nothing to show for
-                itself — no partial words, no shelves to light — and it said so
-                in the same flat grey the two-minute notice and the error line
-                use, which put a passing state in the typeface of bad news.
-                The chip that names the wait in the transcript names this one
-                too, keeping `tvsay` so the slot under the bar is unchanged.
-
-                It is also the far side of a pair. While the mic is open the
-                orb sits in the bar BREATHING with your voice; the moment it
-                closes the same sphere carries on turning here, under its own
-                power, until the words land. */}
-            {dict.transcribing && <Waiting note={READING_BACK_NOTE} className="tvsay" />}
-            {ranOut && !listening && (
-              <p className="tvsay" role="status">
-                Two minutes — that&apos;s the limit for one recording. Press the mic to carry on.
-              </p>
-            )}
-            {voiceErr && (
-              <p className="tvsay err" role="alert">
-                {voiceErr}
-              </p>
-            )}
-
-            {/* A CHOICE HAS TO LOOK LIKE TWO THINGS. This was one pill saying
-                "Research" beside grey text saying "General knowledge", and
-                nothing on screen said which of the two words was the state and
-                which was the button — pressing Research made the sentence
-                beside it change, so both read as labels for the same control.
-                Two options with the live one lit says what you can do and what
-                you are about to get, in the same glance. */}
-            <div className="tk-crow">
-              <span className="tk-clbl" id="tk-modelbl">
-                Answer from
-              </span>
-              {/* ONE DOCUMENT, SAID AS A CONTROL. A library row's Ask used to
-                  type `In “…”, ` into the box and search the whole library
-                  anyway: the words were the only sign of the choice and they
-                  filtered nothing. The choice is this chip now — the search
-                  reads that document alone — and clearing it is how you widen
-                  back to everything. It stands in place of the two-way switch
-                  because naming a document has already answered it. */}
-              {scope ? (
-                <span className="tk-scope">
-                  <Icon name="library" size={15} />
-                  {scope.title.trim() || "One document"}
-                  <button
-                    type="button"
-                    className="tk-scopex"
-                    aria-label="Clear the document — ask the whole library"
-                    onClick={() => setScope(null)}
-                  >
-                    <Icon name="x" size={13} />
-                  </button>
-                </span>
-              ) : (
-              <div className="tk-mode" role="group" aria-labelledby="tk-modelbl">
-                <Tip label={canResearch ? null : "Add documents to the library first"}>
-                  <button
-                    type="button"
-                    className={`tk-modeb${research ? " on" : ""}`}
-                    aria-pressed={research}
-                    disabled={!canResearch}
-                    onClick={() => setResearchPick(true)}
-                  >
-                    <Icon name="library" size={15} />
-                    Your library
-                  </button>
-                </Tip>
-                <button
-                  type="button"
-                  className={`tk-modeb${research ? "" : " on"}`}
-                  aria-pressed={!research}
-                  onClick={() => setResearchPick(false)}
-                >
-                  {/* the mark, not a robot: what Tiff already knows is Tiff's (law 5) */}
-                  <TiffGlyph />
-                  General knowledge
-                </button>
-              </div>
-              )}
-              {/* IT ONLY SPEAKS WHEN A CONTROL CANNOT. Two of the three
-                  branches here restated the buttons an inch to the left —
-                  "Your documents only, with the page it came from" under a
-                  segment labelled Your library, and "What Tiff already knows
-                  — nothing is looked up" under one labelled General
-                  knowledge. A caption that says the label again in a longer
-                  sentence is the app talking rather than the control working.
-
-                  The third one earns its place and is all that is left: Your
-                  library is DISABLED until something is in it, and a dead
-                  segment with no reason given is the one thing on this row a
-                  person cannot work out by reading it. */}
-              {!canResearch && (
-                <span className="tk-chint">Add documents and Tiff can answer from those too</span>
-              )}
-            </div>
-          </form>
-        </div>
-
-        <Rail counts={counts} viz={viz} cardRefs={cardRefs} />
-
-        {/* LAST on purpose — it measures the two columns above and their refs
-            re-attach in tree order, so an overlay placed first would measure a
-            rail that had just been unregistered. It paints underneath by
-            z-index, not by DOM order. `measureKey` is the other half: the
-            composer MOVES when the landing screen gives way to a transcript,
-            and no observer fires for a move. */}
-        {/* `idle` draws the four lanes faintly on the landing, before anything
-            is asked: the mechanism this page is built on — your question goes
-            out to these categories — is worth showing rather than
-            explaining, and it costs a stroke nobody has to read. Inside a
-            conversation the overlay stays event-driven. */}
-        <ResearchLines
-          stageRef={stageRef}
-          composerRef={composerRef}
-          cardRefs={cardRefs}
-          viz={viz}
-          idle={!active && readyCount > 0}
-          /* THE MIC IS THE SECOND THING THAT MOVES THE COMPOSER. The lanes
-             leave from the composer's own edge, and the observer that catches
-             layout changes watches the STAGE — which does not change size when
-             a child of it does. That is why the transcript's length is here at
-             all; the recording card is now the other way the composer's height
-             changes under a drawn rail (ask, then press the mic while the
-             answer is still streaming), so it has to bump this too or the
-             lanes stay pinned to where the bar used to be.
-
-             Any changing number does: the overlay only reads it as "something
-             the observers cannot see has moved — measure again". */
-          measureKey={(active?.messages.length ?? 0) * 2 + (dict.recording ? 1 : 0)}
-        />
+          </div>
+        ) : null}
       </div>
-
+      {(active || prefill || scope) && (
+      <CvBox
+        value={input}
+        onChange={setTyped}
+        onSubmit={() => send(input)}
+        label="Ask Tiff"
+        placeholder={email ? "Ask Tiff about this email" : active ? "Reply to Tiff" : "Ask Tiff about this document"}
+        sendWord="Send"
+        waiting={working}
+        dict={voiceEnabled ? dict : null}
+        voiceError={voiceErr}
+        ranOut={ranOut}
+        boxRef={boxRef}
+        before={
+          scope ? (
+            <p className="cv-scope">
+              <Icon name="library" size={14} />
+              <Fade className="cv-scope-doc">{scope.title.trim() || "One document"}</Fade>
+              <Button kind="quiet" size={32} onClick={() => setScope(null)}>
+                Ask the whole library
+              </Button>
+            </p>
+          ) : undefined
+        }
+      />
+      )}
+    </section>
+  );
+  return (
+    <>
+      {frame({ list, pane })}
       {dialogs}
-    </div>
+    </>
   );
 }
 
-/* ── Conversations: one turn, its steps, what she read, where it came from ── */
+/* ── one turn, its steps, what she read, where it came from ──────────────── */
 
 function CvTurn({
   m,
@@ -1619,21 +875,32 @@ function CvTurn({
           <span>{day}</span>
         </div>
       )}
-      <article className="cv-msg">
-        <span className="cv-avatar">{mine ? <Initials name={you} size={32} beside /> : <TiffGlyph size={24} />}</span>
-        <div className="cv-body">
-          <p className="cv-meta">
-            <b>{mine ? you : "Tiff"}</b>
-            <span>{clockOf(m.at)}</span>
+      {mine ? (
+        <div className="jc-talk">
+          <article className="jc-bm jc-bm--you jc-bm--first jc-bm--last">
+            <p className="jc-bmname">{you}</p>
+            <div className="jc-bubble">
+              <span className="jc-bubwords">{m.text}</span>
+            </div>
+            <p className="jc-bmtime">{clockOf(m.at)}</p>
+          </article>
+        </div>
+      ) : (
+        <article className="jc-tiffturn">
+          <p className="jc-tiffname">
+            <TiffGlyph size={18} alive />
+            <b>Tiff</b>
           </p>
           {m.steps && m.steps.length > 0 && <CvSteps steps={m.steps} />}
-          <div className={`cv-text${mine ? " cv-text--mine" : ""}`}>{mine ? <p>{m.text}</p> : <AnswerText text={m.text} />}</div>
+          <div className="cv-text">
+            <AnswerText text={m.text} />
+          </div>
           {m.truncated && <p className="cv-aside">That answer ran to its limit and stops mid-thought. Ask for the rest.</p>}
           {docs.length > 0 && <CvResults docs={docs} onPeek={onPeek} />}
-          {m.email && <EmailJobCard id={m.email} />}
-          {!mine && !m.email && <CvSource m={m} docs={docs} canManage={canManage} />}
-        </div>
-      </article>
+          <CvSource m={m} docs={docs} canManage={canManage} />
+          <p className="jc-bmtime">{clockOf(m.at)}</p>
+        </article>
+      )}
     </>
   );
 }
@@ -1656,7 +923,7 @@ function CvSteps({ steps }: { steps: string[] }) {
    name, a grey line and an Open (rule 35: a card is something you act on).
    The dot is the kind of document, snapped to the eight, beside the kind's
    own word on the grey line. Open shows the passages she read, with the way
-   to the page itself, as the Library's source chips do. */
+   to the page itself. */
 function CvResults({ docs, onPeek }: { docs: SourceDoc[]; onPeek: (d: SourceDoc) => void }) {
   return (
     <ul className="cv-results" aria-label="What Tiff read">
@@ -1679,10 +946,11 @@ function CvResults({ docs, onPeek }: { docs: SourceDoc[]; onPeek: (d: SourceDoc)
   );
 }
 
-/* WHERE THE ANSWER CAME FROM, in grey under every answer, the way the
-   Library says it on every message: your documents, the rest of the library
-   when the one you named covered nothing, or general knowledge, said as
-   such. */
+/* WHERE THE ANSWER CAME FROM, in grey under every answer: your documents,
+   the rest of the library when the one you named covered nothing, or
+   general knowledge, said as such. The first three are older answers', from
+   when the Library's ask searched the shelves; they are still drawn as they
+   were kept. */
 function CvSource({ m, docs, canManage }: { m: Msg; docs: SourceDoc[]; canManage: boolean }) {
   let words: string;
   let icon = "file";
@@ -1796,285 +1064,7 @@ function DeleteThread({
   );
 }
 
-/* ── landing: first run sells, a returning user resumes ──────────────────── */
-
-/* ── what's in the library, shown rather than promised ────────────────────
-   The landing's paragraph says Tiff can answer from your documents; below the
-   composer the page then said nothing at all, and at 1440 the bottom half was
-   bare well. This is the promise made concrete: the last few things to land,
-   named, on the screen whose whole subject is asking them things.
-
-   A ROW IS A QUESTION, NOT A FILE. Clicking opens the same sentence the
-   library's own "Ask Tiff" hands over — `In “title”, ` with the caret after
-   it — because this is the ask screen and the reader is already in the box.
-   Nothing is sent; the opener is scaffolding. Opening the PDF is the
-   library's job and the eyebrow's "Open all" goes there.
-
-   NO TIMESTAMP. This renders on the server, and a relative time in a render
-   body tears hydration for the whole tree. The heading carries the recency;
-   each line says what the document is, which is what decides whether it's
-   worth asking about. */
-function RecentDocs({
-  docs,
-  onAsk,
-}: {
-  docs: KbRecentDoc[];
-  onAsk: (title: string) => void;
-}) {
-  return (
-    <div className="tk-newdocs">
-      <div className="tk-lbl">
-        <span>Recently added</span>
-        {/* by name, not by path — see `navHref` */}
-        <Link className="tk-lbla" href={navHref("tiffkb")}>
-          Open all
-          <Icon name="chevR" size={13} />
-        </Link>
-      </div>
-      <div className="tk-ndrow">
-        {docs.map((d) => {
-          const cat = KB_CATEGORIES.find((c) => c.key === d.category);
-          return (
-            <Tooltip key={d.id} label={d.title}>
-              <button
-                type="button"
-                className="tk-nd"
-                style={{ "--tkc": cat?.color ?? "var(--q)" } as React.CSSProperties}
-                aria-label={`Ask Tiff about ${d.title}`}
-                onClick={() => onAsk(d.title)}
-              >
-                <span className="tk-ndt">{d.title}</span>
-                <em>
-                  {cat?.label ?? "Document"}
-                  {d.pageCount ? `, ${d.pageCount.toLocaleString("en-AU")} pages` : ""}
-                </em>
-              </button>
-            </Tooltip>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function Landing({
-  returning,
-  recent,
-  readyCount,
-  recentDocs,
-  onOpen,
-  onRename,
-  onDelete,
-  onAskAbout,
-}: {
-  returning: boolean;
-  recent: Thread[];
-  readyCount: number;
-  recentDocs: KbRecentDoc[];
-  onOpen: (id: string) => void;
-  onRename: (t: Thread) => void;
-  onDelete: (t: Thread) => void;
-  onAskAbout: (title: string) => void;
-}) {
-  return (
-    <>
-      {/* One line, then the box. The subline names the switch under the box by
-          the words printed ON it — it used to say "turn on Research", which
-          was the one control on this screen nobody could find. */}
-      <div className="tk-open">
-        {/* ONE heading for both visits. It used to be "Ask the library" for a
-            first visit and a friendly opener for a return — decided from
-            localStorage, which the server can't read, so every returning user
-            watched 38px letters swap one frame after paint. The flash bought
-            nothing.
-
-            And the heading NAMES THE SCREEN now rather than greeting you.
-            "What are we working on?" is the chrome every chat product opens
-            with, which made the most valuable page in the app introduce itself
-            as a chatbot; the paragraph under it already carries the invitation
-            and says how many documents are behind the answer. */}
-        <h2>Library</h2>
-        <p>
-          {readyCount > 0 ? (
-            <>
-              Installs, servicing, specs and how we do things here. Ask{" "}
-              <b>your library</b> and I&rsquo;ll answer from the{" "}
-              {readyCount.toLocaleString("en-AU")} {plural(readyCount, "document")} in it, and show
-              you the page it came from.
-            </>
-          ) : (
-            <>
-              Installs, servicing, specs and how we do things here. Add manuals to the library and
-              I can answer from those too — with the page they came from.
-            </>
-          )}
-        </p>
-      </div>
-
-      {returning && recent.length > 0 && (
-        <div className="tk-recent">
-          <div className="tk-lbl">
-            <span>Pick up where you left off</span>
-          </div>
-          {/* the row is a DIV holding three buttons, not a button holding
-              three: opening, renaming and deleting are three different things
-              to press, and nesting them inside one control is invalid markup
-              that also swallows the two smaller ones from a screen reader */}
-          <div className="tk-threads">
-            {recent.map((t) => (
-              <div key={t.id} className="thread tk-thr">
-                <button type="button" className="tk-topen" onClick={() => onOpen(t.id)}>
-                  <div className="th">
-                    <b>{t.title}</b>
-                  </div>
-                  <em>{ago(t.updatedAt)}</em>
-                </button>
-                <span className="tk-tacts">
-                  <button type="button" className="tk-abtn" aria-label={`Rename “${t.title}”`} onClick={() => onRename(t)}>
-                    Rename
-                  </button>
-                  <button type="button" className="tk-abtn dan" aria-label={`Delete “${t.title}”`} onClick={() => onDelete(t)}>
-                    Delete
-                  </button>
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {recentDocs.length > 0 && <RecentDocs docs={recentDocs} onAsk={onAskAbout} />}
-    </>
-  );
-}
-
-/* ── the rail: the categories, and the way into the library ─────────────── */
-
-function Rail({
-  counts,
-  viz,
-  cardRefs,
-}: {
-  counts: Record<KbCategoryKey, number>;
-  viz: ResearchViz;
-  cardRefs: React.RefObject<Map<KbCategoryKey, HTMLElement>>;
-}) {
-  return (
-    <aside className="tk-rail">
-      {/* The eyebrow row was built with space-between and then given nothing to
-          put on the right. The way into the catalogue goes there, which is
-          where a section's own link belongs and is one of the two things the
-          block at the foot used to do.
-
-          The eyebrow says "Categories" rather than "Library" now that the
-          SECTION is the library: a heading repeating the page it sits on
-          labels nothing, and the cards under it are categories. The link is
-          named for where it lands — the same words as the ⌘K face. */}
-      <div className="tk-lbl">
-        <span>Categories</span>
-        <Link className="tk-lbla" href={navHref("tiffkb")}>
-          All documents
-          <Icon name="chevR" size={13} />
-        </Link>
-      </div>
-
-      <div className="tk-rcats stgp">
-        {KB_CATEGORIES.map((c) => {
-          const state = cardState(viz, c.key);
-          /* The microline is the shelf's own live report: its document count
-             at rest, "Searching…" while a line is out to it, and the real
-             number of matches once the trace comes back. Null means the
-             search has nothing to say and the count stands. */
-          const note = cardNote(viz, c.key);
-          return (
-            <Link
-              key={c.key}
-              href={`${navHref("tiffkb")}?cat=${c.key}`}
-              className={`tk-rcat${state === "idle" ? "" : ` ${state}`}`}
-              data-cat={c.key}
-              ref={(el) => {
-                if (el) cardRefs.current.set(c.key, el);
-                else cardRefs.current.delete(c.key);
-              }}
-              style={{ "--sc": `${c.color}1f`, "--tkc": c.color } as React.CSSProperties}
-            >
-              {/* the glyph is mixed toward ink: the raw category colours were
-                  chosen for tinted tiles, and mint or amber STROKES on a pale
-                  wash sat under 2:1 — decoration where a symbol should be */}
-              <span className="tk-ric" style={{ color: `color-mix(in oklab, ${c.color} 62%, var(--ink))` }}>
-                <Icon name={c.icon} size={20} />
-              </span>
-              <div className="tk-rtx">
-                <b>{c.label}</b>
-                {/* an empty shelf says so in words, quietly — the mint "—" it
-                    used to wear read as a rendering fault, in an accent colour
-                    that means "ready" everywhere else */}
-                <em className={!note && counts[c.key] === 0 ? "quiet" : undefined}>
-                  {note ??
-                    (counts[c.key] > 0
-                      ? `${counts[c.key].toLocaleString("en-AU")} ${plural(counts[c.key], "document")}`
-                      : "None yet")}
-                </em>
-              </div>
-              <span className="tk-rbl">{c.blurb}</span>
-            </Link>
-          );
-        })}
-      </div>
-
-      {/* NOTHING ELSE. This corner has now lost three things in a row and is
-          better for each: "Open library" and "Add documents", which were the
-          same URL twice; the Add tile that briefly replaced them, because
-          uploading belongs to the library screen; and finally the running
-          total, because the library says that about itself the moment you
-          arrive and the five cards above already carry it per category.
-
-          What the rail is, is the categories and one way in. `tiff_manage`
-          changes nothing here — there is no control left to gate. */}
-    </aside>
-  );
-}
-
-/* ── the honest miss ─────────────────────────────────────────────────────── */
-
-/** The named document covered nothing, so the answer came from the rest of
-    the library. Said where the miss is said — an answer quoted from another
-    manual than the one you asked about is a different answer. */
-function WidenedNote({ title }: { title: string }) {
-  return (
-    <div className="tk-miss">
-      <Icon name="library" size={15} />
-      <div>
-        <b>
-          {title.trim()
-            ? `Nothing in “${title.trim()}” covered this — the answer is from the rest of your library.`
-            : "Nothing in that document covered this — the answer is from the rest of your library."}
-        </b>
-      </div>
-    </div>
-  );
-}
-
-function MissBanner({ canManage }: { canManage: boolean }) {
-  return (
-    <div className="tk-miss">
-      <Icon name="alert" size={15} />
-      <div>
-        <b>Nothing in your library covered this — answering from general knowledge.</b>
-        <em>
-          {canManage
-            ? "Upload the manual, fault-code book or SOP that covers it and ask again."
-            : "Ask a manager to add the manual or SOP that covers it."}
-        </em>
-      </div>
-    </div>
-  );
-}
-
 /* ── citations ───────────────────────────────────────────────────────────── */
-
-const colourOf = (key: KbCategoryKey): string =>
-  KB_CATEGORIES.find((c) => c.key === key)?.color ?? "var(--q)";
 
 const pagesOf = (s: { pageFrom: number; pageTo: number }): string =>
   s.pageTo > s.pageFrom ? `p.${s.pageFrom}–${s.pageTo}` : `p.${s.pageFrom}`;
@@ -2083,7 +1073,7 @@ const pagesOf = (s: { pageFrom: number; pageTo: number }): string =>
    used to render one per passage, and the live walk's E4 answer put "Daikin
    VRV Diagnosis Manual" on screen six times in three wrapped rows — the same
    citation shouting over itself, with the pages the only part that changed.
-   One chip per document, wearing every page it was read at. */
+   One card per document, wearing every page it was read at. */
 export type SourceDoc = {
   /** 1-based document order — first appearance in the ranked passage list. */
   n: number;
@@ -2127,7 +1117,7 @@ export function groupSources(
   return docs;
 }
 
-/** The chip's page list: passages in page order, identical ranges said once. */
+/** The card's page list: passages in page order, identical ranges said once. */
 const pagesLabel = (doc: SourceDoc): string => {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -2139,43 +1129,6 @@ const pagesLabel = (doc: SourceDoc): string => {
   }
   return out.join(", ");
 };
-
-function SourceChips({
-  sources,
-  titles,
-  onPeek,
-}: {
-  sources: AskSourceItem[];
-  titles: Record<string, string>;
-  onPeek: (d: SourceDoc) => void;
-}) {
-  const docs = groupSources(sources, titles);
-  return (
-    <div className="tk-srcfoot">
-      <span className="tk-srclbl">
-        {docs.length === 1 ? "Source" : `Sources (${docs.length})`}
-      </span>
-      <div className="tk-srcs">
-        {docs.map((d) => (
-          <button
-            key={d.docId}
-            type="button"
-            className="tk-src"
-            onClick={() => onPeek(d)}
-            aria-label={`Source ${d.n}: ${d.title}, ${pagesLabel(d)}`}
-          >
-            <span className="tk-sn">{d.n}</span>
-            <span className="tk-sdot" style={{ background: colourOf(d.category) }} />
-            <Fade className="tk-stl">{d.title}</Fade>
-            <em>
-              <Fade>{pagesLabel(d)}</Fade>
-            </em>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 /* THE PEEK (the old-modals mock, 27 October 2026): the Dialog part at 560.
    The document is the title; under it its category's dot and the pages
@@ -2261,9 +1214,4 @@ function pageWords(items: readonly { pageFrom: number; pageTo: number }[]): stri
   const many = seen.length > 1 || seen[0]?.includes("–");
   const list = seen.length < 2 ? (seen[0] ?? "") : `${seen.slice(0, -1).join(", ")} and ${seen[seen.length - 1]}`;
   return `${many ? "pages" : "page"} ${list}`;
-}
-
-/* A Tooltip only when there is something to say: a disabled control's reason. */
-function Tip({ label, children }: { label: string | null; children: React.ReactElement<{ "aria-describedby"?: string }> }) {
-  return label ? <Tooltip label={label}>{children}</Tooltip> : children;
 }

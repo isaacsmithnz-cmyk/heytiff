@@ -15,8 +15,10 @@ import {
   readJobFiles,
   readJobRecord,
   readMirrorJob,
+  type JobCardRead,
   type JobRecordRead,
 } from "@/app/actions/workboard";
+import type { JobConversationRead } from "@/lib/jobs/job-conversation";
 import { paymentsTotalCents } from "@/lib/workboard/job-ledger";
 import { claimFor, isPartialInvoiceLine } from "@/lib/workboard/job-family";
 import { readBilling } from "@/lib/workboard/job-billing";
@@ -35,6 +37,8 @@ import {
 import { JobMaterialsFace } from "./job-materials-face";
 import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
+import { scopeStamp, scopeWanted, type JobScopeRead } from "@/lib/jobs/job-scope";
+import { JobDesignFace } from "./job-design-face";
 import { JobQuoteCard } from "./job-quote-card";
 import { JobVisits, VisitDialog, type ComingVisit } from "./job-visit-tasks";
 import { sm8QuoteOf } from "../quote/sm8-quote-of";
@@ -154,6 +158,7 @@ export type JobSheetTab =
   | "summary"
   | "diary"
   | "quote"
+  | "design"
   | "money"
   | "visits"
   | "checklist"
@@ -167,6 +172,7 @@ const FACE_NAME: Record<TabKey, string> = {
   summary: "Summary",
   diary: "Timeline",
   quote: "Quote",
+  design: "Design",
   money: "Billing",
   visits: "Visits",
   checklist: "Materials",
@@ -221,6 +227,8 @@ const SWMS_CLOSED = new Set(["Completed", "Unsuccessful"]);
    (components/making/expense-form): a job's cost is an expense claim. Loaded
    when it is first asked for, as the form's readers and actions are its own. */
 const ExpenseForm = lazy(() => import("@/components/making/expense-form").then((m) => ({ default: m.ExpenseForm })));
+const JobBought = lazy(() => import("@/components/purchases/job-bought").then((m) => ({ default: m.JobBought })));
+const AddPurchase = lazy(() => import("@/components/purchases/add-purchase").then((m) => ({ default: m.AddPurchase })));
 
 /** Where a quote is made, as the Quote section's own link goes: a quote
     not started yet starts with Tiff. */
@@ -234,6 +242,23 @@ const quotePage = (job: string, started: boolean) => quoteHref(job, { start: !st
     head instead of the card's band and rail. The page holds which section
     is open (its `?tab=`); a door inside the card that moves to a face moves
     the page to that face's section. */
+/** The job's header names it by its client, beside its number, as
+    Schedule, Jobs, the tab and Recents name a job (Isaac, 6 November 2026:
+    "job number, client name, then underneath it, the site would show the
+    address"); the address is the Site card's. A job with no client is
+    named by its address on one line, or its suburb until it's been read. */
+export function jobPlateName(detail: Pick<MirrorJobDetail, "address" | "geoLine" | "clientName"> | null, row: Pick<AllJobRow, "suburb" | "clientName">): string {
+  const client = (detail?.clientName ?? row.clientName ?? "").trim();
+  if (client) return client;
+  if (!detail) return row.suburb?.trim() || "Unnamed client";
+  const line = (detail.address ?? "")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .join(", ");
+  return line || detail.geoLine?.trim() || "Unnamed client";
+}
+
 export type JobSheetPage = {
   section: JobSection;
   onSection: (section: JobSection) => void;
@@ -246,22 +271,48 @@ export type JobSheetPage = {
   add?: "swms" | "certificate" | null;
 };
 
+/** WHAT THE PAGE ALREADY READ, on the server and all at once, so the card
+    arrives full instead of drawing its placeholders and filling them in one
+    read at a time (Isaac, 5 November 2026: "it has all the placeholders
+    empty and then it's like it refreshes and fills it all in"). The browser
+    sends a card's own reads one after another, so ten of them took seconds;
+    the server makes them side by side. Each part is absent where its read
+    failed, and the card then reads that part itself, as it always did.
+    `cardId` is the job these were read for: a card that turns out to be
+    another (a claim's parent) uses none of them. */
+export type JobCardFirst = {
+  cardId: string;
+  mirror?: JobCardRead;
+  record?: JobRecordRead | null;
+  files?: JobMediaGroupsRead | null;
+  picklist?: JobPicklistItem[];
+  favourites?: string[];
+  conversation?: JobConversationRead | null;
+  customerEdit?: boolean;
+};
+
 export function JobSheet({
   row,
   manage,
   moneyVisible,
+  studio = false,
   initialTab,
   onCreateAgreement,
   onOpenTracked,
   onToast,
   page,
+  first,
 }: {
   /** The job's own page: its head, the section's faces under it (the
       card over the screen went on 24 October 2026). */
   page: JobSheetPage;
+  /** What the page read before the card was drawn (JobCardFirst). */
+  first?: JobCardFirst;
   row: AllJobRow;
   manage: boolean;
   moneyVisible: boolean;
+  /** Holds the Studio: the job has a Design section. */
+  studio?: boolean;
   /** The face to open on, for a door that knows what it came for — a
       mention opens the job's Diary. Summary otherwise, and Summary for Money
       without the grant, because that face is absent. */
@@ -274,12 +325,15 @@ export function JobSheet({
   onToast: (message: string, undo?: () => void | Promise<void>) => void;
 }) {
   const router = useRouter();
-  const [detail, setDetail] = useState<MirrorJobDetail | null>(null);
+  /* the page's reads, kept only where they were read for this job's card */
+  const [overviewFirst] = useState(() => page.section === "overview");
+  const [pageRead] = useState(() => (first && first.mirror?.detail?.remoteId === first.cardId ? first : null));
+  const [detail, setDetail] = useState<MirrorJobDetail | null>(() => pageRead?.mirror?.detail ?? null);
   /* how many cards ServiceM8 bills the job across, read with the detail */
-  const [cards, setCards] = useState<number | null>(null);
+  const [cards, setCards] = useState<number | null>(() => pageRead?.mirror?.cards ?? null);
   /* The job's files AS READ. What the faces show is `media`, below: this,
      less ServiceM8's copies of files we sent that our own rows show. */
-  const [mediaRead, setMedia] = useState<JobMediaGroupsRead | null>(null);
+  const [mediaRead, setMedia] = useState<JobMediaGroupsRead | null>(() => pageRead?.files ?? null);
   const [mediaNote, setMediaNote] = useState<string | null>(null);
   /* Photos cached but not yet looked at. Null until a read reports; 0 once the
      job is fully in the bank. */
@@ -289,9 +343,9 @@ export function JobSheet({
      across three cards reads as $6,268 until the family arrives and $31,340
      after, and painting the wrong number first breaks this sheet's own rule
      that what fills in was ABSENT, not wrong. */
-  const [record, setRecord] = useState<JobRecordRead | null | undefined>(undefined);
+  const [record, setRecord] = useState<JobRecordRead | null | undefined>(() => pageRead?.record);
   const [recordFailed, setRecordFailed] = useState(false);
-  const [picklist, setPicklist] = useState<JobPicklistItem[] | null>(null);
+  const [picklist, setPicklist] = useState<JobPicklistItem[] | null>(() => pageRead?.picklist ?? null);
   /* bumped when the Quote section's Rooms adds a pair, so the Materials
      list and the Price read it again */
   /* WHICH OF THIS JOB'S PHOTOS ARE STARRED. Its own read on its own clock,
@@ -299,13 +353,13 @@ export function JobSheet({
      question the card asks of it. Null until it lands: an empty Set would
      draw every star hollow for a moment on a job whose photos are all
      starred, which is the picture being wrong rather than absent. */
-  const [favourites, setFavourites] = useState<Set<string> | null>(null);
+  const [favourites, setFavourites] = useState<Set<string> | null>(() => (pageRead?.favourites ? new Set(pageRead.favourites) : null));
   /* OUR OWN WRITING, and what the job still wants — both arrive on the
      record read and both are then LOCAL, because a note typed at the diary's
      head and a suggestion just answered have to leave the screen at once.
      Seeded from the read rather than derived from it for exactly that
      reason: derived state can't be edited. */
-  const [attention, setAttention] = useState<JobAttention | null>(null);
+  const [attention, setAttention] = useState<JobAttention | null>(() => pageRead?.record?.attention ?? null);
   /* the note the strip's Reply sent the reader to, by its ServiceM8 uuid */
   const [replyFor, setReplyFor] = useState<string | null>(null);
   /* BOOKINGS TO SERVICEM8 (two-way phase 3), seeded from the record read
@@ -314,8 +368,8 @@ export function JobSheet({
      bookings we took out, and the rows a Book in queued that no read has
      shown yet — the poll runs while any of them waits. All empty where the
      deployment books nothing. */
-  const [bkVerbs, setBkVerbs] = useState<VerbView[]>([]);
-  const [bkLines, setBkLines] = useState<Record<string, BookingState>>({});
+  const [bkVerbs, setBkVerbs] = useState<VerbView[]>(() => pageRead?.record?.bookings?.verbs ?? []);
+  const [bkLines, setBkLines] = useState<Record<string, BookingState>>(() => pageRead?.record?.bookings?.lines ?? {});
   const [bkGone, setBkGone] = useState<ReadonlySet<string>>(() => new Set());
   const [bkPending, setBkPending] = useState<ReadonlySet<string>>(() => new Set());
   const [bkKick, setBkKick] = useState(0);
@@ -323,7 +377,7 @@ export function JobSheet({
   const [bookIn, setBookIn] = useState<{ n: number; seed: BookInSeed | null } | null>(null);
   /* the leftover whose Clear is being asked, by lower-case uuid */
   const [clearAsk, setClearAsk] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !pageRead);
   /* THE STEP whose part is open below, when the progress line opened it;
      null otherwise. A door that came back from the quote page opens
      on Quoted. */
@@ -334,13 +388,13 @@ export function JobSheet({
   /* EDIT CUSTOMER (customer details to ServiceM8): offered only where the
      deployment saves them, the reader runs the board and the owner has them
      on — asked once, for a manager, and never anywhere else */
-  const [customerEdit, setCustomerEdit] = useState(false);
+  const [customerEdit, setCustomerEdit] = useState(() => pageRead?.customerEdit === true);
   const [editingCustomer, setEditingCustomer] = useState(false);
   /* THE VISIT PRESSED on Visits, by its key: its dialog is open */
   const [visitOpen, setVisitOpen] = useState<string | null>(null);
   /* The claim this card was opened FOR, when a clone's row was clicked. It
      names the row in the ledger — the card is always the job. */
-  const [focus, setFocus] = useState<string | null>(null);
+  const [focus, setFocus] = useState<string | null>(() => pageRead?.mirror?.focusRemoteId ?? null);
   /* Which claim's modal is open, and whether the number's list is showing. */
   const [openClaim, setOpenClaim] = useState<string | null>(null);
   /* ADD (rule 54): what belongs to the job, each item a door to the flow the
@@ -349,6 +403,9 @@ export function JobSheet({
   const [taskAsk, setTaskAsk] = useState(0);
   /* Add › Cost's form, open over the job */
   const [costing, setCosting] = useState(false);
+  /* Add › Purchase, and what Materials' Bought reloads on once one's added */
+  const [buying, setBuying] = useState(false);
+  const [bought, setBought] = useState(0);
   /* WHERE THE QUOTE STANDS, for Add's Quote, which reads Variation once a
      quote is accepted: the Quote section's own read, asked the first time
      the reader reaches for Add. Undefined until it lands, null when it
@@ -396,6 +453,7 @@ export function JobSheet({
   /* No setLoading(true) here: the sheet is KEYED BY JOB, so a different job
      is a different component with `loading` already true. */
   useEffect(() => {
+    if (pageRead) return;
     let live = true;
     void readMirrorJob(row.id).then((res) => {
       if (!live) return;
@@ -407,10 +465,10 @@ export function JobSheet({
     return () => {
       live = false;
     };
-  }, [row.id]);
+  }, [row.id, pageRead]);
 
   useEffect(() => {
-    if (!manage) return;
+    if (!manage || pageRead?.customerEdit !== undefined) return;
     let live = true;
     void customerEditOffered()
       .then((on) => live && setCustomerEdit(on))
@@ -418,7 +476,7 @@ export function JobSheet({
     return () => {
       live = false;
     };
-  }, [manage]);
+  }, [manage, pageRead]);
 
   /* THE COMPANION READS FOLLOW THE CARD, not the row that was clicked. A
      clone's row opens its parent, so asking for the clone's files, ledger or
@@ -498,7 +556,7 @@ export function JobSheet({
   });
 
   useEffect(() => {
-    if (!cardId) return;
+    if (!cardId || (pageRead?.cardId === cardId && pageRead.files !== undefined)) return;
     let live = true;
     void readJobFiles(cardId)
       .then((m) => {
@@ -508,14 +566,14 @@ export function JobSheet({
     return () => {
       live = false;
     };
-  }, [cardId]);
+  }, [cardId, pageRead]);
 
   /* The stars on this job's photos. Ours, not ServiceM8's — see
      docs/migrations/job_photo_favourites.sql. A read that fails leaves the
      set EMPTY rather than null: the stars go hollow, which is honest, and
      the tiles stay clickable. */
   useEffect(() => {
-    if (!cardId) return;
+    if (!cardId || (pageRead?.cardId === cardId && pageRead.favourites !== undefined)) return;
     let live = true;
     void listJobPhotoFavourites(cardId)
       .then((rows) => {
@@ -527,7 +585,7 @@ export function JobSheet({
     return () => {
       live = false;
     };
-  }, [cardId]);
+  }, [cardId, pageRead]);
 
   /* After Issue, Email to the builder: the card's own letter, with the PDF
      ticked, whose draft starts with the job's contact — the builder. */
@@ -553,7 +611,7 @@ export function JobSheet({
   /* Our OWN material picklist — pushed here from a Studio design. On its own
      clock like the files; a job with none renders nothing. */
   useEffect(() => {
-    if (!cardId) return;
+    if (!cardId || (pageRead?.cardId === cardId && pageRead.picklist !== undefined)) return;
     let live = true;
     void listJobPicklist(cardId)
       .then((p) => {
@@ -566,7 +624,7 @@ export function JobSheet({
     return () => {
       live = false;
     };
-  }, [cardId]);
+  }, [cardId, pageRead]);
 
   /* Notes and the ledger, on their own clock like the files. `ledger` comes
      back null for a reader without money — the gate is server-side, so this
@@ -575,7 +633,7 @@ export function JobSheet({
      and the money face says the figures didn't load — never the netted
      fallback, which is the exact number this feature exists to stop. */
   useEffect(() => {
-    if (!cardId) return;
+    if (!cardId || (pageRead?.cardId === cardId && pageRead.record !== undefined)) return;
     let live = true;
     void readJobRecord(cardId)
       .then((r) => {
@@ -594,7 +652,7 @@ export function JobSheet({
     return () => {
       live = false;
     };
-  }, [cardId, setOurNotes, setSender, setFlags]);
+  }, [cardId, pageRead, setOurNotes, setSender, setFlags]);
 
   /* Bringing the bytes across, a few per round, with the BROWSER as the loop.
      Two rails: a hard round cap, and STOP ON NO PROGRESS.
@@ -815,6 +873,68 @@ export function JobSheet({
         /* a summary that won't refresh keeps its stored words */
       });
   }, [cardId, detail, record, recordFailed, media, picklist, story]);
+
+  /* THE SCOPE'S KICK, the summary's twin: once the story's stamp has left
+     the stored scope behind on a job being quoted or worked, Tiff brings the
+     scope up to date (route job-scope, which re-compares), and the Overview
+     draws what she wrote as soon as it lands */
+  const scopeAsked = useRef<string | null>(null);
+  const scopeInFlight = useRef(false);
+  const [scopeStuckAt, setScopeStuckAt] = useState<string | null>(null);
+  const scopeDue = !!detail && scopeWanted(detail.status, detail.date) && media !== null && picklist !== null;
+  const scopeStampNow = scopeDue ? scopeStamp(story) : null;
+  useEffect(() => {
+    if (!cardId || !scopeStampNow || record === undefined || record === null || recordFailed) return;
+    if ((record.scope?.stamp === scopeStampNow && !record.scope.quoteDue) || scopeAsked.current === scopeStampNow || scopeInFlight.current) return;
+    const asked = scopeStampNow;
+    scopeAsked.current = asked;
+    scopeInFlight.current = true;
+    void fetch("/api/workboard/job-scope", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ job: cardId }),
+    })
+      .then((r) => r.json())
+      .then((res: { ok?: boolean; scope?: JobScopeRead | null }) => {
+        scopeInFlight.current = false;
+        if (!alive.current) return;
+        if (res?.ok && res.scope) setRecord((cur) => (cur ? { ...cur, scope: res.scope } : cur));
+        if (!res?.ok || res.scope?.stamp !== asked) setScopeStuckAt(asked);
+      })
+      .catch(() => {
+        /* a scope that won't refresh keeps its stored words */
+        scopeInFlight.current = false;
+        if (alive.current) setScopeStuckAt(asked);
+      });
+  }, [cardId, record, recordFailed, scopeStampNow]);
+  const scopeReading = !!record?.scope && !!scopeStampNow && record.scope.stamp !== scopeStampNow && scopeStuckAt !== scopeStampNow;
+  const undoScope = async () => {
+    setErr(null);
+    const res = await fetch("/api/workboard/job-scope", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ job: cardId, undo: true }),
+    })
+      .then((r) => r.json() as Promise<{ ok?: boolean; scope?: JobScopeRead | null; reason?: string }>)
+      .catch(() => ({ ok: false, scope: null, reason: "That didn't undo. Try again." }));
+    if (!alive.current) return;
+    if (res.ok && res.scope) setRecord((cur) => (cur ? { ...cur, scope: res.scope } : cur));
+    else setErr(res.reason ?? "That didn't undo. Try again.");
+  };
+  /* Leave out, off Since the quote: it stays in the brief (slice 4) */
+  const leaveScope = async (text: string) => {
+    setErr(null);
+    const res = await fetch("/api/workboard/job-scope", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ job: cardId, off: [text] }),
+    })
+      .then((r) => r.json() as Promise<{ ok?: boolean; scope?: JobScopeRead | null; reason?: string }>)
+      .catch(() => ({ ok: false, scope: null, reason: "That didn't save. Try again." }));
+    if (!alive.current) return;
+    if (res.ok && res.scope) setRecord((cur) => (cur ? { ...cur, scope: res.scope } : cur));
+    else setErr(res.reason ?? "That didn't save. Try again.");
+  };
 
   const makeProject = () => {
     setErr(null);
@@ -1373,6 +1493,8 @@ export function JobSheet({
     { key: "quote", label: variation ? "Variation" : "Quote" },
     /* a cost on a job is an expense claim, and anyone may claim one */
     { key: "cost", label: "Cost" },
+    /* a supplier's docket, its lines onto this job (purchases), on a ServiceM8 job */
+    ...(cardId ? [{ key: "purchase", label: "Purchase" }] : []),
     /* a SWMS is a before-work paper: none is made once ServiceM8 has the job closed */
     ...(SWMS_CLOSED.has(detail?.status ?? "") ? [] : [{ key: "swms", label: "SWMS" }]),
     { key: "certificate", label: "Certificate" },
@@ -1396,6 +1518,10 @@ export function JobSheet({
         return;
       case "cost":
         setCosting(true);
+        return;
+      case "purchase":
+        go("checklist");
+        setBuying(true);
         return;
       case "swms":
         go("compliance");
@@ -1538,6 +1664,13 @@ export function JobSheet({
               onTick={tickChecklistItem}
               onRemove={removeChecklistItem}
               onAdd={addChecklistItem}
+              bought={
+                cardId ? (
+                  <Suspense fallback={null}>
+                    <JobBought jobUuid={cardId} version={bought} />
+                  </Suspense>
+                ) : null
+              }
             />
           )}
     </>
@@ -1583,6 +1716,14 @@ export function JobSheet({
           )}
     </>
   );
+  /* THE JOB'S DESIGNS, a section of their own (Isaac, 28 October 2026: "a
+     separate tab outside of the quoting"), for whoever holds the Studio */
+  const faceDesign = (
+    <>
+          {studio &&
+            panel("design", <JobDesignFace job={row.id} designs={detail?.designs ?? []} loading={detail === null} />)}
+    </>
+  );
   const faceDocuments = (
     <>
           {/* ONE DOCUMENTS SECTION (v2, the mock of 25 October 2026): one
@@ -1595,6 +1736,7 @@ export function JobSheet({
             <JobDocumentsFace
               documents={media ? media.documents : null}
               elsewhere={media ? media.elsewhere : null}
+              links={media?.links ?? null}
               designs={detail?.designs ?? []}
               swms={swms}
               swmsFailed={swmsFailed}
@@ -1771,6 +1913,19 @@ export function JobSheet({
                 .join(", "),
             }}
             onClose={() => setCosting(false)}
+          />
+        </Suspense>
+      )}
+
+      {/* Add › Purchase: the docket, its lines onto this job first */}
+      {buying && cardId && (
+        <Suspense fallback={null}>
+          <AddPurchase
+            job={{ jobUuid: cardId, label: [cardNumber, detail?.clientName ?? row.clientName].filter(Boolean).join(", ") || "This job", sub: detail?.suburb ?? row.suburb ?? undefined }}
+            onClose={() => {
+              setBuying(false);
+              setBought((n) => n + 1);
+            }}
           />
         </Suspense>
       )}
@@ -2034,7 +2189,7 @@ export function JobSheet({
   /* THE JOB'S PAGE (v2, step 5): the head, then the section's faces. */
   const status = (cardStatus ?? "").trim();
   /* no numbers on the sections (rule 31, Isaac, 20 October) */
-  const sections = sectionsFor(moneyVisible).map((key) => ({ key, label: SECTION_LABEL[key] }));
+  const sections = sectionsFor(moneyVisible, studio).map((key) => ({ key, label: SECTION_LABEL[key] }));
   /* ACTIONS (rule 53): only what's done to the job itself. Its stage
      first, then what the page does (pin it, copy the link), then the
      card's own two once-per-job acts for a manager. Nothing here ends a
@@ -2061,8 +2216,9 @@ export function JobSheet({
     <>
       <div className="wb2-sheet jc jp-sheet">
         <JobPageHead
-          name={detail?.clientName ?? row.clientName ?? "Unnamed client"}
-          hue={jobHue(categoryColour, status.toLowerCase() === "unsuccessful")}
+          name={jobPlateName(detail, row)}
+          number={cardNumber}
+          hue={jobHue(categoryColour, status)}
           sm8Href={sm8Href}
           add={{ items: addItems, onPick: addPick, disabled: !cardId, onReach: askQuote }}
           actions={{ items: actionItems, onPick: actionPick }}
@@ -2097,11 +2253,18 @@ export function JobSheet({
             {seen.has("overview") && (
             <JobOverview
               cardId={cardId}
+              /* only for an Overview drawn with the page: one opened later reads afresh */
+              firstRead={overviewFirst && pageRead?.cardId === cardId ? pageRead?.conversation : undefined}
               label={[cardNumber, detail?.clientName ?? row.clientName].filter(Boolean).join(" ") || undefined}
               story={story}
               loading={loading && !detail}
               moneyVisible={moneyVisible}
               detail={detail}
+              scope={record?.scope ?? null}
+              scopeReading={scopeReading}
+              onUndoScope={undoScope}
+              onLeaveScope={leaveScope}
+              scopeUpdateHref={cardId ? quoteHref(cardId, { update: true }) : undefined}
               fallbackWhat={row.title}
               head={
                 <JobProgressLine
@@ -2198,6 +2361,7 @@ export function JobSheet({
           {faceChecklist}
           {facePhotos}
           {faceQuote}
+          {faceDesign}
           {faceDocuments}
         </div>
         {footer}

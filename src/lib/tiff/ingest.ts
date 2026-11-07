@@ -30,6 +30,7 @@ import { chunkPages, type PageText } from "./chunk";
 import { isScannedPage, openPdf, PAGE_BATCH, pageWindow } from "./extract";
 import { embedTexts } from "./embeddings";
 import { tagChunks } from "./keywords";
+import { releasedOf } from "./released";
 import { imprintPatch, readImprint } from "./imprint";
 import { addKbUsage, kbQuotaFor } from "./quota";
 
@@ -95,7 +96,7 @@ export type BatchPlan =
   | { kind: "done" }
   | { kind: "refused"; error: string };
 
-const DOC_COLUMNS = "status, next_page, page_count, chunk_count, scanned_pages, storage_ref, source, edition";
+const DOC_COLUMNS = "status, next_page, page_count, chunk_count, scanned_pages, storage_ref, source, edition, title, file_name, released";
 
 /* What to do with this document right now.
 
@@ -318,6 +319,16 @@ export async function processBatch(documentId: string, orgId: string, cache?: Pd
 
     const keywords = tagged.ok ? tagged.keywords : chunks.map(() => []);
 
+    /* WHEN IT CAME OUT (./released), read once in the first batch: the date
+       printed on its title, file or edition, else the PDF's own date */
+    const released =
+      window.from === 1 && !row.released
+        ? releasedOf(
+            { title: (row.title as string | null) ?? null, fileName: (row.file_name as string | null) ?? null, edition: imprint?.edition ?? known.edition },
+            await pdf.made?.().catch(() => null),
+          )
+        : null;
+
     /* Stored either way — but NOT silently, any more. 106 of one 285-chunk
        manual went in with null embeddings and nothing anywhere said so: Voyage
        caps an account with no payment method at 3 RPM and ingestion fires a
@@ -355,7 +366,7 @@ export async function processBatch(documentId: string, orgId: string, cache?: Pd
 
     const { error: updateErr } = await supabaseAdmin
       .from("kb_documents")
-      .update({ ...patch, ...(imprint ? imprintPatch(known, imprint) : {}) })
+      .update({ ...patch, ...(imprint ? imprintPatch(known, imprint) : {}), ...(released ? { released } : {}) })
       .eq("org_id", orgId)
       .eq("id", documentId);
     if (updateErr) return fail(documentId, orgId, doc, "That document couldn't be updated.");

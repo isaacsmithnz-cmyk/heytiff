@@ -62,6 +62,12 @@ export type DocumentKind =
      purchase paperwork and land a $45,000 vehicle in someone's
      reimbursements. Owned by the VEHICLE (documents.vehicle_id), not a log. */
   | "purchase_invoice"
+  /* A supplier's docket or invoice behind a PURCHASE (Isaac, 29 October
+     2026: "add purchase, photo of the invoice"): what was bought for jobs
+     and stock. Not `purchase_invoice`, which is a VEHICLE's purchase price
+     and is adopted by the vehicle; not `receipt`, which an expense claim
+     adopts and reimburses. Owned by the purchase (documents.purchase_id). */
+  | "purchase_docket"
   /* Renewal paperwork. Three kinds, not one "renewal" with a flag, for the
      standing reason — and because they land on different expiry dates. Each
      upload is a NEW document: the newest is current and the ones under it are
@@ -101,6 +107,11 @@ export type DocumentKind =
      "with a photo if it helps"). Adopted by that issue's log and nothing
      else: its own kind so no claim, no tax line and no service can take it. */
   | "issue_photo"
+  /* A photo or PDF handed to Tiff in her box on the phone, for her to read
+     (Isaac, 1 November 2026: "the plus symbol to add photo or other file").
+     Owned by nobody but whoever added it, and only ever read back for them:
+     its own kind so no claim, notice, job or vehicle can adopt it. */
+  | "tiff_file"
   | "other";
 
 export const DOCUMENT_KINDS: readonly DocumentKind[] = [
@@ -117,6 +128,7 @@ export const DOCUMENT_KINDS: readonly DocumentKind[] = [
   "job_document",
   "job_photo",
   "purchase_invoice",
+  "purchase_docket",
   "insurance_policy",
   "rego_notice",
   "green_slip",
@@ -126,6 +138,7 @@ export const DOCUMENT_KINDS: readonly DocumentKind[] = [
   "org_insurance",
   "service_record",
   "issue_photo",
+  "tiff_file",
   "other",
 ];
 

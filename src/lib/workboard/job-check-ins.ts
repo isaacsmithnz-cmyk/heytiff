@@ -62,6 +62,20 @@ export function overriddenDays(sessions: OurSession[]): Set<string> {
   return new Set(sessions.map((s) => `${s.start.slice(0, 10)}|${s.staffId}`));
 }
 
+/** The job's sessions as the card counts them: ServiceM8's own check-ins,
+    less the person-days HeyTiff has a check-in for, then HeyTiff's. One
+    rule, for the card's time on site and the job's money (lib/mobile/job-money). */
+export function countedSessions<A extends { start_date: string | null; staff_uuid: string | null; activity_was_scheduled: number | null }>(
+  acts: readonly A[],
+  ours: readonly OurSession[]
+): (A | { uuid: string; start_date: string; end_date: string; staff_uuid: string; activity_was_scheduled: 0 })[] {
+  const ourDays = overriddenDays([...ours]);
+  return [
+    ...acts.filter((a) => !(a.activity_was_scheduled === 0 && a.start_date && ourDays.has(`${a.start_date.slice(0, 10)}|${a.staff_uuid ?? ""}`))),
+    ...ours.map((o) => ({ uuid: o.uuid, start_date: o.start, end_date: o.end, staff_uuid: o.staffId, activity_was_scheduled: 0 as const })),
+  ];
+}
+
 /** A name as two people would agree on it: case, spacing and stray dots aside. */
 export const sameName = (a: string, b: string) => {
   const k = (s: string) => s.toLowerCase().replace(/[.]/g, "").replace(/\s+/g, " ").trim();

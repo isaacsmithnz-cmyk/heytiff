@@ -5,7 +5,8 @@ import { notesViewerOf, readOurJobNotes } from "@/lib/workboard/job-notes-query"
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { offersSend } from "@/lib/integrations/sm8-write-plan";
 import { senderWords } from "@/lib/integrations/sm8-note-words";
-import { comingVisits } from "@/lib/mobile/visits";
+import { comingVisits, missedVisits } from "@/lib/mobile/visits";
+import { changeAllowed } from "@/lib/mobile/schedule-gate";
 import { ok, requireMobile } from "@/lib/mobile/auth";
 
 /* ONE JOB for the phone's job page: what the job sheet's card reads
@@ -25,7 +26,11 @@ import { ok, requireMobile } from "@/lib/mobile/auth";
    can send and, while it can't, why (the job sheet's sentence); null where
    notes aren't offered at all. And its coming visits, a day each with
    everyone booked on it (lib/mobile/visits), since the detail's own
-   nextBooking names only the first booking's one person. */
+   nextBooking names only the first booking's one person; and `canChange`
+   where this person may change those visits from the phone, the Schedule's
+   own gate (lib/mobile/schedule-gate). And on a job not yet done, the
+   bookings that are over with no one there (`missed`), to move: it's still
+   the job's booking (Isaac, 4 November 2026, on 3488). */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireMobile(request, "workboard");
   if (ctx instanceof Response) return ctx;
@@ -47,12 +52,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!detail) return Response.json({ error: "That job isn't here." }, { status: 404, headers: { "cache-control": "no-store" } });
 
   const viewer = sm8NotesAllowed() ? await notesViewerOf(ctx.orgId, ctx.userId) : null;
-  const [notes, ourNotes, coming] = await Promise.all([
+  const open = !detail.status || /^(quote|work order)$/i.test(detail.status.trim());
+  const [notes, ourNotes, coming, missed, gate] = await Promise.all([
     readJobNotes(ctx.orgId, target.parentRemoteId, claims),
     viewer ? readOurJobNotes(ctx.orgId, target.parentRemoteId, 60, viewer) : readOurJobNotes(ctx.orgId, target.parentRemoteId),
     comingVisits(ctx.orgId, target.parentRemoteId, today),
+    open && timezone ? missedVisits(ctx.orgId, target.parentRemoteId, Date.now(), timezone).catch(() => []) : Promise.resolve([]),
+    changeAllowed(ctx).catch(() => null),
   ]);
   const sender = viewer?.sender ?? { state: "unknown" as const };
   const sm8Notes = viewer && offersSend(viewer.state, "note") ? { ready: sender.state === "ready", why: senderWords(sender) } : null;
-  return ok({ detail, notes, ourNotes, sm8Notes, coming, focusRemoteId: target.focusRemoteId });
+  return ok({ detail, notes, ourNotes, sm8Notes, coming, ...(missed.length ? { missed } : {}), focusRemoteId: target.focusRemoteId, ...(gate?.ok ? { canChange: true } : {}) });
 }

@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { localNow } from "@/lib/integrations/sm8-booking-plan";
 
 /* A JOB'S COMING VISITS, a day each with everyone booked on it, for the
    phone's job page. The job's own `nextBooking` names the first booking's
@@ -9,11 +10,23 @@ import { supabaseAdmin } from "@/lib/supabase-server";
    scheduled diary rows from today on. A day runs from the first of the crew
    on to the last off. People are named by ServiceM8's staff row, matched
    whatever case the uuid arrived in. Org-scoped like every read here; the
-   caller has already decided the reader may see the job. */
+   caller has already decided the reader may see the job.
 
-export type ComingVisit = { day: string; start: string; end: string | null; crew: string[] };
+   And each person's own booking on the day (`people`), so the phone can
+   change one: its day, its time, who's on it (Isaac, 2 November 2026:
+   "Can't click next visit").
 
-type Row = { start_date: string | null; end_date: string | null; staff_uuid: string | null };
+   And the ones MISSED (Isaac, 4 November 2026, on 3488 the Wednesday after
+   Monday's booking: "It's still a job card, I should be able to change
+   booking on it surely?"): a booking that's over, in the last fortnight,
+   with no one on the job that day or since, ServiceM8's check-ins or the
+   phone's. Those stay on the job to move, since nothing about them has
+   happened yet. */
+
+export type VisitPerson = { activity: string; staffUuid: string; name: string; start: string; end: string | null };
+export type ComingVisit = { day: string; start: string; end: string | null; crew: string[]; people: VisitPerson[] };
+
+type Row = { uuid: string; start_date: string | null; end_date: string | null; staff_uuid: string | null };
 
 /** At most this many days ahead are listed: a page, not a diary. */
 const DAYS = 6;
@@ -21,7 +34,7 @@ const DAYS = 6;
 export async function comingVisits(orgId: string, jobUuid: string, today: string): Promise<ComingVisit[]> {
   const { data } = await supabaseAdmin
     .from("sm8_job_activities")
-    .select("start_date, end_date, staff_uuid")
+    .select("uuid, start_date, end_date, staff_uuid")
     .eq("org_id", orgId)
     .eq("active", 1)
     .eq("job_uuid", jobUuid)
@@ -31,7 +44,51 @@ export async function comingVisits(orgId: string, jobUuid: string, today: string
     .limit(200);
   const rows = ((data ?? []) as Row[]).filter((r): r is Row & { start_date: string } => !!r.start_date);
   if (rows.length === 0) return [];
+  return visitsOf(rows, await namesOf(orgId, rows)).slice(0, DAYS);
+}
 
+/** How far back a missed booking is still offered. */
+const BACK_DAYS = 14;
+
+const daysBefore = (iso: string, n: number) => new Date(Date.parse(`${iso}T00:00:00Z`) - n * 86_400_000).toISOString().slice(0, 10);
+
+/** A job's bookings that are over with no one there that day or since, the last fortnight's, oldest first. `now` is the
+ * account's wall clock; `zone` turns the phone's own check-ins (instants) into its days. */
+export async function missedVisits(orgId: string, jobUuid: string, now: number, zone: string): Promise<ComingVisit[]> {
+  const wall = localNow(zone, now);
+  if (!wall) return [];
+  const floor = `${daysBefore(wall.slice(0, 10), BACK_DAYS)} 00:00:00`;
+  const ids = [...new Set([jobUuid, jobUuid.toLowerCase(), jobUuid.toUpperCase()])];
+  const [{ data: booked }, { data: recorded }, { data: stints }] = await Promise.all([
+    supabaseAdmin
+      .from("sm8_job_activities")
+      .select("uuid, start_date, end_date, staff_uuid")
+      .eq("org_id", orgId)
+      .eq("active", 1)
+      .eq("job_uuid", jobUuid)
+      .eq("activity_was_scheduled", 1)
+      .gte("start_date", floor)
+      .lt("start_date", wall)
+      .order("start_date", { ascending: true })
+      .limit(200),
+    supabaseAdmin.from("sm8_job_activities").select("start_date").eq("org_id", orgId).eq("active", 1).eq("job_uuid", jobUuid).eq("activity_was_scheduled", 0).gte("start_date", floor).limit(500),
+    /* a day before the floor in UTC covers any zone's morning */
+    supabaseAdmin.from("job_check_ins").select("checked_in_at").eq("org_id", orgId).in("sm8_job_uuid", ids).gte("checked_in_at", `${daysBefore(floor.slice(0, 10), 1)}T00:00:00Z`).limit(500),
+  ]);
+  /* the last day anyone was there: ServiceM8's recorded time, or the phone's own */
+  const there = [
+    ...((recorded ?? []) as { start_date: string | null }[]).map((r) => r.start_date?.slice(0, 10) ?? ""),
+    ...((stints ?? []) as { checked_in_at: string | null }[]).map((r) => (r.checked_in_at ? (localNow(zone, Date.parse(r.checked_in_at)) ?? "").slice(0, 10) : "")),
+  ].reduce((last, d) => (d > last ? d : last), "");
+  const rows = ((booked ?? []) as Row[]).filter(
+    (r): r is Row & { start_date: string } => !!r.start_date && (r.end_date ?? r.start_date) <= wall && r.start_date.slice(0, 10) > there
+  );
+  if (rows.length === 0) return [];
+  return visitsOf(rows, await namesOf(orgId, rows));
+}
+
+/** ServiceM8's staff names for the people on these rows, by lower-case uuid. */
+async function namesOf(orgId: string, rows: Row[]): Promise<Map<string, string>> {
   const ids = [...new Set(rows.map((r) => r.staff_uuid).filter((u): u is string => !!u))];
   const names = new Map<string, string>();
   if (ids.length > 0) {
@@ -45,19 +102,27 @@ export async function comingVisits(orgId: string, jobUuid: string, today: string
       if (name) names.set(s.uuid.toLowerCase(), name);
     }
   }
+  return names;
+}
 
+/** Bookings as a day each: from the first on to the last off, the crew A to Z, each person's own booking. */
+function visitsOf(rows: (Row & { start_date: string })[], names: Map<string, string>): ComingVisit[] {
   const byDay = new Map<string, ComingVisit>();
   for (const r of rows) {
     const day = r.start_date.slice(0, 10);
-    const v = byDay.get(day) ?? { day, start: r.start_date, end: r.end_date, crew: [] };
+    const v = byDay.get(day) ?? { day, start: r.start_date, end: r.end_date, crew: [], people: [] };
     if (r.start_date < v.start) v.start = r.start_date;
     if (r.end_date && (!v.end || r.end_date > v.end)) v.end = r.end_date;
     const who = r.staff_uuid ? names.get(r.staff_uuid.toLowerCase()) : undefined;
     if (who && !v.crew.includes(who)) v.crew.push(who);
+    if (who && r.staff_uuid) v.people.push({ activity: r.uuid, staffUuid: r.staff_uuid, name: who, start: r.start_date, end: r.end_date });
     byDay.set(day, v);
   }
   return [...byDay.values()]
     .sort((a, b) => a.day.localeCompare(b.day))
-    .slice(0, DAYS)
-    .map((v) => ({ ...v, crew: [...v.crew].sort((a, b) => a.localeCompare(b)) }));
+    .map((v) => ({
+      ...v,
+      crew: [...v.crew].sort((a, b) => a.localeCompare(b)),
+      people: [...v.people].sort((a, b) => a.name.localeCompare(b.name) || a.start.localeCompare(b.start)),
+    }));
 }

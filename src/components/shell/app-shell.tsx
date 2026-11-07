@@ -1,7 +1,8 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { noteRoute } from "./came-from";
 import { CommandPaletteProvider } from "./command-palette-context";
 import { RecordDock } from "@/components/records/record-dock";
 import { StudioHost } from "@/components/studio/studio-keeper";
@@ -33,6 +34,10 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  /* the trail a job's way back reads (came-from.ts) */
+  useEffect(() => {
+    noteRoute(`${window.location.pathname}${window.location.search}`);
+  }, [pathname]);
 
   return (
     <CommandPaletteProvider>

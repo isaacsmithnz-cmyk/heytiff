@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { requireOrg } from "@/lib/permissions-server";
 import { staffIdFor } from "@/lib/workboard/projects-query";
@@ -10,6 +11,8 @@ import { sm8Ours } from "@/lib/integrations/sm8-echo";
 import { NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
 import { takeBackJobNote } from "./job-note-sm8";
 import { writeJobNote } from "@/lib/workboard/job-note-write";
+import { sendNoteOnToSm8 } from "@/lib/integrations/sm8-note-send-on";
+import { sm8PressFromSession } from "@/lib/integrations/sm8-press";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -45,6 +48,23 @@ const WB = "/dashboard/workboard";
 export async function addJobNote(jobUuid: string, body: string, opts: { id?: string } = {}): Promise<OurJobNote> {
   const { orgId, userId } = await requireOrg("workboard");
   const note = await writeJobNote({ orgId, userId, jobUuid, body, composeId: opts?.id });
+  revalidatePath(WB);
+  return note;
+}
+
+/** Save: the words as written, on the job, with no Tiff, and on to
+    ServiceM8 as any job note goes (Isaac, 6 November 2026: "Save creates a
+    raw note, tiff processes it like she does today"). The box's other way
+    out, Tiff's arrow, is the note router's.
+
+    Saved is said once it's on the job: the send to ServiceM8 goes after the
+    answer, so the box never waits on ServiceM8 (Isaac, 6 November 2026: "it
+    was a little bit slow... it should be instant if it's just writing it
+    straight away"). */
+export async function saveJobNote(jobUuid: string, body: string, opts: { id?: string } = {}): Promise<OurJobNote> {
+  const { orgId, userId } = await requireOrg("workboard");
+  const note = await writeJobNote({ orgId, userId, jobUuid, body, composeId: opts?.id });
+  after(() => sendNoteOnToSm8(sm8PressFromSession, orgId, note.id, jobUuid.trim()));
   revalidatePath(WB);
   return note;
 }

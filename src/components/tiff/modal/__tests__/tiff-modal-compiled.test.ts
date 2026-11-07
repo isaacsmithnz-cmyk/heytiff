@@ -16,14 +16,15 @@ import { transformSync } from "@babel/core";
    plugin the build uses. */
 
 /* tiff-context.ts left this list with the top bar's report (2026-09-26): what
-   is left in it is types and a plain context read, with nothing to memoise. */
+   is left in it is types and a plain context read, with nothing to memoise.
+   ui/dot-field.tsx left it with the field itself (7 November 2026): the
+   Library's ask bar was the last thing that drew it. */
 const FILES = [
   "src/components/tiff/modal/tiff-host.tsx",
   "src/components/tiff/modal/tiff-modal.tsx",
   "src/components/tiff/modal/use-conversation.ts",
   "src/components/tiff/modal/box-motion.ts",
   "src/components/notes/tiff-button.tsx",
-  "src/components/ui/dot-field.tsx",
 ];
 
 type CompileEvent = { kind: string; fnName?: string | null; detail?: unknown };

@@ -65,7 +65,26 @@ export type Sm8AttachmentUpload = {
   fileName: string;
   mimeType: string;
   bytes: Uint8Array<ArrayBuffer>;
+  /** Who took it, when HeyTiff knows them: see asThem. */
+  asStaffUuid?: string;
 };
+
+/** One write AS THE PERSON who pressed it, when HeyTiff knows who that is, so
+    ServiceM8's diary names them. Sent as nobody, a photo or a booking shows
+    "By Unknown" there, under the connection's own inactive staff record
+    (Isaac, 2 November 2026: "my notes being added to Service Mate is coming
+    up as unknown, or photos", with the diary to show it). ServiceM8 may refuse
+    a person what the connection may do (their role, say, and a 403 here would
+    read as the whole kind wanting a reconnect), so a refusal goes once more as
+    nobody: the photo or the booking matters more than the name on it. A note
+    never comes here: it goes as its person or not at all. */
+async function asThem(call: Sm8Call, path: string, init: NonNullable<Parameters<typeof sm8Request>[2]>, asStaffUuid: string | undefined) {
+  if (!asStaffUuid) return sm8Request(call, path, init);
+  const answer = await sm8Request(call, path, { ...init, impersonate: asStaffUuid });
+  if (answer.kind === "throttled" || ![400, 401, 403].includes(answer.res.status)) return answer;
+  console.error(`[sm8] ${path} refused as staff ${asStaffUuid} (${answer.res.status}): going as the connection`);
+  return sm8Request(call, path, init);
+}
 
 /** A refused request's body, read once: to the server log, truncated, and
     back as ServiceM8's code and message for the decision and the row. */
@@ -101,7 +120,7 @@ export async function postSm8Attachment(call: Sm8Call, upload: Sm8AttachmentUplo
   let res: Response;
   let limit: "minute" | "day" | null = null;
   try {
-    const answer = await sm8Request(call, "attachment.json", { method: "POST", body: form, timeoutMs: WRITE_TIMEOUT_MS });
+    const answer = await asThem(call, "attachment.json", { method: "POST", body: form, timeoutMs: WRITE_TIMEOUT_MS }, upload.asStaffUuid);
     if (answer.kind === "throttled") {
       /* nothing went: the account's own counter had no turn for it */
       const busy = sm8BusyOf(answer) ?? { waitMs: answer.waitMs, day: false };
@@ -387,12 +406,13 @@ async function bookingRequest(
   call: Sm8Call,
   what: string,
   path: string,
-  init: { method: "POST" | "DELETE"; json?: unknown }
+  init: { method: "POST" | "DELETE"; json?: unknown },
+  asStaffUuid?: string
 ): Promise<Sm8BookingResult> {
   let res: Response;
   let limit: "minute" | "day" | null = null;
   try {
-    const answer = await sm8Request(call, path, { ...init, timeoutMs: WRITE_NOTE_TIMEOUT_MS });
+    const answer = await asThem(call, path, { ...init, timeoutMs: WRITE_NOTE_TIMEOUT_MS }, asStaffUuid);
     if (answer.kind === "throttled") {
       /* nothing went: the account's own counter had no turn for it */
       const busy = sm8BusyOf(answer) ?? { waitMs: answer.waitMs, day: false };
@@ -429,39 +449,45 @@ async function bookingRequest(
     October 2026). The same six fields, its end after its start. */
 export async function postSm8Booking(
   call: Sm8Call,
-  b: { uuid: string; jobUuid: string; staffUuid: string; start: string; end: string; recorded?: boolean }
+  b: { uuid: string; jobUuid: string; staffUuid: string; start: string; end: string; recorded?: boolean; asStaffUuid?: string }
 ): Promise<Sm8BookingResult> {
   if (!UUID.test(b.uuid) || !UUID.test(b.jobUuid) || !UUID.test(b.staffUuid)) return NOT_SENT;
   if (!BOOKING_STAMP.test(b.start) || !BOOKING_STAMP.test(b.end)) return NOT_SENT;
   if (b.recorded === true && b.end <= b.start) return NOT_SENT;
-  return bookingRequest(call, "POST jobactivity.json", "jobactivity.json", {
-    method: "POST",
-    json: {
-      uuid: b.uuid,
-      job_uuid: b.jobUuid,
-      staff_uuid: b.staffUuid,
-      start_date: b.start,
-      end_date: b.end,
-      ...(b.recorded === true ? { activity_was_recorded: "1" } : { activity_was_scheduled: "1" }),
+  return bookingRequest(
+    call,
+    "POST jobactivity.json",
+    "jobactivity.json",
+    {
+      method: "POST",
+      json: {
+        uuid: b.uuid,
+        job_uuid: b.jobUuid,
+        staff_uuid: b.staffUuid,
+        start_date: b.start,
+        end_date: b.end,
+        ...(b.recorded === true ? { activity_was_recorded: "1" } : { activity_was_scheduled: "1" }),
+      },
     },
-  });
+    b.asStaffUuid
+  );
 }
 
 /** Make a Quote a Work Order, or mark it Unsuccessful: the status ALONE,
     which ServiceM8's update schema requires (F7). The type allows no other
     status, and the body no other field. */
-export async function postSm8JobStatus(call: Sm8Call, jobUuid: string, status: "Work Order" | "Unsuccessful"): Promise<Sm8BookingResult> {
+export async function postSm8JobStatus(call: Sm8Call, jobUuid: string, status: "Work Order" | "Unsuccessful", asStaffUuid?: string): Promise<Sm8BookingResult> {
   if (!UUID.test(jobUuid) || (status !== "Work Order" && status !== "Unsuccessful")) return NOT_SENT;
-  return bookingRequest(call, "POST job", `job/${jobUuid}.json`, { method: "POST", json: { status } });
+  return bookingRequest(call, "POST job", `job/${jobUuid}.json`, { method: "POST", json: { status } }, asStaffUuid);
 }
 
 /** Take one booking out of ServiceM8. Sent only after a live read found it
     there and active on its job: on a booking already removed it may put it
     back (see above). Its answer, a 2xx or a 404 alike, proves nothing about
     where the booking stands; the sender reads it back. */
-export async function deleteSm8Booking(call: Sm8Call, uuid: string): Promise<Sm8BookingResult> {
+export async function deleteSm8Booking(call: Sm8Call, uuid: string, asStaffUuid?: string): Promise<Sm8BookingResult> {
   if (!UUID.test(uuid)) return NOT_SENT;
-  return bookingRequest(call, "DELETE jobactivity", `jobactivity/${uuid}.json`, { method: "DELETE" });
+  return bookingRequest(call, "DELETE jobactivity", `jobactivity/${uuid}.json`, { method: "DELETE" }, asStaffUuid);
 }
 
 /** One of ServiceM8's job activities as HeyTiff reads it live: a booking

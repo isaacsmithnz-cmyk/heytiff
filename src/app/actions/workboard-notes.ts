@@ -133,8 +133,7 @@ import { startNoteVariation, variationRoute } from "@/lib/workboard/note-variati
 import { VARIATION_KEPT, dropVariation, variationDraft } from "@/lib/quotes/lines-job-server";
 import { UNDO_HOLD_COLUMNS, undoHeldBySm8, type CreateRow } from "@/lib/integrations/sm8-note-plan";
 import { sm8PressFromSession } from "@/lib/integrations/sm8-press";
-import { offersSend } from "@/lib/integrations/sm8-write-plan";
-import { sm8NoteSender } from "@/lib/integrations/links";
+import { sendNoteOnToSm8 } from "@/lib/integrations/sm8-note-send-on";
 import { sm8Roster } from "@/lib/workboard/job-notes-query";
 import { jobNoteWords } from "@/lib/workboard/note-tidy";
 
@@ -1652,33 +1651,11 @@ export async function fileNote(
   };
 }
 
-/** A note just filed on a job, sent to ServiceM8 as the person who said it:
-    only where this deployment sends notes, the workspace offers them and
-    the person is linked and ready. Anywhere else it stays HeyTiff's, as a
-    note that never went says, and its line on the job says why. A send
-    that fails is logged and the note keeps its line; filing never waits on
-    ServiceM8 longer than the send's own budget. The sender is reached
-    lazily, as the journal reaches it: it brings the queue's drain (and the
-    server's runtime) with it, which nothing else here needs. */
+/** A note just filed on a job, sent on to ServiceM8 as the person who said
+    it: the gate every way a note lands on a job shares
+    (lib/integrations/sm8-note-send-on). */
 async function sendOnToSm8(ctx: Ctx, noteId: string, jobUuid: string): Promise<void> {
-  if (!sm8NotesAllowed()) return;
-  const startedAt = Date.now();
-  try {
-    const [{ readSm8WriteState }, { sendEntryToSm8 }] = await Promise.all([
-      import("@/lib/integrations/sm8-writes"),
-      import("@/lib/integrations/sm8-note-entry"),
-    ]);
-    const press = await sm8PressFromSession();
-    if (!press || press.orgId !== ctx.orgId) return;
-    const state = await readSm8WriteState(ctx.orgId);
-    if (!offersSend(state, "note")) return;
-    const sender = await sm8NoteSender(ctx.orgId, press.staffId, state.tenantId ?? undefined);
-    if (sender.state !== "ready") return;
-    const sent = await sendEntryToSm8(press, state, { jobUuid, noteId }, startedAt);
-    if (!sent.ok) console.error(`[sm8] note ${noteId} on job ${jobUuid} didn't go to ServiceM8 for org ${ctx.orgId}: ${sent.error}`);
-  } catch (err) {
-    console.error(`[sm8] couldn't send note ${noteId} on to ServiceM8 for org ${ctx.orgId}: ${err instanceof Error ? err.message : String(err)}`);
-  }
+  await sendNoteOnToSm8(sm8PressFromSession, ctx.orgId, noteId, jobUuid);
 }
 
 /* ── VISITS (v2 step 6, slice B) ─────────────────────────────────────────

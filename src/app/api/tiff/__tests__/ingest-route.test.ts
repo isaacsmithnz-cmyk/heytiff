@@ -212,8 +212,10 @@ describe("finishing without the browser", () => {
   });
 
   /* A document that finished in the first batch has nothing to continue, and
-     the claim must not be held until it expires. */
-  it("schedules nothing and releases at once when the batch settled it", async () => {
+     the claim must not be held until it expires. Its drawings are asked for
+     next, in an invocation of their own (the review of 29 October 2026: a
+     manual of twenty pages or fewer never had them read). */
+  it("releases at once when the batch settled it, and asks only for its drawings", async () => {
     processBatch.mockResolvedValue({
       status: "ready",
       pagesDone: 300,
@@ -223,7 +225,7 @@ describe("finishing without the browser", () => {
 
     const res = await POST(req({ documentId: "doc-1" }));
 
-    expect(afterCallbacks).toHaveLength(0);
+    expect(afterCallbacks).toHaveLength(1);
     expect(releaseLease).toHaveBeenCalledWith("doc-1", "org-1");
     expect(await res.json()).not.toHaveProperty("continuing");
   });

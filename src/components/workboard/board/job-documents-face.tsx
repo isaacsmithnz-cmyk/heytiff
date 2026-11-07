@@ -13,8 +13,10 @@ import { ALLOWED_TYPES } from "@/lib/documents/files";
 import { documentGroupOf, opensInCard, type JobMediaItem } from "@/lib/workboard/job-media";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import { andList } from "@/lib/swms/library";
+import { designHref } from "@/lib/shell/links";
 import type { SwmsSummary } from "@/lib/swms/query";
 import type { CertSummary } from "@/lib/certs/query";
+import type { JobShareLink } from "@/lib/email/share-links";
 import {
   ourDocumentSendKey,
   paperRowLine,
@@ -28,6 +30,7 @@ import {
 } from "@/lib/compliance/papers";
 import { sendLine, type JobSend, type SendHold, type SendLine } from "@/lib/integrations/sm8-write-plan";
 import { ComplianceChooser } from "./compliance-chooser";
+import { designRowLine } from "./job-design-face";
 import { StateLine } from "./state-line";
 
 /* A JOB'S DOCUMENTS (v2; the mock of 25 October 2026, frame 6). One heading,
@@ -37,7 +40,10 @@ import { StateLine } from "./state-line";
    as Upload does.
 
    THE PAPER IS GROUPED BY WHAT IT IS, never by which system made it:
-   Drawings (the Studio's designs), From the client (emailed in), Files,
+   Drawings (the Studio's designs), From the client (emailed in, and the
+   links to plans an email forwarded to Tiff pointed to: "She could at least
+   bring the link for you to click on straight from the job card", 29
+   October 2026), Files,
    then Compliance (Isaac, 2 October: "compliance is supposed to sit
    underneath files"): the SWMS, the certificate, the business's licences
    and insurance and ServiceM8's own papers known by their names. A group
@@ -201,6 +207,7 @@ const lineOf = (facts: string, state: RowState | null): string =>
 export function JobDocumentsFace({
   documents,
   elsewhere,
+  links = null,
   designs,
   swms = null,
   swmsFailed = false,
@@ -229,6 +236,8 @@ export function JobDocumentsFace({
 }: {
   documents: readonly JobMediaItem[] | null;
   elsewhere: readonly JobMediaItem[] | null;
+  /** links to plans, from the emails on this job; each opens in a new tab */
+  links?: readonly JobShareLink[] | null;
   /** Absent for a reader without `studio` — the action doesn't fetch it. */
   designs: MirrorJobDetail["designs"];
   /** The job's SWMS at their latest versions; null until the read lands. */
@@ -358,9 +367,10 @@ export function JobDocumentsFace({
   /* ServiceM8's own insurance and licence papers, known by their names */
   const attachedPapers = byGroup.get("compliance") ?? [];
   const client = byGroup.get("client") ?? [];
+  const shares = links ?? [];
   const files = byGroup.get("files") ?? [];
   const compliance = statements.length + certs.length + ours.length + attachedPapers.length;
-  const total = designs.length + client.length + files.length + compliance;
+  const total = designs.length + shares.length + client.length + files.length + compliance;
 
   const offerSwms = !!onCreateSwms && !swmsClosed && swms !== null && statements.length === 0;
   /* one per job: a later one is a reissue of the first */
@@ -424,6 +434,17 @@ export function JobDocumentsFace({
       />
     );
   };
+
+  /* a link has nothing to send, so its tick's place stays empty */
+  const linkRowOf = (l: JobShareLink) => (
+    <Row
+      key={l.url}
+      lead={pickOf(null, l.name)}
+      name={l.name}
+      line={[l.name === l.what ? null : l.what, `from ${l.from ? `${l.from}'s` : "an"} email`].filter(Boolean).join(", ")}
+      onClick={() => void window.open(l.url, "_blank", "noopener,noreferrer")}
+    />
+  );
 
   const swmsRowOf = (s: SwmsSummary) => {
     /* no version number: someone new to the job never saw version 1 —
@@ -581,18 +602,19 @@ export function JobDocumentsFace({
               key={d.id}
               lead={onPick ? <span className="jdoc-tick" aria-hidden="true" /> : undefined}
               name={d.name}
-              line={
-                `${d.floorCount} ${d.floorCount === 1 ? "floor" : "floors"}, ` +
-                `${d.systemCount} ${d.systemCount === 1 ? "system" : "systems"}, ` +
-                `edited ${editedOn(d.updatedAt)}`
-              }
-              href={`/dashboard/studio?design=${encodeURIComponent(d.id)}`}
+              line={designRowLine(d)}
+              href={designHref(d.id)}
             />
           ))}
         </Group>
       )}
 
-      {client.length > 0 && <Group heading="From the client">{client.map(docRowOf)}</Group>}
+      {shares.length + client.length > 0 && (
+        <Group heading="From the client">
+          {shares.map(linkRowOf)}
+          {client.map(docRowOf)}
+        </Group>
+      )}
       {files.length > 0 && <Group heading="Files">{files.map(docRowOf)}</Group>}
 
       {compliance > 0 && (

@@ -5,6 +5,8 @@ import { ALLOWED_TYPES, storageRef } from "@/lib/documents/files";
 import type { KeptFile } from "./inbound-server";
 import { writeJobNote } from "@/lib/workboard/job-note-write";
 import type { EmailProposal } from "./proposal";
+import { withClientNow } from "./proposal-server";
+import { shareLinksIn, type ShareLink } from "./share-links";
 
 /* An email to Tiff, after its card: what the card shows, and a job made from
    it. The job's files: each kept PDF and picture copied onto the job's
@@ -18,12 +20,17 @@ export type EmailJobView = {
   state: "received" | "read" | "made" | "filed" | "not_a_job" | "refused" | "failed";
   proposal: EmailProposal | null;
   files: { name: string; size: number }[];
+  /** the plans it points to rather than carries (share-links.ts) */
+  links: ShareLink[];
   /** what couldn't be kept, in words */
   why: string | null;
   jobUuid: string | null;
   jobNumber: string | null;
   fromName: string | null;
   receivedAt: string;
+  /** what the email said, as the Inbox shows it under Tiff's read */
+  subject: string | null;
+  body: string | null;
 };
 
 type Row = {
@@ -59,13 +66,16 @@ export async function emailJobView(orgId: string, id: string): Promise<EmailJobV
   return {
     id: row.id,
     state: row.state,
-    proposal: row.proposal,
+    proposal: row.state === "read" ? await withClientNow(orgId, row.proposal) : row.proposal,
     files: (row.files ?? []).map((f) => ({ name: f.name, size: f.size })),
+    links: shareLinksIn(row.body),
     why: row.why,
     jobUuid: row.job_uuid,
     jobNumber,
     fromName: row.from_name,
     receivedAt: row.received_at,
+    subject: row.subject,
+    body: row.body,
   };
 }
 

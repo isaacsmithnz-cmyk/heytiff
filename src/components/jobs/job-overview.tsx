@@ -12,8 +12,12 @@ import type { StoryEntry } from "@/lib/workboard/job-story";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import { JobConversation, type ConversationDiary } from "./job-conversation";
 import { JobFacts } from "./job-facts";
+import { JobScope } from "./job-scope";
 import { JobSummary } from "./job-summary";
+import type { JobScopeRead } from "@/lib/jobs/job-scope";
 import { JobTodo } from "./job-todo";
+import { JobTracker } from "./job-tracker";
+import type { TrackerRead } from "@/lib/jobs/job-tracker";
 import { useTasksChanged } from "@/lib/tasks/changed";
 import dynamic from "next/dynamic";
 
@@ -30,8 +34,15 @@ const TaskForm = dynamic(() => import("@/components/making/task-form").then((m) 
        for whoever sees money, Money;
      what the page puts under the strip: a tracked job's board;
      two columns split by a full-height hairline: on the left the Summary
-       (job-summary.tsx) and To do (job-todo.tsx), on the right the
-       Activity feed (job-conversation.tsx), Tiff's box at its head.
+       (job-summary.tsx), or the job's scope and its latest updates once Tiff
+       has written one (job-scope.tsx, 28 October 2026), and To do (job-todo.tsx), on the right the
+       Activity feed (job-conversation.tsx), Tiff's box at its head;
+     for whoever sees money, the Job tracker (job-tracker.tsx) heads the
+       left column: labour, materials and equipment against the quote
+       (Isaac, 4 November 2026, "build it").
+
+   It all stands on a grey ground, each part a white card (design.md, "On
+   a job's page").
 
    Every section is one recipe (job-section.tsx): a coloured block and its
    title, at most one button on the right, then rows under hairlines.
@@ -92,11 +103,17 @@ const taskActions = () => import("@/app/actions/dashboard");
 
 export function JobOverview({
   cardId,
+  firstRead,
   label,
   story,
   loading,
   moneyVisible,
   detail,
+  scope: brief = null,
+  scopeReading = false,
+  onUndoScope,
+  onLeaveScope,
+  scopeUpdateHref,
   fallbackWhat,
   diary,
   onToast,
@@ -105,12 +122,24 @@ export function JobOverview({
   under,
 }: {
   cardId: string | null;
+  /** The read below as the page already made it, on the server: drawn at
+      once, and read again only when something changes it. */
+  firstRead?: JobConversationRead | null;
   /** What the job is called where Tiff says where words are going. */
   label?: string;
   story: StoryEntry[];
   loading: boolean;
   moneyVisible: boolean;
   detail: MirrorJobDetail | null;
+  /** The job's scope, Tiff's brief: drawn in the Summary's place once there is one. */
+  scope?: JobScopeRead | null;
+  /** Tiff is reading something new on the job. */
+  scopeReading?: boolean;
+  onUndoScope?: () => Promise<void>;
+  /** Leave out, off Since the quote. */
+  onLeaveScope?: (text: string) => Promise<void>;
+  /** The quote, opened on Update quote with what's changing written in. */
+  scopeUpdateHref?: string;
   /** The row's title, until the detail's description is read. */
   fallbackWhat: string | null;
   diary: ConversationDiary;
@@ -146,9 +175,12 @@ export function JobOverview({
   });
 
   /* THE READ, and every reason to read it again */
-  const [read, setRead] = useState<JobConversationRead | null>(null);
+  const [read, setRead] = useState<JobConversationRead | null>(() => firstRead ?? null);
   /* the read answered or failed: the Summary reads the description then */
-  const [readDone, setReadDone] = useState(false);
+  const [readDone, setReadDone] = useState(() => firstRead !== undefined);
+  /* the page's own read stands for the first one (Strict Mode's second
+     mount reads, which is only development) */
+  const skipFirst = useRef(firstRead !== undefined);
   const [kick, setKick] = useState(0);
   const again = () => setKick((k) => k + 1);
   const readAgain = useCallback(() => setKick((k) => k + 1), []);
@@ -158,6 +190,10 @@ export function JobOverview({
   const landed = tiff.landed?.noteIds.join(",") ?? "";
   useEffect(() => {
     if (!cardId) return;
+    if (skipFirst.current) {
+      skipFirst.current = false;
+      return;
+    }
     let live = true;
     void readJobConversation(cardId)
       .then((r) => {
@@ -173,6 +209,25 @@ export function JobOverview({
       live = false;
     };
   }, [cardId, kick, filedHere, ours, landed]);
+
+  /* THE JOB TRACKER'S READ, a route of its own (the card's server actions
+     run one at a time): only for whoever sees money */
+  const [tracker, setTracker] = useState<TrackerRead | null | "none">(null);
+  useEffect(() => {
+    if (!cardId || !moneyVisible) return;
+    let live = true;
+    void fetch(`/api/workboard/job-tracker?job=${encodeURIComponent(cardId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { ok?: boolean; tracker?: TrackerRead } | null) => {
+        if (live) setTracker(j?.ok && j.tracker ? j.tracker : "none");
+      })
+      .catch(() => {
+        if (live) setTracker("none");
+      });
+    return () => {
+      live = false;
+    };
+  }, [cardId, moneyVisible]);
 
   /* a task made, changed or ticked anywhere on the page (New › Task, a row's
      own form) is read again here: it never reached this To do until a
@@ -247,7 +302,12 @@ export function JobOverview({
       {under}
       <div className="jov-cols">
         <div className={`jov-main${mainFits ? " jov-main--stick" : ""}`} ref={mainRef}>
-          <JobSummary fromQuote={read?.summary ?? null} description={what} read={readDone || !!read || (!cardId && !loading)} />
+          {moneyVisible && cardId && tracker !== "none" && <JobTracker read={tracker} jobId={cardId} onRead={setTracker} />}
+          {brief ? (
+            <JobScope scope={brief} reading={scopeReading} onUndo={onUndoScope} onLeave={onLeaveScope} updateHref={scopeUpdateHref} />
+          ) : (
+            <JobSummary fromQuote={read?.summary ?? null} description={what} read={readDone || !!read || (!cardId && !loading)} />
+          )}
           <JobTodo
             tasks={tasks}
             tasksRead={!!read}
@@ -273,6 +333,11 @@ export function JobOverview({
             viewerName={read?.viewer.name ?? null}
             voiceEnabled={scope.voiceEnabled}
             onUndoTalk={undoTalk}
+            jobUuid={cardId ?? null}
+            onSaved={() => {
+              router.refresh();
+              again();
+            }}
             customer={read?.customer}
             comms={read?.comms}
           />

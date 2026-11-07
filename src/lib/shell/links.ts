@@ -41,12 +41,22 @@ export const documentHref = (id: string, page?: number | null) =>
   `/dashboard/tiff/library?doc=${encodeURIComponent(id)}${page ? `&page=${page}` : ""}`;
 
 /** A job's quote, full screen, under its job (24 October 2026; it was the
-    Workboard's): `start` opens with the reply box ready for the brief, and
-    `option` on that option. */
-export const quoteHref = (job: string, opts: { start?: boolean; option?: number | null } = {}) => {
-  const q = [opts.start ? "start=1" : null, opts.option != null ? `option=${opts.option}` : null].filter(Boolean).join("&");
+    Workboard's): `start` opens with the reply box ready for the brief,
+    `option` on that option, and `update` on Update quote with what's landed
+    since it was sent written in (the job's Since the quote). */
+export const quoteHref = (job: string, opts: { start?: boolean; option?: number | null; update?: boolean } = {}) => {
+  const q = [opts.start ? "start=1" : null, opts.option != null ? `option=${opts.option}` : null, opts.update ? "update=1" : null].filter(Boolean).join("&");
   return `/dashboard/jobs/${encodeURIComponent(job)}/quote${q ? `?${q}` : ""}`;
 };
+
+/** A design opens in the Studio. */
+export const designHref = (id: string) => `/dashboard/studio?design=${encodeURIComponent(id)}`;
+
+/** The Studio on a job (studio/page.tsx): its newest design, or New design
+    on the job when it has none; `fresh`, New design on it either way (the
+    job's Design section, 28 October 2026). */
+export const studioJobHref = (job: string, fresh = false) =>
+  `/dashboard/studio?job=${encodeURIComponent(job)}${fresh ? "&new=1" : ""}`;
 
 /** A maintenance visit opens its sheet over Jobs, the record host reading
     `?open=visit.<id>` (records/ref): the Workboard it opened on is retired

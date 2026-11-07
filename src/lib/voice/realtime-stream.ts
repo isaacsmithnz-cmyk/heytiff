@@ -283,16 +283,13 @@ function socketUrl(token: string, format: string, keyterms: readonly string[]): 
      to flush whatever the last gap didn't. */
   url.searchParams.set("commit_strategy", "vad");
   url.searchParams.set("token", token);
-  /* NO `no_verbatim`. It was set to "true" here on the theory that filler
-     words are noise in a note that becomes a task — but the batch path has
-     never sent it, so the two transports were returning DIFFERENT PROSE for
-     the same sentence, and switching the default transport switched what
-     your notes read like. "Removes filler words, false starts and
-     disfluencies" is a rewrite of what you said, and on a site note the
-     difference between a false start and a correction is a judgement this
-     shouldn't be making silently. Both transports now return what was said;
-     if fillers are ever worth stripping, it should be a decision made once,
-     for both, and visibly. */
+  /* `no_verbatim`, on both transports (transcribe.ts sends it too): no
+     ums, no false starts, no sighs or sniffs written as words. It was off
+     from August so the two would read the same and the call would be made
+     once, for both, and visibly; Isaac made it on 5 November 2026: "Is
+     there a way that we can take out the ums and things like that? Because
+     there was a note earlier that started with 'Si.' It's like S-I-G-H." */
+  url.searchParams.set("no_verbatim", "true");
   /* Repeated params, `keyterms=a&keyterms=b`. The docs say "array of
      strings" and show no example, and this is the second time this vendor's
      array encoding has been guesswork — on the batch endpoint a

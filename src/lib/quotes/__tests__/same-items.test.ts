@@ -1,6 +1,6 @@
 /* One part at two suppliers, on names from the business's real price
    files (2026-09-30). */
-import { decidedKey, productsOf, proposeSameItems, sameProductRefs, sizesOf, type SameItem } from "../same-items";
+import { decidedKey, modelsWithoutSuffix, productsOf, proposeSameItems, sameProductRefs, sizesOf, type SameItem } from "../same-items";
 
 const aad = (code: string, name: string): SameItem => ({ supplierKey: "aad", code, name });
 const reece = (code: string, name: string): SameItem => ({ supplierKey: "reece", code, name });
@@ -116,6 +116,38 @@ describe("sameProductRefs", () => {
    AST-09KMTC… $200, but that's just the indoor head. The other side is the
    entire kit" — Reece names the whole system by the head's code. */
 describe("units", () => {
+  const maker = (code: string, name: string): SameItem => ({ supplierKey: "maker", code, name });
+
+  it("proposes a wholesaler's code and the maker's, the same code with its suffix, any brand", () => {
+    const p = proposeSameItems(
+      [
+        aad("PUZ-ZM140YKA2", "MITSUBISHI ELEC. DUCT OUT 14KW 3PH R32"),
+        maker("PUZ-ZM140YKA2-A.TH", "R32 Power Inverter Outdoor - Three Phase"),
+        aad("FTXM35WV", "DAIKIN HWS IND 3.5KW"),
+        maker("FTXM35WV.E", "Wall Mounted Indoor"),
+      ],
+      new Set()
+    );
+    expect(p.map((x) => [x.why, x.shared[0], x.a.code, x.b.code])).toEqual([
+      ["model", "PUZ-ZM140YKA2", "PUZ-ZM140YKA2", "PUZ-ZM140YKA2-A.TH"],
+      ["model", "FTXM35WV", "FTXM35WV", "FTXM35WV.E"],
+    ]);
+  });
+
+  it("keeps a same-model pair out once it's been decided, and when their sizes disagree", () => {
+    const items = [aad("PEA-M100GAA", "DUCTED IND 10KW"), maker("PEA-M100GAA.TH", "Ducted Unit 12.5KW")];
+    expect(proposeSameItems(items, new Set())).toEqual([]);
+    const agreed = [aad("PEA-M100GAA", "DUCTED IND 10KW"), maker("PEA-M100GAA.TH", "Ducted Unit")];
+    expect(proposeSameItems(agreed, new Set([decidedKey("aad|PEA-M100GAA", "maker|PEA-M100GAA.TH")]))).toEqual([]);
+  });
+
+  it("reads digits after the dash as a size, not a maker's suffix", () => {
+    expect(modelsWithoutSuffix("SHSD595-350")).toEqual([]);
+    expect(modelsWithoutSuffix("PUZ-ZM140YKA2-A.TH")).toEqual(["PUZ-ZM140YKA2-A", "PUZ-ZM140YKA2"]);
+    /* never down to a word or a series */
+    expect(modelsWithoutSuffix("KIT-A")).toEqual([]);
+  });
+
   it("never proposes an indoor head as the whole system it belongs to", () => {
     const p = proposeSameItems(
       [

@@ -34,6 +34,7 @@ export const LEAVE_WORDS = {
   row: {
     notApproved: "The leave isn't approved any more, so it didn't go to ServiceM8.",
     dayOffGone: "The day off was taken down before it went to ServiceM8.",
+    blockGone: "The blocked-out time was moved or taken off before it went to ServiceM8.",
     personInactive: "ServiceM8 has {name} as inactive, so the leave didn't go.",
     personGone: "ServiceM8 no longer has that person, so the leave didn't go.",
     removedThere: "Someone took the leave off the ServiceM8 board.",

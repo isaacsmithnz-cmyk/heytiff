@@ -1,13 +1,17 @@
 import type { JobSheetTab } from "@/components/workboard/board/job-sheet";
 
-/* A JOB'S SEVEN SECTIONS (docs/design.md rule 31): Overview, Quote, Visits,
-   Materials, Photos, Documents, Billing. The job page (app/dashboard/jobs)
+/* A JOB'S EIGHT SECTIONS (docs/design.md rule 31): Overview, Quote, Design,
+   Visits, Materials, Photos, Documents, Billing. The job page (app/dashboard/jobs)
    draws each from the job card's own faces, so the card and the page never
    tell two stories about one job:
 
      Overview  = the summary and the diary, under the stages line (the line
                  lives on Overview only, 6-revisions, 17 October)
      Quote     = the quote
+     Design    = the job's designs in the Studio, only for whoever holds
+                 `studio` (Isaac, 28 October 2026: "a separate tab outside
+                 of the quoting. And the quoting can just go back to that
+                 when it needs to"): without it the section is absent
      Visits    = the visits
      Materials = the job's own list, which the card calls its checklist
                  (Isaac, 25 October 2026: every row on it is a material)
@@ -18,12 +22,13 @@ import type { JobSheetTab } from "@/components/workboard/board/job-sheet";
 
    Pure, so the page, the quote page's tabs and the tests read one list. */
 
-export const JOB_SECTIONS = ["overview", "quote", "visits", "materials", "photos", "documents", "billing"] as const;
+export const JOB_SECTIONS = ["overview", "quote", "design", "visits", "materials", "photos", "documents", "billing"] as const;
 export type JobSection = (typeof JOB_SECTIONS)[number];
 
 export const SECTION_LABEL: Record<JobSection, string> = {
   overview: "Overview",
   quote: "Quote",
+  design: "Design",
   visits: "Visits",
   materials: "Materials",
   photos: "Photos",
@@ -35,6 +40,7 @@ export const SECTION_LABEL: Record<JobSection, string> = {
 export const SECTION_FACES: Record<JobSection, readonly JobSheetTab[]> = {
   overview: ["summary", "diary"],
   quote: ["quote"],
+  design: ["design"],
   visits: ["visits"],
   materials: ["checklist"],
   photos: ["photos"],
@@ -48,21 +54,23 @@ export function sectionOfFace(face: JobSheetTab): JobSection {
   return "overview";
 }
 
-/** The sections this reader has: Billing only with the money grant. */
-export const sectionsFor = (moneyVisible: boolean): readonly JobSection[] =>
-  moneyVisible ? JOB_SECTIONS : JOB_SECTIONS.filter((s) => s !== "billing");
+/** The sections this reader has: Billing only with the money grant, Design
+    only with the Studio. */
+export const sectionsFor = (moneyVisible: boolean, studio = false): readonly JobSection[] =>
+  JOB_SECTIONS.filter((s) => (s !== "billing" || moneyVisible) && (s !== "design" || studio));
 
 /* the names a section went by, so an old link still lands on it */
 const OLD_NAMES: Record<string, JobSection> = { checklist: "materials" };
 
 /** The section an address's `?tab=` names, or Overview: an invented one, a
-    repeated one, and Billing without the money grant all land on Overview.
+    repeated one, Billing without the money grant and Design without the
+    Studio all land on Overview.
     A section's old name lands on it (`?tab=checklist` is Materials). */
-export function parseSection(raw: string | string[] | undefined | null, moneyVisible: boolean): JobSection {
+export function parseSection(raw: string | string[] | undefined | null, moneyVisible: boolean, studio = false): JobSection {
   if (typeof raw !== "string") return "overview";
   const said = raw.trim().toLowerCase();
   const s = OLD_NAMES[said] ?? said;
-  return (sectionsFor(moneyVisible) as readonly string[]).includes(s) ? (s as JobSection) : "overview";
+  return (sectionsFor(moneyVisible, studio) as readonly string[]).includes(s) ? (s as JobSection) : "overview";
 }
 
 /* a first word that names nothing alone: "St Lukes" is not "St" */

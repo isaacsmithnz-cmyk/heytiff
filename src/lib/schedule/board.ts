@@ -68,7 +68,7 @@ export function daysFor(view: ScheduleView, day: string): string[] {
   return view === "week" ? weekOf(day) : [day];
 }
 
-/** Earlier and Later: a weekday at a time, or a week. */
+/** Earlier and Later: a day at a time, weekends too, or a week. */
 export function stepDay(view: ScheduleView, day: string, dir: 1 | -1): string {
   if (view === "month") {
     const y = Number(day.slice(0, 4));
@@ -77,9 +77,7 @@ export function stepDay(view: ScheduleView, day: string, dir: 1 | -1): string {
   }
   if (view === "weeks") return addDays(weekOf(day)[0], 7 * WEEKS_SHOWN * dir);
   if (view === "week") return addDays(weekOf(day)[0], 7 * dir);
-  let d = addDays(day, dir);
-  while (isWeekend(d)) d = addDays(d, dir);
-  return d;
+  return addDays(day, dir);
 }
 
 /** `count` working days from `start` on (Saturday and Sunday skipped):
@@ -135,7 +133,16 @@ export type DayBlock = {
   state: "onsite" | "done" | "stale" | "unsuccessful" | null;
 };
 
-export type DayAway = { key: string; word: string; startMin: number; endMin: number; whole: boolean };
+export type DayAway = {
+  key: string;
+  word: string;
+  startMin: number;
+  endMin: number;
+  whole: boolean;
+  /** A block out made in HeyTiff (lib/schedule/blocks): its id, and where it is. */
+  blockId?: string;
+  where?: string | null;
+};
 
 export type PersonRow = {
   staffUuid: string;
@@ -189,8 +196,8 @@ export function boardOf(payloads: readonly SchedulePayload[]): Board {
     number: b.jobNumber,
     client: b.clientName,
     suburb: b.suburb,
-    /* red follows the Unsuccessful status, never the category (rule 18) */
-    hue: jobHue(b.categoryColour, b.status === "Unsuccessful"),
+    /* red follows the Unsuccessful status and orange the Quote, never the category (rule 18) */
+    hue: jobHue(b.categoryColour, b.status),
     startMin: b.startMin,
     endMin: b.endMin,
     with: [...new Set((byJob.get(b.remoteId) ?? []).filter((n) => n !== me))],
@@ -215,7 +222,14 @@ export function boardOf(payloads: readonly SchedulePayload[]): Board {
           return {
             day: d.day,
             blocks: (lane?.blocks ?? []).map((b) => block(b, name, d.byJob)),
-            away: (lane?.away ?? []).map((a) => ({ key: a.key, word: a.word, startMin: a.startMin, endMin: a.endMin, whole: a.whole })),
+            away: (lane?.away ?? []).map((a) => ({
+              key: a.key,
+              word: a.word,
+              startMin: a.startMin,
+              endMin: a.endMin,
+              whole: a.whole,
+              ...(a.blockId ? { blockId: a.blockId, where: a.where ?? null } : {}),
+            })),
           };
         }),
       };
@@ -229,7 +243,7 @@ export function boardOf(payloads: readonly SchedulePayload[]): Board {
     person's bookings that overlap stack, each on a line of its own in the
     lane, so nothing is drawn over anything. Each booking takes the first
     line it fits on; `clash` holds the ones that overlap another. */
-export function stackDay(blocks: readonly DayBlock[]): { line: Map<string, number>; lines: number; clash: Set<string> } {
+export function stackDay(blocks: readonly Pick<DayBlock, "key" | "startMin" | "endMin">[]): { line: Map<string, number>; lines: number; clash: Set<string> } {
   const line = new Map<string, number>();
   const ends: number[] = [];
   const clash = new Set<string>();

@@ -367,6 +367,16 @@ export async function sm8NoteSender(orgId: string, staffId: string | null, tenan
   }
 }
 
+/** Who a photo or a booking goes to ServiceM8 as: the person who pressed, by
+    their link. A link they haven't confirmed yet will do, unlike a note's: a
+    note speaks in their words, this only names who took the photo, and most of
+    a team never send a note to be asked. "Not me" keeps them off it. Without a
+    link it goes as the connection, as it always has: it never waits on a name. */
+export async function sm8PressStaff(orgId: string, staffId: string | null, tenantId?: string): Promise<string | undefined> {
+  const sender = await sm8NoteSender(orgId, staffId, tenantId);
+  return sender.state === "ready" || sender.state === "confirm" ? sender.remoteId : undefined;
+}
+
 /** The ServiceM8 staff this account's people said AREN'T them ("Not me",
     for the link as it stands) — the owner's people card says so beside the
     link, which is where it gets fixed. A database without the confirm

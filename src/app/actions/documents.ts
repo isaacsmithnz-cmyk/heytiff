@@ -102,6 +102,11 @@ async function mayUpload(kind: DocumentKind): Promise<boolean> {
   // The same tier on a ServiceM8 job: whoever can open the card can file the
   // paper that belongs on it.
   if (kind === "job_document" || kind === "job_photo") return can("workboard");
+  // A supplier's docket comes from whoever bought the stuff: the same tier
+  // that may add a purchase (actions/purchases.ts).
+  if (kind === "purchase_docket") return can("workboard");
+  // Handed to Tiff in her box on the phone, by the phone's own route.
+  if (kind === "tiff_file") return false;
   return can("team");
 }
 

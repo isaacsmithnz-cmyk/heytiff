@@ -7,7 +7,7 @@
    (docs/universal-tiff-phase-1-spec.md, PR 1E). The fast path for moves
    joins it in 1C. Not lib/tiff/answer, which is the Library's own answer. */
 
-import { streamBrainAnswer, type AskBrainEvent, type AskHistoryTurn, type AskPage } from "@/lib/brain/ask";
+import { streamBrainAnswer, type AskBrainEvent, type AskFileBlock, type AskHistoryTurn, type AskPage } from "@/lib/brain/ask";
 import { TARGET_KINDS } from "@/lib/brain/tools";
 import { toolsFor, type TiffTool, type Viewer } from "@/lib/tiff/registry";
 import { screenLine } from "@/lib/tiff/registry/lines";
@@ -105,19 +105,21 @@ export function answer(
     signal?: AbortSignal;
     tools?: readonly TiffTool[];
     onUsage?: (model: string, usage: TokenUsage) => void;
+    files?: readonly AskFileBlock[];
   } = {}
 ): AsyncGenerator<AskBrainEvent> {
   /* THE FREE MOVE (1C). Words that name a screen move there with no model
      call: the viewer's own nav decides, and a screen they can't see is
      refused in words, also without the model. Anything else, a record move
      included, goes to the loop. */
-  const move = parseMove(body.question);
+  const move = opts.files?.length ? null : parseMove(body.question);
   if (move?.kind === "screen") return fastMove(viewer, move.label);
   return streamBrainAnswer({
     viewer,
     question: body.question,
     tools: opts.tools ?? toolsFor(viewer),
     page: body.page,
+    files: opts.files,
     todayISO: viewer.today,
     signal: opts.signal,
     history: body.history,

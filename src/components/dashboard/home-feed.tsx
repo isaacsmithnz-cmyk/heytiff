@@ -7,8 +7,8 @@ import { acknowledgeTask } from "@/app/actions/assignments";
 import { resolveIssue } from "@/app/actions/dashboard";
 import { replyToJobNote, type ReplyResult } from "@/app/actions/job-note-sm8";
 import { Button, LinkButton } from "@/components/parts/button";
-import { TextInput } from "@/components/parts/field";
 import { Initials } from "@/components/parts/initials";
+import { NoteToken } from "@/components/notes/note-token";
 import { Empty } from "@/components/parts/states";
 import { Fade } from "@/components/parts/fade";
 import { Tray } from "@/components/parts/tabs";
@@ -64,8 +64,12 @@ const keep = (f: FeedFilter) => {
   listeners.forEach((fn) => fn());
 };
 
+/** The job card's reply, here: the same box, said or typed (no Tiff offer —
+    a reply is a reply), and Send under it (Isaac, 7 November 2026: "Fix all
+    of those", the feed's reply was one line with no microphone). */
 function ReplyBox({ item, onSent }: { item: FeedItem; onSent: (words: string) => void }) {
   const [words, setWords] = useState("");
+  const [spoken, setSpoken] = useState(false);
   const [composeId] = useState(newComposeId);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,6 +83,7 @@ function ReplyBox({ item, onSent }: { item: FeedItem; onSent: (words: string) =>
       jobUuid: reply.jobUuid,
       sourceNoteUuid: reply.sourceNoteUuid,
       words: w,
+      spoken,
       composeId,
       ...(reply.closesTaskId ? { closesTaskId: reply.closesTaskId } : {}),
     }).catch((): ReplyResult => ({ ok: false, error: "That didn't send. Try again." }));
@@ -87,22 +92,20 @@ function ReplyBox({ item, onSent }: { item: FeedItem; onSent: (words: string) =>
     else setError(got.error);
   };
   return (
-    <form
-      className="hm-feed-reply"
-      onSubmit={(e) => {
-        e.preventDefault();
-        void send();
-      }}
-    >
-      <div className="hm-feed-replyrow">
-        <TextInput
-          aria-label={`Reply to ${item.who.name}`}
-          placeholder={`Reply to ${item.who.name.split(" ")[0]}`}
-          value={words}
-          disabled={sending}
-          autoFocus
-          onChange={(e) => setWords(e.target.value)}
-        />
+    <div className="hm-feed-reply">
+      <NoteToken
+        as="field"
+        label="a reply"
+        offer={false}
+        rows={2}
+        value={words}
+        onChange={setWords}
+        onSpoken={() => setSpoken(true)}
+        placeholder={`Reply to ${item.who.name.split(" ")[0]}`}
+        disabled={sending}
+        box={{ "aria-label": `Reply to ${item.who.name}`, autoFocus: true }}
+      />
+      <div className="wb2-jcattsave">
         <Button kind="main" size={36} disabled={sending || !words.trim()} onClick={() => void send()}>
           {sending ? "Sending" : "Send"}
         </Button>
@@ -112,7 +115,7 @@ function ReplyBox({ item, onSent }: { item: FeedItem; onSent: (words: string) =>
           {error}
         </p>
       )}
-    </form>
+    </div>
   );
 }
 
@@ -122,17 +125,24 @@ const THING_ICON: Record<FeedItem["filter"], string> = { approvals: "check", you
 type MakeTask = { title: string; issueId: string };
 
 /** The item's words, as the door to what it is about. */
-function Opener({ item, onTask, children }: { item: FeedItem; onTask: (taskId: string) => void; children: ReactNode }) {
+function Opener({ item, onTask, onOpen, children }: { item: FeedItem; onTask: (taskId: string) => void; onOpen?: () => void; children: ReactNode }) {
   const open = item.open;
   if (open && "href" in open)
     return (
-      <Link className="hm-feed-open" href={open.href}>
+      <Link className="hm-feed-open" href={open.href} onClick={onOpen}>
         {children}
       </Link>
     );
   if (open)
     return (
-      <button type="button" className="hm-feed-open" onClick={() => onTask(open.taskId)}>
+      <button
+        type="button"
+        className="hm-feed-open"
+        onClick={() => {
+          onOpen?.();
+          onTask(open.taskId);
+        }}
+      >
         {children}
       </button>
     );
@@ -172,7 +182,22 @@ function FeedEntry({
         <Initials name={item.who.name} size={32} beside />
       )}
       <div className="hm-feed-body">
-        <Opener item={item} onTask={onTask}>
+        {/* THE ITEM IS ITS OWN DOOR (Isaac, 5 November 2026, as To do's
+            rows): its Open went, since the words open the same place, and
+            its Got it, since opening new work is seeing it */}
+        <Opener
+          item={item}
+          onTask={onTask}
+          onOpen={
+            act?.kind === "gotit"
+              ? () => {
+                  void acknowledgeTask(act.taskId)
+                    .catch(() => null)
+                    .then(() => router.refresh());
+                }
+              : undefined
+          }
+        >
           {/* WHO AND WHAT, AS A SENTENCE THAT WRAPS (Isaac, 25 October 2026:
               "we're not losing all of the text off to the right… three lines
               max"): the name in bold and what they did after it, running to
@@ -208,16 +233,11 @@ function FeedEntry({
             }}
           />
         ) : (
-          (item.reply || act) && (
+          (item.reply || act?.kind === "issue") && (
             <div className="hm-feed-acts">
               {item.reply && !sent && (
                 <Button size={32} onClick={() => setReplying(true)}>
                   Reply
-                </Button>
-              )}
-              {act?.kind === "link" && (
-                <Button size={32} href={act.href}>
-                  {act.label}
                 </Button>
               )}
               {act?.kind === "issue" && (
@@ -237,19 +257,6 @@ function FeedEntry({
                     Done
                   </Button>
                 </>
-              )}
-              {act?.kind === "gotit" && (
-                <Button
-                  size={32}
-                  onClick={() => {
-                    onGone(item.key);
-                    void acknowledgeTask(act.taskId)
-                      .catch(() => null)
-                      .then(() => router.refresh());
-                  }}
-                >
-                  Got it
-                </Button>
               )}
             </div>
           )

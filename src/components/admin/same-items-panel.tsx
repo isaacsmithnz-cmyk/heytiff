@@ -104,7 +104,7 @@ export function SameItemsPanel() {
                     <Side s={p.a} cheaper={both && p.a.netCents < p.b.netCents} />
                     <Side s={p.b} cheaper={both && p.b.netCents < p.a.netCents} />
                     <span role="cell" className="st2-pb-line">
-                      {p.why === "mentioned" ? `${p.shared[0]} is in the name` : p.shared.join(", ")}
+                      {p.why === "mentioned" ? `${p.shared[0]} is in the name` : p.why === "model" ? `Both are ${p.shared[0]}` : p.shared.join(", ")}
                     </span>
                     <span role="cell" className="st2-pb-act">
                       <Button kind="second" size={32} disabled={busy !== null} onClick={() => void decide(p, "rejected")}>

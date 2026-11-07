@@ -73,6 +73,8 @@ export async function POST(request: Request) {
 
   if (first.status !== "processing") {
     await releaseLease(documentId, orgId);
+    /* a document read in one batch (twenty pages or fewer) is ready now: its drawings next */
+    if (first.status === "ready") after(() => askForDrawings(request, documentId, orgId));
     return Response.json(first);
   }
 

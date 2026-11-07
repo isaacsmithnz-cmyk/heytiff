@@ -95,6 +95,8 @@ export async function actualOn(orgId: string, dayISO: string, only: string | nul
 
   /* the phone's own stints, for the people whose sign-in is linked to a ServiceM8 staff member */
   const mine: ActualSpan[] = [];
+  /* each person's stops at the office, as their day keeps them, so the schedule joins the day as their Clock off sheet does */
+  const officeOf = new Map<string, { from: string; until: string | null }[]>();
   const z = zone.zone;
   const tenant = state?.tenantId ?? null;
   const from = z ? wallInstant(floor, z, "earliest") : null;
@@ -114,6 +116,19 @@ export async function actualOn(orgId: string, dayISO: string, only: string | nul
       ? await supabaseAdmin.from("staff_profiles").select("id, user_id").eq("org_id", orgId).in("user_id", users)
       : { data: [] };
     const staffOfUser = new Map(((profiles ?? []) as { id: string; user_id: string }[]).map((p) => [p.user_id, staffOfProfile.get(p.id) ?? null]));
+    const { data: days } = users.length
+      ? await supabaseAdmin.from("staff_days").select("user_id, office").eq("org_id", orgId).eq("work_date", dayISO).in("user_id", users)
+      : { data: [] };
+    for (const d of (days ?? []) as { user_id: string; office: { from: string; until: string | null }[] | null }[]) {
+      const staffUuid = staffOfUser.get(d.user_id);
+      if (!staffUuid) continue;
+      const stops = (d.office ?? []).flatMap((o) => {
+        const from = wallMinute(o.from, z);
+        const until = o.until ? wallMinute(o.until, z) : null;
+        return from ? [{ from, until }] : [];
+      });
+      officeOf.set(low(staffUuid), stops);
+    }
     for (const r of rows) {
       const staffUuid = staffOfUser.get(r.user_id);
       if (!staffUuid || (only && low(staffUuid) !== low(only))) continue;
@@ -128,7 +143,7 @@ export async function actualOn(orgId: string, dayISO: string, only: string | nul
   const covers = (a: ActualSpan, b: ActualSpan) =>
     low(a.staffUuid) === low(b.staffUuid) && low(a.jobUuid) === low(b.jobUuid) && a.start < (b.end ?? "9999") && b.start < (a.end ?? "9999");
   const kept = mine.filter((m) => !theirs.some((t) => covers(t, m)));
-  const all = joinedSpans([...theirs, ...kept]).sort((a, b) => (a.start < b.start ? -1 : 1));
+  const all = joinedSpans([...theirs, ...kept], officeOf).sort((a, b) => (a.start < b.start ? -1 : 1));
 
   /* each job's number, street and colour */
   const uuids = [...new Set(all.flatMap((a) => [a.jobUuid, low(a.jobUuid), a.jobUuid.toUpperCase()]))];
@@ -155,14 +170,14 @@ export async function actualOn(orgId: string, dayISO: string, only: string | nul
    person at a time: out and back to a job is one stretch on it, and a stop
    elsewhere leaves the drives on the first job, so the schedule's Actual
    reads what the Clock off sheet does. A long time away stays two pieces. */
-export function joinedSpans(spans: readonly ActualSpan[]): ActualSpan[] {
+export function joinedSpans(spans: readonly ActualSpan[], officeOf: ReadonlyMap<string, readonly { from: string; until: string | null }[]> = new Map()): ActualSpan[] {
   const people = new Map<string, ActualSpan[]>();
   for (const s of spans) people.set(low(s.staffUuid), [...(people.get(low(s.staffUuid)) ?? []), s]);
   return [...people.values()].flatMap((own) => {
     const keyed = own.map((s, i) => ({ s, id: String(i) }));
     const joined = joinDay<JoinPiece>(
       keyed.map(({ s, id }) => ({ jobUuid: s.jobUuid, from: s.start, until: s.end, how: s.how, stintId: id, reason: s.reason })),
-      [],
+      officeOf.get(low(own[0]!.staffUuid)) ?? [],
     );
     return joined.map((j) => {
       const s = keyed[Number(j.stintId)]!.s;

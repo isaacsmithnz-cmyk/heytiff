@@ -226,7 +226,7 @@ describe("a row", () => {
       who: ["Lyle Irving", "Chris Adams"],
     });
     expect(row(rows, "sm8:wo-waiting")).toMatchObject({ state: "Waiting on a day", tone: "look", next: "Won 9 Oct", who: [] });
-    expect(row(rows, "sm8:q-new")).toMatchObject({ kind: "Quote", hue: "grey" });
+    expect(row(rows, "sm8:q-new")).toMatchObject({ kind: "Quote", hue: "orange" });
   });
 
   it("marks HeyTiff's own number on a visit", () => {

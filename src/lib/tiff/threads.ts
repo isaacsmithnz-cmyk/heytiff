@@ -3,8 +3,8 @@ import type { AskSourceItem } from "./ask-client";
 /* TIFF'S THREADS: what one is, where the browser keeps it, and how the
    browser's copy and the server's agree.
 
-   A thread is a person's conversation with Tiff. The Library's ask and v2's
-   Conversations show the same threads (components/tiff/assistant.tsx). They
+   A thread is a person's conversation with Tiff, shown in v2's
+   Conversations (components/tiff/assistant.tsx). They
    lived in localStorage alone, which lost them at the cutover and kept them
    on one device; docs/migrations/tiff_threads.sql gives them a table, NOT
    YET APPLIED. Until it is, the browser's copy is the only one and nothing
@@ -30,6 +30,8 @@ export type TiffMsg = {
   sources?: AskSourceItem[];
   /** What Tiff did before she answered, ticked in grey (Conversations). */
   steps?: string[];
+  /** Photos and PDFs added with these words on the phone, read again for her next answers. */
+  files?: { id: string; name: string }[];
   /** The email to Tiff this answer is about (email_in_messages.id): its job
       card is drawn under the words, its state read from the email's row. */
   email?: string;
@@ -71,6 +73,13 @@ function msgOf(v: unknown): TiffMsg | null {
   if (Array.isArray(m.sources)) out.sources = m.sources as AskSourceItem[];
   if (Array.isArray(m.steps) && m.steps.every((s) => typeof s === "string")) out.steps = m.steps as string[];
   if (typeof m.email === "string" && /^[0-9a-f-]{36}$/i.test(m.email)) out.email = m.email;
+  if (Array.isArray(m.files)) {
+    const files = m.files.flatMap((f: unknown) => {
+      const o = (f && typeof f === "object" ? f : {}) as Record<string, unknown>;
+      return typeof o.id === "string" && /^[0-9a-f-]{36}$/i.test(o.id) && typeof o.name === "string" ? [{ id: o.id, name: o.name.slice(0, 200) }] : [];
+    });
+    if (files.length > 0) out.files = files.slice(0, 5);
+  }
   return out;
 }
 

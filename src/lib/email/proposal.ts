@@ -150,9 +150,9 @@ export function tiffSays(p: EmailProposal | null, failed: string | null): string
     const sure = sureJob(p);
     if (sure) {
       const where = sure.address ? ` at ${sure.address.split("\n")[0]}` : "";
-      return `${p.summary} This is for job ${sure.number ?? ""}${where} (${FOUND_WORDS[sure.found].toLowerCase()}). File it on that job?`.replace(/\s+/g, " ").trim();
+      return `${p.summary} This is for job ${sure.number ?? ""}${where} (${FOUND_WORDS[sure.found].toLowerCase()}). Add it to that job?`.replace(/\s+/g, " ").trim();
     }
-    return `${p.summary} It looks like it's about one of your jobs, but I can't tell which. Pick the job to file it on.`.replace(/\s+/g, " ").trim();
+    return `${p.summary} It looks like it's about one of your jobs, but I can't tell which. Pick the job to add it to.`.replace(/\s+/g, " ").trim();
   }
   if (p.aboutJob && !p.isJob) return `${p.summary} It's about a job already under way, but none of yours matched its number, site or client. Find the job and add it there, or make a new one from New › Job.`.replace(/\s+/g, " ").trim();
   if (!p.isJob) return `This doesn't read as a request for work${p.notJobWhy ? ` (${p.notJobWhy.replace(/\.$/, "")})` : ""}, so I haven't proposed a job. Make one from New › Job if it is.`;

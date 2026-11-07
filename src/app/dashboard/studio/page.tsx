@@ -12,6 +12,7 @@ import { StudioKeep } from "@/components/studio/studio-keeper";
 import { readJobDesigns, studioJobOf } from "@/lib/studio/job-designs-server";
 import { prefillFromJob, type JobPrefill } from "@/lib/studio/job-link";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
+import { designHref } from "@/lib/shell/links";
 
 /* THE LIBRARY COMES WITH THE PAGE. The start screen lists what the studio
    can design with — brand, system, series, model — and says what arrived
@@ -91,13 +92,15 @@ export default async function StudioPage({
      opens, as its own link would; with none, New design opens on the job,
      its street for the name and no job to search for. The id is re-resolved
      inside this org (a claim opens its parent), and reading the job needs
-     the Workboard, as the job search does. */
+     the Workboard, as the job search does. `&new` is the job's Design
+     section's New design: New design on the job, whatever it has already. */
   const askedJob = typeof params.job === "string" ? params.job.trim().slice(0, 80) : "";
+  const askedNew = params.new !== undefined;
   let forJob: JobPrefill | undefined;
   if (askedJob && !openDesignId && orgId && boardAccess) {
     const target = await resolveJobCard(orgId, askedJob);
-    const [newest] = await readJobDesigns(orgId, target.parentRemoteId, 1);
-    if (newest) redirect(`/dashboard/studio?design=${encodeURIComponent(newest.id)}`);
+    const [newest] = askedNew ? [] : await readJobDesigns(orgId, target.parentRemoteId, 1);
+    if (newest) redirect(designHref(newest.id));
     const hit = await studioJobOf(orgId, target.parentRemoteId);
     if (hit) forJob = prefillFromJob(hit);
   }

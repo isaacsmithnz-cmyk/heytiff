@@ -35,12 +35,12 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 
 ### Colour
 
-- **15. The eight.** Red, orange, yellow, green, blue, purple, pink and grey, each with a bright value and a darker one for words. Plus ink, white and one quiet grey: 19 values in all.
+- **15. The eight.** Red, orange, yellow, green, blue, purple, pink and grey, each with a bright value and a darker one for words. Plus ink, white and one quiet grey: 19 values in all. A job's card adds three: orange `#EA580C`, yellow `#EAB308` and pink `#DB2777` fill its number box, a step deeper than their brights, as the word values read brown there (Isaac, 6 November 2026: "the oranges, they look very browny"). They are for that box and its hairline alone, and for a Studio system's colour (rule 18a); words keep the word values.
 - **16. Red only means wrong.** Overdue, failed, unsuccessful. A job ServiceM8 marks red is unsuccessful, so it keeps its red. No chart or pipe is red. A Studio riser is the one exception: a red disc with DR or PR on it (Isaac, 1 November 2026).
 - **17. State is a word.** Good in green, needs a look in orange, wrong or late in red: a word in its colour, a dot where a list wants one. For your information is a grey word and a grey dot, so blue only ever means press. Never a pill or a fill. A dot always sits beside a word that says what it means.
-- **18. A job's colour.** Its ServiceM8 category's colour, snapped to the eight by hue; a category with no hue is grey. A dot beside its name everywhere. No washes, no edge lines. Red follows the Unsuccessful status, never the category.
+- **18. A job's colour.** Its ServiceM8 category's colour, snapped to the eight by hue; a category with no hue is grey. A dot beside its name everywhere. No washes, no edge lines. Two statuses go over the category: red follows Unsuccessful and orange a Quote (Isaac, 6 November 2026: "Quotes should be orange"). So no category is red or orange: one that snaps to orange is pink ("Pink"), and a booked job is never taken for a quote.
 - **18a. A Studio system's colour.** The values a job's card wears, in the order a design's systems are made: green `#15803D`, pink `#DB2777`, purple `#7E22CE`, yellow `#EAB308`, then blue `#2563EB`, last as blue is the press. Never red, a riser and what's wrong; never orange, a zone no system has claimed; never grey. Words in a system's colour take the hue's word value. A design made before 7 November 2026 takes them when it opens, its first system green and its second pink (Isaac, 7 November 2026: "Follow the lead of job card session. Stick to our pallete").
-- **19. Schedule cards.** A booking is a white card in a hairline of the job's colour, its job number in a solid box of that colour on the left, white on it (Isaac, 23 October: "the job number in a coloured box, a coloured hairline, the rest white"). Three lines at 12: the client; the suburb; the job's type, its start time, a person and how many are booked, and where it's up to. A done card's colour goes grey; two bookings at once stack in the lane, each with an orange edge, and "Two at once" under the person's name. The colour is the job's word value; blue is the press blue.
+- **19. Schedule cards.** A booking is a white card in a hairline of the job's colour, its job number in a solid box of that colour on the left, white on it, ink on yellow (Isaac, 23 October: "the job number in a coloured box, a coloured hairline, the rest white"). Three lines at 12: the client; the suburb; the job's type, its start time, a person and how many are booked, and where it's up to. A done card's colour goes grey; two bookings at once stack in the lane, each with an orange edge, and "Two at once" under the person's name. The colour is the job's word value, but orange, yellow and pink take their card values (rule 15); blue is the press blue.
 - **20. Charts.** The kinds of job in the eight, in a fixed order; ventilation grey. A coloured mark always has its figure or name beside it.
 - **21. Timesheet days.** A dot and the hours for a day worked. A day away is a small white card with a symbol: a plaster for sick, a sun for leave. The key underneath. No bars or tints.
 
@@ -53,6 +53,8 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 - **24. The quiet button.** No edge until you point at it. Toolbars and rows.
 - **25. Delete.** A red word on the second button; a red block only in the dialog that asks you to be sure.
 - **25a. Xero.** A button that goes to Xero (Connect, Reconnect, Pull from Xero, Refresh) is Xero's pale blue with white words, outside the palette on his word and named below.
+- **25b. ServiceM8.** A button that goes to ServiceM8 (Send to ServiceM8) is ServiceM8's own green, `#7DC836` from their site, with ink words, outside the palette on his word (Isaac, 2 November 2026: "That could be an exception for anything service mate"). A fill only: as a word on white it can't be read.
+- **25c. Quoting.** The button that starts a quote (Quote this job, Build the quote) is bright orange, `#F97316`, with ink words, as a quote is orange in ServiceM8, so blue stays the one thing to press on a job (Isaac, 3 November 2026: "all of these buttons are blue"; "Maybe quoting can be orange, like it is in Service Mate"). On the web it is `Button kind="quote"`, and Update quote on a job's Since the quote and on the quote's rail after it's sent wear it (4 November 2026).
 - **26. Links.** Ink, underlined. Going somewhere, not doing something.
 - **27. Icon-only.** Close, clear, the microphone, and the ‹ › of a date. Everything else has its word. The sidebar doesn't fold, so it has no collapse control.
 - **28. Three sizes.** 32 in rows and lists, 36 in forms and dialogs, 44 on a phone. A field and the button beside it match.
@@ -61,7 +63,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 
 - **29. Views of a list.** Soft tabs under the title: words alone, the one you're on in a light fill. No outlines. No tab anywhere carries a number, and a screen's title carries no count beside it ("Team", not "Team 3 people"): a view with something waiting has its word in amber, red when something is wrong (Isaac, 20 October: "We need to rule it out everywhere").
 - **30. One of a few.** Day, Week, Month in a thin tray; the chosen one filled light.
-- **31. Section tabs.** Underlined, the one you're on standing on 2px of ink. No numbers on them, as rule 29: a tab with something to look at has its word in amber, red when something is wrong (Isaac, 20 October). A job has seven: Overview, Quote, Visits, Materials, Photos, Documents, Billing (Materials was Checklist until 25 October 2026, and `?tab=checklist` still lands on it). A project has six: Overview, Trips, Scope, Money, Site, Documents (27 October 2026). A person has five: Overview, Hours & leave, Papers, Pay, Access.
+- **31. Section tabs.** Underlined, the one you're on standing on 2px of ink. No numbers on them, as rule 29: a tab with something to look at has its word in amber, red when something is wrong (Isaac, 20 October). A job has eight: Overview, Quote, Design, Visits, Materials, Photos, Documents, Billing (Materials was Checklist until 25 October 2026, and `?tab=checklist` still lands on it). Design is the job's designs, so nobody goes through the quote to see one; the quote's Design step lists the same (Isaac, 28 October 2026). A project has six: Overview, Trips, Scope, Money, Site, Documents (27 October 2026). A person has five: Overview, Hours & leave, Papers, Pay, Access.
 - **32. Ticks and switches.** Blue when on. A switch saves itself.
 - **33. Fields.** 36 tall, a 6 corner, the label above. A wrong field gets a red edge and says why underneath.
 - **34. Menus to choose from.** A field with a chevron; opens a menu. A time opens a wheel: the hour, minutes in fives, am or pm. Nothing types a clock time.
@@ -77,17 +79,17 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 
 - **39. A row.** Time or tick, dot, name in bold, a line under it in grey, then a state word or one button on the right.
 - **40. Nothing there yet.** Says what's missing and leads with the action.
-- **41. Loading.** Nothing for half a second, then Tiff's mark, turning at her working speed, in the middle of where the page will be. A page never wears a skeleton: one shaped like the page never matched it (Isaac, 20 October 2026).
+- **41. Loading.** Nothing for half a second, then Tiff's mark, turning at her working speed, in the middle of where the page will be. A page never wears a skeleton: one shaped like the page never matched it (Isaac, 20 October 2026). Tiff building a quote is a wait with a known shape: her mark, what she's doing, and a thin bar with about how long is left, drawn from how long her turns usually take, held short of the end until she's done (Isaac, 1 November 2026).
 - **42. When something goes wrong.** A red dot and word, what it means for you, and what to do.
 - **43. Search.** Results by kind; the last row asks Tiff, with Enter.
-- **44. The New menu.** Job, Task and Note: the same three on every page (Note joined on 24 October 2026, Isaac: "Yes to new note"). It fills in only the record you are on, which you can clear: a task made on a job's page is for that job, and made anywhere else it is a general task. A quote is made on its job, through Add. The panel reaches out from the New button, dark, square where it leaves the panel.
+- **44. The New menu.** Job, Task and Note: the same three on every page (Note joined on 24 October 2026, Isaac: "Yes to new note"). It fills in only the record you are on, which you can clear: a task made on a job's page is for that job, and made anywhere else it is a general task. A quote is made on its job, through Add. The panel reaches out from the New button, dark, square where it leaves the panel. On the phone New also holds Purchase, the camera on a supplier's docket (Isaac, 29 October 2026).
 
 ### Motion, shape and the rest
 
 - **45. Three speeds.** 120 ms for pointing, 200 for something moving, and a new 280 for a panel sliding across.
 - **46. Corners.** 6 fields, 10 buttons and tabs, 16 cards and dialogs, 40 the page's two curves, round for discs.
 - **47. Pills.** Only for a person's name in a note. Never for a state.
-- **48. On a phone.** The ink is a bar across the top and the page curls into it at its top left (40), square elsewhere. The menu is the sidebar itself, curling at its foot. Controls 44; the box at the bottom.
+- **48. On a phone.** The ink is a bar across the top and the page curls into it at its top left (40), square elsewhere. The menu is the sidebar itself, curling at its foot. Controls 44; the box at the bottom. On a job's card a bar of the job's doing takes the bottom instead (Note, Photos, Used, Add, More), and Note brings the box up from it as a sheet (Isaac, 6 November 2026: "Build it" to the bar's mock). The card is pushed over the tabs, so the bar never sits on the menu.
 - **49. Words.** Sentence case, a verb and a noun on every button, no exclamation marks, no "successfully", waits that say what they're doing.
 - **50. Text that doesn't fit.** Fades out at its end, as Claude does. Never cut with a "…".
 
@@ -96,7 +98,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 - **51. The form.** Opens over the page you're on. The record it's for is a field, filled in, that you can change or clear. Saving keeps you where you were, with a toast and Undo. A document opens in its own tab.
 - **52. Other doors.** A section's own button, like Book a visit, opens the same form with the record filled in. Tiff reads the same page.
 - **53. Actions.** Only what's done to the record itself: its stage, pin, copy the link, print, then what ends it in red. Making is Add's job.
-- **54. Add, on a record.** Makes what belongs to that record. On a job: Visit, Task, Quote (Variation once accepted), Cost, SWMS, Certificate. Opens white, like every menu from the page.
+- **54. Add, on a record.** Makes what belongs to that record. On a job: Visit, Task, Quote (Variation once accepted), Cost, Purchase, SWMS, Certificate. Opens white, like every menu from the page. Purchase is a supplier's docket, photographed, its lines onto the job (Isaac, 29 October 2026); every purchase is also kept under Team, Purchases.
 
 ## The palette
 
@@ -121,9 +123,9 @@ Nineteen values: each of the eight hues has a bright value (dots, blocks, charts
 
 **Ink at an alpha** (lines and fills, not new colours): line 8%, edge 14%, selected 7%, hover 4%, soft fill 5%. On the ink sidebar, white at 12% marks the place you're on.
 
-**The one shadow:** 0 12px 32px at 16% of a near-black, for anything that floats. **The scrim** behind a dialog: near-black at 45%.
+**The one shadow:** 0 12px 32px at 16% of a near-black, for anything that floats. **The card shadow** (`--shadow-card`): 0 1px 2px at 5% and 0 4px 16px at 7%, for a card resting on the white page, and only where His rulings name it (On Home, On a job's page). **The scrim** behind a dialog: near-black at 45%.
 
-**Text on a solid block** (a bar, a column's head on Home): ink on every hue but blue, which takes white. A schedule card's number box is the exception: the hue's word value with white words (rule 19).
+**Text on a solid block** (a bar, a column's head on Home): ink on every hue but blue, which takes white. A schedule card's number box is the exception: the hue's word value, or its card value for orange, yellow and pink, with white words, ink on yellow (rule 19).
 
 **What each colour means:** red only wrong (rule 16); orange needs a look; green good; blue only press (the main button, ticks and switches when on, a selection); grey for your information. A job's own colour (rule 18), a Studio system's (rule 18a) and the chart colours (rule 20) are the only other uses.
 
@@ -164,7 +166,7 @@ The scale is 12, 13, 14, 16, 20, 24, 32. Nothing is set at 40 any more.
 
 - **Spacing** on the scale: 2, 4, 8, 12, 16, 24, 32, 48.
 - **Six named layers**, as above.
-- **One shadow**, only on things that float.
+- **One shadow**, only on things that float; the card shadow only where His rulings name it.
 - **Focus:** a 2px ink ring with white between, on every ground.
 - **Flat:** no gradients, glass, glow or texture.
 - **No eyebrows:** no capitals or tracked labels; a title stands alone.
@@ -242,16 +244,11 @@ infinite loop into a strobe.
 |---|---|---|
 | `tcDots` | the three dots after "Thinking" in Tiff's chat, one rule with each dot delayed | Tiff is working: the Claude-style chat says so in words and dots, with no mark turning (Isaac, 20 October 2026) |
 | `ds-sheet-wait` | the sheet's outline while its raster downloads | a skeleton, breathing rather than swept because it is an outline: the plan lands into its place |
-| `tkShim` | a library shelf while it is searched | a sweep on the thing being searched |
-| `tkFlow` ×2 | a lane of the research trace, out to a shelf being searched and back from the shelf the answer is drawn from | a spinner, drawn as a pulse along the line that is waiting |
-| `tkCaret` | the last paragraph of an answer still streaming | a caret: "is that all of it" |
 | `wb2CursorBlink` | the board's answer while it streams | a caret |
-| `fgPulse` ×3 | the recording dot beside the recording clock (the Tiff modal's dock, the ask bar's recording card); the row microphone while it listens; Time & Pay's live period | a live dot: something is open right now |
+| `fgPulse` ×3 | the recording dot beside the recording clock (the Tiff modal's dock, a note posture's row); the row microphone while it listens; Time & Pay's live period | a live dot: something is open right now |
 | `int-pulse` | an integration's backfill while it runs | a live dot |
 | `orbSpin` | the orb, as the dictation meter | the orb: the microphone is open |
 | `orbSaySweep` | the wait's word beside the working mark | the wait's label, lit while Tiff works: the caret's job on a word |
-| `dotfSwell` | the mark while you talk, in the Tiff modal and the ask bar's recording card | the microphone is open: a wave through the mark |
-| `dotfTurn`, `dotfZip`, `dotfFire` | the Tiff modal's cloud while Tiff has the words | Tiff is working: the mark as a turning cloud until the answer comes back |
 | `tiffGyro`, `tiffNod`, `tiffSheen`, `tiffGimbalA`, `tiffGimbalB`, `tiffArc` | the Tiff button and the mark wherever it stands for Tiff; the rules are declared on every mark but held paused until the mark is working | Tiff is working (rule 8, v2). Since 18 October 2026 the mark is still at rest (Isaac, 17 October: "The mark does not turn at rest. It can stay still."), which retires the override of 24 September. Home's mark (`.tiffmk.alive`) runs them at rest, in the colours, from 20 October (Isaac), and the page's hold (`.pg-hold`, rule 41) runs them working |
 | `tiffCyc` ×2 | the two runs of light on a working mark's rings, their gradient stops cycling blue, purple, pink, red, orange, yellow, green | Tiff is working: colour on the mark means she's busy (rule 8). The gradients are only shown on a working mark |
 | `tiffCycRing` ×2 | a working mark's two faint rings, in the same cycle, and Home's mark's at rest | Tiff is working (rule 8); Home's mark is alive (rule 8, 20 October) |
@@ -267,9 +264,9 @@ this list the way it holds the loops: both ways, by name.
 
 | Glyph | On | Why it has no word |
 |---|---|---|
-| `mic` | `wb2-striprnd`, `wb2-micgo`, `tmic` | the microphone of the dictation controls, on a note strip, a note row and the ask bar: the field beside it is the word, and a microphone is the one glyph the trade reads without one |
+| `mic` | `wb2-striprnd`, `wb2-micgo` | the microphone of the dictation controls, on a note strip and a note row: the field beside it is the word, and a microphone is the one glyph the trade reads without one |
 | `square` | `wb2-striprnd`, `wb2-micgo`, `wb2-dictmic` | stop, in the same controls: it takes the microphone's seat while it listens |
-| `x` | `wb2-striprnd`, `wb2-dictx` ×2, `wb2-ico` | the recording's cross beside stop, and the recording card's own cross in Tiff's ask bar (the capture card had a second, and went with the old capture UI, 2026-09-27): each closes a recording, and its label says what closing costs ("Discard") |
+| `x` | `wb2-striprnd`, `wb2-dictx` ×2 | the recording's cross beside stop (the capture card had a second, and went with the old capture UI, 2026-09-27; the recording card in the Library's ask bar had a third, and went with the bar, 2026-11-07): each closes a recording, and its label says what closing costs ("Discard") |
 | `plus` | `wb2-striprnd`, `wb2-addgo` | a note composer's commit at the end of its one-line field: the placeholder is the word and Enter is the same press. A form's save is a word; a composer's send is the glyph |
 | `rotate` | `ds-tool` ×2 | undo and redo in the Studio toolbar, the candidates law 25 named |
 | `x` | `camdel`, `ds-plancard-x` | a thumbnail's cross, on a photo badge and on a plan page in the Studio's import: a picture has no room for a word |
@@ -278,6 +275,33 @@ this list the way it holds the loops: both ways, by name.
 
 Some of Isaac's calls break a rule no ratchet counts, so they are written
 here rather than in the table below, each with his words and the day.
+
+#### On Home
+
+- **Home's three columns are white cards lifted off the white page**
+  (`.hm-cols > .hm-sec`, `--shadow-card`), each column's name and glyph in
+  its colour's word value with no block, as the job's Overview names its
+  sections (Isaac, 5 November 2026, on
+  https://claude.ai/artifact/ENNSiAcvz4rSAm2hxQsPbU, told it needs the
+  one-shadow law set aside: "C, lifted"). Two rules give way, on Home only:
+  - one shadow, only on things that float: each column rests on the page
+    with the card shadow, its own token, which the shadows ratchet does not
+    count, as it does not count the overlay's;
+  - rule 35, a card is something you act on: Today, Your feed and To do
+    are cards, though a column is not pressed.
+  Tiff's box stays as it is, outlined. The hairline between the columns
+  goes. A hover is still one change, a fill (rule 23): nothing lifts more.
+- **To do's rows have no buttons: the row is the door** (`home-todo.tsx`),
+  despite rule 39's one button on the right (Isaac, 5 November 2026, on
+  https://claude.ai/artifact/LHfRit1ThXLpobEXwZGPWK: "remove the action
+  buttons… You should just be able to click on whatever item it is… For
+  tasks, maybe just a tick to say done", then "build both"). Pressed
+  anywhere, a row goes where its button went; a won job's opens Book in
+  over Home. A task and a reminder keep their tick, and a reminder keeps
+  Later as a clock, an icon-only button despite rule 27, since nothing
+  else puts it off. Opening new work given to you is its Got it. Your feed
+  follows: its Open and Got it go, and it keeps Reply, and a field issue's
+  Make it a task and Done, which no door does.
 
 #### On a person's page
 
@@ -294,10 +318,24 @@ https://claude.ai/artifact/BH6voDn1axdk96JZCCUSTf).
 
 #### On a job's page
 
-Four of his calls on the job page (25 and 26 October 2026; the first two
+His calls on the job page (25 and 26 October and 3 and 4 November 2026; the first two
 on his mock https://claude.ai/artifact/GL43j32Z8xBo3CXekExHuF, the third
 on the refined Overview A, https://claude.ai/artifact/SGFpbThni6YZF6HU3SZpPL,
 the fourth on the customer's messages, below).
+
+- **The head is the job's plate, with the way back above it**
+  (`.jp-plate`, `.jp-back`; Isaac, 5 November 2026, B on
+  https://claude.ai/artifact/SJyEw4dkCb7MLp1bgCzypJ). The job's number in
+  a solid box of its colour, white on it, as a Schedule card has it (rule
+  19), with no hairline; beside it the job's client at 24, as Schedule,
+  Jobs, the tab and Recents name a job, and the address is the Site
+  card's, under the stages line, which no longer repeats the number (6
+  November, on https://claude.ai/artifact/Wtc1ZrZYkAp1aaedxSn2J4: "job
+  number, client name, then underneath it, the site would show the
+  address"). A job with no client is named by its address. Above it, a chevron and the
+  screen you came from in ink, a word button with no underline: Back to
+  it as you left it, and Jobs when there is nowhere to go back to (a
+  link, a refresh). It is one word, not a breadcrumb.
 
 - **Materials' groups have their icons in colour** (`.jm-ic`), despite old
   law 31, colour only where it means something. "Now just put some color or
@@ -315,8 +353,45 @@ the fourth on the customer's messages, below).
   Summary pink with a file, To do yellow with a tick, the Activity feed
   green with a bubble, the last two as Home's own. He approved the mock
   that drew them ("Yes, build the refined Overview A", 25 October 2026).
+  On a job being quoted or worked, the Summary's place is the job's Scope,
+  pink with a file: Tiff's written brief, a paragraph per system with its
+  sources, then Added, Not ours and To clarify, and Latest updates under it
+  in purple with a clock (Isaac picked the written brief, 28 October 2026).
   The block is solid with its icon in ink, as on Home and in the Library:
   no tint, no edge, and never blue, red or orange.
+- **The Overview's parts are white cards lifted off the white page, and
+  each section's name is in its colour** (`.jov`, `.jov-head--<hue>`),
+  Apple Health's cards (Isaac, 4 November 2026, on
+  https://claude.ai/artifact/8L3hw5D8QxHZidsAAQNcX6: "2, check laws", then
+  "Unless you have other ideas, you can build it"). It first stood on a
+  grey ground; on 5 November 2026 the ground went and the cards were
+  lifted, to match Home (on https://claude.ai/artifact/ENNSiAcvz4rSAm2hxQsPbU:
+  "Yes, lift it"). Three rules give way, on the Overview only:
+  - one shadow, only on things that float: the stages line, each fact and
+    each section rests on the page with the card shadow, as Home's columns
+    do;
+  - rule 35, a card is something you act on: the stages line, each fact
+    and each section is a white card, 16 corner, no edge, though most are
+    not pressed;
+  - the ruling above, the coloured block: on the Overview the block goes,
+    and the section's icon and its 16/600 title take the hue's word value
+    instead. A green Activity feed or a yellow To do sits near rule 17's
+    state words, but a title is 16 and bold with an icon, where a state is
+    13 with a dot. A project's page, the letter editor and the SWMS sign-on
+    keep the block.
+  The facts' labels are 13/500 with an icon: Site a house and Contact a
+  person in grey, Next visit a calendar in pink, Money a dollar in purple.
+- **The Job tracker's bar turns red past the quote** (`.jtr-over`),
+  despite rule 16, no chart is red (Isaac, 3 November 2026: over the
+  allowance is "a red line and how much over"). Used is grey, overtime's
+  extra hours orange, and only what passes the quoted figure red, with
+  the state word beside it saying how much ("4.25 h over").
+  Where the quote holds no hours (a ServiceM8 quote of one price), Labour
+  says "Hours not quoted" and its quiet Add hours opens in the line, visit
+  by visit, people and days at the working day, with no pop-up; Materials
+  says "Not quoted" with Add amount. Once added, the line reads as a quoted
+  one and says who planned it, with Change (Isaac, 5 November 2026, on
+  https://claude.ai/artifact/Gbw8CZCxNYBJSDEHTaAyv9: "Yes, build it").
 - **The Activity feed's conversation bubbles are filled** (`.jc-bubble`),
   despite old law 31, colour only where it means something, and "colour is
   solid, never a tint" as it applies elsewhere: here green means "us", not
@@ -343,6 +418,16 @@ the fourth on the customer's messages, below).
   ("She can turn slowly, given that you won't have an extra one down the
   bottom of the page"). Under a bubble its time and doors are quiet words
   with no underline, and Remove is the red word (rule 25).
+
+#### On a quote
+
+- **The money rolls** (`.rf`, `components/parts/rolling-figure.tsx`), past law
+  8's 300 ms and on a token of its own, `--t-roll`, 600 ms: "the money should
+  roll up and down like a slot machine sort of thing" (30 October 2026). Each
+  digit is a column that turns to its value when the quote changes. Nothing
+  rolls as a page opens, and under reduced motion each is simply there. What
+  lands in Tiff's conversation after the page opened eases in on `--t-move`
+  ("Things should transition in smoothly even messages").
 
 #### On a letter
 

@@ -28,7 +28,7 @@
 const ENDPOINT = "https://api.elevenlabs.io/v1/speech-to-text";
 const MODEL_ID = "scribe_v2";
 
-/* Long enough for a two-minute site note over a bad connection, short enough
+/* Long enough for a four-minute site note over a bad connection, short enough
    that a wedged upstream fails the request rather than hanging it. */
 const HTTP_TIMEOUT_MS = 120_000;
 
@@ -233,6 +233,9 @@ export async function transcribeAudio(
   const form = new FormData();
   form.append("file", audio, "note.webm");
   form.append("model_id", MODEL_ID);
+  /* no ums, false starts or non-speech sounds, as the live transport (realtime-stream.ts) has it; and no "(sighs)" tags */
+  form.append("no_verbatim", "true");
+  form.append("tag_audio_events", "false");
 
   // One form field PER TERM, never a JSON-stringified array. The docs say
   // only "array of strings"; the live API (proven 2026-07-29, A/B against

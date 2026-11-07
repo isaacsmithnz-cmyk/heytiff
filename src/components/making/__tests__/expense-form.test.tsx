@@ -4,6 +4,7 @@ import { ExpenseForm, type CostJob } from "../expense-form";
 import { WindowsContext } from "@/components/records/records-context";
 import type { JobCandidate } from "@/lib/workboard/note-match";
 import type { PaidWith } from "@/lib/expenses/claim";
+import { NoteScopeProvider } from "@/components/notes/note-context";
 
 /* CLAIM AN EXPENSE, and a job's Add › Cost (v2 forms, boards 10 and 4).
    Every rule My expenses' own form had, kept: the receipt first and read,
@@ -42,6 +43,19 @@ jest.mock("@/lib/images/upright", () => ({
   fileToUprightBase64: async (f: File) => ({ data: "b64", mediaType: f.type }),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
+/** The engine, with its transcript handed over by the test. */
+const heard: { say?: (words: string) => void } = {};
+jest.mock("@/components/notes/dictation", () => {
+  const actual = jest.requireActual("@/components/notes/dictation");
+  return {
+    ...actual,
+    useDictation: (opts: { onTranscript: (w: string) => void }) => {
+      const react = jest.requireActual("react") as typeof import("react");
+      heard.say = opts.onTranscript;
+      return { recording: false, arming: false, transcribing: false, interim: "", seconds: 0, barsRef: react.createRef(), start: jest.fn(), stop: jest.fn(), handOver: jest.fn(), cancel: jest.fn(), restart: jest.fn() };
+    },
+  };
+});
 
 const TODAY = "2026-10-18";
 const JOBS: JobCandidate[] = [
@@ -302,6 +316,8 @@ describe("a fuel docket", () => {
     await waitFor(() => expect(screen.getByLabelText("Litres")).toHaveValue("72.5"));
     expect(readFuel).toHaveBeenCalledWith("b64", "image/jpeg");
     expect(screen.getByLabelText("Supplier ABN")).toHaveValue("51824753556");
+    /* no microphone where the workspace has no voice */
+    expect(screen.queryByRole("button", { name: /^Dictate/ })).toBeNull();
     await user.type(screen.getByLabelText("Note"), "Van 4");
     await user.click(screen.getByRole("button", { name: "Log it on the vehicle" }));
     await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard/my-vehicle"));
@@ -316,6 +332,28 @@ describe("a fuel docket", () => {
       note: "Van 4",
       receiptDocumentId: "doc-1",
     });
+  });
+
+  /* 7 November 2026 (Isaac: "Fix all of those"): the note takes the voice
+     where the workspace has it */
+  it("takes the fuel note said, where voice is on, across with the rest", async () => {
+    const user = userEvent.setup();
+    render(
+      <NoteScopeProvider voiceEnabled>
+        <WindowsContext.Provider value={{ toast } as never}>
+          <ExpenseForm job={null} jobs={JOBS} today={TODAY} onClose={jest.fn()} onSaved={jest.fn()} onUndone={jest.fn()} />
+        </WindowsContext.Provider>
+      </NoteScopeProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "Enter it myself" }));
+    await pickCategory(user, "Fuel");
+    await user.type(total(), "158.40");
+    expect(screen.getByRole("button", { name: "Dictate — the note" })).toBeInTheDocument();
+    act(() => heard.say!("Van 4"));
+    expect(screen.getByLabelText("Note")).toHaveValue("Van 4");
+    await user.click(screen.getByRole("button", { name: "Log it on the vehicle" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard/my-vehicle"));
+    expect(JSON.parse(sessionStorage.getItem("heytiff.fleet.fuel.v1") ?? "{}")).toMatchObject({ note: "Van 4" });
   });
 
   it("reads a receipt already attached when Fuel is chosen, into the empty fields only", async () => {

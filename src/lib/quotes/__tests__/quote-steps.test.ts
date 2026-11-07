@@ -98,3 +98,9 @@ describe("where the job's design is", () => {
     expect(designState({ designs: 0, noDesign: false, onWithout: false })).toBe("open");
   });
 });
+
+/* 3423, Isaac, 30 October 2026: approved, and the line still sat on Scope in orange */
+it("never sits back on Scope once it's approved", () => {
+  const steps = linesSteps({ accepted: [], approved: true, sent: null, lines: 11, unknown: 2, price: { kind: "priced", left: 0 }, approvedAt: "2026-10-30T10:50:58.480Z" });
+  expect(steps.find((s) => s.key === "questions")).toMatchObject({ state: "done", words: "Settled" });
+});

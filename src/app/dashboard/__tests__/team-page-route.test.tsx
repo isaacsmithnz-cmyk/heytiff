@@ -40,6 +40,8 @@ jest.mock("@/lib/fleet/page-data", () => ({ loadFleetPage: () => loadFleetPage()
 jest.mock("@/lib/dashboard/page-data", () => ({
   loadNoticeBoard: async () => ({ notices: [], canManage: true, canRead: true, today: "2026-10-19", staff: [], viewerStaffId: null }),
 }));
+const loadPurchasesView = jest.fn(async (_o: string, _id: string | null) => ({ rows: [], open: null }));
+jest.mock("@/lib/purchases/purchase-list-server", () => ({ loadPurchasesView: (o: string, id: string | null) => loadPurchasesView(o, id) }));
 jest.mock("@/components/team/team-page", () => ({ TeamPage: () => null }));
 
 async function bodyOf(search: Record<string, string> = {}) {
@@ -92,6 +94,19 @@ describe("the route", () => {
     expect(data.views).toEqual(["people", "timesheets", "leave", "expenses", "vehicles", "notices"]);
     expect(data.people.vehicles).toEqual({ s1: "Hilux XQG 41B" });
     expect(view).toBe("timesheets");
+    expect(loadPurchasesView).not.toHaveBeenCalled();
+  });
+
+  /* Purchases is money's: what was paid, and what it did to the price book */
+  it("reads Purchases only with `financials`, and opens the one the address names", async () => {
+    caps.add("team").add("financials");
+    const id = "6f1c2b9e-1d4a-4c1e-9a7b-2f6d8e0c4b31";
+    const { data, view } = await bodyOf({ view: "purchases", purchase: id });
+    expect(loadPurchasesView).toHaveBeenCalledWith("org-1", id);
+    expect(data.views).toEqual(["people", "purchases", "notices"]);
+    expect(view).toBe("purchases");
+    await bodyOf({ view: "purchases", purchase: "not-an-id" });
+    expect(loadPurchasesView).toHaveBeenLastCalledWith("org-1", null);
   });
 
   it("hands the invite links and actions only to someone who may invite", async () => {
@@ -107,6 +122,7 @@ describe("the views", () => {
   it("follow the gates, in the board's order", () => {
     expect(teamViewsFor({ timepay: false, fleet: false })).toEqual(["people", "notices"]);
     expect(teamViewsFor({ timepay: true, fleet: false })).toEqual(["people", "timesheets", "leave", "expenses", "notices"]);
+    expect(teamViewsFor({ timepay: true, fleet: true, purchases: true })).toEqual(["people", "timesheets", "leave", "expenses", "vehicles", "purchases", "notices"]);
   });
 
   it("read the address against what the reader has", () => {

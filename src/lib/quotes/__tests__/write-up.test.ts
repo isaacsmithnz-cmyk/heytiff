@@ -1,4 +1,4 @@
-import { writeUpAgainst, writeUpOf } from "../write-up";
+import { notPricedOf, pricedOnOf, writeUpOf } from "../write-up";
 
 /* The job, written out first (Isaac, 2026-10-10), on 3377's real first answer */
 
@@ -13,20 +13,23 @@ it("keeps what she wrote, section by section, short and trimmed; says nothing is
   const w = writeUpOf({ ...first, work: ["  Downstairs:   underfloor ducted  "], nonsense: ["x"] })!;
   expect(w.work).toEqual(["Downstairs: underfloor ducted"]);
   expect(w.assuming).toEqual([]);
-  expect(Object.keys(w)).toEqual(["read", "sizing", "work", "visits", "unpriced", "assuming"]);
+  expect(Object.keys(w).sort()).toEqual(["assuming", "pricedOn", "read", "sizing", "toCheck", "unpriced", "visits", "work"]);
   expect(writeUpOf({ read: [], sizing: [""] })).toBeNull();
 });
 
-it("says what changed since the last one, and strikes what's settled, once", () => {
-  const before = writeUpOf(first)!;
-  const after = writeUpOf({ ...first, visits: ["Rough-in: 2 people, 3.5 days, 57 h, the sandstone core at 6 h", first.visits[1]], unpriced: [] })!;
-  const against = writeUpAgainst(after, before);
-  expect(against.visits).toEqual([
-    { text: "Rough-in: 2 people, 3.5 days, 57 h, the sandstone core at 6 h", state: "changed" },
-    { text: "Install and commissioning: 2 people, 1.5 days, 24 h", state: "same" },
-    { text: "Rough-in: 2 people, 3.5 days, 55 h", state: "gone" },
-  ]);
-  expect(against.unpriced).toEqual([{ text: "Kitchen core holes and the 200 mm sandstone core: not in your book", state: "gone" }]);
-  /* the first write-up has nothing to have changed from */
-  expect(writeUpAgainst(before, null).read.every((i) => i.state === "same")).toBe(true);
+it("reads her named rows, from her tool and from the stored event alike", () => {
+  const rows = [{ what: "Labour", said: "  Option 1 is   12 h " }, { what: "No words", said: "" }];
+  const w = writeUpOf({ priced_on: rows, to_check: [{ what: "Wall brackets", said: "May be fine" }] })!;
+  expect(w.pricedOn).toEqual([{ what: "Labour", said: "Option 1 is 12 h" }]);
+  expect(w.toCheck).toEqual([{ what: "Wall brackets", said: "May be fine" }]);
+  expect(writeUpOf(w)).toEqual(w);
+});
+
+it("keeps an older write-up's visits and assumptions as what it's priced on, and never lists nothing as unpriced", () => {
+  const old = writeUpOf({ ...first, assuming: ["5 m of pipe"] })!;
+  expect(pricedOnOf(old).map((r) => r.said)).toEqual([...first.visits, "5 m of pipe"]);
+  expect(pricedOnOf(old).every((r) => r.what === "")).toBe(true);
+  expect(pricedOnOf(writeUpOf({ ...first, priced_on: [{ what: "Labour", said: "12 h" }] })!)).toEqual([{ what: "Labour", said: "12 h" }]);
+  expect(notPricedOf(writeUpOf({ unpriced: ["Nothing unpriced."] })!)).toEqual([]);
+  expect(notPricedOf(old)).toEqual(first.unpriced);
 });

@@ -58,6 +58,7 @@ import { isSm8Press, type Sm8Press } from "./sm8-press";
 import { sm8AccessResult, type Sm8Access } from "./sm8-store";
 import { withSm8Renewal } from "./sm8-renew";
 import { sm8CallOf } from "./sm8-http";
+import { sm8PressStaff } from "./links";
 import { cancelWaitingSm8Writes, countWaitingSm8WritesByKind, type CancelledWrite } from "./sm8-write-cancel";
 import { postSm8Attachment, readSm8Attachment } from "./sm8-write";
 import { sm8NotesAllowed, sm8WriteKindsEnabled } from "./sm8-kinds";
@@ -1721,7 +1722,8 @@ async function postOne(
   r: Ready,
   access: Sm8Access,
   attempts: number,
-  ctx: () => VerdictContext
+  ctx: () => VerdictContext,
+  asStaffUuid: string | undefined
 ): Promise<Finish> {
   const wrong = tokenMismatch(row, access);
   if (wrong) return wrong;
@@ -1732,6 +1734,7 @@ async function postOne(
     fileName: r.payload.name,
     mimeType: r.mimeType,
     bytes: r.bytes,
+    asStaffUuid,
   });
 
   let outcome: Sm8WriteOutcome = res.outcome;
@@ -1862,10 +1865,11 @@ async function sendOne(
   const inTime = () => t.clock() - t.claimedAt < WRITE_SEND_BY_MS;
   if (!inTime()) return { finish: { ...fromVerdict(verdictForLetGo(row.free_retries ?? 0)), verifyUuids }, access };
 
+  const asStaffUuid = await sm8PressStaff(orgId, row.requested_by ?? null, row.tenant_id);
   const out = await withSm8Renewal(
     orgId,
     live,
-    (a) => postOne(row, ready, a, attempts, ctx),
+    (a) => postOne(row, ready, a, attempts, ctx, asStaffUuid),
     (f) => f.verdict?.reauth === true,
     { retry: inTime }
   );

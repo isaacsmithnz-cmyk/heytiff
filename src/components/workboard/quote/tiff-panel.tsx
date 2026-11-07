@@ -1,20 +1,24 @@
 "use client";
 
-import { useEffect, useEffectEvent, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { IconButton } from "@/components/parts/button";
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { Dot } from "@/components/parts/state";
 import { Fade } from "@/components/parts/fade";
 import { Tray } from "@/components/parts/tabs";
 import { Icon } from "@/components/shell/icon";
-import { appendSpoken, DictClock, useDictation } from "@/components/notes/dictation";
+import { appendSpoken, useDictation } from "@/components/notes/dictation";
+import { useNoteScope } from "@/components/notes/note-context";
+import { CvBox } from "@/components/conversations/box";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { useReplyDraft } from "@/components/notes/use-reply-draft";
 import { fmtAuTime } from "@/lib/au-dates";
 import { planOf, type PlannedPart } from "@/lib/quotes/build-progress";
 import { researchDetailOf } from "@/lib/quotes/research";
+import { replyBlocks, type ReplySpan } from "@/lib/quotes/session/reply-blocks";
 import { latestAsked } from "@/lib/quotes/session/answers";
-import { WRITE_UP_KEYS, WRITE_UP_SECTIONS, writeUpAgainst, writeUpOf } from "@/lib/quotes/write-up";
-import { fmtAud } from "@/lib/workboard/project-money";
+import { isFirstTurn, stepOf, timeLeft, turnStartOf } from "@/lib/quotes/session/time-left";
+import { writeUpOf } from "@/lib/quotes/write-up";
+import { fmtAddition, fmtAud } from "@/lib/workboard/project-money";
+import { QuoteScope, type QuoteScopeWords } from "./quote-scope";
 
 /* TIFF ON THE QUOTE: the page's main column (the chat-first quote page,
    Isaac, 2026-10-13; it was a grey card in the rail, slice 5.1). The
@@ -50,6 +54,32 @@ type View = { ok: boolean; on?: boolean; working?: boolean; spentUsd?: number; e
 type Answer = { label: string };
 type Source = { id: string; label: string; text: string };
 
+/** What she's doing and about how long is left, while she works. Until the turn's first event is back, it counts from when this appeared. */
+function TimeLeft({ since, first, step }: { since: number | null; first: boolean; step: string | null }) {
+  const [opened] = useState(() => Date.now());
+  const [now, setNow] = useState(opened);
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const left = timeLeft((now - (since ?? opened)) / 1000, first);
+  const word = step ?? (first ? "Reading the job" : "Working on the quote");
+  return (
+    <div className="qt-est qc-in">
+      <p className="qt-working">
+        <TiffGlyph working size={20} />
+        {word}
+        {left && <span className="qt-left">{left.words}</span>}
+      </p>
+      {left && (
+        <div className="qb-bar" role="progressbar" aria-label={word} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(left.percent)} aria-valuetext={left.words}>
+          <i style={{ width: `${left.percent}%` }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** The web's mark: on a price researched from it, and on the line that uses one (12.2). */
 export function Globe({ size = 14 }: { size?: number }) {
   return (
@@ -61,7 +91,7 @@ export function Globe({ size = 14 }: { size?: number }) {
 }
 
 /** A price difference as an answer shows it: nothing for none. */
-const deltaWords = (c: number | null | undefined) => (c == null || Math.round(c) === 0 ? "" : `${c > 0 ? "+" : "−"}${fmtAud(Math.abs(Math.round(c)))}`);
+const deltaWords = (c: number | null | undefined) => (c == null ? "" : fmtAddition(c));
 
 /** Words as she or you wrote them: a blank line starts a paragraph. */
 const paras = (text: string) =>
@@ -70,6 +100,31 @@ const paras = (text: string) =>
     .map((p) => p.trim())
     .filter(Boolean)
     .map((p, i) => <p key={i}>{p}</p>);
+
+const spans = (line: ReplySpan[]) => line.map((s, i) => (s.bold ? <b key={i}>{s.text}</b> : <span key={i}>{s.text}</span>));
+
+/** Her reply as it's meant to read: her sentences, her points as a list, her
+    questions numbered. The model writes "- **Labour:** 12 h", and it stood on
+    the page with its asterisks (3423, Isaac, 30 October 2026: "The formatting
+    of her messages needs to be much better"). */
+const herWords = (text: string) =>
+  replyBlocks(text).map((b, i) =>
+    b.kind === "para" ? (
+      <p key={i}>{spans(b.spans)}</p>
+    ) : b.kind === "bullets" ? (
+      <ul key={i} className="qc-list">
+        {b.items.map((it, j) => (
+          <li key={j}>{spans(it)}</li>
+        ))}
+      </ul>
+    ) : (
+      <ol key={i} className="qc-list" start={b.start}>
+        {b.items.map((it, j) => (
+          <li key={j}>{spans(it)}</li>
+        ))}
+      </ol>
+    )
+  );
 
 export function TiffPanel({
   job,
@@ -81,6 +136,9 @@ export function TiffPanel({
   confirmTitle = "To confirm",
   hidden = false,
   start = false,
+  words,
+  say = null,
+  onSaid,
 }: {
   job: string;
   onChanged: () => void;
@@ -88,6 +146,8 @@ export function TiffPanel({
   onOpen?: (n: number) => void;
   /** the parts she said she'd build, while she builds them; null when she isn't (5.2) */
   onPlan?: (plan: { option: number; parts: PlannedPart[] } | null) => void;
+  /** the proposal's words, which Scope opens with */
+  words?: QuoteScopeWords;
   /** whether she's on for the business, once read, and what she has cost
       (sent only to someone who sees money): the page's layout, and its rail */
   onStatus?: (status: { on: boolean; spentUsd: number | null }) => void;
@@ -100,6 +160,10 @@ export function TiffPanel({
   hidden?: boolean;
   /** opened from the job card to start the quote: the reply box takes the keys */
   start?: boolean;
+  /** words the page says to her for the person (Price them), once each */
+  say?: { id: number; text: string } | null;
+  /** she has them */
+  onSaid?: () => void;
 }) {
   /* null until her thread is first read: the page lays out nothing of hers
      or the lines' until it knows which */
@@ -129,6 +193,12 @@ export function TiffPanel({
      newest words (Isaac, 27 October 2026: "move all of the questions away
      from the bottom of the screen so they don't clog it up") */
   const [face, setFace] = useState<"talk" | "scope" | "confirm">("talk");
+  /* the newest event when the page opened: what's there then is simply there
+     (a page appears, law 8), and only what lands after it eases in (Isaac, 30
+     October 2026: "Things should transition in smoothly... rather than just
+     pop straight up") */
+  const [before, setBefore] = useState<number | null>(null);
+  const seen = useRef(0);
   const last = useRef(0);
   const busyNow = useRef(false);
   const bottom = useRef<HTMLDivElement | null>(null);
@@ -146,6 +216,7 @@ export function TiffPanel({
     setMe(v.me ?? "");
     if (v.names) setNames((n) => ({ ...n, ...v.names }));
     const fresh = v.events ?? [];
+    setBefore((b) => b ?? fresh.at(-1)?.id ?? 0);
     if (fresh.length) {
       last.current = Math.max(last.current, fresh[fresh.length - 1]!.id);
       /* two reads in flight from the same point (the poll, a read after an
@@ -191,7 +262,11 @@ export function TiffPanel({
 
   /* the newest at the foot, and again on coming back from the line items */
   useEffect(() => {
-    if (!hidden) bottom.current?.scrollIntoView?.({ block: "end" });
+    const grew = seen.current > 0 && events.length > seen.current;
+    seen.current = events.length;
+    if (hidden) return;
+    const still = !!globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    bottom.current?.scrollIntoView?.({ block: "end", behavior: grew && !still ? "smooth" : "auto" });
   }, [events.length, hidden, on, face]);
 
   const status = useEffectEvent((s: { on: boolean; spentUsd: number | null }) => onStatus?.(s));
@@ -204,11 +279,50 @@ export function TiffPanel({
   useReplyDraft("quote", job, typed, (text) => setTyped((now) => now || text), on === true);
 
   /* the microphone (rule 27): what you say joins what's typed, to read
-     before it's sent */
+     before it's sent; where this deployment can hear (Isaac, 6 November 2026:
+     the one box, the same everywhere) */
+  const { voiceEnabled } = useNoteScope();
   const dict = useDictation({
     onTranscript: (said) => setTyped((now) => appendSpoken(now, said)),
     onError: setNote,
   });
+
+  const send = async (readJob = false, words?: string): Promise<boolean> => {
+    const message = (words ?? typed).trim();
+    if ((!message && !readJob) || busy) return false;
+    setBusy(true);
+    setNote(null);
+    const r = await fetch(ROUTE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job, message, ...(readJob ? { sources: [...ticked] } : {}) }),
+    }).catch(() => null);
+    const a = r ? ((await r.json().catch(() => null)) as { ok: boolean; reason?: string } | null) : null;
+    setBusy(false);
+    if (!a?.ok) {
+      setNote(a?.reason ?? "That didn't send. Try again.");
+      return false;
+    }
+    if (words === undefined) setTyped("");
+    busyNow.current = true;
+    setWorking(true);
+    void read(false);
+    return true;
+  };
+
+  /* the page's words (Price them): what's in the box stays in the box */
+  const saidLast = useRef(0);
+  const sayNow = useEffectEvent((text: string) => {
+    void send(false, text).then((sent) => {
+      if (sent) onSaid?.();
+    });
+  });
+  useEffect(() => {
+    if (!say || !on || busy || saidLast.current === say.id) return;
+    saidLast.current = say.id;
+    const { text } = say;
+    void Promise.resolve().then(() => sayNow(text));
+  }, [say, on, busy]);
 
   /* from the job card's Create a quote: straight into the box, once */
   useEffect(() => {
@@ -245,33 +359,6 @@ export function TiffPanel({
     setTicked(new Set((a.sources ?? []).map((s) => s.id)));
   };
 
-  const send = async (readJob = false) => {
-    const message = typed.trim();
-    if ((!message && !readJob) || busy) return;
-    setBusy(true);
-    setNote(null);
-    const r = await fetch(ROUTE, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ job, message, ...(readJob ? { sources: [...ticked] } : {}) }),
-    }).catch(() => null);
-    const a = r ? ((await r.json().catch(() => null)) as { ok: boolean; reason?: string } | null) : null;
-    setBusy(false);
-    if (!a?.ok) return setNote(a?.reason ?? "That didn't send. Try again.");
-    setTyped("");
-    busyNow.current = true;
-    setWorking(true);
-    void read(false);
-  };
-  const sendTyped = () => void send();
-  /* Enter sends and Shift+Enter is a new line, as in any chat; never
-     mid-word in an input method, where Enter is choosing the word */
-  const keys = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing || e.keyCode === 229) return;
-    e.preventDefault();
-    sendTyped();
-  };
-
   const answer = async (event: number, index: number) => {
     setBusy(true);
     setNote(null);
@@ -296,11 +383,9 @@ export function TiffPanel({
   };
 
   const who = (author: string) => (author === me ? "You" : (names[author] ?? "Someone"));
-  /* the job, written out: her newest write-up, against the one before it */
+  /* the job, written out: her newest write-up */
   const writeUps = events.filter((e) => e.kind === "tool" && e.body.name === "write_up" && e.body.ok !== false);
   const latest = writeUps.length ? writeUpOf((writeUps[writeUps.length - 1]!.body.detail as { writeUp?: unknown } | undefined)?.writeUp) : null;
-  const prior = writeUps.length > 1 ? writeUpOf((writeUps[writeUps.length - 2]!.body.detail as { writeUp?: unknown } | undefined)?.writeUp) : null;
-  const written = latest ? writeUpAgainst(latest, prior) : null;
   const open = answersIn ? events.filter((e) => e.kind === "question" && !questions[e.id]?.answered) : [];
   /* her questions numbered as her message numbers them: from 1 in each
      asking; the latest asking's answered ones stay, ticked (Isaac,
@@ -320,8 +405,9 @@ export function TiffPanel({
     const d = at ? new Date(at) : null;
     return d && !Number.isNaN(d.getTime()) ? fmtAuTime(d) : "";
   };
+  const landed = (id: number) => (before !== null && id > before ? " qc-in" : "");
   const her = (id: number, says: ReactNode, named: boolean, at = "") => (
-    <div key={id} className="qt-msg tf qc-her">
+    <div key={id} className={`qt-msg tf qc-her${landed(id)}`}>
       {named && (
         <span className="qc-who">
           <TiffGlyph quiet size={24} />
@@ -352,7 +438,7 @@ export function TiffPanel({
         return next;
       });
     thread.push(
-      <div key={`steps-${key}`} className="qt-dids qt-fold">
+      <div key={`steps-${key}`} className={`qt-dids qt-fold${landed(key)}`}>
         {!live && (
           <button type="button" className="qt-foldbtn" aria-expanded={open} onClick={flip}>
             <Icon name="chevR" size={14} />
@@ -363,11 +449,11 @@ export function TiffPanel({
         {open &&
           run.map((e) =>
             e.kind === "reply" ? (
-              <p key={e.id} className="qt-did note">
+              <p key={e.id} className={`qt-did note${landed(e.id)}`}>
                 {String(e.body.text ?? "")}
               </p>
             ) : (
-              <p key={e.id} className={e.body.ok === false ? "qt-did off" : "qt-did"}>
+              <p key={e.id} className={`${e.body.ok === false ? "qt-did off" : "qt-did"}${landed(e.id)}`}>
                 {`${String(e.body.label ?? "")}${e.body.said ? `: ${String(e.body.said)}` : ""}`}
               </p>
             )
@@ -396,14 +482,14 @@ export function TiffPanel({
       const answered = typeof e.body.answered === "number";
       const text = answered ? `${String(e.body.question ?? "")} ${String(e.body.text ?? "")}` : String(e.body.text ?? "");
       thread.push(
-        <div key={e.id} className={mine ? "qt-msg me" : "qt-msg"}>
+        <div key={e.id} className={`${mine ? "qt-msg me" : "qt-msg"}${landed(e.id)}`}>
           <div className={mine ? "qt-bub me" : "qt-bub them"}>{paras(text)}</div>
           <span className="qt-meta">{who(e.author)}</span>
         </div>
       );
       hers = false;
     } else if (e.kind === "reply") {
-      thread.push(her(e.id, paras(String(e.body.text ?? "")), !hers, e.at));
+      thread.push(her(e.id, herWords(String(e.body.text ?? "")), !hers, e.at));
       hers = true;
     } else if (research) {
       thread.push(
@@ -436,7 +522,7 @@ export function TiffPanel({
       hers = true;
     } else if (e.kind === "milestone") {
       thread.push(
-        <p key={e.id} className="qt-mile">
+        <p key={e.id} className={`qt-mile${landed(e.id)}`}>
           {`${String(e.body.text ?? "")} by ${e.author === me ? "you" : who(e.author)}`}
         </p>
       );
@@ -452,30 +538,7 @@ export function TiffPanel({
   }
   endSteps();
 
-  /* her reading of the job: her newest write-up, against the one before it */
-  const scope = written ? (
-    <section className="qt-job" aria-label="The job">
-      <header>
-        <b>The job</b>
-        <em>{prior ? "Changed" : "Written"}</em>
-      </header>
-      {WRITE_UP_KEYS.filter((k) => written[k].length > 0).map((k) => (
-        <section key={k}>
-          <h4>{WRITE_UP_SECTIONS[k]}</h4>
-          <ul>
-            {written[k].map((item, i) => (
-              <li key={i} className={item.state === "same" ? undefined : item.state}>
-                {item.text}
-                {item.state === "changed" && <em> Changed</em>}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
-    </section>
-  ) : (
-    <p className="qt-noscope">Tell Tiff about the job in the conversation, and she writes it out here.</p>
-  );
+  const scope = <QuoteScope words={words} writeUp={latest} />;
 
   return (
     <div className="qt" hidden={hidden}>
@@ -508,7 +571,7 @@ export function TiffPanel({
                   const deltas = questions[q.id]?.deltas ?? [];
                   const put = typeof q.body.put === "string" ? q.body.put : "";
                   return (
-                    <div key={q.id} className="qt-qa">
+                    <div key={q.id} className={`qt-qa${landed(q.id)}`}>
                       <p className="qt-q">
                         {/* an item to settle: an orange dot and its number (Q5) */}
                         <span className="qt-qn">
@@ -610,10 +673,7 @@ export function TiffPanel({
           )}
           {thread.length > 0 && <div className="qt-thread">{thread}</div>}
           {working && (
-            <p className="qt-working">
-              <TiffGlyph working size={20} />
-              Working on the quote
-            </p>
+            <TimeLeft since={turnStartOf(events)} first={isFirstTurn(events)} step={stepOf(events)} />
           )}
           <div ref={bottom} />
         </div>
@@ -621,47 +681,24 @@ export function TiffPanel({
       <div className="qc-comp">
         <div className="qc-col">
           {note && <p className="wb2-sherr">{note}</p>}
-          <div className="qt-box qc-box">
-            <textarea
-              ref={box}
-              className="qt-in"
-              rows={1}
-              value={typed}
-              placeholder={events.length === 0 ? "Tell Tiff about the job" : "Reply"}
-              aria-label="Message Tiff"
-              onChange={(e) => setTyped(e.target.value)}
-              onKeyDown={keys}
-            />
-            {/* what you're saying, as you say it (Isaac, 21 October 2026: "the
-                voice to text doesn't seem to be showing properly"): the box
-                showed nothing while it listened */}
-            {(dict.recording || dict.arming || dict.transcribing) && (
-              <p className="qc-live" aria-live="polite">
-                {dict.transcribing ? "Writing down what you said" : dict.interim || "Listening"}
-              </p>
-            )}
-            <div className="qc-boxfoot">
-              {dict.recording || dict.arming ? (
-                <>
-                  <span className="tc-rec">
-                    <span className="tc-recdot" aria-hidden="true" />
-                    <DictClock seconds={dict.seconds} />
-                  </span>
-                  <span className="tc-sp" />
-                  <button type="button" className="pt-btn pt-btn--second pt-btn--32 pt-btn--icon tc-stop" aria-label="Stop and add what you said" onClick={() => dict.stop()}>
-                    <span aria-hidden="true" />
-                  </button>
-                </>
-              ) : (
-                <IconButton glyph="mic" size={32} label="Speak instead of typing" disabled={dict.transcribing} onClick={() => dict.start()} />
-              )}
-              {/* Send as Claude's, an arrow, as every Tiff box has it (rule 25;
-                  Isaac, 20 October 2026: "the input section should be
-                  identical throughout the software"; it was Q6's word Send);
-                  it fades while she works, one turn at a time */}
-              <IconButton glyph="send" kind="main" size={32} label="Send" className="qc-send" disabled={busy || working || !typed.trim()} onClick={sendTyped} />
-            </div>
-          </div>
+          {/* THE ONE BOX (Isaac, 6 November 2026: "every input box is the
+              same"): Conversations' own, its words as you say them, Stop
+              leaving them in it, and Tiff's button; Send pressed while you
+              talk stops and sends (Isaac, 30 October 2026, on 3423: "the
+              speech-to-text doesn't allow me to click send"). No Save here:
+              talking to her is the point. */}
+          <CvBox
+            value={typed}
+            onChange={setTyped}
+            onSubmit={() => void send()}
+            label="Message Tiff"
+            placeholder={events.length === 0 ? "Tell Tiff about the job" : "Reply"}
+            sendWord="Tiff"
+            sendLabel="Send to Tiff"
+            waiting={busy || working}
+            dict={voiceEnabled ? dict : null}
+            boxRef={box}
+          />
         </div>
       </div>
     </div>

@@ -47,6 +47,8 @@ jest.mock("@/app/actions/job-check-ins", () => ({
   checkIn: jest.fn(async () => null),
   checkOut: jest.fn(async () => null),
 }));
+/* Materials' Bought: nothing bought on these jobs */
+jest.mock("@/app/actions/purchases", () => ({ jobBought: async () => ({ lines: [], allowanceCents: null, money: false }) }));
 jest.mock("@/app/actions/job-picklist", () => ({
   listJobPicklist: jest.fn(async () => []),
   setPicklistItemPicked: jest.fn(async () => null),
@@ -196,12 +198,13 @@ const pageOf = (section: JobSection): JobSheetPage => ({
   onAction,
 });
 
-const draw = (section: JobSection, extra: { moneyVisible?: boolean; manage?: boolean } = {}) =>
+const draw = (section: JobSection, extra: { moneyVisible?: boolean; manage?: boolean; studio?: boolean } = {}) =>
   render(
     <JobSheet
       row={row()}
       manage={extra.manage ?? true}
       moneyVisible={extra.moneyVisible ?? false}
+      studio={extra.studio ?? false}
       initialTab="summary"
       page={pageOf(section)}
       onCreateAgreement={onCreateAgreement}
@@ -245,16 +248,22 @@ beforeEach(() => {
 
 describe("the job's page head", () => {
   /* Isaac's mock of 25 October 2026: the grey line under the name goes */
-  it("names the job beside its colour dot, with no grey line under it and no breadcrumb", async () => {
+  it("names the job by its plate: the number in its colour's box, the client beside it, and the way back above (Isaac, 5 and 6 November 2026)", async () => {
     const { container } = draw("visits");
     await ready();
     const h1 = screen.getByRole("heading", { level: 1 });
-    expect(h1).toHaveTextContent("Richards Building");
-    /* the job's colour, snapped to the eight, beside its name */
-    expect(h1.querySelector(".pt-dot--blue")).not.toBeNull();
+    /* the client, as Schedule and Jobs name a job; the address is Site's */
+    expect(h1).toHaveTextContent(/^Richards Building$/);
+    const plate = container.querySelector(".jp-plate")!;
+    expect(plate).toHaveClass("jp-plate--blue");
+    expect(plate.querySelector(".jp-num")).toHaveTextContent(/^3209$/);
+    expect(container.querySelector(".jp-head")).not.toHaveTextContent(/Woorarra/);
+    /* no grey line of stage or kind, and no breadcrumb: one word back */
     expect(container.querySelector(".jp-line, .jp-facts, .jp-stage")).toBeNull();
-    expect(container.querySelector(".jp-head")).not.toHaveTextContent(/Work order|Job 3209|Woorarra|Accepted/);
+    expect(container.querySelector(".jp-head")).not.toHaveTextContent(/Work order|Job 3209|Accepted/);
     expect(container.querySelector(".wb2-crumbline, .int-back")).toBeNull();
+    /* opened with nowhere to go back to, the way back is Jobs */
+    expect(screen.getByRole("link", { name: "Jobs" })).toHaveAttribute("href", "/dashboard/jobs");
   });
 
   it("is a page, not a card: no dialog, no scrim, no band, no rail, nothing to close", async () => {
@@ -287,6 +296,7 @@ describe("the job's page head", () => {
       "Add task",
       "Add quote",
       "Add cost",
+      "Add purchase",
       "Add SWMS",
       "Add certificate",
       "Pin the job",
@@ -337,6 +347,15 @@ describe("the job's sections are the card's faces", () => {
     expect(tabWords()).toEqual(["Overview", "Quote", "Visits", "Materials", "Photos", "Documents"]);
   });
 
+  /* Isaac, 28 October 2026: "a separate tab outside of the quoting" */
+  it("has Design after Quote for whoever holds the Studio", async () => {
+    draw("design", { studio: true });
+    await ready();
+    expect(tabWords()).toEqual(["Overview", "Quote", "Design", "Visits", "Materials", "Photos", "Documents"]);
+    expect(screen.getByRole("region", { name: "Design" })).toBeVisible();
+    expect(await screen.findByText("No design on this job")).toBeInTheDocument();
+  });
+
   /* the refined Overview A (Isaac, 25 October 2026): the stages line, the
      strip of facts, then the Summary and To do beside the Activity feed */
   it("shows Overview as the stages line over the strip of facts, the Summary and To do beside the Activity feed", async () => {
@@ -350,7 +369,7 @@ describe("the job's sections are the card's faces", () => {
     expect([...over.querySelectorAll(".jov-main .jov-title")].map((h) => h.textContent)).toEqual(["Summary", "To do"]);
     expect([...over.querySelectorAll(".jov-side .jov-title")].map((h) => h.textContent)).toEqual(["Activity feed"]);
     expect(screen.getByRole("region", { name: "Activity feed" })).toBeVisible();
-    expect(screen.getByRole("textbox", { name: "Tell Tiff about this job" })).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "Write a note on this job" })).toBeVisible();
     expect(screen.queryByRole("complementary", { name: "About the job" })).toBeNull();
     /* Next visit opens Visits and Money opens Billing, from anywhere on the cell */
     await userEvent.click(facts.getByRole("button", { name: "Next visit" }));

@@ -1,4 +1,4 @@
-import { priceBuildUp } from "../buildup";
+import { priceBuildUp, roundedUp } from "../buildup";
 import { normaliseDraft } from "../proposal";
 import { allowedQuoteFields, quoteRows } from "@/lib/integrations/sm8-quote-plan";
 import { NOT_APPROVED, optionLines, planKey, quoteDescription, sendAsQuotePlan, sendPlan, usualTaxRate, type ProposalWords } from "../sm8-send-plan";
@@ -46,6 +46,13 @@ it("sends every line, labour by the person-day, when the customer sees line item
   expect(lines.at(-1)!.unitPriceCents).toBe(112000);
   const sum = lines.reduce((s, l) => s + l.quantity * l.unitPriceCents, 0);
   expect(Math.round(sum)).toBe(build.exGstCents);
+});
+
+it("gives a total's round up its own line, so the lines still add up to the total", () => {
+  const up = roundedUp({ ...build, exGstCents: build.exGstCents + 1 });
+  const lines = optionLines(draft, 0, up, true);
+  expect(lines.at(-1)).toEqual({ name: "Rounding", quantity: 1, unitPriceCents: up.roundUpCents, unitCostCents: 0 });
+  expect(optionLines(draft, 0, roundedUp({ ...build, exGstCents: 500 }), true).some((l) => l.name === "Rounding")).toBe(false);
 });
 
 it("folds a loading into the labour, never a line of its own, and still adds up to the total", () => {

@@ -55,6 +55,9 @@ jest.mock("@/lib/supabase-server", () => ({
 }));
 
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
+/* Save answers once the note is on the job; the send runs after the answer */
+const scheduled: (() => unknown)[] = [];
+jest.mock("next/server", () => ({ after: (fn: () => unknown) => void scheduled.push(fn) }));
 let caps = new Set<string>(["workboard"]);
 jest.mock("@/lib/permissions-server", () => ({
   requireOrg: async (c?: string) => {
@@ -64,7 +67,15 @@ jest.mock("@/lib/permissions-server", () => ({
 }));
 jest.mock("@/lib/workboard/projects-query", () => ({ staffIdFor: async () => "staff-me" }));
 
-import { addJobNote, dismissJobNote, taskFromJobNote } from "../job-notes";
+const sentOn: string[] = [];
+jest.mock("@/lib/integrations/sm8-press", () => ({ sm8PressFromSession: async () => null }));
+jest.mock("@/lib/integrations/sm8-note-send-on", () => ({
+  sendNoteOnToSm8: async (_press: unknown, orgId: string, noteId: string, jobUuid: string) => {
+    sentOn.push(`${orgId} ${noteId} ${jobUuid}`);
+  },
+}));
+
+import { addJobNote, dismissJobNote, saveJobNote, taskFromJobNote } from "../job-notes";
 
 beforeEach(() => {
   inserts.length = 0;
@@ -123,6 +134,30 @@ describe("addJobNote", () => {
   it("refuses an empty note rather than filing a blank diary entry", async () => {
     await expect(addJobNote("job-uuid", "   ")).rejects.toThrow(/Nothing to write/);
     expect(inserts).toHaveLength(0);
+  });
+});
+
+/* Save in the box (Isaac, 6 November 2026: "Save creates a raw note, tiff
+   processes it like she does today"): the words as written, on the job, and
+   on to ServiceM8 behind the gate Tiff's filing has. */
+describe("saveJobNote", () => {
+  it("files the words as written on the job, answers, then sends them on", async () => {
+    sentOn.length = 0;
+    scheduled.length = 0;
+    const saved = await saveJobNote("job-uuid", "Rough-in done upstairs");
+    expect(saved.text).toBe("Rough-in done upstairs");
+    /* Saved never waits on ServiceM8 (Isaac, 6 November 2026: "it should be instant") */
+    expect(sentOn).toEqual([]);
+    await Promise.all(scheduled.map((fn) => fn()));
+    expect(sentOn).toEqual([`org-1 ${saved.id} job-uuid`]);
+  });
+
+  it("sends nothing on when the note isn't filed", async () => {
+    sentOn.length = 0;
+    scheduled.length = 0;
+    await expect(saveJobNote("job-uuid", "   ")).rejects.toThrow(/Nothing to write/);
+    expect(scheduled).toEqual([]);
+    expect(sentOn).toEqual([]);
   });
 });
 

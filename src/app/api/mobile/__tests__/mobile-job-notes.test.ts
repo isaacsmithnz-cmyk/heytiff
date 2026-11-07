@@ -48,6 +48,16 @@ jest.mock("@/lib/workboard/job-note-write", () => ({
   },
 }));
 
+/* Save's send on to ServiceM8 runs after the answer; the shared gate's own suite has the gates */
+const scheduled: (() => unknown)[] = [];
+jest.mock("next/server", () => ({ ...jest.requireActual("next/server"), after: (fn: () => unknown) => void scheduled.push(fn) }));
+jest.mock("@/lib/integrations/sm8-press", () => ({ sm8PressFromMobile: async () => null }));
+jest.mock("@/lib/integrations/sm8-note-send-on", () => ({
+  sendNoteOnToSm8: async (_press: unknown, orgId: string, noteId: string, jobUuid: string) => {
+    asked.push(`send on ${orgId} ${noteId} ${jobUuid}`);
+  },
+}));
+
 import { POST } from "../jobs/[id]/notes/route";
 import { MOBILE_AUDIENCE } from "@/lib/mobile/token";
 
@@ -119,4 +129,21 @@ test("a job the workspace's mirror doesn't hold is refused with the write's own 
   const res = await post("not-here", { body: "hello" }, "auth0|lyle");
   expect(res.status).toBe(400);
   expect((await res.json()).error).toBe("That job isn't on this workspace's board");
+});
+
+/* Save in the phone's box (Isaac, 6 November 2026: "Save creates a raw
+   note"): the words as written, then on to ServiceM8 behind the gate Tiff's
+   filing has. Only when asked, so the day's wrap-up keeps its own send. */
+test("Save's note goes on to ServiceM8 when the box asks, and only then", async () => {
+  scheduled.length = 0;
+  expect((await post("claim-7", { body: "Rough-in done upstairs", id: PEN, sendOn: true }, "auth0|lyle")).status).toBe(200);
+  /* answered before the send: Saved never waits on ServiceM8 */
+  expect(asked).toEqual(["resolve org-diamond claim-7", `write org-diamond auth0|lyle job-3342 "Rough-in done upstairs" ${PEN}`]);
+  await Promise.all(scheduled.map((fn) => fn()));
+  expect(asked.at(-1)).toBe(`send on org-diamond ${PEN} job-3342`);
+  asked.length = 0;
+  scheduled.length = 0;
+  expect((await post("claim-7", { body: "Rough-in done upstairs", id: PEN }, "auth0|lyle")).status).toBe(200);
+  expect(scheduled).toEqual([]);
+  expect(asked.some((a) => a.startsWith("send on"))).toBe(false);
 });

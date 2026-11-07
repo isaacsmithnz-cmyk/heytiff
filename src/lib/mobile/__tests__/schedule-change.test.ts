@@ -64,6 +64,7 @@ jest.mock("@/lib/integrations/links", () => ({
     { remoteId: "a1e0a1e0-0000-4000-8000-00000000a002", staffProfileId: "staff-alex" },
   ]),
   sm8DeniedLinks: jest.fn(async () => new Set()),
+  sm8PressStaff: jest.fn(async () => undefined),
 }));
 /* the press's settle, on the tests' clock: the run the action would start */
 const mockSettle = jest.fn();
@@ -305,6 +306,21 @@ describe("a swap, a time, a take off and a booking", () => {
     expect(answer).toMatchObject({ ok: true, state: "sent", said: "Alex is on 9001 9:00 to 3:00 now" });
     expect(sm8.active(shorter)).toBe(false);
     expect(push.mock.calls[0]![2]).toMatchObject({ title: "Sam Tester changed your time on 9001" });
+  });
+
+  it("a new time on another day: booked there, the old one off, and its Undo puts it back (Isaac, 2 November 2026)", async () => {
+    const later = day(3);
+    const named = new Date(`${later}T12:00:00Z`).toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+    booked(ALEX_ON_JOB, JOB, ALEX_SM8, at(TOMORROW, "07:00"), at(TOMORROW, "15:00"));
+    const answer = await change({ do: "time", activity: ALEX_ON_JOB, start: at(later, "12:00"), end: at(later, "13:00") });
+    expect(answer).toMatchObject({ ok: true, state: "sent", said: `Alex is on 9001 ${named} 12:00 to 1:00 now`, undo: { do: "time", start: at(TOMORROW, "07:00"), end: at(TOMORROW, "15:00") } });
+    expect(sm8.active(ALEX_ON_JOB)).toBe(false);
+    expect([...sm8.activities.values()].filter((a) => a.active === 1).map((a) => [a.staffUuid, a.jobUuid, a.start, a.end])).toEqual([[ALEX_SM8, JOB, at(later, "12:00"), at(later, "13:00")]]);
+    expect(push.mock.calls[0]![2]).toMatchObject({ title: `Sam Tester moved your visit to 9001 to ${named}` });
+    sync();
+    if (!answer.ok || !answer.undo) throw new Error("no undo");
+    expect(await change(answer.undo, { tell: false })).toMatchObject({ ok: true, state: "sent" });
+    expect([...sm8.activities.values()].filter((a) => a.active === 1).map((a) => [a.start, a.end])).toEqual([[at(TOMORROW, "07:00"), at(TOMORROW, "15:00")]]);
   });
 
   it("take off, and its Undo books them back", async () => {

@@ -89,6 +89,9 @@ const clock = (stamp: string) => {
   return m ? `${Number(m[2]) % 12 || 12}:${m[3]}` : "";
 };
 const span = (start: string, end: string) => `${clock(start)} to ${clock(end)}`;
+/** "Friday 6 November", the day a stamp is on: a day, so no zone moves it. */
+const dayName = (stamp: string) =>
+  new Date(`${stamp.slice(0, 10)}T12:00:00Z`).toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
 
 /* ── the gates ── */
 
@@ -293,11 +296,13 @@ async function plan(orgId: string, press: Sm8Press, change: ScheduleChange, pres
       };
     }
     case "time": {
+      /* another day as well as another time (Isaac, 2 November 2026: "change
+         time only changes time that day"): the booking at the new day and
+         time, the old one off, as any change of time */
       const b = await readOne(text(change.activity));
       if ("error" in b) return b;
       const slot = pickedSlot(text(change.start), text(change.end));
       if (!slot) return bad(BOOKING_WORDS.press.unqueued);
-      if (slot.start.slice(0, 10) !== b.start.slice(0, 10)) return bad(BOOKING_WORDS.press.crossesMidnight);
       if (slot.start === b.start && slot.end === b.end) return bad("That's the time it is already.");
       /* the same start on one of ours is the same booking to the queue: it
          has to be out of ServiceM8 before a new one can take its place */
@@ -308,11 +313,20 @@ async function plan(orgId: string, press: Sm8Press, change: ScheduleChange, pres
       const refused = bookableWords(job);
       if (refused) return bad(refused, 409);
       const name = first(names.get(low(b.staffUuid)));
+      const moved = slot.start.slice(0, 10) !== b.start.slice(0, 10);
+      const when = moved ? `${dayName(slot.start)} ${span(slot.start, slot.end)}` : span(slot.start, slot.end);
       return {
         steps: [{ book: { jobUuid: job!.uuid, staffUuid: b.staffUuid, ...slot } }, { off: b }],
-        said: `${name} is on ${job!.number} ${span(slot.start, slot.end)} now`,
+        said: `${name} is on ${job!.number} ${when} now`,
         undo: { do: "time", activity: "", start: b.start, end: b.end },
-        tell: [{ staffUuid: b.staffUuid, title: `${presser} changed your time on ${job!.number}`, body: words(job!.where, span(slot.start, slot.end)), path: `/job?id=${job!.uuid}` }],
+        tell: [
+          {
+            staffUuid: b.staffUuid,
+            title: moved ? `${presser} moved your visit to ${job!.number} to ${dayName(slot.start)}` : `${presser} changed your time on ${job!.number}`,
+            body: words(job!.where, when),
+            path: `/job?id=${job!.uuid}`,
+          },
+        ],
       };
     }
     case "off": {

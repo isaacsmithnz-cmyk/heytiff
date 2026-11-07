@@ -7,6 +7,7 @@ import { DateField } from "@/components/ui/date-field";
 import { ConfirmDialog, Dialog } from "@/components/parts/dialog";
 import { Button } from "@/components/parts/button";
 import { Field, TextArea, TextInput } from "@/components/parts/field";
+import { NoteToken } from "@/components/notes/note-token";
 import { Chooser } from "@/components/parts/chooser";
 import { Tray } from "@/components/parts/tabs";
 import { StateWord } from "@/components/parts/state";
@@ -528,10 +529,14 @@ export function LogModal({
               {vehiclePicker}
               {kind === "odo" && odoField("Odometer (km)", true)}
               <Field label={kind === "issue" ? "What's wrong" : "Note"} className="mk-records-wide">
-                <TextArea
+                {/* said or typed */}
+                <NoteToken
+                  as="field"
+                  label={kind === "issue" ? "what's wrong" : "the note"}
+                  offer={false}
                   placeholder={kind === "issue" ? "Sliding door latch sticking" : "Optional"}
                   value={note}
-                  onChange={(e) => setNote(e.target.value)}
+                  onChange={setNote}
                 />
               </Field>
             </>,
@@ -714,7 +719,7 @@ export function EditLogModal({
                 {isFuel ? (
                   <TextInput value={note} onChange={(e) => setNote(e.target.value)} />
                 ) : (
-                  <TextArea value={note} onChange={(e) => setNote(e.target.value)} />
+                  <NoteToken as="field" label={log.kind === "issue" ? "what's wrong" : "the note"} offer={false} value={note} onChange={setNote} />
                 )}
               </Field>
             )}

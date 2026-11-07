@@ -6,7 +6,7 @@ import { addKit } from "@/lib/quotes/kits-server";
 import { packMakers } from "@/lib/quotes/lookups-server";
 import { linesFit } from "@/lib/quotes/fit-server";
 import { normaliseKitFacts } from "@/lib/quotes/kits";
-import { approveProposal, markAccepted, markVariation, nameOption, readByHand, saveProposal, setLoading, setNoDesign, setSupplier, startVariation, startVersion } from "@/lib/quotes/lines-job-server";
+import { approveProposal, unapproveProposal, markAccepted, markVariation, nameOption, readByHand, saveProposal, setLoading, setNoDesign, setSupplier, startVariation, startVersion } from "@/lib/quotes/lines-job-server";
 import { readJobDesigns } from "@/lib/studio/job-designs-server";
 import { readVersions } from "@/lib/quotes/quote-versions-server";
 import { stageNamed, variationMaterials } from "@/lib/quotes/lines-job";
@@ -51,7 +51,7 @@ async function gate(): Promise<Gate> {
 }
 
 /* what only someone who sees money may do to a quote, and what only a manager */
-const MONEY_OPS = new Set(["supplier", "proposal", "approve", "loading", "version", "variation", "variation-approve", "variation-accept"]);
+const MONEY_OPS = new Set(["supplier", "proposal", "approve", "unapprove", "loading", "version", "variation", "variation-approve", "variation-accept"]);
 const MANAGE_OPS = new Set(["accept"]);
 
 /** The suppliers a job can buy from: the business's own, with items. */
@@ -237,6 +237,17 @@ export async function POST(req: Request) {
         const session = await readSession(g.orgId, jobUuid).catch(() => null);
         if (session) await addEvents(g.orgId, session.id, null, [{ kind: "milestone", author: g.userId, body: { text: "Proposal approved" } }]);
       }
+      break;
+    }
+    case "unapprove": {
+      /* gone to ServiceM8, it's a new version to change, as on the page */
+      if ((await readByHand(g.orgId, jobUuid)).sent) {
+        result = { ok: false, reason: "It's been sent, so it can't be taken back." };
+        break;
+      }
+      const taken = await unapproveProposal(g.orgId, jobUuid, g.userId);
+      result = taken;
+      if (taken.ok) await mark("No longer ready to send");
       break;
     }
     case "loading":

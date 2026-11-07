@@ -114,8 +114,8 @@ describe("an email about a job already here", () => {
   });
 
   it("says which job and how she knows, or that she can't tell", () => {
-    expect(tiffSays(p({ jobs: [job("3444", "number")] }), null)).toContain("This is for job 3444 at 40 Westbourne Street (its number is in the email). File it on that job?");
-    expect(tiffSays(p({ jobs: [job("3444", "client"), job("3500", "client")] }), null)).toContain("I can't tell which. Pick the job to file it on.");
+    expect(tiffSays(p({ jobs: [job("3444", "number")] }), null)).toContain("This is for job 3444 at 40 Westbourne Street (its number is in the email). Add it to that job?");
+    expect(tiffSays(p({ jobs: [job("3444", "client"), job("3500", "client")] }), null)).toContain("I can't tell which. Pick the job to add it to.");
     expect(tiffSays(p({ jobs: [] }), null)).toContain("none of yours matched its number, site or client");
   });
 });

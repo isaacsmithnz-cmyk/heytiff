@@ -36,10 +36,11 @@ export default async function JobQuotePage({
   /* anyone on the Workboard quotes, its money hidden without `financials`
      (Isaac, 2026-10-12: "For techs who are quoting a job") */
   const target = await resolveJobCard(orgId, job);
-  const [{ detail }, moneyVisible, financials] = await Promise.all([
+  const [{ detail }, moneyVisible, financials, studio] = await Promise.all([
     readMirrorJob(target.parentRemoteId),
     can("workboard_money"),
     can("financials"),
+    can("studio"),
   ]);
   if (!detail) notFound();
   /* the job card's Create a quote links ?start=1: the reply box is ready
@@ -50,6 +51,8 @@ export default async function JobQuotePage({
      (v2 step 6, slice D) */
   const raw = typeof sp.option === "string" ? Number(sp.option) : NaN;
   const option = Number.isInteger(raw) && raw >= 0 && raw <= 19 ? raw : null;
+  /* ?update=1 from the job's Since the quote: Update quote, what's changing written in */
+  const update = sp.update === "1";
 
-  return <QuoteScreen job={target.parentRemoteId} detail={detail} moneyVisible={moneyVisible} financials={financials} start={start} option={option} />;
+  return <QuoteScreen job={target.parentRemoteId} detail={detail} moneyVisible={moneyVisible} financials={financials} studio={studio} start={start} option={option} update={update} />;
 }

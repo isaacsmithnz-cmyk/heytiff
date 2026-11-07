@@ -1,7 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { LogModal } from "../modals";
 import type { NewLog, Vehicle } from "../logic";
+import { NoteScopeProvider } from "@/components/notes/note-context";
 
 // the receipt reader is a server action — never call it from a component test
 jest.mock("@/app/actions/fleet-ai", () => ({
@@ -12,6 +13,20 @@ jest.mock("@/app/actions/fleet-ai", () => ({
 jest.mock("@/lib/documents/upload-client", () => ({
   uploadFile: jest.fn(async () => ({ ok: false, error: "not in a test" })),
 }));
+
+/** The engine, with its transcript handed over by the test. */
+const heard: { say?: (words: string) => void } = {};
+jest.mock("@/components/notes/dictation", () => {
+  const actual = jest.requireActual("@/components/notes/dictation");
+  return {
+    ...actual,
+    useDictation: (opts: { onTranscript: (w: string) => void }) => {
+      const react = jest.requireActual("react") as typeof import("react");
+      heard.say = opts.onTranscript;
+      return { recording: false, arming: false, transcribing: false, interim: "", seconds: 0, barsRef: react.createRef(), start: jest.fn(), stop: jest.fn(), handOver: jest.fn(), cancel: jest.fn(), restart: jest.fn() };
+    },
+  };
+});
 
 const vehicle = (over: Partial<Vehicle> = {}): Vehicle => ({
   id: "vrf-04",
@@ -118,5 +133,34 @@ describe("LogModal rego picker", () => {
     setup("fuel");
     expect(picker()).toBeInTheDocument();
     expect(screen.getByText("Snap or upload the receipt")).toBeInTheDocument();
+  });
+});
+
+/* 7 November 2026 (Isaac: "Fix all of those"): what's wrong takes the voice
+   where the workspace has it */
+describe("LogModal, an issue said", () => {
+  const draw = (voiceEnabled: boolean) => {
+    const onSave = jest.fn();
+    render(
+      <NoteScopeProvider voiceEnabled={voiceEnabled}>
+        <LogModal kind="issue" today="2026-08-04" vehicle={mine} onSave={onSave} onClose={jest.fn()} />
+      </NoteScopeProvider>,
+    );
+    return { onSave, user: userEvent.setup() };
+  };
+
+  it("has the microphone where voice is on, and what is said is the issue logged", async () => {
+    const { onSave, user } = draw(true);
+    expect(screen.getByRole("button", { name: "Dictate — what's wrong" })).toBeInTheDocument();
+    act(() => heard.say!("Sliding door latch sticking"));
+    expect(screen.getByLabelText("What's wrong")).toHaveValue("Sliding door latch sticking");
+    await user.click(screen.getByRole("button", { name: /Report an issue/ }));
+    expect((onSave.mock.calls[0][0] as NewLog)).toMatchObject({ kind: "issue", note: "Sliding door latch sticking" });
+  });
+
+  it("has none where voice is off", () => {
+    draw(false);
+    expect(screen.queryByRole("button", { name: /^Dictate/ })).toBeNull();
+    expect(screen.getByLabelText("What's wrong")).toHaveAttribute("placeholder", "Sliding door latch sticking");
   });
 });

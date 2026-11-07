@@ -19,6 +19,7 @@ import userEvent from "@testing-library/user-event";
 import { NoteToken } from "../note-token";
 import { NoteScopeProvider, NoteScopeScreen } from "../note-context";
 import { TiffContext, type TiffApi, type TiffOpen } from "@/components/tiff/modal/tiff-context";
+import { Field } from "@/components/parts/field";
 
 /** The modal's door, as every Tiff button and offer reaches it. */
 const open = jest.fn((_o: TiffOpen) => true);
@@ -210,5 +211,46 @@ describe("the field", () => {
       "Tell Lyle he needs to order the grilles before Monday"
     );
     expect(screen.queryByText(/something to do in this/)).not.toBeInTheDocument();
+  });
+});
+
+/* 7 November 2026: the forms' boxes took the microphone (Isaac: "Fix all of
+   those"), and a form's box is parts/field's TextArea, tied to its label and
+   its error by the Field round it. Standing in a Field the field posture
+   wears that box; anywhere else it is the sheets' `.wb2-notes` as ever. */
+describe("the field, standing in a form's Field", () => {
+  function InForm({ error }: { error?: string }) {
+    const [v, setV] = useState("");
+    return (
+      <Field label="What needs doing" error={error}>
+        <NoteToken as="field" label="what needs doing" offer={false} value={v} onChange={setV} box={{ maxLength: 20 }} />
+      </Field>
+    );
+  }
+
+  it("is the form's own box, named by its label, with the microphone under it", async () => {
+    mount(<InForm />);
+    const box = screen.getByLabelText("What needs doing");
+    expect(box).toHaveClass("pt-textarea");
+    expect(box).not.toHaveClass("wb2-notes");
+    expect(box).toHaveAttribute("maxLength", "20");
+    expect(screen.getByRole("button", { name: "Dictate — what needs doing" })).toBeInTheDocument();
+    await userEvent.type(box, "Order the grilles");
+    expect(box).toHaveValue("Order the grilles");
+  });
+
+  it("wears the Field's red edge and points at why", () => {
+    mount(<InForm error="Say what needs doing." />);
+    const box = screen.getByLabelText("What needs doing");
+    expect(box).toHaveClass("pt-textarea--invalid");
+    expect(box).toHaveAttribute("aria-invalid", "true");
+    expect(box).toHaveAccessibleDescription("Say what needs doing.");
+  });
+
+  it("is the sheets' box outside a Field", () => {
+    mount(<NoteToken as="field" label="access notes" value="" onChange={() => {}} box={{ "aria-label": "Access notes" }} />);
+    const box = screen.getByRole("textbox", { name: "Access notes" });
+    expect(box).toHaveClass("wb2-notes");
+    expect(box).not.toHaveAttribute("aria-invalid");
   });
 });

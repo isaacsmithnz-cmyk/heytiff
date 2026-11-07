@@ -225,6 +225,10 @@
 .fg .nb-whenline { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .nb-whenline svg { color:var(--q); flex:0 0 auto; }
 .fg .nb-whensum { font-size:13px; font-weight:600; color:var(--gray400); padding-left:24px; }
+.fg .nb-diet, .fg .nb-diets { display:flex; flex-direction:column; gap:4px; margin-top:12px; }
+.fg .nb-dietlabel { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .nb-diets ul { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:4px; font-size:14px; line-height:20px; }
+.fg .nb-diets b { font-weight:600; }
 
 /* The v3 row-of-stats `.hstats` / `.hstat` block lived here. It was dead — no
    screen rendered that markup after the hero became a greeting plus an action
@@ -313,44 +317,6 @@
 
 /* ===== HeyTiff · FIGMA REPLICA — Tiff / Toolbox / Ductr screens ===== */
 
-/* ---------------- TIFF ----------------
-   The assistant's own two-column layout lives with the rest of the knowledge
-   base in the `.tk-` block at the end of this file. What stays here is the
-   furniture the TRANSCRIPT is built from — the glowing composer and the
-   bubbles.
-
-   THE DARK HERO AND THE FOUR SUGGESTION CARDS ARE GONE. They were the v1
-   screen's furniture: a 48px greeting that owned the top third of the page
-   and four cards that repeated the rail sitting next to them. A tool you
-   come to with a question should open with the place to type it, not with an
-   introduction — the search-first landing that replaced them is `.tk-open`
-   and `.tk-starts` in the `.tk-` block. Deleted rather than left behind,
-   because unused CSS is what the next person copies. */
-
-/* Stop wears the send button's shape and position — the control the thumb is
-   already travelling to — but the only red in the resting UI, and only once
-   the mic is actually open. Same rule the token's capsule follows. */
-
-/* The gap is 16px so the row can breathe; the recording cluster is four things
-   and needs to read as one, so it closes up while the mic is open. */
-
-.fg .tvsay { margin:8px 4px 0; font-size:13px; font-weight:600; color:var(--gray500); }
-.fg .tvsay.err { color:var(--bad-t); }
-/* On a phone the clock is the first thing to go: the bars already say it is
-   listening, and a stop button that has been pushed off the row is worse than
-   no timer. */
-
-/* The 340px sidebar and its knowledge-base rows are GONE, replaced by the
-   `.tk-rail` at the end of this file — deleted rather than left behind,
-   because unused CSS is what the next person copies. Thread rows survived the
-   move and are styled below. */
-.fg .thread { padding:16px; border-radius:var(--r-card); border:1px solid transparent; cursor:pointer; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.fg .thread:hover { background:var(--paper); border-color:var(--line); }
-.fg .thread .th { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:8px; }
-.fg .thread .th b { font-size:14px; font-weight:700; color:var(--ink); line-height:1.3; transition:color var(--t-fast) var(--ease); }
-.fg .thread:hover .th b { color:var(--ink); }
-.fg .thread em { font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); }
-
 /* ---------------- THE LIBRARY'S CATEGORY CARD ----------------
    The Toolbox's own head and search stood here until its landing took the
    Workboard's band (2026-09-20). What is left is `.cat`, which the Library's
@@ -373,9 +339,9 @@
    flow dash, room/unit pops, ring and fan — is GONE. Nothing has rendered a
    `.plan` figure with those class names for a long time, and dead CSS in this
    file is not free: it has shadowed live components before. The two primitives
-   worth keeping (draw-in via pathLength + dashoffset, and a travelling dash
-   pulse) live on under `.tk-line` at the end of this file, where something
-   actually renders them. */
+   it left behind (draw-in via pathLength + dashoffset, and a travelling dash
+   pulse) went with the Library's search lines, the last thing that drew
+   them. */
 
 @media (prefers-reduced-motion: reduce) {
   .fg * { animation-duration:.001s !important; }
@@ -1149,20 +1115,6 @@
 .fg .seg button { padding:8px 16px; border-radius:var(--r-button); font-size:13px; font-weight:700; color:var(--gray500); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .fg .seg button.on { background:var(--paper); color:var(--ink); }
 .fg .seg button.on.green { color:var(--ok-t); }
-/* THE ME CARD'S IN-PANEL SWITCH — `.seg` doing the job Vehicle, Expenses and
-   Notes each used a card-edge tab strip for, now that all three sit INSIDE a
-   card-edge tab strip (see me/face-switch.tsx). It leads the panel it filters,
-   which is why the gap below is the panel's own rhythm rather than a margin
-   pulled out of the air: 20px is what `.ppanel2` puts between its blocks.
-
-   The count is the strip's badge at the switch's size — same grey, same
-   "absent means none" rule. It must never be tinted: red and amber on this
-   sheet mean something is wrong, and "3 archived" is not. */
-.fg .me-fshd { display:flex; align-items:center; justify-content:space-between; gap:16px;
-  flex-wrap:wrap; margin-bottom:16px; }
-/* A fact about the surface, in the row the switch already occupies — see
-   me/face-switch.tsx for why it is not allowed near the heading. */
-.fg .me-fsnote { margin:0; font-size:13px; font-weight:600; color:var(--gray500); }
 
 /* toggle */
 .fg .toggle { width:48px; height:28px; border-radius:999px; background:var(--grey); position:relative; flex:0 0 auto; cursor:pointer; transition:background var(--t-fast) var(--ease); }
@@ -1295,28 +1247,6 @@
   .fg-cmd .cf-l { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:var(--q); }
   .fg-cmd .cf-r { display:flex; align-items:center; gap:4px; font-size:12px; font-weight:700; color:var(--q); }
 
-/* ===== TIFF AI · stage 1 additions (chat thread + Knowledge Base page) =====
-   Additive only — the ported v3 rules above are untouched. */
-
-/* thread rows are buttons, not the design's divs */
-.fg button.thread { display:block; width:100%; text-align:left; }
-.fg .thread.on { background:var(--paper); border-color:var(--line); }
-
-/* active conversation */
-.fg .tchathead { display:flex; align-items:center; gap:12px; margin-bottom:16px; flex:0 0 auto; }
-.fg .tchathead .tb2 { width:44px; height:44px; border-radius:var(--r-card); display:flex; align-items:center; justify-content:center; flex:0 0 auto; background:var(--tint); border:1px solid var(--line); color:var(--ink); }
-.fg .tchathead .tb2 .tiffmk { --tb:34px; }
-.fg .tchathead .tcht { flex:1; min-width:0; }
-/* the title outranks the buttons beside it — it is the name of the thing
-   being read, and at 16px it lost to its own "New chat" ghost */
-.fg .tchathead .tcht b { display:block; font-size:16px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.fg .tchathead .tcht em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
-.fg .tchat { flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:16px; padding:8px 4px 16px; }
-.fg .tmsg { display:flex; align-items:flex-end; gap:12px; max-width:76%; }
-.fg .tmsg.user { align-self:flex-end; }
-.fg .tmsg .tmb { padding:12px 16px; border-radius:var(--r-card); font-size:14px; font-weight:500; line-height:1.55; }
-.fg .tmsg.user .tmb { background:var(--ink); color:var(--paper); border-bottom-right-radius:var(--r-control); }
-.fg .tmsg.bot .tmb { background:var(--paper); border:1px solid var(--line); color:var(--ink); border-bottom-left-radius:var(--r-control); }
 /* ══════════════════════ THE ORB (.orb) — SHARED ══════════════════════
    One sphere of dots, two instruments. Unscoped on purpose: Tiff's waiting
    chip is inside `.fg`, the dictation meter is rendered from the notes token
@@ -1406,242 +1336,6 @@
      that reason. It survives for free — the ball's scale is driven by a
      custom property, not by an animation, so there is no loop here to stop. */
   .orb-spin { animation:none; transform:rotateX(-16deg) rotateY(24deg); }
-}
-
-/* ══════════════════ THE DOT FIELD (.dotf) — TIFF'S MARK ══════════════════
-   The mark itself, as the instrument, in the Tiff modal's face and the ask
-   bar's recording card. While you talk it is the HeyTiff chevron with a wave
-   swelling through it; when Tiff takes the words away every dot flies out
-   into a turning cloud and darts about until the answer comes back; then the
-   whole thing drops out of its zone.
-
-   ONE SET OF ELEMENTS THROUGHOUT — see components/ui/dot-field for why, and
-   for what the four nested wrappers each do. Unscoped, like the orb: it was
-   born on the capture sheet (gone with the old capture UI, 2026-09-27), which
-   portalled to document.body, where anything under `.fg` is absent rather
-   than merely outranked.
-
-   THE ORB IS NOT REPLACED BY THIS. The three note rows still mount the sphere
-   at 18–30px, because a chevron of dots needs room the size of a card and a
-   sphere is legible at any size. One shape for the card, another for the row,
-   which is a real cost and deliberately paid. */
-.dotf { position:relative; flex:none;
-  width:var(--dotf,268px); height:var(--dotf,268px);
-  perspective:calc(var(--dotf,268px) * 3.6); }
-.dotf-tilt { position:absolute; inset:0; transform-style:preserve-3d;
-
-  transform:rotateX(0deg); transition:transform var(--t-move) var(--ease); }
-.dotf-orbit { position:absolute; inset:0; transform-style:preserve-3d; }
-.dotf-cell { position:absolute; left:50%; top:50%; width:0; height:0; transform-style:preserve-3d; }
-.dotf-wander { position:absolute; transform-style:preserve-3d; }
-.dotf-cell i { position:absolute; display:block;
-  width:var(--dotf-dot,5px); height:var(--dotf-dot,5px);
-  margin:calc(var(--dotf-dot,5px) / -2) 0 0 calc(var(--dotf-dot,5px) / -2);
-  border-radius:50%; background:currentColor; opacity:var(--lit,.9); }
-
-/* ── the mark ──
-   The chevron, held still, with a wave that MOVES the dots rather than dimming
-   them: back to 62%, out past 175% as the crest arrives. Scale rather than
-   opacity because the mark has to survive every frame of its own animation —
-   a dot at 62% is still a dot in the right place, where a dot at 8% opacity is
-   a hole in the logo. */
-.dotf[data-stage="mark"] .dotf-cell {
-  transform:translate3d(calc(var(--lx) * 1px), calc(var(--ly) * 1px), 0); }
-@keyframes dotfSwell {
-  0%,100% { transform:scale(.62);  opacity:calc(var(--lit,.9) * .5) }
-  38%     { transform:scale(1.75); opacity:var(--lit,.9) }
-}
-/* IT RUNS THROUGH THE ARRIVAL TOO, and that is a fix rather than a tidy-up
-   (Isaac, 2026-08-18, watching it live: "when the trail lands on the page,
-   everything then readjusts to start the next part of the animation — it looks
-   like a glitch").
-
-   The delay is NEGATIVE and per-dot, which is what staggers the wave along the
-   mark — so a dot handed the swell only once it was seated started partway up
-   the curve, at anything from 62% to 175% of its size. Two hundred dots each
-   jumping to their own phase in the same frame is the readjustment he saw: the
-   flight ended, and the mark visibly resized to begin breathing.
-
-   Started at the top of the gather instead, it is simply already running when
-   the dot lands, and the seam has nothing left to do. What the dot does on the
-   way in — fading up and growing from a speck — moved down to `.dotf-wander`,
-   which is the wrapper that exists for exactly this: one job each, so two
-   animations never have to share a property. */
-.dotf:is([data-stage="gather"], [data-stage="mark"]) .dotf-cell i {
-  animation:dotfSwell 4.2s ease-in-out infinite;
-  animation-delay:calc(var(--w,0) * -4.2s); }
-
-/* ── the way in ──
-   THE MARK ARRIVES FROM THE BUTTON (Isaac, 2026-08-18). Pressing the Tiff
-   button used to produce a chevron that was simply THERE — two hundred dots
-   materialised in formation the instant the card drew. Now they come from the
-   thing you pressed: each one starts on the button, bows across the screen and
-   lands in its seat, and the swell picks up from the last arrival.
-
-   IT FILLS AS THE CARD GROWS, not after. The blossom is .44s and the travel is
-   1.42s, deliberately on different clocks — the card lands early and the mark
-   keeps coming, which is what the length buys. (The travel ran at 1.0 for
-   half an hour and was cut to .7 on sight: at full speed the arrival is over
-   before the card has finished growing, so it reads as a flicker.)
-
-   `--gox/--goy` is the button in the FIELD's coordinates, set once per open by
-   the component. Everything else is per-dot and built with the geometry — see
-   `gd`, `bx` and `by` in lib/ui/dot-mark, and the note there on why the bow is
-   not a true perpendicular.
-
-   THE MIDPOINT IS ARITHMETIC, not a third address. `origin + (home - origin) *
-   .55` is the halfway house, and `bx/by` push it off the straight line; doing
-   it in `calc` is what keeps this to one keyframe for every dot, which is the
-   same trick `dotfZip` plays with its offsets. */
-@keyframes dotfGather {
-  0%   { transform:translate3d(calc(var(--gox,0) * 1px), calc(var(--goy,0) * 1px), 0);
-         animation-timing-function:var(--ease) }
-  50%  { transform:translate3d(
-           calc((var(--gox,0) + (var(--lx) - var(--gox,0)) * .55 + var(--bx)) * 1px),
-           calc((var(--goy,0) + (var(--ly) - var(--goy,0)) * .55 + var(--by)) * 1px), 0);
-         animation-timing-function:var(--ease) }
-  100% { transform:translate3d(calc(var(--lx) * 1px), calc(var(--ly) * 1px), 0) }
-}
-/* The dot's own half: it comes in small and dark and is at full weight by the
-   time it is halfway, so the stream reads as lit rather than as it fading up
-   on arrival. Separate from the flight above for the reason the whole file is
-   split four ways — position and appearance run on different clocks.
-
-   IT ENDS AT NOTHING AT ALL, on purpose. `scale(1)` and full opacity are what
-   this wrapper is when no animation is on it, so when the gather ends and the
-   rule stops matching there is no value to snap back from — the element simply
-   stops being animated. An arrival that finished anywhere else would trade the
-   swell's jump for its own.
-
-   Opacity here is a MULTIPLIER over the dot's own, which is why this can fade
-   the dot up while `dotfSwell` is independently pulsing it underneath. Nesting
-   is doing the composition; neither animation knows about the other. */
-@keyframes dotfArrive {
-  0%   { opacity:0; transform:scale(.34) }
-  50%  { opacity:1; transform:scale(.86) }
-  100% { opacity:1; transform:scale(1) }
-}
-/* WITHOUT THE ANIMATIONS THIS IS SIMPLY THE MARK, and that is load-bearing
-   twice over: below 760px there is no blossom for the dots to travel with (the
-   sheet comes up from the bottom edge), and under reduced motion there is no
-   travel at all. Both fall through to here rather than to an empty field. */
-.dotf[data-stage="gather"] .dotf-cell {
-  transform:translate3d(calc(var(--lx) * 1px), calc(var(--ly) * 1px), 0); }
-.dotf[data-stage="gather"] .dotf-cell i { opacity:var(--lit,.9); }
-@media (min-width:760px) {
-  .dotf[data-stage="gather"] .dotf-cell {
-    animation:dotfGather 800ms both;
-    animation-delay:calc(var(--gd,0) * 614ms); }
-  .dotf[data-stage="gather"] .dotf-wander {
-    animation:dotfArrive 800ms both;
-    animation-delay:calc(var(--gd,0) * 614ms); }
-}
-
-/* ── out into the cloud ──
-   Past where it is going and then back in, so it reads as coming APART and
-   re-gathering rather than as one shape sliding into another. */
-@keyframes dotfOut {
-  0%   { transform:translate3d(calc(var(--lx) * 1px), calc(var(--ly) * 1px), 0) }
-  46%  { transform:translate3d(calc(var(--fx) * 1px), calc(var(--fy) * 1px), calc(var(--fz) * 1px)) }
-  100% { transform:translate3d(calc(var(--hx) * 1px), calc(var(--hy) * 1px), calc(var(--hz) * 1px)) }
-}
-.dotf[data-stage="cloud"] .dotf-tilt,
-.dotf[data-stage="fall"]  .dotf-tilt { transform:rotateX(-12deg) scale(.66); }
-@keyframes dotfTurn { from { transform:rotateY(0deg) } to { transform:rotateY(360deg) } }
-.dotf[data-stage="cloud"] .dotf-orbit,
-.dotf[data-stage="fall"]  .dotf-orbit { animation:dotfTurn 52s linear infinite; will-change:transform; }
-.dotf[data-stage="cloud"] .dotf-cell {
-  animation:dotfOut 1.4s var(--ease) both;
-  animation-delay:calc(var(--sd,0) * .4s); }
-
-/* ── the zip, and the flare ──
-   A dot never rests while it waits. It darts between four points around its
-   own patch and flares on a clock unrelated to its movement, both at a length
-   of its own, so no two are ever in step: shared timing makes a hundred dots
-   read as one object breathing, separate timing makes them read as a hundred
-   things.
-
-   THE EASING IS WHAT MAKES IT NEURAL. Linear between the same four points is
-   a dot drifting on a current; snapping across and holding is a dot firing.
-   The path is identical — only the timing changed.
-
-   The waypoints are OFFSETS from home, which is what lets one keyframe serve
-   every dot: a dot's own transform is its position, and positions would need
-   a keyframe each. */
-@keyframes dotfZip {
-  0%   { transform:translate3d(calc(var(--z0x) * 1px), calc(var(--z0y) * 1px), calc(var(--z0z) * 1px)) }
-  25%  { transform:translate3d(calc(var(--z1x) * 1px), calc(var(--z1y) * 1px), calc(var(--z1z) * 1px)) }
-  50%  { transform:translate3d(calc(var(--z2x) * 1px), calc(var(--z2y) * 1px), calc(var(--z2z) * 1px)) }
-  75%  { transform:translate3d(calc(var(--z3x) * 1px), calc(var(--z3y) * 1px), calc(var(--z3z) * 1px)) }
-  100% { transform:translate3d(calc(var(--z0x) * 1px), calc(var(--z0y) * 1px), calc(var(--z0z) * 1px)) }
-}
-@keyframes dotfFire {
-  0%,58%,100% { opacity:calc(var(--lit,.9) * .34); transform:scale(.62) }
-  68%         { opacity:1; transform:scale(2) }
-  80%         { opacity:calc(var(--lit,.9) * .5); transform:scale(.85) }
-}
-/* Both run through the FALL as well as the wait. Scoped to the cloud alone,
-   the moment the drop began the selectors would stop matching, the animations
-   would be removed, and a hundred dots would slide back to their homes before
-   falling — which reads as the screen reloading and then playing a different
-   animation. They fall from where they actually are because they never stop. */
-.dotf[data-stage="cloud"] .dotf-wander,
-.dotf[data-stage="fall"]  .dotf-wander {
-  animation:dotfZip var(--zd,5s) var(--ease) infinite;
-  animation-delay:calc(var(--zp,0) * -1s); }
-.dotf[data-stage="cloud"] .dotf-cell i,
-.dotf[data-stage="fall"]  .dotf-cell i {
-  animation:dotfFire var(--fd,4s) ease-in-out infinite;
-  animation-delay:calc(var(--fp,0) * -1s); }
-
-/* ── the end of the wait ──
-   IT GATHERS BEFORE IT DROPS, and that is the fix rather than the flourish.
-   Measured, a plain accelerating ease left a mid-stagger dot motionless for
-   320ms — the stagger delay, and then a curve leaving at zero velocity — so
-   pressing on took visible effect a third of a second later and the cloud
-   appeared to lurch. A 16px lift over the first 15% puts motion on the very
-   first frame and reads as the thing gathering itself.
-
-   The keyframe starts at the dot's OWN home, so nothing snaps to the middle
-   before falling. The tilt, the turn, the zip and the flare all keep running
-   underneath it. */
-@keyframes dotfFall {
-  0%   { transform:translate3d(calc(var(--hx) * 1px), calc(var(--hy) * 1px), calc(var(--hz) * 1px));
-         opacity:1; animation-timing-function:var(--ease) }
-  15%  { transform:translate3d(calc(var(--hx) * 1px), calc((var(--hy) - 16) * 1px), calc(var(--hz) * 1px));
-         opacity:1; animation-timing-function:var(--ease) }
-  100% { transform:translate3d(calc((var(--hx) + var(--gx)) * 1px), 360px, 0); opacity:0 }
-}
-.dotf[data-stage="fall"] .dotf-cell {
-  animation:dotfFall .95s linear both;
-  animation-delay:calc(var(--sd,0) * .14s); }
-
-@media (prefers-reduced-motion:reduce) {
-  /* Dropped rather than shortened: the frame's global
-     `animation-duration:.001s` turns an infinite loop into a strobe. */
-  .dotf-tilt, .dotf-orbit, .dotf-wander, .dotf-cell, .dotf-cell i {
-    animation:none; transition:none; }
-  /* The gather needs saying again at its own weight. `.dotf-cell` above is
-     (0,1,0) and the gather's rules are (0,2,1), so they win on specificity no
-     matter where they sit in the file — order cannot switch them off. What is
-     left underneath is the mark, standing still, which is the whole of what a
-     reduced-motion entrance should be. */
-  .dotf[data-stage="gather"] .dotf-cell,
-  .dotf[data-stage="gather"] .dotf-wander { animation:none; }
-  /* AND THE SWELL, WHICH THIS BLOCK NEVER ACTUALLY REACHED. `.dotf-cell i`
-     above is (0,1,1) and the swell is written at (0,3,1), so specificity —
-     not source order — has been keeping the mark breathing through every
-     reduced-motion session since it shipped. Restated at the weight it takes
-     to win. */
-  .dotf:is([data-stage="gather"], [data-stage="mark"]) .dotf-cell i {
-    animation:none; }
-  .dotf-cell i { transform:none; opacity:var(--lit,.9); }
-  .dotf[data-stage="cloud"] .dotf-cell {
-    transform:translate3d(calc(var(--hx) * 1px), calc(var(--hy) * 1px), calc(var(--hz) * 1px)); }
-  /* With `dotfFall` gone there is nothing to hold the dots out of the middle,
-     and they would pile there for the length of the exit. There is no motion
-     to reduce in a departure, so they simply go. */
-  .dotf[data-stage="fall"] .dotf-cell { opacity:0; }
 }
 
 /* ══════════════════ THE WAIT, NAMED (.orb-say) — SHARED ══════════════════
@@ -1752,16 +1446,16 @@
 }
 
 /* ── the smaller sister ──
-   Beneath a control rather than inside a sheet: under Tiff's ask bar, and on
-   the notes postures' own rows. `.tvsay` and `.wb2-dicthint` are the slots
-   the plain grey lines used to occupy, so the chip inherits their margins and
-   nothing around those controls moves. */
-/* THE CHIP'S OWN COLOUR BACK, in the two slots that were quietly taking it
-   away. The block above says the accent replaced the flat greys these hints
-   used to be — and in four of the five places the chip stands, it hadn't:
-   `.fg .tvsay` (0,2,0, line 670) and `.wb2-dicthint` (0,1,0 but declared 3,700
-   lines LATER) both set `color:var(--gray500)` on the very element `.orb-say`
-   (0,1,0, here) was setting the accent on, and both win.
+   Beneath a control rather than inside a sheet: on the notes postures' own
+   rows. `.wb2-dicthint` is the slot the plain grey line used to occupy, so
+   the chip inherits its margins and nothing around those controls moves. */
+/* THE CHIP'S OWN COLOUR BACK, in the slot that was quietly taking it away.
+   The block above says the accent replaced the flat greys these hints used
+   to be — and where the chip stood under a hint, it hadn't: `.wb2-dicthint`
+   (0,1,0 but declared 3,700 lines LATER) sets `color:var(--gray500)` on the
+   very element `.orb-say` (0,1,0, here) was setting the accent on, and wins.
+   (`.fg .tvsay`, under the Library's ask bar, did the same; it went with the
+   bar.)
 
    Nothing looked wrong, because the WORD is painted by the gradient, which
    reads `--say-ink` directly. What was actually grey was the ORB — the sphere
@@ -1769,45 +1463,12 @@
    prefers-reduced-motion, where the sweep is dropped and `b` falls back to
    `color:inherit`. A state visible to the readers least likely to be looked at.
 
-   Scoped to `.orb-say.tvsay`, not to `.fg .tvsay`: the two-minute notice and
-   the error line are plain `<p class="tvsay">` and are meant to be grey. */
-.orb-say.tvsay, .orb-say.wb2-dicthint { --orb:20px; gap:8px; min-height:20px; color:var(--say-ink); }
+   Scoped to `.orb-say.wb2-dicthint`, not to `.wb2-dicthint`: a plain hint
+   line is meant to be grey. */
+.orb-say.wb2-dicthint { --orb:20px; gap:8px; min-height:20px; color:var(--say-ink); }
 .orb-say .tiffmk { --tb:24px; }
-.orb-say.tvsay .tiffmk, .orb-say.wb2-dicthint .tiffmk { --tb:20px; }
-.orb-say.tvsay b, .orb-say.wb2-dicthint b { font-size:13px; font-weight:700; }
-
-/* (Its dusk re-point, `.wb2-dusk .orb-say`, went with the capture card on
-   2026-09-27. It matched nothing even then — no dark surface ever held the
-   chip — and was kept for the card's transcribing stage, one branch change
-   away. The one dark card left, the Tiff chat's recording card below, holds
-   no wait at all. A dark mount would need its own `--say-ink` and
-   `--say-lit`: the light values are under 4.5:1 on ink.) */
-
-/* ══════════ TIFF — THE RECORDING CARD, IN THE COMPOSER (.tk-rec) ══════════
-   The ask bar hands its space to the shared recording card while the mic is
-   open (notes/recording-card). Isaac: "the input section should be identical
-   throughout the software — they just appear in different places." It is
-   the card the Tiff button's sheet and the diary's entry row showed too, and
-   the last of them standing: those went with the old capture UI on
-   2026-09-27, when the Tiff modal was every Tiff button's.
-
-   THIS RULE IS ONLY ABOUT HOW IT ARRIVES. Nothing here says anything about
-   material: the dusk skin, the button fills and the type sizes all arrive
-   from `.wb2-capcard` and `.wb2-capcard.wb2-dusk`, and a background declared
-   here would beat them on source order and quietly undo the point. The
-   debrief learned that the expensive way — its first version restated forty
-   rules and had already drifted from the sheet by the time anyone compared
-   them side by side. (It used to take the sheet's placement back off, too —
-   fixed, centred, over a dim — until the sheet went and `.wb2-capcard`
-   stopped placing anything.) */
-.fg .tk-rec { min-width:0; animation:tkRecIn .2s var(--ease) both; }
-@keyframes tkRecIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
-@media (prefers-reduced-motion:reduce) { .fg .tk-rec { animation:none; } }
-/* NO CHIP IN THIS RIBBON, so the close × takes the margin the chip would have
-   pushed it with. The note card's chip says where the words are going, and
-   here that is the live "Answer from" row two inches below — the same fact
-   twice is the pair that eventually disagrees. */
-.fg .tk-rec .wb2-capribbon .wb2-ico { margin-left:auto; }
+.orb-say.wb2-dicthint .tiffmk { --tb:20px; }
+.orb-say.wb2-dicthint b { font-size:13px; font-weight:700; }
 
 /* Knowledge Base page */
 
@@ -3383,22 +3044,16 @@ button.fl-btn { font-size:14px; font-weight:700; }
   --wb2-cy:var(--ink); --wb2-cy2:var(--ink2); }
 
 /* the board's primary buttons wear the section accent, ghosts stay house */
-/* `.wb2-capcard` belongs in this list and was missing from it, so the capture
-   overlay's primary buttons — "Go", "Save these" — had no fill at
-   all: dark text on white, indistinguishable from a label. Which is why a
-   DISABLED "Save these" read as nothing happening rather than as off. */
 /* v2 (rules 22 and 23, Isaac, 20 October: "the black check-in button"): no
    button is black. A button here is the second button, white with a thin
    outline; the one marked primary is the main, blue with white words. */
-.wb2 .pbtn:not(.ghost), .wb2-sheet .pbtn:not(.ghost), .wb2-capcard .pbtn:not(.ghost) {
+.wb2 .pbtn:not(.ghost), .wb2-sheet .pbtn:not(.ghost) {
   background:var(--paper); border:1px solid var(--edge); color:var(--ink); }
 .wb2 .pbtn:not(.ghost):hover:not(:disabled),
-.wb2-sheet .pbtn:not(.ghost):hover:not(:disabled),
-.wb2-capcard .pbtn:not(.ghost):hover:not(:disabled) { background:var(--hov); }
-.wb2 .pbtn.primary, .wb2-sheet .pbtn.primary, .wb2-capcard .pbtn.primary {
+.wb2-sheet .pbtn:not(.ghost):hover:not(:disabled) { background:var(--hov); }
+.wb2 .pbtn.primary, .wb2-sheet .pbtn.primary {
   background:var(--press); border-color:var(--press); color:var(--paper); }
-.wb2 .pbtn.primary:hover:not(:disabled), .wb2-sheet .pbtn.primary:hover:not(:disabled),
-.wb2-capcard .pbtn.primary:hover:not(:disabled) { background:var(--press); }
+.wb2 .pbtn.primary:hover:not(:disabled), .wb2-sheet .pbtn.primary:hover:not(:disabled) { background:var(--press); }
 /* A GHOST STANDING NEXT TO A PRIMARY HAS TO LOOK LIKE ITS PAIR.
 
    This rule set the ghost's height, padding and size and then left its RADIUS
@@ -3415,12 +3070,11 @@ button.fl-btn { font-size:14px; font-weight:700; }
    `--edge`, the second button's thin outline in the parts, rule 23.) The fill stays white: a filled primary
    beside an outlined secondary is the pair saying which one is the default,
    and two fills would say neither. */
-.wb2 .pbtn.ghost, .wb2-sheet .pbtn.ghost, .wb2-capcard .pbtn.ghost {
+.wb2 .pbtn.ghost, .wb2-sheet .pbtn.ghost {
   height:38px; padding:0 16px; font-size:13px; border-radius:var(--r-button);
   border:1px solid var(--edge); box-shadow:none; }
-.wb2 .pbtn.ghost:hover:not(:disabled), .wb2-sheet .pbtn.ghost:hover:not(:disabled),
-.wb2-capcard .pbtn.ghost:hover:not(:disabled) { background:var(--hov); }
-.wb2 .pbtn:not(.ghost), .wb2-sheet .pbtn:not(.ghost), .wb2-capcard .pbtn:not(.ghost) {
+.wb2 .pbtn.ghost:hover:not(:disabled), .wb2-sheet .pbtn.ghost:hover:not(:disabled) { background:var(--hov); }
+.wb2 .pbtn:not(.ghost), .wb2-sheet .pbtn:not(.ghost) {
   height:38px; padding:0 16px; font-size:13px; border-radius:var(--r-button); }
 
 /* OFF has to LOOK off. A 55% fade of a coloured button still reads as a
@@ -3643,7 +3297,7 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 
    So each portal root restates the ramp and pins its own colour. Keep this
    list in step with the createPortal roots in components/workboard. */
-.wb2-sheet, .wb2-daymodal, .wb2-capcard, .wb2-toasts, .wb2-scrim {
+.wb2-sheet, .wb2-daymodal, .wb2-toasts, .wb2-scrim {
   --ink:#050505; --gray400:var(--q); --gray500:var(--q); --gray700:var(--ink);
   color:var(--ink);
 }
@@ -3661,28 +3315,25 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    step with the ramp list above — same roots, same reason. Sizes are NOT
    restated: the wb2 accent block sets those at higher specificity and must
    keep winning. */
-.wb2-sheet .pbtn, .wb2-daymodal .pbtn, .wb2-capcard .pbtn {
+.wb2-sheet .pbtn, .wb2-daymodal .pbtn {
   display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 16px; border-radius:var(--r-button);
   font-size:14px; font-weight:700; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
 /* THE OUTLINE IS THE SAME ONE THE IN-PAGE GHOST WEARS, and it has to be:
    this block is later in the sheet than the accent block, so whatever it says
    about the border is what a ghost in a sheet or a modal gets. Left at
    `#e5e7eb` the two diverged — the same class, 1.2:1 here and 3:1 there. */
-.wb2-sheet .pbtn.ghost, .wb2-daymodal .pbtn.ghost, .wb2-capcard .pbtn.ghost {
+.wb2-sheet .pbtn.ghost, .wb2-daymodal .pbtn.ghost {
   background:#fff; border:1px solid var(--edge); color:var(--gray700); box-shadow:none; }
 .wb2-sheet .pbtn.ghost:hover:not(:disabled),
-.wb2-daymodal .pbtn.ghost:hover:not(:disabled),
-.wb2-capcard .pbtn.ghost:hover:not(:disabled) { background:var(--hov); color:var(--ink); }
+.wb2-daymodal .pbtn.ghost:hover:not(:disabled) { background:var(--hov); color:var(--ink); }
 .wb2-sheet .pbtn:not(.ghost):hover:not(:disabled),
-.wb2-daymodal .pbtn:not(.ghost):hover:not(:disabled),
-.wb2-capcard .pbtn:not(.ghost):hover:not(:disabled) { }
+.wb2-daymodal .pbtn:not(.ghost):hover:not(:disabled) { }
 /* pressing has to answer too — a button that only changes on hover feels
    dead the moment the pointer stops moving */
 .wb2-sheet .pbtn:active:not(:disabled),
 .wb2-daymodal .pbtn:active:not(:disabled),
-.wb2-capcard .pbtn:active:not(:disabled),
 .wb2-qpage .pbtn:active:not(:disabled) { transform:translateY(1px); }
-.wb2-sheet .pbtn:focus-visible, .wb2-daymodal .pbtn:focus-visible, .wb2-capcard .pbtn:focus-visible, .wb2-qpage .pbtn:focus-visible {
+.wb2-sheet .pbtn:focus-visible, .wb2-daymodal .pbtn:focus-visible, .wb2-qpage .pbtn:focus-visible {
   outline:none; box-shadow:var(--ring); }
 /* the shared look for a disabled button lives with the fills it overrides —
    see `.wb2 .pbtn:disabled` up in the accent block */
@@ -3691,7 +3342,7 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .wb2-daymodal .pbtn.ghost.dan:hover:not(:disabled) {
   background:var(--bad-tint); border-color:var(--bad); color:var(--wb2-dan-t, var(--bad-t)); }
 @media (prefers-reduced-motion:reduce) {
-  .wb2-sheet .pbtn:active, .wb2-daymodal .pbtn:active, .wb2-capcard .pbtn:active { transform:none; }
+  .wb2-sheet .pbtn:active, .wb2-daymodal .pbtn:active { transform:none; }
 }
 
 /* ── the sheet — a CENTRED MODAL, two sections to a row ──
@@ -3812,8 +3463,8 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    the rest grey. Names only. The ring stands off the dot on white, so the
    line keeps 4 either side for it */
 .fg .qp-steps { margin:0; padding:4px 4px 0; list-style:none; display:flex; }
-.fg .qp-steps > li { position:relative; flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding-top:16px; }
-.fg .qp-steps > li:last-child { flex:0 0 auto; }
+.fg .qp-steps > li { position:relative; flex:1 1 auto; min-width:0; padding-right:8px; display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding-top:16px; }
+.fg .qp-steps > li:last-child { flex:0 0 auto; padding-right:0; }
 .fg .qp-steps > li > i { position:absolute; top:0; left:0; box-sizing:border-box; width:12px; height:12px;
   border-radius:50%; border:2px solid var(--edge); background:var(--white); }
 .fg .qp-steps > li::after { content:""; position:absolute; top:5px; left:12px; right:0; height:2px; background:var(--line); }
@@ -3835,7 +3486,24 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .qc-main { min-width:0; min-height:0; display:flex; flex-direction:column; }
 .fg .qc-rail { min-height:0; display:flex; flex-direction:column; }
 .fg .qc-scroll { flex:1; min-height:0; overflow:auto; display:flex; flex-direction:column; gap:24px; padding:24px 0; }
+/* what's in the scroll keeps its height: it scrolls, nothing is squashed
+   (3423: Line items was cut in half above the dock) */
+.fg .qc-scroll > * { flex:none; }
 .fg .qc-rs { display:flex; flex-direction:column; gap:12px; }
+/* every option and its total, the rail's top: the one open on the grey the
+   trays select with */
+.fg .qc-opts { display:flex; flex-direction:column; gap:4px; }
+.fg .qc-opt { display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:start; gap:8px; width:100%; padding:8px 12px; border-radius:var(--r-button); font:inherit; font-size:14px; line-height:20px; text-align:left; color:var(--ink); cursor:pointer; font-variant-numeric:tabular-nums; }
+.fg .qc-opt.on { background:var(--sel); }
+.fg .qc-opt b { font-weight:600; }
+.fg .qc-opt span { min-width:0; display:flex; flex-direction:column; }
+.fg .qc-opt em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
+.fg .qc-added { display:flex; flex-direction:column; gap:8px; }
+.fg .qc-added h2 { margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--warn-t); }
+.fg .qc-added ul { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:8px; }
+.fg .qc-added li { display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:start; gap:8px; font-size:14px; line-height:20px; color:var(--ink); }
+.fg .qc-added li span { min-width:0; display:flex; flex-direction:column; }
+.fg .qc-added em { font-style:normal; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
 .fg .qc-h { margin:0; font-size:16px; font-weight:600; line-height:24px; color:var(--ink); }
 .fg .qc-note { flex:none; margin:12px 0 0; }
 /* the quote's buttons, pinned: Preview quote and Approve quote side by side,
@@ -3863,6 +3531,19 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 /* Conversation or Scope, a tray at the column's top (layout B, 21 October 2026) */
 .fg .qc-face { flex:none; padding-top:16px; }
 .fg .qc-face + .qc-thread { padding-top:16px; }
+/* Scope, written as a scope: the proposal's words at reading size, then what
+   it's priced on and what's to check, as named rows under a thin line */
+.fg .qs { display:flex; flex-direction:column; gap:24px; font-size:16px; line-height:24px; color:var(--ink); }
+.fg .qs h2 { margin:0; font-size:20px; line-height:28px; font-weight:600; }
+.fg .qs h3 { margin:0; font-size:16px; line-height:24px; font-weight:600; }
+.fg .qs p { margin:0; white-space:pre-line; }
+.fg .qs ul { margin:0; padding-left:24px; }
+.fg .qs section { display:flex; flex-direction:column; gap:8px; }
+.fg .qs-sec { padding-top:16px; border-top:1px solid var(--line); }
+.fg .qs-rows { display:grid; grid-template-columns:160px minmax(0, 1fr); gap:4px 16px; margin:0; font-size:14px; line-height:20px; }
+.fg .qs-rows dt { color:var(--q); }
+.fg .qs-rows dd { margin:0; }
+.fg .qs-rows dd.whole { grid-column:1 / -1; }
 .fg .qt-noscope { margin:0; font-size:16px; line-height:24px; color:var(--q); }
 .fg .qc-col { max-width:820px; display:flex; flex-direction:column; gap:24px; }
 .fg .qc-col .qt-bub { max-width:620px; }
@@ -3877,6 +3558,16 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .qc-who time { font-size:13px; font-weight:500; color:var(--q); }
 .fg .qc-says { display:flex; flex-direction:column; gap:12px; padding-left:32px; }
 .fg .qc-says > p { margin:0; font-size:16px; line-height:24px; color:var(--ink); white-space:pre-line; }
+/* her points and her numbered questions (herWords in tiff-panel.tsx) */
+.fg .qc-list { margin:0; padding:0 0 0 24px; display:flex; flex-direction:column; gap:8px; font-size:16px; line-height:24px; color:var(--ink); }
+.fg ul.qc-list { list-style:disc; }
+.fg ol.qc-list { list-style:decimal; }
+.fg .qc-says b { font-weight:600; }
+/* what lands in the thread after the page opened eases in (Isaac, 30 October
+   2026): once, on the speed for something moving */
+.fg .qc-in { animation:qcIn var(--t-move) var(--ease) both; }
+@keyframes qcIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion:reduce) { .fg .qc-in { animation:none; } }
 /* a run of what she did, together */
 .fg .qt-dids { display:flex; flex-direction:column; gap:4px; }
 /* her working folded to one line, opened to every step and note (option A, 17 Oct) */
@@ -3891,15 +3582,7 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    and a blue Send that carries its word (Q6) */
 .fg .qc-comp { flex:none; padding:8px 0 24px; }
 .fg .qc-comp .qc-col { gap:8px; }
-/* the quote's box is Conversations' box (.cv-box): its padding, its gap, a
-   field that grows with what you write, and the arrow to send (Isaac, 25
-   October 2026: "check that all TIFF input boxes match") */
-.fg .qt-box.qc-box { flex-direction:column; align-items:stretch; gap:12px; padding:16px 16px 12px 24px; }
-.fg .qc-box .qt-in { flex:none; min-height:24px; max-height:240px; field-sizing:content; padding:0; font-size:16px; line-height:24px; }
-.fg .qc-boxfoot { display:flex; align-items:center; gap:8px; }
-/* what you're saying, as you say it, in the box's own words size */
-.fg .qc-live { margin:0; padding:0 4px; font-size:16px; line-height:24px; color:var(--q); }
-.fg .qc-send { margin-left:auto; }
+/* the quote's box IS Conversations' box (conversations/box) since 6 November 2026 */
 /* A SECOND STEP'S GO (the paper's Save, Read it, a kit's Add): the outline
    in the colour of pressing, one change on hover. It has to beat
    `.wb2 .pbtn.ghost` (0,3,0) and its hover (0,5,0); disabled, it is the
@@ -3920,6 +3603,20 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .qp-parts li { display:grid; grid-template-columns:8px minmax(0, 1fr) auto; gap:8px; align-items:center; font-size:14px; color:var(--hd-ink); }
 .fg .qp-parts i { width:8px; height:8px; border-radius:50%; }
 .fg .qp-parts b { font-weight:600; font-variant-numeric:tabular-nums; }
+/* THE MONEY ROLLS (Isaac, 30 October 2026: "roll up and down like a slot
+   machine"): each digit a column of 0 to 9 drawn by the sheet, on its value;
+   the figure itself is in the markup, for reading and for a screen reader.
+   Nothing rolls as the page opens: data-live comes after the first paint. */
+.fg .rf { position:relative; display:inline-block; font-variant-numeric:tabular-nums; }
+.fg .rf-text { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.fg .rf-roll { display:inline-flex; vertical-align:top; }
+.fg .rf-d { display:inline-block; height:1lh; overflow:hidden; }
+.fg .rf-d::before { content:"0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9"; display:block; white-space:pre; text-align:center; transform:translateY(calc(var(--d) * -1lh)); transition:transform var(--t-roll) var(--ease); }
+@starting-style { .fg .rf[data-live] .rf-d::before { transform:translateY(0); } }
+.fg .rf-c::before { content:attr(data-c); white-space:pre; }
+.fg .ql-split > span { transition:flex-grow var(--t-roll) var(--ease); }
+.fg .qb-bar i { transition:width var(--t-roll) var(--ease); }
+@media (prefers-reduced-motion:reduce) { .fg .rf-d::before, .fg .ql-split > span, .fg .qb-bar i { transition:none; } }
 .fg .qp-profit { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:4px 8px; align-items:baseline; }
 .fg .qp-profit > span { display:flex; align-items:baseline; gap:8px; font-size:14px; font-weight:600; color:var(--ink); }
 .fg .qp-profit > span small { font-size:13px; font-weight:500; color:var(--q); }
@@ -3941,7 +3638,6 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    at its top, the history at its foot; the paper fills the left */
 .fg .qc-lines { flex:1; min-height:0; overflow:auto; }
 .fg .qc-lines > .ql-face { padding:24px 0 32px; overflow:visible; }
-.fg .qc-lines .ql-opts { margin-bottom:12px; }
 .fg .qc-main > .qc-fill { flex:1; min-height:0; }
 .fg .ql-hist { display:flex; flex-direction:column; padding-top:8px; }
 /* THE QUOTE BY HAND ON ITS KEPT LINES (quote-line-items.tsx; the mock-ups
@@ -3953,17 +3649,11 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .ql-face > * { flex:none; }
 .fg .ql-split { display:flex; height:4px; }
 .fg .ql-split > span { flex-basis:0; }
-.fg .ql-opts { display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; }
-.fg .ql-opt { flex:none; display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding:4px 12px; border:1px solid var(--hd-edge);
-  border-radius:var(--r-button); background:var(--paper); font:inherit; color:var(--hd-ink); cursor:pointer; }
-.fg .ql-opt span { font-size:12px; font-weight:500; color:var(--q); }
-.fg .ql-opt b { font-size:14px; font-weight:600; font-variant-numeric:tabular-nums; }
-.fg .ql-opt.on { border-color:var(--ink); box-shadow:var(--ring); }
 .fg .ql-lt { width:100%; table-layout:fixed; border-collapse:collapse; }
 .fg .ql-lt col.cq { width:80px; }
 .fg .ql-lt col.cc, .fg .ql-lt col.ce { width:100px; }
 .fg .ql-lt col.ct { width:108px; }
-.fg .ql-lt col.cx { width:36px; }
+.fg .ql-lt col.cx { width:156px; }
 .fg .ql-colh { position:sticky; top:0; z-index:10; background:var(--paper); }
 .fg .ql-colh th { padding:12px 12px 8px 0; font-size:12px; font-weight:600; color:var(--q); text-align:left; border-bottom:1px solid var(--hd-rule); }
 .fg .ql-colh th:first-child { padding-left:16px; }
@@ -4012,9 +3702,13 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .ql-hits b { font-weight:600; font-variant-numeric:tabular-nums; }
 .fg .ql-hits li.none { padding:8px 12px; font-size:13px; color:var(--q); }
 .fg .ql-hits li.ql-alt button { padding-left:24px; font-size:13px; }
-.fg .ql-nmbtn { padding:0; border:0; background:none; font:inherit; color:inherit; text-align:left; cursor:pointer; }
-.fg .ql-nmbtn:hover, .fg .ql-nmbtn[aria-expanded="true"] { text-decoration:underline; text-underline-offset:3px; }
-.fg .ql-nmbtn:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
+/* a line's Swap and Remove (3054, 6 November 2026): shown on the row the
+   pointer is on, and always to the keyboard and to touch (law 24) */
+.fg .ql-acts { display:flex; gap:4px; justify-content:flex-end; }
+@media (hover:hover) {
+  .fg .ql-it .ql-acts { opacity:0; transition:opacity var(--t-fast) ease-out; }
+  .fg .ql-it:hover .ql-acts, .fg .ql-it:focus-within .ql-acts, .fg .ql-it .ql-acts:has([aria-expanded="true"]) { opacity:1; }
+}
 .fg .ql-pickrow td { padding:4px 16px 12px; background:var(--tint); border-top:0; }
 .fg .ql-pop { display:flex; flex-direction:column; gap:8px; padding:12px; border:1px solid var(--hd-edge); border-radius:var(--r-button); background:var(--paper); }
 .fg .ql-prefer { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--hd-ink); }
@@ -4080,6 +3774,8 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .qt-mile { margin:0; display:flex; align-items:center; gap:12px; font-size:12px; font-weight:600; color:var(--hd-today); }
 .fg .qt-mile::before, .fg .qt-mile::after { content:""; flex:1; height:1px; background:var(--hd-rule); }
 .fg .qt-working { margin:0; display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--info-t); }
+.fg .qt-est { display:flex; flex-direction:column; gap:8px; width:100%; max-width:420px; }
+.fg .qt-left { margin-left:auto; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; white-space:nowrap; }
 .fg .qt-box { display:flex; align-items:flex-end; gap:8px; padding:4px 4px 4px 12px; border:1px solid var(--hd-edge); border-radius:var(--r-card); background:var(--paper); }
 .fg .qt-box:focus-within { border-color:var(--ink); }
 .fg .qt-in { flex:1; min-width:0; min-height:32px; max-height:160px; padding:4px 0; border:0; background:none; font:inherit; font-size:14px; line-height:1.5; color:var(--hd-ink); resize:none; }
@@ -4214,18 +3910,8 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .ql-checks li.due > i { background:var(--warn-t); }
 .fg .ql-checks li.info > i { background:var(--info-t); }
 /* an estimate, confirmed from the list (Isaac, 2026-10-10) */
-.fg .ql-chkacts { grid-column:2; display:flex; gap:8px; padding-top:4px; }
+.fg .ql-chkacts { grid-column:2; display:flex; flex-wrap:wrap; gap:8px; padding-top:4px; }
 /* the job, written out first (Isaac, 2026-10-10): a white card at the top of her panel */
-.fg .qt-job { display:flex; flex-direction:column; gap:12px; margin:0 0 16px; padding:12px 16px 16px; border:1px solid var(--hd-edge); border-radius:var(--r-button); background:var(--paper); }
-.fg .qt-job > header { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
-.fg .qt-job > header b { font-size:14px; font-weight:700; color:var(--hd-ink); }
-.fg .qt-job > header em { font-style:normal; font-size:12px; font-weight:500; color:var(--q); }
-.fg .qt-job section { display:flex; flex-direction:column; gap:4px; }
-.fg .qt-job h4 { margin:0; font-size:12px; font-weight:600; color:var(--q); }
-.fg .qt-job ul { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:2px; }
-.fg .qt-job li { font-size:13px; line-height:1.45; color:var(--hd-ink); }
-.fg .qt-job li em { font-style:normal; font-size:12px; font-weight:600; color:var(--info-t); }
-.fg .qt-job li.gone { color:var(--q); text-decoration:line-through; }
 .fg .ql-vs.ql-est { color:var(--warn-t); }
 /* Update quote (the old-modals mock, 27 October 2026): the Dialog part's,
    portalled, so these are unscoped. What's changing is typed, so it is 16 (rule 13). */
@@ -4516,70 +4202,27 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
 /* the lead already carries its own 8px shoulder inside the tinted box */
 .wb2-jcsec.ups > .wb2-jcdhead { margin-bottom:0; }
 
-/* ── the diary ── */
+/* ── a section's head, and a note's line and doors (the diary's, kept for
+   the job's conversation) ── */
 .wb2-jcdhead { display:flex; align-items:baseline; gap:8px; }
 .wb2-jcdhead b { font-size:16px; font-weight:700; }
 .wb2-jcdhead em { margin-left:auto; font-style:normal; font-size:12px; font-weight:500; color:var(--q); white-space:nowrap; }
-/* the day markers wear a hairline rule out to the card's edge */
-.wb2-jcday { display:flex; align-items:center; gap:8px; margin:16px 0 2px 32px;
-  font-size:12px; font-weight:500; color:var(--q); }
-.wb2-jcday::after { content:""; flex:1; height:1px; background:var(--wb2-line2); }
-.wb2-ev { display:grid; grid-template-columns:28px minmax(0,1fr); gap:12px; padding:8px 0; position:relative; }
-.wb2-ev::before { content:""; position:absolute; left:13px; top:0; bottom:0; width:1px; background:var(--wb2-line2); }
-.wb2-ev:last-child::before { bottom:40%; }
-/* THE NOTE THE FLAG CHIP SENT YOU TO — lit, not shouted: the chip was
-   amber, so the entry it leads to is the same amber, and the tint sits
-   behind the words rather than replacing their ground. */
-.wb2-ev.flag { background:var(--warn-tint); border-radius:var(--r-button);
-  box-shadow:inset 0 0 0 1px var(--warn);; }
-/* NO horizontal margin or padding on the lit row: `.wb2-ev::before` is the
-   timeline spine, positioned from the row's own left edge, so shifting the
-   box by 6px slid the spine 6px off every dot above and below it. The tint
-   hugs the dot instead — and negative margins on a row have already cost
-   this card a defect once (`.wb2-doc`, #561). */
-.wb2-evdot { width:27px; height:27px; border-radius:50%; background:var(--paper); border:1px solid var(--wb2-line);
-  display:inline-flex; align-items:center; justify-content:center; color:var(--gray500);
-  position:relative; z-index:1; align-self:start; margin-top:1px; }
-.wb2-evdot.ok { background:var(--ok-tint); border-color:var(--ok-tint); color:var(--ok-t); }
-.wb2-evdot.cy { background:var(--info-tint); border-color:var(--info-t); color:var(--ink); }
-.wb2-evb { min-width:0; padding-top:4px; }
-.wb2-evhd { font-size:14px; font-weight:700; }
-.wb2-evhd .wb2-chip { margin-left:8px; vertical-align:middle; }
-.wb2-evamt { color:var(--ink); font-variant-numeric:tabular-nums; }
 .wb2-evmeta { margin-top:1px; font-size:12px; font-weight:600; color:var(--gray500); }
-/* a note's words — bordered like paper, the job type's colour on its spine.
-   pre-wrap because a note holds its author's own line breaks. */
-.wb2-evcard { margin-top:4px; background:var(--paper); border:1px solid var(--wb2-line2); border-radius:var(--r-card); padding:8px 12px;
-  font-size:14px; font-weight:500; color:var(--gray700); line-height:1.55; max-width:68ch;
-  overflow-wrap:anywhere; white-space:pre-wrap; }
 .wb2-mention { font-weight:700; color:var(--ink); }
-.wb2-evphotos { display:flex; gap:4px; margin-top:8px; flex-wrap:wrap; }
-.wb2-evphotos img, .wb2-evphotos .pending, .wb2-evphotos .more {
-  width:76px; height:76px; border-radius:var(--r-button); object-fit:cover; border:1px solid var(--wb2-line2); }
-.wb2-evphotos .pending { display:inline-flex; align-items:center; justify-content:center;
-  background:var(--tint); color:var(--gray400); }
-.wb2-evphotos .more { display:inline-flex; align-items:center; justify-content:center;
-  background:var(--tint); color:var(--gray700); font-size:14px; font-weight:700;
-  border:0; cursor:pointer; font-family:inherit; transition:background var(--t-fast) var(--ease); }
-.wb2-evphotos .more:hover { background:var(--tint-2); }
 .wb2-evdoor { display:inline-flex; align-items:center; gap:4px; margin-top:4px; padding:0;
   border:0; background:none; font-family:inherit; font-size:12px; font-weight:700;
   color:var(--ink); cursor:pointer; }
 .wb2-evdoor:hover { text-decoration:underline; }
 .wb2-evdoor:focus-visible { outline:none; box-shadow:var(--ring);; border-radius:var(--r-control); }
-/* NOTES TO SERVICEM8 (two-way phase 2): a reply sits under the note it
-   answers, indented one step, and a note's reply box (and the pen's Also in
-   ServiceM8) opens under its words. Both on the spacing scale; nothing else
-   is new — the doors are `.wb2-evdoor` and a row of them is the strip's own
-   `.wb2-jcattsave`. */
-.wb2-evthread { padding-left:24px; }
+/* NOTES TO SERVICEM8 (two-way phase 2): a note's reply box (and the Also
+   in ServiceM8 tick, where it says why) opens under its words, on the
+   spacing scale; nothing else is new — the doors are `.wb2-evdoor` and a
+   row of them is the strip's own `.wb2-jcattsave`. */
 .wb2-evreply { display:grid; gap:8px; margin-top:8px; }
-/* THE DIARY FILTER IS A FaceSwitch, AND THE SHEET IS PORTALLED OUTSIDE
-   `.fg` — so `.fg .seg` and `.fg .me-fshd` never reach it (the exact drift
-   that once rendered nine hints at the body's full ink). Restated here,
-   including the button ground rules `.fg button` used to supply. */
-.wb2-sheet .me-fshd { display:flex; align-items:center; justify-content:space-between;
-  gap:16px; margin:8px 0 0; }
+/* A SWITCH IN A SHEET, AND THE SHEET IS PORTALLED OUTSIDE `.fg` — so
+   `.fg .seg` never reaches it (the exact drift that once rendered nine hints
+   at the body's full ink). Restated here, including the button ground rules
+   `.fg button` used to supply. */
 .wb2-sheet .seg { display:inline-flex; align-self:flex-start; width:fit-content;
   background:var(--sel); border:1px solid rgba(10,12,20,.06); border-radius:var(--r-button); padding:4px; gap:4px; }
 .wb2-sheet .seg button { padding:8px 12px; border-radius:var(--r-button); border:0; background:transparent;
@@ -5441,19 +5084,6 @@ html[data-wb-display] .fg .wb2-vtabs,
 html[data-wb-display] .fg .wb2-mckey,
 html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 
-/* ── the recording card ──
-   What is left of the capture card: the Tiff chat's recording card
-   (`.wb2-capcard.tk-rec.wb2-dusk`, in the composer), which stands in the
-   page. The sheet it grew from — fixed and centred over a blurred dim, its
-   halo pooled beneath it, grown out of the Tiff button — went with the old
-   capture UI on 2026-09-27, and its placement, dim and halo with it. The
-   card keeps the material. */
-.wb2-capcard { background:#fff; border:1px solid rgba(5,5,5,.08); border-radius:var(--r-card);
-  padding:16px 16px 16px; }
-.wb2-capribbon { display:flex; align-items:center; gap:8px; padding-bottom:12px; margin-bottom:12px;
-  border-bottom:1px solid rgba(5,5,5,.06); color:var(--gray700); }
-.wb2-capribbon b { font-size:14px; font-weight:700; color:var(--ink); }
-.wb2-capribbon .wb2-ico { margin-left:0; flex:none; }
 /* ── THE TIFF BUTTON: GIMBAL LIGHT (Isaac, 2026-09-25) ──
    The logo as a gyroscope: a solid chevron that leans and circles, inside two
    gimbal rings with light running along them. No disc, no halo, no sparkle —
@@ -5648,8 +5278,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    THREE ZONES THAT STAY WHERE THEY ARE: the face, the conversation and the
    dock. Each opens and closes by its own box (Web Animations, in
    box-motion.ts) and the modal is never given a height. The motion is the
-   two tokens; the dots are the field the capture card had, and its named
-   loops (`dotf*`, `fgPulse` on the recording dot, the caret on an answer). */
+   two tokens, and its named loops (`fgPulse` on the recording dot, the caret
+   on an answer). */
 .fg .cal-pop, .tm { box-shadow:var(--shadow-overlay); }
 .tm { position:fixed; z-index:var(--z-modal); top:104px; left:0; right:0; margin:0 auto;
   width:min(780px, calc(100vw - 32px)); max-height:calc(100vh - 128px);
@@ -5774,22 +5404,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .wb2-capclock.closing { color:var(--bad-t); }
 .wb2-recdot { width:10px; height:10px; border-radius:50%; background:var(--bad); flex:none; animation:fgPulse 1.6s ease-in-out infinite; }
 @media (prefers-reduced-motion:reduce) { .wb2-recdot { animation:none; } }
-.wb2-capact { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:12px; flex-wrap:wrap; }
-.wb2-caprec { display:flex; flex-direction:column; align-items:center; gap:8px; padding:12px 0 2px; }
-
-/* ── where the field stands ──
-   Above the card's own body and outside it, mounted by the door (the Tiff
-   chat's ask bar) rather than by the card. `overflow` is what stops a dot
-   straying: dots are pushed toward the camera, and an element with depth
-   paints by that depth rather than by document order. Clipped, a dot that
-   leaves the field is gone. (It also closed behind a falling cloud on the
-   capture card, where a review rose into its place; that card and its
-   `.go` went on 2026-09-27, and the chat's field only ever shows the mark.) */
-.wb2-capfield { display:flex; justify-content:center; overflow:hidden;
-  height:268px; margin:2px 0 4px; }
-/* The clock leads the actions row; the row is flush right, so one auto margin
-   pushes every button across. */
-.wb2-capact .wb2-capclock { margin-right:auto; }
 
 /* ── THE INSTRUMENT ──
    Audited 2026-08-10: this stage was a 680 × 201px card, 86% of it empty,
@@ -5839,12 +5453,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    (see the note against `RecordingMeter`), the meta is a clock, and a clock
    is four characters wide in every state a recording has. */
 
-/* The actions row stretches: this column CENTRES and shrink-wraps its
-   children, so the row was only as wide as its buttons and the Default
-   switch's `margin-right:auto` had nothing to push against — it sat
-   hard against the recording's Go instead of holding the left like it
-   does everywhere else. */
-.wb2-caprec .wb2-capact { align-self:stretch; }
 /* The live transcript, and it must read as WORDS, not as a status line —
    it is what the person is checking while they talk. Top-level, never
    nested under .fg: this card is portalled to body, where a .fg rule is
@@ -5859,10 +5467,9 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    oldest fading out at the top instead of being sliced off. (3) The words
    POPPED, because the paragraph was one swapped string — they glide now,
    per word, in ./dictation. */
-/* THE RIVER'S BOX — the MECHANISM, shared by the capture card and all three
-   field mics. What the box LOOKS like is the CALLER's class: `.wb2-livetext`
-   below on the card, and in a field the field's own `.wb2-stripin` / `.wb2-fi`
-   / `.wb2-notes`. That is the whole trick of the field mics — the words
+/* THE RIVER'S BOX — the MECHANISM, shared by all three field mics. What the
+   box LOOKS like is the CALLER's class: the field's own `.wb2-stripin` /
+   `.wb2-fi` / `.wb2-notes`. That is the whole trick of the field mics — the words
    arrive in a box with the same width, font, padding and border as the input
    that was there a frame earlier, so the swap is invisible. Measured: the
    strip and the line posture come out at 30px and 34px either way. */
@@ -5910,38 +5517,12 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .wb2-notes.wb2-lwbox { height:calc(var(--lwrows) * 1lh + 26px);
 
   background:var(--paper); resize:none; }
+/* The same arithmetic in a form's own box, parts/field's TextArea, which the
+   field mic wears when it stands in a Field (note-token): 18px is
+   `.pt-textarea`'s padding and border. Three classes, because the box's own
+   rule names its class twice and sets `height:auto`. */
+.pt-textarea.pt-textarea.wb2-lwbox { height:calc(var(--lwrows) * 1lh + 18px); resize:none; }
 
-/* ── and the box the CARD wears ── */
-.wb2-livetext {
-  font-size:14px; line-height:1.5; color:var(--gray800, var(--ink)); font-weight:500;
-  /* `.wb2-caprec` centres its column, which with left-aligned text would
-     indent the words a third of the way across and read as a mistake.
-     Stretched, they start exactly where the typed words start. */
-  margin:8px 0 0; align-self:stretch;
-  /* A FIXED WINDOW, not a box that grows to fit. `min-height` under a
-     `max-height` still grew twice — once at the first word and again at the
-     fourth — and each growth pushed the meter and the whole action row down
-     mid-sentence. Three lines exactly (`line-height:1.5`), held from the
-     first frame of the recording to the last, so the ONLY thing that moves
-     on this card while you talk is the words. */
-  height:4.5em;
-  /* IT OPENS ONCE, SOFTLY. There is nothing to show until the first word
-     lands (an empty window in that space is the hole #367 closed), so the
-     box does arrive mid-recording — it used to arrive by SNAPPING three
-     lines open under the words being spoken and shoving the meter and the
-     whole action row down with them. Eased, it reads as the card making
-     room; and because the height is fixed from then on, it is the only time
-     anything on this card moves.
-
-     THE FIELD MICS DO NOT GET THIS. A field is already the size it is — the
-     river replaces a box that was standing there, so there is nothing to
-     open. */
-  animation:wb2LiveIn .3s var(--ease) both;
-}
-@keyframes wb2LiveIn {
-  from { height:0; margin-top:0; opacity:0; }
-  to   { height:4.5em; margin-top:8px; opacity:1; }
-}
 /* WHAT YOU HAD ALREADY SAID — an earlier leg, or words you typed before
    pressing the mic. One step back in the ink because it is the RECORD and
    not the arrival: it never glides, it is what the new words are joining.
@@ -6016,26 +5597,15 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 
 
 /* ══════════════════ TIFF — KNOWLEDGE BASE (.tk-) ══════════════════════════
-   The ask page (the library page itself is v2's `.lb2-`). Everything drawn
-   on the page is scoped `.fg .tk-…`: `.fg button` and `.fg input` are
-   (0,1,1) resets, so a bare `.tk-abtn { background }` on a <button>
-   renders transparent. Two classes, always. Its dialogs (the upload, the
-   tags, the search, the peek) are the Dialog part, portalled outside `.fg`,
-   so their rules name `.pt-dialog` instead.
+   What the Library's old ask page left (the library page itself is v2's
+   `.lb2-`): the tables an answer is drawn with, which Conversations wears,
+   scoped `.fg .tk-…` because `.fg` resets are (0,1,1) and a bare one-class
+   rule loses to them — two classes, always; and the library's dialogs (the
+   upload, the tags, the search, the peek), on the Dialog part, portalled
+   outside `.fg`, so their rules name `.pt-dialog` instead.
 
    NO MONOSPACE ANYWHERE, including the kind badge and the page counts —
    Jakarta carries them, per the brief's first hard constraint. */
-
-/* the small row actions — Retry, Resume, edit, remove */
-.fg .tk-abtn { display:inline-flex; align-items:center; justify-content:center; gap:4px; height:32px; padding:0 12px;
-  border:1px solid var(--line); border-radius:var(--r-button); background:var(--paper); color:var(--gray700);
-  font-family:var(--font-jakarta), sans-serif; font-size:13px; font-weight:700; cursor:pointer;
-  transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .tk-abtn:hover:not(:disabled) { background:var(--tint); border-color:var(--line); color:var(--ink); }
-.fg .tk-abtn.dan:hover:not(:disabled) {
-  background:var(--bad-tint); border-color:var(--bad); color:var(--bad-t); }
-.fg .tk-abtn:disabled { opacity:.45; pointer-events:none; }
-.fg .tk-abtn:focus-visible { outline:none;  box-shadow:var(--ring); }
 
 /* Find-in-document (doc-search.tsx), on the Dialog part (the old-modals
    mock, 27 October 2026). Portalled outside `.fg`, so each rule names the
@@ -6132,327 +5702,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .pt-dialog .tgm-cbtn { display:flex; justify-content:flex-end; gap:8px; margin-left:auto; }
 .pt-dialog .tgm-editrow { display:block; padding:12px 0; }
 
-/* ══════════════════ TIFF — THE ASSISTANT (.tk- layout) ═══════════════════
-   The two-column screen: transcript on the left, the category cards on the
-   right. The rail is on the RIGHT rather than under the conversation for
-   three reasons — the cards stay visible while the answer grows (bottom cards
-   scroll away mid-answer), an idle card is the way into the library, and the
-   horizontal gap between the composer and the cards is where the search-line
-   overlay is drawn in the next phase.
-
-   `.tk-stage`, `.tk-composer` and `.tk-rcat[data-cat]` are MEASURED by that
-   overlay. They are attachment points, not decoration — renaming one silently
-   breaks the animation's geometry.
-
-   Same two-class rule as the library block above: `.fg button` and `.fg input`
-   are (0,1,1) resets, so every styled control here is reached as `.fg .tk-…`.
-   The peek modal is the exception in the other direction — it portals to
-   <body>, outside `.fg`, so its pieces are unscoped and restate their colours
-   and their font rather than inheriting a ramp that isn't there. */
-
-/* position:relative is load-bearing, not tidiness: it makes the stage the
-   containing block for the `.tk-lines` underlay, whose padding box coincides
-   with the rect every endpoint is measured against. */
-/* THE GUTTER IS A COMPONENT, NOT LEFTOVER SPACE. The search lines run from the
-   composer's shoulder up and across into the cards, and they had one 28px grid
-   gap to do it in — so all five bunched into a single near-vertical strand and
-   `lanesBetween` had to clamp their approach controls just to stop them bowing
-   backwards past their own origin. Widening the corridor is the fix the clamp
-   was standing in for: the rail gives back 48px, the gap takes 44 of them, and
-   the chat column is capped so the rest lands in the gutter too rather than
-   being eaten by a wider transcript. ~104px at 1512, ~164px at full width. */
-.fg .tk-stage { position:relative; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:72px; align-items:stretch;
-  height:100%; width:100%; max-width:1420px; margin:0 auto; padding:32px; }
-
-/* ── the height lock, thread view only ──
-   `.tk-stage { height:100% }` above resolves to AUTO on the landing, because
-   `.page` is `min-height:100%` (its computed height is auto) — so the page
-   scrolls the outlet like every other dashboard screen, which is what the
-   landing wants. An open THREAD wants the opposite: the transcript scrolling
-   inside `.tchat` with the header and composer pinned. `tk-lock` (set by the
-   assistant only while a thread is open) is what closes the chain — with it,
-   the percentage resolves, the grid row is viewport-sized, and `.tchat`'s
-   existing `flex:1; min-height:0; overflow-y:auto` finally has something to
-   shrink against. The explicit row is belt on braces: without it the row's
-   height is a track-sizing outcome (auto row, min-content contributions that
-   happen to collapse); with it, a guarantee. */
-.fg .page.tk-lock { height:100%; }
-.fg .page.tk-lock .tk-stage { grid-template-rows:minmax(0,1fr); }
-@media (max-width:1100px) {
-  /* stacked, the transcript goes back to page-scrolling like everything else */
-  .fg .page.tk-lock { height:auto; min-height:100%; }
-}
-/* Capped, not stretched. An answer sheet reads worse past ~820px anyway — the
-   line length was already at the top of what's comfortable — so this costs the
-   transcript nothing and buys the lanes room to fan. */
-.fg .tk-chatcol { max-width:820px; }
-@media (max-width:1100px) {
-  /* stacked, and nothing is lost: the rail becomes a footer of the same cards */
-  .fg .tk-stage { display:flex; flex-direction:column; height:auto; gap:24px; padding:24px; }
-  /* the cap exists to make a gutter for the lanes, and stacked there are no
-     lanes — leaving it on would just narrow the whole screen */
-  .fg .tk-chatcol { max-width:none; }
-}
-
-/* both columns paint above the lines — same arrangement as the system map's
-   columns over its wire layer */
-.fg .tk-chatcol { position:relative; z-index:var(--z-raised); display:flex; flex-direction:column; min-width:0; min-height:0; }
-
-/* ══════════════════ TIFF — THE SEARCH-FIRST LANDING ══════════════════════
-   The page opens on the place to type, not on a greeting.
-
-   THE COMPOSER IS THE PAGE. It sits in the upper third with one short line
-   above it, because everything this screen does begins with a question and
-   a tool that opens by introducing itself spends its best real estate on
-   the one thing the reader already knows. The old 48px "What are we
-   building today?" hero and the four suggestion cards under it are deleted,
-   not restyled — the cards in particular repeated the categories in the
-   rail two inches to their right.
-
-   ORDER IS CSS, NOT MARKUP. The composer is one form serving both states:
-   last in an open conversation, where new text arrives above it, and second
-   on the landing, under the heading. The DOM keeps the conversation's
-   order and `order` moves it for the landing, so there is one composer with
-   one piece of state rather than two that can disagree.
-
-   WHAT'S LEFT UNDERNEATH IS RESUMPTION, THEN INVITATION: the threads you
-   were in, and only then the kinds of question worth asking. Both are
-   quiet — a starter is a pill you can ignore, not a card competing with
-   the rail. */
-/* TOP-ALIGNED WITH THE RAIL, no pad. This carried `padding-top:clamp(12px,
-   13vh, 132px)` — a viewport-height drop that put the heading up to 132px
-   below the LIBRARY eyebrow and moved the gap every time the window resized,
-   which is most of why the landing read as sections thrown together. Both
-   columns now start at the stage's own padding edge: heading and eyebrow on
-   one line, at every window height. (`justify-content:center` stays rejected
-   for the old reason — centring a flex column clips the top of anything
-   taller than the viewport, and this column grows with the thread list.) */
-.fg .tk-chatcol.landing { justify-content:flex-start; }
-.fg .tk-chatcol.landing .tk-open { order:1; }
-.fg .tk-chatcol.landing .tk-composer { order:2; }
-.fg .tk-chatcol.landing .tk-recent { order:3; }
-/* last: resumption first, then what the library has. A returning reader wants
-   the conversation they were in; the documents are the invitation underneath
-   it, and on a first visit they are the only thing here. */
-.fg .tk-chatcol.landing .tk-newdocs { order:4; }
-
-/* The thread list was written to sit ABOVE the composer, where a bottom margin
-   did the spacing. Reordering puts it under, so the gap has to move to the top
-   or the section label lands on the mode switcher. */
-.fg .tk-chatcol.landing .tk-recent { margin:32px 0 0; }
-
-.fg .tk-open { flex:0 0 auto; margin-bottom:24px; }
-.fg .tk-open h2 { margin:0; font-size:32px; font-weight:700; letter-spacing:-.035em; line-height:1.05; color:var(--ink); }
-/* body weight, not semi-bold: at 600 the paragraph shouted level with its own
-   heading and the bolded "your library" had nothing to stand out from */
-.fg .tk-open p { margin:12px 0 0; max-width:600px; font-size:16px; font-weight:500; line-height:1.55; color:var(--gray500); }
-.fg .tk-open p b { color:var(--ink); font-weight:700; }
-
-/* the input carries the page, so it is bigger here than it is under a
-   transcript, and it loses the top margin that spaces it from one */
-
-/* `.tk-starts` / `.tk-start` — the four canned-question pills — are DELETED,
-   not parked: the component that rendered them is gone, and dead CSS in this
-   file has shadowed a live component at equal specificity before. */
-
-/* ── the returning line above the threads ── */
-
-.fg .tk-lbl { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
-.fg .tk-lbl > span { font-size:12px; font-weight:500; color:var(--gray400); }
-/* the section's own link, in the space `justify-content:space-between` was
-   always reserving for it — sentence case, because the eyebrow beside it is
-   the only thing on this page that has earned uppercase */
-.fg .tk-lbla { display:inline-flex; align-items:center; gap:2px; flex:none; font-size:13px; font-weight:700;
-  color:var(--link); text-decoration:underline; text-underline-offset:3px; transition:color var(--t-fast) var(--ease); }
-.fg .tk-lbla:hover { color:var(--q); }
-.fg .tk-lbla svg { margin-top:1px; }
-
-.fg .tk-recent { flex:0 0 auto; margin-bottom:24px; }
-
-/* ── "Recently added": what the library has, on the screen that asks it ──
-   QUIETER THAN THE RAIL, ON PURPOSE. The five category cards are the way in
-   and carry colour and shadow; this is a list of names. So: no card, no
-   shadow, a hairline between rows and the category's colour reduced to a 2px
-   edge that appears on hover. It fills the landing's empty lower half by
-   saying something true, not by adding a second set of tiles competing with
-   the ones two inches to the right.
-
-   A ROW IS A BUTTON — it writes a question opener into the composer — so it
-   is reached as `.fg .tk-nd` per the `.fg button` (0,1,1) reset. */
-.fg .tk-newdocs { flex:0 0 auto; margin-bottom:24px; }
-.fg .tk-ndrow { display:flex; flex-direction:column; border-top:1px solid var(--line); }
-.fg .tk-nd { position:relative; display:flex; align-items:baseline; gap:12px; width:100%;
-  padding:12px 12px 12px 12px; border:0; border-bottom:1px solid var(--line); border-radius:0;
-  background:none; text-align:left; font-family:var(--font-jakarta), sans-serif; cursor:pointer;
-  transition:background var(--t-fast) var(--ease); }
-/* the category's colour, as an edge that arrives on hover rather than a dot
-   that sits there — five coloured dots in a column read as a legend */
-.fg .tk-nd:hover { background:var(--paper); }
-.fg .tk-nd:focus-visible { outline:none; background:var(--paper);  box-shadow:var(--ring); }
-.fg .tk-ndt { flex:1 1 auto; min-width:0; font-size:14px; font-weight:700; color:var(--ink);
-  white-space:nowrap; overflow:hidden;
-  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.fg .tk-nd em { flex:none; font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
-@media (max-width:560px) {
-  /* the category and page count drop before the name does */
-  .fg .tk-nd em { display:none; }
-}
-.fg .tk-threads { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
-/* one thread fills the row — a half-width card beside a card-shaped hole
-   reads as something failing to load, not as a list of one */
-.fg .tk-threads > .tk-thr:only-child { grid-column:1 / -1; }
-@media (max-width:760px) { .fg .tk-threads { grid-template-columns:1fr; } }
-.fg .tk-threads .thread { padding:12px 16px; background:var(--paper); border-color:var(--line); }
-.fg .tk-threads .thread .th { margin-bottom:4px; }
-.fg .tk-threads .thread .th b { display:block; min-width:0; white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-
-/* a row is three controls, not one: open it, rename it, delete it */
-.fg .tk-thr { display:flex; align-items:center; gap:8px; }
-.fg .tk-topen { flex:1 1 auto; min-width:0; padding:0; border:0; background:none; text-align:left;
-  font-family:var(--font-jakarta), sans-serif; cursor:pointer; }
-.fg .tk-tacts { display:flex; align-items:center; gap:4px; flex:none; }
-
-/* also the pair in the open chat's header, which is the only place the
-   conversation you are IN can be renamed or dropped. They wear the row
-   action (.tk-abtn) and say their word: Rename, Delete (law 25). */
-
-/* ── the composer, and the choice it makes explicit ──
-   `.tk-res` (one pill labelled Research, with the OTHER mode's name in grey
-   beside it) is gone. Both halves of the choice are now buttons in one track,
-   so the lit one is the answer to "what am I about to get" and the dark one is
-   the answer to "what else could I have". The hint describes the LIT option
-   and never repeats either label.
-
-   Two classes deep on every control, per the `.fg button` (0,1,1) reset. */
-.fg .tk-composer { flex:0 0 auto; }
-.fg .tk-crow { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; margin-top:12px; padding:0 4px; }
-/* THE ONE DOCUMENT THIS CONVERSATION IS ABOUT — a fact with a way out of it,
-   not a box. It stands where the two-way switch stands, because naming a
-   document has already answered that question; the cross clears it and the
-   switch comes back. Words and a cross: no fill, no rim, nothing that would
-   make it a second kind of chip. */
-.fg .tk-scope { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--ink); min-width:0; }
-.fg .tk-scope > svg { color:var(--q); flex:none; }
-.fg .tk-scopex { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; flex:none; color:var(--q); }
-.fg .tk-scopex:hover { color:var(--ink); }
-.fg .tk-scopex:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .tk-clbl { font-size:13px; font-weight:700; color:var(--gray500); }
-
-/* the track has to be darker than the well it sits in (#F0F2F5) or the two lit
-   and unlit halves read as loose pills rather than one control */
-.fg .tk-mode { display:inline-flex; align-items:center; gap:4px; padding:4px; border-radius:var(--r-button);
-  background:var(--tint-2); }
-.fg .tk-modeb { display:inline-flex; align-items:center; gap:8px; height:30px; padding:0 12px; border-radius:var(--r-button);
-  border:1px solid transparent; background:none; color:var(--gray500); font-family:var(--font-jakarta), sans-serif;
-  font-size:13px; font-weight:700; cursor:pointer;
-  transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.fg .tk-modeb:hover:not(:disabled):not(.on) { color:var(--ink); }
-.fg .tk-modeb.on { background:var(--paper); border-color:var(--line); color:var(--ink); }
-.fg .tk-modeb:disabled { opacity:.42; cursor:not-allowed; }
-.fg .tk-modeb:focus-visible { outline:none;  box-shadow:var(--ring); }
-
-/* Given a floor rather than left to shrink: the hint is a sentence, and a
-   sentence squeezed into 90px beside a 36px control wraps to three lines. Below
-   240px of room it takes the whole next line instead. */
-/* gray500: the hint explains what pressing send will DO — load-bearing copy
-   doesn't get the decorative gray */
-.fg .tk-chint { flex:1 1 240px; min-width:0; font-size:13px; font-weight:600; color:var(--gray500); }
-
-/* ── the same composer, inside a conversation ──
-   THE HERO BAR IS THE LANDING'S. Under an open thread the full-size bar —
-   aurora, 48px tile, the whole mode row with its label and hint — read as a
-   second hero competing with the answer sheet above it, and the screen said
-   "start again" under every reply (the live walk's clearest note, and
-   Isaac's). Same DOM, and `tk-lock` dresses it as a reply field: tighter
-   pill, smaller tile/mark/send, no aurora — that glow is the landing's
-   signature, not a chat fixture — and the mode track shrinks to a chip row.
-   The label and hint go: by now the words ON the buttons are the
-   explanation, and the disabled-state title still carries the long form.
-   Worth ~70px of transcript at laptop heights, where the conversation was
-   getting less than half the column. */
-
-.fg .page.tk-lock .tk-crow { margin-top:8px; gap:8px; padding:0 4px; }
-.fg .page.tk-lock .tk-clbl, .fg .page.tk-lock .tk-chint { display:none; }
-.fg .page.tk-lock .tk-mode { padding:2px; }
-.fg .page.tk-lock .tk-modeb { height:26px; padding:0 12px; font-size:12px; gap:4px; }
-.fg .page.tk-lock .tk-modeb > svg { width:13px; height:13px; }
-.fg .tk-modeb .tiffmk { --tb:20px; }
-.fg .page.tk-lock .tk-modeb .tiffmk { --tb:18px; }
-
-/* ── what hangs off a message ── */
-.fg .tmw { display:flex; flex-direction:column; align-items:flex-start; gap:8px; flex:1 1 auto; min-width:0; }
-.fg .tmsg.user .tmw { align-items:flex-end; }
-.fg .tmsg .tmb p { margin:0 0 8px; }
-.fg .tmsg .tmb p:last-child { margin-bottom:0; }
-.fg .tmsg .tmb ul { margin:0 0 8px; padding-left:16px; display:flex; flex-direction:column; gap:4px; }
-.fg .tmsg .tmb ul:last-child { margin-bottom:0; }
-.fg .tmsg .tmb li { line-height:1.5; }
-
-.fg .tk-miss { display:flex; align-items:flex-start; gap:8px; max-width:100%; padding:12px 12px; border-radius:var(--r-card);
-  background:var(--warn-tint); border:1px solid var(--warn); color:var(--warn-t); }
-.fg .tk-miss svg { flex:none; margin-top:1px; }
-.fg .tk-miss b { display:block; font-size:13px; font-weight:700; line-height:1.4; }
-.fg .tk-miss em { font-style:normal; display:block; margin-top:4px; font-size:13px; font-weight:600; color:var(--warn-t); }
-
-.fg .tk-trunc { margin:0; font-size:13px; font-weight:700; color:var(--gray400); }
-
-.fg .tk-fail { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:12px 16px; border-radius:var(--r-card);
-  border-bottom-left-radius:var(--r-control); background:var(--bad-tint); border:1px solid var(--bad); }
-.fg .tk-fail > span { font-size:14px; font-weight:700; color:var(--bad-t); }
-.fg .tk-retry { display:inline-flex; align-items:center; gap:4px; height:32px; padding:0 12px; border-radius:var(--r-button);
-  background:var(--paper); border:1px solid var(--bad); color:var(--bad-t); font-family:var(--font-jakarta), sans-serif;
-  font-size:13px; font-weight:700; cursor:pointer; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .tk-retry:hover { background:var(--bad-t); border-color:var(--bad-t); color:var(--paper); }
-
-/* the offer only a GENERAL answer gets: go and look in the library */
-.fg .tk-offer { display:flex; padding-left:48px; }
-.fg .tk-again { display:inline-flex; align-items:center; gap:8px; height:34px; padding:0 12px; border-radius:var(--r-button);
-  background:var(--tint); border:1px solid var(--line); color:var(--ink);
-  font-family:var(--font-jakarta), sans-serif; font-size:13px; font-weight:700; cursor:pointer;
-  transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .tk-again:hover { background:var(--ink); border-color:var(--ink); color:var(--paper); }
-
-/* ── citations: the trust mechanism, prominent without being noisy ── */
-/* ══════════════════ TIFF — THE ANSWER, AS A DOCUMENT ═════════════════════
-   Tiff's turn is not a chat bubble.
-
-   A MESSAGE BUBBLE IS THE WRONG CONTAINER FOR A CITED ANSWER. The bubble
-   capped every answer at 76% of the column and hung a tail off its corner —
-   messenger furniture — while a real reply to a real fault carries a
-   procedure, a resistance table and three citations. Measured on the harness:
-   584px of an 840px column, with the table crushed to 298px and a third of
-   the width empty beside it. So the answer takes the full column as a sheet,
-   and what stays a bubble is the QUESTION, which is short, and whose
-   right-aligned darkness is what makes the turns readable at a glance.
-
-   THE SHEET ARRIVES BEFORE THE WORDS DO. It is the same container while Tiff
-   is thinking, streaming and done — so an answer fills a space that is
-   already there rather than the page jolting when the first token lands. */
-.fg .tmsg.bot { max-width:100%; align-items:flex-start; }
-.fg .tmsg.bot .tmb { width:100%; padding:24px 24px; border-radius:var(--r-card);
-  border-bottom-left-radius:var(--r-card); font-size:16px; }
-.fg .tmsg.bot .tmb p { margin:0 0 12px; }
-.fg .tmsg.user { max-width:min(560px, 78%); }
-
-/* Still writing. The dots answer "has it started"; once words are arriving
-   the question becomes "is that all of it", and a caret answers that without
-   claiming to know how much is left — which a progress bar would. It rides
-   the last paragraph, so it is absent while a table or a list is mid-build
-   rather than floating loose under one. */
-.fg .tmb.streaming > p:last-child::after { content:""; display:inline-block; width:2px; height:1em;
-  margin-left:4px; vertical-align:-2px; background:var(--ink); animation:tkCaret 1.05s steps(1) infinite; color:var(--paper); }
-@keyframes tkCaret { 0%, 50% { opacity:1; } 50.01%, 100% { opacity:0; } }
-@media (prefers-reduced-motion: reduce) { .fg .tmb.streaming > p:last-child::after { animation:none; } }
-
-/* ── a procedure ── */
-.fg .tmb ol.tk-steps { margin:0 0 12px; padding:0; list-style:none; counter-reset:tkstep;
-  display:flex; flex-direction:column; gap:8px; }
-.fg .tmb ol.tk-steps:last-child { margin-bottom:0; }
-.fg .tmb ol.tk-steps li { counter-increment:tkstep; position:relative; padding-left:32px; line-height:1.5; }
-.fg .tmb ol.tk-steps li::before { content:counter(tkstep); position:absolute; left:0; top:-1px;
-  display:flex; align-items:center; justify-content:center; width:23px; height:23px; border-radius:var(--r-control);
-  background:var(--tint); color:var(--gray700); font-size:12px; font-weight:700; }
-
 /* ── data with columns ──
    `tabular-nums` is load-bearing: a resistance column whose digits do not
    line up is a column you have to read twice. */
@@ -6466,72 +5715,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .tk-tbl tr:last-child td { border-bottom:none; }
 .fg .tk-tbl tbody tr:hover td { background:var(--tint); }
 
-/* ── where it came from ──
-   Sources sit INSIDE the sheet, under a rule: a citation belongs to the
-   answer it supports, and floating the chips underneath left them reading as
-   three grey pills belonging to nothing. */
-.fg .tk-srcfoot { margin-top:16px; padding-top:16px; border-top:1px solid var(--line); }
-.fg .tk-srclbl { display:block; margin-bottom:8px; font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .tk-srcs { display:flex; flex-wrap:wrap; gap:8px; max-width:100%; }
-.fg .tk-src { display:inline-flex; align-items:center; gap:8px; max-width:100%; height:32px; padding:0 12px 0 4px;
-  border-radius:var(--r-control); background:var(--paper); border:1px solid var(--line);
-  font-family:var(--font-jakarta), sans-serif; cursor:pointer;
-  transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
-.fg .tk-src:hover { border-color:var(--line); }
-.fg .tk-sn { display:flex; align-items:center; justify-content:center; flex:none; width:20px; height:20px;
-  border-radius:50%; background:var(--tint); color:var(--gray700); font-size:12px; font-weight:700; }
-.fg .tk-sdot { flex:none; width:7px; height:7px; border-radius:50%; }
-/* the sheet is full width now, so a manual's real title fits instead of
-   ending in an ellipsis two words in */
-.fg .tk-stl { min-width:0; max-width:340px; font-size:13px; font-weight:700; color:var(--ink);
-  white-space:nowrap; overflow:hidden; }
-/* the page list can name several ranges now — it may shrink and fade
-   (rule 50), but never wrap: the chip is one line or it is not a chip */
-.fg .tk-src em { flex:0 1 auto; min-width:0; font-style:normal; font-size:12px; font-weight:700;
-  color:var(--gray400); white-space:nowrap; overflow:hidden; }
-
-/* ── the rail ── */
-.fg .tk-rail { position:relative; z-index:var(--z-raised); display:flex; flex-direction:column; gap:12px; min-width:0; min-height:0; overflow-y:auto; padding-bottom:4px; }
-.fg .tk-rcats { display:flex; flex-direction:column; gap:8px; }
-/* Tighter than it was — 16px of pad and a 38px tile around labels as short as
-   "Field notes" left a band of empty card down the right of every row. The
-   narrower rail takes most of that back; the rest is 2px off the padding and
-   4px off the icon, which also shortens each card by 6px and lets five of them
-   sit in the rail without the last one hanging off a laptop screen. */
-/* 16px, not 14: the cards sat two registers more utilitarian than the
-   composer and the sheets they share the screen with */
-.fg .tk-rcat { position:relative; display:grid; grid-template-columns:auto minmax(0,1fr); gap:4px 12px; padding:16px;
-  border-radius:var(--r-card); background:var(--paper); border:1px solid var(--line);
-  text-decoration:none; transition:transform var(--t-move) var(--ease), border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease); }
-.fg .tk-rcat:hover { border-color:var(--line); }
-.fg .tk-ric { display:flex; align-items:center; justify-content:center; flex:none; }
-.fg .tk-rtx { min-width:0; }
-.fg .tk-rtx b { display:block; font-size:14px; font-weight:700; line-height:1.25; color:var(--ink); }
-/* the microline carries "4 matches · City Multi fault codes" on the winning
-   shelf, and a manual's title is routinely longer than the card is wide. One
-   line, clipped — the card must not grow when the trace lands, or the whole
-   rail would shift under a search that is still running. */
-/* INK, NOT THE CATEGORY COLOUR. The microline wore `--tkc`, and the raw
-   category palette was picked for tinted 34px tiles — as 12px text, mint sat
-   at 1.6:1 and amber at 2.2:1 on the live walk: the only count on the screen,
-   rendered as decoration. The colour's place is the icon tile; the count is
-   data and reads in ink. `.quiet` is the empty shelf ("None yet"), a register
-   down from a real count. */
-.fg .tk-rtx em { display:block; margin-top:2px; font-style:normal; font-size:12px; font-weight:700; color:var(--gray700);
-  white-space:nowrap; overflow:hidden;
-  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.fg .tk-rtx em.quiet { color:var(--gray400); font-weight:600; }
-.fg .tk-rbl { grid-column:1 / -1; font-size:12px; font-weight:500; line-height:1.4; color:var(--gray500); }
-
-/* ── the foot of the rail ──
-   THERE ISN'T ONE ANY MORE. `.tk-lib` / `.tk-libl` (a bold count over two
-   uppercase links that went to the same URL), then the `.tk-add` tile that
-   briefly replaced them, then `.tk-libnote` and its running total — all
-   deleted. The rail is the categories and the "Open" on its eyebrow; the
-   library states its own size the moment you get there. Deleted rather than
-   parked, because dead CSS in this file has shadowed a live component at
-   equal specificity before. */
-
 /* ── Tiff's source, on the Dialog part (the old-modals mock, 27 October
    2026). Portalled outside `.fg`, so each rule names the dialog. Each
    passage is a line under a hairline at 16, the words you read (rule 13);
@@ -6542,111 +5725,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .pt-dialog .tk-pks { margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
 .pt-dialog .tk-pkq { margin:0; padding:12px 0; border-bottom:1px solid var(--line); font-size:16px; line-height:24px; color:var(--ink); white-space:pre-wrap; }
 .pt-dialog .tk-pkqp { display:block; margin-bottom:4px; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
-
-/* ══════════════════ TIFF — THE SEARCH LINES (.tk-lines) ══════════════════
-   The signature move: four lines fan out from the composer to the four
-   shelves while Tiff is looking, then all but the winners go out.
-
-   IT IS AN UNDERLAY. `.tk-lines` is absolute inset-0 inside `.tk-stage`
-   (which is position:relative for exactly this reason) at z-index 0, and both
-   columns sit at z-index 1 above it — the same arrangement the system map
-   uses for its wire layer. pointer-events:none throughout: nothing here is
-   ever clicked, and a full-bleed SVG that ate clicks would swallow the rail.
-
-   TWO PRIMITIVES, RESURRECTED. `.draw` is a `pathLength="1"` line drawing
-   itself in with one dash the length of the whole path; `.pulse` is a second
-   stroke over the first whose short dash travels the line. Both used to live
-   at the top of this file under `.plan .pl-*` names that nothing rendered any
-   more — they were deleted from there in the same change that wrote this.
-
-   THE MOTION IS HONEST. Draw and pulse run only while a question is genuinely
-   outstanding; the moment the trace lands the pulse stops and every line
-   answers to real hit counts. No line waits a beat to look busier.
-
-   COLOUR COMES FROM `--tkc`, set per group in JSX from KB_CATEGORIES — the
-   same variable the cards already carry — so nothing in here names a category
-   and adding a fifth shelf never touches this stylesheet. */
-
-.fg .tk-lines { position:absolute; inset:0; z-index:0; width:100%; height:100%; pointer-events:none; overflow:visible; }
-
-/* #c3cad6 at 1.6 — one step darker than the first cut (#d7dbe3/1.5), which
-   disappeared into the light well on a real screen at 55% draw opacity */
-/* FIRM, BECAUSE THE GEOMETRY IS NOW PIPEWORK. 1.6px round-capped strokes on
-   freehand curves read as hair — the owner kept trying to blow them off the
-   screen. Orthogonal runs want the weight of a drawn service: 2px, butt caps
-   (a round cap on a 2px line is a bead on the end of a pipe), and the mitre
-   left to the paths' own swept elbows. */
-.fg .tk-line { fill:none; stroke:var(--q); stroke-width:2; stroke-linecap:butt; stroke-linejoin:round;
-  transition:opacity var(--t-fast) var(--ease), stroke var(--t-fast) var(--ease), stroke-width var(--t-fast) var(--ease); }
-
-/* at rest on the landing: the page showing what it is about to do. Faint
-   enough to read as structure rather than as something happening — but .3
-   wasn't faint, it was absent: on the live walk the idle diagram simply did
-   not read at 1× on the light well. .45 is the step that survives a real
-   screen while still sitting under everything with a colour. */
-.fg .tk-line.idle { opacity:.45; }
-
-/* drawing out to a shelf we have not heard back from */
-.fg .tk-line.draw { opacity:0; stroke-dasharray:1; stroke-dashoffset:1; animation:tkDraw .45s ease-in-out forwards; }
-@keyframes tkDraw { from{stroke-dashoffset:1;opacity:0} 25%{opacity:.55} to{stroke-dashoffset:0;opacity:.55} }
-
-/* and the pulse travelling along it, in the shelf's own colour */
-.fg .tk-line.pulse { stroke:var(--tkc, var(--ink)); stroke-width:2.5; stroke-dasharray:6 60; opacity:0;
-  animation:tkFlow 1.5s linear .25s infinite; }
-@keyframes tkFlow { 0%{opacity:0;stroke-dashoffset:0} 20%{opacity:.85} 80%{opacity:.85} 100%{opacity:0;stroke-dashoffset:-132} }
-
-/* THE SAME PULSE, RUN BACKWARDS, IS A DIFFERENT SENTENCE: while the answer
-   streams, the winner's lane pulses toward the composer — the words are being
-   drawn FROM that shelf. Slower than the outbound search, because it narrates
-   the whole time an answer takes rather than a two-second lookup. */
-.fg .tk-line.pulse.back { animation:tkFlow 2.2s linear infinite reverse; }
-
-/* where the answer came from · found-but-unused · nothing there · and after.
-   `hit` keeps a trace of the category colour, `dim` drops to near-nothing —
-   they used to share `.12` grey, which made "found four things" and "found
-   nothing" the same line. `kept` is the settled winner: the card keeps its
-   ring and its note, so the line keeps its thread — residue, not activity. */
-.fg .tk-line.lit { stroke:var(--tkc, var(--ink)); stroke-width:2.5; opacity:.9; }
-.fg .tk-line.hit { stroke:var(--tkc, var(--q)); opacity:.34; }
-.fg .tk-line.dim { opacity:.08; }
-.fg .tk-line.kept { stroke:var(--tkc, var(--ink)); stroke-width:2.25; opacity:.28; }
-.fg .tk-line.fade { opacity:0; transition:opacity var(--t-fast) var(--ease); }
-
-/* ── and what the same moments do to a shelf ── */
-
-/* searching: a soft sweep in Tiff blue, NOT the category colour — which shelf
-   this is has no bearing on anything until the trace says so */
-.fg .tk-rcat.searching::after { content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
-  background:var(--tint);
-  background-size:260% 100%; background-repeat:no-repeat; animation:tkShim 1.5s ease-in-out infinite; }
-@keyframes tkShim { from{background-position:150% 0} to{background-position:-50% 0} }
-
-/* found something, but not what the answer was built from */
-.fg .tk-rcat.hit { border-color:color-mix(in oklab, var(--tkc, var(--q)) 26%, var(--line)); }
-
-/* where the answer came from: ring and glow in the shelf's colour. Declared
-   after `.tk-rcat:hover` at equal specificity on purpose — hovering the
-   winning card must not take its ring away. */
-.fg .tk-rcat.winner { border-color:var(--tkc, var(--ink)); 
-  box-shadow:none; }
-
-/* searched, nothing there — dimmed but still a way into the library */
-.fg .tk-rcat.dim { opacity:.55; }
-.fg .tk-rcat.dim:hover, .fg .tk-rcat.dim:focus-within { opacity:1; }
-
-/* the microline gives up the category colour while it has nothing to report */
-.fg .tk-rcat.searching .tk-rtx em,
-.fg .tk-rcat.dim .tk-rtx em { color:var(--gray400); }
-
-@media (prefers-reduced-motion:reduce) {
-  /* the global `.fg * { animation-duration:.001s }` makes a finite animation
-     instant — and an INFINITE one a strobe. So the loops don't run at all:
-     the pulse isn't drawn and the sweep is dropped, while the line simply
-     arrives already drawn. */
-  .fg .tk-line.pulse { display:none; }
-  .fg .tk-line.draw { opacity:.55; stroke-dasharray:none; stroke-dashoffset:0; animation:none; }
-  .fg .tk-rcat.searching::after { animation:none; opacity:0; }
-}
 
 /* ===================================================================
    THE NOTE TOKEN — one control, three postures
@@ -6728,102 +5806,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
   animation:wb2CursorBlink 1s steps(2, start) infinite; color:var(--paper); }
 @keyframes wb2CursorBlink { to { visibility:hidden; } }
 @media (prefers-reduced-motion:reduce) { .wb2-anscursor { animation:none; } }
-
-/* ═══════════ THE RECORDING CARD'S DUSK SKIN — Isaac, 2026-08-08 ═══════════
-
-   The card wears the frame's own material: ink glass and white type. It was
-   the capture sheet's skin, every stage of it and the review too (Isaac,
-   2026-08-17: "it's also still got a white card instead of the dark glass"),
-   and what is left is what the Tiff chat's recording card wears in the
-   composer (`.wb2-capcard.tk-rec.wb2-dusk`): the card, the ribbon, the words
-   arriving and the three ways out. The sheet, its door, its answer and its
-   review went with the old capture UI on 2026-09-27, and their dark clothes
-   with them.
-
-   The gradient appears once — the primary button — and the words get NONE
-   of it. The box had a breathing gradient hairline in the mockup and Isaac
-   called it hectic: the words are where the colour stops. */
-
-/* the card itself */
-.wb2-capcard.wb2-dusk { background:var(--ink2); border-color:var(--on-ink-line);
-  color:var(--paper);
-  box-shadow:var(--shadow-overlay); }
-
-/* the ribbon — "Recording" up top, white on ink */
-.wb2-dusk .wb2-capribbon { border-bottom-color:var(--on-ink-line); color:var(--paper); }
-.wb2-dusk .wb2-capribbon b { color:var(--paper); }
-.wb2-dusk .wb2-ico { background:var(--on-ink-tint); color:var(--paper); }
-.wb2-dusk .wb2-ico:hover { background:var(--on-ink-tint-2); color:var(--paper); }
-.wb2-dusk .wb2-capclock { color:var(--paper); }
-
-/* the actions — glass ghosts and one gradient primary */
-.wb2-capcard.wb2-dusk .pbtn.ghost { background:var(--on-ink-tint); color:var(--paper);
-  border-color:var(--on-ink-line); }
-.wb2-capcard.wb2-dusk .pbtn.ghost:hover:not(:disabled) { background:var(--on-ink-tint-2);
-  border-color:var(--on-ink-line); color:var(--paper); }
-/* THE WAY TO THE KEYBOARD HOLDS THE LEFT OF THE ROW, after the clock, so it
-   does not MOVE: the row is flush right, and the rest stands with Done. It
-   shared this anchor with the capture card's mic, which moved across to Go
-   once there were words; the card went, 2026-09-27. */
-.wb2-capact .pbtn.wb2-modeone { margin-right:auto; }
-
-/* ── THE RECORDING'S PRIMARY IS GREEN (Isaac, 2026-08-10) ──
-   `Done` wears it: it ends the recording. It shared the green with the
-   capture card's `Go`, which committed the words, and it was `wb2-go` for
-   half a day, when both said Go. The word moved and the class followed — a
-   hook named for a label it no longer carries is how a stylesheet starts
-   lying about the markup. (`Go`, and the cyan-ended gradient every other
-   primary on the card wore, went with the card on 2026-09-27.)
-
-   V2 MAKES IT BLUE: the main button is blue with white words (rule 22, 18
-   October 2026), so the fill is `--press`. What follows is why it was teal.
-
-   THE HOUSE GREEN, NOT A NEW ONE. `#00A389` is already the teal-green this
-   app is built from; inventing a truer, brighter green would rhyme with
-   nothing, which is the design-system note's whole point. It IS the colour
-   this app also uses for ok/done, and that is a deliberate acceptance rather
-   than an oversight — this is a static control, so it does not need green
-   to be available as a state CHANGE the way a tick or a pill does.
-
-   DUSK ONLY, AND THAT IS NOT AN OMISSION: the card under it is always dusk,
-   so a light-ground twin would be a rule that matches nothing.
-
-   EVERY RULE CARRIES `:not(:disabled)`, from when `Go` wore this too and was
-   disabled for as long as it said "Reading…". AND THOSE TWO `:not()`s ARE
-   WHY THE FOCUS RING CARRIES THEM TOO: a bare ring would be outranked by the
-   very fill it is meant to sit on top of — measured in the harness, where a
-   focused primary showed the fill's drop shadow and no ring at all. */
-.wb2-capcard.wb2-dusk .pbtn.wb2-prim:not(.ghost):not(:disabled) {
-  background:var(--press); border-color:transparent; color:var(--white);
-  box-shadow:0 10px 24px -10px rgba(0,163,137,.5); }
-.wb2-capcard.wb2-dusk .pbtn.wb2-prim:not(.ghost):hover:not(:disabled) {
-  background:var(--press); border-color:transparent;
-  filter:brightness(1.07); }
-.wb2-capcard.wb2-dusk .pbtn.wb2-prim:not(.ghost):focus-visible:not(:disabled) {
-  box-shadow:var(--ring); }
-
-/* the words arriving, white on ink */
-.wb2-dusk .wb2-livetext { color:var(--paper); }
-/* The record, in the dark. Not `opacity` — a dimmed white on this ground is
-   a contrast figure nobody can read off the sheet, and this is the one the
-   textarea it replaced was already carrying. */
-.wb2-dusk .wb2-lwsaid { color:var(--paper); }
-
-/* the contents land a beat behind the card, in two soft steps */
-@keyframes wb2CapRise { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:none; } }
-.wb2-capcard.wb2-dusk .wb2-capribbon { animation:wb2CapRise .38s var(--ease) .05s both; }
-.wb2-capcard.wb2-dusk .wb2-caprec { animation:wb2CapRise .38s var(--ease) .12s both; }
-.wb2-capcard.wb2-dusk .wb2-capact { animation:wb2CapRise .38s var(--ease) .19s both; }
-
-/* Motion off: everything above collapses to plain appearance. */
-@media (prefers-reduced-motion:reduce) {
-  .wb2-capcard.wb2-dusk .wb2-capribbon, .wb2-capcard.wb2-dusk .wb2-capact,
-  .wb2-capcard.wb2-dusk .wb2-caprec { animation:none; }
-  /* …and the live window opens with them. `animation:none` here is the whole
-     rule: without it the box keeps easing three lines open under the words,
-     which is the one movement on this card motion-off has to stop. */
-  .wb2-livetext { animation:none; }
-}
 
 /* ── HOME's `.hm-*` family ── DELETED. The old Home's went on 2026-09-26,
    when the new Home (the desk, below) became everyone's; the last of it,
@@ -7012,6 +5994,29 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jp-id { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:4px; }
 /* the job's colour dot beside its name, and no line under it (Isaac's mock, 25 October 2026) */
 .fg .jp-name { display:flex; align-items:center; gap:12px; margin:0; min-width:0; font-size:24px; font-weight:600; line-height:32px; color:var(--ink); }
+/* THE JOB'S PLATE (Isaac, 5 November 2026, B on
+   https://claude.ai/artifact/SJyEw4dkCb7MLp1bgCzypJ): the number in a
+   solid box of the job's card colour, white on it (ink on yellow), as a
+   Schedule card has it (rule 19), and the client beside it at the head's 24. No hairline. */
+.fg .jp-plate--red { --jp-hue:var(--red-w); }
+.fg .jp-plate--orange { --jp-hue:var(--orange-card); }
+.fg .jp-plate--yellow { --jp-hue:var(--yellow-card); }
+.fg .jp-plate--green { --jp-hue:var(--green-w); }
+.fg .jp-plate--blue { --jp-hue:var(--press); }
+.fg .jp-plate--purple { --jp-hue:var(--purple-w); }
+.fg .jp-plate--pink { --jp-hue:var(--pink-card); }
+.fg .jp-plate--grey { --jp-hue:var(--q); }
+/* ink on the yellow box, as white is 2.1:1 there */
+.fg .jp-plate--yellow .jp-num { color:var(--ink); }
+.fg .jp-num { flex:none; display:inline-flex; align-items:center; justify-content:center; min-width:64px; align-self:stretch; min-height:40px; padding:0 12px; border-radius:var(--r-button); background:var(--jp-hue, var(--q)); color:var(--white); font-size:16px; line-height:24px; font-weight:700; font-variant-numeric:tabular-nums; }
+.fg .jp-top:has(.jp-num) { align-items:center; }
+.fg .jp-id.jp-plate { flex-direction:row; align-items:center; gap:12px; }
+.fg .jp-named { min-width:0; display:flex; flex-direction:column; }
+/* THE WAY BACK (way-back.tsx): a word button in ink above the plate */
+.fg .jp-back { align-self:flex-start; display:inline-flex; align-items:center; gap:4px; margin:0 0 -8px -4px; padding:2px 8px 2px 4px; border:0; border-radius:var(--r-button); background:none;
+  font:inherit; font-size:13px; line-height:18px; font-weight:500; color:var(--ink); text-decoration:none; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.fg .jp-back:hover { background-color:var(--hov); }
+.fg .jp-back:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .jp-acts { flex:none; display:flex; align-items:center; gap:8px; }
 /* Add's and Actions' chevron, after the word */
 .fg .jp-chev { display:inline-flex; margin-left:4px; vertical-align:middle; }
@@ -7046,6 +6051,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jm-add { display:flex; align-items:center; gap:8px; }
 .fg .jm-find { flex:1 1 auto; min-width:0; display:flex; }
 .fg .jm-find > .pt-input { flex:1 1 auto; min-width:0; }
+/* the words as you say the list: the field's line box, so they sit where its text would */
+.fg .jm-find > .wb2-lwbox { line-height:30px; }
 .fg .jm-add .jm-qtyin { flex:none; width:72px; }
 .fg .jm-wait { flex:none; font-size:13px; line-height:18px; color:var(--q); }
 .fg .jm-err { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--red-w); }
@@ -7096,7 +6103,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    the title at 16, at most one button on the right), 8, then rows of at
    least 32 with a hairline above the first and under each; 24 between
    sections. The feed's turns wear the Conversations place's own rules
-   (`cv-msg`, `cv-meta`, `cv-text`, `cv-result`, `cv-box`), so a message
+   (`cv-text`, `cv-result`, `cv-box`), so a message
    reads the same in both places; what is here is their rows. */
 .fg .jov { display:flex; flex-direction:column; gap:24px; min-width:0; }
 /* the strip of facts */
@@ -7158,6 +6165,35 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jov-none { margin:0; font-size:14px; line-height:20px; color:var(--q); }
 .fg .jov-row.jov-none { justify-content:flex-start; }
 .fg .jov-words { margin:16px 0 0; font-size:16px; line-height:24px; color:var(--ink); white-space:pre-wrap; overflow-wrap:anywhere; }
+/* THE SCOPE, a written brief (job-scope.tsx; layout B of 28 October 2026):
+   a grey line on where it came from, then a heading at 14/700 and a
+   paragraph at 14 per system, its sources grey at 13 after it, then the
+   numbered questions with who answers them, and the latest updates as a
+   day beside who and what */
+.fg .jsc { display:flex; flex-direction:column; gap:16px; padding-top:8px; max-width:68ch; }
+.fg .jsc-lede { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.fg .jsc-part { display:flex; flex-direction:column; gap:4px; }
+.fg .jsc-h { margin:0; font-size:14px; line-height:20px; font-weight:700; color:var(--ink); }
+.fg .jsc-p { margin:0; font-size:14px; line-height:22px; color:var(--ink); overflow-wrap:anywhere; }
+.fg .jsc-from { margin-left:8px; font-size:13px; color:var(--q); }
+.fg .jsc-ul { margin:0; padding-left:16px; font-size:14px; line-height:22px; color:var(--ink); }
+.fg .jsc-ol { margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
+.fg .jsc-ol > li { display:grid; grid-template-columns:24px minmax(0, 1fr) auto; gap:8px; align-items:baseline; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px; line-height:20px; color:var(--ink); }
+.fg .jsc-n, .fg .jsc-who { font-size:13px; color:var(--q); }
+.fg .jsc-ups { margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
+.fg .jsc-ups > li { display:grid; grid-template-columns:96px minmax(0, 1fr); gap:12px; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px; line-height:20px; color:var(--ink); }
+.fg .jsc-ups > li.jsc-up-act { grid-template-columns:96px minmax(0, 1fr) auto; align-items:start; }
+.fg .jsc-on { font-size:13px; color:var(--q); }
+.fg .jsc-ups b { display:block; font-size:13px; font-weight:600; }
+.fg .jsc-said { display:block; }
+/* after it's sent (slice 4): the day under Scope as quoted;
+   Since the quote's rows, the name in bold and where it came from
+   under it, Leave out on the right (rule 39) */
+.fg .jov-sub { margin:0 0 8px; font-size:14px; line-height:20px; color:var(--q); }
+.fg .jsc-since { margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
+.fg .jsc-since > li { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:12px; align-items:start; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px; line-height:20px; color:var(--ink); }
+.fg .jsc-since b { display:block; font-weight:600; overflow-wrap:anywhere; }
+.fg .jsc-since .jsc-said { font-size:13px; color:var(--q); }
 /* To do: a task's tick, and its words as the door to its own form (Isaac, 24 October 2026) */
 .fg .jov-task { justify-content:flex-start; align-items:flex-start; gap:8px; padding:8px 0; }
 .fg .jc-task { display:flex; flex-direction:column; min-width:0; }
@@ -7181,11 +6217,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jc-day { display:flex; flex-direction:column; }
 .fg .jc-dayname { margin:0; padding:16px 0 8px; font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
 .fg .jc-entry { display:flex; flex-direction:column; gap:8px; min-width:0; padding:8px 0; border-bottom:1px solid var(--line); }
-.fg .jc-convo .cv-msg { gap:12px; }
-.fg .jc-convo .cv-body { gap:4px; }
 /* a voice note: a card round the words, saying where they came from */
 /* a note an attention row sent you to: the selected fill behind it */
-.fg .cv-msg.jc-lit { margin:-8px; padding:8px; border-radius:var(--r-button); background:var(--sel); }
 /* a note's line and doors, the diary's own, under its words */
 .fg .jc-doors:empty { display:none; }
 .fg .jc-doors { display:flex; flex-direction:column; align-items:flex-start; gap:4px; font-size:13px; line-height:18px; color:var(--q); }
@@ -7326,16 +6359,82 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jov-line .jcl-step.now .jcl-sl b, .fg .jov-line .jcl-step.warn .jcl-sl b { color:var(--orange-w); }
 .fg .jov-line .jcl-step.bad .jcl-sl b { color:var(--red-w); }
 .fg .jov-line .jcl-step.on .jcl-sl b { text-decoration:underline; text-underline-offset:4px; }
+/* THE GROUND AND ITS CARDS (Isaac, 4 November 2026, Apple Health's cards
+   on https://claude.ai/artifact/8L3hw5D8QxHZidsAAQNcX6: "2, check laws",
+   then "build it"). Under the tabs the stages line, each fact and each
+   section is a white card with no edge; the hairline between the columns
+   goes. Each section's icon and title take its hue's word value, in the
+   block's place. Since 5 November 2026 ("Yes, lift it", to match Home's
+   "C, lifted") the soft ground is gone and the cards are lifted off the
+   white page by the card shadow. Named in docs/design.md, "On a job's
+   page". */
+.fg .jov { gap:16px; }
+.fg .jov-line { padding:12px 12px 8px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
+.fg .jov-facts, .fg .jov-facts--3 { gap:16px; border:0; background:none; }
+.fg .jov-fact, .fg .jov-fact:first-child, .fg .jov-fact:last-child { padding:12px 16px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
+.fg .jov-fact + .jov-fact { border-left:0; }
+.fg .jov-fact--door:hover { background:var(--paper); outline:1px solid var(--edge); outline-offset:-1px; }
+.fg .jov-lab { gap:8px; min-height:18px; font-size:13px; line-height:18px; }
+.fg .jov-labname { display:inline-flex; align-items:center; gap:8px; }
+.fg .jov-labname svg { flex:none; }
+.fg .jov-lab--pink { color:var(--pink-w); }
+.fg .jov-lab--purple { color:var(--purple-w); }
+.fg .jov-cols { grid-template-columns:minmax(0,1fr) 460px; column-gap:16px; }
+.fg .jov-main { gap:16px; }
+.fg .jov-main--stick { top:16px; }
+.fg .jov-side { padding-left:0; border-left:0; }
+.fg .jov .jov-sec { padding:12px 16px 8px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
+.fg .jov .jov-head { gap:8px; }
+.fg .jov .jov-head .hm-blk { width:auto; height:auto; background:none; color:inherit; }
+.fg .jov .jov-title { color:inherit; }
+.fg .jov .jov-head--pink { color:var(--pink-w); }
+.fg .jov .jov-head--yellow { color:var(--yellow-w); }
+.fg .jov .jov-head--green { color:var(--green-w); }
+.fg .jov .jov-head--purple { color:var(--purple-w); }
+.fg .jov .jov-head--grey { color:var(--q); }
+.fg .jov .jov-head--orange { color:var(--orange-w); }
+.fg .jov .jov-headact { color:var(--ink); }
+/* THE JOB TRACKER (job-tracker.tsx): a line per part of the quote, its
+   name and state, then its figure and Show, then a 6 tall bar: used grey,
+   overtime orange, past the quote red (design.md, "On a job's page") */
+.fg .jtr { margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
+.fg .jtr-line { display:flex; flex-direction:column; padding:8px 0; border-bottom:1px solid var(--line); }
+.fg .jtr-top { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:24px; }
+.fg .jtr-name { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .jtr-fig { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:14px; line-height:20px; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .jtr-fig b { font-weight:600; color:var(--ink); }
+.fg .jtr-show { margin-right:-12px; }
+.fg .jtr-bar { display:flex; flex-direction:column; gap:4px; padding:4px 0; }
+.fg .jtr-meter { display:flex; gap:2px; height:6px; overflow:hidden; border-radius:var(--r-control); background:var(--soft); }
+.fg .jtr-meter i { display:block; flex:none; height:100%; }
+.fg .jtr-used { background:var(--grey); }
+.fg .jtr-ot { background:var(--orange); }
+.fg .jtr-over { background:var(--red); }
+.fg .jtr-under { font-size:13px; line-height:18px; font-weight:500; color:var(--orange-w); }
+.fg .jtr-rows { margin-top:4px; }
+.fg .jtr-thing { display:flex; flex-direction:column; min-width:0; }
+.fg .jtr-thing b { font-weight:500; overflow-wrap:anywhere; }
+.fg .jtr-amt { flex:none; font-size:14px; line-height:20px; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .jtr-rows .jov-row:last-child, .fg .jtr-line:last-child { border-bottom:0; }
+/* Add hours and Add amount, in the line (Isaac, 5 November 2026) */
+.fg .jtr-by { display:flex; align-items:center; gap:4px; font-size:13px; line-height:18px; color:var(--q); }
+.fg .jtr-plan { display:flex; flex-direction:column; gap:8px; padding:8px 0 4px; }
+.fg .jtr-visit { display:flex; align-items:center; gap:8px; font-size:14px; line-height:20px; color:var(--q); }
+.fg .jtr-visit b { width:56px; flex:none; font-weight:600; color:var(--ink); }
+.fg .jtr-num { width:56px; flex:none; font-variant-numeric:tabular-nums; }
+.fg .jtr-money { width:120px; flex:none; font-variant-numeric:tabular-nums; }
+.fg .jtr-vh { margin-left:auto; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .jtr-addvisit { align-self:flex-start; margin-left:-12px; }
+.fg .jtr-wrong { margin:0; font-size:13px; line-height:18px; color:var(--red-w); }
+.fg .jtr-tot { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; padding-top:8px; border-top:1px solid var(--line); color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .jtr-tot b { font-weight:600; color:var(--ink); }
+.fg .jtr-acts { display:flex; gap:8px; }
 @media (max-width:1100px) {
-  .fg .jov-cols { grid-template-columns:minmax(0,1fr); row-gap:32px; }
-  .fg .jov-side { padding-left:0; border-left:0; }
+  .fg .jov-cols { grid-template-columns:minmax(0,1fr); row-gap:16px; }
   .fg .jov-main--stick { position:static; }
 }
 @media (max-width:760px) {
   .fg .jov-facts, .fg .jov-facts--3 { grid-template-columns:minmax(0,1fr); }
-  .fg .jov-fact + .jov-fact { border-left:0; border-top:1px solid var(--line); }
-  .fg .jov-fact:first-child { border-radius:16px 16px 0 0; }
-  .fg .jov-fact:last-child { border-radius:0 0 16px 16px; }
 }
 
 /* ===== V2: A PROJECT'S PAGE (Isaac, 27 October 2026, on the old screens'
@@ -7478,8 +6577,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jl-discs { display:flex; flex-wrap:wrap; align-items:center; gap:4px; max-width:80px; }
 .fg .jl-value { align-items:flex-end; text-align:right; font-variant-numeric:tabular-nums; }
 
-/* ===== V2: CONVERSATIONS (v2, step 5; components/conversations, and the
-   `conversations` layout of components/tiff/assistant.tsx) =====
+/* ===== V2: CONVERSATIONS (v2, step 5; components/conversations, and
+   components/tiff/assistant.tsx) =====
    The board v2-board-conversations. Left: the title, the views as soft tabs
    (rule 29) and the threads, each a title in bold over its time in grey, the
    open one on the selected fill. A hairline, then the open conversation: a
@@ -7504,9 +6603,16 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .cv-rows .cv-row:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .cv-row-title { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
 .fg .cv-row-when { font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.fg .cv-row-top { display:flex; align-items:baseline; gap:12px; min-width:0; }
+.fg .cv-row-top .cv-row-title { flex:1; min-width:0; }
+.fg .cv-row-top .pt-state { flex:none; }
 
 .fg .cv-main { display:flex; flex-direction:column; min-width:0; min-height:0; }
 .fg .cv-pane { flex:1; display:flex; flex-direction:column; gap:16px; min-height:0; padding:24px 32px 32px 48px; }
+.fg .cv-item-head { display:flex; flex-direction:column; gap:4px; padding-bottom:16px; border-bottom:1px solid var(--line); }
+.fg .cv-item-subject { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .cv-item-from { margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.fg .cv-item-head .cv-job-foot { margin-top:8px; padding-top:4px; }
 .fg .cv-pane-head { display:flex; align-items:center; justify-content:flex-end; gap:8px; min-height:32px; }
 .fg .cv-scroll { flex:1; min-height:0; overflow-y:auto; }
 .fg .cv-start { display:flex; align-items:center; justify-content:center; min-height:100%; }
@@ -7515,12 +6621,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .cv-day { display:flex; align-items:center; gap:16px; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
 .fg .cv-day::before,
 .fg .cv-day::after { content:""; flex:1; height:1px; background:var(--line); }
-.fg .cv-msg { display:grid; grid-template-columns:32px minmax(0,1fr); gap:16px; align-items:start; }
-.fg .cv-avatar { display:flex; justify-content:center; padding-top:2px; }
-.fg .cv-body { display:flex; flex-direction:column; gap:8px; min-width:0; }
-.fg .cv-meta { display:flex; align-items:baseline; gap:8px; margin:0; font-size:14px; line-height:20px; }
-.fg .cv-meta b { font-weight:600; color:var(--ink); }
-.fg .cv-meta span { font-size:13px; line-height:18px; font-weight:400; color:var(--q); font-variant-numeric:tabular-nums; }
 /* her steps, done in grey; what she is doing now in ink */
 .fg .cv-steps { display:flex; flex-direction:column; gap:4px; margin:0; padding:0; list-style:none; }
 .fg .cv-steps li { display:flex; align-items:flex-start; gap:8px; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
@@ -7533,7 +6633,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .cv-text ol { margin:0; }
 .fg .cv-text ul,
 .fg .cv-text ol { display:flex; flex-direction:column; gap:4px; padding-left:24px; }
-.fg .cv-text.cv-text--mine p { white-space:pre-wrap; overflow-wrap:anywhere; }
 .fg .cv-text .tk-tw { overflow-x:auto; }
 .fg .cv-text .tk-tbl th { font-size:12px; line-height:16px; font-weight:500; color:var(--q); background:transparent; border-bottom:1px solid var(--line); }
 .fg .cv-text .tk-tbl td { font-weight:400; }
@@ -7556,6 +6655,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .cv-job-grow { flex:1; }
 /* which job: each job a line, its own File on the right */
 .fg .cv-job-row ul.cv-job-picks { display:flex; flex-direction:column; gap:8px; margin:0; padding:0; list-style:none; }
+.fg .cv-job-row ul.cv-job-links { padding:0; list-style:none; }
 .fg .cv-job-pick { display:flex; align-items:center; justify-content:space-between; gap:12px; min-width:0; }
 .fg .cv-result { display:flex; align-items:center; gap:12px; min-width:0; padding:12px 16px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--paper); }
 .fg .cv-result-id { display:flex; flex-direction:column; flex:1; min-width:0; }
@@ -7580,6 +6680,14 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .cv-box .cv-live .wb2-lwbox { max-height:240px; }
 .fg .cv-boxbar { display:flex; align-items:center; gap:8px; }
 .fg .cv-boxbar .cv-send { margin-left:auto; }
+/* TIFF'S BUTTON AND ITS LITTLE i (Isaac, 6 November 2026): the i sits on
+   the button's corner until it has been read once, and pressed, a few words
+   stand over the box saying what she does with them */
+.fg .cv-tiffat { position:relative; display:inline-flex; flex:none; }
+.fg .cv-info { position:absolute; top:-7px; right:-7px; display:grid; place-items:center; width:18px; height:18px; padding:0; border:1px solid var(--edge); border-radius:50%; background:var(--paper); color:var(--ink); font:inherit; font-size:12px; line-height:1; font-weight:700; cursor:pointer; }
+.fg .cv-info:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .cv-tip { position:absolute; right:0; bottom:calc(100% + 12px); z-index:var(--z-overlay); width:260px; padding:12px 16px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-overlay); font-size:14px; line-height:20px; font-weight:400; color:var(--ink); text-align:left; }
+.fg .cv-tip b { display:block; font-weight:700; }
 /* "Send fades until she's done" (6-revisions.md) */
 .fg .cv-boxbar .pt-btn.cv-send--wait { opacity:.4; }
 .fg .cv-say { margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
@@ -7604,13 +6712,18 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .wrap.hm { max-width:none; padding:24px 32px 48px; display:flex; flex-direction:column; gap:32px; }
 /* the three columns under Tiff's box (Isaac, 20 October): Today, Your feed
    in the middle and widest, To do; 30/40/30 (Isaac, 26 October 2026) */
-.fg .hm-cols { display:grid; grid-template-columns:minmax(0,3fr) minmax(0,4fr) minmax(0,3fr); align-items:stretch; }
-/* a hairline between the columns, 32 either side (Isaac, 25 October 2026:
-   the same lines the job's Overview separates its columns with) */
-.fg .hm-cols > .hm-sec { padding-inline:32px; }
-.fg .hm-cols > .hm-sec:first-child { padding-left:0; }
-.fg .hm-cols > .hm-sec:last-child { padding-right:0; }
-.fg .hm-cols > .hm-sec + .hm-sec { border-left:1px solid var(--line); }
+.fg .hm-cols { display:grid; grid-template-columns:minmax(0,3fr) minmax(0,4fr) minmax(0,3fr); align-items:stretch; gap:16px; }
+/* each column a white card lifted off the white page, no edge (Isaac, 5
+   November 2026, "C, lifted", docs/design.md "On Home"): the card shadow,
+   its name and glyph in its colour's word value, as the job's Overview */
+.fg .hm-cols > .hm-sec { padding:12px 16px 8px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-card); }
+.fg .hm-cols .hm-head { gap:8px; }
+.fg .hm-cols .hm-blk { width:auto; height:auto; background:none; color:inherit; }
+.fg .hm-cols .hm-h { font-size:16px; line-height:24px; color:inherit; }
+.fg .hm-cols .hm-head--purple { color:var(--purple-w); }
+.fg .hm-cols .hm-head--yellow { color:var(--yellow-w); }
+.fg .hm-cols .hm-head--green { color:var(--green-w); }
+.fg .hm-cols .hm-headlinks, .fg .hm-cols .hm-headlink { color:var(--ink); }
 /* a column's head: a solid block of its colour, its glyph in ink on it */
 .fg .hm-blk { display:inline-flex; align-items:center; justify-content:center; flex:none; width:32px; height:32px; border-radius:var(--r-button); color:var(--ink); }
 .fg .hm-blk--purple { background:var(--purple); }
@@ -7663,8 +6776,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .hm-feed-yours { margin:0; font-size:13px; line-height:20px; color:var(--q); overflow-wrap:anywhere; }
 .fg .hm-feed-acts { display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
 .fg .hm-feed-reply { display:flex; flex-direction:column; gap:4px; margin-top:4px; }
-.fg .hm-feed-replyrow { display:flex; gap:8px; align-items:center; }
-.fg .hm-feed-replyrow > :first-child { flex:1 1 auto; min-width:0; }
 .fg .hm-feed-err { margin:0; font-size:13px; line-height:20px; color:var(--red-w); }
 .fg .hm-head { display:flex; align-items:center; gap:12px; padding-bottom:12px; border-bottom:1px solid var(--line); }
 .fg .hm-h { margin:0; font-size:20px; line-height:28px; font-weight:600; color:var(--ink); }
@@ -8085,21 +7196,32 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .sc-holding .sc-track, .fg .sc-holding .sc-cell { cursor:copy; }
 .fg .sc-vl { position:absolute; top:0; bottom:0; border-left:1px solid var(--line); }
 .fg .sc-after { position:absolute; top:0; bottom:0; right:0; background:var(--soft); }
-.fg .sc-blk, .fg .sc-away, .fg .sc-fit { position:absolute; top:8px; bottom:8px; box-sizing:border-box; padding:4px 8px; border-radius:var(--r-button); display:flex; flex-direction:column; justify-content:center; min-width:0; overflow:hidden; }
+.fg .sc-blk, .fg .sc-fit { position:absolute; top:8px; bottom:8px; box-sizing:border-box; padding:4px 8px; border-radius:var(--r-button); display:flex; flex-direction:column; justify-content:center; min-width:0; overflow:hidden; }
 .fg .sc-blk { color:var(--ink); text-decoration:none; }
 .fg .sc-blk:focus-visible, .fg .sc-wbar:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
 /* A BOOKING'S CARD (Isaac, 23 October 2026, E of "Schedule card colour"):
    the job's number in a solid box of its colour, the rest white inside a
    hairline of the same colour, three lines at 12. The colour is the card's
-   own token; a done card's is grey. */
+   own token (orange, yellow and pink their card values, 6 November 2026); a
+   done card's is grey. */
 .fg .sc-card--red { --sc-hue:var(--red-w); }
-.fg .sc-card--orange { --sc-hue:var(--orange-w); }
-.fg .sc-card--yellow { --sc-hue:var(--yellow-w); }
+.fg .sc-card--orange { --sc-hue:var(--orange-card); }
+.fg .sc-card--yellow { --sc-hue:var(--yellow-card); }
 .fg .sc-card--green { --sc-hue:var(--green-w); }
 .fg .sc-card--blue { --sc-hue:var(--press); }
 .fg .sc-card--purple { --sc-hue:var(--purple-w); }
-.fg .sc-card--pink { --sc-hue:var(--pink-w); }
+.fg .sc-card--pink { --sc-hue:var(--pink-card); }
 .fg .sc-card--grey { --sc-hue:var(--q); }
+/* ink on the yellow box, as white is 2.1:1 there */
+.fg .sc-card--yellow .sc-cn { color:var(--ink); }
+/* TIME OFF IS A BOOKING'S CARD whose box holds a clock on the soft grey, in
+   a grey hairline (Isaac, 6 November 2026, "Build it" on the block out mock):
+   ServiceM8's own time off, regular days off and blocks out made here alike */
+.fg .sc-card--off { --sc-hue:var(--q); }
+.fg .sc-card--off .sc-cn { background:var(--soft); color:var(--ink); }
+.fg .sc-blk.sc-card--off, .fg .sc-wbar.sc-card--off { font:inherit; text-align:left; }
+.fg button.sc-card--off.sc-blk, .fg button.sc-card--off.sc-wbar { cursor:pointer; }
+.fg .sc-holding button.sc-card--off.sc-blk { cursor:copy; }
 .fg .sc-card { flex-direction:row; align-items:stretch; justify-content:flex-start; padding:0; border:1px solid var(--sc-hue, var(--q)); border-radius:var(--r-control); background:var(--white); color:var(--ink); text-decoration:none; overflow:hidden; }
 .fg .sc-blk.sc-card { bottom:auto; height:52px; }
 .fg .sc-wbar.sc-card { flex-direction:row; padding:0; }
@@ -8112,7 +7234,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .sc-c3 b { font-weight:600; color:var(--ink); }
 .fg .sc-crew { display:inline-flex; align-items:center; gap:2px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
 .fg .sc-cs { margin-left:auto; flex:none; font-size:12px; line-height:16px; }
-.fg .sc-away { left:0; right:0; background:var(--soft); color:var(--q); font-size:13px; line-height:18px; align-items:center; }
 .fg .sc-fit { font-size:12px; line-height:16px; font-weight:600; pointer-events:none; }
 .fg .sc-fit.sc-ok { background:var(--sel); box-shadow:inset 0 0 0 2px var(--ink); color:var(--ink); }
 .fg .sc-fit.sc-part { background:transparent; color:var(--warn-t); }
@@ -8126,7 +7247,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .sc-cells { position:relative; display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); grid-auto-flow:row dense; gap:4px 0; padding:8px 0; align-content:start; }
 .fg .sc-cell { border-left:1px solid var(--line); margin:-8px 0; }
 .fg .sc-wbar { position:relative; margin:0 4px; box-sizing:border-box; padding:4px 8px; border-radius:var(--r-button); display:flex; flex-direction:column; min-width:0; text-decoration:none; }
-.fg .sc-awayb { background:var(--soft); color:var(--q); font-size:13px; line-height:18px; }
 .fg .sc-fitw { font-size:12px; line-height:16px; font-weight:600; pointer-events:none; }
 .fg .sc-fitw.sc-ok { background:var(--sel); box-shadow:inset 0 0 0 2px var(--ink); }
 .fg .sc-fitw.sc-part { background:transparent; box-shadow:inset 0 0 0 1px var(--edge); color:var(--warn-t); }
@@ -8139,6 +7259,9 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .sc-panel { width:320px; flex:none; display:flex; flex-direction:column; gap:12px; min-height:0; padding-left:24px; border-left:1px solid var(--line); }
 .fg .sc-panel .pt-tray { align-self:flex-start; flex:none; }
 .fg .sc-h2 { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .sc-panelhead { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+/* blocks out waiting, in their own group above the search, a hairline under them */
+.fg .sc-jobs.sc-offs { flex:none; overflow:visible; padding-bottom:12px; border-bottom:1px solid var(--line); }
 .fg .sc-off { margin:0; font-size:13px; line-height:18px; color:var(--q); }
 .fg .sc-held { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:12px; border-radius:var(--r-card); background:var(--sel); }
 .fg .sc-heldn { flex:1 1 100%; display:flex; align-items:center; gap:8px; min-width:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
@@ -9106,3 +8229,43 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .pt-dialog .jv-file:focus-within { box-shadow:var(--ring); }
 .pt-dialog .jv-file input { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); opacity:0; }
 .pt-dialog .jv-photoname { font-size:13px; line-height:18px; color:var(--q); }
+
+/* ===== PURCHASES (Isaac, 29 October 2026, "Build" on the mock
+   DMsn3JEQ…; components/purchases/*). The Add a purchase dialog wears
+   Materials' rows (`jm-row`), portalled outside `.fg`, so nothing here is
+   scoped to it. Bought sits above the van's list in Materials' own box.
+   Team's list is a plain table: hairlines, figures lined up, a second line
+   in grey under a cell that has one. ===== */
+.pu-file { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
+.pu-quiet { margin:0 0 12px; font-size:13px; line-height:18px; color:var(--q); }
+.pu-group { margin:16px 0 4px; font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+.pu-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px; }
+.pu-head .pu-group { margin:0; }
+.pu-line--placed .jm-name { color:var(--q); }
+.pu-money { min-width:72px; }
+.pu-price { display:flex; align-items:center; gap:8px; flex:none; }
+.pu-price .pu-price-in { width:96px; }
+.pu-which .pt-search { margin-bottom:8px; }
+.pu-which button.pu-job { display:flex; align-items:baseline; gap:8px; width:100%; min-height:32px; padding:4px 0; border:0; background:none; font:inherit; font-size:14px; line-height:20px; text-align:left; color:var(--ink); cursor:pointer; }
+.pu-which button.pu-job:hover .jm-name, .pu-which button.pu-job:focus-visible .jm-name { text-decoration:underline; }
+.pu-back { margin-top:16px; }
+.pu-said { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:16px; padding-top:12px; border-top:1px solid var(--line); font-size:14px; line-height:20px; color:var(--ink); }
+.pu-reading { display:flex; flex-direction:column; align-items:center; gap:12px; padding:24px 0; text-align:center; }
+.pu-against { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin:0 0 8px; font-size:14px; line-height:20px; color:var(--ink); font-variant-numeric:tabular-nums; }
+.pu-open { color:var(--ink); text-decoration:underline; }
+.pu-total .jm-text { flex:1 1 auto; font-weight:600; color:var(--ink); }
+.pu-table { width:100%; border-collapse:collapse; font-size:14px; line-height:20px; color:var(--ink); }
+.pu-table th { padding:8px 12px 8px 0; border-bottom:1px solid var(--line); font-size:12px; line-height:16px; font-weight:500; color:var(--q); text-align:left; }
+.pu-table td { padding:8px 12px 8px 0; border-bottom:1px solid var(--line); vertical-align:top; max-width:320px; }
+.pu-table .pu-num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.pu-table .pu-date { white-space:nowrap; }
+.pu-two { display:block; }
+.pu-cell-q { display:block; font-size:13px; line-height:18px; color:var(--q); }
+.pu-foot td { font-weight:600; border-bottom:0; }
+.pu-opened { display:flex; flex-direction:column; gap:16px; }
+.pu-opened-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.pu-title { margin:0 0 4px; font-size:20px; line-height:28px; font-weight:600; color:var(--ink); }
+.pu-opened-acts { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.pu-split { display:grid; grid-template-columns:240px minmax(0,1fr); gap:24px; align-items:start; }
+.pu-docket { width:100%; border:1px solid var(--edge); border-radius:var(--r-card); }
+@media (max-width:900px) { .pu-split { grid-template-columns:minmax(0,1fr); } }

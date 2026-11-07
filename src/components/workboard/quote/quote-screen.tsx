@@ -81,17 +81,23 @@ export function QuoteScreen({
   detail,
   moneyVisible,
   financials,
+  studio = false,
   start = false,
   option = null,
+  update = false,
 }: {
   job: string;
   detail: Detail;
   moneyVisible: boolean;
   financials: boolean;
+  /** Holds the Studio: the job's tabs have Design, which the quote's Design step refers back to. */
+  studio?: boolean;
   /** from the job card's Create a quote (?start=1): straight into the reply box */
   start?: boolean;
   /** ?option=N: opened on that option, a variation Tiff started */
   option?: number | null;
+  /** ?update=1: from the job's Since the quote, Update quote with what's changing written in */
+  update?: boolean;
 }) {
   const [media, setMedia] = useState<JobMediaGroupsRead | null>(null);
   const [family, setFamily] = useState<FamilyMoney | null>(null);
@@ -149,7 +155,7 @@ export function QuoteScreen({
   const facts = [kindWords(detail.status), detail.jobNumber ? `Job ${detail.jobNumber}` : "", (address ?? "").split(/\s*\n\s*/).filter(Boolean).join(", ")]
     .filter(Boolean)
     .join(", ");
-  const tabs: TabItem[] = sectionsFor(moneyVisible).map((key) => ({
+  const tabs: TabItem[] = sectionsFor(moneyVisible, studio).map((key) => ({
     key,
     label: SECTION_LABEL[key],
     ...(key === "quote" ? {} : { href: jobPageHref(job, key) }),
@@ -195,7 +201,7 @@ export function QuoteScreen({
               <Fade>{name}</Fade>
             </h1>
             <p className="qp-line">
-              <Dot hue={jobHue(detail.categoryColour, detail.status === "Unsuccessful")} />
+              <Dot hue={jobHue(detail.categoryColour, detail.status)} />
               <Fade className="qp-facts">{facts ? `${facts}.` : ""}</Fade>
               {stage && <span className={stage.settle ? "qp-stage settle" : "qp-stage"}>{stage.word}</span>}
               <OpenJob job={job} jobNumber={detail.jobNumber ?? null} />
@@ -213,7 +219,7 @@ export function QuoteScreen({
               price={price}
               onStage={setStage}
               onPriced={() => setLinesRev((n) => n + 1)}
-              onToast={(m) => toast(m)}
+              onToast={(m, undo) => toast(m, undo)}
               send={<JobQuoteSend job={job} visible version={`lines-${linesRev}`} />}
               sendQuote={(onSent, sentAt) => <JobQuoteSend job={job} visible as="quote" look="button" sentAt={sentAt} version={`lines-${linesRev}`} onSent={onSent} />}
               sm8={sm8}
@@ -223,6 +229,7 @@ export function QuoteScreen({
               openAt={option}
               sendVariation={(o) => sendVariation(job, o)}
               jobStatus={detail.status ?? null}
+              update={update}
             />
           ) : onLines === false ? (
             <div className="qp-wait">

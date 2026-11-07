@@ -27,8 +27,15 @@ function reasonFor(err: unknown): string {
   return "The invoice couldn't be read. Try again.";
 }
 
-/** What Tiff makes of the file, believed only as far as it holds up. */
-async function askTiff(bytes: Buffer, mediaType: InvoiceMedia, client: Anthropic): Promise<{ ok: true; read: InvoiceRead } | { ok: false; reason: string }> {
+/** What Tiff makes of the file, believed only as far as `parse` holds it
+    up: the price book's way (parseInvoiceRead), or a purchase's, which
+    keeps the lines the book can't. */
+export async function askInvoiceReader<T>(
+  bytes: Buffer,
+  mediaType: InvoiceMedia,
+  parse: (raw: unknown, today: string) => T,
+  client: Anthropic = new Anthropic()
+): Promise<{ ok: true; read: T } | { ok: false; reason: string }> {
   const data = bytes.toString("base64");
   const file: Anthropic.Beta.Messages.BetaContentBlockParam =
     mediaType === "application/pdf"
@@ -52,15 +59,15 @@ async function askTiff(bytes: Buffer, mediaType: InvoiceMedia, client: Anthropic
        model's partial answer can stand ahead of the full one */
     const block = [...response.content].reverse().find((b) => b.type === "text");
     if (!block || block.type !== "text") return { ok: false, reason: "Tiff found nothing to read. Try again." };
-    return { ok: true, read: parseInvoiceRead(JSON.parse(block.text), todayInSydney()) };
+    return { ok: true, read: parse(JSON.parse(block.text), todayInSydney()) };
   } catch (err) {
-    console.error("[price book] reading an invoice failed:", err instanceof Error ? err.message : err);
+    console.error("[invoice reader] reading an invoice failed:", err instanceof Error ? err.message : err);
     return { ok: false, reason: reasonFor(err) };
   }
 }
 
 /** What the book holds at the supplier for these codes. */
-async function heldOf(orgId: string, supplierKey: string, codes: string[]): Promise<Map<string, HeldItem>> {
+export async function heldOf(orgId: string, supplierKey: string, codes: string[]): Promise<Map<string, HeldItem>> {
   const out = new Map<string, HeldItem>();
   for (let i = 0; i < codes.length; i += 200) {
     const { data, error } = await supabaseAdmin
@@ -86,7 +93,7 @@ export async function readInvoice(
   mediaType: InvoiceMedia,
   client: Anthropic = new Anthropic()
 ): Promise<{ ok: true; read: ReadInvoice } | { ok: false; reason: string }> {
-  const asked = await askTiff(bytes, mediaType, client);
+  const asked = await askInvoiceReader<InvoiceRead>(bytes, mediaType, parseInvoiceRead, client);
   if (!asked.ok) return asked;
   const { read } = asked;
   const held = await heldOf(orgId, supplier.key, read.lines.map((l) => l.code)).catch(() => null);

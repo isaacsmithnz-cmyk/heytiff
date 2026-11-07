@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode, type Ref } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode, type Ref } from "react";
 import { Button, IconButton } from "@/components/parts/button";
 import { DictClock, LiveWords, type DictationState } from "@/components/notes/dictation";
 import { READING_BACK_NOTE } from "@/components/notes/waits";
@@ -8,7 +8,7 @@ import { Waiting } from "@/components/ui/orb";
 
 /* THE BOX AT THE FOOT (the board v2-board-conversations): the words at 16
    (rule 13), then the microphone, icon-only (rule 27), and the blue main
-   button with its word on the right (rule 22, Q6). It says Send.
+   button on the right (rule 22): Tiff's, her arrow and her name.
 
    Enter sends and Shift+Enter starts a new line, as every chat box does.
    While Tiff works, Send fades until she's done (6-revisions.md, "While
@@ -18,7 +18,16 @@ import { Waiting } from "@/components/ui/orb";
    to the recording card every other door shows, and gets it back when the
    words land in it ("the input section should be identical throughout the
    software", Isaac). The engine is the caller's `useDictation`, so what the
-   words become is the caller's business too. */
+   words become is the caller's business too.
+
+   SAVE, AND TIFF (Isaac, 6 November 2026: "Save creates a raw note, tiff
+   processes it like she does today"; "You can have tiff on the button with
+   the arrow in web"). Where the words can be kept as they are, Save sits
+   beside the main button and files them with no Tiff, for nothing; the main
+   button is Tiff's, her arrow and her name, and she reads them as she always
+   has. A little i on her button says what she does with them, until you
+   have read it once ("I symbol can disappear after the first press"). A box
+   that only keeps (your own notes) has no Tiff: Save is its main button. */
 
 export function CvBox({
   value,
@@ -36,7 +45,9 @@ export function CvBox({
   before,
   lead,
   extra,
-  worded = false,
+  onSave,
+  saving = false,
+  tiff = true,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -60,12 +71,15 @@ export function CvBox({
   before?: ReactNode;
   /** On the bar's left, before the microphone's side: a job's Add photo. */
   lead?: ReactNode;
-  /** A second way to press, beside the main button: a job's Keep as typed. */
+  /** A second way to press, beside the main button. */
   extra?: ReactNode;
-  /** The main button says its word, blue, as a job's Overview draws it
-      (Isaac, 25 October 2026, "Yes, build the refined Overview A"); the
-      arrow otherwise, as Claude's. */
-  worded?: boolean;
+  /** Save: the words kept as written, with no Tiff. Shown once there are words. */
+  onSave?: () => void;
+  /** The words are being saved: Save waits. */
+  saving?: boolean;
+  /** The main button is Tiff's (her arrow and name); false where the box only
+      keeps, and its main button says `sendWord`. */
+  tiff?: boolean;
 }) {
   const listening = !!dict && (dict.recording || dict.transcribing);
   const empty = !value.trim();
@@ -145,37 +159,153 @@ export function CvBox({
             <span aria-hidden="true" />
           </button>
         ) : dict ? (
-          <IconButton glyph="mic" label="Speak instead of typing" size={32} disabled={dict.transcribing} onClick={dict.start} />
+          <IconButton glyph="mic" label="Speak instead of typing" size={32} disabled={dict.transcribing || waiting} onClick={dict.start} />
         ) : null}
         {extra}
-        {worded ? (
+        {onSave && tiff && !recording && !empty && (
+          <Button kind="second" size={32} onClick={onSave} disabled={saving || waiting} aria-busy={saving || undefined}>
+            Save
+          </Button>
+        )}
+        {tiff ? (
+          <TiffButton save={!!onSave}>
+            <Button
+              kind="main"
+              size={32}
+              icon="send"
+              type={recording ? "button" : "submit"}
+              onClick={recording ? sendNow : undefined}
+              aria-label={sendLabel ?? "Send to Tiff"}
+              className={`cv-send${waiting || sendOnLand ? " cv-send--wait" : ""}`}
+              aria-busy={waiting || sendOnLand || undefined}
+              disabled={recording ? waiting : waiting || listening || empty}
+            >
+              Tiff
+            </Button>
+          </TiffButton>
+        ) : (
           <Button
             kind="main"
             size={32}
-            type={recording ? "button" : "submit"}
-            onClick={recording ? sendNow : undefined}
+            type="button"
+            onClick={onSave ?? onSubmit}
             aria-label={sendLabel ?? sendWord}
-            className={`cv-send${waiting || sendOnLand ? " cv-send--wait" : ""}`}
-            aria-busy={waiting || sendOnLand || undefined}
-            disabled={recording ? waiting : waiting || listening || empty}
+            className={`cv-send${saving || waiting ? " cv-send--wait" : ""}`}
+            aria-busy={saving || waiting || undefined}
+            disabled={saving || waiting || listening || empty}
           >
             {sendWord}
           </Button>
-        ) : (
-          /* Send as Claude's: an arrow, grey until there is something to send */
-          <IconButton
-            glyph="send"
-            kind="main"
-            size={32}
-            type={recording ? "button" : "submit"}
-            onClick={recording ? sendNow : undefined}
-            label={sendLabel ?? sendWord}
-            className={`cv-send${waiting || sendOnLand ? " cv-send--wait" : ""}`}
-            aria-busy={waiting || sendOnLand || undefined}
-            disabled={recording ? waiting : waiting || listening || empty}
-          />
         )}
       </div>
     </form>
+  );
+}
+
+/** Where the little i is remembered as read: for the person, on the server
+    (api/tiff/info-read), so pressed on the phone it's gone here too, and on
+    this device as well, so it never flashes in. Read through the store hook
+    so the server's first paint (no i) and the browser's agree; until the
+    server has said, an i this device hasn't seen read stays hidden. A device
+    that keeps nothing remembers it for the page. */
+const READ_KEY = "heytiff.tiff-info-read";
+const readListeners = new Set<() => void>();
+let readNow = false;
+/** What the server said: true, false, or null for "not kept" (each device for itself). */
+let serverRead: boolean | null | undefined;
+const localRead = () => {
+  if (readNow) return true;
+  try {
+    return window.localStorage.getItem(READ_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+const keepLocal = () => {
+  readNow = true;
+  try {
+    window.localStorage.setItem(READ_KEY, "1");
+  } catch {
+    /* kept for the page only */
+  }
+};
+const infoRead = () => localRead() || serverRead === undefined || serverRead === true;
+let asked = false;
+const askServer = () => {
+  if (asked) return;
+  asked = true;
+  void Promise.resolve()
+    .then(() => fetch("/api/tiff/info-read", { cache: "no-store" }))
+    .then((r) => (r.ok ? (r.json() as Promise<{ read?: boolean | null }>) : { read: null }))
+    .catch(() => ({ read: null }))
+    .then((b) => {
+      serverRead = typeof b.read === "boolean" ? b.read : null;
+      if (serverRead) keepLocal();
+      for (const fire of readListeners) fire();
+    });
+};
+function useInfoRead(): [boolean, () => void] {
+  const read = useSyncExternalStore(
+    (fire) => {
+      readListeners.add(fire);
+      if (!localRead()) askServer();
+      return () => readListeners.delete(fire);
+    },
+    infoRead,
+    () => true,
+  );
+  const mark = () => {
+    keepLocal();
+    serverRead = true;
+    void Promise.resolve()
+      .then(() => fetch("/api/tiff/info-read", { method: "POST" }))
+      .catch(() => undefined);
+    for (const fire of readListeners) fire();
+  };
+  return [read, mark];
+}
+
+/** Tiff's button, with the little i on its corner until it has been read
+    once: pressed, a few words over the box say what she does with the words,
+    and pressed again, or anywhere else, they go and so does the i. */
+function TiffButton({ save, children }: { save: boolean; children: ReactNode }) {
+  const [read, markRead] = useInfoRead();
+  const [open, setOpen] = useState(false);
+  const at = useRef<HTMLSpanElement | null>(null);
+  const tipId = useId();
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => {
+      if (!at.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("pointerdown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
+  const show = () => {
+    setOpen((o) => !o);
+    markRead();
+  };
+  return (
+    <span className="cv-tiffat" ref={at}>
+      {children}
+      {(!read || open) && (
+        <button type="button" className="cv-info" aria-label="What Tiff does with it" aria-expanded={open} aria-controls={open ? tipId : undefined} onClick={show}>
+          i
+        </button>
+      )}
+      {open && (
+        <span className="cv-tip" id={tipId} role="note">
+          <b>Tiff reads it</b>
+          And does what it asks: a task, a reminder, a visit, a message to someone.{save ? " Save keeps it as written." : ""}
+        </span>
+      )}
+    </span>
   );
 }

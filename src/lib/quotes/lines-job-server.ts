@@ -111,6 +111,8 @@ export async function saveProposal(orgId: string, cardId: string, patch: unknown
 }
 /** A person saying this version of the proposal is right to go. */
 export const approveProposal = (orgId: string, cardId: string, by: string) => changeByHand(orgId, cardId, by, (b) => withApproval(b, by, new Date().toISOString()));
+/** Mark ready to send taken back (the phone's Undo, 2 November 2026): its words stay as written, and no version is kept, as nothing was sent. */
+export const unapproveProposal = (orgId: string, cardId: string, by: string) => changeByHand(orgId, cardId, by, withoutApproval);
 
 /** A VARIATION STARTED on an accepted quote (Isaac, 2026-10-10): the
     accepted option copied to a new one, every line kept in its history as

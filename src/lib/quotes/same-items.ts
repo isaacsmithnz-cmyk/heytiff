@@ -7,9 +7,12 @@
    them or says they aren't (either answer is kept, so nothing is proposed
    twice). Confirmed pairs join into one product, priced at every supplier.
 
-   Two ways a pair is proposed:
+   Three ways a pair is proposed:
    - MENTIONED: one supplier's code is written in the other's name (Reece's
      "ASPEN MINI TANK PUMP 35LTR/HR FP1056" is AAD's FP1056).
+   - SAME MODEL: one supplier's code is the other's with a maker's suffix
+     after it (a wholesaler's PUZ-ZM140YKA2 is the maker's
+     PUZ-ZM140YKA2-A.TH), any brand, any supplier.
    - SAME SIZE: the same kind of part (pair coil, duct tape, isolator…) with
      every size both names give the same — the pipe sizes, the length, the
      amps, the poles, a cable's cores, the colour — and at least two of them.
@@ -48,8 +51,9 @@ export function pairKey(a: string, b: string): string {
 export type SameProposal = {
   a: SameItem;
   b: SameItem;
-  why: "mentioned" | "size";
-  /** the sizes both names give, in a few words ("1/4, 1/2, 20 m") */
+  why: "mentioned" | "model" | "size";
+  /** the sizes both names give, in a few words ("1/4, 1/2, 20 m"); a
+      mentioned or same-model pair's code */
   shared: string[];
 };
 
@@ -165,6 +169,20 @@ const findableCode = (code: string) => code.length >= 5 && /[A-Z]/i.test(code) &
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+/** The shorter codes a code would be without its maker's suffixes: a suffix
+    is one or two characters starting with a letter, after a dash or a dot.
+    PUZ-ZM140YKA2-A.TH: PUZ-ZM140YKA2-A, then PUZ-ZM140YKA2. Digits alone are
+    a size or a pack, never a suffix (SHSD595-350 and -250 are two sizes). */
+export function modelsWithoutSuffix(code: string): string[] {
+  const out: string[] = [];
+  let at = code.toUpperCase();
+  for (let m = /^(.+)[-.][A-Z][A-Z0-9]?$/.exec(at); m && findableCode(m[1]!); m = /^(.+)[-.][A-Z][A-Z0-9]?$/.exec(at)) {
+    at = m[1]!;
+    out.push(at);
+  }
+  return out;
+}
+
 const tokensOf = (name: string) => {
   const t = new Set<string>();
   for (const w of name.toUpperCase().split(/[\s(),]+/)) {
@@ -206,6 +224,18 @@ export function proposeSameItems(items: SameItem[], decided: Set<string>): SameP
       /* "Terminal Block (for PAR-41MAAM)" is an accessory OF it */
       if (new RegExp(`\\b(FOR|SUITS?|TO\\s+SUIT)\\s+\\(?${escapeRe(i.code)}`, "i").test(other.name)) continue;
       offer(i, other, "mentioned", [i.code], 10);
+    }
+  }
+
+  /* same model: a code and the same code with a maker's suffix. A size both
+     names give and disagree on says they aren't one */
+  const byCode = new Map<string, SameItem[]>();
+  for (const i of items) byCode.set(i.code.toUpperCase(), [...(byCode.get(i.code.toUpperCase()) ?? []), i]);
+  for (const i of items) {
+    for (const model of modelsWithoutSuffix(i.code)) {
+      for (const other of byCode.get(model) ?? []) {
+        if (sharedSizes(sizesOf(i.name), sizesOf(other.name))) offer(other, i, "model", [other.code], 9);
+      }
     }
   }
 

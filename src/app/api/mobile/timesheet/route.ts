@@ -102,6 +102,8 @@ export async function GET(request: Request) {
       };
     }),
     totals: { worked: d.worked, normal: d.normal, ot: d.ot, ot2: d.ot2, paidAbsence: d.leave + d.sick + d.ph },
+    /* salaried, and whether the business pays their overtime: where it doesn't, the phone says Worked and Paid side by side (Isaac, 29 October 2026) */
+    pay: { salaried: t.salaried, otPaid: settings.salariedOtPaid },
   });
 }
 

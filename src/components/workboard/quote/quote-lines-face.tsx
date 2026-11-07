@@ -25,8 +25,10 @@ import { VersionPaper } from "./version-paper";
 import type { QuoteVersion } from "@/lib/quotes/quote-versions";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 import type { Sm8Quote } from "../board/job-quote-card";
-import { QuoteLineItems, groupKey, sellEachOf } from "./quote-line-items";
-import { InServiceM8, QuoteCard, QuoteRail } from "./quote-rail";
+import { QuoteLineItems, RemoveLine, groupKey, sellEachOf } from "./quote-line-items";
+import { optionsWords, twinsOf } from "@/lib/quotes/line-twins";
+import { AddedRows, InServiceM8, OptionRows, QuoteCard, QuoteRail, signed } from "./quote-rail";
+import { changingWords, pastQuote as goneToClient, priceThemWords, withoutAdded, type JobScopeRead, type ScopeAdded, type ScopeQuoted } from "@/lib/jobs/job-scope";
 import { LinesButton, QuoteActions } from "./quote-actions";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
 import { Dialog } from "@/components/parts/dialog";
@@ -106,6 +108,12 @@ export type LinesView = {
   tasks?: ({ hours: number; words: string; quoted: number } | null)[];
 };
 
+/** The job's brief, brought up to date or changed (route job-scope). */
+const askScope = (body: Record<string, unknown>) =>
+  fetch("/api/workboard/job-scope", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+    .then((r) => r.json() as Promise<{ ok?: boolean; scope?: JobScopeRead | null }>)
+    .catch(() => null);
+
 /** The quote's kept lines, read once and after every change. */
 export function useQuoteLines(job: string, enabled: boolean) {
   const [view, setView] = useState<LinesView | null>(null);
@@ -152,12 +160,14 @@ export function QuoteLinesFace({
   openAt = null,
   sendVariation: sendVariationTo,
   jobStatus = null,
+  update = false,
 }: {
   job: string;
   price: QuotePrice | null | undefined;
   /** told the quote's state word, for the line under the job's name */
   onStage?: (stage: QuoteStage | null) => void;
-  onToast?: (message: string) => void;
+  /** a few words, and the action's own Undo where it has one */
+  onToast?: (message: string, undo?: () => void) => void;
   /** what goes to ServiceM8 once an option is accepted (job-quote-send.tsx) */
   send?: ReactNode;
   /** the approved quote sent to ServiceM8 as a quote, before it's accepted
@@ -187,6 +197,9 @@ export function QuoteLinesFace({
   /** the job's state in ServiceM8 ("Quote", "Work Order"…): a job won or
       closed there has gone on past its Design step, whatever this quote says */
   jobStatus?: string | null;
+  /** opened from the job's Since the quote (?update=1): Update quote, with
+      what's changing written in */
+  update?: boolean;
 }) {
   const { view, post, reload } = useQuoteLines(job, true);
   const [at, setAt] = useState(openAt ?? 0);
@@ -265,6 +278,65 @@ export function QuoteLinesFace({
 
   /* the left: the conversation or the line items, or the line items alone */
   const chat = tiff?.on === true;
+
+  /* what's landed since it was priced: asking brings the brief up to date
+     first, which costs a read only if something's moved (job-scope-server.ts) */
+  const [added, setAdded] = useState<ScopeAdded[]>([]);
+  /* whether ServiceM8 has sent it (slice 4): what's landed is then Since
+     the quote, for Update quote, not a price to change */
+  const [gone, setGone] = useState<{ quoted: ScopeQuoted | null; accepted: boolean } | null>(null);
+  const [say, setSay] = useState<{ id: number; text: string } | null>(null);
+  useEffect(() => {
+    if (!chat) return;
+    let live = true;
+    void askScope({ job }).then((a) => {
+      if (!live || !a?.ok) return;
+      /* what's been taken into a version is being priced there already */
+      setAdded((a.scope?.sincePriced ?? []).filter((x) => !x.version));
+      setGone(a.scope ? { quoted: a.scope.quoted ?? null, accepted: !!a.scope.accepted } : null);
+    });
+    return () => {
+      live = false;
+    };
+  }, [job, chat]);
+  /* into: the version Update quote just started, so the job can say "In
+     version 2" until ServiceM8 sends it */
+  const into = useRef<number | null>(null);
+  const takeOff = (texts: string[], version: number | null = null) => {
+    const was = added;
+    setAdded(withoutAdded(was, texts));
+    void askScope({ job, off: texts, ...(version ? { into: version } : {}) }).then((a) => {
+      if (a?.ok) return;
+      setAdded(was);
+      setNote("That didn't save. Try again.");
+    });
+  };
+  const priceThem = () => {
+    setPaper(false);
+    setViewing(null);
+    setTab("chat");
+    setSay({ id: (say?.id ?? 0) + 1, text: priceThemWords(added) });
+  };
+  /* AFTER IT'S SENT (slice 4): Update quote, with what's landed written in
+     as what's changing; once the version or variation is started, Tiff is
+     asked to price it, and it comes off Since the quote. A quote whose
+     approval came off since it was sent is changed as it is: she prices it. */
+  const after = accepted.length > 0 || (!!gone && goneToClient(gone));
+  const [fromScope, setFromScope] = useState(false);
+  const updateFromScope = () => {
+    if (!(accepted.length > 0 || view?.approved)) return priceThem();
+    setFromScope(true);
+    setUpdating(changingWords(added));
+  };
+  /* from the job's Since the quote: once, as soon as there's something to update */
+  const opened = useRef(false);
+  const openUpdate = useEffectEvent(updateFromScope);
+  const updateReady = update && !!view && after && added.length > 0;
+  useEffect(() => {
+    if (!updateReady || opened.current) return;
+    opened.current = true;
+    openUpdate();
+  }, [updateReady]);
   const linesUp = tiff !== null && (!chat || tab === "lines");
 
   /* the quote's state word, for the line under the job's name: where it has
@@ -315,6 +387,36 @@ export function QuoteLinesFace({
     }
   };
 
+  /* LINES TAKEN OFF (Isaac, 6 November 2026, on 3054: "Need to be able to
+     remove line items, swap them out"): one option's, or the same line on
+     every option it's on, one at a time against the version each was read
+     at, and one toast whose Undo puts them all back */
+  const removeLines = async (ls: QuoteLine[]) => {
+    const undo: number[] = [];
+    for (const l of ls) {
+      const v = await act({ op: "remove", id: l.id, version: l.version });
+      if (!v?.ok) break;
+      const c = v.changes.find((x) => x.action === "remove" && x.lineId === l.id);
+      if (c) undo.push(c.id);
+    }
+    if (undo.length === 0) return;
+    const gone = ls.slice(0, undo.length);
+    onToast?.(`${gone[0].name} removed from ${optionsWords(gone)}`, () => {
+      void (async () => {
+        for (const id of [...undo].reverse()) await act({ op: "undo", change: id });
+      })();
+    });
+  };
+
+  /* Swap from To confirm: the line items up, its group open, its pick list */
+  const [swapAsk, setSwapAsk] = useState<{ id: string; n: number } | null>(null);
+  const swapOnLine = (l: QuoteLine) => {
+    setPaper(false);
+    setTab("lines");
+    showGroups([groupKey(l)], true);
+    setSwapAsk((was) => ({ id: l.id, n: (was?.n ?? 0) + 1 }));
+  };
+
   /* a line nobody knows the price of, from To confirm: the line items up,
      its group open, then its cost box, in view and ready to type */
   const priceOnLine = (l: QuoteLine) => {
@@ -345,6 +447,8 @@ export function QuoteLinesFace({
     setUpdating(null);
     if (typeof v.opened === "number") setAt(v.opened);
     onPriced();
+    if (fromScope) priceThem();
+    setFromScope(false);
   };
   /* VERSION 2 (quote-versions.ts): Update quote on an approved quote nobody
      has accepted keeps it as it stood; the approval comes off */
@@ -358,6 +462,11 @@ export function QuoteLinesFace({
     setPaper(false);
     onPriced();
     onToast?.(`Version ${version} kept. This is version ${version + 1}, to approve again`);
+    if (fromScope) {
+      into.current = version + 1;
+      priceThem();
+    }
+    setFromScope(false);
   };
   const markVariation = async (op: "variation-approve" | "variation-accept", option: number, accepting: boolean) => {
     setBusy(true);
@@ -432,6 +541,8 @@ export function QuoteLinesFace({
   /** a thing to confirm; an estimate is confirmed from the list itself, and
       a line nobody knows the price of is priced on the line */
   type Check = { tone: "due" | "info" | "ok"; text: string; confirm?: QuoteLine; price?: QuoteLine };
+  const variationOptions = new Set((view?.variations ?? []).map((v) => v.option));
+  const twinsFor = (l: QuoteLine) => (variationOptions.has(l.optionIndex) ? [] : twinsOf(l, all, variationOptions));
   const checksFor = (i: number): Check[] => {
     const mine = all.filter((l) => l.optionIndex === i);
     const oi = price && price.ok ? price.options[i] : undefined;
@@ -473,10 +584,15 @@ export function QuoteLinesFace({
             <i aria-hidden="true" />
             <span>{c.text}</span>
             {c.price && !paper && money && (
+              /* priced, swapped for one from the book, or taken off (3054) */
               <span className="ql-chkacts">
-                <button type="button" className="pbtn ghost sm" onClick={() => priceOnLine(c.price!)}>
+                <Button size={32} onClick={() => priceOnLine(c.price!)}>
                   Price it
-                </button>
+                </Button>
+                <Button size={32} disabled={busy} onClick={() => swapOnLine(c.price!)}>
+                  Swap
+                </Button>
+                <RemoveLine line={c.price} twins={twinsFor(c.price)} busy={busy} onRemove={(ls) => void removeLines(ls)} />
               </span>
             )}
             {/* confirming an estimate confirms its price: the route takes
@@ -533,6 +649,8 @@ export function QuoteLinesFace({
         setViewing(n);
         setPaper(true);
       }}
+      onRemove={(ls) => void removeLines(ls)}
+      swapAsk={swapAsk}
     />
   );
 
@@ -573,7 +691,9 @@ export function QuoteLinesFace({
         pdf={money && view?.approved && !variation ? `/api/workboard/quote-pdf?job=${encodeURIComponent(job)}` : null}
         /* the client can say yes once it's approved, or on another option */
         acceptable={!!view?.approved || accepted.length > 0}
-        update={(accepted.length > 0 || !!view?.approved) && !variation}
+        /* once something's landed since it was sent, the rail's own Update
+           quote, with it written in, is the one */
+        update={(accepted.length > 0 || !!view?.approved) && !variation && !(chat && after && added.length > 0)}
         options={options}
         at={at}
         accepted={accepted.includes(at)}
@@ -605,6 +725,15 @@ export function QuoteLinesFace({
             /* behind the paper, the review is the rail's */
             confirm={paper ? null : confirm}
             confirmTitle={confirmTitle}
+            words={{ proposal: view?.proposal ?? null, optionNames: view?.optionNames ?? [], options: quoteOptions }}
+            say={say}
+            onSaid={() => {
+              takeOff(
+                added.map((a) => a.text),
+                into.current,
+              );
+              into.current = null;
+            }}
             onChanged={() => {
               reload();
               onPriced();
@@ -665,10 +794,20 @@ export function QuoteLinesFace({
           open={updating != null}
           heading="Update quote"
           width={560}
-          onClose={() => setUpdating(null)}
+          onClose={() => {
+            setUpdating(null);
+            setFromScope(false);
+          }}
           foot={
             <>
-              <Button kind="quiet" disabled={busy} onClick={() => setUpdating(null)}>
+              <Button
+                kind="quiet"
+                disabled={busy}
+                onClick={() => {
+                  setUpdating(null);
+                  setFromScope(false);
+                }}
+              >
                 Cancel
               </Button>
               {accepted.length > 0 ? (
@@ -687,7 +826,9 @@ export function QuoteLinesFace({
             <p>
               {accepted.length > 0
                 ? `${options > 1 ? `Option ${(accepted[0] ?? 0) + 1}` : "The quote"} is accepted, so this is a variation. The accepted quote stays as it is. The variation is priced as the difference, and the client approves it on its own.`
-                : `The quote is approved, so this is version ${version + 1}. Version ${version} is kept as it stands, the approval comes off, and it goes back through Approve and Send.`}
+                : gone?.quoted
+                  ? `The quote was sent on ${gone.quoted.on} and isn't accepted, so this is version ${version + 1}. Version ${version} is kept as it was sent, and version ${version + 1} goes through Approve and Send.`
+                  : `The quote is approved, so this is version ${version + 1}. Version ${version} is kept as it stands, the approval comes off, and it goes back through Approve and Send.`}
             </p>
             <Field label="What's changing">
               <TextArea className="ql-vwhat" rows={3} value={updating ?? ""} data-autofocus disabled={busy} onChange={(e) => setUpdating(e.target.value)} />
@@ -696,6 +837,33 @@ export function QuoteLinesFace({
         </Dialog>
         <QuoteRail
           progress={<QuoteStepsLine steps={steps} />}
+          options={
+            <OptionRows
+              onPick={setAt}
+              rows={Array.from({ length: options }, (_, i) => {
+                const v = (view?.variations ?? []).find((x) => x.option === i);
+                const mine = price && price.ok ? price.options[i] : undefined;
+                const of = v && price && price.ok ? price.options[v.of] : undefined;
+                return {
+                  option: i,
+                  on: i === at,
+                  name: v ? `Variation ${v.n}` : `Option ${i + 1}`,
+                  line: v ? v.what : (view?.optionNames?.[i] ?? ""),
+                  total: !money ? null : !mine ? "–" : v && of ? signed(mine.build.exGstCents - of.build.exGstCents) : cents2(mine.build.exGstCents),
+                };
+              })}
+            />
+          }
+          added={
+            chat ? (
+              <AddedRows
+                items={added}
+                since={after ? (gone?.quoted ? "sent" : "accepted") : "priced"}
+                onLeave={(text) => takeOff([text])}
+                onPrice={after ? updateFromScope : priceThem}
+              />
+            ) : null
+          }
           design={
             designs && design ? (
               <QuoteDesign job={job} designs={designs} state={design} busy={busy} onSkip={(skip) => void act({ op: "design", skip })} />

@@ -89,7 +89,7 @@ export const MAX_INVOICE_LINES = 400;
 export const MAX_INVOICE_BYTES = 4 * 1024 * 1024;
 
 /* a line that is a charge, not a product, whatever the reader said */
-const NOT_A_PRODUCT =
+export const NOT_A_PRODUCT =
   /\b(freight|cartage|courier|postage|surcharge|card\s*fee|merchant\s*fee|rounding|deposit|payment|small\s*order\s*(fee|charge)|delivery\s*(charge|fee))\b|^delivery$/i;
 
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "");
@@ -115,7 +115,7 @@ const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0
 
 /** A date as yyyy-mm-dd, when it's a real one and not after today: a date
     misread into the future would outrank every real invoice after it. */
-function isoDate(v: unknown, today: string): string | null {
+export function isoDate(v: unknown, today: string): string | null {
   const s = str(v, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
   const d = new Date(`${s}T00:00:00Z`);
@@ -221,6 +221,12 @@ function quoted(supplier: Supplier, code: string, p: Prices): number {
   return netCents(supplier, code, price.cents, price.net);
 }
 
+/** What a quote pays for an item the book holds, net; null when it's no
+    longer current. */
+export function bookPriceOf(supplier: Supplier, item: HeldItem | undefined): number | null {
+  return item?.current ? quoted(supplier, item.code, item) : null;
+}
+
 /** Each line beside what a quote pays for its code now and once the
     invoice is in, worked out the way adding it will (planInvoices): an
     invoice older than the price held changes nothing. */
@@ -233,6 +239,6 @@ export function withBookPrices(lines: InvoiceLine[], held: Map<string, HeldItem>
   return lines.map((l, i) => {
     const had = held.get(l.code);
     const after = { listed_on: null, priced_on: null, ...had, ...(upserts[i] as Partial<HeldItem>) } as Prices;
-    return { ...l, now: had?.current ? quoted(supplier, l.code, had) : null, after: quoted(supplier, l.code, after) };
+    return { ...l, now: bookPriceOf(supplier, had), after: quoted(supplier, l.code, after) };
   });
 }

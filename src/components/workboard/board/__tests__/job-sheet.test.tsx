@@ -21,6 +21,7 @@ import type { ClaimDetailRead } from "@/lib/workboard/all-jobs-query";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
 import { deriveFamilyMoney, type FamilyMoney } from "@/lib/workboard/job-family";
 import { buildJobStory, storyStamp } from "@/lib/workboard/job-story";
+import { scopeStamp, type JobScopeRead } from "@/lib/jobs/job-scope";
 import type { JobPaper, JobPapersRead, PaperChoices } from "@/lib/compliance/papers";
 import type {
   AddPapersResult,
@@ -95,6 +96,8 @@ jest.mock("@/app/actions/job-customer", () => ({
   readCustomerForEdit: (...a: unknown[]) => readCustomerForEdit(...a),
   saveCustomer: (...a: unknown[]) => saveCustomer(...a),
 }));
+/* Materials' Bought: nothing bought on these jobs */
+jest.mock("@/app/actions/purchases", () => ({ jobBought: async () => ({ lines: [], allowanceCents: null, money: false }) }));
 jest.mock("@/app/actions/job-picklist", () => ({
   listJobPicklist: (...a: unknown[]) => listJobPicklist(...(a as [])),
   setPicklistItemPicked: (...a: unknown[]) => setPicklistItemPicked(...(a as [])),
@@ -193,8 +196,10 @@ jest.mock("@/app/actions/job-documents", () => ({
   attachJobDocument: (...a: unknown[]) => attachJobDocument(...(a as [string, string])),
   removeJobDocument: (...a: unknown[]) => removeJobDocument(...(a as [string])),
 }));
+const saveJobNote = jest.fn(async (_job: string, body: string, _o?: { id?: string }) => ({ id: "n-saved", text: body, at: "2026-11-06 15:42:00", author: "Isaac Smith" }));
 jest.mock("@/app/actions/job-notes", () => ({
   addJobNote: (...a: unknown[]) => addJobNote(...(a as [string, string])),
+  saveJobNote: (job: string, body: string, o?: { id?: string }) => saveJobNote(job, body, o),
   removeJobNote: (...a: unknown[]) => removeJobNote(...(a as [])),
   taskFromJobNote: (...a: unknown[]) => taskFromJobNote(...(a as [])),
   dismissJobNote: (...a: unknown[]) => dismissJobNote(...(a as [])),
@@ -544,15 +549,22 @@ it("lands on Overview, the stages line over the tiles", async () => {
 /* ── the band ── */
 
 describe("the head (Isaac's mock, 25 October 2026)", () => {
-  it("is the job's colour dot and its name, with no grey line under it", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail({ address: null })));
+  it("is named by its client beside its number in the job's colour, the address left to Site (Isaac, 6 November 2026)", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<Job row={row()} {...props} />);
     await detailLanded();
     const h1 = screen.getByRole("heading", { level: 1 });
-    expect(h1).toHaveTextContent("Laing + Simmons Double Bay");
-    expect(h1.querySelector(".pt-dot")).not.toBeNull();
+    expect(h1).toHaveTextContent(/^Laing \+ Simmons Double Bay$/);
+    expect(document.querySelector(".jp-num")).toHaveTextContent(/^3137$/);
     expect(document.querySelector(".jp-line, .jp-facts, .jp-stage")).toBeNull();
     expect(document.querySelector(".jp-head")).not.toHaveTextContent(/Work order|Job 3137|Rose Bay/);
+  });
+
+  it("is named by where it is when it has no client", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail({ clientName: null, address: null })));
+    render(<Job row={row({ clientName: null })} {...props} />);
+    await detailLanded();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Rose Bay NSW 2029");
   });
 });
 
@@ -657,11 +669,15 @@ describe("the customer, on Overview", () => {
 
 /* ── the refresh kick ── */
 
+/* the summary's own asks, apart from the scope's twin kick */
+const summaryAsks = () => (fetchMock.mock.calls as unknown as unknown[][]).filter((c) => String(c[0]) === "/api/workboard/job-summary");
+const scopeAsks = () => (fetchMock.mock.calls as unknown as unknown[][]).filter((c) => String(c[0]) === "/api/workboard/job-scope");
+
 describe("the summary refresh", () => {
   /* Everything the kick waits for: detail, record, files and picklist all
      landed — the same inputs the story is merged from. */
-  const allLanded = (over: Partial<JobRecordRead> = {}) => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
+  const allLanded = (over: Partial<JobRecordRead> = {}, made?: string) => {
+    readMirrorJob.mockResolvedValueOnce(card(made ? { ...detail(), date: made } : detail()));
     readJobRecord.mockResolvedValueOnce(record(over));
     readJobFiles.mockResolvedValueOnce({
       photos: [],
@@ -683,13 +699,97 @@ describe("the summary refresh", () => {
     });
     render(<Job row={row()} {...props} />);
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe("/api/workboard/job-summary");
+    await waitFor(() => expect(summaryAsks()).toHaveLength(1));
+    const [, init] = summaryAsks()[0] as unknown as [string, RequestInit];
     expect(JSON.parse(String(init.body))).toEqual({ job: "j-1" });
     /* once: a later render does not ask again */
     await new Promise((r) => setTimeout(r, 0));
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(summaryAsks()).toHaveLength(1);
+  });
+
+  /* the job's scope, kept by Tiff (28 October 2026): asked for once per new
+     note, on a job made since the first of October */
+  const OCT = "2026-10-08 00:00:00";
+  const stored = (over: Partial<JobScopeRead> = {}): JobScopeRead => ({
+    lede: "Four systems.",
+    systems: [],
+    added: [],
+    notOurs: [],
+    clarify: [],
+    updates: [{ on: "Wed 28 Oct", from: "Isaac Smith", said: "Added exhaust fans." }],
+    undoSaid: "Took out the exhaust fans.",
+    stamp: "older",
+    writtenAt: "2026-10-28T04:00:00Z",
+    canUndo: true,
+    ...over,
+  });
+
+  it("asks Tiff to bring the scope up to date once, on a job made since October", async () => {
+    allLanded({}, OCT);
+    render(<Job row={row()} {...props} />);
+    await waitFor(() => expect(scopeAsks()).toHaveLength(1));
+    expect(JSON.parse(String((scopeAsks()[0] as unknown as [string, RequestInit])[1].body))).toEqual({ job: "j-1" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(scopeAsks()).toHaveLength(1);
+  });
+
+  it("never asks on a job made before October", async () => {
+    allLanded({}, "2026-09-30 00:00:00");
+    render(<Job row={row()} {...props} />);
+    await waitFor(() => expect(summaryAsks()).toHaveLength(1));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(scopeAsks()).toHaveLength(0);
+  });
+
+  it("asks again when the job's notes change with the page open, with no reload", async () => {
+    allLanded({ ourNotes: [{ id: "our-9", text: "Ring the builder", at: "2026-08-27T23:30:00.000Z", author: "Isaac Smith" }] }, OCT);
+    render(<Job row={row()} {...props} />);
+    await waitFor(() => expect(scopeAsks()).toHaveLength(1));
+    const f = convo();
+    await waitFor(() => expect(f.getByText("Ring the builder")).toBeInTheDocument());
+    await userEvent.click(f.getByRole("button", { name: "Remove" }));
+    await waitFor(() => expect(scopeAsks()).toHaveLength(2));
+  });
+
+  it("says it's reading, draws the new brief, and Undo puts the old one back", async () => {
+    const newer = (stamp: string) => stored({ lede: "Now with exhaust fans.", stamp });
+    let asked = "";
+    const rest = fetchMock.getMockImplementation();
+    let release: () => void = () => {};
+    const held = new Promise<void>((r) => (release = r));
+    fetchMock.mockImplementation(async (...a: unknown[]) => {
+      if (String(a[0]) !== "/api/workboard/job-scope") return (rest as (...x: unknown[]) => Promise<Response>)(...a);
+      const body = JSON.parse(String((a[1] as RequestInit).body)) as { undo?: boolean };
+      if (body.undo) return { json: async () => ({ ok: true, scope: stored({ lede: "Four systems.", stamp: asked, canUndo: false }) }) } as Response;
+      await held;
+      return { json: async () => ({ ok: true, scope: newer(asked) }) } as Response;
+    });
+    const d = detail();
+    asked = scopeStamp(
+      buildJobStory({
+        detail: { date: OCT, quoteDate: d.quoteDate, quoteSentOn: d.quoteSentOn ?? null, workOrderDate: d.workOrderDate, completionDate: d.completionDate, visits: d.visits, booked: d.booked, checklist: d.checklist, designs: d.designs },
+        notes: [],
+        ourNotes: [],
+        ledger: null,
+        family: null,
+        invoicedOn: null,
+        media: [],
+        picklist: [],
+        timezone: null,
+      })
+    ) as string;
+    allLanded({ scope: stored() }, OCT);
+    render(<Job row={row()} {...props} />);
+    expect(await screen.findByText("Reading the new note")).toBeInTheDocument();
+    expect(screen.getByText("Four systems.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+    release();
+    expect(await screen.findByText("Now with exhaust fans.")).toBeInTheDocument();
+    expect(screen.queryByText("Reading the new note")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(await screen.findByText("Four systems.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+    expect(scopeAsks()).toHaveLength(2);
   });
 
   it("does not kick when the stored stamp matches the story's", async () => {
@@ -730,7 +830,7 @@ describe("the summary refresh", () => {
     await waitFor(() => expect(readJobFiles).toHaveBeenCalled());
     await waitFor(() => expect(listJobPicklist).toHaveBeenCalled());
     await new Promise((r) => setTimeout(r, 0));
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(summaryAsks()).toHaveLength(0);
   });
 
   it("never kicks while the files are still out — the story would be short", async () => {
@@ -992,29 +1092,24 @@ describe("the attention strip", () => {
 
 /** Words typed in the conversation's box and kept as typed: the pen's write. */
 /* a private note: My notes only ticked, then the one button, which says so */
-const keepTyped = async (words: string) => {
-  await userEvent.type(convo().getByRole("textbox", { name: "Tell Tiff about this job" }), words);
-  const tick = convo().getByRole("checkbox", { name: "My notes only" }) as HTMLInputElement;
-  if (!tick.checked) await userEvent.click(tick);
-  await userEvent.click(convo().getByRole("button", { name: "Save to my notes" }));
+const saveTyped = async (words: string) => {
+  await userEvent.type(convo().getByRole("textbox", { name: "Write a note on this job" }), words);
+  await userEvent.click(convo().getByRole("button", { name: "Save" }));
 };
 
 describe("writing on the job", () => {
-  /* Isaac, 26 October 2026: a note on the job is Send's (Tiff files it, and
-     the one tidied note goes to ServiceM8 by itself); the box's other door
-     keeps words privately, in My notes */
-  it("keeps a private note in My notes: nothing written on the job, nothing sent", async () => {
+  /* Isaac, 6 November 2026: "Save creates a raw note, tiff processes it like
+     she does today": the box's Save files the words as written on the job,
+     with no Tiff, and the server sends it on to ServiceM8 as any job note */
+  it("saves the words as written on the job, with no Tiff", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<Job row={row()} {...props} />);
     await detailLanded();
     await waitFor(() => expect(readJobRecord).toHaveBeenCalled());
-
-    const f = convo();
-    await keepTyped("Drain kit still to go on");
-    const { addMyNote } = jest.requireMock("@/app/actions/my-notes") as { addMyNote: jest.Mock };
-    await waitFor(() => expect(addMyNote).toHaveBeenCalledWith({ body: "Drain kit still to go on", source: "text" }));
-    expect(addJobNote).not.toHaveBeenCalled();
-    expect(f.queryByText("Drain kit still to go on", { ignore: "textarea" })).toBeNull();
+    saveJobNote.mockClear();
+    await saveTyped("Drain kit still to go on");
+    await waitFor(() => expect(saveJobNote).toHaveBeenCalledWith(expect.any(String), "Drain kit still to go on", { id: expect.any(String) }));
+    expect(routeNote).not.toHaveBeenCalled();
   });
 
   it("takes one back off when asked", async () => {
@@ -1169,17 +1264,16 @@ it("(F) the strip's Reply opens the conversation at the note, with its box open;
     expect(screen.queryByRole("region", { name: "Open on this job" })).toBeNull();
   });
   /* the tick went on 26 October 2026: a note on the job goes by itself */
-  it("offers no Also in ServiceM8 tick, and a private note sends nothing to ServiceM8", async () => {
+  it("offers no Also in ServiceM8 tick, and Save sends nothing from the page: the server sends it on", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(withNotes({ attention: { items: [], total: 0 } }));
     render(<Job row={row()} {...props} />);
     await detailLanded();
     await waitFor(() => expect(readJobRecord).toHaveBeenCalled());
     expect(convo().queryByRole("checkbox", { name: NOTE_WORDS.door.alsoInSm8 })).toBeNull();
-    await keepTyped("Drain kit");
-    const { addMyNote } = jest.requireMock("@/app/actions/my-notes") as { addMyNote: jest.Mock };
-    await waitFor(() => expect(addMyNote).toHaveBeenCalled());
-    expect(addJobNote).not.toHaveBeenCalled();
+    saveJobNote.mockClear();
+    await saveTyped("Drain kit");
+    await waitFor(() => expect(saveJobNote).toHaveBeenCalled());
     expect(noteSm8.sendJobNoteToServiceM8).not.toHaveBeenCalled();
   });
 
@@ -1948,7 +2042,9 @@ describe("the job's once-per-job acts", () => {
 
   it("shows a one-card job's value in Money at once, nothing paid, and only the paid word waits", async () => {
     const { cell } = await moneyCell(1, 0);
-    expect(cell.getByText("$13,833.76")).toHaveClass("jov-fig");
+    /* "at once" is before the record (it never lands here), not on the first
+       tick: a slow runner can take a tick more to land the card's read */
+    expect(await cell.findByText("$13,833.76")).toHaveClass("jov-fig");
     expect(cell.getByText("Reading the payments")).toHaveClass("jov-cap");
   });
 
@@ -3689,3 +3785,47 @@ describe("compliance on the page", () => {
   });
 });
 
+
+/* ── what the page already read ── */
+
+describe("a card the page read for arrives full", () => {
+  /* Isaac, 5 November 2026: "it has all the placeholders empty and then it's
+     like it refreshes and fills it all in". The page reads these on the
+     server, side by side, and the card draws them on its first paint. */
+  const first = (over: Record<string, unknown> = {}) => ({
+    cardId: "j-1",
+    mirror: { ...card(detail()), cards: 1 },
+    record: record(),
+    files: null,
+    picklist: [],
+    favourites: [],
+    conversation: null,
+    ...over,
+  });
+
+  it("draws the facts with no Reading, and reads none of it again", async () => {
+    render(<Job row={row()} {...props} first={first()} />);
+    const facts = document.querySelector(".jov-facts") as HTMLElement;
+    expect(within(facts).queryByText(/^Reading the/)).toBeNull();
+    await act(async () => {});
+    expect(readMirrorJob).not.toHaveBeenCalled();
+    expect(readJobRecord).not.toHaveBeenCalled();
+    expect(readJobFiles).not.toHaveBeenCalled();
+    expect(listJobPicklist).not.toHaveBeenCalled();
+    expect(listJobPhotoFavourites).not.toHaveBeenCalled();
+    expect(readJobConversation).not.toHaveBeenCalled();
+  });
+
+  it("reads for itself only what the page left out", async () => {
+    render(<Job row={row()} {...props} first={first({ record: undefined })} />);
+    await waitFor(() => expect(readJobRecord).toHaveBeenCalledWith("j-1"));
+    expect(readMirrorJob).not.toHaveBeenCalled();
+    expect(readJobFiles).not.toHaveBeenCalled();
+  });
+
+  it("uses none of it for another job's card", async () => {
+    render(<Job row={row()} {...props} first={first({ cardId: "j-other" })} />);
+    await detailLanded();
+    expect(readMirrorJob).toHaveBeenCalled();
+  });
+});

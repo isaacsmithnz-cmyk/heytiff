@@ -83,6 +83,10 @@ type Err = { error: string };
 const isErr = (v: unknown): v is Err => !!v && typeof v === "object" && "error" in v;
 export { isErr };
 
+/** Why a set price can't go on a labour line, and where it goes. */
+export const LABOUR_HAS_NO_PRICE = (name: string) =>
+  `${name}: a labour line is hours and can't hold a set price. Put the person's price on its own line, kind material, group Allowances, with sell_each_cents; never change hours to reach a price.`;
+
 /** One new line as she gave it, made safe, or why it can't be one. */
 export function newLineOf(raw: unknown): NewLine | Err {
   const r = obj(raw);
@@ -95,6 +99,9 @@ export function newLineOf(raw: unknown): NewLine | Err {
   if (!source) return { error: `${name}: say where it came from: said, assumed, unknown or fitted.` };
   const why = str(r.why, 400);
   if (source !== "unknown" && !why) return { error: `${name}: ${source === "said" ? "quote the words it came from" : "say why"} in why.` };
+  /* 3423's replay, 31 October 2026: "350 ex" on a labour line was dropped with
+     no word, priced at one hour, and she made up hours to reach it */
+  if (kind === "labour" && (num(r.sell_each_cents) ?? 0) > 0) return { error: LABOUR_HAS_NO_PRICE(name) };
   const qty = num(r.qty);
   const code = kind === "labour" ? null : str(r.code, 80) || null;
   const unit = kind === "labour" ? "h" : (LINE_UNITS as readonly unknown[]).includes(r.unit) ? (r.unit as LineUnit) : "";
@@ -352,6 +359,7 @@ export const SESSION_TOOLS: ToolDef[] = [
         outlets: { type: "integer" },
         outlet_mm: { type: "number", description: "Ducted: the outlets' size, mm, as the brief, a plan or the person gives it. Where none gives it, the airflow guide's for the air each carries, never the business's usual" },
         replacing: { type: "string", enum: ["no", "yes", "keep"], description: "An old system comes out; keep: and its pipe is kept" },
+        new_circuit: { type: "boolean", description: "Replacing, and the new unit needs its own new circuit: only when the person says so or the old circuit can't carry its running current. Otherwise it stays on the old circuit, with no breaker and a short run from the isolator" },
         underfloor: { type: "boolean", description: "Ducted: the indoor goes under the floor, its outlets floor grilles on boots" },
         kept_pipe: { type: "string", enum: [...OLD_PIPES] },
         zones: { type: "integer", description: "Ducted, zoned: how many zones. The kit takes the maker's zone system from its data: its interface, its own controller in place of the unit's, a sensor in every zone" },
@@ -536,7 +544,7 @@ export const SESSION_TOOLS: ToolDef[] = [
   {
     name: "write_up",
     description:
-      "Write the job out, the way an estimator does on paper before pricing: what you read (the brief, the notes, the plans, each in a line), the sizing (each system's load and the unit it takes, and why), the work (system by system, what goes in and where), the visits (each stage, its crew and days), what you can't price yet, and what you're assuming. Short lines, plain words. The person sees it at the top of your panel, and you build every line from it. Write it again, whole, when the job changes.",
+      "Write the job out, the way an estimator does on paper before pricing: what you read (the brief, the notes, the plans, each in a line), the sizing (each system's load and the unit it takes, and why), the work (system by system, what goes in and where), the visits (each stage, its crew and days), what you can't price yet (leave it empty when nothing is), and what you're assuming. priced_on is what the price stands on, each a short name and what it is (\"Labour\": \"Option 1 is 12 h. Option 2 is 16 h, two people for a day\"; \"Runs, each unit\": \"5 m pipe, 3 m drain, 3 m power\"). to_check is what someone must look at on site, each a short name and why (\"Wall brackets\": \"The old ones may be fine to reuse\"). Short lines, plain words. The person reads priced_on and to_check on the quote's Scope, and you build every line from all of it. Write it again, whole, when the job changes.",
     input_schema: {
       type: "object",
       properties: {
@@ -546,6 +554,8 @@ export const SESSION_TOOLS: ToolDef[] = [
         visits: { type: "array", items: { type: "string" } },
         unpriced: { type: "array", items: { type: "string" } },
         assuming: { type: "array", items: { type: "string" } },
+        priced_on: { type: "array", items: { type: "object", properties: { what: { type: "string" }, said: { type: "string" } }, required: ["what", "said"], additionalProperties: false } },
+        to_check: { type: "array", items: { type: "object", properties: { what: { type: "string" }, said: { type: "string" } }, required: ["what", "said"], additionalProperties: false } },
       },
       additionalProperties: false,
     },
@@ -723,6 +733,7 @@ export function kitAskOf(raw: unknown): {
       outletMm: r.outlet_mm,
       replacing: r.replacing === "yes" || r.replacing === "keep" ? r.replacing : "",
       keptPipe: r.kept_pipe,
+      newCircuit: r.new_circuit === true,
       underfloor: r.underfloor === true,
       takeoffs: r.takeoffs,
       fittings: list(r.fittings)?.map((x) => ({ inMm: x.in_mm, outsMm: x.outs_mm, count: x.count })),

@@ -35,7 +35,7 @@ import { sm8NoteSender } from "@/lib/integrations/links";
 import { drainSm8WritesAfterResponse } from "@/lib/integrations/sm8-drain";
 import { undoPlan, type CreateRow } from "@/lib/integrations/sm8-note-plan";
 import { fillWords } from "@/lib/integrations/sm8-note-words";
-import { boardName, leaveSpan, leaveSubject, LEAVE_WORDS, type LeaveSource } from "@/lib/integrations/sm8-leave-plan";
+import { boardName, leaveSpan, leaveSubject, LEAVE_STAMP, LEAVE_WORDS, type LeaveSource } from "@/lib/integrations/sm8-leave-plan";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { displayNameOf } from "@/lib/staff/name";
 
@@ -67,10 +67,13 @@ export type LeaveOnBoard = {
   /** First and last day, "YYYY-MM-DD", inclusive. */
   from: string;
   to: string;
+  /** A block out's own part of the day and its words (lib/schedule/blocks):
+      it goes as these, never as whole days under Leave. */
+  block?: { start: string; end: string; name: string };
 };
 
 const subjectOf = (source: LeaveSource, id: string) =>
-  source === "leave" ? leaveSubject.leave(id) : leaveSubject.dayOff(id);
+  source === "leave" ? leaveSubject.leave(id) : source === "block" ? leaveSubject.block(id) : leaveSubject.dayOff(id);
 
 /** Put approved leave, or a day off, on the person's day on the board. */
 export async function queueLeaveOnBoard(press: Sm8Press, input: LeaveOnBoard): Promise<LeaveQueueResult> {
@@ -80,7 +83,7 @@ export async function queueLeaveOnBoard(press: Sm8Press, input: LeaveOnBoard): P
     const state = await readSm8WriteState(press.orgId);
     if (!state.readable) return { queued: [], note: LEAVE_WORDS.press.unreadable };
     if (!offersSend(state, "leave")) return NOTHING;
-    const span = leaveSpan(input.from, input.to);
+    const span = input.source === "block" ? (input.block && LEAVE_STAMP.test(input.block.start) && LEAVE_STAMP.test(input.block.end) && input.block.end > input.block.start ? input.block : null) : leaveSpan(input.from, input.to);
     if (!span) return NOTHING;
 
     const who = await sm8NoteSender(press.orgId, input.staffProfileId, state.tenantId ?? undefined);
@@ -97,7 +100,7 @@ export async function queueLeaveOnBoard(press: Sm8Press, input: LeaveOnBoard): P
         kind: "leave",
         jobUuid: null,
         subject: subjectOf(input.source, input.id),
-        payload: { name: boardName(input.kind) },
+        payload: { name: input.source === "block" && input.block ? input.block.name : boardName(input.kind) },
         ref: input.id,
         op: "create",
         staffUuid: who.remoteId,

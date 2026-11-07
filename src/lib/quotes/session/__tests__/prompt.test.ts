@@ -14,11 +14,22 @@ it("asks for the job written out first only when it's switched on", () => {
    want to allow… It does need to have the line at least"; recovery "more of a
    cost that we should be putting in"; and Sonnet left its write-up as the
    first turn had it */
-it("always gives old equipment a removal line, asks for disposal labour and the recovery cost, and writes the job again after answers", () => {
+it("always gives old equipment a removal line, takes a dollar figure as a price and never as hours, and writes the job again after answers", () => {
   const p = sessionSystemPrompt({ writeUpFirst: true });
-  expect(p).toMatch(/Old equipment coming out always has its own line for removal and disposal, as labour: ask how many hours/);
-  expect(p).toMatch(/Recovering its refrigerant is the business's own cost: ask what they allow, never research it/);
+  expect(p).toMatch(/Old equipment coming out always has one line for decommissioning and removal/);
+  expect(p).toMatch(/A dollar figure goes on that line as their price/);
+  expect(p).toMatch(/Never change hours to reach a dollar figure/);
   expect(p).toMatch(/write it up again, whole, before you reply/);
+});
+
+/* the replay of 3423, 31 October 2026 */
+it("reads the outdoor's running current, asks only through ask, keeps the system's words out and names the model and features", () => {
+  const p = sessionSystemPrompt();
+  expect(p).toMatch(/Read the outdoor's data as well as the indoor's.*running current sizes the power cable, the breaker and the isolator/);
+  expect(p).toMatch(/Every question you put to them goes through ask/);
+  expect(p).toMatch(/put on the one they said first/);
+  expect(p).toMatch(/they pair in the book/);
+  expect(p).toMatch(/what unit_specs' features say it has/);
 });
 
 /* Isaac, 2026-10-15, on 3231's quote: "[MITSUBISHI ELEC. DUCT OUT 10KW 1P

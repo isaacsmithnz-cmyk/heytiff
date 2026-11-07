@@ -20,10 +20,10 @@
    in ServiceM8 after a take-back; and "Is <name> you?", with Yes and Not
    me, while your link waits on that answer. One saved but never queued
    (the press's settings read, or its note read, failed after the save)
-   says "In HeyTiff", as the job card's chip does, with its Send to
-   ServiceM8. One you took back is drawn only while something of it may
-   still be in ServiceM8 (decision 8), with its Try again. Undo stays the
-   job card's.
+   says "In HeyTiff", as a job's conversation does of one of ours, with its
+   Send to ServiceM8. One you took back is drawn only while something of it
+   may still be in ServiceM8 (decision 8), with its Try again. Undo stays
+   the job card's.
 
    IT IS YOURS, as your entries are (actions/diary): the diary's Delete
    takes it back by the job card's rule, in its thread as in the column,
@@ -39,8 +39,9 @@ import type { NoteSender } from "@/lib/integrations/links";
 import type { NoteState } from "@/lib/integrations/sm8-note-plan";
 import { NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
 
-/** What the job card says of a note of ours that never left HeyTiff — its
-    chip (job-diary-face) — said the same here. */
+/** What a job's conversation says, in grey beside the time, of a note of
+    ours that never went to ServiceM8 (jobs/job-conversation.tsx) — said the
+    same here. */
 export const IN_HEYTIFF = "In HeyTiff";
 
 /** Where a reply of yours stands with ServiceM8, and its doors. */

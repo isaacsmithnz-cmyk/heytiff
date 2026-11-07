@@ -3,7 +3,6 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { withoutPlaceTag } from "@/lib/brain/place-tag";
 import { appendSpoken, useDictation } from "@/components/notes/dictation";
-import { GATHER_MS } from "@/components/ui/dot-field";
 import { askBrain, TIFF_APPLY } from "@/lib/brain/ask-client";
 import { looksLikeDesignWords, looksLikeMove, looksLikeQuestion, priceIntent } from "@/lib/brain/intent";
 import {
@@ -83,6 +82,8 @@ import type { TiffLanded } from "./tiff-context";
    is still here; a note that was waiting when you closed it is set aside
    (keep the words, apply none of it), as the capture flow always did. */
 
+/** How long the mark takes to gather from the button you pressed. */
+const GATHER_MS = 1420;
 /** The cloud's floor before it may fall. */
 export const CLOUD_MS = 1850;
 /** How far into the fall the face zone starts to close: the dots are most of
@@ -808,12 +809,15 @@ export function useConversation({
         awaitingVoice.current = false;
         return commit(words, "voice");
       }
-      /* Clicked into your words, or the two-minute ceiling: the words wait
-         in the turn to be fixed and sent. */
+      /* Stop, quiet, or the two-minute ceiling: the words land in the box,
+         to be sent to Tiff or saved as they are (Isaac, 6 November 2026:
+         "every input box is the same") */
       setDraft(words);
+      /* what goes from the box is voice when words came back into it */
+      if (transcript.trim()) setSpoke(true);
       if (capped) {
-        setStage("editing");
-        setFixing(true);
+        setLive(null);
+        setStage(takeFrom);
       }
     },
     onError: (message) => {
@@ -842,7 +846,7 @@ export function useConversation({
     onQuiet: () => {
       if (!alive.current) return;
       const at = document.activeElement;
-      if ((at instanceof HTMLInputElement || at instanceof HTMLTextAreaElement) && at.classList.contains("tc-in")) return;
+      if ((at instanceof HTMLInputElement || at instanceof HTMLTextAreaElement) && at.classList.contains("cv-words")) return;
       done();
     },
   });
@@ -875,32 +879,33 @@ export function useConversation({
 
   /* ── what the person does ── */
 
-  /** Done: stop listening and send what was said. False when there was
-      nothing to send and nothing had been said before, which closes the
-      modal; in a conversation it is back to the reply box, and the
-      conversation stays (Isaac, live: Done on nothing "will finish the chat").
+  /** Stop: stop listening, and what was said lands in the box, as it does in
+      every box (Isaac, 6 November 2026: the one box, "Stop puts them there in
+      every one"), to go to Tiff or be saved as it is. False when nothing was
+      said and nothing had been before, which closes the modal; in a
+      conversation it is back to the reply box, and the conversation stays
+      (Isaac, live: Done on nothing "will finish the chat").
 
-      ONCE, AND ONLY WHILE LISTENING. A second press lands on a dock that is
-      folding away, after the mic has stopped and before the read-back has
-      put the words anywhere, so it would read as "nothing was said" and
-      close the modal on them. It does nothing instead. */
+      ONLY WHILE LISTENING: a second press, after the mic has stopped, does
+      nothing. */
   const done = (): boolean => {
     if (awaitingVoice.current || stage !== "listening") return true;
-    if (dict.recording) {
-      awaitingVoice.current = true;
-      const said = appendSpoken(draft, dict.interim);
-      setLive((l) => (l ? { ...l, said } : l));
-      think();
-      dict.stop();
-      return true;
+    /* recording, the words are on their way to the box (the batch engine
+       shows none until then), so the chat stays for them */
+    /* voice only if words come back from this take (onTranscript says) */
+    setSpoke(false);
+    if (dict.recording) dict.stop();
+    else {
+      if (dict.arming) dict.stop();
+      if (!draft.trim()) {
+        if (!turns.length) return false;
+        clear();
+        return true;
+      }
     }
-    if (dict.arming) dict.stop();
-    if (!draft.trim()) {
-      if (!turns.length) return false;
-      clear();
-      return true;
-    }
-    send();
+    setLive(null);
+    setStage(takeFrom);
+    if (turns.length) fall();
     return true;
   };
 
@@ -1196,7 +1201,11 @@ export function useConversation({
     bindQuiet: dict.bindQuiet,
     keepListening: dict.keepListening,
     voiceEnabled,
+    /** The microphone itself, for the box that shows it (conversations/box). */
+    dict,
     aimed,
+    /** What the words are about: a job, where Save can file them as they are. */
+    target,
     targetLabel,
     dropAim: () => setAimDropped(true),
     done,

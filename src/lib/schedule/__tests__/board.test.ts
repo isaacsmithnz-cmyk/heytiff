@@ -18,7 +18,7 @@ import {
   type DayBlock,
   type PersonRow,
 } from "../board";
-import { readScheduleParams } from "../schedule-page-query";
+import { readScheduleParams, withEveryone } from "../schedule-page-query";
 import type { SchedulePayload } from "@/lib/workboard/schedule-query";
 
 jest.mock("@/lib/auth0", () => ({ auth0: { getSession: jest.fn() } }));
@@ -217,5 +217,19 @@ describe("stacking a person's day", () => {
 
   it("says one line for an empty day", () => {
     expect(stackDay([]).lines).toBe(1);
+  });
+});
+
+describe("everyone active has a row", () => {
+  it("adds the people with nothing on, once each, whatever ServiceM8's case", () => {
+    const day = [{ uuid: "AB-1", name: "Alex Lorenz" }];
+    const everyone = [
+      { uuid: "ab-1", name: "Alex Lorenz" },
+      { uuid: "cd-2", name: "Isaac Smith" },
+    ];
+    expect(withEveryone(day, everyone)).toEqual([
+      { uuid: "AB-1", name: "Alex Lorenz" },
+      { uuid: "cd-2", name: "Isaac Smith" },
+    ]);
   });
 });

@@ -178,3 +178,32 @@ describe("Block out time", () => {
     expect(place).toMatchObject({ staffUuid: LUKE, day: DAY });
   });
 });
+
+describe("a weekend day", () => {
+  const SAT = "2026-11-07";
+  const ISAAC = "cd-2";
+  const sat = (): SchedulePayload => ({ ...payload(SAT), staff: [{ uuid: ISAAC, name: "Isaac Smith" }] as SchedulePayload["staff"] });
+
+  it("is bookable but outside standard hours: nobody's line says free", async () => {
+    render(<ScheduleBoard data={page({ day: SAT, today: SAT, days: [SAT], payloads: [sat()] })} />);
+    await screen.findByRole("button", { name: "3450 BRC Build" });
+    expect(document.querySelectorAll(".sc-row")).toHaveLength(1);
+    expect(screen.queryByText("Free all day")).toBeNull();
+    cleanup();
+    render(<ScheduleBoard data={page({ payloads: [{ ...sat(), dayISO: DAY }] })} />);
+    await screen.findByRole("button", { name: "3450 BRC Build" });
+    expect(screen.getByText("Free all day")).toBeInTheDocument();
+  });
+
+  it("lights no row as free while a job is held, and still books the row it's dropped on", async () => {
+    loadSchedulePanel.mockResolvedValue({ ok: true, jobs: [JOB], blocks: [{ id: "b-1", what: "Test", where: null, minutes: 30 }] });
+    placeScheduleBlock.mockResolvedValue({ ok: true, id: "b-1", note: null });
+    render(<ScheduleBoard data={page({ day: SAT, today: SAT, days: [SAT], payloads: [sat()], canBlock: true })} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Test, 30 min" }));
+    expect(document.querySelector(".sc-fit")).toBeNull();
+    const track = document.querySelector(".sc-track") as HTMLElement;
+    track.getBoundingClientRect = () => ({ left: 0, width: 1000, top: 0, height: 64, right: 1000, bottom: 64, x: 0, y: 0, toJSON: () => ({}) });
+    await userEvent.click(track);
+    await waitFor(() => expect(placeScheduleBlock).toHaveBeenCalledWith("b-1", expect.objectContaining({ staffUuid: ISAAC, day: SAT })));
+  });
+});

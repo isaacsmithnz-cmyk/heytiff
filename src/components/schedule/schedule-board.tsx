@@ -36,6 +36,7 @@ import {
   dayLine,
   daysFit,
   fitOf,
+  isWeekend,
   fitWord,
   lengthWord,
   listDays,
@@ -642,6 +643,7 @@ const pct = (min: number, a: number, b: number) => ((min - a) / (b - a)) * 100;
 function DayRows({ board, held, at, busy, setAt, dropOn, nameDoor, shut, offDoor }: RowsProps) {
   const { stripStart: a, stripEnd: b } = board;
   const day = board.days[0];
+  const weekend = isWeekend(day);
   const hours: number[] = [];
   for (let h = a; h < b; h += 60) hours.push(h);
   const start = held ? Math.min(at?.min ?? WORK_START, b - held.minutes) : 0;
@@ -666,8 +668,10 @@ function DayRows({ board, held, at, busy, setAt, dropOn, nameDoor, shut, offDoor
       </div>
       {board.people.map((row) => {
         const d = row.days[0];
-        const fit: Fit | null = held ? fitOf(d, start, end) : null;
         const hot = !!held && at?.staff === row.staffUuid;
+        /* a Saturday or Sunday is bookable but outside standard hours: no
+           row says it's free, and only the row under the hand lights */
+        const fit: Fit | null = held && (!weekend || hot) ? fitOf(d, start, end) : null;
         const dim = !!fit && (fit.kind === "busy" || fit.kind === "away");
         /* time off takes a line of the lane as a booking does, so nothing is
            drawn over anything; only bookings over bookings are two at once */
@@ -680,7 +684,7 @@ function DayRows({ board, held, at, busy, setAt, dropOn, nameDoor, shut, offDoor
             /* a line a booking, where two are at once (the row's own 64 is the first) */
             style={stack.lines > 1 ? { minHeight: `calc(64px + ${stack.lines - 1} * 56px)` } : undefined}
           >
-            <Who row={row} line={busy === row.staffUuid ? "Booking" : dayLine(d)} door={nameDoor(row)} clash={clash.size > 0 && busy !== row.staffUuid} />
+            <Who row={row} line={busy === row.staffUuid ? "Booking" : weekend ? (d.away.find((x) => x.whole)?.word ?? "") : dayLine(d)} door={nameDoor(row)} clash={clash.size > 0 && busy !== row.staffUuid} />
             <div
               className="sc-track"
               onDragOver={(e) => {

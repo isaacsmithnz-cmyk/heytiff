@@ -8,7 +8,7 @@ import { auth0 } from "@/lib/auth0";
 import { can, getDbRole } from "@/lib/permissions-server";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
-import { loadScheduleDay, readAvailabilitySpan, type SchedulePayload } from "@/lib/workboard/schedule-query";
+import { loadScheduleDay, readActiveStaff, readAvailabilitySpan, type SchedulePayload } from "@/lib/workboard/schedule-query";
 import { availabilityOnDay } from "@/lib/workboard/away";
 import { calendarEventsInSpan, noticeEventsInSpan } from "@/lib/calendar/query";
 import { teamDay, type TeamDay } from "./month-team";
@@ -81,6 +81,13 @@ export function readScheduleParams(params: Record<string, string | string[] | un
   return { view, day };
 }
 
+/** The day's people with everyone active added, each once (ServiceM8's
+    uuids differ in case between its tables). */
+export function withEveryone<T extends { uuid: string; name: string }>(staff: readonly T[], everyone: readonly { uuid: string; name: string }[]): (T | { uuid: string; name: string })[] {
+  const seen = new Set(staff.map((s) => s.uuid.toLowerCase()));
+  return [...staff, ...everyone.filter((s) => !seen.has(s.uuid.toLowerCase()))];
+}
+
 export async function loadSchedulePage(params: Record<string, string | string[] | undefined>): Promise<SchedulePage | null> {
   const session = await auth0.getSession();
   const orgId = session?.orgId as string | undefined;
@@ -138,16 +145,22 @@ export async function loadSchedulePage(params: Record<string, string | string[] 
     return { view, day, today, days, payloads: [], canBook: false, capacity: all.filter((d) => shown.has(d.dayISO)), team, profiles: {}, canTeam: false, canBlock: false };
   }
 
-  const [mayPress, rules, links, canTeam, canBlock, read] = await Promise.all([
+  const [mayPress, rules, links, canTeam, canBlock, read, everyone] = await Promise.all([
     booking ? mayPressBookings() : Promise.resolve(false),
     readRegularDaysOff(orgId),
     sm8StaffByProfile(orgId),
     can("team"),
     can("workboard_manage").catch(() => false),
     Promise.all(days.map((d) => loadScheduleDay(orgId, d, state ? { state, away: true } : { away: true }))),
+    readActiveStaff(orgId),
   ]);
-  /* regular days off (TAFE, RDOs) laid over ServiceM8's own time off */
-  const payloads = read.map((p) => ({ ...p, away: withRegular(p.away ?? [], awayOnDay(rules, p.dayISO, links)) }));
+  /* regular days off (TAFE, RDOs) laid over ServiceM8's own time off, and
+     everyone active a row, whether or not anything is on */
+  const payloads = read.map((p, i) => ({
+    ...p,
+    away: withRegular(p.away ?? [], awayOnDay(rules, p.dayISO, links)),
+    ...(i === 0 ? { staff: withEveryone(p.staff, everyone) } : {}),
+  }));
   const profiles = Object.fromEntries([...links.entries()].map(([profile, sm8]) => [sm8.toLowerCase(), profile]));
 
   return {

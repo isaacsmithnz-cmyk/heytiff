@@ -101,6 +101,20 @@ describe("Row (rule 39)", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
+  it("fills the row a panel beside the list is showing (law 14), and says it is the current one", () => {
+    render(
+      <RowList>
+        <Row name="PEFY-P20VMS1-E" on onClick={() => {}} />
+        <Row name="PEFY-P25VMS1-E" onClick={() => {}} />
+      </RowList>
+    );
+    const [on, off] = screen.getAllByRole("listitem");
+    expect(on).toHaveClass("pt-row--on");
+    expect(on).toHaveAttribute("aria-current", "true");
+    expect(off).not.toHaveClass("pt-row--on");
+    expect(off).not.toHaveAttribute("aria-current");
+  });
+
   it("leaves out what it isn't given", () => {
     render(<RowList><Row name="Just a name" /></RowList>);
     const row = screen.getByRole("listitem");

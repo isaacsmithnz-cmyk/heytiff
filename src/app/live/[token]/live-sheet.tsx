@@ -4,13 +4,10 @@ import { useState } from "react";
 import type { DesignDocument, Floor } from "@/lib/studio/document";
 import { unitMarks, type SheetSections } from "@/lib/studio/export";
 import type { DataPack } from "@/lib/studio/packs/schema";
-import type {
-  DesignBasis,
-  DesignSnapshot,
-  SummaryModel,
-} from "@/lib/studio/summary";
+import type { SummaryModel } from "@/lib/studio/summary";
 import type { OrgBrand } from "@/lib/org/brand";
-import { SheetDoc } from "@/components/studio/summary/sheet-doc";
+import { StudioFlowContext } from "@/components/studio/flow";
+import { SheetDocNext } from "@/components/studio/summary/sheet-doc-next";
 import { SheetPlans } from "@/components/studio/summary/sheet-plans";
 import { LiveViewer } from "./live-viewer";
 import "./live-sheet.css";
@@ -24,8 +21,10 @@ import "./live-sheet.css";
    serves the SHEET, and the simulation is a way in from it rather than the
    destination.
 
-   ONE DOCUMENT, TWO CHROMES. Everything below the bar is `SheetDoc`, the same
-   component and the same derived model the owner and the paper copy render.
+   ONE DOCUMENT, TWO CHROMES. Everything below the bar is `SheetDocNext`, the
+   same component and the same derived model the owner's Summary and the PDF
+   render in the next flow, the Design page's flow for everyone since
+   7 November 2026. Its plans lay out as the next flow's paper does.
    What differs is only what wraps it, and what the owner's chrome carries is
    ABSENT here rather than hidden:
 
@@ -48,8 +47,6 @@ export function LiveSheet({
   planUrls,
   brand,
   model,
-  snapshot,
-  basis,
   preparedOn,
   expiresOn,
   /** the simulation has been ticked as fit to show a customer, on every floor
@@ -68,8 +65,6 @@ export function LiveSheet({
   planFloors?: Floor[];
   brand: OrgBrand;
   model: SummaryModel;
-  snapshot: DesignSnapshot;
-  basis: DesignBasis;
   /* both formatted on the server: a date built in a render body breaks
      hydration for the whole tree */
   preparedOn: string;
@@ -80,13 +75,15 @@ export function LiveSheet({
 
   if (simOpen)
     return (
-      <LiveViewer
-        doc={doc}
-        pack={pack}
-        planUrls={planUrls}
-        brand={brand}
-        onExit={() => setSimOpen(false)}
-      />
+      <StudioFlowContext.Provider value="next">
+        <LiveViewer
+          doc={doc}
+          pack={pack}
+          planUrls={planUrls}
+          brand={brand}
+          onExit={() => setSimOpen(false)}
+        />
+      </StudioFlowContext.Provider>
     );
 
   return (
@@ -135,22 +132,18 @@ export function LiveSheet({
       </nav>
 
       <main className="dsd-body">
-        <SheetDoc
-          doc={doc}
-          model={model}
-          snapshot={snapshot}
-          basis={basis}
-          brand={brand}
-          eyebrow={
-            doc.meta.variantLabel
-              ? `Design summary, ${doc.meta.variantLabel.toLowerCase()}`
-              : "Design summary"
-          }
-          preparedOn={preparedOn}
-          sections={sections}
-        >
-          <SheetPlans doc={doc} floors={planFloors} urls={planUrls} marks={unitMarks([doc], pack)} />
-        </SheetDoc>
+        <StudioFlowContext.Provider value="next">
+          <SheetDocNext
+            doc={doc}
+            model={model}
+            brand={brand}
+            preparedOn={preparedOn}
+            sections={{ ...sections, picklist: false }}
+            plansFollow={planFloors.length > 0}
+          >
+            <SheetPlans doc={doc} floors={planFloors} urls={planUrls} marks={unitMarks([doc], pack)} />
+          </SheetDocNext>
+        </StudioFlowContext.Provider>
       </main>
     </div>
   );

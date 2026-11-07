@@ -45,7 +45,7 @@ describe("design document schema v1", () => {
       id: "sys_1",
       type: "split",
       brand: "Mitsubishi Electric",
-      colour: "#2E68FF",
+      colour: "#15803D",
       name: "Lounge split",
       settings: { phase: "1" },
     });

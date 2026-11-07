@@ -11,6 +11,7 @@
 import type { DesignObject, DesignSystem, Point } from "./document";
 import { attachOf, type Attach } from "./graph";
 import { isPlenumOf } from "./ducted";
+import { offsetPoint } from "./duct-face";
 
 /** Run types whose attached endpoints track their referenced object.
     pipe-run, drain-run and cable-run are live today; duct-run inherits the
@@ -26,16 +27,19 @@ const EPS = 1e-6;
 const near = (a: number, b: number) => Math.abs(a - b) < EPS;
 const samePt = (a: Point, b: Point) => near(a.x, b.x) && near(a.y, b.y);
 
-/** Current anchor point of an attach target. Units and risers anchor at their
-    centre; fitting/spigot/grille resolve with graph v1 — null until then, and
-    null for a missing or non-point target (leave the run alone). */
+/** Current anchor point of an attach target. Units, risers and grilles (a
+    duct ends on one in the next flow) anchor at their centre, or a duct at its
+    spot on the unit's casing; fitting and
+    spigot resolve with graph v1 — null until then, and null for a missing or
+    non-point target (leave the run alone). */
 export function anchorPointOf(
   byId: ReadonlyMap<string, DesignObject>,
   a: Attach
 ): Point | null {
-  if (a.kind !== "unit" && a.kind !== "riser") return null;
+  if (a.kind !== "unit" && a.kind !== "riser" && a.kind !== "grille") return null;
   const o = byId.get(a.id);
-  return o && o.geometry.kind === "point" ? o.geometry.at : null;
+  if (!o || o.geometry.kind !== "point") return null;
+  return a.off ? offsetPoint(o.geometry.at, o.geometry.rotation ?? 0, a.off) : o.geometry.at;
 }
 
 function dedupe(pts: Point[]): Point[] {

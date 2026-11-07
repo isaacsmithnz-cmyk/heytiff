@@ -23,6 +23,11 @@ import { outletsText, systemAir, unitAir, type RoomAir } from "@/lib/studio/airf
 import { joinZone, setZoning, zoneKit, zoningOf, zonesOf, type UnitZoning, type ZoneControl } from "@/lib/studio/zoning";
 import { DUCT_AIRWAY_FORMS } from "@/lib/studio/form-factors";
 import { UnitBrowser, type UnitChoice } from "./unit-browser";
+import { Tray } from "@/components/parts/tabs";
+import { Row, RowList } from "@/components/parts/row";
+import { StateWord, type Tone as StateTone } from "@/components/parts/state";
+import { Field } from "@/components/parts/field";
+import { Chooser } from "@/components/parts/chooser";
 import {
   addBandUnit,
   addHead,
@@ -242,7 +247,7 @@ function zoneWord(args: {
 
 /** everything the rail, the picker, the summary and the schematic show
     about one system, read once per draft */
-function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, sys: DesignSystem): SystemView {
+export function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, sys: DesignSystem): SystemView {
   const allocs = hasAllocations(sys) ? allocationsOf(sys) : [];
   const heads = allocs.filter((a) => a.role === "idu" && a.model);
   const bandUnits = heads.filter((a) => a.serves === "system");
@@ -528,6 +533,7 @@ export function SystemBuilder({
   aimZoneId = null,
   onCommit,
   onClose,
+  next = false,
 }: {
   doc: DesignDocument;
   pack: DataPack;
@@ -546,6 +552,12 @@ export function SystemBuilder({
   /** Done: the built design, as one change */
   onCommit: (next: DesignDocument) => void;
   onClose: () => void;
+  /** THE NEXT FLOW'S POP-UP (Isaac, 7 November 2026: "Build" on the mock
+      "Pop-up on the web, the iPad's way"): one tray, Units | Schematic; the
+      list as the app's rows, each with its fit word; the sheet, Compare and
+      Swap in the right-hand column; nothing dragged; Save system. The
+      current flow keeps the pop-up as it was. */
+  next?: boolean;
 }) {
   const basis: SizingBasis = doc.settings.sizingBasis;
 
@@ -728,13 +740,30 @@ export function SystemBuilder({
     if (sys.settings.oduChosen !== true) d = handBackToProposal(d, pack, sys.id);
     write(d);
   };
+  /* ADD GOES WHERE IT SAYS. The button reads Add to <the aimed zone>, so
+     that is where the unit lands; it used to take the first empty zone
+     whatever was aimed (the 11-05 walk put Bedroom 01's unit in the
+     Kitchen). A split takes one head, so a second unit in a zone that has
+     its split comes as a split of its own beside it, the way the drop slot
+     did. Ducted: the band's unit is swapped, and the outdoor picked on the
+     sheet comes with it. */
   const chooseFromBrowser = (choice: UnitChoice) => {
-    if (!view) return;
+    if (!view || !sys) return;
     const iduModel = choice.kind === "pair" ? choice.pair.idu.model : choice.idu.model;
-    if (ductedFamily) return dropBand(iduModel);
-    const empty = view.zones.find((z) => !z.lines.some((l) => l.mine)) ?? view.zones[0];
-    if (empty) dropHead(empty.zone.id, iduModel);
-    else dropBand(iduModel);
+    if (ductedFamily) {
+      let d = addBandUnit(draft, pack, { systemId: sys.id, iduModel });
+      const want = choice.kind === "pair" ? choice.pair.odu.model : null;
+      const after = d.systems.find((s) => s.id === sys.id);
+      const has = after && hasAllocations(after) ? allocationsOf(after).find((a) => a.role === "odu")?.model : null;
+      if (want && want !== has) d = chooseOutdoor(d, pack, basis, sys.id, want);
+      return write(d);
+    }
+    const target = addTarget;
+    if (!target) return dropBand(iduModel);
+    if (view.kind === "split" && target.lines.some((l) => l.mine)) {
+      return write(addSplitBeside(draft, pack, { zoneId: target.zone.id, iduModel }).doc);
+    }
+    dropHead(target.zone.id, iduModel);
   };
   /* WHICH ZONE ADD PUTS IT IN. It was always the first zone with nothing in
      it, derived and unchangeable, so the button said Add to Master Bedroom
@@ -755,11 +784,66 @@ export function SystemBuilder({
 
   const selectedAlloc = view && selected ? (view.heads.find((a) => a.id === selected) ?? null) : null;
 
+  /* ── the next flow's columns ── */
+  /** the list's row picked: its sheet takes the right-hand column, over a
+      unit open there, and Add on it is a Swap for that unit */
+  const [picked, setPicked] = useState<string | null>(null);
+  const bandUnit = view?.bandUnits[0] ?? null;
+  const selectedZone =
+    selectedAlloc && view ? (view.zones.find((z) => z.zone.id === selectedAlloc.roomId) ?? null) : null;
+  /* a placed unit's sizes say how each would do in its place: the words its
+     Sizes list said, now on the list's own rows */
+  const sizeWords = useMemo(() => {
+    if (!next || !view || !selectedAlloc || selectedAlloc.serves === "system") return null;
+    const m = new Map<string, { word: string; tone: StateTone; note?: string }>();
+    for (const r of sizeRows(draft, pack, basis, view, selectedAlloc)) {
+      if (r.isCurrent) m.set(r.u.model, { word: "Current", tone: "info" });
+      else if (!r.ok) m.set(r.u.model, { word: "Fails", tone: "wrong", note: r.reason });
+      else if (r.fails) m.set(r.u.model, { word: "Combination fails", tone: "wrong" });
+      else if (r.fit) {
+        m.set(r.u.model, {
+          word: r.fit,
+          tone: r.fit === "Fits" ? "good" : r.fit === "Short" ? "wrong" : "look",
+          note: r.oduBecomes ? `Outdoor becomes ${r.oduBecomes}` : undefined,
+        });
+      }
+    }
+    return m;
+  }, [next, view, selectedAlloc, draft, pack, basis]);
+  /** what Add swaps out: the open unit, once a row is picked for it; on a
+      ducted system, the unit on its band */
+  const swapFrom = next
+    ? selectedAlloc && picked
+      ? selectedAlloc
+      : ductedFamily && bandUnit && !selectedAlloc
+        ? bandUnit
+        : null
+    : null;
+  const swapPicked = (choice: UnitChoice) => {
+    if (!sys || !selectedAlloc) return;
+    const model = choice.kind === "pair" ? choice.pair.idu.model : choice.idu.model;
+    const r = swapAllocation(draft, pack, basis, sys.id, selectedAlloc.id, model);
+    if (!r.ok) {
+      setError(r.reason ?? null);
+      return;
+    }
+    write(r.doc);
+    setPicked(null);
+  };
+  /* the list's title: the zone the next unit goes in (or the open unit's),
+     and its load; a ducted system's list is for the whole system */
+  const wholeList = ductedFamily || selectedAlloc?.serves === "system";
+  const colZone = selectedZone ?? addTarget;
+  const colTitle = wholeList ? "Whole system" : (colZone?.name ?? "");
+  const colLoad = wholeList ? (view?.zonesLoadKw ?? null) : (colZone?.loadKw ?? null);
+  const colSub = colLoad == null ? "No load yet" : `${colLoad.toFixed(1)} kW load`;
+
   const body = (
     <div className="ds-sb-scrim" onMouseDown={(e) => e.target === e.currentTarget && !dirty && onClose()}>
-      <div className="ds-sb" role="dialog" aria-modal="true" aria-labelledby="ds-sb-title">
+      <div className={`ds-sb${next ? " next" : ""}`} role="dialog" aria-modal="true" aria-labelledby="ds-sb-title">
         <header className="ds-sb-head">
           {view && <span className="ds-sb-dot" style={{ background: view.sys.colour }} />}
+          <div className="ds-sb-titles">
           <h2 id="ds-sb-title" className="ds-sb-title">
             {!view ? (
               "Build system"
@@ -792,7 +876,9 @@ export function SystemBuilder({
               </button>
             )}
           </h2>
-          {view && (
+          {next && view && <p className="ds-sb-facts">{factsLine(view)}</p>}
+          </div>
+          {view && !next && (
             <>
               <span className="ds-sb-rule" />
               <dl className="ds-sb-stats">
@@ -820,7 +906,18 @@ export function SystemBuilder({
             </>
           )}
           <span className="ds-sb-spring" />
-          {view?.sys.type === "vrf" && (
+          {next && view?.sys.type === "vrf" && (
+            <Tray
+              ariaLabel="Units or schematic"
+              options={[
+                { value: "units", label: "Units" },
+                { value: "schematic", label: "Schematic" },
+              ]}
+              value={schemOn ? "schematic" : "units"}
+              onChange={(v) => setSchemOn(v === "schematic")}
+            />
+          )}
+          {!next && view?.sys.type === "vrf" && (
             <div className="ds-sb-switch" role="group" aria-label="Units or schematic">
               <button
                 type="button"
@@ -840,9 +937,11 @@ export function SystemBuilder({
               </button>
             </div>
           )}
-          <button className="ds-sb-x" onClick={onClose} aria-label="Close builder">
-            <Icon name="x" size={16} />
-          </button>
+          {!next && (
+            <button className="ds-sb-x" onClick={onClose} aria-label="Close builder">
+              <Icon name="x" size={16} />
+            </button>
+          )}
         </header>
 
         <div className="ds-sb-body">
@@ -853,7 +952,11 @@ export function SystemBuilder({
               view={view}
               selected={selected}
               headType={headType}
-              aimedZoneId={side === "indoor" ? (addTarget?.zone.id ?? null) : null}
+              aimedZoneId={
+                /* the next flow fills only what the middle column is for: no
+                   zone while the schematic is up or a unit is open */
+                side === "indoor" && !(next && (schemOn || selectedAlloc)) ? (addTarget?.zone.id ?? null) : null
+              }
               outdoorOn={side === "outdoor" && !selectedAlloc}
               dragging={dragging}
               onAimZone={(zoneId) => {
@@ -865,7 +968,17 @@ export function SystemBuilder({
                 setSide("indoor");
               }}
               addZoneOpen={addZoneOpen}
-              onSelect={setSelected}
+              onSelect={(id) => {
+                setSelected(id);
+                if (!next) return;
+                /* the list turns to the unit: its style, its series open, no
+                   row picked, so the unit itself is on the right */
+                setPicked(null);
+                const a = id ? view.heads.find((h) => h.id === id) : null;
+                const ff = a ? iduRowOf(pack, a.model)?.form_factor : null;
+                if (ff) setFormFactor(ff);
+                if (a) setSide("indoor");
+              }}
               onDropHead={dropHead}
               onDropBand={dropBand}
               onDropOutdoor={dropOutdoor}
@@ -881,6 +994,7 @@ export function SystemBuilder({
                 write(claimZone(draft, view.sys.id, zoneId));
                 setAddZoneOpen(false);
               }}
+              next={next}
             />
           ) : (
             <div className="ds-sb-rail" />
@@ -894,11 +1008,97 @@ export function SystemBuilder({
                 sys={draft.systems.find((x) => x.id === view.sys.id) ?? view.sys}
                 units={pipeUnits}
                 onEdit={(fn) => write(fn(draft))}
+                plainSource={next}
+                fitWords={next}
               />
             </div>
           ) : (
             <>
           <section className="ds-sb-picker" aria-label="Units">
+            {next && view ? (
+              side === "outdoor" ? (
+                <OutdoorRows
+                  view={view}
+                  basis={basis}
+                  onPick={dropOutdoor}
+                  onProposal={() => write(handBackToProposal(draft, pack, view.sys.id))}
+                />
+              ) : (
+                <div className="ds-sb-col">
+                  <div className="ds-sb-colhead">
+                    <h3 className="ds-sb-coltitle">{colTitle}</h3>
+                    <p className="ds-sb-colsub">{colSub}</p>
+                  </div>
+                  <UnitBrowser
+                    embedded
+                    next
+                    pack={pack}
+                    loadKw={lensKw}
+                    basis={basis}
+                    mode={perRoom ? "per-room" : "pair"}
+                    pool={headPool}
+                    formFactor={headType}
+                    onFormFactor={setFormFactor}
+                    brandLocked={!view.empty}
+                    fitKw={ductedFamily ? null : (colZone?.loadKw ?? null)}
+                    fields={
+                      <>
+                        {/* the type is chosen before the first unit; after
+                            it, it is a fact in the head */}
+                        {view.empty && (
+                          <Field label="Family">
+                            <Chooser
+                              options={FAMILIES.map((f) => ({ value: f, label: FAMILY_WORD[f] }))}
+                              value={view.family}
+                              onChange={(f) => pickFamily(f as SystemFamily)}
+                            />
+                          </Field>
+                        )}
+                        {headType && (
+                          <Field label="Head type">
+                            <Chooser
+                              options={headTypes}
+                              value={headType}
+                              onChange={(ff) => setFormFactor(ff as FormFactor)}
+                            />
+                          </Field>
+                        )}
+                      </>
+                    }
+                    rowWord={(m) =>
+                      sizeWords?.get(m) ??
+                      (ductedFamily && bandUnit && m === bandUnit.model
+                        ? { word: "Current", tone: "info" as StateTone }
+                        : null)
+                    }
+                    current={selectedAlloc?.model ?? (ductedFamily ? (bandUnit?.model ?? null) : null)}
+                    openSeriesFor={selectedAlloc ? (iduRowOf(pack, selectedAlloc.model)?.series ?? null) : null}
+                    picked={picked}
+                    onPick={setPicked}
+                    addLabel={
+                      swapFrom
+                        ? (m: string) => `Swap to ${m}`
+                        : addTarget
+                          ? `Add to ${addTarget.name}`
+                          : ductedFamily
+                            ? "Add to the system"
+                            : "Add to the band"
+                    }
+                    addNote={swapFrom ? () => `In place of ${swapFrom.model}` : undefined}
+                    isAdded={
+                      ductedFamily
+                        ? (model) =>
+                            hasAllocations(view.sys) &&
+                            allocationsOf(view.sys).some((a) => a.role === "idu" && a.model === model)
+                        : undefined
+                    }
+                    detailHost={selectedAlloc && !picked ? null : sideHost}
+                    onChoose={(choice) => (selectedAlloc && picked ? swapPicked(choice) : chooseFromBrowser(choice))}
+                  />
+                </div>
+              )
+            ) : (
+            <>
             {view && (
               <div className="ds-sb-crumbs">
                 <CrumbMenu
@@ -1007,13 +1207,17 @@ export function SystemBuilder({
                 }}
               />
             )}
+            </>
+            )}
           </section>
 
           <aside
             className="ds-sb-side"
-            aria-label={selectedAlloc ? "Selected unit" : side === "outdoor" ? "Outdoor unit" : "Unit detail"}
+            aria-label={
+              selectedAlloc && !(next && picked) ? "Selected unit" : side === "outdoor" ? "Outdoor unit" : "Unit detail"
+            }
           >
-            {view && selectedAlloc ? (
+            {view && selectedAlloc && !(next && picked) ? (
               <UnitDetail
                 draft={draft}
                 pack={pack}
@@ -1025,9 +1229,10 @@ export function SystemBuilder({
                   if (d) setDraft(d);
                 }}
                 onClose={() => setSelected(null)}
+                next={next}
               />
             ) : view && side === "outdoor" ? (
-              <OutdoorSide view={view} basis={basis} />
+              <OutdoorSide view={view} basis={basis} next={next} />
             ) : (
               <div className="ds-sb-side-host" ref={setSideHost} />
             )}
@@ -1039,7 +1244,7 @@ export function SystemBuilder({
         <footer className="ds-sb-foot">
           {view && (
             <button
-              className="ds-sb-btn danger"
+              className={next ? "pt-btn pt-btn--36 pt-btn--delete" : "ds-sb-btn danger"}
               onClick={() => {
                 onCommit(releaseSystem(doc, view.sys.id));
                 onClose();
@@ -1054,15 +1259,17 @@ export function SystemBuilder({
               {error ?? view?.reason}
             </p>
           )}
-          <button className="ds-sb-btn" onClick={onClose}>
-            Discard changes
-          </button>
+          {(!next || dirty) && (
+            <button className={next ? "pt-btn pt-btn--36 pt-btn--second" : "ds-sb-btn"} onClick={onClose}>
+              Discard changes
+            </button>
+          )}
           <button
-            className="ds-sb-btn primary"
+            className={next ? "pt-btn pt-btn--36 pt-btn--main" : "ds-sb-btn primary"}
             disabled={!!view && view.blocking.length > 0}
             onClick={() => (dirty ? onCommit(draft) : onClose())}
           >
-            Done
+            {next ? "Save system" : "Done"}
           </button>
         </footer>
       </div>
@@ -1242,11 +1449,156 @@ function OutdoorTable({
   );
 }
 
+/** the head's one line under the name: what the system is, its zones, its
+    load and what covers it, the covered part red when short */
+function factsLine(v: SystemView): React.ReactNode {
+  const parts: React.ReactNode[] = [];
+  if (!v.empty) parts.push(KIND_WORD[v.kind]);
+  parts.push(`${v.zones.length} ${v.zones.length === 1 ? "zone" : "zones"}`);
+  if (v.zonesLoadKw != null) parts.push(`${v.loadText} load`);
+  if (!v.empty && v.coverKw != null) {
+    parts.push(
+      <span key="covered" className={v.anyShort ? "bad" : undefined}>
+        {v.coveredText} covered
+      </span>
+    );
+  }
+  return parts.map((p, i) => (
+    <span key={i}>
+      {i > 0 && ", "}
+      {p}
+    </span>
+  ));
+}
+
+/** THE OUTDOORS AS ROWS (the next flow): the ones that work first, the one
+    on the system filled, those that fail folded under them. Pressing a row
+    puts it on the system, as the table's did. */
+function OutdoorRows({
+  view,
+  basis,
+  onPick,
+  onProposal,
+}: {
+  view: SystemView;
+  basis: SizingBasis;
+  onPick: (model: string) => void;
+  onProposal: () => void;
+}) {
+  const [showFails, setShowFails] = useState(false);
+  const works = view.outRows.filter((r) => r.valid !== false);
+  const fails = view.outRows.filter((r) => r.valid === false);
+  const row = (r: OutRow) => {
+    const takes =
+      r.odu.system_type === "multi"
+        ? r.odu.ports != null
+          ? `${r.odu.ports} ports`
+          : null
+        : r.odu.system_type === "vrf"
+          ? r.odu.max_idus != null
+            ? `up to ${r.odu.max_idus} heads`
+            : null
+          : "1 head";
+    const figures = [kwText(sizingCapacityKw(r.odu, basis)), takes, r.ratio == null ? null : `connection ratio ${r.ratio}%`]
+      .filter(Boolean)
+      .join(", ");
+    return (
+      <Row
+        key={r.odu.model}
+        name={r.odu.model}
+        line={r.proposal && !r.current ? `${figures}. Proposal` : figures}
+        on={r.current}
+        onClick={() => onPick(r.odu.model)}
+        end={r.valid == null ? undefined : <StateWord tone={r.valid ? "good" : "wrong"}>{r.valid ? "Valid" : "Fails"}</StateWord>}
+      />
+    );
+  };
+  return (
+    <div className="ds-sb-col">
+      <div className="ds-sb-colhead">
+        <h3 className="ds-sb-coltitle">Outdoor</h3>
+        {view.connectedText && <p className="ds-sb-colsub">Connected {view.connectedText}</p>}
+      </div>
+      <div className="ds-sb-collist">
+        <RowList label="Outdoors">{works.map(row)}</RowList>
+        {fails.length > 0 && (
+          <>
+            <button
+              type="button"
+              className="ds-sb-colgroup"
+              aria-expanded={showFails}
+              onClick={() => setShowFails((o) => !o)}
+            >
+              <Icon name={showFails ? "chevD" : "chevR"} size={16} />
+              Combination fails
+            </button>
+            {showFails && <RowList label="Outdoors that fail">{fails.map(row)}</RowList>}
+          </>
+        )}
+      </div>
+      {view.oduByHand && (
+        <div className="ds-sb-colfoot">
+          <button type="button" className="pt-btn pt-btn--36 pt-btn--second" onClick={onProposal}>
+            Use the proposal
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** a placed unit's sizes: its series, the units this system type can take,
+    each read as swapping it would leave the design (UnitDetail's Sizes, for
+    the next flow's list rows) */
+function sizeRows(draft: DesignDocument, pack: DataPack, basis: SizingBasis, view: SystemView, alloc: Allocation) {
+  const { sys } = view;
+  const zone = view.zones.find((z) => z.zone.id === alloc.roomId) ?? null;
+  const current = iduRowOf(pack, alloc.model);
+  if (!current) return [];
+  const pairFlow = sys.type === "split" || sys.type === "ducted";
+  const pool = pairFlow
+    ? pack.indoor_units.filter((u) => pack.pair_tables.some((p) => p.idu_model === u.model))
+    : sys.type === "vrf"
+      ? poolOf(pack, "vrf")
+      : multiCapableIdus(pack);
+  const beforeOdu = view.odu?.model ?? "";
+  return pool
+    .filter((u) => u.series === current.series)
+    .map((u) => {
+      const isCurrent = u.model === alloc.model;
+      const r = isCurrent
+        ? { doc: draft, ok: true, reason: undefined as string | undefined }
+        : swapAllocation(draft, pack, basis, sys.id, alloc.id, u.model);
+      const verdict = zone && r.ok ? roomVerdict(r.doc, pack, basis, zone.zone) : null;
+      const afterSys = r.doc.systems.find((s) => s.id === sys.id);
+      const afterOdu = afterSys ? (allocationsOf(afterSys).find((a) => a.role === "odu")?.model ?? "") : "";
+      const combo = afterSys && r.ok ? combinationWord(r.doc, pack, afterSys) : null;
+      const fit = !verdict
+        ? null
+        : verdict.word === "Fits"
+          ? "Fits"
+          : verdict.word === "Undersized"
+            ? "Short"
+            : verdict.word === "Oversized"
+              ? "Oversized"
+              : null;
+      return {
+        u,
+        ok: r.ok,
+        reason: r.reason,
+        isCurrent,
+        fit,
+        fails: combo === "Fails",
+        oduBecomes: combo === "Valid" && afterOdu !== beforeOdu ? afterOdu : null,
+      };
+    });
+}
+
 /* ─────────────────────── the outdoor, on the right ─────────────────────── */
 
 /** the Outdoor side's right-hand column: the outdoor on the system, what is
     connected to it and its pipework, all read off the pack */
-function OutdoorSide({ view, basis }: { view: SystemView; basis: SizingBasis }) {
+function OutdoorSide({ view, basis, next = false }: { view: SystemView; basis: SizingBasis; next?: boolean }) {
   const odu = view.oduRow;
   if (!odu) {
     return (
@@ -1258,7 +1610,7 @@ function OutdoorSide({ view, basis }: { view: SystemView; basis: SizingBasis }) 
   return (
     <div className="ds-sb-side-scroll">
       <div className="ds-sb-side-head">
-        <span className="ds-sb-side-kind">Outdoor unit</span>
+        {!next && <span className="ds-sb-side-kind">Outdoor unit</span>}
         <h3 className="ds-sb-side-title">{odu.model}</h3>
         <span className="ds-sb-side-sub">
           {view.oduByHand ? "Picked" : "Proposed"}, combination{" "}
@@ -1468,6 +1820,7 @@ function PipingRail({
   onAddZone,
   onCloseAddZone,
   onClaim,
+  next = false,
 }: {
   draft: DesignDocument;
   pack: DataPack;
@@ -1493,6 +1846,9 @@ function PipingRail({
   onAddZone: () => void;
   onCloseAddZone: () => void;
   onClaim: (zoneId: string) => void;
+  /** the next flow's pop-up: nothing is dragged (a unit goes in with Add,
+      the outdoor with its row), and the outdoor card leads with its model */
+  next?: boolean;
 }) {
   const { sys } = view;
   /* which target is lit: entered and left are counted per target, because a
@@ -1500,7 +1856,7 @@ function PipingRail({
      The count lives on the target element for the length of the gesture —
      it is the element's own, and nothing else reads it */
   const [over, setOver] = useState<string | null>(null);
-  const targetProps = (key: string, onPayload: (p: DragPayload) => void) => ({
+  const targetProps = (key: string, onPayload: (p: DragPayload) => void) => next ? {} : ({
     onDragEnter: (e: React.DragEvent) => {
       e.preventDefault();
       const n = Number(e.currentTarget.getAttribute("data-over") ?? "0") + 1;
@@ -1537,7 +1893,7 @@ function PipingRail({
      that could go in it — an empty Whole system box beside a multi of wall
      heads is a drop target for something nobody is holding */
   const wholeSystemType = headType === "ducted" || headType === "bulkhead";
-  const showBand = Boolean(band) || wholeSystemType;
+  const showBand = Boolean(band) || (!next && wholeSystemType);
   /* Add zone is there only while there is a zone to add: one without a
      system, or one another system has (Isaac, 2026-09-23). With every zone
      on this system it would open on a list of nothing. */
@@ -1795,11 +2151,24 @@ function PipingRail({
             if ("oduModel" in p) onDropOutdoor(p.oduModel);
           })}
         >
-          <span className="ds-sb-out-top">
-            <span className="ds-sb-out-label">Outdoor</span>
-            {portsText && <span className={`ds-sb-out-ports${portsBad ? " bad" : ""}`}>{portsText}</span>}
-          </span>
-          <span className="ds-sb-out-model">{view.odu ? oduModel : "No outdoor yet"}</span>
+          {next ? (
+            /* law 10: the model is the card's title, what it is goes under it */
+            <>
+              <span className="ds-sb-out-top">
+                <span className="ds-sb-out-model">{view.odu ? oduModel : "No outdoor yet"}</span>
+                {portsText && <span className={`ds-sb-out-ports${portsBad ? " bad" : ""}`}>{portsText}</span>}
+              </span>
+              <span className="ds-sb-out-kind">Outdoor</span>
+            </>
+          ) : (
+            <>
+              <span className="ds-sb-out-top">
+                <span className="ds-sb-out-label">Outdoor</span>
+                {portsText && <span className={`ds-sb-out-ports${portsBad ? " bad" : ""}`}>{portsText}</span>}
+              </span>
+              <span className="ds-sb-out-model">{view.odu ? oduModel : "No outdoor yet"}</span>
+            </>
+          )}
           {view.odu && (
             <span className={`ds-sb-state ${valid ? "ok" : "bad"}`}>
               {`${view.oduByHand ? "Picked" : "Proposed"}, combination ${valid ? "valid" : "fails"}`}
@@ -2041,7 +2410,7 @@ function PipingRail({
                     {z.word.text && <span className={`ds-sb-state ${z.word.tone}`}>{z.word.text}</span>}
                   </span>
                 )}
-                {z.slot && (
+                {z.slot && !next && (
                   <span
                     className={`ds-sb-slot${over === `slot:${z.zone.id}` ? " over" : ""}`}
                     {...targetProps(`slot:${z.zone.id}`, headOnly((m) => onDropSlot(z, m)))}
@@ -2262,6 +2631,7 @@ function UnitDetail({
   alloc,
   onChange,
   onClose,
+  next = false,
 }: {
   draft: DesignDocument;
   pack: DataPack;
@@ -2270,6 +2640,9 @@ function UnitDetail({
   alloc: Allocation;
   onChange: (next: DesignDocument | null, error?: string) => void;
   onClose: () => void;
+  /** the next flow: no eyebrow and no cross (the unit goes when something
+      else is pressed), and its sizes are the list's own rows */
+  next?: boolean;
 }) {
   const { sys } = view;
   const zone = view.zones.find((z) => z.zone.id === alloc.roomId) ?? null;
@@ -2311,13 +2684,17 @@ function UnitDetail({
   return (
     <div className="ds-sb-side-scroll ds-sb-pane">
       <div className="ds-sb-side-head">
-        <span className="ds-sb-side-kind">{alloc.serves === "system" ? "Whole system unit" : "Indoor unit"}</span>
+        {!next && (
+          <span className="ds-sb-side-kind">{alloc.serves === "system" ? "Whole system unit" : "Indoor unit"}</span>
+        )}
         <div className="ds-sb-detail-head">
           <h3 className="ds-sb-side-title">{alloc.model}</h3>
           <span className="ds-sb-spring" />
-          <button className="ds-sb-x" onClick={onClose} aria-label="Close unit detail">
-            <Icon name="x" size={16} />
-          </button>
+          {!next && (
+            <button className="ds-sb-x" onClick={onClose} aria-label="Close unit detail">
+              <Icon name="x" size={16} />
+            </button>
+          )}
         </div>
         <span className="ds-sb-side-sub">
           {alloc.serves === "system"
@@ -2385,7 +2762,9 @@ function UnitDetail({
           })}
         </div>
       )}
-      {airway && <ZoningPanel draft={draft} pack={pack} sys={sys} alloc={alloc} onChange={onChange} />}
+      {airway && (!next || served.length > 1) && (
+        <ZoningPanel draft={draft} pack={pack} sys={sys} alloc={alloc} onChange={onChange} />
+      )}
       {alloc.serves !== "system" && !airway && (
         <label className="ds-sb-field">
           <span>Zone</span>
@@ -2406,7 +2785,7 @@ function UnitDetail({
           </select>
         </label>
       )}
-      {rows.length > 1 && (
+      {!next && rows.length > 1 && (
         <div className="ds-sb-sizes">
           <span className="ds-sb-label">Sizes</span>
           <ul>
@@ -2455,7 +2834,7 @@ function UnitDetail({
         </div>
       )}
       <button
-        className="ds-sb-btn ds-sb-remove"
+        className={next ? "pt-btn pt-btn--36 pt-btn--delete ds-sb-remove-next" : "ds-sb-btn ds-sb-remove"}
         onClick={() => {
           onChange(removeAllocation(draft, sys.id, alloc.id, pack));
           onClose();

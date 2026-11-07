@@ -90,10 +90,11 @@ afterEach(() => {
   Element.prototype.getBoundingClientRect = origRect;
 });
 
-function renderCanvas() {
-  const utils = render(
+function renderCanvas(extra: Partial<Parameters<typeof StudioCanvas>[0]> = {}) {
+  const doc = mkDoc();
+  const el = (more: Partial<Parameters<typeof StudioCanvas>[0]>) => (
     <StudioCanvas
-      doc={mkDoc()}
+      doc={doc}
       floor={floor}
       tool="select"
       selectedId={null}
@@ -105,9 +106,12 @@ function renderCanvas() {
       onPlaced={() => {}}
       onRoomCreated={() => {}}
       onRemarkConsumed={() => {}}
+      {...extra}
+      {...more}
     />
   );
-  return { ...utils, svg: utils.container.querySelector("svg")! };
+  const utils = render(el({}));
+  return { ...utils, svg: utils.container.querySelector("svg")!, again: (more: Partial<Parameters<typeof StudioCanvas>[0]>) => utils.rerender(el(more)) };
 }
 
 /** the scene transform, parsed back into zoom + pan */
@@ -159,5 +163,38 @@ describe("a drawing opens framed, whatever the layout does next", () => {
     resizeTo(900, 500);
     // their framing survives the resize — only the untouched view re-fits
     expect(centreOnScreen(svg)).toEqual(panned);
+  });
+});
+
+/* The next flow's tools float over the canvas's foot (Isaac, 13-inch, 3
+   November 2026: Fit ran the plan under them). Every frame stops above them. */
+describe("the frame stops above the tools", () => {
+  it("opens the drawing centred in the part the tools leave clear", () => {
+    const { svg } = renderCanvas({ coveredFoot: 100 });
+    act(() => fireResize?.());
+    expect(centreOnScreen(svg).y).toBeCloseTo(400, 0);
+    expect(centreOnScreen(svg).x).toBeCloseTo(450, 0);
+    expect(view(svg).zoom).toBeCloseTo((800 - 120) / 200, 2);
+  });
+
+  it("re-frames when the tools are measured after the first frame", () => {
+    const { svg, again } = renderCanvas();
+    act(() => fireResize?.());
+    expect(centreOnScreen(svg).y).toBeCloseTo(450, 0);
+    again({ coveredFoot: 100 });
+    expect(centreOnScreen(svg).y).toBeCloseTo(400, 0);
+  });
+
+  it("Fit frames above them after the user has moved the view", () => {
+    let api: { fit: () => void } | null = null;
+    const { svg } = renderCanvas({ coveredFoot: 100, onZoomApi: (a) => (api = a) });
+    act(() => fireResize?.());
+    const pt = (x: number, y: number) => ({ clientX: x, clientY: y, button: 1, pointerId: 1 });
+    fireEvent.pointerDown(svg, pt(400, 400));
+    fireEvent.pointerMove(svg, pt(400, 300));
+    fireEvent.pointerUp(svg, pt(400, 300));
+    expect(centreOnScreen(svg).y).not.toBeCloseTo(400, 0);
+    act(() => api!.fit());
+    expect(centreOnScreen(svg).y).toBeCloseTo(400, 0);
   });
 });

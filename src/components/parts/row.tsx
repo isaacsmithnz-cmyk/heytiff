@@ -19,6 +19,7 @@ export function Row({
   href,
   onClick,
   lines = 1,
+  on = false,
 }: {
   name: ReactNode;
   line?: ReactNode;
@@ -32,6 +33,8 @@ export function Row({
   /** how many lines the name may run to before it fades; its grey line
       then gets two. One by default, as every list has it. */
   lines?: 1 | 2 | 3;
+  /** the row a panel beside the list is showing: a fill (law 14) */
+  on?: boolean;
 }) {
   const label = <Fade lines={lines}>{name}</Fade>;
   const hit = href ? (
@@ -46,7 +49,12 @@ export function Row({
     <span className="pt-row-name">{label}</span>
   );
   return (
-    <li className={["pt-row", href || onClick ? "pt-row--click" : null, lines > 1 ? "pt-row--wrap" : null].filter(Boolean).join(" ")}>
+    <li
+      className={["pt-row", href || onClick ? "pt-row--click" : null, lines > 1 ? "pt-row--wrap" : null, on ? "pt-row--on" : null]
+        .filter(Boolean)
+        .join(" ")}
+      aria-current={on || undefined}
+    >
       {lead != null && <span className="pt-row-lead">{lead}</span>}
       {dot && <Dot hue={dot} />}
       <span className="pt-row-text">

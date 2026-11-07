@@ -23,8 +23,12 @@ export type Suggestion = {
   keep: boolean;
   /** what the plan says that the reading doesn't account for, in words */
   notes: string[];
-  /** the windows read as this room's, for its glass and its facing */
+  /** the glass read as this room's, for its glazing and its facing: its
+      windows and its glazed doors */
   windows: ReadOpening[];
+  /** every outside opening read as this room's, on its sheet, for its
+      outside walls */
+  openings?: ReadOpening[];
 };
 
 /* The spaces an air conditioner usually serves come ticked; wet rooms,
@@ -35,6 +39,15 @@ export const servedByDefault = (s: Pick<ReadSpace, "kind" | "name">) => s.kind =
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
+/* An outside door this wide is a slider or a stacker: glass, as a window is.
+   A garage's is a roller door, and a garage is never glass. */
+const GLAZED_DOOR_MM = 1500;
+
+/** The openings that bring sun into a space: its windows, and its outside
+    doors wide enough to be glass. */
+export const glassOf = (s: Pick<ReadSpace, "kind">, o: ReadOpening) =>
+  o.kind === "window" || (o.kind === "door" && o.external && o.widthMm >= GLAZED_DOOR_MM && s.kind !== "garage");
+
 /** Every space she read on a floor, placed on it, outside spaces and voids left out. */
 export function suggestionsFor(floor: Pick<Floor, "plans">, sheets: SheetReading[]): Suggestion[] {
   const out: Suggestion[] = [];
@@ -42,17 +55,19 @@ export function suggestionsFor(floor: Pick<Floor, "plans">, sheets: SheetReading
     const sheet = floor.plans.find((p) => p.id === r.sheetId);
     if (!sheet) continue;
     const at = (p: Point) => ({ x: sheet.x + p.x, y: sheet.y + p.y });
-    for (const s of r.spaces) {
+    for (const [i, s] of r.spaces.entries()) {
       if (s.outline.length < 3 || ["void", "notch", "outdoor", "stair"].includes(s.kind) || s.existing) continue;
       const notes = r.flags.filter((f) => f.kind === "label_inside" && f.room === s.name).map((f) => `"${f.text}" is written inside ${s.name}: a space of its own?`);
       out.push({
-        key: newId("sg"),
+        /* its sheet and its place in her read: the same every time it's asked */
+        key: `${r.sheetId}:${i}`,
         name: s.name,
         kind: s.kind,
         points: s.outline.map(at),
         keep: servedByDefault(s),
         notes,
-        windows: r.openings.filter((o) => o.kind === "window" && norm(o.room) === norm(s.name)),
+        windows: r.openings.filter((o) => norm(o.room) === norm(s.name) && glassOf(s, o)),
+        openings: r.openings.filter((o) => norm(o.room) === norm(s.name) && o.external && o.kind !== "skylight"),
       });
     }
   }

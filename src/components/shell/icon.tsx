@@ -139,6 +139,12 @@ export const ICON_PATHS: Record<string, string> = {
   pipe: '<path d="M4 20V10a4 4 0 0 1 4-4h12"/><path d="M9 20v-6a2 2 0 0 1 2-2h9"/>',
   /* an indoor unit over its discharge — the Units verb on the studio bar */
   unit: '<rect x="3" y="7" width="18" height="8" rx="2"/><path d="M7 18h10"/>',
+  /* the Studio's Air screen: what goes down on the air side (its grille is
+     the price book's, further down) */
+  flex: '<path d="M3 19.5c4.5 0 4.5-15 9-15s4.5 15 9 15"/>',
+  duct: '<path d="M3 7.5h18"/><path d="M3 16.5h18"/>',
+  sensor: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.25"/>',
+  controller: '<rect x="4.5" y="3" width="15" height="18" rx="1.5"/><path d="M9 7.5h6"/><path d="M9 16.5h.01"/><path d="M15 16.5h.01"/>',
   // Lucide "eraser"
   eraser:
     '<path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/>',

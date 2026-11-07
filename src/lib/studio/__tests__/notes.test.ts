@@ -16,6 +16,8 @@
 
 import {
   cloudPath,
+  noteBackdrop,
+  noteBlurOf,
   createNote,
   DEFAULT_NOTE_INK,
   isEmptyNote,
@@ -579,5 +581,29 @@ describe("what a grip drag works out", () => {
     expect(scaleForGripY({ from: 1, startY: 100, leaderY: 60, y: 9999 })).toBe(NOTE_SCALE_MAX);
     expect(scaleForGripY({ from: 1, startY: 100, leaderY: 60, y: 60 })).toBe(NOTE_SCALE_MIN);
     expect(scaleForGripY({ from: 1.4, startY: 60, leaderY: 60, y: 900 })).toBe(1.4);
+  });
+});
+
+describe("blurring what is behind a note's words", () => {
+  const with_ = (blur: unknown) => ({ props: { blur } }) as unknown as Parameters<typeof noteBlurOf>[0];
+
+  it("is off until it is set, and stays between off and full", () => {
+    expect(noteBlurOf({ props: {} } as unknown as Parameters<typeof noteBlurOf>[0])).toBe(0);
+    expect(noteBlurOf(with_("rubbish"))).toBe(0);
+    expect(noteBlurOf(with_(0.4))).toBe(0.4);
+    expect(noteBlurOf(with_(9))).toBe(1);
+    expect(noteBlurOf(with_(-1))).toBe(0);
+  });
+
+  it("covers the words before its soft edge starts, and scales with the type", () => {
+    const box = { x: 100, y: 100, w: 50, h: 20 };
+    const small = noteBackdrop(box, 10, 1);
+    expect(small.inner.x).toBeLessThan(box.x);
+    expect(small.inner.x + small.inner.w).toBeGreaterThan(box.x + box.w);
+    expect(small.region.x).toBeLessThan(small.inner.x);
+    const big = noteBackdrop(box, 20, 1);
+    expect(big.strength).toBeCloseTo(small.strength * 2);
+    expect(big.feather).toBeCloseTo(small.feather * 2);
+    expect(noteBackdrop(box, 10, 0.5).strength).toBeCloseTo(small.strength / 2);
   });
 });

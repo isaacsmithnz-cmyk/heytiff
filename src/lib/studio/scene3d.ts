@@ -238,8 +238,26 @@ export function lineUp(ground: Raw, other: Raw): XZ {
 
 const shift = ([dx, dz]: XZ) => (p: XZ): XZ => [p[0] + dx, p[1] + dz];
 
-/** Everything the 3D view draws for this design. */
-export function sceneOf(doc: DesignDocument): Scene3D {
+/** what the 3D view can ask the pack about a unit (the next flow) */
+export type UnitRow = { form_factor: string; height_mm?: number | null };
+
+/* where a unit sits, from the unit itself: its kind off the pack and its
+   plane, not its system's type (7 Cutler's bulkhead heads were drawn as wall
+   splits). `top` is the unit's top, from the floor it serves. */
+const HIGH_WALL_TOP_M = 2.1;
+export function indoorHeight(form: string, underFloor: boolean, base: number, ceiling: number, h: number): number {
+  if (underFloor) return base - h - 0.02;
+  if (form === "wall") return base + Math.min(HIGH_WALL_TOP_M, ceiling - 0.15) - h;
+  if (form === "floor-console" || form === "floor-concealed") return base;
+  if (form === "under-ceiling") return base + ceiling - h;
+  /* a cassette's face is flush with the ceiling; ducted and bulkhead heads lie over it */
+  if (form.startsWith("cassette")) return base + ceiling;
+  return base + ceiling + 0.02;
+}
+
+/** Everything the 3D view draws for this design. `unitRow` is the pack's word
+    on a model, when the caller has the pack. */
+export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRow | null): Scene3D {
   const bases = floorBasesM(doc.floors);
   const ordered = [...doc.floors].sort((a, b) => a.level - b.level);
   const groundFloor = ordered.find((f) => f.level === 0) ?? ordered[0];
@@ -293,14 +311,24 @@ export function sceneOf(doc: DesignDocument): Scene3D {
       const wMm = num(o.props.widthMm, outdoor ? 800 : 900);
       const dMm = num(o.props.depthMm, outdoor ? 300 : 250);
       const ducted = systemType.get(o.systemId ?? "") === "ducted";
-      const h = outdoor ? outdoorHeight(wMm) : ducted ? DUCTED_UNIT_H : WALL_UNIT_H;
+      const row = !outdoor && typeof o.props.model === "string" ? (unitRow?.(o.props.model) ?? null) : null;
+      const underFloor = o.plane === "floor-cavity";
+      const h = outdoor
+        ? outdoorHeight(wMm)
+        : row?.height_mm
+          ? row.height_mm / 1000
+          : ducted || underFloor
+            ? DUCTED_UNIT_H
+            : WALL_UNIT_H;
       const y = outdoor
         ? o.plane === "external-roof"
           ? f.y0 + f.ceiling + FLOOR_ZONE_M
           : Math.min(0, f.y0)
-        : ducted
-          ? f.y0 + f.ceiling + 0.02
-          : f.y0 + f.ceiling - 0.15 - h;
+        : row || underFloor
+          ? indoorHeight(row?.form_factor ?? "ducted", underFloor, f.y0, f.ceiling, h)
+          : ducted
+            ? f.y0 + f.ceiling + 0.02
+            : f.y0 + f.ceiling - 0.15 - h;
       units.push({
         id: o.id,
         floorId: f.id,

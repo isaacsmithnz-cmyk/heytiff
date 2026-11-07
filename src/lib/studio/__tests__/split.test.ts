@@ -242,7 +242,7 @@ describe("A3 — over-length warning", () => {
 describe("A5 — empty design = empty schedule", () => {
   it("no systems → empty schedule", () => {
     const d = createDesign({ name: "Empty", mode: "blank", now: "2026-07-07T00:00:00.000Z" });
-    expect(buildSummaryModel(d, pack)).toEqual({ systems: [], unserved: [], picklist: [] });
+    expect(buildSummaryModel(d, pack)).toMatchObject({ systems: [], unserved: [], picklist: [] });
   });
 
   it("uncalibrated floor → amber, lengths unknown, materials carry a note", () => {

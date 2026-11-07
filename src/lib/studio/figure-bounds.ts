@@ -13,6 +13,24 @@ export const REF_W = 900; // reference width: text sized as if on a 900px-wide s
    the rest of the derived text on a plan uses */
 export const CALLOUT_FONT_REF = 11;
 
+/* THE CANVAS IS THE PAPER (the next flow; board 12 of the Studio rework
+   mocks). One reference pixel of the printed page in screen pixels: the
+   next flow's A4 landscape plan box is 265 mm across (export.ts
+   PLAN_FILL_MM) and holds REF_W of them, and a screen pixel is 0.2646 mm. */
+export const PRINT_PX = 265 / REF_W / 0.2646;
+/** the canvas holds words at their printed size up to this many times it,
+    then stops growing, so zooming in to place a grille doesn't fill the
+    screen with a room's name */
+export const PAST_PRINT = 2;
+
+/** A word's reference pixel on the canvas, in world units, at `zoom`: the
+    sheet's own (`u`, what the PDF draws it at) until the plan is past twice
+    its printed size, then held there. */
+export const canvasUnit = (u: number, zoom: number): number => Math.min(u, (PAST_PRINT * PRINT_PX) / zoom);
+
+/** whether the canvas shows the plan bigger than words follow it */
+export const pastPrint = (u: number, zoom: number): boolean => zoom * u > PAST_PRINT * PRINT_PX;
+
 /** same formula as the canvas: the arrow holds the size it was placed at */
 export const northRadius = (floor: Floor): number => {
   const grid = floor.scaleMmPerUnit

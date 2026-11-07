@@ -65,6 +65,8 @@ export interface RoomLabelIn {
 }
 
 export interface RunLabelIn {
+  /** half the run's drawn width in world units, for a duct at its true width */
+  half?: number;
   id: string;
   points: Point[];
   text: string;
@@ -78,6 +80,9 @@ export interface PlanLabelsIn {
   solids: Box[];
   /** world units per px at this scale */
   px: number;
+  /** the next flow: a run with no clear spot beside it takes the nearest one
+      inside this box, on a leader; notes count as solids */
+  leadersWithin?: Box;
 }
 
 /** a placed label: its spot, and the box it covers (for a backing, a grab
@@ -90,6 +95,8 @@ export interface PlacedLabel extends LabelSpot {
   /** a room's words: world units per px for THIS room, at or under the
       layout's own, so the tab never comes out bigger than its room */
   px?: number;
+  /** a run's words set away from it: the line from them back to the run */
+  leader?: [Point, Point];
   /** a room so small the name alone fits: its area line is left off */
   nameOnly?: boolean;
 }
@@ -204,19 +211,52 @@ export function centroidOf(poly: readonly Point[]): Point {
   return { x: cx / (3 * a), y: cy / (3 * a) };
 }
 
-type Segment = [Point, Point];
+type Segment = [Point, Point, number];
+
+/* A DUCT'S WORDS (Isaac, 1 November 2026: the Cutler plan looked "unbelievably
+   messy"): a duct is drawn at its true width and is much wider than a pipe, so its
+   words sit clear of its walls, and they are smaller than a pipe's, since a plan
+   carries few sizes and a lot of duct. Only a duct the next flow drew has a form;
+   one drawn before it keeps the words it had. */
+export function runLabelStyle(r: { type: string; props: Record<string, unknown> }, mmPerUnit: number | null | undefined): { size: number; half: number } {
+  if (r.type !== "duct-run" || !r.props.form) return { size: 11, half: 0 };
+  return { size: 8, half: (Number(r.props.diaMm) || 250) / (mmPerUnit ?? 10) / 2 };
+}
+
+/* a run too short or too crowded for its words: the nearest clear spot round
+   its middle, rings a line apart out to twelve, with a line back to it */
+const AWAY_RINGS = 12;
+const AWAY_WAYS = 16;
+function awayFromRun(r: RunLabelIn, w: number, crowding: (b: Box) => number, px: number, within: Box): PlacedLabel | null {
+  const legs = r.points.slice(1).map((p, i) => ({ a: r.points[i], b: p, len: Math.hypot(p.x - r.points[i].x, p.y - r.points[i].y) }));
+  const longest = legs.reduce((x, y) => (y.len > x.len ? y : x));
+  const mid = { x: (longest.a.x + longest.b.x) / 2, y: (longest.a.y + longest.b.y) / 2 };
+  for (let ring = 2; ring <= AWAY_RINGS; ring++) {
+    const reach = ring * r.size * px * 1.6;
+    for (let k = 0; k < AWAY_WAYS; k++) {
+      const a = (k / AWAY_WAYS) * Math.PI * 2;
+      const spot: LabelSpot = { x: mid.x + Math.cos(a) * reach * 1.4, y: mid.y + Math.sin(a) * reach, anchor: "middle" };
+      const box = textBox(spot, w, r.size, px);
+      if (box.x0 < within.x0 || box.y0 < within.y0 || box.x1 > within.x1 || box.y1 > within.y1) continue;
+      if (crowding(box) > 0) continue;
+      const end = { x: Math.max(box.x0, Math.min(box.x1, mid.x)), y: mid.y < box.y0 ? box.y0 : mid.y > box.y1 ? box.y1 : box.y0 };
+      return { ...spot, box, leader: [end, mid] };
+    }
+  }
+  return null;
+}
 
 export function layoutPlanLabels(input: PlanLabelsIn): PlanLabels {
   const { px } = input;
   const segments: Segment[] = input.runs.flatMap((r) =>
-    r.points.slice(1).map((p, i) => [r.points[i], p] as Segment)
+    r.points.slice(1).map((p, i) => [r.points[i], p, r.half ?? 0] as Segment)
   );
   const placed: Box[] = [];
   /* how crowded a spot is: pipes and solids under it count heavily, other
      words by the area they share */
   const crowding = (box: Box): number => {
     let n = 0;
-    for (const [a, b] of segments) if (segmentHits(a, b, box, PIPE_HALF * px)) n += 1e6;
+    for (const [a, b, half] of segments) if (segmentHits(a, b, box, Math.max(half, PIPE_HALF * px))) n += 1e6;
     for (const s of input.solids) n += overlapArea(box, s) > 0 ? 1e6 : 0;
     for (const p of placed) n += overlapArea(box, p);
     return n;
@@ -359,22 +399,29 @@ export function layoutPlanLabels(input: PlanLabelsIn): PlanLabels {
     const candidates: { spot: LabelSpot; box: Box }[] = [];
     for (const leg of legs) {
       const level = Math.abs(leg.b.x - leg.a.x) >= Math.abs(leg.b.y - leg.a.y);
+      const gap = PIPE_GAP * px + (r.half ?? 0);
       for (const t of [0.5, 0.35, 0.65, 0.2, 0.8, 0.08, 0.92]) {
         const p = { x: leg.a.x + (leg.b.x - leg.a.x) * t, y: leg.a.y + (leg.b.y - leg.a.y) * t };
         const sides: LabelSpot[] = level
           ? [
-              { x: p.x, y: p.y - PIPE_GAP * px - DESCENT * r.size * px, anchor: "middle" },
-              { x: p.x, y: p.y + PIPE_GAP * px + ASCENT * r.size * px, anchor: "middle" },
+              { x: p.x, y: p.y - gap - DESCENT * r.size * px, anchor: "middle" },
+              { x: p.x, y: p.y + gap + ASCENT * r.size * px, anchor: "middle" },
             ]
           : [
-              { x: p.x + PIPE_GAP * px, y: p.y + 0.35 * r.size * px, anchor: "start" },
-              { x: p.x - PIPE_GAP * px, y: p.y + 0.35 * r.size * px, anchor: "end" },
+              { x: p.x + gap, y: p.y + 0.35 * r.size * px, anchor: "start" },
+              { x: p.x - gap, y: p.y + 0.35 * r.size * px, anchor: "end" },
             ];
         for (const spot of sides) candidates.push({ spot, box: textBox(spot, w, r.size, px) });
       }
     }
     const got = pick(candidates);
     if (!got) continue;
+    const off = crowding(got.box) > 0 && input.leadersWithin ? awayFromRun(r, w, crowding, px, input.leadersWithin) : null;
+    if (off) {
+      runs.set(r.id, off);
+      placed.push(off.box);
+      continue;
+    }
     runs.set(r.id, { ...got.spot, box: got.box });
     placed.push(got.box);
   }

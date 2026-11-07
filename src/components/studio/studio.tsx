@@ -9,6 +9,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { Tooltip } from "@/components/parts/tooltip";
 import type { OrgBrand } from "@/lib/org/brand";
@@ -27,7 +28,8 @@ import { DEFAULT_FLOOR_HEIGHT_M, setFloorHeight } from "@/lib/studio/graph";
 import { NOTE_INKS } from "@/lib/studio/notes";
 import { CLIMATE_ZONES, sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
 import { effectiveClimateZone, effectiveBuildingType } from "@/lib/studio/summary";
-import { pruneObjects, removedRoomIds } from "@/lib/studio/attach";
+import { pruneObjects, reconcileAttachedRuns, removedRoomIds } from "@/lib/studio/attach";
+import { seatDuctsOnUnits } from "@/lib/studio/unit-plenum";
 import {
   browserDesignStore,
   designFileName,
@@ -66,11 +68,26 @@ import { setPipeUnits, usePipeUnits } from "./pipe-units";
 import { SchematicView } from "./vrf-schematic";
 import { useArmedInk, setArmedInk } from "./note-ink";
 import { pairPipeSizes } from "@/lib/studio/components";
-import { ComponentPalette, GrilleHud, PlenumHud } from "./air-tools";
-import { GRILLE_SIZES, grilleSize, grilleStream, isGrille, type Grille } from "@/lib/studio/grilles";
+import { ductsFollowGrille } from "@/lib/studio/duct-draw";
+import { AirScreen, ComponentPalette, DEFAULT_AIR, GrilleHud, PlenumHud, UnitWhereBar, type AirState } from "./air-tools";
+import { planeOfWhere, underFloorFit, unitWhere } from "@/lib/studio/unit-where";
+import { GRILLE_SIZES, clampSupply, grilleMount, grilleSize, grilleSplit, grilleStream, grilleStyle, halfOf, isGrille, respotSplitRuns, supplyAtWidth, type Grille } from "@/lib/studio/grilles";
 import { claimZone, newSystem, toggleZone, zoneIdsOf } from "@/lib/studio/zones";
 import { doneBlockers, systemFindings } from "@/lib/studio/verdict";
 import { SystemsPanel } from "./systems-panel";
+import { SystemScreen, SystemsList } from "./systems-stack";
+import { AirPanel, type AirShow } from "./air-panel";
+import { airRows, airTags } from "@/lib/studio/air-view";
+import { SetupPanel } from "./setup-panel";
+import { pastPrint, sheetUnitOf } from "@/lib/studio/figure-bounds";
+import { RoomPanel, RoomsPanel } from "./rooms-panel";
+import { foundOn, joinRooms, keepFound } from "@/lib/studio/room-edit";
+import type { Suggestion } from "@/lib/studio/rooms-from-reading";
+import { RISER_PAINT } from "@/lib/studio/duct-size";
+import { StudioFlowContext, useStudioFlow, type StudioFlow } from "./flow";
+import { ClearDesignDialog } from "./clear-design-dialog";
+import { clearKeeping, keptLabelOf } from "@/lib/studio/clear-design";
+import { setupNeeds, shareAcrossSet } from "@/lib/studio/plan-set";
 import { InstallQuestions } from "./install-questions";
 import { isAirCapable, moduleFor } from "@/lib/studio/modules";
 import { SystemBuilder, ZoneStanding } from "./system-builder";
@@ -194,6 +211,7 @@ export type PackLoader = () => Promise<{
 
 
 export function Studio({
+  flow = "current",
   store,
   planImages,
   packLoader,
@@ -238,6 +256,8 @@ export function Studio({
       what arrived since this browser last looked. Absent (the tests, the
       harness), Home has no library door at all. */
   library?: LibraryManifest;
+  /** the shipping flow, or the reworked one under test (flow.tsx) */
+  flow?: StudioFlow;
 }) {
   // the store is browser-only; create it lazily so SSR prerender never touches
   // it. Server rows are the source of truth; localStorage is the crash buffer.
@@ -690,10 +710,14 @@ export function Studio({
     }
   }, [askingJob]);
 
-  /* undo/redo restores an exact prior document — no updatedAt bump */
+  /* undo/redo restores an exact prior document — no updatedAt bump. Except
+     Tiff's read: it lands outside the undo history, so a snapshot taken
+     before it arrived has none, and restoring that snapshot used to throw
+     a paid read away (Isaac, 29 October 2026: "I don't want to have to redo
+     all of TIFF's things"). The read on the design now always stays. */
   const replaceDoc = useCallback((d: DesignDocument) => {
     setSaveState("saving");
-    setDoc(d);
+    setDoc((cur) => (cur && cur.id === d.id && cur.reading && !d.reading ? { ...d, reading: cur.reading } : d));
   }, []);
 
   /* ── design variations: sibling documents sharing a variants[] roster ── */
@@ -820,6 +844,53 @@ export function Studio({
     setStep(fresh.meta.mode === "blank" || fresh.floors.length > 0 ? 1 : 0);
   }, [settleSaves]);
 
+  /* the next flow's Clear design: the same clearing, with the version kept as
+     an option if asked, and Undo for as long as the toast is up */
+  const clearDesign = useCallback(
+    async (keep: boolean) => {
+      const cur = latestDoc.current;
+      if (!cur) return null;
+      const now = new Date().toISOString();
+      const place = (d: DesignDocument) => {
+        restarts.current.set(d.id, { at: d.meta.updatedAt, settled: settleSaves() });
+        setReadingNow(null);
+        setRestartCount((n) => n + 1);
+        setSaveState("saving");
+        setDoc(d);
+      };
+      const plan = keep ? clearKeeping(cur, newId("dsn"), now) : null;
+      const rosterOn = async (ids: DesignVariantRef[], variants: DesignVariantRef[]) => {
+        await Promise.all(
+          ids.map(async (v) => {
+            const sib = await getStore().load(v.id);
+            if (sib) await getStore().save({ ...sib, variants });
+          })
+        );
+      };
+      const others = cur.variants.filter((v) => v.id !== cur.id);
+      if (plan) {
+        await getStore().save(plan.kept);
+        await rosterOn(others, plan.roster);
+      }
+      place(plan ? plan.cleared : startedAgain(cur, now));
+      refreshRecents();
+      return {
+        kept: plan ? keptLabelOf(cur) : null,
+        undo: () => {
+          place({ ...cur, meta: { ...cur.meta, updatedAt: new Date().toISOString() } });
+          if (plan) {
+            void getStore()
+              .remove(plan.kept.id)
+              .catch(() => {});
+            void rosterOn(others, cur.variants);
+          }
+          refreshRecents();
+        },
+      };
+    },
+    [settleSaves, getStore, refreshRecents]
+  );
+
   /* A design deleted goes for good: none of its saves still on the way may
      put it back, in the store or the crash buffer. Home's Delete and the
      menu's both come here. */
@@ -849,6 +920,7 @@ export function Studio({
   );
 
   return (
+    <StudioFlowContext.Provider value={flow}>
     <div className="page in">
       <div
         className={`dstudio${doc ? " editing" : ""}${
@@ -927,8 +999,11 @@ export function Studio({
       </div>
       {doc && (
         <>
+          {flow === "next" && asking === "again" && (
+            <ClearDesignDialog doc={doc} onClose={() => setAsking(null)} onClear={clearDesign} />
+          )}
           <ConfirmDialog
-            open={asking === "again"}
+            open={flow !== "next" && asking === "again"}
             heading="Start this design again?"
             cancel="Keep the design"
             confirm="Start again"
@@ -956,6 +1031,7 @@ export function Studio({
         </>
       )}
     </div>
+    </StudioFlowContext.Provider>
   );
 }
 
@@ -1067,8 +1143,12 @@ function Editor({
 }) {
   /* inches or mm, the one choice the plan, the joints and the schematic read */
   const pipeUnits = usePipeUnits();
+  /* the shipping flow, or the reworked one under test (flow.tsx) */
+  const flow = useStudioFlow();
   /* ── undo/redo: record the outgoing document before every mutation ── */
   const historyRef = useRef(new History<DesignDocument>(50));
+  /* what a duct on a unit lands on is the pack's say (unit-plenum.ts) */
+  const packRef = useRef<DataPack | null>(null);
   const docRef = useRef(doc);
   useEffect(() => {
     docRef.current = doc;
@@ -1086,10 +1166,12 @@ function Editor({
   const mutate = useCallback(
     (fn: (d: DesignDocument) => DesignDocument) => {
       historyRef.current.record(docRef.current);
-      onMutate(fn);
+      /* the next flow: a scale or a north set on one floor reaches the rest
+         of its set, so no floor of one drawing set asks twice */
+      onMutate(flow === "next" ? (d) => seatDuctsOnUnits(shareAcrossSet(d, fn(d)), (model) => packRef.current?.indoor_units.find((u) => u.model === model)) : fn);
       syncHist();
     },
-    [onMutate, syncHist]
+    [onMutate, syncHist, flow]
   );
 
   const undo = useCallback(() => {
@@ -1128,7 +1210,6 @@ function Editor({
      design"), and what the 3D view shows */
   const [view3d, setView3d] = useState(false);
   const [look3d, setLook3d] = useState<Look3D>({ floor: ALL_FLOORS, apart: false, labels: true, layer: "roof" });
-  const scene3d = useMemo(() => (view3d ? sceneOf(doc) : null), [view3d, doc]);
   /* asking Tiff while designing (Isaac, 20 October 2026: "can I fit a
      ducted unit in the roof void?"): she is told which design is open, so
      she reads that one (the registry's studio_design) */
@@ -1217,23 +1298,62 @@ function Editor({
      so dismiss/skip doesn't re-nag. A confirmed scale then chains into the
      "Set north" step modal. */
   const [calibPrompt, setCalibPrompt] = useState(false);
+  /* the next flow: Scale and north in the right column, opened by the pill
+     and on its own while any floor of the set still needs either */
+  const [setupOpen, setSetupOpen] = useState(false);
+  /* the next flow: which screen of the right column is up */
+  const [systemOpen, setSystemOpen] = useState(false);
+  const [airOpen, setAirOpen] = useState(false);
+  const [airShow, setAirShow] = useState<AirShow>("air");
+  /* the Air screen's Add a grille: a count the canvas's bar arms on */
+  const [airArm, setAirArm] = useState(0);
   const [northPrompt, setNorthPrompt] = useState(false);
   /* the Rooms page: the floor whose rooms Tiff read, open over the canvas */
   const [roomsFor, setRoomsFor] = useState<string | null>(null);
+  /* the next flow: the Rooms column is open, and the rooms picked with
+     Shift to join */
+  const [roomsOpen, setRoomsOpen] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
+  /* every room Tiff found on the plan, or the living spaces only */
+  const [showAllFound, setShowAllFound] = useState(false);
   const promptedFloors = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (step !== 1 || !activeFloorId) return;
+    if (step !== 1 || !activeFloorId || flow === "next") return;
     const f = doc.floors.find((x) => x.id === activeFloorId);
     if (f && f.scaleMmPerUnit == null && !promptedFloors.current.has(activeFloorId)) {
       promptedFloors.current.add(activeFloorId);
       setCalibPrompt(true);
     }
-  }, [step, activeFloorId, doc.floors]);
+  }, [step, activeFloorId, doc.floors, flow]);
 
   const activeFloor = doc.floors.find((f) => f.id === activeFloorId) ?? null;
+  /* the next flow: Tiff's rooms on this floor not on the plan yet; the room
+     picked on the plan; the Rooms column, open by hand, while rooms are
+     picked to join, or on a floor with none yet and some found */
+  const found = useMemo(
+    () => (flow === "next" && activeFloorId ? foundOn(doc, activeFloorId) : undefined),
+    [flow, doc, activeFloorId],
+  );
+  const pickedRoom =
+    flow === "next" ? (doc.objects.find((o) => o.id === selectedId && o.type === "room") ?? null) : null;
+  const showRooms =
+    roomsOpen ||
+    picked.length > 0 ||
+    (!!found?.length && !doc.objects.some((o) => o.type === "room" && o.floorId === activeFloorId));
 
   /* ── systems (Stage 4): product pack, active system, armed placement ── */
   const [pack, setPack] = useState<DataPack | null>(null);
+  useEffect(() => {
+    packRef.current = pack;
+  }, [pack]);
+  /* the next flow: each unit sits where its own kind sits, off the pack */
+  const scene3d = useMemo(
+    () =>
+      view3d
+        ? sceneOf(doc, flow === "next" && pack ? (model) => pack.indoor_units.find((u) => u.model === model) ?? null : undefined)
+        : null,
+    [view3d, doc, flow, pack]
+  );
   const [packVersion, setPackVersion] = useState<string>("2026.1");
   const [activeSystemId, setActiveSystemId] = useState<string | null>(null);
   const [placing, setPlacing] = useState<PlacingUnit | null>(null);
@@ -1372,6 +1492,16 @@ function Editor({
   const [airComp, setAirComp] = useState<ArmedComponent | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const lastComp = useRef<AirComponentKind | null>(null);
+  /* the next flow: while the air side is armed, or a grille is picked on the
+     plan, the column is the Air screen. The canvas owns what goes down, so it
+     draws the screen into this slot. */
+  const [airSlot, setAirSlot] = useState<HTMLDivElement | null>(null);
+  const airSide =
+    flow === "next" &&
+    (tool === "duct" ||
+      tool === "airflow" ||
+      (tool === "component" && airComp != null) ||
+      (tool === "select" && doc.objects.some((o) => o.id === selectedId && isGrille(o))));
 
   /* spec-§2 gate: the air tools need ≥1 served room AND an air-capable
      chosen/placed AHU — capability keys off UNIT data, not system type
@@ -1711,10 +1841,16 @@ function Editor({
     builderOpen,
   ]);
 
+  /* the Air screen's figures, over the plan */
+  const airSystem = flow === "next" && airOpen ? doc.systems.find((x) => x.id === effectiveSystemId) : undefined;
+  const airOverlay = airSystem && pack && activeFloor ? airTags(airRows(doc, pack, airSystem), activeFloor.id, airShow) : null;
+
   return (
-    <div className={`ds-editor${step === 1 && activeFloor ? " two-col" : ""}`}>
-      {/* Tiff, bottom right, where her docked chat opens */}
-      <AskTiffPill />
+    <div className={`ds-editor${step === 1 && activeFloor ? " two-col" : ""}${flow === "next" ? " clean" : ""}`}>
+      {/* Tiff, bottom right, where her docked chat opens; in the next flow, on
+          a plan, the same pill in the plan's own corner beside zoom (Isaac,
+          2 November 2026: she looked out of place in the tool bar) */}
+      {(flow !== "next" || step !== 1 || !activeFloor) && <AskTiffPill />}
       {/* three tracks so the tab switcher sits dead-centre: the flanks share
           the leftover width equally, whatever each of them holds */}
       <header className="ds-topbar">
@@ -1764,14 +1900,18 @@ function Editor({
                 <span className="dot" />
                 Saved locally — retry
               </button>
-            ) : (
+            ) : flow === "next" ? null : (
               <span className={`ds-save ${saveState}`}>
                 <span className="dot" />
                 {saveState === "saving" ? "Saving the design" : "Saved"}
               </span>
             )}
             {step === 1 && activeFloor?.scaleMmPerUnit != null && doc.reading?.floors[activeFloor.id]?.length ? (
-              <button type="button" className="ds-save ds-reading read ds-reading-open" onClick={() => setRoomsFor(activeFloor.id)}>
+              <button
+                type="button"
+                className="ds-save ds-reading read ds-reading-open"
+                onClick={() => (flow === "next" ? setRoomsOpen(true) : setRoomsFor(activeFloor.id))}
+              >
                 <span className="dot" />
                 Rooms Tiff found
               </button>
@@ -1806,6 +1946,7 @@ function Editor({
             />
           ) : (
           <CanvasControls
+            onSetup={flow === "next" ? () => setSetupOpen(true) : undefined}
             floors={doc.floors}
             floor={activeFloor}
             onFloor={setPickedFloorId}
@@ -1814,8 +1955,10 @@ function Editor({
             onFloorHeight={(id, m) => mutate((d) => setFloorHeight(d, id, m))}
             tool={tool}
             onTool={changeTool}
-            next={next}
+            next={flow === "next" ? null : next}
             onNext={onNext}
+            onFullscreen={flow === "next" ? () => (fullscreen ? setFullscreen(false) : toFullscreen()) : undefined}
+            fullscreen={fullscreen}
             layers={layers}
             onLayers={setLayers}
             grayscale={grayscale}
@@ -1836,6 +1979,7 @@ function Editor({
         <div className="ds-tb-right">
           {/* fullscreen rides beside the switcher: one toggle, the browser's
               own Esc is the other way out */}
+          {flow !== "next" && (
           <button
             className={`ds-fsbtn${fullscreen ? " on" : ""}`}
             onClick={() => (fullscreen ? setFullscreen(false) : toFullscreen())}
@@ -1844,6 +1988,7 @@ function Editor({
           >
             <Icon name={fullscreen ? "x" : "maximize"} size={16} />
           </button>
+          )}
           {/* data-active drives the sliding thumb; -1 on the Plans screen,
               where neither tab is current and the thumb fades out */}
           <nav
@@ -1923,9 +2068,30 @@ function Editor({
             onPlaced={onPlaced}
             onClaimToggle={onClaimToggle}
             onRoomCreated={(id) => {
-              setEditingRoomId(id);
+              if (flow === "next") setSelectedId(id);
+              else setEditingRoomId(id);
             }}
-            onOpenRoom={(id) => setEditingRoomId(id)}
+            onOpenRoom={(id) => (flow === "next" ? setSelectedId(id) : setEditingRoomId(id))}
+            found={flow === "next" && showRooms ? (showAllFound ? found : found?.filter((s) => s.keep)) : undefined}
+            onFound={(key, more) => {
+              const id = newId("obj");
+              const floorId = activeFloorId;
+              mutate((d) => keepFound(d, floorId, [key], { [key]: id }));
+              setRoomsOpen(true);
+              if (more) setPicked((p) => [...p, id]);
+            }}
+            picked={picked}
+            onPickMore={(id) => {
+              setRoomsOpen(true);
+              setPicked((p) => {
+                /* Shift on a room already picked takes it back out; the
+                   room picked by a plain click is the first */
+                if (p.includes(id)) return p.filter((x) => x !== id);
+                const first = p.length === 0 && selectedId && selectedId !== id ? [selectedId] : [];
+                return [...p, ...first, id];
+              });
+              setSelectedId(null);
+            }}
             remarkRoomId={remarkRoomId}
             reshapeRoomId={reshapeRoomId}
             onReshapeConsumed={() => setReshapeRoomId(null)}
@@ -1937,7 +2103,22 @@ function Editor({
             grayscale={grayscale}
             legendOpen={legendOpen}
             onLegend={setLegendOpen}
+            airOverlay={airOverlay}
+            airArm={airArm}
+            airSlot={airSide ? airSlot : null}
+            airBack={
+              airOpen && effectiveSystemId && !pickedRoom
+                ? "Air"
+                : pickedRoom
+                  ? String(pickedRoom.props.name ?? "Room")
+                  : showRooms
+                    ? "Rooms"
+                    : systemOpen
+                      ? (doc.systems.find((x) => x.id === effectiveSystemId)?.name ?? "Systems")
+                      : "Systems"
+            }
             onCalibrated={() => {
+              if (flow === "next") return;
               const d = docRef.current;
               const f = d.floors.find((x) => x.id === activeFloorId);
               /* her rooms first, once the floor has a scale to measure them by,
@@ -1985,6 +2166,119 @@ function Editor({
           aria-hidden={step !== 1 ? true : undefined}
           inert={step !== 1 ? true : undefined}
         >
+          {airSide ? (
+            <div className="ds-stack-slot" ref={setAirSlot} />
+          ) : flow === "next" && airOpen && pack && effectiveSystemId && !pickedRoom ? (
+            <AirPanel
+              doc={doc}
+              pack={pack}
+              systemId={effectiveSystemId}
+              show={airShow}
+              onShow={setAirShow}
+              onBack={() => setAirOpen(false)}
+              onOpenRoom={setSelectedId}
+              onAddGrille={() => setAirArm((n) => n + 1)}
+            />
+          ) : flow === "next" &&
+          (setupOpen ||
+            setupNeeds(doc).scale.includes(activeFloor.id) ||
+            setupNeeds(doc).north.includes(activeFloor.id)) ? (
+            <SetupPanel
+              doc={doc}
+              floorId={activeFloor.id}
+              onMutate={mutate}
+              onMeasure={() => changeTool("calibrate")}
+              onTurnNorth={() => changeTool("set-north")}
+              onDone={() => setSetupOpen(false)}
+            />
+          ) : flow === "next" && pickedRoom ? (
+            <RoomScreen
+              doc={doc}
+              pack={pack}
+              room={pickedRoom}
+              fromAir={airOpen}
+              mutate={mutate}
+              onSelect={setSelectedId}
+              onSystem={setActiveSystemId}
+              onSystemOpen={setSystemOpen}
+              onRemark={setRemarkRoomId}
+              onBuilder={setBuilderOpen}
+              onMoveZone={onMoveZone}
+              onRemoveZone={onRemoveZone}
+              onClaimZone={onClaimZone}
+            />
+          ) : flow === "next" && showRooms ? (
+            <RoomsPanel
+              back="Systems"
+              doc={doc}
+              floorId={activeFloor.id}
+              found={found ?? []}
+              showAll={showAllFound}
+              onShowAll={setShowAllFound}
+              picked={picked}
+              onKeep={(keys) => {
+                const floorId = activeFloor.id;
+                /* the column stays open once its first room is kept */
+                setRoomsOpen(true);
+                mutate((d) => keepFound(d, floorId, keys));
+              }}
+              onOpen={(id) => {
+                setPicked([]);
+                setSelectedId(id);
+              }}
+              onJoin={() => {
+                const ids = picked;
+                setPicked([]);
+                mutate((d) => joinRooms(d, pack, ids));
+                setSelectedId(ids[0]);
+              }}
+              onApart={() => setPicked([])}
+              onDraw={() => changeTool("room-rect")}
+              onDone={() => {
+                setPicked([]);
+                setRoomsOpen(false);
+              }}
+            />
+          ) : flow === "next" && systemOpen && effectiveSystemId ? (
+            <SystemScreen
+              doc={doc}
+              pack={pack}
+              basis={doc.settings.sizingBasis}
+              systemId={effectiveSystemId}
+              next={next}
+              onNext={onNext}
+              claiming={claiming === effectiveSystemId}
+              onBack={() => setSystemOpen(false)}
+              onOpenRoom={setSelectedId}
+              onAddZones={() => startClaim(effectiveSystemId)}
+              onClaimDone={() => changeTool("select")}
+              onBuild={() => onBuildSystem(effectiveSystemId)}
+              onInstall={() => onInstallSystem(effectiveSystemId)}
+              onAir={() => setAirOpen(true)}
+              onArmPlace={armPlace}
+            />
+          ) : flow === "next" ? (
+            <SystemsList
+              doc={doc}
+              pack={pack}
+              basis={doc.settings.sizingBasis}
+              next={next}
+              onNext={onNext}
+              onOpen={(id) => {
+                setActiveSystemId(id);
+                setSystemOpen(true);
+              }}
+              onAddSystem={() => {
+                onAddSystem();
+                setSystemOpen(true);
+              }}
+              onOpenRooms={() => setRoomsOpen(true)}
+              onOpenRoom={setSelectedId}
+              onAddVariant={onAddVariant}
+              onSwitchVariant={onSwitchVariant}
+              onRenameVariant={onRenameVariant}
+            />
+          ) : (
           <SystemsPanel
             doc={doc}
             pack={pack}
@@ -2006,6 +2300,7 @@ function Editor({
             onSwitchVariant={onSwitchVariant}
             onRenameVariant={onRenameVariant}
           />
+          )}
         </aside>
       )}
 
@@ -2038,9 +2333,14 @@ function Editor({
       )}
 
       {/* THE system builder — one instance, opened by a system's card, the
-          Next chip, U and a zone's popup alike */}
+          Next chip, U and a zone's popup alike. THE POP-UP STAYS (Isaac,
+          4 November 2026: "I think the pop up needs to stay, just
+          streamline it"): the next flow opens it too, in its new layout
+          ("Build", 7 November 2026), where it had opened a side column that
+          lost the schematic, Compare and the spec sheet */}
       {builderOpen && pack && (
         <SystemBuilder
+          next={flow === "next"}
           doc={doc}
           pack={pack}
           focus={builderOpen.focus}
@@ -2221,6 +2521,7 @@ function StudioMenu({
   settings: DesignSettings;
   onSettings: (patch: Partial<DesignSettings>) => void;
 }) {
+  const flow = useStudioFlow();
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
@@ -2270,7 +2571,7 @@ function StudioMenu({
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <Icon name="menu" size={17} />
+        {flow === "next" ? "Menu" : <Icon name="menu" size={17} />}
       </button>
       {open && (
         <div className="ds-menu-pop" role="menu">
@@ -2281,7 +2582,7 @@ function StudioMenu({
           {item("edit", "Edit plans", onEditPlans)}
           {item("library", "Reference sheets", onReference)}
           <div className="ds-menu-sep" />
-          {item("rotate", "Start again", onStartAgain)}
+          {item("rotate", flow === "next" ? "Clear design" : "Start again", onStartAgain)}
           {item("x", "Delete design", onDelete, true)}
           <div className="ds-menu-sep" />
           <div
@@ -2528,12 +2829,15 @@ function DrawTool({
   draw,
   onDraw,
   disabled,
+  air = true,
 }: {
   tool: CanvasTool;
   onTool: (t: CanvasTool) => void;
   draw: DrawOptions;
   onDraw: (d: DrawOptions) => void;
   disabled: boolean;
+  /** duct and airflow are drawn from here; the next flow has them on Air */
+  air?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -2552,7 +2856,8 @@ function DrawTool({
       window.removeEventListener("keydown", onKey);
     };
   }, [open]);
-  const on = isRunTool(tool) || tool === "riser" || tool === "joint" || tool === "branch-box" || tool === "airflow";
+  const on =
+    (isRunTool(tool) && (air || tool !== "duct")) || tool === "riser" || tool === "joint" || tool === "branch-box" || (air && tool === "airflow");
   const arm = (t: CanvasTool, patch?: Partial<DrawOptions>) => {
     if (patch) onDraw({ ...draw, ...patch });
     onTool(t);
@@ -2627,6 +2932,7 @@ function DrawTool({
               return and its diameter picked here (Isaac, 28 October 2026:
               "Drop the unit, then add pipe duct drain cables, whatever you
               want to put on") */}
+          {air && (
           <div className="ds-drawrow">
             <span className="ds-drawk">
               <Icon name="wind" size={14} />
@@ -2640,8 +2946,10 @@ function DrawTool({
               )}
             </div>
           </div>
+          )}
           {/* airflow marks: short wavy arrows, blue supply and red return,
               pressed down and pulled the way the air goes */}
+          {air && (
           <div className="ds-drawrow">
             <span className="ds-drawk">
               <Icon name="wind" size={14} />
@@ -2652,6 +2960,7 @@ function DrawTool({
               {chip("Return", draw.airStream === "return", "airflow", { airStream: "return" })}
             </div>
           </div>
+          )}
           {/* the riser rides along: not linework (a point that joins floors),
               but it belongs to the same "put pipework on the plan" verb */}
           <div className="ds-drawrow">
@@ -2854,7 +3163,15 @@ function CanvasControls({
   simFlag,
   simOn,
   onToggleSim,
+  onSetup,
+  onFullscreen,
+  fullscreen,
 }: {
+  /** the next flow: Scale and north opens in the right column, from View */
+  onSetup?: () => void;
+  /** the next flow: fullscreen, from View */
+  onFullscreen?: () => void;
+  fullscreen?: boolean;
   floors: DesignDocument["floors"];
   floor: DesignDocument["floors"][number];
   onFloor: (id: string) => void;
@@ -2994,6 +3311,7 @@ function CanvasControls({
       </div>
       {/* Calibrate — one pill folding scale + north: orange until both are
           set, green when complete; the popover edits either */}
+      {!onSetup && (
       <div className="ds-layers-wrap">
         <button
           className={`ds-calib-pill${
@@ -3119,6 +3437,7 @@ function CanvasControls({
           </div>
         )}
       </div>
+      )}
       {/* View — one pill folding Layers, B&W and Legend into a popover */}
       <div className="ds-layers-wrap">
         <button
@@ -3134,6 +3453,46 @@ function CanvasControls({
         </button>
         {layersOpen && (
           <div className="ds-layers-menu ds-view-menu" role="menu" ref={viewMenuRef}>
+            {onSetup && (
+              <>
+                <button
+                  className="ds-calib-item"
+                  onClick={() => {
+                    setLayersOpen(false);
+                    onSetup();
+                  }}
+                >
+                  <Icon name="ruler" size={13} />
+                  <span className="k">Scale and north</span>
+                  <span className={`v${floor.scaleMmPerUnit == null ? " unset" : ""}`}>{floor.scaleMmPerUnit != null ? "Set" : "Not set"}</span>
+                </button>
+                {simFlag && (
+                  <button
+                    className="ds-calib-item"
+                    onClick={() => {
+                      setLayersOpen(false);
+                      onToggleSim();
+                    }}
+                  >
+                    <Icon name="zap" size={13} />
+                    <span className="k">{simOn ? "Exit simulate" : "Simulate"}</span>
+                  </button>
+                )}
+                {onFullscreen && (
+                  <button
+                    className="ds-calib-item"
+                    onClick={() => {
+                      setLayersOpen(false);
+                      onFullscreen();
+                    }}
+                  >
+                    <Icon name="maximize" size={13} />
+                    <span className="k">{fullscreen ? "Exit fullscreen" : "Fullscreen"}</span>
+                  </button>
+                )}
+                <div className="ds-view-sep" />
+              </>
+            )}
             <div className="ds-view-grp">Layers</div>
             {(Object.keys(LAYER_LABELS) as (keyof LayerFlags)[]).map((k) => (
               <label key={k} className="ds-layer-row">
@@ -3235,7 +3594,7 @@ function CanvasControls({
           </div>
         )}
       </div>
-      {simFlag && (
+      {simFlag && !onSetup && (
         <button
           className={`ds-ctl-btn ds-sim-go${simOn ? " on" : ""}`}
           onClick={onToggleSim}
@@ -3253,6 +3612,67 @@ function CanvasControls({
         </button>
       )}
     </div>
+  );
+}
+
+/** the room's screen of the column: where it came from, and the moves off it */
+function RoomScreen({
+  doc,
+  pack,
+  room,
+  fromAir,
+  mutate,
+  onSelect,
+  onSystem,
+  onSystemOpen,
+  onRemark,
+  onBuilder,
+  onMoveZone,
+  onRemoveZone,
+  onClaimZone,
+}: {
+  doc: DesignDocument;
+  pack: DataPack | null;
+  room: DesignObject;
+  fromAir: boolean;
+  mutate: (fn: (d: DesignDocument) => DesignDocument) => void;
+  onSelect: (id: string | null) => void;
+  onSystem: (id: string | null) => void;
+  onSystemOpen: (open: boolean) => void;
+  onRemark: (id: string | null) => void;
+  onBuilder: (b: { focus: null; systemId: string; zoneId: string }) => void;
+  onMoveZone: (zoneId: string, from: string, to: string) => void;
+  onRemoveZone: (zoneId: string, from: string) => void;
+  onClaimZone: (zoneId: string, to: string) => void;
+}) {
+  const owner = doc.systems.find((x) => zoneIdsOf(x).includes(room.id));
+  return (
+    <RoomPanel
+      back={fromAir ? "Air" : (owner?.name ?? "Systems")}
+      onBack={() => {
+        onSelect(null);
+        if (owner && !fromAir) {
+          onSystem(owner.id);
+          onSystemOpen(true);
+        }
+      }}
+      onMove={(from, to) => onMoveZone(room.id, from, to)}
+      onTakeOff={(from) => onRemoveZone(room.id, from)}
+      onAddTo={(to) => onClaimZone(room.id, to)}
+      doc={doc}
+      roomId={room.id}
+      onMutate={mutate}
+      onMarkWalls={() => onRemark(room.id)}
+      onEditSystem={(systemId) => {
+        onSystem(systemId);
+        onBuilder({ focus: null, systemId, zoneId: room.id });
+      }}
+      onDelete={() => {
+        const id = room.id;
+        onSelect(null);
+        mutate((d) => deleteZone(d, pack, id));
+      }}
+    />
   );
 }
 
@@ -3298,7 +3718,23 @@ function DesignPanel({
   onLegend,
   onCalibrated,
   onClaimToggle,
+  found,
+  onFound,
+  picked,
+  onPickMore,
+  airOverlay,
+  airArm,
+  airSlot,
+  airBack,
 }: {
+  /** the next flow: the column's slot the Air screen is drawn into, and the
+      name of the screen it covers */
+  airSlot?: HTMLDivElement | null;
+  airBack?: string;
+  /** the next flow: the Air screen's figures, over the plan */
+  airOverlay?: { id: string; at: { x: number; y: number }; text: string; fast: boolean }[] | null;
+  /** counts the Air screen's Add a grille */
+  airArm?: number;
   doc: DesignDocument;
   /** the design in 3D, when the top bar's switch says 3D; the canvas otherwise */
   scene3d: Scene3D | null;
@@ -3348,14 +3784,78 @@ function DesignPanel({
   onCalibrated: () => void;
   /** claim mode (the zones flow): a zone clicked while the claim tool is up */
   onClaimToggle?: (roomId: string) => void;
+  /** the next flow: Tiff's rooms not on the plan, and the rooms picked to join */
+  found?: Suggestion[];
+  onFound?: (key: string, more: boolean) => void;
+  picked?: readonly string[];
+  onPickMore?: (roomId: string) => void;
 }) {
+  const flow = useStudioFlow();
   const floor = doc.floors.find((f) => f.id === activeFloorId) ?? null;
   const [zoomApi, setZoomApi] = useState<ZoomApi | null>(null);
   const [zoomPct, setZoomPct] = useState(100);
+  /* the next flow: the sheet's unit, to say when words have stopped
+     following the plan in (figure-bounds.ts canvasUnit) */
+  const next = useStudioFlow() === "next";
+  const paperU = next && floor ? sheetUnitOf(doc, floor) : null;
+  /* the next flow's bench floats over the plan's foot: how much of it, so
+     the canvas frames above it, as Fit does on a 13-inch screen */
+  const [bench, setBench] = useState<HTMLDivElement | null>(null);
+  const [canvasBody, setCanvasBody] = useState<HTMLDivElement | null>(null);
+  const [benchFoot, setBenchFoot] = useState(0);
+  useEffect(() => {
+    if (!next || !bench || !canvasBody || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      const t = bench.getBoundingClientRect();
+      const b = canvasBody.getBoundingClientRect();
+      setBenchFoot(t.top > b.top && t.top < b.bottom ? Math.round(b.bottom - t.top) : 0);
+    });
+    ro.observe(bench);
+    ro.observe(canvasBody);
+    return () => ro.disconnect();
+  }, [next, bench, canvasBody]);
   const wheelMode = useWheelMode();
   /* the Draw flyout's armed options (pipe form, drain size, cable kind) —
      view state: what the NEXT line is, never what a drawn one was */
   const [draw, setDraw] = useState<DrawOptions>(DEFAULT_DRAW);
+  /* the next flow's Air bar: what goes down next on the air side, kept
+     between arms so the bench button picks up where it left off */
+  const [air, setAir] = useState<AirState>(DEFAULT_AIR);
+  const armAirRef = useRef<(a: AirState) => void>(() => {});
+  const airRef = useRef(air);
+  const armAir = (a: AirState) => {
+    setAir(a);
+    if (a.kind === "duct" || a.kind === "flex") {
+      setDraw((d) => ({ ...d, ductStream: a.stream, ductMm: a.ductMm, ductForm: a.kind === "flex" ? "flex" : "rigid" }));
+      onTool("duct");
+    } else if (a.kind === "arrow") {
+      setDraw((d) => ({ ...d, airStream: a.stream }));
+      onTool("airflow");
+    } else if (a.kind === "sensor" || a.kind === "controller") {
+      onArmComponent(a.kind === "sensor" ? "zone-sensor" : "wall-controller");
+    } else {
+      onArmComponent("grille");
+      onAirPatch({
+        stream: a.stream,
+        size: a.size,
+        style: a.stream === "supply" ? a.style : null,
+        mount: a.mount,
+        supplyMm: a.both ? halfOf(a.size.wMm) : null,
+      });
+    }
+  };
+  useEffect(() => {
+    armAirRef.current = armAir;
+    airRef.current = air;
+  });
+  const airOn = next && (tool === "duct" || tool === "airflow" || (tool === "component" && airComp != null));
+  /* the Air screen asked for a grille: the bar comes up on Grille */
+  const armedFor = useRef(airArm ?? 0);
+  useEffect(() => {
+    if ((airArm ?? 0) === armedFor.current) return;
+    armedFor.current = airArm ?? 0;
+    armAirRef.current({ ...airRef.current, kind: "grille" });
+  }, [airArm]);
   /* The armed note ink — "what I am marking up in right now". Not on the
      design (every note keeps its own colour once drawn) but not component
      state either: it used to be, and it died on every reload AND was deaf to
@@ -3468,6 +3968,7 @@ function DesignPanel({
               </div>
             )}
           </div>
+          {next && <AskTiffPill />}
         </div>
       </div>
     );
@@ -3475,7 +3976,7 @@ function DesignPanel({
   return (
     <div className="ds-design">
       <div className="ds-canvas-col">
-        <div className="ds-toolbar" role="toolbar" aria-label="Canvas tools">
+        <div className="ds-toolbar" role="toolbar" aria-label="Canvas tools" ref={setBench}>
           {/* The bench reads in workflow order: the two POINTER verbs
               (Select, Erase) together, then Zone, then the system verbs —
               with history at the far end. Erase sits beside Select because
@@ -3485,50 +3986,81 @@ function DesignPanel({
               placed from its card in the systems panel. */}
           {toolButton(tb("select"))}
           {toolButton(tb("erase"))}
-          <span className="ds-tb-sep" aria-hidden="true" />
+          {!next && <span className="ds-tb-sep" aria-hidden="true" />}
           <RoomTool tool={tool} onTool={onTool} />
-          <span className="ds-tb-sep" aria-hidden="true" />
+          {!next && <span className="ds-tb-sep" aria-hidden="true" />}
           <DrawTool
             tool={tool}
             onTool={onTool}
             draw={draw}
             onDraw={setDraw}
             disabled={!activeSystemId}
+            air={!next}
           />
-          {/* Air group (Stage 7): gates on rooms + an air-capable AHU (spec
-              §2). Duct moved into the Draw flyout — it was a disabled button
-              holding a whole verb's width on the bench, and the bar had
-              started wrapping on a laptop. */}
-          <div className="ds-pal-wrap">
-            {airGate.ok ? (
-              componentBtn
-            ) : (
-              <Tooltip label={`${airGate.reason.charAt(0).toUpperCase()}${airGate.reason.slice(1)}`}>{componentBtn}</Tooltip>
-            )}
-            {paletteOpen && airGate.ok && (
-              <ComponentPalette onPick={onArmComponent} onClose={() => onPalette(false)} />
-            )}
-          </div>
+          {next ? (
+            /* the next flow: everything on the air side behind one button,
+               its choices in one bar over the plan */
+            (() => {
+              const b = (
+                <button
+                  className={`ds-tool${airOn ? " on" : ""}`}
+                  aria-label="Air"
+                  disabled={!activeSystemId}
+                  onClick={() => (airOn ? onTool("select") : armAir(air))}
+                >
+                  <Icon name="wind" size={15} />
+                  Air
+                </button>
+              );
+              return activeSystemId ? b : <Tooltip label="Pick a system first">{b}</Tooltip>;
+            })()
+          ) : (
+            /* Air group (Stage 7): gates on rooms + an air-capable AHU (spec
+               §2). Duct moved into the Draw flyout — it was a disabled button
+               holding a whole verb's width on the bench, and the bar had
+               started wrapping on a laptop. */
+            <div className="ds-pal-wrap">
+              {airGate.ok ? (
+                componentBtn
+              ) : (
+                <Tooltip label={`${airGate.reason.charAt(0).toUpperCase()}${airGate.reason.slice(1)}`}>{componentBtn}</Tooltip>
+              )}
+              {paletteOpen && airGate.ok && (
+                <ComponentPalette onPick={onArmComponent} onClose={() => onPalette(false)} />
+              )}
+            </div>
+          )}
           {/* crop + move-plans live in the Calibrate dropdown now (plan-prep) */}
-          <span className="ds-tb-sep" aria-hidden="true" />
+          {!next && <span className="ds-tb-sep" aria-hidden="true" />}
           {/* Note gets a group of its own, at the end, because it is the one
               verb that is not about the SYSTEM at all: it needs no system to
               arm and it never belongs to one. Last is also workflow order —
               you draw the design, then you write on it. */}
           <NoteTool tool={tool} onTool={onTool} ink={noteInk} onInk={setArmedInk} />
-          <div className="ds-tb-spring" />
-          <Tooltip label="Undo, ⌘Z">
-            <button className="ds-tool" onClick={undo} disabled={!hist.undo} aria-label="Undo">
-              <Icon name="rotate" size={15} />
-            </button>
-          </Tooltip>
-          <Tooltip label="Redo, ⇧⌘Z">
-            <button className="ds-tool flip" onClick={redo} disabled={!hist.redo} aria-label="Redo">
-              <Icon name="rotate" size={15} />
-            </button>
-          </Tooltip>
+          {!next && (
+            <>
+              <div className="ds-tb-spring" />
+              <Tooltip label="Undo, ⌘Z">
+                <button className="ds-tool" onClick={undo} disabled={!hist.undo} aria-label="Undo">
+                  <Icon name="rotate" size={15} />
+                </button>
+              </Tooltip>
+              <Tooltip label="Redo, ⇧⌘Z">
+                <button className="ds-tool flip" onClick={redo} disabled={!hist.redo} aria-label="Redo">
+                  <Icon name="rotate" size={15} />
+                </button>
+              </Tooltip>
+            </>
+          )}
         </div>
-        <div className="ds-canvas-body">
+        {/* the next flow: history floats at the plan's left corner, in words */}
+        {next && (
+          <div className="ds-history" role="group" aria-label="History">
+            <button type="button" onClick={undo} disabled={!hist.undo}>Undo</button>
+            <button type="button" onClick={redo} disabled={!hist.redo}>Redo</button>
+          </div>
+        )}
+        <div className="ds-canvas-body" ref={setCanvasBody}>
           <StudioCanvas
             key={floor.id}
             doc={doc}
@@ -3541,6 +4073,7 @@ function DesignPanel({
             onCalibrated={onCalibrated}
             onZoomApi={setZoomApi}
             onZoomChange={setZoomPct}
+            coveredFoot={next ? benchFoot : 0}
             planImages={planImages}
             sharedRefs={sharedPlanRefs(doc.floors, floor.id)}
             onSplitFloor={(sheetId, keep, other, place) => {
@@ -3573,6 +4106,10 @@ function DesignPanel({
             onClaimToggle={onClaimToggle}
             deleteRoom={(d, id) => deleteZone(d, pack, id)}
             onOpenRoom={onOpenRoom}
+            found={found}
+            onFound={onFound}
+            picked={picked}
+            onPickMore={onPickMore}
             remarkRoomId={remarkRoomId}
             reshapeRoomId={reshapeRoomId}
             onReshapeConsumed={onReshapeConsumed}
@@ -3584,6 +4121,7 @@ function DesignPanel({
             armedInk={noteInk}
             runSizes={runSizes}
             wheelMode={wheelMode}
+            airOverlay={airOverlay}
           />
         </div>
         {/* zoom floats over the canvas, bottom-right — its pre-strip home.
@@ -3594,6 +4132,7 @@ function DesignPanel({
             −
           </button>
           <span className="ds-zoomval">{zoomPct}%</span>
+          {paperU != null && pastPrint(paperU, zoomPct / 100) && <span className="ds-zoom-past">Past print size</span>}
           <button aria-label="Zoom in" onClick={() => zoomApi?.zoomIn()}>
             +
           </button>
@@ -3601,12 +4140,16 @@ function DesignPanel({
             Fit
           </button>
         </div>
+        {next && <AskTiffPill />}
         {/* The zone-shape choice appears on the bench's Zone button, where
             the click landed. What the canvas says is the tool hint and the
             crosshair cursor. */}
         {/* options HUD — floating pill strip, top-centre over the canvas,
             while a tool with options is armed (Step 2: the plenum variant) */}
-        {tool === "component" && airComp?.kind === "grille" && (
+        {airOn &&
+          airSlot &&
+          createPortal(<AirScreen air={air} onAir={armAir} back={airBack ?? "Systems"} onBack={() => onTool("select")} />, airSlot)}
+        {!next && tool === "component" && airComp?.kind === "grille" && (
           <GrilleHud
             stream={airComp.stream}
             size={airComp.size ?? GRILLE_SIZES[airComp.stream][0]}
@@ -3614,6 +4157,25 @@ function DesignPanel({
             onSize={(size) => onAirPatch({ size })}
           />
         )}
+        {/* the next flow: where a picked indoor unit sits */}
+        {next && tool === "select" &&
+          (() => {
+            const u = doc.objects.find((o) => o.id === selectedId && o.type === "unit" && o.props.role !== "odu" && o.floorId === floor.id);
+            if (!u) return null;
+            const row = pack?.indoor_units.find((r) => r.model === u.props.model);
+            const spaceMm = typeof u.props.spaceMm === "number" ? u.props.spaceMm : null;
+            const set = (patch: Partial<DesignObject>) =>
+              onMutate((d) => ({ ...d, objects: d.objects.map((o) => (o.id === u.id ? { ...o, ...patch } : o)) }));
+            return (
+              <UnitWhereBar
+                where={unitWhere(u, row?.form_factor)}
+                onWhere={(w) => set({ plane: planeOfWhere(w) })}
+                needMm={row?.height_mm ? underFloorFit(row.height_mm, 0).needMm : null}
+                spaceMm={spaceMm}
+                onSpace={(mm) => set({ props: { ...u.props, spaceMm: mm } })}
+              />
+            );
+          })()}
         {/* the same bar for a grille picked on the plan: what it is and its
             size, changed in place */}
         {tool === "select" &&
@@ -3625,6 +4187,58 @@ function DesignPanel({
                 ...d,
                 objects: d.objects.map((o) => (o.id === g.id ? { ...o, props: { ...o.props, ...props } } : o)),
               }));
+            if (next) {
+              if (!airSlot) return null;
+              /* the next flow: the Air screen's grille choices, for this one;
+                 only what changed is written, so a grille placed before kinds
+                 were offered keeps saying nothing it wasn't told */
+              const size = grilleSize(g);
+              const split = grilleSplit(g);
+              const floorMm = floor.scaleMmPerUnit ?? 10;
+              /* a combined face keeps its ducts on their sides as it changes */
+              const patchSplit = (props: Partial<Grille["props"]>) =>
+                onMutate((d) => {
+                  const ids = new Set([g.id]);
+                  const patched = d.objects.map((o) => (o.id === g.id ? { ...o, props: { ...o.props, ...props } } : o));
+                  /* the ducts on a grille take its stream; a combined grille's go by the side they land on */
+                  const followed = props.stream && !split ? ductsFollowGrille(patched, g.id, props.stream === "return" ? "return" : "supply") : patched;
+                  return {
+                    ...d,
+                    objects: reconcileAttachedRuns(respotSplitRuns(followed, ids, floorMm), ids),
+                  };
+                });
+              const now: AirState = {
+                ...air,
+                kind: "grille",
+                both: !!split,
+                stream: grilleStream(g),
+                style: grilleStyle(g) ?? (size.wMm === size.hMm ? "square" : "linear"),
+                mount: grilleMount(g) ?? "ceiling",
+                size,
+              };
+              return createPortal(
+                <AirScreen
+                  picked
+                  back={airBack ?? "Systems"}
+                  onBack={() => onSelect(null)}
+                  air={now}
+                  supplyMm={split?.supplyMm ?? null}
+                  onSupplyMm={(mm) => patchSplit({ supplyMm: clampSupply(mm, size.wMm) })}
+                  onAir={(a) => {
+                    const p: Partial<Grille["props"]> = {};
+                    if (a.stream !== now.stream) p.stream = a.stream;
+                    if (a.style !== now.style) p.style = a.style;
+                    if (a.mount !== now.mount) p.mount = a.mount;
+                    if (a.size.wMm !== size.wMm || a.size.hMm !== size.hMm) Object.assign(p, { wMm: a.size.wMm, hMm: a.size.hMm });
+                    if (a.both && !split) p.supplyMm = halfOf(a.size.wMm);
+                    if (!a.both && split) p.supplyMm = undefined;
+                    if (a.both && split && p.wMm) p.supplyMm = supplyAtWidth(split.supplyMm, size.wMm, a.size.wMm);
+                    patchSplit(p);
+                  }}
+                />,
+                airSlot,
+              );
+            }
             return (
               <GrilleHud
                 stream={grilleStream(g)}
@@ -3634,7 +4248,7 @@ function DesignPanel({
               />
             );
           })()}
-        {tool === "component" && airComp?.kind === "plenum" && (
+        {!next && tool === "component" && airComp?.kind === "plenum" && (
           <PlenumHud
             stream={airComp.stream}
             onStream={onAirStream}
@@ -3663,7 +4277,7 @@ function DesignPanel({
               <div className="ds-legend-row"><span className="ds-legend-ic room" /> Zone</div>
               <div className="ds-legend-row"><span className="ds-legend-ic idu" /> Indoor unit</div>
               <div className="ds-legend-row"><span className="ds-legend-ic odu" /> Outdoor unit</div>
-              <div className="ds-legend-row"><span className="ds-legend-ic riser" /> Riser</div>
+              <div className="ds-legend-row"><span className="ds-legend-ic riser" style={flow === "next" ? { background: RISER_PAINT.body } : undefined} /> {flow === "next" ? "Riser: DR duct, PR pipe" : "Riser"}</div>
               <div className="ds-legend-row"><span className="ds-legend-ic drain" /> Drain</div>
               <div className="ds-legend-row"><span className="ds-legend-ic cable" /> Cable</div>
             </div>

@@ -10,6 +10,7 @@ import {
   type DesignDocument,
 } from "./document";
 import { attachOf } from "./graph";
+import { systemColoursOnPalette } from "./modules";
 import { pruneEmptyNotes } from "./notes";
 import {
   ATTACHED_RUN_TYPES,
@@ -247,7 +248,9 @@ export function migrateDesign(raw: unknown): {
     referenced object's current position. Wordless notes go too. Safe as pure
     repair in both cases: no gesture can legitimately separate an attached
     endpoint from its target while keeping the ref, and none can leave a note
-    with no words on it (notes.ts explains that one).
+    with no words on it (notes.ts explains that one). Every system's colour
+    goes onto the palette here too (modules.ts, systemColoursOnPalette), so
+    the plan, the paper and both flows draw the same five.
 
     OPEN is the right moment for both, and the only safe one: this runs from
     migrateDesign, which every load path goes through and no save path does —
@@ -269,7 +272,12 @@ export function normalizeDesign(doc: DesignDocument): DesignDocument {
   }
   let objects = dead.size ? stripAttachesTo(swept, dead) : swept;
   objects = reconcileAttachedRuns(objects, null);
-  return objects === doc.objects ? doc : { ...doc, objects };
+  /* every system's colour onto the palette (rule 18a): a design saved before
+     7 November 2026 opens with its first system green and its second pink,
+     and keeps them from its next save */
+  const systems = systemColoursOnPalette(doc.systems);
+  if (objects === doc.objects && systems === doc.systems) return doc;
+  return { ...doc, objects, systems: systems as DesignDocument["systems"] };
 }
 
 /** Parse a JSON string into a current-version design document. */

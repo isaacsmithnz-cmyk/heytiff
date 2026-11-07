@@ -18,11 +18,7 @@ import { createDesign, type DesignDocument, type DesignObject } from "@/lib/stud
 import { PACK_SECTIONS, type DataPack, type PackMeta } from "@/lib/studio/packs/schema";
 import { assemblePack, type PackSource } from "@/lib/studio/packs/loader";
 import { trimPackForLive } from "@/lib/studio/packs/live-trim";
-import {
-  buildDesignSnapshot,
-  buildSummaryModel,
-  designBasis,
-} from "@/lib/studio/summary";
+import { buildSummaryModel } from "@/lib/studio/summary";
 import { NO_BRAND, type OrgBrand } from "@/lib/org/brand";
 import { LiveSheet } from "../live-sheet";
 
@@ -129,8 +125,6 @@ function renderSheet(
       planUrls={{}}
       brand={over.brand ?? BRAND}
       model={buildSummaryModel(doc, pack)}
-      snapshot={buildDesignSnapshot(doc)}
-      basis={designBasis(doc)}
       preparedOn="17 August 2026"
       expiresOn="16 September"
       simOffered={over.simOffered ?? false}
@@ -140,114 +134,66 @@ function renderSheet(
   );
 }
 
+/* THE NEXT FLOW'S DOCUMENT (Isaac, 7 November 2026: "everyone"): the link
+   draws what the Studio's Summary and its PDF draw, SheetDocNext. What that
+   document says is sheet-doc-next.test.tsx's to hold; here, that it is the
+   one the customer gets, with the customer's own facts on it. */
 describe("the document", () => {
-  it("opens on the business that sent it, and who it is for", () => {
+  it("is the next flow's document, not the old sheet", () => {
     renderSheet();
-    expect(screen.getByText("Design summary")).toBeInTheDocument();
+    expect(document.querySelector("article.dsn")).not.toBeNull();
+    expect(document.querySelector(".dsd-mast")).toBeNull();
+    expect(screen.queryByText("Design summary")).not.toBeInTheDocument();
+  });
+
+  it("opens on the job, who it is for, where and when, and the business that sent it", () => {
+    renderSheet();
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("18 Kembla Street");
-    expect(screen.getByText("Prepared by")).toBeInTheDocument();
-    /* the business is named in the DOCUMENT, not only in the bar: anything
-       that lives only in the chrome vanishes from the PDF */
-    expect(screen.getByText("Diamond Air", { selector: ".dsd-org" })).toBeInTheDocument();
-    expect(screen.getByText("17 August 2026")).toBeInTheDocument();
-    /* THE BUSINESS OPPOSITE THE JOB. The contact line came out of the
-       masthead once, when it sat UNDER the byline and read as a business card
-       dropped into a heading — four weights before the reader reached a
-       figure. It is back because it has somewhere to be: its own column on
-       the right, under the mark, where a quote or an invoice puts it. ABN
-       first, because that is the one that gets checked. */
-    expect(screen.getByText(/ABN 51 824 753 556/)).toBeInTheDocument();
-    expect(screen.getByText(/4225 1188/)).toBeInTheDocument();
-    /* and it is in the identity block, not loose under the byline — the
-       arrangement is the point, not the presence */
-    expect(document.querySelector(".dsd-ident .dsd-idc")).not.toBeNull();
-
-    /* WHO IT IS FOR, under the date rather than opposite it */
-    expect(screen.getByText("Halloran Bros Construction")).toBeInTheDocument();
-    expect(screen.getByText("Wollongong")).toBeInTheDocument();
-    expect(screen.getByText("2214")).toBeInTheDocument();
-    expect(document.querySelector(".dsd-mast-job .dsd-to")).not.toBeNull();
-  });
-
-  /* THE MARK IS IN THE DOCUMENT, not in the bar it used to live in. That is
-     what makes it survive being printed and what lets it sit opposite the job
-     — and it is why the bar must NOT still carry one, or the customer's first
-     screen says the same thing twice a centimetre apart. */
-  it("carries the mark in its masthead and not in the bar", () => {
-    renderSheet();
-    const ident = document.querySelector(".dsd-ident");
-    expect(ident).not.toBeNull();
-    expect(ident!.querySelector(".dsd-idlogo")).not.toBeNull();
-    expect(document.querySelector(".dsd-bar .dsd-idlogo")).toBeNull();
-    expect(document.querySelector(".dsd-bar img")).toBeNull();
-  });
-
-  /* A workspace with no name and no logo renders NO identity block — not an
-     empty box, and not our own wordmark, which already stands in as the
-     byline on the left. */
-  it("renders no identity block for a business that has told us nothing", () => {
-    renderSheet({ brand: NO_BRAND });
-    expect(document.querySelector(".dsd-ident")).toBeNull();
-  });
-
-  it("falls back to the platform when the business has told us nothing", () => {
-    renderSheet({ brand: NO_BRAND });
     expect(
-      screen.getByText("HeyTiff Design Studio", { selector: ".dsd-org" })
+      screen.getByText("Air conditioning design for Halloran Bros Construction, job 2214")
     ).toBeInTheDocument();
+    expect(screen.getByText("18 Kembla Street, Wollongong, NSW 2500. 17 August 2026")).toBeInTheDocument();
+    /* the business is named in the DOCUMENT, not only in the bar: anything
+       that lives only in the chrome vanishes from the paper */
+    const ident = document.querySelector(".dsn-ident");
+    expect(ident).not.toBeNull();
+    expect(within(ident as HTMLElement).getByText("Diamond Air")).toBeInTheDocument();
+    expect(within(ident as HTMLElement).getByText("ABN 51 824 753 556")).toBeInTheDocument();
+    expect(within(ident as HTMLElement).getByText("02 4225 1188")).toBeInTheDocument();
   });
 
-  it("states the six figures — three measured, three assumed", () => {
+  it("carries the business in the document and not in the bar", () => {
     renderSheet();
-    for (const label of [
-      "Calculated heat load",
-      "Design cooling capacity",
-      "Number of systems",
-      "Climate zone",
-      "Building type",
-      "Sized on",
-    ])
+    expect(document.querySelector(".dsd-bar img")).toBeNull();
+    expect(document.querySelector(".dsd-bar")?.textContent).not.toMatch(/Diamond Air/);
+  });
+
+  it("wears no letterhead for a business that has told us nothing, and none of ours", () => {
+    renderSheet({ brand: NO_BRAND });
+    expect(document.querySelector(".dsn-ident")).toBeNull();
+    expect(screen.queryByText("HeyTiff Design Studio")).not.toBeInTheDocument();
+  });
+
+  it("states the figures", () => {
+    renderSheet();
+    for (const label of ["Heat load", "Cooling installed", "Climate", "Sized on"])
       expect(screen.getByText(label)).toBeInTheDocument();
-    expect(screen.getByText("Zone 5")).toBeInTheDocument();
-    expect(screen.getByText("Residential")).toBeInTheDocument();
-    /* the basis label reads "Sized on heat/cool"; the column already says
-       "Sized on", so only the basis is printed — CAPITALISED, because a
-       lower-case value in a row of capitalised ones reads as a typo */
-    expect(screen.getByText("Heat/Cool")).toBeInTheDocument();
   });
 
   it("NAMES THE BRAND, not the slug — the trimmed pack has to carry it", () => {
     renderSheet();
-    expect(screen.queryByText("mitsubishi-electric")).not.toBeInTheDocument();
+    expect(screen.queryByText(/mitsubishi-electric/)).not.toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`Mitsubishi Electric ${IDU} with ${ODU}`))).toBeInTheDocument();
   });
 
-  it("gives every room its unit, its style and its outdoor", () => {
+  it("gives every room its unit, its load and its cover", () => {
     renderSheet();
-    const table = screen.getByRole("table");
-    for (const h of [
-      "Room",
-      "Floor",
-      "Area",
-      "Load",
-      "Capacity",
-      "Unit model",
-      "Style",
-      "Outdoor",
-      "Coverage",
-    ])
+    const block = document.querySelector(".dsn-sys") as HTMLElement;
+    const table = within(block).getByRole("table");
+    for (const h of ["Room", "Floor", "Area", "Load", "Indoor unit", "Capacity", "Cover"])
       expect(within(table).getByRole("columnheader", { name: h })).toBeInTheDocument();
     expect(within(table).getByText("Living")).toBeInTheDocument();
-    expect(within(table).getByText(IDU)).toBeInTheDocument();
-    // form factor off the pack, per room
-    expect(within(table).getByText("Wall-mounted")).toBeInTheDocument();
-  });
-
-  it("ON A SPLIT the outdoor is named in the row, and the band carries none", () => {
-    renderSheet();
-    // one outdoor for one head: the column names the model
-    expect(within(screen.getByRole("table")).getByText(ODU)).toBeInTheDocument();
-    expect(screen.queryByText("Shared outdoor unit")).not.toBeInTheDocument();
-    expect(screen.queryByText("Shared")).not.toBeInTheDocument();
+    expect(within(table).getByText(new RegExp(IDU))).toBeInTheDocument();
   });
 
   it("says so plainly when there is nothing designed", () => {
@@ -258,7 +204,7 @@ describe("the document", () => {
 
   it("closes on who made it", () => {
     renderSheet();
-    expect(screen.getByText(/Prepared with/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Prepared with HeyTiff/).length).toBeGreaterThan(0);
   });
 });
 
@@ -315,21 +261,21 @@ describe("the simulation is an option, not the destination", () => {
     await user.click(screen.getByRole("button", { name: /Open the simulation/ }));
     // the simulation replaces the sheet…
     expect(screen.getByRole("main", { name: "Live design" })).toBeInTheDocument();
-    expect(screen.queryByText("Prepared by")).not.toBeInTheDocument();
+    expect(document.querySelector("article.dsn")).toBeNull();
     // …and the way back is on it
     await user.click(screen.getByRole("button", { name: /Back to the design/ }));
-    expect(screen.getByText("Prepared by")).toBeInTheDocument();
+    expect(document.querySelector("article.dsn")).not.toBeNull();
   });
 });
 
 /* WHAT THE OWNER TICKED when they made the link (lib/studio/send.ts) is what
-   the customer gets — the page and the Send dialog's preview agree because
-   both are this component's SheetDoc. */
+   the customer gets — the page and the Send dialog's PDF agree because both
+   are SheetDocNext. */
 describe("the link shows what was ticked", () => {
   it("leaves out a part the owner unticked", () => {
     renderSheet({ sections: { figures: false, systems: true, lines: true } });
-    expect(screen.queryByText("Calculated heat load")).not.toBeInTheDocument();
-    expect(screen.getByText("Living")).toBeInTheDocument();
+    expect(screen.queryByText("Heat load")).not.toBeInTheDocument();
+    expect(within(document.querySelector(".dsn-sys") as HTMLElement).getByText("Living")).toBeInTheDocument();
   });
 
   it("carries the plans down the page when they are ticked, and not otherwise", () => {

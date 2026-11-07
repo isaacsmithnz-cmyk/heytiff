@@ -283,6 +283,9 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D): Promi
     /* a floor's room names hide under the floor above it, unless they're lifted apart */
     const covered = (i: number) =>
       current.layer !== "inside" || (!current.apart && current.floor === ALL_FLOORS && scene3.floors.some((_, j) => j > i));
+    /* units' names step down off each other: two heads a metre apart never
+       print one name over the other */
+    const down: { x0: number; x1: number; y0: number; y1: number }[] = [];
     for (const l of labels) {
       v.copy(l.at);
       v.y += l.group.position.y;
@@ -290,8 +293,17 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D): Promi
       const on = current.labels && l.group.visible && v.z < 1 && (l.keep || !covered(l.floorIndex));
       l.el.style.display = on ? "block" : "none";
       if (on) {
-        l.el.style.left = `${((v.x + 1) / 2) * w}px`;
-        l.el.style.top = `${((1 - v.y) / 2) * h}px`;
+        const x = ((v.x + 1) / 2) * w;
+        let y = ((1 - v.y) / 2) * h;
+        if (l.keep) {
+          const lw = l.el.offsetWidth;
+          const lh = l.el.offsetHeight + 4;
+          const meets = (b: (typeof down)[number]) => b.x0 < x + lw / 2 && b.x1 > x - lw / 2 && b.y0 < y + lh && b.y1 > y;
+          for (let hit = down.find(meets); hit; hit = down.find(meets)) y = hit.y1;
+          down.push({ x0: x - lw / 2, x1: x + lw / 2, y0: y, y1: y + lh });
+        }
+        l.el.style.left = `${x}px`;
+        l.el.style.top = `${y}px`;
       }
     }
     raf = requestAnimationFrame(frame);

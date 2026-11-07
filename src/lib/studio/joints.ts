@@ -12,6 +12,7 @@
 import { pruneObjects } from "./attach";
 import { newId, type DesignDocument, type DesignObject, type Point } from "./document";
 import { attachOf } from "./graph";
+import { legsJoined, legsOfCut, legsProp, straightLegsOf } from "./run-legs";
 
 type Polyline = DesignObject & { geometry: { kind: "polyline"; points: Point[] } };
 
@@ -143,7 +144,9 @@ function nodeOnRun(
   const same = (p: Point) => Math.hypot(p.x - at.x, p.y - at.y) < 1e-6;
   /* a piece remembers which of its ends a cut made (cutStart / cutEnd), so
      a later cut along the same run keeps the earlier one's mark */
-  const { startAttach, endAttach, cutStart, cutEnd, ...rest } = run.props;
+  const { startAttach, endAttach, cutStart, cutEnd, straight: _legs, ...rest } = run.props;
+  void _legs;
+  const legs = legsOfCut(straightLegsOf(run.props) ?? [], seg);
   const start = attachOf(startAttach);
   const end = attachOf(endAttach);
   const toJoint = { kind: joint.type === "riser" ? ("riser" as const) : ("joint" as const), id: joint.id };
@@ -160,13 +163,13 @@ function nodeOnRun(
   const first: DesignObject = {
     ...run,
     geometry: { kind: "polyline", points: [...pts.slice(0, seg + 1), at] },
-    props: { ...rest, ...(start ? { startAttach: start } : {}), endAttach: toJoint, ...(cutStart ? { cutStart } : {}), cutEnd: joint.id },
+    props: { ...rest, ...legsProp(legs.first, seg + 2), ...(start ? { startAttach: start } : {}), endAttach: toJoint, ...(cutStart ? { cutStart } : {}), cutEnd: joint.id },
   };
   const second: DesignObject = {
     ...run,
     id: secondId,
     geometry: { kind: "polyline", points: [at, ...pts.slice(seg + 1)] },
-    props: { ...rest, startAttach: toJoint, ...(end ? { endAttach: end } : {}), cutStart: joint.id, ...(cutEnd ? { cutEnd } : {}) },
+    props: { ...rest, ...legsProp(legs.second, pts.length - seg), startAttach: toJoint, ...(end ? { endAttach: end } : {}), cutStart: joint.id, ...(cutEnd ? { cutEnd } : {}) },
   };
   const objects = doc.objects.flatMap((o) => (o.id === runId ? [first, second] : [o]));
   return { ...doc, objects: [...objects, joint] };
@@ -188,15 +191,19 @@ export function deleteJoint(doc: DesignDocument, jointId: string): DesignDocumen
   const second = onIt.find((o) => o.props.cutStart === jointId && attachOf(o.props.startAttach)?.id === jointId);
   const branches = onIt.filter((o) => o !== first && o !== second);
   if (first && second && branches.length <= 1 && first.geometry.kind === "polyline" && second.geometry.kind === "polyline") {
-    const { cutEnd: _a, endAttach: _b, ...firstProps } = first.props;
+    const { cutEnd: _a, endAttach: _b, straight: _c, ...firstProps } = first.props;
     void _a;
     void _b;
+    void _c;
+    const firstDots = first.geometry.points.length;
+    const dots = firstDots + second.geometry.points.length - 1;
+    const legs = legsJoined(straightLegsOf(first.props) ?? [], firstDots, straightLegsOf(second.props) ?? []);
     const end = attachOf(second.props.endAttach);
     const secondCutEnd = second.props.cutEnd;
     const whole: DesignObject = {
       ...first,
       geometry: { kind: "polyline", points: [...first.geometry.points, ...second.geometry.points.slice(1)] },
-      props: { ...firstProps, ...(end ? { endAttach: end } : {}), ...(secondCutEnd ? { cutEnd: secondCutEnd } : {}) },
+      props: { ...firstProps, ...legsProp(legs, dots), ...(end ? { endAttach: end } : {}), ...(secondCutEnd ? { cutEnd: secondCutEnd } : {}) },
     };
     const gone = new Set([jointId, second.id, ...branches.map((b) => b.id)]);
     return {
@@ -337,12 +344,15 @@ export function slideOnRun(
     endAttach: _ea,
     cutStart: _cs,
     cutEnd: _ce,
+    /* the dots change under a slide, so what was a straight leg goes back to a curve */
+    straight: _st,
     ...inRest
   } = line.in.run.props;
   void _sa;
   void _ea;
   void _cs;
   void _ce;
+  void _st;
   const inFarCut = farCut(line.in);
   const onFarCut = farCut(line.on);
   const merged: DesignObject = {
@@ -458,13 +468,15 @@ function slideRiserEnd(
     (p, i, all) => i === 0 || Math.hypot(p.x - all[i - 1].x, p.y - all[i - 1].y) > 1e-6
   );
   const points = atStart ? [...kept].reverse() : kept;
+  const { straight: _legs, ...runProps } = run.props;
+  void _legs;
   return {
     at: best.at,
     objects: objects.map((o) =>
       o.id === riser.id && o.geometry.kind === "point"
         ? { ...o, geometry: { ...o.geometry, at: best!.at } }
         : o.id === run.id
-          ? { ...o, geometry: { kind: "polyline" as const, points } }
+          ? { ...o, props: runProps, geometry: { kind: "polyline" as const, points } }
           : o
     ),
   };

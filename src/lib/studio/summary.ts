@@ -27,6 +27,7 @@ import { systemVrfTree } from "./vrf-tree";
 import { describeUnit } from "./materials";
 import { formFactorLabel } from "./form-factors";
 import { coverPct, coversLoad } from "./fit";
+import { buildPaper, type SheetPaper } from "./summary-paper";
 
 /** The zone number the engine actually uses — settings store a stringified
     zone ("5") or null; anything unparsable falls back like loads-room.ts.
@@ -278,6 +279,9 @@ export interface SummaryModel {
       "Supplied by others" rows are excluded — not in this takeoff is not
       in this pick. */
   picklist: PicklistRow[];
+  /** the same design as the next flow's document says it (summary-paper.ts).
+      Always there off buildSummaryModel; a sheet with nothing ticked has none */
+  paper?: SheetPaper;
 }
 
 /* The Summary sheet used to keep its OWN form-factor wording, and it was
@@ -551,12 +555,19 @@ export function buildSummaryModel(
     };
   });
 
+  const unserved = [...rows.values()]
+    .filter((r) => r.systemIds.length === 0)
+    .map(strip);
   return {
     systems,
-    unserved: [...rows.values()]
-      .filter((r) => r.systemIds.length === 0)
-      .map(strip),
+    unserved,
     picklist: buildPicklist(doc, pack, systems),
+    paper: buildPaper(doc, pack, {
+      systems,
+      unserved,
+      snapshot: buildDesignSnapshot(doc),
+      basis: designBasis(doc),
+    }),
   };
 }
 

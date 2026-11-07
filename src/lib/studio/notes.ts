@@ -139,6 +139,28 @@ export function noteLeader(o: DesignObject): Point {
   return { x: Number(l?.x ?? 0), y: Number(l?.y ?? 0) };
 }
 
+/* ── what is behind the words ───────────────────────────────────────────────
+   A note can blur the drawing behind its words so they read (Isaac,
+   2026-11-01). Nothing stored is off, and every note before this one is off. */
+export const NOTE_BLUR_ON = 0.5;
+/* all of these in ems of the note's own type, so it scales with the words */
+const BLUR_MOST_EM = 0.5;
+const BLUR_REACH_EM = 0.45;
+const BLUR_EDGE_EM = 0.35;
+
+export function noteBlurOf(o: DesignObject): number {
+  const v = Number(o.props.blur);
+  return Number.isFinite(v) ? Math.min(Math.max(v, 0), 1) : 0;
+}
+
+/** the blur, in world units: `inner` before its soft edge, `region` all it can reach */
+export function noteBackdrop(box: NoteRect, fontSize: number, blur: number) {
+  const grow = (by: number): NoteRect => ({ x: box.x - by, y: box.y - by, w: box.w + 2 * by, h: box.h + 2 * by });
+  const reach = BLUR_REACH_EM * fontSize;
+  const feather = BLUR_EDGE_EM * fontSize;
+  return { inner: grow(reach), region: grow(reach + 3 * feather), feather, strength: blur * BLUR_MOST_EM * fontSize };
+}
+
 export function noteText(o: DesignObject): string {
   return typeof o.props.text === "string" ? o.props.text : "";
 }

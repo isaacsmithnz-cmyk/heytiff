@@ -115,10 +115,16 @@ export default async function StudioPage({
     process.env.VERCEL_DEPLOYMENT_ID ?? process.env.VERCEL_GIT_COMMIT_SHA ?? "";
 
   /* handed to the keeper, which draws it beside the pages and keeps it
-     alive behind other tabs (studio-keeper.tsx) */
+     alive behind other tabs (studio-keeper.tsx).
+
+     THE NEXT FLOW FOR EVERYONE (Isaac, 7 November 2026: "everyone. Again,
+     we're only in testing stage"): the reworked Studio tried at /studio-next
+     is the Design page's now. The current flow's screens stay behind the
+     switch (flow.tsx) until they are taken out. */
   return (
     <StudioKeep design={openDesignId} job={forJob?.remoteId}>
       <Studio
+        flow="next"
         sm8Jobs={sm8Connected && boardAccess}
         openDesignId={openDesignId}
         forJob={forJob}

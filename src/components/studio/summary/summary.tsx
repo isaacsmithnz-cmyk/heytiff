@@ -8,6 +8,7 @@ import type { OrgBrand } from "@/lib/org/brand";
 import type { DataPack } from "@/lib/studio/packs/schema";
 import { systemFindings } from "@/lib/studio/verdict";
 import { roomsWithoutSupply, unitsNotPlaced } from "@/lib/studio/send-gaps";
+import { faceProblems } from "@/lib/studio/unit-plenum";
 import type { PlanImages } from "@/lib/studio/plans";
 import {
   buildDesignSnapshot,
@@ -18,6 +19,8 @@ import type { SimApprovalState } from "@/lib/studio/sim-approval";
 import type { SimReady } from "./sim-card";
 import { fmt } from "./sheet-tables";
 import { PicklistSection, SheetDoc } from "./sheet-doc";
+import { SheetDocNext } from "./sheet-doc-next";
+import { useStudioFlow } from "../flow";
 import { PicklistPush } from "./picklist-push";
 import { ContributorsCard } from "./contributors-card";
 import { SendCard } from "./send-card";
@@ -76,6 +79,7 @@ export function SummaryView({
   /** loads a sibling variant's document for multi-option export */
   loadVariant: (id: string) => Promise<DesignDocument | null>;
 }) {
+  const next = useStudioFlow() === "next";
   const snapshot = useMemo(() => buildDesignSnapshot(doc), [doc]);
   const model = useMemo(() => buildSummaryModel(doc, pack), [doc, pack]);
   const basis = designBasis(doc);
@@ -139,7 +143,13 @@ export function SummaryView({
     if (dry.length > 0)
       out.push({
         title: `${dry.length} ducted ${dry.length === 1 ? "room has" : "rooms have"} no supply grille`,
-        detail: `${dry.map((d) => d.room).join(", ")}. Place one from Component, Grille.`,
+        detail: `${dry.map((d) => d.room).join(", ")}. Place one from ${next ? "Air" : "Component, Grille"}.`,
+      });
+    const faces = pack ? faceProblems(doc, (m) => pack.indoor_units.find((u) => u.model === m)) : [];
+    if (faces.length > 0)
+      out.push({
+        title: "Ducts don't fit the unit",
+        detail: faces.join(". ") + ".",
       });
     const off = unitsNotPlaced(doc, pack);
     if (off.length > 0)
@@ -172,7 +182,7 @@ export function SummaryView({
           "The share link offers the simulation only once every floor that can run one is ticked as ready to share.",
       });
     return out;
-  }, [doc, pack, model, snapshot, simApproval]);
+  }, [doc, pack, model, snapshot, simApproval, next]);
 
   const setMeta = (k: "jobNumber" | "client" | "site", v: string) =>
     onMutate((d) => ({ ...d, meta: { ...d.meta, [k]: v } }));
@@ -218,14 +228,35 @@ export function SummaryView({
     ),
   };
 
-  const simBtn = (
+  /* the next flow's bar: Share is the one you most likely press, so Share is
+     the blue one; no arrow on it, no triangle on Simulate */
+  const simBtn = next ? (
+    <button className="ds-chrome-btn" onClick={onSimulate} disabled={!simReady.ok}>
+      Simulate
+    </button>
+  ) : (
     <button className="ds-chrome-btn cta" onClick={onSimulate} disabled={!simReady.ok}>
       <span aria-hidden>▶</span> Simulate
     </button>
   );
 
+  const picklistPush = (
+    <PicklistPush
+      rows={model.picklist}
+      designId={doc.id}
+      jobLink={
+        doc.jobLink
+          ? {
+              remoteId: doc.jobLink.remoteId,
+              jobNumber: doc.jobLink.jobNumber,
+            }
+          : null
+      }
+    />
+  );
+
   return (
-    <div className="ds-panel-card ds-summary">
+    <div className={`ds-panel-card ds-summary${next ? " dsn-summary" : ""}`}>
       {/* ── chrome: everything that is NOT the document. Never prints. ── */}
       <div className="ds-chrome">
         {/* NO MARK HERE ANY MORE. It sat in this bar so that the corner of the
@@ -266,12 +297,12 @@ export function SummaryView({
               document. An outline button, because Simulate is the filled one
               in this bar. */}
           <button
-            className={`ds-chrome-btn${sending ? " on" : ""}`}
+            className={`ds-chrome-btn${next ? " cta" : ""}${sending ? " on" : ""}`}
             onClick={() => setSending(true)}
             aria-haspopup="dialog"
             aria-expanded={sending}
           >
-            <Icon name="arrowUR" size={13} />
+            {!next && <Icon name="arrowUR" size={13} />}
             Share
           </button>
         </div>
@@ -308,10 +339,25 @@ export function SummaryView({
         />
       )}
 
+      {next && (
+        <SheetDocNext
+          doc={doc}
+          model={model}
+          brand={brand}
+          preparedOn={preparedOn}
+          fields={fields}
+          provenance={<JobAttach doc={doc} onMutate={onMutate} />}
+          materialsAction={picklistPush}
+        >
+          {/* who has worked on it: the owner's, under the document, not in it */}
+          <ContributorsCard key={doc.id} designId={doc.id} />
+        </SheetDocNext>
+      )}
+
       {/* ── the document. The SAME component the customer's live link and the
             printed copy render; what differs is the chrome above and what
             hangs off the foot. ── */}
-      <SheetDoc
+      {!next && <SheetDoc
         doc={doc}
         model={model}
         snapshot={snapshot}
@@ -326,23 +372,7 @@ export function SummaryView({
         fields={fields}
         provenance={<JobAttach doc={doc} onMutate={onMutate} />}
       >
-        <PicklistSection
-          rows={model.picklist}
-          action={
-            <PicklistPush
-              rows={model.picklist}
-              designId={doc.id}
-              jobLink={
-                doc.jobLink
-                  ? {
-                      remoteId: doc.jobLink.remoteId,
-                      jobNumber: doc.jobLink.jobNumber,
-                    }
-                  : null
-              }
-            />
-          }
-        />
+        <PicklistSection rows={model.picklist} action={picklistPush} />
         {empty && (
           <div className="ds-empty">
             <span className="ds-empty-ic">
@@ -359,7 +389,7 @@ export function SummaryView({
             internal, so this is one of the things the customer's copy does
             not have rather than one it hides. */}
         <ContributorsCard key={doc.id} designId={doc.id} />
-      </SheetDoc>
+      </SheetDoc>}
     </div>
   );
 }

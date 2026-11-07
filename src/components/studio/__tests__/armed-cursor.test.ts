@@ -99,7 +99,7 @@ describe("the armed cursor holds across the whole plan", () => {
     const canvas = readFileSync(join(__dirname, "../canvas.tsx"), "utf8");
     for (const cls of ["ds-vertex", "ds-wallsel-dot"]) {
       expect(canvas).toMatch(
-        new RegExp(`<circle[\\s\\S]{0,200}?className="${cls}"`)
+        new RegExp(`<circle[\\s\\S]{0,200}?className=(?:"|\\{\`)${cls}`)
       );
     }
     expect(covered.has("circle")).toBe(true);

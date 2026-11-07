@@ -60,6 +60,14 @@ describe("before the sheet goes out", () => {
     expect(roomsWithoutSupply(ret, buildSummaryModel(ret, pack)).map((r) => r.room)).toEqual(["Bed 1"]);
   });
 
+  it("counts a grille on the room's edge, as joinery and wall grilles are", () => {
+    const { doc, systemId } = ducted();
+    const floorId = doc.floors[0].id;
+    /* 200 mm outside Living's left wall at 10 mm a unit */
+    const edge = { ...doc, objects: [...doc.objects, grille(floorId, systemId, { x: -20, y: 200 }, "supply", { wMm: 2400, hMm: 100 }, 90, { style: "linear", supplyMm: 1200 })] };
+    expect(roomsWithoutSupply(edge, buildSummaryModel(edge, pack)).map((r) => r.room)).toEqual(["Bed 1"]);
+  });
+
   it("names the units chosen and not yet on the plan", () => {
     const { doc, systemId } = ducted();
     expect(unitsNotPlaced(doc, pack).sort()).toEqual(["PEAD-M100JAA(D)", expect.stringMatching(/^PUZ|^SUZ/)].sort());

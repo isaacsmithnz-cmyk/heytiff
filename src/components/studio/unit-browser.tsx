@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { BuyPrices, moneyText, pairFromCents, useUnitPrices } from "./unit-prices";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { Tooltip } from "@/components/parts/tooltip";
+import { Row, RowList } from "@/components/parts/row";
+import { StateWord, type Tone } from "@/components/parts/state";
+import { Tick } from "@/components/parts/tick";
+import { SearchField } from "@/components/parts/search-field";
+import { Field, Chevron, TextInput } from "@/components/parts/field";
+import { Chooser } from "@/components/parts/chooser";
+import { capacityFit } from "@/lib/studio/fit";
 import type { DataPack, FormFactor, IndoorUnit, Phase } from "@/lib/studio/packs/schema";
 import type { SizingBasis } from "@/lib/studio/loads";
 import {
@@ -122,6 +129,14 @@ export function UnitBrowser({
   detailHost,
   addNote,
   pool = "multi",
+  next = false,
+  fitKw = null,
+  fields,
+  rowWord,
+  current = null,
+  openSeriesFor = null,
+  picked,
+  onPick,
 }: {
   pack: DataPack;
   loadKw: number | null;
@@ -137,8 +152,9 @@ export function UnitBrowser({
   /** set inside another window (the system builder): no overlay and no title
       bar, and the keys are its own only while focus is inside it */
   embedded?: boolean;
-  /** what the detail panel's button says it does */
-  addLabel?: string;
+  /** what the detail panel's button says it does; given the model, a Swap
+      can name what it swaps to */
+  addLabel?: string | ((model: string) => string);
   /** a unit the host already has, where it can take only one (a ducted
       system's): its button says Added rather than offering it again */
   isAdded?: (model: string) => boolean;
@@ -160,6 +176,27 @@ export function UnitBrowser({
   detailHost?: HTMLElement | null;
   /** a line over the Add button: what the unit does for where it goes */
   addNote?: (capacityKw: number) => string | null;
+  /** THE NEXT FLOW'S LIST (Isaac, 7 November 2026, "Build" on "Pop-up on
+      the web, the iPad's way"): the app's rows, each ending on its fit word,
+      every figure on the line under the model, so the table and its Columns
+      go; the search, the host's fields and Fits within over it; Compare a
+      tick, its ticked models side by side where the sheet goes */
+  next?: boolean;
+  /** next: the load each row's fit word is read against (the aimed zone's)
+      where the list itself is not ranked against one */
+  fitKw?: number | null;
+  /** next: the host's own labelled fields, before Fits within (the head type) */
+  fields?: React.ReactNode;
+  /** next: the host's word for a row (a placed unit's sizes: Current, Fits,
+      Outdoor becomes …), which wins over the fit word */
+  rowWord?: (model: string) => { word: string; tone: Tone; note?: string } | null;
+  /** next: the model on the system that the list is offering swaps for */
+  current?: string | null;
+  /** next: open this series' group (the placed unit's) */
+  openSeriesFor?: string | null;
+  /** next: the row picked, held by the host, which shows its sheet only then */
+  picked?: string | null;
+  onPick?: (model: string | null) => void;
 }) {
   /* buy prices from the price book, for people with money access; null
      for everyone else, and the table and panel then show none */
@@ -210,6 +247,12 @@ export function UnitBrowser({
      turns the mode on, the rows take their ticks, and leaving the mode with
      nothing picked puts the list back. */
   const [comparing, setComparing] = useState(false);
+  /* THE BOX IS NOT THE MODE (the 11-05 walk): Compare opened the box at
+     once, empty, over the rows it was meant to tick. The ticks are the mode;
+     the box opens from Compare N */
+  const [cmpOpen, setCmpOpen] = useState(false);
+  /** next: Fits within's panel */
+  const [fitsOpen, setFitsOpen] = useState(false);
   const brandName =
     pack.brands.find((b) => b.id === pack.meta.brand)?.name ??
     pack.meta.name ??
@@ -219,6 +262,7 @@ export function UnitBrowser({
   const COMPARE_MAX = 3;
   const endCompare = () => {
     setComparing(false);
+    setCmpOpen(false);
     setCompare([]);
   };
   const toggleCompare = (o: BrowserRow, pair: PairProposal | null) =>
@@ -461,16 +505,27 @@ export function UnitBrowser({
      nav + the selection fallback both follow what the installer actually sees */
   const visibleOptions = useMemo(() => sections.flatMap((s) => s.items), [sections]);
 
+  const hostPicks = next && onPick != null;
+  const selModel = hostPicks ? (picked ?? null) : selected;
+  const pickModel = (m: string | null) => (hostPicks ? onPick!(m) : setSelected(m));
   /** the row the detail panel shows: the clicked one while it survives the
       current filters, else the best-fit row, else the first row */
   const selectedOption = useMemo(() => {
     return (
-      visibleOptions.find((o) => o.idu.model === selected) ??
+      visibleOptions.find((o) => o.idu.model === selModel) ??
       visibleOptions.find((o) => o.bestFit) ??
       visibleOptions[0] ??
       null
     );
-  }, [visibleOptions, selected]);
+  }, [visibleOptions, selModel]);
+
+  /* next: the placed unit's series opens itself, so its sizes are in view,
+     once each time another unit is opened (and can be shut again) */
+  const [openedFor, setOpenedFor] = useState<string | null>(null);
+  if (next && openSeriesFor && openSeriesFor !== openedFor) {
+    setOpenedFor(openSeriesFor);
+    setOpenSeries((cur) => new Set([...cur, ...["all", "fits", "over", "under"].map((k) => seriesKey(k, openSeriesFor))]));
+  }
 
   /** what a row commits to — a pairing in the split flow, the indoor head
       alone in per-room (its outdoor belongs to the system, not the room) */
@@ -490,7 +545,7 @@ export function UnitBrowser({
     onChoose(e.pair ? { kind: "pair", pair: e.pair } : { kind: "idu", idu: e.option.idu });
 
   const onKey = (e: KeyboardEvent) => {
-    if (comparing) return; // the compare overlay owns the keys while open
+    if (cmpOpen) return; // the compare overlay owns the keys while open
     if (e.key === "Escape") {
       // embedded, Escape belongs to the window around it
       if (!embedded) onClose?.();
@@ -503,18 +558,14 @@ export function UnitBrowser({
       return;
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
-      setSelected((cur) => {
-        const list = visibleOptions;
-        if (!list.length) return cur;
-        const curModel =
-          cur && list.some((o) => o.idu.model === cur)
-            ? cur
-            : (list.find((o) => o.bestFit) ?? list[0]).idu.model;
-        const idx = list.findIndex((o) => o.idu.model === curModel);
-        const next =
-          list[Math.min(list.length - 1, Math.max(0, idx + (e.key === "ArrowDown" ? 1 : -1)))];
-        return next.idu.model;
-      });
+      const list = visibleOptions;
+      if (!list.length) return;
+      const cur = selModel;
+      const curModel =
+        cur && list.some((o) => o.idu.model === cur) ? cur : (list.find((o) => o.bestFit) ?? list[0]).idu.model;
+      const idx = list.findIndex((o) => o.idu.model === curModel);
+      const to = list[Math.min(list.length - 1, Math.max(0, idx + (e.key === "ArrowDown" ? 1 : -1)))];
+      pickModel(to.idu.model);
     } else if (e.key === "Enter" && selectedOption) {
       e.preventDefault();
       choose(selectedOption);
@@ -572,7 +623,7 @@ export function UnitBrowser({
           o.fit !== "fits" ? ` ${o.fit}` : ""
         }${canDrag ? " drag" : ""}`}
         aria-selected={isSel}
-        onClick={() => setSelected(o.idu.model)}
+        onClick={() => pickModel(o.idu.model)}
         /* a row is the drag SOURCE for the host's drop targets; without a
            host to drop onto there is nothing to drag to, so it stays inert */
         draggable={canDrag}
@@ -580,7 +631,7 @@ export function UnitBrowser({
           if (!onDragRow) return;
           /* the row is the subject of the drag — highlight it in the table
              the same way the detail panel would */
-          setSelected(o.idu.model);
+          pickModel(o.idu.model);
           const choice = choiceFor(o);
           if (choice && e.dataTransfer) onDragRow(choice, e.dataTransfer);
         }}
@@ -675,7 +726,7 @@ export function UnitBrowser({
             setOduPick((m) => ({ ...m, [selectedOption.idu.model]: oduModel }))
           }
           onAdd={() => choose(selectedOption)}
-          addLabel={addLabel}
+          addLabel={typeof addLabel === "function" ? addLabel(selectedOption.idu.model) : addLabel}
           added={isAdded?.(selectedOption.idu.model) ?? false}
           addNote={addNote?.(selectedOption.capacityKw) ?? null}
         />
@@ -956,7 +1007,10 @@ export function UnitBrowser({
           <button
             className="ds-ub-cmpgo"
             disabled={compare.length < 2}
-            onClick={() => setComparing(true)}
+            onClick={() => {
+              setComparing(true);
+              setCmpOpen(true);
+            }}
           >
             Compare {compare.length}
           </button>
@@ -965,14 +1019,66 @@ export function UnitBrowser({
     </div>
   );
 
-  const compareOverlay = comparing && (
+  const compareOverlay = cmpOpen && compare.length > 0 && (
     <CompareOverlay
       entries={compare}
       onAdd={chooseEntry}
       onRemove={(key) => setCompare((cur) => cur.filter((x) => x.key !== key))}
-      onClose={() => setComparing(false)}
+      onClose={() => setCmpOpen(false)}
     />
   );
+
+  if (next) {
+    return (
+      <NextList
+        {...{
+          embedded,
+          onKey,
+          query,
+          setQuery,
+          followSearch,
+          fields,
+          filters,
+          setFilters,
+          isDucted,
+          perRoom,
+          phase,
+          setPhase,
+          comparing,
+          setComparing,
+          endCompare,
+          fitsOpen,
+          setFitsOpen,
+          options,
+          sections,
+          q,
+          openSeries,
+          seriesKey,
+          toggleSeries,
+          searchedTabs,
+          loadKw,
+          fitKw,
+          rowWord,
+          current,
+          picked: selModel,
+          selectedOption,
+          pickModel,
+          pairFor,
+          inCompare,
+          compare,
+          COMPARE_MAX,
+          toggleCompare,
+          detailHost,
+          addLabel,
+          addNote,
+          isAdded,
+          setOduPick,
+          choose,
+          chooseEntry,
+        }}
+      />
+    );
+  }
 
   if (embedded) {
     return (
@@ -1007,10 +1113,14 @@ function OduPicker({
   option,
   pickedModel,
   onPick,
+  words = false,
 }: {
   option: UnitOption;
   pickedModel: string;
   onPick: (oduModel: string) => void;
+  /** the next flow: the phase is a word, never a pill (rule 47), three
+      phase in orange, the look word (rule 17) */
+  words?: boolean;
 }) {
   return (
     <div
@@ -1030,7 +1140,7 @@ function OduPicker({
           >
             <span className="ds-ub-oduname">
               <b>{p.odu.model}</b>
-              <PhaseBadge phase={p.odu.phase} />
+              {words ? <PhaseWord phase={p.odu.phase} /> : <PhaseBadge phase={p.odu.phase} />}
             </span>
             <span className="ds-ub-odumeta">
               {p.coolKw} / {p.heatKw} kW, max {p.pair.max_length_m} m
@@ -1158,7 +1268,7 @@ function CompareOverlay({
     const vals = entries.map((e) => (s.numeric ? s.numeric(e.option, e.pair) : null));
     const nums = vals.filter((v): v is number => v != null);
     const best =
-      s.better && nums.length > 1
+      s.better && new Set(nums).size > 1
         ? s.better === "higher"
           ? Math.max(...nums)
           : Math.min(...nums)
@@ -1325,6 +1435,504 @@ function ColumnsMenu({
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ═══════════════════════ the next flow's list ═══════════════════════ */
+
+function PhaseWord({ phase }: { phase: Phase }) {
+  return <span className={`ds-ub-phaseword${phase === "3" ? " look" : ""}`}>{phase === "3" ? "3φ" : "1φ"}</span>;
+}
+
+type RowWord = { word: string; tone: Tone; note?: string };
+type ListSection = {
+  key: string;
+  title: string | null;
+  groups: { series: string; items: BrowserRow[] }[];
+  grouped: boolean;
+  items: BrowserRow[];
+};
+
+/** what a row's line says: its capacity (a pairing's cool and heat), its
+    size and, for a unit with a duct airway, its air */
+function rowFigures(o: BrowserRow, pair: PairProposal | null): string {
+  const cap = pair ? `${pair.coolKw} / ${pair.heatKw} kW` : `${o.capacityKw.toFixed(1)} kW`;
+  const size = `${o.idu.width_mm} × ${o.idu.depth_mm} × ${o.idu.height_mm} mm`;
+  const air =
+    o.idu.airflow_ls != null && DUCT_AIRWAY_FORMS.includes(o.idu.form_factor) ? `${o.idu.airflow_ls} L/s` : null;
+  return [cap, size, air].filter(Boolean).join(", ");
+}
+
+/** the specs the row already says, left off the sheet beside it */
+const SAID_BY_ROW = new Set(["width", "depth", "height", "airflow", "series", "capacity"]);
+
+function NextList(p: {
+  embedded: boolean;
+  onKey: (e: KeyboardEvent) => void;
+  query: string;
+  setQuery: (q: string) => void;
+  followSearch: (q: string) => void;
+  fields?: React.ReactNode;
+  filters: SelectFilters;
+  setFilters: React.Dispatch<React.SetStateAction<SelectFilters>>;
+  isDucted: boolean;
+  perRoom: boolean;
+  phase: Phase | null;
+  setPhase: (phase: Phase | null) => void;
+  comparing: boolean;
+  setComparing: (on: boolean) => void;
+  endCompare: () => void;
+  fitsOpen: boolean;
+  setFitsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  options: BrowserRow[];
+  sections: ListSection[];
+  q: string;
+  openSeries: ReadonlySet<string>;
+  seriesKey: (section: string, series: string) => string;
+  toggleSeries: (key: string) => void;
+  searchedTabs: readonly { count: number }[];
+  loadKw: number | null;
+  fitKw: number | null;
+  rowWord?: (model: string) => RowWord | null;
+  current: string | null;
+  picked: string | null;
+  selectedOption: BrowserRow | null;
+  pickModel: (model: string | null) => void;
+  pairFor: (o: BrowserRow) => PairProposal | null;
+  inCompare: (model: string) => boolean;
+  compare: CompareEntry[];
+  COMPARE_MAX: number;
+  toggleCompare: (o: BrowserRow, pair: PairProposal | null) => void;
+  detailHost?: HTMLElement | null;
+  addLabel: string | ((model: string) => string);
+  addNote?: (capacityKw: number) => string | null;
+  isAdded?: (model: string) => boolean;
+  setOduPick: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  choose: (o: BrowserRow) => void;
+  chooseEntry: (e: CompareEntry) => void;
+}) {
+  const fitsRef = useRef<HTMLDivElement>(null);
+  const fitsId = useId();
+  const { fitsOpen, setFitsOpen } = p;
+  /* Fits within's panel shuts on a press outside it, and Escape shuts it
+     before the window hears the key */
+  useEffect(() => {
+    if (!fitsOpen) return;
+    const down = (e: MouseEvent) => {
+      if (!fitsRef.current?.contains(e.target as Node)) setFitsOpen(false);
+    };
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopImmediatePropagation();
+      setFitsOpen(false);
+    };
+    window.addEventListener("mousedown", down);
+    window.addEventListener("keydown", key, true);
+    return () => {
+      window.removeEventListener("mousedown", down);
+      window.removeEventListener("keydown", key, true);
+    };
+  }, [fitsOpen, setFitsOpen]);
+
+  const labelFor = (model: string) => (typeof p.addLabel === "function" ? p.addLabel(model) : p.addLabel);
+
+  /* EVERY ROW SAYS HOW IT FITS (Isaac's "Redraw", 7 November 2026): the
+     host's word first (a placed unit's sizes), then the ranked list's (Best
+     fit, Fits, Oversized with by how much, Short), then the aimed zone's */
+  const wordFor = (o: BrowserRow): RowWord | null => {
+    const host = p.rowWord?.(o.idu.model);
+    if (host) return host;
+    if (p.loadKw != null) {
+      if (o.bestFit) return { word: "Best fit", tone: "good" };
+      if (o.fit === "fits") return { word: "Fits", tone: "good" };
+      if (o.fit === "oversized") {
+        return { word: `Oversized, ${Math.round((o.capacityKw / p.loadKw) * 100)}%`, tone: "look" };
+      }
+      return { word: "Short", tone: "wrong" };
+    }
+    if (p.fitKw != null) {
+      const f = capacityFit(o.capacityKw, p.fitKw, OVERSIZE_CAP);
+      return f === "fits"
+        ? { word: "Fits", tone: "good" }
+        : f === "oversized"
+          ? { word: "Oversized", tone: "look" }
+          : { word: "Short", tone: "wrong" };
+    }
+    return null;
+  };
+
+  /* the row filled is the one the sheet is about: the picked one, else the
+     unit on the system the list is offering swaps for, else the sheet's */
+  const onModel = p.picked ?? p.current ?? p.selectedOption?.idu.model ?? null;
+  const row = (o: BrowserRow) => {
+    const pair = p.pairFor(o);
+    const w = wordFor(o);
+    const more = o.pairs.length - 1;
+    const pairLine = pair ? `${pair.odu.model}${more > 0 ? `, ${more} more outdoor pairing${more > 1 ? "s" : ""}` : ""}` : null;
+    const lines = [rowFigures(o, pair), pairLine, w?.note ?? null].filter((l): l is string => Boolean(l));
+    const ticked = p.inCompare(o.idu.model);
+    return (
+      <Row
+        key={o.idu.model}
+        name={o.idu.model}
+        lines={lines.length > 1 ? 2 : 1}
+        line={lines.map((l, i) => (
+          <span key={i} className="ds-ub-rowline">
+            {l}
+          </span>
+        ))}
+        on={o.idu.model === onModel}
+        onClick={() => p.pickModel(o.idu.model)}
+        lead={
+          p.comparing && (p.perRoom || pair) ? (
+            <Tick
+              label={null}
+              aria-label={`Compare ${o.idu.model}`}
+              checked={ticked}
+              disabled={!ticked && p.compare.length >= p.COMPARE_MAX}
+              onChange={() => p.toggleCompare(o, pair)}
+            />
+          ) : undefined
+        }
+        end={w ? <StateWord tone={w.tone}>{w.word}</StateWord> : undefined}
+      />
+    );
+  };
+
+  const limited = Object.values(p.filters).some((v) => v != null);
+  const none = limited
+      ? "Nothing in this style suits the load at these sizes — loosen a fit limit, or take one from below."
+      : "Nothing in this style suits the load — try another style, or take one from below.";
+  const list =
+    p.options.length === 0 ? (
+      <p className="ds-ub-none">
+        {p.q && !p.searchedTabs.some((t) => t.count > 0)
+          ? `No unit matches ${p.query.trim()}`
+          : p.phase != null
+            ? `No ${p.phase === "3" ? "three" : "single"}-phase pairings match — set Power to Any or loosen a filter.`
+            : "Nothing matches these filters — loosen a limit."}
+      </p>
+    ) : (
+      p.sections.map((s) => (
+        <div key={s.key} className="ds-ub-sect">
+          {s.title && <h4 className="ds-ub-band">{s.title}</h4>}
+          {s.items.length === 0 ? (
+            <p className="ds-ub-none">{none}</p>
+          ) : s.grouped ? (
+            s.groups.map((g) => {
+              const key = p.seriesKey(s.key, g.series);
+              const open = Boolean(p.q) || p.openSeries.has(key);
+              return (
+                <div key={key}>
+                  <button type="button" className="ds-ub-grp" aria-expanded={open} onClick={() => p.toggleSeries(key)}>
+                    <Icon name={open ? "chevD" : "chevR"} size={16} />
+                    {g.series}
+                  </button>
+                  {open && <RowList label={g.series}>{g.items.map(row)}</RowList>}
+                </div>
+              );
+            })
+          ) : (
+            <RowList label={s.title ?? "Units"}>{s.items.map(row)}</RowList>
+          )}
+        </div>
+      ))
+    );
+
+  const fitsWords = [
+    p.filters.maxWidthMm != null ? `W ≤ ${p.filters.maxWidthMm}` : null,
+    p.filters.maxDepthMm != null ? `D ≤ ${p.filters.maxDepthMm}` : null,
+    p.filters.maxHeightMm != null ? `H ≤ ${p.filters.maxHeightMm}` : null,
+    p.filters.minAirflowLs != null ? `Airflow ≥ ${p.filters.minAirflowLs}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const limit = (key: keyof SelectFilters, label: string, unit: string) => (
+    <Field key={key} label={label}>
+      <TextInput
+        inputMode="numeric"
+        placeholder={unit}
+        value={p.filters[key] ?? ""}
+        onChange={(e) => {
+          const v = parseInt(e.target.value, 10);
+          p.setFilters((f) => ({ ...f, [key]: Number.isFinite(v) ? v : undefined }));
+        }}
+      />
+    </Field>
+  );
+
+  const tools = (
+    <div className="ds-ub-tools">
+      <SearchField
+        label="Search units"
+        placeholder="Search models"
+        value={p.query}
+        onChange={(v) => {
+          p.setQuery(v);
+          p.followSearch(v);
+        }}
+      />
+      <div className="ds-ub-fields">
+        {p.fields}
+        <div className="pt-field ds-ub-fits" ref={fitsRef}>
+          <span className="pt-field-label" id={fitsId}>
+            Fits within
+          </span>
+          <button
+            type="button"
+            className="pt-chooser"
+            aria-labelledby={fitsId}
+            aria-haspopup="dialog"
+            aria-expanded={fitsOpen}
+            onClick={() => setFitsOpen((o) => !o)}
+          >
+            <span className="pt-chooser-value">{fitsWords || "Any size"}</span>
+            <Chevron className="pt-chooser-chev" />
+          </button>
+          {fitsOpen && (
+            <div className="ds-ub-fitspanel" role="dialog" aria-label="Fits within">
+              {limit("maxWidthMm", "W ≤", "mm")}
+              {limit("maxDepthMm", "D ≤", "mm")}
+              {limit("maxHeightMm", "H ≤", "mm")}
+              {p.isDucted && limit("minAirflowLs", "Airflow ≥", "L/s")}
+              {limited && (
+                <button type="button" className="pt-btn pt-btn--32 pt-btn--quiet" onClick={() => p.setFilters({})}>
+                  Reset sizes
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        {!p.perRoom && (
+          <Field label="Power">
+            <Chooser
+              options={[
+                { value: "any", label: "Any" },
+                { value: "1", label: "Single phase" },
+                { value: "3", label: "Three phase" },
+              ]}
+              value={p.phase ?? "any"}
+              onChange={(v) => p.setPhase(v === "any" ? null : (v as Phase))}
+            />
+          </Field>
+        )}
+        <Tick
+          label="Compare models"
+          checked={p.comparing}
+          onChange={(on) => (on ? p.setComparing(true) : p.endCompare())}
+        />
+      </div>
+    </div>
+  );
+
+  /* THE RIGHT-HAND COLUMN: two models ticked stand side by side there, in
+     the sheet's place (no box over the dialog); otherwise the sheet */
+  const sel = p.selectedOption;
+  const sheet =
+    p.comparing && p.compare.length >= 2 ? (
+      <NextCompare
+        entries={p.compare}
+        words={(e) => wordFor(e.option as unknown as BrowserRow)}
+        labelFor={labelFor}
+        onAdd={p.chooseEntry}
+      />
+    ) : sel ? (
+      <NextSheet
+        option={sel}
+        pair={p.pairFor(sel)}
+        onPickOdu={(oduModel) => p.setOduPick((m) => ({ ...m, [sel.idu.model]: oduModel }))}
+        onAdd={() => p.choose(sel)}
+        addLabel={labelFor(sel.idu.model)}
+        added={p.isAdded?.(sel.idu.model) ?? false}
+        addNote={p.addNote?.(sel.capacityKw) ?? null}
+      />
+    ) : null;
+  const detail = <aside className="ds-ub-detail next">{sheet}</aside>;
+
+  return (
+    <>
+      <div
+        className={`ds-ub next${p.embedded ? " embedded" : ""}`}
+        role="region"
+        aria-label="Choose a unit"
+        onKeyDown={(e) => p.onKey(e.nativeEvent)}
+      >
+        {tools}
+        <div className="ds-ub-list" tabIndex={0}>
+          {list}
+        </div>
+      </div>
+      {p.detailHost === undefined ? detail : p.detailHost ? createPortal(detail, p.detailHost) : null}
+    </>
+  );
+}
+
+/** the next flow's sheet: the model, its series under it, and only what its
+    row does not say; Add (or Swap) at its foot */
+function NextSheet({
+  option,
+  pair,
+  onPickOdu,
+  onAdd,
+  addLabel,
+  addNote,
+  added,
+}: {
+  option: BrowserRow;
+  pair: PairProposal | null;
+  onPickOdu: (oduModel: string) => void;
+  onAdd: () => void;
+  addLabel: string;
+  addNote: string | null;
+  added: boolean;
+}) {
+  const opt = option as unknown as UnitOption;
+  const rows = (group: SpecGroup) =>
+    specsInGroup(group)
+      .filter((s) => !SAID_BY_ROW.has(s.id))
+      .map((s) => (
+        <div key={s.id} className="ds-ub-drow">
+          <span className="ds-ub-dlabel">{s.label}</span>
+          <span className="ds-ub-dval">{s.cell(opt, pair)}</span>
+        </div>
+      ));
+  return (
+    <div className="ds-ub-dwrap">
+      <div className="ds-ub-dscroll">
+        <div className="ds-ub-dhead">
+          <h3 className="ds-ub-dtitle">{option.idu.model}</h3>
+          <span className="ds-ub-dseries">{option.idu.series}</span>
+        </div>
+        <section className="ds-ub-dsec">
+          <h4 className="ds-ub-dsech">{SPEC_GROUP_LABELS.idu}</h4>
+          {rows("idu")}
+        </section>
+        {pair && (
+          <>
+            <section className="ds-ub-dsec">
+              <h4 className="ds-ub-dsech">{SPEC_GROUP_LABELS.odu}</h4>
+              <OduPicker option={opt} pickedModel={pair.odu.model} onPick={onPickOdu} words />
+              {rows("odu")}
+            </section>
+            <section className="ds-ub-dsec">
+              <h4 className="ds-ub-dsech">{SPEC_GROUP_LABELS.pair}</h4>
+              {rows("pair")}
+            </section>
+          </>
+        )}
+      </div>
+      <div className="ds-ub-addbar">
+        {addNote && <p className="ds-ub-addnote">{addNote}</p>}
+        <button type="button" className="pt-btn pt-btn--36 pt-btn--main ds-ub-addgo" onClick={onAdd} disabled={added}>
+          {added ? "Added" : addLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** the next flow's comparison, in the sheet's column: each model's word and
+    its Add under its name, its cooling first, and a figure green only where
+    it is better than another (equal figures are not better) */
+function NextCompare({
+  entries,
+  words,
+  labelFor,
+  onAdd,
+}: {
+  entries: CompareEntry[];
+  words: (e: CompareEntry) => RowWord | null;
+  labelFor: (model: string) => string;
+  onAdd: (e: CompareEntry) => void;
+}) {
+  const anyPair = entries.some((e) => e.pair != null);
+  const specRow = (s: UnitSpec) => {
+    const vals = entries.map((e) => (s.numeric ? s.numeric(e.option, e.pair) : null));
+    const nums = vals.filter((v): v is number => v != null);
+    const best =
+      s.better && new Set(nums).size > 1 ? (s.better === "higher" ? Math.max(...nums) : Math.min(...nums)) : null;
+    return (
+      <tr key={s.id}>
+        <th className="ds-cmp-rowh">
+          {s.label}
+          {s.unit && <span className="ds-cmp-unit"> {s.unit}</span>}
+        </th>
+        {entries.map((e, i) => (
+          <td key={e.key} className={best != null && vals[i] === best ? "best" : ""}>
+            {s.cell(e.option, e.pair)}
+          </td>
+        ))}
+      </tr>
+    );
+  };
+  const band = (label: string) => (
+    <tr className="ds-cmp-group">
+      <td colSpan={entries.length + 1}>{label}</td>
+    </tr>
+  );
+  return (
+    <div className="ds-ub-dwrap">
+      <div className="ds-ub-dscroll">
+        <div className="ds-ub-dhead">
+          <h3 className="ds-ub-dtitle">Compare</h3>
+        </div>
+        <table className="ds-cmp-table next">
+          <thead>
+            <tr>
+              <th />
+              {entries.map((e) => {
+                const w = words(e);
+                return (
+                  <th key={e.key}>
+                    <div className="ds-cmp-headcell">
+                      <span className="ds-cmp-model">{e.option.idu.model}</span>
+                      {w && <StateWord tone={w.tone}>{w.word}</StateWord>}
+                      <button type="button" className="pt-btn pt-btn--32 pt-btn--second" onClick={() => onAdd(e)}>
+                        {labelFor(e.option.idu.model)}
+                      </button>
+                    </div>
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {band(SPEC_GROUP_LABELS.idu)}
+            <tr>
+              <th className="ds-cmp-rowh">Cooling</th>
+              {entries.map((e) => (
+                <td key={e.key}>{(e.option as unknown as BrowserRow).capacityKw.toFixed(1)} kW</td>
+              ))}
+            </tr>
+            {specsInGroup("idu")
+              .filter((s) => s.id !== "series")
+              .map(specRow)}
+            {anyPair && (
+              <>
+                {band(SPEC_GROUP_LABELS.odu)}
+                <tr>
+                  <th className="ds-cmp-rowh">Model</th>
+                  {entries.map((e) => (
+                    <td key={e.key}>
+                      {e.pair ? (
+                        <>
+                          {e.pair.odu.model} <PhaseWord phase={e.pair.odu.phase} />
+                        </>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                  ))}
+                </tr>
+                {specsInGroup("odu").map(specRow)}
+                {band(SPEC_GROUP_LABELS.pair)}
+                {specsInGroup("pair").map(specRow)}
+              </>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

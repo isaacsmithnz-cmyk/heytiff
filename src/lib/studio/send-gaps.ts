@@ -9,7 +9,7 @@ import type { DataPack } from "./packs/schema";
 import type { SummaryModel } from "./summary";
 import { trayItems } from "./builder";
 import { grilleStream, isGrille } from "./grilles";
-import { pointInPolygon } from "./geometry";
+import { roomOfPoint } from "./air-view";
 
 type Polygon = DesignObject & { geometry: { kind: "polygon"; points: Point[] } };
 
@@ -24,8 +24,11 @@ export function roomsWithoutSupply(doc: DesignDocument, model: SummaryModel): { 
     for (const r of s.rooms) {
       const room = doc.objects.find((o): o is Polygon => o.id === r.roomId && o.geometry.kind === "polygon");
       if (!room) continue;
+      /* the same test the Air screen and the sheet use: a grille in joinery
+         or a wall sits on the room's edge, and that is still its room */
+      const mm = doc.floors.find((f) => f.id === room.floorId)?.scaleMmPerUnit;
       const fed = supplies.some(
-        (g) => g.floorId === room.floorId && g.geometry.kind === "point" && pointInPolygon(g.geometry.at, room.geometry.points)
+        (g) => g.floorId === room.floorId && g.geometry.kind === "point" && roomOfPoint(doc, g.floorId, g.geometry.at, mm)?.id === room.id
       );
       if (!fed) out.push({ system: s.name, room: r.name });
     }

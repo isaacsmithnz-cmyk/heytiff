@@ -75,13 +75,19 @@ export function strayFittingIds(
     for (const a of [attachOf(o.props.startAttach), attachOf(o.props.endAttach)])
       if (a) on.set(a.id, (on.get(a.id) ?? 0) + 1);
   }
+  /* a duct going up a riser reaches it too (7 Cutler's Study, 31 October 2026) */
+  const ducted = new Set<string>();
+  for (const o of doc.objects) {
+    if (o.type !== "duct-run" || o.systemId !== sys.id) continue;
+    for (const a of [attachOf(o.props.startAttach), attachOf(o.props.endAttach)]) if (a) ducted.add(a.id);
+  }
   const mine = doc.objects.filter((o) => o.systemId === sys.id);
   return {
     joints: mine.filter((o) => o.type === "joint" && (on.get(o.id) ?? 0) < 3).map((o) => o.id),
     boxes: mine.filter((o) => o.type === "branch-box" && (on.get(o.id) ?? 0) === 0).map((o) => o.id),
     /* a riser no pipe reaches on its own floor (Isaac, 2026-09-30: it sat on
        the trunk without joining it, and the floor above was cut off) */
-    risers: mine.filter((o) => o.type === "riser" && (on.get(o.id) ?? 0) === 0).map((o) => o.id),
+    risers: mine.filter((o) => o.type === "riser" && (on.get(o.id) ?? 0) === 0 && !ducted.has(o.id)).map((o) => o.id),
   };
 }
 

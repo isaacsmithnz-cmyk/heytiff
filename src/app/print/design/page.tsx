@@ -74,5 +74,5 @@ export default async function PrintDesignPage({
   );
   const brand = await orgBrand(orgId, { seconds: 600 });
 
-  return <PdfPrint model={model} urls={urls} brand={brand} />;
+  return <PdfPrint model={model} urls={urls} brand={brand} flow={ticket.flow} />;
 }

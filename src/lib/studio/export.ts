@@ -61,6 +61,15 @@ export const PLAN_BOX_MM: Record<ExportPaper, Record<ExportOrientation, { w: num
   A3: { portrait: { w: 257, h: 346 }, landscape: { w: 380, h: 224 } },
 };
 
+/** The next flow's plan box (board 13 of the Studio rework mocks): the
+    whole page inside the sheet's frame, its 10 mm of paper, 4 mm band and
+    2 mm clear, under the one-line caption. Twin of the `.ds-print-page.fill`
+    heights in studio.css. */
+export const PLAN_FILL_MM: Record<ExportPaper, Record<ExportOrientation, { w: number; h: number }>> = {
+  A4: { portrait: { w: 178, h: 255 }, landscape: { w: 265, h: 168 } },
+  A3: { portrait: { w: 265, h: 378 }, landscape: { w: 388, h: 255 } },
+};
+
 /** A plan page turns when the plan prints noticeably bigger the other way
     round — less than this and the document's own orientation stands, so a
     near-square plan doesn't flip the page for nothing. */
@@ -73,11 +82,12 @@ const TURN_GAIN = 1.1;
 export function planPageOrientation(
   figure: { w: number; h: number },
   paper: ExportPaper,
-  sheet: ExportOrientation
+  sheet: ExportOrientation,
+  boxes: typeof PLAN_BOX_MM = PLAN_BOX_MM
 ): ExportOrientation {
   if (!(figure.w > 0 && figure.h > 0)) return sheet;
   const fit = (o: ExportOrientation) => {
-    const b = PLAN_BOX_MM[paper][o];
+    const b = boxes[paper][o];
     return Math.min(b.w / figure.w, b.h / figure.h);
   };
   const other: ExportOrientation = sheet === "portrait" ? "landscape" : "portrait";

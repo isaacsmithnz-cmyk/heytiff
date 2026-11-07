@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { complianceContext, jobIsReal, trimId } from "@/lib/compliance/send";
 import { DOCUMENTS_BUCKET } from "@/lib/documents/query";
 import { MAX_BYTES, storageRef } from "@/lib/documents/files";
-import { pdfFileName, readPdfOptions } from "@/lib/studio/pdf-request";
+import { pdfFileName, readPdfFlow, readPdfOptions } from "@/lib/studio/pdf-request";
 import { renderDesignPdf } from "@/lib/studio/pdf-render";
 import { sendJobDocumentsToServiceM8 } from "@/app/actions/job-sm8";
 import type { DesignToJobResult } from "@/lib/studio/job-send";
@@ -50,7 +50,7 @@ export async function POST(request: Request): Promise<Response> {
   let pdf: Uint8Array;
   try {
     pdf = await renderDesignPdf(
-      { orgId, designId, options: readPdfOptions(body?.options, designId) },
+      { orgId, designId, options: readPdfOptions(body?.options, designId), ...readPdfFlow(body?.flow) },
       new URL(request.url).origin
     );
   } catch (err) {

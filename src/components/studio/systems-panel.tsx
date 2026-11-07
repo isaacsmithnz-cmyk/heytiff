@@ -526,7 +526,7 @@ function SystemCard({
 }
 
 /** the units waiting for the plan: dragged out one at a time */
-function Rack({
+export function Rack({
   pack,
   items,
   onArmPlace,

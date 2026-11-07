@@ -1,5 +1,5 @@
 import { requireOrg } from "@/lib/permissions-server";
-import { pdfFileName, readPdfOptions } from "@/lib/studio/pdf-request";
+import { pdfFileName, readPdfFlow, readPdfOptions } from "@/lib/studio/pdf-request";
 import { renderDesignPdf } from "@/lib/studio/pdf-render";
 
 /* POST { designId, name, options } → the design as a PDF file, the parts the
@@ -23,13 +23,14 @@ export async function POST(request: Request): Promise<Response> {
     designId?: unknown;
     name?: unknown;
     options?: unknown;
+    flow?: unknown;
   } | null;
   const designId = typeof body?.designId === "string" ? body.designId.slice(0, 80) : "";
   if (!designId) return new Response("Which design?", { status: 400 });
 
   try {
     const pdf = await renderDesignPdf(
-      { orgId, designId, options: readPdfOptions(body?.options, designId) },
+      { orgId, designId, options: readPdfOptions(body?.options, designId), ...readPdfFlow(body?.flow) },
       new URL(request.url).origin
     );
     const name = pdfFileName(typeof body?.name === "string" ? body.name : "");

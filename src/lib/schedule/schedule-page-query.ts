@@ -22,7 +22,7 @@ import { BOOKINGS_OPEN_TO_MANAGERS } from "@/lib/integrations/sm8-booking-plan";
 import type { Hue, Tone } from "@/components/parts/state";
 import { awayOnDay, withRegular } from "@/lib/team/regular-days-off";
 import { readRegularDaysOff, sm8StaffByProfile } from "@/lib/team/regular-days-off-query";
-import { daysFor, isDay, isWeekend, stepDay, type ScheduleView } from "./board";
+import { daysFor, isDay, type ScheduleView } from "./board";
 
 /** A job the panel offers: a ServiceM8 job, which is what Book in books. */
 export type PanelJob = {
@@ -75,9 +75,9 @@ export function readScheduleParams(params: Record<string, string | string[] | un
   const one = (k: string) => (typeof params[k] === "string" ? (params[k] as string) : undefined);
   const asked = one("view");
   const view: ScheduleView = asked === "week" || asked === "weeks" || asked === "month" ? asked : "day";
-  let day = isDay(one("day")) ? one("day")! : today;
-  /* a weekend asked for the day view shows the Monday after */
-  if (view === "day" && isWeekend(day)) day = stepDay("day", day, 1);
+  /* a Saturday or Sunday is a day like any other: people sometimes work
+     one, and a weekend blocked out says they can't (Isaac, 7 November 2026) */
+  const day = isDay(one("day")) ? one("day")! : today;
   return { view, day };
 }
 

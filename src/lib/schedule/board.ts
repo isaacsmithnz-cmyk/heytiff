@@ -68,7 +68,7 @@ export function daysFor(view: ScheduleView, day: string): string[] {
   return view === "week" ? weekOf(day) : [day];
 }
 
-/** Earlier and Later: a weekday at a time, or a week. */
+/** Earlier and Later: a day at a time, weekends too, or a week. */
 export function stepDay(view: ScheduleView, day: string, dir: 1 | -1): string {
   if (view === "month") {
     const y = Number(day.slice(0, 4));
@@ -77,9 +77,7 @@ export function stepDay(view: ScheduleView, day: string, dir: 1 | -1): string {
   }
   if (view === "weeks") return addDays(weekOf(day)[0], 7 * WEEKS_SHOWN * dir);
   if (view === "week") return addDays(weekOf(day)[0], 7 * dir);
-  let d = addDays(day, dir);
-  while (isWeekend(d)) d = addDays(d, dir);
-  return d;
+  return addDays(day, dir);
 }
 
 /** `count` working days from `start` on (Saturday and Sunday skipped):

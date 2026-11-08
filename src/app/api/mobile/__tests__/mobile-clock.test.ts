@@ -27,7 +27,9 @@ jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: { from: (t: string) => fake.from(t), rpc: (n: string, a: Record<string, unknown>) => fake.rpc(n, a) },
 }));
 jest.mock("server-only", () => ({}));
-jest.mock("next/server", () => ({ after: () => {} }));
+/* a stint's time is queued with the answer and sent after it */
+const mockScheduled: (() => unknown)[] = [];
+jest.mock("next/server", () => ({ after: (fn: () => unknown) => void mockScheduled.push(fn) }));
 jest.mock("@/lib/auth0", () => ({ auth0: { getSession: async () => null } }));
 jest.mock("@/lib/fleet/query", () => ({ staffProfileIdFor: async (_o: string, userId: string) => `card-${userId}` }));
 jest.mock("@/lib/workboard/job-notes-query", () => ({ staffDisplayNames: async () => new Map() }));
@@ -91,11 +93,18 @@ const checkIns = () => fake.db.job_check_ins as Row[];
 const openOf = (user: string) => checkIns().find((c) => c.user_id === user && c.checked_out_at == null)!;
 const ago = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
 const posted = () => postSm8Booking.mock.calls.map((c) => c[1] as Row);
+/* what ran after the answer; the drain it schedules behind it is the queue's business */
+const runAfter = async () => {
+  await Promise.all(mockScheduled.splice(0).map((fn) => fn()));
+  mockScheduled.length = 0;
+};
+const lastOf = async (sub: string) => ((await (await GET(req(sub))).json()) as Row).last as Row;
 
 const env = process.env;
 beforeEach(() => {
   process.env = { ...env, AUTH0_DOMAIN: DOMAIN, SM8_WRITES: "attachment,note,booking" };
   fake.reset();
+  mockScheduled.length = 0;
   sm8 = makeSm8Bookings();
   sm8.job(JOB, { status: "Work Order", kept: { generated_job_id: "2935" } as never });
   sm8.job(OTHER_JOB, { status: "Work Order", kept: { generated_job_id: "3304" } as never });
@@ -167,7 +176,7 @@ test("Clock on: on the job now, with its number, its street and the end of your 
   expect((await press("auth0|sam", { do: "on", jobUuid: "not-a-job" })).status).toBe(404);
 });
 
-test("Clock off at the time you picked: the stint ends there, and ServiceM8 gets it once as your recorded time", async () => {
+test("Clock off at the time you picked: the stint ends there, and ServiceM8 gets it once as your recorded time, after the answer", async () => {
   await press("auth0|sam", { do: "on", jobUuid: JOB });
   const stint = openOf("auth0|sam");
   stint.checked_in_at = ago(3);
@@ -176,11 +185,15 @@ test("Clock off at the time you picked: the stint ends there, and ServiceM8 gets
   expect(r.status).toBe(200);
   expect(r.body.said).toBe("Clocked off, 2 h 0 m.");
   expect(stint.checked_out_at).toBe(at);
-  expect(posted()).toHaveLength(1);
-  expect(posted()[0]).toMatchObject({ jobUuid: JOB.toLowerCase(), staffUuid: SAM_SM8, start: wallMinute(ago(3), ZONE), end: wallMinute(at, ZONE), recorded: true });
+  /* the answer never waits on ServiceM8: the time is on its way */
+  expect(posted()).toEqual([]);
   const state = r.body.state as Row;
   expect(state.on).toBeNull();
-  expect(state.last).toMatchObject({ id: stint.id, number: "2935", sm8: "sent", why: null });
+  expect(state.last).toMatchObject({ id: stint.id, number: "2935", sm8: "sending", why: null });
+  await runAfter();
+  expect(posted()).toHaveLength(1);
+  expect(posted()[0]).toMatchObject({ jobUuid: JOB.toLowerCase(), staffUuid: SAM_SM8, start: wallMinute(ago(3), ZONE), end: wallMinute(at, ZONE), recorded: true });
+  expect(await lastOf("auth0|sam")).toMatchObject({ id: stint.id, sm8: "sent", why: null });
   /* clocked off already: nothing to end, nothing more goes */
   expect((await press("auth0|sam", { do: "off", at: ago(0) })).body).toEqual({ error: CLOCK_WORDS.notOn });
   expect(posted()).toHaveLength(1);
@@ -204,9 +217,11 @@ test("clocking on somewhere else ends the last stint now, and its time goes", as
   expect(r.body.said).toBe("Clocked on at 3304.");
   expect(checkIns()).toHaveLength(2);
   expect(openOf("auth0|sam").sm8_job_uuid).toBe(OTHER_JOB);
+  expect((r.body.state as Row).last).toMatchObject({ number: "2935", sm8: "sending" });
+  await runAfter();
   expect(posted()).toHaveLength(1);
   expect(posted()[0]).toMatchObject({ jobUuid: JOB.toLowerCase(), recorded: true });
-  expect((r.body.state as Row).last).toMatchObject({ number: "2935", sm8: "sent" });
+  expect(await lastOf("auth0|sam")).toMatchObject({ number: "2935", sm8: "sent" });
 });
 
 test("with no ServiceM8 link, or ServiceM8 not taking bookings, the time stays in HeyTiff and says why", async () => {
@@ -227,8 +242,9 @@ test("a stint ServiceM8 refused says so, and Try again sends it", async () => {
   postSm8Booking.mockResolvedValueOnce({ status: 422, outcome: { kind: "rejected", status: 422 }, remote: null, recordUuid: null });
   await press("auth0|sam", { do: "on", jobUuid: JOB });
   openOf("auth0|sam").checked_in_at = ago(2);
-  const r = await press("auth0|sam", { do: "off", at: ago(1) });
-  expect((r.body.state as Row).last).toMatchObject({ sm8: "failed" });
+  await press("auth0|sam", { do: "off", at: ago(1) });
+  await runAfter();
+  expect(await lastOf("auth0|sam")).toMatchObject({ sm8: "failed" });
   for (const w of fake.db.sm8_writes as Row[]) w.next_attempt_at = ago(0);
   const again = await press("auth0|sam", { do: "send" });
   expect(again.status).toBe(200);
@@ -241,6 +257,7 @@ test("your Clock off ends only your own stint", async () => {
   await press("auth0|nolink", { do: "on", jobUuid: JOB });
   openOf("auth0|sam").checked_in_at = ago(2);
   await press("auth0|sam", { do: "off", at: ago(1) });
+  await runAfter();
   expect(openOf("auth0|nolink")).toBeTruthy();
   expect(posted().map((p) => p.staffUuid)).toEqual([SAM_SM8]);
 });

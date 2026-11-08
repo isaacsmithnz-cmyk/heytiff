@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { projectHref } from "@/lib/shell/links";
 import { revalidateHome } from "@/lib/shell/revalidate-home";
 import { auth0 } from "@/lib/auth0";
@@ -1644,8 +1645,17 @@ export async function fileNote(
 
   /* AND ON TO SERVICEM8, with no Send (Isaac, 26 October 2026: "It should
      automatically go to sm8, no need for extra send option"): a note filed
-     on a job goes as its author, through the job sheet's own send. */
-  if (target.kind === "job" && target.id) await sendOnToSm8(ctx, noteId, target.id);
+     on a job goes as its author, through the job sheet's own send.
+     AFTER THE ANSWER, as Save's does: Tiff's reply never waits on
+     ServiceM8, which could hold it up to the send's whole budget (Isaac, 8
+     November 2026, on the wrap-up's own wait: "a freeze on the screen for
+     probably 3 or 4 seconds, which looked like a bug"). after() keeps the
+     phone's session (Next binds the callback to its caller's context), so
+     the note still goes as whoever said it. */
+  if (target.kind === "job" && target.id) {
+    const jobUuid = target.id;
+    after(() => sendOnToSm8(ctx, noteId, jobUuid));
+  }
 
   refreshHome(target);
   return {

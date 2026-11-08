@@ -41,8 +41,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     });
     /* Save, from the phone's box: the words as written, and on to ServiceM8
        as any job note goes, behind the same gate Tiff's filing has. The
-       day's wrap-up asks for its own send after, so it doesn't ask here.
-       The send goes after the answer: Saved never waits on ServiceM8 (Isaac,
+       day's wrap-up asks for it here too, a note the person ticked for
+       ServiceM8 (8 November 2026). The send goes after the answer: Saved never waits on ServiceM8 (Isaac,
        6 November 2026: "it should be instant if it's just writing it
        straight away"). */
     if (input?.sendOn === true) after(() => sendNoteOnToSm8(() => sm8PressFromMobile(ctx), ctx.orgId, note.id, parentRemoteId));

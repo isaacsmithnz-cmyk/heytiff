@@ -1711,6 +1711,74 @@ export async function searchAllMirrorJobs(
   );
 }
 
+/* ── the phone's Jobs: every job by number, and the ones opened last ──
+
+   Isaac, 8 November 2026: "start the list in numerical order from most
+   recent to earliest". ServiceM8 keeps the number as text, which sorts 999
+   above 3518, so the order is the mirror's `job_number`: the digits as an
+   integer, worked out by Postgres (docs/migrations/sm8_jobs_job_number.sql).
+   A family's clones share their parent's number and follow it, 3323, 3323A. */
+
+/** How many jobs one page of the phone's All jobs carries. */
+export const JOBS_BY_NUMBER_PAGE = 50;
+
+const MIRROR_LIST_COLUMNS =
+  "uuid, generated_job_id, status, company_uuid, geo_city, category_uuid, " +
+  "job_description, date, quote_date, completion_date";
+
+/** One page of every active job, newest number first, from `from` on. */
+export async function listMirrorJobsByNumber(
+  orgId: string,
+  today: string,
+  opts: { includeMoney?: boolean; from?: number; limit?: number } = {}
+): Promise<AllJobsMirrorJob[]> {
+  const includeMoney = opts.includeMoney ?? true;
+  const limit = Math.min(Math.max(opts.limit ?? JOBS_BY_NUMBER_PAGE, 1), 100);
+  const from = Math.max(opts.from ?? 0, 0);
+  const columns = includeMoney ? `${MIRROR_LIST_COLUMNS}, ${SM8_JOB_MONEY_COLUMNS}` : MIRROR_LIST_COLUMNS;
+  const { data, error } = await supabaseAdmin
+    .from("sm8_jobs")
+    .select(columns)
+    .eq("org_id", orgId)
+    .eq("active", 1)
+    .order("job_number", { ascending: false, nullsFirst: false })
+    .order("generated_job_id", { ascending: true })
+    .range(from, from + limit - 1);
+  if (error) {
+    console.error(`[jobs] couldn't list org ${orgId}'s jobs by number:`, error);
+    return [];
+  }
+  return hydrateMirrorJobs(orgId, (data ?? []) as unknown as JobRow[], today, includeMoney);
+}
+
+/** The jobs named, in the order named: the phone's Recent, read fresh so a
+    job's state is today's, not the day it was opened. A job gone from the
+    mirror is left out. */
+export async function readMirrorJobsByIds(
+  orgId: string,
+  ids: readonly string[],
+  today: string,
+  opts: { includeMoney?: boolean } = {}
+): Promise<AllJobsMirrorJob[]> {
+  const asked = [...new Set(ids.map((id) => id.trim()).filter(Boolean))].slice(0, 20);
+  if (asked.length === 0) return [];
+  const includeMoney = opts.includeMoney ?? true;
+  const columns = includeMoney ? `${MIRROR_LIST_COLUMNS}, ${SM8_JOB_MONEY_COLUMNS}` : MIRROR_LIST_COLUMNS;
+  const { data, error } = await supabaseAdmin
+    .from("sm8_jobs")
+    .select(columns)
+    .eq("org_id", orgId)
+    .eq("active", 1)
+    .in("uuid", asked);
+  if (error) {
+    console.error(`[jobs] couldn't read org ${orgId}'s recent jobs:`, error);
+    return [];
+  }
+  const byId = new Map(((data ?? []) as unknown as JobRow[]).map((r) => [lowUuid(r.uuid), r]));
+  const rows = asked.map((id) => byId.get(lowUuid(id))).filter((r): r is JobRow => !!r);
+  return hydrateMirrorJobs(orgId, rows, today, includeMoney);
+}
+
 /* ── several words: every one has to land ──
 
    "hr constructions mosman" is a client's name and a suburb. Asked as one

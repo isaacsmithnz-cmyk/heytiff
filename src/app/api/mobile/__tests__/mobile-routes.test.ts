@@ -57,6 +57,14 @@ jest.mock("@/lib/workboard/all-jobs-query", () => ({
     asked.push(`search ${orgId} "${q}" ${today} ${JSON.stringify(opts)}`);
     return [];
   },
+  listMirrorJobsByNumber: async (orgId: string, today: string, opts: unknown) => {
+    asked.push(`list ${orgId} ${today} ${JSON.stringify(opts)}`);
+    return [];
+  },
+  readMirrorJobsByIds: async (orgId: string, ids: string[], today: string, opts: unknown) => {
+    asked.push(`ids ${orgId} ${ids.join("+")} ${today} ${JSON.stringify(opts)}`);
+    return [];
+  },
   resolveJobCard: async (orgId: string, id: string) => {
     asked.push(`resolve ${orgId} ${id}`);
     return { parentRemoteId: id === "claim-7" ? "job-3342" : id, focusRemoteId: id === "claim-7" ? id : null };
@@ -210,6 +218,20 @@ test("the search carries money only for someone who holds it", async () => {
   expect(asked).toEqual([
     'search org-diamond "rifkin" 2026-10-26 {"includeMoney":false}',
     'search org-diamond "rifkin" 2026-10-26 {"includeMoney":true}',
+  ]);
+});
+
+test("before anything is typed: every job by number a page at a time, and the jobs this phone opened last", async () => {
+  await jobs(req("jobs?list=1", "auth0|lyle"));
+  await jobs(req("jobs?list=1&from=50", "auth0|isaac"));
+  await jobs(req("jobs?ids=job-3494,job-3423", "auth0|lyle"));
+  /* a search typed wins over both */
+  await jobs(req("jobs?q=rifkin&list=1", "auth0|lyle"));
+  expect(asked).toEqual([
+    'list org-diamond 2026-10-26 {"includeMoney":false,"from":0}',
+    'list org-diamond 2026-10-26 {"includeMoney":true,"from":50}',
+    'ids org-diamond job-3494+job-3423 2026-10-26 {"includeMoney":false}',
+    'search org-diamond "rifkin" 2026-10-26 {"includeMoney":false}',
   ]);
 });
 

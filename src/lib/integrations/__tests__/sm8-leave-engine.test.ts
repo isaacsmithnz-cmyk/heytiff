@@ -247,6 +247,26 @@ describe("approved leave goes onto the person's day", () => {
   });
 });
 
+describe("a block out goes as its own part of the day", () => {
+  it("is queued, sent and read back as 2:15 to 2:45 under its own words, not as a whole day", async () => {
+    const placedAt = "2026-11-08T12:26:06.562Z";
+    fake.db.schedule_blocks = [{ id: "blk1", org_id: ORG, day: "2026-11-09", placed_at: placedAt, removed_at: null }];
+    const q = await queueLeaveOnBoard(await press(), {
+      source: "block",
+      id: `blk1@${Date.parse(placedAt)}`,
+      staffProfileId: SAM,
+      kind: null,
+      from: "2026-11-09",
+      to: "2026-11-09",
+      block: { start: "2026-11-09 14:15:00", end: "2026-11-09 14:45:00", name: "Dentist, Bondi" },
+    });
+    expect(q.note).toBeNull();
+    expect(creates()[0]).toMatchObject({ leave_start: "2026-11-09 14:15:00", leave_end: "2026-11-09 14:45:00", payload: { name: "Dentist, Bondi" } });
+    expect(await run()).toMatchObject({ sent: 1, failed: 0 });
+    expect([...board.values()][0]).toMatchObject({ name: "Dentist, Bondi", start: "2026-11-09 14:15:00", end: "2026-11-09 14:45:00" });
+  });
+});
+
 describe("what keeps leave off the board", () => {
   it("queues nothing for someone not linked to ServiceM8, and says so beside the decision", async () => {
     fake.db.integration_links = [];

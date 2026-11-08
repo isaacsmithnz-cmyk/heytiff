@@ -35,6 +35,7 @@ jest.mock("@/lib/supabase-server", () => ({
       sub.gte = () => sub;
       sub.or = note("or");
       sub.limit = note("limit");
+      sub.range = note("range");
       sub.maybeSingle = () => {
         const q = singleQueue[table];
         if (q && q.length) return Promise.resolve({ data: q.shift() ?? null });
@@ -48,7 +49,9 @@ jest.mock("@/lib/supabase-server", () => ({
 }));
 
 import {
+  listMirrorJobsByNumber,
   readJobFamily,
+  readMirrorJobsByIds,
   readJobTracked,
   readMirrorJobDetail,
   readMirrorJobRow,
@@ -706,5 +709,28 @@ describe("searchAllMirrorJobs", () => {
     expect(byNumber).toBeGreaterThanOrEqual(0);
     const order = calls.slice(byNumber + 1).find((c) => c.table === "sm8_jobs" && c.method === "order");
     expect(order?.args).toEqual(["generated_job_id", { ascending: true }]);
+  });
+});
+
+describe("the phone's Jobs before anything is typed", () => {
+  /* text sorts 999 above 3518; the mirror's job_number is the digits as an integer */
+  it("lists every job by its number as an integer, newest first, a clone after its parent, a page at a time", async () => {
+    rowsBy["sm8_jobs"] = [];
+    await listMirrorJobsByNumber("org-1", TODAY, { includeMoney: false, from: 50 });
+    const asked = calls.filter((c) => c.table === "sm8_jobs").map((c) => [c.method, ...c.args]);
+    expect(asked).toEqual([
+      ["order", "job_number", { ascending: false, nullsFirst: false }],
+      ["order", "generated_job_id", { ascending: true }],
+      ["range", 50, 99],
+    ]);
+  });
+
+  it("reads the jobs opened last fresh, in the order they were opened, leaving out one gone", async () => {
+    rowsBy["sm8_jobs"] = [
+      { ...jobRow, uuid: "j-3423", generated_job_id: "3423" },
+      { ...jobRow, uuid: "j-3494", generated_job_id: "3494" },
+    ];
+    const jobs = await readMirrorJobsByIds("org-1", ["j-3494", "gone", "j-3423"], TODAY, { includeMoney: false });
+    expect(jobs.map((j) => j.jobNumber)).toEqual(["3494", "3423"]);
   });
 });

@@ -613,6 +613,61 @@ async function build(
     return [m, e];
   };
 
+  /* ── THE SITE ROUND THE HOUSE, off Tiff's read of the site plan (Isaac, 8 November
+     2026: "Paths, walkways, streets and driveways too ... neighbours property as a
+     ghost if semi detached"): with Outside on, the driveways, paths and lawns as
+     they're made, the street past the kerb, the fences, and the neighbours as
+     see-through ghosts of their storeys ── */
+  const siteG = new THREE.Group();
+  scene.add(siteG);
+  const site = scene3.site;
+  if (site) {
+    const asphalt = M({ color: 0x3f3f46, roughness: 0.95 });
+    const kerbMat = M({ color: 0xd4d4d8, roughness: 0.9 });
+    const surfaceMat: Record<string, THREE_NS.Material> = {
+      driveway: finishMat.concrete,
+      path: paverMat,
+      paving: paverMat,
+      deck: deckMat,
+      lawn: M({ color: 0x9fb58a, roughness: 1 }),
+      garden: M({ color: 0x6b5442, roughness: 1 }),
+      pool: M({ color: 0x38bdf8, roughness: 0.1, metalness: 0.1 }),
+    };
+    for (const x of site.surfaces) {
+      const m = flat(x.pts, surfaceMat[x.kind] ?? paverMat, groundY + (x.kind === "lawn" || x.kind === "garden" ? 0.004 : 0.012));
+      m.receiveShadow = true;
+      siteG.add(m);
+    }
+    if (site.street) {
+      /* the road runs on along the kerb, away from the house */
+      const [a, b] = site.street.kerb;
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      const u: XZ = [(b[0] - a[0]) / len, (b[1] - a[1]) / len];
+      let nrm: XZ = [-u[1], u[0]];
+      const mid: XZ = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      if ((cx - mid[0]) * nrm[0] + (cz - mid[1]) * nrm[1] > 0) nrm = [-nrm[0], -nrm[1]];
+      const run = Math.max(len, scene3.span) + 20;
+      const at = (t: number, o: number): XZ => [mid[0] + u[0] * t + nrm[0] * o, mid[1] + u[1] * t + nrm[1] * o];
+      const w = site.street.width;
+      const road = flat([at(-run, 0.15), at(run, 0.15), at(run, w), at(-run, w)], asphalt, groundY - 0.02);
+      road.receiveShadow = true;
+      siteG.add(road, flat([at(-run, 0), at(run, 0), at(run, 0.15), at(-run, 0.15)], kerbMat, groundY + 0.03));
+    }
+    const ghost = own(new THREE.MeshStandardMaterial({ color: 0xe5e7eb, transparent: true, opacity: 0.3, depthWrite: false, roughness: 1 }));
+    const ghostEdge = own(new THREE.LineBasicMaterial({ color: 0x9ca3af, transparent: true, opacity: 0.6 }));
+    for (const nb of site.neighbours) {
+      const g = new THREE.ExtrudeGeometry(shape(nb.pts), { depth: nb.storeys * 3, bevelEnabled: false });
+      g.rotateX(-Math.PI / 2);
+      const m = new THREE.Mesh(g, ghost);
+      m.position.y = groundY;
+      const e = new THREE.LineSegments(new THREE.EdgesGeometry(g), ghostEdge);
+      e.position.y = groundY;
+      siteG.add(m, e);
+    }
+    const fenceMat = M({ color: 0x8b6b4a, roughness: 0.9 });
+    for (const fc of site.fences) for (let i = 1; i < fc.pts.length; i++) for (const o of segBox(fc.pts[i - 1], fc.pts[i], groundY, fc.height, 0.04, fenceMat, false)) siteG.add(o);
+  }
+
   /* ── WINDOWS AND DOORS, cut into the wall they are in ── */
   const frameMat = M({ color: C.frame, roughness: 0.4, metalness: 0.5 });
   const glassMat = own(
@@ -1472,6 +1527,7 @@ async function build(
     grid.visible = !plans && !out;
     catcher.visible = !out;
     lawn.visible = out;
+    siteG.visible = out;
     trees.visible = out;
     sky.visible = out;
     for (const s of slabs) (s.mesh.material as THREE_NS.Material[])[0] = plans ? plainTop : s.finish;

@@ -2,7 +2,7 @@ import { requireOrg } from "@/lib/permissions-server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { isDesignDocumentShape } from "@/lib/studio/document";
 import { firstPlanPage, type PlanReading } from "@/lib/studio/reading";
-import { READING_MODEL, readRoof, readSheet, type SheetToRead } from "@/lib/studio/reading-server";
+import { READING_MODEL, readRoof, readSheet, readSite, type SheetToRead } from "@/lib/studio/reading-server";
 
 /* POST { designId } — Tiff reads every plan on the design's floors (v2,
    20 October) and hands the reading back for the Studio to keep on the
@@ -62,7 +62,9 @@ export async function POST(request: Request): Promise<Response> {
   const firstPlans = data.doc.floors.flatMap((f) => sheets.filter((s) => s.floorId === f.id).slice(0, 1));
   const pdf = data.doc.planImport?.sources.find((src) => src.kind === "pdf")?.ref ?? null;
 
-  const [results, roof] = await Promise.all([
+  /* the site round the house, set out on the ground floor's first plan (Isaac, 8 November 2026) */
+  const groundPlan = [...data.doc.floors].sort((a, b) => a.level - b.level).flatMap((f) => sheets.filter((s) => s.floorId === f.id).slice(0, 1))[0];
+  const [results, roof, site] = await Promise.all([
     Promise.allSettled(toRead.map((s) => readSheet(orgId, s))),
     had?.roof
       ? Promise.resolve(had.roof)
@@ -70,6 +72,14 @@ export async function POST(request: Request): Promise<Response> {
           console.error(`[read-plans] ${designId}/roof: ${String(e)}`);
           return null;
         }),
+    had?.site !== undefined
+      ? Promise.resolve(had.site)
+      : groundPlan
+        ? readSite(orgId, pdf, groundPlan, firstPlanPage(data.doc.planImport)).catch((e) => {
+            console.error(`[read-plans] ${designId}/site: ${String(e)}`);
+            return undefined;
+          })
+        : Promise.resolve(undefined),
   ]);
   const reading: PlanReading = {
     at: new Date().toISOString(),
@@ -77,6 +87,7 @@ export async function POST(request: Request): Promise<Response> {
     floors: Object.fromEntries(Object.entries(had?.floors ?? {}).map(([k, v]) => [k, [...v]])),
     failed: [],
     roof,
+    ...(site !== undefined ? { site } : {}),
   };
   results.forEach((r, i) => {
     const s = toRead[i];

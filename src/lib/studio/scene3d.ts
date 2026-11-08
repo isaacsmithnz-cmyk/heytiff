@@ -2,7 +2,7 @@ import type { DesignDocument, DesignObject, Floor, Point } from "./document";
 import { attachOf, floorBasesM, floorHeightM } from "./graph";
 import { ductPaint } from "./duct-size";
 import type { GrilleMount, GrilleStyle } from "./grilles";
-import { inside, type ReadSpace, type SheetReading, type SpaceKind } from "./reading";
+import { inside, type ReadPoint, type ReadSpace, type SheetReading, type SiteSurfaceKind, type SpaceKind } from "./reading";
 import { finishInside, roofFinishFor, stairFinishOf, type RoofFinish, type SurfaceFinish } from "./finishes";
 import { framingOf, roofHeightAt, roofMesh, type Member, type Mesh, type RoofRect } from "./roof3d";
 import { frameOf, furnish, type Piece3D, type ReadPiece } from "./furnish3d";
@@ -139,6 +139,16 @@ export type Riser3D = { floorId: string; at: XZ; y0: number; y1: number; r: numb
 /** A roof part as drawn: its sheets, the walls rising to it, on the floor whose walls carry it. */
 export type Roof3D = { floorId: string; existing: boolean; faces: Mesh; fills: Mesh; finish: RoofFinish | null };
 
+/** The site round the house, in metres on the ground (Isaac, 8 November 2026: "Paths, walkways, streets and driveways too ... neighbours property as a ghost"). */
+export type Site3D = {
+  boundary: XZ[];
+  surfaces: { kind: SiteSurfaceKind; pts: XZ[]; finish: string }[];
+  /** the kerb nearest the house and how wide the road is, metres */
+  street: { name: string; kerb: [XZ, XZ]; width: number } | null;
+  neighbours: { pts: XZ[]; storeys: number; attached: boolean; note: string }[];
+  fences: { pts: XZ[]; height: number }[];
+};
+
 /** A floor's ceilings: flat ones as outlines at a height, raked ones as their own surface. */
 export type Ceiling3D = {
   floorId: string;
@@ -161,6 +171,8 @@ export type Scene3D = {
   ceilings: Ceiling3D[];
   /** Tiff has read the roof off the set (it may have found none) */
   roofRead: boolean;
+  /** the site round the house in metres, off Tiff's read of the site plan; null until read, or when the set has none */
+  site: Site3D | null;
   /** the roof parts in metres, for the roof-void check */
   roofRects: (RoofRect & { floorId: string })[];
   /** the middle of everything, so the view turns about the house */
@@ -686,6 +698,7 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
     framing,
     ceilings,
     roofRead: !!roofRead,
+    site: siteOf(doc, moves),
     roofRects: rects,
     center: [(b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2],
     span: Math.max(6, b.x1 - b.x0, b.z1 - b.z0),
@@ -903,4 +916,27 @@ export function toPlan(f: Pick<Floor3D, "shift" | "mm">, p: XZ): { x: number; y:
   if (!f.mm) return null;
   const [dx, dz] = f.shift ?? [0, 0];
   return { x: ((p[0] - dx) * 1000) / f.mm, y: ((p[1] - dz) * 1000) / f.mm };
+}
+
+/** Tiff's read of the site, in metres on the ground floor as the 3D lays it. */
+function siteOf(doc: DesignDocument, moves: Map<string, XZ>): Site3D | null {
+  const site = doc.reading?.site;
+  if (!site) return null;
+  const floor = doc.floors.find((x) => x.id === site.floorId);
+  const sheet = floor?.plans.find((p) => p.id === site.sheetId);
+  const k = floor?.scaleMmPerUnit;
+  if (!floor || !sheet || !k) return null;
+  const mv = shift(moves.get(floor.id) ?? [0, 0]);
+  const M = (p: ReadPoint): XZ => {
+    const [x, z] = mv([((sheet.x + p.x) * k) / 1000, ((sheet.y + p.y) * k) / 1000]);
+    return [mm(x), mm(z)];
+  };
+  const kerb = site.street?.kerb.map(M);
+  return {
+    boundary: site.boundary.map(M),
+    surfaces: site.surfaces.map((x) => ({ kind: x.kind, pts: x.outline.map(M), finish: x.finish })),
+    street: site.street && kerb && kerb.length >= 2 ? { name: site.street.name, kerb: [kerb[0], kerb[kerb.length - 1]], width: site.street.widthMm / 1000 } : null,
+    neighbours: site.neighbours.map((x) => ({ pts: x.outline.map(M), storeys: x.storeys, attached: x.attached, note: x.note })),
+    fences: site.fences.map((x) => ({ pts: x.line.map(M), height: x.heightMm / 1000 })),
+  };
 }

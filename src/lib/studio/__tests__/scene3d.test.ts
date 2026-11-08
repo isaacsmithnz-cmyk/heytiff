@@ -134,6 +134,15 @@ describe("floors stack", () => {
     expect(lineUp(ground, upper)).toEqual([0, 0]);
   });
 
+  /* 90 O'Brien St (9 November 2026): the first floor, narrower than the ground,
+     stood over it as drawn and with its stair over the stair below; as drawn
+     won, and its flight came up a metre beside its well */
+  it("stair over stair when they're out of register and the floor stands as well either way", () => {
+    const ground = g([space("Long", "room", [0, 0, 2000, 500]), space("Stair", "stair", [1000, 0, 1200, 400])]);
+    const upper = g([space("Short", "room", [0, 0, 1500, 500]), space("Stair", "stair", [900, 0, 1100, 400])]);
+    expect(lineUp(ground, upper)).toEqual([1, 0]);
+  });
+
   /* 6 Bishops Ave (28 October 2026: "the ground floor and first floor were
      misaligned"): Tiff's reading of its two plans, each its own sheet at its
      own scale, the first floor drawn 4.4 m nearer the top of its page. The

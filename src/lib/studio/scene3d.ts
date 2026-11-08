@@ -5,7 +5,8 @@ import type { GrilleMount, GrilleStyle } from "./grilles";
 import { inside, type ReadPoint, type ReadSpace, type SheetReading, type SiteSurfaceKind, type SpaceKind } from "./reading";
 import { finishInside, roofFinishFor, stairFinishOf, type RoofFinish, type SurfaceFinish } from "./finishes";
 import { framingOf, roofHeightAt, roofMesh, type Member, type Mesh, type RoofRect } from "./roof3d";
-import { frameOf, furnish, type Piece3D, type ReadPiece } from "./furnish3d";
+import { frameOf, furnish, within, type Piece3D, type ReadPiece } from "./furnish3d";
+import { snapOpenings, waysIn } from "./tidy3d";
 
 /* THE DESIGN IN 3D (Isaac, 20 October 2026: "a button on Design"; the board
    https://claude.ai/artifact/VWq6nGGGaCPxCuRnReyCyX, option B). What the 3D
@@ -38,6 +39,8 @@ export type Space3D = {
   stair?: string;
   /** the stair's well on the floor its flight rises to: open, no floor */
   well?: boolean;
+  /** steps standing free: no walls round them */
+  bare?: boolean;
   /** its floor's finish, the closest standard one to what the plan writes in it (finishes.ts); absent when it says nothing */
   finish?: SurfaceFinish;
 };
@@ -54,6 +57,8 @@ export type Stair3D = {
   finish?: SurfaceFinish;
   /** each tread's reach across the flight, from its line, where the stair's shape narrows (a tread to a riser less than the risers) */
   spans?: [number, number][];
+  /** a U stair's half-landing at the top of its first flight: its outline and its height */
+  landing?: { pts: XZ[]; y: number };
 };
 
 export type Opening3D = {
@@ -64,6 +69,8 @@ export type Opening3D = {
   /** above the floor, metres */
   sill: number;
   head: number;
+  /** cuts the face across a thick wall from the one it's drawn in, and draws nothing there (tidy3d) */
+  echo?: boolean;
 };
 
 export type Floor3D = {
@@ -86,6 +93,8 @@ export type Floor3D = {
   stairs: Stair3D[];
   /** where no wall stands: a flight's foot, open to the room it starts from, and its well's head, open to the landing */
   open?: [XZ, XZ][];
+  /** floor laid across a wall's thickness where it's open or a door goes through it (tidy3d) */
+  bridges?: XZ[][];
   /** back to the plan: a point here is (p - shift) * 1000 / mm plan units, mm the floor's scale */
   shift?: XZ;
   mm?: number;
@@ -318,20 +327,33 @@ export function lineUp(ground: Raw, other: Raw): XZ {
   const below = walledBoxes(ground);
   const above = walledBoxes(other);
   let best: XZ | null = null;
-  let most = standing(below, above, [0, 0]) * CLEARLY_BETTER;
+  const asDrawn = standing(below, above, [0, 0]);
+  let most = asDrawn * CLEARLY_BETTER;
+  /* A stair a metre out of register stands the floor as well as the drawing does
+     (90 O'Brien St, 9 November 2026: its first floor, narrower than the ground,
+     stood over it either way, and its flight came up a metre beside its well).
+     Where the two stairs don't already sit over each other, putting them so
+     wins whenever it stands the floor near as well as the drawing does. */
+  let near = asDrawn * 0.95;
+  let nearBest: XZ | null = null;
   for (const a of stairsOf(ground)) {
     for (const b of stairsOf(other)) {
-      const [ax, az] = centroid(a.pts);
-      const [bx, bz] = centroid(b.pts);
-      const d: XZ = [ax - bx, az - bz];
+      const ba = boxOf(a.pts)!;
+      const bb = boxOf(b.pts)!;
+      const d: XZ = [(ba.x0 + ba.x1) / 2 - (bb.x0 + bb.x1) / 2, (ba.z0 + ba.z1) / 2 - (bb.z0 + bb.z1) / 2];
       const n = standing(below, above, d);
       if (n > most) {
         most = n;
         best = d;
       }
+      if (overlap(ba, bb) < 0.7 && n >= near) {
+        near = n;
+        nearBest = d;
+      }
     }
   }
   if (best) return best;
+  if (nearBest) return nearBest;
   if (overlap(g, o) >= 0.5) return [0, 0];
   return [(g.x0 + g.x1) / 2 - (o.x0 + o.x1) / 2, (g.z0 + g.z1) / 2 - (o.z0 + o.z1) / 2];
 }
@@ -438,8 +460,8 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
     if (!r) continue;
     const mv = shift(moves.get(f.id)!);
     const spaces = r.spaces.map((s) => ({ ...s, pts: s.pts.map(mv) }));
-    const openings = r.openings.map((o) => ({ ...o, a: mv(o.a), b: mv(o.b) }));
-    const moved = (p: ReadPiece) => ({ ...p, pts: p.pts.map(mv) });
+    /* each door and window onto the wall it belongs to (tidy3d) */
+    const openings = r.read ? snapOpenings(spaces, r.openings.map((o) => ({ ...o, a: mv(o.a), b: mv(o.b) }))) : r.openings.map((o) => ({ ...o, a: mv(o.a), b: mv(o.b) }));
     floors.push({
       id: f.id,
       name: f.name,
@@ -453,11 +475,20 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
       openings,
       read: r.read,
       tiles: tilesOf(doc, f, r, moves.get(f.id)!),
-      pieces: r.read ? furnish(spaces, openings, { furniture: (r.furniture ?? []).map(moved), joinery: (r.joinery ?? []).map(moved) }) : [],
+      pieces: [],
       stairs: [],
     });
   }
   flightsOf(floors);
+  /* no wall where the plan has none, and a way into every room; then each room furnished clear of its doors and arches */
+  for (const f of floors) {
+    const r = raws.get(f.id)!;
+    if (!f.read) continue;
+    waysIn(f);
+    const moved = (p: ReadPiece) => ({ ...p, pts: p.pts.map(shift(moves.get(f.id)!)) });
+    const arches = (f.open ?? []).map(([a, b]): Opening3D => ({ kind: "door", a, b, external: false, sill: 0, head: 2.1 }));
+    f.pieces = furnish(f.spaces, [...f.openings, ...arches], { furniture: (r.furniture ?? []).map(moved), joinery: (r.joinery ?? []).map(moved) });
+  }
 
   const floorById = new Map(floors.map((f) => [f.id, f]));
   const systemType = new Map(doc.systems.map((s) => [s.id, s.type]));
@@ -769,39 +800,174 @@ export const middleOf = centroid;
    a stair over it on the floor above is a flight between the two: it rises
    along its long way, from the end nearer the room she read at its bottom,
    in the risers she counted or as many 180 mm risers as the height takes.
-   The stair above is its well, open to it. */
+   The stair above is its well, open to it.
+
+   A STAIR THAT TURNS BACK (Isaac, 9 November 2026: "staircases going into
+   walls"): where its bottom and its top are at the same end (the hall
+   below, the landing above, both at the stair's south end, 90 O'Brien St
+   and 27 Milroy Ave), it is a U: up one half to a landing at the far end,
+   back along the other half. Drawn straight, it rose into the outside
+   wall. The half it starts up is the one her outline fills at its foot. */
 export function flightsOf(floors: Floor3D[]) {
   const byHeight = [...floors].sort((a, b) => a.y0 - b.y0);
+  const used = new Set<Space3D>();
   byHeight.forEach((f, i) => {
     const up = byHeight[i + 1];
     if (!up || up.y0 - f.y0 < 1.5) return;
     for (const s of f.spaces) {
       if (s.kind !== "stair") continue;
       const sb = boxOf(s.pts)!;
-      const over = up.spaces.find((t) => t.kind === "stair" && overlap(sb, boxOf(t.pts)!) > 0.4);
+      /* the stair above that this one rises to: over it, and (where two are) the one whose own read says it comes up from below, not one going on up */
+      const goesOn = (t: Space3D) => /top\s+[^,]*(above|upper|\bup\b)/i.test(t.stair ?? "") && !/bottom\s+[^,]*(below|lower|ground|floor)/i.test(t.stair ?? "");
+      const over = up.spaces
+        .filter((t) => t.kind === "stair" && !used.has(t) && overlap(sb, boxOf(t.pts)!) > 0.4)
+        .sort((p, q) => Number(goesOn(p)) - Number(goesOn(q)) || overlap(sb, boxOf(q.pts)!) - overlap(sb, boxOf(p.pts)!))[0];
       if (!over) continue;
       over.well = true;
+      used.add(s).add(over);
       const fr = frameOf(s.pts);
       const a: XZ = [fr.c[0] - (fr.u[0] * fr.lu) / 2, fr.c[1] - (fr.u[1] * fr.lu) / 2];
       const b: XZ = [fr.c[0] + (fr.u[0] * fr.lu) / 2, fr.c[1] + (fr.u[1] * fr.lu) / 2];
-      const bottom = /bottom\s+([^,(]+)/i.exec(s.stair ?? "")?.[1]?.trim() ?? "";
-      const there = bottom ? f.spaces.find((x) => x !== s && x.kind !== "stair" && (norm(x.name).includes(norm(bottom)) || norm(bottom).includes(norm(x.name))) && norm(x.name).length > 1) : undefined;
-      let [from, to] = [a, b];
-      if (there) {
-        const m = centroid(there.pts);
-        const da = Math.hypot(a[0] - m[0], a[1] - m[1]);
-        const db = Math.hypot(b[0] - m[0], b[1] - m[1]);
-        if (db < da) [from, to] = [b, a];
-      }
+      const said = (end: "bottom" | "top") => new RegExp(`${end}\\s+([^,(]+)`, "i").exec(s.stair ?? "")?.[1]?.trim() ?? "";
+      const bottom = endOf(f, s, [a, b], said("bottom"));
+      const topSaid = /top\s+([^,(]+)/i.exec(over.stair ?? "")?.[1]?.trim() || said("top");
+      const top = endOf(up, over, [a, b], topSaid);
       const rise = mm(up.y0 - f.y0);
       const counted = Number(/risers\s+(\d+)/i.exec(s.stair ?? "")?.[1]);
       const risers = counted >= 3 && counted <= 30 ? counted : Math.max(3, Math.round(rise / 0.18));
-      f.stairs.push({ floorId: f.id, from, to, w: mm(fr.lv), y0: f.y0, rise, risers, ...(s.finish ? { finish: s.finish } : {}), spans: spansOf(s.pts, from, to, risers - 1, fr.lv) });
+      const finish = s.finish ? { finish: s.finish } : {};
+      const turns = bottom !== null && top !== null && bottom === top && fr.lu >= 2 && fr.lv >= 1.5;
+      if (turns) {
+        const foot = bottom === 0 ? a : b;
+        const head = bottom === 0 ? b : a;
+        const along: XZ = [(head[0] - foot[0]) / fr.lu, (head[1] - foot[1]) / fr.lu];
+        const across = fr.v;
+        const at = (p: XZ, k: number): XZ => [mm(p[0] + across[0] * k), mm(p[1] + across[1] * k)];
+        const back = (p: XZ, d: number): XZ => [p[0] - along[0] * d, p[1] - along[1] * d];
+        /* the half her outline fills at the foot goes up first */
+        const filled = (side: number) => within(at([foot[0] + along[0] * 0.3, foot[1] + along[1] * 0.3], (side * fr.lv) / 4), s.pts);
+        const first = filled(-1) || !filled(1) ? -1 : 1;
+        const deep = Math.max(0.9, Math.min(1.2, fr.lv / 2));
+        const n1 = Math.ceil(risers / 2);
+        const r1 = mm((rise * n1) / risers);
+        const half = mm(fr.lv / 2);
+        f.stairs.push(
+          { floorId: f.id, from: at(foot, (first * fr.lv) / 4), to: at(back(head, deep), (first * fr.lv) / 4), w: half, y0: f.y0, rise: r1, risers: n1, ...finish, landing: { pts: [at(head, -fr.lv / 2), at(head, fr.lv / 2), at(back(head, deep), fr.lv / 2), at(back(head, deep), -fr.lv / 2)], y: mm(f.y0 + r1) } },
+          { floorId: f.id, from: at(back(head, deep), (-first * fr.lv) / 4), to: at(foot, (-first * fr.lv) / 4), w: half, y0: mm(f.y0 + r1), rise: mm(rise - r1), risers: risers - n1, ...finish },
+        );
+        /* open at the foot on the half it starts up, and at the top on the half it arrives by */
+        (f.open ??= []).push([at(foot, (first * fr.lv) / 2), at(foot, 0)]);
+        /* on the well's own end, as drawn above: the half the second flight arrives by */
+        const fo = frameOf(over.pts);
+        const ends: XZ[] = [-1, 1].map((k): XZ => [fo.c[0] + (fo.u[0] * fo.lu * k) / 2, fo.c[1] + (fo.u[1] * fo.lu * k) / 2]);
+        const wellFoot = ends.sort((p, q) => Math.hypot(p[0] - foot[0], p[1] - foot[1]) - Math.hypot(q[0] - foot[0], q[1] - foot[1]))[0];
+        const sign = fo.v[0] * across[0] + fo.v[1] * across[1] < 0 ? -1 : 1;
+        const arrive = (k: number): XZ => [mm(wellFoot[0] + fo.v[0] * sign * k), mm(wellFoot[1] + fo.v[1] * sign * k)];
+        (up.open ??= []).push([arrive(0), arrive((-first * fo.lv) / 2)]);
+        continue;
+      }
+      let [from, to] = [a, b];
+      if (bottom === 1 || (bottom === null && top === 0)) [from, to] = [b, a];
+      f.stairs.push({ floorId: f.id, from, to, w: mm(fr.lv), y0: f.y0, rise, risers, ...finish, spans: spansOf(s.pts, from, to, risers - 1, fr.lv) });
       /* no wall across its foot, nor across its well's head on the floor above */
       (f.open ??= []).push(edgeNear(s.pts, from));
       (up.open ??= []).push(edgeNear(over.pts, to));
     }
   });
+  for (const f of byHeight) for (const s of f.spaces) if (s.kind === "stair" && !used.has(s)) loneStair(f, s);
+}
+
+/* A STAIR WITH NO STAIR OVER OR UNDER IT (Isaac, 9 November 2026: "rooms
+   going to nowhere"): drawn as a walled box with no steps, it read as a
+   cupboard. Now, by what she read at its ends:
+   - its top is a room here and its bottom isn't (the floor below isn't in
+     the design): a stairwell, railed, going down from that room;
+   - its bottom is a room here and its top isn't: a flight going up out of
+     the room, a storey high, standing free;
+   - both ends are here (steps between the garden and the path, or down
+     into a sunken family room): its steps, as many as she counted, with
+     no walls round them. */
+function loneStair(f: Floor3D, s: Space3D) {
+  const fr = frameOf(s.pts);
+  if (fr.lu < 0.6) return;
+  const a: XZ = [fr.c[0] - (fr.u[0] * fr.lu) / 2, fr.c[1] - (fr.u[1] * fr.lu) / 2];
+  const b: XZ = [fr.c[0] + (fr.u[0] * fr.lu) / 2, fr.c[1] + (fr.u[1] * fr.lu) / 2];
+  const said = (end: "bottom" | "top") => new RegExp(`${end}\\s+([^,(]+)`, "i").exec(s.stair ?? "")?.[1]?.trim() ?? "";
+  /* "ground floor", "level below", "first floor hallway": a floor, not a room on this one */
+  const here = (t: string) => f.spaces.some((x) => x !== s && roomWords(x.name).some((w) => roomWords(t).includes(w)));
+  const floorish = (t: string) => /floor|level|below|above|upstairs|downstairs|upper|lower|\bup\b|\bdown\b/i.test(t) && !here(t);
+  /* nothing read at either end: most likely the stair up to a floor the plans she was given don't show */
+  const [lo, hi] = !said("bottom") && !said("top") ? [false, true] : [floorish(said("bottom")), floorish(said("top"))];
+  const counted = Number(/risers\s+(\d+)/i.exec(s.stair ?? "")?.[1]);
+  const storey = mm(f.ceiling + FLOOR_ZONE_M);
+  const finish = s.finish ? { finish: s.finish } : {};
+  const flight = (from: XZ, to: XZ, y0: number, rise: number, risers: number) =>
+    f.stairs.push({ floorId: f.id, from, to, w: mm(fr.lv), y0: mm(y0), rise: mm(rise), risers, ...finish, spans: spansOf(s.pts, from, to, risers - 1, fr.lv) });
+  const steps = (rise: number) => (counted >= 2 && counted <= 30 ? counted : Math.max(2, Math.round(rise / 0.18)));
+  if (lo && !hi) {
+    /* down to a floor the design hasn't got: from the room at its top */
+    const top = endOf(f, s, [a, b], said("top"));
+    const [head, foot] = top === 1 ? [b, a] : [a, b];
+    flight(foot, head, f.y0 - storey, storey, steps(storey));
+    s.well = true;
+    (f.open ??= []).push(edgeNear(s.pts, head));
+    return;
+  }
+  if (hi && !lo) {
+    /* up to a floor the design hasn't got */
+    const bottom = endOf(f, s, [a, b], said("bottom"));
+    const [foot, head] = bottom === 1 ? [b, a] : [a, b];
+    flight(foot, head, f.y0, storey, steps(storey));
+    s.bare = true;
+    return;
+  }
+  /* steps between two places on this floor */
+  const bottom = endOf(f, s, [a, b], said("bottom"));
+  const top = endOf(f, s, [a, b], said("top"));
+  const [foot, head] = bottom === 1 || (bottom === null && top === 0) ? [b, a] : [a, b];
+  const risers = steps(0.9);
+  const rise = mm(risers * 0.175);
+  /* into a room here from outside, the steps come down from its floor; otherwise they rise from it */
+  const inRoom = (t: string) => f.spaces.some((x) => x !== s && INDOOR_KINDS.has(x.kind) && roomWords(x.name).some((w) => roomWords(t).includes(w)));
+  flight(foot, head, inRoom(said("top")) && !inRoom(said("bottom")) ? f.y0 - rise : f.y0, rise, risers);
+  s.bare = true;
+}
+const INDOOR_KINDS: ReadonlySet<Space3D["kind"]> = new Set(["room", "wet", "circulation", "garage", "other", "zone"]);
+
+/** Words that name a room, not a floor: "HALL / DINING" is the hall and the dining; "ground floor" names none. */
+const roomWords = (s: string) =>
+  s
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 3 && !["floor", "ground", "first", "second", "level", "upper", "lower", "below", "above", "the", "and", "top", "bottom", "stair", "stairs"].includes(w));
+
+/** Which end of a stair (0 or 1) a room is at: the room she named there, else the one walkable space past one end and not the other. null when it can't be told. */
+function endOf(f: Floor3D, stair: Space3D, ends: [XZ, XZ], said: string, namedOnly = false): 0 | 1 | null {
+  const others = f.spaces.filter((x) => x !== stair && x.kind !== "stair" && x.kind !== "void" && x.kind !== "notch");
+  const gap = (p: XZ, x: Space3D) => (within(p, x.pts) ? 0 : Math.min(...x.pts.map((q, k) => segDist(p, q, x.pts[(k + 1) % x.pts.length]))));
+  const want = roomWords(said);
+  const named = want.length ? others.filter((x) => roomWords(x.name).some((w) => want.includes(w))) : [];
+  if (named.length) {
+    const d = ends.map((e) => Math.min(...named.map((x) => gap(e, x))));
+    if (Math.abs(d[0] - d[1]) > 0.3) return d[0] < d[1] ? 0 : 1;
+  }
+  if (namedOnly) return null;
+  /* past each end, half a metre out */
+  const c = middleOf(stair.pts);
+  const past = ends.map((e) => {
+    const L = Math.hypot(e[0] - c[0], e[1] - c[1]) || 1;
+    const p: XZ = [e[0] + ((e[0] - c[0]) / L) * 0.5, e[1] + ((e[1] - c[1]) / L) * 0.5];
+    return others.some((x) => x.kind !== "outdoor" && within(p, x.pts));
+  });
+  if (past[0] !== past[1]) return past[0] ? 0 : 1;
+  return null;
+}
+
+function segDist(p: XZ, a: XZ, b: XZ) {
+  const ex = b[0] - a[0];
+  const ez = b[1] - a[1];
+  const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * ex + (p[1] - a[1]) * ez) / (ex * ex + ez * ez || 1)));
+  return Math.hypot(p[0] - a[0] - ex * t, p[1] - a[1] - ez * t);
 }
 
 /** How far each tread reaches either side of the flight's line, inside the stair's own shape: an L-shaped stair's treads narrow where it does. */

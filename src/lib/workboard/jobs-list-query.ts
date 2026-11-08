@@ -22,6 +22,7 @@ import { todayInZone } from "./dates";
 import { jobsListRows, type JobsListRow } from "./jobs-list";
 import { loadProjectsBoard } from "./projects-board-query";
 import { getSm8Timezone } from "./query";
+import { readReadyToSend } from "@/lib/quotes/ready-to-send-server";
 
 export type JobsListData = {
   rows: JobsListRow[];
@@ -59,11 +60,12 @@ export async function loadJobsList(): Promise<JobsListData | null> {
   /* who is on each job and when each was won come in the jobs' own waits
      (`crew`): they were a wait of their own after the jobs landed, then a
      third for the staff names (the Jobs list's timing, 26 October 2026) */
-  const [board, projectsBoard, allJobs, sync] = await Promise.all([
+  const [board, projectsBoard, allJobs, sync, ready] = await Promise.all([
     loadMaintenanceBoard(orgId, today),
     loadProjectsBoard(orgId, today, { includeMoney: false }),
     connected ? loadAllJobs(orgId, today, { includeMoney: moneyVisible, crew: true }) : Promise.resolve(EMPTY_ALL_JOBS),
     connected ? listSm8SyncStatus(orgId) : Promise.resolve(null),
+    connected ? readReadyToSend(orgId, zone) : Promise.resolve({}),
   ]);
 
   /* looking at the list counts as looking, as the board's does */
@@ -117,6 +119,7 @@ export async function loadJobsList(): Promise<JobsListData | null> {
     })),
     crew: allJobs.crew ?? {},
     wonOn: allJobs.wonOn ?? {},
+    ready,
     today,
     moneyVisible,
   });

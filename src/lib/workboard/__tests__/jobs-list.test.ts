@@ -356,3 +356,38 @@ describe("who is on a job", () => {
     expect(crew).toEqual({ j: ["Lyle Irving", "Chris Adams"] });
   });
 });
+
+describe("Ready to send (Isaac, 5 November 2026)", () => {
+  const READY = input({
+    ...BOOK,
+    ready: {
+      "q-sent": { at: `${TODAY} 14:31:00`, by: "Lyle Irving" },
+      // ServiceM8 has it as a work order already: not the office's to send
+      "wo-waiting": { at: `${TODAY} 09:00:00`, by: "Lyle Irving" },
+    },
+  });
+
+  it("puts a quote marked ready in its own view, orange, saying when and who, opening the Quote tab", () => {
+    const rows = jobsListRows(READY);
+    const ready = rowsFor(rows, { view: "ready", who: ANYONE, q: "" });
+    expect(ready.map((r) => r.number)).toEqual(["3294"]);
+    expect(ready[0]).toMatchObject({
+      state: "Ready to send",
+      tone: "look",
+      next: "Marked today, 2:31pm",
+      who: ["Lyle Irving"],
+      href: "/dashboard/jobs/q-sent?tab=quote",
+    });
+    // still a quote, and still in All
+    expect(ready[0]!.views).toEqual(["all", "quotes", "ready"]);
+  });
+
+  it("says the day once it isn't today or yesterday", () => {
+    const rows = jobsListRows({ ...READY, ready: { "q-sent": { at: "2026-10-04 09:00:00", by: null } } });
+    expect(rowsFor(rows, { view: "ready", who: ANYONE, q: "" })[0]!.next).toBe("Marked 4 Oct");
+  });
+
+  it("is empty with nothing marked", () => {
+    expect(rowsFor(jobsListRows(BOOK), { view: "ready", who: ANYONE, q: "" })).toEqual([]);
+  });
+});

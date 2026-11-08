@@ -140,6 +140,7 @@ function Nothing({
     all: "No open jobs",
     "to-book": "Every work order has a day",
     quotes: "No quotes waiting on an answer",
+    ready: "No quotes marked ready to send",
     "to-invoice": "Nothing to invoice",
     owed: "Nothing owed on finished work",
     projects: "No projects running",

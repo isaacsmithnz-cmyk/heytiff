@@ -1,7 +1,7 @@
 jest.mock("server-only", () => ({}));
 jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: {} }));
 
-import { parseOutline, toSheet } from "../reading-server";
+import { parseOutline, siteSchema, toSheet, toSite } from "../reading-server";
 
 describe("Tiff's read, back on the sheet", () => {
   it("reads an outline written as x,y pairs", () => {
@@ -32,5 +32,35 @@ describe("Tiff's read, back on the sheet", () => {
     expect(r.openings[0].a).toEqual({ x: 220, y: 100 });
     expect(r.furniture[0].outline[0]).toEqual({ x: 220, y: 120 });
     expect(r.checklist).toEqual([{ item: "fans", found: false, count: 0, note: "none" }]);
+  });
+});
+
+describe("the site round the house, as she reads it", () => {
+  const at = { floorId: "gf", sheetId: "s1", k: 2, left: 100, top: 50 };
+
+  it("comes back in the sheet's own pixels, its street with a width, a neighbour with its storeys", () => {
+    const site = toSite(
+      {
+        has_site_plan: true,
+        boundary: "0,0 200,0 200,300 0,300",
+        surfaces: [{ kind: "driveway", outline: "150,0 190,0 190,300 150,300", finish: "exposed aggregate" }, { kind: "moat", outline: "0,0 10,0 10,10", finish: "" }],
+        street: [{ name: "Hope St", kerb: "0,320 200,320", width_mm: 0 }],
+        neighbours: [{ outline: "-120,0 -10,0 -10,140 -120,140", storeys: 2, attached: true, note: "adjoining semi" }],
+        fences: [{ line: "0,0 200,0", height_mm: 1800 }],
+      },
+      at,
+    )!;
+    expect(site.boundary[1]).toEqual({ x: 200, y: 50 });
+    expect(site.surfaces.map((x) => x.kind)).toEqual(["driveway", "paving"]);
+    expect(site.street).toEqual({ name: "Hope St", kerb: [{ x: 100, y: 210 }, { x: 200, y: 210 }], widthMm: 7000 });
+    expect(site.neighbours[0]).toMatchObject({ storeys: 2, attached: true });
+  });
+
+  it("is nothing when the set has no site plan", () => {
+    expect(toSite({ has_site_plan: false, boundary: "", surfaces: [], street: [], neighbours: [], fences: [] }, at)).toBeNull();
+  });
+
+  it("asks for no nullable field", () => {
+    expect(JSON.stringify(siteSchema())).not.toMatch(/null/);
   });
 });

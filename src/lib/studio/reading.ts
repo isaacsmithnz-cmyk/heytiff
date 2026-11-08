@@ -119,6 +119,26 @@ export type RoofReading = {
   roofSpace: string;
 };
 
+/* THE SITE ROUND THE HOUSE (Isaac, 8 November 2026: "Paths, walkways,
+   streets and driveways too if possible. Also show neighbours property as a
+   ghost if semi detached etc"): what the site plan draws, set out on the
+   ground floor's plan, in that sheet's pixels like everything else read. */
+export type SiteSurfaceKind = "driveway" | "path" | "paving" | "deck" | "lawn" | "garden" | "pool";
+export type ReadSurface = { kind: SiteSurfaceKind; outline: ReadPoint[]; finish: string };
+/** a neighbour's building, drawn as a ghost: attached when it shares a wall (semi-detached, a terrace) */
+export type ReadNeighbour = { outline: ReadPoint[]; storeys: number; attached: boolean; note: string };
+export type SiteReading = {
+  /** which floor's plan the points sit on: the ground floor's first sheet */
+  floorId: string;
+  sheetId: string;
+  boundary: ReadPoint[];
+  surfaces: ReadSurface[];
+  /** the street: its kerb nearest the house, two points, its name and width */
+  street: { name: string; kerb: ReadPoint[]; widthMm: number } | null;
+  neighbours: ReadNeighbour[];
+  fences: { line: ReadPoint[]; heightMm: number }[];
+};
+
 export type PlanReading = {
   /** when it was read */
   at: string;
@@ -127,6 +147,8 @@ export type PlanReading = {
   floors: Record<string, SheetReading[]>;
   /** the roof and heights off the whole set; absent until read (a design read before 20 October has none) */
   roof?: RoofReading | null;
+  /** the site round the house off the set's site plan; absent until read (none before 8 November 2026) */
+  site?: SiteReading | null;
   /** a sheet she couldn't read, and why, said rather than dropped */
   failed: { floorId: string; sheetId: string; reason: string }[];
 };

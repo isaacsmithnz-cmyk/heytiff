@@ -9,6 +9,8 @@ import type { OrgBrand } from "@/lib/org/brand";
 import { StudioFlowContext } from "@/components/studio/flow";
 import { SheetDocNext } from "@/components/studio/summary/sheet-doc-next";
 import { SheetPlans } from "@/components/studio/summary/sheet-plans";
+import { ALL_FLOORS, View3D, type Look3D } from "@/components/studio/view-3d";
+import type { Scene3D } from "@/lib/studio/scene3d";
 import { LiveViewer } from "./live-viewer";
 import "./live-sheet.css";
 
@@ -55,6 +57,7 @@ export function LiveSheet({
   simOffered,
   sections = { figures: true, systems: true, lines: true },
   planFloors = [],
+  scene = null,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
@@ -70,8 +73,35 @@ export function LiveSheet({
   preparedOn: string;
   expiresOn: string;
   simOffered: boolean;
+  /** the house in 3D, when the link carries the plans and there's a house to stand up */
+  scene?: Scene3D | null;
 }) {
   const [simOpen, setSimOpen] = useState(false);
+  const [threeOpen, setThreeOpen] = useState(false);
+  const [look, setLook] = useState<Look3D>({ floor: ALL_FLOORS, apart: false, labels: true, layer: "roof", plans: false });
+
+  if (threeOpen && scene)
+    return (
+      <div className="dsd-page fg dstudio dsd-3d">
+        <nav className="dsd-bar">
+          <button className="dsd-btn" onClick={() => setThreeOpen(false)}>
+            Back to the design
+          </button>
+          <span className="dsd-sp" />
+          {scene.roofs.length > 0 &&
+            (["roof", "inside"] as const).map((layer) => (
+              <button key={layer} className={`dsd-btn${look.layer === layer ? " cta" : ""}`} aria-pressed={look.layer === layer} onClick={() => setLook({ ...look, layer })}>
+                {layer === "roof" ? "Roof" : "Inside"}
+              </button>
+            ))}
+        </nav>
+        <main className="dsd-3d-body">
+          <StudioFlowContext.Provider value="next">
+            <View3D scene={scene} look={look} onLook={setLook} planUrl={(ref) => Promise.resolve(planUrls[ref] ?? "")} customer />
+          </StudioFlowContext.Provider>
+        </main>
+      </div>
+    );
 
   if (simOpen)
     return (
@@ -117,6 +147,11 @@ export function LiveSheet({
         </span>
         <span className="dsd-exp">Link expires {expiresOn}</span>
         <span className="dsd-sp" />
+        {scene && (
+          <button className="dsd-btn" onClick={() => setThreeOpen(true)}>
+            Open in 3D
+          </button>
+        )}
         {simOffered && (
           <button className="dsd-btn" onClick={() => setSimOpen(true)}>
             <span aria-hidden>▶</span> Open the simulation

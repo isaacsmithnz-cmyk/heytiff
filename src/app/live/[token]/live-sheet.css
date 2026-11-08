@@ -96,3 +96,8 @@
   .dsd-body { padding: 0; }
   .dsd-page { background: #fff; }
 }
+
+/* the house in 3D, under the bar, filling the window (Isaac, 8 November 2026) */
+.dsd-3d { display: flex; flex-direction: column; height: 100vh; }
+.dsd-3d-body { position: relative; flex: 1; min-height: 0; }
+.dsd-3d-body .ds3 { position: absolute; inset: 0; }

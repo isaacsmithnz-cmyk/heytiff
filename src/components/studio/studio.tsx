@@ -92,7 +92,7 @@ import { InstallQuestions } from "./install-questions";
 import { isAirCapable, moduleFor } from "@/lib/studio/modules";
 import { SystemBuilder, ZoneStanding } from "./system-builder";
 import { deleteZone, releaseSystem, releaseZones, moveZone, removeZone } from "@/lib/studio/builder";
-import { roomCoverage, roomsServedBy, systemPairKw } from "@/lib/studio/coverage";
+import { roomAtPoint, roomCoverage, roomsServedBy, systemPairKw } from "@/lib/studio/coverage";
 import { nextMoveZones, type NextMove } from "@/lib/studio/next-move";
 import type { RoomObj } from "@/lib/studio/loads-room";
 import { PlansPanel } from "./plans-panel";
@@ -135,7 +135,7 @@ import { TIFF_APPLY, type TiffApply } from "@/lib/brain/ask-client";
 import type { RoofReading } from "@/lib/studio/reading";
 import { DesignHome } from "./home";
 import { RoomsFromPlan } from "./rooms-from-plan";
-import { ALL_FLOORS, View3D, type Look3D } from "./view-3d";
+import { ALL_FLOORS, View3D, type About3D, type Look3D, type Pick3D } from "./view-3d";
 import { sceneOf, type Scene3D } from "@/lib/studio/scene3d";
 import "./studio.css";
 
@@ -3102,29 +3102,7 @@ function ThreeDControls({
           ))}
         </div>
       )}
-      {scene.floors.length > 1 && (
-        <div className="ds-viewtray" role="group" aria-label="Floors">
-          <button type="button" aria-pressed={look.floor === ALL_FLOORS} onClick={() => onLook({ ...look, floor: ALL_FLOORS })}>
-            All
-          </button>
-          {scene.floors.map((f) => (
-            <button key={f.id} type="button" aria-pressed={look.floor === f.id} onClick={() => onLook({ ...look, floor: f.id })}>
-              {floorDisplayName(f)}
-            </button>
-          ))}
-        </div>
-      )}
-      {scene.floors.length > 1 && (
-        <button
-          type="button"
-          className={`ds-ctl-btn${look.apart ? " on" : ""}`}
-          aria-pressed={look.apart}
-          disabled={look.floor !== ALL_FLOORS}
-          onClick={() => onLook({ ...look, apart: !look.apart })}
-        >
-          Lift apart
-        </button>
-      )}
+      {/* the floors and Lift apart are on the picture's top right, so the design's name keeps its room (Isaac, 8 November 2026) */}
       {unread && (
         <Button size={32} disabled={reading} onClick={onReadPlans}>
           {reading ? "Tiff is reading the plans" : "Read the plans"}
@@ -3787,6 +3765,27 @@ function DesignPanel({
 }) {
   const flow = useStudioFlow();
   const floor = doc.floors.find((f) => f.id === activeFloorId) ?? null;
+  /* a room or unit tapped in the 3D: its load and what covers it, or what the unit is */
+  const about3d = useCallback(
+    (p: Pick3D): About3D => {
+      const kw = (v: number) => `${v.toFixed(1)} kW`;
+      if ("unitId" in p) {
+        const o = doc.objects.find((x) => x.id === p.unitId);
+        if (!o) return null;
+        const sys = doc.systems.find((x) => x.id === o.systemId);
+        return { title: typeof o.props.model === "string" && o.props.model ? o.props.model : "A unit not chosen yet", lines: sys ? [sys.name] : [] };
+      }
+      const room = roomAtPoint(doc.objects, p.floorId, p.at);
+      if (!room) return null;
+      const cov = roomCoverage(doc, pack, room, doc.settings.sizingBasis);
+      const lines = [cov.loadKw == null ? "Load not measured" : `Load ${kw(cov.loadKw)}`];
+      for (const c of cov.contributors) lines.push(`${c.model}, ${kw(c.kw)}`);
+      if (!cov.contributors.length) lines.push("Nothing covers it yet");
+      else if (cov.pct != null) lines.push(`Covered ${cov.pct}%`);
+      return { title: typeof room.props.name === "string" && room.props.name ? room.props.name : "Room", lines };
+    },
+    [doc, pack],
+  );
   const [zoomApi, setZoomApi] = useState<ZoomApi | null>(null);
   const [zoomPct, setZoomPct] = useState(100);
   /* the next flow: the sheet's unit, to say when words have stopped
@@ -3956,7 +3955,7 @@ function DesignPanel({
         <div className="ds-canvas-col">
           <div className="ds-canvas-body">
             {scene3d.floors.length ? (
-              <View3D scene={scene3d} look={look3d} onLook={onLook3d} planUrl={(ref) => planImages.url(ref)} />
+              <View3D scene={scene3d} look={look3d} onLook={onLook3d} planUrl={(ref) => planImages.url(ref)} about={about3d} />
             ) : (
               <div className="ds3-empty">
                 <p>Nothing to draw yet: a floor needs its scale, and zones or Tiff&rsquo;s reading of its plans.</p>

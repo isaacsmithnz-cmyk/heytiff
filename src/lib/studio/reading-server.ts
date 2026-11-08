@@ -14,8 +14,10 @@ import {
   type ReadRake,
   type ReadRoofPart,
   type ReadSpace,
+  type ReadSurface,
   type RoofReading,
   type SheetReading,
+  type SiteReading,
   type SpaceKind,
 } from "./reading";
 
@@ -438,6 +440,83 @@ export async function readRoof(
       )
     : await askWith(blocks, prompt, schema, 32000);
   return { ...toRoof(raw, at), said: s(raw.said) };
+}
+
+/* ── the site round the house, off the site plan ── */
+
+const SURFACES = ["driveway", "path", "paving", "deck", "lawn", "garden", "pool"] as const;
+
+export const siteSchema = (): Json =>
+  S({
+    has_site_plan: bool(),
+    boundary: OUTLINE("the property boundary, on the ground floor plan image; it may run past the image's edges"),
+    surfaces: arr(S({ kind: en(SURFACES), outline: OUTLINE("on the ground floor plan image"), finish: str("as written: 'exposed aggregate', 'pavers', 'turf'") })),
+    street: arr(S({ name: str(), kerb: str('the kerb line nearest the house, two points "x,y x,y" on the ground floor plan image'), width_mm: num("kerb to kerb; 7000 when not shown") }), "the street or streets the lot fronts, usually one"),
+    neighbours: arr(
+      S({
+        outline: OUTLINE("the neighbouring building's footprint on the ground floor plan image"),
+        storeys: num(),
+        attached: bool(),
+        note: str("what the set says of it: 'No. 8, two storey brick', 'adjoining semi'"),
+      }),
+    ),
+    fences: arr(S({ line: str('points "x,y x,y ..." on the ground floor plan image'), height_mm: num() })),
+  });
+
+export const sitePrompt = (plan: { w: number; h: number; mm: number | null }) =>
+  `The PDF is a building's drawing set. After it comes the ground floor plan image (${plan.w}×${plan.h} pixels${plan.mm ? `, one pixel about ${plan.mm.toFixed(1)} mm` : ""}), origin top-left, x right and y down.
+
+You are reading the site round the house for a 3D view an air conditioning installer shows the owner. Use the site plan (and the floor plan where it shows the yard), and set everything out on the ground floor plan image, in its pixels, lined up with the house as drawn there. Points may run past the image's edges when the site is bigger than the image.
+
+1. has_site_plan: whether the set has a site plan, or a floor plan that shows the yard.
+2. boundary: the property boundary.
+3. surfaces: every driveway, path, paved area, deck, lawn, garden bed and pool drawn, with what it is made of as written.
+4. street: the street the lot fronts: its kerb line nearest the house, its name, and its width kerb to kerb.
+5. neighbours: every neighbouring building drawn or outlined, with its storeys, and attached when it shares a wall with this house (semi-detached, terrace) or with the boundary on this side. Say what the set notes of it.
+6. fences: the fences drawn along the boundary, with their height.
+
+Only what the set shows: an empty list where it shows nothing, and has_site_plan false when there is no site plan at all.`;
+
+/** Her answer, back in the ground floor sheet's pixels. */
+export function toSite(raw: Raw, at: { floorId: string; sheetId: string; k: number; left: number; top: number }): SiteReading | null {
+  if (raw.has_site_plan === false) return null;
+  const P = (p: ReadPoint) => ({ x: Math.round(p.x / at.k + at.left), y: Math.round(p.y / at.k + at.top) });
+  const line = (t: unknown) => parseOutline(s(t)).map(P);
+  const kerb = asArr(raw.street).map((r) => ({ name: s(r.name), kerb: line(r.kerb), widthMm: Math.max(3000, Math.min(30000, n(r.width_mm) || 7000)) })).find((r) => r.kerb.length >= 2);
+  return {
+    floorId: at.floorId,
+    sheetId: at.sheetId,
+    boundary: line(raw.boundary),
+    surfaces: asArr(raw.surfaces)
+      .map((r) => ({ kind: ((SURFACES as readonly string[]).includes(s(r.kind)) ? s(r.kind) : "paving") as ReadSurface["kind"], outline: line(r.outline), finish: s(r.finish) }))
+      .filter((r) => r.outline.length >= 3),
+    street: kerb ?? null,
+    neighbours: asArr(raw.neighbours)
+      .map((r) => ({ outline: line(r.outline), storeys: Math.max(1, Math.min(6, Math.round(n(r.storeys) || 1))), attached: r.attached === true, note: s(r.note) }))
+      .filter((r) => r.outline.length >= 3),
+    fences: asArr(raw.fences)
+      .map((r) => ({ line: line(r.line), heightMm: Math.max(600, Math.min(3000, n(r.height_mm) || 1800)) }))
+      .filter((r) => r.line.length >= 2),
+  };
+}
+
+/** Reads the site round the house: the whole set, and the ground floor's plan to set it out on. */
+export async function readSite(orgId: string, pdfRef: string | null, ground: SheetToRead, pdfFrom = 0): Promise<SiteReading | null> {
+  if (!pdfRef) return null;
+  const p = await prepare(orgId, ground);
+  let pdf = await fetchOwn(orgId, pdfRef);
+  if (pdf.byteLength > PDF_MAX_BYTES) {
+    const { PDFDocument } = await import("pdf-lib");
+    const whole = await PDFDocument.load(pdf, { ignoreEncryption: true });
+    /* the site plan usually comes before the floor plans: keep the front of the set */
+    const cut = await PDFDocument.create();
+    for (const pg of await cut.copyPages(whole, pagesToSend(whole.getPageCount(), Math.max(0, pdfFrom - 3), 12))) cut.addPage(pg);
+    pdf = Buffer.from(await cut.save());
+    if (pdf.byteLength > PDF_MAX_BYTES) return null;
+  }
+  const blocks: Block[] = [{ type: "document", source: { type: "base64", media_type: "application/pdf", data: pdf.toString("base64") } }, pngBlock(p.image)];
+  const raw = await askWith(blocks, sitePrompt({ w: p.ow, h: p.oh, mm: ground.mmPerPx ? ground.mmPerPx / p.k : null }), siteSchema(), 16000);
+  return toSite(raw, { floorId: ground.floorId, sheetId: ground.sheetId, k: p.k, left: p.left, top: p.top });
 }
 
 export const READING_MODEL = MODEL;

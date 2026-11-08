@@ -10166,9 +10166,19 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 /* a riser: the red disc with DR or PR on it (rule 16) */
 .dstudio .ds3-lab.riser { width: 24px; height: 24px; padding: 0; border-radius: 999px; border-color: var(--red-w); background: var(--red-w); color: var(--paper); font-size: 12px; line-height: 22px; text-align: center; }
 .dstudio .ds3-lines { position: absolute; inset: 0; pointer-events: none; }
+/* a check's words: a clash, a measure (Isaac, 8 November 2026: "Build all") */
+.dstudio .ds3-lab.check { border-color: var(--red-w); color: var(--red-w); }
+/* what a tapped room or unit is */
+.dstudio .ds3-card { position: absolute; z-index: 2; width: 228px; padding: 12px; border: 1px solid var(--edge); border-radius: var(--r-control); background: var(--paper); color: var(--ink); font-size: 13px; line-height: 20px; pointer-events: none; }
+/* the floors, over the picture's top right */
+.dstudio .ds3-show.ds3-floors { left: auto; right: 16px; }
+.dstudio .ds3-hour { width: 120px; accent-color: var(--ink); }
+.dstudio .ds3-time { min-width: 64px; font-size: 13px; line-height: 20px; font-weight: 600; color: var(--ink); }
+.dstudio .ds-print-3d { display: block; width: 100%; height: 100%; object-fit: contain; }
+.dstudio .ds3-card b { display: block; margin-bottom: 4px; font-size: 14px; font-weight: 600; }
 .dstudio .ds3-lines line { stroke: var(--gray500); stroke-width: 1; }
 /* what the 3D picture shows, over its top left corner (mock, 8 November 2026) */
-.dstudio .ds3-show { position: absolute; top: 16px; left: 16px; display: flex; gap: 4px; padding: 4px; border: 1px solid var(--edge); border-radius: var(--r-button); background: var(--paper); }
+.dstudio .ds3-show { position: absolute; top: 16px; left: 16px; display: flex; flex-wrap: wrap; align-items: center; max-width: calc(100% - 32px); gap: 4px; padding: 4px; border: 1px solid var(--edge); border-radius: var(--r-button); background: var(--paper); }
 .dstudio .ds3-none,
 .dstudio .ds3-empty p { margin: 0; font-size: 14px; line-height: 20px; color: var(--gray500); text-align: center; max-width: 48ch; }
 .dstudio .ds3-none { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; }
@@ -10420,7 +10430,7 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .dstudio .ds-editor.clean .ds-menu-btn { width: auto; height: 32px; padding: 0 12px; border: none; box-shadow: none; background: none; border-radius: var(--r-button); font: 600 14px/20px var(--font); color: var(--ink); }
 .dstudio .ds-editor.clean .ds-menu-btn:hover { background: var(--hov); }
 .dstudio .ds-editor.clean .ds-id { flex-direction: row; align-items: center; gap: 8px; min-width: 0; }
-.dstudio .ds-editor.clean .ds-title-input { font: 600 16px/24px var(--font); height: 32px; width: 200px; padding: 0 8px; border: 1px solid transparent; border-radius: var(--r-control); background: none; color: var(--ink); }
+.dstudio .ds-editor.clean .ds-title-input { font: 600 16px/24px var(--font); height: 32px; width: 200px; flex-shrink: 0; padding: 0 8px; border: 1px solid transparent; border-radius: var(--r-control); background: none; color: var(--ink); }
 .dstudio .ds-editor.clean .ds-title-input:hover,
 .dstudio .ds-editor.clean .ds-title-input:focus { border-color: var(--edge); background: var(--paper); }
 .dstudio .ds-editor.clean .ds-centre { display: flex; align-items: center; gap: 12px; }

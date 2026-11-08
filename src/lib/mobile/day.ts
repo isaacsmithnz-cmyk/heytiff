@@ -640,7 +640,8 @@ export async function clockOffDay(ctx: MobileCtx, press: Sm8Press | null, at: un
   const { jobs, toSend } = await jobsIn(ctx, closed, nowIso);
   const summary = summarise({ onAt: day.on_at, until: t }, jobs, office);
 
-  /* each job's time, once, to the quarter hour as the sheet showed it */
+  /* each job's time, once, to the quarter hour as the sheet showed it: queued
+     here, sent after the answer (sendTime), so Clock off never waits on it */
   for (const s of toSend) {
     const row = summary.jobs.find((j) => j.stintId === s.id);
     if (row) await sendTime(ctx, press, { ...s, inAt: row.from, outAt: row.until });

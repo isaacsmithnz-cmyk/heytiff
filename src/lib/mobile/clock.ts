@@ -1,6 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
+import { after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import type { Sm8Press } from "@/lib/integrations/sm8-press";
 import { sm8BookingsAllowed } from "@/lib/integrations/sm8-kinds";
@@ -188,9 +189,14 @@ export async function readClock(ctx: MobileCtx, now: number = Date.now()): Promi
   return { on, last: done };
 }
 
-/** A finished stint's time, to ServiceM8, sent there and then where it can
-    be. Never throws: the stint stands in HeyTiff whatever happens here. */
-export async function sendTime(ctx: MobileCtx, press: Sm8Press | null, stint: CheckIn): Promise<void> {
+/** A finished stint's time, to ServiceM8. Queued now and sent after the
+    answer, so Clock off never sits waiting on ServiceM8, up to its whole
+    budget for each job of the day in turn (Isaac, 8 November 2026, on the
+    wrap-up's own wait: "a freeze on the screen for probably 3 or 4 seconds,
+    which looked like a bug"); the clock reads it as sending meanwhile. Try
+    again (`wait`) is the one press that waits, since its answer is whether
+    it went. Never throws: the stint stands in HeyTiff whatever happens here. */
+export async function sendTime(ctx: MobileCtx, press: Sm8Press | null, stint: CheckIn, opts: { wait?: boolean } = {}): Promise<void> {
   if (!stint.outAt || !press || press.orgId !== ctx.orgId || press.userId !== ctx.userId) return;
   try {
     const c = await cantSend(ctx);
@@ -213,7 +219,14 @@ export async function sendTime(ctx: MobileCtx, press: Sm8Press | null, stint: Ch
       console.error(`[mobile] time on job ${stint.jobUuid} for org ${ctx.orgId} wasn't queued: ${r.refusal}`);
       return;
     }
-    await settlePressedWrites(ctx.orgId, [r.rowId], { startedAt, budgetMs: BOOKING_PRESS_BUDGET_MS });
+    const settle = () => settlePressedWrites(ctx.orgId, [r.rowId], { startedAt, budgetMs: BOOKING_PRESS_BUDGET_MS });
+    if (opts.wait) await settle();
+    else
+      after(() =>
+        settle().catch((err: unknown) => {
+          console.error(`[mobile] time on job ${stint.jobUuid} for org ${ctx.orgId} couldn't be sent: ${err instanceof Error ? err.message : String(err)}`);
+        })
+      );
   } catch (err) {
     console.error(`[mobile] time on job ${stint.jobUuid} for org ${ctx.orgId} couldn't be sent: ${err instanceof Error ? err.message : String(err)}`);
   }
@@ -252,6 +265,6 @@ export async function clockOff(ctx: MobileCtx, press: Sm8Press | null, at: unkno
 export async function sendLastAgain(ctx: MobileCtx, press: Sm8Press | null, now: number = Date.now()): Promise<ClockAnswer> {
   const last = await lastCheckOut(ctx.orgId, ctx.userId, new Date(now - 18 * 3_600_000).toISOString());
   if (!last) return { ok: false, error: CLOCK_WORDS.notOn, status: 409 };
-  await sendTime(ctx, press, last);
+  await sendTime(ctx, press, last, { wait: true });
   return { ok: true, state: await readClock(ctx, now), said: CLOCK_WORDS.sent };
 }

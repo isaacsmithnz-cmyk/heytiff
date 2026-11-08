@@ -1209,7 +1209,7 @@ function Editor({
   /* the Design step's Plan / 3D switch (Isaac, 20 October 2026: "a button on
      design"), and what the 3D view shows */
   const [view3d, setView3d] = useState(false);
-  const [look3d, setLook3d] = useState<Look3D>({ floor: ALL_FLOORS, apart: false, labels: true, layer: "roof" });
+  const [look3d, setLook3d] = useState<Look3D>({ floor: ALL_FLOORS, apart: false, labels: true, layer: "roof", plans: true });
   /* asking Tiff while designing (Isaac, 20 October 2026: "can I fit a
      ducted unit in the roof void?"): she is told which design is open, so
      she reads that one (the registry's studio_design) */
@@ -2031,6 +2031,7 @@ function Editor({
             doc={doc}
             scene3d={scene3d}
             look3d={look3d}
+            onLook3d={setLook3d}
             activeFloorId={activeFloorId}
             onAddFloor={addFloor}
             onGoPlans={() => onStep(0)}
@@ -3124,14 +3125,6 @@ function ThreeDControls({
           Lift apart
         </button>
       )}
-      <button
-        type="button"
-        className={`ds-ctl-btn${look.labels ? " on" : ""}`}
-        aria-pressed={look.labels}
-        onClick={() => onLook({ ...look, labels: !look.labels })}
-      >
-        Labels
-      </button>
       {unread && (
         <Button size={32} disabled={reading} onClick={onReadPlans}>
           {reading ? "Tiff is reading the plans" : "Read the plans"}
@@ -3680,6 +3673,7 @@ function DesignPanel({
   doc,
   scene3d,
   look3d,
+  onLook3d,
   activeFloorId,
   onAddFloor,
   onGoPlans,
@@ -3739,6 +3733,7 @@ function DesignPanel({
   /** the design in 3D, when the top bar's switch says 3D; the canvas otherwise */
   scene3d: Scene3D | null;
   look3d: Look3D;
+  onLook3d: (l: Look3D) => void;
   activeFloorId: string | null;
   onAddFloor: () => void;
   onGoPlans: () => void;
@@ -3961,7 +3956,7 @@ function DesignPanel({
         <div className="ds-canvas-col">
           <div className="ds-canvas-body">
             {scene3d.floors.length ? (
-              <View3D scene={scene3d} look={look3d} />
+              <View3D scene={scene3d} look={look3d} onLook={onLook3d} planUrl={(ref) => planImages.url(ref)} />
             ) : (
               <div className="ds3-empty">
                 <p>Nothing to draw yet: a floor needs its scale, and zones or Tiff&rsquo;s reading of its plans.</p>

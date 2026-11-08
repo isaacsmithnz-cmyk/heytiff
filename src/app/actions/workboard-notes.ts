@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { projectHref } from "@/lib/shell/links";
 import { revalidateHome } from "@/lib/shell/revalidate-home";
 import { auth0 } from "@/lib/auth0";
@@ -26,7 +27,7 @@ import { aliasFromAnswer, normAlias } from "@/lib/staff/aliases";
 import { aliasesByStaff, learnAlias } from "@/lib/staff/aliases-query";
 import { NAME_COLUMNS } from "@/lib/dashboard/tasks-query";
 import { ACTED_KINDS } from "@/lib/dashboard/task-events";
-import { remindAtFrom, isRemindKind } from "@/lib/dashboard/reminders";
+import { nextDayFor, remindAtFrom, isRemindKind } from "@/lib/dashboard/reminders";
 import { workdayHours } from "@/lib/dashboard/reminders-query";
 import { jobCandidates } from "@/lib/dashboard/job-candidates";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -939,17 +940,26 @@ async function applyConfirmed(
        whole batch, and only when there are tasks to write. */
     const tz = await getSm8Timezone(ctx.orgId);
 
+    /* A TIME WITH NO DAY is the next time that clock comes round: "remind me"
+       at 9:37 on a Sunday is 7:00 on Monday, and "by 6 pm" is tonight. Given
+       a day, the day stands (Isaac, 8 November 2026: "Not having a day in it
+       shouldn't hold it out"). */
+    const dated = wanted.map((t) => ({
+      ...t,
+      dueDate: t.dueDate || (t.remindTime ? nextDayFor(t.remindTime, tz) : null),
+    }));
+
     /* ONE TASK FOR TWO PEOPLE. The plan lists a task once per person, so
        "Luke and Isaac, order the pump" arrives as two rows with the same
        words. Rows that agree on title, detail, day and time share a group, and
        completing any of them completes all (see completeTask). */
-    const sameJob = (t: (typeof wanted)[number]) =>
+    const sameJob = (t: (typeof dated)[number]) =>
       JSON.stringify([trim(t.title, 200), trim(t.detail, 1000), t.dueDate ?? null, t.remindTime ?? null, t.remindKind ?? null]);
     const heads = new Map<string, number>();
-    for (const t of wanted) heads.set(sameJob(t), (heads.get(sameJob(t)) ?? 0) + 1);
+    for (const t of dated) heads.set(sameJob(t), (heads.get(sameJob(t)) ?? 0) + 1);
     const groups = new Map<string, string>();
 
-    const rows = wanted.map((t) => {
+    const rows = dated.map((t) => {
       const key = sameJob(t);
       let groupId: string | null = null;
       if ((heads.get(key) ?? 0) > 1) {
@@ -1635,8 +1645,17 @@ export async function fileNote(
 
   /* AND ON TO SERVICEM8, with no Send (Isaac, 26 October 2026: "It should
      automatically go to sm8, no need for extra send option"): a note filed
-     on a job goes as its author, through the job sheet's own send. */
-  if (target.kind === "job" && target.id) await sendOnToSm8(ctx, noteId, target.id);
+     on a job goes as its author, through the job sheet's own send.
+     AFTER THE ANSWER, as Save's does: Tiff's reply never waits on
+     ServiceM8, which could hold it up to the send's whole budget (Isaac, 8
+     November 2026, on the wrap-up's own wait: "a freeze on the screen for
+     probably 3 or 4 seconds, which looked like a bug"). after() keeps the
+     phone's session (Next binds the callback to its caller's context), so
+     the note still goes as whoever said it. */
+  if (target.kind === "job" && target.id) {
+    const jobUuid = target.id;
+    after(() => sendOnToSm8(ctx, noteId, jobUuid));
+  }
 
   refreshHome(target);
   return {

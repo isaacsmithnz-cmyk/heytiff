@@ -84,6 +84,13 @@ jest.mock("@/lib/supabase-server", () => ({
 }));
 
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
+/* a note filed on a job answers first; its send to ServiceM8 runs after */
+const scheduled: (() => unknown)[] = [];
+jest.mock("next/server", () => ({ after: (fn: () => unknown) => void scheduled.push(fn) }));
+const runAfter = async () => {
+  const now = scheduled.splice(0);
+  await Promise.all(now.map((fn) => fn()));
+};
 jest.mock("@/lib/auth0", () => ({
   auth0: { getSession: jest.fn(async () => ({ user: { sub: "auth0|me" }, orgId: "org-1" })) },
 }));
@@ -204,6 +211,7 @@ const record = () => rpcs.find((r) => r.name === "workboard_note_file_record")?.
 const claimed =() => updates.some((u) => u.table === "workboard_notes" && u.patch.status === "applied");
 
 beforeEach(() => {
+  scheduled.length = 0;
   inserts.length = 0;
   updates.length = 0;
   rpcs.length = 0;
@@ -275,6 +283,31 @@ describe("tasks", () => {
     expect(rows[0].remind_kind).toBe("by");
     expect(rows[0].remind_at).not.toBeNull();
     expect(rows[1].remind_kind).toBeNull();
+  });
+
+  it("puts a time with no day on the next time that clock comes round", async () => {
+    /* Isaac, 8 November 2026, of a 7am nudge Tiff promised and never set:
+       "If there's no day, then 7 AM would just be the next occurrence". The
+       account's clock is Brisbane here (UTC+10, no daylight saving). */
+    jest.useFakeTimers({ now: new Date("2026-08-03T23:37:00Z"), doNotFake: ["nextTick", "setImmediate", "queueMicrotask"] }); // 9:37 am, 4 August
+    try {
+      lists.staff_profiles = [{ id: "s-lyle" }];
+      await file(
+        confirmed({
+          tasks: [
+            { title: "Send the quote", detail: "", assigneeId: "s-lyle", dueDate: null, remindTime: "07:00", remindKind: "at" },
+            { title: "Ring the client", detail: "", assigneeId: "s-lyle", dueDate: null, remindTime: "18:00", remindKind: "by" },
+            { title: "Order the grilles", detail: "", assigneeId: "s-lyle", dueDate: "2026-08-10", remindTime: "07:00", remindKind: "at" },
+          ],
+        })
+      );
+      const [quote, ring, grilles] = rowsFor("tasks");
+      expect(quote).toMatchObject({ due_date: "2026-08-05", remind_at: "2026-08-04T21:00:00.000Z" }); // tomorrow, 7 am
+      expect(ring).toMatchObject({ due_date: "2026-08-04", remind_at: "2026-08-04T08:00:00.000Z", remind_kind: "by" }); // tonight, 6 pm
+      expect(grilles).toMatchObject({ due_date: "2026-08-10", remind_at: "2026-08-09T21:00:00.000Z" }); // the day said stands
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("never stores a kind on a task that named no hour", async () => {
@@ -790,9 +823,11 @@ describe("the one note on a job", () => {
     "Um, so the pipe run to bed three is about 14 metres, so we'll need another 15 metre coil. Get David to grab that from Reece on Friday.";
   const TIDIED = "Pipe run to Bed 3 is about 14 m, so we need another 15 m coil. @davidhann please grab it from Reece on Friday.";
   const JOB_NOTE = { ...NOTE, target_kind: "job", target_id: "job-uuid", transcript: SAID };
-  const fileWith = (jobNote: string, over: Record<string, unknown> = {}) => {
+  const fileWith = async (jobNote: string, over: Record<string, unknown> = {}) => {
     rows.workboard_notes = { ...JOB_NOTE, ...over, proposal: { ...proposalOf(confirmed()), jobNote } };
-    return fileNote("n-1");
+    const r = await fileNote("n-1");
+    await runAfter();
+    return r;
   };
 
   beforeEach(() => {
@@ -829,6 +864,15 @@ describe("the one note on a job", () => {
     });
     afterEach(() => {
       delete process.env.SM8_WRITES;
+    });
+
+    it("after Tiff has answered, so her reply never waits on ServiceM8", async () => {
+      rows.workboard_notes = { ...JOB_NOTE, proposal: { ...proposalOf(confirmed()), jobNote: TIDIED } };
+      expect((await fileNote("n-1")).ok).toBe(true);
+      expect(sendEntryToSm8).not.toHaveBeenCalled();
+      expect(scheduled).toHaveLength(1);
+      await runAfter();
+      expect(sendEntryToSm8).toHaveBeenCalledTimes(1);
     });
 
     it("as the person who said it, on its job, through the job sheet's own send", async () => {

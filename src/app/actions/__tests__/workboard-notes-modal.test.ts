@@ -172,6 +172,8 @@ jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: { from: (t: string) => from(t), rpc: (n: string, a: Row) => rpc(n, a) },
 }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
+/* a filed job note sends on to ServiceM8 after the answer; not these tests' business */
+jest.mock("next/server", () => ({ after: () => undefined }));
 
 let session: { user: { sub: string }; orgId: string } | null = { user: { sub: "auth0|me" }, orgId: "org-1" };
 jest.mock("@/lib/auth0", () => ({ auth0: { getSession: jest.fn(async () => session) } }));

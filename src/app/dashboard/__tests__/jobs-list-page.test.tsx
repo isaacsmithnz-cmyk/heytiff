@@ -121,6 +121,20 @@ describe("the screen", () => {
     expect(screen.getByRole("link", { name: /3361/ })).toHaveTextContent("Nobody yet");
   });
 
+  /* Isaac, 8 November 2026: the Job column is the job's card, its number in
+     a box of the job's colour with the client, the suburb and the kind */
+  it("draws the job as its card, a quote in orange", () => {
+    show(dataFor());
+    const booked = screen.getByRole("link", { name: /3342/ });
+    const card = booked.querySelector(".jl-card");
+    expect(card).toHaveClass("jl-card--blue");
+    expect(card?.querySelector(".jl-cn")).toHaveTextContent("3342");
+    expect(card).toHaveTextContent("Rifkin, Julian");
+    expect(card).toHaveTextContent("Bellevue Hill");
+    expect(card).toHaveTextContent("Installation");
+    expect(screen.getByRole("link", { name: /3361/ }).querySelector(".jl-card")).toHaveClass("jl-card--orange");
+  });
+
   it("holds the view in the address as it changes", () => {
     show(dataFor());
     fireEvent.click(tab(/^Quotes/));

@@ -154,14 +154,111 @@ describe("the stairs as steps", () => {
     expect(width(spans[15])).toBeCloseTo(1);
   });
 
-  it("counts 180 mm risers when the drawing doesn't number them, and leaves a stair with none over it alone", () => {
+  it("counts 180 mm risers when the drawing doesn't number them", () => {
     const stair: Space3D = { ...room("Stairs", rect(0, 0, 1, 3), "stair"), stair: "risers not numbered" };
     const ground = floor("g", 0, [stair]);
     const upper = floor("u", 2.9, [room("Stair", rect(0, 0, 1, 3), "stair")]);
     flightsOf([ground, upper]);
     expect(ground.stairs[0].risers).toBe(16);
-    const lone = floor("l", 0, [{ ...room("Stairs", rect(0, 0, 1, 3), "stair") }]);
-    flightsOf([lone]);
-    expect(lone.stairs).toHaveLength(0);
+  });
+
+  /* 90 O'Brien St and 27 Milroy Ave (9 November 2026): the hall at the stair's
+     foot below and the landing at its head above are at the same end. Drawn
+     straight, it rose into the outside wall. */
+  it("turns back on itself when its foot and its head are at the same end: up one half, a landing, back along the other", () => {
+    const stair: Space3D = { ...room("Stair", rect(4, 0, 6, 4), "stair"), stair: "risers 18, treads 17, bottom Hall, top Landing" };
+    const hall = room("Hall", rect(0, 4, 8, 5.5), "circulation");
+    /* her outline fills only the west half at the foot: the first flight goes up there */
+    stair.pts = [
+      [4, 0],
+      [6, 0],
+      [6, 2],
+      [5, 2],
+      [5, 4],
+      [4, 4],
+    ];
+    const ground = floor("g", 0, [stair, hall]);
+    const well = room("Stair", rect(4, 0, 6, 4), "stair");
+    const upper = floor("u", 3, [well, room("Landing", rect(0, 4, 8, 5.5), "circulation")]);
+    flightsOf([ground, upper]);
+    expect(ground.stairs).toHaveLength(2);
+    const [up1, up2] = ground.stairs;
+    /* up the west half from the hall, northwards, to a landing a flight wide */
+    expect(up1.from).toEqual([4.5, 4]);
+    expect(up1.to[0]).toBeCloseTo(4.5);
+    expect(up1.to[1]).toBeCloseTo(1);
+    expect(up1.risers).toBe(9);
+    expect(up1.rise).toBeCloseTo(1.5);
+    expect(up1.landing?.y).toBeCloseTo(1.5);
+    /* and back down the east half to the landing above, at the hall's end */
+    expect(up2.from[0]).toBeCloseTo(5.5);
+    expect(up2.to).toEqual([5.5, 4]);
+    expect(up2.y0).toBeCloseTo(1.5);
+    expect(up2.y0 + up2.rise).toBeCloseTo(3);
+    /* open at the foot on the west half, and above on the east half it arrives by */
+    expect(ground.open).toEqual([
+      [
+        [4, 4],
+        [5, 4],
+      ],
+    ]);
+    expect(upper.open).toEqual([
+      [
+        [5, 4],
+        [6, 4],
+      ],
+    ]);
+  });
+
+  describe("with no stair over or under it", () => {
+    const lone = (said: string, others: Space3D[] = []) => {
+      const s: Space3D = { ...room("Stair", rect(0, 0, 1, 3), "stair"), stair: said };
+      const f = floor("f", 0, [s, ...others]);
+      flightsOf([f]);
+      return { f, s };
+    };
+
+    it("is a stairwell down from the room at its top, when the floor below isn't in the design (125 Homer St)", () => {
+      const { f, s } = lone("risers 20, treads 19, bottom ground floor (below), top Living", [room("Living", rect(0, -3, 4, 0))]);
+      expect(s.well).toBe(true);
+      const [flight] = f.stairs;
+      expect(flight.risers).toBe(20);
+      /* down from the Living's end, a storey */
+      expect(flight.to).toEqual([0.5, 0]);
+      expect(flight.y0 + flight.rise).toBeCloseTo(0);
+      expect(flight.y0).toBeCloseTo(-3);
+      expect(f.open).toEqual([
+        [
+          [0, 0],
+          [1, 0],
+        ],
+      ]);
+    });
+
+    it("is a flight going up out of its room, standing free, when the floor above isn't (14 Rosemont Ave)", () => {
+      const { f, s } = lone("risers not numbered, bottom Living, top First floor hallway", [room("Living", rect(-4, 3, 4, 6))]);
+      expect(s.bare).toBe(true);
+      const [flight] = f.stairs;
+      expect(flight.from).toEqual([0.5, 3]);
+      expect(flight.y0).toBe(0);
+      expect(flight.rise).toBeCloseTo(3);
+    });
+
+    it("is its steps between two places on the floor, down from a room's floor to the garden (7 Cutler Rd)", () => {
+      const { f, s } = lone("risers 10, treads 9, bottom Garden, top Family Room", [room("Family Room", rect(-4, 3, 4, 6)), room("Garden", rect(-4, -3, 4, 0), "outdoor")]);
+      expect(s.bare).toBe(true);
+      const [flight] = f.stairs;
+      expect(flight.risers).toBe(10);
+      expect(flight.from).toEqual([0.5, 0]);
+      expect(flight.to).toEqual([0.5, 3]);
+      expect(flight.y0).toBeCloseTo(-1.75);
+      expect(flight.y0 + flight.rise).toBeCloseTo(0);
+    });
+
+    it("goes up a storey when nothing was read at its ends", () => {
+      const { f, s } = lone("");
+      expect(s.bare).toBe(true);
+      expect(f.stairs[0].rise).toBeCloseTo(3);
+    });
   });
 });

@@ -6,6 +6,7 @@ import { WALLED, middleOf, toPlan, type Floor3D, type Grille3D, type Opening3D, 
 import { within } from "@/lib/studio/furnish3d";
 import { clashesOf, distanceWords, roofSpaceOf, roomFor } from "@/lib/studio/checks3d";
 import { latitudeOf, sunAt, towardsSun } from "@/lib/studio/sun";
+import { clipOut, flows } from "@/lib/studio/tidy3d";
 import { pieceMaker } from "./view-3d-pieces";
 import { airMaker } from "./view-3d-air";
 
@@ -750,6 +751,11 @@ async function build(
       const head = Math.min(c.o.head, f.ceiling);
       out.push(...segBox(at(c.t0), at(c.t1), f.y0, c.o.sill, 0.1, mat, edges));
       out.push(...segBox(at(c.t0), at(c.t1), f.y0 + head, f.ceiling - head, 0.1, mat, edges));
+      /* the far face of a thick wall is cut; its door or window is drawn once, on the near face */
+      if (c.o.echo) {
+        t = c.t1;
+        continue;
+      }
       const g = fill({ ...c.o, head }, c.t1 - c.t0);
       const [mx, mz] = P(at((c.t0 + c.t1) / 2));
       g.position.set(mx, f.y0 + c.o.sill, mz);
@@ -1055,6 +1061,31 @@ async function build(
     const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * ex + (p[1] - a[1]) * ez) / (ex * ex + ez * ez || 1)));
     return Math.hypot(p[0] - a[0] - ex * t, p[1] - a[1] - ez * t);
   };
+  /** the stairs on a floor a wall of `s` mustn't cross: every flight's outline but its own */
+  const flightsOn = (f: Floor3D, s: Space3D) => (s.kind === "stair" ? [] : f.spaces.filter((x) => x.kind === "stair" && !x.existing).map((x) => x.pts));
+  /** a side less the stretches left open along it */
+  const shut = (a: XZ, b: XZ, open: [XZ, XZ][]): [XZ, XZ][] => {
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (len < 0.05) return [];
+    const ux = (b[0] - a[0]) / len;
+    const uz = (b[1] - a[1]) / len;
+    const at = (t: number): XZ => [a[0] + ux * t, a[1] + uz * t];
+    const along = (p: XZ) => (p[0] - a[0]) * ux + (p[1] - a[1]) * uz;
+    const off = (p: XZ) => Math.abs((p[0] - a[0]) * uz - (p[1] - a[1]) * ux);
+    const gaps = open
+      .filter(([p, q]) => off(p) < 0.25 && off(q) < 0.25)
+      .map(([p, q]) => [Math.max(0, Math.min(along(p), along(q))), Math.min(len, Math.max(along(p), along(q)))])
+      .filter(([t0, t1]) => t1 - t0 > 0.3)
+      .sort((p, q) => p[0] - q[0]);
+    const out: [XZ, XZ][] = [];
+    let t = 0;
+    for (const [t0, t1] of gaps) {
+      if (t0 > t + 0.05) out.push([at(t), at(t0)]);
+      t = Math.max(t, t1);
+    }
+    if (t < len - 0.05) out.push([at(t), b]);
+    return out;
+  };
   /* each floor's roof, framing and ceilings ride with it, so Lift apart carries them */
   const roofG = new Map<string, THREE_NS.Group>();
   const frameG = new Map<string, THREE_NS.Group>();
@@ -1077,8 +1108,11 @@ async function build(
         g.add(fl, deck(s, f));
         if (f.y0 > 0.5) addAll(g, balustrade(s, f));
       } else if (s.existing) {
-        g.add(flat(s.pts, oldMat, f.y0 + 0.005));
-        for (let k = 0; k < s.pts.length; k++) addAll(g, segBox(s.pts[k], s.pts[(k + 1) % s.pts.length], f.y0, f.ceiling, 0.1, oldMat, false));
+        if (!s.well) g.add(flat(s.pts, oldMat, f.y0 + 0.005));
+        /* old steps standing free, or an old stairwell, have no walls */
+        if (s.bare || s.well) continue;
+        /* old walls with their doors and windows cut in, and never across a flight */
+        for (let k = 0; k < s.pts.length; k++) for (const [p, q] of clipOut(s.pts[k], s.pts[(k + 1) % s.pts.length], flightsOn(f, s))) addAll(g, wall(p, q, f, oldMat, false));
       } else if (WALLED.has(s.kind)) {
         /* a stair's well over its flight is open */
         if (!s.well) {
@@ -1087,21 +1121,34 @@ async function build(
           g.add(sl);
         }
         const glass = !f.read;
-        for (let k = 0; k < s.pts.length; k++) {
+        /* steps standing free: no walls round them */
+        for (let k = 0; k < (s.bare ? 0 : s.pts.length); k++) {
           const a = s.pts[k];
           const b = s.pts[(k + 1) % s.pts.length];
-          const mid: XZ = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-          /* a stairwell is railed where it meets the landing or the hall, not walled; its head stays open */
-          const open = (f.open ?? []).some(([p, q]) => toSeg(mid, p, q) < 0.3);
-          const railed = !!s.well && !open && f.spaces.some((x) => x !== s && x.kind === "circulation" && x.pts.some((p, i) => toSeg(mid, p, x.pts[(i + 1) % x.pts.length]) < 0.3));
-          if (railed) addAll(g, [...segBox(a, b, f.y0, 0.95, 0.012, glassMat, false), ...segBox(a, b, f.y0 + 0.92, 0.05, 0.06, frameMat, false)]);
-          else addAll(g, wall(a, b, f, glass ? zoneMat : wallMat, true));
+          if (!s.well) {
+            /* a room's wall stops where it would cross a flight of stairs (tidy3d) */
+            for (const [p, q] of clipOut(a, b, flightsOn(f, s))) addAll(g, wall(p, q, f, glass ? zoneMat : wallMat, true));
+            continue;
+          }
+          /* a stairwell is railed where it meets the landing, the hall or the living, not walled; where its flight arrives stays open */
+          for (const [p, q] of shut(a, b, f.open ?? [])) {
+            const mid: XZ = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+            const railed = f.spaces.some((x) => x !== s && flows(x) && x.pts.some((e, i) => toSeg(mid, e, x.pts[(i + 1) % x.pts.length]) < 0.3));
+            if (railed) addAll(g, [...segBox(p, q, f.y0, 0.95, 0.012, glassMat, false), ...segBox(p, q, f.y0 + 0.92, 0.05, 0.06, frameMat, false)]);
+            else addAll(g, wall(p, q, f, glass ? zoneMat : wallMat, true));
+          }
         }
       }
       if (s.kind !== "stair" && s.kind !== "cupboard") {
         const [lx, lz] = P(middleOf(s.pts));
         label(sentence(s.name), new THREE.Vector3(lx, f.y0 + 0.4, lz), g, i, "room");
       }
+    }
+    /* the floor across a wall's thickness where it's open or a door goes through it */
+    for (const pts of f.bridges ?? []) {
+      const sl = slab({ name: "", kind: "room", pts, existing: false }, f);
+      standOn.set(sl, f.id);
+      g.add(sl);
     }
     /* THE PLAN ON THE FLOOR: the floor's own drawing, laid where the design sits */
     for (const t of f.tiles) {
@@ -1386,6 +1433,21 @@ async function build(
         tread.castShadow = true;
         tread.receiveShadow = true;
         g.add(tread);
+      }
+      /* a U stair's half-landing, where it turns */
+      if (st.landing) {
+        const land = new THREE.Mesh(
+          (() => {
+            const geo = new THREE.ExtrudeGeometry(shape(st.landing.pts), { depth: 0.12, bevelEnabled: false });
+            geo.rotateX(-Math.PI / 2);
+            return geo;
+          })(),
+          treadOf(st.finish),
+        );
+        land.position.y = st.landing.y - 0.12;
+        land.castShadow = true;
+        land.receiveShadow = true;
+        g.add(land);
       }
       const climb = (st.rise * treads) / st.risers;
       const len = Math.hypot(run, climb);

@@ -10149,16 +10149,26 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
   transform: translate(-50%, -50%);
   font-size: 12px;
   line-height: 16px;
-  font-weight: 700;
+  font-weight: 600;
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: var(--r-control);
   background: var(--paper);
   color: var(--ink);
   border: 1px solid var(--line);
   white-space: nowrap;
   pointer-events: none;
 }
-.dstudio .ds3-lab.unit { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+/* a room's name lies on its floor: quieter than a unit's */
+.dstudio .ds3-lab.room { padding: 0 4px; border-color: transparent; color: var(--gray700); }
+/* a unit's name stands on a line up from its top, its system's dot beside it (rule 18a) */
+.dstudio .ds3-lab.unit { transform: translate(-50%, -100%); display: flex; align-items: center; gap: 4px; }
+.dstudio .ds3-lab i { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 999px; }
+/* a riser: the red disc with DR or PR on it (rule 16) */
+.dstudio .ds3-lab.riser { width: 24px; height: 24px; padding: 0; border-radius: 999px; border-color: var(--red-w); background: var(--red-w); color: var(--paper); font-size: 12px; line-height: 22px; text-align: center; }
+.dstudio .ds3-lines { position: absolute; inset: 0; pointer-events: none; }
+.dstudio .ds3-lines line { stroke: var(--gray500); stroke-width: 1; }
+/* what the 3D picture shows, over its top left corner (mock, 8 November 2026) */
+.dstudio .ds3-show { position: absolute; top: 16px; left: 16px; display: flex; gap: 4px; padding: 4px; border: 1px solid var(--edge); border-radius: var(--r-button); background: var(--paper); }
 .dstudio .ds3-none,
 .dstudio .ds3-empty p { margin: 0; font-size: 14px; line-height: 20px; color: var(--gray500); text-align: center; max-width: 48ch; }
 .dstudio .ds3-none { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; }

@@ -1,7 +1,11 @@
-import type { DesignDocument, Floor, Point } from "./document";
-import { floorBasesM, floorHeightM } from "./graph";
-import type { ReadSpace, SheetReading, SpaceKind } from "./reading";
+import type { DesignDocument, DesignObject, Floor, Point } from "./document";
+import { attachOf, floorBasesM, floorHeightM } from "./graph";
+import { ductPaint } from "./duct-size";
+import type { GrilleMount, GrilleStyle } from "./grilles";
+import { inside, type ReadSpace, type SheetReading, type SpaceKind } from "./reading";
+import { finishInside, roofFinishFor, stairFinishOf, type RoofFinish, type SurfaceFinish } from "./finishes";
 import { framingOf, roofHeightAt, roofMesh, type Member, type Mesh, type RoofRect } from "./roof3d";
+import { frameOf, furnish, type Piece3D, type ReadPiece } from "./furnish3d";
 
 /* THE DESIGN IN 3D (Isaac, 20 October 2026: "a button on Design"; the board
    https://claude.ai/artifact/VWq6nGGGaCPxCuRnReyCyX, option B). What the 3D
@@ -25,7 +29,32 @@ import { framingOf, roofHeightAt, roofMesh, type Member, type Mesh, type RoofRec
 
 export type XZ = [number, number];
 
-export type Space3D = { name: string; kind: SpaceKind | "zone"; pts: XZ[]; existing: boolean };
+export type Space3D = {
+  name: string;
+  kind: SpaceKind | "zone";
+  pts: XZ[];
+  existing: boolean;
+  /** a stair's numbering as she read it: "risers 19, treads 18, bottom Hall, top Landing" */
+  stair?: string;
+  /** the stair's well on the floor its flight rises to: open, no floor */
+  well?: boolean;
+  /** its floor's finish, the closest standard one to what the plan writes in it (finishes.ts); absent when it says nothing */
+  finish?: SurfaceFinish;
+};
+
+/** A flight of stairs, on the floor it rises from: its bottom step's middle to its top's, its treads' width, how many risers over how high. */
+export type Stair3D = {
+  floorId: string;
+  from: XZ;
+  to: XZ;
+  w: number;
+  y0: number;
+  rise: number;
+  risers: number;
+  finish?: SurfaceFinish;
+  /** each tread's reach across the flight, from its line, where the stair's shape narrows (a tread to a riser less than the risers) */
+  spans?: [number, number][];
+};
 
 export type Opening3D = {
   kind: "door" | "window";
@@ -49,7 +78,18 @@ export type Floor3D = {
   openings: Opening3D[];
   /** whether the spaces are Tiff's reading (true) or the zones drawn (false) */
   read: boolean;
+  /** the floor's own drawing, laid on its slab: the part of each sheet the design is on */
+  tiles: PlanTile[];
+  /** what stands in its rooms: read off the drawing, else by the room's name (furnish3d) */
+  pieces: Piece3D[];
+  /** its flights of stairs up to the floor above */
+  stairs: Stair3D[];
+  /** where no wall stands: a flight's foot, open to the room it starts from, and its well's head, open to the landing */
+  open?: [XZ, XZ][];
 };
+
+/** A piece of a plan sheet in metres, and where it sits on the image (0 to 1, top left 0). */
+export type PlanTile = { ref: string; x0: number; z0: number; x1: number; z1: number; u0: number; v0: number; u1: number; v1: number };
 
 export type Unit3D = {
   id: string;
@@ -64,20 +104,52 @@ export type Unit3D = {
   d: number;
   /** degrees */
   rot: number;
+  /** what it is, off the pack: "wall", "cassette-4way", "ducted", "bulkhead", ..., or "outdoor" */
+  form: string;
+  /** its system's colour (rule 18a) */
+  colour: string;
 };
 
 export type Run3D = { floorId: string; pts: [number, number, number][] };
 
+/** A duct as drawn, at its size and in its size's colour, in the cavity it runs in. */
+export type Duct3D = { floorId: string; pts: [number, number, number][]; r: number; flex: boolean; body: string; edge: string; rib: string };
+
+/** A grille where it is fixed: its face's middle, its size, metres. */
+export type Grille3D = {
+  floorId: string;
+  at: XZ;
+  y: number;
+  w: number;
+  h: number;
+  rot: number;
+  mount: GrilleMount;
+  style: GrilleStyle;
+  stream: "supply" | "return";
+};
+
+/** A riser between two floors: a duct (DR) or the pipes (PR), and where it goes through the floor. */
+export type Riser3D = { floorId: string; at: XZ; y0: number; y1: number; r: number; duct: boolean; body: string; slab: number };
+
 /** A roof part as drawn: its sheets, the walls rising to it, on the floor whose walls carry it. */
-export type Roof3D = { floorId: string; existing: boolean; faces: Mesh; fills: Mesh };
+export type Roof3D = { floorId: string; existing: boolean; faces: Mesh; fills: Mesh; finish: RoofFinish | null };
 
 /** A floor's ceilings: flat ones as outlines at a height, raked ones as their own surface. */
-export type Ceiling3D = { floorId: string; flat: { pts: XZ[]; y: number }[]; raked: Mesh[] };
+export type Ceiling3D = {
+  floorId: string;
+  flat: { pts: XZ[]; y: number }[];
+  raked: Mesh[];
+  /** a raked room's walls, carried on up from the flat ceiling's height to meet it */
+  tops: Mesh[];
+};
 
 export type Scene3D = {
   floors: Floor3D[];
   units: Unit3D[];
   pipes: Run3D[];
+  ducts: Duct3D[];
+  grilles: Grille3D[];
+  risers: Riser3D[];
   /** the roof and its framing, from Tiff's read of the set; empty until she has read it */
   roofs: Roof3D[];
   framing: (Member & { floorId: string })[];
@@ -141,7 +213,7 @@ function overlap(a: Box, b: Box): number {
 }
 
 /** A floor's spaces, openings and units in metres, before it is lined up. */
-type Raw = { floor: Floor; spaces: Space3D[]; openings: Opening3D[]; read: boolean };
+type Raw = { floor: Floor; spaces: Space3D[]; openings: Opening3D[]; read: boolean; furniture?: ReadPiece[]; joinery?: ReadPiece[] };
 
 function rawFloor(doc: DesignDocument, floor: Floor, ceiling: number): Raw | null {
   const k = floor.scaleMmPerUnit;
@@ -150,14 +222,25 @@ function rawFloor(doc: DesignDocument, floor: Floor, ceiling: number): Raw | nul
   const sheets: SheetReading[] = doc.reading?.floors[floor.id] ?? [];
   const spaces: Space3D[] = [];
   const openings: Opening3D[] = [];
+  const furniture: ReadPiece[] = [];
+  const joinery: ReadPiece[] = [];
+  /* the plan's own words, kept from the PDF at upload, for the finishes they name */
+  const pageOf = new Map(Object.entries(doc.planImport?.placed ?? {}).map(([i, ref]) => [ref, Number(i)]));
   for (const r of sheets) {
     const sheet = floor.plans.find((p) => p.id === r.sheetId);
     if (!sheet) continue;
     const on = (p: Point): XZ => m({ x: sheet.x + p.x, y: sheet.y + p.y });
+    const page = pageOf.get(sheet.imageRef);
+    const c = sheet.crop;
+    const words = (page === undefined ? [] : (doc.planImport?.words?.[page] ?? [])).filter((w) => !c || (w.at.x >= c.x && w.at.x <= c.x + c.w && w.at.y >= c.y && w.at.y <= c.y + c.h));
+    const stairs = stairFinishOf(words);
     for (const s of r.spaces as ReadSpace[]) {
       if (s.outline.length < 3 || s.kind === "notch") continue;
-      spaces.push({ name: s.name, kind: s.kind, pts: s.outline.map(on), existing: s.existing });
+      const finish = s.kind === "stair" ? stairs : finishInside(words, s.outline, inside);
+      spaces.push({ name: s.name, kind: s.kind, pts: s.outline.map(on), existing: s.existing, ...(s.kind === "stair" ? { stair: s.stair } : {}), ...(finish ? { finish } : {}) });
     }
+    for (const f of r.furniture ?? []) if (f.outline.length >= 3) furniture.push({ kind: f.kind, room: f.room, pts: f.outline.map(on) });
+    for (const j of r.marks ?? []) if (j.item === "joinery" && j.outline.length >= 3) joinery.push({ kind: j.text, room: j.room, pts: j.outline.map(on) });
     for (const o of r.openings) {
       if (o.kind === "skylight") continue;
       const head = Math.min(HEAD_M, ceiling);
@@ -178,7 +261,7 @@ function rawFloor(doc: DesignDocument, floor: Floor, ceiling: number): Raw | nul
       spaces.push({ name: typeof o.props.name === "string" ? o.props.name : "", kind: "zone", pts: o.geometry.points.map(m), existing: false });
     }
   }
-  return spaces.length ? { floor, spaces, openings, read } : null;
+  return spaces.length ? { floor, spaces, openings, read, furniture, joinery } : null;
 }
 
 const solid = (r: Raw) => r.spaces.filter((s) => WALLED.has(s.kind) && !s.existing);
@@ -255,6 +338,60 @@ export function indoorHeight(form: string, underFloor: boolean, base: number, ce
   return base + ceiling + 0.02;
 }
 
+/** THE FLOOR'S OWN DRAWING ON ITS SLAB: the part of each sheet the design is
+    on, so a floor shows the house as drawn even where nobody has drawn a room.
+    The design's own things, and Tiff's spaces when she has read them, with a
+    margin round them: never the title block or the next drawing over. */
+const TILE_MARGIN_M = 2;
+function tilesOf(doc: DesignDocument, f: Floor, raw: Raw, move: XZ): PlanTile[] {
+  const k = f.scaleMmPerUnit;
+  if (!k) return [];
+  const xs: number[] = [];
+  const ys: number[] = [];
+  const take = (p: Point) => {
+    xs.push(p.x);
+    ys.push(p.y);
+  };
+  for (const o of doc.objects) {
+    if (o.floorId !== f.id || o.type === "note") continue;
+    const g = o.geometry;
+    if (g.kind === "point") take(g.at);
+    else if ("points" in g) for (const p of g.points) take(p);
+  }
+  if (raw.read)
+    for (const s of raw.spaces)
+      for (const [x, z] of s.pts) {
+        xs.push((x * 1000) / k);
+        ys.push((z * 1000) / k);
+      }
+  if (!xs.length) return [];
+  const pad = (TILE_MARGIN_M * 1000) / k;
+  const box = { x0: Math.min(...xs) - pad, y0: Math.min(...ys) - pad, x1: Math.max(...xs) + pad, y1: Math.max(...ys) + pad };
+  const out: PlanTile[] = [];
+  for (const sh of f.plans) {
+    if (!sh.imageRef || !sh.width || !sh.height) continue;
+    const c = sh.crop ?? { x: 0, y: 0, w: sh.width, h: sh.height };
+    const x0 = Math.max(box.x0, sh.x + c.x);
+    const y0 = Math.max(box.y0, sh.y + c.y);
+    const x1 = Math.min(box.x1, sh.x + c.x + c.w);
+    const y1 = Math.min(box.y1, sh.y + c.y + c.h);
+    if (x1 - x0 <= 0 || y1 - y0 <= 0) continue;
+    const m = (v: number) => (v * k) / 1000;
+    out.push({
+      ref: sh.imageRef,
+      x0: mm(m(x0) + move[0]),
+      z0: mm(m(y0) + move[1]),
+      x1: mm(m(x1) + move[0]),
+      z1: mm(m(y1) + move[1]),
+      u0: (x0 - sh.x) / sh.width,
+      v0: (y0 - sh.y) / sh.height,
+      u1: (x1 - sh.x) / sh.width,
+      v1: (y1 - sh.y) / sh.height,
+    });
+  }
+  return out;
+}
+
 /** Everything the 3D view draws for this design. `unitRow` is the pack's word
     on a model, when the caller has the pack. */
 export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRow | null): Scene3D {
@@ -283,22 +420,31 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
     const r = raws.get(f.id);
     if (!r) continue;
     const mv = shift(moves.get(f.id)!);
+    const spaces = r.spaces.map((s) => ({ ...s, pts: s.pts.map(mv) }));
+    const openings = r.openings.map((o) => ({ ...o, a: mv(o.a), b: mv(o.b) }));
+    const moved = (p: ReadPiece) => ({ ...p, pts: p.pts.map(mv) });
     floors.push({
       id: f.id,
       name: f.name,
       level: f.level,
       y0: mm((bases.get(f.id) ?? 0) - ground0),
       ceiling: ceilingOf(f),
-      spaces: r.spaces.map((s) => ({ ...s, pts: s.pts.map(mv) })),
-      openings: r.openings.map((o) => ({ ...o, a: mv(o.a), b: mv(o.b) })),
+      spaces,
+      openings,
       read: r.read,
+      tiles: tilesOf(doc, f, r, moves.get(f.id)!),
+      pieces: r.read ? furnish(spaces, openings, { furniture: (r.furniture ?? []).map(moved), joinery: (r.joinery ?? []).map(moved) }) : [],
+      stairs: [],
     });
   }
+  flightsOf(floors);
 
   const floorById = new Map(floors.map((f) => [f.id, f]));
   const systemType = new Map(doc.systems.map((s) => [s.id, s.type]));
+  const systemColour = new Map(doc.systems.map((s) => [s.id, s.colour]));
   const units: Unit3D[] = [];
   const pipes: Run3D[] = [];
+  const unitById = new Map<string, Unit3D>();
   for (const o of doc.objects) {
     const f = floorById.get(o.floorId);
     const floor = doc.floors.find((x) => x.id === o.floorId);
@@ -340,12 +486,142 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
         h,
         d: dMm / 1000,
         rot: o.geometry.rotation ?? 0,
+        form: outdoor ? "outdoor" : (row?.form_factor ?? (ducted || underFloor ? "ducted" : "wall")),
+        colour: systemColour.get(o.systemId ?? "") ?? "#050505",
       });
+      unitById.set(o.id, units[units.length - 1]);
     }
     if (o.type === "pipe-run" && o.geometry.kind === "polyline" && o.geometry.points.length >= 2) {
       /* a run rides in the ceiling cavity over its floor */
       const y = mm(f.y0 + f.ceiling + 0.1);
-      pipes.push({ floorId: f.id, pts: o.geometry.points.map((p) => { const [x, z] = m(p); return [x, y, z]; }) });
+      pipes.push({ floorId: f.id, pts: o.geometry.points.map((p) => { const [x, z] = m(p); return [x, y, z]; }), ends: [attachOf(o.props.startAttach)?.id ?? null, attachOf(o.props.endAttach)?.id ?? null] } as Run3D);
+    }
+  }
+  /* PIPES THAT JOIN UP: a run ends where its unit is, not in the air over it.
+     Down to an indoor unit's middle; an outdoor unit's tails come out low on
+     its side, so the run goes down the outside wall to them. */
+  for (const run of pipes as (Run3D & { ends?: (string | null)[] })[]) {
+    const [a, b] = run.ends ?? [null, null];
+    delete run.ends;
+    const drop = (id: string | null, end: [number, number, number], first: boolean) => {
+      const u = id ? unitById.get(id) : undefined;
+      if (!u) return;
+      const y = mm(u.outdoor ? u.y + Math.min(0.35, u.h / 2) : u.y + u.h / 2);
+      const p: [number, number, number] = [end[0], y, end[2]];
+      if (first) run.pts.unshift(p);
+      else run.pts.push(p);
+    };
+    drop(a, run.pts[0], true);
+    drop(b, run.pts[run.pts.length - 1], false);
+  }
+
+  /* ── THE AIR SIDE: ducts at their size, in the cavity they run in; the
+     grilles they end on; risers between floors ── */
+  const byId = new Map(doc.objects.map((o) => [o.id, o]));
+  const lowGrille = (o: DesignObject | undefined) => o?.type === "grille" && (o.props.mount === "floor" || o.props.mount === "kicker");
+  /** a duct under its floor: it reaches a unit under the floor, or a grille in the floor or a kicker */
+  const ductBelow = (o: DesignObject): boolean =>
+    [attachOf(o.props.startAttach), attachOf(o.props.endAttach)].some((a) => {
+      const t = a ? byId.get(a.id) : undefined;
+      return (t?.type === "unit" && t.plane === "floor-cavity") || lowGrille(t);
+    });
+  const fedBelow = new Set<string>();
+  const ductY = (f: Floor3D, below: boolean, r: number) => mm(below ? f.y0 - 0.08 - r : f.y0 + f.ceiling + 0.08 + r);
+  for (const o of doc.objects)
+    if (o.type === "duct-run" && ductBelow(o))
+      for (const a of [attachOf(o.props.startAttach), attachOf(o.props.endAttach)]) if (a?.kind === "grille") fedBelow.add(a.id);
+
+  const grilles: Grille3D[] = [];
+  const grilleById = new Map<string, Grille3D>();
+  for (const o of doc.objects) {
+    if (o.type !== "grille" || o.geometry.kind !== "point") continue;
+    const f = floorById.get(o.floorId);
+    const k = doc.floors.find((x) => x.id === o.floorId)?.scaleMmPerUnit;
+    if (!f || !k) continue;
+    const mv = shift(moves.get(f.id)!);
+    const w = num(o.props.wMm, 300) / 1000;
+    const h = num(o.props.hMm, 300) / 1000;
+    const mount: GrilleMount = o.props.mount === "wall" || o.props.mount === "floor" || o.props.mount === "kicker" ? o.props.mount : "ceiling";
+    const style: GrilleStyle = o.props.style === "round" || o.props.style === "square" || o.props.style === "linear" ? o.props.style : Math.abs(w - h) < 0.01 ? "square" : "linear";
+    const y =
+      mount === "ceiling" ? f.y0 + f.ceiling : mount === "floor" ? f.y0 : mount === "kicker" ? f.y0 + 0.05 + h / 2 : fedBelow.has(o.id) ? f.y0 + 0.3 + h / 2 : f.y0 + f.ceiling - 0.3 - h / 2;
+    const g: Grille3D = { floorId: f.id, at: mv([(o.geometry.at.x * k) / 1000, (o.geometry.at.y * k) / 1000]), y: mm(y), w, h, rot: o.geometry.rotation ?? 0, mount, style, stream: o.props.stream === "return" ? "return" : "supply" };
+    grilles.push(g);
+    grilleById.set(o.id, g);
+  }
+
+  const ducts: Duct3D[] = [];
+  const ductOf = new Map<string, Duct3D>();
+  for (const o of doc.objects) {
+    if (o.type !== "duct-run" || o.geometry.kind !== "polyline" || o.geometry.points.length < 2) continue;
+    const f = floorById.get(o.floorId);
+    const k = doc.floors.find((x) => x.id === o.floorId)?.scaleMmPerUnit;
+    if (!f || !k) continue;
+    const mv = shift(moves.get(f.id)!);
+    const dia = num(o.props.diaMm, 250);
+    const r = dia / 2000;
+    const below = ductBelow(o);
+    const y = ductY(f, below, r);
+    const pts: [number, number, number][] = o.geometry.points.map((p) => {
+      const [x, z] = mv([(p.x * k) / 1000, (p.y * k) / 1000]);
+      return [x, y, z];
+    });
+    /* each end goes to what it is on: down or up to a grille's face, to a unit's middle */
+    const endAt = (id: string | undefined): number | null => {
+      if (!id) return null;
+      const g = grilleById.get(id);
+      if (g) return g.mount === "ceiling" ? g.y + 0.01 : g.mount === "floor" ? g.y - 0.01 : g.y;
+      const u = unitById.get(id);
+      if (u) return mm(u.y + u.h / 2);
+      return null;
+    };
+    const ya = endAt(attachOf(o.props.startAttach)?.id);
+    const yb = endAt(attachOf(o.props.endAttach)?.id);
+    if (ya != null && Math.abs(ya - y) > 0.02) pts.unshift([pts[0][0], ya, pts[0][2]]);
+    if (yb != null && Math.abs(yb - y) > 0.02) pts.push([pts[pts.length - 1][0], yb, pts[pts.length - 1][2]]);
+    const paint = ductPaint(dia);
+    const d: Duct3D = { floorId: f.id, pts, r, flex: o.props.form !== "rigid", body: paint.body, edge: paint.edge, rib: paint.rib };
+    ducts.push(d);
+    ductOf.set(o.id, d);
+  }
+
+  /* a riser's floors, lower to upper: its group within its system (graph.ts) */
+  const risers: Riser3D[] = [];
+  const groups = new Map<string, DesignObject[]>();
+  for (const o of doc.objects) {
+    if (o.type !== "riser" || o.geometry.kind !== "point") continue;
+    const key = `${o.systemId ?? ""}:${String(o.props.group ?? "")}`;
+    groups.set(key, [...(groups.get(key) ?? []), o]);
+  }
+  const ductOnRiser = (id: string): Duct3D | undefined => {
+    for (const o of doc.objects)
+      if (o.type === "duct-run" && [attachOf(o.props.startAttach), attachOf(o.props.endAttach)].some((a) => a?.id === id)) return ductOf.get(o.id);
+    return undefined;
+  };
+  for (const list of groups.values()) {
+    const sorted = list
+      .map((o) => ({ o, f: floorById.get(o.floorId) }))
+      .filter((x): x is { o: DesignObject; f: Floor3D } => !!x.f)
+      .sort((a, b) => a.f.level - b.f.level);
+    for (let i = 0; i + 1 < sorted.length; i++) {
+      const lo = sorted[i];
+      const hi = sorted[i + 1];
+      const k = doc.floors.find((x) => x.id === lo.f.id)?.scaleMmPerUnit;
+      if (!k || lo.o.geometry.kind !== "point") continue;
+      const at = shift(moves.get(lo.f.id)!)([(lo.o.geometry.at.x * k) / 1000, (lo.o.geometry.at.y * k) / 1000]);
+      const dLo = ductOnRiser(lo.o.id);
+      const dHi = ductOnRiser(hi.o.id);
+      const d = dLo ?? dHi;
+      risers.push({
+        floorId: lo.f.id,
+        at,
+        y0: d ? (dLo ? dLo.pts.find((p) => Math.hypot(p[0] - at[0], p[2] - at[1]) < 0.6)?.[1] ?? dLo.pts[0][1] : lo.f.y0 - 0.2) : mm(lo.f.y0 + lo.f.ceiling + 0.1),
+        y1: d ? (dHi ? dHi.pts.find((p) => Math.hypot(p[0] - at[0], p[2] - at[1]) < 0.6)?.[1] ?? dHi.pts[0][1] : hi.f.y0 - 0.2) : mm(hi.f.y0 + hi.f.ceiling + 0.1),
+        r: d ? d.r : 0.035,
+        duct: !!d,
+        body: d ? d.body : "#B45309",
+        slab: hi.f.y0,
+      });
     }
   }
 
@@ -367,7 +643,7 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
     const rect = { ...b, base: mm(f.y0 + part.eaveMm / 1000), part, floorId: f.id };
     rects.push(rect);
     const { faces, fills } = roofMesh(rect);
-    roofs.push({ floorId: f.id, existing: part.existing, faces, fills });
+    roofs.push({ floorId: f.id, existing: part.existing, faces, fills, finish: roofFinishFor(part, roofRead?.material ?? "") });
   }
   for (const f of floors) {
     const rakes = (roofRead?.raked ?? []).filter((r) => r.floorId === f.id);
@@ -382,8 +658,11 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
     const flat = f.spaces
       .filter((s) => WALLED.has(s.kind) && s.kind !== "stair" && !rakedSpaces.some((x) => x.s === s))
       .map((s) => ({ pts: s.pts, y: mm(f.y0 + f.ceiling) }));
-    const raked = rakedSpaces.map(({ s, rake }) => rakedCeiling(s.pts, f.y0 + f.ceiling, f.y0 + rake.highMm / 1000, rects.filter((q) => q.floorId === f.id)));
-    ceilings.push({ floorId: f.id, flat, raked });
+    const over = rects.filter((q) => q.floorId === f.id);
+    const raked = rakedSpaces.map(({ s, rake }) => rakedCeiling(s.pts, f.y0 + f.ceiling, f.y0 + rake.highMm / 1000, over));
+    /* a kept room's walls are see-through and stay as they were */
+    const tops = rakedSpaces.filter(({ s }) => !s.existing).map(({ s, rake }) => rakedTops(s.pts, f.y0 + f.ceiling, f.y0 + rake.highMm / 1000, over));
+    ceilings.push({ floorId: f.id, flat, raked, tops });
   }
 
   const all = floors.flatMap((f) => f.spaces.flatMap((s) => s.pts));
@@ -392,6 +671,9 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
     floors,
     units,
     pipes,
+    ducts,
+    grilles,
+    risers,
     roofs,
     framing,
     ceilings,
@@ -406,13 +688,42 @@ const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 /** "Kitchen/Living" and "KITCHEN / LIVING" are one room */
 const sameName = (a: string, b: string) => norm(a) === norm(b);
 
+/** A raked ceiling's height at a point: under the roof by a rafter's depth, never below the flat ceiling nor above the height read for it. */
+const rakedY = (flatY: number, highY: number, over: RoofRect[]) => (x: number, z: number) => {
+  const roof = Math.max(...over.map((r) => roofHeightAt(r, x, z)));
+  return mm(Math.max(flatY, Math.min(highY, Number.isFinite(roof) ? roof - 0.16 : flatY)));
+};
+
+/** A raked room's walls from the flat ceiling's height up to its raked ceiling, so none stops short of it. */
+export function rakedTops(pts: XZ[], flatY: number, highY: number, over: RoofRect[]): Mesh {
+  const yAt = rakedY(flatY, highY, over);
+  const verts: [number, number, number][] = [];
+  const tris: number[] = [];
+  pts.forEach((a, k) => {
+    const b = pts[(k + 1) % pts.length];
+    const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.25));
+    const along = Array.from({ length: n + 1 }, (_, i): [number, number, number] => {
+      const x = a[0] + ((b[0] - a[0]) * i) / n;
+      const z = a[1] + ((b[1] - a[1]) * i) / n;
+      return [mm(x), yAt(x, z), mm(z)];
+    });
+    /* a wall the ceiling doesn't rise over needs nothing more */
+    if (along.every(([, y]) => y <= flatY + 0.005)) return;
+    along.forEach(([x, y, z], i) => {
+      verts.push([x, mm(flatY), z], [x, y, z]);
+      if (i) {
+        const c = verts.length - 2;
+        tris.push(c - 2, c, c + 1, c - 2, c + 1, c - 1);
+      }
+    });
+  });
+  return { verts, tris };
+}
+
 /** A raked ceiling: under the roof by a rafter's depth, never below the flat ceiling nor above the height read for it. */
 function rakedCeiling(pts: XZ[], flatY: number, highY: number, over: RoofRect[]): Mesh {
   const b = boxOf(pts)!;
-  const yAt = (x: number, z: number) => {
-    const roof = Math.max(...over.map((r) => roofHeightAt(r, x, z)));
-    return mm(Math.max(flatY, Math.min(highY, Number.isFinite(roof) ? roof - 0.16 : flatY)));
-  };
+  const yAt = rakedY(flatY, highY, over);
   const nx = Math.max(1, Math.ceil((b.x1 - b.x0) / 0.25));
   const nz = Math.max(1, Math.ceil((b.z1 - b.z0) / 0.25));
   const verts: [number, number, number][] = [];
@@ -432,6 +743,91 @@ function rakedCeiling(pts: XZ[], flatY: number, highY: number, over: RoofRect[])
 
 /** The middle of a space, for its label. */
 export const middleOf = centroid;
+
+/* THE STAIRS AS STEPS (mock, 8 November 2026). A stair read on a floor with
+   a stair over it on the floor above is a flight between the two: it rises
+   along its long way, from the end nearer the room she read at its bottom,
+   in the risers she counted or as many 180 mm risers as the height takes.
+   The stair above is its well, open to it. */
+export function flightsOf(floors: Floor3D[]) {
+  const byHeight = [...floors].sort((a, b) => a.y0 - b.y0);
+  byHeight.forEach((f, i) => {
+    const up = byHeight[i + 1];
+    if (!up || up.y0 - f.y0 < 1.5) return;
+    for (const s of f.spaces) {
+      if (s.kind !== "stair") continue;
+      const sb = boxOf(s.pts)!;
+      const over = up.spaces.find((t) => t.kind === "stair" && overlap(sb, boxOf(t.pts)!) > 0.4);
+      if (!over) continue;
+      over.well = true;
+      const fr = frameOf(s.pts);
+      const a: XZ = [fr.c[0] - (fr.u[0] * fr.lu) / 2, fr.c[1] - (fr.u[1] * fr.lu) / 2];
+      const b: XZ = [fr.c[0] + (fr.u[0] * fr.lu) / 2, fr.c[1] + (fr.u[1] * fr.lu) / 2];
+      const bottom = /bottom\s+([^,(]+)/i.exec(s.stair ?? "")?.[1]?.trim() ?? "";
+      const there = bottom ? f.spaces.find((x) => x !== s && x.kind !== "stair" && (norm(x.name).includes(norm(bottom)) || norm(bottom).includes(norm(x.name))) && norm(x.name).length > 1) : undefined;
+      let [from, to] = [a, b];
+      if (there) {
+        const m = centroid(there.pts);
+        const da = Math.hypot(a[0] - m[0], a[1] - m[1]);
+        const db = Math.hypot(b[0] - m[0], b[1] - m[1]);
+        if (db < da) [from, to] = [b, a];
+      }
+      const rise = mm(up.y0 - f.y0);
+      const counted = Number(/risers\s+(\d+)/i.exec(s.stair ?? "")?.[1]);
+      const risers = counted >= 3 && counted <= 30 ? counted : Math.max(3, Math.round(rise / 0.18));
+      f.stairs.push({ floorId: f.id, from, to, w: mm(fr.lv), y0: f.y0, rise, risers, ...(s.finish ? { finish: s.finish } : {}), spans: spansOf(s.pts, from, to, risers - 1, fr.lv) });
+      /* no wall across its foot, nor across its well's head on the floor above */
+      (f.open ??= []).push(edgeNear(s.pts, from));
+      (up.open ??= []).push(edgeNear(over.pts, to));
+    }
+  });
+}
+
+/** How far each tread reaches either side of the flight's line, inside the stair's own shape: an L-shaped stair's treads narrow where it does. */
+function spansOf(pts: XZ[], from: XZ, to: XZ, treads: number, w: number): [number, number][] {
+  const run = Math.hypot(to[0] - from[0], to[1] - from[1]);
+  if (run < 0.5 || treads < 1) return [];
+  const ux = (to[0] - from[0]) / run;
+  const uz = (to[1] - from[1]) / run;
+  /* across the flight, as the 3D lays a tread: (uz, -ux) */
+  const vx = uz;
+  const vz = -ux;
+  return Array.from({ length: treads }, (_, i): [number, number] => {
+    const t = ((i + 0.5) * run) / treads;
+    const c: XZ = [from[0] + ux * t, from[1] + uz * t];
+    const hits: number[] = [];
+    pts.forEach((a, k) => {
+      const b = pts[(k + 1) % pts.length];
+      /* where the line across, c + s v, meets the side a to b */
+      const ex = b[0] - a[0];
+      const ez = b[1] - a[1];
+      const den = vx * ez - vz * ex;
+      if (Math.abs(den) < 1e-9) return;
+      const q = ((a[0] - c[0]) * vz - (a[1] - c[1]) * vx) / den;
+      if (q < -1e-9 || q > 1 + 1e-9) return;
+      hits.push(((a[0] - c[0]) * ez - (a[1] - c[1]) * ex) / den);
+    });
+    return hits.length >= 2 ? [mm(Math.min(...hits)), mm(Math.max(...hits))] : [mm(-w / 2), mm(w / 2)];
+  });
+}
+
+/** The side of a shape nearest a point. */
+function edgeNear(pts: XZ[], p: XZ): [XZ, XZ] {
+  let best: [XZ, XZ] = [pts[0], pts[1 % pts.length]];
+  let least = Infinity;
+  pts.forEach((a, k) => {
+    const b = pts[(k + 1) % pts.length];
+    const ex = b[0] - a[0];
+    const ez = b[1] - a[1];
+    const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * ex + (p[1] - a[1]) * ez) / (ex * ex + ez * ez || 1)));
+    const d = Math.hypot(p[0] - a[0] - ex * t, p[1] - a[1] - ez * t);
+    if (d < least) {
+      least = d;
+      best = [a, b];
+    }
+  });
+  return best;
+}
 
 /* ── THE ROOF VOID, FOR TIFF (Isaac, 20 October 2026: "can I fit a ducted
    unit in the roof void?"). Over every room with a roof above it: how much

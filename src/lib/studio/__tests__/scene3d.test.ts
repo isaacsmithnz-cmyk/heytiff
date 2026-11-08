@@ -266,6 +266,16 @@ describe("the roof void over each room", () => {
     expect(r.void_over_rooms.find((v) => v.room === "Lounge")).toMatchObject({ ceiling: "raked: no roof void over it", clear_mm_highest: 0 });
   });
 
+  it("carries a raked room's walls up to meet its ceiling, and no other room's", () => {
+    const s = sceneOf(withRoof([{ floorId: "gf", room: "Lounge", lowMm: 2400, highMm: 3200 }]));
+    const flatY = s.floors[0].y0 + s.floors[0].ceiling;
+    expect(s.ceilings[0].tops).toHaveLength(1);
+    const ys = s.ceilings[0].tops[0].verts.map(([, y]) => y);
+    expect(Math.min(...ys)).toBeCloseTo(flatY);
+    expect(Math.max(...ys)).toBeGreaterThan(flatY + 0.5);
+    expect(Math.max(...ys)).toBeLessThanOrEqual(3.2);
+  });
+
   it("says when the roof hasn't been read", () => {
     expect(roofSummary(design([floor("gf", 0)], null))).toMatchObject({ read: false });
   });

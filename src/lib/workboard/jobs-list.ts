@@ -45,6 +45,7 @@ export const JOB_VIEWS = [
   { key: "all", label: "All" },
   { key: "to-book", label: "To book" },
   { key: "quotes", label: "Quotes" },
+  { key: "ready", label: "Ready to send" },
   { key: "to-invoice", label: "To invoice" },
   { key: "owed", label: "Owed" },
   { key: "projects", label: "Projects" },
@@ -202,6 +203,9 @@ export type JobsListInput = {
   crew: Readonly<Record<string, string[]>>;
   /** ServiceM8 job uuid → the day it became a work order */
   wonOn: Readonly<Record<string, string>>;
+  /** ServiceM8 job uuid → its quote marked ready to send: when, on the
+      account's clock, and who marked it (quotes/ready-to-send-server) */
+  ready?: Readonly<Record<string, { at: string; by: string | null }>>;
   today: string;
   moneyVisible: boolean;
 };
@@ -230,6 +234,17 @@ function bookingWords(stamp: string, today: string): string {
   const d = dayOf(stamp)!;
   const t = stamp.length >= 16 ? sm8TimeOf(stamp) : null;
   return t && stamp.slice(11, 16) !== "00:00" ? `${dayWords(d, today)} ${t}` : dayWords(d, today);
+}
+
+/** When a quote was marked ready: "Marked today, 2:31pm", "Marked yesterday,
+    9am", else "Marked 4 Nov". */
+function markedWords(stamp: string, today: string): string {
+  const d = dayOf(stamp);
+  if (!d) return "Marked";
+  const t = sm8TimeOf(stamp);
+  if (d === today) return t ? `Marked today, ${t}` : "Marked today";
+  if (d === plusDays(today, -1)) return t ? `Marked yesterday, ${t}` : "Marked yesterday";
+  return `Marked ${dated(d, today)}`;
 }
 
 /* ── who ── */
@@ -374,6 +389,24 @@ export function jobsListRows(input: JobsListInput): JobsListRow[] {
         item.group === "price"
           ? d ? `Raised ${dated(d, today)}` : "Not dated"
           : sent ? `Sent ${dated(sent, today)}` : d ? `Quoted ${dated(d, today)}` : "Not dated";
+      /* READY TO SEND (Isaac, 5 November 2026): marked ready, and ServiceM8
+         still has it as a quote, so the office looks it over and sends it
+         from the job's Quote tab. Whoever marked it is who. */
+      const ready = input.ready?.[r.id];
+      if (ready && r.statusLabel === "Quote" && !sent) {
+        put({
+          ...sm8Base(r),
+          href: jobPageHref(r.id, "quote"),
+          state: "Ready to send",
+          tone: "look",
+          next: markedWords(ready.at, today),
+          on: dayOf(ready.at),
+          ahead: false,
+          who: ready.by ? [ready.by] : (input.crew[r.id] ?? []),
+          views: ["all", "quotes", "ready"],
+        });
+        continue;
+      }
       put({ ...sm8Base(r), ...quoteWords(item), next, on: sent ?? d, ahead: false, views: ["all", "quotes"] });
     }
   }

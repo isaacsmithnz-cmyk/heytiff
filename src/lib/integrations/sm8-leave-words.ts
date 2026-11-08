@@ -59,6 +59,9 @@ export const LEAVE_WORDS = {
     inactive: "ServiceM8 has {name} as inactive, so the leave stays off its board.",
     capped: "Sending to ServiceM8 is paused. An owner can change that in Integrations, ServiceM8.",
     unreadable: "HeyTiff couldn't read the ServiceM8 settings. Nothing was sent or cancelled.",
+    /* the settings read fine; what failed was after them, said as it was */
+    whoUnknown: "HeyTiff couldn't check who's who in ServiceM8, so the leave didn't go. Try again shortly.",
+    notQueued: "HeyTiff couldn't save the leave to send to ServiceM8, so it didn't go. Try again shortly.",
   },
   /* The owner's ServiceM8 screen. */
   card: {

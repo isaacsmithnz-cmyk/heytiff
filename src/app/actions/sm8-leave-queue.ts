@@ -87,7 +87,7 @@ export async function queueLeaveOnBoard(press: Sm8Press, input: LeaveOnBoard): P
     if (!span) return NOTHING;
 
     const who = await sm8NoteSender(press.orgId, input.staffProfileId, state.tenantId ?? undefined);
-    if (who.state === "unknown") return { queued: [], note: LEAVE_WORDS.press.unreadable };
+    if (who.state === "unknown") return { queued: [], note: LEAVE_WORDS.press.whoUnknown };
     if (who.state !== "ready" && who.state !== "confirm") {
       const name = await nameOf(press.orgId, input.staffProfileId);
       const words =
@@ -108,7 +108,7 @@ export async function queueLeaveOnBoard(press: Sm8Press, input: LeaveOnBoard): P
         end: span.end,
       },
     ]);
-    if (!out) return { queued: [], note: LEAVE_WORDS.press.unreadable };
+    if (!out) return { queued: [], note: LEAVE_WORDS.press.notQueued };
     if (out.capped) return { queued: [], note: LEAVE_WORDS.press.capped };
     if (out.ids.length > 0) drainSm8WritesAfterResponse(press.orgId);
     return { queued: out.ids, note: null };

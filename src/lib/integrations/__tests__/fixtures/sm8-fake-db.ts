@@ -157,8 +157,9 @@ export function sm8WriteShapeOk(r: Row): boolean {
         return (
           none("depends_on") &&
           LEAVE_COLUMNS.every(some) &&
-          /^[0-9]{4}-[0-9]{2}-[0-9]{2} 00:00:00$/.test(start) &&
-          /^[0-9]{4}-[0-9]{2}-[0-9]{2} 23:59:59$/.test(end) &&
+          /* any time of day: a block out is part of one (sm8_leave_part_day.sql) */
+          /^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$/.test(start) &&
+          /^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$/.test(end) &&
           start < end
         );
       }

@@ -91,7 +91,10 @@ describe("the leave migration", () => {
       leave_end: "2026-10-06 23:59:59",
     };
     expect(sm8WriteShapeOk(create)).toBe(true);
-    expect(sm8WriteShapeOk({ ...create, leave_end: "2026-10-06 17:00:00" })).toBe(false);
+    /* part of a day goes too, since sm8_leave_part_day.sql: a block out */
+    expect(sm8WriteShapeOk({ ...create, leave_start: "2026-11-09 14:15:00", leave_end: "2026-11-09 14:45:00" })).toBe(true);
+    expect(sm8WriteShapeOk({ ...create, leave_start: "2026-11-09 14:45:00", leave_end: "2026-11-09 14:15:00" })).toBe(false);
+    expect(sm8WriteShapeOk({ ...create, leave_end: "2026-10-06 17:00" })).toBe(false);
     expect(sm8WriteShapeOk({ ...create, sm8_job_uuid: "j" })).toBe(false);
     expect(sm8WriteShapeOk({ ...create, booking_staff_uuid: "s" })).toBe(false);
     expect(sm8WriteShapeOk({ kind: "leave", op: "delete", depends_on: "w1" })).toBe(true);
@@ -99,6 +102,17 @@ describe("the leave migration", () => {
     expect(sm8WriteShapeOk({ kind: "leave", op: "update" })).toBe(false);
     // and a file row may never carry a leave column
     expect(sm8WriteShapeOk({ kind: "attachment", op: "create", leave_start: "2026-10-05 00:00:00" })).toBe(false);
+  });
+
+  it("lets a leave create be part of a day, rewriting only its two whole-day clauses, once each, and running again harmlessly", () => {
+    const part = read("docs/migrations/sm8_leave_part_day.sql");
+    expect(part).toContain("(leave_start ~ ''^[0-9]{4}-[0-9]{2}-[0-9]{2} 00:00:00$''::text)");
+    expect(part).toContain("(leave_end ~ ''^[0-9]{4}-[0-9]{2}-[0-9]{2} 23:59:59$''::text)");
+    expect(part).toContain("(leave_start ~ ''^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$''::text)");
+    expect(part).toContain("(leave_end ~ ''^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$''::text)");
+    expect(part).toMatch(/return; -- already applied/);
+    expect(part).toMatch(/raise exception 'sm8_writes_shape_check does not read as expected/);
+    expect(part).not.toMatch(/\b(delete from|truncate|drop table|drop column)\b/i);
   });
 
   it("DEPLOY.md's rollback cancels in the very words new code reads, and names the order", () => {

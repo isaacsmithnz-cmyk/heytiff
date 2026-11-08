@@ -1722,6 +1722,17 @@ async function build(
     drawMeasure();
   };
   renderer.domElement.addEventListener("pointerdown", onDown);
+  /* a phone's double-tap stands you there too: a web view doesn't always say dblclick */
+  let lastTap = { t: 0, x: 0, y: 0 };
+  const onUp = (ev: PointerEvent) => {
+    if (ev.pointerType !== "touch" || !downAt || Math.hypot(ev.clientX - downAt[0], ev.clientY - downAt[1]) > 8) return;
+    const now = performance.now();
+    if (now - lastTap.t < 320 && Math.hypot(ev.clientX - lastTap.x, ev.clientY - lastTap.y) < 30) {
+      lastTap = { t: 0, x: 0, y: 0 };
+      onDouble(ev);
+    } else lastTap = { t: now, x: ev.clientX, y: ev.clientY };
+  };
+  renderer.domElement.addEventListener("pointerup", onUp);
   renderer.domElement.addEventListener("click", onClick);
   const onWheel = (ev: WheelEvent) => {
     if (!walk) return;
@@ -1853,6 +1864,7 @@ async function build(
       controls.dispose();
       renderer.domElement.removeEventListener("dblclick", onDouble);
       renderer.domElement.removeEventListener("pointerdown", onDown);
+      renderer.domElement.removeEventListener("pointerup", onUp);
       renderer.domElement.removeEventListener("click", onClick);
       renderer.domElement.removeEventListener("wheel", onWheel);
       window.removeEventListener("keydown", onKey);
@@ -1946,6 +1958,14 @@ export function View3D({
       {/* what the picture shows, over its corner (mock, 8 November 2026): the
           drawing on the floors, the outside, the air, the names; and, standing
           in a room, the way back out */}
+      {/* the phone's page has no tray, but standing in a room still needs a way out */}
+      {!onLook && standing && (
+        <div className="ds3-show">
+          <button type="button" className="ds-ctl-btn" onClick={() => builtRef.current?.backOut()}>
+            Back out
+          </button>
+        </div>
+      )}
       {onLook && !noGl && (
         <>
           {scene.floors.length > 1 && (

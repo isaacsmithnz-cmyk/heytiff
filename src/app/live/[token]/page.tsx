@@ -14,6 +14,7 @@ import { simApprovalState } from "@/lib/studio/sim-approval";
 import { LiveSheet } from "./live-sheet";
 import { SHARE_TTL_DAYS, shareExpiresAt } from "@/lib/studio/share";
 import { LEGACY_LINK_SCOPE, linkFloors } from "@/lib/studio/send";
+import { sceneOf } from "@/lib/studio/scene3d";
 
 /** A link that has aged out. Wears the same dead-link dress as not-found and
     says nothing about the design — an expired token shouldn't confirm what it
@@ -132,6 +133,9 @@ export default async function LivePage({
      render body is a hydration failure waiting for midnight. en-AU because
      the reader is the installer's customer, not the server's locale. */
   const model = buildSummaryModel(doc, pack);
+  /* THE HOUSE IN 3D, for a link that carries the plans: it is the plans,
+     stood up (Isaac, 8 November 2026: "3D on the customer's share link") */
+  const scene = shows("plans") ? sceneOf(doc) : null;
   const day: Intl.DateTimeFormatOptions = {
     day: "numeric",
     month: "long",
@@ -160,6 +164,7 @@ export default async function LivePage({
       simOffered={shows("sim") && simApprovalState(doc, pack).offered}
       sections={{ figures: shows("figures"), systems: shows("systems"), lines: shows("lines") }}
       planFloors={linkFloors(scope, doc.floors)}
+      scene={scene && scene.floors.length > 0 ? scene : null}
     />
   );
 }

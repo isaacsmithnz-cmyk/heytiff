@@ -5,11 +5,14 @@ import { act, render, screen } from "@testing-library/react";
 
 jest.mock("@/components/studio/view-3d", () => ({
   ALL_FLOORS: "all",
-  View3D: ({ scene, look }: { scene: { span: number }; look: { floor: string; apart: boolean } }) => (
-    <p>
-      drawn {scene.span} m, floor {look.floor}, {look.apart ? "apart" : "together"}
-    </p>
-  ),
+  View3D: ({ scene, look, onHouse }: { scene: { span: number }; look: { floor: string; apart: boolean }; onHouse?: (g: (() => Promise<ArrayBuffer>) | null) => void }) => {
+    onHouse?.(scene.span > 20 ? null : async () => new Uint8Array([103, 108, 84, 70]).buffer);
+    return (
+      <p>
+        drawn {scene.span} m, floor {look.floor}, {look.apart ? "apart" : "together"}
+      </p>
+    );
+  },
 }));
 
 import { Phone3D } from "../phone-3d";
@@ -50,4 +53,15 @@ it("lets go of the bridge when it leaves", () => {
   const { unmount } = render(<Phone3D />);
   unmount();
   expect(window.heytiff3d).toBeUndefined();
+});
+
+it("hands the app the house as a GLB for AR, and says when there's none", async () => {
+  render(<Phone3D />);
+  act(() => window.heytiff3d!({ glb: true }));
+  await act(async () => {});
+  expect(JSON.parse(said.at(-1)!)).toEqual({ glb: null });
+  act(() => window.heytiff3d!({ scene }));
+  act(() => window.heytiff3d!({ glb: true }));
+  await act(async () => {});
+  expect(JSON.parse(said.at(-1)!)).toEqual({ glb: btoa("glTF") });
 });

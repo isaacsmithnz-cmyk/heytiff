@@ -21,6 +21,8 @@ import { PicklistSection, SheetDoc } from "./sheet-doc";
 import { SheetDocNext } from "./sheet-doc-next";
 import { useStudioFlow } from "../flow";
 import { PlanFigure } from "./plan-figure";
+import { picture3d } from "../view-3d";
+import { sceneOf } from "@/lib/studio/scene3d";
 import { NO_BRAND, type OrgBrand } from "@/lib/org/brand";
 import { themeVars } from "@/lib/org/theme";
 
@@ -219,6 +221,10 @@ export function PrintDoc({
      paint that fires it. */
   const logoUrl = brand.logoUrl;
   const [trims, setTrims] = useState<Record<string, PixelTrim> | null>(null);
+  /* THE HOUSE IN 3D, a page after a design's plans (Isaac, 8 November 2026),
+     drawn in this browser before it prints; one that can't be drawn in 20 s
+     is left out rather than holding the print */
+  const [pictures, setPictures] = useState<Record<string, string>>({});
   useEffect(() => {
     if (readyFired.current) return;
     const jobs = [...Object.values(urls), ...(logoUrl ? [logoUrl] : [])].map(
@@ -239,18 +245,32 @@ export function PrintDoc({
         onReadyRef.current();
       }
     };
-    void Promise.all([Promise.all(jobs), trimming]).then(([, found]) => {
+    const drawn = Promise.all(
+      model.variants
+        .filter((v) => v.floors.length > 0)
+        .map(async (v) => {
+          const timeout = new Promise<null>((r) => window.setTimeout(() => r(null), 20000));
+          const png = await Promise.race([picture3d(sceneOf(v.doc)).catch(() => null), timeout]);
+          return [v.doc.id, png] as const;
+        }),
+    );
+    void Promise.all([Promise.all(jobs), trimming, drawn]).then(([, found, pics]) => {
       if (!alive.current) return;
       const next: Record<string, PixelTrim> = {};
       for (const [ref, t] of found) if (t) next[ref] = t;
-      flushSync(() => setTrims(next));
+      const shot: Record<string, string> = {};
+      for (const [id, png] of pics) if (png) shot[id] = png;
+      flushSync(() => {
+        setTrims(next);
+        setPictures(shot);
+      });
       const t = window.setTimeout(fire, 150);
       requestAnimationFrame(() => {
         window.clearTimeout(t);
         fire();
       });
     });
-  }, [urls, logoUrl]);
+  }, [urls, logoUrl, model.variants]);
 
   return createPortal(
     <div
@@ -315,6 +335,21 @@ export function PrintDoc({
               </section>
             );
           })}
+          {pictures[v.doc.id] && (
+            <section className={`ds-print-page ${options.orientation}`}>
+              <div className="ds-print-cap">
+                <b>{v.doc.meta.name || "Design"}</b>
+                <span>
+                  In 3D
+                  {v.label ? `, ${v.label}` : ""}
+                </span>
+              </div>
+              <div className="ds-print-plan">
+                {/* eslint-disable-next-line @next/next/no-img-element -- a PNG drawn in this page, printed as it is */}
+                <img className="ds-print-3d" src={pictures[v.doc.id]} alt={`${v.doc.meta.name || "The design"} in 3D`} />
+              </div>
+            </section>
+          )}
         </div>
       ))}
     </div>,

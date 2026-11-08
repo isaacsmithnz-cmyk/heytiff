@@ -86,6 +86,11 @@ export type Floor3D = {
   stairs: Stair3D[];
   /** where no wall stands: a flight's foot, open to the room it starts from, and its well's head, open to the landing */
   open?: [XZ, XZ][];
+  /** back to the plan: a point here is (p - shift) * 1000 / mm plan units, mm the floor's scale */
+  shift?: XZ;
+  mm?: number;
+  /** true north, degrees clockwise from the plan's up; 0 when unset */
+  north?: number;
 };
 
 /** A piece of a plan sheet in metres, and where it sits on the image (0 to 1, top left 0). */
@@ -426,6 +431,9 @@ export function sceneOf(doc: DesignDocument, unitRow?: (model: string) => UnitRo
     floors.push({
       id: f.id,
       name: f.name,
+      shift: moves.get(f.id)!,
+      mm: f.scaleMmPerUnit ?? undefined,
+      north: f.northDeg ?? 0,
       level: f.level,
       y0: mm((bases.get(f.id) ?? 0) - ground0),
       ceiling: ceilingOf(f),
@@ -889,4 +897,10 @@ export function roofSummary(doc: DesignDocument) {
     framing: "Not on the drawings: drawn at standard spacings, rafters 140 deep at 600 mm, ceiling joists 120 deep at 450 mm. The builder's framing may differ.",
     void_over_rooms: voids,
   };
+}
+/** A point in the 3D, in metres, back on its floor's plan, in plan units: where a tap on the 3D lands on the drawing. */
+export function toPlan(f: Pick<Floor3D, "shift" | "mm">, p: XZ): { x: number; y: number } | null {
+  if (!f.mm) return null;
+  const [dx, dz] = f.shift ?? [0, 0];
+  return { x: ((p[0] - dx) * 1000) / f.mm, y: ((p[1] - dz) * 1000) / f.mm };
 }

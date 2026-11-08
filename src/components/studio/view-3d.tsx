@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import type * as THREE_NS from "three";
-import { WALLED, middleOf, type Floor3D, type Grille3D, type Opening3D, type Scene3D, type Space3D, type Unit3D, type XZ } from "@/lib/studio/scene3d";
+import { WALLED, middleOf, toPlan, type Floor3D, type Grille3D, type Opening3D, type Scene3D, type Space3D, type Unit3D, type XZ } from "@/lib/studio/scene3d";
 import { within } from "@/lib/studio/furnish3d";
+import { clashesOf, distanceWords, roofSpaceOf, roomFor } from "@/lib/studio/checks3d";
+import { latitudeOf, sunAt, towardsSun } from "@/lib/studio/sun";
 import { pieceMaker } from "./view-3d-pieces";
 import { airMaker } from "./view-3d-air";
 
@@ -32,8 +34,25 @@ import { airMaker } from "./view-3d-air";
 export type Layer3D = "roof" | "framing" | "inside";
 /** `plans`: each floor's drawing on it (the default), or the grid and the floors' finish */
 /** `outside`: the lawn round the house, its trees and the sky; `air`: the air leaving each head and grille */
-export type Look3D = { floor: string; apart: boolean; labels: boolean; layer: Layer3D; plans?: boolean; outside?: boolean; air?: boolean };
+export type Look3D = {
+  floor: string;
+  apart: boolean;
+  labels: boolean;
+  layer: Layer3D;
+  plans?: boolean;
+  outside?: boolean;
+  air?: boolean;
+  space?: boolean;
+  measure?: boolean;
+  sun?: number;
+  winter?: boolean;
+};
 export const ALL_FLOORS = "all";
+
+/** What was tapped in the 3D: a unit, or a point on a floor's plan (plan units) */
+export type Pick3D = { unitId: string } | { floorId: string; at: { x: number; y: number } };
+/** What the Studio says about it: a name and a few facts, or nothing */
+export type About3D = { title: string; lines: string[] } | null;
 
 const C = {
   wall: 0xffffff,
@@ -68,7 +87,9 @@ type Label = {
   base: THREE_NS.Vector3 | null;
   group: THREE_NS.Group;
   floorIndex: number;
-  kind: "room" | "unit" | "riser";
+  kind: "room" | "unit" | "riser" | "check";
+  /** a check's words (a clash, a measure) show by their own rule, not the Labels switch */
+  when?: () => boolean;
   /** a unit's place on the plan, so standing in a room shows only its own */
   unitAt?: XZ;
   outdoor?: boolean;
@@ -78,13 +99,24 @@ type Built = {
   apply: (look: Look3D) => void;
   /** stand back out of a room */
   backOut: () => void;
+  /** the house as it shows now, as a GLB, for AR */
+  glb: () => Promise<ArrayBuffer>;
+  /** one frame drawn now, as a PNG: the picture for the PDF */
+  still: () => string;
   dispose: () => void;
 };
 
 /** "FAMILY ROOM" reads as "Family room": no type in capitals */
 const sentence = (s: string) => (s === s.toUpperCase() && /[A-Z]{3}/.test(s) ? s.charAt(0) + s.slice(1).toLowerCase() : s);
 
-async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUrl: ((ref: string) => Promise<string>) | undefined, onStand: (standing: boolean) => void): Promise<Built | null> {
+async function build(
+  host: HTMLDivElement,
+  scene3: Scene3D,
+  look: Look3D,
+  planUrl: ((ref: string) => Promise<string>) | undefined,
+  onStand: (standing: boolean) => void,
+  about: () => ((p: Pick3D) => About3D) | undefined,
+): Promise<Built | null> {
   let gone = false;
   const THREE = await import("three");
   const { OrbitControls } = await import("three/examples/jsm/controls/OrbitControls.js");
@@ -140,10 +172,19 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
   scene.add(bounce);
   const sun = new THREE.DirectionalLight(0xffffff, 1.7);
   sun.position.set(-0.6 * d, top + 1.2 * d, 0.45 * d);
+  const sunHome = sun.position.clone();
+  const lat = latitudeOf(Intl.DateTimeFormat().resolvedOptions().timeZone);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   const reach = scene3.span * 0.9 + 4;
-  Object.assign(sun.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 0.5, far: d * 4 });
+  Object.assign(sun.shadow.camera, {
+    left: -reach,
+    right: reach,
+    top: reach,
+    bottom: -reach,
+    near: 0.5,
+    far: d * 4,
+  });
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.02;
   scene.add(sun);
@@ -167,38 +208,71 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
      over the picture as drawn; see-through things cast none. A phone goes
      without: its picture is drawn every frame, on its battery */
   let composer: InstanceType<typeof EffectComposer> | null = null;
-  if (!window.matchMedia?.("(pointer: coarse)").matches) try {
-    composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }));
-    composer.addPass(new RenderPass(scene, camera));
-    const ao = new GTAOPass(scene, camera, 1, 1);
-    ao.updateGtaoMaterial({ radius: 0.55, distanceExponent: 1.2, thickness: 1.5, scale: 1.1, samples: 16 });
-    ao.blendIntensity = 0.85;
-    /* a roof's sheet is seen from either side: its far side mustn't let the rafters under it through */
-    (ao as unknown as { normalMaterial: THREE_NS.Material }).normalMaterial.side = THREE.DoubleSide;
-    const hide = ao.overrideVisibility.bind(ao);
-    ao.overrideVisibility = () => {
-      hide();
-      scene.traverse((o) => {
-        const m = (o as THREE_NS.Mesh).material as THREE_NS.Material | THREE_NS.Material[] | undefined;
-        if (m && !Array.isArray(m) && m.transparent) o.visible = false;
+  if (!window.matchMedia?.("(pointer: coarse)").matches)
+    try {
+      composer = new EffectComposer(
+        renderer,
+        new THREE.WebGLRenderTarget(1, 1, {
+          type: THREE.HalfFloatType,
+          samples: 4,
+        }),
+      );
+      composer.addPass(new RenderPass(scene, camera));
+      const ao = new GTAOPass(scene, camera, 1, 1);
+      ao.updateGtaoMaterial({
+        radius: 0.55,
+        distanceExponent: 1.2,
+        thickness: 1.5,
+        scale: 1.1,
+        samples: 16,
       });
-    };
-    composer.addPass(ao);
-    composer.addPass(new OutputPass());
-  } catch {
-    composer = null;
-  }
+      ao.blendIntensity = 0.85;
+      /* a roof's sheet is seen from either side: its far side mustn't let the rafters under it through */
+      (ao as unknown as { normalMaterial: THREE_NS.Material }).normalMaterial.side = THREE.DoubleSide;
+      const hide = ao.overrideVisibility.bind(ao);
+      ao.overrideVisibility = () => {
+        hide();
+        scene.traverse((o) => {
+          const m = (o as THREE_NS.Mesh).material as THREE_NS.Material | THREE_NS.Material[] | undefined;
+          if (m && !Array.isArray(m) && m.transparent) o.visible = false;
+        });
+      };
+      composer.addPass(ao);
+      composer.addPass(new OutputPass());
+    } catch {
+      composer = null;
+    }
 
   const M = (o: THREE_NS.MeshStandardMaterialParameters) => own(new THREE.MeshStandardMaterial({ roughness: 0.85, ...o }));
   const wallMat = M({ color: C.wall, roughness: 0.9 });
   const edgeMat = own(new THREE.LineBasicMaterial({ color: C.edge }));
-  const outMat = M({ color: C.outside, transparent: true, opacity: 0.6, roughness: 1 });
+  const outMat = M({
+    color: C.outside,
+    transparent: true,
+    opacity: 0.6,
+    roughness: 1,
+  });
   const oldMat = M({ color: C.existing, transparent: true, opacity: 0.45 });
   const pipeMat = M({ color: C.pipe, metalness: 0.6, roughness: 0.35 });
-  const roofMat = M({ color: C.roof, side: THREE.DoubleSide, roughness: 0.45, metalness: 0.35 });
-  const oldRoofMat = M({ color: C.existing, side: THREE.DoubleSide, transparent: true, opacity: 0.45 });
+  const roofMat = M({
+    color: C.roof,
+    side: THREE.DoubleSide,
+    roughness: 0.45,
+    metalness: 0.35,
+  });
+  const oldRoofMat = M({
+    color: C.existing,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.45,
+  });
   const fillMat = M({ color: C.wall, side: THREE.DoubleSide });
-  const ceilMat = M({ color: C.ceiling, side: THREE.DoubleSide, transparent: true, opacity: 0.85 });
+  const ceilMat = M({
+    color: C.ceiling,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.85,
+  });
   const roofEdge = own(new THREE.LineBasicMaterial({ color: 0x1f2937 }));
   const timber = {
     rafter: M({ color: C.rafter, roughness: 0.8 }),
@@ -207,7 +281,12 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
     joist: M({ color: C.joist, roughness: 0.8 }),
   };
   /* a room you drew, over the plan it was drawn on: glass, so the drawing reads through */
-  const zoneMat = M({ color: C.wall, transparent: true, opacity: 0.32, depthWrite: false });
+  const zoneMat = M({
+    color: C.wall,
+    transparent: true,
+    opacity: 0.32,
+    depthWrite: false,
+  });
   const meshOf = (m: { verts: [number, number, number][]; tris: number[] }, mat: THREE_NS.Material) => {
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.Float32BufferAttribute(m.verts.flatMap(([x, y, z]) => [x - cx, y, z - cz]), 3));
@@ -361,7 +440,10 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
   const decks: THREE_NS.Mesh[] = [];
   /** an outdoor space's deck, or its paving, a step below the floor inside */
   const deck = (s: Space3D, f: Floor3D) => {
-    const g = new THREE.ExtrudeGeometry(shape(s.pts), { depth: 0.12, bevelEnabled: false });
+    const g = new THREE.ExtrudeGeometry(shape(s.pts), {
+      depth: 0.12,
+      bevelEnabled: false,
+    });
     g.rotateX(-Math.PI / 2);
     const paved = s.finish ? s.finish === "tile" : /terrace|courtyard|balcony|patio|paving|path/i.test(s.name);
     const top = s.finish === "concrete" ? finishMat.concrete : paved ? paverMat : deckMat;
@@ -394,7 +476,16 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
     c.fillRect(0, 0, 256, 256);
   });
   fade.colorSpace = THREE.NoColorSpace;
-  const lawn = new THREE.Mesh(new THREE.CircleGeometry(lawnR, 96), M({ map: grass, alphaMap: fade, transparent: true, depthWrite: false, roughness: 1 }));
+  const lawn = new THREE.Mesh(
+    new THREE.CircleGeometry(lawnR, 96),
+    M({
+      map: grass,
+      alphaMap: fade,
+      transparent: true,
+      depthWrite: false,
+      roughness: 1,
+    }),
+  );
   lawn.rotation.x = -Math.PI / 2;
   lawn.position.y = groundY - 0.06;
   lawn.receiveShadow = true;
@@ -457,7 +548,17 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
       col.set([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t], i * 3);
     }
     geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
-    const m = new THREE.Mesh(geo, own(new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false })));
+    const m = new THREE.Mesh(
+      geo,
+      own(
+        new THREE.MeshBasicMaterial({
+          vertexColors: true,
+          side: THREE.BackSide,
+          fog: false,
+          depthWrite: false,
+        }),
+      ),
+    );
     m.renderOrder = -2;
     scene.add(m);
     return m;
@@ -483,7 +584,10 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
   /** a room's piece of floor plate: its finish on top, a grey edge */
   const slabs: { mesh: THREE_NS.Mesh; finish: THREE_NS.Material }[] = [];
   const slab = (s: Space3D, f: Floor3D) => {
-    const g = new THREE.ExtrudeGeometry(shape(s.pts), { depth: SLAB_M, bevelEnabled: false });
+    const g = new THREE.ExtrudeGeometry(shape(s.pts), {
+      depth: SLAB_M,
+      bevelEnabled: false,
+    });
     g.rotateX(-Math.PI / 2);
     const finish = finishOf(s);
     const m = new THREE.Mesh(g, [finish, slabSide]);
@@ -511,7 +615,17 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
 
   /* ── WINDOWS AND DOORS, cut into the wall they are in ── */
   const frameMat = M({ color: C.frame, roughness: 0.4, metalness: 0.5 });
-  const glassMat = own(new THREE.MeshPhysicalMaterial({ color: C.glass, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.32, envMapIntensity: 1.4, depthWrite: false }));
+  const glassMat = own(
+    new THREE.MeshPhysicalMaterial({
+      color: C.glass,
+      roughness: 0.05,
+      metalness: 0,
+      transparent: true,
+      opacity: 0.32,
+      envMapIntensity: 1.4,
+      depthWrite: false,
+    }),
+  );
   const leafMat = M({ color: C.leaf, roughness: 0.55 });
   const box = (w: number, h: number, t: number, mat: THREE_NS.Material, x: number, y: number, z = 0) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, t), mat);
@@ -556,7 +670,10 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
     const at = (t: number): XZ => [a[0] + ux * t, a[1] + uz * t];
     const along = (p: XZ) => (p[0] - a[0]) * ux + (p[1] - a[1]) * uz;
     const off = (p: XZ) => Math.abs((p[0] - a[0]) * uz - (p[1] - a[1]) * ux);
-    const span = (p: XZ, q: XZ) => ({ t0: Math.max(0, Math.min(along(p), along(q))), t1: Math.min(len, Math.max(along(p), along(q))) });
+    const span = (p: XZ, q: XZ) => ({
+      t0: Math.max(0, Math.min(along(p), along(q))),
+      t1: Math.min(len, Math.max(along(p), along(q))),
+    });
     const cuts: { o?: Opening3D; t0: number; t1: number }[] = [
       ...f.openings.filter((o) => off(o.a) < 0.25 && off(o.b) < 0.25).map((o) => ({ o, ...span(o.a, o.b) })),
       /* a stair's open end: no wall at all */
@@ -693,7 +810,11 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
       prof.quadraticCurveTo(dd, h, dd, h * 0.45);
       prof.quadraticCurveTo(dd, h * 0.08, dd * 0.7, 0);
       prof.lineTo(0, 0);
-      const geo = new THREE.ExtrudeGeometry(prof, { depth: w, bevelEnabled: false, curveSegments: 10 });
+      const geo = new THREE.ExtrudeGeometry(prof, {
+        depth: w,
+        bevelEnabled: false,
+        curveSegments: 10,
+      });
       geo.translate(-dd / 2, 0, -w / 2);
       geo.rotateY(-Math.PI / 2);
       add(geo, unitWhite, 0, 0, 0);
@@ -831,7 +952,17 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
 
   /* ── NAMES ── */
   const labels: Label[] = [];
-  const label = (text: string, at: THREE_NS.Vector3, group: THREE_NS.Group, floorIndex: number, kind: Label["kind"], dot?: string, base: THREE_NS.Vector3 | null = null, unit?: Unit3D) => {
+  const label = (
+    text: string,
+    at: THREE_NS.Vector3,
+    group: THREE_NS.Group,
+    floorIndex: number,
+    kind: Label["kind"],
+    dot?: string,
+    base: THREE_NS.Vector3 | null = null,
+    unit?: Unit3D,
+    when?: () => boolean,
+  ) => {
     if (!text.trim()) return;
     const el = document.createElement("div");
     el.className = `ds3-lab ${kind}`;
@@ -843,13 +974,31 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
     }
     el.appendChild(document.createTextNode(text));
     host.appendChild(el);
-    labels.push({ el, at, base, group, floorIndex, kind, unitAt: unit?.at, outdoor: unit?.outdoor });
+    labels.push({
+      el,
+      at,
+      base,
+      group,
+      floorIndex,
+      kind,
+      unitAt: unit?.at,
+      outdoor: unit?.outdoor,
+      when,
+    });
+    return el;
   };
 
   const groups = new Map<string, THREE_NS.Group>();
   /* add() with nothing to add complains: a wall wholly open, or too short to draw, is nothing */
   const addAll = (g: THREE_NS.Object3D, objs: THREE_NS.Object3D[]) => {
     if (objs.length) g.add(...objs);
+  };
+  /** how far a point is from a side */
+  const toSeg = (p: XZ, a: XZ, b: XZ) => {
+    const ex = b[0] - a[0];
+    const ez = b[1] - a[1];
+    const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * ex + (p[1] - a[1]) * ez) / (ex * ex + ez * ez || 1)));
+    return Math.hypot(p[0] - a[0] - ex * t, p[1] - a[1] - ez * t);
   };
   /* each floor's roof, framing and ceilings ride with it, so Lift apart carries them */
   const roofG = new Map<string, THREE_NS.Group>();
@@ -883,7 +1032,16 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
           g.add(sl);
         }
         const glass = !f.read;
-        for (let k = 0; k < s.pts.length; k++) addAll(g, wall(s.pts[k], s.pts[(k + 1) % s.pts.length], f, glass ? zoneMat : wallMat, true));
+        for (let k = 0; k < s.pts.length; k++) {
+          const a = s.pts[k];
+          const b = s.pts[(k + 1) % s.pts.length];
+          const mid: XZ = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+          /* a stairwell is railed where it meets the landing or the hall, not walled; its head stays open */
+          const open = (f.open ?? []).some(([p, q]) => toSeg(mid, p, q) < 0.3);
+          const railed = !!s.well && !open && f.spaces.some((x) => x !== s && x.kind === "circulation" && x.pts.some((p, i) => toSeg(mid, p, x.pts[(i + 1) % x.pts.length]) < 0.3));
+          if (railed) addAll(g, [...segBox(a, b, f.y0, 0.95, 0.012, glassMat, false), ...segBox(a, b, f.y0 + 0.92, 0.05, 0.06, frameMat, false)]);
+          else addAll(g, wall(a, b, f, glass ? zoneMat : wallMat, true));
+        }
       }
       if (s.kind !== "stair" && s.kind !== "cupboard") {
         const [lx, lz] = P(middleOf(s.pts));
@@ -908,7 +1066,15 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
           const uv = geo.attributes.uv as THREE_NS.BufferAttribute;
           for (let k = 0; k < uv.count; k++) uv.setXY(k, t.u0 + (t.u1 - t.u0) * uv.getX(k), 1 - (t.v0 + (t.v1 - t.v0) * (1 - uv.getY(k))));
           /* a little see-through, so what runs under the floor still shows */
-          const mat = own(new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, transparent: true, opacity: 0.8, depthWrite: false }));
+          const mat = own(
+            new THREE.MeshBasicMaterial({
+              map: tex,
+              toneMapped: false,
+              transparent: true,
+              opacity: 0.8,
+              depthWrite: false,
+            }),
+          );
           const m = new THREE.Mesh(geo, mat);
           m.rotation.x = -Math.PI / 2;
           const [x, z] = P([(t.x0 + t.x1) / 2, (t.z0 + t.z1) / 2]);
@@ -924,6 +1090,7 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
     if (!g) continue;
     const i = scene3.floors.findIndex((f) => f.id === u.floorId);
     const m = unitShape(u);
+    m.userData.unitId = u.id;
     const [x, z] = P(u.at);
     m.position.set(x, u.y, z);
     m.rotation.y = (-u.rot * Math.PI) / 180;
@@ -1006,12 +1173,27 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
   roofRibs.repeat.set(1 / 0.76, 1);
   const roofFinish = {
     tiled: M({ map: roofTiles, side: THREE.DoubleSide, roughness: 0.75 }),
-    metal: M({ map: roofRibs, side: THREE.DoubleSide, roughness: 0.45, metalness: 0.35 }),
+    metal: M({
+      map: roofRibs,
+      side: THREE.DoubleSide,
+      roughness: 0.45,
+      metalness: 0.35,
+    }),
     flat: M({ color: 0x9ca3af, side: THREE.DoubleSide, roughness: 0.9 }),
   };
   const keptRoof = new Map<THREE_NS.Material, THREE_NS.Material>();
   const kept = (m: THREE_NS.MeshStandardMaterial) => {
-    if (!keptRoof.has(m)) keptRoof.set(m, own(Object.assign(m.clone(), { transparent: true, opacity: 0.5, depthWrite: false })));
+    if (!keptRoof.has(m))
+      keptRoof.set(
+        m,
+        own(
+          Object.assign(m.clone(), {
+            transparent: true,
+            opacity: 0.5,
+            depthWrite: false,
+          }),
+        ),
+      );
     return keptRoof.get(m)!;
   };
   /** a roof's sheets with their texture laid in metres: across the fall, and down it */
@@ -1044,7 +1226,11 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
     return g;
   };
   const roofFaces: { mesh: THREE_NS.Mesh; mat: THREE_NS.Material }[] = [];
-  const insideRoof = M({ color: C.ceiling, side: THREE.DoubleSide, roughness: 0.9 });
+  const insideRoof = M({
+    color: C.ceiling,
+    side: THREE.DoubleSide,
+    roughness: 0.9,
+  });
   for (const r of scene3.roofs) {
     const g = roofG.get(r.floorId);
     if (!g) continue;
@@ -1159,18 +1345,129 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
       }
     }
 
+  /* ── THE ROOF SPACE: over each flat-ceilinged room, red where nothing ducted fits (under 300 mm),
+     yellow where a slim one may (under 500), green where a ducted unit fits ── */
+  const spaceG = new Map<string, THREE_NS.Group>();
+  const spaceMat = own(
+    new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      side: THREE.DoubleSide,
+      toneMapped: false,
+    }),
+  );
+  const tone = {
+    none: new THREE.Color(0xef4444),
+    slim: new THREE.Color(0xeab308),
+    fits: new THREE.Color(0x22c55e),
+  };
+  const cells = roofSpaceOf(scene3);
+  for (const f of scene3.floors) {
+    const g = new THREE.Group();
+    spaceG.set(f.id, g);
+    groups.get(f.id)!.add(g);
+    const pos: number[] = [];
+    const col: number[] = [];
+    for (const c of cells.filter((q) => q.floorId === f.id)) {
+      const [x0, z0] = P([c.x0 + 0.02, c.z0 + 0.02]);
+      const [x1, z1] = P([c.x1 - 0.02, c.z1 - 0.02]);
+      const y = c.y + 0.01;
+      pos.push(x0, y, z0, x1, y, z0, x1, y, z1, x0, y, z0, x1, y, z1, x0, y, z1);
+      const k = tone[roomFor(c.clear)];
+      for (let i = 0; i < 6; i++) col.push(k.r, k.g, k.b);
+    }
+    if (!pos.length) continue;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+    g.add(new THREE.Mesh(geo, spaceMat));
+  }
+
+  /* ── CLASHES: a duct or pipe as drawn through the standard framing, a red ball where, named once a run ── */
+  const clashG = new Map<string, THREE_NS.Group>();
+  const clashMat = M({ color: 0xef4444, roughness: 0.4 });
+  for (const f of scene3.floors) {
+    const g = new THREE.Group();
+    clashG.set(f.id, g);
+    groups.get(f.id)!.add(g);
+  }
+  const named: THREE_NS.Vector3[] = [];
+  for (const c of clashesOf(scene3)) {
+    const g = clashG.get(c.floorId);
+    const fi = scene3.floors.findIndex((f) => f.id === c.floorId);
+    if (!g) continue;
+    const [x, z] = P([c.at[0], c.at[2]]);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.1, 20, 14), clashMat);
+    ball.position.set(x, c.at[1], z);
+    g.add(ball);
+    const at = new THREE.Vector3(x, c.at[1] + 0.35, z);
+    if (named.some((n) => n.distanceTo(at) < 1.5)) continue;
+    named.push(at);
+    label(`${c.what === "duct" ? "Duct" : "Pipe"} through a ${c.through}`, at, groups.get(c.floorId)!, fi, "check", undefined, null, undefined, () => g.visible);
+  }
+
   /* ── THE AIR LEAVING EACH HEAD AND GRILLE ── */
   const air = airMaker(THREE, scene3, P, own);
   for (const s of air.streams) groups.get(s.floorId)?.add(s.points);
 
+  /* MEASURE: click two points on anything drawn for the distance between them; a third starts again */
+  const measureG = new THREE.Group();
+  scene.add(measureG);
+  const measureLine = own(new THREE.LineBasicMaterial({ color: 0xef4444, depthTest: false }));
+  const measureDot = own(
+    new THREE.MeshBasicMaterial({
+      color: 0xef4444,
+      depthTest: false,
+      toneMapped: false,
+    }),
+  );
+  let picks: THREE_NS.Vector3[] = [];
+  const mid = new THREE.Vector3();
+  const words = label("0 m", mid, measureG, 0, "check", undefined, null, undefined, () => picks.length === 2 && !!current.measure)!;
+  const drawMeasure = () => {
+    for (const o of [...measureG.children]) {
+      measureG.remove(o);
+      (o as THREE_NS.Mesh).geometry?.dispose();
+    }
+    for (const p of picks) {
+      const d = new THREE.Mesh(new THREE.SphereGeometry(0.05, 16, 10), measureDot);
+      d.position.copy(p);
+      d.renderOrder = 6;
+      measureG.add(d);
+    }
+    if (picks.length === 2) {
+      const ln = new THREE.Line(new THREE.BufferGeometry().setFromPoints(picks), measureLine);
+      ln.renderOrder = 6;
+      measureG.add(ln);
+      mid.copy(picks[0]).add(picks[1]).multiplyScalar(0.5);
+      words.textContent = distanceWords(picks[0].toArray(), picks[1].toArray());
+    }
+  };
   let current = look;
   /* standing in a room: where the view stood before, to step back out to */
-  let walk: { pos: THREE_NS.Vector3; target: THREE_NS.Vector3; fov: number } | null = null;
+  let walk: {
+    pos: THREE_NS.Vector3;
+    target: THREE_NS.Vector3;
+    fov: number;
+  } | null = null;
   /* the room stood in, whose heads keep their names */
   let standRoom: Space3D | null = null;
   const apply = (l: Look3D) => {
     current = l;
+    if (!l.measure && picks.length) {
+      picks = [];
+      drawMeasure();
+    }
     const plans = hasTiles && l.plans !== false;
+    /* THE SUN AT AN HOUR of the longest day or the shortest, off the plan's north arrow; under the horizon, dusk */
+    if (l.sun != null) {
+      const { alt, bearing } = sunAt(lat, l.sun, !!l.winter);
+      const [x, y, z] = towardsSun(Math.max(alt, 3), bearing, scene3.floors[0]?.north ?? 0);
+      sun.position.set(x * d * 1.6, y * d * 1.6, z * d * 1.6);
+      sun.intensity = alt > 0 ? 1.7 : 0.15;
+    } else {
+      sun.position.copy(sunHome);
+      sun.intensity = 1.7;
+    }
     const out = !!l.outside;
     grid.visible = !plans && !out;
     catcher.visible = !out;
@@ -1193,8 +1490,11 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
       g.visible = l.floor === ALL_FLOORS || l.floor === f.id;
       g.position.y = l.apart && l.floor === ALL_FLOORS ? i * LIFT_M : 0;
       /* standing in a room the roof stays over it, so a raked ceiling meets its gables */
-      roofG.get(f.id)!.visible = l.layer === "roof" || !!walk;
-      frameG.get(f.id)!.visible = l.layer !== "inside" && !walk;
+      /* the roof space shows with the roof off and its timber on */
+      roofG.get(f.id)!.visible = (l.layer === "roof" && !l.space) || !!walk;
+      frameG.get(f.id)!.visible = (l.layer !== "inside" || !!l.space) && !walk;
+      spaceG.get(f.id)!.visible = !!l.space && !walk;
+      clashG.get(f.id)!.visible = (l.layer === "framing" || !!l.space) && !walk;
       /* the air runs under the ceilings, so showing it lifts them off; standing in a room keeps its own */
       ceilG.get(f.id)!.visible = walk ? true : l.layer !== "inside" && !l.air;
       tileG.get(f.id)!.visible = plans;
@@ -1240,7 +1540,12 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
   };
   for (const m of decks) standOn.set(m, "");
   const standAt = (p: THREE_NS.Vector3, floorId: string) => {
-    if (!walk) walk = { pos: camera.position.clone(), target: controls.target.clone(), fov: camera.fov };
+    if (!walk)
+      walk = {
+        pos: camera.position.clone(),
+        target: controls.target.clone(),
+        fov: camera.fov,
+      };
     const eye = p.clone();
     eye.y += 1.6;
     const lift = groups.get(floorId)?.position.y ?? 0;
@@ -1252,7 +1557,12 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
     standRoom = here ?? null;
     const heads = scene3.units.filter((u) => u.floorId === floorId && !u.outdoor);
     const inRoom = here ? heads.filter((u) => within(u.at, here.pts)) : [];
-    const pick = (inRoom.length ? inRoom : heads).map((u) => ({ u, d: Math.hypot(u.at[0] - cx - p.x, u.at[1] - cz - p.z) })).sort((a, b) => a.d - b.d)[0];
+    const pick = (inRoom.length ? inRoom : heads)
+      .map((u) => ({
+        u,
+        d: Math.hypot(u.at[0] - cx - p.x, u.at[1] - cz - p.z),
+      }))
+      .sort((a, b) => a.d - b.d)[0];
     if (pick && pick.d < 9) ahead = new THREE.Vector3(pick.u.at[0] - cx - eye.x, pick.u.y + lift + pick.u.h / 2 - eye.y, pick.u.at[1] - cz - eye.z);
     if (ahead.lengthSq() < 1e-6) ahead.set(0, 0, -1);
     camera.position.copy(eye);
@@ -1288,6 +1598,75 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
     if (floorId) standAt(hit.point, floorId);
   };
   renderer.domElement.addEventListener("dblclick", onDouble);
+
+  let downAt: [number, number] | null = null;
+  const onDown = (ev: PointerEvent) => {
+    downAt = [ev.clientX, ev.clientY];
+  };
+  /* TAP A ROOM OR A UNIT for what it is: the Studio says (its load and what covers it) */
+  const card = document.createElement("div");
+  card.className = "ds3-card";
+  card.style.display = "none";
+  host.appendChild(card);
+  const tell = (ev: MouseEvent, r: DOMRect) => {
+    card.style.display = "none";
+    const say = about();
+    if (!say) return;
+    const hits = ray.intersectObjects(scene.children, true).filter((h) => (h.object as THREE_NS.Mesh).isMesh && shown(h.object) && h.object !== sky);
+    let pick: Pick3D | null = null;
+    for (const h of hits) {
+      let o: THREE_NS.Object3D | null = h.object;
+      while (o && !o.userData.unitId) o = o.parent;
+      if (o) {
+        pick = { unitId: o.userData.unitId as string };
+        break;
+      }
+      const fid = standOn.get(h.object);
+      if (fid !== undefined) {
+        const f = scene3.floors.find((q) => q.id === fid) ?? scene3.floors[0];
+        const at = f ? toPlan(f, [h.point.x + cx, h.point.z + cz]) : null;
+        if (at) pick = { floorId: f.id, at };
+        break;
+      }
+    }
+    const told = pick ? say(pick) : null;
+    if (!told) return;
+    card.replaceChildren();
+    const b = document.createElement("b");
+    b.textContent = told.title;
+    card.appendChild(b);
+    for (const line of told.lines) {
+      const d = document.createElement("div");
+      d.textContent = line;
+      card.appendChild(d);
+    }
+    card.style.display = "";
+    card.style.left = `${Math.min(ev.clientX - r.left + 12, r.width - 240)}px`;
+    card.style.top = `${Math.max(8, ev.clientY - r.top - 12)}px`;
+  };
+  const onClick = (ev: MouseEvent) => {
+    if (!downAt || Math.hypot(ev.clientX - downAt[0], ev.clientY - downAt[1]) > 5) return;
+    const r = renderer.domElement.getBoundingClientRect();
+    ray.setFromCamera(new THREE.Vector2(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1), camera);
+    if (!current.measure) return tell(ev, r);
+    card.style.display = "none";
+    const hit = ray
+      .intersectObjects(scene.children, true)
+      .find(
+        (h) =>
+          (h.object as THREE_NS.Mesh).isMesh &&
+          shown(h.object) &&
+          h.object !== sky &&
+          !(h.object.parent === measureG) &&
+          !((h.object as THREE_NS.Mesh).material as THREE_NS.ShaderMaterial).isShaderMaterial,
+      );
+    if (!hit) return;
+    if (picks.length === 2) picks = [];
+    picks.push(hit.point.clone());
+    drawMeasure();
+  };
+  renderer.domElement.addEventListener("pointerdown", onDown);
+  renderer.domElement.addEventListener("click", onClick);
   const onWheel = (ev: WheelEvent) => {
     if (!walk) return;
     ev.preventDefault();
@@ -1334,7 +1713,7 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
       const s = toScreen(l.at, l.group.position.y);
       /* standing in a room, only its own heads keep their names */
       const mine = !walk || (l.kind === "unit" && !l.outdoor && (!standRoom || (l.unitAt && within(l.unitAt, standRoom.pts))));
-      const on = current.labels && l.group.visible && s.z < 1 && mine && (l.kind !== "room" || (!covered(l.floorIndex) && !walk));
+      const on = l.when ? l.group.visible && s.z < 1 && l.when() : current.labels && l.group.visible && s.z < 1 && mine && (l.kind !== "room" || (!covered(l.floorIndex) && !walk));
       /* hidden, or the sheet's own display (a unit's name is a row: dot, then words) */
       l.el.style.display = on ? "" : "none";
       const line = lines.get(l);
@@ -1377,16 +1756,53 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
   return {
     apply,
     backOut,
+    still: () => {
+      controls.update();
+      if (composer) composer.render();
+      else renderer.render(scene, camera);
+      return renderer.domElement.toDataURL("image/png");
+    },
+    /* THE HOUSE TO TAKE INTO AR: what shows now, as it shows it (roof on or
+       the inside, a floor or all of them), in metres. The house alone: not
+       the ground, lawn or sky, nor the air, the edge lines, the lights or
+       the labels; the AR has its own light, off the room it's in */
+    glb: async () => {
+      const { GLTFExporter } = await import("three/examples/jsm/exporters/GLTFExporter.js");
+      const hidden: THREE_NS.Object3D[] = [];
+      const hide = (o: THREE_NS.Object3D) => {
+        if (!o.visible) return;
+        o.visible = false;
+        hidden.push(o);
+      };
+      for (const o of [grid, catcher, lawn, trees, sky]) hide(o);
+      for (const st of air.streams) hide(st.points);
+      scene.traverse((o) => {
+        const m = (o as THREE_NS.Mesh).material as THREE_NS.Material | THREE_NS.Material[] | undefined;
+        const odd = !!m && !Array.isArray(m) && ((m as THREE_NS.ShaderMaterial).isShaderMaterial || (m as THREE_NS.ShadowMaterial).isShadowMaterial);
+        if ((o as THREE_NS.Line).isLine || (o as THREE_NS.Points).isPoints || (o as THREE_NS.Light).isLight || odd) hide(o);
+      });
+      try {
+        return (await new GLTFExporter().parseAsync(scene, {
+          binary: true,
+          onlyVisible: true,
+        })) as ArrayBuffer;
+      } finally {
+        for (const o of hidden) o.visible = true;
+      }
+    },
     dispose: () => {
       gone = true;
       cancelAnimationFrame(raf);
       watch.disconnect();
       controls.dispose();
       renderer.domElement.removeEventListener("dblclick", onDouble);
+      renderer.domElement.removeEventListener("pointerdown", onDown);
+      renderer.domElement.removeEventListener("click", onClick);
       renderer.domElement.removeEventListener("wheel", onWheel);
       window.removeEventListener("keydown", onKey);
       composer?.dispose();
       for (const l of labels) l.el.remove();
+      card.remove();
       svg.remove();
       scene.traverse((o) => {
         const m = o as THREE_NS.Mesh;
@@ -1399,12 +1815,35 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D, planUr
   };
 }
 
-export function View3D({ scene, look, onLook, planUrl }: { scene: Scene3D; look: Look3D; onLook?: (l: Look3D) => void; planUrl?: (ref: string) => Promise<string> }) {
+export function View3D({
+  scene,
+  look,
+  onLook,
+  planUrl,
+  onHouse,
+  about,
+  customer,
+}: {
+  scene: Scene3D;
+  look: Look3D;
+  onLook?: (l: Look3D) => void;
+  planUrl?: (ref: string) => Promise<string>;
+  /** handed the house's GLB maker once it's drawn, and null when it goes: the phone's AR asks for it */
+  onHouse?: (glb: (() => Promise<ArrayBuffer>) | null) => void;
+  /** what a tapped room or unit is: the Studio's own answer */
+  about?: (p: Pick3D) => About3D;
+  /** the customer's link: no install checks (roof space, measure) in the tray */
+  customer?: boolean;
+}) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const urlRef = useRef(planUrl);
+  const houseRef = useRef(onHouse);
+  const aboutRef = useRef(about);
   useEffect(() => {
     urlRef.current = planUrl;
-  }, [planUrl]);
+    houseRef.current = onHouse;
+    aboutRef.current = about;
+  }, [planUrl, onHouse, about]);
   const builtRef = useRef<Built | null>(null);
   const lookRef = useRef(look);
   const [noGl, setNoGl] = useState(false);
@@ -1420,16 +1859,18 @@ export function View3D({ scene, look, onLook, planUrl }: { scene: Scene3D; look:
     if (!host) return;
     let gone = false;
     const url = urlRef.current ? (ref: string) => urlRef.current!(ref) : undefined;
-    void build(host, scene, lookRef.current, url, setStanding).then((b) => {
+    void build(host, scene, lookRef.current, url, setStanding, () => aboutRef.current).then((b) => {
       if (gone) {
         b?.dispose();
         return;
       }
       if (!b) setNoGl(true);
       builtRef.current = b;
+      houseRef.current?.(b ? b.glb : null);
     });
     return () => {
       gone = true;
+      houseRef.current?.(null);
       builtRef.current?.dispose();
       builtRef.current = null;
       setStanding(false);
@@ -1450,18 +1891,96 @@ export function View3D({ scene, look, onLook, planUrl }: { scene: Scene3D; look:
           drawing on the floors, the outside, the air, the names; and, standing
           in a room, the way back out */}
       {onLook && !noGl && (
-        <div className="ds3-show" role="group" aria-label="Show">
-          {standing && (
-            <button type="button" className="ds-ctl-btn" onClick={() => builtRef.current?.backOut()}>
-              Back out
-            </button>
+        <>
+          {scene.floors.length > 1 && (
+            <div className="ds3-show ds3-floors" role="group" aria-label="Floors">
+              {toggle(look.floor === ALL_FLOORS, "All", { floor: ALL_FLOORS })}
+              {scene.floors.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  className={`ds-ctl-btn${look.floor === f.id ? " on" : ""}`}
+                  aria-pressed={look.floor === f.id}
+                  onClick={() => onLook?.({ ...look, floor: f.id, apart: false })}
+                >
+                  {sentence(f.name)}
+                </button>
+              ))}
+              {look.floor === ALL_FLOORS && toggle(look.apart, "Lift apart", { apart: !look.apart })}
+            </div>
           )}
-          {tiles && toggle(look.plans !== false, "Plans", { plans: look.plans === false })}
-          {toggle(!!look.outside, "Outside", { outside: !look.outside })}
-          {air && toggle(!!look.air, "Airflow", { air: !look.air })}
-          {toggle(look.labels, "Labels", { labels: !look.labels })}
-        </div>
+          <div className="ds3-show" role="group" aria-label="Show">
+            {standing && (
+              <button type="button" className="ds-ctl-btn" onClick={() => builtRef.current?.backOut()}>
+                Back out
+              </button>
+            )}
+            {tiles &&
+              toggle(look.plans !== false, "Plans", {
+                plans: look.plans === false,
+              })}
+            {toggle(!!look.outside, "Outside", { outside: !look.outside })}
+            {air && toggle(!!look.air, "Airflow", { air: !look.air })}
+            {!customer && scene.roofs.length > 0 && toggle(!!look.space, "Roof space", { space: !look.space })}
+            {!customer && toggle(!!look.measure, "Measure", { measure: !look.measure })}
+            {toggle(look.sun != null, "Sun", {
+              sun: look.sun != null ? undefined : 15,
+            })}
+            {look.sun != null && (
+              <>
+                <input type="range" className="ds3-hour" min={5} max={20} step={0.5} value={look.sun} aria-label="Time of day" onChange={(e) => onLook?.({ ...look, sun: Number(e.target.value) })} />
+                <span className="ds3-time">{`${Math.floor(look.sun) % 12 || 12}:${look.sun % 1 ? "30" : "00"} ${look.sun < 12 ? "am" : "pm"}`}</span>
+                {toggle(!!look.winter, "Winter", { winter: !look.winter })}
+              </>
+            )}
+            {toggle(look.labels, "Labels", { labels: !look.labels })}
+          </div>
+        </>
       )}
     </div>
   );
+}
+
+/* THE HOUSE AS A PICTURE, for the design's PDF (Isaac, 8 November 2026: "a
+   clean picture of it"): drawn off screen at the size asked, with its roof on
+   where Tiff read one, no labels, the floor's finishes rather than the plan,
+   and handed back as a PNG; null when there's nothing to draw or no WebGL. */
+export async function picture3d(scene: Scene3D, w = 1600, h = 1000): Promise<string | null> {
+  if (!scene.floors.length) return null;
+  const host = document.createElement("div");
+  host.className = "ds3";
+  Object.assign(host.style, {
+    position: "fixed",
+    left: "-20000px",
+    top: "0",
+    width: `${w}px`,
+    height: `${h}px`,
+  });
+  document.body.appendChild(host);
+  try {
+    const b = await build(
+      host,
+      scene,
+      {
+        floor: ALL_FLOORS,
+        apart: false,
+        labels: false,
+        layer: scene.roofs.length ? "roof" : "inside",
+        plans: false,
+        outside: true,
+      },
+      undefined,
+      () => {},
+      () => undefined,
+    );
+    if (!b) return null;
+    await new Promise((r) => setTimeout(r, 600));
+    const png = b.still();
+    b.dispose();
+    return png;
+  } catch {
+    return null;
+  } finally {
+    host.remove();
+  }
 }

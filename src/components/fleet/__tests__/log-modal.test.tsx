@@ -151,7 +151,7 @@ describe("LogModal, an issue said", () => {
 
   it("has the microphone where voice is on, and what is said is the issue logged", async () => {
     const { onSave, user } = draw(true);
-    expect(screen.getByRole("button", { name: "Dictate — what's wrong" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Speak instead of typing — what's wrong" })).toBeInTheDocument();
     act(() => heard.say!("Sliding door latch sticking"));
     expect(screen.getByLabelText("What's wrong")).toHaveValue("Sliding door latch sticking");
     await user.click(screen.getByRole("button", { name: /Report an issue/ }));

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { readFuelReceipt, readServiceRecord, type ReadReceiptResult, type ReadServiceResult } from "@/app/actions/fleet-ai";
 import { Button } from "@/components/parts/button";
-import { Field, TextArea, TextInput } from "@/components/parts/field";
+import { Field, TextInput } from "@/components/parts/field";
 import { NoteToken } from "@/components/notes/note-token";
 import { Tray } from "@/components/parts/tabs";
 import { Plate } from "../plate";
@@ -256,10 +256,10 @@ export function LogScreen({
         </Field>
         {taxFields}
         <Field label="Summary" className="mk-records-wide">
-          <TextInput placeholder="100,000 km logbook service" value={f.note} onChange={(e) => set("note")(e.target.value)} />
+          <NoteToken as="field" label="the summary" offer={false} rows={1} placeholder="100,000 km logbook service" value={f.note} onChange={(v) => set("note")(v)} />
         </Field>
         <Field label="Work done" className="mk-records-wide">
-          <TextArea rows={5} placeholder="One line per item" value={f.workDone} onChange={(e) => set("workDone")(e.target.value)} />
+          <NoteToken as="field" label="the work done" offer={false} rows={5} placeholder="One line per item" value={f.workDone} onChange={(v) => set("workDone")(v)} />
         </Field>
       </div>
     ) : kind === "odo" ? (

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, IconButton } from "@/components/parts/button";
 import { ConfirmDialog } from "@/components/parts/dialog";
 import { Chooser } from "@/components/parts/chooser";
-import { Field, TextArea, TextInput } from "@/components/parts/field";
+import { Field, TextInput } from "@/components/parts/field";
 import { NoteToken } from "@/components/notes/note-token";
 import { Tray } from "@/components/parts/tabs";
 import { Tick } from "@/components/parts/tick";
@@ -520,12 +520,12 @@ export function SwmsWizard({
         )}
         {a.fall === "harness" && (
           <Field label="Which roof anchor" id="swz-anchor">
-            <TextInput placeholder="Which anchor, and where" value={a.anchor} onChange={(e) => set({ anchor: e.target.value })} />
+            <NoteToken as="field" label="which roof anchor" offer={false} rows={1} placeholder="Which anchor, and where" value={a.anchor} onChange={(anchor) => set({ anchor })} />
           </Field>
         )}
         {a.fall === "harness" && a.jurisdiction === "QLD" && (
           <Field label="Why a harness and not something higher" id="swz-qldreason">
-            <TextArea rows={2} placeholder="Why edge protection, a scaffold or an EWP won't work here" value={a.qldFallReason} onChange={(e) => set({ qldFallReason: e.target.value })} />
+            <NoteToken as="field" label="why a harness" offer={false} rows={2} placeholder="Why edge protection, a scaffold or an EWP won't work here" value={a.qldFallReason} onChange={(qldFallReason) => set({ qldFallReason })} />
           </Field>
         )}
       </>
@@ -902,11 +902,14 @@ export function SwmsWizard({
       {prev && (
         <div className="wzd-form">
           <Field label="What changed" id="swz-reason">
-            <TextArea
+            <NoteToken
+              as="field"
+              label="what changed"
+              offer={false}
               rows={2}
               value={reason}
-              onChange={(e) => {
-                setReason(e.target.value);
+              onChange={(next) => {
+                setReason(next);
                 touch();
               }}
             />

@@ -228,13 +228,13 @@ describe("the field, standing in a form's Field", () => {
     );
   }
 
-  it("is the form's own box, named by its label, with the microphone under it", async () => {
+  it("is the phone's box, named by the form's label, with the microphone inside it", async () => {
     mount(<InForm />);
     const box = screen.getByLabelText("What needs doing");
-    expect(box).toHaveClass("pt-textarea");
-    expect(box).not.toHaveClass("wb2-notes");
+    expect(box).toHaveClass("say-words");
+    expect(box.closest(".say-box")).toContainElement(screen.getByRole("button", { name: "Speak instead of typing — what needs doing" }));
     expect(box).toHaveAttribute("maxLength", "20");
-    expect(screen.getByRole("button", { name: "Dictate — what needs doing" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Speak instead of typing — what needs doing" })).toBeInTheDocument();
     await userEvent.type(box, "Order the grilles");
     expect(box).toHaveValue("Order the grilles");
   });
@@ -242,15 +242,15 @@ describe("the field, standing in a form's Field", () => {
   it("wears the Field's red edge and points at why", () => {
     mount(<InForm error="Say what needs doing." />);
     const box = screen.getByLabelText("What needs doing");
-    expect(box).toHaveClass("pt-textarea--invalid");
+    expect(box.closest(".say-box")).toHaveClass("say-box--bad");
     expect(box).toHaveAttribute("aria-invalid", "true");
     expect(box).toHaveAccessibleDescription("Say what needs doing.");
   });
 
-  it("is the sheets' box outside a Field", () => {
+  it("is the same box outside a Field, named by its own label", () => {
     mount(<NoteToken as="field" label="access notes" value="" onChange={() => {}} box={{ "aria-label": "Access notes" }} />);
     const box = screen.getByRole("textbox", { name: "Access notes" });
-    expect(box).toHaveClass("wb2-notes");
+    expect(box).toHaveClass("say-words");
     expect(box).not.toHaveAttribute("aria-invalid");
   });
 });

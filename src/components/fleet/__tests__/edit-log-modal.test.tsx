@@ -131,7 +131,7 @@ describe("EditLogModal", () => {
      voice where the workspace has it */
   it("adds what's said to an issue's words, where voice is on, and saves them", async () => {
     const { onSave, user } = setup(fuelLog({ kind: "issue", litres: undefined, cost: undefined, note: "Brakes squealing" }), true);
-    expect(screen.getByRole("button", { name: "Dictate — what's wrong" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Speak instead of typing — what's wrong" })).toBeInTheDocument();
     act(() => heard.say!("Front left"));
     expect(screen.getByLabelText("What's wrong")).toHaveValue("Brakes squealing Front left");
     await user.click(screen.getByRole("button", { name: /Save changes/ }));

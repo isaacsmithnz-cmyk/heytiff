@@ -657,7 +657,7 @@ export function Dock({ c, onEmpty }: { c: Conversation; onEmpty: (byKey: boolean
   useEffect(() => {
     const at = foot.current;
     if (!at) return;
-    const to = listening ? at.querySelector<HTMLElement>(".tc-stop") : working ? null : at.querySelector<HTMLElement>(".cv-words");
+    const to = listening ? at.querySelector<HTMLElement>(".cv-stop") : working ? null : at.querySelector<HTMLElement>(".cv-words");
     to?.focus({ preventScroll: true });
   }, [listening, working]);
   return (

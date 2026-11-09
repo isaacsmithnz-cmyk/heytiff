@@ -98,7 +98,7 @@ describe("the email", () => {
   it("opens as the v2 dialog over the page, the message at the reading size", async () => {
     footer({ writing: true });
     const dialog = screen.getByRole("dialog", { name: "Email documents" });
-    expect(await within(dialog).findByLabelText("Message")).toHaveClass("wb2-mailmsg");
+    expect((await within(dialog).findByLabelText("Message")).closest(".say")).toHaveClass("wb2-mailmsg");
     expect(within(dialog).getByRole("button", { name: "Send email" })).toHaveClass("pt-btn--main");
   });
 

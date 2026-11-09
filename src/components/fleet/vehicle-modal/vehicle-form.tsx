@@ -11,7 +11,7 @@ import { MAKE_NOT_LISTED, VEHICLE_MAKES, canonicalMake } from "@/lib/fleet/makes
 import { Dialog } from "@/components/parts/dialog";
 import { Button } from "@/components/parts/button";
 import { Chooser } from "@/components/parts/chooser";
-import { Field, TextArea, TextInput } from "@/components/parts/field";
+import { Field, TextInput } from "@/components/parts/field";
 import { Fade } from "@/components/parts/fade";
 import { Dot } from "@/components/parts/state";
 import { Tray } from "@/components/parts/tabs";
@@ -34,6 +34,7 @@ import {
   type VehicleStatus,
 } from "../logic";
 import { fmtDay } from "./derive";
+import { NoteToken } from "@/components/notes/note-token";
 
 /* ADD A VEHICLE (v2 forms board, forms 8a and 8), and a vehicle's Edit
    details: one dialog, 720 wide, over the page you're on.
@@ -816,7 +817,7 @@ export function VehicleForm({
             <Chooser options={driverOptions} value={f.assignedTo} placeholder="Pool, unassigned" onChange={setValue("assignedTo")} />
           </Field>
           <Field label="Notes" className="mk-records-wide">
-            <TextArea value={f.notes} rows={2} onChange={set("notes")} />
+            <NoteToken as="field" label="the notes" offer={false} rows={2} value={f.notes} onChange={(v) => setValue("notes")(v)} />
           </Field>
         </Section>
 

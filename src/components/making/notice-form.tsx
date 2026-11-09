@@ -4,7 +4,7 @@ import { useContext, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog } from "@/components/parts/dialog";
 import { Button, IconButton } from "@/components/parts/button";
-import { Field, TextArea, TextInput } from "@/components/parts/field";
+import { Field, TextInput } from "@/components/parts/field";
 import { Tray } from "@/components/parts/tabs";
 import { Tick } from "@/components/parts/tick";
 import { TimeField } from "@/components/parts/time-field";
@@ -19,6 +19,7 @@ import { ALLOWED_TYPES, displayName, fmtBytes, MAX_NOTICE_FILES } from "@/lib/do
 import { uploadFile, type UploadedFile } from "@/lib/documents/upload-client";
 import type { BoardNotice } from "@/lib/dashboard/board";
 import { hhmmOf, wheelOf } from "./clock";
+import { NoteToken } from "@/components/notes/note-token";
 
 /* WRITE A NOTICE, AND A NOTICE'S EDIT (rules 51 and 52): the noticeboard's
    composer, as a dialog over the board.
@@ -256,7 +257,7 @@ export function NoticeForm({
         {/* A textarea, because this is the announcement: the board keeps its
             line breaks. */}
         <Field label={composingPoll ? "Any detail" : "Message"}>
-          <TextArea value={body} rows={3} onChange={(e) => setBody(e.target.value)} />
+          <NoteToken as="field" label="the message" offer={false} rows={3} value={body} onChange={setBody} />
         </Field>
 
         {showingEvent && (

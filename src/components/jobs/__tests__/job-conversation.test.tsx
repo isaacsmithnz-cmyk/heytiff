@@ -179,9 +179,10 @@ it("is a section like the others: the green block, Activity feed, the soft tabs 
   const list = feed.querySelector(".jc-feed") as HTMLElement;
   expect(box.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   /* Tiff's button says her name by her arrow, blue; the + (a photo or a file) is quiet */
-  expect(screen.getByRole("button", { name: "Send to Tiff" })).toHaveTextContent("Tiff");
-  expect(screen.getByRole("button", { name: "Send to Tiff" })).toHaveClass("pt-btn--main");
-  expect(screen.getByRole("button", { name: "Add a photo or a file" })).toHaveClass("pt-btn--quiet");
+  /* the phone's box (Isaac, 9 November 2026: "I want the boxes to pretty
+     much be identical"): Tiff's round blue ↑, and the plus a round button */
+  expect(screen.getByRole("button", { name: "Send to Tiff" })).toHaveClass("cv-rnd", "cv-rnd--main");
+  expect(screen.getByRole("button", { name: "Add a photo or a file" })).toHaveClass("cv-rnd");
 });
 
 it("filters what is already read: Photos shows the photos and leaves the notes", async () => {
@@ -346,8 +347,9 @@ it("Save files the words as written on the job, and nothing goes to Tiff", async
   draw({ c: convo({ draft: "  Rough-in done upstairs  ", setDraft, send }) });
   expect(screen.queryByRole("checkbox", { name: "My notes only" })).toBeNull();
   const save = screen.getByRole("button", { name: "Save" });
-  expect(save).toHaveClass("pt-btn--second");
-  expect(screen.getByRole("button", { name: "Send to Tiff" })).toHaveClass("pt-btn--main");
+  expect(save).toHaveClass("cv-save");
+  expect(save).not.toHaveClass("cv-save--main");
+  expect(screen.getByRole("button", { name: "Send to Tiff" })).toHaveClass("cv-rnd--main");
   await userEvent.click(save);
   expect(saveJobNote).toHaveBeenCalledWith("job-3465", "Rough-in done upstairs", { id: expect.any(String) });
   await waitFor(() => expect(setDraft).toHaveBeenCalledWith(""));

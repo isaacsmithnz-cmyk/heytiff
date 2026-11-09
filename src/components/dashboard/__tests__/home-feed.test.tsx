@@ -136,7 +136,7 @@ it("(F) a reply can be said, as on the job's card, and goes as said", async () =
   const box = within(luke).getByRole("textbox", { name: "Reply to Luke Parker" });
   expect(box).toHaveFocus();
   expect(box).toHaveAttribute("placeholder", "Reply to Luke");
-  expect(within(luke).getByRole("button", { name: "Dictate — a reply" })).toBeInTheDocument();
+  expect(within(luke).getByRole("button", { name: "Speak instead of typing — a reply" })).toBeInTheDocument();
   act(() => heard.say!("Ordering them now"));
   expect(box).toHaveValue("Ordering them now");
   /* a reply is a reply: no offer to sort it out with Tiff */

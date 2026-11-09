@@ -235,12 +235,16 @@ afterEach(() => {
 });
 
 describe("opening", () => {
-  it("opens listening from the top bar: the red dot, the clock and Stop, in the one box", async () => {
+  /* the phone's bar (Isaac, 9 November 2026: "I want the boxes to pretty
+     much be identical"): ✕, the blue wave, ■ and ↑; the time only in the
+     last thirty seconds */
+  it("opens listening from the top bar: the words over the bar, with ✕, the wave, Stop and ↑", async () => {
     await openModal();
     const d = dialog();
     expect(mic.start).toHaveBeenCalledTimes(1);
-    expect(d.querySelector(".tc-recdot")).not.toBeNull();
-    expect(within(d).getByText("0:03")).toBeInTheDocument();
+    expect(d.querySelector(".cv-bar .cv-wave")).not.toBeNull();
+    expect(within(d).queryByText("0:03")).toBeNull();
+    expect(within(d).getByRole("button", { name: "Throw it away" })).toBeInTheDocument();
     expect(within(d).getByRole("button", { name: "Stop" })).toBeInTheDocument();
     // your words come up in the box itself while she listens; the microphone gives way to Stop
     expect(d.querySelector(".cv-box .cv-live")).not.toBeNull();

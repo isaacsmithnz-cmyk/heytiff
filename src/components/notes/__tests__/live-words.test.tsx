@@ -117,39 +117,70 @@ it("shows no record at all when there is nothing already said", () => {
   expect(document.querySelector(".wb2-lwsaid")).toBeNull();
 });
 
-/* ── A BURST ARRIVES AS A FLOW, NOT AS A BLOCK ──
-
-   Scribe lands three words on one message. The glide was already per word,
-   but with every word in the burst starting on the same frame it read as a
-   block appearing — the "jumpy" this fixes (Isaac, 2026-08-19). Stepping the
-   delay is what turns the burst back into speech arriving.
-
-   jsdom runs no animation, but the delay is a style it can read, and that is
-   the whole of the mechanism. Words already on screen keep whatever they
-   landed with: re-timing a word mid-read would re-run the glide on it. */
-it("steps the words that arrived together, and leaves the ones already read", () => {
-  const { rerender } = render(<LiveWords text="tell" />);
-  expect(words().map((w) => (w as HTMLElement).style.animationDelay)).toEqual(["0ms"]);
-
-  rerender(<LiveWords text="tell Lyle the grilles need replacing" />);
-  expect(words().map((w) => (w as HTMLElement).style.animationDelay)).toEqual([
-    "0ms",
-    "0ms",
-    "42ms",
-    "84ms",
-    "126ms",
-    "168ms",
-  ]);
+/* THE PHONE'S MOTIONS (Isaac, 9 November 2026: "make sure that the words
+   show the same way. The mobile does. How quickly they render and the way
+   that they change words to self-heal"). jsdom has no Web Animations, so the
+   calls are caught and read: what moved, for how long, after what wait. */
+type Call = { el: HTMLElement; frames: Record<string, unknown>; opts: KeyframeAnimationOptions };
+function catchMotion(): Call[] {
+  const calls: Call[] = [];
+  (HTMLElement.prototype as unknown as { animate: unknown }).animate = function (this: HTMLElement, frames: Record<string, unknown>, opts: KeyframeAnimationOptions) {
+    calls.push({ el: this, frames, opts });
+    return { onfinish: null } as unknown as Animation;
+  };
+  return calls;
+}
+afterEach(() => {
+  delete (HTMLElement.prototype as unknown as { animate?: unknown }).animate;
 });
 
-/* The pre-roll can land a whole sentence at once, and a flat step would leave
-   its tail drifting in a second behind the voice that said it. */
-it("caps the step so a long burst still keeps up with the voice", () => {
-  render(<LiveWords text="one two three four five six seven eight nine ten" />);
-  const delays = words().map((w) => (w as HTMLElement).style.animationDelay);
+it("shows each new word the moment it's heard: no step between words, no blur", () => {
+  const calls = catchMotion();
+  const { rerender } = render(<LiveWords text="tell" />);
+  rerender(<LiveWords text="tell Lyle the grilles" />);
+  const fades = calls.filter((c) => "opacity" in c.frames);
+  expect(fades).toHaveLength(4);
+  for (const c of fades) {
+    expect(c.opts.duration).toBe(200);
+    expect(c.opts.delay ?? 0).toBe(0);
+    expect(JSON.stringify(c.frames)).not.toContain("blur");
+  }
+});
 
-  expect(delays[5]).toBe("210ms");
-  expect(delays.at(-1)).toBe("210ms");
+it("brings a fixed word up into its place in ink, settling to grey, as the phone does", () => {
+  const calls = catchMotion();
+  const { rerender } = render(<LiveWords text="after that the boat" />);
+  calls.length = 0;
+  rerender(<LiveWords text="after that the quote" />);
+  const fix = calls.find((c) => c.el.textContent === "quote" && "opacity" in c.frames);
+  expect(fix?.opts).toMatchObject({ duration: 280, delay: 50 });
+  const settle = calls.find((c) => c.el.textContent === "quote" && "color" in c.frames);
+  expect(settle?.opts.duration).toBe(1200);
+});
+
+it("fades the word that went out where it stood", () => {
+  const calls = catchMotion();
+  const { rerender } = render(<LiveWords text="after that the boat" />);
+  rerender(<LiveWords text="after that the quote" />);
+  const gone = document.querySelector(".wb2-lw.gone");
+  expect(gone?.textContent).toBe("boat");
+  expect(gone?.getAttribute("aria-hidden")).toBe("true");
+  const out = calls.find((c) => c.el === gone);
+  expect(out?.opts.duration).toBe(200);
+});
+
+it("moves nothing where motion is turned down", () => {
+  const calls = catchMotion();
+  const was = window.matchMedia;
+  window.matchMedia = ((q: string) => ({ matches: q.includes("reduce"), media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia;
+  try {
+    const { rerender } = render(<LiveWords text="after that the boat" />);
+    rerender(<LiveWords text="after that the quote" />);
+    expect(calls).toHaveLength(0);
+    expect(document.querySelector(".wb2-lw.gone")).toBeNull();
+  } finally {
+    window.matchMedia = was;
+  }
 });
 
 /* THE BOX RIDES THE NEWEST WORD. It is a fixed three-line window, so the

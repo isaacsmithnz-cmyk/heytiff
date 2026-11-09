@@ -6,7 +6,7 @@ import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { DateField } from "@/components/ui/date-field";
 import { ConfirmDialog, Dialog } from "@/components/parts/dialog";
 import { Button } from "@/components/parts/button";
-import { Field, TextArea, TextInput } from "@/components/parts/field";
+import { Field, TextInput } from "@/components/parts/field";
 import { NoteToken } from "@/components/notes/note-token";
 import { Chooser } from "@/components/parts/chooser";
 import { Tray } from "@/components/parts/tabs";
@@ -396,10 +396,10 @@ export function LogModal({
       </Field>
       {taxFields}
       <Field label="Summary" className="mk-records-wide">
-        <TextInput placeholder="100,000 km logbook service" value={note} onChange={(e) => setNote(e.target.value)} />
+        <NoteToken as="field" label="the summary" offer={false} rows={1} placeholder="100,000 km logbook service" value={note} onChange={setNote} />
       </Field>
       <Field label="Work done" className="mk-records-wide">
-        <TextArea rows={5} placeholder="One line per item" value={workDone} onChange={(e) => setWorkDone(e.target.value)} />
+        <NoteToken as="field" label="the work done" offer={false} rows={5} placeholder="One line per item" value={workDone} onChange={setWorkDone} />
       </Field>
     </>
   );
@@ -708,10 +708,10 @@ export function EditLogModal({
             {isService ? (
               <>
                 <Field label="Summary" className="mk-records-wide">
-                  <TextInput value={note} onChange={(e) => setNote(e.target.value)} />
+                  <NoteToken as="field" label="the summary" offer={false} rows={1} value={note} onChange={setNote} />
                 </Field>
                 <Field label="Work done" className="mk-records-wide">
-                  <TextArea rows={5} value={workDone} onChange={(e) => setWorkDone(e.target.value)} />
+                  <NoteToken as="field" label="the work done" offer={false} rows={5} value={workDone} onChange={setWorkDone} />
                 </Field>
               </>
             ) : (

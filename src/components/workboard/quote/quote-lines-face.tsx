@@ -33,7 +33,8 @@ import { LinesButton, QuoteActions } from "./quote-actions";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
 import { Dialog } from "@/components/parts/dialog";
 import { Button } from "@/components/parts/button";
-import { Field, TextArea } from "@/components/parts/field";
+import { Field } from "@/components/parts/field";
+import { NoteToken } from "@/components/notes/note-token";
 
 /* THE QUOTE, IN LAYOUT B (Isaac's pick, 21 October 2026; chat first since
    2026-10-13): the conversation with Tiff fills the left, and the rail
@@ -831,7 +832,7 @@ export function QuoteLinesFace({
                   : `The quote is approved, so this is version ${version + 1}. Version ${version} is kept as it stands, the approval comes off, and it goes back through Approve and Send.`}
             </p>
             <Field label="What's changing">
-              <TextArea className="ql-vwhat" rows={3} value={updating ?? ""} data-autofocus disabled={busy} onChange={(e) => setUpdating(e.target.value)} />
+              <NoteToken as="field" className="ql-vwhat" label="what's changing" offer={false} rows={3} value={updating ?? ""} disabled={busy} box={{ "data-autofocus": true }} onChange={setUpdating} />
             </Field>
           </div>
         </Dialog>

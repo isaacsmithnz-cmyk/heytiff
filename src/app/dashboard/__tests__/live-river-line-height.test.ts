@@ -36,8 +36,9 @@ it("does not name a line height on the one-line river", () => {
 });
 
 it("sizes the block river in `lh`, not in a length it has guessed", () => {
-  /* `calc(var(--lwrows) * 1lh + 26px)`. A hard px-per-line here would be the
-     same mistake wearing a number: it would be right until the page's
-     typography moved under it. */
-  expect(rule(".wb2-notes.wb2-lwbox")).toMatch(/height:calc\(var\(--lwrows\) \* 1lh/);
+  /* The form box's words as you speak (the phone's SayBox, 9 November 2026)
+     stand where the box's rows stood: `calc(var(--lwrows) * 1lh)`. A hard
+     px-per-line here would be the same mistake wearing a number: it would be
+     right until the page's typography moved under it. */
+  expect(rule(".say-live")).toMatch(/height:calc\(var\(--lwrows, 3\) \* 1lh\)/);
 });

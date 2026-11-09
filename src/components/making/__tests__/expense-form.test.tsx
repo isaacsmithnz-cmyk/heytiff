@@ -348,7 +348,7 @@ describe("a fuel docket", () => {
     await user.click(screen.getByRole("button", { name: "Enter it myself" }));
     await pickCategory(user, "Fuel");
     await user.type(total(), "158.40");
-    expect(screen.getByRole("button", { name: "Dictate — the note" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Speak instead of typing — the note" })).toBeInTheDocument();
     act(() => heard.say!("Van 4"));
     expect(screen.getByLabelText("Note")).toHaveValue("Van 4");
     await user.click(screen.getByRole("button", { name: "Log it on the vehicle" }));

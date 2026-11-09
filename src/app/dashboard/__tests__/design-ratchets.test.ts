@@ -66,7 +66,8 @@ const count = (re: RegExp, css = CSS) => (css.match(re) ?? []).length;
    an inner well concentric with its swatch — geometry, read off the rule. */
 /* 40px joined the scale on 18 October 2026 for the page's two curves (rule
    46), the one change in v2 that loosens a law; docs/design.md records it. */
-const RADII = new Set(["0", "6px", "10px", "16px", "40px", "999px", "50%", "inherit", "initial"]);
+/* 26 is the box's two ends, the phone's (docs/design.md, rule 46 and "On the box", 9 November 2026) */
+const RADII = new Set(["0", "6px", "10px", "16px", "26px", "40px", "999px", "50%", "inherit", "initial"]);
 function offScaleRadii(): number {
   let n = 0;
   for (const m of CSS.matchAll(/border-radius\s*:\s*([^;}]+)/g)) {
@@ -525,7 +526,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "weight off 400, 500, 600, 700 — 800 is retired", now: heavy, baseline: 0 },
   { law: "`transition: all` — a transition names what moves", now: () => count(/transition\s*:\s*all\b/g), baseline: 0 },
   { law: "`text-transform: uppercase` — the eyebrow is retired; a registration plate is the one thing set in caps", now: () => count(/text-transform\s*:\s*uppercase/g), baseline: 1 },
-  { law: "radius off the scale — 6, 10, 16, the page's 40, and a circle", now: offScaleRadii, baseline: 0 },
+  { law: "radius off the scale — 6, 10, 16, the box's 26, the page's 40, and a circle", now: offScaleRadii, baseline: 0 },
   { law: "gradients — one accent, flat surfaces; his are named below", now: () => gradients(outside("gradients")), baseline: 21 },
   /* 52 → 57 on 2026-09-21, the one baseline in this file that has ever gone
      up. Nothing was added: the counter learned `filter: drop-shadow()`, and

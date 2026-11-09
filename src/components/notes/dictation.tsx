@@ -146,9 +146,9 @@ async function micStuck(): Promise<string> {
     const perms = navigator.permissions as Permissions | undefined;
     const state = (await perms?.query({ name: "microphone" as PermissionName }))?.state;
     if (state === "prompt")
-      return "Your browser is asking for the microphone — allow it, then press Talk.";
+      return "HeyTiff needs the microphone. Allow it when your browser asks.";
     if (state === "denied")
-      return "The microphone is blocked for this site — allow it in your browser settings, or type it instead.";
+      return "HeyTiff needs the microphone. Allow it in your browser’s settings.";
   } catch {
     /* No permissions API, or no microphone descriptor. The floor below says
        the true thing either way. */
@@ -909,21 +909,24 @@ export function LevelOrb({ innerRef }: { innerRef: React.RefObject<HTMLSpanEleme
   );
 }
 
-/** How far apart two words that arrived IN THE SAME MESSAGE start to glide.
-
-    Scribe does not speak evenly — three words land on one partial, then a
-    pause, then two more. Gliding a burst as a block is the pop this
-    component exists to remove: the animation was already per word, but with
-    every word in the burst starting on the same frame it read as a block
-    appearing, not as speech arriving. Stepping them is what turns the burst
-    back into a flow. */
-const WORD_STEP_MS = 42;
-
-/** …and the ceiling on that step, because a burst is not always three
-    words. The buffered pre-roll can land a whole sentence at once, and a
-    flat step would leave its tail drifting in a second behind the voice
-    that said it — smooth, and no longer live. */
-const WORD_STEP_MAX_MS = 210;
+/* THE PHONE'S WORD MOTIONS, TO THE MILLISECOND (heytiff-mobile
+   src/components/LiveWords.tsx). Isaac, 9 November 2026: "make sure that the
+   words show the same way. The mobile does. How quickly they render and the
+   way that they change words to self-heal... I want the boxes to pretty much
+   be identical". The web used to hold each word of a burst back up to a fifth
+   of a second and blur it in, and swapped a fixed word with no sign; now a
+   word shows the moment it's heard, as on the phone. */
+/** The words around a fixed one slide over to make room, even onto the next line. */
+const GLIDE_MS = 240;
+/** A word that went fades out where it stood, lifting a little. */
+const GONE_MS = 200;
+/** The right word fades up into its place, a beat after the wrong one starts to go. */
+const FIX_MS = 280;
+const FIX_DELAY_MS = 50;
+/** A new word at the end just fades in. */
+const ADD_MS = 200;
+/** A fixed word arrives in ink and settles to the grey of the words still being heard. */
+const SETTLE_MS = 1200;
 
 /** The live transcript, one word at a time — bind to a dictation's `interim`,
     with `said` holding whatever is already captured (an earlier leg, or
@@ -931,30 +934,22 @@ const WORD_STEP_MAX_MS = 210;
 
     THE ENGINE DOES NOT SPEAK EVENLY. Scribe sends partials in bursts and
     REVISES them: three words land at once, then a pause, then "grills"
-    becomes "grilles". Rendering the whole string swapped the paragraph on
-    every one of those, which read as flicker, and centring it meant each
-    arrival shoved every word already said sideways. Isaac: less erratic,
-    a smooth fast glide.
+    becomes "grilles". Words keyed by WHO THEY ARE (lib/voice/morph-words,
+    the phone's morphWords) is what makes that read as one voice: each new
+    guess is matched against the last, a word that stayed keeps its span and
+    slides to wherever it now stands, a word that went fades where it stood,
+    and a word the model fixed rises into its place in ink and settles to
+    grey, so the eye catches what changed (Isaac, 5 November 2026: "instead
+    of like a jumpy change, it's like morphing into the correct word").
 
-    Words keyed by WHO THEY ARE is what buys that (lib/voice/morph-words).
-    Each new guess is matched against the last: a word that stayed keeps its
-    span and sits still, so the glide runs only on what is new. A word the
-    model fixed is new too, and glides in where the old one stood. Keyed by
-    position it swapped its letters in place, and a word put in mid-sentence
-    shifted the letters of every word after it; the phone already melted the
-    fix in, and the two are now one (Isaac, 5 November 2026: "line them up").
+    The words as heard are grey and leaning, as the phone draws them; `said`
+    is the record, ink and upright, and never animates. It is NOT split into
+    words: splitting it would put hundreds of spans in front of the handful
+    that matter.
 
-    `said` is NOT split into words. It is the record, not the arrival — it
-    has already been read, it never animates, and splitting it would put
-    hundreds of spans in front of the handful that matter.
-
-    FREE WORDS ARE NOT A WINDOW. On the Tiff modal your words stand free in
-    the conversation (his v10: "appear freely not in a text box"): the box is
-    as tall as what you have said, and the conversation around it is what
-    scrolls. So it neither rides nor fades. Measured as a window it misread
-    its own glide: each arriving word starts 4px low, that 4px was overflow,
-    and the fade took the whole first line of a box nothing had scrolled —
-    "some of the words are getting cut off" (Isaac, 2026-09-26). */
+    FREE WORDS ARE NOT A WINDOW. In Tiff's window your words stand free in
+    the conversation: the box is as tall as what you have said, and the
+    conversation around it is what scrolls. So it neither rides nor fades. */
 export function LiveWords({
   said = "",
   text,
@@ -966,67 +961,85 @@ export function LiveWords({
 }: {
   said?: string;
   text: string;
-  /** One line, riding sideways — the two field mics that ARE one line. */
+  /** One line, riding sideways. */
   line?: boolean;
   /** Free on the page, not a window (above): no ride, no fade. */
   free?: boolean;
-  /** What the textarea this stands in for was sized to. Block field mic only. */
+  /** What the textarea this stands in for was sized to. */
   rows?: number;
-  /** THE BOX IT IS STANDING IN. `.wb2-livetext` on the capture card, and in a
-      field the field's OWN class — `.wb2-stripin`, `.wb2-fi`, `.wb2-notes`.
-      That is what makes the swap invisible: same width, font, padding and
-      border as the box that was there a frame earlier. Measured, the strip
-      and the line posture come out identical to the pixel. */
+  /** The box it is standing in: same width, font, padding and border as the
+      box that was there a frame earlier. */
   className?: string;
   label?: string;
 }) {
   const ref = useRef<HTMLParagraphElement | null>(null);
-  /* Whether anything has actually scrolled out of sight above. The top of
-     the box is faded so old words dissolve instead of being sliced, and
-     that fade MUST be conditional: applied always, it dims the top of an
-     unscrolled box — which is the first line of every short dictation, and
-     most dictations are short. Measured after layout rather than guessed
-     from length, because wrapping depends on the width it got. */
+  /* Whether anything has scrolled out of sight above: the top of the box is
+     faded only then, measured after layout. */
   const [scrolled, setScrolled] = useState(false);
-  /** The words on screen last time round, by name: the only way to tell
-      the words that just landed from the ones being read. */
-  const shown = useRef<ReadonlySet<string>>(new Set());
+  /** Where each word stood last time round, by name, and what it said: what
+      a word slides from, and where a word that went fades out. */
+  const stood = useRef<Map<string, { x: number; y: number; w: string }>>(new Map());
   /* the words as they're shown, each named against the guess before */
   const [river, setRiver] = useState<{ text: string; words: Said[]; next: number }>({ text: "", words: [], next: 0 });
   if (river.text !== text) setRiver({ text, ...morphWords(river.words, text, river.next) });
 
-  /* A LAYOUT EFFECT, NOT AN EFFECT, and both halves need it to be:
-
-     the scroll runs before the frame is painted, so the box is already at
-     the newest word the first time you see it — after paint it is a visible
-     snap on every single partial, which is the jump this is meant to cure;
-
-     and the delays have to be set before anything READS layout. `scrollHeight`
-     forces a style flush, and that flush starts the animation on every span
-     React has just mounted — after which setting a delay is retiming a
-     running animation instead of arranging one. The order of these two
-     blocks looks like nothing and is the whole trick. */
+  /* A LAYOUT EFFECT: the motions start, and the box rides to the newest
+     word, before the frame is painted, so no word is ever seen in its new
+     place before it begins to slide. `offsetLeft` and `offsetTop` ignore the
+     transforms running on a word, so where a word stands is read true even
+     mid-slide. */
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
+    const still = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const was = stood.current;
+    const now = new Map<string, { x: number; y: number; w: string }>();
+    const fixes = new Set(river.words.filter((s) => s.fix).map((s) => String(s.id)));
+    const ink = getComputedStyle(el).getPropertyValue("--ink").trim() || "#050505";
 
-    const spans = el.querySelectorAll<HTMLElement>(".wb2-lw");
-    const now = new Set<string>();
-    let landed = 0;
-    for (const span of spans) {
+    for (const span of el.querySelectorAll<HTMLElement>(".wb2-lw:not(.gone)")) {
       const name = span.dataset.w ?? "";
-      if (!shown.current.has(name)) {
-        span.style.animationDelay = `${Math.min(landed * WORD_STEP_MS, WORD_STEP_MAX_MS)}ms`;
-        landed++;
+      const at = { x: span.offsetLeft, y: span.offsetTop, w: span.textContent ?? "" };
+      now.set(name, at);
+      if (still || typeof span.animate !== "function") continue;
+      const from = was.get(name);
+      if (from) {
+        const dx = from.x - at.x;
+        const dy = from.y - at.y;
+        if (dx || dy) span.animate({ transform: [`translate(${dx}px, ${dy}px)`, "none"] }, { duration: GLIDE_MS, easing: "ease-out" });
+      } else if (fixes.has(name)) {
+        span.animate(
+          { opacity: [0, 1], transform: ["translateY(5px) scale(0.97)", "none"] },
+          { duration: FIX_MS, delay: FIX_DELAY_MS, easing: "ease-out", fill: "backwards" },
+        );
+        const grey = getComputedStyle(span).color;
+        span.animate({ color: [ink, ink, grey], offset: [0, 0.3, 1] }, { duration: SETTLE_MS, easing: "ease-out" });
+      } else {
+        span.animate({ opacity: [0, 1], transform: ["translateY(3px)", "none"] }, { duration: ADD_MS, easing: "ease-out", fill: "backwards" });
       }
-      now.add(name);
     }
-    shown.current = now;
+    /* a word that went fades out where it stood: a stand-in, laid over the
+       place it had, since its own span has already left */
+    if (!still) {
+      for (const [name, at] of was) {
+        if (now.has(name)) continue;
+        const gone = document.createElement("span");
+        gone.className = "wb2-lw gone";
+        gone.setAttribute("aria-hidden", "true");
+        gone.textContent = at.w;
+        gone.style.left = `${at.x}px`;
+        gone.style.top = `${at.y}px`;
+        el.appendChild(gone);
+        if (typeof gone.animate !== "function") {
+          gone.remove();
+          continue;
+        }
+        gone.animate({ opacity: [1, 0], transform: ["none", "translateY(-4px) scale(0.97)"] }, { duration: GONE_MS, easing: "ease-in", fill: "forwards" }).onfinish = () => gone.remove();
+      }
+    }
+    stood.current = now;
 
-    /* Ride the newest word, down the box or along it — the field mics that
-       are one line have the same problem in the other axis, and a disabled
-       input never scrolled at all, so the words being spoken sat off the
-       right-hand edge where nobody could read them. */
+    /* Ride the newest word, down the box or along it. */
     if (free) return;
     if (line) {
       el.scrollLeft = el.scrollWidth;
@@ -1037,27 +1050,22 @@ export function LiveWords({
     }
   }, [said, river, line, free]);
 
-  /* AND MEASURED AGAIN WHEN THE BOX HAS FINISHED OPENING. The window eases
-     three lines open over 300 ms the first time there is anything to show,
-     and for that 300 ms it is shorter than its content — so the measurement
-     above says "scrolled" for a one-word transcript and the first word you
-     say arrives already dissolving into the fade. Nothing else corrects it
-     until the next partial lands, which is up to half a second of the wrong
-     picture at the exact moment you are checking whether it heard you.
-
-     The word glides bubble their own `animationend` through here; only the
-     box's own counts, or this re-renders once per word for nothing. */
+  /* AND MEASURED AGAIN WHEN THE BOX HAS FINISHED OPENING: a window that eases
+     open is shorter than its words for a moment, and would read as scrolled.
+     Only the box's own animation counts, not the words'. */
   useEffect(() => {
     const el = ref.current;
     if (!el || free) return;
-    const settle = (e: AnimationEvent) => {
+    const settle = (e: Event) => {
       if (e.target !== el) return;
-      setScrolled(
-        line ? el.scrollWidth > el.clientWidth + 1 : el.scrollHeight > el.clientHeight + 1
-      );
+      setScrolled(line ? el.scrollWidth > el.clientWidth + 1 : el.scrollHeight > el.clientHeight + 1);
     };
     el.addEventListener("animationend", settle);
-    return () => el.removeEventListener("animationend", settle);
+    el.addEventListener("transitionend", settle);
+    return () => {
+      el.removeEventListener("animationend", settle);
+      el.removeEventListener("transitionend", settle);
+    };
   }, [line, free]);
 
   return (
@@ -1068,25 +1076,17 @@ export function LiveWords({
         (line ? " one" : "") +
         (free ? " free" : scrolled ? " over" : "")
       }
-      /* The block field mic stands in for a textarea sized by `rows`, and a
-         paragraph has no such thing — the sheet does that arithmetic. */
       style={rows ? ({ "--lwrows": rows } as React.CSSProperties) : undefined}
       ref={ref}
-      /* NAMED, because it is no longer a labelled textarea. `log` is the
-         role a running transcript actually has, and it carries the polite
-         live region on its own — the explicit attribute stays because the
-         card is checked for having exactly one of them. */
+      /* `log` is the role a running transcript has, and it carries the
+         polite live region on its own. */
       role="log"
       aria-live="polite"
       aria-label={label}
     >
-      {/* THE SPACES ARE REAL, not a margin between the spans. The gap could
-          be drawn either way and only one of them is still there when the
-          words leave the screen: `textContent` concatenates, so a margin
-          gives a screen reader and anything copied out of here
-          "theatthreehundred". The join is `appendSpoken`'s, kept by
-          construction rather than by calling it — the record, one space,
-          then the words in the air. */}
+      {/* THE SPACES ARE REAL, not a margin between the spans: `textContent`
+          concatenates, so a margin gives a screen reader and anything copied
+          out of here "theatthreehundred". */}
       {said.trim() && (
         <>
           <span className="wb2-lwsaid">{said.trim()}</span>{" "}

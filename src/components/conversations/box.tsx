@@ -1,33 +1,35 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode, type Ref } from "react";
-import { Button, IconButton } from "@/components/parts/button";
-import { DictClock, LiveWords, type DictationState } from "@/components/notes/dictation";
-import { READING_BACK_NOTE } from "@/components/notes/waits";
-import { Waiting } from "@/components/ui/orb";
+import { Icon } from "@/components/shell/icon";
+import { appendSpoken, LiveWords, type DictationState } from "@/components/notes/dictation";
+import { Fixing, SpeakBar } from "@/components/conversations/speak-bar";
 
-/* THE BOX AT THE FOOT (the board v2-board-conversations): the words at 16
-   (rule 13), then the microphone, icon-only (rule 27), and the blue main
-   button on the right (rule 22): Tiff's, her arrow and her name.
+/* THE BOX, THE PHONE'S (heytiff-mobile src/components/Talk.tsx, `Composer`).
+   Isaac, 9 November 2026: "I want to make the web entry box the same as the
+   mobile one. It's much nicer", then "I want the boxes to pretty much be
+   identical". Round ends, the words at 16 (rule 13), round buttons on a soft
+   grey (the plus where a box takes a file, the microphone), Save a rounded
+   button beside Tiff's blue ↑, the little i on its corner.
 
-   Enter sends and Shift+Enter starts a new line, as every chat box does.
-   While Tiff works, Send fades until she's done (6-revisions.md, "While
-   Tiff works"); the words you type meanwhile wait in the box.
+   Enter sends and Shift+Enter starts a new line, as a desk keyboard expects:
+   the one way the web's box is not the phone's. While Tiff works, ↑ waits
+   until she's done; the words you type meanwhile wait in the box.
 
-   THE MICROPHONE IS THE SHARED ONE. While it listens the box hands its space
-   to the recording card every other door shows, and gets it back when the
-   words land in it ("the input section should be identical throughout the
-   software", Isaac). The engine is the caller's `useDictation`, so what the
-   words become is the caller's business too.
+   SPEAKING, the words sit on their own over the bar, which is its own box
+   (./speak-bar): ✕, the blue wave, the time in the last thirty seconds, ■,
+   and ↑ to send them as they are. At ■ the words stay where they were, grey,
+   until they land, then black: nothing blanks and nothing says "Thinking".
+   The engine is the caller's `useDictation`, so what the words become is the
+   caller's business too.
 
    SAVE, AND TIFF (Isaac, 6 November 2026: "Save creates a raw note, tiff
-   processes it like she does today"; "You can have tiff on the button with
-   the arrow in web"). Where the words can be kept as they are, Save sits
-   beside the main button and files them with no Tiff, for nothing; the main
-   button is Tiff's, her arrow and her name, and she reads them as she always
-   has. A little i on her button says what she does with them, until you
-   have read it once ("I symbol can disappear after the first press"). A box
-   that only keeps (your own notes) has no Tiff: Save is its main button. */
+   processes it like she does today"). Where the words can be kept as they
+   are, Save sits beside Tiff's ↑ and files them with no Tiff, for nothing;
+   ↑ is Tiff's, and she reads them as she always has. A little i on it says
+   what she does with them, until you have read it once ("I symbol can
+   disappear after the first press"). A box that only keeps (your own notes)
+   has no Tiff: Save is its main button, in blue. */
 
 export function CvBox({
   value,
@@ -64,7 +66,7 @@ export function CvBox({
   /** The microphone, when this deployment can hear; null hides it. */
   dict: DictationState | null;
   voiceError?: string | null;
-  /** The last recording stopped at the two-minute ceiling. */
+  /** The last recording stopped at the four-minute ceiling. */
   ranOut?: boolean;
   boxRef?: Ref<HTMLTextAreaElement>;
   /** Anything the box carries above its words: the document it is scoped to. */
@@ -95,49 +97,106 @@ export function CvBox({
     sendPending.current = false;
     if (!waiting && !empty) onSubmit();
   }, [listening, waiting, empty, onSubmit]);
-  const recording = !!dict?.recording;
   const sendNow = () => {
     dict?.stop();
     sendPending.current = true;
     setSendOnLand(true);
   };
+  /* speaking from the moment the mic is opening, as every surface that shows
+     a recording does (`arming` in dictation.tsx) */
+  const speaking = !!dict && (dict.recording || dict.arming);
+  /* stopped, the words on their way into the box: they stay where they were,
+     grey, until they land (the phone's `hearing`) */
+  const hearing = !!dict?.transcribing;
+  const shown = hearing && dict?.interim ? appendSpoken(value, dict.interim) : value;
   return (
     <form
-      className="cv-box"
+      className={`cv-box${speaking ? " cv-box--speaking" : ""}`}
       onSubmit={(e) => {
         e.preventDefault();
-        if (!waiting && !empty) onSubmit();
+        if (!waiting && !empty && !speaking) onSubmit();
       }}
     >
-      {before}
-      {/* RECORDING IN THE BOX, AS CLAUDE'S DOES (Isaac, 20 October 2026: "no
-          Type instead, Start again, Done"): what you say comes into the box
-          as you say it; the bar below has the red dot, the time and Stop. */}
-      {dict?.recording ? (
-        <div className="cv-words cv-live" role="group" aria-label="Recording" aria-live="polite">
-          <LiveWords said={value} text={dict.interim} />
+      {speaking && dict ? (
+        /* SPEAKING, THE WORDS SIT ON THEIR OWN OVER THE BAR, which is its own
+           box (the phone's Composer): what you'd typed in ink, then what
+           you're saying in grey, each word morphing into the right one. */
+        <div className="cv-speak">
+          {before}
+          <div className="cv-live" role="group" aria-label="Recording">
+            {value.trim() || dict.interim ? (
+              <LiveWords said={value} text={dict.interim} />
+            ) : (
+              <p className="cv-listening" role="status">
+                Listening
+              </p>
+            )}
+          </div>
+          <SpeakBar dict={dict} onSendNow={tiff ? sendNow : undefined} sendLabel={sendLabel ?? "Send to Tiff"} waiting={waiting} />
         </div>
       ) : (
-        <textarea
-          ref={boxRef}
-          className="cv-words"
-          rows={1}
-          value={value}
-          aria-label={label}
-          placeholder={placeholder}
-          disabled={listening}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
-            e.preventDefault();
-            if (!waiting && !empty) onSubmit();
-          }}
-        />
+        <div className="cv-field">
+          {before}
+          <textarea
+            ref={boxRef}
+            className={`cv-words${hearing ? " cv-words--hearing" : ""}`}
+            rows={1}
+            value={shown}
+            aria-label={label}
+            placeholder={placeholder}
+            disabled={hearing}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
+              e.preventDefault();
+              if (!waiting && !empty) onSubmit();
+            }}
+          />
+          {hearing && <Fixing />}
+          <div className="cv-boxbar">
+            {lead}
+            <span className="tc-sp" />
+            {dict ? (
+              <button type="button" className="cv-rnd" aria-label="Speak instead of typing" disabled={hearing || waiting} onClick={dict.start}>
+                <Icon name="mic" size={20} />
+              </button>
+            ) : null}
+            {extra}
+            {onSave && tiff && !empty && !hearing && (
+              <button type="button" className="cv-save" onClick={onSave} disabled={saving || waiting} aria-busy={saving || undefined}>
+                Save
+              </button>
+            )}
+            {tiff ? (
+              <TiffButton save={!!onSave}>
+                <button
+                  type="submit"
+                  className={`cv-rnd cv-rnd--main cv-send${waiting || sendOnLand ? " cv-send--wait" : ""}`}
+                  aria-label={sendLabel ?? "Send to Tiff"}
+                  aria-busy={waiting || sendOnLand || undefined}
+                  disabled={waiting || hearing || empty}
+                >
+                  <Icon name="arrowUp" size={18} sw={2.2} />
+                </button>
+              </TiffButton>
+            ) : (
+              <button
+                type="button"
+                onClick={onSave ?? onSubmit}
+                aria-label={sendLabel ?? sendWord}
+                className={`cv-save cv-save--main cv-send${saving || waiting ? " cv-send--wait" : ""}`}
+                aria-busy={saving || waiting || undefined}
+                disabled={saving || waiting || hearing || empty}
+              >
+                {sendWord}
+              </button>
+            )}
+          </div>
+        </div>
       )}
-      {dict?.transcribing && <Waiting note={READING_BACK_NOTE} className="cv-say" />}
-      {ranOut && !listening && (
+      {ranOut && !speaking && (
         <p className="cv-say" role="status">
-          That recording reached two minutes, the most one can be. Press the microphone to carry on.
+          That recording reached four minutes, the most one can be. Press the microphone to carry on.
         </p>
       )}
       {voiceError && (
@@ -145,59 +204,6 @@ export function CvBox({
           {voiceError}
         </p>
       )}
-      <div className="cv-boxbar">
-        {dict?.recording && (
-          <span className="tc-rec">
-            <span className="tc-recdot" aria-hidden="true" />
-            <DictClock seconds={dict.seconds} />
-          </span>
-        )}
-        {lead}
-        <span className="tc-sp" />
-        {dict?.recording ? (
-          <button type="button" className="pt-btn pt-btn--second pt-btn--32 pt-btn--icon tc-stop" aria-label="Stop" onClick={dict.stop}>
-            <span aria-hidden="true" />
-          </button>
-        ) : dict ? (
-          <IconButton glyph="mic" label="Speak instead of typing" size={32} disabled={dict.transcribing || waiting} onClick={dict.start} />
-        ) : null}
-        {extra}
-        {onSave && tiff && !recording && !empty && (
-          <Button kind="second" size={32} onClick={onSave} disabled={saving || waiting} aria-busy={saving || undefined}>
-            Save
-          </Button>
-        )}
-        {tiff ? (
-          <TiffButton save={!!onSave}>
-            <Button
-              kind="main"
-              size={32}
-              icon="send"
-              type={recording ? "button" : "submit"}
-              onClick={recording ? sendNow : undefined}
-              aria-label={sendLabel ?? "Send to Tiff"}
-              className={`cv-send${waiting || sendOnLand ? " cv-send--wait" : ""}`}
-              aria-busy={waiting || sendOnLand || undefined}
-              disabled={recording ? waiting : waiting || listening || empty}
-            >
-              Tiff
-            </Button>
-          </TiffButton>
-        ) : (
-          <Button
-            kind="main"
-            size={32}
-            type="button"
-            onClick={onSave ?? onSubmit}
-            aria-label={sendLabel ?? sendWord}
-            className={`cv-send${saving || waiting ? " cv-send--wait" : ""}`}
-            aria-busy={saving || waiting || undefined}
-            disabled={saving || waiting || listening || empty}
-          >
-            {sendWord}
-          </Button>
-        )}
-      </div>
     </form>
   );
 }

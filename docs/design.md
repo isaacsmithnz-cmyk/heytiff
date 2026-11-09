@@ -88,7 +88,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 ### Motion, shape and the rest
 
 - **45. Three speeds.** 120 ms for pointing, 200 for something moving, and a new 280 for a panel sliding across.
-- **46. Corners.** 6 fields, 10 buttons and tabs, 16 cards and dialogs, 40 the page's two curves, round for discs.
+- **46. Corners.** 6 fields, 10 buttons and tabs, 16 cards and dialogs, 26 the box's two ends and its speaking bar, 40 the page's two curves, round for discs.
 - **47. Pills.** Only for a person's name in a note. Never for a state.
 - **48. On a phone.** The ink is a bar across the top and the page curls into it at its top left (40), square elsewhere. The menu is the sidebar itself, curling at its foot. Controls 44; the box at the bottom. On a job's card a bar of the job's doing takes the bottom instead (Note, Photos, Used, Add, More), and Note brings the box up from it as a sheet (Isaac, 6 November 2026: "Build it" to the bar's mock). The card is pushed over the tabs, so the bar never sits on the menu.
 - **49. Words.** Sentence case, a verb and a noun on every button, no exclamation marks, no "successfully", waits that say what they're doing.
@@ -153,7 +153,7 @@ The scale is 12, 13, 14, 16, 20, 24, 32. Nothing is set at 40 any more.
 
 **Spacing:** 2, 4, 8, 12, 16, 24, 32, 48. Two is the hairline gap.
 
-**Corners:** 6 for fields, 10 for buttons, tabs and blocks, 16 for cards, menus and dialogs, 40 for the page's two curves, round for discs.
+**Corners:** 6 for fields, 10 for buttons, tabs and blocks, 16 for cards, menus and dialogs, 26 for the box's ends, 40 for the page's two curves, round for discs.
 
 **Control heights:** 32 in rows and lists, 36 in forms and dialogs, 44 on a phone. A field and the button beside it match.
 
@@ -243,10 +243,10 @@ infinite loop into a strobe.
 
 | Keyframes | Runs on | Why it loops |
 |---|---|---|
-| `tcDots` | the three dots after "Thinking" in Tiff's chat, one rule with each dot delayed | Tiff is working: the Claude-style chat says so in words and dots, with no mark turning (Isaac, 20 October 2026) |
+| `tcDots` | the three dots after "Thinking" in Tiff's chat, and after "Fixing the wording" in any box whose words take a while to land; one rule with each dot delayed | Tiff is working, or the words are on their way: said in words and dots, with no mark turning (Isaac, 20 October 2026; the box, 9 November 2026) |
 | `ds-sheet-wait` | the sheet's outline while its raster downloads | a skeleton, breathing rather than swept because it is an outline: the plan lands into its place |
 | `wb2CursorBlink` | the board's answer while it streams | a caret |
-| `fgPulse` ×3 | the recording dot beside the recording clock (the Tiff modal's dock, a note posture's row); the row microphone while it listens; Time & Pay's live period | a live dot: something is open right now |
+| `fgPulse` ×2 | the recording dot beside the recording clock on a note strip; Time & Pay's live period | a live dot: something is open right now |
 | `int-pulse` | an integration's backfill while it runs | a live dot |
 | `orbSpin` | the orb, as the dictation meter | the orb: the microphone is open |
 | `orbSaySweep` | the wait's word beside the working mark | the wait's label, lit while Tiff works: the caret's job on a word |
@@ -265,10 +265,11 @@ this list the way it holds the loops: both ways, by name.
 
 | Glyph | On | Why it has no word |
 |---|---|---|
-| `mic` | `wb2-striprnd`, `wb2-micgo` | the microphone of the dictation controls, on a note strip and a note row: the field beside it is the word, and a microphone is the one glyph the trade reads without one |
-| `square` | `wb2-striprnd`, `wb2-micgo`, `wb2-dictmic` | stop, in the same controls: it takes the microphone's seat while it listens |
-| `x` | `wb2-striprnd`, `wb2-dictx` ×2 | the recording's cross beside stop (the capture card had a second, and went with the old capture UI, 2026-09-27; the recording card in the Library's ask bar had a third, and went with the bar, 2026-11-07): each closes a recording, and its label says what closing costs ("Discard") |
-| `plus` | `wb2-striprnd`, `wb2-addgo` | a note composer's commit at the end of its one-line field: the placeholder is the word and Enter is the same press. A form's save is a word; a composer's send is the glyph |
+| `mic` | `wb2-striprnd`, `cv-rnd` ×3 | the microphone, on a note strip and on the box, in a form and on a job's Materials line, round as the phone's (the box, 9 November 2026): the words beside it are the word, and a microphone is the one glyph the trade reads without one |
+| `square` | `wb2-striprnd` | stop, on the note strip: it takes the microphone's seat while it listens. The box's ■ is drawn, not a glyph |
+| `x` | `wb2-striprnd`, `cv-rnd` | the recording's cross, on the note strip and on the bar every box speaks into, as the phone's ✕ (the capture card had another, and went with the old capture UI, 2026-09-27; the Library's ask bar had another, and went with the bar, 2026-11-07; the form's row and bar had two, and went with the box, 2026-11-09): each closes a recording, and its label says what closing costs ("Discard") |
+| `plus` | `wb2-striprnd`, `cv-rnd` | a note composer's commit at the end of its one-line field, round on the box's one line: the placeholder is the word and Enter is the same press. A form's save is a word; a composer's send is the glyph |
+| `arrowUp` | `cv-rnd` ×2 | Tiff's ↑, on the box and on the bar while you speak: a chat's Send, as Claude's and the phone's are (law 25; the box, 9 November 2026) |
 | `rotate` | `ds-tool` ×2 | undo and redo in the Studio toolbar, the candidates law 25 named |
 | `x` | `camdel`, `ds-plancard-x` | a thumbnail's cross, on a photo badge and on a plan page in the Studio's import: a picture has no room for a word |
 
@@ -276,6 +277,29 @@ this list the way it holds the loops: both ways, by name.
 
 Some of Isaac's calls break a rule no ratchet counts, so they are written
 here rather than in the table below, each with his words and the day.
+
+#### On the box
+
+- **Every box you type or speak in is the phone's** (`conversations/box.tsx`,
+  `conversations/speak-bar.tsx`, `notes/note-token.tsx`; heytiff-mobile
+  `Talk.tsx` and `SayBox.tsx`), as mocked on
+  https://claude.ai/artifact/MuhXNPnrWuJh8G6Q4FGvXU (Isaac, 9 November 2026:
+  "I want to make the web entry box the same as the mobile one. It's much
+  nicer", "I want the boxes to pretty much be identical", then "yes"). Four
+  rules give way, for the box alone:
+  - rule 28, three sizes: its round buttons are 40, the phone's, on the web
+    too, and Save is 40 tall beside them;
+  - rule 46, corners: the box's ends and its speaking bar are 26, and Save
+    is round-ended;
+  - rule 45, three speeds: the words move at the phone's own times, a word
+    sliding over in 240 ms and a fixed word settling from ink to grey over
+    1.2 s;
+  - rule 17, blue only means press: the wave is the press blue, as the
+    phone's is.
+  Words as you speak are grey and leaning, the phone's; what you typed stays
+  ink. At ■ the words stay where they were, grey, until they land: nothing
+  says "Thinking". The phone's spacing of 5, 7 and 11 sits on the scale's
+  4, 8 and 12. Enter still sends on the web.
 
 #### On Home
 

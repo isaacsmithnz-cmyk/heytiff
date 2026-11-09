@@ -148,3 +148,11 @@ it("says options the way the person counts them", () => {
   expect(sessionSystemPrompt()).toContain("the first is option 1, though the tools count from 0");
 });
 
+
+/* the 3465 review, 5 November 2026: a ducted gas heater replaced, under the
+   floor, and neither the gas nor the drain was asked or priced */
+it("asks who caps off the gas and takes out the flue, and where an underfloor indoor's drain goes", () => {
+  const p = sessionSystemPrompt();
+  expect(p).toMatch(/Replacing gas heating.*ask who caps off the gas and takes out the flue/);
+  expect(p).toMatch(/An indoor under the floor or in a subfloor: ask where its drain goes/);
+});

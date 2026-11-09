@@ -23,8 +23,10 @@ jest.mock("@/lib/auth0", () => ({
   },
 }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
+const setBirthdaySharing = jest.fn(async (..._a: unknown[]): Promise<{ shareBirthday: boolean; shareAge: boolean } | null> => ({ shareBirthday: true, shareAge: true }));
+jest.mock("@/lib/team/birthday-sharing", () => ({ setBirthdaySharing: (...a: unknown[]) => setBirthdaySharing(...a) }));
 
-import { saveMyProfileSection } from "../profile";
+import { saveMyProfileSection, setMyBirthdaySharing } from "../profile";
 
 beforeEach(() => {
   update.mockClear();
@@ -102,5 +104,32 @@ describe("saveMyProfileSection — section guard", () => {
   it("always stamps updated_at", async () => {
     await saveMyProfileSection("personal", { first_name: "Jordan" });
     expect(update.mock.calls[0][0]).toHaveProperty("updated_at");
+  });
+});
+
+/* YOUR BIRTHDAY TICKS on the web card (Isaac, 6 November 2026: "Staff have
+   to opt in, tick to share bday, tick to share age"): the phone's own
+   writer, on the session's own card, and nothing else in the change. */
+describe("setMyBirthdaySharing", () => {
+  beforeEach(() => setBirthdaySharing.mockClear());
+
+  it("(F) ticks the session's own card through the phone's writer, and answers with both ticks", async () => {
+    setBirthdaySharing.mockResolvedValueOnce({ shareBirthday: true, shareAge: false });
+    const res = await setMyBirthdaySharing({ shareBirthday: true });
+    expect(setBirthdaySharing).toHaveBeenCalledWith("org-1", "p1", { shareBirthday: true });
+    expect(res).toEqual({ ok: true, sharing: { shareBirthday: true, shareAge: false } });
+  });
+
+  it("(F) carries only the two ticks, and refuses a change with neither", async () => {
+    await setMyBirthdaySharing({ shareAge: true, staffId: "p2" } as never);
+    expect(setBirthdaySharing).toHaveBeenCalledWith("org-1", "p1", { shareAge: true });
+    setBirthdaySharing.mockClear();
+    expect(await setMyBirthdaySharing({ shareBirthday: "yes" } as never)).toEqual({ ok: false, error: "Nothing to change." });
+    expect(setBirthdaySharing).not.toHaveBeenCalled();
+  });
+
+  it("says so when the save fails", async () => {
+    setBirthdaySharing.mockResolvedValueOnce(null);
+    expect(await setMyBirthdaySharing({ shareBirthday: false })).toEqual({ ok: false, error: "Couldn't save that." });
   });
 });

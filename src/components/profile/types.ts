@@ -4,6 +4,7 @@ import type { Role } from "@/lib/roles-shared";
 import type { VehicleWithFacts } from "@/components/fleet/logic";
 import type { LicenceScanDetails, LicenceTermInput } from "@/lib/staff/licence-records";
 import type { WorkRightsCheckInput } from "@/lib/staff/work-rights-records";
+import type { BirthdaySharing } from "@/lib/team/birthday-sharing";
 
 /* Shared prop shapes for the staff card. Kept in their own module so the
    server pages can import the types without pulling a "use client" module
@@ -67,7 +68,15 @@ export type ProfileActions = {
       admin view of a colleague has no such thing to offer — see the nav
       filter in profile-screen. */
   onChangeSignInEmail?: (next: string) => Promise<EmailChangeOutcome>;
+  /** Your own Share my birthday and Share my age, in self mode only: the
+      action finds the card by the session, so a colleague's view has none. */
+  onShareBirthday?: ShareBirthday;
 };
+
+/** Saves your birthday ticks; answers with both as they now stand. */
+export type ShareBirthday = (
+  change: Partial<BirthdaySharing>,
+) => Promise<{ ok: true; sharing: BirthdaySharing } | { ok: false; error: string }>;
 
 /** "self" = My profile (own staff card). "admin" = Team viewing someone else. */
 export type ProfileMode = "self" | "admin";

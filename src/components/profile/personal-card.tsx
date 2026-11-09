@@ -12,7 +12,9 @@ import { preValidate } from "@/lib/staff/pre-validate";
 import { SectionCard, type GroupHead, type SectionBodyContext } from "./section-card";
 import { Detail, DetailPanel, DetailPanels } from "./detail";
 import { DateField, ScaledInput, Seg, SelectInput, TextInput } from "./fields";
-import type { ProfileMode, SaveResult, SaveSection } from "./types";
+import type { ProfileMode, SaveResult, SaveSection, ShareBirthday } from "./types";
+import type { BirthdaySharing } from "@/lib/team/birthday-sharing";
+import { BirthdayTicks } from "./birthday-ticks";
 import { EMPLOYMENT_TYPES } from "@/lib/staff/employment";
 import {
   BOOT_SCALES,
@@ -68,6 +70,8 @@ export function PersonalCard({
   focusField,
   aliases = [],
   onSaveAliases,
+  birthdaySharing = null,
+  onShareBirthday,
   onSave,
   group,
   only,
@@ -102,6 +106,11 @@ export function PersonalCard({
   /** Saves the "Also called" list. Handed in, like the sign-in move above;
       without it the row isn't drawn. */
   onSaveAliases?: (names: string[]) => Promise<SaveResult>;
+  /** Your own Share my birthday and Share my age (Isaac, 6 November 2026),
+      under the date of birth. Handed in on your own card only, as the
+      sign-in move is; without both, no row. */
+  birthdaySharing?: BirthdaySharing | null;
+  onShareBirthday?: ShareBirthday;
   onSave: SaveSection;
 }) {
   /* "ALSO CALLED" RIDES THE CARD'S OWN DRAFT as one comma list, so it is
@@ -244,6 +253,13 @@ export function PersonalCard({
               />
             }
           />
+          {/* YOUR BIRTHDAY, SHARED OR NOT, as the phone's card has it: two
+              ticks that save themselves (rule 32), so they are no part of
+              the card's Edit and stay live while it is open. Only with a
+              birthday on the card, as on the phone. */}
+          {onShareBirthday && birthdaySharing && profile?.birthday && (
+            <Detail label="Your birthday" value={<BirthdayTicks initial={birthdaySharing} onShare={onShareBirthday} />} />
+          )}
       </>
     );
     const contactRows = (

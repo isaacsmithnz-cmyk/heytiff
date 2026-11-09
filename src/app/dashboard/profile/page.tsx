@@ -16,6 +16,7 @@ import {
   removeMyWorkRightsCheck,
   saveMyProfileSection,
   saveMyAliases,
+  setMyBirthdaySharing,
   setMyPhoto,
   updateMyLicence,
 } from "@/app/actions/profile";
@@ -36,6 +37,7 @@ import { todayInAu } from "@/lib/au-dates";
 import { DEFAULT_EXPIRY_WINDOW } from "@/lib/expiry";
 import { orgExpiryWindow } from "@/lib/org/query";
 import { hasSignature } from "@/lib/certs/query";
+import { readBirthdaySharing } from "@/lib/team/birthday-sharing";
 
 /* My profile — your own staff card, and the values that fill in Team.
 
@@ -76,13 +78,15 @@ export default async function MyProfilePage({
      more reads for the whole wall rather than two per card, and both skipped
      entirely for someone with no licences on file. */
   const licenceIds = licences.map((l) => l.id);
-  const [licenceTerms, licenceDocuments, workRightsChecks, workRightsDocuments, aliases] =
+  const [licenceTerms, licenceDocuments, workRightsChecks, workRightsDocuments, aliases, birthdaySharing] =
     await Promise.all([
       orgId ? listLicenceTerms(orgId, profile.id) : Promise.resolve({}),
       orgId ? documentsForStaffLicences(orgId, licenceIds) : Promise.resolve(new Map()),
       orgId ? listWorkRightsChecks(orgId, profile.id) : Promise.resolve([]),
       orgId ? documentsForWorkRights(orgId, profile.id) : Promise.resolve([]),
       orgId ? aliasesOf(orgId, profile.id) : Promise.resolve([]),
+      /* your two birthday ticks, both off until you tick them */
+      orgId ? readBirthdaySharing(orgId, profile.id) : Promise.resolve(null),
     ]);
 
   /* a read that fails doesn't nag: Still to add only asks when it knows */
@@ -144,6 +148,7 @@ export default async function MyProfilePage({
       myPay={myPay}
       hasSignature={signed}
       aliases={aliases}
+      birthdaySharing={birthdaySharing}
       initialSec={typeof sec === "string" ? sec : undefined}
       // Whether address lookup is CONFIGURED, never the key: this is a server
       // component, so the boolean is all that crosses into the client tree.
@@ -166,6 +171,8 @@ export default async function MyProfilePage({
            colleague passes no such action, so the section cannot render
            there even if its tab somehow did. */
         onChangeSignInEmail: changeMySignInEmail,
+        /* self only too: the action ticks the session's own card */
+        onShareBirthday: setMyBirthdaySharing,
       }}
     />
   );

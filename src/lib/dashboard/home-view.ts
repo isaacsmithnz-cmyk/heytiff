@@ -7,7 +7,7 @@ import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { diaryHolds } from "./diary-conversation";
 import { railMissing } from "./day-rail";
 import { placeHomeList } from "./home-list";
-import { todayRows, todaySummary, type TodayView } from "./home-today";
+import { birthdayLines, todayRows, todaySummary, type TodayView } from "./home-today";
 import { mentionTasksOf } from "./mention-asks";
 import type { DashboardData } from "./page-data";
 import { columnOf, todoRows, type TodoRow } from "./todo";
@@ -17,8 +17,10 @@ import { plusDays } from "@/lib/workboard/dates";
 /** Home's three columns: Today, To do, and Your feed in place of Activity. */
 export type HomeView = { today: TodayView; todo: TodoRow[]; feed: FeedItem[] };
 
-export function todayView(rail: DashboardData["rail"]): TodayView {
-  const rows = todayRows(rail);
+/** Today: the rail's bookings and timed tasks, and the day's events and
+    shared birthdays (`day`, the phone's own read: ./event-mobile). */
+export function todayView(rail: DashboardData["rail"], day?: DashboardData["day"]): TodayView {
+  const rows = todayRows(rail, day?.events);
   const missing = railMissing(rail);
   const empty: TodayView["empty"] =
     missing === "link"
@@ -34,7 +36,13 @@ export function todayView(rail: DashboardData["rail"]): TodayView {
             line: rail.next ? `Next booked ${fmtAuWeekdayDayMonth(rail.next.dayISO)}` : null,
             action: null,
           };
-  return { rows, summary: todaySummary(rows, rail.blocks), empty, schedule: rail.enabled };
+  return {
+    rows,
+    summary: todaySummary(rows, rail.blocks),
+    empty,
+    schedule: rail.enabled,
+    birthdays: birthdayLines(day?.birthdays ?? []),
+  };
 }
 
 /** The old list, placed as the desk placed it: the diary's entries and asks
@@ -60,7 +68,7 @@ export function homeView(data: DashboardData): HomeView {
   const min = data.rail.nowMin === null ? 1439 : Math.max(0, Math.min(1439, data.rail.nowMin));
   const now = `${data.rail.dayISO} ${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}:00`;
   return {
-    today: todayView(data.rail),
+    today: todayView(data.rail, data.day),
     todo: rows.filter((r) => columnOf(r) !== "activity"),
     feed: yourFeed({
       rows: rows.filter((r) => columnOf(r) === "activity"),

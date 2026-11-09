@@ -10,6 +10,7 @@ import { Tooltip } from "@/components/parts/tooltip";
 import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { Button } from "@/components/parts/button";
 import { NoticeForm } from "@/components/making/notice-form";
+import { NoteToken } from "@/components/notes/note-token";
 import {
   castPollVote,
   commentOnNotice,
@@ -551,16 +552,23 @@ function CommentThread({
                 </div>
               )}
               <div className="nb-crow">
-                <input
+                <NoteToken
+                  as="field"
+                  rows={1}
+                  label="a comment"
+                  offer={false}
                   value={draft}
-                  maxLength={MAX_COMMENT}
                   placeholder="Say something — @ someone to get their attention"
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      send();
-                    }
+                  onChange={setDraft}
+                  box={{
+                    "aria-label": "A comment",
+                    maxLength: MAX_COMMENT,
+                    onKeyDown: (e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        send();
+                      }
+                    },
                   }}
                 />
                 <button

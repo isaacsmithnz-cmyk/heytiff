@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { NoteToken } from "@/components/notes/note-token";
 import { Tooltip } from "@/components/parts/tooltip";
 import {
   approveLeave,
@@ -94,10 +95,15 @@ function PendingCard({
         )}
         {declining && (
           <div className="lv-decline">
-            <input
+            <NoteToken
+              as="field"
+              rows={1}
+              label="the reason"
+              offer={false}
               placeholder="Why is this declined? They'll see it."
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              onChange={setReason}
+              box={{ "aria-label": "Why it's declined" }}
             />
             <button
               className="fl-btn primary"

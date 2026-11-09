@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { NoteToken } from "@/components/notes/note-token";
 import { resetTemplate, saveTemplate, type TemplateResult } from "@/app/actions/templates";
 import { PAYMENT_PRESET_KEYS, isDepositStage, suggestedDeposit, type PaymentPreset } from "@/lib/quotes/payment";
 import {
@@ -130,12 +131,14 @@ export function QuoteNotesEditor({ notes, changed }: { notes: QuoteNote[]; chang
               </label>
               <label className="tpl-field">
                 The words, a line each
-                <textarea
-                  className="wb2-fi"
+                <NoteToken
+                  as="field"
+                  label="the note's words"
+                  offer={false}
                   rows={4}
                   value={n.lines.join("\n")}
-                  maxLength={MAX_LINE * 6}
-                  onChange={(e) => setList(swap(list, i, { ...n, lines: e.target.value.split("\n") }))}
+                  box={{ maxLength: MAX_LINE * 6 }}
+                  onChange={(v) => setList(swap(list, i, { ...n, lines: v.split("\n") }))}
                 />
               </label>
               <div className="tpl-acts">
@@ -341,7 +344,7 @@ export function EmailEditor({ email, changed }: { email: DocumentsEmail; changed
       </label>
       <label className="tpl-field">
         Message
-        <textarea className="wb2-fi" rows={8} value={message} maxLength={MAX_MESSAGE} onChange={(e) => setMessage(e.target.value)} />
+        <NoteToken as="field" label="the message" offer={false} rows={8} value={message} box={{ maxLength: MAX_MESSAGE }} onChange={setMessage} />
       </label>
       <div className="tpl-fills">
         <span className="tpl-quiet">Add to the message:</span>

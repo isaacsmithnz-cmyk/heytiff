@@ -799,7 +799,16 @@ export function CertWizard({
                   />
                 )}
                 {r.answer === "na" && (
-                  <TextInput maxLength={MAX_REASON} aria-label={`Why requirement ${i + 1} doesn't apply`} placeholder="Why it doesn't apply" value={r.reason} onChange={(e) => setReq(i, { reason: e.target.value })} />
+                  <NoteToken
+                    as="field"
+                    rows={1}
+                    label={`why requirement ${i + 1} doesn't apply`}
+                    offer={false}
+                    box={{ maxLength: MAX_REASON, "aria-label": `Why requirement ${i + 1} doesn't apply` }}
+                    placeholder="Why it doesn't apply"
+                    value={r.reason}
+                    onChange={(reason) => setReq(i, { reason })}
+                  />
                 )}
               </li>
             ))}

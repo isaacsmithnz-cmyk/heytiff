@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button, IconButton, LinkButton } from "@/components/parts/button";
 import { Dialog } from "@/components/parts/dialog";
 import { Field, TextInput } from "@/components/parts/field";
+import { NoteToken } from "@/components/notes/note-token";
 import { Dot, StateWord, type Hue } from "@/components/parts/state";
 import { Wrong } from "@/components/parts/states";
 import { Tray } from "@/components/parts/tabs";
@@ -621,7 +622,7 @@ function UnavailableDialog({
           </Field>
         </div>
         <Field label="Why (optional)">
-          <TextInput value={note} maxLength={200} placeholder="Away, a second job" onChange={(e) => setNote(e.target.value)} />
+          <NoteToken as="field" rows={1} label="why" offer={false} value={note} placeholder="Away, a second job" onChange={setNote} box={{ maxLength: 200 }} />
         </Field>
       </div>
     </Dialog>

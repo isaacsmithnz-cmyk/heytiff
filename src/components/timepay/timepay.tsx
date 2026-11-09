@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { Icon } from "@/components/shell/icon";
+import { NoteToken } from "@/components/notes/note-token";
 import {
   type Derived,
   type Settings,
@@ -175,10 +176,15 @@ function SendBackForm({
         Send back to {name.split(" ")[0]} — ask them to explain
       </div>
       <div className="qrow">
-        <input
+        <NoteToken
+          as="field"
+          rows={1}
+          label="the question"
+          offer={false}
           placeholder="e.g. Confirm the overtime on Tue — what ran late?"
           value={question}
-          onChange={(e) => setQuestion(e.target.value)}
+          onChange={setQuestion}
+          box={{ "aria-label": `Ask ${name.split(" ")[0]} to explain` }}
         />
         <button className="qsend" disabled={!question.trim()} onClick={() => onSend(question)}>
           <Icon name="send" size={13} />

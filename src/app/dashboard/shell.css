@@ -208,8 +208,7 @@
 .fg .nb-cform { margin-top:12px; }
 .fg .nb-creplyto { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; color:var(--gray400); margin-bottom:8px; }
 .fg .nb-crow { display:flex; align-items:center; gap:8px; }
-.fg .nb-crow input { flex:1; min-width:0; height:38px; padding:0 12px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--paper); font-family:var(--font); font-size:14px; font-weight:500; color:var(--ink); }
-.fg .nb-crow input:focus { outline:none; border-color:var(--ink);  box-shadow:var(--ring); }
+.fg .nb-crow > .say { flex:1; }
 
 /* reactions: given ones first, the palette behind one button */
 .fg .nb-reacts { display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin-top:12px; }
@@ -1983,9 +1982,7 @@
 .fg .tpr .card.sending .qform { display:block; }
 .fg .tpr .qform .ql { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--warn-t); margin-bottom:12px; }
 .fg .tpr .qform .qrow { display:flex; gap:8px; }
-.fg .tpr .qform input { flex:1; height:42px; padding:0 16px; border-radius:var(--r-control); border:1px solid var(--line); font:inherit; font-size:13px; font-weight:600; color:var(--ink); background:var(--paper); outline:none; }
-.fg .tpr .qform input:focus { border-color:var(--warn);  box-shadow:var(--ring-warn); }
-.fg .tpr .qform input::placeholder { color:var(--gray400); }
+.fg .tpr .qform .qrow > .say { flex:1; }
 .fg .tpr .qform .qsend { display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 16px; border-radius:var(--r-button); font-size:13px; font-weight:700; background:var(--warn); color:var(--on-amber); }
 .fg .tpr .qform .qcancel { height:42px; padding:0 12px; border-radius:var(--r-button); font-size:13px; font-weight:700; color:var(--gray600); background:var(--tint); }
 
@@ -2388,7 +2385,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .lv-pmain em { display:flex; align-items:center; gap:8px; font-style:normal; font-size:13px; font-weight:600; color:var(--gray500); margin-top:4px; }
 .fg .lv-pacts { display:flex; gap:8px; }
 .fg .lv-decline { display:flex; gap:8px; margin-top:8px; }
-.fg .lv-decline input { flex:1; height:34px; padding:0 12px; border-radius:var(--r-control); border:1px solid var(--line); font-family:var(--font); font-size:13px; }
+.fg .lv-decline > .say { flex:1; }
 .fg .lv-caldate { min-width:120px; font-size:13px; font-weight:700; color:var(--ink); }
 .fg .lv-calnames { display:flex; flex-wrap:wrap; gap:4px; }
 .fg .lv-callegend { margin:0; padding:12px 16px; font-size:12px; font-weight:600; line-height:1.55; color:var(--gray400); }
@@ -2915,7 +2912,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 /* The reason sits inline under the claim it belongs to — asking for it in a
    modal would separate the sentence from the thing it is about. */
 .fg .xr-decline { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid var(--line); }
-.fg .xr-decline .inp { flex:1 1 200px; height:38px; }
+.fg .xr-decline > .say { flex:1 1 200px; }
 
 /* A claim with no receipt is a judgement call, and the approver should know
    that's what they're making. */
@@ -3903,7 +3900,6 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .fg .lp-ed:has(> .lp-inc) > .lp-edit { top:12px; right:16px; }
 .fg .lp-edit:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
 .fg .lp-box { display:flex; flex-direction:column; gap:8px; }
-.fg .lp-box textarea { width:100%; min-height:96px; padding:8px 12px; font:inherit; font-size:13px; line-height:1.5; resize:vertical; }
 .fg .lp-notepick { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:4px; font-size:13px; }
 .fg .lp-notepick label { display:flex; align-items:center; gap:8px; }
 .fg .ql-checks { list-style:none; margin:0 0 16px; padding:0; display:flex; flex-direction:column; }
@@ -4622,11 +4618,11 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-blist li { display:flex; align-items:flex-start; gap:8px; }
 .wb2-bdot { flex:none; width:4px; height:4px; margin-left:4px; margin-top:12px; border-radius:50%;
   background:rgba(5,5,5,.3); }
-.wb2-bin { flex:1; min-width:0; font:inherit; font-size:13px; font-weight:600; color:var(--gray700);
-  background:none; border:1px solid transparent; border-radius:var(--r-control); padding:4px 8px;
-  line-height:1.55; resize:none; overflow:hidden; }
-.wb2-bin:hover { border-color:var(--line); }
-.wb2-bin:focus { outline:none; background:var(--paper); border-color:var(--info-t); box-shadow:var(--ring);; }
+/* editing, each bullet is the phone's box of one line (note-token), the dot
+   and the × level with it */
+.wb2-blist li > .say { flex:1; }
+.wb2-blist:not(.read) li { align-items:center; }
+.wb2-blist:not(.read) .wb2-bdot, .wb2-blist:not(.read) li > .wb2-pkx { margin-top:0; }
 .wb2-blist li > .wb2-pkx { margin-top:4px; }
 .wb2-blist li:hover .wb2-pkx, .wb2-blist .wb2-pkx:focus-visible { opacity:1; }
 .wb2-blist.read li { padding:2px 0; }
@@ -6389,7 +6385,7 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .pj-row .pj-rm { opacity:0; transition:opacity var(--t-fast) var(--ease); }
 .fg .pj-row:hover .pj-rm, .fg .pj-row:focus-within .pj-rm { opacity:1; }
 .fg .pj-adder { flex:1 1 auto; display:flex; align-items:center; gap:8px; min-width:0; }
-.fg .pj-adder .pt-input, .fg .pj-compose .pt-input, .fg .pj-row > .pt-input { flex:1 1 auto; min-width:0; }
+.fg .pj-adder > .say, .fg .pj-compose .pt-input, .fg .pj-row > .pt-input { flex:1 1 auto; min-width:0; }
 .fg .pj-compose { display:flex; gap:8px; margin-bottom:12px; }
 .fg .pj-notes { margin:0; padding-top:12px; border-top:1px solid var(--line); font-size:16px; line-height:24px; color:var(--ink); white-space:pre-wrap; overflow-wrap:anywhere; }
 .fg .pj-notes-edit { gap:12px; }

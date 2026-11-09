@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type KeyboardEventHandler, type RefObject } from "react";
+import { useRef, useState, type FocusEventHandler, type KeyboardEventHandler, type RefObject } from "react";
 import { Icon } from "@/components/shell/icon";
 import { Button, IconButton } from "@/components/parts/button";
 import { useFieldWiring } from "@/components/parts/field";
@@ -71,6 +71,8 @@ export type BoxAttrs = {
   "data-autofocus"?: boolean;
   maxLength?: number;
   onKeyDown?: KeyboardEventHandler<HTMLTextAreaElement>;
+  /** leaving the box: a bullet emptied comes off its list */
+  onBlur?: FocusEventHandler<HTMLTextAreaElement>;
 };
 
 function Strip({

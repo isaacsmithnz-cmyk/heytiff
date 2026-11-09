@@ -83,7 +83,7 @@ export function BlockForm({ onClose, onBlock }: Close & { onBlock: (reason: stri
         <TextInput value={on} onChange={(e) => setOn(e.target.value)} placeholder="The builder, the sparky, council" data-autofocus />
       </Field>
       <Field label="Why">
-        <TextInput value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Switchboard upgrade not done" />
+        <NoteToken as="field" rows={1} label="why" offer={false} value={reason} onChange={setReason} placeholder="Switchboard upgrade not done" />
       </Field>
     </Form>
   );
@@ -336,7 +336,7 @@ export function EquipmentForm({ onClose, onAdd }: Close & { onAdd: (input: Equip
         </Field>
       </div>
       <Field label="Where on site">
-        <TextInput value={locationNote} onChange={(e) => setLocationNote(e.target.value)} placeholder="Roof space above hallway" />
+        <NoteToken as="field" rows={1} label="where on site" offer={false} value={locationNote} onChange={setLocationNote} placeholder="Roof space above hallway" />
       </Field>
     </Form>
   );

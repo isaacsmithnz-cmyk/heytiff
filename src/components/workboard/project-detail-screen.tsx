@@ -771,16 +771,21 @@ function ItemAdder({ section, busy, onAdd, onCancel }: { section: string; busy: 
     if (label.trim()) onAdd(label.trim());
   };
   return (
-    <span className="pj-adder">
-      <TextInput
-        size={32}
-        autoFocus
-        aria-label={`A new item under ${section}`}
+    <div className="pj-adder">
+      <NoteToken
+        as="field"
+        rows={1}
+        label={`a new item under ${section}`}
+        offer={false}
         value={label}
-        onChange={(e) => setLabel(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") add();
-          if (e.key === "Escape") onCancel();
+        onChange={setLabel}
+        box={{
+          autoFocus: true,
+          "aria-label": `A new item under ${section}`,
+          onKeyDown: (e) => {
+            if (e.key === "Enter") add();
+            if (e.key === "Escape") onCancel();
+          },
         }}
       />
       <Button kind="quiet" size={32} onClick={onCancel}>
@@ -789,7 +794,7 @@ function ItemAdder({ section, busy, onAdd, onCancel }: { section: string; busy: 
       <Button size={32} disabled={busy || !label.trim()} onClick={add}>
         Add item
       </Button>
-    </span>
+    </div>
   );
 }
 

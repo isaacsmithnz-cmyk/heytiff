@@ -21,7 +21,13 @@ jest.mock("next/navigation", () => ({
 }));
 
 jest.mock("@/components/notes/note-token", () => ({
-  NoteToken: ({ as }: { as?: string }) => <div data-testid="capture" data-as={as} />,
+  /* a box in a form stands in as a plain box its Field's label names */
+  NoteToken: function NoteToken(p: { as?: string; value?: string; onChange?: (v: string) => void; box?: { "aria-label"?: string } }) {
+    const { useFieldWiring } = jest.requireActual("@/components/parts/field");
+    const wired = useFieldWiring({});
+    if (p.as !== "field") return <div data-testid="capture" data-as={p.as} />;
+    return <textarea id={wired.id} aria-label={p.box?.["aria-label"]} value={p.value ?? ""} onChange={(e) => p.onChange?.(e.target.value)} />;
+  },
 }));
 jest.mock("../board/project-trip-sheet", () => ({
   ProjectTripSheet: ({ visit }: { visit: { label: string } }) => (

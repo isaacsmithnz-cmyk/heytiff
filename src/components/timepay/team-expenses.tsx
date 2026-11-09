@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { NoteToken } from "@/components/notes/note-token";
 import { fmtAuWeekdayDate } from "@/lib/au-dates";
 import {
   CATEGORY_LABEL,
@@ -148,13 +149,15 @@ export function TeamExpenses({
 
                     {declining === c.id && (
                       <div className="xr-decline">
-                        <input
-                          className="inp"
-                          autoFocus
+                        <NoteToken
+                          as="field"
+                          rows={1}
+                          label="the reason"
+                          offer={false}
                           value={reason}
-                          onChange={(e) => setReason(e.target.value)}
+                          onChange={setReason}
                           placeholder="Why is it being declined?"
-                          aria-label={`Reason for declining ${c.staffName}'s claim`}
+                          box={{ autoFocus: true, "aria-label": `Reason for declining ${c.staffName}'s claim` }}
                         />
                         <button
                           className="xr-btn bad"

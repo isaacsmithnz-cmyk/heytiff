@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { Letterhead } from "@/components/org/letterhead";
+import { NoteToken } from "@/components/notes/note-token";
 import { useOrgBrand } from "@/components/studio/summary/use-org-brand";
 import type { OrgBrand } from "@/lib/org/brand";
 import { capacityOf } from "@/lib/quotes/brands";
@@ -67,7 +68,7 @@ function WordsBox({ label, value, rows, onSave, onCancel, busy }: { label: strin
   const [typed, setTyped] = useState(value);
   return (
     <div className="lp-box">
-      <textarea className="wb2-fi" rows={rows} value={typed} aria-label={label} onChange={(e) => setTyped(e.target.value)} />
+      <NoteToken as="field" label={label} offer={false} rows={rows} value={typed} onChange={setTyped} box={{ "aria-label": label }} />
       <div className="wb2-jqacts">
         <button type="button" className="pbtn ghost sm" onClick={onCancel}>
           Cancel
@@ -421,7 +422,7 @@ function IntroBox({ title, intro, busy, onSave, onCancel }: { title: string; int
   return (
     <div className="lp-box">
       <input className="wb2-fi" value={t} aria-label="The proposal's title" onChange={(e) => setT(e.target.value)} />
-      <textarea className="wb2-fi" rows={5} value={words} aria-label="The introduction" onChange={(e) => setWords(e.target.value)} />
+      <NoteToken as="field" label="the introduction" offer={false} rows={5} value={words} onChange={setWords} box={{ "aria-label": "The introduction" }} />
       <div className="wb2-jqacts">
         <button type="button" className="pbtn ghost sm" onClick={onCancel}>
           Cancel

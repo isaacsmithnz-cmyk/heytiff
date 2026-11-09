@@ -1421,9 +1421,10 @@ export function VisitSheet({
 
 /* An editable bullet that shows the WHOLE note. It was an <input>, which
    clips at the column edge — the note you couldn't read was one you'd already
-   written. A textarea that sizes itself to its content reads like the bullet
-   it's editing, and Enter still commits rather than opening a second line:
-   one line is one note, which is the whole point of the list. */
+   written. The phone's box of one line (Isaac, 9 November 2026: "I want the
+   boxes to pretty much be identical"): it grows with its words, Enter still
+   commits rather than opening a second line — one line is one note, which is
+   the whole point of the list — and the microphone beside it says it again. */
 function NoteRow({
   value,
   index,
@@ -1436,28 +1437,21 @@ function NoteRow({
   /** Emptying a bullet takes it off the list, same as the ×. */
   onBlank: () => void;
 }) {
-  const ref = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [value]);
-
   return (
-    <textarea
-      ref={ref}
-      className="wb2-bin"
+    <NoteToken
+      as="field"
       rows={1}
+      label={`note ${index + 1}`}
+      offer={false}
       value={value}
-      aria-label={`Note ${index + 1}`}
-      onChange={(e) => onChange(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") e.preventDefault();
-      }}
-      onBlur={() => {
-        if (value.trim() === "") onBlank();
+      onChange={onChange}
+      box={{
+        "aria-label": `Note ${index + 1}`,
+        onBlur: (e) => {
+          /* not when the press is its own microphone's */
+          if (e.relatedTarget instanceof Node && e.currentTarget.closest(".say")?.contains(e.relatedTarget)) return;
+          if (value.trim() === "") onBlank();
+        },
       }}
     />
   );

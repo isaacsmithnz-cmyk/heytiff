@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Dialog } from "@/components/parts/dialog";
 import { Button } from "@/components/parts/button";
 import { Field, TextInput } from "@/components/parts/field";
+import { NoteToken } from "@/components/notes/note-token";
 import { RangeCalendar, addDay, dayWords, pickDay, spanEnd, weekdayIndex, weekdayWord, type DaySpan } from "@/components/parts/range-calendar";
 import { WindowsContext } from "@/components/records/records-context";
 import { cancelLeave, requestLeave } from "@/app/actions/leave";
@@ -301,7 +302,7 @@ export function LeaveForm({
             />
           </Field>
           <Field label="Note">
-            <TextInput placeholder="Optional" value={note} onChange={(e) => setNote(e.target.value)} />
+            <NoteToken as="field" rows={1} label="the note" offer={false} placeholder="Optional" value={note} onChange={setNote} />
           </Field>
         </div>
         {wantsCert && (

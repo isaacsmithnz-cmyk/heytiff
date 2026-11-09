@@ -264,6 +264,7 @@ import {
   drainSm8Hooks,
   isReady,
   nextReadyAt,
+  NOTES_SETTLE_MS,
   planDrainRound,
   syncWants,
   type QueueRow,
@@ -964,21 +965,32 @@ describe("drainSm8Hooks", () => {
     });
   });
 
-  it("a notes write settles the asks, within the drain's budget (S4)", async () => {
+  it("a notes write settles the asks with room for two reads, within the function's deadline (S4)", async () => {
     db.sm8_webhook_pings = [queue("job_notes", U(1))];
     await drain({ maxMs: 120_000 });
-    expect(settleMentionAsks).toHaveBeenCalledWith(ORG, { budgetMs: 20_000 });
+    expect(settleMentionAsks).toHaveBeenCalledWith(ORG, { budgetMs: 125_000 });
     settleMentionAsks.mockClear();
+    // the drain's own budget doesn't starve it (10 November 2026: at 20 s, a 60 s read never fitted)
     db.sm8_webhook_pings = [queue("job_notes", U(2))];
-    // a read that took 10 s of a 25 s budget leaves the settle 15 s
     readTakes = [10_000];
     await drain({ maxMs: 25_000 });
-    expect(settleMentionAsks).toHaveBeenCalledWith(ORG, { budgetMs: 15_000 });
+    expect(settleMentionAsks).toHaveBeenCalledWith(ORG, { budgetMs: 125_000 });
+    settleMentionAsks.mockClear();
+    // the function's deadline does: a read that took 10 s of the 100 s left leaves the settle 90 s
+    db.sm8_webhook_pings = [queue("job_notes", U(3))];
+    readTakes = [10_000];
+    await drain({ deadline: clock + 100_000 });
+    expect(settleMentionAsks).toHaveBeenCalledWith(ORG, { budgetMs: 90_000 });
     // no note written, no settle
     settleMentionAsks.mockClear();
-    db.sm8_webhook_pings = [queue("jobs", U(3))];
+    db.sm8_webhook_pings = [queue("jobs", U(4))];
     await drain();
     expect(settleMentionAsks).not.toHaveBeenCalled();
+  });
+
+  it("the settle's budget fits two whole reads, the only reads it will start", () => {
+    const { READ_TIMEOUT_MS } = jest.requireActual<typeof import("@/lib/workboard/mention-brain")>("@/lib/workboard/mention-brain");
+    expect(NOTES_SETTLE_MS).toBeGreaterThanOrEqual(2 * READ_TIMEOUT_MS);
   });
 });
 

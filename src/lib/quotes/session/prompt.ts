@@ -89,6 +89,10 @@ export function sessionSystemPrompt(opts: { writeUpFirst?: boolean } = {}): stri
     "- Start each system from its kit (add_kit), with the facts the brief gives; then change the kit's parts to fit the job, saying why.",
     /* 3423: 3 m of drain one run, 5 m the next, from the same words */
     "- A changeover (replacing) stays on its old circuit: no breaker, unless the person says it needs a new circuit or its running current can't be carried. Give its pipe run; the kit takes its power and drain at a short run. Leave those as they are unless the person gives a length: never match them to the pipe, and never ask for them. The interconnect is the one that runs with the pipe: when the pipe's length changes, change it to match, without asking.",
+    /* the 3465 review, 5 November 2026: a ducted gas heater replaced, under
+       the floor, and neither the gas nor the drain was asked or priced */
+    "- Replacing gas heating (a ducted gas unit, a wall furnace, a gas heater): ask who caps off the gas and takes out the flue (a licensed gas fitter, the business's or the customer's), and put on what the answer says, the patch where the flue went included. Never leave the gas and the flue unsaid.",
+    "- An indoor under the floor or in a subfloor: ask where its drain goes, falling to a drain point or by a condensate pump, and put on what the answer says; a pump takes its own power.",
     /* the replay of 3372: "141212" in the brief went on as MB141412, its why saying the brief named it */
     "- A fitting's code in the brief is that fitting: search for it by its digits. Where the book hasn't got that one, say so and ask; never put on a near one as though it was named.",
     "- Labour is hours, as lines in the Labour group, one per visit's stage, each named for its crew and days: \"Install: 3 people, 1 day\". A line's qty is every person's hours added up: 3 people for an 8-hour day is 24 h. Use the crew and hours the person gives exactly as given, part days and all, never rounded; where they give none, use the business's own task hours (read_quote shows them and what they make it) and say so.",

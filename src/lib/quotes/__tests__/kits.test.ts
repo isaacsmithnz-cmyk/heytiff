@@ -77,7 +77,7 @@ it("the ducted kit adds flex and an outlet to each outlet, and a return", () => 
   expect(KITS.ducted.parts.map((p) => p.key)).toEqual([
     "pair-coil", "interconnect", "power", "breaker", "isolator", "mount", "drain", "trunking",
     "supply-plenum", "return-plenum", "flex", "outlets", "ys", "reducers", "floor-grilles", "boots", "hangers", "return", "return-box", "controller",
-    "zone-interface", "zone-receiver", "zone-sensors", "zone-wifi",
+    "zone-interface", "zone-dampers", "zone-receiver", "zone-sensors", "zone-wifi",
   ]);
   const lines = expandKit("ducted", { ...facts, outlets: 5, outletMm: 250 }, [...book, product("VORTEX FLEX R1.0 250MM X 6M", 3045), product("CONE DIFFUSER 250MM", 1887)], at);
   expect(lines.find((l) => l.name === "VORTEX FLEX R1.0 250MM X 6M")).toMatchObject({ qty: 5, costCents: 3045 });
@@ -431,6 +431,19 @@ describe("a zoned ducted system", () => {
     expect(many.find((l) => l.name === "Zone interface")).toMatchObject({ source: "unknown", why: "None of the maker's zone interfaces takes this many zones" });
     /* not zoned: no zone line at all */
     expect(expandKit("ducted", facts, book, at).some((l) => l.name === "Zone interface")).toBe(false);
+  });
+
+  /* the 3465 review, 5 November 2026: a zoned kit added no dampers */
+  it("puts a damper in every zone's duct, sized only where a zone is one outlet of a size given", () => {
+    const dbook = [...book, product("MOTORISED ZONE DAMPER 200MM", 9800), product("MOTORISED ZONE DAMPER 250MM", 10900)];
+    const one = expandKit("ducted", { ...facts, zones: 4, outlets: 4, outletMm: 200 }, dbook, at);
+    expect(one.find((l) => /DAMPER/.test(l.name ?? ""))).toMatchObject({ name: "MOTORISED ZONE DAMPER 200MM", qty: 4, why: expect.stringMatching(/^one in every zone's duct, each zone one 200 mm outlet/) });
+    /* zones over several outlets: each zone's duct isn't known, so a line to size */
+    const many = expandKit("ducted", { ...facts, zones: 3, outlets: 6, outletMm: 200 }, dbook, at);
+    expect(many.find((l) => l.name === "Zone damper")).toMatchObject({ qty: 3, source: "unknown", why: "Needs each zone's duct size" });
+    expect(stillToSize(many).map((x) => x.name)).toContain("Zone damper");
+    /* not zoned: none */
+    expect(expandKit("ducted", { ...facts, outlets: 4, outletMm: 200 }, dbook, at).some((l) => /damper/i.test(l.name ?? ""))).toBe(false);
   });
 
   it("reads the zones, the control and WiFi from what Tiff or a person gave", () => {

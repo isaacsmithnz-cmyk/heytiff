@@ -595,6 +595,25 @@ const DUCTED: KitPart[] = [
         ? { qty: 1, unit: "", why: `${f.zoning.zones} zones, ${f.zoning.control === "temperature" ? "by temperature" : "on and off"}: ${f.zoning.from}` }
         : { qty: 1, unit: "", why: `${f.zones} zones` },
   },
+  /* ZONED: a damper in every zone's duct, which opens and closes the zone
+     (the 3465 review, 5 November 2026: a zoned kit added none). Its size is
+     the zone's duct, so only at a size the brief gives, as the boots: a zone
+     of one outlet is that outlet's duct; otherwise a line to size */
+  {
+    key: "zone-dampers",
+    rule: "One in every zone's duct",
+    sizedBy: "The zone's duct",
+    group: "Ductwork and grilles",
+    duct: true,
+    name: "Zone damper",
+    needs: "Needs each zone's duct size",
+    skip: (f) => !zonesOf(f),
+    search: (f) => (f.outletMm && f.outlets && zonesOf(f) === f.outlets ? { text: "damper", sizeMm: f.outletMm } : null),
+    qty: (f) => {
+      const n = zonesOf(f)!;
+      return { qty: n, unit: "", why: f.outletMm && f.outlets === n ? `one in every zone's duct, each zone one ${f.outletMm} mm outlet` : `one in every zone's duct, ${n} zones` };
+    },
+  },
   {
     key: "zone-receiver",
     rule: "One for the wireless sensors",
@@ -623,6 +642,11 @@ const DUCTED: KitPart[] = [
     qty: (f) => ({ qty: 1, unit: "", why: `the zone system's WiFi: ${f.zoning!.from}` }),
   },
 ];
+
+/** How many zones: as asked for, or as the maker's zone system was read for. */
+function zonesOf(f: KitFacts): number | null {
+  return f.zones ?? f.zoning?.zones ?? null;
+}
 
 /* inches, as the book names copper */
 const INCH: [number, string][] = [

@@ -113,7 +113,7 @@ async function fold(deps: TurnDeps, state: SessionState, at: number): Promise<{ 
     .map((m) =>
       m.content
         .map((b) =>
-          isText(b) ? `${m.role === "user" ? "Them" : "You"}: ${b.text}` : isToolUse(b) ? `You used ${b.name}: ${JSON.stringify(b.input)}` : b.type === "tool_result" ? `It answered: ${resultWords(b as ToolResultBlock).slice(0, 2000)}` : ""
+          isText(b) ? `${m.role === "user" ? "The business" : "You"}: ${b.text}` : isToolUse(b) ? `You used ${b.name}: ${JSON.stringify(b.input)}` : b.type === "tool_result" ? `It answered: ${resultWords(b as ToolResultBlock).slice(0, 2000)}` : ""
         )
         .filter(Boolean)
         .join("\n")

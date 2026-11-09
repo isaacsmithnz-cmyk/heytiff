@@ -6,7 +6,8 @@
    the turn let go however it ends. */
 jest.mock("server-only", () => ({}));
 const readEngine = jest.fn(async () => "lines");
-jest.mock("../../lines-server", () => ({ readEngine: () => readEngine() }));
+const namesBySignIn = jest.fn(async (): Promise<Record<string, string>> => ({}));
+jest.mock("../../lines-server", () => ({ readEngine: () => readEngine(), namesBySignIn: (...a: unknown[]) => (namesBySignIn as jest.Mock)(...a) }));
 const beginTurn = jest.fn();
 const addEvents = jest.fn(async () => undefined);
 const saveRound = jest.fn(async () => true);
@@ -74,6 +75,19 @@ it("puts the person's words in the thread at once, opens with the job's, and run
   /* the session's cost runs on from what it had spent */
   expect(saveRound).toHaveBeenLastCalledWith("org", "s1", "t1", expect.anything(), 1.5, expect.anything());
   expect(endTurn).toHaveBeenCalledWith("s1", "t1");
+});
+
+/* the 3465 review, 5 November 2026: with no name, her notes gave Isaac's
+   words to Luke, the tech the job's brief names */
+it("names who is speaking before their words", async () => {
+  namesBySignIn.mockResolvedValueOnce({ u1: "Isaac Smith" });
+  const model = scripted([{ content: [{ type: "text", text: "On it." }], stopReason: "end_turn" }]);
+  const started = await startTurn("org", "job", "u1", "Make it 14 kW", { modelName: "m", model, brief: "Ducted, 2 Neridah St." });
+  await (started as Extract<typeof started, { ok: true }>).run();
+  expect(namesBySignIn).toHaveBeenCalledWith("org", ["u1"]);
+  expect(model.calls[0]!.messages[0]!.content[0]).toEqual({ type: "text", text: "<the-job>\nDucted, 2 Neridah St.\n</the-job>\n\nIsaac Smith says:\nMake it 14 kW" });
+  /* the thread keeps their words as they said them */
+  expect(addEvents).toHaveBeenCalledWith("org", "s1", "t1", [{ kind: "message", author: "u1", body: { text: "Make it 14 kW", read: true } }]);
 });
 
 it("lets the turn go when it fails", async () => {

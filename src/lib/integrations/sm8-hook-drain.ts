@@ -108,8 +108,12 @@ const PINGS = "sm8_webhook_pings";
 const QUEUE_READ_MAX = 1_000;
 /** Handed rows put back in the queue this many to a request. */
 const UNHAND_CHUNK = 100;
-/** The asks a notes write brings in are settled in at most this long. */
-const NOTES_SETTLE_MS = 20_000;
+/** The asks a notes write brings in are settled in at most this long: room for two reads, each of which the settle
+    starts only while its whole READ_TIMEOUT_MS (mention-brain: 60 s) still fits. At 20 s no read ever fitted, so a
+    mention reached the mirror at once and waited for a page load or the morning's sync to become a task and a push
+    (Isaac, 10 November 2026: Luke's 7:57 ask of him on 3481 told him nothing: "I didn't get a notification on TIFF
+    about it"). Taken from the function's deadline, not the drain's own budget, so a long drain can't starve it. */
+export const NOTES_SETTLE_MS = 125_000;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -323,7 +327,7 @@ export async function drainSm8Hooks(
     if (ctx.wroteNotes) {
       /* a note may ask somebody something: the asks it brings in are made
          tasks now, in what is left, rather than on the next sync */
-      const budgetMs = Math.min(NOTES_SETTLE_MS, ctx.end - clock());
+      const budgetMs = Math.min(NOTES_SETTLE_MS, ctx.deadline - clock());
       if (budgetMs > 0) await settleMentionAsks(orgId, { budgetMs });
     }
   } catch (err) {

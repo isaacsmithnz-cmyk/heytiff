@@ -345,13 +345,17 @@ export async function sendLeaveRow(
     let httpStatus: number | null = null;
     const held = (f: Finish): Finish => ({ ...f, httpStatus: f.httpStatus ?? httpStatus, verifyUuids: [...reached] });
     const seen = new Set<string>();
+    const off: string[] = [];
     for (const target of targets) {
       const key = target.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
       const r = await readOne(target);
       if ("finish" in r) return held(r.finish);
-      if (!r.got.found || r.got.availability.active !== 1) continue;
+      if (!r.got.found || r.got.availability.active !== 1) {
+        off.push(target);
+        continue;
+      }
       /* still on the board after a DELETE of ours reached it: never a
          second one by itself */
       if (reached.has(key)) return held(done("failed", LEAVE_WORDS.row.stillThere));
@@ -363,16 +367,30 @@ export async function sendLeaveRow(
       reached.add(key);
       if (res.outcome.kind === "created" || res.status === 404) {
         const back = await readOne(target, true);
+        if (!("finish" in back) && back.got.found && back.got.availability.active === 1) return held(done("failed", LEAVE_WORDS.row.stillThere, { httpStatus: res.status }));
         /* the DELETE answered: a read that fails counts it off */
-        if ("finish" in back) continue;
-        if (back.got.found && back.got.availability.active === 1) return held(done("failed", LEAVE_WORDS.row.stillThere, { httpStatus: res.status }));
+        off.push(target);
         continue;
       }
       const v = verdictFor(res.outcome, attempts, ctx());
       return held({ ...fromVerdict(v, res.status), remote: res.remote });
     }
+    await mirrorOff(orgId, off);
     return done("sent", null, { httpStatus, verifyUuids: [...reached] });
   }
+}
+
+/* OFF THE BOARD IN HEYTIFF AT ONCE (Isaac, 9 November 2026: "Fix it", to a
+   block taken off whose ServiceM8 copy came straight back on the Schedule):
+   the Schedule draws ServiceM8's time off from its mirror, sm8_availability,
+   which only a sync refreshes. Leave this DELETE has seen off the board is
+   marked off in the mirror too, as the next sync would mark it. Best effort:
+   a mirror that can't be written waits for that sync, and the send stands. */
+async function mirrorOff(orgId: string, uuids: string[]): Promise<void> {
+  if (uuids.length === 0) return;
+  const both = [...new Set(uuids.flatMap((u) => [u, u.toLowerCase()]))];
+  const { error } = await supabaseAdmin.from("sm8_availability").update({ active: 0 }).eq("org_id", orgId).in("uuid", both);
+  if (error) console.warn(`[sm8] leave off the board, but its mirror wasn't marked off: ${error.message}`);
 }
 
 /** The name the create goes under, off its payload. */

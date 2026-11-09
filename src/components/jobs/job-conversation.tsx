@@ -24,6 +24,7 @@ import { RECEIPT_ACCEPT } from "@/lib/expenses/claim";
 import { fmtAuTime } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { removeJobNote, saveJobNote } from "@/app/actions/job-notes";
+import type { OurJobNote } from "@/lib/workboard/job-notes-query";
 import { WindowsContext } from "@/components/records/records-context";
 import { emptyStoryLine, filterStory, fmtStoryMinutes, type StoryEntry, type StoryFilter } from "@/lib/workboard/job-story";
 import { conversationDays, stampClock, type JobNoteTalk, type MadeCard, type MadeKind } from "@/lib/jobs/job-conversation";
@@ -118,6 +119,12 @@ export type ConversationDiary = {
   onMarkDone?: Doors["onMarkDone"];
   onUndoDone?: Doors["onUndoDone"];
   onConfirm?: Doors["onConfirm"];
+  /** A note saved with Save, and the same note taken back by the toast's
+      Undo. Activity is drawn from the card's own notes, not from this
+      conversation, so the card is told of each (Isaac's walk of 9 November
+      2026: a saved note didn't show until a reload). */
+  onNoteSaved?: (note: OurJobNote) => void;
+  onNoteUndone?: (id: string) => void;
   /** The Quote tab, from a Quote sent entry. */
   onQuote?: () => void;
   /** The job's number, for that entry's button: "Open quote #3385". */
@@ -361,8 +368,14 @@ export function JobConversation({
     void saveJobNote(jobUuid, words, { id: crypto.randomUUID() })
       .then((note) => {
         convo.setDraft("");
+        diary.onNoteSaved?.(note);
         onSaved?.();
-        host?.toast("Saved", () => void removeJobNote(note.id).then(() => onSaved?.()));
+        host?.toast("Saved", () =>
+          void removeJobNote(note.id).then(() => {
+            diary.onNoteUndone?.(note.id);
+            onSaved?.();
+          }),
+        );
       })
       .catch(() => host?.toast("Couldn't save that note."))
       .finally(() => setSaving(false));

@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import { Button, IconButton } from "@/components/parts/button";
+import { Button } from "@/components/parts/button";
 import { Dialog } from "@/components/parts/dialog";
 import { Fade } from "@/components/parts/fade";
 import { TextInput } from "@/components/parts/field";
@@ -10,8 +10,8 @@ import { useFloat, useOutsidePress } from "@/components/parts/float";
 import { Tick } from "@/components/parts/tick";
 import { Tooltip } from "@/components/parts/tooltip";
 import { Icon } from "@/components/shell/icon";
-import { Waiting } from "@/components/ui/orb";
 import { LiveWords, useDictation } from "@/components/notes/dictation";
+import { Fixing, SpeakBar } from "@/components/conversations/speak-bar";
 import { useNoteScope } from "@/components/notes/note-context";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { splitSpokenList } from "@/lib/workboard/spoken-materials";
@@ -250,24 +250,37 @@ export function JobMaterialsFace({
     <div className="jm">
       <h3 className="jm-title">Materials</h3>
 
-      <form
-        className="jm-add"
-        onSubmit={(e) => {
-          e.preventDefault();
-          add();
-        }}
-      >
-        <span className="jm-find">
-          {/* the list as you say it rides along the field, in the field's own
-              box, as every voice box shows your words (Isaac, 5 November 2026:
-              "line them up"); it showed nothing until Done */}
-          {dict.recording ? (
-            <LiveWords line said={text} text={dict.interim} className="pt-input pt-input--32" label="The materials you're saying" />
-          ) : (
-            <TextInput
+      {dict.recording || dict.arming ? (
+        /* SAYING THE LIST, AS EVERY BOX DOES (Isaac, 9 November 2026: "I want
+           the boxes to pretty much be identical"): the words as you say them
+           over the bar, ✕, the blue wave, ■ */
+        <div className="say jm-say">
+          <div className="say-live say-live--one" role="group" aria-label="Recording">
+            {dict.interim ? (
+              <LiveWords said="" text={dict.interim} label="The materials you're saying" />
+            ) : (
+              <p className="cv-listening" role="status">
+                Listening
+              </p>
+            )}
+          </div>
+          <SpeakBar dict={dict} />
+        </div>
+      ) : (
+        <form
+          className="jm-add"
+          onSubmit={(e) => {
+            e.preventDefault();
+            add();
+          }}
+        >
+          {/* the phone's one-line box: the words, and the microphone beside them */}
+          <span className="say-box say-box--one jm-find">
+            <input
               ref={fieldRef}
-              size={32}
-              value={text}
+              className={`say-words${dict.transcribing ? " say-words--hearing" : ""}`}
+              value={dict.transcribing && dict.interim ? dict.interim : text}
+              disabled={dict.transcribing}
               onChange={(e) => {
                 setText(e.target.value);
                 setSub("");
@@ -281,22 +294,19 @@ export function JobMaterialsFace({
               aria-controls={shownHits.length > 0 ? `${made}-book` : undefined}
               aria-activedescendant={active >= 0 && shownHits.length > 0 ? `${made}-hit${active}` : undefined}
             />
-          )}
-        </span>
-        <TextInput size={32} className="jm-qtyin" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="Qty" aria-label="Quantity" />
-        {dict.recording ? (
-          <Button size={32} icon="mic" onClick={dict.stop} aria-label="Stop and read the list">
-            Done
+            {voiceEnabled && (
+              <button type="button" className="cv-rnd" aria-label="Say the materials" onClick={dict.start} disabled={!ready || dict.transcribing}>
+                <Icon name="mic" size={20} />
+              </button>
+            )}
+          </span>
+          <TextInput size={44} className="jm-qtyin" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="Qty" aria-label="Quantity" />
+          <Button type="submit" size={44} disabled={!text.trim() || !ready}>
+            Add
           </Button>
-        ) : dict.transcribing ? (
-          <Waiting note="Reading back what you said" className="jm-wait" />
-        ) : voiceEnabled ? (
-          <IconButton glyph="mic" size={32} label="Say the materials" onClick={dict.start} disabled={!ready} />
-        ) : null}
-        <Button type="submit" size={32} disabled={!text.trim() || !ready}>
-          Add
-        </Button>
-      </form>
+        </form>
+      )}
+      {dict.transcribing && <Fixing />}
       {voiceErr && <p className="jm-err">{voiceErr}</p>}
       {shownHits.length > 0 && (
         <BookMenu

@@ -3,6 +3,7 @@
 import { isValidElement, type ReactNode } from "react";
 import { Icon } from "@/components/shell/icon";
 import { DateField as DatePicker } from "@/components/ui/date-field";
+import { NoteToken } from "@/components/notes/note-token";
 
 /* Controlled form primitives over the design's existing `.field / .inp /
    .selwrap / .seg` classes — the same vocabulary the injected renderer built
@@ -205,15 +206,18 @@ export function TextArea({
   placeholder?: string;
   style?: React.CSSProperties;
 }) {
+  /* the phone's box, with the microphone (Isaac, 9 November 2026: "I want
+     the boxes to pretty much be identical"); a box set taller is a note */
   return (
-    <textarea
-      className="inp"
-      name={name}
-      id={name}
+    <NoteToken
+      as="field"
+      label={name}
+      offer={false}
+      rows={style?.minHeight ? 5 : 3}
+      box={{ name, id: name }}
       placeholder={placeholder}
       value={value}
-      style={style}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={onChange}
     />
   );
 }

@@ -121,7 +121,7 @@ describe("New job", () => {
         </WindowsContext.Provider>
       </NoteScopeProvider>,
     );
-    expect(screen.getByRole("button", { name: "Dictate — the job" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Speak instead of typing — the job" })).toBeInTheDocument();
     await user().click(create());
     expect(screen.getByLabelText("The job")).toHaveAttribute("aria-invalid", "true");
     await typeName("Tim");

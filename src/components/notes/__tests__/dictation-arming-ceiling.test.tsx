@@ -90,7 +90,7 @@ it("says to allow it when the browser is still asking", async () => {
     await Promise.resolve();
     await Promise.resolve();
   });
-  expect(screen.getByTestId("err")).toHaveTextContent(/allow it, then press Talk/i);
+  expect(screen.getByTestId("err")).toHaveTextContent(/Allow it when your browser asks/i);
 });
 
 it("names the block when the site is blocked, because typing is not the fix", async () => {
@@ -107,7 +107,7 @@ it("names the block when the site is blocked, because typing is not the fix", as
     await Promise.resolve();
     await Promise.resolve();
   });
-  expect(screen.getByTestId("err")).toHaveTextContent(/blocked for this site/i);
+  expect(screen.getByTestId("err")).toHaveTextContent(/Allow it in your browser.s settings/i);
 });
 
 it("stops claiming to listen when the microphone never opens", async () => {

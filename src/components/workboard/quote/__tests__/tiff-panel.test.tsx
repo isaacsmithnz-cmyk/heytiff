@@ -467,7 +467,7 @@ it("folds her working notes in with her steps, open while she works", async () =
 /* every Tiff box is Conversations' box (Isaac, 20 October 2026: "the input
    section should be identical throughout the software"; 25 October, walking:
    the quote's was the one with Send in words) */
-it("ends the conversation with the reply box: the microphone, then Tiff's blue button, her arrow and her name, as every Tiff box has", async () => {
+it("ends the conversation with the reply box: the microphone, then Tiff's round blue ↑, as every box has", async () => {
   (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond(thread));
   /* where this deployment hears, the box has its microphone */
   render(
@@ -477,11 +477,10 @@ it("ends the conversation with the reply box: the microphone, then Tiff's blue b
   );
   const box = await screen.findByLabelText("Message Tiff");
   const send = screen.getByRole("button", { name: "Send to Tiff" });
-  expect(send).toHaveTextContent("Tiff");
-  expect(send).toHaveClass("pt-btn--main");
+  expect(send).toHaveClass("cv-rnd", "cv-rnd--main");
   expect(send).toBeDisabled();
   const mic = screen.getByRole("button", { name: "Speak instead of typing" });
-  expect(mic).toHaveClass("pt-btn--icon");
+  expect(mic).toHaveClass("cv-rnd");
   expect(mic).toHaveTextContent("");
   const before = (a: Element, b: Element) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
   expect(before(box, mic)).toBe(true);

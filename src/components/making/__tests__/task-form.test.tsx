@@ -158,7 +158,7 @@ describe("what needs doing, said", () => {
       </NoteScopeProvider>,
     );
     await act(async () => {});
-    expect(screen.getByRole("button", { name: "Dictate — what needs doing" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Speak instead of typing — what needs doing" })).toBeInTheDocument();
     act(() => heard.say!("Order the grilles"));
     expect(screen.getByLabelText("What needs doing")).toHaveValue("Order the grilles");
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "Add task" })));

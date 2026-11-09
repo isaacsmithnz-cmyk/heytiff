@@ -3917,7 +3917,6 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    portalled, so these are unscoped. What's changing is typed, so it is 16 (rule 13). */
 .ql-vbody { display:flex; flex-direction:column; gap:16px; }
 .pt-dialog .ql-vbody > p { margin:0; }
-.pt-dialog .pt-textarea.ql-vwhat { min-height:72px; font-size:16px; line-height:24px; }
 /* a variation, as the client gets it */
 .fg .lp-vto { font-size:16px; font-weight:700; }
 .fg .lp-vchg { display:flex; flex-direction:column; gap:4px; font-size:14px; }
@@ -4462,7 +4461,6 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* the email: To, Subject, Message at the reading size (rule 13), what it attaches */
 .wb2-mail { display:flex; flex-direction:column; gap:16px; }
 .wb2-mailto { display:flex; flex-direction:column; gap:8px; }
-.pt-textarea.pt-textarea.wb2-mailmsg { font-size:16px; line-height:24px; }
 .wb2-mailfiles,
 .wb2-mailnote { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--q); overflow-wrap:anywhere; }
 .wb2-mailnote { color:var(--orange-w); }
@@ -4609,9 +4607,6 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-sel:focus, .wb2-fi:focus { outline:none; border-color:var(--info-t); box-shadow:var(--ring);; }
 .wb2-dayrow { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .wb2-fl { display:flex; flex-direction:column; gap:4px; flex:1; min-width:150px; font-size:12px; font-weight:500; color:var(--gray500); }
-.wb2-notes { width:100%; border:1px solid rgba(5,5,5,.12); border-radius:var(--r-button); padding:12px 12px; font:inherit; font-size:14px;
-  resize:vertical; margin-bottom:8px; }
-.wb2-notes:focus { outline:none; border-color:var(--info-t); }
 .wb2-notetext { font-size:14px; font-weight:600; color:var(--gray700); line-height:1.55; padding:12px 16px; border-radius:var(--r-button);
   background:var(--tint); margin:0; white-space:pre-wrap; }
 /* ── notes as bullets ──
@@ -4636,35 +4631,6 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-blist.read .wb2-bdot { margin-top:8px; }
 .wb2-blist.read li > span:last-child { flex:1; min-width:0; font-size:14px; font-weight:600; color:var(--gray700);
   line-height:1.55; text-wrap:pretty; }
-/* ── the one-line dictation field ──
-   Field, mic, add — one row. The mic used to sit on a bar UNDERNEATH, which
-   made saying a note look like a different feature from typing one; on the
-   row they're plainly two ways to fill the same box. Recording takes the row:
-   the field greys out and the buttons become level, clock, stop, discard. */
-.wb2-dictline { display:grid; gap:8px; }
-.wb2-addrow { display:flex; align-items:center; gap:8px; }
-.wb2-addrow .wb2-fi { flex:1; min-width:0; }
-.wb2-addgo { flex:none; width:32px; height:32px; border-radius:var(--r-button); border:0; display:grid; place-items:center;
-  background:var(--ink); color:var(--paper); cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-addgo:hover:not(:disabled) { background:var(--ink2); }
-.wb2-addgo:disabled { background:var(--tint-2); color:var(--q); cursor:not-allowed; }
-/* nothing typed yet: quiet, and still a button — pressed, it puts the cursor
-   in the field */
-.wb2-addgo.idle:not(:hover):not(:disabled) { background:var(--tint-2); color:var(--gray500); }
-.wb2-addgo:focus-visible { outline:none; box-shadow:var(--ring);; }
-/* the pill's red mic at row size — same colour, because it's the same act */
-.wb2-micgo { flex:none; width:32px; height:32px; border-radius:var(--r-button); border:0; display:grid; place-items:center;
-  background:var(--bad); color:var(--paper); cursor:pointer; transition:background var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
-.wb2-micgo:hover:not(:disabled) { background:var(--red-w); }
-.wb2-micgo:disabled { background:var(--tint-2); color:var(--q); cursor:not-allowed; }
-.wb2-micgo:focus-visible { outline:none; box-shadow:var(--ring-bad);; }
-/* listening: a soft pulse, so a row that's recording never looks like a row
-   that's merely disabled. The frame's pulse, the recording dot's — a halo
-   does not loop (law 18). */
-.wb2-micgo.on { animation:fgPulse 1.6s ease-in-out infinite; }
-@media (prefers-reduced-motion:reduce) { .wb2-micgo.on { animation:none; } }
-.wb2-addrow .wb-lvl { flex:none; --orb:20px; }
-.wb2-addrow .wb2-dictx { flex:none; margin-left:0; }
 .wb2-shft { display:flex; align-items:center; gap:8px; padding:16px 24px; margin-top:auto; position:sticky; bottom:0;
   background:var(--paper); border-top:1px solid var(--wb2-line2); flex-wrap:wrap; }
 /* one button belongs on the right, beside where the close-out card's own
@@ -4701,28 +4667,6 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-coact { display:flex; justify-content:flex-end; }
 .wb2-noteact { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 
-/* ── dictation ──
-   A mic on every box you'd type a paragraph into (Isaac, 2026-08-02). It
-   rides UNDER the textarea rather than floating inside it: an icon overlaying
-   a text field is a thing you discover, and this has to be a thing you see.
-   While recording the bar becomes the recorder — stop, live level, clock,
-   discard — so the textarea never has to pretend to show live words it
-   doesn't have. */
-.wb2-dict { display:grid; gap:8px; }
-.wb2-dict .wb2-notes { margin-bottom:0; }
-.wb2-dictbar { display:flex; align-items:center; gap:8px; min-height:28px; }
-.wb2-dictmic { display:inline-flex; align-items:center; gap:8px; height:28px; padding:0 12px; border-radius:var(--r-pill);
-  border:1px solid rgba(5,5,5,.12); background:var(--paper); font:inherit; font-size:12px; font-weight:700;
-  color:var(--gray700); cursor:pointer; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-dictmic:hover:not(:disabled) { background:var(--bad-tint); border-color:var(--bad); color:var(--bad-t); }
-.wb2-dictmic:disabled { opacity:.5; cursor:default; }
-.wb2-dictmic:focus-visible { outline:none; box-shadow:var(--ring-bad);; }
-.wb2-dictmic.on { width:28px; padding:0; justify-content:center; background:var(--bad); border-color:var(--bad); color:var(--paper); }
-.wb2-dictmic.on:hover { background:var(--red-w); border-color:var(--red-w); color:var(--paper); }
-.wb2-dictbar .wb-lvl { --orb:18px; }
-.wb2-dictx { width:24px; height:24px; margin-left:auto; border-radius:var(--r-control); border:0; background:none; color:var(--q);
-  display:grid; place-items:center; cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-dictx:hover { background:var(--tint-2); color:var(--ink); }
 .wb2-dicthint, .wb2-dicterr { font-size:12px; font-weight:700; margin:0; }
 .wb2-dicthint { color:var(--gray500); }
 .wb2-dicterr { color:var(--wb2-dan-t, var(--bad-t)); }
@@ -4805,8 +4749,7 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-formgrid { display:grid; grid-template-columns:1fr 1fr; gap:12px 12px; }
 .wb2-formgrid .wide { grid-column:1/-1; }
 .wb2-formgrid.eq { grid-template-columns:1.4fr 1fr 1fr 1fr auto; align-items:center; margin-top:8px; }
-.wb2-fl .wb2-fi, .wb2-fl .wb2-sel, .wb2-fl .wb2-notes { width:100%; text-transform:none; font-size:13px; }
-.wb2-fl .wb2-notes { margin-bottom:0; }
+.wb2-fl .wb2-fi, .wb2-fl .wb2-sel { width:100%; text-transform:none; font-size:13px; }
 .wb2-flcheck { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--gray700); align-self:end; padding:8px 0; cursor:pointer; }
 .wb2-flcheck input { width:16px; height:16px; accent-color:var(--ink2); }
 .wb2-eqlist { display:grid; gap:8px; }
@@ -5505,23 +5448,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    mistake CANNOT be caught anywhere but the real sheet. */
 .wb2-lwbox.one { white-space:nowrap; overflow-y:hidden; }
 .wb2-lwbox.one .wb2-lwsaid { white-space:pre; }
-/* And the block field mic stands in for a textarea, whose height comes from
-   `rows` — a paragraph has no such thing, so the sheet does the arithmetic.
-   `1lh` is the same line box the textarea would have used; 26px is
-   `.wb2-notes`'s own padding and border.
-
-   `1lh` IS WHY THIS POSTURE SURVIVED the line-height mistake above: it asks
-   for whatever line box this element actually has rather than naming one, so
-   it followed the page's inherited 1.5 without being told. Walked on prod at
-   rows=3: 86.75px either way. */
-.wb2-notes.wb2-lwbox { height:calc(var(--lwrows) * 1lh + 26px);
-
-  background:var(--paper); resize:none; }
-/* The same arithmetic in a form's own box, parts/field's TextArea, which the
-   field mic wears when it stands in a Field (note-token): 18px is
-   `.pt-textarea`'s padding and border. Three classes, because the box's own
-   rule names its class twice and sets `height:auto`. */
-.pt-textarea.pt-textarea.wb2-lwbox { height:calc(var(--lwrows) * 1lh + 18px); resize:none; }
 
 /* WHAT YOU HAD ALREADY SAID — an earlier leg, or words you typed before
    pressing the mic. One step back in the ink because it is the RECORD and
@@ -5548,22 +5474,19 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
   -webkit-mask:linear-gradient(90deg, transparent 0, var(--ink) 2.2em);
   mask:linear-gradient(90deg, transparent 0, var(--ink) 2.2em);
 }
-/* The glide. Fast enough to keep up with speech, eased so it lands rather
-   than stops — and a hair of blur on the way in, which is what makes a
-   burst of three words read as arriving instead of appearing. */
-@keyframes wb2WordIn {
-  from { opacity:0; transform:translateY(4px); filter:blur(2px); }
-  to   { opacity:1; transform:none; filter:blur(0); }
-}
-/* A WORD IS AN INLINE-BLOCK, because `transform` and `filter` do nothing to a
-   plain inline box — the glide needs it. The space between words is a real
-   space in the markup and NOT a margin here: a margin draws the same gap and
-   vanishes the moment the words are read out or copied. `animation-delay` is
-   set per span in LiveWords, so words that arrived in the same message step
-   in one after another instead of landing as a block. */
-.wb2-lw { display:inline-block;
-  animation:wb2WordIn .26s var(--ease) both; }
-@media (prefers-reduced-motion:reduce) { .wb2-lw { animation:none; } }
+/* THE WORDS AS HEARD, AS THE PHONE DRAWS THEM: grey and leaning, the record
+   (`.wb2-lwsaid`) ink and upright beside them (Isaac, 9 November 2026: "make
+   sure that the words show the same way. The mobile does"). Their motions
+   are LiveWords' own, the phone's to the millisecond, run as Web Animations:
+   a new word fades up, a fixed one rises in ink and settles to grey, the
+   others slide over, and a word that went fades where it stood, its
+   stand-in (`.gone`) laid over the place it had. A WORD IS AN INLINE-BLOCK,
+   because a transform does nothing to a plain inline box; the space between
+   words is a real space in the markup, never a margin, so the words read
+   out and copy as words. */
+.wb2-lwbox { position:relative; }
+.wb2-lw { display:inline-block; color:var(--q); font-style:italic; }
+.wb2-lw.gone { position:absolute; pointer-events:none; white-space:pre; }
 
 
 /* merged calendar: the other board's dots wear a hollow ring, never a fill */
@@ -6049,12 +5972,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jm { display:flex; flex-direction:column; gap:16px; }
 .fg .jm-title { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
 .fg .jm-add { display:flex; align-items:center; gap:8px; }
-.fg .jm-find { flex:1 1 auto; min-width:0; display:flex; }
-.fg .jm-find > .pt-input { flex:1 1 auto; min-width:0; }
-/* the words as you say the list: the field's line box, so they sit where its text would */
-.fg .jm-find > .wb2-lwbox { line-height:30px; }
+.fg .jm-find { flex:1 1 auto; min-width:0; }
 .fg .jm-add .jm-qtyin { flex:none; width:72px; }
-.fg .jm-wait { flex:none; font-size:13px; line-height:18px; color:var(--q); }
 .fg .jm-err { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--red-w); }
 .fg .jm-none { margin:0; font-size:14px; line-height:20px; color:var(--q); }
 .fg .jm-shelves { columns:3; column-gap:16px; }
@@ -6210,8 +6129,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jov-asks .wb2-jcatt.bare { margin:0; padding:0; border-radius:0; background:none; box-shadow:none; }
 /* THE ACTIVITY FEED: Tiff's box under the head, then the feed, newest first */
 .fg .jc-foot { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
-.fg .jc-convo .cv-box { gap:8px; padding:12px; }
-.fg .jc-convo .cv-box:focus-within { border-color:var(--ink); }
 .fg .jc-feed { display:flex; flex-direction:column; min-width:0; border-top:1px solid var(--line); }
 .fg .jc-feed > .jov-none { padding:8px 0; }
 .fg .jc-day { display:flex; flex-direction:column; }
@@ -6330,7 +6247,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jc-quick { display:flex; flex-wrap:wrap; gap:8px; }
 /* Save sits with Send on the right of the box; Add photo and the Also in
    ServiceM8 tick on its left, 16 apart (the walk of 25 October 2026) */
-.fg .cv-boxbar .jc-keep + .cv-send { margin-left:0; }
 .fg .jc-lead { display:flex; align-items:center; gap:16px; min-width:0; }
 .fg .jc-lead .wb2-flcheck { align-self:auto; padding:0; font-size:13px; line-height:18px; font-weight:500; color:var(--ink); }
 /* Add photo's chip, above the words in the box: the photo, its name, its clear */
@@ -6686,29 +6602,82 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .cv-fail { padding-left:calc(32px + 16px); }
 .fg .cv-fail .pt-wrong { align-items:flex-start; min-height:0; padding:0; text-align:start; }
 .fg .cv-fail .pt-wrong-act { justify-content:flex-start; }
-/* the box at the foot */
-.fg .cv-box { flex:none; display:flex; flex-direction:column; gap:12px; padding:16px 16px 12px 24px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--paper); transition:border-color var(--t-fast) var(--ease); }
-.fg .cv-box:has(.cv-words:focus-visible) { border-color:var(--ink); }
-.fg .cv-box .cv-words { display:block; width:100%; min-height:24px; max-height:240px; field-sizing:content; padding:0; border:0; outline:none; resize:none; background:transparent; font:inherit; font-size:16px; line-height:24px; font-weight:400; color:var(--ink); }
-.fg .cv-box .cv-words::placeholder { color:var(--q); opacity:1; }
-/* the words said while recording ride inside the box's own ceiling: the
-   paragraph LiveWords scrolls is the one that needs the cap, or a long
-   dictation spills over the bar below (Isaac, 28 October 2026) */
-.fg .cv-box .cv-live .wb2-lwbox { max-height:240px; }
+/* THE BOX, THE PHONE'S (Isaac, 9 November 2026: "I want the boxes to pretty
+   much be identical"; heytiff-mobile Talk.tsx `Composer`, `SpeakBar`). Round
+   ends at 26 (rule 46 names the box's), round 40 buttons on a soft grey, Save
+   a rounded button beside Tiff's blue ↑. The phone's 5 and 7 and 11 sit on
+   the scale's 4, 8 and 12: a pixel either way. Speaking, the box gives way
+   to the words over the bar, and the bar is its own white box. */
+.fg .cv-box { flex:none; display:flex; flex-direction:column; gap:8px; }
+.fg .cv-field { display:flex; flex-direction:column; gap:4px; padding:4px; border:1px solid var(--edge); border-radius:26px; background:var(--paper); transition:border-color var(--t-fast) var(--ease); }
+.fg .cv-field:has(.cv-words:focus) { border-color:var(--ink); }
+.fg .cv-field > .cv-scope, .fg .cv-field > .jc-photo, .fg .cv-speak > .cv-scope, .fg .cv-speak > .jc-photo { margin:8px 12px 0; }
+.fg .cv-words { display:block; width:auto; min-height:24px; max-height:30vh; margin:8px 12px 0; field-sizing:content; padding:0; border:0; outline:none; resize:none; background:transparent; font:inherit; font-size:16px; line-height:24px; font-weight:400; color:var(--ink); }
+.fg .cv-words::placeholder { color:var(--q); opacity:1; }
+/* stopped, the words stay where they were, grey, until they land */
+.fg .cv-words.cv-words--hearing, .fg .cv-words:disabled { color:var(--q); -webkit-text-fill-color:var(--q); opacity:1; }
 .fg .cv-boxbar { display:flex; align-items:center; gap:8px; }
-.fg .cv-boxbar .cv-send { margin-left:auto; }
-/* TIFF'S BUTTON AND ITS LITTLE i (Isaac, 6 November 2026): the i sits on
-   the button's corner until it has been read once, and pressed, a few words
-   stand over the box saying what she does with them */
+/* the round buttons, on the box and the bar: the plus, the microphone, ✕, ■ and Tiff's blue ↑ */
+/* `.fg .cv-rnd` too, past the frame's button reset (`.fg button:where(…)`); bare for a dialog, outside the frame */
+.cv-rnd, .fg .cv-rnd { position:relative; flex:none; display:grid; place-items:center; width:40px; height:40px; padding:0; border:0; border-radius:50%; background:var(--sel); color:var(--ink); cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.cv-rnd:hover:not(:disabled) { background:var(--edge); }
+.cv-rnd.cv-rnd--main { background:var(--press); color:var(--white); }
+.cv-rnd.cv-rnd--main:hover:not(:disabled) { background:var(--press); }
+.cv-rnd:disabled { opacity:.5; cursor:default; }
+.cv-rnd:focus-visible, .fg .cv-save:focus-visible { outline:none; box-shadow:var(--ring); }
+/* Save beside ↑, white with its outline; the main Save where the box only keeps, blue */
+.fg .cv-save { flex:none; height:40px; padding:0 16px; border:1px solid var(--edge); border-radius:999px; background:var(--paper); color:var(--ink); font:inherit; font-size:14px; line-height:20px; font-weight:600; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.fg .cv-save:hover:not(:disabled) { background:var(--sel); }
+.fg .cv-save.cv-save--main { border-color:var(--press); background:var(--press); color:var(--white); }
+.fg .cv-save:disabled { opacity:.5; cursor:default; }
+/* "↑ waits until she's done" (6-revisions.md, "While Tiff works") */
+.fg .cv-send.cv-send--wait { opacity:.4; }
+/* speaking: the words on their own, then the bar */
+.fg .cv-speak { display:flex; flex-direction:column; gap:8px; }
+.fg .cv-live { min-height:24px; margin:0 4px; font-size:16px; line-height:24px; }
+.fg .cv-live .wb2-lwbox { max-height:30vh; margin:0; }
+.cv-listening { margin:0; color:var(--q); font-style:italic; }
+.cv-bar { display:flex; align-items:center; gap:8px; min-height:52px; padding:4px; border:1px solid var(--edge); border-radius:26px; background:var(--paper); }
+.cv-stopsq { display:block; width:13px; height:13px; border-radius:0; background:var(--ink); }
+/* the blue wave: bars on the right, drifting left, drawn by Wave */
+.cv-wave { position:relative; flex:1 1 auto; min-width:0; height:32px; overflow:hidden; }
+.cv-strip { position:absolute; inset:0; }
+.cv-strip i { position:absolute; top:50%; width:3px; height:3px; border-radius:999px; background:var(--press); transform:translateY(-50%); }
+/* the time, only in the last thirty seconds, in red */
+.cv-clock { flex:none; font-size:13px; line-height:20px; font-weight:700; color:var(--red-w); font-variant-numeric:tabular-nums; }
+/* "Fixing the wording", once the words take a while to land */
+.cv-fixing { display:flex; align-items:center; gap:8px; margin:0 12px; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+/* TIFF'S ↑ AND ITS LITTLE i (Isaac, 6 November 2026): the i sits on its
+   corner until it has been read once, and pressed, a few words stand over
+   the box saying what she does with them */
 .fg .cv-tiffat { position:relative; display:inline-flex; flex:none; }
-.fg .cv-info { position:absolute; top:-7px; right:-7px; display:grid; place-items:center; width:18px; height:18px; padding:0; border:1px solid var(--edge); border-radius:50%; background:var(--paper); color:var(--ink); font:inherit; font-size:12px; line-height:1; font-weight:700; cursor:pointer; }
+.fg .cv-info { position:absolute; top:-5px; right:-5px; display:grid; place-items:center; width:18px; height:18px; padding:0; border:1px solid var(--edge); border-radius:50%; background:var(--paper); color:var(--ink); font:inherit; font-size:12px; line-height:1; font-weight:700; cursor:pointer; }
 .fg .cv-info:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .cv-tip { position:absolute; right:0; bottom:calc(100% + 12px); z-index:var(--z-overlay); width:260px; padding:12px 16px; border-radius:var(--r-card); background:var(--paper); box-shadow:var(--shadow-overlay); font-size:14px; line-height:20px; font-weight:400; color:var(--ink); text-align:left; }
 .fg .cv-tip b { display:block; font-weight:700; }
-/* "Send fades until she's done" (6-revisions.md) */
-.fg .cv-boxbar .pt-btn.cv-send--wait { opacity:.4; }
-.fg .cv-say { margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.fg .cv-say { margin:0 12px; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
 .fg .cv-say.cv-say--bad { color:var(--bad-t); }
+/* THE BOX IN A FORM, THE PHONE'S (heytiff-mobile SayBox.tsx; Isaac, 9
+   November 2026: "I want the boxes to pretty much be identical"): the words,
+   and the round microphone inside the box at its foot, or beside them where
+   the box is one line. Speaking, the words come over the same bar as every
+   other box. Portalled dialogs reach these too, so they are not under `.fg`. */
+.say { display:flex; flex-direction:column; gap:8px; min-width:0; }
+.say-box { display:flex; flex-direction:column; gap:4px; padding:8px 12px; border:1px solid var(--edge); border-radius:var(--r-button); background:var(--paper); transition:border-color var(--t-fast) var(--ease); }
+.say-box:has(.say-words:focus) { border-color:var(--ink); }
+.say-box.say-box--bad { border-color:var(--red); }
+.say-box > .cv-rnd { align-self:flex-end; }
+.say-box.say-box--one { flex-direction:row; align-items:center; gap:8px; min-height:44px; padding:2px 2px 2px 12px; }
+.say-box.say-box--one > .cv-rnd { align-self:center; }
+.say-words { display:block; width:100%; min-width:0; flex:1 1 auto; padding:0; border:0; outline:none; resize:none; background:transparent; font:inherit; font-size:16px; line-height:22px; font-weight:400; color:var(--ink); field-sizing:content; }
+.say-words::placeholder { color:var(--q); opacity:1; }
+.say-words.say-words--hearing, .say-words:disabled { color:var(--q); -webkit-text-fill-color:var(--q); opacity:1; }
+/* as tall as the box it stands in for, in its own line box (`1lh`), never a guessed length */
+.say-live { min-height:calc(var(--lwrows, 3) * 1lh); margin:0 4px; font-size:16px; line-height:22px; }
+.say-live.say-live--one { display:flex; align-items:center; min-height:40px; }
+.say-live .wb2-lwbox { max-height:30vh; margin:0; }
+.say-live .cv-listening { margin:0; color:var(--q); font-style:italic; }
+.say-err { margin:0 4px; font-size:14px; line-height:20px; font-weight:400; color:var(--red-w); }
 .fg .cv-scope { display:flex; align-items:center; gap:8px; min-width:0; margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
 .fg .cv-scope-doc { flex:0 1 auto; min-width:0; font-weight:500; color:var(--ink); }
 
@@ -8141,16 +8110,13 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .tc-in::placeholder { color:var(--q); }
 .fg .tc-row { display:flex; align-items:center; gap:8px; }
 .fg .tc-sp { flex:1 1 auto; }
-.fg .tc-rec { display:inline-flex; align-items:center; gap:8px; font-size:13px; line-height:20px; color:var(--q); }
-.fg .tc-recdot { width:8px; height:8px; border-radius:50%; background:var(--red); }
-.fg .tc-stop > span { width:12px; height:12px; border-radius:0; background:var(--ink); display:block; }
 .fg .tc-think { display:flex; align-items:center; gap:8px; margin:16px 0 0; font-size:14px; line-height:20px; color:var(--q); }
-.fg .tc-dots { display:inline-flex; gap:4px; }
-.fg .tc-dots i { width:6px; height:6px; border-radius:50%; background:var(--q); display:block; animation:tcDots 1.2s ease-in-out infinite; }
-.fg .tc-dots i:nth-child(2) { animation-delay:.2s; }
-.fg .tc-dots i:nth-child(3) { animation-delay:.4s; }
+.tc-dots { display:inline-flex; gap:4px; }
+.tc-dots i { width:6px; height:6px; border-radius:50%; background:var(--q); display:block; animation:tcDots 1.2s ease-in-out infinite; }
+.tc-dots i:nth-child(2) { animation-delay:.2s; }
+.tc-dots i:nth-child(3) { animation-delay:.4s; }
 @keyframes tcDots { 0%, 80%, 100% { opacity:.25; } 40% { opacity:1; } }
-@media (prefers-reduced-motion:reduce) { .fg .tc-dots i { animation:none; opacity:.6; } }
+@media (prefers-reduced-motion:reduce) { .tc-dots i { animation:none; opacity:.6; } }
 
 /* EDIT CUSTOMER (job-customer-dialog), the v2 dialog (Isaac, 25 October
    2026): fields with their labels above, each contact a card (rule 35) with

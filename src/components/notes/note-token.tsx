@@ -5,6 +5,7 @@ import { Icon } from "@/components/shell/icon";
 import { Button, IconButton } from "@/components/parts/button";
 import { useFieldWiring } from "@/components/parts/field";
 import { LiveWords, appendSpoken, useDictation } from "./dictation";
+import { Fixing, SpeakBar } from "@/components/conversations/speak-bar";
 import { RecordingMeter } from "./recording-card";
 import { READING_BACK_NOTE } from "./waits";
 import { Waiting } from "@/components/ui/orb";
@@ -59,6 +60,12 @@ export type Posture = "strip" | "field" | "line";
     a form's box keeps what it did before it had a microphone. */
 export type BoxAttrs = {
   "aria-label"?: string;
+  /** a heading that names the box, where no Field's label does */
+  "aria-labelledby"?: string;
+  /** the box's own id, where a label outside a Field points at it */
+  id?: string;
+  /** its form name */
+  name?: string;
   autoFocus?: boolean;
   /** the dialog's first focus (parts/dialog) */
   "data-autofocus"?: boolean;
@@ -398,16 +405,11 @@ function FieldPosture({
   box?: BoxAttrs;
 }) {
   const mic = useFieldMic(value, onChange, onSpoken);
-  /* A FIELD STANDING IN A FORM'S FIELD WEARS THE FORM'S BOX (7 November
-     2026). The postures were made for the sheets, in `.wb2-notes`; a form's
-     box is parts/field's TextArea, tied to its label and its error by the
-     Field around it. Given a microphone, a form's box keeps all of that —
-     its edge, its size, its red edge when wrong, the label that names it —
-     and only gains the microphone under it. Outside a Field nothing
-     changes. */
+  /* A FIELD STANDING IN A FORM'S FIELD KEEPS THE FORM'S WIRING (7 November
+     2026): its label names the box, and a wrong one wears the red edge and
+     says why under it, through the Field around it. */
   const wired = useFieldWiring({});
   const inForm = wired.id !== undefined;
-  const boxClass = inForm ? `pt-textarea${wired.invalid ? " pt-textarea--invalid" : ""}` : "wb2-notes";
   const { dict } = mic;
   const line = useRef<HTMLInputElement | null>(null);
   const box = useRef<HTMLTextAreaElement | null>(null);
@@ -415,180 +417,120 @@ function FieldPosture({
   /* the strip's rule: never a + that won't press — empty, it puts the cursor
      in the field */
   const addLine = () => (value.trim() === "" ? line.current?.focus() : onCommit?.());
-  /* WHEN THE FIELD HANDS ITS BOX TO THE RIVER. Any time there are live words,
-     and from the start of a recording that already has something to show —
-     but NOT on an empty field with nothing heard yet, because "Listening" is
-     the only thing saying so until the first word lands, and a placeholder
-     needs the field it belongs to.
-
-     `dict.interim` on its own, not `recording &&`: the words are still on
-     screen through the read-back, and swapping back to the field for that
-     second and then forward again is two moves where the design has none. */
-  const river = Boolean(dict.interim) || (dict.recording && value.trim() !== "");
 
   const offer = offering && mic.found && (
     <Nudge words={mic.found} back={as === "line" ? line : box} onDismiss={mic.dismiss} />
   );
 
-  if (as === "line") {
+  /* THE PHONE'S BOX IN A FORM (heytiff-mobile src/components/SayBox.tsx;
+     Isaac, 9 November 2026: "I want the boxes to pretty much be identical").
+     The words, and the microphone inside the box at its foot, or beside them
+     where the box is one line. Speaking, the words come as you say them,
+     morphing into the right ones, over the same bar as every other box: ✕,
+     the blue wave, ■. After ■ they stay in the box, grey, until they land. */
+  const one = as === "line" || rows === 1;
+  const hearing = dict.transcribing;
+  const speaking = mic.voiceEnabled && (dict.recording || dict.arming);
+  const shown = hearing && dict.interim ? appendSpoken(value, dict.interim) : value;
+  const says = (
+    <>
+      {mic.err && <p className="say-err">{mic.err}</p>}
+      {offer}
+    </>
+  );
+
+  if (speaking) {
     return (
-      <div className="wb2-dictline">
-        <div className="wb2-addrow">
-          {/* Same swap as the strip, in the other one-line posture — see the
-              note there. `.wb2-fi` is a 34px box either way. */}
-          {river ? (
-            <LiveWords line className="wb2-fi" label={label} said={value} text={dict.interim} />
+      <div className={"say" + (className ? ` ${className}` : "")}>
+        <div
+          className={`say-live${one ? " say-live--one" : ""}`}
+          role="group"
+          aria-label="Recording"
+          style={one ? undefined : ({ "--lwrows": rows } as React.CSSProperties)}
+        >
+          {value.trim() || dict.interim ? (
+            <LiveWords label={label} said={value} text={dict.interim} />
           ) : (
-            <input
-              ref={line}
-              className="wb2-fi"
-              placeholder={dict.recording ? "Listening" : placeholder}
-              value={value}
-              disabled={busy}
-              aria-label={label}
-              onChange={(e) => onChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key !== "Enter") return;
-                e.preventDefault();
-                onCommit?.();
-              }}
-            />
-          )}
-          {mic.voiceEnabled && dict.recording ? (
-            <>
-              {/* THE CARD'S INSTRUMENT, COMPACT. This row showed an orb and a
-                clock and nothing else — the two readings a bar has room for
-                — while the capture card three doors away showed a third:
-                whether anything is actually reaching the microphone. That
-                third one is the whole reason the meter was rebuilt, and it
-                was missing from every posture that lives on a page. Same
-                component, laid along the line instead of stacked. */}
-              <RecordingMeter dict={dict} compact />
-              <button
-                type="button"
-                className="wb2-micgo on"
-                onClick={dict.stop}
-                aria-label={`Stop dictating — ${label}`}
-              >
-                <Icon name="square" size={12} />
-              </button>
-              <button
-                type="button"
-                className="wb2-dictx"
-                onClick={dict.cancel}
-                aria-label={`Discard the recording — ${label}`}
-              >
-                <Icon name="x" size={12} />
-              </button>
-            </>
-          ) : (
-            <>
-              {mic.voiceEnabled && (
-                <button
-                  type="button"
-                  className="wb2-micgo"
-                  onClick={dict.start}
-                  disabled={disabled || dict.transcribing}
-                  aria-label={`Dictate — ${label}`}
-                >
-                  <Icon name="mic" size={14} />
-                </button>
-              )}
-              <button
-                type="button"
-                className={"wb2-addgo" + (value.trim() === "" ? " idle" : "")}
-                disabled={disabled || dict.transcribing}
-                aria-label={`Add — ${label}`}
-                onClick={addLine}
-              >
-                <Icon name="plus" size={14} />
-              </button>
-            </>
+            <p className="cv-listening" role="status">
+              Listening
+            </p>
           )}
         </div>
-        {dict.transcribing && <Waiting note={READING_BACK_NOTE} className="wb2-dicthint" />}
-        {mic.err && <p className="wb2-dicterr">{mic.err}</p>}
-        {offer}
+        <SpeakBar dict={dict} />
+        {says}
+      </div>
+    );
+  }
+
+  const micButton = mic.voiceEnabled && (
+    <button
+      type="button"
+      className="cv-rnd say-mic"
+      onClick={dict.start}
+      disabled={disabled || hearing}
+      aria-label={`Speak instead of typing — ${label}`}
+    >
+      <Icon name="mic" size={20} />
+    </button>
+  );
+  const edge = `say-box${one ? " say-box--one" : ""}${inForm && wired.invalid ? " say-box--bad" : ""}`;
+
+  if (as === "line") {
+    return (
+      <div className={"say" + (className ? ` ${className}` : "")}>
+        <div className={edge}>
+          <input
+            ref={line}
+            className={`say-words${hearing ? " say-words--hearing" : ""}`}
+            placeholder={placeholder}
+            value={shown}
+            disabled={busy}
+            aria-label={label}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              e.preventDefault();
+              onCommit?.();
+            }}
+          />
+          {micButton}
+          {/* the + puts what's said on the list, as Enter does; never a +
+              that won't press: empty, it puts the cursor in the field */}
+          <button type="button" className="cv-rnd" disabled={disabled || hearing} aria-label={`Add — ${label}`} onClick={addLine}>
+            <Icon name="plus" size={20} sw={2} />
+          </button>
+        </div>
+        {hearing && <Fixing />}
+        {says}
       </div>
     );
   }
 
   return (
-    <div className={"wb2-dict" + (className ? ` ${className}` : "")}>
-      {/* And the same again in the posture closest to the capture card. A
-          paragraph has no `rows`, so it is handed the number and the sheet
-          works out the height the textarea would have had — measured, 74px
-          either way at rows=3. */}
-      {river ? (
-        <LiveWords
-          className={boxClass}
-          rows={rows}
-          label={label}
-          said={value}
-          text={dict.interim}
-        />
-      ) : (
+    <div className={"say" + (className ? ` ${className}` : "")}>
+      <div className={edge}>
         <textarea
           {...attrs}
           ref={box}
-          className={boxClass}
-          id={wired.id}
+          className={`say-words${hearing ? " say-words--hearing" : ""}`}
+          id={wired.id ?? attrs?.id}
           aria-invalid={inForm ? wired.invalid || undefined : undefined}
           aria-describedby={wired.describedBy}
           rows={rows}
-          placeholder={dict.recording ? "Listening" : placeholder}
-          value={value}
+          placeholder={placeholder}
+          value={shown}
           onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            attrs?.onKeyDown?.(e);
+            /* a box of one line takes no new line, as an input wouldn't */
+            if (one && e.key === "Enter" && !e.defaultPrevented) e.preventDefault();
+          }}
           disabled={busy}
         />
-      )}
-      {mic.voiceEnabled && (
-        <div className="wb2-dictbar">
-          {dict.recording ? (
-            <>
-              <button
-                type="button"
-                className="wb2-dictmic on"
-                onClick={dict.stop}
-                aria-label={`Stop dictating — ${label}`}
-              >
-                <Icon name="square" size={13} />
-              </button>
-              {/* THE CARD'S INSTRUMENT, COMPACT. This row showed an orb and a
-                clock and nothing else — the two readings a bar has room for
-                — while the capture card three doors away showed a third:
-                whether anything is actually reaching the microphone. That
-                third one is the whole reason the meter was rebuilt, and it
-                was missing from every posture that lives on a page. Same
-                component, laid along the line instead of stacked. */}
-              <RecordingMeter dict={dict} compact />
-              <button
-                type="button"
-                className="wb2-dictx"
-                onClick={dict.cancel}
-                aria-label={`Discard the recording — ${label}`}
-              >
-                <Icon name="x" size={12} />
-              </button>
-            </>
-          ) : dict.transcribing ? (
-            <Waiting note={READING_BACK_NOTE} className="wb2-dicthint" />
-          ) : (
-            <button
-              type="button"
-              className="wb2-dictmic"
-              onClick={dict.start}
-              disabled={disabled}
-              aria-label={`Dictate — ${label}`}
-            >
-              <Icon name="mic" size={13} />
-              Say it
-            </button>
-          )}
-        </div>
-      )}
-      {mic.err && <p className="wb2-dicterr">{mic.err}</p>}
-      {offer}
+        {micButton}
+      </div>
+      {hearing && <Fixing />}
+      {says}
     </div>
   );
 }

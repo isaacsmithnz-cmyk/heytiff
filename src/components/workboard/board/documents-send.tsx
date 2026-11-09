@@ -3,12 +3,13 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/parts/button";
 import { Dialog } from "@/components/parts/dialog";
-import { Field, TextArea, TextInput } from "@/components/parts/field";
+import { Field, TextInput } from "@/components/parts/field";
 import { Loading, Wrong } from "@/components/parts/states";
 import { Tick } from "@/components/parts/tick";
 import { readAddresses } from "@/lib/compliance/papers";
 import { andList } from "@/lib/swms/library";
 import type { EmailContact, EmailDraft } from "@/app/actions/job-compliance";
+import { NoteToken } from "@/components/notes/note-token";
 
 /* SENDING WHAT'S TICKED (the mock of 25 October 2026, frames 6 and 8).
 
@@ -283,7 +284,7 @@ function EmailDialog({
             </Field>
 
             <Field label="Message">
-              <TextArea className="wb2-mailmsg" rows={4} value={message} onChange={(e) => setMessage(e.target.value)} />
+              <NoteToken as="field" className="wb2-mailmsg" label="the message" offer={false} rows={4} value={message} onChange={setMessage} />
             </Field>
 
             <p className="wb2-mailfiles">{names.length > 0 ? `Attaching ${andList(names)}` : "Nothing ticked to attach"}</p>

@@ -139,7 +139,7 @@ describe("what the job already says", () => {
     expect(screen.getByLabelText("First aider")).toHaveClass("pt-chooser");
     /* the one exception is the field mic's own frame round the site's notes
        (7 November 2026): the box in it is v2's TextArea */
-    expect(screen.getByLabelText("Anything different about this site")).toHaveClass("pt-textarea");
+    expect(screen.getByLabelText("Anything different about this site")).toHaveClass("say-words");
     expect(dialog.querySelector('[class*="wb2-"]:not(.wb2-dict), .pbtn, .seg, select, [class^="sw-"]')).toBeNull();
   });
 
@@ -423,7 +423,7 @@ describe("the review", () => {
     await fillInstall();
     await userEvent.type(screen.getByLabelText("Their name"), "Kai Lindqvist");
     await tab("How it's done");
-    expect(screen.getByRole("button", { name: "Dictate — anything different about this site" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Speak instead of typing — anything different about this site" })).toBeInTheDocument();
     act(() => heard.say!("Dog in the yard"));
     expect(screen.getByLabelText("Anything different about this site")).toHaveValue("Dog in the yard");
     await tab("Review");

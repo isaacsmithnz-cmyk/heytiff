@@ -222,7 +222,7 @@ describe("running out of time", () => {
     await speak(user);
     landTranscript("what is the minimum clearance", true);
     expect(box()).toHaveValue("what is the minimum clearance");
-    expect(screen.getByRole("status")).toHaveTextContent("two minutes");
+    expect(screen.getByRole("status")).toHaveTextContent("four minutes");
 
     /* The mic is live again immediately — this is a pause, not a failure. */
     await speak(user);
@@ -239,18 +239,19 @@ describe("the box while a recording is read back", () => {
   /* The word is on the page, in a live region, rather than in an `aria-label`
      nobody can see — and it carries no punctuation, because the ellipsis is
      the stylesheet's. */
-  it("names the wait, unpunctuated, and the box waits for the words", async () => {
+  /* the phone's box (Isaac, 9 November 2026: "I want the boxes to pretty
+     much be identical"): nothing says "Thinking"; the words wait, grey */
+  it("says no Thinking, and the box waits for the words", async () => {
     const user = userEvent.setup();
     draw();
-    expect(screen.queryByText(READING_BACK_NOTE)).not.toBeInTheDocument();
     await speak(user);
     act(() => {
       mockCtl.setRecording?.(false);
       mockCtl.setTranscribing?.(true);
     });
-    expect(screen.getByRole("status")).toHaveTextContent(READING_BACK_NOTE);
-    expect(READING_BACK_NOTE).not.toMatch(/[….]/);
+    expect(screen.queryByText(READING_BACK_NOTE)).not.toBeInTheDocument();
     expect(box()).toBeDisabled();
+    expect(box()).toHaveClass("cv-words--hearing");
 
     act(() => {
       mockCbs.current?.onTranscript("what is the clearance", { capped: false });

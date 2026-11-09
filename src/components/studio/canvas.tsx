@@ -213,6 +213,7 @@ import {
   readCanvasWheel,
   type WheelGestureState,
 } from "@/lib/studio/wheel-gesture";
+import { NoteToken } from "@/components/notes/note-token";
 
 /* StudioCanvas — the SVG scene per ADR-001. Renders the document, emits
    intents via onMutate; it never mutates the document itself. World space is
@@ -6842,13 +6843,17 @@ export function StudioCanvas({
               })}
             >
               <div className="ds-calib-t">Note</div>
-              <textarea
-                autoFocus
+              <NoteToken
+                as="field"
+                label="the note"
+                offer={false}
                 rows={3}
-                aria-label="Note text"
                 value={noteEdit.text}
-                onChange={(e) => setNoteEdit({ id: noteEdit.id, text: e.target.value })}
-                onKeyDown={(e) => {
+                onChange={(text) => setNoteEdit({ id: noteEdit.id, text })}
+                box={{
+                  autoFocus: true,
+                  "aria-label": "Note text",
+                  onKeyDown: (e) => {
                   /* Enter commits, ⇧Enter breaks the line — a note is usually
                      one sentence, and the list is the exception */
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -6860,6 +6865,7 @@ export function StudioCanvas({
                     e.stopPropagation();
                     saveNoteText(noteEdit.id, noteEdit.text);
                   }
+                  },
                 }}
               />
               {/* the ink, on the note it belongs to. Recolouring is a

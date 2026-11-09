@@ -441,7 +441,9 @@ export function JobConversation({
                steps aside while one is on */
             <span className="jc-lead">
               {!photo && (
-                <IconButton glyph="add" label="Add a photo or a file" size={32} disabled={!canSend} onClick={() => picker.current?.click()} />
+                <button type="button" className="cv-rnd" aria-label="Add a photo or a file" disabled={!canSend} onClick={() => picker.current?.click()}>
+                  <Icon name="plus" size={20} sw={2} />
+                </button>
               )}
             </span>
           }

@@ -103,7 +103,7 @@ it("no microphone where the workspace has voice off", () => {
 
 it("the microphone is the one icon-only button, and the To do kind is gone", () => {
   face();
-  expect(screen.getByRole("button", { name: "Say the materials" })).toHaveClass("pt-btn--icon");
+  expect(screen.getByRole("button", { name: "Say the materials" })).toHaveClass("cv-rnd");
   expect(screen.queryByRole("button", { name: "To do" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Material" })).toBeNull();
 });

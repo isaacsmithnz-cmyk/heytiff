@@ -15,6 +15,7 @@ import { listDesignOptions, searchJobs } from "@/app/actions/workboard";
 import { readEquipmentPhoto } from "@/app/actions/workboard-ai";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 import { fileToUprightBase64 } from "@/lib/images/upright";
+import { NoteToken } from "@/components/notes/note-token";
 
 /* A PROJECT'S FORMS, on the v2 Dialog (Isaac, 27 October 2026, on the
    old screens' mocks: the pop-ups mock's "Project forms"). They all went
@@ -413,7 +414,7 @@ export function VariationForm({ onClose, onAdd }: Close & { onAdd: (input: Varia
         </Field>
       </div>
       <Field label="Detail">
-        <TextArea value={detail} onChange={(e) => setDetail(e.target.value)} placeholder="Why, and what it covers" />
+        <NoteToken as="field" label="the detail" offer={false} value={detail} onChange={setDetail} placeholder="Why, and what it covers" />
       </Field>
     </Form>
   );

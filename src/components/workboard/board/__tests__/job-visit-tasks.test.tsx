@@ -250,7 +250,7 @@ describe("on the day", () => {
     fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "Issue" }));
     const dialog = within(screen.getByRole("dialog", { name: "An issue with this task" }));
     expect(dialog.getByLabelText("What's wrong")).toHaveFocus();
-    expect(dialog.getByRole("button", { name: "Dictate — what's wrong" })).toBeInTheDocument();
+    expect(dialog.getByRole("button", { name: "Speak instead of typing — what's wrong" })).toBeInTheDocument();
     act(() => heard.say!("No gas on site"));
     expect(dialog.getByLabelText("What's wrong")).toHaveValue("No gas on site");
     await act(async () => {

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button, LinkButton } from "@/components/parts/button";
 import { ConfirmDialog } from "@/components/parts/dialog";
 import { Chooser } from "@/components/parts/chooser";
-import { Field, TextArea, TextInput } from "@/components/parts/field";
+import { Field, TextInput } from "@/components/parts/field";
 import { Tray } from "@/components/parts/tabs";
 import { Tick } from "@/components/parts/tick";
 import { SignaturePad } from "@/components/swms/controls";
@@ -57,6 +57,7 @@ import {
 } from "@/lib/certs/mechanical";
 import { AU_STATES, STATE_NAME, stateFromAddress, type AuState } from "@/lib/swms/library";
 import "@/components/swms/swms.css";
+import { NoteToken } from "@/components/notes/note-token";
 
 /* THE CERTIFICATE WIZARD — five screens on the job card, and the library
    writes the certificate. docs/certificates-plan.md, The wizard.
@@ -730,7 +731,7 @@ export function CertWizard({
   const listScreen = live && (
     <div className="wzd-form">
       <Q label="What the certificate must cover" htmlFor="cz-asked" sub="Optional">
-        <TextArea id="cz-asked" rows={6} placeholder="Paste the email or list from the certifier, builder or architect" value={asked} onChange={(e) => setAsked(e.target.value)} />
+        <NoteToken as="field" label="what the certificate must cover" offer={false} rows={6} box={{ id: "cz-asked" }} placeholder="Paste the email or list from the certifier, builder or architect" value={asked} onChange={setAsked} />
       </Q>
       <div className="wzd-pick">
         <Chooser aria-label="A file to read" value={listDoc} options={fileOptions} onChange={setListDoc} />
@@ -770,7 +771,7 @@ export function CertWizard({
           <ul className="wzd-rows">
             {a.requirements.map((r, i) => (
               <li key={i} className="wzd-req">
-                <TextArea rows={2} aria-label={`Requirement ${i + 1}`} value={r.text} onChange={(e) => setReq(i, { text: e.target.value })} />
+                <NoteToken as="field" label={`requirement ${i + 1}`} offer={false} rows={2} box={{ "aria-label": `Requirement ${i + 1}` }} value={r.text} onChange={(text) => setReq(i, { text })} />
                 <Chooser
                   aria-label={`How requirement ${i + 1} is answered`}
                   placeholder="Choose a statement"
@@ -786,13 +787,15 @@ export function CertWizard({
                   }}
                 />
                 {r.answer === "own" && (
-                  <TextArea
+                  <NoteToken
+                    as="field"
+                    label={`your statement for requirement ${i + 1}`}
+                    offer={false}
                     rows={2}
-                    maxLength={MAX_REQUIREMENT_TEXT}
-                    aria-label={`Your statement for requirement ${i + 1}`}
+                    box={{ maxLength: MAX_REQUIREMENT_TEXT, "aria-label": `Your statement for requirement ${i + 1}` }}
                     placeholder="The statement, as it should print"
                     value={r.own}
-                    onChange={(e) => setReq(i, { own: e.target.value })}
+                    onChange={(own) => setReq(i, { own })}
                   />
                 )}
                 {r.answer === "na" && (

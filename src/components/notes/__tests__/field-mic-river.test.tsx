@@ -24,7 +24,7 @@ import { NoteToken } from "../note-token";
    label names a form control and gives a paragraph nothing. */
 
 /** The engine, driveable from the test — `interim` is the whole point here. */
-const ctl: { setRecording?: (v: boolean) => void; setInterim?: (v: string) => void } = {};
+const ctl: { setRecording?: (v: boolean) => void; setInterim?: (v: string) => void; setTranscribing?: (v: boolean) => void } = {};
 
 jest.mock("../dictation", () => {
   const actual = jest.requireActual("../dictation");
@@ -34,12 +34,14 @@ jest.mock("../dictation", () => {
       const react = jest.requireActual("react") as typeof import("react");
       const [recording, setRecording] = react.useState(false);
       const [interim, setInterim] = react.useState("");
+      const [transcribing, setTranscribing] = react.useState(false);
       ctl.setRecording = setRecording;
       ctl.setInterim = setInterim;
+      ctl.setTranscribing = setTranscribing;
       return {
         recording,
         arming: false,
-        transcribing: false,
+        transcribing,
         interim,
         seconds: 3,
         barsRef: react.createRef(),
@@ -65,11 +67,7 @@ function Harness({ as, start = "" }: { as: "strip" | "field" | "line"; start?: s
 
 const river = () => document.querySelector(".wb2-lwbox");
 
-describe.each([
-  ["strip", "wb2-stripin", true],
-  ["line", "wb2-fi", true],
-  ["field", "wb2-notes", false],
-] as const)("the %s posture", (as, fieldClass, oneLine) => {
+describe.each([["strip", "wb2-stripin", true]] as const)("the %s posture", (as, fieldClass, oneLine) => {
   it("keeps the field while nothing has been heard — the placeholder is the only thing saying it is listening", () => {
     mount(<Harness as={as} />);
     act(() => ctl.setRecording!(true));
@@ -121,5 +119,55 @@ describe.each([
     act(() => ctl.setInterim!(""));
     expect(river()).toBeNull();
     expect(screen.getByRole("textbox")).toBeInTheDocument();
+  });
+});
+
+/* ── THE FORM BOXES ARE THE PHONE'S (heytiff-mobile SayBox.tsx; Isaac, 9
+   November 2026: "I want the boxes to pretty much be identical") ──
+   Speaking, the words stand on their own over the bar, "Listening" until the
+   first; at ■ they go back into the box, grey, until they land. */
+describe.each([["line"], ["field"]] as const)("the %s posture", (as) => {
+  it("says it is listening until the first word, over the bar", () => {
+    mount(<Harness as={as} />);
+    act(() => ctl.setRecording!(true));
+
+    expect(screen.getByRole("status")).toHaveTextContent("Listening");
+    expect(screen.getByRole("group", { name: "Recording" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Throw it away" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("shows the words as they're said, after what was typed", () => {
+    mount(<Harness as={as} start="gate code 4417" />);
+    act(() => {
+      ctl.setRecording!(true);
+      ctl.setInterim!("and the roof key is at the desk");
+    });
+
+    expect(river()).toHaveTextContent("gate code 4417 and the roof key is at the desk");
+    expect(document.querySelector(".wb2-lwsaid")).toHaveTextContent("gate code 4417");
+  });
+
+  it("keeps the words in the box, grey, until they land", () => {
+    mount(<Harness as={as} />);
+    act(() => {
+      ctl.setRecording!(true);
+      ctl.setInterim!("tell Lyle the grilles");
+    });
+    act(() => {
+      ctl.setRecording!(false);
+      ctl.setTranscribing!(true);
+    });
+    const box = screen.getByRole("textbox");
+    expect(box).toHaveValue("tell Lyle the grilles");
+    expect(box).toHaveClass("say-words--hearing");
+    expect(screen.queryByText("Thinking")).not.toBeInTheDocument();
+
+    act(() => {
+      ctl.setTranscribing!(false);
+      ctl.setInterim!("");
+    });
+    expect(screen.getByRole("textbox")).not.toHaveClass("say-words--hearing");
   });
 });

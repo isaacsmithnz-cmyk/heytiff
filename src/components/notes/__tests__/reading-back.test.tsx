@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { NoteToken } from "../note-token";
 import { NoteScopeProvider } from "../note-context";
 import { READING_BACK_NOTE } from "../waits";
@@ -66,13 +66,33 @@ describe("the postures on a page", () => {
      `field` because it was the one that rendered its hint as a <span> rather
      than a <p> — a difference that meant nothing visually and would have been
      one more thing to keep in step by hand. */
-  it.each(["field", "line", "strip"] as const)("names the wait on the %s posture", async (as) => {
+  it.each(["strip"] as const)("names the wait on the %s posture", async (as) => {
     transcribing = true;
     mount(<NoteToken as={as} />);
 
     const said = chip();
     expect(said).not.toBeNull();
     expect(said!.closest("[role='status']")).not.toBeNull();
+  });
+
+  /* The phone's box in a form (Isaac, 9 November 2026: "I want the boxes to
+     pretty much be identical"): the words stay in the box, grey, and nothing
+     says "Thinking"; only a read-back that takes a while says it's fixing
+     the wording, as the phone's does. */
+  it.each(["field", "line"] as const)("keeps quiet on the %s posture, then says it's fixing the wording", (as) => {
+    jest.useFakeTimers();
+    try {
+      transcribing = true;
+      mount(<NoteToken as={as} />);
+      expect(chip()).toBeNull();
+      expect(screen.queryByText("Fixing the wording")).not.toBeInTheDocument();
+      act(() => {
+        jest.advanceTimersByTime(1200);
+      });
+      expect(screen.getByRole("status")).toHaveTextContent("Fixing the wording");
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("says nothing at all while the microphone is not busy", () => {

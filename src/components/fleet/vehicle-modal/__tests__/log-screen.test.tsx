@@ -295,7 +295,7 @@ describe("Update odometer and Report an issue", () => {
      voice where the workspace has it */
   it("an issue can be said, where voice is on, and its words are what's logged", async () => {
     const { f, user } = mount("add:issue", true);
-    expect(screen.getByRole("button", { name: "Dictate — what's wrong" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Speak instead of typing — what's wrong" })).toBeInTheDocument();
     act(() => heard.say!("Wiper blade split"));
     expect(screen.getByRole("textbox", { name: "What's wrong" })).toHaveValue("Wiper blade split");
     await user.click(screen.getByRole("button", { name: "Report issue" }));

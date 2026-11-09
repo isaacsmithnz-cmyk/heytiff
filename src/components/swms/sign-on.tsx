@@ -11,7 +11,7 @@ import type { SwmsDocument, SwmsPerson } from "@/lib/swms/query";
 import { siteDay, siteWhen } from "@/lib/swms/when";
 import { Button } from "@/components/parts/button";
 import { Dialog } from "@/components/parts/dialog";
-import { Field, TextArea } from "@/components/parts/field";
+import { Field } from "@/components/parts/field";
 import { Initials } from "@/components/parts/initials";
 import { Row, RowList } from "@/components/parts/row";
 import { StateWord } from "@/components/parts/state";
@@ -19,6 +19,7 @@ import { Icon } from "@/components/shell/icon";
 import { SignaturePad } from "./controls";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 import "./swms.css";
+import { NoteToken } from "@/components/notes/note-token";
 
 /* THE SIGN-ON — read the SWMS, confirm the briefing, sign in the box.
 
@@ -148,7 +149,7 @@ function useSignOn(person: SwmsPerson, onSigned: () => void) {
 function IssueOnSigning({ s }: { s: ReturnType<typeof useSignOn> }) {
   return s.raising ? (
     <Field label="Issue with this SWMS">
-      <TextArea rows={2} value={s.issue} onChange={(e) => s.setIssue(e.target.value)} />
+      <NoteToken as="field" label="the issue" offer={false} rows={2} value={s.issue} onChange={s.setIssue} />
     </Field>
   ) : (
     <Button kind="quiet" size={32} className="sws-quiet" onClick={s.startRaising}>
@@ -259,7 +260,7 @@ function IssueCard({ person, onClose, onDone }: { person: SwmsPerson; onClose: (
 
   return (
     <Section name="Issue with this SWMS" icon="flag" hue="orange" card headingId={headingId}>
-      <TextArea rows={2} aria-labelledby={headingId} className="sws-issue" value={text} onChange={(e) => setText(e.target.value)} />
+      <NoteToken as="field" className="sws-issue" label="the issue" offer={false} rows={2} box={{ "aria-labelledby": headingId }} value={text} onChange={setText} />
       <div className="sws-foot">
         <span className="sws-word sws-word--wrong">{error}</span>
         <span className="sws-btns">

@@ -265,7 +265,8 @@ function makeToolRun(store: QuoteStore) {
       case "room_load": {
         const v = roomLoads(input);
         if (v.rooms.length === 0) return fail("Give each room its area in m².");
-        return { ok: true, label, said: `${v.rooms.length} ${v.rooms.length === 1 ? "room" : "rooms"}, ${v.total_kw} kW`, value: v };
+        const sum = `${v.rooms.length} ${v.rooms.length === 1 ? "room" : "rooms"}, ${v.total_kw} kW`;
+        return { ok: true, label, said: v.diversity < 1 ? `${sum}, ${v.system_kw} kW zoned` : sum, value: v };
       }
       case "add_lines": {
         const raw = Array.isArray(input.lines) ? input.lines.slice(0, 40) : [];

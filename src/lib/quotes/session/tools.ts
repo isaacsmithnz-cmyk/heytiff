@@ -258,12 +258,13 @@ export const SESSION_TOOLS: ToolDef[] = [
   {
     name: "room_load",
     description:
-      "Each room's design load in kW by Studio's own load method, when the brief gives rooms but no capacity: the area, the climate zone (5 for Sydney, Perth, Adelaide; 6 Melbourne, Canberra; 2 Brisbane), and what's known of the room. A unit covers a room when its rating is short by less than 0.1 kW. Pick the unit from the book, then check it on its data pack.",
+      "Each room's design load in kW by Studio's own load method, when the brief gives rooms but no capacity: the area, the climate zone (5 for Sydney, Perth, Adelaide; 6 Melbourne, Canberra; 2 Brisbane), and what's known of the room. A unit covers a room when its rating is short by less than 0.1 kW. For one ducted system with zones over the rooms, set zoned: its unit is sized on system_kw (the rooms' sum at 0.7, as they don't all call at once), never the plain sum; each room still needs its own outlet sized on its own load. Pick the unit from the book, then check it on its data pack.",
     input_schema: {
       type: "object",
       properties: {
         climate_zone: { type: "integer", minimum: 1, maximum: 8 },
         building_type: { type: "string", enum: ["residential", "light_commercial", "commercial"] },
+        zoned: { type: "boolean", description: "One ducted system with zones serves these rooms" },
         rooms: {
           type: "array",
           maxItems: 30,
@@ -836,7 +837,18 @@ function priced(p: Product, o: Offer, unit: LineUnit) {
 
 /** Each room's load by Studio's load method (lib/studio/loads.ts), from what
     she gave; a room with no area is left out, saying so. */
-export function roomLoads(raw: unknown): { rooms: { name: string; area_m2: number; load_kw: number }[]; total_kw: number; skipped: string[]; climate_zone: number } {
+export function roomLoads(raw: unknown): {
+  rooms: { name: string; area_m2: number; load_kw: number }[];
+  total_kw: number;
+  /* one zoned ducted system over these rooms: they don't all call at once,
+     so the unit is sized on the sum at 0.7, as the Studio sizes it
+     (lib/studio/ducted.ts diversityFactor); unzoned, every room can call at
+     once and it's the sum */
+  system_kw: number;
+  diversity: number;
+  skipped: string[];
+  climate_zone: number;
+} {
   const r = obj(raw);
   const zone = Math.max(1, Math.min(8, Math.round(num(r.climate_zone) ?? DEFAULT_CLIMATE_ZONE)));
   const type = (["residential", "light_commercial", "commercial"] as const).find((t) => t === r.building_type) ?? "residential";
@@ -863,5 +875,10 @@ export function roomLoads(raw: unknown): { rooms: { name: string; area_m2: numbe
     });
     out.push({ name, area_m2: area, load_kw: load });
   }
-  return { rooms: out, total_kw: Math.round(out.reduce((n, x) => n + x.load_kw, 0) * 1000) / 1000, skipped, climate_zone: zone };
+  const total = Math.round(out.reduce((n, x) => n + x.load_kw, 0) * 1000) / 1000;
+  const diversity = r.zoned === true && out.length > 1 ? ZONED_DIVERSITY : 1;
+  return { rooms: out, total_kw: total, system_kw: Math.round(total * diversity * 1000) / 1000, diversity, skipped, climate_zone: zone };
 }
+
+/** The Studio's zoned default (lib/studio/ducted.ts diversityFactor). */
+const ZONED_DIVERSITY = 0.7;

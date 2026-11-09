@@ -1,5 +1,5 @@
 import "server-only";
-import { readEngine } from "../lines-server";
+import { namesBySignIn, readEngine } from "../lines-server";
 import type { ModelCall } from "./model";
 import { anthropicModel, chosenEffort, sessionModelFor, writeUpFirst } from "./model-server";
 import { openingMessage, openWords, sessionSystemPrompt } from "./prompt";
@@ -53,7 +53,12 @@ export async function startTurn(
      said to, or her no-prices rule would carry on to them */
   const history = JSON.stringify(session.messages);
   const moneyWords = opts.noMoney ? NO_MONEY_WORDS : history.lastIndexOf(NO_MONEY_WORDS) > history.lastIndexOf(MONEY_WORDS) ? MONEY_WORDS : "";
-  const said = [answered, openWords(open), moneyWords, text, goOn].filter(Boolean).join("\n\n");
+  /* WHO IS SPEAKING, by name: a quote is worked on by more than one person,
+     and with no name her notes gave Isaac's words to Luke, the tech the
+     job's brief names (the 3465 review, 5 November 2026) */
+  const speaker = text ? ((await namesBySignIn(orgId, [by]).catch(() => ({}) as Record<string, string>))[by] ?? null) : null;
+  const spoken = text && speaker ? `${speaker} says:\n${text}` : text;
+  const said = [answered, openWords(open), moneyWords, spoken, goOn].filter(Boolean).join("\n\n");
   /* a first turn opened with typed words, not Read the job, still has the
      job in front of her: every source, as Read the job ticks them. 3421, 21
      October: "Add an option for Linear Mitsubishi Zone kit" reached her with

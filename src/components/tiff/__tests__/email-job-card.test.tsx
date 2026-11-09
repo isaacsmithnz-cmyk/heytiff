@@ -9,8 +9,12 @@ const createJobFromEmail = jest.fn();
 const emailJobMade = jest.fn();
 const notAJob = jest.fn();
 const fileEmailOnJob = jest.fn();
+const addEmailToJob = jest.fn();
+const kickPlanReads = jest.fn();
+jest.mock("@/lib/jobs/plans-client", () => ({ kickPlanReads: (...a: unknown[]) => kickPlanReads(...a), PLAN_POLL_MS: 8000 }));
 jest.mock("@/app/actions/email-in-job", () => ({
   fileEmailOnJob: (...a: unknown[]) => fileEmailOnJob(...a),
+  addEmailToJob: (...a: unknown[]) => addEmailToJob(...a),
   readEmailJob: (...a: unknown[]) => readEmailJob(...a),
   createJobFromEmail: (...a: unknown[]) => createJobFromEmail(...a),
   emailJobMade: (...a: unknown[]) => emailJobMade(...a),
@@ -55,7 +59,7 @@ const view = (over: Record<string, unknown> = {}) => ({
     clientMatch: { uuid: "c1", name: "Truecut Building", builder: true },
     siteMatch: null,
   },
-  files: [{ name: "A-101 Architectural.pdf", size: 16_000_000 }],
+  files: [{ name: "A-101 Architectural.pdf", size: 16_000_000, drawings: false }],
   links: [],
   subject: "Fwd: Attic extension",
   body: "Please quote.",
@@ -74,7 +78,7 @@ const draw = async () => {
 };
 
 beforeEach(() => {
-  for (const f of [readEmailJob, createJobFromEmail, emailJobMade, notAJob, fileEmailOnJob]) f.mockReset();
+  for (const f of [readEmailJob, createJobFromEmail, emailJobMade, notAJob, fileEmailOnJob, addEmailToJob, kickPlanReads]) f.mockReset();
   formProps = null;
   readEmailJob.mockResolvedValue(view());
 });
@@ -170,29 +174,82 @@ describe("documents for a job already here", () => {
 
   it("offers the one job it's sure of, says how it knows, and adds the email to it", async () => {
     readEmailJob.mockResolvedValue(about([job("3444", "number")]));
-    fileEmailOnJob.mockResolvedValue(true);
+    addEmailToJob.mockResolvedValue({ ok: true, planIds: [], planned: [] });
     await draw();
     expect(screen.getByRole("heading", { name: "For job 3444" })).toBeInTheDocument();
     expect(screen.getByText("Its number is in the email")).toBeInTheDocument();
     expect(screen.getByText("To the job's notes")).toBeInTheDocument();
+    /* a file Tiff didn't read as drawings goes to Documents, with no tick */
+    expect(screen.getByText("A-101 Architectural.pdf, to the job's Documents")).toBeInTheDocument();
+    expect(screen.queryByText("Plans")).toBeNull();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Add to job 3444" }));
     });
-    expect(fileEmailOnJob).toHaveBeenCalledWith(ID, "u-3444");
+    expect(addEmailToJob).toHaveBeenCalledWith(ID, "u-3444", []);
+    expect(kickPlanReads).toHaveBeenCalledWith([]);
     expect(screen.getByText("Added to job 3444")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open job 3444" })).toBeInTheDocument();
   });
 
   it("asks which job when it isn't sure, each with its own Add", async () => {
     readEmailJob.mockResolvedValue(about([job("3444", "client"), job("3500", "client")]));
-    fileEmailOnJob.mockResolvedValue(true);
+    addEmailToJob.mockResolvedValue({ ok: true, planIds: [], planned: [] });
     await draw();
     expect(screen.getByRole("heading", { name: "Which job?" })).toBeInTheDocument();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Add to job 3500" }));
     });
-    expect(fileEmailOnJob).toHaveBeenCalledWith(ID, "u-3500");
+    expect(addEmailToJob).toHaveBeenCalledWith(ID, "u-3500", []);
     expect(screen.getByText("Added to job 3500")).toBeInTheDocument();
+  });
+
+  /* the Plans mock of 9 November 2026 ("Go that"): a set of drawings is
+     ticked for the job's Plans; Add to job puts it there and reads it once */
+  it("ticks a set of drawings for the job's Plans, and Add to job puts it there and starts the read", async () => {
+    readEmailJob.mockResolvedValue({
+      ...about([job("3452", "number")]),
+      files: [
+        { name: "90 bondi BEACH- Suttor.pdf", size: 4_000_000, drawings: true },
+        { name: "Quote request.pdf", size: 40_000, drawings: false },
+      ],
+    });
+    addEmailToJob.mockResolvedValue({ ok: true, planIds: ["jplan_1"], planned: ["90 bondi BEACH- Suttor.pdf"] });
+    await draw();
+    const tick = screen.getByRole("checkbox", { name: /90 bondi BEACH- Suttor\.pdf/ });
+    expect(tick).toBeChecked();
+    expect(tick.closest("li")).toHaveTextContent("90 bondi BEACH- Suttor.pdf, a set of drawings, to the job's Plans");
+    expect(screen.getByText("Quote request.pdf, to the job's Documents")).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Add to job 3452" }));
+    });
+    expect(addEmailToJob).toHaveBeenCalledWith(ID, "u-3452", ["90 bondi BEACH- Suttor.pdf"]);
+    expect(kickPlanReads).toHaveBeenCalledWith(["jplan_1"]);
+    expect(screen.getByText("90 bondi BEACH- Suttor.pdf, in the job's Plans")).toBeInTheDocument();
+  });
+
+  it("lets the tick come off, and the file then goes to Documents like any other", async () => {
+    readEmailJob.mockResolvedValue({ ...about([job("3452", "number")]), files: [{ name: "Set.pdf", size: 4_000_000, drawings: true }] });
+    addEmailToJob.mockResolvedValue({ ok: true, planIds: [], planned: [] });
+    await draw();
+    fireEvent.click(screen.getByRole("checkbox", { name: /Set\.pdf/ }));
+    expect(screen.getByRole("checkbox", { name: /Set\.pdf/ })).not.toBeChecked();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Add to job 3452" }));
+    });
+    expect(addEmailToJob).toHaveBeenCalledWith(ID, "u-3452", []);
+    expect(screen.getByText("Set.pdf, to the job's Documents")).toBeInTheDocument();
+  });
+
+  it("says a file went to Documents when it couldn't go into Plans", async () => {
+    readEmailJob.mockResolvedValue({ ...about([job("3452", "number")]), files: [{ name: "Set.pdf", size: 4_000_000, drawings: true }] });
+    addEmailToJob.mockResolvedValue({ ok: true, planIds: [], planned: [] });
+    await draw();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Add to job 3452" }));
+    });
+    expect(addEmailToJob).toHaveBeenCalledWith(ID, "u-3452", ["Set.pdf"]);
+    expect(screen.getByText("Set.pdf, to the job's Documents")).toBeInTheDocument();
+    expect(screen.queryByText(/in the job's Plans/)).toBeNull();
   });
 
   it("turns into a new job on Make a new job instead", async () => {

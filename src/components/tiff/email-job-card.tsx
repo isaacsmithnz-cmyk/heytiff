@@ -3,13 +3,15 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/parts/button";
 import { StateWord } from "@/components/parts/state";
+import { Tick } from "@/components/parts/tick";
 import { Wrong } from "@/components/settings/parts";
 import { NewJobForm } from "@/components/making/new-job-form";
 import { jobPageHref } from "@/lib/shell/links";
 import { FOUND_WORDS, dueWords, forExistingJob, sureJob, type JobCandidate } from "@/lib/email/proposal";
 import { aShare } from "@/lib/email/share-links";
 import type { EmailJobView } from "@/lib/email/made-server";
-import { createJobFromEmail, emailJobMade, fileEmailOnJob, notAJob, readEmailJob } from "@/app/actions/email-in-job";
+import { addEmailToJob, createJobFromEmail, emailJobMade, notAJob, readEmailJob } from "@/app/actions/email-in-job";
+import { kickPlanReads } from "@/lib/jobs/plans-client";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* WHAT TIFF PROPOSES FROM A FORWARDED EMAIL, in the Inbox (Isaac, 28 October
@@ -30,6 +32,13 @@ import { withCleanup } from "@/lib/ui/with-cleanup";
    scope as written and where the files go; then Create job, Change the
    details (the New job form, filled in) and Not a job.
 
+   DRAWINGS GO INTO THE JOB'S PLANS (Isaac, 9 November 2026, the Plans mock
+   https://claude.ai/artifact/3gzx9mP747FgTX7qxsH9fe, "Go that"): a file Tiff
+   read as a set of drawings is ticked on a Plans row of the card, and Add
+   to job puts it in the job's Plans and reads it once, beside filing the
+   email. Untick it and it goes to Documents like any file. Nothing enters
+   Plans without the press.
+
    A LINK TO THE PLANS (29 October 2026: "She could at least bring the link
    for you to click on straight from the job card"): a tender folder the
    email points to rather than carries opens from here, and from the job's
@@ -48,9 +57,9 @@ const Row = ({ k, children }: { k: string; children: ReactNode }) => (
 const firstLine = (s: string | null) => (s ?? "").split("\n")[0]!.trim();
 const jobWords = (j: JobCandidate) => [j.number ? `${j.number}` : null, firstLine(j.address) || null].filter(Boolean).join(", ");
 
-type Held = { id: string; view: EmailJobView | null | "none"; busy: boolean; wrong: string | null; form: boolean; makeNew: boolean };
+type Held = { id: string; view: EmailJobView | null | "none"; busy: boolean; wrong: string | null; form: boolean; makeNew: boolean; plans: ReadonlySet<string> | null };
 
-const fresh = (id: string): Held => ({ id, view: null, busy: false, wrong: null, form: false, makeNew: false });
+const fresh = (id: string): Held => ({ id, view: null, busy: false, wrong: null, form: false, makeNew: false, plans: null });
 
 /** One email's card: its row, what can be done to it, and how that went.
     `onChange` hears the row once something is done, so the Inbox's word
@@ -98,11 +107,24 @@ export function useEmailJob(id: string, onChange?: (view: EmailJobView) => void)
     }, () => patch({ busy: false }));
   };
 
+  /* the files ticked for the job's Plans: Tiff's drawings until somebody unticks one */
+  const plans: ReadonlySet<string> = held.plans ?? new Set((view?.files ?? []).filter((f) => f.drawings).map((f) => f.name));
+  const setPlan = (name: string, on: boolean) => {
+    const next = new Set(plans);
+    if (on) next.add(name);
+    else next.delete(name);
+    patch({ plans: next });
+  };
+
   const addTo = (job: JobCandidate) => {
     patch({ busy: true, wrong: null });
+    const ticked = [...plans];
     void withCleanup(async () => {
-      const added = await fileEmailOnJob(id, job.uuid).catch(() => false);
-      if (!added) return patch({ wrong: "It couldn't be added to that job. Try again." });
+      const added = await addEmailToJob(id, job.uuid, ticked).catch(() => ({ ok: false as const }));
+      if (!added.ok) return patch({ wrong: "It couldn't be added to that job. Try again." });
+      kickPlanReads(added.planIds);
+      /* what the card says after is what went in, not what was ticked */
+      patch({ plans: new Set(added.planned ?? []) });
       done({ state: "filed", jobUuid: job.uuid, jobNumber: job.number });
     }, () => patch({ busy: false }));
   };
@@ -133,6 +155,9 @@ export function useEmailJob(id: string, onChange?: (view: EmailJobView) => void)
     create,
     addTo,
     putAway,
+    /** the files ticked for the job's Plans */
+    plans,
+    setPlan,
     openForm: () => patch({ form: true }),
     closeForm: () => patch({ form: false }),
     makeNewInstead: () => patch({ makeNew: true }),
@@ -233,7 +258,37 @@ export function EmailJobFacts({ job }: { job: EmailJob }) {
   if (!view || !view.proposal || !hasCard) return null;
   const p = view.proposal;
 
-  const files = view.files.length > 0 && <Row k="Files">{`${view.files.map((f) => f.name).join(", ")}, to the job's Documents`}</Row>;
+  /* on a job already here, a set of drawings is offered for the job's
+     Plans: ticked by Tiff, unticked by hand; the rest go to Documents */
+  const settled = isDone(view) || view.state === "not_a_job";
+  const forPlans = existing ? view.files.filter((f) => f.drawings || job.plans.has(f.name)) : [];
+  const others = view.files.filter((f) => !forPlans.includes(f));
+  const planRows = forPlans.length > 0 && (
+    <Row k="Plans">
+      <ul className="cv-job-plans">
+        {forPlans.map((f) => (
+          <li key={f.name}>
+            {settled ? (
+              `${f.name}${job.plans.has(f.name) ? ", in the job's Plans" : ", to the job's Documents"}`
+            ) : (
+              <Tick
+                checked={job.plans.has(f.name)}
+                disabled={busy}
+                onChange={(on) => job.setPlan(f.name, on)}
+                label={
+                  <>
+                    {f.name}
+                    <span className="cv-job-q">, a set of drawings, to the job&apos;s Plans</span>
+                  </>
+                }
+              />
+            )}
+          </li>
+        ))}
+      </ul>
+    </Row>
+  );
+  const files = others.length > 0 && <Row k="Files">{`${others.map((f) => f.name).join(", ")}, to the job's Documents`}</Row>;
   const links = view.links.length > 0 && (
     <Row k={view.links.length === 1 ? "Link" : "Links"}>
       <ul className="cv-job-links">
@@ -263,6 +318,7 @@ export function EmailJobFacts({ job }: { job: EmailJob }) {
               {sure.client && <Row k="Client">{sure.client}</Row>}
               {sure.status && <Row k="Stage">{sure.status}</Row>}
               <Row k="Found by">{FOUND_WORDS[sure.found]}</Row>
+              {planRows}
             </>
           ) : (
             <Row k="Jobs">

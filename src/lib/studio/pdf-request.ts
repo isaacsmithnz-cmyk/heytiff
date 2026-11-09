@@ -110,3 +110,53 @@ export function pdfFileName(name: string): string {
   const base = name.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
   return `${base || "Design"}.pdf`;
 }
+
+/* ── THE PAGES OF A PLAN, DRAWN BY THE SAME BROWSER (lib/jobs/plans-server.ts).
+
+   A plan pressed into a job's Plans is read on the server, and the server
+   has no canvas to draw a PDF's pages with. The headless Chrome that prints
+   the design draws them instead, on /print/plan-pages, with the Studio's own
+   pdf.js renderer: the very rasters the New design dialog would have made.
+   The ticket names the workspace and the file (a signed read address, good
+   for an hour), and for the second visit the pages to draw in full and the
+   signed slots each goes up to. ── */
+export interface PlanPagesTicket {
+  orgId: string;
+  /** a signed read address for the file */
+  url: string;
+  kind: "pdf" | "image";
+  /** the pages to draw in full and where each goes; absent for the first
+      visit, which draws every page small and reads its words */
+  full?: { n: number; ref: string; token: string }[];
+}
+
+const PLAN_TTL_MS = 10 * 60_000;
+
+export function signPlanPagesTicket(t: PlanPagesTicket, now: number = Date.now()): string {
+  const body = b64(JSON.stringify({ ...t, exp: now + PLAN_TTL_MS }));
+  const sig = b64(createHmac("sha256", key()).update(`plan-pages:${body}`).digest());
+  return `${body}.${sig}`;
+}
+
+export function readPlanPagesTicket(token: string | undefined, now: number = Date.now()): PlanPagesTicket | null {
+  if (!token || token.length > 40000) return null;
+  const [body, sig] = token.split(".");
+  if (!body || !sig) return null;
+  const want = createHmac("sha256", key()).update(`plan-pages:${body}`).digest();
+  const got = Buffer.from(sig, "base64url");
+  if (got.length !== want.length || !timingSafeEqual(got, want)) return null;
+  let parsed: { orgId?: unknown; url?: unknown; kind?: unknown; full?: unknown; exp?: unknown };
+  try {
+    parsed = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+  } catch {
+    return null;
+  }
+  if (typeof parsed.exp !== "number" || parsed.exp < now) return null;
+  if (typeof parsed.orgId !== "string" || typeof parsed.url !== "string") return null;
+  const full = Array.isArray(parsed.full)
+    ? parsed.full
+        .filter((f): f is { n: number; ref: string; token: string } => !!f && typeof f === "object" && typeof (f as { n?: unknown }).n === "number" && typeof (f as { ref?: unknown }).ref === "string" && typeof (f as { token?: unknown }).token === "string")
+        .slice(0, 60)
+    : undefined;
+  return { orgId: parsed.orgId, url: parsed.url, kind: parsed.kind === "image" ? "image" : "pdf", ...(full ? { full } : {}) };
+}

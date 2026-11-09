@@ -26,6 +26,10 @@ import { buildJobStory, storyStamp } from "@/lib/workboard/job-story";
 import { JobClaimModal } from "./job-claim-modal";
 import { JobMoneyBlock, JobMoneyGlance } from "./job-money-block";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
+import { addPlansToJob, readPlansOnJob } from "@/app/actions/job-plans";
+import { kickPlanReads, PLAN_POLL_MS } from "@/lib/jobs/plans-client";
+import type { JobPlanRead, PlanPick } from "@/lib/jobs/plans";
+import { fileOnJob } from "@/lib/documents/file-on-job";
 import { readJobPhotos } from "@/app/actions/photo-readings";
 import {
   addJobPicklistItem,
@@ -482,6 +486,38 @@ export function JobSheet({
      clone's row opens its parent, so asking for the clone's files, ledger or
      picklist would fetch a different job's answers into this card. */
   const cardId = detail?.remoteId ?? null;
+
+  /* THE JOB'S PLANS (lib/jobs/plans.ts): read with the files, and asked
+     after every few seconds while one of them says Tiff is still reading. */
+  const [plans, setPlans] = useState<JobPlanRead[] | null>(null);
+  const plansReading = !!plans?.some((p) => p.state === "reading");
+  useEffect(() => {
+    if (!cardId) return;
+    let live = true;
+    const ask = () =>
+      void readPlansOnJob(cardId)
+        .then((p) => {
+          if (live && p) setPlans(p);
+        })
+        .catch(() => {});
+    ask();
+    const timer = plansReading ? window.setInterval(ask, PLAN_POLL_MS) : 0;
+    return () => {
+      live = false;
+      if (timer) window.clearInterval(timer);
+    };
+  }, [cardId, plansReading]);
+  const addPlans = async (picks: PlanPick[]): Promise<string | null> => {
+    if (!cardId) return "The job isn't known yet.";
+    const added = await addPlansToJob(cardId, picks).catch(() => null);
+    if (!added) return "The plans couldn't be added. Try again.";
+    if (!added.ok) return added.error;
+    kickPlanReads(added.planIds);
+    const [fresh, media] = await Promise.all([readPlansOnJob(cardId).catch(() => null), readJobFiles(cardId).catch(() => null)]);
+    if (fresh) setPlans(fresh);
+    if (media) setMedia(media);
+    return null;
+  };
 
   /* WHO ELSE HAS THIS JOB OPEN (use-record-presence), and word when one of
      them writes in its diary, which this card then reads again. Says
@@ -1764,6 +1800,11 @@ export function JobSheet({
               onOpenPaper={(p) => setViewer({ kind: "papers", id: p.id, index: 0 })}
               sends={sm8Read?.sends ?? null}
               sendHold={sm8Read?.hold ?? null}
+              plans={plans}
+              /* offered once the job's plans have been read: a workspace whose
+                 Plans table isn't there yet shows Documents as it was */
+              onAddPlans={cardId && plans !== null ? addPlans : undefined}
+              onUploadForPlans={cardId ? (file) => fileOnJob(file, cardId) : undefined}
             />
           )}
     </>

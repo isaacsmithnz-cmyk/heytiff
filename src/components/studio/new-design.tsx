@@ -17,7 +17,16 @@
         floor. Calibration there is exactly as it was.
 
    The pages are read in the browser by the Studio's own reader
-   (plans.ts), and stored by the same PlanImages as the old Plans step. */
+   (plans.ts), and stored by the same PlanImages as the old Plans step.
+
+   FROM THE JOB'S PLANS (Isaac, 9 November 2026, the Plans mock, board 7):
+   a job with plans in its Documents shows them here in the drop zone's
+   place, each ticked once Tiff has read it, with the floors she found;
+   Start design takes the floors and her reading from the plan and reads
+   nothing again (lib/jobs/plans.ts designFromPlan). Add plans puts a file
+   onto the job and into its Plans, read once there, and it joins the list
+   as it is read; the drop zone stays for a job with no plans and a design
+   with no job. */
 
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Button, IconButton } from "@/components/parts/button";
@@ -45,6 +54,10 @@ import {
 } from "@/lib/studio/new-design";
 import { defaultFloorName, imageToPage, labelPagesSequentially, pdfPagesAt, pdfToPages, type PageImage, type PlanImages } from "@/lib/studio/plans";
 import type { TrimRect } from "@/lib/studio/plan-trim";
+import { StateWord } from "@/components/parts/state";
+import { Tick } from "@/components/parts/tick";
+import { floorPagesOf, pageCaption, planReadLine, planStateWord, startablePlans, type JobPlanRead } from "@/lib/jobs/plans";
+import { kickPlanReads, PLAN_POLL_MS } from "@/lib/jobs/plans-client";
 import { JobSearchField, type JobSearch } from "./job-search";
 import { useStudioFlow } from "./flow";
 
@@ -150,6 +163,10 @@ export function NewDesign({
   onPlans,
   onClose,
   forJob,
+  onFromPlans,
+  jobPlans: givenPlans,
+  loadJobPlans,
+  addJobPlan,
 }: {
   sm8Jobs?: boolean;
   jobSearch: JobSearch;
@@ -157,6 +174,14 @@ export function NewDesign({
   onBlank: (name: string, job?: JobPrefill) => void;
   /** opens the design on the canvas; resolves once it's saved */
   onPlans: (name: string, job: JobPrefill | undefined, floors: Floor[], planImport: PlanImport) => Promise<void>;
+  /** opens the design on the job's plans: their floors and Tiff's reading come with them */
+  onFromPlans?: (name: string, job: JobPrefill, plans: JobPlanRead[]) => Promise<void>;
+  /** the job's plans (lib/jobs/plans.ts): the fixed job's, read on the
+      server by the route; a picked job's are asked for with `loadJobPlans` */
+  jobPlans?: JobPlanRead[] | null;
+  loadJobPlans?: (jobUuid: string) => Promise<JobPlanRead[] | null>;
+  /** a file onto the job and into its Plans; the ids of the plans made, to start their reads */
+  addJobPlan?: (jobUuid: string, file: File) => Promise<{ ok: true; planIds: string[] } | { ok: false; error: string }>;
   onClose: () => void;
   /** the job it's started on, from the quote's Design step (Isaac, 28
       October 2026): fixed, its street the name, nothing to search for */
@@ -260,6 +285,71 @@ export function NewDesign({
 
   const job = fixed ?? (picked ? prefillFromJob(picked) : undefined);
   const designName = name.trim() || "Untitled design";
+
+  /* THE JOB'S PLANS: the fixed job's arrive with the dialog; a picked job's
+     are asked for, and asked again every few seconds while one is being
+     read, so a plan just added turns to Read here as it does on the job */
+  const [plansOf, setPlansOf] = useState<{ job: string; plans: JobPlanRead[] | null }>(() => ({ job: fixed?.remoteId ?? "", plans: givenPlans ?? null }));
+  const jobId = job?.remoteId ?? "";
+  const plans = plansOf.job === jobId ? plansOf.plans : null;
+  const plansReading = !!plans?.some((p) => p.state === "reading");
+  const [planTicks, setPlanTicks] = useState<ReadonlySet<string> | null>(null);
+  const [planBusy, setPlanBusy] = useState<string | null>(null);
+  const planPicker = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!jobId || !loadJobPlans) return;
+    if (plansOf.job === jobId && plansOf.plans && !plansReading) return;
+    let live = true;
+    const ask = () =>
+      void loadJobPlans(jobId)
+        .then((p) => {
+          if (live && p) setPlansOf({ job: jobId, plans: p });
+        })
+        .catch(() => {});
+    if (plansOf.job !== jobId || !plansOf.plans) ask();
+    const timer = plansReading ? window.setInterval(ask, PLAN_POLL_MS) : 0;
+    return () => {
+      live = false;
+      if (timer) window.clearInterval(timer);
+    };
+  }, [jobId, loadJobPlans, plansOf, plansReading]);
+  const startable = plans ? startablePlans(plans) : [];
+  /* read plans come ticked; a tick taken off stays off */
+  const tickedPlans = startable.filter((p) => (planTicks ? planTicks.has(p.id) : true));
+  const togglePlan = (id: string, on: boolean) =>
+    setPlanTicks((cur) => {
+      const next = new Set(cur ?? startable.map((p) => p.id));
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  const addPlanFiles = async (list: File[]) => {
+    if (!addJobPlan || !jobId || list.length === 0) return;
+    setError(null);
+    for (let i = 0; i < list.length; i++) {
+      setPlanBusy(list.length === 1 ? "Adding the plan to the job" : `Adding ${i + 1} of ${list.length} to the job`);
+      const added = await addJobPlan(jobId, list[i]).catch(() => ({ ok: false as const, error: "The plan couldn't be added. Try again." }));
+      if (!added.ok) {
+        setError(added.error);
+        break;
+      }
+      kickPlanReads(added.planIds);
+    }
+    setPlanBusy(null);
+    void loadJobPlans?.(jobId).then((p) => p && setPlansOf({ job: jobId, plans: p }));
+  };
+  const showPlans = !!job && !!onFromPlans && !!plans && plans.length > 0;
+  const startFromPlans = async () => {
+    if (!job || !onFromPlans || tickedPlans.length === 0) return;
+    setError(null);
+    setBusy({ word: "Opening the design", done: 0, total: 1 });
+    try {
+      await onFromPlans(designName, job, tickedPlans);
+    } catch (e) {
+      setBusy(null);
+      setError(`The design didn't save: ${failed(e)}. Try again.`);
+    }
+  };
   const heading = "New design";
   const jobWord = job?.jobNumber ? `job ${job.jobNumber}` : null;
 
@@ -452,8 +542,20 @@ export function NewDesign({
 
   /* ── 1. the job, the name, the plans ── */
   if (stage === "start" || stage === "reading") {
+    const foot = showPlans ? (
+      <>
+        <Button onClick={onClose} disabled={!!busy}>
+          Cancel
+        </Button>
+        <Button kind="main" disabled={tickedPlans.length === 0 || !!busy || !!planBusy} onClick={() => void startFromPlans()}>
+          Start design
+        </Button>
+      </>
+    ) : (
+      <Button onClick={onClose}>Cancel</Button>
+    );
     return (
-      <Dialog heading={heading} onClose={onClose} width={720} dismissable={stage === "start"} foot={<Button onClick={onClose}>Cancel</Button>}>
+      <Dialog heading={heading} onClose={onClose} width={720} dismissable={stage === "start"} foot={foot}>
         {filePicker}
         <div className="ds2-nd-form">
           {fixed && (
@@ -485,7 +587,65 @@ export function NewDesign({
               onChange={(e) => setName(e.target.value)}
             />
           </Field>
-          {stage === "reading" && busy ? (
+          {showPlans ? (
+            <Field label="Plans">
+              <div className="ds2-nd-plans">
+                <ul className="pt-rows" aria-label="The job's plans">
+                  {plans.map((p) => {
+                    const can = startable.some((s) => s.id === p.id);
+                    const on = can && tickedPlans.some((t) => t.id === p.id);
+                    const state = planStateWord(p);
+                    const pages = floorPagesOf(p).filter((pg) => p.thumbs[pg.n]);
+                    return (
+                      <li key={p.id} className="pt-row pt-row--wrap">
+                        <span className="pt-row-lead">
+                          <Tick className="jdoc-tick" checked={on} disabled={!can} onChange={(v) => togglePlan(p.id, v)} label={<span className="sr-only">{`Use ${p.name}`}</span>} />
+                        </span>
+                        <span className="pt-row-text">
+                          <span className="pt-row-name">{p.name}</span>
+                          <span className="pt-row-line">{planReadLine(p)}</span>
+                          {pages.length > 0 && (
+                            <span className="jpl-pages jpl-pages--sm">
+                              {pages.map((pg) => (
+                                <span key={pg.n} className="jpl-page">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={p.thumbs[pg.n]} alt={pageCaption(pg)} />
+                                  <span>{pageCaption(pg)}</span>
+                                </span>
+                              ))}
+                            </span>
+                          )}
+                        </span>
+                        <span className="pt-row-end">
+                          <StateWord tone={state.tone}>{state.word}</StateWord>
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {addJobPlan && (
+                  <span className="ds2-nd-addword">
+                    <Button kind="quiet" size={32} disabled={!!planBusy} onClick={() => planPicker.current?.click()}>
+                      {planBusy ?? "Add plans"}
+                    </Button>
+                    <input
+                      ref={planPicker}
+                      type="file"
+                      hidden
+                      multiple
+                      accept="application/pdf,image/png,image/jpeg"
+                      aria-label="Choose plans to add to the job"
+                      onChange={(e) => {
+                        const list = [...(e.target.files ?? [])];
+                        e.target.value = "";
+                        void addPlanFiles(list);
+                      }}
+                    />
+                  </span>
+                )}
+              </div>
+            </Field>
+          ) : stage === "reading" && busy ? (
             <div className="ds2-nd-drop" aria-busy="true">
               <span className="ds2-nd-drop-t">{busy.word}</span>
               <span className="ds2-nd-drop-s" role="status">

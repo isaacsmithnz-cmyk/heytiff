@@ -26,6 +26,7 @@ import type { DesignSummary } from "@/lib/studio/store";
 import type { JobSearch } from "./job-search";
 import { LibraryDoor } from "./library-modal";
 import { NewDesign } from "./new-design";
+import type { JobPlanRead } from "@/lib/jobs/plans";
 
 /* the list shows this many, then Show the rest in place */
 export const RECENT_CAP = 12;
@@ -101,6 +102,10 @@ export function DesignHome({
   onForJobDone,
   onBlank,
   onPlans,
+  onFromPlans,
+  jobPlans,
+  loadJobPlans,
+  addJobPlan,
   onOpen,
   onDelete,
   onImport,
@@ -119,6 +124,11 @@ export function DesignHome({
   planImages: PlanImages;
   onBlank: (name: string, job?: JobPrefill) => void;
   onPlans: (name: string, job: JobPrefill | undefined, floors: Floor[], planImport: PlanImport) => Promise<void>;
+  /** New design from the job's Plans (lib/jobs/plans.ts), and the plans themselves */
+  onFromPlans?: (name: string, job: JobPrefill, plans: JobPlanRead[]) => Promise<void>;
+  jobPlans?: JobPlanRead[] | null;
+  loadJobPlans?: (jobUuid: string) => Promise<JobPlanRead[] | null>;
+  addJobPlan?: (jobUuid: string, file: File) => Promise<{ ok: true; planIds: string[] } | { ok: false; error: string }>;
   onOpen: (id: string) => void;
   onDelete: (id: string) => void;
   onImport: (doc: DesignDocument) => void;
@@ -281,6 +291,10 @@ export function DesignHome({
           forJob={forJob}
           onBlank={onBlank}
           onPlans={onPlans}
+          onFromPlans={onFromPlans}
+          jobPlans={jobPlans}
+          loadJobPlans={loadJobPlans}
+          addJobPlan={addJobPlan}
           onClose={() => {
             setCreating(false);
             onForJobDone?.();

@@ -617,3 +617,91 @@ it("keeps a certificate with the SWMS and the licences, never in Files", () => {
   expect(compliance.getByText("Public liability, QBE")).toBeInTheDocument();
   expect(screen.queryByRole("region", { name: "Files" })).toBeNull();
 });
+
+/* ── Plans, at the top (Isaac, 9 November 2026: "a plans group at the top of
+   documents that can be easily read") ─────────────────────────────────── */
+
+import type { JobPlanRead } from "@/lib/jobs/plans";
+
+const suttor: JobMediaItem = {
+  remoteId: "att-suttor",
+  name: "90 bondi BEACH- Suttor.pdf",
+  fileType: ".pdf",
+  kind: "document",
+  origin: "Emailed in",
+  takenAt: "2026-10-22 07:47:08",
+  url: "https://example.invalid/suttor.pdf",
+  width: null,
+  height: null,
+  fromClaim: null,
+};
+const photoDoc: JobMediaItem = { ...suttor, remoteId: "doc:d-2", documentId: "d-2", name: "image.png", fileType: ".png", origin: null, addedBy: "Isaac Smith", url: "https://example.invalid/image.png" };
+
+const readPlan = (over: Partial<JobPlanRead> = {}): JobPlanRead => ({
+  id: "jplan_1",
+  jobUuid: "job-1",
+  documentId: null,
+  attachmentId: "att-suttor",
+  name: suttor.name,
+  sourceRef: "org/o/plan_src.pdf",
+  sourceKind: "pdf",
+  pageCount: 4,
+  pages: [
+    { n: 3, kind: "floor", name: "Ground floor", level: 0, ref: "org/o/p3.png", preview: "org/o/p3.jpeg", width: 2400, height: 1697, mmPerPx: 17.52, scale: "1:50 @ A1" },
+    { n: 4, kind: "floor", name: "Level 1", level: 1, ref: "org/o/p4.png", preview: "org/o/p4.jpeg", width: 2400, height: 1697, mmPerPx: 17.52, scale: "1:50 @ A1" },
+  ],
+  reading: { at: "2026-11-09T02:14:00Z", model: "claude-opus-5-5", floors: {}, failed: [], roof: null, site: null },
+  state: "read",
+  said: null,
+  addedBy: "Isaac Smith",
+  addedAt: "2026-11-09T01:00:00Z",
+  readAt: "2026-11-09T02:14:00Z",
+  thumbs: { 3: "https://example.invalid/t3.jpg", 4: "https://example.invalid/t4.jpg" },
+  usedBy: 2,
+  ...over,
+});
+
+it("lists a plan in Plans, first, with the floors Tiff found under it and Read on its right, and not in From the client too", () => {
+  face({ documents: [suttor, photoDoc], plans: [readPlan()], designs: [{ id: "d1", name: "90 O'Brien Street", mode: "plan", floorCount: 2, systemCount: 1, updatedAt: "2026-10-22T01:09:47Z" }] });
+  const groups = screen.getAllByRole("region").map((g) => g.getAttribute("aria-label"));
+  expect(groups.slice(0, 3)).toEqual(["Plans", "Drawings", "Files"]);
+  const row = within(group("Plans")).getByText(suttor.name).closest(".pt-row") as HTMLElement;
+  expect(row).toHaveTextContent("Emailed in, Thu 22 Oct. Ground floor and Level 1, read on Mon 9 Nov. Used by 2 designs");
+  expect(within(row).getByText("Read")).toBeInTheDocument();
+  expect(within(row).getByRole("img", { name: "Ground floor, page 3" })).toHaveAttribute("src", "https://example.invalid/t3.jpg");
+  expect(within(row).getByText("Level 1, page 4")).toBeInTheDocument();
+  /* the file left its old group */
+  expect(screen.queryByRole("region", { name: "From the client" })).toBeNull();
+  expect(within(group("Files")).getByText("image.png")).toBeInTheDocument();
+});
+
+it("says Tiff is reading a plan just added, and what needs a look", () => {
+  face({ documents: [suttor], plans: [readPlan({ state: "reading", reading: null, readAt: null, pages: [], thumbs: {}, usedBy: 0 })], today: "2026-11-09" });
+  const row = within(group("Plans")).getByText(suttor.name).closest(".pt-row") as HTMLElement;
+  expect(row).toHaveTextContent("Added to Plans by Isaac Smith today");
+  expect(within(row).getByText("Reading the plans")).toBeInTheDocument();
+  expect(within(row).queryByRole("img")).toBeNull();
+});
+
+it("puts Add plans first in Add, and opens it on the job's files with a tick each", async () => {
+  const onAddPlans = jest.fn(async () => null);
+  face({ documents: [suttor, photoDoc], plans: [], onAddPlans, onUpload: async () => null });
+  const menu = await addMenu();
+  const items = within(menu).getAllByRole("menuitem").map((i) => i.textContent);
+  expect(items[0]).toBe("Add plans");
+  expect(items[1]).toBe("Upload a file");
+  await userEvent.click(within(menu).getByRole("menuitem", { name: "Add plans" }));
+  const dialog = await screen.findByRole("dialog", { name: "Add plans" });
+  expect(within(dialog).getByRole("checkbox", { name: `Add ${suttor.name}` })).not.toBeChecked();
+  expect(within(dialog).getByRole("button", { name: "Add plans" })).toBeDisabled();
+  await userEvent.click(within(dialog).getByRole("checkbox", { name: `Add ${suttor.name}` }));
+  await userEvent.click(within(dialog).getByRole("button", { name: "Add 1 plan" }));
+  await waitFor(() => expect(onAddPlans).toHaveBeenCalledWith([{ attachmentId: "att-suttor" }]));
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: "Add plans" })).toBeNull());
+});
+
+it("offers no Add plans while nothing on the job can be read as one and nothing can be dropped", async () => {
+  face({ documents: [], plans: [], onAddPlans: async () => null, onUpload: async () => null });
+  const menu = await addMenu();
+  expect(within(menu).queryByRole("menuitem", { name: "Add plans" })).toBeNull();
+});

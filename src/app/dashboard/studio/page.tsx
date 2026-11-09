@@ -10,6 +10,8 @@ import { libraryManifest, type LibraryManifest } from "@/lib/studio/packs/librar
 import { Studio } from "@/components/studio/studio";
 import { StudioKeep } from "@/components/studio/studio-keeper";
 import { readJobDesigns, studioJobOf } from "@/lib/studio/job-designs-server";
+import { readJobPlans } from "@/lib/jobs/plans-server";
+import type { JobPlanRead } from "@/lib/jobs/plans";
 import { prefillFromJob, type JobPrefill } from "@/lib/studio/job-link";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { designHref } from "@/lib/shell/links";
@@ -97,12 +99,17 @@ export default async function StudioPage({
   const askedJob = typeof params.job === "string" ? params.job.trim().slice(0, 80) : "";
   const askedNew = params.new !== undefined;
   let forJob: JobPrefill | undefined;
+  let jobPlans: JobPlanRead[] | undefined;
   if (askedJob && !openDesignId && orgId && boardAccess) {
     const target = await resolveJobCard(orgId, askedJob);
     const [newest] = askedNew ? [] : await readJobDesigns(orgId, target.parentRemoteId, 1);
     if (newest) redirect(designHref(newest.id));
     const hit = await studioJobOf(orgId, target.parentRemoteId);
-    if (hit) forJob = prefillFromJob(hit);
+    if (hit) {
+      forJob = prefillFromJob(hit);
+      /* the job's plans, for New design to start from (lib/jobs/plans.ts) */
+      jobPlans = (await readJobPlans(orgId, target.parentRemoteId).catch(() => null)) ?? undefined;
+    }
   }
 
   /* Which deployment served this page. `VERCEL_DEPLOYMENT_ID` is the same
@@ -128,6 +135,7 @@ export default async function StudioPage({
         sm8Jobs={sm8Connected && boardAccess}
         openDesignId={openDesignId}
         forJob={forJob}
+        jobPlans={jobPlans}
         buildStamp={buildStamp}
         brand={brand}
         library={library}

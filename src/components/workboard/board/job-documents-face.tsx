@@ -32,6 +32,8 @@ import { sendLine, type JobSend, type SendHold, type SendLine } from "@/lib/inte
 import { ComplianceChooser } from "./compliance-chooser";
 import { designRowLine } from "./job-design-face";
 import { StateLine } from "./state-line";
+import { AddPlansDialog, planCandidates, type UploadForPlans } from "./add-plans-dialog";
+import { floorPagesOf, pageCaption, planLine, planPointsAt, planStateWord, type JobPlanRead, type PlanPick } from "@/lib/jobs/plans";
 
 /* A JOB'S DOCUMENTS (v2; the mock of 25 October 2026, frame 6). One heading,
    no count under it, and one blue Add, whose white menu holds the ways in:
@@ -40,6 +42,12 @@ import { StateLine } from "./state-line";
    as Upload does.
 
    THE PAPER IS GROUPED BY WHAT IT IS, never by which system made it:
+   Plans first (Isaac, 9 November 2026: "a plans group at the top of
+   documents that can be easily read"): the job's drawing sets and plan
+   pictures that have been pressed into Plans, each with Tiff's one read of
+   it, the floors she found as thumbnails and Read, Reading the plans or
+   Check the read on its right; a file in Plans is listed there and not in
+   its old group too. Then
    Drawings (the Studio's designs), From the client (emailed in, and the
    links to plans an email forwarded to Tiff pointed to: "She could at least
    bring the link for you to click on straight from the job card", 29
@@ -233,6 +241,9 @@ export function JobDocumentsFace({
   onOpenPaper,
   sends = null,
   sendHold = null,
+  plans = null,
+  onAddPlans,
+  onUploadForPlans,
 }: {
   documents: readonly JobMediaItem[] | null;
   elsewhere: readonly JobMediaItem[] | null;
@@ -287,10 +298,19 @@ export function JobDocumentsFace({
   sends?: readonly JobSend[] | null;
   /** What is holding the files waiting to go: a pause, or a reconnect. */
   sendHold?: SendHold;
+  /** The job's plans (lib/jobs/plans.ts); null until the read lands. */
+  plans?: readonly JobPlanRead[] | null;
+  /** Press the picked files into Plans; null once they're in, or the reason.
+      Absent until the page knows which job it is. */
+  onAddPlans?: (picks: PlanPick[]) => Promise<string | null>;
+  /** A file dropped into Add plans, onto the job first. */
+  onUploadForPlans?: UploadForPlans;
 }) {
   const day = today ?? todayInAu();
   /* Licences and insurance, open over the page */
   const [choosing, setChoosing] = useState(false);
+  /* Add plans, open over the page */
+  const [addingPlans, setAddingPlans] = useState(false);
   const [adding, setAdding] = useState(false);
   const addRef = useRef<HTMLButtonElement>(null);
   const picker = useRef<HTMLInputElement | null>(null);
@@ -352,7 +372,11 @@ export function JobDocumentsFace({
       }
     : {};
 
-  const docs = documents ?? [];
+  const allDocs = documents ?? [];
+  const planList = plans ?? [];
+  /* a file in Plans is listed there, not in its old group too */
+  const fileOfPlan = (p: JobPlanRead) => allDocs.find((d) => planPointsAt(p, d)) ?? null;
+  const docs = allDocs.filter((d) => !planList.some((p) => planPointsAt(p, d)));
   /* What is genuinely unshowable here stays in ServiceM8; video went to
      Photos, with the rest of what was shot on site. */
   const unshowable = (elsewhere ?? []).length;
@@ -370,14 +394,16 @@ export function JobDocumentsFace({
   const shares = links ?? [];
   const files = byGroup.get("files") ?? [];
   const compliance = statements.length + certs.length + ours.length + attachedPapers.length;
-  const total = designs.length + shares.length + client.length + files.length + compliance;
+  const total = planList.length + designs.length + shares.length + client.length + files.length + compliance;
 
   const offerSwms = !!onCreateSwms && !swmsClosed && swms !== null && statements.length === 0;
   /* one per job: a later one is a reissue of the first */
   const offerCertificate = !!onCreateCertificate && certificates !== null && certs.length === 0;
   const offerPapers = !!onLoadChoices && !!onAddPapers && (mayAdd.company || mayAdd.staff);
 
+  const offerPlans = !!onAddPlans && (planCandidates(docs).length > 0 || !!onUploadForPlans);
   const addItems: MenuItem[] = [
+    ...(offerPlans ? [{ key: "plans", label: "Add plans" }] : []),
     ...(onUpload ? [{ key: "upload", label: "Upload a file", disabled: !!sending }] : []),
     ...(offerPapers ? [{ key: "papers", label: "Licences and insurance" }] : []),
     ...(offerSwms ? [{ key: "swms", label: "SWMS", disabled: !canCreateSwms }] : []),
@@ -385,7 +411,8 @@ export function JobDocumentsFace({
   ];
   const addPick = (key: string) => {
     setAdding(false);
-    if (key === "upload") picker.current?.click();
+    if (key === "plans") setAddingPlans(true);
+    else if (key === "upload") picker.current?.click();
     else if (key === "papers") setChoosing(true);
     else if (key === "swms") onCreateSwms?.();
     else if (key === "certificate") onCreateCertificate?.();
@@ -431,6 +458,41 @@ export function JobDocumentsFace({
         line={lineOf(docLine(d), state) || undefined}
         end={endOf(state)}
         onClick={open}
+      />
+    );
+  };
+
+  /** A plan's row: the file's facts and what Tiff read, the floors she found
+      under them, and its state on the right. Pressing it opens the file. */
+  const planRowOf = (p: JobPlanRead) => {
+    const file = fileOfPlan(p);
+    const sendKey = file?.url ? (file.documentId ? ourDocumentSendKey(file.documentId) : theirFileSendKey(file.remoteId)) : null;
+    const state = planStateWord(p);
+    const facts = [file ? docLine(file) : null, planLine(p, day)].filter(Boolean).join(". ");
+    const pages = p.state === "reading" ? [] : floorPagesOf(p).filter((pg) => p.thumbs[pg.n]);
+    const url = file?.url;
+    const open = file && url ? (opensInCard(file.fileType) ? () => onOpen(file) : () => void window.open(url, "_blank", "noopener,noreferrer")) : undefined;
+    return (
+      <Row
+        key={p.id}
+        lead={pickOf(sendKey, p.name)}
+        name={p.name}
+        line={facts || undefined}
+        end={<StateWord tone={state.tone}>{state.word}</StateWord>}
+        onClick={open}
+        below={
+          pages.length > 0 ? (
+            <span className="jpl-pages">
+              {pages.map((pg) => (
+                <span key={pg.n} className="jpl-page">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={p.thumbs[pg.n]} alt={pageCaption(pg)} />
+                  <span>{pageCaption(pg)}</span>
+                </span>
+              ))}
+            </span>
+          ) : undefined
+        }
       />
     );
   };
@@ -595,6 +657,8 @@ export function JobDocumentsFace({
         <Wrong word={`Couldn't read this job's ${andList(failed)}`} means="Open the job again to see them." />
       )}
 
+      {planList.length > 0 && <Group heading="Plans">{planList.map(planRowOf)}</Group>}
+
       {designs.length > 0 && (
         <Group heading="Drawings">
           {designs.map((d) => (
@@ -637,6 +701,7 @@ export function JobDocumentsFace({
       {choosing && offerPapers && onLoadChoices && onAddPapers && (
         <ComplianceChooser today={day} onLoad={onLoadChoices} onAdd={onAddPapers} onClose={() => setChoosing(false)} />
       )}
+      {addingPlans && onAddPlans && <AddPlansDialog files={docs} onAdd={onAddPlans} onUpload={onUploadForPlans} onClose={() => setAddingPlans(false)} />}
     </div>
   );
 }

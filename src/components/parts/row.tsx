@@ -20,9 +20,12 @@ export function Row({
   onClick,
   lines = 1,
   on = false,
+  below,
 }: {
   name: ReactNode;
   line?: ReactNode;
+  /** under the grey line, the row's own pictures: a plan's pages */
+  below?: ReactNode;
   /** a time, or a tick */
   lead?: ReactNode;
   dot?: Hue;
@@ -50,7 +53,7 @@ export function Row({
   );
   return (
     <li
-      className={["pt-row", href || onClick ? "pt-row--click" : null, lines > 1 ? "pt-row--wrap" : null, on ? "pt-row--on" : null]
+      className={["pt-row", href || onClick ? "pt-row--click" : null, lines > 1 || below != null ? "pt-row--wrap" : null, on ? "pt-row--on" : null]
         .filter(Boolean)
         .join(" ")}
       aria-current={on || undefined}
@@ -64,6 +67,7 @@ export function Row({
             <Fade lines={lines > 1 ? 2 : 1}>{line}</Fade>
           </span>
         )}
+        {below}
       </span>
       {end != null && <span className="pt-row-end">{end}</span>}
     </li>

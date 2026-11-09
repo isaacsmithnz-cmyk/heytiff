@@ -10,6 +10,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
+import dynamic from "next/dynamic";
 import { Icon } from "@/components/shell/icon";
 import { Tooltip } from "@/components/parts/tooltip";
 import type { OrgBrand } from "@/lib/org/brand";
@@ -121,6 +122,10 @@ import { SimPresentMode } from "./sim-present";
 import { SimRuntime } from "@/lib/studio/sim-runtime";
 import type { JobPrefill } from "@/lib/studio/job-link";
 import { suggestedRooms, withChecks, type PlanReading } from "@/lib/studio/reading";
+import { designFromPlans, type JobPlanRead } from "@/lib/jobs/plans";
+/* the job's Scope column loads as it is opened: it carries Tiff's
+   conversation hook, which the Studio has no other need of */
+const ScopeColumn = dynamic(() => import("./scope-column").then((m) => m.ScopeColumn), { ssr: false });
 import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
 import type { LibraryManifest } from "@/lib/studio/packs/library";
 import { Button } from "@/components/parts/button";
@@ -219,6 +224,7 @@ export function Studio({
   jobSearch,
   openDesignId,
   forJob,
+  jobPlans,
   buildStamp,
   brand: servedBrand,
   library,
@@ -240,6 +246,9 @@ export function Studio({
       28 October 2026): New design opens on the job, READ ON THE SERVER by
       the route, its street for the name and nothing to search for. */
   forJob?: JobPrefill;
+  /** the job's plans (lib/jobs/plans.ts), READ ON THE SERVER by the route
+      with `forJob`: New design offers them in the drop zone's place */
+  jobPlans?: JobPlanRead[];
   /** Which build this tab is running, READ ON THE SERVER by the route. Only
       the reload breadcrumb uses it: it is how a tab that came back on a
       DIFFERENT deployment can say so, rather than guessing from the page. */
@@ -974,6 +983,23 @@ export function Studio({
               setJobAsk(null);
               return openFromPlans({ ...newDesignFor(name, "plan", job), floors, planImport });
             }}
+            onFromPlans={(name, job, plans) => {
+              setJobAsk(null);
+              /* the floors and Tiff's reading come with the job's plan
+                 (lib/jobs/plans.ts): nothing is read again */
+              const made = designFromPlans(plans);
+              const d: DesignDocument = { ...newDesignFor(name, "plan", job), floors: made.floors, planImport: made.planImport };
+              const withReading = made.reading ? { ...d, reading: withChecks(made.reading, d) } : d;
+              return throughSwap(async () => {
+                await saveDoc(withReading);
+                return withReading;
+              }, openDesign).then(() => {
+                if (!made.reading) void readPlans(d.id);
+              });
+            }}
+            jobPlans={jobPlans ?? null}
+            loadJobPlans={loadJobPlans}
+            addJobPlan={addJobPlan}
             onOpen={(id) =>
               throughSwap(
                 () => getStore().load(id),
@@ -1051,6 +1077,20 @@ const readPlansOnServer: PlanReader = async (designId) => {
     return null;
   }
 };
+
+/* The job's plans (lib/jobs/plans.ts), for New design. Out here, not in
+   the component: the React Compiler takes no import() inside one. */
+const loadJobPlans = (jobUuid: string) => import("@/app/actions/job-plans").then((a) => a.readPlansOnJob(jobUuid));
+
+/** A file onto the job's Documents and into its Plans, as New design's Add
+    plans takes one: the ids of the plans made, to start their reads. */
+async function addJobPlan(jobUuid: string, file: File): Promise<{ ok: true; planIds: string[] } | { ok: false; error: string }> {
+  const [{ fileOnJob }, { addPlansToJob }] = await Promise.all([import("@/lib/documents/file-on-job"), import("@/app/actions/job-plans")]);
+  const up = await fileOnJob(file, jobUuid);
+  if (!up.ok) return up;
+  const added = await addPlansToJob(jobUuid, [{ documentId: up.documentId }]);
+  return added.ok ? { ok: true, planIds: added.planIds } : added;
+}
 
 /** How many rooms she suggests across the design. */
 const roomsRead = (r: PlanReading) =>
@@ -1301,6 +1341,10 @@ function Editor({
   /* the next flow: Scale and north in the right column, opened by the pill
      and on its own while any floor of the set still needs either */
   const [setupOpen, setSetupOpen] = useState(false);
+  /* THE JOB'S SCOPE, a column on the left of the plan (Isaac, 9 November
+     2026: "a button in the design studio that you can refer back to while
+     doing the design"; scope-column.tsx) */
+  const [scopeOpen, setScopeOpen] = useState(false);
   /* the next flow: which screen of the right column is up */
   const [systemOpen, setSystemOpen] = useState(false);
   const [airOpen, setAirOpen] = useState(false);
@@ -1846,7 +1890,7 @@ function Editor({
   const airOverlay = airSystem && pack && activeFloor ? airTags(airRows(doc, pack, airSystem), activeFloor.id, airShow) : null;
 
   return (
-    <div className={`ds-editor${step === 1 && activeFloor ? " two-col" : ""}${flow === "next" ? " clean" : ""}`}>
+    <div className={`ds-editor${step === 1 && activeFloor ? " two-col" : ""}${flow === "next" ? " clean" : ""}${scopeOpen && doc.jobLink ? " scope-open" : ""}`}>
       {/* Tiff, bottom right, where her docked chat opens; in the next flow, on
           a plan, the same pill in the plan's own corner beside zoom (Isaac,
           2 November 2026: she looked out of place in the tool bar) */}
@@ -1883,6 +1927,14 @@ function Editor({
             {/* back to the job (Isaac, 21 October 2026): its tab if one holds
                 it, else a new tab, so the design keeps this one */}
             {doc.jobLink && <OpenJob jobUuid={doc.jobLink.remoteId} jobNumber={doc.jobLink.jobNumber} />}
+            {/* the job's Scope, the Overview's own word and pink file, open
+                in a column beside the plan to refer to while drawing */}
+            {doc.jobLink && (
+              <button type="button" className={`ds-save ds-reading-open ds-scope-go${scopeOpen ? " on" : ""}`} aria-expanded={scopeOpen} onClick={() => setScopeOpen((o) => !o)}>
+                <Icon name="file" size={14} />
+                Scope
+              </button>
+            )}
             {/* Save status rides under the title — off the bar's width budget.
 
                 When the server save has FAILED the label becomes the button:
@@ -2012,6 +2064,7 @@ function Editor({
 
       {/* Design (step 1) fills the viewport with a fixed canvas; the document-
          like steps (Plans/Summary) scroll inside the locked page */}
+      {scopeOpen && doc.jobLink && <ScopeColumn jobUuid={doc.jobLink.remoteId} jobNumber={doc.jobLink.jobNumber} onClose={() => setScopeOpen(false)} />}
       <div className={`ds-panel${step === 1 ? "" : " scroll"}`}>
         {step === 0 && (
           <PlansPanel

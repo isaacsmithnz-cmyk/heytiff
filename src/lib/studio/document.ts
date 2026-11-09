@@ -164,6 +164,11 @@ export interface PlanImport {
   /** a placed page's own words (pdf text), where they sit on its raster:
       what Tiff's reading is checked against */
   words?: Record<number, { text: string; at: { x: number; y: number } }[]>;
+  /** the job's plan this design was started from (lib/jobs/plans.ts): the
+      floors are its floor pages and the reading came with it, so the job's
+      Documents can say which designs use the plan. Absent on a design made
+      from files dropped in. */
+  jobPlanId?: string;
 }
 
 /* ── The job this design is FOR (schema v8).

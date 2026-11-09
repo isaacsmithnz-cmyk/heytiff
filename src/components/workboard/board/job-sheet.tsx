@@ -2351,6 +2351,19 @@ export function JobSheet({
                 onOpenClaim: setOpenClaim,
                 onPhotos: () => go("photos"),
                 onRemoveNote: unwriteNote,
+                /* Save wrote a note the card's own list doesn't hold: it
+                   goes in at once, as one written at the diary does, and
+                   anyone else with the card open is told. Its Undo reads
+                   the record again, since a note that reached ServiceM8
+                   stays, taken back, rather than going. */
+                onNoteSaved: (note) => {
+                  setOurNotes((cur) => [note, ...(cur ?? []).filter((n) => n.id !== note.id)]);
+                  live.announce("diary");
+                },
+                onNoteUndone: () => {
+                  void reloadRecord();
+                  live.announce("diary");
+                },
                 sender,
                 notesSm8,
                 flags,

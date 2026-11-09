@@ -356,6 +356,16 @@ it("Save files the words as written on the job, and nothing goes to Tiff", async
   expect(send).not.toHaveBeenCalled();
 });
 
+/* Isaac's walk of 9 November 2026: a saved note didn't show in Activity
+   until a reload. Activity is drawn from the card's own notes, so Save
+   hands the card the note it saved. */
+it("hands the card the note Save made, so Activity shows it at once", async () => {
+  const onNoteSaved = jest.fn();
+  draw({ c: convo({ draft: "Gate code 4471" }), d: diary({ onNoteSaved }) });
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(onNoteSaved).toHaveBeenCalledWith(expect.objectContaining({ id: "n1", text: "Gate code 4471" })));
+});
+
 it("has no Save with nothing in the box", () => {
   draw({ c: convo({ draft: "   " }) });
   expect(screen.queryByRole("button", { name: "Save" })).toBeNull();

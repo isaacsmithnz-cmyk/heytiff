@@ -420,6 +420,23 @@ the fourth on the customer's messages, below).
   bottom of the page"). Under a bubble its time and doors are quiet words
   with no underline, and Remove is the red word (rule 25).
 
+- **Plans stand first among a job's Documents** (`.jdoc-group` "Plans",
+  job-documents-face), above Drawings (Isaac, 9 November 2026, on
+  https://claude.ai/artifact/3gzx9mP747FgTX7qxsH9fe: "Yes, a plans group at
+  the top of documents that can be easily read"). A plan is one of the job's
+  own files pressed into Plans, from Add's first row, Add plans, from Email
+  to Tiff's card, where a set of drawings comes ticked, or from the Studio's
+  New design; nothing enters Plans without the press, and a file in Plans
+  leaves its old group. Each is a v2 row (rule 39): the tick, the file's
+  name, a grey line of what Tiff read and when and which designs use it,
+  and under the line the floors she found as pictures 160 wide with their
+  names and page numbers at the caption size, the one row whose pictures
+  sit under its words. Its state is the word on the right: Reading the
+  plans in grey, Read in green, Check the read in orange with the reason in
+  the line, as rule 17 has them. Tiff reads a plan once, the moment it is
+  pressed in, and every design, the roof and the quote read from that
+  ("Go that").
+
 #### On a quote
 
 - **The money rolls** (`.rf`, `components/parts/rolling-figure.tsx`), past law
@@ -472,6 +489,28 @@ looks fine"), which left the mock's own choices standing.
   the person in charge about an issue, and in the tests. A SWMS issued
   before the change keeps the words it was issued with, because a version
   is frozen at issue.
+
+#### In the Studio
+
+His call on the Plans mock's boards 8 to 10 (9 November 2026, "Build it";
+his words on 9 November: "a button in the design studio that you can refer
+back to while doing the design. Clicking it open will pop out the scope
+that was built on the home page or on the job home page. You can continue
+to edit it from there using TIFF").
+
+- **The job's Scope opens in a column on the left of the plan**
+  (`.ds-scopecol`, scope-column.tsx), never a dialog over it: a scope is
+  referred to while drawing, so the plan shrinks and Systems stays on the
+  right. The button is "Scope", the Overview's own word, beside Open job
+  under the design's name with the Overview's pink file; "Brief" would be
+  a second name for one thing. The column is 400 wide with a hairline on
+  its right and holds the Overview's Scope section word for word (JobScope,
+  pink with a file, its lede, a paragraph per system with its sources,
+  Added, Not ours, To clarify, Latest updates), the close cross over its
+  head (rule 27), and at its foot the job's box: a note typed there is a
+  note on the job, filed as the Overview's box files one, and the brief is
+  rewritten the one way it is today. No microphone in the column: the
+  Studio's is in Tiff's pill.
 
 ### Named exemptions
 

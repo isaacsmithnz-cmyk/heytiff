@@ -20,6 +20,8 @@ const readJobFiles = jest.fn(async (): Promise<JobMediaGroupsRead | null> => nul
 /* The job's page mode draws its conversation, whose Add photo reaches the
    documents actions ("use server", which jsdom can't load). */
 jest.mock("@/app/actions/documents", () => ({ deleteDocument: jest.fn(async () => ({ ok: true })) }));
+jest.mock("@/app/actions/job-plans", () => ({ readPlansOnJob: jest.fn(async () => []), addPlansToJob: jest.fn(async () => ({ ok: true, planIds: [], already: 0 })) }));
+jest.mock("@/lib/documents/file-on-job", () => ({ fileOnJob: jest.fn(async () => ({ ok: false, error: "no upload in this test" })) }));
 /* the Activity feed's Add to my notes */
 jest.mock("@/app/actions/my-notes", () => ({ addMyNote: jest.fn(async () => ({ ok: true, id: "my-1" })), deleteMyNote: jest.fn(async () => ({ ok: true })) }));
 jest.mock("@/app/actions/workboard", () => ({

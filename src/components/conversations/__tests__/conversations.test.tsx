@@ -47,10 +47,13 @@ jest.mock("@/app/actions/kb", () => ({ kbDocUrl: jest.fn(async () => ({ ok: true
 const readEmailJob = jest.fn();
 const createJobFromEmail = jest.fn();
 const fileEmailOnJob = jest.fn();
+const addEmailToJob = jest.fn();
+jest.mock("@/lib/jobs/plans-client", () => ({ kickPlanReads: jest.fn(), PLAN_POLL_MS: 8000 }));
 jest.mock("@/app/actions/email-in-job", () => ({
   readEmailJob: (...a: unknown[]) => readEmailJob(...a),
   createJobFromEmail: (...a: unknown[]) => createJobFromEmail(...a),
   fileEmailOnJob: (...a: unknown[]) => fileEmailOnJob(...a),
+  addEmailToJob: (...a: unknown[]) => addEmailToJob(...a),
   emailJobMade: jest.fn(),
   notAJob: jest.fn(),
 }));
@@ -215,6 +218,7 @@ describe("Inbox", () => {
     readEmailJob.mockReset();
     createJobFromEmail.mockReset();
     fileEmailOnJob.mockReset();
+    addEmailToJob.mockReset();
     readEmailJob.mockResolvedValue(email());
   });
 
@@ -265,11 +269,11 @@ describe("Inbox", () => {
         },
       })
     );
-    fileEmailOnJob.mockResolvedValue(true);
+    addEmailToJob.mockResolvedValue({ ok: true, planIds: [], planned: [] });
     render(<Conversations {...inbox([row({ kind: "existing", forJob: "3402" })])} />);
     expect(within(screen.getByRole("list", { name: "Emails to Tiff" })).getByRole("button")).toHaveTextContent("Not added yet");
     await user.click(await screen.findByRole("button", { name: "Add to job 3402" }));
-    expect(fileEmailOnJob).toHaveBeenCalledWith(EID, "u-3402");
+    expect(addEmailToJob).toHaveBeenCalledWith(EID, "u-3402", []);
     expect(within(screen.getByRole("list", { name: "Emails to Tiff" })).getByRole("button")).toHaveTextContent("Added to job 3402");
     expect(tab(/^Inbox/)).not.toHaveClass("pt-vtab--look");
     expect(screen.getByRole("link", { name: "Open job 3402" })).toBeInTheDocument();

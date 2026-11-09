@@ -30,8 +30,9 @@ export const EMAIL_JOB_SCHEMA = {
     due: { type: "string" },
     scope: { type: "array", items: { type: "string" } },
     excluded: { type: "array", items: { type: "string" } },
+    drawings: { type: "array", items: { type: "string" } },
   },
-  required: ["isJob", "aboutJob", "jobNumbers", "notJobWhy", "summary", "client", "contactFirst", "contactLast", "contactMobile", "contactPhone", "contactEmail", "site", "due", "scope", "excluded"],
+  required: ["isJob", "aboutJob", "jobNumbers", "notJobWhy", "summary", "client", "contactFirst", "contactLast", "contactMobile", "contactPhone", "contactEmail", "site", "due", "scope", "excluded", "drawings"],
   additionalProperties: false,
 } as const;
 
@@ -51,7 +52,8 @@ export function emailJobPrompt(us: { business: string; forwarder: string | null;
     '- site: where the work is, one line, as written (street, suburb, state, postcode); "" if not given\n' +
     `- due: when the quote or tender is due, as yyyy-mm-dd; "" if no date is given. Today is ${us.today}; dates are Australian, day first\n` +
     "- scope: the work asked for, item by item, in their own words, tidied only to read as a list. Include what the attached drawings or specification add\n" +
-    "- excluded: what they say is not part of the work, item by item\n\n" +
+    "- excluded: what they say is not part of the work, item by item\n" +
+    "- drawings: the file names of the attached files that are drawings of the building (a set of plans, floor plans, elevations, sections), exactly as attached; [] when none. Not a quote, a specification, a schedule or a photo\n\n" +
     "Never invent a name, number, address, date or item that isn't written in the email or its files."
   );
 }
@@ -67,6 +69,9 @@ export type EmailJobRead = {
   client: string;
   contact: { first: string; last: string; mobile: string; phone: string; email: string };
   site: string;
+  /** the attached files that are drawings of the building, by name (Isaac,
+      9 November 2026: a set of drawings is offered for the job's Plans) */
+  drawings: string[];
   /** yyyy-mm-dd, or "" */
   due: string;
   scope: string[];
@@ -101,6 +106,7 @@ export function parseEmailJobRead(raw: unknown): EmailJobRead {
     due: /^\d{4}-\d{2}-\d{2}$/.test(due) && !Number.isNaN(Date.parse(due)) ? due : "",
     scope: list(r.scope),
     excluded: list(r.excluded),
+    drawings: Array.isArray(r.drawings) ? [...new Set(r.drawings.map((n) => str(n, 200)).filter(Boolean))].slice(0, 12) : [],
   };
 }
 
@@ -150,7 +156,7 @@ export function tiffSays(p: EmailProposal | null, failed: string | null): string
     const sure = sureJob(p);
     if (sure) {
       const where = sure.address ? ` at ${sure.address.split("\n")[0]}` : "";
-      return `${p.summary} This is for job ${sure.number ?? ""}${where} (${FOUND_WORDS[sure.found].toLowerCase()}). Add it to that job?`.replace(/\s+/g, " ").trim();
+      return `${p.summary} This is for job ${sure.number ?? ""}${where} (${FOUND_WORDS[sure.found].toLowerCase()}). ${drawingsWords(p)}Add it to that job?`.replace(/\s+/g, " ").trim();
     }
     return `${p.summary} It looks like it's about one of your jobs, but I can't tell which. Pick the job to add it to.`.replace(/\s+/g, " ").trim();
   }
@@ -159,6 +165,16 @@ export function tiffSays(p: EmailProposal | null, failed: string | null): string
   const known = p.clientMatch ? `${p.clientMatch.name} is already a client${p.siteMatch ? "" : p.clientMatch.builder ? "; the site is new for them" : ""}.` : `${p.client || "They"} aren't a client yet; Create job adds them.`;
   const due = p.due ? ` It's due ${dueWords(p.due)}.` : "";
   return `${p.summary}${due} ${known} Here's the job I'd make, with the scope as they wrote it.`.replace(/\s+/g, " ").trim();
+}
+
+/** What she says of a set of drawings among the files: it's ticked for the
+    job's Plans, where she reads it once (the mock of 9 November 2026). */
+export function drawingsWords(p: EmailProposal): string {
+  const d = p.drawings ?? [];
+  if (d.length === 0) return "";
+  return d.length === 1
+    ? `${d[0]} is a set of drawings, so I've ticked it to go into the job's Plans; Add to job puts it there and I read it once. `
+    : `${d.length} of the files are drawings, so I've ticked them to go into the job's Plans; Add to job puts them there and I read each once. `;
 }
 
 /** "Friday 7 November", for a due date. */

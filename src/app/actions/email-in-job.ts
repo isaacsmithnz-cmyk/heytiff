@@ -78,7 +78,21 @@ export async function emailJobMade(id: string, jobUuid: string): Promise<boolean
 export async function fileEmailOnJob(id: string, jobUuid: string): Promise<boolean> {
   const { orgId, userId } = await requireOrg("tiff");
   if (!/^[0-9a-f-]{36}$/i.test(jobUuid)) return false;
-  return markFiled(orgId, id, jobUuid, userId, await staffProfileIdFor(orgId, userId));
+  return (await markFiled(orgId, id, jobUuid, userId, await staffProfileIdFor(orgId, userId))).ok;
+}
+
+/** `planned`: the files that went into the job's Plans, by name */
+export type AddedToJob = { ok: true; planIds: string[]; planned: string[] } | { ok: false };
+
+/** Filed on a job already here, with the files named in `plans` pressed into
+    the job's Plans as well (the card's Plans ticks). The browser starts the
+    reads with the ids handed back (lib/jobs/plans-client.ts). */
+export async function addEmailToJob(id: string, jobUuid: string, plans: readonly string[]): Promise<AddedToJob> {
+  const { orgId, userId } = await requireOrg("tiff");
+  if (!/^[0-9a-f-]{36}$/i.test(jobUuid)) return { ok: false };
+  const names = (Array.isArray(plans) ? plans : []).filter((n): n is string => typeof n === "string").slice(0, 12);
+  const out = await markFiled(orgId, id, jobUuid, userId, await staffProfileIdFor(orgId, userId), names);
+  return out.ok ? { ok: true, planIds: out.planIds, planned: out.planned } : { ok: false };
 }
 
 export async function notAJob(id: string): Promise<boolean> {

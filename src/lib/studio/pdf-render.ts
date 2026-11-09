@@ -28,26 +28,10 @@ export async function renderDesignPdf(ticket: PdfTicket, origin: string): Promis
 /** Any print page that takes a ticket as `t` and raises `window.__htPdfReady`
     once it is ready to print. The design's and the certificate's both do. */
 export async function renderPdfAt(path: string, ticket: string, origin: string): Promise<Uint8Array> {
-  const puppeteer = (await import("puppeteer-core")).default;
-  const onVercel = Boolean(process.env.VERCEL);
-  const chromium = onVercel ? (await import("@sparticuz/chromium")).default : null;
-
-  const browser = await puppeteer.launch(
-    chromium
-      ? {
-          args: await puppeteer.defaultArgs({ args: chromium.args, headless: "shell" }),
-          executablePath: await chromium.executablePath(),
-          headless: "shell",
-        }
-      : { executablePath: process.env.CHROME_PATH ?? LOCAL_CHROME, headless: true }
-  );
+  const browser = await launchHeadless();
   try {
     const page = await browser.newPage();
-    const base =
-      process.env.VERCEL_ENV === "production" && process.env.APP_BASE_URL
-        ? process.env.APP_BASE_URL
-        : origin;
-    const url = new URL(path, base);
+    const url = new URL(path, printBase(origin));
     url.searchParams.set("t", ticket);
     const res = await page.goto(url.toString(), { waitUntil: "load", timeout: READY_MS });
     if (!res || !res.ok()) throw new Error(`print page answered ${res?.status() ?? "nothing"}`);
@@ -57,4 +41,28 @@ export async function renderPdfAt(path: string, ticket: string, origin: string):
   } finally {
     await browser.close();
   }
+}
+
+/** The headless Chrome, as the design's PDF opens it: Vercel's build on
+    Vercel, the laptop's Chrome at home. The job's plans are drawn in the
+    same browser (lib/jobs/plans-server.ts), so it is opened from here. */
+export async function launchHeadless() {
+  const puppeteer = (await import("puppeteer-core")).default;
+  const onVercel = Boolean(process.env.VERCEL);
+  const chromium = onVercel ? (await import("@sparticuz/chromium")).default : null;
+  return puppeteer.launch(
+    chromium
+      ? {
+          args: await puppeteer.defaultArgs({ args: chromium.args, headless: "shell" }),
+          executablePath: await chromium.executablePath(),
+          headless: "shell",
+        }
+      : { executablePath: process.env.CHROME_PATH ?? LOCAL_CHROME, headless: true }
+  );
+}
+
+/** Where the browser goes: the canonical host in production, which the
+    proxy does not redirect; anywhere else the origin the request came in on. */
+export function printBase(origin: string): string {
+  return process.env.VERCEL_ENV === "production" && process.env.APP_BASE_URL ? process.env.APP_BASE_URL : origin;
 }

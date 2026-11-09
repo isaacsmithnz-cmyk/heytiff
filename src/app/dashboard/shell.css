@@ -8286,3 +8286,39 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .pu-split { display:grid; grid-template-columns:240px minmax(0,1fr); gap:24px; align-items:start; }
 .pu-docket { width:100%; border:1px solid var(--edge); border-radius:var(--r-card); }
 @media (max-width:900px) { .pu-split { grid-template-columns:minmax(0,1fr); } }
+
+/* ===== PLANS ON THE JOB (the mock of 9 November 2026,
+   https://claude.ai/artifact/3gzx9mP747FgTX7qxsH9fe). job-documents-face's
+   Plans group and add-plans-dialog.
+
+   A plan's row is a v2 row (rule 39) with the floors Tiff found under its
+   grey line: each page small, 160 wide, with its name and page number
+   under it at the caption size. The row opens the file, so the pictures
+   sit above the row's press like the tick does. The dialog lists the job's
+   files as rows with ticks, and under them the New design's own drop
+   zone. */
+.fg .jpl-pages { display:flex; flex-wrap:wrap; gap:12px; margin-top:8px; position:relative; z-index:var(--z-raised); }
+.fg .jpl-page { display:flex; flex-direction:column; gap:4px; width:160px; }
+.fg .jpl-page img { display:block; width:160px; height:113px; object-fit:cover; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); }
+.fg .jpl-page span { font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+.pt-dialog .jpl-add { display:flex; flex-direction:column; gap:16px; }
+.pt-dialog .jpl-add .pt-rows { border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.pt-dialog .jpl-add .pt-row { padding-left:0; padding-right:0; }
+.pt-dialog .jpl-add .jdoc-tick { position:relative; z-index:var(--z-raised); display:inline-flex; width:16px; }
+.pt-dialog .jpl-none { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.pt-dialog .jpl-busy { margin-right:auto; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+/* the email card's Plans row: a tick per set of drawings */
+.fg .cv-job-row ul.cv-job-plans { padding:0; list-style:none; }
+.fg .cv-job-plans .pt-tick { align-items:flex-start; }
+.fg .cv-job-plans .pt-tick__box { margin-top:2px; }
+/* New design's Plans field: the job's plans as rows with ticks, their floors
+   small under each, and a quiet Add plans; the dialog is outside `.fg` */
+.pt-dialog .ds2-nd-plans { display:flex; flex-direction:column; gap:8px; }
+.pt-dialog .ds2-nd-plans .pt-rows { border:1px solid var(--edge); border-radius:var(--r-control); }
+.pt-dialog .ds2-nd-plans .pt-row { padding-left:12px; padding-right:12px; }
+.pt-dialog .ds2-nd-plans .jdoc-tick { position:relative; z-index:var(--z-raised); display:inline-flex; width:16px; }
+.pt-dialog .ds2-nd-addword { align-self:flex-start; }
+.pt-dialog .jpl-pages { display:flex; flex-wrap:wrap; gap:12px; margin-top:8px; }
+.pt-dialog .jpl-page { display:flex; flex-direction:column; gap:4px; width:120px; }
+.pt-dialog .jpl-page img { display:block; width:120px; height:85px; object-fit:cover; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); }
+.pt-dialog .jpl-page span { font-size:12px; line-height:16px; font-weight:500; color:var(--q); }

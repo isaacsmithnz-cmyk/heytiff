@@ -7,6 +7,7 @@ import { writeJobNote } from "@/lib/workboard/job-note-write";
 import type { EmailProposal } from "./proposal";
 import { withClientNow } from "./proposal-server";
 import { shareLinksIn, type ShareLink } from "./share-links";
+import { addJobPlans } from "@/lib/jobs/plans-server";
 
 /* An email to Tiff, after its card: what the card shows, and a job made from
    it. The job's files: each kept PDF and picture copied onto the job's
@@ -19,7 +20,8 @@ export type EmailJobView = {
   id: string;
   state: "received" | "read" | "made" | "filed" | "not_a_job" | "refused" | "failed";
   proposal: EmailProposal | null;
-  files: { name: string; size: number }[];
+  /** `drawings`: Tiff read it as a set of drawings, so the card offers it for the job's Plans */
+  files: { name: string; size: number; drawings: boolean }[];
   /** the plans it points to rather than carries (share-links.ts) */
   links: ShareLink[];
   /** what couldn't be kept, in words */
@@ -67,7 +69,7 @@ export async function emailJobView(orgId: string, id: string): Promise<EmailJobV
     id: row.id,
     state: row.state,
     proposal: row.state === "read" ? await withClientNow(orgId, row.proposal) : row.proposal,
-    files: (row.files ?? []).map((f) => ({ name: f.name, size: f.size })),
+    files: (row.files ?? []).map((f) => ({ name: f.name, size: f.size, drawings: isDrawings(row.proposal, f) })),
     links: shareLinksIn(row.body),
     why: row.why,
     jobUuid: row.job_uuid,
@@ -79,9 +81,18 @@ export async function emailJobView(orgId: string, id: string): Promise<EmailJobV
   };
 }
 
-/** The email's kept files, onto the job's Documents. How many went on. */
-export async function fileOnJob(orgId: string, row: Row, jobUuid: string, staffId: string | null): Promise<number> {
-  let filed = 0;
+/** Whether Tiff read a kept file as drawings of the building: named in her
+    read, or a PDF whose name says plans. */
+export function isDrawings(p: EmailProposal | null, f: { name: string; contentType: string }): boolean {
+  const named = (p?.drawings ?? []).some((n) => n.trim().toLowerCase() === f.name.trim().toLowerCase());
+  return named || (f.contentType === "application/pdf" && /\b(plans?|drawings?|architectural|floor|da set|cc set)\b/i.test(f.name));
+}
+
+export type FiledFile = { name: string; documentId: string };
+
+/** The email's kept files, onto the job's Documents: each that went on. */
+export async function fileOnJob(orgId: string, row: Row, jobUuid: string, staffId: string | null): Promise<FiledFile[]> {
+  const filed: FiledFile[] = [];
   for (const f of row.files ?? []) {
     const ext = ALLOWED_TYPES[f.contentType];
     if (!ext) continue;
@@ -111,7 +122,7 @@ export async function fileOnJob(orgId: string, row: Row, jobUuid: string, staffI
       await supabaseAdmin.from("documents").delete().eq("org_id", orgId).eq("id", documentId);
       continue;
     }
-    filed++;
+    filed.push({ name: f.name, documentId });
   }
   return filed;
 }
@@ -144,15 +155,20 @@ export function noteOfEmail(row: { subject: string | null; body: string | null; 
   return out.length > 4000 ? out.slice(0, 4000).trimEnd() : out;
 }
 
+/** `planned`: the names of the files that went into the job's Plans */
+export type FiledOutcome = { ok: boolean; planIds: string[]; planned: string[] };
+
 /** The email filed on a job already here: its files on the job's Documents and
     its words on the job's notes (one note, however often it's pressed: the
-    email's own id is the pen's). Once: a second call finds it filed. */
-export async function markFiled(orgId: string, id: string, jobUuid: string, userId: string, staffId: string | null): Promise<boolean> {
+    email's own id is the pen's). The files named in `plans` go into the
+    job's Plans as well, each a plan to be read (lib/jobs/plans-server.ts);
+    the caller starts the reads. Once: a second call finds it filed. */
+export async function markFiled(orgId: string, id: string, jobUuid: string, userId: string, staffId: string | null, plans: readonly string[] = []): Promise<FiledOutcome> {
   const row = await readEmailRow(orgId, id);
-  if (!row) return false;
-  if (row.state === "filed" || row.state === "made") return row.job_uuid === jobUuid;
+  if (!row) return { ok: false, planIds: [], planned: [] };
+  if (row.state === "filed" || row.state === "made") return { ok: row.job_uuid === jobUuid, planIds: [], planned: [] };
   const { data: real } = await supabaseAdmin.from("sm8_jobs").select("uuid").eq("org_id", orgId).eq("uuid", jobUuid).maybeSingle();
-  if (!real) return false;
+  if (!real) return { ok: false, planIds: [], planned: [] };
   const { data: claimed } = await supabaseAdmin
     .from("email_in_messages")
     .update({ state: "filed", job_uuid: jobUuid, decided_by: userId, decided_at: new Date().toISOString() })
@@ -160,12 +176,18 @@ export async function markFiled(orgId: string, id: string, jobUuid: string, user
     .eq("id", id)
     .not("state", "in", "(filed,made)")
     .select("id");
-  if (!claimed?.length) return true;
-  await fileOnJob(orgId, row, jobUuid, staffId);
+  if (!claimed?.length) return { ok: true, planIds: [], planned: [] };
+  const filed = await fileOnJob(orgId, row, jobUuid, staffId);
   await writeJobNote({ orgId, userId, jobUuid, body: noteOfEmail(row), composeId: row.id }).catch((err) =>
     console.error("[email-in] the email's note couldn't go on the job:", err instanceof Error ? err.message : err)
   );
-  return true;
+  const wanted = new Set(plans.map((n) => n.trim().toLowerCase()));
+  const going = filed.filter((f) => wanted.has(f.name.trim().toLowerCase()));
+  if (going.length === 0) return { ok: true, planIds: [], planned: [] };
+  const added = await addJobPlans(orgId, jobUuid, going.map((f) => ({ documentId: f.documentId })), staffId).catch(() => null);
+  if (added?.ok) return { ok: true, planIds: added.planIds, planned: going.map((f) => f.name) };
+  console.error("[email-in] the drawings couldn't go into Plans:", added && !added.ok ? added.error : "the add threw");
+  return { ok: true, planIds: [], planned: [] };
 }
 
 export async function markNotAJob(orgId: string, id: string, by: string): Promise<boolean> {

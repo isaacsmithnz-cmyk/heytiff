@@ -356,6 +356,18 @@ it("Save files the words as written on the job, and nothing goes to Tiff", async
   expect(send).not.toHaveBeenCalled();
 });
 
+/* Isaac's walk, 9 November 2026: a note saved on the job wasn't in the feed
+   until a reload. The saved note goes to the diary the moment it lands. */
+it("puts the saved note in the job's feed at once", async () => {
+  saveJobNote.mockClear();
+  const onSavedNote = jest.fn();
+  draw({ c: convo({ draft: "Gate code 4471" }), d: diary({ onSavedNote }) });
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  await waitFor(() =>
+    expect(onSavedNote).toHaveBeenCalledWith(expect.objectContaining({ id: "n1", text: "Gate code 4471" }))
+  );
+});
+
 it("has no Save with nothing in the box", () => {
   draw({ c: convo({ draft: "   " }) });
   expect(screen.queryByRole("button", { name: "Save" })).toBeNull();

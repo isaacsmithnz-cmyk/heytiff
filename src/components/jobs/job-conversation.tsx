@@ -29,6 +29,7 @@ import { emptyStoryLine, filterStory, fmtStoryMinutes, type StoryEntry, type Sto
 import { conversationDays, stampClock, type JobNoteTalk, type MadeCard, type MadeKind } from "@/lib/jobs/job-conversation";
 import type { FlagState } from "@/lib/integrations/sm8-note-plan";
 import type { NoteSender } from "@/lib/integrations/links";
+import type { OurJobNote } from "@/lib/workboard/job-notes-query";
 import { JobSection } from "./job-section";
 import { CommsView, CustomerSendRow, CustomerThreadView, FileDoor } from "./customer-thread";
 import { pairClaims, withoutEchoes, type CommsThread, type CustomerItem } from "@/lib/jobs/customer-messages";
@@ -105,6 +106,8 @@ export type ConversationDiary = {
   onOpenClaim: (remoteId: string) => void;
   onPhotos: () => void;
   onRemoveNote?: (id: string) => void;
+  /** A note Save put on the job: into the diary at once. */
+  onSavedNote?: (note: OurJobNote) => void;
   sender: NoteSender | null;
   notesSm8: DiaryNotesSm8 | null;
   flags: Record<string, FlagState>;
@@ -361,8 +364,15 @@ export function JobConversation({
     void saveJobNote(jobUuid, words, { id: crypto.randomUUID() })
       .then((note) => {
         convo.setDraft("");
+        /* in the feed at once, not at the next reload (Isaac's walk, 9
+           November 2026) */
+        diary.onSavedNote?.(note);
         onSaved?.();
-        host?.toast("Saved", () => void removeJobNote(note.id).then(() => onSaved?.()));
+        /* Undo takes it out of the feed as the diary's own remove does,
+           which keeps it, saying so, where it already reached ServiceM8 */
+        host?.toast("Saved", () =>
+          diary.onRemoveNote ? diary.onRemoveNote(note.id) : void removeJobNote(note.id).then(() => onSaved?.())
+        );
       })
       .catch(() => host?.toast("Couldn't save that note."))
       .finally(() => setSaving(false));

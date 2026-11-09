@@ -176,6 +176,17 @@ export function useJobDiary({
   });
   const kickPoll = () => setPollKick((k) => k + 1);
 
+  /* A NOTE SAVED FROM THE JOB'S BOX (Save, job-conversation): it is ours
+     and on the job, so it is in the diary the moment it lands, as the pen's
+     is. It never reached the feed until a reload (Isaac's walk, 9 November
+     2026). It goes on to ServiceM8 on its own, so the poll looks for its
+     line. */
+  const heldNote = (note: OurJobNote) => {
+    setOurNotes((cur) => [note, ...(cur ?? []).filter((n) => n.id !== note.id)]);
+    onWrote?.();
+    kickPoll();
+  };
+
   const replyNote = async (input: {
     sourceNoteUuid: string;
     words: string;
@@ -343,6 +354,7 @@ export function useJobDiary({
     flagsBusy,
     notesSm8,
     writeNote,
+    heldNote,
     unwriteNote,
     replyNote,
     sendCopy,

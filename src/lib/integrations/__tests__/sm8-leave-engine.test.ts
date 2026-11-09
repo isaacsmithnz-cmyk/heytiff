@@ -426,6 +426,46 @@ describe("cancelled leave comes off the board", () => {
     expect(deletes()[0]).toMatchObject({ status: "failed", last_error: LEAVE_WORDS.row.stillThere });
   });
 
+  it("marks HeyTiff's copy of ServiceM8's time off off too, so the Schedule doesn't draw it back", async () => {
+    await queueLeaveOnBoard(await press(), approvedLeave("r1", "annual", "2026-10-05", "2026-10-05"));
+    await run();
+    const uuid = String(creates()[0].remote_uuid);
+    // a sync read it onto the mirror before it came off
+    fake.db.sm8_availability = [
+      { org_id: ORG, uuid, active: 1 },
+      { org_id: ORG, uuid: "someone-elses", active: 1 },
+      { org_id: "another-org", uuid, active: 1 },
+    ];
+    await queueLeaveOffBoard(await press(), { source: "leave", id: "r1" });
+    await run();
+    expect(deletes()[0].status).toBe("sent");
+    expect((fake.db.sm8_availability as Row[]).map((r) => r.active)).toEqual([0, 1, 1]);
+  });
+
+  it("marks the copy off when somebody already took it off the board, and the send stands when the copy can't be written", async () => {
+    await queueLeaveOnBoard(await press(), approvedLeave("r1", "annual", "2026-10-05", "2026-10-05"));
+    await run();
+    const uuid = String(creates()[0].remote_uuid);
+    board.get(uuid.toLowerCase())!.active = 0;
+    fake.db.sm8_availability = [{ org_id: ORG, uuid, active: 1 }];
+    await queueLeaveOffBoard(await press(), { source: "leave", id: "r1" });
+    await run();
+    expect((fake.db.sm8_availability as Row[])[0].active).toBe(0);
+
+    await queueLeaveOnBoard(await press(), approvedLeave("r2", "annual", "2026-10-06", "2026-10-06"));
+    await run();
+    const two = String(creates()[1].remote_uuid);
+    fake.db.sm8_availability = [{ org_id: ORG, uuid: two, active: 1 }];
+    fake.failing.add("sm8_availability");
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    await queueLeaveOffBoard(await press(), { source: "leave", id: "r2" });
+    await run();
+    fake.failing.delete("sm8_availability");
+    warn.mockRestore();
+    expect(deletes()[1].status).toBe("sent");
+    expect(board.get(two.toLowerCase())!.active).toBe(0);
+  });
+
   it("takes a day off down off the board too", async () => {
     (fake.db.staff_unavailability as Row[]).push({ id: "b1", org_id: ORG, staff_profile_id: SAM });
     await queueLeaveOnBoard(await press(), { source: "dayoff", id: "b1", staffProfileId: SAM, kind: null, from: "2026-10-08", to: "2026-10-08" });

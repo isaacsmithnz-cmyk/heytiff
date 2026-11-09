@@ -23,6 +23,7 @@ import type { StaffLicenceRecord } from "@/lib/staff/licence-records";
 import type { WorkRightsRecord } from "@/lib/staff/work-rights-records";
 import { WorkRightsModal } from "./work-rights-modal";
 import type { StoredDocument } from "@/lib/documents/query";
+import type { BirthdaySharing } from "@/lib/team/birthday-sharing";
 import {
   sectionFromParam,
   type AdminExtras,
@@ -97,6 +98,7 @@ export function ProfileScreen({
   initialSec,
   addressLookup = false,
   aliases = [],
+  birthdaySharing = null,
   actions,
 }: {
   mode: ProfileMode;
@@ -138,6 +140,8 @@ export function ProfileScreen({
   addressLookup?: boolean;
   /** The nicknames the person goes by (staff_aliases), oldest first. */
   aliases?: string[];
+  /** Self only: your Share my birthday and Share my age as they stand. */
+  birthdaySharing?: BirthdaySharing | null;
   actions: ProfileActions;
 }) {
   const extras = mode === "admin" ? (adminExtras ?? {}) : {};
@@ -301,6 +305,10 @@ export function ProfileScreen({
                     onChangeSignInEmail={
                       mode === "self" ? actions.onChangeSignInEmail : undefined
                     }
+                    /* the same gate: your birthday is yours to share, so
+                       the ticks are only ever on your own card */
+                    birthdaySharing={mode === "self" ? birthdaySharing : null}
+                    onShareBirthday={mode === "self" ? actions.onShareBirthday : undefined}
                     startEditing={startEditing > 0}
                     focusField={focusField}
                     onSave={actions.onSave}

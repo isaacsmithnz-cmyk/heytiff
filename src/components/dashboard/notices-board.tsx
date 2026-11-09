@@ -607,7 +607,8 @@ function NoticeCard({ notice: n, acts }: { notice: BoardNotice; acts: Acts }) {
   const canFile = n.mine || acts.canManage;
 
   return (
-    <div className="card2 nb-item">
+    /* the id is Home's door: an event on Today opens the board here */
+    <div className="card2 nb-item" id={`notice-${n.id}`}>
       <div className="nb-head">
         <div style={{ minWidth: 0, flex: 1 }}>
           <div className="nb-title">

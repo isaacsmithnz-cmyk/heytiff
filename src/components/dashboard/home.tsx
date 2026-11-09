@@ -12,7 +12,8 @@ import { Row, RowList } from "@/components/parts/row";
 import { Empty } from "@/components/parts/states";
 import { StateWord } from "@/components/parts/state";
 import { Tick } from "@/components/parts/tick";
-import type { TodayView } from "@/lib/dashboard/home-today";
+import type { TodayRow, TodayView } from "@/lib/dashboard/home-today";
+import { Icon } from "@/components/shell/icon";
 import { columnOf, type TodoRow } from "@/lib/dashboard/todo";
 import { ColumnHead, HomeReplyContext, HomeTodo, TodoList, useTaskTick } from "./home-todo";
 import { HomeFeed } from "./home-feed";
@@ -42,9 +43,50 @@ import type { FeedItem } from "@/lib/dashboard/your-feed";
    didn't reach ServiceM8) opens its own form over Home; closing it takes
    the task off the address. The old desk is gone (24 October 2026). */
 
+function TodayRows({ rows, tick }: { rows: readonly TodayRow[]; tick: (key: string, taskId: string) => Promise<void> | void }) {
+  return (
+    <RowList label="Today">
+      {rows.map((row) => (
+        <Row
+          key={row.key}
+          lead={
+            <span className="hm-lead">
+              <span className="hm-time">{row.time}</span>
+              {row.taskId && (
+                <Tick
+                  className="hm-tick"
+                  label={<span className="sr-only">Done, {row.name}</span>}
+                  onChange={(on) => {
+                    if (on && row.taskId) void tick(row.key, row.taskId);
+                  }}
+                />
+              )}
+              {/* an event: a calendar where a task's tick goes, as the
+                  phone's card has one where a job's number goes */}
+              {row.kind === "event" && <Icon name="calendar" size={16} />}
+            </span>
+          }
+          dot={row.hue ?? undefined}
+          lines={3}
+          name={row.name}
+          line={row.line || undefined}
+          href={row.href ?? undefined}
+          end={row.state ? <StateWord tone={row.state.tone}>{row.state.word}</StateWord> : undefined}
+        />
+      ))}
+    </RowList>
+  );
+}
+
 function HomeToday({ view, due }: { view: TodayView; due: readonly TodoRow[] }) {
   const { gone, tick } = useTaskTick();
   const rows = view.rows.filter((r) => !gone.has(r.key));
+  /* the day's events (Isaac, 6 November 2026, the events and birthdays
+     mock) go in among its bookings by their time; a day with nothing
+     booked still says so, and its events follow */
+  const booked = rows.filter((r) => r.kind !== "event");
+  const events = rows.filter((r) => r.kind === "event");
+  const birthdays = view.birthdays ?? [];
   return (
     <section className="hm-sec" aria-labelledby="hm-today">
       {/* no summary beside the title (Isaac, 20 October: "not needed"); the
@@ -56,43 +98,30 @@ function HomeToday({ view, due }: { view: TodayView; due: readonly TodoRow[] }) 
           </span>
         )}
       </ColumnHead>
-      {rows.length === 0 && due.length === 0 ? (
-        <Empty
-          what={view.empty.what}
-          line={view.empty.line ?? undefined}
-          action={view.empty.action ? <Button href={view.empty.action.href}>{view.empty.action.label}</Button> : null}
-        />
+      {/* whose birthday it is, under Today, as the phone has it: only those
+          who ticked Share my birthday, and an age only with Share my age */}
+      {birthdays.length > 0 && (
+        <ul className="hm-bdays" aria-label="Birthdays">
+          {birthdays.map((words, i) => (
+            <li key={`${words}-${i}`} className="hm-bday">
+              <Icon name="star" size={16} />
+              <span>{words}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {booked.length === 0 && due.length === 0 ? (
+        <>
+          <Empty
+            what={view.empty.what}
+            line={view.empty.line ?? undefined}
+            action={view.empty.action ? <Button href={view.empty.action.href}>{view.empty.action.label}</Button> : null}
+          />
+          {events.length > 0 && <TodayRows rows={events} tick={tick} />}
+        </>
       ) : (
         <>
-          {rows.length > 0 && (
-            <RowList label="Today">
-              {rows.map((row) => (
-                <Row
-                  key={row.key}
-                  lead={
-                    <span className="hm-lead">
-                      <span className="hm-time">{row.time}</span>
-                      {row.taskId && (
-                        <Tick
-                          className="hm-tick"
-                          label={<span className="sr-only">Done, {row.name}</span>}
-                          onChange={(on) => {
-                            if (on && row.taskId) void tick(row.key, row.taskId);
-                          }}
-                        />
-                      )}
-                    </span>
-                  }
-                  dot={row.hue ?? undefined}
-                  lines={3}
-                  name={row.name}
-                  line={row.line}
-                  href={row.href ?? undefined}
-                  end={row.state ? <StateWord tone={row.state.tone}>{row.state.word}</StateWord> : undefined}
-                />
-              ))}
-            </RowList>
-          )}
+          {rows.length > 0 && <TodayRows rows={rows} tick={tick} />}
           <TodoList rows={due} label="Due today" />
         </>
       )}

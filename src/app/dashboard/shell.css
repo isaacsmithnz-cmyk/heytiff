@@ -903,6 +903,8 @@
 .fg .pdv.sm { font-size:14px; }
 .fg .pdsub { display:block; margin-top:4px; font-size:12px; font-weight:500; color:var(--q); }
 .fg .pdnone { font-size:16px; font-weight:500; color:var(--q); }
+/* your birthday's two ticks, one under the other, as the phone's card lists them */
+.fg .pbday { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
 
 /* AN ADD IS AN ADD, on every tab. This was 14/600 italic beside a dashed 18px
    square holding a "+", while Summary's was the plain link token — two
@@ -6774,6 +6776,11 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .hm-time { width:96px; font-size:14px; line-height:20px; font-weight:400; color:var(--q); font-variant-numeric:tabular-nums; }
 /* a tick sits over the row's link, as the row's end does */
 .fg .hm-tick { position:relative; z-index:var(--z-raised); }
+/* whose birthday it is, under Today's head, a star and a grey line each, as
+   the phone's Today has it (Isaac, 6 November 2026, the events mock) */
+.fg .hm-bdays { display:flex; flex-direction:column; gap:4px; margin:0; padding:12px 0 0; list-style:none; }
+.fg .hm-bday { display:flex; align-items:center; gap:8px; font-size:14px; line-height:20px; color:var(--q); }
+.fg .hm-bday > span:first-child, .fg .hm-lead > span:last-child:not(.hm-time) { display:inline-flex; }
 .fg .hm-line.hm-line--wrong { color:var(--red-w); }
 .fg .hm-line.hm-line--look { color:var(--orange-w); }
 .fg .hm-line.hm-line--info { color:var(--q); }

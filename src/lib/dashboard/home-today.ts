@@ -14,21 +14,24 @@
 import type { Hue } from "@/components/parts/state";
 import { jobHue } from "@/lib/workboard/job-hue";
 import { jobPageHref } from "@/lib/shell/links";
+import type { DayExtras } from "./event-mobile";
+import type { RsvpAnswer } from "./events";
 import type { HomeRail } from "./page-data";
 
-export type TodayState = { tone: "good" | "look" | "wrong"; word: string };
+export type TodayState = { tone: "good" | "look" | "wrong" | "info"; word: string };
 
 export type TodayRow = {
   key: string;
-  kind: "job" | "task";
-  /** "7:30 to 8:30", or a task's "12:30" / "By 12:30". */
+  kind: "job" | "task" | "event";
+  /** "7:30 to 8:30", a task's "12:30" / "By 12:30", an event's "6:30" or "All day". */
   time: string;
   /** The job's colour (rule 18); null for a task, which leads with a tick. */
   hue: Hue | null;
   name: string;
   line: string;
   state: TodayState | null;
-  /** Where the row opens: the job's own page. Null for a task. */
+  /** Where the row opens: the job's own page, or an event's notice on
+      Team's noticeboard. Null for a task. */
   href: string | null;
   /** The task a tick completes. Null for a job. */
   taskId: string | null;
@@ -50,10 +53,60 @@ export function andList(names: readonly string[]): string {
 const own = <V>(rec: Readonly<Record<string, V>>, key: string): V | undefined =>
   Object.prototype.hasOwnProperty.call(rec, key) ? rec[key] : undefined;
 
-/** The rows, in time order. */
-export function todayRows(rail: Pick<HomeRail, "blocks" | "tasks" | "crew" | "nowMin">): TodayRow[] {
+/* AN EVENT ON TODAY (Isaac, 6 November 2026, the events and birthdays mock,
+   https://claude.ai/artifact/L2p2fNKwDBzWJymNtwpXja, as the phone's Today
+   draws it: heytiff-mobile's EventCard). The noticeboard's event on its
+   day: a calendar where a task's tick goes, the title, where, and your
+   answer on the right; not answered yet, it asks, in orange. An event with
+   no time is the whole day's, and reads first. */
+const SAID: Record<RsvpAnswer, string> = {
+  plus_one: "You and your partner",
+  yes: "You’re going",
+  maybe: "Maybe",
+  no: "Can’t make it",
+};
+
+/** Your answer to an event, as Today says it. */
+export function eventState(answer: RsvpAnswer | null): TodayState {
+  return answer ? { tone: "info", word: SAID[answer] } : { tone: "look", word: "Are you coming?" };
+}
+
+/** An event's notice on Team's noticeboard, where it is answered. */
+export const eventHref = (id: string) => `/dashboard/team?view=notices#notice-${id}`;
+
+const minOf = (hhmm: string): number | null => {
+  const m = /^(\d{2}):(\d{2})/.exec(hhmm);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+};
+
+/** Under Today: whose birthday it is, one line each, from those who share
+    it, in the phone's words. */
+export function birthdayLines(list: DayExtras["birthdays"]): string[] {
+  return list.map((b) => (b.age != null ? `${b.name} turns ${b.age} today` : `It’s ${b.name}’s birthday`));
+}
+
+/** The rows, in time order: the day's bookings, its timed tasks and its events. */
+export function todayRows(
+  rail: Pick<HomeRail, "blocks" | "tasks" | "crew" | "nowMin">,
+  events: DayExtras["events"] = [],
+): TodayRow[] {
   const now = rail.nowMin;
   const rows: (TodayRow & { at: number })[] = [];
+  for (const e of events) {
+    const at = e.time ? minOf(e.time) : null;
+    rows.push({
+      at: at ?? -1,
+      key: `event:${e.id}`,
+      kind: "event",
+      time: at === null ? "All day" : clock(at),
+      hue: null,
+      name: e.title,
+      line: e.location ?? "",
+      state: eventState(e.answer),
+      href: eventHref(e.id),
+      taskId: null,
+    });
+  }
   for (const b of rail.blocks) {
     const number = b.jobNumber?.trim() || null;
     const place = b.suburb?.trim() || b.clientName?.trim() || null;
@@ -122,4 +175,6 @@ export type TodayView = {
   empty: { what: string; line: string | null; action: { label: string; href: string } | null };
   /** The Workboard's day, for whoever may see it. */
   schedule: boolean;
+  /** Under the head: whose birthday it is, from those who share it. */
+  birthdays?: string[];
 };

@@ -47,6 +47,7 @@ import {
 import { loadNextDay, type NextDay } from "./next-day";
 import { loadDesk, readHomeShared, type DeskData, type HomeShared } from "./desk-data";
 import { readFeedEvents, type FeedEvent } from "./feed-events-query";
+import { dayExtras, type DayExtras } from "./event-mobile";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import { sm8StaffLinkMap } from "@/lib/integrations/links";
 import { sm8QueueStuck } from "@/lib/integrations/sm8-writes";
@@ -109,7 +110,13 @@ export type DashboardData = {
   /** What came in from ServiceM8 over the last two days, for Your feed
       (./feed-events-query): empty without `workboard`. */
   events: FeedEvent[];
+  /** The noticeboard's events on the rail's day, with your answer, and the
+      birthdays people chose to share, yours left out (./event-mobile, the
+      phone's Today's read). */
+  day: DayExtras;
 };
+
+const EMPTY_DAY: DayExtras = { events: [], birthdays: [] };
 
 export type HomeRail = {
   /** The day the rail draws. NOT `today`: that one is anchored to Sydney for
@@ -210,6 +217,7 @@ const EMPTY: DashboardData = {
   desk: null,
   todo: EMPTY_TODO,
   events: [],
+  day: EMPTY_DAY,
 };
 
 export async function loadDashboard(): Promise<DashboardData> {
@@ -287,7 +295,7 @@ export async function loadDashboard(): Promise<DashboardData> {
   const railDay = todayInZone(railTz);
   const railNowMin = nowMinInZone(railTz);
 
-  const [chips, tasks, assignable, journal, issues, schedule, sm8Links, desk, todo, events] = await Promise.all([
+  const [chips, tasks, assignable, journal, issues, schedule, sm8Links, desk, todo, events, dayOf] = await Promise.all([
     loadChips(orgId, viewerStaffId, caps, today, isOwner, shared, userId),
     loadTasks(orgId, viewerStaffId, canManage, names),
     // the give-it-to picker only needs names, and only when you can give
@@ -323,6 +331,10 @@ export async function loadDashboard(): Promise<DashboardData> {
     loadTodoExtras({ orgId, viewerStaffId, caps, today, names }),
     /* Your feed's ServiceM8 events, behind the board's own gate */
     caps.has("workboard") && vendor.connected ? readFeedEvents(orgId, railDay).catch(() => [] as FeedEvent[]) : Promise.resolve([] as FeedEvent[]),
+    /* Today's events and shared birthdays, the phone's own read (Isaac, 6
+       November 2026, the events and birthdays mock): the noticeboard is the
+       whole team's, so no capability; a failed read leaves Today as it was */
+    dayExtras(orgId, viewerStaffId, railDay).catch(() => EMPTY_DAY),
   ]);
   const mineUuid = mineOf(sm8Links);
 
@@ -391,6 +403,7 @@ export async function loadDashboard(): Promise<DashboardData> {
     desk,
     todo,
     events,
+    day: dayOf,
   };
 }
 

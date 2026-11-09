@@ -1,5 +1,7 @@
-import { andList, clock, todayRows, todaySummary, type TodayRow } from "../home-today";
+import { andList, birthdayLines, clock, todayRows, todaySummary, type TodayRow } from "../home-today";
 import { todayView } from "../home-view";
+import type { DayExtras } from "../event-mobile";
+import type { RsvpAnswer } from "../events";
 import type { HomeRail } from "../page-data";
 import type { ScheduleBlock } from "@/lib/workboard/schedule";
 import type { RailTask } from "../day-rail";
@@ -150,5 +152,71 @@ describe("todayView's empty day", () => {
 
   it("offers no Schedule to someone without the Workboard", () => {
     expect(todayView(rail({ enabled: false })).schedule).toBe(false);
+  });
+});
+
+/* THE DAY'S EVENTS AND BIRTHDAYS (Isaac, 6 November 2026, the events and
+   birthdays mock), as the phone's Today has them: an event among the day's
+   rows by its time, your answer on the right or the question in orange; a
+   birthday under the head, its age only when that is shared too. */
+describe("the day's events", () => {
+  const event = (over: Partial<DayExtras["events"][number]> = {}): DayExtras["events"][number] => ({
+    id: "n1",
+    title: "Christmas party",
+    time: "18:30",
+    location: "Watermans, Barangaroo",
+    answer: null,
+    plusOne: true,
+    ...over,
+  });
+
+  it("(F) go in among the bookings and tasks by their time, an event with no time first", () => {
+    const rows = todayRows(rail({ blocks: [block()], tasks: [task()] }), [event(), event({ id: "n2", title: "Toolbox talk", time: null, location: null })]);
+    expect(rows.map((r) => r.key)).toEqual(["event:n2", "job:a1", "task:t1", "event:n1"]);
+    expect(rows.map((r) => r.time)).toEqual(["All day", "7:30 to 8:30", "By 12:30", "6:30"]);
+  });
+
+  it("(F) read their title and where, open their notice on Team's noticeboard, and ask until you answer", () => {
+    const [row] = todayRows(rail(), [event()]);
+    expect(row).toEqual({
+      key: "event:n1",
+      kind: "event",
+      time: "6:30",
+      hue: null,
+      name: "Christmas party",
+      line: "Watermans, Barangaroo",
+      state: { tone: "look", word: "Are you coming?" },
+      href: "/dashboard/team?view=notices#notice-n1",
+      taskId: null,
+    });
+    expect(todayRows(rail(), [event({ location: null })])[0].line).toBe("");
+  });
+
+  it("(F) say your answer in the phone's words", () => {
+    const said = (answer: RsvpAnswer) => todayRows(rail(), [event({ answer })])[0].state;
+    expect(said("plus_one")).toEqual({ tone: "info", word: "You and your partner" });
+    expect(said("yes")).toEqual({ tone: "info", word: "You’re going" });
+    expect(said("maybe")).toEqual({ tone: "info", word: "Maybe" });
+    expect(said("no")).toEqual({ tone: "info", word: "Can’t make it" });
+  });
+
+  it("are not counted as jobs or tasks beside Today", () => {
+    const rows = todayRows(rail({ tasks: [task()] }), [event()]);
+    expect(todaySummary(rows, [])).toBe("A task");
+  });
+
+  it("(F) reach Today from the page's day, with its birthdays", () => {
+    const v = todayView(rail(), { events: [event()], birthdays: [{ name: "Oleksii", age: null }, { name: "Leo", age: 30 }] });
+    expect(v.rows.map((r) => r.key)).toEqual(["event:n1"]);
+    expect(v.birthdays).toEqual(["It’s Oleksii’s birthday", "Leo turns 30 today"]);
+    expect(todayView(rail()).birthdays).toEqual([]);
+  });
+});
+
+describe("birthdayLines", () => {
+  it("names the person, and their age only when it is shared", () => {
+    expect(birthdayLines([{ name: "Callum", age: null }])).toEqual(["It’s Callum’s birthday"]);
+    expect(birthdayLines([{ name: "Leo", age: 30 }])).toEqual(["Leo turns 30 today"]);
+    expect(birthdayLines([])).toEqual([]);
   });
 });

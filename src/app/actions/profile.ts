@@ -26,6 +26,7 @@ import {
 } from "@/lib/staff/work-rights-writes";
 import { resolvePhotoDocument } from "@/lib/staff/photo";
 import { saveCardAliases } from "@/lib/staff/aliases-query";
+import { setBirthdaySharing, type BirthdaySharing } from "@/lib/team/birthday-sharing";
 
 /* My profile persistence — your own staff card.
 
@@ -399,6 +400,24 @@ async function workRightsLocked(orgId: string, staffId: string): Promise<boolean
 
 /** The names you go by — your own card's "Also called". Yours to keep
     right: a nickname Tiff learned about you can come off here. */
+/** Your birthday ticks (Isaac, 6 November 2026: "Staff have to opt in, tick
+    to share bday, tick to share age"): the phone's POST /api/mobile/card,
+    for the web's own card. The card is the session's, found as every action
+    here finds it; nothing in the change names anyone. */
+export async function setMyBirthdaySharing(
+  change: Partial<BirthdaySharing>,
+): Promise<{ ok: true; sharing: BirthdaySharing } | { ok: false; error: string }> {
+  const { orgId } = await requireOrg();
+  const clean = {
+    ...(typeof change?.shareBirthday === "boolean" ? { shareBirthday: change.shareBirthday } : {}),
+    ...(typeof change?.shareAge === "boolean" ? { shareAge: change.shareAge } : {}),
+  };
+  if (!Object.keys(clean).length) return { ok: false, error: "Nothing to change." };
+  const me = await loadMyProfile();
+  const saved = await setBirthdaySharing(orgId, me.id, clean);
+  return saved ? { ok: true, sharing: saved } : { ok: false, error: "Couldn't save that." };
+}
+
 export async function saveMyAliases(names: string[]): Promise<SaveResult> {
   const { orgId } = await requireOrg();
   const me = await loadMyProfile();

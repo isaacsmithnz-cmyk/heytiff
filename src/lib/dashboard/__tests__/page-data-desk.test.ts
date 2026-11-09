@@ -153,6 +153,15 @@ jest.mock("../home-list-query", () => ({ loadHomeList: (ctx: unknown) => loadHom
 const loadTodoExtras = jest.fn(async (_ctx: unknown) => ({ reminders: [], assignments: [], notices: [], timesheets: 0 }));
 jest.mock("../todo-query", () => ({ loadTodoExtras: (ctx: unknown) => loadTodoExtras(ctx) }));
 jest.mock("../feed-events-query", () => ({ readFeedEvents: async () => [] }));
+/* Today's events and shared birthdays, the phone's read (./event-mobile,
+   pinned in events.test): here, what it was asked, and that a failure
+   leaves Today without them rather than failing Home. */
+const DAY_EXTRAS = {
+  events: [{ id: "n1", title: "Christmas party", time: "18:30", location: "Watermans", answer: null, plusOne: true }],
+  birthdays: [{ name: "Oleksii", age: null }],
+};
+const dayExtras = jest.fn(async (..._a: unknown[]) => DAY_EXTRAS);
+jest.mock("../event-mobile", () => ({ dayExtras: (...a: unknown[]) => dayExtras(...a) }));
 
 /* A task's Done (two-way phase 2, PR C): the bell's item is read only where
    the deployment sends notes — the module isn't even loaded otherwise. The
@@ -266,6 +275,21 @@ beforeEach(() => {
   role = "owner";
   vendor = { tz: "Australia/Sydney", connected: true };
   jest.clearAllMocks();
+});
+
+describe("today's events and birthdays", () => {
+  it("are read for the viewer's card on the rail's day, and handed over as read", async () => {
+    const data = await loadDashboard();
+    expect(dayExtras).toHaveBeenCalledWith("org-1", "s-me", data.rail.dayISO);
+    expect(data.day).toEqual(DAY_EXTRAS);
+  });
+
+  it("are none when the read fails, and Home still loads", async () => {
+    dayExtras.mockImplementationOnce(async () => {
+      throw new Error("notices down");
+    });
+    expect((await loadDashboard()).day).toEqual({ events: [], birthdays: [] });
+  });
 });
 
 describe("the desk's reads", () => {
@@ -467,7 +491,7 @@ describe("what the old Home alone read", () => {
     expect(readTaskDoneLines).not.toHaveBeenCalled();
     expect(jobCandidates).not.toHaveBeenCalled();
     expect(Object.keys(data).sort()).toEqual(
-      ["assignable", "canManage", "chips", "desk", "events", "issues", "journal", "rail", "tasks", "today", "todo", "viewerStaffId"],
+      ["assignable", "canManage", "chips", "day", "desk", "events", "issues", "journal", "rail", "tasks", "today", "todo", "viewerStaffId"],
     );
     expect(Object.keys(data.tasks).sort()).toEqual(["mine", "team"]);
     expect(data.desk?.calendar).toBe(CAL);

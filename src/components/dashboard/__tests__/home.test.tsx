@@ -235,6 +235,49 @@ describe("the three columns", () => {
   });
 });
 
+/* THE DAY'S EVENTS AND BIRTHDAYS on Today (Isaac, 6 November 2026, the
+   events and birthdays mock), as the phone's Today has them */
+describe("Today's events and birthdays", () => {
+  const party: TodayRow = {
+    key: "event:n1",
+    kind: "event",
+    time: "6:30",
+    hue: null,
+    name: "Christmas party",
+    line: "Watermans, Barangaroo",
+    state: { tone: "look", word: "Are you coming?" },
+    href: "/dashboard/team?view=notices#notice-n1",
+    taskId: null,
+  };
+
+  it("(F) draws an event as a row among the day's, a calendar for its tick, opening its notice, asking in orange", () => {
+    draw(today({ rows: [job(), party] }), []);
+    const row = rowOf("Christmas party");
+    expect(within(row).getByText("6:30")).toBeInTheDocument();
+    expect(within(row).getByText("Watermans, Barangaroo")).toBeInTheDocument();
+    expect(within(row).getByRole("link", { name: "Christmas party" })).toHaveAttribute("href", "/dashboard/team?view=notices#notice-n1");
+    expect(within(row).queryByRole("checkbox")).toBeNull();
+    expect(row.querySelector(".hm-lead svg")).not.toBeNull();
+    expect(within(row).getByText("Are you coming?").closest(".pt-state")).toHaveClass("pt-state--look");
+  });
+
+  it("(F) still says nothing is booked on a day with only an event, and draws the event under it", () => {
+    draw(today({ rows: [party] }), []);
+    const today_ = section("Today");
+    expect(within(today_).getByText("Nothing booked for you today")).toBeInTheDocument();
+    expect(within(today_).getByRole("link", { name: "Christmas party" })).toBeInTheDocument();
+  });
+
+  it("(F) says whose birthday it is under Today's head, and nothing when nobody shares one", () => {
+    draw(today({ birthdays: ["It’s Oleksii’s birthday", "Leo turns 30 today"] }), []);
+    const list = within(section("Today")).getByRole("list", { name: "Birthdays" });
+    expect(within(list).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["It’s Oleksii’s birthday", "Leo turns 30 today"]);
+    cleanup();
+    draw(today(), []);
+    expect(within(section("Today")).queryByRole("list", { name: "Birthdays" })).toBeNull();
+  });
+});
+
 describe("To do's Reply, on Home", () => {
   const NOTE = "01a10eef-eecb-7c94-9d9a-7d44b2e4b19b";
   const mention = (n: number): FeedItem => ({

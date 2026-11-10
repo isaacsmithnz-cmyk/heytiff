@@ -55,7 +55,7 @@ jest.mock("@/lib/mobile/day", () => ({
 const create = jest.fn();
 jest.mock("@anthropic-ai/sdk", () => ({ __esModule: true, default: class { beta = { messages: { create } }; } }));
 
-import { askedThere, jobsOfDay, lineOf, promptOf, writeUpDay } from "@/lib/mobile/day-writeup";
+import { askedThere, filedAt, jobsOfDay, lineOf, promptOf, writeUpDay } from "@/lib/mobile/day-writeup";
 
 const ctx = { userId: "auth0|isaac", orgId: "org-1" } as never;
 const at = (iso: string) => Date.parse(iso);
@@ -125,8 +125,9 @@ test("the day written up: each job's own notes, photos and questions; a job with
       mine: [{ at: "2026-10-29T01:00:00.000Z", text: expect.stringContaining("Lounge head up") }],
       photoIds: ["p1", "p2", "p3", "p4"],
       others: [{ name: "David", at: "2026-10-29T02:00:00.000Z", text: "Dave's own note" }],
+      filed: null,
     },
-    { jobUuid: "j-3372", number: "3372", where: "12 Pittwater Rd", line: "Isaac, 3:00 to 3:15", name: "Isaac", photos: 0, asked: 0, text: "", spans: [{ from: "2026-10-29T04:00:00.000Z", until: "2026-10-29T04:15:00.000Z" }], address: null, mine: [], photoIds: [], others: [] },
+    { jobUuid: "j-3372", number: "3372", where: "12 Pittwater Rd", line: "Isaac, 3:00 to 3:15", name: "Isaac", photos: 0, asked: 0, text: "", spans: [{ from: "2026-10-29T04:00:00.000Z", until: "2026-10-29T04:15:00.000Z" }], address: null, mine: [], photoIds: [], others: [], filed: null },
   ]);
   /* only the job with something said is sent, with today's own note and nobody else's */
   const sent = create.mock.calls[0]![0].messages[0].content as string;
@@ -151,4 +152,23 @@ test("the material reads job by job", () => {
   expect(promptOf([{ jobUuid: "j", number: "1352", where: "Holbrook Ave", spans: [], notes: ["a note"], photos: 0, asked: [], mine: [], photoIds: [], others: [], address: null }])).toBe(
     "Job 1: 1352, Holbrook Ave\nNotes:\n- a note\nQuestions:\n(no questions)",
   );
+});
+
+/* 11 November 2026: 3324's note went to ServiceM8 at 3:40 pm and again, as Tiff's tidy of it, at 6:30 the next morning */
+test("a wrap-up note already in is found by its who and when, Tiff's full stop or not", () => {
+  const mine = (text: string) => [{ at: "2026-11-10T04:40:00.000Z", text }];
+  expect(filedAt("Isaac, 8:45 to 2:45", mine("Isaac, 8:45 to 2:45 · 4 photos\n\nGot the unit up and running."))).toBe("2026-11-10T04:40:00.000Z");
+  expect(filedAt("Isaac, 7:15 to 7:45", mine("Isaac, 7:15 to 7:45.\n\nA quote needs to be added."))).toBe("2026-11-10T04:40:00.000Z");
+  /* another stretch, or a note put on the job during the day, is not the wrap-up's */
+  expect(filedAt("Isaac, 7:15 to 7:45", mine("Isaac, 7:15 to 7:450"))).toBeNull();
+  expect(filedAt("Isaac, 8:45 to 2:45", mine("Isaac, 8:45 to 12:00"))).toBeNull();
+  expect(filedAt("Isaac, 8:45 to 2:45", mine("Head's up, bedroom tomorrow"))).toBeNull();
+});
+
+test("a job whose note is in says so and isn't written up again", async () => {
+  tables.workboard_notes!.push({ org_id: "org-1", author_id: "card-isaac", target_kind: "job", target_id: "j-3372", transcript: "Isaac, 3:00 to 3:15\n\nChecked the drain.", created_at: "2026-10-29T04:20:00.000Z" });
+  create.mockResolvedValue({ stop_reason: "end_turn", content: [{ type: "text", text: JSON.stringify({ entries: ["Lounge head up and wired."] }) }] });
+  const { entries } = await writeUpDay(ctx, null);
+  expect(entries.map((e) => [e.number, e.filed])).toEqual([["1352", null], ["3372", "2026-10-29T04:20:00.000Z"]]);
+  expect(create.mock.calls[0]![0].messages[0].content).not.toContain("Checked the drain");
 });

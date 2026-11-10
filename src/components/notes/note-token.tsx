@@ -6,9 +6,6 @@ import { Button, IconButton } from "@/components/parts/button";
 import { useFieldWiring } from "@/components/parts/field";
 import { LiveWords, appendSpoken, useDictation } from "./dictation";
 import { Fixing, SpeakBar } from "@/components/conversations/speak-bar";
-import { RecordingMeter } from "./recording-card";
-import { READING_BACK_NOTE } from "./waits";
-import { Waiting } from "@/components/ui/orb";
 import { useNoteScope } from "./note-context";
 import { useTiff } from "@/components/tiff/modal/tiff-context";
 import { sniff } from "@/lib/notes/sniff";
@@ -23,9 +20,6 @@ import { sniff } from "@/lib/notes/sniff";
    THE ONLY THING THAT VARIES IS POSTURE, and posture is about where the
    token is standing, not about what it can do:
 
-     strip    a row that lives with the notes it joins. Commits at once,
-              and offers Tiff afterwards when what it added smells
-              actionable.
      field    a textarea with the token on it. Fills the box and shuts up;
               only offers Tiff when the words smell actionable.
      line     the same, one line, commits an item at a time.
@@ -51,10 +45,15 @@ import { sniff } from "@/lib/notes/sniff";
    screen rather than two. The postures left are the ones that belong to a
    place on a page; the corner belongs to the frame.
 
+   NOR THE STRIP (10 November 2026). It was a row that lived with the notes
+   it joined, committing at once, with the old recording dot, meter, clock
+   and round buttons of its own; once every box became the phone's it had no
+   caller, and it went with its meter.
+
    THE MIC IS ALWAYS AN ENHANCEMENT. No key, no permission, no MediaRecorder —
    every posture is still a control you can type into. */
 
-export type Posture = "strip" | "field" | "line";
+export type Posture = "field" | "line";
 
 /** field only — what a form gives its own textarea, carried onto the box so
     a form's box keeps what it did before it had a microphone. */
@@ -74,144 +73,6 @@ export type BoxAttrs = {
   /** leaving the box: a bullet emptied comes off its list */
   onBlur?: FocusEventHandler<HTMLTextAreaElement>;
 };
-
-function Strip({
-  label,
-  placeholder,
-  value,
-  onChange,
-  onCommit,
-  disabled,
-}: {
-  label: string;
-  placeholder?: string;
-  value: string;
-  onChange: (next: string) => void;
-  onCommit?: () => void;
-  disabled: boolean;
-}) {
-  const mic = useFieldMic(value, onChange);
-  const { dict } = mic;
-  const field = useRef<HTMLInputElement | null>(null);
-  const busy = disabled || dict.recording || dict.transcribing;
-  /* WHEN THE FIELD HANDS ITS BOX TO THE RIVER. Any time there are live words,
-     and from the start of a recording that already has something to show —
-     but NOT on an empty field with nothing heard yet, because "Listening" is
-     the only thing saying so until the first word lands, and a placeholder
-     needs the field it belongs to.
-
-     `dict.interim` on its own, not `recording &&`: the words are still on
-     screen through the read-back, and swapping back to the field for that
-     second and then forward again is two moves where the design has none. */
-  const river = Boolean(dict.interim) || (dict.recording && value.trim() !== "");
-
-  const commit = () => {
-    /* AN EMPTY + STILL ANSWERS. It was disabled until something was typed,
-       and a + beside a microphone that won't press reads as broken ("it
-       doesn't let me select it"). Pressed empty, it puts the cursor where
-       the note goes. */
-    if (!value.trim()) {
-      field.current?.focus();
-      return;
-    }
-    onCommit?.();
-    /* Sniff what was just committed, not what's in the box — the box is
-       about to be cleared by the caller. */
-    mic.check(value);
-  };
-
-  return (
-    <>
-      <div className={"wb2-strip" + (dict.recording ? " live" : "")}>
-        {dict.recording && <span className="wb2-recdot" aria-hidden="true" />}
-        {/* THE WORDS ARRIVE IN THE FIELD'S OWN BOX, not in the field. An
-            <input> can only take the sentence as one string, so every partial
-            swapped the lot — and worse here than on the card: a disabled input
-            never scrolls, so on one line the words being spoken sat off the
-            right-hand edge where nobody could read them. The river carries
-            `.wb2-stripin` so it is the same 30px box, and it rides SIDEWAYS.
-
-            Only once there is something to show: the field keeps the frame
-            while the box is empty, because "Listening" is the only thing
-            saying so before the first word lands. */}
-        {river ? (
-          <LiveWords line className="wb2-stripin" label={label} said={value} text={dict.interim} />
-        ) : (
-          <input
-            ref={field}
-            className="wb2-stripin"
-            value={value}
-            placeholder={dict.recording ? "Listening" : (placeholder ?? "Add a note, or say it")}
-            aria-label={label}
-            disabled={busy}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key !== "Enter") return;
-              e.preventDefault();
-              commit();
-            }}
-          />
-        )}
-        {mic.voiceEnabled && dict.recording ? (
-          <>
-            {/* THE CARD'S INSTRUMENT, COMPACT. This row showed an orb and a
-                clock and nothing else — the two readings a bar has room for
-                — while the capture card three doors away showed a third:
-                whether anything is actually reaching the microphone. That
-                third one is the whole reason the meter was rebuilt, and it
-                was missing from every posture that lives on a page. Same
-                component, laid along the line instead of stacked. */}
-            <RecordingMeter dict={dict} compact />
-            <button
-              type="button"
-              className="wb2-striprnd stop"
-              onClick={dict.stop}
-              aria-label={`Stop dictating — ${label}`}
-            >
-              <Icon name="square" size={13} />
-            </button>
-            <button
-              type="button"
-              className="wb2-striprnd"
-              onClick={dict.cancel}
-              aria-label={`Discard the recording — ${label}`}
-            >
-              <Icon name="x" size={13} />
-            </button>
-          </>
-        ) : (
-          <>
-            {mic.voiceEnabled && (
-              <button
-                type="button"
-                className="wb2-striprnd"
-                aria-label={`Say ${label}`}
-                disabled={disabled || dict.transcribing}
-                onClick={dict.start}
-              >
-                <Icon name="mic" size={15} />
-              </button>
-            )}
-            {/* filled once there is something to add — the state is in the
-                paint, never in a button that won't press */}
-            <button
-              type="button"
-              className={"wb2-striprnd" + (value.trim() ? " go" : "")}
-              aria-label={`Add ${label}`}
-              disabled={busy}
-              onClick={commit}
-            >
-              <Icon name="plus" size={15} />
-            </button>
-          </>
-        )}
-      </div>
-      {dict.transcribing && <Waiting note={READING_BACK_NOTE} className="wb2-dicthint" />}
-      {mic.err && <p className="wb2-dicterr">{mic.err}</p>}
-      {mic.found && <Nudge words={mic.found} back={field} onDismiss={mic.dismiss} />}
-    </>
-  );
-}
 
 /* ── postures: field and line ──
 
@@ -349,18 +210,6 @@ export function NoteToken({
       wraps it, its first focus, its limit, its keys. */
   box?: BoxAttrs;
 }) {
-  if (as === "strip")
-    return (
-      <Strip
-        label={label}
-        placeholder={placeholder}
-        value={value ?? ""}
-        onChange={onChange ?? (() => {})}
-        onCommit={onCommit}
-        disabled={disabled}
-      />
-    );
-
   return (
     <FieldPosture
       as={as}

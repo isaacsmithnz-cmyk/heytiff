@@ -3,8 +3,9 @@ import path from "node:path";
 
 /* ── THE RIVER'S LINE HEIGHT IS THE PAGE'S, AND MUST STAY UNWRITTEN ──
 
-   `.wb2-lwbox.one` is the one-line field mic: a paragraph standing in for an
-   <input> while the words arrive. It has to be exactly as tall as the field
+   `.wb2-lwbox.one` was the one-line field mic (it went with the note strip,
+   10 November 2026): a paragraph standing in for an <input> while the words
+   arrive. It has to be exactly as tall as the field
    it replaces, or the row it lives in twitches at the first word — the exact
    jump the river exists to remove.
 
@@ -30,10 +31,6 @@ function rule(selector: string): string {
   const open = CSS.indexOf("{", at);
   return CSS.slice(open + 1, CSS.indexOf("}", open));
 }
-
-it("does not name a line height on the one-line river", () => {
-  expect(rule(".wb2-lwbox.one")).not.toMatch(/line-height/);
-});
 
 it("sizes the block river in `lh`, not in a length it has guessed", () => {
   /* The form box's words as you speak (the phone's SayBox, 9 November 2026)

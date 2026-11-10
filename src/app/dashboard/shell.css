@@ -57,8 +57,7 @@
 /* `.ni .pdot` lived here — the sidebar's hard-coded "new" pulse. Deleted with
    the `dot` field it rendered (see nav.ts); left behind it would be dead CSS
    waiting to shadow something, which this stylesheet has been bitten by before.
-   The keyframe stays: `.wb2-recdot` uses it for a recording indicator, which is
-   the honest kind — it stops when the recording does. */
+   The keyframe stays: the timesheet's live dot breathes on it. */
 @keyframes fgPulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
 /* note: the studio toolbar's own width concessions live in studio.css — the
@@ -1446,30 +1445,7 @@
   .orb-say b { animation:none; background-image:none; color:inherit; }
 }
 
-/* ── the smaller sister ──
-   Beneath a control rather than inside a sheet: on the notes postures' own
-   rows. `.wb2-dicthint` is the slot the plain grey line used to occupy, so
-   the chip inherits its margins and nothing around those controls moves. */
-/* THE CHIP'S OWN COLOUR BACK, in the slot that was quietly taking it away.
-   The block above says the accent replaced the flat greys these hints used
-   to be — and where the chip stood under a hint, it hadn't: `.wb2-dicthint`
-   (0,1,0 but declared 3,700 lines LATER) sets `color:var(--gray500)` on the
-   very element `.orb-say` (0,1,0, here) was setting the accent on, and wins.
-   (`.fg .tvsay`, under the Library's ask bar, did the same; it went with the
-   bar.)
-
-   Nothing looked wrong, because the WORD is painted by the gradient, which
-   reads `--say-ink` directly. What was actually grey was the ORB — the sphere
-   inherits `color` — and the word too, but only for a reader with
-   prefers-reduced-motion, where the sweep is dropped and `b` falls back to
-   `color:inherit`. A state visible to the readers least likely to be looked at.
-
-   Scoped to `.orb-say.wb2-dicthint`, not to `.wb2-dicthint`: a plain hint
-   line is meant to be grey. */
-.orb-say.wb2-dicthint { --orb:20px; gap:8px; min-height:20px; color:var(--say-ink); }
 .orb-say .tiffmk { --tb:24px; }
-.orb-say.wb2-dicthint .tiffmk { --tb:20px; }
-.orb-say.wb2-dicthint b { font-size:13px; font-weight:700; }
 
 /* Knowledge Base page */
 
@@ -2927,41 +2903,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 
 /* the Overview strip */
 
-/* smart notes — the live input meter. Driven by real samples, so a meter that
-   doesn't move means nothing is being captured.
-
-   IT IS AN ORB NOW, AND THE TWO FACTS CAME APART. Five bars scaling from one
-   `--lvl` had to say both "the hardware is alive" and "this is how loud you
-   are" through a single channel — height — and in a quiet room they collapsed
-   toward a flat line that was indistinguishable from a dead microphone. That
-   reached prod: "Nothing was said in that one", over a row of dots nobody
-   could read. The bars answered it with a resting floor, which is the best a
-   one-channel instrument can do.
-
-   The sphere has two channels. It TURNS because the microphone is open, and
-   it GROWS because you are loud, and neither one can be mistaken for the
-   other. A silent room draws a small sphere still turning. The level itself
-   is unchanged — same `--lvl` on this element, written straight to the DOM
-   every frame by the same meter loop, no transition, no easing, nothing
-   between the samples and the screen.
-
-   The size is a custom property, not a height: the orb reads it as a
-   diameter, and the four rows below re-declare it rather than restating the
-   geometry. `color` carries the ink, because the sphere has no opinion. */
-.wb-lvl { --lvl:0; --orb:22px; display:inline-flex; align-items:center; padding-left:4px;
-  color:var(--bad-t); }
-/* THE CURVE, AND WHY IT IS NOT WIDER. Three were rendered against the real
-   row sizes and levels. `.6 + .4` moves too little to read as a response at
-   18px; `.42 + .62` is the most responsive and collapses the resting sphere
-   into a speck at the two smallest rows, which is precisely the failure the
-   bars were given a resting floor to avoid. This one swings a little over 2×
-   and still draws a legible ball in a silent room.
-
-   It overshoots 1 at the top on purpose: the frame is sized for the resting
-   sphere plus headroom, and a shout that fills it completely is a better top
-   end than one that stops politely short. Nothing clips — the frame has no
-   overflow rule and the neighbours in every row are spaced for it. */
-.wb-lvl .orb-ball { --orb-k:calc(.5 + .55 * var(--lvl)); }
 
 
 /* ── Workboard command centre ──────────────────────────────────────────────
@@ -4665,9 +4606,6 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-coact { display:flex; justify-content:flex-end; }
 .wb2-noteact { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 
-.wb2-dicthint, .wb2-dicterr { font-size:12px; font-weight:700; margin:0; }
-.wb2-dicthint { color:var(--gray500); }
-.wb2-dicterr { color:var(--wb2-dan-t, var(--bad-t)); }
 @media (prefers-reduced-motion:reduce) {
   .wb2-sheet.closingout > .wb2-shsect, .wb2-sheet.closingout > .wb2-shhd { transition:none; }
 }
@@ -5327,72 +5265,11 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .tm .tm-quick { gap:12px; margin-top:16px; }
 .fg .tm .tm-doors { gap:16px; margin-top:16px; font-size:16px; color:var(--on-ink-q); }
 .fg .tm .tm-dock { padding:16px 24px; border-top-color:var(--on-ink-line); }
-.fg .tm .wb2-recdot { width:12px; height:12px; }
 
 .fg .tm .tm-err { margin-top:12px; font-size:16px; color:var(--bad-on-ink); }
 .fg .tm .tiffbtn-box { --tb:48px; }
 .fg .tm .wb2-anscursor { --wb2-cy:var(--paper); }
 
-.wb2-capclock { font-variant-numeric:tabular-nums; font-size:13px; font-weight:700; color:var(--gray700); white-space:nowrap; }
-/* Leading the trace rather than hiding in the ribbon corner. Tabular figures
-   are load-bearing at this size — proportional digits make the whole line
-   twitch on every tick. */
-.wb2-capclock.big { font-size:24px; letter-spacing:-.02em; line-height:1.1; }
-/* The last thirty seconds. The recorder stops itself at two minutes and keeps
-   what it heard, so this is a heads-up and not a warning — it earns the red
-   because the clock is the only thing on screen that can give it, but it does
-   not flash, pulse or otherwise ask to be dealt with. */
-.wb2-capclock.closing { color:var(--bad-t); }
-.wb2-recdot { width:10px; height:10px; border-radius:50%; background:var(--bad); flex:none; animation:fgPulse 1.6s ease-in-out infinite; }
-@media (prefers-reduced-motion:reduce) { .wb2-recdot { animation:none; } }
-
-/* ── THE INSTRUMENT ──
-   Audited 2026-08-10: this stage was a 680 × 201px card, 86% of it empty,
-   with a 36 × 34px meter marooned in the middle — five percent of the width,
-   nine tenths of one percent of the area — and at silence `scaleY(.18)` on a
-   34px bar left 6.1px of it. The one element proving the microphone works
-   was the smallest thing on the screen and its resting state was
-   indistinguishable from a dead mic. Isaac hit precisely that.
-
-   The answer then was a 48-bar trace running the full width, because width
-   was the only axis a bar meter had left to answer with. The orb answers on
-   two axes instead — it turns because the mic is open and grows because you
-   are loud — so this slot goes back to being ONE component at a size, the
-   same one the ask bar and the dictation bar mount. There is no `.wb2-wave`
-   any more, and no second meter to drift.
-
-   The clock leads it at a size worth reading. A line under that used to say
-   the state in words as well; it is gone, and `RecordingMeter` carries the
-   reason. */
-.wb2-recwave { display:flex; align-items:center; justify-content:center; gap:16px;
-  align-self:stretch; padding:8px 0 12px; }
-/* ── the same instrument, laid along a line ──
-   The three note postures put their microphone in a row — a strip beside a
-   job, a dictation bar, an add row — and each of them showed an orb and a
-   clock and stopped there. The third reading, the one that says whether
-   anything is actually reaching the microphone, existed only on the card, and
-   it is the reading the whole rebuild was for.
-
-   So the block comes to the row rather than the row growing into a card:
-   the meta unstacks, the clock drops to its inline size, and the orb keeps
-   whatever diameter that row already set. Nothing is centred and nothing
-   stretches — in a bar this is one item among several, not the subject. */
-.wb2-recwave.compact { padding:0; gap:8px; align-self:auto; flex:0 0 auto;
-  justify-content:flex-start; }
-/* THE META STAYS STACKED, which is both the card's layout and — the part that
-   is not obvious — the NARROW one. Laying the clock and the state along a
-   line was the first draft and it ate about 200px of a row; on a strip in a
-   narrow column that pushed the words you are watching out of their own box
-   ("gate code is 44…"), which is the one thing a note row must not do. Two
-   short lines are ~90px wide, so the row grows by about six pixels in height
-   while it records and keeps every character of the note. */
-/* NOTHING HERE NEEDS PINNING ANY MORE, and that is worth saying because it
-   took three drafts to earn. While a two-state sentence sat under the clock,
-   this block had to be frozen on both axes — a fixed 104px so the words did
-   not shove the note sideways when the room went quiet, and two lines' worth
-   of height so they did not shove it downward instead. The sentence is gone
-   (see the note against `RecordingMeter`), the meta is a clock, and a clock
-   is four characters wide in every state a recording has. */
 
 /* The live transcript, and it must read as WORDS, not as a status line —
    it is what the person is checking while they talk. Top-level, never
@@ -5409,8 +5286,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    POPPED, because the paragraph was one swapped string — they glide now,
    per word, in ./dictation. */
 /* THE RIVER'S BOX — the MECHANISM, shared by all three field mics. What the
-   box LOOKS like is the CALLER's class: the field's own `.wb2-stripin` /
-   `.wb2-fi` / `.wb2-notes`. That is the whole trick of the field mics — the words
+   box LOOKS like is the CALLER's class: the field's own `.wb2-fi` /
+   `.wb2-notes`. That is the whole trick of the field mics — the words
    arrive in a box with the same width, font, padding and border as the input
    that was there a frame earlier, so the swap is invisible. Measured: the
    strip and the line posture come out at 30px and 34px either way. */
@@ -5444,8 +5321,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    Walked on prod 2026-08-20: field and river now measure 34.25px and 37.5px,
    both ways. A harness page has no typography to inherit, so this class of
    mistake CANNOT be caught anywhere but the real sheet. */
-.wb2-lwbox.one { white-space:nowrap; overflow-y:hidden; }
-.wb2-lwbox.one .wb2-lwsaid { white-space:pre; }
 
 /* WHAT YOU HAD ALREADY SAID — an earlier leg, or words you typed before
    pressing the mic. One step back in the ink because it is the RECORD and
@@ -5467,11 +5342,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    word arrives 4px low, and that 4px must neither make this box a scroller
    nor reach the conversation's, which would ride it and jog every line. */
 .wb2-lwbox.free { overflow:clip; }
-/* …and on one line the words leave to the LEFT, so the fade does too. */
-.wb2-lwbox.one.over {
-  -webkit-mask:linear-gradient(90deg, transparent 0, var(--ink) 2.2em);
-  mask:linear-gradient(90deg, transparent 0, var(--ink) 2.2em);
-}
 /* THE WORDS AS HEARD, AS THE PHONE DRAWS THEM: grey and leaning, the record
    (`.wb2-lwsaid`) ink and upright beside them (Isaac, 9 November 2026: "make
    sure that the words show the same way. The mobile does"). Their motions
@@ -5667,25 +5537,6 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    plain single-class rule on a <button> or <input> outside that namespace
    silently loses. */
 
-/* ── the strip ──
-   Lives in the column with the notes it joins: the whole argument of this
-   posture is that you keep seeing the job. */
-.wb2-strip { display:flex; align-items:center; gap:8px; padding:4px 4px 4px 16px;
-  border:1px solid var(--line); border-radius:var(--r-pill); background:var(--tint);
-  transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-.wb2-strip:focus-within { border-color:var(--wb2-cy, var(--ink)); background:var(--paper); }
-.wb2-strip.live { border-color:var(--wb2-dan, var(--bad)); background:var(--paper); }
-.wb2-stripin { flex:1; min-width:0; border:0; background:none; outline:none; padding:8px 0;
-  font-family:var(--font); font-size:14px; font-weight:500; color:var(--ink); }
-.wb2-stripin::placeholder { color:var(--gray400); }
-.wb2-striprnd { flex:none; width:32px; height:32px; border-radius:50%; display:grid; place-items:center;
-  border:1px solid var(--line); background:var(--paper); color:var(--gray500); cursor:pointer;
-  transition:border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-.wb2-striprnd:hover:not(:disabled) { border-color:var(--wb2-cy, var(--ink)); color:var(--wb2-cy, var(--ink)); }
-.wb2-striprnd.go { background:var(--wb2-cy, var(--ink)); border-color:var(--wb2-cy, var(--ink)); color:var(--paper); }
-.wb2-striprnd.go:hover:not(:disabled) { background:var(--ink2); border-color:var(--ink); }
-.wb2-striprnd:disabled { background:var(--tint); border-color:var(--line); color:var(--q); cursor:not-allowed; }
-.wb2-striprnd:focus-visible { outline:none; box-shadow:var(--ring);; }
 
 /* ── the quiet nudge ──
    A field mic filled the box; the words happen to contain something to do.

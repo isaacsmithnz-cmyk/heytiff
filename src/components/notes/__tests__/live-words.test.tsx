@@ -228,11 +228,10 @@ it("neither rides nor fades when its words are free", () => {
    real sheet — 30px, 34px and 74px, either way — but which classes end up on
    the element is jsdom's to check. */
 it("wears the box it was handed", () => {
-  render(<LiveWords className="wb2-stripin" line text="tell Lyle" />);
+  render(<LiveWords className="wb2-fi" text="tell Lyle" />);
   const box = document.querySelector(".wb2-lwbox")!;
 
-  expect(box.className).toContain("wb2-stripin");
-  expect(box.className).toContain("one");
+  expect(box.className).toContain("wb2-fi");
 });
 
 /* A paragraph has no `rows`, so the block posture hands the number down and
@@ -242,34 +241,4 @@ it("carries the row count the textarea was sized to", () => {
   expect(document.querySelector<HTMLElement>(".wb2-lwbox")!.style.getPropertyValue("--lwrows")).toBe(
     "3"
   );
-});
-
-/* ON ONE LINE THE WORDS RIDE SIDEWAYS, and this is the half that was not
-   merely jumpy but unreadable: a disabled <input> never scrolls when its
-   value is replaced, so everything past the width of the field was off the
-   right-hand edge for the whole recording. */
-it("rides sideways on one line, and fades what has gone off the left", () => {
-  const el = () => document.querySelector(".wb2-lwbox") as HTMLElement;
-  const { rerender } = render(<LiveWords line text="tell" />);
-  Object.defineProperty(el(), "scrollWidth", { value: 900, configurable: true });
-  Object.defineProperty(el(), "clientWidth", { value: 151, configurable: true });
-
-  rerender(<LiveWords line text="tell Lyle" />);
-
-  expect(el().scrollLeft).toBe(900);
-  expect(el().className).toContain("over");
-});
-
-/* …and it is the WIDTH that decides, not the height. A one-line box is never
-   taller than its content, so measuring the wrong axis leaves the fade off
-   for the whole recording. */
-it("does not read the vertical axis on a one-line box", () => {
-  const el = () => document.querySelector(".wb2-lwbox") as HTMLElement;
-  const { rerender } = render(<LiveWords line text="tell" />);
-  Object.defineProperty(el(), "scrollHeight", { value: 900, configurable: true });
-  Object.defineProperty(el(), "clientHeight", { value: 30, configurable: true });
-
-  rerender(<LiveWords line text="tell Lyle" />);
-
-  expect(el().className).not.toContain("over");
 });

@@ -4,7 +4,6 @@ import { Fragment, useEffect, useInsertionEffect, useLayoutEffect, useRef, useSt
 import { openMicTap, startRealtime, type MicTap, type RealtimeHandle } from "@/lib/voice/realtime-stream";
 import { playChime } from "@/lib/voice/chime";
 import { clearRun, markStopped, markTranscript } from "@/lib/voice/timing";
-import { Orb } from "@/components/ui/orb";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 import { morphWords, type Said } from "@/lib/voice/morph-words";
 
@@ -77,10 +76,6 @@ export const MAX_RECORDING_SECONDS = 240;
 /* WHAT COUNTS AS A VOICE, for the "was anything said" count that decides
    whether `handOver` may bin a take unheard. */
 const LOUD_ENOUGH = 0.07;
-
-/** When the clock stops counting up and starts counting down. Long enough to
-    finish a sentence and press stop yourself. */
-export const COUNTDOWN_FROM = 30;
 
 /* HOW LONG THE MICROPHONE GETS TO OPEN before the card stops claiming to be
    listening.
@@ -854,61 +849,6 @@ export function useDictation({
   };
 }
 
-/* THERE WAS A SECOND METER HERE, AND THERE IS ONE INSTRUMENT NOW.
-
-   `WaveMeter` was a 48-bar trace built for the capture card alone, because
-   the five-bar meter was wrong there in a way that reached prod: 36 × 34px,
-   five percent of the card's width, and at silence a `scaleY(.18)` that
-   collapsed each bar to 6.1px — the one element proving the microphone works
-   was the smallest thing on the screen, and its resting state was
-   indistinguishable from a dead mic. Isaac hit it: "Nothing was said in that
-   one", over a row of dots he had no way to read.
-
-   The trace answered that with WIDTH, which was the only axis a bar meter had
-   left. The whole of it — the 56px height, the 6% resting floor, the sine
-   envelope tapering the ends so it read as one shape rather than a fence —
-   was a one-channel instrument being made large enough to survive its own
-   resting state.
-
-   The orb does not need any of it, because size stopped being the only thing
-   the meter could say. It turns because the microphone is open and grows
-   because you are loud, so a silent room is a small sphere still turning, at
-   34px or at 68. That leaves nothing for a second component to do: the
-   capture card asks `LevelOrb` for a bigger one and the stylesheet gives it
-   one, which is the same answer the ask bar and the dictation bar get.
-
-   Deleted rather than converted, deliberately. Two meters that render the
-   same object are two places for it to drift. */
-
-/* The real-sample meter — bind `ref` to a dictation's `barsRef`.
-
-   IT WAS FIVE BARS, AND THE NAME OUTLIVED THEM BY ONE COMMIT. `LevelBars`
-   scaled five heights from one `--lvl` with a fixed gain each, which means it
-   was never five readings — it was one reading drawn five times. Nothing is
-   lost by drawing it once, as a sphere, and something is gained: a bar has
-   only its height to speak with, so "the microphone is alive" and "you are
-   this loud" had to share it, and in a quiet room they became the same
-   picture. That is the failure Isaac hit on prod — "Nothing was said in that
-   one", read off a row of dots that looked identical to a dead mic.
-
-   The orb separates them. It TURNS because the microphone is open and it
-   GROWS because you are loud; silence is a small sphere still turning, which
-   no longer resembles anything broken.
-
-   NOTHING ABOUT THE SIGNAL CHANGED. `--lvl` is still written to this element
-   and nowhere else, straight to the DOM every animation frame by the meter
-   loop in `startMeter`, still with no transition anywhere between the samples
-   and the screen. The size is the stylesheet's (`--orb` per row), so the orb
-   is deliberately rendered WITHOUT a size prop — an inline style here would
-   win over all four of the rows that set it. */
-export function LevelOrb({ innerRef }: { innerRef: React.RefObject<HTMLSpanElement | null> }) {
-  return (
-    <span className="wb-lvl" role="status" aria-label="Listening" ref={innerRef}>
-      <Orb />
-    </span>
-  );
-}
-
 /* THE PHONE'S WORD MOTIONS, TO THE MILLISECOND (heytiff-mobile
    src/components/LiveWords.tsx). Isaac, 9 November 2026: "make sure that the
    words show the same way. The mobile does. How quickly they render and the
@@ -953,7 +893,6 @@ const SETTLE_MS = 1200;
 export function LiveWords({
   said = "",
   text,
-  line = false,
   free = false,
   rows,
   className,
@@ -961,8 +900,6 @@ export function LiveWords({
 }: {
   said?: string;
   text: string;
-  /** One line, riding sideways. */
-  line?: boolean;
   /** Free on the page, not a window (above): no ride, no fade. */
   free?: boolean;
   /** What the textarea this stands in for was sized to. */
@@ -1039,16 +976,11 @@ export function LiveWords({
     }
     stood.current = now;
 
-    /* Ride the newest word, down the box or along it. */
+    /* Ride the newest word down the box. */
     if (free) return;
-    if (line) {
-      el.scrollLeft = el.scrollWidth;
-      setScrolled(el.scrollWidth > el.clientWidth + 1);
-    } else {
-      el.scrollTop = el.scrollHeight;
-      setScrolled(el.scrollHeight > el.clientHeight + 1);
-    }
-  }, [said, river, line, free]);
+    el.scrollTop = el.scrollHeight;
+    setScrolled(el.scrollHeight > el.clientHeight + 1);
+  }, [said, river, free]);
 
   /* AND MEASURED AGAIN WHEN THE BOX HAS FINISHED OPENING: a window that eases
      open is shorter than its words for a moment, and would read as scrolled.
@@ -1058,7 +990,7 @@ export function LiveWords({
     if (!el || free) return;
     const settle = (e: Event) => {
       if (e.target !== el) return;
-      setScrolled(line ? el.scrollWidth > el.clientWidth + 1 : el.scrollHeight > el.clientHeight + 1);
+      setScrolled(el.scrollHeight > el.clientHeight + 1);
     };
     el.addEventListener("animationend", settle);
     el.addEventListener("transitionend", settle);
@@ -1066,14 +998,13 @@ export function LiveWords({
       el.removeEventListener("animationend", settle);
       el.removeEventListener("transitionend", settle);
     };
-  }, [line, free]);
+  }, [free]);
 
   return (
     <p
       className={
         (className ? `${className} ` : "") +
         "wb2-lwbox" +
-        (line ? " one" : "") +
         (free ? " free" : scrolled ? " over" : "")
       }
       style={rows ? ({ "--lwrows": rows } as React.CSSProperties) : undefined}
@@ -1100,35 +1031,6 @@ export function LiveWords({
         </Fragment>
       ))}
     </p>
-  );
-}
-
-export const clockOf = (seconds: number) =>
-  `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-
-/** Seconds left before the recorder stops itself, floored at zero. */
-export const remainingOf = (seconds: number) =>
-  Math.max(0, MAX_RECORDING_SECONDS - seconds);
-
-/** The recording clock, one component so every posture reads the same.
-
-    It counts UP for most of the recording, because that is the only number
-    worth knowing while you talk, and flips to counting DOWN for the last
-    thirty seconds — the point at which the useful fact stops being how long
-    you have been going and starts being how long you have left. */
-export function DictClock({ seconds, big }: { seconds: number; big?: boolean }) {
-  const left = remainingOf(seconds);
-  const closing = left <= COUNTDOWN_FROM;
-  return (
-    <span
-      className={`wb2-capclock${closing ? " closing" : ""}${big ? " big" : ""}`}
-      /* The countdown is a state change mid-recording that nobody is looking
-         at the clock to notice, so it is announced once it matters. */
-      role={closing ? "status" : undefined}
-      aria-live={closing ? "polite" : undefined}
-    >
-      {closing ? `${left}s left` : clockOf(seconds)}
-    </span>
   );
 }
 

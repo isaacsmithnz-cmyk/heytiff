@@ -344,17 +344,6 @@ describe("the orb-say chip is readable on every surface it stands on", () => {
     expect(m).not.toBeNull();
     expect(m![1]!.toLowerCase()).toBe(resolved().toLowerCase());
   });
-
-  /* The rule that outranked the chip. `.wb2-dicthint` is (0,1,0) declared
-     3,700 lines later, so it beats `.orb-say` (0,1,0), and the sphere was
-     grey in that slot and so was the word under prefers-reduced-motion.
-     (`.fg .tvsay`, under the Library's ask bar, did the same until the bar
-     went.) */
-  it("keeps its own colour in the slot that sets a grey on the same element", () => {
-    const rule = CSS.match(/\.orb-say\.wb2-dicthint \{([^}]*)\}/);
-    expect(rule).not.toBeNull();
-    expect(rule![1]).toMatch(/color: *var\(--say-ink\)/);
-  });
 });
 
 /* ===== THE DARK CHROME — de-emphasis written as ALPHA =====

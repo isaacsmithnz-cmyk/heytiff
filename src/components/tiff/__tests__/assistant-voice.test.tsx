@@ -1,7 +1,6 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TiffAssistant, type ConversationParts } from "../assistant";
-import { READING_BACK_NOTE } from "@/components/notes/waits";
 import { STORE_KEY } from "@/lib/tiff/threads";
 import { resetThreadSync } from "@/lib/tiff/thread-sync";
 
@@ -34,7 +33,7 @@ jest.mock("@/app/actions/kb", () => ({
   kbDocUrl: async () => ({ ok: true as const, url: "https://signed.example/doc.pdf" }),
 }));
 
-/* The engine is replaced, but only the engine. `LevelOrb`, `LiveWords` and
+/* The engine is replaced, but only the engine. `LiveWords` and
    `appendSpoken` stay real — `appendSpoken` in particular IS the behaviour
    under test here, and a test that reimplements the join can't fail when the
    join changes. */
@@ -249,7 +248,7 @@ describe("the box while a recording is read back", () => {
       mockCtl.setRecording?.(false);
       mockCtl.setTranscribing?.(true);
     });
-    expect(screen.queryByText(READING_BACK_NOTE)).not.toBeInTheDocument();
+    expect(screen.queryByText("Thinking")).not.toBeInTheDocument();
     expect(box()).toBeDisabled();
     expect(box()).toHaveClass("cv-words--hearing");
 
@@ -257,7 +256,7 @@ describe("the box while a recording is read back", () => {
       mockCbs.current?.onTranscript("what is the clearance", { capped: false });
       mockCtl.setTranscribing?.(false);
     });
-    expect(screen.queryByText(READING_BACK_NOTE)).not.toBeInTheDocument();
+    expect(screen.queryByText("Thinking")).not.toBeInTheDocument();
     expect(box()).toHaveValue("what is the clearance");
   });
 });

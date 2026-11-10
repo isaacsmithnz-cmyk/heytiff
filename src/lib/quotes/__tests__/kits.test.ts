@@ -76,7 +76,7 @@ it("a part the book hasn't got stays on the quote, saying so", () => {
 it("the ducted kit adds flex and an outlet to each outlet, and a return", () => {
   expect(KITS.ducted.parts.map((p) => p.key)).toEqual([
     "pair-coil", "interconnect", "power", "breaker", "isolator", "mount", "drain", "trunking",
-    "supply-plenum", "return-plenum", "flex", "outlets", "ys", "reducers", "floor-grilles", "boots", "hangers", "return", "return-box", "controller",
+    "supply-plenum", "return-plenum", "flex", "outlets", "ys", "reducers", "floor-grilles", "boots", "hangers", "return", "return-box", "return-flex", "controller",
     "zone-interface", "zone-dampers", "zone-receiver", "zone-sensors", "zone-wifi",
   ]);
   const lines = expandKit("ducted", { ...facts, outlets: 5, outletMm: 250 }, [...book, product("VORTEX FLEX R1.0 250MM X 6M", 3045), product("CONE DIFFUSER 250MM", 1887)], at);
@@ -278,7 +278,7 @@ describe("a ducted kit sized by its unit and its layout", () => {
     ...facts,
     outlets: 6,
     outletMm: 200,
-    ...indoorFacts({ model: "PEA-M125HAA", air: { supply: { w: 1330, h: 271 }, ret: null, returnSpigots: true } }),
+    ...indoorFacts({ model: "PEA-M125HAA", air: { supply: { w: 1330, h: 271 }, ret: null, returnSpigots: true, returnSpigotsMm: [400, 400] } }),
     takeoffs: [400, 400],
     fittings: [
       { inMm: 400, outsMm: [300, 300], count: 1 },
@@ -297,9 +297,23 @@ describe("a ducted kit sized by its unit and its layout", () => {
     expect(by("AIRLOC SMARTFIT REDUCER 400 - 300")).toMatchObject({ qty: 1 });
     /* the grille and its box at the one face, never each other */
     expect(by("EGGCRATE HIGH STATIC FILTER 900X550 NSW")).toMatchObject({ qty: 1, costCents: 7966 });
-    expect(by("900 X 550 RETURN AIR BOX 2 X 400MM (EA)")).toMatchObject({ qty: 1 });
+    expect(by("900 X 550 RETURN AIR BOX 2 X 400MM (EA)")).toMatchObject({ qty: 1, why: expect.stringContaining("taking the unit's 2 × Ø400 return ducts, a spigot for each") });
     /* its return takes duct straight on: no return plenum */
     expect(lines.some((l) => /plenum/i.test(l.name ?? "") && /r\/air|return/i.test(l.name ?? ""))).toBe(false);
+  });
+
+  /* the 3465 review, 5 November 2026: two Ø400 return spigots went on as one Ø400 into a Y */
+  it("runs a duct from each of the unit's return spigots into a box that takes them both", () => {
+    const flex400 = product("FLEX DUCT R1.0 400MM X 6M", 6120);
+    const lines = expandKit("ducted", haa, [...book, ...ducted, flex400, product("900 X 550 RETURN AIR BOX 1 X 400MM (EA)", 9900)], at);
+    expect(lines.find((l) => l.name === "FLEX DUCT R1.0 400MM X 6M")).toMatchObject({ qty: 2, why: expect.stringContaining("from the unit's 2 Ø400 return spigots to the return box, a run each") });
+    expect(lines.some((l) => l.name === "900 X 550 RETURN AIR BOX 1 X 400MM (EA)")).toBe(false);
+    /* a book with only a one-spigot box says so, rather than put that one on */
+    const one = expandKit("ducted", haa, [...book, ...ducted.filter((p) => !/2 X 400MM/.test(p.name)), product("900 X 550 RETURN AIR BOX 1 X 400MM (EA)", 9900)], at);
+    expect(one.find((l) => l.name === "Return air box")).toMatchObject({ source: "unknown", why: expect.stringContaining("taking 2 × Ø400") });
+    /* a return with a face takes no return flex */
+    const faced = expandKit("ducted", { ...haa, ...indoorFacts({ model: "ARTH45KHTA", air: { supply: { w: 921, h: 304 }, ret: { w: 1062, h: 351 }, returnSpigots: false } }) }, [...book, ...ducted, flex400], at);
+    expect(faced.some((l) => /return spigot/.test(l.why ?? ""))).toBe(false);
   });
 
   it("a unit whose return has a face takes the return plenum made for it", () => {

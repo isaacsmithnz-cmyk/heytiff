@@ -1,4 +1,4 @@
-import { hasFactorySpigots, type DataPack } from "@/lib/studio/packs/schema";
+import { hasFactorySpigots, spigotDiametersMm, type DataPack } from "@/lib/studio/packs/schema";
 import type { CategoryKey } from "./categories";
 import { matchesWords, sizesOf, usesOf, type Product } from "./families";
 import { searchWords, type Offer } from "./price-book";
@@ -216,7 +216,7 @@ export type UnitSpecs = {
   /** a ducted indoor's air faces, from its data book: what its supply and
       return plenums are made for; `returnSpigots` when its return takes
       duct straight on (no return plenum) */
-  air?: { supply: { w: number; h: number } | null; ret: { w: number; h: number } | null; returnSpigots: boolean };
+  air?: { supply: { w: number; h: number } | null; ret: { w: number; h: number } | null; returnSpigots: boolean; returnSpigotsMm?: number[] };
   /** a ducted indoor's air, from its data book: its rated (high) airflow,
       L/s, and the external static pressure it's rated to push against, Pa.
       What the return, the outlets and the duct run are sized from (Isaac,
@@ -313,6 +313,8 @@ function specsIn(pack: DataPack, brand: string, model: string): UnitLookup {
               supply: faceOfOpening(ind.supply_opening),
               ret: faceOfOpening(ind.return_opening),
               returnSpigots: ind.return_opening === "built-in" || hasFactorySpigots(ind.return_opening),
+              /* each return spigot's size, where its book prints them: a duct from each */
+              ...(spigotDiametersMm(ind.return_opening).length ? { returnSpigotsMm: spigotDiametersMm(ind.return_opening) } : {}),
             },
           }
         : {}),

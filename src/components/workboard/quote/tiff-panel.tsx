@@ -201,7 +201,10 @@ export function TiffPanel({
   const seen = useRef(0);
   const last = useRef(0);
   const busyNow = useRef(false);
-  const bottom = useRef<HTMLDivElement | null>(null);
+  const threadRef = useRef<HTMLDivElement | null>(null);
+  const colRef = useRef<HTMLDivElement | null>(null);
+  /** The thread is at its newest, unless you've scrolled back through it yourself. */
+  const atEnd = useRef(true);
   const box = useRef<HTMLTextAreaElement | null>(null);
   const started = useRef(false);
 
@@ -260,14 +263,62 @@ export function TiffPanel({
     return () => clearInterval(t);
   }, [working]);
 
-  /* the newest at the foot, and again on coming back from the line items */
+  /* the newest at the foot, and again on coming back from the line items, and
+     when she starts on what you sent: you're taken to where she's working */
   useEffect(() => {
     const grew = seen.current > 0 && events.length > seen.current;
     seen.current = events.length;
     if (hidden) return;
+    atEnd.current = true;
+    const el = threadRef.current;
     const still = !!globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    bottom.current?.scrollIntoView?.({ block: "end", behavior: grew && !still ? "smooth" : "auto" });
+    if (el && typeof el.scrollTo === "function") el.scrollTo({ top: el.scrollHeight, behavior: grew && !still ? "smooth" : "auto" });
   }, [events.length, hidden, on, face]);
+  useEffect(() => {
+    const el = threadRef.current;
+    if (!working || hidden || !el) return;
+    atEnd.current = true;
+    el.scrollTop = el.scrollHeight;
+  }, [working, hidden]);
+
+  /* KEPT AT HER NEWEST AS THE THREAD CHANGES SIZE (Isaac, 11 November 2026:
+     "Tiff doesn't automatically bring you to where she's working. Sometimes
+     you have to scroll down"). What's under the last message grows without a
+     new one: her working line and its step, her questions once priced, the
+     box growing with what you say, which gives the thread less room. While
+     the thread is at its newest it stays there; a scroll away from the end
+     made by a wheel, a touch or a key is you reading back, and is left alone
+     (as Tiff's window does, tiff-modal.tsx). */
+  useEffect(() => {
+    const el = threadRef.current;
+    const col = colRef.current;
+    if (!el || typeof ResizeObserver !== "function") return;
+    let handAt = -Infinity;
+    const reading = () => {
+      handAt = performance.now();
+    };
+    const scrolled = () => {
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < 4) atEnd.current = true;
+      else if (performance.now() - handAt < 400) atEnd.current = false;
+    };
+    const ro = new ResizeObserver(() => {
+      if (atEnd.current) el.scrollTop = el.scrollHeight;
+    });
+    ro.observe(el);
+    if (col) ro.observe(col);
+    el.addEventListener("wheel", reading, { passive: true });
+    el.addEventListener("touchstart", reading, { passive: true });
+    el.addEventListener("keydown", reading);
+    el.addEventListener("scroll", scrolled, { passive: true });
+    return () => {
+      ro.disconnect();
+      el.removeEventListener("wheel", reading);
+      el.removeEventListener("touchstart", reading);
+      el.removeEventListener("keydown", reading);
+      el.removeEventListener("scroll", scrolled);
+    };
+    /* the thread is there only once she's on */
+  }, [on]);
 
   const status = useEffectEvent((s: { on: boolean; spentUsd: number | null }) => onStatus?.(s));
   useEffect(() => {
@@ -621,8 +672,8 @@ export function TiffPanel({
           </div>
         </div>
       )}
-      <div className="qc-thread" hidden={face !== "talk"}>
-        <div className="qc-col">
+      <div ref={threadRef} className="qc-thread" hidden={face !== "talk"}>
+        <div ref={colRef} className="qc-col">
           {events.length === 0 && (
             <div className="qt-hello">
               <TiffGlyph size={48} />
@@ -675,7 +726,6 @@ export function TiffPanel({
           {working && (
             <TimeLeft since={turnStartOf(events)} first={isFirstTurn(events)} step={stepOf(events)} />
           )}
-          <div ref={bottom} />
         </div>
       </div>
       <div className="qc-comp">

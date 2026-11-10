@@ -1655,18 +1655,20 @@ export async function searchAllMirrorJobs(
     return statuses ? base.in("status", statuses) : base;
   };
 
-  const words = [...new Set(safe.toLowerCase().split(/\s+/).filter(Boolean))];
+  const words = withoutStreetTypes([...new Set(safe.toLowerCase().split(/\s+/).filter(Boolean))]);
   if (words.length > 1) {
     const { rows, names } = await searchMirrorByWords(orgId, words, columns, limit, statuses);
-    return hydrateMirrorJobs(orgId, rows, today, includeMoney, names);
+    const folded = await foldClaimsIntoParents(orgId, rows, columns, statuses);
+    return hydrateMirrorJobs(orgId, folded, today, includeMoney, names);
   }
+  const word = words[0] ?? safe;
 
   const [{ data: byNumber }, { data: companyRows }] = await Promise.all([
     /* In number order, which puts the number typed FIRST: a prefix sorts
        before everything it starts. Unordered, "23" could hand back thirty of
        the hundred-odd jobs from 230 to 2399 and leave out job 23 itself. */
     own()
-      .ilike("generated_job_id", `${safe}%`)
+      .ilike("generated_job_id", `${word}%`)
       .order("generated_job_id", { ascending: true })
       .limit(limit),
     supabaseAdmin
@@ -1674,7 +1676,7 @@ export async function searchAllMirrorJobs(
       .select("uuid, name")
       .eq("org_id", orgId)
       .eq("active", 1)
-      .ilike("name", `%${safe}%`)
+      .ilike("name", `%${word}%`)
       .limit(20),
   ]);
 
@@ -1687,7 +1689,7 @@ export async function searchAllMirrorJobs(
           .limit(limit)
       : Promise.resolve({ data: [] }),
     own()
-      .or(`job_description.ilike.%${safe}%,geo_city.ilike.%${safe}%,job_address.ilike.%${safe}%`)
+      .or(`job_description.ilike.%${word}%,geo_city.ilike.%${word}%,job_address.ilike.%${word}%`)
       .order("date", { ascending: false })
       .limit(limit),
   ]);
@@ -1701,7 +1703,7 @@ export async function searchAllMirrorJobs(
       rows.push(r);
     }
   }
-  const found = rows.slice(0, limit);
+  const found = await foldClaimsIntoParents(orgId, rows.slice(0, limit), columns, statuses);
   return hydrateMirrorJobs(
     orgId,
     found,
@@ -1717,7 +1719,10 @@ export async function searchAllMirrorJobs(
    recent to earliest". ServiceM8 keeps the number as text, which sorts 999
    above 3518, so the order is the mirror's `job_number`: the digits as an
    integer, worked out by Postgres (docs/migrations/sm8_jobs_job_number.sql).
-   A family's clones share their parent's number and follow it, 3323, 3323A. */
+   A family's claims (3323A, 3323B) are not listed: they are the parent's card
+   (Isaac, 11 November 2026: "it's showing the A and B versions of the job,
+   which are just the payments. I thought it was all supposed to be compiled
+   in one"). */
 
 /** How many jobs one page of the phone's All jobs carries. */
 export const JOBS_BY_NUMBER_PAGE = 50;
@@ -1741,6 +1746,9 @@ export async function listMirrorJobsByNumber(
     .select(columns)
     .eq("org_id", orgId)
     .eq("active", 1)
+    /* a claim (2845A) is part of its parent's card, never a row of its own:
+       left out here, in the query, because the phone pages by how many came */
+    .not("generated_job_id", "match", CLAIM_NUMBER)
     .order("job_number", { ascending: false, nullsFirst: false })
     .order("generated_job_id", { ascending: true })
     .range(from, from + limit - 1);
@@ -1776,7 +1784,86 @@ export async function readMirrorJobsByIds(
   }
   const byId = new Map(((data ?? []) as unknown as JobRow[]).map((r) => [lowUuid(r.uuid), r]));
   const rows = asked.map((id) => byId.get(lowUuid(id))).filter((r): r is JobRow => !!r);
-  return hydrateMirrorJobs(orgId, rows, today, includeMoney);
+  return hydrateMirrorJobs(orgId, await foldClaimsIntoParents(orgId, rows, columns), today, includeMoney);
+}
+
+/* ── a claim is its parent's card ──
+
+   ServiceM8 bills a progress claim by cloning the job: 2845's deposit is
+   2845A (job-family.ts). Found by search, the claim stood in the list as a
+   job of its own beside its parent (Isaac, 11 November 2026, searching "JT
+   construct": 2845A and 2845 one under the other, "which are just the
+   payments. I thought it was all supposed to be compiled in one"). A claim
+   found is answered by its parent, in the claim's place, once. A claim whose
+   parent isn't there (deleted, never mirrored, or not in the states asked
+   for) keeps its own row, as its card does (resolveJobCard). */
+
+/** A job number that ends in a claim's letter: 2845A. */
+const CLAIM_NUMBER = "[A-Z]$";
+
+async function foldClaimsIntoParents(
+  orgId: string,
+  rows: JobRow[],
+  columns: string,
+  statuses: readonly string[] | null = null
+): Promise<JobRow[]> {
+  const bases = new Set<string>();
+  for (const r of rows) {
+    const parts = splitJobNumber(r.generated_job_id);
+    if (parts?.suffix) bases.add(parts.base);
+  }
+  if (bases.size === 0) return rows;
+
+  const parentOf = new Map<string, JobRow>();
+  for (const r of rows) {
+    const parts = splitJobNumber(r.generated_job_id);
+    if (parts && parts.suffix === null && bases.has(parts.base)) parentOf.set(parts.base, r);
+  }
+  const missing = [...bases].filter((b) => !parentOf.has(b));
+  if (missing.length) {
+    let q = supabaseAdmin
+      .from("sm8_jobs")
+      .select(columns)
+      .eq("org_id", orgId)
+      .eq("active", 1)
+      .in("generated_job_id", missing);
+    if (statuses) q = q.in("status", [...statuses]);
+    const { data, error } = await q;
+    if (error) console.error(`[jobs] couldn't read org ${orgId}'s parents of claims found:`, error);
+    for (const r of (data ?? []) as unknown as JobRow[]) {
+      if (r.generated_job_id && bases.has(r.generated_job_id)) parentOf.set(r.generated_job_id, r);
+    }
+  }
+
+  const seen = new Set<string>();
+  const out: JobRow[] = [];
+  for (const r of rows) {
+    const parts = splitJobNumber(r.generated_job_id);
+    const shown = (parts?.suffix ? parentOf.get(parts.base) : undefined) ?? r;
+    if (seen.has(shown.uuid)) continue;
+    seen.add(shown.uuid);
+    out.push(shown);
+  }
+  return out;
+}
+
+/* ── the kind of street is not a word to find ──
+
+   "7 cutler street" found nothing: 2845 is at 7 Cutler Rd, and every word
+   typed has to land, "street" with them (Isaac, 11 November 2026). Which
+   kind of street it is says nothing the number and the name don't, and is
+   as often written short (St, Rd) or misremembered, so beside other words
+   it is left out. Typed alone it is still looked for. */
+const STREET_TYPES = new Set([
+  "street", "st", "road", "rd", "avenue", "ave", "av", "lane", "ln", "drive", "dr",
+  "place", "pl", "crescent", "cres", "court", "ct", "parade", "pde", "close", "cl",
+  "terrace", "tce", "highway", "hwy", "boulevard", "blvd", "circuit", "cct",
+  "grove", "gr", "way", "esplanade", "esp", "square", "sq",
+]);
+
+export function withoutStreetTypes(words: string[]): string[] {
+  const kept = words.filter((w) => !STREET_TYPES.has(w.replace(/\.$/, "")));
+  return kept.length ? kept : words;
 }
 
 /* ── several words: every one has to land ──

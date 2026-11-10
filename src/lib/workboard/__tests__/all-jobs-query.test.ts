@@ -36,6 +36,7 @@ jest.mock("@/lib/supabase-server", () => ({
       sub.or = note("or");
       sub.limit = note("limit");
       sub.range = note("range");
+      sub.not = note("not");
       sub.maybeSingle = () => {
         const q = singleQueue[table];
         if (q && q.length) return Promise.resolve({ data: q.shift() ?? null });
@@ -714,11 +715,15 @@ describe("searchAllMirrorJobs", () => {
 
 describe("the phone's Jobs before anything is typed", () => {
   /* text sorts 999 above 3518; the mirror's job_number is the digits as an integer */
-  it("lists every job by its number as an integer, newest first, a clone after its parent, a page at a time", async () => {
+  /* a claim (2845A) is its parent's card, left out in the query itself: the
+     phone asks for the next page from how many it has, so a page thinned
+     after the read would skip jobs */
+  it("lists every job by its number as an integer, newest first, no claim of its own, a page at a time", async () => {
     rowsBy["sm8_jobs"] = [];
     await listMirrorJobsByNumber("org-1", TODAY, { includeMoney: false, from: 50 });
     const asked = calls.filter((c) => c.table === "sm8_jobs").map((c) => [c.method, ...c.args]);
     expect(asked).toEqual([
+      ["not", "generated_job_id", "match", "[A-Z]$"],
       ["order", "job_number", { ascending: false, nullsFirst: false }],
       ["order", "generated_job_id", { ascending: true }],
       ["range", 50, 99],

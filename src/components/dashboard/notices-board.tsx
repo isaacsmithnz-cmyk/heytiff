@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -175,6 +175,7 @@ function EventBlock({
   const summary = rsvpSummary(event.rsvp);
   const coming = isComing((event.rsvp.myOptionIds[0] ?? null) as RsvpAnswer | null);
   const [diet, setDiet] = useState(event.myDiet ?? "");
+  const dietId = useId();
 
   return (
     <>
@@ -207,22 +208,32 @@ function EventBlock({
       />
       {/* allergies once you're coming (Isaac, 6 November 2026), saved as you leave the field */}
       {event.askDiet && coming && !closed && !when.past && (
-        <label className="nb-diet">
-          <span className="nb-dietlabel">{event.rsvp.myOptionIds[0] === "plus_one" ? "Allergies or dietary needs, for you and your partner" : "Allergies or dietary needs"}</span>
-          <input
-            className="pt-input"
+        <div
+          className="nb-diet"
+          onBlur={(e) => {
+            // saved as focus leaves the box and its microphone, whichever had it
+            if (e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget)) return;
+            if (diet.trim() !== (event.myDiet ?? "")) onDiet(diet);
+          }}
+        >
+          <span className="nb-dietlabel" id={dietId}>{event.rsvp.myOptionIds[0] === "plus_one" ? "Allergies or dietary needs, for you and your partner" : "Allergies or dietary needs"}</span>
+          <NoteToken
+            as="field"
+            rows={1}
+            label="allergies or dietary needs"
+            offer={false}
             value={diet}
-            maxLength={300}
             disabled={pending}
-            onChange={(e) => setDiet(e.target.value)}
-            onBlur={() => {
-              if (diet.trim() !== (event.myDiet ?? "")) onDiet(diet);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            onChange={setDiet}
+            box={{
+              "aria-labelledby": dietId,
+              maxLength: 300,
+              onKeyDown: (e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+              },
             }}
           />
-        </label>
+        </div>
       )}
       {/* the poster's alone: they sort it with the venue */}
       {event.diets && event.diets.length > 0 && (

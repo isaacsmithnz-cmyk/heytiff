@@ -6,7 +6,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { Button, LinkButton } from "@/components/parts/button";
 import { ConfirmDialog } from "@/components/parts/dialog";
-import { TextInput } from "@/components/parts/field";
 import { Fade } from "@/components/parts/fade";
 import { Initials } from "@/components/parts/initials";
 import { Menu, type MenuItem } from "@/components/parts/menu";
@@ -919,13 +918,19 @@ function JournalSection({
   return (
     <JobSection name={name} icon={icon} hue="green" action={action}>
       <div className="pj-compose">
-        <TextInput
-          aria-label={name}
+        <NoteToken
+          as="field"
+          rows={1}
+          label={name.toLowerCase()}
+          offer={false}
           placeholder={placeholder}
           value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") add();
+          onChange={setText}
+          box={{
+            "aria-label": name,
+            onKeyDown: (e) => {
+              if (e.key === "Enter") add();
+            },
           }}
         />
         <Button disabled={busy || !text.trim()} onClick={add}>

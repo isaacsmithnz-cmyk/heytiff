@@ -492,11 +492,15 @@ export function ExpenseForm({
             {!fromJob && jobField}
 
             <Field label="What was it for">
-              <TextInput
+              <NoteToken
+                as="field"
+                rows={1}
+                label="what it was for"
+                offer={false}
                 value={draft.description}
                 placeholder="Copper fittings and flux"
-                data-autofocus
-                onChange={(e) => set({ description: e.target.value })}
+                box={{ "data-autofocus": true }}
+                onChange={(v) => set({ description: v })}
               />
             </Field>
             <div className="mk-pair">

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { NoteWords } from "@/components/notes/note-words";
+import { NoteToken } from "@/components/notes/note-token";
 import { auDayOf, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { DateField } from "@/components/ui/date-field";
 import {
@@ -283,20 +284,23 @@ function TaskDraft({
     () => item.named.find((n) => n.staffId)?.staffId ?? ""
   );
   const [dueDate, setDueDate] = useState("");
+  const titleId = useId();
   const unlinked = item.named.filter((n) => !n.staffId).map((n) => n.name);
 
   return (
     <div className="wb2-jcattform">
-      <label className="wb2-jcattfield">
-        <span>What needs doing</span>
-        <input
-          className="wb2-fi"
+      <div className="wb2-jcattfield">
+        <span id={titleId}>What needs doing</span>
+        <NoteToken
+          as="field"
+          rows={1}
+          label="what needs doing"
+          offer={false}
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          maxLength={200}
-          aria-label="What needs doing"
+          onChange={setTitle}
+          box={{ "aria-labelledby": titleId, maxLength: 200 }}
         />
-      </label>
+      </div>
       <label className="wb2-jcattfield short">
         <span>For</span>
         <select

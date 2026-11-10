@@ -8,6 +8,7 @@
    and sheet; and the project's forms on the Dialog part. */
 
 import { render, screen, waitFor, within } from "@testing-library/react";
+import type { KeyboardEvent } from "react";
 import userEvent from "@testing-library/user-event";
 import { pickDate } from "@/components/ui/__tests__/fixtures/pick-date";
 import { ProjectDetailScreen } from "../project-detail-screen";
@@ -22,11 +23,26 @@ jest.mock("next/navigation", () => ({
 
 jest.mock("@/components/notes/note-token", () => ({
   /* a box in a form stands in as a plain box its Field's label names */
-  NoteToken: function NoteToken(p: { as?: string; value?: string; onChange?: (v: string) => void; box?: { "aria-label"?: string } }) {
+  NoteToken: function NoteToken(p: {
+    as?: string;
+    value?: string;
+    placeholder?: string;
+    onChange?: (v: string) => void;
+    box?: { "aria-label"?: string; onKeyDown?: (e: KeyboardEvent<HTMLTextAreaElement>) => void };
+  }) {
     const { useFieldWiring } = jest.requireActual("@/components/parts/field");
     const wired = useFieldWiring({});
     if (p.as !== "field") return <div data-testid="capture" data-as={p.as} />;
-    return <textarea id={wired.id} aria-label={p.box?.["aria-label"]} value={p.value ?? ""} onChange={(e) => p.onChange?.(e.target.value)} />;
+    return (
+      <textarea
+        id={wired.id}
+        aria-label={p.box?.["aria-label"]}
+        placeholder={p.placeholder}
+        value={p.value ?? ""}
+        onChange={(e) => p.onChange?.(e.target.value)}
+        onKeyDown={p.box?.onKeyDown}
+      />
+    );
   },
 }));
 jest.mock("../board/project-trip-sheet", () => ({

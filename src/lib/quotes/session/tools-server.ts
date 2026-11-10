@@ -5,7 +5,7 @@ import { addKit } from "../kits-server";
 import { addLine, changeLine, copyOption, readLines, removeLine } from "../lines-server";
 import { addCompared, nameOption, readByHand, saveProposal } from "../lines-job-server";
 import { jobKind, readCorrections } from "../corrections-server";
-import { jobFiles, lookAt } from "./job-files-server";
+import { jobFiles, lookAt, photoSize } from "./job-files-server";
 import { lookupCharge, lookupPairing, lookupUnit } from "../lookups-server";
 import { loadAirflowGuide } from "@/lib/guides/airflow-server";
 import { readJobDesign } from "../design-read-server";
@@ -58,6 +58,7 @@ export function dbStore(orgId: string, jobUuid: string): QuoteStore {
     supplier: () => (supplier ??= jobUuid ? readByHand(orgId, jobUuid).then((b) => b.supplier) : Promise.resolve(null)),
     jobFiles: () => (jobUuid ? jobFiles(orgId, jobUuid) : Promise.resolve([])),
     look: (id, area) => (jobUuid ? lookAt(orgId, jobUuid, id, area ?? null) : Promise.resolve("There's no job to look at.")),
+    pictureSize: (id) => (jobUuid ? photoSize(orgId, jobUuid, id) : Promise.resolve("There's no job to measure.")),
     corrections: async (sameKind) => readCorrections(orgId, { kind: sameKind && jobUuid ? await jobKind(orgId, jobUuid) : null }),
     hourCost: () =>
       (hour ??= Promise.all([readQuoteSettings(orgId), readOrgDay(orgId)]).then(([s, d]) =>

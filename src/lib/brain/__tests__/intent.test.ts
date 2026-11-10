@@ -19,6 +19,9 @@ describe("things that are questions", () => {
     ["tell me about the Meridian job"],
     ["did we ever fix that compressor"],
     ["the crane is booked for tomorrow right?"],
+    // a request modal that only asks for an answer stays a question
+    ["can you tell me what's on tomorrow?"],
+    ["could you check whether the crane is booked?"],
   ])("%j asks", (text) => {
     expect(looksLikeQuestion(text)).toBe(true);
   });
@@ -39,6 +42,13 @@ describe("things that are notes, however question-shaped", () => {
     ["showed the apprentice the plant room"],
     ["the middle rooftop unit tripped again"],
     ["gate code 4417"],
+    // passing it on is work, however it's punctuated (Isaac, 10 November 2026)
+    ["Can you let Luke know that Jay Matthews' job is ready to book in?"],
+    ["could you tell Leo the ladder's in my van?"],
+    ["can you remind me to call Eve tomorrow?"],
+    ["can you book Jay in for Thursday?"],
+    ["Tiff, can you ask Dave to bring the core drill?"],
+    ["please order the grilles for 3521?"],
     [""],
     ["   "],
   ])("%j records", (text) => {

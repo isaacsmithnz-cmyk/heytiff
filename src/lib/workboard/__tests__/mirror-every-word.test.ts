@@ -191,7 +191,8 @@ describe("only the states asked for", () => {
   });
 
   it("finds finished jobs too when no state is asked for", async () => {
-    expect((await numbers("19 union")).sort()).toEqual(["3260", "3260A"]);
+    tables.sm8_jobs.push(job("j-3300", { status: "Completed", geo_city: "Balmain East", job_address: "19 Union St\nBalmain East NSW 2041" }));
+    expect((await numbers("19 union")).sort()).toEqual(["3260", "3300"]);
   });
 
   it("finds only open Work Orders and Quotes when those are asked for, by one word or several", async () => {
@@ -200,5 +201,59 @@ describe("only the states asked for", () => {
     expect(await open("19 union")).toEqual(["3260"]);
     expect(await open("union")).toEqual(["3260", "3432"]);
     expect(await open("3260")).toEqual(["3260"]);
+  });
+});
+
+/* "7 cutler street" (2026-11-11): 2845 is at 7 Cutler Rd, and the search
+   found nothing, because "street" had to land too. */
+describe("the kind of street", () => {
+  beforeEach(() => {
+    tables.sm8_jobs.push(job("j-2845", { status: "Work Order", geo_city: "Clontarf", job_address: "7 Cutler Rd\nClontarf NSW 2093" }));
+  });
+
+  it("finds the job whatever kind of street is typed", async () => {
+    expect(await numbers("7 cutler street")).toEqual(["2845"]);
+    expect(await numbers("7 cutler st")).toEqual(["2845"]);
+    expect(await numbers("cutler road")).toEqual(["2845"]);
+    expect(await numbers("19 union street")).toEqual(["3260"]);
+  });
+
+  it("still looks for the word when it is all that's typed", async () => {
+    expect(await numbers("road")).toEqual([]);
+  });
+});
+
+/* "JT construct" (2026-11-11): 2845A, a payment claim cloned off 2845,
+   stood in the list beside it. A claim is its parent's card. */
+describe("a claim is its parent's card", () => {
+  beforeEach(() => {
+    tables.sm8_companies.push(client("c-jt", "JT Construct"));
+    tables.sm8_jobs.push(
+      job("j-2845", { company_uuid: "c-jt", status: "Work Order", geo_city: "Clontarf", job_address: "7 Cutler Rd", date: "2026-03-01 09:00:00" }),
+      job("j-2845A", { company_uuid: "c-jt", status: "Completed", geo_city: "Clontarf", job_address: "7 Cutler Rd", date: "2026-04-01 09:00:00" }),
+      job("j-2042B", { company_uuid: "c-jt", status: "Completed", geo_city: "Allambie Heights", date: "2026-02-01 09:00:00" }),
+      job("j-2042", { company_uuid: "c-jt", status: "Completed", geo_city: "Allambie Heights", date: "2025-12-01 09:00:00" }),
+      job("j-1999A", { company_uuid: "c-jt", status: "Completed", geo_city: "Manly", date: "2025-01-01 09:00:00" }),
+    );
+  });
+
+  it("shows each family once, by its parent, where the first of it was found", async () => {
+    expect(await numbers("jt construct")).toEqual(["2845", "2042", "1999A"]);
+    expect(await numbers("jt")).toEqual(["2845", "2042", "1999A"]);
+  });
+
+  it("answers a claim's own number with its parent", async () => {
+    expect(await numbers("2845a")).toEqual(["2845"]);
+  });
+
+  it("keeps a claim whose parent isn't there", async () => {
+    expect(await numbers("manly")).toEqual(["1999A"]);
+  });
+
+  it("keeps a claim whose parent isn't in the states asked for", async () => {
+    const open = async (query: string) =>
+      (await searchAllMirrorJobs(ORG, query, TODAY, { includeMoney: false, statuses: ["Work Order"] })).map((j) => j.jobNumber);
+    tables.sm8_jobs.push(job("j-2042C", { company_uuid: "c-jt", status: "Work Order", geo_city: "Allambie Heights" }));
+    expect(await open("allambie")).toEqual(["2042C"]);
   });
 });

@@ -62,6 +62,8 @@ export type WriteupEntry = {
   mine: { at: string; text: string }[];
   photoIds: string[];
   others: { name: string; at: string; text: string }[];
+  /** the wrap-up note already in for this stretch, when it was filed: the walk passes its note step by, so it's never filed twice */
+  filed: string | null;
 };
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
@@ -77,13 +79,33 @@ function clockWords(iso: string, zone: string): string {
 /** The entry's first line: who, when, and what they photographed and asked.
     "Isaac, 7:15 to 3:00 · 4 photos · 1 question to the Library". Pure. */
 export function lineOf(name: string | null, job: Pick<JobDay, "spans" | "photos" | "asked">, zone: string): string {
-  const when = job.spans.map((s) => `${clockWords(s.from, zone)} to ${clockWords(s.until, zone)}`).join(", ");
   const bits = [
-    [name, when].filter(Boolean).join(", "),
+    headOf(name, job.spans, zone),
     job.photos ? `${job.photos} photo${job.photos === 1 ? "" : "s"}` : null,
     job.asked.length ? `${job.asked.length} question${job.asked.length === 1 ? "" : "s"} to the Library` : null,
   ];
   return bits.filter(Boolean).join(" · ");
+}
+
+/** Who and when, the part of the first line a wrap-up note always opens with: "Isaac, 7:15 to 3:00". Pure. */
+export function headOf(name: string | null, spans: readonly { from: string; until: string }[], zone: string): string {
+  const when = spans.map((s) => `${clockWords(s.from, zone)} to ${clockWords(s.until, zone)}`).join(", ");
+  return [name, when].filter(Boolean).join(", ");
+}
+
+/** NEVER FILED TWICE (11 November 2026: 3324's note went to ServiceM8 at 3:40 pm
+    and again, as Tiff's tidy of it, at 6:30 the next morning; 3488's and 3514's
+    on the 8th and again on the 10th). A wrap-up note opens with its who and
+    when, so the person's own note on the job that opens with this stretch's is
+    the one already in; Tiff's tidy may end it with a full stop. The earliest's
+    time, or null. Pure. */
+export function filedAt(head: string, mine: readonly { at: string; text: string }[]): string | null {
+  if (!head.includes(" to ")) return null;
+  const hit = mine.find((n) => {
+    const first = (n.text.split("\n")[0] ?? "").trim().replace(/\.$/, "");
+    return first === head || first.startsWith(`${head} · `);
+  });
+  return hit?.at ?? null;
 }
 
 /** Each job on the day's sheet, its stretches together, in the order first reached. Pure. */
@@ -289,7 +311,9 @@ export async function writeUpDay(
   const [zone, name] = await Promise.all([bookingZone(ctx.orgId).then((z) => z.zone ?? "Australia/Sydney"), firstNameOf(ctx)]);
   const midnight = new Date(wallInstant(`${state.day.workDate} 00:00:00`, zone, "earliest") ?? Date.parse(state.day.onAt)).toISOString();
   const jobs = await gather(ctx, state.summary, state.day.onAt, midnight < state.day.onAt ? midnight : state.day.onAt);
-  const texts = await written(jobs);
+  const filed = jobs.map((j) => filedAt(headOf(name, j.spans, zone), j.mine));
+  /* a job whose note is in isn't written up again */
+  const texts = await written(jobs.map((j, i) => (filed[i] ? { ...j, notes: [], asked: [] } : j)));
   return {
     entries: jobs.map((j, i) => ({
       jobUuid: j.jobUuid,
@@ -305,6 +329,7 @@ export async function writeUpDay(
       mine: j.mine,
       photoIds: j.photoIds,
       others: j.others,
+      filed: filed[i] ?? null,
     })),
     day: { workDate: state.day.workDate, onAt: state.day.onAt, offAt: state.day.offAt, minutes: state.summary.minutes },
   };

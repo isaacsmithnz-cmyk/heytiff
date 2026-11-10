@@ -11,6 +11,7 @@ import type { QuoteLine } from "@/lib/quotes/lines";
 import type { BookHit } from "@/lib/quotes/lookups";
 import { namedUnit, unitRoleOf } from "@/lib/quotes/unit-name";
 import type { QuotePrice } from "@/lib/quotes/quote-price-server";
+import { supabaseAdmin } from "@/lib/supabase-server";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { actAsPhoneUser, type MobileCtx } from "./auth";
 import { doingOf, openQuestions, phoneQuoteOf, phoneTurns, type LinesView, type QuestionPrices, type Thread } from "./phone-quote";
@@ -33,9 +34,10 @@ type TalkAnswer = { on?: boolean; working?: boolean; events: Thread[]; names?: R
 export async function readPhoneQuote(ctx: MobileCtx, id: string) {
   return actAsPhoneUser(ctx, async () => {
     const { parentRemoteId: job } = await resolveJobCard(ctx.orgId, id);
-    const [viewed, talked] = await Promise.all([
+    const [viewed, talked, sm8] = await Promise.all([
       linesGet(ask("/api/workboard/quote-lines", job)).then((r) => (r.ok ? (r.json() as Promise<LinesView & { names?: Record<string, string> }>) : null)),
       talkGet(ask("/api/workboard/quote-session", job, "&questions=1")).then((r) => (r.ok ? (r.json() as Promise<TalkAnswer>) : null)),
+      sm8QuoteSent(ctx.orgId, job),
     ]);
     if (!viewed) return null;
     const price =
@@ -66,8 +68,26 @@ export async function readPhoneQuote(ctx: MobileCtx, id: string) {
       asked,
       send,
       manage: ctx.caps.has("workboard_manage"),
+      sm8,
     };
   });
+}
+
+/** ServiceM8's own quote on the job, where one went: the day it was sent, and the day the job became a Work Order
+    after it. The phone keeps Quote this job off a job quoted in ServiceM8 and shows this quote in the job's More
+    (Isaac, 10 November 2026, on 3324: "it's saying quote this job, even though there is already a quote in place"). */
+async function sm8QuoteSent(orgId: string, job: string): Promise<{ sentOn: string; acceptedOn: string | null } | null> {
+  const { data } = await supabaseAdmin
+    .from("sm8_jobs")
+    .select("status, quote_sent_stamp, work_order_date")
+    .eq("org_id", orgId)
+    .eq("uuid", job)
+    .maybeSingle();
+  const row = data as { status: string | null; quote_sent_stamp: string | null; work_order_date: string | null } | null;
+  const sent = row?.quote_sent_stamp?.slice(0, 10);
+  if (!row || !sent || sent.startsWith("0000")) return null;
+  const won = row.status !== "Quote" && row.status !== "Unsuccessful" ? (row.work_order_date?.slice(0, 10) ?? null) : null;
+  return { sentOn: sent, acceptedOn: won && !won.startsWith("0000") ? won : null };
 }
 
 /** While she works, the conversation and how far along, read again every few seconds. */

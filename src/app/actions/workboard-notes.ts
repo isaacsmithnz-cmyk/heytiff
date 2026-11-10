@@ -5,6 +5,7 @@ import { after } from "next/server";
 import { projectHref } from "@/lib/shell/links";
 import { revalidateHome } from "@/lib/shell/revalidate-home";
 import { auth0 } from "@/lib/auth0";
+import { ringForTasks } from "@/lib/mobile/task-push";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
 import { staffIdFor } from "@/lib/workboard/projects-query";
@@ -999,6 +1000,8 @@ async function applyConfirmed(
     if (rows.length) {
       const { data } = await supabaseAdmin.from("tasks").insert(rows).select("id");
       record("taskIds", ((data ?? []) as { id: string }[]).map((r) => r.id), "task");
+      /* someone else's task rings their phone, as Add task's does */
+      if (data?.length) await ringForTasks(ctx.orgId, ctx.staffId, rows);
     }
   }
 

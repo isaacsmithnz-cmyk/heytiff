@@ -223,9 +223,26 @@ function matches(text: string, cue: Cue): boolean {
 }
 
 /** Should these words go to the ask loop instead of the note flow? */
+/* A REQUEST TO PASS SOMETHING ON IS WORK, QUESTION MARK OR NOT (Isaac, 10
+   November 2026, to Tiff on the phone: "Can you let Luke know that Jay
+   Matthews' job is ready to book in?"). Its "?" sent it to the answer loop,
+   which can change nothing: it said it couldn't message anyone, offered
+   Conversations, and Luke was never told. A request modal opening on a verb
+   that hands something to a person, or books or orders it, is the note flow's,
+   which makes it that person's task. "Can you tell me…" and "can you check
+   whether…" stay questions. */
+const HANDOFF =
+  /^(?:(?:hey |hi )?tiff,? )?(?:(?:can|could|would|will) (?:you|u) (?:please )?|please )(?:let \S+(?: \S+)? know|tell (?!me\b|us\b)|remind|ask (?!you\b|me\b)|pass (?:on|that|this|it)|message|text|email|ring|call|book|order|send|chase|organi[sz]e|get \S+(?: \S+)? to)\b/;
+
+/** Is this a request to tell someone, or to book or order something ("can you let Luke know…?")? The note flow's. */
+export function looksLikeHandOff(text: string): boolean {
+  return HANDOFF.test(text.trim().toLowerCase().replace(/[’']/g, "'"));
+}
+
 export function looksLikeQuestion(text: string): boolean {
   const t = text.trim().toLowerCase();
   if (!t) return false;
+  if (looksLikeHandOff(t)) return false;
   if (MARKS.some((m) => t.endsWith(m))) return true;
   /* Spanish opens its questions with a mark of its own, and only its
      questions carry it. */

@@ -34,6 +34,11 @@ jest.mock("@/app/api/workboard/quote-lookup/route", () => ({ GET: jest.fn() }));
 jest.mock("@/app/api/workboard/quote-send/route", () => ({ GET: jest.fn() }));
 jest.mock("@/app/actions/quote-sm8", () => ({ quoteSendOffered: jest.fn(), sendQuoteToSm8: jest.fn() }));
 jest.mock("@/lib/workboard/all-jobs-query", () => ({ resolveJobCard: jest.fn() }));
+/* the read's look for ServiceM8's own quote: none on these jobs */
+jest.mock("@/lib/supabase-server", () => {
+  const q = { select: () => q, eq: () => q, maybeSingle: async () => ({ data: null }) };
+  return { supabaseAdmin: { from: () => q } };
+});
 
 import { POST } from "@/app/api/mobile/jobs/[id]/quote/talk/route";
 

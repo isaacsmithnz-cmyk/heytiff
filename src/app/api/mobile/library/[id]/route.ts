@@ -24,6 +24,25 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!d) return Response.json({ error: "That document isn't in the Library any more." }, { status: 404, headers: { "cache-control": "no-store" } });
 
   const shelf = shelvesOf(docs, tagsOf, orgTags).get(d.id);
+  /* A FIELD NOTE IS ITS WORDS: it has no file, so the phone's reader had
+     nothing to show and only a search box (Isaac, 11 November 2026, on the
+     Samsung VRF E603 note: "it didn't give me anything useful ... I wasn't
+     actually able to view the information"). Its words come with it: where
+     it was learned, and what it says. */
+  const note = d.fileName
+    ? null
+    : await supabaseAdmin
+        .from("kb_chunks")
+        .select("heading, content")
+        .eq("org_id", ctx.orgId)
+        .eq("document_id", d.id)
+        .order("chunk_index", { ascending: true })
+        .limit(20)
+        .then(({ data }) => {
+          const parts = (data ?? []) as { heading: string | null; content: string | null }[];
+          const body = parts.map((c) => c.content?.trim() ?? "").filter(Boolean).join("\n\n");
+          return body ? { learned: parts[0]?.heading?.trim() || null, body } : null;
+        });
   const { count } = await supabaseAdmin
     .from("kb_chunks")
     .select("id", { count: "exact", head: true })
@@ -47,5 +66,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     sizeBytes: d.sizeBytes,
     addedBy: d.uploadedById ? (names[d.uploadedById] ?? null) : null,
     addedAt: d.uploadedAt,
+    note,
   });
 }

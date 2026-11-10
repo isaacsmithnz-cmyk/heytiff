@@ -9,6 +9,7 @@ import { readJobSources } from "./job-sources-server";
 import { SESSION_TOOLS } from "./tools";
 import { sessionTools } from "./tools-server";
 import { runTurn, type TurnEnd } from "./turn";
+import { sendBack } from "./send-back";
 import { MONEY_WORDS, NO_MONEY_WORDS } from "../money-hidden";
 
 /* A PERSON'S MESSAGE TO TIFF, ON A QUOTE (slice 4.1): the turn is taken
@@ -78,6 +79,7 @@ export async function startTurn(
         tools: SESSION_TOOLS,
         effort: chosenEffort(),
         runTool: sessionTools(orgId, jobUuid),
+        sendBack,
         save: (state, events, spent) => saveRound(orgId, session.id, turnId, state, session.spentUsd + spent, events),
       });
     } finally {

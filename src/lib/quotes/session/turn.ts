@@ -48,6 +48,9 @@ export type TurnDeps = {
   save: (state: SessionState, events: EventDraft[], spentUsd: number) => Promise<boolean>;
   effort?: Effort;
   signal?: AbortSignal;
+  /** As she goes to answer, what sends her back once with what she missed
+      (send-back.ts), given the person's message and the tools run this turn. */
+  sendBack?: (message: string, ran: readonly string[]) => string | null;
 };
 
 /** Rounds of tools before she's told to answer with what she has. A quote
@@ -184,6 +187,8 @@ export async function runTurn(start: SessionState, message: string, deps: TurnDe
   let priced = true;
   const models = new Set<string>();
   let rounds = 0;
+  const ran: string[] = [];
+  let sentBack = false;
   const add = (usd: number | null, model: string) => {
     models.add(model);
     if (usd == null) priced = false;
@@ -217,8 +222,17 @@ export async function runTurn(start: SessionState, message: string, deps: TurnDe
       /* words said on the way to her tools are her working, not her answer:
          the panel folds them in with the steps (Isaac, 2026-10-17, option A
          of the working-notes mocks: "Worked through it · 26 steps") */
-      if (said) events.push({ kind: "reply", author: "tiff", body: { text: said, ...(calls.length ? { working: true } : {}) } });
+      /* going to answer with something missed, she's sent back once: what
+         she said is then her working, and the note never reaches the thread */
+      const back = calls.length === 0 && !atCap && !sentBack ? (deps.sendBack?.(message, ran) ?? null) : null;
+      if (said) events.push({ kind: "reply", author: "tiff", body: { text: said, ...(calls.length || back ? { working: true } : {}) } });
       state = { ...state, messages: [...state.messages, { role: "assistant", content: reply.content }] };
+      if (back) {
+        sentBack = true;
+        state = { ...state, messages: [...state.messages, { role: "user", content: [{ type: "text", text: back }] }] };
+        if (!(await save(state, events, spent))) return { state, spentUsd: spent, ended: "lost" };
+        continue;
+      }
 
       /* every call she made is answered, however the round stopped: one that
          ran out of room mid-calls ("max_tokens") left calls the next request
@@ -234,6 +248,7 @@ export async function runTurn(start: SessionState, message: string, deps: TurnDe
          a failure goes back to her as words, to say or put right */
       const results: ToolResultBlock[] = [];
       for (const call of calls) {
+        ran.push(call.name);
         const out = await deps.runTool(call.name, call.input ?? {}).catch((): ToolOutcome => ({ ok: false, error: "That couldn't be done just now.", label: call.name }));
         if (out.cost) add(out.cost.usd, out.cost.model);
         /* a tool that couldn't keeps why, for the thread and for whoever looks into it */

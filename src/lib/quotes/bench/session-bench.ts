@@ -17,6 +17,7 @@ import { openingMessage, sessionSystemPrompt } from "../session/prompt";
 import { SESSION_TOOLS } from "../session/tools";
 import { makeTools, type QuoteStore } from "../session/tools-run";
 import { runTurn, type EventDraft } from "../session/turn";
+import { sendBack } from "../session/send-back";
 import type { BenchCase, CaseLine } from "./score";
 
 /* TIFF ON THE BENCH (slice 4.3) — a case's brief through the same session,
@@ -187,6 +188,7 @@ export async function benchSession(c: BenchCase, opts: { model: ModelCall; model
     system: sessionSystemPrompt({ writeUpFirst: process.env.BENCH_WRITE_UP === "1" }),
     tools: SESSION_TOOLS,
     runTool: makeTools(store),
+    sendBack,
     save: async (_s, ev) => {
       events.push(...ev);
       return true;

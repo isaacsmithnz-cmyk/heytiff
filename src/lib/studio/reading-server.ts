@@ -6,6 +6,7 @@ import {
   CHECKLIST,
   pagesToSend,
   type ReadCheck,
+  type ReadDimension,
   type ReadFurniture,
   type ReadMark,
   type ReadOpening,
@@ -254,6 +255,44 @@ export async function readSheet(orgId: string, sheet: SheetToRead): Promise<Shee
     ask(image, furniturePrompt(ow, oh), FURNITURE_SCHEMA, 16000).catch(() => ({ furniture: [] }) as Raw),
   ]);
   return toSheet(floor, furniture, sheet.sheetId, k, left, top);
+}
+
+/* ── the dimensions printed on a sheet, for one with no printed scale ── */
+
+export const DIMENSIONS_SCHEMA = S({
+  dimensions: arr(
+    S({
+      mm: num("the figure as printed, in millimetres (7440; a plan in metres, 7.44, is 7440)"),
+      what: str('where it is and what it spans, short: "along the bottom, the overall width of the house"'),
+      x1: num(),
+      y1: num(),
+      x2: num(),
+      y2: num(),
+    }),
+    "up to six, the longest first; none if the plan prints no dimension whose two ends are clear",
+  ),
+});
+
+export const dimensionsPrompt = (w: number, h: number) =>
+  `This is a floor plan, ${w}×${h} pixels (origin top-left, x right, y down). It is being scaled off its own printed dimensions.
+
+List the dimensions printed on it: a length written as a figure along a dimension line, or a scale bar's length. For each, the figure in millimetres as printed, and the two ends of what it measures, in pixels: the tick marks, arrowheads or extension lines at each end of ITS dimension line, not the ends of a longer line it is part of. Where the figure sits between two walls with no ticks drawn, the two wall faces it spans.
+
+Give the longest ones first, overall lengths before a single room's, six at most. Only a dimension whose figure you can read for certain and whose two ends you can place: leave out one you would be guessing at. Not a room's size written inside it ("4.1 x 2.7"), not a window or door size, not a level or a height. If the plan prints none, give none.`;
+
+/** The dimensions printed on a sheet, in the sheet's own pixels: one small read, for a sheet with no printed scale. */
+export async function readDimensions(orgId: string, sheet: SheetToRead): Promise<ReadDimension[]> {
+  const { image, ow, oh, k, left, top } = await prepare(orgId, sheet);
+  const raw = await ask(image, dimensionsPrompt(ow, oh), DIMENSIONS_SCHEMA, 8000);
+  return toDimensions(raw, k, left, top);
+}
+
+export function toDimensions(raw: Raw, k: number, ox: number, oy: number): ReadDimension[] {
+  const P = (x: number, y: number) => ({ x: Math.round(x / k + ox), y: Math.round(y / k + oy) });
+  return asArr(raw.dimensions)
+    .slice(0, 6)
+    .map((d): ReadDimension => ({ mm: n(d.mm), what: s(d.what).slice(0, 120), a: P(n(d.x1), n(d.y1)), b: P(n(d.x2), n(d.y2)) }))
+    .filter((d) => d.mm > 0);
 }
 
 /* ── the roof and the heights, off the whole set ── */

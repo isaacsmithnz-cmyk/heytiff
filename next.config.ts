@@ -103,12 +103,15 @@ const nextConfig: NextConfig = {
     /* Tiff's turns on a quote read a unit off its pack (unit_specs, her
        kits) and check the air against the ducted airflow guide
        (data/guides): untraced, she'd find no pack and no guide, and say so */
-    "/api/workboard/quote-session": ["./data/packs/**/*", "./data/guides/**/*"],
+    "/api/workboard/quote-session": ["./data/packs/**/*", "./data/guides/**/*", "./node_modules/@sparticuz/chromium/bin/**/*"],
     "/api/workboard/quote-compare": ["./data/packs/**/*", "./data/guides/**/*"],
     /* Chromium's brotli archives are read off disk at run time, so the
        tracer never sees them: name them, or the first PDF dies looking */
     "/api/studio/design-pdf": ["./node_modules/@sparticuz/chromium/bin/**/*"],
     "/api/studio/design-to-job": ["./node_modules/@sparticuz/chromium/bin/**/*"],
+    /* a job's plans are drawn in the same browser (lib/jobs/plans-server.ts):
+       from the Plans read, and from a quote's turn when Tiff has one read */
+    "/api/jobs/plans/read": ["./node_modules/@sparticuz/chromium/bin/**/*"],
     // the print page builds the same sheet the live link does, off the packs
     "/print/design": ["./data/packs/**/*"],
   },

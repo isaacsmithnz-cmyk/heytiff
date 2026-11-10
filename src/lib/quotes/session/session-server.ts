@@ -29,7 +29,8 @@ export async function startTurn(
   words: string,
   /* `answered`: started by a tapped answer that leaves her work, which is in
      the thread already and comes to her with the answers */
-  opts: { brief?: string; model?: ModelCall; modelName?: string; noMoney?: boolean; answered?: boolean } = {}
+  /* `origin`: the host the turn was asked on, where a plan she has read is drawn (plans-server.ts) */
+  opts: { brief?: string; model?: ModelCall; modelName?: string; noMoney?: boolean; answered?: boolean; origin?: string } = {}
 ): Promise<Started> {
   const modelName = opts.modelName ?? sessionModelFor(orgId);
   if (!modelName) return { ok: false, reason: SESSION_OFF, status: 409 };
@@ -78,7 +79,7 @@ export async function startTurn(
         system: sessionSystemPrompt({ writeUpFirst: writeUpFirst() }),
         tools: SESSION_TOOLS,
         effort: chosenEffort(),
-        runTool: sessionTools(orgId, jobUuid),
+        runTool: sessionTools(orgId, jobUuid, opts.origin ?? null),
         sendBack,
         save: (state, events, spent) => saveRound(orgId, session.id, turnId, state, session.spentUsd + spent, events),
       });

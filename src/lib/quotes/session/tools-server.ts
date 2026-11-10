@@ -5,7 +5,8 @@ import { addKit } from "../kits-server";
 import { addLine, changeLine, copyOption, readLines, removeLine } from "../lines-server";
 import { addCompared, nameOption, readByHand, saveProposal } from "../lines-job-server";
 import { jobKind, readCorrections } from "../corrections-server";
-import { jobFiles, lookAt, photoSize } from "./job-files-server";
+import { jobFiles, lookAt, planPickOf } from "./job-files-server";
+import { jobPlanRooms } from "@/lib/jobs/plans-server";
 import { lookupCharge, lookupPairing, lookupUnit } from "../lookups-server";
 import { loadAirflowGuide } from "@/lib/guides/airflow-server";
 import { readJobDesign } from "../design-read-server";
@@ -29,7 +30,9 @@ import { readOpenQuestions, readSession } from "./store-server";
 
 export const TIFF = "tiff";
 
-export function dbStore(orgId: string, jobUuid: string): QuoteStore {
+/** `origin`: where the headless browser draws a plan's pages, for a plan
+    she has read from a turn; without it she uses the plans already read. */
+export function dbStore(orgId: string, jobUuid: string, origin: string | null = null): QuoteStore {
   let products: Promise<Product[]> | null = null;
   let hour: Promise<number | null> | null = null;
   let supplier: Promise<string | null> | null = null;
@@ -58,7 +61,13 @@ export function dbStore(orgId: string, jobUuid: string): QuoteStore {
     supplier: () => (supplier ??= jobUuid ? readByHand(orgId, jobUuid).then((b) => b.supplier) : Promise.resolve(null)),
     jobFiles: () => (jobUuid ? jobFiles(orgId, jobUuid) : Promise.resolve([])),
     look: (id, area) => (jobUuid ? lookAt(orgId, jobUuid, id, area ?? null) : Promise.resolve("There's no job to look at.")),
-    pictureSize: (id) => (jobUuid ? photoSize(orgId, jobUuid, id) : Promise.resolve("There's no job to measure.")),
+    planRooms: async (add) => {
+      if (!jobUuid) return "There's no job to read plans off.";
+      if (!add) return jobPlanRooms(orgId, jobUuid, { origin });
+      const pick = await planPickOf(orgId, jobUuid, add);
+      if (!pick) return "That file isn't on the job, or isn't here yet.";
+      return jobPlanRooms(orgId, jobUuid, { add: pick, origin });
+    },
     corrections: async (sameKind) => readCorrections(orgId, { kind: sameKind && jobUuid ? await jobKind(orgId, jobUuid) : null }),
     hourCost: () =>
       (hour ??= Promise.all([readQuoteSettings(orgId), readOrgDay(orgId)]).then(([s, d]) =>
@@ -96,6 +105,6 @@ export function linePricer(orgId: string, jobUuid = "") {
   };
 }
 
-export function sessionTools(orgId: string, jobUuid: string) {
-  return makeTools(dbStore(orgId, jobUuid));
+export function sessionTools(orgId: string, jobUuid: string, origin: string | null = null) {
+  return makeTools(dbStore(orgId, jobUuid, origin));
 }

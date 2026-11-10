@@ -13,7 +13,7 @@ it("sends her back when asked about the load and she ran no room_load", () => {
 });
 
 it("lets her answer once she's run it, or when the load wasn't asked about", () => {
-  expect(sendBack(said("have a look at the heat load"), ["measure_plan", "room_load"])).toBeNull();
+  expect(sendBack(said("have a look at the heat load"), ["plan_rooms", "room_load"])).toBeNull();
   expect(sendBack(said("Let's allow three fifty for decommissioning and removal."), [])).toBeNull();
   /* the job's brief can mention a load: only the person's words count */
   expect(sendBack(said("Add a 6 m drain hose."), [])).toBeNull();

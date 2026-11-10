@@ -6,12 +6,13 @@ import { newId } from "@/lib/studio/document";
 import { launchHeadless, printBase } from "@/lib/studio/pdf-render";
 import { signPlanPagesTicket, type PlanPagesTicket } from "@/lib/studio/pdf-request";
 import { mmPerPxFor, printedScaleOf } from "@/lib/studio/plan-set";
-import type { PlanReading, PlanWord } from "@/lib/studio/reading";
-import { READING_MODEL, readRoof, readSheet, readSite, type SheetToRead } from "@/lib/studio/reading-server";
+import { scaleFromDimensions, type PlanReading, type PlanWord } from "@/lib/studio/reading";
+import { READING_MODEL, readDimensions, readRoof, readSheet, readSite, type SheetToRead } from "@/lib/studio/reading-server";
 import { SONNET_FALLBACK } from "@/lib/tiff/sonnet-fallback";
 import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
 import type { DrawnFull, DrawnPreview, PlanPagesAnswer } from "@/app/print/plan-pages/plan-pages";
 import { guessPageByWords, pageKey, stackLevels, stateOfRead, type JobPlan, type JobPlanPage, type JobPlanRead, type PageGuess, type PlanPageKind, type PlanPick } from "./plans";
+import { planRoomsOf, planRoomsSaid, type JobPlanRooms } from "./plan-rooms";
 
 /* PLANS ON THE JOB, THE SERVER SIDE (lib/jobs/plans.ts says what a plan is).
 
@@ -326,6 +327,75 @@ async function classify(kind: "pdf" | "image", previews: readonly DrawnPreview[]
   return out;
 }
 
+/* ── the scale off a page's printed dimensions ── */
+
+/** The floor pages with no printed scale, each given the scale its own
+    dimension lines print (plans.ts `measured`), looked for once: a page
+    looked at before, with or without a find, is left as it is. A read that
+    fails leaves the page unlooked, for the next ask. */
+async function measurePages(orgId: string, pages: readonly JobPlanPage[]): Promise<JobPlanPage[]> {
+  return Promise.all(
+    pages.map(async (p): Promise<JobPlanPage> => {
+      if (p.kind !== "floor" || !p.ref || p.mmPerPx || p.measured !== undefined) return p;
+      try {
+        const dims = await readDimensions(orgId, { floorId: pageKey(p.n), floorName: p.name || `Page ${p.n}`, sheetId: pageKey(p.n), ref: p.ref, ...(p.trim ? { crop: p.trim } : {}), mmPerPx: null });
+        return { ...p, measured: scaleFromDimensions(dims, p) };
+      } catch (e) {
+        console.error(`[job-plans] page ${p.n} dimensions: ${String(e)}`);
+        return p;
+      }
+    }),
+  );
+}
+
+/* ── the rooms off the job's plans, for a quote and the heat load ── */
+
+/** how long an ask waits on a read it started before saying it's still going */
+const READ_WAIT_MS = 150_000;
+/** a plan left "reading" this long was dropped mid-read: the next ask picks it up */
+const STALE_MS = 6 * 60_000;
+
+/** The rooms off the job's plans, by plan and floor, with their sizes
+    (plan-rooms.ts). `add` puts one of the job's files into its Plans first
+    and reads it, as pressing Add plans does, once: a file already there is
+    left as it is. A plan read before the dimension read existed gets its
+    scale looked for here, once. `origin` is where the headless browser draws
+    the pages: without it nothing can be added or picked up. */
+export async function jobPlanRooms(orgId: string, jobUuid: string, opts: { add?: PlanPick; origin?: string | null } = {}): Promise<JobPlanRooms | string> {
+  let toRead: string[] = [];
+  if (opts.add) {
+    if (!opts.origin) return "A plan can't be read from here: add it to the job's Plans from its Documents.";
+    const added = await addJobPlans(orgId, jobUuid, [opts.add], null);
+    if (!added.ok) return added.error;
+    toRead = added.planIds;
+  }
+  const { data, error } = await supabaseAdmin.from("job_plans").select(COLS).eq("org_id", orgId).eq("job_uuid", jobUuid).order("added_at", { ascending: true });
+  if (error) return "This workspace's Plans can't be read just now.";
+  let plans = ((data ?? []) as Row[]).map((r) => planOf(r, new Map()));
+  /* a read dropped mid-way is picked up, with the one just added */
+  const origin = opts.origin;
+  if (origin) for (const p of plans) if (p.state === "reading" && !toRead.includes(p.id) && Date.now() - new Date(p.addedAt).getTime() > STALE_MS) toRead.push(p.id);
+  if (origin && toRead.length) {
+    const reads = Promise.all(toRead.map((id) => readPlan(orgId, id, origin).catch(() => null)));
+    await Promise.race([reads, new Promise((done) => setTimeout(done, READ_WAIT_MS))]);
+  }
+  /* a plan read before its dimensions were: its scale, looked for once */
+  await Promise.all(
+    plans.map(async (p) => {
+      if (p.state !== "read" && p.state !== "check") return;
+      if (!p.pages.some((pg) => pg.kind === "floor" && pg.ref && !pg.mmPerPx && pg.measured === undefined)) return;
+      const pages = await measurePages(orgId, p.pages);
+      if (pages.some((pg, i) => pg !== p.pages[i])) await write(orgId, p.id, { pages }).catch(() => {});
+    }),
+  );
+  if (toRead.length || plans.some((p) => p.pages.some((pg) => pg.kind === "floor" && pg.ref && !pg.mmPerPx && pg.measured === undefined))) {
+    const again = await supabaseAdmin.from("job_plans").select(COLS).eq("org_id", orgId).eq("job_uuid", jobUuid).order("added_at", { ascending: true });
+    if (!again.error) plans = ((again.data ?? []) as Row[]).map((r) => planOf(r, new Map()));
+  }
+  const rooms = plans.map(planRoomsOf);
+  return { plans: rooms, said: planRoomsSaid(rooms) };
+}
+
 /* ── the read ── */
 
 export type ReadPlanOutcome = { ok: true; state: JobPlan["state"] } | { ok: false; error: string };
@@ -420,8 +490,9 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
       const pdf = plan.sourceKind === "pdf" ? sourceRef : null;
       const first = Math.max(0, floors[0].n - 1);
       const ground = sheets[0];
-      const [results, roof, site] = await Promise.all([
+      const [results, measured, roof, site] = await Promise.all([
         Promise.allSettled(sheets.map((s) => readSheet(orgId, s))),
+        measurePages(orgId, pages),
         readRoof(orgId, pdf, sheets, undefined, first)
           .then(({ said: _said, ...r }) => r)
           .catch((e) => {
@@ -443,9 +514,10 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
       });
       reading.roof = roof;
       reading.site = site;
+      pages = measured;
     }
     const { state, said } = stateOfRead(pages, reading);
-    await write(orgId, planId, { reading, state, said, read_at: new Date().toISOString() });
+    await write(orgId, planId, { pages, reading, state, said, read_at: new Date().toISOString() });
     return { ok: true, state };
   } catch (e) {
     console.error(`[job-plans] ${planId}: ${String(e)}`);

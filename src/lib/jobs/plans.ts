@@ -17,7 +17,7 @@ import type { Floor, PlanImport, PlanImportSource } from "@/lib/studio/document"
 import { newId } from "@/lib/studio/document";
 import { defaultFloorName, placeSheets, type UploadedSheet } from "@/lib/studio/plans";
 import type { TrimRect } from "@/lib/studio/plan-trim";
-import type { PlanReading, PlanWord, SheetReading } from "@/lib/studio/reading";
+import type { MeasuredScale, PlanReading, PlanWord, SheetReading } from "@/lib/studio/reading";
 import { suggestedRooms } from "@/lib/studio/reading";
 import { andList } from "@/lib/swms/library";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -50,6 +50,11 @@ export type JobPlanPage = {
   mmPerPx: number | null;
   /** the scale as printed, "1:100 @ A3", for saying where a scale came from */
   scale: string | null;
+  /** the scale off the lengths printed along its dimension lines, for a page
+      whose title block prints none (a photographed sketch): read once with
+      the plan. Null: looked, and it prints none. Absent: not looked yet.
+      Kept apart from mmPerPx, so a design's floor is still calibrated by hand. */
+  measured?: MeasuredScale | null;
 };
 
 export type JobPlanState = "reading" | "read" | "check" | "failed";

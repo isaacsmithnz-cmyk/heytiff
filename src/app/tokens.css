@@ -47,6 +47,8 @@
   --edge:rgba(5,5,5,.14); --sel:rgba(5,5,5,.07); --hov:rgba(5,5,5,.04); --soft:rgba(5,5,5,.05);
   /* blue only ever means press (rule 17): the main button, a tick or switch that is on, a selection */
   --press:var(--blue);
+  /* a person on the workspace, named in the box as it's typed or said: blue, as the phone's (rule 17's one exception, Isaac, 11 November 2026) */
+  --named:var(--blue);
   --t-slide:280ms; --r-page:40px;
   /* v1's accent, gone in v2 (rule 9): the teal points at blue until its last use goes; the wordmark takes the colour of the words around it, ink on paper and white on the ink */
   --teal:var(--blue); --wordmark:currentColor; --teal-d:var(--blue); --violet:var(--purple);

@@ -5354,6 +5354,8 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    out and copy as words. */
 .wb2-lwbox { position:relative; }
 .wb2-lw { display:inline-block; color:var(--q); font-style:italic; }
+/* a person on the workspace, said: in blue as you say it, as the phone's (`.cv-named`) */
+.wb2-lw.cv-named { color:var(--named); }
 .wb2-lw.gone { position:absolute; pointer-events:none; white-space:pre; }
 
 
@@ -6465,6 +6467,17 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .cv-words::placeholder { color:var(--q); opacity:1; }
 /* stopped, the words stay where they were, grey, until they land */
 .fg .cv-words.cv-words--hearing, .fg .cv-words:disabled { color:var(--q); -webkit-text-fill-color:var(--q); opacity:1; }
+/* A PERSON ON THE WORKSPACE, IN BLUE, as the phone's box has them (Isaac, 11
+   November 2026; heytiff-mobile #28). A textarea draws its words in one
+   colour, so with a name in them the words are drawn a second time behind it,
+   the same face in the same place (`.cv-mirror`, also `.cv-words`), the name
+   in blue, and the textarea's own letters go clear over them, keeping its
+   caret and selection. Without a name there is no second drawing. */
+.fg .cv-wordsat { display:grid; min-width:0; }
+.fg .cv-wordsat > .cv-words { grid-area:1 / 1; justify-self:stretch; min-width:0; }
+.fg .cv-mirror { overflow:hidden; white-space:pre-wrap; overflow-wrap:break-word; pointer-events:none; }
+.fg .cv-words.cv-words--named, .fg .cv-words.cv-words--named:disabled { color:transparent; -webkit-text-fill-color:transparent; caret-color:var(--ink); }
+.cv-named { color:var(--named); -webkit-text-fill-color:var(--named); }
 .fg .cv-boxbar { display:flex; align-items:center; gap:8px; }
 /* the round buttons, on the box and the bar: the plus, the microphone, ✕, ■ and Tiff's blue ↑ */
 /* `.fg .cv-rnd` too, past the frame's button reset (`.fg button:where(…)`); bare for a dialog, outside the frame */

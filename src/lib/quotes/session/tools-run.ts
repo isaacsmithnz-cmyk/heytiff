@@ -12,7 +12,7 @@ import { writeUpOf } from "../write-up";
 import type { Research } from "../research";
 import { labourVisitsOf, visitLine } from "../labour-build";
 import { keepPeoplesTasks, visitHours, visitName, type LineVisit } from "../line-visit";
-import { taskCheck } from "../task-hours";
+import { hoursByPart, taskCheck } from "../task-hours";
 import { namedUnit, unitRoleOf, type UnitRole } from "../unit-name";
 import type { Pairing } from "../pairing";
 import type { Charge, ChargeAsk } from "../charge";
@@ -430,7 +430,9 @@ function makeToolRun(store: QuoteStore) {
           const r = await store.addLine({ optionIndex: option, system: "", group: "Labour", name: visitName(visit), kind: "labour", unit: "h", costCents: hour ?? 0, sellCents: null, source: "assumed", why: "Worked out task by task", visit }, "Labour, task by task");
           if (!r.ok) return fail(r.reason);
         }
-        return { ok: true, label, said: `${hours} h over ${built.length} ${built.length === 1 ? "visit" : "visits"}`, value: { hours, visits: built.map(visitName) } };
+        /* what each damper and outlet gets, to look at again where it's lumped or missing */
+        const byPart = hoursByPart(now.filter((x) => x.optionIndex === option && x.kind !== "labour"), built, day.dayHours);
+        return { ok: true, label, said: `${hours} h over ${built.length} ${built.length === 1 ? "visit" : "visits"}`, value: { hours, visits: built.map(visitName), ...(byPart.length ? { by_part: byPart } : {}) } };
       }
       case "research_price": {
         const lineId = typeof input.line_id === "string" ? input.line_id : "";

@@ -1,5 +1,6 @@
 import { rollMetresOf } from "./components";
 import type { QuoteLine } from "./lines";
+import type { LineVisit } from "./line-visit";
 import { labourVisits, linesHours } from "./lines-job";
 import type { TaskKey } from "./settings";
 import { plannedVisits } from "@/lib/workboard/task-plan";
@@ -54,4 +55,28 @@ export function taskCheck(lines: readonly QuoteLine[], hours: Record<TaskKey, nu
   if (keys.length === 0) return null;
   const total = keys.reduce((n, k) => n + count[k] * hours[k]!, 0);
   return { hours: Math.round(total * 10) / 10, words: andList(keys.map((k) => WORDS[k](count[k]))), quoted: linesHours(lines) };
+}
+
+/* WHAT EACH DAMPER AND OUTLET GETS (the 3465 review, 5 November 2026: seven
+   dampers, six sensors and the zone controller went on as one 4 h task, a
+   little over half an hour a damper fitted in its run and wired back). The
+   parts labour is counted by, off the lines, beside the person-hours of the
+   tasks that name them, so a part lumped in with others, or with no task,
+   shows when the labour is worked out. Nothing is priced from it. */
+const TASK_NAMES: Partial<Record<TaskKey, RegExp>> = { zone: /damper|\bzones?\b/i, grille: /grille|diffuser|outlet|register|\bflex\b/i };
+const PART_WORDS: Partial<Record<TaskKey, (n: number) => string>> = {
+  zone: (n) => `${n} ${n === 1 ? "damper" : "dampers"}`,
+  grille: (n) => `${n} ${n === 1 ? "outlet" : "outlets"}`,
+};
+
+export function hoursByPart(lines: readonly QuoteLine[], visits: readonly LineVisit[], dayHours: number | null): string[] {
+  const count = tasksOf(lines, dayHours);
+  return (["zone", "grille"] as const).flatMap((k) => {
+    const n = count[k];
+    if (!(n > 0)) return [];
+    const tasks = visits.flatMap((v) => v.tasks).filter((t) => TASK_NAMES[k]!.test(t.task));
+    if (tasks.length === 0) return [`${PART_WORDS[k]!(n)} on the quote, and no task names them`];
+    const h = Math.round(tasks.reduce((sum, t) => sum + t.hours, 0) * 4) / 4;
+    return [`${PART_WORDS[k]!(n)} on the quote: ${h} h in ${andList(tasks.map((t) => `"${t.task}"`))}, ${Math.round((h / n) * 10) / 10} h each`];
+  });
 }

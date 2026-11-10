@@ -1,7 +1,8 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { companyKey, oneCompanyNamed } from "@/lib/integrations/match";
+import { companyKey, oneCompanyNamed, oneCompanyNamedAnyOrder } from "@/lib/integrations/match";
+import { sameStreet, streetOf, streetSearch, type Street } from "@/lib/address/street";
 import { DOCUMENTS_BUCKET } from "@/lib/documents/query";
 import { todayInSydney } from "@/lib/quotes/price-book";
 import { writeThreads } from "@/lib/tiff/threads-server";
@@ -42,48 +43,84 @@ type Row = {
 const like = (s: string) => s.replace(/[%_\\]/g, (c) => `\\${c}`);
 
 /** The client a read names, when exactly one of the business's clients has
-    that name, whatever legal ending either wears: never a near one, which
-    would put a tender on the wrong builder. A builder is a client with sites
-    of its own. */
+    that name, whatever legal ending either wears, and a person's name either
+    way round ("Watters, Lisa" is Lisa Watters): never a near one, which
+    would put a tender on the wrong builder. Looked for by the name's longest
+    word, the one fewest others share. A builder is a client with sites of
+    its own. */
 export async function clientMatchOf(orgId: string, name: string): Promise<ClientMatch | null> {
   if (companyKey(name).length < 2) return null;
+  const word = name.split(/[^\p{L}\p{N}]+/u).reduce((a, w) => (w.length > a.length ? w : a), "");
+  if (word.length < 2) return null;
   const { data } = await supabaseAdmin
     .from("sm8_companies")
     .select("uuid, name")
     .eq("org_id", orgId)
     .eq("active", 1)
     .is("parent_company_uuid", null)
-    .ilike("name", `%${like(name.trim().split(/\s+/)[0]!)}%`)
+    .ilike("name", `%${like(word)}%`)
     .limit(40);
-  const hit = oneCompanyNamed((data ?? []) as { uuid: string; name: string | null }[], name);
+  const rows = (data ?? []) as { uuid: string; name: string | null }[];
+  const hit = oneCompanyNamed(rows, name) ?? oneCompanyNamedAnyOrder(rows, name);
   if (!hit) return null;
   const { count } = await supabaseAdmin.from("sm8_companies").select("uuid", { count: "exact", head: true }).eq("org_id", orgId).eq("active", 1).eq("parent_company_uuid", hit.uuid);
   return { uuid: hit.uuid, name: hit.name ?? name, builder: (count ?? 0) > 0 };
 }
 
-/** What an undecided email's read says, with its client looked for again: it
-    may have been read before they were a client, or before the match knew them
-    (the Krui Street email said "a new client" of JT Construct). A match already
-    made stands, and so does a read with no client to look for. */
-export async function withClientNow(orgId: string, p: EmailProposal | null): Promise<EmailProposal | null> {
-  if (!p || p.clientMatch || !p.client) return p;
-  const clientMatch = await clientMatchOf(orgId, p.client).catch(() => null);
-  return clientMatch ? { ...p, clientMatch } : p;
+/** What an undecided email's read says, with what it matched looked for
+    again: its client, its site and its jobs. It may have been read before
+    they were here, or before the match knew them (the Krui Street email said
+    "a new client" of JT Construct; the Raglan St one missed job 3488 on
+    "Street" for "St"). The read itself stands, and a client or site already
+    matched stands; nothing is read again. Saved on the row when it changed,
+    so the Inbox's list says the same as the card. */
+export async function matchedNow(orgId: string, row: { id: string; state: string; subject: string | null; proposal: EmailProposal | null }): Promise<EmailProposal | null> {
+  const p = row.proposal;
+  if (!p || row.state !== "read" || !(p.isJob || p.aboutJob)) return p;
+  try {
+    const [clientMatch, siteMatch] = await Promise.all([
+      p.clientMatch ?? (p.client ? clientMatchOf(orgId, p.client) : null),
+      p.siteMatch ?? (p.site ? siteMatchOf(orgId, p.site) : null),
+    ]);
+    const jobs = await jobCandidates(orgId, p, clientMatch, row.subject, row.id);
+    const now: EmailProposal = { ...p, clientMatch, siteMatch, jobs };
+    const was = JSON.stringify([p.clientMatch, p.siteMatch, p.jobs ?? []]);
+    if (JSON.stringify([clientMatch, siteMatch, jobs]) !== was) {
+      await supabaseAdmin.from("email_in_messages").update({ proposal: now }).eq("org_id", orgId).eq("id", row.id).eq("state", "read");
+    }
+    return now;
+  } catch (err) {
+    console.error("[email-in] matching an email again failed:", err instanceof Error ? err.message : err);
+    return p;
+  }
 }
 
-/** A site already here at the street the read gives (matchPreviousSite's
-    rule: a number and a street name, or it isn't a match worth saying). */
+/** The rows at one street: looked for by its number and its name's longest
+    word, then sameStreet decides, however either spells the street. */
+async function atStreet<T>(rows: PromiseLike<{ data: unknown }>, address: (r: T) => string | null, s: Street): Promise<T[]> {
+  const { data } = await rows;
+  return ((data ?? []) as T[]).filter((r) => sameStreet(streetOf(address(r)), s));
+}
+
+/** A site already here at the street the read gives: a number and a street
+    name, or it isn't a match worth saying (street.ts). */
 export async function siteMatchOf(orgId: string, address: string): Promise<SiteMatch | null> {
-  const street = address.split(/[,\n]/)[0]!.replace(/\s+/g, " ").trim();
-  if (!/^\d+\S*\s+\S{3,}/.test(street)) return null;
-  const { data } = await supabaseAdmin
-    .from("sm8_companies")
-    .select("uuid, name, address, parent_company_uuid")
-    .eq("org_id", orgId)
-    .eq("active", 1)
-    .ilike("address", `${like(street)}%`)
-    .limit(1);
-  const hit = ((data ?? []) as { uuid: string; name: string | null; address: string | null; parent_company_uuid: string | null }[])[0];
+  const s = streetOf(address);
+  if (!s) return null;
+  const { number, word } = streetSearch(s);
+  type Site = { uuid: string; name: string | null; address: string | null; parent_company_uuid: string | null };
+  const [hit] = await atStreet<Site>(
+    supabaseAdmin
+      .from("sm8_companies")
+      .select("uuid, name, address, parent_company_uuid")
+      .eq("org_id", orgId)
+      .eq("active", 1)
+      .ilike("address", `%${like(number)}%`)
+      .ilike("address", `%${like(word)}%`)
+      .limit(25),
+    (r) => r.address,
+    s
+  );
   if (!hit) return null;
   let parentName: string | null = null;
   if (hit.parent_company_uuid) {
@@ -134,10 +171,24 @@ export async function jobCandidates(orgId: string, read: EmailJobRead, client: C
       add((jobs ?? []) as JobRow[], "thread");
     }
   }
-  const street = read.site.split(/[,\n]/)[0]!.replace(/\s+/g, " ").trim();
-  if (/^\d+\S*\s+\S{3,}/.test(street)) {
-    const { data } = await supabaseAdmin.from("sm8_jobs").select(JOB_COLS).eq("org_id", orgId).eq("active", 1).in("status", OPEN).ilike("job_address", `${like(street)}%`).limit(3);
-    add((data ?? []) as JobRow[], "site");
+  const street = streetOf(read.site);
+  if (street) {
+    const { number, word } = streetSearch(street);
+    const rows = await atStreet<JobRow>(
+      supabaseAdmin
+        .from("sm8_jobs")
+        .select(JOB_COLS)
+        .eq("org_id", orgId)
+        .eq("active", 1)
+        .in("status", OPEN)
+        .ilike("job_address", `%${like(number)}%`)
+        .ilike("job_address", `%${like(word)}%`)
+        .order("date", { ascending: false })
+        .limit(25),
+      (r) => r.job_address,
+      street
+    );
+    add(rows.slice(0, 3), "site");
   }
   if (client) {
     const { data: sites } = await supabaseAdmin.from("sm8_companies").select("uuid").eq("org_id", orgId).eq("active", 1).eq("parent_company_uuid", client.uuid).limit(200);

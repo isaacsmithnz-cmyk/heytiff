@@ -110,6 +110,17 @@ export function oneCompanyNamed<T extends { name: string | null }>(companies: re
   return exact.length === 1 ? exact[0]! : null;
 }
 
+/** The one company whose name has the same words in any order, for when
+    oneCompanyNamed finds none: ServiceM8 keeps many a person surname first,
+    so "Watters, Lisa" is Lisa Watters (Isaac, 10 November 2026). Never for a
+    one-word name, which has no order, and null when two would do. */
+export function oneCompanyNamedAnyOrder<T extends { name: string | null }>(companies: readonly T[], name: string): T | null {
+  const key = nameKey(name);
+  if (!key.includes(" ")) return null;
+  const same = companies.filter((c) => nameKey(c.name) === key);
+  return same.length === 1 ? same[0]! : null;
+}
+
 /** A name reduced to its sorted parts, so "Dan Smith" and "Smith Dan" are the
     same key. Returns "" when there is nothing to compare — and an empty key
     must never match another empty key. */

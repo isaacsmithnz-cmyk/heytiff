@@ -9,6 +9,7 @@ jest.mock("@/app/api/workboard/quote-price/route", () => ({}));
 jest.mock("@/app/api/workboard/quote-send/route", () => ({}));
 jest.mock("@/app/api/workboard/quote-session/route", () => ({}));
 jest.mock("@/lib/quotes/lines-server", () => ({}));
+jest.mock("@/lib/supabase-server", () => ({}));
 jest.mock("@/lib/workboard/all-jobs-query", () => ({}));
 jest.mock("../auth", () => ({}));
 

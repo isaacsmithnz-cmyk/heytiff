@@ -233,6 +233,54 @@ it("sends a message and shows her working", async () => {
   expect(screen.getByRole("button", { name: "Send to Tiff" })).toBeDisabled();
 });
 
+/* Isaac, 11 November 2026: "Tiff doesn't automatically bring you to where
+   she's working. Sometimes you have to scroll down" */
+it("stays at her newest as the thread grows, unless you've scrolled back to read", async () => {
+  const seen: ResizeObserverCallback[] = [];
+  const Was = globalThis.ResizeObserver;
+  globalThis.ResizeObserver = class {
+    constructor(cb: ResizeObserverCallback) {
+      seen.push(cb);
+    }
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+  try {
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond(thread));
+    render(<TiffPanel job="j" onChanged={jest.fn()} />);
+    const said = await screen.findByText("A 12.5 kW ducted, priced from your book.");
+    const el = said.closest(".qc-thread") as HTMLElement;
+    let top = 0;
+    let height = 1000;
+    Object.defineProperty(el, "scrollTop", { configurable: true, get: () => top, set: (v: number) => void (top = v) });
+    Object.defineProperty(el, "scrollHeight", { configurable: true, get: () => height });
+    Object.defineProperty(el, "clientHeight", { configurable: true, get: () => 300 });
+    const grow = (to: number) => {
+      height = to;
+      act(() => seen.forEach((cb) => cb([], {} as ResizeObserver)));
+    };
+    /* her working line, her questions, the box growing as you talk */
+    grow(1000);
+    expect(top).toBe(1000);
+    grow(1400);
+    expect(top).toBe(1400);
+    /* you scroll back to read: left where you are */
+    fireEvent.wheel(el);
+    top = 200;
+    fireEvent.scroll(el);
+    grow(1600);
+    expect(top).toBe(200);
+    /* back at the foot: followed again */
+    top = 1600 - 300;
+    fireEvent.scroll(el);
+    grow(1800);
+    expect(top).toBe(1800);
+  } finally {
+    globalThis.ResizeObserver = Was;
+  }
+});
+
 it("gives a change no bar until a few seconds in, a quick answer being over by then", async () => {
   const finished = { id: 1, turnId: "t1", kind: "usage", author: "tiff", at: "2026-11-01T00:00:00.000Z", body: { usd: 0.1, rounds: 1, models: [] } };
   (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond({ ...thread, working: true, events: [finished] }));

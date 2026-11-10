@@ -52,6 +52,27 @@ describe("a turn", () => {
     expect(model.calls[1]!.messages.at(-1)!.content[0]).toMatchObject({ type: "tool_result", tool_use_id: "t1" });
   });
 
+  /* the 3465 re-run, 10 November 2026: asked about the heat load, she answered without one */
+  it("sends her back once with what she missed, her first answer kept as working", async () => {
+    const model = scripted([
+      { content: [text("No room sizes on the plan, so no load.")], stopReason: "end_turn" },
+      { content: [use("t1", "room_load")], stopReason: "tool_use" },
+      { content: [text("Still no load.")], stopReason: "end_turn" },
+    ]);
+    const asked: string[][] = [];
+    const { d, saves, ran } = deps(model, { sendBack: (m, r) => (asked.push([...r]), m.includes("heat load") ? "Run room_load." : null) });
+    const end = await runTurn({ messages: [], summary: "" }, "Have a look at the heat load", d);
+    expect(end.ended).toBe("done");
+    expect(ran).toEqual(["room_load"]);
+    /* asked once, as she went to answer the first time; never again */
+    expect(asked).toEqual([[]]);
+    expect(model.calls[1]!.messages.at(-1)!.content).toEqual([text("Run room_load.")]);
+    expect(saves[1]!.events).toEqual([{ kind: "reply", author: "tiff", body: { text: "No room sizes on the plan, so no load.", working: true } }]);
+    /* the note never reaches the thread */
+    expect(JSON.stringify(saves.map((s) => s.events))).not.toContain("Run room_load.");
+    expect(saves.at(-1)!.events.map((e) => e.kind)).toEqual(["reply", "usage"]);
+  });
+
   it("hands a tool's refusal back to her as words, marked as an error", async () => {
     const model = scripted([
       { content: [use("t1", "add_lines")], stopReason: "tool_use" },

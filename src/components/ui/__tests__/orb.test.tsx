@@ -144,12 +144,12 @@ describe("the wait, named", () => {
   });
 
   /* Callers pass the class of the slot the plain grey line used to hold —
-     `wb2-dicthint` on the note postures, `cv-say` under a box — so the chip
+     `cv-say` under a box — so the chip
      inherits those margins and nothing around the control moves. */
   it("takes the caller's slot class without losing its own", () => {
-    const { container } = render(<Waiting note="Reading it back" className="wb2-dicthint" />);
+    const { container } = render(<Waiting note="Reading it back" className="cv-say" />);
     const chip = container.querySelector(".orb-say");
     expect(chip).toHaveClass("orb-say");
-    expect(chip).toHaveClass("wb2-dicthint");
+    expect(chip).toHaveClass("cv-say");
   });
 });

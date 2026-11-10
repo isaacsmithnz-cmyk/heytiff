@@ -3,10 +3,7 @@ const mockChime = jest.fn();
 jest.mock("@/lib/voice/chime", () => ({ playChime: (k: string) => mockChime(k) }));
 
 import {
-  COUNTDOWN_FROM,
-  DictClock,
   MAX_RECORDING_SECONDS,
-  remainingOf,
   saidSomething,
   useDictation,
 } from "../dictation";
@@ -203,31 +200,6 @@ describe("the recorder stops itself", () => {
 
     await tick(MAX_RECORDING_SECONDS + 20);
     expect(FakeRecorder.last?.stopCalls).toBe(1);
-  });
-});
-
-describe("the clock", () => {
-  it("counts up for most of the recording", () => {
-    render(<DictClock seconds={42} />);
-    expect(screen.getByText("0:42")).toBeInTheDocument();
-  });
-
-  it("flips to counting down for the last stretch", () => {
-    render(<DictClock seconds={MAX_RECORDING_SECONDS - COUNTDOWN_FROM} />);
-    expect(screen.getByText(`${COUNTDOWN_FROM}s left`)).toBeInTheDocument();
-  });
-
-  it("says so out loud only once it matters", () => {
-    const { rerender } = render(<DictClock seconds={10} />);
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    rerender(<DictClock seconds={MAX_RECORDING_SECONDS - 5} />);
-    expect(screen.getByRole("status")).toHaveTextContent("5s left");
-  });
-
-  it("never counts past the ceiling into negative numbers", () => {
-    expect(remainingOf(MAX_RECORDING_SECONDS + 30)).toBe(0);
-    render(<DictClock seconds={MAX_RECORDING_SECONDS + 30} />);
-    expect(screen.getByText("0s left")).toBeInTheDocument();
   });
 });
 

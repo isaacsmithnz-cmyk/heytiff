@@ -60,67 +60,12 @@ afterEach(cleanup);
 const mount = (ui: React.ReactElement) =>
   render(<NoteScopeProvider voiceEnabled>{ui}</NoteScopeProvider>);
 
-function Harness({ as, start = "" }: { as: "strip" | "field" | "line"; start?: string }) {
+function Harness({ as, start = "" }: { as: "field" | "line"; start?: string }) {
   const [v, setV] = useState(start);
   return <NoteToken as={as} label="access notes" value={v} onChange={setV} />;
 }
 
 const river = () => document.querySelector(".wb2-lwbox");
-
-describe.each([["strip", "wb2-stripin", true]] as const)("the %s posture", (as, fieldClass, oneLine) => {
-  it("keeps the field while nothing has been heard — the placeholder is the only thing saying it is listening", () => {
-    mount(<Harness as={as} />);
-    act(() => ctl.setRecording!(true));
-
-    expect(river()).toBeNull();
-    expect(screen.getByRole("textbox")).toHaveValue("");
-  });
-
-  it("hands the box to the river at the first word, in the field's own class", () => {
-    mount(<Harness as={as} />);
-    act(() => {
-      ctl.setRecording!(true);
-      ctl.setInterim!("tell Lyle the grilles");
-    });
-
-    const box = river()!;
-    expect(box.className).toContain(fieldClass);
-    expect(box.className.includes("one")).toBe(oneLine);
-    expect(box).toHaveTextContent("tell Lyle the grilles");
-    /* And the words are SHOWN, never held — the field is gone, so there is
-       nothing left that could commit a half-heard sentence. */
-    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-  });
-
-  it("keeps what was already typed in front of the words arriving", () => {
-    mount(<Harness as={as} start="gate code 4417" />);
-    act(() => {
-      ctl.setRecording!(true);
-      ctl.setInterim!("and the roof key is at the desk");
-    });
-
-    expect(river()).toHaveTextContent("gate code 4417 and the roof key is at the desk");
-    expect(document.querySelector(".wb2-lwsaid")).toHaveTextContent("gate code 4417");
-  });
-
-  /* The words stay on screen through the read-back — `interim` outlasts
-     `recording` by the length of the flush. Swapping back to the field for
-     that second and then forward again is two moves where the design has
-     none. */
-  it("holds the river through the read-back, and gives the box back when the words land", () => {
-    mount(<Harness as={as} />);
-    act(() => {
-      ctl.setRecording!(true);
-      ctl.setInterim!("tell Lyle the grilles");
-    });
-    act(() => ctl.setRecording!(false));
-    expect(river()).not.toBeNull();
-
-    act(() => ctl.setInterim!(""));
-    expect(river()).toBeNull();
-    expect(screen.getByRole("textbox")).toBeInTheDocument();
-  });
-});
 
 /* ── THE FORM BOXES ARE THE PHONE'S (heytiff-mobile SayBox.tsx; Isaac, 9
    November 2026: "I want the boxes to pretty much be identical") ──

@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { NoteToken } from "../note-token";
 import { NoteScopeProvider } from "../note-context";
-import { READING_BACK_NOTE } from "../waits";
 
 /* READING IT BACK, WHEREVER YOU ARE STANDING.
 
@@ -57,24 +56,11 @@ afterEach(cleanup);
 const mount = (ui: ReactNode) =>
   render(<NoteScopeProvider voiceEnabled>{ui}</NoteScopeProvider>);
 
-/** The chip, wherever it is: one live region carrying the wait as text. */
-const chip = () => screen.queryByText(READING_BACK_NOTE);
+/** The old "Thinking" chip: it went with the strip (10 November 2026), and
+    no box on a page says it now. */
+const chip = () => screen.queryByText("Thinking");
 
 describe("the postures on a page", () => {
-  /* All three wear the same chip in the same slot the grey line held, so the
-     row does not move when the mic closes. `line` is checked as well as
-     `field` because it was the one that rendered its hint as a <span> rather
-     than a <p> — a difference that meant nothing visually and would have been
-     one more thing to keep in step by hand. */
-  it.each(["strip"] as const)("names the wait on the %s posture", async (as) => {
-    transcribing = true;
-    mount(<NoteToken as={as} />);
-
-    const said = chip();
-    expect(said).not.toBeNull();
-    expect(said!.closest("[role='status']")).not.toBeNull();
-  });
-
   /* The phone's box in a form (Isaac, 9 November 2026: "I want the boxes to
      pretty much be identical"): the words stay in the box, grey, and nothing
      says "Thinking"; only a read-back that takes a while says it's fixing
@@ -98,12 +84,5 @@ describe("the postures on a page", () => {
   it("says nothing at all while the microphone is not busy", () => {
     mount(<NoteToken as="field" />);
     expect(chip()).toBeNull();
-  });
-
-  /* NO PUNCTUATION IN THE STRING. The ellipsis is `.orb-say b::after`, so
-     every wait in the app trails off identically and a test matches the
-     sentence rather than a particular run of dots. */
-  it("carries no ellipsis of its own", () => {
-    expect(READING_BACK_NOTE).not.toMatch(/[….]/);
   });
 });

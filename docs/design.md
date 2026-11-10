@@ -246,7 +246,7 @@ infinite loop into a strobe.
 | `tcDots` | the three dots after "Thinking" in Tiff's chat, and after "Fixing the wording" in any box whose words take a while to land; one rule with each dot delayed | Tiff is working, or the words are on their way: said in words and dots, with no mark turning (Isaac, 20 October 2026; the box, 9 November 2026) |
 | `ds-sheet-wait` | the sheet's outline while its raster downloads | a skeleton, breathing rather than swept because it is an outline: the plan lands into its place |
 | `wb2CursorBlink` | the board's answer while it streams | a caret |
-| `fgPulse` ×2 | the recording dot beside the recording clock on a note strip; Time & Pay's live period | a live dot: something is open right now |
+| `fgPulse` | Time & Pay's live period (the note strip's recording dot went with the strip, 2026-11-10) | a live dot: something is open right now |
 | `int-pulse` | an integration's backfill while it runs | a live dot |
 | `orbSpin` | the orb, as the dictation meter | the orb: the microphone is open |
 | `orbSaySweep` | the wait's word beside the working mark | the wait's label, lit while Tiff works: the caret's job on a word |
@@ -265,10 +265,9 @@ this list the way it holds the loops: both ways, by name.
 
 | Glyph | On | Why it has no word |
 |---|---|---|
-| `mic` | `wb2-striprnd`, `cv-rnd` ×3 | the microphone, on a note strip and on the box, in a form and on a job's Materials line, round as the phone's (the box, 9 November 2026): the words beside it are the word, and a microphone is the one glyph the trade reads without one |
-| `square` | `wb2-striprnd` | stop, on the note strip: it takes the microphone's seat while it listens. The box's ■ is drawn, not a glyph |
-| `x` | `wb2-striprnd`, `cv-rnd` | the recording's cross, on the note strip and on the bar every box speaks into, as the phone's ✕ (the capture card had another, and went with the old capture UI, 2026-09-27; the Library's ask bar had another, and went with the bar, 2026-11-07; the form's row and bar had two, and went with the box, 2026-11-09): each closes a recording, and its label says what closing costs ("Discard") |
-| `plus` | `wb2-striprnd`, `cv-rnd` | a note composer's commit at the end of its one-line field, round on the box's one line: the placeholder is the word and Enter is the same press. A form's save is a word; a composer's send is the glyph |
+| `mic` | `cv-rnd` ×3 | the microphone, on the box, in a form and on a job's Materials line, round as the phone's (the box, 9 November 2026): the words beside it are the word, and a microphone is the one glyph the trade reads without one |
+| `x` | `cv-rnd` | the recording's cross, on the bar every box speaks into, as the phone's ✕ (the capture card had another, and went with the old capture UI, 2026-09-27; the Library's ask bar had another, and went with the bar, 2026-11-07; the form's row and bar had two, and went with the box, 2026-11-09; the note strip had one, and went with the strip, 2026-11-10): each closes a recording, and its label says what closing costs ("Discard") |
+| `plus` | `cv-rnd` | a note composer's commit at the end of its one-line field, round on the box's one line: the placeholder is the word and Enter is the same press. A form's save is a word; a composer's send is the glyph |
 | `arrowUp` | `cv-rnd` ×2 | Tiff's ↑, on the box and on the bar while you speak: a chat's Send, as Claude's and the phone's are (law 25; the box, 9 November 2026) |
 | `rotate` | `ds-tool` ×2 | undo and redo in the Studio toolbar, the candidates law 25 named |
 | `x` | `camdel`, `ds-plancard-x` | a thumbnail's cross, on a photo badge and on a plan page in the Studio's import: a picture has no room for a word |

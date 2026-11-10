@@ -7,7 +7,6 @@ const dict: Dict = { recording: true, arming: false, transcribing: false, second
 let hear: (said: string) => void = () => undefined;
 jest.mock("@/components/notes/dictation", () => ({
   appendSpoken: (now: string, said: string) => (now ? `${now} ${said}` : said),
-  DictClock: () => null,
   LiveWords: ({ said, text }: { said?: string; text: string }) => <p>{[said, text].filter(Boolean).join(" ")}</p>,
   useDictation: (o: { onTranscript: (s: string) => void }) => {
     hear = o.onTranscript;

@@ -5,6 +5,7 @@ import {
   companyKey,
   normName,
   oneCompanyNamed,
+  oneCompanyNamedAnyOrder,
   staffName,
   suggestMatches,
   type RemoteCandidate,
@@ -230,5 +231,15 @@ describe("a company's name", () => {
     expect(oneCompanyNamed(both, "Truecut Building")?.name).toBe("Truecut Building");
     expect(oneCompanyNamed(both, "Truecut Building Limited")).toBeNull();
     expect(oneCompanyNamed([], "Truecut")).toBeNull();
+  });
+
+  /* the Raglan St email: Lisa Watters is "Watters, Lisa" in ServiceM8, and the card said she wasn't a client */
+  it("finds a person either way round, and only when one would do", () => {
+    const clients = [co("Watters, Lisa"), co("Lisa Smith"), co("Watters Group")];
+    expect(oneCompanyNamed(clients, "Lisa Watters")).toBeNull();
+    expect(oneCompanyNamedAnyOrder(clients, "Lisa Watters")?.name).toBe("Watters, Lisa");
+    expect(oneCompanyNamedAnyOrder([...clients, co("Lisa Watters")], "Lisa Watters")).toBeNull();
+    expect(oneCompanyNamedAnyOrder(clients, "Lisa")).toBeNull();
+    expect(oneCompanyNamedAnyOrder(clients, "Lisa Waters")).toBeNull();
   });
 });

@@ -5,7 +5,7 @@ import { ALLOWED_TYPES, storageRef } from "@/lib/documents/files";
 import type { KeptFile } from "./inbound-server";
 import { writeJobNote } from "@/lib/workboard/job-note-write";
 import type { EmailProposal } from "./proposal";
-import { withClientNow } from "./proposal-server";
+import { matchedNow } from "./proposal-server";
 import { shareLinksIn, type ShareLink } from "./share-links";
 import { addJobPlans } from "@/lib/jobs/plans-server";
 
@@ -68,7 +68,7 @@ export async function emailJobView(orgId: string, id: string): Promise<EmailJobV
   return {
     id: row.id,
     state: row.state,
-    proposal: row.state === "read" ? await withClientNow(orgId, row.proposal) : row.proposal,
+    proposal: await matchedNow(orgId, row),
     files: (row.files ?? []).map((f) => ({ name: f.name, size: f.size, drawings: isDrawings(row.proposal, f) })),
     links: shareLinksIn(row.body),
     why: row.why,

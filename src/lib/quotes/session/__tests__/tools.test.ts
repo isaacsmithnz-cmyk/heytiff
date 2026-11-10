@@ -25,7 +25,9 @@ jest.mock("../store-server", () => ({
   readSession: jest.fn(async () => ({ id: "s1" })),
   readOpenQuestions: (...a: unknown[]) => (openQuestions as jest.Mock)(...a),
 }));
-jest.mock("../job-files-server", () => ({ jobFiles: jest.fn(async () => []), lookAt: jest.fn(), photoSize: jest.fn(async () => ({ w: 4000, h: 2252 })) }));
+jest.mock("../job-files-server", () => ({ jobFiles: jest.fn(async () => []), lookAt: jest.fn(), planPickOf: jest.fn(async (_o: string, _j: string, id: string) => (id === "doc:abc" ? { documentId: "abc" } : null)) }));
+const jobPlanRooms = jest.fn();
+jest.mock("@/lib/jobs/plans-server", () => ({ jobPlanRooms: (...a: unknown[]) => jobPlanRooms(...a) }));
 jest.mock("../../corrections-server", () => ({ readCorrections: jest.fn(async () => []), jobKind: jest.fn(async () => null) }));
 jest.mock("../../lines-job-server", () => ({
   nameOption: jest.fn(async () => ({ ok: true })),
@@ -65,7 +67,7 @@ const BOOK = [
 jest.mock("../../book-view-server", () => ({ bookProducts: jest.fn(async () => BOOK) }));
 
 import { areaOf, bookPrice, isErr, kitAskOf, newLineOf, patchOf, questionOf, SESSION_TOOLS } from "../tools";
-import { lookAt, photoSize } from "../job-files-server";
+import { lookAt } from "../job-files-server";
 import { sessionTools } from "../tools-server";
 import { readLines } from "../../lines-server";
 import { lookupCharge, lookupPairing, lookupUnit } from "../../lookups-server";
@@ -312,18 +314,19 @@ describe("her tools, run", () => {
     expect(areaOf({ left: 0.2 })).toBeNull();
   });
 
-  /* the 3465 re-run, 10 November 2026: rooms measured off the plan photo, not given up on */
-  it("measures rooms off a plan photo against a printed dimension, on its full size", async () => {
-    const out = await run("measure_plan", {
-      id: "p1",
-      known: { mm: 7440, what: "the 7440 overall width", from: { x: 0.1, y: 0.1 }, to: { x: 0.29625, y: 0.1 } },
-      rooms: [{ name: "Bed 1", corners: [{ x: 0.1, y: 0.2 }, { x: 0.15, y: 0.2 }, { x: 0.15, y: 0.3 }, { x: 0.1, y: 0.3 }] }],
-    });
-    expect(photoSize).toHaveBeenLastCalledWith("org-1", "job-1", "p1");
-    expect(out).toMatchObject({ ok: true, label: "Measured the plan", said: "Bed 1 4 m²", value: { rooms: [{ name: "Bed 1", area_m2: 4 }] } });
-    expect(await run("measure_plan", { known: { mm: 7440 } })).toMatchObject({ ok: false, error: "Name the plan photo by its id from job_files." });
-    (photoSize as jest.Mock).mockResolvedValueOnce("measure_plan measures a photo. On a PDF plan, read the sizes it prints.");
-    expect(await run("measure_plan", { id: "d1", known: { mm: 7440, from: { x: 0, y: 0 }, to: { x: 1, y: 0 } }, rooms: [{ name: "A", corners: [{ x: 0, y: 0 }, { x: 0.1, y: 0 }, { x: 0.1, y: 0.1 }] }] })).toMatchObject({ ok: false, error: expect.stringContaining("PDF") });
+  /* Isaac, 11 November 2026: "surely there's a better way": the rooms off the job's plan, read once and kept */
+  it("hands her the rooms off the job's plans, and has a job file read as a plan when she names one", async () => {
+    const floor = { floor: "Ground floor", page: 1, sized_by: "the 7440 and 3300 mm printed on it", sure: true, rooms: [{ name: "BED. 1", kind: "room", area_m2: 20.4 }, { name: "ENTRY", kind: "circulation", area_m2: null }] };
+    jobPlanRooms.mockResolvedValue({ plans: [{ plan: "Plan.jpg", state: "read", floors: [floor] }], said: "Sizes are as read off the plan." });
+    expect(await run("plan_rooms", {})).toMatchObject({ ok: true, label: "Read the plan's rooms", said: "2 rooms, 1 sized", value: { plans: [{ floors: [{ rooms: [{ area_m2: 20.4 }, { area_m2: null }] }] }] } });
+    expect(jobPlanRooms).toHaveBeenLastCalledWith("org-1", "job-1", { origin: null });
+    await run("plan_rooms", { add: "doc:abc" });
+    expect(jobPlanRooms).toHaveBeenLastCalledWith("org-1", "job-1", { add: { documentId: "abc" }, origin: null });
+    expect(await run("plan_rooms", { add: "gone" })).toMatchObject({ ok: false, error: "That file isn't on the job, or isn't here yet." });
+    jobPlanRooms.mockResolvedValueOnce({ plans: [], said: "No plan is in this job's Plans." });
+    expect(await run("plan_rooms", {})).toMatchObject({ ok: true, said: "No plans on the job" });
+    jobPlanRooms.mockResolvedValueOnce("This workspace's Plans can't be read just now.");
+    expect(await run("plan_rooms", {})).toMatchObject({ ok: false, error: "This workspace's Plans can't be read just now." });
   });
 
   /* Isaac, 2026-10-11: answered in his own words, as in the chat */

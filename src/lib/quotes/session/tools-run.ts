@@ -19,10 +19,10 @@ import type { Charge, ChargeAsk } from "../charge";
 import type { ToolOutcome } from "./turn";
 import type { MediaBlock, TextBlock } from "./model";
 import { fitRead } from "./read-fit";
+import type { JobPlanRooms } from "@/lib/jobs/plan-rooms";
 import { airflowCheck, airflowSaid, type AirflowGuide } from "@/lib/guides/airflow";
 import { fitDesignRead, type JobDesign } from "../design-read";
 import { hoursNotOnLines, isLabourAsk, labourPut } from "./labour-ask";
-import { measureAskOf, measurePlan } from "./plan-measure";
 import { airflowAskOf, areaOf, bookPrice, isErr, kitAskOf, LABOUR_HAS_NO_PRICE, newLineOf, patchOf, questionOf, roomLoads, TOOL_LABELS, type NewLine } from "./tools";
 
 /* TIFF'S TOOLS, RUN (tools.ts says what each is and what holds her to the
@@ -76,8 +76,8 @@ export type QuoteStore = {
   /** one of them as she sees it, or why she can't */
   /** a file handed to her, with any words that stay once it's dropped */
   look: (id: string, area?: { left: number; top: number; width: number; height: number } | null) => Promise<(MediaBlock | TextBlock)[] | string>;
-  /** a photo's full size, upright, to measure a plan off it; or why not */
-  pictureSize: (id: string) => Promise<{ w: number; h: number } | string>;
+  /** the rooms off the job's plans with their sizes, read once and kept (lib/jobs/plan-rooms.ts); `add` reads one of the job's files as a plan first; or why not */
+  planRooms: (add?: string) => Promise<JobPlanRooms | string>;
   /** the business's own task hours and working day (slice 8.1) */
   taskHours: () => Promise<{ hours: Record<TaskKey, number | null>; dayHours: number | null }>;
   /** her questions still open, by their numbers: what a person's own words can settle */
@@ -398,16 +398,14 @@ function makeToolRun(store: QuoteStore) {
         const name = (await store.jobFiles()).find((f) => f.id === id)?.name ?? id;
         return { ok: true, label, said: area ? `${name}, close` : name, value: { looking_at: name, ...(area ? { area } : {}) }, media: seen };
       }
-      case "measure_plan": {
-        const id = typeof input.id === "string" ? input.id.slice(0, 120) : "";
-        if (!id) return fail("Name the plan photo by its id from job_files.");
-        const ask = measureAskOf(input);
-        if (isErr(ask)) return fail(ask.error);
-        const size = await store.pictureSize(id);
-        if (typeof size === "string") return fail(size);
-        const v = measurePlan(size, ask);
-        if (isErr(v)) return fail(v.error);
-        return { ok: true, label, said: v.rooms.map((r) => `${r.name} ${r.area_m2} m²`).join(", ").slice(0, 200), value: v };
+      case "plan_rooms": {
+        const add = typeof input.add === "string" ? input.add.trim().slice(0, 120) : "";
+        const v = await store.planRooms(add || undefined);
+        if (typeof v === "string") return fail(v);
+        const rooms = v.plans.flatMap((p) => p.floors.flatMap((f) => f.rooms));
+        const sized = rooms.filter((r) => r.area_m2 != null).length;
+        const said = v.plans.length === 0 ? "No plans on the job" : rooms.length === 0 ? (v.plans.some((p) => p.state === "reading") ? "Still being read" : "No rooms found") : `${rooms.length} ${rooms.length === 1 ? "room" : "rooms"}${sized < rooms.length ? `, ${sized} sized` : ""}`;
+        return { ok: true, label, said, value: v };
       }
       case "your_corrections": {
         const sameKind = input.every_kind !== true;

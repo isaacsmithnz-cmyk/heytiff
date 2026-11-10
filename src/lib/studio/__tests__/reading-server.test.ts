@@ -1,7 +1,7 @@
 jest.mock("server-only", () => ({}));
 jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: {} }));
 
-import { parseOutline, siteSchema, toSheet, toSite } from "../reading-server";
+import { parseOutline, siteSchema, toDimensions, toSheet, toSite } from "../reading-server";
 
 describe("Tiff's read, back on the sheet", () => {
   it("reads an outline written as x,y pairs", () => {
@@ -62,5 +62,13 @@ describe("the site round the house, as she reads it", () => {
 
   it("asks for no nullable field", () => {
     expect(JSON.stringify(siteSchema())).not.toMatch(/null/);
+  });
+});
+
+describe("the dimensions printed on a sheet, as she reads them", () => {
+  it("come back in the sheet's own pixels, six at most, none without a figure", () => {
+    const raw = { dimensions: [{ mm: 7440, what: "along the bottom", x1: 406, y1: 400, x2: 558, y2: 400 }, { mm: 0, what: "unread", x1: 0, y1: 0, x2: 10, y2: 0 }] };
+    expect(toDimensions(raw, 0.5, 100, 20)).toEqual([{ mm: 7440, what: "along the bottom", a: { x: 912, y: 820 }, b: { x: 1216, y: 820 } }]);
+    expect(toDimensions({}, 1, 0, 0)).toEqual([]);
   });
 });

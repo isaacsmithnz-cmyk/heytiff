@@ -200,15 +200,6 @@ const lineFields = {
   duct: { type: "boolean", description: "True for ductwork, grilles and the return: what the duct contingency covers." },
 };
 
-/** The part of a photo a measure's points were marked on, as look_at's area took it; none, the whole picture. */
-const MEASURE_AREA = {
-  type: "object",
-  description: "The area you looked at close when you marked these points, as you gave it to look_at",
-  properties: { left: { type: "number" }, top: { type: "number" }, width: { type: "number" }, height: { type: "number" } },
-  required: ["left", "top", "width", "height"],
-  additionalProperties: false,
-} as const;
-
 export const SESSION_TOOLS: ToolDef[] = [
   {
     name: "read_quote",
@@ -511,7 +502,7 @@ export const SESSION_TOOLS: ToolDef[] = [
   {
     name: "look_at",
     description:
-      "Look at one of the job's photos or PDFs by its id from job_files: a floor plan for its rooms and their sizes, a switchboard for its phase and whether it has room for a circuit, a site photo for access. On a photo, area shows a part of it close, cut from the full-size picture: a plan's printed dimensions, its scale bar, a room's figures too small to read whole. Say what you read, and ask to confirm what the quote rests on.",
+      "Look at one of the job's photos or PDFs by its id from job_files: a floor plan for where things go, a switchboard for its phase and whether it has room for a circuit, a site photo for access. On a photo, area shows a part of it close, cut from the full-size picture: a nameplate, a label, small print. A plan's rooms and their sizes come from plan_rooms, not from looking. Say what you read, and ask to confirm what the quote rests on.",
     input_schema: {
       type: "object",
       properties: {
@@ -529,47 +520,14 @@ export const SESSION_TOOLS: ToolDef[] = [
     },
   },
   {
-    name: "measure_plan",
+    name: "plan_rooms",
     description:
-      "Measure rooms off a plan photo that doesn't print their sizes, against one dimension it does print (an overall width, a wall) or its scale bar. Read that figure close first (look_at's area). Mark the dimension line's two ends (its arrows or ticks) and each room's corners on its inside wall lines, as fractions of the picture from its top left, or of the area you looked at close (give that area). Gives each room's m² for room_load, worked out here: never work a size out yourself. The sizes are assumed until someone confirms them.",
+      "The rooms off the job's floor plans, each with its m², for room_load: read once when a plan goes into the job's Plans and kept there, so nothing is read again and nothing is worked out by eye. Each floor says what its sizes rest on (the plan's printed scale, the lengths printed along its dimension lines, or the sizes written in its rooms). Where no plan is read yet and one of the job's files is its floor plan (a PDF of the set, or a photo of a plan or a sketch), add reads it now and keeps it: about a minute, once. Only a file that is a floor plan, never a site photo or a quote.",
     input_schema: {
       type: "object",
       properties: {
-        id: { type: "string", description: "The plan photo's id from job_files" },
-        known: {
-          type: "object",
-          properties: {
-            mm: { type: "number", description: "The printed figure, in mm" },
-            what: { type: "string", description: "Which dimension it is: \"the 7440 overall width\"" },
-            from: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"], additionalProperties: false },
-            to: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"], additionalProperties: false },
-            area: MEASURE_AREA,
-          },
-          required: ["mm", "what", "from", "to"],
-          additionalProperties: false,
-        },
-        rooms: {
-          type: "array",
-          maxItems: 30,
-          items: {
-            type: "object",
-            properties: {
-              name: { type: "string" },
-              corners: {
-                type: "array",
-                minItems: 3,
-                maxItems: 12,
-                description: "Its corners in order round the room: four for a plain room, six for an L",
-                items: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"], additionalProperties: false },
-              },
-              area: MEASURE_AREA,
-            },
-            required: ["name", "corners"],
-            additionalProperties: false,
-          },
-        },
+        add: { type: "string", description: "The id, from job_files, of a floor plan to put in the job's Plans and read now. Leave out to get the plans already read." },
       },
-      required: ["id", "known", "rooms"],
       additionalProperties: false,
     },
   },
@@ -779,7 +737,7 @@ export const TOOL_LABELS: Record<string, string> = {
   your_corrections: "Read her corrections",
   job_files: "Listed the job's files",
   look_at: "Looked at",
-  measure_plan: "Measured the plan",
+  plan_rooms: "Read the plan's rooms",
   read_design: "Read the design",
   compare_with: "Added to the compare",
   airflow_check: "Checked the air",

@@ -266,6 +266,38 @@ export function writtenAgrees(written: string, outline: ReadPoint[], mmPerPx: nu
   return Math.abs(sides[0] - w[0]) <= w[0] * 0.2 && Math.abs(sides[1] - w[1]) <= w[1] * 0.2;
 }
 
+/* THE SCALE OFF A PRINTED DIMENSION (Isaac, 11 November 2026: "surely
+   there's a better way", on Tiff marking each room's corners by eye in a
+   quote's chat). A photographed plan or a sketch prints no "1:100 @ A3",
+   but it prints lengths along its dimension lines. Those are read once with
+   the plan (reading-server readDimensions): each figure and its line's two
+   ends, in the sheet's pixels. The millimetres a pixel is each one's
+   length over its span, and the scale is the middle of them. Two that
+   agree make it sure; one alone is said to be one alone. */
+export type ReadDimension = { mm: number; a: ReadPoint; b: ReadPoint; what: string };
+export type MeasuredScale = { mmPerPx: number; from: string; sure: boolean };
+
+/** how far two dimensions' scales may sit apart and still agree */
+const SCALE_AGREES = 0.08;
+
+export function scaleFromDimensions(dims: readonly ReadDimension[], sheet: { width: number; height: number }): MeasuredScale | null {
+  /* a short span makes every room's error large: a twentieth of the sheet at least */
+  const least = Math.max(sheet.width, sheet.height) * 0.05;
+  const each = dims
+    .map((d) => ({ d, span: Math.hypot(d.b.x - d.a.x, d.b.y - d.a.y) }))
+    .filter((e) => e.d.mm >= 300 && e.d.mm <= 200_000 && e.span >= least)
+    .map((e) => ({ ...e, mmPerPx: e.d.mm / e.span }))
+    .sort((p, q) => p.mmPerPx - q.mmPerPx);
+  if (each.length === 0) return null;
+  /* the middle one, and those that agree with it; of two that don't agree, the longer span */
+  const mid = each.length === 2 && Math.abs(each[0].mmPerPx - each[1].mmPerPx) > each[0].mmPerPx * SCALE_AGREES ? [...each].sort((p, q) => q.span - p.span)[0] : each[Math.floor((each.length - 1) / 2)];
+  const agree = each.filter((e) => Math.abs(e.mmPerPx - mid.mmPerPx) <= mid.mmPerPx * SCALE_AGREES);
+  const mmPerPx = agree.reduce((sum, e) => sum + e.mmPerPx * e.span, 0) / agree.reduce((sum, e) => sum + e.span, 0);
+  const figures = [...agree].sort((p, q) => q.span - p.span).slice(0, 3).map((e) => String(Math.round(e.d.mm)));
+  const list = figures.length === 1 ? figures[0] : `${figures.slice(0, -1).join(", ")} and ${figures[figures.length - 1]}`;
+  return { mmPerPx, from: `the ${list} mm printed on it`, sure: agree.length >= 2 };
+}
+
 /** The rooms she suggests: what an air conditioner might serve, not cupboards, stairs, voids or outside. */
 export const suggestedRooms = (r: SheetReading) => r.spaces.filter((s) => s.kind === "room" || s.kind === "wet" || s.kind === "garage");
 

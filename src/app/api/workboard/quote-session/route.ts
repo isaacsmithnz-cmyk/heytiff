@@ -96,7 +96,7 @@ export async function POST(req: Request) {
     if (!r.ok) return Response.json(r, { status: 409 });
     /* an answer that leaves her work starts her, with it */
     if (!r.goOn) return Response.json({ ok: true });
-    const started = await startTurn(g.orgId, target.parentRemoteId, g.userId, "", { answered: true, noMoney: !g.money });
+    const started = await startTurn(g.orgId, target.parentRemoteId, g.userId, "", { answered: true, noMoney: !g.money, origin: new URL(req.url).origin });
     if (started.ok) after(started.run);
     return Response.json({ ok: true, working: started.ok });
   }
@@ -120,7 +120,7 @@ export async function POST(req: Request) {
     brief = briefOf((await readJobSources(g.orgId, target.parentRemoteId)).sources, ticked);
     if (!brief) return Response.json({ ok: false, reason: "Tick something for her to read." }, { status: 400 });
   }
-  const started = await startTurn(g.orgId, target.parentRemoteId, g.userId, typeof body.message === "string" ? body.message : "", { brief, noMoney: !g.money });
+  const started = await startTurn(g.orgId, target.parentRemoteId, g.userId, typeof body.message === "string" ? body.message : "", { brief, noMoney: !g.money, origin: new URL(req.url).origin });
   if (!started.ok) return Response.json({ ok: false, reason: started.reason }, { status: started.status });
   after(started.run);
   /* the words are sent: no draft of them is left in this person's box, on

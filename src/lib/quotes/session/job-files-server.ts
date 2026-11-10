@@ -2,6 +2,7 @@ import "server-only";
 import { imageForClaude, type ImageArea } from "@/lib/images/for-claude";
 import { familyMediaSources } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
+import type { PlanPick } from "@/lib/jobs/plans";
 import { readJobMediaGroups } from "@/lib/workboard/job-media-query";
 import { isScannedPage, openPdf } from "@/lib/tiff/extract";
 import type { MediaBlock, TextBlock } from "./model";
@@ -53,8 +54,8 @@ async function pdfText(bytes: Uint8Array): Promise<string> {
 export function pictureWords(size: { w: number; h: number } | null, cut: { x: number; y: number; w: number; h: number } | null): string {
   if (!size) return "";
   const pct = (n: number, of: number) => Math.round((n / of) * 100);
-  if (cut) return `This is part of a ${size.w} × ${size.h} px picture: from ${pct(cut.x, size.w)}% across and ${pct(cut.y, size.h)}% down, ${pct(cut.w, size.w)}% of its width and ${pct(cut.h, size.h)}% of its height (${cut.w} × ${cut.h} px). On a plan, rooms with no size printed are measured against a printed dimension or the scale bar (measure_plan).`;
-  return `The whole picture, ${size.w} × ${size.h} px${Math.max(size.w, size.h) > 1568 ? ", made smaller to send" : ""}. To read small print, look at a part of it close (area). On a plan, rooms with no size printed are measured against a printed dimension or the scale bar (measure_plan).`;
+  if (cut) return `This is part of a ${size.w} × ${size.h} px picture: from ${pct(cut.x, size.w)}% across and ${pct(cut.y, size.h)}% down, ${pct(cut.w, size.w)}% of its width and ${pct(cut.h, size.h)}% of its height (${cut.w} × ${cut.h} px).`;
+  return `The whole picture, ${size.w} × ${size.h} px${Math.max(size.w, size.h) > 1568 ? ", made smaller to send" : ""}. To read small print, look at a part of it close (area).`;
 }
 
 async function filesOf(orgId: string, jobUuid: string): Promise<JobMediaItem[]> {
@@ -90,20 +91,9 @@ export async function lookAt(orgId: string, jobUuid: string, id: string, area: I
   return [{ type: "image", source: { type: "base64", media_type: image.mime, data: image.bytes.toString("base64") } }, ...(said ? [{ type: "text" as const, text: said }] : [])];
 }
 
-/** A photo's full size, upright, for measuring a plan off it (measure_plan); or why not. */
-export async function photoSize(orgId: string, jobUuid: string, id: string): Promise<{ w: number; h: number } | string> {
+/** One of the job's files as the job's Plans picks it: ours by its documents row, ServiceM8's by its attachment. */
+export async function planPickOf(orgId: string, jobUuid: string, id: string): Promise<PlanPick | null> {
   const f = (await filesOf(orgId, jobUuid)).find((x) => x.remoteId === id);
-  if (!f?.url) return "That file isn't on the job, or isn't here yet.";
-  if (isPdf(f)) return "measure_plan measures a photo. On a PDF plan, read the sizes it prints.";
-  const res = await fetch(f.url).catch(() => null);
-  if (!res?.ok) return "That file couldn't be opened just now.";
-  try {
-    const sharp = (await import("sharp")).default;
-    const m = await sharp(Buffer.from(await res.arrayBuffer())).metadata();
-    if (!m.width || !m.height) return "That picture couldn't be read.";
-    /* EXIF 5 to 8 turn it a quarter: look_at shows it upright, so its points are marked upright */
-    return (m.orientation ?? 1) >= 5 ? { w: m.height, h: m.width } : { w: m.width, h: m.height };
-  } catch {
-    return "That picture couldn't be read.";
-  }
+  if (!f) return null;
+  return f.documentId ? { documentId: f.documentId } : { attachmentId: f.remoteId };
 }

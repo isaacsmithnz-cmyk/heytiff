@@ -1,4 +1,4 @@
-import { labelFlags, parseWritten, readingSummary, withChecks, writtenAgrees, type PlanReading, type ReadSpace } from "../reading";
+import { labelFlags, parseWritten, readingSummary, scaleFromDimensions, withChecks, writtenAgrees, type PlanReading, type ReadSpace } from "../reading";
 
 const box = (x: number, y: number, w: number, h: number) => [
   { x, y },
@@ -137,5 +137,32 @@ describe("the reading kept on the design", () => {
 
   it("a design never read says so", () => {
     expect(readingSummary([], null)).toEqual({ read: false, said: "Tiff hasn't read this design's plans." });
+  });
+});
+
+/* Isaac, 11 November 2026: a photographed sketch prints no "1:100", only lengths along its dimension lines */
+describe("the scale off a plan's printed dimensions", () => {
+  const sheet = { width: 1600, height: 900 };
+  const dim = (mm: number, x1: number, x2: number, y = 800) => ({ mm, what: "", a: { x: x1, y }, b: { x: x2, y } });
+  it("is the middle of those that agree, sure with two", () => {
+    /* 3465's own: 7440 over 305 px, 3300 over 132 px, 2400 over 97 and 100 px */
+    const s = scaleFromDimensions([dim(7440, 812, 1117), dim(3300, 985, 1117), dim(2400, 778, 875), dim(2400, 880, 980)], sheet)!;
+    expect(s.mmPerPx).toBeGreaterThan(24);
+    expect(s.mmPerPx).toBeLessThan(25);
+    expect(s).toMatchObject({ sure: true, from: "the 7440, 3300 and 2400 mm printed on it" });
+  });
+  it("says one figure alone is one alone, and leaves out a misread", () => {
+    expect(scaleFromDimensions([dim(7440, 812, 1117)], sheet)).toMatchObject({ sure: false, from: "the 7440 mm printed on it" });
+    /* a 3665 read as 8665 doesn't move the scale two others agree on */
+    const s = scaleFromDimensions([dim(7440, 812, 1117), dim(3300, 985, 1117), dim(8665, 400, 550)], sheet)!;
+    expect(s.mmPerPx).toBeCloseTo(24.6, 1);
+    expect(s.from).toBe("the 7440 and 3300 mm printed on it");
+    /* two that don't agree: the longer span is kept, and it isn't sure */
+    expect(scaleFromDimensions([dim(7440, 812, 1117), dim(5000, 400, 500)], sheet)).toMatchObject({ sure: false, from: "the 7440 mm printed on it" });
+  });
+  it("has nothing to say of a plan that prints none, or only spans too short to trust", () => {
+    expect(scaleFromDimensions([], sheet)).toBeNull();
+    expect(scaleFromDimensions([dim(900, 100, 140)], sheet)).toBeNull();
+    expect(scaleFromDimensions([dim(0, 100, 900)], sheet)).toBeNull();
   });
 });

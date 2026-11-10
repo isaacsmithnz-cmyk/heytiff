@@ -16,7 +16,7 @@ jest.mock("@/lib/tiff/extract", () => ({
   isScannedPage: (t: string) => t.trim().length < 40,
   openPdf: async () => ({ numPages: pages.length, pageText: async (n: number) => pages[n - 1] ?? "", destroy: async () => undefined }),
 }));
-import { jobFiles, lookAt, pdfWords, photoSize, pictureWords } from "../job-files-server";
+import { jobFiles, lookAt, pdfWords, pictureWords, planPickOf } from "../job-files-server";
 import { imageForClaude } from "@/lib/images/for-claude";
 
 const item = (o: Record<string, unknown>) => ({ remoteId: "x", name: "x", fileType: null, kind: "photo", origin: null, takenAt: null, url: "https://store/x", width: null, height: null, fromClaim: null, ...o });
@@ -46,21 +46,17 @@ it("cuts a part of a photo to see close, saying what part of what size it is", a
   const seen = (await lookAt("org", "job", "p1", area)) as { type: string; text?: string }[];
   expect(imageForClaude).toHaveBeenLastCalledWith(expect.any(Buffer), "image/jpeg", area);
   expect(seen.map((b) => b.type)).toEqual(["image", "text"]);
-  expect(seen[1]!.text).toBe("This is part of a 4032 × 3024 px picture: from 50% across and 0% down, 50% of its width and 50% of its height (2016 × 1512 px). On a plan, rooms with no size printed are measured against a printed dimension or the scale bar (measure_plan).");
-  expect(pictureWords({ w: 4032, h: 3024 }, null)).toBe("The whole picture, 4032 × 3024 px, made smaller to send. To read small print, look at a part of it close (area). On a plan, rooms with no size printed are measured against a printed dimension or the scale bar (measure_plan).");
+  expect(seen[1]!.text).toBe("This is part of a 4032 × 3024 px picture: from 50% across and 0% down, 50% of its width and 50% of its height (2016 × 1512 px).");
+  expect(pictureWords({ w: 4032, h: 3024 }, null)).toBe("The whole picture, 4032 × 3024 px, made smaller to send. To read small print, look at a part of it close (area).");
   expect(pictureWords(null, null)).toBe("");
 });
 
-/* the 3465 re-run, 10 November 2026: a plan measured off its photo needs the photo's full size, upright */
-const metadata = jest.fn();
-jest.mock("sharp", () => ({ __esModule: true, default: () => ({ metadata: () => metadata() }) }));
-it("gives a photo's full size upright, and won't measure a PDF", async () => {
-  metadata.mockResolvedValueOnce({ width: 4000, height: 2252, orientation: 1 });
-  expect(await photoSize("org", "job", "p1")).toEqual({ w: 4000, h: 2252 });
-  metadata.mockResolvedValueOnce({ width: 4032, height: 3024, orientation: 6 });
-  expect(await photoSize("org", "job", "p1")).toEqual({ w: 3024, h: 4032 });
-  expect(await photoSize("org", "job", "d1")).toBe("measure_plan measures a photo. On a PDF plan, read the sizes it prints.");
-  expect(await photoSize("org", "job", "p2")).toBe("That file isn't on the job, or isn't here yet.");
+/* 11 November 2026: a job file she has read as a plan goes into the job's Plans as Add plans picks it */
+it("picks a job's file for its Plans: ours by its documents row, ServiceM8's by its attachment", async () => {
+  groups.mockResolvedValue({ photos: [item({ remoteId: "doc:abc", documentId: "abc", name: "Plan photo" }), item({ remoteId: "att-9", name: "Sketch" })], documents: [], elsewhere: [], truncated: false });
+  expect(await planPickOf("org", "job", "doc:abc")).toEqual({ documentId: "abc" });
+  expect(await planPickOf("org", "job", "att-9")).toEqual({ attachmentId: "att-9" });
+  expect(await planPickOf("org", "job", "gone")).toBeNull();
 });
 
 it("hands her a picture as an image, a PDF as a document, and says what it can't", async () => {

@@ -282,6 +282,24 @@ describe("her tools, run", () => {
     expect(out).toMatchObject({ ok: true, event: { kind: "question", body: { topic: "Pipe run, indoor to outdoor", put: "10 m", answers: [] } } });
   });
 
+  /* the 3465 review, 5 November 2026: the question's figures were hers, not the lines' */
+  it("asks about the crew with the labour lines' own figures, and sends back hours no line has", async () => {
+    const was = (readLines as jest.Mock).getMockImplementation();
+    const visit = (stage: string, people: number, hours: number) => ({ stage, people, dayHours: 8, tasks: [{ task: "all of it", hours, was: null, byHand: false }] });
+    (readLines as jest.Mock).mockImplementation(async () => [
+      { id: "d1", version: 1, kind: "labour", unit: "h", qty: 44, optionIndex: 0, name: "Day 1: 5 people, 1 day", visit: visit("Day 1", 5, 44) },
+      { id: "d2", version: 1, kind: "labour", unit: "h", qty: 17, optionIndex: 0, name: "Day 2: 2 people, 1 day", visit: visit("Day 2", 2, 17) },
+    ]);
+    try {
+      const asked = await run("ask", { question: "I worked the labour out at 61 hours. Which crew and days do you want?", topic: "Crew and days", put: "Day 1: 5 people, 35 h; day 2: 2 people, 26 h", answers: [{ label: "Keep my two days (61 h)" }] });
+      expect(asked).toMatchObject({ ok: true, event: { body: { put: "Day 1: 5 people, 44 h; Day 2: 2 people, 17 h (61 h in all)" } } });
+      const wrong = await run("ask", { question: "Day 1 is 35 h and day 2 is 26 h. Which crew and days do you want?", topic: "Crew and days", answers: [] });
+      expect(wrong).toMatchObject({ ok: false, error: expect.stringContaining("the question says 35 h, 26 h") });
+    } finally {
+      (readLines as jest.Mock).mockImplementation(was);
+    }
+  });
+
   /* Isaac, 2026-10-11: answered in his own words, as in the chat */
   it("ticks off the open questions a person's own words answered, and only those", async () => {
     const out = await run("settle", { settled: [{ question: 41, answer: "14 m" }, { question: 99, answer: "yes" }] });

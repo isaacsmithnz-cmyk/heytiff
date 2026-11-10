@@ -21,6 +21,7 @@ import type { MediaBlock, TextBlock } from "./model";
 import { fitRead } from "./read-fit";
 import { airflowCheck, airflowSaid, type AirflowGuide } from "@/lib/guides/airflow";
 import { fitDesignRead, type JobDesign } from "../design-read";
+import { hoursNotOnLines, isLabourAsk, labourPut } from "./labour-ask";
 import { airflowAskOf, bookPrice, isErr, kitAskOf, LABOUR_HAS_NO_PRICE, newLineOf, patchOf, questionOf, roomLoads, TOOL_LABELS, type NewLine } from "./tools";
 
 /* TIFF'S TOOLS, RUN (tools.ts says what each is and what holds her to the
@@ -490,8 +491,17 @@ function makeToolRun(store: QuoteStore) {
         return res.ok ? { ok: true, label, said: what, value: { written: what } } : fail(res.reason);
       }
       case "ask": {
-        const q = questionOf(input);
-        if (isErr(q)) return fail(q.error);
+        const asked = questionOf(input);
+        if (isErr(asked)) return fail(asked.error);
+        let q = asked;
+        /* a question about the crew says what the labour lines say (labour-ask.ts) */
+        if (isLabourAsk(q)) {
+          const lines = await store.readLines();
+          const put = labourPut(lines);
+          const off = hoursNotOnLines(q, lines);
+          if (put && off.length) return fail(`The labour lines have ${put}; the question says ${off.map((n) => `${n} h`).join(", ")}. Ask with the lines' figures, or change the lines first.`);
+          if (put) q = { ...q, put };
+        }
         return { ok: true, label, said: q.question, value: { asked: true }, event: { kind: "question", author: "tiff", body: q } };
       }
       /* a question the person answered in their own words, ticked off once

@@ -616,7 +616,7 @@ export const SESSION_TOOLS: ToolDef[] = [
         question: { type: "string", description: "One thing, asked as a person would: \"How long is the pipe run, indoor to outdoor?\"" },
         why: { type: "string", description: "What it changes on the quote." },
         topic: { type: "string", description: "A few words for what's asked, as the list shows it once answered: \"Pipe run, indoor to outdoor\"." },
-        put: { type: "string", description: "What the quote has for it now, in a few words: \"10 m\". Leave out when nothing's on it yet." },
+        put: { type: "string", description: "What the quote has for it now, in a few words: \"10 m\". Leave out when nothing's on it yet. On a question about the crew or the hours, it's written from the labour lines for you." },
         answers: {
           type: "array",
           maxItems: MAX_ANSWERS,

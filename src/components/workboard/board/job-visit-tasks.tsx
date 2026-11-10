@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState, type DragEvent, type ReactNode } fr
 import { Icon } from "@/components/shell/icon";
 import { Button, buttonClass } from "@/components/parts/button";
 import { Dialog } from "@/components/parts/dialog";
-import { Field, TextInput } from "@/components/parts/field";
+import { Field } from "@/components/parts/field";
 import { NoteToken } from "@/components/notes/note-token";
 import { Initials } from "@/components/parts/initials";
 import { Menu, type MenuItem } from "@/components/parts/menu";
@@ -135,7 +135,8 @@ export function JobVisits({
   const [name, setName] = useState("");
   const [dayMenu, setDayMenu] = useState(false);
   const dayBtn = useRef<HTMLButtonElement>(null);
-  const addBox = useRef<HTMLInputElement>(null);
+  /** around Add a task's box: the page's Add › Task focuses the box in it */
+  const addBox = useRef<HTMLDivElement>(null);
   const planId = useId();
 
   const land = (a: Answer) => {
@@ -164,7 +165,7 @@ export function JobVisits({
 
   /* the page's Add › Task: the field takes the keys, here or as it arrives */
   useEffect(() => {
-    if (askAdd > 0) addBox.current?.focus();
+    if (askAdd > 0) addBox.current?.querySelector("textarea")?.focus();
   }, [askAdd, data]);
 
   const send = async (method: "POST" | "PUT", body: Record<string, unknown>): Promise<boolean> => {
@@ -433,20 +434,26 @@ export function JobVisits({
             </div>
           )}
           {manage && (
-            <TextInput
-              ref={addBox}
-              size={32}
-              aria-label="Add a task"
-              placeholder="Add a task"
-              value={name}
-              disabled={saving}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key !== "Enter") return;
-                e.preventDefault();
-                void add();
-              }}
-            />
+            <div ref={addBox}>
+              <NoteToken
+                as="field"
+                rows={1}
+                label="a task"
+                offer={false}
+                placeholder="Add a task"
+                value={name}
+                disabled={saving}
+                onChange={setName}
+                box={{
+                  "aria-label": "Add a task",
+                  onKeyDown: (e) => {
+                    if (e.key !== "Enter") return;
+                    e.preventDefault();
+                    void add();
+                  },
+                }}
+              />
+            </div>
           )}
           {manage && ticked.length > 0 && (
             <div className="jv-selbar">

@@ -86,6 +86,8 @@ export type KitFacts = {
   returnFace?: { w: number; h: number } | null;
   /** the indoor's return takes duct straight on: no return plenum */
   returnSpigots?: boolean;
+  /** each of its return spigots' size, mm, where its book prints them */
+  returnSpigotsMm?: number[] | null;
   /** where the main duct splits, and where it steps down: from the layout */
   fittings?: { inMm: number; outsMm: number[]; count: number }[] | null;
   reducers?: { fromMm: number; toMm: number; count: number }[] | null;
@@ -403,6 +405,18 @@ const SPLIT: KitPart[] = [
 const faceWords = (f: { w: number; h: number }) => `${f.w} × ${f.h}`;
 const forUnit = (f: KitFacts) => (f.indoorModel ? `the ${f.indoorModel}'s` : "the unit's");
 const BOX = /\bbox\b|\bbx\b/i;
+/** the unit's return spigots as a box names them, "2 x 400", where there's more than one */
+const returnsWords = (f: KitFacts) => {
+  const all = f.returnSpigotsMm ?? [];
+  if (all.length < 2) return "";
+  return new Set(all).size === 1 ? `${all.length} × Ø${all[0]}` : all.map((mm) => `Ø${mm}`).join(" + ");
+};
+/** a return box that takes a duct from each of the unit's return spigots: "2 X 400MM" */
+function takesReturns(f: KitFacts, name: string): boolean {
+  const all = f.returnSpigotsMm ?? [];
+  if (all.length < 2 || new Set(all).size !== 1) return true;
+  return new RegExp(`\\b${all.length}\\s*x\\s*${all[0]}`, "i").test(name);
+}
 
 const DUCTED: KitPart[] = [
   ...SPLIT,
@@ -554,9 +568,30 @@ const DUCTED: KitPart[] = [
     name: "Return air box",
     needs: "Needs its size: pick it from your range",
     search: (f) => (f.returnGrille ? { text: "return box" } : null),
-    range: (f) => (f.returnGrille ? { kind: "return_grille", need: { ...f.returnGrille }, only: (n) => BOX.test(n) } : null),
-    none: (f) => `No ${faceWords(f.returnGrille!)} return box in your book`,
-    qty: (f) => ({ qty: 1, unit: "", why: f.returnGrille ? `behind the ${faceWords(f.returnGrille)} return grille` : "behind the return grille, its size to pick" }),
+    range: (f) => (f.returnGrille ? { kind: "return_grille", need: { ...f.returnGrille }, only: (n) => BOX.test(n) && takesReturns(f, n) } : null),
+    none: (f) => `No ${faceWords(f.returnGrille!)} return box${returnsWords(f) ? ` taking ${returnsWords(f)}` : ""} in your book`,
+    qty: (f) => ({ qty: 1, unit: "", why: f.returnGrille ? `behind the ${faceWords(f.returnGrille)} return grille${returnsWords(f) ? `, taking the unit's ${returnsWords(f)} return ducts, a spigot for each` : ""}` : "behind the return grille, its size to pick" }),
+  },
+  /* a return of spigots takes a duct from each into the return box, never
+     one duct into a Y (the 3465 review, 5 November 2026: the PEA-M140HAA's
+     two Ø400 return spigots went on as one Ø400 duct into a Y; Isaac, 4
+     November 2026: "the HAA has two 16 inch return spigots") */
+  {
+    key: "return-flex",
+    rule: "A 6 m bag from each of the unit's return spigots to the return box",
+    sizedBy: "Each return spigot's size",
+    shows: { kind: "flex_duct" },
+    group: "Ductwork and grilles",
+    duct: true,
+    name: "Return flex duct",
+    skip: (f) => !f.returnSpigotsMm?.length,
+    search: () => ({ text: "flex" }),
+    many: (f) =>
+      [...new Set(f.returnSpigotsMm ?? [])].map((mm) => {
+        const n = (f.returnSpigotsMm ?? []).filter((x) => x === mm).length;
+        return { kind: "flex_duct" as const, need: { mm }, qty: n, why: `from the unit's ${n === 1 ? "Ø" + mm + " return spigot" : `${n} Ø${mm} return spigots`} to the return box, a run each` };
+      }),
+    qty: () => null,
   },
   {
     key: "controller",
@@ -1088,7 +1123,7 @@ export function pipeFromMm(liquid: number, gas: number): PipeSize | null {
 export function kitFactsFrom(
   kit: KitKey,
   facts: KitFacts,
-  looked: readonly ({ found: true; specs: { role: "indoor" | "outdoor"; model: string; pipeMm: { liquid: number; gas: number } | null; mcaAmps: number | null; maxAmps: number | null; breakerA?: number | null; minCableMm2?: number | null; phase?: string | null; air?: { supply: { w: number; h: number } | null; ret: { w: number; h: number } | null; returnSpigots: boolean } } } | { found: false })[],
+  looked: readonly ({ found: true; specs: { role: "indoor" | "outdoor"; model: string; pipeMm: { liquid: number; gas: number } | null; mcaAmps: number | null; maxAmps: number | null; breakerA?: number | null; minCableMm2?: number | null; phase?: string | null; air?: { supply: { w: number; h: number } | null; ret: { w: number; h: number } | null; returnSpigots: boolean; returnSpigotsMm?: number[] } } } | { found: false })[],
   zoning: ZoningController | null,
   /** the unit's maker, its pack's key, whether its pack is installed or not */
   brand: string | null = null
@@ -1120,9 +1155,9 @@ export const vrfAskOf = (outdoor: string, f: KitFacts) => ({
   branchM: f.branchM ?? null,
 });
 
-export function indoorFacts(u: { model: string; air?: { supply: { w: number; h: number } | null; ret: { w: number; h: number } | null; returnSpigots: boolean } }): Partial<KitFacts> {
+export function indoorFacts(u: { model: string; air?: { supply: { w: number; h: number } | null; ret: { w: number; h: number } | null; returnSpigots: boolean; returnSpigotsMm?: number[] } }): Partial<KitFacts> {
   if (!u.air) return { indoorModel: u.model };
-  return { indoorModel: u.model, supplyFace: u.air.supply, returnFace: u.air.returnSpigots ? null : u.air.ret, returnSpigots: u.air.returnSpigots };
+  return { indoorModel: u.model, supplyFace: u.air.supply, returnFace: u.air.returnSpigots ? null : u.air.ret, returnSpigots: u.air.returnSpigots, returnSpigotsMm: u.air.returnSpigotsMm?.length ? u.air.returnSpigotsMm : null };
 }
 
 /** A person's kit facts made safe: numbers in range, the rest null. */

@@ -16,7 +16,8 @@ jest.mock("@/lib/tiff/extract", () => ({
   isScannedPage: (t: string) => t.trim().length < 40,
   openPdf: async () => ({ numPages: pages.length, pageText: async (n: number) => pages[n - 1] ?? "", destroy: async () => undefined }),
 }));
-import { jobFiles, lookAt, pdfWords } from "../job-files-server";
+import { jobFiles, lookAt, pdfWords, pictureWords } from "../job-files-server";
+import { imageForClaude } from "@/lib/images/for-claude";
 
 const item = (o: Record<string, unknown>) => ({ remoteId: "x", name: "x", fileType: null, kind: "photo", origin: null, takenAt: null, url: "https://store/x", width: null, height: null, fromClaim: null, ...o });
 
@@ -36,6 +37,18 @@ it("lists the cached photos and documents, no video", async () => {
     ["d1", "document"],
     ["d2", "document"],
   ]);
+});
+
+/* the 3465 review, 5 November 2026: a plan photo's room sizes unreadable whole */
+it("cuts a part of a photo to see close, saying what part of what size it is", async () => {
+  (imageForClaude as jest.Mock).mockResolvedValueOnce({ bytes: Buffer.from("jpg"), mime: "image/jpeg", size: { w: 4032, h: 3024 }, cut: { x: 2016, y: 0, w: 2016, h: 1512 } });
+  const area = { left: 0.5, top: 0, width: 0.5, height: 0.5 };
+  const seen = (await lookAt("org", "job", "p1", area)) as { type: string; text?: string }[];
+  expect(imageForClaude).toHaveBeenLastCalledWith(expect.any(Buffer), "image/jpeg", area);
+  expect(seen.map((b) => b.type)).toEqual(["image", "text"]);
+  expect(seen[1]!.text).toBe("This is part of a 4032 × 3024 px picture: from 50% across and 0% down, 50% of its width and 50% of its height (2016 × 1512 px).");
+  expect(pictureWords({ w: 4032, h: 3024 }, null)).toBe("The whole picture, 4032 × 3024 px, made smaller to send. To read small print, look at a part of it close (area).");
+  expect(pictureWords(null, null)).toBe("");
 });
 
 it("hands her a picture as an image, a PDF as a document, and says what it can't", async () => {

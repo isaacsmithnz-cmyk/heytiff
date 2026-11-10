@@ -1,5 +1,5 @@
 import "server-only";
-import { imageForClaude } from "@/lib/images/for-claude";
+import { imageForClaude, type ImageArea } from "@/lib/images/for-claude";
 import { familyMediaSources } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 import { readJobMediaGroups } from "@/lib/workboard/job-media-query";
@@ -48,6 +48,15 @@ async function pdfText(bytes: Uint8Array): Promise<string> {
   }
 }
 
+/** What she's shown of a picture: its whole size, or the part of it, so
+    she can ask for a part closer. Pure. */
+export function pictureWords(size: { w: number; h: number } | null, cut: { x: number; y: number; w: number; h: number } | null): string {
+  if (!size) return "";
+  const pct = (n: number, of: number) => Math.round((n / of) * 100);
+  if (cut) return `This is part of a ${size.w} × ${size.h} px picture: from ${pct(cut.x, size.w)}% across and ${pct(cut.y, size.h)}% down, ${pct(cut.w, size.w)}% of its width and ${pct(cut.h, size.h)}% of its height (${cut.w} × ${cut.h} px).`;
+  return `The whole picture, ${size.w} × ${size.h} px${Math.max(size.w, size.h) > 1568 ? ", made smaller to send" : ""}. To read small print, look at a part of it close (area).`;
+}
+
 async function filesOf(orgId: string, jobUuid: string): Promise<JobMediaItem[]> {
   const claims = await familyMediaSources(orgId, jobUuid).catch(() => []);
   const g = await readJobMediaGroups(orgId, jobUuid, claims);
@@ -60,7 +69,7 @@ export async function jobFiles(orgId: string, jobUuid: string): Promise<JobFile[
   return (await filesOf(orgId, jobUuid)).map((f) => ({ id: f.remoteId, name: f.name, kind: f.kind === "photo" ? "photo" : "document", taken: f.takenAt, from: f.origin }));
 }
 
-export async function lookAt(orgId: string, jobUuid: string, id: string): Promise<(MediaBlock | TextBlock)[] | string> {
+export async function lookAt(orgId: string, jobUuid: string, id: string, area: ImageArea | null = null): Promise<(MediaBlock | TextBlock)[] | string> {
   const f = (await filesOf(orgId, jobUuid)).find((x) => x.remoteId === id);
   if (!f?.url) return "That file isn't on the job, or isn't here yet.";
   const res = await fetch(f.url).catch(() => null);
@@ -75,7 +84,8 @@ export async function lookAt(orgId: string, jobUuid: string, id: string): Promis
     ];
   }
   if (f.kind !== "photo" && !/image|jpe?g|png|webp|heic/i.test(f.fileType ?? "")) return "She can look at pictures and PDFs only.";
-  const image = await imageForClaude(bytes, res.headers.get("content-type"));
+  const image = await imageForClaude(bytes, res.headers.get("content-type"), area);
   if (!image) return "That picture couldn't be read.";
-  return [{ type: "image", source: { type: "base64", media_type: image.mime, data: image.bytes.toString("base64") } }];
+  const said = pictureWords(image.size ?? null, image.cut ?? null);
+  return [{ type: "image", source: { type: "base64", media_type: image.mime, data: image.bytes.toString("base64") } }, ...(said ? [{ type: "text" as const, text: said }] : [])];
 }

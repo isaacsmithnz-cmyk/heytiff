@@ -150,6 +150,21 @@ function changeOf(raw: unknown): AnswerChange | null {
   return null;
 }
 
+/** A part of a photo to see close, made safe: fractions inside the picture,
+    never smaller than a twentieth of it; null for the whole. */
+export function areaOf(raw: unknown): { left: number; top: number; width: number; height: number } | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const f = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : null);
+  const [left, top, width, height] = [f(r.left), f(r.top), f(r.width), f(r.height)];
+  if (left == null || top == null || width == null || height == null) return null;
+  const MIN = 0.05;
+  const l = Math.min(left, 1 - MIN), t = Math.min(top, 1 - MIN);
+  const w = Math.max(MIN, Math.min(width, 1 - l)), h = Math.max(MIN, Math.min(height, 1 - t));
+  const r3 = (n: number) => Math.round(n * 1000) / 1000;
+  return w >= 1 && h >= 1 ? null : { left: r3(l), top: r3(t), width: r3(w), height: r3(h) };
+}
+
 export function questionOf(raw: unknown): Question | Err {
   const r = obj(raw);
   const question = str(r.question, 300);
@@ -487,8 +502,22 @@ export const SESSION_TOOLS: ToolDef[] = [
   {
     name: "look_at",
     description:
-      "Look at one of the job's photos or PDFs by its id from job_files: a floor plan for its rooms and their sizes, a switchboard for its phase and whether it has room for a circuit, a site photo for access. Say what you read, and ask to confirm what the quote rests on.",
-    input_schema: { type: "object", properties: { id: { type: "string" } }, required: ["id"], additionalProperties: false },
+      "Look at one of the job's photos or PDFs by its id from job_files: a floor plan for its rooms and their sizes, a switchboard for its phase and whether it has room for a circuit, a site photo for access. On a photo, area shows a part of it close, cut from the full-size picture: a plan's printed dimensions, its scale bar, a room's figures too small to read whole. Say what you read, and ask to confirm what the quote rests on.",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        area: {
+          type: "object",
+          description: "A photo's part to see close, as fractions of its width and height from its top left: the top right quarter is left 0.5, top 0, width 0.5, height 0.5.",
+          properties: { left: { type: "number" }, top: { type: "number" }, width: { type: "number" }, height: { type: "number" } },
+          required: ["left", "top", "width", "height"],
+          additionalProperties: false,
+        },
+      },
+      required: ["id"],
+      additionalProperties: false,
+    },
   },
   {
     name: "your_corrections",

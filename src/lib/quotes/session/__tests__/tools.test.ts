@@ -64,7 +64,8 @@ const BOOK = [
 ];
 jest.mock("../../book-view-server", () => ({ bookProducts: jest.fn(async () => BOOK) }));
 
-import { bookPrice, isErr, kitAskOf, newLineOf, patchOf, questionOf, SESSION_TOOLS } from "../tools";
+import { areaOf, bookPrice, isErr, kitAskOf, newLineOf, patchOf, questionOf, SESSION_TOOLS } from "../tools";
+import { lookAt } from "../job-files-server";
 import { sessionTools } from "../tools-server";
 import { readLines } from "../../lines-server";
 import { lookupCharge, lookupPairing, lookupUnit } from "../../lookups-server";
@@ -298,6 +299,17 @@ describe("her tools, run", () => {
     } finally {
       (readLines as jest.Mock).mockImplementation(was);
     }
+  });
+
+  /* the 3465 review, 5 November 2026: a plan's small print read close */
+  it("looks at a part of a photo close, the part made safe", async () => {
+    (lookAt as jest.Mock).mockResolvedValueOnce([{ type: "text", text: "seen" }]);
+    const out = await run("look_at", { id: "p1", area: { left: 0.5, top: 0, width: 0.5, height: 0.5 } });
+    expect(lookAt).toHaveBeenLastCalledWith("org-1", "job-1", "p1", { left: 0.5, top: 0, width: 0.5, height: 0.5 });
+    expect(out).toMatchObject({ ok: true, said: "p1, close", value: { area: { left: 0.5 } } });
+    expect(areaOf({ left: 0.98, top: -1, width: 3, height: 0.01 })).toEqual({ left: 0.95, top: 0, width: 0.05, height: 0.05 });
+    expect(areaOf({ left: 0, top: 0, width: 1, height: 1 })).toBeNull();
+    expect(areaOf({ left: 0.2 })).toBeNull();
   });
 
   /* Isaac, 2026-10-11: answered in his own words, as in the chat */

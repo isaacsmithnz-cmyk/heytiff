@@ -22,6 +22,7 @@ import { fitRead } from "./read-fit";
 import { airflowCheck, airflowSaid, type AirflowGuide } from "@/lib/guides/airflow";
 import { fitDesignRead, type JobDesign } from "../design-read";
 import { hoursNotOnLines, isLabourAsk, labourPut } from "./labour-ask";
+import { measureAskOf, measurePlan } from "./plan-measure";
 import { airflowAskOf, areaOf, bookPrice, isErr, kitAskOf, LABOUR_HAS_NO_PRICE, newLineOf, patchOf, questionOf, roomLoads, TOOL_LABELS, type NewLine } from "./tools";
 
 /* TIFF'S TOOLS, RUN (tools.ts says what each is and what holds her to the
@@ -75,6 +76,8 @@ export type QuoteStore = {
   /** one of them as she sees it, or why she can't */
   /** a file handed to her, with any words that stay once it's dropped */
   look: (id: string, area?: { left: number; top: number; width: number; height: number } | null) => Promise<(MediaBlock | TextBlock)[] | string>;
+  /** a photo's full size, upright, to measure a plan off it; or why not */
+  pictureSize: (id: string) => Promise<{ w: number; h: number } | string>;
   /** the business's own task hours and working day (slice 8.1) */
   taskHours: () => Promise<{ hours: Record<TaskKey, number | null>; dayHours: number | null }>;
   /** her questions still open, by their numbers: what a person's own words can settle */
@@ -394,6 +397,17 @@ function makeToolRun(store: QuoteStore) {
         if (typeof seen === "string") return fail(seen);
         const name = (await store.jobFiles()).find((f) => f.id === id)?.name ?? id;
         return { ok: true, label, said: area ? `${name}, close` : name, value: { looking_at: name, ...(area ? { area } : {}) }, media: seen };
+      }
+      case "measure_plan": {
+        const id = typeof input.id === "string" ? input.id.slice(0, 120) : "";
+        if (!id) return fail("Name the plan photo by its id from job_files.");
+        const ask = measureAskOf(input);
+        if (isErr(ask)) return fail(ask.error);
+        const size = await store.pictureSize(id);
+        if (typeof size === "string") return fail(size);
+        const v = measurePlan(size, ask);
+        if (isErr(v)) return fail(v.error);
+        return { ok: true, label, said: v.rooms.map((r) => `${r.name} ${r.area_m2} m²`).join(", ").slice(0, 200), value: v };
       }
       case "your_corrections": {
         const sameKind = input.every_kind !== true;

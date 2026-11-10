@@ -200,6 +200,15 @@ const lineFields = {
   duct: { type: "boolean", description: "True for ductwork, grilles and the return: what the duct contingency covers." },
 };
 
+/** The part of a photo a measure's points were marked on, as look_at's area took it; none, the whole picture. */
+const MEASURE_AREA = {
+  type: "object",
+  description: "The area you looked at close when you marked these points, as you gave it to look_at",
+  properties: { left: { type: "number" }, top: { type: "number" }, width: { type: "number" }, height: { type: "number" } },
+  required: ["left", "top", "width", "height"],
+  additionalProperties: false,
+} as const;
+
 export const SESSION_TOOLS: ToolDef[] = [
   {
     name: "read_quote",
@@ -520,6 +529,51 @@ export const SESSION_TOOLS: ToolDef[] = [
     },
   },
   {
+    name: "measure_plan",
+    description:
+      "Measure rooms off a plan photo that doesn't print their sizes, against one dimension it does print (an overall width, a wall) or its scale bar. Read that figure close first (look_at's area). Mark the dimension line's two ends (its arrows or ticks) and each room's corners on its inside wall lines, as fractions of the picture from its top left, or of the area you looked at close (give that area). Gives each room's m² for room_load, worked out here: never work a size out yourself. The sizes are assumed until someone confirms them.",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "The plan photo's id from job_files" },
+        known: {
+          type: "object",
+          properties: {
+            mm: { type: "number", description: "The printed figure, in mm" },
+            what: { type: "string", description: "Which dimension it is: \"the 7440 overall width\"" },
+            from: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"], additionalProperties: false },
+            to: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"], additionalProperties: false },
+            area: MEASURE_AREA,
+          },
+          required: ["mm", "what", "from", "to"],
+          additionalProperties: false,
+        },
+        rooms: {
+          type: "array",
+          maxItems: 30,
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              corners: {
+                type: "array",
+                minItems: 3,
+                maxItems: 12,
+                description: "Its corners in order round the room: four for a plain room, six for an L",
+                items: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"], additionalProperties: false },
+              },
+              area: MEASURE_AREA,
+            },
+            required: ["name", "corners"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["id", "known", "rooms"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "your_corrections",
     description:
       "What people changed on the lines you wrote on this business's past quotes, newest first: on this kind of job, unless every_kind. Read it before you build, and don't make the same mistake twice.",
@@ -725,6 +779,7 @@ export const TOOL_LABELS: Record<string, string> = {
   your_corrections: "Read her corrections",
   job_files: "Listed the job's files",
   look_at: "Looked at",
+  measure_plan: "Measured the plan",
   read_design: "Read the design",
   compare_with: "Added to the compare",
   airflow_check: "Checked the air",

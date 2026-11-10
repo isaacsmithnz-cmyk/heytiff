@@ -123,6 +123,7 @@ export function memoryStore(opts: {
     corrections: async () => [],
     jobFiles: async () => [],
     look: async () => "The bench has no files.",
+    pictureSize: async () => "The bench has no files.",
     book: async () => opts.products,
     hourCost: async () => opts.hourCostCents,
     lookupUnit: async (brand, model) => (opts.lookup ? opts.lookup(brand, model) : (opts.units?.[model.toUpperCase()] ?? { found: false, reason: "no data pack" })),

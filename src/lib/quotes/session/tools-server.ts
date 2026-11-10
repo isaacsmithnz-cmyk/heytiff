@@ -57,7 +57,7 @@ export function dbStore(orgId: string, jobUuid: string): QuoteStore {
     book: () => (products ??= bookProducts(orgId)),
     supplier: () => (supplier ??= jobUuid ? readByHand(orgId, jobUuid).then((b) => b.supplier) : Promise.resolve(null)),
     jobFiles: () => (jobUuid ? jobFiles(orgId, jobUuid) : Promise.resolve([])),
-    look: (id) => (jobUuid ? lookAt(orgId, jobUuid, id) : Promise.resolve("There's no job to look at.")),
+    look: (id, area) => (jobUuid ? lookAt(orgId, jobUuid, id, area ?? null) : Promise.resolve("There's no job to look at.")),
     corrections: async (sameKind) => readCorrections(orgId, { kind: sameKind && jobUuid ? await jobKind(orgId, jobUuid) : null }),
     hourCost: () =>
       (hour ??= Promise.all([readQuoteSettings(orgId), readOrgDay(orgId)]).then(([s, d]) =>

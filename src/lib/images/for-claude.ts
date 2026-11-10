@@ -31,20 +31,38 @@ export const MAX_EDGE = 1568;
     the bytes we have and pay a few tokens more, not to quietly mark every
     photograph in the workspace as unreadable. That failure would have looked
     exactly like "the reader doesn't work" with nothing in any log. */
+/** A part of a picture, as fractions of its width and height from its top left. */
+export type ImageArea = { left: number; top: number; width: number; height: number };
+
 export async function imageForClaude(
   bytes: Buffer,
   /** The row's stored mime — NOT derived from the name, which in this mirror
       is the extensionless string `Photo` for every photograph there is. */
-  storedMime: string | null
-): Promise<{ bytes: Buffer; mime: "image/jpeg" | "image/png" | "image/webp" | "image/gif" } | null> {
+  storedMime: string | null,
+  /** only this part, cut from the full-size picture before it's made the
+      size sent: small print on a plan read close (the 3465 review, 5
+      November 2026: a plan photo's room sizes unreadable at 1568 px whole) */
+  area: ImageArea | null = null
+): Promise<{ bytes: Buffer; mime: "image/jpeg" | "image/png" | "image/webp" | "image/gif"; size?: { w: number; h: number }; cut?: { x: number; y: number; w: number; h: number } } | null> {
   try {
     const sharp = (await import("sharp")).default;
-    const out = await sharp(bytes)
-      .rotate() // honour EXIF orientation, or a portrait plate arrives sideways
+    // honour EXIF orientation, or a portrait plate arrives sideways
+    /* decoded once, as raw pixels: re-encoding the original (an AVIF) to cut it would cost more than the cut */
+    const turned = await sharp(bytes).rotate().raw().toBuffer({ resolveWithObject: true });
+    const raw = { raw: { width: turned.info.width, height: turned.info.height, channels: turned.info.channels } };
+    const size = { w: turned.info.width, h: turned.info.height };
+    const cut = area
+      ? (() => {
+          const x = Math.min(size.w - 1, Math.round(area.left * size.w));
+          const y = Math.min(size.h - 1, Math.round(area.top * size.h));
+          return { x, y, w: Math.max(1, Math.min(size.w - x, Math.round(area.width * size.w))), h: Math.max(1, Math.min(size.h - y, Math.round(area.height * size.h))) };
+        })()
+      : undefined;
+    const out = await (cut ? sharp(turned.data, raw).extract({ left: cut.x, top: cut.y, width: cut.w, height: cut.h }) : sharp(turned.data, raw))
       .resize({ width: MAX_EDGE, height: MAX_EDGE, fit: "inside", withoutEnlargement: true })
       .jpeg({ quality: 82 })
       .toBuffer();
-    return { bytes: out, mime: "image/jpeg" };
+    return { bytes: out, mime: "image/jpeg", size, ...(cut ? { cut } : {}) };
   } catch (e) {
     console.error("[images] could not re-encode, sending as-is:", e);
     /* Only the four the block actually accepts. An AVIF with no sharp to

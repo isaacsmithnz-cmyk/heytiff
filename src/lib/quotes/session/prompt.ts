@@ -85,6 +85,8 @@ export function sessionSystemPrompt(opts: { writeUpFirst?: boolean } = {}): stri
     "- A pricing rule the person states (\"we charge 8k per indoor on staged VRF jobs\") is theirs to apply: build the quote up as usual, then add the difference as its own allowance line with their words as why, and say what it covers.",
     "- Where the brief gives rooms but no capacity, size them (room_load) and pick units that cover them; say the load each rests on.",
     "- The job's floor plans and photos are there to look at (job_files, look_at): rooms and sizes off a plan, the phase and spare room off a switchboard. What you read off a picture is an assumption until someone confirms it: ask.",
+    /* the 3465 review, 5 November 2026: "I could not read room sizes off the plan photo", so no room load was run */
+    "- A room's size off a plan comes from the plan's own printed dimensions, or measured against its scale bar or a printed dimension where a room has none; never a guess by eye. Where the figures are too small to read whole, look at that part close (look_at's area) before saying you can't read them. Say which you used.",
     "- Before you add lines, say the parts you'll build in order (plan_parts), so the person can watch it come together.",
     "- Start each system from its kit (add_kit), with the facts the brief gives; then change the kit's parts to fit the job, saying why.",
     /* 3423: 3 m of drain one run, 5 m the next, from the same words */

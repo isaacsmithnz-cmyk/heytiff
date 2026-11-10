@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode, type Ref } from "react";
+import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode, type Ref } from "react";
 import { Icon } from "@/components/shell/icon";
 import { appendSpoken, LiveWords, type DictationState } from "@/components/notes/dictation";
 import { Fixing, SpeakBar } from "@/components/conversations/speak-bar";
+import { usePeople } from "@/components/notes/use-people";
+import { nameRuns } from "@/lib/staff/people-named";
 
 /* THE BOX, THE PHONE'S (heytiff-mobile src/components/Talk.tsx, `Composer`).
    Isaac, 9 November 2026: "I want to make the web entry box the same as the
@@ -109,6 +111,19 @@ export function CvBox({
      grey, until they land (the phone's `hearing`) */
   const hearing = !!dict?.transcribing;
   const shown = hearing && dict?.interim ? appendSpoken(value, dict.interim) : value;
+  /* A PERSON ON THE WORKSPACE, TYPED: their name in blue, so you can see
+     Tiff has them, as the phone's box (Isaac, 11 November 2026). The words
+     are drawn again behind the textarea with the name in blue (shell.css,
+     `.cv-mirror`), and kept level with it as it scrolls. */
+  const people = usePeople();
+  const runs = nameRuns(shown, people);
+  const named = runs.some((r) => r.name);
+  const mirror = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const m = mirror.current;
+    const t = m?.nextElementSibling;
+    if (m && t) m.scrollTop = t.scrollTop;
+  });
   return (
     <form
       className={`cv-box${speaking ? " cv-box--speaking" : ""}`}
@@ -137,21 +152,41 @@ export function CvBox({
       ) : (
         <div className="cv-field">
           {before}
-          <textarea
-            ref={boxRef}
-            className={`cv-words${hearing ? " cv-words--hearing" : ""}`}
-            rows={1}
-            value={shown}
-            aria-label={label}
-            placeholder={placeholder}
-            disabled={hearing}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
-              e.preventDefault();
-              if (!waiting && !empty) onSubmit();
-            }}
-          />
+          <div className="cv-wordsat">
+            {named && (
+              <div ref={mirror} className={`cv-words cv-mirror${hearing ? " cv-words--hearing" : ""}`} aria-hidden="true">
+                {runs.map((r, i) =>
+                  r.name ? (
+                    <span key={i} className="cv-named">
+                      {r.text}
+                    </span>
+                  ) : (
+                    <Fragment key={i}>{r.text}</Fragment>
+                  ),
+                )}
+                {/* a textarea keeps the height of a last empty line; a div only with something on it */}
+                {shown.endsWith("\n") ? "​" : null}
+              </div>
+            )}
+            <textarea
+              ref={boxRef}
+              className={`cv-words${hearing ? " cv-words--hearing" : ""}${named ? " cv-words--named" : ""}`}
+              rows={1}
+              value={shown}
+              aria-label={label}
+              placeholder={placeholder}
+              disabled={hearing}
+              onChange={(e) => onChange(e.target.value)}
+              onScroll={(e) => {
+                if (mirror.current) mirror.current.scrollTop = e.currentTarget.scrollTop;
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
+                e.preventDefault();
+                if (!waiting && !empty) onSubmit();
+              }}
+            />
+          </div>
           {hearing && <Fixing />}
           <div className="cv-boxbar">
             {lead}

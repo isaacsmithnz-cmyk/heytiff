@@ -6,6 +6,8 @@ import { playChime } from "@/lib/voice/chime";
 import { clearRun, markStopped, markTranscript } from "@/lib/voice/timing";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 import { morphWords, type Said } from "@/lib/voice/morph-words";
+import { nameRuns, namedWords } from "@/lib/staff/people-named";
+import { usePeople } from "@/components/notes/use-people";
 
 /* Dictation, extracted from the note pill so every box you'd type a paragraph
    into can have it (Isaac, 2026-08-02: "anywhere that you need to enter notes
@@ -919,6 +921,14 @@ export function LiveWords({
   /* the words as they're shown, each named against the guess before */
   const [river, setRiver] = useState<{ text: string; words: Said[]; next: number }>({ text: "", words: [], next: 0 });
   if (river.text !== text) setRiver({ text, ...morphWords(river.words, text, river.next) });
+  /* A PERSON ON THE WORKSPACE, SAID: in blue as you say it, as the phone's
+     (Isaac, 11 November 2026): what you'd typed and the words as heard. */
+  const people = usePeople();
+  const saidRuns = nameRuns(said.trim(), people);
+  const riverNamed = namedWords(
+    river.words.map((s) => s.w),
+    people,
+  );
 
   /* A LAYOUT EFFECT: the motions start, and the box rides to the newest
      word, before the frame is painted, so no word is ever seen in its new
@@ -950,7 +960,8 @@ export function LiveWords({
           { duration: FIX_MS, delay: FIX_DELAY_MS, easing: "ease-out", fill: "backwards" },
         );
         const grey = getComputedStyle(span).color;
-        span.animate({ color: [ink, ink, grey], offset: [0, 0.3, 1] }, { duration: SETTLE_MS, easing: "ease-out" });
+        /* a name is blue from the moment it's heard, as the phone's: no ink first */
+        if (!span.classList.contains("cv-named")) span.animate({ color: [ink, ink, grey], offset: [0, 0.3, 1] }, { duration: SETTLE_MS, easing: "ease-out" });
       } else {
         span.animate({ opacity: [0, 1], transform: ["translateY(3px)", "none"] }, { duration: ADD_MS, easing: "ease-out", fill: "backwards" });
       }
@@ -1020,12 +1031,22 @@ export function LiveWords({
           out of here "theatthreehundred". */}
       {said.trim() && (
         <>
-          <span className="wb2-lwsaid">{said.trim()}</span>{" "}
+          <span className="wb2-lwsaid">
+            {saidRuns.map((r, i) =>
+              r.name ? (
+                <span key={i} className="cv-named">
+                  {r.text}
+                </span>
+              ) : (
+                <Fragment key={i}>{r.text}</Fragment>
+              ),
+            )}
+          </span>{" "}
         </>
       )}
-      {river.words.map((word) => (
+      {river.words.map((word, i) => (
         <Fragment key={word.id}>
-          <span className="wb2-lw" data-w={word.id}>
+          <span className={riverNamed[i] ? "wb2-lw cv-named" : "wb2-lw"} data-w={word.id}>
             {word.w}
           </span>{" "}
         </Fragment>

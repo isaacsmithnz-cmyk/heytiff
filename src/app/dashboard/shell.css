@@ -8155,3 +8155,61 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .pt-dialog .jpl-page { display:flex; flex-direction:column; gap:4px; width:120px; }
 .pt-dialog .jpl-page img { display:block; width:120px; height:85px; object-fit:cover; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); }
 .pt-dialog .jpl-page span { font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+
+/* STOCK (components/stock/stock-page.tsx): the shopping list and By job, in
+   the phone's look on the desktop, its groups white cards lifted off the
+   page with the card shadow, as Home's columns are (Isaac, 11 November
+   2026: "the app versions of everything look so much nicer") */
+.fg .stk { display:flex; flex-direction:column; gap:16px; min-width:0; box-sizing:border-box; padding:24px 32px 48px; font-family:var(--font); color:var(--ink); }
+.fg .stk-head { display:flex; align-items:center; justify-content:space-between; gap:24px; }
+.fg .stk-head h1 { margin:0; font-size:24px; line-height:32px; font-weight:600; }
+.fg .stk-note { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.fg .stk-cols { display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:24px; align-items:start; }
+.fg .stk-col { display:flex; flex-direction:column; gap:16px; min-width:0; }
+.fg .stk-sec { display:flex; flex-direction:column; gap:8px; }
+.fg .stk-sec h2 { margin:0 0 0 16px; font-size:13px; line-height:18px; font-weight:600; color:var(--q); }
+.fg .stk-sec h2.stk-h--look { color:var(--orange-w); }
+.fg .stk-card { margin:0; padding:0; list-style:none; background:var(--white); border-radius:var(--r-card); box-shadow:var(--shadow-card); overflow:hidden; }
+.fg .stk-card ul { margin:0; padding:0; list-style:none; }
+.fg .stk-row { display:flex; align-items:center; gap:12px; min-height:56px; padding:8px 16px; border-top:1px solid var(--line); }
+.fg .stk-card > .stk-row:first-child, .fg .stk-card ul > .stk-row:first-child { border-top:0; }
+.fg .stk-mid { flex:1; min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:0; padding:4px 0; border:0; background:none; text-align:left; font:inherit; color:inherit; cursor:pointer; border-radius:var(--r-control); }
+.fg .stk-mid:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .stk-mid--static { cursor:default; }
+.fg .stk-t { display:block; max-width:100%; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .stk-s { display:block; max-width:100%; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.fg .stk-wrap { white-space:normal; }
+.fg .stk-n { flex:none; min-width:24px; text-align:right; font-size:16px; line-height:24px; font-weight:700; font-variant-numeric:tabular-nums; }
+.fg .stk-n--s { font-size:13px; line-height:18px; font-weight:600; min-width:20px; color:var(--q); }
+.fg .stk-tick { flex:none; display:grid; place-items:center; width:28px; height:28px; padding:0; border-radius:50%; border:2px solid var(--edge); background:var(--white); color:var(--white); cursor:pointer; transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .stk-tick--part { border-color:var(--press); }
+.fg .stk-tick--on { border-color:var(--press); background:var(--press); }
+.fg .stk-tick:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .stk-order { padding:12px 0 0; }
+.fg .stk-sup { padding:0 16px 4px; font-size:16px; line-height:24px; font-weight:600; }
+.fg .stk-lines li { display:flex; gap:8px; align-items:baseline; padding:4px 16px; font-size:13px; line-height:18px; }
+.fg .stk-li { flex:1; min-width:0; }
+.fg .stk-q { color:var(--q); }
+.fg .stk-q--look { color:var(--orange-w); font-weight:600; }
+.fg .stk-foot { display:flex; gap:8px; padding:8px 16px 16px; }
+.fg .stk-ask { display:flex; flex-direction:column; gap:4px; padding:12px 16px 16px; border-top:1px solid var(--line); }
+.fg .stk-card > .stk-ask:first-child, .fg .stk-job > .stk-ask { border-top:0; }
+.fg .stk-job > .stk-ask { border-top:1px solid var(--line); }
+.fg .stk-askrow { display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
+.fg .stk-jl { color:var(--ink); font-weight:600; text-decoration:none; }
+.fg .stk-jl:hover { color:var(--press); }
+.fg .stk-jl:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
+.fg .stk-masonry { columns:2; column-gap:24px; }
+.fg .stk-masonry > .stk-job { display:inline-block; width:100%; margin:0 0 16px; break-inside:avoid; }
+.fg .stk-jh { display:flex; align-items:center; gap:12px; width:100%; padding:12px 16px; border:0; background:none; text-align:left; font:inherit; color:inherit; }
+.fg .stk-jh:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .stk-jh[aria-expanded] { cursor:pointer; }
+.fg .stk-num { flex:none; display:grid; place-items:center; align-self:stretch; min-width:52px; min-height:52px; padding:0 8px; border-radius:var(--r-button); background:var(--sc-hue, var(--q)); color:var(--white); font-size:14px; line-height:20px; font-weight:700; font-variant-numeric:tabular-nums; }
+.fg .stk-num.sc-card--yellow { color:var(--ink); }
+.fg .stk-jf { display:flex; justify-content:space-between; gap:12px; padding:8px 16px 12px; border-top:1px solid var(--line); font-size:12px; line-height:16px; color:var(--q); }
+.pt-dialog .stk-dsub { margin:0 0 16px; font-size:14px; line-height:20px; color:var(--q); }
+.pt-dialog .stk-share { margin:16px 0 0; padding:0; list-style:none; }
+.pt-dialog .stk-share li { display:grid; grid-template-columns:64px minmax(0,1fr) auto; gap:12px; align-items:center; padding:8px 0; border-top:1px solid var(--line); font-size:14px; line-height:20px; }
+.pt-dialog .stk-share .stk-t { font-weight:600; }
+.pt-dialog .stk-share .stk-s { color:var(--q); font-size:13px; }
+@media (max-width:900px) { .fg .stk-cols { grid-template-columns:minmax(0,1fr); } .fg .stk-masonry { columns:1; } }

@@ -6,6 +6,7 @@ import { readSm8QuoteBrief } from "../sm8-quote-brief-server";
 import { readStoredProposal } from "../old-draft-server";
 import { designsOnJob } from "../design-read-server";
 import { scopeWords } from "@/lib/jobs/job-scope";
+import { suppliedWords } from "@/lib/jobs/supplied-scope";
 import { readStoredJobScope } from "@/lib/workboard/job-scope-server";
 import { jobSources, type JobSource } from "./job-sources";
 
@@ -29,7 +30,8 @@ export async function readJobSources(orgId: string, cardId: string): Promise<{ s
   ]);
   return jobSources({
     description: (job.data as { job_description: string | null } | null)?.job_description ?? null,
-    scope: scope ? scopeWords(scope) : null,
+    /* the quoted scope, and what the job was supplied with, its fine print among it */
+    scope: scope ? [scopeWords(scope), scope.supplied ? `What the job was supplied with:\n${suppliedWords(scope.supplied)}` : ""].filter(Boolean).join("\n\n") : null,
     sm8Quote,
     notes: [
       ...theirs.map((n) => ({ id: `sm8-${n.remoteId}`, text: n.text, at: n.writtenAt, by: n.writtenBy })),

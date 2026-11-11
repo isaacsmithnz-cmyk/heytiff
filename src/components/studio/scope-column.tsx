@@ -110,7 +110,7 @@ export function ScopeColumn({ jobUuid, jobNumber, onClose }: { jobUuid: string; 
       <div className="ds-scope-b">
         <div className="jov">
           {scope ? (
-            <JobScope scope={scope} reading={reading || working} onUndo={undo} updateHref={quoteHref(jobUuid, { update: true })} />
+            <JobScope scope={scope} reading={reading || working} onUndo={undo} updateHref={quoteHref(jobUuid, { update: true })} sideBySide={false} />
           ) : scope === null ? (
             <JobSection name="Scope" icon="file" hue="pink" className="jov-summary">
               <p className="ds-scope-none">{wrong ?? "No scope written yet"}</p>

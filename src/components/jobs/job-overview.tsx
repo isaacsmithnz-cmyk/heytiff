@@ -12,7 +12,7 @@ import type { StoryEntry } from "@/lib/workboard/job-story";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import { JobConversation, type ConversationDiary } from "./job-conversation";
 import { JobFacts } from "./job-facts";
-import { JobScope } from "./job-scope";
+import { JobScope, type ScopeView } from "./job-scope";
 import { JobSummary } from "./job-summary";
 import type { JobScopeRead } from "@/lib/jobs/job-scope";
 import { JobTodo } from "./job-todo";
@@ -282,6 +282,9 @@ export function JobOverview({
 
   /* a task's own form over the page, from To do (Isaac, 24 October 2026) */
   const [openTask, setOpenTask] = useState<string | null>(null);
+  /* the Scope card's tray; Side by side takes the card across the page, above the columns */
+  const [scopeView, setScopeView] = useState<ScopeView>("quoted");
+  const sideBySide = scopeView === "side" && !!brief?.supplied;
   const today = read?.today ?? null;
   const tasks = (read?.tasks ?? []).filter((t) => !ticked.has(t.id));
   const what = (detail?.description ?? fallbackWhat ?? "").trim();
@@ -300,11 +303,12 @@ export function JobOverview({
         onEditContact={doors.onEditContact}
       />
       {under}
+      {sideBySide && brief && <JobScope scope={brief} part="scope" view="side" onView={setScopeView} />}
       <div className="jov-cols">
         <div className={`jov-main${mainFits ? " jov-main--stick" : ""}`} ref={mainRef}>
           {moneyVisible && cardId && tracker !== "none" && <JobTracker read={tracker} jobId={cardId} onRead={setTracker} />}
           {brief ? (
-            <JobScope scope={brief} reading={scopeReading} onUndo={onUndoScope} onLeave={onLeaveScope} updateHref={scopeUpdateHref} />
+            <JobScope scope={brief} reading={scopeReading} onUndo={onUndoScope} onLeave={onLeaveScope} updateHref={scopeUpdateHref} view={scopeView} onView={setScopeView} part={sideBySide ? "rest" : "all"} />
           ) : (
             <JobSummary fromQuote={read?.summary ?? null} description={what} read={readDone || !!read || (!cardId && !loading)} />
           )}

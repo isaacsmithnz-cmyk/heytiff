@@ -25,6 +25,9 @@ const readJobStoryForSummary = jest.fn();
 jest.mock("../all-jobs-query", () => ({ resolveJobCard: async (_o: string, id: string) => ({ parentRemoteId: id }) }));
 jest.mock("../query", () => ({ getSm8Timezone: async () => "Australia/Sydney" }));
 jest.mock("../job-summary", () => ({ readJobStoryForSummary: (...a: unknown[]) => readJobStoryForSummary(...a) }));
+/* what the job was supplied with (supplied-scope-server.ts): none unless a test says */
+const suppliedNow = jest.fn();
+jest.mock("@/lib/jobs/supplied-scope-server", () => ({ suppliedNow: (...a: unknown[]) => suppliedNow(...a) }));
 
 import { refreshJobScope, takeOffQuoteRail, undoJobScope } from "../job-scope-server";
 import { scopeStamp } from "@/lib/jobs/job-scope";
@@ -62,6 +65,7 @@ beforeEach(() => {
   guarded.mockClear();
   updated.mockReset().mockResolvedValue({ data: [{ job_uuid: "j-1" }], error: null });
   readJobStoryForSummary.mockReset().mockResolvedValue(story());
+  suppliedNow.mockReset().mockResolvedValue({ scope: null, stamp: null, fresh: false });
 });
 
 it("writes the scope when the job has none, from its story without the money", async () => {
@@ -191,5 +195,38 @@ describe("the quote's rail", () => {
     expect(res.ok && res.scope?.added).toEqual([PUMP]);
     expect(update.mock.calls[0][0]).toMatchObject({ since_priced: [] });
     expect(update.mock.calls[0][0]).not.toHaveProperty("brief");
+  });
+});
+
+describe("what the job was supplied with", () => {
+  const SUPPLIED = { lede: "Watershed's tender set, Issue G.", systems: [{ area: "First floor", kind: "Ducted", text: "Two FXDQ40 and an FXDQ50.", from: ["CD106"] }], fine: [{ text: "Refrigerant GWP 700 or under", from: "Spec 0702, page 180" }], notOurs: [], clarify: [] };
+
+  it("writes both scopes for a job made before October once its plans are read, the quoted one starting from the supplied", async () => {
+    readJobStoryForSummary.mockResolvedValue(story({ createdOn: "2026-05-04 00:00:00", status: "Work Order" }));
+    suppliedNow.mockResolvedValue({ scope: SUPPLIED, stamp: "sup-1", fresh: true });
+    const { create, client: c } = client();
+    const res = await refreshJobScope("org", "j-1", c);
+    expect(res).toMatchObject({ ok: true, wrote: true, scope: { supplied: SUPPLIED } });
+    const prompt = (create.mock.calls[0] as unknown as [{ messages: { content: string }[] }])[0].messages[0].content;
+    expect(prompt).toContain("The supplied scope");
+    expect(prompt).toContain("Two FXDQ40 and an FXDQ50");
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ supplied: SUPPLIED, supplied_stamp: "sup-1", brief_supplied_stamp: "sup-1" }), { onConflict: "org_id,job_uuid" });
+  });
+
+  it("writes the quoted scope again when the supplied one moves, though no note has", async () => {
+    maybeSingle.mockResolvedValue({ data: row({ story_stamp: STAMP, supplied: SUPPLIED, supplied_stamp: "sup-1", brief_supplied_stamp: "sup-1" }) });
+    suppliedNow.mockResolvedValue({ scope: { ...SUPPLIED, lede: "Issue H." }, stamp: "sup-2", fresh: true });
+    const { create, client: c } = client();
+    await refreshJobScope("org", "j-1", c);
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ supplied_stamp: "sup-2", brief_supplied_stamp: "sup-2" }));
+  });
+
+  it("costs no read while neither the story nor the supplied scope has moved", async () => {
+    maybeSingle.mockResolvedValue({ data: row({ story_stamp: STAMP, supplied: SUPPLIED, supplied_stamp: "sup-1", brief_supplied_stamp: "sup-1" }) });
+    suppliedNow.mockResolvedValue({ scope: SUPPLIED, stamp: "sup-1", fresh: false });
+    const { create, client: c } = client();
+    expect(await refreshJobScope("org", "j-1", c)).toMatchObject({ ok: true, wrote: false, scope: { supplied: SUPPLIED } });
+    expect(create).not.toHaveBeenCalled();
   });
 });

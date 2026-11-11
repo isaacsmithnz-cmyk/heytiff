@@ -460,6 +460,20 @@ the fourth on the customer's messages, below).
   pressed in, and every design, the roof and the quote read from that
   ("Go that").
 
+- **A job supplied with plans has two scopes, and a tray to switch them**
+  (`job-scope.tsx`, the tray rule 30's own `Tray` in the Scope card's head;
+  Isaac, 11 November 2026, on https://claude.ai/artifact/6FP52g4ropVpfAqqzNLk2c:
+  "supplied scope and quoted scope ... a toggle switcher ... side by side
+  for comparisons", then "Yes, that's it"). Quoted, Supplied, Side by side;
+  the card's title is the chosen scope's name. The quoted scope is the brief
+  the quote is built from, and each system that departs from what was
+  supplied says Differs in grey (rule 17, for your information). The
+  supplied scope is what the plans, the specification and the builder's
+  emails asked for, kept as read, with its fine print, and "Read on" its
+  day under the title. Side by side takes the card across the Overview,
+  above its columns, a row per area with the quoted on the left. A job with
+  nothing supplied has one Scope and no tray, as before.
+
 #### On a quote
 
 - **The money rolls** (`.rf`, `components/parts/rolling-figure.tsx`), past law
@@ -533,7 +547,8 @@ to edit it from there using TIFF").
   head (rule 27), and at its foot the job's box: a note typed there is a
   note on the job, filed as the Overview's box files one, and the brief is
   rewritten the one way it is today. No microphone in the column: the
-  Studio's is in Tiff's pill.
+  Studio's is in Tiff's pill. Its tray is Quoted and Supplied only: at 400
+  wide there is no room for Side by side (11 November 2026).
 
 ### Named exemptions
 

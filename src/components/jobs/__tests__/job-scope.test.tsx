@@ -133,3 +133,64 @@ describe("after it's sent", () => {
     expect(quoted).toHaveTextContent(study.text + "Version 2, from " + study.from);
   });
 });
+
+describe("two scopes: what was supplied and what's quoted (11 November 2026)", () => {
+  const supplied = {
+    lede: "Watershed Architects' tender set, Issue G, with the specification.",
+    systems: [
+      { area: "Ground floor", kind: "Ducted", text: "Four Daikin FXDQ units in the ceiling.", from: ["CD105"] },
+      { area: "Subfloor", kind: "Ventilation", text: "A quiet mechanical system running day and night.", from: ["Spec 0702, page 185"] },
+    ],
+    fine: [{ text: "Refrigerant GWP 700 or under", from: "Spec 0702, page 180" }],
+    notOurs: ["Existing lights"],
+    clarify: [{ q: "Who ducts the rangehood?", who: "Architect" }],
+  };
+  const both = () =>
+    scope({
+      systems: [
+        { area: "Ground floor", kind: "ducted, under the floor", text: "Mitsubishi PEA-M125 under the floor.", from: ["Isaac Smith, 11 Nov"], differs: true },
+        { area: "Subfloor", kind: "Ventilation", text: "A quiet mechanical system running day and night.", from: ["Spec 0702, page 185"] },
+      ],
+      supplied,
+      suppliedAt: "2026-11-11T09:00:00Z",
+    });
+
+  it("has no tray while nothing was supplied", () => {
+    render(<JobScope scope={scope()} />);
+    expect(screen.queryByRole("radiogroup", { name: "Which scope" })).toBeNull();
+    expect(screen.getByRole("region", { name: "Scope" })).toBeInTheDocument();
+  });
+
+  it("opens on the quoted scope, each system that departs saying Differs", () => {
+    render(<JobScope scope={both()} />);
+    const s = screen.getByRole("region", { name: "Quoted scope" });
+    expect(within(s).getByRole("radio", { name: "Quoted" })).toHaveAttribute("aria-checked", "true");
+    expect(within(s).getAllByRole("heading", { level: 3 })[0]).toHaveTextContent("Ground floor: ducted, under the floorDiffers");
+    expect(within(s).getAllByRole("heading", { level: 3 })[1]).not.toHaveTextContent("Differs");
+  });
+
+  it("shows what was supplied, as read, with its fine print", () => {
+    render(<JobScope scope={both()} />);
+    fireEvent.click(screen.getByRole("radio", { name: "Supplied" }));
+    const s = screen.getByRole("region", { name: "Supplied scope" });
+    expect(s).toHaveTextContent("Read on Wed 11 Nov");
+    expect(s).toHaveTextContent("Four Daikin FXDQ units in the ceiling.CD105");
+    expect(within(s).getAllByRole("heading", { level: 3 })[0]).toHaveTextContent("Ground floor: DuctedDiffers");
+    expect(within(s).getByText("Refrigerant GWP 700 or under", { exact: false }).closest("li")).toHaveTextContent("Spec 0702, page 180");
+  });
+
+  it("lays the two side by side, a row per area, the quoted first", () => {
+    render(<JobScope scope={both()} />);
+    fireEvent.click(screen.getByRole("radio", { name: "Side by side" }));
+    const s = screen.getByRole("region", { name: "Scope" });
+    const rows = s.querySelectorAll(".jsc-siderow:not(.jsc-sidetop)");
+    expect(rows[0]).toHaveTextContent("Ground floorDiffersducted, under the floorMitsubishi PEA-M125 under the floor.");
+    expect(rows[0]).toHaveTextContent("DuctedFour Daikin FXDQ units in the ceiling.");
+    expect(rows[rows.length - 1]).toHaveTextContent("Fine printHeld to the supplied fine print");
+  });
+
+  it("offers no side by side where there's no room for it, as in the Studio's column", () => {
+    render(<JobScope scope={both()} sideBySide={false} />);
+    expect(screen.getAllByRole("radio").map((r) => r.textContent)).toEqual(["Quoted", "Supplied"]);
+  });
+});

@@ -1,3 +1,5 @@
+import { suppliedNow } from "@/lib/jobs/supplied-scope-server";
+import { suppliedOf } from "@/lib/jobs/supplied-scope";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import {
@@ -54,14 +56,16 @@ import { readJobStoryForSummary } from "./job-summary";
 const MODEL = "claude-sonnet-5-5";
 const MAX_TOKENS = 6000;
 
-const COLUMNS = "brief, previous_brief, set_aside, since_priced, quote_stamp, story_stamp, written_at";
-type ScopeRow = { brief: unknown; previous_brief: unknown; set_aside: unknown; since_priced?: unknown; quote_stamp?: string | null; story_stamp: string; written_at: string };
+const COLUMNS = "brief, previous_brief, set_aside, since_priced, quote_stamp, story_stamp, written_at, supplied, supplied_stamp, supplied_written_at, brief_supplied_stamp";
+type ScopeRow = { brief: unknown; previous_brief: unknown; set_aside: unknown; since_priced?: unknown; quote_stamp?: string | null; story_stamp: string; written_at: string; supplied?: unknown; supplied_stamp?: string | null; supplied_written_at?: string | null; brief_supplied_stamp?: string | null };
 
 const sincePricedOf = (row: ScopeRow | null): ScopeAdded[] => (Array.isArray(row?.since_priced) ? (row.since_priced as ScopeAdded[]) : []);
 
 const asScope = (row: ScopeRow | null): JobScopeRead | null => {
   const scope = row ? scopeOf(row.brief) : null;
-  return row && scope ? { ...scope, stamp: row.story_stamp, writtenAt: row.written_at, canUndo: !!scopeOf(row.previous_brief), sincePriced: stillAdded(sincePricedOf(row), scope) } : null;
+  return row && scope
+    ? { ...scope, stamp: row.story_stamp, writtenAt: row.written_at, canUndo: !!scopeOf(row.previous_brief), sincePriced: stillAdded(sincePricedOf(row), scope), supplied: suppliedOf(row.supplied ?? null), suppliedAt: row.supplied_written_at ?? null }
+    : null;
 };
 const setAsideOf = (row: ScopeRow | null): ScopeSetAside[] => (Array.isArray(row?.set_aside) ? (row.set_aside as ScopeSetAside[]) : []);
 
@@ -174,16 +178,26 @@ function reasonFor(err: unknown): string {
 
 /** Derive, compare, maybe write, store. The stamp comparison is the cost
     guard: asking again when nothing moved costs a derive, never a read. */
+async function siteOf(orgId: string, jobUuid: string): Promise<string | null> {
+  const { data } = await supabaseAdmin.from("sm8_jobs").select("job_address").eq("org_id", orgId).eq("uuid", jobUuid).maybeSingle();
+  return ((data as { job_address: string | null } | null)?.job_address ?? "").trim() || null;
+}
+
 export async function refreshJobScope(orgId: string, remoteId: string, client: Anthropic = new Anthropic()): Promise<ScopeRefreshResult> {
   const read = await readJobStoryForSummary(orgId, remoteId);
   if (!read) return { ok: false, reason: "That job isn't in the mirror." };
 
   const row = await readRow(orgId, read.cardId);
   const stored = asScope(row);
-  const stamp = scopeStamp(read.entries);
-  if (!stamp || !scopeWanted(read.status, read.createdOn)) return { ok: true, scope: stored, wrote: false };
+  /* what the job was supplied with, written first: the quoted brief starts from it */
+  const sup = await suppliedNow(orgId, read.cardId, row ? { supplied: row.supplied ?? null, stamp: row.supplied_stamp ?? null } : null, client, { client: read.clientName, site: await siteOf(orgId, read.cardId) });
+  const supCols = sup.fresh ? { supplied: sup.scope, supplied_stamp: sup.stamp, supplied_written_at: new Date().toISOString() } : {};
+  /* a job with its plans read gets its scopes whatever its age */
+  const stamp = scopeStamp(read.entries) ?? (sup.scope ? "no-entries" : null);
+  if (!stamp || !(scopeWanted(read.status, read.createdOn) || sup.scope)) return { ok: true, scope: stored, wrote: false };
   const quoteStamp = await quoteStampOf(orgId, read.cardId);
-  if (stored && stored.stamp === stamp && quoteStamp === (row?.quote_stamp ?? null)) return { ok: true, scope: stored, wrote: false };
+  const supMoved = (row?.brief_supplied_stamp ?? null) !== sup.stamp;
+  if (stored && stored.stamp === stamp && quoteStamp === (row?.quote_stamp ?? null) && !supMoved) return { ok: true, scope: stored, wrote: false };
   const quote = quoteStamp ? await readQuoteWords(orgId, read.cardId, await getSm8Timezone(orgId)) : null;
 
   /* what the model never saw it cannot leak: no money-shaped entry */
@@ -195,7 +209,7 @@ export async function refreshJobScope(orgId: string, remoteId: string, client: A
       max_tokens: MAX_TOKENS,
       output_config: { effort: "medium", format: { type: "json_schema", schema: SCOPE_SCHEMA } },
       system: SCOPE_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: scopePrompt({ status: read.status, clientName: read.clientName, scope: read.scope, workDone: read.workDone, lines, previous: stored, setAside: setAsideOf(row), quote }) }],
+      messages: [{ role: "user", content: scopePrompt({ status: read.status, clientName: read.clientName, scope: read.scope, workDone: read.workDone, lines, previous: stored, setAside: setAsideOf(row), quote, supplied: sup.scope }) }],
     });
     if (response.stop_reason === "refusal") return { ok: false, reason: "Tiff wouldn't write this job's scope." };
     const block = response.content.find((b) => b.type === "text");
@@ -206,24 +220,25 @@ export async function refreshJobScope(orgId: string, remoteId: string, client: A
   if (!scope) return { ok: true, scope: stored, wrote: false };
 
   const writtenAt = new Date().toISOString();
+  const supNow = { supplied: sup.scope, suppliedAt: sup.fresh ? writtenAt : (row?.supplied_written_at ?? null) };
   if (row && stored) {
     /* handed back unchanged: the note is taken in, and the last change is still the one to undo */
     if (!scopeMoved(stored, scope)) {
-      const kept = await writeOver(orgId, read.cardId, row, { story_stamp: stamp, quote_stamp: quoteStamp, written_at: writtenAt });
-      return { ok: true, scope: kept ? { ...stored, stamp, writtenAt } : await readStoredJobScope(orgId, read.cardId), wrote: false };
+      const kept = await writeOver(orgId, read.cardId, row, { story_stamp: stamp, quote_stamp: quoteStamp, written_at: writtenAt, brief_supplied_stamp: sup.stamp, ...supCols });
+      return { ok: true, scope: kept ? { ...stored, stamp, writtenAt, ...supNow } : await readStoredJobScope(orgId, read.cardId), wrote: false };
     }
     /* only a note's addition waits on the quote: the quote's own words are on it already */
     const landed = stored.stamp !== stamp ? newlyAdded(stored, scope) : [];
     const waiting = stillAdded([...sincePricedOf(row), ...(landed.length && (await quoteHasLines(orgId, read.cardId)) ? landed : [])], scope);
-    const wrote = await writeOver(orgId, read.cardId, row, { brief: scope, previous_brief: row.brief, since_priced: waiting, story_stamp: stamp, quote_stamp: quoteStamp, written_at: writtenAt });
+    const wrote = await writeOver(orgId, read.cardId, row, { brief: scope, previous_brief: row.brief, since_priced: waiting, story_stamp: stamp, quote_stamp: quoteStamp, written_at: writtenAt, brief_supplied_stamp: sup.stamp, ...supCols });
     if (!wrote) return { ok: true, scope: await readStoredJobScope(orgId, read.cardId), wrote: false };
-    return { ok: true, scope: { ...scope, stamp, writtenAt, canUndo: true, sincePriced: waiting }, wrote: true };
+    return { ok: true, scope: { ...scope, stamp, writtenAt, canUndo: true, sincePriced: waiting, ...supNow }, wrote: true };
   }
   const { error } = await supabaseAdmin
     .from("job_scopes")
-    .upsert({ org_id: orgId, job_uuid: read.cardId, brief: scope, story_stamp: stamp, quote_stamp: quoteStamp, written_at: writtenAt }, { onConflict: "org_id,job_uuid" });
+    .upsert({ org_id: orgId, job_uuid: read.cardId, brief: scope, story_stamp: stamp, quote_stamp: quoteStamp, written_at: writtenAt, brief_supplied_stamp: sup.stamp, ...supCols }, { onConflict: "org_id,job_uuid" });
   if (error) return { ok: false, reason: "The scope couldn't be saved." };
-  return { ok: true, scope: { ...scope, stamp, writtenAt, canUndo: false }, wrote: true };
+  return { ok: true, scope: { ...scope, stamp, writtenAt, canUndo: false, ...supNow }, wrote: true };
 }
 
 /** Put the brief back as it was before Tiff's newest change, with no read.

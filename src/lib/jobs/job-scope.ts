@@ -34,6 +34,7 @@
    version's number: "In version 2" until ServiceM8 sends it, then it's in
    Added as "Version 2, from …". */
 
+import { suppliedWords, type SuppliedScope } from "./supplied-scope";
 import type { StoryEntry } from "@/lib/workboard/job-story";
 
 /** One system, area by area: "First floor, front: ducted, a zone per room". */
@@ -45,6 +46,8 @@ export type ScopeSystem = {
   text: string;
   /** Where it came from: drawing sheets ("A201"), a note ("Sam, 27 Oct"). */
   from: string[];
+  /** It departs from the supplied scope's system for the same area (supplied-scope.ts). */
+  differs?: boolean;
 };
 
 export type ScopeAdded = {
@@ -86,6 +89,10 @@ export type JobScopeRead = JobScope & {
   quoted?: ScopeQuoted | null;
   /** The job is past Quote in ServiceM8. */
   accepted?: boolean;
+  /** What the plans, the specification and the builder's emails asked for, kept as read. */
+  supplied?: SuppliedScope | null;
+  /** When the supplied scope was last written. */
+  suppliedAt?: string | null;
 };
 
 export type ScopeQuoted = { on: string; version: number };
@@ -109,8 +116,9 @@ export const SCOPE_SCHEMA = {
           kind: { type: "string" },
           text: { type: "string" },
           from: { type: "array", items: { type: "string" } },
+          differs: { type: "boolean" },
         },
-        required: ["area", "kind", "text", "from"],
+        required: ["area", "kind", "text", "from", "differs"],
         additionalProperties: false,
       },
     },
@@ -193,7 +201,14 @@ export const SCOPE_SYSTEM_PROMPT =
   "payments. Never mention this system or that anything was generated.\n\n" +
   "What was said on the quote and the proposal's words are the person's word too. Put what " +
   "they settle in the system it belongs to, with `from` as \"The quote's conversation, 30 Oct\", " +
-  "and answer any `clarify` they answer. Never put them in `added`: the quote already has them.";
+  "and answer any `clarify` they answer. Never put them in `added`: the quote already has them.\n\n" +
+  "When you're handed the supplied scope (what the drawings, the specification and the " +
+  "builder's or client's emails asked for), the brief starts from it: a system the record " +
+  "says nothing about is written as the supplied scope has it, with its sources. Where the " +
+  "record changes a system (another brand, another kind, a room left out), the brief follows " +
+  "the record and that system has `differs: true`; every other system has `differs: false`. " +
+  "A system the supplied scope asks for that the record leaves out stays in, unless the record " +
+  "says it's not ours or out. Its fine print isn't repeated here.";
 
 /** What the writer is handed: the job's words, its state, and its story lines. */
 export function scopePrompt(read: {
@@ -207,6 +222,8 @@ export function scopePrompt(read: {
   setAside?: readonly ScopeSetAside[];
   /** What people said on the quote, each with its day, and the proposal's words. */
   quote?: { said: readonly string[]; proposal: string } | null;
+  /** What the job was supplied with (supplied-scope.ts), for the brief to start from. */
+  supplied?: SuppliedScope | null;
 }): string {
   /* a sent quote's scope carries its total: the writer never sees a priced line */
   const workDone = read.workDone?.split("\n").filter((l) => !/\$\s?\d/.test(l)).join("\n") || null;
@@ -217,6 +234,7 @@ export function scopePrompt(read: {
     `Job status: ${read.status ?? "unknown"}`,
     read.scope ? `The job, in the office's own words:\n${read.scope}` : null,
     workDone ? `ServiceM8's invoice description, on a quoted job usually the quote's scope:\n${workDone}` : null,
+    read.supplied ? `The supplied scope, what the drawings, the specification and the emails asked for:\n${suppliedWords(read.supplied)}` : null,
     previous ? `The brief as it stands:\n${JSON.stringify(previous)}` : null,
     read.setAside?.length ? `Taken out of this scope:\n${read.setAside.map((s) => `${s.on}: ${s.said}`).join("\n")}` : null,
     read.quote?.said.length ? `Said on the quote, oldest first:\n${read.quote.said.join("\n")}` : null,
@@ -243,6 +261,7 @@ export function scopeOf(raw: unknown): JobScope | null {
         kind: str(s.kind, MAX.short),
         text: str(s.text, MAX.text),
         from: list(s.from).map((f) => str(f, MAX.short)).filter(Boolean).slice(0, MAX.from),
+        ...(s.differs === true ? { differs: true } : {}),
       };
     })
     .filter((s) => s.area || s.kind || s.text)

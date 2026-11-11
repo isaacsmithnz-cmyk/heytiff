@@ -15,13 +15,13 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const ctx = await requireMobile(request, "workboard_manage");
   if (ctx instanceof Response) return ctx;
-  const body = (await request.json().catch(() => null)) as { job?: unknown; day?: unknown; partsIn?: unknown; checked?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as { job?: unknown; day?: unknown; partsIn?: unknown; checked?: unknown; claimed?: unknown } | null;
   const job = typeof body?.job === "string" ? body.job.trim().slice(0, 80) : "";
   const day = typeof body?.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.day) ? body.day : "";
-  const move = body?.partsIn === true ? "partsIn" : body?.checked === true ? "checked" : null;
+  const move = body?.partsIn === true ? "partsIn" : body?.checked === true ? "checked" : body?.claimed === true ? "claimed" : null;
   if (!job || !day || !move) return Response.json({ error: "Which job?" }, { status: 400, headers: { "cache-control": "no-store" } });
   const staff = await staffProfileIdFor(ctx.orgId, ctx.userId).catch(() => null);
   if (!(await moveOn(ctx.orgId, ctx.userId, staff, job, day, move)))
-    return Response.json({ error: move === "partsIn" ? "That job isn't waiting on parts." : "That job isn't finished." }, { status: 409, headers: { "cache-control": "no-store" } });
+    return Response.json({ error: move === "partsIn" ? "That job isn't waiting on parts." : move === "claimed" ? "That visit wasn't a warranty." : "That job isn't finished." }, { status: 409, headers: { "cache-control": "no-store" } });
   return ok({ lists: await readOfficeLists(ctx.orgId) });
 }

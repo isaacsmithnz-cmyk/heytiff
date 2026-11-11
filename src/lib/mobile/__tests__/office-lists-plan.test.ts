@@ -64,6 +64,15 @@ describe("Quotes waiting", () => {
   });
 });
 
+it("a warranty visit at no charge waits on Warranty claims, beside its answer's list, until claimed", () => {
+  const w = said("coming_back", { waiting: "parts", needed: "a fan motor" }, "2026-11-04", { kind: "none", reason: "warranty", words: "Fan motor, Daikin" });
+  expect(placeEnding(w, job(), false, TODAY).map((r) => [r.list, r.sub])).toEqual([
+    ["parts", "a fan motor, Isaac, 4 Nov"],
+    ["claims", "Fan motor, Daikin, Isaac, 4 Nov"],
+  ]);
+  expect(placeEnding({ ...w, ending: { ...w.ending, detail: { ...w.ending.detail, claimed: "2026-11-11" } } }, job(), false, TODAY).map((r) => r.list)).toEqual(["parts"]);
+});
+
 it("Can't go ahead is on no list, and an inactive job on none", () => {
   expect(placeEnding(said("cant", { reason: "cancelled" }), job(), false, TODAY)).toEqual([]);
   expect(placeEnding(said("finished"), job({ active: false }), false, TODAY)).toEqual([]);

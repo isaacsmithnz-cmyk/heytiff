@@ -95,7 +95,13 @@ export async function readOfficeLists(orgId: string, now: number = Date.now()): 
   return officeLists(rows);
 }
 
-export type OfficeMove = "partsIn" | "checked";
+async function isWarranty(orgId: string, id: string): Promise<boolean> {
+  const { data } = await supabaseAdmin.from("visit_endings").select("charge").eq("org_id", orgId).eq("id", id).maybeSingle();
+  const c = (data as { charge: { kind?: string; reason?: string } | null } | null)?.charge;
+  return c?.kind === "none" && c.reason === "warranty";
+}
+
+export type OfficeMove = "partsIn" | "checked" | "claimed";
 
 /** The office moving a job on, kept on the answer with who said so in its history: Parts are in (Parts on order → To book, from today), or Checked (off Ready to invoice). */
 export async function moveOn(orgId: string, userId: string, staffId: string | null, job: string, day: string, move: OfficeMove, now: number = Date.now()): Promise<boolean> {
@@ -110,6 +116,7 @@ export async function moveOn(orgId: string, userId: string, staffId: string | nu
   if (!r) return false;
   if (move === "partsIn" && (r.answer !== "coming_back" || r.detail?.waiting !== "parts")) return false;
   if (move === "checked" && r.answer !== "finished") return false;
+  if (move === "claimed" && !(await isWarranty(orgId, r.id))) return false;
   const today = await todayOf(orgId, now);
   const history = [...(Array.isArray(r.history) ? r.history : []), { at: new Date(now).toISOString(), by: userId, staff: staffId, [move]: today }];
   const { error } = await supabaseAdmin

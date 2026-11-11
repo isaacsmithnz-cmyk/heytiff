@@ -6,8 +6,8 @@ import { ok, requireMobile } from "@/lib/mobile/auth";
 import { dayFor, jobHeld } from "@/lib/mobile/used";
 import { readEnding, sayEnding } from "@/lib/mobile/visit-ending";
 import { tellOthersWrapped } from "@/lib/mobile/wrapped-others";
-import { openQuoteJob } from "@/lib/mobile/quote-job";
-import { endingOf } from "@/lib/mobile/visit-ending-plan";
+import { dropQuoteJob, openQuoteJob, reviveQuoteJob, sayQuoteWords } from "@/lib/mobile/quote-job";
+import { endingOf, quoteMove } from "@/lib/mobile/visit-ending-plan";
 
 /* HOW THE VISIT ENDED (lib/mobile/visit-ending): GET is the answer already
    given for the job that day, the next visit booked and how the job is
@@ -53,12 +53,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (said.written && input?.sendOn === true) after(() => sendNoteOnToSm8(() => sm8PressFromMobile(ctx), ctx.orgId, said.written!, job));
     /* the job's first wrap-up of the day: everyone else on it is asked if they've anything to add */
     if (said.first) after(() => tellOthersWrapped(ctx.orgId, job, day, said.by.staff, said.by.name).then(() => undefined));
-    /* Finished with something to quote: a Quote job of its own, the same client and site, once a job a day (lib/mobile/quote-job) */
-    if (ending.answer === "finished" && ending.detail.quoteToo)
+    /* Finished with something to quote: a Quote job of its own, the same client and site, once a job a day
+       (lib/mobile/quote-job); taken off, it's stopped or ServiceM8 is told; new words, told those */
+    const move = quoteMove(said.before, ending);
+    const press = () => sm8PressFromMobile(ctx);
+    if (move?.kind === "open")
       after(async () => {
-        const r = await openQuoteJob(await sm8PressFromMobile(ctx), ctx.orgId, job, day, ending.detail.quoteWords);
+        const r = await openQuoteJob(await press(), ctx.orgId, job, day, ending.detail.quoteWords);
         if (!r.ok) console.warn(`[mobile] no quote job from ${job} on ${day}: ${r.error}`);
+        else if (move.revive && r.jobUuid) await reviveQuoteJob(press, ctx.orgId, ctx.userId, r.jobUuid, ending.detail.quoteWords);
       });
+    if (move?.kind === "drop") after(() => dropQuoteJob(press, ctx.orgId, ctx.userId, job, day).then(() => undefined));
+    if (move?.kind === "words") after(() => sayQuoteWords(press, ctx.orgId, ctx.userId, job, day, move.quoteJob, move.words));
     return ok(said.read);
   } catch (err) {
     return no(400, err instanceof Error ? err.message : "Couldn’t keep that. Try again.");

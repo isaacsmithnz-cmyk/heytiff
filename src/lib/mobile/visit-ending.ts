@@ -75,7 +75,7 @@ export async function sayEnding(
   day: string,
   line: string,
   ending: Ending
-): Promise<{ read: EndingRead; written: string | null; first: boolean; by: { staff: string | null; name: string | null } }> {
+): Promise<{ read: EndingRead; written: string | null; first: boolean; by: { staff: string | null; name: string | null }; before: { answer: string; detail: unknown } | null }> {
   const staffId = await staffProfileIdFor(ctx.orgId, ctx.userId).catch(() => null);
   const now = new Date().toISOString();
   const { data: was } = await supabaseAdmin.from("visit_endings").select("id, answer, detail, charge, said_by, said_by_staff, updated_at, history").eq("org_id", ctx.orgId).eq("sm8_job_uuid", job).eq("day", day).maybeSingle();
@@ -102,5 +102,5 @@ export async function sayEnding(
     if (note) await replaceWrapupNote(ctx, job, body, day);
     written = (await writeJobNote({ orgId: ctx.orgId, userId: ctx.userId, jobUuid: job, body })).id;
   }
-  return { read: await readEnding(ctx.orgId, job, day), written, first, by: { staff: staffId, name: await nameOf(ctx.orgId, staffId) } };
+  return { read: await readEnding(ctx.orgId, job, day), written, first, by: { staff: staffId, name: await nameOf(ctx.orgId, staffId) }, before: w ? { answer: w.answer, detail: w.detail } : null };
 }

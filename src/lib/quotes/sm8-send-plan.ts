@@ -30,7 +30,9 @@ export type SendOption = { index: number; build: BuildUp; left: number };
 export type SendPlan =
   | {
       ok: true;
-      status: { from: string; to: "Work Order" } | null;
+      /** a Quote made a Work Order (accepted); a Work Order sent back to a
+          Quote (a revised quote sent as a quote) */
+      status: { from: string; to: "Work Order" | "Quote" } | null;
       workDone: string;
       /** sent as a quote (slice 7.3): the job's description, a summary, the
           full proposal in workDone (the quote's own description), the job
@@ -200,7 +202,14 @@ export const NOT_APPROVED = "Approve the quote first: what goes to ServiceM8 is 
     the quote's own description (the invoice description ServiceM8's quote
     prints) and its summary into the job's description, and one "As Per Quote" line at its price (one an option
     where it has several), the job left a Quote; the lines that were on the
-    job come off. Pure. */
+    job come off.
+
+    A WORK ORDER GOES BACK TO A QUOTE (Isaac, 11 November 2026, on 2845: an
+    accepted job's revised quote "I need to change it back to a quote again
+    ... for it to be received in service mate"). ServiceM8 shows the lines
+    as a quote only on a Quote, so the job is sent back to one; it's made a
+    Work Order again by the accepted send once the customer says yes. A
+    claim already billed stays either way. Pure. */
 export function sendAsQuotePlan(input: {
   draft: ProposalDraft;
   /** every option of the quote, a variation aside, priced */
@@ -216,7 +225,7 @@ export function sendAsQuotePlan(input: {
   if (!input.approved) return { ok: false, why: NOT_APPROVED };
   if (options.length === 0) return { ok: false, why: "There's no quote to send." };
   const status = (job.status ?? "").trim();
-  if (status !== "Quote") return { ok: false, why: `The job is ${status ? `a ${status}` : "in no status"} in ServiceM8: only a Quote is sent as a quote.` };
+  if (!SENDABLE.includes(status)) return { ok: false, why: `The job is ${status ? `a ${status}` : "in no status"} in ServiceM8: only a Quote or a Work Order is sent as a quote.` };
   if (job.invoiced) return { ok: false, why: "The job is invoiced in ServiceM8, so it can't be sent." };
   const left = options.reduce((n, o) => n + o.left, 0);
   if (left > 0) return { ok: false, why: `${left} still to price: ServiceM8 must get the whole quote.` };
@@ -224,7 +233,7 @@ export function sendAsQuotePlan(input: {
   const one = options.length === 1;
   return {
     ok: true,
-    status: null,
+    status: status === "Work Order" ? { from: "Work Order", to: "Quote" } : null,
     workDone: quoteDescription(draft, options.map((o) => o.index), input.proposal),
     jobDescription: quoteSummary(draft, options.map((o) => o.index), input.proposal),
     lines: options.map((o) => ({

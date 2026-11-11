@@ -14,6 +14,8 @@ export const QUOTE_WORDS = {
     off: "Accepted quote: line {name} taken off",
     /* a quote sent as a quote, before it's accepted (slice 7.3) */
     asQuoteJob: "Quote: its description and the job's summary",
+    /* a revised quote on a Work Order, the job sent back to a Quote */
+    asQuoteBack: "Quote: back to a Quote, its description and the job's summary",
     asQuoteAdd: "Quote: line {name} added",
     asQuoteOff: "Quote: line {name} taken off",
     /* an accepted variation, added to the job as its own lines (decision 21) */

@@ -15,23 +15,27 @@ import type { Ending, Waiting } from "./visit-ending-plan";
    - QUOTES WAITING: Quote needed first, or Finished with a quote to build:
      to price until ServiceM8 says it's sent, then waiting from the day it
      went. Leaves when accepted (a work order after it), or the job's lost.
+   - WARRANTY CLAIMS: a visit at no charge for a warranty, until the office
+     says it's claimed from the supplier (board 11: "Claim from the
+     supplier?"). It's on this list whatever else the visit was.
    Can't go ahead is on none: it was said, and that's the end of it.
    Only a job's latest answer counts. Each row says how long it's waited:
    past a week getting on, past a fortnight late. */
 
-export type ListName = "ready" | "book" | "parts" | "quotes";
+export type ListName = "ready" | "book" | "parts" | "quotes" | "claims";
 export const LIST_TITLES: Record<ListName, string> = {
   ready: "Ready to invoice",
   book: "To book",
   parts: "Parts on order",
   quotes: "Quotes waiting",
+  claims: "Warranty claims",
 };
-export const LIST_ORDER: ListName[] = ["ready", "book", "parts", "quotes"];
+export const LIST_ORDER: ListName[] = ["ready", "book", "parts", "quotes", "claims"];
 
 export type EndingRow = {
   jobUuid: string;
   day: string;
-  ending: Ending & { detail: Ending["detail"] & { partsIn?: string; quoteJob?: string; checked?: string } };
+  ending: Ending & { detail: Ending["detail"] & { partsIn?: string; quoteJob?: string; checked?: string; claimed?: string } };
   by: string | null;
 };
 export type JobFacts = {
@@ -76,6 +80,15 @@ function quoteRow(q: JobFacts, since: string, words: string | undefined, make: (
 /** Where each job's latest answer puts it today: none, one list, or two (Finished with a quote to build is to invoice, and its quote job is waiting). `bookedAfter` says a visit's been booked after the answer's day; `quoteJob` is the quote job it opened, once ServiceM8's mirror has it. */
 export function placeEnding(r: EndingRow, job: JobFacts | undefined, bookedAfter: boolean, today: string, quoteJob?: JobFacts): OfficeRow[] {
   if (!job || !job.active) return [];
+  const claim = r.ending.charge.kind === "none" && r.ending.charge.reason === "warranty" && !r.ending.detail.claimed ? r : null;
+  const rows = placeAnswer(r, job, bookedAfter, today, quoteJob);
+  if (!claim) return rows;
+  const days = between(r.day, today);
+  const words = r.ending.charge.kind === "none" ? r.ending.charge.words : undefined;
+  return [...rows, { list: "claims", jobUuid: r.jobUuid, day: r.day, title: [job.number, job.suburb].filter(Boolean).join(", ") || "A job", sub: [words || "Warranty", whoWhen(r)].join(", "), days, tone: tone(days) }];
+}
+
+function placeAnswer(r: EndingRow, job: JobFacts, bookedAfter: boolean, today: string, quoteJob?: JobFacts): OfficeRow[] {
   const titleOf = (j: JobFacts) => [j.number, j.suburb].filter(Boolean).join(", ") || "A job";
   const e = r.ending;
   const row = (list: ListName, sub: string, since = r.day, on: { uuid: string; facts: JobFacts } = { uuid: r.jobUuid, facts: job }): OfficeRow => {

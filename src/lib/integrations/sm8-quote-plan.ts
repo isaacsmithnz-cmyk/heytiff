@@ -10,8 +10,9 @@
      job          the job's invoice description (work_done_description),
                   and its status to "Work Order" when it was a Quote: update;
                   or, a quote sent as a quote before it's accepted (slice
-                  7.3), its job description (job_description), its status
-                  left as it is
+                  7.3), the whole proposal as its invoice description (what
+                  ServiceM8's quote prints) and its summary as its job
+                  description (job_description), its status left as it is
      jobmaterial  a line on the job, under a uuid chosen when the row was
                   queued: create; or a line that was there: delete (soft)
 
@@ -86,7 +87,8 @@ export function quoteRows(
   plan: {
     status: { to: string } | null;
     workDone: string;
-    /** a quote sent as a quote: the job's description, its status as it is */
+    /** a quote sent as a quote: the job's description (a summary), the
+        whole proposal in workDone, its status as it is */
     jobDescription?: string;
     lines: readonly { name: string; quantity: number; unitPriceCents: number; unitCostCents: number | null }[];
     remove: readonly { uuid: string; name: string }[];
@@ -99,7 +101,7 @@ export function quoteRows(
     op: "update",
     uuid: jobUuid,
     fields: asQuote
-      ? { job_description: plan.jobDescription!.slice(0, 20_000) }
+      ? { work_done_description: plan.workDone.slice(0, 20_000), job_description: plan.jobDescription!.slice(0, 20_000) }
       : { work_done_description: plan.workDone.slice(0, 20_000), ...(plan.status ? { status: WORK_ORDER } : {}) },
     label: asQuote ? QUOTE_WORDS.label.asQuoteJob : QUOTE_WORDS.label.job,
     key: "job",

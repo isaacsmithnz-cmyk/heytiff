@@ -109,14 +109,14 @@ it("offers no send where the owner hasn't switched it on", async () => {
 });
 
 /* Slice 7.3 (Isaac's go 2026-10-11, trial first): the approved quote sent as a quote */
-it("sends the approved quote as a quote: the job's description, left a Quote; nothing until it's approved", async () => {
+it("sends the approved quote as a quote: its description and the job's, left a Quote; nothing until it's approved", async () => {
   quoteSendOffered.mockResolvedValue({ offered: true, trial: true });
   sendQuoteToSm8.mockResolvedValue({ ok: true, trial: true, sent: 0, waiting: 0, failed: [] });
   answer({
     ok: true,
     status: null,
-    workDone: "",
-    jobDescription: "Option 1: Ducted\n- PEA-M125HAA under the floor",
+    workDone: "Option 1: Ducted\n- PEA-M125HAA under the floor",
+    jobDescription: "Option 1: Ducted",
     lines: [{ name: "As Per Quote", quantity: 1, unitPriceCents: 1_500_000, unitCostCents: 900_000 }],
     remove: [],
     taxRateUuid: "gst",
@@ -125,7 +125,9 @@ it("sends the approved quote as a quote: the job's description, left a Quote; no
   const onSent = jest.fn();
   const { unmount } = render(<JobQuoteSend job="j-1" visible as="quote" onSent={onSent} />);
   expect(await screen.findByText("Stays a Quote")).toBeInTheDocument();
+  expect(screen.getByText("Quote description")).toBeInTheDocument();
   expect(screen.getByText("Job description")).toBeInTheDocument();
+  expect(screen.getByText("Option 1: Ducted")).toBeInTheDocument();
   expect(screen.getByText("As Per Quote")).toBeInTheDocument();
   expect((global as unknown as { fetch: jest.Mock }).fetch.mock.calls[0]![0]).toBe("/api/workboard/quote-send?job=j-1&as=quote");
   await act(async () => {

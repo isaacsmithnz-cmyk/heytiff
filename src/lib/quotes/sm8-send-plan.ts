@@ -32,7 +32,9 @@ export type SendPlan =
       ok: true;
       status: { from: string; to: "Work Order" } | null;
       workDone: string;
-      /** sent as a quote (slice 7.3): the job's description, the job left a Quote */
+      /** sent as a quote (slice 7.3): the job's description, a summary, the
+          full proposal in workDone (the quote's own description), the job
+          left a Quote */
       jobDescription?: string;
       lines: SendLine[];
       /** the job's live lines in ServiceM8 that come off, with their names */
@@ -98,6 +100,23 @@ export function quoteDescription(draft: ProposalDraft, indices: readonly number[
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+/** A quote's summary as the job's description holds it, sent as a quote:
+    the proposal's title and each option's summary (its heading too where
+    there are several); the options' headings alone with no proposal. The
+    whole proposal goes in the quote's own description (Isaac, 11 November
+    2026: "Job description is a summary. Quote description is the full
+    proposal"). The introduction is left out: it's a letter to the
+    customer ("Hi Josh, …"), not what the job is. */
+export function quoteSummary(draft: ProposalDraft, indices: readonly number[], proposal?: ProposalWords | null): string {
+  const several = indices.length > 1;
+  if (!proposal) return indices.map((i) => optionHeading(draft, i)).join("\n");
+  const options = indices.map((i) => {
+    const summary = proposal.options[i]?.summary ?? "";
+    return several ? [optionHeading(draft, i), summary].filter(Boolean).join("\n") : summary;
+  });
+  return [proposal.title, ...options].filter(Boolean).join("\n\n");
 }
 
 /** One accepted option's lines: one at its total, or every line of its
@@ -177,8 +196,9 @@ export function sendPlan(input: {
 export const NOT_APPROVED = "Approve the quote first: what goes to ServiceM8 is what you approved.";
 
 /** SEND TO SERVICEM8 AS A QUOTE (slice 7.3, Isaac's go 2026-10-11, trial
-    first): before it's accepted, the approved quote's scope into the job's
-    description and one "As Per Quote" line at its price (one an option
+    first): before it's accepted, the approved quote's whole proposal into
+    the quote's own description (the invoice description ServiceM8's quote
+    prints) and its summary into the job's description, and one "As Per Quote" line at its price (one an option
     where it has several), the job left a Quote; the lines that were on the
     job come off. Pure. */
 export function sendAsQuotePlan(input: {
@@ -205,8 +225,8 @@ export function sendAsQuotePlan(input: {
   return {
     ok: true,
     status: null,
-    workDone: "",
-    jobDescription: quoteDescription(draft, options.map((o) => o.index), input.proposal),
+    workDone: quoteDescription(draft, options.map((o) => o.index), input.proposal),
+    jobDescription: quoteSummary(draft, options.map((o) => o.index), input.proposal),
     lines: options.map((o) => ({
       name: one ? "As Per Quote" : `${optionHeading(draft, o.index)}, as per quote`,
       quantity: 1,

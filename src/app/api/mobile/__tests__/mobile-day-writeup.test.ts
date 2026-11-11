@@ -55,7 +55,7 @@ jest.mock("@/lib/mobile/day", () => ({
 const create = jest.fn();
 jest.mock("@anthropic-ai/sdk", () => ({ __esModule: true, default: class { beta = { messages: { create } }; } }));
 
-import { askedThere, filedAt, jobsOfDay, lineOf, promptOf, writeUpDay } from "@/lib/mobile/day-writeup";
+import { askedThere, filedAt, headOfNote, jobsOfDay, lineOf, promptOf, wordsOfNote, writeUpDay } from "@/lib/mobile/day-writeup";
 
 const ctx = { userId: "auth0|isaac", orgId: "org-1" } as never;
 const at = (iso: string) => Date.parse(iso);
@@ -126,8 +126,9 @@ test("the day written up: each job's own notes, photos and questions; a job with
       photoIds: ["p1", "p2", "p3", "p4"],
       others: [{ name: "David", at: "2026-10-29T02:00:00.000Z", text: "Dave's own note" }],
       filed: null,
+      filedText: null,
     },
-    { jobUuid: "j-3372", number: "3372", where: "12 Pittwater Rd", line: "Isaac, 3:00 to 3:15", name: "Isaac", photos: 0, asked: 0, text: "", spans: [{ from: "2026-10-29T04:00:00.000Z", until: "2026-10-29T04:15:00.000Z" }], address: null, mine: [], photoIds: [], others: [], filed: null },
+    { jobUuid: "j-3372", number: "3372", where: "12 Pittwater Rd", line: "Isaac, 3:00 to 3:15", name: "Isaac", photos: 0, asked: 0, text: "", spans: [{ from: "2026-10-29T04:00:00.000Z", until: "2026-10-29T04:15:00.000Z" }], address: null, mine: [], photoIds: [], others: [], filed: null, filedText: null },
   ]);
   /* only the job with something said is sent, with today's own note and nobody else's */
   const sent = create.mock.calls[0]![0].messages[0].content as string;
@@ -149,7 +150,7 @@ test("when the writing fails, each entry is still its time", async () => {
 });
 
 test("the material reads job by job", () => {
-  expect(promptOf([{ jobUuid: "j", number: "1352", where: "Holbrook Ave", spans: [], notes: ["a note"], photos: 0, asked: [], mine: [], photoIds: [], others: [], address: null }])).toBe(
+  expect(promptOf([{ jobUuid: "j", number: "1352", where: "Holbrook Ave", spans: [], notes: ["a note"], photos: 0, asked: [], mine: [], photoIds: [], others: [], address: null, own: [] }])).toBe(
     "Job 1: 1352, Holbrook Ave\nNotes:\n- a note\nQuestions:\n(no questions)",
   );
 });
@@ -169,6 +170,13 @@ test("a job whose note is in says so and isn't written up again", async () => {
   tables.workboard_notes!.push({ org_id: "org-1", author_id: "card-isaac", target_kind: "job", target_id: "j-3372", transcript: "Isaac, 3:00 to 3:15\n\nChecked the drain.", created_at: "2026-10-29T04:20:00.000Z" });
   create.mockResolvedValue({ stop_reason: "end_turn", content: [{ type: "text", text: JSON.stringify({ entries: ["Lounge head up and wired."] }) }] });
   const { entries } = await writeUpDay(ctx, null);
-  expect(entries.map((e) => [e.number, e.filed])).toEqual([["1352", null], ["3372", "2026-10-29T04:20:00.000Z"]]);
+  expect(entries.map((e) => [e.number, e.filed, e.filedText])).toEqual([["1352", null, null], ["3372", "2026-10-29T04:20:00.000Z", "Checked the drain."]]);
   expect(create.mock.calls[0]![0].messages[0].content).not.toContain("Checked the drain");
+});
+
+test("a wrap-up note's who and when, and its words, come off the note itself", () => {
+  expect(headOfNote("Isaac, 8:45 to 2:45 · 4 photos\n\nGot the unit up and running.")).toBe("Isaac, 8:45 to 2:45");
+  expect(headOfNote("Isaac, 7:15 to 7:45.\n\nA quote needs to be added.")).toBe("Isaac, 7:15 to 7:45");
+  expect(wordsOfNote("Isaac, 8:45 to 2:45 · 4 photos\n\nGot the unit up and running.\n\nSecond line.")).toBe("Got the unit up and running.\n\nSecond line.");
+  expect(wordsOfNote("Isaac, 8:45 to 2:45")).toBe("");
 });

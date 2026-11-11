@@ -44,6 +44,8 @@ export type JobDay = {
   photoIds: string[];
   others: { name: string; at: string; text: string }[];
   address: string | null;
+  /** your notes there today, whole (never clipped): the wrap-up's own is found among them */
+  own: { at: string; text: string }[];
 };
 /** `line` is the first line at the finish asked about; `name`, `photos` and
     `asked` are its parts, for the phone to say again at another finish. */
@@ -64,6 +66,9 @@ export type WriteupEntry = {
   others: { name: string; at: string; text: string }[];
   /** the wrap-up note already in for this stretch, when it was filed: the walk passes its note step by, so it's never filed twice */
   filed: string | null;
+  /** its words, under the who-and-when line, whole: going back to it shows them to change (Isaac, 11 November 2026:
+      "I accidentally tapped something ... and I couldn't go back to it to edit it") */
+  filedText: string | null;
 };
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
@@ -100,12 +105,29 @@ export function headOf(name: string | null, spans: readonly { from: string; unti
     the one already in; Tiff's tidy may end it with a full stop. The earliest's
     time, or null. Pure. */
 export function filedAt(head: string, mine: readonly { at: string; text: string }[]): string | null {
+  return filedNote(head, mine)?.at ?? null;
+}
+
+/** That note itself. Pure. */
+export function filedNote<N extends { at: string; text: string }>(head: string, mine: readonly N[]): N | null {
   if (!head.includes(" to ")) return null;
-  const hit = mine.find((n) => {
-    const first = (n.text.split("\n")[0] ?? "").trim().replace(/\.$/, "");
-    return first === head || first.startsWith(`${head} · `);
-  });
-  return hit?.at ?? null;
+  return (
+    mine.find((n) => {
+      const first = (n.text.split("\n")[0] ?? "").trim().replace(/\.$/, "");
+      return first === head || first.startsWith(`${head} · `);
+    }) ?? null
+  );
+}
+
+/** A wrap-up note's who and when, off its first line: "Isaac, 8:45 to 2:45 · 4 photos" is "Isaac, 8:45 to 2:45". Pure. */
+export function headOfNote(text: string): string {
+  return ((text.split("\n")[0] ?? "").split(" · ")[0] ?? "").trim().replace(/\.$/, "");
+}
+
+/** A wrap-up note's words, under its first line. Pure. */
+export function wordsOfNote(text: string): string {
+  const at = text.indexOf("\n");
+  return at < 0 ? "" : text.slice(at + 1).trim();
 }
 
 /** Each job on the day's sheet, its stretches together, in the order first reached. Pure. */
@@ -216,6 +238,7 @@ async function gather(ctx: MobileCtx, summary: DaySummary, dayFrom: string, midn
         .filter((n) => n.target_id.toLowerCase() === k)
         .map((n) => ({ name: (n.author_id && names.get(n.author_id)) || "Someone", at: n.created_at, text: clip(n.transcript!.trim(), NOTE_CAP) })),
       address: addresses.get(k) ?? null,
+      own: noteRows.filter((n) => n.target_id.toLowerCase() === k && n.transcript?.trim()).map((n) => ({ at: n.created_at, text: n.transcript!.trim() })),
     };
   });
 }
@@ -311,7 +334,7 @@ export async function writeUpDay(
   const [zone, name] = await Promise.all([bookingZone(ctx.orgId).then((z) => z.zone ?? "Australia/Sydney"), firstNameOf(ctx)]);
   const midnight = new Date(wallInstant(`${state.day.workDate} 00:00:00`, zone, "earliest") ?? Date.parse(state.day.onAt)).toISOString();
   const jobs = await gather(ctx, state.summary, state.day.onAt, midnight < state.day.onAt ? midnight : state.day.onAt);
-  const filed = jobs.map((j) => filedAt(headOf(name, j.spans, zone), j.mine));
+  const filed = jobs.map((j) => filedNote(headOf(name, j.spans, zone), j.own));
   /* a job whose note is in isn't written up again */
   const texts = await written(jobs.map((j, i) => (filed[i] ? { ...j, notes: [], asked: [] } : j)));
   return {
@@ -329,7 +352,8 @@ export async function writeUpDay(
       mine: j.mine,
       photoIds: j.photoIds,
       others: j.others,
-      filed: filed[i] ?? null,
+      filed: filed[i]?.at ?? null,
+      filedText: filed[i] ? wordsOfNote(filed[i]!.text) : null,
     })),
     day: { workDate: state.day.workDate, onAt: state.day.onAt, offAt: state.day.offAt, minutes: state.summary.minutes },
   };

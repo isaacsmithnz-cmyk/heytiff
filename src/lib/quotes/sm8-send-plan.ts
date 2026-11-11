@@ -2,6 +2,7 @@ import type { BuildUp } from "./buildup";
 import { optionHeading, type ProposalDraft } from "./proposal";
 import { areasText, listText, type LinesProposal } from "./lines-proposal";
 import { namedByRole } from "./unit-name";
+import { billsForIt } from "./sm8-quote-brief";
 
 /* THE ACCEPTED QUOTE, AS SERVICEM8 WILL HOLD IT (Isaac, 2026-10-05: "if a
    quote is accepted, then it can turn that into the work order for service
@@ -48,6 +49,16 @@ export const INVOICED = "The job is invoiced in ServiceM8, so the accepted quote
 
 /** Said when no option is marked accepted: the card shows nothing then. */
 export const NONE_ACCEPTED = "No option is marked accepted.";
+
+/* A CLAIM ALREADY BILLED STAYS (Isaac, 11 November 2026, on 2845: the
+   accepted quote sent again over a Work Order would have taken "Partial
+   invoice #2845A" off, so the job read as nothing claimed and the next
+   invoice billed the $14,700 again). A line that bills for the job, a
+   partial invoice, deposit, progress claim or payment (billsForIt, the
+   brief's own test), is ServiceM8's record of what's been invoiced, not the
+   quote's scope: a send never takes it off. */
+const kept = (existing: readonly { uuid: string; name: string }[]) =>
+  existing.filter((e) => !billsForIt(e.name)).map((e) => ({ uuid: e.uuid, name: e.name }));
 
 /** ServiceM8's statuses a send may take a job from. */
 const SENDABLE = ["Quote", "Work Order"];
@@ -156,7 +167,7 @@ export function sendPlan(input: {
     status: status === "Quote" ? { from: "Quote", to: "Work Order" } : null,
     workDone: accepted.map((a) => scopeOf(draft, a.index, input.proposal)).join("\n\n"),
     lines: accepted.flatMap((a) => optionLines(draft, a.index, a.build, showLines)),
-    remove: input.existing.map((e) => ({ uuid: e.uuid, name: e.name })),
+    remove: kept(input.existing),
     taxRateUuid: input.taxRateUuid,
     exGstCents: accepted.reduce((s, a) => s + a.build.exGstCents, 0),
   };
@@ -202,7 +213,7 @@ export function sendAsQuotePlan(input: {
       unitPriceCents: o.build.exGstCents,
       unitCostCents: o.build.buyCents,
     })),
-    remove: input.existing.map((e) => ({ uuid: e.uuid, name: e.name })),
+    remove: kept(input.existing),
     taxRateUuid: input.taxRateUuid,
     exGstCents: options.reduce((s, o) => s + o.build.exGstCents, 0),
   };

@@ -35,6 +35,25 @@ it("sends one line at the option's total when the customer sees totals only, and
   expect(p.exGstCents).toBe(build.exGstCents);
 });
 
+/* Isaac, 11 November 2026, on 2845: sent again over a Work Order, the quote
+   would have taken "Partial invoice #2845A" (−$14,700) off the job */
+it("never takes off a claim already billed: the quote's own lines come off, the partial invoice stays", () => {
+  const existing = [
+    { uuid: "m-ac", name: "AC Works" },
+    { uuid: "m-vent", name: "Ventilation Works" },
+    { uuid: "m-claim", name: "Partial invoice #2845A" },
+    { uuid: "m-dep", name: "Deposit" },
+    { uuid: "m-var", name: "Variation 1: extra exhaust fan" },
+  ];
+  const p = sendPlan({ ...base, job: { status: "Work Order", invoiced: false }, existing, accepted: [{ index: 0, build, left: 0 }] });
+  if (!p.ok) throw new Error(p.why);
+  expect(p.status).toBeNull();
+  expect(p.remove.map((r) => r.uuid)).toEqual(["m-ac", "m-vent", "m-var"]);
+  const q = sendAsQuotePlan({ draft, job: { status: "Quote", invoiced: false }, existing, taxRateUuid: "gst", approved: true, options: [{ index: 0, build, left: 0 }] });
+  if (!q.ok) throw new Error(q.why);
+  expect(q.remove.map((r) => r.uuid)).toEqual(["m-ac", "m-vent", "m-var"]);
+});
+
 it("sends every line, labour by the person-day, when the customer sees line items — adding up to the same total", () => {
   const lines = optionLines(draft, 0, build, true);
   expect(lines.map((l) => [l.name, l.quantity])).toEqual([

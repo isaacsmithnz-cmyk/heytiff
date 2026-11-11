@@ -134,6 +134,14 @@ const byExpiry = (a: StaffLicence, b: StaffLicence) =>
         ? -1
         : a.expiryDate.localeCompare(b.expiryDate);
 
+/** The company under your licence, as its documents name it: the trading name, else the legal one. Never the
+    workspace's own name, which sign-up fills with the email (Isaac, 11 November 2026, bug 1: "Why does it say my
+    email on this part?"). */
+export function companyName(org: { trading_name?: string | null; legal_name?: string | null; name?: string | null } | null): string | null {
+  const pick = [org?.trading_name, org?.legal_name, org?.name].map((v) => (typeof v === "string" ? v.trim() : "")).find((v) => v && !v.includes("@"));
+  return pick || null;
+}
+
 export async function readPhoneDocuments(ctx: MobileCtx): Promise<PhoneDocuments> {
   const today = todayInAu();
   const [{ warnDays }, creds, records, staffId, { data: org }] = await Promise.all([
@@ -141,7 +149,7 @@ export async function readPhoneDocuments(ctx: MobileCtx): Promise<PhoneDocuments
     listOrgCredentials(ctx.orgId),
     listOrgCredentialRecords(ctx.orgId),
     staffProfileIdFor(ctx.orgId, ctx.userId),
-    supabaseAdmin.from("organizations").select("name").eq("id", ctx.orgId).maybeSingle(),
+    supabaseAdmin.from("organizations").select("trading_name, legal_name, name").eq("id", ctx.orgId).maybeSingle(),
   ]);
   const [docs, licences, { data: card }] = await Promise.all([
     documentsForOrgCredentials(ctx.orgId, creds.map((c) => c.id)),
@@ -159,6 +167,6 @@ export async function readPhoneDocuments(ctx: MobileCtx): Promise<PhoneDocuments
     ),
     licences: [...licences].sort(byExpiry).map((l) => phoneLicence(l, today, warnDays)),
     me,
-    org: (org?.name as string | undefined)?.trim() || null,
+    org: companyName(org),
   };
 }

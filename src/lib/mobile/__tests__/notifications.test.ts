@@ -10,13 +10,14 @@
 jest.mock("server-only", () => ({}));
 let card: { id: string } | null = { id: "s-isaac" };
 let upcoming: Record<string, unknown>[] = [];
+let clears: { notification_id: string }[] = [];
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
     from: (table: string) => {
       const q: Record<string, unknown> = {};
       for (const k of ["select", "eq", "gt", "lte", "order", "limit"]) q[k] = () => q;
       q.maybeSingle = async () => ({ data: table === "staff_profiles" ? card : null, error: null });
-      q.then = (res: (v: unknown) => unknown) => res({ data: table === "tasks" ? upcoming : [], error: null });
+      q.then = (res: (v: unknown) => unknown) => res({ data: table === "tasks" ? upcoming : table === "notification_clears" ? clears : [], error: null });
       return q;
     },
   },
@@ -62,6 +63,7 @@ const NOW = new Date("2026-10-26T03:00:00.000Z");
 beforeEach(() => {
   card = { id: "s-isaac" };
   upcoming = [];
+  clears = [];
   asked.length = 0;
   links = new Map([["u-isaac-sm8", "s-isaac"]]);
 });
@@ -101,4 +103,10 @@ it("carries your reminders still to come, for the phone's own clock", async () =
 it("tells someone with no staff card nothing", async () => {
   card = null;
   expect(await notificationsFor(ctx(), NOW)).toEqual({ items: [], upcoming: [] });
+});
+
+it("leaves out what you swiped Clear, and only that", async () => {
+  clears = [{ notification_id: "notice:nt1" }, { notification_id: "mention:j-2935:u-mick" }];
+  const { items } = await notificationsFor(ctx(), NOW);
+  expect(items.map((n) => n.kind)).toEqual(["reminder", "task", "leave"]);
 });

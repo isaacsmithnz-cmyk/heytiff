@@ -10,6 +10,10 @@
 /* jest.setup stubs this module for every suite that renders the job card */
 jest.unmock("@/app/actions/job-documents");
 
+/* every PDF on a job is read once: the take-in runs after the answer (take-in-server.ts) */
+const takeInAfter = jest.fn(async (..._a: unknown[]) => {});
+jest.mock("@/lib/jobs/take-in-server", () => ({ takeInAfter: (...a: unknown[]) => takeInAfter(...a) }));
+
 let capWorkboard = true;
 let jobRow: Record<string, unknown> | null = { uuid: "job-1" };
 let docRow: Record<string, unknown> | null = null;
@@ -87,11 +91,14 @@ beforeEach(() => {
   ops.length = 0;
   removed.length = 0;
   can.mockClear();
+  takeInAfter.mockClear();
 });
 
 describe("putting an upload on a job", () => {
   it("points the caller's own landed upload at the job, and only while no job holds it", async () => {
     expect(await attachJobDocument("d-9", "job-1")).toEqual({ ok: true });
+    /* and the file is taken in, to be read once and used */
+    expect(takeInAfter).toHaveBeenCalledWith("org-1", "job-1", [{ documentId: "d-9" }], expect.anything());
     const [write] = writes();
     expect(write).toMatchObject({ table: "documents", op: "update", values: { sm8_job_uuid: "job-1" } });
     expect(write.filters).toEqual(

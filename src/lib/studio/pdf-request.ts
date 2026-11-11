@@ -160,3 +160,36 @@ export function readPlanPagesTicket(token: string | undefined, now: number = Dat
     : undefined;
   return { orgId: parsed.orgId, url: parsed.url, kind: parsed.kind === "image" ? "image" : "pdf", ...(full ? { full } : {}) };
 }
+
+/* A PLAN'S READ, ASKED BY THE SERVER ITSELF (lib/jobs/take-in-server.ts): a
+   PDF that lands on a job by any door is read with no browser to ask, so the
+   server asks its own read route with this, the org and the plan signed, for
+   ten minutes. */
+export interface PlanReadTicket {
+  orgId: string;
+  planId: string;
+}
+
+export function signPlanReadTicket(t: PlanReadTicket, now: number = Date.now()): string {
+  const body = b64(JSON.stringify({ orgId: t.orgId, planId: t.planId, exp: now + PLAN_TTL_MS }));
+  const sig = b64(createHmac("sha256", key()).update(`plan-read:${body}`).digest());
+  return `${body}.${sig}`;
+}
+
+export function readPlanReadTicket(token: string | null | undefined, now: number = Date.now()): PlanReadTicket | null {
+  if (!token || token.length > 2000) return null;
+  const [body, sig] = token.split(".");
+  if (!body || !sig) return null;
+  const want = createHmac("sha256", key()).update(`plan-read:${body}`).digest();
+  const got = Buffer.from(sig, "base64url");
+  if (got.length !== want.length || !timingSafeEqual(got, want)) return null;
+  let parsed: { orgId?: unknown; planId?: unknown; exp?: unknown };
+  try {
+    parsed = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+  } catch {
+    return null;
+  }
+  if (typeof parsed.exp !== "number" || parsed.exp < now) return null;
+  if (typeof parsed.orgId !== "string" || typeof parsed.planId !== "string") return null;
+  return { orgId: parsed.orgId, planId: parsed.planId };
+}

@@ -1,7 +1,7 @@
 /* The ticket that lets a headless browser print one design, and the options
    a browser may ask for. The print page trusts nothing else. */
 
-import { pdfFileName, readPdfFlow, readPdfOptions, readPdfTicket, signPdfTicket } from "../pdf-request";
+import { pdfFileName, readPdfFlow, readPdfOptions, readPdfTicket, readPlanReadTicket, signPdfTicket, signPlanReadTicket } from "../pdf-request";
 
 const OLD = process.env.AUTH0_SECRET;
 beforeAll(() => {
@@ -78,5 +78,18 @@ describe("what a browser may ask for", () => {
   it("names the file safely", () => {
     expect(pdfFileName('85 West St / "Option B"')).toBe("85 West St Option B .pdf".replace(" .pdf", ".pdf"));
     expect(pdfFileName("")).toBe("Design.pdf");
+  });
+});
+
+describe("the server's own ticket to read a plan", () => {
+  it("carries the org and the plan, for ten minutes, and nothing forged", () => {
+    const t = signPlanReadTicket({ orgId: "org-1", planId: "jplan-1" }, 1_000);
+    expect(readPlanReadTicket(t, 2_000)).toEqual({ orgId: "org-1", planId: "jplan-1" });
+    expect(readPlanReadTicket(t, 1_000 + 10 * 60_000 + 1)).toBeNull();
+    const [body, sig] = t.split(".");
+    const other = Buffer.from(JSON.stringify({ orgId: "org-2", planId: "jplan-1", exp: 9e15 })).toString("base64url");
+    expect(readPlanReadTicket(`${other}.${sig}`, 2_000)).toBeNull();
+    expect(readPlanReadTicket(`${body}.`, 2_000)).toBeNull();
+    expect(readPlanReadTicket(null)).toBeNull();
   });
 });

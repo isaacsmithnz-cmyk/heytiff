@@ -21,6 +21,7 @@ import type { MeasuredScale, PlanReading, PlanWord, SheetReading } from "@/lib/s
 import { suggestedRooms } from "@/lib/studio/reading";
 import { andList } from "@/lib/swms/library";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { pagesWords } from "./take-in";
 
 /** What a page of the set is: a floor's plan is what gets read for rooms;
     the rest is kept by kind so the roof and the site reads know where to look
@@ -59,6 +60,13 @@ export type JobPlanPage = {
 
 export type JobPlanState = "reading" | "read" | "check" | "failed";
 
+/** A set of drawings, read for its floors, or a specification, read by its
+    words for the air (take-in.ts). */
+export type JobPlanKind = "drawings" | "spec";
+
+/** A specification's read: its pages on the air, and their words. */
+export type SpecWords = { pages: number[]; words: string };
+
 export type JobPlan = {
   id: string;
   jobUuid: string;
@@ -69,6 +77,10 @@ export type JobPlan = {
   /** the original file's copy in the studio-plans bucket, which the roof and site reads take whole */
   sourceRef: string | null;
   sourceKind: "pdf" | "image";
+  /** drawings when absent: every plan before specifications were read */
+  kind?: JobPlanKind;
+  /** a specification's pages on the air, once read */
+  spec?: SpecWords | null;
   pageCount: number;
   pages: JobPlanPage[];
   /** keyed by page: `floors[pageKey(n)]` is what she read off page n, its points in that page's pixels */
@@ -236,6 +248,12 @@ export function planLine(plan: JobPlanRead, today?: string): string {
     return [`Added to Plans${plan.addedBy ? ` by ${plan.addedBy}` : ""}`, when].filter(Boolean).join(" ");
   }
   if (plan.state === "failed") return plan.said ? `Couldn't be read: ${plan.said.replace(/^The plans couldn't be read:?\s*/i, "") || "try again"}` : "Couldn't be read";
+  if (plan.kind === "spec") {
+    const day = dayOf(plan.readAt);
+    if (plan.state === "check") return plan.said ?? "Check the read";
+    const air = plan.spec?.pages.length ? `The specification's ${pagesWords(plan.spec.pages)} read for air, ventilation and exhaust` : "The specification";
+    return `${air}${day ? `, on ${day}` : ""}`;
+  }
   const floors = floorPagesOf(plan);
   const parts: string[] = [];
   if (floors.length) {

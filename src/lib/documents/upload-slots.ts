@@ -33,7 +33,7 @@ export async function openSlot(
   file: { fileName: string; mimeType: string; sizeBytes: number },
   onJob?: string
 ): Promise<OpenedSlot> {
-  const check = checkUpload({ name: file.fileName, type: file.mimeType, size: file.sizeBytes });
+  const check = checkUpload({ name: file.fileName, type: file.mimeType, size: file.sizeBytes }, { video: kind === "job_photo" });
   if (!check.ok) return { ok: false, error: check.error };
 
   const { data, error } = await supabaseAdmin

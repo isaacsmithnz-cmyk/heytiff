@@ -1,4 +1,5 @@
 import {
+  isVideoMime,
   asDocumentKind,
   checkUpload,
   displayName,
@@ -125,5 +126,20 @@ describe("fmtBytes", () => {
     expect(fmtBytes(2048)).toBe("2 KB");
     expect(fmtBytes(2.4 * 1024 * 1024)).toBe("2.4 MB");
     expect(fmtBytes(MAX_BYTES)).toBe("50 MB");
+  });
+});
+
+describe("a job's video from the phone's camera", () => {
+  const clip = { name: "3324 11 Nov 10.42.mp4", type: "video/mp4", size: 30 * 1024 * 1024 };
+  it("is stored only where a video may be (a job's photos)", () => {
+    expect(checkUpload(clip)).toEqual({ ok: false, error: "That file type isn't allowed — photos and PDFs only." });
+    expect(checkUpload(clip, { video: true })).toEqual({ ok: true, ext: "mp4" });
+  });
+  it("keeps the 50 MB limit", () => {
+    expect(checkUpload({ ...clip, size: 51 * 1024 * 1024 }, { video: true }).ok).toBe(false);
+  });
+  it("is told from a photo", () => {
+    expect(isVideoMime("video/mp4")).toBe(true);
+    expect(isVideoMime("image/jpeg")).toBe(false);
   });
 });

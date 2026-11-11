@@ -13,7 +13,7 @@ export const QUOTE_WORDS = {
     add: "Accepted quote: line {name} added",
     off: "Accepted quote: line {name} taken off",
     /* a quote sent as a quote, before it's accepted (slice 7.3) */
-    asQuoteJob: "Quote: the job's description",
+    asQuoteJob: "Quote: its description and the job's summary",
     asQuoteAdd: "Quote: line {name} added",
     asQuoteOff: "Quote: line {name} taken off",
     /* an accepted variation, added to the job as its own lines (decision 21) */

@@ -52,6 +52,13 @@ jest.mock("@/lib/workboard/job-note-write", () => ({
 const scheduled: (() => unknown)[] = [];
 jest.mock("next/server", () => ({ ...jest.requireActual("next/server"), after: (fn: () => unknown) => void scheduled.push(fn) }));
 jest.mock("@/lib/integrations/sm8-press", () => ({ sm8PressFromMobile: async () => null }));
+let inAlready: "same" | "replaced" | "none" = "none";
+jest.mock("@/lib/mobile/wrapup-replace", () => ({
+  replaceWrapupNote: async (_ctx: unknown, jobUuid: string, body: string, on: string) => {
+    asked.push(`replace ${jobUuid} "${body}" ${on}`);
+    return inAlready;
+  },
+}));
 jest.mock("@/lib/integrations/sm8-note-send-on", () => ({
   sendNoteOnToSm8: async (_press: unknown, orgId: string, noteId: string, jobUuid: string) => {
     asked.push(`send on ${orgId} ${noteId} ${jobUuid}`);
@@ -146,4 +153,34 @@ test("Save's note goes on to ServiceM8 when the box asks, and only then", async 
   expect((await post("claim-7", { body: "Rough-in done upstairs", id: PEN }, "auth0|lyle")).status).toBe(200);
   expect(scheduled).toEqual([]);
   expect(asked.some((a) => a.startsWith("send on"))).toBe(false);
+});
+
+/* Isaac, 11 November 2026: "I accidentally tapped something ... and I couldn't go back to it to edit it" */
+describe("a wrap-up note gone back to and changed", () => {
+  afterEach(() => {
+    inAlready = "none";
+  });
+
+  test("the one in is taken back before the changed words are written", async () => {
+    inAlready = "replaced";
+    const res = await post("job-3342", { body: "Lyle, 8:45 to 2:45\n\nUnit commissioned.", id: PEN, replaces: { on: "2026-11-10" } }, "auth0|lyle");
+    expect(res.status).toBe(200);
+    expect(asked).toEqual([
+      "resolve org-diamond job-3342",
+      'replace job-3342 "Lyle, 8:45 to 2:45\n\nUnit commissioned." 2026-11-10',
+      `write org-diamond auth0|lyle job-3342 "Lyle, 8:45 to 2:45\n\nUnit commissioned." ${PEN}`,
+    ]);
+  });
+
+  test("the same words again write nothing", async () => {
+    inAlready = "same";
+    const res = await post("job-3342", { body: "Lyle, 8:45 to 2:45\n\nUnit commissioned.", id: PEN, replaces: { on: "2026-11-10" } }, "auth0|lyle");
+    expect(await res.json()).toEqual({ same: true });
+    expect(asked.some((a) => a.startsWith("write"))).toBe(false);
+  });
+
+  test("a plain note asks nothing of it", async () => {
+    await post("job-3342", { body: "Pipe run is 14 m", id: PEN }, "auth0|lyle");
+    expect(asked.some((a) => a.startsWith("replace"))).toBe(false);
+  });
 });

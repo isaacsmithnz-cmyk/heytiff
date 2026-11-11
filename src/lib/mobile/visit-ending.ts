@@ -5,7 +5,7 @@ import { writeJobNote } from "@/lib/workboard/job-note-write";
 import type { MobileCtx } from "@/lib/mobile/auth";
 import { headOfNote } from "./day-writeup";
 import { replaceWrapupNote, stretchNote } from "./wrapup-replace";
-import { endingWords, withEnding, type Ending } from "./visit-ending-plan";
+import { endingWords, keptFromBefore, withEnding, type Ending } from "./visit-ending-plan";
 
 /* HOW A VISIT ENDED, READ AND SAID (visit-ending-plan says the words). One
    answer a job a day: the first wrap-up's stands, and the others see it and
@@ -80,7 +80,8 @@ export async function sayEnding(
   const now = new Date().toISOString();
   const { data: was } = await supabaseAdmin.from("visit_endings").select("id, answer, detail, charge, said_by, said_by_staff, updated_at, history").eq("org_id", ctx.orgId).eq("sm8_job_uuid", job).eq("day", day).maybeSingle();
   const w = was as { id: string; answer: string; detail: unknown; charge: unknown; said_by: string; said_by_staff: string | null; updated_at: string; history: unknown[] } | null;
-  const row = { answer: ending.answer, detail: ending.detail, charge: ending.charge, said_by: ctx.userId, said_by_staff: staffId, updated_at: now };
+  /* the office's moves and the quote job, kept through an edit (keptFromBefore) */
+  const row = { answer: ending.answer, detail: { ...ending.detail, ...keptFromBefore(w?.detail, ending) }, charge: ending.charge, said_by: ctx.userId, said_by_staff: staffId, updated_at: now };
   const first = !w;
   if (w) {
     const history = [...(Array.isArray(w.history) ? w.history : []), { at: w.updated_at, by: w.said_by, staff: w.said_by_staff, answer: w.answer, detail: w.detail, charge: w.charge }];

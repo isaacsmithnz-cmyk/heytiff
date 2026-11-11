@@ -2,7 +2,7 @@
    https://claude.ai/artifact/ESTib5qakLMfgTXmUW9vCy, 11 November 2026), from
    the real jobs it was drawn on. */
 
-import { endingOf, endingWords, withEnding } from "../visit-ending-plan";
+import { endingOf, endingWords, keptFromBefore, withEnding } from "../visit-ending-plan";
 
 test("each answer in the words the office reads first", () => {
   expect(endingWords(endingOf({ answer: "finished" })!)).toBe("Finished");
@@ -37,4 +37,15 @@ test("the ending goes into the note's first line, any earlier one taken out", ()
   expect(withEnding("Isaac, 8:45 to 2:45 · 4 photos · Coming back, no access\n\nWords.", "Finished")).toBe("Isaac, 8:45 to 2:45 · 4 photos · Finished\n\nWords.");
   expect(withEnding("Isaac, 7:45 to 8:15 · Finished · No charge, site meeting", "Coming back, no access")).toBe("Isaac, 7:45 to 8:15 · Coming back, no access");
   expect(withEnding("Isaac, 7:45 to 8:15", "Finished · No charge, site meeting")).toBe("Isaac, 7:45 to 8:15 · Finished · No charge, site meeting");
+});
+
+describe("an edit keeps what the office did", () => {
+  const Q = "0a1b2c3d-0000-4000-8000-000000000001";
+  it("keeps Checked on a still-finished job, Parts are in while still waiting on parts, Claimed on a still-warranty visit, and the quote job always", () => {
+    const before = { checked: "2026-11-11", partsIn: "2026-11-10", claimed: "2026-11-11", quoteJob: Q };
+    expect(keptFromBefore(before, { answer: "finished", detail: {}, charge: { kind: "job" } })).toEqual({ quoteJob: Q, checked: "2026-11-11" });
+    expect(keptFromBefore(before, { answer: "coming_back", detail: { waiting: "parts" }, charge: { kind: "none", reason: "warranty" } })).toEqual({ quoteJob: Q, partsIn: "2026-11-10", claimed: "2026-11-11" });
+    expect(keptFromBefore(before, { answer: "coming_back", detail: { waiting: "access" }, charge: { kind: "job" } })).toEqual({ quoteJob: Q });
+    expect(keptFromBefore(null, { answer: "finished", detail: {}, charge: { kind: "job" } })).toEqual({});
+  });
 });

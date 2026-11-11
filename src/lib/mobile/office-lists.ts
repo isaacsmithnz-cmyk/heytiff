@@ -11,6 +11,8 @@ import { latestPerJob, officeLists, placeEnding, type EndingRow, type JobFacts, 
    now, and whether a visit's been booked since. */
 
 const LOOK_BACK_DAYS = 120;
+/** uuids a query asks for at once */
+const CHUNK = 100;
 const shift = (day: string, by: number) => new Date(Date.parse(`${day}T00:00:00Z`) + by * 86_400_000).toISOString().slice(0, 10);
 
 export async function readOfficeLists(orgId: string, now: number = Date.now()): Promise<OfficeLists> {
@@ -38,25 +40,36 @@ export async function readOfficeLists(orgId: string, now: number = Date.now()): 
   const uuids = [...new Set(endings.flatMap((e) => [e.jobUuid, e.jobUuid.toLowerCase(), ...(e.ending.detail.quoteJob ? [e.ending.detail.quoteJob] : [])]))];
   const earliest = endings.reduce((m, e) => (e.day < m ? e.day : m), today);
 
-  const [{ data: jobs }, { data: acts }] = await Promise.all([
-    supabaseAdmin
-      .from("sm8_jobs")
-      .select("uuid, generated_job_id, job_address, status, active, invoice_sent, quote_sent_stamp, work_order_date, total_invoice_amount")
-      .eq("org_id", orgId)
-      .in("uuid", uuids),
-    supabaseAdmin
-      .from("sm8_job_activities")
-      .select("job_uuid, start_date")
-      .eq("org_id", orgId)
-      .in("job_uuid", uuids)
-      .eq("active", 1)
-      .eq("activity_was_scheduled", 1)
-      .gt("start_date", `${earliest} 23:59:59`)
-      .limit(5000),
-  ]);
+  /* in pieces, as a long `in` list is refused whole; a piece that fails says so rather than emptying the lists */
+  const pieces: string[][] = [];
+  for (let i = 0; i < uuids.length; i += CHUNK) pieces.push(uuids.slice(i, i + CHUNK));
+  const read = await Promise.all(
+    pieces.map(async (part) => {
+      const [j, a] = await Promise.all([
+        supabaseAdmin
+          .from("sm8_jobs")
+          .select("uuid, generated_job_id, job_address, status, active, invoice_sent, quote_sent_stamp, work_order_date, total_invoice_amount")
+          .eq("org_id", orgId)
+          .in("uuid", part),
+        supabaseAdmin
+          .from("sm8_job_activities")
+          .select("job_uuid, start_date")
+          .eq("org_id", orgId)
+          .in("job_uuid", part)
+          .eq("active", 1)
+          .eq("activity_was_scheduled", 1)
+          .gt("start_date", `${earliest} 23:59:59`)
+          .limit(5000),
+      ]);
+      if (j.error || a.error) throw new Error(j.error?.message ?? a.error?.message ?? "the mirror couldn't be read");
+      return { jobs: j.data ?? [], acts: a.data ?? [] };
+    })
+  );
+  const jobs = read.flatMap((r) => r.jobs);
+  const acts = read.flatMap((r) => r.acts);
 
   const facts = new Map<string, JobFacts>();
-  for (const j of (jobs ?? []) as {
+  for (const j of jobs as {
     uuid: string;
     generated_job_id: string | null;
     job_address: string | null;
@@ -81,7 +94,7 @@ export async function readOfficeLists(orgId: string, now: number = Date.now()): 
     });
   }
   const bookings = new Map<string, string[]>();
-  for (const a of (acts ?? []) as { job_uuid: string; start_date: string }[]) {
+  for (const a of acts as { job_uuid: string; start_date: string }[]) {
     const k = a.job_uuid.toLowerCase();
     bookings.set(k, [...(bookings.get(k) ?? []), a.start_date]);
   }

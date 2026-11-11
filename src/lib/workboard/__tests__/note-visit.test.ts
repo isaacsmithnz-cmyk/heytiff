@@ -4,6 +4,7 @@
    actions/__tests__/workboard-notes-visits.test.ts. No model is called. */
 
 import {
+  isMoveWork,
   NOTE_SCHEMA,
   TIFF_NOTE_SCHEMA,
   isEmptyProposal,
@@ -149,6 +150,16 @@ describe("the shaper", () => {
     const nobody = shapeProposal(raw([visit({ assignee_hint: "" })]), ctx, "book commissioning for Friday arvo");
     expect(nobody.clarify).toEqual({ question: "Who's going: commissioning?", options: ["Me"] });
     expect(nobody.say).toBe("Who's going: commissioning?");
+  });
+
+  /* Isaac, 2 November 2026: "Move ... my booking this afternoon to Friday, seven AM" booked a second visit */
+  it("never books a booking being moved as a new visit, and says where to move it", () => {
+    const p = shapeProposal(raw([visit({ work: "Move booking this afternoon to Friday 7am" }), visit({ work: "commissioning" })]), ctx, "move my booking this afternoon to Friday seven am");
+    expect(p.visits.map((v) => v.work)).toEqual(["commissioning"]);
+    expect(p.say).toContain("I can't move a booking yet: open it on Schedule and change its time there.");
+    expect(isMoveWork("Reschedule the Mosman job")).toBe(true);
+    expect(isMoveWork("Moving the outdoor unit")).toBe(true);
+    expect(isMoveWork("Commission the system")).toBe(false);
   });
 
   it("is a plan row the person can take off, and stored and read back whole", () => {

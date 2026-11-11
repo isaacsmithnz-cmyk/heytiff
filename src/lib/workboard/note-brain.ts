@@ -704,6 +704,12 @@ export function systemBlocks(ctx: NoteContext): { type: "text"; text: string; ca
    whether it is paying. */
 const EPHEMERAL = { type: "ephemeral", ttl: "1h" } as const;
 
+/** A visit the model made of a booking being moved: its work starts with the move. */
+const MOVE_WORK = /^(?:move|moving|reschedul\w*|re-schedul\w*|push|shift|bring (?:forward|back)|change (?:the |my )?(?:booking|time|visit))\b/i;
+export const isMoveWork = (work: string) => MOVE_WORK.test(work.trim());
+/** What Tiff says when asked to move a booking, which she can't do yet. */
+export const MOVE_SAY = "I can't move a booking yet: open it on Schedule and change its time there.";
+
 const ROUTER_RULES = [
   "You route a tradesperson's site note into structured outcomes for an",
   "Australian HVAC business. The note was spoken aloud or typed quickly, so",
@@ -719,7 +725,8 @@ const ROUTER_RULES = [
   "  is what they'll do there; the person in `assignee_hint` as for a task;",
   "  `day` as YYYY-MM-DD; `start` HH:MM only when a clock time is said,",
   "  else empty, with the part of the day in `part`; `minutes` the length",
-  "  said, else 0. A visit is not also a task.",
+  "  said, else 0. A visit is not also a task. Moving a booking already",
+  "  made ('move my 3pm to Friday') is never a visit: leave it out.",
   "- costs: money spent for the job, '$85 at Reece for fittings'. `amount`",
   "  in dollars as said, else 0; `gst` only a GST figure said, else 0;",
   "  `gst_basis` plus for 'plus GST'; `day` only if said; `payer_hint`",
@@ -1106,11 +1113,20 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
      real one, the start on Book in's grid, the length one it offers. A
      visit with no work named is not a visit. */
   const visits: ProposedVisit[] = [];
+  /* A MOVE IS NEVER A NEW VISIT (Isaac, 2 November 2026: "Move ... my booking
+     this afternoon to Friday, seven AM" booked a second visit on the job the
+     chip was on, and the real one stayed put). Tiff can't move a booking yet;
+     a visit whose work is a move is dropped, and she says where to move it. */
+  let moveAsked = false;
   for (const v of Array.isArray(r.visits) ? r.visits : []) {
     if (visits.length >= VISITS_MAX) break;
     const row = (v && typeof v === "object" ? v : {}) as Record<string, unknown>;
     const work = clean(row.work, TITLE_MAX);
     if (!work) continue;
+    if (isMoveWork(work)) {
+      moveAsked = true;
+      continue;
+    }
     const assigneeHint = clean(row.assignee_hint, TITLE_MAX);
     const match = resolveAssignee(assigneeHint, ctx.staff, ctx.author?.id);
     if (match.kind === "ambiguous" && !clarify) {
@@ -1233,6 +1249,7 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
      without `speak` never asks for a line, so its proposals carry none. */
   let say = clean(r.say, SAY_MAX);
   if (ctx.speak && escalated && clarify) say = clarify.question;
+  if (moveAsked && ctx.speak) say = [say, MOVE_SAY].filter(Boolean).join(" ").slice(0, SAY_MAX + MOVE_SAY.length + 1);
 
   /* NO COERCION BY MODE. The Debrief's closed every job-bound lane and
      rewrote what landed in one into a "note line"; with the Debrief gone

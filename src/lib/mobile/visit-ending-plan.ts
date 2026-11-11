@@ -88,6 +88,22 @@ export function endingOf(raw: unknown): Ending | null {
   return { answer, detail, charge };
 }
 
+/** What the office and HeyTiff wrote onto an answer after it was said (the
+    office's lists: Parts are in, Checked, Claimed; the quote job it opened)
+    that a later save of the same day keeps, as long as it still fits the
+    answer: an edit of the wrap-up must never put a checked job back on
+    Ready to invoice, or lose the quote job ServiceM8 already has. */
+export function keptFromBefore(before: unknown, next: Ending): Record<string, string> {
+  const b = (before && typeof before === "object" ? before : {}) as Record<string, unknown>;
+  const day = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined);
+  const kept: Record<string, string> = {};
+  if (typeof b.quoteJob === "string" && /^[0-9a-f-]{36}$/i.test(b.quoteJob)) kept.quoteJob = b.quoteJob;
+  if (next.answer === "finished" && day(b.checked)) kept.checked = day(b.checked)!;
+  if (next.answer === "coming_back" && next.detail.waiting === "parts" && day(b.partsIn)) kept.partsIn = day(b.partsIn)!;
+  if (next.charge.kind === "none" && next.charge.reason === "warranty" && day(b.claimed)) kept.claimed = day(b.claimed)!;
+  return kept;
+}
+
 /** "Coming back, waiting on parts", "Finished, and a quote to build", "Can’t go ahead, unsafe"; then "No charge, site meeting". */
 export function endingWords(e: Ending): string {
   let words = ANSWER_WORDS[e.answer];

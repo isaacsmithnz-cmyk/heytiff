@@ -58,17 +58,27 @@ export async function openBug(ctx: MobileCtx, body: Record<string, unknown>): Pr
   if (!mayFileBugs(ctx)) return bad("Only the workspace's owner can save a bug.", 403);
   const folder = bugFolder(ctx.orgId);
   const { data: files, error: listErr } = await bucket().list(folder.slice(0, -1), { limit: 1000, sortBy: { column: "name", order: "desc" } });
-  if (listErr) return bad("Couldn't read the bugs folder.");
+  if (listErr) {
+    console.error("[bugs] list", listErr.message);
+    return bad("Couldn't read the bugs folder.");
+  }
   let n = highestBug((files ?? []).map((f) => f.name)) + 1;
   const facts = { at: new Date().toISOString(), page: one(body.page), app: one(body.app) };
   for (let tries = 0; ; tries++) {
     const { error } = await bucket().upload(`${folder}${bugName(n)}.txt`, text(bugText({ n, ...facts })), { contentType: "text/plain", upsert: false });
     if (!error) break;
-    if (tries >= 4 || !/exist|duplicate/i.test(error.message)) return bad("Couldn't save the bug.");
+    if (tries >= 4 || !/exist|duplicate/i.test(error.message)) {
+      // the real refusal, always: a bucket that won't take text/plain read as this once (docs/migrations/documents_bucket_text.sql)
+      console.error("[bugs] hold", bugName(n), error.message);
+      return bad("Couldn't save the bug.");
+    }
     n += 1;
   }
   const { data: slot, error: slotErr } = await bucket().createSignedUploadUrl(`${folder}${bugName(n)}.png`);
-  if (slotErr || !slot) return bad("Couldn't save the bug.");
+  if (slotErr || !slot) {
+    console.error("[bugs] slot", bugName(n), slotErr?.message);
+    return bad("Couldn't save the bug.");
+  }
   return { ok: true, value: { number: n, uploadUrl: slot.signedUrl } };
 }
 

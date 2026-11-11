@@ -27,6 +27,10 @@ export type PushMessage = {
   body?: string | null;
   /** The phone screen it opens, e.g. "/job?id=…"; the list without one. */
   path?: string | null;
+  /** more for the phone to read beside the path, e.g. the job a notification's buttons act on */
+  data?: Record<string, string>;
+  /** the phone's own notification category, for its buttons */
+  categoryId?: string;
 };
 
 type Ticket = { status: "ok" | "error"; id?: string; message?: string; details?: { error?: string } };
@@ -58,7 +62,8 @@ export async function pushToStaff(orgId: string, staffIds: readonly string[], me
             to,
             title: message.title,
             ...(message.body ? { body: message.body } : {}),
-            data: { path: message.path ?? "/notifications" },
+            data: { path: message.path ?? "/notifications", ...(message.data ?? {}) },
+            ...(message.categoryId ? { categoryId: message.categoryId } : {}),
             sound: "default",
             channelId: "heytiff",
             priority: "high",

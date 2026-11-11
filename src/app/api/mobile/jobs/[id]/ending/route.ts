@@ -6,6 +6,7 @@ import { ok, requireMobile } from "@/lib/mobile/auth";
 import { dayFor, jobHeld } from "@/lib/mobile/used";
 import { readEnding, sayEnding } from "@/lib/mobile/visit-ending";
 import { tellOthersWrapped } from "@/lib/mobile/wrapped-others";
+import { openQuoteJob } from "@/lib/mobile/quote-job";
 import { endingOf } from "@/lib/mobile/visit-ending-plan";
 
 /* HOW THE VISIT ENDED (lib/mobile/visit-ending): GET is the answer already
@@ -52,6 +53,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (said.written && input?.sendOn === true) after(() => sendNoteOnToSm8(() => sm8PressFromMobile(ctx), ctx.orgId, said.written!, job));
     /* the job's first wrap-up of the day: everyone else on it is asked if they've anything to add */
     if (said.first) after(() => tellOthersWrapped(ctx.orgId, job, day, said.by.staff, said.by.name).then(() => undefined));
+    /* Finished with something to quote: a Quote job of its own, the same client and site, once a job a day (lib/mobile/quote-job) */
+    if (ending.answer === "finished" && ending.detail.quoteToo)
+      after(async () => {
+        const r = await openQuoteJob(await sm8PressFromMobile(ctx), ctx.orgId, job, day, ending.detail.quoteWords);
+        if (!r.ok) console.warn(`[mobile] no quote job from ${job} on ${day}: ${r.error}`);
+      });
     return ok(said.read);
   } catch (err) {
     return no(400, err instanceof Error ? err.message : "Couldn’t keep that. Try again.");

@@ -1,9 +1,6 @@
 import "server-only";
-import { after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
-import { sendNoteOnToSm8 } from "@/lib/integrations/sm8-note-send-on";
-import { sm8PressFromMobile } from "@/lib/integrations/sm8-press";
 import { writeJobNote } from "@/lib/workboard/job-note-write";
 import type { MobileCtx } from "@/lib/mobile/auth";
 import { headOfNote } from "./day-writeup";
@@ -70,13 +67,21 @@ export async function readEnding(orgId: string, job: string, day: string): Promi
   return { said, booked, charge: quoted ? `As quoted, ${money(total)}` : "With the job" };
 }
 
-/** The answer kept, and put into the first line of the stretch's note (`line`, the wrap-up's own first line). */
-export async function sayEnding(ctx: MobileCtx, job: string, day: string, line: string, ending: Ending, sendOn: boolean): Promise<EndingRead> {
+/** The answer kept, and put into the first line of the stretch's note (`line`, the wrap-up's own first line).
+    `written`: the note written with it, for the route to send on to ServiceM8 (only a route mints a press). */
+export async function sayEnding(
+  ctx: MobileCtx,
+  job: string,
+  day: string,
+  line: string,
+  ending: Ending
+): Promise<{ read: EndingRead; written: string | null; first: boolean; by: { staff: string | null; name: string | null } }> {
   const staffId = await staffProfileIdFor(ctx.orgId, ctx.userId).catch(() => null);
   const now = new Date().toISOString();
   const { data: was } = await supabaseAdmin.from("visit_endings").select("id, answer, detail, charge, said_by, said_by_staff, updated_at, history").eq("org_id", ctx.orgId).eq("sm8_job_uuid", job).eq("day", day).maybeSingle();
   const w = was as { id: string; answer: string; detail: unknown; charge: unknown; said_by: string; said_by_staff: string | null; updated_at: string; history: unknown[] } | null;
   const row = { answer: ending.answer, detail: ending.detail, charge: ending.charge, said_by: ctx.userId, said_by_staff: staffId, updated_at: now };
+  const first = !w;
   if (w) {
     const history = [...(Array.isArray(w.history) ? w.history : []), { at: w.updated_at, by: w.said_by, staff: w.said_by_staff, answer: w.answer, detail: w.detail, charge: w.charge }];
     const { error } = await supabaseAdmin.from("visit_endings").update({ ...row, history }).eq("org_id", ctx.orgId).eq("id", w.id);
@@ -91,10 +96,10 @@ export async function sayEnding(ctx: MobileCtx, job: string, day: string, line: 
   const head = headOfNote(line);
   const note = head.includes(" to ") ? await stretchNote(ctx, job, head, day) : null;
   const body = withEnding(note?.text ?? line, words);
+  let written: string | null = null;
   if (!note || note.text !== body) {
     if (note) await replaceWrapupNote(ctx, job, body, day);
-    const saved = await writeJobNote({ orgId: ctx.orgId, userId: ctx.userId, jobUuid: job, body });
-    if (sendOn) after(() => sendNoteOnToSm8(() => sm8PressFromMobile(ctx), ctx.orgId, saved.id, job));
+    written = (await writeJobNote({ orgId: ctx.orgId, userId: ctx.userId, jobUuid: job, body })).id;
   }
-  return readEnding(ctx.orgId, job, day);
+  return { read: await readEnding(ctx.orgId, job, day), written, first, by: { staff: staffId, name: await nameOf(ctx.orgId, staffId) } };
 }

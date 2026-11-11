@@ -1,7 +1,11 @@
+import { after } from "next/server";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
+import { sendNoteOnToSm8 } from "@/lib/integrations/sm8-note-send-on";
+import { sm8PressFromMobile } from "@/lib/integrations/sm8-press";
 import { ok, requireMobile } from "@/lib/mobile/auth";
 import { dayFor, jobHeld } from "@/lib/mobile/used";
 import { readEnding, sayEnding } from "@/lib/mobile/visit-ending";
+import { tellOthersWrapped } from "@/lib/mobile/wrapped-others";
 import { endingOf } from "@/lib/mobile/visit-ending-plan";
 
 /* HOW THE VISIT ENDED (lib/mobile/visit-ending): GET is the answer already
@@ -43,7 +47,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const line = typeof input?.line === "string" ? input.line.trim().slice(0, 300) : "";
   if (!line) return no(400, "Which visit?");
   try {
-    return ok(await sayEnding(ctx, job, day, line, ending, input?.sendOn === true));
+    const said = await sayEnding(ctx, job, day, line, ending);
+    /* the note with the ending on to ServiceM8, as the wrap-up's own Save sends one: after the answer */
+    if (said.written && input?.sendOn === true) after(() => sendNoteOnToSm8(() => sm8PressFromMobile(ctx), ctx.orgId, said.written!, job));
+    /* the job's first wrap-up of the day: everyone else on it is asked if they've anything to add */
+    if (said.first) after(() => tellOthersWrapped(ctx.orgId, job, day, said.by.staff, said.by.name).then(() => undefined));
+    return ok(said.read);
   } catch (err) {
     return no(400, err instanceof Error ? err.message : "Couldn’t keep that. Try again.");
   }

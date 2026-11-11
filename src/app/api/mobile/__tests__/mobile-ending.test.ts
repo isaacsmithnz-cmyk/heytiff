@@ -41,9 +41,18 @@ jest.mock("@/lib/mobile/used", () => ({
 const READ = { said: null, booked: null, charge: "As quoted, $9,856" };
 jest.mock("@/lib/mobile/visit-ending", () => ({
   readEnding: async (orgId: string, job: string, day: string) => (asked.push(`read ${orgId} ${job} ${day}`), READ),
-  sayEnding: async (_ctx: unknown, job: string, day: string, line: string, ending: { answer: string }, sendOn: boolean) => (
-    asked.push(`say ${job} ${day} "${line}" ${ending.answer} ${sendOn}`), READ
+  sayEnding: async (_ctx: unknown, job: string, day: string, line: string, ending: { answer: string }) => (
+    asked.push(`say ${job} ${day} "${line}" ${ending.answer}`), { read: READ, written: "note-1", first: true, by: { staff: "card-isaac", name: "Isaac" } }
   ),
+}));
+const scheduled: (() => unknown)[] = [];
+jest.mock("next/server", () => ({ ...jest.requireActual("next/server"), after: (fn: () => unknown) => void scheduled.push(fn) }));
+jest.mock("@/lib/integrations/sm8-press", () => ({ sm8PressFromMobile: async () => null }));
+jest.mock("@/lib/mobile/wrapped-others", () => ({
+  tellOthersWrapped: async (orgId: string, job: string, day: string, staff: string, name: string) => (asked.push(`tell others ${orgId} ${job} ${day} ${staff} ${name}`), 1),
+}));
+jest.mock("@/lib/integrations/sm8-note-send-on", () => ({
+  sendNoteOnToSm8: async (_press: unknown, orgId: string, noteId: string, jobUuid: string) => void asked.push(`send on ${orgId} ${noteId} ${jobUuid}`),
 }));
 
 import { GET, POST } from "../jobs/[id]/ending/route";
@@ -92,8 +101,16 @@ test("read for the day asked, or today", async () => {
 });
 
 test("an answer is said with its visit's line, and on to ServiceM8 only when asked", async () => {
-  expect((await post("job-3324", { day: "2026-11-10", line: LINE, ending: { answer: "finished" }, sendOn: true }, "auth0|isaac")).status).toBe(200);
-  expect(asked).toEqual([`say job-3324 2026-11-10 "${LINE}" finished true`]);
+  const res = await post("job-3324", { day: "2026-11-10", line: LINE, ending: { answer: "finished" }, sendOn: true }, "auth0|isaac");
+  expect(res.status).toBe(200);
+  expect(await res.json()).toEqual(READ);
+  for (const fn of scheduled.splice(0)) await fn();
+  expect(asked).toEqual([`say job-3324 2026-11-10 "${LINE}" finished`, "send on org-das note-1 job-3324", "tell others org-das job-3324 2026-11-10 card-isaac Isaac"]);
+  asked.length = 0;
+  await post("job-3324", { day: "2026-11-10", line: LINE, ending: { answer: "finished" } }, "auth0|isaac");
+  for (const fn of scheduled.splice(0)) await fn();
+  /* no ServiceM8 asked for: only the others are told */
+  expect(asked).toEqual([`say job-3324 2026-11-10 "${LINE}" finished`, "tell others org-das job-3324 2026-11-10 card-isaac Isaac"]);
 });
 
 test("an answer missing what it needs, or with no visit's line, says nothing", async () => {

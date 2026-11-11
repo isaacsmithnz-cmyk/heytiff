@@ -98,10 +98,36 @@ export function keptFromBefore(before: unknown, next: Ending): Record<string, st
   const day = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined);
   const kept: Record<string, string> = {};
   if (typeof b.quoteJob === "string" && /^[0-9a-f-]{36}$/i.test(b.quoteJob)) kept.quoteJob = b.quoteJob;
+  /* told ServiceM8 no quote was needed: kept while it still isn't */
+  if (b.quoteDropped === "noted" && !(next.answer === "finished" && next.detail.quoteToo)) kept.quoteDropped = "noted";
   if (next.answer === "finished" && day(b.checked)) kept.checked = day(b.checked)!;
   if (next.answer === "coming_back" && next.detail.waiting === "parts" && day(b.partsIn)) kept.partsIn = day(b.partsIn)!;
   if (next.charge.kind === "none" && next.charge.reason === "warranty" && day(b.claimed)) kept.claimed = day(b.claimed)!;
   return kept;
+}
+
+/** WHAT AN EDIT DOES TO THE QUOTE JOB (found in review, 12 November 2026):
+    the answer said again with a quote to build opens it (the same job, a job
+    a day, lib/mobile/quote-job); taken off, it's stopped if it hasn't gone,
+    or ServiceM8 is told it isn't needed; its words changed once it's open,
+    ServiceM8 is told the new ones. `revive` when ServiceM8 was told it isn't
+    needed, and now it is. Null when the quote job has nothing to do. */
+export type QuoteMove =
+  | { kind: "open"; revive: boolean }
+  | { kind: "drop" }
+  | { kind: "words"; quoteJob: string; words: string }
+  | null;
+
+export function quoteMove(before: { answer: string; detail: unknown } | null, next: Ending): QuoteMove {
+  const b = (before?.detail && typeof before.detail === "object" ? before.detail : {}) as Record<string, unknown>;
+  const was = before?.answer === "finished" && b.quoteToo === true;
+  const now = next.answer === "finished" && next.detail.quoteToo === true;
+  if (!now) return was ? { kind: "drop" } : null;
+  const quoteJob = typeof b.quoteJob === "string" && /^[0-9a-f-]{36}$/i.test(b.quoteJob) ? b.quoteJob : null;
+  const wordsBefore = typeof b.quoteWords === "string" ? b.quoteWords.trim() : "";
+  const words = next.detail.quoteWords?.trim() ?? "";
+  if (was && quoteJob && words !== wordsBefore) return { kind: "words", quoteJob, words };
+  return { kind: "open", revive: !was && b.quoteDropped === "noted" };
 }
 
 /** "Coming back, waiting on parts", "Finished, and a quote to build", "Can’t go ahead, unsafe"; then "No charge, site meeting". */

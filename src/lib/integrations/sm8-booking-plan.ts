@@ -134,6 +134,8 @@ export const bookingSubject = {
   /** A Quote marked Unsuccessful (Analytics): its own subject, so it never
       dedupes against a Make it a Work Order seen at the same edit time. */
   lost: (seenEditDate: string) => `status:un:${seenEditDate.trim().replace(/\s+/g, "T")}`,
+  /** A Work Order made Completed (Ready to invoice's Checked): its own subject, as `lost`'s. */
+  done: (seenEditDate: string) => `status:co:${seenEditDate.trim().replace(/\s+/g, "T")}`,
   undo: (createRowId: string) => `undo:${createRowId}`,
   clear: (activityUuid: string) => `clear:${activityUuid}`,
   /** A person's time on a job, clocked on and off on the phone: one per
@@ -833,6 +835,23 @@ export function statusLine(
   _hold: SendHold
 ): BookingState | null {
   const st = statusRow.status;
+  /* a Work Order the office checked and made Completed says so in its own words; it has no bookings */
+  if (statusRow.job_status_to === "Completed") {
+    if (st === "queued" || st === "sending") return line("line.doneSending", BOOKING_WORDS.line.doneSending, null, []);
+    if (st === "sent") {
+      if (reasonOf(statusRow.last_error) === "fieldsNotKept") return line("line.doneSent", `${BOOKING_WORDS.line.doneSent}. ${statusRow.last_error}`, "bad", []);
+      return line("line.doneSent", BOOKING_WORDS.line.doneSent, "ok", []);
+    }
+    if (mayHaveLanded(statusRow)) return line("line.doneUnsure", BOOKING_WORDS.line.doneUnsure, null, []);
+    if (statusRow.taken_back_at) return null;
+    if (st === "failed" || st === "cancelled") {
+      const text = statusRow.last_error
+        ? fillWords(BOOKING_WORDS.line.doneNotSent, { reason: statusRow.last_error })
+        : BOOKING_WORDS.line.doneNotSent.replace(/\s*\{reason\}$/, "");
+      return line("line.doneNotSent", text, "bad", []);
+    }
+    return null;
+  }
   /* a Quote an owner marked lost says so in its own words; it has no bookings */
   if (statusRow.job_status_to === "Unsuccessful") {
     if (st === "queued" || st === "sending") return line("line.lostSending", BOOKING_WORDS.line.lostSending, null, []);

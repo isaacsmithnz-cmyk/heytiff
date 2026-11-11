@@ -84,7 +84,7 @@ import { BOOKING_STATUS_WAIT_MS, BOOKING_WORDS, bookingLine, clearLine, localNow
 import { checkedIn } from "../sm8-booking-send";
 import { NOTE_WORDS } from "../sm8-note-words";
 import { WRITE_WORDS, offersSend, sendHold } from "../sm8-write-plan";
-import { queueBookIn, queueBookingRetry, queueBookingTakeBack, queueClear, queueMakeWorkOrder, queueMarkUnsuccessful, queueRecordedTime, queueTakeOff } from "@/app/actions/sm8-booking-queue";
+import { queueBookIn, queueBookingRetry, queueBookingTakeBack, queueClear, queueMakeWorkOrder, queueMarkCompleted, queueMarkUnsuccessful, queueRecordedTime, queueTakeOff } from "@/app/actions/sm8-booking-queue";
 import { readBookingOverlay } from "../sm8-booking-overlay";
 
 const ORG = "org-1";
@@ -1309,6 +1309,39 @@ describe("Mark Unsuccessful: a Quote's other status change, alone", () => {
   it("(F) a job ServiceM8 already has Unsuccessful is sent, and nothing is posted", async () => {
     const q = await queueMarkUnsuccessful(await pressAs(), await state(), { jobUuid: JOB, verbId: randomUUID(), seenEditDate: SEEN });
     sm8.jobs.get(JOB)!.status = "Unsuccessful";
+    await run();
+    expect(byId(q.ok && q.rowId).status).toBe("sent");
+    noRequest();
+  });
+});
+
+/* Isaac, 11 November 2026: How did it end?'s Ready to invoice, the office's
+   Checked — a finished Work Order made Completed in ServiceM8 */
+describe("Mark Completed: a Work Order's own status change, alone", () => {
+  it("(F) queues one status row from Work Order to Completed, marked alone, and it goes with nothing behind it", async () => {
+    sm8.jobs.get(JOB)!.status = "Work Order";
+    const q = await queueMarkCompleted(await pressAs(), await state(), { jobUuid: JOB, verbId: randomUUID(), seenEditDate: SEEN });
+    expect(q).toMatchObject({ ok: true });
+    const s = byId(q.ok && q.rowId);
+    expect(s).toMatchObject({ op: "update", job_status_from: "Work Order", job_status_to: "Completed", payload: { alone: true } });
+    await run();
+    expect(postSm8JobStatus).toHaveBeenCalledTimes(1);
+    expect(postSm8JobStatus.mock.calls[0].slice(1)).toEqual([JOB, "Completed"]);
+    expect(s.status).toBe("sent");
+    expect(sm8.jobs.get(JOB)!.status).toBe("Completed");
+  });
+
+  it("(F) a job that's still a Quote is cancelled in its own words, and nothing is posted", async () => {
+    const q = await queueMarkCompleted(await pressAs(), await state(), { jobUuid: JOB, verbId: randomUUID(), seenEditDate: SEEN });
+    sm8.jobs.get(JOB)!.status = "Quote";
+    await run();
+    expect(byId(q.ok && q.rowId)).toMatchObject({ status: "cancelled", last_error: "The job is Quote in ServiceM8 now, not a Work Order, so it wasn't made Completed." });
+    noRequest();
+  });
+
+  it("(F) a job ServiceM8 already has Completed is sent, and nothing is posted", async () => {
+    const q = await queueMarkCompleted(await pressAs(), await state(), { jobUuid: JOB, verbId: randomUUID(), seenEditDate: SEEN });
+    sm8.jobs.get(JOB)!.status = "Completed";
     await run();
     expect(byId(q.ok && q.rowId).status).toBe("sent");
     noRequest();

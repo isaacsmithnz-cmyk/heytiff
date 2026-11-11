@@ -96,8 +96,13 @@ export default async function TeamRoute({ searchParams }: { searchParams: Params
   ]);
   const inviteRoles = invitableRoles(actorRole, caps);
   const canInvite = inviteRoles.length > 0;
-  // tokens and ids ride along only when this viewer may act on them
-  const pending = await listPendingInvites(orgId, { withLinks: canInvite });
+  // tokens and ids ride along only when this viewer may act on them, and a
+  // link only for an invite at a role they may send: someone who may invite
+  // staff never holds the link to an owner's admin invite, which would let
+  // them accept it themselves (found 12 November 2026)
+  const pending = (await listPendingInvites(orgId, { withLinks: canInvite })).map((p) =>
+    p.token && !(inviteRoles as string[]).includes(p.role) ? { ...p, token: null } : p
+  );
 
   /* Prefer the configured base URL; otherwise derive it from the incoming
      request so invite links are always right in production (never localhost). */

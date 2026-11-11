@@ -1,0 +1,75 @@
+import { latestPerJob, officeLists, placeEnding, type EndingRow, type JobFacts } from "../office-lists-plan";
+
+/* Where a visit's answer puts its job for the office, and when it leaves. */
+
+const TODAY = "2026-11-11";
+const job = (over: Partial<JobFacts> = {}): JobFacts => ({
+  number: "3324",
+  suburb: "Darling Point",
+  status: "Work Order",
+  active: true,
+  invoiced: false,
+  quoteSentOn: "2026-09-17",
+  workOrderOn: "2026-09-20",
+  quoted: 9856,
+  ...over,
+});
+const said = (answer: EndingRow["ending"]["answer"], detail: EndingRow["ending"]["detail"] = {}, day = "2026-11-10", charge: EndingRow["ending"]["charge"] = { kind: "job" }): EndingRow => ({
+  jobUuid: "J1",
+  day,
+  ending: { answer, detail, charge },
+  by: "Isaac",
+});
+
+describe("Ready to invoice", () => {
+  it("holds a finished job as quoted, until it's Completed or invoiced", () => {
+    expect(placeEnding(said("finished"), job(), false, TODAY)).toEqual({ list: "ready", jobUuid: "J1", day: "2026-11-10", title: "3324, Darling Point", sub: "Finished, as quoted, $9,856, Isaac, 10 Nov", days: 1, tone: null });
+    expect(placeEnding(said("finished"), job({ status: "Completed" }), false, TODAY)).toBeNull();
+    expect(placeEnding(said("finished"), job({ invoiced: true }), false, TODAY)).toBeNull();
+  });
+  it("never holds a visit at no charge", () => {
+    expect(placeEnding(said("finished", {}, "2026-11-10", { kind: "none", reason: "site_meeting" }), job(), false, TODAY)).toBeNull();
+  });
+  it("puts a quote to build on Quotes waiting first", () => {
+    expect(placeEnding(said("finished", { quoteToo: true, quoteWords: "ducted upstairs" }), job(), false, TODAY)?.sub).toBe("To quote, ducted upstairs");
+  });
+});
+
+describe("To book and Parts on order", () => {
+  it("waits on parts until they're in, then is to book from that day", () => {
+    expect(placeEnding(said("coming_back", { waiting: "parts", needed: "2 WiFi modules" }, "2026-10-22"), job(), false, TODAY)).toMatchObject({ list: "parts", sub: "2 WiFi modules, Isaac, 22 Oct", days: 20, tone: "late" });
+    expect(placeEnding(said("coming_back", { waiting: "parts", partsIn: "2026-11-11" }, "2026-10-22"), job(), false, TODAY)).toMatchObject({ list: "book", sub: "Parts in 11 Nov, Isaac, 22 Oct", days: 0 });
+  });
+  it("says why it's to book, and leaves once a visit's booked", () => {
+    expect(placeEnding(said("coming_back", { waiting: "access" }, "2026-11-02"), job(), false, TODAY)).toMatchObject({ list: "book", sub: "No access, Isaac, 2 Nov", days: 9, tone: "getting" });
+    expect(placeEnding(said("coming_back", { waiting: "access" }), job(), true, TODAY)).toBeNull();
+  });
+});
+
+describe("Quotes waiting", () => {
+  it("is to price until sent, then waits from the day it went, until accepted", () => {
+    const q = job({ status: "Quote", quoteSentOn: null, workOrderOn: null, quoted: 3069.16 });
+    expect(placeEnding(said("quote_first", { quoteWho: "Luke" }, "2026-11-02"), q, false, TODAY)?.sub).toBe("To price, on Luke");
+    expect(placeEnding(said("quote_first", {}, "2026-11-02"), { ...q, quoteSentOn: "2026-11-05" }, false, TODAY)).toMatchObject({ sub: "$3,069.16, sent 5 Nov", days: 6 });
+    expect(placeEnding(said("quote_first", {}, "2026-11-02"), { ...q, quoteSentOn: "2026-11-05", workOrderOn: "2026-11-09" }, false, TODAY)).toBeNull();
+  });
+});
+
+it("Can't go ahead is on no list, and an inactive job on none", () => {
+  expect(placeEnding(said("cant", { reason: "cancelled" }), job(), false, TODAY)).toBeNull();
+  expect(placeEnding(said("finished"), job({ active: false }), false, TODAY)).toBeNull();
+});
+
+it("only a job's latest answer counts, and the lists come oldest first", () => {
+  const rows = latestPerJob([said("coming_back", { waiting: "access" }, "2026-11-01"), said("finished", {}, "2026-11-10")]);
+  expect(rows.map((r) => r.ending.answer)).toEqual(["finished"]);
+  const lists = officeLists([
+    { list: "book", jobUuid: "a", day: "", title: "a", sub: "", days: 2, tone: null },
+    { list: "book", jobUuid: "b", day: "", title: "b", sub: "", days: 9, tone: "getting" },
+    { list: "ready", jobUuid: "c", day: "", title: "c", sub: "", days: 1, tone: null },
+  ]);
+  expect(lists.map((l) => [l.title, l.rows.map((r) => r.jobUuid)])).toEqual([
+    ["Ready to invoice", ["c"]],
+    ["To book", ["b", "a"]],
+  ]);
+});

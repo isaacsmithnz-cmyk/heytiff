@@ -38,6 +38,8 @@ export type Settings = {
   business: { section: string; field: string; label: string; value: string | null }[] | null;
   credentials: { name: string; kind: string; number: string | null; issuer: string | null; expires: string | null; days: number | null }[] | null;
   connections: { name: string; connected: boolean; account: string | null; since: string | null; error: string | null }[] | null;
+  /** what didn't go to ServiceM8 in the last fortnight, for Try it again (the owner's) */
+  failed: number;
   holidays: { date: string; name: string }[];
 };
 
@@ -56,12 +58,14 @@ export async function readSettings(ctx: MobileCtx): Promise<Settings | null> {
   const o = (org ?? {}) as Record<string, string | null>;
   const yearOn = new Date(Date.parse(`${today}T00:00:00Z`) + 365 * 86_400_000).toISOString().slice(0, 10);
   const holidays = await holidaysInSpan(ctx.orgId, o.state ?? null, today, yearOn).catch(() => []);
-  if (!owner) return { owner, business: null, credentials: null, connections: null, holidays };
+  if (!owner) return { owner, business: null, credentials: null, connections: null, holidays, failed: 0 };
 
-  const [creds, sm8, xero] = await Promise.all([
+  const since = new Date(Date.now() - 14 * 86_400_000).toISOString();
+  const [creds, sm8, xero, { count }] = await Promise.all([
     listOrgCredentials(ctx.orgId).catch(() => []),
     getConnectionView(ctx.orgId, "servicem8").catch(() => null),
     getConnectionView(ctx.orgId, "xero").catch(() => null),
+    supabaseAdmin.from("sm8_writes").select("id", { count: "exact", head: true }).eq("org_id", ctx.orgId).eq("status", "failed").gte("updated_at", since),
   ]);
   return {
     owner,
@@ -74,5 +78,6 @@ export async function readSettings(ctx: MobileCtx): Promise<Settings | null> {
       { name: "Xero", v: xero },
     ].map(({ name, v }) => ({ name, connected: v?.status === "connected", account: v?.tenantName ?? null, since: v?.connectedAt ?? null, error: v?.lastError ?? null })),
     holidays,
+    failed: count ?? 0,
   };
 }

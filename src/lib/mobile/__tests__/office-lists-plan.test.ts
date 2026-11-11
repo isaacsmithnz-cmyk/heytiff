@@ -26,6 +26,7 @@ describe("Ready to invoice", () => {
     expect(placeEnding(said("finished"), job(), false, TODAY)).toEqual([{ list: "ready", jobUuid: "J1", day: "2026-11-10", title: "3324, Darling Point", sub: "Finished, as quoted, $9,856, Isaac, 10 Nov", days: 1, tone: null }]);
     expect(placeEnding(said("finished"), job({ status: "Completed" }), false, TODAY)).toEqual([]);
     expect(placeEnding(said("finished"), job({ invoiced: true }), false, TODAY)).toEqual([]);
+    expect(placeEnding(said("finished", { checked: "2026-11-11" }), job(), false, TODAY)).toEqual([]);
   });
   it("never holds a visit at no charge", () => {
     expect(placeEnding(said("finished", {}, "2026-11-10", { kind: "none", reason: "site_meeting" }), job(), false, TODAY)).toEqual([]);

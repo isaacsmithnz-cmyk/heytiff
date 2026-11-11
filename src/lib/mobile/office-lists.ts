@@ -95,8 +95,10 @@ export async function readOfficeLists(orgId: string, now: number = Date.now()): 
   return officeLists(rows);
 }
 
-/** Parts on order, in: the job moves to To book from today. Kept on the answer, with who said so in its history. */
-export async function partsAreIn(orgId: string, userId: string, staffId: string | null, job: string, day: string, now: number = Date.now()): Promise<boolean> {
+export type OfficeMove = "partsIn" | "checked";
+
+/** The office moving a job on, kept on the answer with who said so in its history: Parts are in (Parts on order → To book, from today), or Checked (off Ready to invoice). */
+export async function moveOn(orgId: string, userId: string, staffId: string | null, job: string, day: string, move: OfficeMove, now: number = Date.now()): Promise<boolean> {
   const { data } = await supabaseAdmin
     .from("visit_endings")
     .select("id, answer, detail, history")
@@ -105,12 +107,14 @@ export async function partsAreIn(orgId: string, userId: string, staffId: string 
     .eq("day", day)
     .maybeSingle();
   const r = data as { id: string; answer: string; detail: Record<string, unknown> | null; history: unknown[] | null } | null;
-  if (!r || r.answer !== "coming_back" || r.detail?.waiting !== "parts") return false;
+  if (!r) return false;
+  if (move === "partsIn" && (r.answer !== "coming_back" || r.detail?.waiting !== "parts")) return false;
+  if (move === "checked" && r.answer !== "finished") return false;
   const today = await todayOf(orgId, now);
-  const history = [...(Array.isArray(r.history) ? r.history : []), { at: new Date(now).toISOString(), by: userId, staff: staffId, partsIn: today }];
+  const history = [...(Array.isArray(r.history) ? r.history : []), { at: new Date(now).toISOString(), by: userId, staff: staffId, [move]: today }];
   const { error } = await supabaseAdmin
     .from("visit_endings")
-    .update({ detail: { ...(r.detail ?? {}), partsIn: today }, history, updated_at: new Date(now).toISOString() })
+    .update({ detail: { ...(r.detail ?? {}), [move]: today }, history, updated_at: new Date(now).toISOString() })
     .eq("org_id", orgId)
     .eq("id", r.id);
   return !error;

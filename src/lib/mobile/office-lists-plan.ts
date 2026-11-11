@@ -5,8 +5,9 @@ import type { Ending, Waiting } from "./visit-ending-plan";
    https://claude.ai/artifact/ESTib5qakLMfgTXmUW9vCy, "Build from mocks
    approved"). Pure: what's read in (lib/mobile/office-lists) decides here.
 
-   - READY TO INVOICE: Finished, charged. Leaves when the job's Completed or
-     invoiced in ServiceM8. A visit at no charge is never on it.
+   - READY TO INVOICE: Finished, charged. Leaves when the office has checked
+     it (Checked), or the job's Completed or invoiced in ServiceM8. A visit
+     at no charge is never on it.
    - TO BOOK: Coming back (no access, more time, someone else, or parts that
      have come in). Leaves when a visit's booked after the day it was said.
    - PARTS ON ORDER: Coming back, waiting on parts, until Parts are in moves
@@ -30,7 +31,7 @@ export const LIST_ORDER: ListName[] = ["ready", "book", "parts", "quotes"];
 export type EndingRow = {
   jobUuid: string;
   day: string;
-  ending: Ending & { detail: Ending["detail"] & { partsIn?: string; quoteJob?: string } };
+  ending: Ending & { detail: Ending["detail"] & { partsIn?: string; quoteJob?: string; checked?: string } };
   by: string | null;
 };
 export type JobFacts = {
@@ -84,7 +85,7 @@ export function placeEnding(r: EndingRow, job: JobFacts | undefined, bookedAfter
 
   if (e.answer === "finished") {
     const out: OfficeRow[] = [];
-    if (e.charge.kind === "job" && !job.invoiced && job.status !== "Completed") {
+    if (e.charge.kind === "job" && !e.detail.checked && !job.invoiced && job.status !== "Completed") {
       const how = job.quoted && job.quoted > 0 && job.quoteSentOn && job.status !== "Quote" ? `, as quoted, ${money(job.quoted)}` : "";
       out.push(row("ready", `Finished${how}, ${whoWhen(r)}`));
     }

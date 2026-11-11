@@ -35,7 +35,7 @@ export async function readOfficeLists(orgId: string, now: number = Date.now()): 
       by: r.said_by_staff ? (names.get(r.said_by_staff)?.split(/\s+/)[0] ?? null) : null,
     }))
   );
-  const uuids = [...new Set(endings.flatMap((e) => [e.jobUuid, e.jobUuid.toLowerCase()]))];
+  const uuids = [...new Set(endings.flatMap((e) => [e.jobUuid, e.jobUuid.toLowerCase(), ...(e.ending.detail.quoteJob ? [e.ending.detail.quoteJob] : [])]))];
   const earliest = endings.reduce((m, e) => (e.day < m ? e.day : m), today);
 
   const [{ data: jobs }, { data: acts }] = await Promise.all([
@@ -89,8 +89,8 @@ export async function readOfficeLists(orgId: string, now: number = Date.now()): 
   const rows = endings.flatMap((e) => {
     const k = e.jobUuid.toLowerCase();
     const booked = (bookings.get(k) ?? []).some((s) => s > `${e.day} 23:59:59`);
-    const placed = placeEnding(e, facts.get(k), booked, today);
-    return placed ? [placed] : [];
+    const quoteJob = e.ending.detail.quoteJob ? facts.get(e.ending.detail.quoteJob.toLowerCase()) : undefined;
+    return placeEnding(e, facts.get(k), booked, today, quoteJob);
   });
   return officeLists(rows);
 }

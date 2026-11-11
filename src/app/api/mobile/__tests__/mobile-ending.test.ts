@@ -51,6 +51,9 @@ jest.mock("@/lib/integrations/sm8-press", () => ({ sm8PressFromMobile: async () 
 jest.mock("@/lib/mobile/wrapped-others", () => ({
   tellOthersWrapped: async (orgId: string, job: string, day: string, staff: string, name: string) => (asked.push(`tell others ${orgId} ${job} ${day} ${staff} ${name}`), 1),
 }));
+jest.mock("@/lib/mobile/quote-job", () => ({
+  openQuoteJob: async (_press: unknown, orgId: string, job: string, day: string, words: string) => (asked.push(`quote job ${orgId} ${job} ${day} ${words}`), { ok: true, jobUuid: "Q1" }),
+}));
 jest.mock("@/lib/integrations/sm8-note-send-on", () => ({
   sendNoteOnToSm8: async (_press: unknown, orgId: string, noteId: string, jobUuid: string) => void asked.push(`send on ${orgId} ${noteId} ${jobUuid}`),
 }));

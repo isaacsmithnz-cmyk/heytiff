@@ -30,7 +30,7 @@ export const LIST_ORDER: ListName[] = ["ready", "book", "parts", "quotes"];
 export type EndingRow = {
   jobUuid: string;
   day: string;
-  ending: Ending & { detail: Ending["detail"] & { partsIn?: string } };
+  ending: Ending & { detail: Ending["detail"] & { partsIn?: string; quoteJob?: string } };
   by: string | null;
 };
 export type JobFacts = {
@@ -63,43 +63,55 @@ export function tone(days: number): OfficeRow["tone"] {
   return days > 14 ? "late" : days > 7 ? "getting" : null;
 }
 
-/** Where each job's latest answer puts it today, if anywhere. `bookedAfter` holds the jobs with a visit booked after their answer's day. */
-export function placeEnding(r: EndingRow, job: JobFacts | undefined, bookedAfter: boolean, today: string): OfficeRow | null {
-  if (!job || !job.active) return null;
-  const title = [job.number, job.suburb].filter(Boolean).join(", ") || "A job";
+/** A quote waiting: to price until ServiceM8 says it's sent, then from the day it went; gone once accepted or lost. */
+function quoteRow(q: JobFacts, since: string, words: string | undefined, make: (sub: string, since?: string) => OfficeRow): OfficeRow | null {
+  if (q.status === "Unsuccessful" || q.status === "Completed" || !q.active) return null;
+  if (q.workOrderOn && q.workOrderOn >= since) return null;
+  const sent = q.quoteSentOn && q.quoteSentOn >= since ? q.quoteSentOn : null;
+  if (sent) return make([q.quoted && q.quoted > 0 ? money(q.quoted) : null, `sent ${dayWord(sent)}`].filter(Boolean).join(", "), sent);
+  return make(["To price", words].filter(Boolean).join(", "));
+}
+
+/** Where each job's latest answer puts it today: none, one list, or two (Finished with a quote to build is to invoice, and its quote job is waiting). `bookedAfter` says a visit's been booked after the answer's day; `quoteJob` is the quote job it opened, once ServiceM8's mirror has it. */
+export function placeEnding(r: EndingRow, job: JobFacts | undefined, bookedAfter: boolean, today: string, quoteJob?: JobFacts): OfficeRow[] {
+  if (!job || !job.active) return [];
+  const titleOf = (j: JobFacts) => [j.number, j.suburb].filter(Boolean).join(", ") || "A job";
   const e = r.ending;
-  const row = (list: ListName, sub: string, since = r.day): OfficeRow => {
+  const row = (list: ListName, sub: string, since = r.day, on: { uuid: string; facts: JobFacts } = { uuid: r.jobUuid, facts: job }): OfficeRow => {
     const days = between(since, today);
-    return { list, jobUuid: r.jobUuid, day: r.day, title, sub, days, tone: tone(days) };
+    return { list, jobUuid: on.uuid, day: r.day, title: titleOf(on.facts), sub, days, tone: tone(days) };
   };
 
   if (e.answer === "finished") {
-    if (e.detail.quoteToo) {
-      const sentAfter = job.quoteSentOn && job.quoteSentOn >= r.day ? job.quoteSentOn : null;
-      if (!sentAfter) return row("quotes", ["To quote", e.detail.quoteWords, e.detail.quoteWho ? `on ${e.detail.quoteWho}` : null].filter(Boolean).join(", "));
+    const out: OfficeRow[] = [];
+    if (e.charge.kind === "job" && !job.invoiced && job.status !== "Completed") {
+      const how = job.quoted && job.quoted > 0 && job.quoteSentOn && job.status !== "Quote" ? `, as quoted, ${money(job.quoted)}` : "";
+      out.push(row("ready", `Finished${how}, ${whoWhen(r)}`));
     }
-    if (e.charge.kind === "none") return null;
-    if (job.invoiced || job.status === "Completed") return null;
-    const how = job.quoted && job.quoted > 0 && job.quoteSentOn && job.status !== "Quote" ? `, as quoted, ${money(job.quoted)}` : "";
-    return row("ready", `Finished${how}, ${whoWhen(r)}`);
+    if (e.detail.quoteToo) {
+      const q =
+        quoteJob && e.detail.quoteJob
+          ? quoteRow(quoteJob, r.day, e.detail.quoteWords, (sub, since) => row("quotes", sub, since, { uuid: e.detail.quoteJob!, facts: { ...quoteJob, suburb: quoteJob.suburb ?? job.suburb } }))
+          : row("quotes", ["To quote", e.detail.quoteWords, `from ${titleOf(job)}`].filter(Boolean).join(", "));
+      if (q) out.push(q);
+    }
+    return out;
   }
 
   if (e.answer === "coming_back") {
-    if (bookedAfter || job.status === "Completed" || job.status === "Unsuccessful") return null;
-    if (e.detail.waiting === "parts" && !e.detail.partsIn) return row("parts", [e.detail.needed || "Parts", whoWhen(r)].join(", "));
-    if (e.detail.waiting === "parts" && e.detail.partsIn) return row("book", `Parts in ${dayWord(e.detail.partsIn)}, ${whoWhen(r)}`, e.detail.partsIn);
+    if (bookedAfter || job.status === "Completed" || job.status === "Unsuccessful") return [];
+    if (e.detail.waiting === "parts" && !e.detail.partsIn) return [row("parts", [e.detail.needed || "Parts", whoWhen(r)].join(", "))];
+    if (e.detail.waiting === "parts" && e.detail.partsIn) return [row("book", `Parts in ${dayWord(e.detail.partsIn)}, ${whoWhen(r)}`, e.detail.partsIn)];
     const why = e.detail.waiting ? cap(WAITING[e.detail.waiting]) : "Coming back";
-    return row("book", [why, e.detail.howLong ? `about ${e.detail.howLong}` : null, whoWhen(r)].filter(Boolean).join(", "));
+    return [row("book", [why, e.detail.howLong ? `about ${e.detail.howLong}` : null, whoWhen(r)].filter(Boolean).join(", "))];
   }
 
   if (e.answer === "quote_first") {
-    if (job.status === "Unsuccessful" || job.status === "Completed") return null;
-    if (job.workOrderOn && job.workOrderOn >= r.day) return null;
-    const sent = job.quoteSentOn && job.quoteSentOn >= r.day ? job.quoteSentOn : null;
-    if (sent) return row("quotes", [job.quoted && job.quoted > 0 ? money(job.quoted) : null, `sent ${dayWord(sent)}`].filter(Boolean).join(", "), sent);
-    return row("quotes", ["To price", e.detail.needed, e.detail.quoteWho ? `on ${e.detail.quoteWho}` : null].filter(Boolean).join(", "));
+    const words = [e.detail.quoteWords, e.detail.quoteWho ? `on ${e.detail.quoteWho}` : null].filter(Boolean).join(", ") || undefined;
+    const q = quoteRow(job, r.day, words, (sub, since) => row("quotes", sub, since));
+    return q ? [q] : [];
   }
-  return null;
+  return [];
 }
 
 /** The four lists, each oldest first, only those with something on them. */

@@ -123,6 +123,11 @@ describe("what the row says", () => {
     expect(planLine(plan({ state: "failed", said: "The plans couldn't be read: the file couldn't be fetched", usedBy: 0 }))).toBe("Couldn't be read: the file couldn't be fetched");
     expect(pagesWordOf([4, 3])).toBe("Pages 3 and 4");
   });
+  it("says which of a specification's pages were read for the air", () => {
+    const spec = plan({ kind: "spec", pages: [], reading: null, usedBy: 0, spec: { pages: [178, 179, 180, 181, 185], words: "" } });
+    expect(planLine(spec)).toBe("The specification's pages 178 to 181 and 185 read for air, ventilation and exhaust, on Mon 9 Nov");
+    expect(planLine({ ...spec, state: "check", said: "No page names the air conditioning, ventilation or exhaust" })).toBe("No page names the air conditioning, ventilation or exhaust");
+  });
   it("tells New design the rooms she found", () => {
     expect(planReadLine(plan())).toBe("Read on Mon 9 Nov: Ground floor and Level 1, 5 rooms, the roof and the site");
     expect(planReadLine(plan({ reading: reading({ floors: { p3: [sheet("p3", ["A", "B"])], p4: [sheet("p4", ["C", "D"])] } }) }))).toBe("Read on Mon 9 Nov: Ground floor and Level 1, 2 rooms each, the roof and the site");

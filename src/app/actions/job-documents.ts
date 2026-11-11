@@ -1,5 +1,6 @@
 "use server";
 
+import { takeInAfter } from "@/lib/jobs/take-in-server";
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
@@ -92,6 +93,8 @@ export async function attachJobDocument(documentId: string, jobUuid: string): Pr
     .is("sm8_job_uuid", null)
     .select("id");
   if (error || !moved || moved.length === 0) return { ok: false, error: "Couldn't add the file to the job." };
+  /* every PDF on a job is read once and used (lib/jobs/take-in-server.ts) */
+  await takeInAfter(ctx.orgId, job, [{ documentId: id }], ctx.staffId);
   return { ok: true };
 }
 

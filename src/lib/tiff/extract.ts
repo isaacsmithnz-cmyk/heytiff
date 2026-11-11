@@ -36,6 +36,11 @@ export type PdfDoc = {
   pageLines(n: number): Promise<string[]>;
   /** The date the PDF says it was made ("D:20230713174433+10'00'"), raw, or null. */
   made?(): Promise<string | null>;
+  /** The page's size in points, unrotated as it shows: an A4 page is 595 × 842,
+      an A1 sheet 2384 × 1684. */
+  pageSize?(n: number): Promise<{ w: number; h: number }>;
+  /** The title the PDF carries in its own details, or null. */
+  title?(): Promise<string | null>;
   destroy(): Promise<void>;
 };
 
@@ -124,6 +129,16 @@ export async function openPdf(bytes: Uint8Array): Promise<PdfDoc> {
       const meta = await doc.getMetadata().catch(() => null);
       const at = (meta?.info as { CreationDate?: unknown } | undefined)?.CreationDate;
       return typeof at === "string" ? at : null;
+    },
+    async title() {
+      const meta = await doc.getMetadata().catch(() => null);
+      const t = (meta?.info as { Title?: unknown } | undefined)?.Title;
+      return typeof t === "string" && t.trim() ? t.trim() : null;
+    },
+    async pageSize(n: number) {
+      const page = await doc.getPage(n);
+      const v = page.getViewport({ scale: 1 });
+      return { w: Math.round(v.width), h: Math.round(v.height) };
     },
     async pageText(n: number) {
       const page = await doc.getPage(n);

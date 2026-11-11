@@ -5,7 +5,7 @@ import { ok, requireMobile, type MobileCtx } from "@/lib/mobile/auth";
 import { staffUuidOf } from "@/lib/mobile/clock";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
-import { createBlock } from "@/lib/schedule/blocks-store";
+import { blockOwner, createBlock, removeBlock } from "@/lib/schedule/blocks-store";
 import { minutesOf } from "@/lib/schedule/blocks";
 
 /* BLOCK OUT TIME FROM THE PHONE (Isaac, 6 November 2026: "How do I do this
@@ -18,7 +18,11 @@ import { minutesOf } from "@/lib/schedule/blocks";
    owner) may block out anyone's, as they book anyone. Who is a ServiceM8
    person, as the Schedule's rows are.
 
-   GET: who the form offers, and who you are. POST: the block. */
+   GET: who the form offers, and who you are. POST: the block. DELETE
+   (?id=) takes one off (Isaac's mock of 10 November 2026,
+   https://claude.ai/artifact/3o3knuLnNH1YxL9Nhwz3rR: Take it off): your
+   own, one you made, or anyone's when you run the board, and it comes off
+   ServiceM8 as the web's does. */
 
 const no = (error: string, status = 400) => Response.json({ error }, { status, headers: { "cache-control": "no-store" } });
 
@@ -70,4 +74,22 @@ export async function POST(request: Request) {
   );
   if (!r.ok) return no(r.error);
   return ok({ id: r.id, note: r.note });
+}
+
+export async function DELETE(request: Request) {
+  const ctx = await requireMobile(request, "workboard");
+  if (ctx instanceof Response) return ctx;
+  const id = (new URL(request.url).searchParams.get("id") ?? "").trim();
+  const owner = await blockOwner(ctx.orgId, id);
+  if (!owner) return no("That block isn't there any more.", 404);
+  if (!runsBoard(ctx)) {
+    const { me } = await peopleFor(ctx);
+    const by = await staffProfileIdFor(ctx.orgId, ctx.userId).catch(() => null);
+    const mine = (!!me && (owner.staffUuid ?? "").toLowerCase() === me.toLowerCase()) || (!!by && owner.createdBy === by);
+    if (!mine) return no("You can only take off your own.", 403);
+  }
+  const press = sm8LeaveAllowed() ? await sm8PressFromMobile(ctx).catch(() => null) : null;
+  const r = await removeBlock(ctx.orgId, id, press);
+  if (!r.ok) return no(r.error);
+  return ok({ id });
 }

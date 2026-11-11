@@ -49,6 +49,9 @@ export async function readSm8SendView(orgId: string, cardId: string, as: SendAs 
     if (!quote.lines) return { plan: { ok: false, why: "Only a quote built on its lines is sent as a quote." }, editDate };
     const byHand = await readByHand(orgId, cardId);
     const varied = new Set(byHand.variations.map((v) => v.option));
+    /* an accepted variation's lines stay, as the accepted send keeps them:
+       a revised quote on a Work Order never takes them off */
+    const theirs = new Set(byHand.variations.flatMap((v) => v.sm8?.lineUuids ?? []).map((u) => u.toLowerCase()));
     const approved = !!byHand.proposal && approvalStands(byHand.proposal, quote.lines.map((l) => l.updatedAt));
     const plan = sendAsQuotePlan({
       draft: quote.draft,
@@ -57,7 +60,7 @@ export async function readSm8SendView(orgId: string, cardId: string, as: SendAs 
       ),
       approved,
       job: jobNow,
-      existing,
+      existing: existing.filter((e) => !theirs.has(e.uuid.toLowerCase())),
       taxRateUuid,
       proposal: byHand.proposal,
     });

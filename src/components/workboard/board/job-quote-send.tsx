@@ -130,7 +130,7 @@ export function JobQuoteSend({
     <section className="wb2-jcsec" aria-label="To ServiceM8">
       <div className="wb2-jcdhead">
         <b>To ServiceM8</b>
-        <em>{asQuote ? "Stays a Quote" : plan.status ? "Becomes a Work Order" : "Its Work Order, updated"}</em>
+        <em>{asQuote ? (plan.status ? "Goes back to a Quote" : "Stays a Quote") : plan.status ? "Becomes a Work Order" : "Its Work Order, updated"}</em>
       </div>
       <div className="wb2-mline">
         <b>{asQuote ? "Quote description" : "Invoice description"}</b>

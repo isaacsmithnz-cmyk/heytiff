@@ -151,6 +151,24 @@ describe("sent as a quote", () => {
     expect(p.remove).toEqual([{ uuid: "m-1", name: "Old line" }]);
   });
 
+  /* Isaac, 11 November 2026, on 2845: "I need to change it back to a quote again ... for it to be received in service mate" */
+  it("sends a Work Order's revised quote back to a Quote, its claim kept", () => {
+    const p = sendAsQuotePlan({
+      ...quote,
+      approved: true,
+      job: { status: "Work Order", invoiced: false },
+      existing: [{ uuid: "m-1", name: "Old line" }, { uuid: "c-1", name: "Partial invoice #2845A" }],
+      options: [{ index: 0, build, left: 0 }],
+    });
+    if (!p.ok) throw new Error(p.why);
+    expect(p.status).toEqual({ from: "Work Order", to: "Quote" });
+    expect(p.remove).toEqual([{ uuid: "m-1", name: "Old line" }]);
+    const [job] = quoteRows("job-1", p);
+    expect(job).toMatchObject({ fields: { status: "Quote", job_description: p.jobDescription }, label: "Quote: back to a Quote, its description and the job's summary" });
+    expect(allowedQuoteFields("job", { status: "Quote" })).toEqual({ status: "Quote" });
+    expect(allowedQuoteFields("job", { status: "Completed" })).toEqual({});
+  });
+
   it("gives each option its line where there are several", () => {
     const p = sendAsQuotePlan({ ...quote, approved: true, options: [{ index: 0, build, left: 0 }, { index: 1, build, left: 0 }] });
     if (!p.ok) throw new Error(p.why);
@@ -170,7 +188,7 @@ describe("sent as a quote", () => {
     expect(job!.fields).not.toHaveProperty("status");
     expect(off).toMatchObject({ op: "delete", label: "Quote: line Old line taken off" });
     expect(add).toMatchObject({ op: "create", fields: { name: "As Per Quote", quantity: "1" }, label: "Quote: line As Per Quote added" });
-    expect(allowedQuoteFields("job", { job_description: "x", status: "Quote" })).toEqual({ job_description: "x" });
+    expect(allowedQuoteFields("job", { job_description: "x", status: "Unsuccessful" })).toEqual({ job_description: "x" });
   });
 
   /* 3446 (2026-10-21): the approved proposal never reached ServiceM8, only the option's name */
@@ -237,9 +255,9 @@ describe("sent as a quote", () => {
     );
   });
 
-  it("goes only approved, only on a Quote, and only whole", () => {
+  it("goes only approved, only on a Quote or a Work Order, and only whole", () => {
     expect(sendAsQuotePlan({ ...quote, approved: false, options: [{ index: 0, build, left: 0 }] })).toEqual({ ok: false, why: NOT_APPROVED });
-    expect(sendAsQuotePlan({ ...quote, approved: true, job: { status: "Work Order", invoiced: false }, options: [{ index: 0, build, left: 0 }] })).toMatchObject({ ok: false, why: "The job is a Work Order in ServiceM8: only a Quote is sent as a quote." });
+    expect(sendAsQuotePlan({ ...quote, approved: true, job: { status: "Completed", invoiced: false }, options: [{ index: 0, build, left: 0 }] })).toMatchObject({ ok: false, why: "The job is a Completed in ServiceM8: only a Quote or a Work Order is sent as a quote." });
     expect(sendAsQuotePlan({ ...quote, approved: true, options: [{ index: 0, build, left: 2 }] })).toMatchObject({ ok: false, why: "2 still to price: ServiceM8 must get the whole quote." });
   });
 });

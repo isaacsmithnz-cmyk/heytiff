@@ -226,8 +226,8 @@ export function sm8WriteShapeOk(r: Row): boolean {
           some("target_uuid") &&
           r.target_uuid === r.sm8_job_uuid &&
           none("depends_on") &&
-          r.job_status_from === "Quote" &&
-          (r.job_status_to === "Work Order" || r.job_status_to === "Unsuccessful") &&
+          ((r.job_status_from === "Quote" && (r.job_status_to === "Work Order" || r.job_status_to === "Unsuccessful")) ||
+            (r.job_status_from === "Work Order" && r.job_status_to === "Completed")) &&
           some("seen_edit_date") &&
           none("booking_staff_uuid") &&
           none("booking_start") &&

@@ -417,12 +417,15 @@ async function sendBooking(
   const readJob = (after = false) => readLive((a) => readSm8Job(sm8CallOf(a, "write"), jobUuid), after);
 
   /* A status row's target: a Work Order (Book in, Make it a Work Order), or
-     Unsuccessful (an owner's Mark Unsuccessful on Analytics). Both start
-     from a Quote and nothing else. */
+     Unsuccessful (an owner's Mark Unsuccessful on Analytics), both from a
+     Quote and nothing else; or Completed (the office's Checked on a finished
+     job), from a Work Order and nothing else. */
   const lost = row.job_status_to === "Unsuccessful";
-  const target: "Work Order" | "Unsuccessful" = lost ? "Unsuccessful" : "Work Order";
+  const completing = row.job_status_to === "Completed";
+  const target: "Work Order" | "Unsuccessful" | "Completed" = completing ? "Completed" : lost ? "Unsuccessful" : "Work Order";
+  const from: "Quote" | "Work Order" = completing ? "Work Order" : "Quote";
   const notFromQuote = (status: string | null) =>
-    fillWords(lost ? BOOKING_WORDS.row.jobNotQuote : BOOKING_WORDS.row.jobNotBookable, { status: status ?? BOOKING_WORDS.fill.status });
+    fillWords(completing ? BOOKING_WORDS.row.jobNotWorkOrder : lost ? BOOKING_WORDS.row.jobNotQuote : BOOKING_WORDS.row.jobNotBookable, { status: status ?? BOOKING_WORDS.fill.status });
 
   /* ── 0. a status row that may have landed: read the job before anything
      can end it ── */
@@ -435,7 +438,7 @@ async function sendBooking(
     const cleared: Partial<Finish> = { ownRuledOut: true, verifyUuids: [] };
     if (!job || job.active !== 1) return { finish: done("cancelled", BOOKING_WORDS.row.jobGone, cleared), access };
     if (job.status === target) return { finish: done("sent", null, { landedEditDate: job.editDate }), access };
-    if (job.status !== "Quote") return { finish: done("cancelled", notFromQuote(job.status), cleared), access };
+    if (job.status !== from) return { finish: done("cancelled", notFromQuote(job.status), cleared), access };
     /* still a Quote: nothing landed, and the mark goes whatever the row
        finishes as — unless a POST in this attempt loses its answer again */
     jobRead = job;
@@ -552,7 +555,7 @@ async function sendBooking(
     }
     if (!job || job.active !== 1) return done("cancelled", BOOKING_WORDS.row.jobGone);
     if (job.status === target) return done("sent", null, { landedEditDate: job.editDate });
-    if (job.status !== "Quote") return done("cancelled", notFromQuote(job.status));
+    if (job.status !== from) return done("cancelled", notFromQuote(job.status));
     if (!sameEditDate(job.editDate, row.seen_edit_date ?? null)) {
       /* our own last status change on this job left its edit time: that is
          as seen */
@@ -601,11 +604,11 @@ async function sendBooking(
              sent: it goes back as a lost answer would, and rule 0 reads the
              job next time. A difference on the only read that could be made
              is never a failed read: it stays the fields guard. */
-          if (after.status === "Quote") return { ...failedRead(), httpStatus: res.status, remote: res.remote, uploadLost: true };
+          if (after.status === from) return { ...failedRead(), httpStatus: res.status, remote: res.remote, uploadLost: true };
           return guarded(after);
         }
         after = second;
-        if (after.status === "Quote") return done("failed", lost ? BOOKING_WORDS.row.lostNotKept : BOOKING_WORDS.row.statusNotKept, { httpStatus: res.status });
+        if (after.status === from) return done("failed", completing ? BOOKING_WORDS.row.doneNotKept : lost ? BOOKING_WORDS.row.lostNotKept : BOOKING_WORDS.row.statusNotKept, { httpStatus: res.status });
         if (!kept(after)) return guarded(after);
       }
       logLoggedFields(jobUuid, seen, after);
@@ -616,7 +619,7 @@ async function sendBooking(
     if (res.status === 404) return done("cancelled", BOOKING_WORDS.row.jobGone, { httpStatus: 404 });
     const said = verdictFor(res.outcome, attempts, ctx());
     /* a refusal says which change it refused */
-    const v = lost && said.error === BOOKING_WORDS.row.statusRefused ? { ...said, error: BOOKING_WORDS.row.lostRefused } : said;
+    const v = (lost || completing) && said.error === BOOKING_WORDS.row.statusRefused ? { ...said, error: completing ? BOOKING_WORDS.row.doneRefused : BOOKING_WORDS.row.lostRefused } : said;
     /* no answer, a 408 or a 5xx: it may have made the change */
     if (res.outcome.kind === "unavailable") return { ...fromVerdict(v, res.status), remote: res.remote, uploadLost: true };
     return { ...fromVerdict(v, res.status), remote: res.remote };

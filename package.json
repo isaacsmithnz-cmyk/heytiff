@@ -19,6 +19,7 @@
     "evals:tiff": "TIFF_EVALS=1 node --env-file-if-exists=.env.local node_modules/jest/bin/jest.js src/lib/tiff/evals/__tests__/run.test.ts --verbose --silent=false",
     "dev:preview": "NEXT_DIST_DIR=.next-preview.nosync next dev",
     "dev:verify": "NEXT_DIST_DIR=.next-verify.nosync next dev -p 3200",
+    "bugs": "node --env-file-if-exists=.env.local scripts/pull-bugs.mjs",
     "auth0:brand": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/auth0-brand.mts",
     "auth0:brand:preview": "npm run auth0:brand -- --dry-run"
   },

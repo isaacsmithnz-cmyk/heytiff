@@ -91,14 +91,14 @@ jest.mock("@/lib/supabase-server", () => ({
       q.select = () => q;
       q.eq = () => q;
       q.maybeSingle = async () => ({
-        data: t === "organizations" ? { name: "Diamond Air Solutions Pty Ltd" } : { first_name: "Isaac", last_name: "Smith", preferred_name: "Ike" },
+        data: t === "organizations" ? { name: "isaacsmithnz1@example.com", trading_name: "Diamond Air Solutions", legal_name: "DAS PTY LTD" } : { first_name: "Isaac", last_name: "Smith", preferred_name: "Ike" },
       });
       return q;
     },
   },
 }));
 
-import { phoneLicence, phonePaper, readPhoneDocuments } from "@/lib/mobile/documents";
+import { companyName, phoneLicence, phonePaper, readPhoneDocuments } from "@/lib/mobile/documents";
 
 const ctx = { userId: "auth0|isaac", orgId: "org-diamond", role: "member", caps: new Set(), orgIds: ["org-diamond"] } as never;
 
@@ -155,7 +155,8 @@ test("your licences: your own card's, soonest to run out first, under your own n
     ["White card", "719065", null],
   ]);
   expect(d.me).toBe("Isaac Smith");
-  expect(d.org).toBe("Diamond Air Solutions Pty Ltd");
+  // the trading name, never the workspace's sign-up name (the email: bug 1, 11 November 2026)
+  expect(d.org).toBe("Diamond Air Solutions");
 });
 
 test("no card in Team: the company's papers, and no licences", async () => {
@@ -185,4 +186,11 @@ test("the certificate is the term in force's, a PDF before a photo; else one fil
   expect(phonePaper(pl, [term({ ...plTerm, documentId: null }), oldTerm], [old, loose], "2026-10-29", 30).file?.name).toBe("card.pdf");
   /* a link that couldn't be signed is no certificate */
   expect(phonePaper(pl, [plTerm], [doc({ ...pdf, url: null })], "2026-10-29", 30).file).toBeNull();
+});
+
+test("the company under a licence is its trading name, else its legal name, never an email", () => {
+  expect(companyName({ trading_name: " ", legal_name: "DAS PTY LTD", name: "a@b.com" })).toBe("DAS PTY LTD");
+  expect(companyName({ trading_name: null, legal_name: null, name: "a@b.com" })).toBeNull();
+  expect(companyName({ name: "Smith Air" })).toBe("Smith Air");
+  expect(companyName(null)).toBeNull();
 });

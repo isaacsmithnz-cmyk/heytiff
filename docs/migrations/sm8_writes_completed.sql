@@ -5,7 +5,8 @@
 -- Order to Completed (actions/sm8-booking-queue queueMarkCompleted), beside
 -- Quote to Work Order or Unsuccessful. NOT APPLIED: it waits for Isaac's yes.
 -- Until it is, a Completed row is refused at the insert and Checked stays
--- HeyTiff's alone. Then SM8_COMPLETE=1 on the deployment turns the send on.
+-- HeyTiff's alone. Nothing calls queueMarkCompleted yet: wiring Checked to it
+-- comes after this is applied.
 --
 -- The shape check is rebuilt with the one clause changed:
 --   (job_status_from = 'Quote' AND job_status_to = ANY (ARRAY['Work Order','Unsuccessful']))

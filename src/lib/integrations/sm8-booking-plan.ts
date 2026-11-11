@@ -145,7 +145,7 @@ export const bookingSubject = {
 
 export type ParsedBookingSubject =
   | { via: "slot"; staffUuid: string; start: string; released: boolean }
-  | { via: "status"; seenEditDate: string; to: "Work Order" | "Unsuccessful"; released: boolean }
+  | { via: "status"; seenEditDate: string; to: "Work Order" | "Unsuccessful" | "Completed"; released: boolean }
   | { via: "undo"; createRowId: string; released: boolean }
   | { via: "clear"; activityUuid: string; released: boolean }
   | { via: "time"; checkInId: string; released: boolean };
@@ -156,8 +156,8 @@ export function parseBookingSubject(s: string): ParsedBookingSubject | null {
   const released = !!was;
   let m = /^slot:([^:]+):(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/.exec(subject);
   if (m) return { via: "slot", staffUuid: m[1], start: `${m[2]} ${m[3]}:00`, released };
-  m = /^status:(wo|un):(\S+)$/.exec(subject);
-  if (m) return { via: "status", seenEditDate: m[2].replace("T", " "), to: m[1] === "un" ? "Unsuccessful" : "Work Order", released };
+  m = /^status:(wo|un|co):(\S+)$/.exec(subject);
+  if (m) return { via: "status", seenEditDate: m[2].replace("T", " "), to: m[1] === "un" ? "Unsuccessful" : m[1] === "co" ? "Completed" : "Work Order", released };
   m = /^undo:(\S+)$/.exec(subject);
   if (m) return { via: "undo", createRowId: m[1], released };
   m = /^clear:(\S+)$/.exec(subject);

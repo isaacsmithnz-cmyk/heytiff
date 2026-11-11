@@ -8,7 +8,7 @@ import { sendJobPhotoAs } from "@/app/actions/job-sm8";
 import { sendHold, sendLine, sendRefusal, type SendLine } from "@/lib/integrations/sm8-write-plan";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import { landSlot, openSlot } from "@/lib/documents/upload-slots";
-import { isImage } from "@/lib/documents/files";
+import { isImage, isVideoMime } from "@/lib/documents/files";
 import type { MobileCtx } from "./auth";
 
 /* PHOTOS FROM THE PHONE, onto the job you're looking at (Isaac, 27 October
@@ -62,7 +62,8 @@ export async function beginJobPhoto(
   const fileName = typeof file.fileName === "string" ? file.fileName : "";
   const mimeType = typeof file.mimeType === "string" ? file.mimeType : "";
   const sizeBytes = typeof file.sizeBytes === "number" ? file.sizeBytes : 0;
-  if (!isImage(mimeType)) return { ok: false, error: PHOTO_WORDS.notPhoto, status: 400 };
+  /* a video from the camera goes with the photos (lib/documents/files VIDEO_TYPES) */
+  if (!isImage(mimeType) && !isVideoMime(mimeType)) return { ok: false, error: PHOTO_WORDS.notPhoto, status: 400 };
   const slot = await openSlot(ctx.orgId, staffId, "job_photo", { fileName, mimeType, sizeBytes }, job);
   if (!slot.ok) return { ok: false, error: slot.error, status: 400 };
   return { ok: true, value: { documentId: slot.documentId, uploadUrl: slot.signedUrl } };

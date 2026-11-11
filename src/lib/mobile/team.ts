@@ -48,8 +48,9 @@ export async function readTeam(ctx: MobileCtx, appUrl: string): Promise<Team> {
   const byCard = new Map<string, Row>();
   for (const i of rows) if (i.staff_profile_id) byCard.set(i.staff_profile_id, i);
   const now = Date.now();
-  /* the link is the invite itself: only for someone who may send one */
-  const linkOf = (i: Row) => (allowed.length && i.token ? `${appUrl}/invite/accept?token=${i.token}` : null);
+  /* the link is the invite itself: only for an invite at a role this person may send, so someone who may
+     invite staff never holds the link to an owner's admin invite (found in review) */
+  const linkOf = (i: Row) => ((allowed as string[]).includes(i.role) && i.token ? `${appUrl}/invite/accept?token=${i.token}` : null);
   const people = staff
     .filter((s) => s.status === "Active")
     .map((s): TeamPerson => {

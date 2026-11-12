@@ -386,7 +386,7 @@ export async function savePaySettings(settings: Settings): Promise<TimepayResult
     standard: settings.standard,
     ot_after: settings.otAfter,
     ot_unit: settings.otUnit,
-    rules: settings.rules,
+    rules: settings.paidTime ? { ...settings.rules, paidTime: settings.paidTime } : settings.rules,
     dbl_after: settings.dblAfter,
     break_minutes: settings.breakMinutes,
     break_paid: settings.breakPaid,

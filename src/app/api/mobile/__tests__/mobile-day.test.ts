@@ -38,7 +38,7 @@ jest.mock("@/app/actions/sm8-booking-queue", () => ({}));
 jest.mock("@/lib/integrations/sm8-drain", () => ({}));
 jest.mock("@auth0/nextjs-auth0/server", () => ({ Auth0Client: class {} }));
 
-import { AWAY_KEPT_MS, arrivedOf, clockOnPlan, hasLife, joinDay, mayUndo, mergeJobs, recentWindow, rosteredDays, sheetCall, stintTimes, summarise, toQuarter, type DayJob } from "@/lib/mobile/day";
+import { AWAY_KEPT_MS, arrivedOf, clockOnPlan, hasLife, joinDay, mayUndo, mergeJobs, normalStartOn, paidFromOf, recentWindow, rosteredDays, sheetCall, stintTimes, summarise, toQuarter, type DayJob } from "@/lib/mobile/day";
 import type { MobileCtx } from "@/lib/mobile/auth";
 
 /* 27 October 2026 is daylight time in Sydney: +11:00 */
@@ -296,5 +296,40 @@ describe("taking back a clock on", () => {
   });
   it("can't after, or a slip late in the day would take the day's work", () => {
     expect(mayUndo(on, Date.parse("2026-11-03T09:58:01.000Z"))).toBe(false);
+  });
+});
+
+/* Paid time (Isaac, 13 November 2026, https://claude.ai/artifact/S2EpAW6qnQBfH1nHaT28UG):
+   in at the office at 5:45, out to 3375 at 6:30, home by 3:00, his normal day 7:00 to 3:00. */
+describe("when pay begins", () => {
+  const his = { officeClocksOn: true, officeBeforeStartPaid: false, driveFromLeaving: true };
+  const seven = at("07:00");
+  it("is the normal start while you're still at the office before it", () => {
+    expect(paidFromOf({ from: at("05:45"), office: [{ from: at("05:45"), until: null }], jobs: [], normalStart: seven, rules: his })).toBe(seven);
+    /* in at 5:45 and out at 7:20: the office after 7:00 is paid */
+    expect(paidFromOf({ from: at("05:45"), office: [{ from: at("05:45"), until: at("07:20") }], jobs: [], normalStart: seven, rules: his })).toBe(seven);
+  });
+  it("moves back to leaving the office when the drive to a job is paid from leaving", () => {
+    expect(paidFromOf({ from: at("05:45"), office: [{ from: at("05:45"), until: at("06:31") }], jobs: [{ from: at("07:14") }], normalStart: seven, rules: his })).toBe(at("06:30"));
+    /* not paid from leaving: from getting to the job, or 7:00 if that's sooner */
+    const arrive = { ...his, driveFromLeaving: false };
+    expect(paidFromOf({ from: at("05:45"), office: [{ from: at("05:45"), until: at("06:31") }], jobs: [{ from: at("06:58") }], normalStart: seven, rules: arrive })).toBe(at("07:00"));
+    expect(paidFromOf({ from: at("04:30"), office: [{ from: at("04:30"), until: at("04:35") }], jobs: [{ from: at("05:00") }], normalStart: seven, rules: arrive })).toBe(at("05:00"));
+  });
+  it("is Clock on for a day that didn't start at the office, a workspace that pays early office time, or no normal day", () => {
+    expect(paidFromOf({ from: at("05:00"), office: [], jobs: [{ from: at("05:00") }], normalStart: seven, rules: his })).toBe(at("05:00"));
+    expect(paidFromOf({ from: at("05:45"), office: [{ from: at("05:45"), until: null }], jobs: [], normalStart: seven, rules: { ...his, officeBeforeStartPaid: true } })).toBe(at("05:45"));
+    expect(paidFromOf({ from: at("05:45"), office: [{ from: at("05:45"), until: null }], jobs: [], normalStart: null, rules: his })).toBe(at("05:45"));
+  });
+  it("comes to his Friday: 8.5 h paid of 9.25 h, the office before 6:30 not paid", () => {
+    const s = summarise({ onAt: at("05:45"), until: at("15:00") }, [job("3375", "07:15", "14:30")], [{ from: at("05:45"), until: at("06:30") }], { normalStart: seven, rules: his });
+    expect([s.minutes, s.paid.from, s.paid.minutes, s.office.minutes, s.office.unpaid, s.travel]).toEqual([555, at("06:30"), 510, 45, 45, 75]);
+    /* without the rules, the whole day as always */
+    const old = summarise({ onAt: at("05:45"), until: at("15:00") }, [job("3375", "07:15", "14:30")], [{ from: at("05:45"), until: at("06:30") }]);
+    expect([old.paid.from, old.paid.minutes, old.office.unpaid]).toEqual([at("05:45"), 555, 0]);
+  });
+  it("finds the normal start on the day, in the zone", () => {
+    expect(normalStartOn("2026-10-27", "7:00 AM", "Australia/Sydney")).toBe(seven);
+    expect(normalStartOn("2026-10-27", "nonsense", "Australia/Sydney")).toBeNull();
   });
 });

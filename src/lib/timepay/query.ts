@@ -4,6 +4,7 @@ import { displayNameOf } from "@/lib/staff/name";
 import { classifyEmployment, payBasisOf } from "@/lib/staff/employment";
 import {
   DEFAULT_SETTINGS,
+  paidTimeOf,
   type DayEntry,
   type NormalHours,
   type Settings,
@@ -79,6 +80,8 @@ export const getPaySettings = cache(async (
       otUnit: (data.ot_unit as Settings["otUnit"]) ?? DEFAULT_SETTINGS.otUnit,
       // a half-written rules blob must not silently disable a penalty rule
       rules: { ...DEFAULT_SETTINGS.rules, ...rules },
+      /* kept in the rules blob beside the penalty rules, so no column of its own */
+      paidTime: paidTimeOf((rules as Record<string, unknown>).paidTime),
       dblAfter: Number(data.dbl_after ?? DEFAULT_SETTINGS.dblAfter),
       /* Both columns tolerate their own absence: the select is `*`, so a
          workspace whose database hasn't taken the breaks migration yet simply

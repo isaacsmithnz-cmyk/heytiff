@@ -12,7 +12,7 @@ import { approvedInSpan, holidaysInSpan, stateFor } from "@/lib/timepay/leave-qu
 import { classifyEmployment, presumesDays } from "@/lib/staff/employment";
 import { staffIdFor } from "@/lib/workboard/projects-query";
 import { streetLine } from "@/lib/studio/job-link";
-import { derivedDayHours, dowOf, expectedDay, expectsWork, normalHours, type WeekCtx } from "@/components/timepay/logic";
+import { derivedDayHours, dowOf, expectedDay, expectsWork, normalHours, paidTimeOf, parseClock, type PaidTime, type WeekCtx } from "@/components/timepay/logic";
 import { saveDay } from "@/app/actions/timepay";
 import { endCheckIn, jobOf, openCheckIn, startCheckIn, type CheckIn } from "@/lib/workboard/check-in-rules";
 import { jobsOf, sendTime, staffUuidOf, wallMinute, type ClockJob } from "./clock";
@@ -74,8 +74,10 @@ export type DaySummary = {
   until: string;
   minutes: number;
   jobs: (ClockJob & { from: string; until: string; minutes: number; how: DayJob["how"]; stintId?: string; reason?: string | null; joined?: string[]; away?: Away | null })[];
-  office: { minutes: number; spans: { from: string; until: string }[] };
+  office: { minutes: number; spans: { from: string; until: string }[]; /** of it, before paid time began */ unpaid: number };
   travel: number;
+  /** when pay began, and how much of the day is paid (paidFromOf) */
+  paid: { from: string; minutes: number };
 };
 
 export type DayPlace = ClockJob & { address: string; lat: number | null; lng: number | null };
@@ -88,6 +90,8 @@ export type DayState = {
   summary: DaySummary | null;
   /** your normal day ("7:00 AM", "3:00 PM"): the morning ask starts an hour before it */
   normal: { start: string; end: string } | null;
+  /** getting to the office clocks you on (the workspace's paid time rules) */
+  officeClocksOn: boolean;
 };
 
 export const DAY_WORDS = {
@@ -114,11 +118,48 @@ const QUARTER = 15 * 60_000;
 export const toQuarter = (iso: string): string => new Date(Math.round(Date.parse(iso) / QUARTER) * QUARTER).toISOString();
 const mins = (a: string, b: string) => Math.max(0, Math.round((Date.parse(b) - Date.parse(a)) / 60_000));
 
+/* WHEN PAY BEGINS (the workspace's paid time rules, lib components/timepay
+   logic). A day that began at the office, where time there before the normal
+   start isn't paid, is paid from the normal start, or from leaving the office
+   for a job before it when the drive out is paid from leaving (else from
+   getting to the first job). Any other day is paid from Clock on: a booking
+   at 5:00 am is paid from 5:00. Quarter hours, as the day's own. */
+export function paidFromOf(p: {
+  from: string;
+  office: readonly DayStop[];
+  jobs: readonly { from: string }[];
+  normalStart: string | null;
+  rules: PaidTime;
+}): string {
+  if (!p.normalStart || p.rules.officeBeforeStartPaid) return p.from;
+  const first = p.office[0];
+  if (!first || toQuarter(first.from) > p.from) return p.from;
+  const normal = toQuarter(p.normalStart);
+  const firstJob = p.jobs.map((j) => toQuarter(j.from)).sort()[0] ?? null;
+  const cutoff = p.rules.driveFromLeaving ? (first.until ? toQuarter(first.until) : null) : firstJob;
+  const paid = cutoff && cutoff < normal ? cutoff : normal;
+  return paid < p.from ? p.from : paid;
+}
+
+/** The instant a wall clock time ("7:00 AM") falls at on a day, in the zone. */
+export function normalStartOn(workDate: string, start: string | null | undefined, zone: string): string | null {
+  const m = start ? parseClock(start) : null;
+  if (m === null || m === undefined) return null;
+  const t = wallInstant(`${workDate} ${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}:00`, zone, "earliest");
+  return t === null ? null : new Date(t).toISOString();
+}
+
 /* WHERE THE DAY WENT, to the quarter hour: each job, the office, and the
    rest as travel, adding up to the day. A stop that rounds to nothing is
    left out. One function, so the Clock off sheet, the timesheet and
-   ServiceM8 all read the same day. */
-export function summarise(day: { onAt: string; until: string }, jobs: DayJob[], office: DayStop[]): DaySummary {
+   ServiceM8 all read the same day. `pay` is when the workspace's paid time
+   rules start the pay (paidFromOf); without it the whole day is paid. */
+export function summarise(
+  day: { onAt: string; until: string },
+  jobs: DayJob[],
+  office: DayStop[],
+  pay?: { normalStart: string | null; rules: PaidTime }
+): DaySummary {
   const from = toQuarter(day.onAt);
   const until = toQuarter(day.until) < from ? from : toQuarter(day.until);
   const clamp = (iso: string) => (iso < from ? from : iso > until ? until : iso);
@@ -132,13 +173,17 @@ export function summarise(day: { onAt: string; until: string }, jobs: DayJob[], 
   const total = mins(from, until);
   const onJobs = jobRows.reduce((n, j) => n + j.minutes, 0);
   const atOffice = spans.reduce((n, o) => n + o.minutes, 0);
+  const paidFrom = pay ? paidFromOf({ from, office, jobs, normalStart: pay.normalStart, rules: pay.rules }) : from;
+  /* the office's time before pay began; the drive and the jobs are always after it */
+  const unpaid = spans.reduce((n, o) => n + mins(o.from, o.until < paidFrom ? o.until : paidFrom), 0);
   return {
     from,
     until,
     minutes: total,
     jobs: jobRows,
-    office: { minutes: atOffice, spans: spans.map(({ from: f, until: u }) => ({ from: f, until: u })) },
+    office: { minutes: atOffice, spans: spans.map(({ from: f, until: u }) => ({ from: f, until: u })), unpaid },
     travel: Math.max(0, total - onJobs - atOffice),
+    paid: { from: paidFrom, minutes: paidFrom > until ? 0 : mins(paidFrom, until) },
   };
 }
 
@@ -277,6 +322,12 @@ async function normalOf(ctx: MobileCtx): Promise<{ start: string; end: string } 
   return { start: h.start, end: h.end };
 }
 
+/** The workspace's paid time rules, and when pay would start on the day by them. */
+async function payOf(ctx: MobileCtx, normal: { start: string } | null, workDate: string, zone: string): Promise<{ normalStart: string | null; rules: PaidTime }> {
+  const { settings } = await getPaySettings(ctx.orgId);
+  return { normalStart: normal ? normalStartOn(workDate, normal.start, zone) : null, rules: paidTimeOf(settings.paidTime) };
+}
+
 /** Monday 0 … Sunday 6, the roster's own convention, of an ISO date. */
 const weekdayOf = (iso: string) => (new Date(`${iso}T00:00:00Z`).getUTCDay() + 6) % 7;
 
@@ -315,8 +366,9 @@ export async function readDay(ctx: MobileCtx, now: number = Date.now(), until?: 
   const realToday = wallMinute(nowIso, zone)?.slice(0, 10) ?? nowIso.slice(0, 10);
   /* a day already over, for its wrap-up the morning after: a week back at most */
   const today = on && /^\d{4}-\d{2}-\d{2}$/.test(on) && on <= realToday && Date.parse(`${realToday}T12:00:00Z`) - Date.parse(`${on}T12:00:00Z`) <= 7 * 86_400_000 ? on : realToday;
-  const [row, normal] = await Promise.all([dayRow(ctx, today), normalOf(ctx)]);
-  if (!row) return { day: null, at: null, jobs: [], summary: null, normal };
+  const [row, normal, { settings }] = await Promise.all([dayRow(ctx, today), normalOf(ctx), getPaySettings(ctx.orgId)]);
+  const officeClocksOn = paidTimeOf(settings.paidTime).officeClocksOn;
+  if (!row) return { day: null, at: null, jobs: [], summary: null, normal, officeClocksOn };
   const { jobs } = await jobsIn(ctx, row, nowIso);
   const office = row.office ?? [];
   let at: DayState["at"] = null;
@@ -335,8 +387,9 @@ export async function readDay(ctx: MobileCtx, now: number = Date.now(), until?: 
     day: { id: row.id, workDate: row.work_date, onAt: row.on_at, offAt: row.off_at },
     at,
     jobs,
-    summary: summarise({ onAt: row.on_at, until: row.off_at ?? (thinking && thinking >= row.on_at ? thinking : nowIso) }, jobs, office),
+    summary: summarise({ onAt: row.on_at, until: row.off_at ?? (thinking && thinking >= row.on_at ? thinking : nowIso) }, jobs, office, await payOf(ctx, normal, row.work_date, zone)),
     normal,
+    officeClocksOn,
   };
 }
 
@@ -596,7 +649,8 @@ async function onTheTimesheet(ctx: MobileCtx, summary: DaySummary, workDate: str
   if (!t || "subcontractor" in t) return "none";
   const index = Math.round((Date.parse(`${workDate}T00:00:00Z`) - Date.parse(`${period}T00:00:00Z`)) / 86_400_000);
   if (!(index >= 0 && index < t.week.length)) return "none";
-  const start = sheetTime(summary.from, zone);
+  /* from when pay began (the paid time rules): the early office isn't on it */
+  const start = sheetTime(summary.paid.from, zone);
   const end = sheetTime(summary.until, zone);
   if (!start || !end) return "none";
   const h = derivedDayHours(start, end, settings);
@@ -638,7 +692,7 @@ export async function clockOffDay(ctx: MobileCtx, press: Sm8Press | null, at: un
   const nowIso = new Date(now).toISOString();
   const zone = await zoneOf(ctx.orgId);
   const { jobs, toSend } = await jobsIn(ctx, closed, nowIso);
-  const summary = summarise({ onAt: day.on_at, until: t }, jobs, office);
+  const summary = summarise({ onAt: day.on_at, until: t }, jobs, office, await payOf(ctx, await normalOf(ctx), day.work_date, zone));
 
   /* each job's time, once, to the quarter hour as the sheet showed it: queued
      here, sent after the answer (sendTime), so Clock off never waits on it */

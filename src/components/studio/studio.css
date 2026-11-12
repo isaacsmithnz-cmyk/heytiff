@@ -10422,6 +10422,11 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .fg:has(.ds-editor.clean) .outlet { padding: 0; margin: 0; }
 .dstudio.editing:has(> * .ds-editor.clean),
 .dstudio.editing:has(> .ds-editor.clean) { height: 100dvh; padding: 0; background: var(--paper); }
+/* under the dashboard's header (72px, .fr-head) the Studio is that much
+   shorter, or its foot (tools, zoom, Tiff, the column's button) falls off the
+   screen; display mode hides the header and keeps the full height */
+html:not([data-ds-display]) .fg:has(#fg-topbar) .dstudio.editing:has(> * .ds-editor.clean),
+html:not([data-ds-display]) .fg:has(#fg-topbar) .dstudio.editing:has(> .ds-editor.clean) { height: calc(100dvh - 72px); }
 .dstudio .ds-editor.clean { row-gap: 0; --ds-cockpit-w: 320px; --ds-stack-ground: #F5F5F6; background: var(--paper); }
 .dstudio .ds-editor.clean::before { display: none; }
 
@@ -10429,8 +10434,13 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .dstudio .ds-editor.clean > .ds-topbar { height: 56px; padding: 0 16px; gap: 12px; background: var(--paper); border-bottom: 1px solid var(--line); }
 .dstudio .ds-editor.clean .ds-menu-btn { width: auto; height: 32px; padding: 0 12px; border: none; box-shadow: none; background: none; border-radius: var(--r-button); font: 600 14px/20px var(--font); color: var(--ink); }
 .dstudio .ds-editor.clean .ds-menu-btn:hover { background: var(--hov); }
-.dstudio .ds-editor.clean .ds-id { flex-direction: row; align-items: center; gap: 8px; min-width: 0; }
-.dstudio .ds-editor.clean .ds-title-input { font: 600 16px/24px var(--font); height: 32px; width: 200px; flex-shrink: 0; padding: 0 8px; border: 1px solid transparent; border-radius: var(--r-control); background: none; color: var(--ink); }
+.dstudio .ds-editor.clean .ds-id { flex-direction: row; justify-content: flex-start; align-items: center; gap: 8px; min-width: 0; }
+.dstudio .ds-editor.clean .ds-id > .ds-save { flex-shrink: 0; white-space: nowrap; }
+/* the left flank keeps what it holds (title, Open job, Scope, Tiff's rooms):
+   equal flanks still centre Plan/3D on a wide screen, and on a 13-inch the
+   right flank gives way instead of the job's buttons running under Plan */
+.dstudio .ds-editor.clean .ds-tb-left { min-width: max-content; }
+.dstudio .ds-editor.clean .ds-title-input { font: 600 16px/24px var(--font); height: 32px; width: 200px; flex: 0 1 200px; min-width: 120px; padding: 0 8px; border: 1px solid transparent; border-radius: var(--r-control); background: none; color: var(--ink); }
 .dstudio .ds-editor.clean .ds-title-input:hover,
 .dstudio .ds-editor.clean .ds-title-input:focus { border-color: var(--edge); background: var(--paper); }
 .dstudio .ds-editor.clean .ds-centre { display: flex; align-items: center; gap: 12px; }
@@ -10477,8 +10487,11 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 /* Tiff's pill in the plan's corner, zoom beside it, the height of both */
 .dstudio .ds-editor.clean .ds-canvas-col .tc-ask { position: absolute; right: 16px; bottom: 16px; z-index: 12; height: 44px; padding: 0 16px 0 8px; }
 .dstudio .ds-editor.clean .tc-ask { background: var(--paper); }
-/* no room beside the tool bar: zoom stands on the pill instead */
-@media (max-width: 1400px) {
+/* no room beside the tool bar: zoom stands on the pill instead. Measured on
+   the plan's own width, not the window's: the sidebar and the column take
+   528px of a 13-inch's 1440, and zoom ran under the tool bar there */
+.dstudio .ds-editor.clean .ds-canvas-col { container: ds-plan / inline-size; }
+@container ds-plan (max-width: 1040px) {
   .dstudio .ds-editor.clean .ds-zoomctl { right: 16px; bottom: 68px; }
   .dstudio .ds-editor.clean .ds-canvas-col:has(.ds-hud) .ds-zoomctl { bottom: 176px; }
 }
@@ -10492,6 +10505,9 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 /* a tool's options, rising above the bar, two rows at most */
 .dstudio .ds-editor.clean .ds-hud { position: absolute; left: 50%; top: auto; bottom: 80px; transform: translateX(-50%); z-index: 20; max-width: calc(100% - 32px); border: none; border-radius: 16px; background: var(--paper); box-shadow: var(--shadow-overlay); }
 .dstudio .ds-editor.clean .ds-hud { padding: 8px; }
+/* Size the zone, and the panels like it, rise above the tool bar as the
+   options do; at the old 22px their buttons sat under it */
+.dstudio .ds-editor.clean .ds-wallsel-panel:not(.top) { bottom: 80px; z-index: 20; }
 /* the Air screen in the column (the next flow): what goes down drawn as the
    bench's tools are, then each choice under its name, a tray as wide as the
    column */

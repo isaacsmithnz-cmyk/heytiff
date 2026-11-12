@@ -2762,7 +2762,13 @@ function UnitDetail({
           })}
         </div>
       )}
-      {airway && (!next || served.length > 1) && (
+      {/* zoning is for a unit with more than one room behind it: the rooms
+          ticked to it, or, for one that serves the whole system (a ducted
+          system's usual shape), the system's zones. Until 13 November 2026
+          the next flow counted only the ticked rooms, so a whole-system
+          ducted unit, which ticks none, never showed it (Isaac: "Where is
+          zoning") */}
+      {airway && (!next || (alloc.serves === "system" ? view.zones.length : served.length) > 1) && (
         <ZoningPanel draft={draft} pack={pack} sys={sys} alloc={alloc} onChange={onChange} />
       )}
       {alloc.serves !== "system" && !airway && (

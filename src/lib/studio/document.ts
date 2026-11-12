@@ -164,6 +164,11 @@ export interface PlanImport {
   /** a placed page's own words (pdf text), where they sit on its raster:
       what Tiff's reading is checked against */
   words?: Record<number, { text: string; at: { x: number; y: number } }[]>;
+  /** a placed page's scale as Tiff measured it off the lengths printed on it,
+      for a page whose title block prints none (lib/studio/reading.ts
+      scaleFromDimensions): Scale and north offers it, and never sets it on
+      its own. Absent on a design made from files dropped in. */
+  measured?: Record<number, { mmPerPx: number; from: string; sure: boolean }>;
   /** the job's plan this design was started from (lib/jobs/plans.ts): the
       floors are its floor pages and the reading came with it, so the job's
       Documents can say which designs use the plan. Absent on a design made

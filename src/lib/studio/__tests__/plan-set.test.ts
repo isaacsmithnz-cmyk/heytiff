@@ -83,6 +83,46 @@ describe("the printed scale", () => {
   });
 });
 
+describe("Tiff's measured scale", () => {
+  /* 3517's plan, 13 November 2026: a marketing PNG with a 5 m scale bar and no 1:100 */
+  const benelong = (sure: boolean, words = false): DesignDocument => {
+    const d = createDesign({ name: "1/20d Benelong Crescent", mode: "plan" });
+    return {
+      ...d,
+      floors: [{ id: "gf", name: "Ground floor", level: 0, scaleMmPerUnit: null, northDeg: null, northPos: null, plans: [{ ...sheet("gf", 1, 855, 1183), pageNumber: null }] }],
+      planImport: {
+        sources: [{ ref: "org/o/benelong.png", kind: "image" }],
+        placed: { 0: "org/o/gf.png" },
+        chosen: [0],
+        names: {},
+        ...(words ? { words: { 0: CUTLER_WORDS } } : {}),
+        measured: { 0: { mmPerPx: 37.037, from: "the 5000 mm printed on it", sure } },
+      },
+    };
+  };
+
+  test("offers hers where the page prints no scale, saying where it came from", () => {
+    expect(proposedScale(benelong(false), "gf")).toEqual({ kind: "measured", from: "the 5000 mm printed on it", sure: false, mmPerUnit: 37.037 });
+    expect(proposedScale(benelong(true), "gf")).toMatchObject({ kind: "measured", sure: true });
+  });
+
+  test("never sets it on its own", () => {
+    expect(benelong(true).floors[0].scaleMmPerUnit).toBeNull();
+  });
+
+  test("a printed scale that fits the raster comes first; one that doesn't falls to hers", () => {
+    /* a 1044 x 1015 photo isn't A1's shape, so the 1:50 can't be trusted there */
+    const d = benelong(true, true);
+    const photo = { ...d, floors: d.floors.map((f) => ({ ...f, plans: f.plans.map((p) => ({ ...p, width: 1044, height: 1015 })) })) };
+    expect(proposedScale(photo, "gf")).toMatchObject({ kind: "measured" });
+    expect(proposedScale(cutler(), "gf")).toMatchObject({ kind: "printed", scale: { ratio: 50, paper: "A1" } });
+  });
+
+  test("a design with none offers nothing", () => {
+    expect(proposedScale(cutler(), "photo")).toBeNull();
+  });
+});
+
 describe("the sheet's title", () => {
   test("GROUND FLOOR beside CD103", () => {
     expect(sheetTitleOf(CUTLER_WORDS)).toEqual({ title: "Ground floor", number: "CD103" });

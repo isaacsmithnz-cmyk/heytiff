@@ -11,7 +11,7 @@ import { SystemBuilder, ZoneStanding } from "../system-builder";
 import { PACK_SECTIONS, type DataPack, type PackMeta } from "@/lib/studio/packs/schema";
 import { assemblePack, type PackSource } from "@/lib/studio/packs/loader";
 import { createDesign, type DesignDocument, type DesignObject } from "@/lib/studio/document";
-import { addHead, allocationsOf, chooseOutdoor, moveZone, placeAllocation } from "@/lib/studio/builder";
+import { addBandUnit, addHead, allocationsOf, chooseOutdoor, moveZone, placeAllocation } from "@/lib/studio/builder";
 import { claimZone, newSystem } from "@/lib/studio/zones";
 import { sizingCapacityKw } from "@/lib/studio/loads";
 
@@ -493,6 +493,21 @@ describe("the Ducted family", () => {
     const built = onCommit.mock.calls[0][0] as DesignDocument;
     const band = allocationsOf(built.systems.find((x) => x.id === made.systemId)!).filter((a) => a.serves === "system");
     expect(band.map((a) => a.model)).toEqual(["PEA-M140GAA"]);
+  });
+});
+
+/* ZONING ON A WHOLE-SYSTEM DUCTED UNIT (Isaac, 13 November 2026: "Where is
+   zoning"): the next flow counted only the rooms ticked to a unit, and a
+   ducted unit serving the whole system ticks none, so it never showed */
+describe("zoning a ducted system in the next flow", () => {
+  it("shows Zoning on the unit that serves the whole system, one zone a room", () => {
+    const made = claimed(house(), ["bed1", "bed2", "living"]);
+    const doc = addBandUnit(made.doc, pack, { systemId: made.systemId, iduModel: "PEA-M125GAA" });
+    render(<SystemBuilder doc={doc} pack={pack} systemId={made.systemId} next onCommit={() => {}} onClose={() => {}} />);
+    fireEvent.click(within(schematic()).getByRole("button", { name: /, serves the whole system$/ }));
+    const zoning = screen.getByRole("group", { name: "Zoning" });
+    fireEvent.click(within(zoning).getByRole("button", { name: "Temperature" }));
+    expect(within(zoning).getAllByRole("button", { name: /^Z\d / })).toHaveLength(3);
   });
 });
 

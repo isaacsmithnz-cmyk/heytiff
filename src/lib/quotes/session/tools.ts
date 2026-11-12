@@ -5,6 +5,7 @@ import type { Product } from "../families";
 import type { Offer } from "../price-book";
 import { supplierOffer } from "../lookups";
 import { DEFAULT_CLIMATE_ZONE, ORIENTATIONS, roomHeatLoadKw } from "@/lib/studio/loads";
+import { ZONED_DIVERSITY as STUDIO_ZONED_DIVERSITY } from "@/lib/studio/zoning";
 import { OUTLET_KINDS, type AirflowAsk, type OutletKind } from "@/lib/guides/airflow";
 import type { ToolDef } from "./model";
 
@@ -884,7 +885,7 @@ export function roomLoads(raw: unknown): {
   total_kw: number;
   /* one zoned ducted system over these rooms: they don't all call at once,
      so the unit is sized on the sum at 0.7, as the Studio sizes it
-     (lib/studio/ducted.ts diversityFactor); unzoned, every room can call at
+     (lib/studio/zoning.ts ZONED_DIVERSITY); unzoned, every room can call at
      once and it's the sum */
   system_kw: number;
   diversity: number;
@@ -922,5 +923,5 @@ export function roomLoads(raw: unknown): {
   return { rooms: out, total_kw: total, system_kw: Math.round(total * diversity * 1000) / 1000, diversity, skipped, climate_zone: zone };
 }
 
-/** The Studio's zoned default (lib/studio/ducted.ts diversityFactor). */
-const ZONED_DIVERSITY = 0.7;
+/** The Studio's zoned default (lib/studio/zoning.ts). */
+const ZONED_DIVERSITY = STUDIO_ZONED_DIVERSITY;

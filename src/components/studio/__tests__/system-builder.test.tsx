@@ -500,14 +500,60 @@ describe("the Ducted family", () => {
    zoning"): the next flow counted only the rooms ticked to a unit, and a
    ducted unit serving the whole system ticks none, so it never showed */
 describe("zoning a ducted system in the next flow", () => {
-  it("shows Zoning on the unit that serves the whole system, one zone a room", () => {
+  /* ZONING UNDER HEAD TYPE, SIZED ZONED (Isaac, 13 November 2026: "when
+     you're in the ducted system, the zoning switch should be there straight
+     away. And then that will help you select the correct unit") */
+  const ducted = (doc: DesignDocument, systemId: string): DesignDocument => ({
+    ...doc,
+    systems: doc.systems.map((s) => (s.id === systemId ? { ...s, settings: { ...s.settings, family: "ducted" } } : s)),
+  });
+  const colSub = () => document.querySelector(".ds-sb-colsub")!.textContent!;
+
+  it("is under Head type before a unit is chosen, and Temperature sizes the list on 70% of the load", () => {
+    const made = claimed(house(), ["bed1", "bed2", "living"]);
+    render(<SystemBuilder doc={ducted(made.doc, made.systemId)} pack={pack} systemId={made.systemId} next onCommit={() => {}} onClose={() => {}} />);
+    const zoning = screen.getByRole("group", { name: "Zoning" });
+    expect(within(zoning).getByRole("button", { name: "Off" })).toHaveAttribute("aria-pressed", "true");
+    const summed = Number(colSub().match(/^([\d.]+) kW load$/)![1]);
+
+    fireEvent.click(within(zoning).getByRole("button", { name: "Temperature" }));
+    const m = colSub().match(/^([\d.]+) kW load zoned, 70% of the rooms’ ([\d.]+) kW$/)!;
+    expect(Number(m[2])).toBe(summed);
+    expect(Number(m[1])).toBeCloseTo(summed * 0.7, 0);
+  });
+
+  it("zones the unit that serves the whole system: the facts say zoned, its rooms are its zones", () => {
     const made = claimed(house(), ["bed1", "bed2", "living"]);
     const doc = addBandUnit(made.doc, pack, { systemId: made.systemId, iduModel: "PEA-M125GAA" });
     render(<SystemBuilder doc={doc} pack={pack} systemId={made.systemId} next onCommit={() => {}} onClose={() => {}} />);
+    fireEvent.click(within(screen.getByRole("group", { name: "Zoning" })).getByRole("button", { name: "Temperature" }));
+    expect(document.querySelector(".ds-sb-facts")!.textContent).toMatch(/kW load zoned/);
+
     fireEvent.click(within(schematic()).getByRole("button", { name: /, serves the whole system$/ }));
-    const zoning = screen.getByRole("group", { name: "Zoning" });
-    fireEvent.click(within(zoning).getByRole("button", { name: "Temperature" }));
-    expect(within(zoning).getAllByRole("button", { name: /^Z\d / })).toHaveLength(3);
+    expect(within(screen.getByRole("group", { name: "Zones" })).getAllByRole("button", { name: /^Z\d / })).toHaveLength(3);
+  });
+
+  it("takes a VRF's ducted head given two rooms: Zoning under Head type once it is open", () => {
+    const made = claimed(house(), ["bed1", "living", "study"]);
+    let d = addHead(made.doc, pack, { systemId: made.systemId, zoneId: "bed1", iduModel: "PEFY-P32VMS1-E" });
+    d = addHead(d, pack, { systemId: made.systemId, zoneId: "living", iduModel: "PEFY-P100VMA-E4" });
+    d = {
+      ...d,
+      systems: d.systems.map((s) =>
+        s.id === made.systemId
+          ? { ...s, settings: { ...s.settings, allocations: allocationsOf(s).map((a) => (a.model === "PEFY-P100VMA-E4" ? { ...a, alsoServes: ["study"] } : a)) } }
+          : s
+      ),
+    };
+    render(<SystemBuilder doc={d} pack={pack} systemId={made.systemId} next onCommit={() => {}} onClose={() => {}} />);
+    expect(screen.queryByRole("group", { name: "Zoning" })).toBeNull();
+    fireEvent.click(within(schematic()).getByRole("button", { name: "PEFY-P100VMA-E4, serves Living and Study" }));
+    const summed = Number(colSub().match(/^([\d.]+) kW load$/)![1]);
+    fireEvent.click(within(screen.getByRole("group", { name: "Zoning" })).getByRole("button", { name: "On/off" }));
+    const m = colSub().match(/^([\d.]+) kW load zoned, 70% of the rooms’ ([\d.]+) kW$/)!;
+    expect(Number(m[2])).toBe(summed);
+    expect(Number(m[1])).toBeCloseTo(summed * 0.7, 0);
+    expect(within(screen.getByRole("group", { name: "Zones" })).getAllByRole("button", { name: /^Z\d / })).toHaveLength(2);
   });
 });
 

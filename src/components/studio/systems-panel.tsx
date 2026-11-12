@@ -42,7 +42,7 @@ import type { SizingBasis } from "@/lib/studio/loads";
 import { allocationsOf, hasAllocations, trayItems, type TrayItem } from "@/lib/studio/builder";
 import { KIND_WORD, systemKind, systemZones, unclaimedZones } from "@/lib/studio/zones";
 import { brandName, combinationWord, connectionRatio } from "@/lib/studio/verdict";
-import { systemCover } from "@/lib/studio/coverage";
+import { coverOfText, systemCover } from "@/lib/studio/coverage";
 import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { cardStatus } from "@/lib/studio/status";
 import { equipmentList, installState } from "@/lib/studio/install";
@@ -446,7 +446,7 @@ function SystemCard({
                 <>
                   <dt>Cover</dt>
                   <dd className="num">
-                    {cover.coverKw.toFixed(1)} of {cover.loadKw == null ? "—" : cover.loadKw.toFixed(1)} kW
+                    {cover.coverKw.toFixed(1)} of {coverOfText(cover)}
                     {cover.pct != null && cover.pct > 150 && <span className="warn">, oversized</span>}
                   </dd>
                 </>

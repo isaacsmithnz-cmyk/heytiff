@@ -12,7 +12,7 @@ import { indexNotation, indexPairText } from "@/lib/studio/packs/schema";
 import { sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
 import { coverPct, coversLoad, shortKw } from "@/lib/studio/fit";
 import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
-import { systemCover, systemPairKw } from "@/lib/studio/coverage";
+import { bandZoned, bandZoningKey, needOf, systemCover, systemPairKw, unitZoned } from "@/lib/studio/coverage";
 import { multiCapableIdus, multiFormFactorSummary, poolOf } from "@/lib/studio/multi";
 import { vrfOutdoorsListing, vrfRatio } from "@/lib/studio/vrf";
 import { headSection, systemVrfTree, type SizedTree } from "@/lib/studio/vrf-tree";
@@ -20,7 +20,7 @@ import { headPipeMm } from "@/lib/studio/pipe-sizes";
 import { formFactorSummary } from "@/lib/studio/select";
 import { roomsServed } from "@/lib/studio/allocations";
 import { outletsText, systemAir, unitAir, type RoomAir } from "@/lib/studio/airflow";
-import { joinZone, setZoning, zoneKit, zoningOf, zonesOf, type UnitZoning, type ZoneControl } from "@/lib/studio/zoning";
+import { joinZone, setZoning, ZONED_DIVERSITY, zoneKit, zoningOf, zonesOf, type UnitZoning, type ZoneControl } from "@/lib/studio/zoning";
 import { DUCT_AIRWAY_FORMS } from "@/lib/studio/form-factors";
 import { UnitBrowser, type UnitChoice } from "./unit-browser";
 import { Tray } from "@/components/parts/tabs";
@@ -166,7 +166,13 @@ interface SystemView {
   reason: string | null;
   combination: "Valid" | "Fails" | null;
   zones: ZoneView[];
+  /** the rooms' own loads, added up */
   zonesLoadKw: number | null;
+  /** what the system is sized against: the rooms' loads, at 70% where a
+      zoned ducted unit carries them (coverage.ts needKw) */
+  needKw: number | null;
+  /** some of it is zoned, so needKw is under zonesLoadKw */
+  zoned: boolean;
   loadText: string;
   coverKw: number | null;
   coveredText: string;
@@ -200,23 +206,23 @@ function zoneWord(args: {
   cant: boolean;
   oduModel: string;
   bandKw: number | null;
-  zonesLoadKw: number | null;
+  bandNeedKw: number | null;
   loadKw: number | null;
   lines: number;
   verdict: RoomVerdict;
 }): { word: Word; short: boolean } {
-  const { cant, oduModel, bandKw, zonesLoadKw, loadKw, lines, verdict } = args;
+  const { cant, oduModel, bandKw, bandNeedKw, loadKw, lines, verdict } = args;
   /* short, judged and measured on the figures as shown (fit.ts) — so a zone
      can never read "0.0 kW short" */
   const shortBy = (need: number, cover: number): string => `${shortKw(need, cover).toFixed(1)} kW short`;
   if (cant) return { word: { text: `Can't join ${oduModel}`, tone: "bad" }, short: false };
   /* a unit on the band serves every zone: each zone reads the unit against
-     the load of all of them together */
+     what all of them together need (70% of their load, zoned) */
   if (bandKw != null) {
-    if (zonesLoadKw == null || zonesLoadKw <= 0) return { word: { text: kwText(bandKw), tone: "quiet" }, short: false };
-    return coversLoad(bandKw, zonesLoadKw)
+    if (bandNeedKw == null || bandNeedKw <= 0) return { word: { text: kwText(bandKw), tone: "quiet" }, short: false };
+    return coversLoad(bandKw, bandNeedKw)
       ? { word: { text: "Covered", tone: "ok" }, short: false }
-      : { word: { text: shortBy(zonesLoadKw, bandKw), tone: "bad" }, short: true };
+      : { word: { text: shortBy(bandNeedKw, bandKw), tone: "bad" }, short: true };
   }
   /* nothing in it yet: what it is short by is what it needs, and it is not
      wrong yet, only not done — amber, where a short unit is red */
@@ -293,6 +299,16 @@ export function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingB
   const zonesLoadKw = zoneLoads.some((l) => l != null)
     ? zoneLoads.reduce<number>((n, l) => n + (l ?? 0), 0)
     : null;
+  /* ZONED, SIZED SMALLER (zoning.ts): a ducted system's zoning counts from
+     the moment it is set, before its unit is chosen, so the list is sized
+     zoned; a head on a multi or VRF counts once it is a zoned ducted head */
+  const verdicts = zoneList.map((zone) => roomVerdict(draft, pack, basis, zone));
+  const onBand = bandUnits.length > 0 || family === "ducted";
+  const bandIsZoned = onBand && bandZoned(sys);
+  const zonedHere = zoneList.map((_, i) => (onBand ? bandIsZoned : verdicts[i].zoned));
+  const zonedAny = zonesLoadKw != null && zonedHere.some(Boolean);
+  const needKw =
+    zonesLoadKw == null ? null : zoneLoads.reduce<number>((n, l, i) => n + (l == null ? 0 : needOf(l, zonedHere[i])), 0);
 
   /* the header's Load is this system's share of a shared zone: 7.0 of 14.0 */
   let myLoadKw = 0;
@@ -311,10 +327,10 @@ export function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingB
           .map((alloc) => ({ sys: s, alloc }))
       );
     const shared = others.length > 0;
-    const verdict = roomVerdict(draft, pack, basis, zone);
+    const verdict = verdicts[i];
     const share = cover.rooms.find((r) => r.room.id === zone.id);
     const zoneShare = shared && share && share.loadKw != null ? share.loadKw : loadKw;
-    if (zoneShare != null) myLoadKw += zoneShare;
+    if (zoneShare != null) myLoadKw += needOf(zoneShare, zonedHere[i]);
     if (shared && loadKw != null && zoneShare != null && Math.abs(zoneShare - loadKw) > 0.05) shareDiffers = true;
     const cantHere = mine.some((a) => cant.has(a.id));
     const lines: HeadLine[] = [
@@ -325,8 +341,8 @@ export function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingB
       cant: cantHere,
       oduModel: odu?.model ?? "",
       bandKw,
-      zonesLoadKw,
-      loadKw: zoneShare ?? null,
+      bandNeedKw: needKw,
+      loadKw: zoneShare == null ? null : needOf(zoneShare, zonedHere[i]),
       lines: lines.length,
       verdict,
     });
@@ -336,17 +352,17 @@ export function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingB
     return { zone, name: zoneName(zone), loadKw, shared, lines, word, short, cant: cantHere, slot, pipe, verdict };
   });
   const loadText =
-    zonesLoadKw == null
+    needKw == null
       ? "—"
       : shareDiffers
-        ? `${myLoadKw.toFixed(1)} of ${zonesLoadKw.toFixed(1)} kW`
-        : `${zonesLoadKw.toFixed(1)} kW`;
+        ? `${myLoadKw.toFixed(1)} of ${needKw.toFixed(1)} kW`
+        : `${needKw.toFixed(1)} kW`;
   const coverKw = empty ? null : (bandKw ?? cover.coverKw);
   const anyShort = zones.some((z) => z.short);
   /* the header's Covered: the ONE figure (systemCover) over the load, the
      words the system card on the panel uses */
   const coveredText =
-    coverKw == null ? "—" : zonesLoadKw == null ? kwText(coverKw) : `${coverKw.toFixed(1)} of ${zonesLoadKw.toFixed(1)} kW`;
+    coverKw == null ? "—" : needKw == null ? kwText(coverKw) : `${coverKw.toFixed(1)} of ${needKw.toFixed(1)} kW`;
 
   /* the outdoors of the family, each saying Valid or Fails against the
      heads; the one on the system is always listed, valid or not */
@@ -375,7 +391,7 @@ export function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingB
     /* an outdoor whose ceiling is under the zones' load is not offered as
        fitting, whatever its heads' ratio (vrf.ts vrfTakesLoad) */
     const vrfListing = new Set(
-      vrfOutdoorsListing(pack, headRows, { load: { kw: cover.loadKw, basis } }).map((o) => o.model)
+      vrfOutdoorsListing(pack, headRows, { load: { kw: cover.needKw, basis } }).map((o) => o.model)
     );
     candidates = pack.outdoor_units.filter((o) => o.system_type === "vrf");
     validOf = (o) => vrfListing.has(o.model);
@@ -501,6 +517,8 @@ export function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingB
     combination,
     zones,
     zonesLoadKw,
+    needKw,
+    zoned: zonedAny,
     loadText,
     coverKw,
     coveredText,
@@ -701,7 +719,7 @@ export function SystemBuilder({
   const lensKw = !view
     ? null
     : ductedFamily
-      ? view.zonesLoadKw
+      ? view.needKw
       : view.family === "split" && view.zones.length === 1
         ? view.zones[0].loadKw
         : null;
@@ -835,8 +853,41 @@ export function SystemBuilder({
   const wholeList = ductedFamily || selectedAlloc?.serves === "system";
   const colZone = selectedZone ?? addTarget;
   const colTitle = wholeList ? "Whole system" : (colZone?.name ?? "");
-  const colLoad = wholeList ? (view?.zonesLoadKw ?? null) : (colZone?.loadKw ?? null);
-  const colSub = colLoad == null ? "No load yet" : `${colLoad.toFixed(1)} kW load`;
+  /* a head given a group of rooms is chosen for all of them */
+  const colServed = !wholeList && selectedAlloc ? roomsServed(selectedAlloc) : [];
+  const colRooms = colServed.length > 1 ? (view?.zones.filter((z) => colServed.includes(z.zone.id)) ?? []) : [];
+  const colLoad = wholeList
+    ? (view?.zonesLoadKw ?? null)
+    : colRooms.length
+      ? colRooms.some((z) => z.loadKw != null)
+        ? colRooms.reduce<number>((n, z) => n + (z.loadKw ?? 0), 0)
+        : null
+      : (colZone?.loadKw ?? null);
+  /* ZONING, UNDER HEAD TYPE (Isaac, 13 November 2026: "when you're in the
+     ducted system, the zoning switch should be there straight away. And
+     then that will help you select the correct unit"; "The zoning should
+     probably sit underneath where you select the type of unit"; "Vrfs have
+     ducted indoors"). On a ducted system it is there before the unit is
+     chosen; on a multi or VRF, once a ducted or bulkhead head given two
+     rooms or more is open. Zoned, the list is sized on 70% of the load. */
+  const zoningKey = !next || !view || !sys
+    ? null
+    : wholeList
+      ? view.zones.length > 1
+        ? bandZoningKey(sys)
+        : null
+      : selectedAlloc && colRooms.length > 1 && DUCT_AIRWAY_FORMS.includes(iduRowOf(pack, selectedAlloc.model)?.form_factor ?? "wall")
+        ? selectedAlloc.id
+        : null;
+  const zoning = sys && zoningKey ? zoningOf(sys, zoningKey) : null;
+  const colZoned = wholeList ? (view?.zoned ?? false) : selectedAlloc != null && sys != null && unitZoned(pack, sys, selectedAlloc);
+  const colNeed = colLoad == null ? null : wholeList ? (view?.needKw ?? null) : needOf(colLoad, colZoned);
+  const colSub =
+    colLoad == null || colNeed == null
+      ? "No load yet"
+      : colZoned
+        ? `${colNeed.toFixed(1)} kW load zoned, ${Math.round(ZONED_DIVERSITY * 100)}% of the rooms’ ${colLoad.toFixed(1)} kW`
+        : `${colLoad.toFixed(1)} kW load`;
 
   const body = (
     <div className="ds-sb-scrim" onMouseDown={(e) => e.target === e.currentTarget && !dirty && onClose()}>
@@ -1040,7 +1091,7 @@ export function SystemBuilder({
                     formFactor={headType}
                     onFormFactor={setFormFactor}
                     brandLocked={!view.empty}
-                    fitKw={ductedFamily ? null : (colZone?.loadKw ?? null)}
+                    fitKw={ductedFamily ? null : colNeed}
                     fields={
                       <>
                         {/* the type is chosen before the first unit; after
@@ -1062,6 +1113,24 @@ export function SystemBuilder({
                               onChange={(ff) => setFormFactor(ff as FormFactor)}
                             />
                           </Field>
+                        )}
+                        {zoning && zoningKey && sys && (
+                          <div className="pt-field ds-sb-zoning-field" role="group" aria-label="Zoning">
+                            <span className="pt-field-label">Zoning</span>
+                            <div className="ds-sb-switch" role="group" aria-label="Zone control">
+                              {ZONE_CONTROLS.map(([k, word]) => (
+                                <button
+                                  key={k}
+                                  type="button"
+                                  className="ds-sb-switch-opt"
+                                  aria-pressed={zoning.control === k}
+                                  onClick={() => write(setZoning(draft, sys.id, zoningKey, { control: k }))}
+                                >
+                                  {word}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                         )}
                       </>
                     }
@@ -1170,7 +1239,7 @@ export function SystemBuilder({
                 }
                 addNote={(kw) => {
                   if (ductedFamily) {
-                    const all = view.zonesLoadKw;
+                    const all = view.needKw;
                     if (all == null) return null;
                     return coversLoad(kw, all)
                       ? `Covers every zone (needs ${all.toFixed(1)} kW)`
@@ -1455,7 +1524,7 @@ function factsLine(v: SystemView): React.ReactNode {
   const parts: React.ReactNode[] = [];
   if (!v.empty) parts.push(KIND_WORD[v.kind]);
   parts.push(`${v.zones.length} ${v.zones.length === 1 ? "zone" : "zones"}`);
-  if (v.zonesLoadKw != null) parts.push(`${v.loadText} load`);
+  if (v.needKw != null) parts.push(`${v.loadText} load${v.zoned ? " zoned" : ""}`);
   if (!v.empty && v.coverKw != null) {
     parts.push(
       <span key="covered" className={v.anyShort ? "bad" : undefined}>
@@ -2256,8 +2325,10 @@ function PipingRail({
             const row = iduRowOf(pack, unit.model);
             const unitKw = kwOf(pack, unit.model, draft.settings.sizingBasis);
             const loads = zones.map((m) => m.loadKw);
-            const groupLoad = loads.some((l) => l != null) ? loads.reduce<number>((t, l) => t + (l ?? 0), 0) : null;
-            /* judged as one: the unit against its rooms' loads together */
+            const summed = loads.some((l) => l != null) ? loads.reduce<number>((t, l) => t + (l ?? 0), 0) : null;
+            /* judged as one: the unit against its rooms' loads together, at
+               70% when it is zoned (zoning.ts) */
+            const groupLoad = summed == null ? null : needOf(summed, unitZoned(pack, view.sys, unit));
             const word: Word =
               unitKw == null || groupLoad == null || groupLoad <= 0
                 ? { text: kwText(unitKw), tone: "quiet" }
@@ -2490,6 +2561,12 @@ function PipingRail({
 
 /* ─────────────────────────── a head's detail ─────────────────────────── */
 
+const ZONE_CONTROLS: [ZoneControl, string][] = [
+  ["off", "Off"],
+  ["on_off", "On/off"],
+  ["temperature", "Temperature"],
+];
+
 /* ZONING on an open ducted unit (zoning.ts; Isaac, 2026-10-28: "build in
    some zone dampers. And controllers and sensors"): Off, On/off or
    Temperature; the zones its rooms make, a zone opened to tick which rooms
@@ -2501,12 +2578,15 @@ function ZoningPanel({
   sys,
   alloc,
   onChange,
+  next = false,
 }: {
   draft: DesignDocument;
   pack: DataPack;
   sys: DesignSystem;
   alloc: Allocation;
   onChange: (next: DesignDocument | null, error?: string) => void;
+  /** the next flow: the switch is under Head type, not here */
+  next?: boolean;
 }) {
   const [openZone, setOpenZone] = useState<string | null>(null);
   const air = unitAir(draft, pack, sys, alloc);
@@ -2515,21 +2595,21 @@ function ZoningPanel({
   const zones = zonesOf(air, z);
   const kit = zoneKit(pack, z, zones);
   const set = (change: Partial<UnitZoning>) => onChange(setZoning(draft, sys.id, alloc.id, change));
-  const CONTROL: [ZoneControl, string][] = [
-    ["off", "Off"],
-    ["on_off", "On/off"],
-    ["temperature", "Temperature"],
-  ];
+  /* the next flow sets it under Head type, beside the list; here are its
+     zones, controller, sensors and spill once it is on */
+  if (next && z.control === "off") return null;
   return (
-    <div className="ds-sb-zoning" role="group" aria-label="Zoning">
-      <span className="ds-sb-label">Zoning</span>
-      <div className="ds-sb-switch" role="group" aria-label="Zone control">
-        {CONTROL.map(([k, word]) => (
-          <button key={k} type="button" className="ds-sb-switch-opt" aria-pressed={z.control === k} onClick={() => set({ control: k })}>
-            {word}
-          </button>
-        ))}
-      </div>
+    <div className="ds-sb-zoning" role="group" aria-label={next ? "Zones" : "Zoning"}>
+      <span className="ds-sb-label">{next ? "Zones" : "Zoning"}</span>
+      {!next && (
+        <div className="ds-sb-switch" role="group" aria-label="Zone control">
+          {ZONE_CONTROLS.map(([k, word]) => (
+            <button key={k} type="button" className="ds-sb-switch-opt" aria-pressed={z.control === k} onClick={() => set({ control: k })}>
+              {word}
+            </button>
+          ))}
+        </div>
+      )}
       {zones.length > 0 && (
         <>
           <div className="ds-sb-zones">
@@ -2769,7 +2849,7 @@ function UnitDetail({
           ducted unit, which ticks none, never showed it (Isaac: "Where is
           zoning") */}
       {airway && (!next || (alloc.serves === "system" ? view.zones.length : served.length) > 1) && (
-        <ZoningPanel draft={draft} pack={pack} sys={sys} alloc={alloc} onChange={onChange} />
+        <ZoningPanel draft={draft} pack={pack} sys={sys} alloc={alloc} onChange={onChange} next={next} />
       )}
       {alloc.serves !== "system" && !airway && (
         <label className="ds-sb-field">

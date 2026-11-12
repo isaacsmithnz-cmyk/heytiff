@@ -13,7 +13,7 @@ import type { SizingBasis } from "@/lib/studio/loads";
 import { allocationsOf, hasAllocations, trayItems } from "@/lib/studio/builder";
 import { KIND_WORD, systemKind, systemZones, unclaimedZones } from "@/lib/studio/zones";
 import { brandName, combinationWord, connectionRatio } from "@/lib/studio/verdict";
-import { systemCover } from "@/lib/studio/coverage";
+import { coverOfText, systemCover } from "@/lib/studio/coverage";
 import { roomLoadKw } from "@/lib/studio/loads-room";
 import { cardStatus } from "@/lib/studio/status";
 import { equipmentList, installState } from "@/lib/studio/install";
@@ -193,7 +193,7 @@ export function SystemScreen({
           {cover && (
             <StackRow
               name="Cover"
-              value={`${cover.coverKw.toFixed(1)} of ${cover.loadKw == null ? "—" : cover.loadKw.toFixed(1)} kW`}
+              value={`${cover.coverKw.toFixed(1)} of ${coverOfText(cover)}`}
               tone={status.tone === "bad" ? "bad" : undefined}
             />
           )}

@@ -3,13 +3,19 @@
 /* SCALE AND NORTH, ONCE FOR THE SET (the next flow, board 2 of the Studio
    rework mocks). It sits in the right column beside the plan, never over it,
    and replaces the per-floor "Calibrate the plan" and "Set north direction"
-   prompts. The scale comes from the title block when the page prints one;
-   measuring two points stays one press away, and either answer reaches every
-   floor of the set (plan-set.ts). Works the same with Tiff off: nothing here
-   asks her anything. */
+   prompts. The scale comes from the title block when the page prints one,
+   and where it prints none, from the lengths Tiff measured on the job's plan
+   when she read it (Isaac, 13 November 2026, "Yes", on 3517's plan, which
+   had to be measured though she'd read its 5 m scale bar): offered, never
+   set on its own, and said orange when only one length gave it. Measuring
+   two points stays one press away, and any answer reaches every floor of
+   the set (plan-set.ts). Nothing here asks Tiff anything. */
 
 import type { DesignDocument } from "@/lib/studio/document";
-import { applyNorthToSet, applyScaleToSet, proposedScale, setOf, sheetTitleOf, wordsOfFloor } from "@/lib/studio/plan-set";
+import { applyNorthToSet, applyScaleToSet, proposedScale, setOf, sheetTitleOf, wordsOfFloor, type PrintedScale } from "@/lib/studio/plan-set";
+import { StateWord } from "@/components/parts/state";
+
+const printedWord = (s: PrintedScale) => `1:${s.ratio} at ${s.paper}`;
 
 const mm = (v: number) => `${(Math.round(v * 100) / 100).toFixed(2)} mm`;
 
@@ -36,7 +42,7 @@ export function SetupPanel({
   const proposal = proposedScale(doc, floorId);
   const title = sheetTitleOf(wordsOfFloor(doc, floorId));
   const scaled = floor.scaleMmPerUnit != null;
-  const fromBlock = scaled && proposal && Math.abs(floor.scaleMmPerUnit! - proposal.mmPerUnit) < 1e-6;
+  const fromProposal = scaled && proposal != null && Math.abs(floor.scaleMmPerUnit! - proposal.mmPerUnit) < 1e-6;
   const faced = floor.northDeg != null;
   const ready = set.every((f) => f.scaleMmPerUnit != null && f.northDeg != null);
 
@@ -57,9 +63,11 @@ export function SetupPanel({
               <>
                 <b>{mm(floor.scaleMmPerUnit!)}</b> a pixel
               </>
+            ) : proposal?.kind === "printed" ? (
+              <b>{printedWord(proposal.scale)}</b>
             ) : proposal ? (
               <>
-                <b>{`1:${proposal.scale.ratio} at ${proposal.scale.paper}`}</b>
+                <b>{mm(proposal.mmPerUnit)}</b> a pixel
               </>
             ) : (
               "Not set"
@@ -70,16 +78,30 @@ export function SetupPanel({
           <div className="ds-su-row">
             <span className="k">From</span>
             <span className="v">
-              {fromBlock
-                ? `${proposal!.scale.text}, ${title ? `${title.number}'s` : "the"} title block`
-                : "Measured on the plan"}
+              {!fromProposal
+                ? "Measured on the plan"
+                : proposal!.kind === "printed"
+                  ? `${proposal!.scale.text}, ${title ? `${title.number}'s` : "the"} title block`
+                  : `Tiff, off ${proposal!.from}`}
+            </span>
+          </div>
+        ) : proposal?.kind === "printed" ? (
+          <div className="ds-su-row">
+            <span className="k">From</span>
+            <span className="v">
+              {title ? `${title.number}'s` : "The"} title block, {mm(proposal.mmPerUnit)} a pixel
             </span>
           </div>
         ) : proposal ? (
           <div className="ds-su-row">
             <span className="k">From</span>
             <span className="v">
-              {title ? `${title.number}'s` : "The"} title block, {mm(proposal.mmPerUnit)} a pixel
+              {`Tiff, off ${proposal.from}`}
+              {!proposal.sure && (
+                <span className="ds-su-state">
+                  <StateWord tone="look">One length only</StateWord>
+                </span>
+              )}
             </span>
           </div>
         ) : null}
@@ -90,7 +112,7 @@ export function SetupPanel({
               className="ds-su-main"
               onClick={() => onMutate((d) => applyScaleToSet(d, floorId, proposal.mmPerUnit))}
             >
-              Use {`1:${proposal.scale.ratio} at ${proposal.scale.paper}`}
+              {proposal.kind === "printed" ? `Use ${printedWord(proposal.scale)}` : "Use Tiff's scale"}
             </button>
           )}
           <button type="button" className={!scaled && !proposal ? "ds-su-main" : "ds-su-second"} onClick={onMeasure}>

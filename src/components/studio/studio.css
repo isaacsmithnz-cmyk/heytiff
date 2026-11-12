@@ -10259,6 +10259,7 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .dstudio .ds-su-row .k { flex: none; width: 64px; font: 500 13px/18px var(--font); color: var(--q); }
 .dstudio .ds-su-row .v { flex: 1; min-width: 0; }
 .dstudio .ds-su-row .v b { font-weight: 600; }
+.dstudio .ds-su-row .v .ds-su-state { display: flex; margin-top: 4px; }
 .dstudio .ds-su-acts { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
 .dstudio .ds-su-fill { flex: 1; }
 .dstudio .ds-su-main,

@@ -1092,6 +1092,18 @@ async function addJobPlan(jobUuid: string, file: File): Promise<{ ok: true; plan
   return added.ok ? { ok: true, planIds: added.planIds } : added;
 }
 
+/** Files added to a design on a job go into the job's Plans as well, each
+    read once there (#1448): what went wrong, or null. */
+async function plansOntoJob(jobUuid: string, files: File[]): Promise<string | null> {
+  const { kickPlanReads } = await import("@/lib/jobs/plans-client");
+  for (const file of files) {
+    const added = await addJobPlan(jobUuid, file).catch(() => ({ ok: false as const, error: "The plan couldn't be added to the job. Try again." }));
+    if (!added.ok) return added.error;
+    kickPlanReads(added.planIds);
+  }
+  return null;
+}
+
 /** How many rooms she suggests across the design. */
 const roomsRead = (r: PlanReading) =>
   Object.values(r.floors).flat().reduce((n, sheet) => n + suggestedRooms(sheet).length, 0);
@@ -2077,6 +2089,7 @@ function Editor({
               onStep(1);
             }}
             planImages={planImages}
+            onNewFiles={doc.jobLink ? (files) => plansOntoJob(doc.jobLink!.remoteId, files) : undefined}
           />
         )}
         {step === 1 && (

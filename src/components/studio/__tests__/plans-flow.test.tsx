@@ -21,6 +21,17 @@ const { pdfToPages } = require("@/lib/studio/plans") as {
   pdfToPages: jest.Mock;
 };
 
+/* the job's Plans (#1448): a design on a job puts what's added there too */
+const fileOnJob = jest.fn();
+const addPlansToJob = jest.fn();
+const kickPlanReads = jest.fn();
+jest.mock("@/lib/documents/file-on-job", () => ({ fileOnJob: (...a: unknown[]) => fileOnJob(...a) }));
+jest.mock("@/app/actions/job-plans", () => ({
+  addPlansToJob: (...a: unknown[]) => addPlansToJob(...a),
+  readPlansOnJob: async () => null,
+}));
+jest.mock("@/lib/jobs/plans-client", () => ({ kickPlanReads: (...a: unknown[]) => kickPlanReads(...a), PLAN_POLL_MS: 8000 }));
+
 const page = (label: string, n: number): PageImage => ({
   pageNumber: n,
   label,
@@ -55,9 +66,9 @@ class CountingPlanImages implements PlanImages {
   }
 }
 
-async function openPlanJob(fake: PlanImages) {
+async function openPlanJob(fake: PlanImages, onJob = false) {
   const store = new LocalDesignStore(window.localStorage);
-  const d = createDesign({ name: "Plan job", mode: "plan" });
+  const d = createDesign({ name: "Plan job", mode: "plan", ...(onJob ? { job: { remoteId: "job-3517", jobNumber: "3517" } } : {}) });
   await store.save(d);
   const user = userEvent.setup();
   render(<Studio store={store} planImages={fake} />);
@@ -164,6 +175,38 @@ describe("installer scenarios: upload → floors", () => {
     await gotoPlans(user);
     await screen.findByText("Stack your floors");
     expect(floorCard("Ground floor")).toBeInTheDocument();
+  });
+
+  it("a design on a job: the file added goes into the job's Plans too, then onto the design", async () => {
+    fileOnJob.mockReset().mockResolvedValue({ ok: true, documentId: "doc-9" });
+    addPlansToJob.mockReset().mockResolvedValue({ ok: true, planIds: ["plan-9"] });
+    kickPlanReads.mockReset();
+    pdfToPages.mockResolvedValue([page("Floor plan", 1)]);
+    const fake = new CountingPlanImages();
+    const user = await openPlanJob(fake, true);
+    uploadPdf();
+    await nameFloors(user, ["Ground floor"]);
+    await screen.findByText("Stack your floors");
+    dropPage(yardFirst(), 0);
+    await user.click(screen.getByRole("button", { name: /Start design/ }));
+    expect(await screen.findByTestId("studio-canvas")).toBeInTheDocument();
+    expect(fileOnJob).toHaveBeenCalledWith(expect.any(File), "job-3517");
+    expect(addPlansToJob).toHaveBeenCalledWith("job-3517", [{ documentId: "doc-9" }]);
+    expect(kickPlanReads).toHaveBeenCalledWith(["plan-9"]);
+    expect(fake.uploads).toBe(1);
+  });
+
+  it("a design on no job keeps its plans to itself", async () => {
+    fileOnJob.mockReset();
+    pdfToPages.mockResolvedValue([page("Floor plan", 1)]);
+    const user = await openPlanJob(new CountingPlanImages());
+    uploadPdf();
+    await nameFloors(user, ["Ground floor"]);
+    await screen.findByText("Stack your floors");
+    dropPage(yardFirst(), 0);
+    await user.click(screen.getByRole("button", { name: /Start design/ }));
+    expect(await screen.findByTestId("studio-canvas")).toBeInTheDocument();
+    expect(fileOnJob).not.toHaveBeenCalled();
   });
 
   it("skipping the floor name commits it by stack position, not the page label", async () => {

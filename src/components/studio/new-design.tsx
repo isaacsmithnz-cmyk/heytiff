@@ -336,7 +336,8 @@ export function NewDesign({
       kickPlanReads(added.planIds);
     }
     setPlanBusy(null);
-    void loadJobPlans?.(jobId).then((p) => p && setPlansOf({ job: jobId, plans: p }));
+    const fresh = await loadJobPlans?.(jobId).catch(() => null);
+    if (fresh) setPlansOf({ job: jobId, plans: fresh });
   };
   const showPlans = !!job && !!onFromPlans && !!plans && plans.length > 0;
   const startFromPlans = async () => {
@@ -364,6 +365,17 @@ export function NewDesign({
     setError(null);
     const more = adding.current;
     adding.current = false;
+    /* ONE SOURCE (#1448): on a job, the plans go into the job's Plans, read
+       once there, and the design starts from them as Start design does; only
+       a design on no job keeps plans of its own */
+    if (!more && job && onFromPlans && addJobPlan && loadJobPlans) {
+      setStage("reading");
+      setBusy({ word: list.length === 1 ? "Adding the plan to the job" : "Adding the plans to the job", done: 0, total: list.length });
+      await addPlanFiles(list);
+      setBusy(null);
+      setStage("start");
+      return;
+    }
     setStage("reading");
     setBusy({ word: "Reading the pages", done: 0, total: list.length });
     let read: Awaited<ReturnType<typeof readFiles>>;

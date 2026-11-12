@@ -1,7 +1,9 @@
 import "server-only";
 
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { getDbRole } from "@/lib/permissions-server";
+import { can, getDbRole } from "@/lib/permissions-server";
+import { getPaySettings } from "@/lib/timepay/query";
+import { paidTimeOf, type PaidTime } from "@/components/timepay/logic";
 import { hasMinRole } from "@/lib/roles";
 import { listOrgCredentials } from "@/lib/org/query";
 import { getConnectionView } from "@/lib/integrations/store";
@@ -41,7 +43,16 @@ export type Settings = {
   /** what didn't go to ServiceM8 in the last fortnight, for Try it again (the owner's) */
   failed: number;
   holidays: { date: string; name: string }[];
+  /** Paid time: the normal day and the workspace's rules, for whoever may change pay settings */
+  paid: ({ start: string; end: string } & PaidTime) | null;
 };
+
+/** Paid time, as the phone shows it: only for whoever may change pay settings (financials). */
+export async function readPaid(ctx: MobileCtx): Promise<Settings["paid"]> {
+  if (!(await actAsPhoneUser(ctx, () => can("financials")).catch(() => false))) return null;
+  const { settings } = await getPaySettings(ctx.orgId);
+  return { start: settings.defaultStart, end: settings.defaultEnd, ...paidTimeOf(settings.paidTime) };
+}
 
 const between = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
 
@@ -58,7 +69,8 @@ export async function readSettings(ctx: MobileCtx): Promise<Settings | null> {
   const o = (org ?? {}) as Record<string, string | null>;
   const yearOn = new Date(Date.parse(`${today}T00:00:00Z`) + 365 * 86_400_000).toISOString().slice(0, 10);
   const holidays = await holidaysInSpan(ctx.orgId, o.state ?? null, today, yearOn).catch(() => []);
-  if (!owner) return { owner, business: null, credentials: null, connections: null, holidays, failed: 0 };
+  const paid = await readPaid(ctx);
+  if (!owner) return { owner, business: null, credentials: null, connections: null, holidays, failed: 0, paid };
 
   const since = new Date(Date.now() - 14 * 86_400_000).toISOString();
   const [creds, sm8, xero, { count }] = await Promise.all([
@@ -79,5 +91,6 @@ export async function readSettings(ctx: MobileCtx): Promise<Settings | null> {
     ].map(({ name, v }) => ({ name, connected: v?.status === "connected", account: v?.tenantName ?? null, since: v?.connectedAt ?? null, error: v?.lastError ?? null })),
     holidays,
     failed: count ?? 0,
+    paid,
   };
 }

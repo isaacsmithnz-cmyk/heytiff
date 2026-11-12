@@ -89,7 +89,35 @@ export type Settings = {
       additional hours" inside the salary. The block is RECORDED either way;
       this only decides whether it moves money. */
   salariedOtPaid?: boolean;
+  /** When a clocked day's pay starts (paidTimeOf for the defaults). */
+  paidTime?: PaidTime;
 };
+
+/* PAID TIME (Isaac, 13 November 2026, in at the office at 5:45 and not
+   clocked on: "guys will get into the office early, maybe like 5:30 or 6
+   o'clock ... It's not actually paid overtime", "their paid time starts from
+   7 till 3, and that will be an organization setting", "when the GPS starts
+   moving, then that should start counting as travel to the job", and "Maybe
+   make it rules that org can set"; built from
+   https://claude.ai/artifact/S2EpAW6qnQBfH1nHaT28UG, "Build"). The
+   workspace's own: whether getting to the office clocks you on, whether time
+   at the office before the normal start is paid, and whether the drive out
+   to a job is paid from leaving. A workspace that never sets them pays as it
+   always has: the whole day, from Clock on. */
+export type PaidTime = {
+  officeClocksOn: boolean;
+  officeBeforeStartPaid: boolean;
+  driveFromLeaving: boolean;
+};
+
+export const DEFAULT_PAID_TIME: PaidTime = { officeClocksOn: false, officeBeforeStartPaid: true, driveFromLeaving: true };
+
+/** The workspace's paid time rules, each one it never set as it always was. */
+export function paidTimeOf(raw: unknown): PaidTime {
+  const r = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const flag = (k: keyof PaidTime) => (typeof r[k] === "boolean" ? (r[k] as boolean) : DEFAULT_PAID_TIME[k]);
+  return { officeClocksOn: flag("officeClocksOn"), officeBeforeStartPaid: flag("officeBeforeStartPaid"), driveFromLeaving: flag("driveFromLeaving") };
+}
 
 /* A person's week.
 

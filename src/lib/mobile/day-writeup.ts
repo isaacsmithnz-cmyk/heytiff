@@ -403,7 +403,7 @@ async function bookedOnly(ctx: MobileCtx, job: string, on: string | null, zone: 
   const minutes = jobs.reduce((n, j) => n + j.minutes, 0);
   return {
     day: { id: `booked:${f.uuid}:${day}`, workDate: day, onAt: jobs[0]!.from, offAt: jobs[jobs.length - 1]!.until },
-    summary: { from: jobs[0]!.from, until: jobs[jobs.length - 1]!.until, minutes, jobs, office: { minutes: 0, spans: [] }, travel: 0 },
+    summary: { from: jobs[0]!.from, until: jobs[jobs.length - 1]!.until, minutes, jobs, office: { minutes: 0, spans: [], unpaid: 0 }, travel: 0, paid: { from: jobs[0]!.from, minutes } },
   };
 }
 

@@ -13,7 +13,7 @@ import {
   systemBlocks,
   type NoteContext,
 } from "../note-brain";
-import { planRows, storedProposal, toDraft, withoutRows } from "../note-draft";
+import { filesNothing, planRows, storedProposal, toDraft, withoutRows } from "../note-draft";
 import {
   ANOTHER_TIME,
   bookTaskTitle,
@@ -160,6 +160,23 @@ describe("the shaper", () => {
     expect(isMoveWork("Reschedule the Mosman job")).toBe(true);
     expect(isMoveWork("Moving the outdoor unit")).toBe(true);
     expect(isMoveWork("Commission the system")).toBe(false);
+  });
+
+  /* 13 November 2026: a note that's only a move keeps it, files nothing else, and never lands as a job note */
+  it("keeps a note that's only a move as a move, with no words to file", () => {
+    const p = shapeProposal(
+      raw([visit({ work: "Move booking this afternoon to Friday 7am", assignee_hint: "me", day: "2026-10-16", start: "07:00" })], { job_note: "Move my booking to Friday 7am.", plain_note: "move it", say: "I'll book that." }),
+      ctx,
+      "move my booking this afternoon to Friday seven am",
+    );
+    expect(p.visits).toEqual([]);
+    expect(p.moves).toEqual([{ work: "Move booking this afternoon to Friday 7am", assigneeId: "s-me", assigneeHint: "me", day: "2026-10-16", start: "07:00", part: "afternoon", minutes: 0 }]);
+    expect(p.jobNote).toBe("");
+    expect(p.plainNote).toBe("");
+    expect(p.say).toBe("");
+    expect(filesNothing(p)).toBe(false);
+    expect(isEmptyProposal(p)).toBe(false);
+    expect(storedProposal(JSON.parse(JSON.stringify(p)))!.moves).toEqual(p.moves);
   });
 
   it("is a plan row the person can take off, and stored and read back whole", () => {

@@ -205,7 +205,7 @@ export function planRows(p: NoteProposal): PlanRow[] {
     Smith" reads this way, and so does a clip of noise; filing it only ever
     said "Done." over nothing. */
 export const filesNothing = (p: NoteProposal): boolean =>
-  planRows(p).length === 0 && !p.plainNote.trim() && !p.clarify;
+  planRows(p).length === 0 && !p.plainNote.trim() && !p.clarify && !p.moves?.length;
 
 /** The draft with the named rows unticked. A key that names nothing is
     ignored: the browser can only take a row OFF, never put one on. */
@@ -293,6 +293,21 @@ export function storedProposal(raw: unknown): NoteProposal | null {
       : null,
   );
 
+  /* a booking to move, read the same way as a visit */
+  const moves = list<ProposedVisit>(r.moves, (v) =>
+    str(v.work).trim()
+      ? {
+          work: str(v.work),
+          assigneeId: typeof v.assigneeId === "string" && v.assigneeId ? v.assigneeId : null,
+          assigneeHint: str(v.assigneeHint),
+          day: visitDay(v.day),
+          start: visitStart(v.start),
+          part: isVisitPart(v.part) ? v.part : "day",
+          minutes: 0,
+        }
+      : null,
+  ).slice(0, 1);
+
   /* the same, for costs: every figure through the shaper's own checks */
   const costs = list<ProposedCost>(r.costs, (c) => {
     const fields = costFields(c as Parameters<typeof costFields>[0]);
@@ -326,5 +341,6 @@ export function storedProposal(raw: unknown): NoteProposal | null {
     jobNote: str(r.jobNote),
     say: str(r.say),
     clarify: c && str(c.question).trim() ? { question: str(c.question), options: strs(c.options) } : null,
+    ...(moves.length ? { moves } : {}),
   };
 }

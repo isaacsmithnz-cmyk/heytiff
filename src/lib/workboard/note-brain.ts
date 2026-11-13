@@ -204,6 +204,11 @@ export type NoteProposal = {
   say: string;
   /** Set when the note can't be routed without a human answering something. */
   clarify: { question: string; options: string[] } | null;
+  /** A booking to move (note-move-plan): kept only when the note is ONLY a
+      move, so it files nothing else and its words never land as a job note;
+      the day, the time and the person as a visit says them. Absent on every
+      proposal stored before it, and on one where the move came with more. */
+  moves?: ProposedVisit[];
 };
 
 /** `aliases`: the other names they go by — the preferred name on their card
@@ -1118,6 +1123,9 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
      chip was on, and the real one stayed put). Tiff can't move a booking yet;
      a visit whose work is a move is dropped, and she says where to move it. */
   let moveAsked = false;
+  /* 13 November 2026, she can: a note that's only a move keeps it, and
+     fileNote finds the booking named and asks (note-move-plan) */
+  const moves: ProposedVisit[] = [];
   for (const v of Array.isArray(r.visits) ? r.visits : []) {
     if (visits.length >= VISITS_MAX) break;
     const row = (v && typeof v === "object" ? v : {}) as Record<string, unknown>;
@@ -1125,6 +1133,19 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
     if (!work) continue;
     if (isMoveWork(work)) {
       moveAsked = true;
+      if (moves.length === 0) {
+        const hint = clean(row.assignee_hint, TITLE_MAX);
+        const who = resolveAssignee(hint, ctx.staff, ctx.author?.id);
+        moves.push({
+          work,
+          assigneeId: who.kind === "one" ? who.id : (ctx.author?.id ?? null),
+          assigneeHint: hint,
+          day: visitDay(row.day),
+          start: visitStart(row.start),
+          part: isVisitPart(row.part) ? row.part : "day",
+          minutes: 0,
+        });
+      }
       continue;
     }
     const assigneeHint = clean(row.assignee_hint, TITLE_MAX);
@@ -1249,7 +1270,16 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
      without `speak` never asks for a line, so its proposals carry none. */
   let say = clean(r.say, SAY_MAX);
   if (ctx.speak && escalated && clarify) say = clarify.question;
-  if (moveAsked && ctx.speak) say = [say, MOVE_SAY].filter(Boolean).join(" ").slice(0, SAY_MAX + MOVE_SAY.length + 1);
+  /* ONLY A MOVE: nothing else is filed, the words aren't a note on the job
+     the chip's on, and her question about the booking is all she says.
+     With more besides, the rest is filed and she says where to move it. */
+  const others =
+    tasks.length + visits.length + costs.length + variations.length + flags.length + kbEntries.length +
+    cleanList(r.bring_items, TITLE_MAX).length + cleanList(r.progress_bullets, BODY_MAX).length +
+    entries("commissioning_entries", "body").length + entries("issue_entries", "summary").length;
+  const onlyMove = moves.length > 0 && others === 0 && !clarify;
+  if (moveAsked && !onlyMove && ctx.speak) say = [say, MOVE_SAY].filter(Boolean).join(" ").slice(0, SAY_MAX + MOVE_SAY.length + 1);
+  if (onlyMove) say = "";
 
   /* NO COERCION BY MODE. The Debrief's closed every job-bound lane and
      rewrote what landed in one into a "note line"; with the Debrief gone
@@ -1266,10 +1296,11 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
     commissioningEntries: entries("commissioning_entries", "body"),
     issueEntries: entries("issue_entries", "summary"),
     kbEntries,
-    plainNote: clean(r.plain_note, BODY_MAX),
-    jobNote: clean(r.job_note, 4000),
+    plainNote: onlyMove ? "" : clean(r.plain_note, BODY_MAX),
+    jobNote: onlyMove ? "" : clean(r.job_note, 4000),
     say,
     clarify,
+    ...(onlyMove ? { moves } : {}),
   };
 }
 
@@ -1287,6 +1318,7 @@ export function isEmptyProposal(p: NoteProposal): boolean {
     p.commissioningEntries.length === 0 &&
     p.issueEntries.length === 0 &&
     p.kbEntries.length === 0 &&
+    !p.moves?.length &&
     !p.clarify
   );
 }

@@ -13,6 +13,7 @@ import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import { JobConversation, type ConversationDiary } from "./job-conversation";
 import { JobFacts } from "./job-facts";
 import { JobScope } from "./job-scope";
+import { JobEquipment } from "./job-equipment";
 import { JobSummary } from "./job-summary";
 import type { JobScopeRead } from "@/lib/jobs/job-scope";
 import { JobTodo } from "./job-todo";
@@ -308,6 +309,7 @@ export function JobOverview({
           ) : (
             <JobSummary fromQuote={read?.summary ?? null} description={what} read={readDone || !!read || (!cardId && !loading)} />
           )}
+          {cardId ? <JobEquipment jobId={cardId} /> : null}
           <JobTodo
             tasks={tasks}
             tasksRead={!!read}

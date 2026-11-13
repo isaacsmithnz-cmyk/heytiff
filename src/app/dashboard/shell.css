@@ -8212,4 +8212,42 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .pt-dialog .stk-share li { display:grid; grid-template-columns:64px minmax(0,1fr) auto; gap:12px; align-items:center; padding:8px 0; border-top:1px solid var(--line); font-size:14px; line-height:20px; }
 .pt-dialog .stk-share .stk-t { font-weight:600; }
 .pt-dialog .stk-share .stk-s { color:var(--q); font-size:13px; }
+/* a job's Equipment, on its Overview (13 November 2026) */
+.fg .jeq { margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
+.fg .jeq-row { display:flex; align-items:center; gap:12px; min-height:48px; padding:8px 0; border-bottom:1px solid var(--line); }
+.fg .jeq-n { flex:none; min-width:20px; text-align:right; font-size:13px; line-height:18px; font-weight:600; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .jeq-mid { flex:1; min-width:0; display:flex; flex-direction:column; }
+.fg .jeq-t { display:block; max-width:100%; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .jeq-s { display:block; max-width:100%; font-size:13px; line-height:18px; color:var(--q); }
+/* Stock's ordering (13 November 2026): a supplier's lot in drops, the factory's and each site's; what a job needs at a later visit; Later's grid */
+.fg .stk-drop { padding:8px 0 4px; border-top:1px solid var(--line); }
+.fg .stk-order > .stk-sup + .stk-drop { border-top:0; }
+.fg .stk-droph { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 16px 4px; }
+.fg .stk-dropa { padding:0 16px 4px; }
+.fg .stk-where { margin:0; padding:8px 16px 0; list-style:none; border-top:1px solid var(--line); }
+.fg .stk-where li { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:4px 0; }
+.fg .stk-later { display:flex; flex-direction:column; gap:4px; padding:8px 16px; border-top:1px solid var(--line); }
+.fg .stk-later p { margin:0; }
+.fg .stk-later b { font-weight:600; color:var(--ink); }
+.fg .stk-lat { padding:12px 0 0; }
+.fg .stk-lath { display:flex; align-items:center; gap:16px; padding:0 16px 8px; flex-wrap:wrap; }
+.fg .stk-lath .stk-sup { padding:0; }
+.fg .stk-lath .stk-s { flex:1; min-width:200px; }
+.fg .stk-lata { display:flex; gap:8px; }
+.fg .stk-grid-wrap { overflow-x:auto; }
+.fg .stk-grid { width:100%; border-collapse:collapse; font-size:13px; line-height:18px; }
+.fg .stk-grid th, .fg .stk-grid td { padding:8px 16px; border-top:1px solid var(--line); text-align:left; vertical-align:top; font-weight:400; }
+.fg .stk-grid thead th { font-weight:600; color:var(--q); white-space:nowrap; }
+.fg .stk-grid thead .stk-s, .fg .stk-grid tbody th .stk-s { display:block; font-weight:400; }
+.fg .stk-grid .stk-num-c { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.fg .stk-grid .stk-num-c--all { font-weight:700; }
+.pt-dialog .stk-share li .stk-need { grid-column:1 / -1; }
+.pt-dialog .stk-share li.stk-share--2 { grid-template-columns:minmax(0,1fr) auto; }
+.pt-dialog .stk-mid { display:flex; flex-direction:column; min-width:0; }
+.pt-dialog .stk-left { display:flex; flex-direction:column; gap:8px; margin-top:16px; padding-top:12px; border-top:1px solid var(--line); }
+.pt-dialog .stk-left .stk-t { font-size:14px; line-height:20px; font-weight:600; }
+.pt-dialog .stk-askrow { display:flex; flex-wrap:wrap; gap:8px; }
+.pt-dialog .stk-fld { display:flex; flex-direction:column; gap:8px; margin:16px 0; }
+.pt-dialog .stk-lbl { font-size:13px; line-height:18px; font-weight:600; color:var(--q); }
+.pt-dialog .stk-n { flex:none; font-size:13px; line-height:18px; font-weight:600; color:var(--q); font-variant-numeric:tabular-nums; }
 @media (max-width:900px) { .fg .stk-cols { grid-template-columns:minmax(0,1fr); } .fg .stk-masonry { columns:1; } }

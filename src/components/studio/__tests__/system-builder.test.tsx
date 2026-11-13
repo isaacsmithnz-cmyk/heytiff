@@ -522,6 +522,25 @@ describe("zoning a ducted system in the next flow", () => {
     expect(Number(m[1])).toBeCloseTo(summed * 0.8, 0);
   });
 
+  it("slides from its zones' figure to the full load, saying what each stop is the usual for", () => {
+    const made = claimed(house(), ["bed1", "bed2", "living"]);
+    render(<SystemBuilder doc={ducted(made.doc, made.systemId)} pack={pack} systemId={made.systemId} next onCommit={() => {}} onClose={() => {}} />);
+    expect(screen.queryByRole("slider", { name: "Sized on" })).toBeNull();
+    const summed = Number(colSub().match(/^([\d.]+) kW load$/)![1]);
+    fireEvent.click(within(screen.getByRole("group", { name: "Zoning" })).getByRole("button", { name: "On/off" }));
+
+    const slider = screen.getByRole("slider", { name: "Sized on" });
+    expect(slider).toHaveValue("80");
+    expect(screen.getByText("The usual for 3 zones")).toBeInTheDocument();
+    fireEvent.change(slider, { target: { value: "85" } });
+    expect(screen.getByText("85%")).toBeInTheDocument();
+    expect(screen.getByText("The usual for 2 zones")).toBeInTheDocument();
+    expect(Number(colSub().match(/^([\d.]+) kW load zoned, 85% of the rooms’/)![1])).toBeCloseTo(summed * 0.85, 0);
+    fireEvent.change(screen.getByRole("slider", { name: "Sized on" }), { target: { value: "100" } });
+    expect(screen.getByText("Every zone at once")).toBeInTheDocument();
+    expect(colSub()).toBe(`${summed.toFixed(1)} kW load`);
+  });
+
   it("zones the unit that serves the whole system: the facts say zoned, its rooms are its zones", () => {
     const made = claimed(house(), ["bed1", "bed2", "living"]);
     const doc = addBandUnit(made.doc, pack, { systemId: made.systemId, iduModel: "PEA-M125GAA" });
@@ -632,6 +651,7 @@ describe("one ducted unit serving several rooms", () => {
       sensors: "wired",
       joined: { study: "living" },
       spill: null,
+      sizedAt: null,
     });
   });
 

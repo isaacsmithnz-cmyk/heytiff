@@ -843,7 +843,7 @@ describe("the summary refresh", () => {
     await detailLanded();
     await new Promise((r) => setTimeout(r, 0));
     /* the Overview's Equipment reads Stock on its own; no kick is what counts */
-    expect(fetchMock.mock.calls.filter(([u]) => !String(u).startsWith("/api/stock/job"))).toHaveLength(0);
+    expect((fetchMock.mock.calls as unknown[][]).filter((c) => !String(c[0]).startsWith("/api/stock/job"))).toHaveLength(0);
   });
 });
 

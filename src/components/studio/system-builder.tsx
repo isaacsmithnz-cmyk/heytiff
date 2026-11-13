@@ -20,7 +20,7 @@ import { headPipeMm } from "@/lib/studio/pipe-sizes";
 import { formFactorSummary } from "@/lib/studio/select";
 import { roomsServed } from "@/lib/studio/allocations";
 import { outletsText, systemAir, unitAir, type RoomAir } from "@/lib/studio/airflow";
-import { joinZone, setZoning, zoneKit, zoningOf, zonesOf, type UnitZoning, type ZoneControl } from "@/lib/studio/zoning";
+import { diversityFor, joinZone, setZoning, sizedWord, zoneCountOver, zoneKit, zoningOf, zonesOf, type UnitZoning, type ZoneControl } from "@/lib/studio/zoning";
 import { DUCT_AIRWAY_FORMS } from "@/lib/studio/form-factors";
 import { UnitBrowser, type UnitChoice } from "./unit-browser";
 import { Tray } from "@/components/parts/tabs";
@@ -881,6 +881,12 @@ export function SystemBuilder({
         ? selectedAlloc.id
         : null;
   const zoning = sys && zoningKey ? zoningOf(sys, zoningKey) : null;
+  /* SIZED ON, A SLIDER (Isaac, 13 November 2026: "make it a slider. Between
+     70 and 100%, and then as you slide it, it will just say what the
+     recommendation of zones is"; "put the usual for two zones underneath").
+     It starts at the zones' figure; slid back to it, it follows the zones. */
+  const zoneCount = zoning && sys ? zoneCountOver(zoning, wholeList ? zoneIdsOf(sys) : colServed) : 0;
+  const sizedPct = zoning && zoneCount > 1 ? Math.round((zoning.sizedAt ?? diversityFor(zoneCount)) * 100) : null;
   const colAt = wholeList || selectedAlloc == null || sys == null ? 1 : unitDiversity(pack, sys, selectedAlloc);
   const colZoned = wholeList ? (view?.zoned ?? false) : colAt < 1;
   const colNeed = colLoad == null ? null : wholeList ? (view?.needKw ?? null) : needOf(colLoad, colAt);
@@ -1132,6 +1138,30 @@ export function SystemBuilder({
                                 </button>
                               ))}
                             </div>
+                          </div>
+                        )}
+                        {zoningKey && sys && sizedPct != null && (
+                          <div className="pt-field ds-sb-sized-field">
+                            <label className="pt-field-label" htmlFor="ds-sb-sized">
+                              Sized on
+                            </label>
+                            <div className="ds-sb-sized">
+                              <input
+                                id="ds-sb-sized"
+                                type="range"
+                                min={70}
+                                max={100}
+                                step={5}
+                                value={sizedPct}
+                                aria-valuetext={`${sizedPct}%`}
+                                onChange={(e) => {
+                                  const at = Number(e.target.value) / 100;
+                                  write(setZoning(draft, sys.id, zoningKey, { sizedAt: at === diversityFor(zoneCount) ? null : at }));
+                                }}
+                              />
+                              <span className="ds-sb-sized-pct">{sizedPct}%</span>
+                            </div>
+                            <span className="ds-sb-sized-word">{sizedWord(sizedPct / 100)}</span>
                           </div>
                         )}
                       </>

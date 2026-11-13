@@ -10703,6 +10703,13 @@ html:not([data-ds-display]) .fg:has(#fg-topbar) .dstudio.editing:has(> .ds-edito
    November 2026: "underneath where you select the type of unit") */
 .ds-ub.next .ds-ub-fields > .pt-field.ds-sb-zoning-field { flex: 0 0 100%; order: 1; align-items: flex-start; }
 .ds-ub.next .ds-ub-fields > .pt-tick { order: 2; }
+/* Sized on, under Zoning: the figure beside the slider, what it is the usual
+   for under it (Isaac, 13 November 2026) */
+.ds-ub.next .ds-ub-fields > .pt-field.ds-sb-sized-field { flex: 0 0 100%; order: 1; }
+.ds-sb-sized { display: flex; align-items: center; gap: 12px; }
+.ds-sb-sized input { flex: 1; min-width: 0; margin: 0; accent-color: var(--ink); }
+.ds-sb-sized-pct { min-width: 40px; text-align: right; font-size: 14px; line-height: 20px; font-weight: 600; color: var(--ink); }
+.ds-sb-sized-word { min-height: 16px; font-size: 13px; line-height: 16px; color: var(--gray500); }
 .ds-ub.next .ds-ub-fits { position: relative; }
 .ds-ub.next .ds-ub-fitspanel {
   position: absolute;

@@ -282,7 +282,8 @@ function optionOf(i: number, view: LinesView, price: OptionPrice | null): PhoneO
 
 /** Where it's up to, in the words on the job's card. */
 export function wordOf(q: { working: boolean; accepted: boolean; sent: boolean; approved: boolean; asked: number; toPrice: number; money: boolean; lines: number }): QuoteWord | null {
-  if (q.working) return { word: "Building", tone: "info" };
+  /* "Building" read as a building (Isaac, 13 November 2026) */
+  if (q.working) return { word: "Tiff's working on it", tone: "info" };
   if (q.accepted) return { word: "Customer accepted", tone: "good" };
   if (q.sent) return { word: "Sent", tone: "info" };
   if (q.approved) return { word: "Ready to send", tone: "good" };

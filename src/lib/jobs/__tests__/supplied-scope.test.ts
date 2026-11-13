@@ -22,7 +22,7 @@ describe("the supplied scope", () => {
       { n: 6, lines: ["RCP - GROUND FLOOR", "CD105", "LI-10", "DAIKIN", "FXDQ25TV1C", "A/C GRILL", "SMOKE ALARM"] },
       { n: 12, lines: ["NORTH ELEVATION", "BRICK VENEER"] },
     ]);
-    expect(words).toBe("[page 6: RCP - GROUND FLOOR]\nDAIKIN\nFXDQ25TV1C\nA/C GRILL");
+    expect(words).toBe("[Drawings, page 6: RCP - GROUND FLOOR]\nDAIKIN\nFXDQ25TV1C\nA/C GRILL");
   });
 
   it("counts an email as supplied when it's about the air side", () => {

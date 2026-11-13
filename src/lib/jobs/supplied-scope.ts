@@ -75,15 +75,17 @@ export const SUPPLIED_SYSTEM_PROMPT =
   "the system in a few words (\"Ducted\", \"Ventilation\", \"Exhaust\"). `text` is three or " +
   "four plain sentences: the units by their model as the papers print them, the rooms, where " +
   "the outdoor units go, the grilles and any product the papers name, and who supplies what " +
-  "when they say. `from` is where it came from, each a short label: a drawing sheet as it is " +
-  "numbered (\"CD105\"), a spec's clause and page (\"Spec 0702, page 185\"), or an email " +
-  "(\"JT Construct's email, 12 Nov\").\n\n" +
+  "when they say. `from` is where it came from, each a short label: a drawing by its page as " +
+  "the words head it (\"Drawings, page 6\"), never a sheet number the words don't show; a " +
+  "spec's clause and page (\"Spec 0702, page 185\"); or an email (\"JT Construct's email, " +
+  "12 Nov\").\n\n" +
   "`fine`: the conditions the papers put on the work that change what's priced or how it's " +
   "done: design conditions, refrigerant limits, duct sizing and lengths, filters, noise, " +
   "commissioning, manuals and maintenance, samples to approve. Each one line with its `from`. " +
   "At most sixteen, the ones that cost money or time first. Skip what any installer does " +
   "anyway.\n\n" +
-  "`notOurs`: what the papers keep for others or keep as existing. `clarify`: what they leave " +
+  "`notOurs`: only what the papers say is by others or stays as it is; never a guess at who " +
+  "does what. `clarify`: what they leave " +
   "open or contradict that changes what goes in, each with `who` can answer (\"Architect\", " +
   "\"Builder\", \"Client\"), or \"\".\n\n" +
   "Never invent a unit, a size, a room or a clause the papers don't give: say less rather than " +
@@ -120,7 +122,7 @@ export function drawingWords(sheets: readonly { n: number; lines: readonly strin
     const air = [...new Set(lines.filter((l) => AIR.test(l) || MODEL.test(l)))].slice(0, 40);
     if (air.length === 0) continue;
     /* by its page: a sheet's own number can't be told from the sheets it points to */
-    out.push(`[page ${sheet.n}${title.length ? `: ${title.join(", ")}` : ""}]\n${air.join("\n")}`);
+    out.push(`[Drawings, page ${sheet.n}${title.length ? `: ${title.join(", ")}` : ""}]\n${air.join("\n")}`);
   }
   return out.join("\n\n");
 }

@@ -10,6 +10,7 @@ import { sm8StaffLinkMap } from "@/lib/integrations/links";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
 import type { MobileCtx } from "@/lib/mobile/auth";
+import { clearedIds } from "@/lib/mobile/notification-acts";
 
 /* WHAT THE PHONE TELLS YOU (Isaac, 26 October 2026: "build out the
    notifications in general so I can see how native apps look").
@@ -124,13 +125,14 @@ export async function notificationsFor(ctx: MobileCtx, now: Date = new Date()): 
         .catch(() => null)
     : null;
 
-  const [tasks, due, notices, asks, declined, upcoming] = await Promise.all([
+  const [tasks, due, notices, asks, declined, upcoming, cleared] = await Promise.all([
     newAssignments(ctx.orgId, staffId).catch(() => []),
     dueReminders(ctx.orgId, staffId, now).catch(() => []),
     unreadNotices(ctx.orgId, staffId, today).catch(() => []),
     mineUuid ? listMyMentions(ctx.orgId, mineUuid, today, { staffId }).catch(() => []) : Promise.resolve([]),
     ownDeclinedLeave(ctx.orgId, staffId, since.slice(0, 10)).catch(() => []),
     upcomingReminders(ctx.orgId, staffId, now).catch(() => []),
+    clearedIds(ctx.orgId, staffId).catch(() => new Set<string>()),
   ]);
 
   const items: MobileNotification[] = [
@@ -181,5 +183,6 @@ export async function notificationsFor(ctx: MobileCtx, now: Date = new Date()): 
     })),
   ];
   items.sort((a, b) => b.at.localeCompare(a.at));
-  return { items: items.slice(0, MAX_ITEMS), upcoming };
+  // what you swiped Clear stays off (lib/mobile/notification-acts)
+  return { items: items.filter((n) => !cleared.has(n.id)).slice(0, MAX_ITEMS), upcoming };
 }

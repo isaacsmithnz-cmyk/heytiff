@@ -63,7 +63,7 @@ test("the card says where it's up to, furthest first", () => {
   expect(wordOf({ ...q, approved: true })).toEqual({ word: "Ready to send", tone: "good" });
   expect(wordOf({ ...q, approved: true, sent: true })).toEqual({ word: "Sent", tone: "info" });
   expect(wordOf({ ...q, approved: true, sent: true, accepted: true })).toEqual({ word: "Customer accepted", tone: "good" });
-  expect(wordOf({ ...q, working: true })).toEqual({ word: "Building", tone: "info" });
+  expect(wordOf({ ...q, working: true })).toEqual({ word: "Tiff's working on it", tone: "info" });
   expect(wordOf({ ...q, lines: 0 })).toBeNull();
 });
 

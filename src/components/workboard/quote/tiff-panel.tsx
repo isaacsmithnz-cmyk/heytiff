@@ -16,6 +16,7 @@ import { researchDetailOf } from "@/lib/quotes/research";
 import { replyBlocks, type ReplySpan } from "@/lib/quotes/session/reply-blocks";
 import { latestAsked } from "@/lib/quotes/session/answers";
 import { buildingFirst, stepOf, timeLeft, turnStartOf, type Took } from "@/lib/quotes/session/time-left";
+import { waitingIds } from "@/lib/quotes/session/queued";
 import { writeUpOf } from "@/lib/quotes/write-up";
 import { fmtAddition, fmtAud } from "@/lib/workboard/project-money";
 import { QuoteScope, type QuoteScopeWords } from "./quote-scope";
@@ -479,6 +480,8 @@ export function TiffPanel({
     </div>
   );
   const thread: ReactNode[] = [];
+  /* sent while she worked, still waiting for her */
+  const waiting = new Set(waitingIds(events));
   let steps: Ev[] = [];
   let hers = false;
   /* her working, folded to one line once she's done: every step she took and
@@ -545,6 +548,8 @@ export function TiffPanel({
         <div key={e.id} className={`${mine ? "qt-msg me" : "qt-msg"}${landed(e.id)}`}>
           <div className={mine ? "qt-bub me" : "qt-bub them"}>{paras(text)}</div>
           <span className="qt-meta">{who(e.author)}</span>
+          {/* sent while she worked: she takes it up when she's free */}
+          {waiting.has(e.id) && <span className="qt-meta">Next</span>}
         </div>
       );
       hers = false;
@@ -645,7 +650,7 @@ export function TiffPanel({
                         <ul className="qt-ans">
                           {answers.map((a, i) => (
                             <li key={i}>
-                              <button type="button" disabled={busy || working || deltas[i] === null} onClick={() => void answer(q.id, i)}>
+                              <button type="button" disabled={busy || deltas[i] === null} onClick={() => void answer(q.id, i)}>
                                 <b>{a.label}</b>
                                 {deltaWords(deltas[i]) && <em>{deltaWords(deltas[i])}</em>}
                               </button>
@@ -759,7 +764,8 @@ export function TiffPanel({
             placeholder={events.length === 0 ? "Tell Tiff about the job" : "Reply"}
             sendWord="Tiff"
             sendLabel="Send to Tiff"
-            waiting={busy || working}
+            /* you can answer while she works: it waits its turn (Isaac, 13 November 2026, "Build E") */
+            waiting={busy}
             dict={voiceEnabled ? dict : null}
             boxRef={box}
           />

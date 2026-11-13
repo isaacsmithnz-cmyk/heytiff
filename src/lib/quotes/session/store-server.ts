@@ -74,17 +74,81 @@ async function openSession(orgId: string, jobUuid: string): Promise<SessionRow |
 export const holding = (s: Pick<SessionRow, "turnId" | "turnSince">, now: number) => !!s.turnId && !!s.turnSince && now - Date.parse(s.turnSince) < HOLD_MS;
 
 /** Starts a turn: the session held for it, or why not. */
+/** Why a turn can't start: one is under way. A message sent then waits its turn (queueMessage). */
+export const STILL_WORKING = "Tiff is still working on the last one.";
+
+/* ANSWERING WHILE SHE WORKS (Isaac, 13 November 2026: "Build E, the
+   answering while she works"). A message sent while a turn holds the
+   session is kept in the thread at once, marked queued, with no turn; once
+   she's free the next read of the thread starts a turn with every one
+   waiting (session-server startTurn, fromQueue). Claimed, it keeps no
+   turn of its own, so the turn's time and kind count from when she began. */
+
+type QueuedRow = { id: number; author: string; body: Record<string, unknown> };
+
+/** A message sent while she works, in the thread now, taken when she's free. */
+export async function queueMessage(orgId: string, sessionId: string, by: string, text: string): Promise<void> {
+  await addEvents(orgId, sessionId, null, [{ kind: "message", author: by, body: { text, queued: true } }]);
+}
+
+/** A tapped answer that leaves her work, given while she works: its event waits as a typed one does. */
+export async function queueAnswerEvent(orgId: string, sessionId: string, questionEvent: number, by: string): Promise<void> {
+  const { data } = await supabaseAdmin
+    .from("quote_session_events")
+    .select("id, body")
+    .eq("org_id", orgId)
+    .eq("session_id", sessionId)
+    .eq("kind", "message")
+    .eq("author", by)
+    .eq("body->>answered", String(questionEvent))
+    .order("id", { ascending: false })
+    .limit(1);
+  const row = ((data ?? []) as { id: number; body: Record<string, unknown> }[])[0];
+  if (row) await supabaseAdmin.from("quote_session_events").update({ body: { ...row.body, queued: true } }).eq("id", row.id);
+}
+
+/** Whether anything sent while she worked is still waiting. */
+export async function hasQueued(orgId: string, sessionId: string): Promise<boolean> {
+  const { data } = await supabaseAdmin.from("quote_session_events").select("id").eq("org_id", orgId).eq("session_id", sessionId).eq("kind", "message").eq("body->>queued", "true").limit(1);
+  return (data ?? []).length > 0;
+}
+
+/** Every message waiting, oldest first, taken for the turn given: each one
+    only by the turn whose update reached it first. */
+export async function claimQueued(orgId: string, sessionId: string, turnId: string): Promise<QueuedRow[]> {
+  const { data } = await supabaseAdmin
+    .from("quote_session_events")
+    .select("id, author, body")
+    .eq("org_id", orgId)
+    .eq("session_id", sessionId)
+    .eq("kind", "message")
+    .eq("body->>queued", "true")
+    .order("id", { ascending: true })
+    .limit(20);
+  const out: QueuedRow[] = [];
+  for (const r of (data ?? []) as QueuedRow[]) {
+    const { data: took } = await supabaseAdmin
+      .from("quote_session_events")
+      .update({ body: { ...r.body, queued: false, taken: turnId } })
+      .eq("id", r.id)
+      .eq("body->>queued", "true")
+      .select("id");
+    if ((took ?? []).length > 0) out.push(r);
+  }
+  return out;
+}
+
 export async function beginTurn(orgId: string, jobUuid: string): Promise<{ ok: true; session: SessionRow; turnId: string } | { ok: false; reason: string }> {
   const s = await openSession(orgId, jobUuid);
   if (!s) return { ok: false, reason: "Tiff's session couldn't be opened. Try again." };
-  if (holding(s, Date.now())) return { ok: false, reason: "Tiff is still working on the last one." };
+  if (holding(s, Date.now())) return { ok: false, reason: STILL_WORKING };
   const turnId = crypto.randomUUID();
   const now = new Date().toISOString();
   /* taken only from the hold that was read: a turn begun meanwhile wins */
   let q = supabaseAdmin.from("quote_sessions").update({ turn_id: turnId, turn_since: now, updated_at: now }).eq("id", s.id);
   q = s.turnId ? q.eq("turn_id", s.turnId) : q.is("turn_id", null);
   const { data } = await q.select("id");
-  if (!data || data.length === 0) return { ok: false, reason: "Tiff is still working on the last one." };
+  if (!data || data.length === 0) return { ok: false, reason: STILL_WORKING };
   return { ok: true, session: { ...s, turnId, turnSince: now }, turnId };
 }
 

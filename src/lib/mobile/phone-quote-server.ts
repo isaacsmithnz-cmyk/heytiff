@@ -98,7 +98,11 @@ export function readPhoneTalk(ctx: MobileCtx, id: string) {
     if (!r.ok) return asPhone(r);
     const t = (await r.json()) as TalkAnswer;
     const events = t.events ?? [];
-    return Response.json({ working: t.working === true, doing: doingOf(events, t.took), turns: phoneTurns(events, t.names ?? {}, t.me ?? ctx.userId) }, { headers: { "cache-control": "no-store" } });
+    /* her questions still open come with it, so the next can be answered while she works */
+    return Response.json(
+      { working: t.working === true, doing: doingOf(events, t.took), turns: phoneTurns(events, t.names ?? {}, t.me ?? ctx.userId), asked: openQuestions(events, undefined) },
+      { headers: { "cache-control": "no-store" } }
+    );
   });
 }
 

@@ -3,7 +3,7 @@ import { namesBySignIn, readEngine } from "../lines-server";
 import type { ModelCall } from "./model";
 import { anthropicModel, chosenEffort, sessionModelFor, writeUpFirst } from "./model-server";
 import { openingMessage, openWords, sessionSystemPrompt } from "./prompt";
-import { addEvents, beginTurn, endTurn, readOpenQuestions, saveRound, takeAnswers } from "./store-server";
+import { addEvents, beginTurn, claimQueued, endTurn, readOpenQuestions, saveRound, takeAnswers } from "./store-server";
 import { briefOf } from "./job-sources";
 import { readJobSources } from "./job-sources-server";
 import { SESSION_TOOLS } from "./tools";
@@ -30,17 +30,34 @@ export async function startTurn(
   /* `answered`: started by a tapped answer that leaves her work, which is in
      the thread already and comes to her with the answers */
   /* `origin`: the host the turn was asked on, where a plan she has read is drawn (plans-server.ts) */
-  opts: { brief?: string; model?: ModelCall; modelName?: string; noMoney?: boolean; answered?: boolean; origin?: string } = {}
+  /* `fromQueue`: the words are what was sent while she worked (store-server
+     queueMessage), taken now that she's free; `words` and `by` are unused */
+  opts: { brief?: string; model?: ModelCall; modelName?: string; noMoney?: boolean; answered?: boolean; origin?: string; fromQueue?: boolean } = {}
 ): Promise<Started> {
   const modelName = opts.modelName ?? sessionModelFor(orgId);
   if (!modelName) return { ok: false, reason: SESSION_OFF, status: 409 };
-  const text = words.trim().slice(0, 8000);
-  if (!text && !opts.brief?.trim() && !opts.answered) return { ok: false, reason: "Say what the job is.", status: 400 };
+  let text = words.trim().slice(0, 8000);
+  if (!opts.fromQueue && !text && !opts.brief?.trim() && !opts.answered) return { ok: false, reason: "Say what the job is.", status: 400 };
   if ((await readEngine(orgId, jobUuid)) !== "lines") return { ok: false, reason: "Tiff builds on the quote's lines: switch the quote to them first.", status: 409 };
 
   const begun = await beginTurn(orgId, jobUuid);
   if (!begun.ok) return { ok: false, reason: begun.reason, status: 409 };
   const { session, turnId } = begun;
+  let goOnAnswer = opts.answered === true;
+  let speakerId = by;
+  if (opts.fromQueue) {
+    /* what was sent while she worked, oldest first: typed words come to her
+       together, as one person's; a tapped answer is in the thread already */
+    const claimed = await claimQueued(orgId, session.id, turnId);
+    if (claimed.length === 0) {
+      await endTurn(session.id, turnId);
+      return { ok: false, reason: "Nothing is waiting for her.", status: 409 };
+    }
+    const typed = claimed.filter((c) => c.body.answered == null && String(c.body.text ?? "").trim());
+    text = typed.map((c) => String(c.body.text).trim()).join("\n\n").slice(0, 8000);
+    speakerId = typed[0]?.author ?? claimed[0]!.author;
+    if (!text) goOnAnswer = true;
+  }
   /* the job's words open the session's first turn only; what was answered
      since her last turn, and already put on the quote, comes first */
   const answers = await takeAnswers(orgId, session.id, turnId);
@@ -50,7 +67,7 @@ export async function startTurn(
   /* what's still open, by number, so their own words can settle it */
   const open = text ? await readOpenQuestions(orgId, session.id) : [];
   /* a person without money access: she says no prices to them (money-hidden.ts) */
-  const goOn = opts.answered ? "Do what that answer leaves you to do." : "";
+  const goOn = goOnAnswer ? "Do what that answer leaves you to do." : "";
   /* after a turn with someone who doesn't see money, the next who does is
      said to, or her no-prices rule would carry on to them */
   const history = JSON.stringify(session.messages);
@@ -58,7 +75,7 @@ export async function startTurn(
   /* WHO IS SPEAKING, by name: a quote is worked on by more than one person,
      and with no name her notes gave Isaac's words to Luke, the tech the
      job's brief names (the 3465 review, 5 November 2026) */
-  const speaker = text ? ((await namesBySignIn(orgId, [by]).catch(() => ({}) as Record<string, string>))[by] ?? null) : null;
+  const speaker = text ? ((await namesBySignIn(orgId, [speakerId]).catch(() => ({}) as Record<string, string>))[speakerId] ?? null) : null;
   const spoken = text && speaker ? `${speaker} says:\n${text}` : text;
   const said = [answered, openWords(open), moneyWords, spoken, goOn].filter(Boolean).join("\n\n");
   /* a first turn opened with typed words, not Read the job, still has the
@@ -68,7 +85,7 @@ export async function startTurn(
      whole job again */
   const brief = opts.brief ?? (session.messages.length === 0 && text ? await jobBrief(orgId, jobUuid) : "");
   const message = session.messages.length === 0 ? openingMessage(brief, said) : said;
-  if (text || opts.brief) await addEvents(orgId, session.id, turnId, [{ kind: "message", author: by, body: { text: text || "Read the job", ...(opts.brief ? { read: true } : {}) } }]);
+  if ((text || opts.brief) && !opts.fromQueue) await addEvents(orgId, session.id, turnId, [{ kind: "message", author: by, body: { text: text || "Read the job", ...(opts.brief ? { read: true } : {}) } }]);
 
   const model = opts.model ?? anthropicModel();
   const run = async () => {

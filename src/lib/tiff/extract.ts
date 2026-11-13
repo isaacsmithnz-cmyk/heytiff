@@ -26,6 +26,9 @@ export const MIN_TEXT_CHARS = 40;
     inside the route's 300s ceiling on a slow 50 MB manual. */
 export const PAGE_BATCH = 20;
 
+/** A word on a page, where it shows and how big (points). */
+export type PlacedWord = { s: string; fx: number; fy: number; size: number };
+
 export type PdfDoc = {
   numPages: number;
   /** 1-based, like every page number a person says out loud. */
@@ -41,6 +44,9 @@ export type PdfDoc = {
   pageSize?(n: number): Promise<{ w: number; h: number }>;
   /** The title the PDF carries in its own details, or null. */
   title?(): Promise<string | null>;
+  /** The page's words, each where it shows (0 to 1 from the top left, as the
+      page is viewed) and how big: for finding a sheet's number in its title block. */
+  pagePlaced?(n: number): Promise<PlacedWord[]>;
   destroy(): Promise<void>;
 };
 
@@ -134,6 +140,18 @@ export async function openPdf(bytes: Uint8Array): Promise<PdfDoc> {
       const meta = await doc.getMetadata().catch(() => null);
       const t = (meta?.info as { Title?: unknown } | undefined)?.Title;
       return typeof t === "string" && t.trim() ? t.trim() : null;
+    },
+    async pagePlaced(n: number) {
+      const page = await doc.getPage(n);
+      const v = page.getViewport({ scale: 1 });
+      const content = await page.getTextContent();
+      const out: PlacedWord[] = [];
+      for (const item of content.items) {
+        if (!("str" in item) || !item.str.trim()) continue;
+        const [x, y] = v.convertToViewportPoint(item.transform[4], item.transform[5]);
+        out.push({ s: item.str.trim(), fx: x / v.width, fy: y / v.height, size: Math.hypot(item.transform[2], item.transform[3]) });
+      }
+      return out;
     },
     async pageSize(n: number) {
       const page = await doc.getPage(n);

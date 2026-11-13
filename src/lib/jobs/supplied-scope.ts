@@ -75,8 +75,9 @@ export const SUPPLIED_SYSTEM_PROMPT =
   "the system in a few words (\"Ducted\", \"Ventilation\", \"Exhaust\"). `text` is three or " +
   "four plain sentences: the units by their model as the papers print them, the rooms, where " +
   "the outdoor units go, the grilles and any product the papers name, and who supplies what " +
-  "when they say. `from` is where it came from, each a short label: a drawing by its page as " +
-  "the words head it (\"Drawings, page 6\"), never a sheet number the words don't show; a " +
+  "when they say. `from` is where it came from, each a short label: a drawing by its sheet " +
+  "number where its heading gives one (\"CD105\"), else by its page (\"Drawings, page 6\"), " +
+  "never a sheet number the headings don't show; a " +
   "spec's clause and page (\"Spec 0702, page 185\"); or an email (\"JT Construct's email, " +
   "12 Nov\").\n\n" +
   "`fine`: the conditions the papers put on the work that change what's priced or how it's " +
@@ -110,7 +111,7 @@ export function suppliedPrompt(read: { client: string | null; site: string | nul
 /** A drawing sheet's words cut to what the supplied scope needs: its title
     and number, and each line on the air side or in a legend near one, so a
     25-sheet set is a page of words, not a book. */
-export function drawingWords(sheets: readonly { n: number; lines: readonly string[] }[]): string {
+export function drawingWords(sheets: readonly { n: number; lines: readonly string[]; number?: string | null }[]): string {
   const AIR = /\b(a\/c|air[- ]?con\w*|ducted|daikin|mitsubishi|fujitsu|panasonic|samsung|lg|toshiba|actron|grille?s?|diffuser|exhaust|ventilat\w*|louvre|mechanical|condenser|outdoor unit|bulkhead|return air|supply air|rangehood|fan)\b/i;
   /* a unit by its model code, as a legend prints it: FXDQ25TV1C, PEA-M125HAA, PUMY-SP125 */
   const MODEL = /\b(fxdq|fxsq|fxmq|ftxm|ftxz|fdyq|rxyq|rzq|rxm|pea|pead|puz|puhz|pumy|pefy|pkfy|plfy|msz|muz|sez|suz|arty|aoty|asty|ftkm|cs-|cu-|ac\d)\-?[a-z]*\d/i;
@@ -121,8 +122,8 @@ export function drawingWords(sheets: readonly { n: number; lines: readonly strin
     const title = lines.filter((l) => TITLE.test(l) && l.length < 60 && l === l.toUpperCase()).slice(0, 2);
     const air = [...new Set(lines.filter((l) => AIR.test(l) || MODEL.test(l)))].slice(0, 40);
     if (air.length === 0) continue;
-    /* by its page: a sheet's own number can't be told from the sheets it points to */
-    out.push(`[Drawings, page ${sheet.n}${title.length ? `: ${title.join(", ")}` : ""}]\n${air.join("\n")}`);
+    /* its own number where the set's title blocks give one (sheetNumbersOf), else its page */
+    out.push(`[Drawings, page ${sheet.n}${sheet.number ? `, sheet ${sheet.number}` : ""}${title.length ? `: ${title.join(", ")}` : ""}]\n${air.join("\n")}`);
   }
   return out.join("\n\n");
 }
@@ -168,4 +169,44 @@ export function suppliedWords(s: SuppliedScope): string {
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+/** A word on a drawing, where it shows (0 to 1 from the top left) and how big. */
+export type SheetWord = { s: string; fx: number; fy: number; size: number };
+
+/** What a drawing number looks like: CD105, A1201, A-101, DA.02. */
+const SHEET_NUMBER = /^[A-Z]{1,4}[-\s.]?\d{1,4}(\.\d{1,2})?[A-Z]?$/;
+
+/** Each sheet's own number, off its title block: the one spot where a set
+    prints a drawing number on most of its sheets, a different one on each.
+    A room's tag or a window's code moves about and repeats; a sheet number
+    doesn't. A set with no such spot gets none, and its sheets are cited by
+    page, so a number is never guessed (on eight real sets, 11 November 2026:
+    7 Cutler Rd CD101 to CD607, 3405 A0000 to A7015, 6 Bishops, 85 West
+    Street right; four others none, and no wrong one anywhere). */
+export function sheetNumbersOf(pages: readonly (readonly SheetWord[])[]): (string | null)[] {
+  const spot = (w: SheetWord) => `${Math.round(w.fx * 25)},${Math.round(w.fy * 25)}`;
+  const found = pages.map((words) => words.filter((w) => SHEET_NUMBER.test(w.s.trim())));
+  const spots = new Map<string, { pages: Set<number>; words: Set<string> }>();
+  found.forEach((words, n) => {
+    for (const w of words) {
+      const k = spot(w);
+      const e = spots.get(k) ?? { pages: new Set<number>(), words: new Set<string>() };
+      e.pages.add(n);
+      e.words.add(w.s.trim());
+      spots.set(k, e);
+    }
+  });
+  let best: { k: string; count: number } | null = null;
+  for (const [k, e] of spots) {
+    const most = e.pages.size >= Math.max(2, Math.ceil(pages.length * 0.6));
+    const different = e.words.size >= e.pages.size * 0.8;
+    if (most && different && (!best || e.pages.size > best.count)) best = { k, count: e.pages.size };
+  }
+  if (!best) return pages.map(() => null);
+  const at = best.k;
+  return found.map((words) => {
+    const here = words.filter((w) => spot(w) === at).sort((a, b) => b.size - a.size);
+    return here[0] ? here[0].s.trim() : null;
+  });
 }

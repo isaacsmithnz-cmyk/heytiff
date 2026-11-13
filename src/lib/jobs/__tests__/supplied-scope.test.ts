@@ -1,4 +1,4 @@
-import { drawingWords, emailSupplies, suppliedOf, suppliedPrompt, suppliedWords, SOURCE_WORDS_MAX } from "../supplied-scope";
+import { drawingWords, emailSupplies, sheetNumbersOf, suppliedOf, suppliedPrompt, suppliedWords, SOURCE_WORDS_MAX } from "../supplied-scope";
 import { scopeOf, scopePrompt } from "../job-scope";
 
 const SUPPLIED = {
@@ -55,5 +55,34 @@ describe("the quoted scope against it", () => {
     const prompt = scopePrompt({ status: "Quote", clientName: "JT Construct", scope: null, workDone: null, lines: [], supplied: SUPPLIED });
     expect(prompt).toContain("The supplied scope, what the drawings, the specification and the emails asked for:");
     expect(prompt).toContain("Two FXDQ40 and an FXDQ50");
+  });
+});
+
+describe("each sheet's own number, off its title block", () => {
+  const at = (s: string, fx = 0.97, fy = 0.96, size = 15.6) => ({ s, fx, fy, size });
+
+  it("reads the number in the spot where the set prints one on most sheets", () => {
+    const pages = [
+      [at("CD00", 0.85, 0.05, 11.7), at("CD101", 0.85, 0.08, 11.7)], // the cover's drawing list: no corner number
+      [at("CD101"), at("CD204", 0.36, 0.84, 7)],
+      [at("CD102"), at("CD204", 0.36, 0.84, 7)],
+      [at("CD103"), at("DA10", 0.36, 0.84, 7)],
+      [at("CD105"), at("LI-10", 0.05, 0.07, 8)],
+    ];
+    expect(sheetNumbersOf(pages)).toEqual([null, "CD101", "CD102", "CD103", "CD105"]);
+  });
+
+  it("never takes a tag that repeats in one spot for a sheet number", () => {
+    const pages = [[at("D5", 0.8, 0.8)], [at("D5", 0.8, 0.8)], [at("D5", 0.8, 0.8)]];
+    expect(sheetNumbersOf(pages)).toEqual([null, null, null]);
+  });
+
+  it("gives none where numbers wander from sheet to sheet", () => {
+    const pages = [[at("BED 1", 0.62, 0.7)], [at("RL 17.28", 0.9, 0.65)], [at("S9", 0.7, 0.95)], [at("W3", 0.66, 0.9)]];
+    expect(sheetNumbersOf(pages)).toEqual([null, null, null, null]);
+  });
+
+  it("puts the number in the sheet's heading for Tiff", () => {
+    expect(drawingWords([{ n: 6, number: "CD105", lines: ["RCP - GROUND FLOOR", "DAIKIN"] }])).toBe("[Drawings, page 6, sheet CD105: RCP - GROUND FLOOR]\nDAIKIN");
   });
 });

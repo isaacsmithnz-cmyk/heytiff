@@ -9,7 +9,7 @@ import { SONNET_FALLBACK } from "@/lib/tiff/sonnet-fallback";
 import type { EmailProposal } from "@/lib/email/proposal";
 import { fileFor, type PlanPick } from "./plans-server";
 import type { SpecWords } from "./plans";
-import { SUPPLIED_SCHEMA, SUPPLIED_SYSTEM_PROMPT, drawingWords, emailSupplies, suppliedOf, suppliedPrompt, type SuppliedScope, type SuppliedSource } from "./supplied-scope";
+import { SUPPLIED_SCHEMA, SUPPLIED_SYSTEM_PROMPT, drawingWords, emailSupplies, sheetNumbersOf, suppliedOf, suppliedPrompt, type SheetWord, type SuppliedScope, type SuppliedSource } from "./supplied-scope";
 
 /* THE SUPPLIED SCOPE, kept (supplied-scope.ts says what it is). Written from
    the job's plans as read, a specification's pages on the air, and the
@@ -67,9 +67,15 @@ async function drawingsOf(orgId: string, jobUuid: string, pick: PlanPick): Promi
   if (!/pdf/i.test(file.mime ?? "") && !/\.pdf$/i.test(file.name)) return "";
   const doc = await openPdf(new Uint8Array(await blob.arrayBuffer()));
   try {
-    const sheets: { n: number; lines: string[] }[] = [];
-    for (let n = 1; n <= Math.min(doc.numPages, 80); n++) sheets.push({ n, lines: await doc.pageLines(n) });
-    return drawingWords(sheets);
+    const sheets: { n: number; lines: string[]; number?: string | null }[] = [];
+    const placed: SheetWord[][] = [];
+    for (let n = 1; n <= Math.min(doc.numPages, 80); n++) {
+      sheets.push({ n, lines: await doc.pageLines(n) });
+      placed.push((await doc.pagePlaced?.(n)) ?? []);
+    }
+    /* each sheet's own number off its title block, where the set prints one */
+    const numbers = sheetNumbersOf(placed);
+    return drawingWords(sheets.map((s, i) => ({ ...s, number: numbers[i] })));
   } finally {
     await doc.destroy();
   }

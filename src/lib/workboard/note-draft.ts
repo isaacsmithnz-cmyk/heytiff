@@ -4,6 +4,7 @@ import type { NoteProposal, ProposedTask, Severity } from "./note-brain";
 import { isVisitPart, visitDay, visitMinutes, visitStart, type ProposedVisit } from "./note-visit";
 import { costFields, costRowText, type ProposedCost } from "./note-cost";
 import { variationFields, type ProposedVariation } from "./note-variation";
+import { movesOfProposal } from "./note-move";
 
 /* FROM A PROPOSAL TO WHAT GETS FILED — pure, and on both sides of the wire.
 
@@ -205,7 +206,11 @@ export function planRows(p: NoteProposal): PlanRow[] {
     Smith" reads this way, and so does a clip of noise; filing it only ever
     said "Done." over nothing. */
 export const filesNothing = (p: NoteProposal): boolean =>
-  planRows(p).length === 0 && !p.plainNote.trim() && !p.clarify;
+  planRows(p).length === 0 && (p.moves ?? []).length === 0 && !p.plainNote.trim() && !p.clarify;
+
+/** A read whose one ask is to move a booking: nothing to file on a job, no
+    job note, nothing in ServiceM8 but the move itself (note-move). */
+export const onlyMoves = (p: NoteProposal): boolean => (p.moves ?? []).length > 0 && planRows(p).length === 0;
 
 /** The draft with the named rows unticked. A key that names nothing is
     ignored: the browser can only take a row OFF, never put one on. */
@@ -305,6 +310,7 @@ export function storedProposal(raw: unknown): NoteProposal | null {
   return {
     tasks,
     visits,
+    moves: movesOfProposal(r.moves),
     costs,
     variations,
     bringItems: strs(r.bringItems),

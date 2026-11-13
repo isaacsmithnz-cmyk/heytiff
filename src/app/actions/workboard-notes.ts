@@ -7,7 +7,8 @@ import { revalidateHome } from "@/lib/shell/revalidate-home";
 import { auth0 } from "@/lib/auth0";
 import { ringForTasks } from "@/lib/mobile/task-push";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { can } from "@/lib/permissions-server";
+import { can, getDbRole } from "@/lib/permissions-server";
+import type { Capability } from "@/lib/permissions";
 import { staffIdFor } from "@/lib/workboard/projects-query";
 import {
   clean,
@@ -38,6 +39,7 @@ import { fromLines } from "@/lib/workboard/note-lines";
 import { describeJob, matchedJobs } from "@/lib/workboard/note-match";
 import {
   jobBound,
+  onlyMoves,
   planRows,
   storedProposal,
   toConfirmed,
@@ -51,6 +53,7 @@ import {
   doorsOf,
   filedCosts,
   freshIssueIds,
+  movedBookings,
   startedOn,
   stillThere,
   takesBack,
@@ -82,6 +85,7 @@ import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { fmtTime } from "@/lib/integrations/sm8-booking-plan";
 import {
   ANOTHER_TIME,
+  VISIT_ASIDE,
   WHAT_TIME,
   bookTaskDetail,
   bookTaskTitle,
@@ -136,8 +140,33 @@ import { VARIATION_KEPT, dropVariation, variationDraft } from "@/lib/quotes/line
 import { UNDO_HOLD_COLUMNS, undoHeldBySm8, type CreateRow } from "@/lib/integrations/sm8-note-plan";
 import { sm8PressFromSession } from "@/lib/integrations/sm8-press";
 import { sendNoteOnToSm8 } from "@/lib/integrations/sm8-note-send-on";
-import { sm8Roster } from "@/lib/workboard/job-notes-query";
+import { sm8Roster, staffDisplayNames } from "@/lib/workboard/job-notes-query";
 import { jobNoteWords } from "@/lib/workboard/note-tidy";
+import {
+  LEFT_LINE,
+  MOVE_IT,
+  MOVE_PICKS,
+  NEITHER,
+  NOT_NOW,
+  bookingLabel,
+  bookingsThatFit,
+  isSelf,
+  moveAnswer,
+  moveAskOf,
+  moveQuestion,
+  moveTo,
+  movedLine,
+  whenWords,
+  whichQuestion,
+  noneFitLine,
+  type MoveAsk,
+  type MoveMade,
+  type ProposedMove,
+} from "@/lib/workboard/note-move";
+import { comingBookingsOf, sm8StaffOfCard } from "@/lib/workboard/note-move-read";
+import { changeSchedule } from "@/lib/mobile/schedule-change";
+import { changeAllowed } from "@/lib/mobile/schedule-gate";
+import type { MobileCtx } from "@/lib/mobile/auth";
 
 /* Smart Notes — capture, route, file, take back.
 
@@ -1474,7 +1503,10 @@ export async function fileNote(
 
   const picked = await pickTarget(ctx, note, opts.retarget);
   if (!picked) return { ok: false, error: MOVED };
-  const { target } = picked;
+  /* A NOTE THAT ONLY MOVES A BOOKING IS NO NOTE ON A JOB (note-move): it
+     lands on no job's diary and nothing goes to ServiceM8 but the move. */
+  const movesOnly = onlyMoves(plan);
+  const target: NoteTarget = movesOnly ? { kind: "none" } : picked.target;
   /* a cost is a cost ON a job: one said with no job asks which, as a flag does */
   const costsOn = draft.costs.some((c) => c.on);
   /* and a variation is a change to a job's quote: the same */
@@ -1596,10 +1628,15 @@ export async function fileNote(
     if (variationTaskIds.length) done.applied.taskIds = [...appliedOf(done.applied).taskIds, ...variationTaskIds];
   }
 
-  const ask = asks.length ? await visitAsk(ctx, target, plan.visits[asks[0]!]!, asks[0]!, today, visitStaff) : null;
+  /* THE MOVES (note-move), asked once the rest is in: the booking found,
+     and "Move the visit?" asked before anything moves. A move asked goes
+     ahead of a visit's time; the visit is asked once the moves are done. */
+  const moving = await moveAskFrom(ctx, plan.moves ?? [], 0, today);
+  const ask = moving.ask ?? (asks.length ? await visitAsk(ctx, target, plan.visits[asks[0]!]!, asks[0]!, today, visitStaff) : null);
   /* "Done." only over something done: a note whose one row is a visit
-     still to be timed says the question alone */
-  const didSomething = takesBack(appliedOf(done.applied)) || made.length > 0 || costsMade.length > 0 || variationsMade.length > 0 || !ask;
+     still to be timed says the question alone, and so does a move */
+  const didSomething =
+    takesBack(appliedOf(done.applied)) || made.length > 0 || costsMade.length > 0 || variationsMade.length > 0 || (!ask && !movesOnly);
 
   const filed = withTurns(
     turns.length ? turns : [turn("you", note.transcript)],
@@ -1608,6 +1645,7 @@ export async function fileNote(
     ...visitLines.map((l) => turn("tiff", l)),
     ...costLines.map((l) => turn("tiff", l)),
     ...variationLines.map((l) => turn("tiff", l)),
+    ...moving.lines.map((l) => turn("tiff", l)),
     ...(ask ? [turn("tiff", ask.question)] : []),
   );
   const proposal = note.proposal as Record<string, unknown>;
@@ -1616,7 +1654,7 @@ export async function fileNote(
     .update({
       turns: filed,
       /* The job the answer carried: the note remembers where it ended up. */
-      ...(picked.moved ? { target_kind: target.kind, target_id: target.id ?? null } : {}),
+      ...(picked.moved || movesOnly ? { target_kind: target.kind, target_id: target.id ?? null } : {}),
       /* The question a job answered is answered: nothing is waiting on it.
          A visit's "which time?" waits on the filed note, with the visits
          still to time in the order they were said. */
@@ -1626,6 +1664,7 @@ export async function fileNote(
               ...proposal,
               clarify: ask ? { question: ask.question, options: ask.options.map((o) => o.label) } : null,
               ...(ask ? { visitAsks: asks } : {}),
+              moveAsk: moving.store,
             },
           }
         : {}),
@@ -1825,6 +1864,10 @@ export async function answerVisit(noteId: string, answer: string): Promise<Visit
   if ((note.author_id ?? null) !== ctx.staffId) return { ok: false, error: NOT_YOURS };
   if (note.status !== "applied") return { ok: false, error: SETTLED[note.status] ?? "That note isn't filed yet." };
 
+  /* a move asked about goes ahead of a visit's time (note-move) */
+  const pendingMove = moveAskOf(note.proposal);
+  if (pendingMove) return answerMove(ctx, note, pendingMove, answer);
+
   const asks = visitAsksOf(note.proposal);
   const plan = storedProposal(note.proposal);
   const index = asks[0];
@@ -1895,6 +1938,189 @@ export async function answerVisit(noteId: string, answer: string): Promise<Visit
   });
   refreshHome(target);
   return { ok: true, visit: visitCards([step.made], today)[0] ?? null, turns: next, ...(ask ? { ask } : {}) };
+}
+
+/* ── MOVES (note-move) ────────────────────────────────────────────────────
+
+   "Move my 3pm to Friday 7am": the booking found among the person's own
+   (or the named person's), asked about, and moved through the phone
+   Schedule's own change of time once they say so, with its gates, its
+   refusals and its Tell. `fileNote` asks; `answerMove` (through
+   `answerVisit`, the "which time?" door both apps already route a tapped
+   answer to) moves it; `undoNote` moves it back. */
+
+/** The schedule's context for whoever's signed in: Book in's gates read
+    the role and whether they may manage the board. */
+async function scheduleCtx(ctx: Ctx): Promise<MobileCtx> {
+  const [role, manage] = await Promise.all([getDbRole(), can("workboard_manage")]);
+  return {
+    userId: ctx.userId,
+    orgId: ctx.orgId,
+    role,
+    caps: new Set<Capability>(manage ? ["workboard_manage"] : []),
+    orgIds: [ctx.orgId],
+  };
+}
+
+/** The answers a move is asked with. Each carries the visit marker, so both
+    apps send a tap back to `answerVisit`, which hands it on to `answerMove`. */
+const moveFileAsk = (store: MoveAsk): FileAsk => ({
+  question: store.question,
+  options: store.options.map((o) => ({ label: o.label, visit: { index: 100 + store.index, start: null } })),
+});
+
+type OneMove = { line: string } | { ask: FileAsk; store: MoveAsk };
+
+/** One move: the booking that fits, asked about; or why nothing moves. */
+async function oneMoveAsk(ctx: Ctx, m: ProposedMove, index: number, today: string): Promise<OneMove> {
+  const mine = !m.whoId;
+  if (mine && m.whoHint && !isSelf(m.whoHint)) return { line: `I don't know who ${m.whoHint} is, so nothing's moved.` };
+  const card = m.whoId ?? ctx.staffId;
+  if (!card) return { line: "Your staff profile isn't set up yet, so nothing's moved." };
+  const name = mine ? "" : ((await staffDisplayNames(ctx.orgId, [card]).catch(() => new Map<string, string>())).get(card) ?? m.whoHint).split(" ")[0] ?? "";
+  const staffUuid = await sm8StaffOfCard(ctx.orgId, card);
+  if (!staffUuid) {
+    return { line: mine ? "You're not linked to a ServiceM8 staff member, so I can't find your bookings." : `${name || "They"} isn't linked to a ServiceM8 staff member, so I can't find their bookings.` };
+  }
+  const all = await comingBookingsOf(ctx.orgId, staffUuid, name, today);
+  if (!all) return { line: "I couldn't read the bookings just now, so nothing's moved. Try again in a moment." };
+  const fit = bookingsThatFit(m, all);
+  if (fit.length === 0 || fit.length > MOVE_PICKS) return { line: noneFitLine(m, mine, name) };
+  if (fit.length === 1) {
+    const b = fit[0]!;
+    const to = moveTo(b, m);
+    if (!to) return { line: `It's ${whenWords(b.start, b.end, today)} already, so nothing's moved.` };
+    const store: MoveAsk = {
+      index,
+      question: moveQuestion(b, to, mine, today),
+      options: [
+        { label: MOVE_IT, booking: b, to },
+        { label: NOT_NOW, booking: null, to: null },
+      ],
+    };
+    return { ask: moveFileAsk(store), store };
+  }
+  const picks = fit.flatMap((b) => {
+    const to = moveTo(b, m);
+    return to ? [{ label: bookingLabel(b, today), booking: b, to }] : [];
+  });
+  if (picks.length === 0) return { line: "They're all then already, so nothing's moved." };
+  /* one place to go for them all only when a day and a start were said */
+  const store: MoveAsk = {
+    index,
+    question: whichQuestion(m.toDay && m.toStart ? picks[0]!.to : null, today, picks.length),
+    options: [...picks, { label: NEITHER, booking: null, to: null }],
+  };
+  return { ask: moveFileAsk(store), store };
+}
+
+/** The first move from `from` on that has something to ask, and what the
+    ones before it said. Nobody who may not change the schedule is asked. */
+async function moveAskFrom(
+  ctx: Ctx,
+  moves: readonly ProposedMove[],
+  from: number,
+  today: string,
+): Promise<{ lines: string[]; ask: FileAsk | null; store: MoveAsk | null }> {
+  const lines: string[] = [];
+  if (from >= moves.length) return { lines, ask: null, store: null };
+  const gate = await changeAllowed(await scheduleCtx(ctx));
+  if (!gate.ok) return { lines: [`I can't move a booking for you: ${gate.error}`], ask: null, store: null };
+  for (let i = from; i < moves.length; i++) {
+    const r = await oneMoveAsk(ctx, moves[i]!, i, today);
+    if ("line" in r) {
+      lines.push(r.line);
+      continue;
+    }
+    return { lines, ask: r.ask, store: r.store };
+  }
+  return { lines, ask: null, store: null };
+}
+
+/** THE ANSWER TO A MOVE ASKED: Move the visit (or the booking tapped)
+    moves it, through the Schedule's own change; Not now or Neither leaves
+    it. Then the next move, or a visit's time, is asked. */
+async function answerMove(ctx: Ctx, note: NoteRow, pending: MoveAsk, answer: string): Promise<VisitResult> {
+  const words = trim(answer, 300);
+  if (!words) return { ok: false, error: "Type an answer first." };
+  const noteId = note.id;
+  const turns = turnsOf(note.turns);
+  const plan = storedProposal(note.proposal);
+  const proposal = note.proposal as Record<string, unknown>;
+  const save = async (next: Turn[], patch: Record<string, unknown>) => {
+    await supabaseAdmin
+      .from("workboard_notes")
+      .update({ turns: next, proposal: { ...proposal, ...patch } })
+      .eq("org_id", ctx.orgId)
+      .eq("id", noteId)
+      .eq("status", "applied");
+  };
+  const pick = moveAnswer(pending, words);
+  if (!pick) {
+    const next = withTurns(turns, turn("you", words), turn("tiff", pending.question));
+    await save(next, {});
+    return { ok: false, error: pending.question, turns: next, ask: moveFileAsk(pending) };
+  }
+
+  const today = todayInZone(await getSm8Timezone(ctx.orgId));
+  const mine = !plan?.moves?.[pending.index]?.whoId;
+  let line = LEFT_LINE;
+  let card: VisitCard | null = null;
+  let failed = false;
+  if (pick.booking && pick.to) {
+    const b = pick.booking;
+    const to = pick.to;
+    const r = await changeSchedule(await scheduleCtx(ctx), await sm8PressFromSession(), {
+      change: { do: "time", activity: b.uuid, start: to.start, end: to.end },
+      tell: true,
+    });
+    if (!r.ok) {
+      line = `It didn't move: ${r.error}`;
+      failed = true;
+    } else {
+      line = r.state === "trial" ? `${movedLine(b, to, mine, today, false)} ${VISIT_ASIDE.trial}` : movedLine(b, to, mine, today, r.state === "waiting");
+      const undo = r.undo?.do === "time" ? r.undo : null;
+      const made: MoveMade = { index: pending.index, from: { uuid: b.uuid, start: b.start, end: b.end }, to, undo, line, undone: false };
+      const a = appliedOf(note.applied);
+      await supabaseAdmin.rpc("workboard_note_file_record", {
+        p_org: ctx.orgId,
+        p_note: noteId,
+        p_applied: { moves: [...(a.moves ?? []).filter((x) => x.index !== pending.index), made] },
+      });
+      card = {
+        index: 100 + pending.index,
+        how: r.state === "trial" ? "trial" : "booked",
+        title: "Moved",
+        line: [b.staffName, b.place, whenWords(to.start, to.end, today)].filter(Boolean).join(", "),
+        aside: r.state === "trial" ? VISIT_ASIDE.trial : "",
+        undo: !!undo,
+      };
+    }
+  }
+
+  /* then the next move, or the first visit still to time */
+  const target: NoteTarget = { kind: note.target_kind, id: note.target_id };
+  const next = await moveAskFrom(ctx, plan?.moves ?? [], pending.index + 1, today);
+  const visitsLeft = visitAsksOf(note.proposal);
+  const ask =
+    next.ask ??
+    (visitsLeft.length && plan?.visits[visitsLeft[0]!]
+      ? await visitAsk(ctx, target, plan.visits[visitsLeft[0]!]!, visitsLeft[0]!, today, await assignableStaff(ctx.orgId))
+      : null);
+  const said = withTurns(
+    turns,
+    turn("you", words),
+    turn("tiff", line),
+    ...next.lines.map((l) => turn("tiff", l)),
+    ...(ask ? [turn("tiff", ask.question)] : []),
+  );
+  await save(said, {
+    moveAsk: next.store,
+    clarify: ask ? { question: ask.question, options: ask.options.map((o) => o.label) } : null,
+  });
+  refreshHome(target);
+  if (failed) return { ok: false, error: line, turns: said, ...(ask ? { ask } : {}) };
+  return { ok: true, visit: card, turns: said, ...(ask ? { ask } : {}) };
 }
 
 /** A VISIT CARD'S OWN UNDO. A booking is taken back the way the job card's
@@ -2457,7 +2683,22 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
     if (d.state === "empty") drafts.push(v);
   }
 
-  /* ITS VISITS' BOOKINGS FIRST, the way the job card's Undo takes one back
+  /* ITS MOVES PUT BACK FIRST (note-move), each through the Schedule's own
+     change, as its Undo there does: ServiceM8's to refuse, so a refused one
+     stops the Undo with nothing else taken back. */
+  const moved = movedBookings(a);
+  if (moved.length) {
+    const sctx = await scheduleCtx(ctx);
+    let moves = a.moves ?? [];
+    for (const m of moved) {
+      const r = await changeSchedule(sctx, await sm8PressFromSession(), { change: m.undo!, tell: true });
+      if (!r.ok) return { ok: false, error: r.error };
+      /* put back is put back, whatever stops the Undo after it */
+      moves = moves.map((x) => (x.index === m.index ? { ...x, undone: true } : x));
+      await supabaseAdmin.rpc("workboard_note_file_record", { p_org: ctx.orgId, p_note: noteId, p_applied: { moves } });
+    }
+  }
+  /* ITS VISITS' BOOKINGS, the way the job card's Undo takes one back
      (takeBackBooking: its gate, its queue, its refusals in its own words).
      They are ServiceM8's to refuse, so they go before anything here is
      claimed: a refused one stops the Undo with nothing else taken back. */

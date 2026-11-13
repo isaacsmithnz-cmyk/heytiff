@@ -35,6 +35,7 @@ const P: NoteProposal = {
     },
   ],
   visits: [],
+  moves: [],
   costs: [],
   variations: [],
   bringItems: ["coil cleaner"],

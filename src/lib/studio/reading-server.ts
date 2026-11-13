@@ -39,6 +39,23 @@ const MODEL = "claude-opus-5-5";
 const BUCKET = "studio-plans";
 const MAX_EDGE = 2576;
 const MAX_PIXELS = 3.6e6;
+/* A photo of a plan is read smaller, and given up on sooner. On 3465's
+   4000-pixel photo (13 November 2026) the room read took 503 s at the full
+   size and 105 s at 1568 across, finding the same rooms, and two requests
+   sat 5 minutes with no answer before starting again (Isaac: "Something
+   definitely wrong", then "Yes, do it"). A drawing set's sheet keeps the
+   full size: its small print is what's read. */
+const PHOTO_EDGE = 1568;
+const PHOTO_PIXELS = 1.4e6;
+/** How long a photo's request waits for the reply to start, and how many goes it gets. */
+const PHOTO_WAIT = { timeout: 120_000, tries: 2 };
+
+/** How much a sheet is shrunk for the model: under both caps, never grown. */
+export function readScale(width: number, height: number, photo = false): number {
+  const edge = photo ? PHOTO_EDGE : MAX_EDGE;
+  const pixels = photo ? PHOTO_PIXELS : MAX_PIXELS;
+  return Math.min(1, edge / Math.max(width, height), Math.sqrt(pixels / (width * height)));
+}
 
 /* ── the schema: strict, every field required, nothing nullable ── */
 type Json = Record<string, unknown>;
@@ -184,6 +201,8 @@ export type SheetToRead = {
   /** the sheet's crop in its own pixels; none = the whole raster */
   crop?: { x: number; y: number; w: number; h: number };
   mmPerPx: number | null;
+  /** a photo or a sketch, not a drawing set's sheet: read smaller, given up on sooner */
+  photo?: boolean;
 };
 
 let client: Anthropic | null = null;
@@ -191,22 +210,30 @@ let client: Anthropic | null = null;
 type Block = Anthropic.Messages.ContentBlockParam;
 const pngBlock = (image: Buffer): Block => ({ type: "image", source: { type: "base64", media_type: "image/png", data: image.toString("base64") } });
 
-async function ask(image: Buffer, text: string, schema: Json, maxTokens: number): Promise<Raw> {
-  return askWith([pngBlock(image)], text, schema, maxTokens);
+type Wait = { timeout: number; tries: number };
+
+async function ask(image: Buffer, text: string, schema: Json, maxTokens: number, wait?: Wait): Promise<Raw> {
+  return askWith([pngBlock(image)], text, schema, maxTokens, wait);
 }
 
-async function askWith(blocks: Block[], text: string, schema: Json, maxTokens: number): Promise<Raw> {
+/** One read. With `wait`, the request is given up on when its reply hasn't
+    started in that time, and goes again only up to its tries (the SDK's own
+    retries off, so they don't multiply); without, as the SDK and three goes. */
+async function askWith(blocks: Block[], text: string, schema: Json, maxTokens: number, wait?: Wait): Promise<Raw> {
   client = client ?? new Anthropic();
   let tries = 0;
   for (;;) {
     try {
       const msg = await client.messages
-        .stream({
-          model: MODEL,
-          max_tokens: maxTokens,
-          output_config: { effort: "high", format: { type: "json_schema", schema } },
-          messages: [{ role: "user", content: [...blocks, { type: "text", text }] }],
-        })
+        .stream(
+          {
+            model: MODEL,
+            max_tokens: maxTokens,
+            output_config: { effort: "high", format: { type: "json_schema", schema } },
+            messages: [{ role: "user", content: [...blocks, { type: "text", text }] }],
+          },
+          wait ? { timeout: wait.timeout, maxRetries: 0 } : undefined,
+        )
         .finalMessage();
       if (msg.stop_reason === "refusal") throw new Error("Tiff declined to read this plan");
       const block = [...msg.content].reverse().find((b) => b.type === "text");
@@ -215,8 +242,8 @@ async function askWith(blocks: Block[], text: string, schema: Json, maxTokens: n
     } catch (e) {
       const retry = e instanceof Anthropic.RateLimitError || e instanceof Anthropic.InternalServerError || e instanceof Anthropic.APIConnectionError;
       tries += 1;
-      if (!retry || tries >= 3) throw e;
-      await new Promise((r) => setTimeout(r, 15000 * tries));
+      if (!retry || tries >= (wait?.tries ?? 3)) throw e;
+      await new Promise((r) => setTimeout(r, (wait ? 5000 : 15000) * tries));
     }
   }
 }
@@ -239,7 +266,7 @@ async function prepare(orgId: string, sheet: SheetToRead): Promise<{ image: Buff
   const top = Math.max(0, Math.round(c.y));
   const width = Math.max(1, Math.min(W - left, Math.round(c.w)));
   const height = Math.max(1, Math.min(H - top, Math.round(c.h)));
-  const k = Math.min(1, MAX_EDGE / Math.max(width, height), Math.sqrt(MAX_PIXELS / (width * height)));
+  const k = readScale(width, height, sheet.photo);
   const ow = Math.round(width * k);
   const oh = Math.round(height * k);
   const image = await sharp(src).extract({ left, top, width, height }).resize(ow, oh).flatten({ background: "#ffffff" }).png().toBuffer();
@@ -250,9 +277,10 @@ async function prepare(orgId: string, sheet: SheetToRead): Promise<{ image: Buff
 export async function readSheet(orgId: string, sheet: SheetToRead): Promise<SheetReading> {
   const { image, ow, oh, k, left, top } = await prepare(orgId, sheet);
   const mm = sheet.mmPerPx ? sheet.mmPerPx / k : null;
+  const wait = sheet.photo ? PHOTO_WAIT : undefined;
   const [floor, furniture] = await Promise.all([
-    ask(image, floorPrompt(sheet.floorName, ow, oh, mm), FLOOR_SCHEMA, 48000),
-    ask(image, furniturePrompt(ow, oh), FURNITURE_SCHEMA, 16000).catch(() => ({ furniture: [] }) as Raw),
+    ask(image, floorPrompt(sheet.floorName, ow, oh, mm), FLOOR_SCHEMA, 48000, wait),
+    ask(image, furniturePrompt(ow, oh), FURNITURE_SCHEMA, 16000, wait).catch(() => ({ furniture: [] }) as Raw),
   ]);
   return toSheet(floor, furniture, sheet.sheetId, k, left, top);
 }
@@ -283,7 +311,7 @@ Give the longest ones first, overall lengths before a single room's, six at most
 /** The dimensions printed on a sheet, in the sheet's own pixels: one small read, for a sheet with no printed scale. */
 export async function readDimensions(orgId: string, sheet: SheetToRead): Promise<ReadDimension[]> {
   const { image, ow, oh, k, left, top } = await prepare(orgId, sheet);
-  const raw = await ask(image, dimensionsPrompt(ow, oh), DIMENSIONS_SCHEMA, 8000);
+  const raw = await ask(image, dimensionsPrompt(ow, oh), DIMENSIONS_SCHEMA, 8000, sheet.photo ? PHOTO_WAIT : undefined);
   return toDimensions(raw, k, left, top);
 }
 

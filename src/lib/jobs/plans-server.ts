@@ -333,12 +333,12 @@ async function classify(kind: "pdf" | "image", previews: readonly DrawnPreview[]
     dimension lines print (plans.ts `measured`), looked for once: a page
     looked at before, with or without a find, is left as it is. A read that
     fails leaves the page unlooked, for the next ask. */
-async function measurePages(orgId: string, pages: readonly JobPlanPage[]): Promise<JobPlanPage[]> {
+async function measurePages(orgId: string, pages: readonly JobPlanPage[], photo: boolean): Promise<JobPlanPage[]> {
   return Promise.all(
     pages.map(async (p): Promise<JobPlanPage> => {
       if (p.kind !== "floor" || !p.ref || p.mmPerPx || p.measured !== undefined) return p;
       try {
-        const dims = await readDimensions(orgId, { floorId: pageKey(p.n), floorName: p.name || `Page ${p.n}`, sheetId: pageKey(p.n), ref: p.ref, ...(p.trim ? { crop: p.trim } : {}), mmPerPx: null });
+        const dims = await readDimensions(orgId, { floorId: pageKey(p.n), floorName: p.name || `Page ${p.n}`, sheetId: pageKey(p.n), ref: p.ref, ...(p.trim ? { crop: p.trim } : {}), mmPerPx: null, photo });
         return { ...p, measured: scaleFromDimensions(dims, p) };
       } catch (e) {
         console.error(`[job-plans] page ${p.n} dimensions: ${String(e)}`);
@@ -384,7 +384,7 @@ export async function jobPlanRooms(orgId: string, jobUuid: string, opts: { add?:
     plans.map(async (p) => {
       if (p.state !== "read" && p.state !== "check") return;
       if (!p.pages.some((pg) => pg.kind === "floor" && pg.ref && !pg.mmPerPx && pg.measured === undefined)) return;
-      const pages = await measurePages(orgId, p.pages);
+      const pages = await measurePages(orgId, p.pages, p.sourceKind === "image");
       if (pages.some((pg, i) => pg !== p.pages[i])) await write(orgId, p.id, { pages }).catch(() => {});
     }),
   );
@@ -478,6 +478,9 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
     /* 5. the read: each floor, the roof and the site off the set */
     const floors = pages.filter((p) => p.kind === "floor" && p.ref).sort((a, b) => (a.level ?? 0) - (b.level ?? 0) || a.n - b.n);
     const reading: PlanReading = { at: new Date().toISOString(), model: READING_MODEL, floors: {}, failed: [] };
+    /* a photo or sketch: read smaller, and its roof left to the Studio, which
+       reads it when the 3D wants it (its 243 s on 3465's photo held the read) */
+    const photo = plan.sourceKind === "image";
     if (floors.length) {
       const sheets: SheetToRead[] = floors.map((p) => ({
         floorId: pageKey(p.n),
@@ -486,19 +489,22 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
         ref: p.ref!,
         ...(p.trim ? { crop: p.trim } : {}),
         mmPerPx: p.mmPerPx,
+        photo,
       }));
       const pdf = plan.sourceKind === "pdf" ? sourceRef : null;
       const first = Math.max(0, floors[0].n - 1);
       const ground = sheets[0];
       const [results, measured, roof, site] = await Promise.all([
         Promise.allSettled(sheets.map((s) => readSheet(orgId, s))),
-        measurePages(orgId, pages),
-        readRoof(orgId, pdf, sheets, undefined, first)
-          .then(({ said: _said, ...r }) => r)
-          .catch((e) => {
-            console.error(`[job-plans] ${planId}/roof: ${String(e)}`);
-            return null;
-          }),
+        measurePages(orgId, pages, photo),
+        photo
+          ? undefined
+          : readRoof(orgId, pdf, sheets, undefined, first)
+              .then(({ said: _said, ...r }) => r)
+              .catch((e) => {
+                console.error(`[job-plans] ${planId}/roof: ${String(e)}`);
+                return null;
+              }),
         readSite(orgId, pdf, ground, first).catch((e) => {
           console.error(`[job-plans] ${planId}/site: ${String(e)}`);
           return null;
@@ -512,7 +518,7 @@ export async function readPlan(orgId: string, planId: string, origin: string, cl
           reading.failed.push({ floorId: s.floorId, sheetId: s.sheetId, reason: r.reason instanceof Error ? r.reason.message : "It couldn't be read" });
         }
       });
-      reading.roof = roof;
+      if (roof !== undefined) reading.roof = roof;
       reading.site = site;
       pages = measured;
     }

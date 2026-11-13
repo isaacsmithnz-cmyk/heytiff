@@ -509,7 +509,7 @@ describe("zoning a ducted system in the next flow", () => {
   });
   const colSub = () => document.querySelector(".ds-sb-colsub")!.textContent!;
 
-  it("is under Head type before a unit is chosen, and Temperature sizes the list on 70% of the load", () => {
+  it("is under Head type before a unit is chosen, and Temperature sizes the list on 80% of three zones' load", () => {
     const made = claimed(house(), ["bed1", "bed2", "living"]);
     render(<SystemBuilder doc={ducted(made.doc, made.systemId)} pack={pack} systemId={made.systemId} next onCommit={() => {}} onClose={() => {}} />);
     const zoning = screen.getByRole("group", { name: "Zoning" });
@@ -517,9 +517,9 @@ describe("zoning a ducted system in the next flow", () => {
     const summed = Number(colSub().match(/^([\d.]+) kW load$/)![1]);
 
     fireEvent.click(within(zoning).getByRole("button", { name: "Temperature" }));
-    const m = colSub().match(/^([\d.]+) kW load zoned, 70% of the rooms’ ([\d.]+) kW$/)!;
+    const m = colSub().match(/^([\d.]+) kW load zoned, 80% of the rooms’ ([\d.]+) kW$/)!;
     expect(Number(m[2])).toBe(summed);
-    expect(Number(m[1])).toBeCloseTo(summed * 0.7, 0);
+    expect(Number(m[1])).toBeCloseTo(summed * 0.8, 0);
   });
 
   it("zones the unit that serves the whole system: the facts say zoned, its rooms are its zones", () => {
@@ -550,9 +550,9 @@ describe("zoning a ducted system in the next flow", () => {
     fireEvent.click(within(schematic()).getByRole("button", { name: "PEFY-P100VMA-E4, serves Living and Study" }));
     const summed = Number(colSub().match(/^([\d.]+) kW load$/)![1]);
     fireEvent.click(within(screen.getByRole("group", { name: "Zoning" })).getByRole("button", { name: "On/off" }));
-    const m = colSub().match(/^([\d.]+) kW load zoned, 70% of the rooms’ ([\d.]+) kW$/)!;
+    const m = colSub().match(/^([\d.]+) kW load zoned, 85% of the rooms’ ([\d.]+) kW$/)!;
     expect(Number(m[2])).toBe(summed);
-    expect(Number(m[1])).toBeCloseTo(summed * 0.7, 0);
+    expect(Number(m[1])).toBeCloseTo(summed * 0.85, 0);
     expect(within(screen.getByRole("group", { name: "Zones" })).getAllByRole("button", { name: /^Z\d / })).toHaveLength(2);
   });
 });

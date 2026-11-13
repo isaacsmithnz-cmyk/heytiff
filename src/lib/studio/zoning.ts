@@ -22,9 +22,11 @@
    ZONED, IT IS SIZED SMALLER (Isaac, 13 November 2026: "Say on a 22
    kilowatt required heat load, you know that you probably only need a 16
    kilowatt because you're about to hit zoning"). A zoned unit's rooms don't
-   all call at once, so it is judged against 70% of their load: the same
-   figure quoting uses, and 3465's 22.3 kW summed sized at 15.6. Each room
-   keeps its own load; only what the unit must cover drops. */
+   all call at once, so it is judged against part of their load, the same
+   figure quoting uses. How much it saves goes by its zones (Isaac, 13
+   November 2026, "Yes" to stepping it): two zones often run together, so
+   85%; three, 80%; four or more, 70%, as 3465's 22.3 kW summed sized at
+   15.6. Each room keeps its own load; only what the unit must cover drops. */
 
 import type { DesignDocument, DesignSystem } from "./document";
 import type { DataPack, ZoningController } from "./packs/schema";
@@ -50,8 +52,14 @@ export interface Zone {
   name: string;
 }
 
-/** a zoned unit is sized on its rooms' load at this */
-export const ZONED_DIVERSITY = 0.7;
+/** a zoned unit is sized on its rooms' load at this, by its zones: 2 zones
+    0.85, 3 zones 0.8, 4 or more 0.7; one zone (or none) saves nothing */
+export function diversityFor(zones: number): number {
+  if (zones < 2) return 1;
+  if (zones === 2) return 0.85;
+  if (zones === 3) return 0.8;
+  return 0.7;
+}
 
 /** where a ducted system's zoning is kept before its unit is chosen, so the
     list can be sized zoned from the start; the first unit takes it on */
@@ -89,11 +97,16 @@ export function setZoning(doc: DesignDocument, systemId: string, unitId: string,
   };
 }
 
-/** is a unit over these rooms zoned: zoning on, and two zones or more
-    (rooms all joined into one zone shut together, so nothing is saved) */
+/** what a unit over these rooms is sized at: zoning on, by its zones after
+    joining (rooms all joined into one zone shut together, so 1) */
+export function diversityOver(z: UnitZoning, roomIds: readonly string[]): number {
+  if (z.control === "off" || roomIds.length < 2) return 1;
+  return diversityFor(zonesOf({ rooms: roomIds.map((roomId) => ({ roomId, name: "" })) }, z).length);
+}
+
+/** is a unit over these rooms zoned: zoning on, and two zones or more */
 export function zonedOver(z: UnitZoning, roomIds: readonly string[]): boolean {
-  if (z.control === "off" || roomIds.length < 2) return false;
-  return zonesOf({ rooms: roomIds.map((roomId) => ({ roomId, name: "" })) }, z).length > 1;
+  return diversityOver(z, roomIds) < 1;
 }
 
 type ZoneRooms = { rooms: readonly { roomId: string; name: string }[] };

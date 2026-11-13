@@ -185,7 +185,7 @@ export interface SummaryRoomRow {
   level: string;
   areaM2: number | null;
   loadKw: number | null;
-  /** what its units are judged against: its load, or 70% of it under a
+  /** what its units are judged against: its load, or less of it under a
       zoned ducted unit (coverage.ts needKw) */
   needKw: number | null;
   /** placed capacity attributed to this room; null when nothing serves it */
@@ -252,7 +252,7 @@ export interface SummarySystem {
   pipeBySize: { liquidMm: number; gasMm: number; m: number | null }[] | null;
   rooms: SummaryRoomRow[];
   /** what it is sized against: the summed load of the rooms it serves, at
-      70% where a zoned ducted unit carries them (coverage.ts needKw) */
+      less where a zoned ducted unit carries them (coverage.ts needKw) */
   loadKw: number | null;
   /** summed placed capacity */
   capacityKw: number | null;

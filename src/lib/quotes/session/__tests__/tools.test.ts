@@ -496,14 +496,17 @@ describe("a room's load", () => {
   });
 
   /* the 3465 review, 5 November 2026: her load summed the rooms of one zoned
-     ducted system (22.3 kW) where the Studio sizes it at 0.7 (15.6 kW) */
-  it("sizes one zoned ducted system at 0.7 of the rooms' sum, and an unzoned one at the sum", async () => {
+     ducted system (22.3 kW) where the Studio sizes it at 0.7 (15.6 kW);
+     stepped by zones, 13 November 2026: two rooms 0.85, four or more 0.7 */
+  it("sizes one zoned ducted system on part of the rooms' sum by its zones, and an unzoned one at the sum", async () => {
     const { roomLoads } = await import("../tools");
     const rooms = [{ name: "Living", area_m2: 84 }, { name: "Bed 2", area_m2: 12, orientation: "W" }];
     const zoned = roomLoads({ zoned: true, rooms });
     expect(zoned.total_kw).toBe(14.442);
-    expect(zoned.diversity).toBe(0.7);
-    expect(zoned.system_kw).toBe(10.109);
+    expect(zoned.diversity).toBe(0.85);
+    expect(zoned.system_kw).toBe(12.276);
+    const four = roomLoads({ zoned: true, rooms: [...rooms, { name: "Bed 3", area_m2: 12 }, { name: "Bed 4", area_m2: 12 }] });
+    expect(four.diversity).toBe(0.7);
     const plain = roomLoads({ rooms });
     expect(plain.diversity).toBe(1);
     expect(plain.system_kw).toBe(14.442);

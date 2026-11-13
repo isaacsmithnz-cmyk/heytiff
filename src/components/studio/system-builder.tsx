@@ -12,7 +12,7 @@ import { indexNotation, indexPairText } from "@/lib/studio/packs/schema";
 import { sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
 import { coverPct, coversLoad, shortKw } from "@/lib/studio/fit";
 import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
-import { bandZoned, bandZoningKey, needOf, systemCover, systemPairKw, unitZoned } from "@/lib/studio/coverage";
+import { bandDiversity, bandZoningKey, needOf, systemCover, systemPairKw, unitDiversity } from "@/lib/studio/coverage";
 import { multiCapableIdus, multiFormFactorSummary, poolOf } from "@/lib/studio/multi";
 import { vrfOutdoorsListing, vrfRatio } from "@/lib/studio/vrf";
 import { headSection, systemVrfTree, type SizedTree } from "@/lib/studio/vrf-tree";
@@ -20,7 +20,7 @@ import { headPipeMm } from "@/lib/studio/pipe-sizes";
 import { formFactorSummary } from "@/lib/studio/select";
 import { roomsServed } from "@/lib/studio/allocations";
 import { outletsText, systemAir, unitAir, type RoomAir } from "@/lib/studio/airflow";
-import { joinZone, setZoning, ZONED_DIVERSITY, zoneKit, zoningOf, zonesOf, type UnitZoning, type ZoneControl } from "@/lib/studio/zoning";
+import { joinZone, setZoning, zoneKit, zoningOf, zonesOf, type UnitZoning, type ZoneControl } from "@/lib/studio/zoning";
 import { DUCT_AIRWAY_FORMS } from "@/lib/studio/form-factors";
 import { UnitBrowser, type UnitChoice } from "./unit-browser";
 import { Tray } from "@/components/parts/tabs";
@@ -168,8 +168,8 @@ interface SystemView {
   zones: ZoneView[];
   /** the rooms' own loads, added up */
   zonesLoadKw: number | null;
-  /** what the system is sized against: the rooms' loads, at 70% where a
-      zoned ducted unit carries them (coverage.ts needKw) */
+  /** what the system is sized against: the rooms' loads, at less where a
+      zoned ducted unit carries them (zoning.ts diversityFor) */
   needKw: number | null;
   /** some of it is zoned, so needKw is under zonesLoadKw */
   zoned: boolean;
@@ -217,7 +217,7 @@ function zoneWord(args: {
   const shortBy = (need: number, cover: number): string => `${shortKw(need, cover).toFixed(1)} kW short`;
   if (cant) return { word: { text: `Can't join ${oduModel}`, tone: "bad" }, short: false };
   /* a unit on the band serves every zone: each zone reads the unit against
-     what all of them together need (70% of their load, zoned) */
+     what all of them together need (less than their load, zoned) */
   if (bandKw != null) {
     if (bandNeedKw == null || bandNeedKw <= 0) return { word: { text: kwText(bandKw), tone: "quiet" }, short: false };
     return coversLoad(bandKw, bandNeedKw)
@@ -304,9 +304,9 @@ export function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingB
      zoned; a head on a multi or VRF counts once it is a zoned ducted head */
   const verdicts = zoneList.map((zone) => roomVerdict(draft, pack, basis, zone));
   const onBand = bandUnits.length > 0 || family === "ducted";
-  const bandIsZoned = onBand && bandZoned(sys);
-  const zonedHere = zoneList.map((_, i) => (onBand ? bandIsZoned : verdicts[i].zoned));
-  const zonedAny = zonesLoadKw != null && zonedHere.some(Boolean);
+  const bandAt = onBand ? bandDiversity(sys) : 1;
+  const zonedHere = zoneList.map((_, i) => (onBand ? bandAt : verdicts[i].diversity));
+  const zonedAny = zonesLoadKw != null && zonedHere.some((d) => d < 1);
   const needKw =
     zonesLoadKw == null ? null : zoneLoads.reduce<number>((n, l, i) => n + (l == null ? 0 : needOf(l, zonedHere[i])), 0);
 
@@ -869,7 +869,8 @@ export function SystemBuilder({
      probably sit underneath where you select the type of unit"; "Vrfs have
      ducted indoors"). On a ducted system it is there before the unit is
      chosen; on a multi or VRF, once a ducted or bulkhead head given two
-     rooms or more is open. Zoned, the list is sized on 70% of the load. */
+     rooms or more is open. Zoned, the list is sized on less of the load:
+     85% on two zones, 80% on three, 70% on four or more (zoning.ts). */
   const zoningKey = !next || !view || !sys
     ? null
     : wholeList
@@ -880,13 +881,14 @@ export function SystemBuilder({
         ? selectedAlloc.id
         : null;
   const zoning = sys && zoningKey ? zoningOf(sys, zoningKey) : null;
-  const colZoned = wholeList ? (view?.zoned ?? false) : selectedAlloc != null && sys != null && unitZoned(pack, sys, selectedAlloc);
-  const colNeed = colLoad == null ? null : wholeList ? (view?.needKw ?? null) : needOf(colLoad, colZoned);
+  const colAt = wholeList || selectedAlloc == null || sys == null ? 1 : unitDiversity(pack, sys, selectedAlloc);
+  const colZoned = wholeList ? (view?.zoned ?? false) : colAt < 1;
+  const colNeed = colLoad == null ? null : wholeList ? (view?.needKw ?? null) : needOf(colLoad, colAt);
   const colSub =
     colLoad == null || colNeed == null
       ? "No load yet"
       : colZoned
-        ? `${colNeed.toFixed(1)} kW load zoned, ${Math.round(ZONED_DIVERSITY * 100)}% of the rooms’ ${colLoad.toFixed(1)} kW`
+        ? `${colNeed.toFixed(1)} kW load zoned, ${Math.round((colNeed / colLoad) * 100)}% of the rooms’ ${colLoad.toFixed(1)} kW`
         : `${colLoad.toFixed(1)} kW load`;
 
   const body = (
@@ -2327,8 +2329,8 @@ function PipingRail({
             const loads = zones.map((m) => m.loadKw);
             const summed = loads.some((l) => l != null) ? loads.reduce<number>((t, l) => t + (l ?? 0), 0) : null;
             /* judged as one: the unit against its rooms' loads together, at
-               70% when it is zoned (zoning.ts) */
-            const groupLoad = summed == null ? null : needOf(summed, unitZoned(pack, view.sys, unit));
+               less when it is zoned (zoning.ts) */
+            const groupLoad = summed == null ? null : needOf(summed, unitDiversity(pack, view.sys, unit));
             const word: Word =
               unitKw == null || groupLoad == null || groupLoad <= 0
                 ? { text: kwText(unitKw), tone: "quiet" }

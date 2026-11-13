@@ -162,7 +162,8 @@ export async function notificationsFor(ctx: MobileCtx, now: Date = new Date()): 
           title: c.jobLabel ? `${c.asker.name} on ${c.jobLabel}` : `${c.asker.name} asked you`,
           body: last?.text?.trim() || null,
           at: wallToIso(c.lastTheirs, tz),
-          path: `/job?id=${encodeURIComponent(c.jobUuid)}`,
+          /* to the note itself, not the top of the job (Isaac, 12 November 2026: "It brings you into the job, but not to that note") */
+          path: `/job?id=${encodeURIComponent(c.jobUuid)}${last?.id ? `&note=${encodeURIComponent(last.id)}` : ""}`,
         };
       }),
     ...notices.map((n) => ({

@@ -41,7 +41,7 @@ jest.mock("@/lib/dashboard/mentions-query", () => ({
         asker: { name: "Michael Diamond" },
         lastTheirs: "2026-10-26 08:58:43",
         answered: false,
-        messages: [{ from: "them", text: "Can you get this equipment in next week" }],
+        messages: [{ id: "n-ask", from: "them", text: "Can you get this equipment in next week" }],
       },
       { key: "j-1:u-mick", jobUuid: "j-1", jobLabel: null, asker: { name: "Michael Diamond" }, lastTheirs: "2026-10-26 07:00:00", answered: true, messages: [] },
     ];
@@ -73,7 +73,7 @@ it("turns each loader's rows into a notification apiece, newest first, each open
   expect(items.map((n) => [n.kind, n.title, n.body, n.path])).toEqual([
     ["reminder", "Ring the builder", "About roof access", null],
     ["task", "Michael Diamond gave you a task", "Grab a 15 m coil", null],
-    ["mention", "Michael Diamond on 2935 Railway Avenue", "Can you get this equipment in next week", "/job?id=j-2935"],
+    ["mention", "Michael Diamond on 2935 Railway Avenue", "Can you get this equipment in next week", "/job?id=j-2935&note=n-ask"],
     ["notice", "Isaac Smith posted a notice", "Toolbox talk Friday", null],
     ["leave", "Your leave was declined", "Annual leave, Mon 2 – Fri 6 Nov", "/leave"],
   ]);

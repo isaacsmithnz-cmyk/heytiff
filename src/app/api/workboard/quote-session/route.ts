@@ -5,7 +5,7 @@ import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { namesBySignIn } from "@/lib/quotes/lines-server";
 import { sessionModelFor } from "@/lib/quotes/session/model-server";
 import { startTurn } from "@/lib/quotes/session/session-server";
-import { holding, readThread, readThreadFrom } from "@/lib/quotes/session/store-server";
+import { holding, readThread, readThreadFrom, readTurnTimes } from "@/lib/quotes/session/store-server";
 import { answerQuestion, priceQuestions } from "@/lib/quotes/session/answers-server";
 import { researchDetailOf } from "@/lib/quotes/research";
 import { putResearchedOn } from "@/lib/quotes/lines-job-server";
@@ -69,6 +69,8 @@ export async function GET(req: Request) {
     ok: true,
     on: sessionModelFor(g.orgId) != null,
     working: session ? holding(session, Date.now()) : false,
+    /* how long her turns took here, first builds apart, for the bar */
+    took: await readTurnTimes(g.orgId),
     /* what she's cost is money too */
     ...(g.money ? { spentUsd: session?.spentUsd ?? 0 } : {}),
     money: g.money,

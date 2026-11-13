@@ -6,7 +6,7 @@ import type { QuoteLine } from "@/lib/quotes/lines";
 import { stillUnknown } from "@/lib/quotes/lines-price";
 import { twinsOf } from "@/lib/quotes/line-twins";
 import { answeredOf, settledIn } from "@/lib/quotes/session/answers";
-import { isFirstTurn, stepOf, turnStartOf } from "@/lib/quotes/session/time-left";
+import { buildingFirst, stepOf, turnStartOf, type Took } from "@/lib/quotes/session/time-left";
 import { questionOf } from "@/lib/quotes/session/tools";
 import { notPricedOf, pricedOnOf, writeUpOf } from "@/lib/quotes/write-up";
 
@@ -81,7 +81,15 @@ export type PhoneAsked = { event: number; question: string; answers: string[] };
 export type PhoneTurn = { id: number; side: "me" | "them" | "tiff" | "mark" | "fault"; who: string | null; at: string; text: string; to?: PhoneAsked };
 export type PhoneQuestion = { id: number; question: string; put: string; answers: { label: string; delta: number | null; can: boolean }[] };
 /** What she's doing, for the phone's bar: it counts from `since`. */
-export type PhoneDoing = { step: string | null; since: string | null; first: boolean };
+export type PhoneDoing = {
+  step: string | null;
+  since: string | null;
+  first: boolean;
+  /** how long this business's turns of this kind took, seconds, sorted: the
+      bar's time left is the middle of what those that ran this long still
+      took (time-left.ts timeLeft); a phone before it runs on `first` */
+  took?: number[];
+};
 export type QuoteWord = { word: string; tone: "look" | "good" | "info" };
 
 const nameOf = (names: Record<string, string>, who: string) => names[who] ?? null;
@@ -182,9 +190,10 @@ export function openQuestions(events: readonly Thread[], priced: QuestionPrices 
   return out;
 }
 
-export const doingOf = (events: readonly Thread[]): PhoneDoing => {
+export const doingOf = (events: readonly Thread[], took?: Took | null): PhoneDoing => {
   const since = turnStartOf(events);
-  return { step: stepOf(events), since: since === null ? null : new Date(since).toISOString(), first: isFirstTurn(events) };
+  const first = buildingFirst(events);
+  return { step: stepOf(events), since: since === null ? null : new Date(since).toISOString(), first, took: (first ? took?.first : took?.later) ?? [] };
 };
 
 /** The last time something was marked, and by whom. */

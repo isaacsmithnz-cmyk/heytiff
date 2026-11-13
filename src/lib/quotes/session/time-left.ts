@@ -74,9 +74,75 @@ export function leftInWords(leftS: number): string {
   return `about ${Math.floor(s / 60)} min${s % 60 ? ` ${s % 60}` : ""} left`;
 }
 
-/** The bar and its words at this many seconds in; null is too early for a bar. */
-export function timeLeft(elapsedS: number, first: boolean): { percent: number; words: string } | null {
+/** The bar and its words at this many seconds in; null is too early for a
+    bar. `took`: how long this business's turns of this kind took, sorted
+    (tookOf): what's left is then the middle of what those that ran this long
+    still took, so it moves as she goes and a long one stretches rather than
+    giving up at a fixed time. Without enough of them, the usual times. */
+export function timeLeft(elapsedS: number, first: boolean, took?: readonly number[]): { percent: number; words: string } | null {
   if (!first && elapsedS < QUIET_LATER_S) return null;
+  const e = Math.max(0, elapsedS);
+  if (took && took.length >= TOOK_MIN) {
+    const left = stillToGo(took, e);
+    if (left === null) return { percent: MOST_PERCENT, words: leftInWords(0) };
+    return { percent: Math.min(MOST_PERCENT, (e / (e + left)) * 100), words: leftInWords(left) };
+  }
   const usual = first ? USUAL_FIRST_S : USUAL_LATER_S;
-  return { percent: Math.min(MOST_PERCENT, (Math.max(0, elapsedS) / usual) * 100), words: leftInWords(usual - elapsedS) };
+  return { percent: Math.min(MOST_PERCENT, (e / usual) * 100), words: leftInWords(usual - elapsedS) };
+}
+
+/* HOW LONG IS REALLY LEFT (Isaac, 13 November 2026: "is there a way to show
+   the estimated time remaining accurately?"). Every turn after the first was
+   taken as 35 s. In production, 30 days to 13 November, the middle half of
+   later turns took 11 to 36 s and of first builds 41 to 120 s; at the start
+   an answer can't be told from a change (both about 20 to 28 s), so the
+   kinds are a first build and everything after, and the estimate narrows
+   from how long the turn has run. */
+
+/** Fewer turns of a kind than this, and the usual times stand. */
+export const TOOK_MIN = 8;
+/** At most this many turns of each kind are kept, the newest. */
+export const TOOK_KEEP = 200;
+
+/** The middle of what the turns that ran past `elapsedS` still took; null
+    when none ran that long. `took` sorted. */
+export function stillToGo(took: readonly number[], elapsedS: number): number | null {
+  const rest = took.filter((t) => t > elapsedS).map((t) => t - elapsedS);
+  if (rest.length === 0) return null;
+  const mid = Math.floor(rest.length / 2);
+  return rest.length % 2 ? rest[mid]! : (rest[mid - 1]! + rest[mid]!) / 2;
+}
+
+type KindEvent = TurnEvent & { id?: number };
+
+/** A first build: no turn had finished before it, or it was Read the job. */
+export function isFirstBuild(events: readonly KindEvent[], turn: string): boolean {
+  const at = events.findIndex((e) => e.turnId === turn);
+  if (at < 0) return false;
+  if (!events.slice(0, at).some((e) => e.kind === "usage")) return true;
+  return events.some((e) => e.turnId === turn && e.kind === "message" && e.body.read === true);
+}
+
+/** Whether the turn under way is a first build. */
+export function buildingFirst(events: readonly KindEvent[]): boolean {
+  const turn = turnStartOf(events) === null ? null : lastTurn(events);
+  return turn ? isFirstBuild(events, turn) : isFirstTurn(events);
+}
+
+/** How long each finished turn of a thread took, first builds apart. */
+export function turnTimes(events: readonly KindEvent[]): { first: boolean; seconds: number }[] {
+  const turns = [...new Set(events.filter((e) => e.turnId && e.kind === "usage").map((e) => e.turnId!))];
+  return turns.flatMap((turn) => {
+    const own = events.filter((e) => e.turnId === turn).map((e) => Date.parse(e.at)).filter((t) => !Number.isNaN(t));
+    if (own.length === 0) return [];
+    return [{ first: isFirstBuild(events, turn), seconds: Math.round((Math.max(...own) - Math.min(...own)) / 1000) }];
+  });
+}
+
+export type Took = { first: number[]; later: number[] };
+
+/** Each kind's times, newest TOOK_KEEP, sorted: what the bar reads. `times` oldest first. */
+export function tookOf(times: readonly { first: boolean; seconds: number }[]): Took {
+  const of = (first: boolean) => times.filter((t) => t.first === first).slice(-TOOK_KEEP).map((t) => t.seconds).sort((a, b) => a - b);
+  return { first: of(true), later: of(false) };
 }

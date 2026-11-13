@@ -1,6 +1,7 @@
 import { familyMediaSources, resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { readJobMediaGroups } from "@/lib/workboard/job-media-query";
 import { ok, requireMobile } from "@/lib/mobile/auth";
+import { withThumbs } from "@/lib/mobile/photo-thumbs";
 
 /* A JOB'S PHOTOS AND FILES for the phone's job page, as the job sheet reads
    them (actions/workboard's readJobFiles), behind the same `workboard`
@@ -19,5 +20,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const { parentRemoteId } = await resolveJobCard(ctx.orgId, id);
   const claims = await familyMediaSources(ctx.orgId, parentRemoteId);
-  return ok(await readJobMediaGroups(ctx.orgId, parentRemoteId, claims));
+  const read = await readJobMediaGroups(ctx.orgId, parentRemoteId, claims);
+  /* each photo's square is a small copy; the full photo waits until it's opened (lib/mobile/photo-thumbs-plan) */
+  return ok({ ...read, photos: await withThumbs(read.photos) });
 }

@@ -3,7 +3,7 @@
 -- knows the clear end result"; How did it end?'s Ready to invoice, the
 -- office's Checked). A booking-kind status row may now also go from Work
 -- Order to Completed (actions/sm8-booking-queue queueMarkCompleted), beside
--- Quote to Work Order or Unsuccessful. NOT APPLIED: it waits for Isaac's yes.
+-- Quote to Work Order or Unsuccessful. APPLIED 13 November 2026 (Isaac: "Start at 1").
 -- Until it is, a Completed row is refused at the insert and Checked stays
 -- HeyTiff's alone. Nothing calls queueMarkCompleted yet: wiring Checked to it
 -- comes after this is applied.

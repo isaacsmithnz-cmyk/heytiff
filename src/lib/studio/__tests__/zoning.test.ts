@@ -14,7 +14,7 @@ import { addBandUnit, allocationsOf, placeAllocation } from "../builder";
 import { claimZone, newSystem } from "../zones";
 import { systemAir } from "../airflow";
 import { ductLines } from "../duct-materials";
-import { BAND_KEY, diversityFor, joinZone, setZoning, zoneKit, zoningOf, zonesOf } from "../zoning";
+import { BAND_KEY, diversityFor, joinZone, sizedWord, setZoning, zoneKit, zoningOf, zonesOf } from "../zoning";
 import { roomCoverage, systemCover } from "../coverage";
 import type { RoomObj } from "../loads-room";
 
@@ -180,6 +180,22 @@ describe("a zoned unit is sized on part of its rooms, by its zones", () => {
     const one = setZoning(doc, systemId, unitId, { control: "on_off", joined });
     const c = systemCover(one, pack, sysOf(one), basis);
     expect(c.needKw).toBeCloseTo(c.loadKw!, 6);
+  });
+
+  it("slid, it is sized where it was slid, up to the full load", () => {
+    const { doc, systemId, unitId } = house();
+    const at = (sizedAt: number) => {
+      const d = setZoning(doc, systemId, unitId, { control: "temperature", sizedAt });
+      const c = systemCover(d, pack, sysOf(d), basis);
+      return c.needKw! / c.loadKw!;
+    };
+    expect(at(0.9)).toBeCloseTo(0.9, 6);
+    expect(at(1)).toBeCloseTo(1, 6);
+    /* off the slider's range, it keeps its zones' figure */
+    expect(at(0.5)).toBeCloseTo(0.7, 6);
+    expect(sizedWord(0.85)).toBe("The usual for 2 zones");
+    expect(sizedWord(1)).toBe("Every zone at once");
+    expect(sizedWord(0.9)).toBe("");
   });
 
   it("joined into two zones, it is sized at 85%", () => {

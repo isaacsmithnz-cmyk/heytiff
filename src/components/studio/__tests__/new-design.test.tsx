@@ -17,6 +17,18 @@ jest.mock("@/lib/studio/plans", () => ({
 }));
 const pdfToPages = pdfToPagesReal as unknown as jest.Mock;
 
+/* the job's Plans (#1448): a file onto the job, then into its Plans */
+const fileOnJob = jest.fn();
+const addPlansToJob = jest.fn();
+const readPlansOnJob = jest.fn();
+const kickPlanReads = jest.fn();
+jest.mock("@/lib/documents/file-on-job", () => ({ fileOnJob: (...a: unknown[]) => fileOnJob(...a) }));
+jest.mock("@/app/actions/job-plans", () => ({
+  addPlansToJob: (...a: unknown[]) => addPlansToJob(...a),
+  readPlansOnJob: (...a: unknown[]) => readPlansOnJob(...a),
+}));
+jest.mock("@/lib/jobs/plans-client", () => ({ kickPlanReads: (...a: unknown[]) => kickPlanReads(...a), PLAN_POLL_MS: 8000 }));
+
 const page = (n: number): PageImage => ({
   pageNumber: n,
   label: `Page ${n}`,
@@ -235,6 +247,24 @@ describe("New design, opened on a job", () => {
     await user.click(within(dialog).getByRole("button", { name: "Start with a blank canvas" }));
     await waitFor(() => expect(saved().jobLink).toMatchObject({ remoteId: "job-3406", jobNumber: "3406" }));
     expect(saved().meta).toMatchObject({ name: "6 Bishops Avenue", jobNumber: "3406", client: "Tandem" });
+  });
+
+  it("plans dropped on a job go into the job's Plans, read once there, not into the design alone", async () => {
+    fileOnJob.mockResolvedValue({ ok: true, documentId: "doc-1" });
+    addPlansToJob.mockResolvedValue({ ok: true, planIds: ["plan-1"] });
+    readPlansOnJob.mockResolvedValue(null);
+    const fake = new FakePlanImages();
+    render(<Studio store={new LocalDesignStore(window.localStorage)} planImages={fake} sm8Jobs forJob={job} />);
+    const dialog = await screen.findByRole("dialog", { name: "New design" });
+    const file = new File(["%PDF"], "set.pdf", { type: "application/pdf" });
+    fireEvent.change(document.querySelector('.pt-dialog input[type="file"]')!, { target: { files: [file] } });
+    await waitFor(() => expect(kickPlanReads).toHaveBeenCalledWith(["plan-1"]));
+    expect(fileOnJob).toHaveBeenCalledWith(file, "job-3406");
+    expect(addPlansToJob).toHaveBeenCalledWith("job-3406", [{ documentId: "doc-1" }]);
+    expect(pdfToPages).not.toHaveBeenCalled();
+    expect(fake.sources + fake.uploads).toBe(0);
+    expect(screen.queryByRole("dialog", { name: "Choose the floor plans" })).toBeNull();
+    expect(within(dialog).getByRole("button", { name: "Start with a blank canvas" })).toBeInTheDocument();
   });
 
   it("closed without a design, leaves the list of designs as it was", async () => {

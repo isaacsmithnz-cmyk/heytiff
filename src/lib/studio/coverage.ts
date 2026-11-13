@@ -4,9 +4,11 @@ import { roomLoadKw, type RoomObj } from "./loads-room";
 import { sizingCapacityKw, type SizingBasis } from "./loads";
 import { pointInPolygon } from "./geometry";
 import { moduleFor } from "./modules";
-import { allocationsOf, hasAllocations, roomsServed } from "./allocations";
+import { allocationsOf, hasAllocations, roomsServed, type Allocation } from "./allocations";
 import { zoneIdsOf } from "./zones";
 import { coverPct, coversLoad } from "./fit";
+import { DUCT_AIRWAY_FORMS } from "./form-factors";
+import { BAND_KEY, diversityOver, zoningOf } from "./zoning";
 
 /* Room coverage (plan step: units → spaces) — pure derivations only.
    Attribution model:
@@ -33,7 +35,12 @@ import { coverPct, coversLoad } from "./fit";
    whose own heads, which always run together, need more than the outdoor can
    supply — two 7.1 kW heads for a 14 kW living room on an 8.0 kW MXZ-4F80.
    So per system, the heads in a room are capped at that system's outdoor;
-   then the systems are summed (a room on two outdoors gets both). */
+   then the systems are summed (a room on two outdoors gets both).
+
+   ZONED, A ROOM NEEDS LESS (zoning.ts). A room whose units are all zoned
+   ducted units is judged against part of its load, `needKw` (85% on two
+   zones, 80% on three, 70% on four or more): its rooms don't all call at
+   once. `loadKw` stays the room's own load. */
 
 export interface CoverageContributor {
   systemId: string;
@@ -42,6 +49,10 @@ export interface CoverageContributor {
   unitId: string;
   model: string;
   kw: number;
+  /** a zoned ducted unit (zoning.ts) */
+  zoned: boolean;
+  /** what its rooms are sized at: 1 unzoned, 0.85 to 0.7 zoned (zoning.ts) */
+  diversity: number;
 }
 
 export type CoverageStatus = "covered" | "under" | "unknown";
@@ -59,11 +70,14 @@ export interface RoomCoverage {
   roomId: string;
   /** null when the floor is uncalibrated (no area → no load) */
   loadKw: number | null;
+  /** what its units are judged against: its load, or part of it when every
+      unit here is a zoned ducted unit (zoning.ts); null with no load */
+  needKw: number | null;
   /** placed, attributed capacity */
   coveredKw: number;
   /** chosen-but-unplaced pair capacity of systems sized against this room */
   pendingKw: number;
-  /** covered/load in percent, null when load is unknown */
+  /** covered over need in percent, null when load is unknown */
   pct: number | null;
   status: CoverageStatus;
   /** covered beyond the browser's 150% oversize cap */
@@ -115,6 +129,47 @@ export function roomsServedBy(doc: DesignDocument, systemId: string | null): Roo
     (o): o is RoomObj => isRoom(o) && (o.systemId === systemId || adopted.has(o.id))
   );
 }
+
+/** a ducted or bulkhead unit, the only kind that is zoned */
+const airwayUnit = (pack: DataPack, model: string): boolean => {
+  const u = pack.indoor_units.find((x) => x.model === model);
+  return u != null && DUCT_AIRWAY_FORMS.includes(u.form_factor);
+};
+
+/** what this unit's rooms are sized at: 1 unless it is a ducted or bulkhead
+    unit, zoning on, over two zones or more of the rooms it serves (every
+    zone of the system, on the band); then by its zones (zoning.ts) */
+export function unitDiversity(pack: DataPack, sys: DesignSystem, a: Allocation): number {
+  if (a.role !== "idu" || !a.model || !airwayUnit(pack, a.model)) return 1;
+  const rooms = a.serves === "system" ? zoneIdsOf(sys) : roomsServed(a);
+  return diversityOver(zoningOf(sys, a.id), rooms);
+}
+
+/** is this unit zoned (unitDiversity under 1) */
+export const unitZoned = (pack: DataPack, sys: DesignSystem, a: Allocation): boolean => unitDiversity(pack, sys, a) < 1;
+
+/** the key a ducted system's zoning is kept under: its unit's id, or before
+    there is one, BAND_KEY (zoning.ts) */
+export function bandZoningKey(sys: DesignSystem): string {
+  const band = hasAllocations(sys) ? allocationsOf(sys).find((a) => a.role === "idu" && a.serves === "system") : null;
+  return band?.id ?? BAND_KEY;
+}
+
+/** what a ducted system's whole-system unit is sized at, zoned or set to
+    be before its unit is chosen */
+export function bandDiversity(sys: DesignSystem): number {
+  return diversityOver(zoningOf(sys, bandZoningKey(sys)), zoneIdsOf(sys));
+}
+
+const zonedAt = (diversity: number) => ({ zoned: diversity < 1, diversity });
+
+/** what a room needs from units sized at this diversity (1 unzoned) */
+export const needOf = (loadKw: number, diversity: number): number => loadKw * diversity;
+
+/** a room's diversity off its units: the least saving of them when every one
+    is zoned, else 1 */
+export const roomDiversity = (contributors: readonly { diversity: number }[]): number =>
+  contributors.length > 0 && contributors.every((c) => c.diversity < 1) ? Math.max(...contributors.map((c) => c.diversity)) : 1;
 
 /** the sizing capacity of a system's pairing, from its placed units or its
     chosen pair; null when the pack has no row for it */
@@ -240,6 +295,7 @@ export function roomCoverage(
             unitId: a.id,
             model: a.model,
             kw,
+            ...zonedAt(unitDiversity(pack, sys, a)),
           });
           continue;
         }
@@ -256,6 +312,7 @@ export function roomCoverage(
           unitId: a.id,
           model: a.model,
           kw,
+          ...zonedAt(unitDiversity(pack, sys, a)),
         });
       }
     }
@@ -272,6 +329,8 @@ export function roomCoverage(
         unitId: o.id,
         model: String(o.props.model ?? ""),
         kw,
+        zoned: false,
+        diversity: 1,
       });
     }
   }
@@ -331,15 +390,18 @@ export function roomCoverage(
     }
   }
 
-  /* judged and counted on the figures as shown (fit.ts) */
-  const pct = loadKw != null ? coverPct(coveredKw, loadKw) : null;
+  /* judged and counted on the figures as shown (fit.ts), against what the
+     room needs: part of its load when every unit here is zoned */
+  const needKw = loadKw != null ? needOf(loadKw, roomDiversity(contributors)) : null;
+  const pct = needKw != null ? coverPct(coveredKw, needKw) : null;
   const status: CoverageStatus =
-    loadKw == null ? "unknown" : pct != null && coversLoad(coveredKw, loadKw) ? "covered" : "under";
+    needKw == null ? "unknown" : pct != null && coversLoad(coveredKw, needKw) ? "covered" : "under";
   const oversized = pct != null && pct > 150;
 
   return {
     roomId: room.id,
     loadKw,
+    needKw,
     coveredKw,
     pendingKw,
     pct,
@@ -362,6 +424,8 @@ export interface SystemRoomShare {
   /** the part of the room's load this system carries: all of it when it covers
       the room alone; null when the room has no load */
   loadKw: number | null;
+  /** the part of the room's need it carries (RoomCoverage.needKw) */
+  needKw: number | null;
   /** what this system gives the room: its heads' ratings, capped at its outdoor */
   coverKw: number;
   /** this system's units in the room */
@@ -373,9 +437,20 @@ export interface SystemCover {
   rooms: SystemRoomShare[];
   /** Σ the rooms' shares; null while none of them has a load */
   loadKw: number | null;
+  /** Σ the rooms' needs: the load, less where it is zoned; what the system
+      is judged against */
+  needKw: number | null;
   coverKw: number;
-  /** cover against load; null when the load is unknown */
+  /** cover against need; null when the load is unknown */
   pct: number | null;
+}
+
+/** what a system's cover is set against, in words: "12.4 kW", or zoned,
+    "8.7 kW zoned" */
+export function coverOfText(cover: Pick<SystemCover, "loadKw" | "needKw">): string {
+  if (cover.needKw == null) return "— kW";
+  const zoned = cover.loadKw != null && cover.needKw < cover.loadKw - 0.05;
+  return `${cover.needKw.toFixed(1)} kW${zoned ? " zoned" : ""}`;
 }
 
 export function systemCover(
@@ -393,17 +468,15 @@ export function systemCover(
     const cap = cov.capped.find((c) => c.systemId === sys.id);
     const coverKw = cap ? cap.oduKw : mine.reduce((a, c) => a + c.kw, 0);
     const systemsHere = new Set(cov.contributors.map((c) => c.systemId)).size;
-    const loadKw =
-      cov.loadKw == null
-        ? null
-        : cov.coveredKw > 0
-          ? cov.loadKw * (coverKw / cov.coveredKw)
-          : cov.loadKw / systemsHere;
-    rooms.push({ room: o, loadKw, coverKw, contributors: mine });
+    const part = cov.coveredKw > 0 ? coverKw / cov.coveredKw : 1 / systemsHere;
+    const loadKw = cov.loadKw == null ? null : cov.loadKw * part;
+    const needKw = cov.needKw == null ? null : cov.needKw * part;
+    rooms.push({ room: o, loadKw, needKw, coverKw, contributors: mine });
   }
   const loads = rooms.filter((r) => r.loadKw != null);
   const loadKw = loads.length ? loads.reduce((a, r) => a + (r.loadKw ?? 0), 0) : null;
+  const needKw = loads.length ? loads.reduce((a, r) => a + (r.needKw ?? 0), 0) : null;
   const coverKw = rooms.reduce((a, r) => a + r.coverKw, 0);
-  const pct = loadKw != null ? coverPct(coverKw, loadKw) : null;
-  return { rooms, loadKw, coverKw, pct };
+  const pct = needKw != null ? coverPct(coverKw, needKw) : null;
+  return { rooms, loadKw, needKw, coverKw, pct };
 }

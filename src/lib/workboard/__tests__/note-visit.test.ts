@@ -4,6 +4,7 @@
    actions/__tests__/workboard-notes-visits.test.ts. No model is called. */
 
 import {
+  isMoveWork,
   NOTE_SCHEMA,
   TIFF_NOTE_SCHEMA,
   isEmptyProposal,
@@ -149,6 +150,22 @@ describe("the shaper", () => {
     const nobody = shapeProposal(raw([visit({ assignee_hint: "" })]), ctx, "book commissioning for Friday arvo");
     expect(nobody.clarify).toEqual({ question: "Who's going: commissioning?", options: ["Me"] });
     expect(nobody.say).toBe("Who's going: commissioning?");
+  });
+
+  /* Isaac, 2 November 2026: "Move ... my booking this afternoon to Friday, seven AM" booked a second visit */
+  it("never books a booking being moved as a new visit: it is read as the move", () => {
+    const p = shapeProposal(raw([visit({ work: "Move booking this afternoon to Friday 7am", start: "07:00", assignee_hint: "" }), visit({ work: "commissioning" })]), ctx, "move my booking this afternoon to Friday seven am");
+    expect(p.visits.map((v) => v.work)).toEqual(["commissioning"]);
+    expect(p.moves).toEqual([expect.objectContaining({ words: "booking this afternoon", toStart: "07:00", whoId: null })]);
+    expect(p.say).not.toContain("I can't move a booking yet");
+    // a thing being moved is no booking: dropped, and she says where moves go
+    const thing = shapeProposal(raw([visit({ work: "Move the outdoor unit" })]), ctx, "move the outdoor unit");
+    expect(thing.visits).toEqual([]);
+    expect(thing.moves).toEqual([]);
+    expect(thing.say).toContain("I can't move a booking yet: open it on Schedule and change its time there.");
+    expect(isMoveWork("Reschedule the Mosman job")).toBe(true);
+    expect(isMoveWork("Moving the outdoor unit")).toBe(true);
+    expect(isMoveWork("Commission the system")).toBe(false);
   });
 
   it("is a plan row the person can take off, and stored and read back whole", () => {

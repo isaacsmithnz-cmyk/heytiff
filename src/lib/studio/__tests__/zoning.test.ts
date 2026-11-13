@@ -14,7 +14,9 @@ import { addBandUnit, allocationsOf, placeAllocation } from "../builder";
 import { claimZone, newSystem } from "../zones";
 import { systemAir } from "../airflow";
 import { ductLines } from "../duct-materials";
-import { joinZone, setZoning, zoneKit, zoningOf, zonesOf } from "../zoning";
+import { BAND_KEY, diversityFor, joinZone, setZoning, zoneKit, zoningOf, zonesOf } from "../zoning";
+import { roomCoverage, systemCover } from "../coverage";
+import type { RoomObj } from "../loads-room";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -144,5 +146,57 @@ describe("on the sheet", () => {
   it("zoning off puts nothing on the sheet", () => {
     const h = house();
     expect(ductLines(h.doc, pack, sysOf(h.doc)).some((l) => /zone/i.test(l.name))).toBe(false);
+  });
+});
+
+/* ZONED, SIZED SMALLER (Isaac, 13 November 2026: "Say on a 22 kilowatt
+   required heat load, you know that you probably only need a 16 kilowatt
+   because you're about to hit zoning") */
+describe("a zoned unit is sized on part of its rooms, by its zones", () => {
+  const basis = "worst-of-both" as const;
+  const room = (d: DesignDocument, id: string) => d.objects.find((o) => o.id === id) as RoomObj;
+
+  it("steps by zones: none or one saves nothing, two 85%, three 80%, four or more 70%", () => {
+    expect([0, 1, 2, 3, 4, 5, 9].map(diversityFor)).toEqual([1, 1, 0.85, 0.8, 0.7, 0.7, 0.7]);
+  });
+
+  it("five zones: each room needs 70% of its load, keeping its own load; the system's need is 70% of the sum", () => {
+    const { doc, systemId, unitId } = house();
+    const before = systemCover(doc, pack, sysOf(doc), basis);
+    expect(before.needKw).toBeCloseTo(before.loadKw!, 6);
+
+    const zoned = setZoning(doc, systemId, unitId, { control: "temperature" });
+    const cov = roomCoverage(zoned, pack, room(zoned, "living"), basis);
+    expect(cov.needKw).toBeCloseTo(cov.loadKw! * 0.7, 6);
+    const after = systemCover(zoned, pack, sysOf(zoned), basis);
+    expect(after.loadKw).toBeCloseTo(before.loadKw!, 6);
+    expect(after.needKw).toBeCloseTo(before.loadKw! * 0.7, 6);
+    expect(after.pct!).toBeGreaterThan(before.pct!);
+  });
+
+  it("every room joined into one zone shuts together: nothing is saved", () => {
+    const { doc, systemId, unitId } = house();
+    const joined = Object.fromEntries(["kitchen", "master", "bed2", "bed3"].map((r) => [r, "living"]));
+    const one = setZoning(doc, systemId, unitId, { control: "on_off", joined });
+    const c = systemCover(one, pack, sysOf(one), basis);
+    expect(c.needKw).toBeCloseTo(c.loadKw!, 6);
+  });
+
+  it("joined into two zones, it is sized at 85%", () => {
+    const { doc, systemId, unitId } = house();
+    const joined = { kitchen: "living", bed2: "master", bed3: "master" };
+    const two = setZoning(doc, systemId, unitId, { control: "temperature", joined });
+    const c = systemCover(two, pack, sysOf(two), basis);
+    expect(c.needKw).toBeCloseTo(c.loadKw! * 0.85, 6);
+  });
+
+  it("set before the unit is chosen, the first unit takes it on", () => {
+    const doc = createDesign({ name: "x", mode: "blank" });
+    const made = newSystem(doc, pack.meta.version);
+    const set = setZoning(made.doc, made.systemId, BAND_KEY, { control: "temperature" });
+    const d = addBandUnit(set, pack, { systemId: made.systemId, iduModel: "PEAD-M100JAA(D)" });
+    const unit = allocationsOf(d.systems[0]).find((a) => a.role === "idu")!;
+    expect(zoningOf(d.systems[0], unit.id).control).toBe("temperature");
+    expect(zoningOf(d.systems[0], BAND_KEY).control).toBe("off");
   });
 });

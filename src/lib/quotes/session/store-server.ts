@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import type { Msg } from "./model";
 import type { EventDraft, SessionState } from "./turn";
 import { openQuestionsOf } from "./answers";
+import { tookOf, turnTimes, type Took } from "./time-left";
 
 /* TIFF'S SESSION, KEPT (docs/migrations/quote_sessions.sql). One per
    quote. A turn holds it from start to end, so two never run at once; a
@@ -124,6 +125,53 @@ const THREAD_READ = 500;
     never what she'd just said. A poll reads on from `since`, oldest first,
     and the panel's next poll carries on from the last of them, so a burst
     bigger than one read skips nothing. */
+/** How long this business's turns took, first builds apart, from its last
+    30 days (time-left.ts tookOf); read at most once an hour per instance, as
+    every poll asks. */
+const USUAL_TTL_MS = 3_600_000;
+const USUAL_PAGE = 1000;
+const USUAL_MAX_ROWS = 20_000;
+const usualCache = new Map<string, { at: number; usual: Promise<Took> }>();
+export function readTurnTimes(orgId: string): Promise<Took> {
+  const hit = usualCache.get(orgId);
+  if (hit && Date.now() - hit.at < USUAL_TTL_MS) return hit.usual;
+  const usual = (async () => {
+    const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
+    type Row = { id: number; session_id: string; turn_id: string | null; kind: string; at: string; name: string | null; ok: string | null; text: string | null; answered: string | null; read: string | null; question: string | null };
+    /* a month is a few thousand events, read a page at a time */
+    const rows: Row[] = [];
+    for (let from = 0; from < USUAL_MAX_ROWS; from += USUAL_PAGE) {
+      const { data, error } = await supabaseAdmin
+        .from("quote_session_events")
+        .select("id, session_id, turn_id, kind, at, name:body->>name, ok:body->>ok, text:body->>text, answered:body->>answered, read:body->>read, question:body->>question")
+        .eq("org_id", orgId)
+        .gte("at", since)
+        .order("id", { ascending: true })
+        .range(from, from + USUAL_PAGE - 1);
+      if (error) return { first: [], later: [] };
+      const page = (data ?? []) as Row[];
+      rows.push(...page);
+      if (page.length < USUAL_PAGE) break;
+    }
+    const bySession = new Map<string, Row[]>();
+    for (const r of rows) bySession.set(r.session_id, [...(bySession.get(r.session_id) ?? []), r]);
+    const times = [...bySession.values()].flatMap((rows) =>
+      turnTimes(
+        rows.map((r) => ({
+          id: r.id,
+          turnId: r.turn_id,
+          kind: r.kind,
+          at: r.at,
+          body: { name: r.name ?? undefined, ok: r.ok === "false" ? false : undefined, text: r.text ?? undefined, answered: r.answered ?? undefined, read: r.read === "true" ? true : undefined, question: r.question ?? undefined },
+        }))
+      )
+    );
+    return tookOf(times);
+  })().catch(() => ({ first: [], later: [] }));
+  usualCache.set(orgId, { at: Date.now(), usual });
+  return usual;
+}
+
 export async function readThread(orgId: string, jobUuid: string, since = 0): Promise<{ session: SessionHead | null; events: ThreadEvent[] }> {
   const session = await readSession(orgId, jobUuid);
   if (!session) return { session: null, events: [] };

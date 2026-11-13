@@ -130,12 +130,18 @@ export function JobQuoteSend({
     <section className="wb2-jcsec" aria-label="To ServiceM8">
       <div className="wb2-jcdhead">
         <b>To ServiceM8</b>
-        <em>{asQuote ? "Stays a Quote" : plan.status ? "Becomes a Work Order" : "Its Work Order, updated"}</em>
+        <em>{asQuote ? (plan.status ? "Goes back to a Quote" : "Stays a Quote") : plan.status ? "Becomes a Work Order" : "Its Work Order, updated"}</em>
       </div>
       <div className="wb2-mline">
-        <b>{asQuote ? "Job description" : "Invoice description"}</b>
-        <em className="wb2-jcread">{asQuote ? plan.jobDescription : plan.workDone}</em>
+        <b>{asQuote ? "Quote description" : "Invoice description"}</b>
+        <em className="wb2-jcread">{plan.workDone}</em>
       </div>
+      {asQuote && (
+        <div className="wb2-mline">
+          <b>Job description</b>
+          <em className="wb2-jcread">{plan.jobDescription}</em>
+        </div>
+      )}
       {plan.lines.map((l, i) => (
         <div className="wb2-mline" key={`l-${i}`}>
           <b>{l.name}</b>

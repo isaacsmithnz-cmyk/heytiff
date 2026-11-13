@@ -23,6 +23,7 @@
    `kbTitles`) are not journal groups and never pass through `record`. */
 
 import { visitsOf, type VisitMade } from "./note-visit";
+import { movedBack, movesMadeOf, type MoveMade } from "./note-move";
 import { costsOf, type CostMade } from "./note-cost";
 import { startedVariations, variationsOf, type VariationMade } from "./note-variation";
 
@@ -81,6 +82,9 @@ export type AppliedRecord = {
       task where it couldn't be one (note-variation). A variation that is a
       task is in `taskIds` too, and goes with the tasks. */
   variations: VariationMade[];
+  /** The bookings it moved (note-move): each with the schedule change that
+      puts it back. Absent on a record from before the lane. */
+  moves?: MoveMade[];
 };
 
 const strings = (v: unknown): string[] =>
@@ -141,8 +145,12 @@ export function appliedOf(raw: unknown): AppliedRecord {
     visits: visitsOf(r.visits),
     costs: costsOf(r.costs),
     variations: variationsOf(r.variations),
+    moves: movesMadeOf(r.moves),
   };
 }
+
+/** Its bookings moved and not put back since: what its Undo moves back. */
+export const movedBookings = (a: AppliedRecord): MoveMade[] => movedBack(a.moves ?? []);
 
 /** Its variations started and not taken back since: what its Undo takes
     back, while each is still an empty draft (dropVariation). */
@@ -225,7 +233,8 @@ export function takesBack(a: AppliedRecord): boolean {
       a.kbIds.length +
       bookedVisits(a).length +
       filedCosts(a).length +
-      startedOn(a).length >
+      startedOn(a).length +
+      movedBookings(a).length >
     0
   );
 }
@@ -346,6 +355,7 @@ export function undoSummary(a: AppliedRecord): string {
   const parts = [
     a.taskIds.length && plural(a.taskIds.length, "task", "tasks"),
     bookedVisits(a).length && plural(bookedVisits(a).length, "visit", "visits"),
+    movedBookings(a).length && plural(movedBookings(a).length, "move", "moves"),
     filedCosts(a).length && plural(filedCosts(a).length, "cost", "costs"),
     startedOn(a).length && plural(startedOn(a).length, "variation", "variations"),
     a.flagIds.length && plural(a.flagIds.length, "flag", "flags"),

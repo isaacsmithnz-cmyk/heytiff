@@ -1,7 +1,8 @@
 import { priceBuildUp, roundedUp } from "../buildup";
 import { normaliseDraft } from "../proposal";
 import { allowedQuoteFields, quoteRows } from "@/lib/integrations/sm8-quote-plan";
-import { NOT_APPROVED, optionLines, planKey, quoteDescription, sendAsQuotePlan, sendPlan, usualTaxRate, type ProposalWords } from "../sm8-send-plan";
+import { NOT_APPROVED, optionLines, planKey, quoteDescription, quoteSummary,
+  sendAsQuotePlan, sendPlan, usualTaxRate, type ProposalWords } from "../sm8-send-plan";
 
 /* Isaac, 2026-10-05: "if a quote is accepted, then it can turn that into the
    work order for service mate… copy the scope and line items" */
@@ -140,13 +141,32 @@ describe("planKey", () => {
 describe("sent as a quote", () => {
   const quote = { draft, job: { status: "Quote", invoiced: false }, existing: [{ uuid: "m-1", name: "Old line" }], taxRateUuid: "gst" };
 
-  it("puts the scope in the job's description and one As Per Quote line at its price, the job left a Quote", () => {
+  it("puts the scope in the quote's description, its heading in the job's, and one As Per Quote line at its price, the job left a Quote", () => {
     const p = sendAsQuotePlan({ ...quote, approved: true, options: [{ index: 0, build, left: 0 }] });
     if (!p.ok) throw new Error(p.why);
     expect(p.status).toBeNull();
-    expect(p.jobDescription).toBe("Option 1: 3-head multi\n- MXZ-4F71 outdoor on wall brackets\n- Three high walls");
+    expect(p.workDone).toBe("Option 1: 3-head multi\n- MXZ-4F71 outdoor on wall brackets\n- Three high walls");
+    expect(p.jobDescription).toBe("Option 1: 3-head multi");
     expect(p.lines).toEqual([{ name: "As Per Quote", quantity: 1, unitPriceCents: build.exGstCents, unitCostCents: build.buyCents }]);
     expect(p.remove).toEqual([{ uuid: "m-1", name: "Old line" }]);
+  });
+
+  /* Isaac, 11 November 2026, on 2845: "I need to change it back to a quote again ... for it to be received in service mate" */
+  it("sends a Work Order's revised quote back to a Quote, its claim kept", () => {
+    const p = sendAsQuotePlan({
+      ...quote,
+      approved: true,
+      job: { status: "Work Order", invoiced: false },
+      existing: [{ uuid: "m-1", name: "Old line" }, { uuid: "c-1", name: "Partial invoice #2845A" }],
+      options: [{ index: 0, build, left: 0 }],
+    });
+    if (!p.ok) throw new Error(p.why);
+    expect(p.status).toEqual({ from: "Work Order", to: "Quote" });
+    expect(p.remove).toEqual([{ uuid: "m-1", name: "Old line" }]);
+    const [job] = quoteRows("job-1", p);
+    expect(job).toMatchObject({ fields: { status: "Quote", job_description: p.jobDescription }, label: "Quote: back to a Quote, its description and the job's summary" });
+    expect(allowedQuoteFields("job", { status: "Quote" })).toEqual({ status: "Quote" });
+    expect(allowedQuoteFields("job", { status: "Completed" })).toEqual({});
   });
 
   it("gives each option its line where there are several", () => {
@@ -155,15 +175,20 @@ describe("sent as a quote", () => {
     expect(p.lines.map((l) => l.name)).toEqual(["Option 1: 3-head multi, as per quote", "Option 2: Three splits, as per quote"]);
   });
 
-  it("queues the job's description and its lines, never its status", () => {
+  it("queues the quote's description, the job's and its lines, never its status", () => {
     const p = sendAsQuotePlan({ ...quote, approved: true, options: [{ index: 0, build, left: 0 }] });
     if (!p.ok) throw new Error(p.why);
     const [job, off, add] = quoteRows("job-1", p);
-    expect(job).toMatchObject({ object: "job", op: "update", fields: { job_description: p.jobDescription }, label: "Quote: the job's description" });
+    expect(job).toMatchObject({
+      object: "job",
+      op: "update",
+      fields: { work_done_description: p.workDone, job_description: p.jobDescription },
+      label: "Quote: its description and the job's summary",
+    });
     expect(job!.fields).not.toHaveProperty("status");
     expect(off).toMatchObject({ op: "delete", label: "Quote: line Old line taken off" });
     expect(add).toMatchObject({ op: "create", fields: { name: "As Per Quote", quantity: "1" }, label: "Quote: line As Per Quote added" });
-    expect(allowedQuoteFields("job", { job_description: "x", status: "Quote" })).toEqual({ job_description: "x" });
+    expect(allowedQuoteFields("job", { job_description: "x", status: "Unsuccessful" })).toEqual({ job_description: "x" });
   });
 
   /* 3446 (2026-10-21): the approved proposal never reached ServiceM8, only the option's name */
@@ -185,10 +210,12 @@ describe("sent as a quote", () => {
     payment: { preset: "domestic_small", stages: [{ when: "Deposit, on accepting", percent: 10 }, { when: "Balance, within 7 days of finishing", percent: 90 }] },
   };
 
-  it("puts the approved proposal's words in the job's description", () => {
+  /* Isaac, 11 November 2026: "Job description is a summary. Quote description is the full proposal" */
+  it("puts the approved proposal's words in the quote's description, and its summary in the job's", () => {
     const p = sendAsQuotePlan({ ...quote, approved: true, options: [{ index: 0, build, left: 0 }], proposal });
     if (!p.ok) throw new Error(p.why);
-    expect(p.jobDescription).toBe(
+    expect(p.jobDescription).toBe("Air conditioning: master bedroom, kitchen and bedroom\n\nA 2.5 kW split for the master, and a multi for the kitchen and bedroom.");
+    expect(p.workDone).toBe(
       [
         "Air conditioning: master bedroom, kitchen and bedroom",
         "We'll supply and install three Mitsubishi Electric AP series high wall units.",
@@ -213,6 +240,13 @@ describe("sent as a quote", () => {
     expect(quoteDescription(draft, [0])).toBe("Option 1: 3-head multi\n- MXZ-4F71 outdoor on wall brackets\n- Three high walls");
   });
 
+  it("sums up several options under their headings, the introduction left out", () => {
+    expect(quoteSummary(draft, [0, 1], proposal)).toBe(
+      "Air conditioning: master bedroom, kitchen and bedroom\n\nOption 1: 3-head multi\nA 2.5 kW split for the master, and a multi for the kitchen and bedroom.\n\nOption 2: Three splits\nThree splits."
+    );
+    expect(quoteSummary(draft, [0, 1])).toBe("Option 1: 3-head multi\nOption 2: Three splits");
+  });
+
   it("an accepted quote's work done is its option in the proposal's words", () => {
     const p = sendPlan({ ...base, accepted: [{ index: 0, build, left: 0 }], proposal });
     if (!p.ok) throw new Error(p.why);
@@ -221,9 +255,9 @@ describe("sent as a quote", () => {
     );
   });
 
-  it("goes only approved, only on a Quote, and only whole", () => {
+  it("goes only approved, only on a Quote or a Work Order, and only whole", () => {
     expect(sendAsQuotePlan({ ...quote, approved: false, options: [{ index: 0, build, left: 0 }] })).toEqual({ ok: false, why: NOT_APPROVED });
-    expect(sendAsQuotePlan({ ...quote, approved: true, job: { status: "Work Order", invoiced: false }, options: [{ index: 0, build, left: 0 }] })).toMatchObject({ ok: false, why: "The job is a Work Order in ServiceM8: only a Quote is sent as a quote." });
+    expect(sendAsQuotePlan({ ...quote, approved: true, job: { status: "Completed", invoiced: false }, options: [{ index: 0, build, left: 0 }] })).toMatchObject({ ok: false, why: "The job is a Completed in ServiceM8: only a Quote or a Work Order is sent as a quote." });
     expect(sendAsQuotePlan({ ...quote, approved: true, options: [{ index: 0, build, left: 2 }] })).toMatchObject({ ok: false, why: "2 still to price: ServiceM8 must get the whole quote." });
   });
 });

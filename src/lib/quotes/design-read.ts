@@ -184,7 +184,7 @@ function systemRead(doc: DesignDocument, pack: DataPack | null, sys: DesignSyste
           ...(row.styleLabel ? { style: row.styleLabel } : {}),
           ...(row.capacityKw != null ? { capacity_kw: r1(row.capacityKw) } : {}),
           covers: coversWord(row.status),
-          ...(row.status === "under" && row.loadKw != null && row.capacityKw != null ? { short_kw: shortKw(row.loadKw, row.capacityKw) } : {}),
+          ...(row.status === "under" && row.needKw != null && row.capacityKw != null ? { short_kw: shortKw(row.needKw, row.capacityKw) } : {}),
           ...pipesSaid(heads.map((c) => ({ id: c.unitId, model: c.model }))),
         };
       })

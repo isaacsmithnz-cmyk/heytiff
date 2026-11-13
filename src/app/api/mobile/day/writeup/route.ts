@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   const ctx = await requireMobile(request);
   if (ctx instanceof Response) return ctx;
   const [day, viewer] = await Promise.all([
-    writeUpDay(ctx, new URL(request.url).searchParams.get("until"), Date.now(), new URL(request.url).searchParams.get("on")),
+    writeUpDay(ctx, new URL(request.url).searchParams.get("until"), Date.now(), new URL(request.url).searchParams.get("on"), new URL(request.url).searchParams.get("job")),
     sm8NotesAllowed() && ctx.caps.has("workboard") ? notesViewerOf(ctx.orgId, ctx.userId).catch(() => null) : null,
   ]);
   const sender = viewer?.sender ?? { state: "unknown" as const };

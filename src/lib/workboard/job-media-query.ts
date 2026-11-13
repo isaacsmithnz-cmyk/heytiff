@@ -19,6 +19,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { DOCUMENTS_BUCKET, SIGNED_URL_SECONDS } from "@/lib/documents/query";
+import { isVideoMime } from "@/lib/documents/files";
 import { isPartialInvoicePaper } from "./job-family";
 import { jobShareLinks, type JobShareLink } from "@/lib/email/share-links";
 import {
@@ -331,8 +332,9 @@ async function readOurs(orgId: string, jobUuid: string, kind: "job_document" | "
   return rows.map((r) => ({
     remoteId: ourDocumentRemoteId(r.id),
     name: r.file_name,
-    fileType: fileTypeForMime(r.mime_type),
-    kind: kind === "job_photo" ? ("photo" as const) : ("document" as const),
+    fileType: isVideoMime(r.mime_type) ? ".mp4" : fileTypeForMime(r.mime_type),
+    /* a video from the phone's camera sits with the photos, as ServiceM8's do */
+    kind: kind === "job_photo" ? (isVideoMime(r.mime_type) ? ("video" as const) : ("photo" as const)) : ("document" as const),
     origin: null,
     /* the account's own clock, the same naive shape ServiceM8's stamps
        arrive in, so the face's day reads the same for both */

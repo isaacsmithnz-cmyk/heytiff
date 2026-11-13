@@ -476,8 +476,8 @@ export async function postSm8Booking(
 /** Make a Quote a Work Order, or mark it Unsuccessful: the status ALONE,
     which ServiceM8's update schema requires (F7). The type allows no other
     status, and the body no other field. */
-export async function postSm8JobStatus(call: Sm8Call, jobUuid: string, status: "Work Order" | "Unsuccessful", asStaffUuid?: string): Promise<Sm8BookingResult> {
-  if (!UUID.test(jobUuid) || (status !== "Work Order" && status !== "Unsuccessful")) return NOT_SENT;
+export async function postSm8JobStatus(call: Sm8Call, jobUuid: string, status: "Work Order" | "Unsuccessful" | "Completed", asStaffUuid?: string): Promise<Sm8BookingResult> {
+  if (!UUID.test(jobUuid) || (status !== "Work Order" && status !== "Unsuccessful" && status !== "Completed")) return NOT_SENT;
   return bookingRequest(call, "POST job", `job/${jobUuid}.json`, { method: "POST", json: { status } }, asStaffUuid);
 }
 

@@ -87,7 +87,10 @@ async function inviterContext(): Promise<Ctx | null> {
   const allowedRoles = invitableRoles(actorRole, caps);
   if (allowedRoles.length === 0) return null;
 
-  const email = (session?.user?.email as string | undefined) ?? null;
+  /* a phone session carries no address (lib/phone-session), so the reply-to
+     is the one the person signed in with, as their profile keeps it (found in
+     review, 12 November 2026: invites from the phone had no reply-to) */
+  const email = (session?.user?.email as string | undefined) ?? (await profileEmail(userId));
   return {
     orgId,
     userId,
@@ -95,6 +98,12 @@ async function inviterContext(): Promise<Ctx | null> {
     inviterName: await inviterDisplayName(orgId, userId, session?.user?.name),
     inviterEmail: email,
   };
+}
+
+async function profileEmail(userId: string): Promise<string | null> {
+  const { data } = await supabaseAdmin.from("profiles").select("email").eq("user_id", userId).maybeSingle();
+  const e = (data as { email: string | null } | null)?.email?.trim();
+  return e && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) ? e : null;
 }
 
 /** A name is a name. Never an address, whatever column it arrived in. */

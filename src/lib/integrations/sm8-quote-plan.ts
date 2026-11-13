@@ -10,8 +10,10 @@
      job          the job's invoice description (work_done_description),
                   and its status to "Work Order" when it was a Quote: update;
                   or, a quote sent as a quote before it's accepted (slice
-                  7.3), its job description (job_description), its status
-                  left as it is
+                  7.3), the whole proposal as its invoice description (what
+                  ServiceM8's quote prints) and its summary as its job
+                  description (job_description), its status left as it is,
+                  or a Work Order's sent back to Quote (a revised quote)
      jobmaterial  a line on the job, under a uuid chosen when the row was
                   queued: create; or a line that was there: delete (soft)
 
@@ -36,18 +38,20 @@ export const QUOTE_FIELDS: Record<QuoteObject, readonly string[]> = {
   jobmaterial: ["name", "quantity", "price", "cost", "displayed_amount", "displayed_amount_is_tax_inclusive", "tax_rate_uuid", "sort_order"],
 };
 
-/** The only status a send sets. */
+/** The status an accepted send sets. */
 export const WORK_ORDER = "Work Order";
+/** The status a revised quote sent as a quote sets on a Work Order. */
+export const QUOTE = "Quote";
 /** The statuses a job may be in for a send to touch it. */
-export const QUOTE_STATUSES = ["Quote", WORK_ORDER] as const;
+export const QUOTE_STATUSES = [QUOTE, WORK_ORDER] as const;
 
 
 /** Only the fields a record may have sent, from what a row carries; a job's
-    status only when it is the Work Order. */
+    status only when it is the Work Order or the Quote. */
 export function allowedQuoteFields(object: QuoteObject, fields: unknown): Record<string, string> {
   const f = fields && typeof fields === "object" && !Array.isArray(fields) ? (fields as Record<string, unknown>) : {};
   const out = Object.fromEntries(QUOTE_FIELDS[object].filter((k) => typeof f[k] === "string").map((k) => [k, f[k] as string]));
-  if (object === "job" && out.status !== undefined && out.status !== WORK_ORDER) delete out.status;
+  if (object === "job" && out.status !== undefined && out.status !== WORK_ORDER && out.status !== QUOTE) delete out.status;
   return out;
 }
 
@@ -86,7 +90,8 @@ export function quoteRows(
   plan: {
     status: { to: string } | null;
     workDone: string;
-    /** a quote sent as a quote: the job's description, its status as it is */
+    /** a quote sent as a quote: the job's description (a summary), the
+        whole proposal in workDone, its status as it is */
     jobDescription?: string;
     lines: readonly { name: string; quantity: number; unitPriceCents: number; unitCostCents: number | null }[];
     remove: readonly { uuid: string; name: string }[];
@@ -99,9 +104,13 @@ export function quoteRows(
     op: "update",
     uuid: jobUuid,
     fields: asQuote
-      ? { job_description: plan.jobDescription!.slice(0, 20_000) }
+      ? {
+          work_done_description: plan.workDone.slice(0, 20_000),
+          job_description: plan.jobDescription!.slice(0, 20_000),
+          ...(plan.status ? { status: QUOTE } : {}),
+        }
       : { work_done_description: plan.workDone.slice(0, 20_000), ...(plan.status ? { status: WORK_ORDER } : {}) },
-    label: asQuote ? QUOTE_WORDS.label.asQuoteJob : QUOTE_WORDS.label.job,
+    label: asQuote ? (plan.status ? QUOTE_WORDS.label.asQuoteBack : QUOTE_WORDS.label.asQuoteJob) : QUOTE_WORDS.label.job,
     key: "job",
   };
   const off = plan.remove.map((r) => ({

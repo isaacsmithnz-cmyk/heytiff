@@ -102,18 +102,36 @@ export function wordsOfFloor(doc: DesignDocument, floorId: string): Word[] | nul
   const s = f && firstSheet(f);
   const imp = doc.planImport;
   if (!s || !imp?.words) return null;
-  const at = Object.entries(imp.placed).find(([, ref]) => ref === s.imageRef)?.[0];
-  return at != null ? (imp.words[Number(at)] ?? null) : null;
+  const at = pageOf(doc, s.imageRef);
+  return at != null ? (imp.words[at] ?? null) : null;
 }
 
-/** The set's printed scale and what it makes a pixel, off the floor's page. */
-export function proposedScale(doc: DesignDocument, floorId: string): { scale: PrintedScale; mmPerUnit: number } | null {
+/** A sheet's page, by its render index at import, off its image */
+function pageOf(doc: DesignDocument, imageRef: string): number | null {
+  const at = Object.entries(doc.planImport?.placed ?? {}).find(([, ref]) => ref === imageRef)?.[0];
+  return at != null ? Number(at) : null;
+}
+
+/** A scale to offer: the one the title block prints, or else the one Tiff
+    measured off the lengths printed on the page (`from` says which, "the
+    5000 mm printed on it"; `sure` when two or more agree). */
+export type ScaleProposal =
+  | { kind: "printed"; scale: PrintedScale; mmPerUnit: number }
+  | { kind: "measured"; from: string; sure: boolean; mmPerUnit: number };
+
+/** The scale to offer a floor, off its page: the printed one first, since
+    it is the drawing's own word; Tiff's measured one where it prints none
+    or its raster isn't the paper's shape (3517's plan, 13 November 2026). */
+export function proposedScale(doc: DesignDocument, floorId: string): ScaleProposal | null {
   const f = doc.floors.find((x) => x.id === floorId);
   const s = f && firstSheet(f);
+  if (!s) return null;
   const scale = printedScaleOf(wordsOfFloor(doc, floorId));
-  if (!s || !scale) return null;
-  const mmPerUnit = mmPerPxFor(scale, s);
-  return mmPerUnit ? { scale, mmPerUnit } : null;
+  const printed = scale ? mmPerPxFor(scale, s) : null;
+  if (scale && printed) return { kind: "printed", scale, mmPerUnit: printed };
+  const m = pageOf(doc, s.imageRef);
+  const read = m != null ? doc.planImport?.measured?.[m] : undefined;
+  return read && read.mmPerPx > 0 ? { kind: "measured", from: read.from, sure: read.sure, mmPerUnit: read.mmPerPx } : null;
 }
 
 /** Floors drawn from the same set as `floorId`: each one's first sheet is a

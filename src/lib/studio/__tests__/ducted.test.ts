@@ -1,11 +1,10 @@
 /* Ducted Stage-7 Step 1 — lib slice: air-capability predicate, Attach
    extension, diversity, plenums. */
 
-import { newId, type DesignSystem } from "../document";
+import { newId } from "../document";
 import { attachOf } from "../graph";
 import { isAirCapable } from "../modules";
 import {
-  diversityFactor,
   distributeSpigots,
   isPlenumOf,
   formatDia,
@@ -49,29 +48,6 @@ describe("attachOf (graph v0 + Stage-7 kinds)", () => {
     expect(attachOf({ kind: "plenum", id: "p1" })).toBeNull();
     expect(attachOf({ kind: "grille" })).toBeNull();
     expect(attachOf("grille")).toBeNull();
-  });
-});
-
-/* ── diversity ── */
-
-describe("diversityFactor", () => {
-  const sys = (settings: Record<string, unknown>): DesignSystem => ({
-    id: "s",
-    type: "ducted",
-    brand: "b",
-    colour: "#000",
-    name: "S",
-    settings,
-  });
-
-  it("defaults 1.00 unzoned, 0.70 zoned", () => {
-    expect(diversityFactor(sys({}))).toBe(1.0);
-    expect(diversityFactor(sys({ zones: [] }))).toBe(1.0);
-    expect(diversityFactor(sys({ zones: [{ id: "z1" }] }))).toBe(0.7);
-  });
-  it("a stored override wins; garbage doesn't", () => {
-    expect(diversityFactor(sys({ diversityFactor: 0.85 }))).toBe(0.85);
-    expect(diversityFactor(sys({ diversityFactor: 9, zones: [{ id: "z" }] }))).toBe(0.7);
   });
 });
 

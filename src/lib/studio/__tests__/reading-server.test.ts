@@ -1,7 +1,7 @@
 jest.mock("server-only", () => ({}));
 jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: {} }));
 
-import { parseOutline, siteSchema, toDimensions, toSheet, toSite } from "../reading-server";
+import { parseOutline, readScale, siteSchema, toDimensions, toSheet, toSite } from "../reading-server";
 
 describe("Tiff's read, back on the sheet", () => {
   it("reads an outline written as x,y pairs", () => {
@@ -70,5 +70,21 @@ describe("the dimensions printed on a sheet, as she reads them", () => {
     const raw = { dimensions: [{ mm: 7440, what: "along the bottom", x1: 406, y1: 400, x2: 558, y2: 400 }, { mm: 0, what: "unread", x1: 0, y1: 0, x2: 10, y2: 0 }] };
     expect(toDimensions(raw, 0.5, 100, 20)).toEqual([{ mm: 7440, what: "along the bottom", a: { x: 912, y: 820 }, b: { x: 1216, y: 820 } }]);
     expect(toDimensions({}, 1, 0, 0)).toEqual([]);
+  });
+});
+
+describe("readScale", () => {
+  it("reads a photo at 1568 across, and a drawing sheet at the full size", () => {
+    /* 3465's photo, 4000 × 2252 */
+    expect(Math.round(4000 * readScale(4000, 2252, true))).toBe(1568);
+    expect(Math.round(4000 * readScale(4000, 2252))).toBe(2529);
+  });
+  it("keeps a square photo under its pixel cap", () => {
+    const k = readScale(3000, 3000, true);
+    expect(3000 * k * 3000 * k).toBeLessThanOrEqual(1.4e6 + 1);
+  });
+  it("never grows a small one", () => {
+    expect(readScale(800, 600, true)).toBe(1);
+    expect(readScale(800, 600)).toBe(1);
   });
 });

@@ -54,7 +54,10 @@ export type JobPlanPage = {
   /** the scale off the lengths printed along its dimension lines, for a page
       whose title block prints none (a photographed sketch): read once with
       the plan. Null: looked, and it prints none. Absent: not looked yet.
-      Kept apart from mmPerPx, so a design's floor is still calibrated by hand. */
+      Kept apart from mmPerPx, so a design's floor is never scaled by it on
+      its own: the design carries it, and Scale and north offers it to use
+      (Isaac, 13 November 2026, on 3517's plan, which had to be measured
+      though she'd read its 5 m scale bar). */
   measured?: MeasuredScale | null;
 };
 
@@ -348,9 +351,11 @@ export function designFromPlan(plan: JobPlan): DesignFromPlan {
   const sources: PlanImportSource[] = plan.sourceRef ? [{ ref: plan.sourceRef, kind: plan.sourceKind }] : [];
   const placed: Record<number, string> = {};
   const words: NonNullable<PlanImport["words"]> = {};
+  const measured: NonNullable<PlanImport["measured"]> = {};
   for (const p of floors) {
     placed[p.n - 1] = p.ref!;
     if (p.words?.length) words[p.n - 1] = p.words;
+    if (p.measured) measured[p.n - 1] = { ...p.measured };
   }
   const planImport: PlanImport = {
     sources,
@@ -358,6 +363,7 @@ export function designFromPlan(plan: JobPlan): DesignFromPlan {
     chosen: floors.map((p) => p.n - 1),
     names: {},
     ...(Object.keys(words).length ? { words } : {}),
+    ...(Object.keys(measured).length ? { measured } : {}),
     jobPlanId: plan.id,
   };
 

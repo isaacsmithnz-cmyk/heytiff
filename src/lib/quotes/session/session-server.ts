@@ -8,7 +8,7 @@ import { briefOf } from "./job-sources";
 import { readJobSources } from "./job-sources-server";
 import { SESSION_TOOLS } from "./tools";
 import { sessionTools } from "./tools-server";
-import { runTurn, type TurnEnd } from "./turn";
+import { ANSWER_BY_S, runTurn, type TurnEnd } from "./turn";
 import { sendBack } from "./send-back";
 import { MONEY_WORDS, NO_MONEY_WORDS } from "../money-hidden";
 
@@ -72,6 +72,7 @@ export async function startTurn(
 
   const model = opts.model ?? anthropicModel();
   const run = async () => {
+    const answerBy = Date.now() + ANSWER_BY_S * 1000;
     try {
       return await runTurn({ messages: session.messages, summary: session.summary }, message, {
         model,
@@ -81,6 +82,7 @@ export async function startTurn(
         effort: chosenEffort(),
         runTool: sessionTools(orgId, jobUuid, opts.origin ?? null),
         sendBack,
+        answerBy,
         save: (state, events, spent) => saveRound(orgId, session.id, turnId, state, session.spentUsd + spent, events),
       });
     } finally {

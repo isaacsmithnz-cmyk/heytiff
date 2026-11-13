@@ -10,13 +10,14 @@
 jest.mock("server-only", () => ({}));
 let card: { id: string } | null = { id: "s-isaac" };
 let upcoming: Record<string, unknown>[] = [];
+let clears: { notification_id: string }[] = [];
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
     from: (table: string) => {
       const q: Record<string, unknown> = {};
       for (const k of ["select", "eq", "gt", "lte", "order", "limit"]) q[k] = () => q;
       q.maybeSingle = async () => ({ data: table === "staff_profiles" ? card : null, error: null });
-      q.then = (res: (v: unknown) => unknown) => res({ data: table === "tasks" ? upcoming : [], error: null });
+      q.then = (res: (v: unknown) => unknown) => res({ data: table === "tasks" ? upcoming : table === "notification_clears" ? clears : [], error: null });
       return q;
     },
   },
@@ -40,7 +41,7 @@ jest.mock("@/lib/dashboard/mentions-query", () => ({
         asker: { name: "Michael Diamond" },
         lastTheirs: "2026-10-26 08:58:43",
         answered: false,
-        messages: [{ from: "them", text: "Can you get this equipment in next week" }],
+        messages: [{ id: "n-ask", from: "them", text: "Can you get this equipment in next week" }],
       },
       { key: "j-1:u-mick", jobUuid: "j-1", jobLabel: null, asker: { name: "Michael Diamond" }, lastTheirs: "2026-10-26 07:00:00", answered: true, messages: [] },
     ];
@@ -62,6 +63,7 @@ const NOW = new Date("2026-10-26T03:00:00.000Z");
 beforeEach(() => {
   card = { id: "s-isaac" };
   upcoming = [];
+  clears = [];
   asked.length = 0;
   links = new Map([["u-isaac-sm8", "s-isaac"]]);
 });
@@ -71,7 +73,7 @@ it("turns each loader's rows into a notification apiece, newest first, each open
   expect(items.map((n) => [n.kind, n.title, n.body, n.path])).toEqual([
     ["reminder", "Ring the builder", "About roof access", null],
     ["task", "Michael Diamond gave you a task", "Grab a 15 m coil", null],
-    ["mention", "Michael Diamond on 2935 Railway Avenue", "Can you get this equipment in next week", "/job?id=j-2935"],
+    ["mention", "Michael Diamond on 2935 Railway Avenue", "Can you get this equipment in next week", "/job?id=j-2935&note=n-ask"],
     ["notice", "Isaac Smith posted a notice", "Toolbox talk Friday", null],
     ["leave", "Your leave was declined", "Annual leave, Mon 2 – Fri 6 Nov", "/leave"],
   ]);
@@ -101,4 +103,10 @@ it("carries your reminders still to come, for the phone's own clock", async () =
 it("tells someone with no staff card nothing", async () => {
   card = null;
   expect(await notificationsFor(ctx(), NOW)).toEqual({ items: [], upcoming: [] });
+});
+
+it("leaves out what you swiped Clear, and only that", async () => {
+  clears = [{ notification_id: "notice:nt1" }, { notification_id: "mention:j-2935:u-mick" }];
+  const { items } = await notificationsFor(ctx(), NOW);
+  expect(items.map((n) => n.kind)).toEqual(["reminder", "task", "leave"]);
 });

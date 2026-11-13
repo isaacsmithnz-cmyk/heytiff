@@ -153,6 +153,27 @@ export function JobPhotosFace({
                      than a door that lies. AND IT CANNOT BE STARRED: a
                      showcase entry we do not hold the bytes of is a promise
                      of a picture that never comes. */
+                  /* ONE OF OURS, from the phone's camera, we do hold: its
+                     tile opens the clip in a tab of its own */
+                  if (item.kind === "video" && item.url)
+                    return (
+                      <a
+                        key={item.remoteId}
+                        className="wb2-mcell"
+                        style={shape}
+                        href={item.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={label}
+                      >
+                        <span className="wb2-mtile video">
+                          <i className="wb2-mplay" aria-hidden>
+                            ▶
+                          </i>
+                          <u className="wb2-mvid">Video</u>
+                        </span>
+                      </a>
+                    );
                   if (item.kind === "video")
                     return (
                       <span

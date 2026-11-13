@@ -51,6 +51,7 @@ import {
 import { COSTS_MAX, COST_CATEGORIES, GST_BASES, costFields, costRowLine, type ProposedCost } from "./note-cost";
 import { PAID_WITH } from "@/lib/expenses/claim";
 import { VARIATIONS_MAX, variationFields, variationRowLine, type ProposedVariation } from "./note-variation";
+import { MOVES_MAX, moveFields, type ProposedMove } from "./note-move";
 import type { EarlierTurn, TiffRoom, Turn } from "./note-turns";
 import { looksLikeName } from "@/lib/staff/aliases";
 import { logUsage } from "@/lib/tiff/usage";
@@ -165,6 +166,12 @@ export type NoteProposal = {
       time, asked first when it hasn't (note-visit). Empty on every proposal
       stored before the lane. */
   visits: ProposedVisit[];
+  /** A booking already made, moved to another time (Isaac, 2 November
+      2026: "Move ... my booking this afternoon to Friday, seven AM"):
+      found among the person's bookings and moved through the Schedule's
+      own change once they say so (note-move). Never a visit, a task or a
+      job note. Absent on every proposal stored before the lane. */
+  moves?: ProposedMove[];
   /** A cost spent for the job (v2 step 6, slice C): "$85 at Reece for
       fittings". Filed through the expense form's own action, or asked
       first when it has no amount (note-cost). Empty on every proposal
@@ -334,6 +341,24 @@ export const NOTE_SCHEMA = {
         additionalProperties: false,
       },
     },
+    /* None nullable: "" is not said. */
+    moves: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          who_hint: str,
+          booking: str,
+          from_day: str,
+          from_start: str,
+          from_part: { type: "string", enum: [...VISIT_PARTS] },
+          to_day: str,
+          to_start: str,
+        },
+        required: ["who_hint", "booking", "from_day", "from_start", "from_part", "to_day", "to_start"],
+        additionalProperties: false,
+      },
+    },
     /* None nullable either: 0 is no amount and no GST said, "" no day. */
     costs: {
       type: "array",
@@ -413,6 +438,7 @@ export const NOTE_SCHEMA = {
   required: [
     "tasks",
     "visits",
+    "moves",
     "costs",
     "variations",
     "bring_items",
@@ -704,6 +730,14 @@ export function systemBlocks(ctx: NoteContext): { type: "text"; text: string; ca
    whether it is paying. */
 const EPHEMERAL = { type: "ephemeral", ttl: "1h" } as const;
 
+/** A visit the model made of a booking being moved: its work starts with the move. */
+const MOVE_WORK = /^(?:move|moving|reschedul\w*|re-schedul\w*|push|shift|bring (?:forward|back)|change (?:the |my )?(?:booking|time|visit))\b/i;
+export const isMoveWork = (work: string) => MOVE_WORK.test(work.trim());
+/** A move's words that say it's a booking moved: "booking", "visit", "my 3pm". */
+const BOOKING_WORDS_RE = /\b(?:booking|visit|appointment|job|\d{1,2}(?::\d{2})?\s*(?:am|pm))\b/i;
+/** What Tiff says when asked to move a booking, which she can't do yet. */
+export const MOVE_SAY = "I can't move a booking yet: open it on Schedule and change its time there.";
+
 const ROUTER_RULES = [
   "You route a tradesperson's site note into structured outcomes for an",
   "Australian HVAC business. The note was spoken aloud or typed quickly, so",
@@ -719,7 +753,16 @@ const ROUTER_RULES = [
   "  is what they'll do there; the person in `assignee_hint` as for a task;",
   "  `day` as YYYY-MM-DD; `start` HH:MM only when a clock time is said,",
   "  else empty, with the part of the day in `part`; `minutes` the length",
-  "  said, else 0. A visit is not also a task.",
+  "  said, else 0. A visit is not also a task. Moving a booking already",
+  "  made ('move my 3pm to Friday') is never a visit: it is a move.",
+  "- moves: a booking already made, moved to another time: 'move my 3pm",
+  "  to Friday 7am', 'push Leo's Mosman job to tomorrow'. `who_hint` the",
+  "  person whose booking it is, empty for the speaker's own; `booking`",
+  "  the words that name which one (a place, a client, a job number: 'Lisa",
+  "  in Mosman'), never the when; `from_day`, `from_start` and `from_part`",
+  "  when it is now, as said; `to_day` and `to_start` where it goes, each",
+  "  empty when it stays the same. A move is not also a task, and is left",
+  "  out of the job_note and the plain_note.",
   "- costs: money spent for the job, '$85 at Reece for fittings'. `amount`",
   "  in dollars as said, else 0; `gst` only a GST figure said, else 0;",
   "  `gst_basis` plus for 'plus GST'; `day` only if said; `payer_hint`",
@@ -1106,11 +1149,36 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
      real one, the start on Book in's grid, the length one it offers. A
      visit with no work named is not a visit. */
   const visits: ProposedVisit[] = [];
+  /* A MOVE IS NEVER A NEW VISIT (Isaac, 2 November 2026: "Move ... my booking
+     this afternoon to Friday, seven AM" booked a second visit on the job the
+     chip was on, and the real one stayed put). A visit whose work is a move
+     is read as the move it is: where it goes is the visit's day and start,
+     and which one is its words (note-move). */
+  let moveAsked = false;
+  const movesSaid: Record<string, unknown>[] = Array.isArray(r.moves)
+    ? r.moves.filter((m): m is Record<string, unknown> => !!m && typeof m === "object")
+    : [];
   for (const v of Array.isArray(r.visits) ? r.visits : []) {
     if (visits.length >= VISITS_MAX) break;
     const row = (v && typeof v === "object" ? v : {}) as Record<string, unknown>;
     const work = clean(row.work, TITLE_MAX);
     if (!work) continue;
+    if (isMoveWork(work)) {
+      moveAsked = true;
+      /* a booking being moved, not a thing: "move the outdoor unit" stays out */
+      if (movesSaid.length === 0 && BOOKING_WORDS_RE.test(work)) {
+        movesSaid.push({
+          who_hint: row.assignee_hint,
+          booking: work.replace(MOVE_WORK, "").replace(/\b(?:to|until)\b.*$/i, "").trim(),
+          from_day: "",
+          from_start: "",
+          from_part: "day",
+          to_day: row.day,
+          to_start: row.start,
+        });
+      }
+      continue;
+    }
     const assigneeHint = clean(row.assignee_hint, TITLE_MAX);
     const match = resolveAssignee(assigneeHint, ctx.staff, ctx.author?.id);
     if (match.kind === "ambiguous" && !clarify) {
@@ -1134,6 +1202,22 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
       part: isVisitPart(row.part) ? row.part : "day",
       minutes: visitMinutes(row.minutes),
     });
+  }
+
+  /* MOVES, re-derived like visits: the day and start on the grid, the
+     person whose booking it is resolved against the roster and asked about
+     the same way. One with nowhere to go is not a move. */
+  const moves: ProposedMove[] = [];
+  for (const row of movesSaid) {
+    if (moves.length >= MOVES_MAX) break;
+    const f = moveFields(row);
+    if (!f) continue;
+    const match = f.whoHint ? resolveAssignee(f.whoHint, ctx.staff, ctx.author?.id) : null;
+    if (match?.kind === "ambiguous" && !clarify) {
+      clarify = { question: `Which ${f.whoHint} did you mean?`, options: shortWhoLabels(match.names) };
+      escalated = true;
+    }
+    moves.push({ ...f, whoId: match?.kind === "one" && match.id !== ctx.author?.id ? match.id : null });
   }
 
   /* COSTS, re-derived field by field (note-cost): an amount a claim can
@@ -1233,6 +1317,7 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
      without `speak` never asks for a line, so its proposals carry none. */
   let say = clean(r.say, SAY_MAX);
   if (ctx.speak && escalated && clarify) say = clarify.question;
+  if (moveAsked && moves.length === 0 && ctx.speak) say = [say, MOVE_SAY].filter(Boolean).join(" ").slice(0, SAY_MAX + MOVE_SAY.length + 1);
 
   /* NO COERCION BY MODE. The Debrief's closed every job-bound lane and
      rewrote what landed in one into a "note line"; with the Debrief gone
@@ -1241,6 +1326,7 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
   return {
     tasks,
     visits,
+    moves,
     costs,
     variations,
     bringItems: cleanList(r.bring_items, TITLE_MAX),
@@ -1262,6 +1348,7 @@ export function isEmptyProposal(p: NoteProposal): boolean {
   return (
     p.tasks.length === 0 &&
     p.visits.length === 0 &&
+    (p.moves ?? []).length === 0 &&
     p.costs.length === 0 &&
     p.variations.length === 0 &&
     p.bringItems.length === 0 &&

@@ -9,6 +9,7 @@ import { answeredOf, settledIn } from "@/lib/quotes/session/answers";
 import { buildingFirst, stepOf, turnStartOf, type Took } from "@/lib/quotes/session/time-left";
 import { questionOf } from "@/lib/quotes/session/tools";
 import { notPricedOf, pricedOnOf, writeUpOf } from "@/lib/quotes/write-up";
+import { waitingIds } from "@/lib/quotes/session/queued";
 
 /* THE QUOTE, AS THE PHONE SHOWS IT (Isaac, 2 November 2026, "Ok build it", to the
    mock https://claude.ai/artifact/AfYQAbXLj2zaGBDKhQbkXu). The web's own view and
@@ -78,7 +79,7 @@ export type QuestionPrices = Record<number, { deltas: (number | null)[]; answere
 export type Mark = { by: string | null; at: string };
 /** The question an answer is to, with what else could have been said. */
 export type PhoneAsked = { event: number; question: string; answers: string[] };
-export type PhoneTurn = { id: number; side: "me" | "them" | "tiff" | "mark" | "fault"; who: string | null; at: string; text: string; to?: PhoneAsked };
+export type PhoneTurn = { id: number; side: "me" | "them" | "tiff" | "mark" | "fault"; who: string | null; at: string; text: string; to?: PhoneAsked; /** sent while she worked, waiting for her */ waiting?: true };
 export type PhoneQuestion = { id: number; question: string; put: string; answers: { label: string; delta: number | null; can: boolean }[] };
 /** What she's doing, for the phone's bar: it counts from `since`. */
 export type PhoneDoing = {
@@ -135,6 +136,7 @@ export function phoneTurns(events: readonly Thread[], names: Record<string, stri
     }
   }
   const settled = answeredOf(events);
+  const waiting = new Set(waitingIds(events));
 
   const out: PhoneTurn[] = [];
   const open = new Set<number>();
@@ -152,7 +154,7 @@ export function phoneTurns(events: readonly Thread[], names: Record<string, stri
     } else if (e.kind === "message") {
       const answer = answerIn(e, seen);
       if (typeof e.body.answered === "number") open.delete(e.body.answered);
-      out.push({ id: e.id, side: e.author === me ? "me" : "them", who: nameOf(names, e.author), at: e.at, text: answer ? answer.text : String(e.body.text ?? "").trim(), ...(answer ? { to: answer.to } : {}) });
+      out.push({ id: e.id, side: e.author === me ? "me" : "them", who: nameOf(names, e.author), at: e.at, text: answer ? answer.text : String(e.body.text ?? "").trim(), ...(answer ? { to: answer.to } : {}), ...(waiting.has(e.id) ? { waiting: true as const } : {}) });
     } else if (e.kind === "reply" && e.body.working !== true) {
       out.push({ id: e.id, side: "tiff", who: null, at: e.at, text: withoutAskedList(plain(String(e.body.text ?? "")), open.size) });
       for (const id of open) {
@@ -175,8 +177,20 @@ export function phoneTurns(events: readonly Thread[], names: Record<string, stri
     where nothing could be priced at all, and those can still be answered. */
 export function openQuestions(events: readonly Thread[], priced: QuestionPrices | undefined): PhoneQuestion[] {
   const out: PhoneQuestion[] = [];
+  /* answered, or answered in words she hasn't settled yet (one she's on, or one waiting for her): the next one is asked (Isaac, 13 November 2026, "Build E") */
+  const answered = answeredOf(events);
+  const asked = new Map<number, PhoneAsked>();
   for (const e of events) {
-    if (e.kind !== "question" || priced?.[e.id]?.answered) continue;
+    const a = e.kind === "question" ? askedOf(e) : null;
+    if (a) asked.set(e.id, a);
+  }
+  for (const e of events) {
+    if (e.kind !== "message") continue;
+    const to = answerIn(e, asked)?.to.event;
+    if (to !== undefined) answered.set(to, { index: -1, label: "", by: e.author, at: e.at, typed: true });
+  }
+  for (const e of events) {
+    if (e.kind !== "question" || priced?.[e.id]?.answered || answered.has(e.id)) continue;
     const q = questionOf(e.body);
     if ("error" in q) continue;
     const deltas = priced?.[e.id]?.deltas ?? [];

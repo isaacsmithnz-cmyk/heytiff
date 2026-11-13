@@ -1,11 +1,16 @@
+import { after } from "next/server";
+import { sm8PressFromMobile } from "@/lib/integrations/sm8-press";
 import { ok, requireMobile } from "@/lib/mobile/auth";
+import { completeChecked } from "@/lib/mobile/complete-checked";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import { moveOn, readOfficeLists } from "@/lib/mobile/office-lists";
 
 /* THE OFFICE'S LISTS on the phone's Today (lib/mobile/office-lists-plan):
    Ready to invoice, To book, Parts on order, Quotes waiting, from how each
    visit ended. Behind `workboard_manage`, running the board, as they're the
-   office's. POST moves a job on: its parts are in, or it's been checked. */
+   office's. POST moves a job on: its parts are in, or it's been checked.
+   Checked also makes the Work Order Completed in ServiceM8, as whoever
+   ticked it (lib/mobile/complete-checked). */
 export async function GET(request: Request) {
   const ctx = await requireMobile(request, "workboard_manage");
   if (ctx instanceof Response) return ctx;
@@ -23,5 +28,10 @@ export async function POST(request: Request) {
   const staff = await staffProfileIdFor(ctx.orgId, ctx.userId).catch(() => null);
   if (!(await moveOn(ctx.orgId, ctx.userId, staff, job, day, move)))
     return Response.json({ error: move === "partsIn" ? "That job isn't waiting on parts." : move === "claimed" ? "That visit wasn't a warranty." : "That job isn't finished." }, { status: 409, headers: { "cache-control": "no-store" } });
+  if (move === "checked")
+    after(async () => {
+      const r = await completeChecked(await sm8PressFromMobile(ctx), ctx.orgId, job);
+      if (!r.queued) console.warn(`[mobile] ${job} checked, not completed in ServiceM8: ${r.why}`);
+    });
   return ok({ lists: await readOfficeLists(ctx.orgId) });
 }

@@ -80,7 +80,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 
 - **39. A row.** Time or tick, dot, name in bold, a line under it in grey, then a state word or one button on the right.
 - **40. Nothing there yet.** Says what's missing and leads with the action.
-- **41. Loading.** Nothing for half a second, then Tiff's mark, turning at her working speed, in the middle of where the page will be. A page never wears a skeleton: one shaped like the page never matched it (Isaac, 20 October 2026). Tiff building a quote is a wait with a known shape: her mark, what she's doing, and a thin bar with about how long is left, drawn from how long her turns usually take, held short of the end until she's done (Isaac, 1 November 2026).
+- **41. Loading.** Nothing for half a second, then Tiff's mark, turning at her working speed, in the middle of where the page will be. A page never wears a skeleton: one shaped like the page never matched it (Isaac, 20 October 2026). Tiff building a quote is a wait with a known shape: her mark, what she's doing and the jumping dots after it, and a thin bar with about how long is left, drawn from how long the business's own turns took (a first build apart from the rest): what's left is the middle of what the turns that ran this long still took, so it narrows as she goes, held short of the end until she's done (Isaac, 1 November 2026; the dots and the estimate, 13 November 2026).
 - **42. When something goes wrong.** A red dot and word, what it means for you, and what to do.
 - **43. Search.** Results by kind; the last row asks Tiff, with Enter.
 - **44. The New menu.** Job, Task and Note: the same three on every page (Note joined on 24 October 2026, Isaac: "Yes to new note"). It fills in only the record you are on, which you can clear: a task made on a job's page is for that job, and made anywhere else it is a general task. A quote is made on its job, through Add. The panel reaches out from the New button, dark, square where it leaves the panel. On the phone New also holds Purchase, the camera on a supplier's docket (Isaac, 29 October 2026).
@@ -243,7 +243,7 @@ infinite loop into a strobe.
 
 | Keyframes | Runs on | Why it loops |
 |---|---|---|
-| `tcDots` | the three dots after "Thinking" in Tiff's chat, and after "Fixing the wording" in any box whose words take a while to land; one rule with each dot delayed | Tiff is working, or the words are on their way: said in words and dots, with no mark turning (Isaac, 20 October 2026; the box, 9 November 2026) |
+| `tcDots` | the three dots after "Thinking" in Tiff's chat, after "Fixing the wording" in any box whose words take a while to land, and after her words while she works on a quote, beside her turning mark and over her bar; one rule with each dot delayed | Tiff is working, or the words are on their way: said in words and dots (Isaac, 20 October 2026; the box, 9 November 2026; on a quote, with the mark still turning, 13 November 2026: "just adding the dots next to whatever the wording is. Whether she's thinking or building quote") |
 | `ds-sheet-wait` | the sheet's outline while its raster downloads | a skeleton, breathing rather than swept because it is an outline: the plan lands into its place |
 | `wb2CursorBlink` | the board's answer while it streams | a caret |
 | `fgPulse` | Time & Pay's live period (the note strip's recording dot went with the strip, 2026-11-10) | a live dot: something is open right now |

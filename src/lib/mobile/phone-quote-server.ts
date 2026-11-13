@@ -14,6 +14,7 @@ import type { QuotePrice } from "@/lib/quotes/quote-price-server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { actAsPhoneUser, type MobileCtx } from "./auth";
+import type { Took } from "@/lib/quotes/session/time-left";
 import { doingOf, openQuestions, phoneQuoteOf, phoneTurns, type LinesView, type QuestionPrices, type Thread } from "./phone-quote";
 
 /* The phone's quote, read and pressed through the web's own routes as the token's
@@ -29,7 +30,7 @@ export async function asPhone(r: Response): Promise<Response> {
   return Response.json({ error: body?.reason ?? body?.error ?? "That didn't go through. Try again." }, { status: r.ok ? 409 : r.status, headers: { "cache-control": "no-store" } });
 }
 
-type TalkAnswer = { on?: boolean; working?: boolean; events: Thread[]; names?: Record<string, string>; me?: string; questions?: QuestionPrices };
+type TalkAnswer = { on?: boolean; working?: boolean; took?: Took; events: Thread[]; names?: Record<string, string>; me?: string; questions?: QuestionPrices };
 
 export async function readPhoneQuote(ctx: MobileCtx, id: string) {
   return actAsPhoneUser(ctx, async () => {
@@ -62,7 +63,7 @@ export async function readPhoneQuote(ctx: MobileCtx, id: string) {
       ...quote,
       on: talked?.on === true,
       working,
-      doing: doingOf(events),
+      doing: doingOf(events, talked?.took),
       talked: events.length > 0,
       turns: phoneTurns(events, names, talked?.me ?? ctx.userId),
       asked,
@@ -97,7 +98,7 @@ export function readPhoneTalk(ctx: MobileCtx, id: string) {
     if (!r.ok) return asPhone(r);
     const t = (await r.json()) as TalkAnswer;
     const events = t.events ?? [];
-    return Response.json({ working: t.working === true, doing: doingOf(events), turns: phoneTurns(events, t.names ?? {}, t.me ?? ctx.userId) }, { headers: { "cache-control": "no-store" } });
+    return Response.json({ working: t.working === true, doing: doingOf(events, t.took), turns: phoneTurns(events, t.names ?? {}, t.me ?? ctx.userId) }, { headers: { "cache-control": "no-store" } });
   });
 }
 

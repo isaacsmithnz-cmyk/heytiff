@@ -8,7 +8,7 @@ import { allocationsOf, hasAllocations, roomsServed, type Allocation } from "./a
 import { zoneIdsOf } from "./zones";
 import { coverPct, coversLoad } from "./fit";
 import { DUCT_AIRWAY_FORMS } from "./form-factors";
-import { BAND_KEY, ZONED_DIVERSITY, zonedOver, zoningOf } from "./zoning";
+import { BAND_KEY, diversityOver, zoningOf } from "./zoning";
 
 /* Room coverage (plan step: units → spaces) — pure derivations only.
    Attribution model:
@@ -38,8 +38,9 @@ import { BAND_KEY, ZONED_DIVERSITY, zonedOver, zoningOf } from "./zoning";
    then the systems are summed (a room on two outdoors gets both).
 
    ZONED, A ROOM NEEDS LESS (zoning.ts). A room whose units are all zoned
-   ducted units is judged against 70% of its load, `needKw`: its rooms don't
-   all call at once. `loadKw` stays the room's own load. */
+   ducted units is judged against part of its load, `needKw` (85% on two
+   zones, 80% on three, 70% on four or more): its rooms don't all call at
+   once. `loadKw` stays the room's own load. */
 
 export interface CoverageContributor {
   systemId: string;
@@ -48,8 +49,10 @@ export interface CoverageContributor {
   unitId: string;
   model: string;
   kw: number;
-  /** a zoned ducted unit (zoning.ts): its rooms are sized at 70% */
+  /** a zoned ducted unit (zoning.ts) */
   zoned: boolean;
+  /** what its rooms are sized at: 1 unzoned, 0.85 to 0.7 zoned (zoning.ts) */
+  diversity: number;
 }
 
 export type CoverageStatus = "covered" | "under" | "unknown";
@@ -67,8 +70,8 @@ export interface RoomCoverage {
   roomId: string;
   /** null when the floor is uncalibrated (no area → no load) */
   loadKw: number | null;
-  /** what its units are judged against: its load, or 70% of it when every
-      unit here is a zoned ducted unit; null with no load */
+  /** what its units are judged against: its load, or part of it when every
+      unit here is a zoned ducted unit (zoning.ts); null with no load */
   needKw: number | null;
   /** placed, attributed capacity */
   coveredKw: number;
@@ -133,13 +136,17 @@ const airwayUnit = (pack: DataPack, model: string): boolean => {
   return u != null && DUCT_AIRWAY_FORMS.includes(u.form_factor);
 };
 
-/** is this unit zoned: a ducted or bulkhead unit, zoning on, over two zones
-    or more of the rooms it serves (every zone of the system, on the band) */
-export function unitZoned(pack: DataPack, sys: DesignSystem, a: Allocation): boolean {
-  if (a.role !== "idu" || !a.model || !airwayUnit(pack, a.model)) return false;
+/** what this unit's rooms are sized at: 1 unless it is a ducted or bulkhead
+    unit, zoning on, over two zones or more of the rooms it serves (every
+    zone of the system, on the band); then by its zones (zoning.ts) */
+export function unitDiversity(pack: DataPack, sys: DesignSystem, a: Allocation): number {
+  if (a.role !== "idu" || !a.model || !airwayUnit(pack, a.model)) return 1;
   const rooms = a.serves === "system" ? zoneIdsOf(sys) : roomsServed(a);
-  return zonedOver(zoningOf(sys, a.id), rooms);
+  return diversityOver(zoningOf(sys, a.id), rooms);
 }
+
+/** is this unit zoned (unitDiversity under 1) */
+export const unitZoned = (pack: DataPack, sys: DesignSystem, a: Allocation): boolean => unitDiversity(pack, sys, a) < 1;
 
 /** the key a ducted system's zoning is kept under: its unit's id, or before
     there is one, BAND_KEY (zoning.ts) */
@@ -148,14 +155,21 @@ export function bandZoningKey(sys: DesignSystem): string {
   return band?.id ?? BAND_KEY;
 }
 
-/** is a ducted system's whole-system unit zoned, or set to be before its
-    unit is chosen */
-export function bandZoned(sys: DesignSystem): boolean {
-  return zonedOver(zoningOf(sys, bandZoningKey(sys)), zoneIdsOf(sys));
+/** what a ducted system's whole-system unit is sized at, zoned or set to
+    be before its unit is chosen */
+export function bandDiversity(sys: DesignSystem): number {
+  return diversityOver(zoningOf(sys, bandZoningKey(sys)), zoneIdsOf(sys));
 }
 
-/** what a room needs from units that are (or aren't) zoned */
-export const needOf = (loadKw: number, zoned: boolean): number => (zoned ? loadKw * ZONED_DIVERSITY : loadKw);
+const zonedAt = (diversity: number) => ({ zoned: diversity < 1, diversity });
+
+/** what a room needs from units sized at this diversity (1 unzoned) */
+export const needOf = (loadKw: number, diversity: number): number => loadKw * diversity;
+
+/** a room's diversity off its units: the least saving of them when every one
+    is zoned, else 1 */
+export const roomDiversity = (contributors: readonly { diversity: number }[]): number =>
+  contributors.length > 0 && contributors.every((c) => c.diversity < 1) ? Math.max(...contributors.map((c) => c.diversity)) : 1;
 
 /** the sizing capacity of a system's pairing, from its placed units or its
     chosen pair; null when the pack has no row for it */
@@ -281,7 +295,7 @@ export function roomCoverage(
             unitId: a.id,
             model: a.model,
             kw,
-            zoned: unitZoned(pack, sys, a),
+            ...zonedAt(unitDiversity(pack, sys, a)),
           });
           continue;
         }
@@ -298,7 +312,7 @@ export function roomCoverage(
           unitId: a.id,
           model: a.model,
           kw,
-          zoned: unitZoned(pack, sys, a),
+          ...zonedAt(unitDiversity(pack, sys, a)),
         });
       }
     }
@@ -316,6 +330,7 @@ export function roomCoverage(
         model: String(o.props.model ?? ""),
         kw,
         zoned: false,
+        diversity: 1,
       });
     }
   }
@@ -376,9 +391,8 @@ export function roomCoverage(
   }
 
   /* judged and counted on the figures as shown (fit.ts), against what the
-     room needs: 70% of its load when every unit here is zoned */
-  const zoned = contributors.length > 0 && contributors.every((c) => c.zoned);
-  const needKw = loadKw != null ? needOf(loadKw, zoned) : null;
+     room needs: part of its load when every unit here is zoned */
+  const needKw = loadKw != null ? needOf(loadKw, roomDiversity(contributors)) : null;
   const pct = needKw != null ? coverPct(coveredKw, needKw) : null;
   const status: CoverageStatus =
     needKw == null ? "unknown" : pct != null && coversLoad(coveredKw, needKw) ? "covered" : "under";

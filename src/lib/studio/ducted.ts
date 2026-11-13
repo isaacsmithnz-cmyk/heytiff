@@ -10,8 +10,8 @@ import {
   type OpeningSpec as PackOpeningSpec,
 } from "./packs/schema";
 
-/* Diversity lives with zoning now (zoning.ts ZONED_DIVERSITY): a zoned
-   unit is sized on 70% of its rooms, an unzoned one on all of them. */
+/* Diversity lives with zoning now (zoning.ts diversityFor): a zoned unit
+   is sized on 85% to 70% of its rooms by its zones, an unzoned one on all. */
 
 /** a room the user marked as a spill destination — no sizing expectations */
 export function isSpillRoom(room: { props: Record<string, unknown> }): boolean {

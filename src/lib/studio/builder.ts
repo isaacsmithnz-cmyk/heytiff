@@ -18,7 +18,7 @@ import { newId, type DesignDocument, type DesignObject, type DesignSystem, type 
 import type { DataPack, IndoorUnit, OutdoorUnit, PairTable } from "./packs/schema";
 import { indexNotation } from "./packs/schema";
 import { allocationsOf, hasAllocations, roomsServed, servesRoom, type Allocation } from "./allocations";
-import { roomCoverage, systemCover, type CoverageCap } from "./coverage";
+import { roomCoverage, roomDiversity, systemCover, type CoverageCap } from "./coverage";
 import { checkMultiCompatibility, multiCapableIdus, UNDER_MINIMUM } from "./multi";
 import { vrfOutdoorsListing } from "./vrf";
 import { outdoorReadiness } from "./packs/ready";
@@ -910,13 +910,15 @@ export type RoomWord = "Fits" | "Undersized" | "Oversized" | "Calibrate" | "No u
 
 export interface RoomVerdict {
   word: RoomWord;
-  /** what the room's units are judged against: its load, or 70% of it under
+  /** what the room's units are judged against: its load, or part of it under
       zoned ducted units (coverage.ts needKw) */
   loadKw: number | null;
   coverKw: number;
   capped: CoverageCap[];
   /** every unit in the room is a zoned ducted unit */
   zoned: boolean;
+  /** what its load is sized at: 1, or 0.85 to 0.7 zoned (zoning.ts) */
+  diversity: number;
 }
 
 /** a room's word: its units' ratings against its load, capped per system at
@@ -929,8 +931,8 @@ export function roomVerdict(
 ): RoomVerdict {
   const cov = roomCoverage(doc, pack, room, basis);
   const need = cov.needKw;
-  const zoned = cov.contributors.length > 0 && cov.contributors.every((c) => c.zoned);
-  const base = { loadKw: need, coverKw: cov.coveredKw, capped: cov.capped, zoned };
+  const diversity = roomDiversity(cov.contributors);
+  const base = { loadKw: need, coverKw: cov.coveredKw, capped: cov.capped, zoned: diversity < 1, diversity };
   if (need == null) return { word: "Calibrate", ...base };
   if (cov.contributors.length === 0) return { word: "No units", ...base };
   if (!coversLoad(cov.coveredKw, need)) return { word: "Undersized", ...base };

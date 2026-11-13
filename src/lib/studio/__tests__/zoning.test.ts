@@ -14,7 +14,7 @@ import { addBandUnit, allocationsOf, placeAllocation } from "../builder";
 import { claimZone, newSystem } from "../zones";
 import { systemAir } from "../airflow";
 import { ductLines } from "../duct-materials";
-import { BAND_KEY, joinZone, setZoning, zoneKit, zoningOf, zonesOf } from "../zoning";
+import { BAND_KEY, diversityFor, joinZone, setZoning, zoneKit, zoningOf, zonesOf } from "../zoning";
 import { roomCoverage, systemCover } from "../coverage";
 import type { RoomObj } from "../loads-room";
 
@@ -152,11 +152,15 @@ describe("on the sheet", () => {
 /* ZONED, SIZED SMALLER (Isaac, 13 November 2026: "Say on a 22 kilowatt
    required heat load, you know that you probably only need a 16 kilowatt
    because you're about to hit zoning") */
-describe("a zoned unit is sized on 70% of its rooms", () => {
+describe("a zoned unit is sized on part of its rooms, by its zones", () => {
   const basis = "worst-of-both" as const;
   const room = (d: DesignDocument, id: string) => d.objects.find((o) => o.id === id) as RoomObj;
 
-  it("each room needs 70% of its load, keeping its own load; the system's need is 70% of the sum", () => {
+  it("steps by zones: none or one saves nothing, two 85%, three 80%, four or more 70%", () => {
+    expect([0, 1, 2, 3, 4, 5, 9].map(diversityFor)).toEqual([1, 1, 0.85, 0.8, 0.7, 0.7, 0.7]);
+  });
+
+  it("five zones: each room needs 70% of its load, keeping its own load; the system's need is 70% of the sum", () => {
     const { doc, systemId, unitId } = house();
     const before = systemCover(doc, pack, sysOf(doc), basis);
     expect(before.needKw).toBeCloseTo(before.loadKw!, 6);
@@ -176,6 +180,14 @@ describe("a zoned unit is sized on 70% of its rooms", () => {
     const one = setZoning(doc, systemId, unitId, { control: "on_off", joined });
     const c = systemCover(one, pack, sysOf(one), basis);
     expect(c.needKw).toBeCloseTo(c.loadKw!, 6);
+  });
+
+  it("joined into two zones, it is sized at 85%", () => {
+    const { doc, systemId, unitId } = house();
+    const joined = { kitchen: "living", bed2: "master", bed3: "master" };
+    const two = setZoning(doc, systemId, unitId, { control: "temperature", joined });
+    const c = systemCover(two, pack, sysOf(two), basis);
+    expect(c.needKw).toBeCloseTo(c.loadKw! * 0.85, 6);
   });
 
   it("set before the unit is chosen, the first unit takes it on", () => {

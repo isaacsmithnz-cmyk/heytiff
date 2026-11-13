@@ -38,28 +38,35 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const id = (await params).id.trim().slice(0, 80);
   if (!id) return Response.json({ error: "Which job?" }, { status: 400, headers: { "cache-control": "no-store" } });
 
-  const target = await resolveJobCard(ctx.orgId, id);
-  const timezone = await getSm8Timezone(ctx.orgId);
+  /* EVERYTHING AT ONCE that can be (Isaac, 13 November 2026, job 2043 sat on a spinner two seconds: "Still
+     lagging, now on job card too"; the reads went one after another, about 1.8 s of them). Which job, the
+     account's clock, who's reading the notes and the Schedule's gate don't wait on each other; the notes,
+     the visits and the job's detail then go together, the claims' notes as soon as the claims are known.
+     A missed visit is only kept on a job not yet done. */
+  const [target, timezone, viewer, gate] = await Promise.all([
+    resolveJobCard(ctx.orgId, id),
+    getSm8Timezone(ctx.orgId),
+    sm8NotesAllowed() ? notesViewerOf(ctx.orgId, ctx.userId) : Promise.resolve(null),
+    changeAllowed(ctx).catch(() => null),
+  ]);
+  const job = target.parentRemoteId;
   const today = todayInZone(timezone);
-  const [detail, claims] = await Promise.all([
-    readMirrorJobDetail(ctx.orgId, target.parentRemoteId, today, {
+  const claimsRead = familyMediaSources(ctx.orgId, job);
+  const [detail, notes, ourNotes, coming, missedAll] = await Promise.all([
+    readMirrorJobDetail(ctx.orgId, job, today, {
       includeMoney: ctx.caps.has("workboard_money"),
       includeDesigns: ctx.caps.has("studio"),
       timezone,
     }),
-    familyMediaSources(ctx.orgId, target.parentRemoteId),
+    claimsRead.then((claims) => readJobNotes(ctx.orgId, job, claims)),
+    viewer ? readOurJobNotes(ctx.orgId, job, 60, viewer) : readOurJobNotes(ctx.orgId, job),
+    comingVisits(ctx.orgId, job, today),
+    timezone ? missedVisits(ctx.orgId, job, Date.now(), timezone).catch(() => []) : Promise.resolve([]),
   ]);
   if (!detail) return Response.json({ error: "That job isn't here." }, { status: 404, headers: { "cache-control": "no-store" } });
 
-  const viewer = sm8NotesAllowed() ? await notesViewerOf(ctx.orgId, ctx.userId) : null;
   const open = !detail.status || /^(quote|work order)$/i.test(detail.status.trim());
-  const [notes, ourNotes, coming, missed, gate] = await Promise.all([
-    readJobNotes(ctx.orgId, target.parentRemoteId, claims),
-    viewer ? readOurJobNotes(ctx.orgId, target.parentRemoteId, 60, viewer) : readOurJobNotes(ctx.orgId, target.parentRemoteId),
-    comingVisits(ctx.orgId, target.parentRemoteId, today),
-    open && timezone ? missedVisits(ctx.orgId, target.parentRemoteId, Date.now(), timezone).catch(() => []) : Promise.resolve([]),
-    changeAllowed(ctx).catch(() => null),
-  ]);
+  const missed = open ? missedAll : [];
   const sender = viewer?.sender ?? { state: "unknown" as const };
   const sm8Notes = viewer && offersSend(viewer.state, "note") ? { ready: sender.state === "ready", why: senderWords(sender) } : null;
   return ok({ detail, notes, ourNotes, sm8Notes, coming, ...(missed.length ? { missed } : {}), focusRemoteId: target.focusRemoteId, ...(gate?.ok ? { canChange: true } : {}) });

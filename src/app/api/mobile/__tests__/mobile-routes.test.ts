@@ -245,14 +245,17 @@ test("a job is read in the member's workspace, a claim opens its job, and money 
     coming: [{ day: "2026-10-29", start: "2026-10-29 07:00:00", end: "2026-10-29 15:30:00", crew: ["Alex Morozoff", "David Kim"] }],
     focusRemoteId: "claim-7",
   });
-  expect(asked).toEqual([
-    "resolve org-diamond claim-7",
-    'detail org-diamond job-3342 {"includeMoney":false,"includeDesigns":true,"timezone":"Australia/Sydney"}',
-    "notes org-diamond job-3342 +1",
-    "ours org-diamond job-3342",
-    "coming org-diamond job-3342 2026-10-26",
-    "missed org-diamond job-3342 Australia/Sydney",
-  ]);
+  // read together, so in no set order (13 November 2026: one after another took about 1.8 s)
+  expect([...asked].sort()).toEqual(
+    [
+      "resolve org-diamond claim-7",
+      'detail org-diamond job-3342 {"includeMoney":false,"includeDesigns":true,"timezone":"Australia/Sydney"}',
+      "notes org-diamond job-3342 +1",
+      "ours org-diamond job-3342",
+      "coming org-diamond job-3342 2026-10-26",
+      "missed org-diamond job-3342 Australia/Sydney",
+    ].sort(),
+  );
 });
 
 describe("where this deployment sends notes to ServiceM8", () => {

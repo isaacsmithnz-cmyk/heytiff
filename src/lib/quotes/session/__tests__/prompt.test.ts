@@ -19,7 +19,8 @@ it("always gives old equipment a removal line, takes a dollar figure as a price 
   expect(p).toMatch(/Old equipment coming out always has one line for decommissioning and removal/);
   expect(p).toMatch(/A dollar figure goes on that line as their price/);
   expect(p).toMatch(/Never change hours to reach a dollar figure/);
-  expect(p).toMatch(/write it up again, whole, before you reply/);
+  expect(p).toMatch(/change the write-up before you reply: only the sections that changed/);
+  expect(p).toMatch(/What they answered goes in priced_on, never in assuming/);
 });
 
 /* the replay of 3423, 31 October 2026 */

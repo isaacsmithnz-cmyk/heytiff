@@ -4,6 +4,7 @@ import type { Msg } from "./model";
 import type { EventDraft, SessionState } from "./turn";
 import { openQuestionsOf } from "./answers";
 import { tookOf, turnTimes, type Took } from "./time-left";
+import { writeUpOf, type WriteUp } from "../write-up";
 
 /* TIFF'S SESSION, KEPT (docs/migrations/quote_sessions.sql). One per
    quote. A turn holds it from start to end, so two never run at once; a
@@ -170,6 +171,21 @@ export function readTurnTimes(orgId: string): Promise<Took> {
   })().catch(() => ({ first: [], later: [] }));
   usualCache.set(orgId, { at: Date.now(), usual });
   return usual;
+/** The job's write-up as it stands: the newest her write_up tool kept,
+    whole, on its event (tools-run.ts merges each change onto it). */
+export async function readLatestWriteUp(orgId: string, sessionId: string): Promise<WriteUp | null> {
+  const { data } = await supabaseAdmin
+    .from("quote_session_events")
+    .select("body")
+    .eq("org_id", orgId)
+    .eq("session_id", sessionId)
+    .eq("kind", "tool")
+    .eq("body->>name", "write_up")
+    .eq("body->>ok", "true")
+    .order("id", { ascending: false })
+    .limit(1);
+  const body = ((data ?? [])[0] as { body?: Record<string, unknown> } | undefined)?.body;
+  return writeUpOf((body?.detail as { writeUp?: unknown } | undefined)?.writeUp);
 }
 
 export async function readThread(orgId: string, jobUuid: string, since = 0): Promise<{ session: SessionHead | null; events: ThreadEvent[] }> {

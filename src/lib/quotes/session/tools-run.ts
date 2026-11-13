@@ -8,7 +8,7 @@ import type { TaskKey } from "../settings";
 import type { Correction } from "../corrections";
 import { proposalOf, type LinesProposal } from "../lines-proposal";
 import { planOf } from "../build-progress";
-import { writeUpOf } from "../write-up";
+import { mergedWriteUp, WRITE_UP_SECTIONS, type WriteUp } from "../write-up";
 import type { Research } from "../research";
 import { labourVisitsOf, visitLine } from "../labour-build";
 import { keepPeoplesTasks, visitHours, visitName, type LineVisit } from "../line-visit";
@@ -35,6 +35,10 @@ import { airflowAskOf, areaOf, bookPrice, isErr, kitAskOf, LABOUR_HAS_NO_PRICE, 
 export type JobFile = { id: string; name: string; kind: "photo" | "document"; taken: string | null; from: string | null };
 
 export type LineWrite = { ok: true; line: QuoteLine | null } | { ok: false; reason: string; stale?: true };
+
+/** A write-up's sections by the names the person reads them under, for what she changed. */
+const SECTION_NAME: Record<keyof WriteUp, string> = { ...WRITE_UP_SECTIONS, pricedOn: "Priced on", toCheck: "To check on site" };
+const WRITE_UP_KEYS_ALL = Object.keys(SECTION_NAME).length;
 
 export type QuoteStore = {
   readLines: () => Promise<QuoteLine[]>;
@@ -82,6 +86,8 @@ export type QuoteStore = {
   taskHours: () => Promise<{ hours: Record<TaskKey, number | null>; dayHours: number | null }>;
   /** her questions still open, by their numbers: what a person's own words can settle */
   openQuestions: () => Promise<{ id: number; question: string }[]>;
+  /** the job's write-up as it stands, her newest; null when she hasn't written one */
+  lastWriteUp: () => Promise<WriteUp | null>;
   /** the ducted airflow guide every business shares (lib/guides); null when none is installed */
   airflowGuide: () => Promise<AirflowGuide | null>;
   /** the job's Studio design as she reads it (design-read.ts): `id`'s, else the newest; why not, when there's none */
@@ -172,6 +178,8 @@ export function makeTools(store: QuoteStore) {
 }
 
 function makeToolRun(store: QuoteStore) {
+  /* the write-up as she last changed it in this turn: undefined until she does */
+  let writtenNow: WriteUp | null | undefined;
   return async function runTool(name: string, input: Record<string, unknown>): Promise<ToolOutcome> {
     const label = TOOL_LABELS[name] ?? name;
     const fail = (error: string): ToolOutcome => ({ ok: false, error, label });
@@ -468,10 +476,19 @@ function makeToolRun(store: QuoteStore) {
         };
       }
       case "write_up": {
-        const writeUp = writeUpOf(input);
-        if (!writeUp) return fail("Write the job out: what you read, the sizing, the work, the visits, what you can't price and what you're assuming.");
-        /* the write-up rides on the event, as the building list does: the page draws it */
-        return { ok: true, label, said: "the job, written out", value: { written: true }, detail: { writeUp } };
+        /* the sections she gave, onto the write-up as it stands: the event
+           keeps the whole of it, so the page draws it as before */
+        /* the one she wrote this turn, else the one kept: two in one step
+           both land before the step's events are saved */
+        const was = writtenNow !== undefined ? writtenNow : await store.lastWriteUp().catch(() => null);
+        const merged = mergedWriteUp(was, input);
+        if (!merged) return fail("Write the job out: what you read, the sizing, the work, the visits, what you can't price and what you're assuming.");
+        const { writeUp, changed } = merged;
+        if (changed.length === 0) return fail("Give the sections the job changed, each whole as it now reads.");
+        writtenNow = writeUp;
+        const whole = !was || changed.length >= WRITE_UP_KEYS_ALL;
+        const named = changed.map((k) => SECTION_NAME[k]).join(", ");
+        return { ok: true, label, said: whole ? "the job, written out" : `the write-up's ${named}`, value: whole ? { written: true } : { changed: named, kept: "every other section, as it was" }, detail: { writeUp } };
       }
       case "plan_parts": {
         const parts = planOf(input.parts);

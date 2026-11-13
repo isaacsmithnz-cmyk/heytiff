@@ -120,12 +120,6 @@ export type ThreadEvent = { id: number; turnId: string | null; kind: AnyEvent["k
 /** The most of a thread one read brings. */
 const THREAD_READ = 500;
 
-/** The thread as a person reads it, after `since` (an event id), oldest
-    first. Opened (since 0), it's the newest THREAD_READ: read from the
-    start, a session past them showed its first 500 events for good and
-    never what she'd just said. A poll reads on from `since`, oldest first,
-    and the panel's next poll carries on from the last of them, so a burst
-    bigger than one read skips nothing. */
 /** How long this business's turns took, first builds apart, from its last
     30 days (time-left.ts tookOf); read at most once an hour per instance, as
     every poll asks. */
@@ -171,6 +165,8 @@ export function readTurnTimes(orgId: string): Promise<Took> {
   })().catch(() => ({ first: [], later: [] }));
   usualCache.set(orgId, { at: Date.now(), usual });
   return usual;
+}
+
 /** The job's write-up as it stands: the newest her write_up tool kept,
     whole, on its event (tools-run.ts merges each change onto it). */
 export async function readLatestWriteUp(orgId: string, sessionId: string): Promise<WriteUp | null> {
@@ -188,6 +184,12 @@ export async function readLatestWriteUp(orgId: string, sessionId: string): Promi
   return writeUpOf((body?.detail as { writeUp?: unknown } | undefined)?.writeUp);
 }
 
+/** The thread as a person reads it, after `since` (an event id), oldest
+    first. Opened (since 0), it's the newest THREAD_READ: read from the
+    start, a session past them showed its first 500 events for good and
+    never what she'd just said. A poll reads on from `since`, oldest first,
+    and the panel's next poll carries on from the last of them, so a burst
+    bigger than one read skips nothing. */
 export async function readThread(orgId: string, jobUuid: string, since = 0): Promise<{ session: SessionHead | null; events: ThreadEvent[] }> {
   const session = await readSession(orgId, jobUuid);
   if (!session) return { session: null, events: [] };

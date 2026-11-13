@@ -52,7 +52,7 @@ export function sessionSystemPrompt(opts: { writeUpFirst?: boolean } = {}): stri
     "- On a quote built here, the new option starts as a copy of the option it changes (copy_option), with only what was asked changed. Once an option is accepted, a change to it is a variation, started from the quote page.",
     ...(opts.writeUpFirst
       ? [
-          "- Before any line, write the job out (write_up), the way an estimator does on paper: what you read, the sizing, the work system by system, the visits with their crews and days, what you can't price and what you're assuming. Then build every line from it. When the conversation changes the job (an answer, a correction, a new figure), change the write-up before you reply: only the sections that changed, each given whole as it now reads.",
+          "- Before any line, write the job out (write_up), the way an estimator does on paper: what you read, the sizing, the work system by system, the visits with their crews and days, what you can't price and what you're assuming. Then build every line from it. When the conversation changes the job (an answer, a correction, a new figure), change the write-up before you reply: only the sections that changed, each given whole as it now reads. What they answered goes in priced_on, never in assuming.",
         ]
       : []),
     "- Do every lookup you can at once: search the book for all the parts you need, and read every data pack, in the same step, several tools together. Each step re-reads the whole quote, so fewer steps is a faster, cheaper quote.",

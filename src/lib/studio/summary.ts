@@ -185,6 +185,9 @@ export interface SummaryRoomRow {
   level: string;
   areaM2: number | null;
   loadKw: number | null;
+  /** what its units are judged against: its load, or 70% of it under a
+      zoned ducted unit (coverage.ts needKw) */
+  needKw: number | null;
   /** placed capacity attributed to this room; null when nothing serves it */
   capacityKw: number | null;
   /** covered/load percent, null when either is unknown */
@@ -248,7 +251,8 @@ export interface SummarySystem {
       which are one size pair (pipeLiquidMm / pipeGasMm). */
   pipeBySize: { liquidMm: number; gasMm: number; m: number | null }[] | null;
   rooms: SummaryRoomRow[];
-  /** summed load of the rooms it serves */
+  /** what it is sized against: the summed load of the rooms it serves, at
+      70% where a zoned ducted unit carries them (coverage.ts needKw) */
   loadKw: number | null;
   /** summed placed capacity */
   capacityKw: number | null;
@@ -343,6 +347,7 @@ export function buildSummaryModel(
       level: floorName.get(o.floorId) ?? "",
       areaM2: roomAreaM2(doc, o),
       loadKw: cov.loadKw,
+      needKw: cov.needKw,
       capacityKw: cov.contributors.length ? cov.coveredKw : null,
       pct: cov.pct,
       status: cov.status,
@@ -373,16 +378,17 @@ export function buildSummaryModel(
         ...new Set(models.map(iduStyle).filter((x): x is string => x != null)),
       ];
       /* judged and counted on the figures as shown (fit.ts) */
-      const pct = share.loadKw != null ? coverPct(share.coverKw, share.loadKw) : null;
+      const pct = share.needKw != null ? coverPct(share.coverKw, share.needKw) : null;
       return {
         ...strip(rows.get(share.room.id)!),
         loadKw: share.loadKw,
+        needKw: share.needKw,
         capacityKw: share.coverKw,
         pct,
         status:
-          share.loadKw == null
+          share.needKw == null
             ? "unknown"
-            : pct != null && coversLoad(share.coverKw, share.loadKw)
+            : pct != null && coversLoad(share.coverKw, share.needKw)
               ? "covered"
               : "under",
         // every unit in the room, not the first one found
@@ -410,7 +416,7 @@ export function buildSummaryModel(
       ? pack?.indoor_units.find((u) => u.model === iduModel) ?? null
       : null;
 
-    const load = cover.loadKw;
+    const load = cover.needKw;
     const cap = cover.rooms.length ? cover.coverKw : null;
     const pct = cover.pct;
 

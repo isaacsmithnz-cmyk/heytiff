@@ -10699,6 +10699,10 @@ html:not([data-ds-display]) .fg:has(#fg-topbar) .dstudio.editing:has(> .ds-edito
 .ds-ub.next .ds-ub-fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
 .ds-ub.next .ds-ub-fields > .pt-field { flex: none; }
 .ds-ub.next .ds-ub-fields .pt-tick { height: 36px; }
+/* Zoning sits on its own line under Head type, before Compare (Isaac, 13
+   November 2026: "underneath where you select the type of unit") */
+.ds-ub.next .ds-ub-fields > .pt-field.ds-sb-zoning-field { flex: 0 0 100%; order: 1; align-items: flex-start; }
+.ds-ub.next .ds-ub-fields > .pt-tick { order: 2; }
 .ds-ub.next .ds-ub-fits { position: relative; }
 .ds-ub.next .ds-ub-fitspanel {
   position: absolute;

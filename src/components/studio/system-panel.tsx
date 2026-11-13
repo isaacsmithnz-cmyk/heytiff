@@ -17,6 +17,7 @@ import { vrfBand } from "@/lib/studio/vrf";
 import { headPipeMm } from "@/lib/studio/pipe-sizes";
 import { formFactorSummary, unitOptions } from "@/lib/studio/select";
 import { roomsServed } from "@/lib/studio/allocations";
+import { needOf, unitZoned } from "@/lib/studio/coverage";
 import { outletsText, systemAir, unitAir, type RoomAir } from "@/lib/studio/airflow";
 import { joinZone, setZoning, zoneKit, zoningOf, zonesOf, type UnitZoning, type ZoneControl } from "@/lib/studio/zoning";
 import { DUCT_AIRWAY_FORMS } from "@/lib/studio/form-factors";
@@ -1251,11 +1252,12 @@ function ModelScreen({
   const addZone = target.kind === "add" || target.kind === "split" ? (view.zones.find((z) => z.zone.id === target.zoneId) ?? null) : null;
 
   const served = head ? roomsServed(head) : [];
+  /* zoned, a unit is sized on 70% of its rooms' load (zoning.ts) */
   const loadKw =
     target.kind === "band" || head?.serves === "system"
-      ? view.zonesLoadKw
-      : served.length > 1
-        ? served.reduce<number>((n, id) => n + (view.zones.find((z) => z.zone.id === id)?.loadKw ?? 0), 0)
+      ? view.needKw
+      : served.length > 1 && head
+        ? needOf(served.reduce<number>((n, id) => n + (view.zones.find((z) => z.zone.id === id)?.loadKw ?? 0), 0), unitZoned(pack, sys, head))
         : (headZone ?? addZone)?.loadKw ?? null;
 
   const all = modelRows(pack, basis, { perRoom, pool, loadKw, formFactor: query.trim() ? null : headType });
@@ -1280,7 +1282,7 @@ function ModelScreen({
   const sub = head
     ? [kwText(headKw), pipe ? `${pipe.liquidMm} / ${pipe.gasMm} mm` : null, where].filter(Boolean).join(", ")
     : target.kind === "band"
-      ? `Whole system${view.zonesLoadKw != null ? `, needs ${view.zonesLoadKw.toFixed(1)} kW` : ""}`
+      ? `Whole system${view.needKw != null ? `, needs ${view.needKw.toFixed(1)} kW${view.zoned ? " zoned" : ""}` : ""}`
       : addZone
         ? `${addZone.name}${addZone.loadKw != null ? `, needs ${addZone.loadKw.toFixed(1)} kW` : ""}`
         : undefined;

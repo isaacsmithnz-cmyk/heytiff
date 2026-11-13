@@ -17,11 +17,17 @@
      for a brand whose pack has none, plain lines the price book prices;
    - SPILL: a zone the person names to take the air when others shut.
 
-   Kept on the system by unit (`settings.zoning`). Pure — no React. */
+   Kept on the system by unit (`settings.zoning`). Pure — no React.
+
+   ZONED, IT IS SIZED SMALLER (Isaac, 13 November 2026: "Say on a 22
+   kilowatt required heat load, you know that you probably only need a 16
+   kilowatt because you're about to hit zoning"). A zoned unit's rooms don't
+   all call at once, so it is judged against 70% of their load: the same
+   figure quoting uses, and 3465's 22.3 kW summed sized at 15.6. Each room
+   keeps its own load; only what the unit must cover drops. */
 
 import type { DesignDocument, DesignSystem } from "./document";
 import type { DataPack, ZoningController } from "./packs/schema";
-import type { UnitAir } from "./airflow";
 
 export type ZoneControl = "off" | "on_off" | "temperature";
 export type SensorKind = "wireless" | "wired";
@@ -43,6 +49,13 @@ export interface Zone {
   roomIds: string[];
   name: string;
 }
+
+/** a zoned unit is sized on its rooms' load at this */
+export const ZONED_DIVERSITY = 0.7;
+
+/** where a ducted system's zoning is kept before its unit is chosen, so the
+    list can be sized zoned from the start; the first unit takes it on */
+export const BAND_KEY = "band";
 
 const OFF: UnitZoning = { control: "off", sensors: "wireless", joined: {}, spill: null };
 
@@ -76,8 +89,17 @@ export function setZoning(doc: DesignDocument, systemId: string, unitId: string,
   };
 }
 
+/** is a unit over these rooms zoned: zoning on, and two zones or more
+    (rooms all joined into one zone shut together, so nothing is saved) */
+export function zonedOver(z: UnitZoning, roomIds: readonly string[]): boolean {
+  if (z.control === "off" || roomIds.length < 2) return false;
+  return zonesOf({ rooms: roomIds.map((roomId) => ({ roomId, name: "" })) }, z).length > 1;
+}
+
+type ZoneRooms = { rooms: readonly { roomId: string; name: string }[] };
+
 /** the zones a unit's rooms make, in the order the unit serves them */
-export function zonesOf(air: Pick<UnitAir, "rooms">, z: UnitZoning): Zone[] {
+export function zonesOf(air: ZoneRooms, z: UnitZoning): Zone[] {
   if (z.control === "off") return [];
   const ids = air.rooms.map((r) => r.roomId);
   const keyOf = (id: string) => {
@@ -115,7 +137,7 @@ export function joinZone(
   doc: DesignDocument,
   systemId: string,
   unitId: string,
-  air: Pick<UnitAir, "rooms">,
+  air: ZoneRooms,
   roomId: string,
   zoneKey: string | null
 ): DesignDocument {

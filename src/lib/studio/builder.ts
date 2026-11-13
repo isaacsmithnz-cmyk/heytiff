@@ -31,6 +31,7 @@ import { attachOf } from "./graph";
 import { claimZone, claimedZoneIds, familyOf, newSystem, systemTypeFor, unclaimZone, zoneIdsOf } from "./zones";
 import type { SizingBasis } from "./loads";
 import type { RoomObj } from "./loads-room";
+import { BAND_KEY } from "./zoning";
 
 export { allocationsOf, hasAllocations, type Allocation } from "./allocations";
 
@@ -200,7 +201,7 @@ export function proposedOutdoorModel(doc: DesignDocument, pack: DataPack, system
   /* a VRF takes the smallest outdoor whose index envelope takes its heads
      and whose ceiling takes the zones' load */
   if (sys.type === "vrf") {
-    const load = { kw: systemCover(doc, pack, sys, doc.settings.sizingBasis).loadKw, basis: doc.settings.sizingBasis };
+    const load = { kw: systemCover(doc, pack, sys, doc.settings.sizingBasis).needKw, basis: doc.settings.sizingBasis };
     return vrfOutdoorsListing(pack, heads, { proposing: true, load })[0]?.model ?? "";
   }
   if (sys.type !== "ducted" && (heads.length >= 2 || familyOf(sys) === "multi")) {
@@ -324,8 +325,17 @@ export function addBandUnit(
     roomId: null,
     serves: "system",
   };
-  const d = mapSystem(doc, sys.id, (s) => withAllocations(s, [...allocationsOf(s), unit], pack));
+  const d = mapSystem(doc, sys.id, (s) => withAllocations(takeBandZoning(s, unit.id), [...allocationsOf(s), unit], pack));
   return proposeOutdoor(withPin(d, pack), pack, sys.id);
+}
+
+/** the zoning set on a ducted system before its unit was chosen, now the
+    unit's own (zoning.ts BAND_KEY) */
+function takeBandZoning(sys: DesignSystem, unitId: string): DesignSystem {
+  const all = sys.settings.zoning;
+  if (!all || typeof all !== "object" || Array.isArray(all) || !(BAND_KEY in all)) return sys;
+  const { [BAND_KEY]: set, ...rest } = all as Record<string, unknown>;
+  return { ...sys, settings: { ...sys.settings, zoning: { ...rest, [unitId]: set } } };
 }
 
 /** the short zone's slot on a split: Add another split. The head dropped
@@ -900,9 +910,13 @@ export type RoomWord = "Fits" | "Undersized" | "Oversized" | "Calibrate" | "No u
 
 export interface RoomVerdict {
   word: RoomWord;
+  /** what the room's units are judged against: its load, or 70% of it under
+      zoned ducted units (coverage.ts needKw) */
   loadKw: number | null;
   coverKw: number;
   capped: CoverageCap[];
+  /** every unit in the room is a zoned ducted unit */
+  zoned: boolean;
 }
 
 /** a room's word: its units' ratings against its load, capped per system at
@@ -914,11 +928,13 @@ export function roomVerdict(
   room: RoomObj
 ): RoomVerdict {
   const cov = roomCoverage(doc, pack, room, basis);
-  const base = { loadKw: cov.loadKw, coverKw: cov.coveredKw, capped: cov.capped };
-  if (cov.loadKw == null) return { word: "Calibrate", ...base };
+  const need = cov.needKw;
+  const zoned = cov.contributors.length > 0 && cov.contributors.every((c) => c.zoned);
+  const base = { loadKw: need, coverKw: cov.coveredKw, capped: cov.capped, zoned };
+  if (need == null) return { word: "Calibrate", ...base };
   if (cov.contributors.length === 0) return { word: "No units", ...base };
-  if (!coversLoad(cov.coveredKw, cov.loadKw)) return { word: "Undersized", ...base };
-  if (cov.coveredKw > cov.loadKw * OVERSIZE_CAP + 1e-9) return { word: "Oversized", ...base };
+  if (!coversLoad(cov.coveredKw, need)) return { word: "Undersized", ...base };
+  if (cov.coveredKw > need * OVERSIZE_CAP + 1e-9) return { word: "Oversized", ...base };
   return { word: "Fits", ...base };
 }
 

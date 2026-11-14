@@ -17,8 +17,8 @@ import type { Floor, PlanImport, PlanImportSource } from "@/lib/studio/document"
 import { newId } from "@/lib/studio/document";
 import { defaultFloorName, placeSheets, type UploadedSheet } from "@/lib/studio/plans";
 import type { TrimRect } from "@/lib/studio/plan-trim";
-import type { MeasuredScale, PlanReading, PlanWord, SheetReading } from "@/lib/studio/reading";
-import { suggestedRooms } from "@/lib/studio/reading";
+import type { MeasuredScale, PlanReading, PlanWord, ReadPoint, ReadSpace, SheetReading } from "@/lib/studio/reading";
+import { area, parseWritten, suggestedRooms } from "@/lib/studio/reading";
 import { andList } from "@/lib/swms/library";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { pagesWords } from "./take-in";
@@ -54,12 +54,22 @@ export type JobPlanPage = {
   /** the scale off the lengths printed along its dimension lines, for a page
       whose title block prints none (a photographed sketch): read once with
       the plan. Null: looked, and it prints none. Absent: not looked yet.
-      Kept apart from mmPerPx, so a design's floor is never scaled by it on
-      its own: the design carries it, and Scale and north offers it to use
-      (Isaac, 13 November 2026, on 3517's plan, which had to be measured
-      though she'd read its 5 m scale bar). */
+      Kept apart from mmPerPx: the design carries it, Scale and north says
+      it is hers and what it rests on (Isaac, 13 November 2026, on 3517's
+      plan, which had to be measured though she'd read its 5 m scale bar),
+      and a design made from the plan opens with it on its floor (the mock
+      of 14 November 2026: "the scale is already set from the plan's
+      printed dimensions"). */
   measured?: MeasuredScale | null;
+  /** the scale somebody set on the page (Set scale): from then on it is the
+      page's scale, over what's printed and what Tiff measured */
+  set?: SetScale | null;
 };
+
+/** A scale set by hand: the length between two points pressed on the page
+    (`a`, `b`, in the page's pixels), or the scale a design measured on its
+    floor, which has no points to keep. `by` is the name of who set it. */
+export type SetScale = { mmPerPx: number; mm: number | null; a?: ReadPoint; b?: ReadPoint; by: string | null; at: string };
 
 export type JobPlanState = "reading" | "read" | "check" | "failed";
 
@@ -197,6 +207,105 @@ export function stackLevels<T extends { level: number | null; kind: PlanPageKind
 export const floorPagesOf = (plan: { pages: readonly JobPlanPage[] }): JobPlanPage[] =>
   plan.pages.filter((p) => p.kind === "floor" && p.ref).sort((a, b) => (a.level ?? 0) - (b.level ?? 0) || a.n - b.n);
 
+/* ── a page's scale ───────────────────────────────────────────────────────── */
+
+const boxOf = (outline: readonly ReadPoint[]) => {
+  const xs = outline.map((p) => p.x);
+  const ys = outline.map((p) => p.y);
+  return { w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+};
+
+/** The scale the rooms' own written sizes give: each room's written sides
+    over its outline's box, the middle of them. Two rooms at least, so one
+    table's size written in a room can't set the scale. */
+export function scaleFromWritten(spaces: readonly ReadSpace[]): { mmPerPx: number; rooms: number } | null {
+  const each: number[] = [];
+  for (const s of spaces) {
+    const w = parseWritten(s.written);
+    if (!w || s.outline.length < 3) continue;
+    const b = boxOf(s.outline);
+    const [long, short] = b.w >= b.h ? [b.w, b.h] : [b.h, b.w];
+    if (short <= 0) continue;
+    const byLong = (w[0] * 1000) / long;
+    const byShort = (w[1] * 1000) / short;
+    /* the written size is the room's only when both sides give the same scale */
+    if (Math.abs(byLong - byShort) > Math.min(byLong, byShort) * 0.2) continue;
+    each.push((byLong + byShort) / 2);
+  }
+  if (each.length < 2) return null;
+  each.sort((a, b) => a - b);
+  return { mmPerPx: each[Math.floor((each.length - 1) / 2)], rooms: each.length };
+}
+
+/** A page's scale and what it rests on: the one somebody set, else the one
+    the title block prints, else the lengths printed along its dimension
+    lines, else the sizes written in its rooms. Null: none to be had. */
+export function pageScale(page: JobPlanPage, spaces: readonly ReadSpace[]): { mmPerPx: number; from: string; sure: boolean } | null {
+  if (page.set && page.set.mmPerPx > 0) {
+    const who = page.set.by ?? "someone";
+    return { mmPerPx: page.set.mmPerPx, from: page.set.mm ? `the ${Math.round(page.set.mm)} mm ${who} measured on it` : `the scale ${who} measured in a design`, sure: true };
+  }
+  if (page.mmPerPx) return { mmPerPx: page.mmPerPx, from: page.scale ? `the plan's printed scale, ${page.scale}` : "the plan's scale", sure: true };
+  if (page.measured) return { mmPerPx: page.measured.mmPerPx, from: page.measured.sure ? page.measured.from : `${page.measured.from}, one figure alone`, sure: page.measured.sure };
+  const w = scaleFromWritten(spaces);
+  if (w) return { mmPerPx: w.mmPerPx, from: `the sizes written in ${w.rooms} of its rooms`, sure: true };
+  return null;
+}
+
+/** The spaces she read on a page. */
+const spacesOn = (reading: PlanReading | null, n: number): ReadSpace[] => (reading?.floors[pageKey(n)] ?? []).flatMap((s) => s.spaces);
+
+type ScaledPlan = Pick<JobPlan, "pages" | "reading" | "state"> & { kind?: JobPlanKind };
+
+/** The floor pages she read, each with its scale. */
+const scalesOf = (plan: ScaledPlan) =>
+  plan.kind === "spec" || (plan.state !== "read" && plan.state !== "check")
+    ? []
+    : floorPagesOf(plan)
+        .filter((p) => plan.reading?.floors[pageKey(p.n)]?.length)
+        .map((p) => ({ page: p, scale: pageScale(p, spacesOn(plan.reading, p.n)) }));
+
+/** What a read plan asks of a person about its scale, page by page
+    (Isaac, 14 November 2026: "Like plans uploaded, tiff read but scale is
+    incomplete?", "Yep"): `set` where the page has no scale to be had, so
+    its rooms have no sizes; `check` where the scale rests on one printed
+    figure alone, which is usable and worth a look. */
+export function scaleAsks(plan: ScaledPlan): { n: number; ask: "set" | "check" }[] {
+  return scalesOf(plan).flatMap(({ page, scale }): { n: number; ask: "set" | "check" }[] => (!scale ? [{ n: page.n, ask: "set" }] : !scale.sure ? [{ n: page.n, ask: "check" }] : []));
+}
+
+/** The line's sentence on the scale: what's missing, or what the sizes rest on. */
+export function scaleSaid(plan: ScaledPlan): string | null {
+  const each = scalesOf(plan);
+  if (!each.length) return null;
+  const many = each.length > 1;
+  const none = each.filter((e) => !e.scale).map((e) => e.page.n);
+  if (none.length) {
+    if (!many || none.length === each.length) return "No scale on the plan, so the rooms have no sizes";
+    return `No scale on ${pagesWordOf(none).toLowerCase()}, so ${none.length === 1 ? "its" : "their"} rooms have no sizes`;
+  }
+  const one = each.find((e) => !e.scale!.sure);
+  if (one) {
+    const figure = one.page.measured?.from.match(/\d+/)?.[0];
+    return `${many ? `Page ${one.page.n} scaled` : "Scaled"} off one printed figure${figure ? `, the ${figure} mm` : ""}`;
+  }
+  /* in the plan's own row, "the plan's printed scale" is its printed scale */
+  return `Scaled off ${each[0].scale!.from.replace(/^the plan's /, "its ")}`;
+}
+
+/** The floor area she read, in m², once every page she read has a scale. */
+export function areaM2Of(plan: ScaledPlan): number | null {
+  const each = scalesOf(plan);
+  if (!each.length || each.some((e) => !e.scale)) return null;
+  let m2 = 0;
+  for (const { page, scale } of each) {
+    for (const sheet of plan.reading?.floors[pageKey(page.n)] ?? []) {
+      for (const s of suggestedRooms(sheet)) if (s.outline.length >= 3) m2 += area(s.outline) * scale!.mmPerPx * scale!.mmPerPx * 1e-6;
+    }
+  }
+  return m2 > 0 ? Math.round(m2) : null;
+}
+
 /* ── what the read came to ───────────────────────────────────────────────── */
 
 /** How many rooms she found on a page. */
@@ -266,17 +375,21 @@ export function planLine(plan: JobPlanRead, today?: string): string {
     parts.push(plan.state === "check" ? `${pagesWordOf(floors.map((p) => p.n))} read: ${list}` : `${list}${day ? `, read on ${day}` : ""}`);
   }
   if (plan.state === "check" && plan.said) parts.push(plan.said);
+  const scale = scaleSaid(plan);
+  if (scale) parts.push(scale);
   if (plan.usedBy > 0) parts.push(plan.usedBy === 1 ? "Used by 1 design" : `Used by ${plan.usedBy} designs`);
   return parts.join(". ");
 }
 
-/** The state word on the row's right. */
-export function planStateWord(plan: { state: JobPlanState }): { word: string; tone: "info" | "good" | "look" | "wrong" } {
+/** The state word on the row's right. A read plan with a page that has no
+    scale says so in orange, Scale needed: what's missing, beside Read and
+    Check the read. */
+export function planStateWord(plan: ScaledPlan): { word: string; tone: "info" | "good" | "look" | "wrong" } {
   switch (plan.state) {
     case "reading":
       return { word: "Reading the plans", tone: "info" };
     case "read":
-      return { word: "Read", tone: "good" };
+      return scaleAsks(plan).some((a) => a.ask === "set") ? { word: "Scale needed", tone: "look" } : { word: "Read", tone: "good" };
     case "check":
       return { word: "Check the read", tone: "look" };
     default:
@@ -296,9 +409,11 @@ export function planReadLine(plan: JobPlanRead): string {
   const rooms = floors.map((p) => roomsOnPage(plan.reading, p.n));
   const same = rooms.every((r) => r === rooms[0]);
   const roomsWord = same ? `${rooms[0]} rooms${floors.length > 1 ? " each" : ""}` : `${rooms.reduce((a, b) => a + b, 0)} rooms`;
-  const what = [`${floorNamesOf(plan)}, ${roomsWord}`, plan.reading?.roof ? "the roof" : null, plan.reading?.site ? "the site" : null].filter((s): s is string => !!s);
+  const m2 = areaM2Of(plan);
+  const what = [`${floorNamesOf(plan)}, ${roomsWord}${m2 ? `, ${m2} m²` : ""}`, plan.reading?.roof ? "the roof" : null, plan.reading?.site ? "the site" : null].filter((s): s is string => !!s);
   const day = dayOf(plan.readAt);
-  return `${day ? `Read on ${day}: ` : ""}${andList(what)}${plan.state === "check" && plan.said ? `. ${plan.said}` : ""}`;
+  const scale = scaleSaid(plan);
+  return `${day ? `Read on ${day}: ` : ""}${andList(what)}${plan.state === "check" && plan.said ? `. ${plan.said}` : ""}${scale ? `. ${scale}` : ""}`;
 }
 
 /* ── a design from a plan ────────────────────────────────────────────────── */
@@ -336,12 +451,13 @@ export function designFromPlan(plan: JobPlan): DesignFromPlan {
     const plans = placeSheets([], sheets);
     const id = newId("flr");
     on.forEach((p, i) => sheetOf.set(p.n, { floorId: id, sheetId: plans[i].id }));
-    const scaled = on.find((p) => p.mmPerPx);
+    /* the scale somebody set first, then the printed one */
+    const scaled = on.map((p) => (p.set && p.set.mmPerPx > 0 ? p.set.mmPerPx : p.mmPerPx)).find((mm) => !!mm);
     return {
       id,
       name: on[0].name || defaultFloorName(level),
       level,
-      scaleMmPerUnit: scaled?.mmPerPx ?? null,
+      scaleMmPerUnit: scaled ?? null,
       northDeg: null,
       northPos: null,
       plans,
@@ -355,7 +471,7 @@ export function designFromPlan(plan: JobPlan): DesignFromPlan {
   for (const p of floors) {
     placed[p.n - 1] = p.ref!;
     if (p.words?.length) words[p.n - 1] = p.words;
-    if (p.measured) measured[p.n - 1] = { ...p.measured };
+    if (p.measured) measured[p.n - 1] = { mmPerPx: p.measured.mmPerPx, from: p.measured.from, sure: p.measured.sure };
   }
   const planImport: PlanImport = {
     sources,

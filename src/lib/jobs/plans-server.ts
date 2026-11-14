@@ -343,7 +343,8 @@ async function classify(kind: "pdf" | "image", previews: readonly DrawnPreview[]
 async function measurePages(orgId: string, pages: readonly JobPlanPage[], photo: boolean): Promise<JobPlanPage[]> {
   return Promise.all(
     pages.map(async (p): Promise<JobPlanPage> => {
-      if (p.kind !== "floor" || !p.ref || p.mmPerPx || p.measured !== undefined) return p;
+      /* a page somebody set the scale on has nothing left to look for */
+      if (p.kind !== "floor" || !p.ref || p.mmPerPx || p.set || p.measured !== undefined) return p;
       try {
         const dims = await readDimensions(orgId, { floorId: pageKey(p.n), floorName: p.name || `Page ${p.n}`, sheetId: pageKey(p.n), ref: p.ref, ...(p.trim ? { crop: p.trim } : {}), mmPerPx: null, photo });
         return { ...p, measured: scaleFromDimensions(dims, p) };
@@ -353,6 +354,66 @@ async function measurePages(orgId: string, pages: readonly JobPlanPage[], photo:
       }
     }),
   );
+}
+
+/* ── a scale set by hand (Set scale, Check scale) ── */
+
+export type PageForScale = { url: string; width: number; height: number; at: { a: { x: number; y: number }; b: { x: number; y: number }; mm: number } | null };
+
+/** A floor page's full picture, signed, for Set scale; with it the figure a
+    one-figure scale rests on, or the length somebody set before, so Check
+    scale opens on it. Null when the page isn't a floor of this job's plan. */
+export async function planPageForScale(orgId: string, jobUuid: string, planId: string, n: number): Promise<PageForScale | null> {
+  const plan = await readJobPlan(orgId, planId);
+  const page = plan && plan.jobUuid === jobUuid ? plan.pages.find((p) => p.n === n && p.kind === "floor" && p.ref) : null;
+  if (!page?.ref) return null;
+  const { data } = await supabaseAdmin.storage.from(PLANS_BUCKET).createSignedUrl(page.ref, SIGNED_SECONDS);
+  if (!data?.signedUrl) return null;
+  const at = page.set?.a && page.set.b && page.set.mm ? { a: page.set.a, b: page.set.b, mm: page.set.mm } : (page.measured?.at ?? null);
+  return { url: data.signedUrl, width: page.width, height: page.height, at };
+}
+
+/** the shortest line a scale may be set from, in the page's pixels: a
+    shorter one makes every room's error large */
+const SET_SPAN_PX = 20;
+
+/** The scale somebody set on a page, kept on the job's plan, so every
+    design, heat load and quote sizes its rooms by it (Isaac, 14 November
+    2026, the mock https://claude.ai/artifact/61nqwanqUAtQx4iG6AxoYs: Set
+    scale, "Saved on the job's plan"). Two points on the page and the length
+    between them, or the scale a design measured on its floor. Returns why
+    it couldn't be saved, or null once it is. */
+export async function setPlanScale(
+  orgId: string,
+  planId: string,
+  n: number,
+  how: { a: { x: number; y: number }; b: { x: number; y: number }; mm: number } | { mmPerPx: number },
+  staffId: string | null,
+  jobUuid?: string,
+): Promise<string | null> {
+  const plan = await readJobPlan(orgId, planId);
+  const page = plan && (!jobUuid || plan.jobUuid === jobUuid) ? plan.pages.find((p) => p.n === n && p.kind === "floor" && p.ref) : null;
+  if (!plan || !page) return "That page isn't one of this job's floor plans.";
+  let mmPerPx: number;
+  let rest: { mm: number | null; a?: { x: number; y: number }; b?: { x: number; y: number } };
+  if ("mmPerPx" in how) {
+    mmPerPx = how.mmPerPx;
+    rest = { mm: null };
+  } else {
+    const span = Math.hypot(how.b.x - how.a.x, how.b.y - how.a.y);
+    if (!(span >= SET_SPAN_PX)) return "The two points are too close together.";
+    mmPerPx = how.mm / span;
+    rest = { mm: how.mm, a: { x: how.a.x, y: how.a.y }, b: { x: how.b.x, y: how.b.y } };
+  }
+  if (!Number.isFinite(mmPerPx) || mmPerPx <= 0) return "That length can't be used.";
+  const by = staffId ? ((await staffDisplayNames(orgId, [staffId])).get(staffId) ?? null) : null;
+  const set = { mmPerPx, ...rest, by, at: new Date().toISOString() };
+  try {
+    await write(orgId, planId, { pages: plan.pages.map((p) => (p.n === n ? { ...p, set } : p)) });
+    return null;
+  } catch {
+    return "The scale couldn't be saved. Try again.";
+  }
 }
 
 /* ── the rooms off the job's plans, for a quote and the heat load ── */
@@ -390,12 +451,12 @@ export async function jobPlanRooms(orgId: string, jobUuid: string, opts: { add?:
   await Promise.all(
     plans.map(async (p) => {
       if (p.state !== "read" && p.state !== "check") return;
-      if (!p.pages.some((pg) => pg.kind === "floor" && pg.ref && !pg.mmPerPx && pg.measured === undefined)) return;
+      if (!p.pages.some((pg) => pg.kind === "floor" && pg.ref && !pg.mmPerPx && !pg.set && pg.measured === undefined)) return;
       const pages = await measurePages(orgId, p.pages, p.sourceKind === "image");
       if (pages.some((pg, i) => pg !== p.pages[i])) await write(orgId, p.id, { pages }).catch(() => {});
     }),
   );
-  if (toRead.length || plans.some((p) => p.pages.some((pg) => pg.kind === "floor" && pg.ref && !pg.mmPerPx && pg.measured === undefined))) {
+  if (toRead.length || plans.some((p) => p.pages.some((pg) => pg.kind === "floor" && pg.ref && !pg.mmPerPx && !pg.set && pg.measured === undefined))) {
     const again = await supabaseAdmin.from("job_plans").select(COLS).eq("org_id", orgId).eq("job_uuid", jobUuid).order("added_at", { ascending: true });
     if (!again.error) plans = ((again.data ?? []) as Row[]).map((r) => planOf(r, new Map()));
   }

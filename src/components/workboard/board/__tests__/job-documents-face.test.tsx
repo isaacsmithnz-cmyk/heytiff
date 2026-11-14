@@ -5,7 +5,7 @@
    used to offer beside its name lives in the viewer's head now
    (job-media-viewer.test.tsx). */
 
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { SwmsSummary } from "@/lib/swms/query";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
@@ -704,4 +704,70 @@ it("offers no Add plans while nothing on the job can be read as one and nothing 
   face({ documents: [], plans: [], onAddPlans: async () => null, onUpload: async () => null });
   const menu = await addMenu();
   expect(within(menu).queryByRole("menuitem", { name: "Add plans" })).toBeNull();
+});
+
+/* ── a plan's scale (Isaac, 14 November 2026: "Like plans uploaded, tiff
+   read but scale is incomplete?", "Yep") ─────────────────────────────── */
+
+const sketchRoom = (name: string) => ({ name, named: true, kind: "room" as const, outline: [], written: "", existing: false, openTo: "", stair: "" });
+const sketch = (over: Partial<JobPlanRead["pages"][number]> = {}): JobPlanRead =>
+  readPlan({
+    sourceKind: "image",
+    pages: [{ n: 1, kind: "floor", name: "Ground floor", level: 0, ref: "org/o/p1.png", preview: "org/o/p1.jpeg", width: 2000, height: 1200, mmPerPx: null, scale: null, measured: null, ...over }],
+    reading: { at: "2026-11-09T02:14:00Z", model: "m", floors: { p1: [{ sheetId: "p1", spaces: [sketchRoom("Living"), sketchRoom("Bed 1")], openings: [], marks: [], furniture: [], checklist: [], flags: [], planUp: "" }] }, failed: [], roof: null, site: null },
+    thumbs: { 1: "https://example.invalid/t1.jpg" },
+    usedBy: 0,
+  });
+
+it("says Scale needed on a plan with no scale to be had, and sets it from two points and a length", async () => {
+  const onPageForScale = jest.fn(async () => ({ url: "https://example.invalid/p1.png", width: 2000, height: 1200, at: null }));
+  const onSetScale = jest.fn(async () => null);
+  face({ documents: [suttor], plans: [sketch()], onPageForScale, onSetScale });
+  const row = within(group("Plans")).getByText(suttor.name).closest(".pt-row") as HTMLElement;
+  expect(within(row).getByText("Scale needed")).toBeInTheDocument();
+  expect(row).toHaveTextContent("No scale on the plan, so the rooms have no sizes");
+  await userEvent.click(within(row).getByRole("button", { name: "Set scale" }));
+  const dialog = await screen.findByRole("dialog", { name: "Set scale" });
+  expect(onPageForScale).toHaveBeenCalledWith("jplan_1", 1);
+  const page = await within(dialog).findByRole("img", { name: "Ground floor, page 1" });
+  /* the page drawn 1000 wide: a press lands at twice its place, in the page's pixels */
+  page.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1000, height: 600, right: 1000, bottom: 600, x: 0, y: 0, toJSON: () => ({}) });
+  const save = within(dialog).getByRole("button", { name: "Set scale" });
+  expect(save).toBeDisabled();
+  fireEvent.pointerDown(page, { clientX: 100, clientY: 300, pointerId: 1 });
+  fireEvent.pointerUp(page, { pointerId: 1 });
+  fireEvent.pointerDown(page, { clientX: 472, clientY: 300, pointerId: 1 });
+  fireEvent.pointerUp(page, { pointerId: 1 });
+  expect(save).toBeDisabled();
+  await userEvent.type(within(dialog).getByLabelText("Length between the two points"), "7 440");
+  expect(save).toBeEnabled();
+  await userEvent.click(save);
+  expect(onSetScale).toHaveBeenCalledWith("jplan_1", 1, { x: 200, y: 600 }, { x: 944, y: 600 }, 7440);
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: "Set scale" })).toBeNull());
+});
+
+it("offers Check scale on a scale resting on one figure, opened on her figure, and says why a save failed", async () => {
+  const at = { a: { x: 200, y: 600 }, b: { x: 944, y: 600 }, mm: 7440 };
+  const onPageForScale = jest.fn(async () => ({ url: "https://example.invalid/p1.png", width: 2000, height: 1200, at }));
+  const onSetScale = jest.fn(async () => "The scale couldn't be saved. Try again.");
+  face({ documents: [suttor], plans: [sketch({ measured: { mmPerPx: 10, from: "the 7440 mm printed on it", sure: false, at } })], onPageForScale, onSetScale });
+  const row = within(group("Plans")).getByText(suttor.name).closest(".pt-row") as HTMLElement;
+  expect(within(row).getByText("Read")).toBeInTheDocument();
+  expect(row).toHaveTextContent("Scaled off one printed figure, the 7440 mm");
+  await userEvent.click(within(row).getByRole("button", { name: "Check scale" }));
+  const dialog = await screen.findByRole("dialog", { name: "Check scale" });
+  await waitFor(() => expect(within(dialog).getByLabelText("Length between the two points")).toHaveValue("7440"));
+  await userEvent.click(within(dialog).getByRole("button", { name: "Set scale" }));
+  expect(onSetScale).toHaveBeenCalledWith("jplan_1", 1, at.a, at.b, 7440);
+  expect(await within(dialog).findByRole("alert")).toHaveTextContent("The scale couldn't be saved. Try again.");
+});
+
+it("asks nothing of a plan whose scale is sure, and offers no button where it can't be saved", () => {
+  face({ documents: [suttor], plans: [sketch({ measured: { mmPerPx: 10, from: "the 7440, 3300 and 2400 mm printed on it", sure: true } })], onPageForScale: async () => null, onSetScale: async () => null });
+  expect(screen.queryByRole("button", { name: "Set scale" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Check scale" })).toBeNull();
+  cleanup();
+  face({ documents: [suttor], plans: [sketch()] });
+  expect(screen.getByText("Scale needed")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Set scale" })).toBeNull();
 });

@@ -1,6 +1,6 @@
 import { createDesign, type DesignDocument, type DesignObject } from "../document";
 import type { ReadOpening, SheetReading } from "../reading";
-import { canJoin, foundOn, insertCorner, joinRooms, keepFound, readyFromPlans, removeCorner, shapeAfterEdit, wallsAfterInsert, wallsAfterRemove, wallsWithOpenings } from "../room-edit";
+import { canJoin, foundOn, insertCorner, joinRooms, keepFound, markOnScale, readyFromPlans, removeCorner, shapeAfterEdit, wallsAfterInsert, wallsAfterRemove, wallsWithOpenings } from "../room-edit";
 import { glassM2, suggestionsFor } from "../rooms-from-reading";
 
 const rect = (x: number, y: number, w: number, h: number) => [
@@ -213,6 +213,41 @@ describe("a design as it opens from a job's plans", () => {
   test("opening twice marks nothing twice", () => {
     const once = readyFromPlans(design());
     expect(readyFromPlans(once)).toBe(once);
+  });
+});
+
+describe("a floor of a job's plan given its scale", () => {
+  const fromJob = (): DesignDocument => {
+    const d = design();
+    return { ...d, floors: [{ ...d.floors[0], scaleMmPerUnit: null }], planImport: { sources: [], placed: { 0: "r" }, chosen: [0], names: {}, jobPlanId: "jplan_1" } };
+  };
+  const scaled = (d: DesignDocument, mm: number | null): DesignDocument => ({ ...d, floors: [{ ...d.floors[0], scaleMmPerUnit: mm }] });
+
+  test("gets the rooms inside the house marked, the garage left found", () => {
+    const before = fromJob();
+    const out = markOnScale(before, scaled(before, 10));
+    expect(out.objects.filter((o) => o.type === "room").map((o) => o.props.name)).toEqual(["Bedroom", "Living"]);
+    expect(foundOn(out, "gf").map((s) => s.name)).toEqual(["Garage"]);
+  });
+
+  test("a scale measured again marks nothing more", () => {
+    const before = scaled(fromJob(), 10);
+    const after = scaled(before, 12);
+    expect(markOnScale(before, after)).toBe(after);
+  });
+
+  test("a floor somebody has started on is left to them", () => {
+    const before = fromJob();
+    const own: DesignObject = { id: "r1", type: "room", floorId: "gf", systemId: null, plane: "room", geometry: { kind: "polygon", points: rect(0, 0, 100, 100) }, props: { name: "Mine" } };
+    const after = scaled({ ...before, objects: [own] }, 10);
+    expect(markOnScale({ ...before, objects: [own] }, after)).toBe(after);
+  });
+
+  test("a design that isn't from a job's plan keeps its rooms as suggestions", () => {
+    const d = design();
+    const before = scaled(d, null);
+    const after = scaled(d, 10);
+    expect(markOnScale(before, after)).toBe(after);
   });
 });
 

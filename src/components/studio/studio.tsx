@@ -83,13 +83,13 @@ import { airRows, airTags } from "@/lib/studio/air-view";
 import { SetupPanel } from "./setup-panel";
 import { pastPrint, sheetUnitOf } from "@/lib/studio/figure-bounds";
 import { RoomPanel, RoomsPanel } from "./rooms-panel";
-import { foundOn, joinRooms, keepFound, readyFromPlans } from "@/lib/studio/room-edit";
+import { foundOn, joinRooms, keepFound, markOnScale, readyFromPlans } from "@/lib/studio/room-edit";
 import type { Suggestion } from "@/lib/studio/rooms-from-reading";
 import { RISER_PAINT } from "@/lib/studio/duct-size";
 import { StudioFlowContext, useStudioFlow, type StudioFlow } from "./flow";
 import { ClearDesignDialog } from "./clear-design-dialog";
 import { clearKeeping, keptLabelOf } from "@/lib/studio/clear-design";
-import { setupNeeds, shareAcrossSet } from "@/lib/studio/plan-set";
+import { measuredForJob, setupNeeds, shareAcrossSet } from "@/lib/studio/plan-set";
 import { InstallQuestions } from "./install-questions";
 import { isAirCapable, moduleFor } from "@/lib/studio/modules";
 import { SystemBuilder, ZoneStanding } from "./system-builder";
@@ -380,6 +380,16 @@ export function Studio({
     },
     []
   );
+
+  /* A scale measured by hand in a design made from a job's plan goes onto
+     the plan: one set of plans, on the job (14 November 2026). */
+  const scaleSeen = useRef<DesignDocument | null>(null);
+  useEffect(() => {
+    const prev = scaleSeen.current;
+    scaleSeen.current = doc;
+    if (!sm8Jobs || !doc || !prev) return;
+    for (const m of measuredForJob(prev, doc)) savePlanScaleOnJob(m.planId, m.page, m.mmPerPx);
+  }, [doc, sm8Jobs]);
 
   /* Every mutation flows through here so updatedAt always bumps and the
      autosave below sees one consistent object. */
@@ -1097,6 +1107,12 @@ const readPlansOnServer: PlanReader = async (designId) => {
   }
 };
 
+/* A scale measured in a design made from a job's plan, kept on the plan
+   (plan-set.ts measuredForJob). Nothing waits on it: the design has its
+   scale either way. */
+const savePlanScaleOnJob = (planId: string, page: number, mmPerPx: number) =>
+  void import("@/app/actions/job-plans").then((a) => a.savePlanScaleFromDesign(planId, page, mmPerPx)).catch(() => {});
+
 /* The job's plans (lib/jobs/plans.ts), for New design. Out here, not in
    the component: the React Compiler takes no import() inside one. */
 const loadJobPlans = (jobUuid: string) => import("@/app/actions/job-plans").then((a) => a.readPlansOnJob(jobUuid));
@@ -1239,7 +1255,8 @@ function Editor({
       historyRef.current.record(docRef.current);
       /* the next flow: a scale or a north set on one floor reaches the rest
          of its set, so no floor of one drawing set asks twice */
-      onMutate(flow === "next" ? (d) => seatDuctsOnUnits(shareAcrossSet(d, fn(d)), (model) => packRef.current?.indoor_units.find((u) => u.model === model)) : fn);
+      /* and a floor of a job's plan just given its scale gets its rooms marked */
+      onMutate(flow === "next" ? (d) => seatDuctsOnUnits(markOnScale(d, shareAcrossSet(d, fn(d))), (model) => packRef.current?.indoor_units.find((u) => u.model === model)) : fn);
       syncHist();
     },
     [onMutate, syncHist, flow]

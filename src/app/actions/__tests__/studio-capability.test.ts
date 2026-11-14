@@ -10,6 +10,8 @@
 
 let permissions: Record<string, boolean> = {};
 const studioTouch = jest.fn(); // any read/write of a studio table or bucket
+let jobPlans: unknown[] = []; // the job_plans rows a stored file is found on
+const removed = jest.fn(); // what storage was asked to delete
 
 function tableChain(result: unknown) {
   const node: Record<string, unknown> = {
@@ -17,7 +19,7 @@ function tableChain(result: unknown) {
     then: (resolve: (v: unknown) => unknown) =>
       Promise.resolve({ data: result, error: null }).then(resolve),
   };
-  for (const m of ["select", "eq", "in", "order", "update", "upsert", "delete", "insert"]) {
+  for (const m of ["select", "eq", "in", "not", "order", "range", "limit", "contains", "update", "upsert", "delete", "insert"]) {
     node[m] = () => node;
   }
   return node;
@@ -45,7 +47,7 @@ const from = jest.fn((table: string) => {
   }
   // a studio table — record the touch and serve an empty, error-free result
   studioTouch(table);
-  return tableChain([]);
+  return tableChain(table === "job_plans" ? jobPlans : []);
 });
 
 const storageFrom = jest.fn((bucket: string) => {
@@ -53,7 +55,7 @@ const storageFrom = jest.fn((bucket: string) => {
   return {
     createSignedUploadUrl: async () => ({ data: { token: "tok" }, error: null }),
     createSignedUrl: async () => ({ data: { signedUrl: "https://signed" }, error: null }),
-    remove: async () => ({ error: null }),
+    remove: async (refs: string[]) => (removed(refs), { error: null }),
   };
 });
 
@@ -83,6 +85,8 @@ import {
   saveStudioDesign,
   deleteStudioDesign,
   searchStudioJobs,
+  readStudioJobs,
+  listStudioJobs,
 } from "../studio";
 import { createPlanUpload, planImageUrl, deletePlanImage } from "../studio-plans";
 import { createShareLink, getShareLink, revokeShareLink } from "../studio-share";
@@ -95,6 +99,8 @@ const ACTIONS: [string, () => Promise<unknown>][] = [
   ["saveStudioDesign", () => saveStudioDesign({})],
   ["deleteStudioDesign", () => deleteStudioDesign("d-1")],
   ["searchStudioJobs", () => searchStudioJobs("wallace")],
+  ["readStudioJobs", () => readStudioJobs(["j-1"])],
+  ["listStudioJobs", () => listStudioJobs(0, 6)],
   ["createPlanUpload", () => createPlanUpload("png")],
   ["planImageUrl", () => planImageUrl("org/org-1/plan.png")],
   ["deletePlanImage", () => deletePlanImage("org/org-1/plan.png")],
@@ -107,6 +113,8 @@ const ACTIONS: [string, () => Promise<unknown>][] = [
 
 beforeEach(() => {
   studioTouch.mockClear();
+  removed.mockClear();
+  jobPlans = [];
 });
 
 describe("with `studio` revoked, every studio action refuses before touching data", () => {
@@ -134,6 +142,28 @@ describe("with `studio` held (the staff default), the same doors open", () => {
     const slot = await createPlanUpload("png");
     expect(slot.token).toBe("tok");
     expect(slot.ref.startsWith("org/org-1/")).toBe(true);
+  });
+
+  /* A design made from a job's plans shows the job's own pages. Deleting a
+     floor there, or closing a dialog, asked storage to delete the page, and
+     the job's Plans lost its picture (found 14 November 2026). */
+  it("deletes a plan picture that is the design's own", async () => {
+    await deletePlanImage("org/org-1/plan.png");
+    expect(studioTouch).toHaveBeenCalledWith("job_plans");
+    expect(removed).toHaveBeenCalledWith(["org/org-1/plan.png"]);
+  });
+
+  it("leaves a job's plan in storage, and says nothing is wrong", async () => {
+    jobPlans = [{ id: "jplan_1" }];
+    await expect(deletePlanImage("org/org-1/plan.png")).resolves.toBeUndefined();
+    expect(removed).not.toHaveBeenCalled();
+  });
+
+  it("New design's jobs are empty for someone without the Workboard", async () => {
+    permissions = { workboard: false };
+    expect(await readStudioJobs(["j-1"])).toEqual([]);
+    expect(await listStudioJobs(0, 6)).toEqual([]);
+    expect(studioTouch).not.toHaveBeenCalledWith("sm8_jobs");
   });
 
   it("answers the pack picker", async () => {

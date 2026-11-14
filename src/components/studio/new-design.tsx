@@ -26,7 +26,16 @@
    nothing again (lib/jobs/plans.ts designFromPlan). Add plans puts a file
    onto the job and into its Plans, read once there, and it joins the list
    as it is read; the drop zone stays for a job with no plans and a design
-   with no job. */
+   with no job.
+
+   THE JOB COMES FIRST (Isaac, 14 November 2026, the mock "Designs from a
+   job": "from now on, designs have to be built from a job ... Unless you
+   just do unlinked job, which doesn't connect into anything, and you can
+   link it later on"). Where the business's jobs can be read, the dialog
+   opens on the job alone: a search, Recent and All jobs as job cards
+   (job-picker.tsx), and Start without a job for an idea or a quick
+   example. The name and the plans show once one of the two is chosen, and
+   the job chosen stays as its card, with a cross to change it. */
 
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Button, IconButton } from "@/components/parts/button";
@@ -58,7 +67,8 @@ import { StateWord } from "@/components/parts/state";
 import { Tick } from "@/components/parts/tick";
 import { floorPagesOf, pageCaption, planReadLine, planStateWord, startablePlans, type JobPlanRead } from "@/lib/jobs/plans";
 import { kickPlanReads, PLAN_POLL_MS } from "@/lib/jobs/plans-client";
-import { JobSearchField, type JobSearch } from "./job-search";
+import type { JobSearch } from "./job-search";
+import { cardOfHit, cardOfPrefill, JobCardFace, JobPicker, type JobLists } from "./job-picker";
 import { useStudioFlow } from "./flow";
 
 type Stage = "start" | "reading" | "pages" | "peek" | "floors" | "crop";
@@ -158,6 +168,7 @@ const failed = (e: unknown) => (e instanceof Error ? e.message : "Something went
 export function NewDesign({
   sm8Jobs,
   jobSearch,
+  jobLists,
   planImages,
   onBlank,
   onPlans,
@@ -170,6 +181,8 @@ export function NewDesign({
 }: {
   sm8Jobs?: boolean;
   jobSearch: JobSearch;
+  /** Recent and All jobs for the job picker; without it the picker is the search alone */
+  jobLists?: JobLists;
   planImages: PlanImages;
   onBlank: (name: string, job?: JobPrefill) => void;
   /** opens the design on the canvas; resolves once it's saved */
@@ -189,6 +202,9 @@ export function NewDesign({
 }) {
   const [stage, setStage] = useState<Stage>("start");
   const [picked, setPicked] = useState<StudioJobHit | null>(null);
+  /* Start without a job: a design that is linked to nothing, for an idea or
+     a quick example, linked later from its Summary */
+  const [noJob, setNoJob] = useState(false);
   /* held from the first draw: the studio lets go of the job it was opened
      on as the design is saved, and the dialog keeps it till it closes */
   const [fixed] = useState<JobPrefill | null>(forJob ?? null);
@@ -284,6 +300,24 @@ export function NewDesign({
   }, [peek, peekFile]);
 
   const job = fixed ?? (picked ? prefillFromJob(picked) : undefined);
+  /* the job it was opened on, read as a card for its colour and its kind */
+  const [fixedRead, setFixedRead] = useState<StudioJobHit | null>(null);
+  const fixedId = fixed?.remoteId ?? "";
+  useEffect(() => {
+    if (!fixedId || !jobLists) return;
+    let live = true;
+    void jobLists
+      .recent([fixedId])
+      .then((jobs) => {
+        if (live && jobs[0]) setFixedRead(jobs[0]);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [fixedId, jobLists]);
+  /* the job is asked for before anything else, where there are jobs to pick */
+  const askJob = !!sm8Jobs && !fixed && !picked && !noJob;
   const designName = name.trim() || "Untitled design";
 
   /* THE JOB'S PLANS: the fixed job's arrive with the dialog; a picked job's
@@ -358,6 +392,11 @@ export function NewDesign({
     setPicked(hit);
     const fill = prefillFromJob(hit);
     if (fill.name) setName(fill.name);
+  };
+  /* the job let go: the name it gave goes with it, a name typed over it stays */
+  const unpickJob = () => {
+    if (picked && name === prefillFromJob(picked).name) setName("");
+    setPicked(null);
   };
 
   const onFiles = async (list: File[]) => {
@@ -566,34 +605,51 @@ export function NewDesign({
     ) : (
       <Button onClick={onClose}>Cancel</Button>
     );
+    if (askJob)
+      return (
+        <Dialog heading={heading} onClose={onClose} width={720} foot={<Button onClick={onClose}>Cancel</Button>}>
+          <div className="ds2-nd-form">
+            <Field label="Job">
+              <JobPicker onPick={pickJob} search={jobSearch} lists={jobLists} />
+            </Field>
+            <button type="button" className="pt-link ds2-nd-blank" onClick={() => setNoJob(true)}>
+              Start without a job
+            </button>
+          </div>
+        </Dialog>
+      );
     return (
       <Dialog heading={heading} onClose={onClose} width={720} dismissable={stage === "start"} foot={foot}>
         {filePicker}
         <div className="ds2-nd-form">
           {fixed && (
             <Field label="Job">
-              <div className="ds2-nd-job">
-                <b>{[fixed.jobNumber, fixed.client].filter(Boolean).join(" ") || "Job"}</b>
-                {fixed.site && <span>{fixed.site}</span>}
+              <div className={`ds2-nd-picked sc-card sc-card--${cardOfPrefill(fixed, fixedRead).hue}`}>
+                <JobCardFace job={cardOfPrefill(fixed, fixedRead)} plans={false} />
               </div>
             </Field>
           )}
-          {sm8Jobs && !fixed && (
+          {sm8Jobs && !fixed && picked && (
             <Field label="Job">
-              {picked ? (
-                <div className="ds2-nd-job">
-                  <b>{picked.jobNumber ? `${picked.jobNumber} ${picked.clientName ?? ""}`.trim() : (picked.clientName ?? "Job")}</b>
-                  {job?.site && <span>{job.site}</span>}
-                  <IconButton glyph="clear" label="Clear the job" size={32} onClick={() => setPicked(null)} />
-                </div>
-              ) : (
-                <JobSearchField onPick={pickJob} search={jobSearch} />
-              )}
+              <div className={`ds2-nd-picked sc-card sc-card--${cardOfHit(picked).hue}`}>
+                <JobCardFace job={cardOfHit(picked)} plans={false} />
+                <IconButton glyph="clear" label="Clear the job" size={32} onClick={unpickJob} />
+              </div>
+            </Field>
+          )}
+          {sm8Jobs && !fixed && !picked && noJob && (
+            <Field label="Job">
+              <div className="ds2-nd-picked sc-card sc-card--grey">
+                <span className="sc-cb">
+                  <span className="sc-c1">No job</span>
+                </span>
+                <IconButton glyph="clear" label="Choose a job" size={32} onClick={() => setNoJob(false)} />
+              </div>
             </Field>
           )}
           <Field label="Name">
             <TextInput
-              data-autofocus={sm8Jobs && !fixed ? undefined : true}
+              data-autofocus
               placeholder="Design name, e.g. 14 Harbour View Rd"
               value={name}
               onChange={(e) => setName(e.target.value)}

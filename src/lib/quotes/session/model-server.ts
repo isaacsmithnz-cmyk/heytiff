@@ -39,11 +39,16 @@ export function chosenEffort(): Effort {
     2026-10-11: "get as much built as possible before spending API credit"). */
 export const writeUpFirst = () => (process.env.QUOTE_SESSION_WRITE_UP ?? "").trim() === "1";
 
+/* STREAMED (Isaac, 14 November 2026: "Just get it all built", to the
+   working word following her real steps and her reply typing out): the
+   reply comes as it's written, and `live` hears each word and each tool she
+   begins, so the page can show them before the round is saved. The reply
+   handed back is the same whole message a plain call returns. */
 export function anthropicModel(): ModelCall {
   const client = new Anthropic();
-  return async (req, signal) => {
+  return async (req, signal, live) => {
     const r = withCache(req);
-    const reply = await client.beta.messages.create(
+    const stream = client.beta.messages.stream(
       {
         model: r.model,
         max_tokens: r.maxTokens,
@@ -56,6 +61,20 @@ export function anthropicModel(): ModelCall {
       },
       { signal }
     );
+    if (live) {
+      let text = "";
+      stream.on("text", (delta) => {
+        text += delta;
+        live({ tool: null, text });
+      });
+      stream.on("streamEvent", (ev) => {
+        if (ev.type === "content_block_start" && ev.content_block.type === "tool_use") {
+          text = "";
+          live({ tool: ev.content_block.name, text });
+        }
+      });
+    }
+    const reply = await stream.finalMessage();
     return { model: reply.model, content: reply.content as unknown as Block[], stopReason: reply.stop_reason ?? "end_turn", usage: reply.usage };
   };
 }

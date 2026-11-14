@@ -1,4 +1,4 @@
-import { isText, isToolUse, replyCost, type Block, type Effort, type MediaBlock, type ModelCall, type Msg, type TextBlock, type ToolDef, type ToolResultBlock } from "./model";
+import { isText, isToolUse, replyCost, type Block, type Effort, type Live, type MediaBlock, type ModelCall, type Msg, type TextBlock, type ToolDef, type ToolResultBlock } from "./model";
 
 /* ONE TURN OF TIFF'S SESSION (slice 4.1) — a person says something, she
    works until she's answered: reading, looking things up, changing lines,
@@ -56,6 +56,9 @@ export type TurnDeps = {
       maxDuration, and a stopped turn says nothing at all. */
   answerBy?: number;
   now?: () => number;
+  /** What she's at this second: each word of her reply as it comes, each
+      tool as she begins it and as it runs. */
+  live?: (l: Live) => void;
 };
 
 /** Rounds of tools before she's told to answer with what she has. A quote
@@ -235,7 +238,8 @@ export async function runTurn(start: SessionState, message: string, deps: TurnDe
       rounds++;
       const reply = await deps.model(
         { model: deps.modelName, system: deps.system, tools: atCap ? [] : deps.tools, messages: atCap ? withCapNote(sentMessages(state)) : sentMessages(state), effort: deps.effort ?? "medium", maxTokens: MAX_TOKENS },
-        deps.signal
+        deps.signal,
+        deps.live
       );
       add(replyCost(reply), reply.model);
       /* she's seen any file this request carried: the rounds after don't send it again */
@@ -276,6 +280,7 @@ export async function runTurn(start: SessionState, message: string, deps: TurnDe
       const results: ToolResultBlock[] = [];
       for (const call of calls) {
         ran.push(call.name);
+        deps.live?.({ tool: call.name, text: "" });
         const out = await deps.runTool(call.name, call.input ?? {}).catch((): ToolOutcome => ({ ok: false, error: "That couldn't be done just now.", label: call.name }));
         if (out.cost) add(out.cost.usd, out.cost.model);
         /* a tool that couldn't keeps why, for the thread and for whoever looks into it */

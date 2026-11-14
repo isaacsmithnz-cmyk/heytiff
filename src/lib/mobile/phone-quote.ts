@@ -6,7 +6,7 @@ import type { QuoteLine } from "@/lib/quotes/lines";
 import { stillUnknown } from "@/lib/quotes/lines-price";
 import { twinsOf } from "@/lib/quotes/line-twins";
 import { answeredOf, settledIn } from "@/lib/quotes/session/answers";
-import { buildingFirst, stepOf, turnStartOf, type Took } from "@/lib/quotes/session/time-left";
+import { buildingFirst, liveWords, stepOf, stepOfTool, turnStartOf, type LiveNow, type Took } from "@/lib/quotes/session/time-left";
 import { questionOf } from "@/lib/quotes/session/tools";
 import { notPricedOf, pricedOnOf, writeUpOf } from "@/lib/quotes/write-up";
 import { waitingIds } from "@/lib/quotes/session/queued";
@@ -90,6 +90,8 @@ export type PhoneDoing = {
       bar's time left is the middle of what those that ran this long still
       took (time-left.ts timeLeft); a phone before it runs on `first` */
   took?: number[];
+  /** her reply as she writes it, before its round is saved: the phone types it out */
+  typing?: string;
 };
 export type QuoteWord = { word: string; tone: "look" | "good" | "info" };
 
@@ -204,10 +206,12 @@ export function openQuestions(events: readonly Thread[], priced: QuestionPrices 
   return out;
 }
 
-export const doingOf = (events: readonly Thread[], took?: Took | null): PhoneDoing => {
+/** `live`: what she's at this second, as the thread's read carries it while she works. */
+export const doingOf = (events: readonly Thread[], took?: Took | null, live?: LiveNow | null): PhoneDoing => {
   const since = turnStartOf(events);
   const first = buildingFirst(events);
-  return { step: stepOf(events), since: since === null ? null : new Date(since).toISOString(), first, took: (first ? took?.first : took?.later) ?? [] };
+  const typing = plain(liveWords(live, events));
+  return { step: stepOfTool(live?.tool) ?? stepOf(events), since: since === null ? null : new Date(since).toISOString(), first, took: (first ? took?.first : took?.later) ?? [], ...(typing ? { typing } : {}) };
 };
 
 /** The last time something was marked, and by whom. */

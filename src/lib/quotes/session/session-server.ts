@@ -3,7 +3,7 @@ import { namesBySignIn, readEngine } from "../lines-server";
 import type { ModelCall } from "./model";
 import { anthropicModel, chosenEffort, sessionModelFor, writeUpFirst } from "./model-server";
 import { openingMessage, openWords, sessionSystemPrompt } from "./prompt";
-import { addEvents, beginTurn, claimQueued, endTurn, readOpenQuestions, readThread, saveRound, takeAnswers } from "./store-server";
+import { addEvents, beginTurn, claimQueued, endTurn, liveWriter, readOpenQuestions, readThread, saveRound, takeAnswers } from "./store-server";
 import { answerQuestion } from "./answers-server";
 import { briefOf } from "./job-sources";
 import { readJobSources } from "./job-sources-server";
@@ -133,6 +133,8 @@ export async function startTurn(
   const model = opts.model ?? anthropicModel();
   const run = async () => {
     const answerBy = Date.now() + ANSWER_BY_S * 1000;
+    /* what she's at, kept for the page as her words come (store-server liveWriter) */
+    const live = liveWriter(session.id, turnId);
     try {
       return await runTurn({ messages: session.messages, summary: session.summary }, message, {
         model,
@@ -144,8 +146,10 @@ export async function startTurn(
         sendBack,
         answerBy,
         save: (state, events, spent) => saveRound(orgId, session.id, turnId, state, session.spentUsd + spent, events),
+        live: live.put,
       });
     } finally {
+      await live.done();
       await endTurn(session.id, turnId);
     }
   };

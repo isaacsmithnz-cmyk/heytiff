@@ -15,7 +15,7 @@ import { planOf, type PlannedPart } from "@/lib/quotes/build-progress";
 import { researchDetailOf } from "@/lib/quotes/research";
 import { replyBlocks, type ReplySpan } from "@/lib/quotes/session/reply-blocks";
 import { latestAsked } from "@/lib/quotes/session/answers";
-import { buildingFirst, stepOf, timeLeft, turnStartOf, type Took } from "@/lib/quotes/session/time-left";
+import { buildingFirst, liveWords, stepOf, stepOfTool, timeLeft, turnStartOf, type LiveNow, type Took } from "@/lib/quotes/session/time-left";
 import { waitingIds } from "@/lib/quotes/session/queued";
 import { writeUpOf } from "@/lib/quotes/write-up";
 import { fmtAddition, fmtAud } from "@/lib/workboard/project-money";
@@ -46,14 +46,35 @@ import { QuoteScope, type QuoteScopeWords } from "./quote-scope";
    under both. */
 
 const ROUTE = "/api/workboard/quote-session";
-/** How often the thread is read while she works, ms. */
-const POLL_MS = 1500;
+/** How often the thread is read while she works, ms: her reply types out
+    between reads (Typing), so a read a second keeps it near her. */
+const POLL_MS = 1000;
 
 type Ev = { id: number; turnId: string | null; kind: string; author: string; body: Record<string, unknown>; at: string };
 type QState = { deltas: (number | null)[]; answered: { index: number; label: string; by: string; typed?: true } | null };
-type View = { ok: boolean; on?: boolean; working?: boolean; took?: Took; spentUsd?: number; events?: Ev[]; names?: Record<string, string>; me?: string; questions?: Record<number, QState> };
+type View = { ok: boolean; on?: boolean; working?: boolean; live?: LiveNow; took?: Took; spentUsd?: number; events?: Ev[]; names?: Record<string, string>; me?: string; questions?: Record<number, QState> };
 type Answer = { label: string };
 type Source = { id: string; label: string; text: string };
+
+/** Her reply as it comes (Isaac, 14 November 2026: "Just get it all built",
+    to her reply typing out): each read brings the words she has written so
+    far, and they type out toward them, quicker the further behind. */
+function Typing({ text }: { text: string }) {
+  const [shown, setShown] = useState(0);
+  /* new words, not more of the same: they type out from the start */
+  const [was, setWas] = useState(text);
+  if (text !== was) {
+    setWas(text);
+    if (!text.startsWith(was)) setShown(0);
+  }
+  const target = text.length;
+  useEffect(() => {
+    if (shown >= target) return;
+    const t = setTimeout(() => setShown((n) => Math.min(target, n + Math.max(2, Math.ceil((target - n) / 25)))), 30);
+    return () => clearTimeout(t);
+  }, [shown, target]);
+  return <>{herWords(text.slice(0, Math.min(shown, target)))}</>;
+}
 
 /** What she's doing and about how long is left, while she works. Until the turn's first event is back, it counts from when this appeared. */
 function TimeLeft({ since, first, step, took }: { since: number | null; first: boolean; step: string | null; took: readonly number[] | undefined }) {
@@ -176,6 +197,8 @@ export function TiffPanel({
      or the lines' until it knows which */
   const [on, setOn] = useState<boolean | null>(null);
   const [working, setWorking] = useState(false);
+  /* what she's at this second, while she works: her tool and her words so far */
+  const [liveNow, setLiveNow] = useState<LiveNow | null>(null);
   /* how long her turns took here, from the thread's read */
   const [took, setTook] = useState<Took | null>(null);
   /* what she's cost: sent only to someone who sees money */
@@ -250,6 +273,7 @@ export function TiffPanel({
     const was = busyNow.current;
     busyNow.current = !!v.working;
     setWorking(!!v.working);
+    setLiveNow(v.working ? (v.live ?? null) : null);
     if (v.took) setTook(v.took);
     /* she's done: the quote as she left it, her questions priced against it */
     if (was && !v.working) {
@@ -602,6 +626,9 @@ export function TiffPanel({
     }
   }
   endSteps();
+  /* her reply as she writes it, before its round is saved */
+  const typing = working ? liveWords(liveNow, events) : "";
+  if (typing) thread.push(her(-1, <Typing text={typing} />, !hers));
 
   const scope = <QuoteScope words={words} writeUp={latest} />;
 
@@ -741,7 +768,7 @@ export function TiffPanel({
             <TimeLeft
               since={turnStartOf(events)}
               first={buildingFirst(events)}
-              step={stepOf(events)}
+              step={stepOfTool(liveNow?.tool) ?? stepOf(events)}
               took={buildingFirst(events) ? took?.first : took?.later}
             />
           )}

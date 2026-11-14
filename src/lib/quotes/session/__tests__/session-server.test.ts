@@ -24,6 +24,7 @@ jest.mock("../store-server", () => ({
   takeAnswers: (...a: unknown[]) => (takeAnswers as jest.Mock)(...a),
   claimQueued: (...a: unknown[]) => (claimQueued as jest.Mock)(...a),
   readThread: async () => ({ session: null, events: [] }),
+  liveWriter: () => ({ put: () => {}, done: async () => {} }),
 }));
 const answerQuestion = jest.fn(async (..._a: unknown[]): Promise<{ ok: true; goOn: boolean } | { ok: false; reason: string }> => ({ ok: true, goOn: false }));
 jest.mock("../answers-server", () => ({ answerQuestion: (...a: unknown[]) => (answerQuestion as jest.Mock)(...a) }));

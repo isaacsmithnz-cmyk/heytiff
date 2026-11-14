@@ -9,13 +9,14 @@ import {
 } from "../job-sections";
 import { jobHref, jobPageHref } from "@/lib/shell/links";
 
-/* A job's eight sections (docs/design.md rule 31), each the job card's own
+/* A job's nine sections (docs/design.md rule 31), each the job card's own
    faces (v2, step 5). */
 
 describe("the sections", () => {
-  it("are the rule's eight, in its order", () => {
+  it("are the rule's nine, in its order, Scope after Overview", () => {
     expect(JOB_SECTIONS.map((s) => SECTION_LABEL[s])).toEqual([
       "Overview",
+      "Scope",
       "Quote",
       "Design",
       "Visits",
@@ -29,6 +30,7 @@ describe("the sections", () => {
   it("each show the card's faces: Overview the summary and diary, Documents the files and compliance, Billing the money", () => {
     expect(SECTION_FACES).toEqual({
       overview: ["summary", "diary"],
+      scope: ["scope"],
       quote: ["quote"],
       design: ["design"],
       visits: ["visits"],
@@ -54,7 +56,7 @@ describe("the sections", () => {
 
   /* Isaac, 28 October 2026: "a separate tab outside of the quoting" */
   it("put Design after Quote for whoever has the Studio, and leave it out for anyone else", () => {
-    expect(sectionsFor(true, true).slice(0, 3)).toEqual(["overview", "quote", "design"]);
+    expect(sectionsFor(true, true).slice(0, 4)).toEqual(["overview", "scope", "quote", "design"]);
     expect(sectionsFor(true, false)).not.toContain("design");
     expect(sectionsFor(false)).not.toContain("design");
     expect(sectionOfFace("design")).toBe("design");
@@ -65,6 +67,8 @@ describe("?tab=", () => {
   it("names a section, whatever its case", () => {
     expect(parseSection("visits", false)).toBe("visits");
     expect(parseSection(" Photos ", false)).toBe("photos");
+    expect(parseSection("scope", false)).toBe("scope");
+    expect(sectionOfFace("scope")).toBe("scope");
   });
 
   /* Isaac, 25 October 2026: the Checklist became Materials, and a link

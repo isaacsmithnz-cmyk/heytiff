@@ -5793,6 +5793,10 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 /* Make it a work order, asked once, under the head */
 .fg .jp-ask { display:flex; align-items:center; gap:12px; margin-top:16px; font-size:14px; line-height:20px; color:var(--ink); }
 .fg .jp-sheet > .wb2-here { margin:12px 0 0; font-size:13px; font-weight:500; color:var(--q); }
+/* THE JOB'S DESCRIPTION under its name, on every tab (job-page-head.tsx;
+   Isaac, 14 November 2026, calls 19 and 22, mock B): plain text at 16, no
+   mark, wrapping when it's long, never faded */
+.fg .jp-desc { margin:12px 0 0; font-size:16px; line-height:24px; font-weight:400; color:var(--ink); overflow-wrap:anywhere; }
 .fg .wb2-sheet.jc.jp-sheet .wb2-jcbody { overflow:visible; border-top:0; border-radius:0; padding:24px 0 0; scrollbar-gutter:auto; background:var(--paper); }
 /* Overview: the stages line, the strip of facts, then its two columns (job-overview.tsx) */
 .fg .jp-over { display:flex; flex-direction:column; gap:16px; }
@@ -5960,6 +5964,21 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 .fg .jsc-since > li { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:12px; align-items:start; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px; line-height:20px; color:var(--ink); }
 .fg .jsc-since b { display:block; font-weight:600; overflow-wrap:anywhere; }
 .fg .jsc-since .jsc-said { font-size:13px; color:var(--q); }
+/* THE SCOPE TAB (job-scope-tab.tsx; mock A, approved 14 November 2026): the
+   Scope on the left, Since the quote and Latest updates in a 380 column on
+   the right. The tab fits the screen and each card scrolls inside itself
+   (`--fit-h`, use-fit-height.ts); the page keeps 16 under the cards. A job
+   with no Scope has its Summary across both. */
+.fg .wrap.jp:has(.jp-fit:not([hidden])) { padding-bottom:16px; }
+.fg .jp-fit[hidden] { display:none; }
+.fg .jov.jst { display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:16px; align-items:start; }
+.fg .jov.jst--one { grid-template-columns:minmax(0,1fr); }
+.fg .jst-brief { display:flex; flex-direction:column; min-height:0; height:var(--fit-h, auto); }
+.fg .jst-brief > .jov-sec { flex:1 1 auto; min-height:0; overflow:auto; }
+.fg .jst--one > .jov-sec { height:var(--fit-h, auto); overflow:auto; }
+.fg .jst-rail { display:flex; flex-direction:column; gap:16px; min-height:0; max-height:var(--fit-h, none); }
+.fg .jst-rail > .jov-sec { flex:0 1 auto; min-height:0; overflow:auto; }
+.fg .jst .jsc { max-width:none; }
 /* To do: a task's tick, and its words as the door to its own form (Isaac, 24 October 2026) */
 .fg .jov-task { justify-content:flex-start; align-items:flex-start; gap:8px; padding:8px 0; }
 .fg .jc-task { display:flex; flex-direction:column; min-width:0; }

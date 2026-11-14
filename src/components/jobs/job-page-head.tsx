@@ -26,7 +26,12 @@ import { WayBack } from "./way-back";
        white menu (rules 36, 53 and 54): what Add made first ("Add visit",
        "Add task"), then what's done to the job, then Open in ServiceM8
        (Isaac, 22 October 2026: one menu up top);
-     then the seven section tabs, each saying what's in it (rule 31).
+     under them, on every tab, the job's description: the first sentence of
+       its Scope, plain text at 16 with no mark, wrapping when it's long
+       (Isaac, 14 November 2026, calls 22 and 19, mock B on
+       https://claude.ai/artifact/6JjEtQm7aukwxDsHQfKY5e); a job with no
+       Scope has no line;
+     then the section tabs, each saying what's in it (rule 31).
 
    No breadcrumb (6-revisions, 17 October): the way back is one word, not
    a path. The stages line is Overview's, not the head's.
@@ -44,6 +49,8 @@ const inSentence = (word: string) => (/^[A-Z]{2,}\b/.test(word) ? word : word.ch
 export type JobPageHeadProps = {
   /** the job's client, or its address where it has none */
   name: string;
+  /** what the job is, in one sentence: its Scope's description; none without a Scope */
+  description?: string | null;
   /** the job's number, in the plate's coloured box */
   number?: string | null;
   hue: Hue;
@@ -56,7 +63,7 @@ export type JobPageHeadProps = {
   onSection: (key: string) => void;
 };
 
-export function JobPageHead({ name, number = null, hue, sm8Href, add, actions, sections, section, onSection }: JobPageHeadProps) {
+export function JobPageHead({ name, description = null, number = null, hue, sm8Href, add, actions, sections, section, onSection }: JobPageHeadProps) {
   const actRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const chevron = (
@@ -113,6 +120,7 @@ export function JobPageHead({ name, number = null, hue, sm8Href, add, actions, s
           />
         </div>
       </div>
+      {description ? <p className="jp-desc">{description}</p> : null}
       <SectionTabs items={sections} current={section} onGo={onSection} ariaLabel="The job" idPrefix="jp-tab" />
     </header>
   );

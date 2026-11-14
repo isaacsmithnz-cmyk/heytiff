@@ -121,6 +121,11 @@ export type JobStoryServerRead = {
   clientName: string | null;
   /** The day the job was made. */
   createdOn: string | null;
+  /** What keeps a finished job's scope read (scopeWanted): the day a quote
+      was last sent, the day it was completed, and a visit booked from today. */
+  quoteSentOn: string | null;
+  completedOn: string | null;
+  visitBooked: boolean;
 };
 
 /** The same inputs the card fetches, assembled where the writer runs. The
@@ -188,6 +193,9 @@ export async function readJobStoryForSummary(
     status: detail.status,
     clientName: detail.clientName,
     createdOn: detail.date,
+    quoteSentOn: detail.quoteSentOn ?? null,
+    completedOn: detail.completionDate,
+    visitBooked: (detail.booked ?? []).some((b) => !b.leftover) || (!detail.booked && !!detail.nextBooking),
   };
 }
 

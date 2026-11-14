@@ -1,11 +1,12 @@
 import type { StoryEntry } from "@/lib/workboard/job-story";
-import { SCOPE_SCHEMA, changingWords, intoVersion, newlyAdded, sinceRows, versionFrom, pastQuote, priceThemWords, quotedLine, sentVersion, scopeMoved, scopeOf, scopePrompt, scopeStamp, scopeWanted, stillAdded, wordsWithoutMoney } from "../job-scope";
+import { SCOPE_SCHEMA, changingWords, descriptionOf, ledeAfterDescription, intoVersion, newlyAdded, sinceRows, versionFrom, pastQuote, priceThemWords, quotedLine, sentVersion, scopeMoved, scopeOf, scopePrompt, scopeStamp, scopeWanted, stillAdded, wordsWithoutMoney } from "../job-scope";
 
 /* A job's scope, as Tiff's written brief (Isaac, 28 October 2026: "a common
    point where a quote can get built from"): what she's handed, and how her
    answer is read back. */
 
 const brief = {
+  description: "Four systems for the Carney Residence.",
   lede: "Four systems for the Carney Residence, from Anna Vaughan Architects' tender set.",
   systems: [
     { area: "Ground floor", kind: "ducted, under the floor", text: "Living/Dining, Kids Play and Guest Bed.", from: ["A200", "A202", ""] },
@@ -20,6 +21,7 @@ const brief = {
 describe("reading Tiff's brief back", () => {
   it("keeps what she wrote and drops what's empty", () => {
     expect(scopeOf(brief)).toEqual({
+      description: "Four systems for the Carney Residence.",
       lede: brief.lede,
       systems: [{ area: "Ground floor", kind: "ducted, under the floor", text: "Living/Dining, Kids Play and Guest Bed.", from: ["A200", "A202"] }],
       added: [{ text: "Exhaust fans in the three bathrooms", from: "The builder's call, 28 Oct" }],
@@ -61,6 +63,41 @@ describe("what Tiff is handed", () => {
   it("asks for no nullable field, so the schema stays within what structured outputs take", () => {
     expect(JSON.stringify(SCOPE_SCHEMA)).not.toContain("null");
   });
+
+  /* the description under the job's name, in the same read (Isaac, 14 November 2026, call 22) */
+  it("asks for the description as its own field, the lede's first sentence word for word", () => {
+    expect(SCOPE_SCHEMA.required).toContain("description");
+    expect(SCOPE_SCHEMA.properties.description).toEqual({ type: "string" });
+  });
+
+  it("hands over the brief as it stands with its description, one written before it had one with its first sentence", () => {
+    const read = { status: "Quote", clientName: "C", scope: null, workDone: null, lines: [] };
+    const was = { description: "", lede: "A ducted system at 125 Homer St, Earlwood. Scope from Luke's note.", systems: [], added: [], notOurs: [], clarify: [], updates: [], undoSaid: "" };
+    expect(scopePrompt({ ...read, previous: was })).toContain('"description":"A ducted system at 125 Homer St, Earlwood."');
+  });
+});
+
+describe("the description under the job's name", () => {
+  it("is the brief's own", () => {
+    expect(descriptionOf({ description: "Clean and assess the AC.", lede: "Something else. More." })).toBe("Clean and assess the AC.");
+  });
+
+  it("is the lede's first sentence for a brief written before it had one, never cut at a street or a title", () => {
+    expect(descriptionOf({ description: "", lede: "Sharon Doyle wants a detailed clean of the AC system. Scope is from the office's description." })).toBe(
+      "Sharon Doyle wants a detailed clean of the AC system."
+    );
+    expect(descriptionOf({ description: "", lede: "Ducted at 4 Smith St. Earlwood for Dr. Lee, quoted as two options. Scope from Luke." })).toBe(
+      "Ducted at 4 Smith St. Earlwood for Dr. Lee, quoted as two options."
+    );
+    expect(descriptionOf({ description: "", lede: "A Mitsubishi 7.1kW single zone." })).toBe("A Mitsubishi 7.1kW single zone.");
+  });
+
+  it("is left off the Scope tab's lede, which starts from its second sentence", () => {
+    expect(ledeAfterDescription({ description: "Clean the AC.", lede: "Clean the AC. Scope is from the office." })).toBe("Scope is from the office.");
+    expect(ledeAfterDescription({ description: "", lede: "Clean the AC. Scope is from the office." })).toBe("Scope is from the office.");
+    /* a lede that doesn't open with it is shown whole */
+    expect(ledeAfterDescription({ description: "Clean the AC.", lede: "A clean. Scope is from the office." })).toBe("A clean. Scope is from the office.");
+  });
 });
 
 describe("whose jobs get one", () => {
@@ -72,6 +109,18 @@ describe("whose jobs get one", () => {
     expect(scopeWanted("Completed", "2026-10-29")).toBe(false);
     expect(scopeWanted("Unsuccessful", "2026-10-29")).toBe(false);
     expect(scopeWanted(null, "2026-10-29")).toBe(false);
+  });
+
+  /* Isaac, 14 November 2026, call 23: "Yes" */
+  it("a finished job while it has a quote awaiting approval or a visit booked", () => {
+    expect(scopeWanted("Completed", "2026-10-08", { visitBooked: true })).toBe(true);
+    expect(scopeWanted("Completed", "2026-10-08", { quoteSentOn: "2026-11-12 09:00:00", completedOn: "2026-11-11 22:31:33" })).toBe(true);
+    /* a quote sent before it was finished is the one it was done to */
+    expect(scopeWanted("Completed", "2026-10-08", { quoteSentOn: "2026-10-09", completedOn: "2026-11-11 22:31:33" })).toBe(false);
+    expect(scopeWanted("Completed", "2026-10-08", { quoteSentOn: null, completedOn: "2026-11-11", visitBooked: false })).toBe(false);
+    /* still never one made before October, nor a lost job */
+    expect(scopeWanted("Completed", "2026-09-30", { visitBooked: true })).toBe(false);
+    expect(scopeWanted("Unsuccessful", "2026-10-08", { visitBooked: true })).toBe(false);
   });
 });
 
@@ -98,7 +147,7 @@ describe("what a rewrite is due on", () => {
 });
 
 describe("whether a rewrite changed anything", () => {
-  const base = { lede: "L", systems: [], added: [], notOurs: [], clarify: [], updates: [], undoSaid: "" };
+  const base = { description: "", lede: "L", systems: [], added: [], notOurs: [], clarify: [], updates: [], undoSaid: "" };
   it("doesn't count its words on the change itself", () => {
     expect(scopeMoved(base, { ...base, undoSaid: "Took it out.", updates: [{ on: "x", from: "y", said: "z" }] })).toBe(false);
     expect(scopeMoved(base, { ...base, added: [{ text: "Exhaust fans", from: "a note" }] })).toBe(true);
@@ -106,7 +155,7 @@ describe("whether a rewrite changed anything", () => {
 });
 
 describe("the brief as it stands", () => {
-  const was = { lede: "As it stands.", systems: [], added: [], notOurs: [], clarify: [], updates: [], undoSaid: "Took it out." };
+  const was = { description: "", lede: "As it stands.", systems: [], added: [], notOurs: [], clarify: [], updates: [], undoSaid: "Took it out." };
   const read = { status: "Quote", clientName: "C", scope: null, workDone: null, lines: [] };
   it("is handed over with what was taken out", () => {
     const p = scopePrompt({ ...read, previous: was, setAside: [{ on: "Sun 1 Nov", said: "Added exhaust fans." }] });
@@ -123,7 +172,7 @@ describe("the brief as it stands", () => {
 });
 
 describe("the scope on the quote", () => {
-  const scope = (added: string[]) => ({ lede: "A job.", systems: [], added: added.map((text) => ({ text, from: "A note" })), notOurs: [], clarify: [], updates: [], undoSaid: "" });
+  const scope = (added: string[]) => ({ description: "", lede: "A job.", systems: [], added: added.map((text) => ({ text, from: "A note" })), notOurs: [], clarify: [], updates: [], undoSaid: "" });
 
   it("finds what a rewrite added, however it's spaced or cased", () => {
     expect(newlyAdded(scope(["New trunking"]), scope(["new  trunking", "A pump"])).map((a) => a.text)).toEqual(["A pump"]);

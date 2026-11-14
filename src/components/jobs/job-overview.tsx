@@ -12,10 +12,7 @@ import type { StoryEntry } from "@/lib/workboard/job-story";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import { JobConversation, type ConversationDiary } from "./job-conversation";
 import { JobFacts } from "./job-facts";
-import { JobScope } from "./job-scope";
 import { JobEquipment } from "./job-equipment";
-import { JobSummary } from "./job-summary";
-import type { JobScopeRead } from "@/lib/jobs/job-scope";
 import { JobTodo } from "./job-todo";
 import { JobTracker } from "./job-tracker";
 import type { TrackerRead } from "@/lib/jobs/job-tracker";
@@ -34,10 +31,11 @@ const TaskForm = dynamic(() => import("@/components/making/task-form").then((m) 
      the strip of facts (job-facts.tsx): Site, Contact, Next visit and,
        for whoever sees money, Money;
      what the page puts under the strip: a tracked job's board;
-     two columns split by a full-height hairline: on the left the Summary
-       (job-summary.tsx), or the job's scope and its latest updates once Tiff
-       has written one (job-scope.tsx, 28 October 2026), and To do (job-todo.tsx), on the right the
-       Activity feed (job-conversation.tsx), Tiff's box at its head;
+     two columns split by a full-height hairline: on the left To do
+       (job-todo.tsx), on the right the Activity feed (job-conversation.tsx),
+       Tiff's box at its head. The Summary, or the job's Scope with Since
+       the quote and Latest updates, moved to the Scope tab (Isaac, 13
+       November 2026: "Give scope its own tab"; job-scope-tab.tsx);
      for whoever sees money, the Job tracker (job-tracker.tsx) heads the
        left column: labour, materials and equipment against the quote
        (Isaac, 4 November 2026, "build it").
@@ -110,12 +108,6 @@ export function JobOverview({
   loading,
   moneyVisible,
   detail,
-  scope: brief = null,
-  scopeReading = false,
-  onUndoScope,
-  onLeaveScope,
-  scopeUpdateHref,
-  fallbackWhat,
   diary,
   onToast,
   head,
@@ -132,17 +124,6 @@ export function JobOverview({
   loading: boolean;
   moneyVisible: boolean;
   detail: MirrorJobDetail | null;
-  /** The job's scope, Tiff's brief: drawn in the Summary's place once there is one. */
-  scope?: JobScopeRead | null;
-  /** Tiff is reading something new on the job. */
-  scopeReading?: boolean;
-  onUndoScope?: () => Promise<void>;
-  /** Leave out, off Since the quote. */
-  onLeaveScope?: (text: string) => Promise<void>;
-  /** The quote, opened on Update quote with what's changing written in. */
-  scopeUpdateHref?: string;
-  /** The row's title, until the detail's description is read. */
-  fallbackWhat: string | null;
   diary: ConversationDiary;
   onToast: (message: string, undo?: () => void | Promise<void>) => void;
   /** Over the strip: the stages line. */
@@ -177,8 +158,6 @@ export function JobOverview({
 
   /* THE READ, and every reason to read it again */
   const [read, setRead] = useState<JobConversationRead | null>(() => firstRead ?? null);
-  /* the read answered or failed: the Summary reads the description then */
-  const [readDone, setReadDone] = useState(() => firstRead !== undefined);
   /* the page's own read stands for the first one (Strict Mode's second
      mount reads, which is only development) */
   const skipFirst = useRef(firstRead !== undefined);
@@ -202,9 +181,6 @@ export function JobOverview({
       })
       .catch(() => {
         /* the diary's own entries still stand; what Tiff made waits for the next read */
-      })
-      .finally(() => {
-        if (live) setReadDone(true);
       });
     return () => {
       live = false;
@@ -285,7 +261,6 @@ export function JobOverview({
   const [openTask, setOpenTask] = useState<string | null>(null);
   const today = read?.today ?? null;
   const tasks = (read?.tasks ?? []).filter((t) => !ticked.has(t.id));
-  const what = (detail?.description ?? fallbackWhat ?? "").trim();
 
   return (
     <div className="jov">
@@ -304,11 +279,6 @@ export function JobOverview({
       <div className="jov-cols">
         <div className={`jov-main${mainFits ? " jov-main--stick" : ""}`} ref={mainRef}>
           {moneyVisible && cardId && tracker !== "none" && <JobTracker read={tracker} jobId={cardId} onRead={setTracker} />}
-          {brief ? (
-            <JobScope scope={brief} reading={scopeReading} onUndo={onUndoScope} onLeave={onLeaveScope} updateHref={scopeUpdateHref} />
-          ) : (
-            <JobSummary fromQuote={read?.summary ?? null} description={what} read={readDone || !!read || (!cardId && !loading)} />
-          )}
           {cardId ? <JobEquipment jobId={cardId} /> : null}
           <JobTodo
             tasks={tasks}

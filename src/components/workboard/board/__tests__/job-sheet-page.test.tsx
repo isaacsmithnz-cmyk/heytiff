@@ -339,28 +339,43 @@ describe("the job's page head", () => {
 });
 
 describe("the job's sections are the card's faces", () => {
-  it("has seven tabs with the money, and no Billing without it", async () => {
+  it("has eight tabs with the money, Scope after Overview, and no Billing without it", async () => {
     const { unmount } = draw("overview", { moneyVisible: true });
     await ready();
-    expect(tabWords()).toEqual(["Overview", "Quote", "Visits", "Materials", "Photos", "Documents", "Billing"]);
+    expect(tabWords()).toEqual(["Overview", "Scope", "Quote", "Visits", "Materials", "Photos", "Documents", "Billing"]);
     unmount();
     draw("overview");
     await ready();
-    expect(tabWords()).toEqual(["Overview", "Quote", "Visits", "Materials", "Photos", "Documents"]);
+    expect(tabWords()).toEqual(["Overview", "Scope", "Quote", "Visits", "Materials", "Photos", "Documents"]);
+  });
+
+  /* Isaac, 13 November 2026: "Give scope its own tab"; mock A, 14 November */
+  it("shows a job with no Scope its Summary on the Scope tab, and none on the Overview", async () => {
+    const { unmount } = draw("scope");
+    await ready();
+    expect(jobTab("Scope")).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByRole("region", { name: "Summary" })).toBeVisible();
+    expect(screen.queryByRole("navigation", { name: "Where the job is up to" })).toBeNull();
+    unmount();
+    draw("overview");
+    await ready();
+    expect(screen.queryByRole("region", { name: "Summary" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Scope" })).toBeNull();
   });
 
   /* Isaac, 28 October 2026: "a separate tab outside of the quoting" */
   it("has Design after Quote for whoever holds the Studio", async () => {
     draw("design", { studio: true });
     await ready();
-    expect(tabWords()).toEqual(["Overview", "Quote", "Design", "Visits", "Materials", "Photos", "Documents"]);
+    expect(tabWords()).toEqual(["Overview", "Scope", "Quote", "Design", "Visits", "Materials", "Photos", "Documents"]);
     expect(screen.getByRole("region", { name: "Design" })).toBeVisible();
     expect(await screen.findByText("No design on this job")).toBeInTheDocument();
   });
 
   /* the refined Overview A (Isaac, 25 October 2026): the stages line, the
-     strip of facts, then the Summary and To do beside the Activity feed */
-  it("shows Overview as the stages line over the strip of facts, the Summary and To do beside the Activity feed", async () => {
+     strip of facts, then To do beside the Activity feed; the Summary went to
+     the Scope tab (13 November 2026) */
+  it("shows Overview as the stages line over the strip of facts, To do beside the Activity feed", async () => {
     const { container } = draw("overview", { moneyVisible: true });
     await ready();
     expect(jobTab("Overview")).toHaveAttribute("aria-selected", "true");
@@ -368,7 +383,7 @@ describe("the job's sections are the card's faces", () => {
     expect(within(over).getByRole("navigation", { name: "Where the job is up to" })).toBeVisible();
     const facts = within(screen.getByRole("group", { name: "The job's facts" }));
     expect(facts.getAllByRole("region").map((r) => r.querySelector(".jov-lab")?.firstChild?.textContent)).toEqual(["Site", "Contact", "Next visit", "Money"]);
-    expect([...over.querySelectorAll(".jov-main .jov-title")].map((h) => h.textContent)).toEqual(["Summary", "To do"]);
+    expect([...over.querySelectorAll(".jov-main .jov-title")].map((h) => h.textContent)).toEqual(["To do"]);
     expect([...over.querySelectorAll(".jov-side .jov-title")].map((h) => h.textContent)).toEqual(["Activity feed"]);
     expect(screen.getByRole("region", { name: "Activity feed" })).toBeVisible();
     expect(screen.getByRole("textbox", { name: "Write a note on this job" })).toBeVisible();
@@ -394,8 +409,8 @@ describe("the job's sections are the card's faces", () => {
   it("draws none of the card's own faces on Overview", async () => {
     draw("overview");
     await ready();
-    /* the card's own Summary and Timeline faces are the card's, not the page's; the Summary here is the section */
-    expect(screen.getAllByRole("region", { name: "Summary" }).every((r) => r.classList.contains("jov-summary"))).toBe(true);
+    /* the card's own Summary and Timeline faces are the card's, not the page's */
+    expect(screen.queryByRole("region", { name: "Summary" })).toBeNull();
     expect(screen.queryByRole("region", { name: "Timeline" })).toBeNull();
     expect(screen.queryByRole("region", { name: "Photos" })).toBeNull();
   });

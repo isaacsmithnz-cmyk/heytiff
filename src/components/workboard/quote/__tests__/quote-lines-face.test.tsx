@@ -1441,7 +1441,7 @@ describe("the Design step", () => {
    price it, and it comes off Since the quote */
 describe("after it's sent", () => {
   const study = { text: "Concealed fan coil unit next to the Study", from: "Anna Vaughan's email, Tue 3 Nov" };
-  const brief = { lede: "", systems: [], added: [study], notOurs: [], clarify: [], updates: [], undoSaid: "", stamp: "s", writtenAt: "", canUndo: false, sincePriced: [study], quoted: { on: "Wed 28 Oct", version: 1 }, accepted: false };
+  const brief = { description: "", lede: "", systems: [], added: [study], notOurs: [], clarify: [], updates: [], undoSaid: "", stamp: "s", writtenAt: "", canUndo: false, sincePriced: [study], quoted: { on: "Wed 28 Oct", version: 1 }, accepted: false };
   const session = { ok: true, on: true, working: false, spentUsd: 0, me: "u-isaac", names: {}, events: [], questions: {} };
   beforeEach(() => {
     (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string, init?: { body?: string }) => {

@@ -1,4 +1,4 @@
-import { buildingFirst, isFirstBuild, isFirstTurn, leftInWords, stepOf, stillToGo, timeLeft, tookOf, turnStartOf, turnTimes } from "../time-left";
+import { buildingFirst, isFirstBuild, isFirstTurn, leftInWords, liveWords, stepOf, stepOfTool, stillToGo, timeLeft, tookOf, turnStartOf, turnTimes } from "../time-left";
 
 const ev = (turnId: string | null, kind: string, name?: string, at = "2026-11-01T00:00:00.000Z") => ({ turnId, kind, body: name ? { name } : {}, at });
 const done = [ev("t1", "message"), ev("t1", "tool", "add_lines"), ev("t1", "usage")];
@@ -97,5 +97,23 @@ describe("time left from how long this business's turns took", () => {
     expect(isFirstBuild(thread, "t2")).toBe(false);
     expect(buildingFirst([...thread, e("t4", "message", { text: "Add a head" }, 600)])).toBe(false);
     expect(tookOf(turnTimes(thread))).toEqual({ first: [80, 86], later: [11] });
+  });
+});
+
+describe("her reply as it comes", () => {
+  const reply = (t: string) => ({ turnId: "t2", kind: "reply", body: { text: t }, at: "2026-11-01T00:00:00.000Z" });
+  it("shows her words until the round that wrote them is saved", () => {
+    const under = [...done, ev("t2", "message")];
+    expect(liveWords({ tool: null, text: " The total is $6,995" }, under)).toBe("The total is $6,995");
+    expect(liveWords({ tool: null, text: "The total is $6,995 " }, [...under, reply("The total is $6,995")])).toBe("");
+  });
+  it("shows none while she's on a tool, and none with nothing live", () => {
+    expect(liveWords({ tool: "write_up", text: "x" }, done)).toBe("");
+    expect(liveWords(null, done)).toBe("");
+  });
+  it("names the step of the tool she's begun", () => {
+    expect(stepOfTool("write_up")).toBe("Writing the proposal");
+    expect(stepOfTool("nope")).toBeNull();
+    expect(stepOfTool(null)).toBeNull();
   });
 });

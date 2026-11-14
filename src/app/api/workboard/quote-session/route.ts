@@ -79,6 +79,8 @@ export async function GET(req: Request) {
     ok: true,
     on: sessionModelFor(g.orgId) != null,
     working: busy || waiting,
+    /* what she's at this second, as her words come: the turn under way's own */
+    ...(busy && session?.live && session.live.turn === session.turnId ? { live: { tool: session.live.tool, text: g.money ? session.live.text : maskMoney(session.live.text) } } : {}),
     /* how long her turns took here, first builds apart, for the bar */
     took: await readTurnTimes(g.orgId),
     /* what she's cost is money too */

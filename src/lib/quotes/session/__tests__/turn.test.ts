@@ -326,3 +326,26 @@ it("marks words said alongside her tool calls as working, and her answer as not"
   expect(replies.map((e) => e.body)).toEqual([{ text: "PEA-M100HAA is the one. Checking specs.", working: true }, { text: "A 10 kW ducted under the floor." }]);
 });
 
+
+/* streamed (Isaac, 14 November 2026: "Just get it all built"): the page
+   hears what she's at before a round is saved */
+describe("what she's at, as she goes", () => {
+  it("hands the model the turn's live, and says each tool as it runs", async () => {
+    const heard: { tool: string | null; text: string }[] = [];
+    const inner = scripted([
+      { content: [use("t1", "read_quote")], stopReason: "tool_use" },
+      { content: [text("Done.")], stopReason: "end_turn" },
+    ]);
+    const model: TurnDeps["model"] = async (req, signal, live) => {
+      live?.({ tool: null, text: "Do" });
+      return inner(req, signal);
+    };
+    const { d } = deps(model, { live: (l) => heard.push(l) });
+    await runTurn({ messages: [], summary: "" }, "Quote it", d);
+    expect(heard).toEqual([
+      { tool: null, text: "Do" },
+      { tool: "read_quote", text: "" },
+      { tool: null, text: "Do" },
+    ]);
+  });
+});

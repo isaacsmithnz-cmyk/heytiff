@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { openQuestions, phoneQuoteOf, phoneTurns, scopeOf, wordOf, type LinesView, type Thread } from "../phone-quote";
+import { doingOf, openQuestions, phoneQuoteOf, phoneTurns, scopeOf, wordOf, type LinesView, type Thread } from "../phone-quote";
 import type { QuoteLine } from "@/lib/quotes/lines";
 import type { QuotePrice } from "@/lib/quotes/quote-price-server";
 
@@ -178,5 +178,16 @@ describe("answering while she works", () => {
     // one she's on and one waiting for her: neither is asked again
     expect(openQuestions(thread, undefined)).toEqual([]);
     expect(openQuestions(thread.slice(0, 5), undefined).map((x) => x.id)).toEqual([2]);
+  });
+});
+
+/* streamed (Isaac, 14 November 2026: "Just get it all built") */
+describe("what she's at, on the phone", () => {
+  const t = (id: number, kind: string, body: Record<string, unknown> = {}): Thread => ({ id, turnId: "t1", kind, author: "tiff", body, at: "2026-11-14T00:00:00.000Z" }) as Thread;
+  it("names the tool she's begun and carries her words as she writes them, plain", () => {
+    const events = [t(1, "message", { text: "15" }), t(2, "tool", { name: "read_quote" })];
+    expect(doingOf(events, null, { tool: "write_up", text: "" })).toMatchObject({ step: "Writing the proposal" });
+    expect(doingOf(events, null, { tool: null, text: "The total is **$6,995**" })).toMatchObject({ step: "Reading the job", typing: "The total is $6,995" });
+    expect(doingOf(events, null, null).typing).toBeUndefined();
   });
 });

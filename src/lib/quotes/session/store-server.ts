@@ -21,20 +21,29 @@ export const HOLD_MS = 6 * 60_000;
     seconds, and every poll read the whole conversation: on 16 October two
     held a drawing set each (7 MB and 11 MB) and the database slowed for
     everyone, ServiceM8's webhooks with it. */
-export type SessionHead = { id: string; spentUsd: number; turnId: string | null; turnSince: string | null };
+export type SessionHead = { id: string; spentUsd: number; turnId: string | null; turnSince: string | null; live?: LiveRow | null };
+/** What she's at this second, kept by the turn under way (liveWriter). */
+export type LiveRow = { turn: string; tool: string | null; text: string; at: string };
 /** A session as a turn reads it: the conversation too. */
 export type SessionRow = SessionHead & { messages: Msg[]; summary: string };
 
 /* never the conversation: even one message of it out of the column unpacks the whole of it */
-const HEAD_COLS = "id, spent_usd, turn_id, turn_since";
-const COLS = "id, messages, summary, spent_usd, turn_id, turn_since";
+const HEAD_COLS = "id, spent_usd, turn_id, turn_since, live";
+const COLS = "id, messages, summary, spent_usd, turn_id, turn_since, live";
 
 const headOf = (r: Record<string, unknown>): SessionHead => ({
   id: r.id as string,
   spentUsd: Number(r.spent_usd) || 0,
   turnId: (r.turn_id as string | null) ?? null,
   turnSince: (r.turn_since as string | null) ?? null,
+  live: liveOf(r.live),
 });
+
+const liveOf = (v: unknown): LiveRow | null => {
+  if (!v || typeof v !== "object") return null;
+  const l = v as Record<string, unknown>;
+  return typeof l.turn === "string" ? { turn: l.turn, tool: typeof l.tool === "string" ? l.tool : null, text: typeof l.text === "string" ? l.text : "", at: String(l.at ?? "") } : null;
+};
 
 const rowOf = (r: Record<string, unknown>): SessionRow => ({
   ...headOf(r),
@@ -193,7 +202,53 @@ export async function saveRound(orgId: string, sessionId: string, turnId: string
 }
 
 export async function endTurn(sessionId: string, turnId: string): Promise<void> {
-  await supabaseAdmin.from("quote_sessions").update({ turn_id: null, turn_since: null }).eq("id", sessionId).eq("turn_id", turnId);
+  await supabaseAdmin.from("quote_sessions").update({ turn_id: null, turn_since: null, live: null }).eq("id", sessionId).eq("turn_id", turnId);
+}
+
+/** How often, at most, what she's at is written while her words come, ms. */
+export const LIVE_EVERY_MS = 400;
+
+/** Keeps what she's at on the session as the turn goes: a new tool at once,
+    her words at most every LIVE_EVERY_MS, one write at a time, and only
+    while this turn holds the session. A write that fails is let go: the
+    next carries on. `done` stops it, once the last write is in. */
+export function liveWriter(sessionId: string, turnId: string, write = writeLive): { put: (l: { tool: string | null; text: string }) => void; done: () => Promise<void> } {
+  let latest: { tool: string | null; text: string } | null = null;
+  let lastTool: string | null | undefined;
+  let lastAt = 0;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let writing: Promise<void> = Promise.resolve();
+  let over = false;
+  const flush = () => {
+    timer = null;
+    const l = latest;
+    if (!l || over) return;
+    latest = null;
+    lastAt = Date.now();
+    writing = writing.then(() => write(sessionId, turnId, { turn: turnId, tool: l.tool, text: l.text.slice(0, 8000), at: new Date().toISOString() })).catch(() => {});
+  };
+  return {
+    put(l) {
+      if (over) return;
+      latest = l;
+      const toolChanged = l.tool !== lastTool;
+      lastTool = l.tool;
+      if (toolChanged) {
+        if (timer) clearTimeout(timer);
+        flush();
+      } else if (!timer) timer = setTimeout(flush, Math.max(0, LIVE_EVERY_MS - (Date.now() - lastAt)));
+    },
+    async done() {
+      over = true;
+      if (timer) clearTimeout(timer);
+      timer = null;
+      await writing;
+    },
+  };
+}
+
+async function writeLive(sessionId: string, turnId: string, live: LiveRow): Promise<void> {
+  await supabaseAdmin.from("quote_sessions").update({ live }).eq("id", sessionId).eq("turn_id", turnId);
 }
 
 type AnyEvent = EventDraft | { kind: "message" | "milestone"; author: string; body: Record<string, unknown> };

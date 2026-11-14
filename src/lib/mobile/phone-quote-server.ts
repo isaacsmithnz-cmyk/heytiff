@@ -14,7 +14,7 @@ import type { QuotePrice } from "@/lib/quotes/quote-price-server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { actAsPhoneUser, type MobileCtx } from "./auth";
-import type { Took } from "@/lib/quotes/session/time-left";
+import type { LiveNow, Took } from "@/lib/quotes/session/time-left";
 import { doingOf, openQuestions, phoneQuoteOf, phoneTurns, type LinesView, type QuestionPrices, type Thread } from "./phone-quote";
 
 /* The phone's quote, read and pressed through the web's own routes as the token's
@@ -30,7 +30,7 @@ export async function asPhone(r: Response): Promise<Response> {
   return Response.json({ error: body?.reason ?? body?.error ?? "That didn't go through. Try again." }, { status: r.ok ? 409 : r.status, headers: { "cache-control": "no-store" } });
 }
 
-type TalkAnswer = { on?: boolean; working?: boolean; took?: Took; events: Thread[]; names?: Record<string, string>; me?: string; questions?: QuestionPrices };
+type TalkAnswer = { on?: boolean; working?: boolean; live?: LiveNow; took?: Took; events: Thread[]; names?: Record<string, string>; me?: string; questions?: QuestionPrices };
 
 export async function readPhoneQuote(ctx: MobileCtx, id: string) {
   return actAsPhoneUser(ctx, async () => {
@@ -63,7 +63,7 @@ export async function readPhoneQuote(ctx: MobileCtx, id: string) {
       ...quote,
       on: talked?.on === true,
       working,
-      doing: doingOf(events, talked?.took),
+      doing: doingOf(events, talked?.took, talked?.live),
       talked: events.length > 0,
       turns: phoneTurns(events, names, talked?.me ?? ctx.userId),
       asked,
@@ -100,7 +100,7 @@ export function readPhoneTalk(ctx: MobileCtx, id: string) {
     const events = t.events ?? [];
     /* her questions still open come with it, so the next can be answered while she works */
     return Response.json(
-      { working: t.working === true, doing: doingOf(events, t.took), turns: phoneTurns(events, t.names ?? {}, t.me ?? ctx.userId), asked: openQuestions(events, undefined) },
+      { working: t.working === true, doing: doingOf(events, t.took, t.live), turns: phoneTurns(events, t.names ?? {}, t.me ?? ctx.userId), asked: openQuestions(events, undefined) },
       { headers: { "cache-control": "no-store" } }
     );
   });

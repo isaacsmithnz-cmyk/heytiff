@@ -53,7 +53,12 @@ export type ModelReply = {
   usage: TokenUsage;
 };
 
-export type ModelCall = (req: ModelRequest, signal?: AbortSignal) => Promise<ModelReply>;
+/** What she's at as the reply comes in (a streamed call): the tool she has
+    begun to call, or null while she's still in words, and the words of her
+    reply so far, since her last tool. */
+export type Live = { tool: string | null; text: string };
+
+export type ModelCall = (req: ModelRequest, signal?: AbortSignal, live?: (l: Live) => void) => Promise<ModelReply>;
 
 export const isText = (b: Block): b is TextBlock => b.type === "text" && typeof (b as TextBlock).text === "string";
 export const isToolUse = (b: Block): b is ToolUseBlock => b.type === "tool_use";
@@ -96,8 +101,8 @@ export type Recording = Record<string, ModelReply>;
 
 /** The model, with every reply kept in `into` under its request's key. */
 export function recording(inner: ModelCall, into: Recording): ModelCall {
-  return async (req, signal) => {
-    const reply = await inner(req, signal);
+  return async (req, signal, live) => {
+    const reply = await inner(req, signal, live);
     into[requestKey(req)] = reply;
     return reply;
   };

@@ -40,6 +40,22 @@ const STEP_OF: Record<string, string> = {
   write_proposal: "Writing the proposal",
 };
 
+/** The step a tool is, as the working word says it; null for one with none. */
+export const stepOfTool = (name: string | null | undefined): string | null => (name ? (STEP_OF[name] ?? null) : null);
+
+/** What she's at this second, as the thread's read carries it while she works. */
+export type LiveNow = { tool: string | null; text: string };
+
+/** The words of her reply as they come: none once the round that wrote them
+    is saved, its reply then in the thread, or while she's on a tool. */
+export function liveWords(live: LiveNow | null | undefined, events: readonly TurnEvent[]): string {
+  const text = live && !live.tool ? live.text.trim() : "";
+  if (!text) return "";
+  const turn = lastTurn(events);
+  const saved = events.some((e) => e.turnId === turn && e.kind === "reply" && String(e.body.text ?? "").trim() === text);
+  return saved ? "" : text;
+}
+
 const lastTurn = (events: readonly TurnEvent[]) => events.findLast((e) => e.turnId)?.turnId ?? null;
 
 /** When the turn under way began, or null when the thread's last turn has finished: the send has just gone and its first event isn't back. */

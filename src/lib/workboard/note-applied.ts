@@ -87,6 +87,33 @@ export type AppliedRecord = {
   moves?: MoveMade[];
 };
 
+/** WHAT GOES ON TO SERVICEM8 (Isaac, 14 November 2026, call 9): only a fact
+    about the job. A note that only made To dos, a reminder, stays ours: its
+    To dos are on the job, and nothing is sent. Anything else it put on the
+    job, a line, a flag, an issue, a visit, a cost, goes as it always has. */
+export function onlyTodos(a: AppliedRecord): boolean {
+  if (a.taskIds.length === 0) return false;
+  const lists: readonly unknown[][] = [
+    a.flagIds,
+    a.entryIds,
+    a.entryLines,
+    a.issueIds,
+    a.issueBumps,
+    a.bringItems,
+    a.checklistIds,
+    a.picklistIds,
+    a.textWrites,
+    a.kbIds,
+    a.jobNotes,
+    a.noteLines,
+    a.visits,
+    a.costs,
+    a.variations,
+    a.moves ?? [],
+  ];
+  return lists.every((l) => l.length === 0);
+}
+
 const strings = (v: unknown): string[] =>
   Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x !== "") : [];
 

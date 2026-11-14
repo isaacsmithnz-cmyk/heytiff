@@ -474,6 +474,16 @@ the fourth on the customer's messages, below).
   Tiff set who and when. Comms has no box. An email shows its words without
   its sign-off or its signature's pictures, with Whole email and Reply under
   it. "Task" only ever means site work: Actions' Add says "Add to do".
+  The box's arrow opens Tiff's docked window with the job as its context,
+  with only its × (no Minimise on a job's; other screens keep it), and the
+  job's box goes while it is open (Isaac, 14 November 2026, mock E and calls
+  10, 17 and 20). She saves each decision as she makes it, with Undo;
+  closing only closes, and what she is still doing she finishes. All shows
+  what she saved, a To do made by "Tiff, for Isaac Smith", never the chat;
+  the Tiff tab lists every chat on the job, the quote's too, each with the
+  word that opens it where it was had: Open chat, Open in Price. Only a fact
+  about the job goes on to ServiceM8 as a note: a reminder becomes a To do
+  and nothing is sent.
 
 - **Plans stand first among a job's Documents** (`.jdoc-group` "Plans",
   job-documents-face), above Drawings (Isaac, 9 November 2026, on

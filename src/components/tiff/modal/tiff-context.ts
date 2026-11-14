@@ -45,6 +45,10 @@ export type TiffOpen = {
       from the button (law 8). Tiff's thinking still takes its time: that is
       state, not the press. */
   keyboard?: boolean;
+  /** Opened from a job's box (Isaac, 14 November 2026, mock E and calls 10
+      and 17): the window has only its ×, and closing it lets her finish
+      what she's doing. Other screens keep Minimise, and closing cancels. */
+  onJob?: boolean;
 };
 
 /** What the last conversation filed: the notes, and the rows with ids. */

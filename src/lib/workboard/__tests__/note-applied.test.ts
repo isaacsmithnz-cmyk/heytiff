@@ -6,6 +6,7 @@
 
 import {
   appliedOf,
+  onlyTodos,
   doorsOf,
   freshIssueIds,
   stillThere,
@@ -240,5 +241,16 @@ describe("stillThere — what Undo would take back now", () => {
     });
     expect(stillThere(words, nothingNow()).bringItems).toEqual(["coil cleaner"]);
     expect(takesBack(stillThere(words, nothingNow()))).toBe(true);
+  });
+});
+
+/* Isaac, 14 November 2026, call 9: only a fact about the job goes to ServiceM8 */
+describe("what goes on to ServiceM8", () => {
+  it("keeps back a note that only made To dos, and sends anything that put a fact on the job", () => {
+    expect(onlyTodos(appliedOf({ taskIds: ["t-1"] }))).toBe(true);
+    expect(onlyTodos(appliedOf({ taskIds: ["t-1"], entryLines: ["Outdoor unit is on level 3"] }))).toBe(false);
+    expect(onlyTodos(appliedOf({ taskIds: ["t-1"], flagIds: ["f-1"] }))).toBe(false);
+    expect(onlyTodos(appliedOf({ jobNotes: ["Gate code changed"] }))).toBe(false);
+    expect(onlyTodos(appliedOf({}))).toBe(false);
   });
 });

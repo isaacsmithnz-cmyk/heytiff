@@ -19,6 +19,7 @@ import {
   withoutMoney,
   type JobConversationRead,
   type JobNoteTalk,
+  type QuoteChat,
 } from "./job-conversation";
 
 /* WHAT A JOB'S OVERVIEW READS BEYOND THE CARD'S RECORD (v2, step 6).
@@ -89,6 +90,33 @@ function clockIn(tz: string | null, iso: string): string | null {
 
 const firstName = (name: string | null | undefined) => name?.trim().split(/\s+/)[0] || null;
 
+/** The quote's chat with Tiff: her newest line on the job's quote and when
+    (call 20). A quote nobody has talked to her about has none; a read that
+    fails is none, never the Overview's failure. */
+async function quoteChatOf(orgId: string, jobUuid: string, tz: string | null): Promise<QuoteChat | null> {
+  try {
+    const { data: session } = await supabaseAdmin.from("quote_sessions").select("id").eq("org_id", orgId).eq("sm8_job_uuid", jobUuid).maybeSingle();
+    const id = (session as { id?: string } | null)?.id;
+    if (!id) return null;
+    const { data } = await supabaseAdmin
+      .from("quote_session_events")
+      .select("at, body")
+      .eq("org_id", orgId)
+      .eq("session_id", id)
+      .eq("kind", "reply")
+      .order("id", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const row = data as { at?: string; body?: { text?: unknown } } | null;
+    const text = typeof row?.body?.text === "string" ? row.body.text.trim() : "";
+    const stamp = row?.at ? naiveInZone(row.at, tz) : null;
+    if (!text || !stamp || !row?.at) return null;
+    return { day: stamp.slice(0, 10), at: stamp, time: clockIn(tz, row.at) ?? "", text };
+  } catch {
+    return null;
+  }
+}
+
 /** The Summary's groups from the job's quote: its lines' names and codes,
     never a price. A quote that can't be read is none, never the
     Overview's failure. */
@@ -114,13 +142,14 @@ export async function readJobConversationFor(input: {
 }): Promise<JobConversationRead> {
   const { orgId, staffId, jobUuid, tz, undoAny, money } = input;
   const today = todayInZone(tz);
-  const [entries, summary, customer] = await Promise.all([
+  const [entries, summary, customer, quoteChat] = await Promise.all([
     listJobDiaryEntries(orgId, staffId, jobUuid, tz),
     quoteSummary(orgId, jobUuid),
     /* the customer's messages are a nicety beside the diary: a read that fails is none */
     Promise.resolve()
       .then(() => readCustomerConversation({ orgId, jobUuid, money, today }))
       .catch((): { items: CustomerItem[]; comms: CommsThread[] } => ({ items: [], comms: [] })),
+    quoteChatOf(orgId, jobUuid, tz),
   ]);
 
   const noteTaskIds = [...new Set(entries.flatMap((e) => e.record.taskIds))];
@@ -286,5 +315,7 @@ export async function readJobConversationFor(input: {
     summary,
     customer: customer.items,
     comms: customer.comms,
+    /* her line on the quote can carry its price: said in words without money (decision 15) */
+    quoteChat: quoteChat ? { ...quoteChat, text: money ? quoteChat.text : withoutMoney(quoteChat.text) } : null,
   };
 }

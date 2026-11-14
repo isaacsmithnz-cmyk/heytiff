@@ -49,6 +49,7 @@ import {
 import {
   APPLIED_V,
   appliedOf,
+  onlyTodos,
   bookedVisits,
   doorsOf,
   filedCosts,
@@ -1694,7 +1695,10 @@ export async function fileNote(
      probably 3 or 4 seconds, which looked like a bug"). after() keeps the
      phone's session (Next binds the callback to its caller's context), so
      the note still goes as whoever said it. */
-  if (target.kind === "job" && target.id) {
+  /* ...unless it was only a reminder: a note that made To dos and nothing
+     else stays ours, and its To dos are on the job (Isaac, 14 November
+     2026, call 9: only a fact about the job goes to ServiceM8) */
+  if (target.kind === "job" && target.id && !onlyTodos(appliedOf(done.applied))) {
     const jobUuid = target.id;
     after(() => sendOnToSm8(ctx, noteId, jobUuid));
   }

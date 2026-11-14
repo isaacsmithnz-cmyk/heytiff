@@ -15,7 +15,8 @@ import { planOf, type PlannedPart } from "@/lib/quotes/build-progress";
 import { researchDetailOf } from "@/lib/quotes/research";
 import { replyBlocks, type ReplySpan } from "@/lib/quotes/session/reply-blocks";
 import { latestAsked } from "@/lib/quotes/session/answers";
-import { isFirstTurn, stepOf, timeLeft, turnStartOf } from "@/lib/quotes/session/time-left";
+import { buildingFirst, stepOf, timeLeft, turnStartOf, type Took } from "@/lib/quotes/session/time-left";
+import { waitingIds } from "@/lib/quotes/session/queued";
 import { writeUpOf } from "@/lib/quotes/write-up";
 import { fmtAddition, fmtAud } from "@/lib/workboard/project-money";
 import { QuoteScope, type QuoteScopeWords } from "./quote-scope";
@@ -50,25 +51,31 @@ const POLL_MS = 1500;
 
 type Ev = { id: number; turnId: string | null; kind: string; author: string; body: Record<string, unknown>; at: string };
 type QState = { deltas: (number | null)[]; answered: { index: number; label: string; by: string; typed?: true } | null };
-type View = { ok: boolean; on?: boolean; working?: boolean; spentUsd?: number; events?: Ev[]; names?: Record<string, string>; me?: string; questions?: Record<number, QState> };
+type View = { ok: boolean; on?: boolean; working?: boolean; took?: Took; spentUsd?: number; events?: Ev[]; names?: Record<string, string>; me?: string; questions?: Record<number, QState> };
 type Answer = { label: string };
 type Source = { id: string; label: string; text: string };
 
 /** What she's doing and about how long is left, while she works. Until the turn's first event is back, it counts from when this appeared. */
-function TimeLeft({ since, first, step }: { since: number | null; first: boolean; step: string | null }) {
+function TimeLeft({ since, first, step, took }: { since: number | null; first: boolean; step: string | null; took: readonly number[] | undefined }) {
   const [opened] = useState(() => Date.now());
   const [now, setNow] = useState(opened);
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
-  const left = timeLeft((now - (since ?? opened)) / 1000, first);
+  const left = timeLeft((now - (since ?? opened)) / 1000, first, took);
   const word = step ?? (first ? "Reading the job" : "Working on the quote");
   return (
     <div className="qt-est qc-in">
       <p className="qt-working">
         <TiffGlyph working size={20} />
         {word}
+        {/* the chat's jumping dots after her words, the mark still turning (Isaac, 13 November 2026: "just adding the dots next to whatever the wording is") */}
+        <span className="tc-dots" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </span>
         {left && <span className="qt-left">{left.words}</span>}
       </p>
       {left && (
@@ -169,6 +176,8 @@ export function TiffPanel({
      or the lines' until it knows which */
   const [on, setOn] = useState<boolean | null>(null);
   const [working, setWorking] = useState(false);
+  /* how long her turns took here, from the thread's read */
+  const [took, setTook] = useState<Took | null>(null);
   /* what she's cost: sent only to someone who sees money */
   const [spent, setSpent] = useState<number | null>(null);
   const [events, setEvents] = useState<Ev[]>([]);
@@ -241,6 +250,7 @@ export function TiffPanel({
     const was = busyNow.current;
     busyNow.current = !!v.working;
     setWorking(!!v.working);
+    if (v.took) setTook(v.took);
     /* she's done: the quote as she left it, her questions priced against it */
     if (was && !v.working) {
       onChanged();
@@ -470,6 +480,8 @@ export function TiffPanel({
     </div>
   );
   const thread: ReactNode[] = [];
+  /* sent while she worked, still waiting for her */
+  const waiting = new Set(waitingIds(events));
   let steps: Ev[] = [];
   let hers = false;
   /* her working, folded to one line once she's done: every step she took and
@@ -536,6 +548,8 @@ export function TiffPanel({
         <div key={e.id} className={`${mine ? "qt-msg me" : "qt-msg"}${landed(e.id)}`}>
           <div className={mine ? "qt-bub me" : "qt-bub them"}>{paras(text)}</div>
           <span className="qt-meta">{who(e.author)}</span>
+          {/* sent while she worked: she takes it up when she's free */}
+          {waiting.has(e.id) && <span className="qt-meta">Next</span>}
         </div>
       );
       hers = false;
@@ -636,7 +650,7 @@ export function TiffPanel({
                         <ul className="qt-ans">
                           {answers.map((a, i) => (
                             <li key={i}>
-                              <button type="button" disabled={busy || working || deltas[i] === null} onClick={() => void answer(q.id, i)}>
+                              <button type="button" disabled={busy || deltas[i] === null} onClick={() => void answer(q.id, i)}>
                                 <b>{a.label}</b>
                                 {deltaWords(deltas[i]) && <em>{deltaWords(deltas[i])}</em>}
                               </button>
@@ -724,7 +738,12 @@ export function TiffPanel({
           )}
           {thread.length > 0 && <div className="qt-thread">{thread}</div>}
           {working && (
-            <TimeLeft since={turnStartOf(events)} first={isFirstTurn(events)} step={stepOf(events)} />
+            <TimeLeft
+              since={turnStartOf(events)}
+              first={buildingFirst(events)}
+              step={stepOf(events)}
+              took={buildingFirst(events) ? took?.first : took?.later}
+            />
           )}
         </div>
       </div>
@@ -745,7 +764,8 @@ export function TiffPanel({
             placeholder={events.length === 0 ? "Tell Tiff about the job" : "Reply"}
             sendWord="Tiff"
             sendLabel="Send to Tiff"
-            waiting={busy || working}
+            /* you can answer while she works: it waits its turn (Isaac, 13 November 2026, "Build E") */
+            waiting={busy}
             dict={voiceEnabled ? dict : null}
             boxRef={box}
           />

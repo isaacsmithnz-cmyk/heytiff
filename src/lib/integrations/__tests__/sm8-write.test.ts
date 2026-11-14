@@ -495,7 +495,7 @@ describe("a booking, as the app (two-way phase 3)", () => {
     expect(await deleteSm8Booking(W("t"), "../job/x")).toMatchObject({ status: null, outcome: { kind: "rejected", status: 400 } });
     expect(await postSm8Booking(W("t"), { ...b, start: "2026-10-06T20:00:00" })).toMatchObject({ outcome: { kind: "rejected" } });
     expect(await postSm8Booking(W("t"), { ...b, staffUuid: "someone" })).toMatchObject({ outcome: { kind: "rejected" } });
-    expect(await postSm8JobStatus(W("t"), JOB, "Completed" as "Work Order")).toMatchObject({ outcome: { kind: "rejected" } });
+    expect(await postSm8JobStatus(W("t"), JOB, "Unscheduled" as "Work Order")).toMatchObject({ outcome: { kind: "rejected" } });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

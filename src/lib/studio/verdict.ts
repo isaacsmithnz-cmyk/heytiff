@@ -336,7 +336,7 @@ function combinationFindings(doc: DesignDocument, pack: DataPack, sys: DesignSys
        "an immediate red flag"). Heads past the outdoor are normal diversity;
        a load past the most heads it can carry is not a design. */
     const band = vrfBand(oduSpec);
-    const load = systemCover(doc, pack, sys, doc.settings.sizingBasis).loadKw;
+    const load = systemCover(doc, pack, sys, doc.settings.sizingBasis).needKw;
     const ceiling = vrfLoadCeilingKw(oduSpec, doc.settings.sizingBasis);
     if (band && load != null && ceiling != null) {
       if (!vrfTakesLoad(oduSpec, load, doc.settings.sizingBasis))

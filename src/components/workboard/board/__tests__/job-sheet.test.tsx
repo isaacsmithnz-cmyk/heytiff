@@ -842,7 +842,8 @@ describe("the summary refresh", () => {
     render(<Job row={row()} {...props} />);
     await detailLanded();
     await new Promise((r) => setTimeout(r, 0));
-    expect(fetchMock).not.toHaveBeenCalled();
+    /* the Overview's Equipment reads Stock on its own; no kick is what counts */
+    expect((fetchMock.mock.calls as unknown[][]).filter((c) => !String(c[0]).startsWith("/api/stock/job"))).toHaveLength(0);
   });
 });
 

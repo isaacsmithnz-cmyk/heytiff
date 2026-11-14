@@ -159,6 +159,17 @@ describe("a design from a plan", () => {
     expect(made.reading!.roof!.levels[0]).toMatchObject({ floorId: ground.id, ceilingMm: 2700 });
     expect(made.reading!.site).toMatchObject({ floorId: ground.id, sheetId: ground.plans[0].id });
   });
+  it("carries Tiff's measured scale for a page that prints none, and leaves the floor unscaled", () => {
+    const photo = plan({
+      sourceKind: "image",
+      pages: [page(1, { name: "Ground floor", level: 0, ref: "org/o1/plan_1.png", width: 855, height: 1183, mmPerPx: null, scale: null, measured: { mmPerPx: 37.037, from: "the 5000 mm printed on it", sure: false } })],
+      reading: null,
+    });
+    const made = designFromPlan(photo);
+    expect(made.floors[0].scaleMmPerUnit).toBeNull();
+    expect(made.planImport.measured).toEqual({ 0: { mmPerPx: 37.037, from: "the 5000 mm printed on it", sure: false } });
+    expect(designFromPlan(plan()).planImport.measured).toBeUndefined();
+  });
   it("leaves the reading off a plan that has none", () => {
     expect(designFromPlan(plan({ reading: null })).reading).toBeNull();
   });

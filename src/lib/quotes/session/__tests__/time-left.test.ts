@@ -1,4 +1,4 @@
-import { isFirstTurn, leftInWords, stepOf, timeLeft, turnStartOf } from "../time-left";
+import { buildingFirst, isFirstBuild, isFirstTurn, leftInWords, stepOf, stillToGo, timeLeft, tookOf, turnStartOf, turnTimes } from "../time-left";
 
 const ev = (turnId: string | null, kind: string, name?: string, at = "2026-11-01T00:00:00.000Z") => ({ turnId, kind, body: name ? { name } : {}, at });
 const done = [ev("t1", "message"), ev("t1", "tool", "add_lines"), ev("t1", "usage")];
@@ -65,5 +65,37 @@ describe("stepOf", () => {
   it("has none before her first tool, or from a turn that has finished", () => {
     expect(stepOf([ev("t1", "message")])).toBeNull();
     expect(stepOf(done)).toBeNull();
+  });
+});
+
+/* Isaac, 13 November 2026: "is there a way to show the estimated time
+   remaining accurately?" — every turn after the first was taken as 35 s */
+describe("time left from how long this business's turns took", () => {
+  const at = (s: number) => new Date(Date.UTC(2026, 10, 12, 2, 44, 0) + s * 1000).toISOString();
+  const e = (turnId: string | null, kind: string, body: Record<string, unknown>, s: number) => ({ turnId, kind, body, at: at(s) });
+  // the later turns of 30 days, sorted: most quick, a few long
+  const later = [9, 10, 11, 12, 14, 18, 20, 24, 30, 36, 60, 90];
+
+  it("says what the turns that ran this long still took, so a long one stretches", () => {
+    expect(stillToGo(later, 0)).toBe(19);
+    expect(timeLeft(6, false, later)).toEqual({ percent: (6 / (6 + 13)) * 100, words: "about 20 sec left" });
+    // 40 s in, only the long ones are left: about 35 s more, not "taking longer than usual"
+    expect(timeLeft(40, false, later)!.words).toBe("about 40 sec left");
+    // past the longest: it says so, held short of the end
+    expect(timeLeft(95, false, later)).toEqual({ percent: 95, words: "Taking longer than usual" });
+    // too few turns of its own: the usual times
+    expect(timeLeft(6, false, [12, 14])).toEqual(timeLeft(6, false));
+  });
+
+  it("keeps first builds apart, Read the job and the thread's first turn", () => {
+    const thread = [e("t1", "message", { text: "Quote this job" }, 0), e("t1", "usage", {}, 86), e("t2", "message", { text: "15" }, 300), e("t2", "usage", {}, 311), e("t3", "message", { text: "Read the job", read: true }, 400), e("t3", "usage", {}, 480)];
+    expect(turnTimes(thread)).toEqual([
+      { first: true, seconds: 86 },
+      { first: false, seconds: 11 },
+      { first: true, seconds: 80 },
+    ]);
+    expect(isFirstBuild(thread, "t2")).toBe(false);
+    expect(buildingFirst([...thread, e("t4", "message", { text: "Add a head" }, 600)])).toBe(false);
+    expect(tookOf(turnTimes(thread))).toEqual({ first: [80, 86], later: [11] });
   });
 });

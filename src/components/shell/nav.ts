@@ -71,6 +71,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { key: "conversations", label: "Conversations", icon: "chat", href: "/dashboard/conversations", hint: "Talk to Tiff and the team", accent: "#050505", capability: "tiff" },
       { key: "jobs", label: "Jobs", icon: "folder", href: "/dashboard/jobs", hint: "Every job, its quote, visits and money", accent: "#050505", capability: "workboard" },
       { key: "schedule", label: "Schedule", icon: "calendar", href: "/dashboard/schedule", hint: "Who's on which job, by day and week", accent: "#050505", capability: "workboard" },
+      { key: "stock", label: "Stock", icon: "box", href: "/dashboard/stock", hint: "What next week's jobs need: in stock, ordered, to order", accent: "#050505", capability: "workboard" },
       { key: "documents", label: "Documents", icon: "file", href: "/dashboard/documents", hint: "SWMS, certificates, letters and handover sheets", accent: "#050505", capability: "workboard" },
       /* the Library's documents and its Toolbox shelf: shown for either */
       { key: "tiffkb", label: "Library", icon: "books", href: "/dashboard/tiff/library", hint: "Manuals, specs, SOPs and the field tools", accent: "#050505", anyOf: ["tiff", "toolbox"] },

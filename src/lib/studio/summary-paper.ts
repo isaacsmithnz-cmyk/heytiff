@@ -143,7 +143,8 @@ export function joinWords(words: string[]): string {
   return `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}`;
 }
 
-const lowerFirst = (s: string): string => (s ? s[0].toLowerCase() + s.slice(1) : s);
+/** "Wall bracket" → "wall bracket"; a name that opens on a code ("MUZ-AP25VG2's …") stays */
+const lowerFirst = (s: string): string => (/^[A-Z][a-z]/.test(s) ? s[0].toLowerCase() + s.slice(1) : s);
 const plural = (n: number, one: string): string => `${n} ${one}${n === 1 ? "" : "s"}`;
 const kw = (n: number): string => `${n.toFixed(1)} kW`;
 

@@ -51,12 +51,20 @@ export type TurnDeps = {
   /** As she goes to answer, what sends her back once with what she missed
       (send-back.ts), given the person's message and the tools run this turn. */
   sendBack?: (message: string, ran: readonly string[]) => string | null;
+  /** When, ms since the epoch, she's told to answer with what she has, as at
+      the round cap: the turn runs inside a function that is stopped at its
+      maxDuration, and a stopped turn says nothing at all. */
+  answerBy?: number;
+  now?: () => number;
 };
 
 /** Rounds of tools before she's told to answer with what she has. A quote
     takes many more reads and writes than a question. */
 export const MAX_ROUNDS = 24;
 export const MAX_TOKENS = 16_000;
+/** Seconds into a turn after which the next round is her answer: the routes'
+    maxDuration is 300, and the answering round, with no tools, has the rest. */
+export const ANSWER_BY_S = 210;
 /** The conversation's budget before the oldest turns are folded, characters. */
 export const FOLD_AT = 160_000;
 /** What's kept unfolded, the newest turns, characters. */
@@ -65,6 +73,22 @@ export const KEEP = 60_000;
 const MAX_RESULT = 20_000;
 
 const FAILED = "Tiff couldn't finish that. What she'd done is kept: say carry on.";
+
+/** Said to her with the cap round, her tools gone: answer now. Without it
+    she answered nothing (the 3465 dry run, 10 November 2026: 22 close looks,
+    the 25th round came back empty, $1.66 for no answer). */
+export const CAP_NOTE =
+  "That's all the looking and changing this turn has room for. Answer now with what you have: what's on the quote, what you found, and what you didn't get to, so they can say carry on.";
+/** What the thread says when the cap round still comes back with no words. */
+export const CAP_EMPTY = "I ran out of steps before I could answer. What I'd done is kept: say carry on.";
+
+/** The request's messages with the cap note on the last of them, a user's. */
+export function withCapNote(messages: readonly Msg[]): Msg[] {
+  const note: Block = { type: "text", text: CAP_NOTE };
+  const last = messages[messages.length - 1];
+  if (last?.role === "user") return [...messages.slice(0, -1), { role: "user", content: [...last.content, note] }];
+  return [...messages, { role: "user", content: [note] }];
+}
 
 /** The person's words onto the conversation: a message after one of their
     own (a turn that died before she answered) joins it. */
@@ -207,18 +231,21 @@ export async function runTurn(start: SessionState, message: string, deps: TurnDe
 
     for (let round = 0; round <= MAX_ROUNDS; round++) {
       if (deps.signal?.aborted) return { state, spentUsd: spent, ended: "error" };
-      const atCap = round === MAX_ROUNDS;
+      const atCap = round === MAX_ROUNDS || (deps.answerBy != null && round > 0 && (deps.now ?? Date.now)() >= deps.answerBy);
       rounds++;
       const reply = await deps.model(
-        { model: deps.modelName, system: deps.system, tools: atCap ? [] : deps.tools, messages: sentMessages(state), effort: deps.effort ?? "medium", maxTokens: MAX_TOKENS },
+        { model: deps.modelName, system: deps.system, tools: atCap ? [] : deps.tools, messages: atCap ? withCapNote(sentMessages(state)) : sentMessages(state), effort: deps.effort ?? "medium", maxTokens: MAX_TOKENS },
         deps.signal
       );
       add(replyCost(reply), reply.model);
       /* she's seen any file this request carried: the rounds after don't send it again */
       state = { ...state, messages: withoutFiles(state.messages) };
       const events: EventDraft[] = [];
-      const said = reply.content.filter(isText).map((b) => b.text).join("").trim();
       const calls = reply.content.filter(isToolUse);
+      /* the cap round with no words is still an answer, and never an empty
+         message the next request would be refused for */
+      const content = atCap && !reply.content.some((b) => isText(b) && b.text.trim()) ? [...reply.content, { type: "text" as const, text: CAP_EMPTY }] : reply.content;
+      const said = content.filter(isText).map((b) => b.text).join("").trim();
       /* words said on the way to her tools are her working, not her answer:
          the panel folds them in with the steps (Isaac, 2026-10-17, option A
          of the working-notes mocks: "Worked through it · 26 steps") */
@@ -226,7 +253,7 @@ export async function runTurn(start: SessionState, message: string, deps: TurnDe
          she said is then her working, and the note never reaches the thread */
       const back = calls.length === 0 && !atCap && !sentBack ? (deps.sendBack?.(message, ran) ?? null) : null;
       if (said) events.push({ kind: "reply", author: "tiff", body: { text: said, ...(calls.length || back ? { working: true } : {}) } });
-      state = { ...state, messages: [...state.messages, { role: "assistant", content: reply.content }] };
+      state = { ...state, messages: [...state.messages, { role: "assistant", content }] };
       if (back) {
         sentBack = true;
         state = { ...state, messages: [...state.messages, { role: "user", content: [{ type: "text", text: back }] }] };

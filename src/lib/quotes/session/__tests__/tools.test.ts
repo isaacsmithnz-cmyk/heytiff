@@ -20,10 +20,12 @@ jest.mock("../../lines-server", () => ({
 const saveProposal = jest.fn(async (..._a: unknown[]) => ({ ok: true }));
 const addKit = jest.fn();
 jest.mock("../../kits-server", () => ({ addKit: (...a: unknown[]) => (addKit as jest.Mock)(...a) }));
+const latestWriteUp = jest.fn(async (..._a: unknown[]): Promise<unknown> => null);
 const openQuestions = jest.fn(async () => [{ id: 41, question: "How long is the pipe run?", put: "10 m" }]);
 jest.mock("../store-server", () => ({
   readSession: jest.fn(async () => ({ id: "s1" })),
   readOpenQuestions: (...a: unknown[]) => (openQuestions as jest.Mock)(...a),
+  readLatestWriteUp: (...a: unknown[]) => (latestWriteUp as jest.Mock)(...a),
 }));
 jest.mock("../job-files-server", () => ({ jobFiles: jest.fn(async () => []), lookAt: jest.fn(), planPickOf: jest.fn(async (_o: string, _j: string, id: string) => (id === "doc:abc" ? { documentId: "abc" } : null)) }));
 const jobPlanRooms = jest.fn();
@@ -160,6 +162,22 @@ describe("her tools, run", () => {
     const out = await run("write_up", { read: ["Luke: two ducted systems"], visits: ["Rough-in: 2 people, 3.5 days, 55 h"] });
     expect(out).toMatchObject({ ok: true, said: "the job, written out", detail: { writeUp: { read: ["Luke: two ducted systems"], visits: ["Rough-in: 2 people, 3.5 days, 55 h"], sizing: [] } } });
     expect(await run("write_up", {})).toMatchObject({ ok: false });
+  });
+
+  /* Isaac, 13 November 2026: "Tiff is quite slow between turns" — an answer
+     had her write all ~2,600 characters of it again for one figure */
+  it("after an answer, changes only the sections she gives, onto the write-up as it stands", async () => {
+    const kept = { read: ["Luke: two ducted systems"], sizing: ["Downstairs 10 kW"], work: ["Downstairs: PEAD-M100"], visits: [], unpriced: [], assuming: ["Pipe run 10 m"], pricedOn: [{ what: "Runs", said: "10 m pipe" }], toCheck: [] };
+    latestWriteUp.mockClear();
+    latestWriteUp.mockResolvedValueOnce(kept);
+    const tools = sessionTools("org-1", "job-1");
+    const out = await tools("write_up", { assuming: ["Pipe run 14 m"], priced_on: [{ what: "Runs", said: "14 m pipe" }] });
+    expect(out).toMatchObject({ ok: true, said: "the write-up's Assuming, Priced on", value: { changed: "Assuming, Priced on" } });
+    expect((out as unknown as { detail: { writeUp: unknown } }).detail.writeUp).toEqual({ ...kept, assuming: ["Pipe run 14 m"], pricedOn: [{ what: "Runs", said: "14 m pipe" }] });
+    // a second change in the same step builds on the first, not on the kept one
+    const again = await tools("write_up", { unpriced: ["The core hole"] });
+    expect((again as unknown as { detail: { writeUp: { assuming: string[]; unpriced: string[] } } }).detail.writeUp).toMatchObject({ assuming: ["Pipe run 14 m"], unpriced: ["The core hole"], sizing: ["Downstairs 10 kW"] });
+    expect(latestWriteUp).toHaveBeenCalledTimes(1);
   });
 
   it("researches a price for a line by its own call, and leaves the line for the person to use it on", async () => {
@@ -496,14 +514,17 @@ describe("a room's load", () => {
   });
 
   /* the 3465 review, 5 November 2026: her load summed the rooms of one zoned
-     ducted system (22.3 kW) where the Studio sizes it at 0.7 (15.6 kW) */
-  it("sizes one zoned ducted system at 0.7 of the rooms' sum, and an unzoned one at the sum", async () => {
+     ducted system (22.3 kW) where the Studio sizes it at 0.7 (15.6 kW);
+     stepped by zones, 13 November 2026: two rooms 0.85, four or more 0.7 */
+  it("sizes one zoned ducted system on part of the rooms' sum by its zones, and an unzoned one at the sum", async () => {
     const { roomLoads } = await import("../tools");
     const rooms = [{ name: "Living", area_m2: 84 }, { name: "Bed 2", area_m2: 12, orientation: "W" }];
     const zoned = roomLoads({ zoned: true, rooms });
     expect(zoned.total_kw).toBe(14.442);
-    expect(zoned.diversity).toBe(0.7);
-    expect(zoned.system_kw).toBe(10.109);
+    expect(zoned.diversity).toBe(0.85);
+    expect(zoned.system_kw).toBe(12.276);
+    const four = roomLoads({ zoned: true, rooms: [...rooms, { name: "Bed 3", area_m2: 12 }, { name: "Bed 4", area_m2: 12 }] });
+    expect(four.diversity).toBe(0.7);
     const plain = roomLoads({ rooms });
     expect(plain.diversity).toBe(1);
     expect(plain.system_kw).toBe(14.442);

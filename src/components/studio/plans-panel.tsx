@@ -74,6 +74,7 @@ export function PlansPanel({
   onDeleteFloor,
   onOpenFloor,
   planImages,
+  onNewFiles,
 }: {
   doc: DesignDocument;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
@@ -83,6 +84,9 @@ export function PlansPanel({
   onDeleteFloor: (id: string) => void;
   onOpenFloor: (id: string) => void;
   planImages: PlanImages;
+  /** a design on a job: the files added here go into the job's Plans too,
+      the one place plans are kept (#1448); what went wrong, or null */
+  onNewFiles?: (files: File[]) => Promise<string | null>;
 }) {
   /* the import session — all coexisting on one page */
   const [pages, setPages] = useState<PageImage[] | null>(null);
@@ -295,6 +299,12 @@ export function PlansPanel({
         // grid re-rasterises from the sources on return. Anything already stored
         // (a fresh source's ref set on a prior commit, or a rehydrated page) is
         // kept, never re-uploaded.
+        // on a job, a new file goes into the job's Plans first
+        const fresh = sources.filter((s) => !s.ref && s.file).map((s) => s.file as File);
+        if (fresh.length > 0 && onNewFiles) {
+          const wrong = await onNewFiles(fresh);
+          if (wrong) throw new Error(wrong);
+        }
         const remaining =
           sources.filter((s) => !s.ref).length +
           pageIdxs.filter((i) => !pages[i].ref).length;

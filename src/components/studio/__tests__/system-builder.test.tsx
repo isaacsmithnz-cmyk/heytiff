@@ -11,7 +11,7 @@ import { SystemBuilder, ZoneStanding } from "../system-builder";
 import { PACK_SECTIONS, type DataPack, type PackMeta } from "@/lib/studio/packs/schema";
 import { assemblePack, type PackSource } from "@/lib/studio/packs/loader";
 import { createDesign, type DesignDocument, type DesignObject } from "@/lib/studio/document";
-import { addHead, allocationsOf, chooseOutdoor, moveZone, placeAllocation } from "@/lib/studio/builder";
+import { addBandUnit, addHead, allocationsOf, chooseOutdoor, moveZone, placeAllocation } from "@/lib/studio/builder";
 import { claimZone, newSystem } from "@/lib/studio/zones";
 import { sizingCapacityKw } from "@/lib/studio/loads";
 
@@ -496,6 +496,86 @@ describe("the Ducted family", () => {
   });
 });
 
+/* ZONING ON A WHOLE-SYSTEM DUCTED UNIT (Isaac, 13 November 2026: "Where is
+   zoning"): the next flow counted only the rooms ticked to a unit, and a
+   ducted unit serving the whole system ticks none, so it never showed */
+describe("zoning a ducted system in the next flow", () => {
+  /* ZONING UNDER HEAD TYPE, SIZED ZONED (Isaac, 13 November 2026: "when
+     you're in the ducted system, the zoning switch should be there straight
+     away. And then that will help you select the correct unit") */
+  const ducted = (doc: DesignDocument, systemId: string): DesignDocument => ({
+    ...doc,
+    systems: doc.systems.map((s) => (s.id === systemId ? { ...s, settings: { ...s.settings, family: "ducted" } } : s)),
+  });
+  const colSub = () => document.querySelector(".ds-sb-colsub")!.textContent!;
+
+  it("is under Head type before a unit is chosen, and Temperature sizes the list on 80% of three zones' load", () => {
+    const made = claimed(house(), ["bed1", "bed2", "living"]);
+    render(<SystemBuilder doc={ducted(made.doc, made.systemId)} pack={pack} systemId={made.systemId} next onCommit={() => {}} onClose={() => {}} />);
+    const zoning = screen.getByRole("group", { name: "Zoning" });
+    expect(within(zoning).getByRole("button", { name: "Off" })).toHaveAttribute("aria-pressed", "true");
+    const summed = Number(colSub().match(/^([\d.]+) kW load$/)![1]);
+
+    fireEvent.click(within(zoning).getByRole("button", { name: "Temperature" }));
+    const m = colSub().match(/^([\d.]+) kW load zoned, 80% of the rooms’ ([\d.]+) kW$/)!;
+    expect(Number(m[2])).toBe(summed);
+    expect(Number(m[1])).toBeCloseTo(summed * 0.8, 0);
+  });
+
+  it("slides from its zones' figure to the full load, saying what each stop is the usual for", () => {
+    const made = claimed(house(), ["bed1", "bed2", "living"]);
+    render(<SystemBuilder doc={ducted(made.doc, made.systemId)} pack={pack} systemId={made.systemId} next onCommit={() => {}} onClose={() => {}} />);
+    expect(screen.queryByRole("slider", { name: "Sized on" })).toBeNull();
+    const summed = Number(colSub().match(/^([\d.]+) kW load$/)![1]);
+    fireEvent.click(within(screen.getByRole("group", { name: "Zoning" })).getByRole("button", { name: "On/off" }));
+
+    const slider = screen.getByRole("slider", { name: "Sized on" });
+    expect(slider).toHaveValue("80");
+    expect(screen.getByText("The usual for 3 zones")).toBeInTheDocument();
+    fireEvent.change(slider, { target: { value: "85" } });
+    expect(screen.getByText("85%")).toBeInTheDocument();
+    expect(screen.getByText("The usual for 2 zones")).toBeInTheDocument();
+    expect(Number(colSub().match(/^([\d.]+) kW load zoned, 85% of the rooms’/)![1])).toBeCloseTo(summed * 0.85, 0);
+    fireEvent.change(screen.getByRole("slider", { name: "Sized on" }), { target: { value: "100" } });
+    expect(screen.getByText("Every zone at once")).toBeInTheDocument();
+    expect(colSub()).toBe(`${summed.toFixed(1)} kW load`);
+  });
+
+  it("zones the unit that serves the whole system: the facts say zoned, its rooms are its zones", () => {
+    const made = claimed(house(), ["bed1", "bed2", "living"]);
+    const doc = addBandUnit(made.doc, pack, { systemId: made.systemId, iduModel: "PEA-M125GAA" });
+    render(<SystemBuilder doc={doc} pack={pack} systemId={made.systemId} next onCommit={() => {}} onClose={() => {}} />);
+    fireEvent.click(within(screen.getByRole("group", { name: "Zoning" })).getByRole("button", { name: "Temperature" }));
+    expect(document.querySelector(".ds-sb-facts")!.textContent).toMatch(/kW load zoned/);
+
+    fireEvent.click(within(schematic()).getByRole("button", { name: /, serves the whole system$/ }));
+    expect(within(screen.getByRole("group", { name: "Zones" })).getAllByRole("button", { name: /^Z\d / })).toHaveLength(3);
+  });
+
+  it("takes a VRF's ducted head given two rooms: Zoning under Head type once it is open", () => {
+    const made = claimed(house(), ["bed1", "living", "study"]);
+    let d = addHead(made.doc, pack, { systemId: made.systemId, zoneId: "bed1", iduModel: "PEFY-P32VMS1-E" });
+    d = addHead(d, pack, { systemId: made.systemId, zoneId: "living", iduModel: "PEFY-P100VMA-E4" });
+    d = {
+      ...d,
+      systems: d.systems.map((s) =>
+        s.id === made.systemId
+          ? { ...s, settings: { ...s.settings, allocations: allocationsOf(s).map((a) => (a.model === "PEFY-P100VMA-E4" ? { ...a, alsoServes: ["study"] } : a)) } }
+          : s
+      ),
+    };
+    render(<SystemBuilder doc={d} pack={pack} systemId={made.systemId} next onCommit={() => {}} onClose={() => {}} />);
+    expect(screen.queryByRole("group", { name: "Zoning" })).toBeNull();
+    fireEvent.click(within(schematic()).getByRole("button", { name: "PEFY-P100VMA-E4, serves Living and Study" }));
+    const summed = Number(colSub().match(/^([\d.]+) kW load$/)![1]);
+    fireEvent.click(within(screen.getByRole("group", { name: "Zoning" })).getByRole("button", { name: "On/off" }));
+    const m = colSub().match(/^([\d.]+) kW load zoned, 85% of the rooms’ ([\d.]+) kW$/)!;
+    expect(Number(m[2])).toBe(summed);
+    expect(Number(m[1])).toBeCloseTo(summed * 0.85, 0);
+    expect(within(screen.getByRole("group", { name: "Zones" })).getAllByRole("button", { name: /^Z\d / })).toHaveLength(2);
+  });
+});
+
 /* ONE UNIT, SEVERAL ROOMS (Isaac, 2026-10-28: on a VRF, the bedrooms on
    their own bulkheads and the living rooms on one ducted VMA, "but I couldn't
    find a way of grouping those 3 rooms onto 1 indoor unit") */
@@ -571,6 +651,7 @@ describe("one ducted unit serving several rooms", () => {
       sensors: "wired",
       joined: { study: "living" },
       spill: null,
+      sizedAt: null,
     });
   });
 

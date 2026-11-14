@@ -32,7 +32,7 @@ export const BOOKING_WORDS = {
   scope: {
     schedule:
       "Lets HeyTiff add, change and remove bookings, job allocations, booking windows and availability in ServiceM8. HeyTiff only adds the bookings people make here with Book in, and removes one only when whoever made it takes it back, or when someone clears a finished job's leftover booking. It adds staff leave only for leave approved here, and takes it off only when that leave is cancelled. It never moves a booking, and never touches allocations or booking windows.",
-    jobs: "Lets HeyTiff change and remove jobs. HeyTiff changes three things only: a Quote someone books in here becomes a Work Order, when they say so; a Quote an owner marks lost on the Analytics page becomes Unsuccessful; and a job's billing address, when someone saves it on the job's card. It never removes a job.",
+    jobs: "Lets HeyTiff change and remove jobs. HeyTiff changes four things only: a Quote someone books in here becomes a Work Order, when they say so; a Quote an owner marks lost on the Analytics page becomes Unsuccessful; a finished Work Order the office has checked becomes Completed; and a job's billing address, when someone saves it on the job's card. It never removes a job.",
   },
   /* The Book in panel on the job card's Visits face (PR D). */
   panel: {
@@ -116,11 +116,13 @@ export const BOOKING_WORDS = {
     refused: "ServiceM8 refused the booking.",
     statusRefused: "ServiceM8 refused the change to Work Order.",
     lostRefused: "ServiceM8 refused the change to Unsuccessful.",
+    doneRefused: "ServiceM8 refused the change to Completed.",
     removeRefused: "ServiceM8 refused to remove the booking.",
     /* the job or the booking having moved */
     jobGone: "That job isn't in ServiceM8 any more.",
     jobNotBookable: "The job is {status} in ServiceM8 now. Look again.",
     jobNotQuote: "The job is {status} in ServiceM8 now, not a Quote, so it wasn't marked Unsuccessful.",
+    jobNotWorkOrder: "The job is {status} in ServiceM8 now, not a Work Order, so it wasn't made Completed.",
     changed: "Changed in ServiceM8. Look again.",
     slotTaken: "{name} is already booked on this job at that time in ServiceM8.",
     techInactive: "{name} isn't active in ServiceM8.",
@@ -148,6 +150,7 @@ export const BOOKING_WORDS = {
     /* not kept, after the second read */
     statusNotKept: "ServiceM8 took the change but kept the job a Quote.",
     lostNotKept: "ServiceM8 took the change but kept the job a Quote, not Unsuccessful.",
+    doneNotKept: "ServiceM8 took the change but kept the job a Work Order, not Completed.",
     removeNotKept: "ServiceM8 took the removal but kept the booking.",
     /* a removal HeyTiff refused */
     changedNoTakeBack: "It was changed in ServiceM8 after it was booked, so HeyTiff didn't take it out.",
@@ -181,6 +184,11 @@ export const BOOKING_WORDS = {
     lostSent: "Marked Unsuccessful in ServiceM8",
     lostNotSent: "Not marked Unsuccessful. {reason}",
     lostUnsure: "It may have been marked Unsuccessful in ServiceM8. Look there.",
+    /* a finished job the office has checked, made Completed (How did it end?'s Ready to invoice) */
+    doneSending: "Making it Completed in ServiceM8…",
+    doneSent: "Completed in ServiceM8",
+    doneNotSent: "Not made Completed. {reason}",
+    doneUnsure: "It may have been made Completed in ServiceM8. Look there.",
     /* a take-back */
     takingOut: "Taking it out of ServiceM8…",
     stillIn: "Still in ServiceM8. {reason}",
@@ -241,6 +249,7 @@ export const BOOKING_WORDS = {
     create: "Booking",
     status: "Quote made a Work Order",
     lost: "Quote marked Unsuccessful",
+    done: "Work Order made Completed",
     undo: "Booking taken out of ServiceM8",
     clear: "Leftover booking cleared",
     off: "Booking taken off its job",

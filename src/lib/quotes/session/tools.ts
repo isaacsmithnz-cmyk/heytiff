@@ -5,6 +5,7 @@ import type { Product } from "../families";
 import type { Offer } from "../price-book";
 import { supplierOffer } from "../lookups";
 import { DEFAULT_CLIMATE_ZONE, ORIENTATIONS, roomHeatLoadKw } from "@/lib/studio/loads";
+import { diversityFor } from "@/lib/studio/zoning";
 import { OUTLET_KINDS, type AirflowAsk, type OutletKind } from "@/lib/guides/airflow";
 import type { ToolDef } from "./model";
 
@@ -273,7 +274,7 @@ export const SESSION_TOOLS: ToolDef[] = [
   {
     name: "room_load",
     description:
-      "Each room's design load in kW by Studio's own load method, when the brief gives rooms but no capacity: the area, the climate zone (5 for Sydney, Perth, Adelaide; 6 Melbourne, Canberra; 2 Brisbane), and what's known of the room. A unit covers a room when its rating is short by less than 0.1 kW. For one ducted system with zones over the rooms, set zoned: its unit is sized on system_kw (the rooms' sum at 0.7, as they don't all call at once), never the plain sum; each room still needs its own outlet sized on its own load. Pick the unit from the book, then check it on its data pack.",
+      "Each room's design load in kW by Studio's own load method, when the brief gives rooms but no capacity: the area, the climate zone (5 for Sydney, Perth, Adelaide; 6 Melbourne, Canberra; 2 Brisbane), and what's known of the room. A unit covers a room when its rating is short by less than 0.1 kW. For one ducted system with zones over the rooms, set zoned: its unit is sized on system_kw (the rooms' sum at 0.85 for two rooms, 0.8 for three, 0.7 for four or more, as they don't all call at once), never the plain sum; each room still needs its own outlet sized on its own load. Pick the unit from the book, then check it on its data pack.",
     input_schema: {
       type: "object",
       properties: {
@@ -586,7 +587,7 @@ export const SESSION_TOOLS: ToolDef[] = [
   {
     name: "write_up",
     description:
-      "Write the job out, the way an estimator does on paper before pricing: what you read (the brief, the notes, the plans, each in a line), the sizing (each system's load and the unit it takes, and why), the work (system by system, what goes in and where), the visits (each stage, its crew and days), what you can't price yet (leave it empty when nothing is), and what you're assuming. priced_on is what the price stands on, each a short name and what it is (\"Labour\": \"Option 1 is 12 h. Option 2 is 16 h, two people for a day\"; \"Runs, each unit\": \"5 m pipe, 3 m drain, 3 m power\"). to_check is what someone must look at on site, each a short name and why (\"Wall brackets\": \"The old ones may be fine to reuse\"). Short lines, plain words. The person reads priced_on and to_check on the quote's Scope, and you build every line from all of it. Write it again, whole, when the job changes.",
+      "Write the job out, the way an estimator does on paper before pricing: what you read (the brief, the notes, the plans, each in a line), the sizing (each system's load and the unit it takes, and why), the work (system by system, what goes in and where), the visits (each stage, its crew and days), what you can't price yet (leave it empty when nothing is), and what you're assuming. priced_on is what the price stands on, each a short name and what it is (\"Labour\": \"Option 1 is 12 h. Option 2 is 16 h, two people for a day\"; \"Runs, each unit\": \"5 m pipe, 3 m drain, 3 m power\"). to_check is what someone must look at on site, each a short name and why (\"Wall brackets\": \"The old ones may be fine to reuse\"). Short lines, plain words. The person reads priced_on and to_check on the quote's Scope, and you build every line from all of it. The first time, write all of it. After that, when the job changes, give only the sections it changed, each whole as it now reads; every section you leave out stays as it was. A figure they gave is priced on, by what it is and \"as <their name> said\" (\"Power cable\": \"15 m, as Isaac said\"): never something you're assuming, and never not priced yet once it's on a line.",
     input_schema: {
       type: "object",
       properties: {
@@ -883,8 +884,9 @@ export function roomLoads(raw: unknown): {
   rooms: { name: string; area_m2: number; load_kw: number }[];
   total_kw: number;
   /* one zoned ducted system over these rooms: they don't all call at once,
-     so the unit is sized on the sum at 0.7, as the Studio sizes it
-     (lib/studio/ducted.ts diversityFactor); unzoned, every room can call at
+     so the unit is sized on part of the sum by its zones, a room a zone, as
+     the Studio sizes it (lib/studio/zoning.ts diversityFor: 0.85 on two,
+     0.8 on three, 0.7 on four or more); unzoned, every room can call at
      once and it's the sum */
   system_kw: number;
   diversity: number;
@@ -918,9 +920,6 @@ export function roomLoads(raw: unknown): {
     out.push({ name, area_m2: area, load_kw: load });
   }
   const total = Math.round(out.reduce((n, x) => n + x.load_kw, 0) * 1000) / 1000;
-  const diversity = r.zoned === true && out.length > 1 ? ZONED_DIVERSITY : 1;
+  const diversity = r.zoned === true ? diversityFor(out.length) : 1;
   return { rooms: out, total_kw: total, system_kw: Math.round(total * diversity * 1000) / 1000, diversity, skipped, climate_zone: zone };
 }
-
-/** The Studio's zoned default (lib/studio/ducted.ts diversityFactor). */
-const ZONED_DIVERSITY = 0.7;

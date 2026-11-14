@@ -47,6 +47,10 @@ export const PLACES: readonly Place[] = [
   /* the board's own pages (a project, a quote, the maintenance side, a job's card by `?job=`) are the Jobs place's: Jobs has their views */
   { key: "jobs", label: "Jobs", icon: "folder", href: "/dashboard/jobs", under: ["/dashboard/workboard"], capability: "workboard" },
   { key: "schedule", label: "Schedule", icon: "calendar", href: "/dashboard/schedule", under: [], capability: "workboard" },
+  /* the ninth place, after Schedule, as its mock drew it (11 November 2026,
+     built overnight on "Don't wait for my answers. Just build"); rule 5 has
+     eight, so it's his to keep here or move under Team */
+  { key: "stock", label: "Stock", icon: "box", href: "/dashboard/stock", under: [], capability: "workboard" },
   /* the Workboard's gate, which is the SWMS', the certificates' and the
      handover sheets' today; a SWMS's sign-on and a letter's editor are
      Documents' too */

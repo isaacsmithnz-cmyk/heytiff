@@ -10259,6 +10259,7 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .dstudio .ds-su-row .k { flex: none; width: 64px; font: 500 13px/18px var(--font); color: var(--q); }
 .dstudio .ds-su-row .v { flex: 1; min-width: 0; }
 .dstudio .ds-su-row .v b { font-weight: 600; }
+.dstudio .ds-su-row .v .ds-su-state { display: flex; margin-top: 4px; }
 .dstudio .ds-su-acts { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
 .dstudio .ds-su-fill { flex: 1; }
 .dstudio .ds-su-main,
@@ -10422,6 +10423,11 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .fg:has(.ds-editor.clean) .outlet { padding: 0; margin: 0; }
 .dstudio.editing:has(> * .ds-editor.clean),
 .dstudio.editing:has(> .ds-editor.clean) { height: 100dvh; padding: 0; background: var(--paper); }
+/* under the dashboard's header (72px, .fr-head) the Studio is that much
+   shorter, or its foot (tools, zoom, Tiff, the column's button) falls off the
+   screen; display mode hides the header and keeps the full height */
+html:not([data-ds-display]) .fg:has(#fg-topbar) .dstudio.editing:has(> * .ds-editor.clean),
+html:not([data-ds-display]) .fg:has(#fg-topbar) .dstudio.editing:has(> .ds-editor.clean) { height: calc(100dvh - 72px); }
 .dstudio .ds-editor.clean { row-gap: 0; --ds-cockpit-w: 320px; --ds-stack-ground: #F5F5F6; background: var(--paper); }
 .dstudio .ds-editor.clean::before { display: none; }
 
@@ -10429,8 +10435,13 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .dstudio .ds-editor.clean > .ds-topbar { height: 56px; padding: 0 16px; gap: 12px; background: var(--paper); border-bottom: 1px solid var(--line); }
 .dstudio .ds-editor.clean .ds-menu-btn { width: auto; height: 32px; padding: 0 12px; border: none; box-shadow: none; background: none; border-radius: var(--r-button); font: 600 14px/20px var(--font); color: var(--ink); }
 .dstudio .ds-editor.clean .ds-menu-btn:hover { background: var(--hov); }
-.dstudio .ds-editor.clean .ds-id { flex-direction: row; align-items: center; gap: 8px; min-width: 0; }
-.dstudio .ds-editor.clean .ds-title-input { font: 600 16px/24px var(--font); height: 32px; width: 200px; flex-shrink: 0; padding: 0 8px; border: 1px solid transparent; border-radius: var(--r-control); background: none; color: var(--ink); }
+.dstudio .ds-editor.clean .ds-id { flex-direction: row; justify-content: flex-start; align-items: center; gap: 8px; min-width: 0; }
+.dstudio .ds-editor.clean .ds-id > .ds-save { flex-shrink: 0; white-space: nowrap; }
+/* the left flank keeps what it holds (title, Open job, Scope, Tiff's rooms):
+   equal flanks still centre Plan/3D on a wide screen, and on a 13-inch the
+   right flank gives way instead of the job's buttons running under Plan */
+.dstudio .ds-editor.clean .ds-tb-left { min-width: max-content; }
+.dstudio .ds-editor.clean .ds-title-input { font: 600 16px/24px var(--font); height: 32px; width: 200px; flex: 0 1 200px; min-width: 120px; padding: 0 8px; border: 1px solid transparent; border-radius: var(--r-control); background: none; color: var(--ink); }
 .dstudio .ds-editor.clean .ds-title-input:hover,
 .dstudio .ds-editor.clean .ds-title-input:focus { border-color: var(--edge); background: var(--paper); }
 .dstudio .ds-editor.clean .ds-centre { display: flex; align-items: center; gap: 12px; }
@@ -10477,8 +10488,11 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 /* Tiff's pill in the plan's corner, zoom beside it, the height of both */
 .dstudio .ds-editor.clean .ds-canvas-col .tc-ask { position: absolute; right: 16px; bottom: 16px; z-index: 12; height: 44px; padding: 0 16px 0 8px; }
 .dstudio .ds-editor.clean .tc-ask { background: var(--paper); }
-/* no room beside the tool bar: zoom stands on the pill instead */
-@media (max-width: 1400px) {
+/* no room beside the tool bar: zoom stands on the pill instead. Measured on
+   the plan's own width, not the window's: the sidebar and the column take
+   528px of a 13-inch's 1440, and zoom ran under the tool bar there */
+.dstudio .ds-editor.clean .ds-canvas-col { container: ds-plan / inline-size; }
+@container ds-plan (max-width: 1040px) {
   .dstudio .ds-editor.clean .ds-zoomctl { right: 16px; bottom: 68px; }
   .dstudio .ds-editor.clean .ds-canvas-col:has(.ds-hud) .ds-zoomctl { bottom: 176px; }
 }
@@ -10492,6 +10506,9 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 /* a tool's options, rising above the bar, two rows at most */
 .dstudio .ds-editor.clean .ds-hud { position: absolute; left: 50%; top: auto; bottom: 80px; transform: translateX(-50%); z-index: 20; max-width: calc(100% - 32px); border: none; border-radius: 16px; background: var(--paper); box-shadow: var(--shadow-overlay); }
 .dstudio .ds-editor.clean .ds-hud { padding: 8px; }
+/* Size the zone, and the panels like it, rise above the tool bar as the
+   options do; at the old 22px their buttons sat under it */
+.dstudio .ds-editor.clean .ds-wallsel-panel:not(.top) { bottom: 80px; z-index: 20; }
 /* the Air screen in the column (the next flow): what goes down drawn as the
    bench's tools are, then each choice under its name, a tray as wide as the
    column */
@@ -10587,6 +10604,34 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .dstudio .ds-syp-footrow { display: flex; gap: 8px; }
 .dstudio .ds-syp-footrow > button { flex: 1; width: auto; min-width: 0; }
 .dstudio .ds-editor.clean .ds-history { left: 72px; }
+/* HELP beside the history, and How to design rising above both (Isaac, 13
+   November 2026: "Build it" to the mock) */
+.dstudio .ds-editor.clean .ds-plan-foot-left { position: absolute; left: 72px; bottom: 16px; z-index: 12; display: flex; gap: 8px; }
+.dstudio .ds-editor.clean .ds-plan-foot-left .ds-history { position: static; }
+.dstudio .ds-editor.clean .ds-help-btn { display: flex; align-items: center; height: 44px; padding: 0 8px; border-radius: 16px; background: var(--paper); box-shadow: var(--shadow-overlay); }
+.dstudio .ds-editor.clean .ds-help-btn button { height: 32px; padding: 0 12px; border-radius: var(--r-button); font: 600 13px/20px var(--font); color: var(--ink); }
+.dstudio .ds-editor.clean .ds-help-btn button:hover { background: var(--hov); }
+.dstudio .ds-editor.clean .ds-help-btn button[aria-expanded="true"] { background: rgba(5, 5, 5, 0.07); }
+.dstudio .ds-help { position: absolute; left: 72px; bottom: 72px; z-index: 20; width: 360px; max-width: calc(100% - 88px); max-height: calc(100% - 96px); overflow: auto; border-radius: 16px; background: var(--paper); box-shadow: var(--shadow-overlay); color: var(--ink); }
+.dstudio .ds-help-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 16px 8px; }
+.dstudio .ds-help-head h2 { margin: 0; font: 600 16px/24px var(--font); }
+.dstudio .ds-help-close { display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--r-button); color: var(--ink); }
+.dstudio .ds-help-close:hover { background: var(--hov); }
+.dstudio .ds-help-steps { margin: 0; padding: 0 8px 8px; list-style: none; }
+.dstudio .ds-help-step { display: flex; gap: 12px; padding: 8px; }
+.dstudio .ds-help-step.now { border-radius: var(--r-button); background: rgba(5, 5, 5, 0.05); }
+.dstudio .ds-help-n { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--line); border-radius: 50%; font: 600 12px/16px var(--font); color: var(--q); }
+.dstudio .ds-help-step.now .ds-help-n { border: 2px solid var(--ink); color: var(--ink); }
+.dstudio .ds-help-step.done .ds-help-n { border: none; color: var(--ok-t); }
+.dstudio .ds-help-t { font: 600 14px/20px var(--font); }
+.dstudio .ds-help-step.done .ds-help-t { font-weight: 500; color: var(--q); }
+.dstudio .ds-help-l { margin-top: 2px; font: 500 13px/18px var(--font); color: var(--q); }
+.dstudio .ds-help-keys { margin: 0 16px; padding: 12px 0 16px; border-top: 1px solid var(--line); }
+.dstudio .ds-help-keys h3 { margin: 0 0 8px; font: 500 12px/16px var(--font); color: var(--q); }
+.dstudio .ds-help-keys dl { margin: 0; display: grid; gap: 8px; font: 400 13px/18px var(--font); }
+.dstudio .ds-help-keys dl > div { display: grid; grid-template-columns: 112px 1fr; gap: 12px; }
+.dstudio .ds-help-keys dt { font-weight: 600; }
+.dstudio .ds-help-keys dd { margin: 0; color: var(--q); }
 
 .dstudio .ds-editor.clean .ds-canvas-hud { display: none; }
 
@@ -10682,6 +10727,17 @@ button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
 .ds-ub.next .ds-ub-fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
 .ds-ub.next .ds-ub-fields > .pt-field { flex: none; }
 .ds-ub.next .ds-ub-fields .pt-tick { height: 36px; }
+/* Zoning sits on its own line under Head type, before Compare (Isaac, 13
+   November 2026: "underneath where you select the type of unit") */
+.ds-ub.next .ds-ub-fields > .pt-field.ds-sb-zoning-field { flex: 0 0 100%; order: 1; align-items: flex-start; }
+.ds-ub.next .ds-ub-fields > .pt-tick { order: 2; }
+/* Sized on, under Zoning: the figure beside the slider, what it is the usual
+   for under it (Isaac, 13 November 2026) */
+.ds-ub.next .ds-ub-fields > .pt-field.ds-sb-sized-field { flex: 0 0 100%; order: 1; }
+.ds-sb-sized { display: flex; align-items: center; gap: 12px; }
+.ds-sb-sized input { flex: 1; min-width: 0; margin: 0; accent-color: var(--ink); }
+.ds-sb-sized-pct { min-width: 40px; text-align: right; font-size: 14px; line-height: 20px; font-weight: 600; color: var(--ink); }
+.ds-sb-sized-word { min-height: 16px; font-size: 13px; line-height: 16px; color: var(--gray500); }
 .ds-ub.next .ds-ub-fits { position: relative; }
 .ds-ub.next .ds-ub-fitspanel {
   position: absolute;

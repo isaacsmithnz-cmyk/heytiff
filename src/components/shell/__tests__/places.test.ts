@@ -11,7 +11,7 @@ const viewer = (caps: string[], role: "owner" | "admin" | "staff" | null = "staf
 
 describe("the sidebar's places (rules 5 and 7)", () => {
   it("draws only places whose page exists, in the rule's order", () => {
-    const order = ["home", "conversations", "jobs", "schedule", "documents", "library", "design", "team"];
+    const order = ["home", "conversations", "jobs", "schedule", "stock", "documents", "library", "design", "team"];
     const keys = PLACES.map((p) => p.key);
     expect(keys.every((k) => order.includes(k))).toBe(true);
     expect([...keys].sort((a, b) => order.indexOf(a) - order.indexOf(b))).toEqual(keys);
@@ -42,7 +42,7 @@ describe("the sidebar's places (rules 5 and 7)", () => {
   it("offers a place only to someone who holds its capability, Home and Team to everyone", () => {
     // Home and Team are everyone's (everyone has Team, Isaac, 20 October 2026)
     expect(placesFor(PLACES, viewer([])).map((p) => p.key)).toEqual(["home", "team"]);
-    expect(placesFor(PLACES, viewer(["workboard", "team"])).map((p) => p.key)).toEqual(["home", "jobs", "schedule", "documents", "team"]);
+    expect(placesFor(PLACES, viewer(["workboard", "team"])).map((p) => p.key)).toEqual(["home", "jobs", "schedule", "stock", "documents", "team"]);
     expect(placesFor(PLACES, viewer(["tiff"])).map((p) => p.key)).toEqual(["home", "conversations", "library", "team"]);
   });
 
@@ -96,9 +96,11 @@ describe("the sidebar's places (rules 5 and 7)", () => {
   });
 
   /* Documents is a page now (v2, step 5), after Schedule, behind the Workboard's gate */
-  it("puts Documents after Schedule, for whoever holds the Workboard", () => {
+  it("puts Documents after Schedule and Stock, for whoever holds the Workboard", () => {
     const keys = PLACES.map((p) => p.key);
-    expect(keys.indexOf("documents")).toBe(keys.indexOf("schedule") + 1);
+    /* Stock between them since 11 November 2026, his to keep or move */
+    expect(keys.indexOf("stock")).toBe(keys.indexOf("schedule") + 1);
+    expect(keys.indexOf("documents")).toBe(keys.indexOf("stock") + 1);
     const docs = PLACES.find((p) => p.key === "documents")!;
     expect(docs).toMatchObject({ label: "Documents", icon: "file", href: "/dashboard/documents", capability: "workboard" });
     expect(placesFor(PLACES, viewer(["tiff"])).some((p) => p.key === "documents")).toBe(false);

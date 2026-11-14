@@ -95,6 +95,7 @@ import { SystemBuilder, ZoneStanding } from "./system-builder";
 import { deleteZone, releaseSystem, releaseZones, moveZone, removeZone } from "@/lib/studio/builder";
 import { roomAtPoint, roomCoverage, roomsServedBy, systemPairKw } from "@/lib/studio/coverage";
 import { nextMoveZones, type NextMove } from "@/lib/studio/next-move";
+import { StudioHelp } from "./studio-help";
 import type { RoomObj } from "@/lib/studio/loads-room";
 import { PlansPanel } from "./plans-panel";
 import { StepPrompt } from "./step-prompt";
@@ -1092,6 +1093,18 @@ async function addJobPlan(jobUuid: string, file: File): Promise<{ ok: true; plan
   return added.ok ? { ok: true, planIds: added.planIds } : added;
 }
 
+/** Files added to a design on a job go into the job's Plans as well, each
+    read once there (#1448): what went wrong, or null. */
+async function plansOntoJob(jobUuid: string, files: File[]): Promise<string | null> {
+  const { kickPlanReads } = await import("@/lib/jobs/plans-client");
+  for (const file of files) {
+    const added = await addJobPlan(jobUuid, file).catch(() => ({ ok: false as const, error: "The plan couldn't be added to the job. Try again." }));
+    if (!added.ok) return added.error;
+    kickPlanReads(added.planIds);
+  }
+  return null;
+}
+
 /** How many rooms she suggests across the design. */
 const roomsRead = (r: PlanReading) =>
   Object.values(r.floors).flat().reduce((n, sheet) => n + suggestedRooms(sheet).length, 0);
@@ -2077,6 +2090,7 @@ function Editor({
               onStep(1);
             }}
             planImages={planImages}
+            onNewFiles={doc.jobLink ? (files) => plansOntoJob(doc.jobLink!.remoteId, files) : undefined}
           />
         )}
         {step === 1 && (
@@ -3841,6 +3855,8 @@ function DesignPanel({
   );
   const [zoomApi, setZoomApi] = useState<ZoomApi | null>(null);
   const [zoomPct, setZoomPct] = useState(100);
+  /* the next flow: How to design, open from Help at the plan's foot */
+  const [helpOpen, setHelpOpen] = useState(false);
   /* the next flow: the sheet's unit, to say when words have stopped
      following the plan in (figure-bounds.ts canvasUnit) */
   const next = useStudioFlow() === "next";
@@ -4100,13 +4116,22 @@ function DesignPanel({
             </>
           )}
         </div>
-        {/* the next flow: history floats at the plan's left corner, in words */}
+        {/* the next flow: Help and history float at the plan's left corner,
+            in words; Help opens How to design above them */}
         {next && (
-          <div className="ds-history" role="group" aria-label="History">
-            <button type="button" onClick={undo} disabled={!hist.undo}>Undo</button>
-            <button type="button" onClick={redo} disabled={!hist.redo}>Redo</button>
+          <div className="ds-plan-foot-left">
+            <div className="ds-help-btn">
+              <button type="button" aria-expanded={helpOpen} onClick={() => setHelpOpen((o) => !o)}>
+                Help
+              </button>
+            </div>
+            <div className="ds-history" role="group" aria-label="History">
+              <button type="button" onClick={undo} disabled={!hist.undo}>Undo</button>
+              <button type="button" onClick={redo} disabled={!hist.redo}>Redo</button>
+            </div>
           </div>
         )}
+        {next && helpOpen && <StudioHelp doc={doc} pack={pack} onClose={() => setHelpOpen(false)} />}
         <div className="ds-canvas-body" ref={setCanvasBody}>
           <StudioCanvas
             key={floor.id}

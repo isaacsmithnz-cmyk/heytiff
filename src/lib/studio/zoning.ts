@@ -17,11 +17,22 @@
      for a brand whose pack has none, plain lines the price book prices;
    - SPILL: a zone the person names to take the air when others shut.
 
-   Kept on the system by unit (`settings.zoning`). Pure — no React. */
+   Kept on the system by unit (`settings.zoning`). Pure — no React.
+
+   ZONED, IT IS SIZED SMALLER (Isaac, 13 November 2026: "Say on a 22
+   kilowatt required heat load, you know that you probably only need a 16
+   kilowatt because you're about to hit zoning"). A zoned unit's rooms don't
+   all call at once, so it is judged against part of their load, the same
+   figure quoting uses. How much it saves goes by its zones (Isaac, 13
+   November 2026, "Yes" to stepping it): two zones often run together, so
+   85%; three, 80%; four or more, 70%, as 3465's 22.3 kW summed sized at
+   15.6. Each room keeps its own load; only what the unit must cover drops.
+   The person can slide it anywhere from 70% to the full load, for an open
+   plan or a household that runs every zone (13 November 2026: "make it a
+   slider. Between 70 and 100%"); a unit never slid keeps its zones' figure. */
 
 import type { DesignDocument, DesignSystem } from "./document";
 import type { DataPack, ZoningController } from "./packs/schema";
-import type { UnitAir } from "./airflow";
 
 export type ZoneControl = "off" | "on_off" | "temperature";
 export type SensorKind = "wireless" | "wired";
@@ -33,6 +44,8 @@ export interface UnitZoning {
   joined: Record<string, string>;
   /** the zone that takes the air when others shut, by its key */
   spill: string | null;
+  /** what the person slid it to, 0.7 to 1; null keeps its zones' figure */
+  sizedAt: number | null;
 }
 
 export interface Zone {
@@ -44,7 +57,23 @@ export interface Zone {
   name: string;
 }
 
-const OFF: UnitZoning = { control: "off", sensors: "wireless", joined: {}, spill: null };
+/** a zoned unit is sized on its rooms' load at this, by its zones: 2 zones
+    0.85, 3 zones 0.8, 4 or more 0.7; one zone (or none) saves nothing */
+export function diversityFor(zones: number): number {
+  if (zones < 2) return 1;
+  if (zones === 2) return 0.85;
+  if (zones === 3) return 0.8;
+  return 0.7;
+}
+
+/** where a ducted system's zoning is kept before its unit is chosen, so the
+    list can be sized zoned from the start; the first unit takes it on */
+export const BAND_KEY = "band";
+
+const OFF: UnitZoning = { control: "off", sensors: "wireless", joined: {}, spill: null, sizedAt: null };
+
+/** the least a zoned unit is sized at */
+export const SIZED_MIN = 0.7;
 
 /** a unit's zoning, as set */
 export function zoningOf(sys: DesignSystem, unitId: string): UnitZoning {
@@ -61,6 +90,7 @@ export function zoningOf(sys: DesignSystem, unitId: string): UnitZoning {
     sensors: z.sensors === "wired" ? "wired" : "wireless",
     joined,
     spill: typeof z.spill === "string" ? z.spill : null,
+    sizedAt: typeof z.sizedAt === "number" && z.sizedAt >= SIZED_MIN && z.sizedAt <= 1 ? Math.round(z.sizedAt * 100) / 100 : null,
   };
 }
 
@@ -76,8 +106,35 @@ export function setZoning(doc: DesignDocument, systemId: string, unitId: string,
   };
 }
 
+/** how many zones a unit over these rooms makes: none with zoning off,
+    its zones after joining otherwise */
+export function zoneCountOver(z: UnitZoning, roomIds: readonly string[]): number {
+  if (z.control === "off" || roomIds.length < 2) return 0;
+  return zonesOf({ rooms: roomIds.map((roomId) => ({ roomId, name: "" })) }, z).length;
+}
+
+/** what a unit over these rooms is sized at: zoning on over two zones or
+    more, what it was slid to or else its zones' figure (rooms all joined into
+    one zone shut together, so 1) */
+export function diversityOver(z: UnitZoning, roomIds: readonly string[]): number {
+  const zones = zoneCountOver(z, roomIds);
+  return zones < 2 ? 1 : (z.sizedAt ?? diversityFor(zones));
+}
+
+/** what a figure on the slider is the usual for, or nothing between them */
+export function sizedWord(at: number): string {
+  const pct = Math.round(at * 100);
+  if (pct === 100) return "Every zone at once";
+  if (pct === 85) return "The usual for 2 zones";
+  if (pct === 80) return "The usual for 3 zones";
+  if (pct === 70) return "The usual for 4 or more zones";
+  return "";
+}
+
+type ZoneRooms = { rooms: readonly { roomId: string; name: string }[] };
+
 /** the zones a unit's rooms make, in the order the unit serves them */
-export function zonesOf(air: Pick<UnitAir, "rooms">, z: UnitZoning): Zone[] {
+export function zonesOf(air: ZoneRooms, z: UnitZoning): Zone[] {
   if (z.control === "off") return [];
   const ids = air.rooms.map((r) => r.roomId);
   const keyOf = (id: string) => {
@@ -115,7 +172,7 @@ export function joinZone(
   doc: DesignDocument,
   systemId: string,
   unitId: string,
-  air: Pick<UnitAir, "rooms">,
+  air: ZoneRooms,
   roomId: string,
   zoneKey: string | null
 ): DesignDocument {

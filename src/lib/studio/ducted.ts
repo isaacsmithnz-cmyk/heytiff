@@ -4,24 +4,14 @@
    docs/design-studio-ducted-build-plan.md; the full contract lives in
    docs/design-studio-ducted-spec.md (§6, §13). Pure data — no React. */
 
-import type { DesignSystem } from "./document";
 import {
   hasFactorySpigots,
   isSpigotOpening,
   type OpeningSpec as PackOpeningSpec,
 } from "./packs/schema";
 
-/* ── Diversity + required capacity (spec §6h; right-panel spec §4B) ── */
-
-/** D defaults key to ZONING — 1.00 unzoned (every room can call at once;
-    0.70 on an unzoned system undersizes ~30 % while reading right-sized),
-    0.70 once zones exist. A stored settings.diversityFactor overrides. */
-export function diversityFactor(system: DesignSystem): number {
-  const stored = system.settings.diversityFactor;
-  if (typeof stored === "number" && stored >= 0.4 && stored <= 1.5) return stored;
-  const zones = system.settings.zones;
-  return Array.isArray(zones) && zones.length > 0 ? 0.7 : 1.0;
-}
+/* Diversity lives with zoning now (zoning.ts diversityFor): a zoned unit
+   is sized on 85% to 70% of its rooms by its zones, an unzoned one on all. */
 
 /** a room the user marked as a spill destination — no sizing expectations */
 export function isSpillRoom(room: { props: Record<string, unknown> }): boolean {

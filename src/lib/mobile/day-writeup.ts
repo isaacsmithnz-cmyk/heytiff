@@ -44,6 +44,8 @@ export type JobDay = {
   photoIds: string[];
   others: { name: string; at: string; text: string }[];
   address: string | null;
+  /** your notes there today, whole (never clipped): the wrap-up's own is found among them */
+  own: { at: string; text: string }[];
 };
 /** `line` is the first line at the finish asked about; `name`, `photos` and
     `asked` are its parts, for the phone to say again at another finish. */
@@ -64,6 +66,9 @@ export type WriteupEntry = {
   others: { name: string; at: string; text: string }[];
   /** the wrap-up note already in for this stretch, when it was filed: the walk passes its note step by, so it's never filed twice */
   filed: string | null;
+  /** its words, under the who-and-when line, whole: going back to it shows them to change (Isaac, 11 November 2026:
+      "I accidentally tapped something ... and I couldn't go back to it to edit it") */
+  filedText: string | null;
 };
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
@@ -100,12 +105,29 @@ export function headOf(name: string | null, spans: readonly { from: string; unti
     the one already in; Tiff's tidy may end it with a full stop. The earliest's
     time, or null. Pure. */
 export function filedAt(head: string, mine: readonly { at: string; text: string }[]): string | null {
+  return filedNote(head, mine)?.at ?? null;
+}
+
+/** That note itself. Pure. */
+export function filedNote<N extends { at: string; text: string }>(head: string, mine: readonly N[]): N | null {
   if (!head.includes(" to ")) return null;
-  const hit = mine.find((n) => {
-    const first = (n.text.split("\n")[0] ?? "").trim().replace(/\.$/, "");
-    return first === head || first.startsWith(`${head} · `);
-  });
-  return hit?.at ?? null;
+  return (
+    mine.find((n) => {
+      const first = (n.text.split("\n")[0] ?? "").trim().replace(/\.$/, "");
+      return first === head || first.startsWith(`${head} · `);
+    }) ?? null
+  );
+}
+
+/** A wrap-up note's who and when, off its first line: "Isaac, 8:45 to 2:45 · 4 photos" is "Isaac, 8:45 to 2:45". Pure. */
+export function headOfNote(text: string): string {
+  return ((text.split("\n")[0] ?? "").split(" · ")[0] ?? "").trim().replace(/\.$/, "");
+}
+
+/** A wrap-up note's words, under its first line. Pure. */
+export function wordsOfNote(text: string): string {
+  const at = text.indexOf("\n");
+  return at < 0 ? "" : text.slice(at + 1).trim();
 }
 
 /** Each job on the day's sheet, its stretches together, in the order first reached. Pure. */
@@ -216,6 +238,7 @@ async function gather(ctx: MobileCtx, summary: DaySummary, dayFrom: string, midn
         .filter((n) => n.target_id.toLowerCase() === k)
         .map((n) => ({ name: (n.author_id && names.get(n.author_id)) || "Someone", at: n.created_at, text: clip(n.transcript!.trim(), NOTE_CAP) })),
       address: addresses.get(k) ?? null,
+      own: noteRows.filter((n) => n.target_id.toLowerCase() === k && n.transcript?.trim()).map((n) => ({ at: n.created_at, text: n.transcript!.trim() })),
     };
   });
 }
@@ -304,14 +327,17 @@ export async function writeUpDay(
   ctx: MobileCtx,
   until?: string | null,
   now: number = Date.now(),
-  on?: string | null
+  on?: string | null,
+  /** one job, from "Isaac wrapped up 3324": written up from your booking on it when it isn't on your day's sheet */
+  job?: string | null
 ): Promise<{ entries: WriteupEntry[]; day: { workDate: string; onAt: string; offAt: string | null; minutes: number } | null }> {
-  const state = await readDay(ctx, now, until, on);
-  if (!state.day || !state.summary) return { entries: [], day: null };
+  const read = await readDay(ctx, now, until, on);
   const [zone, name] = await Promise.all([bookingZone(ctx.orgId).then((z) => z.zone ?? "Australia/Sydney"), firstNameOf(ctx)]);
+  const state = job && !read.summary?.jobs.some((j) => j.jobUuid.toLowerCase() === job.toLowerCase()) ? await bookedOnly(ctx, job, on ?? read.day?.workDate ?? null, zone, now) ?? read : read;
+  if (!state.day || !state.summary) return { entries: [], day: null };
   const midnight = new Date(wallInstant(`${state.day.workDate} 00:00:00`, zone, "earliest") ?? Date.parse(state.day.onAt)).toISOString();
   const jobs = await gather(ctx, state.summary, state.day.onAt, midnight < state.day.onAt ? midnight : state.day.onAt);
-  const filed = jobs.map((j) => filedAt(headOf(name, j.spans, zone), j.mine));
+  const filed = jobs.map((j) => filedNote(headOf(name, j.spans, zone), j.own));
   /* a job whose note is in isn't written up again */
   const texts = await written(jobs.map((j, i) => (filed[i] ? { ...j, notes: [], asked: [] } : j)));
   return {
@@ -329,9 +355,55 @@ export async function writeUpDay(
       mine: j.mine,
       photoIds: j.photoIds,
       others: j.others,
-      filed: filed[i] ?? null,
+      filed: filed[i]?.at ?? null,
+      filedText: filed[i] ? wordsOfNote(filed[i]!.text) : null,
     })),
     day: { workDate: state.day.workDate, onAt: state.day.onAt, offAt: state.day.offAt, minutes: state.summary.minutes },
+  };
+}
+
+/** A day of one job, from your ServiceM8 booking on it: for a job someone else wrapped up first, that you were booked
+    on but didn't clock onto in HeyTiff. Null when you weren't booked on it that day. */
+async function bookedOnly(ctx: MobileCtx, job: string, on: string | null, zone: string, now: number): Promise<{ day: NonNullable<Awaited<ReturnType<typeof readDay>>["day"]>; summary: DaySummary } | null> {
+  const staffId = await staffProfileIdFor(ctx.orgId, ctx.userId).catch(() => null);
+  if (!staffId) return null;
+  const day = on && /^\d{4}-\d{2}-\d{2}$/.test(on) ? on : new Date(now).toLocaleDateString("en-CA", { timeZone: zone });
+  const { data: link } = await supabaseAdmin.from("integration_links").select("remote_id").eq("org_id", ctx.orgId).eq("provider", "servicem8").eq("kind", "staff").eq("staff_profile_id", staffId).limit(1);
+  const sm8Staff = ((link ?? []) as { remote_id: string | null }[])[0]?.remote_id;
+  if (!sm8Staff) return null;
+  const either = [...new Set([job, job.toLowerCase()])];
+  const [{ data: acts }, { data: facts }] = await Promise.all([
+    supabaseAdmin
+      .from("sm8_job_activities")
+      .select("start_date, end_date")
+      .eq("org_id", ctx.orgId)
+      .in("job_uuid", either)
+      .eq("staff_uuid", sm8Staff)
+      .eq("active", 1)
+      .gte("start_date", `${day} 00:00:00`)
+      .lte("start_date", `${day} 23:59:59`)
+      .order("start_date", { ascending: true }),
+    supabaseAdmin.from("sm8_jobs").select("uuid, generated_job_id, job_address").eq("org_id", ctx.orgId).in("uuid", either).limit(1),
+  ]);
+  const f = ((facts ?? []) as { uuid: string; generated_job_id: string | null; job_address: string | null }[])[0];
+  const spans = ((acts ?? []) as { start_date: string; end_date: string | null }[])
+    .map((a) => ({ from: wallInstant(a.start_date, zone, "earliest"), until: wallInstant(a.end_date ?? a.start_date, zone, "latest") }))
+    .filter((s): s is { from: number; until: number } => s.from !== null && s.until !== null && s.until >= s.from);
+  if (!f || !spans.length) return null;
+  const where = (f.job_address ?? "").split("\n")[0]?.trim() || "the job";
+  const jobs = spans.map((s) => ({
+    jobUuid: f.uuid,
+    number: f.generated_job_id,
+    where,
+    from: new Date(s.from).toISOString(),
+    until: new Date(s.until).toISOString(),
+    minutes: Math.round((s.until - s.from) / 60_000),
+    how: "servicem8" as const,
+  }));
+  const minutes = jobs.reduce((n, j) => n + j.minutes, 0);
+  return {
+    day: { id: `booked:${f.uuid}:${day}`, workDate: day, onAt: jobs[0]!.from, offAt: jobs[jobs.length - 1]!.until },
+    summary: { from: jobs[0]!.from, until: jobs[jobs.length - 1]!.until, minutes, jobs, office: { minutes: 0, spans: [], unpaid: 0 }, travel: 0, paid: { from: jobs[0]!.from, minutes } },
   };
 }
 

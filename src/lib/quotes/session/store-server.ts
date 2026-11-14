@@ -3,6 +3,8 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import type { Msg } from "./model";
 import type { EventDraft, SessionState } from "./turn";
 import { openQuestionsOf } from "./answers";
+import { tookOf, turnTimes, type Took } from "./time-left";
+import { writeUpOf, type WriteUp } from "../write-up";
 
 /* TIFF'S SESSION, KEPT (docs/migrations/quote_sessions.sql). One per
    quote. A turn holds it from start to end, so two never run at once; a
@@ -72,17 +74,81 @@ async function openSession(orgId: string, jobUuid: string): Promise<SessionRow |
 export const holding = (s: Pick<SessionRow, "turnId" | "turnSince">, now: number) => !!s.turnId && !!s.turnSince && now - Date.parse(s.turnSince) < HOLD_MS;
 
 /** Starts a turn: the session held for it, or why not. */
+/** Why a turn can't start: one is under way. A message sent then waits its turn (queueMessage). */
+export const STILL_WORKING = "Tiff is still working on the last one.";
+
+/* ANSWERING WHILE SHE WORKS (Isaac, 13 November 2026: "Build E, the
+   answering while she works"). A message sent while a turn holds the
+   session is kept in the thread at once, marked queued, with no turn; once
+   she's free the next read of the thread starts a turn with every one
+   waiting (session-server startTurn, fromQueue). Claimed, it keeps no
+   turn of its own, so the turn's time and kind count from when she began. */
+
+type QueuedRow = { id: number; author: string; body: Record<string, unknown> };
+
+/** A message sent while she works, in the thread now, taken when she's free. */
+export async function queueMessage(orgId: string, sessionId: string, by: string, text: string): Promise<void> {
+  await addEvents(orgId, sessionId, null, [{ kind: "message", author: by, body: { text, queued: true } }]);
+}
+
+/** A tapped answer that leaves her work, given while she works: its event waits as a typed one does. */
+export async function queueAnswerEvent(orgId: string, sessionId: string, questionEvent: number, by: string): Promise<void> {
+  const { data } = await supabaseAdmin
+    .from("quote_session_events")
+    .select("id, body")
+    .eq("org_id", orgId)
+    .eq("session_id", sessionId)
+    .eq("kind", "message")
+    .eq("author", by)
+    .eq("body->>answered", String(questionEvent))
+    .order("id", { ascending: false })
+    .limit(1);
+  const row = ((data ?? []) as { id: number; body: Record<string, unknown> }[])[0];
+  if (row) await supabaseAdmin.from("quote_session_events").update({ body: { ...row.body, queued: true } }).eq("id", row.id);
+}
+
+/** Whether anything sent while she worked is still waiting. */
+export async function hasQueued(orgId: string, sessionId: string): Promise<boolean> {
+  const { data } = await supabaseAdmin.from("quote_session_events").select("id").eq("org_id", orgId).eq("session_id", sessionId).eq("kind", "message").eq("body->>queued", "true").limit(1);
+  return (data ?? []).length > 0;
+}
+
+/** Every message waiting, oldest first, taken for the turn given: each one
+    only by the turn whose update reached it first. */
+export async function claimQueued(orgId: string, sessionId: string, turnId: string): Promise<QueuedRow[]> {
+  const { data } = await supabaseAdmin
+    .from("quote_session_events")
+    .select("id, author, body")
+    .eq("org_id", orgId)
+    .eq("session_id", sessionId)
+    .eq("kind", "message")
+    .eq("body->>queued", "true")
+    .order("id", { ascending: true })
+    .limit(20);
+  const out: QueuedRow[] = [];
+  for (const r of (data ?? []) as QueuedRow[]) {
+    const { data: took } = await supabaseAdmin
+      .from("quote_session_events")
+      .update({ body: { ...r.body, queued: false, taken: turnId } })
+      .eq("id", r.id)
+      .eq("body->>queued", "true")
+      .select("id");
+    if ((took ?? []).length > 0) out.push(r);
+  }
+  return out;
+}
+
 export async function beginTurn(orgId: string, jobUuid: string): Promise<{ ok: true; session: SessionRow; turnId: string } | { ok: false; reason: string }> {
   const s = await openSession(orgId, jobUuid);
   if (!s) return { ok: false, reason: "Tiff's session couldn't be opened. Try again." };
-  if (holding(s, Date.now())) return { ok: false, reason: "Tiff is still working on the last one." };
+  if (holding(s, Date.now())) return { ok: false, reason: STILL_WORKING };
   const turnId = crypto.randomUUID();
   const now = new Date().toISOString();
   /* taken only from the hold that was read: a turn begun meanwhile wins */
   let q = supabaseAdmin.from("quote_sessions").update({ turn_id: turnId, turn_since: now, updated_at: now }).eq("id", s.id);
   q = s.turnId ? q.eq("turn_id", s.turnId) : q.is("turn_id", null);
   const { data } = await q.select("id");
-  if (!data || data.length === 0) return { ok: false, reason: "Tiff is still working on the last one." };
+  if (!data || data.length === 0) return { ok: false, reason: STILL_WORKING };
   return { ok: true, session: { ...s, turnId, turnSince: now }, turnId };
 }
 
@@ -117,6 +183,70 @@ export type ThreadEvent = { id: number; turnId: string | null; kind: AnyEvent["k
 
 /** The most of a thread one read brings. */
 const THREAD_READ = 500;
+
+/** How long this business's turns took, first builds apart, from its last
+    30 days (time-left.ts tookOf); read at most once an hour per instance, as
+    every poll asks. */
+const USUAL_TTL_MS = 3_600_000;
+const USUAL_PAGE = 1000;
+const USUAL_MAX_ROWS = 20_000;
+const usualCache = new Map<string, { at: number; usual: Promise<Took> }>();
+export function readTurnTimes(orgId: string): Promise<Took> {
+  const hit = usualCache.get(orgId);
+  if (hit && Date.now() - hit.at < USUAL_TTL_MS) return hit.usual;
+  const usual = (async () => {
+    const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
+    type Row = { id: number; session_id: string; turn_id: string | null; kind: string; at: string; name: string | null; ok: string | null; text: string | null; answered: string | null; read: string | null; question: string | null };
+    /* a month is a few thousand events, read a page at a time */
+    const rows: Row[] = [];
+    for (let from = 0; from < USUAL_MAX_ROWS; from += USUAL_PAGE) {
+      const { data, error } = await supabaseAdmin
+        .from("quote_session_events")
+        .select("id, session_id, turn_id, kind, at, name:body->>name, ok:body->>ok, text:body->>text, answered:body->>answered, read:body->>read, question:body->>question")
+        .eq("org_id", orgId)
+        .gte("at", since)
+        .order("id", { ascending: true })
+        .range(from, from + USUAL_PAGE - 1);
+      if (error) return { first: [], later: [] };
+      const page = (data ?? []) as Row[];
+      rows.push(...page);
+      if (page.length < USUAL_PAGE) break;
+    }
+    const bySession = new Map<string, Row[]>();
+    for (const r of rows) bySession.set(r.session_id, [...(bySession.get(r.session_id) ?? []), r]);
+    const times = [...bySession.values()].flatMap((rows) =>
+      turnTimes(
+        rows.map((r) => ({
+          id: r.id,
+          turnId: r.turn_id,
+          kind: r.kind,
+          at: r.at,
+          body: { name: r.name ?? undefined, ok: r.ok === "false" ? false : undefined, text: r.text ?? undefined, answered: r.answered ?? undefined, read: r.read === "true" ? true : undefined, question: r.question ?? undefined },
+        }))
+      )
+    );
+    return tookOf(times);
+  })().catch(() => ({ first: [], later: [] }));
+  usualCache.set(orgId, { at: Date.now(), usual });
+  return usual;
+}
+
+/** The job's write-up as it stands: the newest her write_up tool kept,
+    whole, on its event (tools-run.ts merges each change onto it). */
+export async function readLatestWriteUp(orgId: string, sessionId: string): Promise<WriteUp | null> {
+  const { data } = await supabaseAdmin
+    .from("quote_session_events")
+    .select("body")
+    .eq("org_id", orgId)
+    .eq("session_id", sessionId)
+    .eq("kind", "tool")
+    .eq("body->>name", "write_up")
+    .eq("body->>ok", "true")
+    .order("id", { ascending: false })
+    .limit(1);
+  const body = ((data ?? [])[0] as { body?: Record<string, unknown> } | undefined)?.body;
+  return writeUpOf((body?.detail as { writeUp?: unknown } | undefined)?.writeUp);
+}
 
 /** The thread as a person reads it, after `since` (an event id), oldest
     first. Opened (since 0), it's the newest THREAD_READ: read from the

@@ -3,7 +3,7 @@
    done for the next to carry on from, long sessions folded. Nothing here
    calls the API. */
 import { recording, replaying, requestKey, scripted, withCache, NotRecorded, type Msg, type ModelRequest } from "../model";
-import { FILE_SEEN, foldPoint, runTurn, sentMessages, settled, withMessage, type EventDraft, type SessionState, type ToolOutcome, type TurnDeps } from "../turn";
+import { CAP_EMPTY, CAP_NOTE, FILE_SEEN, foldPoint, runTurn, sentMessages, settled, withMessage, type EventDraft, type SessionState, type ToolOutcome, type TurnDeps } from "../turn";
 
 const use = (id: string, name: string, input: Record<string, unknown> = {}) => ({ type: "tool_use" as const, id, name, input });
 const text = (t: string) => ({ type: "text" as const, text: t });
@@ -102,6 +102,38 @@ describe("a turn", () => {
     const end = await runTurn({ messages: [], summary: "" }, "Go", d);
     expect(end.ended).toBe("cap");
     expect(model.calls.at(-1)!.tools).toEqual([]);
+    // she's told to answer, on that request alone
+    const last = model.calls.at(-1)!.messages.at(-1)!;
+    expect(last.role).toBe("user");
+    expect(last.content.at(-1)).toEqual(text(CAP_NOTE));
+    expect(JSON.stringify(end.state.messages)).not.toContain(CAP_NOTE);
+    expect(model.calls[23]!.messages.flatMap((m) => m.content)).not.toContainEqual(text(CAP_NOTE));
+  });
+
+  it("past her answer-by time, the next round is her answer, with what she has", async () => {
+    let clock = 0;
+    const replies = Array.from({ length: 6 }, (_, i) => ({ content: [use(`t${i}`, "read_quote")], stopReason: "tool_use" }));
+    replies[3] = { content: [text("Here's where it got to.")], stopReason: "end_turn" } as never;
+    const model = scripted(replies);
+    const { d, ran } = deps(model, { answerBy: 2, now: () => clock++ });
+    const end = await runTurn({ messages: [], summary: "" }, "Go", d);
+    expect(end.ended).toBe("cap");
+    // the clock is read from the second round on: 0, 1, then 2, her time
+    expect(ran).toEqual(["read_quote", "read_quote", "read_quote"]);
+    expect(model.calls).toHaveLength(4);
+    expect(model.calls.at(-1)!.tools).toEqual([]);
+    expect(model.calls.at(-1)!.messages.at(-1)!.content.at(-1)).toEqual(text(CAP_NOTE));
+  });
+
+  it("at the cap, an answer with no words still says something, and leaves nothing empty", async () => {
+    const replies = Array.from({ length: 25 }, (_, i) => ({ content: [use(`t${i}`, "read_quote")], stopReason: "tool_use" }));
+    replies[24] = { content: [], stopReason: "end_turn" } as never;
+    const { d, saves } = deps(scripted(replies));
+    const end = await runTurn({ messages: [], summary: "" }, "Go", d);
+    expect(end.ended).toBe("cap");
+    expect(end.state.messages.at(-1)).toEqual({ role: "assistant", content: [text(CAP_EMPTY)] });
+    expect(end.state.messages.every((m) => m.content.length > 0)).toBe(true);
+    expect(saves.at(-1)!.events).toContainEqual({ kind: "reply", author: "tiff", body: { text: CAP_EMPTY } });
   });
 });
 

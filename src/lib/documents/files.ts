@@ -172,9 +172,19 @@ export type UploadCheck =
   | { ok: true; ext: string }
   | { ok: false; error: string };
 
-/** Decide whether a file may be stored, before any slot is handed out. */
-export function checkUpload(file: { name: string; type: string; size: number }): UploadCheck {
-  const ext = ALLOWED_TYPES[file.type.toLowerCase()];
+/** A job's video from the phone's own camera (Isaac, 10 November 2026: "video
+    up to a minute"; 720p at 4 Mbps, so about 30 MB, under MAX_BYTES). Only a
+    job photo may be one: everything else stays photos and PDFs. The bucket
+    allows the same (docs/migrations/documents_video_mp4.sql). */
+export const VIDEO_TYPES: Readonly<Record<string, string>> = { "video/mp4": "mp4" };
+
+export function isVideoMime(mimeType: string): boolean {
+  return mimeType.toLowerCase() in VIDEO_TYPES;
+}
+
+/** Decide whether a file may be stored, before any slot is handed out. A job's photos may be a video too (`video`). */
+export function checkUpload(file: { name: string; type: string; size: number }, opts: { video?: boolean } = {}): UploadCheck {
+  const ext = ALLOWED_TYPES[file.type.toLowerCase()] ?? (opts.video ? VIDEO_TYPES[file.type.toLowerCase()] : undefined);
   if (!ext) return { ok: false, error: "That file type isn't allowed — photos and PDFs only." };
   if (file.size <= 0) return { ok: false, error: "That file is empty." };
   if (file.size > MAX_BYTES)

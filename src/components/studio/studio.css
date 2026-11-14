@@ -10624,7 +10624,7 @@ html:not([data-ds-display]) .fg:has(#fg-topbar) .dstudio.editing:has(> .ds-edito
 .dstudio .ds-help-step.now .ds-help-n { border: 2px solid var(--ink); color: var(--ink); }
 .dstudio .ds-help-step.done .ds-help-n { border: none; color: var(--ok-t); }
 .dstudio .ds-help-t { font: 600 14px/20px var(--font); }
-.dstudio .ds-help-step.done .ds-help-t { font-weight: 500; color: var(--q); }
+.dstudio .ds-help-step.done .ds-help-t, .dstudio .ds-help-step.skip .ds-help-t { font-weight: 500; color: var(--q); }
 .dstudio .ds-help-l { margin-top: 2px; font: 500 13px/18px var(--font); color: var(--q); }
 .dstudio .ds-help-keys { margin: 0 16px; padding: 12px 0 16px; border-top: 1px solid var(--line); }
 .dstudio .ds-help-keys h3 { margin: 0 0 8px; font: 500 12px/16px var(--font); color: var(--q); }

@@ -10,6 +10,7 @@ import type { DataPack } from "./packs/schema";
 import type { DesignDocument } from "./document";
 import { allocationsOf, hasAllocations } from "./builder";
 import { installState } from "./install";
+import { systemNeedsWork } from "./status";
 import { zoneIdsOf } from "./zones";
 
 /* the zones flow's rungs: a zone to draw, a system to add, zones for it, one
@@ -36,6 +37,9 @@ export function nextMoveZones(doc: DesignDocument, pack: DataPack | null): NextM
   const unbuilt = doc.systems.find((s) => !hasAllocations(s) || !allocationsOf(s).some((a) => a.model));
   if (unbuilt) return { key: "build-system", label: "Build system", systemId: unbuilt.id };
   if (pack) {
+    /* short or failing: its card says so in red, so building isn't done */
+    const short = doc.systems.find((s) => systemNeedsWork(doc, pack, doc.settings.sizingBasis, s));
+    if (short) return { key: "build-system", label: "Build system", systemId: short.id };
     const placed = new Set(doc.objects.map((o) => o.id));
     const waiting = doc.systems.find(
       (s) => hasAllocations(s) && allocationsOf(s).some((a) => a.model && !placed.has(a.id))

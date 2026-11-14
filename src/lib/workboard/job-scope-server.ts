@@ -194,7 +194,7 @@ export async function refreshJobScope(orgId: string, remoteId: string, client: A
   const supCols = sup.fresh ? { supplied: sup.scope, supplied_stamp: sup.stamp, supplied_written_at: new Date().toISOString() } : {};
   /* a job with its plans read gets its scopes whatever its age */
   const stamp = scopeStamp(read.entries) ?? (sup.scope ? "no-entries" : null);
-  if (!stamp || !(scopeWanted(read.status, read.createdOn) || sup.scope)) return { ok: true, scope: stored, wrote: false };
+  if (!stamp || !(scopeWanted(read.status, read.createdOn, { quoteSentOn: read.quoteSentOn, completedOn: read.completedOn, visitBooked: read.visitBooked }) || sup.scope)) return { ok: true, scope: stored, wrote: false };
   const quoteStamp = await quoteStampOf(orgId, read.cardId);
   const supMoved = (row?.brief_supplied_stamp ?? null) !== sup.stamp;
   if (stored && stored.stamp === stamp && quoteStamp === (row?.quote_stamp ?? null) && !supMoved) return { ok: true, scope: stored, wrote: false };
@@ -224,8 +224,11 @@ export async function refreshJobScope(orgId: string, remoteId: string, client: A
   if (row && stored) {
     /* handed back unchanged: the note is taken in, and the last change is still the one to undo */
     if (!scopeMoved(stored, scope)) {
-      const kept = await writeOver(orgId, read.cardId, row, { story_stamp: stamp, quote_stamp: quoteStamp, written_at: writtenAt, brief_supplied_stamp: sup.stamp, ...supCols });
-      return { ok: true, scope: kept ? { ...stored, stamp, writtenAt, ...supNow } : await readStoredJobScope(orgId, read.cardId), wrote: false };
+      /* a brief written before it had a description takes the one this read wrote */
+      const described = !stored.description && scope.description ? { brief: { ...(row.brief as Record<string, unknown>), description: scope.description } } : {};
+      const kept = await writeOver(orgId, read.cardId, row, { ...described, story_stamp: stamp, quote_stamp: quoteStamp, written_at: writtenAt, brief_supplied_stamp: sup.stamp, ...supCols });
+      const now = described.brief ? { ...stored, description: scope.description } : stored;
+      return { ok: true, scope: kept ? { ...now, stamp, writtenAt, ...supNow } : await readStoredJobScope(orgId, read.cardId), wrote: false };
     }
     /* only a note's addition waits on the quote: the quote's own words are on it already */
     const landed = stored.stamp !== stamp ? newlyAdded(stored, scope) : [];

@@ -1,8 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/parts/button";
-import { Fade } from "@/components/parts/fade";
 import { Menu, type MenuItem } from "@/components/parts/menu";
 import { Dot, type Hue } from "@/components/parts/state";
 import { SectionTabs, type TabItem } from "@/components/parts/tabs";
@@ -21,12 +20,20 @@ import { WayBack } from "./way-back";
        client name, then underneath it, the site would show the address").
        The address is the Site card's and the scope Overview's. A job with
        no client is named by its address, and one with no number wears
-       its dot;
+       its dot. A long name wraps, to three lines at ServiceM8's 100
+       characters, and never fades (Isaac, 14 November 2026, call 19,
+       mock C: important text never fades);
+     on the Overview only, the stages line beside the name (call 19);
      on the right, one second button, Actions, with a chevron, opening a
        white menu (rules 36, 53 and 54): what Add made first ("Add visit",
        "Add task"), then what's done to the job, then Open in ServiceM8
        (Isaac, 22 October 2026: one menu up top);
-     then the seven section tabs, each saying what's in it (rule 31).
+     under them, on every tab, the job's description: the first sentence of
+       its Scope, plain text at 16 with no mark, wrapping when it's long
+       (Isaac, 14 November 2026, calls 22 and 19, mock B on
+       https://claude.ai/artifact/6JjEtQm7aukwxDsHQfKY5e); a job with no
+       Scope has no line;
+     then the section tabs, each saying what's in it (rule 31).
 
    No breadcrumb (6-revisions, 17 October): the way back is one word, not
    a path. The stages line is Overview's, not the head's.
@@ -44,8 +51,12 @@ const inSentence = (word: string) => (/^[A-Z]{2,}\b/.test(word) ? word : word.ch
 export type JobPageHeadProps = {
   /** the job's client, or its address where it has none */
   name: string;
+  /** what the job is, in one sentence: its Scope's description; none without a Scope */
+  description?: string | null;
   /** the job's number, in the plate's coloured box */
   number?: string | null;
+  /** the stages line, beside the name: the Overview's alone */
+  line?: ReactNode;
   hue: Hue;
   /** ServiceM8's own page for the job, when there is one */
   sm8Href: string | null;
@@ -56,7 +67,7 @@ export type JobPageHeadProps = {
   onSection: (key: string) => void;
 };
 
-export function JobPageHead({ name, number = null, hue, sm8Href, add, actions, sections, section, onSection }: JobPageHeadProps) {
+export function JobPageHead({ name, description = null, number = null, line = null, hue, sm8Href, add, actions, sections, section, onSection }: JobPageHeadProps) {
   const actRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const chevron = (
@@ -71,11 +82,10 @@ export function JobPageHead({ name, number = null, hue, sm8Href, add, actions, s
         <div className={`jp-id jp-plate jp-plate--${hue}`}>
           {number ? <span className="jp-num">{number}</span> : <Dot hue={hue} />}
           <div className="jp-named">
-            <h1 className="jp-name">
-              <Fade>{name}</Fade>
-            </h1>
+            <h1 className="jp-name">{name}</h1>
           </div>
         </div>
+        {line ? <div className="jov-line jp-stage">{line}</div> : null}
         <div className="jp-acts">
           <Button
             ref={actRef}
@@ -113,6 +123,7 @@ export function JobPageHead({ name, number = null, hue, sm8Href, add, actions, s
           />
         </div>
       </div>
+      {description ? <p className="jp-desc">{description}</p> : null}
       <SectionTabs items={sections} current={section} onGo={onSection} ariaLabel="The job" idPrefix="jp-tab" />
     </header>
   );

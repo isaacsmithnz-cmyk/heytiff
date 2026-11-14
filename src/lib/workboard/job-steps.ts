@@ -171,7 +171,7 @@ export function jobSteps(j: StepInput, moneyVisible: boolean): JobStep[] {
         ? "Deposit"
         : s.key === "accepted" && s.state === "bad"
           ? "Declined"
-          : LABEL[s.key],
+          : labelOf(s),
   }));
 }
 
@@ -227,6 +227,11 @@ function workSteps(j: StepInput, moneyVisible: boolean): JobStep[] {
   }
 
   markNow(steps);
-  return steps.map((s) => ({ ...s, label: LABEL[s.key] }));
+  return steps.map((s) => ({ ...s, label: labelOf(s) }));
 }
+
+/** A step's word: Paid's reads "Not paid" while money is owing on a finished
+    job (Isaac, 14 November 2026, call 4: "Not paid" in orange while owing,
+    "Paid" in green once it's in). */
+const labelOf = (s: Omit<JobStep, "label">): string => (s.key === "paid" && s.state === "warn" ? "Not paid" : LABEL[s.key]);
 

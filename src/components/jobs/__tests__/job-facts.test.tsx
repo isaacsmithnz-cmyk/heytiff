@@ -1,12 +1,11 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
-import { JobFacts, phoneWords } from "../job-facts";
+import { JobFacts, directionsHref, phoneWords } from "../job-facts";
 
-/* THE STRIP OF FACTS (Isaac, 25 October 2026, "Yes, build the refined
-   Overview A"): Site, Contact, Next visit and Money, one box; three cells
-   for whoever doesn't see money. The customer column that stood under the
-   tiles came into Site and Contact. */
+/* THE FACTS CARD (Isaac, 13 and 14 November 2026, mocks C and D): Next visit,
+   the site with Directions, the contacts in full, one card on the left of the
+   Overview. Money went to Billing. */
 
 const detail = (over: Partial<MirrorJobDetail> = {}) =>
   ({
@@ -23,23 +22,38 @@ const base = { detail: detail(), next: null, nextRead: true, onVisits: jest.fn()
 const cells = () => within(screen.getByRole("group", { name: "The job's facts" })).getAllByRole("region");
 const cell = (name: string | RegExp) => within(screen.getByRole("region", { name }));
 
-it("has four cells, Site, Contact, Next visit and Money, for whoever sees money", () => {
-  render(<JobFacts {...base} money={<b className="jov-fig">$13,833.76</b>} onMoney={jest.fn()} />);
-  expect(cells().map((c) => c.querySelector(".jov-lab")?.firstChild?.textContent)).toEqual(["Site", "Contact", "Next visit", "Money"]);
-  expect(cell("Money").getByText("$13,833.76")).toBeInTheDocument();
+it("reads Next visit first, then the site, then the contacts, and no money", () => {
+  // eslint-disable-next-line @next/next/no-img-element
+  render(<JobFacts {...base} map={<img className="jfc-map" alt="Map of 8/36 Abbott Road" />} />);
+  expect(cells().map((c) => c.querySelector(".jov-lab")?.firstChild?.textContent)).toEqual(["Next visit", "Site", "Contact"]);
+  expect(screen.queryByRole("region", { name: "Money" })).toBeNull();
+  /* the map sits between Next visit and the site */
+  expect(screen.getByAltText("Map of 8/36 Abbott Road").nextElementSibling).toBe(screen.getByRole("region", { name: "Site" }));
 });
 
-it("has three cells without money", () => {
+/* calls 21 and the mock: the address at 16 bold, the rest grey, Directions beside its label */
+it("puts the address's first line in bold, the rest under it, and Directions to it in a new tab", () => {
   render(<JobFacts {...base} />);
-  expect(screen.getByRole("group", { name: "The job's facts" })).toHaveClass("jov-facts--3");
-  expect(cells()).toHaveLength(3);
-  expect(screen.queryByRole("region", { name: "Money" })).toBeNull();
+  expect(cell("Site").getByText("8/36 Abbott Road").tagName).toBe("B");
+  expect(cell("Site").getByText("Seven Hills NSW 2147")).toBeInTheDocument();
+  const go = cell("Site").getByRole("link", { name: "Directions" });
+  expect(go).toHaveAttribute("href", directionsHref("8/36 Abbott Road\nSeven Hills NSW 2147"));
+  expect(go).toHaveAttribute("target", "_blank");
+  expect(directionsHref("8/36 Abbott Road\nSeven Hills NSW 2147")).toBe("https://www.google.com/maps/dir/?api=1&destination=8%2F36%20Abbott%20Road%2C%20Seven%20Hills%20NSW%202147");
+});
+
+/* important text never fades: an email is shown whole, and not underlined */
+it("shows a contact's email whole", () => {
+  render(<JobFacts {...base} detail={detail({ contacts: [{ name: "Sharon", type: "JOB", phone: null, altPhone: null, email: "sharoninclovelly@gmail.com" }] } as never)} />);
+  const mail = cell("Contact").getByText("sharoninclovelly@gmail.com");
+  expect(mail).toHaveAttribute("href", "mailto:sharoninclovelly@gmail.com");
+  expect(mail).toHaveClass("jov-mail");
 });
 
 it("says the job's address in Site, not its number (the header's), and falls back to the geo line", () => {
   const { unmount } = render(<JobFacts {...base} />);
   expect(cell("Site").queryByText(/Job 3385/)).toBeNull();
-  expect(cell("Site").getByText(/8\/36 Abbott Road/)).toHaveTextContent("Seven Hills NSW 2147");
+  expect(cell("Site").getByText(/8\/36 Abbott Road/).closest("p")).toHaveTextContent("Seven Hills NSW 2147");
   unmount();
   render(<JobFacts {...base} detail={detail({ address: null, geoLine: "Rose Bay NSW 2029" })} />);
   expect(cell("Site").getByText("Rose Bay NSW 2029")).toBeInTheDocument();
@@ -80,14 +94,11 @@ it("offers Book a visit, blue, only once it knows nothing is booked and the read
   unmount();
 });
 
-it("opens Visits from Next visit and Billing from Money", async () => {
+it("opens Visits from Next visit", async () => {
   const onVisits = jest.fn();
-  const onMoney = jest.fn();
-  render(<JobFacts {...base} onVisits={onVisits} money={<b>$1</b>} onMoney={onMoney} />);
+  render(<JobFacts {...base} onVisits={onVisits} />);
   await userEvent.click(screen.getByRole("button", { name: "Next visit" }));
-  await userEvent.click(screen.getByRole("button", { name: "Money" }));
   expect(onVisits).toHaveBeenCalled();
-  expect(onMoney).toHaveBeenCalled();
 });
 
 /* the walk of 25 October 2026: it read 0403183628 */

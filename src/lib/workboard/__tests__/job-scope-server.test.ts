@@ -86,10 +86,30 @@ it("costs no read while the stored scope is as new as the story", async () => {
 });
 
 it("never writes for a job that's finished or lost, and keeps what it had", async () => {
-  readJobStoryForSummary.mockResolvedValue(story({ status: "Completed" }));
+  readJobStoryForSummary.mockResolvedValue(story({ status: "Completed", completedOn: "2026-11-11 22:31:33", quoteSentOn: null, visitBooked: false }));
   const { create, client: c } = client();
   expect(await refreshJobScope("org", "j-1", c)).toEqual({ ok: true, scope: null, wrote: false });
   expect(create).not.toHaveBeenCalled();
+});
+
+/* Isaac, 14 November 2026, call 23: "Yes" */
+it("reads a finished job again while a visit is booked on it, or a quote went out since it was finished", async () => {
+  readJobStoryForSummary.mockResolvedValue(story({ status: "Completed", completedOn: "2026-11-11 22:31:33", quoteSentOn: null, visitBooked: true }));
+  const first = client();
+  expect(await refreshJobScope("org", "j-1", first.client)).toMatchObject({ ok: true, wrote: true });
+  expect(first.create).toHaveBeenCalledTimes(1);
+  readJobStoryForSummary.mockResolvedValue(story({ status: "Completed", completedOn: "2026-11-11 22:31:33", quoteSentOn: "2026-11-12 09:10:00", visitBooked: false }));
+  const second = client();
+  await refreshJobScope("org", "j-1", second.client);
+  expect(second.create).toHaveBeenCalledTimes(1);
+});
+
+it("gives a brief written before it had a description the one a read hands back unchanged", async () => {
+  maybeSingle.mockResolvedValue({ data: row() });
+  const create = jest.fn(async () => ({ stop_reason: "end_turn", content: [{ type: "text", text: JSON.stringify({ ...BRIEF, description: "Four systems." }) }] }));
+  const res = await refreshJobScope("org", "j-1", { messages: { create } } as unknown as Anthropic);
+  expect(res).toMatchObject({ ok: true, wrote: false, scope: { description: "Four systems.", lede: "Four systems." } });
+  expect(update).toHaveBeenCalledWith(expect.objectContaining({ brief: expect.objectContaining({ description: "Four systems." }), story_stamp: STAMP }));
 });
 
 it("says so when Tiff can't be reached, and stores nothing", async () => {

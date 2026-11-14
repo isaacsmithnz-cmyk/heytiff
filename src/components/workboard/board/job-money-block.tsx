@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Button } from "@/components/parts/button";
 import { Row, RowList } from "@/components/parts/row";
 import { Dot, StateWord } from "@/components/parts/state";
@@ -196,6 +197,7 @@ export function JobMoneyBlock({
   focusRemoteId = null,
   onOpenClaim,
   deposit = null,
+  tracker = null,
 }: {
   view: BillingView | null;
   /** The record read was refused or failed: said, never a guessed figure. */
@@ -208,6 +210,9 @@ export function JobMoneyBlock({
       that as an option so it can get ticked off"). Absent where there is
       nothing to ask: a deposit invoice exists, or the work has started. */
   deposit?: { noDeposit: boolean; busy: boolean; error: string | null; onSet: (on: boolean) => void } | null;
+  /** Under the payments: the Job tracker (Isaac, 13 November 2026: off the
+      Overview, onto Billing). */
+  tracker?: ReactNode;
 }) {
   if (unavailable || !view) {
     return (
@@ -306,6 +311,7 @@ export function JobMoneyBlock({
           )}
         </section>
       )}
+      {tracker}
     </div>
   );
 }

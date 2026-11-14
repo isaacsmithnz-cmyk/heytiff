@@ -6,6 +6,7 @@ import type { JobScopeRead } from "@/lib/jobs/job-scope";
    Isaac, 28 October 2026), and its latest updates. */
 
 const scope = (over: Partial<JobScopeRead> = {}): JobScopeRead => ({
+  description: "Four systems for the Carney Residence.",
   lede: "Four systems for the Carney Residence, from Anna Vaughan Architects' tender set (30 Sep).",
   systems: [
     { area: "Ground floor", kind: "ducted, under the floor", text: "Living/Dining, Kids Play, Guest Bed. Fan coil under the living room.", from: ["A200", "A202"] },
@@ -189,8 +190,29 @@ describe("two scopes: what was supplied and what's quoted (11 November 2026)", (
     expect(rows[rows.length - 1]).toHaveTextContent("Fine printHeld to the supplied fine print");
   });
 
+  it("switches on the Scope tab's brief, side by side in its column, the rail left out", () => {
+    render(<JobScope scope={both()} part="brief" />);
+    fireEvent.click(screen.getByRole("radio", { name: "Side by side" }));
+    expect(screen.getByRole("region", { name: "Scope" }).querySelectorAll(".jsc-siderow:not(.jsc-sidetop)").length).toBeGreaterThan(1);
+    expect(screen.queryByRole("region", { name: "Latest updates" })).toBeNull();
+  });
+
   it("offers no side by side where there's no room for it, as in the Studio's column", () => {
     render(<JobScope scope={both()} sideBySide={false} />);
     expect(screen.getAllByRole("radio").map((r) => r.textContent)).toEqual(["Quoted", "Supplied"]);
   });
+});
+
+/* ON THE SCOPE TAB (mock A, 14 November 2026): the brief on the left, from
+   its second sentence, and Since the quote and Latest updates on the right */
+it("draws the brief alone from its second sentence, and the rail alone", () => {
+  const { unmount } = render(<JobScope scope={scope({ lede: "Four systems for the Carney Residence. From the tender set (30 Sep)." })} part="brief" />);
+  const s = screen.getByRole("region", { name: "Scope" });
+  expect(s).toHaveTextContent("From the tender set (30 Sep).");
+  expect(s).not.toHaveTextContent("Four systems for the Carney Residence.");
+  expect(screen.queryByRole("region", { name: "Latest updates" })).toBeNull();
+  unmount();
+  render(<JobScope scope={scope()} part="rail" />);
+  expect(screen.queryByRole("region", { name: "Scope" })).toBeNull();
+  expect(screen.getByRole("region", { name: "Latest updates" })).toBeInTheDocument();
 });

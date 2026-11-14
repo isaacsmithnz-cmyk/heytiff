@@ -64,7 +64,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 
 - **29. Views of a list.** Soft tabs under the title: words alone, the one you're on in a light fill. No outlines. No tab anywhere carries a number, and a screen's title carries no count beside it ("Team", not "Team 3 people"): a view with something waiting has its word in amber, red when something is wrong (Isaac, 20 October: "We need to rule it out everywhere").
 - **30. One of a few.** Day, Week, Month in a thin tray; the chosen one filled light.
-- **31. Section tabs.** Underlined, the one you're on standing on 2px of ink. No numbers on them, as rule 29: a tab with something to look at has its word in amber, red when something is wrong (Isaac, 20 October). A job has eight: Overview, Quote, Design, Visits, Materials, Photos, Documents, Billing (Materials was Checklist until 25 October 2026, and `?tab=checklist` still lands on it). Design is the job's designs, so nobody goes through the quote to see one; the quote's Design step lists the same (Isaac, 28 October 2026). A project has six: Overview, Trips, Scope, Money, Site, Documents (27 October 2026). A person has five: Overview, Hours & leave, Papers, Pay, Access.
+- **31. Section tabs.** Underlined, the one you're on standing on 2px of ink. No numbers on them, as rule 29: a tab with something to look at has its word in amber, red when something is wrong (Isaac, 20 October). A job has nine: Overview, Scope, Quote, Design, Visits, Materials, Photos, Documents, Billing (Materials was Checklist until 25 October 2026, and `?tab=checklist` still lands on it). Scope is the job's Scope, Since the quote and Latest updates, or its Summary where it has no Scope, fitted to the screen with each card scrolling inside itself (Isaac, 13 November 2026: "Give scope its own tab ... That way the activity section can get as much width as it needs"; mock A, 14 November). Under the job's name on every tab, its description: the Scope's first sentence, plain text at 16 with no mark, wrapping when it's long; a job with no Scope has no line (14 November 2026, calls 19 and 22). Design is the job's designs, so nobody goes through the quote to see one; the quote's Design step lists the same (Isaac, 28 October 2026). A project has six: Overview, Trips, Scope, Money, Site, Documents (27 October 2026). A person has five: Overview, Hours & leave, Papers, Pay, Access.
 - **32. Ticks and switches.** Blue when on. A switch saves itself.
 - **33. Fields.** 36 tall, a 6 corner, the label above. A wrong field gets a red edge and says why underneath.
 - **34. Menus to choose from.** A field with a chevron; opens a menu. A time opens a wheel: the hour, minutes in fives, am or pm. Nothing types a clock time.
@@ -381,6 +381,10 @@ the fourth on the customer's messages, below).
   pink with a file: Tiff's written brief, a paragraph per system with its
   sources, then Added, Not ours and To clarify, and Latest updates under it
   in purple with a clock (Isaac picked the written brief, 28 October 2026).
+  Since 14 November 2026 the Summary and the Scope stand on the job's Scope
+  tab, not the Overview, the Scope on the left from its second sentence and
+  Since the quote and Latest updates in a 380 column on the right, each a
+  card as the Overview's are.
   The block is solid with its icon in ink, as on Home and in the Library:
   no tint, no edge, and never blue, red or orange.
 - **The Overview's parts are white cards lifted off the white page, and
@@ -404,7 +408,19 @@ the fourth on the customer's messages, below).
     13 with a dot. A project's page, the letter editor and the SWMS sign-on
     keep the block.
   The facts' labels are 13/500 with an icon: Site a house and Contact a
-  person in grey, Next visit a calendar in pink, Money a dollar in purple.
+  person in grey, Next visit a calendar in pink.
+  Since 14 November 2026 (mocks C and D on
+  https://claude.ai/artifact/MkfHutEG1PanPDCW7fyV5a, and his calls 4, 5, 11,
+  19 and 21) the Overview is two columns fitted to the screen, each card
+  scrolling inside itself and never under 420 high, the job's head staying
+  put above them when a short window scrolls: on the left one facts card 320
+  wide, Next visit first, then Google's map of the site, the address with its
+  first line at 16 bold and Directions, then the contacts in full, no email
+  underlined or faded; on the right the Activity feed. The stages line stands
+  beside the job's name, off its card, on the Overview only, its last step
+  "Not paid" in orange while money is owing. Money and the Job tracker are
+  Billing's, and a tracked job's board is a line in Actions. A long client
+  name wraps beside its number and never fades.
 - **The Job tracker's bar turns red past the quote** (`.jtr-over`),
   despite rule 16, no chart is red (Isaac, 3 November 2026: over the
   allowance is "a red line and how much over"). Used is grey, overtime's
@@ -470,8 +486,8 @@ the fourth on the customer's messages, below).
   supplied says Differs in grey (rule 17, for your information). The
   supplied scope is what the plans, the specification and the builder's
   emails asked for, kept as read, with its fine print, and "Read on" its
-  day under the title. Side by side takes the card across the Overview,
-  above its columns, a row per area with the quoted on the left. A job with
+  day under the title. Side by side draws in the Scope tab's left column,
+  where the brief is, a row per area with the quoted on the left. A job with
   nothing supplied has one Scope and no tray, as before.
 
 #### On a quote

@@ -19,12 +19,13 @@ import {
   type JobRecordRead,
 } from "@/app/actions/workboard";
 import type { JobConversationRead } from "@/lib/jobs/job-conversation";
+import { readJobConversation } from "@/app/actions/job-conversation";
 import { paymentsTotalCents } from "@/lib/workboard/job-ledger";
 import { claimFor, isPartialInvoiceLine } from "@/lib/workboard/job-family";
 import { readBilling } from "@/lib/workboard/job-billing";
 import { buildJobStory, storyStamp } from "@/lib/workboard/job-story";
 import { JobClaimModal } from "./job-claim-modal";
-import { JobMoneyBlock, JobMoneyGlance } from "./job-money-block";
+import { JobMoneyBlock } from "./job-money-block";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
 import { addPlansToJob, chooseFloorsOnPlan, pageForScale, readPlansOnJob, setScaleOnPlan } from "@/app/actions/job-plans";
 import { kickPlanReads, PLAN_POLL_MS } from "@/lib/jobs/plans-client";
@@ -41,13 +42,13 @@ import {
 import { JobMaterialsFace } from "./job-materials-face";
 import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
-import { scopeStamp, scopeWanted, type JobScopeRead } from "@/lib/jobs/job-scope";
+import { descriptionOf, scopeStamp, scopeWanted, type JobScopeRead } from "@/lib/jobs/job-scope";
+import type { SummaryGroup } from "@/lib/jobs/job-summary-rows";
 import { JobDesignFace } from "./job-design-face";
 import { JobQuoteCard } from "./job-quote-card";
 import { JobVisits, VisitDialog, type ComingVisit } from "./job-visit-tasks";
 import { sm8QuoteOf } from "../quote/sm8-quote-of";
 import { JobProgressLine } from "./job-progress-line";
-import { fmtAud } from "@/lib/workboard/project-money";
 import { JobCustomerDialog } from "./job-customer-dialog";
 import { customerEditOffered } from "@/app/actions/job-customer";
 import { setNoDeposit } from "@/app/actions/job-deposit";
@@ -98,6 +99,9 @@ import { sm8JobUrl } from "@/lib/integrations/sm8-links";
 import { useHydrated } from "@/lib/use-hydrated";
 import { JobPageHead } from "@/components/jobs/job-page-head";
 import { JobOverview } from "@/components/jobs/job-overview";
+import { JobScopeTab } from "@/components/jobs/job-scope-tab";
+import { JobEquipment } from "@/components/jobs/job-equipment";
+import { JobTrackerOnBilling } from "@/components/jobs/job-tracker";
 import { jobHue } from "@/lib/workboard/job-hue";
 import { SECTION_FACES, SECTION_LABEL, sectionOfFace, sectionsFor, type JobSection } from "@/lib/jobs/job-sections";
 
@@ -161,6 +165,7 @@ const MAX_READ_ROUNDS = 70;
 export type JobSheetTab =
   | "summary"
   | "diary"
+  | "scope"
   | "quote"
   | "design"
   | "money"
@@ -175,6 +180,7 @@ type TabKey = JobSheetTab;
 const FACE_NAME: Record<TabKey, string> = {
   summary: "Summary",
   diary: "Timeline",
+  scope: "Scope",
   quote: "Quote",
   design: "Design",
   money: "Billing",
@@ -333,8 +339,6 @@ export function JobSheet({
   const [overviewFirst] = useState(() => page.section === "overview");
   const [pageRead] = useState(() => (first && first.mirror?.detail?.remoteId === first.cardId ? first : null));
   const [detail, setDetail] = useState<MirrorJobDetail | null>(() => pageRead?.mirror?.detail ?? null);
-  /* how many cards ServiceM8 bills the job across, read with the detail */
-  const [cards, setCards] = useState<number | null>(() => pageRead?.mirror?.cards ?? null);
   /* The job's files AS READ. What the faces show is `media`, below: this,
      less ServiceM8's copies of files we sent that our own rows show. */
   const [mediaRead, setMedia] = useState<JobMediaGroupsRead | null>(() => pageRead?.files ?? null);
@@ -462,7 +466,6 @@ export function JobSheet({
     void readMirrorJob(row.id).then((res) => {
       if (!live) return;
       setDetail(res.detail);
-      setCards(res.cards ?? null);
       setFocus(res.focusRemoteId);
       setLoading(false);
     });
@@ -941,7 +944,15 @@ export function JobSheet({
   const scopeAsked = useRef<string | null>(null);
   const scopeInFlight = useRef(false);
   const [scopeStuckAt, setScopeStuckAt] = useState<string | null>(null);
-  const scopeDue = !!detail && scopeWanted(detail.status, detail.date) && media !== null && picklist !== null;
+  const scopeDue =
+    !!detail &&
+    scopeWanted(detail.status, detail.date, {
+      quoteSentOn: detail.quoteSentOn ?? null,
+      completedOn: detail.completionDate,
+      visitBooked: (detail.booked ?? []).some((b) => !b.leftover) || (!detail.booked && !!detail.nextBooking),
+    }) &&
+    media !== null &&
+    picklist !== null;
   const scopeStampNow = scopeDue ? scopeStamp(story) : null;
   useEffect(() => {
     if (!cardId || !scopeStampNow || record === undefined || record === null || recordFailed) return;
@@ -1504,6 +1515,24 @@ export function JobSheet({
   if (!seen.has(page.section)) setSeen(new Set([...seen, page.section]));
   const faceSeen = (k: TabKey) => [...seen].some((s) => SECTION_FACES[s].includes(k));
 
+  /* THE SCOPE TAB'S SUMMARY, for a job with no Scope: the quote's groups,
+     read with the Overview's conversation on the server; read here only when
+     that read failed and the tab is opened */
+  const [quoteGroups, setQuoteGroups] = useState<SummaryGroup[] | null | undefined>(() =>
+    pageRead?.conversation !== undefined ? (pageRead.conversation?.summary ?? null) : undefined
+  );
+  const groupsWanted = seen.has("scope") && quoteGroups === undefined && !!cardId && (record !== undefined || recordFailed) && !record?.scope;
+  useEffect(() => {
+    if (!groupsWanted || !cardId) return;
+    let live = true;
+    void readJobConversation(cardId)
+      .then((r) => live && setQuoteGroups(r?.summary ?? null))
+      .catch(() => live && setQuoteGroups(null));
+    return () => {
+      live = false;
+    };
+  }, [groupsWanted, cardId]);
+
   const go = (key: string) => {
     if (key !== "diary") {
       setFlagFocus(false);
@@ -1650,6 +1679,7 @@ export function JobSheet({
                       ? { noDeposit, busy: depositBusy, error: depositError, onSet: (on: boolean) => void tickNoDeposit(on) }
                       : null;
                   })()}
+                  tracker={cardId ? <JobTrackerOnBilling jobId={cardId} /> : null}
                 />
               ) : (
                 <Loading what="Reading the figures" />
@@ -1714,6 +1744,10 @@ export function JobSheet({
     <>
           {panel(
             "checklist",
+            <>
+            {/* what's ordered for the job, beside its materials (Isaac, 14
+                November 2026, call 2: Equipment goes with Materials) */}
+            {cardId ? <JobEquipment jobId={cardId} /> : null}
             <JobMaterialsFace
               loading={loading}
               sm8={detail?.checklist ?? []}
@@ -1732,6 +1766,7 @@ export function JobSheet({
                 ) : null
               }
             />
+            </>
           )}
     </>
   );
@@ -2238,22 +2273,6 @@ export function JobSheet({
             />
     ) : null;
 
-  /* MONEY BEFORE THE RECORD: the row's value, only where it is certainly
-     the figure the record will show, since a figure must never be replaced
-     by a different one (Isaac, 25 October 2026). That is a job on one card
-     (ServiceM8 bills no clone of it), worth something, with nothing paid:
-     the record's figure is then its own total (readMoney: the family of one
-     sums its total; the balance stands in only once something is paid).
-     Anything else says "Reading the figures" until the record lands. */
-  const early =
-    cards === 1 &&
-    row.money?.valueCents != null &&
-    row.money.valueCents > 0 &&
-    row.money.paidCents === 0 &&
-    detail?.money?.valueCents === row.money.valueCents
-      ? row.money.valueCents
-      : null;
-
   /* THE JOB'S PAGE (v2, step 5): the head, then the section's faces. */
   const status = (cardStatus ?? "").trim();
   /* no numbers on the sections (rule 31, Isaac, 20 October) */
@@ -2265,6 +2284,11 @@ export function JobSheet({
   const actionItems: MenuItem[] = [
     ...(offerWorkOrder && wo === null ? [{ key: "work-order", label: "Make it a work order" }] : []),
     ...page.actions,
+    /* a tracked job's board, a line here (Isaac, 14 November 2026, call 5):
+       it stood under the Overview's strip */
+    ...(row.tracked
+      ? [{ key: "board", label: row.tracked.kind === "visit" ? "Open it on the maintenance board" : "Open it on the projects board" }]
+      : []),
     ...(manage
       ? [
           { key: "project", label: "Create a project from this job", disabled: busy },
@@ -2274,7 +2298,9 @@ export function JobSheet({
   ];
   const actionPick = (key: string) => {
     if (key === "work-order") setWo("ask");
-    else if (key === "project") {
+    else if (key === "board") {
+      if (row.tracked) onOpenTracked(row.tracked);
+    } else if (key === "project") {
       setName(row.clientName ?? "");
       setNaming(true);
     } else if (key === "agreement") onCreateAgreement(row, detail);
@@ -2285,7 +2311,20 @@ export function JobSheet({
       <div className="wb2-sheet jc jp-sheet">
         <JobPageHead
           name={jobPlateName(detail, row)}
+          description={record?.scope ? descriptionOf(record.scope) : null}
           number={cardNumber}
+          line={
+            page.section === "overview" ? (
+              <JobProgressLine
+                /* no stage is the job's until its detail is read: the line
+                   said Quoted while it read, then Deposit paid (25 October
+                   2026) */
+                steps={detail ? steps : steps.map((s) => ({ ...s, state: "next" as const, fact: "" }))}
+                open={step}
+                onOpen={openStep}
+              />
+            ) : null
+          }
           hue={jobHue(categoryColour, status)}
           sm8Href={sm8Href}
           add={{ items: addItems, onPick: addPick, disabled: !cardId, onReach: askQuote }}
@@ -2310,14 +2349,13 @@ export function JobSheet({
         {here && <p className="wb2-here">{here}</p>}
         <div className="wb2-jcbody jp-body" role="tabpanel" aria-labelledby={`jp-tab-${page.section}`}>
           {err && <div className="wb2-sherr">{err}</div>}
-          {/* OVERVIEW: the stages line (6-revisions: it lives on Overview
-              only), the strip of facts under it, then the Summary and To
-              do beside the Activity feed (Isaac's refined Overview A, 25
-              October 2026). What's open on the job is the Overview's, not
-              every tab's (Isaac, 20 October), and it is To do's: an ask in
-              a note is a thing to do (the mock's "To do is the job's open
-              asks") */}
-          <div className="jp-over" hidden={page.section !== "overview"}>
+          {/* OVERVIEW: the facts card and To do beside the Activity feed,
+              fitted to the screen (mocks C and D, 14 November 2026); the
+              stages line stands beside the name in the head. What's open on
+              the job is the Overview's, not every tab's (Isaac, 20 October),
+              and it is To do's: an ask in a note is a thing to do (the
+              mock's "To do is the job's open asks") */}
+          <div className="jp-over jp-fit" hidden={page.section !== "overview"}>
             {seen.has("overview") && (
             <JobOverview
               cardId={cardId}
@@ -2328,47 +2366,10 @@ export function JobSheet({
               loading={loading && !detail}
               moneyVisible={moneyVisible}
               detail={detail}
-              scope={record?.scope ?? null}
-              scopeReading={scopeReading}
-              onUndoScope={undoScope}
-              onLeaveScope={leaveScope}
-              scopeUpdateHref={cardId ? quoteHref(cardId, { update: true }) : undefined}
-              fallbackWhat={row.title}
-              head={
-                <JobProgressLine
-                  /* no stage is the job's until its detail is read: the line
-                     said Quoted while it read, then Deposit paid (25 October
-                     2026) */
-                  steps={detail ? steps : steps.map((s) => ({ ...s, state: "next" as const, fact: "" }))}
-                  open={step}
-                  onOpen={openStep}
-                />
-              }
+              hue={jobHue(categoryColour, status)}
               doors={{
                 onVisits: () => go("visits"),
                 onBook: bookings?.canBook ? () => addPick("visit") : undefined,
-                money: moneyVisible ? (
-                  record !== undefined || recordFailed ? (
-                    <JobMoneyGlance
-                      family={family}
-                      money={money}
-                      ledgerPaidCents={record?.ledger ? paymentsTotalCents(record.ledger.payments) : 0}
-                      statusLabel={row.statusLabel}
-                      unavailable={recordFailed}
-                    />
-                  ) : early !== null ? (
-                    /* the job's value at once, from the row the page already
-                       has (the Jobs list's); only the paid word waits (the
-                       walk of 25 October 2026: Money waited 20 seconds) */
-                    <>
-                      <b className="jov-fig">{fmtAud(early)}</b>
-                      <p className="jov-cap">Reading the payments</p>
-                    </>
-                  ) : (
-                    <p className="jov-cap">Reading the figures</p>
-                  )
-                ) : undefined,
-                onMoney: moneyVisible ? () => go("money") : undefined,
                 onAddTask: manage && detail ? () => addPick("task") : undefined,
                 onEditContact: customerEdit && cardId ? () => setEditingCustomer(true) : undefined,
                 open: attentionStripOf(true),
@@ -2423,18 +2424,25 @@ export function JobSheet({
                 jobNumber: cardNumber,
               }}
               onToast={onToast}
-              under={
-                /* a tracked job wears its board, as the card's chip did: under
-                   the strip, where the customer column had it */
-                row.tracked ? (
-                  <div className="jov-under">
-                    <Button kind="quiet" size={32} onClick={() => onOpenTracked(row.tracked!)}>
-                      {row.tracked.kind === "visit" ? "Open it on the maintenance board" : "Open it on the projects board"}
-                    </Button>
-                  </div>
-                ) : null
-              }
             />
+            )}
+          </div>
+          {/* SCOPE: the job's Scope, Since the quote and Latest updates, or
+              its Summary where it has none (mock A, 14 November 2026) */}
+          <div className="jp-scope jp-fit" hidden={page.section !== "scope"}>
+            {seen.has("scope") && (
+              <JobScopeTab
+                scope={record?.scope ?? null}
+                reading={scopeReading}
+                onUndo={undoScope}
+                onLeave={leaveScope}
+                updateHref={cardId ? quoteHref(cardId, { update: true }) : undefined}
+                summary={{
+                  fromQuote: quoteGroups ?? null,
+                  description: (detail?.description ?? row.title ?? "").trim(),
+                  read: quoteGroups !== undefined && (record !== undefined || recordFailed),
+                }}
+              />
             )}
           </div>
           {faceMoney}

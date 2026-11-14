@@ -5,7 +5,7 @@ import { Button } from "@/components/parts/button";
 import { StateWord } from "@/components/parts/state";
 import { Tray } from "@/components/parts/tabs";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
-import { pastQuote, quotedLine, sinceRows, versionFrom, type JobScopeRead, type ScopeSystem } from "@/lib/jobs/job-scope";
+import { ledeAfterDescription, pastQuote, quotedLine, sinceRows, versionFrom, type JobScopeRead, type ScopeSystem } from "@/lib/jobs/job-scope";
 import type { SuppliedScope } from "@/lib/jobs/supplied-scope";
 import { JobSection } from "./job-section";
 
@@ -35,6 +35,13 @@ import { JobSection } from "./job-section";
    Tiff keeps it (lib/workboard/job-scope-server.ts): written from
    everything on the job, rewritten when something new lands.
 
+   ON THE JOB'S SCOPE TAB (Isaac, 14 November 2026, mock A on
+   https://claude.ai/artifact/6JjEtQm7aukwxDsHQfKY5e) it's drawn in two
+   parts: the brief on the left (`part="brief"`), starting from the lede's
+   second sentence as the first is under the job's name ("drop the repeat"),
+   and Since the quote then Latest updates on the right (`part="rail"`). The
+   Studio's column draws it whole.
+
    TWO SCOPES (Isaac, 11 November 2026, on the builder's package mock
    https://claude.ai/artifact/6FP52g4ropVpfAqqzNLk2c: "supplied scope and
    quoted scope ... a toggle switcher ... side by side for comparisons").
@@ -43,8 +50,8 @@ import { JobSection } from "./job-section";
    side. Quoted is the brief, each system that departs from what was
    supplied marked Differs in grey; Supplied is what they asked for, kept as
    read, with its fine print; Side by side lays the two out a row per area,
-   across the page (the Overview moves the card above its columns). The
-   Studio's column, 400 wide, has Quoted and Supplied only. */
+   across the brief's column on the Scope tab. The Studio's column, 400
+   wide, has Quoted and Supplied only. */
 
 export type ScopeView = "quoted" | "supplied" | "side";
 const VIEWS: readonly { value: ScopeView; label: string }[] = [
@@ -70,8 +77,9 @@ export function JobScope({
   onView?: (view: ScopeView) => void;
   /** Side by side is offered (not in the Studio's 400-wide column). */
   sideBySide?: boolean;
-  /** "scope" is the card alone, "rest" what follows it (Since the quote, Latest updates). */
-  part?: "all" | "scope" | "rest";
+  /** The whole of it (the Studio's column), the brief alone from its second
+      sentence, or Since the quote and Latest updates (the Scope tab). */
+  part?: "all" | "brief" | "rail";
   /** Tiff is reading something new on the job. */
   reading?: boolean;
   onUndo?: () => Promise<void>;
@@ -108,6 +116,7 @@ export function JobScope({
     setUndoing(true);
     void onUndo().finally(() => setUndoing(false));
   };
+  const lede = part === "brief" ? ledeAfterDescription(scope) : scope.lede;
   const suppliedLine = scope.suppliedAt ? `Read on ${fmtAuWeekdayDayMonth(scope.suppliedAt)}` : null;
   const card =
     supplied && view === "supplied" ? (
@@ -121,7 +130,7 @@ export function JobScope({
     ) : (
       <JobSection name={quotedName} line={scope.quoted ? quotedLine(scope.quoted) : null} icon="file" hue="pink" className="jov-summary" action={tray}>
         <div className="jsc">
-          {scope.lede && <p className="jsc-lede">{scope.lede}</p>}
+          {lede && <p className="jsc-lede">{lede}</p>}
           {scope.systems.map((s, i) => (
             <div className="jsc-part" key={`${s.area}-${i}`}>
               <h3 className={supplied && s.differs ? "jsc-h jsc-hrow" : "jsc-h"}>
@@ -172,8 +181,8 @@ export function JobScope({
     );
   return (
     <>
-      {part !== "rest" && card}
-      {part !== "scope" && since.length > 0 && (
+      {part !== "rail" && card}
+      {part !== "brief" && since.length > 0 && (
         <JobSection
           name="Since the quote"
           icon="plus"
@@ -209,7 +218,7 @@ export function JobScope({
           </ul>
         </JobSection>
       )}
-      {part !== "scope" && (scope.updates.length > 0 || reading) && (
+      {part !== "brief" && (scope.updates.length > 0 || reading) && (
         <JobSection name="Latest updates" icon="clock" hue="purple">
           <ul className="jsc-ups">
             {reading && (

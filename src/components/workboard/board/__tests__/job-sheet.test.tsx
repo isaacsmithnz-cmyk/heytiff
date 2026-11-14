@@ -558,7 +558,9 @@ describe("the head (Isaac's mock, 25 October 2026)", () => {
     const h1 = screen.getByRole("heading", { level: 1 });
     expect(h1).toHaveTextContent(/^Laing \+ Simmons Double Bay$/);
     expect(document.querySelector(".jp-num")).toHaveTextContent(/^3137$/);
-    expect(document.querySelector(".jp-line, .jp-facts, .jp-stage")).toBeNull();
+    expect(document.querySelector(".jp-line, .jp-facts")).toBeNull();
+    /* on the Overview the stages line stands beside the name (call 19, mock D) */
+    expect(document.querySelector(".jp-top > .jp-stage")).not.toBeNull();
     expect(document.querySelector(".jp-head")).not.toHaveTextContent(/Work order|Job 3137|Rose Bay/);
   });
 
@@ -713,6 +715,7 @@ describe("the summary refresh", () => {
      note, on a job made since the first of October */
   const OCT = "2026-10-08 00:00:00";
   const stored = (over: Partial<JobScopeRead> = {}): JobScopeRead => ({
+    description: "",
     lede: "Four systems.",
     systems: [],
     added: [],
@@ -781,7 +784,7 @@ describe("the summary refresh", () => {
       })
     ) as string;
     allLanded({ scope: stored() }, OCT);
-    render(<Job row={row()} {...props} />);
+    render(<Job row={row()} {...props} section="scope" />);
     expect(await screen.findByText("Reading the new note")).toBeInTheDocument();
     expect(screen.getByText("Four systems.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
@@ -2030,41 +2033,17 @@ describe("the job's once-per-job acts", () => {
     expect(createProjectFromJob).not.toHaveBeenCalled();
   });
 
-  /* the walk of 25 October 2026: Money waited 20 seconds for the record;
-     and a figure must never be replaced by a different one */
-  const jobMoney = { valueCents: 1383376, invoiced: true, invoicedOn: "2026-10-20", quoteSent: true, quoteSentOn: null, paid: false, paidOn: null };
-  const rowMoney = (paidCents: number) =>
-    ({ valueCents: 1383376, paidCents, collection: paidCents > 0 ? "part" : "none", quoteSent: true, quoteSentOn: null }) as never;
-  const moneyCell = async (cards: number | null, paidCents: number) => {
-    readMirrorJob.mockResolvedValueOnce({ ...card(detail({ money: jobMoney } as never)), cards } as never);
-    readJobRecord.mockReturnValueOnce(new Promise(() => undefined));
-    const view = render(<Job row={row({ money: rowMoney(paidCents) })} {...props} moneyVisible />);
+  /* Isaac, 13 November 2026: Money and the Job tracker off the Overview, to Billing */
+  it("keeps the money off the Overview: no Money in the facts, and none of the tracker", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<Job row={row()} {...props} moneyVisible />);
     await detailLanded();
-    return { cell: within(screen.getByRole("region", { name: "Money" })), unmount: view.unmount };
-  };
-
-  it("shows a one-card job's value in Money at once, nothing paid, and only the paid word waits", async () => {
-    const { cell } = await moneyCell(1, 0);
-    /* "at once" is before the record (it never lands here), not on the first
-       tick: a slow runner can take a tick more to land the card's read */
-    expect(await cell.findByText("$13,833.76")).toHaveClass("jov-fig");
-    expect(cell.getByText("Reading the payments")).toHaveClass("jov-cap");
+    expect(screen.queryByRole("region", { name: "Money" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Job tracker" })).toBeNull();
   });
 
-  it("waits for the record where the figure may change: a job billed across cards, or one something is paid on", async () => {
-    let m = await moneyCell(3, 0);
-    expect(m.cell.getByText("Reading the figures")).toBeInTheDocument();
-    expect(m.cell.queryByText("$13,833.76")).toBeNull();
-    m.unmount();
-    m = await moneyCell(1, 450000);
-    expect(m.cell.getByText("Reading the figures")).toBeInTheDocument();
-    expect(m.cell.queryByText("$13,833.76")).toBeNull();
-    m.unmount();
-    m = await moneyCell(null, 0);
-    expect(m.cell.getByText("Reading the figures")).toBeInTheDocument();
-  });
-
-  it("names the board a tracked job is on, under the strip of facts, and that is the door", async () => {
+  /* Isaac, 14 November 2026, call 5: the board link is a line in Actions */
+  it("names the board a tracked job is on as a line in Actions, and that is the door", async () => {
     const onOpenTracked = jest.fn();
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(
@@ -2075,10 +2054,9 @@ describe("the job's once-per-job acts", () => {
       />
     );
     await detailLanded();
-
-    const under = document.querySelector(".jov-under") as HTMLElement;
-    expect(under.previousElementSibling).toHaveClass("jov-facts");
-    await userEvent.click(within(under).getByRole("button", { name: "Open it on the maintenance board" }));
+    expect(document.querySelector(".jov-under")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Actions" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Open it on the maintenance board" }));
     expect(onOpenTracked).toHaveBeenCalledWith({ kind: "visit", id: "v-1", label: "#1021" });
   });
 });
@@ -3808,7 +3786,7 @@ describe("a card the page read for arrives full", () => {
 
   it("draws the facts with no Reading, and reads none of it again", async () => {
     render(<Job row={row()} {...props} first={first()} />);
-    const facts = document.querySelector(".jov-facts") as HTMLElement;
+    const facts = document.querySelector(".jfc") as HTMLElement;
     expect(within(facts).queryByText(/^Reading the/)).toBeNull();
     await act(async () => {});
     expect(readMirrorJob).not.toHaveBeenCalled();

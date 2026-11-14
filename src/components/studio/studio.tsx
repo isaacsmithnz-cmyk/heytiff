@@ -83,7 +83,7 @@ import { airRows, airTags } from "@/lib/studio/air-view";
 import { SetupPanel } from "./setup-panel";
 import { pastPrint, sheetUnitOf } from "@/lib/studio/figure-bounds";
 import { RoomPanel, RoomsPanel } from "./rooms-panel";
-import { foundOn, joinRooms, keepFound } from "@/lib/studio/room-edit";
+import { foundOn, joinRooms, keepFound, readyFromPlans } from "@/lib/studio/room-edit";
 import type { Suggestion } from "@/lib/studio/rooms-from-reading";
 import { RISER_PAINT } from "@/lib/studio/duct-size";
 import { StudioFlowContext, useStudioFlow, type StudioFlow } from "./flow";
@@ -1007,7 +1007,8 @@ export function Studio({
                  (lib/jobs/plans.ts): nothing is read again */
               const made = designFromPlans(plans);
               const d: DesignDocument = { ...newDesignFor(name, "plan", job), floors: made.floors, planImport: made.planImport };
-              const withReading = made.reading ? { ...d, reading: withChecks(made.reading, d) } : d;
+              /* and it opens with its scale and its rooms on: the loads are there to look at */
+              const withReading = made.reading ? readyFromPlans({ ...d, reading: withChecks(made.reading, d) }) : d;
               return throughSwap(async () => {
                 await saveDoc(withReading);
                 return withReading;
